@@ -14,11 +14,13 @@ fn main() -> Result<()> {
         }
     }
     let grep = Semgrep::new(input);
-    if let Some(e) = grep.root().find(&*pattern) {
-        println!("pattern found!");
-        dbg!(e.text());
-    } else {
+    let matches = grep.root().find_all(&*pattern);
+    if matches.is_empty() {
         println!("pattern not found!");
+        return Ok(());
+    }
+    for e in matches {
+        dbg!(e.text());
     }
     Ok(())
 }

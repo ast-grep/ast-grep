@@ -1,5 +1,5 @@
 use crate::{Root, Node, meta_var::MetaVarEnv};
-use crate::matcher::{match_node_recursive, match_single_kind};
+use crate::matcher::{match_node_recursive, match_single_kind, match_nodes_iter, match_kind_iter};
 
 pub enum PatternKind {
     NodePattern(Root),
@@ -28,6 +28,18 @@ impl Pattern {
                 match_node(root, node)
             }
             PatternKind::KindPattern(k) => match_kind(k, node),
+        }
+    }
+
+    pub fn match_all_nodes<'tree>(&self, node: Node<'tree>) -> Vec<Node<'tree>> {
+        match &self.pattern_kind {
+            PatternKind::NodePattern(ref n) => {
+                let root = n.root();
+                match_node_all(root, node)
+            }
+            PatternKind::KindPattern(k) => {
+                match_kind_iter(k, node).collect()
+            }
         }
     }
 
@@ -76,6 +88,32 @@ fn match_node<'goal, 'tree>(
     };
     let node = match_node_recursive(&goal, candidate, &mut env)?;
     Some((node, env))
+}
+
+fn match_node_all<'goal, 'tree>(
+    goal: Node<'goal>,
+    candidate: Node<'tree>,
+) -> Vec<Node<'tree>> {
+    let mut env = MetaVarEnv::new();
+    let source = &goal.source;
+    let cand = &candidate.source;
+    let goal = goal.inner;
+    if goal.child_count() != 1 {
+        todo!("multi-children pattern is not supported yet.")
+    }
+    let goal = Node {
+        inner: goal.child(0).unwrap(),
+        source,
+    };
+    let candidate = candidate.inner;
+    if candidate.next_sibling().is_some() {
+        todo!("multi candidate roots are not supported yet.")
+    }
+    let candidate = Node {
+        inner: candidate,
+        source: cand,
+    };
+    match_nodes_iter(&goal, candidate, &mut env).collect()
 }
 
 #[cfg(test)]

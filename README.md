@@ -12,3 +12,8 @@
 3. pattern inside
 4. pattern-inside
 5. pattern-not-inside
+
+
+TODO:
+[ ] Add replace
+[ ] Add find_all

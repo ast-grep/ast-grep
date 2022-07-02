@@ -70,6 +70,12 @@ impl<'r> Node<'r> {
         let goal: Pattern = pat.into();
         goal.match_node(*self).map(|f| f.0)
     }
+
+    pub fn find_all<P: Into<Pattern>>(&self, pat: P) -> Vec<Node<'r>> {
+        let goal: Pattern = pat.into();
+        goal.match_all_nodes(*self)
+    }
+
     // should we provide parent?
     #[must_use]
     pub fn parent(&self) -> Option<Node<'r>> {

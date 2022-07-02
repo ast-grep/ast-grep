@@ -16,6 +16,21 @@ pub fn match_single_kind<'tree>(
         .find_map(|sub| match_single_kind(goal_kind, sub, env))
 }
 
+pub fn match_kind_iter<'goal, 'tree: 'goal>(
+    goal_kind: &'goal str,
+    candidate: Node<'tree>,
+) -> impl Iterator<Item=Node<'tree>> + 'goal {
+    let mut stack = vec![candidate];
+    std::iter::from_fn(move || loop {
+        let cand = stack.pop()?;
+        stack.extend(cand.children());
+        if cand.kind() == goal_kind {
+            return Some(cand);
+        }
+    })
+}
+
+
 fn match_leaf_meta_var<'goal, 'tree>(
     goal: &Node<'goal>,
     candidate: Node<'tree>,
@@ -154,6 +169,22 @@ pub fn match_node_recursive<'goal, 'tree>(
         candidate
             .children()
             .find_map(|sub_cand| match_node_recursive(goal, sub_cand, env))
+    })
+}
+
+pub fn match_nodes_iter<'goal, 'tree: 'goal>(
+    goal: &'goal Node<'goal>,
+    candidate: Node<'tree>,
+    env: &'goal mut MetaVarEnv<'tree>,
+) -> impl Iterator<Item=Node<'tree>> + 'goal {
+    let mut stack = vec![candidate];
+    std::iter::from_fn(move || loop {
+        let cand = stack.pop()?;
+        stack.extend(cand.children());
+        let n = match_node_non_recursive(goal, cand, env);
+        if n.is_some() {
+            return n;
+        }
     })
 }
 
