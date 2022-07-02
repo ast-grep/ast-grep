@@ -1,5 +1,5 @@
-use tree_sitter::{Parser, Language, InputEdit, Point};
 pub use tree_sitter::Tree;
+use tree_sitter::{InputEdit, Language, Parser, Point};
 
 extern "C" {
     fn tree_sitter_tsx() -> Language;
@@ -11,7 +11,6 @@ pub fn parse(source_code: &str, old_tree: Option<&Tree>) -> Tree {
     parser.set_language(language).unwrap();
     parser.parse(source_code, old_tree).unwrap()
 }
-
 
 // https://github.com/tree-sitter/tree-sitter/blob/e4e5ffe517ca2c668689b24cb17c51b8c6db0790/cli/src/parse.rs
 #[derive(Debug)]
@@ -80,11 +79,15 @@ mod test {
     fn test_edit() {
         let mut src = "a + b".to_string();
         let mut tree = parse(&src, None);
-        let edit = perform_edit(&mut tree, unsafe {src.as_mut_vec()}, &Edit {
-            position: 1,
-            deleted_length: 0,
-            inserted_text: " * b".into(),
-        });
+        let edit = perform_edit(
+            &mut tree,
+            unsafe { src.as_mut_vec() },
+            &Edit {
+                position: 1,
+                deleted_length: 0,
+                inserted_text: " * b".into(),
+            },
+        );
         tree.edit(&edit);
         let tree2 = parse(&src, Some(&tree));
         assert_eq!(tree.root_node().to_sexp(), "(program (expression_statement (binary_expression left: (identifier) right: (identifier))))");

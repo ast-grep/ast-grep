@@ -1,4 +1,4 @@
-use crate::meta_var::{MetaVarEnv, extract_meta_var, MetaVariable};
+use crate::meta_var::{extract_meta_var, MetaVarEnv, MetaVariable};
 use crate::Node;
 use std::collections::VecDeque;
 
@@ -20,7 +20,7 @@ pub fn match_single_kind<'tree>(
 pub fn match_kind_iter<'goal, 'tree: 'goal>(
     goal_kind: &'goal str,
     candidate: Node<'tree>,
-) -> impl Iterator<Item=Node<'tree>> + 'goal {
+) -> impl Iterator<Item = Node<'tree>> + 'goal {
     let mut stack = vec![candidate];
     std::iter::from_fn(move || loop {
         let cand = stack.pop()?;
@@ -30,7 +30,6 @@ pub fn match_kind_iter<'goal, 'tree: 'goal>(
         }
     })
 }
-
 
 fn match_leaf_meta_var<'goal, 'tree>(
     goal: &Node<'goal>,
@@ -178,7 +177,7 @@ pub fn match_node_recursive<'goal, 'tree>(
 pub fn match_nodes_iter<'goal, 'tree: 'goal>(
     goal: &'goal Node<'goal>,
     candidate: Node<'tree>,
-) -> impl Iterator<Item=Node<'tree>> + 'goal {
+) -> impl Iterator<Item = Node<'tree>> + 'goal {
     let mut stack = VecDeque::new();
     stack.push_back(candidate);
     std::iter::from_fn(move || loop {

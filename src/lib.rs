@@ -1,7 +1,6 @@
 use std::ops::{Deref, DerefMut};
-use ts_parser::{Edit, perform_edit};
+use ts_parser::{perform_edit, Edit};
 
-mod ts_parser;
 mod language;
 mod matcher;
 mod meta_var;
@@ -9,10 +8,11 @@ mod node;
 mod pattern;
 mod replacer;
 pub mod rule;
+mod ts_parser;
 
-pub use pattern::Pattern;
-pub use node::Node;
 pub use meta_var::MetaVarMatcher;
+pub use node::Node;
+pub use pattern::Pattern;
 
 pub struct Semgrep {
     root: Root,
@@ -44,6 +44,15 @@ impl Root {
         self.inner = ts_parser::parse(&self.source, Some(&self.inner));
         self
     }
+
+    pub fn replace(&mut self, pattern: &str, replacer: &str) -> bool {
+        if let Some(edit) = self.root().replace(pattern, replacer) {
+            self.edit(edit);
+            true
+        } else {
+            false
+        }
+    }
 }
 
 // creational API
@@ -72,14 +81,11 @@ impl DerefMut for Semgrep {
 
 #[cfg(test)]
 mod test {
-    /*
     use super::*;
     #[test]
     fn test_replace() {
-    let mut node = Semgrep::new("var a = 1;");
-    node.replace("var $_$ = $_$", "let $_$ = $_$");
-    let replaced = Semgrep::generate(&node);
-    assert_eq!(replaced, "let a = 1");
+        let mut semgrep = Semgrep::new("var a = 1;");
+        semgrep.replace("var $A = $B", "let $A = $B");
+        assert_eq!(semgrep.source, "let a = 1");
     }
-    */
 }

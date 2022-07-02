@@ -1,7 +1,7 @@
+use crate::matcher::does_node_match_exactly;
 use crate::pattern::Pattern;
 use crate::Node;
 use std::collections::HashMap;
-use crate::matcher::does_node_match_exactly;
 
 pub type MetaVariableID = String;
 
@@ -34,9 +34,7 @@ impl<'tree> MetaVarEnv<'tree> {
     pub fn get(&self, var: &MetaVariable) -> Option<MatchResult<'_, 'tree>> {
         match var {
             MetaVariable::Named(n) => self.single_matched.get(n).map(MatchResult::Single),
-            MetaVariable::NamedEllipsis(n) => {
-                self.multi_matched.get(n).map(MatchResult::Multi)
-            }
+            MetaVariable::NamedEllipsis(n) => self.multi_matched.get(n).map(MatchResult::Multi),
             _ => None,
         }
     }
@@ -149,7 +147,10 @@ mod test {
         use MetaVariable::*;
         assert_eq!(extract_meta_var("$$$"), Some(Ellipsis));
         assert_eq!(extract_meta_var("$ABC"), Some(Named("ABC".into())));
-        assert_eq!(extract_meta_var("$$$ABC"), Some(NamedEllipsis("ABC".into())));
+        assert_eq!(
+            extract_meta_var("$$$ABC"),
+            Some(NamedEllipsis("ABC".into()))
+        );
         assert_eq!(extract_meta_var("$_"), Some(Anonymous));
         assert_eq!(extract_meta_var("abc"), None);
         assert_eq!(extract_meta_var("$abc"), None);

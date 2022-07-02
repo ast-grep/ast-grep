@@ -1,6 +1,6 @@
 use super::Pattern;
-use crate::ts_parser::Edit;
 use crate::replacer::Replacer;
+use crate::ts_parser::Edit;
 
 // the lifetime r represents root
 #[derive(Clone, Copy)]
@@ -157,7 +157,6 @@ impl<'r> Node<'r> {
             deleted_length,
             inserted_text,
         })
-
     }
     pub fn replace_by(&mut self) {}
     pub fn after(&mut self) {}

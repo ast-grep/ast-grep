@@ -1,5 +1,5 @@
-use crate::{Root, Node, meta_var::MetaVarEnv};
-use crate::matcher::{match_node_recursive, match_single_kind, match_nodes_iter, match_kind_iter};
+use crate::matcher::{match_kind_iter, match_node_recursive, match_nodes_iter, match_single_kind};
+use crate::{meta_var::MetaVarEnv, Node, Root};
 
 pub enum PatternKind {
     NodePattern(Root),
@@ -37,9 +37,7 @@ impl Pattern {
                 let root = n.root();
                 match_node_all(root, node)
             }
-            PatternKind::KindPattern(k) => {
-                match_kind_iter(k, node).collect()
-            }
+            PatternKind::KindPattern(k) => match_kind_iter(k, node).collect(),
         }
     }
 
@@ -90,10 +88,7 @@ fn match_node<'goal, 'tree>(
     Some((node, env))
 }
 
-fn match_node_all<'goal, 'tree>(
-    goal: Node<'goal>,
-    candidate: Node<'tree>,
-) -> Vec<Node<'tree>> {
+fn match_node_all<'goal, 'tree>(goal: Node<'goal>, candidate: Node<'tree>) -> Vec<Node<'tree>> {
     let source = &goal.source;
     let cand = &candidate.source;
     let goal = goal.inner;
