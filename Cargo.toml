@@ -2,7 +2,7 @@
 name = "semgrep-rs"
 version = "0.1.0"
 authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
-edition = "2018"
+edition = "2021"
 description = "sem grep in Rs"
 keywords = ["ast", "pattern match", "codemod"]
 license = "MIT"

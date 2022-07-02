@@ -75,7 +75,9 @@ fn match_node_non_recursive<'goal, 'tree>(
         return None;
     }
     if is_leaf {
-        debug_assert!(extract_var_from_node(goal).is_none());
+        if extract_var_from_node(goal).is_some() {
+            return None;
+        }
         return if goal.text() == candidate.text() {
             Some(candidate)
         } else {
@@ -297,5 +299,15 @@ mod test {
         test_match("foo(a, b, $$$)", "foo(a, b, c)");
         // test_match("foo(a, b, c, $$$)", "foo(a, b, c)");
         test_non_match("foo(a, b, c, $$$)", "foo(b, c)");
+    }
+
+    #[test]
+    fn test_meta_var_multiple_occurrence() {
+        test_match("$A($$$)", "test(123)");
+        test_match("$A($B)", "test(123)");
+        test_non_match("$A($A)", "test(aaa)");
+        test_non_match("$A($A)", "test(123)");
+        test_non_match("$A($A, $A)", "test(123, 456)");
+        test_match("$A($A)", "test(test)");
     }
 }
