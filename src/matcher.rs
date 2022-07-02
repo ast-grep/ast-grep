@@ -1,5 +1,6 @@
 use crate::meta_var::{MetaVarEnv, extract_meta_var, MetaVariable};
 use crate::Node;
+use std::collections::VecDeque;
 
 pub fn match_single_kind<'tree>(
     goal_kind: &str,
@@ -177,13 +178,14 @@ pub fn match_node_recursive<'goal, 'tree>(
 pub fn match_nodes_iter<'goal, 'tree: 'goal>(
     goal: &'goal Node<'goal>,
     candidate: Node<'tree>,
-    env: &'goal mut MetaVarEnv<'tree>,
 ) -> impl Iterator<Item=Node<'tree>> + 'goal {
-    let mut stack = vec![candidate];
+    let mut stack = VecDeque::new();
+    stack.push_back(candidate);
     std::iter::from_fn(move || loop {
-        let cand = stack.pop()?;
+        let cand = stack.pop_front()?;
         stack.extend(cand.children());
-        let n = match_node_non_recursive(goal, cand, env);
+        let mut env = MetaVarEnv::new();
+        let n = match_node_non_recursive(goal, cand, &mut env);
         if n.is_some() {
             return n;
         }
@@ -309,5 +311,10 @@ mod test {
         test_non_match("$A($A)", "test(123)");
         test_non_match("$A($A, $A)", "test(123, 456)");
         test_match("$A($A)", "test(test)");
+    }
+
+    #[test]
+    fn test_return() {
+        // test_match("$A($B)", "return test(123)");
     }
 }

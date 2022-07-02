@@ -94,7 +94,6 @@ fn match_node_all<'goal, 'tree>(
     goal: Node<'goal>,
     candidate: Node<'tree>,
 ) -> Vec<Node<'tree>> {
-    let mut env = MetaVarEnv::new();
     let source = &goal.source;
     let cand = &candidate.source;
     let goal = goal.inner;
@@ -113,7 +112,7 @@ fn match_node_all<'goal, 'tree>(
         inner: candidate,
         source: cand,
     };
-    match_nodes_iter(&goal, candidate, &mut env).collect()
+    match_nodes_iter(&goal, candidate).collect()
 }
 
 #[cfg(test)]
