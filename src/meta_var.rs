@@ -31,12 +31,11 @@ impl<'tree> MetaVarEnv<'tree> {
         Some(self)
     }
 
-    pub fn get(&self, var: &MetaVariable) -> Option<MatchResult<'tree>> {
-        // TODO: optimize this copied/cloned behavior
+    pub fn get(&self, var: &MetaVariable) -> Option<MatchResult<'_, 'tree>> {
         match var {
-            MetaVariable::Named(n) => self.single_matched.get(n).copied().map(MatchResult::Single),
+            MetaVariable::Named(n) => self.single_matched.get(n).map(MatchResult::Single),
             MetaVariable::NamedEllipsis(n) => {
-                self.multi_matched.get(n).cloned().map(MatchResult::Multi)
+                self.multi_matched.get(n).map(MatchResult::Multi)
             }
             _ => None,
         }
@@ -72,13 +71,14 @@ impl<'tree> MetaVarEnv<'tree> {
     }
 }
 
-pub enum MatchResult<'tree> {
+pub enum MatchResult<'a, 'tree> {
     // $A for captured meta var
-    Single(Node<'tree>),
+    Single(&'a Node<'tree>),
     // $$$A for captured ellipsis
-    Multi(Vec<Node<'tree>>),
+    Multi(&'a Vec<Node<'tree>>),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum MetaVariable {
     // $A for captured meta var
     Named(MetaVariableID),
@@ -101,7 +101,7 @@ impl MetaVarMatcher {
     pub fn matches(&self, candidate: Node) -> bool {
         use MetaVarMatcher::*;
         match self {
-            Regex(s) => todo!(),
+            Regex(_s) => todo!(),
             Pattern(p) => p.match_node(candidate).is_some(),
         }
     }
@@ -139,4 +139,19 @@ pub fn extract_meta_var(s: &str) -> Option<MetaVariable> {
 
 fn is_valid_meta_var_char(c: char) -> bool {
     matches!(c, 'A'..='Z' | '_')
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_match_var() {
+        use MetaVariable::*;
+        assert_eq!(extract_meta_var("$$$"), Some(Ellipsis));
+        assert_eq!(extract_meta_var("$ABC"), Some(Named("ABC".into())));
+        assert_eq!(extract_meta_var("$$$ABC"), Some(NamedEllipsis("ABC".into())));
+        assert_eq!(extract_meta_var("$_"), Some(Anonymous));
+        assert_eq!(extract_meta_var("abc"), None);
+        assert_eq!(extract_meta_var("$abc"), None);
+    }
 }

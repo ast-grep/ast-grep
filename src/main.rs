@@ -8,7 +8,7 @@ fn main() -> Result<()> {
     let mut pattern = String::new();
     for arg in args().skip(1) {
         if arg.starts_with("-e") {
-            pattern = arg.split('=').skip(1).next().unwrap().to_string();
+            pattern = arg.split_once('=').expect("invalid command line argument").1.to_string();
         } else {
             input = read_to_string(arg)?;
         }
