@@ -1,4 +1,7 @@
 use super::Pattern;
+use crate::ts_parser::Edit;
+use crate::replacer::Replacer;
+
 // the lifetime r represents root
 #[derive(Clone, Copy)]
 pub struct Node<'r> {
@@ -142,15 +145,19 @@ impl<'r> Node<'r> {
 // r manipulation API
 impl<'r> Node<'r> {
     pub fn attr(&mut self) {}
-    pub fn replace(&mut self, pattern_str: &str, replacement_str: &str) -> &mut Self {
-        let _to_match = Pattern::new(pattern_str);
-        let _to_replace = Pattern::new(replacement_str);
-        todo!()
-        // if let Some(_node) = to_match.match_node(self) {
-        //     todo!("change node content with replaced")
-        // } else {
-        //     todo!()
-        // }
+    pub fn replace<R: Replacer>(&mut self, pattern_str: &str, replacer: R) -> Option<Edit> {
+        let to_match = Pattern::new(pattern_str);
+        let (node, env) = to_match.match_node(*self)?;
+        let inner = node.inner;
+        let position = inner.start_byte();
+        let deleted_length = inner.end_byte() - position;
+        let inserted_text = replacer.generate_replacement(&env);
+        Some(Edit {
+            position,
+            deleted_length,
+            inserted_text,
+        })
+
     }
     pub fn replace_by(&mut self) {}
     pub fn after(&mut self) {}

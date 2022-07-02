@@ -16,4 +16,4 @@
 
 TODO:
 [ ] Add replace
-[ ] Add find_all
+[x] Add find_all

@@ -199,12 +199,12 @@ mod test {
     use std::collections::HashMap;
 
     fn test_match(s1: &str, s2: &str) -> HashMap<String, String> {
-        let goal = parse(s1);
+        let goal = parse(s1, None);
         let goal = Node {
             inner: goal.root_node().child(0).unwrap(),
             source: s1,
         };
-        let cand = parse(s2);
+        let cand = parse(s2, None);
         let cand = Node {
             inner: cand.root_node(),
             source: s2,
@@ -221,12 +221,12 @@ mod test {
     }
 
     fn test_non_match(s1: &str, s2: &str) {
-        let goal = parse(s1);
+        let goal = parse(s1, None);
         let goal = Node {
             inner: goal.root_node().child(0).unwrap(),
             source: s1,
         };
-        let cand = parse(s2);
+        let cand = parse(s2, None);
         let cand = Node {
             inner: cand.root_node(),
             source: s2,

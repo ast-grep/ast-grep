@@ -1,5 +1,5 @@
 use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
+use ts_parser::{Edit, perform_edit};
 
 mod ts_parser;
 mod language;
@@ -7,6 +7,7 @@ mod matcher;
 mod meta_var;
 mod node;
 mod pattern;
+mod replacer;
 pub mod rule;
 
 pub use pattern::Pattern;
@@ -19,14 +20,14 @@ pub struct Semgrep {
 
 pub struct Root {
     inner: ts_parser::Tree,
-    source: Rc<String>,
+    source: String,
 }
 
 impl Root {
     fn new(src: &str) -> Self {
         Self {
-            inner: ts_parser::parse(src),
-            source: Rc::new(src.into()),
+            inner: ts_parser::parse(src, None),
+            source: src.into(),
         }
     }
     pub fn root(&self) -> Node {
@@ -34,6 +35,14 @@ impl Root {
             inner: self.inner.root_node(),
             source: &self.source,
         }
+    }
+
+    pub fn edit(&mut self, edit: Edit) -> &mut Self {
+        let input = unsafe { self.source.as_mut_vec() };
+        let input_edit = perform_edit(&mut self.inner, input, &edit);
+        self.inner.edit(&input_edit);
+        self.inner = ts_parser::parse(&self.source, Some(&self.inner));
+        self
     }
 }
 
