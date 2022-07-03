@@ -26,15 +26,6 @@ impl Pattern {
             pattern_kind: PatternKind::KindPattern(kind),
         }
     }
-
-    pub fn find_node_easy<'tree>(
-        &self,
-        candidate: Node<'tree>,
-    ) -> Option<(Node<'tree>, MetaVarEnv<'tree>)> {
-        let mut env = MetaVarEnv::new();
-        let node = self.find_node(candidate, &mut env)?;
-        Some((node, env))
-    }
 }
 
 impl Matcher for Pattern {
@@ -131,7 +122,8 @@ mod test {
         };
         let cand = pattern_node(cand);
         let cand = cand.root();
-        let (_, env) = pattern.find_node_easy(cand).unwrap();
+        let mut env = MetaVarEnv::new();
+        pattern.find_node(cand, &mut env).unwrap();
         HashMap::from(env)
     }
 
@@ -161,8 +153,9 @@ mod test {
         let cand = pattern_node("class A { a = 123 }");
         let cand = cand.root();
         let pattern = Pattern::of_kind(kind);
+        let mut env = MetaVarEnv::new();
         assert!(
-            pattern.find_node_easy(cand).is_some(),
+            pattern.find_node(cand, &mut env).is_some(),
             "goal: {}, candidate: {}",
             kind,
             cand.inner.to_sexp(),
@@ -175,8 +168,9 @@ mod test {
         let cand = pattern_node("const a = 123");
         let cand = cand.root();
         let pattern = Pattern::of_kind(kind);
+        let mut env = MetaVarEnv::new();
         assert!(
-            pattern.find_node_easy(cand).is_none(),
+            pattern.find_node(cand, &mut env).is_none(),
             "goal: {}, candidate: {}",
             kind,
             cand.inner.to_sexp(),

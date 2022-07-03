@@ -1,6 +1,7 @@
-use super::Pattern;
 use crate::replacer::Replacer;
 use crate::ts_parser::Edit;
+use crate::meta_var::MetaVarEnv;
+use crate::rule::Matcher;
 
 // the lifetime r represents root
 #[derive(Clone, Copy)]
@@ -65,19 +66,17 @@ impl<'r> Node<'r> {
         }
     }
 }
-use crate::rule::Matcher;
 
 // tree traversal API
 impl<'r> Node<'r> {
     #[must_use]
-    pub fn find<P: Into<Pattern>>(&self, pat: P) -> Option<Node<'r>> {
-        let goal: Pattern = pat.into();
-        goal.find_node_easy(*self).map(|f| f.0)
+    pub fn find<M: Matcher>(&self, pat: M) -> Option<Node<'r>> {
+        let mut env = MetaVarEnv::new();
+        pat.find_node(*self, &mut env)
     }
 
-    pub fn find_all<P: Into<Pattern>>(&self, pat: P) -> Vec<Node<'r>> {
-        let goal: Pattern = pat.into();
-        goal.find_node_vec(*self)
+    pub fn find_all<M: Matcher>(&self, pat: M) -> Vec<Node<'r>> {
+        pat.find_node_vec(*self)
     }
 
     // should we provide parent?
@@ -146,9 +145,9 @@ impl<'r> Node<'r> {
 // r manipulation API
 impl<'r> Node<'r> {
     pub fn attr(&mut self) {}
-    pub fn replace<R: Replacer>(&mut self, pattern_str: &str, replacer: R) -> Option<Edit> {
-        let to_match = Pattern::new(pattern_str);
-        let (node, env) = to_match.find_node_easy(*self)?;
+    pub fn replace<M: Matcher, R: Replacer>(&mut self, matcher: M, replacer: R) -> Option<Edit> {
+        let mut env = MetaVarEnv::new();
+        let node = matcher.find_node(*self, &mut env)?;
         let inner = node.inner;
         let position = inner.start_byte();
         let deleted_length = inner.end_byte() - position;

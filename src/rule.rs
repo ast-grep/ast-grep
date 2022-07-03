@@ -30,6 +30,15 @@ pub trait Matcher {
     }
 }
 
+impl<S: AsRef<str>> Matcher for S {
+    fn match_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
+        let pattern = Pattern::new(self.as_ref());
+        pattern.match_node(node, env)
+    }
+}
+
+impl<S: AsRef<str>> PositiveMatcher for S {}
+
 /**
  * A marker trait to indicate the the rule is positive matcher
  */
