@@ -258,9 +258,4 @@ mod test {
         test_non_match("$A($A, $A)", "test(123, 456)");
         test_match("$A($A)", "test(test)");
     }
-
-    #[test]
-    fn test_return() {
-        // test_match("$A($B)", "return test(123)");
-    }
 }

@@ -14,6 +14,10 @@ pub struct Pattern {
 impl Pattern {
     pub fn new(src: &str) -> Self {
         let node = Root::new(src);
+        let goal = node.root();
+        if goal.inner.child_count() != 1 {
+            todo!("multi-children pattern is not supported yet.")
+        }
         let pattern_kind = PatternKind::NodePattern(node);
         Self { pattern_kind }
     }
@@ -37,21 +41,24 @@ impl Matcher for Pattern {
     fn match_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
         match &self.pattern_kind {
             PatternKind::NodePattern(goal) => {
-                let goal = goal.root();
-                let source = goal.source;
-                let goal = goal.inner;
-                if goal.child_count() != 1 {
-                    todo!("multi-children pattern is not supported yet.")
-                }
-                let goal = Node {
-                    inner: goal.child(0).unwrap(),
-                    source,
-                };
-                match_node_non_recursive(&goal, node, env)
+                match_node_non_recursive(&matcher(&goal), node, env)
             }
             PatternKind::KindPattern(kind) => if &node.kind() == kind { Some(node) } else { None },
         }
     }
+}
+
+fn matcher(goal: &Root) -> Node {
+    let mut node = goal.root().inner;
+    let source = goal.root().source;
+    while node.child_count() == 1 {
+        node = node.child(0).unwrap();
+    }
+    let goal = Node {
+        inner: node,
+        source,
+    };
+    goal
 }
 
 impl<'a> From<&'a str> for Pattern {
@@ -171,5 +178,10 @@ mod test {
             kind,
             cand.inner.to_sexp(),
         );
+    }
+
+    #[test]
+    fn test_return() {
+        test_match("$A($B)", "return test(123)");
     }
 }

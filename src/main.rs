@@ -24,7 +24,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
     for e in matches {
-        dbg!(e.text());
+        println!("{}", e.text());
     }
     Ok(())
 }
