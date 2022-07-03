@@ -150,7 +150,10 @@ impl<'r> Node<'r> {
         let node = matcher.find_node(*self, &mut env)?;
         let inner = node.inner;
         let position = inner.start_byte();
-        let deleted_length = inner.end_byte() - position;
+        // instead of using start_byte/end_byte, ignore trivia like semicolon ;
+        let named_cnt = inner.named_child_count();
+        let end = inner.named_child(named_cnt - 1).unwrap().end_byte();
+        let deleted_length = end - position;
         let inserted_text = replacer.generate_replacement(&env);
         Some(Edit {
             position,

@@ -139,6 +139,78 @@ where
     }
 }
 
+pub struct Rule<M: Matcher> {
+    inner: M
+}
+
+impl<M: PositiveMatcher> Rule<M> {
+    pub fn all(pattern: M) -> AndRule<M> {
+        AndRule {
+            inner: pattern.into(),
+        }
+    }
+    pub fn either(pattern: M) -> EitherRule<M> {
+        EitherRule {
+            inner: pattern,
+        }
+    }
+    pub fn not(pattern: M) -> Not<M> {
+        Not {not: pattern}
+    }
+    pub fn build(self) -> M {
+        self.inner
+    }
+}
+
+pub struct AndRule<M> {
+    inner: M,
+}
+impl<M: PositiveMatcher> AndRule<M> {
+    pub fn and<N: Matcher>(self, other: N) -> Rule<And<M, N>> {
+        Rule {
+            inner: And {
+                pattern1: self.inner,
+                pattern2: other,
+            }
+        }
+    }
+}
+impl<M: PositiveMatcher, N: Matcher> Rule<And<M, N>> {
+    pub fn and<O: Matcher>(self, other: O) -> Rule<And<And<M, N>, O>> {
+        Rule {
+            inner: And {
+                pattern1: self.inner,
+                pattern2: other,
+            }
+        }
+    }
+}
+
+pub struct EitherRule<M> {
+    inner: M,
+}
+impl<M: PositiveMatcher> EitherRule<M> {
+    pub fn or<N: PositiveMatcher>(self, other: N) -> Rule<Or<M, N>> {
+        Rule {
+            inner: Or {
+                pattern1: self.inner,
+                pattern2: other,
+            }
+        }
+    }
+}
+
+impl<M: PositiveMatcher, N: PositiveMatcher> Rule<Or<M, N>> {
+    pub fn or<O: PositiveMatcher>(self, other: O) -> Rule<Or<Or<M, N>, O>> {
+        Rule {
+            inner: Or {
+                pattern1: self.inner,
+                pattern2: other,
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -186,5 +258,28 @@ mod test {
         test_find(&rule, "let a = 233");
         test_find(&rule, "let a = 456");
         test_not_find(&rule, "let a = 123");
+    }
+
+    #[test]
+    fn test_api_and() {
+        let rule = Rule::all("let a = $_")
+            .and(Rule::not("let a = 123"))
+            .build();
+        test_find(&rule, "let a = 233");
+        test_find(&rule, "let a = 456");
+        test_not_find(&rule, "let a = 123");
+    }
+
+    #[test]
+    fn test_api_or() {
+        let rule = Rule::either("let a = 1")
+            .or("const b = 2")
+            .build();
+        test_find(&rule, "let a = 1");
+        test_find(&rule, "const b = 2");
+        test_not_find(&rule, "let a = 2");
+        test_not_find(&rule, "const a = 1");
+        test_not_find(&rule, "let b = 2");
+        test_not_find(&rule, "const b = 1");
     }
 }

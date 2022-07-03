@@ -1,5 +1,4 @@
 use std::ops::{Deref, DerefMut};
-use ts_parser::{perform_edit, Edit};
 
 mod language;
 mod matcher;
@@ -7,12 +6,19 @@ mod meta_var;
 mod node;
 mod pattern;
 mod replacer;
-pub mod rule;
+mod rule;
 mod ts_parser;
 
 pub use meta_var::MetaVarMatcher;
 pub use node::Node;
 pub use pattern::Pattern;
+pub use rule::Rule;
+
+use ts_parser::{perform_edit, Edit};
+use crate::{
+    replacer::Replacer,
+    rule::PositiveMatcher,
+};
 
 pub struct Semgrep {
     root: Root,
@@ -46,7 +52,7 @@ impl Root {
         self
     }
 
-    pub fn replace(&mut self, pattern: &str, replacer: &str) -> bool {
+    pub fn replace<M: PositiveMatcher, R: Replacer>(&mut self, pattern: M, replacer: R) -> bool {
         if let Some(edit) = self.root().replace(pattern, replacer) {
             self.edit(edit);
             true
@@ -87,9 +93,34 @@ mod test {
     use super::*;
     #[test]
     fn test_replace() {
-        let mut semgrep = Semgrep::new("var a = 1;");
+        let mut semgrep = Semgrep::new("var a = 1; let b = 2;");
         semgrep.replace("var $A = $B", "let $A = $B");
         let source = semgrep.generate();
-        assert_eq!(source, "let a = 1");
+        assert_eq!(source, "let a = 1; let b = 2;"); // note the semicolon
+    }
+
+    #[test]
+    fn test_replace_by_rule() {
+        let rule = Rule::either("let a = 123")
+            .or("let b = 456")
+            .build();
+        let mut semgrep = Semgrep::new("let a = 123");
+        let replaced = semgrep.replace(rule, "console.log('it works!')");
+        assert!(replaced);
+        let source = semgrep.generate();
+        assert_eq!(source, "console.log('it works!')");
+    }
+
+    #[test]
+    fn test_replace_trivia() {
+        let mut semgrep = Semgrep::new("var a = 1 /*haha*/;");
+        semgrep.replace("var $A = $B", "let $A = $B");
+        let source = semgrep.generate();
+        assert_eq!(source, "let a = 1;"); // semicolon
+
+        let mut semgrep = Semgrep::new("var a = 1; /*haha*/");
+        semgrep.replace("var $A = $B", "let $A = $B");
+        let source = semgrep.generate();
+        assert_eq!(source, "let a = 1; /*haha*/");
     }
 }

@@ -25,6 +25,12 @@ impl<S: AsRef<str>> Replacer for S {
                 });
             }
         }
+        // add the missing one
+        edits.push(Edit {
+            position: root.source.len(),
+            deleted_length: 0,
+            inserted_text: String::new(),
+        });
         let mut ret = String::new();
         let mut start = 0;
         for edit in edits {

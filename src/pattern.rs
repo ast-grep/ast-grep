@@ -55,9 +55,9 @@ fn matcher(goal: &Root) -> Node {
 
 impl PositiveMatcher for Pattern {}
 
-impl<'a> From<&'a str> for Pattern {
-    fn from(src: &'a str) -> Self {
-        Self::new(src)
+impl<S: AsRef<str>> From<S> for Pattern {
+    fn from(src: S) -> Self {
+        Self::new(src.as_ref())
     }
 }
 
