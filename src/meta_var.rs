@@ -100,7 +100,7 @@ impl MetaVarMatcher {
         use MetaVarMatcher::*;
         match self {
             Regex(_s) => todo!(),
-            Pattern(p) => p.match_node(candidate).is_some(),
+            Pattern(p) => p.match_one_node(candidate).is_some(),
         }
     }
 }

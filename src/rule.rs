@@ -1,20 +1,16 @@
 use crate::meta_var::MetaVarEnv;
 use crate::Node;
+use crate::Pattern;
 
 pub trait Matcher {
-    fn match_node<'tree>(&self, _node: Node<'tree>) -> Option<Node<'tree>> {
+    fn match_node<'tree>(&self, _node: Node<'tree>, _env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
         None
     }
 }
 
-pub struct Rule<'tree, M: Matcher> {
-    env: MetaVarEnv<'tree>,
-    matcher: M,
-}
-
-impl<'tree, M: Matcher> Rule<'tree, M> {
-    pub fn match_node(&mut self, node: Node<'tree>) -> Option<Node<'tree>> {
-        self.matcher.match_node(node)
+impl Matcher for Pattern {
+    fn match_node<'tree>(&self, node: Node<'tree>, _: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
+        self.match_one_node(node)
     }
 }
 
@@ -28,8 +24,9 @@ where
     P1: Matcher,
     P2: Matcher,
 {
-    fn match_node<'tree>(&self, node: Node<'tree>) -> Option<Node<'tree>> {
-        todo!()
+    fn match_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
+        let node = self.pattern1.match_node(node, env)?;
+        self.pattern2.match_node(node, env)
     }
 }
 
@@ -43,37 +40,33 @@ where
     P1: Matcher,
     P2: Matcher,
 {
-    fn match_node<'tree>(&self, node: Node<'tree>) -> Option<Node<'tree>> {
+    fn match_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
+        self.pattern1.match_node(node, env).or_else(|| self.pattern2.match_node(node, env))
+    }
+}
+
+pub struct Inside<Outer> {
+    outer: Outer,
+}
+
+impl<O> Matcher for Inside<O>
+where
+    O: Matcher,
+{
+    fn match_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
         todo!()
     }
 }
 
-pub struct Inside<Outer, Inner> {
+pub struct NotInside<Outer> {
     outer: Outer,
-    inner: Inner,
 }
 
-impl<O, I> Matcher for Inside<O, I>
+impl<O> Matcher for NotInside<O>
 where
     O: Matcher,
-    I: Matcher,
 {
-    fn match_node<'tree>(&self, node: Node<'tree>) -> Option<Node<'tree>> {
-        todo!()
-    }
-}
-
-pub struct NotInside<Outer, Inner> {
-    outer: Outer,
-    inner: Inner,
-}
-
-impl<O, I> Matcher for NotInside<O, I>
-where
-    O: Matcher,
-    I: Matcher,
-{
-    fn match_node<'tree>(&self, node: Node<'tree>) -> Option<Node<'tree>> {
+    fn match_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
         todo!()
     }
 }
@@ -86,7 +79,11 @@ impl<P> Matcher for Not<P>
 where
     P: Matcher,
 {
-    fn match_node<'tree>(&self, node: Node<'tree>) -> Option<Node<'tree>> {
-        todo!()
+    fn match_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
+        if self.not.match_node(node, env).is_none() {
+            Some(node)
+        } else {
+            None
+        }
     }
 }

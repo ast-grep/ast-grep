@@ -2,7 +2,7 @@ use crate::meta_var::{extract_meta_var, MetaVarEnv, MetaVariable};
 use crate::Node;
 use std::collections::VecDeque;
 
-pub fn match_single_kind<'tree>(
+pub fn find_single_kind<'tree>(
     goal_kind: &str,
     candidate: Node<'tree>,
     env: &mut MetaVarEnv<'tree>,
@@ -14,10 +14,10 @@ pub fn match_single_kind<'tree>(
     }
     candidate
         .children()
-        .find_map(|sub| match_single_kind(goal_kind, sub, env))
+        .find_map(|sub| find_single_kind(goal_kind, sub, env))
 }
 
-pub fn match_kind_iter<'goal, 'tree: 'goal>(
+pub fn find_kind_iter<'goal, 'tree: 'goal>(
     goal_kind: &'goal str,
     candidate: Node<'tree>,
 ) -> impl Iterator<Item = Node<'tree>> + 'goal {
@@ -60,7 +60,7 @@ fn is_ellipsis(node: &Node) -> bool {
     )
 }
 
-fn match_node_non_recursive<'goal, 'tree>(
+pub fn match_node_non_recursive<'goal, 'tree>(
     goal: &Node<'goal>,
     candidate: Node<'tree>,
     env: &mut MetaVarEnv<'tree>,
@@ -162,7 +162,7 @@ fn extract_var_from_node(goal: &Node) -> Option<MetaVariable> {
     extract_meta_var(key)
 }
 
-pub fn match_node_recursive<'goal, 'tree>(
+pub fn find_node_recursive<'goal, 'tree>(
     goal: &Node<'goal>,
     candidate: Node<'tree>,
     env: &mut MetaVarEnv<'tree>,
@@ -170,11 +170,11 @@ pub fn match_node_recursive<'goal, 'tree>(
     match_node_non_recursive(goal, candidate, env).or_else(|| {
         candidate
             .children()
-            .find_map(|sub_cand| match_node_recursive(goal, sub_cand, env))
+            .find_map(|sub_cand| find_node_recursive(goal, sub_cand, env))
     })
 }
 
-pub fn match_nodes_iter<'goal, 'tree: 'goal>(
+pub fn find_nodes_iter<'goal, 'tree: 'goal>(
     goal: &'goal Node<'goal>,
     candidate: Node<'tree>,
 ) -> impl Iterator<Item = Node<'tree>> + 'goal {
@@ -209,7 +209,7 @@ mod test {
             source: s2,
         };
         let mut env = MetaVarEnv::new();
-        let ret = match_node_recursive(&goal, cand, &mut env);
+        let ret = find_node_recursive(&goal, cand, &mut env);
         assert!(
             ret.is_some(),
             "goal: {}, candidate: {}",
@@ -231,7 +231,7 @@ mod test {
             source: s2,
         };
         let mut env = MetaVarEnv::new();
-        let ret = match_node_recursive(&goal, cand, &mut env);
+        let ret = find_node_recursive(&goal, cand, &mut env);
         assert!(ret.is_none());
     }
 

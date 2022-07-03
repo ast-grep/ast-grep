@@ -53,3 +53,8 @@ impl<'a> Replacer for Node<'a> {
         self.text().to_string()
     }
 }
+
+#[cfg(test)]
+mod test {
+    // TODO: add tests
+}

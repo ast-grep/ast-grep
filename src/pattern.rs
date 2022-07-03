@@ -1,4 +1,4 @@
-use crate::matcher::{match_kind_iter, match_node_recursive, match_nodes_iter, match_single_kind};
+use crate::matcher::{find_kind_iter, find_node_recursive, find_nodes_iter, find_single_kind, match_node_non_recursive};
 use crate::{meta_var::MetaVarEnv, Node, Root};
 
 pub enum PatternKind {
@@ -21,28 +21,32 @@ impl Pattern {
             pattern_kind: PatternKind::KindPattern(kind),
         }
     }
-    pub fn match_node<'tree>(&self, node: Node<'tree>) -> Option<(Node<'tree>, MetaVarEnv<'tree>)> {
+    pub fn find_node<'tree>(&self, node: Node<'tree>) -> Option<(Node<'tree>, MetaVarEnv<'tree>)> {
         match &self.pattern_kind {
             PatternKind::NodePattern(ref n) => {
                 let root = n.root();
-                match_node(root, node)
+                find_node(root, node)
             }
-            PatternKind::KindPattern(k) => match_kind(k, node),
+            PatternKind::KindPattern(k) => find_kind(k, node),
         }
     }
 
-    pub fn match_all_nodes<'tree>(&self, node: Node<'tree>) -> Vec<Node<'tree>> {
+    pub fn find_all_nodes<'tree>(&self, node: Node<'tree>) -> Vec<Node<'tree>> {
         match &self.pattern_kind {
             PatternKind::NodePattern(ref n) => {
                 let root = n.root();
-                match_node_all(root, node)
+                find_node_all(root, node)
             }
-            PatternKind::KindPattern(k) => match_kind_iter(k, node).collect(),
+            PatternKind::KindPattern(k) => find_kind_iter(k, node).collect(),
         }
     }
 
-    pub fn gen_replaced(&self, _vars: MetaVarEnv) -> String {
-        todo!()
+    pub fn match_one_node<'tree>(&self, node: Node<'tree>) -> Option<Node<'tree>> {
+        let mut env = MetaVarEnv::new();
+        match &self.pattern_kind {
+            PatternKind::NodePattern(goal) => match_node_non_recursive(&goal.root(), node, &mut env),
+            PatternKind::KindPattern(kind) => if &node.kind() == kind { Some(node) } else { None },
+        }
     }
 }
 
@@ -52,16 +56,16 @@ impl<'a> From<&'a str> for Pattern {
     }
 }
 
-fn match_kind<'tree>(
+fn find_kind<'tree>(
     kind: &'static str,
     candidate: Node<'tree>,
 ) -> Option<(Node<'tree>, MetaVarEnv<'tree>)> {
     let mut env = MetaVarEnv::new();
-    let node = match_single_kind(kind, candidate, &mut env)?;
+    let node = find_single_kind(kind, candidate, &mut env)?;
     Some((node, env))
 }
 
-fn match_node<'goal, 'tree>(
+fn find_node<'goal, 'tree>(
     goal: Node<'goal>,
     candidate: Node<'tree>,
 ) -> Option<(Node<'tree>, MetaVarEnv<'tree>)> {
@@ -84,11 +88,11 @@ fn match_node<'goal, 'tree>(
         inner: candidate,
         source: cand,
     };
-    let node = match_node_recursive(&goal, candidate, &mut env)?;
+    let node = find_node_recursive(&goal, candidate, &mut env)?;
     Some((node, env))
 }
 
-fn match_node_all<'goal, 'tree>(goal: Node<'goal>, candidate: Node<'tree>) -> Vec<Node<'tree>> {
+fn find_node_all<'goal, 'tree>(goal: Node<'goal>, candidate: Node<'tree>) -> Vec<Node<'tree>> {
     let source = &goal.source;
     let cand = &candidate.source;
     let goal = goal.inner;
@@ -107,7 +111,7 @@ fn match_node_all<'goal, 'tree>(goal: Node<'goal>, candidate: Node<'tree>) -> Ve
         inner: candidate,
         source: cand,
     };
-    match_nodes_iter(&goal, candidate).collect()
+    find_nodes_iter(&goal, candidate).collect()
 }
 
 #[cfg(test)]
@@ -129,7 +133,7 @@ mod test {
         let cand = pattern_node(s2);
         let cand = cand.root();
         assert!(
-            match_node(goal, cand).is_some(),
+            find_node(goal, cand).is_some(),
             "goal: {}, candidate: {}",
             goal.inner.to_sexp(),
             cand.inner.to_sexp(),
@@ -141,7 +145,7 @@ mod test {
         let cand = pattern_node(s2);
         let cand = cand.root();
         assert!(
-            match_node(goal, cand).is_none(),
+            find_node(goal, cand).is_none(),
             "goal: {}, candidate: {}",
             goal.inner.to_sexp(),
             cand.inner.to_sexp(),
@@ -160,7 +164,7 @@ mod test {
         let goal = goal.root();
         let cand = pattern_node(cand);
         let cand = cand.root();
-        let (_, env) = match_node(goal, cand).unwrap();
+        let (_, env) = find_node(goal, cand).unwrap();
         HashMap::from(env)
     }
 
@@ -190,7 +194,7 @@ mod test {
         let cand = pattern_node("class A { a = 123 }");
         let cand = cand.root();
         assert!(
-            match_kind(kind, cand).is_some(),
+            find_kind(kind, cand).is_some(),
             "goal: {}, candidate: {}",
             kind,
             cand.inner.to_sexp(),
@@ -203,7 +207,7 @@ mod test {
         let cand = pattern_node("const a = 123");
         let cand = cand.root();
         assert!(
-            match_kind(kind, cand).is_none(),
+            find_kind(kind, cand).is_none(),
             "goal: {}, candidate: {}",
             kind,
             cand.inner.to_sexp(),
