@@ -54,7 +54,14 @@ where
     O: Matcher,
 {
     fn match_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
-        todo!()
+        let mut n = node;
+        while let Some(p) = n.parent() {
+            if self.outer.match_node(p, env).is_some() {
+                return Some(node)
+            }
+            n = p;
+        }
+        None
     }
 }
 
@@ -67,7 +74,14 @@ where
     O: Matcher,
 {
     fn match_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
-        todo!()
+        let mut n = node;
+        while let Some(p) = n.parent() {
+            if self.outer.match_node(p, env).is_some() {
+                return None
+            }
+            n = p;
+        }
+        Some(node)
     }
 }
 

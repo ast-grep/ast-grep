@@ -1,35 +1,5 @@
 use crate::meta_var::{extract_meta_var, MetaVarEnv, MetaVariable};
 use crate::Node;
-use std::collections::VecDeque;
-
-pub fn find_single_kind<'tree>(
-    goal_kind: &str,
-    candidate: Node<'tree>,
-    env: &mut MetaVarEnv<'tree>,
-) -> Option<Node<'tree>> {
-    if candidate.kind() == goal_kind {
-        // TODO: update env
-        // env.insert(meta_var.0.to_owned(), candidate);
-        return Some(candidate);
-    }
-    candidate
-        .children()
-        .find_map(|sub| find_single_kind(goal_kind, sub, env))
-}
-
-pub fn find_kind_iter<'goal, 'tree: 'goal>(
-    goal_kind: &'goal str,
-    candidate: Node<'tree>,
-) -> impl Iterator<Item = Node<'tree>> + 'goal {
-    let mut stack = vec![candidate];
-    std::iter::from_fn(move || loop {
-        let cand = stack.pop()?;
-        stack.extend(cand.children());
-        if cand.kind() == goal_kind {
-            return Some(cand);
-        }
-    })
-}
 
 fn match_leaf_meta_var<'goal, 'tree>(
     goal: &Node<'goal>,
@@ -162,40 +132,13 @@ fn extract_var_from_node(goal: &Node) -> Option<MetaVariable> {
     extract_meta_var(key)
 }
 
-pub fn find_node_recursive<'goal, 'tree>(
-    goal: &Node<'goal>,
-    candidate: Node<'tree>,
-    env: &mut MetaVarEnv<'tree>,
-) -> Option<Node<'tree>> {
-    match_node_non_recursive(goal, candidate, env).or_else(|| {
-        candidate
-            .children()
-            .find_map(|sub_cand| find_node_recursive(goal, sub_cand, env))
-    })
-}
-
-pub fn find_nodes_iter<'goal, 'tree: 'goal>(
-    goal: &'goal Node<'goal>,
-    candidate: Node<'tree>,
-) -> impl Iterator<Item = Node<'tree>> + 'goal {
-    let mut stack = VecDeque::new();
-    stack.push_back(candidate);
-    std::iter::from_fn(move || loop {
-        let cand = stack.pop_front()?;
-        stack.extend(cand.children());
-        let mut env = MetaVarEnv::new();
-        let n = match_node_non_recursive(goal, cand, &mut env);
-        if n.is_some() {
-            return n;
-        }
-    })
-}
 
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::ts_parser::parse;
     use std::collections::HashMap;
+    use crate::pattern::find_node_recursive;
 
     fn test_match(s1: &str, s2: &str) -> HashMap<String, String> {
         let goal = parse(s1, None);

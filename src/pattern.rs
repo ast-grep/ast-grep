@@ -1,5 +1,6 @@
-use crate::matcher::{find_kind_iter, find_node_recursive, find_nodes_iter, find_single_kind, match_node_non_recursive};
+use crate::matcher::{match_node_non_recursive};
 use crate::{meta_var::MetaVarEnv, Node, Root};
+use std::collections::VecDeque;
 
 pub enum PatternKind {
     NodePattern(Root),
@@ -112,6 +113,65 @@ fn find_node_all<'goal, 'tree>(goal: Node<'goal>, candidate: Node<'tree>) -> Vec
         source: cand,
     };
     find_nodes_iter(&goal, candidate).collect()
+}
+
+pub(super) fn find_node_recursive<'goal, 'tree>(
+    goal: &Node<'goal>,
+    candidate: Node<'tree>,
+    env: &mut MetaVarEnv<'tree>,
+) -> Option<Node<'tree>> {
+    match_node_non_recursive(goal, candidate, env).or_else(|| {
+        candidate
+            .children()
+            .find_map(|sub_cand| find_node_recursive(goal, sub_cand, env))
+    })
+}
+
+fn find_nodes_iter<'goal, 'tree: 'goal>(
+    goal: &'goal Node<'goal>,
+    candidate: Node<'tree>,
+) -> impl Iterator<Item = Node<'tree>> + 'goal {
+    let mut queue = VecDeque::new();
+    queue.push_back(candidate);
+    std::iter::from_fn(move || loop {
+        let cand = queue.pop_front()?;
+        queue.extend(cand.children());
+        let mut env = MetaVarEnv::new();
+        let n = match_node_non_recursive(goal, cand, &mut env);
+        if n.is_some() {
+            return n;
+        }
+    })
+}
+
+fn find_single_kind<'tree>(
+    goal_kind: &str,
+    candidate: Node<'tree>,
+    env: &mut MetaVarEnv<'tree>,
+) -> Option<Node<'tree>> {
+    if candidate.kind() == goal_kind {
+        // TODO: update env
+        // env.insert(meta_var.0.to_owned(), candidate);
+        return Some(candidate);
+    }
+    candidate
+        .children()
+        .find_map(|sub| find_single_kind(goal_kind, sub, env))
+}
+
+fn find_kind_iter<'goal, 'tree: 'goal>(
+    goal_kind: &'goal str,
+    candidate: Node<'tree>,
+) -> impl Iterator<Item = Node<'tree>> + 'goal {
+    let mut queue = VecDeque::new();
+    queue.push_back(candidate);
+    std::iter::from_fn(move || loop {
+        let cand = queue.pop_front()?;
+        queue.extend(cand.children());
+        if cand.kind() == goal_kind {
+            return Some(cand);
+        }
+    })
 }
 
 #[cfg(test)]
