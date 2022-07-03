@@ -3,6 +3,9 @@ use crate::Node;
 use crate::Pattern;
 use std::collections::VecDeque;
 
+/**
+ * N.B. At least one positive term is required for matching
+ */
 pub trait Matcher {
     fn match_node<'tree>(&self, _node: Node<'tree>, _env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>>;
 
@@ -25,13 +28,24 @@ pub trait Matcher {
         }
         ret
     }
-
 }
+
+/**
+ * A marker trait to indicate the the rule is positive matcher
+ */
+pub trait PositiveMatcher: Matcher {}
 
 pub struct And<P1: Matcher, P2: Matcher> {
     pattern1: P1,
     pattern2: P2,
 }
+
+impl<P1, P2> PositiveMatcher for And<P1, P2>
+where
+    P1: PositiveMatcher,
+    P2: Matcher
+{}
+
 
 impl<P1, P2> Matcher for And<P1, P2>
 where
@@ -44,29 +58,32 @@ where
     }
 }
 
-pub struct Or<P1: Matcher, P2: Matcher> {
+pub struct Or<P1: PositiveMatcher, P2: PositiveMatcher> {
     pattern1: P1,
     pattern2: P2,
 }
 
 impl<P1, P2> Matcher for Or<P1, P2>
 where
-    P1: Matcher,
-    P2: Matcher,
+    P1: PositiveMatcher,
+    P2: PositiveMatcher,
 {
     fn match_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
         self.pattern1.match_node(node, env).or_else(|| self.pattern2.match_node(node, env))
     }
 }
 
-pub struct Inside<Outer> {
-    outer: Outer,
+impl<P1, P2> PositiveMatcher for Or<P1, P2>
+where
+    P1: PositiveMatcher,
+    P2: PositiveMatcher,
+{}
+
+pub struct Inside {
+    outer: Pattern,
 }
 
-impl<O> Matcher for Inside<O>
-where
-    O: Matcher,
-{
+impl Matcher for Inside {
     fn match_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
         let mut n = node;
         while let Some(p) = n.parent() {
@@ -79,14 +96,11 @@ where
     }
 }
 
-pub struct NotInside<Outer> {
-    outer: Outer,
+pub struct NotInside {
+    outer: Pattern,
 }
 
-impl<O> Matcher for NotInside<O>
-where
-    O: Matcher,
-{
+impl Matcher for NotInside {
     fn match_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
         let mut n = node;
         while let Some(p) = n.parent() {
@@ -99,13 +113,13 @@ where
     }
 }
 
-pub struct Not<P> {
+pub struct Not<P: PositiveMatcher> {
     not: P,
 }
 
 impl<P> Matcher for Not<P>
 where
-    P: Matcher,
+    P: PositiveMatcher,
 {
     fn match_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
         if self.not.match_node(node, env).is_none() {
@@ -113,5 +127,55 @@ where
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::Pattern;
+    use crate::Root;
+    fn test_find(rule: &impl Matcher, code: &str) {
+        let mut env = MetaVarEnv::new();
+        let node = Root::new(code);
+        assert!(rule.find_node(node.root(), &mut env).is_some());
+    }
+    fn test_not_find(rule: &impl Matcher, code: &str) {
+        let mut env = MetaVarEnv::new();
+        let node = Root::new(code);
+        assert!(rule.find_node(node.root(), &mut env).is_none());
+    }
+
+    #[test]
+    fn test_or() {
+        let rule = Or {
+            pattern1: Pattern::new("let a = 1"),
+            pattern2: Pattern::new("const b = 2"),
+        };
+        test_find(&rule, "let a = 1");
+        test_find(&rule, "const b = 2");
+        test_not_find(&rule, "let a = 2");
+        test_not_find(&rule, "const a = 1");
+        test_not_find(&rule, "let b = 2");
+        test_not_find(&rule, "const b = 1");
+    }
+
+    #[test]
+    fn test_not() {
+        let rule = Not {
+            not: Pattern::new("let a = 1"),
+        };
+        test_find(&rule, "const b = 2");
+    }
+
+    #[test]
+    fn test_and() {
+        let rule = And {
+            pattern1: Pattern::new("let a = $_"),
+            pattern2: Not { not: Pattern::new("let a = 123") }
+        };
+        test_find(&rule, "let a = 233");
+        test_find(&rule, "let a = 456");
+        test_not_find(&rule, "let a = 123");
     }
 }

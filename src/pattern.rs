@@ -1,6 +1,6 @@
 use crate::matcher::match_node_non_recursive;
 use crate::{meta_var::MetaVarEnv, Node, Root};
-use crate::rule::Matcher;
+use crate::rule::{Matcher, PositiveMatcher};
 
 pub enum PatternKind {
     NodePattern(Root),
@@ -48,6 +48,7 @@ impl Matcher for Pattern {
     }
 }
 
+// TODO: extract out matcher in recursion
 fn matcher(goal: &Root) -> Node {
     let mut node = goal.root().inner;
     let source = goal.root().source;
@@ -60,6 +61,8 @@ fn matcher(goal: &Root) -> Node {
     };
     goal
 }
+
+impl PositiveMatcher for Pattern {}
 
 impl<'a> From<&'a str> for Pattern {
     fn from(src: &'a str) -> Self {
