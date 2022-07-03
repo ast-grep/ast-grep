@@ -138,7 +138,11 @@ mod test {
     use super::*;
     use crate::ts_parser::parse;
     use std::collections::HashMap;
-    use crate::pattern::find_node_recursive;
+    fn find_node_recursive<'goal, 'tree>(goal: &Node<'goal>, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
+        match_node_non_recursive(goal, node, env).or_else(||
+            node.children().find_map(|sub| find_node_recursive(goal, sub, env))
+        )
+    }
 
     fn test_match(s1: &str, s2: &str) -> HashMap<String, String> {
         let goal = parse(s1, None);

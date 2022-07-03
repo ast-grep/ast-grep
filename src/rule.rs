@@ -1,17 +1,31 @@
 use crate::meta_var::MetaVarEnv;
 use crate::Node;
 use crate::Pattern;
+use std::collections::VecDeque;
 
 pub trait Matcher {
-    fn match_node<'tree>(&self, _node: Node<'tree>, _env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
-        None
-    }
-}
+    fn match_node<'tree>(&self, _node: Node<'tree>, _env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>>;
 
-impl Matcher for Pattern {
-    fn match_node<'tree>(&self, node: Node<'tree>, _: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
-        self.match_one_node(node)
+    fn find_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
+        self.match_node(node, env).or_else(||
+            node.children().find_map(|sub| self.find_node(sub, env))
+        )
     }
+
+    fn find_node_vec<'tree>(&self, node: Node<'tree>) -> Vec<Node<'tree>> {
+        let mut ret = vec![];
+        let mut queue = VecDeque::new();
+        queue.push_back(node);
+        while let Some(cand) = queue.pop_front() {
+            queue.extend(cand.children());
+            let mut env = MetaVarEnv::new();
+            if let Some(matched) = self.match_node(cand, &mut env) {
+                ret.push(matched);
+            }
+        }
+        ret
+    }
+
 }
 
 pub struct And<P1: Matcher, P2: Matcher> {

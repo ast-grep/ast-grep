@@ -65,18 +65,19 @@ impl<'r> Node<'r> {
         }
     }
 }
+use crate::rule::Matcher;
 
 // tree traversal API
 impl<'r> Node<'r> {
     #[must_use]
     pub fn find<P: Into<Pattern>>(&self, pat: P) -> Option<Node<'r>> {
         let goal: Pattern = pat.into();
-        goal.find_node(*self).map(|f| f.0)
+        goal.find_node_easy(*self).map(|f| f.0)
     }
 
     pub fn find_all<P: Into<Pattern>>(&self, pat: P) -> Vec<Node<'r>> {
         let goal: Pattern = pat.into();
-        goal.find_all_nodes(*self)
+        goal.find_node_vec(*self)
     }
 
     // should we provide parent?
@@ -147,7 +148,7 @@ impl<'r> Node<'r> {
     pub fn attr(&mut self) {}
     pub fn replace<R: Replacer>(&mut self, pattern_str: &str, replacer: R) -> Option<Edit> {
         let to_match = Pattern::new(pattern_str);
-        let (node, env) = to_match.find_node(*self)?;
+        let (node, env) = to_match.find_node_easy(*self)?;
         let inner = node.inner;
         let position = inner.start_byte();
         let deleted_length = inner.end_byte() - position;
