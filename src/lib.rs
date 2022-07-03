@@ -31,10 +31,6 @@ impl Root {
         }
     }
 
-    pub fn generate(self) -> String {
-        self.source
-    }
-
     pub fn root(&self) -> Node {
         Node {
             inner: self.inner.root_node(),
@@ -67,6 +63,11 @@ impl Semgrep {
             root: Root::new(source.as_ref()),
         }
     }
+
+    pub fn generate(self) -> String {
+        self.root.source
+    }
+
 }
 
 impl Deref for Semgrep {
@@ -88,6 +89,7 @@ mod test {
     fn test_replace() {
         let mut semgrep = Semgrep::new("var a = 1;");
         semgrep.replace("var $A = $B", "let $A = $B");
-        assert_eq!(semgrep.generate(), "let a = 1");
+        let source = semgrep.generate();
+        assert_eq!(source, "let a = 1");
     }
 }
