@@ -14,11 +14,8 @@ pub use node::Node;
 pub use pattern::Pattern;
 pub use rule::Rule;
 
+use crate::{replacer::Replacer, rule::PositiveMatcher};
 use ts_parser::{perform_edit, Edit};
-use crate::{
-    replacer::Replacer,
-    rule::PositiveMatcher,
-};
 
 pub struct Semgrep {
     root: Root,
@@ -73,7 +70,6 @@ impl Semgrep {
     pub fn generate(self) -> String {
         self.root.source
     }
-
 }
 
 impl Deref for Semgrep {
@@ -101,9 +97,7 @@ mod test {
 
     #[test]
     fn test_replace_by_rule() {
-        let rule = Rule::either("let a = 123")
-            .or("let b = 456")
-            .build();
+        let rule = Rule::either("let a = 123").or("let b = 456").build();
         let mut semgrep = Semgrep::new("let a = 123");
         let replaced = semgrep.replace(rule, "console.log('it works!')");
         assert!(replaced);

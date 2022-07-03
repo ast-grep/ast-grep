@@ -1,7 +1,7 @@
-use crate::replacer::Replacer;
-use crate::ts_parser::Edit;
 use crate::meta_var::MetaVarEnv;
+use crate::replacer::Replacer;
 use crate::rule::Matcher;
+use crate::ts_parser::Edit;
 
 // the lifetime r represents root
 #[derive(Clone, Copy)]

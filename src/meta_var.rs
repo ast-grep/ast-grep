@@ -97,8 +97,8 @@ pub enum MetaVarMatcher {
 
 impl MetaVarMatcher {
     pub fn matches(&self, candidate: Node) -> bool {
-        use MetaVarMatcher::*;
         use crate::rule::Matcher;
+        use MetaVarMatcher::*;
         let mut env = MetaVarEnv::new();
         match self {
             Regex(_s) => todo!(),

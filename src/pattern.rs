@@ -1,6 +1,6 @@
 use crate::matcher::match_node_non_recursive;
-use crate::{meta_var::MetaVarEnv, Node, Root};
 use crate::rule::{Matcher, PositiveMatcher};
+use crate::{meta_var::MetaVarEnv, Node, Root};
 
 pub enum PatternKind {
     NodePattern(Root),
@@ -29,12 +29,20 @@ impl Pattern {
 }
 
 impl Matcher for Pattern {
-    fn match_node<'tree>(&self, node: Node<'tree>, env: &mut MetaVarEnv<'tree>) -> Option<Node<'tree>> {
+    fn match_node<'tree>(
+        &self,
+        node: Node<'tree>,
+        env: &mut MetaVarEnv<'tree>,
+    ) -> Option<Node<'tree>> {
         match &self.pattern_kind {
-            PatternKind::NodePattern(goal) => {
-                match_node_non_recursive(&matcher(&goal), node, env)
+            PatternKind::NodePattern(goal) => match_node_non_recursive(&matcher(&goal), node, env),
+            PatternKind::KindPattern(kind) => {
+                if &node.kind() == kind {
+                    Some(node)
+                } else {
+                    None
+                }
             }
-            PatternKind::KindPattern(kind) => if &node.kind() == kind { Some(node) } else { None },
         }
     }
 }
@@ -60,7 +68,6 @@ impl<S: AsRef<str>> From<S> for Pattern {
         Self::new(src.as_ref())
     }
 }
-
 
 #[cfg(test)]
 mod test {
