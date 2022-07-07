@@ -17,7 +17,7 @@ pub use rule::Rule;
 use crate::{replacer::Replacer, rule::PositiveMatcher};
 use ts_parser::{perform_edit, Edit};
 
-pub struct Semgrep {
+pub struct AstGrep {
     root: Root,
 }
 
@@ -60,7 +60,7 @@ impl Root {
 }
 
 // creational API
-impl Semgrep {
+impl AstGrep {
     pub fn new<S: AsRef<str>>(source: S) -> Self {
         Self {
             root: Root::new(source.as_ref()),
@@ -72,13 +72,13 @@ impl Semgrep {
     }
 }
 
-impl Deref for Semgrep {
+impl Deref for AstGrep {
     type Target = Root;
     fn deref(&self) -> &Self::Target {
         &self.root
     }
 }
-impl DerefMut for Semgrep {
+impl DerefMut for AstGrep {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.root
     }
@@ -89,32 +89,32 @@ mod test {
     use super::*;
     #[test]
     fn test_replace() {
-        let mut semgrep = Semgrep::new("var a = 1; let b = 2;");
-        semgrep.replace("var $A = $B", "let $A = $B");
-        let source = semgrep.generate();
+        let mut ast_grep = AstGrep::new("var a = 1; let b = 2;");
+        ast_grep.replace("var $A = $B", "let $A = $B");
+        let source = ast_grep.generate();
         assert_eq!(source, "let a = 1; let b = 2;"); // note the semicolon
     }
 
     #[test]
     fn test_replace_by_rule() {
         let rule = Rule::either("let a = 123").or("let b = 456").build();
-        let mut semgrep = Semgrep::new("let a = 123");
-        let replaced = semgrep.replace(rule, "console.log('it works!')");
+        let mut ast_grep = AstGrep::new("let a = 123");
+        let replaced = ast_grep.replace(rule, "console.log('it works!')");
         assert!(replaced);
-        let source = semgrep.generate();
+        let source = ast_grep.generate();
         assert_eq!(source, "console.log('it works!')");
     }
 
     #[test]
     fn test_replace_trivia() {
-        let mut semgrep = Semgrep::new("var a = 1 /*haha*/;");
-        semgrep.replace("var $A = $B", "let $A = $B");
-        let source = semgrep.generate();
+        let mut ast_grep = AstGrep::new("var a = 1 /*haha*/;");
+        ast_grep.replace("var $A = $B", "let $A = $B");
+        let source = ast_grep.generate();
         assert_eq!(source, "let a = 1;"); // semicolon
 
-        let mut semgrep = Semgrep::new("var a = 1; /*haha*/");
-        semgrep.replace("var $A = $B", "let $A = $B");
-        let source = semgrep.generate();
+        let mut ast_grep = AstGrep::new("var a = 1; /*haha*/");
+        ast_grep.replace("var $A = $B", "let $A = $B");
+        let source = ast_grep.generate();
         assert_eq!(source, "let a = 1; /*haha*/");
     }
 }

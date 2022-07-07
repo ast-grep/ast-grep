@@ -1,16 +1,4 @@
-[package]
-name = "semgrep-rs"
-version = "0.1.0"
-authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
-edition = "2021"
-description = "sem grep in Rs"
-keywords = ["ast", "pattern match", "codemod"]
-license = "MIT"
-repository = "https://github.com/HerringtonDarkholme/semgrep"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-tree-sitter = "0.20.6"
-[build-dependencies]
-cc="*"
+[workspace]
+members = [
+"crates/*"
+]

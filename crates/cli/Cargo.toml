@@ -1,0 +1,18 @@
+[package]
+name = "ast-grep"
+version = "0.1.0"
+authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
+edition = "2021"
+description = "Search and Rewrite code at large scale using precise AST pattern"
+keywords = ["ast", "pattern match", "codemod"]
+license = "MIT"
+repository = "https://github.com/HerringtonDarkholme/ast-grep"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "sg"
+path = "src/main.rs"
+
+[dependencies]
+ast-grep-core = { path = "../core" }

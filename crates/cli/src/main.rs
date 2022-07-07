@@ -1,4 +1,4 @@
-use semgrep_rs::Semgrep;
+use ast_grep_core::AstGrep;
 use std::env::args;
 use std::fs::read_to_string;
 use std::io::Result;
@@ -17,7 +17,7 @@ fn main() -> Result<()> {
             input = read_to_string(arg)?;
         }
     }
-    let grep = Semgrep::new(input);
+    let grep = AstGrep::new(input);
     let matches = grep.root().find_all(&*pattern);
     if matches.is_empty() {
         println!("pattern not found!");
