@@ -12,5 +12,6 @@ repository = "https://github.com/HerringtonDarkholme/ast-grep"
 
 [dependencies]
 tree-sitter = "0.20.6"
+tree-sitter-typescript="0.20.1"
 [build-dependencies]
 cc="*"

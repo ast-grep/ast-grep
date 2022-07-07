@@ -1,13 +1,10 @@
 pub use tree_sitter::Tree;
-use tree_sitter::{InputEdit, Language, Parser, Point};
-
-extern "C" {
-    fn tree_sitter_tsx() -> Language;
-}
+use tree_sitter::{InputEdit, Parser, Point};
+use tree_sitter_typescript::language_tsx;
 
 pub fn parse(source_code: &str, old_tree: Option<&Tree>) -> Tree {
     let mut parser = Parser::new();
-    let language = unsafe { tree_sitter_tsx() };
+    let language = language_tsx();
     parser.set_language(language).unwrap();
     parser.parse(source_code, old_tree).unwrap()
 }
