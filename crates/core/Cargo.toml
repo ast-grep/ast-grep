@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
 edition = "2021"
 description = "Search and Rewrite code at large scale using precise AST pattern"
-keywords = ["ast", "pattern match", "codemod"]
+keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
 license = "MIT"
 repository = "https://github.com/HerringtonDarkholme/ast-grep"
 
@@ -13,5 +13,3 @@ repository = "https://github.com/HerringtonDarkholme/ast-grep"
 [dependencies]
 tree-sitter = "0.20.6"
 tree-sitter-typescript="0.20.1"
-[build-dependencies]
-cc="*"

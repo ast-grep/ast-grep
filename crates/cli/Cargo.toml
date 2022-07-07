@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
 edition = "2021"
 description = "Search and Rewrite code at large scale using precise AST pattern"
-keywords = ["ast", "pattern match", "codemod"]
+keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
 license = "MIT"
 repository = "https://github.com/HerringtonDarkholme/ast-grep"
 
@@ -15,5 +15,5 @@ name = "sg"
 path = "src/main.rs"
 
 [dependencies]
-ast-grep-core = { path = "../core" }
+ast-grep-core = { version="0.1.0", path = "../core" }
 clap = { version = "3.2.8", features = ["derive"] }
