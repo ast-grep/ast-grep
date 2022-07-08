@@ -3,10 +3,40 @@ use crate::Node;
 use crate::Pattern;
 use std::collections::VecDeque;
 
+pub struct FindAllNodes<'tree, M: Matcher> {
+    queue: VecDeque<Node<'tree>>,
+    matcher: M,
+}
+
+impl<'tree, M: Matcher> FindAllNodes<'tree, M> {
+    fn new(matcher: M, node: Node<'tree>) -> Self {
+        let mut queue = VecDeque::new();
+        queue.push_back(node);
+        Self {
+            queue,
+            matcher,
+        }
+    }
+}
+
+impl<'tree, M: Matcher> Iterator for FindAllNodes<'tree, M> {
+    type Item = Node<'tree>;
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(cand) = self.queue.pop_front() {
+            self.queue.extend(cand.children());
+            let mut env = MetaVarEnv::new();
+            if let Some(matched) = self.matcher.match_node(cand, &mut env) {
+                return Some(matched);
+            }
+        }
+        None
+    }
+}
+
 /**
  * N.B. At least one positive term is required for matching
  */
-pub trait Matcher {
+pub trait Matcher: Sized {
     fn match_node<'tree>(
         &self,
         _node: Node<'tree>,
@@ -22,18 +52,8 @@ pub trait Matcher {
             .or_else(|| node.children().find_map(|sub| self.find_node(sub, env)))
     }
 
-    fn find_node_vec<'tree>(&self, node: Node<'tree>) -> Vec<Node<'tree>> {
-        let mut ret = vec![];
-        let mut queue = VecDeque::new();
-        queue.push_back(node);
-        while let Some(cand) = queue.pop_front() {
-            queue.extend(cand.children());
-            let mut env = MetaVarEnv::new();
-            if let Some(matched) = self.match_node(cand, &mut env) {
-                ret.push(matched);
-            }
-        }
-        ret
+    fn find_all_nodes<'tree>(self, node: Node<'tree>) -> FindAllNodes<'tree, Self> {
+        FindAllNodes::new(self, node)
     }
 }
 

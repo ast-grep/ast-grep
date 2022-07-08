@@ -34,8 +34,8 @@ fn main() -> Result<()> {
     let pattern = args.pattern;
     let input = read_to_string(&args.path)?;
     let grep = AstGrep::new(input);
-    let matches = grep.root().find_all(&*pattern);
-    if matches.is_empty() {
+    let mut matches = grep.root().find_all(&pattern).peekable();
+    if matches.peek().is_none() {
         println!("pattern not found!");
         return Ok(());
     }

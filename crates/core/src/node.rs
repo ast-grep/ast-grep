@@ -75,8 +75,8 @@ impl<'r> Node<'r> {
         pat.find_node(*self, &mut env)
     }
 
-    pub fn find_all<M: Matcher>(&self, pat: M) -> Vec<Node<'r>> {
-        pat.find_node_vec(*self)
+    pub fn find_all<M: Matcher>(&self, pat: M) -> impl Iterator<Item=Node<'r>> {
+        pat.find_all_nodes(*self)
     }
 
     // should we provide parent?
