@@ -4,7 +4,7 @@ use std::io::Result;
 use clap::Parser;
 use std::path::Path;
 use ignore::WalkBuilder;
-use ansi_term::Style;
+use ansi_term::{Style, Color::Cyan};
 
 
 #[derive(Parser, Debug)]
@@ -68,20 +68,25 @@ fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
     if matches.peek().is_none() {
         return
     }
-    println!("{}", Style::new().bold().paint(format!("{}", path.display())));
+    println!("{}", Cyan.italic().paint(format!("{}", path.display())));
     if let Some(rewrite) = rewrite {
         for mut e in matches {
             println!("{}", e.replace(&pattern, rewrite).unwrap().inserted_text);
         }
     } else {
         for e in matches {
-            let (src, mut row) = e.display_context();
-            let lines: Vec<_> = src.lines().collect();
-            let width = (lines.len() + row).to_string().chars().count();
-            for line in src.split('\n') {
-                let line_num = Style::new().bold().paint(format!("{row}"));
+            let display = e.display_context();
+            let leading = Style::new().dimmed().paint(display.leading);
+            let trailing = Style::new().dimmed().paint(display.trailing);
+            let matched = Style::new().bold().paint(display.matched);
+            let highlighted = format!("{leading}{matched}{trailing}");
+            let lines: Vec<_> = highlighted.lines().collect();
+            let mut num = display.start_line;
+            let width = (lines.len() + display.start_line).to_string().chars().count();
+            for line in lines {
+                let line_num = Style::new().bold().paint(format!("{num}"));
                 println!("{line_num:>width$}|{line}");
-                row += 1;
+                num += 1;
             }
         }
     }

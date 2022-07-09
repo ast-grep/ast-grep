@@ -2,7 +2,6 @@ use crate::meta_var::MetaVarEnv;
 use crate::replacer::Replacer;
 use crate::rule::Matcher;
 use crate::ts_parser::Edit;
-use std::borrow::Cow;
 
 // the lifetime r represents root
 #[derive(Clone, Copy)]
@@ -51,7 +50,7 @@ impl<'r> Node<'r> {
     pub fn kind_id(&self) -> NodeKind {
         self.inner.kind_id()
     }
-    pub fn text(&self) -> &str {
+    pub fn text(&self) -> &'r str {
         self.inner
             .utf8_text(self.source.as_bytes())
             .expect("invalid source text encoding")
@@ -67,18 +66,35 @@ impl<'r> Node<'r> {
         }
     }
 
-    pub fn display_context(&self) -> (Cow<'r, str>, usize) {
+    pub fn display_context(&self) -> DisplayContext<'r> {
         let bytes = self.source.as_bytes();
-        let mut start = self.inner.start_byte();
-        let mut end = self.inner.end_byte();
-        while start > 0 && bytes[start - 1] != b'\n' {
-            start -= 1;
+        let start = self.inner.start_byte();
+        let end = self.inner.end_byte();
+        let (mut leading, mut trailing) = (start, end);
+        while leading > 0 && bytes[leading - 1] != b'\n' {
+            leading -= 1;
         }
-        while end < bytes.len() - 1 && bytes[end + 1] != b'\n' {
-            end += 1;
+        while trailing < bytes.len() - 1 && bytes[trailing + 1] != b'\n' {
+            trailing += 1;
         }
-        (String::from_utf8_lossy(&bytes[start..=end]), self.inner.start_position().row)
+        DisplayContext {
+            matched: self.text(),
+            leading: &self.source[leading..start],
+            trailing: &self.source[end..=trailing],
+            start_line: self.inner.start_position().row + 1,
+        }
     }
+}
+
+pub struct DisplayContext<'r> {
+    /// content for the matched node
+    pub matched: &'r str,
+    /// content before the matched node
+    pub leading: &'r str,
+    /// content after the matched node
+    pub trailing: &'r str,
+    /// start line of the matched node
+    pub start_line: usize,
 }
 
 // tree traversal API
