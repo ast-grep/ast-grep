@@ -4,6 +4,7 @@ use std::io::Result;
 use clap::Parser;
 use std::path::Path;
 use ignore::WalkBuilder;
+use ansi_term::Style;
 
 
 #[derive(Parser, Debug)]
@@ -47,8 +48,7 @@ fn main() -> Result<()> {
                         continue;
                     }
                     let path = entry.path();
-                    let file_content = read_to_string(&path)?;
-                    match_one_file(path, file_content, &pattern, args.rewrite.as_ref());
+                    match_one_file(path, &pattern, args.rewrite.as_ref());
                 }
             },
             Err(err) => eprintln!("ERROR: {}", err),
@@ -58,24 +58,31 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-
-fn match_one_file(path: &Path, file_content: String, pattern: &str, rewrite: Option<&String> ) {
+fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
+    let file_content = match read_to_string(&path) {
+        Ok(content) => content,
+        _ => return,
+    };
     let grep = AstGrep::new(file_content);
-    println!("{}", path.display());
     let mut matches = grep.root().find_all(pattern).peekable();
     if matches.peek().is_none() {
-        println!("pattern not found!");
         return
     }
+    println!("{}", Style::new().bold().paint(format!("{}", path.display())));
     if let Some(rewrite) = rewrite {
         for mut e in matches {
-            println!("------------------");
             println!("{}", e.replace(&pattern, rewrite).unwrap().inserted_text);
         }
     } else {
         for e in matches {
-            println!("------------------");
-            println!("{}", grep.display_context(e));
+            let (src, mut row) = e.display_context();
+            let lines: Vec<_> = src.lines().collect();
+            let width = (lines.len() + row).to_string().chars().count();
+            for line in src.split('\n') {
+                let line_num = Style::new().bold().paint(format!("{row}"));
+                println!("{line_num:>width$}|{line}");
+                row += 1;
+            }
         }
     }
 }

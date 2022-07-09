@@ -2,6 +2,7 @@ use crate::meta_var::MetaVarEnv;
 use crate::replacer::Replacer;
 use crate::rule::Matcher;
 use crate::ts_parser::Edit;
+use std::borrow::Cow;
 
 // the lifetime r represents root
 #[derive(Clone, Copy)]
@@ -64,6 +65,19 @@ impl<'r> Node<'r> {
             source: self.source,
             count: self.inner.child_count(),
         }
+    }
+
+    pub fn display_context(&self) -> (Cow<'r, str>, usize) {
+        let bytes = self.source.as_bytes();
+        let mut start = self.inner.start_byte();
+        let mut end = self.inner.end_byte();
+        while start > 0 && bytes[start - 1] != b'\n' {
+            start -= 1;
+        }
+        while end < bytes.len() - 1 && bytes[end + 1] != b'\n' {
+            end += 1;
+        }
+        (String::from_utf8_lossy(&bytes[start..=end]), self.inner.start_position().row)
     }
 }
 

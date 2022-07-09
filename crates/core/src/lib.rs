@@ -49,18 +49,6 @@ impl Root {
         self
     }
 
-    pub fn display_context(&self, n: Node) -> std::borrow::Cow<'_, str> {
-        let bytes = self.source.as_bytes();
-        let mut start = n.inner.start_byte();
-        let mut end = n.inner.end_byte();
-        while start > 0 && bytes[start - 1] != b'\n' {
-            start -= 1;
-        }
-        while end < bytes.len() - 1 && bytes[end + 1] != b'\n' {
-            end += 1;
-        }
-        String::from_utf8_lossy(&bytes[start..=end])
-    }
 
     pub fn replace<M: PositiveMatcher, R: Replacer>(&mut self, pattern: M, replacer: R) -> bool {
         if let Some(edit) = self.root().replace(pattern, replacer) {
