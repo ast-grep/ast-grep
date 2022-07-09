@@ -1,6 +1,7 @@
 # Pattern Matcher
 1. Tree Pattern
 1. Node Kind
+1. TODO: Tree Sitter expression Matcher??
 
 # Metavariable Matcher
 1. Regex
@@ -14,6 +15,21 @@
 5. pattern-not-inside
 
 
-TODO:
-[ ] Add replace
-[x] Add find_all
+# TODO:
+
+## Core
+- [x] Add replace
+- [x] Add find_all
+- [ ] Add metavar char customization
+- [ ] Add per-language customization
+- [ ] Add support for dynamic matcher
+- [ ] Investigate perf heuristic (e.g. match fixed-string)
+- [ ] View node in context
+
+## CLI
+- [ ] match against files in directory recursively
+- [ ] support YAML config rule
+
+## Binding
+## Playground
+
