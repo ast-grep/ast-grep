@@ -75,7 +75,7 @@ fn match_one_file(path: &Path, file_content: String, pattern: &str, rewrite: Opt
     } else {
         for e in matches {
             println!("------------------");
-            println!("{}", e.text());
+            println!("{}", grep.display_context(e));
         }
     }
 }
