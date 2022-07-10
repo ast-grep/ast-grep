@@ -23,11 +23,12 @@ fn match_leaf_meta_var<'goal, 'tree>(
     }
 }
 
-fn is_ellipsis(node: &Node) -> bool {
-    matches!(
-        extract_var_from_node(node),
-        Some(MetaVariable::Ellipsis | MetaVariable::NamedEllipsis(_))
-    )
+fn try_get_ellipsis_mode(node: &Node) -> Result<Option<String>, ()> {
+    match extract_var_from_node(node).ok_or(())? {
+        MetaVariable::Ellipsis => Ok(None),
+        MetaVariable::NamedEllipsis(n) => Ok(Some(n)),
+        _ => Err(()),
+    }
 }
 
 pub fn match_node_non_recursive<'goal, 'tree>(
@@ -59,25 +60,35 @@ pub fn match_node_non_recursive<'goal, 'tree>(
     cand_children.peek()?;
     loop {
         let curr_node = goal_children.peek().unwrap();
-        if is_ellipsis(curr_node) {
-            // goal has all matched
+        if let Ok(optional_name) = try_get_ellipsis_mode(curr_node) {
+            let mut matched = vec![];
             goal_children.next();
+            // goal has all matched
             if goal_children.peek().is_none() {
-                // TODO: update env
+                if let Some(name) = optional_name.as_ref() {
+                    matched.extend(cand_children);
+                    env.insert_multi(name.to_string(), matched);
+                }
                 return Some(candidate);
             }
+            // TODO: we ignore too many goal nodes here
             while !goal_children.peek().unwrap().inner.is_named() {
                 goal_children.next();
                 if goal_children.peek().is_none() {
-                    // TODO: update env
+                    if let Some(name) = optional_name.as_ref() {
+                        matched.extend(cand_children);
+                        env.insert_multi(name.to_string(), matched);
+                    }
                     return Some(candidate);
                 }
             }
             // if next node is a Ellipsis, consume one candidate node
-            if is_ellipsis(goal_children.peek().unwrap()) {
-                cand_children.next();
+            if try_get_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
+                matched.push(cand_children.next().unwrap());
                 cand_children.peek()?;
-                // TODO: update env
+                if let Some(name) = optional_name.as_ref() {
+                    env.insert_multi(name.to_string(), matched);
+                }
                 continue;
             }
             loop {
@@ -89,9 +100,12 @@ pub fn match_node_non_recursive<'goal, 'tree>(
                 .is_some()
                 {
                     // found match non Ellipsis,
+                    if let Some(name) = optional_name.as_ref() {
+                        env.insert_multi(name.to_string(), matched);
+                    }
                     break;
                 }
-                cand_children.next();
+                matched.push(cand_children.next().unwrap());
                 cand_children.peek()?;
             }
         }

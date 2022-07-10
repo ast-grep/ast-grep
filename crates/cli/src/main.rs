@@ -121,7 +121,7 @@ fn print_diff(old: &str, new: &str, base_line: usize) {
                     ChangeTag::Equal => (" ", Style::new().dimmed()),
                 };
                 print!(
-                    "{}{} |{}",
+                    "{}{}|{}",
                     index_display(change.old_index().map(|i| i + base_line), s),
                     index_display(change.new_index().map(|i| i + base_line), s),
                     s.paint(sign),
