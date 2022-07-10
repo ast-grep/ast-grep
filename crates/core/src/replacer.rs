@@ -49,7 +49,7 @@ fn get_meta_var_replacement(node: &Node, env: &MetaVarEnv) -> Option<String> {
     if !node.is_leaf() {
         return None;
     }
-    let meta_var = extract_meta_var(node.text())?;
+    let meta_var = extract_meta_var(node.text(), '$')?;
     let replaced = match env.get(&meta_var)? {
         MatchResult::Single(replaced) => replaced.text().to_string(),
         MatchResult::Multi(nodes) => {

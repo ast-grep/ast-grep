@@ -149,7 +149,7 @@ pub fn does_node_match_exactly(goal: &Node, candidate: Node) -> bool {
 
 fn extract_var_from_node(goal: &Node) -> Option<MetaVariable> {
     let key = goal.text();
-    extract_meta_var(key)
+    extract_meta_var(key, '$')
 }
 
 #[cfg(test)]
