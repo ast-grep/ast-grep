@@ -22,9 +22,9 @@
 - [x] Add find_all
 - [ ] Add metavar char customization
 - [ ] Add per-language customization
-- [ ] Add support for vec/sequence matcher
+- [x] Add support for vec/sequence matcher
 - [ ] Investigate perf heuristic (e.g. match fixed-string)
-- [ ] View node in context
+- [x] View node in context
 
 ## CLI
 - [ ] match against files in directory recursively
