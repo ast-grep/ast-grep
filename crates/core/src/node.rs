@@ -201,6 +201,18 @@ impl<'r> Node<'r> {
     pub fn clone(&mut self) {}
 }
 
+impl<'r> std::fmt::Display for Node<'r> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.text())
+    }
+}
+
+impl<'r> std::fmt::Debug for Node<'r> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.text())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::Root;

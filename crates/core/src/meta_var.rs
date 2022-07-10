@@ -5,8 +5,8 @@ use std::collections::HashMap;
 
 pub type MetaVariableID = String;
 
-// a dictionary for metavariable instantiation
-// const a = 123 matched with const a = $A will produce env: $A => 123
+/// a dictionary that stores metavariable instantiation
+/// const a = 123 matched with const a = $A will produce env: $A => 123
 #[derive(Default)]
 pub struct MetaVarEnv<'tree> {
     var_matchers: HashMap<MetaVariableID, MetaVarMatcher>,
@@ -18,6 +18,7 @@ impl<'tree> MetaVarEnv<'tree> {
     pub fn new() -> Self {
         Default::default()
     }
+
     pub fn insert(&mut self, id: MetaVariableID, ret: Node<'tree>) -> Option<&mut Self> {
         if !self.match_variable(&id, ret) {
             return None;
@@ -70,28 +71,28 @@ impl<'tree> MetaVarEnv<'tree> {
 }
 
 pub enum MatchResult<'a, 'tree> {
-    // $A for captured meta var
+    /// $A for captured meta var
     Single(&'a Node<'tree>),
-    // $$$A for captured ellipsis
+    /// $$$A for captured ellipsis
     Multi(&'a Vec<Node<'tree>>),
 }
 
 #[derive(Debug, PartialEq)]
 pub enum MetaVariable {
-    // $A for captured meta var
+    /// $A for captured meta var
     Named(MetaVariableID),
-    // $_ for non-captured meta var
+    /// $_ for non-captured meta var
     Anonymous,
-    // $$$ for non-captured ellipsis
+    /// $$$ for non-captured ellipsis
     Ellipsis,
-    // $$$A for captured ellipsis
+    /// $$$A for captured ellipsis
     NamedEllipsis(MetaVariableID),
 }
 
 pub enum MetaVarMatcher {
-    // A regex to filter matched metavar based on its textual content.
+    /// A regex to filter matched metavar based on its textual content.
     Regex(&'static str),
-    // A pattern to filter matched metavar based on its AST tree shape.
+    /// A pattern to filter matched metavar based on its AST tree shape.
     Pattern(Pattern),
 }
 
@@ -107,7 +108,7 @@ impl MetaVarMatcher {
     }
 }
 
-pub fn extract_meta_var(s: &str) -> Option<MetaVariable> {
+pub(crate) fn extract_meta_var(s: &str) -> Option<MetaVariable> {
     use MetaVariable::*;
     if s == "$$$" {
         return Some(Ellipsis);
