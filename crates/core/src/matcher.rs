@@ -71,12 +71,15 @@ pub fn match_node_non_recursive<'goal, 'tree>(
                 }
                 return Some(candidate);
             }
+            let mut skipped_anonymous = 0;
             // TODO: we ignore too many goal nodes here
             while !goal_children.peek().unwrap().inner.is_named() {
                 goal_children.next();
+                skipped_anonymous += 1;
                 if goal_children.peek().is_none() {
                     if let Some(name) = optional_name.as_ref() {
                         matched.extend(cand_children);
+                        drop(matched.drain((matched.len() - skipped_anonymous)..));
                         env.insert_multi(name.to_string(), matched);
                     }
                     return Some(candidate);
@@ -87,6 +90,7 @@ pub fn match_node_non_recursive<'goal, 'tree>(
                 matched.push(cand_children.next().unwrap());
                 cand_children.peek()?;
                 if let Some(name) = optional_name.as_ref() {
+                    drop(matched.drain((matched.len() - skipped_anonymous)..));
                     env.insert_multi(name.to_string(), matched);
                 }
                 continue;
@@ -101,6 +105,7 @@ pub fn match_node_non_recursive<'goal, 'tree>(
                 {
                     // found match non Ellipsis,
                     if let Some(name) = optional_name.as_ref() {
+                        drop(matched.drain((matched.len() - skipped_anonymous)..));
                         env.insert_multi(name.to_string(), matched);
                     }
                     break;
