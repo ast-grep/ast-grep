@@ -52,7 +52,15 @@ fn get_meta_var_replacement(node: &Node, env: &MetaVarEnv) -> Option<String> {
     let meta_var = extract_meta_var(node.text())?;
     let replaced = match env.get(&meta_var)? {
         MatchResult::Single(replaced) => replaced.text().to_string(),
-        MatchResult::Multi(nodes) => nodes.iter().flat_map(|n| n.text().chars()).collect(),
+        MatchResult::Multi(nodes) => {
+            if nodes.is_empty() {
+                String::new()
+            } else {
+                let start = nodes[0].inner.start_byte();
+                let end = nodes[nodes.len() - 1].inner.end_byte();
+                nodes[0].source[start..=end].to_string()
+            }
+        }
     };
     Some(replaced)
 }
