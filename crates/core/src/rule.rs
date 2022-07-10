@@ -63,7 +63,8 @@ impl<S: AsRef<str>> Matcher for S {
         node: Node<'tree>,
         env: &mut MetaVarEnv<'tree>,
     ) -> Option<Node<'tree>> {
-        let pattern = Pattern::new(self.as_ref());
+        // TODO: replace this
+        let pattern = Pattern::new(self.as_ref(), tree_sitter_typescript::language_tsx());
         pattern.match_node(node, env)
     }
 }
@@ -306,22 +307,27 @@ mod test {
     use super::*;
     use crate::Pattern;
     use crate::Root;
+    use crate::language::{Language, Tsx};
+
+    fn get_pattern(src: &str) -> Pattern {
+        Pattern::new(src, Tsx::get_ts_language())
+    }
     fn test_find(rule: &impl Matcher, code: &str) {
         let mut env = MetaVarEnv::new();
-        let node = Root::new(code);
+        let node = Root::new(code, Tsx::get_ts_language());
         assert!(rule.find_node(node.root(), &mut env).is_some());
     }
     fn test_not_find(rule: &impl Matcher, code: &str) {
         let mut env = MetaVarEnv::new();
-        let node = Root::new(code);
+        let node = Root::new(code, Tsx::get_ts_language());
         assert!(rule.find_node(node.root(), &mut env).is_none());
     }
 
     #[test]
     fn test_or() {
         let rule = Or {
-            pattern1: Pattern::new("let a = 1"),
-            pattern2: Pattern::new("const b = 2"),
+            pattern1: get_pattern("let a = 1"),
+            pattern2: get_pattern("const b = 2"),
         };
         test_find(&rule, "let a = 1");
         test_find(&rule, "const b = 2");
@@ -334,7 +340,7 @@ mod test {
     #[test]
     fn test_not() {
         let rule = Not {
-            not: Pattern::new("let a = 1"),
+            not: get_pattern("let a = 1"),
         };
         test_find(&rule, "const b = 2");
     }
@@ -342,9 +348,9 @@ mod test {
     #[test]
     fn test_and() {
         let rule = And {
-            pattern1: Pattern::new("let a = $_"),
+            pattern1: get_pattern("let a = $_"),
             pattern2: Not {
-                not: Pattern::new("let a = 123"),
+                not: get_pattern("let a = 123"),
             },
         };
         test_find(&rule, "let a = 233");

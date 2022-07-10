@@ -108,13 +108,13 @@ impl MetaVarMatcher {
     }
 }
 
-pub(crate) fn extract_meta_var(s: &str, meta_char: char) -> Option<MetaVariable> {
+pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariable> {
     use MetaVariable::*;
     let ellipsis: String = std::iter::repeat(meta_char).take(3).collect();
-    if s == ellipsis {
+    if src == ellipsis {
         return Some(Ellipsis);
     }
-    if let Some(trimmed) = s.strip_prefix(&ellipsis) {
+    if let Some(trimmed) = src.strip_prefix(&ellipsis) {
         if !trimmed.chars().all(is_valid_meta_var_char) {
             return None;
         }
@@ -124,10 +124,10 @@ pub(crate) fn extract_meta_var(s: &str, meta_char: char) -> Option<MetaVariable>
             return Some(NamedEllipsis(trimmed.to_owned()));
         }
     }
-    if !s.starts_with(meta_char) {
+    if !src.starts_with(meta_char) {
         return None;
     }
-    let trimmed = &s[1..];
+    let trimmed = &src[1..];
     // $A or $_
     if !trimmed.chars().all(is_valid_meta_var_char) {
         return None;

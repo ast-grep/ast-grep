@@ -1,6 +1,7 @@
 use crate::matcher::match_node_non_recursive;
 use crate::rule::{Matcher, PositiveMatcher};
 use crate::{meta_var::MetaVarEnv, Node, Root};
+use crate::language::TSLanguage;
 
 pub enum PatternKind {
     NodePattern(Root),
@@ -12,8 +13,8 @@ pub struct Pattern {
 }
 
 impl Pattern {
-    pub fn new(src: &str) -> Self {
-        let node = Root::new(src);
+    pub fn new(src: &str, ts_lang: TSLanguage) -> Self {
+        let node = Root::new(src, ts_lang);
         let goal = node.root();
         if goal.inner.child_count() != 1 {
             todo!("multi-children pattern is not supported yet.")
@@ -63,19 +64,20 @@ fn matcher(goal: &Root) -> Node {
 
 impl PositiveMatcher for Pattern {}
 
-impl<S: AsRef<str>> From<S> for Pattern {
-    fn from(src: S) -> Self {
-        Self::new(src.as_ref())
-    }
-}
+// impl<S: AsRef<str>> From<S> for Pattern {
+//     fn from(src: S) -> Self {
+//         Self::new(src.as_ref())
+//     }
+// }
 
 #[cfg(test)]
 mod test {
     use super::*;
     use std::collections::HashMap;
+    use crate::language::{Tsx, Language};
 
     fn pattern_node(s: &str) -> Root {
-        let pattern = Pattern::new(s);
+        let pattern = Pattern::new(s, Tsx::get_ts_language());
         match pattern.pattern_kind {
             PatternKind::NodePattern(n) => n,
             _ => panic!("kind pattern is not supported"),

@@ -1,11 +1,9 @@
-pub use tree_sitter::Tree;
+pub use tree_sitter::{Tree, Language};
 use tree_sitter::{InputEdit, Parser, Point};
-use tree_sitter_typescript::language_tsx;
 
-pub fn parse(source_code: &str, old_tree: Option<&Tree>) -> Tree {
+pub fn parse(source_code: &str, old_tree: Option<&Tree>, ts_lang: Language) -> Tree {
     let mut parser = Parser::new();
-    let language = language_tsx();
-    parser.set_language(language).unwrap();
+    parser.set_language(ts_lang).unwrap();
     parser.parse(source_code, old_tree).unwrap()
 }
 
@@ -52,11 +50,16 @@ pub fn perform_edit(tree: &mut Tree, input: &mut Vec<u8>, edit: &Edit) -> InputE
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use super::{*, parse as parse_lang};
+    use crate::language::{Tsx, Language};
+
+    fn parse(src: &str) -> Tree {
+        parse_lang(src, None, Tsx::get_ts_language())
+    }
 
     #[test]
     fn test_tree_sitter() {
-        let tree = parse("var a = 1234", None);
+        let tree = parse("var a = 1234");
         let root_node = tree.root_node();
         assert_eq!(root_node.kind(), "program");
         assert_eq!(root_node.start_position().column, 0);
@@ -66,7 +69,7 @@ mod test {
 
     #[test]
     fn test_object_literal() {
-        let tree = parse("{a: $X}", None);
+        let tree = parse("{a: $X}");
         let root_node = tree.root_node();
         // wow this is not label. technically it is wrong but practically it is better LOL
         assert_eq!(root_node.to_sexp(), "(program (expression_statement (object (pair key: (property_identifier) value: (identifier)))))");
@@ -75,7 +78,7 @@ mod test {
     #[test]
     fn test_edit() {
         let mut src = "a + b".to_string();
-        let mut tree = parse(&src, None);
+        let mut tree = parse(&src);
         let edit = perform_edit(
             &mut tree,
             unsafe { src.as_mut_vec() },
@@ -86,7 +89,7 @@ mod test {
             },
         );
         tree.edit(&edit);
-        let tree2 = parse(&src, Some(&tree));
+        let tree2 = parse_lang(&src, Some(&tree), Tsx::get_ts_language());
         assert_eq!(tree.root_node().to_sexp(), "(program (expression_statement (binary_expression left: (identifier) right: (identifier))))");
         assert_eq!(tree2.root_node().to_sexp(), "(program (expression_statement (binary_expression left: (binary_expression left: (binary_expression left: (identifier) right: (identifier)) right: (identifier)) right: (identifier))))");
     }

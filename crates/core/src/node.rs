@@ -1,7 +1,39 @@
 use crate::meta_var::MetaVarEnv;
 use crate::replacer::Replacer;
 use crate::rule::Matcher;
-use crate::ts_parser::Edit;
+use crate::language::TSLanguage;
+use crate::ts_parser::{perform_edit, Edit, parse};
+
+pub struct Root {
+    pub inner: tree_sitter::Tree,
+    pub source: String,
+}
+
+/// Represents [`tree_sitter::Tree`] and owns source string
+/// Note: Root is not generic against [`Language`](crate::language::Language)
+impl Root {
+    pub fn new(src: &str, lang: TSLanguage) -> Self {
+        Self {
+            inner: parse(src, None, lang),
+            source: src.into(),
+        }
+    }
+    // extract non generic implementation to reduce code size
+    pub fn do_edit<'t>(mut self, edit: Edit, lang: TSLanguage) -> Root {
+        let input = unsafe { self.source.as_mut_vec() };
+        let input_edit = perform_edit(&mut self.inner, input, &edit);
+        self.inner.edit(&input_edit);
+        self.inner = parse(&self.source, Some(&self.inner), lang);
+        self
+    }
+
+    pub fn root(&self) -> Node {
+        Node {
+            inner: self.inner.root_node(),
+            source: &self.source,
+        }
+    }
+}
 
 // the lifetime r represents root
 #[derive(Clone, Copy)]
@@ -164,12 +196,7 @@ impl<'r> Node<'r> {
     pub fn eq(&self, _i: usize) -> Node<'r> {
         todo!()
     }
-    pub fn each<F>(&self, _f: F)
-    where
-        F: Fn(&Node<'r>),
-    {
-        todo!()
-    }
+
 }
 
 // r manipulation API
@@ -215,17 +242,18 @@ impl<'r> std::fmt::Debug for Node<'r> {
 
 #[cfg(test)]
 mod test {
-    use crate::Root;
+    use super::*;
+    use crate::language::{Tsx, Language};
     #[test]
     fn test_is_leaf() {
-        let root = Root::new("let a = 123");
+        let root = Root::new("let a = 123", Tsx::get_ts_language());
         let node = root.root();
         assert!(!node.is_leaf());
     }
 
     #[test]
     fn test_children() {
-        let root = Root::new("let a = 123");
+        let root = Root::new("let a = 123", Tsx::get_ts_language());
         let node = root.root();
         let children: Vec<_> = node.children().collect();
         assert_eq!(children.len(), 1);

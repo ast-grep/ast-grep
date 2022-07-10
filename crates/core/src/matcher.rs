@@ -155,8 +155,13 @@ fn extract_var_from_node(goal: &Node) -> Option<MetaVariable> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::ts_parser::parse;
+    use crate::ts_parser::parse as parse_base;
+    use crate::language::{Language, TypeScript};
     use std::collections::HashMap;
+
+    fn parse(src: &str) -> tree_sitter::Tree {
+        parse_base(src, None, TypeScript::get_ts_language())
+    }
     fn find_node_recursive<'goal, 'tree>(
         goal: &Node<'goal>,
         node: Node<'tree>,
@@ -169,12 +174,12 @@ mod test {
     }
 
     fn test_match(s1: &str, s2: &str) -> HashMap<String, String> {
-        let goal = parse(s1, None);
+        let goal = parse(s1);
         let goal = Node {
             inner: goal.root_node().child(0).unwrap(),
             source: s1,
         };
-        let cand = parse(s2, None);
+        let cand = parse(s2);
         let cand = Node {
             inner: cand.root_node(),
             source: s2,
@@ -191,12 +196,12 @@ mod test {
     }
 
     fn test_non_match(s1: &str, s2: &str) {
-        let goal = parse(s1, None);
+        let goal = parse(s1);
         let goal = Node {
             inner: goal.root_node().child(0).unwrap(),
             source: s1,
         };
-        let cand = parse(s2, None);
+        let cand = parse(s2);
         let cand = Node {
             inner: cand.root_node(),
             source: s2,
