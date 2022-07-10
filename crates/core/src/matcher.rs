@@ -84,7 +84,6 @@ pub fn match_node_non_recursive<'goal, 'tree>(
                 return Some(candidate);
             }
             let mut skipped_anonymous = 0;
-            // TODO: we ignore too many goal nodes here
             while !goal_children.peek().unwrap().inner.is_named() {
                 goal_children.next();
                 skipped_anonymous += 1;

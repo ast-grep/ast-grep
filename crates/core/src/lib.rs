@@ -12,7 +12,7 @@ mod ts_parser;
 pub use meta_var::MetaVarMatcher;
 pub use node::Node;
 pub use pattern::Pattern;
-pub use rule::Rule;
+pub use rule::{Rule, All, Either};
 
 use crate::{replacer::Replacer, rule::PositiveMatcher};
 use ts_parser::{perform_edit, Edit};

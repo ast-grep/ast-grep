@@ -22,7 +22,7 @@
 - [x] Add find_all
 - [ ] Add metavar char customization
 - [ ] Add per-language customization
-- [ ] Add support for dynamic matcher
+- [ ] Add support for vec/sequence matcher
 - [ ] Investigate perf heuristic (e.g. match fixed-string)
 - [ ] View node in context
 

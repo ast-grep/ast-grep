@@ -102,6 +102,48 @@ where
     }
 }
 
+pub struct All<P: Matcher> {
+    patterns: Vec<P>,
+}
+
+impl<P: Matcher> All<P> {
+    pub fn new<PS: IntoIterator<Item=P>>(patterns: PS) -> Self {
+        Self {
+            patterns: patterns.into_iter().collect(),
+        }
+    }
+}
+
+impl<P: Matcher> Matcher for All<P> {
+    fn match_node<'tree>(
+        &self,
+        node: Node<'tree>,
+        env: &mut MetaVarEnv<'tree>,
+    ) -> Option<Node<'tree>> {
+        self.patterns
+            .iter()
+            .all(|p| p.match_node(node, env).is_some())
+            .then_some(node)
+    }
+}
+
+pub struct Either<P: Matcher> {
+    patterns: Vec<P>,
+}
+
+impl<P: Matcher> Matcher for Either<P> {
+    fn match_node<'tree>(
+        &self,
+        node: Node<'tree>,
+        env: &mut MetaVarEnv<'tree>,
+    ) -> Option<Node<'tree>> {
+        self.patterns
+            .iter()
+            .any(|p| p.match_node(node, env).is_some())
+            .then_some(node)
+    }
+}
+
 pub struct Or<P1: PositiveMatcher, P2: PositiveMatcher> {
     pattern1: P1,
     pattern2: P2,
@@ -185,11 +227,7 @@ where
         node: Node<'tree>,
         env: &mut MetaVarEnv<'tree>,
     ) -> Option<Node<'tree>> {
-        if self.not.match_node(node, env).is_none() {
-            Some(node)
-        } else {
-            None
-        }
+        self.not.match_node(node, env).xor(Some(node))
     }
 }
 
