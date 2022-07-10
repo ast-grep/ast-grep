@@ -3,6 +3,14 @@ use crate::pattern::Pattern;
 use crate::meta_var::{MetaVariable, extract_meta_var};
 pub use tree_sitter::Language as TSLanguage;
 use tree_sitter_c::language as language_c;
+use tree_sitter_go::language as language_go;
+use tree_sitter_html::language as language_html;
+use tree_sitter_javascript::language as language_javascript;
+use tree_sitter_kotlin::language as language_kotlin;
+use tree_sitter_lua::language as language_lua;
+use tree_sitter_python::language as language_python;
+use tree_sitter_rust::language as language_rust;
+use tree_sitter_swift::language as language_swift;
 use tree_sitter_typescript::{language_tsx, language_typescript};
 
 pub trait Language: Sized {
@@ -46,6 +54,14 @@ macro_rules! impl_lang {
     }
 }
 
+impl_lang!(C, language_c);
+impl_lang!(Go, language_go);
+impl_lang!(Html, language_html);
+impl_lang!(Javascript, language_javascript);
+impl_lang!(Kotlin, language_kotlin);
+impl_lang!(Lua, language_lua);
+impl_lang!(Python, language_python);
+impl_lang!(Rust, language_rust);
+impl_lang!(Swift, language_swift);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
-impl_lang!(Clang, language_c);
