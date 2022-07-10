@@ -31,6 +31,21 @@ fn try_get_ellipsis_mode(node: &Node) -> Result<Option<String>, ()> {
     }
 }
 
+fn update_ellipsis_env<'t>(
+    optional_name: &Option<String>,
+    mut matched: Vec<Node<'t>>,
+    env: &mut MetaVarEnv<'t>,
+    cand_children: impl Iterator<Item=Node<'t>>,
+    skipped_anonymous: usize,
+) {
+    if let Some(name) = optional_name.as_ref() {
+        matched.extend(cand_children);
+        let skipped = matched.len().checked_sub(skipped_anonymous).unwrap_or(0);
+        drop(matched.drain(skipped..));
+        env.insert_multi(name.to_string(), matched);
+    }
+}
+
 pub fn match_node_non_recursive<'goal, 'tree>(
     goal: &Node<'goal>,
     candidate: Node<'tree>,
@@ -65,10 +80,7 @@ pub fn match_node_non_recursive<'goal, 'tree>(
             goal_children.next();
             // goal has all matched
             if goal_children.peek().is_none() {
-                if let Some(name) = optional_name.as_ref() {
-                    matched.extend(cand_children);
-                    env.insert_multi(name.to_string(), matched);
-                }
+                update_ellipsis_env(&optional_name, matched, env, cand_children, 0);
                 return Some(candidate);
             }
             let mut skipped_anonymous = 0;
@@ -77,11 +89,7 @@ pub fn match_node_non_recursive<'goal, 'tree>(
                 goal_children.next();
                 skipped_anonymous += 1;
                 if goal_children.peek().is_none() {
-                    if let Some(name) = optional_name.as_ref() {
-                        matched.extend(cand_children);
-                        drop(matched.drain((matched.len() - skipped_anonymous)..));
-                        env.insert_multi(name.to_string(), matched);
-                    }
+                    update_ellipsis_env(&optional_name, matched, env, cand_children, skipped_anonymous);
                     return Some(candidate);
                 }
             }
@@ -89,10 +97,7 @@ pub fn match_node_non_recursive<'goal, 'tree>(
             if try_get_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
                 matched.push(cand_children.next().unwrap());
                 cand_children.peek()?;
-                if let Some(name) = optional_name.as_ref() {
-                    drop(matched.drain((matched.len() - skipped_anonymous)..));
-                    env.insert_multi(name.to_string(), matched);
-                }
+                update_ellipsis_env(&optional_name, matched, env, std::iter::empty(), skipped_anonymous);
                 continue;
             }
             loop {
@@ -104,10 +109,7 @@ pub fn match_node_non_recursive<'goal, 'tree>(
                 .is_some()
                 {
                     // found match non Ellipsis,
-                    if let Some(name) = optional_name.as_ref() {
-                        drop(matched.drain((matched.len() - skipped_anonymous)..));
-                        env.insert_multi(name.to_string(), matched);
-                    }
+                    update_ellipsis_env(&optional_name, matched, env, std::iter::empty(), skipped_anonymous);
                     break;
                 }
                 matched.push(cand_children.next().unwrap());

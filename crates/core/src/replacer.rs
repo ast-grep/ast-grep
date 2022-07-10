@@ -58,7 +58,7 @@ fn get_meta_var_replacement(node: &Node, env: &MetaVarEnv) -> Option<String> {
             } else {
                 let start = nodes[0].inner.start_byte();
                 let end = nodes[nodes.len() - 1].inner.end_byte();
-                nodes[0].source[start..=end].to_string()
+                nodes[0].source[start..end].to_string()
             }
         }
     };
