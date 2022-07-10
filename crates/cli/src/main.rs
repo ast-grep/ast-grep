@@ -4,7 +4,10 @@ use std::io::Result;
 use clap::Parser;
 use std::path::Path;
 use ignore::WalkBuilder;
-use ansi_term::{Style, Color::Cyan};
+use ansi_term::Style;
+use ansi_term::Color::{Cyan, Red, Green};
+use similar::{ChangeTag, TextDiff};
+use std::fmt::Display;
 
 
 #[derive(Parser, Debug)]
@@ -71,7 +74,11 @@ fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
     println!("{}", Cyan.italic().paint(format!("{}", path.display())));
     if let Some(rewrite) = rewrite {
         for mut e in matches {
-            println!("{}", e.replace(&pattern, rewrite).unwrap().inserted_text);
+            let display = e.display_context();
+            let old_str = format!("{}{}{}\n", display.leading, display.matched, display.trailing);
+            let new_str = format!("{}{}{}\n", display.leading, e.replace(&pattern, rewrite).unwrap().inserted_text, display.trailing);
+            let base_line = display.start_line;
+            print_diff(&old_str, &new_str, base_line);
         }
     } else {
         for e in matches {
@@ -87,6 +94,48 @@ fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
                 let line_num = Style::new().bold().paint(format!("{num}"));
                 println!("{line_num:>width$}|{line}");
                 num += 1;
+            }
+        }
+    }
+}
+
+fn index_display(index: Option<usize>, style: Style) -> impl Display {
+    let index_str = match index {
+        None => String::from("    "),
+        Some(idx) => format!("{:<4}", idx),
+    };
+    style.paint(index_str)
+}
+
+fn print_diff(old: &str, new: &str, base_line: usize) {
+    let diff = TextDiff::from_lines(old, new);
+    for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
+        if idx > 0 {
+            println!("{:-^1$}", "-", 80);
+        }
+        for op in group {
+            for change in diff.iter_inline_changes(op) {
+                let (sign, s) = match change.tag() {
+                    ChangeTag::Delete => ("-", Style::new().fg(Red)),
+                    ChangeTag::Insert => ("+", Style::new().fg(Green)),
+                    ChangeTag::Equal => (" ", Style::new().dimmed()),
+                };
+                print!(
+                    "{}{} |{}",
+                    index_display(change.old_index().map(|i| i + base_line), s),
+                    index_display(change.new_index().map(|i| i + base_line), s),
+                    s.paint(sign),
+                );
+                for (emphasized, value) in change.iter_strings_lossy() {
+                    if emphasized {
+                        print!("{}", s.underline().paint(value));
+                    } else {
+                        print!("{}", value);
+                    }
+                }
+                if change.missing_newline() {
+                    println!();
+                }
             }
         }
     }
