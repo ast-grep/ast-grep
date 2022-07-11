@@ -90,18 +90,32 @@ fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
     } else {
         for e in matches {
             let display = e.display_context();
-            let leading = Style::new().dimmed().paint(display.leading);
-            let trailing = Style::new().dimmed().paint(display.trailing);
-            let matched = Style::new().paint(display.matched);
+            let leading = display.leading;
+            let trailing = display.trailing;
+            let matched = display.matched;
             let highlighted = format!("{leading}{matched}{trailing}");
             let lines: Vec<_> = highlighted.lines().collect();
             let mut num = display.start_line;
             let width = (lines.len() + display.start_line).to_string().chars().count();
-            for line in lines {
-                println!("{num:>width$}|{line}");
-                num += 1;
-            }
+            print!("{num:>width$}|"); // initial line num
+            print_highlight(leading.lines(), Style::new().dimmed(), width, &mut num);
+            print_highlight(matched.lines(), Style::new().bold(), width, &mut num);
+            print_highlight(trailing.lines(), Style::new().dimmed(), width, &mut num);
+            println!(); // end match new line
         }
+    }
+}
+
+fn print_highlight<'a>(mut lines: impl Iterator<Item=&'a str>, style: Style, width: usize, num: &mut usize) {
+    if let Some(line) = lines.next() {
+        let line = style.paint(line);
+        print!("{line}");
+    }
+    for line in lines {
+        println!();
+        *num += 1;
+        let line = style.paint(line);
+        print!("{num:>width$}|{line}");
     }
 }
 

@@ -63,12 +63,6 @@ fn matcher<L: Language>(goal: &Root<L>) -> Node<L> {
 
 impl<L: Language> PositiveMatcher<L> for Pattern<L> {}
 
-// impl<S: AsRef<str>, L: Language> From<S> for Pattern<L> {
-//     fn from(src: S) -> Self {
-//         Self::new(src.as_ref())
-//     }
-// }
-
 #[cfg(test)]
 mod test {
     use super::*;
