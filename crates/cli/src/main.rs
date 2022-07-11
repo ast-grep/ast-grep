@@ -148,7 +148,7 @@ fn print_diff(old: &str, new: &str, base_line: usize) {
                 );
                 for (emphasized, value) in change.iter_strings_lossy() {
                     if emphasized {
-                        print!("{}", s.bold().paint(value));
+                        print!("{}", s.underline().paint(value));
                     } else {
                         print!("{}", value);
                     }
