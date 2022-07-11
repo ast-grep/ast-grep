@@ -1,3 +1,12 @@
+# Screenshot
+
+### Search 
+<img width="796" alt="image" src="https://user-images.githubusercontent.com/2883231/178289737-1b4cdf53-454d-4953-b031-1f9a92996874.png">
+
+### Rewrite
+<img width="1296" alt="image" src="https://user-images.githubusercontent.com/2883231/178289574-94a38df7-88fc-4f5e-9293-870091c51902.png">
+
+
 # Pattern Matcher
 1. Tree Pattern
 1. Node Kind
