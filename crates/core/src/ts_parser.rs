@@ -54,7 +54,7 @@ mod test {
     use crate::language::{Tsx, Language};
 
     fn parse(src: &str) -> Tree {
-        parse_lang(src, None, Tsx::get_ts_language())
+        parse_lang(src, None, Tsx.get_ts_language())
     }
 
     #[test]
@@ -89,7 +89,7 @@ mod test {
             },
         );
         tree.edit(&edit);
-        let tree2 = parse_lang(&src, Some(&tree), Tsx::get_ts_language());
+        let tree2 = parse_lang(&src, Some(&tree), Tsx.get_ts_language());
         assert_eq!(tree.root_node().to_sexp(), "(program (expression_statement (binary_expression left: (identifier) right: (identifier))))");
         assert_eq!(tree2.root_node().to_sexp(), "(program (expression_statement (binary_expression left: (binary_expression left: (binary_expression left: (identifier) right: (identifier)) right: (identifier)) right: (identifier))))");
     }

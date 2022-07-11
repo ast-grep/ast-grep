@@ -1,4 +1,4 @@
-use crate::meta_var::{extract_meta_var, MetaVarEnv, MetaVariable};
+use crate::meta_var::{MetaVarEnv, MetaVariable};
 use crate::Node;
 use crate::Language;
 
@@ -150,7 +150,7 @@ pub fn does_node_match_exactly<L: Language>(goal: &Node<L>, candidate: Node<L>) 
 
 fn extract_var_from_node<L: Language>(goal: &Node<L>) -> Option<MetaVariable> {
     let key = goal.text();
-    extract_meta_var(key, '$')
+    goal.root.lang.extract_meta_var(key)
 }
 
 #[cfg(test)]
@@ -159,10 +159,10 @@ mod test {
     use crate::ts_parser::parse as parse_base;
     use crate::language::{Language, Tsx};
     use std::collections::HashMap;
-    use std::marker::PhantomData;
+    use crate::Root;
 
     fn parse(src: &str) -> tree_sitter::Tree {
-        parse_base(src, None, Tsx::get_ts_language())
+        parse_base(src, None, Tsx.get_ts_language())
     }
     fn find_node_recursive<'goal, 'tree>(
         goal: &Node<'goal, Tsx>,
@@ -179,14 +179,20 @@ mod test {
         let goal = parse(s1);
         let goal = Node {
             inner: goal.root_node().child(0).unwrap(),
-            source: s1,
-            lang: PhantomData,
+            root: &Root {
+                inner: goal.clone(),
+                source: s1.to_string(),
+                lang: Tsx,
+            },
         };
         let cand = parse(s2);
         let cand = Node {
             inner: cand.root_node(),
-            source: s2,
-            lang: PhantomData,
+            root: &Root {
+                inner: cand.clone(),
+                source: s2.to_string(),
+                lang: Tsx,
+            },
         };
         let mut env = MetaVarEnv::new();
         let ret = find_node_recursive(&goal, cand, &mut env);
@@ -203,14 +209,20 @@ mod test {
         let goal = parse(s1);
         let goal = Node {
             inner: goal.root_node().child(0).unwrap(),
-            source: s1,
-            lang: PhantomData,
+            root: &Root {
+                inner: goal.clone(),
+                source: s1.to_string(),
+                lang: Tsx,
+            },
         };
         let cand = parse(s2);
         let cand = Node {
             inner: cand.root_node(),
-            source: s2,
-            lang: PhantomData,
+            root: &Root {
+                inner: cand.clone(),
+                source: s2.to_string(),
+                lang: Tsx,
+            },
         };
         let mut env = MetaVarEnv::new();
         let ret = find_node_recursive(&goal, cand, &mut env);

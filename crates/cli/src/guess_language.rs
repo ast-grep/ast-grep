@@ -1,0 +1,67 @@
+//! Guess which programming language a file is written in
+//! Adapt from https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs
+use ast_grep_core::language::{ self, Language, TSLanguage};
+use std::path::Path;
+
+/// represents a dynamic language
+#[derive(Clone, Copy)]
+pub enum SupportLang {
+    C,
+    Go,
+    Html,
+    JavaScript,
+    Kotlin,
+    Lua,
+    Python,
+    Rust,
+    Swift,
+    Tsx,
+    TypeScript,
+}
+
+pub fn from_extension(path: &Path) -> Option<SupportLang> {
+    use SupportLang::*;
+    match path.extension()?.to_str()? {
+        "c" => Some(C),
+        "go" => Some(Go),
+        "html" | "htm" | "xhtml" => Some(Html),
+        "cjs" | "js" | "mjs" | "jsx" => Some(JavaScript),
+        "kt" | "ktm" | "kts" => Some(Kotlin),
+        "lua" => Some(Lua),
+        "py" | "py3" | "pyi" | "bzl" => Some(Python),
+        "rs" => Some(Rust),
+        "swift" => Some(Swift),
+        "ts" => Some(TypeScript),
+        "tsx" => Some(Tsx),
+        _ => None,
+    }
+}
+
+impl Language for SupportLang {
+    fn get_ts_language(&self) -> TSLanguage {
+        use SupportLang::*;
+        match self {
+            C => language::C.get_ts_language(),
+            Go => language::Go.get_ts_language(),
+            Html => language::Html.get_ts_language(),
+            JavaScript => language::JavaScript.get_ts_language(),
+            Kotlin => language::Kotlin.get_ts_language(),
+            Lua => language::Lua.get_ts_language(),
+            Python => language::Python.get_ts_language(),
+            Rust => language::Rust.get_ts_language(),
+            Swift => language::Swift.get_ts_language(),
+            Tsx => language::Tsx.get_ts_language(),
+            TypeScript => language::TypeScript.get_ts_language(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    #[test]
+    fn test_guess_by_extension() {
+        let path = Path::new("foo.rs");
+        assert_eq!(from_extension(path, ""), Some(EmacsLisp));
+    }
+}

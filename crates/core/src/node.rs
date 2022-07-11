@@ -3,22 +3,21 @@ use crate::replacer::Replacer;
 use crate::rule::Matcher;
 use crate::language::Language;
 use crate::ts_parser::{perform_edit, Edit, parse};
-use std::marker::PhantomData;
 
 pub struct Root<L: Language> {
     pub inner: tree_sitter::Tree,
     pub source: String,
-    pub lang: PhantomData<L>,
+    pub lang: L,
 }
 
 /// Represents [`tree_sitter::Tree`] and owns source string
 /// Note: Root is not generic against [`Language`](crate::language::Language)
 impl<L: Language> Root<L> {
-    pub fn new(src: &str) -> Self {
+    pub fn new(src: &str, lang: L) -> Self {
         Self {
-            inner: parse(src, None, L::get_ts_language()),
+            inner: parse(src, None, lang.get_ts_language()),
             source: src.into(),
-            lang: PhantomData,
+            lang,
         }
     }
     // extract non generic implementation to reduce code size
@@ -26,14 +25,13 @@ impl<L: Language> Root<L> {
         let input = unsafe { self.source.as_mut_vec() };
         let input_edit = perform_edit(&mut self.inner, input, &edit);
         self.inner.edit(&input_edit);
-        self.inner = parse(&self.source, Some(&self.inner), L::get_ts_language());
+        self.inner = parse(&self.source, Some(&self.inner), self.lang.get_ts_language());
     }
 
     pub fn root(&self) -> Node<L> {
         Node {
             inner: self.inner.root_node(),
-            source: &self.source,
-            lang: PhantomData,
+            root: self,
         }
     }
 }
@@ -42,16 +40,14 @@ impl<L: Language> Root<L> {
 #[derive(Clone, Copy)]
 pub struct Node<'r, L: Language> {
     pub(crate) inner: tree_sitter::Node<'r>,
-    pub(crate) source: &'r str,
-    pub(crate) lang: PhantomData<L>,
+    pub(crate) root: &'r Root<L>,
 }
 type NodeKind = u16;
 
 struct NodeWalker<'tree, L: Language> {
     cursor: tree_sitter::TreeCursor<'tree>,
-    source: &'tree str,
+    root: &'tree Root<L>,
     count: usize,
-    lang: PhantomData<L>,
 }
 
 impl<'tree, L: Language> Iterator for NodeWalker<'tree, L> {
@@ -62,8 +58,7 @@ impl<'tree, L: Language> Iterator for NodeWalker<'tree, L> {
         }
         let ret = Some(Node {
             inner: self.cursor.node(),
-            source: self.source,
-            lang: PhantomData,
+            root: self.root,
         });
         self.cursor.goto_next_sibling();
         self.count -= 1;
@@ -90,7 +85,7 @@ impl<'r, L: Language> Node<'r, L> {
     }
     pub fn text(&self) -> &'r str {
         self.inner
-            .utf8_text(self.source.as_bytes())
+            .utf8_text(self.root.source.as_bytes())
             .expect("invalid source text encoding")
     }
 
@@ -99,14 +94,13 @@ impl<'r, L: Language> Node<'r, L> {
         cursor.goto_first_child();
         NodeWalker {
             cursor,
-            source: self.source,
+            root: self.root,
             count: self.inner.child_count(),
-            lang: PhantomData,
         }
     }
 
     pub fn display_context(&self) -> DisplayContext<'r> {
-        let bytes = self.source.as_bytes();
+        let bytes = self.root.source.as_bytes();
         let start = self.inner.start_byte();
         let end = self.inner.end_byte();
         let (mut leading, mut trailing) = (start, end);
@@ -118,8 +112,8 @@ impl<'r, L: Language> Node<'r, L> {
         }
         DisplayContext {
             matched: self.text(),
-            leading: &self.source[leading..start],
-            trailing: &self.source[end..=trailing],
+            leading: &self.root.source[leading..start],
+            trailing: &self.root.source[end..=trailing],
             start_line: self.inner.start_position().row + 1,
         }
     }
@@ -154,8 +148,7 @@ impl<'r, L: Language> Node<'r, L> {
         let inner = self.inner.parent()?;
         Some(Node {
             inner,
-            source: self.source,
-            lang: PhantomData,
+            root: self.root,
         })
     }
     pub fn ancestors(&self) -> impl Iterator<Item=Node<'r, L>> + '_ {
@@ -164,8 +157,7 @@ impl<'r, L: Language> Node<'r, L> {
             let inner = parent?;
             let ret = Some(Node {
                 inner,
-                source: self.source,
-                lang: PhantomData,
+                root: self.root,
             });
             parent = inner.parent();
             ret
@@ -176,19 +168,17 @@ impl<'r, L: Language> Node<'r, L> {
         let inner = self.inner.next_sibling()?;
         Some(Node {
             inner,
-            source: self.source,
-            lang: PhantomData,
+            root: self.root,
         })
     }
     pub fn next_all(&self) -> impl Iterator<Item = Node<'r, L>> + '_ {
         let mut cursor = self.inner.walk();
-        let source = self.source;
+        let root = self.root;
         std::iter::from_fn(move || {
             if cursor.goto_next_sibling() {
                 Some(Node {
                     inner: cursor.node(),
-                    source,
-                    lang: PhantomData,
+                    root,
                 })
             } else {
                 None
@@ -200,8 +190,7 @@ impl<'r, L: Language> Node<'r, L> {
         let inner = self.inner.prev_sibling()?;
         Some(Node {
             inner,
-            source: self.source,
-            lang: PhantomData,
+            root: self.root,
         })
     }
     #[must_use]
@@ -223,7 +212,7 @@ impl<'r, L: Language> Node<'r, L> {
         let named_cnt = inner.named_child_count();
         let end = inner.named_child(named_cnt - 1).unwrap().end_byte();
         let deleted_length = end - position;
-        let inserted_text = replacer.generate_replacement(&env);
+        let inserted_text = replacer.generate_replacement(&env, self.root.lang);
         Some(Edit {
             position,
             deleted_length,
@@ -245,14 +234,14 @@ mod test {
     use crate::language::{Tsx, Language};
     #[test]
     fn test_is_leaf() {
-        let root = Tsx::new("let a = 123");
+        let root = Tsx.new("let a = 123");
         let node = root.root();
         assert!(!node.is_leaf());
     }
 
     #[test]
     fn test_children() {
-        let root = Tsx::new("let a = 123");
+        let root = Tsx.new("let a = 123");
         let node = root.root();
         let children: Vec<_> = node.children().collect();
         assert_eq!(children.len(), 1);

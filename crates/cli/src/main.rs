@@ -1,4 +1,6 @@
-use ast_grep_core::language::{Language, Tsx};
+mod guess_language;
+
+use ast_grep_core::language::{Language};
 use std::fs::read_to_string;
 use std::io::Result;
 use clap::Parser;
@@ -8,6 +10,7 @@ use ansi_term::Style;
 use ansi_term::Color::{Cyan, Red, Green};
 use similar::{ChangeTag, TextDiff};
 use std::fmt::Display;
+use guess_language::from_extension;
 
 
 #[derive(Parser, Debug)]
@@ -62,11 +65,15 @@ fn main() -> Result<()> {
 }
 
 fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
+    let lang = match from_extension(path) {
+        Some(lang) => lang,
+        None => return,
+    };
     let file_content = match read_to_string(&path) {
         Ok(content) => content,
         _ => return,
     };
-    let grep = Tsx::new(file_content);
+    let grep = lang.new(file_content);
     let mut matches = grep.root().find_all(pattern).peekable();
     if matches.peek().is_none() {
         return
@@ -85,14 +92,13 @@ fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
             let display = e.display_context();
             let leading = Style::new().dimmed().paint(display.leading);
             let trailing = Style::new().dimmed().paint(display.trailing);
-            let matched = Style::new().bold().paint(display.matched);
+            let matched = Style::new().paint(display.matched);
             let highlighted = format!("{leading}{matched}{trailing}");
             let lines: Vec<_> = highlighted.lines().collect();
             let mut num = display.start_line;
             let width = (lines.len() + display.start_line).to_string().chars().count();
             for line in lines {
-                let line_num = Style::new().bold().paint(format!("{num}"));
-                println!("{line_num:>width$}|{line}");
+                println!("{num:>width$}|{line}");
                 num += 1;
             }
         }
@@ -128,7 +134,7 @@ fn print_diff(old: &str, new: &str, base_line: usize) {
                 );
                 for (emphasized, value) in change.iter_strings_lossy() {
                     if emphasized {
-                        print!("{}", s.underline().paint(value));
+                        print!("{}", s.bold().paint(value));
                     } else {
                         print!("{}", value);
                     }

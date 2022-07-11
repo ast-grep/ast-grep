@@ -22,9 +22,9 @@ pub struct AstGrep<L: Language> {
 }
 
 impl<L: Language> AstGrep<L> {
-    pub fn new<S: AsRef<str>>(src: S) -> Self {
+    pub fn new<S: AsRef<str>>(src: S, lang: L) -> Self {
         Self {
-            inner: Root::new(src.as_ref()),
+            inner: Root::new(src.as_ref(), lang),
         }
     }
 
@@ -58,7 +58,7 @@ mod test {
     use language::Tsx;
     #[test]
     fn test_replace() {
-        let mut ast_grep = Tsx::new("var a = 1; let b = 2;");
+        let mut ast_grep = Tsx.new("var a = 1; let b = 2;");
         ast_grep.replace("var $A = $B", "let $A = $B");
         let source = ast_grep.generate();
         assert_eq!(source, "let a = 1; let b = 2;"); // note the semicolon
@@ -67,7 +67,7 @@ mod test {
     #[test]
     fn test_replace_by_rule() {
         let rule = Rule::either("let a = 123").or("let b = 456").build();
-        let mut ast_grep = Tsx::new("let a = 123");
+        let mut ast_grep = Tsx.new("let a = 123");
         let replaced = ast_grep.replace(rule, "console.log('it works!')");
         assert!(replaced);
         let source = ast_grep.generate();
@@ -76,12 +76,12 @@ mod test {
 
     #[test]
     fn test_replace_trivia() {
-        let mut ast_grep = Tsx::new("var a = 1 /*haha*/;");
+        let mut ast_grep = Tsx.new("var a = 1 /*haha*/;");
         ast_grep.replace("var $A = $B", "let $A = $B");
         let source = ast_grep.generate();
         assert_eq!(source, "let a = 1;"); // semicolon
 
-        let mut ast_grep = Tsx::new("var a = 1; /*haha*/");
+        let mut ast_grep = Tsx.new("var a = 1; /*haha*/");
         ast_grep.replace("var $A = $B", "let $A = $B");
         let source = ast_grep.generate();
         assert_eq!(source, "let a = 1; /*haha*/");

@@ -1,22 +1,22 @@
-use crate::meta_var::{extract_meta_var, MatchResult, MetaVarEnv};
+use crate::meta_var::{MatchResult, MetaVarEnv};
 use crate::ts_parser::Edit;
 use crate::{Node, Root};
 use crate::language::Language;
 
 /// Replace meta variable in the replacer string
 pub trait Replacer<L: Language> {
-    fn generate_replacement(&self, env: &MetaVarEnv<L>) -> String;
+    fn generate_replacement(&self, env: &MetaVarEnv<L>, lang: L) -> String;
 }
 
 impl<S: AsRef<str>, L: Language> Replacer<L> for S {
-    fn generate_replacement(&self, env: &MetaVarEnv<L>) -> String {
-        let root = Root::new(self.as_ref());
+    fn generate_replacement(&self, env: &MetaVarEnv<L>, lang: L) -> String {
+        let root = Root::new(self.as_ref(), lang);
         let mut stack = vec![root.root()];
         let mut edits = vec![];
         let mut reverse = vec![];
         // TODO: benchmark dfs performance
         while let Some(node) = stack.pop() {
-            if let Some(text) = get_meta_var_replacement(&node, env) {
+            if let Some(text) = get_meta_var_replacement(&node, env, lang) {
                 let position = node.inner.start_byte();
                 let length = node.inner.end_byte() - position;
                 edits.push(Edit {
@@ -46,11 +46,11 @@ impl<S: AsRef<str>, L: Language> Replacer<L> for S {
     }
 }
 
-fn get_meta_var_replacement<L: Language>(node: &Node<L>, env: &MetaVarEnv<L>) -> Option<String> {
+fn get_meta_var_replacement<L: Language>(node: &Node<L>, env: &MetaVarEnv<L>, lang: L) -> Option<String> {
     if !node.is_leaf() {
         return None;
     }
-    let meta_var = extract_meta_var(node.text(), '$')?;
+    let meta_var = lang.extract_meta_var(node.text())?;
     let replaced = match env.get(&meta_var)? {
         MatchResult::Single(replaced) => replaced.text().to_string(),
         MatchResult::Multi(nodes) => {
@@ -59,7 +59,7 @@ fn get_meta_var_replacement<L: Language>(node: &Node<L>, env: &MetaVarEnv<L>) ->
             } else {
                 let start = nodes[0].inner.start_byte();
                 let end = nodes[nodes.len() - 1].inner.end_byte();
-                nodes[0].source[start..end].to_string()
+                nodes[0].root.source[start..end].to_string()
             }
         }
     };
@@ -67,7 +67,7 @@ fn get_meta_var_replacement<L: Language>(node: &Node<L>, env: &MetaVarEnv<L>) ->
 }
 
 impl<'a, L: Language> Replacer<L> for Node<'a, L> {
-    fn generate_replacement(&self, _: &MetaVarEnv<L>) -> String {
+    fn generate_replacement(&self, _: &MetaVarEnv<L>, _: L) -> String {
         self.text().to_string()
     }
 }
@@ -80,11 +80,11 @@ mod test {
 
     fn test_str_replace(replacer: &str, vars: &[(&str, &str)], expected: &str) {
         let mut env = MetaVarEnv::new();
-        let roots: Vec<_> = vars.iter().map(|(v, p)| (v, Tsx::new(p).inner)).collect();
+        let roots: Vec<_> = vars.iter().map(|(v, p)| (v, Tsx.new(p).inner)).collect();
         for (var, root) in &roots {
             env.insert(var.to_string(), root.root());
         }
-        let replaced = replacer.generate_replacement(&env);
+        let replaced = replacer.generate_replacement(&env, Tsx);
         assert_eq!(replaced, expected, "wrong replacement {replaced} {expected} {:?}", HashMap::from(env));
     }
 
@@ -121,11 +121,11 @@ mod test {
 
     fn test_ellipsis_replace(replacer: &str, vars: &[(&str, &str)], expected: &str) {
         let mut env = MetaVarEnv::new();
-        let roots: Vec<_> = vars.iter().map(|(v, p)| (v, Tsx::new(p).inner)).collect();
+        let roots: Vec<_> = vars.iter().map(|(v, p)| (v, Tsx.new(p).inner)).collect();
         for (var, root) in &roots {
             env.insert_multi(var.to_string(), root.root().children().collect());
         }
-        let replaced = replacer.generate_replacement(&env);
+        let replaced = replacer.generate_replacement(&env, Tsx);
         assert_eq!(replaced, expected, "wrong replacement {replaced} {expected} {:?}", HashMap::from(env));
     }
 

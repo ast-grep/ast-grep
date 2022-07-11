@@ -65,7 +65,7 @@ impl<S: AsRef<str>, L: Language> Matcher<L> for S {
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        let pattern = Pattern::new(self.as_ref());
+        let pattern = Pattern::new(self.as_ref(), node.root.lang);
         pattern.match_node(node, env)
     }
 }
@@ -337,12 +337,12 @@ mod test {
 
     fn test_find(rule: &impl Matcher<Tsx>, code: &str) {
         let mut env = MetaVarEnv::new();
-        let node = Root::new(code);
+        let node = Root::new(code, Tsx);
         assert!(rule.find_node(node.root(), &mut env).is_some());
     }
     fn test_not_find(rule: &impl Matcher<Tsx>, code: &str) {
         let mut env = MetaVarEnv::new();
-        let node = Root::new(code);
+        let node = Root::new(code, Tsx);
         assert!(rule.find_node(node.root(), &mut env).is_none());
     }
 

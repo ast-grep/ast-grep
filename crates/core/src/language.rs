@@ -15,31 +15,31 @@ use tree_sitter_typescript::{language_tsx, language_typescript};
 
 pub trait Language: Sized + 'static + Copy + Clone {
     /// Create an [`AstGrep`] instance for the language
-    fn new<S: AsRef<str>>(source: S) -> AstGrep<Self> {
-        AstGrep::new(source)
+    fn new<S: AsRef<str>>(&self, source: S) -> AstGrep<Self> {
+        AstGrep::new(source, *self)
     }
 
     /// tree sitter language to parse the source
-    fn get_ts_language() -> TSLanguage;
+    fn get_ts_language(&self) -> TSLanguage;
     /// ignore trivial tokens in language matching
-    fn skippable_kind_ids() -> &'static [u16] {
+    fn skippable_kind_ids(&self) -> &'static [u16] {
         &[]
     }
 
     /// Configure meta variable special character
     /// By default $ is the metavar char, but in PHP it is #
     #[inline]
-    fn meta_var_char() -> char {
+    fn meta_var_char(&self) -> char {
         '$'
     }
     /// extract MetaVariable from a given source string
-    fn extract_meta_var(source: &str) -> Option<MetaVariable> {
-        extract_meta_var(source, Self::meta_var_char())
+    fn extract_meta_var(&self, source: &str) -> Option<MetaVariable> {
+        extract_meta_var(source, self.meta_var_char())
     }
     /// normalize query before matching
     /// e.g. remove expression_statement, or prefer parsing {} to object over block
-    fn build_pattern(query: &str) -> Pattern<Self> {
-        Pattern::new(query)
+    fn build_pattern(&self, query: &str) -> Pattern<Self> {
+        Pattern::new(query, *self)
     }
 }
 
@@ -48,7 +48,7 @@ macro_rules! impl_lang {
         #[derive(Clone, Copy)]
         pub struct $lang;
         impl Language for $lang {
-            fn get_ts_language() -> TSLanguage {
+            fn get_ts_language(&self) -> TSLanguage {
                 $func()
             }
         }
@@ -58,7 +58,7 @@ macro_rules! impl_lang {
 impl_lang!(C, language_c);
 impl_lang!(Go, language_go);
 impl_lang!(Html, language_html);
-impl_lang!(Javascript, language_javascript);
+impl_lang!(JavaScript, language_javascript);
 impl_lang!(Kotlin, language_kotlin);
 impl_lang!(Lua, language_lua);
 impl_lang!(Python, language_python);
