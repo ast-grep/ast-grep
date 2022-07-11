@@ -1,16 +1,16 @@
 use crate::meta_var::{extract_meta_var, MatchResult, MetaVarEnv};
 use crate::ts_parser::Edit;
 use crate::{Node, Root};
-use crate::language::TSLanguage;
+use crate::language::Language;
 
 /// Replace meta variable in the replacer string
-pub trait Replacer {
-    fn generate_replacement(&self, env: &MetaVarEnv, lang: TSLanguage) -> String;
+pub trait Replacer<L: Language> {
+    fn generate_replacement(&self, env: &MetaVarEnv<L>) -> String;
 }
 
-impl<S: AsRef<str>> Replacer for S {
-    fn generate_replacement(&self, env: &MetaVarEnv, lang: TSLanguage) -> String {
-        let root = Root::new(self.as_ref(), lang);
+impl<S: AsRef<str>, L: Language> Replacer<L> for S {
+    fn generate_replacement(&self, env: &MetaVarEnv<L>) -> String {
+        let root = Root::new(self.as_ref());
         let mut stack = vec![root.root()];
         let mut edits = vec![];
         let mut reverse = vec![];
@@ -46,7 +46,7 @@ impl<S: AsRef<str>> Replacer for S {
     }
 }
 
-fn get_meta_var_replacement(node: &Node, env: &MetaVarEnv) -> Option<String> {
+fn get_meta_var_replacement<L: Language>(node: &Node<L>, env: &MetaVarEnv<L>) -> Option<String> {
     if !node.is_leaf() {
         return None;
     }
@@ -66,8 +66,8 @@ fn get_meta_var_replacement(node: &Node, env: &MetaVarEnv) -> Option<String> {
     Some(replaced)
 }
 
-impl<'a> Replacer for Node<'a> {
-    fn generate_replacement(&self, _: &MetaVarEnv, lang: TSLanguage) -> String {
+impl<'a, L: Language> Replacer<L> for Node<'a, L> {
+    fn generate_replacement(&self, _: &MetaVarEnv<L>) -> String {
         self.text().to_string()
     }
 }
@@ -84,7 +84,7 @@ mod test {
         for (var, root) in &roots {
             env.insert(var.to_string(), root.root());
         }
-        let replaced = replacer.generate_replacement(&env, Tsx::get_ts_language());
+        let replaced = replacer.generate_replacement(&env);
         assert_eq!(replaced, expected, "wrong replacement {replaced} {expected} {:?}", HashMap::from(env));
     }
 
@@ -125,7 +125,7 @@ mod test {
         for (var, root) in &roots {
             env.insert_multi(var.to_string(), root.root().children().collect());
         }
-        let replaced = replacer.generate_replacement(&env, Tsx::get_ts_language());
+        let replaced = replacer.generate_replacement(&env);
         assert_eq!(replaced, expected, "wrong replacement {replaced} {expected} {:?}", HashMap::from(env));
     }
 

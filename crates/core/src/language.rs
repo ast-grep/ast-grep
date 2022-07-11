@@ -13,9 +13,9 @@ use tree_sitter_rust::language as language_rust;
 use tree_sitter_swift::language as language_swift;
 use tree_sitter_typescript::{language_tsx, language_typescript};
 
-pub trait Language: Sized {
+pub trait Language: Sized + 'static + Copy + Clone {
     /// Create an [`AstGrep`] instance for the language
-    fn new(source: &str) -> AstGrep<Self> {
+    fn new<S: AsRef<str>>(source: S) -> AstGrep<Self> {
         AstGrep::new(source)
     }
 
@@ -38,13 +38,14 @@ pub trait Language: Sized {
     }
     /// normalize query before matching
     /// e.g. remove expression_statement, or prefer parsing {} to object over block
-    fn build_pattern(query: &str) -> Pattern {
-        Pattern::new(query, Self::get_ts_language())
+    fn build_pattern(query: &str) -> Pattern<Self> {
+        Pattern::new(query)
     }
 }
 
 macro_rules! impl_lang {
     ($lang: ident, $func: ident) => {
+        #[derive(Clone, Copy)]
         pub struct $lang;
         impl Language for $lang {
             fn get_ts_language() -> TSLanguage {

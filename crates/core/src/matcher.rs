@@ -1,11 +1,12 @@
 use crate::meta_var::{extract_meta_var, MetaVarEnv, MetaVariable};
 use crate::Node;
+use crate::Language;
 
-fn match_leaf_meta_var<'goal, 'tree>(
-    goal: &Node<'goal>,
-    candidate: Node<'tree>,
-    env: &mut MetaVarEnv<'tree>,
-) -> Option<Node<'tree>> {
+fn match_leaf_meta_var<'goal, 'tree, L: Language>(
+    goal: &Node<'goal, L>,
+    candidate: Node<'tree, L>,
+    env: &mut MetaVarEnv<'tree, L>,
+) -> Option<Node<'tree, L>> {
     let extracted = extract_var_from_node(goal)?;
     use MetaVariable as MV;
     match extracted {
@@ -23,7 +24,7 @@ fn match_leaf_meta_var<'goal, 'tree>(
     }
 }
 
-fn try_get_ellipsis_mode(node: &Node) -> Result<Option<String>, ()> {
+fn try_get_ellipsis_mode(node: &Node<impl Language>) -> Result<Option<String>, ()> {
     match extract_var_from_node(node).ok_or(())? {
         MetaVariable::Ellipsis => Ok(None),
         MetaVariable::NamedEllipsis(n) => Ok(Some(n)),
@@ -31,11 +32,11 @@ fn try_get_ellipsis_mode(node: &Node) -> Result<Option<String>, ()> {
     }
 }
 
-fn update_ellipsis_env<'t>(
+fn update_ellipsis_env<'t, L: Language>(
     optional_name: &Option<String>,
-    mut matched: Vec<Node<'t>>,
-    env: &mut MetaVarEnv<'t>,
-    cand_children: impl Iterator<Item=Node<'t>>,
+    mut matched: Vec<Node<'t, L>>,
+    env: &mut MetaVarEnv<'t, L>,
+    cand_children: impl Iterator<Item=Node<'t, L>>,
     skipped_anonymous: usize,
 ) {
     if let Some(name) = optional_name.as_ref() {
@@ -46,11 +47,11 @@ fn update_ellipsis_env<'t>(
     }
 }
 
-pub fn match_node_non_recursive<'goal, 'tree>(
-    goal: &Node<'goal>,
-    candidate: Node<'tree>,
-    env: &mut MetaVarEnv<'tree>,
-) -> Option<Node<'tree>> {
+pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
+    goal: &Node<'goal, L>,
+    candidate: Node<'tree, L>,
+    env: &mut MetaVarEnv<'tree, L>,
+) -> Option<Node<'tree, L>> {
     let is_leaf = goal.is_leaf();
     if is_leaf {
         if let Some(matched) = match_leaf_meta_var(goal, candidate, env) {
@@ -130,7 +131,7 @@ pub fn match_node_non_recursive<'goal, 'tree>(
     }
 }
 
-pub fn does_node_match_exactly(goal: &Node, candidate: Node) -> bool {
+pub fn does_node_match_exactly<L: Language>(goal: &Node<L>, candidate: Node<L>) -> bool {
     if goal.kind_id() != candidate.kind_id() {
         return false;
     }
@@ -147,7 +148,7 @@ pub fn does_node_match_exactly(goal: &Node, candidate: Node) -> bool {
         .all(|(g, c)| does_node_match_exactly(&g, c))
 }
 
-fn extract_var_from_node(goal: &Node) -> Option<MetaVariable> {
+fn extract_var_from_node<L: Language>(goal: &Node<L>) -> Option<MetaVariable> {
     let key = goal.text();
     extract_meta_var(key, '$')
 }
@@ -156,17 +157,18 @@ fn extract_var_from_node(goal: &Node) -> Option<MetaVariable> {
 mod test {
     use super::*;
     use crate::ts_parser::parse as parse_base;
-    use crate::language::{Language, TypeScript};
+    use crate::language::{Language, Tsx};
     use std::collections::HashMap;
+    use std::marker::PhantomData;
 
     fn parse(src: &str) -> tree_sitter::Tree {
-        parse_base(src, None, TypeScript::get_ts_language())
+        parse_base(src, None, Tsx::get_ts_language())
     }
     fn find_node_recursive<'goal, 'tree>(
-        goal: &Node<'goal>,
-        node: Node<'tree>,
-        env: &mut MetaVarEnv<'tree>,
-    ) -> Option<Node<'tree>> {
+        goal: &Node<'goal, Tsx>,
+        node: Node<'tree, Tsx>,
+        env: &mut MetaVarEnv<'tree, Tsx>,
+    ) -> Option<Node<'tree, Tsx>> {
         match_node_non_recursive(goal, node, env).or_else(|| {
             node.children()
                 .find_map(|sub| find_node_recursive(goal, sub, env))
@@ -178,11 +180,13 @@ mod test {
         let goal = Node {
             inner: goal.root_node().child(0).unwrap(),
             source: s1,
+            lang: PhantomData,
         };
         let cand = parse(s2);
         let cand = Node {
             inner: cand.root_node(),
             source: s2,
+            lang: PhantomData,
         };
         let mut env = MetaVarEnv::new();
         let ret = find_node_recursive(&goal, cand, &mut env);
@@ -200,11 +204,13 @@ mod test {
         let goal = Node {
             inner: goal.root_node().child(0).unwrap(),
             source: s1,
+            lang: PhantomData,
         };
         let cand = parse(s2);
         let cand = Node {
             inner: cand.root_node(),
             source: s2,
+            lang: PhantomData,
         };
         let mut env = MetaVarEnv::new();
         let ret = find_node_recursive(&goal, cand, &mut env);

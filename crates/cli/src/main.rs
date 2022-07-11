@@ -1,4 +1,4 @@
-use ast_grep_core::AstGrep;
+use ast_grep_core::language::{Language, Tsx};
 use std::fs::read_to_string;
 use std::io::Result;
 use clap::Parser;
@@ -66,14 +66,14 @@ fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
         Ok(content) => content,
         _ => return,
     };
-    let grep = AstGrep::new(file_content);
+    let grep = Tsx::new(file_content);
     let mut matches = grep.root().find_all(pattern).peekable();
     if matches.peek().is_none() {
         return
     }
     println!("{}", Cyan.italic().paint(format!("{}", path.display())));
     if let Some(rewrite) = rewrite {
-        for mut e in matches {
+        for e in matches {
             let display = e.display_context();
             let old_str = format!("{}{}{}\n", display.leading, display.matched, display.trailing);
             let new_str = format!("{}{}{}\n", display.leading, e.replace(&pattern, rewrite).unwrap().inserted_text, display.trailing);

@@ -1,56 +1,61 @@
 use crate::meta_var::MetaVarEnv;
 use crate::replacer::Replacer;
 use crate::rule::Matcher;
-use crate::language::TSLanguage;
+use crate::language::Language;
 use crate::ts_parser::{perform_edit, Edit, parse};
+use std::marker::PhantomData;
 
-pub struct Root {
+pub struct Root<L: Language> {
     pub inner: tree_sitter::Tree,
     pub source: String,
+    pub lang: PhantomData<L>,
 }
 
 /// Represents [`tree_sitter::Tree`] and owns source string
 /// Note: Root is not generic against [`Language`](crate::language::Language)
-impl Root {
-    pub fn new(src: &str, lang: TSLanguage) -> Self {
+impl<L: Language> Root<L> {
+    pub fn new(src: &str) -> Self {
         Self {
-            inner: parse(src, None, lang),
+            inner: parse(src, None, L::get_ts_language()),
             source: src.into(),
+            lang: PhantomData,
         }
     }
     // extract non generic implementation to reduce code size
-    pub fn do_edit<'t>(mut self, edit: Edit, lang: TSLanguage) -> Root {
+    pub fn do_edit<'t>(&mut self, edit: Edit) {
         let input = unsafe { self.source.as_mut_vec() };
         let input_edit = perform_edit(&mut self.inner, input, &edit);
         self.inner.edit(&input_edit);
-        self.inner = parse(&self.source, Some(&self.inner), lang);
-        self
+        self.inner = parse(&self.source, Some(&self.inner), L::get_ts_language());
     }
 
-    pub fn root(&self) -> Node {
+    pub fn root(&self) -> Node<L> {
         Node {
             inner: self.inner.root_node(),
             source: &self.source,
+            lang: PhantomData,
         }
     }
 }
 
 // the lifetime r represents root
 #[derive(Clone, Copy)]
-pub struct Node<'r> {
+pub struct Node<'r, L: Language> {
     pub(crate) inner: tree_sitter::Node<'r>,
     pub(crate) source: &'r str,
+    pub(crate) lang: PhantomData<L>,
 }
 type NodeKind = u16;
 
-struct NodeWalker<'tree> {
+struct NodeWalker<'tree, L: Language> {
     cursor: tree_sitter::TreeCursor<'tree>,
     source: &'tree str,
     count: usize,
+    lang: PhantomData<L>,
 }
 
-impl<'tree> Iterator for NodeWalker<'tree> {
-    type Item = Node<'tree>;
+impl<'tree, L: Language> Iterator for NodeWalker<'tree, L> {
+    type Item = Node<'tree, L>;
     fn next(&mut self) -> Option<Self::Item> {
         if self.count == 0 {
             return None;
@@ -58,6 +63,7 @@ impl<'tree> Iterator for NodeWalker<'tree> {
         let ret = Some(Node {
             inner: self.cursor.node(),
             source: self.source,
+            lang: PhantomData,
         });
         self.cursor.goto_next_sibling();
         self.count -= 1;
@@ -65,14 +71,14 @@ impl<'tree> Iterator for NodeWalker<'tree> {
     }
 }
 
-impl<'tree> ExactSizeIterator for NodeWalker<'tree> {
+impl<'tree, L: Language> ExactSizeIterator for NodeWalker<'tree, L> {
     fn len(&self) -> usize {
         self.count
     }
 }
 
 // internal API
-impl<'r> Node<'r> {
+impl<'r, L: Language> Node<'r, L> {
     pub fn is_leaf(&self) -> bool {
         self.inner.child_count() == 0
     }
@@ -88,13 +94,14 @@ impl<'r> Node<'r> {
             .expect("invalid source text encoding")
     }
 
-    pub fn children(&self) -> impl ExactSizeIterator<Item = Node<'r>> + '_ {
+    pub fn children<'s>(&'s self) -> impl ExactSizeIterator<Item = Node<'r, L>> + 's {
         let mut cursor = self.inner.walk();
         cursor.goto_first_child();
         NodeWalker {
             cursor,
             source: self.source,
             count: self.inner.child_count(),
+            lang: PhantomData,
         }
     }
 
@@ -130,47 +137,50 @@ pub struct DisplayContext<'r> {
 }
 
 // tree traversal API
-impl<'r> Node<'r> {
+impl<'r, L: Language> Node<'r, L> {
     #[must_use]
-    pub fn find<M: Matcher>(&self, pat: M) -> Option<Node<'r>> {
+    pub fn find<M: Matcher<L>>(&self, pat: M) -> Option<Self> {
         let mut env = MetaVarEnv::new();
         pat.find_node(*self, &mut env)
     }
 
-    pub fn find_all<M: Matcher>(&self, pat: M) -> impl Iterator<Item=Node<'r>> {
+    pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item=Node<'r, L>> {
         pat.find_all_nodes(*self)
     }
 
     // should we provide parent?
     #[must_use]
-    pub fn parent(&self) -> Option<Node<'r>> {
+    pub fn parent(&self) -> Option<Self> {
         let inner = self.inner.parent()?;
         Some(Node {
             inner,
             source: self.source,
+            lang: PhantomData,
         })
     }
-    pub fn ancestors(&self) -> impl Iterator<Item = Node<'r>> + '_ {
+    pub fn ancestors(&self) -> impl Iterator<Item=Node<'r, L>> + '_ {
         let mut parent = self.inner.parent();
         std::iter::from_fn(move || {
             let inner = parent?;
             let ret = Some(Node {
                 inner,
                 source: self.source,
+                lang: PhantomData,
             });
             parent = inner.parent();
             ret
         })
     }
     #[must_use]
-    pub fn next(&self) -> Option<Node<'r>> {
+    pub fn next(&self) -> Option<Self> {
         let inner = self.inner.next_sibling()?;
         Some(Node {
             inner,
             source: self.source,
+            lang: PhantomData,
         })
     }
-    pub fn next_all(&self) -> impl Iterator<Item = Node<'r>> + '_ {
+    pub fn next_all(&self) -> impl Iterator<Item = Node<'r, L>> + '_ {
         let mut cursor = self.inner.walk();
         let source = self.source;
         std::iter::from_fn(move || {
@@ -178,6 +188,7 @@ impl<'r> Node<'r> {
                 Some(Node {
                     inner: cursor.node(),
                     source,
+                    lang: PhantomData,
                 })
             } else {
                 None
@@ -185,24 +196,25 @@ impl<'r> Node<'r> {
         })
     }
     #[must_use]
-    pub fn prev(&self) -> Option<Node<'r>> {
+    pub fn prev(&self) -> Option<Node<'r, L>> {
         let inner = self.inner.prev_sibling()?;
         Some(Node {
             inner,
             source: self.source,
+            lang: PhantomData,
         })
     }
     #[must_use]
-    pub fn eq(&self, _i: usize) -> Node<'r> {
+    pub fn eq(&self, _i: usize) -> Self {
         todo!()
     }
 
 }
 
 // r manipulation API
-impl<'r> Node<'r> {
-    pub fn attr(&mut self) {}
-    pub fn replace<M: Matcher, R: Replacer>(&mut self, matcher: M, replacer: R) -> Option<Edit> {
+impl<'r, L: Language> Node<'r, L> {
+    pub fn attr(&self) {}
+    pub fn replace<M: Matcher<L>, R: Replacer<L>>(&self, matcher: M, replacer: R) -> Option<Edit> {
         let mut env = MetaVarEnv::new();
         let node = matcher.find_node(*self, &mut env)?;
         let inner = node.inner;
@@ -218,42 +230,29 @@ impl<'r> Node<'r> {
             inserted_text,
         })
     }
-    pub fn replace_by(&mut self) {}
-    pub fn after(&mut self) {}
-    pub fn before(&mut self) {}
-    pub fn append(&mut self) {}
-    pub fn prepend(&mut self) {}
-    pub fn empty(&mut self) {}
-    pub fn remove(&mut self) {}
-    pub fn clone(&mut self) {}
-}
-
-impl<'r> std::fmt::Display for Node<'r> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.text())
-    }
-}
-
-impl<'r> std::fmt::Debug for Node<'r> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.text())
-    }
+    pub fn replace_by(&self) {}
+    pub fn after(&self) {}
+    pub fn before(&self) {}
+    pub fn append(&self) {}
+    pub fn prepend(&self) {}
+    pub fn empty(&self) {}
+    pub fn remove(&self) {}
+    pub fn clone(&self) {}
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::language::{Tsx, Language};
     #[test]
     fn test_is_leaf() {
-        let root = Root::new("let a = 123", Tsx::get_ts_language());
+        let root = Tsx::new("let a = 123");
         let node = root.root();
         assert!(!node.is_leaf());
     }
 
     #[test]
     fn test_children() {
-        let root = Root::new("let a = 123", Tsx::get_ts_language());
+        let root = Tsx::new("let a = 123");
         let node = root.root();
         let children: Vec<_> = node.children().collect();
         assert_eq!(children.len(), 1);

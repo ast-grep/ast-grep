@@ -1,20 +1,20 @@
 use crate::matcher::match_node_non_recursive;
 use crate::rule::{Matcher, PositiveMatcher};
 use crate::{meta_var::MetaVarEnv, Node, Root};
-use crate::language::TSLanguage;
+use crate::language::Language;
 
-pub enum PatternKind {
-    NodePattern(Root),
+pub enum PatternKind<L: Language> {
+    NodePattern(Root<L>),
     KindPattern(&'static str),
 }
 
-pub struct Pattern {
-    pattern_kind: PatternKind,
+pub struct Pattern<L: Language> {
+    pattern_kind: PatternKind<L>,
 }
 
-impl Pattern {
-    pub fn new(src: &str, ts_lang: TSLanguage) -> Self {
-        let node = Root::new(src, ts_lang);
+impl<L: Language> Pattern<L> {
+    pub fn new(src: &str) -> Self {
+        let node = Root::new(src);
         let goal = node.root();
         if goal.inner.child_count() != 1 {
             todo!("multi-children pattern is not supported yet.")
@@ -29,12 +29,12 @@ impl Pattern {
     }
 }
 
-impl Matcher for Pattern {
+impl<L: Language> Matcher<L> for Pattern<L> {
     fn match_node<'tree>(
         &self,
-        node: Node<'tree>,
-        env: &mut MetaVarEnv<'tree>,
-    ) -> Option<Node<'tree>> {
+        node: Node<'tree, L>,
+        env: &mut MetaVarEnv<'tree, L>,
+    ) -> Option<Node<'tree, L>> {
         match &self.pattern_kind {
             PatternKind::NodePattern(goal) => match_node_non_recursive(&matcher(&goal), node, env),
             PatternKind::KindPattern(kind) => {
@@ -49,7 +49,7 @@ impl Matcher for Pattern {
 }
 
 // TODO: extract out matcher in recursion
-fn matcher(goal: &Root) -> Node {
+fn matcher<L: Language>(goal: &Root<L>) -> Node<L> {
     let mut node = goal.root().inner;
     let source = goal.root().source;
     while node.child_count() == 1 {
@@ -58,26 +58,27 @@ fn matcher(goal: &Root) -> Node {
     let goal = Node {
         inner: node,
         source,
+        lang: std::marker::PhantomData,
     };
     goal
 }
 
-impl PositiveMatcher for Pattern {}
+impl<L: Language> PositiveMatcher<L> for Pattern<L> {}
 
-// impl<S: AsRef<str>> From<S> for Pattern {
-//     fn from(src: S) -> Self {
-//         Self::new(src.as_ref())
-//     }
-// }
+impl<S: AsRef<str>, L: Language> From<S> for Pattern<L> {
+    fn from(src: S) -> Self {
+        Self::new(src.as_ref())
+    }
+}
 
 #[cfg(test)]
 mod test {
     use super::*;
     use std::collections::HashMap;
-    use crate::language::{Tsx, Language};
+    use crate::language::Tsx;
 
-    fn pattern_node(s: &str) -> Root {
-        let pattern = Pattern::new(s, Tsx::get_ts_language());
+    fn pattern_node(s: &str) -> Root<Tsx> {
+        let pattern = Pattern::new(s);
         match pattern.pattern_kind {
             PatternKind::NodePattern(n) => n,
             _ => panic!("kind pattern is not supported"),

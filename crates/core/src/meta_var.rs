@@ -2,24 +2,28 @@ use crate::matcher::does_node_match_exactly;
 use crate::pattern::Pattern;
 use crate::Node;
 use std::collections::HashMap;
+use crate::Language;
 
 pub type MetaVariableID = String;
 
 /// a dictionary that stores metavariable instantiation
 /// const a = 123 matched with const a = $A will produce env: $A => 123
-#[derive(Default)]
-pub struct MetaVarEnv<'tree> {
-    var_matchers: HashMap<MetaVariableID, MetaVarMatcher>,
-    single_matched: HashMap<MetaVariableID, Node<'tree>>,
-    multi_matched: HashMap<MetaVariableID, Vec<Node<'tree>>>,
+pub struct MetaVarEnv<'tree, L: Language> {
+    var_matchers: HashMap<MetaVariableID, MetaVarMatcher<L>>,
+    single_matched: HashMap<MetaVariableID, Node<'tree, L>>,
+    multi_matched: HashMap<MetaVariableID, Vec<Node<'tree, L>>>,
 }
 
-impl<'tree> MetaVarEnv<'tree> {
+impl<'tree, L: Language> MetaVarEnv<'tree, L> {
     pub fn new() -> Self {
-        Default::default()
+        Self {
+            var_matchers: HashMap::new(),
+            single_matched: HashMap::new(),
+            multi_matched: HashMap::new(),
+        }
     }
 
-    pub fn insert(&mut self, id: MetaVariableID, ret: Node<'tree>) -> Option<&mut Self> {
+    pub fn insert(&mut self, id: MetaVariableID, ret: Node<'tree, L>) -> Option<&mut Self> {
         if !self.match_variable(&id, ret) {
             return None;
         }
@@ -27,12 +31,12 @@ impl<'tree> MetaVarEnv<'tree> {
         Some(self)
     }
 
-    pub fn insert_multi(&mut self, id: MetaVariableID, ret: Vec<Node<'tree>>) -> Option<&mut Self> {
+    pub fn insert_multi(&mut self, id: MetaVariableID, ret: Vec<Node<'tree, L>>) -> Option<&mut Self> {
         self.multi_matched.insert(id, ret);
         Some(self)
     }
 
-    pub fn get(&self, var: &MetaVariable) -> Option<MatchResult<'_, 'tree>> {
+    pub fn get(&self, var: &MetaVariable) -> Option<MatchResult<'_, 'tree, L>> {
         match var {
             MetaVariable::Named(n) => self.single_matched.get(n).map(MatchResult::Single),
             MetaVariable::NamedEllipsis(n) => self.multi_matched.get(n).map(MatchResult::Multi),
@@ -41,8 +45,8 @@ impl<'tree> MetaVarEnv<'tree> {
     }
 }
 
-impl<'tree> From<MetaVarEnv<'tree>> for HashMap<String, String> {
-    fn from(env: MetaVarEnv<'tree>) -> Self {
+impl<'tree, L: Language> From<MetaVarEnv<'tree, L>> for HashMap<String, String> {
+    fn from(env: MetaVarEnv<'tree, L>) -> Self {
         let mut ret = HashMap::new();
         for (id, node) in env.single_matched {
             ret.insert(id, node.text().into());
@@ -56,8 +60,8 @@ impl<'tree> From<MetaVarEnv<'tree>> for HashMap<String, String> {
     }
 }
 
-impl<'tree> MetaVarEnv<'tree> {
-    fn match_variable(&self, id: &MetaVariableID, candidate: Node) -> bool {
+impl<'tree, L: Language> MetaVarEnv<'tree, L> {
+    fn match_variable(&self, id: &MetaVariableID, candidate: Node<L>) -> bool {
         if let Some(m) = self.var_matchers.get(id) {
             if !m.matches(candidate) {
                 return false;
@@ -70,11 +74,11 @@ impl<'tree> MetaVarEnv<'tree> {
     }
 }
 
-pub enum MatchResult<'a, 'tree> {
+pub enum MatchResult<'a, 'tree, L: Language> {
     /// $A for captured meta var
-    Single(&'a Node<'tree>),
+    Single(&'a Node<'tree, L>),
     /// $$$A for captured ellipsis
-    Multi(&'a Vec<Node<'tree>>),
+    Multi(&'a Vec<Node<'tree, L>>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -89,15 +93,15 @@ pub enum MetaVariable {
     NamedEllipsis(MetaVariableID),
 }
 
-pub enum MetaVarMatcher {
+pub enum MetaVarMatcher<L: Language> {
     /// A regex to filter matched metavar based on its textual content.
     Regex(&'static str),
     /// A pattern to filter matched metavar based on its AST tree shape.
-    Pattern(Pattern),
+    Pattern(Pattern<L>),
 }
 
-impl MetaVarMatcher {
-    pub fn matches(&self, candidate: Node) -> bool {
+impl<L: Language> MetaVarMatcher<L> {
+    pub fn matches(&self, candidate: Node<L>) -> bool {
         use crate::rule::Matcher;
         use MetaVarMatcher::*;
         let mut env = MetaVarEnv::new();

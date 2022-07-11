@@ -1,4 +1,4 @@
-mod language;
+pub mod language;
 mod matcher;
 mod meta_var;
 mod node;
@@ -16,33 +16,29 @@ use crate::{replacer::Replacer, rule::PositiveMatcher};
 use ts_parser::Edit;
 use node::Root;
 use language::Language;
-use std::marker::PhantomData;
 
 pub struct AstGrep<L: Language> {
-    inner: Root,
-    lang: PhantomData<L>,
+    inner: Root<L>,
 }
 
-
 impl<L: Language> AstGrep<L> {
-    fn new(src: &str) -> Self {
+    pub fn new<S: AsRef<str>>(src: S) -> Self {
         Self {
-            inner: Root::new(src, L::get_ts_language()),
-            lang: PhantomData,
+            inner: Root::new(src.as_ref()),
         }
     }
 
-    pub fn root(&self) -> Node {
+    pub fn root(&self) -> Node<L> {
         self.inner.root()
     }
 
     pub fn edit(&mut self, edit: Edit) -> &mut Self {
-        self.inner = self.inner.do_edit(edit, L::get_ts_language());
+        self.inner.do_edit(edit);
         self
     }
 
 
-    pub fn replace<M: PositiveMatcher, R: Replacer>(&mut self, pattern: M, replacer: R) -> bool {
+    pub fn replace<M: PositiveMatcher<L>, R: Replacer<L>>(&mut self, pattern: M, replacer: R) -> bool {
         if let Some(edit) = self.root().replace(pattern, replacer) {
             self.edit(edit);
             true
