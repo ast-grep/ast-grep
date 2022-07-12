@@ -5,7 +5,7 @@ use std::fs::read_to_string;
 use std::io::Result;
 use clap::Parser;
 use std::path::Path;
-use ignore::WalkBuilder;
+use ignore::{WalkBuilder, WalkState};
 use ansi_term::Style;
 use ansi_term::Color::{Cyan, Red, Green};
 use similar::{ChangeTag, TextDiff};
@@ -45,22 +45,29 @@ struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
     let pattern = args.pattern;
-
-    for result in WalkBuilder::new(&args.path).hidden(args.hidden).build() {
-        match result {
-            Ok(entry) => {
-                if let Some(file_type) = entry.file_type() {
-                    if !file_type.is_file() {
-                        continue;
-                    }
-                    let path = entry.path();
-                    match_one_file(path, &pattern, args.rewrite.as_ref());
+    let threads = num_cpus::get().min(12);
+    let walker = WalkBuilder::new(&args.path).
+        hidden(args.hidden).
+        threads(threads).
+        build_parallel();
+    walker.run(|| Box::new(|result| match result {
+        Ok(entry) => {
+            if let Some(file_type) = entry.file_type() {
+                if !file_type.is_file() {
+                    return WalkState::Continue;
                 }
-            },
-            Err(err) => eprintln!("ERROR: {}", err),
-
+                let path = entry.path();
+                match_one_file(path, &pattern, args.rewrite.as_ref());
+                WalkState::Continue
+            } else {
+                WalkState::Continue
+            }
         }
-    }
+        Err(err) => {
+            eprintln!("ERROR: {}", err);
+            WalkState::Continue
+        }
+    }));
     Ok(())
 }
 
@@ -78,8 +85,11 @@ fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
     if matches.peek().is_none() {
         return
     }
+
+    let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
     println!("{}", Cyan.italic().paint(format!("{}", path.display())));
     if let Some(rewrite) = rewrite {
+        // TODO: actual matching happened in stdout lock, optimize it out
         for e in matches {
             let display = e.display_context();
             let old_str = format!("{}{}{}\n", display.leading, display.matched, display.trailing);
@@ -104,6 +114,7 @@ fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
             println!(); // end match new line
         }
     }
+    drop(lock);
 }
 
 fn print_highlight<'a>(mut lines: impl Iterator<Item=&'a str>, style: Style, width: usize, num: &mut usize) {
