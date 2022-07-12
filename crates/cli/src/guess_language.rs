@@ -4,7 +4,7 @@ use ast_grep_core::language::{ self, Language, TSLanguage};
 use std::path::Path;
 
 /// represents a dynamic language
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SupportLang {
     C,
     Go,
@@ -58,10 +58,10 @@ impl Language for SupportLang {
 
 #[cfg(test)]
 mod test {
-
+    use super::*;
     #[test]
     fn test_guess_by_extension() {
         let path = Path::new("foo.rs");
-        assert_eq!(from_extension(path, ""), Some(EmacsLisp));
+        assert_eq!(from_extension(path), Some(SupportLang::Rust));
     }
 }
