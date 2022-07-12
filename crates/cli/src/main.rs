@@ -10,7 +10,7 @@ use ansi_term::Style;
 use ansi_term::Color::{Cyan, Red, Green};
 use similar::{ChangeTag, TextDiff};
 use std::fmt::Display;
-use guess_language::from_extension;
+use guess_language::{from_extension, SupportLang};
 
 
 #[derive(Parser, Debug)]
@@ -32,6 +32,10 @@ struct Args {
     /// A comma-delimited list of file extensions to process.
     #[clap(short, long)]
     extensions: Vec<String>,
+
+    /// The language of the pattern query
+    #[clap(short, long)]
+    lang: SupportLang,
 
     /// Include hidden files in search
     #[clap(short,long, parse(from_flag))]

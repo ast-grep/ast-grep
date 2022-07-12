@@ -2,6 +2,8 @@
 //! Adapt from https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs
 use ast_grep_core::language::{ self, Language, TSLanguage};
 use std::path::Path;
+use std::str::FromStr;
+use std::fmt::{Display, Formatter};
 
 /// represents a dynamic language
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -34,6 +36,44 @@ pub fn from_extension(path: &Path) -> Option<SupportLang> {
         "ts" => Some(TypeScript),
         "tsx" => Some(Tsx),
         _ => None,
+    }
+}
+
+#[derive(Debug)]
+pub enum SupportLangErr {
+    LanguageNotSupported(String),
+}
+
+impl Display for SupportLangErr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        use SupportLangErr::*;
+        match self {
+            LanguageNotSupported(lang) => write!(f, "{} is not supported!", lang),
+        }
+    }
+}
+
+impl std::error::Error for SupportLangErr {
+}
+
+impl FromStr for SupportLang {
+    type Err = SupportLangErr;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use SupportLang::*;
+        match s {
+            "c" => Ok(C),
+            "go" | "golang" => Ok(Go),
+            "html" => Ok(Html),
+            "js" | "jsx" => Ok(JavaScript),
+            "kt" | "ktm" | "kts" => Ok(Kotlin),
+            "lua" => Ok(Lua),
+            "py" | "python" => Ok(Python),
+            "rs" | "rust" => Ok(Rust),
+            "swift" => Ok(Swift),
+            "ts" => Ok(TypeScript),
+            "tsx" => Ok(Tsx),
+            _ => Err(SupportLangErr::LanguageNotSupported(s.to_string())),
+        }
     }
 }
 
