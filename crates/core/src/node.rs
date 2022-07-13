@@ -148,6 +148,8 @@ impl<'r, L: Language> Node<'r, L> {
         while leading > 0 && bytes[leading - 1] != b'\n' {
             leading -= 1;
         }
+        // tree-sitter will append line ending to source so trailing can be out of bound
+        trailing = trailing.min(bytes.len() - 1);
         while trailing < bytes.len() - 1 && bytes[trailing + 1] != b'\n' {
             trailing += 1;
         }
@@ -290,5 +292,15 @@ mod test {
             .map(|c| c.text().to_string())
             .collect();
         assert_eq!(texts, vec!["let", "a = 123"]);
+    }
+
+    #[test]
+    fn test_display_context() {
+        // display context should not panic
+        let s = "i()";
+        assert_eq!(s.len(), 3);
+        let root = Tsx.new(s);
+        let node = root.root();
+        assert_eq!(node.display_context().trailing.len(), 0);
     }
 }
