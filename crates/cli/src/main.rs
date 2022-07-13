@@ -3,8 +3,9 @@ mod guess_language;
 use ansi_term::Color::{Cyan, Green, Red};
 use ansi_term::Style;
 use ast_grep_core::language::Language;
+use ast_grep_core::{Pattern, Matcher};
 use clap::Parser;
-use guess_language::{from_extension, SupportLang};
+use guess_language::SupportLang;
 use ignore::{WalkBuilder, WalkState};
 use similar::{ChangeTag, TextDiff};
 use std::fmt::Display;
@@ -55,6 +56,7 @@ fn main() -> Result<()> {
             .threads(threads)
             .types(lang.file_types())
             .build_parallel();
+        let pattern = Pattern::new(&pattern, lang);
         walker.run(|| {
             Box::new(|result| match result {
                 Ok(entry) => {
@@ -63,7 +65,7 @@ fn main() -> Result<()> {
                             return WalkState::Continue;
                         }
                         let path = entry.path();
-                        match_one_file(path, &pattern, args.rewrite.as_ref());
+                        match_one_file(path, lang, &pattern, args.rewrite.as_ref());
                         WalkState::Continue
                     } else {
                         WalkState::Continue
@@ -81,17 +83,13 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
-    let lang = match from_extension(path) {
-        Some(lang) => lang,
-        None => return,
-    };
+fn match_one_file(path: &Path, lang: SupportLang, pattern: &Pattern<SupportLang>, rewrite: Option<&String>) {
     let file_content = match read_to_string(&path) {
         Ok(content) => content,
         _ => return,
     };
     let grep = lang.new(file_content);
-    let mut matches = grep.root().find_all(pattern).peekable();
+    let mut matches = grep.root().find_all(pattern.clone()).peekable();
     if matches.peek().is_none() {
         return;
     }
@@ -109,7 +107,7 @@ fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
             let new_str = format!(
                 "{}{}{}\n",
                 display.leading,
-                e.replace(&pattern, rewrite).unwrap().inserted_text,
+                e.replace(pattern.clone(), rewrite).unwrap().inserted_text,
                 display.trailing
             );
             let base_line = display.start_line;

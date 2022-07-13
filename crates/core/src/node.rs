@@ -4,6 +4,7 @@ use crate::replacer::Replacer;
 use crate::rule::Matcher;
 use crate::ts_parser::{parse, perform_edit, Edit};
 
+#[derive(Clone)]
 pub struct Root<L: Language> {
     pub inner: tree_sitter::Tree,
     pub source: String,

@@ -11,6 +11,7 @@ pub use meta_var::MetaVarMatcher;
 pub use node::Node;
 pub use pattern::Pattern;
 pub use rule::{All, Either, Rule};
+pub use rule::Matcher;
 
 use crate::{replacer::Replacer, rule::PositiveMatcher};
 use language::Language;

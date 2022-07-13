@@ -3,11 +3,13 @@ use crate::matcher::match_node_non_recursive;
 use crate::rule::{Matcher, PositiveMatcher};
 use crate::{meta_var::MetaVarEnv, Node, Root};
 
+#[derive(Clone)]
 pub enum PatternKind<L: Language> {
     NodePattern(Root<L>),
     KindPattern(&'static str),
 }
 
+#[derive(Clone)]
 pub struct Pattern<L: Language> {
     pattern_kind: PatternKind<L>,
 }
