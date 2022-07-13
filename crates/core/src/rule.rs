@@ -1,28 +1,25 @@
 use crate::meta_var::MetaVarEnv;
 use crate::Language;
 use crate::Node;
+use crate::node::DFS;
 use crate::Pattern;
-use std::collections::VecDeque;
 use std::marker::PhantomData;
 
 pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
-    queue: VecDeque<Node<'tree, L>>,
+    dfs: DFS<'tree, L>,
     matcher: M,
 }
 
 impl<'tree, L: Language, M: Matcher<L>> FindAllNodes<'tree, L, M> {
     fn new(matcher: M, node: Node<'tree, L>) -> Self {
-        let mut queue = VecDeque::new();
-        queue.push_back(node);
-        Self { queue, matcher }
+        Self { dfs: node.dfs(), matcher }
     }
 }
 
 impl<'tree, L: Language, M: Matcher<L>> Iterator for FindAllNodes<'tree, L, M> {
     type Item = Node<'tree, L>;
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(cand) = self.queue.pop_front() {
-            self.queue.extend(cand.children());
+        while let Some(cand) = self.dfs.next() {
             let mut env = MetaVarEnv::new();
             if let Some(matched) = self.matcher.match_node(cand, &mut env) {
                 return Some(matched);
@@ -51,14 +48,8 @@ pub trait Matcher<L: Language>: Sized {
             .or_else(|| node.children().find_map(|sub| self.find_node(sub, env)))
     }
 
-    fn find_all_nodes<'tree>(self, node: Node<'tree, L>) -> Box<dyn Iterator<Item = Node<'tree, L>> + 'tree>
-    where Self: 'static {
-        // TODO: remove the Box here
-        Box::new(node.dfs().filter_map(move |node| {
-            let mut env = MetaVarEnv::new();
-            self.match_node(node, &mut env)
-        }))
-        // FindAllNodes::new(self, node)
+    fn find_all_nodes<'tree>(self, node: Node<'tree, L>) -> FindAllNodes<'tree, L, Self> {
+        FindAllNodes::new(self, node)
     }
 }
 
@@ -348,7 +339,7 @@ mod test {
         let node = Root::new(code, Tsx);
         assert!(rule.find_node(node.root(), &mut env).is_none());
     }
-    fn find_all(rule: impl Matcher<Tsx> + 'static, code: &str) -> Vec<String> {
+    fn find_all(rule: impl Matcher<Tsx>, code: &str) -> Vec<String> {
         let node = Root::new(code, Tsx);
         rule.find_all_nodes(node.root()).map(|n| n.text().to_string()).collect()
     }

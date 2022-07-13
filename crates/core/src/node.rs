@@ -136,7 +136,7 @@ impl<'r, L: Language> Node<'r, L> {
         }
     }
 
-    pub fn dfs<'s>(&'s self) -> impl Iterator<Item = Node<'r, L>> {
+    pub fn dfs<'s>(&'s self) -> DFS<'r, L> {
         DFS::new(self)
     }
 
@@ -179,7 +179,7 @@ impl<'r, L: Language> Node<'r, L> {
         pat.find_node(*self, &mut env)
     }
 
-    pub fn find_all<M: Matcher<L> + 'static>(&self, pat: M) -> impl Iterator<Item = Node<'r, L>> {
+    pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = Node<'r, L>> {
         pat.find_all_nodes(*self)
     }
 

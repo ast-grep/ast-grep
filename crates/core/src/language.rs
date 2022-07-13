@@ -13,7 +13,7 @@ use tree_sitter_rust::language as language_rust;
 use tree_sitter_swift::language as language_swift;
 use tree_sitter_typescript::{language_tsx, language_typescript};
 
-pub trait Language: Sized + 'static + Copy + Clone {
+pub trait Language: Copy + Clone {
     /// Create an [`AstGrep`] instance for the language
     fn new<S: AsRef<str>>(&self, source: S) -> AstGrep<Self> {
         AstGrep::new(source, *self)
