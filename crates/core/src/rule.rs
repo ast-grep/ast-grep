@@ -342,6 +342,10 @@ mod test {
         let node = Root::new(code, Tsx);
         assert!(rule.find_node(node.root(), &mut env).is_none());
     }
+    fn find_all(rule: impl Matcher<Tsx>, code: &str) -> Vec<String> {
+        let node = Root::new(code, Tsx);
+        rule.find_all_nodes(node.root()).map(|n| n.text().to_string()).collect()
+    }
 
     #[test]
     fn test_or() {
@@ -401,5 +405,18 @@ mod test {
         test_not_find(&rule, "const a = 1");
         test_not_find(&rule, "let b = 2");
         test_not_find(&rule, "const b = 1");
+    }
+    #[test]
+    fn test_multiple_match() {
+        let sequential = find_all("$A + b", "let f = () => a + b; let ff = () => c + b");
+        assert_eq!(sequential.len(), 2);
+        let nested = find_all("function $A() { $$$ }", "function a() { function b() { b } }");
+        assert_eq!(nested.len(), 2);
+    }
+
+    #[test]
+    fn test_multiple_match_order() {
+        let ret = find_all("$A + b", "let f = () => () => () => a + b; let ff = () => c + b");
+        assert_eq!(ret, ["a + b", "c + b"], "should match source code order");
     }
 }

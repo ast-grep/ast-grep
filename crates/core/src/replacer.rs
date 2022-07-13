@@ -166,4 +166,9 @@ mod test {
             "let a = () => { alert('works!');console.log(123) }",
         );
     }
+
+    #[test]
+    fn test_nested_matching_replace() {
+        // TODO
+    }
 }
