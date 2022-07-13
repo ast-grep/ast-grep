@@ -4,6 +4,7 @@ use ast_grep_core::language::{self, Language, TSLanguage};
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::str::FromStr;
+use ignore::types::{Types, TypesBuilder};
 
 /// represents a dynamic language
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -21,10 +22,44 @@ pub enum SupportLang {
     TypeScript,
 }
 
+impl SupportLang {
+    pub fn file_types(&self) -> Types {
+        use SupportLang::*;
+        let mut builder = TypesBuilder::new();
+        builder.add_defaults();
+        let builder = match self {
+            C => builder.select("c"),
+            Go => builder.select("go"),
+            Html => builder.select("html"),
+            JavaScript => {
+                builder.add("myjs", "*.js").unwrap();
+                builder.add("myjs", "*.jsx").unwrap();
+                builder.add("myjs", "*.mjs").unwrap();
+                builder.select("myjs")
+            }
+            Kotlin => builder.select("kotlin"),
+            Lua => builder.select("lua"),
+            Python => builder.select("py"),
+            Rust => builder.select("rust"),
+            Swift => builder.select("swift"),
+            Tsx => {
+                builder.add("mytsx", "*.tsx").unwrap();
+                builder.select("mytsx")
+            }
+            TypeScript => {
+                builder.add("myts", "*.ts").unwrap();
+                builder.select("myts")
+            }
+        };
+        builder.build().unwrap()
+    }
+
+}
+
 pub fn from_extension(path: &Path) -> Option<SupportLang> {
     use SupportLang::*;
     match path.extension()?.to_str()? {
-        "c" => Some(C),
+        "c" | "h" => Some(C),
         "go" => Some(Go),
         "html" | "htm" | "xhtml" => Some(Html),
         "cjs" | "js" | "mjs" | "jsx" => Some(JavaScript),

@@ -21,11 +21,11 @@ use std::path::Path;
  */
 struct Args {
     /// AST pattern to match
-    #[clap(short, long, value_parser)]
-    pattern: String,
+    #[clap(short, long, requires("lang"))]
+    pattern: Option<String>,
 
     /// String to replace the matched AST node
-    #[clap(short, long, value_parser)]
+    #[clap(short, long)]
     rewrite: Option<String>,
 
     /// A comma-delimited list of file extensions to process.
@@ -34,7 +34,7 @@ struct Args {
 
     /// The language of the pattern query
     #[clap(short, long)]
-    lang: SupportLang,
+    lang: Option<SupportLang>,
 
     /// Include hidden files in search
     #[clap(short, long, parse(from_flag))]
@@ -47,32 +47,37 @@ struct Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let pattern = args.pattern;
     let threads = num_cpus::get().min(12);
-    let walker = WalkBuilder::new(&args.path)
-        .hidden(args.hidden)
-        .threads(threads)
-        .build_parallel();
-    walker.run(|| {
-        Box::new(|result| match result {
-            Ok(entry) => {
-                if let Some(file_type) = entry.file_type() {
-                    if !file_type.is_file() {
-                        return WalkState::Continue;
+    if let Some(pattern) = args.pattern {
+        let lang = args.lang.unwrap();
+        let walker = WalkBuilder::new(&args.path)
+            .hidden(args.hidden)
+            .threads(threads)
+            .types(lang.file_types())
+            .build_parallel();
+        walker.run(|| {
+            Box::new(|result| match result {
+                Ok(entry) => {
+                    if let Some(file_type) = entry.file_type() {
+                        if !file_type.is_file() {
+                            return WalkState::Continue;
+                        }
+                        let path = entry.path();
+                        match_one_file(path, &pattern, args.rewrite.as_ref());
+                        WalkState::Continue
+                    } else {
+                        WalkState::Continue
                     }
-                    let path = entry.path();
-                    match_one_file(path, &pattern, args.rewrite.as_ref());
-                    WalkState::Continue
-                } else {
+                }
+                Err(err) => {
+                    eprintln!("ERROR: {}", err);
                     WalkState::Continue
                 }
-            }
-            Err(err) => {
-                eprintln!("ERROR: {}", err);
-                WalkState::Continue
-            }
-        })
-    });
+            })
+        });
+    } else {
+        println!("config based not implemented yet")
+    }
     Ok(())
 }
 
