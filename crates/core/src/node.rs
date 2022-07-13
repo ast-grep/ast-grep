@@ -73,6 +73,42 @@ impl<'tree, L: Language> ExactSizeIterator for NodeWalker<'tree, L> {
     }
 }
 
+pub struct DFS<'tree, L: Language> {
+    stack: Vec<tree_sitter::TreeCursor<'tree>>,
+    root: &'tree Root<L>,
+}
+
+impl<'tree, L: Language> DFS<'tree, L> {
+    fn new(node: &Node<'tree, L>) -> Self {
+        Self {
+            stack: vec![node.inner.walk()],
+            root: node.root,
+        }
+    }
+}
+
+impl<'tree, L: Language> Iterator for DFS<'tree, L> {
+    type Item = Node<'tree, L>;
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(mut cursor) = self.stack.pop() {
+            let inner = cursor.node();
+            if cursor.goto_next_sibling() {
+                self.stack.push(cursor);
+            }
+            if inner.child_count() > 0 {
+                let mut child = inner.walk();
+                child.goto_first_child();
+                self.stack.push(child);
+            }
+            return Some(Node {
+                inner,
+                root: self.root,
+            })
+        }
+        None
+    }
+}
+
 // internal API
 impl<'r, L: Language> Node<'r, L> {
     pub fn is_leaf(&self) -> bool {
@@ -98,6 +134,10 @@ impl<'r, L: Language> Node<'r, L> {
             root: self.root,
             count: self.inner.child_count(),
         }
+    }
+
+    pub fn dfs<'s>(&'s self) -> impl Iterator<Item = Node<'r, L>> {
+        DFS::new(self)
     }
 
     pub fn display_context(&self) -> DisplayContext<'r> {
@@ -139,7 +179,7 @@ impl<'r, L: Language> Node<'r, L> {
         pat.find_node(*self, &mut env)
     }
 
-    pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = Node<'r, L>> {
+    pub fn find_all<M: Matcher<L> + 'static>(&self, pat: M) -> impl Iterator<Item = Node<'r, L>> {
         pat.find_all_nodes(*self)
     }
 

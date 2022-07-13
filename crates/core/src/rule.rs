@@ -51,8 +51,14 @@ pub trait Matcher<L: Language>: Sized {
             .or_else(|| node.children().find_map(|sub| self.find_node(sub, env)))
     }
 
-    fn find_all_nodes<'tree>(self, node: Node<'tree, L>) -> FindAllNodes<'tree, L, Self> {
-        FindAllNodes::new(self, node)
+    fn find_all_nodes<'tree>(self, node: Node<'tree, L>) -> Box<dyn Iterator<Item = Node<'tree, L>> + 'tree>
+    where Self: 'static {
+        // TODO: remove the Box here
+        Box::new(node.dfs().filter_map(move |node| {
+            let mut env = MetaVarEnv::new();
+            self.match_node(node, &mut env)
+        }))
+        // FindAllNodes::new(self, node)
     }
 }
 
@@ -342,7 +348,7 @@ mod test {
         let node = Root::new(code, Tsx);
         assert!(rule.find_node(node.root(), &mut env).is_none());
     }
-    fn find_all(rule: impl Matcher<Tsx>, code: &str) -> Vec<String> {
+    fn find_all(rule: impl Matcher<Tsx> + 'static, code: &str) -> Vec<String> {
         let node = Root::new(code, Tsx);
         rule.find_all_nodes(node.root()).map(|n| n.text().to_string()).collect()
     }
