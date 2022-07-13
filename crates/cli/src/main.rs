@@ -1,17 +1,16 @@
 mod guess_language;
 
-use ast_grep_core::language::{Language};
-use std::fs::read_to_string;
-use std::io::Result;
-use clap::Parser;
-use std::path::Path;
-use ignore::{WalkBuilder, WalkState};
+use ansi_term::Color::{Cyan, Green, Red};
 use ansi_term::Style;
-use ansi_term::Color::{Cyan, Red, Green};
+use ast_grep_core::language::Language;
+use clap::Parser;
+use guess_language::{from_extension, SupportLang};
+use ignore::{WalkBuilder, WalkState};
 use similar::{ChangeTag, TextDiff};
 use std::fmt::Display;
-use guess_language::{from_extension, SupportLang};
-
+use std::fs::read_to_string;
+use std::io::Result;
+use std::path::Path;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -22,7 +21,7 @@ use guess_language::{from_extension, SupportLang};
  */
 struct Args {
     /// AST pattern to match
-    #[clap(short,long,value_parser)]
+    #[clap(short, long, value_parser)]
     pattern: String,
 
     /// String to replace the matched AST node
@@ -38,11 +37,11 @@ struct Args {
     lang: SupportLang,
 
     /// Include hidden files in search
-    #[clap(short,long, parse(from_flag))]
+    #[clap(short, long, parse(from_flag))]
     hidden: bool,
 
     /// The path whose descendent files are to be explored.
-    #[clap(value_parser, default_value=".")]
+    #[clap(value_parser, default_value = ".")]
     path: String,
 }
 
@@ -50,28 +49,30 @@ fn main() -> Result<()> {
     let args = Args::parse();
     let pattern = args.pattern;
     let threads = num_cpus::get().min(12);
-    let walker = WalkBuilder::new(&args.path).
-        hidden(args.hidden).
-        threads(threads).
-        build_parallel();
-    walker.run(|| Box::new(|result| match result {
-        Ok(entry) => {
-            if let Some(file_type) = entry.file_type() {
-                if !file_type.is_file() {
-                    return WalkState::Continue;
+    let walker = WalkBuilder::new(&args.path)
+        .hidden(args.hidden)
+        .threads(threads)
+        .build_parallel();
+    walker.run(|| {
+        Box::new(|result| match result {
+            Ok(entry) => {
+                if let Some(file_type) = entry.file_type() {
+                    if !file_type.is_file() {
+                        return WalkState::Continue;
+                    }
+                    let path = entry.path();
+                    match_one_file(path, &pattern, args.rewrite.as_ref());
+                    WalkState::Continue
+                } else {
+                    WalkState::Continue
                 }
-                let path = entry.path();
-                match_one_file(path, &pattern, args.rewrite.as_ref());
-                WalkState::Continue
-            } else {
+            }
+            Err(err) => {
+                eprintln!("ERROR: {}", err);
                 WalkState::Continue
             }
-        }
-        Err(err) => {
-            eprintln!("ERROR: {}", err);
-            WalkState::Continue
-        }
-    }));
+        })
+    });
     Ok(())
 }
 
@@ -87,7 +88,7 @@ fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
     let grep = lang.new(file_content);
     let mut matches = grep.root().find_all(pattern).peekable();
     if matches.peek().is_none() {
-        return
+        return;
     }
 
     let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
@@ -96,8 +97,16 @@ fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
         // TODO: actual matching happened in stdout lock, optimize it out
         for e in matches {
             let display = e.display_context();
-            let old_str = format!("{}{}{}\n", display.leading, display.matched, display.trailing);
-            let new_str = format!("{}{}{}\n", display.leading, e.replace(&pattern, rewrite).unwrap().inserted_text, display.trailing);
+            let old_str = format!(
+                "{}{}{}\n",
+                display.leading, display.matched, display.trailing
+            );
+            let new_str = format!(
+                "{}{}{}\n",
+                display.leading,
+                e.replace(&pattern, rewrite).unwrap().inserted_text,
+                display.trailing
+            );
             let base_line = display.start_line;
             print_diff(&old_str, &new_str, base_line);
         }
@@ -110,7 +119,10 @@ fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
             let highlighted = format!("{leading}{matched}{trailing}");
             let lines: Vec<_> = highlighted.lines().collect();
             let mut num = display.start_line;
-            let width = (lines.len() + display.start_line).to_string().chars().count();
+            let width = (lines.len() + display.start_line)
+                .to_string()
+                .chars()
+                .count();
             print!("{num:>width$}|"); // initial line num
             print_highlight(leading.lines(), Style::new().dimmed(), width, &mut num);
             print_highlight(matched.lines(), Style::new().bold(), width, &mut num);
@@ -121,7 +133,12 @@ fn match_one_file(path: &Path, pattern: &str, rewrite: Option<&String>) {
     drop(lock);
 }
 
-fn print_highlight<'a>(mut lines: impl Iterator<Item=&'a str>, style: Style, width: usize, num: &mut usize) {
+fn print_highlight<'a>(
+    mut lines: impl Iterator<Item = &'a str>,
+    style: Style,
+    width: usize,
+    num: &mut usize,
+) {
     if let Some(line) = lines.next() {
         let line = style.paint(line);
         print!("{line}");

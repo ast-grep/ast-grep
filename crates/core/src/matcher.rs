@@ -1,6 +1,6 @@
 use crate::meta_var::{MetaVarEnv, MetaVariable};
-use crate::Node;
 use crate::Language;
+use crate::Node;
 
 fn match_leaf_meta_var<'goal, 'tree, L: Language>(
     goal: &Node<'goal, L>,
@@ -36,7 +36,7 @@ fn update_ellipsis_env<'t, L: Language>(
     optional_name: &Option<String>,
     mut matched: Vec<Node<'t, L>>,
     env: &mut MetaVarEnv<'t, L>,
-    cand_children: impl Iterator<Item=Node<'t, L>>,
+    cand_children: impl Iterator<Item = Node<'t, L>>,
     skipped_anonymous: usize,
 ) {
     if let Some(name) = optional_name.as_ref() {
@@ -89,7 +89,13 @@ pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
                 goal_children.next();
                 skipped_anonymous += 1;
                 if goal_children.peek().is_none() {
-                    update_ellipsis_env(&optional_name, matched, env, cand_children, skipped_anonymous);
+                    update_ellipsis_env(
+                        &optional_name,
+                        matched,
+                        env,
+                        cand_children,
+                        skipped_anonymous,
+                    );
                     return Some(candidate);
                 }
             }
@@ -97,7 +103,13 @@ pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
             if try_get_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
                 matched.push(cand_children.next().unwrap());
                 cand_children.peek()?;
-                update_ellipsis_env(&optional_name, matched, env, std::iter::empty(), skipped_anonymous);
+                update_ellipsis_env(
+                    &optional_name,
+                    matched,
+                    env,
+                    std::iter::empty(),
+                    skipped_anonymous,
+                );
                 continue;
             }
             loop {
@@ -109,7 +121,13 @@ pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
                 .is_some()
                 {
                     // found match non Ellipsis,
-                    update_ellipsis_env(&optional_name, matched, env, std::iter::empty(), skipped_anonymous);
+                    update_ellipsis_env(
+                        &optional_name,
+                        matched,
+                        env,
+                        std::iter::empty(),
+                        skipped_anonymous,
+                    );
                     break;
                 }
                 matched.push(cand_children.next().unwrap());
@@ -156,10 +174,10 @@ fn extract_var_from_node<L: Language>(goal: &Node<L>) -> Option<MetaVariable> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::ts_parser::parse as parse_base;
     use crate::language::{Language, Tsx};
-    use std::collections::HashMap;
+    use crate::ts_parser::parse as parse_base;
     use crate::Root;
+    use std::collections::HashMap;
 
     fn parse(src: &str) -> tree_sitter::Tree {
         parse_base(src, None, Tsx.get_ts_language())

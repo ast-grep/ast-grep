@@ -1,8 +1,8 @@
 use crate::meta_var::MetaVarEnv;
+use crate::Language;
 use crate::Node;
 use crate::Pattern;
 use std::collections::VecDeque;
-use crate::Language;
 use std::marker::PhantomData;
 
 pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
@@ -14,10 +14,7 @@ impl<'tree, L: Language, M: Matcher<L>> FindAllNodes<'tree, L, M> {
     fn new(matcher: M, node: Node<'tree, L>) -> Self {
         let mut queue = VecDeque::new();
         queue.push_back(node);
-        Self {
-            queue,
-            matcher,
-        }
+        Self { queue, matcher }
     }
 }
 
@@ -111,7 +108,7 @@ pub struct All<L: Language, P: Matcher<L>> {
 }
 
 impl<L: Language, P: Matcher<L>> All<L, P> {
-    pub fn new<PS: IntoIterator<Item=P>>(patterns: PS) -> Self {
+    pub fn new<PS: IntoIterator<Item = P>>(patterns: PS) -> Self {
         Self {
             patterns: patterns.into_iter().collect(),
             lang: PhantomData,
@@ -157,7 +154,7 @@ pub struct Or<L: Language, P1: PositiveMatcher<L>, P2: PositiveMatcher<L>> {
 
 impl<L, P1, P2> Matcher<L> for Or<L, P1, P2>
 where
-    L:  Language,
+    L: Language,
     P1: PositiveMatcher<L>,
     P2: PositiveMatcher<L>,
 {
@@ -174,7 +171,7 @@ where
 
 impl<L, P1, P2> PositiveMatcher<L> for Or<L, P1, P2>
 where
-    L : Language,
+    L: Language,
     P1: PositiveMatcher<L>,
     P2: PositiveMatcher<L>,
 {
@@ -332,8 +329,8 @@ impl<L: Language, M: PositiveMatcher<L>, N: PositiveMatcher<L>> Rule<L, Or<L, M,
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Root;
     use crate::language::Tsx;
+    use crate::Root;
 
     fn test_find(rule: &impl Matcher<Tsx>, code: &str) {
         let mut env = MetaVarEnv::new();

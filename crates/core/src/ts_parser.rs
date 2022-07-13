@@ -1,5 +1,5 @@
-pub use tree_sitter::{Tree, Language};
 use tree_sitter::{InputEdit, Parser, Point};
+pub use tree_sitter::{Language, Tree};
 
 pub fn parse(source_code: &str, old_tree: Option<&Tree>, ts_lang: Language) -> Tree {
     let mut parser = Parser::new();
@@ -50,8 +50,8 @@ pub fn perform_edit(tree: &mut Tree, input: &mut Vec<u8>, edit: &Edit) -> InputE
 
 #[cfg(test)]
 mod test {
-    use super::{*, parse as parse_lang};
-    use crate::language::{Tsx, Language};
+    use super::{parse as parse_lang, *};
+    use crate::language::{Language, Tsx};
 
     fn parse(src: &str) -> Tree {
         parse_lang(src, None, Tsx.get_ts_language())

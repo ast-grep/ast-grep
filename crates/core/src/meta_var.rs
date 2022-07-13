@@ -1,8 +1,8 @@
 use crate::matcher::does_node_match_exactly;
 use crate::pattern::Pattern;
+use crate::Language;
 use crate::Node;
 use std::collections::HashMap;
-use crate::Language;
 
 pub type MetaVariableID = String;
 
@@ -31,7 +31,11 @@ impl<'tree, L: Language> MetaVarEnv<'tree, L> {
         Some(self)
     }
 
-    pub fn insert_multi(&mut self, id: MetaVariableID, ret: Vec<Node<'tree, L>>) -> Option<&mut Self> {
+    pub fn insert_multi(
+        &mut self,
+        id: MetaVariableID,
+        ret: Vec<Node<'tree, L>>,
+    ) -> Option<&mut Self> {
         self.multi_matched.insert(id, ret);
         Some(self)
     }
@@ -159,10 +163,7 @@ mod test {
         use MetaVariable::*;
         assert_eq!(extract_var("$$$"), Some(Ellipsis));
         assert_eq!(extract_var("$ABC"), Some(Named("ABC".into())));
-        assert_eq!(
-            extract_var("$$$ABC"),
-            Some(NamedEllipsis("ABC".into()))
-        );
+        assert_eq!(extract_var("$$$ABC"), Some(NamedEllipsis("ABC".into())));
         assert_eq!(extract_var("$_"), Some(Anonymous));
         assert_eq!(extract_var("abc"), None);
         assert_eq!(extract_var("$abc"), None);

@@ -1,6 +1,6 @@
-use crate::AstGrep;
+use crate::meta_var::{extract_meta_var, MetaVariable};
 use crate::pattern::Pattern;
-use crate::meta_var::{MetaVariable, extract_meta_var};
+use crate::AstGrep;
 pub use tree_sitter::Language as TSLanguage;
 use tree_sitter_c::language as language_c;
 use tree_sitter_go::language as language_go;
@@ -52,7 +52,7 @@ macro_rules! impl_lang {
                 $func()
             }
         }
-    }
+    };
 }
 
 impl_lang!(C, language_c);

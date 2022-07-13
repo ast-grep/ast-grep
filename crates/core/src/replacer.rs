@@ -1,7 +1,7 @@
+use crate::language::Language;
 use crate::meta_var::{MatchResult, MetaVarEnv};
 use crate::ts_parser::Edit;
 use crate::{Node, Root};
-use crate::language::Language;
 
 /// Replace meta variable in the replacer string
 pub trait Replacer<L: Language> {
@@ -46,7 +46,11 @@ impl<S: AsRef<str>, L: Language> Replacer<L> for S {
     }
 }
 
-fn get_meta_var_replacement<L: Language>(node: &Node<L>, env: &MetaVarEnv<L>, lang: L) -> Option<String> {
+fn get_meta_var_replacement<L: Language>(
+    node: &Node<L>,
+    env: &MetaVarEnv<L>,
+    lang: L,
+) -> Option<String> {
     if !node.is_leaf() {
         return None;
     }
@@ -75,7 +79,7 @@ impl<'a, L: Language> Replacer<L> for Node<'a, L> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::language::{Tsx, Language};
+    use crate::language::{Language, Tsx};
     use std::collections::HashMap;
 
     fn test_str_replace(replacer: &str, vars: &[(&str, &str)], expected: &str) {
@@ -85,19 +89,32 @@ mod test {
             env.insert(var.to_string(), root.root());
         }
         let replaced = replacer.generate_replacement(&env, Tsx);
-        assert_eq!(replaced, expected, "wrong replacement {replaced} {expected} {:?}", HashMap::from(env));
+        assert_eq!(
+            replaced,
+            expected,
+            "wrong replacement {replaced} {expected} {:?}",
+            HashMap::from(env)
+        );
     }
 
     #[test]
     fn test_no_env() {
         test_str_replace("let a = 123", &[], "let a = 123");
-        test_str_replace("console.log('hello world'); let b = 123;", &[], "console.log('hello world'); let b = 123;");
+        test_str_replace(
+            "console.log('hello world'); let b = 123;",
+            &[],
+            "console.log('hello world'); let b = 123;",
+        );
     }
 
     #[test]
     fn test_single_env() {
         test_str_replace("let a = $A", &[("A", "123")], "let a = 123");
-        test_str_replace("console.log($HW); let b = 123;", &[("HW", "'hello world'")], "console.log('hello world'); let b = 123;");
+        test_str_replace(
+            "console.log($HW); let b = 123;",
+            &[("HW", "'hello world'")],
+            "console.log('hello world'); let b = 123;",
+        );
     }
 
     #[test]
@@ -106,7 +123,8 @@ mod test {
         test_str_replace(
             "console.log($HW); let $B = 123;",
             &[("HW", "'hello world'"), ("B", "b")],
-            "console.log('hello world'); let b = 123;");
+            "console.log('hello world'); let b = 123;",
+        );
     }
 
     #[test]
@@ -116,7 +134,8 @@ mod test {
         test_str_replace(
             "const $A = () => { console.log($B); $A(); };",
             &[("B", "'hello world'"), ("A", "a")],
-            "const a = () => { console.log('hello world'); a(); };");
+            "const a = () => { console.log('hello world'); a(); };",
+        );
     }
 
     fn test_ellipsis_replace(replacer: &str, vars: &[(&str, &str)], expected: &str) {
@@ -126,12 +145,25 @@ mod test {
             env.insert_multi(var.to_string(), root.root().children().collect());
         }
         let replaced = replacer.generate_replacement(&env, Tsx);
-        assert_eq!(replaced, expected, "wrong replacement {replaced} {expected} {:?}", HashMap::from(env));
+        assert_eq!(
+            replaced,
+            expected,
+            "wrong replacement {replaced} {expected} {:?}",
+            HashMap::from(env)
+        );
     }
 
     #[test]
     fn test_ellipsis_meta_var() {
-        test_ellipsis_replace("let a = () => { $$$B }", &[("B", "alert('works!')")], "let a = () => { alert('works!') }");
-        test_ellipsis_replace("let a = () => { $$$B }", &[("B", "alert('works!');console.log(123)")], "let a = () => { alert('works!');console.log(123) }");
+        test_ellipsis_replace(
+            "let a = () => { $$$B }",
+            &[("B", "alert('works!')")],
+            "let a = () => { alert('works!') }",
+        );
+        test_ellipsis_replace(
+            "let a = () => { $$$B }",
+            &[("B", "alert('works!');console.log(123)")],
+            "let a = () => { alert('works!');console.log(123) }",
+        );
     }
 }

@@ -1,8 +1,8 @@
+use crate::language::Language;
 use crate::meta_var::MetaVarEnv;
 use crate::replacer::Replacer;
 use crate::rule::Matcher;
-use crate::language::Language;
-use crate::ts_parser::{perform_edit, Edit, parse};
+use crate::ts_parser::{parse, perform_edit, Edit};
 
 pub struct Root<L: Language> {
     pub inner: tree_sitter::Tree,
@@ -138,7 +138,7 @@ impl<'r, L: Language> Node<'r, L> {
         pat.find_node(*self, &mut env)
     }
 
-    pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item=Node<'r, L>> {
+    pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = Node<'r, L>> {
         pat.find_all_nodes(*self)
     }
 
@@ -151,7 +151,7 @@ impl<'r, L: Language> Node<'r, L> {
             root: self.root,
         })
     }
-    pub fn ancestors(&self) -> impl Iterator<Item=Node<'r, L>> + '_ {
+    pub fn ancestors(&self) -> impl Iterator<Item = Node<'r, L>> + '_ {
         let mut parent = self.inner.parent();
         std::iter::from_fn(move || {
             let inner = parent?;
@@ -197,7 +197,6 @@ impl<'r, L: Language> Node<'r, L> {
     pub fn eq(&self, _i: usize) -> Self {
         todo!()
     }
-
 }
 
 // r manipulation API
@@ -231,7 +230,7 @@ impl<'r, L: Language> Node<'r, L> {
 
 #[cfg(test)]
 mod test {
-    use crate::language::{Tsx, Language};
+    use crate::language::{Language, Tsx};
     #[test]
     fn test_is_leaf() {
         let root = Tsx.new("let a = 123");

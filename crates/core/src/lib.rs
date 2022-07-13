@@ -10,12 +10,12 @@ mod ts_parser;
 pub use meta_var::MetaVarMatcher;
 pub use node::Node;
 pub use pattern::Pattern;
-pub use rule::{Rule, All, Either};
+pub use rule::{All, Either, Rule};
 
 use crate::{replacer::Replacer, rule::PositiveMatcher};
-use ts_parser::Edit;
-use node::Root;
 use language::Language;
+use node::Root;
+use ts_parser::Edit;
 
 pub struct AstGrep<L: Language> {
     inner: Root<L>,
@@ -37,8 +37,11 @@ impl<L: Language> AstGrep<L> {
         self
     }
 
-
-    pub fn replace<M: PositiveMatcher<L>, R: Replacer<L>>(&mut self, pattern: M, replacer: R) -> bool {
+    pub fn replace<M: PositiveMatcher<L>, R: Replacer<L>>(
+        &mut self,
+        pattern: M,
+        replacer: R,
+    ) -> bool {
         if let Some(edit) = self.root().replace(pattern, replacer) {
             self.edit(edit);
             true

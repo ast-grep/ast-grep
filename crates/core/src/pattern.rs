@@ -1,7 +1,7 @@
+use crate::language::Language;
 use crate::matcher::match_node_non_recursive;
 use crate::rule::{Matcher, PositiveMatcher};
 use crate::{meta_var::MetaVarEnv, Node, Root};
-use crate::language::Language;
 
 pub enum PatternKind<L: Language> {
     NodePattern(Root<L>),
@@ -66,8 +66,8 @@ impl<L: Language> PositiveMatcher<L> for Pattern<L> {}
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::collections::HashMap;
     use crate::language::Tsx;
+    use std::collections::HashMap;
 
     fn pattern_node(s: &str) -> Root<Tsx> {
         let pattern = Pattern::new(s, Tsx);
