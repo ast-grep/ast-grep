@@ -3,7 +3,7 @@ mod guess_language;
 use ansi_term::Color::{Cyan, Green, Red};
 use ansi_term::Style;
 use ast_grep_core::language::Language;
-use ast_grep_core::{Pattern, Matcher};
+use ast_grep_core::Pattern;
 use clap::Parser;
 use guess_language::SupportLang;
 use ignore::{WalkBuilder, WalkState};
