@@ -7,7 +7,7 @@ mod replacer;
 mod rule;
 mod ts_parser;
 
-pub use meta_var::MetaVarMatcher;
+pub use meta_var::{MetaVarMatcher, MetaVariable};
 pub use node::Node;
 pub use pattern::Pattern;
 pub use rule::{All, Either, Rule};

@@ -1,6 +1,7 @@
 //! Guess which programming language a file is written in
 //! Adapt from https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs
 use ast_grep_core::language::{self, Language, TSLanguage};
+use ast_grep_core::{MetaVariable, Pattern};
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::str::FromStr;
@@ -111,21 +112,45 @@ impl FromStr for SupportLang {
     }
 }
 
+macro_rules! impl_lang_method {
+    ($method: ident, $return_type: ty) => {
+        #[inline]
+        fn $method(&self) -> $return_type {
+            use SupportLang::*;
+            match self {
+                C => language::C.$method(),
+                Go => language::Go.$method(),
+                Html => language::Html.$method(),
+                JavaScript => language::JavaScript.$method(),
+                Kotlin => language::Kotlin.$method(),
+                Lua => language::Lua.$method(),
+                Python => language::Python.$method(),
+                Rust => language::Rust.$method(),
+                Swift => language::Swift.$method(),
+                Tsx => language::Tsx.$method(),
+                TypeScript => language::TypeScript.$method(),
+            }
+        }
+    }
+}
 impl Language for SupportLang {
-    fn get_ts_language(&self) -> TSLanguage {
+    impl_lang_method!(get_ts_language, TSLanguage);
+    impl_lang_method!(meta_var_char, char);
+
+    fn extract_meta_var(&self, source: &str) -> Option<MetaVariable> {
         use SupportLang::*;
         match self {
-            C => language::C.get_ts_language(),
-            Go => language::Go.get_ts_language(),
-            Html => language::Html.get_ts_language(),
-            JavaScript => language::JavaScript.get_ts_language(),
-            Kotlin => language::Kotlin.get_ts_language(),
-            Lua => language::Lua.get_ts_language(),
-            Python => language::Python.get_ts_language(),
-            Rust => language::Rust.get_ts_language(),
-            Swift => language::Swift.get_ts_language(),
-            Tsx => language::Tsx.get_ts_language(),
-            TypeScript => language::TypeScript.get_ts_language(),
+            C => language::C.extract_meta_var(source),
+            Go => language::Go.extract_meta_var(source),
+            Html => language::Html.extract_meta_var(source),
+            JavaScript => language::JavaScript.extract_meta_var(source),
+            Kotlin => language::Kotlin.extract_meta_var(source),
+            Lua => language::Lua.extract_meta_var(source),
+            Python => language::Python.extract_meta_var(source),
+            Rust => language::Rust.extract_meta_var(source),
+            Swift => language::Swift.extract_meta_var(source),
+            Tsx => language::Tsx.extract_meta_var(source),
+            TypeScript => language::TypeScript.extract_meta_var(source),
         }
     }
 }

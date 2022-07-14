@@ -78,7 +78,33 @@ fn main() -> Result<()> {
             })
         });
     } else {
-        println!("config based not implemented yet")
+        let walker = WalkBuilder::new(&args.path)
+            .hidden(args.hidden)
+            .threads(threads)
+            .build_parallel();
+        walker.run(|| {
+            Box::new(|result| match result {
+                Ok(entry) => {
+                    if let Some(file_type) = entry.file_type() {
+                        if !file_type.is_file() {
+                            return WalkState::Continue;
+                        }
+                        let path = entry.path();
+                        if let Some(lang) = guess_language::from_extension(&path) {
+                            let pattern = Pattern::new(&"$TODO()", lang);
+                            match_one_file(path, lang, &pattern, args.rewrite.as_ref());
+                        }
+                        WalkState::Continue
+                    } else {
+                        WalkState::Continue
+                    }
+                }
+                Err(err) => {
+                    eprintln!("ERROR: {}", err);
+                    WalkState::Continue
+                }
+            })
+        });
     }
     Ok(())
 }
