@@ -191,7 +191,6 @@ impl<'r, L: Language> Node<'r, L> {
         pat.find_all_nodes(*self)
     }
 
-    // should we provide parent?
     #[must_use]
     pub fn parent(&self) -> Option<Self> {
         let inner = self.inner.parent()?;
@@ -200,6 +199,16 @@ impl<'r, L: Language> Node<'r, L> {
             root: self.root,
         })
     }
+
+    #[must_use]
+    pub fn nth_child(&self, nth: usize) -> Option<Self> {
+        let inner = self.inner.child(nth)?;
+        Some(Node {
+            inner,
+            root: self.root,
+        })
+    }
+
     pub fn ancestors(&self) -> impl Iterator<Item = Node<'r, L>> + '_ {
         let mut parent = self.inner.parent();
         std::iter::from_fn(move || {

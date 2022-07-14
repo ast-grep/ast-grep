@@ -11,30 +11,7 @@ pub trait Replacer<L: Language> {
 impl<S: AsRef<str>, L: Language> Replacer<L> for S {
     fn generate_replacement(&self, env: &MetaVarEnv<L>, lang: L) -> String {
         let root = Root::new(self.as_ref(), lang);
-        let mut stack = vec![root.root()];
-        let mut edits = vec![];
-        let mut reverse = vec![];
-        // TODO: benchmark dfs performance
-        while let Some(node) = stack.pop() {
-            if let Some(text) = get_meta_var_replacement(&node, env, lang) {
-                let position = node.inner.start_byte();
-                let length = node.inner.end_byte() - position;
-                edits.push(Edit {
-                    position,
-                    deleted_length: length,
-                    inserted_text: text,
-                });
-            } else {
-                reverse.extend(node.children());
-                stack.extend(reverse.drain(..).rev());
-            }
-        }
-        // add the missing one
-        edits.push(Edit {
-            position: root.source.len(),
-            deleted_length: 0,
-            inserted_text: String::new(),
-        });
+        let edits = collect_edits(&root, env, lang);
         let mut ret = String::new();
         let mut start = 0;
         for edit in edits {
@@ -43,6 +20,49 @@ impl<S: AsRef<str>, L: Language> Replacer<L> for S {
             start = edit.position + edit.deleted_length;
         }
         ret
+    }
+}
+
+fn collect_edits<L: Language>(
+    root: &Root<L>,
+    env: &MetaVarEnv<L>,
+    lang: L,
+) -> Vec<Edit> {
+    let mut node = root.root();
+    let root_id = node.inner.id();
+    let mut edits = vec![];
+
+    // this is a preorder DFS that stops traversal when the node matches
+    loop {
+        if let Some(text) = get_meta_var_replacement(&node, env, lang) {
+            let position = node.inner.start_byte();
+            let length = node.inner.end_byte() - position;
+            edits.push(Edit {
+                position,
+                deleted_length: length,
+                inserted_text: text,
+            });
+        } else if let Some(first_child) = node.nth_child(0) {
+            node = first_child;
+            continue;
+        }
+        loop {
+            // come back to the root node, terminating dfs
+            if node.inner.id() == root_id {
+                // add the missing one
+                edits.push(Edit {
+                    position: root.source.len(),
+                    deleted_length: 0,
+                    inserted_text: String::new(),
+                });
+                return edits
+            }
+            if let Some(sibling) = node.next() {
+                node = sibling;
+                break;
+            }
+            node = node.parent().unwrap();
+        }
     }
 }
 
