@@ -39,12 +39,14 @@
 
 ## CLI
 - [x] match against files in directory recursively
-- [ ] support YAML config rule
 - [ ] interactive mode
 - [ ] name current behavior (listing all rewrite) as dry run mode
 - [ ] inplace edit mode
 - [ ] no-color mode
 - [ ] JSON output
+
+## Config
+- [ ] support YAML config rule
 
 ## Binding
 - [ ] NAPI binding

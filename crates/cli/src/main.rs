@@ -1,4 +1,5 @@
 mod guess_language;
+mod interaction;
 
 use ansi_term::Color::{Cyan, Green, Red};
 use ansi_term::Style;
@@ -6,12 +7,13 @@ use ast_grep_core::language::Language;
 use ast_grep_core::Pattern;
 use clap::Parser;
 use guess_language::SupportLang;
-use ignore::{WalkBuilder, WalkState};
+use ignore::{WalkBuilder, WalkState, WalkParallel};
 use similar::{ChangeTag, TextDiff};
 use std::fmt::Display;
 use std::fs::read_to_string;
 use std::io::Result;
 use std::path::Path;
+use std::sync::mpsc;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -41,6 +43,9 @@ struct Args {
     #[clap(short, long, parse(from_flag))]
     hidden: bool,
 
+    #[clap(short, long, parse(from_flag))]
+    interactive: bool,
+
     /// Print query pattern's tree-sitter AST
     #[clap(long, parse(from_flag))]
     debug_query: bool,
@@ -55,76 +60,91 @@ fn main() -> Result<()> {
     let threads = num_cpus::get().min(12);
     if let Some(pattern) = args.pattern {
         let lang = args.lang.unwrap();
+        let pattern = Pattern::new(&pattern, lang);
+        if args.debug_query {
+            println!("Pattern TreeSitter {:?}", pattern);
+        }
         let walker = WalkBuilder::new(&args.path)
             .hidden(args.hidden)
             .threads(threads)
             .types(lang.file_types())
             .build_parallel();
-        let pattern = Pattern::new(&pattern, lang);
-        if args.debug_query {
-            println!("Pattern TreeSitter {:?}", pattern);
+        if args.interactive {
+            run_walker(walker, |path| {
+                match_one_file(path, lang, &pattern, args.rewrite.as_ref());
+            });
+        } else {
+            let (tx, rx) = mpsc::channel();
+            std::thread::spawn(|| {
+                walker.run(move || {
+                    let tx = tx.clone();
+                    Box::new(move |result| match result {
+                        Ok(entry) => {
+                            if let Some(file_type) = entry.file_type() {
+                                if !file_type.is_file() {
+                                    return WalkState::Continue;
+                                }
+                                let path = entry.path().to_path_buf();
+                                match tx.send(path) {
+                                    Ok(_) => WalkState::Continue,
+                                    Err(_) => WalkState::Quit,
+                                }
+                            } else {
+                                WalkState::Continue
+                            }
+                        }
+                        Err(err) => {
+                            eprintln!("ERROR: {}", err);
+                            WalkState::Continue
+                        }
+                    })
+                });
+            });
+            while let Ok(path) = rx.recv() {
+                interaction::clear();
+                if match_one_file(&path, lang, &pattern, args.rewrite.as_ref()) {
+                    interaction::prompt("Confirm", "yn", Some('y')).expect("Error happened during prompt");
+                }
+            }
         }
-        walker.run(|| {
-            Box::new(|result| match result {
-                Ok(entry) => {
-                    if let Some(file_type) = entry.file_type() {
-                        if !file_type.is_file() {
-                            return WalkState::Continue;
-                        }
-                        let path = entry.path();
-                        match_one_file(path, lang, &pattern, args.rewrite.as_ref());
-                        WalkState::Continue
-                    } else {
-                        WalkState::Continue
-                    }
-                }
-                Err(err) => {
-                    eprintln!("ERROR: {}", err);
-                    WalkState::Continue
-                }
-            })
-        });
     } else {
-        let walker = WalkBuilder::new(&args.path)
-            .hidden(args.hidden)
-            .threads(threads)
-            .build_parallel();
-        walker.run(|| {
-            Box::new(|result| match result {
-                Ok(entry) => {
-                    if let Some(file_type) = entry.file_type() {
-                        if !file_type.is_file() {
-                            return WalkState::Continue;
-                        }
-                        let path = entry.path();
-                        if let Some(lang) = guess_language::from_extension(&path) {
-                            let pattern = Pattern::new(&"$TODO()", lang);
-                            match_one_file(path, lang, &pattern, args.rewrite.as_ref());
-                        }
-                        WalkState::Continue
-                    } else {
-                        WalkState::Continue
-                    }
-                }
-                Err(err) => {
-                    eprintln!("ERROR: {}", err);
-                    WalkState::Continue
-                }
-            })
-        });
+        println!("TODO! add the code path after config");
     }
     Ok(())
 }
 
-fn match_one_file(path: &Path, lang: SupportLang, pattern: &Pattern<SupportLang>, rewrite: Option<&String>) {
+fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> () + Sync) {
+    walker.run(|| {
+        Box::new(|result| match result {
+            Ok(entry) => {
+                if let Some(file_type) = entry.file_type() {
+                    if !file_type.is_file() {
+                        return WalkState::Continue;
+                    }
+                    let path = entry.path();
+                    f(path);
+                    WalkState::Continue
+                } else {
+                    WalkState::Continue
+                }
+            }
+            Err(err) => {
+                eprintln!("ERROR: {}", err);
+                WalkState::Continue
+            }
+        })
+    });
+}
+
+fn match_one_file(path: &Path, lang: SupportLang, pattern: &Pattern<SupportLang>, rewrite: Option<&String>) -> bool {
     let file_content = match read_to_string(&path) {
         Ok(content) => content,
-        _ => return,
+        _ => return false,
     };
     let grep = lang.new(file_content);
     let mut matches = grep.root().find_all(pattern.clone()).peekable();
     if matches.peek().is_none() {
-        return;
+        return false;
     }
 
     let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
@@ -167,6 +187,7 @@ fn match_one_file(path: &Path, lang: SupportLang, pattern: &Pattern<SupportLang>
         }
     }
     drop(lock);
+    true
 }
 
 fn print_highlight<'a>(

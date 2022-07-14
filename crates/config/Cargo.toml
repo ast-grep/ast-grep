@@ -1,5 +1,5 @@
 [package]
-name = "ast-grep"
+name = "ast-grep-config"
 version = "0.1.0"
 authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
 edition = "2021"
@@ -10,15 +10,6 @@ repository = "https://github.com/HerringtonDarkholme/ast-grep"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[[bin]]
-name = "sg"
-path = "src/main.rs"
 
 [dependencies]
 ast-grep-core = { version="0.1.0", path = "../core" }
-clap = { version = "3.2.8", features = ["derive"] }
-ignore = "0.4.18"
-ansi_term = "0.12"
-similar = { version = "2.1.0", features = ["inline"] }
-num_cpus = "1.13.1"
-rprompt = "1.0.5"
