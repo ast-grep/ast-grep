@@ -33,6 +33,7 @@
 - [x] Add per-language customization
 - [x] Add support for vec/sequence matcher
 - [ ] Investigate perf heuristic (e.g. match fixed-string)
+- [ ] Group matching rules based on root pattern kind id
 - [x] View node in context
 - [ ] implement iterative DFS mode
 

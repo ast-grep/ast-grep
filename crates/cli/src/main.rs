@@ -41,6 +41,10 @@ struct Args {
     #[clap(short, long, parse(from_flag))]
     hidden: bool,
 
+    /// Print query pattern's tree-sitter AST
+    #[clap(long, parse(from_flag))]
+    debug_query: bool,
+
     /// The path whose descendent files are to be explored.
     #[clap(value_parser, default_value = ".")]
     path: String,
@@ -57,6 +61,9 @@ fn main() -> Result<()> {
             .types(lang.file_types())
             .build_parallel();
         let pattern = Pattern::new(&pattern, lang);
+        if args.debug_query {
+            println!("Pattern TreeSitter {:?}", pattern);
+        }
         walker.run(|| {
             Box::new(|result| match result {
                 Ok(entry) => {

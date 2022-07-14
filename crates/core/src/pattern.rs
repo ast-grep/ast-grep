@@ -50,6 +50,19 @@ impl<L: Language> Matcher<L> for Pattern<L> {
     }
 }
 
+impl<L: Language> std::fmt::Debug for Pattern<L> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.pattern_kind {
+            PatternKind::NodePattern(goal) => {
+                write!(f, "{}", matcher(&goal).inner.to_sexp())
+            },
+            PatternKind::KindPattern(kind) => {
+                write!(f, "Kind Pattern {kind}")
+            }
+        }
+    }
+}
+
 // TODO: extract out matcher in recursion
 fn matcher<L: Language>(goal: &Root<L>) -> Node<L> {
     let mut node = goal.root().inner;
