@@ -74,15 +74,19 @@ impl<'tree, L: Language> ExactSizeIterator for NodeWalker<'tree, L> {
 }
 
 pub struct DFS<'tree, L: Language> {
-    stack: Vec<tree_sitter::TreeCursor<'tree>>,
+    cursor: tree_sitter::TreeCursor<'tree>,
     root: &'tree Root<L>,
+    // record the starting node, if we return back to starting point
+    // we should terminate the dfs.
+    start_id: Option<usize>,
 }
 
 impl<'tree, L: Language> DFS<'tree, L> {
     fn new(node: &Node<'tree, L>) -> Self {
         Self {
-            stack: vec![node.inner.walk()],
+            cursor: node.inner.walk(),
             root: node.root,
+            start_id: Some(node.inner.id()),
         }
     }
 }
@@ -90,22 +94,24 @@ impl<'tree, L: Language> DFS<'tree, L> {
 impl<'tree, L: Language> Iterator for DFS<'tree, L> {
     type Item = Node<'tree, L>;
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(mut cursor) = self.stack.pop() {
-            let inner = cursor.node();
-            if cursor.goto_next_sibling() {
-                self.stack.push(cursor);
-            }
-            if inner.child_count() > 0 {
-                let mut child = inner.walk();
-                child.goto_first_child();
-                self.stack.push(child);
-            }
-            return Some(Node {
-                inner,
-                root: self.root,
-            })
+        let start =self.start_id?;
+        let cursor = &mut self.cursor;
+        let inner = cursor.node();
+        let ret = Some(Node {
+            inner,
+            root: self.root,
+        });
+        if cursor.goto_first_child() {
+            return ret
         }
-        None
+        while cursor.node().id() != start {
+            if cursor.goto_next_sibling() {
+                return ret;
+            }
+            cursor.goto_parent();
+        }
+        self.start_id = None;
+        ret
     }
 }
 
