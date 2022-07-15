@@ -4,7 +4,7 @@ mod interaction;
 use ansi_term::Color::{Cyan, Green, Red};
 use ansi_term::Style;
 use ast_grep_core::language::Language;
-use ast_grep_core::Pattern;
+use ast_grep_core::{Pattern, Node};
 use clap::Parser;
 use guess_language::SupportLang;
 use ignore::{WalkBuilder, WalkState, WalkParallel};
@@ -69,23 +69,37 @@ fn main() -> Result<()> {
             .threads(threads)
             .types(lang.file_types())
             .build_parallel();
-        if args.interactive {
+        if !args.interactive {
             run_walker(walker, |path| {
                 match_one_file(path, lang, &pattern, args.rewrite.as_ref());
             });
         } else {
             let (tx, rx) = mpsc::channel();
-            std::thread::spawn(|| {
+            let pat = pattern.clone();
+            let l = lang.clone();
+            std::thread::spawn(move || {
                 walker.run(move || {
                     let tx = tx.clone();
+                    let pattern = pat.clone();
+                    let lang = l.clone();
                     Box::new(move |result| match result {
                         Ok(entry) => {
                             if let Some(file_type) = entry.file_type() {
                                 if !file_type.is_file() {
                                     return WalkState::Continue;
                                 }
-                                let path = entry.path().to_path_buf();
-                                match tx.send(path) {
+                                let path = entry.path();
+                                let file_content = match read_to_string(path) {
+                                    Ok(content) => content,
+                                    _ => return WalkState::Continue,
+                                };
+                                let grep = lang.new(file_content);
+                                let mut matches = grep.root().find_all(pattern.clone());
+                                if matches.next().is_none() {
+                                    return WalkState::Continue;
+                                }
+                                drop(matches);
+                                match tx.send((grep, path.to_path_buf())) {
                                     Ok(_) => WalkState::Continue,
                                     Err(_) => WalkState::Quit,
                                 }
@@ -100,11 +114,11 @@ fn main() -> Result<()> {
                     })
                 });
             });
-            while let Ok(path) = rx.recv() {
+            while let Ok((grep, path)) = rx.recv() {
                 interaction::clear();
-                if match_one_file(&path, lang, &pattern, args.rewrite.as_ref()) {
-                    interaction::prompt("Confirm", "yn", Some('y')).expect("Error happened during prompt");
-                }
+                let  matches = grep.root().find_all(pattern.clone());
+                print_matches(matches, &path, &pattern, args.rewrite.as_ref());
+                interaction::prompt("Confirm", "yn", Some('y')).expect("Error happened during prompt");
             }
         }
     } else {
@@ -136,17 +150,23 @@ fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> () + Sync) {
     });
 }
 
-fn match_one_file(path: &Path, lang: SupportLang, pattern: &Pattern<SupportLang>, rewrite: Option<&String>) -> bool {
+fn match_one_file(path: &Path, lang: SupportLang, pattern: &Pattern<SupportLang>, rewrite: Option<&String>) {
     let file_content = match read_to_string(&path) {
         Ok(content) => content,
-        _ => return false,
+        _ => return,
     };
     let grep = lang.new(file_content);
     let mut matches = grep.root().find_all(pattern.clone()).peekable();
     if matches.peek().is_none() {
-        return false;
+        return;
     }
+    print_matches(matches, path, pattern, rewrite);
+}
 
+fn print_matches<'a>(
+    matches: impl Iterator<Item = Node<'a, SupportLang>>,
+    path: &Path, pattern: &Pattern<SupportLang>, rewrite: Option<&String>
+) {
     let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
     println!("{}", Cyan.italic().paint(format!("{}", path.display())));
     if let Some(rewrite) = rewrite {
@@ -187,7 +207,6 @@ fn match_one_file(path: &Path, lang: SupportLang, pattern: &Pattern<SupportLang>
         }
     }
     drop(lock);
-    true
 }
 
 fn print_highlight<'a>(
