@@ -1,10 +1,10 @@
 use rprompt::prompt_reply_stdout;
 use std::io::Result;
 
-// reference https://stackoverflow.com/a/34837038/2198656
+// https://github.com/console-rs/console/blob/be1c2879536c90ffc2b54938b5964084f5fef67d/src/common_term.rs#L56
 /// clear screen
 pub fn clear() {
-    print!("{}[2J", 27 as char);
+    print!("\r\x1b[2J\r\x1b[H");
 }
 
 pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result<char> {
