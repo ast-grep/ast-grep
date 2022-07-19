@@ -2,7 +2,36 @@ use crate::meta_var::MetaVarEnv;
 use crate::Node;
 use crate::Language;
 use crate::Pattern;
-use crate::node::DFS;
+use crate::node::{DFS, KindId};
+use std::marker::PhantomData;
+
+pub struct KindMatcher<L: Language> {
+    kind: KindId,
+    lang: PhantomData<L>,
+}
+
+impl<L: Language> KindMatcher<L> {
+    pub fn new(node_kind: &str, lang: L) -> Self {
+        Self {
+            kind: lang.get_ts_language().id_for_node_kind(node_kind, /*named*/ true),
+            lang: PhantomData,
+        }
+    }
+}
+
+impl<L: Language> Matcher<L> for KindMatcher<L> {
+    fn match_node<'tree>(
+        &self,
+        node: Node<'tree, L>,
+        _env: &mut MetaVarEnv<'tree, L>,
+    ) -> Option<Node<'tree, L>> {
+        if node.kind_id() == self.kind {
+            Some(node)
+        } else {
+            None
+        }
+    }
+}
 
 /**
  * N.B. At least one positive term is required for matching
@@ -85,7 +114,7 @@ mod test {
         let kind = "public_field_definition";
         let cand = pattern_node("class A { a = 123 }");
         let cand = cand.root();
-        let pattern = Pattern::of_kind(kind);
+        let pattern = KindMatcher::new(kind, Tsx);
         let mut env = MetaVarEnv::new();
         assert!(
             pattern.find_node(cand, &mut env).is_some(),
@@ -100,7 +129,7 @@ mod test {
         let kind = "field_definition";
         let cand = pattern_node("const a = 123");
         let cand = cand.root();
-        let pattern = Pattern::of_kind(kind);
+        let pattern = KindMatcher::new(kind, Tsx);
         let mut env = MetaVarEnv::new();
         assert!(
             pattern.find_node(cand, &mut env).is_none(),

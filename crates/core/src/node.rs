@@ -43,7 +43,7 @@ pub struct Node<'r, L: Language> {
     pub(crate) inner: tree_sitter::Node<'r>,
     pub(crate) root: &'r Root<L>,
 }
-type NodeKind = u16;
+pub type KindId = u16;
 
 struct NodeWalker<'tree, L: Language> {
     cursor: tree_sitter::TreeCursor<'tree>,
@@ -123,7 +123,7 @@ impl<'r, L: Language> Node<'r, L> {
     pub fn kind(&self) -> &str {
         self.inner.kind()
     }
-    pub fn kind_id(&self) -> NodeKind {
+    pub fn kind_id(&self) -> KindId {
         self.inner.kind_id()
     }
     pub fn text(&self) -> &'r str {

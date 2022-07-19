@@ -4,30 +4,18 @@ use crate::matcher::{Matcher, PositiveMatcher};
 use crate::{meta_var::MetaVarEnv, Node, Root};
 
 #[derive(Clone)]
-pub enum PatternKind<L: Language> {
-    NodePattern(Root<L>),
-    KindPattern(&'static str),
-}
-
-#[derive(Clone)]
 pub struct Pattern<L: Language> {
-    pattern_kind: PatternKind<L>,
+    root: Root<L>,
 }
 
 impl<L: Language> Pattern<L> {
     pub fn new(src: &str, lang: L) -> Self {
-        let node = Root::new(src, lang);
-        let goal = node.root();
+        let root = Root::new(src, lang);
+        let goal = root.root();
         if goal.inner.child_count() != 1 {
             todo!("multi-children pattern is not supported yet.")
         }
-        let pattern_kind = PatternKind::NodePattern(node);
-        Self { pattern_kind }
-    }
-    pub fn of_kind(kind: &'static str) -> Self {
-        Self {
-            pattern_kind: PatternKind::KindPattern(kind),
-        }
+        Self { root }
     }
 }
 
@@ -37,29 +25,13 @@ impl<L: Language> Matcher<L> for Pattern<L> {
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        match &self.pattern_kind {
-            PatternKind::NodePattern(goal) => match_node_non_recursive(&matcher(&goal), node, env),
-            PatternKind::KindPattern(kind) => {
-                if &node.kind() == kind {
-                    Some(node)
-                } else {
-                    None
-                }
-            }
-        }
+        match_node_non_recursive(&matcher(&self.root), node, env)
     }
 }
 
 impl<L: Language> std::fmt::Debug for Pattern<L> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.pattern_kind {
-            PatternKind::NodePattern(goal) => {
-                write!(f, "{}", matcher(&goal).inner.to_sexp())
-            },
-            PatternKind::KindPattern(kind) => {
-                write!(f, "Kind Pattern {kind}")
-            }
-        }
+        write!(f, "{}", matcher(&self.root).inner.to_sexp())
     }
 }
 
@@ -89,10 +61,7 @@ mod test {
     }
 
     fn test_match(s1: &str, s2: &str) {
-        let goal = pattern_node(s1);
-        let pattern = Pattern {
-            pattern_kind: PatternKind::NodePattern(goal),
-        };
+        let pattern = Pattern::new(s1, Tsx);
         let goal = pattern_node(s1);
         let cand = pattern_node(s2);
         let cand = cand.root();
@@ -106,9 +75,7 @@ mod test {
     }
     fn test_non_match(s1: &str, s2: &str) {
         let goal = pattern_node(s1);
-        let pattern = Pattern {
-            pattern_kind: PatternKind::NodePattern(goal),
-        };
+        let pattern = Pattern::new(s1, Tsx);
         let goal = pattern_node(s1);
         let cand = pattern_node(s2);
         let cand = cand.root();
@@ -129,10 +96,7 @@ mod test {
     }
 
     fn match_env(goal_str: &str, cand: &str) -> HashMap<String, String> {
-        let goal = pattern_node(goal_str);
-        let pattern = Pattern {
-            pattern_kind: PatternKind::NodePattern(goal),
-        };
+        let pattern = Pattern::new(goal_str, Tsx);
         let cand = pattern_node(cand);
         let cand = cand.root();
         let mut env = MetaVarEnv::new();

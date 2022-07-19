@@ -2,6 +2,7 @@ use crate::match_tree::does_node_match_exactly;
 use crate::pattern::Pattern;
 use crate::Language;
 use crate::Node;
+use crate::matcher::KindMatcher;
 use std::collections::HashMap;
 
 pub type MetaVariableID = String;
@@ -102,6 +103,8 @@ pub enum MetaVarMatcher<L: Language> {
     Regex(&'static str),
     /// A pattern to filter matched metavar based on its AST tree shape.
     Pattern(Pattern<L>),
+    /// A kind_id to filter matched metavar based on its ts-node kind
+    Kind(KindMatcher<L>),
 }
 
 impl<L: Language> MetaVarMatcher<L> {
@@ -112,6 +115,7 @@ impl<L: Language> MetaVarMatcher<L> {
         match self {
             Regex(_s) => todo!(),
             Pattern(p) => p.match_node(candidate, &mut env).is_some(),
+            Kind(k) => k.match_node(candidate, &mut env).is_some(),
         }
     }
 }
