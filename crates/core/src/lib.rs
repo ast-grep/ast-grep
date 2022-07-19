@@ -1,5 +1,5 @@
 pub mod language;
-mod matcher;
+mod match_tree;
 mod meta_var;
 mod node;
 mod pattern;

@@ -1,5 +1,5 @@
 use crate::language::Language;
-use crate::matcher::match_node_non_recursive;
+use crate::match_tree::match_node_non_recursive;
 use crate::rule::{Matcher, PositiveMatcher};
 use crate::{meta_var::MetaVarEnv, Node, Root};
 

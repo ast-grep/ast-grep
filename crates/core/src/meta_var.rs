@@ -1,4 +1,4 @@
-use crate::matcher::does_node_match_exactly;
+use crate::match_tree::does_node_match_exactly;
 use crate::pattern::Pattern;
 use crate::Language;
 use crate::Node;
