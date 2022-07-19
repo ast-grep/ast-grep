@@ -2,6 +2,7 @@ use crate::language::Language;
 use crate::meta_var::{MatchResult, MetaVarEnv};
 use crate::ts_parser::Edit;
 use crate::{Node, Root};
+use crate::Pattern;
 
 /// Replace meta variable in the replacer string
 pub trait Replacer<L: Language> {
@@ -12,16 +13,17 @@ impl<S: AsRef<str>, L: Language> Replacer<L> for S {
     fn generate_replacement(&self, env: &MetaVarEnv<L>, lang: L) -> String {
         let root = Root::new(self.as_ref(), lang);
         let edits = collect_edits(&root, env, lang);
-        let mut ret = String::new();
-        let mut start = 0;
-        for edit in edits {
-            ret.push_str(&root.source[start..edit.position]);
-            ret.extend(edit.inserted_text.chars());
-            start = edit.position + edit.deleted_length;
-        }
-        ret
+        merge_edits_to_string(edits, &root)
     }
 }
+
+impl<L: Language> Replacer<L> for Pattern<L> {
+    fn generate_replacement(&self, env: &MetaVarEnv<L>, lang: L) -> String {
+        let edits = collect_edits(&self.root, env, lang);
+        merge_edits_to_string(edits, &self.root)
+    }
+}
+
 
 fn collect_edits<L: Language>(
     root: &Root<L>,
@@ -64,6 +66,17 @@ fn collect_edits<L: Language>(
             node = node.parent().unwrap();
         }
     }
+}
+
+fn merge_edits_to_string<L: Language>(edits: Vec<Edit>, root: &Root<L>) -> String {
+    let mut ret = String::new();
+    let mut start = 0;
+    for edit in edits {
+        ret.push_str(&root.source[start..edit.position]);
+        ret.extend(edit.inserted_text.chars());
+        start = edit.position + edit.deleted_length;
+    }
+    ret
 }
 
 fn get_meta_var_replacement<L: Language>(

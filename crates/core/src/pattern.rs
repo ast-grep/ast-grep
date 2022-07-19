@@ -5,7 +5,7 @@ use crate::{meta_var::MetaVarEnv, Node, Root};
 
 #[derive(Clone)]
 pub struct Pattern<L: Language> {
-    root: Root<L>,
+    pub root: Root<L>,
 }
 
 impl<L: Language> Pattern<L> {
@@ -49,6 +49,7 @@ fn matcher<L: Language>(goal: &Root<L>) -> Node<L> {
 }
 
 impl<L: Language> PositiveMatcher<L> for Pattern<L> {}
+
 
 #[cfg(test)]
 mod test {
