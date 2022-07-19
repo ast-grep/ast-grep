@@ -1,7 +1,7 @@
 use crate::language::Language;
 use crate::meta_var::MetaVarEnv;
 use crate::replacer::Replacer;
-use crate::rule::Matcher;
+use crate::matcher::Matcher;
 use crate::ts_parser::{parse, perform_edit, Edit};
 
 #[derive(Clone)]

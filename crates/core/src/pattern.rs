@@ -1,6 +1,6 @@
 use crate::language::Language;
 use crate::match_tree::match_node_non_recursive;
-use crate::rule::{Matcher, PositiveMatcher};
+use crate::matcher::{Matcher, PositiveMatcher};
 use crate::{meta_var::MetaVarEnv, Node, Root};
 
 #[derive(Clone)]
@@ -85,11 +85,7 @@ mod test {
     use std::collections::HashMap;
 
     fn pattern_node(s: &str) -> Root<Tsx> {
-        let pattern = Pattern::new(s, Tsx);
-        match pattern.pattern_kind {
-            PatternKind::NodePattern(n) => n,
-            _ => panic!("kind pattern is not supported"),
-        }
+        Root::new(s, Tsx)
     }
 
     fn test_match(s1: &str, s2: &str) {
@@ -162,36 +158,6 @@ mod test {
         test_non_match("class $C { $MEMBER = $VAL; b = 123; }", "class A {a = 123}");
         // test_match("a = 123", "class A {a = 123}");
         test_non_match("a = 123", "class B {b = 123}");
-    }
-
-    #[test]
-    fn test_kind_match() {
-        let kind = "public_field_definition";
-        let cand = pattern_node("class A { a = 123 }");
-        let cand = cand.root();
-        let pattern = Pattern::of_kind(kind);
-        let mut env = MetaVarEnv::new();
-        assert!(
-            pattern.find_node(cand, &mut env).is_some(),
-            "goal: {}, candidate: {}",
-            kind,
-            cand.inner.to_sexp(),
-        );
-    }
-
-    #[test]
-    fn test_kind_non_match() {
-        let kind = "field_definition";
-        let cand = pattern_node("const a = 123");
-        let cand = cand.root();
-        let pattern = Pattern::of_kind(kind);
-        let mut env = MetaVarEnv::new();
-        assert!(
-            pattern.find_node(cand, &mut env).is_none(),
-            "goal: {}, candidate: {}",
-            kind,
-            cand.inner.to_sexp(),
-        );
     }
 
     #[test]

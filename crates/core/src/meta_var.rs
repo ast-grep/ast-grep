@@ -106,7 +106,7 @@ pub enum MetaVarMatcher<L: Language> {
 
 impl<L: Language> MetaVarMatcher<L> {
     pub fn matches(&self, candidate: Node<L>) -> bool {
-        use crate::rule::Matcher;
+        use crate::matcher::Matcher;
         use MetaVarMatcher::*;
         let mut env = MetaVarEnv::new();
         match self {

@@ -6,14 +6,15 @@ mod pattern;
 mod replacer;
 mod rule;
 mod ts_parser;
+mod matcher;
 
 pub use meta_var::{MetaVarMatcher, MetaVariable};
 pub use node::Node;
 pub use pattern::Pattern;
 pub use rule::{All, Either, Rule};
-pub use rule::Matcher;
+pub use matcher::Matcher;
 
-use crate::{replacer::Replacer, rule::PositiveMatcher};
+use crate::{replacer::Replacer, matcher::PositiveMatcher};
 use language::Language;
 use node::Root;
 use ts_parser::Edit;
