@@ -70,8 +70,9 @@ fn main() -> Result<()> {
             .types(lang.file_types())
             .build_parallel();
         if !args.interactive {
+            let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
             run_walker(walker, |path| {
-                match_one_file(path, lang, &pattern, args.rewrite.as_ref());
+                match_one_file(path, lang, &pattern, &rewrite);
             });
         } else {
             let (tx, rx) = mpsc::channel();
@@ -114,10 +115,11 @@ fn main() -> Result<()> {
                     })
                 });
             });
+            let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
             while let Ok((grep, path)) = rx.recv() {
                 interaction::clear();
                 let  matches = grep.root().find_all(pattern.clone());
-                print_matches(matches, &path, &pattern, args.rewrite.as_ref());
+                print_matches(matches, &path, &pattern, &rewrite);
                 interaction::prompt("Confirm", "yn", Some('y')).expect("Error happened during prompt");
             }
         }
@@ -150,7 +152,7 @@ fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> () + Sync) {
     });
 }
 
-fn match_one_file(path: &Path, lang: SupportLang, pattern: &Pattern<SupportLang>, rewrite: Option<&String>) {
+fn match_one_file(path: &Path, lang: SupportLang, pattern: &Pattern<SupportLang>, rewrite: &Option<Pattern<SupportLang>>) {
     let file_content = match read_to_string(&path) {
         Ok(content) => content,
         _ => return,
@@ -165,7 +167,7 @@ fn match_one_file(path: &Path, lang: SupportLang, pattern: &Pattern<SupportLang>
 
 fn print_matches<'a>(
     matches: impl Iterator<Item = Node<'a, SupportLang>>,
-    path: &Path, pattern: &Pattern<SupportLang>, rewrite: Option<&String>
+    path: &Path, pattern: &Pattern<SupportLang>, rewrite: &Option<Pattern<SupportLang>>
 ) {
     let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
     println!("{}", Cyan.italic().paint(format!("{}", path.display())));
@@ -180,7 +182,7 @@ fn print_matches<'a>(
             let new_str = format!(
                 "{}{}{}\n",
                 display.leading,
-                e.replace(pattern.clone(), rewrite).unwrap().inserted_text,
+                e.replace(pattern.clone(), rewrite.clone()).unwrap().inserted_text,
                 display.trailing
             );
             let base_line = display.start_line;
