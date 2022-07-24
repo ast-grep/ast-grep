@@ -1,8 +1,8 @@
 use crate::language::Language;
 use crate::meta_var::{MatchResult, MetaVarEnv};
 use crate::ts_parser::Edit;
-use crate::{Node, Root};
 use crate::Pattern;
+use crate::{Node, Root};
 
 /// Replace meta variable in the replacer string
 pub trait Replacer<L: Language> {
@@ -24,12 +24,7 @@ impl<L: Language> Replacer<L> for Pattern<L> {
     }
 }
 
-
-fn collect_edits<L: Language>(
-    root: &Root<L>,
-    env: &MetaVarEnv<L>,
-    lang: L,
-) -> Vec<Edit> {
+fn collect_edits<L: Language>(root: &Root<L>, env: &MetaVarEnv<L>, lang: L) -> Vec<Edit> {
     let mut node = root.root();
     let root_id = node.inner.id();
     let mut edits = vec![];
@@ -57,7 +52,7 @@ fn collect_edits<L: Language>(
                     deleted_length: 0,
                     inserted_text: String::new(),
                 });
-                return edits
+                return edits;
             }
             if let Some(sibling) = node.next() {
                 node = sibling;

@@ -50,7 +50,6 @@ fn matcher<L: Language>(goal: &Root<L>) -> Node<L> {
 
 impl<L: Language> PositiveMatcher<L> for Pattern<L> {}
 
-
 #[cfg(test)]
 mod test {
     use super::*;

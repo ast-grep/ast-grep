@@ -1,6 +1,6 @@
 use crate::language::Language;
-use crate::replacer::Replacer;
 use crate::matcher::Matcher;
+use crate::replacer::Replacer;
 use crate::ts_parser::{parse, perform_edit, Edit};
 
 #[derive(Clone)]
@@ -93,7 +93,7 @@ impl<'tree, L: Language> DFS<'tree, L> {
 impl<'tree, L: Language> Iterator for DFS<'tree, L> {
     type Item = Node<'tree, L>;
     fn next(&mut self) -> Option<Self::Item> {
-        let start =self.start_id?;
+        let start = self.start_id?;
         let cursor = &mut self.cursor;
         let inner = cursor.node();
         let ret = Some(Node {
@@ -101,7 +101,7 @@ impl<'tree, L: Language> Iterator for DFS<'tree, L> {
             root: self.root,
         });
         if cursor.goto_first_child() {
-            return ret
+            return ret;
         }
         while cursor.node().id() != start {
             if cursor.goto_next_sibling() {

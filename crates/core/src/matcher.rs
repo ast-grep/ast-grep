@@ -1,8 +1,8 @@
 use crate::meta_var::{MetaVarEnv, MetaVarMatchers};
-use crate::Node;
+use crate::node::{KindId, DFS};
 use crate::Language;
+use crate::Node;
 use crate::Pattern;
-use crate::node::{DFS, KindId};
 use std::marker::PhantomData;
 
 #[derive(Clone)]
@@ -14,7 +14,9 @@ pub struct KindMatcher<L: Language> {
 impl<L: Language> KindMatcher<L> {
     pub fn new(node_kind: &str, lang: L) -> Self {
         Self {
-            kind: lang.get_ts_language().id_for_node_kind(node_kind, /*named*/ true),
+            kind: lang
+                .get_ts_language()
+                .id_for_node_kind(node_kind, /*named*/ true),
             lang: PhantomData,
         }
     }
@@ -63,18 +65,16 @@ pub trait Matcher<L: Language>: Sized {
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        self.match_node_with_env(node, env)
-            .or_else(|| node.children().find_map(|sub| self.find_node_with_env(sub, env)))
+        self.match_node_with_env(node, env).or_else(|| {
+            node.children()
+                .find_map(|sub| self.find_node_with_env(sub, env))
+        })
     }
 
-    fn find_node<'tree>(
-        &self,
-        node: Node<'tree, L>,
-    ) -> Option<Node<'tree, L>> {
+    fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<Node<'tree, L>> {
         self.match_node(node)
             .or_else(|| node.children().find_map(|sub| self.find_node(sub)))
     }
-
 
     fn find_all_nodes<'tree>(self, node: Node<'tree, L>) -> FindAllNodes<'tree, L, Self> {
         FindAllNodes::new(self, node)
@@ -99,7 +99,6 @@ impl<S: AsRef<str>, L: Language> PositiveMatcher<L> for S {}
  */
 pub trait PositiveMatcher<L: Language>: Matcher<L> {}
 
-
 pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
     dfs: DFS<'tree, L>,
     matcher: M,
@@ -107,7 +106,10 @@ pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
 
 impl<'tree, L: Language, M: Matcher<L>> FindAllNodes<'tree, L, M> {
     fn new(matcher: M, node: Node<'tree, L>) -> Self {
-        Self { dfs: node.dfs(), matcher }
+        Self {
+            dfs: node.dfs(),
+            matcher,
+        }
     }
 }
 

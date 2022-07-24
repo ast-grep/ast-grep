@@ -2,10 +2,10 @@
 //! Adapt from https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs
 use ast_grep_core::language::{self, Language, TSLanguage};
 use ast_grep_core::MetaVariable;
+use ignore::types::{Types, TypesBuilder};
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::str::FromStr;
-use ignore::types::{Types, TypesBuilder};
 
 /// represents a dynamic language
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -54,7 +54,6 @@ impl SupportLang {
         };
         builder.build().unwrap()
     }
-
 }
 
 pub fn from_extension(path: &Path) -> Option<SupportLang> {
@@ -131,7 +130,7 @@ macro_rules! impl_lang_method {
                 TypeScript => language::TypeScript.$method(),
             }
         }
-    }
+    };
 }
 impl Language for SupportLang {
     impl_lang_method!(get_ts_language, TSLanguage);

@@ -1,20 +1,20 @@
 pub mod language;
 mod match_tree;
+mod matcher;
 mod meta_var;
 mod node;
 mod pattern;
 mod replacer;
 mod rule;
 mod ts_parser;
-mod matcher;
 
+pub use matcher::{KindMatcher, Matcher};
 pub use meta_var::{MetaVarMatcher, MetaVariable};
 pub use node::Node;
 pub use pattern::Pattern;
 pub use rule::{All, Either, Rule};
-pub use matcher::{Matcher, KindMatcher};
 
-use crate::{replacer::Replacer, matcher::PositiveMatcher};
+use crate::{matcher::PositiveMatcher, replacer::Replacer};
 use language::Language;
 use node::Root;
 use ts_parser::Edit;

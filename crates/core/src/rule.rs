@@ -1,9 +1,9 @@
+use crate::matcher::{Matcher, PositiveMatcher};
+use crate::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
 use crate::Language;
 use crate::Node;
 use crate::Pattern;
-use crate::meta_var::{MetaVarMatchers, MetaVarEnv, MetaVarMatcher};
 use std::marker::PhantomData;
-use crate::matcher::{Matcher, PositiveMatcher};
 
 pub struct And<L: Language, P1: Matcher<L>, P2: Matcher<L>> {
     pattern1: P1,
@@ -179,7 +179,11 @@ where
     L: Language,
     M: Matcher<L>,
 {
-    fn match_node_with_env<'tree>(&self, node: Node<'tree, L>, env: &mut MetaVarEnv<'tree, L>) -> Option<Node<'tree, L>> {
+    fn match_node_with_env<'tree>(
+        &self,
+        node: Node<'tree, L>,
+        env: &mut MetaVarEnv<'tree, L>,
+    ) -> Option<Node<'tree, L>> {
         self.inner.match_node_with_env(node, env)
     }
 
@@ -191,7 +195,9 @@ where
 impl<L, P> PositiveMatcher<L> for Rule<L, P>
 where
     L: Language,
-    P: PositiveMatcher<L> {}
+    P: PositiveMatcher<L>,
+{
+}
 
 impl<L: Language, M: PositiveMatcher<L>> Rule<L, M> {
     pub fn all(pattern: M) -> AndRule<L, M> {
@@ -294,7 +300,9 @@ mod test {
     }
     fn find_all(rule: impl Matcher<Tsx>, code: &str) -> Vec<String> {
         let node = Root::new(code, Tsx);
-        rule.find_all_nodes(node.root()).map(|n| n.text().to_string()).collect()
+        rule.find_all_nodes(node.root())
+            .map(|n| n.text().to_string())
+            .collect()
     }
 
     #[test]
@@ -338,8 +346,7 @@ mod test {
 
     #[test]
     fn test_api_and() {
-        let rule = Rule::all("let a = $_")
-            .and(Rule::not("let a = 123"));
+        let rule = Rule::all("let a = $_").and(Rule::not("let a = 123"));
         test_find(&rule, "let a = 233");
         test_find(&rule, "let a = 456");
         test_not_find(&rule, "let a = 123");
@@ -359,13 +366,19 @@ mod test {
     fn test_multiple_match() {
         let sequential = find_all("$A + b", "let f = () => a + b; let ff = () => c + b");
         assert_eq!(sequential.len(), 2);
-        let nested = find_all("function $A() { $$$ }", "function a() { function b() { b } }");
+        let nested = find_all(
+            "function $A() { $$$ }",
+            "function a() { function b() { b } }",
+        );
         assert_eq!(nested.len(), 2);
     }
 
     #[test]
     fn test_multiple_match_order() {
-        let ret = find_all("$A + b", "let f = () => () => () => a + b; let ff = () => c + b");
+        let ret = find_all(
+            "$A + b",
+            "let f = () => () => () => a + b; let ff = () => c + b",
+        );
         assert_eq!(ret, ["a + b", "c + b"], "should match source code order");
     }
 }

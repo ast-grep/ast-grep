@@ -1,8 +1,8 @@
 use crate::match_tree::does_node_match_exactly;
+use crate::matcher::KindMatcher;
 use crate::pattern::Pattern;
 use crate::Language;
 use crate::Node;
-use crate::matcher::KindMatcher;
 use std::collections::HashMap;
 
 pub type MetaVariableID = String;
@@ -180,8 +180,8 @@ fn is_valid_meta_var_char(c: char) -> bool {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Pattern;
     use crate::language::Tsx;
+    use crate::Pattern;
 
     fn extract_var(s: &str) -> Option<MetaVariable> {
         extract_meta_var(s, '$')
@@ -199,7 +199,10 @@ mod test {
 
     fn match_constraints(pattern: &str, node: &str) -> bool {
         let mut matchers = MetaVarMatchers(HashMap::new());
-        matchers.insert("A".to_string(), MetaVarMatcher::Pattern(Pattern::new(pattern, Tsx)));
+        matchers.insert(
+            "A".to_string(),
+            MetaVarMatcher::Pattern(Pattern::new(pattern, Tsx)),
+        );
         let mut env = MetaVarEnv::from_matchers(matchers);
         let root = Tsx.new(node);
         let node = root.root().child(0).unwrap().child(0).unwrap();

@@ -4,10 +4,10 @@ mod interaction;
 use ansi_term::Color::{Cyan, Green, Red};
 use ansi_term::Style;
 use ast_grep_core::language::Language;
-use ast_grep_core::{Pattern, Node};
+use ast_grep_core::{Node, Pattern};
 use clap::Parser;
 use guess_language::SupportLang;
-use ignore::{WalkBuilder, WalkState, WalkParallel};
+use ignore::{WalkBuilder, WalkParallel, WalkState};
 use similar::{ChangeTag, TextDiff};
 use std::fmt::Display;
 use std::fs::read_to_string;
@@ -118,9 +118,10 @@ fn main() -> Result<()> {
             let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
             while let Ok((grep, path)) = rx.recv() {
                 interaction::clear();
-                let  matches = grep.root().find_all(pattern.clone());
+                let matches = grep.root().find_all(pattern.clone());
                 print_matches(matches, &path, &pattern, &rewrite);
-                interaction::prompt("Confirm", "yn", Some('y')).expect("Error happened during prompt");
+                interaction::prompt("Confirm", "yn", Some('y'))
+                    .expect("Error happened during prompt");
             }
         }
     } else {
@@ -152,7 +153,12 @@ fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> () + Sync) {
     });
 }
 
-fn match_one_file(path: &Path, lang: SupportLang, pattern: &Pattern<SupportLang>, rewrite: &Option<Pattern<SupportLang>>) {
+fn match_one_file(
+    path: &Path,
+    lang: SupportLang,
+    pattern: &Pattern<SupportLang>,
+    rewrite: &Option<Pattern<SupportLang>>,
+) {
     let file_content = match read_to_string(&path) {
         Ok(content) => content,
         _ => return,
@@ -167,7 +173,9 @@ fn match_one_file(path: &Path, lang: SupportLang, pattern: &Pattern<SupportLang>
 
 fn print_matches<'a>(
     matches: impl Iterator<Item = Node<'a, SupportLang>>,
-    path: &Path, pattern: &Pattern<SupportLang>, rewrite: &Option<Pattern<SupportLang>>
+    path: &Path,
+    pattern: &Pattern<SupportLang>,
+    rewrite: &Option<Pattern<SupportLang>>,
 ) {
     let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
     println!("{}", Cyan.italic().paint(format!("{}", path.display())));
@@ -182,7 +190,9 @@ fn print_matches<'a>(
             let new_str = format!(
                 "{}{}{}\n",
                 display.leading,
-                e.replace(pattern.clone(), rewrite.clone()).unwrap().inserted_text,
+                e.replace(pattern.clone(), rewrite.clone())
+                    .unwrap()
+                    .inserted_text,
                 display.trailing
             );
             let base_line = display.start_line;
