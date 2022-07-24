@@ -250,8 +250,12 @@ impl<'r, L: Language> Node<'r, L> {
         })
     }
     #[must_use]
-    pub fn eq(&self, _i: usize) -> Self {
-        todo!()
+    pub fn child(&self, i: usize) -> Option<Node<'r, L>> {
+        let inner = self.inner.child(i)?;
+        Some(Node {
+            inner,
+            root: self.root,
+        })
     }
 }
 

@@ -178,6 +178,8 @@ fn is_valid_meta_var_char(c: char) -> bool {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::Pattern;
+    use crate::language::Tsx;
 
     fn extract_var(s: &str) -> Option<MetaVariable> {
         extract_meta_var(s, '$')
@@ -191,5 +193,25 @@ mod test {
         assert_eq!(extract_var("$_"), Some(Anonymous));
         assert_eq!(extract_var("abc"), None);
         assert_eq!(extract_var("$abc"), None);
+    }
+
+    fn match_constraints(pattern: &str, node: &str) -> bool {
+        let mut matchers = MetaVarMatchers(HashMap::new());
+        matchers.insert("A".to_string(), MetaVarMatcher::Pattern(Pattern::new(pattern, Tsx)));
+        let mut env = MetaVarEnv::from_matchers(matchers);
+        let root = Tsx.new(node);
+        let node = root.root().child(0).unwrap().child(0).unwrap();
+        env.insert("A".to_string(), node);
+        env.match_constraints()
+    }
+
+    #[test]
+    fn test_match_constraints() {
+        assert!(match_constraints("a + b", "a + b"));
+    }
+
+    #[test]
+    fn test_match_not_constraints() {
+        assert!(!match_constraints("a - b", "a + b"));
     }
 }
