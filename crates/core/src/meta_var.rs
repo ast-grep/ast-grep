@@ -17,8 +17,12 @@ pub struct MetaVarEnv<'tree, L: Language> {
 
 impl<'tree, L: Language> MetaVarEnv<'tree, L> {
     pub fn new() -> Self {
+        Self::from_matchers(MetaVarMatchers::new())
+    }
+
+    pub fn from_matchers(var_matchers: MetaVarMatchers<L>) -> Self {
         Self {
-            var_matchers: MetaVarMatchers::new(),
+            var_matchers,
             single_matched: HashMap::new(),
             multi_matched: HashMap::new(),
         }
@@ -130,8 +134,8 @@ impl<L: Language> MetaVarMatcher<L> {
         let mut env = MetaVarEnv::new();
         match self {
             Regex(_s) => todo!(),
-            Pattern(p) => p.match_node(candidate, &mut env).is_some(),
-            Kind(k) => k.match_node(candidate, &mut env).is_some(),
+            Pattern(p) => p.match_node_with_env(candidate, &mut env).is_some(),
+            Kind(k) => k.match_node_with_env(candidate, &mut env).is_some(),
         }
     }
 }

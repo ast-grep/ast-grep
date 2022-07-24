@@ -1,5 +1,4 @@
 use crate::language::Language;
-use crate::meta_var::MetaVarEnv;
 use crate::replacer::Replacer;
 use crate::matcher::Matcher;
 use crate::ts_parser::{parse, perform_edit, Edit};
@@ -183,8 +182,7 @@ pub struct DisplayContext<'r> {
 impl<'r, L: Language> Node<'r, L> {
     #[must_use]
     pub fn find<M: Matcher<L>>(&self, pat: M) -> Option<Self> {
-        let mut env = MetaVarEnv::new();
-        pat.find_node(*self, &mut env)
+        pat.find_node(*self)
     }
 
     pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = Node<'r, L>> {
@@ -261,8 +259,8 @@ impl<'r, L: Language> Node<'r, L> {
 impl<'r, L: Language> Node<'r, L> {
     pub fn attr(&self) {}
     pub fn replace<M: Matcher<L>, R: Replacer<L>>(&self, matcher: M, replacer: R) -> Option<Edit> {
-        let mut env = MetaVarEnv::new();
-        let node = matcher.find_node(*self, &mut env)?;
+        let mut env = matcher.get_meta_var_env();
+        let node = matcher.find_node_with_env(*self, &mut env)?;
         let inner = node.inner;
         let position = inner.start_byte();
         // instead of using start_byte/end_byte, ignore trivia like semicolon ;

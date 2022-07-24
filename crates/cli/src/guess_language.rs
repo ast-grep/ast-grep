@@ -1,7 +1,7 @@
 //! Guess which programming language a file is written in
 //! Adapt from https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs
 use ast_grep_core::language::{self, Language, TSLanguage};
-use ast_grep_core::{MetaVariable, Pattern};
+use ast_grep_core::MetaVariable;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::str::FromStr;

@@ -20,7 +20,7 @@ impl<L: Language> Pattern<L> {
 }
 
 impl<L: Language> Matcher<L> for Pattern<L> {
-    fn match_node<'tree>(
+    fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
@@ -66,23 +66,20 @@ mod test {
         let goal = pattern_node(s1);
         let cand = pattern_node(s2);
         let cand = cand.root();
-        let mut env = MetaVarEnv::new();
         assert!(
-            pattern.find_node(cand, &mut env).is_some(),
+            pattern.find_node(cand).is_some(),
             "goal: {}, candidate: {}",
             goal.root().inner.to_sexp(),
             cand.inner.to_sexp(),
         );
     }
     fn test_non_match(s1: &str, s2: &str) {
-        let goal = pattern_node(s1);
         let pattern = Pattern::new(s1, Tsx);
         let goal = pattern_node(s1);
         let cand = pattern_node(s2);
         let cand = cand.root();
-        let mut env = MetaVarEnv::new();
         assert!(
-            pattern.find_node(cand, &mut env).is_none(),
+            pattern.find_node(cand).is_none(),
             "goal: {}, candidate: {}",
             goal.root().inner.to_sexp(),
             cand.inner.to_sexp(),
@@ -101,7 +98,7 @@ mod test {
         let cand = pattern_node(cand);
         let cand = cand.root();
         let mut env = MetaVarEnv::new();
-        pattern.find_node(cand, &mut env).unwrap();
+        pattern.find_node_with_env(cand, &mut env).unwrap();
         HashMap::from(env)
     }
 

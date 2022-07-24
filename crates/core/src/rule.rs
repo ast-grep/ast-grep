@@ -23,13 +23,13 @@ where
     P1: Matcher<L>,
     P2: Matcher<L>,
 {
-    fn match_node<'tree>(
+    fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        let node = self.pattern1.match_node(node, env)?;
-        self.pattern2.match_node(node, env)
+        let node = self.pattern1.match_node_with_env(node, env)?;
+        self.pattern2.match_node_with_env(node, env)
     }
 }
 
@@ -48,14 +48,14 @@ impl<L: Language, P: Matcher<L>> All<L, P> {
 }
 
 impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
-    fn match_node<'tree>(
+    fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
         self.patterns
             .iter()
-            .all(|p| p.match_node(node, env).is_some())
+            .all(|p| p.match_node_with_env(node, env).is_some())
             .then_some(node)
     }
 }
@@ -65,14 +65,14 @@ pub struct Either<P> {
 }
 
 impl<L: Language, P: Matcher<L>> Matcher<L> for Either<P> {
-    fn match_node<'tree>(
+    fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
         self.patterns
             .iter()
-            .any(|p| p.match_node(node, env).is_some())
+            .any(|p| p.match_node_with_env(node, env).is_some())
             .then_some(node)
     }
 }
@@ -89,14 +89,14 @@ where
     P1: PositiveMatcher<L>,
     P2: PositiveMatcher<L>,
 {
-    fn match_node<'tree>(
+    fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
         self.pattern1
-            .match_node(node, env)
-            .or_else(|| self.pattern2.match_node(node, env))
+            .match_node_with_env(node, env)
+            .or_else(|| self.pattern2.match_node_with_env(node, env))
     }
 }
 
@@ -113,14 +113,14 @@ pub struct Inside<L: Language> {
 }
 
 impl<L: Language> Matcher<L> for Inside<L> {
-    fn match_node<'tree>(
+    fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
         let mut n = node;
         while let Some(p) = n.parent() {
-            if self.outer.match_node(p, env).is_some() {
+            if self.outer.match_node_with_env(p, env).is_some() {
                 return Some(node);
             }
             n = p;
@@ -134,14 +134,14 @@ pub struct NotInside<L: Language> {
 }
 
 impl<L: Language> Matcher<L> for NotInside<L> {
-    fn match_node<'tree>(
+    fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
         let mut n = node;
         while let Some(p) = n.parent() {
-            if self.outer.match_node(p, env).is_some() {
+            if self.outer.match_node_with_env(p, env).is_some() {
                 return None;
             }
             n = p;
@@ -160,12 +160,12 @@ where
     L: Language,
     P: PositiveMatcher<L>,
 {
-    fn match_node<'tree>(
+    fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        self.not.match_node(node, env).xor(Some(node))
+        self.not.match_node_with_env(node, env).xor(Some(node))
     }
 }
 
@@ -270,14 +270,12 @@ mod test {
     use crate::Root;
 
     fn test_find(rule: &impl Matcher<Tsx>, code: &str) {
-        let mut env = MetaVarEnv::new();
         let node = Root::new(code, Tsx);
-        assert!(rule.find_node(node.root(), &mut env).is_some());
+        assert!(rule.find_node(node.root()).is_some());
     }
     fn test_not_find(rule: &impl Matcher<Tsx>, code: &str) {
-        let mut env = MetaVarEnv::new();
         let node = Root::new(code, Tsx);
-        assert!(rule.find_node(node.root(), &mut env).is_none());
+        assert!(rule.find_node(node.root()).is_none());
     }
     fn find_all(rule: impl Matcher<Tsx>, code: &str) -> Vec<String> {
         let node = Root::new(code, Tsx);

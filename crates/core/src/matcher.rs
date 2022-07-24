@@ -1,4 +1,4 @@
-use crate::meta_var::MetaVarEnv;
+use crate::meta_var::{MetaVarEnv, MetaVarMatchers};
 use crate::Node;
 use crate::Language;
 use crate::Pattern;
@@ -20,7 +20,7 @@ impl<L: Language> KindMatcher<L> {
 }
 
 impl<L: Language> Matcher<L> for KindMatcher<L> {
-    fn match_node<'tree>(
+    fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         _env: &mut MetaVarEnv<'tree, L>,
@@ -37,20 +37,43 @@ impl<L: Language> Matcher<L> for KindMatcher<L> {
  * N.B. At least one positive term is required for matching
  */
 pub trait Matcher<L: Language>: Sized {
-    fn match_node<'tree>(
+    fn match_node_with_env<'tree>(
         &self,
         _node: Node<'tree, L>,
         _env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>>;
 
-    fn find_node<'tree>(
+    fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<Node<'tree, L>> {
+        let mut env = self.get_meta_var_env();
+        let node = self.match_node_with_env(node, &mut env)?;
+        env.match_constraints().then_some(node)
+    }
+
+    fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {
+        MetaVarMatchers::new()
+    }
+
+    fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {
+        MetaVarEnv::from_matchers(self.get_meta_var_matchers())
+    }
+
+    fn find_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        self.match_node(node, env)
-            .or_else(|| node.children().find_map(|sub| self.find_node(sub, env)))
+        self.match_node_with_env(node, env)
+            .or_else(|| node.children().find_map(|sub| self.find_node_with_env(sub, env)))
     }
+
+    fn find_node<'tree>(
+        &self,
+        node: Node<'tree, L>,
+    ) -> Option<Node<'tree, L>> {
+        self.match_node(node)
+            .or_else(|| node.children().find_map(|sub| self.find_node(sub)))
+    }
+
 
     fn find_all_nodes<'tree>(self, node: Node<'tree, L>) -> FindAllNodes<'tree, L, Self> {
         FindAllNodes::new(self, node)
@@ -58,13 +81,13 @@ pub trait Matcher<L: Language>: Sized {
 }
 
 impl<S: AsRef<str>, L: Language> Matcher<L> for S {
-    fn match_node<'tree>(
+    fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
         let pattern = Pattern::new(self.as_ref(), node.root.lang);
-        pattern.match_node(node, env)
+        pattern.match_node_with_env(node, env)
     }
 }
 
@@ -91,8 +114,7 @@ impl<'tree, L: Language, M: Matcher<L>> Iterator for FindAllNodes<'tree, L, M> {
     type Item = Node<'tree, L>;
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(cand) = self.dfs.next() {
-            let mut env = MetaVarEnv::new();
-            if let Some(matched) = self.matcher.match_node(cand, &mut env) {
+            if let Some(matched) = self.matcher.match_node(cand) {
                 return Some(matched);
             }
         }
@@ -115,9 +137,8 @@ mod test {
         let cand = pattern_node("class A { a = 123 }");
         let cand = cand.root();
         let pattern = KindMatcher::new(kind, Tsx);
-        let mut env = MetaVarEnv::new();
         assert!(
-            pattern.find_node(cand, &mut env).is_some(),
+            pattern.find_node(cand).is_some(),
             "goal: {}, candidate: {}",
             kind,
             cand.inner.to_sexp(),
@@ -130,9 +151,8 @@ mod test {
         let cand = pattern_node("const a = 123");
         let cand = cand.root();
         let pattern = KindMatcher::new(kind, Tsx);
-        let mut env = MetaVarEnv::new();
         assert!(
-            pattern.find_node(cand, &mut env).is_none(),
+            pattern.find_node(cand).is_none(),
             "goal: {}, candidate: {}",
             kind,
             cand.inner.to_sexp(),
