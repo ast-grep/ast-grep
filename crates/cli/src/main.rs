@@ -6,7 +6,7 @@ use ansi_term::Style;
 use ast_grep_core::language::Language;
 use ast_grep_core::{Node, Pattern};
 use clap::Parser;
-use guess_language::SupportLang;
+use guess_language::{SupportLang, file_types};
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use similar::{ChangeTag, TextDiff};
 use std::fmt::Display;
@@ -67,7 +67,7 @@ fn main() -> Result<()> {
         let walker = WalkBuilder::new(&args.path)
             .hidden(args.hidden)
             .threads(threads)
-            .types(lang.file_types())
+            .types(file_types(&lang))
             .build_parallel();
         if !args.interactive {
             let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));

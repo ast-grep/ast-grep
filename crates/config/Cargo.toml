@@ -13,3 +13,5 @@ repository = "https://github.com/HerringtonDarkholme/ast-grep"
 
 [dependencies]
 ast-grep-core = { version="0.1.0", path = "../core" }
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.8"
