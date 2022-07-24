@@ -10,7 +10,7 @@ pub type MetaVariableID = String;
 /// a dictionary that stores metavariable instantiation
 /// const a = 123 matched with const a = $A will produce env: $A => 123
 pub struct MetaVarEnv<'tree, L: Language> {
-    var_matchers: HashMap<MetaVariableID, MetaVarMatcher<L>>,
+    var_matchers: MetaVarMatchers<L>,
     single_matched: HashMap<MetaVariableID, Node<'tree, L>>,
     multi_matched: HashMap<MetaVariableID, Vec<Node<'tree, L>>>,
 }
@@ -18,7 +18,7 @@ pub struct MetaVarEnv<'tree, L: Language> {
 impl<'tree, L: Language> MetaVarEnv<'tree, L> {
     pub fn new() -> Self {
         Self {
-            var_matchers: HashMap::new(),
+            var_matchers: MetaVarMatchers::new(),
             single_matched: HashMap::new(),
             multi_matched: HashMap::new(),
         }
@@ -48,6 +48,24 @@ impl<'tree, L: Language> MetaVarEnv<'tree, L> {
             _ => None,
         }
     }
+
+    pub fn match_constraints(&self) -> bool {
+        for (var_id, &candidate) in &self.single_matched {
+            if let Some(m) = self.var_matchers.0.get(var_id) {
+                if !m.matches(candidate) {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
+    fn match_variable(&self, id: &MetaVariableID, candidate: Node<L>) -> bool {
+        if let Some(m) = self.single_matched.get(id) {
+            return does_node_match_exactly(m, candidate);
+        }
+        true
+    }
 }
 
 impl<'tree, L: Language> From<MetaVarEnv<'tree, L>> for HashMap<String, String> {
@@ -62,20 +80,6 @@ impl<'tree, L: Language> From<MetaVarEnv<'tree, L>> for HashMap<String, String> 
             ret.insert(id, format!("[{s}]"));
         }
         ret
-    }
-}
-
-impl<'tree, L: Language> MetaVarEnv<'tree, L> {
-    fn match_variable(&self, id: &MetaVariableID, candidate: Node<L>) -> bool {
-        if let Some(m) = self.var_matchers.get(id) {
-            if !m.matches(candidate) {
-                return false;
-            }
-        }
-        if let Some(m) = self.single_matched.get(id) {
-            return does_node_match_exactly(m, candidate);
-        }
-        true
     }
 }
 
@@ -96,6 +100,18 @@ pub enum MetaVariable {
     Ellipsis,
     /// $$$A for captured ellipsis
     NamedEllipsis(MetaVariableID),
+}
+
+pub struct MetaVarMatchers<L: Language>(HashMap<MetaVariableID, MetaVarMatcher<L>>);
+
+impl<L: Language> MetaVarMatchers<L> {
+    pub fn new() -> Self {
+        Self(HashMap::new())
+    }
+
+    pub fn insert(&mut self, var_id: MetaVariableID, matcher: MetaVarMatcher<L>) {
+        self.0.insert(var_id, matcher);
+    }
 }
 
 pub enum MetaVarMatcher<L: Language> {

@@ -1,7 +1,7 @@
-use crate::meta_var::MetaVarEnv;
 use crate::Language;
 use crate::Node;
 use crate::Pattern;
+use crate::meta_var::{MetaVarMatchers, MetaVarEnv, MetaVarMatcher};
 use std::marker::PhantomData;
 use crate::matcher::{Matcher, PositiveMatcher};
 
@@ -171,7 +171,7 @@ where
 
 pub struct Rule<L: Language, M: Matcher<L>> {
     inner: M,
-    lang: PhantomData<L>,
+    meta_vars: MetaVarMatchers<L>,
 }
 
 impl<L: Language, M: PositiveMatcher<L>> Rule<L, M> {
@@ -193,6 +193,12 @@ impl<L: Language, M: PositiveMatcher<L>> Rule<L, M> {
             lang: PhantomData,
         }
     }
+
+    pub fn with_meta_var(&mut self, var_id: String, matcher: MetaVarMatcher<L>) -> &mut Self {
+        self.meta_vars.insert(var_id, matcher);
+        self
+    }
+
     pub fn build(self) -> M {
         self.inner
     }
@@ -210,7 +216,7 @@ impl<L: Language, M: PositiveMatcher<L>> AndRule<L, M> {
                 pattern2: other,
                 lang: PhantomData,
             },
-            lang: PhantomData,
+            meta_vars: MetaVarMatchers::new(),
         }
     }
 }
@@ -222,7 +228,7 @@ impl<L: Language, M: PositiveMatcher<L>, N: Matcher<L>> Rule<L, And<L, M, N>> {
                 pattern2: other,
                 lang: PhantomData,
             },
-            lang: PhantomData,
+            meta_vars: self.meta_vars,
         }
     }
 }
@@ -239,7 +245,7 @@ impl<L: Language, M: PositiveMatcher<L>> EitherRule<L, M> {
                 pattern2: other,
                 lang: PhantomData,
             },
-            lang: PhantomData,
+            meta_vars: MetaVarMatchers::new(),
         }
     }
 }
@@ -252,7 +258,7 @@ impl<L: Language, M: PositiveMatcher<L>, N: PositiveMatcher<L>> Rule<L, Or<L, M,
                 pattern2: other,
                 lang: PhantomData,
             },
-            lang: PhantomData,
+            meta_vars: self.meta_vars,
         }
     }
 }
