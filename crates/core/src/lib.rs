@@ -71,7 +71,7 @@ mod test {
 
     #[test]
     fn test_replace_by_rule() {
-        let rule = Rule::either("let a = 123").or("let b = 456").build();
+        let rule = Rule::either("let a = 123").or("let b = 456");
         let mut ast_grep = Tsx.new("let a = 123");
         let replaced = ast_grep.replace(rule, "console.log('it works!')");
         assert!(replaced);

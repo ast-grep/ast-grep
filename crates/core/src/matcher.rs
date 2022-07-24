@@ -5,6 +5,7 @@ use crate::Pattern;
 use crate::node::{DFS, KindId};
 use std::marker::PhantomData;
 
+#[derive(Clone)]
 pub struct KindMatcher<L: Language> {
     kind: KindId,
     lang: PhantomData<L>,

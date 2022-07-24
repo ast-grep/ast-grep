@@ -174,6 +174,25 @@ pub struct Rule<L: Language, M: Matcher<L>> {
     meta_vars: MetaVarMatchers<L>,
 }
 
+impl<L, M> Matcher<L> for Rule<L, M>
+where
+    L: Language,
+    M: Matcher<L>,
+{
+    fn match_node_with_env<'tree>(&self, node: Node<'tree, L>, env: &mut MetaVarEnv<'tree, L>) -> Option<Node<'tree, L>> {
+        self.inner.match_node_with_env(node, env)
+    }
+
+    fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {
+        // TODO: avoid clone here
+        self.meta_vars.clone()
+    }
+}
+impl<L, P> PositiveMatcher<L> for Rule<L, P>
+where
+    L: Language,
+    P: PositiveMatcher<L> {}
+
 impl<L: Language, M: PositiveMatcher<L>> Rule<L, M> {
     pub fn all(pattern: M) -> AndRule<L, M> {
         AndRule {
@@ -197,10 +216,6 @@ impl<L: Language, M: PositiveMatcher<L>> Rule<L, M> {
     pub fn with_meta_var(&mut self, var_id: String, matcher: MetaVarMatcher<L>) -> &mut Self {
         self.meta_vars.insert(var_id, matcher);
         self
-    }
-
-    pub fn build(self) -> M {
-        self.inner
     }
 }
 
@@ -324,8 +339,7 @@ mod test {
     #[test]
     fn test_api_and() {
         let rule = Rule::all("let a = $_")
-            .and(Rule::not("let a = 123"))
-            .build();
+            .and(Rule::not("let a = 123"));
         test_find(&rule, "let a = 233");
         test_find(&rule, "let a = 456");
         test_not_find(&rule, "let a = 123");
@@ -333,7 +347,7 @@ mod test {
 
     #[test]
     fn test_api_or() {
-        let rule = Rule::either("let a = 1").or("const b = 2").build();
+        let rule = Rule::either("let a = 1").or("const b = 2");
         test_find(&rule, "let a = 1");
         test_find(&rule, "const b = 2");
         test_not_find(&rule, "let a = 2");

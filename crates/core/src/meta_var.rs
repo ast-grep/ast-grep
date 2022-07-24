@@ -106,6 +106,7 @@ pub enum MetaVariable {
     NamedEllipsis(MetaVariableID),
 }
 
+#[derive(Clone)]
 pub struct MetaVarMatchers<L: Language>(HashMap<MetaVariableID, MetaVarMatcher<L>>);
 
 impl<L: Language> MetaVarMatchers<L> {
@@ -118,6 +119,7 @@ impl<L: Language> MetaVarMatchers<L> {
     }
 }
 
+#[derive(Clone)]
 pub enum MetaVarMatcher<L: Language> {
     /// A regex to filter matched metavar based on its textual content.
     Regex(&'static str),
