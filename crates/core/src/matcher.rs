@@ -94,6 +94,16 @@ impl<S: AsRef<str>, L: Language> Matcher<L> for S {
 
 impl<S: AsRef<str>, L: Language> PositiveMatcher<L> for S {}
 
+// impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
+//     fn match_node_with_env<'tree>(
+//         &self,
+//         node: Node<'tree, L>,
+//         env: &mut MetaVarEnv<'tree, L>,
+//     ) -> Option<Node<'tree, L>> {
+//         self.match_node_with_env(node, env)
+//     }
+// }
+
 /**
  * A marker trait to indicate the the rule is positive matcher
  */

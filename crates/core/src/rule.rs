@@ -72,8 +72,8 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for Either<P> {
     ) -> Option<Node<'tree, L>> {
         self.patterns
             .iter()
-            .any(|p| p.match_node_with_env(node, env).is_some())
-            .then_some(node)
+            .find_map(|p| p.match_node_with_env(node, env))
+            .map(|_| node)
     }
 }
 
@@ -111,44 +111,56 @@ where
 pub struct Inside<L: Language> {
     outer: Pattern<L>,
 }
-
 impl<L: Language> Matcher<L> for Inside<L> {
     fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        let mut n = node;
-        while let Some(p) = n.parent() {
-            if self.outer.match_node_with_env(p, env).is_some() {
-                return Some(node);
-            }
-            n = p;
-        }
-        None
+        node
+            .ancestors()
+            .find_map(|n| self.outer.match_node_with_env(n, env))
+            .map(|_| node)
     }
 }
 
-pub struct NotInside<L: Language> {
-    outer: Pattern<L>,
+pub struct Has<L: Language> {
+    inner: Pattern<L>,
 }
-
-impl<L: Language> Matcher<L> for NotInside<L> {
+impl<L: Language> Matcher<L> for Has<L> {
     fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        let mut n = node;
-        while let Some(p) = n.parent() {
-            if self.outer.match_node_with_env(p, env).is_some() {
-                return None;
-            }
-            n = p;
-        }
-        Some(node)
+        node
+            .dfs()
+            .skip(1)
+            .find_map(|n| self.inner.match_node_with_env(n, env))
+            .map(|_| node)
     }
 }
+
+// pub struct NotInside<L: Language> {
+//     outer: Pattern<L>,
+// }
+
+// impl<L: Language> Matcher<L> for NotInside<L> {
+//     fn match_node_with_env<'tree>(
+//         &self,
+//         node: Node<'tree, L>,
+//         env: &mut MetaVarEnv<'tree, L>,
+//     ) -> Option<Node<'tree, L>> {
+//         let mut n = node;
+//         while let Some(p) = n.parent() {
+//             if self.outer.match_node_with_env(p, env).is_some() {
+//                 return None;
+//             }
+//             n = p;
+//         }
+//         Some(node)
+//     }
+// }
 
 pub struct Not<L: Language, P: PositiveMatcher<L>> {
     not: P,
