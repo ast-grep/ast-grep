@@ -39,7 +39,7 @@ impl<L: Language> Matcher<L> for KindMatcher<L> {
 /**
  * N.B. At least one positive term is required for matching
  */
-pub trait Matcher<L: Language>: Sized {
+pub trait Matcher<L: Language> {
     fn match_node_with_env<'tree>(
         &self,
         _node: Node<'tree, L>,
@@ -76,7 +76,7 @@ pub trait Matcher<L: Language>: Sized {
             .or_else(|| node.children().find_map(|sub| self.find_node(sub)))
     }
 
-    fn find_all_nodes<'tree>(self, node: Node<'tree, L>) -> FindAllNodes<'tree, L, Self> {
+    fn find_all_nodes<'tree>(self, node: Node<'tree, L>) -> FindAllNodes<'tree, L, Self> where Self: Sized {
         FindAllNodes::new(self, node)
     }
 }
@@ -94,15 +94,16 @@ impl<S: AsRef<str>, L: Language> Matcher<L> for S {
 
 impl<S: AsRef<str>, L: Language> PositiveMatcher<L> for S {}
 
-// impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
-//     fn match_node_with_env<'tree>(
-//         &self,
-//         node: Node<'tree, L>,
-//         env: &mut MetaVarEnv<'tree, L>,
-//     ) -> Option<Node<'tree, L>> {
-//         self.match_node_with_env(node, env)
-//     }
-// }
+impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
+    fn match_node_with_env<'tree>(
+        &self,
+        node: Node<'tree, L>,
+        env: &mut MetaVarEnv<'tree, L>,
+    ) -> Option<Node<'tree, L>> {
+        // NOTE: must double deref boxed value to avoid recursion
+        (**self).match_node_with_env(node, env)
+    }
+}
 
 /**
  * A marker trait to indicate the the rule is positive matcher
@@ -169,6 +170,16 @@ mod test {
             "goal: {}, candidate: {}",
             kind,
             cand.inner.to_sexp(),
+        );
+    }
+
+    #[test]
+    fn test_box_match() {
+        let boxed: Box<dyn Matcher<Tsx>> = Box::new("const a = 123");
+        let cand = pattern_node("const a = 123");
+        let cand = cand.root();
+        assert!(
+            boxed.find_node(cand).is_some()
         );
     }
 }

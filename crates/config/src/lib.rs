@@ -2,7 +2,8 @@ pub mod support_language;
 use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
-// use ast_grep_core::{Rule, Matcher};
+use ast_grep_core::{Rule, Matcher};
+use ast_grep_core as core;
 
 pub use support_language::SupportLang;
 
@@ -40,10 +41,18 @@ pub struct AstGrepRuleConfig {
     meta_variables: HashMap<String, String>,
 }
 
-// type Parsed = Rule<SupportLang, Box<dyn Matcher<SupportLang>>>;
-// pub fn from_yaml_string(yaml: &str) -> Result<Parsed, serde_yaml::Error> {
-//     let ast_grep_rule: AstGrepRuleConfig = serde_yaml::from_str(yaml);
-//     todo!()
+type Parsed = Rule<SupportLang, Box<dyn Matcher<SupportLang>>>;
+pub fn from_yaml_string(yaml: &str) -> Result<Parsed, serde_yaml::Error> {
+    let ast_grep_rule: AstGrepRuleConfig = serde_yaml::from_str(yaml)?;
+    todo!()
+    // Ok(Rule convert_serializable_rule(ast_grep_rule.rule))
+}
+
+// fn convert_serializable_rule(rule: SerializableRule) -> Box<dyn Matcher<SupportLang>> {
+//     use SerializableRule::*;
+//     Box::new(match rule {
+//         All(rules) => core::All::new(rules.into_iter().map(convert_serializable_rule)),
+//     })
 // }
 
 #[cfg(test)]
