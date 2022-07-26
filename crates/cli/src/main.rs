@@ -57,77 +57,89 @@ struct Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let threads = num_cpus::get().min(12);
-    if let Some(pattern) = args.pattern {
-        let lang = args.lang.unwrap();
-        let pattern = Pattern::new(&pattern, lang);
-        if args.debug_query {
-            println!("Pattern TreeSitter {:?}", pattern);
-        }
-        let walker = WalkBuilder::new(&args.path)
-            .hidden(args.hidden)
-            .threads(threads)
-            .types(file_types(&lang))
-            .build_parallel();
-        if !args.interactive {
-            let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
-            run_walker(walker, |path| {
-                match_one_file(path, lang, &pattern, &rewrite);
-            });
-        } else {
-            let (tx, rx) = mpsc::channel();
-            let pat = pattern.clone();
-            let l = lang.clone();
-            std::thread::spawn(move || {
-                walker.run(move || {
-                    let tx = tx.clone();
-                    let pattern = pat.clone();
-                    let lang = l.clone();
-                    Box::new(move |result| match result {
-                        Ok(entry) => {
-                            if let Some(file_type) = entry.file_type() {
-                                if !file_type.is_file() {
-                                    return WalkState::Continue;
-                                }
-                                let path = entry.path();
-                                let file_content = match read_to_string(path) {
-                                    Ok(content) => content,
-                                    _ => return WalkState::Continue,
-                                };
-                                let grep = lang.new(file_content);
-                                let mut matches = grep.root().find_all(pattern.clone());
-                                if matches.next().is_none() {
-                                    return WalkState::Continue;
-                                }
-                                drop(matches);
-                                match tx.send((grep, path.to_path_buf())) {
-                                    Ok(_) => WalkState::Continue,
-                                    Err(_) => WalkState::Quit,
-                                }
-                            } else {
-                                WalkState::Continue
-                            }
-                        }
-                        Err(err) => {
-                            eprintln!("ERROR: {}", err);
-                            WalkState::Continue
-                        }
-                    })
-                });
-            });
-            let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
-            while let Ok((grep, path)) = rx.recv() {
-                interaction::clear();
-                let matches = grep.root().find_all(pattern.clone());
-                print_matches(matches, &path, &pattern, &rewrite);
-                interaction::prompt("Confirm", "yn", Some('y'))
-                    .expect("Error happened during prompt");
-            }
-        }
+    if args.pattern.is_some() {
+        run_with_pattern(args);
     } else {
-        println!("TODO! add the code path after config");
+        run_with_config(args);
     }
     Ok(())
+}
+
+// Every run will include Search or Replace
+// Search or Replace by arguments `pattern` and `rewrite` passed from CLI
+fn run_with_pattern(args: Args) {
+    let pattern = args.pattern.unwrap();
+    let threads = num_cpus::get().min(12);
+    let lang = args.lang.unwrap();
+    let pattern = Pattern::new(&pattern, lang);
+    if args.debug_query {
+        println!("Pattern TreeSitter {:?}", pattern);
+    }
+    let walker = WalkBuilder::new(&args.path)
+        .hidden(args.hidden)
+        .threads(threads)
+        .types(file_types(&lang))
+        .build_parallel();
+    if !args.interactive {
+        let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
+        run_walker(walker, |path| {
+            match_one_file(path, lang, &pattern, &rewrite);
+        });
+    } else {
+        let (tx, rx) = mpsc::channel();
+        let pat = pattern.clone();
+        let l = lang.clone();
+        std::thread::spawn(move || {
+            walker.run(move || {
+                let tx = tx.clone();
+                let pattern = pat.clone();
+                let lang = l.clone();
+                Box::new(move |result| match result {
+                    Ok(entry) => {
+                        if let Some(file_type) = entry.file_type() {
+                            if !file_type.is_file() {
+                                return WalkState::Continue;
+                            }
+                            let path = entry.path();
+                            let file_content = match read_to_string(path) {
+                                Ok(content) => content,
+                                _ => return WalkState::Continue,
+                            };
+                            let grep = lang.new(file_content);
+                            let mut matches = grep.root().find_all(pattern.clone());
+                            if matches.next().is_none() {
+                                return WalkState::Continue;
+                            }
+                            drop(matches);
+                            match tx.send((grep, path.to_path_buf())) {
+                                Ok(_) => WalkState::Continue,
+                                Err(_) => WalkState::Quit,
+                            }
+                        } else {
+                            WalkState::Continue
+                        }
+                    }
+                    Err(err) => {
+                        eprintln!("ERROR: {}", err);
+                        WalkState::Continue
+                    }
+                })
+            });
+        });
+        let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
+        while let Ok((grep, path)) = rx.recv() {
+            interaction::clear();
+            let matches = grep.root().find_all(pattern.clone());
+            print_matches(matches, &path, &pattern, &rewrite);
+            interaction::prompt("Confirm", "yn", Some('y'))
+                .expect("Error happened during prompt");
+        }
+    }
+}
+
+fn run_with_config(_arg: Args) {
+    use ast_grep_config::from_yaml_string;
+    println!("TODO! add the code path after config");
 }
 
 fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> () + Sync) {
