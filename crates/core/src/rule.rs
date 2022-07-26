@@ -62,7 +62,7 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
 
 // TODO: this is not correct. We don't need every sub pattern to be positive
 // need to refine this
-impl<L: Language, P: PositiveMatcher<L>> PositiveMatcher<L> for All<L, P> {
+impl<L: Language, M: Matcher<L>> PositiveMatcher<L> for All<L, M> {
 }
 
 pub struct Either<L, P> {

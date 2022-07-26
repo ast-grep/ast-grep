@@ -35,6 +35,7 @@ impl<L: Language> Matcher<L> for KindMatcher<L> {
         }
     }
 }
+impl<L: Language> PositiveMatcher<L> for KindMatcher<L> {}
 
 /**
  * N.B. At least one positive term is required for matching

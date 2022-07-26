@@ -9,6 +9,7 @@ pub use support_language::SupportLang;
 
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Severity {
     Info,
     Warning,
@@ -16,6 +17,7 @@ pub enum Severity {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum SerializableRule {
     All(Vec<SerializableRule>),
     Any(Vec<SerializableRule>),
@@ -23,6 +25,7 @@ pub enum SerializableRule {
     Inside(Box<SerializableRule>),
     Has(Box<SerializableRule>),
     Pattern(String),
+    Kind(String),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -38,6 +41,7 @@ pub struct AstGrepRuleConfig {
     /// Pattern rules to find matching AST nodes
     rule: SerializableRule,
     /// Addtionaly meta variables pattern to filter matching
+    #[serde(default)]
     meta_variables: HashMap<String, String>,
 }
 
@@ -57,12 +61,13 @@ fn convert_serializable_rule_to_positive(rule: SerializableRule, lang: SupportLa
     use SerializableRule::*;
     match rule {
         All(rules) => {
-            Box::new(core::All::new(rules.into_iter().map(|r| convert_serializable_rule_to_positive(r, lang))))
+            Box::new(core::All::new(rules.into_iter().map(|r| convert_serializable_rule(r, lang))))
         }
         Any(rules) => {
             Box::new(core::Either::new(rules.into_iter().map(|r| convert_serializable_rule_to_positive(r, lang))))
         }
         Pattern(s) => Box::new(core::Pattern::new(&s, lang)),
+        Kind(kind_name) => Box::new(core::KindMatcher::new(&kind_name, lang)),
         _ => panic!("impossible!"),
     }
 }
@@ -85,14 +90,110 @@ fn convert_serializable_rule(rule: SerializableRule, lang: SupportLang) -> Box<d
         Has(rule) => {
             Box::new(core::rule::Inside::new(convert_serializable_rule(*rule, lang)))
         }
-        Pattern(s) => Box::new(core::Pattern::new(&s, lang))
+        Pattern(pattern) => Box::new(core::Pattern::new(&pattern, lang)),
+        Kind(kind_name) => Box::new(core::KindMatcher::new(&kind_name, lang)),
     }
 }
 
 #[cfg(test)]
 mod test {
+
+    use super::*;
+
+    fn test_rule_match(yaml: &str, source: &str) {
+        let config = from_yaml_string(yaml).expect("rule should parse");
+        let grep = core::AstGrep::new(source, SupportLang::TypeScript);
+        assert!(grep.root().find(config).is_some());
+    }
+
+    fn test_rule_unmatch(yaml: &str, source: &str) {
+        let config = from_yaml_string(yaml).expect("rule should parse");
+        let grep = core::AstGrep::new(source, SupportLang::TypeScript);
+        assert!(grep.root().find(config).is_none());
+    }
+
+    fn make_yaml(rule: &str) -> String {
+format!(r"
+id: test
+message: test rule
+severity: info
+language: TypeScript
+rule:
+{rule}
+")
+    }
+
     #[test]
     fn test_deserialize_rule_config() {
+        let yaml = &make_yaml("
+  pattern: let a = 123
+");
+        test_rule_match(yaml, "let a = 123; let b = 33;");
+        test_rule_match(yaml, "class B { func() {let a = 123; }}");
+        test_rule_unmatch(yaml, "const a = 33");
+    }
 
+    #[test]
+    fn test_deserialize_nested() {
+        let yaml = &make_yaml("
+  all:
+    - pattern: let $A = 123
+    - pattern: let a = $B
+");
+        test_rule_match(yaml, "let a = 123; let b = 33;");
+        test_rule_match(yaml, "class B { func() {let a = 123; }}");
+        test_rule_unmatch(yaml, "const a = 33");
+        test_rule_unmatch(yaml, "let a = 33");
+    }
+
+    #[test]
+    fn test_deserialize_kind() {
+        let yaml = &make_yaml("
+    kind: class_body
+");
+        test_rule_match(yaml, "class B { func() {let a = 123; }}");
+        test_rule_unmatch(yaml, "const B = { func() {let a = 123; }}");
+    }
+
+    #[test]
+    fn test_deserialize_inside() {
+        let yaml = &make_yaml("
+  all:
+    - inside:
+        kind: class_body
+    - pattern: let a = 123
+");
+        test_rule_unmatch(yaml, "let a = 123; let b = 33;");
+        test_rule_match(yaml, "class B { func() {let a = 123; }}");
+        test_rule_unmatch(yaml, "let a = 123");
+    }
+
+    #[test]
+    fn test_deserialize_not_inside() {
+        let yaml = &make_yaml("
+  all:
+    - not:
+        inside:
+          kind: class_body
+    - pattern: let a = 123
+");
+        test_rule_match(yaml, "let a = 123; let b = 33;");
+        test_rule_unmatch(yaml, "class B { func() {let a = 123; }}");
+        test_rule_unmatch(yaml, "let a = 13");
+    }
+
+    #[test]
+    fn test_deserialize_meta_var() {
+        let yaml = &make_yaml("
+  all:
+    - inside:
+        any:
+          - pattern: function $A($$$) { $$$ }
+          - pattern: let $A = ($$$) => $$$
+    - pattern: $A($$$)
+");
+        test_rule_match(yaml, "function recursion() { recursion() }");
+        test_rule_match(yaml, "let recursion = () => { recursion() }");
+        test_rule_unmatch(yaml, "function callOther() { other() }");
     }
 }
