@@ -104,6 +104,18 @@ impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
         (**self).match_node_with_env(node, env)
     }
 }
+impl<L: Language> Matcher<L> for Box<dyn PositiveMatcher<L>> {
+    fn match_node_with_env<'tree>(
+        &self,
+        node: Node<'tree, L>,
+        env: &mut MetaVarEnv<'tree, L>,
+    ) -> Option<Node<'tree, L>> {
+        // NOTE: must double deref boxed value to avoid recursion
+        (**self).match_node_with_env(node, env)
+    }
+}
+impl<L: Language> PositiveMatcher<L> for Box<dyn PositiveMatcher<L>> {
+}
 
 /**
  * A marker trait to indicate the the rule is positive matcher

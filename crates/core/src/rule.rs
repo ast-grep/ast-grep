@@ -60,11 +60,27 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
     }
 }
 
-pub struct Either<P> {
-    patterns: Vec<P>,
+// TODO: this is not correct. We don't need every sub pattern to be positive
+// need to refine this
+impl<L: Language, P: PositiveMatcher<L>> PositiveMatcher<L> for All<L, P> {
 }
 
-impl<L: Language, P: Matcher<L>> Matcher<L> for Either<P> {
+pub struct Either<L, P> {
+    patterns: Vec<P>,
+    lang: PhantomData<L>,
+}
+
+impl<L: Language, P: Matcher<L>> Either<L, P> {
+    pub fn new<PS: IntoIterator<Item = P>>(patterns: PS) -> Self {
+        Self {
+            patterns: patterns.into_iter().collect(),
+            lang: PhantomData,
+        }
+    }
+}
+
+
+impl<L: Language, M: Matcher<L>> Matcher<L> for Either<L, M> {
     fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
@@ -76,6 +92,9 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for Either<P> {
             .map(|_| node)
     }
 }
+
+impl<L: Language, P: PositiveMatcher<L>> PositiveMatcher<L> for Either<L, P> {}
+
 
 pub struct Or<L: Language, P1: PositiveMatcher<L>, P2: PositiveMatcher<L>> {
     pattern1: P1,
@@ -108,10 +127,20 @@ where
 {
 }
 
-pub struct Inside<L: Language> {
-    outer: Pattern<L>,
+pub struct Inside<L: Language, M: Matcher<L>> {
+    outer: M,
+    lang: PhantomData<L>,
 }
-impl<L: Language> Matcher<L> for Inside<L> {
+impl<L: Language, M: Matcher<L>> Inside<L, M> {
+    pub fn new(outer: M) -> Self {
+        Self {
+            outer,
+            lang: PhantomData,
+        }
+    }
+}
+
+impl<L: Language, M: Matcher<L>> Matcher<L> for Inside<L, M> {
     fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
@@ -162,15 +191,15 @@ impl<L: Language> Matcher<L> for Has<L> {
 //     }
 // }
 
-pub struct Not<L: Language, P: PositiveMatcher<L>> {
-    not: P,
+pub struct Not<L: Language, M: Matcher<L>> {
+    not: M,
     lang: PhantomData<L>,
 }
 
 impl<L, P> Matcher<L> for Not<L, P>
 where
     L: Language,
-    P: PositiveMatcher<L>,
+    P: Matcher<L>,
 {
     fn match_node_with_env<'tree>(
         &self,
@@ -211,6 +240,21 @@ where
 {
 }
 
+
+impl<L: Language, M: Matcher<L>> Rule<L, M> {
+    pub fn not(pattern: M) -> Not<L, M> {
+        Not {
+            not: pattern,
+            lang: PhantomData,
+        }
+    }
+
+    pub fn with_meta_var(&mut self, var_id: String, matcher: MetaVarMatcher<L>) -> &mut Self {
+        self.meta_vars.insert(var_id, matcher);
+        self
+    }
+}
+
 impl<L: Language, M: PositiveMatcher<L>> Rule<L, M> {
     pub fn all(pattern: M) -> AndRule<L, M> {
         AndRule {
@@ -224,16 +268,12 @@ impl<L: Language, M: PositiveMatcher<L>> Rule<L, M> {
             lang: PhantomData,
         }
     }
-    pub fn not(pattern: M) -> Not<L, M> {
-        Not {
-            not: pattern,
-            lang: PhantomData,
-        }
-    }
 
-    pub fn with_meta_var(&mut self, var_id: String, matcher: MetaVarMatcher<L>) -> &mut Self {
-        self.meta_vars.insert(var_id, matcher);
-        self
+    pub fn new(matcher: M) -> Rule<L, M> {
+        Self {
+            inner: matcher,
+            meta_vars: MetaVarMatchers::new(),
+        }
     }
 }
 

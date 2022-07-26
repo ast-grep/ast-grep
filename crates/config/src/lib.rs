@@ -2,7 +2,7 @@ pub mod support_language;
 use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
-use ast_grep_core::{Rule, Matcher};
+use ast_grep_core::{Rule, Matcher, PositiveMatcher};
 use ast_grep_core as core;
 
 pub use support_language::SupportLang;
@@ -41,19 +41,53 @@ pub struct AstGrepRuleConfig {
     meta_variables: HashMap<String, String>,
 }
 
-type Parsed = Rule<SupportLang, Box<dyn Matcher<SupportLang>>>;
+type Parsed = Rule<SupportLang, Box<dyn PositiveMatcher<SupportLang>>>;
 pub fn from_yaml_string(yaml: &str) -> Result<Parsed, serde_yaml::Error> {
     let ast_grep_rule: AstGrepRuleConfig = serde_yaml::from_str(yaml)?;
-    todo!()
-    // Ok(Rule convert_serializable_rule(ast_grep_rule.rule))
+    let matcher = convert_serializable_rule_to_positive(ast_grep_rule.rule, ast_grep_rule.language);
+    Ok(Rule::new(matcher))
 }
 
-// fn convert_serializable_rule(rule: SerializableRule) -> Box<dyn Matcher<SupportLang>> {
-//     use SerializableRule::*;
-//     Box::new(match rule {
-//         All(rules) => core::All::new(rules.into_iter().map(convert_serializable_rule)),
-//     })
-// }
+enum SerializeError {
+    YamlError(serde_yaml::Error),
+    MissPositiveMatcher,
+}
+
+fn convert_serializable_rule_to_positive(rule: SerializableRule, lang: SupportLang) -> Box<dyn PositiveMatcher<SupportLang>> {
+    use SerializableRule::*;
+    match rule {
+        All(rules) => {
+            Box::new(core::All::new(rules.into_iter().map(|r| convert_serializable_rule_to_positive(r, lang))))
+        }
+        Any(rules) => {
+            Box::new(core::Either::new(rules.into_iter().map(|r| convert_serializable_rule_to_positive(r, lang))))
+        }
+        Pattern(s) => Box::new(core::Pattern::new(&s, lang)),
+        _ => panic!("impossible!"),
+    }
+}
+
+fn convert_serializable_rule(rule: SerializableRule, lang: SupportLang) -> Box<dyn Matcher<SupportLang>> {
+    use SerializableRule::*;
+    match rule {
+        All(rules) => {
+            Box::new(core::All::new(rules.into_iter().map(|r| convert_serializable_rule(r, lang))))
+        }
+        Any(rules) => {
+            Box::new(core::Either::new(rules.into_iter().map(|r| convert_serializable_rule_to_positive(r, lang))))
+        }
+        Not(rule) => {
+            Box::new(core::Rule::not(convert_serializable_rule(*rule, lang)))
+        }
+        Inside(rule) => {
+            Box::new(core::rule::Inside::new(convert_serializable_rule(*rule, lang)))
+        }
+        Has(rule) => {
+            Box::new(core::rule::Inside::new(convert_serializable_rule(*rule, lang)))
+        }
+        Pattern(s) => Box::new(core::Pattern::new(&s, lang))
+    }
+}
 
 #[cfg(test)]
 mod test {

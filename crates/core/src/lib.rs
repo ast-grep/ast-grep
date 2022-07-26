@@ -5,16 +5,16 @@ mod meta_var;
 mod node;
 mod pattern;
 mod replacer;
-mod rule;
+pub mod rule;
 mod ts_parser;
 
-pub use matcher::{KindMatcher, Matcher};
+pub use matcher::{KindMatcher, Matcher, PositiveMatcher};
 pub use meta_var::{MetaVarMatcher, MetaVariable};
 pub use node::Node;
 pub use pattern::Pattern;
 pub use rule::{All, Either, Rule};
 
-use crate::{matcher::PositiveMatcher, replacer::Replacer};
+use crate::replacer::Replacer;
 use language::Language;
 use node::Root;
 use ts_parser::Edit;
