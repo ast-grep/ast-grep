@@ -185,7 +185,7 @@ impl<'r, L: Language> Node<'r, L> {
         pat.find_node(*self)
     }
 
-    pub fn find_all<'s, 'm, M: Matcher<L>>(&'s self, pat: &'m M) -> impl Iterator<Item = Node<'r, L>> + 'm where 'r: 'm {
+    pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = Node<'r, L>> {
         pat.find_all_nodes(*self)
     }
 
