@@ -44,7 +44,7 @@ impl<L: Language> AstGrep<L> {
         pattern: M,
         replacer: R,
     ) -> bool {
-        if let Some(edit) = self.root().replace(&pattern, &replacer) {
+        if let Some(edit) = self.root().replace(pattern, replacer) {
             self.edit(edit);
             true
         } else {

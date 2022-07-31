@@ -82,18 +82,29 @@ pub trait Matcher<L: Language> {
     }
 }
 
-impl<S: AsRef<str>, L: Language> Matcher<L> for S {
+impl<L: Language> Matcher<L> for str {
     fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        let pattern = Pattern::new(self.as_ref(), node.root.lang);
+        let pattern = Pattern::new(self, node.root.lang);
         pattern.match_node_with_env(node, env)
     }
 }
 
-impl<S: AsRef<str>, L: Language> PositiveMatcher<L> for S {}
+impl<L, T> Matcher<L> for &T where L: Language, T: Matcher<L> + ?Sized {
+    fn match_node_with_env<'tree>(
+        &self,
+        node: Node<'tree, L>,
+        env: &mut MetaVarEnv<'tree, L>,
+    ) -> Option<Node<'tree, L>> {
+        (**self).match_node_with_env(node, env)
+    }
+}
+
+impl<L: Language> PositiveMatcher<L> for str {}
+impl<L, T> PositiveMatcher<L> for &T where L: Language, T: PositiveMatcher<L> + ?Sized {}
 
 impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
     fn match_node_with_env<'tree>(

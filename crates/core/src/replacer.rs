@@ -9,9 +9,9 @@ pub trait Replacer<L: Language> {
     fn generate_replacement(&self, env: &MetaVarEnv<L>, lang: L) -> String;
 }
 
-impl<S: AsRef<str>, L: Language> Replacer<L> for S {
+impl<L: Language> Replacer<L> for str {
     fn generate_replacement(&self, env: &MetaVarEnv<L>, lang: L) -> String {
-        let root = Root::new(self.as_ref(), lang);
+        let root = Root::new(self, lang);
         let edits = collect_edits(&root, env, lang);
         merge_edits_to_string(edits, &root)
     }
@@ -21,6 +21,12 @@ impl<L: Language> Replacer<L> for Pattern<L> {
     fn generate_replacement(&self, env: &MetaVarEnv<L>, lang: L) -> String {
         let edits = collect_edits(&self.root, env, lang);
         merge_edits_to_string(edits, &self.root)
+    }
+}
+
+impl<L, T> Replacer<L> for &T where L: Language, T: Replacer<L> + ?Sized {
+    fn generate_replacement(&self, env: &MetaVarEnv<L>, lang: L) -> String {
+        (**self).generate_replacement(env, lang)
     }
 }
 
