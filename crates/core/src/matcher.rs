@@ -77,7 +77,7 @@ pub trait Matcher<L: Language> {
             .or_else(|| node.children().find_map(|sub| self.find_node(sub)))
     }
 
-    fn find_all_nodes<'tree>(self, node: Node<'tree, L>) -> FindAllNodes<'tree, L, Self> where Self: Sized {
+    fn find_all_nodes<'m, 'tree>(&'m self, node: Node<'tree, L>) -> FindAllNodes<'m, 'tree, L, Self> where Self: Sized {
         FindAllNodes::new(self, node)
     }
 }
@@ -123,13 +123,13 @@ impl<L: Language> PositiveMatcher<L> for Box<dyn PositiveMatcher<L>> {
  */
 pub trait PositiveMatcher<L: Language>: Matcher<L> {}
 
-pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
+pub struct FindAllNodes<'m, 'tree, L: Language, M: Matcher<L>> {
     dfs: DFS<'tree, L>,
-    matcher: M,
+    matcher: &'m M,
 }
 
-impl<'tree, L: Language, M: Matcher<L>> FindAllNodes<'tree, L, M> {
-    fn new(matcher: M, node: Node<'tree, L>) -> Self {
+impl<'m, 'tree, L: Language, M: Matcher<L>> FindAllNodes<'m, 'tree, L, M> {
+    fn new(matcher: &'m M, node: Node<'tree, L>) -> Self {
         Self {
             dfs: node.dfs(),
             matcher,
@@ -137,7 +137,7 @@ impl<'tree, L: Language, M: Matcher<L>> FindAllNodes<'tree, L, M> {
     }
 }
 
-impl<'tree, L: Language, M: Matcher<L>> Iterator for FindAllNodes<'tree, L, M> {
+impl<'m, 'tree, L: Language, M: Matcher<L>> Iterator for FindAllNodes<'m, 'tree, L, M> {
     type Item = Node<'tree, L>;
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(cand) = self.dfs.next() {

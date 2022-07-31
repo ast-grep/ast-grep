@@ -109,7 +109,7 @@ fn run_with_pattern(args: Args) -> Result<()> {
                                 _ => return WalkState::Continue,
                             };
                             let grep = lang.new(file_content);
-                            let mut matches = grep.root().find_all(pattern.clone());
+                            let mut matches = grep.root().find_all(&pattern);
                             if matches.next().is_none() {
                                 return WalkState::Continue;
                             }
@@ -132,7 +132,7 @@ fn run_with_pattern(args: Args) -> Result<()> {
         let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
         while let Ok((grep, path)) = rx.recv() {
             interaction::clear();
-            let matches = grep.root().find_all(pattern.clone());
+            let matches = grep.root().find_all(&pattern);
             print_matches(matches, &path, pattern.clone(), &rewrite);
             interaction::prompt("Confirm", "yn", Some('y'))
                 .expect("Error happened during prompt");
@@ -158,7 +158,7 @@ fn run_with_config(args: Args) -> Result<()> {
             _ => return,
         };
         let grep = lang.new(file_content);
-        let mut matches = grep.root().find_all(config.clone()).peekable();
+        let mut matches = grep.root().find_all(&config).peekable();
         if matches.peek().is_none() {
             return;
         }
@@ -205,7 +205,7 @@ fn match_one_file(
         _ => return,
     };
     let grep = lang.new(file_content);
-    let mut matches = grep.root().find_all(pattern.clone()).peekable();
+    let mut matches = grep.root().find_all(pattern).peekable();
     if matches.peek().is_none() {
         return;
     }

@@ -2,6 +2,7 @@ use crate::language::Language;
 use crate::matcher::Matcher;
 use crate::replacer::Replacer;
 use crate::ts_parser::{parse, perform_edit, Edit};
+use std::borrow::Borrow;
 
 #[derive(Clone)]
 pub struct Root<L: Language> {
@@ -185,7 +186,7 @@ impl<'r, L: Language> Node<'r, L> {
         pat.find_node(*self)
     }
 
-    pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = Node<'r, L>> {
+    pub fn find_all<'s, 'm, M: Matcher<L>>(&'s self, pat: &'m M) -> impl Iterator<Item = Node<'r, L>> + 'm where 'r: 'm {
         pat.find_all_nodes(*self)
     }
 
