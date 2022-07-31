@@ -1,5 +1,7 @@
 use rprompt::prompt_reply_stdout;
 use std::io::Result;
+use std::sync::mpsc;
+use ignore::{WalkParallel, WalkState, DirEntry};
 
 // https://github.com/console-rs/console/blob/be1c2879536c90ffc2b54938b5964084f5fef67d/src/common_term.rs#L56
 /// clear screen
@@ -18,4 +20,60 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
         }
         println!("Come again?")
     }
+}
+
+pub fn run_walker(walker: WalkParallel, f: impl Fn(DirEntry) -> WalkState + Sync) {
+    walker.run(|| {
+        Box::new(|result| {
+            match result {
+                Ok(entry) => {
+                    f(entry)
+                }
+                Err(err) => {
+                    eprintln!("ERROR: {}", err);
+                    WalkState::Continue
+                }
+            }
+        })
+    });
+}
+
+
+pub fn run_walker_interactive<T: Send>(
+    walker: WalkParallel,
+    producer: impl Fn(DirEntry) -> Option<T> + Sync,
+    consumer: impl Fn(T) -> () + Send,
+) {
+    let (tx, rx) = mpsc::channel();
+    let producer = &producer;
+    crossbeam::scope(|s| {
+        s.spawn(move |_| {
+            walker.run(|| {
+                let tx = tx.clone();
+                Box::new(move |result| {
+                    let entry = match result {
+                        Ok(entry) => entry,
+                        Err(err) => {
+                            eprintln!("ERROR: {}", err);
+                            return WalkState::Continue
+                        }
+                    };
+                    let result = match producer(entry) {
+                        Some(ret) => ret,
+                        None => return WalkState::Continue,
+                    };
+                    match tx.send(result) {
+                        Ok(_) => WalkState::Continue,
+                        Err(_) => WalkState::Quit,
+                    }
+                })
+            })
+        });
+        s.spawn(move |_| {
+            while let Ok(ret) = rx.recv() {
+                clear();
+                consumer(ret);
+            }
+        });
+    }).expect("Error occurred during spawning threads");
 }

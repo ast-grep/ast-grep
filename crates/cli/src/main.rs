@@ -1,19 +1,16 @@
 mod guess_language;
 mod interaction;
+mod print;
 
-use ansi_term::Color::{Cyan, Green, Red};
-use ansi_term::Style;
 use ast_grep_core::language::Language;
-use ast_grep_core::{Node, Pattern, Matcher};
+use ast_grep_core::Pattern;
 use clap::Parser;
 use guess_language::{SupportLang, file_types, from_extension};
 use ignore::{WalkBuilder, WalkParallel, WalkState, DirEntry};
-use similar::{ChangeTag, TextDiff};
-use std::fmt::Display;
 use std::fs::read_to_string;
 use std::io::Result;
 use std::path::Path;
-use std::sync::mpsc;
+use print::print_matches;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -90,43 +87,27 @@ fn run_with_pattern(args: Args) -> Result<()> {
         });
         return Ok(());
     }
-    let (tx, rx) = mpsc::channel();
-    let pat = std::sync::Arc::new(pattern.clone());
-    std::thread::spawn(move || {
-        walker.run(|| {
-            let tx = tx.clone();
-            let pat = pat.clone();
-            Box::new(move |result| {
-                let entry = match filter_file(result) {
-                    Some(entry) => entry,
-                    None => return WalkState::Continue,
-                };
-                let path = entry.path();
-                let file_content = match read_to_string(path) {
-                    Ok(content) => content,
-                    _ => return WalkState::Continue,
-                };
-                let grep = lang.new(file_content);
-                let mut matches = grep.root().find_all(&*pat);
-                if matches.next().is_none() {
-                    return WalkState::Continue;
-                }
-                drop(matches);
-                match tx.send((grep, path.to_path_buf())) {
-                    Ok(_) => WalkState::Continue,
-                    Err(_) => WalkState::Quit,
-                }
-            })
-        });
-    });
+    let pat = &pattern;
     let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
-    while let Ok((grep, path)) = rx.recv() {
-        interaction::clear();
-        let matches = grep.root().find_all(&pattern);
-        print_matches(matches, &path, &pattern, &rewrite);
-        interaction::prompt("Confirm", "yn", Some('y'))
-            .expect("Error happened during prompt");
-    }
+    interaction::run_walker_interactive(
+        walker,
+        |entry| {
+            let entry = filter_file(entry)?;
+            let path = entry.path();
+            let file_content = read_to_string(path).map_err(
+                |err| eprintln!("ERROR: {}", err)
+            ).ok()?;
+            let grep = lang.new(file_content);
+            let has_match = grep.root().find(pat).is_some();
+            has_match.then_some((grep, path.to_path_buf()))
+        },
+        |(grep, path)| {
+            let matches = grep.root().find_all(&pattern);
+            print_matches(matches, &path, &pattern, &rewrite);
+            interaction::prompt("Confirm", "yn", Some('y'))
+                .expect("Error happened during prompt");
+        },
+    );
     Ok(())
 }
 
@@ -164,27 +145,15 @@ fn find_default_config() -> String {
 }
 
 fn filter_file(
-    result: std::result::Result<DirEntry, ignore::Error>,
+    entry: DirEntry,
 ) -> Option<DirEntry> {
-    match result {
-        Ok(entry) => {
-            if entry.file_type()?.is_file() {
-                return Some(entry);
-            }
-        }
-        Err(err) => {
-            eprintln!("ERROR: {}", err);
-        }
-    }
-    None
+    entry.file_type()?.is_file().then_some(entry)
 }
 
-fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> () + Send + Copy) {
-    walker.run(|| {
-        Box::new(move |result| {
-            filter_file(result).map(|e| f(e.path()));
-            WalkState::Continue
-        })
+fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> () + Sync) {
+    interaction::run_walker(walker, |entry| {
+        filter_file(entry).map(|e| f(e.path()));
+        WalkState::Continue
     });
 }
 
@@ -206,112 +175,3 @@ fn match_one_file(
     print_matches(matches, path, pattern, rewrite);
 }
 
-fn print_matches<'a>(
-    matches: impl Iterator<Item = Node<'a, SupportLang>>,
-    path: &Path,
-    pattern: &impl Matcher<SupportLang>,
-    rewrite: &Option<Pattern<SupportLang>>,
-) {
-    let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
-    println!("{}", Cyan.italic().paint(format!("{}", path.display())));
-    if let Some(rewrite) = rewrite {
-        // TODO: actual matching happened in stdout lock, optimize it out
-        for e in matches {
-            let display = e.display_context();
-            let old_str = format!(
-                "{}{}{}\n",
-                display.leading, display.matched, display.trailing
-            );
-            let new_str = format!(
-                "{}{}{}\n",
-                display.leading,
-                e.replace(pattern, rewrite)
-                .unwrap()
-                .inserted_text,
-                display.trailing
-            );
-            let base_line = display.start_line;
-            print_diff(&old_str, &new_str, base_line);
-        }
-    } else {
-        for e in matches {
-            let display = e.display_context();
-            let leading = display.leading;
-            let trailing = display.trailing;
-            let matched = display.matched;
-            let highlighted = format!("{leading}{matched}{trailing}");
-            let lines: Vec<_> = highlighted.lines().collect();
-            let mut num = display.start_line;
-            let width = (lines.len() + display.start_line)
-                .to_string()
-                .chars()
-                .count();
-            print!("{num:>width$}|"); // initial line num
-            print_highlight(leading.lines(), Style::new().dimmed(), width, &mut num);
-            print_highlight(matched.lines(), Style::new().bold(), width, &mut num);
-            print_highlight(trailing.lines(), Style::new().dimmed(), width, &mut num);
-            println!(); // end match new line
-        }
-    }
-    drop(lock);
-}
-
-fn print_highlight<'a>(
-    mut lines: impl Iterator<Item = &'a str>,
-    style: Style,
-    width: usize,
-    num: &mut usize,
-) {
-    if let Some(line) = lines.next() {
-        let line = style.paint(line);
-        print!("{line}");
-    }
-    for line in lines {
-        println!();
-        *num += 1;
-        let line = style.paint(line);
-        print!("{num:>width$}|{line}");
-    }
-}
-
-fn index_display(index: Option<usize>, style: Style) -> impl Display {
-    let index_str = match index {
-        None => String::from("    "),
-        Some(idx) => format!("{:<4}", idx),
-    };
-    style.paint(index_str)
-}
-
-fn print_diff(old: &str, new: &str, base_line: usize) {
-    let diff = TextDiff::from_lines(old, new);
-    for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
-        if idx > 0 {
-            println!("{:-^1$}", "-", 80);
-        }
-        for op in group {
-            for change in diff.iter_inline_changes(op) {
-                let (sign, s) = match change.tag() {
-                    ChangeTag::Delete => ("-", Style::new().fg(Red)),
-                    ChangeTag::Insert => ("+", Style::new().fg(Green)),
-                    ChangeTag::Equal => (" ", Style::new().dimmed()),
-                };
-                print!(
-                    "{}{}|{}",
-                    index_display(change.old_index().map(|i| i + base_line), s),
-                    index_display(change.new_index().map(|i| i + base_line), s),
-                    s.paint(sign),
-                );
-                for (emphasized, value) in change.iter_strings_lossy() {
-                    if emphasized {
-                        print!("{}", s.underline().paint(value));
-                    } else {
-                        print!("{}", value);
-                    }
-                }
-                if change.missing_newline() {
-                    println!();
-                }
-            }
-        }
-    }
-}
