@@ -32,6 +32,7 @@ pub fn file_types(lang: &SupportLang) -> Types {
         L::Html => builder.select("html"),
         L::JavaScript => {
             builder.add("myjs", "*.js").unwrap();
+            builder.add("myjs", "*.cjs").unwrap();
             builder.add("myjs", "*.jsx").unwrap();
             builder.add("myjs", "*.mjs").unwrap();
             builder.select("myjs")
@@ -47,6 +48,8 @@ pub fn file_types(lang: &SupportLang) -> Types {
         }
         L::TypeScript => {
             builder.add("myts", "*.ts").unwrap();
+            builder.add("myts", "*.cts").unwrap();
+            builder.add("myts", "*.mts").unwrap();
             builder.select("myts")
         }
     };
