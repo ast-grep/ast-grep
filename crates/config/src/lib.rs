@@ -2,13 +2,13 @@ pub mod support_language;
 use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
-use ast_grep_core::{Rule, Matcher, PositiveMatcher};
+use ast_grep_core::{Rule, Matcher, PositiveMatcher, meta_var::MetaVarEnv};
 use ast_grep_core as core;
 
 pub use support_language::SupportLang;
 
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum Severity {
     Info,
@@ -16,7 +16,7 @@ pub enum Severity {
     Error,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum SerializableRule {
     All(Vec<SerializableRule>),
@@ -28,28 +28,53 @@ pub enum SerializableRule {
     Kind(String),
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct AstGrepRuleConfig {
-    /// Unique, descriptive identifier, e.g., no-unused-variable
-    id: String,
-    /// Message highlighting why this rule fired and how to remediate the issue
-    message: String,
-    /// One of: Info, Warning, or Error
-    severity: Severity,
-    /// Specify the language to parse and the file extension to includ in matching.
-    language: SupportLang,
-    /// Pattern rules to find matching AST nodes
-    rule: SerializableRule,
-    /// Addtionaly meta variables pattern to filter matching
-    #[serde(default)]
-    meta_variables: HashMap<String, String>,
+impl Matcher<SupportLang> for AstGrepRuleConfig {
+    fn match_node_with_env<'tree>(&self, node: core::Node<'tree, SupportLang>, env: &mut MetaVarEnv<'tree, SupportLang>) -> Option<core::Node<'tree, SupportLang>> {
+        use SerializableRule::*;
+        let lang = self.language;
+        match &self.rule {
+            All(rules) => {
+                core::All::new(rules.iter().map(|r| convert_serializable_rule(r, lang))).match_node_with_env(node, env)
+            }
+            Any(rules) => {
+                core::Either::new(rules.into_iter().map(|r| convert_serializable_rule_to_positive(r, lang))).match_node_with_env(node, env)
+            }
+            Not(rule) => {
+                core::Rule::not(convert_serializable_rule(rule, lang)).match_node_with_env(node, env)
+            }
+            Inside(rule) => {
+                core::rule::Inside::new(convert_serializable_rule(rule, lang)).match_node_with_env(node, env)
+            }
+            Has(rule) => {
+                core::rule::Inside::new(convert_serializable_rule(rule, lang)).match_node_with_env(node, env)
+            }
+            Pattern(pattern) => core::Pattern::new(&pattern, lang).match_node_with_env(node, env),
+            Kind(kind_name) => core::KindMatcher::new(&kind_name, lang).match_node_with_env(node, env),
+        }
+    }
 }
 
-type Parsed = Rule<SupportLang, Box<dyn PositiveMatcher<SupportLang>>>;
-pub fn from_yaml_string(yaml: &str) -> Result<Parsed, serde_yaml::Error> {
-    let ast_grep_rule: AstGrepRuleConfig = serde_yaml::from_str(yaml)?;
-    let matcher = convert_serializable_rule_to_positive(ast_grep_rule.rule, ast_grep_rule.language);
-    Ok(Rule::new(matcher))
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AstGrepRuleConfig {
+    /// Unique, descriptive identifier, e.g., no-unused-variable
+    pub id: String,
+    /// Message highlighting why this rule fired and how to remediate the issue
+    pub message: String,
+    /// One of: Info, Warning, or Error
+    pub severity: Severity,
+    /// Specify the language to parse and the file extension to includ in matching.
+    pub language: SupportLang,
+    /// Pattern rules to find matching AST nodes
+    pub rule: SerializableRule,
+    /// Addtionaly meta variables pattern to filter matching
+    #[serde(default)]
+    pub meta_variables: HashMap<String, String>,
+}
+
+
+type Parsed = Rule<SupportLang, SerializableRule>;
+pub fn from_yaml_string(yaml: &str) -> Result<AstGrepRuleConfig, serde_yaml::Error> {
+    serde_yaml::from_str(yaml)
 }
 
 enum SerializeError {
@@ -57,7 +82,7 @@ enum SerializeError {
     MissPositiveMatcher,
 }
 
-fn convert_serializable_rule_to_positive(rule: SerializableRule, lang: SupportLang) -> Box<dyn PositiveMatcher<SupportLang>> {
+fn convert_serializable_rule_to_positive(rule: &SerializableRule, lang: SupportLang) -> Box<dyn PositiveMatcher<SupportLang>> {
     use SerializableRule::*;
     match rule {
         All(rules) => {
@@ -72,7 +97,7 @@ fn convert_serializable_rule_to_positive(rule: SerializableRule, lang: SupportLa
     }
 }
 
-fn convert_serializable_rule(rule: SerializableRule, lang: SupportLang) -> Box<dyn Matcher<SupportLang>> {
+fn convert_serializable_rule(rule: &SerializableRule, lang: SupportLang) -> Box<dyn Matcher<SupportLang>> {
     use SerializableRule::*;
     match rule {
         All(rules) => {
@@ -82,13 +107,13 @@ fn convert_serializable_rule(rule: SerializableRule, lang: SupportLang) -> Box<d
             Box::new(core::Either::new(rules.into_iter().map(|r| convert_serializable_rule_to_positive(r, lang))))
         }
         Not(rule) => {
-            Box::new(core::Rule::not(convert_serializable_rule(*rule, lang)))
+            Box::new(core::Rule::not(convert_serializable_rule(rule, lang)))
         }
         Inside(rule) => {
-            Box::new(core::rule::Inside::new(convert_serializable_rule(*rule, lang)))
+            Box::new(core::rule::Inside::new(convert_serializable_rule(rule, lang)))
         }
         Has(rule) => {
-            Box::new(core::rule::Inside::new(convert_serializable_rule(*rule, lang)))
+            Box::new(core::rule::Inside::new(convert_serializable_rule(rule, lang)))
         }
         Pattern(pattern) => Box::new(core::Pattern::new(&pattern, lang)),
         Kind(kind_name) => Box::new(core::KindMatcher::new(&kind_name, lang)),
@@ -99,16 +124,17 @@ fn convert_serializable_rule(rule: SerializableRule, lang: SupportLang) -> Box<d
 mod test {
 
     use super::*;
+    use ast_grep_core::language::Language;
 
     fn test_rule_match(yaml: &str, source: &str) {
         let config = from_yaml_string(yaml).expect("rule should parse");
-        let grep = core::AstGrep::new(source, SupportLang::TypeScript);
+        let grep = config.language.new(source);
         assert!(grep.root().find(config).is_some());
     }
 
     fn test_rule_unmatch(yaml: &str, source: &str) {
         let config = from_yaml_string(yaml).expect("rule should parse");
-        let grep = core::AstGrep::new(source, SupportLang::TypeScript);
+        let grep = config.language.new(source);
         assert!(grep.root().find(config).is_none());
     }
 

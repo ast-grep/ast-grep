@@ -4,7 +4,7 @@ mod interaction;
 use ansi_term::Color::{Cyan, Green, Red};
 use ansi_term::Style;
 use ast_grep_core::language::Language;
-use ast_grep_core::{Node, Pattern};
+use ast_grep_core::{Node, Pattern, Matcher};
 use clap::Parser;
 use guess_language::{SupportLang, file_types};
 use ignore::{WalkBuilder, WalkParallel, WalkState};
@@ -39,6 +39,10 @@ struct Args {
     #[clap(short, long)]
     lang: Option<SupportLang>,
 
+    /// Path to ast-grep config, either YAML or folder of YAMLs
+    #[clap(short, long, conflicts_with("pattern"))]
+    config: Option<String>,
+
     /// Include hidden files in search
     #[clap(short, long, parse(from_flag))]
     hidden: bool,
@@ -58,16 +62,15 @@ struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
     if args.pattern.is_some() {
-        run_with_pattern(args);
+        run_with_pattern(args)
     } else {
-        run_with_config(args);
+        run_with_config(args)
     }
-    Ok(())
 }
 
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
-fn run_with_pattern(args: Args) {
+fn run_with_pattern(args: Args) -> Result<()> {
     let pattern = args.pattern.unwrap();
     let threads = num_cpus::get().min(12);
     let lang = args.lang.unwrap();
@@ -130,16 +133,42 @@ fn run_with_pattern(args: Args) {
         while let Ok((grep, path)) = rx.recv() {
             interaction::clear();
             let matches = grep.root().find_all(pattern.clone());
-            print_matches(matches, &path, &pattern, &rewrite);
+            print_matches(matches, &path, pattern.clone(), &rewrite);
             interaction::prompt("Confirm", "yn", Some('y'))
                 .expect("Error happened during prompt");
         }
     }
+    Ok(())
 }
 
-fn run_with_config(_arg: Args) {
-    use ast_grep_config::from_yaml_string;
-    println!("TODO! add the code path after config");
+fn run_with_config(args: Args) -> Result<()> {
+    use ast_grep_config::{from_yaml_string};
+    let config_file = args.config.unwrap_or_else(find_default_config);
+    let yaml = read_to_string(config_file)?;
+    let config = from_yaml_string(&yaml).unwrap();
+    let threads = num_cpus::get().min(12);
+    let walker = WalkBuilder::new(&args.path)
+        .hidden(args.hidden)
+        .threads(threads)
+        .build_parallel();
+    let lang = config.language;
+    run_walker(walker, |path| {
+        let file_content = match read_to_string(&path) {
+            Ok(content) => content,
+            _ => return,
+        };
+        let grep = lang.new(file_content);
+        let mut matches = grep.root().find_all(config.clone()).peekable();
+        if matches.peek().is_none() {
+            return;
+        }
+        print_matches(matches, path, config.clone(), &None);
+    });
+    Ok(())
+}
+
+fn find_default_config() -> String {
+    "sgconfig.yml".to_string()
 }
 
 fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> () + Sync) {
@@ -180,13 +209,13 @@ fn match_one_file(
     if matches.peek().is_none() {
         return;
     }
-    print_matches(matches, path, pattern, rewrite);
+    print_matches(matches, path, pattern.clone(), rewrite);
 }
 
 fn print_matches<'a>(
     matches: impl Iterator<Item = Node<'a, SupportLang>>,
     path: &Path,
-    pattern: &Pattern<SupportLang>,
+    pattern: impl Matcher<SupportLang> + Clone,
     rewrite: &Option<Pattern<SupportLang>>,
 ) {
     let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output

@@ -1,7 +1,7 @@
 pub mod language;
 mod match_tree;
 mod matcher;
-mod meta_var;
+pub mod meta_var;
 mod node;
 mod pattern;
 mod replacer;

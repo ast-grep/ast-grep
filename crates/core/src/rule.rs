@@ -210,6 +210,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct Rule<L: Language, M: Matcher<L>> {
     inner: M,
     meta_vars: MetaVarMatchers<L>,
