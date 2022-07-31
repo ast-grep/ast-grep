@@ -80,15 +80,13 @@ fn run_with_pattern(args: Args) -> Result<()> {
         .threads(threads)
         .types(file_types(&lang))
         .build_parallel();
+    let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
     if !args.interactive {
-        let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
         run_walker(walker, |path| {
             match_one_file(path, lang, &pattern, &rewrite);
         });
         return Ok(());
     }
-    let pat = &pattern;
-    let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
     interaction::run_walker_interactive(
         walker,
         |entry| {
@@ -98,7 +96,7 @@ fn run_with_pattern(args: Args) -> Result<()> {
                 |err| eprintln!("ERROR: {}", err)
             ).ok()?;
             let grep = lang.new(file_content);
-            let has_match = grep.root().find(pat).is_some();
+            let has_match = grep.root().find(&pattern).is_some();
             has_match.then_some((grep, path.to_path_buf()))
         },
         |(grep, path)| {
@@ -122,21 +120,46 @@ fn run_with_config(args: Args) -> Result<()> {
         .threads(threads)
         .build_parallel();
     let lang = config.language;
-    run_walker(walker, |path| {
-        if from_extension(path).filter(|&n| n == lang).is_none() {
-            return;
-        }
-        let file_content = match read_to_string(&path) {
-            Ok(content) => content,
-            _ => return,
-        };
-        let grep = lang.new(file_content);
-        let mut matches = grep.root().find_all(&config).peekable();
-        if matches.peek().is_none() {
-            return;
-        }
-        print_matches(matches, path, &config, &None);
-    });
+    if !args.interactive {
+        run_walker(walker, |path| {
+            if from_extension(path).filter(|&n| n == lang).is_none() {
+                return;
+            }
+            let file_content = match read_to_string(&path) {
+                Ok(content) => content,
+                _ => return,
+            };
+            let grep = lang.new(file_content);
+            let mut matches = grep.root().find_all(&config).peekable();
+            if matches.peek().is_none() {
+                return;
+            }
+            print_matches(matches, path, &config, &None);
+        });
+    } else {
+        interaction::run_walker_interactive(
+            walker,
+            |entry| {
+                let entry = filter_file(entry)?;
+                let path = entry.path();
+                if from_extension(path).filter(|&n| n == lang).is_none() {
+                    return None;
+                }
+                let file_content = read_to_string(path).map_err(
+                    |err| eprintln!("ERROR: {}", err)
+                ).ok()?;
+                let grep = lang.new(file_content);
+                let has_match = grep.root().find(&config).is_some();
+                has_match.then_some((grep, path.to_path_buf()))
+            },
+            |(grep, path)| {
+                let matches = grep.root().find_all(&config);
+                print_matches(matches, &path, &config, &None);
+                interaction::prompt("Confirm", "yn", Some('y'))
+                    .expect("Error happened during prompt");
+            },
+        );
+    }
     Ok(())
 }
 
