@@ -262,7 +262,7 @@ impl<'r, L: Language> Node<'r, L> {
 // r manipulation API
 impl<'r, L: Language> Node<'r, L> {
     pub fn attr(&self) {}
-    pub fn replace<M: Matcher<L>, R: Replacer<L>>(&self, matcher: M, replacer: R) -> Option<Edit> {
+    pub fn replace<M: Matcher<L>, R: Replacer<L>>(&self, matcher: &M, replacer: &R) -> Option<Edit> {
         let mut env = matcher.get_meta_var_env();
         let node = matcher.find_node_with_env(*self, &mut env)?;
         let inner = node.inner;

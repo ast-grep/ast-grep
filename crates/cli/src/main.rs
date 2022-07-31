@@ -133,7 +133,7 @@ fn run_with_pattern(args: Args) -> Result<()> {
         while let Ok((grep, path)) = rx.recv() {
             interaction::clear();
             let matches = grep.root().find_all(&pattern);
-            print_matches(matches, &path, pattern.clone(), &rewrite);
+            print_matches(matches, &path, &pattern, &rewrite);
             interaction::prompt("Confirm", "yn", Some('y'))
                 .expect("Error happened during prompt");
         }
@@ -165,7 +165,7 @@ fn run_with_config(args: Args) -> Result<()> {
         if matches.peek().is_none() {
             return;
         }
-        print_matches(matches, path, config.clone(), &None);
+        print_matches(matches, path, &config, &None);
     });
     Ok(())
 }
@@ -212,13 +212,13 @@ fn match_one_file(
     if matches.peek().is_none() {
         return;
     }
-    print_matches(matches, path, pattern.clone(), rewrite);
+    print_matches(matches, path, pattern, rewrite);
 }
 
 fn print_matches<'a>(
     matches: impl Iterator<Item = Node<'a, SupportLang>>,
     path: &Path,
-    pattern: impl Matcher<SupportLang> + Clone,
+    pattern: &impl Matcher<SupportLang>,
     rewrite: &Option<Pattern<SupportLang>>,
 ) {
     let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
@@ -234,7 +234,7 @@ fn print_matches<'a>(
             let new_str = format!(
                 "{}{}{}\n",
                 display.leading,
-                e.replace(pattern.clone(), rewrite.clone())
+                e.replace(pattern, rewrite)
                     .unwrap()
                     .inserted_text,
                 display.trailing
