@@ -7,7 +7,7 @@ use ast_grep_core::language::Language;
 use ast_grep_core::{Node, Pattern, Matcher};
 use clap::Parser;
 use guess_language::{SupportLang, file_types, from_extension};
-use ignore::{WalkBuilder, WalkParallel, WalkState};
+use ignore::{WalkBuilder, WalkParallel, WalkState, DirEntry};
 use similar::{ChangeTag, TextDiff};
 use std::fmt::Display;
 use std::fs::read_to_string;
@@ -88,55 +88,44 @@ fn run_with_pattern(args: Args) -> Result<()> {
         run_walker(walker, |path| {
             match_one_file(path, lang, &pattern, &rewrite);
         });
-    } else {
-        let (tx, rx) = mpsc::channel();
-        let pat = pattern.clone();
-        let l = lang.clone();
-        std::thread::spawn(move || {
-            walker.run(move || {
-                let tx = tx.clone();
-                let pattern = pat.clone();
-                let lang = l.clone();
-                Box::new(move |result| match result {
-                    Ok(entry) => {
-                        if let Some(file_type) = entry.file_type() {
-                            if !file_type.is_file() {
-                                return WalkState::Continue;
-                            }
-                            let path = entry.path();
-                            let file_content = match read_to_string(path) {
-                                Ok(content) => content,
-                                _ => return WalkState::Continue,
-                            };
-                            let grep = lang.new(file_content);
-                            let mut matches = grep.root().find_all(&pattern);
-                            if matches.next().is_none() {
-                                return WalkState::Continue;
-                            }
-                            drop(matches);
-                            match tx.send((grep, path.to_path_buf())) {
-                                Ok(_) => WalkState::Continue,
-                                Err(_) => WalkState::Quit,
-                            }
-                        } else {
-                            WalkState::Continue
-                        }
-                    }
-                    Err(err) => {
-                        eprintln!("ERROR: {}", err);
-                        WalkState::Continue
-                    }
-                })
-            });
+        return Ok(());
+    }
+    let (tx, rx) = mpsc::channel();
+    let pat = std::sync::Arc::new(pattern.clone());
+    std::thread::spawn(move || {
+        walker.run(|| {
+            let tx = tx.clone();
+            let pat = pat.clone();
+            Box::new(move |result| {
+                let entry = match filter_file(result) {
+                    Some(entry) => entry,
+                    None => return WalkState::Continue,
+                };
+                let path = entry.path();
+                let file_content = match read_to_string(path) {
+                    Ok(content) => content,
+                    _ => return WalkState::Continue,
+                };
+                let grep = lang.new(file_content);
+                let mut matches = grep.root().find_all(&*pat);
+                if matches.next().is_none() {
+                    return WalkState::Continue;
+                }
+                drop(matches);
+                match tx.send((grep, path.to_path_buf())) {
+                    Ok(_) => WalkState::Continue,
+                    Err(_) => WalkState::Quit,
+                }
+            })
         });
-        let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
-        while let Ok((grep, path)) = rx.recv() {
-            interaction::clear();
-            let matches = grep.root().find_all(&pattern);
-            print_matches(matches, &path, &pattern, &rewrite);
-            interaction::prompt("Confirm", "yn", Some('y'))
-                .expect("Error happened during prompt");
-        }
+    });
+    let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
+    while let Ok((grep, path)) = rx.recv() {
+        interaction::clear();
+        let matches = grep.root().find_all(&pattern);
+        print_matches(matches, &path, &pattern, &rewrite);
+        interaction::prompt("Confirm", "yn", Some('y'))
+            .expect("Error happened during prompt");
     }
     Ok(())
 }
@@ -174,25 +163,27 @@ fn find_default_config() -> String {
     "sgconfig.yml".to_string()
 }
 
-fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> () + Sync) {
+fn filter_file(
+    result: std::result::Result<DirEntry, ignore::Error>,
+) -> Option<DirEntry> {
+    match result {
+        Ok(entry) => {
+            if entry.file_type()?.is_file() {
+                return Some(entry);
+            }
+        }
+        Err(err) => {
+            eprintln!("ERROR: {}", err);
+        }
+    }
+    None
+}
+
+fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> () + Send + Copy) {
     walker.run(|| {
-        Box::new(|result| match result {
-            Ok(entry) => {
-                if let Some(file_type) = entry.file_type() {
-                    if !file_type.is_file() {
-                        return WalkState::Continue;
-                    }
-                    let path = entry.path();
-                    f(path);
-                    WalkState::Continue
-                } else {
-                    WalkState::Continue
-                }
-            }
-            Err(err) => {
-                eprintln!("ERROR: {}", err);
-                WalkState::Continue
-            }
+        Box::new(move |result| {
+            filter_file(result).map(|e| f(e.path()));
+            WalkState::Continue
         })
     });
 }
@@ -235,8 +226,8 @@ fn print_matches<'a>(
                 "{}{}{}\n",
                 display.leading,
                 e.replace(pattern, rewrite)
-                    .unwrap()
-                    .inserted_text,
+                .unwrap()
+                .inserted_text,
                 display.trailing
             );
             let base_line = display.start_line;
