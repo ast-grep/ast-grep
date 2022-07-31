@@ -6,7 +6,7 @@ use ansi_term::Style;
 use ast_grep_core::language::Language;
 use ast_grep_core::{Node, Pattern, Matcher};
 use clap::Parser;
-use guess_language::{SupportLang, file_types};
+use guess_language::{SupportLang, file_types, from_extension};
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use similar::{ChangeTag, TextDiff};
 use std::fmt::Display;
@@ -153,6 +153,9 @@ fn run_with_config(args: Args) -> Result<()> {
         .build_parallel();
     let lang = config.language;
     run_walker(walker, |path| {
+        if from_extension(path).filter(|&n| n == lang).is_none() {
+            return;
+        }
         let file_content = match read_to_string(&path) {
             Ok(content) => content,
             _ => return,

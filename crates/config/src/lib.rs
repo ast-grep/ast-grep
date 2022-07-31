@@ -2,7 +2,7 @@ pub mod support_language;
 use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
-use ast_grep_core::{Rule, Matcher, PositiveMatcher, meta_var::MetaVarEnv};
+use ast_grep_core::{Matcher, PositiveMatcher, meta_var::MetaVarEnv};
 use ast_grep_core as core;
 
 pub use support_language::SupportLang;
@@ -72,7 +72,6 @@ pub struct AstGrepRuleConfig {
 }
 
 
-type Parsed = Rule<SupportLang, SerializableRule>;
 pub fn from_yaml_string(yaml: &str) -> Result<AstGrepRuleConfig, serde_yaml::Error> {
     serde_yaml::from_str(yaml)
 }

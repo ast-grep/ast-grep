@@ -2,7 +2,6 @@ use crate::language::Language;
 use crate::matcher::Matcher;
 use crate::replacer::Replacer;
 use crate::ts_parser::{parse, perform_edit, Edit};
-use std::borrow::Borrow;
 
 #[derive(Clone)]
 pub struct Root<L: Language> {
