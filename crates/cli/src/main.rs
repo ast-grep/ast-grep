@@ -3,14 +3,14 @@ mod interaction;
 mod print;
 
 use ast_grep_core::language::Language;
-use ast_grep_core::{Pattern, Matcher, AstGrep};
+use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::Parser;
-use guess_language::{SupportLang, file_types, from_extension};
-use ignore::{WalkBuilder, WalkParallel, WalkState, DirEntry};
+use guess_language::{file_types, from_extension, SupportLang};
+use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
+use print::print_matches;
 use std::fs::read_to_string;
 use std::io::Result;
 use std::path::{Path, PathBuf};
-use print::print_matches;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -93,15 +93,14 @@ fn run_with_pattern(args: Args) -> Result<()> {
         |(grep, path)| {
             let matches = grep.root().find_all(&pattern);
             print_matches(matches, &path, &pattern, &rewrite);
-            interaction::prompt("Confirm", "yn", Some('y'))
-                .expect("Error happened during prompt");
+            interaction::prompt("Confirm", "yn", Some('y')).expect("Error happened during prompt");
         },
     );
     Ok(())
 }
 
 fn run_with_config(args: Args) -> Result<()> {
-    use ast_grep_config::{from_yaml_string};
+    use ast_grep_config::from_yaml_string;
     let config_file = args.config.unwrap_or_else(find_default_config);
     let yaml = read_to_string(config_file)?;
     let config = from_yaml_string(&yaml).unwrap();
@@ -143,9 +142,7 @@ fn find_default_config() -> String {
     "sgconfig.yml".to_string()
 }
 
-fn filter_file(
-    entry: DirEntry,
-) -> Option<DirEntry> {
+fn filter_file(entry: DirEntry) -> Option<DirEntry> {
     entry.file_type()?.is_file().then_some(entry)
 }
 
@@ -159,12 +156,12 @@ fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> () + Sync) {
 fn run_walker_interactive<T: Send>(
     walker: WalkParallel,
     producer: impl Fn(&Path) -> Option<T> + Sync,
-    consumer: impl Fn(T) -> () + Send
+    consumer: impl Fn(T) -> () + Send,
 ) {
-    interaction::run_walker_interactive(walker, |entry| {
-        producer(filter_file(entry)?.path())
-    },
-    consumer,
+    interaction::run_walker_interactive(
+        walker,
+        |entry| producer(filter_file(entry)?.path()),
+        consumer,
     );
 }
 
@@ -186,15 +183,14 @@ fn match_one_file(
     print_matches(matches, path, pattern, rewrite);
 }
 
-
 fn filter_file_interactive(
     path: &Path,
     lang: SupportLang,
     pattern: &impl Matcher<SupportLang>,
 ) -> Option<(AstGrep<SupportLang>, PathBuf)> {
-    let file_content = read_to_string(path).map_err(
-        |err| eprintln!("ERROR: {}", err)
-    ).ok()?;
+    let file_content = read_to_string(path)
+        .map_err(|err| eprintln!("ERROR: {}", err))
+        .ok()?;
     let grep = lang.new(file_content);
     let has_match = grep.root().find(&pattern).is_some();
     has_match.then_some((grep, path.to_path_buf()))

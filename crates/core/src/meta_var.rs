@@ -121,7 +121,7 @@ impl<L: Language> MetaVarMatchers<L> {
 
 #[derive(Clone)]
 pub enum MetaVarMatcher<L: Language> {
-    #[cfg(feature="regex")]
+    #[cfg(feature = "regex")]
     /// A regex to filter matched metavar based on its textual content.
     Regex(regex::Regex),
     /// A pattern to filter matched metavar based on its AST tree shape.
@@ -136,7 +136,7 @@ impl<L: Language> MetaVarMatcher<L> {
         use MetaVarMatcher::*;
         let mut env = MetaVarEnv::new();
         match self {
-            #[cfg(feature="regex")]
+            #[cfg(feature = "regex")]
             Regex(regexp) => regexp.is_match(candidate.text()),
             Pattern(p) => p.match_node_with_env(candidate, &mut env).is_some(),
             Kind(k) => k.match_node_with_env(candidate, &mut env).is_some(),

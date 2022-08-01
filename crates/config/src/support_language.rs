@@ -1,8 +1,8 @@
-use std::fmt::{Display, Formatter};
-use std::str::FromStr;
-use serde::{Serialize, Deserialize};
 use ast_grep_core::language::{self, Language, TSLanguage};
 use ast_grep_core::MetaVariable;
+use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 
 /// represents a dynamic language
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -19,7 +19,6 @@ pub enum SupportLang {
     Tsx,
     TypeScript,
 }
-
 
 #[derive(Debug)]
 pub enum SupportLangErr {

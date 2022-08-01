@@ -1,12 +1,12 @@
 use std::fmt::Display;
 use std::path::Path;
 
-use similar::{ChangeTag, TextDiff};
 use ansi_term::{
+    Color::{Cyan, Green, Red},
     Style,
-    Color::{Cyan, Green, Red}
 };
-use ast_grep_core::{Node, Pattern, Matcher};
+use ast_grep_core::{Matcher, Node, Pattern};
+use similar::{ChangeTag, TextDiff};
 
 use crate::guess_language::SupportLang;
 
@@ -29,9 +29,7 @@ pub fn print_matches<'a>(
             let new_str = format!(
                 "{}{}{}\n",
                 display.leading,
-                e.replace(pattern, rewrite)
-                .unwrap()
-                .inserted_text,
+                e.replace(pattern, rewrite).unwrap().inserted_text,
                 display.trailing
             );
             let base_line = display.start_line;

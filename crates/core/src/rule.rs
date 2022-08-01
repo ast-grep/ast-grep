@@ -14,7 +14,8 @@ impl<L: Language, P1, P2> PositiveMatcher<L> for And<L, P1, P2>
 where
     P1: PositiveMatcher<L>,
     P2: Matcher<L>,
-{}
+{
+}
 
 impl<L: Language, P1, P2> Matcher<L> for And<L, P1, P2>
 where
@@ -76,7 +77,6 @@ impl<L: Language, P: Matcher<L>> Any<L, P> {
     }
 }
 
-
 impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
     fn match_node_with_env<'tree>(
         &self,
@@ -91,7 +91,6 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
 }
 
 impl<L: Language, P: PositiveMatcher<L>> PositiveMatcher<L> for Any<L, P> {}
-
 
 pub struct Or<L: Language, P1: PositiveMatcher<L>, P2: PositiveMatcher<L>> {
     pattern1: P1,
@@ -143,8 +142,7 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Inside<L, M> {
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        node
-            .ancestors()
+        node.ancestors()
             .find_map(|n| self.outer.match_node_with_env(n, env))
             .map(|_| node)
     }
@@ -168,8 +166,7 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Has<L, M> {
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        node
-            .dfs()
+        node.dfs()
             .skip(1)
             .find_map(|n| self.inner.match_node_with_env(n, env))
             .map(|_| node)
@@ -233,7 +230,6 @@ where
     P: PositiveMatcher<L>,
 {
 }
-
 
 impl<L: Language, M: Matcher<L>> Rule<L, M> {
     pub fn not(pattern: M) -> Not<L, M> {

@@ -1,7 +1,7 @@
+use ignore::{DirEntry, WalkParallel, WalkState};
 use rprompt::prompt_reply_stdout;
 use std::io::Result;
 use std::sync::mpsc;
-use ignore::{WalkParallel, WalkState, DirEntry};
 
 // https://github.com/console-rs/console/blob/be1c2879536c90ffc2b54938b5964084f5fef67d/src/common_term.rs#L56
 /// clear screen
@@ -24,20 +24,15 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
 
 pub fn run_walker(walker: WalkParallel, f: impl Fn(DirEntry) -> WalkState + Sync) {
     walker.run(|| {
-        Box::new(|result| {
-            match result {
-                Ok(entry) => {
-                    f(entry)
-                }
-                Err(err) => {
-                    eprintln!("ERROR: {}", err);
-                    WalkState::Continue
-                }
+        Box::new(|result| match result {
+            Ok(entry) => f(entry),
+            Err(err) => {
+                eprintln!("ERROR: {}", err);
+                WalkState::Continue
             }
         })
     });
 }
-
 
 pub fn run_walker_interactive<T: Send>(
     walker: WalkParallel,
@@ -55,7 +50,7 @@ pub fn run_walker_interactive<T: Send>(
                         Ok(entry) => entry,
                         Err(err) => {
                             eprintln!("ERROR: {}", err);
-                            return WalkState::Continue
+                            return WalkState::Continue;
                         }
                     };
                     let result = match producer(entry) {
@@ -75,5 +70,6 @@ pub fn run_walker_interactive<T: Send>(
                 consumer(ret);
             }
         });
-    }).expect("Error occurred during spawning threads");
+    })
+    .expect("Error occurred during spawning threads");
 }

@@ -56,7 +56,6 @@ pub fn file_types(lang: &SupportLang) -> Types {
     builder.build().unwrap()
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;

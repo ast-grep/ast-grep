@@ -77,7 +77,10 @@ pub trait Matcher<L: Language> {
             .or_else(|| node.children().find_map(|sub| self.find_node(sub)))
     }
 
-    fn find_all_nodes<'tree>(self, node: Node<'tree, L>) -> FindAllNodes<'tree, L, Self> where Self: Sized {
+    fn find_all_nodes<'tree>(self, node: Node<'tree, L>) -> FindAllNodes<'tree, L, Self>
+    where
+        Self: Sized,
+    {
         FindAllNodes::new(self, node)
     }
 }
@@ -93,7 +96,11 @@ impl<L: Language> Matcher<L> for str {
     }
 }
 
-impl<L, T> Matcher<L> for &T where L: Language, T: Matcher<L> + ?Sized {
+impl<L, T> Matcher<L> for &T
+where
+    L: Language,
+    T: Matcher<L> + ?Sized,
+{
     fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
@@ -104,7 +111,12 @@ impl<L, T> Matcher<L> for &T where L: Language, T: Matcher<L> + ?Sized {
 }
 
 impl<L: Language> PositiveMatcher<L> for str {}
-impl<L, T> PositiveMatcher<L> for &T where L: Language, T: PositiveMatcher<L> + ?Sized {}
+impl<L, T> PositiveMatcher<L> for &T
+where
+    L: Language,
+    T: PositiveMatcher<L> + ?Sized,
+{
+}
 
 impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
     fn match_node_with_env<'tree>(
@@ -126,8 +138,7 @@ impl<L: Language> Matcher<L> for Box<dyn PositiveMatcher<L>> {
         (**self).match_node_with_env(node, env)
     }
 }
-impl<L: Language> PositiveMatcher<L> for Box<dyn PositiveMatcher<L>> {
-}
+impl<L: Language> PositiveMatcher<L> for Box<dyn PositiveMatcher<L>> {}
 
 /**
  * A marker trait to indicate the the rule is positive matcher
@@ -202,8 +213,6 @@ mod test {
         let boxed: Box<dyn Matcher<Tsx>> = Box::new("const a = 123");
         let cand = pattern_node("const a = 123");
         let cand = cand.root();
-        assert!(
-            boxed.find_node(cand).is_some()
-        );
+        assert!(boxed.find_node(cand).is_some());
     }
 }

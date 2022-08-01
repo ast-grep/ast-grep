@@ -1,12 +1,11 @@
-pub mod support_language;
 mod config_rule;
+pub mod support_language;
 use std::collections::HashMap;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
+use config_rule::{from_serializable, DynamicRule, SerializableRule};
 pub use support_language::SupportLang;
-use config_rule::{SerializableRule, DynamicRule, from_serializable};
-
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -39,11 +38,9 @@ impl AstGrepRuleConfig {
     }
 }
 
-
 pub fn from_yaml_string(yaml: &str) -> Result<AstGrepRuleConfig, serde_yaml::Error> {
     serde_yaml::from_str(yaml)
 }
-
 
 #[cfg(test)]
 mod test {
@@ -64,21 +61,25 @@ mod test {
     }
 
     fn make_yaml(rule: &str) -> String {
-format!(r"
+        format!(
+            r"
 id: test
 message: test rule
 severity: info
 language: TypeScript
 rule:
 {rule}
-")
+"
+        )
     }
 
     #[test]
     fn test_deserialize_rule_config() {
-        let yaml = &make_yaml("
+        let yaml = &make_yaml(
+            "
   pattern: let a = 123
-");
+",
+        );
         test_rule_match(yaml, "let a = 123; let b = 33;");
         test_rule_match(yaml, "class B { func() {let a = 123; }}");
         test_rule_unmatch(yaml, "const a = 33");
@@ -86,11 +87,13 @@ rule:
 
     #[test]
     fn test_deserialize_nested() {
-        let yaml = &make_yaml("
+        let yaml = &make_yaml(
+            "
   all:
     - pattern: let $A = 123
     - pattern: let a = $B
-");
+",
+        );
         test_rule_match(yaml, "let a = 123; let b = 33;");
         test_rule_match(yaml, "class B { func() {let a = 123; }}");
         test_rule_unmatch(yaml, "const a = 33");
@@ -99,21 +102,25 @@ rule:
 
     #[test]
     fn test_deserialize_kind() {
-        let yaml = &make_yaml("
+        let yaml = &make_yaml(
+            "
     kind: class_body
-");
+",
+        );
         test_rule_match(yaml, "class B { func() {let a = 123; }}");
         test_rule_unmatch(yaml, "const B = { func() {let a = 123; }}");
     }
 
     #[test]
     fn test_deserialize_inside() {
-        let yaml = &make_yaml("
+        let yaml = &make_yaml(
+            "
   all:
     - inside:
         kind: class_body
     - pattern: let a = 123
-");
+",
+        );
         test_rule_unmatch(yaml, "let a = 123; let b = 33;");
         test_rule_match(yaml, "class B { func() {let a = 123; }}");
         test_rule_unmatch(yaml, "let a = 123");
@@ -121,13 +128,15 @@ rule:
 
     #[test]
     fn test_deserialize_not_inside() {
-        let yaml = &make_yaml("
+        let yaml = &make_yaml(
+            "
   all:
     - not:
         inside:
           kind: class_body
     - pattern: let a = 123
-");
+",
+        );
         test_rule_match(yaml, "let a = 123; let b = 33;");
         test_rule_unmatch(yaml, "class B { func() {let a = 123; }}");
         test_rule_unmatch(yaml, "let a = 13");
@@ -135,14 +144,16 @@ rule:
 
     #[test]
     fn test_deserialize_meta_var() {
-        let yaml = &make_yaml("
+        let yaml = &make_yaml(
+            "
   all:
     - inside:
         any:
           - pattern: function $A($$$) { $$$ }
           - pattern: let $A = ($$$) => $$$
     - pattern: $A($$$)
-");
+",
+        );
         test_rule_match(yaml, "function recursion() { recursion() }");
         test_rule_match(yaml, "let recursion = () => { recursion() }");
         test_rule_unmatch(yaml, "function callOther() { other() }");

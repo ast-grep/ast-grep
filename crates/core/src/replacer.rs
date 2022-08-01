@@ -24,7 +24,11 @@ impl<L: Language> Replacer<L> for Pattern<L> {
     }
 }
 
-impl<L, T> Replacer<L> for &T where L: Language, T: Replacer<L> + ?Sized {
+impl<L, T> Replacer<L> for &T
+where
+    L: Language,
+    T: Replacer<L> + ?Sized,
+{
     fn generate_replacement(&self, env: &MetaVarEnv<L>, lang: L) -> String {
         (**self).generate_replacement(env, lang)
     }

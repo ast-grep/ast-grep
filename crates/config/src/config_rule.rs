@@ -1,8 +1,8 @@
-use ast_grep_core::{Matcher, Node, KindMatcher, Pattern};
+use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::rule as r;
-use ast_grep_core::language::Language;
-use serde::{Serialize, Deserialize};
+use ast_grep_core::{KindMatcher, Matcher, Node, Pattern};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -27,7 +27,11 @@ pub enum DynamicRule<L: Language> {
 }
 
 impl<L: Language> Matcher<L> for DynamicRule<L> {
-    fn match_node_with_env<'tree>(&self, node: Node<'tree, L>, env: &mut MetaVarEnv<'tree, L>) -> Option<ast_grep_core::Node<'tree, L>> {
+    fn match_node_with_env<'tree>(
+        &self,
+        node: Node<'tree, L>,
+        env: &mut MetaVarEnv<'tree, L>,
+    ) -> Option<ast_grep_core::Node<'tree, L>> {
         use DynamicRule::*;
         match self {
             All(all) => all.match_node_with_env(node, env),
@@ -47,8 +51,8 @@ enum SerializeError {
 
 // TODO: implement positive/non positive
 pub fn from_serializable<L: Language>(serialized: SerializableRule, lang: L) -> DynamicRule<L> {
-    use SerializableRule as S;
     use DynamicRule as D;
+    use SerializableRule as S;
     let mapper = |s| from_serializable(s, lang);
     match serialized {
         S::All(all) => D::All(r::All::new(all.into_iter().map(mapper))),
