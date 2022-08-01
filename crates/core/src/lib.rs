@@ -12,7 +12,7 @@ pub use matcher::{KindMatcher, Matcher, PositiveMatcher};
 pub use meta_var::{MetaVarMatcher, MetaVariable};
 pub use node::Node;
 pub use pattern::Pattern;
-pub use rule::{All, Either, Rule};
+pub use rule::{All, Any, Rule};
 
 use crate::replacer::Replacer;
 use language::Language;

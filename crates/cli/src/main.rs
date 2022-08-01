@@ -111,12 +111,13 @@ fn run_with_config(args: Args) -> Result<()> {
         .threads(threads)
         .build_parallel();
     let lang = config.language;
+    let matcher = config.get_matcher();
     if !args.interactive {
         run_walker(walker, |path| {
             if from_extension(path).filter(|&n| n == lang).is_none() {
                 return;
             }
-            match_one_file(path, lang, &config, &None)
+            match_one_file(path, lang, &matcher, &None)
         });
     } else {
         run_walker_interactive(
@@ -125,11 +126,11 @@ fn run_with_config(args: Args) -> Result<()> {
                 if from_extension(path).filter(|&n| n == lang).is_none() {
                     return None;
                 }
-                filter_file_interactive(path, lang, &config)
+                filter_file_interactive(path, lang, &matcher)
             },
             |(grep, path)| {
-                let matches = grep.root().find_all(&config);
-                print_matches(matches, &path, &config, &None);
+                let matches = grep.root().find_all(&matcher);
+                print_matches(matches, &path, &matcher, &None);
                 interaction::prompt("Confirm", "yn", Some('y'))
                     .expect("Error happened during prompt");
             },
