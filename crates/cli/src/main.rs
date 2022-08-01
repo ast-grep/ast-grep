@@ -4,13 +4,15 @@ mod print;
 
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
+use ast_grep_config::{from_yaml_string, Configs};
 use clap::Parser;
-use guess_language::{file_types, from_extension, SupportLang};
+use guess_language::{file_types, from_extension, SupportLang, config_file_type};
 use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
 use print::print_matches;
 use std::fs::read_to_string;
 use std::io::Result;
 use std::path::{Path, PathBuf};
+
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -100,42 +102,71 @@ fn run_with_pattern(args: Args) -> Result<()> {
 }
 
 fn run_with_config(args: Args) -> Result<()> {
-    use ast_grep_config::from_yaml_string;
-    let config_file = args.config.unwrap_or_else(find_default_config);
-    let yaml = read_to_string(config_file)?;
-    let config = from_yaml_string(&yaml).unwrap();
+    let configs = find_config(args.config);
     let threads = num_cpus::get().min(12);
     let walker = WalkBuilder::new(&args.path)
         .hidden(args.hidden)
         .threads(threads)
         .build_parallel();
-    let lang = config.language;
-    let matcher = config.get_matcher();
     if !args.interactive {
         run_walker(walker, |path| {
-            if from_extension(path).filter(|&n| n == lang).is_none() {
-                return;
+            for config in &configs.configs {
+                let lang = config.language;
+                let matcher = config.get_matcher();
+                if from_extension(path).filter(|&n| n == lang).is_none() {
+                    continue;
+                }
+                match_one_file(path, lang, &matcher, &None)
             }
-            match_one_file(path, lang, &matcher, &None)
         });
     } else {
         run_walker_interactive(
             walker,
             |path| {
-                if from_extension(path).filter(|&n| n == lang).is_none() {
-                    return None;
+                for config in &configs.configs {
+                    let lang = config.language;
+                    let matcher = config.get_matcher();
+                    if from_extension(path).filter(|&n| n == lang).is_none() {
+                        continue;
+                    }
+                    let ret = filter_file_interactive(path, lang, &matcher);
+                    if ret.is_some() {
+                        return ret;
+                    }
                 }
-                filter_file_interactive(path, lang, &matcher)
+                None
             },
             |(grep, path)| {
-                let matches = grep.root().find_all(&matcher);
-                print_matches(matches, &path, &matcher, &None);
-                interaction::prompt("Confirm", "yn", Some('y'))
-                    .expect("Error happened during prompt");
+                for config in &configs.configs {
+                    let matcher = config.get_matcher();
+                    let matches = grep.root().find_all(&matcher);
+                    print_matches(matches, &path, &matcher, &None);
+                    interaction::prompt("Confirm", "yn", Some('y'))
+                        .expect("Error happened during prompt");
+                }
             },
         );
     }
     Ok(())
+}
+
+fn find_config(config: Option<String>) -> Configs {
+    let config_file_or_dir = config.unwrap_or_else(find_default_config);
+    let mut configs = vec![];
+    let walker = WalkBuilder::new(&config_file_or_dir)
+        .types(config_file_type())
+        .build();
+    for dir in walker {
+        let config_file = dir.unwrap();
+        if !config_file.file_type().unwrap().is_file() {
+            continue;
+        }
+        let path = config_file.path();
+
+        let yaml = read_to_string(path).unwrap();
+        configs.push(from_yaml_string(&yaml).unwrap());
+    }
+    Configs::new(configs)
 }
 
 fn find_default_config() -> String {

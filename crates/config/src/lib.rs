@@ -42,6 +42,17 @@ pub fn from_yaml_string(yaml: &str) -> Result<AstGrepRuleConfig, serde_yaml::Err
     serde_yaml::from_str(yaml)
 }
 
+pub struct Configs {
+    pub configs: Vec<AstGrepRuleConfig>,
+}
+impl Configs {
+    pub fn new(configs: Vec<AstGrepRuleConfig>) -> Self {
+        Self {
+            configs,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
 

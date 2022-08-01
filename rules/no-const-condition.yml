@@ -1,0 +1,8 @@
+id: no-const-condition
+message: Disallow const condition
+severity: warning
+language: TypeScript
+rule:
+  any:
+    - pattern: if (false) { $$$ }
+    - pattern: if (true) { $$$ }

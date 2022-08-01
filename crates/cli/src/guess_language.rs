@@ -56,6 +56,14 @@ pub fn file_types(lang: &SupportLang) -> Types {
     builder.build().unwrap()
 }
 
+pub fn config_file_type() -> Types {
+    let mut builder = TypesBuilder::new();
+    builder.add("yml", "*.yml").unwrap();
+    builder.add("yml", "*.yaml").unwrap();
+    builder.select("yml");
+    builder.build().unwrap()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
