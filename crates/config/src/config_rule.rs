@@ -12,9 +12,20 @@ pub enum SerializableRule {
     Not(Box<SerializableRule>),
     Inside(Box<SerializableRule>),
     Has(Box<SerializableRule>),
-    Pattern(String),
+    Pattern(PatternStyle),
     Kind(String),
 }
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum PatternStyle {
+    Str(String),
+    Contextual {
+        context: String,
+        selector: String,
+    }
+}
+
 
 pub enum DynamicRule<L: Language> {
     All(o::All<L, DynamicRule<L>>),
@@ -60,7 +71,32 @@ pub fn from_serializable<L: Language>(serialized: SerializableRule, lang: L) -> 
         S::Not(not) => D::Not(Box::new(o::Not::new(mapper(*not)))),
         S::Inside(inside) => D::Inside(Box::new(o::Inside::new(mapper(*inside)))),
         S::Has(has) => D::Has(Box::new(o::Has::new(mapper(*has)))),
-        S::Pattern(pattern) => D::Pattern(Pattern::new(&pattern, lang)),
+        S::Pattern(PatternStyle::Str(pattern)) => D::Pattern(Pattern::new(&pattern, lang)),
+        S::Pattern(PatternStyle::Contextual { .. }) => todo!(),
         S::Kind(kind) => D::Kind(KindMatcher::new(&kind, lang)),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use serde_yaml::from_str;
+    use SerializableRule::*;
+    use PatternStyle::*;
+
+    #[test]
+    fn test_pattern() {
+        let src = r"
+pattern: Test
+";
+        let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+        assert!(matches!(rule, Pattern(Str(_))));
+        let src = r"
+pattern:
+    context: class $C { set $B() {} }
+    selector: method_definition
+";
+        let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+        assert!(matches!(rule, Pattern(Str(_))));
     }
 }
