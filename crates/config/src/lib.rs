@@ -3,6 +3,7 @@ pub mod support_language;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use serde_yaml::{from_str, Deserializer};
 
 use config_rule::{from_serializable, DynamicRule, SerializableRule};
 pub use support_language::SupportLang;
@@ -38,8 +39,13 @@ impl AstGrepRuleConfig {
     }
 }
 
-pub fn from_yaml_string(yaml: &str) -> Result<AstGrepRuleConfig, serde_yaml::Error> {
-    serde_yaml::from_str(yaml)
+pub fn from_yaml_string(yamls: &str) -> Result<Vec<AstGrepRuleConfig>, serde_yaml::Error> {
+    let mut ret = vec![];
+    for yaml in Deserializer::from_str(yamls) {
+        let config = AstGrepRuleConfig::deserialize(yaml)?;
+        ret.push(config);
+    }
+    Ok(ret)
 }
 
 pub struct Configs {
@@ -60,13 +66,13 @@ mod test {
     use ast_grep_core::language::Language;
 
     fn test_rule_match(yaml: &str, source: &str) {
-        let config = from_yaml_string(yaml).expect("rule should parse");
+        let config = &from_yaml_string(yaml).expect("rule should parse")[0];
         let grep = config.language.new(source);
         assert!(grep.root().find(config.get_matcher()).is_some());
     }
 
     fn test_rule_unmatch(yaml: &str, source: &str) {
-        let config = from_yaml_string(yaml).expect("rule should parse");
+        let config = &from_yaml_string(yaml).expect("rule should parse")[0];
         let grep = config.language.new(source);
         assert!(grep.root().find(config.get_matcher()).is_none());
     }

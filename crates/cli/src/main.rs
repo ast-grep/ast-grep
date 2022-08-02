@@ -164,7 +164,7 @@ fn find_config(config: Option<String>) -> Configs {
         let path = config_file.path();
 
         let yaml = read_to_string(path).unwrap();
-        configs.push(from_yaml_string(&yaml).unwrap());
+        configs.extend(from_yaml_string(&yaml).unwrap());
     }
     Configs::new(configs)
 }
