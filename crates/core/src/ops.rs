@@ -1,4 +1,4 @@
-use crate::matcher::{Matcher, PositiveMatcher};
+use crate::matcher::{Matcher, PositiveMatcher, MatchAll, MatchNone};
 use crate::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
 use crate::Language;
 use crate::Node;
@@ -92,7 +92,7 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
 
 impl<L: Language, P: PositiveMatcher<L>> PositiveMatcher<L> for Any<L, P> {}
 
-pub struct Or<L: Language, P1: PositiveMatcher<L>, P2: PositiveMatcher<L>> {
+pub struct Or<L: Language, P1: Matcher<L>, P2: Matcher<L>> {
     pattern1: P1,
     pattern2: P2,
     lang: PhantomData<L>,
@@ -101,8 +101,8 @@ pub struct Or<L: Language, P1: PositiveMatcher<L>, P2: PositiveMatcher<L>> {
 impl<L, P1, P2> Matcher<L> for Or<L, P1, P2>
 where
     L: Language,
-    P1: PositiveMatcher<L>,
-    P2: PositiveMatcher<L>,
+    P1: Matcher<L>,
+    P2: Matcher<L>,
 {
     fn match_node_with_env<'tree>(
         &self,
@@ -120,8 +120,7 @@ where
     L: Language,
     P1: PositiveMatcher<L>,
     P2: PositiveMatcher<L>,
-{
-}
+{}
 
 pub struct Inside<L: Language, M: Matcher<L>> {
     outer: M,
@@ -201,12 +200,12 @@ where
 }
 
 #[derive(Clone)]
-pub struct Rule<L: Language, M: Matcher<L>> {
+pub struct Op<L: Language, M: Matcher<L>> {
     inner: M,
     meta_vars: MetaVarMatchers<L>,
 }
 
-impl<L, M> Matcher<L> for Rule<L, M>
+impl<L, M> Matcher<L> for Op<L, M>
 where
     L: Language,
     M: Matcher<L>,
@@ -224,14 +223,14 @@ where
         self.meta_vars.clone()
     }
 }
-impl<L, P> PositiveMatcher<L> for Rule<L, P>
+impl<L, P> PositiveMatcher<L> for Op<L, P>
 where
     L: Language,
     P: PositiveMatcher<L>,
 {
 }
 
-impl<L: Language, M: Matcher<L>> Rule<L, M> {
+impl<L: Language, M: Matcher<L>> Op<L, M> {
     pub fn not(pattern: M) -> Not<L, M> {
         Not {
             not: pattern,
@@ -245,21 +244,29 @@ impl<L: Language, M: Matcher<L>> Rule<L, M> {
     }
 }
 
-impl<L: Language, M: PositiveMatcher<L>> Rule<L, M> {
-    pub fn every(pattern: M) -> AndRule<L, M> {
-        AndRule {
-            inner: pattern.into(),
-            lang: PhantomData,
+impl<L: Language, M: PositiveMatcher<L>> Op<L, M> {
+    pub fn every(pattern: M) -> Op<L, And<L, M, MatchAll>> {
+        Op {
+            inner: And {
+                pattern1: pattern,
+                pattern2: MatchAll,
+                lang: PhantomData,
+            },
+            meta_vars: MetaVarMatchers::new(),
         }
     }
-    pub fn either(pattern: M) -> EitherRule<L, M> {
-        EitherRule {
-            inner: pattern,
-            lang: PhantomData,
+    pub fn either(pattern: M) -> Op<L, Or<L, M, MatchNone>> {
+        Op {
+            inner: Or {
+                pattern1: pattern,
+                pattern2: MatchNone,
+                lang: PhantomData,
+            },
+            meta_vars: MetaVarMatchers::new(),
         }
     }
 
-    pub fn new(matcher: M) -> Rule<L, M> {
+    pub fn new(matcher: M) -> Op<L, M> {
         Self {
             inner: matcher,
             meta_vars: MetaVarMatchers::new(),
@@ -267,25 +274,9 @@ impl<L: Language, M: PositiveMatcher<L>> Rule<L, M> {
     }
 }
 
-pub struct AndRule<L: Language, M: PositiveMatcher<L>> {
-    inner: M,
-    lang: PhantomData<L>,
-}
-impl<L: Language, M: PositiveMatcher<L>> AndRule<L, M> {
-    pub fn and<N: Matcher<L>>(self, other: N) -> Rule<L, And<L, M, N>> {
-        Rule {
-            inner: And {
-                pattern1: self.inner,
-                pattern2: other,
-                lang: PhantomData,
-            },
-            meta_vars: MetaVarMatchers::new(),
-        }
-    }
-}
-impl<L: Language, M: PositiveMatcher<L>, N: Matcher<L>> Rule<L, And<L, M, N>> {
-    pub fn and<O: Matcher<L>>(self, other: O) -> Rule<L, And<L, And<L, M, N>, O>> {
-        Rule {
+impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, And<L, M, N>> {
+    pub fn and<O: Matcher<L>>(self, other: O) -> Op<L, And<L, And<L, M, N>, O>> {
+        Op {
             inner: And {
                 pattern1: self.inner,
                 pattern2: other,
@@ -296,26 +287,9 @@ impl<L: Language, M: PositiveMatcher<L>, N: Matcher<L>> Rule<L, And<L, M, N>> {
     }
 }
 
-pub struct EitherRule<L: Language, M: PositiveMatcher<L>> {
-    inner: M,
-    lang: PhantomData<L>,
-}
-impl<L: Language, M: PositiveMatcher<L>> EitherRule<L, M> {
-    pub fn or<N: PositiveMatcher<L>>(self, other: N) -> Rule<L, Or<L, M, N>> {
-        Rule {
-            inner: Or {
-                pattern1: self.inner,
-                pattern2: other,
-                lang: PhantomData,
-            },
-            meta_vars: MetaVarMatchers::new(),
-        }
-    }
-}
-
-impl<L: Language, M: PositiveMatcher<L>, N: PositiveMatcher<L>> Rule<L, Or<L, M, N>> {
-    pub fn or<O: PositiveMatcher<L>>(self, other: O) -> Rule<L, Or<L, Or<L, M, N>, O>> {
-        Rule {
+impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, Or<L, M, N>> {
+    pub fn or<O: Matcher<L>>(self, other: O) -> Op<L, Or<L, Or<L, M, N>, O>> {
+        Op {
             inner: Or {
                 pattern1: self.inner,
                 pattern2: other,
@@ -332,48 +306,48 @@ mod test {
     use crate::language::Tsx;
     use crate::Root;
 
-    fn test_find(rule: &impl Matcher<Tsx>, code: &str) {
+    fn test_find(matcher: &impl Matcher<Tsx>, code: &str) {
         let node = Root::new(code, Tsx);
-        assert!(rule.find_node(node.root()).is_some());
+        assert!(matcher.find_node(node.root()).is_some());
     }
-    fn test_not_find(rule: &impl Matcher<Tsx>, code: &str) {
+    fn test_not_find(matcher: &impl Matcher<Tsx>, code: &str) {
         let node = Root::new(code, Tsx);
-        assert!(rule.find_node(node.root()).is_none());
+        assert!(matcher.find_node(node.root()).is_none());
     }
-    fn find_all(rule: impl Matcher<Tsx>, code: &str) -> Vec<String> {
+    fn find_all(matcher: impl Matcher<Tsx>, code: &str) -> Vec<String> {
         let node = Root::new(code, Tsx);
-        rule.find_all_nodes(node.root())
+        matcher.find_all_nodes(node.root())
             .map(|n| n.text().to_string())
             .collect()
     }
 
     #[test]
     fn test_or() {
-        let rule = Or {
+        let matcher = Or {
             pattern1: "let a = 1",
             pattern2: "const b = 2",
             lang: PhantomData,
         };
-        test_find(&rule, "let a = 1");
-        test_find(&rule, "const b = 2");
-        test_not_find(&rule, "let a = 2");
-        test_not_find(&rule, "const a = 1");
-        test_not_find(&rule, "let b = 2");
-        test_not_find(&rule, "const b = 1");
+        test_find(&matcher, "let a = 1");
+        test_find(&matcher, "const b = 2");
+        test_not_find(&matcher, "let a = 2");
+        test_not_find(&matcher, "const a = 1");
+        test_not_find(&matcher, "let b = 2");
+        test_not_find(&matcher, "const b = 1");
     }
 
     #[test]
     fn test_not() {
-        let rule = Not {
+        let matcher = Not {
             not: "let a = 1",
             lang: PhantomData,
         };
-        test_find(&rule, "const b = 2");
+        test_find(&matcher, "const b = 2");
     }
 
     #[test]
     fn test_and() {
-        let rule = And {
+        let matcher = And {
             pattern1: "let a = $_",
             pattern2: Not {
                 not: "let a = 123",
@@ -381,28 +355,28 @@ mod test {
             },
             lang: PhantomData,
         };
-        test_find(&rule, "let a = 233");
-        test_find(&rule, "let a = 456");
-        test_not_find(&rule, "let a = 123");
+        test_find(&matcher, "let a = 233");
+        test_find(&matcher, "let a = 456");
+        test_not_find(&matcher, "let a = 123");
     }
 
     #[test]
     fn test_api_and() {
-        let rule = Rule::every("let a = $_").and(Rule::not("let a = 123"));
-        test_find(&rule, "let a = 233");
-        test_find(&rule, "let a = 456");
-        test_not_find(&rule, "let a = 123");
+        let matcher = Op::every("let a = $_").and(Op::not("let a = 123"));
+        test_find(&matcher, "let a = 233");
+        test_find(&matcher, "let a = 456");
+        test_not_find(&matcher, "let a = 123");
     }
 
     #[test]
     fn test_api_or() {
-        let rule = Rule::either("let a = 1").or("const b = 2");
-        test_find(&rule, "let a = 1");
-        test_find(&rule, "const b = 2");
-        test_not_find(&rule, "let a = 2");
-        test_not_find(&rule, "const a = 1");
-        test_not_find(&rule, "let b = 2");
-        test_not_find(&rule, "const b = 1");
+        let matcher = Op::either("let a = 1").or("const b = 2");
+        test_find(&matcher, "let a = 1");
+        test_find(&matcher, "const b = 2");
+        test_not_find(&matcher, "let a = 2");
+        test_not_find(&matcher, "const a = 1");
+        test_not_find(&matcher, "let b = 2");
+        test_not_find(&matcher, "const b = 1");
     }
     #[test]
     fn test_multiple_match() {

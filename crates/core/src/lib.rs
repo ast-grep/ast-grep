@@ -5,14 +5,14 @@ pub mod meta_var;
 mod node;
 mod pattern;
 mod replacer;
-pub mod rule;
+pub mod ops;
 mod ts_parser;
 
 pub use matcher::{KindMatcher, Matcher, PositiveMatcher};
 pub use meta_var::{MetaVarMatcher, MetaVariable};
 pub use node::Node;
 pub use pattern::Pattern;
-pub use rule::{All, Any, Rule};
+pub use ops::{All, Any, Op};
 
 use crate::replacer::Replacer;
 use language::Language;
@@ -71,7 +71,7 @@ mod test {
 
     #[test]
     fn test_replace_by_rule() {
-        let rule = Rule::either("let a = 123").or("let b = 456");
+        let rule = Op::either("let a = 123").or("let b = 456");
         let mut ast_grep = Tsx.new("let a = 123");
         let replaced = ast_grep.replace(rule, "console.log('it works!')");
         assert!(replaced);

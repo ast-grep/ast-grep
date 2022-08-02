@@ -171,6 +171,30 @@ impl<'tree, L: Language, M: Matcher<L>> Iterator for FindAllNodes<'tree, L, M> {
     }
 }
 
+pub struct MatchAll;
+impl<L: Language> Matcher<L> for MatchAll {
+    fn match_node_with_env<'tree>(
+        &self,
+        node: Node<'tree, L>,
+        _env: &mut MetaVarEnv<'tree, L>,
+    ) -> Option<Node<'tree, L>> {
+        Some(node)
+    }
+}
+
+pub struct MatchNone;
+impl<L: Language> Matcher<L> for MatchNone {
+    fn match_node_with_env<'tree>(
+        &self,
+        _node: Node<'tree, L>,
+        _env: &mut MetaVarEnv<'tree, L>,
+    ) -> Option<Node<'tree, L>> {
+        None
+    }
+}
+
+impl<L: Language> PositiveMatcher<L> for MatchNone {}
+
 #[cfg(test)]
 mod test {
     use super::*;

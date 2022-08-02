@@ -1,6 +1,6 @@
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
-use ast_grep_core::rule as r;
+use ast_grep_core::ops as o;
 use ast_grep_core::{KindMatcher, Matcher, Node, Pattern};
 use serde::{Deserialize, Serialize};
 
@@ -17,11 +17,11 @@ pub enum SerializableRule {
 }
 
 pub enum DynamicRule<L: Language> {
-    All(r::All<L, DynamicRule<L>>),
-    Any(r::Any<L, DynamicRule<L>>),
-    Not(Box<r::Not<L, DynamicRule<L>>>),
-    Inside(Box<r::Inside<L, DynamicRule<L>>>),
-    Has(Box<r::Has<L, DynamicRule<L>>>),
+    All(o::All<L, DynamicRule<L>>),
+    Any(o::Any<L, DynamicRule<L>>),
+    Not(Box<o::Not<L, DynamicRule<L>>>),
+    Inside(Box<o::Inside<L, DynamicRule<L>>>),
+    Has(Box<o::Has<L, DynamicRule<L>>>),
     Pattern(Pattern<L>),
     Kind(KindMatcher<L>),
 }
@@ -55,11 +55,11 @@ pub fn from_serializable<L: Language>(serialized: SerializableRule, lang: L) -> 
     use SerializableRule as S;
     let mapper = |s| from_serializable(s, lang);
     match serialized {
-        S::All(all) => D::All(r::All::new(all.into_iter().map(mapper))),
-        S::Any(any) => D::Any(r::Any::new(any.into_iter().map(mapper))),
-        S::Not(not) => D::Not(Box::new(r::Not::new(mapper(*not)))),
-        S::Inside(inside) => D::Inside(Box::new(r::Inside::new(mapper(*inside)))),
-        S::Has(has) => D::Has(Box::new(r::Has::new(mapper(*has)))),
+        S::All(all) => D::All(o::All::new(all.into_iter().map(mapper))),
+        S::Any(any) => D::Any(o::Any::new(any.into_iter().map(mapper))),
+        S::Not(not) => D::Not(Box::new(o::Not::new(mapper(*not)))),
+        S::Inside(inside) => D::Inside(Box::new(o::Inside::new(mapper(*inside)))),
+        S::Has(has) => D::Has(Box::new(o::Has::new(mapper(*has)))),
         S::Pattern(pattern) => D::Pattern(Pattern::new(&pattern, lang)),
         S::Kind(kind) => D::Kind(KindMatcher::new(&kind, lang)),
     }
