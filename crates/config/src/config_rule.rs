@@ -97,6 +97,6 @@ pattern:
     selector: method_definition
 ";
         let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-        assert!(matches!(rule, Pattern(Str(_))));
+        assert!(matches!(rule, Pattern(Contextual {..})));
     }
 }
