@@ -1,11 +1,12 @@
 use crate::language::Language;
 use crate::match_tree::match_node_non_recursive;
-use crate::matcher::{Matcher, PositiveMatcher};
+use crate::matcher::{Matcher, PositiveMatcher, KindMatcher};
 use crate::{meta_var::MetaVarEnv, Node, Root};
 
 #[derive(Clone)]
 pub struct Pattern<L: Language> {
     pub root: Root<L>,
+    selector: Option<KindMatcher<L>>,
 }
 
 impl<L: Language> Pattern<L> {
@@ -15,7 +16,40 @@ impl<L: Language> Pattern<L> {
         if goal.inner.child_count() != 1 {
             todo!("multi-children pattern is not supported yet.")
         }
-        Self { root }
+        Self { root, selector: None }
+    }
+
+    pub fn contextual(context: &str, selector: &str, lang: L) -> Self {
+        let root = Root::new(context, lang);
+        let goal = root.root();
+        if goal.inner.child_count() != 1 {
+            todo!("multi-children pattern is not supported yet.")
+        }
+        let kind_matcher = KindMatcher::new(selector, lang);
+        if goal.find(&kind_matcher).is_none() {
+            todo!("use result to indicate failure");
+        }
+        Self {
+            root,
+            selector: Some(kind_matcher),
+        }
+    }
+
+    // TODO: extract out matcher in recursion
+    fn matcher(&self) -> Node<L> {
+        let root = self.root.root();
+        if let Some(kind_matcher) = &self.selector {
+            return root.find(kind_matcher).expect("contextual match should succeed");
+        }
+        let mut node = root.inner;
+        while node.child_count() == 1 {
+            node = node.child(0).unwrap();
+        }
+        let goal = Node {
+            inner: node,
+            root: &self.root,
+        };
+        goal
     }
 }
 
@@ -25,28 +59,16 @@ impl<L: Language> Matcher<L> for Pattern<L> {
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        match_node_non_recursive(&matcher(&self.root), node, env)
+        match_node_non_recursive(&self.matcher(), node, env)
     }
 }
 
 impl<L: Language> std::fmt::Debug for Pattern<L> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", matcher(&self.root).inner.to_sexp())
+        write!(f, "{}", self.matcher().inner.to_sexp())
     }
 }
 
-// TODO: extract out matcher in recursion
-fn matcher<L: Language>(goal: &Root<L>) -> Node<L> {
-    let mut node = goal.root().inner;
-    while node.child_count() == 1 {
-        node = node.child(0).unwrap();
-    }
-    let goal = Node {
-        inner: node,
-        root: goal,
-    };
-    goal
-}
 
 impl<L: Language> PositiveMatcher<L> for Pattern<L> {}
 
