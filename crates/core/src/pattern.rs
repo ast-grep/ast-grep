@@ -84,25 +84,23 @@ mod test {
 
     fn test_match(s1: &str, s2: &str) {
         let pattern = Pattern::new(s1, Tsx);
-        let goal = pattern_node(s1);
         let cand = pattern_node(s2);
         let cand = cand.root();
         assert!(
             pattern.find_node(cand).is_some(),
             "goal: {}, candidate: {}",
-            goal.root().inner.to_sexp(),
+            pattern.root.root().inner.to_sexp(),
             cand.inner.to_sexp(),
         );
     }
     fn test_non_match(s1: &str, s2: &str) {
         let pattern = Pattern::new(s1, Tsx);
-        let goal = pattern_node(s1);
         let cand = pattern_node(s2);
         let cand = cand.root();
         assert!(
             pattern.find_node(cand).is_none(),
             "goal: {}, candidate: {}",
-            goal.root().inner.to_sexp(),
+            pattern.root.root().inner.to_sexp(),
             cand.inner.to_sexp(),
         );
     }
@@ -146,5 +144,43 @@ mod test {
     #[test]
     fn test_return() {
         test_match("$A($B)", "return test(123)");
+    }
+
+    #[test]
+    fn test_contextual_pattern() {
+        let pattern = Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx);
+        let cand = pattern_node("class B { b = 123 }");
+        assert!(
+            pattern.find_node(cand.root()).is_some()
+        );
+        let cand = pattern_node("let b = 123");
+        assert!(
+            pattern.find_node(cand.root()).is_none()
+        );
+    }
+
+    #[test]
+    fn test_contextual_match_with_env() {
+        let pattern = Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx);
+        let cand = pattern_node("class B { b = 123 }");
+        let mut env = MetaVarEnv::new();
+        assert!(
+            pattern.find_node_with_env(cand.root(), &mut env).is_some()
+        );
+        let env = HashMap::from(env);
+        assert_eq!(env["F"], "b");
+        assert_eq!(env["I"], "123");
+    }
+
+    #[test]
+    fn test_contextual_unmatch_with_env() {
+        let pattern = Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx);
+        let cand = pattern_node("let b = 123");
+        let mut env = MetaVarEnv::new();
+        assert!(
+            pattern.find_node_with_env(cand.root(), &mut env).is_none()
+        );
+        let env = HashMap::from(env);
+        assert!(env.is_empty());
     }
 }

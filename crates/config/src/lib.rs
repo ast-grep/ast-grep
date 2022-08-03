@@ -3,7 +3,7 @@ pub mod support_language;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use serde_yaml::{from_str, Deserializer};
+use serde_yaml::Deserializer;
 
 use config_rule::{from_serializable, DynamicRule, SerializableRule};
 pub use support_language::SupportLang;
