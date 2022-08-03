@@ -20,5 +20,6 @@ rule:
     - any:
       - pattern: return $$$
     - inside:
-        all:
-          - kind: method_definition
+        pattern:
+          context: class A { set $A($$$) { $$$ } }
+          selector: method_definition

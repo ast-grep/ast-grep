@@ -13,3 +13,13 @@ async function foo(things) {
 if (false) {
   console.log('123')
 }
+
+class Test {
+  set test(test) {
+    return 'shoud hit'
+  }
+
+  test(test) {
+    return 'shoud not hit'
+  }
+}
