@@ -1,6 +1,6 @@
 use crate::language::Language;
 use crate::match_tree::match_node_non_recursive;
-use crate::matcher::{Matcher, PositiveMatcher, KindMatcher};
+use crate::matcher::{KindMatcher, Matcher, PositiveMatcher};
 use crate::{meta_var::MetaVarEnv, Node, Root};
 
 #[derive(Clone)]
@@ -16,7 +16,10 @@ impl<L: Language> Pattern<L> {
         if goal.inner.child_count() != 1 {
             todo!("multi-children pattern is not supported yet.")
         }
-        Self { root, selector: None }
+        Self {
+            root,
+            selector: None,
+        }
     }
 
     pub fn contextual(context: &str, selector: &str, lang: L) -> Self {
@@ -39,7 +42,9 @@ impl<L: Language> Pattern<L> {
     fn matcher(&self) -> Node<L> {
         let root = self.root.root();
         if let Some(kind_matcher) = &self.selector {
-            return root.find(kind_matcher).expect("contextual match should succeed");
+            return root
+                .find(kind_matcher)
+                .expect("contextual match should succeed");
         }
         let mut node = root.inner;
         while node.child_count() == 1 {
@@ -68,7 +73,6 @@ impl<L: Language> std::fmt::Debug for Pattern<L> {
         write!(f, "{}", self.matcher().inner.to_sexp())
     }
 }
-
 
 impl<L: Language> PositiveMatcher<L> for Pattern<L> {}
 
@@ -150,13 +154,9 @@ mod test {
     fn test_contextual_pattern() {
         let pattern = Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx);
         let cand = pattern_node("class B { b = 123 }");
-        assert!(
-            pattern.find_node(cand.root()).is_some()
-        );
+        assert!(pattern.find_node(cand.root()).is_some());
         let cand = pattern_node("let b = 123");
-        assert!(
-            pattern.find_node(cand.root()).is_none()
-        );
+        assert!(pattern.find_node(cand.root()).is_none());
     }
 
     #[test]
@@ -164,9 +164,7 @@ mod test {
         let pattern = Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx);
         let cand = pattern_node("class B { b = 123 }");
         let mut env = MetaVarEnv::new();
-        assert!(
-            pattern.find_node_with_env(cand.root(), &mut env).is_some()
-        );
+        assert!(pattern.find_node_with_env(cand.root(), &mut env).is_some());
         let env = HashMap::from(env);
         assert_eq!(env["F"], "b");
         assert_eq!(env["I"], "123");
@@ -177,9 +175,7 @@ mod test {
         let pattern = Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx);
         let cand = pattern_node("let b = 123");
         let mut env = MetaVarEnv::new();
-        assert!(
-            pattern.find_node_with_env(cand.root(), &mut env).is_none()
-        );
+        assert!(pattern.find_node_with_env(cand.root(), &mut env).is_none());
         let env = HashMap::from(env);
         assert!(env.is_empty());
     }

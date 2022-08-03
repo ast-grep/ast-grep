@@ -3,16 +3,16 @@ mod match_tree;
 mod matcher;
 pub mod meta_var;
 mod node;
+pub mod ops;
 mod pattern;
 mod replacer;
-pub mod ops;
 mod ts_parser;
 
 pub use matcher::{KindMatcher, Matcher, PositiveMatcher};
 pub use meta_var::{MetaVarMatcher, MetaVariable};
 pub use node::Node;
-pub use pattern::Pattern;
 pub use ops::{All, Any, Op};
+pub use pattern::Pattern;
 
 use crate::replacer::Replacer;
 use language::Language;

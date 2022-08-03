@@ -20,30 +20,26 @@ pub enum SerializableRule {
 #[serde(untagged)]
 pub enum PatternStyle {
     Str(String),
-    Contextual {
-        context: String,
-        selector: String,
-    }
+    Contextual { context: String, selector: String },
 }
 
-
-pub enum DynamicRule<L: Language> {
-    All(o::All<L, DynamicRule<L>>),
-    Any(o::Any<L, DynamicRule<L>>),
-    Not(Box<o::Not<L, DynamicRule<L>>>),
-    Inside(Box<o::Inside<L, DynamicRule<L>>>),
-    Has(Box<o::Has<L, DynamicRule<L>>>),
+pub enum Rule<L: Language> {
+    All(o::All<L, Rule<L>>),
+    Any(o::Any<L, Rule<L>>),
+    Not(Box<o::Not<L, Rule<L>>>),
+    Inside(Box<o::Inside<L, Rule<L>>>),
+    Has(Box<o::Has<L, Rule<L>>>),
     Pattern(Pattern<L>),
     Kind(KindMatcher<L>),
 }
 
-impl<L: Language> Matcher<L> for DynamicRule<L> {
+impl<L: Language> Matcher<L> for Rule<L> {
     fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<ast_grep_core::Node<'tree, L>> {
-        use DynamicRule::*;
+        use Rule::*;
         match self {
             All(all) => all.match_node_with_env(node, env),
             Any(any) => any.match_node_with_env(node, env),
@@ -61,19 +57,21 @@ enum SerializeError {
 }
 
 // TODO: implement positive/non positive
-pub fn from_serializable<L: Language>(serialized: SerializableRule, lang: L) -> DynamicRule<L> {
-    use DynamicRule as D;
+pub fn from_serializable<L: Language>(serialized: SerializableRule, lang: L) -> Rule<L> {
+    use Rule as R;
     use SerializableRule as S;
     let mapper = |s| from_serializable(s, lang);
     match serialized {
-        S::All(all) => D::All(o::All::new(all.into_iter().map(mapper))),
-        S::Any(any) => D::Any(o::Any::new(any.into_iter().map(mapper))),
-        S::Not(not) => D::Not(Box::new(o::Not::new(mapper(*not)))),
-        S::Inside(inside) => D::Inside(Box::new(o::Inside::new(mapper(*inside)))),
-        S::Has(has) => D::Has(Box::new(o::Has::new(mapper(*has)))),
-        S::Pattern(PatternStyle::Str(pattern)) => D::Pattern(Pattern::new(&pattern, lang)),
-        S::Pattern(PatternStyle::Contextual { .. }) => todo!(),
-        S::Kind(kind) => D::Kind(KindMatcher::new(&kind, lang)),
+        S::All(all) => R::All(o::All::new(all.into_iter().map(mapper))),
+        S::Any(any) => R::Any(o::Any::new(any.into_iter().map(mapper))),
+        S::Not(not) => R::Not(Box::new(o::Not::new(mapper(*not)))),
+        S::Inside(inside) => R::Inside(Box::new(o::Inside::new(mapper(*inside)))),
+        S::Has(has) => R::Has(Box::new(o::Has::new(mapper(*has)))),
+        S::Kind(kind) => R::Kind(KindMatcher::new(&kind, lang)),
+        S::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::new(&pattern, lang)),
+        S::Pattern(PatternStyle::Contextual { context, selector }) => {
+            R::Pattern(Pattern::contextual(&context, &selector, lang))
+        }
     }
 }
 
@@ -81,8 +79,8 @@ pub fn from_serializable<L: Language>(serialized: SerializableRule, lang: L) -> 
 mod test {
     use super::*;
     use serde_yaml::from_str;
-    use SerializableRule::*;
     use PatternStyle::*;
+    use SerializableRule::*;
 
     #[test]
     fn test_pattern() {
@@ -97,6 +95,6 @@ pattern:
     selector: method_definition
 ";
         let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-        assert!(matches!(rule, Pattern(Contextual {..})));
+        assert!(matches!(rule, Pattern(Contextual { .. })));
     }
 }

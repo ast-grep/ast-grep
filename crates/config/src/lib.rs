@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Deserializer;
 
-use config_rule::{from_serializable, DynamicRule, SerializableRule};
+use config_rule::{from_serializable, Rule, SerializableRule};
 pub use support_language::SupportLang;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -34,7 +34,7 @@ pub struct AstGrepRuleConfig {
 }
 
 impl AstGrepRuleConfig {
-    pub fn get_matcher(&self) -> DynamicRule<SupportLang> {
+    pub fn get_matcher(&self) -> Rule<SupportLang> {
         from_serializable(self.rule.clone(), self.language)
     }
 }
@@ -53,9 +53,7 @@ pub struct Configs {
 }
 impl Configs {
     pub fn new(configs: Vec<AstGrepRuleConfig>) -> Self {
-        Self {
-            configs,
-        }
+        Self { configs }
     }
 }
 

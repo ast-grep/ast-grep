@@ -2,17 +2,16 @@ mod guess_language;
 mod interaction;
 mod print;
 
+use ast_grep_config::{from_yaml_string, Configs};
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
-use ast_grep_config::{from_yaml_string, Configs};
 use clap::Parser;
-use guess_language::{file_types, from_extension, SupportLang, config_file_type};
+use guess_language::{config_file_type, file_types, from_extension, SupportLang};
 use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
 use print::print_matches;
 use std::fs::read_to_string;
 use std::io::Result;
 use std::path::{Path, PathBuf};
-
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]

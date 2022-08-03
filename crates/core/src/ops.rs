@@ -1,4 +1,4 @@
-use crate::matcher::{Matcher, PositiveMatcher, MatchAll, MatchNone};
+use crate::matcher::{MatchAll, MatchNone, Matcher, PositiveMatcher};
 use crate::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
 use crate::Language;
 use crate::Node;
@@ -120,7 +120,8 @@ where
     L: Language,
     P1: PositiveMatcher<L>,
     P2: PositiveMatcher<L>,
-{}
+{
+}
 
 pub struct Inside<L: Language, M: Matcher<L>> {
     outer: M,
@@ -316,7 +317,8 @@ mod test {
     }
     fn find_all(matcher: impl Matcher<Tsx>, code: &str) -> Vec<String> {
         let node = Root::new(code, Tsx);
-        matcher.find_all_nodes(node.root())
+        matcher
+            .find_all_nodes(node.root())
             .map(|n| n.text().to_string())
             .collect()
     }
