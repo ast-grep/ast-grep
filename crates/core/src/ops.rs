@@ -123,56 +123,6 @@ where
 {
 }
 
-pub struct Inside<L: Language, M: Matcher<L>> {
-    outer: M,
-    lang: PhantomData<L>,
-}
-impl<L: Language, M: Matcher<L>> Inside<L, M> {
-    pub fn new(outer: M) -> Self {
-        Self {
-            outer,
-            lang: PhantomData,
-        }
-    }
-}
-
-impl<L: Language, M: Matcher<L>> Matcher<L> for Inside<L, M> {
-    fn match_node_with_env<'tree>(
-        &self,
-        node: Node<'tree, L>,
-        env: &mut MetaVarEnv<'tree, L>,
-    ) -> Option<Node<'tree, L>> {
-        node.ancestors()
-            .find_map(|n| self.outer.match_node_with_env(n, env))
-            .map(|_| node)
-    }
-}
-
-pub struct Has<L: Language, M: Matcher<L>> {
-    inner: M,
-    lang: PhantomData<L>,
-}
-impl<L: Language, M: Matcher<L>> Has<L, M> {
-    pub fn new(inner: M) -> Self {
-        Self {
-            inner,
-            lang: PhantomData,
-        }
-    }
-}
-impl<L: Language, M: Matcher<L>> Matcher<L> for Has<L, M> {
-    fn match_node_with_env<'tree>(
-        &self,
-        node: Node<'tree, L>,
-        env: &mut MetaVarEnv<'tree, L>,
-    ) -> Option<Node<'tree, L>> {
-        node.dfs()
-            .skip(1)
-            .find_map(|n| self.inner.match_node_with_env(n, env))
-            .map(|_| node)
-    }
-}
-
 pub struct Not<L: Language, M: Matcher<L>> {
     not: M,
     lang: PhantomData<L>,
@@ -300,6 +250,7 @@ impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, Or<L, M, N>> {
         }
     }
 }
+
 
 #[cfg(test)]
 mod test {

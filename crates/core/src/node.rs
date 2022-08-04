@@ -196,13 +196,13 @@ impl<'r, L: Language> Node<'r, L> {
 
     pub fn field(&self, name: &str) -> Option<Self> {
         let mut cursor = self.inner.walk();
-        self.inner
+        let inner = self.inner
             .children_by_field_name(name, &mut cursor)
-            .next()
-            .map(|n| Node {
-                inner: n,
-                root: self.root,
-            })
+            .next()?;
+        Some(Node {
+            inner,
+            root: self.root,
+        })
     }
 
     pub fn field_children(&self, name: &str) -> impl Iterator<Item = Node<'r, L>> {

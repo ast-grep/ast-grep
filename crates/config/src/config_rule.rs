@@ -3,6 +3,7 @@ use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::ops as o;
 use ast_grep_core::{KindMatcher, Matcher, Node, Pattern};
 use serde::{Deserialize, Serialize};
+use std::marker::PhantomData;
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -27,8 +28,8 @@ pub enum Rule<L: Language> {
     All(o::All<L, Rule<L>>),
     Any(o::Any<L, Rule<L>>),
     Not(Box<o::Not<L, Rule<L>>>),
-    Inside(Box<o::Inside<L, Rule<L>>>),
-    Has(Box<o::Has<L, Rule<L>>>),
+    Inside(Box<Inside<L, Rule<L>>>),
+    Has(Box<Has<L, Rule<L>>>),
     Pattern(Pattern<L>),
     Kind(KindMatcher<L>),
 }
@@ -52,6 +53,56 @@ impl<L: Language> Matcher<L> for Rule<L> {
     }
 }
 
+pub struct Inside<L: Language, M: Matcher<L>> {
+    outer: M,
+    lang: PhantomData<L>,
+}
+impl<L: Language, M: Matcher<L>> Inside<L, M> {
+    pub fn new(outer: M) -> Self {
+        Self {
+            outer,
+            lang: PhantomData,
+        }
+    }
+}
+
+impl<L: Language, M: Matcher<L>> Matcher<L> for Inside<L, M> {
+    fn match_node_with_env<'tree>(
+        &self,
+        node: Node<'tree, L>,
+        env: &mut MetaVarEnv<'tree, L>,
+    ) -> Option<Node<'tree, L>> {
+        node.ancestors()
+            .find_map(|n| self.outer.match_node_with_env(n, env))
+            .map(|_| node)
+    }
+}
+
+pub struct Has<L: Language, M: Matcher<L>> {
+    inner: M,
+    lang: PhantomData<L>,
+}
+impl<L: Language, M: Matcher<L>> Has<L, M> {
+    pub fn new(inner: M) -> Self {
+        Self {
+            inner,
+            lang: PhantomData,
+        }
+    }
+}
+impl<L: Language, M: Matcher<L>> Matcher<L> for Has<L, M> {
+    fn match_node_with_env<'tree>(
+        &self,
+        node: Node<'tree, L>,
+        env: &mut MetaVarEnv<'tree, L>,
+    ) -> Option<Node<'tree, L>> {
+        node.dfs()
+            .skip(1)
+            .find_map(|n| self.inner.match_node_with_env(n, env))
+            .map(|_| node)
+    }
+}
+
 enum SerializeError {
     MissPositiveMatcher,
 }
@@ -65,8 +116,8 @@ pub fn from_serializable<L: Language>(serialized: SerializableRule, lang: L) -> 
         S::All(all) => R::All(o::All::new(all.into_iter().map(mapper))),
         S::Any(any) => R::Any(o::Any::new(any.into_iter().map(mapper))),
         S::Not(not) => R::Not(Box::new(o::Not::new(mapper(*not)))),
-        S::Inside(inside) => R::Inside(Box::new(o::Inside::new(mapper(*inside)))),
-        S::Has(has) => R::Has(Box::new(o::Has::new(mapper(*has)))),
+        S::Inside(inside) => R::Inside(Box::new(Inside::new(mapper(*inside)))),
+        S::Has(has) => R::Has(Box::new(Has::new(mapper(*has)))),
         S::Kind(kind) => R::Kind(KindMatcher::new(&kind, lang)),
         S::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::new(&pattern, lang)),
         S::Pattern(PatternStyle::Contextual { context, selector }) => {

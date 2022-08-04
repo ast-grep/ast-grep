@@ -49,7 +49,7 @@ fn collect_edits<L: Language>(root: &Root<L>, env: &MetaVarEnv<L>, lang: L) -> V
                 deleted_length: length,
                 inserted_text: text,
             });
-        } else if let Some(first_child) = node.nth_child(0) {
+        } else if let Some(first_child) = node.child(0) {
             node = first_child;
             continue;
         }
