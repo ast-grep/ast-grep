@@ -131,18 +131,8 @@ impl<'r, L: Language> Node<'r, L> {
             .expect("invalid source text encoding")
     }
 
-    pub fn children<'s>(&'s self) -> impl ExactSizeIterator<Item = Node<'r, L>> + 's {
-        let mut cursor = self.inner.walk();
-        cursor.goto_first_child();
-        NodeWalker {
-            cursor,
-            root: self.root,
-            count: self.inner.child_count(),
-        }
-    }
-
-    pub fn dfs<'s>(&'s self) -> DFS<'r, L> {
-        DFS::new(self)
+    pub fn matches<M: Matcher<L>>(&self, m: M) -> bool {
+        m.match_node(*self).is_some()
     }
 
     pub fn display_context(&self) -> DisplayContext<'r> {
@@ -180,6 +170,21 @@ pub struct DisplayContext<'r> {
 
 // tree traversal API
 impl<'r, L: Language> Node<'r, L> {
+
+    pub fn children<'s>(&'s self) -> impl ExactSizeIterator<Item = Node<'r, L>> + 's {
+        let mut cursor = self.inner.walk();
+        cursor.goto_first_child();
+        NodeWalker {
+            cursor,
+            root: self.root,
+            count: self.inner.child_count(),
+        }
+    }
+
+    pub fn dfs<'s>(&'s self) -> DFS<'r, L> {
+        DFS::new(self)
+    }
+
     #[must_use]
     pub fn find<M: Matcher<L>>(&self, pat: M) -> Option<Self> {
         pat.find_node(*self)
@@ -188,6 +193,44 @@ impl<'r, L: Language> Node<'r, L> {
     pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = Node<'r, L>> {
         pat.find_all_nodes(*self)
     }
+
+    pub fn field(&self, name: &str) -> Option<Self> {
+        let mut cursor = self.inner.walk();
+        self.inner
+            .children_by_field_name(name, &mut cursor)
+            .next()
+            .map(|n| Node {
+                inner: n,
+                root: self.root,
+            })
+    }
+
+    pub fn field_children(&self, name: &str) -> impl Iterator<Item = Node<'r, L>> {
+        let field_id = self.root.lang.get_ts_language().field_id_for_name(name).unwrap_or(0);
+        let root = self.root;
+        let mut cursor = self.inner.walk();
+        cursor.goto_first_child();
+        let mut done = false;
+        std::iter::from_fn(move || {
+            while !done {
+                while cursor.field_id() != Some(field_id) {
+                    if !cursor.goto_next_sibling() {
+                        return None;
+                    }
+                }
+                let inner = cursor.node();
+                if !cursor.goto_next_sibling() {
+                    done = true;
+                }
+                return Some(Node{
+                    inner,
+                    root,
+                });
+            }
+            None
+        })
+    }
+
 
     #[must_use]
     pub fn parent(&self) -> Option<Self> {
@@ -199,7 +242,7 @@ impl<'r, L: Language> Node<'r, L> {
     }
 
     #[must_use]
-    pub fn nth_child(&self, nth: usize) -> Option<Self> {
+    pub fn child(&self, nth: usize) -> Option<Self> {
         let inner = self.inner.child(nth)?;
         Some(Node {
             inner,
@@ -250,18 +293,19 @@ impl<'r, L: Language> Node<'r, L> {
         })
     }
     #[must_use]
-    pub fn child(&self, i: usize) -> Option<Node<'r, L>> {
-        let inner = self.inner.child(i)?;
-        Some(Node {
-            inner,
-            root: self.root,
+    pub fn prev_all(&self) -> impl Iterator<Item = Node<'r, L>> + '_ {
+        let root = self.root;
+        let mut inner = self.inner;
+        std::iter::from_fn(move || {
+            let prev = inner.prev_sibling()?;
+            inner = prev;
+            Some(Node { inner, root })
         })
     }
 }
 
 // r manipulation API
 impl<'r, L: Language> Node<'r, L> {
-    pub fn attr(&self) {}
     pub fn replace<M: Matcher<L>, R: Replacer<L>>(&self, matcher: M, replacer: R) -> Option<Edit> {
         let mut env = matcher.get_meta_var_env();
         let node = matcher.find_node_with_env(*self, &mut env)?;
