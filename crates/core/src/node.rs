@@ -131,10 +131,6 @@ impl<'r, L: Language> Node<'r, L> {
             .expect("invalid source text encoding")
     }
 
-    pub fn matches<M: Matcher<L>>(&self, m: M) -> bool {
-        m.match_node(*self).is_some()
-    }
-
     pub fn display_context(&self) -> DisplayContext<'r> {
         let bytes = self.root.source.as_bytes();
         let start = self.inner.start_byte();
@@ -157,6 +153,31 @@ impl<'r, L: Language> Node<'r, L> {
     }
 }
 
+/**
+ * Corredponds to inside/has/precedes/follows
+ */
+impl<'r, L: Language> Node<'r, L> {
+    pub fn matches<M: Matcher<L>>(&self, m: M) -> bool {
+        m.match_node(*self).is_some()
+    }
+
+    pub fn inside<M: Matcher<L>>(&self, m: M) -> bool {
+        self.ancestors().find_map(|n| m.match_node(n)).is_some()
+    }
+
+    pub fn has<M: Matcher<L>>(&self, m: M) -> bool {
+        self.dfs().skip(1).find_map(|n| m.match_node(n)).is_some()
+    }
+
+    pub fn precedes<M: Matcher<L>>(&self, m: M) -> bool {
+        self.next_all().find_map(|n| m.match_node(n)).is_some()
+    }
+
+    pub fn follows<M: Matcher<L>>(&self, m: M) -> bool {
+        self.prev_all().find_map(|n| m.match_node(n)).is_some()
+    }
+}
+
 pub struct DisplayContext<'r> {
     /// content for the matched node
     pub matched: &'r str,
@@ -170,7 +191,6 @@ pub struct DisplayContext<'r> {
 
 // tree traversal API
 impl<'r, L: Language> Node<'r, L> {
-
     pub fn children<'s>(&'s self) -> impl ExactSizeIterator<Item = Node<'r, L>> + 's {
         let mut cursor = self.inner.walk();
         cursor.goto_first_child();
@@ -196,7 +216,8 @@ impl<'r, L: Language> Node<'r, L> {
 
     pub fn field(&self, name: &str) -> Option<Self> {
         let mut cursor = self.inner.walk();
-        let inner = self.inner
+        let inner = self
+            .inner
             .children_by_field_name(name, &mut cursor)
             .next()?;
         Some(Node {
@@ -206,7 +227,12 @@ impl<'r, L: Language> Node<'r, L> {
     }
 
     pub fn field_children(&self, name: &str) -> impl Iterator<Item = Node<'r, L>> {
-        let field_id = self.root.lang.get_ts_language().field_id_for_name(name).unwrap_or(0);
+        let field_id = self
+            .root
+            .lang
+            .get_ts_language()
+            .field_id_for_name(name)
+            .unwrap_or(0);
         let root = self.root;
         let mut cursor = self.inner.walk();
         cursor.goto_first_child();
@@ -222,15 +248,11 @@ impl<'r, L: Language> Node<'r, L> {
                 if !cursor.goto_next_sibling() {
                     done = true;
                 }
-                return Some(Node{
-                    inner,
-                    root,
-                });
+                return Some(Node { inner, root });
             }
             None
         })
     }
-
 
     #[must_use]
     pub fn parent(&self) -> Option<Self> {

@@ -182,12 +182,14 @@ where
 }
 
 pub struct Predicate<F> {
-    func: F
+    func: F,
 }
 
-impl<L, F> Matcher<L> for Predicate<F> where
-L: Language,
-F: for <'tree> Fn(Node<'tree, L>) -> bool {
+impl<L, F> Matcher<L> for Predicate<F>
+where
+    L: Language,
+    F: for<'tree> Fn(Node<'tree, L>) -> bool,
+{
     fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
@@ -205,10 +207,11 @@ impl<L: Language, M: Matcher<L>> Op<L, M> {
         }
     }
 
-    pub fn pred<F>(func: F) -> Predicate<F> where F: for <'tree> Fn(Node<'tree, L>) -> bool {
-        Predicate {
-            func,
-        }
+    pub fn func<F>(func: F) -> Predicate<F>
+    where
+        F: for<'tree> Fn(Node<'tree, L>) -> bool,
+    {
+        Predicate { func }
     }
 
     pub fn with_meta_var(&mut self, var_id: String, matcher: MetaVarMatcher<L>) -> &mut Self {
@@ -272,7 +275,6 @@ impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, Or<L, M, N>> {
         }
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -372,4 +374,6 @@ mod test {
         );
         assert_eq!(ret, ["a + b", "c + b"], "should match source code order");
     }
+
+    // TODO add test case for func
 }
