@@ -11,10 +11,23 @@ pub enum SerializableRule {
     All(Vec<SerializableRule>),
     Any(Vec<SerializableRule>),
     Not(Box<SerializableRule>),
-    Inside(Box<SerializableRule>),
-    Has(Box<SerializableRule>),
+    Inside(Box<RelationalRule>),
+    Has(Box<RelationalRule>),
+    Precedes(Box<RelationalRule>),
+    Follows(Box<RelationalRule>),
     Pattern(PatternStyle),
     Kind(String),
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RelationalRule {
+    #[serde(flatten)]
+    rule: SerializableRule,
+    #[serde(default)]
+    until: Option<SerializableRule>,
+    #[serde(default)]
+    immediate: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -28,8 +41,8 @@ pub enum Rule<L: Language> {
     All(o::All<L, Rule<L>>),
     Any(o::Any<L, Rule<L>>),
     Not(Box<o::Not<L, Rule<L>>>),
-    Inside(Box<Inside<L, Rule<L>>>),
-    Has(Box<Has<L, Rule<L>>>),
+    Inside(Box<Inside<L>>),
+    Has(Box<Has<L>>),
     Pattern(Pattern<L>),
     Kind(KindMatcher<L>),
 }
@@ -53,53 +66,82 @@ impl<L: Language> Matcher<L> for Rule<L> {
     }
 }
 
-pub struct Inside<L: Language, M: Matcher<L>> {
-    outer: M,
+fn until<'s, L: Language>(pattern: &'s Option<Rule<L>>) -> impl Fn(&Node<L>) -> bool + 's {
+    move |n| {
+        if let Some(m) = pattern {
+            m.match_node(*n).is_none()
+        } else {
+            true
+        }
+    }
+}
+
+pub struct Inside<L: Language> {
+    outer: Rule<L>,
+    until: Option<Rule<L>>,
+    immediate: bool,
     lang: PhantomData<L>,
 }
-impl<L: Language, M: Matcher<L>> Inside<L, M> {
-    pub fn new(outer: M) -> Self {
-        Self {
-            outer,
+impl<L: Language> Inside<L> {
+    fn new(relation: RelationalRule, lang: L) -> Inside<L> {
+        Inside {
+            outer: from_serializable(relation.rule, lang),
+            until: relation.until.map(|r| from_serializable(r, lang)),
+            immediate: relation.immediate,
             lang: PhantomData,
         }
     }
 }
 
-impl<L: Language, M: Matcher<L>> Matcher<L> for Inside<L, M> {
+impl<L: Language> Matcher<L> for Inside<L> {
     fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        node.ancestors()
-            .find_map(|n| self.outer.match_node_with_env(n, env))
-            .map(|_| node)
+        if self.immediate {
+            self.outer.match_node_with_env(node.parent()?, env).map(|_| node)
+        } else {
+            node.ancestors()
+                .take_while(until(&self.until))
+                .find_map(|n| self.outer.match_node_with_env(n, env))
+                .map(|_| node)
+        }
     }
 }
-
-pub struct Has<L: Language, M: Matcher<L>> {
-    inner: M,
+pub struct Has<L: Language> {
+    inner: Rule<L>,
+    until: Option<Rule<L>>,
+    immediate: bool,
     lang: PhantomData<L>,
 }
-impl<L: Language, M: Matcher<L>> Has<L, M> {
-    pub fn new(inner: M) -> Self {
+impl<L: Language> Has<L> {
+    fn new(relation: RelationalRule, lang: L) -> Self {
         Self {
-            inner,
+            inner: from_serializable(relation.rule, lang),
+            until: relation.until.map(|r| from_serializable(r, lang)),
+            immediate: relation.immediate,
             lang: PhantomData,
         }
     }
 }
-impl<L: Language, M: Matcher<L>> Matcher<L> for Has<L, M> {
+impl<L: Language> Matcher<L> for Has<L> {
     fn match_node_with_env<'tree>(
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        node.dfs()
-            .skip(1)
-            .find_map(|n| self.inner.match_node_with_env(n, env))
-            .map(|_| node)
+        if self.immediate {
+            node.children()
+                .find_map(|n| self.inner.match_node_with_env(n, env))
+                .map(|_| node)
+        } else {
+            node.dfs()
+                .skip(1)
+                .take_while(until(&self.until))
+                .find_map(|n| self.inner.match_node_with_env(n, env))
+                .map(|_| node)
+        }
     }
 }
 
@@ -116,8 +158,10 @@ pub fn from_serializable<L: Language>(serialized: SerializableRule, lang: L) -> 
         S::All(all) => R::All(o::All::new(all.into_iter().map(mapper))),
         S::Any(any) => R::Any(o::Any::new(any.into_iter().map(mapper))),
         S::Not(not) => R::Not(Box::new(o::Not::new(mapper(*not)))),
-        S::Inside(inside) => R::Inside(Box::new(Inside::new(mapper(*inside)))),
-        S::Has(has) => R::Has(Box::new(Has::new(mapper(*has)))),
+        S::Inside(inside) => R::Inside(Box::new(Inside::new(*inside, lang))),
+        S::Has(has) => R::Has(Box::new(Has::new(*has, lang))),
+        S::Precedes(inside) => todo!(),
+        S::Follows(has) => todo!(),
         S::Kind(kind) => R::Kind(KindMatcher::new(&kind, lang)),
         S::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::new(&pattern, lang)),
         S::Pattern(PatternStyle::Contextual { context, selector }) => {
@@ -147,5 +191,21 @@ pattern:
 ";
         let rule: SerializableRule = from_str(src).expect("cannot parse rule");
         assert!(matches!(rule, Pattern(Contextual { .. })));
+    }
+
+    #[test]
+    fn test_relational() {
+        let src = r"
+inside:
+    pattern: class A {}
+    immediate: true
+    until:
+        pattern: function() {}
+";
+        let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+        match rule {
+            SerializableRule::Inside(rule) => assert!(rule.immediate),
+            _ => assert!(false),
+        }
     }
 }
