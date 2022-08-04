@@ -181,11 +181,33 @@ where
 {
 }
 
+pub struct Predicate<F> {
+    func: F
+}
+
+impl<L, F> Matcher<L> for Predicate<F> where
+L: Language,
+F: for <'tree> Fn(Node<'tree, L>) -> bool {
+    fn match_node_with_env<'tree>(
+        &self,
+        node: Node<'tree, L>,
+        _env: &mut MetaVarEnv<'tree, L>,
+    ) -> Option<Node<'tree, L>> {
+        (self.func)(node).then_some(node)
+    }
+}
+
 impl<L: Language, M: Matcher<L>> Op<L, M> {
     pub fn not(pattern: M) -> Not<L, M> {
         Not {
             not: pattern,
             lang: PhantomData,
+        }
+    }
+
+    pub fn pred<F>(func: F) -> Predicate<F> where F: for <'tree> Fn(Node<'tree, L>) -> bool {
+        Predicate {
+            func,
         }
     }
 
