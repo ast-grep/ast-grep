@@ -2,7 +2,7 @@
 
 A tool to greatly simplify AST matching and manipulation. Democratize compiler magic and liberate one from cumbersome AST programming! Imagine ast-grep as the jQuery for tree-sitter AST.
 
-# Screenshot
+## Screenshot
 
 ### Search
 <img width="796" alt="image" src="https://user-images.githubusercontent.com/2883231/178289737-1b4cdf53-454d-4953-b031-1f9a92996874.png">
@@ -14,16 +14,16 @@ A tool to greatly simplify AST matching and manipulation. Democratize compiler m
 ![image](https://user-images.githubusercontent.com/2883231/183095365-15895b64-4b3e-400e-91ed-cf9cdfdd4c32.png)
 
 
-# Pattern Matcher
+## Pattern Matcher
 1. Tree Pattern
 1. Node Kind
 1. TODO: Tree Sitter expression Matcher??
 
-# Metavariable Matcher
+## Metavariable Matcher
 1. Regex
 2. Pattern
 
-# Rule
+## Rule
 1. patterns
 2. patterns either
 3. pattern inside
@@ -31,9 +31,9 @@ A tool to greatly simplify AST matching and manipulation. Democratize compiler m
 5. pattern-not-inside
 
 
-# TODO:
+## TODO:
 
-## Core
+### Core
 - [x] Add replace
 - [x] Add find_all
 - [x] Add metavar char customization
@@ -44,7 +44,7 @@ A tool to greatly simplify AST matching and manipulation. Democratize compiler m
 - [x] View node in context
 - [ ] implement iterative DFS mode
 
-## CLI
+### CLI
 - [x] match against files in directory recursively
 - [ ] interactive mode
 - [ ] name current behavior (listing all rewrite) as dry run mode
@@ -52,18 +52,18 @@ A tool to greatly simplify AST matching and manipulation. Democratize compiler m
 - [ ] no-color mode
 - [ ] JSON output
 
-## Config
+### Config
 - [ ] support YAML config rule
 
-## Binding
+### Binding
 - [ ] NAPI binding
 - [ ] WASM binding
 - [ ] Python binding
 
-## Playground
+### Playground
 - [ ] build a playground based on WASM binding
 
-## Builtin Ruleset
+### Builtin Ruleset
 - [ ] Migrate some ESLint rule (or RSLint rule)
 - [ ] Add support for severity
 - [ ] Add support for error message
