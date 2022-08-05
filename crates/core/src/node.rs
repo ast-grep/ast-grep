@@ -39,7 +39,7 @@ impl<L: Language> Root<L> {
 // the lifetime r represents root
 #[derive(Clone, Copy)]
 pub struct Node<'r, L: Language> {
-    pub(crate) inner: tree_sitter::Node<'r>,
+    pub inner: tree_sitter::Node<'r>,
     pub(crate) root: &'r Root<L>,
 }
 pub type KindId = u16;

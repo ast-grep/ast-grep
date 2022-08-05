@@ -6,9 +6,40 @@ use ansi_term::{
     Style,
 };
 use ast_grep_core::{Matcher, Node, Pattern};
+use ast_grep_config::AstGrepRuleConfig;
 use similar::{ChangeTag, TextDiff};
 
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan_reporting::files::SimpleFiles;
+use codespan_reporting::term::termcolor::{StandardStream, ColorChoice};
+use codespan_reporting::term;
+
 use crate::guess_language::SupportLang;
+
+pub fn print_rule<'a>(
+    matches: impl Iterator<Item = Node<'a, SupportLang>>,
+    path: &Path,
+    content: &str,
+    rule: &AstGrepRuleConfig,
+) {
+    let mut files = SimpleFiles::new();
+    let file_id = files.add(
+        path.to_str().unwrap(),
+        content,
+    );
+    let config = codespan_reporting::term::Config::default();
+    let writer = StandardStream::stdout(ColorChoice::Auto);
+    for m in matches{
+        let range = m.inner.start_byte()..m.inner.end_byte();
+        let diagnostic = Diagnostic::error()
+            .with_code(&rule.id)
+            .with_message(&rule.message)
+            .with_labels(vec![
+                Label::primary(file_id, range)
+            ]);
+        term::emit(&mut writer.lock(), &config, &files, &diagnostic).unwrap();
+    }
+}
 
 pub fn print_matches<'a>(
     matches: impl Iterator<Item = Node<'a, SupportLang>>,

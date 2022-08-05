@@ -24,3 +24,4 @@ similar = { version = "2.1.0", features = ["inline"] }
 num_cpus = "1.13.1"
 rprompt = "1.0.5"
 crossbeam = "0.8"
+codespan-reporting = "0.11.1"

@@ -2,13 +2,13 @@ mod guess_language;
 mod interaction;
 mod print;
 
-use ast_grep_config::{from_yaml_string, Configs};
+use ast_grep_config::{AstGrepRuleConfig, from_yaml_string, Configs};
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::Parser;
 use guess_language::{config_file_type, file_types, from_extension, SupportLang};
 use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
-use print::print_matches;
+use print::{print_matches, print_rule};
 use std::fs::read_to_string;
 use std::io::Result;
 use std::path::{Path, PathBuf};
@@ -111,11 +111,10 @@ fn run_with_config(args: Args) -> Result<()> {
         run_walker(walker, |path| {
             for config in &configs.configs {
                 let lang = config.language;
-                let matcher = config.get_matcher();
                 if from_extension(path).filter(|&n| n == lang).is_none() {
                     continue;
                 }
-                match_one_file(path, lang, &matcher, &None)
+                match_rule_on_file(path, lang, &config, &None)
             }
         });
     } else {
@@ -193,6 +192,25 @@ fn run_walker_interactive<T: Send>(
         |entry| producer(filter_file(entry)?.path()),
         consumer,
     );
+}
+
+fn match_rule_on_file(
+    path: &Path,
+    lang: SupportLang,
+    rule: &AstGrepRuleConfig,
+    rewrite: &Option<Pattern<SupportLang>>,
+) {
+    let matcher = rule.get_matcher();
+    let file_content = match read_to_string(&path) {
+        Ok(content) => content,
+        _ => return,
+    };
+    let grep = lang.new(&file_content);
+    let mut matches = grep.root().find_all(matcher).peekable();
+    if matches.peek().is_none() {
+        return;
+    }
+    print_rule(matches, path, &file_content, rule);
 }
 
 fn match_one_file(
