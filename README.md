@@ -1,3 +1,7 @@
+# AST-Grep
+
+A tool to greatly simplify AST matching and manipulation. Democratize compiler magic and liberate one from cumbersome AST programming! Imagine ast-grep as the jQuery for tree-sitter AST.
+
 # Screenshot
 
 ### Search
@@ -5,6 +9,9 @@
 
 ### Rewrite
 <img width="1296" alt="image" src="https://user-images.githubusercontent.com/2883231/178289574-94a38df7-88fc-4f5e-9293-870091c51902.png">
+
+### Error report
+![image](https://user-images.githubusercontent.com/2883231/183095365-15895b64-4b3e-400e-91ed-cf9cdfdd4c32.png)
 
 
 # Pattern Matcher
