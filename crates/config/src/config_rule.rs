@@ -43,6 +43,8 @@ pub enum Rule<L: Language> {
     Not(Box<o::Not<L, Rule<L>>>),
     Inside(Box<Inside<L>>),
     Has(Box<Has<L>>),
+    Precedes(Box<Precedes<L>>),
+    Follows(Box<Follows<L>>),
     Pattern(Pattern<L>),
     Kind(KindMatcher<L>),
 }
@@ -58,8 +60,10 @@ impl<L: Language> Matcher<L> for Rule<L> {
             All(all) => all.match_node_with_env(node, env),
             Any(any) => any.match_node_with_env(node, env),
             Not(not) => not.match_node_with_env(node, env),
-            Inside(inside) => match_and_add_label(&**inside, node, env),
-            Has(has) => match_and_add_label(&**has, node, env),
+            Inside(parent) => match_and_add_label(&**parent, node, env),
+            Has(child) => match_and_add_label(&**child, node, env),
+            Precedes(latter) => match_and_add_label(&**latter, node, env),
+            Follows(former) => match_and_add_label(&**former, node, env),
             Pattern(pattern) => pattern.match_node_with_env(node, env),
             Kind(kind) => kind.match_node_with_env(node, env),
         }
@@ -151,6 +155,70 @@ impl<L: Language> Matcher<L> for Has<L> {
     }
 }
 
+pub struct Precedes<L: Language> {
+    inner: Rule<L>,
+    until: Option<Rule<L>>,
+    immediate: bool,
+    lang: PhantomData<L>,
+}
+impl<L: Language> Precedes<L> {
+    fn new(relation: RelationalRule, lang: L) -> Self {
+        Self {
+            inner: from_serializable(relation.rule, lang),
+            until: relation.until.map(|r| from_serializable(r, lang)),
+            immediate: relation.immediate,
+            lang: PhantomData,
+        }
+    }
+}
+impl<L: Language> Matcher<L> for Precedes<L> {
+    fn match_node_with_env<'tree>(
+        &self,
+        node: Node<'tree, L>,
+        env: &mut MetaVarEnv<'tree, L>,
+    ) -> Option<Node<'tree, L>> {
+        if self.immediate {
+            self.inner.match_node_with_env(node.prev()?, env)
+        } else {
+            node.prev_all()
+                .take_while(until(&self.until))
+                .find_map(|n| self.inner.match_node_with_env(n, env))
+        }
+    }
+}
+
+pub struct Follows<L: Language> {
+    inner: Rule<L>,
+    until: Option<Rule<L>>,
+    immediate: bool,
+    lang: PhantomData<L>,
+}
+impl<L: Language> Follows<L> {
+    fn new(relation: RelationalRule, lang: L) -> Self {
+        Self {
+            inner: from_serializable(relation.rule, lang),
+            until: relation.until.map(|r| from_serializable(r, lang)),
+            immediate: relation.immediate,
+            lang: PhantomData,
+        }
+    }
+}
+impl<L: Language> Matcher<L> for Follows<L> {
+    fn match_node_with_env<'tree>(
+        &self,
+        node: Node<'tree, L>,
+        env: &mut MetaVarEnv<'tree, L>,
+    ) -> Option<Node<'tree, L>> {
+        if self.immediate {
+            self.inner.match_node_with_env(node.next()?, env)
+        } else {
+            node.next_all()
+                .take_while(until(&self.until))
+                .find_map(|n| self.inner.match_node_with_env(n, env))
+        }
+    }
+}
+
 enum SerializeError {
     MissPositiveMatcher,
 }
@@ -166,8 +234,8 @@ pub fn from_serializable<L: Language>(serialized: SerializableRule, lang: L) -> 
         S::Not(not) => R::Not(Box::new(o::Not::new(mapper(*not)))),
         S::Inside(inside) => R::Inside(Box::new(Inside::new(*inside, lang))),
         S::Has(has) => R::Has(Box::new(Has::new(*has, lang))),
-        S::Precedes(_) => todo!(),
-        S::Follows(_) => todo!(),
+        S::Precedes(precedes) => R::Precedes(Box::new(Precedes::new(*precedes, lang))),
+        S::Follows(follows) => R::Follows(Box::new(Follows::new(*follows, lang))),
         S::Kind(kind) => R::Kind(KindMatcher::new(&kind, lang)),
         S::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::new(&pattern, lang)),
         S::Pattern(PatternStyle::Contextual { context, selector }) => {
