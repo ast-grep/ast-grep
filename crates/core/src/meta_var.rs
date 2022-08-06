@@ -53,6 +53,10 @@ impl<'tree, L: Language> MetaVarEnv<'tree, L> {
         }
     }
 
+    pub fn add_label(&mut self, label: &str, node: Node<'tree, L>) {
+        self.multi_matched.entry(label.into()).or_insert_with(|| vec![]).push(node);
+    }
+
     pub fn match_constraints(&self) -> bool {
         for (var_id, &candidate) in &self.single_matched {
             if let Some(m) = self.var_matchers.0.get(var_id) {

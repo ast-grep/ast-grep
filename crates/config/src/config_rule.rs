@@ -52,18 +52,27 @@ impl<L: Language> Matcher<L> for Rule<L> {
         &self,
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
-    ) -> Option<ast_grep_core::Node<'tree, L>> {
+    ) -> Option<Node<'tree, L>> {
         use Rule::*;
         match self {
             All(all) => all.match_node_with_env(node, env),
             Any(any) => any.match_node_with_env(node, env),
             Not(not) => not.match_node_with_env(node, env),
-            Inside(inside) => inside.match_node_with_env(node, env),
-            Has(has) => has.match_node_with_env(node, env),
+            Inside(inside) => match_and_add_label(&**inside, node, env),
+            Has(has) => match_and_add_label(&**has, node, env),
             Pattern(pattern) => pattern.match_node_with_env(node, env),
             Kind(kind) => kind.match_node_with_env(node, env),
         }
     }
+}
+fn match_and_add_label<'tree, L: Language, M: Matcher<L>>(
+    inner: &M,
+    node: Node<'tree, L>,
+    env: &mut MetaVarEnv<'tree, L>,
+) -> Option<Node<'tree, L>> {
+    let matched = inner.match_node_with_env(node, env)?;
+    env.add_label("secondary", matched);
+    Some(matched)
 }
 
 fn until<'s, L: Language>(pattern: &'s Option<Rule<L>>) -> impl Fn(&Node<L>) -> bool + 's {
@@ -100,12 +109,11 @@ impl<L: Language> Matcher<L> for Inside<L> {
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
         if self.immediate {
-            self.outer.match_node_with_env(node.parent()?, env).map(|_| node)
+            self.outer.match_node_with_env(node.parent()?, env)
         } else {
             node.ancestors()
                 .take_while(until(&self.until))
                 .find_map(|n| self.outer.match_node_with_env(n, env))
-                .map(|_| node)
         }
     }
 }
@@ -134,13 +142,11 @@ impl<L: Language> Matcher<L> for Has<L> {
         if self.immediate {
             node.children()
                 .find_map(|n| self.inner.match_node_with_env(n, env))
-                .map(|_| node)
         } else {
             node.dfs()
                 .skip(1)
                 .take_while(until(&self.until))
                 .find_map(|n| self.inner.match_node_with_env(n, env))
-                .map(|_| node)
         }
     }
 }
