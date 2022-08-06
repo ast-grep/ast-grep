@@ -166,8 +166,8 @@ pub fn from_serializable<L: Language>(serialized: SerializableRule, lang: L) -> 
         S::Not(not) => R::Not(Box::new(o::Not::new(mapper(*not)))),
         S::Inside(inside) => R::Inside(Box::new(Inside::new(*inside, lang))),
         S::Has(has) => R::Has(Box::new(Has::new(*has, lang))),
-        S::Precedes(inside) => todo!(),
-        S::Follows(has) => todo!(),
+        S::Precedes(_) => todo!(),
+        S::Follows(_) => todo!(),
         S::Kind(kind) => R::Kind(KindMatcher::new(&kind, lang)),
         S::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::new(&pattern, lang)),
         S::Pattern(PatternStyle::Contextual { context, selector }) => {

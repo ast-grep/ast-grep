@@ -8,7 +8,7 @@ mod pattern;
 mod replacer;
 mod ts_parser;
 
-pub use matcher::{KindMatcher, Matcher, PositiveMatcher};
+pub use matcher::{KindMatcher, Matcher, PositiveMatcher, NodeMatch};
 pub use meta_var::{MetaVarMatcher, MetaVariable};
 pub use node::Node;
 pub use ops::{All, Any, Op};

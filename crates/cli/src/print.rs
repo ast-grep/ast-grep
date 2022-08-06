@@ -11,7 +11,7 @@ use codespan_reporting::term::termcolor::{StandardStream, ColorChoice};
 use codespan_reporting::term;
 use similar::{ChangeTag, TextDiff};
 
-use ast_grep_core::{Matcher, Node, Pattern};
+use ast_grep_core::{Matcher, NodeMatch, Pattern};
 use ast_grep_config::{AstGrepRuleConfig, Severity};
 
 pub use codespan_reporting::{
@@ -38,7 +38,7 @@ impl ErrorReporter {
 
     pub fn print_rule<'a>(
         &self,
-        matches: impl Iterator<Item = Node<'a, SupportLang>>,
+        matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
         file: SimpleFile<Cow<str>, &String>,
         rule: &AstGrepRuleConfig,
     ) {
@@ -64,7 +64,7 @@ impl ErrorReporter {
 }
 
 pub fn print_matches<'a>(
-    matches: impl Iterator<Item = Node<'a, SupportLang>>,
+    matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
     path: &Path,
     pattern: &impl Matcher<SupportLang>,
     rewrite: &Option<Pattern<SupportLang>>,

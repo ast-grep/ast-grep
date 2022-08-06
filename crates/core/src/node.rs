@@ -1,5 +1,5 @@
 use crate::language::Language;
-use crate::matcher::Matcher;
+use crate::matcher::{Matcher, NodeMatch};
 use crate::replacer::Replacer;
 use crate::ts_parser::{parse, perform_edit, Edit};
 
@@ -206,11 +206,11 @@ impl<'r, L: Language> Node<'r, L> {
     }
 
     #[must_use]
-    pub fn find<M: Matcher<L>>(&self, pat: M) -> Option<Self> {
-        pat.find_node(*self)
+    pub fn find<M: Matcher<L>>(&self, pat: M) -> Option<Node<'r, L>> {
+        pat.find_node(*self).map(Node::from)
     }
 
-    pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = Node<'r, L>> {
+    pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = NodeMatch<'r, L>> {
         pat.find_all_nodes(*self)
     }
 

@@ -4,6 +4,8 @@ use crate::Language;
 use crate::Node;
 use crate::Pattern;
 use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
+use std::borrow::{Borrow, BorrowMut};
 
 #[derive(Clone)]
 pub struct KindMatcher<L: Language> {
@@ -41,16 +43,19 @@ impl<L: Language> PositiveMatcher<L> for KindMatcher<L> {}
  * N.B. At least one positive term is required for matching
  */
 pub trait Matcher<L: Language> {
+    /// Returns the node why the input is matched or None if not matched.
+    /// The return value is usually input node itself, but it can be different node.
+    /// For example `Has` matcher can return the child or descendant node.
     fn match_node_with_env<'tree>(
         &self,
         _node: Node<'tree, L>,
         _env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>>;
 
-    fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<Node<'tree, L>> {
+    fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
         let mut env = self.get_meta_var_env();
         let node = self.match_node_with_env(node, &mut env)?;
-        env.match_constraints().then_some(node)
+        env.match_constraints().then_some(NodeMatch(node, env))
     }
 
     fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {
@@ -72,7 +77,7 @@ pub trait Matcher<L: Language> {
         })
     }
 
-    fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<Node<'tree, L>> {
+    fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
         self.match_node(node)
             .or_else(|| node.children().find_map(|sub| self.find_node(sub)))
     }
@@ -160,7 +165,7 @@ impl<'tree, L: Language, M: Matcher<L>> FindAllNodes<'tree, L, M> {
 }
 
 impl<'tree, L: Language, M: Matcher<L>> Iterator for FindAllNodes<'tree, L, M> {
-    type Item = Node<'tree, L>;
+    type Item = NodeMatch<'tree, L>;
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(cand) = self.dfs.next() {
             if let Some(matched) = self.matcher.match_node(cand) {
@@ -194,6 +199,36 @@ impl<L: Language> Matcher<L> for MatchNone {
 }
 
 impl<L: Language> PositiveMatcher<L> for MatchNone {}
+
+pub struct NodeMatch<'tree, L: Language>(Node<'tree, L>, MetaVarEnv<'tree, L>);
+
+impl<'tree, L: Language> From<NodeMatch<'tree, L>> for Node<'tree, L> {
+    fn from(node_match: NodeMatch<'tree, L>) -> Self {
+        node_match.0
+    }
+}
+
+impl<'tree, L: Language> Deref for NodeMatch<'tree, L> {
+    type Target = Node<'tree, L>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<'tree, L: Language> DerefMut for NodeMatch<'tree, L> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl<'tree, L: Language> Borrow<Node<'tree, L>> for NodeMatch<'tree, L> {
+    fn borrow(&self) -> &Node<'tree, L> {
+        &self.0
+    }
+}
+impl<'tree, L: Language> BorrowMut<Node<'tree, L>> for NodeMatch<'tree, L> {
+    fn borrow_mut(&mut self) -> &mut Node<'tree, L> {
+        &mut self.0
+    }
+}
 
 #[cfg(test)]
 mod test {
