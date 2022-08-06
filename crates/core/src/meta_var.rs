@@ -60,6 +60,10 @@ impl<'tree, L: Language> MetaVarEnv<'tree, L> {
             .push(node);
     }
 
+    pub fn get_labels(&self, label: &str) -> Option<&Vec<Node<'tree, L>>> {
+        self.multi_matched.get(label)
+    }
+
     pub fn match_constraints(&self) -> bool {
         for (var_id, &candidate) in &self.single_matched {
             if let Some(m) = self.var_matchers.0.get(var_id) {

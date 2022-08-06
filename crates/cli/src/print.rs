@@ -46,11 +46,18 @@ impl ErrorReporter {
         };
         for m in matches {
             let range = m.inner.start_byte()..m.inner.end_byte();
+            let mut labels = vec![Label::primary((), range)];
+            if let Some(secondary_nodes) = m.get_env().get_labels("secondary") {
+                labels.extend(secondary_nodes.iter().map(|n| {
+                    let range = n.inner.start_byte()..n.inner.end_byte();
+                    Label::secondary((), range)
+                }));
+            }
             let diagnostic = Diagnostic::new(serverity)
                 .with_code(&rule.id)
                 .with_message(&rule.message)
                 .with_notes(rule.note.iter().cloned().collect())
-                .with_labels(vec![Label::primary((), range)]);
+                .with_labels(labels);
             term::emit(&mut writer.lock(), config, &file, &diagnostic).unwrap();
         }
     }
