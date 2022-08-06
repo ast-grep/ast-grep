@@ -1,6 +1,29 @@
-# AST-Grep
+# ASTGrep
 
-A tool to greatly simplify AST matching and manipulation. Democratize compiler magic and liberate one from cumbersome AST programming! Imagine ast-grep as the jQuery for tree-sitter AST.
+A fast and easy tool for code searching, linting, rewriting at large scale.
+
+## Introduction
+
+ASTGrep is a lightning fast and user-friendly tool that performs static analysis and automatic code modification at large scale.
+
+ASTGrep's core is searching and rewriting code based on abstract syntax tree produced by tree-sitter.
+It can help you do static analysis on
+
+
+## Feature Highlight
+
+* An intuitive pattern to find and replace AST.
+ASTGrep's pattern looks like ordinary code you would write every day. (You can call the pattern is isomorphic to code).
+
+* jQuery like API for AST traversal and manipulatioin.
+
+* YAML configuration to write new linting rules or code modification.
+
+* Written in compiled language, parsing with tree-sitter and utilizing multiple cores.
+
+* Beautiful command line interface :)
+
+Democratize abstract syntax tree magic and liberate one from cumbersome AST programming!
 
 ## CLI Screenshot
 
@@ -14,7 +37,10 @@ A tool to greatly simplify AST matching and manipulation. Democratize compiler m
 ![image](https://user-images.githubusercontent.com/2883231/183095365-15895b64-4b3e-400e-91ed-cf9cdfdd4c32.png)
 
 
+## Sponsor
 
+If you find ASTGrep interesting and useful for your work, please [buy me a coffee](https://github.com/sponsors/HerringtonDarkholme)
+so I can spend more time on the project!
 
 ## TODO:
 
