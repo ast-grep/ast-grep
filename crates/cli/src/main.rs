@@ -8,7 +8,7 @@ use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::Parser;
 use guess_language::{config_file_type, file_types, from_extension, SupportLang};
 use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
-use print::{print_matches, ColorArg, ErrorReporter, SimpleFile};
+use print::{print_matches, ColorArg, ErrorReporter, ReportStyle, SimpleFile};
 use std::fs::read_to_string;
 use std::io::Result;
 use std::path::{Path, PathBuf};
@@ -50,6 +50,9 @@ struct Args {
 
     #[clap(long, default_value = "auto")]
     color: ColorArg,
+
+    #[clap(long, default_value = "rich")]
+    report_style: ReportStyle,
 
     /// Print query pattern's tree-sitter AST
     #[clap(long, parse(from_flag))]
@@ -110,7 +113,7 @@ fn run_with_config(args: Args) -> Result<()> {
         .hidden(args.hidden)
         .threads(threads)
         .build_parallel();
-    let reporter = ErrorReporter::new(args.color.into());
+    let reporter = ErrorReporter::new(args.color.into(), args.report_style);
     if !args.interactive {
         run_walker(walker, |path| {
             for config in &configs.configs {

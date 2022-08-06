@@ -6,9 +6,10 @@ use ansi_term::{
     Color::{Cyan, Green, Red},
     Style,
 };
+use clap::arg_enum;
 use codespan_reporting::diagnostic::{self, Diagnostic, Label};
-use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
+use codespan_reporting::term::{self, DisplayStyle};
 use similar::{ChangeTag, TextDiff};
 
 use ast_grep_config::{AstGrepRuleConfig, Severity};
@@ -23,11 +24,27 @@ pub struct ErrorReporter {
     config: term::Config,
 }
 
+arg_enum! {
+    #[derive(Debug)]
+    pub enum ReportStyle {
+        Rich,
+        Medium,
+        Short,
+    }
+}
+
 impl ErrorReporter {
-    pub fn new(color: ColorChoice) -> Self {
+    pub fn new(color: ColorChoice, style: ReportStyle) -> Self {
+        let display_style = match style {
+            ReportStyle::Rich => DisplayStyle::Rich,
+            ReportStyle::Medium => DisplayStyle::Medium,
+            ReportStyle::Short => DisplayStyle::Short,
+        };
+        let mut config = term::Config::default();
+        config.display_style = display_style;
         Self {
             writer: StandardStream::stdout(color),
-            config: term::Config::default(),
+            config,
         }
     }
 
