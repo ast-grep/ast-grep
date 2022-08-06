@@ -8,7 +8,7 @@ use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::Parser;
 use guess_language::{config_file_type, file_types, from_extension, SupportLang};
 use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
-use print::{print_matches, print_rule};
+use print::{print_matches, ColorArg, SimpleFile, ErrorReporter};
 use std::fs::read_to_string;
 use std::io::Result;
 use std::path::{Path, PathBuf};
@@ -47,6 +47,9 @@ struct Args {
 
     #[clap(short, long, parse(from_flag))]
     interactive: bool,
+
+    #[clap(long, default_value = "auto")]
+    color: ColorArg,
 
     /// Print query pattern's tree-sitter AST
     #[clap(long, parse(from_flag))]
@@ -107,6 +110,7 @@ fn run_with_config(args: Args) -> Result<()> {
         .hidden(args.hidden)
         .threads(threads)
         .build_parallel();
+    let reporter = ErrorReporter::new(args.color.into());
     if !args.interactive {
         run_walker(walker, |path| {
             for config in &configs.configs {
@@ -114,7 +118,7 @@ fn run_with_config(args: Args) -> Result<()> {
                 if from_extension(path).filter(|&n| n == lang).is_none() {
                     continue;
                 }
-                match_rule_on_file(path, lang, &config, &None)
+                match_rule_on_file(path, lang, &config, &reporter)
             }
         });
     } else {
@@ -198,7 +202,7 @@ fn match_rule_on_file(
     path: &Path,
     lang: SupportLang,
     rule: &AstGrepRuleConfig,
-    rewrite: &Option<Pattern<SupportLang>>,
+    reporter: &ErrorReporter,
 ) {
     let matcher = rule.get_matcher();
     let file_content = match read_to_string(&path) {
@@ -210,7 +214,11 @@ fn match_rule_on_file(
     if matches.peek().is_none() {
         return;
     }
-    print_rule(matches, path, &file_content, rule);
+    let file = SimpleFile::new(
+        path.to_string_lossy(),
+        &file_content,
+    );
+    reporter.print_rule(matches, file, rule);
 }
 
 fn match_one_file(

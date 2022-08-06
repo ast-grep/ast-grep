@@ -1,43 +1,65 @@
 use std::fmt::Display;
 use std::path::Path;
+use std::borrow::Cow;
 
 use ansi_term::{
     Color::{Cyan, Green, Red},
     Style,
 };
-use ast_grep_core::{Matcher, Node, Pattern};
-use ast_grep_config::AstGrepRuleConfig;
-use similar::{ChangeTag, TextDiff};
-
-use codespan_reporting::diagnostic::{Diagnostic, Label};
-use codespan_reporting::files::SimpleFiles;
+use codespan_reporting::diagnostic::{self, Diagnostic, Label};
 use codespan_reporting::term::termcolor::{StandardStream, ColorChoice};
 use codespan_reporting::term;
+use similar::{ChangeTag, TextDiff};
+
+use ast_grep_core::{Matcher, Node, Pattern};
+use ast_grep_config::{AstGrepRuleConfig, Severity};
+
+pub use codespan_reporting::{
+    files::SimpleFile,
+    term::ColorArg,
+};
 
 use crate::guess_language::SupportLang;
 
-pub fn print_rule<'a>(
-    matches: impl Iterator<Item = Node<'a, SupportLang>>,
-    path: &Path,
-    content: &str,
-    rule: &AstGrepRuleConfig,
-) {
-    let mut files = SimpleFiles::new();
-    let file_id = files.add(
-        path.to_str().unwrap(),
-        content,
-    );
-    let config = codespan_reporting::term::Config::default();
-    let writer = StandardStream::stdout(ColorChoice::Auto);
-    for m in matches{
-        let range = m.inner.start_byte()..m.inner.end_byte();
-        let diagnostic = Diagnostic::error()
-            .with_code(&rule.id)
-            .with_message(&rule.message)
-            .with_labels(vec![
-                Label::primary(file_id, range)
-            ]);
-        term::emit(&mut writer.lock(), &config, &files, &diagnostic).unwrap();
+pub struct ErrorReporter {
+    writer: StandardStream,
+    config: term::Config,
+}
+
+impl ErrorReporter {
+    pub fn new(
+        color: ColorChoice,
+    ) -> Self {
+        Self {
+            writer: StandardStream::stdout(color),
+            config: term::Config::default(),
+        }
+    }
+
+    pub fn print_rule<'a>(
+        &self,
+        matches: impl Iterator<Item = Node<'a, SupportLang>>,
+        file: SimpleFile<Cow<str>, &String>,
+        rule: &AstGrepRuleConfig,
+    ) {
+        let config = &self.config;
+        let writer = &self.writer;
+        let serverity = match rule.severity {
+            Severity::Error => diagnostic::Severity::Error,
+            Severity::Warning => diagnostic::Severity::Warning,
+            Severity::Info => diagnostic::Severity::Note,
+        };
+        for m in matches{
+            let range = m.inner.start_byte()..m.inner.end_byte();
+            let diagnostic = Diagnostic::new(serverity)
+                .with_code(&rule.id)
+                .with_message(&rule.message)
+                .with_notes(rule.note.iter().cloned().collect())
+                .with_labels(vec![
+                    Label::primary((), range),
+                ]);
+            term::emit(&mut writer.lock(), config, &file, &diagnostic).unwrap();
+        }
     }
 }
 

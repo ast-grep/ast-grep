@@ -1,6 +1,6 @@
 id: no-const-condition
 message: Disallow const condition
-severity: warning
+severity: error
 language: TypeScript
 rule:
   any:

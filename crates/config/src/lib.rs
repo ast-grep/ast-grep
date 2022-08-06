@@ -20,14 +20,19 @@ pub enum Severity {
 pub struct AstGrepRuleConfig {
     /// Unique, descriptive identifier, e.g., no-unused-variable
     pub id: String,
-    /// Message highlighting why this rule fired and how to remediate the issue
+    /// Main message highlighting why this rule fired. It should be single line and concise,
+    /// but specific enough to be understood without additional context.
     pub message: String,
+    /// Additional notes to elaborate the message and provide potential fix to the issue.
+    pub note: Option<String>,
     /// One of: Info, Warning, or Error
     pub severity: Severity,
     /// Specify the language to parse and the file extension to includ in matching.
     pub language: SupportLang,
     /// Pattern rules to find matching AST nodes
     pub rule: SerializableRule,
+    /// A pattern to auto fix the issue. It can reference metavariables appeared in rule.
+    pub fix: Option<String>,
     /// Addtionaly meta variables pattern to filter matching
     #[serde(default)]
     pub meta_variables: HashMap<String, String>,
