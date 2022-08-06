@@ -1,23 +1,20 @@
+use std::borrow::Cow;
 use std::fmt::Display;
 use std::path::Path;
-use std::borrow::Cow;
 
 use ansi_term::{
     Color::{Cyan, Green, Red},
     Style,
 };
 use codespan_reporting::diagnostic::{self, Diagnostic, Label};
-use codespan_reporting::term::termcolor::{StandardStream, ColorChoice};
 use codespan_reporting::term;
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use similar::{ChangeTag, TextDiff};
 
-use ast_grep_core::{Matcher, NodeMatch, Pattern};
 use ast_grep_config::{AstGrepRuleConfig, Severity};
+use ast_grep_core::{Matcher, NodeMatch, Pattern};
 
-pub use codespan_reporting::{
-    files::SimpleFile,
-    term::ColorArg,
-};
+pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
 
 use crate::guess_language::SupportLang;
 
@@ -27,9 +24,7 @@ pub struct ErrorReporter {
 }
 
 impl ErrorReporter {
-    pub fn new(
-        color: ColorChoice,
-    ) -> Self {
+    pub fn new(color: ColorChoice) -> Self {
         Self {
             writer: StandardStream::stdout(color),
             config: term::Config::default(),
@@ -49,15 +44,13 @@ impl ErrorReporter {
             Severity::Warning => diagnostic::Severity::Warning,
             Severity::Info => diagnostic::Severity::Note,
         };
-        for m in matches{
+        for m in matches {
             let range = m.inner.start_byte()..m.inner.end_byte();
             let diagnostic = Diagnostic::new(serverity)
                 .with_code(&rule.id)
                 .with_message(&rule.message)
                 .with_notes(rule.note.iter().cloned().collect())
-                .with_labels(vec![
-                    Label::primary((), range),
-                ]);
+                .with_labels(vec![Label::primary((), range)]);
             term::emit(&mut writer.lock(), config, &file, &diagnostic).unwrap();
         }
     }

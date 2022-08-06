@@ -54,7 +54,10 @@ impl<'tree, L: Language> MetaVarEnv<'tree, L> {
     }
 
     pub fn add_label(&mut self, label: &str, node: Node<'tree, L>) {
-        self.multi_matched.entry(label.into()).or_insert_with(|| vec![]).push(node);
+        self.multi_matched
+            .entry(label.into())
+            .or_insert_with(|| vec![])
+            .push(node);
     }
 
     pub fn match_constraints(&self) -> bool {

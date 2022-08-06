@@ -3,9 +3,9 @@ use crate::node::{KindId, DFS};
 use crate::Language;
 use crate::Node;
 use crate::Pattern;
+use std::borrow::{Borrow, BorrowMut};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-use std::borrow::{Borrow, BorrowMut};
 
 #[derive(Clone)]
 pub struct KindMatcher<L: Language> {
@@ -201,6 +201,12 @@ impl<L: Language> Matcher<L> for MatchNone {
 impl<L: Language> PositiveMatcher<L> for MatchNone {}
 
 pub struct NodeMatch<'tree, L: Language>(Node<'tree, L>, MetaVarEnv<'tree, L>);
+
+impl<'tree, L: Language> NodeMatch<'tree, L> {
+    pub fn get_env(&self) -> &MetaVarEnv<'tree, L> {
+        &self.1
+    }
+}
 
 impl<'tree, L: Language> From<NodeMatch<'tree, L>> for Node<'tree, L> {
     fn from(node_match: NodeMatch<'tree, L>) -> Self {

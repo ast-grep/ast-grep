@@ -2,13 +2,13 @@ mod guess_language;
 mod interaction;
 mod print;
 
-use ast_grep_config::{AstGrepRuleConfig, from_yaml_string, Configs};
+use ast_grep_config::{from_yaml_string, AstGrepRuleConfig, Configs};
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::Parser;
 use guess_language::{config_file_type, file_types, from_extension, SupportLang};
 use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
-use print::{print_matches, ColorArg, SimpleFile, ErrorReporter};
+use print::{print_matches, ColorArg, ErrorReporter, SimpleFile};
 use std::fs::read_to_string;
 use std::io::Result;
 use std::path::{Path, PathBuf};
@@ -214,10 +214,7 @@ fn match_rule_on_file(
     if matches.peek().is_none() {
         return;
     }
-    let file = SimpleFile::new(
-        path.to_string_lossy(),
-        &file_content,
-    );
+    let file = SimpleFile::new(path.to_string_lossy(), &file_content);
     reporter.print_rule(matches, file, rule);
 }
 
