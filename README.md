@@ -2,6 +2,9 @@
 
 A fast and easy tool for code searching, linting, rewriting at large scale.
 
+![output](https://user-images.githubusercontent.com/2883231/183275066-8d9c342f-46cb-4fa5-aa4e-b98aac011869.gif)
+
+
 ## Introduction
 
 ASTGrep is a lightning fast and user-friendly tool that performs static analysis and automatic code modification at large scale.
