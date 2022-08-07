@@ -1,0 +1,36 @@
+[package]
+name = "ast-grep-wasm"
+version = "0.1.0"
+authors = ["HerringtonDarkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
+edition = "2018"
+description = "Search and Rewrite code at large scale using precise AST pattern"
+keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
+license = "MIT"
+repository = "https://github.com/HerringtonDarkholme/ast-grep"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["console_error_panic_hook"]
+
+[dependencies]
+wasm-bindgen = {version = "0.2.63", features = ["serde-serialize"]}
+serde = { version = "1.0", features = ["derive"] }
+
+# The `console_error_panic_hook` crate provides better debugging of panics by
+# logging them with `console.error`. This is great for development, but requires
+# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
+# code size when deploying.
+console_error_panic_hook = { version = "0.1.6", optional = true }
+
+wee_alloc = { version = "0.4.5" }
+ast-grep-core = { version="0.1.0", path = "../core" }
+ast-grep-config = { version="0.1.0", path = "../config" }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.13"
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
