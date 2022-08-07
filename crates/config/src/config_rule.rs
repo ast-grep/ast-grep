@@ -96,13 +96,18 @@ pub struct Inside<L: Language> {
     lang: PhantomData<L>,
 }
 impl<L: Language> Inside<L> {
-    fn new(relation: RelationalRule, lang: L) -> Inside<L> {
-        Inside {
-            outer: from_serializable(relation.rule, lang),
-            until: relation.until.map(|r| from_serializable(r, lang)),
+    fn try_new(relation: RelationalRule, lang: L) -> Result<Inside<L>, SerializeError> {
+        let util_node = if let Some(until) = relation.until {
+            Some(try_from_serializable(until, lang)?)
+        } else {
+            None
+        };
+        Ok(Self {
+            outer: try_from_serializable(relation.rule, lang)?,
+            until: util_node,
             immediate: relation.immediate,
             lang: PhantomData,
-        }
+        })
     }
 }
 
@@ -128,13 +133,18 @@ pub struct Has<L: Language> {
     lang: PhantomData<L>,
 }
 impl<L: Language> Has<L> {
-    fn new(relation: RelationalRule, lang: L) -> Self {
-        Self {
-            inner: from_serializable(relation.rule, lang),
-            until: relation.until.map(|r| from_serializable(r, lang)),
+    fn try_new(relation: RelationalRule, lang: L) -> Result<Self, SerializeError> {
+        let util_node = if let Some(until) = relation.until {
+            Some(try_from_serializable(until, lang)?)
+        } else {
+            None
+        };
+        Ok(Self {
+            inner: try_from_serializable(relation.rule, lang)?,
+            until: util_node,
             immediate: relation.immediate,
             lang: PhantomData,
-        }
+        })
     }
 }
 impl<L: Language> Matcher<L> for Has<L> {
@@ -162,13 +172,18 @@ pub struct Precedes<L: Language> {
     lang: PhantomData<L>,
 }
 impl<L: Language> Precedes<L> {
-    fn new(relation: RelationalRule, lang: L) -> Self {
-        Self {
-            inner: from_serializable(relation.rule, lang),
-            until: relation.until.map(|r| from_serializable(r, lang)),
+    fn try_new(relation: RelationalRule, lang: L) -> Result<Self, SerializeError> {
+        let util_node = if let Some(until) = relation.until {
+            Some(try_from_serializable(until, lang)?)
+        } else {
+            None
+        };
+        Ok(Self {
+            inner: try_from_serializable(relation.rule, lang)?,
+            until: util_node,
             immediate: relation.immediate,
             lang: PhantomData,
-        }
+        })
     }
 }
 impl<L: Language> Matcher<L> for Precedes<L> {
@@ -194,13 +209,18 @@ pub struct Follows<L: Language> {
     lang: PhantomData<L>,
 }
 impl<L: Language> Follows<L> {
-    fn new(relation: RelationalRule, lang: L) -> Self {
-        Self {
-            inner: from_serializable(relation.rule, lang),
-            until: relation.until.map(|r| from_serializable(r, lang)),
+    fn try_new(relation: RelationalRule, lang: L) -> Result<Self, SerializeError> {
+        let util_node = if let Some(until) = relation.until {
+            Some(try_from_serializable(until, lang)?)
+        } else {
+            None
+        };
+        Ok(Self {
+            inner: try_from_serializable(relation.rule, lang)?,
+            until: util_node,
             immediate: relation.immediate,
             lang: PhantomData,
-        }
+        })
     }
 }
 impl<L: Language> Matcher<L> for Follows<L> {
@@ -219,29 +239,38 @@ impl<L: Language> Matcher<L> for Follows<L> {
     }
 }
 
-enum SerializeError {
+#[derive(Debug)]
+pub enum SerializeError {
     MissPositiveMatcher,
 }
 
 // TODO: implement positive/non positive
-pub fn from_serializable<L: Language>(serialized: SerializableRule, lang: L) -> Rule<L> {
+pub fn try_from_serializable<L: Language>(serialized: SerializableRule, lang: L) -> Result<Rule<L>, SerializeError> {
     use Rule as R;
     use SerializableRule as S;
-    let mapper = |s| from_serializable(s, lang);
-    match serialized {
-        S::All(all) => R::All(o::All::new(all.into_iter().map(mapper))),
-        S::Any(any) => R::Any(o::Any::new(any.into_iter().map(mapper))),
-        S::Not(not) => R::Not(Box::new(o::Not::new(mapper(*not)))),
-        S::Inside(inside) => R::Inside(Box::new(Inside::new(*inside, lang))),
-        S::Has(has) => R::Has(Box::new(Has::new(*has, lang))),
-        S::Precedes(precedes) => R::Precedes(Box::new(Precedes::new(*precedes, lang))),
-        S::Follows(follows) => R::Follows(Box::new(Follows::new(*follows, lang))),
+    let mapper = |s| try_from_serializable(s, lang);
+    let convert_rules = |rules: Vec<SerializableRule>| {
+        let mut inner = Vec::with_capacity(rules.len());
+        for rule in rules {
+            inner.push(try_from_serializable(rule, lang)?);
+        }
+        Ok(inner)
+    };
+    let ret = match serialized {
+        S::All(all) => R::All(o::All::new(convert_rules(all)?)),
+        S::Any(any) => R::Any(o::Any::new(convert_rules(any)?)),
+        S::Not(not) => R::Not(Box::new(o::Not::new(mapper(*not)?))),
+        S::Inside(inside) => R::Inside(Box::new(Inside::try_new(*inside, lang)?)),
+        S::Has(has) => R::Has(Box::new(Has::try_new(*has, lang)?)),
+        S::Precedes(precedes) => R::Precedes(Box::new(Precedes::try_new(*precedes, lang)?)),
+        S::Follows(follows) => R::Follows(Box::new(Follows::try_new(*follows, lang)?)),
         S::Kind(kind) => R::Kind(KindMatcher::new(&kind, lang)),
         S::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::new(&pattern, lang)),
         S::Pattern(PatternStyle::Contextual { context, selector }) => {
             R::Pattern(Pattern::contextual(&context, &selector, lang))
         }
-    }
+    };
+    Ok(ret)
 }
 
 #[cfg(test)]

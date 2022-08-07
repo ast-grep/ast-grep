@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Deserializer;
 
-use config_rule::{from_serializable, Rule, SerializableRule};
+use config_rule::{try_from_serializable, Rule, SerializableRule};
 pub use support_language::SupportLang;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -40,7 +40,7 @@ pub struct AstGrepRuleConfig {
 
 impl AstGrepRuleConfig {
     pub fn get_matcher(&self) -> Rule<SupportLang> {
-        from_serializable(self.rule.clone(), self.language)
+        try_from_serializable(self.rule.clone(), self.language).unwrap()
     }
 }
 
