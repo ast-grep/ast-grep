@@ -1,0 +1,25 @@
+{
+  "name": "ast-grep-playground",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "tree-sitter-javascript": "^0.19.0",
+    "vue": "^3.2.37",
+    "web-tree-sitter": "^0.20.5"
+  },
+  "optionalDependencies": {
+    "ast-grep-wasm": "file:../crates/wasm/pkg/"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^3.0.0",
+    "typescript": "^4.6.4",
+    "vite": "^3.0.0",
+    "vue-tsc": "^0.38.4"
+  }
+}
