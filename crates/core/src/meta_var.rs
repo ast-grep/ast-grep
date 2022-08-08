@@ -29,7 +29,7 @@ impl<'tree, L: Language> MetaVarEnv<'tree, L> {
     }
 
     pub fn insert(&mut self, id: MetaVariableID, ret: Node<'tree, L>) -> Option<&mut Self> {
-        if !self.match_variable(&id, ret) {
+        if !self.match_variable(&id, ret.clone()) {
             return None;
         }
         self.single_matched.insert(id, ret);
@@ -65,9 +65,9 @@ impl<'tree, L: Language> MetaVarEnv<'tree, L> {
     }
 
     pub fn match_constraints(&self) -> bool {
-        for (var_id, &candidate) in &self.single_matched {
+        for (var_id, candidate) in &self.single_matched {
             if let Some(m) = self.var_matchers.0.get(var_id) {
-                if !m.matches(candidate) {
+                if !m.matches(candidate.clone()) {
                     return false;
                 }
             }
@@ -148,7 +148,7 @@ impl<L: Language> MetaVarMatcher<L> {
         let mut env = MetaVarEnv::new();
         match self {
             #[cfg(feature = "regex")]
-            Regex(regexp) => regexp.is_match(candidate.text()),
+            Regex(regexp) => regexp.is_match(&candidate.text()),
             Pattern(p) => p.match_node_with_env(candidate, &mut env).is_some(),
             Kind(k) => k.match_node_with_env(candidate, &mut env).is_some(),
         }

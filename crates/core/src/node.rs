@@ -3,6 +3,8 @@ use crate::matcher::{Matcher, NodeMatch};
 use crate::replacer::Replacer;
 use crate::ts_parser::{parse, perform_edit, Edit};
 
+use std::borrow::Cow;
+
 #[derive(Clone)]
 pub struct Root<L: Language> {
     pub inner: tree_sitter::Tree,
@@ -37,7 +39,7 @@ impl<L: Language> Root<L> {
 }
 
 // the lifetime r represents root
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Node<'r, L: Language> {
     pub inner: tree_sitter::Node<'r>,
     pub(crate) root: &'r Root<L>,
@@ -119,13 +121,17 @@ impl<'r, L: Language> Node<'r, L> {
     pub fn is_leaf(&self) -> bool {
         self.inner.child_count() == 0
     }
-    pub fn kind(&self) -> &str {
+    pub fn kind(&self) -> Cow<str> {
         self.inner.kind()
     }
     pub fn kind_id(&self) -> KindId {
         self.inner.kind_id()
     }
-    pub fn text(&self) -> &'r str {
+
+    pub fn range(&self) -> std::ops::Range<usize> {
+        (self.inner.start_byte() as usize)..(self.inner.end_byte() as usize)
+    }
+    pub fn text(&self) -> Cow<'r, str> {
         self.inner
             .utf8_text(self.root.source.as_bytes())
             .expect("invalid source text encoding")
@@ -133,8 +139,8 @@ impl<'r, L: Language> Node<'r, L> {
 
     pub fn display_context(&self) -> DisplayContext<'r> {
         let bytes = self.root.source.as_bytes();
-        let start = self.inner.start_byte();
-        let end = self.inner.end_byte();
+        let start = self.inner.start_byte() as usize;
+        let end = self.inner.end_byte() as usize;
         let (mut leading, mut trailing) = (start, end);
         while leading > 0 && bytes[leading - 1] != b'\n' {
             leading -= 1;
@@ -148,7 +154,7 @@ impl<'r, L: Language> Node<'r, L> {
             matched: self.text(),
             leading: &self.root.source[leading..start],
             trailing: &self.root.source[end..=trailing],
-            start_line: self.inner.start_position().row + 1,
+            start_line: self.inner.start_position().row() as usize + 1,
         }
     }
 }
@@ -158,7 +164,7 @@ impl<'r, L: Language> Node<'r, L> {
  */
 impl<'r, L: Language> Node<'r, L> {
     pub fn matches<M: Matcher<L>>(&self, m: M) -> bool {
-        m.match_node(*self).is_some()
+        m.match_node(self.clone()).is_some()
     }
 
     pub fn inside<M: Matcher<L>>(&self, m: M) -> bool {
@@ -180,7 +186,7 @@ impl<'r, L: Language> Node<'r, L> {
 
 pub struct DisplayContext<'r> {
     /// content for the matched node
-    pub matched: &'r str,
+    pub matched: Cow<'r, str>,
     /// content before the matched node
     pub leading: &'r str,
     /// content after the matched node
@@ -197,7 +203,7 @@ impl<'r, L: Language> Node<'r, L> {
         NodeWalker {
             cursor,
             root: self.root,
-            count: self.inner.child_count(),
+            count: self.inner.child_count() as usize,
         }
     }
 
@@ -207,11 +213,11 @@ impl<'r, L: Language> Node<'r, L> {
 
     #[must_use]
     pub fn find<M: Matcher<L>>(&self, pat: M) -> Option<Node<'r, L>> {
-        pat.find_node(*self).map(Node::from)
+        pat.find_node(self.clone()).map(Node::from)
     }
 
     pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = NodeMatch<'r, L>> {
-        pat.find_all_nodes(*self)
+        pat.find_all_nodes(self.clone())
     }
 
     pub fn field(&self, name: &str) -> Option<Self> {
@@ -265,7 +271,8 @@ impl<'r, L: Language> Node<'r, L> {
 
     #[must_use]
     pub fn child(&self, nth: usize) -> Option<Self> {
-        let inner = self.inner.child(nth)?;
+        // TODO: support usize
+        let inner = self.inner.child(nth as u32)?;
         Some(Node {
             inner,
             root: self.root,
@@ -275,9 +282,9 @@ impl<'r, L: Language> Node<'r, L> {
     pub fn ancestors(&self) -> impl Iterator<Item = Node<'r, L>> + '_ {
         let mut parent = self.inner.parent();
         std::iter::from_fn(move || {
-            let inner = parent?;
+            let inner = parent.clone()?;
             let ret = Some(Node {
-                inner,
+                inner: inner.clone(),
                 root: self.root,
             });
             parent = inner.parent();
@@ -317,11 +324,14 @@ impl<'r, L: Language> Node<'r, L> {
     #[must_use]
     pub fn prev_all(&self) -> impl Iterator<Item = Node<'r, L>> + '_ {
         let root = self.root;
-        let mut inner = self.inner;
+        let mut inner = self.inner.clone();
         std::iter::from_fn(move || {
             let prev = inner.prev_sibling()?;
-            inner = prev;
-            Some(Node { inner, root })
+            inner = prev.clone();
+            Some(Node {
+                inner: inner.clone(),
+                root,
+            })
         })
     }
 }
@@ -330,17 +340,17 @@ impl<'r, L: Language> Node<'r, L> {
 impl<'r, L: Language> Node<'r, L> {
     pub fn replace<M: Matcher<L>, R: Replacer<L>>(&self, matcher: M, replacer: R) -> Option<Edit> {
         let mut env = matcher.get_meta_var_env();
-        let node = matcher.find_node_with_env(*self, &mut env)?;
+        let node = matcher.find_node_with_env(self.clone(), &mut env)?;
         let inner = node.inner;
         let position = inner.start_byte();
         // instead of using start_byte/end_byte, ignore trivia like semicolon ;
         let named_cnt = inner.named_child_count();
         let end = inner.named_child(named_cnt - 1).unwrap().end_byte();
         let deleted_length = end - position;
-        let inserted_text = replacer.generate_replacement(&env, self.root.lang);
+        let inserted_text = replacer.generate_replacement(&env, self.root.lang.clone());
         Some(Edit {
-            position,
-            deleted_length,
+            position: position as usize,
+            deleted_length: deleted_length as usize,
             inserted_text,
         })
     }
@@ -351,7 +361,7 @@ impl<'r, L: Language> Node<'r, L> {
     pub fn prepend(&self) {}
     pub fn empty(&self) {}
     pub fn remove(&self) {}
-    pub fn clone(&self) {}
+    // pub fn clone(&self) {}
 }
 
 #[cfg(test)]

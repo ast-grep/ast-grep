@@ -12,18 +12,10 @@ repository = "https://github.com/HerringtonDarkholme/ast-grep"
 
 [dependencies]
 regex = {version = "1.6.0", optional = true }
-tree-sitter = "0.20.6"
-tree-sitter-c = "0.20.1"
-tree-sitter-go = "0.19.1"
-tree-sitter-html = "0.19.0"
-tree-sitter-java = "0.19.0"
-tree-sitter-javascript = "0.20.0"
-tree-sitter-kotlin = "0.2.11"
-tree-sitter-lua = "0.0.11"
-tree-sitter-python = "0.20.2"
-tree-sitter-rust = "0.20.1"
-tree-sitter-swift = "0.3.0"
-tree-sitter-typescript="0.20.1"
+tree-sitter = { version = "0.9", package = "tree-sitter-facade" }
 
 [features]
 default = ["regex"]
+
+[dev-dependencies]
+tree-sitter-typescript="0.20.1"

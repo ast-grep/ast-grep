@@ -11,7 +11,7 @@ pub trait Replacer<L: Language> {
 
 impl<L: Language> Replacer<L> for str {
     fn generate_replacement(&self, env: &MetaVarEnv<L>, lang: L) -> String {
-        let root = Root::new(self, lang);
+        let root = Root::new(self, lang.clone());
         let edits = collect_edits(&root, env, lang);
         merge_edits_to_string(edits, &root)
     }
@@ -41,12 +41,12 @@ fn collect_edits<L: Language>(root: &Root<L>, env: &MetaVarEnv<L>, lang: L) -> V
 
     // this is a preorder DFS that stops traversal when the node matches
     loop {
-        if let Some(text) = get_meta_var_replacement(&node, env, lang) {
+        if let Some(text) = get_meta_var_replacement(&node, env, lang.clone()) {
             let position = node.inner.start_byte();
             let length = node.inner.end_byte() - position;
             edits.push(Edit {
-                position,
-                deleted_length: length,
+                position: position as usize,
+                deleted_length: length as usize,
                 inserted_text: text,
             });
         } else if let Some(first_child) = node.child(0) {
@@ -92,15 +92,15 @@ fn get_meta_var_replacement<L: Language>(
     if !node.is_leaf() {
         return None;
     }
-    let meta_var = lang.extract_meta_var(node.text())?;
+    let meta_var = lang.extract_meta_var(&node.text())?;
     let replaced = match env.get(&meta_var)? {
         MatchResult::Single(replaced) => replaced.text().to_string(),
         MatchResult::Multi(nodes) => {
             if nodes.is_empty() {
                 String::new()
             } else {
-                let start = nodes[0].inner.start_byte();
-                let end = nodes[nodes.len() - 1].inner.end_byte();
+                let start = nodes[0].inner.start_byte() as usize;
+                let end = nodes[nodes.len() - 1].inner.end_byte() as usize;
                 nodes[0].root.source[start..end].to_string()
             }
         }

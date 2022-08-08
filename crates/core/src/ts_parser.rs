@@ -2,9 +2,9 @@ use tree_sitter::{InputEdit, Parser, Point};
 pub use tree_sitter::{Language, Tree};
 
 pub fn parse(source_code: &str, old_tree: Option<&Tree>, ts_lang: Language) -> Tree {
-    let mut parser = Parser::new();
-    parser.set_language(ts_lang).unwrap();
-    parser.parse(source_code, old_tree).unwrap()
+    let mut parser = Parser::new().unwrap();
+    parser.set_language(&ts_lang).unwrap();
+    parser.parse(source_code, old_tree).unwrap().unwrap()
 }
 
 // https://github.com/tree-sitter/tree-sitter/blob/e4e5ffe517ca2c668689b24cb17c51b8c6db0790/cli/src/parse.rs
@@ -16,16 +16,16 @@ pub struct Edit {
 }
 
 fn position_for_offset(input: &Vec<u8>, offset: usize) -> Point {
-    let mut result = Point { row: 0, column: 0 };
+    let (mut row, mut col) = (0, 0);
     for c in &input[0..offset] {
         if *c as char == '\n' {
-            result.row += 1;
-            result.column = 0;
+            row += 1;
+            col = 0;
         } else {
-            result.column += 1;
+            col += 1;
         }
     }
-    result
+    Point::new(row, col)
 }
 
 pub fn perform_edit(tree: &mut Tree, input: &mut Vec<u8>, edit: &Edit) -> InputEdit {
@@ -36,14 +36,14 @@ pub fn perform_edit(tree: &mut Tree, input: &mut Vec<u8>, edit: &Edit) -> InputE
     let old_end_position = position_for_offset(input, old_end_byte);
     input.splice(start_byte..old_end_byte, edit.inserted_text.bytes());
     let new_end_position = position_for_offset(input, new_end_byte);
-    let edit = InputEdit {
-        start_byte,
-        old_end_byte,
-        new_end_byte,
-        start_position,
-        old_end_position,
-        new_end_position,
-    };
+    let edit = InputEdit::new(
+        start_byte as u32,
+        old_end_byte as u32,
+        new_end_byte as u32,
+        &start_position,
+        &old_end_position,
+        &new_end_position,
+    );
     tree.edit(&edit);
     edit
 }
@@ -62,8 +62,8 @@ mod test {
         let tree = parse("var a = 1234");
         let root_node = tree.root_node();
         assert_eq!(root_node.kind(), "program");
-        assert_eq!(root_node.start_position().column, 0);
-        assert_eq!(root_node.end_position().column, 12);
+        assert_eq!(root_node.start_position().column(), 0);
+        assert_eq!(root_node.end_position().column(), 12);
         assert_eq!(root_node.to_sexp(), "(program (variable_declaration (variable_declarator name: (identifier) value: (number))))");
     }
 

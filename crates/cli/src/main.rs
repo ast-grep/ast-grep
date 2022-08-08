@@ -2,7 +2,7 @@ mod guess_language;
 mod interaction;
 mod print;
 
-use ast_grep_config::{from_yaml_string, AstGrepRuleConfig, Configs};
+use ast_grep_config::{from_yaml_string, RuleConfig, Configs};
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::Parser;
@@ -155,7 +155,7 @@ fn run_with_config(args: Args) -> Result<()> {
     Ok(())
 }
 
-fn find_config(config: Option<String>) -> Configs {
+fn find_config(config: Option<String>) -> Configs<SupportLang> {
     let config_file_or_dir = config.unwrap_or_else(find_default_config);
     let mut configs = vec![];
     let walker = WalkBuilder::new(&config_file_or_dir)
@@ -204,7 +204,7 @@ fn run_walker_interactive<T: Send>(
 fn match_rule_on_file(
     path: &Path,
     lang: SupportLang,
-    rule: &AstGrepRuleConfig,
+    rule: &RuleConfig<SupportLang>,
     reporter: &ErrorReporter,
 ) {
     let matcher = rule.get_matcher();

@@ -54,7 +54,7 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
     ) -> Option<Node<'tree, L>> {
         self.patterns
             .iter()
-            .all(|p| p.match_node_with_env(node, env).is_some())
+            .all(|p| p.match_node_with_env(node.clone(), env).is_some())
             .then_some(node)
     }
 }
@@ -85,7 +85,7 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
     ) -> Option<Node<'tree, L>> {
         self.patterns
             .iter()
-            .find_map(|p| p.match_node_with_env(node, env))
+            .find_map(|p| p.match_node_with_env(node.clone(), env))
             .map(|_| node)
     }
 }
@@ -110,7 +110,7 @@ where
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
         self.pattern1
-            .match_node_with_env(node, env)
+            .match_node_with_env(node.clone(), env)
             .or_else(|| self.pattern2.match_node_with_env(node, env))
     }
 }
@@ -146,7 +146,9 @@ where
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        self.not.match_node_with_env(node, env).xor(Some(node))
+        self.not
+            .match_node_with_env(node.clone(), env)
+            .xor(Some(node))
     }
 }
 
@@ -195,7 +197,7 @@ where
         node: Node<'tree, L>,
         _env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        (self.func)(node).then_some(node)
+        (self.func)(node.clone()).then_some(node)
     }
 }
 

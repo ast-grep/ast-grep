@@ -11,14 +11,14 @@ fn match_leaf_meta_var<'goal, 'tree, L: Language>(
     use MetaVariable as MV;
     match extracted {
         MV::Named(name) => {
-            env.insert(name, candidate)?;
+            env.insert(name, candidate.clone())?;
             Some(candidate)
         }
         MV::Anonymous => Some(candidate),
         // Ellipsis will be matched in parent level
         MV::Ellipsis => Some(candidate),
         MV::NamedEllipsis(name) => {
-            env.insert(name, candidate)?;
+            env.insert(name, candidate.clone())?;
             Some(candidate)
         }
     }
@@ -54,7 +54,7 @@ pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
 ) -> Option<Node<'tree, L>> {
     let is_leaf = goal.is_leaf();
     if is_leaf {
-        if let Some(matched) = match_leaf_meta_var(goal, candidate, env) {
+        if let Some(matched) = match_leaf_meta_var(goal, candidate.clone(), env) {
             return Some(matched);
         }
     }
@@ -115,7 +115,7 @@ pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
             loop {
                 if match_node_non_recursive(
                     goal_children.peek().unwrap(),
-                    *cand_children.peek().unwrap(),
+                    cand_children.peek().unwrap().clone(),
                     env,
                 )
                 .is_some()
@@ -136,13 +136,13 @@ pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
         }
         match_node_non_recursive(
             goal_children.peek().unwrap(),
-            *cand_children.peek().unwrap(),
+            cand_children.peek().unwrap().clone(),
             env,
         )?;
         goal_children.next();
         if goal_children.peek().is_none() {
             // all goal found, return
-            return Some(candidate);
+            return Some(candidate.clone());
         }
         cand_children.next();
         cand_children.peek()?;
@@ -168,7 +168,7 @@ pub fn does_node_match_exactly<L: Language>(goal: &Node<L>, candidate: Node<L>) 
 
 fn extract_var_from_node<L: Language>(goal: &Node<L>) -> Option<MetaVariable> {
     let key = goal.text();
-    goal.root.lang.extract_meta_var(key)
+    goal.root.lang.extract_meta_var(&key)
 }
 
 #[cfg(test)]
@@ -187,7 +187,7 @@ mod test {
         node: Node<'tree, Tsx>,
         env: &mut MetaVarEnv<'tree, Tsx>,
     ) -> Option<Node<'tree, Tsx>> {
-        match_node_non_recursive(goal, node, env).or_else(|| {
+        match_node_non_recursive(goal, node.clone(), env).or_else(|| {
             node.children()
                 .find_map(|sub| find_node_recursive(goal, sub, env))
         })
@@ -213,7 +213,7 @@ mod test {
             },
         };
         let mut env = MetaVarEnv::new();
-        let ret = find_node_recursive(&goal, cand, &mut env);
+        let ret = find_node_recursive(&goal, cand.clone(), &mut env);
         assert!(
             ret.is_some(),
             "goal: {}, candidate: {}",

@@ -12,7 +12,7 @@ use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use codespan_reporting::term::{self, DisplayStyle};
 use similar::{ChangeTag, TextDiff};
 
-use ast_grep_config::{AstGrepRuleConfig, Severity};
+use ast_grep_config::{RuleConfig, Severity};
 use ast_grep_core::{Matcher, NodeMatch, Pattern};
 
 pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
@@ -52,7 +52,7 @@ impl ErrorReporter {
         &self,
         matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
         file: SimpleFile<Cow<str>, &String>,
-        rule: &AstGrepRuleConfig,
+        rule: &RuleConfig<SupportLang>,
     ) {
         let config = &self.config;
         let writer = &self.writer;
@@ -62,11 +62,11 @@ impl ErrorReporter {
             Severity::Info => diagnostic::Severity::Note,
         };
         for m in matches {
-            let range = m.inner.start_byte()..m.inner.end_byte();
+            let range = m.range();
             let mut labels = vec![Label::primary((), range)];
             if let Some(secondary_nodes) = m.get_env().get_labels("secondary") {
                 labels.extend(secondary_nodes.iter().map(|n| {
-                    let range = n.inner.start_byte()..n.inner.end_byte();
+                    let range = n.range();
                     Label::secondary((), range)
                 }));
             }

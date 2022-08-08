@@ -1,12 +1,11 @@
 mod config_rule;
-pub mod support_language;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use serde_yaml::Deserializer;
 
 use config_rule::{try_from_serializable, Rule, SerializableRule};
-pub use support_language::SupportLang;
+use ast_grep_core::language::Language;
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -17,7 +16,7 @@ pub enum Severity {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct AstGrepRuleConfig {
+pub struct RuleConfig<L: Language> {
     /// Unique, descriptive identifier, e.g., no-unused-variable
     pub id: String,
     /// Main message highlighting why this rule fired. It should be single line and concise,
@@ -28,7 +27,7 @@ pub struct AstGrepRuleConfig {
     /// One of: Info, Warning, or Error
     pub severity: Severity,
     /// Specify the language to parse and the file extension to includ in matching.
-    pub language: SupportLang,
+    pub language: L,
     /// Pattern rules to find matching AST nodes
     pub rule: SerializableRule,
     /// A pattern to auto fix the issue. It can reference metavariables appeared in rule.
@@ -38,26 +37,26 @@ pub struct AstGrepRuleConfig {
     pub meta_variables: HashMap<String, String>,
 }
 
-impl AstGrepRuleConfig {
-    pub fn get_matcher(&self) -> Rule<SupportLang> {
-        try_from_serializable(self.rule.clone(), self.language).unwrap()
+impl<L: Language> RuleConfig<L> {
+    pub fn get_matcher(&self) -> Rule<L> {
+        try_from_serializable(self.rule.clone(), self.language.clone()).unwrap()
     }
 }
 
-pub fn from_yaml_string(yamls: &str) -> Result<Vec<AstGrepRuleConfig>, serde_yaml::Error> {
+pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(yamls: &'a str) -> Result<Vec<RuleConfig<L>>, serde_yaml::Error> {
     let mut ret = vec![];
     for yaml in Deserializer::from_str(yamls) {
-        let config = AstGrepRuleConfig::deserialize(yaml)?;
+        let config = RuleConfig::deserialize(yaml)?;
         ret.push(config);
     }
     Ok(ret)
 }
 
-pub struct Configs {
-    pub configs: Vec<AstGrepRuleConfig>,
+pub struct Configs<L: Language> {
+    pub configs: Vec<RuleConfig<L>>,
 }
-impl Configs {
-    pub fn new(configs: Vec<AstGrepRuleConfig>) -> Self {
+impl<L: Language> Configs<L> {
+    pub fn new(configs: Vec<RuleConfig<L>>) -> Self {
         Self { configs }
     }
 }
@@ -66,16 +65,25 @@ impl Configs {
 mod test {
 
     use super::*;
-    use ast_grep_core::language::Language;
+    use ast_grep_core::language::TSLanguage;
+    #[derive(Clone, Deserialize)]
+    pub enum TypeScript {
+        Tsx,
+    }
+    impl Language for TypeScript {
+        fn get_ts_language(&self) -> TSLanguage {
+            tree_sitter_typescript::language_tsx().into()
+        }
+    }
 
     fn test_rule_match(yaml: &str, source: &str) {
-        let config = &from_yaml_string(yaml).expect("rule should parse")[0];
+        let config = &from_yaml_string::<TypeScript>(yaml).expect("rule should parse")[0];
         let grep = config.language.new(source);
         assert!(grep.root().find(config.get_matcher()).is_some());
     }
 
     fn test_rule_unmatch(yaml: &str, source: &str) {
-        let config = &from_yaml_string(yaml).expect("rule should parse")[0];
+        let config = &from_yaml_string::<TypeScript>(yaml).expect("rule should parse")[0];
         let grep = config.language.new(source);
         assert!(grep.root().find(config.get_matcher()).is_none());
     }
@@ -86,7 +94,7 @@ mod test {
 id: test
 message: test rule
 severity: info
-language: TypeScript
+language: Tsx
 rule:
 {rule}
 "

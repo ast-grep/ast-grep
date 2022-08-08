@@ -75,14 +75,14 @@ fn match_and_add_label<'tree, L: Language, M: Matcher<L>>(
     env: &mut MetaVarEnv<'tree, L>,
 ) -> Option<Node<'tree, L>> {
     let matched = inner.match_node_with_env(node, env)?;
-    env.add_label("secondary", matched);
+    env.add_label("secondary", matched.clone());
     Some(matched)
 }
 
 fn until<'s, L: Language>(pattern: &'s Option<Rule<L>>) -> impl Fn(&Node<L>) -> bool + 's {
     move |n| {
         if let Some(m) = pattern {
-            m.match_node(*n).is_none()
+            m.match_node(n.clone()).is_none()
         } else {
             true
         }
@@ -98,7 +98,7 @@ pub struct Inside<L: Language> {
 impl<L: Language> Inside<L> {
     fn try_new(relation: RelationalRule, lang: L) -> Result<Inside<L>, SerializeError> {
         let util_node = if let Some(until) = relation.until {
-            Some(try_from_serializable(until, lang)?)
+            Some(try_from_serializable(until, lang.clone())?)
         } else {
             None
         };
@@ -135,7 +135,7 @@ pub struct Has<L: Language> {
 impl<L: Language> Has<L> {
     fn try_new(relation: RelationalRule, lang: L) -> Result<Self, SerializeError> {
         let util_node = if let Some(until) = relation.until {
-            Some(try_from_serializable(until, lang)?)
+            Some(try_from_serializable(until, lang.clone())?)
         } else {
             None
         };
@@ -174,7 +174,7 @@ pub struct Precedes<L: Language> {
 impl<L: Language> Precedes<L> {
     fn try_new(relation: RelationalRule, lang: L) -> Result<Self, SerializeError> {
         let util_node = if let Some(until) = relation.until {
-            Some(try_from_serializable(until, lang)?)
+            Some(try_from_serializable(until, lang.clone())?)
         } else {
             None
         };
@@ -211,7 +211,7 @@ pub struct Follows<L: Language> {
 impl<L: Language> Follows<L> {
     fn try_new(relation: RelationalRule, lang: L) -> Result<Self, SerializeError> {
         let util_node = if let Some(until) = relation.until {
-            Some(try_from_serializable(until, lang)?)
+            Some(try_from_serializable(until, lang.clone())?)
         } else {
             None
         };
@@ -245,14 +245,17 @@ pub enum SerializeError {
 }
 
 // TODO: implement positive/non positive
-pub fn try_from_serializable<L: Language>(serialized: SerializableRule, lang: L) -> Result<Rule<L>, SerializeError> {
+pub fn try_from_serializable<L: Language>(
+    serialized: SerializableRule,
+    lang: L,
+) -> Result<Rule<L>, SerializeError> {
     use Rule as R;
     use SerializableRule as S;
-    let mapper = |s| try_from_serializable(s, lang);
+    let mapper = |s| try_from_serializable(s, lang.clone());
     let convert_rules = |rules: Vec<SerializableRule>| {
         let mut inner = Vec::with_capacity(rules.len());
         for rule in rules {
-            inner.push(try_from_serializable(rule, lang)?);
+            inner.push(try_from_serializable(rule, lang.clone())?);
         }
         Ok(inner)
     };

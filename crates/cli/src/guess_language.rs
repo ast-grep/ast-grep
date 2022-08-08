@@ -1,8 +1,144 @@
 //! Guess which programming language a file is written in
 //! Adapt from https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs
-pub use ast_grep_config::SupportLang;
 use ignore::types::{Types, TypesBuilder};
 use std::path::Path;
+
+use tree_sitter_c::language as language_c;
+use tree_sitter_go::language as language_go;
+use tree_sitter_html::language as language_html;
+use tree_sitter_javascript::language as language_javascript;
+use tree_sitter_kotlin::language as language_kotlin;
+use tree_sitter_lua::language as language_lua;
+use tree_sitter_python::language as language_python;
+use tree_sitter_rust::language as language_rust;
+use tree_sitter_swift::language as language_swift;
+use tree_sitter_typescript::{language_tsx, language_typescript};
+
+macro_rules! impl_lang {
+    ($lang: ident, $func: ident) => {
+        #[derive(Clone, Copy)]
+        pub struct $lang;
+        impl Language for $lang {
+            fn get_ts_language(&self) -> TSLanguage {
+                $func().into()
+            }
+        }
+    };
+}
+
+impl_lang!(C, language_c);
+impl_lang!(Go, language_go);
+impl_lang!(Html, language_html);
+impl_lang!(JavaScript, language_javascript);
+impl_lang!(Kotlin, language_kotlin);
+impl_lang!(Lua, language_lua);
+impl_lang!(Python, language_python);
+impl_lang!(Rust, language_rust);
+impl_lang!(Swift, language_swift);
+impl_lang!(Tsx, language_tsx);
+impl_lang!(TypeScript, language_typescript);
+
+use ast_grep_core::language::{self, Language, TSLanguage};
+use ast_grep_core::MetaVariable;
+use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
+use std::str::FromStr;
+
+/// represents a dynamic language
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum SupportLang {
+    C,
+    Go,
+    Html,
+    JavaScript,
+    Kotlin,
+    Lua,
+    Python,
+    Rust,
+    Swift,
+    Tsx,
+    TypeScript,
+}
+
+#[derive(Debug)]
+pub enum SupportLangErr {
+    LanguageNotSupported(String),
+}
+
+impl Display for SupportLangErr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        use SupportLangErr::*;
+        match self {
+            LanguageNotSupported(lang) => write!(f, "{} is not supported!", lang),
+        }
+    }
+}
+
+impl std::error::Error for SupportLangErr {}
+
+impl FromStr for SupportLang {
+    type Err = SupportLangErr;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use SupportLang::*;
+        match s {
+            "c" => Ok(C),
+            "go" | "golang" => Ok(Go),
+            "html" => Ok(Html),
+            "js" | "jsx" => Ok(JavaScript),
+            "kt" | "ktm" | "kts" => Ok(Kotlin),
+            "lua" => Ok(Lua),
+            "py" | "python" => Ok(Python),
+            "rs" | "rust" => Ok(Rust),
+            "swift" => Ok(Swift),
+            "ts" => Ok(TypeScript),
+            "tsx" => Ok(Tsx),
+            _ => Err(SupportLangErr::LanguageNotSupported(s.to_string())),
+        }
+    }
+}
+
+macro_rules! impl_lang_method {
+    ($method: ident, $return_type: ty) => {
+        #[inline]
+        fn $method(&self) -> $return_type {
+            use SupportLang::*;
+            match self {
+                C => C.$method(),
+                Go => Go.$method(),
+                Html => Html.$method(),
+                JavaScript => JavaScript.$method(),
+                Kotlin => Kotlin.$method(),
+                Lua => Lua.$method(),
+                Python => Python.$method(),
+                Rust => Rust.$method(),
+                Swift => Swift.$method(),
+                Tsx => Tsx.$method(),
+                TypeScript => TypeScript.$method(),
+            }
+        }
+    };
+}
+impl Language for SupportLang {
+    impl_lang_method!(get_ts_language, TSLanguage);
+    impl_lang_method!(meta_var_char, char);
+
+    fn extract_meta_var(&self, source: &str) -> Option<MetaVariable> {
+        use SupportLang::*;
+        match self {
+            C => C.extract_meta_var(source),
+            Go => Go.extract_meta_var(source),
+            Html => Html.extract_meta_var(source),
+            JavaScript => JavaScript.extract_meta_var(source),
+            Kotlin => Kotlin.extract_meta_var(source),
+            Lua => Lua.extract_meta_var(source),
+            Python => Python.extract_meta_var(source),
+            Rust => Rust.extract_meta_var(source),
+            Swift => Swift.extract_meta_var(source),
+            Tsx => Tsx.extract_meta_var(source),
+            TypeScript => TypeScript.extract_meta_var(source),
+        }
+    }
+}
 
 pub fn from_extension(path: &Path) -> Option<SupportLang> {
     use SupportLang::*;

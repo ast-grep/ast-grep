@@ -1,7 +1,12 @@
 ## Setup Guide
 
 Unfortunately wasm-pack does not support compiling C dependency with stdlib.
-We have to use emcc.
+~~We have to use emcc.~~
+
+We have to use web-tree-sitter
+
+
+~~
 
 1. Install [emcc](https://emscripten.org/docs/getting_started/downloads.html)
 2. `rustup target add wasm32-unknown-emscripten`
@@ -15,3 +20,4 @@ https://github.com/MolotovCherry/tree-sitter-wasm
 https://github.com/rustwasm/wasm-pack/issues/741
 https://stackoverflow.com/questions/67474533/error-in-compiling-rust-into-webassembly-using-emscripten-on-windows
 https://github.com/rustwasm/wasm-pack/blob/master/src/command/build.rs
+~~

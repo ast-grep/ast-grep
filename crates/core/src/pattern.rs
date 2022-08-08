@@ -23,7 +23,7 @@ impl<L: Language> Pattern<L> {
     }
 
     pub fn contextual(context: &str, selector: &str, lang: L) -> Self {
-        let root = Root::new(context, lang);
+        let root = Root::new(context, lang.clone());
         let goal = root.root();
         if goal.inner.child_count() != 1 {
             todo!("multi-children pattern is not supported yet.")
@@ -91,7 +91,7 @@ mod test {
         let cand = pattern_node(s2);
         let cand = cand.root();
         assert!(
-            pattern.find_node(cand).is_some(),
+            pattern.find_node(cand.clone()).is_some(),
             "goal: {}, candidate: {}",
             pattern.root.root().inner.to_sexp(),
             cand.inner.to_sexp(),
@@ -102,7 +102,7 @@ mod test {
         let cand = pattern_node(s2);
         let cand = cand.root();
         assert!(
-            pattern.find_node(cand).is_none(),
+            pattern.find_node(cand.clone()).is_none(),
             "goal: {}, candidate: {}",
             pattern.root.root().inner.to_sexp(),
             cand.inner.to_sexp(),

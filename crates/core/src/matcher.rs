@@ -71,14 +71,14 @@ pub trait Matcher<L: Language> {
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        self.match_node_with_env(node, env).or_else(|| {
+        self.match_node_with_env(node.clone(), env).or_else(|| {
             node.children()
                 .find_map(|sub| self.find_node_with_env(sub, env))
         })
     }
 
     fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
-        self.match_node(node)
+        self.match_node(node.clone())
             .or_else(|| node.children().find_map(|sub| self.find_node(sub)))
     }
 
@@ -96,7 +96,7 @@ impl<L: Language> Matcher<L> for str {
         node: Node<'tree, L>,
         env: &mut MetaVarEnv<'tree, L>,
     ) -> Option<Node<'tree, L>> {
-        let pattern = Pattern::new(self, node.root.lang);
+        let pattern = Pattern::new(self, node.root.lang.clone());
         pattern.match_node_with_env(node, env)
     }
 }
@@ -252,7 +252,7 @@ mod test {
         let cand = cand.root();
         let pattern = KindMatcher::new(kind, Tsx);
         assert!(
-            pattern.find_node(cand).is_some(),
+            pattern.find_node(cand.clone()).is_some(),
             "goal: {}, candidate: {}",
             kind,
             cand.inner.to_sexp(),
@@ -266,7 +266,7 @@ mod test {
         let cand = cand.root();
         let pattern = KindMatcher::new(kind, Tsx);
         assert!(
-            pattern.find_node(cand).is_none(),
+            pattern.find_node(cand.clone()).is_none(),
             "goal: {}, candidate: {}",
             kind,
             cand.inner.to_sexp(),
