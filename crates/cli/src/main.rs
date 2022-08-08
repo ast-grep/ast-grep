@@ -2,7 +2,7 @@ mod guess_language;
 mod interaction;
 mod print;
 
-use ast_grep_config::{from_yaml_string, RuleConfig, Configs};
+use ast_grep_config::{from_yaml_string, Configs, RuleConfig};
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::Parser;

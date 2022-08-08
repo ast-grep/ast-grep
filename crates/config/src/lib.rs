@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Deserializer;
 
-pub use config_rule::{try_from_serializable, Rule, SerializableRule};
 use ast_grep_core::language::Language;
+pub use config_rule::{try_from_serializable, Rule, SerializableRule};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -43,7 +43,9 @@ impl<L: Language> RuleConfig<L> {
     }
 }
 
-pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(yamls: &'a str) -> Result<Vec<RuleConfig<L>>, serde_yaml::Error> {
+pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(
+    yamls: &'a str,
+) -> Result<Vec<RuleConfig<L>>, serde_yaml::Error> {
     let mut ret = vec![];
     for yaml in Deserializer::from_str(yamls) {
         let config = RuleConfig::deserialize(yaml)?;
