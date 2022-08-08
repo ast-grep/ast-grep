@@ -15,7 +15,7 @@ async function initializeTreeSitter() {
 await initializeTreeSitter()
 await init()
 console.log(
-  await find_nodes('let a = 123')
+  await find_nodes('let a = 123;  a = 333', { pattern: 'a'})
 )
 
 createApp(App).mount('#app')

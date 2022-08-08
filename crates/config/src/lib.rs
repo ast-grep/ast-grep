@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Deserializer;
 
-use config_rule::{try_from_serializable, Rule, SerializableRule};
+pub use config_rule::{try_from_serializable, Rule, SerializableRule};
 use ast_grep_core::language::Language;
 
 #[derive(Serialize, Deserialize, Clone)]
