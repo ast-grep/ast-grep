@@ -101,19 +101,19 @@ macro_rules! impl_lang_method {
     ($method: ident, $return_type: ty) => {
         #[inline]
         fn $method(&self) -> $return_type {
-            use SupportLang::*;
+            use SupportLang as S;
             match self {
-                C => C.$method(),
-                Go => Go.$method(),
-                Html => Html.$method(),
-                JavaScript => JavaScript.$method(),
-                Kotlin => Kotlin.$method(),
-                Lua => Lua.$method(),
-                Python => Python.$method(),
-                Rust => Rust.$method(),
-                Swift => Swift.$method(),
-                Tsx => Tsx.$method(),
-                TypeScript => TypeScript.$method(),
+                S::C => C.$method(),
+                S::Go => Go.$method(),
+                S::Html => Html.$method(),
+                S::JavaScript => JavaScript.$method(),
+                S::Kotlin => Kotlin.$method(),
+                S::Lua => Lua.$method(),
+                S::Python => Python.$method(),
+                S::Rust => Rust.$method(),
+                S::Swift => Swift.$method(),
+                S::Tsx => Tsx.$method(),
+                S::TypeScript => TypeScript.$method(),
             }
         }
     };
@@ -123,19 +123,19 @@ impl Language for SupportLang {
     impl_lang_method!(meta_var_char, char);
 
     fn extract_meta_var(&self, source: &str) -> Option<MetaVariable> {
-        use SupportLang::*;
+        use SupportLang as S;
         match self {
-            C => C.extract_meta_var(source),
-            Go => Go.extract_meta_var(source),
-            Html => Html.extract_meta_var(source),
-            JavaScript => JavaScript.extract_meta_var(source),
-            Kotlin => Kotlin.extract_meta_var(source),
-            Lua => Lua.extract_meta_var(source),
-            Python => Python.extract_meta_var(source),
-            Rust => Rust.extract_meta_var(source),
-            Swift => Swift.extract_meta_var(source),
-            Tsx => Tsx.extract_meta_var(source),
-            TypeScript => TypeScript.extract_meta_var(source),
+            S::C => C.extract_meta_var(source),
+            S::Go => Go.extract_meta_var(source),
+            S::Html => Html.extract_meta_var(source),
+            S::JavaScript => JavaScript.extract_meta_var(source),
+            S::Kotlin => Kotlin.extract_meta_var(source),
+            S::Lua => Lua.extract_meta_var(source),
+            S::Python => Python.extract_meta_var(source),
+            S::Rust => Rust.extract_meta_var(source),
+            S::Swift => Swift.extract_meta_var(source),
+            S::Tsx => Tsx.extract_meta_var(source),
+            S::TypeScript => TypeScript.extract_meta_var(source),
         }
     }
 }
