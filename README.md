@@ -1,6 +1,11 @@
-# ASTGrep
+<p align=center>
+  <img src="playground/public/logo.svg" alt="ast-grep"/>
+</p>
 
-A fast and easy tool for code searching, linting, rewriting at large scale.
+# ast-grep(sg)
+
+ast-grep(sg) is a fast and easy tool for code searching, linting, rewriting at large scale.
+
 
 ![output](https://user-images.githubusercontent.com/2883231/183275066-8d9c342f-46cb-4fa5-aa4e-b98aac011869.gif)
 
