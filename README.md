@@ -2,7 +2,7 @@
   <img src="playground/public/logo.svg" alt="ast-grep"/>
 </p>
 
-# ast-grep(sg)
+## ast-grep(sg)
 
 ast-grep(sg) is a fast and easy tool for code searching, linting, rewriting at large scale.
 
