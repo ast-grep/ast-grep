@@ -100,7 +100,26 @@ fn run_with_pattern(args: Args) -> Result<()> {
         |(grep, path)| {
             let matches = grep.root().find_all(&pattern);
             print_matches(matches, &path, &pattern, &rewrite);
-            interaction::prompt("Confirm", "yn", Some('y')).expect("Error happened during prompt");
+            let response = interaction::prompt("Confirm", "yn", Some('y'))
+                .expect("Error happened during prompt");
+            if rewrite.is_none() {
+                return;
+            }
+            match response {
+                'y' => {
+                    let root = grep.root();
+                    let edits = root.replace_all(&pattern, rewrite.as_ref().unwrap());
+                    let mut ret = String::new();
+                    let mut start = 0;
+                    for edit in edits {
+                        ret.push_str(&grep.source()[start..edit.position]);
+                        ret.extend(edit.inserted_text.chars());
+                        start = edit.position + edit.deleted_length;
+                    }
+                    std::fs::write(path, ret).expect("write file content");
+                }
+                _ => (),
+            }
         },
     );
     Ok(())
@@ -146,8 +165,13 @@ fn run_with_config(args: Args) -> Result<()> {
                     let matcher = config.get_matcher();
                     let matches = grep.root().find_all(&matcher);
                     print_matches(matches, &path, &matcher, &None);
-                    interaction::prompt("Confirm", "yn", Some('y'))
-                        .expect("Error happened during prompt");
+                    let response =
+                        interaction::prompt("Accept change? (Yes[y], No[n])", "yn", Some('y'))
+                            .expect("Error happened during prompt");
+                    match response {
+                        'y' => {}
+                        _ => (),
+                    }
                 }
             },
         );

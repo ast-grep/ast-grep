@@ -2,9 +2,7 @@ use std::borrow::Cow;
 use std::fmt::Display;
 use std::path::Path;
 
-use ansi_term::{
-    Color, Style,
-};
+use ansi_term::{Color, Style};
 use clap::arg_enum;
 use codespan_reporting::diagnostic::{self, Diagnostic, Label};
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
@@ -86,7 +84,10 @@ pub fn print_matches<'a>(
     rewrite: &Option<Pattern<SupportLang>>,
 ) {
     let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
-    println!("{}", Color::Cyan.italic().paint(format!("{}", path.display())));
+    println!(
+        "{}",
+        Color::Cyan.italic().paint(format!("{}", path.display()))
+    );
     if let Some(rewrite) = rewrite {
         // TODO: actual matching happened in stdout lock, optimize it out
         for e in matches {
@@ -159,10 +160,7 @@ fn print_diff(old: &str, new: &str, base_line: usize) {
     static RED: Color = Color::Fixed(161);
     static GREEN: Color = Color::Fixed(35);
     let diff = TextDiff::from_lines(old, new);
-    let width = base_line
-        .to_string()
-        .chars()
-        .count();
+    let width = base_line.to_string().chars().count();
     for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
         if idx > 0 {
             println!("{:-^1$}", "-", 80);
@@ -170,8 +168,16 @@ fn print_diff(old: &str, new: &str, base_line: usize) {
         for op in group {
             for change in diff.iter_inline_changes(op) {
                 let (sign, s, bg) = match change.tag() {
-                    ChangeTag::Delete => ("-", Style::new().fg(RED).on(THISTLE1), Style::new().on(THISTLE1)),
-                    ChangeTag::Insert => ("+", Style::new().fg(GREEN).on(SEA_GREEN), Style::new().on(SEA_GREEN)),
+                    ChangeTag::Delete => (
+                        "-",
+                        Style::new().fg(RED).on(THISTLE1),
+                        Style::new().on(THISTLE1),
+                    ),
+                    ChangeTag::Insert => (
+                        "+",
+                        Style::new().fg(GREEN).on(SEA_GREEN),
+                        Style::new().on(SEA_GREEN),
+                    ),
                     ChangeTag::Equal => (" ", Style::new().dimmed(), Style::new()),
                 };
                 print!(

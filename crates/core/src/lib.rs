@@ -30,6 +30,10 @@ impl<L: Language> AstGrep<L> {
         }
     }
 
+    pub fn source(&self) -> &str {
+        &self.inner.source
+    }
+
     pub fn root(&self) -> Node<L> {
         self.inner.root()
     }

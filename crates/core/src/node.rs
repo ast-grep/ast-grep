@@ -368,6 +368,26 @@ impl<'r, L: Language> Node<'r, L> {
             inserted_text,
         })
     }
+
+    pub fn replace_all<M: Matcher<L>, R: Replacer<L>>(&self, matcher: M, replacer: R) -> Vec<Edit> {
+        self.find_all(matcher)
+            .map(|matched| {
+                let env = matched.get_env();
+                let inner = &matched.inner;
+                let position = inner.start_byte();
+                // instead of using start_byte/end_byte, ignore trivia like semicolon ;
+                let named_cnt = inner.named_child_count();
+                let end = inner.named_child(named_cnt - 1).unwrap().end_byte();
+                let deleted_length = end - position;
+                let inserted_text = replacer.generate_replacement(env, self.root.lang.clone());
+                Edit {
+                    position: position as usize,
+                    deleted_length: deleted_length as usize,
+                    inserted_text,
+                }
+            })
+            .collect()
+    }
     pub fn replace_by(&self) {}
     pub fn after(&self) {}
     pub fn before(&self) {}
