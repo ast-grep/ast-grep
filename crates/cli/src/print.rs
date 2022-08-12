@@ -3,8 +3,7 @@ use std::fmt::Display;
 use std::path::Path;
 
 use ansi_term::{
-    Color::{Cyan, Green, Red},
-    Style,
+    Color, Style,
 };
 use clap::arg_enum;
 use codespan_reporting::diagnostic::{self, Diagnostic, Label};
@@ -87,11 +86,11 @@ pub fn print_matches<'a>(
     rewrite: &Option<Pattern<SupportLang>>,
 ) {
     let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
-    println!("{}", Cyan.italic().paint(format!("{}", path.display())));
+    println!("{}", Color::Cyan.italic().paint(format!("{}", path.display())));
     if let Some(rewrite) = rewrite {
         // TODO: actual matching happened in stdout lock, optimize it out
         for e in matches {
-            let display = e.display_context();
+            let display = e.display_context(3);
             let old_str = format!(
                 "{}{}{}\n",
                 display.leading, display.matched, display.trailing
@@ -107,7 +106,7 @@ pub fn print_matches<'a>(
         }
     } else {
         for e in matches {
-            let display = e.display_context();
+            let display = e.display_context(0);
             let leading = display.leading;
             let trailing = display.trailing;
             let matched = display.matched;
@@ -146,38 +145,46 @@ fn print_highlight<'a>(
     }
 }
 
-fn index_display(index: Option<usize>, style: Style) -> impl Display {
+fn index_display(index: Option<usize>, style: Style, width: usize) -> impl Display {
     let index_str = match index {
-        None => String::from("    "),
-        Some(idx) => format!("{:<4}", idx),
+        None => format!("{:width$}", ""),
+        Some(idx) => format!("{:<width$}", idx),
     };
     style.paint(index_str)
 }
 
 fn print_diff(old: &str, new: &str, base_line: usize) {
+    static THISTLE1: Color = Color::Fixed(225);
+    static SEA_GREEN: Color = Color::Fixed(158);
+    static RED: Color = Color::Fixed(161);
+    static GREEN: Color = Color::Fixed(35);
     let diff = TextDiff::from_lines(old, new);
+    let width = base_line
+        .to_string()
+        .chars()
+        .count();
     for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
         if idx > 0 {
             println!("{:-^1$}", "-", 80);
         }
         for op in group {
             for change in diff.iter_inline_changes(op) {
-                let (sign, s) = match change.tag() {
-                    ChangeTag::Delete => ("-", Style::new().fg(Red)),
-                    ChangeTag::Insert => ("+", Style::new().fg(Green)),
-                    ChangeTag::Equal => (" ", Style::new().dimmed()),
+                let (sign, s, bg) = match change.tag() {
+                    ChangeTag::Delete => ("-", Style::new().fg(RED).on(THISTLE1), Style::new().on(THISTLE1)),
+                    ChangeTag::Insert => ("+", Style::new().fg(GREEN).on(SEA_GREEN), Style::new().on(SEA_GREEN)),
+                    ChangeTag::Equal => (" ", Style::new().dimmed(), Style::new()),
                 };
                 print!(
                     "{}{}|{}",
-                    index_display(change.old_index().map(|i| i + base_line), s),
-                    index_display(change.new_index().map(|i| i + base_line), s),
+                    index_display(change.old_index().map(|i| i + base_line), s, width + 1),
+                    index_display(change.new_index().map(|i| i + base_line), s, width),
                     s.paint(sign),
                 );
                 for (emphasized, value) in change.iter_strings_lossy() {
                     if emphasized {
-                        print!("{}", s.underline().paint(value));
+                        print!("{}", s.bold().paint(value));
                     } else {
-                        print!("{}", value);
+                        print!("{}", bg.paint(value));
                     }
                 }
                 if change.missing_newline() {

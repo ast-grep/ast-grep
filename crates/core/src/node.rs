@@ -137,17 +137,31 @@ impl<'r, L: Language> Node<'r, L> {
             .expect("invalid source text encoding")
     }
 
-    pub fn display_context(&self) -> DisplayContext<'r> {
+    pub fn display_context(&self, context_lines: usize) -> DisplayContext<'r> {
         let bytes = self.root.source.as_bytes();
         let start = self.inner.start_byte() as usize;
         let end = self.inner.end_byte() as usize;
         let (mut leading, mut trailing) = (start, end);
-        while leading > 0 && bytes[leading - 1] != b'\n' {
+        let mut lines_before = context_lines + 1;
+        while leading > 0 {
+            if bytes[leading - 1] == b'\n' {
+                lines_before -= 1;
+                if lines_before == 0 {
+                    break;
+                }
+            }
             leading -= 1;
         }
         // tree-sitter will append line ending to source so trailing can be out of bound
         trailing = trailing.min(bytes.len() - 1);
-        while trailing < bytes.len() - 1 && bytes[trailing + 1] != b'\n' {
+        let mut lines_after = context_lines + 1;
+        while trailing < bytes.len() - 1 {
+            if bytes[trailing + 1] == b'\n' {
+                lines_after -= 1;
+                if lines_after == 0 {
+                    break;
+                }
+            }
             trailing += 1;
         }
         DisplayContext {
@@ -394,6 +408,6 @@ mod test {
         assert_eq!(s.len(), 3);
         let root = Tsx.new(s);
         let node = root.root();
-        assert_eq!(node.display_context().trailing.len(), 0);
+        assert_eq!(node.display_context(0).trailing.len(), 0);
     }
 }
