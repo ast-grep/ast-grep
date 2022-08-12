@@ -100,7 +100,7 @@ fn run_with_pattern(args: Args) -> Result<()> {
         |(grep, path)| {
             let matches = grep.root().find_all(&pattern);
             print_matches(matches, &path, &pattern, &rewrite);
-            let response = interaction::prompt("Confirm", "yn", Some('y'))
+            let response = interaction::prompt("Accept change? (Yes[y], No[n])", "yn", Some('y'))
                 .expect("Error happened during prompt");
             if rewrite.is_none() {
                 return;
