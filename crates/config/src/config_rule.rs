@@ -79,7 +79,7 @@ fn match_and_add_label<'tree, L: Language, M: Matcher<L>>(
     Some(matched)
 }
 
-fn until<'s, L: Language>(pattern: &'s Option<Rule<L>>) -> impl Fn(&Node<L>) -> bool + 's {
+fn until<L: Language>(pattern: &Option<Rule<L>>) -> impl Fn(&Node<L>) -> bool + '_ {
     move |n| {
         if let Some(m) = pattern {
             m.match_node(n.clone()).is_none()

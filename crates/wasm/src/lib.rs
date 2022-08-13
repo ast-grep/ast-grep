@@ -16,18 +16,19 @@ pub struct MatchResult {
     pub end: usize,
 }
 
-#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub async fn find_nodes(src: String, config: JsValue) -> String {
-    tree_sitter::TreeSitter::init().await;
+    if tree_sitter::TreeSitter::init().await.is_err() {
+        return "".to_string();
+    };
     let mut parser = tree_sitter::Parser::new().unwrap();
     let lang = web_tree_sitter_sys::Language::load_path("tree-sitter-javascript.wasm")
         .await
         .unwrap();
-    let lang = tree_sitter::Language::from(lang);
+    let lang = get_lang(lang);
     parser.set_language(&lang).unwrap();
     let config: SerializableRule = config.into_serde().unwrap();
-    let root = lang.new(src);
+    let root = lang.ast_grep(src);
     let matcher = try_from_serializable(config, lang).unwrap();
     let ret: Vec<_> = root
         .root()
@@ -38,4 +39,14 @@ pub async fn find_nodes(src: String, config: JsValue) -> String {
         })
         .collect();
     format!("{:?}", ret)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn get_lang(lang: web_tree_sitter_sys::Language) -> tree_sitter::Language {
+    tree_sitter::Language::from(lang)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn get_lang(_lang: web_tree_sitter_sys::Language) -> tree_sitter::Language {
+    unreachable!()
 }

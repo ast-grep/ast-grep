@@ -38,14 +38,14 @@ impl_lang!(Swift, language_swift);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
 
-use ast_grep_core::language::{self, Language, TSLanguage};
+use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::MetaVariable;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 /// represents a dynamic language
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SupportLang {
     C,
     Go,

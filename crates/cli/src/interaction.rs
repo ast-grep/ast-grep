@@ -37,7 +37,7 @@ pub fn run_walker(walker: WalkParallel, f: impl Fn(DirEntry) -> WalkState + Sync
 pub fn run_walker_interactive<T: Send>(
     walker: WalkParallel,
     producer: impl Fn(DirEntry) -> Option<T> + Sync,
-    consumer: impl Fn(T) -> () + Send,
+    consumer: impl Fn(T) + Send,
 ) {
     let (tx, rx) = mpsc::channel();
     let producer = &producer;

@@ -113,11 +113,13 @@ fn run_with_pattern(args: Args) -> Result<()> {
                     let mut start = 0;
                     for edit in edits {
                         ret.push_str(&grep.source()[start..edit.position]);
-                        ret.extend(edit.inserted_text.chars());
+                        ret.push_str(&edit.inserted_text);
                         start = edit.position + edit.deleted_length;
                     }
                     std::fs::write(path, ret).expect("write file content");
                 }
+                'n' => (),
+                'a' => (),
                 _ => (),
             }
         },
@@ -140,7 +142,7 @@ fn run_with_config(args: Args) -> Result<()> {
                 if from_extension(path).filter(|&n| n == lang).is_none() {
                     continue;
                 }
-                match_rule_on_file(path, lang, &config, &reporter)
+                match_rule_on_file(path, lang, config, &reporter)
             }
         });
     } else {
@@ -170,6 +172,8 @@ fn run_with_config(args: Args) -> Result<()> {
                             .expect("Error happened during prompt");
                     match response {
                         'y' => {}
+                        'n' => (),
+                        'a' => (),
                         _ => (),
                     }
                 }
@@ -206,9 +210,11 @@ fn filter_file(entry: DirEntry) -> Option<DirEntry> {
     entry.file_type()?.is_file().then_some(entry)
 }
 
-fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> () + Sync) {
+fn run_walker(walker: WalkParallel, f: impl Fn(&Path) + Sync) {
     interaction::run_walker(walker, |entry| {
-        filter_file(entry).map(|e| f(e.path()));
+        if let Some(e) = filter_file(entry) {
+            f(e.path());
+        }
         WalkState::Continue
     });
 }
@@ -216,7 +222,7 @@ fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> () + Sync) {
 fn run_walker_interactive<T: Send>(
     walker: WalkParallel,
     producer: impl Fn(&Path) -> Option<T> + Sync,
-    consumer: impl Fn(T) -> () + Send,
+    consumer: impl Fn(T) + Send,
 ) {
     interaction::run_walker_interactive(
         walker,

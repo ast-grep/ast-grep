@@ -37,11 +37,12 @@ impl ErrorReporter {
             ReportStyle::Medium => DisplayStyle::Medium,
             ReportStyle::Short => DisplayStyle::Short,
         };
-        let mut config = term::Config::default();
-        config.display_style = display_style;
         Self {
             writer: StandardStream::stdout(color),
-            config,
+            config: term::Config {
+                display_style,
+                ..Default::default()
+            },
         }
     }
 
@@ -112,12 +113,9 @@ pub fn print_matches<'a>(
             let trailing = display.trailing;
             let matched = display.matched;
             let highlighted = format!("{leading}{matched}{trailing}");
-            let lines: Vec<_> = highlighted.lines().collect();
+            let lines = highlighted.lines().count();
             let mut num = display.start_line;
-            let width = (lines.len() + display.start_line)
-                .to_string()
-                .chars()
-                .count();
+            let width = (lines + display.start_line).to_string().chars().count();
             print!("{num:>width$}|"); // initial line num
             print_highlight(leading.lines(), Style::new().dimmed(), width, &mut num);
             print_highlight(matched.lines(), Style::new().bold(), width, &mut num);

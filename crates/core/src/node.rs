@@ -23,7 +23,7 @@ impl<L: Language> Root<L> {
         }
     }
     // extract non generic implementation to reduce code size
-    pub fn do_edit<'t>(&mut self, edit: Edit) {
+    pub fn do_edit(&mut self, edit: Edit) {
         let input = unsafe { self.source.as_mut_vec() };
         let input_edit = perform_edit(&mut self.inner, input, &edit);
         self.inner.edit(&input_edit);
@@ -335,7 +335,6 @@ impl<'r, L: Language> Node<'r, L> {
             root: self.root,
         })
     }
-    #[must_use]
     pub fn prev_all(&self) -> impl Iterator<Item = Node<'r, L>> + '_ {
         let root = self.root;
         let mut inner = self.inner.clone();
