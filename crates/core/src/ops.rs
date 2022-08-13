@@ -252,8 +252,9 @@ impl<L: Language, M: PositiveMatcher<L>> Op<L, M> {
     }
 }
 
+type NestedAnd<L, M, N, O> = And<L, And<L, M, N>, O>;
 impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, And<L, M, N>> {
-    pub fn and<O: Matcher<L>>(self, other: O) -> Op<L, And<L, And<L, M, N>, O>> {
+    pub fn and<O: Matcher<L>>(self, other: O) -> Op<L, NestedAnd<L, M, N, O>> {
         Op {
             inner: And {
                 pattern1: self.inner,
@@ -265,8 +266,9 @@ impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, And<L, M, N>> {
     }
 }
 
+type NestedOr<L, M, N, O> = Or<L, Or<L, M, N>, O>;
 impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, Or<L, M, N>> {
-    pub fn or<O: Matcher<L>>(self, other: O) -> Op<L, Or<L, Or<L, M, N>, O>> {
+    pub fn or<O: Matcher<L>>(self, other: O) -> Op<L, NestedOr<L, M, N, O>> {
         Op {
             inner: Or {
                 pattern1: self.inner,

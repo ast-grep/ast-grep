@@ -12,7 +12,7 @@ repository = "https://github.com/HerringtonDarkholme/ast-grep"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["console_error_panic_hook"]
+default = []
 
 [dependencies]
 wasm-bindgen = {version = "0.2.81", features = ["serde-serialize"]}

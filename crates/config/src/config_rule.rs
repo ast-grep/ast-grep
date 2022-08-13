@@ -311,7 +311,7 @@ inside:
         let rule: SerializableRule = from_str(src).expect("cannot parse rule");
         match rule {
             SerializableRule::Inside(rule) => assert!(rule.immediate),
-            _ => assert!(false),
+            _ => unreachable!(),
         }
     }
 }
