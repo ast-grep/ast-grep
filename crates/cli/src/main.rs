@@ -236,7 +236,7 @@ fn match_rule_on_file(
         Ok(content) => content,
         _ => return,
     };
-    let grep = lang.new(&file_content);
+    let grep = lang.ast_grep(&file_content);
     let mut matches = grep.root().find_all(matcher).peekable();
     if matches.peek().is_none() {
         return;
@@ -255,7 +255,7 @@ fn match_one_file(
         Ok(content) => content,
         _ => return,
     };
-    let grep = lang.new(file_content);
+    let grep = lang.ast_grep(file_content);
     let mut matches = grep.root().find_all(pattern).peekable();
     if matches.peek().is_none() {
         return;
@@ -271,7 +271,7 @@ fn filter_file_interactive(
     let file_content = read_to_string(path)
         .map_err(|err| eprintln!("ERROR: {}", err))
         .ok()?;
-    let grep = lang.new(file_content);
+    let grep = lang.ast_grep(file_content);
     let has_match = grep.root().find(&pattern).is_some();
     has_match.then_some((grep, path.to_path_buf()))
 }

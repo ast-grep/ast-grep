@@ -217,7 +217,7 @@ mod test {
             MetaVarMatcher::Pattern(Pattern::new(pattern, Tsx)),
         );
         let mut env = MetaVarEnv::from_matchers(matchers);
-        let root = Tsx.new(node);
+        let root = Tsx.ast_grep(node);
         let node = root.root().child(0).unwrap().child(0).unwrap();
         env.insert("A".to_string(), node);
         env.match_constraints()

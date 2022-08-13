@@ -403,14 +403,14 @@ mod test {
     use crate::language::{Language, Tsx};
     #[test]
     fn test_is_leaf() {
-        let root = Tsx.new("let a = 123");
+        let root = Tsx.ast_grep("let a = 123");
         let node = root.root();
         assert!(!node.is_leaf());
     }
 
     #[test]
     fn test_children() {
-        let root = Tsx.new("let a = 123");
+        let root = Tsx.ast_grep("let a = 123");
         let node = root.root();
         let children: Vec<_> = node.children().collect();
         assert_eq!(children.len(), 1);
@@ -426,7 +426,7 @@ mod test {
         // display context should not panic
         let s = "i()";
         assert_eq!(s.len(), 3);
-        let root = Tsx.new(s);
+        let root = Tsx.ast_grep(s);
         let node = root.root();
         assert_eq!(node.display_context(0).trailing.len(), 0);
     }

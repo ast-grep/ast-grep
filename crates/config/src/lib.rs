@@ -80,13 +80,13 @@ mod test {
 
     fn test_rule_match(yaml: &str, source: &str) {
         let config = &from_yaml_string::<TypeScript>(yaml).expect("rule should parse")[0];
-        let grep = config.language.new(source);
+        let grep = config.language.ast_grep(source);
         assert!(grep.root().find(config.get_matcher()).is_some());
     }
 
     fn test_rule_unmatch(yaml: &str, source: &str) {
         let config = &from_yaml_string::<TypeScript>(yaml).expect("rule should parse")[0];
-        let grep = config.language.new(source);
+        let grep = config.language.ast_grep(source);
         assert!(grep.root().find(config.get_matcher()).is_none());
     }
 

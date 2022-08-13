@@ -122,7 +122,10 @@ mod test {
 
     fn test_str_replace(replacer: &str, vars: &[(&str, &str)], expected: &str) {
         let mut env = MetaVarEnv::new();
-        let roots: Vec<_> = vars.iter().map(|(v, p)| (v, Tsx.new(p).inner)).collect();
+        let roots: Vec<_> = vars
+            .iter()
+            .map(|(v, p)| (v, Tsx.ast_grep(p).inner))
+            .collect();
         for (var, root) in &roots {
             env.insert(var.to_string(), root.root());
         }
@@ -178,7 +181,10 @@ mod test {
 
     fn test_ellipsis_replace(replacer: &str, vars: &[(&str, &str)], expected: &str) {
         let mut env = MetaVarEnv::new();
-        let roots: Vec<_> = vars.iter().map(|(v, p)| (v, Tsx.new(p).inner)).collect();
+        let roots: Vec<_> = vars
+            .iter()
+            .map(|(v, p)| (v, Tsx.ast_grep(p).inner))
+            .collect();
         for (var, root) in &roots {
             env.insert_multi(var.to_string(), root.root().children().collect());
         }
