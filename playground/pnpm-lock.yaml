@@ -3,6 +3,7 @@ lockfileVersion: 5.3
 specifiers:
   '@vitejs/plugin-vue': ^3.0.0
   ast-grep-wasm: file:../crates/wasm/pkg/
+  monaco-editor: ^0.34.0
   tree-sitter-javascript: ^0.19.0
   typescript: ^4.6.4
   vite: ^3.0.0
@@ -11,6 +12,7 @@ specifiers:
   web-tree-sitter: ^0.20.5
 
 dependencies:
+  monaco-editor: 0.34.0
   tree-sitter-javascript: 0.19.0
   vue: 3.2.37
   web-tree-sitter: 0.20.5
@@ -402,6 +404,10 @@ packages:
     resolution: {integrity: sha512-RmF0AsMzgt25qzqqLc1+MbHmhdx0ojF2Fvs4XnOqz2ZOBXzzkEwc/dJQZCYHAn7v1jbVOjAZfK8msRn4BxO4VQ==}
     dependencies:
       sourcemap-codec: 1.4.8
+
+  /monaco-editor/0.34.0:
+    resolution: {integrity: sha512-VF+S5zG8wxfinLKLrWcl4WUizMx+LeJrG4PM/M78OhcwocpV0jiyhX/pG6Q9jIOhrb/ckYi6nHnaR5OojlOZCQ==}
+    dev: false
 
   /nan/2.16.0:
     resolution: {integrity: sha512-UdAqHyFngu7TfQKsCBgAA6pWDkT8MAO7d0jyOecVhN5354xbLqdn8mV9Tat9gepAupm0bt2DbeaSC8vS52MuFA==}

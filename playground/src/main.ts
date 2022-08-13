@@ -1,21 +1,31 @@
 import { createApp } from 'vue'
 import './style.css'
 import App from './App.vue'
-import TreeSitter from 'web-tree-sitter'
-import Parser from 'web-tree-sitter'
-import init, {find_nodes} from 'ast-grep-wasm'
 
-async function initializeTreeSitter() {
-  await TreeSitter.init()
-  let entrypoint = globalThis as any
-  entrypoint.Parser = TreeSitter
-  entrypoint.Language = TreeSitter.Language
-}
+import * as monaco from 'monaco-editor';
+import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
+import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
+import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
+import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
 
-await initializeTreeSitter()
-await init()
-console.log(
-  await find_nodes('let a = 123;  a = 333', { pattern: 'a'})
-)
+// @ts-ignore
+self.MonacoEnvironment = {
+	getWorker(_: any, label: string) {
+		if (label === 'json') {
+			return new jsonWorker();
+		}
+		if (label === 'css' || label === 'scss' || label === 'less') {
+			return new cssWorker();
+		}
+		if (label === 'html' || label === 'handlebars' || label === 'razor') {
+			return new htmlWorker();
+		}
+		if (label === 'typescript' || label === 'javascript') {
+			return new tsWorker();
+		}
+		return new editorWorker();
+	}
+};
 
 createApp(App).mount('#app')
