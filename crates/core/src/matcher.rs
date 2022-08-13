@@ -1,5 +1,5 @@
 use crate::meta_var::{MetaVarEnv, MetaVarMatchers};
-use crate::node::{KindId, DFS};
+use crate::node::{Dfs, KindId};
 use crate::Language;
 use crate::Node;
 use crate::Pattern;
@@ -82,7 +82,7 @@ pub trait Matcher<L: Language> {
             .or_else(|| node.children().find_map(|sub| self.find_node(sub)))
     }
 
-    fn find_all_nodes<'tree>(self, node: Node<'tree, L>) -> FindAllNodes<'tree, L, Self>
+    fn find_all_nodes(self, node: Node<L>) -> FindAllNodes<L, Self>
     where
         Self: Sized,
     {
@@ -151,7 +151,7 @@ impl<L: Language> PositiveMatcher<L> for Box<dyn PositiveMatcher<L>> {}
 pub trait PositiveMatcher<L: Language>: Matcher<L> {}
 
 pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
-    dfs: DFS<'tree, L>,
+    dfs: Dfs<'tree, L>,
     matcher: M,
 }
 
@@ -167,7 +167,7 @@ impl<'tree, L: Language, M: Matcher<L>> FindAllNodes<'tree, L, M> {
 impl<'tree, L: Language, M: Matcher<L>> Iterator for FindAllNodes<'tree, L, M> {
     type Item = NodeMatch<'tree, L>;
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(cand) = self.dfs.next() {
+        for cand in self.dfs.by_ref() {
             if let Some(matched) = self.matcher.match_node(cand) {
                 return Some(matched);
             }

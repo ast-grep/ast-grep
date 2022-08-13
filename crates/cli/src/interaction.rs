@@ -12,8 +12,8 @@ pub fn clear() {
 pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result<char> {
     loop {
         let input = prompt_reply_stdout(prompt_text)?;
-        if input.is_empty() && default.is_some() {
-            return Ok(default.unwrap());
+        if let Some(default) = default && input.is_empty() {
+            return Ok(default);
         }
         if input.len() == 1 && letters.contains(&input) {
             return Ok(input.chars().next().unwrap());

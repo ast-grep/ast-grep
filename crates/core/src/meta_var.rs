@@ -56,7 +56,7 @@ impl<'tree, L: Language> MetaVarEnv<'tree, L> {
     pub fn add_label(&mut self, label: &str, node: Node<'tree, L>) {
         self.multi_matched
             .entry(label.into())
-            .or_insert_with(|| vec![])
+            .or_insert_with(Vec::new)
             .push(node);
     }
 
@@ -83,6 +83,12 @@ impl<'tree, L: Language> MetaVarEnv<'tree, L> {
     }
 }
 
+impl<'tree, L: Language> Default for MetaVarEnv<'tree, L> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'tree, L: Language> From<MetaVarEnv<'tree, L>> for HashMap<String, String> {
     fn from(env: MetaVarEnv<'tree, L>) -> Self {
         let mut ret = HashMap::new();
@@ -105,7 +111,7 @@ pub enum MatchResult<'a, 'tree, L: Language> {
     Multi(&'a Vec<Node<'tree, L>>),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum MetaVariable {
     /// $A for captured meta var
     Named(MetaVariableID),
@@ -127,6 +133,12 @@ impl<L: Language> MetaVarMatchers<L> {
 
     pub fn insert(&mut self, var_id: MetaVariableID, matcher: MetaVarMatcher<L>) {
         self.0.insert(var_id, matcher);
+    }
+}
+
+impl<L: Language> Default for MetaVarMatchers<L> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -74,7 +74,7 @@ impl<'tree, L: Language> ExactSizeIterator for NodeWalker<'tree, L> {
     }
 }
 
-pub struct DFS<'tree, L: Language> {
+pub struct Dfs<'tree, L: Language> {
     cursor: tree_sitter::TreeCursor<'tree>,
     root: &'tree Root<L>,
     // record the starting node, if we return back to starting point
@@ -82,7 +82,7 @@ pub struct DFS<'tree, L: Language> {
     start_id: Option<usize>,
 }
 
-impl<'tree, L: Language> DFS<'tree, L> {
+impl<'tree, L: Language> Dfs<'tree, L> {
     fn new(node: &Node<'tree, L>) -> Self {
         Self {
             cursor: node.inner.walk(),
@@ -92,7 +92,7 @@ impl<'tree, L: Language> DFS<'tree, L> {
     }
 }
 
-impl<'tree, L: Language> Iterator for DFS<'tree, L> {
+impl<'tree, L: Language> Iterator for Dfs<'tree, L> {
     type Item = Node<'tree, L>;
     fn next(&mut self) -> Option<Self::Item> {
         let start = self.start_id?;
@@ -221,8 +221,8 @@ impl<'r, L: Language> Node<'r, L> {
         }
     }
 
-    pub fn dfs<'s>(&'s self) -> DFS<'r, L> {
-        DFS::new(self)
+    pub fn dfs<'s>(&'s self) -> Dfs<'r, L> {
+        Dfs::new(self)
     }
 
     #[must_use]
