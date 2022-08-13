@@ -1,6 +1,6 @@
 [package]
 name = "ast-grep-config"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
 edition = "2021"
 description = "Search and Rewrite code at large scale using precise AST pattern"
@@ -12,7 +12,7 @@ repository = "https://github.com/HerringtonDarkholme/ast-grep"
 
 
 [dependencies]
-ast-grep-core = { version="0.1.0", path = "../core" }
+ast-grep-core = { version="0.1.1", path = "../core" }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"
 
