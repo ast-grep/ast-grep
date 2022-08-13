@@ -78,7 +78,7 @@ fn merge_edits_to_string<L: Language>(edits: Vec<Edit>, root: &Root<L>) -> Strin
     let mut start = 0;
     for edit in edits {
         ret.push_str(&root.source[start..edit.position]);
-        ret.extend(edit.inserted_text.chars());
+        ret.push_str(&edit.inserted_text);
         start = edit.position + edit.deleted_length;
     }
     ret

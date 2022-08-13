@@ -15,7 +15,7 @@ pub struct Edit {
     pub inserted_text: String,
 }
 
-fn position_for_offset(input: &Vec<u8>, offset: usize) -> Point {
+fn position_for_offset(input: &[u8], offset: usize) -> Point {
     let (mut row, mut col) = (0, 0);
     for c in &input[0..offset] {
         if *c as char == '\n' {

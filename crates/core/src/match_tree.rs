@@ -41,7 +41,7 @@ fn update_ellipsis_env<'t, L: Language>(
 ) {
     if let Some(name) = optional_name.as_ref() {
         matched.extend(cand_children);
-        let skipped = matched.len().checked_sub(skipped_anonymous).unwrap_or(0);
+        let skipped = matched.len().saturating_sub(skipped_anonymous);
         drop(matched.drain(skipped..));
         env.insert_multi(name.to_string(), matched);
     }

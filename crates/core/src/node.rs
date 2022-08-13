@@ -258,19 +258,19 @@ impl<'r, L: Language> Node<'r, L> {
         cursor.goto_first_child();
         let mut done = false;
         std::iter::from_fn(move || {
-            while !done {
-                while cursor.field_id() != Some(field_id) {
-                    if !cursor.goto_next_sibling() {
-                        return None;
-                    }
-                }
-                let inner = cursor.node();
-                if !cursor.goto_next_sibling() {
-                    done = true;
-                }
-                return Some(Node { inner, root });
+            if done {
+                return None;
             }
-            None
+            while cursor.field_id() != Some(field_id) {
+                if !cursor.goto_next_sibling() {
+                    return None;
+                }
+            }
+            let inner = cursor.node();
+            if !cursor.goto_next_sibling() {
+                done = true;
+            }
+            Some(Node { inner, root })
         })
     }
 

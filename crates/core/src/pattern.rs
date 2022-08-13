@@ -50,11 +50,10 @@ impl<L: Language> Pattern<L> {
         while node.child_count() == 1 {
             node = node.child(0).unwrap();
         }
-        let goal = Node {
+        Node {
             inner: node,
             root: &self.root,
-        };
-        goal
+        }
     }
 }
 
