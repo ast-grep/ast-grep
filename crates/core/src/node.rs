@@ -131,6 +131,14 @@ impl<'r, L: Language> Node<'r, L> {
     pub fn range(&self) -> std::ops::Range<usize> {
         (self.inner.start_byte() as usize)..(self.inner.end_byte() as usize)
     }
+    pub fn start_pos(&self) -> (usize, usize) {
+        let pos = self.inner.start_position();
+        (pos.row() as usize, pos.column() as usize)
+    }
+    pub fn end_pos(&self) -> (usize, usize) {
+        let pos = self.inner.end_position();
+        (pos.row() as usize, pos.column() as usize)
+    }
     pub fn text(&self) -> Cow<'r, str> {
         self.inner
             .utf8_text(self.root.source.as_bytes())

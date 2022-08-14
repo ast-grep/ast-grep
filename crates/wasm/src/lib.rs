@@ -21,21 +21,22 @@ pub async fn find_nodes(src: String, config: JsValue) -> String {
     if tree_sitter::TreeSitter::init().await.is_err() {
         return "".to_string();
     };
-    let mut parser = tree_sitter::Parser::new().unwrap();
+    let mut parser = tree_sitter::Parser::new().unwrap_throw();
     let lang = web_tree_sitter_sys::Language::load_path("tree-sitter-javascript.wasm")
         .await
-        .unwrap();
+        .unwrap_throw();
     let lang = get_lang(lang);
-    parser.set_language(&lang).unwrap();
-    let config: SerializableRule = config.into_serde().unwrap();
+    parser.set_language(&lang).unwrap_throw();
+    let config: SerializableRule = config.into_serde().unwrap_throw();
     let root = lang.ast_grep(src);
-    let matcher = try_from_serializable(config, lang).unwrap();
+    let matcher = try_from_serializable(config, lang).unwrap_throw();
     let ret: Vec<_> = root
         .root()
         .find_all(matcher)
         .map(|n| {
-            let range = n.range();
-            (range.start, range.end)
+            let start = n.start_pos();
+            let end = n.end_pos();
+            vec![start.0, start.1, end.0, end.1]
         })
         .collect();
     format!("{:?}", ret)

@@ -33,7 +33,3 @@ tree-sitter = { version = "0.9", package = "tree-sitter-facade" }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"
-
-[profile.release]
-# Tell `rustc` to optimize for small code size.
-opt-level = "s"
