@@ -35,7 +35,7 @@ jobs:
           node-version: '16'
 
       - name: Build WASM
-        run: cd crates/wasm && wasm-pack build --target web && npm install
+        run: cd crates/wasm && wasm-pack build --target web && cd pkg && npm install
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v2.2.2

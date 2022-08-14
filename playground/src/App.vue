@@ -16,7 +16,7 @@ import Playground from './components/Playground.vue'
 
 <style scoped>
 .logo {
-  height: 6em;
+  height: 9em;
   padding: 1.5em;
   will-change: filter;
 }
