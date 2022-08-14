@@ -29,9 +29,6 @@ jobs:
           key: ${{ runner.os }}-${{ github.sha }}
           restore-keys: ${{ runner.os }}-
 
-      - name: Build WASM
-        run: cd crates/wasm && wasm-pack build --target web
-
       - name: Install Node
         uses: actions/setup-node@v3
         with:
@@ -44,6 +41,9 @@ jobs:
           run_install: |
               - cwd: ./playground
                 recursive: true
+
+      - name: Build WASM
+        run: cd crates/wasm && wasm-pack build --target web && npm install
 
       - name: Vite Build 🔧
         run: cd playground && pnpm build

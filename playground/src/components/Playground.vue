@@ -37,14 +37,20 @@ const count = ref(0)
 </script>
 
 <template>
-  <SelectLang v-model="lang"/>
+  <div class="editor-captions">
+    <div class="half editor-caption">
+      Test Code
+    </div>
+    <div class="">
+      Pattern
+    </div>
+    <SelectLang class="selector" v-model="lang"/>
+  </div>
   <div class="playground">
     <div class="half">
-      Test Code
       <Monaco v-model="source" :highlights="matchedHighlights"/>
     </div>
     <div class="half">
-      Pattern
       <Monaco v-model="query"/>
     </div>
   </div>
@@ -55,10 +61,22 @@ const count = ref(0)
 <style scoped>
 .playground {
   display: flex;
+  flex-wrap: wrap;
   flex: 1 0 auto;
 }
 .half {
   width: 50%;
+}
+.editor-captions {
+  display: flex;
+  text-align: left;
+}
+.selector {
+  margin-left: auto;
+}
+.editor-caption {
+  flex: 0 0 auto;
+  height: 1.5em;
 }
 p {
   margin-top: 1em;

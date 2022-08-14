@@ -19,7 +19,7 @@ const languages = {
 </script>
 <template>
   <div class="selector">
-    Source Language:
+    Language:
     <select :value="modelValue" @change="emits('update:modelValue', String($event))">
       <option v-for="val, key in languages" :value="key">{{val}}</option>
     </select>
