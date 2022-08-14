@@ -4,6 +4,8 @@ import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
 import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
+// LOL vue sfc compiler does not allow type alias and dynamic import co-exist
+import type monaco from 'monaco-editor'
 
 // @ts-ignore
 self.MonacoEnvironment = {
@@ -27,7 +29,6 @@ self.MonacoEnvironment = {
 </script>
 
 <script lang="ts" setup>
-import * as monaco from 'monaco-editor'
 import {
   ref,
   onMounted,
@@ -38,7 +39,7 @@ import {
 } from 'vue'
 
 const emits = defineEmits<{
-    (e: 'change', value: string): void,
+    (e: 'update:modelValue', value: string): void,
 }>()
 
 const props = defineProps({
@@ -46,6 +47,7 @@ const props = defineProps({
     type: String,
     default: 'javascript'
   },
+  modelValue: String,
   readonly: {
     type: Boolean,
     default: false,
@@ -55,6 +57,7 @@ const props = defineProps({
   },
 })
 
+const monaco = await import('monaco-editor')
 
 const containerRef = ref<HTMLDivElement | null>(null)
 const editor = shallowRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -66,10 +69,10 @@ onMounted(() => {
     return
   }
   const editorInstance = monaco.editor.create(containerRef.value, {
-    value: '',
+    value: props.modelValue,
     language: props.language,
     readOnly: props.readonly,
-    automaticLayout: true,
+    automaticLayout: false,
     scrollBeyondLastLine: false,
     minimap: {
       enabled: false,
@@ -80,13 +83,12 @@ onMounted(() => {
   })
   editor.value = editorInstance
   editorInstance.onDidChangeModelContent(() => {
-      emits('change', editorInstance.getValue())
+      emits('update:modelValue', editorInstance.getValue())
   })
-  highlights = editorInstance.createDecorationsCollection([])
+  highlights = editorInstance.createDecorationsCollection(props.highlights?.map(transformMatch) || [])
 })
 
-watch(() => props.highlights, (matched) => {
-  const ranges = matched!.map(match => {
+const transformMatch = (match: number[]) => {
     const [sr, sc, er, ec] = match
     return {
       range: new monaco.Range(sr + 1, sc + 1, er + 1, ec + 1),
@@ -94,7 +96,10 @@ watch(() => props.highlights, (matched) => {
         inlineClassName: 'monaco-highlight-span'
       }
     }
-  })
+}
+
+watch(() => props.highlights, (matched) => {
+  const ranges = matched!.map(transformMatch)
   highlights?.set(ranges)
 })
 
@@ -113,10 +118,11 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   text-align: left;
+  border: 1px solid #eee;
 }
 </style>
 <style>
 .monaco-highlight-span {
-  background-color: #baac2d;
+  background-color: var(--theme-highlight3);
 }
 </style>

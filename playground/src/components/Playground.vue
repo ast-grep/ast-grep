@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watchEffect } from 'vue'
 import Monaco from './Monaco.vue'
 import TreeSitter from 'web-tree-sitter'
 import Parser from 'web-tree-sitter'
@@ -16,17 +16,21 @@ async function initializeTreeSitter() {
 await initializeTreeSitter()
 await init()
 
-let source = ref(``)
-let query = ref('')
+let source = ref(
+`function tryAstGrep() {
+    console.log('hello world')
+}`)
+let query = ref('console.log($MATCH)')
 let lang = ref('javascript')
 
 const matchedHighlights = ref([])
-watch([source, query], async ([source, query]) => {
+watchEffect(async () => {
   try {
-    matchedHighlights.value = JSON.parse(await find_nodes(source, {pattern: query}))
+    matchedHighlights.value = JSON.parse(await find_nodes(source.value, {pattern: query.value}))
   } catch (e) {
     matchedHighlights.value = []
   }
+  return () => {}
 })
 
 const count = ref(0)
@@ -36,14 +40,16 @@ const count = ref(0)
   <SelectLang v-model="lang"/>
   <div class="playground">
     <div class="half">
-      <Monaco @change="source = $event" :language="lang" :highlights="matchedHighlights"/>
+      Test Code
+      <Monaco v-model="source" :highlights="matchedHighlights"/>
     </div>
     <div class="half">
-      <Monaco @change="query = $event"/>
+      Pattern
+      <Monaco v-model="query"/>
     </div>
   </div>
-  <div v-if="matchedHighlights.length > 0">Found {{ matchedHighlights.length }} match(es).</div>
-  <div v-else>No match found.</div>
+  <p v-if="matchedHighlights.length > 0">Found {{ matchedHighlights.length }} match(es).</p>
+  <p v-else>No match found.</p>
 </template>
 
 <style scoped>
@@ -53,5 +59,8 @@ const count = ref(0)
 }
 .half {
   width: 50%;
+}
+p {
+  margin-top: 1em;
 }
 </style>

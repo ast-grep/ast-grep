@@ -1,0 +1,56 @@
+name: Github Page Playground
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.3.0
+        with:
+          # Optional version of wasm-pack to install(eg. 'v0.9.1', 'latest')
+          version: 'latest'
+
+      - name: Cache Rust Deps
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-
+
+      - name: Build WASM
+        run: cd crates/wasm && wasm-pack build --target web
+
+      - name: Install Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2.2.2
+        with:
+          version: 6.16.0
+          run_install: |
+              - cwd: ./playground
+                recursive: true
+
+      - name: Vite Build 🔧
+        run: cd playground && pnpm build
+
+      - name: Deploy 🚀
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./playground/dist
+          keep_files: true

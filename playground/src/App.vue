@@ -7,7 +7,7 @@ import Playground from './components/Playground.vue'
     <a href="https://vitejs.dev" target="_blank">
       <img src="/logo.svg" class="logo" alt="SG logo" />
     </a>
-    <h1>SG: ast-grep</h1>
+    <h3 class="description">SG: ast-grep playground</h3>
     <Suspense>
       <Playground/>
     </Suspense>
@@ -21,17 +21,17 @@ import Playground from './components/Playground.vue'
   will-change: filter;
 }
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
+  filter: drop-shadow(0 0 2em #3e699166);
 }
 .root {
   width: 100%;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: 2rem;
+  padding: 1rem 2rem;
   box-sizing: border-box;
+}
+.description {
+  text-align: left;
 }
 </style>
