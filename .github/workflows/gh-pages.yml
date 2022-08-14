@@ -34,6 +34,9 @@ jobs:
         with:
           node-version: '16'
 
+      - name: Build WASM
+        run: cd crates/wasm && wasm-pack build --target web && npm install
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v2.2.2
         with:
@@ -41,9 +44,6 @@ jobs:
           run_install: |
               - cwd: ./playground
                 recursive: true
-
-      - name: Build WASM
-        run: cd crates/wasm && wasm-pack build --target web && npm install
 
       - name: Vite Build 🔧
         run: cd playground && pnpm build
