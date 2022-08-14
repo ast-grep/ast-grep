@@ -13,7 +13,7 @@ const emits = defineEmits<{
 
 const languages = {
   'javascript': 'JavaScript',
-  'typescript': 'TypeScript',
+  // 'typescript': 'TypeScript',
 }
 
 </script>

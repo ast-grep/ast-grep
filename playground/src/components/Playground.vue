@@ -17,9 +17,18 @@ await initializeTreeSitter()
 await init()
 
 let source = ref(
-`function tryAstGrep() {
-    console.log('hello world')
-}`)
+`/* All console.log() call will be highlighted!*/
+
+function tryAstGrep() {
+    console.log('Hello World')
+}
+
+const multiLineExpression =
+  console
+    .log('Also matched!')
+
+const notThis = 'console.log("not me")'`
+)
 let query = ref('console.log($MATCH)')
 let lang = ref('javascript')
 
@@ -37,23 +46,23 @@ const count = ref(0)
 </script>
 
 <template>
-  <div class="editor-captions">
+  <section class="editor-captions">
     <div class="half editor-caption">
       Test Code
     </div>
-    <div class="">
-      Pattern
+    <div>
+      Pattern Code
     </div>
     <SelectLang class="selector" v-model="lang"/>
-  </div>
-  <div class="playground">
+  </section>
+  <main class="playground">
     <div class="half">
       <Monaco v-model="source" :highlights="matchedHighlights"/>
     </div>
     <div class="half">
       <Monaco v-model="query"/>
     </div>
-  </div>
+  </main>
   <p v-if="matchedHighlights.length > 0">Found {{ matchedHighlights.length }} match(es).</p>
   <p v-else>No match found.</p>
 </template>

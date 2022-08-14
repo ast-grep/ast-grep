@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import Playground from './components/Playground.vue'
+import Intro from './components/Intro.vue'
 </script>
 
 <template>
   <div class="root">
-    <a href="https://vitejs.dev" target="_blank">
-      <img src="/logo.svg" class="logo" alt="SG logo" />
-    </a>
-    <h3 class="description">SG: ast-grep playground</h3>
+    <Intro/>
     <Suspense>
       <Playground/>
     </Suspense>
