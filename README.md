@@ -17,6 +17,17 @@ ASTGrep is a lightning fast and user-friendly tool that performs static analysis
 ASTGrep's core is searching and rewriting code based on abstract syntax tree produced by tree-sitter.
 It can help you do static analysis on
 
+## Installation
+
+Install from source is the only way to try ast-grep locally at the moment.
+You need install rustup, clone the repository and then
+
+```bash
+cargo install --path ./crates/cli
+```
+
+Once the API is stablized, ast-grep will be available via package manager.
+
 
 ## Feature Highlight
 
