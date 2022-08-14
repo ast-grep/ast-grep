@@ -46,7 +46,7 @@ h1 {
 code {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
   padding: 0.1em 0.2em;
-  background-color: #ddd;
+  background-color: rgba(128, 128, 128, 0.3);
 }
 ul {
   list-style: disc inside;
