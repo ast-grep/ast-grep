@@ -1,6 +1,6 @@
 mod utils;
 
-use ast_grep_config::{try_from_serializable, SerializableRule};
+use ast_grep_config::{deserialize_rule, SerializableRule};
 use ast_grep_core::language::Language;
 
 use serde::{Deserialize, Serialize};
@@ -29,7 +29,7 @@ pub async fn find_nodes(src: String, config: JsValue) -> String {
     parser.set_language(&lang).unwrap_throw();
     let config: SerializableRule = config.into_serde().unwrap_throw();
     let root = lang.ast_grep(src);
-    let matcher = try_from_serializable(config, lang).unwrap_throw();
+    let matcher = deserialize_rule(config, lang).unwrap_throw();
     let ret: Vec<_> = root
         .root()
         .find_all(matcher)

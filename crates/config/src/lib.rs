@@ -1,11 +1,13 @@
-mod config_rule;
+mod constraints;
+mod rule;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use serde_yaml::Deserializer;
 
 use ast_grep_core::language::Language;
-pub use config_rule::{try_from_serializable, Rule, SerializableRule};
+pub use constraints::{try_from_serializable as deserialize_meta_var, SerializableMetaVar};
+pub use rule::{try_from_serializable as deserialize_rule, Rule, SerializableRule};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -34,12 +36,12 @@ pub struct RuleConfig<L: Language> {
     pub fix: Option<String>,
     /// Addtionaly meta variables pattern to filter matching
     #[serde(default)]
-    pub meta_variables: HashMap<String, String>,
+    pub meta_variables: HashMap<String, SerializableMetaVar>,
 }
 
 impl<L: Language> RuleConfig<L> {
     pub fn get_matcher(&self) -> Rule<L> {
-        try_from_serializable(self.rule.clone(), self.language.clone()).unwrap()
+        deserialize_rule(self.rule.clone(), self.language.clone()).unwrap()
     }
 }
 
