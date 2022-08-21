@@ -6,7 +6,11 @@ use serde::{Deserialize, Serialize};
 use serde_yaml::Deserializer;
 
 use ast_grep_core::language::Language;
-pub use constraints::{try_from_serializable as deserialize_meta_var, SerializableMetaVar};
+use ast_grep_core::meta_var::MetaVarMatchers;
+pub use constraints::{
+    try_deserialize_matchers, try_from_serializable as deserialize_meta_var, RuleWithConstraint,
+    SerializableMetaVarMatcher,
+};
 pub use rule::{try_from_serializable as deserialize_rule, Rule, SerializableRule};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -34,14 +38,22 @@ pub struct RuleConfig<L: Language> {
     pub rule: SerializableRule,
     /// A pattern to auto fix the issue. It can reference metavariables appeared in rule.
     pub fix: Option<String>,
-    /// Addtionaly meta variables pattern to filter matching
+    /// Addtional meta variables pattern to filter matching
     #[serde(default)]
-    pub meta_variables: HashMap<String, SerializableMetaVar>,
+    pub meta_variables: HashMap<String, SerializableMetaVarMatcher>,
 }
 
 impl<L: Language> RuleConfig<L> {
-    pub fn get_matcher(&self) -> Rule<L> {
+    pub fn get_matcher(&self) -> RuleWithConstraint<L> {
+        let rule = self.get_rule();
+        let matchers = self.get_meta_var_matchers();
+        RuleWithConstraint { rule, matchers }
+    }
+    pub fn get_rule(&self) -> Rule<L> {
         deserialize_rule(self.rule.clone(), self.language.clone()).unwrap()
+    }
+    pub fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {
+        try_deserialize_matchers(self.meta_variables.clone(), self.language.clone()).unwrap()
     }
 }
 
