@@ -7,6 +7,7 @@ use serde_yaml::Deserializer;
 
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarMatchers;
+use ast_grep_core::Pattern;
 pub use constraints::{
     try_deserialize_matchers, try_from_serializable as deserialize_meta_var, RuleWithConstraint,
     SerializableMetaVarMatcher,
@@ -49,9 +50,15 @@ impl<L: Language> RuleConfig<L> {
         let matchers = self.get_meta_var_matchers();
         RuleWithConstraint { rule, matchers }
     }
+
     pub fn get_rule(&self) -> Rule<L> {
         deserialize_rule(self.rule.clone(), self.language.clone()).unwrap()
     }
+
+    pub fn get_fixer(&self) -> Option<Pattern<L>> {
+        Some(Pattern::new(self.fix.as_ref()?, self.language.clone()))
+    }
+
     pub fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {
         try_deserialize_matchers(self.meta_variables.clone(), self.language.clone()).unwrap()
     }

@@ -100,31 +100,41 @@ fn run_with_pattern(args: Args) -> Result<()> {
         |(grep, path)| {
             let matches = grep.root().find_all(&pattern);
             print_matches(matches, &path, &pattern, &rewrite);
-            let response = interaction::prompt("Accept change? (Yes[y], No[n])", "yn", Some('y'))
-                .expect("Error happened during prompt");
             if rewrite.is_none() {
+                interaction::prompt("Next", "", Some('\n')).unwrap();
                 return;
             }
+            let response =
+                interaction::prompt("Accept change? (Yes[y], No[n], All[a])", "yna", Some('y'))
+                    .expect("Error happened during prompt");
             match response {
                 'y' => {
-                    let root = grep.root();
-                    let edits = root.replace_all(&pattern, rewrite.as_ref().unwrap());
-                    let mut ret = String::new();
-                    let mut start = 0;
-                    for edit in edits {
-                        ret.push_str(&grep.source()[start..edit.position]);
-                        ret.push_str(&edit.inserted_text);
-                        start = edit.position + edit.deleted_length;
-                    }
-                    std::fs::write(path, ret).expect("write file content");
+                    let new_content = apply_rewrite(&grep, &pattern, rewrite.as_ref().unwrap());
+                    std::fs::write(path, new_content).expect("write file content");
                 }
-                'n' => (),
                 'a' => (),
                 _ => (),
             }
         },
     );
     Ok(())
+}
+
+fn apply_rewrite<M: Matcher<SupportLang>>(
+    grep: &AstGrep<SupportLang>,
+    matcher: M,
+    rewrite: &Pattern<SupportLang>,
+) -> String {
+    let root = grep.root();
+    let edits = root.replace_all(matcher, rewrite);
+    let mut new_content = String::new();
+    let mut start = 0;
+    for edit in edits {
+        new_content.push_str(&grep.source()[start..edit.position]);
+        new_content.push_str(&edit.inserted_text);
+        start = edit.position + edit.deleted_length;
+    }
+    new_content
 }
 
 fn run_with_config(args: Args) -> Result<()> {
@@ -165,14 +175,27 @@ fn run_with_config(args: Args) -> Result<()> {
             |(grep, path)| {
                 for config in &configs.configs {
                     let matcher = config.get_matcher();
-                    let matches = grep.root().find_all(&matcher);
-                    print_matches(matches, &path, &matcher, &None);
-                    let response =
-                        interaction::prompt("Accept change? (Yes[y], No[n])", "yn", Some('y'))
-                            .expect("Error happened during prompt");
+                    let fixer = config.get_fixer();
+                    let mut matches = grep.root().find_all(&matcher).peekable();
+                    if matches.peek().is_none() {
+                        continue;
+                    }
+                    print_matches(matches, &path, &matcher, &fixer);
+                    if fixer.is_none() {
+                        interaction::prompt("Next", "", Some('\n')).unwrap();
+                        continue;
+                    }
+                    let response = interaction::prompt(
+                        "Accept change? (Yes[y], No[n], All[a])",
+                        "yna",
+                        Some('y'),
+                    )
+                    .expect("Error happened during prompt");
                     match response {
-                        'y' => {}
-                        'n' => (),
+                        'y' => {
+                            let new_content = apply_rewrite(&grep, &matcher, &fixer.unwrap());
+                            std::fs::write(&path, new_content).expect("write file content failed");
+                        }
                         'a' => (),
                         _ => (),
                     }

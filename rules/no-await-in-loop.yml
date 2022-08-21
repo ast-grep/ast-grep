@@ -38,3 +38,4 @@ rule:
     - pattern: await $A
     - inside:
         pattern: Promise.$METHOD([$$$, await $A, $$$])
+fix: $A
