@@ -26,3 +26,15 @@ rule:
         pattern:
           context: class A { set $A($$$) { $$$ } }
           selector: method_definition
+
+---
+
+id: no-await-in-promise
+message: no await inside Promise statements
+severity: warning
+language: TypeScript
+rule:
+  all:
+    - pattern: await $A
+    - inside:
+        pattern: Promise.$METHOD([$$$, await $A, $$$])
