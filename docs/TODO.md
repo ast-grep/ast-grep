@@ -10,6 +10,7 @@
 - [x] implement iterative DFS mode
 - [ ] Investigate perf heuristic (e.g. match fixed-string)
 - [ ] Group matching rules based on root pattern kind id
+- [ ] Remove unwrap usage and implement error handling
 
 ## Metavariable Matcher
 - [x] Regex
