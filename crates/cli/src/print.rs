@@ -58,6 +58,7 @@ impl ErrorReporter {
             Severity::Error => diagnostic::Severity::Error,
             Severity::Warning => diagnostic::Severity::Warning,
             Severity::Info => diagnostic::Severity::Note,
+            Severity::Hint => diagnostic::Severity::Help,
         };
         for m in matches {
             let range = m.range();

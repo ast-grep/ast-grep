@@ -103,6 +103,12 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
             },
             |(grep, path)| {
                 for config in &configs.configs {
+                    if from_extension(&path)
+                        .filter(|&n| n == config.language)
+                        .is_none()
+                    {
+                        continue;
+                    }
                     let matcher = config.get_matcher();
                     let fixer = config.get_fixer();
                     run_one_interaction(&path, &grep, matcher, &fixer);

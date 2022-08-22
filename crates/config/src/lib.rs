@@ -17,6 +17,7 @@ pub use rule::{try_from_serializable as deserialize_rule, Rule, SerializableRule
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum Severity {
+    Hint,
     Info,
     Warning,
     Error,
