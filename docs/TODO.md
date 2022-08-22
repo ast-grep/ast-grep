@@ -18,7 +18,7 @@
 - [x] Kind
 - [ ] Use CoW to optimize MetaVarEnv
 
-## Rule
+## Operators/Combinators
 - [x] every / all
 - [x] either / any
 - [x] inside
