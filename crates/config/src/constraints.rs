@@ -9,6 +9,7 @@ use regex::Regex;
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub enum SerializableMetaVarMatcher {
     /// A regex to filter metavar based on its textual content.
     Regex(String),

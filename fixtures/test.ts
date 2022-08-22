@@ -31,3 +31,7 @@ Promise.all([
   await p4,  // match
   ...[1,2,3].map(async (i) => await Promise.resolve(i)) // no match
 ])
+
+Promise.resolve([
+  await p1,  // no match
+])

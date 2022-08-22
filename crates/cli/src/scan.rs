@@ -15,7 +15,7 @@ use crate::{interaction, Args as PatternArg};
 #[derive(Args)]
 pub struct ScanArg {
     /// Path to ast-grep config, either YAML or folder of YAMLs
-    #[clap(short, long, conflicts_with("pattern"))]
+    #[clap(short, long)]
     config: Option<String>,
 
     /// Include hidden files in search
@@ -39,9 +39,9 @@ pub struct ScanArg {
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(args: PatternArg) -> Result<()> {
-    let pattern = args.pattern.unwrap();
+    let pattern = args.pattern;
     let threads = num_cpus::get().min(12);
-    let lang = args.lang.unwrap();
+    let lang = args.lang;
     let pattern = Pattern::new(&pattern, lang);
     if args.debug_query {
         println!("Pattern TreeSitter {:?}", pattern);

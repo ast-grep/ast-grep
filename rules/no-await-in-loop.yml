@@ -38,4 +38,7 @@ rule:
     - pattern: await $A
     - inside:
         pattern: Promise.$METHOD([$$$, await $A, $$$])
+meta_variables:
+  METHOD:
+    regex: all|race|allSettled|any
 fix: $A

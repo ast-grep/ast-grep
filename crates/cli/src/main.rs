@@ -21,8 +21,8 @@ pub struct Args {
     command: Option<Commands>,
 
     /// AST pattern to match
-    #[clap(short, long, requires("lang"))]
-    pattern: Option<String>,
+    #[clap(short, long)]
+    pattern: String,
 
     /// String to replace the matched AST node
     #[clap(short, long)]
@@ -34,7 +34,7 @@ pub struct Args {
 
     /// The language of the pattern query
     #[clap(short, long)]
-    lang: Option<SupportLang>,
+    lang: SupportLang,
 
     #[clap(short, long, parse(from_flag))]
     interactive: bool,
