@@ -15,6 +15,7 @@
 - [x] Regex
 - [x] Pattern
 - [x] Kind
+- [ ] Use CoW to optimize MetaVarEnv
 
 ## Rule
 - [x] every / all

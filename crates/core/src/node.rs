@@ -7,9 +7,9 @@ use std::borrow::Cow;
 
 #[derive(Clone)]
 pub struct Root<L: Language> {
-    pub inner: tree_sitter::Tree,
-    pub source: String,
-    pub lang: L,
+    pub(crate) inner: tree_sitter::Tree,
+    pub(crate) source: String,
+    pub(crate) lang: L,
 }
 
 /// Represents [`tree_sitter::Tree`] and owns source string
@@ -41,7 +41,7 @@ impl<L: Language> Root<L> {
 // the lifetime r represents root
 #[derive(Clone)]
 pub struct Node<'r, L: Language> {
-    pub inner: tree_sitter::Node<'r>,
+    pub(crate) inner: tree_sitter::Node<'r>,
     pub(crate) root: &'r Root<L>,
 }
 pub type KindId = u16;
