@@ -6,16 +6,16 @@
 
 ast-grep(sg) is a fast and easy tool for code searching, linting, rewriting at large scale.
 
-
-![output](https://user-images.githubusercontent.com/2883231/183275066-8d9c342f-46cb-4fa5-aa4e-b98aac011869.gif)
-
-
 ## Introduction
 
 ASTGrep is a lightning fast and user-friendly tool that performs static analysis and automatic code modification at large scale.
 
-ASTGrep's core is searching and rewriting code based on abstract syntax tree produced by tree-sitter.
-It can help you do static analysis on
+ASTGrep's core is an algorithm to search and replace code based on abstract syntax tree produced by tree-sitter.
+It can help you to do lightweight static analysis and massive scale code manipulation in an intuitive way.
+
+* If you are an open source library author, ast-grep can help your library users adopt breaking changes more easily.
+* if you are
+* If you are a security researcher, ast-grep can help
 
 ## Installation
 
@@ -28,6 +28,21 @@ cargo install --path ./crates/cli
 
 Once the API is stablized, ast-grep will be available via package manager.
 
+## Demo
+
+![output](https://user-images.githubusercontent.com/2883231/183275066-8d9c342f-46cb-4fa5-aa4e-b98aac011869.gif)
+
+## Command line usage example
+
+ast-grep has following form.
+```
+sg --pattern '$YOUR_PATTERN' --rewrite 'new $PATTERN' --lang ts  --interactive
+```
+
+Example usage
+* [Rewrite](https://twitter.com/Hchan_mgn/status/1561802312846278657) [Zodios](https://github.com/ecyrbe/zodios#migrate-to-v8)
+* [Implement eslint rule](https://twitter.com/Hchan_mgn/status/1560108625460355073)
+* [Rewrite in null coalescing operator](https://twitter.com/Hchan_mgn/status/1547061516993699841?s=20&t=ldDoj4U2nq-FRKQkU5GWXA)
 
 ## Feature Highlight
 
