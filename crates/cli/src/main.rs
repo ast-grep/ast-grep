@@ -1,5 +1,7 @@
+mod config;
 mod guess_language;
 mod interaction;
+mod lsp;
 mod print;
 mod scan;
 
@@ -67,6 +69,6 @@ fn main() -> Result<()> {
     match command.unwrap() {
         Commands::Scan(arg) => run_with_config(arg),
         Commands::Test => todo!("test sg rule!"),
-        Commands::Lsp => todo!("run sg lsp!"),
+        Commands::Lsp => lsp::run_language_server(),
     }
 }

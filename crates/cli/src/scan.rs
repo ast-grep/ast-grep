@@ -2,13 +2,14 @@ use std::fs::read_to_string;
 use std::io::Result;
 use std::path::{Path, PathBuf};
 
-use ast_grep_config::{from_yaml_string, Configs, RuleConfig};
+use ast_grep_config::RuleConfig;
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::Args;
 use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
 
-use crate::guess_language::{config_file_type, file_types, from_extension, SupportLang};
+use crate::config::find_config;
+use crate::guess_language::{file_types, from_extension, SupportLang};
 use crate::print::{print_matches, ColorArg, ErrorReporter, ReportStyle, SimpleFile};
 use crate::{interaction, Args as PatternArg};
 
@@ -164,29 +165,6 @@ fn apply_rewrite<M: Matcher<SupportLang>>(
         start = edit.position + edit.deleted_length;
     }
     new_content
-}
-
-fn find_config(config: Option<String>) -> Configs<SupportLang> {
-    let config_file_or_dir = config.unwrap_or_else(find_default_config);
-    let mut configs = vec![];
-    let walker = WalkBuilder::new(&config_file_or_dir)
-        .types(config_file_type())
-        .build();
-    for dir in walker {
-        let config_file = dir.unwrap();
-        if !config_file.file_type().unwrap().is_file() {
-            continue;
-        }
-        let path = config_file.path();
-
-        let yaml = read_to_string(path).unwrap();
-        configs.extend(from_yaml_string(&yaml).unwrap());
-    }
-    Configs::new(configs)
-}
-
-fn find_default_config() -> String {
-    "sgconfig.yml".to_string()
 }
 
 fn filter_file(entry: DirEntry) -> Option<DirEntry> {

@@ -7,17 +7,18 @@ use ast_grep_config::Configs;
 use ast_grep_config::Severity;
 use ast_grep_core::{language::Language, AstGrep, NodeMatch};
 
+pub use tower_lsp::{LspService, Server};
+
 #[derive(Clone)]
 struct VersionedAst<L: Language> {
     version: i32,
     root: AstGrep<L>,
 }
 
-struct Backend<L: Language> {
+pub struct Backend<L: Language> {
     client: Client,
     map: DashMap<String, VersionedAst<L>>,
     configs: Configs<L>,
-    language: L,
 }
 
 #[tower_lsp::async_trait]
@@ -112,6 +113,13 @@ fn url_to_code_description(url: &Option<String>) -> Option<CodeDescription> {
 }
 
 impl<L: Language> Backend<L> {
+    pub fn new(client: Client, configs: Configs<L>) -> Self {
+        Self {
+            client,
+            configs,
+            map: DashMap::new(),
+        }
+    }
     async fn publish_diagnostics(&self, uri: Url, versioned: &VersionedAst<L>) {
         let mut diagnostics = vec![];
         for config in &self.configs.configs {
@@ -146,8 +154,11 @@ impl<L: Language> Backend<L> {
     }
     async fn on_open(&self, params: DidOpenTextDocumentParams) {
         let uri = params.text_document.uri.as_str().to_string();
+        // let path = params.text_document.uri.to_file_path();
         let text = params.text_document.text;
-        let root = AstGrep::new(text, self.language.clone());
+        // TODO: add dynamic lang support
+        let lang = self.configs.configs[0].language.clone();
+        let root = AstGrep::new(text, lang);
         let versioned = VersionedAst {
             version: params.text_document.version,
             root,
@@ -160,7 +171,9 @@ impl<L: Language> Backend<L> {
     async fn on_change(&self, params: DidChangeTextDocumentParams) {
         let uri = params.text_document.uri.as_str();
         let text = &params.content_changes[0].text;
-        let root = AstGrep::new(text, self.language.clone());
+        // TODO: add dynamic lang support
+        let lang = self.configs.configs[0].language.clone();
+        let root = AstGrep::new(text, lang);
         let mut versioned = match self.map.get_mut(uri) {
             Some(ast) => ast,
             None => return,
