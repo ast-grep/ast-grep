@@ -30,7 +30,7 @@ Once the API is stablized, ast-grep will be available via package manager.
 
 ast-grep has following form.
 ```
-sg --pattern 'var code = $PATTERN' --rewrite 'let code = new $PATTERN' --lang ts  --interactive
+sg --pattern 'var code = $PATTERN' --rewrite 'let code = new $PATTERN' --lang ts
 ```
 
 ### Example

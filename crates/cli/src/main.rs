@@ -22,7 +22,7 @@ pub struct Args {
 
     /// AST pattern to match
     #[clap(short, long)]
-    pattern: String,
+    pattern: Option<String>,
 
     /// String to replace the matched AST node
     #[clap(short, long)]
@@ -34,7 +34,7 @@ pub struct Args {
 
     /// The language of the pattern query
     #[clap(short, long)]
-    lang: SupportLang,
+    lang: Option<SupportLang>,
 
     #[clap(short, long, parse(from_flag))]
     interactive: bool,

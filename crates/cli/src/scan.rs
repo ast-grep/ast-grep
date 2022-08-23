@@ -39,9 +39,9 @@ pub struct ScanArg {
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(args: PatternArg) -> Result<()> {
-    let pattern = args.pattern;
+    let pattern = args.pattern.unwrap();
     let threads = num_cpus::get().min(12);
-    let lang = args.lang;
+    let lang = args.lang.unwrap();
     let pattern = Pattern::new(&pattern, lang);
     if args.debug_query {
         println!("Pattern TreeSitter {:?}", pattern);
