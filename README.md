@@ -41,7 +41,7 @@ sg --pattern 'var code = $PATTERN' --rewrite 'let code = new $PATTERN' --lang ts
 sg -p '$A && $A()' -l ts -r '$A?.()'
 ```
 
-[Rewrite](https://twitter.com/Hchan_mgn/status/1561802312846278657) [Zodios](https://github.com/ecyrbe/zodios#migrate-to-v8)
+* [Rewrite](https://twitter.com/Hchan_mgn/status/1561802312846278657) [Zodios](https://github.com/ecyrbe/zodios#migrate-to-v8)
 ```bash
 sg -p 'new Zodios($URL,  $CONF as const,)' -l ts -r 'new Zodios($URL, $CONF)' -i
 ```
