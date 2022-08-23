@@ -4,18 +4,16 @@
 
 ## ast-grep(sg)
 
-ast-grep(sg) is a fast and easy tool for code searching, linting, rewriting at large scale.
+ast-grep(sg) is a ligthning fast and user friendly tool for code searching, linting, rewriting at large scale.
 
 ## Introduction
+ast-grep is a AST-based tool to search code by pattern code. Think it as your old-friend `grep` but it matches AST node instead of text.
+You can write pattern as if you are writing ordinary code. It will match all code that has the same syntactical structure.
+You can use `$` sign + upper case letters as wildcard, e.g. `$MATCH`, to match any single AST node. Think it as REGEX dot `.`, except it is not textual.
 
-ASTGrep is a lightning fast and user-friendly tool that performs static analysis and automatic code modification at large scale.
+## Demo
 
-ASTGrep's core is an algorithm to search and replace code based on abstract syntax tree produced by tree-sitter.
-It can help you to do lightweight static analysis and massive scale code manipulation in an intuitive way.
-
-* If you are an open source library author, ast-grep can help your library users adopt breaking changes more easily.
-* if you are
-* If you are a security researcher, ast-grep can help
+![output](https://user-images.githubusercontent.com/2883231/183275066-8d9c342f-46cb-4fa5-aa4e-b98aac011869.gif)
 
 ## Installation
 
@@ -28,23 +26,35 @@ cargo install --path ./crates/cli
 
 Once the API is stablized, ast-grep will be available via package manager.
 
-## Demo
-
-![output](https://user-images.githubusercontent.com/2883231/183275066-8d9c342f-46cb-4fa5-aa4e-b98aac011869.gif)
-
 ## Command line usage example
 
 ast-grep has following form.
 ```
-sg --pattern '$YOUR_PATTERN' --rewrite 'new $PATTERN' --lang ts  --interactive
+sg --pattern 'var code = $PATTERN' --rewrite 'let code = new $PATTERN' --lang ts  --interactive
 ```
 
-Example usage
-* [Rewrite](https://twitter.com/Hchan_mgn/status/1561802312846278657) [Zodios](https://github.com/ecyrbe/zodios#migrate-to-v8)
-* [Implement eslint rule](https://twitter.com/Hchan_mgn/status/1560108625460355073)
-* [Rewrite in null coalescing operator](https://twitter.com/Hchan_mgn/status/1547061516993699841?s=20&t=ldDoj4U2nq-FRKQkU5GWXA)
+### Example
+
+* [Rewrite code in null coalescing operator](https://twitter.com/Hchan_mgn/status/1547061516993699841?s=20&t=ldDoj4U2nq-FRKQkU5GWXA)
+
+```bash
+sg -p '$A && $A()' -l ts -r '$A?.()'
+```
+
+[Rewrite](https://twitter.com/Hchan_mgn/status/1561802312846278657) [Zodios](https://github.com/ecyrbe/zodios#migrate-to-v8)
+```bash
+sg -p 'new Zodios($URL,  $CONF as const,)' -l ts -r 'new Zodios($URL, $CONF)' -i
+```
+
+* [Implement eslint rule using YAML.](https://twitter.com/Hchan_mgn/status/1560108625460355073)
+
 
 ## Feature Highlight
+
+ASTGrep's core is an algorithm to search and replace code based on abstract syntax tree produced by tree-sitter.
+It can help you to do lightweight static analysis and massive scale code manipulation in an intuitive way.
+
+Key highlights:
 
 * An intuitive pattern to find and replace AST.
 ASTGrep's pattern looks like ordinary code you would write every day. (You can call the pattern is isomorphic to code).
@@ -57,7 +67,12 @@ ASTGrep's pattern looks like ordinary code you would write every day. (You can c
 
 * Beautiful command line interface :)
 
-Democratize abstract syntax tree magic and liberate one from cumbersome AST programming!
+ast-grep's vision is to democratize abstract syntax tree magic and to liberate one from cumbersome AST programming!
+
+* If you are an open source library author, ast-grep can help your library users adopt breaking changes more easily.
+* if you are a tech lead in your team, ast-grep can help you enforce code best practice tailored to your business need.
+* If you are a security researcher, ast-grep can helpn you write rules much faster.
+
 
 ## CLI Screenshot
 
