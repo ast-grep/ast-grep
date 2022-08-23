@@ -33,6 +33,7 @@
 - [x] inplace edit mode
 - [ ] no-color mode
 - [ ] JSON output
+- [ ] execute remote rules
 
 ## Config
 - [x] support YAML config rule

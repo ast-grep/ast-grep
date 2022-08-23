@@ -11,6 +11,8 @@ ast-grep is a AST-based tool to search code by pattern code. Think it as your ol
 You can write pattern as if you are writing ordinary code. It will match all code that has the same syntactical structure.
 You can use `$` sign + upper case letters as wildcard, e.g. `$MATCH`, to match any single AST node. Think it as REGEX dot `.`, except it is not textual.
 
+Try the [online playground](https://herringtondarkholme.github.io/ast-grep/) for a taste!
+
 ## Demo
 
 ![output](https://user-images.githubusercontent.com/2883231/183275066-8d9c342f-46cb-4fa5-aa4e-b98aac011869.gif)
