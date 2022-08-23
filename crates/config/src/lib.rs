@@ -41,8 +41,15 @@ pub struct RuleConfig<L: Language> {
     /// A pattern to auto fix the issue. It can reference metavariables appeared in rule.
     pub fix: Option<String>,
     /// Addtional meta variables pattern to filter matching
-    #[serde(default)]
-    pub meta_variables: HashMap<String, SerializableMetaVarMatcher>,
+    pub constraints: Option<HashMap<String, SerializableMetaVarMatcher>>,
+    /// Glob patterns to specify that the rule only applies to matching files
+    pub files: Option<Vec<String>>,
+    /// Glob patterns that exclude rules from applying to files
+    pub ignores: Option<Vec<String>>,
+    /// Documentation link to this rule
+    pub url: Option<String>,
+    /// Extra information for the rule
+    pub metadata: Option<HashMap<String, String>>,
 }
 
 impl<L: Language> RuleConfig<L> {
@@ -61,7 +68,11 @@ impl<L: Language> RuleConfig<L> {
     }
 
     pub fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {
-        try_deserialize_matchers(self.meta_variables.clone(), self.language.clone()).unwrap()
+        if let Some(constraints) = self.constraints.clone() {
+            try_deserialize_matchers(constraints, self.language.clone()).unwrap()
+        } else {
+            MetaVarMatchers::default()
+        }
     }
 }
 

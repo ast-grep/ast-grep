@@ -106,6 +106,11 @@ fn convert_node_match_to_range<L: Language>(node_match: NodeMatch<L>) -> Range {
     }
 }
 
+fn url_to_code_description(url: &Option<String>) -> Option<CodeDescription> {
+    let href = Url::parse(url.as_ref()?).ok()?;
+    Some(CodeDescription { href })
+}
+
 impl<L: Language> Backend<L> {
     async fn publish_diagnostics(&self, uri: Url, versioned: &VersionedAst<L>) {
         let mut diagnostics = vec![];
@@ -120,7 +125,7 @@ impl<L: Language> Backend<L> {
                     .map(|m| Diagnostic {
                         range: convert_node_match_to_range(m),
                         code: Some(NumberOrString::String(config.id.clone())),
-                        code_description: None,
+                        code_description: url_to_code_description(&config.url),
                         severity: Some(match config.severity {
                             Severity::Error => DiagnosticSeverity::ERROR,
                             Severity::Warning => DiagnosticSeverity::WARNING,
