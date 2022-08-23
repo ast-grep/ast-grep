@@ -14,14 +14,14 @@ jobs:
   #       with:
   #         registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-  # create-release:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - uses: taiki-e/create-gh-release-action@v1
-  #       env:
-  #         # (required)
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: taiki-e/create-gh-release-action@v1
+        env:
+          # (required)
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   upload-assets:
     strategy:
