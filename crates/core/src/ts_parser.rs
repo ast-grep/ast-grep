@@ -1,10 +1,44 @@
-use tree_sitter::{InputEdit, Parser, Point};
+use tree_sitter::{InputEdit, LanguageError, Parser, ParserError, Point};
 pub use tree_sitter::{Language, Tree};
 
-pub fn parse(source_code: &str, old_tree: Option<&Tree>, ts_lang: Language) -> Tree {
-    let mut parser = Parser::new().unwrap();
-    parser.set_language(&ts_lang).unwrap();
-    parser.parse(source_code, old_tree).unwrap().unwrap()
+/// Represents tree-sitter related error
+#[derive(Debug)]
+pub enum TSParseError {
+    Parse(ParserError),
+    Language(LanguageError),
+    /// A general error when tree sitter fails to parse in time. It can be caused by
+    /// the following reasons but tree-sitter does not provide error detail.
+    /// * The timeout set with [Parser::set_timeout_micros] expired
+    /// * The cancellation flag set with [Parser::set_cancellation_flag] was flipped
+    /// * The parser has not yet had a language assigned with [Parser::set_language]
+    TreeUnavailable,
+    MultiRoot,
+}
+
+impl From<ParserError> for TSParseError {
+    fn from(e: ParserError) -> Self {
+        Self::Parse(e)
+    }
+}
+
+impl From<LanguageError> for TSParseError {
+    fn from(e: LanguageError) -> Self {
+        Self::Language(e)
+    }
+}
+
+pub fn parse(
+    source_code: &str,
+    old_tree: Option<&Tree>,
+    ts_lang: Language,
+) -> Result<Tree, TSParseError> {
+    let mut parser = Parser::new()?;
+    parser.set_language(&ts_lang)?;
+    if let Some(tree) = parser.parse(source_code, old_tree)? {
+        Ok(tree)
+    } else {
+        Err(TSParseError::TreeUnavailable)
+    }
 }
 
 // https://github.com/tree-sitter/tree-sitter/blob/e4e5ffe517ca2c668689b24cb17c51b8c6db0790/cli/src/parse.rs
@@ -54,7 +88,7 @@ mod test {
     use crate::language::{Language, Tsx};
 
     fn parse(src: &str) -> Tree {
-        parse_lang(src, None, Tsx.get_ts_language())
+        parse_lang(src, None, Tsx.get_ts_language()).unwrap()
     }
 
     #[test]
@@ -89,7 +123,7 @@ mod test {
             },
         );
         tree.edit(&edit);
-        let tree2 = parse_lang(&src, Some(&tree), Tsx.get_ts_language());
+        let tree2 = parse_lang(&src, Some(&tree), Tsx.get_ts_language()).unwrap();
         assert_eq!(tree.root_node().to_sexp(), "(program (expression_statement (binary_expression left: (identifier) right: (identifier))))");
         assert_eq!(tree2.root_node().to_sexp(), "(program (expression_statement (binary_expression left: (binary_expression left: (binary_expression left: (identifier) right: (identifier)) right: (identifier)) right: (identifier))))");
     }

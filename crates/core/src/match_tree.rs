@@ -180,7 +180,7 @@ mod test {
     use std::collections::HashMap;
 
     fn parse(src: &str) -> tree_sitter::Tree {
-        parse_base(src, None, Tsx.get_ts_language())
+        parse_base(src, None, Tsx.get_ts_language()).unwrap()
     }
     fn find_node_recursive<'goal, 'tree>(
         goal: &Node<'goal, Tsx>,

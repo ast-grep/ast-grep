@@ -1,6 +1,5 @@
 use crate::config::find_config;
 use ast_grep_lsp::{Backend, LspService, Server};
-use clap::Args;
 use std::io::Result;
 
 async fn run_language_server_impl() {

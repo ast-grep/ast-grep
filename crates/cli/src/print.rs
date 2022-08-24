@@ -60,6 +60,7 @@ impl ErrorReporter {
             Severity::Info => diagnostic::Severity::Note,
             Severity::Hint => diagnostic::Severity::Help,
         };
+        let lock = &mut writer.lock();
         for m in matches {
             let range = m.range();
             let mut labels = vec![Label::primary((), range)];
@@ -74,7 +75,7 @@ impl ErrorReporter {
                 .with_message(&rule.message)
                 .with_notes(rule.note.iter().cloned().collect())
                 .with_labels(labels);
-            term::emit(&mut writer.lock(), config, &file, &diagnostic).unwrap();
+            term::emit(lock, config, &file, &diagnostic).unwrap();
         }
     }
 }

@@ -17,7 +17,7 @@ pub struct Root<L: Language> {
 impl<L: Language> Root<L> {
     pub fn new(src: &str, lang: L) -> Self {
         Self {
-            inner: parse(src, None, lang.get_ts_language()),
+            inner: parse(src, None, lang.get_ts_language()).unwrap(),
             source: src.into(),
             lang,
         }
@@ -27,7 +27,7 @@ impl<L: Language> Root<L> {
         let input = unsafe { self.source.as_mut_vec() };
         let input_edit = perform_edit(&mut self.inner, input, &edit);
         self.inner.edit(&input_edit);
-        self.inner = parse(&self.source, Some(&self.inner), self.lang.get_ts_language());
+        self.inner = parse(&self.source, Some(&self.inner), self.lang.get_ts_language()).unwrap();
     }
 
     pub fn root(&self) -> Node<L> {
