@@ -1,5 +1,6 @@
 mod constraints;
 mod rule;
+mod rule_collection;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
