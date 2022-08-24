@@ -5,6 +5,8 @@ use crate::ts_parser::{parse, perform_edit, Edit};
 
 use std::borrow::Cow;
 
+/// Represents [`tree_sitter::Tree`] and owns source string
+/// Note: Root is generic against [`Language`](crate::language::Language)
 #[derive(Clone)]
 pub struct Root<L: Language> {
     pub(crate) inner: tree_sitter::Tree,
@@ -12,8 +14,6 @@ pub struct Root<L: Language> {
     pub(crate) lang: L,
 }
 
-/// Represents [`tree_sitter::Tree`] and owns source string
-/// Note: Root is not generic against [`Language`](crate::language::Language)
 impl<L: Language> Root<L> {
     pub fn new(src: &str, lang: L) -> Self {
         Self {
@@ -217,7 +217,7 @@ pub struct DisplayContext<'r> {
     pub start_line: usize,
 }
 
-// tree traversal API
+/// tree traversal API
 impl<'r, L: Language> Node<'r, L> {
     pub fn children<'s>(&'s self) -> impl ExactSizeIterator<Item = Node<'r, L>> + 's {
         let mut cursor = self.inner.walk();
@@ -357,7 +357,7 @@ impl<'r, L: Language> Node<'r, L> {
     }
 }
 
-// r manipulation API
+/// Tree manipulation API
 impl<'r, L: Language> Node<'r, L> {
     pub fn replace<M: Matcher<L>, R: Replacer<L>>(&self, matcher: M, replacer: R) -> Option<Edit> {
         let mut env = matcher.get_meta_var_env();
@@ -395,14 +395,27 @@ impl<'r, L: Language> Node<'r, L> {
             })
             .collect()
     }
-    pub fn replace_by(&self) {}
-    pub fn after(&self) {}
-    pub fn before(&self) {}
-    pub fn append(&self) {}
-    pub fn prepend(&self) {}
-    pub fn empty(&self) {}
-    pub fn remove(&self) {}
-    // pub fn clone(&self) {}
+    pub fn replace_by(&self) {
+        todo!()
+    }
+    pub fn after(&self) {
+        todo!()
+    }
+    pub fn before(&self) {
+        todo!()
+    }
+    pub fn append(&self) {
+        todo!()
+    }
+    pub fn prepend(&self) {
+        todo!()
+    }
+    pub fn empty(&self) {
+        todo!()
+    }
+    pub fn remove(&self) {
+        todo!()
+    }
 }
 
 #[cfg(test)]
