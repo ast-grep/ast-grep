@@ -13,14 +13,14 @@ const emits = defineEmits<{
 
 const languages = {
   'javascript': 'JavaScript',
-  // 'typescript': 'TypeScript',
+  'typescript': 'TypeScript',
 }
 
 </script>
 <template>
   <div class="selector">
     Language:
-    <select :value="modelValue" @change="emits('update:modelValue', String($event))">
+    <select :value="modelValue" @change="emits('update:modelValue', String($event.target.value))">
       <option v-for="val, key in languages" :value="key">{{val}}</option>
     </select>
     </div>

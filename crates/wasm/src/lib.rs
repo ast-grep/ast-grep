@@ -17,7 +17,7 @@ pub struct MatchResult {
 }
 
 #[wasm_bindgen]
-pub async fn find_nodes(src: String, config: JsValue) -> String {
+pub async fn find_nodes(src: String, config: JsValue, parser_path: String) -> String {
     if tree_sitter::TreeSitter::init().await.is_err() {
         return "".to_string();
     };

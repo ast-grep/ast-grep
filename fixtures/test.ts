@@ -35,3 +35,8 @@ Promise.all([
 Promise.resolve([
   await p1,  // no match
 ])
+
+let { modelValue, title } = defineModel<{
+  modelValue: string
+  title: string
+}>()
