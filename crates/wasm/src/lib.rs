@@ -22,7 +22,7 @@ pub async fn find_nodes(src: String, config: JsValue, parser_path: String) -> St
         return "".to_string();
     };
     let mut parser = tree_sitter::Parser::new().unwrap_throw();
-    let lang = web_tree_sitter_sys::Language::load_path("tree-sitter-javascript.wasm")
+    let lang = web_tree_sitter_sys::Language::load_path(&parser_path)
         .await
         .unwrap_throw();
     let lang = get_lang(lang);
