@@ -33,20 +33,28 @@ let query = ref('console.log($MATCH)')
 let lang = ref('javascript')
 
 const matchedHighlights = ref([])
-const parserPaths = {
+const parserPaths: Record<string, string> = {
   javascript: 'tree-sitter-javascript.wasm',
   typescript: 'tree-sitter-typescript.wasm',
 }
+
+function doFind() {
+  return find_nodes(
+    source.value,
+    {pattern: query.value},
+    parserPaths[lang.value]
+  )
+}
+
 watchEffect(async () => {
   try {
-    matchedHighlights.value = JSON.parse(await find_nodes(source.value, {pattern: query.value}, parserPaths[lang.value]))
+    matchedHighlights.value = JSON.parse(await doFind())
   } catch (e) {
     matchedHighlights.value = []
   }
   return () => {}
 })
 
-const count = ref(0)
 </script>
 
 <template>

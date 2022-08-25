@@ -16,11 +16,16 @@ const languages = {
   'typescript': 'TypeScript',
 }
 
+function onChange(event: Event) {
+  const target = event.target as HTMLSelectElement
+  emits('update:modelValue', String(target.value))
+}
+
 </script>
 <template>
   <div class="selector">
     Language:
-    <select :value="modelValue" @change="emits('update:modelValue', String($event.target.value))">
+    <select :value="modelValue" @change="onChange">
       <option v-for="val, key in languages" :value="key">{{val}}</option>
     </select>
     </div>
