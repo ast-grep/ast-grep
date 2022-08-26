@@ -3,6 +3,7 @@ use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::ops as o;
 use ast_grep_core::{KindMatcher, Matcher, Node, Pattern};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::marker::PhantomData;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -242,6 +243,15 @@ impl<L: Language> Matcher<L> for Follows<L> {
 #[derive(Debug)]
 pub enum SerializeError {
     MissPositiveMatcher,
+}
+
+impl std::error::Error for SerializeError {}
+impl fmt::Display for SerializeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissPositiveMatcher => write!(f, "missing positive matcher"),
+        }
+    }
 }
 
 // TODO: implement positive/non positive

@@ -17,19 +17,18 @@ pub struct MatchResult {
 }
 
 #[wasm_bindgen]
-pub async fn find_nodes(src: String, config: JsValue, parser_path: String) -> String {
-    if tree_sitter::TreeSitter::init().await.is_err() {
-        return "".to_string();
-    };
-    let mut parser = tree_sitter::Parser::new().unwrap_throw();
-    let lang = web_tree_sitter_sys::Language::load_path(&parser_path)
-        .await
-        .unwrap_throw();
-    let lang = get_lang(lang);
-    parser.set_language(&lang).unwrap_throw();
-    let config: SerializableRule = config.into_serde().unwrap_throw();
+pub async fn find_nodes(
+    src: String,
+    config: JsValue,
+    parser_path: String,
+) -> Result<String, JsError> {
+    tree_sitter::TreeSitter::init().await?;
+    let mut parser = tree_sitter::Parser::new()?;
+    let lang = get_lang(parser_path).await?;
+    parser.set_language(&lang).expect_throw("set lang");
+    let config: SerializableRule = config.into_serde()?;
     let root = lang.ast_grep(src);
-    let matcher = deserialize_rule(config, lang).unwrap_throw();
+    let matcher = deserialize_rule(config, lang)?;
     let ret: Vec<_> = root
         .root()
         .find_all(matcher)
@@ -39,15 +38,18 @@ pub async fn find_nodes(src: String, config: JsValue, parser_path: String) -> St
             vec![start.0, start.1, end.0, end.1]
         })
         .collect();
-    format!("{:?}", ret)
+    Ok(format!("{:?}", ret))
 }
 
 #[cfg(target_arch = "wasm32")]
-fn get_lang(lang: web_tree_sitter_sys::Language) -> tree_sitter::Language {
-    tree_sitter::Language::from(lang)
+async fn get_lang(parser_path: String) -> Result<tree_sitter::Language, JsError> {
+    let lang = web_tree_sitter_sys::Language::load_path(&parser_path)
+        .await
+        .map_err(tree_sitter::LanguageError::from)?;
+    Ok(tree_sitter::Language::from(lang))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn get_lang(_lang: web_tree_sitter_sys::Language) -> tree_sitter::Language {
+async fn get_lang(_path: String) -> Result<tree_sitter::Language, JsError> {
     unreachable!()
 }
