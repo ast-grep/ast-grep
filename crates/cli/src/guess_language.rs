@@ -1,6 +1,7 @@
 //! Guess which programming language a file is written in
 //! Adapt from https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs
 use ignore::types::{Types, TypesBuilder};
+use std::borrow::Cow;
 use std::path::Path;
 
 use tree_sitter_c::language as language_c;
@@ -33,10 +34,31 @@ impl_lang!(JavaScript, language_javascript);
 impl_lang!(Kotlin, language_kotlin);
 impl_lang!(Lua, language_lua);
 impl_lang!(Python, language_python);
-impl_lang!(Rust, language_rust);
 impl_lang!(Swift, language_swift);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
+
+// impl_lang!(Rust, language_rust);
+#[derive(Clone, Copy)]
+pub struct Rust;
+impl Language for Rust {
+    fn get_ts_language(&self) -> TSLanguage {
+        language_rust().into()
+    }
+    // we can use any char in unicode range [:XID_Start:]
+    // https://doc.rust-lang.org/reference/identifiers.html
+    fn expando_char(&self) -> char {
+        'µ'
+    }
+    fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
+        // use stack buffer to reduce allocation
+        let mut buf = [0; 4];
+        let expando = self.expando_char().encode_utf8(&mut buf);
+        // TODO: use more precise replacement
+        let replaced = query.replace(self.meta_var_char(), expando);
+        Cow::Owned(replaced)
+    }
+}
 
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::MetaVariable;
@@ -118,9 +140,12 @@ macro_rules! impl_lang_method {
         }
     };
 }
+
+// TODO: optimize this using macro
 impl Language for SupportLang {
     impl_lang_method!(get_ts_language, TSLanguage);
     impl_lang_method!(meta_var_char, char);
+    impl_lang_method!(expando_char, char);
 
     fn extract_meta_var(&self, source: &str) -> Option<MetaVariable> {
         use SupportLang as S;
@@ -136,6 +161,23 @@ impl Language for SupportLang {
             S::Swift => Swift.extract_meta_var(source),
             S::Tsx => Tsx.extract_meta_var(source),
             S::TypeScript => TypeScript.extract_meta_var(source),
+        }
+    }
+
+    fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
+        use SupportLang as S;
+        match self {
+            S::C => C.pre_process_pattern(query),
+            S::Go => Go.pre_process_pattern(query),
+            S::Html => Html.pre_process_pattern(query),
+            S::JavaScript => JavaScript.pre_process_pattern(query),
+            S::Kotlin => Kotlin.pre_process_pattern(query),
+            S::Lua => Lua.pre_process_pattern(query),
+            S::Python => Python.pre_process_pattern(query),
+            S::Rust => Rust.pre_process_pattern(query),
+            S::Swift => Swift.pre_process_pattern(query),
+            S::Tsx => Tsx.pre_process_pattern(query),
+            S::TypeScript => TypeScript.pre_process_pattern(query),
         }
     }
 }

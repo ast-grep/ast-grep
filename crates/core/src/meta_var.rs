@@ -186,7 +186,7 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
     if !src.starts_with(meta_char) {
         return None;
     }
-    let trimmed = &src[1..];
+    let trimmed = &src[meta_char.len_utf8()..];
     // $A or $_
     if !trimmed.chars().all(is_valid_meta_var_char) {
         return None;
@@ -233,6 +233,18 @@ mod test {
         let node = root.root().child(0).unwrap().child(0).unwrap();
         env.insert("A".to_string(), node);
         env.match_constraints()
+    }
+
+    #[test]
+    fn test_non_ascii_meta_var() {
+        let extract = |s| extract_meta_var(s, 'µ');
+        use MetaVariable::*;
+        assert_eq!(extract("µµµ"), Some(Ellipsis));
+        assert_eq!(extract("µABC"), Some(Named("ABC".into())));
+        assert_eq!(extract("µµµABC"), Some(NamedEllipsis("ABC".into())));
+        assert_eq!(extract("µ_"), Some(Anonymous));
+        assert_eq!(extract("abc"), None);
+        assert_eq!(extract("µabc"), None);
     }
 
     #[test]

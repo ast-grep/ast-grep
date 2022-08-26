@@ -11,7 +11,8 @@ pub struct Pattern<L: Language> {
 
 impl<L: Language> Pattern<L> {
     pub fn new(src: &str, lang: L) -> Self {
-        let root = Root::new(src, lang);
+        let processed = lang.pre_process_pattern(src);
+        let root = Root::new(&processed, lang);
         let goal = root.root();
         if goal.inner.child_count() != 1 {
             todo!("multi-children pattern is not supported yet.")
@@ -23,7 +24,8 @@ impl<L: Language> Pattern<L> {
     }
 
     pub fn contextual(context: &str, selector: &str, lang: L) -> Self {
-        let root = Root::new(context, lang.clone());
+        let processed = lang.pre_process_pattern(context);
+        let root = Root::new(&processed, lang.clone());
         let goal = root.root();
         if goal.inner.child_count() != 1 {
             todo!("multi-children pattern is not supported yet.")

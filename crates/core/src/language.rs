@@ -1,8 +1,12 @@
 use crate::meta_var::{extract_meta_var, MetaVariable};
-use crate::pattern::Pattern;
 use crate::AstGrep;
+use std::borrow::Cow;
 pub use tree_sitter::Language as TSLanguage;
 
+/// Trait to abstract ts-language usage in ast-grep, which includes:
+/// * which character is used for meta variable.
+/// * if we need to use other char in meta var for parser at runtime
+/// * pre process the Pattern code.
 pub trait Language: Clone {
     /// Create an [`AstGrep`] instance for the language
     fn ast_grep<S: AsRef<str>>(&self, source: S) -> AstGrep<Self> {
@@ -16,20 +20,31 @@ pub trait Language: Clone {
         &[]
     }
 
+    /// normalize pattern code before matching
+    /// e.g. remove expression_statement, or prefer parsing {} to object over block
+    fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
+        Cow::Borrowed(query)
+    }
+
     /// Configure meta variable special character
-    /// By default $ is the metavar char, but in PHP it is #
+    /// By default $ is the metavar char, but in PHP it can be #
     #[inline]
     fn meta_var_char(&self) -> char {
         '$'
     }
-    /// extract MetaVariable from a given source string
-    fn extract_meta_var(&self, source: &str) -> Option<MetaVariable> {
-        extract_meta_var(source, self.meta_var_char())
+
+    /// Some language does not accept $ as the leading char for identifiers.
+    /// We need to change $ to other char at run-time to make parser happy, thus the name expando.
+    /// By default this is the same as meta_var char so replacement is done at runtime.
+    #[inline]
+    fn expando_char(&self) -> char {
+        self.meta_var_char()
     }
-    /// normalize query before matching
-    /// e.g. remove expression_statement, or prefer parsing {} to object over block
-    fn build_pattern(&self, query: &str) -> Pattern<Self> {
-        Pattern::new(query, self.clone())
+
+    /// extract MetaVariable from a given source string
+    /// At runtime we need to use expand_char
+    fn extract_meta_var(&self, source: &str) -> Option<MetaVariable> {
+        extract_meta_var(source, self.expando_char())
     }
 }
 
