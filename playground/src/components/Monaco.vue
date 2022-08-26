@@ -103,6 +103,15 @@ watch(() => props.highlights, (matched) => {
   highlights?.set(ranges)
 })
 
+watch(() => props.language, (lang) => {
+  let oldModel = editor.value?.getModel()
+  let newModel = monaco.editor.createModel(props.modelValue || '', lang)
+  editor.value?.setModel(newModel)
+  if (oldModel) {
+    oldModel.dispose()
+  }
+})
+
 onBeforeUnmount(() => {
   editor.value?.dispose()
 })

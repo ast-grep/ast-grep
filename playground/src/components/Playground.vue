@@ -69,7 +69,7 @@ watchEffect(async () => {
   </section>
   <main class="playground">
     <div class="half">
-      <Monaco v-model="source" :highlights="matchedHighlights"/>
+      <Monaco v-model="source" :language="lang" :highlights="matchedHighlights"/>
     </div>
     <div class="half">
       <Monaco v-model="query"/>
