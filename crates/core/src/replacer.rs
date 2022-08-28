@@ -39,8 +39,8 @@ fn collect_edits<L: Language>(root: &Root<L>, env: &MetaVarEnv<L>, lang: L) -> V
     let root_id = node.inner.id();
     let mut edits = vec![];
 
-    // this is a preorder DFS that stops traversal when the node matches
-    loop {
+    // this is a post-order DFS that stops traversal when the node matches
+    'outer: loop {
         if let Some(text) = get_meta_var_replacement(&node, env, lang.clone()) {
             let position = node.inner.start_byte();
             let length = node.inner.end_byte() - position;
@@ -50,19 +50,23 @@ fn collect_edits<L: Language>(root: &Root<L>, env: &MetaVarEnv<L>, lang: L) -> V
                 inserted_text: text,
             });
         } else if let Some(first_child) = node.child(0) {
+            // traverse down to child
             node = first_child;
             continue;
+        } else if node.inner.is_missing() {
+            // TODO: better handling missing node
+            if let Some(sibling) = node.next() {
+                node = sibling;
+                continue;
+            } else {
+                break;
+            }
         }
+        // traverse up to parent until getting to root
         loop {
             // come back to the root node, terminating dfs
             if node.inner.id() == root_id {
-                // add the missing one
-                edits.push(Edit {
-                    position: root.source.len(),
-                    deleted_length: 0,
-                    inserted_text: String::new(),
-                });
-                return edits;
+                break 'outer;
             }
             if let Some(sibling) = node.next() {
                 node = sibling;
@@ -71,6 +75,13 @@ fn collect_edits<L: Language>(root: &Root<L>, env: &MetaVarEnv<L>, lang: L) -> V
             node = node.parent().unwrap();
         }
     }
+    // add the missing one
+    edits.push(Edit {
+        position: root.source.len(),
+        deleted_length: 0,
+        inserted_text: String::new(),
+    });
+    edits
 }
 
 fn merge_edits_to_string<L: Language>(edits: Vec<Edit>, root: &Root<L>) -> String {
