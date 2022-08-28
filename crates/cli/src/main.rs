@@ -1,6 +1,6 @@
 mod config;
-mod guess_language;
 mod interaction;
+mod languages;
 mod lsp;
 mod print;
 mod scan;
@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand};
 use scan::{run_with_config, run_with_pattern, ScanArg};
 use std::io::Result;
 
-use guess_language::SupportLang;
+use languages::SupportLang;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]

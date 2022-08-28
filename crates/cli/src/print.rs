@@ -14,7 +14,7 @@ use ast_grep_core::{Matcher, NodeMatch, Pattern};
 
 pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
 
-use crate::guess_language::SupportLang;
+use crate::languages::SupportLang;
 
 pub struct ErrorReporter {
     writer: StandardStream,

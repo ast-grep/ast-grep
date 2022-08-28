@@ -9,7 +9,7 @@ use clap::Args;
 use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
 
 use crate::config::find_config;
-use crate::guess_language::{file_types, from_extension, SupportLang};
+use crate::languages::{file_types, from_extension, SupportLang};
 use crate::print::{print_matches, ColorArg, ErrorReporter, ReportStyle, SimpleFile};
 use crate::{interaction, Args as PatternArg};
 

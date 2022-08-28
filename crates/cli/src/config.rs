@@ -1,4 +1,4 @@
-use crate::guess_language::{config_file_type, SupportLang};
+use crate::languages::{config_file_type, SupportLang};
 use ast_grep_config::{from_yaml_string, Configs};
 use ignore::WalkBuilder;
 use std::fs::read_to_string;
