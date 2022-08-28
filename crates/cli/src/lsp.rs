@@ -7,7 +7,7 @@ async fn run_language_server_impl() {
 
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
-    let configs = find_config(Some(String::from("rules")));
+    let configs = find_config(None);
 
     let (service, socket) = LspService::build(|client| Backend::new(client, configs)).finish();
     Server::new(stdin, stdout, socket).serve(service).await;

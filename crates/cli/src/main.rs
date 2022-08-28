@@ -23,7 +23,7 @@ pub struct Args {
     command: Option<Commands>,
 
     /// AST pattern to match
-    #[clap(short, long)]
+    #[clap(short, long, requires = "lang")]
     pattern: Option<String>,
 
     /// String to replace the matched AST node
