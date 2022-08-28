@@ -23,7 +23,7 @@ serde = { version = "1.0", features = ["derive"] }
 # logging them with `console.error`. This is great for development, but requires
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
 # code size when deploying.
-console_error_panic_hook = { version = "0.1.6", optional = true }
+console_error_panic_hook = { version = "0.1.7", optional = true }
 
 wee_alloc = { version = "0.4.5" }
 ast-grep-core = { version="0.1.1", path = "../core" }
