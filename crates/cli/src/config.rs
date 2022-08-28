@@ -1,23 +1,25 @@
 use crate::languages::{config_file_type, SupportLang};
-use ast_grep_config::{from_yaml_string, RuleCollection};
+use ast_grep_config::{deserialize_sgconfig, from_yaml_string, RuleCollection};
 use ignore::WalkBuilder;
 use std::fs::read_to_string;
 
-pub fn find_config(config: Option<String>) -> RuleCollection<SupportLang> {
-    let config_file_or_dir = config.unwrap_or_else(find_default_config);
+pub fn find_config(config_path: Option<String>) -> RuleCollection<SupportLang> {
+    let config_path = config_path.unwrap_or_else(find_default_config);
+    let config_str = read_to_string(config_path).unwrap();
+    let sg_config = deserialize_sgconfig(&config_str).unwrap();
     let mut configs = vec![];
-    let walker = WalkBuilder::new(&config_file_or_dir)
-        .types(config_file_type())
-        .build();
-    for dir in walker {
-        let config_file = dir.unwrap();
-        if !config_file.file_type().unwrap().is_file() {
-            continue;
-        }
-        let path = config_file.path();
+    for dir in sg_config.rule_dirs {
+        let walker = WalkBuilder::new(&dir).types(config_file_type()).build();
+        for dir in walker {
+            let config_file = dir.unwrap();
+            if !config_file.file_type().unwrap().is_file() {
+                continue;
+            }
+            let path = config_file.path();
 
-        let yaml = read_to_string(path).unwrap();
-        configs.extend(from_yaml_string(&yaml).unwrap());
+            let yaml = read_to_string(path).unwrap();
+            configs.extend(from_yaml_string(&yaml).unwrap());
+        }
     }
     RuleCollection::new(configs)
 }

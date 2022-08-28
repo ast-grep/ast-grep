@@ -1,6 +1,2 @@
-id: test
-message: test rule
-severity: info
-language: TypeScript
-rule:
-  pattern: $A && $A()
+ruleDirs:
+  - rules

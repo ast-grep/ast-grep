@@ -2,7 +2,7 @@ mod constraints;
 mod rule;
 mod rule_collection;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_yaml::Deserializer;
 
 use ast_grep_core::language::Language;
@@ -10,6 +10,20 @@ pub use rule::{
     try_from_serializable as deserialize_rule, Rule, RuleConfig, SerializableRule, Severity,
 };
 pub use rule_collection::RuleCollection;
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AstGrepConfig {
+    /// YAML rule directory
+    pub rule_dirs: Vec<String>,
+    /// overriding config for rules
+    pub rules: Option<Vec<()>>,
+}
+
+pub fn deserialize_sgconfig(source: &str) -> Result<AstGrepConfig, serde_yaml::Error> {
+    let yaml = Deserializer::from_str(source);
+    AstGrepConfig::deserialize(yaml)
+}
 
 pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(
     yamls: &'a str,
