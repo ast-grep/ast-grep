@@ -144,6 +144,9 @@ impl<'r, L: Language> Node<'r, L> {
             .utf8_text(self.root.source.as_bytes())
             .expect("invalid source text encoding")
     }
+    pub fn to_sexp(&self) -> Cow<'_, str> {
+        self.inner.to_sexp()
+    }
 
     pub fn display_context(&self, context_lines: usize) -> DisplayContext<'r> {
         let bytes = self.root.source.as_bytes();

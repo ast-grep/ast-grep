@@ -1,5 +1,4 @@
-//! Guess which programming language a file is written in
-//! Adapt from https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs
+mod rust;
 use ignore::types::{Types, TypesBuilder};
 use std::borrow::Cow;
 use std::path::Path;
@@ -11,9 +10,10 @@ use tree_sitter_javascript::language as language_javascript;
 use tree_sitter_kotlin::language as language_kotlin;
 use tree_sitter_lua::language as language_lua;
 use tree_sitter_python::language as language_python;
-use tree_sitter_rust::language as language_rust;
 use tree_sitter_swift::language as language_swift;
 use tree_sitter_typescript::{language_tsx, language_typescript};
+
+pub use rust::Rust;
 
 macro_rules! impl_lang {
     ($lang: ident, $func: ident) => {
@@ -37,28 +37,6 @@ impl_lang!(Python, language_python);
 impl_lang!(Swift, language_swift);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
-
-// impl_lang!(Rust, language_rust);
-#[derive(Clone, Copy)]
-pub struct Rust;
-impl Language for Rust {
-    fn get_ts_language(&self) -> TSLanguage {
-        language_rust().into()
-    }
-    // we can use any char in unicode range [:XID_Start:]
-    // https://doc.rust-lang.org/reference/identifiers.html
-    fn expando_char(&self) -> char {
-        'µ'
-    }
-    fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
-        // use stack buffer to reduce allocation
-        let mut buf = [0; 4];
-        let expando = self.expando_char().encode_utf8(&mut buf);
-        // TODO: use more precise replacement
-        let replaced = query.replace(self.meta_var_char(), expando);
-        Cow::Owned(replaced)
-    }
-}
 
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::MetaVariable;
@@ -182,6 +160,8 @@ impl Language for SupportLang {
     }
 }
 
+/// Guess which programming language a file is written in
+/// Adapt from https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs
 pub fn from_extension(path: &Path) -> Option<SupportLang> {
     use SupportLang::*;
     match path.extension()?.to_str()? {
