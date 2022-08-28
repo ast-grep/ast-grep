@@ -10,7 +10,7 @@ pub use tree_sitter::Language as TSLanguage;
 /// * pre process the Pattern code.
 pub trait Language: Clone {
     /// Return the file language from path. Return None if the file type is not supported.
-    fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
+    fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
         // TODO: throw panic here if not implemented properly?
         None
     }

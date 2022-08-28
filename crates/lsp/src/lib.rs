@@ -1,7 +1,5 @@
 #![feature(trait_alias)]
 
-use std::hash::Hash;
-
 use dashmap::DashMap;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
@@ -13,7 +11,7 @@ use ast_grep_core::{language::Language, AstGrep, NodeMatch};
 
 pub use tower_lsp::{LspService, Server};
 
-pub trait LSPLang = Language + Hash + Eq + Send + Sync + 'static;
+pub trait LSPLang = Language + Eq + Send + Sync + 'static;
 
 #[derive(Clone)]
 struct VersionedAst<L: Language> {

@@ -45,7 +45,7 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 /// represents a dynamic language
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SupportLang {
     C,
     Go,

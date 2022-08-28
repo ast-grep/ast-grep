@@ -27,7 +27,7 @@ mod test {
 
     use super::*;
     use ast_grep_core::language::TSLanguage;
-    #[derive(Clone, Deserialize, Hash, PartialEq, Eq)]
+    #[derive(Clone, Deserialize, PartialEq, Eq)]
     pub enum TypeScript {
         Tsx,
     }
