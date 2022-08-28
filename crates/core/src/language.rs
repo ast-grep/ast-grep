@@ -1,6 +1,7 @@
 use crate::meta_var::{extract_meta_var, MetaVariable};
 use crate::AstGrep;
 use std::borrow::Cow;
+use std::path::Path;
 pub use tree_sitter::Language as TSLanguage;
 
 /// Trait to abstract ts-language usage in ast-grep, which includes:
@@ -8,6 +9,12 @@ pub use tree_sitter::Language as TSLanguage;
 /// * if we need to use other char in meta var for parser at runtime
 /// * pre process the Pattern code.
 pub trait Language: Clone {
+    /// Return the file language from path. Return None if the file type is not supported.
+    fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
+        // TODO: throw panic here if not implemented properly?
+        None
+    }
+
     /// Create an [`AstGrep`] instance for the language
     fn ast_grep<S: AsRef<str>>(&self, source: S) -> AstGrep<Self> {
         AstGrep::new(source, self.clone())
@@ -60,6 +67,9 @@ mod test {
     #[derive(Clone)]
     pub struct Tsx;
     impl Language for Tsx {
+        fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
+            Some(Tsx)
+        }
         fn get_ts_language(&self) -> TSLanguage {
             tree_sitter_typescript::language_tsx().into()
         }

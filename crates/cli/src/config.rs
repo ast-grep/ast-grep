@@ -1,9 +1,9 @@
 use crate::languages::{config_file_type, SupportLang};
-use ast_grep_config::{from_yaml_string, Configs};
+use ast_grep_config::{from_yaml_string, RuleCollection};
 use ignore::WalkBuilder;
 use std::fs::read_to_string;
 
-pub fn find_config(config: Option<String>) -> Configs<SupportLang> {
+pub fn find_config(config: Option<String>) -> RuleCollection<SupportLang> {
     let config_file_or_dir = config.unwrap_or_else(find_default_config);
     let mut configs = vec![];
     let walker = WalkBuilder::new(&config_file_or_dir)
@@ -19,7 +19,7 @@ pub fn find_config(config: Option<String>) -> Configs<SupportLang> {
         let yaml = read_to_string(path).unwrap();
         configs.extend(from_yaml_string(&yaml).unwrap());
     }
-    Configs::new(configs)
+    RuleCollection::new(configs)
 }
 
 fn find_default_config() -> String {

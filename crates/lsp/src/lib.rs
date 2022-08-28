@@ -1,13 +1,19 @@
+#![feature(trait_alias)]
+
+use std::hash::Hash;
+
 use dashmap::DashMap;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
-use ast_grep_config::Configs;
+use ast_grep_config::RuleCollection;
 use ast_grep_config::Severity;
 use ast_grep_core::{language::Language, AstGrep, NodeMatch};
 
 pub use tower_lsp::{LspService, Server};
+
+pub trait LSPLang = Language + Hash + Eq + Send + Sync + 'static;
 
 #[derive(Clone)]
 struct VersionedAst<L: Language> {
@@ -15,14 +21,14 @@ struct VersionedAst<L: Language> {
     root: AstGrep<L>,
 }
 
-pub struct Backend<L: Language> {
+pub struct Backend<L: LSPLang> {
     client: Client,
     map: DashMap<String, VersionedAst<L>>,
-    configs: Configs<L>,
+    rules: RuleCollection<L>,
 }
 
 #[tower_lsp::async_trait]
-impl<L: Language + Send + Sync + 'static> LanguageServer for Backend<L> {
+impl<L: LSPLang> LanguageServer for Backend<L> {
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
         Ok(InitializeResult {
             server_info: Some(ServerInfo {
@@ -71,11 +77,11 @@ impl<L: Language + Send + Sync + 'static> LanguageServer for Backend<L> {
         self.client
             .log_message(MessageType::INFO, "file opened!")
             .await;
-        self.on_open(params).await
+        self.on_open(params).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        self.on_change(params).await
+        self.on_change(params).await;
     }
 
     async fn did_save(&self, _: DidSaveTextDocumentParams) {
@@ -112,18 +118,20 @@ fn url_to_code_description(url: &Option<String>) -> Option<CodeDescription> {
     Some(CodeDescription { href })
 }
 
-impl<L: Language> Backend<L> {
-    pub fn new(client: Client, configs: Configs<L>) -> Self {
+impl<L: LSPLang> Backend<L> {
+    pub fn new(client: Client, rules: RuleCollection<L>) -> Self {
         Self {
             client,
-            configs,
+            rules,
             map: DashMap::new(),
         }
     }
-    async fn publish_diagnostics(&self, uri: Url, versioned: &VersionedAst<L>) {
+    async fn publish_diagnostics(&self, uri: Url, versioned: &VersionedAst<L>) -> Option<()> {
         let mut diagnostics = vec![];
-        for config in &self.configs.configs {
-            let matcher = config.get_matcher();
+        let lang = Self::infer_lang_from_uri(&uri)?;
+        let rules = self.rules.get_rules_for_lang(&lang);
+        for rule in rules {
+            let matcher = rule.get_matcher();
             // TODO: don't run rules with unmatching language
             diagnostics.extend(
                 versioned
@@ -132,15 +140,15 @@ impl<L: Language> Backend<L> {
                     .find_all(&matcher)
                     .map(|m| Diagnostic {
                         range: convert_node_match_to_range(m),
-                        code: Some(NumberOrString::String(config.id.clone())),
-                        code_description: url_to_code_description(&config.url),
-                        severity: Some(match config.severity {
+                        code: Some(NumberOrString::String(rule.id.clone())),
+                        code_description: url_to_code_description(&rule.url),
+                        severity: Some(match rule.severity {
                             Severity::Error => DiagnosticSeverity::ERROR,
                             Severity::Warning => DiagnosticSeverity::WARNING,
                             Severity::Info => DiagnosticSeverity::INFORMATION,
                             Severity::Hint => DiagnosticSeverity::HINT,
                         }),
-                        message: config.message.clone(),
+                        message: rule.message.clone(),
                         source: Some(String::from("ast-grep")),
                         tags: None,
                         related_information: None, // TODO: add labels
@@ -151,47 +159,50 @@ impl<L: Language> Backend<L> {
         self.client
             .publish_diagnostics(uri, diagnostics, Some(versioned.version))
             .await;
+        Some(())
     }
-    async fn on_open(&self, params: DidOpenTextDocumentParams) {
-        let uri = params.text_document.uri.as_str().to_string();
-        // let path = params.text_document.uri.to_file_path();
-        let text = params.text_document.text;
-        // TODO: add dynamic lang support
-        let lang = self.configs.configs[0].language.clone();
+    async fn on_open(&self, params: DidOpenTextDocumentParams) -> Option<()> {
+        let text_doc = params.text_document;
+        let uri = text_doc.uri.as_str();
+        let text = text_doc.text;
+        let lang = Self::infer_lang_from_uri(&text_doc.uri)?;
         let root = AstGrep::new(text, lang);
         let versioned = VersionedAst {
-            version: params.text_document.version,
+            version: text_doc.version,
             root,
         };
         let copied = versioned.clone();
-        self.map.insert(uri, versioned); // don't lock dashmap
-        self.publish_diagnostics(params.text_document.uri, &copied)
-            .await;
+        self.map.insert(uri.to_owned(), versioned); // don't lock dashmap
+        self.publish_diagnostics(text_doc.uri, &copied).await;
+        Some(())
     }
-    async fn on_change(&self, params: DidChangeTextDocumentParams) {
-        let uri = params.text_document.uri.as_str();
+    async fn on_change(&self, params: DidChangeTextDocumentParams) -> Option<()> {
+        let text_doc = params.text_document;
+        let uri = text_doc.uri.as_str();
         let text = &params.content_changes[0].text;
-        // TODO: add dynamic lang support
-        let lang = self.configs.configs[0].language.clone();
+        let lang = Self::infer_lang_from_uri(&text_doc.uri)?;
         let root = AstGrep::new(text, lang);
-        let mut versioned = match self.map.get_mut(uri) {
-            Some(ast) => ast,
-            None => return,
-        };
+        let mut versioned = self.map.get_mut(uri)?;
         // skip old version update
-        if versioned.version > params.text_document.version {
-            return;
+        if versioned.version > text_doc.version {
+            return None;
         }
         *versioned = VersionedAst {
-            version: params.text_document.version,
+            version: text_doc.version,
             root,
         };
         let copied = versioned.clone();
         drop(versioned); // don't lock dashmap
-        self.publish_diagnostics(params.text_document.uri, &copied)
-            .await;
+        self.publish_diagnostics(text_doc.uri, &copied).await;
+        Some(())
     }
     async fn on_close(&self, params: DidCloseTextDocumentParams) {
         self.map.remove(params.text_document.uri.as_str());
+    }
+
+    // TODO: support other urls besides file_scheme
+    fn infer_lang_from_uri(uri: &Url) -> Option<L> {
+        let path = uri.to_file_path().ok()?;
+        L::from_path(path)
     }
 }

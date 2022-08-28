@@ -2,7 +2,7 @@ use std::fs::read_to_string;
 use std::io::Result;
 use std::path::{Path, PathBuf};
 
-use ast_grep_config::RuleConfig;
+use ast_grep_config::{RuleCollection, RuleConfig};
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::Args;
@@ -67,6 +67,17 @@ pub fn run_with_pattern(args: PatternArg) -> Result<()> {
     Ok(())
 }
 
+fn get_rules<'c>(
+    path: &Path,
+    configs: &'c RuleCollection<SupportLang>,
+) -> Vec<&'c RuleConfig<SupportLang>> {
+    let lang = match SupportLang::from_path(path) {
+        Some(lang) => lang,
+        None => return vec![],
+    };
+    configs.get_rules_for_lang(&lang)
+}
+
 pub fn run_with_config(args: ScanArg) -> Result<()> {
     let configs = find_config(args.config);
     let threads = num_cpus::get().min(12);
@@ -77,7 +88,7 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
     let reporter = ErrorReporter::new(args.color.into(), args.report_style);
     if !args.interactive {
         run_walker(walker, |path| {
-            for config in &configs.configs {
+            for config in get_rules(path, &configs) {
                 let lang = config.language;
                 if from_extension(path).filter(|&n| n == lang).is_none() {
                     continue;
@@ -89,7 +100,7 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
         run_walker_interactive(
             walker,
             |path| {
-                for config in &configs.configs {
+                for config in get_rules(path, &configs) {
                     let lang = config.language;
                     let matcher = config.get_matcher();
                     if from_extension(path).filter(|&n| n == lang).is_none() {
@@ -103,7 +114,7 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
                 None
             },
             |(grep, path)| {
-                for config in &configs.configs {
+                for config in get_rules(&path, &configs) {
                     if from_extension(&path)
                         .filter(|&n| n == config.language)
                         .is_none()

@@ -9,6 +9,7 @@ use ast_grep_core::language::Language;
 pub use rule::{
     try_from_serializable as deserialize_rule, Rule, RuleConfig, SerializableRule, Severity,
 };
+pub use rule_collection::RuleCollection;
 
 pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(
     yamls: &'a str,
@@ -21,21 +22,12 @@ pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(
     Ok(ret)
 }
 
-pub struct Configs<L: Language> {
-    pub configs: Vec<RuleConfig<L>>,
-}
-impl<L: Language> Configs<L> {
-    pub fn new(configs: Vec<RuleConfig<L>>) -> Self {
-        Self { configs }
-    }
-}
-
 #[cfg(test)]
 mod test {
 
     use super::*;
     use ast_grep_core::language::TSLanguage;
-    #[derive(Clone, Deserialize)]
+    #[derive(Clone, Deserialize, Hash, PartialEq, Eq)]
     pub enum TypeScript {
         Tsx,
     }

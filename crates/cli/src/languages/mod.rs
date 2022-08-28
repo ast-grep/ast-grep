@@ -45,7 +45,7 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 /// represents a dynamic language
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SupportLang {
     C,
     Go,
@@ -121,6 +121,10 @@ macro_rules! impl_lang_method {
 
 // TODO: optimize this using macro
 impl Language for SupportLang {
+    fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
+        from_extension(path.as_ref())
+    }
+
     impl_lang_method!(get_ts_language, TSLanguage);
     impl_lang_method!(meta_var_char, char);
     impl_lang_method!(expando_char, char);
