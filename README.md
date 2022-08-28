@@ -79,14 +79,11 @@ ast-grep's vision is to democratize abstract syntax tree magic and to liberate o
 ## CLI Screenshot
 
 ### Search
-<img width="796" alt="image" src="https://user-images.githubusercontent.com/2883231/178289737-1b4cdf53-454d-4953-b031-1f9a92996874.png">
-
-### Rewrite
-<img width="1296" alt="image" src="https://user-images.githubusercontent.com/2883231/178289574-94a38df7-88fc-4f5e-9293-870091c51902.png">
-
-### Error report
-![image](https://user-images.githubusercontent.com/2883231/183095365-15895b64-4b3e-400e-91ed-cf9cdfdd4c32.png)
-
+| Feature | Command | Screenshot |
+| ------- | ------- | ---------- |
+| Search  | `sg -p 'Some($A)' -l rs` | ![image](https://user-images.githubusercontent.com/2883231/187094771-d60d1c19-98b8-4275-a040-5beca0074fd4.png) |
+| Rewrite | `sg -p '$F && $F($$$ARGS)' -r '$F?.($ARGS)' -l ts` | ![image](https://user-images.githubusercontent.com/2883231/187094954-7143789d-c196-4576-ac39-906efac3a24a.png)|
+| Report  | `sg scan` | ![image](https://user-images.githubusercontent.com/2883231/187094977-fd544d4b-64de-4bba-8bea-8c0de047b352.png) |
 
 ## Sponsor
 
