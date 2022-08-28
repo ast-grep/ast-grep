@@ -1,81 +1,14 @@
 mod constraints;
 mod rule;
 mod rule_collection;
-use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_yaml::Deserializer;
 
 use ast_grep_core::language::Language;
-use ast_grep_core::meta_var::MetaVarMatchers;
-use ast_grep_core::Pattern;
-pub use constraints::{
-    try_deserialize_matchers, try_from_serializable as deserialize_meta_var, RuleWithConstraint,
-    SerializableMetaVarMatcher,
+pub use rule::{
+    try_from_serializable as deserialize_rule, Rule, RuleConfig, SerializableRule, Severity,
 };
-pub use rule::{try_from_serializable as deserialize_rule, Rule, SerializableRule};
-
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub enum Severity {
-    Hint,
-    Info,
-    Warning,
-    Error,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct RuleConfig<L: Language> {
-    /// Unique, descriptive identifier, e.g., no-unused-variable
-    pub id: String,
-    /// Main message highlighting why this rule fired. It should be single line and concise,
-    /// but specific enough to be understood without additional context.
-    pub message: String,
-    /// Additional notes to elaborate the message and provide potential fix to the issue.
-    pub note: Option<String>,
-    /// One of: Info, Warning, or Error
-    pub severity: Severity,
-    /// Specify the language to parse and the file extension to includ in matching.
-    pub language: L,
-    /// Pattern rules to find matching AST nodes
-    pub rule: SerializableRule,
-    /// A pattern to auto fix the issue. It can reference metavariables appeared in rule.
-    pub fix: Option<String>,
-    /// Addtional meta variables pattern to filter matching
-    pub constraints: Option<HashMap<String, SerializableMetaVarMatcher>>,
-    /// Glob patterns to specify that the rule only applies to matching files
-    pub files: Option<Vec<String>>,
-    /// Glob patterns that exclude rules from applying to files
-    pub ignores: Option<Vec<String>>,
-    /// Documentation link to this rule
-    pub url: Option<String>,
-    /// Extra information for the rule
-    pub metadata: Option<HashMap<String, String>>,
-}
-
-impl<L: Language> RuleConfig<L> {
-    pub fn get_matcher(&self) -> RuleWithConstraint<L> {
-        let rule = self.get_rule();
-        let matchers = self.get_meta_var_matchers();
-        RuleWithConstraint { rule, matchers }
-    }
-
-    pub fn get_rule(&self) -> Rule<L> {
-        deserialize_rule(self.rule.clone(), self.language.clone()).unwrap()
-    }
-
-    pub fn get_fixer(&self) -> Option<Pattern<L>> {
-        Some(Pattern::new(self.fix.as_ref()?, self.language.clone()))
-    }
-
-    pub fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {
-        if let Some(constraints) = self.constraints.clone() {
-            try_deserialize_matchers(constraints, self.language.clone()).unwrap()
-        } else {
-            MetaVarMatchers::default()
-        }
-    }
-}
 
 pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(
     yamls: &'a str,
