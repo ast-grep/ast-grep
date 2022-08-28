@@ -4,10 +4,12 @@ mod languages;
 mod lsp;
 mod print;
 mod scan;
+mod test;
 
 use clap::{Parser, Subcommand};
 use scan::{run_with_config, run_with_pattern, ScanArg};
 use std::io::Result;
+use test::{run_test_rule, TestArg};
 
 use languages::SupportLang;
 
@@ -55,7 +57,7 @@ enum Commands {
     /// Scan and rewrite code
     Scan(ScanArg),
     /// test ast-grep rule
-    Test,
+    Test(TestArg),
     /// starts language server
     Lsp,
 }
@@ -68,7 +70,7 @@ fn main() -> Result<()> {
     }
     match command.unwrap() {
         Commands::Scan(arg) => run_with_config(arg),
-        Commands::Test => todo!("test sg rule!"),
+        Commands::Test(arg) => run_test_rule(arg),
         Commands::Lsp => lsp::run_language_server(),
     }
 }
