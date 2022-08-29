@@ -21,6 +21,9 @@ jobs:
           submodules : true
       - name: Setup node for napi
         uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          check-latest: true
       - name: Generate code coverage
         run: |
           cargo +nightly tarpaulin --verbose --all-features --timeout 120 --out Xml
