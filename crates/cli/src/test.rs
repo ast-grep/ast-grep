@@ -7,5 +7,5 @@ use std::io::Result;
 pub struct TestArg {}
 
 pub fn run_test_rule(_arg: TestArg) -> Result<()> {
-    todo!("test sg rule is not implemented yet.")
+  todo!("test sg rule is not implemented yet.")
 }

@@ -1,0 +1,73 @@
+{
+  "name": "ast-grep-napi",
+  "version": "0.1.1",
+  "description": "Search and Rewrite code at large scale using precise AST pattern",
+  "main": "index.js",
+  "repository": "https://github.com/HerringtonDarkholme/ast-grep",
+  "license": "MIT",
+  "keywords": [
+    "ast",
+    "pattern",
+    "codemod",
+    "search",
+    "rewrite"
+  ],
+  "files": [
+    "index.d.ts",
+    "index.js"
+  ],
+  "napi": {
+    "name": "ast-grep-napi",
+    "triples": {
+      "defaults": true,
+      "additional": [
+        "x86_64-unknown-linux-musl",
+        "aarch64-unknown-linux-gnu",
+        "i686-pc-windows-msvc",
+        "armv7-unknown-linux-gnueabihf",
+        "aarch64-apple-darwin",
+        "aarch64-linux-android",
+        "x86_64-unknown-freebsd",
+        "aarch64-unknown-linux-musl",
+        "aarch64-pc-windows-msvc",
+        "armv7-linux-androideabi"
+      ]
+    }
+  },
+  "engines": {
+    "node": ">= 10"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "scripts": {
+    "artifacts": "napi artifacts",
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm",
+    "test": "ava",
+    "version": "napi version"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.11.4",
+    "@swc-node/register": "^1.5.1",
+    "ava": "^4.3.3",
+    "chalk": "^5.0.1",
+    "typescript": "^4.8.2"
+  },
+  "ava": {
+    "require": [
+      "@swc-node/register"
+    ],
+    "extensions": [
+      "ts"
+    ],
+    "timeout": "2m",
+    "workerThreads": false,
+    "environmentVariables": {
+      "TS_NODE_PROJECT": "./tsconfig.json"
+    }
+  },
+  "packageManager": "yarn@3.2.3"
+}

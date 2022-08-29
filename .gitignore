@@ -131,3 +131,7 @@ dist
 Cargo.lock
 
 *.node
+
+crates/napi/index.js
+crates/napi/index.d.ts
+.yarn

@@ -1,0 +1,25 @@
+{
+  "name": "ast-grep-napi-linux-arm-gnueabihf",
+  "version": "1.0.0",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm"
+  ],
+  "main": "ast-grep-napi.linux-arm-gnueabihf.node",
+  "files": [
+    "ast-grep-napi.linux-arm-gnueabihf.node"
+  ],
+  "description": "Search and Rewrite code at large scale using precise AST pattern",
+  "keywords": ["ast", "pattern", "codemod", "search", "rewrite"],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "repository": "https://github.com/HerringtonDarkholme/ast-grep"
+}

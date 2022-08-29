@@ -1,0 +1,26 @@
+[package]
+name = "ast-grep-napi"
+version = "0.1.1"
+authors = ["HerringtonDarkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
+edition = "2018"
+description = "Search and Rewrite code at large scale using precise AST pattern"
+keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
+license = "MIT"
+repository = "https://github.com/HerringtonDarkholme/ast-grep"
+
+[dependencies]
+napi = "2"
+napi-derive = "2"
+ast-grep-core = { version="0.1.1", path = "../core" }
+ast-grep-config = { version="0.1.1", path = "../config" }
+serde = { version = "1.0", features = ["derive"] }
+tree-sitter-typescript="0.20.1"
+
+[lib]
+crate-type = ["cdylib"]
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+lto = true
