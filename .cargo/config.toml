@@ -14,3 +14,9 @@ rustflags = [
 [target.aarch64-unknown-linux-musl]
 linker = "aarch64-linux-musl-gcc"
 rustflags = ["-C", "target-feature=-crt-static"]
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+  "-C",
+  "link-args=-Wl,-unresolved-symbols=ignore-all",
+]
