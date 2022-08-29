@@ -54,7 +54,7 @@
 - [ ] add fix/rewrite
 
 ## LSP
-- [ ] Add LSP command
+- [x] Add LSP command
 - [ ] implement LSP incremental
 - [ ] add code action
 
