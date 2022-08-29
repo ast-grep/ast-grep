@@ -19,7 +19,8 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules : true
-
+      - name: Setup node for napi
+        uses: actions/setup-node@v3
       - name: Generate code coverage
         run: |
           cargo +nightly tarpaulin --verbose --all-features --timeout 120 --out Xml
