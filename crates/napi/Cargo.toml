@@ -16,6 +16,11 @@ ast-grep-config = { version="0.1.1", path = "../config" }
 serde = { version = "1.0", features = ["derive"] }
 tree-sitter-typescript="0.20.1"
 
+[features]
+# this feature is only for cargo test to avoid napi_ symbol undefined error
+# see also napi-rs/napi-rs#1005, napi-rs/napi-rs#1099 and napi-rs/napi-rs#1032
+napi-noop-in-unit-test = ["napi-derive/noop"]
+
 [lib]
 crate-type = ["cdylib"]
 
