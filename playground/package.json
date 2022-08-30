@@ -11,7 +11,7 @@
   "dependencies": {
     "monaco-editor": "0.34.0",
     "tree-sitter-javascript": "0.19.0",
-    "vue": "3.2.37",
+    "vue": "3.2.38",
     "web-tree-sitter": "0.20.5"
   },
   "optionalDependencies": {
