@@ -1,14 +1,30 @@
 #![deny(clippy::all)]
 
+// use ast_grep_config::RuleConfig;
 use ast_grep_core::language::{Language, TSLanguage};
-use ast_grep_core::{NodeMatch, Pattern};
+use ast_grep_core::{AstGrep, NodeMatch};
+use napi::bindgen_prelude::{Env, Reference, Result, SharedReference};
 use napi_derive::napi;
+// use serde_json::Value;
 
 #[derive(Clone)]
-pub struct Tsx;
-impl Language for Tsx {
+enum FrontEndLanguage {
+  Html,
+  JavaScript,
+  Tsx,
+  TypeScript,
+}
+
+impl Language for FrontEndLanguage {
   fn get_ts_language(&self) -> TSLanguage {
-    tree_sitter_typescript::language_tsx().into()
+    use FrontEndLanguage::*;
+    match self {
+      Html => tree_sitter_html::language(),
+      JavaScript => tree_sitter_javascript::language(),
+      TypeScript => tree_sitter_typescript::language_typescript(),
+      Tsx => tree_sitter_typescript::language_tsx(),
+    }
+    .into()
   }
 }
 
@@ -17,7 +33,8 @@ pub struct Pos {
   pub row: u32,
   pub col: u32,
 }
-fn from_tuple(pos: (usize, usize)) -> Pos {
+
+fn tuple_to_pos(pos: (usize, usize)) -> Pos {
   Pos {
     row: pos.0 as u32,
     col: pos.1 as u32,
@@ -25,26 +42,67 @@ fn from_tuple(pos: (usize, usize)) -> Pos {
 }
 
 #[napi(object)]
-pub struct MatchResult {
+pub struct Range {
   pub start: Pos,
   pub end: Pos,
 }
 
-impl<L: Language> From<NodeMatch<'_, L>> for MatchResult {
-  fn from(m: NodeMatch<L>) -> Self {
-    let start = from_tuple(m.start_pos());
-    let end = from_tuple(m.end_pos());
-    Self { start, end }
-  }
+#[napi(js_name = "NodeMatch")]
+pub struct NodeMatchNapi {
+  inner: SharedReference<AstGrepNapi, NodeMatch<'static, FrontEndLanguage>>,
 }
 
 #[napi]
-pub fn find_nodes(src: String, pattern: String) -> Vec<MatchResult> {
-  let root = Tsx.ast_grep(src);
-  let pattern = Pattern::new(&pattern, Tsx);
-  root
-    .root()
-    .find_all(pattern)
-    .map(MatchResult::from)
-    .collect()
+impl NodeMatchNapi {
+  #[napi]
+  pub fn range(&self) -> Range {
+    let start_pos = self.inner.start_pos();
+    let end_pos = self.inner.end_pos();
+    Range {
+      start: tuple_to_pos(start_pos),
+      end: tuple_to_pos(end_pos),
+    }
+  }
+}
+
+#[napi(js_name = "AstGrep")]
+pub struct AstGrepNapi(AstGrep<FrontEndLanguage>);
+
+#[napi]
+impl AstGrepNapi {
+  fn from_lang(src: String, fe_lang: FrontEndLanguage) -> Self {
+    Self(AstGrep::new(src, fe_lang))
+  }
+
+  #[napi(factory)]
+  pub fn html(src: String) -> Self {
+    Self::from_lang(src, FrontEndLanguage::Html)
+  }
+
+  #[napi(factory)]
+  pub fn js(src: String) -> Self {
+    Self::from_lang(src, FrontEndLanguage::JavaScript)
+  }
+
+  #[napi(factory)]
+  pub fn ts(src: String) -> Self {
+    Self::from_lang(src, FrontEndLanguage::TypeScript)
+  }
+
+  #[napi(factory)]
+  pub fn tsx(src: String) -> Self {
+    Self::from_lang(src, FrontEndLanguage::Tsx)
+  }
+
+  #[napi]
+  pub fn find_by_string(
+    &self,
+    reference: Reference<AstGrepNapi>,
+    env: Env,
+    pattern: String,
+  ) -> Result<NodeMatchNapi> {
+    Ok(NodeMatchNapi {
+      inner: reference.share_with(env, |grep| Ok(grep.0.root().find(&*pattern).unwrap()))?,
+    })
+  }
 }

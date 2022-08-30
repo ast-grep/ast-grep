@@ -186,7 +186,7 @@ impl<'r, L: Language> Node<'r, L> {
 }
 
 /**
- * Corredponds to inside/has/precedes/follows
+ * Corresponds to inside/has/precedes/follows
  */
 impl<'r, L: Language> Node<'r, L> {
   pub fn matches<M: Matcher<L>>(&self, m: M) -> bool {
@@ -238,8 +238,8 @@ impl<'r, L: Language> Node<'r, L> {
   }
 
   #[must_use]
-  pub fn find<M: Matcher<L>>(&self, pat: M) -> Option<Node<'r, L>> {
-    pat.find_node(self.clone()).map(Node::from)
+  pub fn find<M: Matcher<L>>(&self, pat: M) -> Option<NodeMatch<'r, L>> {
+    pat.find_node(self.clone())
   }
 
   pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = NodeMatch<'r, L>> {

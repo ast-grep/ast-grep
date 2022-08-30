@@ -46,6 +46,7 @@ impl<L: Language> Pattern<L> {
     if let Some(kind_matcher) = &self.selector {
       return root
         .find(kind_matcher)
+        .map(Node::from)
         .expect("contextual match should succeed");
     }
     let mut node = root.inner;

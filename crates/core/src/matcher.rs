@@ -205,6 +205,10 @@ impl<L: Language> PositiveMatcher<L> for MatchNone {}
 pub struct NodeMatch<'tree, L: Language>(Node<'tree, L>, MetaVarEnv<'tree, L>);
 
 impl<'tree, L: Language> NodeMatch<'tree, L> {
+  pub fn get_node(&self) -> &Node<'tree, L> {
+    &self.0
+  }
+
   pub fn get_env(&self) -> &MetaVarEnv<'tree, L> {
     &self.1
   }

@@ -1,18 +1,12 @@
 import test from 'ava'
 
-import { findNodes } from '../index'
+import { AstGrep } from '../index'
 
-test('sync function from native code', (t) => {
-  t.deepEqual(findNodes('console.log(123)', 'console'), [
-    {
-      start: {
-        row: 0,
-        col: 0,
-      },
-      end: {
-        row: 0,
-        col: 7,
-      },
-    },
-  ])
+test('findByString from native code', t => {
+  const sg = AstGrep.js('console.log(123)')
+  const match = sg.findByString('console')
+  t.deepEqual(match.range(), {
+    start: { row: 0, col: 0 },
+    end: { row: 0, col: 7 },
+  })
 })
