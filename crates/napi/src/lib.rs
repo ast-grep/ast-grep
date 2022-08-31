@@ -1,4 +1,4 @@
-#![deny(clippy::all)]
+#![cfg(not(feature = "napi-noop-in-unit-test"))]
 
 // use ast_grep_config::RuleConfig;
 use ast_grep_core::language::{Language, TSLanguage};
