@@ -57,6 +57,10 @@ impl<L: Language> AstGrep<L> {
     }
   }
 
+  pub fn lang(&self) -> &L {
+    &self.inner.lang
+  }
+
   pub fn generate(self) -> String {
     self.inner.source
   }

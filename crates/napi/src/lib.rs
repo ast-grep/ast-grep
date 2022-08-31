@@ -2,7 +2,7 @@
 
 // use ast_grep_config::RuleConfig;
 use ast_grep_core::language::{Language, TSLanguage};
-use ast_grep_core::{AstGrep, NodeMatch};
+use ast_grep_core::{AstGrep, Node};
 use napi::bindgen_prelude::{Env, Reference, Result, SharedReference};
 use napi_derive::napi;
 // use serde_json::Value;
@@ -47,13 +47,13 @@ pub struct Range {
   pub end: Pos,
 }
 
-#[napi(js_name = "NodeMatch")]
-pub struct NodeMatchNapi {
-  inner: SharedReference<AstGrepNapi, NodeMatch<'static, FrontEndLanguage>>,
+#[napi]
+pub struct SGNode {
+  inner: SharedReference<SGRoot, Node<'static, FrontEndLanguage>>,
 }
 
 #[napi]
-impl NodeMatchNapi {
+impl SGNode {
   #[napi]
   pub fn range(&self) -> Range {
     let start_pos = self.inner.start_pos();
@@ -63,13 +63,30 @@ impl NodeMatchNapi {
       end: tuple_to_pos(end_pos),
     }
   }
+
+  #[napi]
+  pub fn find_by_string(
+    &self,
+    reference: Reference<SGNode>,
+    env: Env,
+    pattern: String,
+  ) -> Result<Option<SGNode>> {
+    let node = if let Some(node) = self.inner.find(&*pattern) {
+      node.get_node().clone()
+    } else {
+      return Ok(None);
+    };
+    let root_ref = reference.inner.clone_owner(env)?;
+    let inner = root_ref.share_with(env, move |_| Ok(node))?;
+    Ok(Some(SGNode { inner }))
+  }
 }
 
 #[napi(js_name = "AstGrep")]
-pub struct AstGrepNapi(AstGrep<FrontEndLanguage>);
+pub struct SGRoot(AstGrep<FrontEndLanguage>);
 
 #[napi]
-impl AstGrepNapi {
+impl SGRoot {
   fn from_lang(src: String, fe_lang: FrontEndLanguage) -> Self {
     Self(AstGrep::new(src, fe_lang))
   }
@@ -97,12 +114,17 @@ impl AstGrepNapi {
   #[napi]
   pub fn find_by_string(
     &self,
-    reference: Reference<AstGrepNapi>,
+    root_ref: Reference<SGRoot>,
     env: Env,
     pattern: String,
-  ) -> Result<NodeMatchNapi> {
-    Ok(NodeMatchNapi {
-      inner: reference.share_with(env, |grep| Ok(grep.0.root().find(&*pattern).unwrap()))?,
-    })
+  ) -> Result<Option<SGNode>> {
+    let inner = root_ref.share_with(env, |root| Ok(root.0.root().find(&*pattern)))?;
+    if inner.is_some() {
+      Ok(Some(SGNode {
+        inner: inner.share_with(env, |n| Ok(n.as_ref().unwrap().get_node().clone()))?,
+      }))
+    } else {
+      Ok(None)
+    }
   }
 }
