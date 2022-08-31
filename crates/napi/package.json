@@ -50,11 +50,11 @@
     "version": "napi version"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^2.11.4",
-    "@swc-node/register": "^1.5.1",
-    "ava": "^4.3.3",
-    "chalk": "^5.0.1",
-    "typescript": "^4.8.2"
+    "@napi-rs/cli": "2.11.4",
+    "@swc-node/register": "1.5.1",
+    "ava": "4.3.3",
+    "chalk": "5.0.1",
+    "typescript": "4.8.2"
   },
   "ava": {
     "require": [
