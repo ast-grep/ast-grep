@@ -51,6 +51,13 @@ sg -p 'new Zodios($URL,  $CONF as const,)' -l ts -r 'new Zodios($URL, $CONF)' -i
 * [Implement eslint rule using YAML.](https://twitter.com/Hchan_mgn/status/1560108625460355073)
 
 
+## Sponsor
+![Sponsors](https://raw.githubusercontent.com/HerringtonDarkholme/sponsors/main/sponsorkit/sponsors.svg)
+
+If you find ASTGrep interesting and useful for your work, please [buy me a coffee](https://github.com/sponsors/HerringtonDarkholme)
+so I can spend more time on the project!
+
+
 ## Feature Highlight
 
 ASTGrep's core is an algorithm to search and replace code based on abstract syntax tree produced by tree-sitter.
@@ -85,9 +92,5 @@ ast-grep's vision is to democratize abstract syntax tree magic and to liberate o
 | Rewrite | `sg -p '$F && $F($$$ARGS)' -r '$F?.($ARGS)' -l ts` | ![image](https://user-images.githubusercontent.com/2883231/187094954-7143789d-c196-4576-ac39-906efac3a24a.png)|
 | Report  | `sg scan` | ![image](https://user-images.githubusercontent.com/2883231/187094977-fd544d4b-64de-4bba-8bea-8c0de047b352.png) |
 
-## Sponsor
-
-If you find ASTGrep interesting and useful for your work, please [buy me a coffee](https://github.com/sponsors/HerringtonDarkholme)
-so I can spend more time on the project!
 
 
