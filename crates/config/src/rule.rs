@@ -363,7 +363,7 @@ pub fn try_from_serializable<L: Language>(
 #[cfg(test)]
 mod test {
   use super::*;
-  use serde_yaml::from_str;
+  use crate::from_str;
   use PatternStyle::*;
   use SerializableRule::*;
 
