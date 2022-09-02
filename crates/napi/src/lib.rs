@@ -2,7 +2,7 @@
 
 // use ast_grep_config::RuleConfig;
 use ast_grep_core::language::{Language, TSLanguage};
-use ast_grep_core::{AstGrep, Node};
+use ast_grep_core::{AstGrep, Node, Pattern};
 use napi::bindgen_prelude::{Env, Reference, Result, SharedReference};
 use napi_derive::napi;
 // use serde_json::Value;
@@ -71,7 +71,8 @@ impl SGNode {
     env: Env,
     pattern: String,
   ) -> Result<Option<SGNode>> {
-    let node = if let Some(node) = self.inner.find(&*pattern) {
+    let pattern = Pattern::new(&pattern, reference.inner.lang().clone());
+    let node = if let Some(node) = self.inner.find(pattern) {
       node.get_node().clone()
     } else {
       return Ok(None);
@@ -79,6 +80,25 @@ impl SGNode {
     let root_ref = reference.inner.clone_owner(env)?;
     let inner = root_ref.share_with(env, move |_| Ok(node))?;
     Ok(Some(SGNode { inner }))
+  }
+
+  #[napi]
+  pub fn find_all(
+    &self,
+    reference: Reference<SGNode>,
+    env: Env,
+    pattern: String,
+  ) -> Result<Vec<SGNode>> {
+    let mut ret = vec![];
+    for node_match in self.inner.find_all(&*pattern) {
+      let node = node_match.get_node().clone();
+      let root_ref = reference.inner.clone_owner(env)?;
+      let sg_node = SGNode {
+        inner: root_ref.share_with(env, move |_| Ok(node))?,
+      };
+      ret.push(sg_node);
+    }
+    Ok(ret)
   }
 }
 
@@ -112,19 +132,8 @@ impl SGRoot {
   }
 
   #[napi]
-  pub fn find_by_string(
-    &self,
-    root_ref: Reference<SGRoot>,
-    env: Env,
-    pattern: String,
-  ) -> Result<Option<SGNode>> {
-    let inner = root_ref.share_with(env, |root| Ok(root.0.root().find(&*pattern)))?;
-    if inner.is_some() {
-      Ok(Some(SGNode {
-        inner: inner.share_with(env, |n| Ok(n.as_ref().unwrap().get_node().clone()))?,
-      }))
-    } else {
-      Ok(None)
-    }
+  pub fn root(&self, root_ref: Reference<SGRoot>, env: Env) -> Result<SGNode> {
+    let inner = root_ref.share_with(env, |root| Ok(root.0.root()))?;
+    Ok(SGNode { inner })
   }
 }

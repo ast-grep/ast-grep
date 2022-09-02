@@ -183,6 +183,10 @@ impl<'r, L: Language> Node<'r, L> {
       start_line: self.inner.start_position().row() as usize + 1,
     }
   }
+
+  pub fn lang(&self) -> &L {
+    &self.root.lang
+  }
 }
 
 /**
