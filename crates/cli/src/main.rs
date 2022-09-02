@@ -60,6 +60,8 @@ enum Commands {
   Test(TestArg),
   /// starts language server
   Lsp,
+  /// generate rule docs for current configuration
+  Docs,
 }
 
 fn main() -> Result<()> {
@@ -72,5 +74,6 @@ fn main() -> Result<()> {
     Commands::Scan(arg) => run_with_config(arg),
     Commands::Test(arg) => run_test_rule(arg),
     Commands::Lsp => lsp::run_language_server(),
+    Commands::Docs => todo!("todo, generate rule docs based on current config"),
   }
 }
