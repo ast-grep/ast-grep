@@ -9,13 +9,13 @@ specifiers:
   vite: 3.0.9
   vue: 3.2.38
   vue-tsc: 0.40.5
-  web-tree-sitter: 0.20.5
+  web-tree-sitter: 0.20.7
 
 dependencies:
   monaco-editor: 0.34.0
   tree-sitter-javascript: 0.19.0
   vue: 3.2.38
-  web-tree-sitter: 0.20.5
+  web-tree-sitter: 0.20.7
 
 optionalDependencies:
   ast-grep-wasm: link:../crates/wasm/pkg
@@ -577,8 +577,8 @@ packages:
       '@vue/server-renderer': 3.2.38_vue@3.2.38
       '@vue/shared': 3.2.38
 
-  /web-tree-sitter/0.20.5:
-    resolution: {integrity: sha512-mpXlqIeEBE5Q71cnBnt8w6XKhIiKmllPECqsIFBtMvzcfCxA8+614iyMJXBCQo95Vs3y1zORLqiLJn25pYZ4Tw==}
+  /web-tree-sitter/0.20.7:
+    resolution: {integrity: sha512-flC9JJmTII9uAeeYpWF8hxDJ7bfY+leldQryetll8Nv4WgI+MXc6h7TiyAZASWl9uC9TvmfdgOjZn1DAQecb3A==}
     dev: false
 
   /yallist/4.0.0:
