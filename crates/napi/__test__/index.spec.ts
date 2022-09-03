@@ -29,3 +29,9 @@ test('findAll from native code', t => {
     end: { row: 0, col: 37 },
   })
 })
+
+test('findByString not match', t => {
+  const sg = AstGrep.js('console.log(123)')
+  const match = sg.root().findByString('notExist')
+  t.is(match, null)
+})
