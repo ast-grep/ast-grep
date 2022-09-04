@@ -1,7 +1,7 @@
-name: CI
+name: Build NAPI
 env:
   DEBUG: napi:*
-  APP_NAME: package-template
+  APP_NAME: ast-grep-napi
   MACOSX_DEPLOYMENT_TARGET: '10.13'
 'on':
   push:
@@ -114,6 +114,8 @@ jobs:
           node-version: 16
           check-latest: true
           cache: yarn
+      - name: Change directory
+        run: cd crates/napi
       - name: Install
         uses: actions-rs/toolchain@v1
         if: ${{ !matrix.settings.docker }}
