@@ -116,6 +116,7 @@ jobs:
           node-version: 16
           check-latest: true
           cache: yarn
+          cache-dependency-path: ./crates/napi/yarn.lock
       - name: Install
         uses: actions-rs/toolchain@v1
         if: ${{ !matrix.settings.docker }}
@@ -156,6 +157,7 @@ jobs:
           node-version: 16
           check-latest: true
           cache: yarn
+          cache-dependency-path: ./crates/napi/yarn.lock
           architecture: x86
       - name: Build in docker
         uses: addnab/docker-run-action@v3
@@ -240,12 +242,15 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
+      - name: Change directory
+        run: cd crates/napi
       - name: Setup node
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
           cache: yarn
+          cache-dependency-path: ./crates/napi/yarn.lock
       - name: Cache NPM dependencies
         uses: actions/cache@v3
         with:
@@ -277,12 +282,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Change directory
+        run: cd crates/napi
       - name: Setup node
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
           cache: yarn
+          cache-dependency-path: ./crates/napi/yarn.lock
       - name: Cache NPM dependencies
         uses: actions/cache@v3
         with:
@@ -314,12 +322,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Change directory
+        run: cd crates/napi
       - name: Setup node
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
           cache: yarn
+          cache-dependency-path: ./crates/napi/yarn.lock
       - name: Cache NPM dependencies
         uses: actions/cache@v3
         with:
@@ -470,12 +481,15 @@ jobs:
       - test-linux-arm-gnueabihf-binding
     steps:
       - uses: actions/checkout@v3
+      - name: Change directory
+        run: cd crates/napi
       - name: Setup node
         uses: actions/setup-node@v3
         with:
           node-version: 16
           check-latest: true
           cache: yarn
+          cache-dependency-path: ./crates/napi/yarn.lock
       - name: Cache NPM dependencies
         uses: actions/cache@v3
         with:
