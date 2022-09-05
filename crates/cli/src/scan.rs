@@ -154,7 +154,7 @@ fn run_one_interaction<M: Matcher<SupportLang>>(
   match response {
     'y' => {
       let new_content = apply_rewrite(grep, &matcher, rewrite);
-      std::fs::write(&path, new_content).expect("write file content failed");
+      std::fs::write(path, new_content).expect("write file content failed");
     }
     'a' => (),
     _ => (),
@@ -210,7 +210,7 @@ fn match_rule_on_file(
   reporter: &ErrorReporter,
 ) {
   let matcher = rule.get_matcher();
-  let file_content = match read_to_string(&path) {
+  let file_content = match read_to_string(path) {
     Ok(content) => content,
     _ => return,
   };
@@ -229,7 +229,7 @@ fn match_one_file(
   pattern: &impl Matcher<SupportLang>,
   rewrite: &Option<Pattern<SupportLang>>,
 ) {
-  let file_content = match read_to_string(&path) {
+  let file_content = match read_to_string(path) {
     Ok(content) => content,
     _ => return,
   };
@@ -250,6 +250,6 @@ fn filter_file_interactive(
     .map_err(|err| eprintln!("ERROR: {}", err))
     .ok()?;
   let grep = lang.ast_grep(file_content);
-  let has_match = grep.root().find(&pattern).is_some();
+  let has_match = grep.root().find(pattern).is_some();
   has_match.then_some((grep, path.to_path_buf()))
 }
