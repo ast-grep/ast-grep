@@ -61,7 +61,6 @@ jobs:
             target: aarch64-pc-windows-msvc
             build: |
               yarn build --target aarch64-pc-windows-msvc
-              yarn test
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
     steps:
