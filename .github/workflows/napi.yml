@@ -63,9 +63,8 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |-
               set -e &&
-              rustup target add aarch64-unknown-linux-gnu &&
               cd crates/napi &&
-              export CXXSTDLIB="c++" &&
+              unset CXX_aarch64_unknown_linux_gnu &&
               yarn build --target aarch64-unknown-linux-gnu &&
               aarch64-unknown-linux-gnu-strip *.node
           - host: ubuntu-latest
