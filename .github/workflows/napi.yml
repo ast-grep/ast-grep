@@ -44,12 +44,13 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |-
               set -e &&
+              cd crates/napi &&
               yarn build --target x86_64-unknown-linux-gnu &&
               strip *.node
           - host: ubuntu-latest
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-            build: set -e && yarn build && strip *.node
+            build: set -e && cd crates/napi && yarn build && strip *.node
           - host: macos-latest
             target: aarch64-apple-darwin
             build: |
@@ -58,6 +59,7 @@ jobs:
               export CXX=$(xcrun -f clang++);
               SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
               export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
+              cd crates/napi
               yarn build --target aarch64-apple-darwin
               strip -x *.node
           - host: ubuntu-latest
@@ -65,6 +67,7 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |-
               set -e &&
+              cd crates/napi &&
               yarn build --target aarch64-unknown-linux-gnu &&
               aarch64-unknown-linux-gnu-strip *.node
           - host: ubuntu-latest
@@ -101,6 +104,7 @@ jobs:
             build: |-
               set -e &&
               rustup target add aarch64-unknown-linux-musl &&
+              cd crates/napi &&
               yarn build --target aarch64-unknown-linux-musl &&
               /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
           - host: windows-latest
@@ -461,6 +465,7 @@ jobs:
           options: '-v ${{ github.workspace }}:/build -w /build'
           run: |
             set -e
+            cd crates/napi
             yarn test
             ls -la
   publish:
