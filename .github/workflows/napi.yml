@@ -65,7 +65,7 @@ jobs:
               set -e &&
               rustup target add aarch64-unknown-linux-gnu &&
               cd crates/napi &&
-              export CXX_aarch64_unknown_linux_gnu="clang++ --sysroot=/usr/aarch64-unknown-linux-gnu/aarch64-unknown-linux-gnu/sysroot -stdlib=libstdc++" &&
+              export CXX_aarch64_unknown_linux_gnu="clang++ -std=c++14 -stdlib=libstdc++" &&
               yarn build --target aarch64-unknown-linux-gnu &&
               aarch64-unknown-linux-gnu-strip *.node
           - host: ubuntu-latest
