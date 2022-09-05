@@ -53,10 +53,10 @@ jobs:
               yarn test
           - host: macos-latest
             target: aarch64-apple-darwin
+            # no test
             build: |
               yarn build --target aarch64-apple-darwin
               strip -x *.node
-              yarn test
           - host: windows-latest
             target: aarch64-pc-windows-msvc
             build: |
