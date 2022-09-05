@@ -1,3 +1,4 @@
+mod csharp;
 mod rust;
 use ignore::types::{Types, TypesBuilder};
 use std::borrow::Cow;
@@ -13,6 +14,7 @@ use tree_sitter_python::language as language_python;
 use tree_sitter_swift::language as language_swift;
 use tree_sitter_typescript::{language_tsx, language_typescript};
 
+pub use csharp::CSharp;
 pub use rust::Rust;
 
 macro_rules! impl_lang {
@@ -48,6 +50,7 @@ use std::str::FromStr;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SupportLang {
   C,
+  CSharp,
   Go,
   Html,
   JavaScript,
@@ -82,6 +85,7 @@ impl FromStr for SupportLang {
     use SupportLang::*;
     match s {
       "c" => Ok(C),
+      "cs" | "csharp" => Ok(CSharp),
       "go" | "golang" => Ok(Go),
       "html" => Ok(Html),
       "js" | "jsx" => Ok(JavaScript),
@@ -104,6 +108,7 @@ macro_rules! impl_lang_method {
       use SupportLang as S;
       match self {
         S::C => C.$method(),
+        S::CSharp => CSharp.$method(),
         S::Go => Go.$method(),
         S::Html => Html.$method(),
         S::JavaScript => JavaScript.$method(),
@@ -133,6 +138,7 @@ impl Language for SupportLang {
     use SupportLang as S;
     match self {
       S::C => C.extract_meta_var(source),
+      S::CSharp => CSharp.extract_meta_var(source),
       S::Go => Go.extract_meta_var(source),
       S::Html => Html.extract_meta_var(source),
       S::JavaScript => JavaScript.extract_meta_var(source),
@@ -150,6 +156,7 @@ impl Language for SupportLang {
     use SupportLang as S;
     match self {
       S::C => C.pre_process_pattern(query),
+      S::CSharp => CSharp.pre_process_pattern(query),
       S::Go => Go.pre_process_pattern(query),
       S::Html => Html.pre_process_pattern(query),
       S::JavaScript => JavaScript.pre_process_pattern(query),
@@ -170,6 +177,7 @@ pub fn from_extension(path: &Path) -> Option<SupportLang> {
   use SupportLang::*;
   match path.extension()?.to_str()? {
     "c" | "h" => Some(C),
+    "cs" => Some(CSharp),
     "go" => Some(Go),
     "html" | "htm" | "xhtml" => Some(Html),
     "cjs" | "js" | "mjs" | "jsx" => Some(JavaScript),
@@ -190,6 +198,7 @@ pub fn file_types(lang: &SupportLang) -> Types {
   builder.add_defaults();
   let builder = match lang {
     L::C => builder.select("c"),
+    L::CSharp => builder.select("csharp"),
     L::Go => builder.select("go"),
     L::Html => builder.select("html"),
     L::JavaScript => {
