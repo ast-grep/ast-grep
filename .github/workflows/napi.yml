@@ -50,7 +50,11 @@ jobs:
           - host: ubuntu-latest
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-            build: set -e && cd crates/napi && yarn build && strip *.node
+            build: |-
+              set -e &&
+              cd crates/napi &&
+              CXXSTDLIB="c++" yarn build &&
+              strip *.node
           - host: macos-latest
             target: aarch64-apple-darwin
             build: |
@@ -105,7 +109,7 @@ jobs:
               set -e &&
               rustup target add aarch64-unknown-linux-musl &&
               cd crates/napi &&
-              yarn build --target aarch64-unknown-linux-musl &&
+              CXXSTDLIB="c++" yarn build --target aarch64-unknown-linux-musl &&
               /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
           - host: windows-latest
             target: aarch64-pc-windows-msvc
