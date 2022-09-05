@@ -1,5 +1,5 @@
 {
-  "name": "ast-grep-napi-android-arm64",
+  "name": "@ast-grep/napi-android-arm64",
   "version": "0.1.0",
   "os": [
     "android"

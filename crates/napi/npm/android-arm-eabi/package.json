@@ -1,5 +1,5 @@
 {
-  "name": "ast-grep-napi-android-arm-eabi",
+  "name": "@ast-grep/napi-android-arm-eabi",
   "version": "0.1.0",
   "os": [
     "android"
