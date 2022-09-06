@@ -43,6 +43,7 @@ jobs:
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: sg
+          tar: none
           # (optional) On which platform to distribute the `.zip` file.
           # [default value: windows]
           # [possible values: all, unix, windows, none]
