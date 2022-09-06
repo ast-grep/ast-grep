@@ -72,7 +72,8 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish to npm
         run: |
-          for pkg in npm/platforms/*; do
+          cd npm
+          for pkg in platforms/*; do
             echo "Publishing $pkg..."
             cd $pkg;
             npm publish;
