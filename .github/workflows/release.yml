@@ -61,7 +61,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v3
       - name: Download artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           path: artifacts
       - name: Build npm packages
