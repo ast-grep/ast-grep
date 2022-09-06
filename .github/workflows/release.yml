@@ -66,13 +66,13 @@ jobs:
           path: artifacts
       - name: Build npm packages
         run: |
-          node npm/move-artifacts.js
+          cd npm
+          node move-artifacts.js
       - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish to npm
         run: |
-          cd npm
           for pkg in platforms/*; do
             echo "Publishing $pkg..."
             cd $pkg;
