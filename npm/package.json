@@ -1,0 +1,30 @@
+{
+  "name": "@ast-grep/cli",
+  "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": "https://github.com/HerringtonDarkholme/ast-grep",
+  "engines": {
+    "node": ">= 12.0.0"
+  },
+  "files": [
+    "sg",
+    "postinstall.js"
+  ],
+  "dependencies": {
+    "detect-libc": "^1.0.3"
+  },
+  "scripts": {
+    "postinstall": "node postinstall.js"
+  },
+  "optionalDependencies": {
+    "@ast-grep/cli-darwin-x64": "0.1.0",
+    "@ast-grep/cli-linux-x64-gnu": "0.1.0",
+    "@ast-grep/cli-win32-x64-msvc": "0.1.0",
+    "@ast-grep/cli-darwin-arm64": "0.1.0"
+  },
+  "bin": {
+    "sg": "sg"
+  }
+}

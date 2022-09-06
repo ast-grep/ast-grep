@@ -11,13 +11,20 @@ jobs:
           # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary: parcel_css.exe
+            binary: sg.exe
           # Mac OS
           - os: macos-latest
             target: x86_64-apple-darwin
             strip: strip -x # Must use -x on macOS. This produces larger results on linux.
-            binary: parcel_css
-
+            binary: sg
+          # apple silicon
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary: sg
+          # linux
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary: sg
     name: build-${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -25,7 +32,7 @@ jobs:
       - name: Install Node.JS
         uses: actions/setup-node@v2
         with:
-          node-version: 14
+          node-version: 16
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -43,7 +50,7 @@ jobs:
           RUST_TARGET: ${{ matrix.target }}
       - name: Build CLI
         run: |
-          cargo build --release --features cli --target ${{ matrix.target }}
+          cargo build --release --target ${{ matrix.target }}
           node -e "require('fs').renameSync('target/${{ matrix.target }}/release/${{ matrix.binary }}', '${{ matrix.binary }}')"
       - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
         if: ${{ matrix.strip }}
@@ -52,54 +59,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.target }}
-          path: |
-            *.node
-            ${{ matrix.binary }}
-  build-apple-silicon:
-    name: build-apple-silicon
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Node.JS
-        uses: actions/setup-node@v2
-        with:
-          node-version: 14
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
-
-      - name: Setup rust target
-        run: rustup target add aarch64-apple-darwin
-
-      - uses: bahmutov/npm-install@v1.1.0
-      - name: Build release
-        run: yarn build-release
-        env:
-          RUST_TARGET: aarch64-apple-darwin
-          JEMALLOC_SYS_WITH_LG_PAGE: 14
-      - name: Build CLI
-        run: |
-          export CC=$(xcrun -f clang);
-          export CXX=$(xcrun -f clang++);
-          SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
-          export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
-          export MACOSX_DEPLOYMENT_TARGET="10.9";
-          cargo build --release --features cli --target aarch64-apple-darwin
-          mv target/aarch64-apple-darwin/release/parcel_css parcel_css
-        env:
-          JEMALLOC_SYS_WITH_LG_PAGE: 14
-      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
-        run: strip -x *.node parcel_css
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: bindings-aarch64-apple-darwin
-          path: |
-            *.node
-            parcel_css
+          path: ${{ matrix.binary }}
   build-linux:
     strategy:
       fail-fast: false
@@ -168,24 +128,6 @@ jobs:
           path: |
             *.node
             parcel_css
-  build-wasm:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Node.JS
-        uses: actions/setup-node@v2
-        with:
-          node-version: 14
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-      - name: Build wasm
-        run: yarn wasm-browser:build-release
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: wasm
-          path: node/pkg
-
   release:
     runs-on: ubuntu-latest
     name: Build and release

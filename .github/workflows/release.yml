@@ -51,3 +51,32 @@ jobs:
         env:
           # (required)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  release:
+    runs-on: ubuntu-latest
+    name: Release npm cli
+    needs:
+      - upload-assets
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup node
+        uses: actions/setup-node@v3
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: artifacts
+      - name: Build npm packages
+        run: |
+          node npm/move-artifacts.js
+      - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to npm
+        run: |
+          for pkg in npm/platforms/*; do
+            echo "Publishing $pkg..."
+            cd $pkg;
+            npm publish;
+            cd ../..;
+          done
+          echo "Publishing @ast-grep/cli...";
+          npm publish
