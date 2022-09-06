@@ -1,0 +1,242 @@
+name: Release npm cli
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: parcel_css.exe
+          # Mac OS
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            strip: strip -x # Must use -x on macOS. This produces larger results on linux.
+            binary: parcel_css
+
+    name: build-${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Node.JS
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Setup rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Build release
+        run: yarn build-release
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+      - name: Build CLI
+        run: |
+          cargo build --release --features cli --target ${{ matrix.target }}
+          node -e "require('fs').renameSync('target/${{ matrix.target }}/release/${{ matrix.binary }}', '${{ matrix.binary }}')"
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        if: ${{ matrix.strip }}
+        run: ${{ matrix.strip }} *.node ${{ matrix.binary }}
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings-${{ matrix.target }}
+          path: |
+            *.node
+            ${{ matrix.binary }}
+  build-apple-silicon:
+    name: build-apple-silicon
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Node.JS
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Setup rust target
+        run: rustup target add aarch64-apple-darwin
+
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Build release
+        run: yarn build-release
+        env:
+          RUST_TARGET: aarch64-apple-darwin
+          JEMALLOC_SYS_WITH_LG_PAGE: 14
+      - name: Build CLI
+        run: |
+          export CC=$(xcrun -f clang);
+          export CXX=$(xcrun -f clang++);
+          SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
+          export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
+          export MACOSX_DEPLOYMENT_TARGET="10.9";
+          cargo build --release --features cli --target aarch64-apple-darwin
+          mv target/aarch64-apple-darwin/release/parcel_css parcel_css
+        env:
+          JEMALLOC_SYS_WITH_LG_PAGE: 14
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        run: strip -x *.node parcel_css
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings-aarch64-apple-darwin
+          path: |
+            *.node
+            parcel_css
+  build-linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            strip: strip
+            image: docker.io/centos/nodejs-12-centos7
+            setup: npm install --global yarn@1
+          - target: aarch64-unknown-linux-gnu
+            strip: aarch64-linux-gnu-strip
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
+            setup: apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
+          - target: armv7-unknown-linux-gnueabihf
+            strip: arm-linux-gnueabihf-strip
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
+            setup: apt install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
+          - target: aarch64-unknown-linux-musl
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            strip: aarch64-linux-musl-strip
+          - target: x86_64-unknown-linux-musl
+            image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            strip: strip
+
+    name: build-${{ matrix.target }}
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.image }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Node.JS
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Setup cross compile toolchain
+        if: ${{ matrix.setup }}
+        run: ${{ matrix.setup }}
+
+      - name: Setup rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Build release
+        run: yarn build-release
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+      - name: Build CLI
+        run: |
+          cargo build --release --features cli --target ${{ matrix.target }}
+          mv target/${{ matrix.target }}/release/parcel_css parcel_css
+      - name: Strip debug symbols # https://github.com/rust-lang/rust/issues/46034
+        if: ${{ matrix.strip }}
+        run: ${{ matrix.strip }} *.node parcel_css
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings-${{ matrix.target }}
+          path: |
+            *.node
+            parcel_css
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Node.JS
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Build wasm
+        run: yarn wasm-browser:build-release
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: wasm
+          path: node/pkg
+
+  release:
+    runs-on: ubuntu-latest
+    name: Build and release
+    needs:
+      - build
+      - build-linux
+      - build-apple-silicon
+      - build-wasm
+    steps:
+      - uses: actions/checkout@v1
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: artifacts
+      - name: Build npm packages
+        run: |
+          node scripts/build-npm.js
+          node scripts/build-wasm.js
+      - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to npm
+        run: |
+          for pkg in npm/*; do
+            echo "Publishing $pkg..."
+            cd $pkg;
+            npm publish;
+            cd ../..;
+          done
+          cd cli
+          echo "Publishing @parcel/css-cli...";
+          npm publish
+          cd ..
+          echo "Publishing @parcel/css...";
+          npm publish
+  release-crates:
+    runs-on: ubuntu-latest
+    name: Release Rust crate
+    steps:
+      - uses: actions/checkout@v1
+      - uses: bahmutov/npm-install@v1.1.0
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - run: cargo login ${CRATES_IO_TOKEN}
+        env:
+          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+      - run: |
+          cargo install cargo-workspaces
+          cargo workspaces publish --from-git -y

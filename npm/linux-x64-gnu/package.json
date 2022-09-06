@@ -1,0 +1,28 @@
+{
+  "name": "@ast-grep/cli-linux-x64-gnu",
+  "version": "0.1.0",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "main": "ast-grep-cli.linux-x64-gnu.node",
+  "files": [
+    "ast-grep-cli.linux-x64-gnu.node"
+  ],
+  "description": "Search and Rewrite code at large scale using precise AST pattern",
+  "keywords": ["ast", "pattern", "codemod", "search", "rewrite"],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "repository": "https://github.com/HerringtonDarkholme/ast-grep"
+}
