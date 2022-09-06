@@ -1,6 +1,6 @@
 [package]
 name = "ast-grep-wasm"
-version = "0.1.0"
+version = "0.1.2"
 authors = ["HerringtonDarkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
 edition = "2018"
 description = "Search and Rewrite code at large scale using precise AST pattern"
@@ -26,8 +26,8 @@ serde = { version = "1.0", features = ["derive"] }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 
 wee_alloc = { version = "0.4.5" }
-ast-grep-core = { version="0.1.1", path = "../core" }
-ast-grep-config = { version="0.1.1", path = "../config" }
+ast-grep-core = { version="0.1.2", path = "../core" }
+ast-grep-config = { version="0.1.2", path = "../config" }
 web-tree-sitter-sys = "1.3.0"
 tree-sitter = { version = "0.9", package = "tree-sitter-facade" }
 
