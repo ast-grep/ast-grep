@@ -1,16 +1,13 @@
 {
   "name": "@ast-grep/cli-win32-x64-msvc",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "os": [
     "win32"
   ],
   "cpu": [
     "x64"
   ],
-  "main": "ast-grep-cli.win32-x64-msvc.node",
-  "files": [
-    "ast-grep-cli.win32-x64-msvc.node"
-  ],
+  "files": [ "sg.exe" ],
   "description": "Search and Rewrite code at large scale using precise AST pattern",
   "keywords": ["ast", "pattern", "codemod", "search", "rewrite"],
   "license": "MIT",
