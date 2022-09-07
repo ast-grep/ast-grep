@@ -10,54 +10,54 @@ on:
   workflow_dispatch: null
 
 jobs:
-  push_crates_io:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: katyo/publish-crates@v1
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+  # push_crates_io:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: katyo/publish-crates@v1
+  #       with:
+  #         registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-  create-release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: taiki-e/create-gh-release-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # create-release:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: taiki-e/create-gh-release-action@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  upload-assets:
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-          - target: aarch64-apple-darwin
-            os: macos-latest
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-          - target: x86_64-apple-darwin
-            os: macos-latest
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: taiki-e/upload-rust-binary-action@v1
-        with:
-          bin: sg
-          tar: none
-          # (optional) On which platform to distribute the `.zip` file.
-          # [default value: windows]
-          # [possible values: all, unix, windows, none]
-          zip: all
-          target: ${{ matrix.target }}
-        env:
-          # (required)
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  release:
+  # upload-assets:
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - target: x86_64-pc-windows-msvc
+  #           os: windows-latest
+  #         - target: aarch64-apple-darwin
+  #           os: macos-latest
+  #         - target: x86_64-unknown-linux-gnu
+  #           os: ubuntu-latest
+  #         - target: x86_64-apple-darwin
+  #           os: macos-latest
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: taiki-e/upload-rust-binary-action@v1
+  #       with:
+  #         bin: sg
+  #         tar: none
+  #         # (optional) On which platform to distribute the `.zip` file.
+  #         # [default value: windows]
+  #         # [possible values: all, unix, windows, none]
+  #         zip: all
+  #         target: ${{ matrix.target }}
+  #       env:
+  #         # (required)
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  release-npm:
     runs-on: ubuntu-latest
     name: Release npm cli
-    needs:
-      - upload-assets
+    # needs:
+    #   - upload-assets
     steps:
       - uses: actions/checkout@v3
       - name: Setup node
