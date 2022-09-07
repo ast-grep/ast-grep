@@ -7,6 +7,7 @@ on:
   push:
     tags:
       - "[0-9]+.*"
+  workflow_dispatch: null
 
 jobs:
   push_crates_io:
@@ -64,6 +65,8 @@ jobs:
       - name: Download artifacts
         uses: robinraju/release-downloader@v1.5
         with:
+          latest: true
+          fileName: "*.zip"
           out-file-path: artifacts
       - name: Build npm packages
         run: |
