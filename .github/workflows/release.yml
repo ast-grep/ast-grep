@@ -62,9 +62,9 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v3
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: robinraju/release-downloader@v1.5
         with:
-          path: artifacts
+          out-file-path: artifacts
       - name: Build npm packages
         run: |
           cd npm

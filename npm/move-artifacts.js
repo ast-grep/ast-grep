@@ -42,6 +42,7 @@ for (let triple of triples) {
 
 
 function buildCLI(triple, os, t) {
+  console.log('-------', triple, os, t, '-------')
   let binary = os === 'win32' ? 'sg.exe' : 'sg';
   fs.copyFileSync(`${dir}/artifacts/bindings-${triple}/${binary}`, `${dir}/npm/platforms/${t}/${binary}`);
   fs.chmodSync(`${dir}/npm/platforms/${t}/${binary}`, 0o755); // Ensure execute bit is set.
