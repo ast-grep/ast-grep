@@ -18,15 +18,19 @@ Try the [online playground](https://herringtondarkholme.github.io/ast-grep/) for
 ![output](https://user-images.githubusercontent.com/2883231/183275066-8d9c342f-46cb-4fa5-aa4e-b98aac011869.gif)
 
 ## Installation
+You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) or [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)!
 
-Install from source is the only way to try ast-grep locally at the moment.
-You need install rustup, clone the repository and then
+```bash
+# install via npm
+npm i @ast-grep/cli -g
 
+# install via cargo
+cargo install ast-grep-cli
+```
+Or you can build ast-grep from source. You need install rustup, clone the repository and then
 ```bash
 cargo install --path ./crates/cli
 ```
-
-Once the API is stablized, ast-grep will be available via package manager.
 
 ## Command line usage example
 
