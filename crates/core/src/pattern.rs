@@ -50,7 +50,8 @@ impl<L: Language> Pattern<L> {
         .expect("contextual match should succeed");
     }
     let mut node = root.inner;
-    while node.child_count() == 1 {
+    while node.child_count() == 1 || node.child_count() == 2 && node.child(1).unwrap().is_missing()
+    {
       node = node.child(0).unwrap();
     }
     Node {

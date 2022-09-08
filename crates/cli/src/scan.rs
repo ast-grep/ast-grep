@@ -39,7 +39,7 @@ pub struct RunArg {
   path: String,
 
   /// Include hidden files in search
-  #[clap(short, long, parse(from_flag))]
+  #[clap(long, parse(from_flag))]
   hidden: bool,
 }
 
@@ -50,7 +50,7 @@ pub struct ScanArg {
   config: Option<String>,
 
   /// Include hidden files in search
-  #[clap(short, long, parse(from_flag))]
+  #[clap(long, parse(from_flag))]
   hidden: bool,
 
   #[clap(short, long, parse(from_flag))]
