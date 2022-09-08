@@ -9,70 +9,51 @@ mod scan;
 mod test;
 
 use clap::{Parser, Subcommand};
-use scan::{run_with_config, run_with_pattern, ScanArg};
+use scan::{run_with_config, run_with_pattern, RunArg, ScanArg};
 use std::io::Result;
 use test::{run_test_rule, TestArg};
-
-use languages::SupportLang;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 /**
  * TODO: add some description for ast-grep: sg
  * Example:
- * sg -p ""
+ * sg -p "$PATTERN.to($MATCH)" -l ts --rewrite "use($MATCH)"
  */
-pub struct Args {
+struct App {
   #[clap(subcommand)]
   command: Option<Commands>,
-
-  /// AST pattern to match
-  #[clap(short, long, requires = "lang")]
-  pattern: Option<String>,
-
-  /// String to replace the matched AST node
-  #[clap(short, long)]
-  rewrite: Option<String>,
-
-  /// Print query pattern's tree-sitter AST
-  #[clap(long, parse(from_flag))]
-  debug_query: bool,
-
-  /// The language of the pattern query
-  #[clap(short, long)]
-  lang: Option<SupportLang>,
-
-  #[clap(short, long, parse(from_flag))]
-  interactive: bool,
-
-  /// The path whose descendent files are to be explored.
-  #[clap(value_parser, default_value = ".")]
-  path: String,
-
-  /// Include hidden files in search
-  #[clap(short, long, parse(from_flag))]
-  hidden: bool,
 }
 
 #[derive(Subcommand)]
 enum Commands {
-  /// Scan and rewrite code
+  /// Run one time search or rewrite in command line. (default command)
+  #[clap(display_order = 1)]
+  Run(RunArg),
+  /// Scan and rewrite code by configuration
+  #[clap(display_order = 2)]
   Scan(ScanArg),
   /// test ast-grep rule
+  #[clap(display_order = 3)]
   Test(TestArg),
   /// starts language server
+  #[clap(display_order = 4)]
   Lsp,
   /// generate rule docs for current configuration
+  #[clap(display_order = 5)]
   Docs,
 }
 
 fn main() -> Result<()> {
-  let mut args = Args::parse();
-  let command = args.command.take();
-  if command.is_none() {
-    return run_with_pattern(args);
-  }
-  match command.unwrap() {
+  let app = App::parse();
+  let command = if let Some(cmd) = app.command {
+    cmd
+  } else {
+    let arg = RunArg::parse();
+    return run_with_pattern(arg);
+  };
+  match command {
+    Commands::Run(arg) => run_with_pattern(arg),
     Commands::Scan(arg) => run_with_config(arg),
     Commands::Test(arg) => run_test_rule(arg),
     Commands::Lsp => lsp::run_language_server(),

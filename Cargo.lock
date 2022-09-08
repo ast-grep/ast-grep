@@ -84,7 +84,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-napi"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
@@ -110,7 +110,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-wasm"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",

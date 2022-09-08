@@ -5,13 +5,43 @@ use std::path::{Path, PathBuf};
 use ast_grep_config::{RuleCollection, RuleConfig};
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
-use clap::Args;
+use clap::{Args, Parser};
 use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
 
 use crate::config::find_config;
+use crate::interaction;
 use crate::languages::{file_types, from_extension, SupportLang};
 use crate::print::{print_matches, ColorArg, ErrorReporter, ReportStyle, SimpleFile};
-use crate::{interaction, Args as PatternArg};
+
+#[derive(Parser)]
+pub struct RunArg {
+  /// AST pattern to match
+  #[clap(short, long)]
+  pattern: String,
+
+  /// String to replace the matched AST node
+  #[clap(short, long)]
+  rewrite: Option<String>,
+
+  /// Print query pattern's tree-sitter AST
+  #[clap(long, parse(from_flag))]
+  debug_query: bool,
+
+  /// The language of the pattern query
+  #[clap(short, long)]
+  lang: SupportLang,
+
+  #[clap(short, long, parse(from_flag))]
+  interactive: bool,
+
+  /// The path whose descendent files are to be explored.
+  #[clap(value_parser, default_value = ".")]
+  path: String,
+
+  /// Include hidden files in search
+  #[clap(short, long, parse(from_flag))]
+  hidden: bool,
+}
 
 #[derive(Args)]
 pub struct ScanArg {
@@ -39,10 +69,10 @@ pub struct ScanArg {
 
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
-pub fn run_with_pattern(args: PatternArg) -> Result<()> {
-  let pattern = args.pattern.unwrap();
+pub fn run_with_pattern(args: RunArg) -> Result<()> {
+  let pattern = args.pattern;
   let threads = num_cpus::get().min(12);
-  let lang = args.lang.unwrap();
+  let lang = args.lang;
   let pattern = Pattern::new(&pattern, lang);
   if args.debug_query {
     println!("Pattern TreeSitter {:?}", pattern);
