@@ -22,7 +22,7 @@ use test::{run_test_rule, TestArg};
  */
 struct App {
   #[clap(subcommand)]
-  command: Option<Commands>,
+  command: Commands,
 }
 
 #[derive(Subcommand)]
@@ -45,14 +45,13 @@ enum Commands {
 }
 
 fn main() -> Result<()> {
-  let app = App::parse();
-  let command = if let Some(cmd) = app.command {
-    cmd
-  } else {
+  if std::env::args().nth(1).unwrap_or_default().starts_with('-') {
+    // handle no subcommand
     let arg = RunArg::parse();
     return run_with_pattern(arg);
-  };
-  match command {
+  }
+  let app = App::parse();
+  match app.command {
     Commands::Run(arg) => run_with_pattern(arg),
     Commands::Scan(arg) => run_with_config(arg),
     Commands::Test(arg) => run_test_rule(arg),
