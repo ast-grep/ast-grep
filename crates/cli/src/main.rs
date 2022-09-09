@@ -1,3 +1,4 @@
+#![feature(assert_matches)]
 #![feature(let_chains)]
 
 mod config;
@@ -10,7 +11,6 @@ mod test;
 
 use clap::{Parser, Subcommand};
 use scan::{run_with_config, run_with_pattern, RunArg, ScanArg};
-use std::io::Result;
 use test::{run_test_rule, TestArg};
 
 #[derive(Parser)]
@@ -44,44 +44,78 @@ enum Commands {
   Docs,
 }
 
-fn main() -> Result<()> {
-  if std::env::args().nth(1).unwrap_or_default().starts_with('-') {
-    // handle no subcommand
-    let arg = RunArg::parse();
-    return run_with_pattern(arg);
+fn main() -> Result<(), Error> {
+  if let Err(err) = main_with_args(std::env::args()) {
+    match err {
+      Error::ArgError(e) => e.exit(),
+      _ => Err(err),
+    }
+  } else {
+    Ok(())
   }
-  let app = App::parse();
-  match app.command {
+}
+
+#[derive(Debug)]
+enum Error {
+  IOError(std::io::Error),
+  ArgError(clap::Error),
+}
+
+impl From<clap::Error> for Error {
+  fn from(e: clap::Error) -> Self {
+    Self::ArgError(e)
+  }
+}
+
+impl From<std::io::Error> for Error {
+  fn from(e: std::io::Error) -> Self {
+    Self::IOError(e)
+  }
+}
+
+// this wrapper function is for testing
+fn main_with_args(args: impl Iterator<Item = String>) -> Result<(), Error> {
+  let args: Vec<_> = args.collect();
+  if let Some(arg) = args.get(1) && arg.starts_with('-') {
+    // handle no subcommand
+    let arg = RunArg::try_parse_from(args)?;
+    return run_with_pattern(arg).map_err(Error::IOError);
+  }
+  let app = App::try_parse_from(args)?;
+  let res = match app.command {
     Commands::Run(arg) => run_with_pattern(arg),
     Commands::Scan(arg) => run_with_config(arg),
     Commands::Test(arg) => run_test_rule(arg),
     Commands::Lsp => lsp::run_language_server(),
     Commands::Docs => todo!("todo, generate rule docs based on current config"),
-  }
+  };
+  res.map_err(Error::IOError)
 }
 
 #[cfg(test)]
 mod test_cli {
-  use assert_cmd::Command;
+  use super::*;
+  use std::assert_matches::assert_matches;
 
-  fn sg() -> Command {
-    Command::cargo_bin("sg").unwrap()
+  fn sg(args: impl IntoIterator<Item = &'static str>) -> Result<(), Error> {
+    main_with_args(std::iter::once("sg".into()).chain(args.into_iter().map(|s| s.to_string())))
+  }
+
+  fn wrong_usage(args: impl IntoIterator<Item = &'static str>) {
+    assert_matches!(sg(args), Err(Error::ArgError(_)));
   }
 
   #[test]
-  fn test_no_arg() {
-    sg().assert().failure();
+  fn test_wrong_usage() {
+    wrong_usage([]);
+    wrong_usage(["Some($A)", "-l", "rs"]);
+    wrong_usage(["-p", "Some($A)"]);
+    wrong_usage(["-l", "rs"]);
   }
 
   #[test]
   fn test_default_subcommand() {
-    sg().args(["-p", "Some($A)", "-l", "rs"]).assert().success();
-    sg()
-      .args(["-p", "Some($A)", "-l", "rs", "-r", "$A.unwrap()"])
-      .assert()
-      .success();
-    sg().args(["Some($A)", "-l", "rs"]).assert().failure();
-    sg().args(["-p", "Some($A)"]).assert().failure();
-    sg().args(["-l", "rs"]).assert().failure();
+    assert!(sg(["-p", "Some($A)", "-l", "rs"]).is_ok());
+    assert!(sg(["-p", "Some($A)", "-l", "rs", "-r", "$A.unwrap()"]).is_ok());
   }
 }
