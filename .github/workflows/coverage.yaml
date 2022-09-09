@@ -23,7 +23,7 @@ jobs:
         run: cargo build --bin sg
       - name: Generate code coverage
         run: |
-          cargo +nightly tarpaulin --verbose --all-features --timeout 120 --out Xml
+          cargo +nightly tarpaulin --verbose --all-features --timeout 120 --out Xml --skip-clean
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3
         with:
