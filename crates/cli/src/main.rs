@@ -59,3 +59,29 @@ fn main() -> Result<()> {
     Commands::Docs => todo!("todo, generate rule docs based on current config"),
   }
 }
+
+#[cfg(test)]
+mod test_cli {
+  use assert_cmd::Command;
+
+  fn sg() -> Command {
+    Command::cargo_bin("sg").unwrap()
+  }
+
+  #[test]
+  fn test_no_arg() {
+    sg().assert().failure();
+  }
+
+  #[test]
+  fn test_default_subcommand() {
+    sg().args(["-p", "Some($A)", "-l", "rs"]).assert().success();
+    sg()
+      .args(["-p", "Some($A)", "-l", "rs", "-r", "$A.unwrap()"])
+      .assert()
+      .success();
+    sg().args(["Some($A)", "-l", "rs"]).assert().failure();
+    sg().args(["-p", "Some($A)"]).assert().failure();
+    sg().args(["-l", "rs"]).assert().failure();
+  }
+}

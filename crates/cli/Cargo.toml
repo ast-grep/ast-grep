@@ -41,3 +41,6 @@ tree-sitter-rust = "0.20.1"
 tree-sitter-swift = "0.3.2"
 tree-sitter-typescript="0.20.1"
 tree-sitter-c-sharp = { version = "0.20.0", package = "ast-grep-tree-sitter-c-sharp" }
+
+[dev-dependencies]
+assert_cmd = "2.0.4"
