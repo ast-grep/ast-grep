@@ -3,7 +3,7 @@ import { ref, watchEffect } from 'vue'
 import Monaco from './Monaco.vue'
 import TreeSitter from 'web-tree-sitter'
 import Parser from 'web-tree-sitter'
-import init, {find_nodes} from 'ast-grep-wasm'
+import init, {find_nodes, setup_parser} from 'ast-grep-wasm'
 import SelectLang from './SelectLang.vue'
 
 async function initializeTreeSitter() {
@@ -31,6 +31,7 @@ const notThis = 'console.log("not me")'`
 )
 let query = ref('console.log($MATCH)')
 let lang = ref('javascript')
+let langLoaded = ref(false)
 
 const matchedHighlights = ref([])
 const parserPaths: Record<string, string> = {
@@ -42,12 +43,20 @@ function doFind() {
   return find_nodes(
     source.value,
     {pattern: query.value},
-    parserPaths[lang.value]
   )
 }
 
 watchEffect(async () => {
+  langLoaded.value = false
+  await setup_parser(parserPaths[lang.value])
+  langLoaded.value = true
+})
+
+watchEffect(async () => {
   try {
+    if (!langLoaded.value) {
+      return () => {}
+    }
     matchedHighlights.value = JSON.parse(await doFind())
   } catch (e) {
     matchedHighlights.value = []

@@ -25,6 +25,7 @@ serde = { version = "1.0", features = ["derive"] }
 # code size when deploying.
 console_error_panic_hook = { version = "0.1.7", optional = true }
 
+once_cell = "1.14.0"
 wee_alloc = { version = "0.4.5" }
 ast-grep-core = { version="0.1.2", path = "../core" }
 ast-grep-config = { version="0.1.2", path = "../config" }
