@@ -127,7 +127,6 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   text-align: left;
-  border: 1px solid #eee;
 }
 </style>
 <style>

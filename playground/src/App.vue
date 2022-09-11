@@ -8,6 +8,11 @@ import Intro from './components/Intro.vue'
     <Intro/>
     <Suspense>
       <Playground/>
+      <template #fallback>
+        <div class="loading">
+          Loading Editor and Parser...
+        </div>
+      </template>
     </Suspense>
   </div>
 </template>
@@ -31,5 +36,11 @@ import Intro from './components/Intro.vue'
 }
 .description {
   text-align: left;
+}
+.loading {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
 }
 </style>

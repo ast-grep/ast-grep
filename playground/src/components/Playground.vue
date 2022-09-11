@@ -2,9 +2,7 @@
 import { ref, watchEffect } from 'vue'
 import Monaco from './Monaco.vue'
 import TreeSitter from 'web-tree-sitter'
-import Parser from 'web-tree-sitter'
 import init, {find_nodes, setup_parser} from 'ast-grep-wasm'
-import SelectLang from './SelectLang.vue'
 
 async function initializeTreeSitter() {
   await TreeSitter.init()
@@ -20,12 +18,12 @@ let source = ref(
 `/* All console.log() call will be highlighted!*/
 
 function tryAstGrep() {
-    console.log('Hello World')
+  console.log('Hello World')
 }
 
 const multiLineExpression =
   console
-    .log('Also matched!')
+   .log('Also matched!')
 
 const notThis = 'console.log("not me")'`
 )
@@ -64,28 +62,44 @@ watchEffect(async () => {
   return () => {}
 })
 
+function todo() {
+  window.alert('Under construction...')
+}
+
 </script>
 
 <template>
-  <section class="editor-captions">
-    <div class="half editor-caption">
-      Test Code
-    </div>
-    <div>
-      Pattern Code
-    </div>
-    <SelectLang class="selector" v-model="lang"/>
-  </section>
   <main class="playground">
     <div class="half">
-      <Monaco v-model="source" :language="lang" :highlights="matchedHighlights"/>
+      <div class="editor-caption">
+        <a class="tab active">
+          Test Code
+        </a>
+        <p class="match-result">
+          <span  v-if="matchedHighlights.length > 0">
+            Found {{ matchedHighlights.length }} match(es).
+          </span>
+          <span v-else>No match found.</span>
+        </p>
+      </div>
+      <div class="editor-wrapper">
+        <Monaco v-model="source" :language="lang" :highlights="matchedHighlights"/>
+      </div>
     </div>
     <div class="half">
-      <Monaco v-model="query"/>
+      <div class="editor-caption">
+        <a class="tab active">
+          Pattern Code
+        </a>
+        <a class="tab" @click="todo">
+          Rule Config
+        </a>
+      </div>
+      <div class="editor-wrapper">
+        <Monaco v-model="query"/>
+      </div>
     </div>
   </main>
-  <p v-if="matchedHighlights.length > 0">Found {{ matchedHighlights.length }} match(es).</p>
-  <p v-else>No match found.</p>
 </template>
 
 <style scoped>
@@ -93,22 +107,52 @@ watchEffect(async () => {
   display: flex;
   flex-wrap: wrap;
   flex: 1 0 auto;
+  align-items: stretch;
 }
 .half {
-  width: 50%;
-}
-.editor-captions {
+  flex: 1 0 30%;
   display: flex;
-  text-align: left;
+  flex-direction: column;
+  filter: drop-shadow(0 0 1px #00000010);
+}
+.half:first-child {
+  margin-right: 10px;
+}
+.half:focus-within {
+  filter: drop-shadow(0 0 10px #00000015);
 }
 .selector {
   margin-left: auto;
 }
 .editor-caption {
   flex: 0 0 auto;
-  height: 1.5em;
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: -1px;
 }
-p {
-  margin-top: 1em;
+.tab {
+  border-radius: 5px 5px 0 0;
+  border: 1px solid #eee;
+  padding: 8px 16px;
+  cursor: pointer;
+  z-index: 2;
+  color: inherit;
+  opacity: 0.7;
+}
+.tab.active {
+  background-color: #fff;
+  position: relative;
+  border-bottom-color: #fff;
+  margin-right: 0.2em;
+  opacity: 1;
+  color: var(--brand-color);
+}
+.editor-wrapper {
+  flex: 1 0 auto;
+  border: 1px solid #eee;
+}
+.match-result {
+  margin-left: auto;
+  margin-right: 1em;
 }
 </style>
