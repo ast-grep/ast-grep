@@ -1,7 +1,7 @@
 lockfileVersion: 5.3
 
 specifiers:
-  '@vitejs/plugin-vue': 3.0.3
+  '@vitejs/plugin-vue': 3.1.0
   ast-grep-wasm: file:../crates/wasm/pkg/
   monaco-editor: 0.34.0
   typescript: 4.8.3
@@ -19,7 +19,7 @@ optionalDependencies:
   ast-grep-wasm: link:../crates/wasm/pkg
 
 devDependencies:
-  '@vitejs/plugin-vue': 3.0.3_vite@3.1.0+vue@3.2.38
+  '@vitejs/plugin-vue': 3.1.0_vite@3.1.0+vue@3.2.38
   typescript: 4.8.3
   vite: 3.1.0
   vue-tsc: 0.40.6_typescript@4.8.3
@@ -58,8 +58,8 @@ packages:
     dev: true
     optional: true
 
-  /@vitejs/plugin-vue/3.0.3_vite@3.1.0+vue@3.2.38:
-    resolution: {integrity: sha512-U4zNBlz9mg+TA+i+5QPc3N5lQvdUXENZLO2h0Wdzp56gI1MWhqJOv+6R+d4kOzoaSSq6TnGPBdZAXKOe4lXy6g==}
+  /@vitejs/plugin-vue/3.1.0_vite@3.1.0+vue@3.2.38:
+    resolution: {integrity: sha512-fmxtHPjSOEIRg6vHYDaem+97iwCUg/uSIaTzp98lhELt2ISOQuDo2hbkBdXod0g15IhfPMQmAxh4heUks2zvDA==}
     engines: {node: ^14.18.0 || >=16.0.0}
     peerDependencies:
       vite: ^3.0.0
