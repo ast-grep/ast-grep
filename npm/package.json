@@ -13,7 +13,7 @@
     "postinstall.js"
   ],
   "dependencies": {
-    "detect-libc": "^1.0.3"
+    "detect-libc": "1.0.3"
   },
   "scripts": {
     "postinstall": "node postinstall.js"
