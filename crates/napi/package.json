@@ -47,7 +47,7 @@
     "@swc-node/register": "1.5.1",
     "ava": "4.3.3",
     "chalk": "5.0.1",
-    "typescript": "4.8.2"
+    "typescript": "4.8.3"
   },
   "ava": {
     "require": [
