@@ -27,7 +27,9 @@ const multiLineExpression =
   console
    .log('Also matched!')
 
-const notThis = 'console.log("not me")'`
+if (true) {
+  const notThis = 'console.log("not me")'
+}`
 )
 
 enum Mode {
@@ -35,7 +37,12 @@ enum Mode {
   Config = 'Config',
 }
 let query = ref('console.log($MATCH)')
-let config = ref('')
+let config = ref(`
+# Configure Rule in YAML
+any:
+  - pattern: if (false) { $$$ }
+  - pattern: if (true) { $$$ }
+`.trim())
 let lang = ref('javascript')
 let langLoaded = ref(false)
 let mode = ref(Mode.Patch)
@@ -46,11 +53,26 @@ const parserPaths: Record<string, string> = {
   typescript: 'tree-sitter-typescript.wasm',
 }
 
-function doFind() {
-  return find_nodes(
-    source.value,
-    {pattern: query.value},
-  )
+async function parseYAML(src: string) {
+  const yaml = await import('js-yaml')
+  return yaml.load(src)
+}
+
+async function doFind() {
+  if (mode.value === Mode.Patch) {
+    return find_nodes(
+      source.value,
+      {pattern: query.value},
+    )
+  } else {
+    const src = source.value
+    const val = config.value;
+    const json = await parseYAML(val)
+    return find_nodes(
+      src,
+      json,
+    )
+  }
 }
 
 watchEffect(async () => {
@@ -74,7 +96,7 @@ watchEffect(async () => {
 
 const modeText = {
   [Mode.Patch]: 'Pattern Code',
-  [Mode.Config]: 'Rule Config',
+  [Mode.Config]: 'YAML Rule',
 }
 let placeholder = ref('code')
 
@@ -100,10 +122,10 @@ let placeholder = ref('code')
     <div class="half">
       <Tabs v-model="mode" :modeText="modeText">
         <template #[Mode.Patch]>
-          <Monaco class="simple-query" v-model="query"/>
+          <Monaco :language="lang" v-model="query"/>
         </template>
         <template #[Mode.Config]>
-          <Monaco v-model="config"/>
+          <Monaco language="yaml" v-model="config"/>
         </template>
         <template #addon>
           <SelectLang v-model="lang"/>
@@ -131,8 +153,5 @@ let placeholder = ref('code')
 }
 .half:focus-within {
   filter: drop-shadow(0 0 16px #00000020);
-}
-.simple-query {
-  font-family: monospace;
 }
 </style>
