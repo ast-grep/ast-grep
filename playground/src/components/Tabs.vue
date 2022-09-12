@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, defineProps, defineEmits, PropType, h } from 'vue'
+import { defineComponent, defineProps, defineEmits, PropType, h } from 'vue'
 
 const props = defineProps({
   modelValue: String,
@@ -14,11 +14,11 @@ function switchTab(m: string) {
   emits('update:modelValue', m)
 }
 
-const Wrapper = {
+const Wrapper = defineComponent({
   render() {
-    return h('div', this.$attrs, this.$slots.default())
+    return h('div', this.$attrs, this.$slots.default?.())
   }
-}
+})
 
 </script>
 

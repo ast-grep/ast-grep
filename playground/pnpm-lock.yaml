@@ -1,6 +1,7 @@
 lockfileVersion: 5.3
 
 specifiers:
+  '@types/js-yaml': ^4.0.5
   '@vitejs/plugin-vue': 3.1.0
   ast-grep-wasm: file:../crates/wasm/pkg/
   js-yaml: ^4.1.0
@@ -13,6 +14,7 @@ specifiers:
   web-tree-sitter: 0.20.7
 
 dependencies:
+  '@types/js-yaml': 4.0.5
   js-yaml: 4.1.0
   monaco-editor: 0.34.0
   monaco-yaml: 4.0.0_monaco-editor@0.34.0
@@ -61,6 +63,10 @@ packages:
     requiresBuild: true
     dev: true
     optional: true
+
+  /@types/js-yaml/4.0.5:
+    resolution: {integrity: sha512-FhpRzf927MNQdRZP0J5DLIdTXhjLYzeUTmLAu69mnVksLH9CJY3IuSeEgbKUki7GQZm0WqDkGzyxju2EZGD2wA==}
+    dev: false
 
   /@types/json-schema/7.0.11:
     resolution: {integrity: sha512-wOuvG1SN4Us4rez+tylwwwCV1psiNVOkJeM3AUWUNWg/jDQY2+HE/444y5gc+jBmRqASOm2Oeh5c1axHobwRKQ==}

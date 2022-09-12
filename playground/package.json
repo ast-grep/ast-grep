@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/js-yaml": "^4.0.5",
     "js-yaml": "^4.1.0",
     "monaco-editor": "0.34.0",
     "monaco-yaml": "^4.0.0",
