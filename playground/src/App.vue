@@ -93,7 +93,7 @@ h2 {
   stroke-dasharray: 1000;
   stroke-width: 2px;
   stroke: var(--theme-highlight3);
-  transform: rotate(-35deg);
+  transform: rotate(-10deg);
   animation: linear 4s lightning-flash forwards infinite;
 }
 </style>

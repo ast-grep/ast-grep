@@ -30,7 +30,8 @@ header {
 }
 .logo {
   height: 9em;
-  padding: 1.5em;
+  width: 16em;
+  padding: 0 1.5em 0 0;
   will-change: filter;
 }
 .logo:hover {
