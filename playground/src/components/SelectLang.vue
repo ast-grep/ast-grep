@@ -27,7 +27,7 @@ function onChange(event: Event) {
     Language:
     <select :value="modelValue" @change="onChange">
       <option v-for="val, key in languages" :value="key">{{val}}</option>
-    </select>
+    </select> ▿
     </div>
 </template>
 
@@ -37,7 +37,7 @@ function onChange(event: Event) {
 }
 select {
   line-height: 1.5em;
-  padding: 0.5rem;
+  padding: 0.5em 0 0.5em 0.5em;
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   cursor: pointer;
 }
