@@ -7,7 +7,8 @@ use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Resul
 
 use ast_grep_core::language::Language;
 pub use rule::{
-  try_from_serializable as deserialize_rule, Rule, RuleConfig, SerializableRule, Severity,
+  try_deserialize_matchers, try_from_serializable as deserialize_rule, Rule, RuleConfig,
+  RuleWithConstraint, SerializableMetaVarMatcher, SerializableRule, Severity,
 };
 pub use rule_collection::RuleCollection;
 

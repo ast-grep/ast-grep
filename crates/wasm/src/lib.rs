@@ -1,7 +1,12 @@
 mod utils;
 
-use ast_grep_config::{deserialize_rule, SerializableRule};
+use ast_grep_config::{
+  deserialize_rule, try_deserialize_matchers, RuleWithConstraint, SerializableMetaVarMatcher,
+  SerializableRule,
+};
 use ast_grep_core::language::Language;
+use ast_grep_core::meta_var::MetaVarMatchers;
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use tree_sitter as ts;
@@ -16,6 +21,13 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 pub struct MatchResult {
   pub start: usize,
   pub end: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct WASMConfig {
+  pub rule: SerializableRule,
+  pub fix: Option<String>,
+  pub constraints: Option<HashMap<String, SerializableMetaVarMatcher>>,
 }
 
 static INSTANCE: Mutex<Option<ts::Language>> = Mutex::new(None);
@@ -33,17 +45,23 @@ pub async fn setup_parser(parser_path: String) -> Result<(), JsError> {
 
 #[wasm_bindgen]
 pub async fn find_nodes(src: String, config: JsValue) -> Result<String, JsError> {
-  let config: SerializableRule = config.into_serde()?;
+  let config: WASMConfig = config.into_serde()?;
   let lang = INSTANCE
     .lock()
     .expect_throw("get language error")
     .clone()
     .expect_throw("current language is not set");
   let root = lang.ast_grep(src);
-  let matcher = deserialize_rule(config, lang)?;
+  let rule = deserialize_rule(config.rule, lang.clone())?;
+  let matchers = if let Some(c) = config.constraints {
+    try_deserialize_matchers(c, lang).unwrap()
+  } else {
+    MetaVarMatchers::default()
+  };
+  let config = RuleWithConstraint { rule, matchers };
   let ret: Vec<_> = root
     .root()
-    .find_all(matcher)
+    .find_all(config)
     .map(|n| {
       let start = n.start_pos();
       let end = n.end_pos();

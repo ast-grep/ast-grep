@@ -39,9 +39,12 @@ enum Mode {
 let query = ref('console.log($MATCH)')
 let config = ref(`
 # Configure Rule in YAML
-any:
-  - pattern: if (false) { $$$ }
-  - pattern: if (true) { $$$ }
+rule:
+  any:
+    - pattern: if (false) { $$$ }
+    - pattern: if (true) { $$$ }
+constraints:
+  # META_VAR: pattern
 `.trim())
 let lang = ref('javascript')
 let langLoaded = ref(false)
@@ -62,7 +65,7 @@ async function doFind() {
   if (mode.value === Mode.Patch) {
     return find_nodes(
       source.value,
-      {pattern: query.value},
+      {rule: {pattern: query.value}},
     )
   } else {
     const src = source.value
