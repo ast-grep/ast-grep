@@ -1,4 +1,4 @@
-name: Github Page Playground
+name: Github Page Docs
 on:
   push:
     branches:
@@ -42,15 +42,15 @@ jobs:
         with:
           version: 6.16.0
           run_install: |
-              - cwd: ./playground
+              - cwd: ./website
                 recursive: true
 
       - name: Vite Build 🔧
-        run: cd playground && pnpm build
+        run: cd website && pnpm build
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v1
         with:
-          path: ./playground/dist
+          path: ./website/dist
 
   # Deployment job
   deploy:
