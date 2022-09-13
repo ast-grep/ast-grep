@@ -6,9 +6,6 @@ let playground = ref<unknown>(null)
 onMounted(async () => {
   playground.value = (await import('./components/Playground.vue')).default
 })
-
-// force playground render loading animation by rejecting promise
-const ForceLoading = { setup: () => Promise.reject(null) }
 </script>
 
 <template>
@@ -16,19 +13,16 @@ const ForceLoading = { setup: () => Promise.reject(null) }
     <Intro/>
     <Suspense>
       <component v-if="playground" :is="playground"/>
-      <ForceLoading v-else/>
-      <template #fallback>
-        <div class="loading">
-          <svg class="lightning-icon" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100" height="120" viewBox="0 10 100 120">
-            <g transform="matrix(1,0,0,1,0,22)" >
-            <polygon xmlns="http://www.w3.org/2000/svg" points="100,0 25,50 43.75,62.5 0,100 75,62.5 56.25,50"></polygon>
-            </g>
-          </svg>
-          <h2>
-            Loading Editor and Parser...
-          </h2>
-        </div>
-      </template>
+      <div class="loading" v-else>
+        <svg class="lightning-icon" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100" height="120" viewBox="0 10 100 120">
+          <g transform="matrix(1,0,0,1,0,22)" >
+          <polygon xmlns="http://www.w3.org/2000/svg" points="100,0 25,50 43.75,62.5 0,100 75,62.5 56.25,50"></polygon>
+          </g>
+        </svg>
+        <h2>
+          Loading Editor and Parser...
+        </h2>
+      </div>
     </Suspense>
   </div>
 </template>
