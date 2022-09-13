@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import Playground from './components/Playground.vue'
 import Intro from './components/Intro.vue'
+import { ref, onMounted } from 'vue'
+// vitepress SSR does not support Monaco, lazy load on client side
+let playground = ref<unknown>(null)
+onMounted(async () => {
+  playground.value = (await import('./components/Playground.vue')).default
+})
+
+// force playground render loading animation by rejecting promise
+const ForceLoading = { setup: () => Promise.reject(null) }
 </script>
 
 <template>
   <div class="root">
     <Intro/>
     <Suspense>
-      <Playground/>
+      <component v-if="playground" :is="playground"/>
+      <ForceLoading v-else/>
       <template #fallback>
         <div class="loading">
           <svg class="lightning-icon" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100" height="120" viewBox="0 10 100 120">
@@ -23,6 +32,8 @@ import Intro from './components/Intro.vue'
     </Suspense>
   </div>
 </template>
+
+<style src="./style.css"/>
 
 <style scoped>
 .logo {
