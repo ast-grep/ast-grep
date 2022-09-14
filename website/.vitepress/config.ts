@@ -22,8 +22,34 @@ export default defineConfig({
   themeConfig: {
     logo: 'logo.svg',
     nav: [
-      { text: 'Guide', link: '/guide' },
+      { text: 'Guide', link: '/guide/introduction' },
+      { text: 'Reference', link: '/reference/cli' },
       { text: 'Playground', link: '/playground' },
+    ],
+    sidebar: [
+      {
+        text: 'Guide',
+        items: [
+          { text: 'Introduction', link: '/guide/introduction' },
+          { text: 'Quick Start', link: '/guide/quick-start' },
+        ],
+      },
+      {
+        text: 'Reference',
+        items: [
+          { text: 'Command Line Interface', link: '/reference/cli' },
+          { text: 'YAML Configuration', link: '/reference/yaml' },
+          { text: 'API Reference', link: '/reference/api' },
+        ],
+      },
+      {
+        text: 'Links',
+        items: [
+          { text: 'Playground', link: '/playground' },
+          { text: 'Roadmap', link: '/links/roadmap' },
+          { text: 'Docs.rs', link: 'https://docs.rs/ast-grep-core/0.1.2/ast_grep_core/' },
+        ],
+      },
     ],
   },
 })

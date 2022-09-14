@@ -49,7 +49,7 @@
 
 ## Playground
 - [x] build a playground based on WASM binding
-- [ ] build YAML config for WASM playground
+- [x] build YAML config for WASM playground
 - [ ] URL sharing
 - [ ] add fix/rewrite
 

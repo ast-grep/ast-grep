@@ -19,12 +19,12 @@ hero:
 features:
   - icon: ⚡️
     title: Performant
-    details: Lorem ipsum...
+    details: Blazing fast search and replace across thousands of files powered, powered by parallel Rust.
   - icon: ⚡️
     title: Progressive
-    details: Lorem ipsum...
+    details: ast-grep supports multiple forms of refactoring from one-line command to fully programmatic code.
   - icon: 🛠️
     title: Pragmatic
-    details: Lorem ipsum...
+    details: ast-grep is not a toy but a batteries-included tool with interactive codemod, language server and testing tool.
 
 ---
