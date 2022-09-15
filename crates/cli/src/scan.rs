@@ -205,6 +205,8 @@ fn apply_rewrite<M: Matcher<SupportLang>>(
     new_content.push_str(&edit.inserted_text);
     start = edit.position + edit.deleted_length;
   }
+  // add trailing statements
+  new_content.push_str(&grep.source()[start..]);
   new_content
 }
 
