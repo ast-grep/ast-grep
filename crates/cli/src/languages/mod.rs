@@ -1,4 +1,5 @@
 mod csharp;
+mod python;
 mod rust;
 use ignore::types::{Types, TypesBuilder};
 use std::borrow::Cow;
@@ -10,11 +11,12 @@ use tree_sitter_html::language as language_html;
 use tree_sitter_javascript::language as language_javascript;
 use tree_sitter_kotlin::language as language_kotlin;
 use tree_sitter_lua::language as language_lua;
-use tree_sitter_python::language as language_python;
+// use tree_sitter_python::language as language_python;
 use tree_sitter_swift::language as language_swift;
 use tree_sitter_typescript::{language_tsx, language_typescript};
 
 pub use csharp::CSharp;
+pub use python::Python;
 pub use rust::Rust;
 
 macro_rules! impl_lang {
@@ -35,7 +37,7 @@ impl_lang!(Html, language_html);
 impl_lang!(JavaScript, language_javascript);
 impl_lang!(Kotlin, language_kotlin);
 impl_lang!(Lua, language_lua);
-impl_lang!(Python, language_python);
+// impl_lang!(Python, language_python);
 impl_lang!(Swift, language_swift);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
