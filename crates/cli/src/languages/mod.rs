@@ -36,7 +36,6 @@ impl_lang!(Html, language_html);
 impl_lang!(JavaScript, language_javascript);
 impl_lang!(Kotlin, language_kotlin);
 impl_lang!(Lua, language_lua);
-// impl_lang!(Python, language_python);
 impl_lang!(Swift, language_swift);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
