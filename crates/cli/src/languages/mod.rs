@@ -11,7 +11,6 @@ use tree_sitter_html::language as language_html;
 use tree_sitter_javascript::language as language_javascript;
 use tree_sitter_kotlin::language as language_kotlin;
 use tree_sitter_lua::language as language_lua;
-// use tree_sitter_python::language as language_python;
 use tree_sitter_swift::language as language_swift;
 use tree_sitter_typescript::{language_tsx, language_typescript};
 
