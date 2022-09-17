@@ -2,14 +2,14 @@ lockfileVersion: 5.3
 
 specifiers:
   '@algolia/client-search': 4.9.1
-  '@types/js-yaml': ^4.0.5
+  '@types/js-yaml': 4.0.5
   ast-grep-wasm: file:../crates/wasm/pkg/
-  js-yaml: ^4.1.0
+  js-yaml: 4.1.0
   monaco-editor: 0.34.0
-  monaco-yaml: ^4.0.0
+  monaco-yaml: 4.0.0
   typescript: 4.8.3
   vite: 3.1.0
-  vitepress: ^1.0.0-alpha.13
+  vitepress: 1.0.0-alpha.15
   vue: 3.2.39
   vue-tsc: 0.40.13
   web-tree-sitter: 0.20.7
@@ -29,7 +29,7 @@ devDependencies:
   '@algolia/client-search': 4.9.1
   typescript: 4.8.3
   vite: 3.1.0
-  vitepress: 1.0.0-alpha.13_@algolia+client-search@4.9.1
+  vitepress: 1.0.0-alpha.15_@algolia+client-search@4.9.1
   vue-tsc: 0.40.13_typescript@4.8.3
 
 packages:
@@ -803,6 +803,10 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
+  /nprogress/0.2.0:
+    resolution: {integrity: sha512-I19aIingLgR1fmhftnbWWO3dXc0hSxqHQHQb3H8m+K3TnEn/iSeTZZOyvKXWqQESMwuUVnatlCnZdLBZZt2VSA==}
+    dev: true
+
   /path-browserify/1.0.1:
     resolution: {integrity: sha512-b7uo2UCUOYZcnF/3ID0lulOJi/bafxa1xPe7ZPsammBSpjSWQkjNxlt635YGS2MiR9GjvuXCtz2emr3jbsz98g==}
     dev: false
@@ -918,8 +922,8 @@ packages:
       fsevents: 2.3.2
     dev: true
 
-  /vitepress/1.0.0-alpha.13_@algolia+client-search@4.9.1:
-    resolution: {integrity: sha512-gCbKb+6o0g5wHt2yyqBPk7FcvrB+MfwGtg1JMS5p99GTQR87l3b7symCl8o1ecv7MDXwJ2mPB8ZrYNLnQAJxLQ==}
+  /vitepress/1.0.0-alpha.15_@algolia+client-search@4.9.1:
+    resolution: {integrity: sha512-+pHJQCpnv0wVgLRyonisrj7Y77PVhbns2nTLxV9GkH3T+RTY/W2JmRatzBg5WciMaPyO8Ms6F3YElO5PULVv3w==}
     hasBin: true
     dependencies:
       '@docsearch/css': 3.2.1
@@ -928,6 +932,7 @@ packages:
       '@vue/devtools-api': 6.2.1
       '@vueuse/core': 9.2.0_vue@3.2.39
       body-scroll-lock: 4.0.0-beta.0
+      nprogress: 0.2.0
       shiki: 0.11.1
       vite: 3.1.0
       vue: 3.2.39
