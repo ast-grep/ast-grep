@@ -62,13 +62,5 @@
       "TS_NODE_PROJECT": "./tsconfig.json"
     }
   },
-  "packageManager": "yarn@3.2.3",
-  "optionalDependencies": {
-    "@ast-grep/napi-win32-x64-msvc": "0.1.4",
-    "@ast-grep/napi-darwin-x64": "0.1.4",
-    "@ast-grep/napi-linux-x64-gnu": "0.1.4",
-    "@ast-grep/napi-win32-ia32-msvc": "0.1.4",
-    "@ast-grep/napi-darwin-arm64": "0.1.4",
-    "@ast-grep/napi-win32-arm64-msvc": "0.1.4"
-  }
+  "packageManager": "yarn@3.2.3"
 }
