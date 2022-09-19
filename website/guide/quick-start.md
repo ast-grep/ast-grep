@@ -75,7 +75,11 @@ Cool? Now we can use this pattern to refactor TypeScript source!
 
 ```shell
 # pattern and language argument support short form
-sg --p '$PROP && $PROP()' --rewrite '$PROP?.()' -l ts TypeScript/src --interactive
+sg -p '$PROP && $PROP()' \
+   --rewrite '$PROP?.()' \
+   --interactive \
+   -l ts \
+   TypeScript/src
 ```
 
 ast-grep will start an interactive session to let you choose if you want to apply the patch.
@@ -84,4 +88,4 @@ Press `y` to accept the change!
 
 That's it! You have refactored TypeScript's repository in minutes. Congratulation!
 
-Hope you enjoy the power of AST editing in plain programming language pattern!
+Hope you enjoy the power of AST editing in plain programming language pattern. Our next step is to know more about the pattern code.

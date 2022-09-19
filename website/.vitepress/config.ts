@@ -32,6 +32,9 @@ export default defineConfig({
         items: [
           { text: 'Introduction', link: '/guide/introduction' },
           { text: 'Quick Start', link: '/guide/quick-start' },
+          { text: 'Pattern Syntax', link: '/guide/pattern-syntax' },
+          { text: 'Rule Configuration', link: '/guide/rule-config' },
+          { text: 'API Usage', link: '/guide/api-usage' },
         ],
       },
       {
