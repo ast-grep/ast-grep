@@ -1,3 +1,3 @@
-# Editor Configuration
+# Editor Integration
 
 Todo...

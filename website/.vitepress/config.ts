@@ -35,6 +35,7 @@ export default defineConfig({
           { text: 'Pattern Syntax', link: '/guide/pattern-syntax' },
           { text: 'Rule Configuration', link: '/guide/rule-config' },
           { text: 'API Usage', link: '/guide/api-usage' },
+          { text: 'Editor Integration', link: '/guide/editor-integration' },
         ],
       },
       {
