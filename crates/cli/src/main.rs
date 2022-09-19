@@ -1,6 +1,3 @@
-#![feature(assert_matches)]
-#![feature(let_chains)]
-
 mod config;
 mod interaction;
 mod languages;
@@ -76,10 +73,12 @@ impl From<std::io::Error> for Error {
 // this wrapper function is for testing
 fn main_with_args(args: impl Iterator<Item = String>) -> Result<(), Error> {
   let args: Vec<_> = args.collect();
-  if let Some(arg) = args.get(1) && arg.starts_with('-') {
-    // handle no subcommand
-    let arg = RunArg::try_parse_from(args)?;
-    return run_with_pattern(arg).map_err(Error::IOError);
+  if let Some(arg) = args.get(1) {
+    if arg.starts_with('-') {
+      // handle no subcommand
+      let arg = RunArg::try_parse_from(args)?;
+      return run_with_pattern(arg).map_err(Error::IOError);
+    }
   }
   let app = App::try_parse_from(args)?;
   let res = match app.command {
@@ -95,14 +94,13 @@ fn main_with_args(args: impl Iterator<Item = String>) -> Result<(), Error> {
 #[cfg(test)]
 mod test_cli {
   use super::*;
-  use std::assert_matches::assert_matches;
 
   fn sg(args: impl IntoIterator<Item = &'static str>) -> Result<(), Error> {
     main_with_args(std::iter::once("sg".into()).chain(args.into_iter().map(|s| s.to_string())))
   }
 
   fn wrong_usage(args: impl IntoIterator<Item = &'static str>) {
-    assert_matches!(sg(args), Err(Error::ArgError(_)));
+    assert!(matches!(sg(args), Err(Error::ArgError(_))));
   }
 
   #[test]
