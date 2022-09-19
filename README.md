@@ -25,7 +25,7 @@ You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-
 npm i @ast-grep/cli -g
 
 # install via cargo
-cargo install ast-grep-cli
+cargo install ast-grep
 ```
 Or you can build ast-grep from source. You need install rustup, clone the repository and then
 ```bash

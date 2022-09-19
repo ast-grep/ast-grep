@@ -14,7 +14,7 @@ First, install `ast-grep`. It is distributed by npm and cargo. You can also buil
 npm i @ast-grep/cli -g
 
 # install via cargo
-cargo install ast-grep-cli
+cargo install ast-grep
 ```
 
 The binary command, `sg`, should be available now. Let's try it with `--help`.
