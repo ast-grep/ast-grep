@@ -1,6 +1,8 @@
 use ignore::{DirEntry, WalkParallel, WalkState};
 use rprompt::prompt_reply_stdout;
 use std::io::Result;
+use std::path::PathBuf;
+use std::process::Command;
 use std::sync::mpsc;
 
 // https://github.com/console-rs/console/blob/be1c2879536c90ffc2b54938b5964084f5fef67d/src/common_term.rs#L56
@@ -20,7 +22,7 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
     if input.len() == 1 && letters.contains(&input) {
       return Ok(input.chars().next().unwrap());
     }
-    println!("Come again?")
+    println!("Unrecognized command, try again?")
   }
 }
 
@@ -74,4 +76,15 @@ pub fn run_walker_interactive<T: Send>(
     });
   })
   .expect("Error occurred during spawning threads");
+}
+
+pub fn open_in_editor(path: &PathBuf, start_line: usize) {
+  let editor = std::env::var("EDITOR").unwrap_or_else(|_| String::from("vim"));
+  std::process::Command::new(editor)
+    .arg(path)
+    .arg(format!("+{}", start_line))
+    .spawn()
+    .unwrap()
+    .wait()
+    .unwrap();
 }

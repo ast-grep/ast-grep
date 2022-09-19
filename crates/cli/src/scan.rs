@@ -161,6 +161,8 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
   Ok(())
 }
 
+const PROMPT_TEXT: &str = "Accept change? (Yes[y], No[n], Quit[q], Edit[e])";
+
 fn run_one_interaction<M: Matcher<SupportLang>>(
   path: &PathBuf,
   grep: &AstGrep<SupportLang>,
@@ -171,6 +173,7 @@ fn run_one_interaction<M: Matcher<SupportLang>>(
   if matches.peek().is_none() {
     return;
   }
+  let first_match = matches.peek().unwrap().start_pos().0;
   print_matches(matches, path, &matcher, rewrite);
   let rewrite = match rewrite {
     Some(r) => r,
@@ -179,14 +182,17 @@ fn run_one_interaction<M: Matcher<SupportLang>>(
       return;
     }
   };
-  let response = interaction::prompt("Accept change? (Yes[y], No[n], All[a])", "yna", Some('y'))
-    .expect("Error happened during prompt");
+  let response =
+    interaction::prompt(PROMPT_TEXT, "ynaqe", Some('y')).expect("Error happened during prompt");
   match response {
     'y' => {
       let new_content = apply_rewrite(grep, &matcher, rewrite);
       std::fs::write(path, new_content).expect("write file content failed");
     }
-    'a' => (),
+    'a' => todo!(),
+    'n' => (),
+    'e' => interaction::open_in_editor(path, first_match),
+    'q' => std::process::exit(0),
     _ => (),
   }
 }
