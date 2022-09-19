@@ -2,7 +2,6 @@ use ignore::{DirEntry, WalkParallel, WalkState};
 use rprompt::prompt_reply_stdout;
 use std::io::Result;
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::mpsc;
 
 // https://github.com/console-rs/console/blob/be1c2879536c90ffc2b54938b5964084f5fef67d/src/common_term.rs#L56
