@@ -25,6 +25,8 @@ export class SgNode {
   has(m: string): boolean
   precedes(m: string): boolean
   follows(m: string): boolean
+  getMatch(m: string): SgNode | null
+  getMultipleMatches(m: string): Array<SgNode>
   children(): Array<SgNode>
   findByString(pattern: string): SgNode | null
   findAll(pattern: string): Array<SgNode>

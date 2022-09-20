@@ -2,7 +2,7 @@
 
 // use ast_grep_config::RuleConfig;
 use ast_grep_core::language::{Language, TSLanguage};
-use ast_grep_core::{AstGrep, Node, Pattern};
+use ast_grep_core::{AstGrep, NodeMatch, Pattern};
 use napi::bindgen_prelude::{Env, Reference, Result, SharedReference};
 use napi_derive::napi;
 // use serde_json::Value;
@@ -54,7 +54,7 @@ pub struct Range {
 
 #[napi]
 pub struct SgNode {
-  inner: SharedReference<SgRoot, Node<'static, FrontEndLanguage>>,
+  inner: SharedReference<SgRoot, NodeMatch<'static, FrontEndLanguage>>,
 }
 
 #[napi]
@@ -110,6 +110,37 @@ impl SgNode {
   pub fn follows(&self, m: String) -> bool {
     self.inner.follows(&*m)
   }
+
+  #[napi]
+  pub fn get_match(
+    &self,
+    reference: Reference<SgNode>,
+    env: Env,
+    m: String,
+  ) -> Result<Option<SgNode>> {
+    let node = self
+      .inner
+      .get_env()
+      .get_match(&m)
+      .cloned()
+      .map(NodeMatch::from);
+    Self::transpose_option(reference, env, node)
+  }
+  #[napi]
+  pub fn get_multiple_matches(
+    &self,
+    reference: Reference<SgNode>,
+    env: Env,
+    m: String,
+  ) -> Result<Vec<SgNode>> {
+    let nodes = self
+      .inner
+      .get_env()
+      .get_multiple_matches(&m)
+      .into_iter()
+      .map(NodeMatch::from);
+    Self::from_iter_to_vec(&reference, env, nodes)
+  }
 }
 
 /// tree traversal API
@@ -117,7 +148,7 @@ impl SgNode {
 impl SgNode {
   #[napi]
   pub fn children(&self, reference: Reference<SgNode>, env: Env) -> Result<Vec<SgNode>> {
-    let children = reference.inner.children();
+    let children = reference.inner.children().map(NodeMatch::from);
     Self::from_iter_to_vec(&reference, env, children)
   }
 
@@ -129,14 +160,14 @@ impl SgNode {
     pattern: String,
   ) -> Result<Option<SgNode>> {
     let pattern = Pattern::new(&pattern, reference.inner.lang().clone());
-    let node = reference.inner.find(pattern).map(|n| n.get_node().clone());
-    Self::transpose_option(reference, env, node)
+    let node_match = reference.inner.find(pattern);
+    Self::transpose_option(reference, env, node_match)
   }
 
   fn transpose_option(
     reference: Reference<SgNode>,
     env: Env,
-    node: Option<Node<'static, FrontEndLanguage>>,
+    node: Option<NodeMatch<'static, FrontEndLanguage>>,
   ) -> Result<Option<SgNode>> {
     if let Some(node) = node {
       let root_ref = reference.inner.clone_owner(env)?;
@@ -156,10 +187,9 @@ impl SgNode {
   ) -> Result<Vec<SgNode>> {
     let mut ret = vec![];
     for node_match in self.inner.find_all(&*pattern) {
-      let node = node_match.get_node().clone();
       let root_ref = reference.inner.clone_owner(env)?;
       let sg_node = SgNode {
-        inner: root_ref.share_with(env, move |_| Ok(node))?,
+        inner: root_ref.share_with(env, move |_| Ok(node_match))?,
       };
       ret.push(sg_node);
     }
@@ -169,7 +199,7 @@ impl SgNode {
   fn from_iter_to_vec(
     reference: &Reference<SgNode>,
     env: Env,
-    iter: impl Iterator<Item = Node<'static, FrontEndLanguage>>,
+    iter: impl Iterator<Item = NodeMatch<'static, FrontEndLanguage>>,
   ) -> Result<Vec<SgNode>> {
     let mut ret = vec![];
     for node in iter {
@@ -189,49 +219,49 @@ impl SgNode {
     env: Env,
     name: String,
   ) -> Result<Option<SgNode>> {
-    let node = reference.inner.field(&name);
+    let node = reference.inner.field(&name).map(NodeMatch::from);
     Self::transpose_option(reference, env, node)
   }
 
   #[napi]
   pub fn parent(&self, reference: Reference<SgNode>, env: Env) -> Result<Option<SgNode>> {
-    let node = reference.inner.parent();
+    let node = reference.inner.parent().map(NodeMatch::from);
     Self::transpose_option(reference, env, node)
   }
 
   #[napi]
   pub fn child(&self, reference: Reference<SgNode>, env: Env, nth: u32) -> Result<Option<SgNode>> {
-    let inner = reference.inner.child(nth as usize);
+    let inner = reference.inner.child(nth as usize).map(NodeMatch::from);
     Self::transpose_option(reference, env, inner)
   }
 
   #[napi]
   pub fn ancestors(&self, reference: Reference<SgNode>, env: Env) -> Result<Vec<SgNode>> {
-    let ancestors = reference.inner.ancestors();
+    let ancestors = reference.inner.ancestors().map(NodeMatch::from);
     Self::from_iter_to_vec(&reference, env, ancestors)
   }
 
   #[napi]
   pub fn next(&self, reference: Reference<SgNode>, env: Env) -> Result<Option<SgNode>> {
-    let inner = reference.inner.next();
+    let inner = reference.inner.next().map(NodeMatch::from);
     Self::transpose_option(reference, env, inner)
   }
 
   #[napi]
   pub fn next_all(&self, reference: Reference<SgNode>, env: Env) -> Result<Vec<SgNode>> {
-    let inner = reference.inner.next_all();
+    let inner = reference.inner.next_all().map(NodeMatch::from);
     Self::from_iter_to_vec(&reference, env, inner)
   }
 
   #[napi]
   pub fn prev(&self, reference: Reference<SgNode>, env: Env) -> Result<Option<SgNode>> {
-    let inner = reference.inner.prev();
+    let inner = reference.inner.prev().map(NodeMatch::from);
     Self::transpose_option(reference, env, inner)
   }
 
   #[napi]
   pub fn prev_all(&self, reference: Reference<SgNode>, env: Env) -> Result<Vec<SgNode>> {
-    let inner = reference.inner.prev_all();
+    let inner = reference.inner.prev_all().map(NodeMatch::from);
     Self::from_iter_to_vec(&reference, env, inner)
   }
 }
@@ -267,7 +297,7 @@ impl SgRoot {
 
   #[napi]
   pub fn root(&self, root_ref: Reference<SgRoot>, env: Env) -> Result<SgNode> {
-    let inner = root_ref.share_with(env, |root| Ok(root.0.root()))?;
+    let inner = root_ref.share_with(env, |root| Ok(root.0.root().into()))?;
     Ok(SgNode { inner })
   }
 }

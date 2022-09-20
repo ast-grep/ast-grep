@@ -35,3 +35,9 @@ test('findByString not match', t => {
   const match = sg.root().findByString('notExist')
   t.is(match, null)
 })
+
+test('get variable', t => {
+  const sg = AstGrep.js('console.log("hello world")')
+  const match = sg.root().findByString('console.log($MATCH)')
+  t.is(match.getMatch('MATCH').text(), '"hello world"')
+})

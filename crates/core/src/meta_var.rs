@@ -53,6 +53,14 @@ impl<'tree, L: Language> MetaVarEnv<'tree, L> {
     }
   }
 
+  pub fn get_match(&self, var: &str) -> Option<&'_ Node<'tree, L>> {
+    self.single_matched.get(var)
+  }
+
+  pub fn get_multiple_matches(&self, var: &str) -> Vec<Node<'tree, L>> {
+    self.multi_matched.get(var).cloned().unwrap_or_default()
+  }
+
   pub fn add_label(&mut self, label: &str, node: Node<'tree, L>) {
     self
       .multi_matched

@@ -214,6 +214,12 @@ impl<'tree, L: Language> NodeMatch<'tree, L> {
   }
 }
 
+impl<'tree, L: Language> From<Node<'tree, L>> for NodeMatch<'tree, L> {
+  fn from(node: Node<'tree, L>) -> Self {
+    Self(node, MetaVarEnv::new())
+  }
+}
+
 impl<'tree, L: Language> From<NodeMatch<'tree, L>> for Node<'tree, L> {
   fn from(node_match: NodeMatch<'tree, L>) -> Self {
     node_match.0
