@@ -30,14 +30,19 @@ impl Language for FrontEndLanguage {
 
 #[napi(object)]
 pub struct Pos {
-  pub row: u32,
-  pub col: u32,
+  /// line number starting from 1
+  pub line: u32,
+  /// column number starting from 1
+  pub column: u32,
+  /// byte offset of the position
+  pub index: u32,
 }
 
-fn tuple_to_pos(pos: (usize, usize)) -> Pos {
+fn to_pos(pos: (usize, usize), offset: usize) -> Pos {
   Pos {
-    row: pos.0 as u32,
-    col: pos.1 as u32,
+    line: pos.0 as u32,
+    column: pos.1 as u32,
+    index: offset as u32,
   }
 }
 
@@ -56,11 +61,12 @@ pub struct SgNode {
 impl SgNode {
   #[napi]
   pub fn range(&self) -> Range {
+    let byte_range = self.inner.range();
     let start_pos = self.inner.start_pos();
     let end_pos = self.inner.end_pos();
     Range {
-      start: tuple_to_pos(start_pos),
-      end: tuple_to_pos(end_pos),
+      start: to_pos(start_pos, byte_range.start),
+      end: to_pos(end_pos, byte_range.end),
     }
   }
 
