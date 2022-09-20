@@ -285,6 +285,12 @@ impl SgRoot {
     Self::from_lang(src, FrontEndLanguage::JavaScript)
   }
 
+  /// Synonymn for js
+  #[napi(factory)]
+  pub fn jsx(src: String) -> Self {
+    Self::from_lang(src, FrontEndLanguage::JavaScript)
+  }
+
   #[napi(factory)]
   pub fn ts(src: String) -> Self {
     Self::from_lang(src, FrontEndLanguage::TypeScript)

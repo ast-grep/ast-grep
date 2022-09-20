@@ -43,6 +43,8 @@ export type SgRoot = AstGrep
 export class AstGrep {
   static html(src: string): SgRoot
   static js(src: string): SgRoot
+  /** Synonymn for js */
+  static jsx(src: string): SgRoot
   static ts(src: string): SgRoot
   static tsx(src: string): SgRoot
   root(): SgNode
