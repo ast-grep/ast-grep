@@ -17,7 +17,7 @@ This snippet deserves a detailed explanation for beginners. Even for experienced
 ast-grep solves the problem by providing a simple core mechanism: using code to search code with the same pattern.
 Consider it as same as `grep` but based on AST instead of text.
 
-In comparison to Babel, you can complete this hello-world task in ast-grep
+In comparison to Babel, we can complete this hello-world task in ast-grep
 
 ```javascript
 console.log
