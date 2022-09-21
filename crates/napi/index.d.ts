@@ -15,6 +15,10 @@ export interface Range {
   start: Pos
   end: Pos
 }
+export interface NapiConfig {
+  rule: any
+  constraints?: any
+}
 export class SgNode {
   range(): Range
   isLeaf(): boolean
@@ -28,8 +32,8 @@ export class SgNode {
   getMatch(m: string): SgNode | null
   getMultipleMatches(m: string): Array<SgNode>
   children(): Array<SgNode>
-  findByString(pattern: string): SgNode | null
-  findAll(pattern: string): Array<SgNode>
+  find(matcher: string | number | NapiConfig): SgNode | null
+  findAll(matcher: string | number | NapiConfig): Array<SgNode>
   field(name: string): SgNode | null
   parent(): SgNode | null
   child(nth: number): SgNode | null

@@ -10,7 +10,7 @@ repository = "https://github.com/HerringtonDarkholme/ast-grep"
 rust-version = "1.63"
 
 [dependencies]
-napi = "2"
+napi = { version = "2", features = ["serde-json"] }
 napi-derive = "2"
 ast-grep-core = { version="0.1.4", path = "../core" }
 ast-grep-config = { version="0.1.4", path = "../config" }

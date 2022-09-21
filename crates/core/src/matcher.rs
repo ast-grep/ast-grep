@@ -22,6 +22,13 @@ impl<L: Language> KindMatcher<L> {
       lang: PhantomData,
     }
   }
+
+  pub fn from_id(kind: KindId) -> Self {
+    Self {
+      kind,
+      lang: PhantomData,
+    }
+  }
 }
 
 impl<L: Language> Matcher<L> for KindMatcher<L> {

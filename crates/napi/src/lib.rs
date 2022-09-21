@@ -1,11 +1,17 @@
 #![cfg(not(feature = "napi-noop-in-unit-test"))]
 
 // use ast_grep_config::RuleConfig;
+use ast_grep_config::{
+  deserialize_rule, try_deserialize_matchers, RuleWithConstraint, SerializableMetaVarMatcher,
+  SerializableRule,
+};
 use ast_grep_core::language::{Language, TSLanguage};
-use ast_grep_core::{AstGrep, NodeMatch, Pattern};
-use napi::bindgen_prelude::{Env, Reference, Result, SharedReference};
+use ast_grep_core::meta_var::MetaVarMatchers;
+use ast_grep_core::{AstGrep, KindMatcher, NodeMatch, Pattern};
+use napi::bindgen_prelude::{Either3, Env, Reference, Result, SharedReference};
 use napi_derive::napi;
-// use serde_json::Value;
+use std::collections::HashMap;
+use std::convert::TryFrom;
 
 #[derive(Clone)]
 enum FrontEndLanguage {
@@ -143,6 +149,29 @@ impl SgNode {
   }
 }
 
+#[napi(object)]
+pub struct NapiConfig {
+  pub rule: serde_json::Value,
+  pub constraints: Option<serde_json::Value>,
+}
+
+fn parse_config(
+  config: NapiConfig,
+  lang: FrontEndLanguage,
+) -> Result<RuleWithConstraint<FrontEndLanguage>> {
+  let rule: SerializableRule = serde_json::from_value(config.rule)?;
+  let rule = deserialize_rule(rule, lang.clone())
+    .map_err(|_| napi::Error::new(napi::Status::InvalidArg, "invalid rule".to_string()))?;
+  let matchers = if let Some(matchers) = config.constraints {
+    let matchers: HashMap<String, SerializableMetaVarMatcher> = serde_json::from_value(matchers)?;
+    try_deserialize_matchers(matchers, lang)
+      .map_err(|_| napi::Error::new(napi::Status::InvalidArg, "invalid matchers".to_string()))?
+  } else {
+    MetaVarMatchers::default()
+  };
+  Ok(RuleWithConstraint { rule, matchers })
+}
+
 /// tree traversal API
 #[napi]
 impl SgNode {
@@ -153,14 +182,27 @@ impl SgNode {
   }
 
   #[napi]
-  pub fn find_by_string(
+  pub fn find(
     &self,
     reference: Reference<SgNode>,
     env: Env,
-    pattern: String,
+    matcher: Either3<String, u16, NapiConfig>,
   ) -> Result<Option<SgNode>> {
-    let pattern = Pattern::new(&pattern, reference.inner.lang().clone());
-    let node_match = reference.inner.find(pattern);
+    let lang = reference.inner.lang().clone();
+    let node_match = match matcher {
+      Either3::A(pattern) => {
+        let pattern = Pattern::new(&pattern, lang);
+        reference.inner.find(pattern)
+      }
+      Either3::B(kind) => {
+        let pattern = KindMatcher::from_id(kind);
+        reference.inner.find(pattern)
+      }
+      Either3::C(config) => {
+        let pattern = parse_config(config, lang)?;
+        reference.inner.find(pattern)
+      }
+    };
     Self::transpose_option(reference, env, node_match)
   }
 
@@ -183,10 +225,25 @@ impl SgNode {
     &self,
     reference: Reference<SgNode>,
     env: Env,
-    pattern: String,
+    matcher: Either3<String, u16, NapiConfig>,
   ) -> Result<Vec<SgNode>> {
     let mut ret = vec![];
-    for node_match in self.inner.find_all(&*pattern) {
+    let lang = reference.inner.lang().clone();
+    let all_matches: Vec<_> = match matcher {
+      Either3::A(pattern) => {
+        let pattern = Pattern::new(&pattern, lang);
+        reference.inner.find_all(pattern).collect()
+      }
+      Either3::B(kind) => {
+        let pattern = KindMatcher::from_id(kind);
+        reference.inner.find_all(pattern).collect()
+      }
+      Either3::C(config) => {
+        let pattern = parse_config(config, lang)?;
+        reference.inner.find_all(pattern).collect()
+      }
+    };
+    for node_match in all_matches {
       let root_ref = reference.inner.clone_owner(env)?;
       let sg_node = SgNode {
         inner: root_ref.share_with(env, move |_| Ok(node_match))?,

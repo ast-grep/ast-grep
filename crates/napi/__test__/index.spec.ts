@@ -2,14 +2,14 @@ import test from 'ava'
 
 import { AstGrep } from '../index'
 
-test('findByString from native code', t => {
+test('find from native code', t => {
   const sg = AstGrep.js('console.log(123)')
-  const match = sg.root().findByString('console.log')
+  const match = sg.root().find('console.log')
   t.deepEqual(match!.range(), {
     start: { line: 0, column: 0, index: 0 },
     end: { line: 0, column: 11, index: 11 },
   })
-  const node = match.findByString('console')
+  const node = match!.find('console')
   t.deepEqual(node!.range(), {
     start: { line: 0, column: 0, index: 0 },
     end: { line: 0, column: 7, index: 7 },
@@ -30,14 +30,14 @@ test('findAll from native code', t => {
   })
 })
 
-test('findByString not match', t => {
+test('find not match', t => {
   const sg = AstGrep.js('console.log(123)')
-  const match = sg.root().findByString('notExist')
+  const match = sg.root().find('notExist')
   t.is(match, null)
 })
 
 test('get variable', t => {
   const sg = AstGrep.js('console.log("hello world")')
-  const match = sg.root().findByString('console.log($MATCH)')
-  t.is(match.getMatch('MATCH').text(), '"hello world"')
+  const match = sg.root().find('console.log($MATCH)')
+  t.is(match!.getMatch('MATCH')!.text(), '"hello world"')
 })
