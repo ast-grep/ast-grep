@@ -4,7 +4,7 @@
 
 ## ast-grep(sg)
 
-ast-grep(sg) is a ligthning fast and user friendly tool for code searching, linting, rewriting at large scale.
+ast-grep(sg) is a lightning fast and user friendly tool for code searching, linting, rewriting at large scale.
 
 ## Introduction
 ast-grep is a AST-based tool to search code by pattern code. Think it as your old-friend `grep` but it matches AST node instead of text.
