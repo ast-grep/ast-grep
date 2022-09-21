@@ -23,7 +23,7 @@ In comparison to Babel, you can complete this hello-world task in ast-grep
 console.log
 ```
 
-See [playground](https://herringtondarkholme.github.io/ast-grep/playground.html) in action!
+See [playground](https://ast-grep.github.io/ast-grep/playground.html) in action!
 
 Upon the simple pattern code, we can build a series of operators to compose complex matching rules for various scenarios.
 
