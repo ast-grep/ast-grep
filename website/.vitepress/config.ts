@@ -11,9 +11,9 @@ gtag('config', 'G-EZSJ3YF2RG');
 export default defineConfig({
   lang: 'en-US',
   title: 'ast-grep',
-  titleTemplate: 'ligthning fast code tool',
+  titleTemplate: 'lightning fast code tool',
   base: '/ast-grep/',
-  description: 'ast-grep(sg) is a ligthning fast and user friendly tool for code searching, linting, rewriting at large scale.',
+  description: 'ast-grep(sg) is a lightning fast and user friendly tool for code searching, linting, rewriting at large scale.',
   head: [
     ['script', {async: '', src: 'https://www.googletagmanager.com/gtag/js?id=G-EZSJ3YF2RG'}],
     ['script', {}, gaScript],
