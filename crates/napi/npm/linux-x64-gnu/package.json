@@ -30,5 +30,5 @@
     "registry": "https://registry.npmjs.org/",
     "access": "public"
   },
-  "repository": "https://github.com/HerringtonDarkholme/ast-grep"
+  "repository": "https://github.com/ast-grep/ast-grep"
 }

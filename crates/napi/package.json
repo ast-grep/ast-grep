@@ -3,7 +3,7 @@
   "version": "0.1.4",
   "description": "Search and Rewrite code at large scale using precise AST pattern",
   "main": "index.js",
-  "repository": "https://github.com/HerringtonDarkholme/ast-grep",
+  "repository": "https://github.com/ast-grep/ast-grep",
   "license": "MIT",
   "keywords": [
     "ast",

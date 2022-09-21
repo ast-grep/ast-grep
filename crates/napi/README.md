@@ -1,6 +1,6 @@
 # @ast-grep/napi
 
-See https://github.com/HerringtonDarkholme/ast-grep
+See https://github.com/ast-grep/ast-grep
 
 ## Support matrix
 
