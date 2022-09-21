@@ -35,7 +35,7 @@ The idea of ast-grep can be applied to many other languages!
 We can use ast-grep as searcher, linter and rewriter.
 
 * **Searcher**: As a command line tool in your terminal, ast-grep, `sg`, can precisely search code based on AST, running through ten thousand files in sub seconds.
-* **Linter**: You can also use as-tgrep as a linter. Thanks to the flexible rule configuration, adding a new customized rule is more intuitive and straightforward. It also has a pretty error reporting out of box
+* **Linter**: You can also use ast-grep as a linter. Thanks to the flexible rule configuration, adding a new customized rule is more intuitive and straightforward. It also has a pretty error reporting out of box
 * **Rewrite Library**: ast-grep provide jQuery like utility methods to traverse and manipulate syntax tree. Besides, you can also use operators to compose complex matching from simple patterns.
 
 
