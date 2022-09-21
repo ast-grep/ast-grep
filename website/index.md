@@ -7,14 +7,14 @@ hero:
   tagline: ast-grep(sg) is a lightning fast and user friendly tool for code searching, linting, rewriting at large scale.
   image:
     src: ./logo.svg
-    alt: ast-grep 
+    alt: ast-grep
   actions:
     - theme: brand
       text: Get Started
       link: /guide/introduction
     - theme: alt
       text: View on GitHub
-      link: https://github.com/HerringtonDarkholme/ast-grep
+      link: https://github.com/ast-grep/ast-grep
 
 features:
   - icon: ⚡️

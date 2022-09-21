@@ -6,7 +6,7 @@ edition = "2021"
 description = "Search and Rewrite code at large scale using precise AST pattern"
 keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
 license = "MIT"
-repository = "https://github.com/HerringtonDarkholme/ast-grep"
+repository = "https://github.com/ast-grep/ast-grep"
 rust-version = "1.63"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

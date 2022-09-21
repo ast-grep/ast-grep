@@ -1,6 +1,6 @@
 <template>
   <header>
-    <a href="https://github.com/HerringtonDarkholme/ast-grep" target="_blank">
+    <a href="https://github.com/ast-grep/ast-grep" target="_blank">
       <img src="/logo.svg" class="logo" alt="SG logo"/>
     </a>
     <div>
