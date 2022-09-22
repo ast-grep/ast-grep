@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/cli-darwin-x64",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "os": [
     "darwin"
   ],
@@ -18,5 +18,5 @@
     "registry": "https://registry.npmjs.org/",
     "access": "public"
   },
-  "repository": "https://github.com/HerringtonDarkholme/ast-grep"
+  "repository": "https://github.com/ast-grep/ast-grep"
 }
