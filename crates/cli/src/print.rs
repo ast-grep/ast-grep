@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 use std::path::Path;
+use std::env::consts::OS;
 
 use ansi_term::{Color, Style};
 use clap::arg_enum;
@@ -87,10 +88,20 @@ pub fn print_matches<'a>(
   rewrite: &Option<Pattern<SupportLang>>,
 ) {
   let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
-  println!(
-    "{}",
-    Color::Cyan.italic().paint(format!("{}", path.display()))
-  );
+
+  // dependencies on the system env, print different delimiters
+  if OS == "windows" {
+    println!(
+      "{}",
+      Color::Cyan.italic().paint(format!("{}", path.display().to_string().replace("\\", "/")))
+    );
+  } else {
+    println!(
+      "{}",
+      Color::Cyan.italic().paint(format!("{}", path.display()))
+    );
+  }
+
   if let Some(rewrite) = rewrite {
     // TODO: actual matching happened in stdout lock, optimize it out
     for e in matches {
