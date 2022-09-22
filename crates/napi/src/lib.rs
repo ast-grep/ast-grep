@@ -8,13 +8,13 @@ use ast_grep_config::{
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::meta_var::MetaVarMatchers;
 use ast_grep_core::{AstGrep, KindMatcher, NodeMatch, Pattern};
+use napi::bindgen_prelude::*;
 use napi::bindgen_prelude::{Either3, Env, Reference, Result, SharedReference};
 use napi_derive::napi;
 use std::collections::HashMap;
-use std::convert::TryFrom;
 
-#[derive(Clone)]
-enum FrontEndLanguage {
+#[napi]
+pub enum FrontEndLanguage {
   Html,
   JavaScript,
   Tsx,
@@ -153,12 +153,14 @@ impl SgNode {
 pub struct NapiConfig {
   pub rule: serde_json::Value,
   pub constraints: Option<serde_json::Value>,
+  pub language: Option<FrontEndLanguage>,
 }
 
 fn parse_config(
   config: NapiConfig,
-  lang: FrontEndLanguage,
+  language: FrontEndLanguage,
 ) -> Result<RuleWithConstraint<FrontEndLanguage>> {
+  let lang = config.language.unwrap_or(language);
   let rule: SerializableRule = serde_json::from_value(config.rule)?;
   let rule = deserialize_rule(rule, lang.clone())
     .map_err(|_| napi::Error::new(napi::Status::InvalidArg, "invalid rule".to_string()))?;
@@ -323,44 +325,48 @@ impl SgNode {
   }
 }
 
-#[napi(js_name = "AstGrep")]
+#[napi]
 pub struct SgRoot(AstGrep<FrontEndLanguage>);
 
 #[napi]
 impl SgRoot {
-  fn from_lang(src: String, fe_lang: FrontEndLanguage) -> Self {
-    Self(AstGrep::new(src, fe_lang))
-  }
-
-  #[napi(factory)]
-  pub fn html(src: String) -> Self {
-    Self::from_lang(src, FrontEndLanguage::Html)
-  }
-
-  #[napi(factory)]
-  pub fn js(src: String) -> Self {
-    Self::from_lang(src, FrontEndLanguage::JavaScript)
-  }
-
-  /// Synonymn for js
-  #[napi(factory)]
-  pub fn jsx(src: String) -> Self {
-    Self::from_lang(src, FrontEndLanguage::JavaScript)
-  }
-
-  #[napi(factory)]
-  pub fn ts(src: String) -> Self {
-    Self::from_lang(src, FrontEndLanguage::TypeScript)
-  }
-
-  #[napi(factory)]
-  pub fn tsx(src: String) -> Self {
-    Self::from_lang(src, FrontEndLanguage::Tsx)
-  }
-
   #[napi]
   pub fn root(&self, root_ref: Reference<SgRoot>, env: Env) -> Result<SgNode> {
     let inner = root_ref.share_with(env, |root| Ok(root.0.root().into()))?;
     Ok(SgNode { inner })
   }
 }
+
+macro_rules! impl_lang_mod {
+    ($name: ident, $lang: ident) =>  {
+      #[napi]
+      pub mod $name {
+        use super::*;
+        use super::FrontEndLanguage::*;
+        #[napi]
+        pub fn parse(src: String) -> SgRoot {
+          SgRoot(AstGrep::new(src, $lang))
+        }
+        #[napi]
+        pub fn kind(kind_name: String) -> u16 {
+          $lang.get_ts_language().id_for_node_kind(&kind_name, /* named */ true)
+        }
+        #[napi]
+        pub fn pattern(pattern: String) -> NapiConfig {
+          NapiConfig {
+            rule: serde_json::json!({
+              "pattern": pattern,
+            }),
+            constraints: None,
+            language: Some($lang),
+          }
+        }
+      }
+    }
+}
+
+impl_lang_mod!(html, Html);
+impl_lang_mod!(js, JavaScript);
+impl_lang_mod!(jsx, JavaScript);
+impl_lang_mod!(ts, TypeScript);
+impl_lang_mod!(tsx, Tsx);

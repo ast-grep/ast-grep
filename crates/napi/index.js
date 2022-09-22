@@ -236,7 +236,13 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { SgNode, AstGrep } = nativeBinding
+const { FrontEndLanguage, SgNode, SgRoot, html, js, jsx, ts, tsx } = nativeBinding
 
+module.exports.FrontEndLanguage = FrontEndLanguage
 module.exports.SgNode = SgNode
-module.exports.AstGrep = AstGrep
+module.exports.SgRoot = SgRoot
+module.exports.html = html
+module.exports.js = js
+module.exports.jsx = jsx
+module.exports.ts = ts
+module.exports.tsx = tsx
