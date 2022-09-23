@@ -22,12 +22,12 @@ pub struct ErrorReporter {
 }
 
 arg_enum! {
-    #[derive(Debug)]
-    pub enum ReportStyle {
-        Rich,
-        Medium,
-        Short,
-    }
+  #[derive(Debug)]
+  pub enum ReportStyle {
+    Rich,
+    Medium,
+    Short,
+  }
 }
 
 impl ErrorReporter {
@@ -82,7 +82,7 @@ impl ErrorReporter {
 
 #[cfg(not(target_os = "windows"))]
 fn adjust_canonicalization<P: AsRef<Path>>(p: P) -> String {
-    p.as_ref().display().to_string()
+  p.as_ref().display().to_string()
 }
 
 #[cfg(target_os = "windows")]
