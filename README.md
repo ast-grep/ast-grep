@@ -1,5 +1,5 @@
 <p align=center>
-  <img src="website/public/logo.svg" alt="ast-grep"/>
+  <img src="https://ast-grep.github.io/logo.svg" alt="ast-grep"/>
 </p>
 
 ## ast-grep(sg)
