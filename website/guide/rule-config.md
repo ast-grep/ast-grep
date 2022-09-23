@@ -1,3 +1,0 @@
-# Rule Configuration
-
-Todo....

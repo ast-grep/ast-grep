@@ -2,9 +2,3 @@
 members = [
 "crates/*"
 ]
-
-[profile.release.package.ast-grep-wasm]
-# Tell `rustc` to optimize for small code size.
-opt-level = "s"
-# panic = "abort"
-# lto = true
