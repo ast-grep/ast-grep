@@ -4,4 +4,9 @@
   --vp-c-brand-lighter: #f2de32;
   --vp-c-brand-dark: #a89f2a;
   --vp-c-brand-darker: #918623;
+  --vp-custom-selctor-option-text: #213547;
+}
+
+.dark {
+  --vp-custom-selctor-option-text: #213547;
 }

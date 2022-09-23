@@ -26,7 +26,7 @@ function onChange(event: Event) {
   <div class="selector">
     Language:
     <select :value="modelValue" @change="onChange">
-      <option v-for="val, key in languages" :value="key">{{val}}</option>
+      <option class="selector-op-text" v-for="val, key in languages" :value="key">{{val}}</option>
     </select> ▿
     </div>
 </template>
@@ -40,5 +40,8 @@ select {
   padding: 0.5em 0 0.5em 0.5em;
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   cursor: pointer;
+}
+.selector-op-text {
+  color: var(--vp-custom-selctor-option-text);
 }
 </style>
