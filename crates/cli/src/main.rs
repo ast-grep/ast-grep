@@ -79,18 +79,17 @@ fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
     if arg.starts_with('-') {
       // handle no subcommand
       let arg = RunArg::try_parse_from(args)?;
-      return Ok(run_with_pattern(arg)?);
+      return run_with_pattern(arg);
     }
   }
   let app = App::try_parse_from(args)?;
-  let res = match app.command {
+  match app.command {
     Commands::Run(arg) => run_with_pattern(arg),
     Commands::Scan(arg) => run_with_config(arg),
     Commands::Test(arg) => run_test_rule(arg),
     Commands::Lsp => lsp::run_language_server(),
     Commands::Docs => todo!("todo, generate rule docs based on current config"),
-  };
-  Ok(res?)
+  }
 }
 
 #[cfg(test)]

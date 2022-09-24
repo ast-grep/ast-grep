@@ -1,7 +1,7 @@
 use std::fs::read_to_string;
-use std::io::Result;
 use std::path::{Path, PathBuf};
 
+use anyhow::Result;
 use ast_grep_config::{RuleCollection, RuleConfig};
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
@@ -109,7 +109,7 @@ fn get_rules<'c>(
 }
 
 pub fn run_with_config(args: ScanArg) -> Result<()> {
-  let configs = find_config(args.config);
+  let configs = find_config(args.config)?;
   let threads = num_cpus::get().min(12);
   let walker = WalkBuilder::new(&args.path)
     .hidden(args.hidden)

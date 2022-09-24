@@ -1,6 +1,6 @@
 use clap::Args;
 
-use std::io::Result;
+use anyhow::Result;
 
 /// TODO: add test arguments
 #[derive(Args)]

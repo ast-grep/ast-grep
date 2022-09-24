@@ -1,6 +1,6 @@
+use anyhow::Result;
 use ignore::{DirEntry, WalkParallel, WalkState};
 use rprompt::prompt_reply_stdout;
-use std::io::Result;
 use std::path::PathBuf;
 use std::sync::mpsc;
 
