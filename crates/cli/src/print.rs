@@ -82,7 +82,7 @@ impl ErrorReporter {
 
 #[cfg(not(target_os = "windows"))]
 fn adjust_canonicalization<P: AsRef<Path>>(p: P) -> String {
-    p.as_ref().display().to_string()
+  p.as_ref().display().to_string()
 }
 
 #[cfg(target_os = "windows")]
@@ -103,14 +103,9 @@ pub fn print_matches<'a>(
   rewrite: &Option<Pattern<SupportLang>>,
 ) {
   let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
-  // dependencies on the system env, print different delimiters 
-  let filepath = adjust_canonicalization(
-    std::fs::canonicalize(path).unwrap()
-  );
-  println!(
-    "{}",
-    Color::Cyan.italic().paint(format!("{}", filepath))
-  );
+                                       // dependencies on the system env, print different delimiters
+  let filepath = adjust_canonicalization(std::fs::canonicalize(path).unwrap());
+  println!("{}", Color::Cyan.italic().paint(filepath));
   if let Some(rewrite) = rewrite {
     // TODO: actual matching happened in stdout lock, optimize it out
     for e in matches {

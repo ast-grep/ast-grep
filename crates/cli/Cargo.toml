@@ -19,16 +19,18 @@ path = "src/main.rs"
 ast-grep-core = { version = "0.1.5", path = "../core" }
 ast-grep-config = { version = "0.1.5", path = "../config" }
 ast-grep-lsp = { version = "0.1.5", path = "../lsp" }
-tokio = { version = "1", features = ["full"] }
-clap = { version = "3.2.22", features = ["derive"] }
-ignore = "0.4.18"
+
 ansi_term = "0.12"
-similar = { version = "2.2.0", features = ["inline"] }
+anyhow = "1.0"
+clap = { version = "3.2.22", features = ["derive"] }
+codespan-reporting = "0.11.1"
+crossbeam = "0.8"
+ignore = "0.4.18"
 num_cpus = "1.13.1"
 rprompt = "1.0.5"
-crossbeam = "0.8"
-codespan-reporting = "0.11.1"
 serde = { version = "1.0", features = ["derive"] }
+similar = { version = "2.2.0", features = ["inline"] }
+tokio = { version = "1", features = ["full"] }
 
 tree-sitter-c = "0.20.2"
 tree-sitter-go = "0.19.1"

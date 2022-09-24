@@ -6,7 +6,9 @@ mod print;
 mod scan;
 mod test;
 
+use anyhow::Result;
 use clap::{Parser, Subcommand};
+
 use scan::{run_with_config, run_with_pattern, RunArg, ScanArg};
 use test::{run_test_rule, TestArg};
 
@@ -41,11 +43,11 @@ enum Commands {
   Docs,
 }
 
-fn main() -> Result<(), Error> {
+fn main() -> Result<()> {
   if let Err(err) = main_with_args(std::env::args()) {
-    match err {
-      Error::ArgError(e) => e.exit(),
-      _ => Err(err),
+    match err.downcast_ref::<clap::Error>() {
+      Some(e) => e.exit(),
+      None => Err(err),
     }
   } else {
     Ok(())
@@ -71,13 +73,13 @@ impl From<std::io::Error> for Error {
 }
 
 // this wrapper function is for testing
-fn main_with_args(args: impl Iterator<Item = String>) -> Result<(), Error> {
+fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
   let args: Vec<_> = args.collect();
   if let Some(arg) = args.get(1) {
     if arg.starts_with('-') {
       // handle no subcommand
       let arg = RunArg::try_parse_from(args)?;
-      return run_with_pattern(arg).map_err(Error::IOError);
+      return Ok(run_with_pattern(arg)?);
     }
   }
   let app = App::try_parse_from(args)?;
@@ -88,19 +90,20 @@ fn main_with_args(args: impl Iterator<Item = String>) -> Result<(), Error> {
     Commands::Lsp => lsp::run_language_server(),
     Commands::Docs => todo!("todo, generate rule docs based on current config"),
   };
-  res.map_err(Error::IOError)
+  Ok(res?)
 }
 
 #[cfg(test)]
 mod test_cli {
   use super::*;
 
-  fn sg(args: impl IntoIterator<Item = &'static str>) -> Result<(), Error> {
+  fn sg(args: impl IntoIterator<Item = &'static str>) -> Result<()> {
     main_with_args(std::iter::once("sg".into()).chain(args.into_iter().map(|s| s.to_string())))
   }
 
   fn wrong_usage(args: impl IntoIterator<Item = &'static str>) {
-    assert!(matches!(sg(args), Err(Error::ArgError(_))));
+    let err = sg(args).unwrap_err();
+    assert!(err.downcast::<clap::Error>().is_ok());
   }
 
   #[test]
