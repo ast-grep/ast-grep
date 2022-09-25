@@ -1,3 +1,4 @@
+use crate::error::ErrorContext;
 use crate::languages::{config_file_type, SupportLang};
 use anyhow::{Context, Result};
 use ast_grep_config::{deserialize_sgconfig, from_yaml_string, RuleCollection};
@@ -6,8 +7,9 @@ use std::fs::read_to_string;
 
 pub fn find_config(config_path: Option<String>) -> Result<RuleCollection<SupportLang>> {
   let config_path = config_path.unwrap_or_else(find_default_config);
-  let config_str = read_to_string(config_path).context("Cannot find configuration file.")?;
-  let sg_config = deserialize_sgconfig(&config_str).context("Cannot serialize config")?;
+  let config_str = read_to_string(config_path).context(ErrorContext::CannotFindConfiguration)?;
+  let sg_config =
+    deserialize_sgconfig(&config_str).context(ErrorContext::CannotParseConfiguration)?;
   let mut configs = vec![];
   for dir in sg_config.rule_dirs {
     let walker = WalkBuilder::new(&dir).types(config_file_type()).build();

@@ -1,4 +1,5 @@
 mod config;
+mod error;
 mod interaction;
 mod languages;
 mod lsp;
@@ -9,6 +10,7 @@ mod test;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
+use error::exit_with_error;
 use scan::{run_with_config, run_with_pattern, RunArg, ScanArg};
 use test::{run_test_rule, TestArg};
 
@@ -44,31 +46,9 @@ enum Commands {
 }
 
 fn main() -> Result<()> {
-  if let Err(err) = main_with_args(std::env::args()) {
-    match err.downcast_ref::<clap::Error>() {
-      Some(e) => e.exit(),
-      None => Err(err),
-    }
-  } else {
-    Ok(())
-  }
-}
-
-#[derive(Debug)]
-enum Error {
-  IOError(std::io::Error),
-  ArgError(clap::Error),
-}
-
-impl From<clap::Error> for Error {
-  fn from(e: clap::Error) -> Self {
-    Self::ArgError(e)
-  }
-}
-
-impl From<std::io::Error> for Error {
-  fn from(e: std::io::Error) -> Self {
-    Self::IOError(e)
+  match main_with_args(std::env::args()) {
+    Err(error) => exit_with_error(error),
+    ok => ok,
   }
 }
 
