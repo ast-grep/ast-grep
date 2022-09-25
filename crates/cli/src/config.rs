@@ -4,10 +4,12 @@ use anyhow::{Context, Result};
 use ast_grep_config::{deserialize_sgconfig, from_yaml_string, RuleCollection};
 use ignore::WalkBuilder;
 use std::fs::read_to_string;
+use std::path::PathBuf;
 
 pub fn find_config(config_path: Option<String>) -> Result<RuleCollection<SupportLang>> {
-  let config_path = config_path.unwrap_or_else(find_default_config);
-  let config_str = read_to_string(config_path).context(ErrorContext::CannotFindConfiguration)?;
+  let config_path =
+    find_config_path_with_default(config_path).context(ErrorContext::CannotReadConfiguration)?;
+  let config_str = read_to_string(config_path).context(ErrorContext::CannotReadConfiguration)?;
   let sg_config =
     deserialize_sgconfig(&config_str).context(ErrorContext::CannotParseConfiguration)?;
   let mut configs = vec![];
@@ -27,6 +29,22 @@ pub fn find_config(config_path: Option<String>) -> Result<RuleCollection<Support
   Ok(RuleCollection::new(configs))
 }
 
-fn find_default_config() -> String {
-  "sgconfig.yml".to_string()
+const CONFIG_FILE: &str = "sgconfig.yml";
+
+fn find_config_path_with_default(config_path: Option<String>) -> Result<PathBuf> {
+  if let Some(config) = config_path {
+    return Ok(PathBuf::from(config));
+  }
+  let mut path = std::env::current_dir()?;
+  loop {
+    let maybe_config = path.join(CONFIG_FILE);
+    if maybe_config.exists() {
+      break Ok(maybe_config);
+    }
+    if let Some(parent) = path.parent() {
+      path = parent.to_path_buf();
+    } else {
+      break Ok(PathBuf::from(CONFIG_FILE));
+    }
+  }
 }

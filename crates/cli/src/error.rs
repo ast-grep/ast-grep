@@ -11,7 +11,7 @@ const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
 /// message, potential fix and reference link.
 #[derive(Debug, Clone)]
 pub enum ErrorContext {
-  CannotFindConfiguration,
+  CannotReadConfiguration,
   CannotParseConfiguration,
 }
 
@@ -19,7 +19,7 @@ impl ErrorContext {
   fn exit_code(&self) -> i32 {
     use ErrorContext::*;
     match self {
-      CannotFindConfiguration => 2,
+      CannotReadConfiguration => 2,
       _ => 1,
     }
   }
@@ -55,7 +55,7 @@ impl ErrorMessage {
   fn from_context(ctx: &ErrorContext) -> ErrorMessage {
     use ErrorContext::*;
     match ctx {
-      CannotFindConfiguration => Self::new(
+      CannotReadConfiguration => Self::new(
         "Cannot find configuration.",
         "Please add an sgconfig.yml configuration file in the project root to run the scan command.",
         CONFIG_GUIDE,
