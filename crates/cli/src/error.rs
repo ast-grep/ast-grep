@@ -6,25 +6,27 @@ use std::path::PathBuf;
 
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
+const EDITOR_INTEGRATION: Option<&str> = Some("/guide/editor-integration.html");
 
 /// AppError stands for ast-grep command line usage.
 /// It provides abstraction around exit code, context,
 /// message, potential fix and reference link.
 #[derive(Debug, Clone)]
 pub enum ErrorContext {
-  CannotReadConfiguration,
-  CannotParseConfiguration,
-  CannotReadRuleDir(PathBuf),
-  CannotReadRule(PathBuf),
-  CannotParseRule(PathBuf),
-  OtherError,
+  ReadConfiguration,
+  ParseConfiguration,
+  WalkRuleDir(PathBuf),
+  ReadRule(PathBuf),
+  ParseRule(PathBuf),
+  StartLanguageServer,
 }
 
 impl ErrorContext {
   fn exit_code(&self) -> i32 {
     use ErrorContext::*;
     match self {
-      CannotReadConfiguration => 2,
+      ReadConfiguration | ReadRule(_) | WalkRuleDir(_) => 2,
+      ParseRule(_) | ParseConfiguration => 5,
       _ => 1,
     }
   }
@@ -60,35 +62,35 @@ impl ErrorMessage {
   fn from_context(ctx: &ErrorContext) -> ErrorMessage {
     use ErrorContext::*;
     match ctx {
-      CannotReadConfiguration => Self::new(
+      ReadConfiguration => Self::new(
         "Cannot read configuration.",
         "Please add an sgconfig.yml configuration file in the project root to run the scan command.",
         CONFIG_GUIDE,
       ),
-      CannotParseConfiguration => Self::new(
+      ParseConfiguration => Self::new(
         "Cannot parse configuration",
         "The sgconfig.yml is not a valid configuration file. Please refer to doc and fix the error.",
         CONFIG_GUIDE,
       ),
-      CannotReadRuleDir(dir) => Self::new(
+      WalkRuleDir(dir) => Self::new(
         format!("Cannot read rule directory {}", dir.to_string_lossy()),
         "The rule directory cannot be read or traversed",
         None,
       ),
-      CannotReadRule(file) => Self::new(
+      ReadRule(file) => Self::new(
         format!("Cannot read rule {}", file.to_string_lossy()),
         "The rule file either does not exist or cannot be opened.",
         CONFIG_GUIDE,
       ),
-      CannotParseRule(file) => Self::new(
+      ParseRule(file) => Self::new(
         format!("Cannot parse rule {}", file.to_string_lossy()),
         "The file is not a valid ast-grep rule. Please refer to doc and fix the error.",
         CONFIG_GUIDE,
       ),
-      OtherError => Self::new(
-        "Unknown error",
-        "Unexpected error, please report",
-        None,
+      StartLanguageServer => Self::new(
+        "Cannot start language server.",
+        "Please see langauge server logging file.",
+        EDITOR_INTEGRATION,
       ),
     }
   }

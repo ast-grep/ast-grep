@@ -1,7 +1,7 @@
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use ast_grep_config::{RuleCollection, RuleConfig};
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
@@ -174,11 +174,11 @@ fn run_one_interaction<M: Matcher<SupportLang>>(
     return;
   }
   let first_match = matches.peek().unwrap().start_pos().0;
-  print_matches(matches, path, &matcher, rewrite);
+  print_matches(matches, path, &matcher, rewrite).unwrap();
   let rewrite = match rewrite {
     Some(r) => r,
     None => {
-      interaction::prompt("Next", "", Some('\n')).unwrap();
+      interaction::prompt("Next", "", Some('\n')).expect("cannot fail");
       return;
     }
   };
@@ -276,7 +276,7 @@ fn match_one_file(
   if matches.peek().is_none() {
     return;
   }
-  print_matches(matches, path, pattern, rewrite);
+  print_matches(matches, path, pattern, rewrite).unwrap();
 }
 
 fn filter_file_interactive(
@@ -285,7 +285,8 @@ fn filter_file_interactive(
   pattern: &impl Matcher<SupportLang>,
 ) -> Option<(AstGrep<SupportLang>, PathBuf)> {
   let file_content = read_to_string(path)
-    .map_err(|err| eprintln!("ERROR: {}", err))
+    .with_context(|| format!("Cannot read file {}", path.to_string_lossy()))
+    .map_err(|err| eprintln!("{err}"))
     .ok()?;
   let grep = lang.ast_grep(file_content);
   let has_match = grep.root().find(pattern).is_some();

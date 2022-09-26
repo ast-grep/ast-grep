@@ -7,10 +7,9 @@ use std::fs::read_to_string;
 use std::path::PathBuf;
 
 pub fn find_config(config_path: Option<String>) -> Result<RuleCollection<SupportLang>> {
-  let config_path =
-    find_config_path_with_default(config_path).context(EC::CannotReadConfiguration)?;
-  let config_str = read_to_string(&config_path).context(EC::CannotReadConfiguration)?;
-  let sg_config = deserialize_sgconfig(&config_str).context(EC::CannotParseConfiguration)?;
+  let config_path = find_config_path_with_default(config_path).context(EC::ReadConfiguration)?;
+  let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
+  let sg_config = deserialize_sgconfig(&config_str).context(EC::ParseConfiguration)?;
   let mut configs = vec![];
   for dir in sg_config.rule_dirs {
     let dir_path = config_path.parent().unwrap().join(dir);
@@ -18,7 +17,7 @@ pub fn find_config(config_path: Option<String>) -> Result<RuleCollection<Support
       .types(config_file_type())
       .build();
     for dir in walker {
-      let config_file = dir.with_context(|| EC::CannotReadRuleDir(dir_path.clone()))?;
+      let config_file = dir.with_context(|| EC::WalkRuleDir(dir_path.clone()))?;
       // file_type is None only if it is stdin, safe to unwrap here
       if !config_file
         .file_type()
@@ -28,9 +27,9 @@ pub fn find_config(config_path: Option<String>) -> Result<RuleCollection<Support
         continue;
       }
       let path = config_file.path();
-      let yaml = read_to_string(path).with_context(|| EC::CannotReadRule(path.to_path_buf()))?;
+      let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
       let new_configs =
-        from_yaml_string(&yaml).with_context(|| EC::CannotParseRule(path.to_path_buf()))?;
+        from_yaml_string(&yaml).with_context(|| EC::ParseRule(path.to_path_buf()))?;
       configs.extend(new_configs);
     }
   }

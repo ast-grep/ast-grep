@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::borrow::Cow;
 use std::fmt::Display;
 use std::path::Path;
@@ -101,10 +102,10 @@ pub fn print_matches<'a>(
   path: &Path,
   pattern: &impl Matcher<SupportLang>,
   rewrite: &Option<Pattern<SupportLang>>,
-) {
+) -> Result<()> {
   let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
                                        // dependencies on the system env, print different delimiters
-  let filepath = adjust_canonicalization(std::fs::canonicalize(path).unwrap());
+  let filepath = adjust_canonicalization(std::fs::canonicalize(path)?);
   println!("{}", Color::Cyan.italic().paint(filepath));
   if let Some(rewrite) = rewrite {
     // TODO: actual matching happened in stdout lock, optimize it out
@@ -141,6 +142,7 @@ pub fn print_matches<'a>(
     }
   }
   drop(lock);
+  Ok(())
 }
 
 fn print_highlight<'a>(

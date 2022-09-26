@@ -1,5 +1,6 @@
 use crate::config::find_config;
-use anyhow::Result;
+use crate::error::ErrorContext as EC;
+use anyhow::{Context, Result};
 use ast_grep_lsp::{Backend, LspService, Server};
 
 async fn run_language_server_impl() -> Result<()> {
@@ -18,7 +19,7 @@ pub fn run_language_server() -> Result<()> {
   tokio::runtime::Builder::new_multi_thread()
     .enable_all()
     .build()
-    .unwrap()
+    .context(EC::StartLanguageServer)?
     .block_on(async {
       run_language_server_impl().await.unwrap();
     });
