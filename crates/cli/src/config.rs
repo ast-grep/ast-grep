@@ -1,4 +1,4 @@
-use crate::error::ErrorContext;
+use crate::error::ErrorContext as EC;
 use crate::languages::{config_file_type, SupportLang};
 use anyhow::{Context, Result};
 use ast_grep_config::{deserialize_sgconfig, from_yaml_string, RuleCollection};
@@ -8,22 +8,30 @@ use std::path::PathBuf;
 
 pub fn find_config(config_path: Option<String>) -> Result<RuleCollection<SupportLang>> {
   let config_path =
-    find_config_path_with_default(config_path).context(ErrorContext::CannotReadConfiguration)?;
-  let config_str = read_to_string(config_path).context(ErrorContext::CannotReadConfiguration)?;
-  let sg_config =
-    deserialize_sgconfig(&config_str).context(ErrorContext::CannotParseConfiguration)?;
+    find_config_path_with_default(config_path).context(EC::CannotReadConfiguration)?;
+  let config_str = read_to_string(&config_path).context(EC::CannotReadConfiguration)?;
+  let sg_config = deserialize_sgconfig(&config_str).context(EC::CannotParseConfiguration)?;
   let mut configs = vec![];
   for dir in sg_config.rule_dirs {
-    let walker = WalkBuilder::new(&dir).types(config_file_type()).build();
+    let dir_path = config_path.parent().unwrap().join(dir);
+    let walker = WalkBuilder::new(&dir_path)
+      .types(config_file_type())
+      .build();
     for dir in walker {
-      let config_file = dir.unwrap();
-      if !config_file.file_type().unwrap().is_file() {
+      let config_file = dir.with_context(|| EC::CannotReadRuleDir(dir_path.clone()))?;
+      // file_type is None only if it is stdin, safe to unwrap here
+      if !config_file
+        .file_type()
+        .expect("file type should be available for non-stdin")
+        .is_file()
+      {
         continue;
       }
       let path = config_file.path();
-
-      let yaml = read_to_string(path).unwrap();
-      configs.extend(from_yaml_string(&yaml).unwrap());
+      let yaml = read_to_string(path).with_context(|| EC::CannotReadRule(path.to_path_buf()))?;
+      let new_configs =
+        from_yaml_string(&yaml).with_context(|| EC::CannotParseRule(path.to_path_buf()))?;
+      configs.extend(new_configs);
     }
   }
   Ok(RuleCollection::new(configs))

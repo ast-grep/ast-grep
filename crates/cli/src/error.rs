@@ -2,6 +2,7 @@ use ansi_term::{Color, Style};
 use anyhow::{Error, Result};
 
 use std::fmt;
+use std::path::PathBuf;
 
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
@@ -13,6 +14,10 @@ const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
 pub enum ErrorContext {
   CannotReadConfiguration,
   CannotParseConfiguration,
+  CannotReadRuleDir(PathBuf),
+  CannotReadRule(PathBuf),
+  CannotParseRule(PathBuf),
+  OtherError,
 }
 
 impl ErrorContext {
@@ -44,7 +49,7 @@ struct ErrorMessage {
 }
 
 impl ErrorMessage {
-  fn new<S: ToString>(title: S, description: S, link: Option<&'static str>) -> Self {
+  fn new<T: ToString, D: ToString>(title: T, description: D, link: Option<&'static str>) -> Self {
     Self {
       title: title.to_string(),
       description: description.to_string(),
@@ -56,7 +61,7 @@ impl ErrorMessage {
     use ErrorContext::*;
     match ctx {
       CannotReadConfiguration => Self::new(
-        "Cannot find configuration.",
+        "Cannot read configuration.",
         "Please add an sgconfig.yml configuration file in the project root to run the scan command.",
         CONFIG_GUIDE,
       ),
@@ -64,6 +69,26 @@ impl ErrorMessage {
         "Cannot parse configuration",
         "The sgconfig.yml is not a valid configuration file. Please refer to doc and fix the error.",
         CONFIG_GUIDE,
+      ),
+      CannotReadRuleDir(dir) => Self::new(
+        format!("Cannot read rule directory {}", dir.to_string_lossy()),
+        "The rule directory cannot be read or traversed",
+        None,
+      ),
+      CannotReadRule(file) => Self::new(
+        format!("Cannot read rule {}", file.to_string_lossy()),
+        "The rule file either does not exist or cannot be opened.",
+        CONFIG_GUIDE,
+      ),
+      CannotParseRule(file) => Self::new(
+        format!("Cannot parse rule {}", file.to_string_lossy()),
+        "The file is not a valid ast-grep rule. Please refer to doc and fix the error.",
+        CONFIG_GUIDE,
+      ),
+      OtherError => Self::new(
+        "Unknown error",
+        "Unexpected error, please report",
+        None,
       ),
     }
   }
