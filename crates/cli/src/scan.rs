@@ -170,10 +170,10 @@ fn run_one_interaction<M: Matcher<SupportLang>>(
   rewrite: &Option<Pattern<SupportLang>>,
 ) {
   let mut matches = grep.root().find_all(&matcher).peekable();
-  if matches.peek().is_none() {
-    return;
-  }
-  let first_match = matches.peek().unwrap().start_pos().0;
+  let first_match = match matches.peek() {
+    Some(n) => n.start_pos().0,
+    None => return,
+  };
   print_matches(matches, path, &matcher, rewrite).unwrap();
   let rewrite = match rewrite {
     Some(r) => r,
