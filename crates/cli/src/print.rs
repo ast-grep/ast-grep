@@ -82,14 +82,15 @@ impl ErrorReporter {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn adjust_canonicalization<P: AsRef<Path>>(p: P) -> String {
-  p.as_ref().display().to_string()
+fn adjust_dir_separator(p: &Path) -> Cow<str> {
+  p.to_string_lossy()
 }
 
+// change \ to / on windows
 #[cfg(target_os = "windows")]
-fn adjust_canonicalization<P: AsRef<Path>>(p: P) -> String {
+fn adjust_dir_separator(p: &Path) -> String {
   const VERBATIM_PREFIX: &str = r#"\\?\"#;
-  let p = p.as_ref().display().to_string();
+  let p = p.display().to_string();
   if p.starts_with(VERBATIM_PREFIX) {
     p[VERBATIM_PREFIX.len()..].to_string()
   } else {
@@ -104,8 +105,8 @@ pub fn print_matches<'a>(
   rewrite: &Option<Pattern<SupportLang>>,
 ) -> Result<()> {
   let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
-                                       // dependencies on the system env, print different delimiters
-  let filepath = adjust_canonicalization(std::fs::canonicalize(path)?);
+  let path = std::fs::canonicalize(path)?;
+  let filepath = adjust_dir_separator(&path);
   println!("{}", Color::Cyan.italic().paint(filepath));
   if let Some(rewrite) = rewrite {
     // TODO: actual matching happened in stdout lock, optimize it out
