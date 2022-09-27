@@ -73,17 +73,17 @@ impl ErrorMessage {
         CONFIG_GUIDE,
       ),
       WalkRuleDir(dir) => Self::new(
-        format!("Cannot read rule directory {}", dir.to_string_lossy()),
+        format!("Cannot read rule directory {}", dir.display()),
         "The rule directory cannot be read or traversed",
         None,
       ),
       ReadRule(file) => Self::new(
-        format!("Cannot read rule {}", file.to_string_lossy()),
+        format!("Cannot read rule {}", file.display()),
         "The rule file either does not exist or cannot be opened.",
         CONFIG_GUIDE,
       ),
       ParseRule(file) => Self::new(
-        format!("Cannot parse rule {}", file.to_string_lossy()),
+        format!("Cannot parse rule {}", file.display()),
         "The file is not a valid ast-grep rule. Please refer to doc and fix the error.",
         CONFIG_GUIDE,
       ),
