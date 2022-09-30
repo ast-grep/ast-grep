@@ -58,7 +58,7 @@ mod test {
 
   #[test]
   fn test_c_sharp_replace() {
-    let ret = test_replace("int @int = 0;", "int $A = 0;", "bool @bool = true");
+    let ret = test_replace("int @int = 0;", "int $A = 0", "bool @bool = true");
     assert_eq!(ret, "bool @bool = true;");
   }
 }

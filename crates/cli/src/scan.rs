@@ -292,3 +292,39 @@ fn filter_file_interactive(
   let has_match = grep.root().find(pattern).is_some();
   has_match.then_some((grep, path.to_path_buf()))
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use ast_grep_config::from_yaml_string;
+
+  fn make_rule(rule: &str) -> RuleConfig<SupportLang> {
+    from_yaml_string(&format!(
+      r"
+id: test
+message: test rule
+severity: info
+language: TypeScript
+{rule}"
+    ))
+    .unwrap()
+    .pop()
+    .unwrap()
+  }
+
+  #[test]
+  fn test_apply_rewrite() {
+    let root = AstGrep::new("let a = () => c++", SupportLang::TypeScript);
+    let config = make_rule(
+      r"
+rule:
+  all:
+    - pattern: $B
+    - any:
+        - pattern: $A++
+fix: ($B, lifecycle.update(['$A']))",
+    );
+    let ret = apply_rewrite(&root, config.get_matcher(), &config.get_fixer().unwrap());
+    assert_eq!(ret, "let a = () => (c++, lifecycle.update(['c']))");
+  }
+}
