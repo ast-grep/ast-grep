@@ -91,6 +91,15 @@ mod test {
   }
 
   #[test]
+  fn test_replace_unnamed_node() {
+    // ++ and -- is unnamed node in tree-sitter javascript
+    let mut ast_grep = Tsx.ast_grep("c++");
+    ast_grep.replace("$A++", "$A--");
+    let source = ast_grep.generate();
+    assert_eq!(source, "c--");
+  }
+
+  #[test]
   #[ignore]
   fn test_replace_trivia() {
     let mut ast_grep = Tsx.ast_grep("var a = 1 /*haha*/;");
