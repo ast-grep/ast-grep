@@ -31,6 +31,7 @@ pub struct RunArg {
   #[clap(short, long)]
   lang: SupportLang,
 
+  /// Start interactive edit session. Code rewrite only happens inside a session.
   #[clap(short, long, parse(from_flag))]
   interactive: bool,
 
@@ -53,6 +54,7 @@ pub struct ScanArg {
   #[clap(long, parse(from_flag))]
   hidden: bool,
 
+  /// Start interactive edit session. Code rewrite only happens inside a session.
   #[clap(short, long, parse(from_flag))]
   interactive: bool,
 
