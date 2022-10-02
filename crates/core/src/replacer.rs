@@ -223,6 +223,11 @@ mod test {
   }
 
   #[test]
+  fn test_replace_in_string() {
+    test_str_replace("'$A'", &[("A", "123")], "'123'");
+  }
+
+  #[test]
   fn test_nested_matching_replace() {
     // TODO
   }

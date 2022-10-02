@@ -113,6 +113,13 @@ mod test {
   }
 
   #[test]
+  fn test_string() {
+    let tree = parse("'$A'");
+    let root_node = tree.root_node();
+    assert_eq!(root_node.to_sexp(), "(program (expression_statement (string (string_fragment))))");
+  }
+
+  #[test]
   fn test_edit() {
     let mut src = "a + b".to_string();
     let mut tree = parse(&src);
