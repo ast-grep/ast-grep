@@ -7,6 +7,8 @@ use ast_grep_config::RuleCollection;
 use ast_grep_config::Severity;
 use ast_grep_core::{language::Language, AstGrep, NodeMatch};
 
+use std::collections::HashMap;
+
 pub use tower_lsp::{LspService, Server};
 
 pub trait LSPLang: Language + Eq + Send + Sync + 'static {}
@@ -24,9 +26,26 @@ pub struct Backend<L: LSPLang> {
   rules: RuleCollection<L>,
 }
 
+const FALLBAKC_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
+  Some(CodeActionProviderCapability::Simple(true));
+fn code_action_provider(client_capability: &ClientCapabilities) -> Option<CodeActionProviderCapability> {
+  let is_literal_supported = client_capability
+    .text_document.as_ref()?
+    .code_action.as_ref()?
+    .code_action_literal_support.is_some();
+  if !is_literal_supported {
+    return None
+  }
+  Some(CodeActionProviderCapability::Options(CodeActionOptions {
+    code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+    work_done_progress_options: Default::default(),
+    resolve_provider: Some(true)
+  }))
+}
+
 #[tower_lsp::async_trait]
 impl<L: LSPLang> LanguageServer for Backend<L> {
-  async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+  async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
     Ok(InitializeResult {
       server_info: Some(ServerInfo {
         name: "ast-grep language server".to_string(),
@@ -35,7 +54,7 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       capabilities: ServerCapabilities {
         // TODO: change this to incremental
         text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
-        code_action_provider: None,
+        code_action_provider: code_action_provider(&params.capabilities).or(FALLBAKC_CODE_ACTION_PROVIDER),
         ..ServerCapabilities::default()
       },
     })
@@ -98,9 +117,17 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       .log_message(MessageType::INFO, "file closed!")
       .await;
   }
+
+  async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+    self
+      .client
+      .log_message(MessageType::INFO, "run code action!")
+      .await;
+    Ok(self.on_code_action(params).await)
+  }
 }
 
-fn convert_node_match_to_range<L: Language>(node_match: NodeMatch<L>) -> Range {
+fn convert_node_match_to_range<L: Language>(node_match: &NodeMatch<L>) -> Range {
   let (start_row, start_col) = node_match.start_pos();
   let (end_row, end_col) = node_match.end_pos();
   Range {
@@ -141,7 +168,7 @@ impl<L: LSPLang> Backend<L> {
           .root()
           .find_all(&matcher)
           .map(|m| Diagnostic {
-            range: convert_node_match_to_range(m),
+            range: convert_node_match_to_range(&m),
             code: Some(NumberOrString::String(rule.id.clone())),
             code_description: url_to_code_description(&rule.url),
             severity: Some(match rule.severity {
@@ -201,6 +228,65 @@ impl<L: LSPLang> Backend<L> {
   }
   async fn on_close(&self, params: DidCloseTextDocumentParams) {
     self.map.remove(params.text_document.uri.as_str());
+  }
+
+  async fn on_code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
+    let text_doc = params.text_document;
+    let uri = text_doc.uri.as_str();
+    let lang = Self::infer_lang_from_uri(&text_doc.uri)?;
+    let diagnostics = params.context.diagnostics;
+    let mut error_id_to_ranges = HashMap::new();
+    for diagnostic in diagnostics {
+      let rule_id = match diagnostic.code {
+        Some(NumberOrString::String(rule)) => rule,
+        _ => continue,
+      };
+      let ranges = error_id_to_ranges.entry(rule_id).or_insert_with(Vec::new);
+      ranges.push(diagnostic.range);
+    }
+    let versioned = self.map.get(uri)?;
+    let mut response = CodeActionResponse::new();
+    for config in self.rules.get_rules_for_lang(&lang) {
+      let ranges = match error_id_to_ranges.get(&config.id) {
+        Some(ranges) => ranges,
+        None => continue,
+      };
+      let matcher = config.get_matcher();
+      for matched_node in versioned.root.root().find_all(&matcher) {
+        let range = convert_node_match_to_range(&matched_node);
+        if !ranges.contains(&range) {
+          continue;
+        }
+        let fixer = match config.get_fixer() {
+          Some(fixer) => fixer,
+          None => continue,
+        };
+        let edit = matched_node.replace_by(fixer);
+        let edit = TextEdit {
+          range,
+          new_text: edit.inserted_text,
+        };
+        let mut changes = HashMap::new();
+        changes.insert(text_doc.uri.clone(), vec![edit]);
+        let edit = Some(WorkspaceEdit {
+          changes: Some(changes),
+          document_changes: None,
+          change_annotations: None,
+        });
+        let action = CodeAction {
+          title: config.message.clone(),
+          command: None,
+          diagnostics: None,
+          edit,
+          disabled: None,
+          kind: Some(CodeActionKind::QUICKFIX),
+          is_preferred: Some(true),
+          data: None,
+        };
+        response.push(CodeActionOrCommand::from(action));
+      }
+    }
+    None
   }
 
   // TODO: support other urls besides file_scheme

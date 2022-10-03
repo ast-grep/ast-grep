@@ -393,9 +393,6 @@ impl<'r, L: Language> Node<'r, L> {
       .collect()
   }
 
-  pub fn replace_by(&self) {
-    todo!()
-  }
   pub fn after(&self) {
     todo!()
   }

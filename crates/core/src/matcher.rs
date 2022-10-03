@@ -6,6 +6,8 @@ use crate::Pattern;
 use std::borrow::{Borrow, BorrowMut};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
+use crate::replacer::Replacer;
+use crate::ts_parser::Edit;
 
 #[derive(Clone)]
 pub struct KindMatcher<L: Language> {
@@ -218,6 +220,20 @@ impl<'tree, L: Language> NodeMatch<'tree, L> {
 
   pub fn get_env(&self) -> &MetaVarEnv<'tree, L> {
     &self.1
+  }
+
+  pub fn replace_by<R: Replacer<L>>(&self, replacer: R) -> Edit {
+    let lang = self.lang().clone();
+    let env = self.get_env();
+    let range = self.range();
+    let position = range.start;
+    let deleted_length = range.len();
+    let inserted_text = replacer.generate_replacement(env, lang);
+    Edit {
+      position,
+      deleted_length,
+      inserted_text,
+    }
   }
 }
 
