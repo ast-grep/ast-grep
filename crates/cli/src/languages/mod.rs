@@ -192,6 +192,17 @@ pub fn from_extension(path: &Path) -> Option<SupportLang> {
   }
 }
 
+fn add_custom_file_type<'b, 'suf>(
+  builder: &'b mut TypesBuilder,
+  file_type: &str,
+  suffix_list: &'suf [&str]
+) -> &'b mut TypesBuilder {
+  for suffix in suffix_list {
+    builder.add(file_type, suffix).expect("file pattern must compile");
+  }
+  builder.select(file_type)
+}
+
 pub fn file_types(lang: &SupportLang) -> Types {
   use SupportLang as L;
   let mut builder = TypesBuilder::new();
@@ -202,11 +213,12 @@ pub fn file_types(lang: &SupportLang) -> Types {
     L::Go => builder.select("go"),
     L::Html => builder.select("html"),
     L::JavaScript => {
-      builder.add("myjs", "*.js").unwrap();
-      builder.add("myjs", "*.cjs").unwrap();
-      builder.add("myjs", "*.jsx").unwrap();
-      builder.add("myjs", "*.mjs").unwrap();
-      builder.select("myjs")
+      add_custom_file_type(&mut builder, "myjs", &[
+        "*.js",
+        "*.cjs",
+        "*.jsx",
+        "*.mjs",
+      ])
     }
     L::Kotlin => builder.select("kotlin"),
     L::Lua => builder.select("lua"),
@@ -214,25 +226,28 @@ pub fn file_types(lang: &SupportLang) -> Types {
     L::Rust => builder.select("rust"),
     L::Swift => builder.select("swift"),
     L::Tsx => {
-      builder.add("mytsx", "*.tsx").unwrap();
+      builder.add("mytsx", "*.tsx").expect("file pattern must compile");
       builder.select("mytsx")
     }
     L::TypeScript => {
-      builder.add("myts", "*.ts").unwrap();
-      builder.add("myts", "*.cts").unwrap();
-      builder.add("myts", "*.mts").unwrap();
-      builder.select("myts")
+      add_custom_file_type(&mut builder, "myts", &[
+        "*.ts",
+        "*.cts",
+        "*.mts",
+      ])
     }
   };
-  builder.build().unwrap()
+  builder.build().expect("file type must be valid")
 }
 
 pub fn config_file_type() -> Types {
   let mut builder = TypesBuilder::new();
-  builder.add("yml", "*.yml").unwrap();
-  builder.add("yml", "*.yaml").unwrap();
-  builder.select("yml");
-  builder.build().unwrap()
+  let builder = add_custom_file_type(
+    &mut builder,
+    "yml",
+    &["*.yml", "*.yaml"]
+  );
+  builder.build().expect("yaml type must be valid")
 }
 
 #[cfg(test)]
@@ -243,4 +258,6 @@ mod test {
     let path = Path::new("foo.rs");
     assert_eq!(from_extension(path), Some(SupportLang::Rust));
   }
+
+  // TODO: add test for file_types
 }
