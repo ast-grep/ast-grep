@@ -286,7 +286,7 @@ impl<L: LSPLang> Backend<L> {
         response.push(CodeActionOrCommand::from(action));
       }
     }
-    None
+    Some(response)
   }
 
   // TODO: support other urls besides file_scheme

@@ -40,3 +40,5 @@ let { modelValue, title } = defineModel<{
   modelValue: string
   title: string
 }>()
+export { };
+
