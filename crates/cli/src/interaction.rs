@@ -1,8 +1,9 @@
-use anyhow::Result;
+use anyhow::{Result, Context};
 use ignore::{DirEntry, WalkParallel, WalkState};
 use rprompt::prompt_reply_stdout;
 use std::path::PathBuf;
 use std::sync::mpsc;
+use crate::error::ErrorContext as EC;
 
 // https://github.com/console-rs/console/blob/be1c2879536c90ffc2b54938b5964084f5fef67d/src/common_term.rs#L56
 /// clear screen
@@ -40,8 +41,8 @@ pub fn run_walker(walker: WalkParallel, f: impl Fn(DirEntry) -> WalkState + Sync
 pub fn run_walker_interactive<T: Send>(
   walker: WalkParallel,
   producer: impl Fn(DirEntry) -> Option<T> + Sync,
-  consumer: impl Fn(T) + Send,
-) {
+  consumer: impl Fn(T) -> Result<()> + Send,
+) -> Result<()> {
   let (tx, rx) = mpsc::channel();
   let producer = &producer;
   crossbeam::scope(|s| {
@@ -67,23 +68,26 @@ pub fn run_walker_interactive<T: Send>(
         })
       })
     });
-    s.spawn(move |_| {
+    let ret = s.spawn(move |_| -> Result<()> {
       while let Ok(ret) = rx.recv() {
         clear();
-        consumer(ret);
+        consumer(ret)?;
       }
+      Ok(())
     });
+    ret.join().expect("Error occurred during interaction.")
   })
-  .expect("Error occurred during spawning threads");
+  .expect("Error occurred during spawning threads")
 }
 
-pub fn open_in_editor(path: &PathBuf, start_line: usize) {
+pub fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
   let editor = std::env::var("EDITOR").unwrap_or_else(|_| String::from("vim"));
   std::process::Command::new(editor)
     .arg(path)
     .arg(format!("+{}", start_line))
     .spawn()
-    .unwrap()
+    .context(EC::OpenEditor)?
     .wait()
-    .unwrap();
+    .context(EC::OpenEditor)?;
+    Ok(())
 }

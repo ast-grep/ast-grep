@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
+const CLI_USAGE: Option<&str> = Some("/reference/cli.html");
 const EDITOR_INTEGRATION: Option<&str> = Some("/guide/editor-integration.html");
 
 /// AppError stands for ast-grep command line usage.
@@ -13,12 +14,15 @@ const EDITOR_INTEGRATION: Option<&str> = Some("/guide/editor-integration.html");
 /// message, potential fix and reference link.
 #[derive(Debug, Clone)]
 pub enum ErrorContext {
+  // Config
   ReadConfiguration,
   ParseConfiguration,
   WalkRuleDir(PathBuf),
   ReadRule(PathBuf),
   ParseRule(PathBuf),
   StartLanguageServer,
+  // Edit
+  OpenEditor,
 }
 
 impl ErrorContext {
@@ -27,6 +31,7 @@ impl ErrorContext {
     match self {
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) => 2,
       ParseRule(_) | ParseConfiguration => 5,
+      OpenEditor => 126,
       _ => 1,
     }
   }
@@ -89,8 +94,13 @@ impl ErrorMessage {
       ),
       StartLanguageServer => Self::new(
         "Cannot start language server.",
-        "Please see langauge server logging file.",
+        "Please see language server logging file.",
         EDITOR_INTEGRATION,
+      ),
+      OpenEditor => Self::new(
+        "Cannot open file in editor.",
+        "Please check if the editor is installed and the EDITOR environment variable is correctly set.",
+        CLI_USAGE,
       ),
     }
   }

@@ -95,8 +95,7 @@ pub fn run_with_pattern(args: RunArg) -> Result<()> {
     walker,
     |path| filter_file_interactive(path, lang, &pattern),
     |(grep, path)| run_one_interaction(&path, &grep, &pattern, &rewrite),
-  );
-  Ok(())
+  )
 }
 
 fn get_rules<'c>(
@@ -128,6 +127,7 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
         match_rule_on_file(path, lang, config, &reporter)
       }
     });
+    Ok(())
   } else {
     run_walker_interactive(
       walker,
@@ -155,12 +155,12 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
           }
           let matcher = config.get_matcher();
           let fixer = config.get_fixer();
-          run_one_interaction(&path, &grep, matcher, &fixer);
+          run_one_interaction(&path, &grep, matcher, &fixer)?;
         }
+        Ok(())
       },
-    );
+    )
   }
-  Ok(())
 }
 
 const PROMPT_TEXT: &str = "Accept change? (Yes[y], No[n], Quit[q], Edit[e])";
@@ -170,18 +170,18 @@ fn run_one_interaction<M: Matcher<SupportLang>>(
   grep: &AstGrep<SupportLang>,
   matcher: M,
   rewrite: &Option<Pattern<SupportLang>>,
-) {
+) -> Result<()> {
   let mut matches = grep.root().find_all(&matcher).peekable();
   let first_match = match matches.peek() {
     Some(n) => n.start_pos().0,
-    None => return,
+    None => return Ok(()),
   };
   print_matches(matches, path, &matcher, rewrite).unwrap();
   let rewrite = match rewrite {
     Some(r) => r,
     None => {
       interaction::prompt("Next", "", Some('\n')).expect("cannot fail");
-      return;
+      return Ok(());
     }
   };
   let response =
@@ -190,12 +190,13 @@ fn run_one_interaction<M: Matcher<SupportLang>>(
     'y' => {
       let new_content = apply_rewrite(grep, &matcher, rewrite);
       std::fs::write(path, new_content).expect("write file content failed");
+      Ok(())
     }
     'a' => todo!(),
-    'n' => (),
+    'n' => Ok(()),
     'e' => interaction::open_in_editor(path, first_match),
     'q' => std::process::exit(0),
-    _ => (),
+    _ => Ok(()),
   }
 }
 
@@ -234,13 +235,13 @@ fn run_walker(walker: WalkParallel, f: impl Fn(&Path) + Sync) {
 fn run_walker_interactive<T: Send>(
   walker: WalkParallel,
   producer: impl Fn(&Path) -> Option<T> + Sync,
-  consumer: impl Fn(T) + Send,
-) {
+  consumer: impl Fn(T) -> Result<()> + Send,
+) -> Result<()> {
   interaction::run_walker_interactive(
     walker,
     |entry| producer(filter_file(entry)?.path()),
     consumer,
-  );
+  )
 }
 
 fn match_rule_on_file(
