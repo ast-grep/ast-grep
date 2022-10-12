@@ -195,10 +195,12 @@ pub fn from_extension(path: &Path) -> Option<SupportLang> {
 fn add_custom_file_type<'b, 'suf>(
   builder: &'b mut TypesBuilder,
   file_type: &str,
-  suffix_list: &'suf [&str]
+  suffix_list: &'suf [&str],
 ) -> &'b mut TypesBuilder {
   for suffix in suffix_list {
-    builder.add(file_type, suffix).expect("file pattern must compile");
+    builder
+      .add(file_type, suffix)
+      .expect("file pattern must compile");
   }
   builder.select(file_type)
 }
@@ -213,12 +215,7 @@ pub fn file_types(lang: &SupportLang) -> Types {
     L::Go => builder.select("go"),
     L::Html => builder.select("html"),
     L::JavaScript => {
-      add_custom_file_type(&mut builder, "myjs", &[
-        "*.js",
-        "*.cjs",
-        "*.jsx",
-        "*.mjs",
-      ])
+      add_custom_file_type(&mut builder, "myjs", &["*.js", "*.cjs", "*.jsx", "*.mjs"])
     }
     L::Kotlin => builder.select("kotlin"),
     L::Lua => builder.select("lua"),
@@ -226,27 +223,19 @@ pub fn file_types(lang: &SupportLang) -> Types {
     L::Rust => builder.select("rust"),
     L::Swift => builder.select("swift"),
     L::Tsx => {
-      builder.add("mytsx", "*.tsx").expect("file pattern must compile");
+      builder
+        .add("mytsx", "*.tsx")
+        .expect("file pattern must compile");
       builder.select("mytsx")
     }
-    L::TypeScript => {
-      add_custom_file_type(&mut builder, "myts", &[
-        "*.ts",
-        "*.cts",
-        "*.mts",
-      ])
-    }
+    L::TypeScript => add_custom_file_type(&mut builder, "myts", &["*.ts", "*.cts", "*.mts"]),
   };
   builder.build().expect("file type must be valid")
 }
 
 pub fn config_file_type() -> Types {
   let mut builder = TypesBuilder::new();
-  let builder = add_custom_file_type(
-    &mut builder,
-    "yml",
-    &["*.yml", "*.yaml"]
-  );
+  let builder = add_custom_file_type(&mut builder, "yml", &["*.yml", "*.yaml"]);
   builder.build().expect("yaml type must be valid")
 }
 

@@ -11,7 +11,9 @@ pub fn find_config(config_path: Option<String>) -> Result<RuleCollection<Support
   let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
   let sg_config = deserialize_sgconfig(&config_str).context(EC::ParseConfiguration)?;
   let mut configs = vec![];
-  let base_dir = config_path.parent().expect("config file must have parent directory");
+  let base_dir = config_path
+    .parent()
+    .expect("config file must have parent directory");
   for dir in sg_config.rule_dirs {
     let dir_path = base_dir.join(dir);
     let walker = WalkBuilder::new(&dir_path)

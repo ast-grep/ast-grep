@@ -1,9 +1,9 @@
-use anyhow::{Result, Context};
+use crate::error::ErrorContext as EC;
+use anyhow::{Context, Result};
 use ignore::{DirEntry, WalkParallel, WalkState};
 use rprompt::prompt_reply_stdout;
 use std::path::PathBuf;
 use std::sync::mpsc;
-use crate::error::ErrorContext as EC;
 
 // https://github.com/console-rs/console/blob/be1c2879536c90ffc2b54938b5964084f5fef67d/src/common_term.rs#L56
 /// clear screen
@@ -89,5 +89,5 @@ pub fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
     .context(EC::OpenEditor)?
     .wait()
     .context(EC::OpenEditor)?;
-    Ok(())
+  Ok(())
 }

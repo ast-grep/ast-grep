@@ -88,14 +88,14 @@ pub fn run_with_pattern(args: RunArg) -> Result<()> {
   if !args.interactive {
     run_walker(walker, |path| {
       match_one_file(path, lang, &pattern, &rewrite)
-    });
-    return Ok(());
+    })
+  } else {
+    run_walker_interactive(
+      walker,
+      |path| filter_file_interactive(path, lang, &pattern),
+      |(grep, path)| run_one_interaction(&path, &grep, &pattern, &rewrite),
+    )
   }
-  run_walker_interactive(
-    walker,
-    |path| filter_file_interactive(path, lang, &pattern),
-    |(grep, path)| run_one_interaction(&path, &grep, &pattern, &rewrite),
-  )
 }
 
 fn get_rules<'c>(
@@ -126,8 +126,7 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
         }
         match_rule_on_file(path, lang, config, &reporter)
       }
-    });
-    Ok(())
+    })
   } else {
     run_walker_interactive(
       walker,
@@ -223,13 +222,14 @@ fn filter_file(entry: DirEntry) -> Option<DirEntry> {
   entry.file_type()?.is_file().then_some(entry)
 }
 
-fn run_walker(walker: WalkParallel, f: impl Fn(&Path) + Sync) {
+fn run_walker(walker: WalkParallel, f: impl Fn(&Path) + Sync) -> Result<()> {
   interaction::run_walker(walker, |entry| {
     if let Some(e) = filter_file(entry) {
       f(e.path());
     }
     WalkState::Continue
   });
+  Ok(())
 }
 
 fn run_walker_interactive<T: Send>(

@@ -28,18 +28,23 @@ pub struct Backend<L: LSPLang> {
 
 const FALLBAKC_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
   Some(CodeActionProviderCapability::Simple(true));
-fn code_action_provider(client_capability: &ClientCapabilities) -> Option<CodeActionProviderCapability> {
+fn code_action_provider(
+  client_capability: &ClientCapabilities,
+) -> Option<CodeActionProviderCapability> {
   let is_literal_supported = client_capability
-    .text_document.as_ref()?
-    .code_action.as_ref()?
-    .code_action_literal_support.is_some();
+    .text_document
+    .as_ref()?
+    .code_action
+    .as_ref()?
+    .code_action_literal_support
+    .is_some();
   if !is_literal_supported {
-    return None
+    return None;
   }
   Some(CodeActionProviderCapability::Options(CodeActionOptions {
     code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
     work_done_progress_options: Default::default(),
-    resolve_provider: Some(true)
+    resolve_provider: Some(true),
   }))
 }
 
@@ -54,7 +59,8 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       capabilities: ServerCapabilities {
         // TODO: change this to incremental
         text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
-        code_action_provider: code_action_provider(&params.capabilities).or(FALLBAKC_CODE_ACTION_PROVIDER),
+        code_action_provider: code_action_provider(&params.capabilities)
+          .or(FALLBAKC_CODE_ACTION_PROVIDER),
         ..ServerCapabilities::default()
       },
     })
