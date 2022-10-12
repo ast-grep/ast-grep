@@ -105,7 +105,6 @@ pub fn print_matches<'a>(
   rewrite: &Option<Pattern<SupportLang>>,
 ) -> Result<()> {
   let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
-  let path = std::fs::canonicalize(path)?;
   let filepath = adjust_dir_separator(&path);
   println!("{}", Color::Cyan.italic().paint(filepath));
   if let Some(rewrite) = rewrite {
