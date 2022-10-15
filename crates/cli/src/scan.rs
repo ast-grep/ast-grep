@@ -24,7 +24,7 @@ pub struct RunArg {
   rewrite: Option<String>,
 
   /// Print query pattern's tree-sitter AST
-  #[clap(long, parse(from_flag))]
+  #[clap(long)]
   debug_query: bool,
 
   /// The language of the pattern query
@@ -32,7 +32,7 @@ pub struct RunArg {
   lang: SupportLang,
 
   /// Start interactive edit session. Code rewrite only happens inside a session.
-  #[clap(short, long, parse(from_flag))]
+  #[clap(short, long)]
   interactive: bool,
 
   /// The path whose descendent files are to be explored.
@@ -40,7 +40,7 @@ pub struct RunArg {
   path: String,
 
   /// Include hidden files in search
-  #[clap(long, parse(from_flag))]
+  #[clap(long)]
   hidden: bool,
 }
 
@@ -51,11 +51,11 @@ pub struct ScanArg {
   config: Option<String>,
 
   /// Include hidden files in search
-  #[clap(long, parse(from_flag))]
+  #[clap(long)]
   hidden: bool,
 
   /// Start interactive edit session. Code rewrite only happens inside a session.
-  #[clap(short, long, parse(from_flag))]
+  #[clap(short, long)]
   interactive: bool,
 
   #[clap(long, default_value = "auto")]
