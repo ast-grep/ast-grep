@@ -13,7 +13,7 @@ rust-version = "1.63"
 
 [dependencies]
 regex = {version = "1.6.0", optional = true }
-tree-sitter = { version = "0.9", package = "tree-sitter-facade" }
+tree-sitter = { version = "0.9", package = "tree-sitter-facade-sg" }
 
 [features]
 default = ["regex"]

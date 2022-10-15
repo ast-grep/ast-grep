@@ -4,7 +4,7 @@ use std::fmt::Display;
 use std::path::Path;
 
 use ansi_term::{Color, Style};
-use clap::arg_enum;
+use clap::ValueEnum;
 use codespan_reporting::diagnostic::{self, Diagnostic, Label};
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use codespan_reporting::term::{self, DisplayStyle};
@@ -22,13 +22,11 @@ pub struct ErrorReporter {
   config: term::Config,
 }
 
-arg_enum! {
-    #[derive(Debug)]
-    pub enum ReportStyle {
-        Rich,
-        Medium,
-        Short,
-    }
+#[derive(Clone, ValueEnum)]
+pub enum ReportStyle {
+    Rich,
+    Medium,
+    Short,
 }
 
 impl ErrorReporter {
