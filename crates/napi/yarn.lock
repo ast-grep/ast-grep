@@ -11,7 +11,7 @@ __metadata:
   dependencies:
     "@napi-rs/cli": 2.12.0
     ava: 4.3.3
-    chalk: 5.1.0
+    chalk: 5.1.2
     ts-node: 10.9.1
     typescript: 4.8.4
   languageName: unknown
@@ -463,10 +463,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chalk@npm:5.1.0":
-  version: 5.1.0
-  resolution: "chalk@npm:5.1.0"
-  checksum: c1aa0bf0064a5a59bc06e3e385685fdcc5bb122159152bb57755fc48f9ef93c30cb3a36c9a2c39ead23e5261d787c87c4c097e1a889e1370478102a0112fe0e0
+"chalk@npm:5.1.2":
+  version: 5.1.2
+  resolution: "chalk@npm:5.1.2"
+  checksum: 804d7485e33531abe45b14e91026ceb5615974a8c04259ab0806f214a7666f6ea03e39ab124f7d5a0c78a83fda89005f236db3c5f10c2abe9ae875f7aa56bcb5
   languageName: node
   linkType: hard
 
