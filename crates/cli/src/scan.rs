@@ -37,7 +37,7 @@ pub struct RunArg {
 
   /// The path whose descendent files are to be explored.
   #[clap(value_parser, default_value = ".")]
-  path: String,
+  path: PathBuf,
 
   /// Include hidden files in search
   #[clap(long)]
@@ -48,7 +48,7 @@ pub struct RunArg {
 pub struct ScanArg {
   /// Path to ast-grep config, either YAML or folder of YAMLs
   #[clap(short, long)]
-  config: Option<String>,
+  config: Option<PathBuf>,
 
   /// Include hidden files in search
   #[clap(long)]
@@ -66,7 +66,7 @@ pub struct ScanArg {
 
   /// The path whose descendent files are to be explored.
   #[clap(value_parser, default_value = ".")]
-  path: String,
+  path: PathBuf,
 }
 
 // Every run will include Search or Replace

@@ -24,9 +24,9 @@ pub struct ErrorReporter {
 
 #[derive(Clone, ValueEnum)]
 pub enum ReportStyle {
-    Rich,
-    Medium,
-    Short,
+  Rich,
+  Medium,
+  Short,
 }
 
 impl ErrorReporter {
@@ -103,7 +103,7 @@ pub fn print_matches<'a>(
   rewrite: &Option<Pattern<SupportLang>>,
 ) -> Result<()> {
   let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
-  let filepath = adjust_dir_separator(&path);
+  let filepath = adjust_dir_separator(path);
   println!("{}", Color::Cyan.italic().paint(filepath));
   if let Some(rewrite) = rewrite {
     // TODO: actual matching happened in stdout lock, optimize it out

@@ -4,8 +4,10 @@ mod rule_collection;
 
 use serde::{Deserialize, Serialize};
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Result};
+use std::path::PathBuf;
 
 use ast_grep_core::language::Language;
+
 pub use rule::{
   try_deserialize_matchers, try_from_serializable as deserialize_rule, Rule, RuleConfig,
   RuleWithConstraint, SerializableMetaVarMatcher, SerializableRule, Severity,
@@ -16,12 +18,21 @@ fn from_str<'de, T: Deserialize<'de>>(s: &'de str) -> Result<T> {
   let deserializer = Deserializer::from_str(s);
   deserialize(deserializer)
 }
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TestConfig {
+  test_dir: PathBuf,
+  /// Specify the directory containing snapshots. The path is relative to `test_dir`
+  snapshot_dir: Option<PathBuf>,
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AstGrepConfig {
-  /// YAML rule directory
-  pub rule_dirs: Vec<String>,
+  /// YAML rule directories
+  pub rule_dirs: Vec<PathBuf>,
+  /// test configurations
+  pub test_configs: Option<Vec<TestConfig>>,
   /// overriding config for rules
   pub rules: Option<Vec<()>>,
 }
