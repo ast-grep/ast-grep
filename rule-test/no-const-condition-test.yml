@@ -1,0 +1,5 @@
+id: no-const-condition
+valid:
+  - console.log(123)
+invalid:
+  - if (flse) { 123 }

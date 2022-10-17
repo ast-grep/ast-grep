@@ -51,7 +51,7 @@ pub struct TestArg {
   snapshot_dir: Option<PathBuf>,
   /// Only check if the code in a test case is valid code or not.
   /// Turn it on when you want to ignore the output of rules.
-  #[clap(long)]
+  #[clap(long, default_value = "true")]
   simple: bool,
   /// Update the content of all snapshots that have changed in test.
   #[clap(short, long)]
