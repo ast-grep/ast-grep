@@ -43,6 +43,7 @@ dependencies = [
  "num_cpus",
  "rprompt",
  "serde",
+ "serde_yaml",
  "similar",
  "tokio",
  "tree-sitter-c",

@@ -7,6 +7,7 @@ use std::path::PathBuf;
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
 const CLI_USAGE: Option<&str> = Some("/reference/cli.html");
+const TEST_GUIDE: Option<&str> = Some("/guide/test-rule.html");
 const EDITOR_INTEGRATION: Option<&str> = Some("/guide/editor-integration.html");
 
 /// AppError stands for ast-grep command line usage.
@@ -20,6 +21,7 @@ pub enum ErrorContext {
   WalkRuleDir(PathBuf),
   ReadRule(PathBuf),
   ParseRule(PathBuf),
+  ParseTest(PathBuf),
   StartLanguageServer,
   // Edit
   OpenEditor,
@@ -30,7 +32,7 @@ impl ErrorContext {
     use ErrorContext::*;
     match self {
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) => 2,
-      ParseRule(_) | ParseConfiguration => 5,
+      ParseTest(_) | ParseRule(_) | ParseConfiguration => 5,
       OpenEditor => 126,
       _ => 1,
     }
@@ -91,6 +93,11 @@ impl ErrorMessage {
         format!("Cannot parse rule {}", file.display()),
         "The file is not a valid ast-grep rule. Please refer to doc and fix the error.",
         CONFIG_GUIDE,
+      ),
+      ParseTest(file) => Self::new(
+        format!("Cannot parse test case {}", file.display()),
+        "The file is not a valid ast-grep test case. Please refer to doc and fix the error.",
+        TEST_GUIDE,
       ),
       StartLanguageServer => Self::new(
         "Cannot start language server.",

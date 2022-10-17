@@ -54,6 +54,17 @@ impl<L: Language + Eq> RuleCollection<L> {
     vec![]
   }
 
+  pub fn get_rule(&self, id: &str) -> Option<&RuleConfig<L>> {
+    for rule in &self.tenured {
+      for r in &rule.rules {
+        if r.id == id {
+          return Some(r);
+        }
+      }
+    }
+    None
+  }
+
   fn add_tenured_rule(tenured: &mut Vec<RuleBucket<L>>, rule: RuleConfig<L>) {
     let lang = rule.language.clone();
     for bucket in tenured.iter_mut() {

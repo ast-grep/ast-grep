@@ -29,6 +29,7 @@ ignore = "0.4.18"
 num_cpus = "1.13.1"
 rprompt = "1.0.5"
 serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9.13"
 similar = { version = "2.2.0", features = ["inline"] }
 tokio = { version = "1", features = ["full"] }
 
