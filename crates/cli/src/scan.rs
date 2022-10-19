@@ -170,6 +170,17 @@ fn run_one_interaction<M: Matcher<SupportLang>>(
   matcher: M,
   rewrite: &Option<Pattern<SupportLang>>,
 ) -> Result<()> {
+  interaction::run_in_alternate_screen(|| {
+    print_matches_and_prompt_action(path, grep, matcher, rewrite)
+  })
+}
+
+fn print_matches_and_prompt_action<M: Matcher<SupportLang>>(
+  path: &PathBuf,
+  grep: &AstGrep<SupportLang>,
+  matcher: M,
+  rewrite: &Option<Pattern<SupportLang>>,
+) -> Result<()> {
   let mut matches = grep.root().find_all(&matcher).peekable();
   let first_match = match matches.peek() {
     Some(n) => n.start_pos().0,
@@ -194,7 +205,7 @@ fn run_one_interaction<M: Matcher<SupportLang>>(
     'a' => todo!(),
     'n' => Ok(()),
     'e' => interaction::open_in_editor(path, first_match),
-    'q' => std::process::exit(0),
+    'q' => std::process::exit(0), // TODO: exit here will not trigger LeaveAlternateScreen
     _ => Ok(()),
   }
 }

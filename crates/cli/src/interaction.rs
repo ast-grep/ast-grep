@@ -1,14 +1,27 @@
 use crate::error::ErrorContext as EC;
 use anyhow::{Context, Result};
+use crossterm::{
+  execute,
+  terminal::{EnterAlternateScreen, LeaveAlternateScreen},
+};
 use ignore::{DirEntry, WalkParallel, WalkState};
 use rprompt::prompt_reply_stdout;
+use std::io::stdout;
 use std::path::PathBuf;
 use std::sync::mpsc;
 
 // https://github.com/console-rs/console/blob/be1c2879536c90ffc2b54938b5964084f5fef67d/src/common_term.rs#L56
-/// clear screen
+// clear screen
 fn clear() {
   print!("\r\x1b[2J\r\x1b[H");
+}
+
+pub fn run_in_alternate_screen<T>(f: impl FnOnce() -> Result<T>) -> Result<T> {
+  execute!(stdout(), EnterAlternateScreen)?;
+  clear();
+  let ret = f();
+  execute!(stdout(), LeaveAlternateScreen)?;
+  ret
 }
 
 pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result<char> {
@@ -68,14 +81,15 @@ pub fn run_walker_interactive<T: Send>(
         })
       })
     });
-    let ret = s.spawn(move |_| -> Result<()> {
-      while let Ok(ret) = rx.recv() {
-        clear();
-        consumer(ret)?;
+    let interaction = s.spawn(move |_| -> Result<()> {
+      while let Ok(match_result) = rx.recv() {
+        consumer(match_result)?;
       }
       Ok(())
     });
-    ret.join().expect("Error occurred during interaction.")
+    interaction
+      .join()
+      .expect("Error occurred during interaction.")
   })
   .expect("Error occurred during spawning threads")
 }
