@@ -1,10 +1,11 @@
 use crate::config::{find_config, find_tests, read_test_files};
 use crate::languages::{Language, SupportLang};
+use ansi_term::{Color, Style};
 use anyhow::Result;
 use ast_grep_config::RuleCollection;
 use clap::Args;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize)]
 pub struct TestCase {
@@ -70,28 +71,59 @@ pub fn run_test_rule(arg: TestArg) -> Result<()> {
   } else {
     find_tests(arg.config)?
   };
+  let mut test_pass = true;
   for test_case in test_cases {
-    verify_test_case_simple(&collections, test_case);
+    test_pass = verify_test_case_simple(&collections, test_case) && test_pass;
   }
-  Ok(())
+  if test_pass {
+    println!("All tests passed");
+    Ok(())
+  } else {
+    Err(anyhow::anyhow!("Some tests failed"))
+  }
 }
 
-fn verify_test_case_simple(collections: &RuleCollection<SupportLang>, test_case: TestCase) {
+fn verify_test_case_simple(collections: &RuleCollection<SupportLang>, test_case: TestCase) -> bool {
+  let mut test_pass = true;
   let rule = match collections.get_rule(&test_case.id) {
     Some(r) => r,
     None => {
-      eprintln!("Configuraiont not found! {}", test_case.id);
-      return;
+      println!("Configuraiont not found! {}", test_case.id);
+      return false;
     }
   };
   let lang = rule.language;
   let rule = rule.get_rule();
+  let bold = Style::new().bold();
   for valid in test_case.valid {
     let sg = lang.ast_grep(&valid);
-    assert!(sg.root().find(&rule).is_none());
+    if sg.root().find(&rule).is_some() {
+      println!(
+        "{} ... {}: finds issue(s) for valid code.",
+        bold.paint(&test_case.id),
+        Color::Red.paint("FAIL")
+      );
+      test_pass = false;
+    } else {
+    }
   }
   for invalid in test_case.invalid {
     let sg = lang.ast_grep(&invalid);
-    assert!(sg.root().find(&rule).is_some());
+    if sg.root().find(&rule).is_none() {
+      println!(
+        "{} ... {}: reports no issue for invalid code.",
+        bold.paint(&test_case.id),
+        Color::Red.paint("FAIL")
+      );
+      test_pass = false;
+    }
   }
+  if test_pass {
+    println!(
+      "{} ... {}",
+      bold.paint(&test_case.id),
+      Color::Green.paint("PASS")
+    );
+  }
+  test_pass
 }
