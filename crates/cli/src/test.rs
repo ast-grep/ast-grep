@@ -5,6 +5,7 @@ use anyhow::Result;
 use ast_grep_config::RuleCollection;
 use clap::Args;
 use serde::{Deserialize, Serialize};
+use std::io::Write;
 use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize)]
@@ -63,6 +64,10 @@ pub struct TestArg {
 }
 
 pub fn run_test_rule(arg: TestArg) -> Result<()> {
+  run_test_rule_impl(arg, std::io::stdout())
+}
+
+fn run_test_rule_impl(arg: TestArg, output: impl Write) -> Result<()> {
   let collections = find_config(arg.config.clone())?;
   let (test_cases, _snapshots) = if let Some(test_dir) = arg.test_dir {
     let base_dir = std::env::current_dir()?;
@@ -71,32 +76,31 @@ pub fn run_test_rule(arg: TestArg) -> Result<()> {
   } else {
     find_tests(arg.config)?
   };
-  let reporter = DefaultReporter;
-  reporter.before_report(&test_cases);
-  let results: Vec<_> = test_cases
-    .iter()
-    .map(|case| {
-      let result = verify_test_case_simple(&collections, case);
-      reporter.report_case_summary(&case.id, &result.cases);
-      result
-    })
-    .collect();
-  reporter.report_failed_cases(&results);
-  reporter.after_report(&results);
+  let mut reporter = DefaultReporter { output };
+  reporter.before_report(&test_cases)?;
+  let mut results = vec![];
+  for case in &test_cases {
+    match verify_test_case_simple(&collections, case) {
+      Some(result) => {
+        reporter.report_case_summary(&case.id, &result.cases)?;
+        results.push(result);
+      }
+      None => {
+        let output = &mut reporter.output;
+        writeln!(output, "Configuraiont not found! {}", case.id)?;
+      }
+    }
+  }
+  reporter.report_failed_cases(&results)?;
+  reporter.after_report(&results)?;
   Ok(())
 }
 
 fn verify_test_case_simple<'a>(
   rules: &RuleCollection<SupportLang>,
   test_case: &'a TestCase,
-) -> CaseResult<'a> {
-  let rule = match rules.get_rule(&test_case.id) {
-    Some(r) => r,
-    None => {
-      println!("Configuraiont not found! {}", test_case.id);
-      return CaseResult::default();
-    }
-  };
+) -> Option<CaseResult<'a>> {
+  let rule = rules.get_rule(&test_case.id)?;
   let lang = rule.language;
   let rule = rule.get_rule();
   let valid_cases = test_case.valid.iter().map(|valid| {
@@ -115,10 +119,10 @@ fn verify_test_case_simple<'a>(
       CaseStatus::CorrectReject
     }
   });
-  CaseResult {
+  Some(CaseResult {
     id: &test_case.id,
     cases: valid_cases.chain(invalid_cases).collect(),
-  }
+  })
 }
 
 #[derive(Default)]
@@ -143,17 +147,20 @@ enum CaseStatus<'a> {
   FalseAlarm(&'a str),
 }
 
-fn report_case_number(test_cases: &[TestCase]) {
-  println!("Running {} tests.", test_cases.len());
+fn report_case_number(output: &mut impl Write, test_cases: &[TestCase]) -> Result<()> {
+  writeln!(output, "Running {} tests.", test_cases.len())?;
+  Ok(())
 }
 
 trait Reporter {
+  type Output: Write;
+  fn get_output(&mut self) -> &mut Self::Output;
   /// A hook function runs before tests start.
-  fn before_report(&self, test_cases: &[TestCase]) {
-    report_case_number(test_cases);
+  fn before_report(&mut self, test_cases: &[TestCase]) -> Result<()> {
+    report_case_number(self.get_output(), test_cases)
   }
   /// A hook function runs after tests completed.
-  fn after_report(&self, results: &[CaseResult]) {
+  fn after_report(&mut self, results: &[CaseResult]) -> Result<()> {
     let mut passed = 0;
     let mut failed = 0;
     for result in results {
@@ -168,49 +175,69 @@ trait Reporter {
     } else {
       Color::Green.paint("ok")
     };
-    println!("test result: {result}. {passed} passed; {failed} failed;");
+    writeln!(
+      self.get_output(),
+      "test result: {result}. {passed} passed; {failed} failed;"
+    )?;
+    Ok(())
   }
 
-  fn report_failed_cases(&self, results: &[CaseResult]) {
-    println!();
-    println!("----------- Failure Details -----------");
+  fn report_failed_cases(&mut self, results: &[CaseResult]) -> Result<()> {
+    let output = self.get_output();
+    writeln!(output)?;
+    writeln!(output, "----------- Failure Details -----------")?;
     for result in results {
       if result.passed() {
         continue;
       }
       for status in &result.cases {
-        self.report_case_detail(result.id, status);
+        self.report_case_detail(result.id, status)?;
       }
     }
+    Ok(())
   }
 
-  fn report_case_summary(&self, case_id: &str, summary: &[CaseStatus]);
-  fn report_case_detail(&self, case_id: &str, result: &CaseStatus) {
+  fn report_case_summary(&mut self, case_id: &str, summary: &[CaseStatus]) -> Result<()>;
+  fn report_case_detail(&mut self, case_id: &str, result: &CaseStatus) -> Result<()> {
+    let output = self.get_output();
     let case_id = Style::new().bold().paint(case_id);
     let false_alarm = Style::new().underline().paint("False Alarm");
     let miss_report = Style::new().underline().paint("Miss Report");
     match result {
       CaseStatus::Hit | CaseStatus::CorrectReject => (),
       CaseStatus::Miss(s) => {
-        println!("[{miss_report}] Expect rule {case_id} to report issues, but none found in:");
-        println!("```");
-        println!("{}", s);
-        println!("```");
+        writeln!(
+          output,
+          "[{miss_report}] Expect rule {case_id} to report issues, but none found in:"
+        )?;
+        writeln!(output, "```")?;
+        writeln!(output, "{}", s)?;
+        writeln!(output, "```")?;
       }
       CaseStatus::FalseAlarm(s) => {
-        println!("[{false_alarm}] Expect {case_id} to report no issue, but some issues found in:");
-        println!("```");
-        println!("{}", s);
-        println!("```");
+        writeln!(
+          output,
+          "[{false_alarm}] Expect {case_id} to report no issue, but some issues found in:"
+        )?;
+        writeln!(output, "```")?;
+        writeln!(output, "{}", s)?;
+        writeln!(output, "```")?;
       }
     }
+    Ok(())
   }
 }
 
-struct DefaultReporter;
+struct DefaultReporter<Output: Write> {
+  output: Output,
+}
 
-impl Reporter for DefaultReporter {
-  fn report_case_summary(&self, case_id: &str, summary: &[CaseStatus]) {
+impl<O: Write> Reporter for DefaultReporter<O> {
+  type Output = O;
+  fn get_output(&mut self) -> &mut Self::Output {
+    &mut self.output
+  }
+  fn report_case_summary(&mut self, case_id: &str, summary: &[CaseStatus]) -> Result<()> {
     let passed = summary
       .iter()
       .all(|c| matches!(c, CaseStatus::Hit | CaseStatus::CorrectReject));
@@ -230,7 +257,8 @@ impl Reporter for DefaultReporter {
         CaseStatus::FalseAlarm(_) => 'F',
       })
       .collect();
-    println!("{case_id}  {summary}  {case_status}");
+    writeln!(self.output, "{case_id}  {summary}  {case_status}")?;
+    Ok(())
   }
 }
 // for result in summary {
