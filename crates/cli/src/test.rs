@@ -106,17 +106,17 @@ fn verify_test_case_simple<'a>(
   let valid_cases = test_case.valid.iter().map(|valid| {
     let sg = lang.ast_grep(valid);
     if sg.root().find(&rule).is_some() {
-      CaseStatus::FalseAlarm(valid)
+      CaseStatus::Noisy(valid)
     } else {
-      CaseStatus::Hit
+      CaseStatus::Validated
     }
   });
   let invalid_cases = test_case.invalid.iter().map(|invalid| {
     let sg = lang.ast_grep(invalid);
     if sg.root().find(&rule).is_none() {
-      CaseStatus::Miss(invalid)
+      CaseStatus::Missing(invalid)
     } else {
-      CaseStatus::CorrectReject
+      CaseStatus::Reported
     }
   });
   Some(CaseResult {
@@ -125,7 +125,7 @@ fn verify_test_case_simple<'a>(
   })
 }
 
-#[derive(Default)]
+#[derive(PartialEq, Eq, Default, Debug)]
 struct CaseResult<'a> {
   id: &'a str,
   cases: Vec<CaseStatus<'a>>,
@@ -136,15 +136,20 @@ impl<'a> CaseResult<'a> {
     self
       .cases
       .iter()
-      .all(|c| matches!(c, CaseStatus::Hit | CaseStatus::CorrectReject))
+      .all(|c| matches!(c, CaseStatus::Validated | CaseStatus::Reported))
   }
 }
 
+#[derive(PartialEq, Eq, Debug)]
 enum CaseStatus<'a> {
-  Hit,
-  CorrectReject,
-  Miss(&'a str),
-  FalseAlarm(&'a str),
+  /// Report no issue for valid code
+  Validated,
+  /// Report some issue for invalid code
+  Reported,
+  /// Report no issue for invalid code
+  Missing(&'a str),
+  /// Report some issue for valid code
+  Noisy(&'a str),
 }
 
 fn report_case_number(output: &mut impl Write, test_cases: &[TestCase]) -> Result<()> {
@@ -201,23 +206,23 @@ trait Reporter {
   fn report_case_detail(&mut self, case_id: &str, result: &CaseStatus) -> Result<()> {
     let output = self.get_output();
     let case_id = Style::new().bold().paint(case_id);
-    let false_alarm = Style::new().underline().paint("False Alarm");
-    let miss_report = Style::new().underline().paint("Miss Report");
+    let noisy = Style::new().underline().paint("Noisy");
+    let missing = Style::new().underline().paint("Missing");
     match result {
-      CaseStatus::Hit | CaseStatus::CorrectReject => (),
-      CaseStatus::Miss(s) => {
+      CaseStatus::Validated | CaseStatus::Reported => (),
+      CaseStatus::Missing(s) => {
         writeln!(
           output,
-          "[{miss_report}] Expect rule {case_id} to report issues, but none found in:"
+          "[{missing}] Expect rule {case_id} to report issues, but none found in:"
         )?;
         writeln!(output, "```")?;
         writeln!(output, "{}", s)?;
         writeln!(output, "```")?;
       }
-      CaseStatus::FalseAlarm(s) => {
+      CaseStatus::Noisy(s) => {
         writeln!(
           output,
-          "[{false_alarm}] Expect {case_id} to report no issue, but some issues found in:"
+          "[{noisy}] Expect {case_id} to report no issue, but some issues found in:"
         )?;
         writeln!(output, "```")?;
         writeln!(output, "{}", s)?;
@@ -240,7 +245,7 @@ impl<O: Write> Reporter for DefaultReporter<O> {
   fn report_case_summary(&mut self, case_id: &str, summary: &[CaseStatus]) -> Result<()> {
     let passed = summary
       .iter()
-      .all(|c| matches!(c, CaseStatus::Hit | CaseStatus::CorrectReject));
+      .all(|c| matches!(c, CaseStatus::Validated | CaseStatus::Reported));
     let case_id = Style::new().bold().paint(case_id);
     let case_status = if summary.is_empty() {
       Color::Yellow.paint("SKIP")
@@ -252,9 +257,9 @@ impl<O: Write> Reporter for DefaultReporter<O> {
     let summary: String = summary
       .iter()
       .map(|s| match s {
-        CaseStatus::Hit | CaseStatus::CorrectReject => '.',
-        CaseStatus::Miss(_) => 'M',
-        CaseStatus::FalseAlarm(_) => 'F',
+        CaseStatus::Validated | CaseStatus::Reported => '.',
+        CaseStatus::Missing(_) => 'M',
+        CaseStatus::Noisy(_) => 'N',
       })
       .collect();
     writeln!(self.output, "{case_id}  {summary}  {case_status}")?;
@@ -263,9 +268,110 @@ impl<O: Write> Reporter for DefaultReporter<O> {
 }
 // for result in summary {
 //   match result {
-//     CaseStatus::Hit => print!("✅"),
-//     CaseStatus::CorrectReject => print!("⛳"),
-//     CaseStatus::Miss(_) => print!("❌"),
-//     CaseStatus::FalseAlarm(_) => print!("🚫"),
+//     CaseStatus::Validated => print!("✅"),
+//     CaseStatus::Reported => print!("⛳"),
+//     CaseStatus::Missing(_) => print!("❌"),
+//     CaseStatus::Noisy(_) => print!("🚫"),
 //   }
 // }
+
+// clippy does not allow submod with the same name with parent mod.
+#[cfg(test)]
+mod test_test {
+  use super::*;
+  use ast_grep_config::{PatternStyle, RuleConfig, SerializableRule, Severity};
+
+  const TEST_RULE: &str = "test-rule";
+
+  fn get_rule_config(rule: SerializableRule) -> RuleConfig<SupportLang> {
+    RuleConfig {
+      id: TEST_RULE.into(),
+      message: "".into(),
+      note: None,
+      severity: Severity::Hint,
+      language: SupportLang::TypeScript,
+      rule,
+      fix: None,
+      constraints: None,
+      files: None,
+      ignores: None,
+      url: None,
+      metadata: None,
+    }
+  }
+  fn always_report_rule() -> RuleCollection<SupportLang> {
+    let rule = get_rule_config(SerializableRule::Pattern(PatternStyle::Str("$A".into())));
+    RuleCollection::new(vec![rule])
+  }
+  fn never_report_rule() -> RuleCollection<SupportLang> {
+    let rule = get_rule_config(SerializableRule::Not(Box::new(SerializableRule::Pattern(
+      PatternStyle::Str("$A".into()),
+    ))));
+    RuleCollection::new(vec![rule])
+  }
+
+  fn valid_case() -> TestCase {
+    TestCase {
+      id: TEST_RULE.into(),
+      valid: vec!["123".into()],
+      invalid: vec![],
+    }
+  }
+
+  fn invalid_case() -> TestCase {
+    TestCase {
+      id: TEST_RULE.into(),
+      valid: vec![],
+      invalid: vec!["123".into()],
+    }
+  }
+
+  fn test_case_result(status: CaseStatus) -> Option<CaseResult> {
+    Some(CaseResult {
+      id: TEST_RULE,
+      cases: vec![status],
+    })
+  }
+
+  #[test]
+  fn test_validated() {
+    let rule = never_report_rule();
+    let case = valid_case();
+    let ret = verify_test_case_simple(&rule, &case);
+    assert_eq!(ret, test_case_result(CaseStatus::Validated),);
+  }
+
+  #[test]
+  fn test_reported() {
+    let case = invalid_case();
+    let rule = always_report_rule();
+    let ret = verify_test_case_simple(&rule, &case);
+    assert_eq!(ret, test_case_result(CaseStatus::Reported),);
+  }
+  #[test]
+  fn test_noisy() {
+    let case = valid_case();
+    let rule = always_report_rule();
+    let ret = verify_test_case_simple(&rule, &case);
+    assert_eq!(ret, test_case_result(CaseStatus::Noisy("123")),);
+  }
+  #[test]
+  fn test_missing() {
+    let case = invalid_case();
+    let rule = never_report_rule();
+    let ret = verify_test_case_simple(&rule, &case);
+    assert_eq!(ret, test_case_result(CaseStatus::Missing("123")),);
+  }
+
+  #[test]
+  fn test_no_such_rule() {
+    let case = TestCase {
+      id: "no-such-rule".into(),
+      valid: vec![],
+      invalid: vec![],
+    };
+    let rule = never_report_rule();
+    let ret = verify_test_case_simple(&rule, &case);
+    assert!(ret.is_none());
+  }
+}
