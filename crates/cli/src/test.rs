@@ -1,7 +1,8 @@
 use crate::config::{find_config, find_tests, read_test_files};
+use crate::error::ErrorContext;
 use crate::languages::{Language, SupportLang};
 use ansi_term::{Color, Style};
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use ast_grep_config::RuleCollection;
 use clap::Args;
 use serde::{Deserialize, Serialize};
@@ -76,8 +77,10 @@ fn run_test_rule_impl(arg: TestArg, output: impl Write) -> Result<()> {
   } else {
     find_tests(arg.config)?
   };
+
   let mut reporter = DefaultReporter { output };
   reporter.before_report(&test_cases)?;
+
   let mut results = vec![];
   for case in &test_cases {
     match verify_test_case_simple(&collections, case) {
@@ -91,9 +94,15 @@ fn run_test_rule_impl(arg: TestArg, output: impl Write) -> Result<()> {
       }
     }
   }
-  reporter.report_failed_cases(&results)?;
-  reporter.after_report(&results)?;
-  Ok(())
+
+  let (passed, message) = reporter.after_report(&results)?;
+  if passed {
+    writeln!(&mut reporter.output, "{message}",)?;
+    Ok(())
+  } else {
+    reporter.report_failed_cases(&results)?;
+    Err(anyhow!(ErrorContext::TestFail(message)))
+  }
 }
 
 fn verify_test_case_simple<'a>(
@@ -153,7 +162,7 @@ enum CaseStatus<'a> {
 }
 
 fn report_case_number(output: &mut impl Write, test_cases: &[TestCase]) -> Result<()> {
-  writeln!(output, "Running {} tests.", test_cases.len())?;
+  writeln!(output, "Running {} tests", test_cases.len())?;
   Ok(())
 }
 
@@ -165,7 +174,7 @@ trait Reporter {
     report_case_number(self.get_output(), test_cases)
   }
   /// A hook function runs after tests completed.
-  fn after_report(&mut self, results: &[CaseResult]) -> Result<()> {
+  fn after_report(&mut self, results: &[CaseResult]) -> Result<(bool, String)> {
     let mut passed = 0;
     let mut failed = 0;
     for result in results {
@@ -175,16 +184,13 @@ trait Reporter {
         failed += 1;
       }
     }
-    let result = if failed > 0 {
-      Color::Red.paint("failed")
+    let message = format!("{passed} passed; {failed} failed;");
+    if failed > 0 {
+      Ok((false, format!("test failed. {message}")))
     } else {
-      Color::Green.paint("ok")
-    };
-    writeln!(
-      self.get_output(),
-      "test result: {result}. {passed} passed; {failed} failed;"
-    )?;
-    Ok(())
+      let result = Color::Green.paint("ok");
+      Ok((true, format!("test result: {result}. {message}")))
+    }
   }
 
   fn report_failed_cases(&mut self, results: &[CaseResult]) -> Result<()> {
@@ -246,7 +252,6 @@ impl<O: Write> Reporter for DefaultReporter<O> {
     let passed = summary
       .iter()
       .all(|c| matches!(c, CaseStatus::Validated | CaseStatus::Reported));
-    let case_id = Style::new().bold().paint(case_id);
     let case_status = if summary.is_empty() {
       Color::Yellow.paint("SKIP")
     } else if passed {

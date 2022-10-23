@@ -9,6 +9,7 @@ const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
 const CLI_USAGE: Option<&str> = Some("/reference/cli.html");
 const TEST_GUIDE: Option<&str> = Some("/guide/test-rule.html");
 const EDITOR_INTEGRATION: Option<&str> = Some("/guide/editor-integration.html");
+const PLAYGROUND: Option<&str> = Some("/playground.html");
 
 /// AppError stands for ast-grep command line usage.
 /// It provides abstraction around exit code, context,
@@ -25,6 +26,8 @@ pub enum ErrorContext {
   StartLanguageServer,
   // Edit
   OpenEditor,
+  // Test
+  TestFail(String),
 }
 
 impl ErrorContext {
@@ -32,6 +35,7 @@ impl ErrorContext {
     use ErrorContext::*;
     match self {
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) => 2,
+      TestFail(_) => 3,
       ParseTest(_) | ParseRule(_) | ParseConfiguration => 5,
       OpenEditor => 126,
       _ => 1,
@@ -109,6 +113,11 @@ impl ErrorMessage {
         "Please check if the editor is installed and the EDITOR environment variable is correctly set.",
         CLI_USAGE,
       ),
+      TestFail(message) => Self::new(
+        message,
+        "You can use ast-grep playground to debug your rules and test cases.",
+        PLAYGROUND,
+      ),
     }
   }
 }
@@ -156,10 +165,15 @@ impl<'a> fmt::Display for ErrorFormat<'a> {
       );
       writeln!(f, "{reference} {link}")?;
     }
+
+    // skip root error
+    let mut causes = self.inner.chain().skip(1).peekable();
+    if causes.peek().is_none() {
+      return Ok(());
+    }
     writeln!(f)?;
     writeln!(f, "{} Caused by", Color::Red.paint("×"))?;
-    // skip root error
-    for err in self.inner.chain().skip(1) {
+    for err in causes {
       let prefix = Color::Red.paint("╰▻");
       writeln!(f, "{prefix} {err}")?;
     }
