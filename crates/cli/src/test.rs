@@ -71,59 +71,173 @@ pub fn run_test_rule(arg: TestArg) -> Result<()> {
   } else {
     find_tests(arg.config)?
   };
-  let mut test_pass = true;
-  for test_case in test_cases {
-    test_pass = verify_test_case_simple(&collections, test_case) && test_pass;
-  }
-  if test_pass {
-    println!("All tests passed");
-    Ok(())
-  } else {
-    Err(anyhow::anyhow!("Some tests failed"))
-  }
+  let reporter = DefaultReporter;
+  reporter.before_report(&test_cases);
+  let results: Vec<_> = test_cases
+    .iter()
+    .map(|case| {
+      let result = verify_test_case_simple(&collections, case);
+      reporter.report_case_summary(&case.id, &result.cases);
+      result
+    })
+    .collect();
+  reporter.report_failed_cases(&results);
+  reporter.after_report(&results);
+  Ok(())
 }
 
-fn verify_test_case_simple(collections: &RuleCollection<SupportLang>, test_case: TestCase) -> bool {
-  let mut test_pass = true;
-  let rule = match collections.get_rule(&test_case.id) {
+fn verify_test_case_simple<'a>(
+  rules: &RuleCollection<SupportLang>,
+  test_case: &'a TestCase,
+) -> CaseResult<'a> {
+  let rule = match rules.get_rule(&test_case.id) {
     Some(r) => r,
     None => {
       println!("Configuraiont not found! {}", test_case.id);
-      return false;
+      return CaseResult::default();
     }
   };
   let lang = rule.language;
   let rule = rule.get_rule();
-  let bold = Style::new().bold();
-  for valid in test_case.valid {
-    let sg = lang.ast_grep(&valid);
+  let valid_cases = test_case.valid.iter().map(|valid| {
+    let sg = lang.ast_grep(valid);
     if sg.root().find(&rule).is_some() {
-      println!(
-        "{} ... {}: finds issue(s) for valid code.",
-        bold.paint(&test_case.id),
-        Color::Red.paint("FAIL")
-      );
-      test_pass = false;
+      CaseStatus::FalseAlarm(valid)
     } else {
+      CaseStatus::Hit
     }
-  }
-  for invalid in test_case.invalid {
-    let sg = lang.ast_grep(&invalid);
+  });
+  let invalid_cases = test_case.invalid.iter().map(|invalid| {
+    let sg = lang.ast_grep(invalid);
     if sg.root().find(&rule).is_none() {
-      println!(
-        "{} ... {}: reports no issue for invalid code.",
-        bold.paint(&test_case.id),
-        Color::Red.paint("FAIL")
-      );
-      test_pass = false;
+      CaseStatus::Miss(invalid)
+    } else {
+      CaseStatus::CorrectReject
+    }
+  });
+  CaseResult {
+    id: &test_case.id,
+    cases: valid_cases.chain(invalid_cases).collect(),
+  }
+}
+
+#[derive(Default)]
+struct CaseResult<'a> {
+  id: &'a str,
+  cases: Vec<CaseStatus<'a>>,
+}
+
+impl<'a> CaseResult<'a> {
+  fn passed(&self) -> bool {
+    self
+      .cases
+      .iter()
+      .all(|c| matches!(c, CaseStatus::Hit | CaseStatus::CorrectReject))
+  }
+}
+
+enum CaseStatus<'a> {
+  Hit,
+  CorrectReject,
+  Miss(&'a str),
+  FalseAlarm(&'a str),
+}
+
+fn report_case_number(test_cases: &[TestCase]) {
+  println!("Running {} tests.", test_cases.len());
+}
+
+trait Reporter {
+  /// A hook function runs before tests start.
+  fn before_report(&self, test_cases: &[TestCase]) {
+    report_case_number(test_cases);
+  }
+  /// A hook function runs after tests completed.
+  fn after_report(&self, results: &[CaseResult]) {
+    let mut passed = 0;
+    let mut failed = 0;
+    for result in results {
+      if result.passed() {
+        passed += 1;
+      } else {
+        failed += 1;
+      }
+    }
+    let result = if failed > 0 {
+      Color::Red.paint("failed")
+    } else {
+      Color::Green.paint("ok")
+    };
+    println!("test result: {result}. {passed} passed; {failed} failed;");
+  }
+
+  fn report_failed_cases(&self, results: &[CaseResult]) {
+    println!();
+    println!("----------- Failure Details -----------");
+    for result in results {
+      if result.passed() {
+        continue;
+      }
+      for status in &result.cases {
+        self.report_case_detail(result.id, status);
+      }
     }
   }
-  if test_pass {
-    println!(
-      "{} ... {}",
-      bold.paint(&test_case.id),
-      Color::Green.paint("PASS")
-    );
+
+  fn report_case_summary(&self, case_id: &str, summary: &[CaseStatus]);
+  fn report_case_detail(&self, case_id: &str, result: &CaseStatus) {
+    let case_id = Style::new().bold().paint(case_id);
+    let false_alarm = Style::new().underline().paint("False Alarm");
+    let miss_report = Style::new().underline().paint("Miss Report");
+    match result {
+      CaseStatus::Hit | CaseStatus::CorrectReject => (),
+      CaseStatus::Miss(s) => {
+        println!("[{miss_report}] Expect rule {case_id} to report issues, but none found in:");
+        println!("```");
+        println!("{}", s);
+        println!("```");
+      }
+      CaseStatus::FalseAlarm(s) => {
+        println!("[{false_alarm}] Expect {case_id} to report no issue, but some issues found in:");
+        println!("```");
+        println!("{}", s);
+        println!("```");
+      }
+    }
   }
-  test_pass
 }
+
+struct DefaultReporter;
+
+impl Reporter for DefaultReporter {
+  fn report_case_summary(&self, case_id: &str, summary: &[CaseStatus]) {
+    let passed = summary
+      .iter()
+      .all(|c| matches!(c, CaseStatus::Hit | CaseStatus::CorrectReject));
+    let case_id = Style::new().bold().paint(case_id);
+    let case_status = if summary.is_empty() {
+      Color::Yellow.paint("SKIP")
+    } else if passed {
+      Color::Green.paint("PASS")
+    } else {
+      Color::Red.paint("FAIL")
+    };
+    let summary: String = summary
+      .iter()
+      .map(|s| match s {
+        CaseStatus::Hit | CaseStatus::CorrectReject => '.',
+        CaseStatus::Miss(_) => 'M',
+        CaseStatus::FalseAlarm(_) => 'F',
+      })
+      .collect();
+    println!("{case_id}  {summary}  {case_status}");
+  }
+}
+// for result in summary {
+//   match result {
+//     CaseStatus::Hit => print!("✅"),
+//     CaseStatus::CorrectReject => print!("⛳"),
+//     CaseStatus::Miss(_) => print!("❌"),
+//     CaseStatus::FalseAlarm(_) => print!("🚫"),
+//   }
+// }

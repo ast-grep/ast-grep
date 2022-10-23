@@ -42,3 +42,14 @@ let { modelValue, title } = defineModel<{
 }>()
 export { };
 
+    for (var i = 1; i < 10; i++) {
+      await i
+    }
+
+    do {
+      await s
+    } while(123)
+
+    while (true) {
+      await 123
+    }
