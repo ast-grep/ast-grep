@@ -2,7 +2,7 @@ use crate::config::{find_config, find_tests, read_test_files};
 use crate::error::ErrorContext;
 use crate::languages::{Language, SupportLang};
 use ansi_term::{Color, Style};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use ast_grep_config::RuleCollection;
 use clap::Args;
 use serde::{Deserialize, Serialize};

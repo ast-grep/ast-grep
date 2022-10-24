@@ -180,3 +180,41 @@ impl<'a> fmt::Display for ErrorFormat<'a> {
     Ok(())
   }
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  #[test]
+  fn test_display_error() {
+    let error = anyhow::anyhow!("test error").context(ErrorContext::ReadConfiguration);
+    let error_fmt = ErrorFormat {
+      context: &ErrorContext::ReadConfiguration,
+      inner: &error,
+    };
+    let display = format!("{error_fmt}");
+    assert_eq!(display.lines().count(), 6);
+    assert!(display.contains("Cannot read configuration."));
+    assert!(
+      display.contains("Caused by"),
+      "Should display the error chain"
+    );
+    assert!(display.contains("test error"));
+  }
+
+  #[test]
+  fn test_bare_anyhow() {
+    let error = anyhow::anyhow!(ErrorContext::ReadConfiguration);
+    let error_fmt = ErrorFormat {
+      context: &ErrorContext::ReadConfiguration,
+      inner: &error,
+    };
+    let display = format!("{error_fmt}");
+    assert_eq!(display.lines().count(), 3);
+    assert!(display.contains("Cannot read configuration."));
+    assert!(
+      !display.contains("Caused by"),
+      "Should not contain error chain"
+    );
+  }
+}
