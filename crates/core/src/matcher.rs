@@ -80,11 +80,12 @@ pub trait Matcher<L: Language> {
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
-    self.match_node_with_env(node.clone(), env).or_else(|| {
+    let node = self.match_node_with_env(node.clone(), env).or_else(|| {
       node
         .children()
         .find_map(|sub| self.find_node_with_env(sub, env))
-    })
+    })?;
+    env.match_constraints().then_some(node)
   }
 
   fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
@@ -123,6 +124,29 @@ where
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
     (**self).match_node_with_env(node, env)
+  }
+  fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
+    (**self).match_node(node)
+  }
+
+  fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {
+    (**self).get_meta_var_matchers()
+  }
+
+  fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {
+    (**self).get_meta_var_env()
+  }
+
+  fn find_node_with_env<'tree>(
+    &self,
+    node: Node<'tree, L>,
+    env: &mut MetaVarEnv<'tree, L>,
+  ) -> Option<Node<'tree, L>> {
+    (**self).find_node_with_env(node, env)
+  }
+
+  fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
+    (**self).find_node(node)
   }
 }
 

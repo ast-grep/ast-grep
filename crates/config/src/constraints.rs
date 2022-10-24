@@ -69,3 +69,31 @@ impl<L: Language> Matcher<L> for RuleWithConstraint<L> {
     MetaVarEnv::from_matchers(self.matchers.clone())
   }
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::test::TypeScript;
+
+  #[test]
+  fn test_rule_with_constraints() {
+    let mut matchers = MetaVarMatchers::new();
+    matchers.insert(
+      "A".to_string(),
+      MetaVarMatcher::Regex(Regex::new("a").unwrap()),
+    );
+    let rule = RuleWithConstraint {
+      rule: Rule::Pattern(Pattern::new("$A", TypeScript::Tsx)),
+      matchers,
+    };
+    let grep = TypeScript::Tsx.ast_grep("a");
+    assert!(grep.root().find(&rule).is_some());
+    let grep = TypeScript::Tsx.ast_grep("bbb");
+    assert!(grep.root().find(&rule).is_none());
+  }
+
+  #[test]
+  fn test_serializable_rule() {
+    // TODO
+  }
+}
