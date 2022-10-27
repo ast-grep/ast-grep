@@ -1,5 +1,5 @@
 {
-  "name": "ast-grep-cli",
+  "name": "@ast-grep/cli",
   "version": "0.1.7",
   "publishConfig": {
     "access": "public"
