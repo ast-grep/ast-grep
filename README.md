@@ -22,7 +22,7 @@ You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-
 
 ```bash
 # install via pnpm
-pnpm install --global @ast-grep/cli
+npm install --global @ast-grep/cli
 
 # install via cargo
 cargo install ast-grep
