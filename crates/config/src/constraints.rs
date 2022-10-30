@@ -73,7 +73,17 @@ impl<L: Language> Matcher<L> for RuleWithConstraint<L> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::from_str;
   use crate::test::TypeScript;
+
+  macro_rules! cast {
+    ($reg: expr, $pattern: path) => {
+      match $reg {
+        $pattern(a) => a,
+        _ => panic!("non-matching variant"),
+      }
+    };
+  }
 
   #[test]
   fn test_rule_with_constraints() {
@@ -93,7 +103,48 @@ mod test {
   }
 
   #[test]
-  fn test_serializable_rule() {
-    // TODO
+  fn test_serializable_regex() {
+    let yaml = from_str("regex: a").expect("must parse");
+    let matcher = try_from_serializable(yaml, TypeScript::Tsx).expect("should parse");
+    let reg = cast!(matcher, MetaVarMatcher::Regex);
+    assert!(reg.is_match("aaaaa"));
+    assert!(!reg.is_match("bbb"));
   }
+
+  #[test]
+  fn test_non_serializable_regex() {
+    let yaml = from_str("regex: '*'").expect("must parse");
+    let matcher = try_from_serializable(yaml, TypeScript::Tsx);
+    assert!(matches!(matcher, Err(SerializeError::InvalidRegex(_))));
+  }
+
+  // TODO: test invalid pattern
+  #[test]
+  fn test_serializable_pattern() {
+    let yaml = from_str("pattern: var a = 1").expect("must parse");
+    let matcher = try_from_serializable(yaml, TypeScript::Tsx).expect("should parse");
+    let pattern = cast!(matcher, MetaVarMatcher::Pattern);
+    let matched = TypeScript::Tsx.ast_grep("var a = 1");
+    assert!(matched.root().find(&pattern).is_some());
+    let non_matched = TypeScript::Tsx.ast_grep("var b = 2");
+    assert!(non_matched.root().find(&pattern).is_none());
+  }
+
+  #[test]
+  fn test_serializable_kind() {
+    let yaml = from_str("kind: class_body").expect("must parse");
+    let matcher = try_from_serializable(yaml, TypeScript::Tsx).expect("should parse");
+    let pattern = cast!(matcher, MetaVarMatcher::Kind);
+    let matched = TypeScript::Tsx.ast_grep("class A {}");
+    assert!(matched.root().find(&pattern).is_some());
+    let non_matched = TypeScript::Tsx.ast_grep("function b() {}");
+    assert!(non_matched.root().find(&pattern).is_none());
+  }
+
+  // #[test]
+  // fn test_non_serializable_kind() {
+  //   let yaml = from_str("kind: ERROR").expect("must parse");
+  //   let matcher = try_from_serializable(yaml, TypeScript::Tsx);
+  //   assert!(matches!(matcher, Err(SerializeError::InvalidRegex(_))));
+  // }
 }

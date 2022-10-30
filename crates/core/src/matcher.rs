@@ -17,6 +17,9 @@ pub struct KindMatcher<L: Language> {
 
 impl<L: Language> KindMatcher<L> {
   pub fn new(node_kind: &str, lang: L) -> Self {
+    // 0 is symbol not found, 65535 is builtin symbol ERROR
+    // see https://tree-sitter.docsforge.com/master/api/#TREE_SITTER_MIN_COMPATIBLE_LANGUAGE_VERSION
+    // and https://tree-sitter.docsforge.com/master/api/ts_language_symbol_for_name/
     Self {
       kind: lang
         .get_ts_language()
