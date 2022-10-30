@@ -22,6 +22,7 @@ pub enum SerializableMetaVarMatcher {
 #[derive(Debug)]
 pub enum SerializeError {
   InvalidRegex(regex::Error),
+  InvalidKind(String),
   // InvalidPattern,
 }
 
@@ -35,8 +36,15 @@ pub fn try_from_serializable<L: Language>(
       Ok(r) => Ok(MetaVarMatcher::Regex(r)),
       Err(e) => Err(SerializeError::InvalidRegex(e)),
     },
+    S::Kind(p) => {
+      let kind = KindMatcher::new(&p, lang);
+      if kind.is_invalid() {
+        Err(SerializeError::InvalidKind(p))
+      } else {
+        Ok(MetaVarMatcher::Kind(kind))
+      }
+    }
     S::Pattern(p) => Ok(MetaVarMatcher::Pattern(Pattern::new(&p, lang))),
-    S::Kind(p) => Ok(MetaVarMatcher::Kind(KindMatcher::new(&p, lang))),
   }
 }
 
@@ -141,10 +149,14 @@ mod test {
     assert!(non_matched.root().find(&pattern).is_none());
   }
 
-  // #[test]
-  // fn test_non_serializable_kind() {
-  //   let yaml = from_str("kind: ERROR").expect("must parse");
-  //   let matcher = try_from_serializable(yaml, TypeScript::Tsx);
-  //   assert!(matches!(matcher, Err(SerializeError::InvalidRegex(_))));
-  // }
+  #[test]
+  fn test_non_serializable_kind() {
+    let yaml = from_str("kind: IMPOSSIBLE_KIND").expect("must parse");
+    let matcher = try_from_serializable(yaml, TypeScript::Tsx);
+    let error = match matcher {
+      Err(SerializeError::InvalidKind(s)) => s,
+      _ => panic!("serialization should fail for invalid kind"),
+    };
+    assert_eq!(error, "IMPOSSIBLE_KIND");
+  }
 }

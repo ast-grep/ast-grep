@@ -177,7 +177,7 @@ mod test {
   use super::*;
   use crate::test::TypeScript as TS;
   use ast_grep_core::ops as o;
-  use ast_grep_core::{KindMatcher, Pattern};
+  use ast_grep_core::Pattern;
 
   fn find_rule<M: Matcher<TS>>(src: &str, matcher: M) -> Option<String> {
     let grep = TS::Tsx.ast_grep(src);
