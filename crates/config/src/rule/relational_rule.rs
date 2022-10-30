@@ -53,6 +53,7 @@ impl<L: Language> Matcher<L> for Inside<L> {
     }
   }
 }
+
 pub struct Has<L: Language> {
   inner: Rule<L>,
   until: Option<Rule<L>>,
@@ -74,6 +75,7 @@ impl<L: Language> Has<L> {
     })
   }
 }
+
 impl<L: Language> Matcher<L> for Has<L> {
   fn match_node_with_env<'tree>(
     &self,
@@ -93,6 +95,7 @@ impl<L: Language> Matcher<L> for Has<L> {
     }
   }
 }
+
 pub struct Precedes<L: Language> {
   inner: Rule<L>,
   until: Option<Rule<L>>,
@@ -174,7 +177,7 @@ mod test {
   use super::*;
   use crate::test::TypeScript as TS;
   use ast_grep_core::ops as o;
-  use ast_grep_core::Pattern;
+  use ast_grep_core::{KindMatcher, Pattern};
 
   fn find_rule<M: Matcher<TS>>(src: &str, matcher: M) -> Option<String> {
     let grep = TS::Tsx.ast_grep(src);
@@ -319,6 +322,141 @@ mod test {
         "var a = 1\n var b = 2;",
         "var b = 2; alert(b); var a = 1", // not immediate
         "{var b = 2;} var a = 1;",        // inside block
+      ],
+      &rule,
+    );
+  }
+
+  #[test]
+  fn test_has_rule() {
+    let has = Has {
+      immediate: false,
+      lang: PhantomData,
+      until: None,
+      inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
+    };
+    let rule = make_rule("function test() { $$$ }", Rule::Has(Box::new(has)));
+    test_found(
+      &[
+        "function test() { var a = 1 }",
+        "function test() { var a = 1; var b = 2 }",
+        "function test() { function nested() { var a = 1 } }",
+        "function test() { if (nested) { var a = 1 } }",
+      ],
+      &rule,
+    );
+    test_not_found(
+      &[
+        "var test = function () { var a = 2 }",
+        "function test() { var a = 2 }",
+        "function test() { let a = 1; var b = 2 }",
+        "if (test) {  { var a = 1 } }",
+      ],
+      &rule,
+    );
+  }
+
+  #[test]
+  fn test_has_immediate() {
+    let has = Has {
+      immediate: true,
+      lang: PhantomData,
+      until: None,
+      inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
+    };
+    let rule = o::All::new(vec![
+      Rule::Pattern(Pattern::new("{ $$$ }", TS::Tsx)),
+      Rule::Inside(Box::new(Inside {
+        outer: Rule::Pattern(Pattern::new("function test() { $$$ }", TS::Tsx)),
+        until: None,
+        immediate: true,
+        lang: PhantomData,
+      })),
+      Rule::Has(Box::new(has)),
+    ]);
+    test_found(
+      &[
+        "function test() { var a = 1 }",
+        "function test() { var a = 1; var b = 2 }",
+      ],
+      &rule,
+    );
+    test_not_found(
+      &[
+        "var test = function () { var a = 2 }",
+        "function test() { var a = 2 }",
+        "function test() { let a = 1; var b = 2 }",
+        "if (test) {  { var a = 1 } }",
+        // nested
+        "function test() { if (nested) { var a = 1 } }",
+        "function test() { function nested() { var a = 1 } }",
+      ],
+      &rule,
+    );
+  }
+
+  #[test]
+  fn test_inside_rule() {
+    let inside = Inside {
+      immediate: false,
+      lang: PhantomData,
+      until: None,
+      outer: Rule::Pattern(Pattern::new("function test() { $$$ }", TS::Tsx)),
+    };
+    let rule = make_rule("var a = 1", Rule::Inside(Box::new(inside)));
+    test_found(
+      &[
+        "function test() { var a = 1 }",
+        "function test() { var a = 1; var b = 2 }",
+        "function test() { function nested() { var a = 1 } }",
+        "function test() { if (nested) { var a = 1 } }",
+      ],
+      &rule,
+    );
+    test_not_found(
+      &[
+        "var test = function () { var a = 2 }",
+        "function test() { var a = 2 }",
+        "function test() { let a = 1; var b = 2 }",
+        "if (test) {  { var a = 1 } }",
+      ],
+      &rule,
+    );
+  }
+
+  #[test]
+  fn test_inside_immediate() {
+    let inside = Inside {
+      immediate: true,
+      lang: PhantomData,
+      until: None,
+      outer: Rule::All(o::All::new(vec![
+        Rule::Pattern(Pattern::new("{ $$$ }", TS::Tsx)),
+        Rule::Inside(Box::new(Inside {
+          outer: Rule::Pattern(Pattern::new("function test() { $$$ }", TS::Tsx)),
+          until: None,
+          immediate: true,
+          lang: PhantomData,
+        })),
+      ])),
+    };
+    let rule = make_rule("var a = 1", Rule::Inside(Box::new(inside)));
+    test_found(
+      &[
+        "function test() { var a = 1 }",
+        "function test() { var a = 1; var b = 2 }",
+      ],
+      &rule,
+    );
+    test_not_found(
+      &[
+        "var test = function () { var a = 2 }",
+        "function test() { var a = 2 }",
+        "function test() { let a = 1; var b = 2 }",
+        "if (test) {  { var a = 1 } }",
+        // nested
+        "function test() { function nested() { var a = 1 } }",
+        "function test() { if (nested) { var a = 1 } }",
       ],
       &rule,
     );
