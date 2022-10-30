@@ -266,10 +266,10 @@ impl<L: Language> Matcher<L> for Precedes<L> {
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
     if self.immediate {
-      self.inner.match_node_with_env(node.prev()?, env)
+      self.inner.match_node_with_env(node.next()?, env)
     } else {
       node
-        .prev_all()
+        .next_all()
         .take_while(until(&self.until))
         .find_map(|n| self.inner.match_node_with_env(n, env))
     }
@@ -304,10 +304,10 @@ impl<L: Language> Matcher<L> for Follows<L> {
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
     if self.immediate {
-      self.inner.match_node_with_env(node.next()?, env)
+      self.inner.match_node_with_env(node.prev()?, env)
     } else {
       node
-        .next_all()
+        .prev_all()
         .take_while(until(&self.until))
         .find_map(|n| self.inner.match_node_with_env(n, env))
     }
@@ -364,8 +364,9 @@ pub fn try_from_serializable<L: Language>(
 mod test {
   use super::*;
   use crate::from_str;
+  use crate::test::TypeScript as TS;
   use PatternStyle::*;
-  use SerializableRule::*;
+  use SerializableRule as S;
 
   #[test]
   fn test_pattern() {
@@ -373,14 +374,14 @@ mod test {
 pattern: Test
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(matches!(rule, Pattern(Str(_))));
+    assert!(matches!(rule, S::Pattern(Str(_))));
     let src = r"
 pattern:
     context: class $C { set $B() {} }
     selector: method_definition
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(matches!(rule, Pattern(Contextual { .. })));
+    assert!(matches!(rule, S::Pattern(Contextual { .. })));
   }
 
   #[test]
@@ -396,6 +397,59 @@ inside:
     match rule {
       SerializableRule::Inside(rule) => assert!(rule.immediate),
       _ => unreachable!(),
+    }
+  }
+
+  fn find_rule<M: Matcher<TS>>(src: &str, matcher: M) -> Option<String> {
+    let grep = TS::Tsx.ast_grep(src);
+    grep.root().find(matcher).map(|s| s.text().to_string())
+  }
+
+  #[test]
+  fn test_precedes_operator() {
+    let precedes = Precedes {
+      immediate: false,
+      lang: PhantomData,
+      until: None,
+      inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
+    };
+    let found_list = [
+      "var b = 2; var a = 1;",
+      "var b = 2; var a = 1",
+      "var b = 2\n var a = 1",
+    ];
+    for found in found_list {
+      assert!(find_rule(found, &precedes).is_some());
+    }
+    let not_found_list = [
+      "var a = 1",
+      "var b = 2; var a = 2;",
+      "var a = 1; var b = 2;",
+    ];
+    for not_found in not_found_list {
+      assert!(find_rule(not_found, &precedes).is_none());
+    }
+  }
+
+  #[test]
+  fn test_follows_operator() {
+    let follows = Follows {
+      immediate: false,
+      lang: PhantomData,
+      until: None,
+      inner: Rule::Pattern(Pattern::new("var b = 2", TS::Tsx)),
+    };
+    let found_list = [
+      "var b = 2; var a = 1;",
+      "var b = 2; var a = 1",
+      "var b = 2\n var a = 1",
+    ];
+    for found in found_list {
+      assert!(find_rule(found, &follows).is_some());
+    }
+    let not_found_list = ["var a = 1", "var b = 2", "var a = 1; var b = 2;"];
+    for not_found in not_found_list {
+      assert!(find_rule(not_found, &follows).is_none());
     }
   }
 }

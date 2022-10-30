@@ -330,17 +330,12 @@ impl<'r, L: Language> Node<'r, L> {
     })
   }
   pub fn next_all(&self) -> impl Iterator<Item = Node<'r, L>> + '_ {
-    let mut cursor = self.inner.walk();
-    let root = self.root;
+    let mut node = self.clone();
     std::iter::from_fn(move || {
-      if cursor.goto_next_sibling() {
-        Some(Node {
-          inner: cursor.node(),
-          root,
-        })
-      } else {
-        None
-      }
+      node.next().map(|n| {
+        node = n.clone();
+        n
+      })
     })
   }
   #[must_use]
@@ -351,15 +346,15 @@ impl<'r, L: Language> Node<'r, L> {
       root: self.root,
     })
   }
+
+  // TODO: use cursor to optimize clone.
+  // investigate why tree_sitter cursor cannot goto next_sibling
   pub fn prev_all(&self) -> impl Iterator<Item = Node<'r, L>> + '_ {
-    let root = self.root;
-    let mut inner = self.inner.clone();
+    let mut node = self.clone();
     std::iter::from_fn(move || {
-      let prev = inner.prev_sibling()?;
-      inner = prev.clone();
-      Some(Node {
-        inner: inner.clone(),
-        root,
+      node.prev().map(|n| {
+        node = n.clone();
+        n
       })
     })
   }
