@@ -173,6 +173,7 @@ impl<L: Language> Matcher<L> for Follows<L> {
 mod test {
   use super::*;
   use crate::test::TypeScript as TS;
+  use ast_grep_core::ops as o;
   use ast_grep_core::Pattern;
 
   fn find_rule<M: Matcher<TS>>(src: &str, matcher: M) -> Option<String> {
@@ -192,6 +193,10 @@ mod test {
     }
   }
 
+  fn make_rule(target: &str, relation: Rule<TS>) -> impl Matcher<TS> {
+    o::All::new(vec![Rule::Pattern(Pattern::new(target, TS::Tsx)), relation])
+  }
+
   #[test]
   fn test_precedes_operator() {
     let precedes = Precedes {
@@ -200,21 +205,56 @@ mod test {
       until: None,
       inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
     };
+    let rule = make_rule("var b = 2", Rule::Precedes(Box::new(precedes)));
     test_found(
       &[
         "var b = 2; var a = 1;",
+        "var b = 2; alert(b); var a = 1;",
         "var b = 2; var a = 1",
         "var b = 2\n var a = 1",
       ],
-      &precedes,
+      &rule,
     );
     test_not_found(
       &[
         "var a = 1",
         "var b = 2; var a = 2;",
         "var a = 1; var b = 2;",
+        "{ var a = 1 }",
+        "var b = 2; { var a = 1 }",
       ],
-      &precedes,
+      &rule,
+    );
+  }
+
+  #[test]
+  fn test_precedes_immediate() {
+    let precedes = Precedes {
+      immediate: true,
+      lang: PhantomData,
+      until: None,
+      inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
+    };
+    let rule = make_rule("var b = 2", Rule::Precedes(Box::new(precedes)));
+    test_found(
+      &[
+        "var b = 2; var a = 1;",
+        "var b = 2; var a = 1",
+        "var b = 2\n var a = 1",
+        "{ var b = 2; var a = 1 }",
+        "function test() { var b = 2; var a = 1 }",
+      ],
+      &rule,
+    );
+    test_not_found(
+      &[
+        "var a = 1",
+        "var b = 2; var a = 2;",
+        "var a = 1; var b = 2;",
+        "var b = 2; alert(b); var a = 1;",
+        "{ var b = 2 } var a = 1;",
+      ],
+      &rule,
     );
   }
 
@@ -226,17 +266,61 @@ mod test {
       until: None,
       inner: Rule::Pattern(Pattern::new("var b = 2", TS::Tsx)),
     };
+    let rule = make_rule("var a = 1", Rule::Follows(Box::new(follows)));
+    test_found(
+      &[
+        "var b = 2; var a = 1;",
+        "var b = 2; var a = 1",
+        "var b = 2; alert(b); var a = 1",
+        "var b = 2\n var a = 1",
+        "alert(b); var b = 2; var a = 1",
+        "{var b = 2; var a = 1;}", // inside block
+      ],
+      &rule,
+    );
+    test_not_found(
+      &[
+        "var a = 1",
+        "var b = 2",
+        "var a = 1; var b = 2;",
+        "var a = 1; alert(b) ;var b = 2;",
+        "var a = 1\n var b = 2;",
+        "{var b = 2;} var a = 1;", // inside block
+      ],
+      &rule,
+    );
+  }
+
+  #[test]
+  fn test_follows_immediate() {
+    let follows = Follows {
+      immediate: true,
+      lang: PhantomData,
+      until: None,
+      inner: Rule::Pattern(Pattern::new("var b = 2", TS::Tsx)),
+    };
+    let rule = make_rule("var a = 1", Rule::Follows(Box::new(follows)));
     test_found(
       &[
         "var b = 2; var a = 1;",
         "var b = 2; var a = 1",
         "var b = 2\n var a = 1",
+        "alert(b); var b = 2; var a = 1",
+        "{var b = 2; var a = 1;}", // inside block
       ],
-      &follows,
+      &rule,
     );
     test_not_found(
-      &["var a = 1", "var b = 2", "var a = 1; var b = 2;"],
-      &follows,
+      &[
+        "var a = 1",
+        "var b = 2",
+        "var a = 1; var b = 2;",
+        "var a = 1; alert(b) ;var b = 2;",
+        "var a = 1\n var b = 2;",
+        "var b = 2; alert(b); var a = 1", // not immediate
+        "{var b = 2;} var a = 1;",        // inside block
+      ],
+      &rule,
     );
   }
 }
