@@ -128,6 +128,10 @@ impl<'r, L: Language> Node<'r, L> {
     self.inner.kind_id()
   }
 
+  pub fn is_named(&self) -> bool {
+    self.inner.is_named()
+  }
+
   pub fn range(&self) -> std::ops::Range<usize> {
     (self.inner.start_byte() as usize)..(self.inner.end_byte() as usize)
   }
