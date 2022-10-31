@@ -1,6 +1,6 @@
 [package]
 name = "ast-grep"
-version = "0.1.7"
+version = "0.1.8"
 authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
 edition = "2021"
 description = "Search and Rewrite code at large scale using precise AST pattern"
@@ -16,9 +16,9 @@ name = "sg"
 path = "src/main.rs"
 
 [dependencies]
-ast-grep-core = { version = "0.1.7", path = "../core" }
-ast-grep-config = { version = "0.1.7", path = "../config" }
-ast-grep-lsp = { version = "0.1.7", path = "../lsp" }
+ast-grep-core = { version = "0.1.8", path = "../core" }
+ast-grep-config = { version = "0.1.8", path = "../config" }
+ast-grep-lsp = { version = "0.1.8", path = "../lsp" }
 
 ansi_term = "0.12"
 anyhow = "1.0"
