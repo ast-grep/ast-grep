@@ -377,6 +377,6 @@ rule:
     assert!(config.files.iter().count() == 1);
     assert!(config.matches_path(Path::new("manage.py")));
     assert!(config.matches_path(Path::new("src/test.py")));
-    assert!(config.matches_path(Path::new("src/app.py")));
+    assert!(!config.matches_path(Path::new("src/app.py")));
   }
 }
