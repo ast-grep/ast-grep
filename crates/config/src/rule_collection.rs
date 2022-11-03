@@ -45,13 +45,19 @@ impl<L: Language + Eq> RuleCollection<L> {
 
   // TODO: get rules without allocation
   pub fn get_rules_for_lang(&self, lang: &L) -> Vec<&RuleConfig<L>> {
-    // TODO: add contingent
+    let mut all_rules = vec![];
     for rule in &self.tenured {
       if &rule.lang == lang {
-        return rule.rules.iter().collect();
+        all_rules = rule.rules.iter().collect();
       }
     }
-    vec![]
+    for rule in &self.contingent {
+      if &rule.language == lang {
+        all_rules.push(rule);
+      }
+    }
+
+    all_rules
   }
 
   pub fn get_rule(&self, id: &str) -> Option<&RuleConfig<L>> {
