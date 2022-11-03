@@ -1,3 +1,7 @@
+mod relational_rule;
+
+use relational_rule::{Follows, Has, Inside, Precedes};
+
 pub use crate::constraints::{
   try_deserialize_matchers, try_from_serializable as deserialize_meta_var, RuleWithConstraint,
   SerializableMetaVarMatcher,
@@ -13,7 +17,6 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 use std::fmt;
-use std::marker::PhantomData;
 use std::path::Path;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -178,171 +181,6 @@ fn match_and_add_label<'tree, L: Language, M: Matcher<L>>(
   Some(matched)
 }
 
-fn until<L: Language>(pattern: &Option<Rule<L>>) -> impl Fn(&Node<L>) -> bool + '_ {
-  move |n| {
-    if let Some(m) = pattern {
-      m.match_node(n.clone()).is_none()
-    } else {
-      true
-    }
-  }
-}
-
-pub struct Inside<L: Language> {
-  outer: Rule<L>,
-  until: Option<Rule<L>>,
-  immediate: bool,
-  lang: PhantomData<L>,
-}
-impl<L: Language> Inside<L> {
-  fn try_new(relation: RelationalRule, lang: L) -> Result<Inside<L>, SerializeError> {
-    let util_node = if let Some(until) = relation.until {
-      Some(try_from_serializable(until, lang.clone())?)
-    } else {
-      None
-    };
-    Ok(Self {
-      outer: try_from_serializable(relation.rule, lang)?,
-      until: util_node,
-      immediate: relation.immediate,
-      lang: PhantomData,
-    })
-  }
-}
-
-impl<L: Language> Matcher<L> for Inside<L> {
-  fn match_node_with_env<'tree>(
-    &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
-    if self.immediate {
-      self.outer.match_node_with_env(node.parent()?, env)
-    } else {
-      node
-        .ancestors()
-        .take_while(until(&self.until))
-        .find_map(|n| self.outer.match_node_with_env(n, env))
-    }
-  }
-}
-pub struct Has<L: Language> {
-  inner: Rule<L>,
-  until: Option<Rule<L>>,
-  immediate: bool,
-  lang: PhantomData<L>,
-}
-impl<L: Language> Has<L> {
-  fn try_new(relation: RelationalRule, lang: L) -> Result<Self, SerializeError> {
-    let util_node = if let Some(until) = relation.until {
-      Some(try_from_serializable(until, lang.clone())?)
-    } else {
-      None
-    };
-    Ok(Self {
-      inner: try_from_serializable(relation.rule, lang)?,
-      until: util_node,
-      immediate: relation.immediate,
-      lang: PhantomData,
-    })
-  }
-}
-impl<L: Language> Matcher<L> for Has<L> {
-  fn match_node_with_env<'tree>(
-    &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
-    if self.immediate {
-      node
-        .children()
-        .find_map(|n| self.inner.match_node_with_env(n, env))
-    } else {
-      node
-        .dfs()
-        .skip(1)
-        .take_while(until(&self.until))
-        .find_map(|n| self.inner.match_node_with_env(n, env))
-    }
-  }
-}
-
-pub struct Precedes<L: Language> {
-  inner: Rule<L>,
-  until: Option<Rule<L>>,
-  immediate: bool,
-  lang: PhantomData<L>,
-}
-impl<L: Language> Precedes<L> {
-  fn try_new(relation: RelationalRule, lang: L) -> Result<Self, SerializeError> {
-    let util_node = if let Some(until) = relation.until {
-      Some(try_from_serializable(until, lang.clone())?)
-    } else {
-      None
-    };
-    Ok(Self {
-      inner: try_from_serializable(relation.rule, lang)?,
-      until: util_node,
-      immediate: relation.immediate,
-      lang: PhantomData,
-    })
-  }
-}
-impl<L: Language> Matcher<L> for Precedes<L> {
-  fn match_node_with_env<'tree>(
-    &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
-    if self.immediate {
-      self.inner.match_node_with_env(node.prev()?, env)
-    } else {
-      node
-        .prev_all()
-        .take_while(until(&self.until))
-        .find_map(|n| self.inner.match_node_with_env(n, env))
-    }
-  }
-}
-
-pub struct Follows<L: Language> {
-  inner: Rule<L>,
-  until: Option<Rule<L>>,
-  immediate: bool,
-  lang: PhantomData<L>,
-}
-impl<L: Language> Follows<L> {
-  fn try_new(relation: RelationalRule, lang: L) -> Result<Self, SerializeError> {
-    let util_node = if let Some(until) = relation.until {
-      Some(try_from_serializable(until, lang.clone())?)
-    } else {
-      None
-    };
-    Ok(Self {
-      inner: try_from_serializable(relation.rule, lang)?,
-      until: util_node,
-      immediate: relation.immediate,
-      lang: PhantomData,
-    })
-  }
-}
-impl<L: Language> Matcher<L> for Follows<L> {
-  fn match_node_with_env<'tree>(
-    &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
-    if self.immediate {
-      self.inner.match_node_with_env(node.next()?, env)
-    } else {
-      node
-        .next_all()
-        .take_while(until(&self.until))
-        .find_map(|n| self.inner.match_node_with_env(n, env))
-    }
-  }
-}
-
 #[derive(Debug)]
 pub enum SerializeError {
   MissPositiveMatcher,
@@ -393,8 +231,8 @@ pub fn try_from_serializable<L: Language>(
 mod test {
   use super::*;
   use crate::from_str;
-  use PatternStyle::*;
-  use SerializableRule::*;
+  use crate::PatternStyle::*;
+  use SerializableRule as S;
 
   #[test]
   fn test_pattern() {
@@ -402,14 +240,14 @@ mod test {
 pattern: Test
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(matches!(rule, Pattern(Str(_))));
+    assert!(matches!(rule, S::Pattern(Str(_))));
     let src = r"
 pattern:
     context: class $C { set $B() {} }
     selector: method_definition
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(matches!(rule, Pattern(Contextual { .. })));
+    assert!(matches!(rule, S::Pattern(Contextual { .. })));
   }
 
   #[test]
