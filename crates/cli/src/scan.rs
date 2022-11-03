@@ -352,31 +352,31 @@ fix: ($B, lifecycle.update(['$A']))",
   fn test_ignore_rule() {
     let src = r#"
 ignores:
-  - manage.py
+  - ./manage.py
   - "**/test*"
 rule:
   all:
 "#;
     let config = make_rule(src);
     assert!(config.ignores.iter().count() == 1);
-    assert!(!config.matches_path(Path::new("manage.py")));
-    assert!(!config.matches_path(Path::new("src/test.py")));
-    assert!(config.matches_path(Path::new("src/app.py")));
+    assert!(!config.matches_path(Path::new("./manage.py")));
+    assert!(!config.matches_path(Path::new("./src/test.py")));
+    assert!(config.matches_path(Path::new("./src/app.py")));
   }
 
   #[test]
   fn test_files_rule() {
     let src = r#"
 files:
-  - manage.py
+  - ./manage.py
   - "**/test*"
 rule:
   all:
 "#;
     let config = make_rule(src);
     assert!(config.files.iter().count() == 1);
-    assert!(config.matches_path(Path::new("manage.py")));
-    assert!(config.matches_path(Path::new("src/test.py")));
-    assert!(!config.matches_path(Path::new("src/app.py")));
+    assert!(config.matches_path(Path::new("./manage.py")));
+    assert!(config.matches_path(Path::new("./src/test.py")));
+    assert!(!config.matches_path(Path::new("./src/app.py")));
   }
 }
