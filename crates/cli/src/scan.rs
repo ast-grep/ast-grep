@@ -137,6 +137,9 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
           if from_extension(path).filter(|&n| n == lang).is_none() {
             continue;
           }
+          if !config.matches_path(path) {
+            continue;
+          }
           let ret = filter_file_interactive(path, lang, &matcher);
           if ret.is_some() {
             return ret;
@@ -261,6 +264,9 @@ fn match_rule_on_file(
   rule: &RuleConfig<SupportLang>,
   reporter: &ErrorReporter,
 ) {
+  if !rule.matches_path(path) {
+    return;
+  }
   let matcher = rule.get_matcher();
   let file_content = match read_to_string(path) {
     Ok(content) => content,
@@ -355,6 +361,7 @@ rule:
     assert!(config.ignores.iter().count() == 1);
     assert!(!config.matches_path(Path::new("manage.py")));
     assert!(!config.matches_path(Path::new("src/test.py")));
+    assert!(config.matches_path(Path::new("src/app.py")));
   }
 
   #[test]
@@ -370,5 +377,6 @@ rule:
     assert!(config.files.iter().count() == 1);
     assert!(config.matches_path(Path::new("manage.py")));
     assert!(config.matches_path(Path::new("src/test.py")));
+    assert!(config.matches_path(Path::new("src/app.py")));
   }
 }
