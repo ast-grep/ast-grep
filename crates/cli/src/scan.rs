@@ -379,4 +379,21 @@ rule:
     assert!(config.matches_path(Path::new("./src/test.py")));
     assert!(!config.matches_path(Path::new("./src/app.py")));
   }
+
+  #[test]
+  fn test_files_with_ignores_rule() {
+    let src = r#"
+files:
+  - ./src/**/*.py
+ignore:
+  - ./src/excluded/*.py
+rule:
+  all:
+"#;
+    let config = make_rule(src);
+    assert!(config.files.iter().count() == 1);
+    assert!(config.matches_path(Path::new("./src/test.py")));
+    assert!(config.matches_path(Path::new("./src/some_folder/test.py")));
+    assert!(!config.matches_path(Path::new("./src/excluded/app.py")));
+  }
 }
