@@ -26,7 +26,7 @@ clap = { version = "4.0.18", features = ["derive"] }
 codespan-reporting = "0.11.1"
 crossbeam = "0.8"
 ignore = "0.4.18"
-num_cpus = "1.13.1"
+num_cpus = "1.14.0"
 rprompt = "1.0.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9.14"
