@@ -22,11 +22,11 @@ ast-grep-lsp = { version = "0.1.8", path = "../lsp" }
 
 ansi_term = "0.12"
 anyhow = "1.0"
-clap = { version = "4.0.18", features = ["derive"] }
+clap = { version = "4.0.19", features = ["derive"] }
 codespan-reporting = "0.11.1"
 crossbeam = "0.8"
 ignore = "0.4.18"
-num_cpus = "1.13.1"
+num_cpus = "1.14.0"
 rprompt = "1.0.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9.14"
@@ -39,9 +39,9 @@ tree-sitter-html = "0.19.0"
 tree-sitter-java = "0.19.0"
 tree-sitter-javascript = "0.20.0"
 tree-sitter-kotlin = "0.2.11"
-tree-sitter-lua = "0.0.13"
+tree-sitter-lua = "0.0.14"
 tree-sitter-python = "0.20.2"
-tree-sitter-rust = "0.20.1"
+tree-sitter-rust = "0.20.3"
 tree-sitter-swift = "0.3.4"
 tree-sitter-typescript="0.20.1"
 tree-sitter-c-sharp = { version = "0.20.0", package = "ast-grep-tree-sitter-c-sharp" }
