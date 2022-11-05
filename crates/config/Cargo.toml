@@ -19,6 +19,7 @@ ast-grep-core = { version="0.1.8", path = "../core" }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9.14"
 regex = {version = "1.6.0", optional = true }
+globset = "0.4.9"
 
 [dev-dependencies]
 tree-sitter-typescript="0.20.1"

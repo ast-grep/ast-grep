@@ -65,6 +65,7 @@ name = "ast-grep-config"
 version = "0.1.8"
 dependencies = [
  "ast-grep-core",
+ "globset",
  "regex",
  "serde",
  "serde_yaml",
