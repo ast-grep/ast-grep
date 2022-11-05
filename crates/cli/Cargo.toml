@@ -41,7 +41,7 @@ tree-sitter-javascript = "0.20.0"
 tree-sitter-kotlin = "0.2.11"
 tree-sitter-lua = "0.0.13"
 tree-sitter-python = "0.20.2"
-tree-sitter-rust = "0.20.1"
+tree-sitter-rust = "0.20.3"
 tree-sitter-swift = "0.3.4"
 tree-sitter-typescript="0.20.1"
 tree-sitter-c-sharp = { version = "0.20.0", package = "ast-grep-tree-sitter-c-sharp" }
