@@ -366,12 +366,19 @@ impl<'r, L: Language> Node<'r, L> {
 
 /// Tree manipulation API
 impl<'r, L: Language> Node<'r, L> {
-  fn make_edit<R: Replacer<L>>(&self, matched: NodeMatch<L>, replacer: &R) -> Edit {
+  fn make_edit<M: Matcher<L>, R: Replacer<L>>(
+    &self,
+    matched: NodeMatch<L>,
+    matcher: &M,
+    replacer: &R,
+  ) -> Edit {
     let lang = self.root.lang.clone();
     let env = matched.get_env();
     let range = matched.range();
     let position = range.start;
-    let deleted_length = range.len();
+    let deleted_length = matcher
+      .get_match_len(matched.get_node().clone(), env)
+      .unwrap_or_else(|| range.len());
     let inserted_text = replacer.generate_replacement(env, lang);
     Edit {
       position,
@@ -382,13 +389,14 @@ impl<'r, L: Language> Node<'r, L> {
 
   pub fn replace<M: Matcher<L>, R: Replacer<L>>(&self, matcher: M, replacer: R) -> Option<Edit> {
     let matched = matcher.find_node(self.clone())?;
-    Some(self.make_edit(matched, &replacer))
+    let edit = self.make_edit(matched, &matcher, &replacer);
+    Some(edit)
   }
 
   pub fn replace_all<M: Matcher<L>, R: Replacer<L>>(&self, matcher: M, replacer: R) -> Vec<Edit> {
     self
-      .find_all(matcher)
-      .map(|matched| self.make_edit(matched, &replacer))
+      .find_all(&matcher)
+      .map(|matched| self.make_edit(matched, &matcher, &replacer))
       .collect()
   }
 

@@ -47,6 +47,83 @@ fn update_ellipsis_env<'t, L: Language>(
   }
 }
 
+pub fn match_end_non_recursive<'goal, 'tree, L: Language>(
+  goal: &Node<'goal, L>,
+  candidate: Node<'tree, L>,
+  env: &MetaVarEnv<'tree, L>,
+) -> Option<usize> {
+  let is_leaf = goal.is_leaf();
+  if is_leaf && extract_var_from_node(goal).is_some() {
+    return Some(candidate.range().end);
+  }
+  if goal.kind_id() != candidate.kind_id() {
+    return None;
+  }
+  if is_leaf {
+    if extract_var_from_node(goal).is_some() {
+      return None;
+    }
+    return if goal.text() == candidate.text() {
+      Some(candidate.range().end)
+    } else {
+      None
+    };
+  }
+  let mut goal_children = goal.children().peekable();
+  let mut cand_children = candidate.children().peekable();
+  cand_children.peek()?;
+  let mut end = candidate.range().end;
+  loop {
+    let curr_node = goal_children.peek().unwrap();
+    if try_get_ellipsis_mode(curr_node).is_ok() {
+      let mut matched = vec![];
+      goal_children.next();
+      // goal has all matched
+      if goal_children.peek().is_none() {
+        return Some(end);
+      }
+      while !goal_children.peek().unwrap().inner.is_named() {
+        goal_children.next();
+        if goal_children.peek().is_none() {
+          return Some(end);
+        }
+      }
+      // if next node is a Ellipsis, consume one candidate node
+      if try_get_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
+        matched.push(cand_children.next().unwrap());
+        cand_children.peek()?;
+        continue;
+      }
+      loop {
+        if match_end_non_recursive(
+          goal_children.peek().unwrap(),
+          cand_children.peek().unwrap().clone(),
+          env,
+        )
+        .is_some()
+        {
+          // found match non Ellipsis,
+          break;
+        }
+        matched.push(cand_children.next().unwrap());
+        cand_children.peek()?;
+      }
+    }
+    end = match_end_non_recursive(
+      goal_children.peek().unwrap(),
+      cand_children.peek().unwrap().clone(),
+      env,
+    )?;
+    goal_children.next();
+    if goal_children.peek().is_none() {
+      // all goal found, return
+      return Some(end);
+    }
+    cand_children.next();
+    cand_children.peek()?;
+  }
+}
+
 pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
   goal: &Node<'goal, L>,
   candidate: Node<'tree, L>,

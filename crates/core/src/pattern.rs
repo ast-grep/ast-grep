@@ -1,5 +1,5 @@
 use crate::language::Language;
-use crate::match_tree::match_node_non_recursive;
+use crate::match_tree::{match_end_non_recursive, match_node_non_recursive};
 use crate::matcher::{KindMatcher, Matcher, PositiveMatcher};
 use crate::{meta_var::MetaVarEnv, Node, Root};
 
@@ -68,6 +68,16 @@ impl<L: Language> Matcher<L> for Pattern<L> {
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
     match_node_non_recursive(&self.matcher(), node, env)
+  }
+
+  fn get_match_len<'tree>(
+    &self,
+    node: Node<'tree, L>,
+    env: &MetaVarEnv<'tree, L>,
+  ) -> Option<usize> {
+    let start = node.range().start;
+    let end = match_end_non_recursive(&self.matcher(), node, env)?;
+    Some(end - start)
   }
 }
 
