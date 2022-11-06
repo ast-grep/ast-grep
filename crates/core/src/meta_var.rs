@@ -207,6 +207,16 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
   }
 }
 
+pub fn split_first_meta_var(src: &str, meta_char: char) -> (&str, &str) {
+  assert!(src.starts_with(meta_char));
+  let src = &src[meta_char.len_utf8()..];
+  if let Some(i) = src.find(|c| !is_valid_meta_var_char(c)) {
+    (&src[..i], &src[i..])
+  } else {
+    (src, "")
+  }
+}
+
 fn is_valid_meta_var_char(c: char) -> bool {
   matches!(c, 'A'..='Z' | '_')
 }

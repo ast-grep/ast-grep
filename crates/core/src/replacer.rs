@@ -1,5 +1,5 @@
 use crate::language::Language;
-use crate::meta_var::{MatchResult, MetaVarEnv};
+use crate::meta_var::{split_first_meta_var, MatchResult, MetaVarEnv};
 use crate::ts_parser::Edit;
 use crate::Pattern;
 use crate::{Node, Root};
@@ -82,6 +82,28 @@ fn collect_edits<L: Language>(root: &Root<L>, env: &MetaVarEnv<L>, lang: L) -> V
     inserted_text: String::new(),
   });
   edits
+}
+
+// replace meta_var in template string, e.g. "Hello $NAME" -> "Hello World"
+// TODO: use Cow instead of String
+pub fn replace_meta_var_in_string<L: Language>(
+  mut template: &str,
+  env: &MetaVarEnv<L>,
+  lang: L,
+) -> String {
+  let mv_char = lang.meta_var_char();
+  let mut ret = String::new();
+  while let Some(i) = template.find(mv_char) {
+    ret.push_str(&template[..i]);
+    template = &template[i..];
+    let (meta_var, remaining) = split_first_meta_var(template, mv_char);
+    if let Some(n) = env.get_match(meta_var) {
+      ret.push_str(&n.text());
+    }
+    template = remaining;
+  }
+  ret.push_str(template);
+  ret
 }
 
 fn merge_edits_to_string<L: Language>(edits: Vec<Edit>, root: &Root<L>) -> String {
@@ -225,6 +247,25 @@ mod test {
   #[test]
   fn test_replace_in_string() {
     test_str_replace("'$A'", &[("A", "123")], "'123'");
+  }
+
+  fn test_template_replace(template: &str, vars: &[(&str, &str)], expected: &str) {
+    let mut env = MetaVarEnv::new();
+    let roots: Vec<_> = vars
+      .iter()
+      .map(|(v, p)| (v, Tsx.ast_grep(p).inner))
+      .collect();
+    for (var, root) in &roots {
+      env.insert(var.to_string(), root.root());
+    }
+    let ret = replace_meta_var_in_string(template, &env, Tsx);
+    assert_eq!(expected, ret);
+  }
+
+  #[test]
+  fn test_template() {
+    test_template_replace("Hello $A", &[("A", "World")], "Hello World");
+    test_template_replace("$B $A", &[("A", "World"), ("B", "Hello")], "Hello World");
   }
 
   #[test]
