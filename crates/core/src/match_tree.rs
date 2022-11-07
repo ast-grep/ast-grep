@@ -352,6 +352,7 @@ mod test {
       "function bar() { let a = 123; }",
     );
   }
+
   #[test]
   fn test_match_inner() {
     test_match(
@@ -400,5 +401,14 @@ mod test {
     test_non_match("$A($A)", "test(123)");
     test_non_match("$A($A, $A)", "test(123, 456)");
     test_match("$A($A)", "test(test)");
+  }
+
+  #[test]
+  fn test_string() {
+    test_match("'a'", "'a'");
+    test_match("'abcdefg'", "'abcdefg'");
+    test_match("`abcdefg`", "`abcdefg`");
+    test_non_match("'a'", "'b'");
+    test_non_match("'abcdefg'", "'gggggg'");
   }
 }

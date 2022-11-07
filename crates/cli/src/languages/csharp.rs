@@ -28,17 +28,10 @@ impl Language for CSharp {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_core::{Matcher, Pattern};
 
-  fn test_match(s1: &str, s2: &str) {
-    let pattern = Pattern::new(s1, CSharp);
-    let cand = CSharp.ast_grep(s2);
-    assert!(
-      pattern.find_node(cand.root()).is_some(),
-      "goal: {}, candidate: {}",
-      pattern.root.root().to_sexp(),
-      cand.root().to_sexp(),
-    );
+  fn test_match(query: &str, source: &str) {
+    use crate::languages::test::test_match_lang;
+    test_match_lang(query, source, CSharp);
   }
 
   #[test]
@@ -50,10 +43,8 @@ mod test {
   }
 
   fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
-    let mut source = CSharp.ast_grep(src);
-    let replacer = Pattern::new(replacer, CSharp);
-    assert!(source.replace(pattern, replacer));
-    source.generate()
+    use crate::languages::test::test_replace_lang;
+    test_replace_lang(src, pattern, replacer, CSharp)
   }
 
   #[test]

@@ -243,6 +243,30 @@ pub fn config_file_type() -> Types {
 #[cfg(test)]
 mod test {
   use super::*;
+  use ast_grep_core::{Matcher, Pattern};
+
+  pub fn test_match_lang(query: &str, source: &str, lang: impl Language) {
+    let cand = lang.ast_grep(source);
+    let pattern = Pattern::new(query, lang);
+    assert!(
+      pattern.find_node(cand.root()).is_some(),
+      "goal: {}, candidate: {}",
+      pattern.root.root().to_sexp(),
+      cand.root().to_sexp(),
+    );
+  }
+  pub fn test_replace_lang(
+    src: &str,
+    pattern: &str,
+    replacer: &str,
+    lang: impl Language,
+  ) -> String {
+    let mut source = lang.ast_grep(src);
+    let replacer = Pattern::new(replacer, lang);
+    assert!(source.replace(pattern, replacer));
+    source.generate()
+  }
+
   #[test]
   fn test_guess_by_extension() {
     let path = Path::new("foo.rs");
