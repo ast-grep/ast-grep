@@ -270,7 +270,8 @@ mod test {
   #[test]
   fn test_js_string() {
     test_match_lang("'a'", "'a'", JavaScript);
-    test_match_lang("'a'", "'b'", JavaScript);
+    test_match_lang("\"\"", "\"\"", JavaScript);
+    test_match_lang("''", "''", JavaScript);
   }
 
   #[test]
