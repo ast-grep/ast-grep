@@ -268,6 +268,12 @@ mod test {
   }
 
   #[test]
+  fn test_js_string() {
+    test_match_lang("'a'", "'a'", JavaScript);
+    test_match_lang("'a'", "'b'", JavaScript);
+  }
+
+  #[test]
   fn test_guess_by_extension() {
     let path = Path::new("foo.rs");
     assert_eq!(from_extension(path), Some(SupportLang::Rust));
