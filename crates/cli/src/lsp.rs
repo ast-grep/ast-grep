@@ -8,9 +8,9 @@ async fn run_language_server_impl() -> Result<()> {
 
   let stdin = tokio::io::stdin();
   let stdout = tokio::io::stdout();
-  let configs = find_config(None)?;
+  let config = find_config(None)?;
 
-  let (service, socket) = LspService::build(|client| Backend::new(client, configs)).finish();
+  let (service, socket) = LspService::build(|client| Backend::new(client, config)).finish();
   Server::new(stdin, stdout, socket).serve(service).await;
   Ok(())
 }
@@ -20,8 +20,5 @@ pub fn run_language_server() -> Result<()> {
     .enable_all()
     .build()
     .context(EC::StartLanguageServer)?
-    .block_on(async {
-      run_language_server_impl().await.unwrap();
-    });
-  Ok(())
+    .block_on(async { run_language_server_impl().await })
 }
