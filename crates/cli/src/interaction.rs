@@ -104,8 +104,10 @@ pub fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
     .wait()
     .context(EC::OpenEditor)?;
   if exit.success() {
+    println!("wtf!!! {:?}", exit.code());
     Ok(())
   } else {
+    println!("wtf!!! {:?}", exit.code());
     Err(anyhow!(EC::OpenEditor))
   }
 }
@@ -115,16 +117,24 @@ mod test {
   use super::*;
 
   #[test]
+  fn test_open_editor() {
+    // these two tests must run in sequence
+    // since setting env will cause racing condition
+    test_open_editor_respect_editor_env();
+    test_open_editor_error_handling();
+  }
+
   fn test_open_editor_respect_editor_env() {
     std::env::set_var("EDITOR", "echo");
     let exit = open_in_editor(&PathBuf::from("Cargo.toml"), 1);
     assert!(exit.is_ok());
   }
 
-  #[test]
   fn test_open_editor_error_handling() {
-    std::env::set_var("EDITOR", "not_exist");
+    std::env::set_var("EDITOR", "NOT_EXIST_XXXXX");
     let exit = open_in_editor(&PathBuf::from("Cargo.toml"), 1);
-    assert!(exit.is_err());
+    let error = exit.expect_err("should be error");
+    let error = error.downcast_ref::<EC>().expect("should be error context");
+    assert!(matches!(error, EC::OpenEditor));
   }
 }
