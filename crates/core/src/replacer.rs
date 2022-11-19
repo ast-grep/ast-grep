@@ -89,7 +89,7 @@ fn collect_edits<L: Language>(root: &Root<L>, env: &MetaVarEnv<L>, lang: L) -> V
 pub fn replace_meta_var_in_string<L: Language>(
   mut template: &str,
   env: &MetaVarEnv<L>,
-  lang: L,
+  lang: &L,
 ) -> String {
   let mv_char = lang.meta_var_char();
   let mut ret = String::new();
@@ -258,7 +258,7 @@ mod test {
     for (var, root) in &roots {
       env.insert(var.to_string(), root.root());
     }
-    let ret = replace_meta_var_in_string(template, &env, Tsx);
+    let ret = replace_meta_var_in_string(template, &env, &Tsx);
     assert_eq!(expected, ret);
   }
 

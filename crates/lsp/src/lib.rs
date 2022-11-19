@@ -183,7 +183,7 @@ impl<L: LSPLang> Backend<L> {
               Severity::Info => DiagnosticSeverity::INFORMATION,
               Severity::Hint => DiagnosticSeverity::HINT,
             }),
-            message: rule.message.clone(),
+            message: rule.get_message(&m),
             source: Some(String::from("ast-grep")),
             tags: None,
             related_information: None, // TODO: add labels

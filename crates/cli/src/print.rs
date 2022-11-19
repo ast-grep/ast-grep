@@ -71,7 +71,7 @@ impl ErrorReporter {
       }
       let diagnostic = Diagnostic::new(serverity)
         .with_code(&rule.id)
-        .with_message(&rule.message)
+        .with_message(rule.get_message(&m))
         .with_notes(rule.note.iter().cloned().collect())
         .with_labels(labels);
       term::emit(lock, config, &file, &diagnostic).unwrap();

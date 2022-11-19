@@ -13,6 +13,7 @@ pub use meta_var::{MetaVarMatcher, MetaVariable};
 pub use node::Node;
 pub use ops::{All, Any, Op};
 pub use pattern::Pattern;
+pub use replacer::replace_meta_var_in_string;
 
 use crate::replacer::Replacer;
 use language::Language;

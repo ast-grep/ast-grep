@@ -9,6 +9,8 @@ pub use crate::constraints::{
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::meta_var::MetaVarMatchers;
+use ast_grep_core::replace_meta_var_in_string;
+use ast_grep_core::NodeMatch;
 use ast_grep_core::ops as o;
 use ast_grep_core::{KindMatcher, Matcher, Node, Pattern};
 use globset::Glob;
@@ -121,6 +123,10 @@ impl<L: Language> RuleConfig<L> {
     }
 
     should_match
+  }
+
+  pub fn get_message(&self, node: &NodeMatch<L>) -> String {
+    replace_meta_var_in_string(&self.message, &node.get_env(), node.lang())
   }
 }
 
@@ -247,6 +253,7 @@ pub fn try_from_serializable<L: Language>(
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::test::TypeScript;
   use crate::from_str;
   use crate::PatternStyle::*;
   use SerializableRule as S;
@@ -281,5 +288,35 @@ inside:
       SerializableRule::Inside(rule) => assert!(rule.immediate),
       _ => unreachable!(),
     }
+  }
+
+  fn ts_rule_config(rule: SerializableRule) -> RuleConfig<TypeScript> {
+    RuleConfig {
+      id: "".into(),
+      message: "".into(),
+      note: None,
+      severity: Severity::Hint,
+      language: TypeScript::Tsx,
+      rule,
+      fix: None,
+      constraints: None,
+      files: None,
+      ignores: None,
+      url: None,
+      metadata: None,
+    }
+  }
+
+  #[test]
+  fn test_rule_message() {
+    let rule = from_str("pattern: class $A {}").expect("cannot parse rule");
+    let config = RuleConfig {
+      id: "test".into(),
+      message: "Found $A".into(),
+      ..ts_rule_config(rule)
+    };
+    let grep = TypeScript::Tsx.ast_grep("class TestClass {}");
+    let node_match = grep.root().find(config.get_matcher()).expect("should find match");
+    assert_eq!(config.get_message(&node_match), "Found TestClass");
   }
 }
