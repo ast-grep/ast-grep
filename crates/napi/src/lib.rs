@@ -162,7 +162,7 @@ fn parse_config(
 ) -> Result<RuleWithConstraint<FrontEndLanguage>> {
   let lang = config.language.unwrap_or(language);
   let rule: SerializableRule = serde_json::from_value(config.rule)?;
-  let rule = deserialize_rule(rule, lang.clone())
+  let rule = deserialize_rule(rule, lang)
     .map_err(|_| napi::Error::new(napi::Status::InvalidArg, "invalid rule".to_string()))?;
   let matchers = if let Some(matchers) = config.constraints {
     let matchers: HashMap<String, SerializableMetaVarMatcher> = serde_json::from_value(matchers)?;
@@ -190,7 +190,7 @@ impl SgNode {
     env: Env,
     matcher: Either3<String, u16, NapiConfig>,
   ) -> Result<Option<SgNode>> {
-    let lang = reference.inner.lang().clone();
+    let lang = *reference.inner.lang();
     let node_match = match matcher {
       Either3::A(pattern) => {
         let pattern = Pattern::new(&pattern, lang);
@@ -230,7 +230,7 @@ impl SgNode {
     matcher: Either3<String, u16, NapiConfig>,
   ) -> Result<Vec<SgNode>> {
     let mut ret = vec![];
-    let lang = reference.inner.lang().clone();
+    let lang = *reference.inner.lang();
     let all_matches: Vec<_> = match matcher {
       Either3::A(pattern) => {
         let pattern = Pattern::new(&pattern, lang);

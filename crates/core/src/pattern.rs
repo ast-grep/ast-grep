@@ -70,13 +70,9 @@ impl<L: Language> Matcher<L> for Pattern<L> {
     match_node_non_recursive(&self.matcher(), node, env)
   }
 
-  fn get_match_len<'tree>(
-    &self,
-    node: Node<'tree, L>,
-    env: &MetaVarEnv<'tree, L>,
-  ) -> Option<usize> {
+  fn get_match_len(&self, node: Node<L>) -> Option<usize> {
     let start = node.range().start;
-    let end = match_end_non_recursive(&self.matcher(), node, env)?;
+    let end = match_end_non_recursive(&self.matcher(), node)?;
     Some(end - start)
   }
 }

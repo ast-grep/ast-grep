@@ -9,9 +9,9 @@ pub use crate::constraints::{
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::meta_var::MetaVarMatchers;
+use ast_grep_core::ops as o;
 use ast_grep_core::replace_meta_var_in_string;
 use ast_grep_core::NodeMatch;
-use ast_grep_core::ops as o;
 use ast_grep_core::{KindMatcher, Matcher, Node, Pattern};
 use globset::Glob;
 use globset::GlobSetBuilder;
@@ -126,7 +126,7 @@ impl<L: Language> RuleConfig<L> {
   }
 
   pub fn get_message(&self, node: &NodeMatch<L>) -> String {
-    replace_meta_var_in_string(&self.message, &node.get_env(), node.lang())
+    replace_meta_var_in_string(&self.message, node.get_env(), node.lang())
   }
 }
 
@@ -253,8 +253,8 @@ pub fn try_from_serializable<L: Language>(
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::test::TypeScript;
   use crate::from_str;
+  use crate::test::TypeScript;
   use crate::PatternStyle::*;
   use SerializableRule as S;
 
@@ -316,7 +316,10 @@ inside:
       ..ts_rule_config(rule)
     };
     let grep = TypeScript::Tsx.ast_grep("class TestClass {}");
-    let node_match = grep.root().find(config.get_matcher()).expect("should find match");
+    let node_match = grep
+      .root()
+      .find(config.get_matcher())
+      .expect("should find match");
     assert_eq!(config.get_message(&node_match), "Found TestClass");
   }
 }

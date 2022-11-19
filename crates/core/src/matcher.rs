@@ -81,11 +81,7 @@ pub trait Matcher<L: Language> {
   ) -> Option<Node<'tree, L>>;
 
   // TODO: this is a hack to compensate punctuation. This should be included in NodeMatch
-  fn get_match_len<'tree>(
-    &self,
-    _node: Node<'tree, L>,
-    _env: &MetaVarEnv<'tree, L>,
-  ) -> Option<usize> {
+  fn get_match_len(&self, _node: Node<L>) -> Option<usize> {
     None
   }
 
@@ -140,13 +136,9 @@ impl<L: Language> Matcher<L> for str {
     pattern.match_node_with_env(node, env)
   }
 
-  fn get_match_len<'tree>(
-    &self,
-    node: Node<'tree, L>,
-    env: &MetaVarEnv<'tree, L>,
-  ) -> Option<usize> {
+  fn get_match_len(&self, node: Node<L>) -> Option<usize> {
     let pattern = Pattern::new(self, node.lang().clone());
-    pattern.get_match_len(node, env)
+    pattern.get_match_len(node)
   }
 }
 
@@ -186,12 +178,8 @@ where
     (**self).find_node(node)
   }
 
-  fn get_match_len<'tree>(
-    &self,
-    node: Node<'tree, L>,
-    env: &MetaVarEnv<'tree, L>,
-  ) -> Option<usize> {
-    (**self).get_match_len(node, env)
+  fn get_match_len(&self, node: Node<L>) -> Option<usize> {
+    (**self).get_match_len(node)
   }
 }
 

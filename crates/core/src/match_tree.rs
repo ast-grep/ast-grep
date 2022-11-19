@@ -47,11 +47,7 @@ fn update_ellipsis_env<'t, L: Language>(
   }
 }
 
-pub fn match_end_non_recursive<'goal, 'tree, L: Language>(
-  goal: &Node<'goal, L>,
-  candidate: Node<'tree, L>,
-  env: &MetaVarEnv<'tree, L>,
-) -> Option<usize> {
+pub fn match_end_non_recursive<L: Language>(goal: &Node<L>, candidate: Node<L>) -> Option<usize> {
   let is_leaf = goal.is_leaf();
   if is_leaf && extract_var_from_node(goal).is_some() {
     return Some(candidate.range().end);
@@ -98,7 +94,6 @@ pub fn match_end_non_recursive<'goal, 'tree, L: Language>(
         if match_end_non_recursive(
           goal_children.peek().unwrap(),
           cand_children.peek().unwrap().clone(),
-          env,
         )
         .is_some()
         {
@@ -112,7 +107,6 @@ pub fn match_end_non_recursive<'goal, 'tree, L: Language>(
     end = match_end_non_recursive(
       goal_children.peek().unwrap(),
       cand_children.peek().unwrap().clone(),
-      env,
     )?;
     goal_children.next();
     if goal_children.peek().is_none() {

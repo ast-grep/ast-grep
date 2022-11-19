@@ -377,7 +377,7 @@ impl<'r, L: Language> Node<'r, L> {
     let range = matched.range();
     let position = range.start;
     let deleted_length = matcher
-      .get_match_len(matched.get_node().clone(), env)
+      .get_match_len(matched.get_node().clone())
       .unwrap_or_else(|| range.len());
     let inserted_text = replacer.generate_replacement(env, lang);
     Edit {
