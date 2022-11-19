@@ -30,7 +30,7 @@ num_cpus = "1.14.0"
 rprompt = "1.0.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9.14"
-similar = { version = "2.2.0", features = ["inline"] }
+similar = { version = "2.2.1", features = ["inline"] }
 tokio = { version = "1", features = ["full"] }
 
 tree-sitter-c = "0.20.2"
