@@ -23,3 +23,4 @@ globset = "0.4.9"
 
 [dev-dependencies]
 tree-sitter-typescript="0.20.1"
+tempdir = "0.3"

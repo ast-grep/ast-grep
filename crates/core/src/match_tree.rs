@@ -72,7 +72,6 @@ pub fn match_end_non_recursive<L: Language>(goal: &Node<L>, candidate: Node<L>) 
   loop {
     let curr_node = goal_children.peek().unwrap();
     if try_get_ellipsis_mode(curr_node).is_ok() {
-      let mut matched = vec![];
       goal_children.next();
       // goal has all matched
       if goal_children.peek().is_none() {
@@ -86,7 +85,6 @@ pub fn match_end_non_recursive<L: Language>(goal: &Node<L>, candidate: Node<L>) 
       }
       // if next node is a Ellipsis, consume one candidate node
       if try_get_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
-        matched.push(cand_children.next().unwrap());
         cand_children.peek()?;
         continue;
       }
@@ -100,7 +98,6 @@ pub fn match_end_non_recursive<L: Language>(goal: &Node<L>, candidate: Node<L>) 
           // found match non Ellipsis,
           break;
         }
-        matched.push(cand_children.next().unwrap());
         cand_children.peek()?;
       }
     }

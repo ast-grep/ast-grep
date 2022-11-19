@@ -1,5 +1,5 @@
 use crate::error::ErrorContext as EC;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use crossterm::{
   execute,
   terminal::{EnterAlternateScreen, LeaveAlternateScreen},
@@ -96,12 +96,35 @@ pub fn run_walker_interactive<T: Send>(
 
 pub fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
   let editor = std::env::var("EDITOR").unwrap_or_else(|_| String::from("vim"));
-  std::process::Command::new(editor)
+  let exit = std::process::Command::new(editor)
     .arg(path)
     .arg(format!("+{}", start_line))
     .spawn()
     .context(EC::OpenEditor)?
     .wait()
     .context(EC::OpenEditor)?;
-  Ok(())
+  if exit.success() {
+    Ok(())
+  } else {
+    Err(anyhow!(EC::OpenEditor))
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  #[test]
+  fn test_open_editor_respect_editor_env() {
+    std::env::set_var("EDITOR", "echo");
+    let exit = open_in_editor(&PathBuf::from("Cargo.toml"), 1);
+    assert!(exit.is_ok());
+  }
+
+  #[test]
+  fn test_open_editor_error_handling() {
+    std::env::set_var("EDITOR", "not_exist");
+    let exit = open_in_editor(&PathBuf::from("Cargo.toml"), 1);
+    assert!(exit.is_err());
+  }
 }
