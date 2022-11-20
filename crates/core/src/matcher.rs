@@ -5,6 +5,8 @@ use crate::ts_parser::Edit;
 use crate::Language;
 use crate::Node;
 use crate::Pattern;
+
+use bit_set::BitSet;
 use std::borrow::{Borrow, BorrowMut};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
@@ -64,6 +66,12 @@ impl<L: Language> Matcher<L> for KindMatcher<L> {
       None
     }
   }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    let mut set = BitSet::new();
+    set.insert(self.kind.into());
+    Some(set)
+  }
 }
 
 /**
@@ -79,7 +87,12 @@ pub trait Matcher<L: Language> {
     _env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>>;
 
-  // get_match_len will skip trailing anonymous child node to exclude punctuation.
+  /// Returns a bitset for all possible target node kind ids.
+  fn potential_kinds(&self) -> Option<BitSet> {
+    None
+  }
+
+  /// get_match_len will skip trailing anonymous child node to exclude punctuation.
   // This is not included in NodeMatch since it is only used in replace
   fn get_match_len(&self, _node: Node<L>) -> Option<usize> {
     None
@@ -154,6 +167,11 @@ where
   ) -> Option<Node<'tree, L>> {
     (**self).match_node_with_env(node, env)
   }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    (**self).potential_kinds()
+  }
+
   fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
     (**self).match_node(node)
   }
@@ -192,6 +210,38 @@ impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
     // NOTE: must double deref boxed value to avoid recursion
     (**self).match_node_with_env(node, env)
   }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    (**self).potential_kinds()
+  }
+
+  fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
+    (**self).match_node(node)
+  }
+
+  fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {
+    (**self).get_meta_var_matchers()
+  }
+
+  fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {
+    (**self).get_meta_var_env()
+  }
+
+  fn find_node_with_env<'tree>(
+    &self,
+    node: Node<'tree, L>,
+    env: &mut MetaVarEnv<'tree, L>,
+  ) -> Option<Node<'tree, L>> {
+    (**self).find_node_with_env(node, env)
+  }
+
+  fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
+    (**self).find_node(node)
+  }
+
+  fn get_match_len(&self, node: Node<L>) -> Option<usize> {
+    (**self).get_match_len(node)
+  }
 }
 
 pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
@@ -229,6 +279,11 @@ impl<L: Language> Matcher<L> for MatchAll {
   ) -> Option<Node<'tree, L>> {
     Some(node)
   }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    // return None to match anything
+    None
+  }
 }
 
 pub struct MatchNone;
@@ -239,6 +294,11 @@ impl<L: Language> Matcher<L> for MatchNone {
     _env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
     None
+  }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    // matches nothing
+    Some(BitSet::new())
   }
 }
 
