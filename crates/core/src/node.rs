@@ -366,12 +366,11 @@ impl<'r, L: Language> Node<'r, L> {
 
 /// Tree manipulation API
 impl<'r, L: Language> Node<'r, L> {
-  fn make_edit<M: Matcher<L>, R: Replacer<L>>(
-    &self,
-    matched: NodeMatch<L>,
-    matcher: &M,
-    replacer: &R,
-  ) -> Edit {
+  fn make_edit<M, R>(&self, matched: NodeMatch<L>, matcher: &M, replacer: &R) -> Edit
+  where
+    M: Matcher<L>,
+    R: Replacer<L>,
+  {
     let lang = self.root.lang.clone();
     let env = matched.get_env();
     let range = matched.range();

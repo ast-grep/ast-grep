@@ -1,4 +1,4 @@
-use crate::matcher::{MatchAll, MatchNone, Matcher, PositiveMatcher};
+use crate::matcher::{MatchAll, MatchNone, Matcher};
 use crate::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
 use crate::Language;
 use crate::Node;
@@ -8,13 +8,6 @@ pub struct And<L: Language, P1: Matcher<L>, P2: Matcher<L>> {
   pattern1: P1,
   pattern2: P2,
   lang: PhantomData<L>,
-}
-
-impl<L: Language, P1, P2> PositiveMatcher<L> for And<L, P1, P2>
-where
-  P1: PositiveMatcher<L>,
-  P2: Matcher<L>,
-{
 }
 
 impl<L: Language, P1, P2> Matcher<L> for And<L, P1, P2>
@@ -60,10 +53,6 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
   }
 }
 
-// TODO: this is not correct. We don't need every sub pattern to be positive
-// need to refine this
-impl<L: Language, M: Matcher<L>> PositiveMatcher<L> for All<L, M> {}
-
 pub struct Any<L, P> {
   patterns: Vec<P>,
   lang: PhantomData<L>,
@@ -92,8 +81,6 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
   }
 }
 
-impl<L: Language, P: PositiveMatcher<L>> PositiveMatcher<L> for Any<L, P> {}
-
 pub struct Or<L: Language, P1: Matcher<L>, P2: Matcher<L>> {
   pattern1: P1,
   pattern2: P2,
@@ -116,14 +103,6 @@ where
       .match_node_with_env(node.clone(), env)
       .or_else(|| self.pattern2.match_node_with_env(node, env))
   }
-}
-
-impl<L, P1, P2> PositiveMatcher<L> for Or<L, P1, P2>
-where
-  L: Language,
-  P1: PositiveMatcher<L>,
-  P2: PositiveMatcher<L>,
-{
 }
 
 pub struct Not<L: Language, M: Matcher<L>> {
@@ -180,12 +159,6 @@ where
     self.meta_vars.clone()
   }
 }
-impl<L, P> PositiveMatcher<L> for Op<L, P>
-where
-  L: Language,
-  P: PositiveMatcher<L>,
-{
-}
 
 pub struct Predicate<F> {
   func: F,
@@ -226,7 +199,7 @@ impl<L: Language, M: Matcher<L>> Op<L, M> {
   }
 }
 
-impl<L: Language, M: PositiveMatcher<L>> Op<L, M> {
+impl<L: Language, M: Matcher<L>> Op<L, M> {
   pub fn every(pattern: M) -> Op<L, And<L, M, MatchAll>> {
     Op {
       inner: And {

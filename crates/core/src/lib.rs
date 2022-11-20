@@ -8,7 +8,7 @@ mod pattern;
 mod replacer;
 mod ts_parser;
 
-pub use matcher::{KindMatcher, Matcher, NodeMatch, PositiveMatcher};
+pub use matcher::{KindMatcher, Matcher, NodeMatch};
 pub use meta_var::{MetaVarMatcher, MetaVariable};
 pub use node::Node;
 pub use ops::{All, Any, Op};
@@ -45,11 +45,7 @@ impl<L: Language> AstGrep<L> {
     self
   }
 
-  pub fn replace<M: PositiveMatcher<L>, R: Replacer<L>>(
-    &mut self,
-    pattern: M,
-    replacer: R,
-  ) -> bool {
+  pub fn replace<M: Matcher<L>, R: Replacer<L>>(&mut self, pattern: M, replacer: R) -> bool {
     if let Some(edit) = self.root().replace(pattern, replacer) {
       self.edit(edit);
       true

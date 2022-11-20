@@ -65,7 +65,6 @@ impl<L: Language> Matcher<L> for KindMatcher<L> {
     }
   }
 }
-impl<L: Language> PositiveMatcher<L> for KindMatcher<L> {}
 
 /**
  * N.B. At least one positive term is required for matching
@@ -80,7 +79,8 @@ pub trait Matcher<L: Language> {
     _env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>>;
 
-  // TODO: this is a hack to compensate punctuation. This should be included in NodeMatch
+  // get_match_len will skip trailing anonymous child node to exclude punctuation.
+  // This is not included in NodeMatch since it is only used in replace
   fn get_match_len(&self, _node: Node<L>) -> Option<usize> {
     None
   }
@@ -183,14 +183,6 @@ where
   }
 }
 
-impl<L: Language> PositiveMatcher<L> for str {}
-impl<L, T> PositiveMatcher<L> for &T
-where
-  L: Language,
-  T: PositiveMatcher<L> + ?Sized,
-{
-}
-
 impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
   fn match_node_with_env<'tree>(
     &self,
@@ -201,22 +193,6 @@ impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
     (**self).match_node_with_env(node, env)
   }
 }
-impl<L: Language> Matcher<L> for Box<dyn PositiveMatcher<L>> {
-  fn match_node_with_env<'tree>(
-    &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
-    // NOTE: must double deref boxed value to avoid recursion
-    (**self).match_node_with_env(node, env)
-  }
-}
-impl<L: Language> PositiveMatcher<L> for Box<dyn PositiveMatcher<L>> {}
-
-/**
- * A marker trait to indicate the the rule is positive matcher
- */
-pub trait PositiveMatcher<L: Language>: Matcher<L> {}
 
 pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
   dfs: Dfs<'tree, L>,
@@ -265,8 +241,6 @@ impl<L: Language> Matcher<L> for MatchNone {
     None
   }
 }
-
-impl<L: Language> PositiveMatcher<L> for MatchNone {}
 
 pub struct NodeMatch<'tree, L: Language>(Node<'tree, L>, MetaVarEnv<'tree, L>);
 

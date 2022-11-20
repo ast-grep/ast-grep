@@ -1,6 +1,6 @@
 use crate::language::Language;
 use crate::match_tree::{match_end_non_recursive, match_node_non_recursive};
-use crate::matcher::{KindMatcher, Matcher, PositiveMatcher};
+use crate::matcher::{KindMatcher, Matcher};
 use crate::{meta_var::MetaVarEnv, Node, Root};
 
 #[derive(Clone)]
@@ -82,8 +82,6 @@ impl<L: Language> std::fmt::Debug for Pattern<L> {
     write!(f, "{}", self.matcher().inner.to_sexp())
   }
 }
-
-impl<L: Language> PositiveMatcher<L> for Pattern<L> {}
 
 #[cfg(test)]
 mod test {
