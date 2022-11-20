@@ -2,7 +2,7 @@ use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use ast_grep_config::{RuleCollection, RuleConfig};
+use ast_grep_config::RuleConfig;
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::{Args, Parser};
@@ -98,17 +98,6 @@ pub fn run_with_pattern(args: RunArg) -> Result<()> {
   }
 }
 
-fn get_rules<'c>(
-  path: &Path,
-  configs: &'c RuleCollection<SupportLang>,
-) -> Vec<&'c RuleConfig<SupportLang>> {
-  let lang = match SupportLang::from_path(path) {
-    Some(lang) => lang,
-    None => return vec![],
-  };
-  configs.get_rules_for_lang(&lang)
-}
-
 pub fn run_with_config(args: ScanArg) -> Result<()> {
   let configs = find_config(args.config)?;
   let threads = num_cpus::get().min(12);
@@ -119,7 +108,7 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
   let reporter = ErrorReporter::new(args.color.into(), args.report_style);
   if !args.interactive {
     run_walker(walker, |path| {
-      for config in get_rules(path, &configs) {
+      for config in configs.for_path(path) {
         let lang = config.language;
         if from_extension(path).filter(|&n| n == lang).is_none() {
           continue;
@@ -131,13 +120,10 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
     run_walker_interactive(
       walker,
       |path| {
-        for config in get_rules(path, &configs) {
+        for config in configs.for_path(path) {
           let lang = config.language;
           let matcher = config.get_matcher();
           if from_extension(path).filter(|&n| n == lang).is_none() {
-            continue;
-          }
-          if !config.matches_path(path) {
             continue;
           }
           let ret = filter_file_interactive(path, lang, &matcher);
@@ -148,7 +134,7 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
         None
       },
       |(grep, path)| {
-        for config in get_rules(&path, &configs) {
+        for config in configs.for_path(&path) {
           if from_extension(&path)
             .filter(|&n| n == config.language)
             .is_none()
@@ -264,9 +250,6 @@ fn match_rule_on_file(
   rule: &RuleConfig<SupportLang>,
   reporter: &ErrorReporter,
 ) {
-  if !rule.matches_path(path) {
-    return;
-  }
   let matcher = rule.get_matcher();
   let file_content = match read_to_string(path) {
     Ok(content) => content,
@@ -346,55 +329,5 @@ fix: ($B, lifecycle.update(['$A']))",
     );
     let ret = apply_rewrite(&root, config.get_matcher(), &config.get_fixer().unwrap());
     assert_eq!(ret, "let a = () => (c++, lifecycle.update(['c']))");
-  }
-
-  #[test]
-  fn test_ignore_rule() {
-    let src = r#"
-ignores:
-  - ./manage.py
-  - "**/test*"
-rule:
-  all:
-"#;
-    let config = make_rule(src);
-    assert!(config.ignores.iter().count() == 1);
-    assert!(!config.matches_path(Path::new("./manage.py")));
-    assert!(!config.matches_path(Path::new("./src/test.py")));
-    assert!(config.matches_path(Path::new("./src/app.py")));
-  }
-
-  #[test]
-  fn test_files_rule() {
-    let src = r#"
-files:
-  - ./manage.py
-  - "**/test*"
-rule:
-  all:
-"#;
-    let config = make_rule(src);
-    assert!(config.files.iter().count() == 1);
-    assert!(config.matches_path(Path::new("./manage.py")));
-    assert!(config.matches_path(Path::new("./src/test.py")));
-    assert!(!config.matches_path(Path::new("./src/app.py")));
-  }
-
-  #[test]
-  fn test_files_with_ignores_rule() {
-    let src = r#"
-files:
-  - ./src/**/*.py
-ignores:
-  - ./src/excluded/*.py
-rule:
-  all:
-"#;
-    let config = make_rule(src);
-    assert!(config.files.iter().count() == 1);
-    assert!(config.ignores.iter().count() == 1);
-    assert!(config.matches_path(Path::new("./src/test.py")));
-    assert!(config.matches_path(Path::new("./src/some_folder/test.py")));
-    assert!(!config.matches_path(Path::new("./src/excluded/app.py")));
   }
 }

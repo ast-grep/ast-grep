@@ -163,8 +163,8 @@ impl<L: LSPLang> Backend<L> {
   }
   async fn publish_diagnostics(&self, uri: Url, versioned: &VersionedAst<L>) -> Option<()> {
     let mut diagnostics = vec![];
-    let lang = Self::infer_lang_from_uri(&uri)?;
-    let rules = self.rules.get_rules_for_lang(&lang);
+    let path = uri.to_file_path().ok()?;
+    let rules = self.rules.for_path(&path);
     for rule in rules {
       let matcher = rule.get_matcher();
       // TODO: don't run rules with unmatching language
@@ -239,7 +239,7 @@ impl<L: LSPLang> Backend<L> {
   async fn on_code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
     let text_doc = params.text_document;
     let uri = text_doc.uri.as_str();
-    let lang = Self::infer_lang_from_uri(&text_doc.uri)?;
+    let path = text_doc.uri.to_file_path().ok()?;
     let diagnostics = params.context.diagnostics;
     let mut error_id_to_ranges = HashMap::new();
     for diagnostic in diagnostics {
@@ -252,7 +252,7 @@ impl<L: LSPLang> Backend<L> {
     }
     let versioned = self.map.get(uri)?;
     let mut response = CodeActionResponse::new();
-    for config in self.rules.get_rules_for_lang(&lang) {
+    for config in self.rules.for_path(&path) {
       let ranges = match error_id_to_ranges.get(&config.id) {
         Some(ranges) => ranges,
         None => continue,

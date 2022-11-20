@@ -306,13 +306,13 @@ mod test_test {
   }
   fn always_report_rule() -> RuleCollection<SupportLang> {
     let rule = get_rule_config(SerializableRule::Pattern(PatternStyle::Str("$A".into())));
-    RuleCollection::new(vec![rule])
+    RuleCollection::try_new(vec![rule]).expect("RuleCollection must be valid")
   }
   fn never_report_rule() -> RuleCollection<SupportLang> {
     let rule = get_rule_config(SerializableRule::Not(Box::new(SerializableRule::Pattern(
       PatternStyle::Str("$A".into()),
     ))));
-    RuleCollection::new(vec![rule])
+    RuleCollection::try_new(vec![rule]).expect("RuleCollection must be valid")
   }
 
   fn valid_case() -> TestCase {

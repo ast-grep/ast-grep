@@ -13,13 +13,10 @@ use ast_grep_core::ops as o;
 use ast_grep_core::replace_meta_var_in_string;
 use ast_grep_core::NodeMatch;
 use ast_grep_core::{KindMatcher, Matcher, Node, Pattern};
-use globset::Glob;
-use globset::GlobSetBuilder;
 use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 use std::fmt;
-use std::path::Path;
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -80,49 +77,6 @@ impl<L: Language> RuleConfig<L> {
     } else {
       MetaVarMatchers::default()
     }
-  }
-
-  pub fn matches_path(&self, path: &Path) -> bool {
-    let mut files_glob_set_builder: GlobSetBuilder = GlobSetBuilder::new();
-    let mut found_files_glob_conditional = false;
-    if let Some(files) = &self.files {
-      for path in files {
-        if let Ok(glob) = Glob::new(path.as_str()) {
-          found_files_glob_conditional = true;
-          files_glob_set_builder.add(glob);
-        }
-      }
-    }
-
-    let mut ignores_glob_set_builder: GlobSetBuilder = GlobSetBuilder::new();
-    let mut found_ignores_glob_conditional = false;
-    if let Some(files) = &self.ignores {
-      for path in files {
-        if let Ok(glob) = Glob::new(path.as_str()) {
-          found_ignores_glob_conditional = true;
-          ignores_glob_set_builder.add(glob);
-        }
-      }
-    }
-
-    let files_glob_set = files_glob_set_builder.build().unwrap();
-    let ignores_glob_set = ignores_glob_set_builder.build().unwrap();
-    let mut should_match = false;
-
-    if found_files_glob_conditional && files_glob_set.is_match(path) {
-      should_match = true;
-    }
-
-    if !found_files_glob_conditional {
-      // true, unless a match is made by the ignores_glob_set.
-      should_match = true;
-    }
-
-    if found_ignores_glob_conditional && ignores_glob_set.is_match(path) {
-      should_match = false;
-    }
-
-    should_match
   }
 
   pub fn get_message(&self, node: &NodeMatch<L>) -> String {

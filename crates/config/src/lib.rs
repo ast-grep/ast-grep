@@ -33,6 +33,7 @@ mod test {
 
   use super::*;
   use ast_grep_core::language::TSLanguage;
+  use std::path::Path;
   #[derive(Clone, Deserialize, PartialEq, Eq)]
   pub enum TypeScript {
     Tsx,
@@ -40,6 +41,9 @@ mod test {
   impl Language for TypeScript {
     fn get_ts_language(&self) -> TSLanguage {
       tree_sitter_typescript::language_tsx().into()
+    }
+    fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
+      Some(TypeScript::Tsx)
     }
   }
 

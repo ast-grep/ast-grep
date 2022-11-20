@@ -1,6 +1,10 @@
 use crate::RuleConfig;
 use ast_grep_core::language::Language;
+use globset::{Glob, GlobSet, GlobSetBuilder};
+use std::path::Path;
 
+/// RuleBucket stores rules of the same language id.
+/// Rules for different language will stay in separate buckets.
 pub struct RuleBucket<L: Language> {
   rules: Vec<RuleConfig<L>>,
   lang: L,
@@ -18,45 +22,97 @@ impl<L: Language> RuleBucket<L> {
   }
 }
 
+struct ContingentRule<L: Language> {
+  rule: RuleConfig<L>,
+  files_globs: Option<GlobSet>,
+  ignore_globs: Option<GlobSet>,
+}
+
+fn build_glob_set(paths: &Vec<String>) -> Result<GlobSet, globset::Error> {
+  let mut builder = GlobSetBuilder::new();
+  for path in paths {
+    builder.add(Glob::new(path)?);
+  }
+  builder.build()
+}
+
+impl<L> TryFrom<RuleConfig<L>> for ContingentRule<L>
+where
+  L: Language,
+{
+  type Error = globset::Error;
+  fn try_from(rule: RuleConfig<L>) -> Result<Self, Self::Error> {
+    let files_globs = rule.files.as_ref().map(build_glob_set).transpose()?;
+    let ignore_globs = rule.ignores.as_ref().map(build_glob_set).transpose()?;
+    Ok(Self {
+      rule,
+      files_globs,
+      ignore_globs,
+    })
+  }
+}
+
+impl<L: Language> ContingentRule<L> {
+  pub fn matches_path<P: AsRef<Path>>(&self, path: P) -> bool {
+    if let Some(ignore_globs) = &self.ignore_globs {
+      if ignore_globs.is_match(&path) {
+        return false;
+      }
+    }
+    if let Some(files_globs) = &self.files_globs {
+      return files_globs.is_match(path);
+    }
+    true
+  }
+}
+
 /// A collection of rules to run one round of scanning.
 /// Rules will be grouped together based on their language, path globbing and pattern rule.
 pub struct RuleCollection<L: Language + Eq> {
   // use vec since we don't have many languages
-  pub tenured: Vec<RuleBucket<L>>,
-  pub contingent: Vec<RuleConfig<L>>,
+  /// a list of rule buckets grouped by languages.
+  /// Tenured rules will always run against a file of that language type.
+  tenured: Vec<RuleBucket<L>>,
+  /// contingent rules will run against a file if it matches file/ignore glob.
+  contingent: Vec<ContingentRule<L>>,
 }
 
 impl<L: Language + Eq> RuleCollection<L> {
-  pub fn new(configs: Vec<RuleConfig<L>>) -> Self {
+  pub fn try_new(configs: Vec<RuleConfig<L>>) -> Result<Self, globset::Error> {
     let mut tenured = vec![];
     let mut contingent = vec![];
     for config in configs {
       if config.files.is_none() && config.ignores.is_none() {
         Self::add_tenured_rule(&mut tenured, config);
       } else {
-        contingent.push(config);
+        contingent.push(ContingentRule::try_from(config)?);
       }
     }
-    Self {
+    Ok(Self {
       tenured,
       contingent,
-    }
+    })
   }
 
-  // TODO: get rules without allocation
-  pub fn get_rules_for_lang(&self, lang: &L) -> Vec<&RuleConfig<L>> {
+  pub fn for_path<P: AsRef<Path>>(&self, path: P) -> Vec<&RuleConfig<L>> {
     let mut all_rules = vec![];
+    let lang = match L::from_path(path.as_ref()) {
+      Some(l) => l,
+      None => return vec![],
+    };
     for rule in &self.tenured {
-      if &rule.lang == lang {
+      if rule.lang == lang {
         all_rules = rule.rules.iter().collect();
+        break;
       }
     }
-    for rule in &self.contingent {
-      if &rule.language == lang {
-        all_rules.push(rule);
+    all_rules.extend(self.contingent.iter().filter_map(|cont| {
+      if cont.rule.language == lang && cont.matches_path(path.as_ref()) {
+        Some(&cont.rule)
+      } else {
+        None
       }
-    }
-
+    }));
     all_rules
   }
 
@@ -82,5 +138,84 @@ impl<L: Language + Eq> RuleCollection<L> {
     let mut bucket = RuleBucket::new(lang);
     bucket.add(rule);
     tenured.push(bucket);
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::from_yaml_string;
+  use crate::test::TypeScript;
+
+  fn make_rule(rule: &str) -> RuleCollection<TypeScript> {
+    let rule_config = from_yaml_string(&format!(
+      r"
+id: test
+message: test rule
+severity: info
+language: Tsx
+{rule}"
+    ))
+    .unwrap()
+    .pop()
+    .unwrap();
+    RuleCollection::try_new(vec![rule_config]).expect("should parse")
+  }
+
+  fn assert_match_path(collection: &RuleCollection<TypeScript>, path: &str) {
+    let rules = collection.for_path(path);
+    assert_eq!(rules.len(), 1);
+    assert_eq!(rules[0].id, "test");
+  }
+
+  fn assert_ignore_path(collection: &RuleCollection<TypeScript>, path: &str) {
+    let rules = collection.for_path(path);
+    assert!(rules.is_empty());
+  }
+
+  #[test]
+  fn test_ignore_rule() {
+    let src = r#"
+ignores:
+  - ./manage.py
+  - "**/test*"
+rule:
+  all:
+"#;
+    let collection = make_rule(src);
+    assert_ignore_path(&collection, "./manage.py");
+    assert_ignore_path(&collection, "./src/test.py");
+    assert_match_path(&collection, "./src/app.py");
+  }
+
+  #[test]
+  fn test_files_rule() {
+    let src = r#"
+files:
+  - ./manage.py
+  - "**/test*"
+rule:
+  all:
+"#;
+    let collection = make_rule(src);
+    assert_match_path(&collection, "./manage.py");
+    assert_match_path(&collection, "./src/test.py");
+    assert_ignore_path(&collection, "./src/app.py");
+  }
+
+  #[test]
+  fn test_files_with_ignores_rule() {
+    let src = r#"
+files:
+  - ./src/**/*.py
+ignores:
+  - ./src/excluded/*.py
+rule:
+  all:
+"#;
+    let collection = make_rule(src);
+    assert_match_path(&collection, "./src/test.py");
+    assert_match_path(&collection, "./src/some_folder/test.py");
+    assert_ignore_path(&collection, "./src/excluded/app.py");
   }
 }
