@@ -96,9 +96,8 @@ impl<L: Language + Eq> RuleCollection<L> {
 
   pub fn for_path<P: AsRef<Path>>(&self, path: P) -> Vec<&RuleConfig<L>> {
     let mut all_rules = vec![];
-    let lang = match L::from_path(path.as_ref()) {
-      Some(l) => l,
-      None => return vec![],
+    let Some(lang) = L::from_path(path.as_ref()) else {
+      return vec![];
     };
     for rule in &self.tenured {
       if rule.lang == lang {
