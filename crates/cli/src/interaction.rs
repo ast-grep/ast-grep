@@ -1,14 +1,38 @@
 use crate::error::ErrorContext as EC;
 use anyhow::{anyhow, Context, Result};
 use crossterm::{
+  event::{self, Event, KeyCode},
   execute,
-  terminal::{EnterAlternateScreen, LeaveAlternateScreen},
+  terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ignore::{DirEntry, WalkParallel, WalkState};
-use rprompt::prompt_reply_stdout;
 use std::io::stdout;
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::mpsc;
+
+fn read_char() -> Result<char> {
+  loop {
+    if let Event::Key(evt) = event::read()? {
+      match evt.code {
+        KeyCode::Enter => break Ok('\n'),
+        KeyCode::Char(c) => break Ok(c),
+        _ => (),
+      }
+    }
+  }
+}
+
+/// Prompts for user input on STDOUT
+pub fn prompt_reply_stdout(prompt: &str) -> Result<char> {
+  let mut stdout = std::io::stdout();
+  write!(stdout, "{}", prompt)?;
+  stdout.flush()?;
+  terminal::enable_raw_mode()?;
+  let ret = read_char();
+  terminal::disable_raw_mode()?;
+  ret
+}
 
 // https://github.com/console-rs/console/blob/be1c2879536c90ffc2b54938b5964084f5fef67d/src/common_term.rs#L56
 // clear screen
@@ -28,12 +52,12 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
   loop {
     let input = prompt_reply_stdout(prompt_text)?;
     if let Some(default) = default {
-      if input.is_empty() {
+      if input == '\n' {
         return Ok(default);
       }
     }
-    if input.len() == 1 && letters.contains(&input) {
-      return Ok(input.chars().next().unwrap());
+    if letters.contains(input) {
+      return Ok(input);
     }
     println!("Unrecognized command, try again?")
   }
@@ -104,10 +128,8 @@ pub fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
     .wait()
     .context(EC::OpenEditor)?;
   if exit.success() {
-    println!("wtf!!! {:?}", exit.code());
     Ok(())
   } else {
-    println!("wtf!!! {:?}", exit.code());
     Err(anyhow!(EC::OpenEditor))
   }
 }

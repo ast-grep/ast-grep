@@ -151,7 +151,8 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
   }
 }
 
-const PROMPT_TEXT: &str = "Accept change? (Yes[y], No[n], Quit[q], Edit[e])";
+const EDIT_PROMPT: &str = "Accept change? (Yes[y], No[n], Quit[q], Edit[e])";
+const VIEW_PROMPT: &str = "Next[enter], Quit[q]";
 
 fn run_one_interaction<M: Matcher<SupportLang>>(
   path: &PathBuf,
@@ -176,15 +177,16 @@ fn print_matches_and_prompt_action<M: Matcher<SupportLang>>(
     None => return Ok(()),
   };
   print_matches(matches, path, &matcher, rewrite).unwrap();
-  let rewrite = match rewrite {
-    Some(r) => r,
-    None => {
-      interaction::prompt("Next", "", Some('\n')).expect("cannot fail");
-      return Ok(());
-    }
+  let Some(rewrite) = rewrite else {
+    let resp = interaction::prompt(VIEW_PROMPT, "q", Some('\n')).expect("cannot fail");
+    return if resp == 'q' {
+      Err(anyhow::anyhow!("Exit interactive editing"))
+    } else {
+      Ok(())
+    };
   };
   let response =
-    interaction::prompt(PROMPT_TEXT, "ynaqe", Some('y')).expect("Error happened during prompt");
+    interaction::prompt(EDIT_PROMPT, "ynaqe", Some('n')).expect("Error happened during prompt");
   match response {
     'y' => {
       let new_content = apply_rewrite(grep, &matcher, rewrite);
