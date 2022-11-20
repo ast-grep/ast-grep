@@ -23,6 +23,7 @@ pub enum ErrorContext {
   ReadRule(PathBuf),
   ParseRule(PathBuf),
   ParseTest(PathBuf),
+  GlobPattern,
   StartLanguageServer,
   // Edit
   OpenEditor,
@@ -96,6 +97,11 @@ impl ErrorMessage {
       ParseRule(file) => Self::new(
         format!("Cannot parse rule {}", file.display()),
         "The file is not a valid ast-grep rule. Please refer to doc and fix the error.",
+        CONFIG_GUIDE,
+      ),
+      GlobPattern => Self::new(
+        "Cannot parse glob pattern in config",
+        "The pattern in files/ignore is not a valid glob. Please refer to doc and fix the error.",
         CONFIG_GUIDE,
       ),
       ParseTest(file) => Self::new(

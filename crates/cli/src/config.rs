@@ -64,8 +64,7 @@ fn read_directory_yaml(
       configs.extend(new_configs);
     }
   }
-  // TODO: add context
-  Ok(RuleCollection::try_new(configs)?)
+  RuleCollection::try_new(configs).context(EC::GlobPattern)
 }
 
 pub fn find_tests(config_path: Option<PathBuf>) -> Result<(Vec<TestCase>, Vec<TestSnapshot>)> {
