@@ -13,6 +13,7 @@ use ast_grep_core::ops as o;
 use ast_grep_core::replace_meta_var_in_string;
 use ast_grep_core::NodeMatch;
 use ast_grep_core::{KindMatcher, Matcher, Node, Pattern};
+use bit_set::BitSet;
 use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
@@ -145,6 +146,21 @@ impl<L: Language> Matcher<L> for Rule<L> {
       Follows(former) => match_and_add_label(&**former, node, env),
       Pattern(pattern) => pattern.match_node_with_env(node, env),
       Kind(kind) => kind.match_node_with_env(node, env),
+    }
+  }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    use Rule::*;
+    match self {
+      All(all) => all.potential_kinds(),
+      Any(any) => any.potential_kinds(),
+      Not(not) => not.potential_kinds(),
+      Inside(parent) => parent.potential_kinds(),
+      Has(child) => child.potential_kinds(),
+      Precedes(latter) => latter.potential_kinds(),
+      Follows(former) => former.potential_kinds(),
+      Pattern(pattern) => pattern.potential_kinds(),
+      Kind(kind) => kind.potential_kinds(),
     }
   }
 }

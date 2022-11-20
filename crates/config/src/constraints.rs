@@ -5,6 +5,7 @@ use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::meta_var::MetaVarMatchers;
 use ast_grep_core::{KindMatcher, Matcher, MetaVarMatcher, Node, Pattern};
+use bit_set::BitSet;
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -75,6 +76,10 @@ impl<L: Language> Matcher<L> for RuleWithConstraint<L> {
 
   fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {
     MetaVarEnv::from_matchers(self.matchers.clone())
+  }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    self.rule.potential_kinds()
   }
 }
 

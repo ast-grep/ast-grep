@@ -3,6 +3,8 @@ use crate::match_tree::{match_end_non_recursive, match_node_non_recursive};
 use crate::matcher::{KindMatcher, Matcher};
 use crate::{meta_var::MetaVarEnv, Node, Root};
 
+use bit_set::BitSet;
+
 #[derive(Clone)]
 pub struct Pattern<L: Language> {
   pub root: Root<L>,
@@ -68,6 +70,13 @@ impl<L: Language> Matcher<L> for Pattern<L> {
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
     match_node_non_recursive(&self.matcher(), node, env)
+  }
+
+  fn potential_kinds(&self) -> Option<bit_set::BitSet> {
+    let matcher = self.matcher();
+    let mut kinds = BitSet::new();
+    kinds.insert(matcher.kind_id().into());
+    Some(kinds)
   }
 
   fn get_match_len(&self, node: Node<L>) -> Option<usize> {

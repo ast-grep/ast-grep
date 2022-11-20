@@ -2,6 +2,7 @@ use crate::matcher::{MatchAll, MatchNone, Matcher};
 use crate::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
 use crate::Language;
 use crate::Node;
+use bit_set::BitSet;
 use std::marker::PhantomData;
 
 pub struct And<L: Language, P1: Matcher<L>, P2: Matcher<L>> {
@@ -22,6 +23,13 @@ where
   ) -> Option<Node<'tree, L>> {
     let node = self.pattern1.match_node_with_env(node, env)?;
     self.pattern2.match_node_with_env(node, env)
+  }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    let mut set1 = self.pattern1.potential_kinds()?;
+    let set2 = self.pattern2.potential_kinds()?;
+    set1.intersect_with(&set2);
+    Some(set1)
   }
 }
 
@@ -51,6 +59,10 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
       .all(|p| p.match_node_with_env(node.clone(), env).is_some())
       .then_some(node)
   }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    todo!()
+  }
 }
 
 pub struct Any<L, P> {
@@ -79,6 +91,10 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
       .find_map(|p| p.match_node_with_env(node.clone(), env))
       .map(|_| node)
   }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    todo!()
+  }
 }
 
 pub struct Or<L: Language, P1: Matcher<L>, P2: Matcher<L>> {
@@ -102,6 +118,13 @@ where
       .pattern1
       .match_node_with_env(node.clone(), env)
       .or_else(|| self.pattern2.match_node_with_env(node, env))
+  }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    let mut set1 = self.pattern1.potential_kinds()?;
+    let set2 = self.pattern2.potential_kinds()?;
+    set1.union_with(&set2);
+    Some(set1)
   }
 }
 
@@ -133,6 +156,10 @@ where
       .match_node_with_env(node.clone(), env)
       .xor(Some(node))
   }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    todo!()
+  }
 }
 
 #[derive(Clone)]
@@ -158,6 +185,10 @@ where
     // TODO: avoid clone here
     self.meta_vars.clone()
   }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    self.inner.potential_kinds()
+  }
 }
 
 pub struct Predicate<F> {
@@ -175,6 +206,10 @@ where
     _env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
     (self.func)(node.clone()).then_some(node)
+  }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    todo!()
   }
 }
 

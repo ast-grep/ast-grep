@@ -64,6 +64,7 @@ name = "ast-grep-config"
 version = "0.1.9"
 dependencies = [
  "ast-grep-core",
+ "bit-set",
  "globset",
  "regex",
  "serde",

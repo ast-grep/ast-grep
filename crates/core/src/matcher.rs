@@ -88,9 +88,8 @@ pub trait Matcher<L: Language> {
   ) -> Option<Node<'tree, L>>;
 
   /// Returns a bitset for all possible target node kind ids.
-  fn potential_kinds(&self) -> Option<BitSet> {
-    None
-  }
+  /// Returns None if the matcher needs to try against all node kind.
+  fn potential_kinds(&self) -> Option<BitSet>;
 
   /// get_match_len will skip trailing anonymous child node to exclude punctuation.
   // This is not included in NodeMatch since it is only used in replace
@@ -152,6 +151,10 @@ impl<L: Language> Matcher<L> for str {
   fn get_match_len(&self, node: Node<L>) -> Option<usize> {
     let pattern = Pattern::new(self, node.lang().clone());
     pattern.get_match_len(node)
+  }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    todo!()
   }
 }
 

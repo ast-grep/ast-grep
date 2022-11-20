@@ -3,6 +3,7 @@ use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Matcher, Node};
 
+use bit_set::BitSet;
 use std::marker::PhantomData;
 
 fn until<L: Language>(pattern: &Option<Rule<L>>) -> impl Fn(&Node<L>) -> bool + '_ {
@@ -52,6 +53,10 @@ impl<L: Language> Matcher<L> for Inside<L> {
         .find_map(|n| self.outer.match_node_with_env(n, env))
     }
   }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    todo!()
+  }
 }
 
 pub struct Has<L: Language> {
@@ -94,6 +99,10 @@ impl<L: Language> Matcher<L> for Has<L> {
         .find_map(|n| self.inner.match_node_with_env(n, env))
     }
   }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    todo!()
+  }
 }
 
 pub struct Precedes<L: Language> {
@@ -132,6 +141,10 @@ impl<L: Language> Matcher<L> for Precedes<L> {
         .find_map(|n| self.inner.match_node_with_env(n, env))
     }
   }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    todo!()
+  }
 }
 
 pub struct Follows<L: Language> {
@@ -169,6 +182,10 @@ impl<L: Language> Matcher<L> for Follows<L> {
         .take_while(until(&self.until))
         .find_map(|n| self.inner.match_node_with_env(n, env))
     }
+  }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    todo!()
   }
 }
 
