@@ -1,5 +1,5 @@
 use crate::language::Language;
-use crate::match_tree::{match_end_non_recursive, match_node_non_recursive};
+use crate::match_tree::{extract_var_from_node, match_end_non_recursive, match_node_non_recursive};
 use crate::matcher::{KindMatcher, Matcher};
 use crate::{meta_var::MetaVarEnv, Node, Root};
 
@@ -74,6 +74,9 @@ impl<L: Language> Matcher<L> for Pattern<L> {
 
   fn potential_kinds(&self) -> Option<bit_set::BitSet> {
     let matcher = self.matcher();
+    if matcher.is_leaf() && extract_var_from_node(&matcher).is_some() {
+      return None;
+    }
     let mut kinds = BitSet::new();
     kinds.insert(matcher.kind_id().into());
     Some(kinds)

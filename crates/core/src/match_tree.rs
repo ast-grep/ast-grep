@@ -234,7 +234,7 @@ pub fn does_node_match_exactly<L: Language>(goal: &Node<L>, candidate: Node<L>) 
     .all(|(g, c)| does_node_match_exactly(&g, c))
 }
 
-fn extract_var_from_node<L: Language>(goal: &Node<L>) -> Option<MetaVariable> {
+pub fn extract_var_from_node<L: Language>(goal: &Node<L>) -> Option<MetaVariable> {
   let key = goal.text();
   goal.root.lang.extract_meta_var(&key)
 }

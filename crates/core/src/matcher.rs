@@ -90,6 +90,7 @@ pub trait Matcher<L: Language> {
   /// Returns a bitset for all possible target node kind ids.
   /// Returns None if the matcher needs to try against all node kind.
   fn potential_kinds(&self) -> Option<BitSet> {
+    // TODO: add test cases for all potential_kinds
     None
   }
 
@@ -127,6 +128,9 @@ pub trait Matcher<L: Language> {
   }
 
   fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
+    if let Some(set) = self.potential_kinds() {
+      return find_node_impl(self, node, &set);
+    }
     self
       .match_node(node.clone())
       .or_else(|| node.children().find_map(|sub| self.find_node(sub)))
@@ -138,6 +142,23 @@ pub trait Matcher<L: Language> {
   {
     FindAllNodes::new(self, node)
   }
+}
+
+fn find_node_impl<'tree, L, M>(
+  m: &M,
+  node: Node<'tree, L>,
+  set: &BitSet,
+) -> Option<NodeMatch<'tree, L>>
+where
+  L: Language,
+  M: Matcher<L> + ?Sized,
+{
+  if set.contains(node.kind_id().into()) {
+    if let Some(ret) = m.match_node(node.clone()) {
+      return Some(ret);
+    }
+  }
+  node.children().find_map(|sub| find_node_impl(m, sub, set))
 }
 
 impl<L: Language> Matcher<L> for str {
