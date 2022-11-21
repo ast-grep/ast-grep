@@ -26,10 +26,13 @@ where
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
-    let mut set1 = self.pattern1.potential_kinds()?;
-    let set2 = self.pattern2.potential_kinds()?;
-    set1.intersect_with(&set2);
-    Some(set1)
+    if let Some(set1) = self.pattern1.potential_kinds() {
+      let mut set2 = self.pattern2.potential_kinds()?;
+      set2.intersect_with(&set1);
+      Some(set2)
+    } else {
+      self.pattern2.potential_kinds()
+    }
   }
 }
 
@@ -61,7 +64,18 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
-    todo!()
+    let mut set: Option<BitSet> = None;
+    for pattern in &self.patterns {
+      let Some(n) = pattern.potential_kinds() else {
+        continue;
+      };
+      if let Some(set) = set.as_mut() {
+        set.intersect_with(&n);
+      } else {
+        set = Some(n);
+      }
+    }
+    set
   }
 }
 
@@ -93,7 +107,14 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
-    todo!()
+    let mut set = BitSet::new();
+    for pattern in &self.patterns {
+      let Some(n) = pattern.potential_kinds() else {
+        return None;
+      };
+      set.union_with(&n);
+    }
+    Some(set)
   }
 }
 
@@ -156,10 +177,6 @@ where
       .match_node_with_env(node.clone(), env)
       .xor(Some(node))
   }
-
-  fn potential_kinds(&self) -> Option<BitSet> {
-    todo!()
-  }
 }
 
 #[derive(Clone)]
@@ -206,10 +223,6 @@ where
     _env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
     (self.func)(node.clone()).then_some(node)
-  }
-
-  fn potential_kinds(&self) -> Option<BitSet> {
-    todo!()
   }
 }
 
