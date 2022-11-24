@@ -154,8 +154,7 @@ message: test rule
 severity: info
 language: Tsx
 rule:
-  all:
-    - pattern: foo
+  all: []
 {files}"
     ))
     .unwrap()
