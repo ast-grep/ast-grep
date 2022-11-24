@@ -441,4 +441,22 @@ mod test {
     let matcher = Op::every(Op::not("let a = $_".t())).and(Op::not("let a = 123".t()));
     assert_eq!(matcher.potential_kinds(), None);
   }
+
+  #[test]
+  fn test_or_kinds() {
+    // union None kinds
+    let matcher = Op::either("let a = $_".t()).or(Op::not("let a = 123".t()));
+    assert_eq!(matcher.potential_kinds(), None);
+    let matcher = Op::either(Op::not("let a = $_".t())).or("let a = 123".t());
+    assert_eq!(matcher.potential_kinds(), None);
+    // union Same kinds
+    let matcher = Op::either("let a = $_".t()).or("let b = 123".t());
+    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
+    // union different kinds
+    let matcher = Op::either("let a = 1".t()).or("console.log(1)".t());
+    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(2));
+    // two None kinds
+    let matcher = Op::either(Op::not("let a = $_".t())).or(Op::not("let a = 123".t()));
+    assert_eq!(matcher.potential_kinds(), None);
+  }
 }
