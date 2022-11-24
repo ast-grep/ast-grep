@@ -399,22 +399,22 @@ impl<'r, L: Language> Node<'r, L> {
       .collect()
   }
 
-  pub fn after(&self) {
+  pub fn after(&self) -> Edit {
     todo!()
   }
-  pub fn before(&self) {
+  pub fn before(&self) -> Edit {
     todo!()
   }
-  pub fn append(&self) {
+  pub fn append(&self) -> Edit {
     todo!()
   }
-  pub fn prepend(&self) {
+  pub fn prepend(&self) -> Edit {
     todo!()
   }
   pub fn empty(&self) {
     todo!()
   }
-  pub fn remove(&self) {
+  pub fn remove(&self) -> Edit {
     todo!()
   }
 }
