@@ -26,12 +26,13 @@ where
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
-    if let Some(set1) = self.pattern1.potential_kinds() {
-      let mut set2 = self.pattern2.potential_kinds()?;
-      set2.intersect_with(&set1);
-      Some(set2)
-    } else {
-      self.pattern2.potential_kinds()
+    let set1 = self.pattern1.potential_kinds();
+    let set2 = self.pattern2.potential_kinds();
+    // if both constituent have Some(bitset), intesect them
+    // otherwise returns either of the non-null set
+    match (&set1, &set2) {
+      (Some(s1), Some(s2)) => Some(s1.intersection(s2).collect()),
+      _ => set1.xor(set2),
     }
   }
 }
@@ -226,19 +227,22 @@ where
   }
 }
 
+// we don't need specify M for static method
+impl<L: Language> Op<L, MatchNone> {
+  pub fn func<F>(func: F) -> Predicate<F>
+  where
+    F: for<'tree> Fn(Node<'tree, L>) -> bool,
+  {
+    Predicate { func }
+  }
+}
+
 impl<L: Language, M: Matcher<L>> Op<L, M> {
   pub fn not(pattern: M) -> Not<L, M> {
     Not {
       not: pattern,
       lang: PhantomData,
     }
-  }
-
-  pub fn func<F>(func: F) -> Predicate<F>
-  where
-    F: for<'tree> Fn(Node<'tree, L>) -> bool,
-  {
-    Predicate { func }
   }
 
   pub fn with_meta_var(&mut self, var_id: String, matcher: MetaVarMatcher<L>) -> &mut Self {
@@ -404,5 +408,37 @@ mod test {
     assert_eq!(ret, ["a + b", "c + b"], "should match source code order");
   }
 
-  // TODO add test case for func
+  #[test]
+  fn test_api_func() {
+    let matcher = Op::func(|n| n.text().contains("114514"));
+    test_find(&matcher, "let a = 114514");
+    test_not_find(&matcher, "let a = 1919810");
+  }
+  use crate::Pattern;
+  trait TsxMatcher {
+    fn t(self) -> Pattern<Tsx>;
+  }
+  impl TsxMatcher for &str {
+    fn t(self) -> Pattern<Tsx> {
+      Pattern::new(self, Tsx)
+    }
+  }
+
+  #[test]
+  fn test_and_kinds() {
+    // intersect None kinds
+    let matcher = Op::every("let a = $_".t()).and(Op::not("let a = 123".t()));
+    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
+    let matcher = Op::every(Op::not("let a = $_".t())).and("let a = 123".t());
+    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
+    // intersect Same kinds
+    let matcher = Op::every("let a = $_".t()).and("let b = 123".t());
+    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
+    // intersect different kinds
+    let matcher = Op::every("let a = 1".t()).and("console.log(1)".t());
+    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(0));
+    // two None kinds
+    let matcher = Op::every(Op::not("let a = $_".t())).and(Op::not("let a = 123".t()));
+    assert_eq!(matcher.potential_kinds(), None);
+  }
 }
