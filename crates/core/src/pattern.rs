@@ -73,6 +73,9 @@ impl<L: Language> Matcher<L> for Pattern<L> {
   }
 
   fn potential_kinds(&self) -> Option<bit_set::BitSet> {
+    if let Some(kind) = &self.selector {
+      return kind.potential_kinds();
+    }
     let matcher = self.matcher();
     if matcher.is_leaf() && extract_var_from_node(&matcher).is_some() {
       return None;
@@ -197,5 +200,55 @@ mod test {
     assert!(pattern.find_node_with_env(cand.root(), &mut env).is_none());
     let env = HashMap::from(env);
     assert!(env.is_empty());
+  }
+
+  fn get_kind(kind_str: &str) -> usize {
+    Tsx
+      .get_ts_language()
+      .id_for_node_kind(kind_str, true)
+      .into()
+  }
+
+  #[test]
+  fn test_pattern_potential_kinds() {
+    let pattern = Pattern::new("const a = 1", Tsx);
+    let kind = get_kind("lexical_declaration");
+    let kinds = pattern.potential_kinds().expect("should have kinds");
+    assert_eq!(kinds.len(), 1);
+    assert!(kinds.contains(kind));
+  }
+
+  #[test]
+  fn test_pattern_with_non_root_meta_var() {
+    let pattern = Pattern::new("const $A = $B", Tsx);
+    let kind = get_kind("lexical_declaration");
+    let kinds = pattern.potential_kinds().expect("should have kinds");
+    assert_eq!(kinds.len(), 1);
+    assert!(kinds.contains(kind));
+  }
+
+  #[test]
+  fn test_bare_wildcard() {
+    let pattern = Pattern::new("$A", Tsx);
+    // wildcard should match anything, so kinds should be None
+    assert!(pattern.potential_kinds().is_none());
+  }
+
+  #[test]
+  fn test_contextual_potential_kinds() {
+    let pattern = Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx);
+    let kind = get_kind("public_field_definition");
+    let kinds = pattern.potential_kinds().expect("should have kinds");
+    assert_eq!(kinds.len(), 1);
+    assert!(kinds.contains(kind));
+  }
+
+  #[test]
+  fn test_contextual_wildcard() {
+    let pattern = Pattern::contextual("class A { $F }", "property_identifier", Tsx);
+    let kind = get_kind("property_identifier");
+    let kinds = pattern.potential_kinds().expect("should have kinds");
+    assert_eq!(kinds.len(), 1);
+    assert!(kinds.contains(kind));
   }
 }
