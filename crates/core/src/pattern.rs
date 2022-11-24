@@ -8,6 +8,8 @@ use bit_set::BitSet;
 #[derive(Clone)]
 pub struct Pattern<L: Language> {
   pub root: Root<L>,
+  /// used in contextual pattern, specify which AST subpart is considered as pattern
+  /// e.g. in js`class { $F }` we set selector to public_field_definition
   selector: Option<KindMatcher<L>>,
 }
 
