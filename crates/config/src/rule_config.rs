@@ -1,6 +1,5 @@
-mod relational_rule;
-
-use relational_rule::{Follows, Has, Inside, Precedes};
+use crate::relational_rule::{Follows, Has, Inside, Precedes};
+use crate::serialized_rule::{AtomicRule, CompositeRule, PatternStyle, SerializableRule};
 
 pub use crate::constraints::{
   try_deserialize_matchers, try_from_serializable as deserialize_meta_var, RuleWithConstraint,
@@ -85,38 +84,6 @@ impl<L: Language> RuleConfig<L> {
   }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub enum SerializableRule {
-  All(Vec<SerializableRule>),
-  Any(Vec<SerializableRule>),
-  Not(Box<SerializableRule>),
-  Inside(Box<RelationalRule>),
-  Has(Box<RelationalRule>),
-  Precedes(Box<RelationalRule>),
-  Follows(Box<RelationalRule>),
-  Pattern(PatternStyle),
-  Kind(String),
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct RelationalRule {
-  #[serde(flatten)]
-  rule: SerializableRule,
-  #[serde(default)]
-  until: Option<SerializableRule>,
-  #[serde(default)]
-  immediate: bool,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(untagged)]
-pub enum PatternStyle {
-  Str(String),
-  Contextual { context: String, selector: String },
-}
-
 pub enum Rule<L: Language> {
   All(o::All<L, Rule<L>>),
   Any(o::Any<L, Rule<L>>),
@@ -193,6 +160,8 @@ pub fn try_from_serializable<L: Language>(
   serialized: SerializableRule,
   lang: L,
 ) -> Result<Rule<L>, SerializeError> {
+  use AtomicRule as A;
+  use CompositeRule as C;
   use Rule as R;
   use SerializableRule as S;
   let mapper = |s| try_from_serializable(s, lang.clone());
@@ -204,18 +173,26 @@ pub fn try_from_serializable<L: Language>(
     Ok(inner)
   };
   let ret = match serialized {
-    S::All(all) => R::All(o::All::new(convert_rules(all)?)),
-    S::Any(any) => R::Any(o::Any::new(convert_rules(any)?)),
-    S::Not(not) => R::Not(Box::new(o::Not::new(mapper(*not)?))),
-    S::Inside(inside) => R::Inside(Box::new(Inside::try_new(*inside, lang)?)),
-    S::Has(has) => R::Has(Box::new(Has::try_new(*has, lang)?)),
-    S::Precedes(precedes) => R::Precedes(Box::new(Precedes::try_new(*precedes, lang)?)),
-    S::Follows(follows) => R::Follows(Box::new(Follows::try_new(*follows, lang)?)),
-    S::Kind(kind) => R::Kind(KindMatcher::new(&kind, lang)),
-    S::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::new(&pattern, lang)),
-    S::Pattern(PatternStyle::Contextual { context, selector }) => {
-      R::Pattern(Pattern::contextual(&context, &selector, lang))
-    }
+    S::Composite(comp) => match comp {
+      C::All(all) => R::All(o::All::new(convert_rules(all)?)),
+      C::Any(any) => R::Any(o::Any::new(convert_rules(any)?)),
+      C::Not(not) => R::Not(Box::new(o::Not::new(mapper(*not)?))),
+      C::Inside(inside) => R::Inside(Box::new(Inside::try_new(*inside, lang)?)),
+      C::Has(has) => R::Has(Box::new(Has::try_new(*has, lang)?)),
+      C::Precedes(precedes) => R::Precedes(Box::new(Precedes::try_new(*precedes, lang)?)),
+      C::Follows(follows) => R::Follows(Box::new(Follows::try_new(*follows, lang)?)),
+    },
+    // TODO: augment
+    S::Atomic {
+      rule,
+      augmentation: _,
+    } => match rule {
+      A::Kind(kind) => R::Kind(KindMatcher::new(&kind, lang)),
+      A::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::new(&pattern, lang)),
+      A::Pattern(PatternStyle::Contextual { context, selector }) => {
+        R::Pattern(Pattern::contextual(&context, &selector, lang))
+      }
+    },
   };
   Ok(ret)
 }
@@ -225,40 +202,6 @@ mod test {
   use super::*;
   use crate::from_str;
   use crate::test::TypeScript;
-  use crate::PatternStyle::*;
-  use SerializableRule as S;
-
-  #[test]
-  fn test_pattern() {
-    let src = r"
-pattern: Test
-";
-    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(matches!(rule, S::Pattern(Str(_))));
-    let src = r"
-pattern:
-    context: class $C { set $B() {} }
-    selector: method_definition
-";
-    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(matches!(rule, S::Pattern(Contextual { .. })));
-  }
-
-  #[test]
-  fn test_relational() {
-    let src = r"
-inside:
-    pattern: class A {}
-    immediate: true
-    until:
-        pattern: function() {}
-";
-    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    match rule {
-      SerializableRule::Inside(rule) => assert!(rule.immediate),
-      _ => unreachable!(),
-    }
-  }
 
   fn ts_rule_config(rule: SerializableRule) -> RuleConfig<TypeScript> {
     RuleConfig {

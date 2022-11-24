@@ -146,14 +146,17 @@ mod test {
   use crate::from_yaml_string;
   use crate::test::TypeScript;
 
-  fn make_rule(rule: &str) -> RuleCollection<TypeScript> {
+  fn make_rule(files: &str) -> RuleCollection<TypeScript> {
     let rule_config = from_yaml_string(&format!(
       r"
 id: test
 message: test rule
 severity: info
 language: Tsx
-{rule}"
+rule:
+  all:
+    - pattern: foo
+{files}"
     ))
     .unwrap()
     .pop()
@@ -178,8 +181,6 @@ language: Tsx
 ignores:
   - ./manage.py
   - "**/test*"
-rule:
-  all:
 "#;
     let collection = make_rule(src);
     assert_ignore_path(&collection, "./manage.py");
@@ -193,8 +194,6 @@ rule:
 files:
   - ./manage.py
   - "**/test*"
-rule:
-  all:
 "#;
     let collection = make_rule(src);
     assert_match_path(&collection, "./manage.py");
@@ -209,8 +208,6 @@ files:
   - ./src/**/*.py
 ignores:
   - ./src/excluded/*.py
-rule:
-  all:
 "#;
     let collection = make_rule(src);
     assert_match_path(&collection, "./src/test.py");

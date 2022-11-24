@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::rule::Rule;
+use crate::rule_config::Rule;
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::meta_var::MetaVarMatchers;

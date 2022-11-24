@@ -1,4 +1,5 @@
-use super::{try_from_serializable, RelationalRule, Rule, SerializeError};
+use crate::rule_config::{try_from_serializable, Rule, SerializeError};
+use crate::serialized_rule::RelationalRule;
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Matcher, Node};

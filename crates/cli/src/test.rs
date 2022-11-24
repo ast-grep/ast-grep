@@ -284,7 +284,7 @@ impl<O: Write> Reporter for DefaultReporter<O> {
 #[cfg(test)]
 mod test_test {
   use super::*;
-  use ast_grep_config::{PatternStyle, RuleConfig, SerializableRule, Severity};
+  use ast_grep_config::{CompositeRule, RuleConfig, SerializableRule, Severity};
 
   const TEST_RULE: &str = "test-rule";
 
@@ -305,13 +305,15 @@ mod test_test {
     }
   }
   fn always_report_rule() -> RuleCollection<SupportLang> {
-    let rule = get_rule_config(SerializableRule::Pattern(PatternStyle::Str("$A".into())));
+    // empty all should mean always
+    let serialized = SerializableRule::Composite(CompositeRule::All(vec![]));
+    let rule = get_rule_config(serialized);
     RuleCollection::try_new(vec![rule]).expect("RuleCollection must be valid")
   }
   fn never_report_rule() -> RuleCollection<SupportLang> {
-    let rule = get_rule_config(SerializableRule::Not(Box::new(SerializableRule::Pattern(
-      PatternStyle::Str("$A".into()),
-    ))));
+    // empty any should mean never
+    let serialized = SerializableRule::Composite(CompositeRule::Any(vec![]));
+    let rule = get_rule_config(serialized);
     RuleCollection::try_new(vec![rule]).expect("RuleCollection must be valid")
   }
 
