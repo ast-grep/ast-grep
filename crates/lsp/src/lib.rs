@@ -3,9 +3,9 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
-use ast_grep_config::RuleCollection;
 use ast_grep_config::Severity;
-use ast_grep_core::{language::Language, AstGrep, NodeMatch};
+use ast_grep_config::{RuleCollection, RuleConfig};
+use ast_grep_core::{language::Language, AstGrep, Node, NodeMatch};
 
 use std::collections::HashMap;
 
@@ -133,7 +133,7 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
   }
 }
 
-fn convert_node_match_to_range<L: Language>(node_match: &NodeMatch<L>) -> Range {
+fn convert_node_to_range<L: Language>(node_match: &Node<L>) -> Range {
   let (start_row, start_col) = node_match.start_pos();
   let (end_row, end_col) = node_match.end_pos();
   Range {
@@ -146,6 +146,51 @@ fn convert_node_match_to_range<L: Language>(node_match: &NodeMatch<L>) -> Range 
       character: end_col as u32,
     },
   }
+}
+
+fn convert_match_to_diagnostic<L: Language>(
+  node_match: NodeMatch<L>,
+  rule: &RuleConfig<L>,
+  uri: &Url,
+) -> Diagnostic {
+  Diagnostic {
+    range: convert_node_to_range(&node_match),
+    code: Some(NumberOrString::String(rule.id.clone())),
+    code_description: url_to_code_description(&rule.url),
+    severity: Some(match rule.severity {
+      Severity::Error => DiagnosticSeverity::ERROR,
+      Severity::Warning => DiagnosticSeverity::WARNING,
+      Severity::Info => DiagnosticSeverity::INFORMATION,
+      Severity::Hint => DiagnosticSeverity::HINT,
+    }),
+    message: rule.get_message(&node_match),
+    source: Some(String::from("ast-grep")),
+    tags: None,
+    related_information: collect_labels(&node_match, uri),
+    data: None,
+  }
+}
+
+fn collect_labels<L: Language>(
+  node_match: &NodeMatch<L>,
+  uri: &Url,
+) -> Option<Vec<DiagnosticRelatedInformation>> {
+  let secondary_nodes = node_match.get_env().get_labels("secondary")?;
+  Some(
+    secondary_nodes
+      .iter()
+      .map(|n| {
+        let location = Location {
+          uri: uri.clone(),
+          range: convert_node_to_range(n),
+        };
+        DiagnosticRelatedInformation {
+          location,
+          message: String::new(),
+        }
+      })
+      .collect(),
+  )
 }
 
 fn url_to_code_description(url: &Option<String>) -> Option<CodeDescription> {
@@ -166,30 +211,9 @@ impl<L: LSPLang> Backend<L> {
     let path = uri.to_file_path().ok()?;
     let rules = self.rules.for_path(&path);
     for rule in rules {
+      let to_diagnostic = |m| convert_match_to_diagnostic(m, rule, &uri);
       let matcher = rule.get_matcher();
-      // TODO: don't run rules with unmatching language
-      diagnostics.extend(
-        versioned
-          .root
-          .root()
-          .find_all(&matcher)
-          .map(|m| Diagnostic {
-            range: convert_node_match_to_range(&m),
-            code: Some(NumberOrString::String(rule.id.clone())),
-            code_description: url_to_code_description(&rule.url),
-            severity: Some(match rule.severity {
-              Severity::Error => DiagnosticSeverity::ERROR,
-              Severity::Warning => DiagnosticSeverity::WARNING,
-              Severity::Info => DiagnosticSeverity::INFORMATION,
-              Severity::Hint => DiagnosticSeverity::HINT,
-            }),
-            message: rule.get_message(&m),
-            source: Some(String::from("ast-grep")),
-            tags: None,
-            related_information: None, // TODO: add labels
-            data: None,
-          }),
-      );
+      diagnostics.extend(versioned.root.root().find_all(&matcher).map(to_diagnostic));
     }
     self
       .client
@@ -259,7 +283,7 @@ impl<L: LSPLang> Backend<L> {
       };
       let matcher = config.get_matcher();
       for matched_node in versioned.root.root().find_all(&matcher) {
-        let range = convert_node_match_to_range(&matched_node);
+        let range = convert_node_to_range(&matched_node);
         if !ranges.contains(&range) {
           continue;
         }

@@ -12,7 +12,6 @@ pub enum TSParseError {
   /// * The cancellation flag set with [Parser::set_cancellation_flag] was flipped
   /// * The parser has not yet had a language assigned with [Parser::set_language]
   TreeUnavailable,
-  MultiRoot,
 }
 
 impl From<ParserError> for TSParseError {
