@@ -1,5 +1,6 @@
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{Context, Result};
 use ast_grep_config::RuleConfig;
@@ -68,6 +69,8 @@ pub struct ScanArg {
   #[clap(value_parser, default_value = ".")]
   path: PathBuf,
 }
+
+static ACCEPT_ALL: AtomicBool = AtomicBool::new(false);
 
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
@@ -151,7 +154,7 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
   }
 }
 
-const EDIT_PROMPT: &str = "Accept change? (Yes[y], No[n], Quit[q], Edit[e])";
+const EDIT_PROMPT: &str = "Accept change? (Yes[y], No[n], Accept All[a], Quit[q], Edit[e])";
 const VIEW_PROMPT: &str = "Next[enter], Quit[q]";
 
 fn run_one_interaction<M: Matcher<SupportLang>>(
@@ -160,44 +163,63 @@ fn run_one_interaction<M: Matcher<SupportLang>>(
   matcher: M,
   rewrite: &Option<Pattern<SupportLang>>,
 ) -> Result<()> {
-  interaction::run_in_alternate_screen(|| {
-    print_matches_and_prompt_action(path, grep, matcher, rewrite)
-  })
+  if rewrite.is_some() {
+    interaction::run_in_alternate_screen(|| {
+      print_diffs_and_prompt_action(path, grep, matcher, rewrite)
+    })
+  } else {
+    interaction::run_in_alternate_screen(|| print_matches_and_confirm_next(path, grep, matcher))
+  }
 }
 
-fn print_matches_and_prompt_action<M: Matcher<SupportLang>>(
+fn print_diffs_and_prompt_action<M: Matcher<SupportLang>>(
   path: &PathBuf,
   grep: &AstGrep<SupportLang>,
   matcher: M,
   rewrite: &Option<Pattern<SupportLang>>,
 ) -> Result<()> {
+  let rewrite_action = || {
+    let rewrite = rewrite.as_ref().unwrap();
+    let new_content = apply_rewrite(grep, &matcher, rewrite);
+    std::fs::write(path, new_content).expect("write file content failed");
+    Ok(())
+  };
+  if ACCEPT_ALL.load(Ordering::SeqCst) {
+    return rewrite_action();
+  }
   let mut matches = grep.root().find_all(&matcher).peekable();
   let first_match = match matches.peek() {
     Some(n) => n.start_pos().0,
     None => return Ok(()),
   };
   print_matches(matches, path, &matcher, rewrite).unwrap();
-  let Some(rewrite) = rewrite else {
-    let resp = interaction::prompt(VIEW_PROMPT, "q", Some('\n')).expect("cannot fail");
-    return if resp == 'q' {
-      Err(anyhow::anyhow!("Exit interactive editing"))
-    } else {
-      Ok(())
-    };
-  };
   let response =
     interaction::prompt(EDIT_PROMPT, "ynaqe", Some('n')).expect("Error happened during prompt");
   match response {
-    'y' => {
-      let new_content = apply_rewrite(grep, &matcher, rewrite);
-      std::fs::write(path, new_content).expect("write file content failed");
-      Ok(())
+    'y' => rewrite_action(),
+    'a' => {
+      ACCEPT_ALL.store(true, Ordering::SeqCst);
+      rewrite_action()
     }
-    'a' => todo!(),
     'n' => Ok(()),
     'e' => interaction::open_in_editor(path, first_match),
     'q' => Err(anyhow::anyhow!("Exit interactive editing")),
     _ => Ok(()),
+  }
+}
+
+fn print_matches_and_confirm_next<M: Matcher<SupportLang>>(
+  path: &Path,
+  grep: &AstGrep<SupportLang>,
+  matcher: M,
+) -> Result<()> {
+  let matches = grep.root().find_all(&matcher);
+  print_matches(matches, path, &matcher, &None).unwrap();
+  let resp = interaction::prompt(VIEW_PROMPT, "q", Some('\n')).expect("cannot fail");
+  if resp == 'q' {
+    Err(anyhow::anyhow!("Exit interactive editing"))
+  } else {
+    Ok(())
   }
 }
 
