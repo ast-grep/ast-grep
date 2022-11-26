@@ -24,15 +24,22 @@ pub enum AtomicRule {
   Kind(String),
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum PatternStyle {
+  Str(String),
+  Contextual { context: String, selector: String },
+}
+
 /// Fields for extra conditions on atomic rules to simplify RuleConfig.
 /// e.g. a Pattern rule can be augmented with `inside` rule.
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Augmentation {
-  inside: Option<Box<Relation>>,
-  has: Option<Box<Relation>>,
-  precedes: Option<Box<Relation>>,
-  follows: Option<Box<Relation>>,
+  pub inside: Option<Box<Relation>>,
+  pub has: Option<Box<Relation>>,
+  pub precedes: Option<Box<Relation>>,
+  pub follows: Option<Box<Relation>>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -62,13 +69,6 @@ pub struct Relation {
   pub until: Option<SerializableRule>,
   #[serde(default)]
   pub immediate: bool,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(untagged)]
-pub enum PatternStyle {
-  Str(String),
-  Contextual { context: String, selector: String },
 }
 
 #[cfg(test)]

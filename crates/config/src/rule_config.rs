@@ -211,6 +211,7 @@ fn deserialze_augmented_atomic_rule<L: Language>(
 ) -> Result<Rule<L>, SerializeError> {
   use AtomicRule as A;
   use Rule as R;
+  let l = lang.clone();
   let deserialized_rule = match rule {
     A::Kind(kind) => R::Kind(KindMatcher::new(&kind, lang)),
     A::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::new(&pattern, lang)),
@@ -218,12 +219,37 @@ fn deserialze_augmented_atomic_rule<L: Language>(
       R::Pattern(Pattern::contextual(&context, &selector, lang))
     }
   };
-  augment_rule(deserialized_rule, augmentation)
+  augment_rule(deserialized_rule, augmentation, l)
 }
 
-fn augment_rule<L: Language>(rule: Rule<L>, aug: Augmentation) -> Result<Rule<L>, SerializeError> {
-  // TODO: implement augmentation
-  Ok(rule)
+fn augment_rule<L: Language>(
+  rule: Rule<L>,
+  aug: Augmentation,
+  lang: L,
+) -> Result<Rule<L>, SerializeError> {
+  let mut rules = vec![];
+  use Rule as R;
+  if let Some(inside) = aug.inside {
+    rules.push(R::Inside(Box::new(Inside::try_new(*inside, lang.clone())?)));
+  }
+  if let Some(has) = aug.has {
+    rules.push(R::Has(Box::new(Has::try_new(*has, lang.clone())?)));
+  }
+  if let Some(precedes) = aug.precedes {
+    rules.push(R::Precedes(Box::new(Precedes::try_new(
+      *precedes,
+      lang.clone(),
+    )?)));
+  }
+  if let Some(follows) = aug.follows {
+    rules.push(R::Follows(Box::new(Follows::try_new(*follows, lang)?)));
+  }
+  if rules.is_empty() {
+    Ok(rule)
+  } else {
+    rules.push(rule);
+    Ok(R::All(o::All::new(rules)))
+  }
 }
 
 #[cfg(test)]
