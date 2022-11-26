@@ -1,5 +1,7 @@
 use crate::relational_rule::{Follows, Has, Inside, Precedes};
-use crate::serialized_rule::{AtomicRule, CompositeRule, PatternStyle, SerializableRule};
+use crate::serialized_rule::{
+  AtomicRule, Augmentation, CompositeRule, PatternStyle, SerializableRule,
+};
 
 pub use crate::constraints::{
   try_deserialize_matchers, try_from_serializable as deserialize_meta_var, RuleWithConstraint,
@@ -160,11 +162,19 @@ pub fn try_from_serializable<L: Language>(
   serialized: SerializableRule,
   lang: L,
 ) -> Result<Rule<L>, SerializeError> {
-  use AtomicRule as A;
+  use SerializableRule as S;
+  match serialized {
+    S::Composite(comp) => deserialze_composite_rule(comp, lang),
+    S::Atomic { rule, augmentation } => deserialze_augmented_atomic_rule(rule, augmentation, lang),
+  }
+}
+
+fn deserialze_composite_rule<L: Language>(
+  composite: CompositeRule,
+  lang: L,
+) -> Result<Rule<L>, SerializeError> {
   use CompositeRule as C;
   use Rule as R;
-  use SerializableRule as S;
-  let mapper = |s| try_from_serializable(s, lang.clone());
   let convert_rules = |rules: Vec<SerializableRule>| {
     let mut inner = Vec::with_capacity(rules.len());
     for rule in rules {
@@ -172,29 +182,37 @@ pub fn try_from_serializable<L: Language>(
     }
     Ok(inner)
   };
-  let ret = match serialized {
-    S::Composite(comp) => match comp {
-      C::All(all) => R::All(o::All::new(convert_rules(all)?)),
-      C::Any(any) => R::Any(o::Any::new(convert_rules(any)?)),
-      C::Not(not) => R::Not(Box::new(o::Not::new(mapper(*not)?))),
-      C::Inside(inside) => R::Inside(Box::new(Inside::try_new(*inside, lang)?)),
-      C::Has(has) => R::Has(Box::new(Has::try_new(*has, lang)?)),
-      C::Precedes(precedes) => R::Precedes(Box::new(Precedes::try_new(*precedes, lang)?)),
-      C::Follows(follows) => R::Follows(Box::new(Follows::try_new(*follows, lang)?)),
-    },
-    // TODO: augment
-    S::Atomic {
-      rule,
-      augmentation: _,
-    } => match rule {
-      A::Kind(kind) => R::Kind(KindMatcher::new(&kind, lang)),
-      A::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::new(&pattern, lang)),
-      A::Pattern(PatternStyle::Contextual { context, selector }) => {
-        R::Pattern(Pattern::contextual(&context, &selector, lang))
-      }
-    },
+  Ok(match composite {
+    C::All(all) => R::All(o::All::new(convert_rules(all)?)),
+    C::Any(any) => R::Any(o::Any::new(convert_rules(any)?)),
+    C::Not(not) => R::Not(Box::new(o::Not::new(try_from_serializable(*not, lang)?))),
+    C::Inside(inside) => R::Inside(Box::new(Inside::try_new(*inside, lang)?)),
+    C::Has(has) => R::Has(Box::new(Has::try_new(*has, lang)?)),
+    C::Precedes(precedes) => R::Precedes(Box::new(Precedes::try_new(*precedes, lang)?)),
+    C::Follows(follows) => R::Follows(Box::new(Follows::try_new(*follows, lang)?)),
+  })
+}
+
+fn deserialze_augmented_atomic_rule<L: Language>(
+  rule: AtomicRule,
+  augmentation: Augmentation,
+  lang: L,
+) -> Result<Rule<L>, SerializeError> {
+  use AtomicRule as A;
+  use Rule as R;
+  let deserialized_rule = match rule {
+    A::Kind(kind) => R::Kind(KindMatcher::new(&kind, lang)),
+    A::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::new(&pattern, lang)),
+    A::Pattern(PatternStyle::Contextual { context, selector }) => {
+      R::Pattern(Pattern::contextual(&context, &selector, lang))
+    }
   };
-  Ok(ret)
+  augment_rule(deserialized_rule, augmentation)
+}
+
+fn augment_rule<L: Language>(rule: Rule<L>, aug: Augmentation) -> Result<Rule<L>, SerializeError> {
+  // TODO: implement augmentation
+  Ok(rule)
 }
 
 #[cfg(test)]

@@ -8,7 +8,7 @@ pub enum SerializableRule {
     #[serde(flatten)]
     rule: AtomicRule,
     #[serde(flatten)]
-    augmentation: Augmented,
+    augmentation: Augmentation,
   },
 }
 
@@ -23,7 +23,7 @@ pub enum AtomicRule {
 /// e.g. a Pattern rule can be augmented with `inside` rule.
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct Augmented {
+pub struct Augmentation {
   inside: Option<Box<RelationalRule>>,
   has: Option<Box<RelationalRule>>,
   precedes: Option<Box<RelationalRule>>,
