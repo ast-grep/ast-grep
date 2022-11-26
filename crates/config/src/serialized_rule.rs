@@ -1,9 +1,14 @@
 use serde::{Deserialize, Serialize};
 
+/// We have three kinds of rules in ast-grep.
+/// * Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.
+/// * Relational: filter matched target according to their position relative to other nodes.
+/// * Composite: use logic operation all/any/not to compose the above rules to larger rules.
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum SerializableRule {
   Composite(CompositeRule),
+  Relational(RelationalRule),
   Atomic {
     #[serde(flatten)]
     rule: AtomicRule,
@@ -24,10 +29,10 @@ pub enum AtomicRule {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Augmentation {
-  inside: Option<Box<RelationalRule>>,
-  has: Option<Box<RelationalRule>>,
-  precedes: Option<Box<RelationalRule>>,
-  follows: Option<Box<RelationalRule>>,
+  inside: Option<Box<Relation>>,
+  has: Option<Box<Relation>>,
+  precedes: Option<Box<Relation>>,
+  follows: Option<Box<Relation>>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -36,15 +41,21 @@ pub enum CompositeRule {
   All(Vec<SerializableRule>),
   Any(Vec<SerializableRule>),
   Not(Box<SerializableRule>),
-  Inside(Box<RelationalRule>),
-  Has(Box<RelationalRule>),
-  Precedes(Box<RelationalRule>),
-  Follows(Box<RelationalRule>),
+}
+
+/// TODO: add doc
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub enum RelationalRule {
+  Inside(Box<Relation>),
+  Has(Box<Relation>),
+  Precedes(Box<Relation>),
+  Follows(Box<Relation>),
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct RelationalRule {
+pub struct Relation {
   #[serde(flatten)]
   pub rule: SerializableRule,
   #[serde(default)]
@@ -64,8 +75,8 @@ pub enum PatternStyle {
 mod test {
   use super::*;
   use crate::from_str;
-  use CompositeRule as C;
   use PatternStyle::*;
+  use RelationalRule as RR;
   use SerializableRule as S;
 
   #[test]
@@ -107,7 +118,7 @@ inside:
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
     match rule {
-      S::Composite(C::Inside(rule)) => assert!(rule.immediate),
+      S::Relational(RR::Inside(rule)) => assert!(rule.immediate),
       _ => unreachable!(),
     }
   }

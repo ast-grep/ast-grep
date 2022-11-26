@@ -1,6 +1,6 @@
 use crate::relational_rule::{Follows, Has, Inside, Precedes};
 use crate::serialized_rule::{
-  AtomicRule, Augmentation, CompositeRule, PatternStyle, SerializableRule,
+  AtomicRule, Augmentation, CompositeRule, PatternStyle, RelationalRule, SerializableRule,
 };
 
 pub use crate::constraints::{
@@ -165,6 +165,7 @@ pub fn try_from_serializable<L: Language>(
   use SerializableRule as S;
   match serialized {
     S::Composite(comp) => deserialze_composite_rule(comp, lang),
+    S::Relational(relational) => deserialize_relational_rule(relational, lang),
     S::Atomic { rule, augmentation } => deserialze_augmented_atomic_rule(rule, augmentation, lang),
   }
 }
@@ -186,10 +187,20 @@ fn deserialze_composite_rule<L: Language>(
     C::All(all) => R::All(o::All::new(convert_rules(all)?)),
     C::Any(any) => R::Any(o::Any::new(convert_rules(any)?)),
     C::Not(not) => R::Not(Box::new(o::Not::new(try_from_serializable(*not, lang)?))),
-    C::Inside(inside) => R::Inside(Box::new(Inside::try_new(*inside, lang)?)),
-    C::Has(has) => R::Has(Box::new(Has::try_new(*has, lang)?)),
-    C::Precedes(precedes) => R::Precedes(Box::new(Precedes::try_new(*precedes, lang)?)),
-    C::Follows(follows) => R::Follows(Box::new(Follows::try_new(*follows, lang)?)),
+  })
+}
+
+fn deserialize_relational_rule<L: Language>(
+  relational: RelationalRule,
+  lang: L,
+) -> Result<Rule<L>, SerializeError> {
+  use RelationalRule as RR;
+  use Rule as R;
+  Ok(match relational {
+    RR::Inside(inside) => R::Inside(Box::new(Inside::try_new(*inside, lang)?)),
+    RR::Has(has) => R::Has(Box::new(Has::try_new(*has, lang)?)),
+    RR::Precedes(precedes) => R::Precedes(Box::new(Precedes::try_new(*precedes, lang)?)),
+    RR::Follows(follows) => R::Follows(Box::new(Follows::try_new(*follows, lang)?)),
   })
 }
 
