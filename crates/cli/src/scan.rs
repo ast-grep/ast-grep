@@ -12,7 +12,7 @@ use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
 use crate::config::find_config;
 use crate::interaction;
 use crate::languages::{file_types, from_extension, SupportLang};
-use crate::print::{print_matches, ColorArg, ErrorReporter, ReportStyle, SimpleFile};
+use crate::print::{print_diffs, print_matches, ColorArg, ErrorReporter, ReportStyle, SimpleFile};
 
 #[derive(Parser)]
 pub struct RunArg {
@@ -163,7 +163,7 @@ fn run_one_interaction<M: Matcher<SupportLang>>(
   matcher: M,
   rewrite: &Option<Pattern<SupportLang>>,
 ) -> Result<()> {
-  if rewrite.is_some() {
+  if let Some(rewrite) = rewrite {
     interaction::run_in_alternate_screen(|| {
       print_diffs_and_prompt_action(path, grep, matcher, rewrite)
     })
@@ -176,12 +176,12 @@ fn print_diffs_and_prompt_action<M: Matcher<SupportLang>>(
   path: &PathBuf,
   grep: &AstGrep<SupportLang>,
   matcher: M,
-  rewrite: &Option<Pattern<SupportLang>>,
+  rewrite: &Pattern<SupportLang>,
 ) -> Result<()> {
   let rewrite_action = || {
-    let rewrite = rewrite.as_ref().unwrap();
     let new_content = apply_rewrite(grep, &matcher, rewrite);
-    std::fs::write(path, new_content).expect("write file content failed");
+    // TODO: add context
+    std::fs::write(path, new_content)?;
     Ok(())
   };
   if ACCEPT_ALL.load(Ordering::SeqCst) {
@@ -192,7 +192,7 @@ fn print_diffs_and_prompt_action<M: Matcher<SupportLang>>(
     Some(n) => n.start_pos().0,
     None => return Ok(()),
   };
-  print_matches(matches, path, &matcher, rewrite).unwrap();
+  print_diffs(matches, path, &matcher, rewrite)?;
   let response =
     interaction::prompt(EDIT_PROMPT, "ynaqe", Some('n')).expect("Error happened during prompt");
   match response {
@@ -214,7 +214,7 @@ fn print_matches_and_confirm_next<M: Matcher<SupportLang>>(
   matcher: M,
 ) -> Result<()> {
   let matches = grep.root().find_all(&matcher);
-  print_matches(matches, path, &matcher, &None).unwrap();
+  print_matches(matches, path)?;
   let resp = interaction::prompt(VIEW_PROMPT, "q", Some('\n')).expect("cannot fail");
   if resp == 'q' {
     Err(anyhow::anyhow!("Exit interactive editing"))
@@ -303,7 +303,11 @@ fn match_one_file(
   if matches.peek().is_none() {
     return;
   }
-  print_matches(matches, path, pattern, rewrite).unwrap();
+  if let Some(rewrite) = rewrite {
+    print_diffs(matches, path, pattern, rewrite).unwrap();
+  } else {
+    print_matches(matches, path).unwrap();
+  }
 }
 
 fn filter_file_interactive(

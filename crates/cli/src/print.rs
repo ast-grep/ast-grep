@@ -96,48 +96,59 @@ fn adjust_dir_separator(p: &Path) -> String {
   }
 }
 
-pub fn print_matches<'a>(
-  matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
-  path: &Path,
-  pattern: &impl Matcher<SupportLang>,
-  rewrite: &Option<Pattern<SupportLang>>,
-) -> Result<()> {
+fn print_prelude(path: &Path) -> std::io::StdoutLock {
   let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
   let filepath = adjust_dir_separator(path);
   println!("{}", Color::Cyan.italic().paint(filepath));
-  if let Some(rewrite) = rewrite {
-    // TODO: actual matching happened in stdout lock, optimize it out
-    for e in matches {
-      let display = e.display_context(3);
-      let old_str = format!(
-        "{}{}{}\n",
-        display.leading, display.matched, display.trailing
-      );
-      let new_str = format!(
-        "{}{}{}\n",
-        display.leading,
-        e.replace(pattern, rewrite).unwrap().inserted_text,
-        display.trailing
-      );
-      let base_line = display.start_line;
-      print_diff(&old_str, &new_str, base_line);
-    }
-  } else {
-    for e in matches {
-      let display = e.display_context(0);
-      let leading = display.leading;
-      let trailing = display.trailing;
-      let matched = display.matched;
-      let highlighted = format!("{leading}{matched}{trailing}");
-      let lines = highlighted.lines().count();
-      let mut num = display.start_line;
-      let width = (lines + display.start_line).to_string().chars().count();
-      print!("{num:>width$}|"); // initial line num
-      print_highlight(leading.lines(), Style::new().dimmed(), width, &mut num);
-      print_highlight(matched.lines(), Style::new().bold(), width, &mut num);
-      print_highlight(trailing.lines(), Style::new().dimmed(), width, &mut num);
-      println!(); // end match new line
-    }
+  lock
+}
+
+pub fn print_matches<'a>(
+  matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
+  path: &Path,
+) -> Result<()> {
+  let lock = print_prelude(path);
+  for e in matches {
+    let display = e.display_context(0);
+    let leading = display.leading;
+    let trailing = display.trailing;
+    let matched = display.matched;
+    let highlighted = format!("{leading}{matched}{trailing}");
+    let lines = highlighted.lines().count();
+    let mut num = display.start_line;
+    let width = (lines + display.start_line).to_string().chars().count();
+    print!("{num:>width$}|"); // initial line num
+    print_highlight(leading.lines(), Style::new().dimmed(), width, &mut num);
+    print_highlight(matched.lines(), Style::new().bold(), width, &mut num);
+    print_highlight(trailing.lines(), Style::new().dimmed(), width, &mut num);
+    println!(); // end match new line
+  }
+  drop(lock);
+  Ok(())
+}
+
+pub fn print_diffs<'a>(
+  matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
+  path: &Path,
+  pattern: &impl Matcher<SupportLang>,
+  rewrite: &Pattern<SupportLang>,
+) -> Result<()> {
+  let lock = print_prelude(path);
+  // TODO: actual matching happened in stdout lock, optimize it out
+  for e in matches {
+    let display = e.display_context(3);
+    let old_str = format!(
+      "{}{}{}\n",
+      display.leading, display.matched, display.trailing
+    );
+    let new_str = format!(
+      "{}{}{}\n",
+      display.leading,
+      e.replace(pattern, rewrite).unwrap().inserted_text,
+      display.trailing
+    );
+    let base_line = display.start_line;
+    print_diff(&old_str, &new_str, base_line);
   }
   drop(lock);
   Ok(())
