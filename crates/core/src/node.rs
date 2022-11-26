@@ -396,11 +396,13 @@ impl<'r, L: Language> Node<'r, L> {
     // TODO: support nested matches like Some(Some(1)) with pattern Some($A)
     let mut stack = vec![self.clone()];
     let mut edits = vec![];
+    let mut reverse = vec![];
     while let Some(node) = stack.pop() {
       if let Some(matched) = matcher.match_node(node.clone()) {
         edits.push(self.make_edit(matched, &matcher, &replacer));
       } else {
-        stack.extend(node.children())
+        reverse.extend(node.children());
+        stack.extend(reverse.drain(..).rev());
       }
     }
     edits
@@ -466,5 +468,16 @@ mod test {
     let edits = node.replace_all("Some($A)", "$A");
     assert_eq!(edits.len(), 1);
     assert_eq!(edits[0].inserted_text, "Some(1)");
+  }
+
+  #[test]
+  fn test_replace_all_multiple_sorted() {
+    let root = Tsx.ast_grep("Some(Some(1)); Some(2)");
+    let node = root.root();
+    let edits = node.replace_all("Some($A)", "$A");
+    // edits must be sorted by position
+    assert_eq!(edits.len(), 2);
+    assert_eq!(edits[0].inserted_text, "Some(1)");
+    assert_eq!(edits[1].inserted_text, "2");
   }
 }
