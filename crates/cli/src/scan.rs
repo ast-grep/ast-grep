@@ -116,8 +116,9 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
         if from_extension(path).filter(|&n| n == lang).is_none() {
           continue;
         }
-        match_rule_on_file(path, lang, config, &reporter)
+        match_rule_on_file(path, lang, config, &reporter)?;
       }
+      Ok(())
     })
   } else {
     run_walker_interactive(
@@ -246,12 +247,12 @@ fn filter_file(entry: DirEntry) -> Option<DirEntry> {
   entry.file_type()?.is_file().then_some(entry)
 }
 
-fn run_walker(walker: WalkParallel, f: impl Fn(&Path) + Sync) -> Result<()> {
+fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> Result<()> + Sync) -> Result<()> {
   interaction::run_walker(walker, |entry| {
     if let Some(e) = filter_file(entry) {
-      f(e.path());
+      f(e.path())?;
     }
-    WalkState::Continue
+    Ok(WalkState::Continue)
   });
   Ok(())
 }
@@ -273,19 +274,17 @@ fn match_rule_on_file(
   lang: SupportLang,
   rule: &RuleConfig<SupportLang>,
   reporter: &ErrorReporter,
-) {
+) -> Result<()> {
   let matcher = rule.get_matcher();
-  let file_content = match read_to_string(path) {
-    Ok(content) => content,
-    _ => return,
-  };
+  let file_content = read_to_string(path)?;
   let grep = lang.ast_grep(&file_content);
   let mut matches = grep.root().find_all(matcher).peekable();
   if matches.peek().is_none() {
-    return;
+    return Ok(());
   }
   let file = SimpleFile::new(path.to_string_lossy(), &file_content);
   reporter.print_rule(matches, file, rule);
+  Ok(())
 }
 
 fn match_one_file(
@@ -293,20 +292,17 @@ fn match_one_file(
   lang: SupportLang,
   pattern: &impl Matcher<SupportLang>,
   rewrite: &Option<Pattern<SupportLang>>,
-) {
-  let file_content = match read_to_string(path) {
-    Ok(content) => content,
-    _ => return,
-  };
+) -> Result<()> {
+  let file_content = read_to_string(path)?;
   let grep = lang.ast_grep(file_content);
   let mut matches = grep.root().find_all(pattern).peekable();
   if matches.peek().is_none() {
-    return;
+    return Ok(());
   }
   if let Some(rewrite) = rewrite {
-    print_diffs(matches, path, pattern, rewrite).unwrap();
+    print_diffs(matches, path, pattern, rewrite)
   } else {
-    print_matches(matches, path).unwrap();
+    print_matches(matches, path)
   }
 }
 

@@ -63,14 +63,19 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
   }
 }
 
-pub fn run_walker(walker: WalkParallel, f: impl Fn(DirEntry) -> WalkState + Sync) {
+pub fn run_walker(
+  walker: WalkParallel,
+  f: impl FnOnce(DirEntry) -> Result<WalkState> + Sync + Copy,
+) {
   walker.run(|| {
-    Box::new(|result| match result {
-      Ok(entry) => f(entry),
-      Err(err) => {
-        eprintln!("ERROR: {}", err);
-        WalkState::Continue
-      }
+    Box::new(|result| {
+      result
+        .map_err(|e| anyhow::anyhow!(e))
+        .and_then(f)
+        .unwrap_or_else(|err| {
+          eprintln!("ERROR: {}", err);
+          WalkState::Continue
+        })
     })
   });
 }

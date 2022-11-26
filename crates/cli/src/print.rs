@@ -144,7 +144,9 @@ pub fn print_diffs<'a>(
     let new_str = format!(
       "{}{}{}\n",
       display.leading,
-      e.replace(pattern, rewrite).unwrap().inserted_text,
+      e.replace(pattern, rewrite)
+        .expect("edit must exist")
+        .inserted_text,
       display.trailing
     );
     let base_line = display.start_line;
