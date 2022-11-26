@@ -354,4 +354,15 @@ fix: ($B, lifecycle.update(['$A']))",
     let ret = apply_rewrite(&root, config.get_matcher(), &config.get_fixer().unwrap());
     assert_eq!(ret, "let a = () => (c++, lifecycle.update(['c']))");
   }
+
+  #[test]
+  fn test_rewrite_nested() {
+    let root = SupportLang::TypeScript.ast_grep("Some(Some(1))");
+    let ret = apply_rewrite(
+      &root,
+      "Some($A)",
+      &Pattern::new("$A", SupportLang::TypeScript),
+    );
+    assert_eq!("Some(1)", ret);
+  }
 }

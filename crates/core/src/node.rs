@@ -393,10 +393,17 @@ impl<'r, L: Language> Node<'r, L> {
   }
 
   pub fn replace_all<M: Matcher<L>, R: Replacer<L>>(&self, matcher: M, replacer: R) -> Vec<Edit> {
-    self
-      .find_all(&matcher)
-      .map(|matched| self.make_edit(matched, &matcher, &replacer))
-      .collect()
+    // TODO: support nested matches like Some(Some(1)) with pattern Some($A)
+    let mut stack = vec![self.clone()];
+    let mut edits = vec![];
+    while let Some(node) = stack.pop() {
+      if let Some(matched) = matcher.match_node(node.clone()) {
+        edits.push(self.make_edit(matched, &matcher, &replacer));
+      } else {
+        stack.extend(node.children())
+      }
+    }
+    edits
   }
 
   pub fn after(&self) -> Edit {
@@ -450,5 +457,14 @@ mod test {
     let root = Tsx.ast_grep(s);
     let node = root.root();
     assert_eq!(node.display_context(0).trailing.len(), 0);
+  }
+
+  #[test]
+  fn test_replace_all_nested() {
+    let root = Tsx.ast_grep("Some(Some(1))");
+    let node = root.root();
+    let edits = node.replace_all("Some($A)", "$A");
+    assert_eq!(edits.len(), 1);
+    assert_eq!(edits[0].inserted_text, "Some(1)");
   }
 }
