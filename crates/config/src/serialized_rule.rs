@@ -94,8 +94,8 @@ pattern: Test
     ));
     let src = r"
 pattern:
-    context: class $C { set $B() {} }
-    selector: method_definition
+  context: class $C { set $B() {} }
+  selector: method_definition
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
     assert!(matches!(
@@ -111,14 +111,88 @@ pattern:
   fn test_relational() {
     let src = r"
 inside:
-    pattern: class A {}
-    immediate: true
-    until:
-        pattern: function() {}
+  pattern: class A {}
+  immediate: true
+  until:
+    pattern: function() {}
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
     match rule {
       S::Relational(RR::Inside(rule)) => assert!(rule.immediate),
+      _ => unreachable!(),
+    }
+  }
+
+  #[test]
+  fn test_augmentation() {
+    let src = r"
+pattern: class A {}
+inside:
+  pattern: function() {}
+";
+    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+    match rule {
+      S::Atomic { rule, augmentation } => {
+        assert!(augmentation.inside.is_some());
+        assert!(matches!(rule, AtomicRule::Pattern(_)));
+      }
+      _ => unreachable!(),
+    }
+  }
+
+  #[test]
+  fn test_multi_augmentation() {
+    let src = r"
+pattern: class A {}
+inside:
+  pattern: function() {}
+has:
+  pattern: Some()
+";
+    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+    match rule {
+      S::Atomic { rule, augmentation } => {
+        assert!(augmentation.inside.is_some());
+        assert!(augmentation.has.is_some());
+        assert!(augmentation.follows.is_none());
+        assert!(augmentation.precedes.is_none());
+        assert!(matches!(rule, AtomicRule::Pattern(_)));
+      }
+      _ => unreachable!(),
+    }
+  }
+
+  #[test]
+  fn test_nested_augmentation() {
+    let src = r"
+pattern: class A {}
+inside:
+  pattern: function() {}
+  inside:
+    pattern:
+      context: Some()
+      selector: ss
+";
+    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+    match rule {
+      S::Atomic { rule, augmentation } => {
+        let inside = augmentation.inside.expect("should parse");
+        let Relation { rule: inner, .. } = *inside;
+        let nested = match inner {
+          S::Atomic { augmentation, .. } => augmentation,
+          _ => unreachable!(),
+        }
+        .inside
+        .expect("should parse");
+        assert!(matches!(
+          nested.rule,
+          S::Atomic {
+            rule: AtomicRule::Pattern(PatternStyle::Contextual { .. }),
+            ..
+          }
+        ));
+        assert!(matches!(rule, AtomicRule::Pattern(_)));
+      }
       _ => unreachable!(),
     }
   }
