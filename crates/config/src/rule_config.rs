@@ -290,4 +290,40 @@ mod test {
       .expect("should find match");
     assert_eq!(config.get_message(&node_match), "Found TestClass");
   }
+
+  #[test]
+  fn test_augmented_rule() {
+    let rule = from_str(
+      "
+pattern: console.log($A)
+inside:
+  pattern: function test() { $$$ }
+",
+    )
+    .expect("should parse");
+    let config = ts_rule_config(rule);
+    let grep = TypeScript::Tsx.ast_grep("console.log(1)");
+    assert!(grep.root().find(config.get_matcher()).is_none());
+    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
+    assert!(grep.root().find(config.get_matcher()).is_some());
+  }
+
+  #[test]
+  fn test_multiple_augment_rule() {
+    let rule = from_str(
+      "
+pattern: console.log($A)
+inside:
+  pattern: function test() { $$$ }
+has:
+  pattern: '123'
+",
+    )
+    .expect("should parse");
+    let config = ts_rule_config(rule);
+    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
+    assert!(grep.root().find(config.get_matcher()).is_none());
+    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(123) }");
+    assert!(grep.root().find(config.get_matcher()).is_some());
+  }
 }
