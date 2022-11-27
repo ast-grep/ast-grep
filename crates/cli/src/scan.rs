@@ -10,6 +10,7 @@ use clap::{Args, Parser};
 use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
 
 use crate::config::find_config;
+use crate::error::ErrorContext as EC;
 use crate::interaction;
 use crate::languages::{file_types, from_extension, SupportLang};
 use crate::print::{print_diffs, print_matches, ColorArg, ErrorReporter, ReportStyle, SimpleFile};
@@ -181,8 +182,7 @@ fn print_diffs_and_prompt_action<M: Matcher<SupportLang>>(
 ) -> Result<()> {
   let rewrite_action = || {
     let new_content = apply_rewrite(grep, &matcher, rewrite);
-    // TODO: add context
-    std::fs::write(path, new_content)?;
+    std::fs::write(path, new_content).with_context(|| EC::WriteFile(path.clone()))?;
     Ok(())
   };
   if ACCEPT_ALL.load(Ordering::SeqCst) {

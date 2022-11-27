@@ -24,9 +24,11 @@ pub enum ErrorContext {
   ParseRule(PathBuf),
   ParseTest(PathBuf),
   GlobPattern,
+  // LSP
   StartLanguageServer,
   // Edit
   OpenEditor,
+  WriteFile(PathBuf),
   // Test
   TestFail(String),
 }
@@ -118,6 +120,11 @@ impl ErrorMessage {
         "Cannot open file in editor.",
         "Please check if the editor is installed and the EDITOR environment variable is correctly set.",
         CLI_USAGE,
+      ),
+      WriteFile(file) => Self::new(
+        format!("Cannot rewrite file {}", file.display()),
+        "Fail to apply fix to the file. Skip to next file",
+        None,
       ),
       TestFail(message) => Self::new(
         message,
