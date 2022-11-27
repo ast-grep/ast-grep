@@ -173,7 +173,7 @@ impl Language for SupportLang {
 }
 
 /// Guess which programming language a file is written in
-/// Adapt from https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs
+/// Adapt from `<https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs>`
 pub fn from_extension(path: &Path) -> Option<SupportLang> {
   use SupportLang::*;
   match path.extension()?.to_str()? {
