@@ -41,6 +41,10 @@ pub struct RunArg {
   #[clap(value_parser, default_value = ".")]
   path: PathBuf,
 
+  /// Apply all rewrite without confirmation if true.
+  #[clap(long, requires = "rewrite")]
+  accept_all: bool,
+
   /// Include hidden files in search
   #[clap(long)]
   hidden: bool,
@@ -60,11 +64,16 @@ pub struct ScanArg {
   #[clap(short, long)]
   interactive: bool,
 
+  /// Controls output color.
   #[clap(long, default_value = "auto")]
   color: ColorArg,
 
   #[clap(long, default_value = "rich")]
   report_style: ReportStyle,
+
+  /// Apply all rewrite without confirmation if true.
+  #[clap(long, requires = "rewrite")]
+  accept_all: bool,
 
   /// The path whose descendent files are to be explored.
   #[clap(value_parser, default_value = ".")]
@@ -89,11 +98,13 @@ pub fn run_with_pattern(args: RunArg) -> Result<()> {
     .types(file_types(&lang))
     .build_parallel();
   let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
-  if !args.interactive {
+  let interactive = args.interactive || args.accept_all;
+  if !interactive {
     run_walker(walker, |path| {
       match_one_file(path, lang, &pattern, &rewrite)
     })
   } else {
+    ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
     run_walker_interactive(
       walker,
       |path| filter_file_interactive(path, lang, &pattern),
@@ -110,7 +121,8 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
     .threads(threads)
     .build_parallel();
   let reporter = ErrorReporter::new(args.color.into(), args.report_style);
-  if !args.interactive {
+  let interactive = args.interactive || args.accept_all;
+  if !interactive {
     run_walker(walker, |path| {
       for config in configs.for_path(path) {
         let lang = config.language;
@@ -122,6 +134,7 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
       Ok(())
     })
   } else {
+    ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
     run_walker_interactive(
       walker,
       |path| {
