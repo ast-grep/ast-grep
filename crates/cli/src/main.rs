@@ -89,13 +89,13 @@ mod test_cli {
   fn test_wrong_usage() {
     wrong_usage([]);
     wrong_usage(["Some($A)", "-l", "rs"]);
-    wrong_usage(["-p", "Some($A)"]);
     wrong_usage(["-l", "rs"]);
   }
 
   #[test]
   fn test_default_subcommand() {
     assert!(sg(["-p", "Some($A)", "-l", "rs"]).is_ok());
+    assert!(sg(["-p", "Some($A)"]).is_ok()); // inferred lang
     assert!(sg(["-p", "Some($A)", "-l", "rs", "-r", "$A.unwrap()"]).is_ok());
   }
 }

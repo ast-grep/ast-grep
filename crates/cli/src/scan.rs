@@ -25,13 +25,13 @@ pub struct RunArg {
   #[clap(short, long)]
   rewrite: Option<String>,
 
-  /// Print query pattern's tree-sitter AST
-  #[clap(long)]
+  /// Print query pattern's tree-sitter AST. Requires lang be set explictly.
+  #[clap(long, requires = "lang")]
   debug_query: bool,
 
   /// The language of the pattern query
   #[clap(short, long)]
-  lang: SupportLang,
+  lang: Option<SupportLang>,
 
   /// Start interactive edit session. Code rewrite only happens inside a session.
   #[clap(short, long)]
@@ -85,9 +85,54 @@ static ACCEPT_ALL: AtomicBool = AtomicBool::new(false);
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(args: RunArg) -> Result<()> {
+  if args.lang.is_some() {
+    run_pattern_with_specific_language(args)
+  } else {
+    run_pattern_with_inferred_language(args)
+  }
+}
+
+fn run_pattern_with_inferred_language(args: RunArg) -> Result<()> {
   let pattern = args.pattern;
   let threads = num_cpus::get().min(12);
-  let lang = args.lang;
+  let walker = WalkBuilder::new(&args.path)
+    .hidden(args.hidden)
+    .threads(threads)
+    .build_parallel();
+  let interactive = args.interactive || args.accept_all;
+  let rewrite = args.rewrite;
+  if !interactive {
+    run_walker(walker, |path| {
+      let Some(lang) = SupportLang::from_path(path) else {
+        return Ok(())
+      };
+      let pattern = Pattern::new(&pattern, lang);
+      let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
+      match_one_file(path, lang, &pattern, &rewrite)
+    })
+  } else {
+    ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
+    run_walker_interactive(
+      walker,
+      |path| {
+        let lang = SupportLang::from_path(path)?;
+        let pattern = Pattern::new(&pattern, lang);
+        filter_file_interactive(path, lang, &pattern)
+      },
+      |(grep, path)| {
+        let lang = SupportLang::from_path(&path).expect("must okay");
+        let pattern = Pattern::new(&pattern, lang);
+        let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
+        run_one_interaction(&path, &grep, &pattern, &rewrite)
+      },
+    )
+  }
+}
+
+fn run_pattern_with_specific_language(args: RunArg) -> Result<()> {
+  let pattern = args.pattern;
+  let threads = num_cpus::get().min(12);
+  let lang = args.lang.expect("must present");
   let pattern = Pattern::new(&pattern, lang);
   if args.debug_query {
     println!("Pattern TreeSitter {:?}", pattern);
