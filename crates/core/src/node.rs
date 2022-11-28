@@ -420,11 +420,16 @@ impl<'r, L: Language> Node<'r, L> {
   pub fn prepend(&self) -> Edit {
     todo!()
   }
-  pub fn empty(&self) {
+  pub fn empty(&self) -> Edit {
     todo!()
   }
   pub fn remove(&self) -> Edit {
-    todo!()
+    let range = self.range();
+    Edit {
+      position: range.start,
+      deleted_length: range.end - range.start,
+      inserted_text: String::new(),
+    }
   }
 }
 
