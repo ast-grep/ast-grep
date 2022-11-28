@@ -420,9 +420,20 @@ impl<'r, L: Language> Node<'r, L> {
   pub fn prepend(&self) -> Edit {
     todo!()
   }
-  pub fn empty(&self) -> Edit {
-    todo!()
+
+  /// Empty children. Remove all child node
+  pub fn empty(&self) -> Option<Edit> {
+    let mut children = self.children().peekable();
+    let start = children.peek()?.range().start;
+    let end = children.last()?.range().end;
+    Some(Edit {
+      position: start,
+      deleted_length: end - start,
+      inserted_text: String::new(),
+    })
   }
+
+  /// Remove the node itself
   pub fn remove(&self) -> Edit {
     let range = self.range();
     Edit {
