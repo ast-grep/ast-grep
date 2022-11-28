@@ -18,7 +18,7 @@ pub use replacer::replace_meta_var_in_string;
 use crate::replacer::Replacer;
 use language::Language;
 use node::Root;
-use ts_parser::Edit;
+use ts_parser::{Edit, TSParseError};
 
 #[derive(Clone)]
 pub struct AstGrep<L: Language> {
@@ -40,17 +40,21 @@ impl<L: Language> AstGrep<L> {
     self.inner.root()
   }
 
-  pub fn edit(&mut self, edit: Edit) -> &mut Self {
-    self.inner.do_edit(edit);
-    self
+  pub fn edit(&mut self, edit: Edit) -> Result<&mut Self, TSParseError> {
+    self.inner.do_edit(edit)?;
+    Ok(self)
   }
 
-  pub fn replace<M: Matcher<L>, R: Replacer<L>>(&mut self, pattern: M, replacer: R) -> bool {
+  pub fn replace<M: Matcher<L>, R: Replacer<L>>(
+    &mut self,
+    pattern: M,
+    replacer: R,
+  ) -> Result<bool, TSParseError> {
     if let Some(edit) = self.root().replace(pattern, replacer) {
-      self.edit(edit);
-      true
+      self.edit(edit)?;
+      Ok(true)
     } else {
-      false
+      Ok(false)
     }
   }
 
@@ -70,7 +74,7 @@ mod test {
   #[test]
   fn test_replace() {
     let mut ast_grep = Tsx.ast_grep("var a = 1; let b = 2;");
-    ast_grep.replace("var $A = $B", "let $A = $B");
+    ast_grep.replace("var $A = $B", "let $A = $B").unwrap();
     let source = ast_grep.generate();
     assert_eq!(source, "let a = 1; let b = 2;"); // note the semicolon
   }
@@ -79,7 +83,7 @@ mod test {
   fn test_replace_by_rule() {
     let rule = Op::either("let a = 123").or("let b = 456");
     let mut ast_grep = Tsx.ast_grep("let a = 123");
-    let replaced = ast_grep.replace(rule, "console.log('it works!')");
+    let replaced = ast_grep.replace(rule, "console.log('it works!')").unwrap();
     assert!(replaced);
     let source = ast_grep.generate();
     assert_eq!(source, "console.log('it works!')");
@@ -89,7 +93,7 @@ mod test {
   fn test_replace_unnamed_node() {
     // ++ and -- is unnamed node in tree-sitter javascript
     let mut ast_grep = Tsx.ast_grep("c++");
-    ast_grep.replace("$A++", "$A--");
+    ast_grep.replace("$A++", "$A--").unwrap();
     let source = ast_grep.generate();
     assert_eq!(source, "c--");
   }
@@ -97,12 +101,12 @@ mod test {
   #[test]
   fn test_replace_trivia() {
     let mut ast_grep = Tsx.ast_grep("var a = 1 /*haha*/;");
-    ast_grep.replace("var $A = $B", "let $A = $B");
+    ast_grep.replace("var $A = $B", "let $A = $B").unwrap();
     let source = ast_grep.generate();
     assert_eq!(source, "let a = 1 /*haha*/;"); // semicolon
 
     let mut ast_grep = Tsx.ast_grep("var a = 1; /*haha*/");
-    ast_grep.replace("var $A = $B", "let $A = $B");
+    ast_grep.replace("var $A = $B", "let $A = $B").unwrap();
     let source = ast_grep.generate();
     assert_eq!(source, "let a = 1; /*haha*/");
   }

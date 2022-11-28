@@ -48,7 +48,7 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 /// represents a dynamic language
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum SupportLang {
   C,
   CSharp,
@@ -263,7 +263,7 @@ mod test {
   ) -> String {
     let mut source = lang.ast_grep(src);
     let replacer = Pattern::new(replacer, lang);
-    assert!(source.replace(pattern, replacer));
+    assert!(source.replace(pattern, replacer).unwrap());
     source.generate()
   }
 

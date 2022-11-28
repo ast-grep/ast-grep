@@ -66,7 +66,7 @@ patterns = match config.include.clone() {
   fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
     let mut source = Rust.ast_grep(src);
     let replacer = Pattern::new(replacer, Rust);
-    assert!(source.replace(pattern, replacer));
+    assert!(source.replace(pattern, replacer).unwrap());
     source.generate()
   }
 

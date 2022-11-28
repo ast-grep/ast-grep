@@ -1,7 +1,7 @@
 use crate::language::Language;
 use crate::matcher::{Matcher, NodeMatch};
 use crate::replacer::Replacer;
-use crate::ts_parser::{parse, perform_edit, Edit};
+use crate::ts_parser::{parse, perform_edit, Edit, TSParseError};
 
 use std::borrow::Cow;
 
@@ -15,19 +15,25 @@ pub struct Root<L: Language> {
 }
 
 impl<L: Language> Root<L> {
-  pub fn new(src: &str, lang: L) -> Self {
-    Self {
-      inner: parse(src, None, lang.get_ts_language()).unwrap(),
+  pub fn try_new(src: &str, lang: L) -> Result<Self, TSParseError> {
+    let inner = parse(src, None, lang.get_ts_language())?;
+    Ok(Self {
+      inner,
       source: src.into(),
       lang,
-    }
+    })
+  }
+
+  pub fn new(src: &str, lang: L) -> Self {
+    Self::try_new(src, lang).expect("should parse")
   }
   // extract non generic implementation to reduce code size
-  pub fn do_edit(&mut self, edit: Edit) {
+  pub fn do_edit(&mut self, edit: Edit) -> Result<(), TSParseError> {
     let input = unsafe { self.source.as_mut_vec() };
     let input_edit = perform_edit(&mut self.inner, input, &edit);
     self.inner.edit(&input_edit);
-    self.inner = parse(&self.source, Some(&self.inner), self.lang.get_ts_language()).unwrap();
+    self.inner = parse(&self.source, Some(&self.inner), self.lang.get_ts_language())?;
+    Ok(())
   }
 
   pub fn root(&self) -> Node<L> {

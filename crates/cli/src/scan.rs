@@ -12,7 +12,7 @@ use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
 use crate::config::find_config;
 use crate::error::ErrorContext as EC;
 use crate::interaction;
-use crate::languages::{file_types, from_extension, SupportLang};
+use crate::languages::{file_types, SupportLang};
 use crate::print::{print_diffs, print_matches, ColorArg, ErrorReporter, ReportStyle, SimpleFile};
 
 #[derive(Parser)]
@@ -126,9 +126,6 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
     run_walker(walker, |path| {
       for config in configs.for_path(path) {
         let lang = config.language;
-        if from_extension(path).filter(|&n| n == lang).is_none() {
-          continue;
-        }
         match_rule_on_file(path, lang, config, &reporter)?;
       }
       Ok(())
@@ -141,9 +138,6 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
         for config in configs.for_path(path) {
           let lang = config.language;
           let matcher = config.get_matcher();
-          if from_extension(path).filter(|&n| n == lang).is_none() {
-            continue;
-          }
           let ret = filter_file_interactive(path, lang, &matcher);
           if ret.is_some() {
             return ret;
@@ -153,12 +147,6 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
       },
       |(grep, path)| {
         for config in configs.for_path(&path) {
-          if from_extension(&path)
-            .filter(|&n| n == config.language)
-            .is_none()
-          {
-            continue;
-          }
           let matcher = config.get_matcher();
           let fixer = config.get_fixer();
           run_one_interaction(&path, &grep, matcher, &fixer)?;
