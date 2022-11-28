@@ -117,11 +117,10 @@ fn run_pattern_with_inferred_language(args: RunArg) -> Result<()> {
       |path| {
         let lang = SupportLang::from_path(path)?;
         let pattern = Pattern::new(&pattern, lang);
-        filter_file_interactive(path, lang, &pattern)
+        let (grep, path) = filter_file_interactive(path, lang, &pattern)?;
+        Some((grep, path, lang, pattern))
       },
-      |(grep, path)| {
-        let lang = SupportLang::from_path(&path).expect("must okay");
-        let pattern = Pattern::new(&pattern, lang);
+      |(grep, path, lang, pattern)| {
         let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
         run_one_interaction(&path, &grep, &pattern, &rewrite)
       },
