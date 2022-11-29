@@ -21,10 +21,10 @@ ast-grep-config = { version = "0.1.9", path = "../config" }
 ast-grep-lsp = { version = "0.1.9", path = "../lsp" }
 
 ansi_term = "0.12"
+crossterm = "0.25.0"
 anyhow = "1.0"
 clap = { version = "4.0.26", features = ["derive"] }
 codespan-reporting = "0.11.1"
-crossbeam = "0.8"
 ignore = "0.4.18"
 num_cpus = "1.14.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -44,4 +44,3 @@ tree-sitter-rust = "0.20.3"
 tree-sitter-swift = "0.3.4"
 tree-sitter-typescript="0.20.1"
 tree-sitter-c-sharp = { version = "0.20.0", package = "ast-grep-tree-sitter-c-sharp" }
-crossterm = "0.25.0"

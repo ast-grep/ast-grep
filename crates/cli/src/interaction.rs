@@ -87,8 +87,8 @@ pub fn run_walker_interactive<T: Send>(
 ) -> Result<()> {
   let (tx, rx) = mpsc::channel();
   let producer = &producer;
-  crossbeam::scope(|s| {
-    s.spawn(move |_| {
+  std::thread::scope(|s| {
+    s.spawn(move || {
       walker.run(|| {
         let tx = tx.clone();
         Box::new(move |result| {
@@ -110,7 +110,7 @@ pub fn run_walker_interactive<T: Send>(
         })
       })
     });
-    let interaction = s.spawn(move |_| -> Result<()> {
+    let interaction = s.spawn(move || -> Result<()> {
       while let Ok(match_result) = rx.recv() {
         consumer(match_result)?;
       }
@@ -120,7 +120,6 @@ pub fn run_walker_interactive<T: Send>(
       .join()
       .expect("Error occurred during interaction.")
   })
-  .expect("Error occurred during spawning threads")
 }
 
 pub fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
