@@ -70,8 +70,8 @@ pub fn run_test_rule(arg: TestArg) -> Result<()> {
   run_test_rule_impl(arg, std::io::stdout())
 }
 
-fn run_test_rule_impl(arg: TestArg, output: impl Write + Sync + Send) -> Result<()> {
-  let collections = find_config(arg.config.clone())?;
+fn run_test_rule_impl(arg: TestArg, output: impl Write + Send) -> Result<()> {
+  let collections = &find_config(arg.config.clone())?;
   let (test_cases, _snapshots) = if let Some(test_dir) = arg.test_dir {
     let base_dir = std::env::current_dir()?;
     let snapshot_dir = arg.snapshot_dir.as_deref();
@@ -80,7 +80,7 @@ fn run_test_rule_impl(arg: TestArg, output: impl Write + Sync + Send) -> Result<
     find_tests(arg.config)?
   };
 
-  let reporter = Arc::new(Mutex::new(DefaultReporter { output }));
+  let reporter = &Arc::new(Mutex::new(DefaultReporter { output }));
   {
     reporter.lock().unwrap().before_report(&test_cases)?;
   }
@@ -88,30 +88,27 @@ fn run_test_rule_impl(arg: TestArg, output: impl Write + Sync + Send) -> Result<
   let cpu_count = num_cpus::get().min(12);
   let chunk_size = (test_cases.len() + cpu_count) / cpu_count;
   let results: Vec<_> = thread::scope(|s| {
-    let reporter = &reporter;
-    let collections = &collections;
     let collected: Vec<_> = test_cases
       .chunks(chunk_size)
       .map(|chunk| {
         s.spawn(move || {
-          let mut sub_results = vec![];
-          for case in chunk {
-            match verify_test_case_simple(collections, case) {
-              Some(result) => {
-                let mut reporter = reporter.lock().unwrap();
+          chunk
+            .iter()
+            .filter_map(|case| {
+              let result = verify_test_case_simple(collections, case);
+              let mut reporter = reporter.lock().unwrap();
+              if let Some(result) = result {
                 reporter
                   .report_case_summary(&case.id, &result.cases)
                   .unwrap();
-                sub_results.push(result);
-              }
-              None => {
-                let mut reporter = reporter.lock().unwrap();
+                Some(result)
+              } else {
                 let output = &mut reporter.output;
                 writeln!(output, "Configuraiont not found! {}", case.id).unwrap();
+                None
               }
-            }
-          }
-          sub_results
+            })
+            .collect::<Vec<_>>()
         })
       })
       .collect();
