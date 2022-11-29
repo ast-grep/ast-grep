@@ -8,6 +8,8 @@ use clap::Args;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 #[derive(Serialize, Deserialize)]
 pub struct TestCase {
@@ -68,7 +70,7 @@ pub fn run_test_rule(arg: TestArg) -> Result<()> {
   run_test_rule_impl(arg, std::io::stdout())
 }
 
-fn run_test_rule_impl(arg: TestArg, output: impl Write) -> Result<()> {
+fn run_test_rule_impl(arg: TestArg, output: impl Write + Sync + Send) -> Result<()> {
   let collections = find_config(arg.config.clone())?;
   let (test_cases, _snapshots) = if let Some(test_dir) = arg.test_dir {
     let base_dir = std::env::current_dir()?;
@@ -78,23 +80,50 @@ fn run_test_rule_impl(arg: TestArg, output: impl Write) -> Result<()> {
     find_tests(arg.config)?
   };
 
-  let mut reporter = DefaultReporter { output };
-  reporter.before_report(&test_cases)?;
-
-  let mut results = vec![];
-  for case in &test_cases {
-    match verify_test_case_simple(&collections, case) {
-      Some(result) => {
-        reporter.report_case_summary(&case.id, &result.cases)?;
-        results.push(result);
-      }
-      None => {
-        let output = &mut reporter.output;
-        writeln!(output, "Configuraiont not found! {}", case.id)?;
-      }
-    }
+  let reporter = Arc::new(Mutex::new(DefaultReporter { output }));
+  {
+    reporter.lock().unwrap().before_report(&test_cases)?;
   }
 
+  let cpu_count = num_cpus::get().min(12);
+  let chunk_size = (test_cases.len() + cpu_count) / cpu_count;
+  let results: Vec<_> = thread::scope(|s| {
+    let reporter = &reporter;
+    let collections = &collections;
+    let collected: Vec<_> = test_cases
+      .chunks(chunk_size)
+      .map(|chunk| {
+        s.spawn(move || {
+          let mut sub_results = vec![];
+          for case in chunk {
+            match verify_test_case_simple(collections, case) {
+              Some(result) => {
+                let mut reporter = reporter.lock().unwrap();
+                reporter
+                  .report_case_summary(&case.id, &result.cases)
+                  .unwrap();
+                sub_results.push(result);
+              }
+              None => {
+                let mut reporter = reporter.lock().unwrap();
+                let output = &mut reporter.output;
+                writeln!(output, "Configuraiont not found! {}", case.id).unwrap();
+              }
+            }
+          }
+          sub_results
+        })
+      })
+      .collect();
+
+    let mut results = vec![];
+    for sc in collected {
+      results.extend(sc.join().unwrap());
+    }
+    results
+  });
+
+  let mut reporter = reporter.lock().unwrap();
   let (passed, message) = reporter.after_report(&results)?;
   if passed {
     writeln!(&mut reporter.output, "{message}",)?;
