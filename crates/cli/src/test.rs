@@ -70,6 +70,32 @@ pub fn run_test_rule(arg: TestArg) -> Result<()> {
   run_test_rule_impl(arg, std::io::stdout())
 }
 
+fn parallel_collect<'a, T, R, F>(cases: &'a [T], filter_mapper: F) -> Vec<R>
+where
+  T: Sync,
+  R: Send,
+  F: FnMut(&'a T) -> Option<R> + Send + Copy,
+{
+  let cpu_count = num_cpus::get().min(12);
+  let chunk_size = (cases.len() + cpu_count) / cpu_count;
+  thread::scope(|s| {
+    cases
+      .chunks(chunk_size)
+      .map(|chunk| {
+        s.spawn(move || {
+          chunk
+            .iter()
+            .filter_map(filter_mapper) // apply per case logic
+            .collect::<Vec<_>>() // must collect here eagerly to consume iter in child threads
+        })
+      })
+      .collect::<Vec<_>>() // must collect here eagerly to enable multi thread
+      .into_iter()
+      .flat_map(|sc| sc.join().unwrap())
+      .collect()
+  })
+}
+
 fn run_test_rule_impl(arg: TestArg, output: impl Write + Send) -> Result<()> {
   let collections = &find_config(arg.config.clone())?;
   let (test_cases, _snapshots) = if let Some(test_dir) = arg.test_dir {
@@ -85,7 +111,7 @@ fn run_test_rule_impl(arg: TestArg, output: impl Write + Send) -> Result<()> {
     reporter.lock().unwrap().before_report(&test_cases)?;
   }
 
-  let check_one = |case| {
+  let check_one_case = |case| {
     let result = verify_test_case_simple(collections, case);
     let mut reporter = reporter.lock().unwrap();
     if let Some(result) = result {
@@ -99,21 +125,7 @@ fn run_test_rule_impl(arg: TestArg, output: impl Write + Send) -> Result<()> {
       None
     }
   };
-  let cpu_count = num_cpus::get().min(12);
-  let chunk_size = (test_cases.len() + cpu_count) / cpu_count;
-  let results: Vec<_> = thread::scope(|s| {
-    let collected: Vec<_> = test_cases
-      .chunks(chunk_size)
-      .map(|chunk| s.spawn(move || chunk.iter().filter_map(check_one).collect::<Vec<_>>()))
-      .collect();
-
-    let mut results = vec![];
-    for sc in collected {
-      results.extend(sc.join().unwrap());
-    }
-    results
-  });
-
+  let results = parallel_collect(&test_cases, check_one_case);
   let mut reporter = reporter.lock().unwrap();
   let (passed, message) = reporter.after_report(&results)?;
   if passed {
