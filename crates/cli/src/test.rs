@@ -54,10 +54,10 @@ pub struct TestArg {
   /// Specify the directory name storing snapshots. Default to __snapshots__.
   #[clap(long)]
   snapshot_dir: Option<PathBuf>,
-  /// Only check if the code in a test case is valid code or not.
+  /// Only check if the test code is valid, without checking rule output.
   /// Turn it on when you want to ignore the output of rules.
-  #[clap(long, default_value = "true")]
-  simple: bool,
+  #[clap(long)]
+  skip_snapshot_tests: bool,
   /// Update the content of all snapshots that have changed in test.
   #[clap(short, long)]
   update_snapshots: bool,
@@ -85,32 +85,26 @@ fn run_test_rule_impl(arg: TestArg, output: impl Write + Send) -> Result<()> {
     reporter.lock().unwrap().before_report(&test_cases)?;
   }
 
+  let check_one = |case| {
+    let result = verify_test_case_simple(collections, case);
+    let mut reporter = reporter.lock().unwrap();
+    if let Some(result) = result {
+      reporter
+        .report_case_summary(&case.id, &result.cases)
+        .unwrap();
+      Some(result)
+    } else {
+      let output = &mut reporter.output;
+      writeln!(output, "Configuraiont not found! {}", case.id).unwrap();
+      None
+    }
+  };
   let cpu_count = num_cpus::get().min(12);
   let chunk_size = (test_cases.len() + cpu_count) / cpu_count;
   let results: Vec<_> = thread::scope(|s| {
     let collected: Vec<_> = test_cases
       .chunks(chunk_size)
-      .map(|chunk| {
-        s.spawn(move || {
-          chunk
-            .iter()
-            .filter_map(|case| {
-              let result = verify_test_case_simple(collections, case);
-              let mut reporter = reporter.lock().unwrap();
-              if let Some(result) = result {
-                reporter
-                  .report_case_summary(&case.id, &result.cases)
-                  .unwrap();
-                Some(result)
-              } else {
-                let output = &mut reporter.output;
-                writeln!(output, "Configuraiont not found! {}", case.id).unwrap();
-                None
-              }
-            })
-            .collect::<Vec<_>>()
-        })
-      })
+      .map(|chunk| s.spawn(move || chunk.iter().filter_map(check_one).collect::<Vec<_>>()))
       .collect();
 
     let mut results = vec![];
@@ -130,6 +124,22 @@ fn run_test_rule_impl(arg: TestArg, output: impl Write + Send) -> Result<()> {
     Err(anyhow!(ErrorContext::TestFail(message)))
   }
 }
+
+enum SnapshotStatus {
+  Verified,
+  Different,
+}
+
+enum SnapshotAction {
+  /// Accept the change and apply to saved snapshot.
+  Accept,
+  /// Reject the change and delete the draft.
+  Reject,
+  /// Delete outdated snapshots.
+  CleanUp,
+}
+
+fn verify_test_snapshot() {}
 
 fn verify_test_case_simple<'a>(
   rules: &RuleCollection<SupportLang>,
@@ -179,8 +189,10 @@ impl<'a> CaseResult<'a> {
 enum CaseStatus<'a> {
   /// Report no issue for valid code
   Validated,
-  /// Report some issue for invalid code
+  /// Report correct issue for invalid code
   Reported,
+  /// Report wrong issue for invalid code
+  Wrong(TestSnapshot),
   /// Report no issue for invalid code
   Missing(&'a str),
   /// Report some issue for valid code
@@ -242,6 +254,9 @@ trait Reporter {
     let missing = Style::new().underline().paint("Missing");
     match result {
       CaseStatus::Validated | CaseStatus::Reported => (),
+      CaseStatus::Wrong(_snapshot) => {
+        todo!("add snapshot verfication")
+      }
       CaseStatus::Missing(s) => {
         writeln!(
           output,
@@ -289,6 +304,7 @@ impl<O: Write> Reporter for DefaultReporter<O> {
       .iter()
       .map(|s| match s {
         CaseStatus::Validated | CaseStatus::Reported => '.',
+        CaseStatus::Wrong(_) => 'W',
         CaseStatus::Missing(_) => 'M',
         CaseStatus::Noisy(_) => 'N',
       })
@@ -301,8 +317,9 @@ impl<O: Write> Reporter for DefaultReporter<O> {
 //   match result {
 //     CaseStatus::Validated => print!("✅"),
 //     CaseStatus::Reported => print!("⛳"),
+//     CaseStatus::Wrong(_) => print!("❌"),
 //     CaseStatus::Missing(_) => print!("❌"),
-//     CaseStatus::Noisy(_) => print!("🚫"),
+//     CaseStatus::Noisy(_) => print!("🔊"),
 //   }
 // }
 
