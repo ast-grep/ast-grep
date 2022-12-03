@@ -5,14 +5,14 @@ mod languages;
 mod lsp;
 mod print;
 mod scan;
-mod test;
+mod verify;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use error::exit_with_error;
 use scan::{run_with_config, run_with_pattern, RunArg, ScanArg};
-use test::{run_test_rule, TestArg};
+use verify::{run_test_rule, TestArg};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]

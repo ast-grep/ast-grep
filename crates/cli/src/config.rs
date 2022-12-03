@@ -1,6 +1,6 @@
 use crate::error::ErrorContext as EC;
 use crate::languages::{config_file_type, SupportLang};
-use crate::test::{TestCase, TestSnapshot};
+use crate::verify::{TestCase, TestSnapshot};
 use anyhow::{Context, Result};
 use ast_grep_config::{from_str, from_yaml_string, RuleCollection};
 use ignore::WalkBuilder;

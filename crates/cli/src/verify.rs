@@ -190,7 +190,7 @@ enum SnapshotAction {
 
 fn verify_invalid_case<'a>(
   rule_config: &RuleConfig<SupportLang>,
-  case: &'a String,
+  case: &'a str,
   snapshot: Option<&TestSnapshot>,
 ) -> CaseStatus<'a> {
   let sg = rule_config.language.ast_grep(case);
@@ -212,7 +212,7 @@ fn verify_invalid_case<'a>(
   };
   let actual = TestSnapshot {
     id: rule_config.id.clone(),
-    source: case.clone(),
+    source: case.to_string(),
     fixed,
     labels,
   };
@@ -435,18 +435,17 @@ impl<O: Write> Reporter for DefaultReporter<O> {
 //   }
 // }
 
-// clippy does not allow submod with the same name with parent mod.
 #[cfg(test)]
-mod test_test {
+mod test {
   use super::*;
-  use ast_grep_config::{CompositeRule, RuleConfig, SerializableRule, Severity};
+  use ast_grep_config::{from_str, CompositeRule, RuleConfig, SerializableRule, Severity};
 
   const TEST_RULE: &str = "test-rule";
 
   fn get_rule_config(rule: SerializableRule) -> RuleConfig<SupportLang> {
     RuleConfig {
       id: TEST_RULE.into(),
-      message: "".into(),
+      message: "test".into(),
       note: None,
       severity: Severity::Hint,
       language: SupportLang::TypeScript,
@@ -535,5 +534,22 @@ mod test_test {
     let rule = never_report_rule();
     let ret = verify_test_case_simple(&rule, &case, None);
     assert!(ret.is_none());
+  }
+
+  #[test]
+  fn test_snapshot() {
+    let serialize = from_str("pattern: let a = 1").expect("should parse");
+    let rule = get_rule_config(serialize);
+    let ret = verify_invalid_case(&rule, "function () { let a = 1 }", None);
+    assert!(matches!(&ret, CaseStatus::Wrong { expected: None, .. }));
+    let CaseStatus::Wrong { actual, .. } = ret else {
+        panic!("wrong");
+    };
+    assert_eq!(actual.id, TEST_RULE);
+    assert_eq!(actual.source, "function () { let a = 1 }");
+    let primary = &actual.labels[0];
+    assert_eq!(primary.source, "let a = 1");
+    let ret = verify_invalid_case(&rule, "function () { let a = 1 }", Some(&actual));
+    assert!(matches!(ret, CaseStatus::Reported));
   }
 }
