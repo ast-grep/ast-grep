@@ -359,11 +359,30 @@ trait Reporter {
     let case_id = Style::new().bold().paint(case_id);
     let noisy = Style::new().underline().paint("Noisy");
     let missing = Style::new().underline().paint("Missing");
+    let wrong = Style::new().underline().paint("Wrong");
     let error = Style::new().underline().paint("Error");
     match result {
       CaseStatus::Validated | CaseStatus::Reported => (),
-      CaseStatus::Wrong { .. } => {
-        todo!("add snapshot verification")
+      CaseStatus::Wrong { actual, expected } => {
+        if let Some(expected) = expected {
+          writeln!(
+            output,
+            "[{wrong}] {case_id} snapshot is different from baseline:"
+          )?;
+          if actual.fixed != expected.fixed {
+            writeln!(output, "Fix:")?;
+            writeln!(output, "Basline:\n{:?}", expected.fixed)?;
+            writeln!(output, "Actual:\n{:?}", actual.fixed)?;
+          }
+          if actual.labels != expected.labels {
+            writeln!(output, "Labels:")?;
+            writeln!(output, "Basline:\n{:?}", expected.labels)?;
+            writeln!(output, "Actual:\n{:?}", actual.labels)?;
+          }
+        } else {
+          writeln!(output, "[{wrong}] No {case_id} basline found for code:")?;
+          writeln!(output, "{}", actual.source)?;
+        }
       }
       CaseStatus::Missing(s) => {
         writeln!(
