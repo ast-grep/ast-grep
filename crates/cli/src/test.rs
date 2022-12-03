@@ -3,7 +3,8 @@ use crate::error::ErrorContext;
 use crate::languages::{Language, SupportLang};
 use ansi_term::{Color, Style};
 use anyhow::{anyhow, Result};
-use ast_grep_config::RuleCollection;
+use ast_grep_config::{RuleCollection, RuleConfig};
+use ast_grep_core::{Node, NodeMatch};
 use clap::Args;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
@@ -20,13 +21,13 @@ pub struct TestCase {
   pub invalid: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub enum LabelStyle {
   Primary,
   Secondary,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Label {
   source: String,
   message: Option<String>,
@@ -35,7 +36,39 @@ pub struct Label {
   end: usize,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+impl Label {
+  fn primary(n: &Node<SupportLang>) -> Self {
+    let range = n.range();
+    Self {
+      source: n.text().to_string(),
+      message: None,
+      style: LabelStyle::Primary,
+      start: range.start,
+      end: range.end,
+    }
+  }
+
+  fn secondary(n: &Node<SupportLang>) -> Self {
+    let range = n.range();
+    Self {
+      source: n.text().to_string(),
+      message: None,
+      style: LabelStyle::Secondary,
+      start: range.start,
+      end: range.end,
+    }
+  }
+
+  fn from_matched(n: NodeMatch<SupportLang>) -> Vec<Self> {
+    let mut ret = vec![Self::primary(&n)];
+    if let Some(secondary) = n.get_env().get_labels("secondary") {
+      ret.extend(secondary.iter().map(Self::secondary));
+    }
+    ret
+  }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct TestSnapshot {
   pub id: String,
   pub source: String,
@@ -98,21 +131,25 @@ where
 
 fn run_test_rule_impl(arg: TestArg, output: impl Write + Send) -> Result<()> {
   let collections = &find_config(arg.config.clone())?;
-  let (test_cases, _snapshots) = if let Some(test_dir) = arg.test_dir {
+  let (test_cases, snapshots) = if let Some(test_dir) = arg.test_dir {
     let base_dir = std::env::current_dir()?;
     let snapshot_dir = arg.snapshot_dir.as_deref();
     read_test_files(&base_dir, &test_dir, snapshot_dir)?
   } else {
     find_tests(arg.config)?
   };
-
+  let snapshots = if arg.skip_snapshot_tests {
+    None
+  } else {
+    Some(snapshots)
+  };
   let reporter = &Arc::new(Mutex::new(DefaultReporter { output }));
   {
     reporter.lock().unwrap().before_report(&test_cases)?;
   }
 
   let check_one_case = |case| {
-    let result = verify_test_case_simple(collections, case);
+    let result = verify_test_case_simple(collections, case, snapshots.as_ref());
     let mut reporter = reporter.lock().unwrap();
     if let Some(result) = result {
       reporter
@@ -151,15 +188,58 @@ enum SnapshotAction {
   CleanUp,
 }
 
-fn verify_test_snapshot() {}
+fn verify_invalid_case<'a>(
+  rule_config: &RuleConfig<SupportLang>,
+  case: &'a String,
+  snapshot: Option<&TestSnapshot>,
+) -> CaseStatus<'a> {
+  let sg = rule_config.language.ast_grep(case);
+  let rule = rule_config.get_rule();
+  let Some(matched) = sg.root().find(&rule) else {
+    return CaseStatus::Missing(case);
+  };
+  let labels = Label::from_matched(matched);
+  let fixer = rule_config.get_fixer();
+  let mut sg = sg;
+  let fixed = if let Some(fix) = fixer {
+    match sg.replace(rule, fix) {
+      Ok(changed) => debug_assert!(changed),
+      Err(_) => return CaseStatus::Error,
+    };
+    Some(sg.source().to_string())
+  } else {
+    None
+  };
+  let actual = TestSnapshot {
+    id: rule_config.id.clone(),
+    source: case.clone(),
+    fixed,
+    labels,
+  };
+  let Some(expected) = snapshot else {
+    return CaseStatus::Wrong {
+      actual,
+      expected: None,
+    }
+  };
+  if &actual == expected {
+    CaseStatus::Reported
+  } else {
+    CaseStatus::Wrong {
+      actual,
+      expected: Some(expected.clone()),
+    }
+  }
+}
 
 fn verify_test_case_simple<'a>(
   rules: &RuleCollection<SupportLang>,
   test_case: &'a TestCase,
+  snapshots: Option<&Vec<TestSnapshot>>,
 ) -> Option<CaseResult<'a>> {
-  let rule = rules.get_rule(&test_case.id)?;
-  let lang = rule.language;
-  let rule = rule.get_rule();
+  let rule_config = rules.get_rule(&test_case.id)?;
+  let lang = rule_config.language;
+  let rule = rule_config.get_rule();
   let valid_cases = test_case.valid.iter().map(|valid| {
     let sg = lang.ast_grep(valid);
     if sg.root().find(&rule).is_some() {
@@ -168,17 +248,27 @@ fn verify_test_case_simple<'a>(
       CaseStatus::Validated
     }
   });
-  let invalid_cases = test_case.invalid.iter().map(|invalid| {
-    let sg = lang.ast_grep(invalid);
-    if sg.root().find(&rule).is_none() {
-      CaseStatus::Missing(invalid)
-    } else {
-      CaseStatus::Reported
-    }
-  });
+  let invalid_cases = test_case.invalid.iter();
+  let cases = if let Some(snapshots) = snapshots {
+    let snapshot = snapshots.iter().find(|snap| snap.id == test_case.id);
+    let invalid_cases =
+      invalid_cases.map(|invalid| verify_invalid_case(rule_config, invalid, snapshot));
+    valid_cases.chain(invalid_cases).collect()
+  } else {
+    let invalid_cases = invalid_cases.map(|invalid| {
+      let sg = rule_config.language.ast_grep(invalid);
+      let rule = rule_config.get_rule();
+      if sg.root().find(rule).is_some() {
+        CaseStatus::Reported
+      } else {
+        CaseStatus::Missing(invalid)
+      }
+    });
+    valid_cases.chain(invalid_cases).collect()
+  };
   Some(CaseResult {
     id: &test_case.id,
-    cases: valid_cases.chain(invalid_cases).collect(),
+    cases,
   })
 }
 
@@ -199,16 +289,21 @@ impl<'a> CaseResult<'a> {
 
 #[derive(PartialEq, Eq, Debug)]
 enum CaseStatus<'a> {
-  /// Report no issue for valid code
+  /// Reported no issue for valid code
   Validated,
-  /// Report correct issue for invalid code
+  /// Reported correct issue for invalid code
   Reported,
-  /// Report wrong issue for invalid code
-  Wrong(TestSnapshot),
-  /// Report no issue for invalid code
+  /// Reported wrong issues.
+  Wrong {
+    actual: TestSnapshot,
+    expected: Option<TestSnapshot>,
+  },
+  /// Reported no issue for invalid code
   Missing(&'a str),
-  /// Report some issue for valid code
+  /// Reported some issue for valid code
   Noisy(&'a str),
+  /// Error occurred when applying fix
+  Error,
 }
 
 fn report_case_number(output: &mut impl Write, test_cases: &[TestCase]) -> Result<()> {
@@ -264,10 +359,11 @@ trait Reporter {
     let case_id = Style::new().bold().paint(case_id);
     let noisy = Style::new().underline().paint("Noisy");
     let missing = Style::new().underline().paint("Missing");
+    let error = Style::new().underline().paint("Error");
     match result {
       CaseStatus::Validated | CaseStatus::Reported => (),
-      CaseStatus::Wrong(_snapshot) => {
-        todo!("add snapshot verfication")
+      CaseStatus::Wrong { .. } => {
+        todo!("add snapshot verification")
       }
       CaseStatus::Missing(s) => {
         writeln!(
@@ -286,6 +382,9 @@ trait Reporter {
         writeln!(output, "```")?;
         writeln!(output, "{}", s)?;
         writeln!(output, "```")?;
+      }
+      CaseStatus::Error => {
+        writeln!(output, "[{error}] Fail to apply fix to {case_id}")?;
       }
     }
     Ok(())
@@ -316,9 +415,10 @@ impl<O: Write> Reporter for DefaultReporter<O> {
       .iter()
       .map(|s| match s {
         CaseStatus::Validated | CaseStatus::Reported => '.',
-        CaseStatus::Wrong(_) => 'W',
+        CaseStatus::Wrong { .. } => 'W',
         CaseStatus::Missing(_) => 'M',
         CaseStatus::Noisy(_) => 'N',
+        CaseStatus::Error => 'E',
       })
       .collect();
     writeln!(self.output, "{case_id}  {summary}  {case_status}")?;
@@ -399,7 +499,7 @@ mod test_test {
   fn test_validated() {
     let rule = never_report_rule();
     let case = valid_case();
-    let ret = verify_test_case_simple(&rule, &case);
+    let ret = verify_test_case_simple(&rule, &case, None);
     assert_eq!(ret, test_case_result(CaseStatus::Validated),);
   }
 
@@ -407,21 +507,21 @@ mod test_test {
   fn test_reported() {
     let case = invalid_case();
     let rule = always_report_rule();
-    let ret = verify_test_case_simple(&rule, &case);
+    let ret = verify_test_case_simple(&rule, &case, None);
     assert_eq!(ret, test_case_result(CaseStatus::Reported),);
   }
   #[test]
   fn test_noisy() {
     let case = valid_case();
     let rule = always_report_rule();
-    let ret = verify_test_case_simple(&rule, &case);
+    let ret = verify_test_case_simple(&rule, &case, None);
     assert_eq!(ret, test_case_result(CaseStatus::Noisy("123")),);
   }
   #[test]
   fn test_missing() {
     let case = invalid_case();
     let rule = never_report_rule();
-    let ret = verify_test_case_simple(&rule, &case);
+    let ret = verify_test_case_simple(&rule, &case, None);
     assert_eq!(ret, test_case_result(CaseStatus::Missing("123")),);
   }
 
@@ -433,7 +533,7 @@ mod test_test {
       invalid: vec![],
     };
     let rule = never_report_rule();
-    let ret = verify_test_case_simple(&rule, &case);
+    let ret = verify_test_case_simple(&rule, &case, None);
     assert!(ret.is_none());
   }
 }
