@@ -69,10 +69,18 @@ impl Label {
   }
 }
 
+use std::collections::HashMap;
+type CaseId = String;
+type Source = String;
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TestSnapshots {
+  pub id: CaseId,
+  pub snapshots: HashMap<Source, TestSnapshot>,
+}
+pub type SnapshotCollection = HashMap<CaseId, TestSnapshots>;
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct TestSnapshot {
-  pub id: String,
-  pub source: String,
   pub fixed: Option<String>,
   pub labels: Vec<Label>,
 }
@@ -197,7 +205,7 @@ enum SnapshotAction {
 fn verify_invalid_case<'a>(
   rule_config: &RuleConfig<SupportLang>,
   case: &'a str,
-  snapshot: Option<&TestSnapshot>,
+  snapshot: Option<&TestSnapshots>,
 ) -> CaseStatus<'a> {
   let sg = rule_config.language.ast_grep(case);
   let rule = rule_config.get_rule();
@@ -216,14 +224,10 @@ fn verify_invalid_case<'a>(
   } else {
     None
   };
-  let actual = TestSnapshot {
-    id: rule_config.id.clone(),
-    source: case.to_string(),
-    fixed,
-    labels,
-  };
-  let Some(expected) = snapshot else {
+  let actual = TestSnapshot { fixed, labels };
+  let Some(expected) = snapshot.and_then(|s| s.snapshots.get(case)) else {
     return CaseStatus::Wrong {
+      source: case,
       actual,
       expected: None,
     }
@@ -232,6 +236,7 @@ fn verify_invalid_case<'a>(
     CaseStatus::Reported
   } else {
     CaseStatus::Wrong {
+      source: case,
       actual,
       expected: Some(expected.clone()),
     }
@@ -241,7 +246,7 @@ fn verify_invalid_case<'a>(
 fn verify_test_case_simple<'a>(
   rules: &RuleCollection<SupportLang>,
   test_case: &'a TestCase,
-  snapshots: Option<&Vec<TestSnapshot>>,
+  snapshots: Option<&SnapshotCollection>,
 ) -> Option<CaseResult<'a>> {
   let rule_config = rules.get_rule(&test_case.id)?;
   let lang = rule_config.language;
@@ -256,7 +261,7 @@ fn verify_test_case_simple<'a>(
   });
   let invalid_cases = test_case.invalid.iter();
   let cases = if let Some(snapshots) = snapshots {
-    let snapshot = snapshots.iter().find(|snap| snap.id == test_case.id);
+    let snapshot = snapshots.get(&test_case.id);
     let invalid_cases =
       invalid_cases.map(|invalid| verify_invalid_case(rule_config, invalid, snapshot));
     valid_cases.chain(invalid_cases).collect()
@@ -301,6 +306,7 @@ enum CaseStatus<'a> {
   Reported,
   /// Reported wrong issues.
   Wrong {
+    source: &'a str,
     actual: TestSnapshot,
     expected: Option<TestSnapshot>,
   },
@@ -402,7 +408,11 @@ fn report_case_detail_impl<W: Write>(
   let error = Style::new().underline().paint("Error");
   match result {
     CaseStatus::Validated | CaseStatus::Reported => (),
-    CaseStatus::Wrong { actual, expected } => {
+    CaseStatus::Wrong {
+      source,
+      actual,
+      expected,
+    } => {
       if let Some(expected) = expected {
         writeln!(
           output,
@@ -420,7 +430,7 @@ fn report_case_detail_impl<W: Write>(
         }
       } else {
         writeln!(output, "[{wrong}] No {case_id} basline found for code:")?;
-        writeln!(output, "{}", actual.source)?;
+        writeln!(output, "{}", source)?;
       }
     }
     CaseStatus::Missing(s) => {
@@ -607,14 +617,19 @@ mod test {
     let rule = get_rule_config(serialize);
     let ret = verify_invalid_case(&rule, "function () { let a = 1 }", None);
     assert!(matches!(&ret, CaseStatus::Wrong { expected: None, .. }));
-    let CaseStatus::Wrong { actual, .. } = ret else {
+    let CaseStatus::Wrong { actual, source, .. } = ret else {
         panic!("wrong");
     };
-    assert_eq!(actual.id, TEST_RULE);
-    assert_eq!(actual.source, "function () { let a = 1 }");
+    assert_eq!(source, "function () { let a = 1 }");
     let primary = &actual.labels[0];
     assert_eq!(primary.source, "let a = 1");
-    let ret = verify_invalid_case(&rule, "function () { let a = 1 }", Some(&actual));
+    let mut snapshots = HashMap::new();
+    snapshots.insert(source.to_string(), actual);
+    let test_snapshots = TestSnapshots {
+      id: TEST_RULE.to_string(),
+      snapshots,
+    };
+    let ret = verify_invalid_case(&rule, "function () { let a = 1 }", Some(&test_snapshots));
     assert!(matches!(ret, CaseStatus::Reported));
   }
 }

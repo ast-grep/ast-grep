@@ -1,10 +1,11 @@
 use crate::error::ErrorContext as EC;
 use crate::languages::{config_file_type, SupportLang};
-use crate::verify::{TestCase, TestSnapshot};
+use crate::verify::{SnapshotCollection, TestCase, TestSnapshots};
 use anyhow::{Context, Result};
 use ast_grep_config::{from_str, from_yaml_string, RuleCollection};
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
@@ -67,7 +68,7 @@ fn read_directory_yaml(
   RuleCollection::try_new(configs).context(EC::GlobPattern)
 }
 
-pub fn find_tests(config_path: Option<PathBuf>) -> Result<(Vec<TestCase>, Vec<TestSnapshot>)> {
+pub fn find_tests(config_path: Option<PathBuf>) -> Result<(Vec<TestCase>, SnapshotCollection)> {
   let config_path = find_config_path_with_default(config_path).context(EC::ReadConfiguration)?;
   let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
   let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
@@ -76,7 +77,7 @@ pub fn find_tests(config_path: Option<PathBuf>) -> Result<(Vec<TestCase>, Vec<Te
     .expect("config file must have parent directory");
   let test_configs = sg_config.test_configs.unwrap_or_default();
   let mut test_cases = vec![];
-  let mut snapshots = vec![];
+  let mut snapshots = SnapshotCollection::new();
   for test in test_configs {
     let (new_cases, new_snapshots) =
       read_test_files(base_dir, &test.test_dir, test.snapshot_dir.as_deref())?;
@@ -90,9 +91,9 @@ pub fn read_test_files(
   base_dir: &Path,
   test_dir: &Path,
   snapshot_dir: Option<&Path>,
-) -> Result<(Vec<TestCase>, Vec<TestSnapshot>)> {
+) -> Result<(Vec<TestCase>, SnapshotCollection)> {
   let mut test_cases = vec![];
-  let mut snapshots = vec![];
+  let mut snapshots = HashMap::new();
   let dir_path = base_dir.join(test_dir);
   let snapshot_dir = snapshot_dir.unwrap_or_else(|| SNAPSHOT_DIR.as_ref());
   let walker = WalkBuilder::new(&dir_path)
@@ -111,8 +112,9 @@ pub fn read_test_files(
     let path = config_file.path();
     let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
     if path.starts_with(snapshot_dir) {
-      let snapshot = from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
-      snapshots.push(snapshot);
+      let snapshot: TestSnapshots =
+        from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
+      snapshots.insert(snapshot.id.clone(), snapshot);
     } else {
       let test_case = from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
       test_cases.push(test_case);
