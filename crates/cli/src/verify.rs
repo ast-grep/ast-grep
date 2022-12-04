@@ -1,5 +1,6 @@
 use crate::config::{find_config, find_tests, read_test_files};
 use crate::error::ErrorContext;
+use crate::interaction::run_in_alternate_screen;
 use crate::languages::{Language, SupportLang};
 use ansi_term::{Color, Style};
 use anyhow::{anyhow, Result};
@@ -100,7 +101,17 @@ pub struct TestArg {
 }
 
 pub fn run_test_rule(arg: TestArg) -> Result<()> {
-  run_test_rule_impl(arg, std::io::stdout())
+  if arg.interactive {
+    let reporter = DefaultReporter {
+      output: std::io::stdout(),
+    };
+    run_test_rule_impl(arg, reporter)
+  } else {
+    let reporter = InteractiveReporter {
+      output: std::io::stdout(),
+    };
+    run_test_rule_impl(arg, reporter)
+  }
 }
 
 fn parallel_collect<'a, T, R, F>(cases: &'a [T], filter_mapper: F) -> Vec<R>
@@ -129,7 +140,7 @@ where
   })
 }
 
-fn run_test_rule_impl(arg: TestArg, output: impl Write + Send) -> Result<()> {
+fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<()> {
   let collections = &find_config(arg.config.clone())?;
   let (test_cases, snapshots) = if let Some(test_dir) = arg.test_dir {
     let base_dir = std::env::current_dir()?;
@@ -143,7 +154,7 @@ fn run_test_rule_impl(arg: TestArg, output: impl Write + Send) -> Result<()> {
   } else {
     Some(snapshots)
   };
-  let reporter = &Arc::new(Mutex::new(DefaultReporter { output }));
+  let reporter = &Arc::new(Mutex::new(reporter));
   {
     reporter.lock().unwrap().before_report(&test_cases)?;
   }
@@ -157,7 +168,7 @@ fn run_test_rule_impl(arg: TestArg, output: impl Write + Send) -> Result<()> {
         .unwrap();
       Some(result)
     } else {
-      let output = &mut reporter.output;
+      let output = reporter.get_output();
       writeln!(output, "Configuraiont not found! {}", case.id).unwrap();
       None
     }
@@ -166,7 +177,7 @@ fn run_test_rule_impl(arg: TestArg, output: impl Write + Send) -> Result<()> {
   let mut reporter = reporter.lock().unwrap();
   let (passed, message) = reporter.after_report(&results)?;
   if passed {
-    writeln!(&mut reporter.output, "{message}",)?;
+    writeln!(reporter.get_output(), "{message}",)?;
     Ok(())
   } else {
     reporter.report_failed_cases(&results)?;
@@ -353,82 +364,17 @@ trait Reporter {
     Ok(())
   }
 
-  fn report_case_summary(&mut self, case_id: &str, summary: &[CaseStatus]) -> Result<()>;
-  fn report_case_detail(&mut self, case_id: &str, result: &CaseStatus) -> Result<()> {
-    let output = self.get_output();
-    let case_id = Style::new().bold().paint(case_id);
-    let noisy = Style::new().underline().paint("Noisy");
-    let missing = Style::new().underline().paint("Missing");
-    let wrong = Style::new().underline().paint("Wrong");
-    let error = Style::new().underline().paint("Error");
-    match result {
-      CaseStatus::Validated | CaseStatus::Reported => (),
-      CaseStatus::Wrong { actual, expected } => {
-        if let Some(expected) = expected {
-          writeln!(
-            output,
-            "[{wrong}] {case_id} snapshot is different from baseline:"
-          )?;
-          if actual.fixed != expected.fixed {
-            writeln!(output, "Fix:")?;
-            writeln!(output, "Basline:\n{:?}", expected.fixed)?;
-            writeln!(output, "Actual:\n{:?}", actual.fixed)?;
-          }
-          if actual.labels != expected.labels {
-            writeln!(output, "Labels:")?;
-            writeln!(output, "Basline:\n{:?}", expected.labels)?;
-            writeln!(output, "Actual:\n{:?}", actual.labels)?;
-          }
-        } else {
-          writeln!(output, "[{wrong}] No {case_id} basline found for code:")?;
-          writeln!(output, "{}", actual.source)?;
-        }
-      }
-      CaseStatus::Missing(s) => {
-        writeln!(
-          output,
-          "[{missing}] Expect rule {case_id} to report issues, but none found in:"
-        )?;
-        writeln!(output, "```")?;
-        writeln!(output, "{}", s)?;
-        writeln!(output, "```")?;
-      }
-      CaseStatus::Noisy(s) => {
-        writeln!(
-          output,
-          "[{noisy}] Expect {case_id} to report no issue, but some issues found in:"
-        )?;
-        writeln!(output, "```")?;
-        writeln!(output, "{}", s)?;
-        writeln!(output, "```")?;
-      }
-      CaseStatus::Error => {
-        writeln!(output, "[{error}] Fail to apply fix to {case_id}")?;
-      }
-    }
-    Ok(())
-  }
-}
-
-struct DefaultReporter<Output: Write> {
-  output: Output,
-}
-
-impl<O: Write> Reporter for DefaultReporter<O> {
-  type Output = O;
-  fn get_output(&mut self) -> &mut Self::Output {
-    &mut self.output
-  }
   fn report_case_summary(&mut self, case_id: &str, summary: &[CaseStatus]) -> Result<()> {
     let passed = summary
       .iter()
       .all(|c| matches!(c, CaseStatus::Validated | CaseStatus::Reported));
+    let style = Style::new().fg(Color::White).bold();
     let case_status = if summary.is_empty() {
-      Color::Yellow.paint("SKIP")
+      style.on(Color::Yellow).paint("SKIP")
     } else if passed {
-      Color::Green.paint("PASS")
+      style.on(Color::Green).paint("PASS")
     } else {
-      Color::Red.paint("FAIL")
+      style.on(Color::Red).paint("FAIL")
     };
     let summary: String = summary
       .iter()
@@ -440,10 +386,101 @@ impl<O: Write> Reporter for DefaultReporter<O> {
         CaseStatus::Error => 'E',
       })
       .collect();
-    writeln!(self.output, "{case_id}  {summary}  {case_status}")?;
+    writeln!(self.get_output(), "{case_status} {case_id}  {summary}")?;
     Ok(())
   }
+
+  fn report_case_detail(&mut self, case_id: &str, result: &CaseStatus) -> Result<()> {
+    report_case_detail_impl(self.get_output(), case_id, result)
+  }
 }
+
+fn report_case_detail_impl<W: Write>(
+  output: &mut W,
+  case_id: &str,
+  result: &CaseStatus,
+) -> Result<()> {
+  let case_id = Style::new().bold().paint(case_id);
+  let noisy = Style::new().underline().paint("Noisy");
+  let missing = Style::new().underline().paint("Missing");
+  let wrong = Style::new().underline().paint("Wrong");
+  let error = Style::new().underline().paint("Error");
+  match result {
+    CaseStatus::Validated | CaseStatus::Reported => (),
+    CaseStatus::Wrong { actual, expected } => {
+      if let Some(expected) = expected {
+        writeln!(
+          output,
+          "[{wrong}] {case_id} snapshot is different from baseline:"
+        )?;
+        if actual.fixed != expected.fixed {
+          writeln!(output, "Fix:")?;
+          writeln!(output, "Basline:\n{:?}", expected.fixed)?;
+          writeln!(output, "Actual:\n{:?}", actual.fixed)?;
+        }
+        if actual.labels != expected.labels {
+          writeln!(output, "Labels:")?;
+          writeln!(output, "Basline:\n{:?}", expected.labels)?;
+          writeln!(output, "Actual:\n{:?}", actual.labels)?;
+        }
+      } else {
+        writeln!(output, "[{wrong}] No {case_id} basline found for code:")?;
+        writeln!(output, "{}", actual.source)?;
+      }
+    }
+    CaseStatus::Missing(s) => {
+      writeln!(
+        output,
+        "[{missing}] Expect rule {case_id} to report issues, but none found in:"
+      )?;
+      writeln!(output, "```")?;
+      writeln!(output, "{}", s)?;
+      writeln!(output, "```")?;
+    }
+    CaseStatus::Noisy(s) => {
+      writeln!(
+        output,
+        "[{noisy}] Expect {case_id} to report no issue, but some issues found in:"
+      )?;
+      writeln!(output, "```")?;
+      writeln!(output, "{}", s)?;
+      writeln!(output, "```")?;
+    }
+    CaseStatus::Error => {
+      writeln!(output, "[{error}] Fail to apply fix to {case_id}")?;
+    }
+  }
+  Ok(())
+}
+
+struct DefaultReporter<Output: Write> {
+  output: Output,
+}
+
+impl<O: Write> Reporter for DefaultReporter<O> {
+  type Output = O;
+
+  fn get_output(&mut self) -> &mut Self::Output {
+    &mut self.output
+  }
+}
+
+struct InteractiveReporter<Output: Write> {
+  output: Output,
+}
+
+impl<O: Write> Reporter for InteractiveReporter<O> {
+  type Output = O;
+
+  fn get_output(&mut self) -> &mut Self::Output {
+    &mut self.output
+  }
+
+  fn report_case_detail(&mut self, case_id: &str, result: &CaseStatus) -> Result<()> {
+    run_in_alternate_screen(|| report_case_detail_impl(self.get_output(), case_id, result))
+  }
+}
+
 // for result in summary {
 //   match result {
 //     CaseStatus::Validated => print!("✅"),
