@@ -112,11 +112,13 @@ pub fn run_test_rule(arg: TestArg) -> Result<()> {
   if arg.interactive {
     let reporter = InteractiveReporter {
       output: std::io::stdout(),
+      accepted_snapshots: HashMap::new(),
     };
     run_test_rule_impl(arg, reporter)
   } else {
     let reporter = DefaultReporter {
       output: std::io::stdout(),
+      update_snapshots: arg.update_snapshots,
     };
     run_test_rule_impl(arg, reporter)
   }
@@ -194,12 +196,12 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
 }
 
 enum SnapshotAction {
-  /// Accept the change and apply to saved snapshot.
-  Accept,
-  /// Reject the change and delete the draft.
-  Reject,
+  /// Accept all changes
+  AcceptAll,
+  /// Reject all changes.
+  AcceptNone,
   /// Delete outdated snapshots.
-  CleanUp,
+  Selectively(SnapshotCollection),
 }
 
 fn verify_invalid_case<'a>(
@@ -359,7 +361,9 @@ trait Reporter {
         continue;
       }
       for status in &result.cases {
-        self.report_case_detail(result.id, status)?;
+        if !self.report_case_detail(result.id, status)? {
+          break;
+        }
       }
     }
     Ok(())
@@ -391,16 +395,18 @@ trait Reporter {
     Ok(())
   }
 
-  fn report_case_detail(&mut self, case_id: &str, result: &CaseStatus) -> Result<()> {
+  /// returns if should continue reporting
+  fn report_case_detail(&mut self, case_id: &str, result: &CaseStatus) -> Result<bool> {
     report_case_detail_impl(self.get_output(), case_id, result)
   }
+  fn collect_snapshot_action(&self) -> SnapshotAction;
 }
 
 fn report_case_detail_impl<W: Write>(
   output: &mut W,
   case_id: &str,
   result: &CaseStatus,
-) -> Result<()> {
+) -> Result<bool> {
   let case_id = Style::new().bold().paint(case_id);
   let noisy = Style::new().underline().paint("Noisy");
   let missing = Style::new().underline().paint("Missing");
@@ -455,11 +461,13 @@ fn report_case_detail_impl<W: Write>(
       writeln!(output, "[{error}] Fail to apply fix to {case_id}")?;
     }
   }
-  Ok(())
+  // continue
+  Ok(true)
 }
 
 struct DefaultReporter<Output: Write> {
   output: Output,
+  update_snapshots: bool,
 }
 
 impl<O: Write> Reporter for DefaultReporter<O> {
@@ -468,10 +476,18 @@ impl<O: Write> Reporter for DefaultReporter<O> {
   fn get_output(&mut self) -> &mut Self::Output {
     &mut self.output
   }
+  fn collect_snapshot_action(&self) -> SnapshotAction {
+    if self.update_snapshots {
+      SnapshotAction::AcceptAll
+    } else {
+      SnapshotAction::AcceptNone
+    }
+  }
 }
 
 struct InteractiveReporter<Output: Write> {
   output: Output,
+  accepted_snapshots: SnapshotCollection,
 }
 
 const PROMPT: &str = "Accept new snapshot? (Yes[y], No[n], Accept All[a], Quit[q])";
@@ -482,19 +498,43 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
     &mut self.output
   }
 
-  fn report_case_detail(&mut self, case_id: &str, result: &CaseStatus) -> Result<()> {
+  fn collect_snapshot_action(&self) -> SnapshotAction {
+    SnapshotAction::Selectively(self.accepted_snapshots.clone())
+  }
+
+  fn report_case_detail(&mut self, case_id: &str, result: &CaseStatus) -> Result<bool> {
     if matches!(result, CaseStatus::Validated | CaseStatus::Reported) {
-      return Ok(());
+      return Ok(true);
     }
     run_in_alternate_screen(|| {
       report_case_detail_impl(self.get_output(), case_id, result)?;
-      let response = prompt(PROMPT, "ynaq", Some('n'))?;
-      match response {
-        'y' => todo!(),
-        'n' => Ok(()),
-        'a' => todo!(),
-        'q' => Err(anyhow::anyhow!("Exit snapshot review")),
-        _ => unreachable!(),
+      if let CaseStatus::Wrong { source, actual, .. } = result {
+        let response = prompt(PROMPT, "ynaq", Some('n'))?;
+        match response {
+          'y' => {
+            if let Some(existing) = self.accepted_snapshots.get_mut(case_id) {
+              existing
+                .snapshots
+                .insert(source.to_string(), actual.clone());
+            } else {
+              let mut snapshots = HashMap::new();
+              snapshots.insert(source.to_string(), actual.clone());
+              let shots = TestSnapshots {
+                id: case_id.to_string(),
+                snapshots,
+              };
+              self.accepted_snapshots.insert(case_id.to_string(), shots);
+            }
+            Ok(true)
+          }
+          'n' => Ok(true),
+          'a' => todo!(),
+          'q' => Ok(false),
+          _ => unreachable!(),
+        }
+      } else {
+        let response = prompt(PROMPT, "q", Some('\n'))?;
+        Ok(response == 'q')
       }
     })
   }
