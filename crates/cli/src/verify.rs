@@ -1,6 +1,6 @@
 use crate::config::{find_config, find_tests, read_test_files};
 use crate::error::ErrorContext;
-use crate::interaction::run_in_alternate_screen;
+use crate::interaction::{prompt, run_in_alternate_screen};
 use crate::languages::{Language, SupportLang};
 use ansi_term::{Color, Style};
 use anyhow::{anyhow, Result};
@@ -95,19 +95,19 @@ pub struct TestArg {
   /// Update the content of all snapshots that have changed in test.
   #[clap(short, long)]
   update_snapshots: bool,
-  /// start an interactive session to update snapshots selectively
+  /// start an interactive review to update snapshots selectively
   #[clap(short, long)]
   interactive: bool,
 }
 
 pub fn run_test_rule(arg: TestArg) -> Result<()> {
   if arg.interactive {
-    let reporter = DefaultReporter {
+    let reporter = InteractiveReporter {
       output: std::io::stdout(),
     };
     run_test_rule_impl(arg, reporter)
   } else {
-    let reporter = InteractiveReporter {
+    let reporter = DefaultReporter {
       output: std::io::stdout(),
     };
     run_test_rule_impl(arg, reporter)
@@ -183,11 +183,6 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
     reporter.report_failed_cases(&results)?;
     Err(anyhow!(ErrorContext::TestFail(message)))
   }
-}
-
-enum SnapshotStatus {
-  Verified,
-  Different,
 }
 
 enum SnapshotAction {
@@ -469,6 +464,7 @@ struct InteractiveReporter<Output: Write> {
   output: Output,
 }
 
+const PROMPT: &str = "Accept new snapshot? (Yes[y], No[n], Accept All[a], Quit[q])";
 impl<O: Write> Reporter for InteractiveReporter<O> {
   type Output = O;
 
@@ -477,7 +473,20 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
   }
 
   fn report_case_detail(&mut self, case_id: &str, result: &CaseStatus) -> Result<()> {
-    run_in_alternate_screen(|| report_case_detail_impl(self.get_output(), case_id, result))
+    if matches!(result, CaseStatus::Validated | CaseStatus::Reported) {
+      return Ok(());
+    }
+    run_in_alternate_screen(|| {
+      report_case_detail_impl(self.get_output(), case_id, result)?;
+      let response = prompt(PROMPT, "ynaq", Some('n'))?;
+      match response {
+        'y' => todo!(),
+        'n' => Ok(()),
+        'a' => todo!(),
+        'q' => Err(anyhow::anyhow!("Exit snapshot review")),
+        _ => unreachable!(),
+      }
+    })
   }
 }
 

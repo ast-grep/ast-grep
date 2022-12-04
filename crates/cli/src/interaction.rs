@@ -24,7 +24,7 @@ fn read_char() -> Result<char> {
 }
 
 /// Prompts for user input on STDOUT
-pub fn prompt_reply_stdout(prompt: &str) -> Result<char> {
+fn prompt_reply_stdout(prompt: &str) -> Result<char> {
   let mut stdout = std::io::stdout();
   write!(stdout, "{}", prompt)?;
   stdout.flush()?;
