@@ -72,7 +72,7 @@ impl Label {
 use std::collections::HashMap;
 type CaseId = String;
 type Source = String;
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TestSnapshots {
   pub id: CaseId,
   pub snapshots: HashMap<Source, TestSnapshot>,
@@ -113,6 +113,7 @@ pub fn run_test_rule(arg: TestArg) -> Result<()> {
     let reporter = InteractiveReporter {
       output: std::io::stdout(),
       accepted_snapshots: HashMap::new(),
+      should_accept_all: false,
     };
     run_test_rule_impl(arg, reporter)
   } else {
@@ -191,10 +192,30 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
     Ok(())
   } else {
     reporter.report_failed_cases(&results)?;
+    let action = reporter.collect_snapshot_action();
+    apply_snapshot_action(action, &results)?;
     Err(anyhow!(ErrorContext::TestFail(message)))
   }
 }
 
+fn apply_snapshot_action(action: SnapshotAction, results: &[CaseResult]) -> Result<()> {
+  let accepted = match action {
+    SnapshotAction::AcceptAll => {
+      let mut snapshot_collection = HashMap::new();
+      for result in results {
+        let case_id = result.id.to_string();
+        snapshot_collection.insert(case_id.clone(), result.changed_snapshots());
+      }
+      snapshot_collection
+    }
+    SnapshotAction::AcceptNone => return Ok(()),
+    SnapshotAction::Selectively(a) => a,
+  };
+  println!("{:?}", accepted);
+  Ok(())
+}
+
+#[derive(Debug)]
 enum SnapshotAction {
   /// Accept all changes
   AcceptAll,
@@ -297,6 +318,24 @@ impl<'a> CaseResult<'a> {
       .cases
       .iter()
       .all(|c| matches!(c, CaseStatus::Validated | CaseStatus::Reported))
+  }
+  fn changed_snapshots(&self) -> TestSnapshots {
+    let snapshots = self
+      .cases
+      .iter()
+      .filter_map(|c| match c {
+        CaseStatus::Wrong {
+          source,
+          actual,
+          expected,
+        } => Some((source.to_string(), actual.clone())),
+        _ => None,
+      })
+      .collect();
+    TestSnapshots {
+      id: self.id.to_string(),
+      snapshots,
+    }
   }
 }
 
@@ -488,6 +527,7 @@ impl<O: Write> Reporter for DefaultReporter<O> {
 struct InteractiveReporter<Output: Write> {
   output: Output,
   accepted_snapshots: SnapshotCollection,
+  should_accept_all: bool,
 }
 
 const PROMPT: &str = "Accept new snapshot? (Yes[y], No[n], Accept All[a], Quit[q])";
@@ -509,31 +549,38 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
     run_in_alternate_screen(|| {
       report_case_detail_impl(self.get_output(), case_id, result)?;
       if let CaseStatus::Wrong { source, actual, .. } = result {
+        let mut accept = || {
+          if let Some(existing) = self.accepted_snapshots.get_mut(case_id) {
+            existing
+              .snapshots
+              .insert(source.to_string(), actual.clone());
+          } else {
+            let mut snapshots = HashMap::new();
+            snapshots.insert(source.to_string(), actual.clone());
+            let shots = TestSnapshots {
+              id: case_id.to_string(),
+              snapshots,
+            };
+            self.accepted_snapshots.insert(case_id.to_string(), shots);
+          }
+          Ok(true)
+        };
+        if self.should_accept_all {
+          return accept();
+        }
         let response = prompt(PROMPT, "ynaq", Some('n'))?;
         match response {
-          'y' => {
-            if let Some(existing) = self.accepted_snapshots.get_mut(case_id) {
-              existing
-                .snapshots
-                .insert(source.to_string(), actual.clone());
-            } else {
-              let mut snapshots = HashMap::new();
-              snapshots.insert(source.to_string(), actual.clone());
-              let shots = TestSnapshots {
-                id: case_id.to_string(),
-                snapshots,
-              };
-              self.accepted_snapshots.insert(case_id.to_string(), shots);
-            }
-            Ok(true)
-          }
+          'y' => accept(),
           'n' => Ok(true),
-          'a' => todo!(),
+          'a' => {
+            self.should_accept_all = true;
+            accept()
+          }
           'q' => Ok(false),
           _ => unreachable!(),
         }
       } else {
-        let response = prompt(PROMPT, "q", Some('\n'))?;
+        let response = prompt("Next[enter]", "", Some('\n'))?;
         Ok(response == 'q')
       }
     })
