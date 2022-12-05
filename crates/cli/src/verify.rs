@@ -367,11 +367,7 @@ impl<'a> CaseResult<'a> {
       .cases
       .iter()
       .filter_map(|c| match c {
-        CaseStatus::Wrong {
-          source,
-          actual,
-          expected,
-        } => Some((source.to_string(), actual.clone())),
+        CaseStatus::Wrong { source, actual, .. } => Some((source.to_string(), actual.clone())),
         _ => None,
       })
       .collect();
@@ -444,7 +440,7 @@ trait Reporter {
       }
       for status in &result.cases {
         if !self.report_case_detail(result.id, status)? {
-          break;
+          return Ok(());
         }
       }
     }

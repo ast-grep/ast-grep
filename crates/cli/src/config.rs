@@ -86,7 +86,6 @@ pub fn find_tests(config_path: Option<PathBuf>) -> Result<TestHarness> {
   let mut snapshots = SnapshotCollection::new();
   let mut path_map = HashMap::new();
   for test in test_configs {
-    let dir_path = base_dir.join(&test.test_dir);
     let TestHarness {
       test_cases: new_cases,
       snapshots: new_snapshots,
@@ -113,6 +112,7 @@ pub fn read_test_files(
   let mut path_map = HashMap::new();
   let dir_path = base_dir.join(test_dir);
   let snapshot_dir = snapshot_dir.unwrap_or_else(|| SNAPSHOT_DIR.as_ref());
+  let snapshot_dir = dir_path.join(snapshot_dir);
   let walker = WalkBuilder::new(&dir_path)
     .types(config_file_type())
     .build();
@@ -128,7 +128,7 @@ pub fn read_test_files(
     }
     let path = config_file.path();
     let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
-    if path.starts_with(snapshot_dir) {
+    if path.starts_with(&snapshot_dir) {
       let snapshot: TestSnapshots =
         from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
       snapshots.insert(snapshot.id.clone(), snapshot);
