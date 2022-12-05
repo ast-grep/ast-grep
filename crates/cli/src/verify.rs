@@ -7,12 +7,22 @@ use anyhow::{anyhow, Result};
 use ast_grep_config::{RuleCollection, RuleConfig};
 use ast_grep_core::{Node, NodeMatch};
 use clap::Args;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use serde_yaml::to_string;
+use similar::{ChangeTag, TextDiff};
+use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
+
+fn ordered_map<S>(value: &HashMap<String, TestSnapshot>, serializer: S) -> Result<S::Ok, S::Error>
+where
+  S: Serializer,
+{
+  let ordered: BTreeMap<_, _> = value.iter().collect();
+  ordered.serialize(serializer)
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct TestCase {
@@ -77,8 +87,10 @@ type Source = String;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TestSnapshots {
   pub id: CaseId,
+  #[serde(serialize_with = "ordered_map")]
   pub snapshots: HashMap<Source, TestSnapshot>,
 }
+
 pub type SnapshotCollection = HashMap<CaseId, TestSnapshots>;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -480,6 +492,50 @@ trait Reporter {
   fn collect_snapshot_action(&self) -> SnapshotAction;
 }
 
+fn print_diff(old: &str, new: &str) {
+  static THISTLE1: Color = Color::Fixed(225);
+  static SEA_GREEN: Color = Color::Fixed(158);
+  static RED: Color = Color::Fixed(161);
+  static GREEN: Color = Color::Fixed(35);
+  let diff = TextDiff::from_lines(old, new);
+  for group in diff.grouped_ops(3) {
+    for op in group {
+      for change in diff.iter_inline_changes(&op) {
+        let (sign, s, bg) = match change.tag() {
+          ChangeTag::Delete => (
+            "-",
+            Style::new().fg(RED).on(THISTLE1),
+            Style::new().on(THISTLE1),
+          ),
+          ChangeTag::Insert => (
+            "+",
+            Style::new().fg(GREEN).on(SEA_GREEN),
+            Style::new().on(SEA_GREEN),
+          ),
+          ChangeTag::Equal => (" ", Style::new().dimmed(), Style::new()),
+        };
+        print!("{}", s.paint(sign),);
+        for (emphasized, value) in change.iter_strings_lossy() {
+          if emphasized {
+            print!("{}", s.bold().paint(value));
+          } else {
+            print!("{}", bg.paint(value));
+          }
+        }
+        if change.missing_newline() {
+          println!();
+        }
+      }
+    }
+  }
+}
+fn indented_write<W: Write>(output: &mut W, code: &str) -> Result<()> {
+  for line in code.lines() {
+    writeln!(output, "  {line}")?;
+  }
+  Ok(())
+}
+
 fn report_case_detail_impl<W: Write>(
   output: &mut W,
   case_id: &str,
@@ -500,40 +556,38 @@ fn report_case_detail_impl<W: Write>(
       if let Some(expected) = expected {
         writeln!(
           output,
-          "[{wrong}] {case_id} snapshot is different from baseline:"
+          "[{wrong}] {case_id} snapshot is different from baseline."
         )?;
-        if actual.fixed != expected.fixed {
-          writeln!(output, "Fix:")?;
-          writeln!(output, "Basline:\n{:?}", expected.fixed)?;
-          writeln!(output, "Actual:\n{:?}", actual.fixed)?;
-        }
-        if actual.labels != expected.labels {
-          writeln!(output, "Labels:")?;
-          writeln!(output, "Basline:\n{:?}", expected.labels)?;
-          writeln!(output, "Actual:\n{:?}", actual.labels)?;
-        }
+        let actual_str = to_string(&actual)?;
+        let expected_str = to_string(&expected)?;
+        writeln!(output, "Diff:")?;
+        print_diff(&expected_str, &actual_str);
       } else {
-        writeln!(output, "[{wrong}] No {case_id} basline found for code:")?;
-        writeln!(output, "{}", source)?;
+        writeln!(output, "[{wrong}] No {case_id} basline found.")?;
+        writeln!(output, "Generated Snapshot:")?;
+        indented_write(output, &to_string(&actual)?)?;
       }
+      writeln!(output, "For Code:")?;
+      indented_write(output, source)?;
+      writeln!(output)?;
     }
     CaseStatus::Missing(s) => {
       writeln!(
         output,
         "[{missing}] Expect rule {case_id} to report issues, but none found in:"
       )?;
-      writeln!(output, "```")?;
-      writeln!(output, "{}", s)?;
-      writeln!(output, "```")?;
+      writeln!(output)?;
+      indented_write(output, s)?;
+      writeln!(output)?;
     }
     CaseStatus::Noisy(s) => {
       writeln!(
         output,
         "[{noisy}] Expect {case_id} to report no issue, but some issues found in:"
       )?;
-      writeln!(output, "```")?;
-      writeln!(output, "{}", s)?;
-      writeln!(output, "```")?;
+      writeln!(output)?;
+      indented_write(output, s)?;
+      writeln!(output)?;
     }
     CaseStatus::Error => {
       writeln!(output, "[{error}] Fail to apply fix to {case_id}")?;
