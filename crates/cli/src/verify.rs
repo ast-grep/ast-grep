@@ -193,12 +193,19 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
   } else {
     reporter.report_failed_cases(&results)?;
     let action = reporter.collect_snapshot_action();
-    apply_snapshot_action(action, &results)?;
+    apply_snapshot_action(action, &results, snapshots)?;
     Err(anyhow!(ErrorContext::TestFail(message)))
   }
 }
 
-fn apply_snapshot_action(action: SnapshotAction, results: &[CaseResult]) -> Result<()> {
+fn apply_snapshot_action(
+  action: SnapshotAction,
+  results: &[CaseResult],
+  snapshots: Option<SnapshotCollection>,
+) -> Result<()> {
+  let Some(snapshots) = snapshots else {
+    return Ok(())
+  };
   let accepted = match action {
     SnapshotAction::AcceptAll => {
       let mut snapshot_collection = HashMap::new();
@@ -211,7 +218,25 @@ fn apply_snapshot_action(action: SnapshotAction, results: &[CaseResult]) -> Resu
     SnapshotAction::AcceptNone => return Ok(()),
     SnapshotAction::Selectively(a) => a,
   };
-  println!("{:?}", accepted);
+  let merged = merge_snapshots(accepted, snapshots);
+  write_merged_to_disk(merged)
+}
+fn merge_snapshots(
+  accepted: SnapshotCollection,
+  mut old: SnapshotCollection,
+) -> SnapshotCollection {
+  for (id, tests) in accepted {
+    if let Some(existing) = old.get_mut(&id) {
+      existing.snapshots.extend(tests.snapshots);
+    } else {
+      old.insert(id, tests);
+    }
+  }
+  old
+}
+fn write_merged_to_disk(merged: SnapshotCollection) -> Result<()> {
+  // TODO
+  println!("{:?}", merged);
   Ok(())
 }
 
