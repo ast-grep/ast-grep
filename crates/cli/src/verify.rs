@@ -673,8 +673,8 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
           _ => unreachable!(),
         }
       } else {
-        let response = prompt("Next[enter]", "", Some('\n'))?;
-        Ok(response == 'q')
+        let response = prompt("Next[enter], Quit[q]", "q", Some('\n'))?;
+        Ok(response != 'q')
       }
     })
   }
