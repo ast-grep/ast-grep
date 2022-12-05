@@ -1,4 +1,4 @@
-use crate::config::{find_config, find_tests, read_test_files};
+use crate::config::{find_config, find_tests, read_test_files, TestHarness};
 use crate::error::ErrorContext;
 use crate::interaction::{prompt, run_in_alternate_screen};
 use crate::languages::{Language, SupportLang};
@@ -8,6 +8,7 @@ use ast_grep_config::{RuleCollection, RuleConfig};
 use ast_grep_core::{Node, NodeMatch};
 use clap::Args;
 use serde::{Deserialize, Serialize};
+use serde_yaml::to_string;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -31,6 +32,7 @@ pub enum LabelStyle {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Label {
   source: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
   message: Option<String>,
   style: LabelStyle,
   start: usize,
@@ -81,6 +83,7 @@ pub type SnapshotCollection = HashMap<CaseId, TestSnapshots>;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct TestSnapshot {
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub fixed: Option<String>,
   pub labels: Vec<Label>,
 }
@@ -153,7 +156,11 @@ where
 
 fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<()> {
   let collections = &find_config(arg.config.clone())?;
-  let (test_cases, snapshots) = if let Some(test_dir) = arg.test_dir {
+  let TestHarness {
+    test_cases,
+    snapshots,
+    path_map,
+  } = if let Some(test_dir) = arg.test_dir {
     let base_dir = std::env::current_dir()?;
     let snapshot_dir = arg.snapshot_dir.as_deref();
     read_test_files(&base_dir, &test_dir, snapshot_dir)?
@@ -193,7 +200,7 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
   } else {
     reporter.report_failed_cases(&results)?;
     let action = reporter.collect_snapshot_action();
-    apply_snapshot_action(action, &results, snapshots)?;
+    apply_snapshot_action(action, &results, snapshots, path_map)?;
     Err(anyhow!(ErrorContext::TestFail(message)))
   }
 }
@@ -202,6 +209,7 @@ fn apply_snapshot_action(
   action: SnapshotAction,
   results: &[CaseResult],
   snapshots: Option<SnapshotCollection>,
+  path_map: HashMap<String, PathBuf>,
 ) -> Result<()> {
   let Some(snapshots) = snapshots else {
     return Ok(())
@@ -219,7 +227,7 @@ fn apply_snapshot_action(
     SnapshotAction::Selectively(a) => a,
   };
   let merged = merge_snapshots(accepted, snapshots);
-  write_merged_to_disk(merged)
+  write_merged_to_disk(merged, path_map)
 }
 fn merge_snapshots(
   accepted: SnapshotCollection,
@@ -234,9 +242,19 @@ fn merge_snapshots(
   }
   old
 }
-fn write_merged_to_disk(merged: SnapshotCollection) -> Result<()> {
-  // TODO
-  println!("{:?}", merged);
+fn write_merged_to_disk(
+  merged: SnapshotCollection,
+  path_map: HashMap<String, PathBuf>,
+) -> Result<()> {
+  for (id, snaps) in merged {
+    // TODO
+    let path = path_map.get(&id).unwrap();
+    if !path.exists() {
+      std::fs::create_dir(path)?;
+    }
+    let file = path.join(format!("{id}-snapshot.yml"));
+    std::fs::write(file, to_string(&snaps)?)?;
+  }
   Ok(())
 }
 

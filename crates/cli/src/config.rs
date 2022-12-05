@@ -68,7 +68,13 @@ fn read_directory_yaml(
   RuleCollection::try_new(configs).context(EC::GlobPattern)
 }
 
-pub fn find_tests(config_path: Option<PathBuf>) -> Result<(Vec<TestCase>, SnapshotCollection)> {
+pub struct TestHarness {
+  pub test_cases: Vec<TestCase>,
+  pub snapshots: SnapshotCollection,
+  pub path_map: HashMap<String, PathBuf>,
+}
+
+pub fn find_tests(config_path: Option<PathBuf>) -> Result<TestHarness> {
   let config_path = find_config_path_with_default(config_path).context(EC::ReadConfiguration)?;
   let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
   let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
@@ -78,22 +84,33 @@ pub fn find_tests(config_path: Option<PathBuf>) -> Result<(Vec<TestCase>, Snapsh
   let test_configs = sg_config.test_configs.unwrap_or_default();
   let mut test_cases = vec![];
   let mut snapshots = SnapshotCollection::new();
+  let mut path_map = HashMap::new();
   for test in test_configs {
-    let (new_cases, new_snapshots) =
-      read_test_files(base_dir, &test.test_dir, test.snapshot_dir.as_deref())?;
+    let dir_path = base_dir.join(&test.test_dir);
+    let TestHarness {
+      test_cases: new_cases,
+      snapshots: new_snapshots,
+      path_map: new_path_map,
+    } = read_test_files(base_dir, &test.test_dir, test.snapshot_dir.as_deref())?;
+    path_map.extend(new_path_map);
     test_cases.extend(new_cases);
     snapshots.extend(new_snapshots);
   }
-  Ok((test_cases, snapshots))
+  Ok(TestHarness {
+    test_cases,
+    snapshots,
+    path_map,
+  })
 }
 
 pub fn read_test_files(
   base_dir: &Path,
   test_dir: &Path,
   snapshot_dir: Option<&Path>,
-) -> Result<(Vec<TestCase>, SnapshotCollection)> {
+) -> Result<TestHarness> {
   let mut test_cases = vec![];
   let mut snapshots = HashMap::new();
+  let mut path_map = HashMap::new();
   let dir_path = base_dir.join(test_dir);
   let snapshot_dir = snapshot_dir.unwrap_or_else(|| SNAPSHOT_DIR.as_ref());
   let walker = WalkBuilder::new(&dir_path)
@@ -116,11 +133,17 @@ pub fn read_test_files(
         from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
       snapshots.insert(snapshot.id.clone(), snapshot);
     } else {
-      let test_case = from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
+      let test_case: TestCase =
+        from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
+      path_map.insert(test_case.id.clone(), dir_path.join(SNAPSHOT_DIR));
       test_cases.push(test_case);
     }
   }
-  Ok((test_cases, snapshots))
+  Ok(TestHarness {
+    test_cases,
+    snapshots,
+    path_map,
+  })
 }
 
 const CONFIG_FILE: &str = "sgconfig.yml";
