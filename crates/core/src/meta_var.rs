@@ -9,6 +9,7 @@ pub type MetaVariableID = String;
 
 /// a dictionary that stores metavariable instantiation
 /// const a = 123 matched with const a = $A will produce env: $A => 123
+#[derive(Clone)]
 pub struct MetaVarEnv<'tree, L: Language> {
   var_matchers: MetaVarMatchers<L>,
   single_matched: HashMap<MetaVariableID, Node<'tree, L>>,
@@ -82,6 +83,16 @@ impl<'tree, L: Language> MetaVarEnv<'tree, L> {
       }
     }
     true
+  }
+
+  pub fn get_matched_variables(&self) -> impl Iterator<Item = MetaVariable> + '_ {
+    let single = self.single_matched.keys().cloned().map(MetaVariable::Named);
+    let multi = self
+      .multi_matched
+      .keys()
+      .cloned()
+      .map(MetaVariable::NamedEllipsis);
+    single.chain(multi)
   }
 
   fn match_variable(&self, id: &MetaVariableID, candidate: Node<L>) -> bool {
