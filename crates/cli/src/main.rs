@@ -55,12 +55,13 @@ fn main() -> Result<()> {
 // this wrapper function is for testing
 fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
   let args: Vec<_> = args.collect();
-  if let Some(arg) = args.get(1) {
-    if arg.starts_with('-') {
-      // handle no subcommand
-      let arg = RunArg::try_parse_from(args)?;
-      return run_with_pattern(arg);
-    }
+  // use `run` if there is at lease one pattern arg with no user provided command
+  let should_use_default_run_command =
+    args.iter().skip(1).any(|p| p == "-p" || p == "--pattern") && args[1].starts_with('-');
+  if should_use_default_run_command {
+    // handle no subcommand
+    let arg = RunArg::try_parse_from(args)?;
+    return run_with_pattern(arg);
   }
   let app = App::try_parse_from(args)?;
   match app.command {
@@ -80,9 +81,11 @@ mod test_cli {
     main_with_args(std::iter::once("sg".into()).chain(args.into_iter().map(|s| s.to_string())))
   }
 
-  fn wrong_usage(args: impl IntoIterator<Item = &'static str>) {
+  fn wrong_usage(args: impl IntoIterator<Item = &'static str>) -> clap::Error {
     let err = sg(args).unwrap_err();
-    assert!(err.downcast::<clap::Error>().is_ok());
+    err
+      .downcast::<clap::Error>()
+      .expect("should have clap::Error")
   }
 
   #[test]
@@ -90,6 +93,16 @@ mod test_cli {
     wrong_usage([]);
     wrong_usage(["Some($A)", "-l", "rs"]);
     wrong_usage(["-l", "rs"]);
+  }
+
+  #[test]
+  fn test_version_and_help() {
+    let version = wrong_usage(["--version"]);
+    assert!(version.to_string().starts_with("ast-grep"));
+    let version = wrong_usage(["-V"]);
+    assert!(version.to_string().starts_with("ast-grep"));
+    let help = wrong_usage(["--help"]);
+    assert!(help.to_string().contains("Search and Rewrite code"));
   }
 
   #[test]
