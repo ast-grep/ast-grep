@@ -182,29 +182,25 @@ fn index_display(index: Option<usize>, style: Style, width: usize) -> impl Displ
   style.paint(index_str)
 }
 
-fn print_diff(old: &str, new: &str, base_line: usize) {
+pub fn print_diff(old: &str, new: &str, base_line: usize) {
   static THISTLE1: Color = Color::Fixed(225);
   static SEA_GREEN: Color = Color::Fixed(158);
   static RED: Color = Color::Fixed(161);
   static GREEN: Color = Color::Fixed(35);
   let diff = TextDiff::from_lines(old, new);
   let width = base_line.to_string().chars().count();
-  for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
+  for (idx, group) in diff.grouped_ops(5).iter().enumerate() {
     if idx > 0 {
       println!("{:-^1$}", "-", 80);
     }
     for op in group {
       for change in diff.iter_inline_changes(op) {
-        let (sign, s, bg) = match change.tag() {
-          ChangeTag::Delete => (
-            "-",
-            Style::new().fg(RED).on(THISTLE1),
-            Style::new().on(THISTLE1),
-          ),
+        let (sign, s, em) = match change.tag() {
+          ChangeTag::Delete => ("-", Style::new().fg(RED), Style::new().fg(RED).on(THISTLE1)),
           ChangeTag::Insert => (
             "+",
+            Style::new().fg(GREEN),
             Style::new().fg(GREEN).on(SEA_GREEN),
-            Style::new().on(SEA_GREEN),
           ),
           ChangeTag::Equal => (" ", Style::new().dimmed(), Style::new()),
         };
@@ -216,9 +212,9 @@ fn print_diff(old: &str, new: &str, base_line: usize) {
         );
         for (emphasized, value) in change.iter_strings_lossy() {
           if emphasized {
-            print!("{}", s.bold().paint(value));
+            print!("{}", em.bold().paint(value));
           } else {
-            print!("{}", bg.paint(value));
+            print!("{}", s.paint(value));
           }
         }
         if change.missing_newline() {

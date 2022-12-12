@@ -2,6 +2,7 @@ use crate::config::{find_config, find_tests, read_test_files, TestHarness};
 use crate::error::ErrorContext;
 use crate::interaction::{prompt, run_in_alternate_screen};
 use crate::languages::{Language, SupportLang};
+use crate::print::print_diff;
 use ansi_term::{Color, Style};
 use anyhow::{anyhow, Result};
 use ast_grep_config::{RuleCollection, RuleConfig};
@@ -9,7 +10,6 @@ use ast_grep_core::{Node, NodeMatch};
 use clap::Args;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_yaml::to_string;
-use similar::{ChangeTag, TextDiff};
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::PathBuf;
@@ -492,43 +492,6 @@ trait Reporter {
   fn collect_snapshot_action(&self) -> SnapshotAction;
 }
 
-fn print_diff(old: &str, new: &str) {
-  static THISTLE1: Color = Color::Fixed(225);
-  static SEA_GREEN: Color = Color::Fixed(158);
-  static RED: Color = Color::Fixed(161);
-  static GREEN: Color = Color::Fixed(35);
-  let diff = TextDiff::from_lines(old, new);
-  for group in diff.grouped_ops(3) {
-    for op in group {
-      for change in diff.iter_inline_changes(&op) {
-        let (sign, s, bg) = match change.tag() {
-          ChangeTag::Delete => (
-            "-",
-            Style::new().fg(RED).on(THISTLE1),
-            Style::new().on(THISTLE1),
-          ),
-          ChangeTag::Insert => (
-            "+",
-            Style::new().fg(GREEN).on(SEA_GREEN),
-            Style::new().on(SEA_GREEN),
-          ),
-          ChangeTag::Equal => (" ", Style::new().dimmed(), Style::new()),
-        };
-        print!("{}", s.paint(sign),);
-        for (emphasized, value) in change.iter_strings_lossy() {
-          if emphasized {
-            print!("{}", s.bold().paint(value));
-          } else {
-            print!("{}", bg.paint(value));
-          }
-        }
-        if change.missing_newline() {
-          println!();
-        }
-      }
-    }
-  }
-}
 fn indented_write<W: Write>(output: &mut W, code: &str) -> Result<()> {
   for line in code.lines() {
     writeln!(output, "  {line}")?;
@@ -561,7 +524,7 @@ fn report_case_detail_impl<W: Write>(
         let actual_str = to_string(&actual)?;
         let expected_str = to_string(&expected)?;
         writeln!(output, "Diff:")?;
-        print_diff(&expected_str, &actual_str);
+        print_diff(&expected_str, &actual_str, 1);
       } else {
         writeln!(output, "[{wrong}] No {case_id} basline found.")?;
         writeln!(output, "Generated Snapshot:")?;
