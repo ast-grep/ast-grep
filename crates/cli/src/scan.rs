@@ -314,6 +314,8 @@ fn run_walker_interactive<T: Send>(
   )
 }
 
+const MAX_FILE_SIZE: usize = 1000000;
+
 fn match_rule_on_file(
   path: &Path,
   lang: SupportLang,
@@ -322,6 +324,9 @@ fn match_rule_on_file(
 ) -> Result<()> {
   let matcher = rule.get_matcher();
   let file_content = read_to_string(path)?;
+  if file_content.len() > MAX_FILE_SIZE {
+    return Ok(());
+  }
   let grep = lang.ast_grep(&file_content);
   let mut matches = grep.root().find_all(matcher).peekable();
   if matches.peek().is_none() {
@@ -339,6 +344,9 @@ fn match_one_file(
   rewrite: &Option<Pattern<SupportLang>>,
 ) -> Result<()> {
   let file_content = read_to_string(path)?;
+  if file_content.len() > MAX_FILE_SIZE {
+    return Ok(());
+  }
   let grep = lang.ast_grep(file_content);
   let mut matches = grep.root().find_all(pattern).peekable();
   if matches.peek().is_none() {
