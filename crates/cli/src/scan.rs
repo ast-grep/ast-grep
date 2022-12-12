@@ -314,7 +314,12 @@ fn run_walker_interactive<T: Send>(
   )
 }
 
-const MAX_FILE_SIZE: usize = 1000000;
+const MAX_FILE_SIZE: usize = 3_000_000;
+const MAX_LINE_COUNT: usize = 200_000;
+
+fn file_too_large(file_content: &String) -> bool {
+  file_content.len() > MAX_FILE_SIZE && file_content.lines().count() > MAX_LINE_COUNT
+}
 
 fn match_rule_on_file(
   path: &Path,
@@ -324,7 +329,8 @@ fn match_rule_on_file(
 ) -> Result<()> {
   let matcher = rule.get_matcher();
   let file_content = read_to_string(path)?;
-  if file_content.len() > MAX_FILE_SIZE {
+  if file_too_large(&file_content) {
+    // TODO add output
     return Ok(());
   }
   let grep = lang.ast_grep(&file_content);
@@ -344,7 +350,8 @@ fn match_one_file(
   rewrite: &Option<Pattern<SupportLang>>,
 ) -> Result<()> {
   let file_content = read_to_string(path)?;
-  if file_content.len() > MAX_FILE_SIZE {
+  if file_too_large(&file_content) {
+    // TODO add output
     return Ok(());
   }
   let grep = lang.ast_grep(file_content);
@@ -368,6 +375,11 @@ fn filter_file_interactive(
     .with_context(|| format!("Cannot read file {}", path.to_string_lossy()))
     .map_err(|err| eprintln!("{err}"))
     .ok()?;
+  // skip large files
+  if file_too_large(&file_content) {
+    // TODO add output
+    return None;
+  }
   let grep = lang.ast_grep(file_content);
   let has_match = grep.root().find(pattern).is_some();
   has_match.then_some((grep, path.to_path_buf()))
