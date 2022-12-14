@@ -31,8 +31,8 @@ pub enum PatternStyle {
   Contextual { context: String, selector: String },
 }
 
-/// Fields for extra conditions on atomic rules to simplify RuleConfig.
-/// e.g. a Pattern rule can be augmented with `inside` rule.
+/// Embed extra conditions into atomic rules to simplify RuleConfig.
+/// e.g. a Pattern rule can be augmented with `inside` rule instead of `all` rule.
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Augmentation {

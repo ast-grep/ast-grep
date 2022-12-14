@@ -160,4 +160,25 @@ rule:
     test_rule_match(yaml, "let recursion = () => { recursion() }");
     test_rule_unmatch(yaml, "function callOther() { other() }");
   }
+
+  #[test]
+  fn test_deserialize_constraints() {
+    let yaml = r"
+id: test
+message: test rule
+severity: info
+language: Tsx
+rule:
+  all:
+    - pattern: console.log($A)
+    - inside:
+        pattern: function $B() {$$$}
+constraints:
+  B:
+    regex: test
+";
+    test_rule_match(yaml, "function test() { console.log(1) }");
+    test_rule_match(yaml, "function test() { console.log(2) }");
+    test_rule_unmatch(yaml, "function tt() { console.log(2) }");
+  }
 }

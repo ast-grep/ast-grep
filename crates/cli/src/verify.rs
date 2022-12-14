@@ -286,7 +286,7 @@ fn verify_invalid_case<'a>(
   snapshot: Option<&TestSnapshots>,
 ) -> CaseStatus<'a> {
   let sg = rule_config.language.ast_grep(case);
-  let rule = rule_config.get_rule();
+  let rule = rule_config.get_matcher();
   let Some(matched) = sg.root().find(&rule) else {
     return CaseStatus::Missing(case);
   };
@@ -328,7 +328,7 @@ fn verify_test_case_simple<'a>(
 ) -> Option<CaseResult<'a>> {
   let rule_config = rules.get_rule(&test_case.id)?;
   let lang = rule_config.language;
-  let rule = rule_config.get_rule();
+  let rule = rule_config.get_matcher();
   let valid_cases = test_case.valid.iter().map(|valid| {
     let sg = lang.ast_grep(valid);
     if sg.root().find(&rule).is_some() {
@@ -346,7 +346,7 @@ fn verify_test_case_simple<'a>(
   } else {
     let invalid_cases = invalid_cases.map(|invalid| {
       let sg = rule_config.language.ast_grep(invalid);
-      let rule = rule_config.get_rule();
+      let rule = rule_config.get_matcher();
       if sg.root().find(rule).is_some() {
         CaseStatus::Reported
       } else {

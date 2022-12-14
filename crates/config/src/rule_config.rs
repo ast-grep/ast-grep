@@ -65,7 +65,7 @@ impl<L: Language> RuleConfig<L> {
     RuleWithConstraint { rule, matchers }
   }
 
-  pub fn get_rule(&self) -> Rule<L> {
+  fn get_rule(&self) -> Rule<L> {
     try_from_serializable(self.rule.clone(), self.language.clone()).unwrap()
   }
 
@@ -325,5 +325,29 @@ has:
     assert!(grep.root().find(config.get_matcher()).is_none());
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(123) }");
     assert!(grep.root().find(config.get_matcher()).is_some());
+  }
+
+  #[test]
+  fn test_rule_env() {
+    let rule = from_str(
+      "
+all:
+  - pattern: console.log($A)
+  - inside:
+      pattern: function $B() {$$$}
+",
+    )
+    .expect("should parse");
+    let config = ts_rule_config(rule);
+    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
+    let node_match = grep
+      .root()
+      .find(config.get_matcher())
+      .expect("should found");
+    let env = node_match.get_env();
+    let a = env.get_match("A").expect("should exist").text();
+    assert_eq!(a, "1");
+    let b = env.get_match("B").expect("should exist").text();
+    assert_eq!(b, "test");
   }
 }
