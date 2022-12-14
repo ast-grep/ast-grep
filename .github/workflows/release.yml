@@ -101,3 +101,10 @@ jobs:
           done
           echo "Publishing @ast-grep/cli...";
           npm publish
+  changelog:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: "✏️ Generate release changelog"
+        uses: heinrichreimer/action-github-changelog-generator@v2.3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
