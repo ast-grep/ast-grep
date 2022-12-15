@@ -13,7 +13,8 @@ use crate::config::find_config;
 use crate::error::ErrorContext as EC;
 use crate::interaction;
 use crate::languages::{file_types, SupportLang};
-use crate::print::{print_diffs, print_matches, ColorArg, ErrorReporter, ReportStyle, SimpleFile};
+use crate::print::{ColorArg, ColoredPrinter, Printer, ReportStyle, SimpleFile};
+use codespan_reporting::term::termcolor::ColorChoice;
 
 #[derive(Parser)]
 pub struct RunArg {
@@ -111,6 +112,7 @@ fn run_pattern_with_inferred_language(args: RunArg) -> Result<()> {
     .build_parallel();
   let interactive = args.interactive || args.accept_all;
   let rewrite = args.rewrite;
+  let printer = ColoredPrinter::new(ColorChoice::Auto, ReportStyle::Rich);
   if !interactive {
     run_walker(walker, |path| {
       let Some(lang) = SupportLang::from_path(path) else {
@@ -118,7 +120,7 @@ fn run_pattern_with_inferred_language(args: RunArg) -> Result<()> {
       };
       let pattern = Pattern::new(&pattern, lang);
       let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
-      match_one_file(path, lang, &pattern, &rewrite)
+      match_one_file(&printer, path, lang, &pattern, &rewrite)
     })
   } else {
     ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
@@ -132,7 +134,7 @@ fn run_pattern_with_inferred_language(args: RunArg) -> Result<()> {
       },
       |(grep, path, lang, pattern)| {
         let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
-        run_one_interaction(&path, &grep, &pattern, &rewrite)
+        run_one_interaction(&printer, &path, &grep, &pattern, &rewrite)
       },
     )
   }
@@ -153,16 +155,17 @@ fn run_pattern_with_specific_language(args: RunArg) -> Result<()> {
     .build_parallel();
   let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
   let interactive = args.interactive || args.accept_all;
+  let printer = ColoredPrinter::new(ColorChoice::Auto, ReportStyle::Rich);
   if !interactive {
     run_walker(walker, |path| {
-      match_one_file(path, lang, &pattern, &rewrite)
+      match_one_file(&printer, path, lang, &pattern, &rewrite)
     })
   } else {
     ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
     run_walker_interactive(
       walker,
       |path| filter_file_interactive(path, lang, &pattern),
-      |(grep, path)| run_one_interaction(&path, &grep, &pattern, &rewrite),
+      |(grep, path)| run_one_interaction(&printer, &path, &grep, &pattern, &rewrite),
     )
   }
 }
@@ -174,13 +177,13 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
     .hidden(args.hidden)
     .threads(threads)
     .build_parallel();
-  let reporter = ErrorReporter::new(args.color.into(), args.report_style);
+  let printer = ColoredPrinter::new(args.color.into(), args.report_style);
   let interactive = args.interactive || args.accept_all;
   if !interactive {
     run_walker(walker, |path| {
       for config in configs.for_path(path) {
         let lang = config.language;
-        match_rule_on_file(path, lang, config, &reporter)?;
+        match_rule_on_file(path, lang, config, &printer)?;
       }
       Ok(())
     })
@@ -203,7 +206,7 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
         for config in configs.for_path(&path) {
           let matcher = config.get_matcher();
           let fixer = config.get_fixer();
-          run_one_interaction(&path, &grep, matcher, &fixer)?;
+          run_one_interaction(&printer, &path, &grep, matcher, &fixer)?;
         }
         Ok(())
       },
@@ -215,6 +218,7 @@ const EDIT_PROMPT: &str = "Accept change? (Yes[y], No[n], Accept All[a], Quit[q]
 const VIEW_PROMPT: &str = "Next[enter], Quit[q]";
 
 fn run_one_interaction<M: Matcher<SupportLang>>(
+  printer: &ColoredPrinter,
   path: &PathBuf,
   grep: &AstGrep<SupportLang>,
   matcher: M,
@@ -222,14 +226,17 @@ fn run_one_interaction<M: Matcher<SupportLang>>(
 ) -> Result<()> {
   if let Some(rewrite) = rewrite {
     interaction::run_in_alternate_screen(|| {
-      print_diffs_and_prompt_action(path, grep, matcher, rewrite)
+      print_diffs_and_prompt_action(printer, path, grep, matcher, rewrite)
     })
   } else {
-    interaction::run_in_alternate_screen(|| print_matches_and_confirm_next(path, grep, matcher))
+    interaction::run_in_alternate_screen(|| {
+      print_matches_and_confirm_next(printer, path, grep, matcher)
+    })
   }
 }
 
 fn print_diffs_and_prompt_action<M: Matcher<SupportLang>>(
+  printer: &ColoredPrinter,
   path: &PathBuf,
   grep: &AstGrep<SupportLang>,
   matcher: M,
@@ -248,7 +255,7 @@ fn print_diffs_and_prompt_action<M: Matcher<SupportLang>>(
     Some(n) => n.start_pos().0,
     None => return Ok(()),
   };
-  print_diffs(matches, path, &matcher, rewrite)?;
+  printer.print_diffs(matches, path, &matcher, rewrite)?;
   let response =
     interaction::prompt(EDIT_PROMPT, "ynaqe", Some('n')).expect("Error happened during prompt");
   match response {
@@ -265,12 +272,13 @@ fn print_diffs_and_prompt_action<M: Matcher<SupportLang>>(
 }
 
 fn print_matches_and_confirm_next<M: Matcher<SupportLang>>(
+  printer: &ColoredPrinter,
   path: &Path,
   grep: &AstGrep<SupportLang>,
   matcher: M,
 ) -> Result<()> {
   let matches = grep.root().find_all(&matcher);
-  print_matches(matches, path)?;
+  printer.print_matches(matches, path)?;
   let resp = interaction::prompt(VIEW_PROMPT, "q", Some('\n')).expect("cannot fail");
   if resp == 'q' {
     Err(anyhow::anyhow!("Exit interactive editing"))
@@ -335,7 +343,7 @@ fn match_rule_on_file(
   path: &Path,
   lang: SupportLang,
   rule: &RuleConfig<SupportLang>,
-  reporter: &ErrorReporter,
+  reporter: &ColoredPrinter,
 ) -> Result<()> {
   let matcher = rule.get_matcher();
   let file_content = read_to_string(path)?;
@@ -354,6 +362,7 @@ fn match_rule_on_file(
 }
 
 fn match_one_file(
+  printer: &ColoredPrinter,
   path: &Path,
   lang: SupportLang,
   pattern: &impl Matcher<SupportLang>,
@@ -370,9 +379,9 @@ fn match_one_file(
     return Ok(());
   }
   if let Some(rewrite) = rewrite {
-    print_diffs(matches, path, pattern, rewrite)
+    printer.print_diffs(matches, path, pattern, rewrite)
   } else {
-    print_matches(matches, path)
+    printer.print_matches(matches, path)
   }
 }
 

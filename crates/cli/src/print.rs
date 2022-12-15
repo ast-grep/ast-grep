@@ -17,7 +17,7 @@ pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
 
 use crate::languages::SupportLang;
 
-pub struct ErrorReporter {
+pub struct ColoredPrinter {
   writer: StandardStream,
   config: term::Config,
 }
@@ -29,7 +29,28 @@ pub enum ReportStyle {
   Short,
 }
 
-impl ErrorReporter {
+pub trait Printer {
+  fn print_rule<'a>(
+    &self,
+    matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
+    file: SimpleFile<Cow<str>, &String>,
+    rule: &RuleConfig<SupportLang>,
+  );
+  fn print_matches<'a>(
+    &self,
+    matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
+    path: &Path,
+  ) -> Result<()>;
+  fn print_diffs<'a>(
+    &self,
+    matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
+    path: &Path,
+    pattern: &impl Matcher<SupportLang>,
+    rewrite: &Pattern<SupportLang>,
+  ) -> Result<()>;
+}
+
+impl ColoredPrinter {
   pub fn new(color: ColorChoice, style: ReportStyle) -> Self {
     let display_style = match style {
       ReportStyle::Rich => DisplayStyle::Rich,
@@ -44,8 +65,10 @@ impl ErrorReporter {
       },
     }
   }
+}
 
-  pub fn print_rule<'a>(
+impl Printer for ColoredPrinter {
+  fn print_rule<'a>(
     &self,
     matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
     file: SimpleFile<Cow<str>, &String>,
@@ -77,6 +100,24 @@ impl ErrorReporter {
       term::emit(lock, config, &file, &diagnostic).unwrap();
     }
   }
+
+  fn print_matches<'a>(
+    &self,
+    matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
+    path: &Path,
+  ) -> Result<()> {
+    print_matches(matches, path)
+  }
+
+  fn print_diffs<'a>(
+    &self,
+    matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
+    path: &Path,
+    pattern: &impl Matcher<SupportLang>,
+    rewrite: &Pattern<SupportLang>,
+  ) -> Result<()> {
+    print_diffs(matches, path, pattern, rewrite)
+  }
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -103,7 +144,7 @@ fn print_prelude(path: &Path) -> std::io::StdoutLock {
   lock
 }
 
-pub fn print_matches<'a>(
+fn print_matches<'a>(
   matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
   path: &Path,
 ) -> Result<()> {
@@ -127,7 +168,7 @@ pub fn print_matches<'a>(
   Ok(())
 }
 
-pub fn print_diffs<'a>(
+fn print_diffs<'a>(
   matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
   path: &Path,
   pattern: &impl Matcher<SupportLang>,
