@@ -45,6 +45,11 @@ pub struct RunArg {
   #[clap(long, requires = "rewrite")]
   accept_all: bool,
 
+  /// Output matches in structured JSON text useful for tools like jq.
+  /// Conflicts with interactive.
+  #[clap(long)]
+  json: bool,
+
   /// Include hidden files in search
   #[clap(long)]
   hidden: bool,
@@ -70,6 +75,11 @@ pub struct ScanArg {
 
   #[clap(long, default_value = "rich")]
   report_style: ReportStyle,
+
+  /// Output matches in structured JSON text useful for tools like jq.
+  /// Conflicts with color and report-style.
+  #[clap(long, conflicts_with = "color", conflicts_with = "report_style")]
+  json: bool,
 
   /// Apply all rewrite without confirmation if true.
   #[clap(long, requires = "rewrite")]
