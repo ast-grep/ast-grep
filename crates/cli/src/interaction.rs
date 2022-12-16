@@ -8,7 +8,7 @@ use crossterm::{
 use ignore::{DirEntry, WalkParallel, WalkState};
 use std::io::stdout;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 
 fn read_char() -> Result<char> {
@@ -63,7 +63,7 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
   }
 }
 
-pub fn run_walker(
+fn run_walker_impl(
   walker: WalkParallel,
   f: impl FnOnce(DirEntry) -> Result<WalkState> + Sync + Copy,
 ) {
@@ -80,7 +80,7 @@ pub fn run_walker(
   });
 }
 
-pub fn run_walker_interactive<T: Send>(
+pub fn run_walker_interactive_impl<T: Send>(
   walker: WalkParallel,
   producer: impl Fn(DirEntry) -> Option<T> + Sync,
   consumer: impl Fn(T) -> Result<()> + Send,
@@ -120,6 +120,32 @@ pub fn run_walker_interactive<T: Send>(
       .join()
       .expect("Error occurred during interaction.")
   })
+}
+
+fn filter_file(entry: DirEntry) -> Option<DirEntry> {
+  entry.file_type()?.is_file().then_some(entry)
+}
+
+pub fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> Result<()> + Sync) -> Result<()> {
+  run_walker_impl(walker, |entry| {
+    if let Some(e) = filter_file(entry) {
+      f(e.path())?;
+    }
+    Ok(WalkState::Continue)
+  });
+  Ok(())
+}
+
+pub fn run_walker_interactive<T: Send>(
+  walker: WalkParallel,
+  producer: impl Fn(&Path) -> Option<T> + Sync,
+  consumer: impl Fn(T) -> Result<()> + Send,
+) -> Result<()> {
+  run_walker_interactive_impl(
+    walker,
+    |entry| producer(filter_file(entry)?.path()),
+    consumer,
+  )
 }
 
 pub fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {

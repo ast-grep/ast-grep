@@ -7,11 +7,11 @@ use ast_grep_config::RuleConfig;
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::{Args, Parser};
-use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
+use ignore::WalkBuilder;
 
 use crate::config::find_config;
 use crate::error::ErrorContext as EC;
-use crate::interaction;
+use crate::interaction::{self, run_walker, run_walker_interactive};
 use crate::languages::{file_types, SupportLang};
 use crate::print::{ColorArg, ColoredPrinter, Printer, ReportStyle, SimpleFile};
 use codespan_reporting::term::termcolor::ColorChoice;
@@ -102,7 +102,7 @@ static ACCEPT_ALL: AtomicBool = AtomicBool::new(false);
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(args: RunArg) -> Result<()> {
   if args.lang.is_some() {
-    run_pattern_with_specific_language(args)
+    run_pattern_with_specified_language(args)
   } else {
     run_pattern_with_inferred_language(args)
   }
@@ -145,7 +145,7 @@ fn run_pattern_with_inferred_language(args: RunArg) -> Result<()> {
   }
 }
 
-fn run_pattern_with_specific_language(args: RunArg) -> Result<()> {
+fn run_pattern_with_specified_language(args: RunArg) -> Result<()> {
   let pattern = args.pattern;
   let threads = num_cpus::get().min(12);
   let lang = args.lang.expect("must present");
@@ -223,7 +223,7 @@ const EDIT_PROMPT: &str = "Accept change? (Yes[y], No[n], Accept All[a], Quit[q]
 const VIEW_PROMPT: &str = "Next[enter], Quit[q]";
 
 fn run_one_interaction<M: Matcher<SupportLang>>(
-  printer: &ColoredPrinter,
+  printer: &impl Printer,
   path: &PathBuf,
   grep: &AstGrep<SupportLang>,
   matcher: M,
@@ -241,7 +241,7 @@ fn run_one_interaction<M: Matcher<SupportLang>>(
 }
 
 fn print_diffs_and_prompt_action<M: Matcher<SupportLang>>(
-  printer: &ColoredPrinter,
+  printer: &impl Printer,
   path: &PathBuf,
   grep: &AstGrep<SupportLang>,
   matcher: M,
@@ -277,7 +277,7 @@ fn print_diffs_and_prompt_action<M: Matcher<SupportLang>>(
 }
 
 fn print_matches_and_confirm_next<M: Matcher<SupportLang>>(
-  printer: &ColoredPrinter,
+  printer: &impl Printer,
   path: &Path,
   grep: &AstGrep<SupportLang>,
   matcher: M,
@@ -311,32 +311,6 @@ fn apply_rewrite<M: Matcher<SupportLang>>(
   new_content
 }
 
-fn filter_file(entry: DirEntry) -> Option<DirEntry> {
-  entry.file_type()?.is_file().then_some(entry)
-}
-
-fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> Result<()> + Sync) -> Result<()> {
-  interaction::run_walker(walker, |entry| {
-    if let Some(e) = filter_file(entry) {
-      f(e.path())?;
-    }
-    Ok(WalkState::Continue)
-  });
-  Ok(())
-}
-
-fn run_walker_interactive<T: Send>(
-  walker: WalkParallel,
-  producer: impl Fn(&Path) -> Option<T> + Sync,
-  consumer: impl Fn(T) -> Result<()> + Send,
-) -> Result<()> {
-  interaction::run_walker_interactive(
-    walker,
-    |entry| producer(filter_file(entry)?.path()),
-    consumer,
-  )
-}
-
 const MAX_FILE_SIZE: usize = 3_000_000;
 const MAX_LINE_COUNT: usize = 200_000;
 
@@ -348,7 +322,7 @@ fn match_rule_on_file(
   path: &Path,
   lang: SupportLang,
   rule: &RuleConfig<SupportLang>,
-  reporter: &ColoredPrinter,
+  reporter: &impl Printer,
 ) -> Result<()> {
   let matcher = rule.get_matcher();
   let file_content = read_to_string(path)?;
@@ -367,7 +341,7 @@ fn match_rule_on_file(
 }
 
 fn match_one_file(
-  printer: &ColoredPrinter,
+  printer: &impl Printer,
   path: &Path,
   lang: SupportLang,
   pattern: &impl Matcher<SupportLang>,
