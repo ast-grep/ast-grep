@@ -109,6 +109,7 @@ jobs:
           check-latest: true
           cache: yarn
           architecture: x86
+          cache-dependency-path: ./crates/napi/yarn.lock
       - name: Build in docker
         uses: addnab/docker-run-action@v3
         if: ${{ matrix.settings.docker }}
