@@ -58,9 +58,14 @@ pub struct RunArg {
 
 #[derive(Args)]
 pub struct ScanArg {
-  /// Path to ast-grep config, either YAML or folder of YAMLs
+  /// Path to ast-grep root config, default is sgconfig.yml.
   #[clap(short, long)]
   config: Option<PathBuf>,
+
+  // TODO: implement scan one rule
+  /// Scan the codebase with one specified rule, without project config setup.
+  #[clap(short, long, conflicts_with = "config")]
+  rule: Option<PathBuf>,
 
   /// Include hidden files in search
   #[clap(long)]
@@ -77,7 +82,7 @@ pub struct ScanArg {
   #[clap(long, default_value = "rich")]
   report_style: ReportStyle,
 
-  /// Output matches in structured JSON text useful for tools like jq.
+  /// Output matches in structured JSON text. This is useful for tools like jq.
   /// Conflicts with color and report-style.
   #[clap(long, conflicts_with = "color", conflicts_with = "report_style")]
   json: bool,
