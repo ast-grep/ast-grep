@@ -29,19 +29,14 @@ struct App {
 #[derive(Subcommand)]
 enum Commands {
   /// Run one time search or rewrite in command line. (default command)
-  #[clap(display_order = 1)]
   Run(RunArg),
   /// Scan and rewrite code by configuration
-  #[clap(display_order = 2)]
   Scan(ScanArg),
   /// test ast-grep rule
-  #[clap(display_order = 3)]
   Test(TestArg),
   /// starts language server
-  #[clap(display_order = 4)]
   Lsp,
   /// generate rule docs for current configuration
-  #[clap(display_order = 5)]
   Docs,
 }
 
