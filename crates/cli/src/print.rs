@@ -17,9 +17,23 @@ pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
 
 use crate::languages::SupportLang;
 
-pub struct ColoredPrinter {
-  writer: StandardStream,
-  config: term::Config,
+// add this macro because neither trait_alias nor type_alias_impl is supported.
+macro_rules! Matches {
+  ($lt: lifetime) => { impl Iterator<Item = NodeMatch<$lt, SupportLang>> };
+}
+macro_rules! Diffs {
+  ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
+}
+
+pub trait Printer {
+  fn print_rule<'a>(
+    &self,
+    matches: Matches!('a),
+    file: SimpleFile<Cow<str>, &String>,
+    rule: &RuleConfig<SupportLang>,
+  );
+  fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()>;
+  fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()>;
 }
 
 #[derive(Clone, ValueEnum)]
@@ -29,25 +43,9 @@ pub enum ReportStyle {
   Short,
 }
 
-pub trait Printer {
-  fn print_rule<'a>(
-    &self,
-    matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
-    file: SimpleFile<Cow<str>, &String>,
-    rule: &RuleConfig<SupportLang>,
-  );
-  fn print_matches<'a>(
-    &self,
-    matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
-    path: &Path,
-  ) -> Result<()>;
-  fn print_diffs<'a>(
-    &self,
-    matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
-    path: &Path,
-    pattern: &impl Matcher<SupportLang>,
-    rewrite: &Pattern<SupportLang>,
-  ) -> Result<()>;
+pub struct ColoredPrinter {
+  writer: StandardStream,
+  config: term::Config,
 }
 
 impl ColoredPrinter {
@@ -70,7 +68,7 @@ impl ColoredPrinter {
 impl Printer for ColoredPrinter {
   fn print_rule<'a>(
     &self,
-    matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
+    matches: Matches!('a),
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SupportLang>,
   ) {
@@ -101,22 +99,12 @@ impl Printer for ColoredPrinter {
     }
   }
 
-  fn print_matches<'a>(
-    &self,
-    matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
-    path: &Path,
-  ) -> Result<()> {
+  fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {
     print_matches(matches, path)
   }
 
-  fn print_diffs<'a>(
-    &self,
-    matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
-    path: &Path,
-    pattern: &impl Matcher<SupportLang>,
-    rewrite: &Pattern<SupportLang>,
-  ) -> Result<()> {
-    print_diffs(matches, path, pattern, rewrite)
+  fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
+    print_diffs(diffs, path)
   }
 }
 
@@ -144,10 +132,7 @@ fn print_prelude(path: &Path) -> std::io::StdoutLock {
   lock
 }
 
-fn print_matches<'a>(
-  matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
-  path: &Path,
-) -> Result<()> {
+fn print_matches<'a>(matches: Matches!('a), path: &Path) -> Result<()> {
   let lock = print_prelude(path);
   for e in matches {
     let display = e.display_context(0);
@@ -168,27 +153,45 @@ fn print_matches<'a>(
   Ok(())
 }
 
-fn print_diffs<'a>(
-  matches: impl Iterator<Item = NodeMatch<'a, SupportLang>>,
-  path: &Path,
-  pattern: &impl Matcher<SupportLang>,
-  rewrite: &Pattern<SupportLang>,
-) -> Result<()> {
+pub struct Diff<'n> {
+  /// the matched node
+  pub node_match: NodeMatch<'n, SupportLang>,
+  /// string content for the replacement
+  pub replacement: Cow<'n, str>,
+}
+
+impl<'n> Diff<'n> {
+  pub fn generate(
+    node_match: NodeMatch<'n, SupportLang>,
+    matcher: &impl Matcher<SupportLang>,
+    rewrite: &Pattern<SupportLang>,
+  ) -> Self {
+    let replacement = Cow::Owned(
+      node_match
+        .replace(matcher, rewrite)
+        .expect("edit must exist")
+        .inserted_text,
+    );
+
+    Self {
+      node_match,
+      replacement,
+    }
+  }
+}
+
+fn print_diffs<'a>(diffs: Diffs!('a), path: &Path) -> Result<()> {
   let lock = print_prelude(path);
   // TODO: actual matching happened in stdout lock, optimize it out
-  for e in matches {
-    let display = e.display_context(3);
+  for diff in diffs {
+    let display = diff.node_match.display_context(3);
     let old_str = format!(
       "{}{}{}\n",
       display.leading, display.matched, display.trailing
     );
     let new_str = format!(
       "{}{}{}\n",
-      display.leading,
-      e.replace(pattern, rewrite)
-        .expect("edit must exist")
-        .inserted_text,
-      display.trailing
+      display.leading, diff.replacement, display.trailing
     );
     let base_line = display.start_line;
     print_diff(&old_str, &new_str, base_line);
@@ -263,5 +266,24 @@ pub fn print_diff(old: &str, new: &str, base_line: usize) {
         }
       }
     }
+  }
+}
+
+struct JSONPrinter;
+impl Printer for JSONPrinter {
+  fn print_rule<'a>(
+    &self,
+    _matches: Matches!('a),
+    _file: SimpleFile<Cow<str>, &String>,
+    _rule: &RuleConfig<SupportLang>,
+  ) {
+  }
+
+  fn print_matches<'a>(&self, _matches: Matches!('a), _path: &Path) -> Result<()> {
+    todo!("")
+  }
+
+  fn print_diffs<'a>(&self, _diffs: Diffs!('a), _path: &Path) -> Result<()> {
+    todo!("")
   }
 }

@@ -13,7 +13,7 @@ use crate::config::find_config;
 use crate::error::ErrorContext as EC;
 use crate::interaction::{self, run_walker, run_walker_interactive};
 use crate::languages::{file_types, SupportLang};
-use crate::print::{ColorArg, ColoredPrinter, Printer, ReportStyle, SimpleFile};
+use crate::print::{ColorArg, ColoredPrinter, Diff, Printer, ReportStyle, SimpleFile};
 use codespan_reporting::term::termcolor::ColorChoice;
 
 #[derive(Parser)]
@@ -260,7 +260,8 @@ fn print_diffs_and_prompt_action<M: Matcher<SupportLang>>(
     Some(n) => n.start_pos().0,
     None => return Ok(()),
   };
-  printer.print_diffs(matches, path, &matcher, rewrite)?;
+  let diffs = matches.map(|m| Diff::generate(m, &matcher, rewrite));
+  printer.print_diffs(diffs, path)?;
   let response =
     interaction::prompt(EDIT_PROMPT, "ynaqe", Some('n')).expect("Error happened during prompt");
   match response {
@@ -358,7 +359,8 @@ fn match_one_file(
     return Ok(());
   }
   if let Some(rewrite) = rewrite {
-    printer.print_diffs(matches, path, pattern, rewrite)
+    let diffs = matches.map(|m| Diff::generate(m, pattern, rewrite));
+    printer.print_diffs(diffs, path)
   } else {
     printer.print_matches(matches, path)
   }
