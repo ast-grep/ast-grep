@@ -43,7 +43,7 @@ pub struct RunArg {
   path: PathBuf,
 
   /// Apply all rewrite without confirmation if true.
-  #[clap(long, requires = "rewrite")]
+  #[clap(long)]
   accept_all: bool,
 
   /// Output matches in structured JSON text useful for tools like jq.
@@ -88,7 +88,7 @@ pub struct ScanArg {
   json: bool,
 
   /// Apply all rewrite without confirmation if true.
-  #[clap(long, requires = "rewrite")]
+  #[clap(long)]
   accept_all: bool,
 
   /// The path whose descendent files are to be explored.
@@ -118,13 +118,6 @@ struct MatchUnit<M: Matcher<SupportLang>> {
 }
 
 impl MatchUnit<RuleWithConstraint<SupportLang>> {
-  fn without_matcher(path: PathBuf, grep: AstGrep<SupportLang>) -> Self {
-    Self {
-      path,
-      grep,
-      matcher: RuleWithConstraint::default(),
-    }
-  }
   fn reuse_with_matcher(self, matcher: RuleWithConstraint<SupportLang>) -> Self {
     Self { matcher, ..self }
   }
@@ -156,12 +149,7 @@ fn run_pattern_with_inferred_language(args: RunArg) -> Result<()> {
       |path| {
         let lang = SupportLang::from_path(path)?;
         let matcher = Pattern::new(&pattern, lang);
-        let (grep, path) = filter_file_interactive(path, lang, &matcher)?;
-        let match_unit = MatchUnit {
-          grep,
-          path,
-          matcher,
-        };
+        let match_unit = filter_file_interactive(path, lang, matcher)?;
         Some((match_unit, lang))
       },
       |(match_unit, lang)| {
@@ -197,17 +185,7 @@ fn run_pattern_with_specified_language(args: RunArg) -> Result<()> {
     run_walker_interactive(
       walker,
       |path| filter_file_interactive(path, lang, &pattern),
-      |(grep, path)| {
-        run_one_interaction(
-          &printer,
-          &MatchUnit {
-            path,
-            grep,
-            matcher: &pattern,
-          },
-          &rewrite,
-        )
-      },
+      |match_unit| run_one_interaction(&printer, &match_unit, &rewrite),
     )
   }
 }
@@ -237,16 +215,16 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
         for config in configs.for_path(path) {
           let lang = config.language;
           let matcher = config.get_matcher();
-          let ret = filter_file_interactive(path, lang, &matcher);
+          let ret = filter_file_interactive(path, lang, matcher);
           if ret.is_some() {
             return ret;
           }
         }
         None
       },
-      |(grep, path)| {
-        // use a mut variable for reuse.
-        let mut match_unit = MatchUnit::without_matcher(path.clone(), grep);
+      // use a mut variable for reuse.
+      |mut match_unit| {
+        let path = match_unit.path.clone();
         for config in configs.for_path(&path) {
           let matcher = config.get_matcher();
           let fixer = config.get_fixer();
@@ -410,11 +388,11 @@ fn match_one_file(
   }
 }
 
-fn filter_file_interactive(
+fn filter_file_interactive<M: Matcher<SupportLang>>(
   path: &Path,
   lang: SupportLang,
-  matcher: &impl Matcher<SupportLang>,
-) -> Option<(AstGrep<SupportLang>, PathBuf)> {
+  matcher: M,
+) -> Option<MatchUnit<M>> {
   let file_content = read_to_string(path)
     .with_context(|| format!("Cannot read file {}", path.to_string_lossy()))
     .map_err(|err| eprintln!("{err}"))
@@ -425,8 +403,12 @@ fn filter_file_interactive(
     return None;
   }
   let grep = lang.ast_grep(file_content);
-  let has_match = grep.root().find(matcher).is_some();
-  has_match.then(|| (grep, path.to_path_buf()))
+  let has_match = grep.root().find(&matcher).is_some();
+  has_match.then(|| MatchUnit {
+    grep,
+    path: path.to_path_buf(),
+    matcher,
+  })
 }
 
 #[cfg(test)]
