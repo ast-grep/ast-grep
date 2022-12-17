@@ -269,7 +269,7 @@ pub fn print_diff(old: &str, new: &str, base_line: usize) {
   }
 }
 
-struct JSONPrinter;
+pub struct JSONPrinter;
 impl Printer for JSONPrinter {
   fn print_rule<'a>(
     &self,
@@ -277,6 +277,7 @@ impl Printer for JSONPrinter {
     _file: SimpleFile<Cow<str>, &String>,
     _rule: &RuleConfig<SupportLang>,
   ) {
+    todo!("")
   }
 
   fn print_matches<'a>(&self, _matches: Matches!('a), _path: &Path) -> Result<()> {

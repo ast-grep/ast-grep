@@ -13,7 +13,7 @@ use crate::config::find_config;
 use crate::error::ErrorContext as EC;
 use crate::interaction::{self, run_walker, run_walker_interactive};
 use crate::languages::{file_types, SupportLang};
-use crate::print::{ColorArg, ColoredPrinter, Diff, Printer, ReportStyle, SimpleFile};
+use crate::print::{ColorArg, ColoredPrinter, Diff, JSONPrinter, Printer, ReportStyle, SimpleFile};
 use codespan_reporting::term::termcolor::ColorChoice;
 
 #[derive(Parser)]
@@ -101,10 +101,18 @@ static ACCEPT_ALL: AtomicBool = AtomicBool::new(false);
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(args: RunArg) -> Result<()> {
-  if args.lang.is_some() {
-    run_pattern_with_specified_language(args)
+  if args.json {
+    run_pattern_with_printer(args, JSONPrinter)
   } else {
-    run_pattern_with_inferred_language(args)
+    let printer = ColoredPrinter::new(ColorChoice::Auto, ReportStyle::Rich);
+    run_pattern_with_printer(args, printer)
+  }
+}
+fn run_pattern_with_printer(args: RunArg, printer: impl Printer + Sync) -> Result<()> {
+  if args.lang.is_some() {
+    run_pattern_with_specified_language(args, printer)
+  } else {
+    run_pattern_with_inferred_language(args, printer)
   }
 }
 
@@ -123,7 +131,7 @@ impl MatchUnit<RuleWithConstraint<SupportLang>> {
   }
 }
 
-fn run_pattern_with_inferred_language(args: RunArg) -> Result<()> {
+fn run_pattern_with_inferred_language(args: RunArg, printer: impl Printer + Sync) -> Result<()> {
   let pattern = args.pattern;
   let threads = num_cpus::get().min(12);
   let walker = WalkBuilder::new(&args.path)
@@ -132,7 +140,6 @@ fn run_pattern_with_inferred_language(args: RunArg) -> Result<()> {
     .build_parallel();
   let interactive = args.interactive || args.accept_all;
   let rewrite = args.rewrite;
-  let printer = ColoredPrinter::new(ColorChoice::Auto, ReportStyle::Rich);
   if !interactive {
     run_walker(walker, |path| {
       let Some(lang) = SupportLang::from_path(path) else {
@@ -160,7 +167,7 @@ fn run_pattern_with_inferred_language(args: RunArg) -> Result<()> {
   }
 }
 
-fn run_pattern_with_specified_language(args: RunArg) -> Result<()> {
+fn run_pattern_with_specified_language(args: RunArg, printer: impl Printer + Sync) -> Result<()> {
   let pattern = args.pattern;
   let threads = num_cpus::get().min(12);
   let lang = args.lang.expect("must present");
@@ -175,7 +182,6 @@ fn run_pattern_with_specified_language(args: RunArg) -> Result<()> {
     .build_parallel();
   let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
   let interactive = args.interactive || args.accept_all;
-  let printer = ColoredPrinter::new(ColorChoice::Auto, ReportStyle::Rich);
   if !interactive {
     run_walker(walker, |path| {
       match_one_file(&printer, path, lang, &pattern, &rewrite)
@@ -189,15 +195,22 @@ fn run_pattern_with_specified_language(args: RunArg) -> Result<()> {
     )
   }
 }
-
 pub fn run_with_config(args: ScanArg) -> Result<()> {
+  if args.json {
+    run_config_with_printer(args, JSONPrinter)
+  } else {
+    let printer = ColoredPrinter::new(args.color.into(), args.report_style.clone());
+    run_config_with_printer(args, printer)
+  }
+}
+
+fn run_config_with_printer(args: ScanArg, printer: impl Printer + Sync) -> Result<()> {
   let configs = find_config(args.config)?;
   let threads = num_cpus::get().min(12);
   let walker = WalkBuilder::new(&args.path)
     .hidden(args.hidden)
     .threads(threads)
     .build_parallel();
-  let printer = ColoredPrinter::new(args.color.into(), args.report_style);
   let interactive = args.interactive || args.accept_all;
   if !interactive {
     run_walker(walker, |path| {

@@ -59,6 +59,7 @@ fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
     return run_with_pattern(arg);
   }
   let app = App::try_parse_from(args)?;
+  // TODO: add test for app parse
   match app.command {
     Commands::Run(arg) => run_with_pattern(arg),
     Commands::Scan(arg) => run_with_config(arg),
