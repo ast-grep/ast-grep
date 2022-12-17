@@ -133,6 +133,15 @@ impl<L: Language> Matcher<L> for Rule<L> {
     }
   }
 }
+
+/// Rule matches nothing by default.
+/// In Math jargon, Rule is vacuously false.
+impl<L: Language> Default for Rule<L> {
+  fn default() -> Self {
+    Self::Any(o::Any::new(std::iter::empty()))
+  }
+}
+
 fn match_and_add_label<'tree, L: Language, M: Matcher<L>>(
   inner: &M,
   node: Node<'tree, L>,

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{Context, Result};
-use ast_grep_config::RuleConfig;
+use ast_grep_config::{RuleConfig, RuleWithConstraint};
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::{Args, Parser};
@@ -108,6 +108,28 @@ pub fn run_with_pattern(args: RunArg) -> Result<()> {
   }
 }
 
+/// A single atomic unit where matches happen.
+/// It contains the file path, sg instance and matcher.
+/// An analogy to compilation unit in C programming language.
+struct MatchUnit<M: Matcher<SupportLang>> {
+  path: PathBuf,
+  grep: AstGrep<SupportLang>,
+  matcher: M,
+}
+
+impl MatchUnit<RuleWithConstraint<SupportLang>> {
+  fn without_matcher(path: PathBuf, grep: AstGrep<SupportLang>) -> Self {
+    Self {
+      path,
+      grep,
+      matcher: RuleWithConstraint::default(),
+    }
+  }
+  fn reuse_with_matcher(self, matcher: RuleWithConstraint<SupportLang>) -> Self {
+    Self { matcher, ..self }
+  }
+}
+
 fn run_pattern_with_inferred_language(args: RunArg) -> Result<()> {
   let pattern = args.pattern;
   let threads = num_cpus::get().min(12);
@@ -133,13 +155,18 @@ fn run_pattern_with_inferred_language(args: RunArg) -> Result<()> {
       walker,
       |path| {
         let lang = SupportLang::from_path(path)?;
-        let pattern = Pattern::new(&pattern, lang);
-        let (grep, path) = filter_file_interactive(path, lang, &pattern)?;
-        Some((grep, path, lang, pattern))
+        let matcher = Pattern::new(&pattern, lang);
+        let (grep, path) = filter_file_interactive(path, lang, &matcher)?;
+        let match_unit = MatchUnit {
+          grep,
+          path,
+          matcher,
+        };
+        Some((match_unit, lang))
       },
-      |(grep, path, lang, pattern)| {
+      |(match_unit, lang)| {
         let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
-        run_one_interaction(&printer, &path, &grep, &pattern, &rewrite)
+        run_one_interaction(&printer, &match_unit, &rewrite)
       },
     )
   }
@@ -170,7 +197,17 @@ fn run_pattern_with_specified_language(args: RunArg) -> Result<()> {
     run_walker_interactive(
       walker,
       |path| filter_file_interactive(path, lang, &pattern),
-      |(grep, path)| run_one_interaction(&printer, &path, &grep, &pattern, &rewrite),
+      |(grep, path)| {
+        run_one_interaction(
+          &printer,
+          &MatchUnit {
+            path,
+            grep,
+            matcher: &pattern,
+          },
+          &rewrite,
+        )
+      },
     )
   }
 }
@@ -208,10 +245,15 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
         None
       },
       |(grep, path)| {
+        // use a mut variable for reuse.
+        let mut match_unit = MatchUnit::without_matcher(path.clone(), grep);
         for config in configs.for_path(&path) {
           let matcher = config.get_matcher();
           let fixer = config.get_fixer();
-          run_one_interaction(&printer, &path, &grep, matcher, &fixer)?;
+          // important reuse and mutation start!
+          match_unit = match_unit.reuse_with_matcher(matcher);
+          // important reuse and mutation end!
+          run_one_interaction(&printer, &match_unit, &fixer)?;
         }
         Ok(())
       },
@@ -224,43 +266,42 @@ const VIEW_PROMPT: &str = "Next[enter], Quit[q]";
 
 fn run_one_interaction<M: Matcher<SupportLang>>(
   printer: &impl Printer,
-  path: &PathBuf,
-  grep: &AstGrep<SupportLang>,
-  matcher: M,
+  match_unit: &MatchUnit<M>,
   rewrite: &Option<Pattern<SupportLang>>,
 ) -> Result<()> {
   if let Some(rewrite) = rewrite {
     interaction::run_in_alternate_screen(|| {
-      print_diffs_and_prompt_action(printer, path, grep, matcher, rewrite)
+      print_diffs_and_prompt_action(printer, match_unit, rewrite)
     })
   } else {
-    interaction::run_in_alternate_screen(|| {
-      print_matches_and_confirm_next(printer, path, grep, matcher)
-    })
+    interaction::run_in_alternate_screen(|| print_matches_and_confirm_next(printer, match_unit))
   }
 }
 
 fn print_diffs_and_prompt_action<M: Matcher<SupportLang>>(
   printer: &impl Printer,
-  path: &PathBuf,
-  grep: &AstGrep<SupportLang>,
-  matcher: M,
+  match_unit: &MatchUnit<M>,
   rewrite: &Pattern<SupportLang>,
 ) -> Result<()> {
+  let MatchUnit {
+    path,
+    grep,
+    matcher,
+  } = match_unit;
   let rewrite_action = || {
-    let new_content = apply_rewrite(grep, &matcher, rewrite);
+    let new_content = apply_rewrite(grep, matcher, rewrite);
     std::fs::write(path, new_content).with_context(|| EC::WriteFile(path.clone()))?;
     Ok(())
   };
   if ACCEPT_ALL.load(Ordering::SeqCst) {
     return rewrite_action();
   }
-  let mut matches = grep.root().find_all(&matcher).peekable();
+  let mut matches = grep.root().find_all(matcher).peekable();
   let first_match = match matches.peek() {
     Some(n) => n.start_pos().0,
     None => return Ok(()),
   };
-  let diffs = matches.map(|m| Diff::generate(m, &matcher, rewrite));
+  let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
   printer.print_diffs(diffs, path)?;
   let response =
     interaction::prompt(EDIT_PROMPT, "ynaqe", Some('n')).expect("Error happened during prompt");
@@ -279,10 +320,13 @@ fn print_diffs_and_prompt_action<M: Matcher<SupportLang>>(
 
 fn print_matches_and_confirm_next<M: Matcher<SupportLang>>(
   printer: &impl Printer,
-  path: &Path,
-  grep: &AstGrep<SupportLang>,
-  matcher: M,
+  match_unit: &MatchUnit<M>,
 ) -> Result<()> {
+  let MatchUnit {
+    path,
+    grep,
+    matcher,
+  } = match_unit;
   let matches = grep.root().find_all(&matcher);
   printer.print_matches(matches, path)?;
   let resp = interaction::prompt(VIEW_PROMPT, "q", Some('\n')).expect("cannot fail");
@@ -369,7 +413,7 @@ fn match_one_file(
 fn filter_file_interactive(
   path: &Path,
   lang: SupportLang,
-  pattern: &impl Matcher<SupportLang>,
+  matcher: &impl Matcher<SupportLang>,
 ) -> Option<(AstGrep<SupportLang>, PathBuf)> {
   let file_content = read_to_string(path)
     .with_context(|| format!("Cannot read file {}", path.to_string_lossy()))
@@ -381,8 +425,8 @@ fn filter_file_interactive(
     return None;
   }
   let grep = lang.ast_grep(file_content);
-  let has_match = grep.root().find(pattern).is_some();
-  has_match.then_some((grep, path.to_path_buf()))
+  let has_match = grep.root().find(matcher).is_some();
+  has_match.then(|| (grep, path.to_path_buf()))
 }
 
 #[cfg(test)]

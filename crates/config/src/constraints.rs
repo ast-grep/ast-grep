@@ -65,6 +65,15 @@ pub struct RuleWithConstraint<L: Language> {
   pub matchers: MetaVarMatchers<L>,
 }
 
+impl<L: Language> Default for RuleWithConstraint<L> {
+  fn default() -> Self {
+    Self {
+      rule: Rule::default(),
+      matchers: MetaVarMatchers::default(),
+    }
+  }
+}
+
 impl<L: Language> Matcher<L> for RuleWithConstraint<L> {
   fn match_node_with_env<'tree>(
     &self,
