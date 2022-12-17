@@ -1,21 +1,21 @@
-use anyhow::Result;
-use std::borrow::Cow;
-use std::fmt::Display;
-use std::path::Path;
-
-use ansi_term::{Color, Style};
-use clap::ValueEnum;
-use codespan_reporting::diagnostic::{self, Diagnostic, Label};
-use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
-use codespan_reporting::term::{self, DisplayStyle};
-use similar::{ChangeTag, TextDiff};
+use crate::languages::SupportLang;
 
 use ast_grep_config::{RuleConfig, Severity};
 use ast_grep_core::{Matcher, NodeMatch, Pattern};
 
+use ansi_term::{Color, Style};
+use anyhow::Result;
+use clap::ValueEnum;
+use codespan_reporting::diagnostic::{self, Diagnostic, Label};
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
+use codespan_reporting::term::{self, DisplayStyle};
 pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
+use serde::{Deserialize, Serialize};
+use similar::{ChangeTag, TextDiff};
 
-use crate::languages::SupportLang;
+use std::borrow::Cow;
+use std::fmt::Display;
+use std::path::Path;
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.
 macro_rules! Matches {
@@ -34,6 +34,12 @@ pub trait Printer {
   );
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()>;
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()>;
+  fn print_rule_diffs<'a>(
+    &self,
+    diffs: Diffs!('a),
+    path: &Path,
+    rule: &RuleConfig<SupportLang>,
+  ) -> Result<()>;
 }
 
 #[derive(Clone, ValueEnum)]
@@ -104,6 +110,14 @@ impl Printer for ColoredPrinter {
   }
 
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
+    print_diffs(diffs, path)
+  }
+  fn print_rule_diffs<'a>(
+    &self,
+    diffs: Diffs!('a),
+    path: &Path,
+    _rule: &RuleConfig<SupportLang>,
+  ) -> Result<()> {
     print_diffs(diffs, path)
   }
 }
@@ -269,22 +283,155 @@ pub fn print_diff(old: &str, new: &str, base_line: usize) {
   }
 }
 
+#[derive(Serialize, Deserialize)]
+struct Position {
+  line: usize,
+  column: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Range {
+  /// inclusive start, exclusive end
+  byte_offset: std::ops::Range<usize>,
+  start: Position,
+  end: Position,
+}
+
+#[derive(Serialize, Deserialize)]
+struct LabelJSON<'a> {
+  text: &'a str,
+  range: Range,
+}
+
+#[derive(Serialize, Deserialize)]
+struct MatchJSON<'a> {
+  text: Cow<'a, str>,
+  file: Cow<'a, str>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  replacement: Option<Cow<'a, str>>,
+  range: Range,
+  language: SupportLang,
+  // TODO
+  // meta_variables: Option<()>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct RuleMatchJSON<'a> {
+  #[serde(flatten)]
+  matched: MatchJSON<'a>,
+  rule_id: &'a str,
+  severity: Severity,
+  message: String,
+  // TODO
+  // labels: Vec<LabelJSON<'a>>,
+}
+
 pub struct JSONPrinter;
 impl Printer for JSONPrinter {
   fn print_rule<'a>(
     &self,
-    _matches: Matches!('a),
-    _file: SimpleFile<Cow<str>, &String>,
-    _rule: &RuleConfig<SupportLang>,
+    matches: Matches!('a),
+    file: SimpleFile<Cow<str>, &String>,
+    rule: &RuleConfig<SupportLang>,
   ) {
-    todo!("")
+    let path = file.name();
+    let v: Vec<_> = matches
+      .map(|nm| {
+        let start_pos = nm.start_pos();
+        let end_pos = nm.end_pos();
+        let matched = MatchJSON {
+          file: path.clone(),
+          text: nm.text(),
+          language: *nm.lang(),
+          replacement: None,
+          range: Range {
+            byte_offset: nm.range(),
+            start: Position {
+              line: start_pos.0,
+              column: start_pos.1,
+            },
+            end: Position {
+              line: end_pos.0,
+              column: end_pos.1,
+            },
+          },
+        };
+        RuleMatchJSON {
+          matched,
+          rule_id: &rule.id,
+          severity: rule.severity.clone(),
+          message: rule.get_message(&nm),
+        }
+      })
+      .collect();
+    let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
+    serde_json::to_writer_pretty(lock, &v).unwrap();
   }
 
-  fn print_matches<'a>(&self, _matches: Matches!('a), _path: &Path) -> Result<()> {
-    todo!("")
+  fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {
+    let v: Vec<_> = matches
+      .map(|nm| {
+        let start_pos = nm.start_pos();
+        let end_pos = nm.end_pos();
+        MatchJSON {
+          file: path.to_string_lossy(),
+          text: nm.text(),
+          language: *nm.lang(),
+          replacement: None,
+          range: Range {
+            byte_offset: nm.range(),
+            start: Position {
+              line: start_pos.0,
+              column: start_pos.1,
+            },
+            end: Position {
+              line: end_pos.0,
+              column: end_pos.1,
+            },
+          },
+        }
+      })
+      .collect();
+    let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
+    serde_json::to_writer_pretty(lock, &v)?;
+    Ok(())
   }
 
-  fn print_diffs<'a>(&self, _diffs: Diffs!('a), _path: &Path) -> Result<()> {
-    todo!("")
+  fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
+    let v: Vec<_> = diffs
+      .map(|diff| {
+        let nm = diff.node_match;
+        let start_pos = nm.start_pos();
+        let end_pos = nm.end_pos();
+        MatchJSON {
+          file: path.to_string_lossy(),
+          text: nm.text(),
+          language: *nm.lang(),
+          replacement: Some(diff.replacement),
+          range: Range {
+            byte_offset: nm.range(),
+            start: Position {
+              line: start_pos.0,
+              column: start_pos.1,
+            },
+            end: Position {
+              line: end_pos.0,
+              column: end_pos.1,
+            },
+          },
+        }
+      })
+      .collect();
+    let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
+    serde_json::to_writer(lock, &v)?;
+    Ok(())
+  }
+  fn print_rule_diffs<'a>(
+    &self,
+    diffs: Diffs!('a),
+    path: &Path,
+    _rule: &RuleConfig<SupportLang>,
+  ) -> Result<()> {
+    self.print_diffs(diffs, path)
   }
 }

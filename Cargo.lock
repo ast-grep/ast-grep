@@ -42,6 +42,7 @@ dependencies = [
  "ignore",
  "num_cpus",
  "serde",
+ "serde_json",
  "serde_yaml",
  "similar",
  "tokio",
