@@ -1,8 +1,8 @@
 use crate::error::ErrorContext as EC;
-use crate::languages::{config_file_type, SupportLang};
 use crate::verify::{SnapshotCollection, TestCase, TestSnapshots};
 use anyhow::{Context, Result};
 use ast_grep_config::{from_str, from_yaml_string, RuleCollection};
+use ast_grep_language::{config_file_type, SupportLang};
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

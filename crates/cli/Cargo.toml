@@ -19,6 +19,7 @@ path = "src/main.rs"
 ast-grep-core = { version = "0.1.13", path = "../core" }
 ast-grep-config = { version = "0.1.13", path = "../config" }
 ast-grep-lsp = { version = "0.1.13", path = "../lsp" }
+ast-grep-language = { version = "0.1.13", path = "../language" }
 
 ansi_term = "0.12"
 crossterm = "0.25.0"
@@ -32,16 +33,3 @@ serde_yaml = "0.9.15"
 serde_json = "1.0.90"
 similar = { version = "2.2.1", features = ["inline"] }
 tokio = { version = "1", features = ["rt-multi-thread", "io-std"] }
-
-tree-sitter-c = "0.20.2"
-tree-sitter-go = "0.19.1"
-tree-sitter-html = "0.19.0"
-tree-sitter-java = "0.20.0"
-tree-sitter-javascript = "0.20.0"
-tree-sitter-kotlin = "0.2.11"
-tree-sitter-lua = "0.0.14"
-tree-sitter-python = "0.20.2"
-tree-sitter-rust = "0.20.3"
-tree-sitter-swift = "0.3.4"
-tree-sitter-typescript="0.20.1"
-tree-sitter-c-sharp = { version = "0.20.0", package = "ast-grep-tree-sitter-c-sharp" }

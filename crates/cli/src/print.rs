@@ -1,7 +1,6 @@
-use crate::languages::SupportLang;
-
 use ast_grep_config::{RuleConfig, Severity};
 use ast_grep_core::{Matcher, NodeMatch, Pattern};
+use ast_grep_language::SupportLang;
 
 use ansi_term::{Color, Style};
 use anyhow::Result;

@@ -12,8 +12,8 @@ use ignore::WalkBuilder;
 use crate::config::find_config;
 use crate::error::ErrorContext as EC;
 use crate::interaction::{self, run_walker, run_walker_interactive};
-use crate::languages::{file_types, SupportLang};
 use crate::print::{ColorArg, ColoredPrinter, Diff, JSONPrinter, Printer, ReportStyle, SimpleFile};
+use ast_grep_language::{file_types, SupportLang};
 use codespan_reporting::term::termcolor::ColorChoice;
 
 #[derive(Parser)]

@@ -1,7 +1,6 @@
 mod config;
 mod error;
 mod interaction;
-mod languages;
 mod lsp;
 mod print;
 mod scan;

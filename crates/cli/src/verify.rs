@@ -1,12 +1,12 @@
 use crate::config::{find_config, find_tests, read_test_files, TestHarness};
 use crate::error::ErrorContext;
 use crate::interaction::{prompt, run_in_alternate_screen};
-use crate::languages::{Language, SupportLang};
 use crate::print::print_diff;
 use ansi_term::{Color, Style};
 use anyhow::{anyhow, Result};
 use ast_grep_config::{RuleCollection, RuleConfig};
 use ast_grep_core::{Node, NodeMatch};
+use ast_grep_language::{Language, SupportLang};
 use clap::Args;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_yaml::to_string;

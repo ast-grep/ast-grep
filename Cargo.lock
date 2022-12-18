@@ -34,8 +34,8 @@ dependencies = [
  "anyhow",
  "ast-grep-config",
  "ast-grep-core",
+ "ast-grep-language",
  "ast-grep-lsp",
- "ast-grep-tree-sitter-c-sharp",
  "clap",
  "codespan-reporting",
  "crossterm",
@@ -46,17 +46,6 @@ dependencies = [
  "serde_yaml",
  "similar",
  "tokio",
- "tree-sitter-c",
- "tree-sitter-go",
- "tree-sitter-html",
- "tree-sitter-java",
- "tree-sitter-javascript",
- "tree-sitter-kotlin",
- "tree-sitter-lua",
- "tree-sitter-python",
- "tree-sitter-rust",
- "tree-sitter-swift",
- "tree-sitter-typescript",
 ]
 
 [[package]]
@@ -80,6 +69,27 @@ dependencies = [
  "bit-set",
  "regex",
  "tree-sitter-facade-sg",
+ "tree-sitter-typescript",
+]
+
+[[package]]
+name = "ast-grep-language"
+version = "0.1.13"
+dependencies = [
+ "ast-grep-core",
+ "ast-grep-tree-sitter-c-sharp",
+ "ignore",
+ "serde",
+ "tree-sitter-c",
+ "tree-sitter-go",
+ "tree-sitter-html",
+ "tree-sitter-java",
+ "tree-sitter-javascript",
+ "tree-sitter-kotlin",
+ "tree-sitter-lua",
+ "tree-sitter-python",
+ "tree-sitter-rust",
+ "tree-sitter-swift",
  "tree-sitter-typescript",
 ]
 

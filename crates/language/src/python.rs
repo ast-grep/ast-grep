@@ -30,7 +30,7 @@ mod test {
   use super::*;
 
   fn test_match(query: &str, source: &str) {
-    use crate::languages::test::test_match_lang;
+    use crate::test::test_match_lang;
     test_match_lang(query, source, Python);
   }
 
@@ -69,7 +69,7 @@ match points:
   }
 
   fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
-    use crate::languages::test::test_replace_lang;
+    use crate::test::test_replace_lang;
     test_replace_lang(src, pattern, replacer, Python)
   }
 
