@@ -478,7 +478,9 @@ impl Printer for JSONPrinter {
     let matched = self.0.load(Ordering::Acquire);
     if matched {
       println!();
+    } else {
+      print!("[");
     }
-    print!("]");
+    println!("]");
   }
 }
