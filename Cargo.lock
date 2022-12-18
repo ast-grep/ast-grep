@@ -28,7 +28,7 @@ checksum = "98161a4e3e2184da77bb14f02184cdd111e83bbbcc9979dfee3c44b9a85f5602"
 
 [[package]]
 name = "ast-grep"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -61,7 +61,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-config"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "ast-grep-core",
  "bit-set",
@@ -75,7 +75,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-core"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "bit-set",
  "regex",
@@ -85,7 +85,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-lsp"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
@@ -96,7 +96,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-napi"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
@@ -954,9 +954,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.89"
+version = "1.0.90"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "020ff22c755c2ed3f8cf162dbb41a7268d934702f3ed3631656ea597e08fc3db"
+checksum = "8778cc0b528968fe72abec38b5db5a20a70d148116cd9325d2bc5f5180ca3faf"
 dependencies = [
  "itoa",
  "ryu",
