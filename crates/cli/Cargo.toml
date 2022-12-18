@@ -31,7 +31,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9.14"
 serde_json = "1.0.89"
 similar = { version = "2.2.1", features = ["inline"] }
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "io-std"] }
 
 tree-sitter-c = "0.20.2"
 tree-sitter-go = "0.19.1"
