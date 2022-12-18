@@ -96,7 +96,7 @@ impl<L: Language> Matcher<L> for Pattern<L> {
 
 impl<L: Language> std::fmt::Debug for Pattern<L> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}", self.matcher().inner.to_sexp())
+    write!(f, "{}", self.matcher().to_sexp())
   }
 }
 
@@ -117,8 +117,8 @@ mod test {
     assert!(
       pattern.find_node(cand.clone()).is_some(),
       "goal: {}, candidate: {}",
-      pattern.root.root().inner.to_sexp(),
-      cand.inner.to_sexp(),
+      pattern.root.root().to_sexp(),
+      cand.to_sexp(),
     );
   }
   fn test_non_match(s1: &str, s2: &str) {
@@ -128,8 +128,8 @@ mod test {
     assert!(
       pattern.find_node(cand.clone()).is_none(),
       "goal: {}, candidate: {}",
-      pattern.root.root().inner.to_sexp(),
-      cand.inner.to_sexp(),
+      pattern.root.root().to_sexp(),
+      cand.to_sexp(),
     );
   }
 

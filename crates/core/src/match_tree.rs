@@ -77,7 +77,7 @@ pub fn match_end_non_recursive<L: Language>(goal: &Node<L>, candidate: Node<L>) 
       if goal_children.peek().is_none() {
         return Some(end);
       }
-      while !goal_children.peek().unwrap().inner.is_named() {
+      while !goal_children.peek().unwrap().is_named() {
         goal_children.next();
         if goal_children.peek().is_none() {
           return Some(end);
@@ -153,7 +153,7 @@ pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
         return Some(candidate);
       }
       let mut skipped_anonymous = 0;
-      while !goal_children.peek().unwrap().inner.is_named() {
+      while !goal_children.peek().unwrap().is_named() {
         goal_children.next();
         skipped_anonymous += 1;
         if goal_children.peek().is_none() {
@@ -286,8 +286,8 @@ mod test {
     assert!(
       ret.is_some(),
       "goal: {}, candidate: {}",
-      goal.inner.to_sexp(),
-      cand.inner.to_sexp(),
+      goal.to_sexp(),
+      cand.to_sexp(),
     );
     HashMap::from(env)
   }
