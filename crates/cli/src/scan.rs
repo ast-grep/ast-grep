@@ -143,14 +143,19 @@ fn run_pattern_with_inferred_language(args: RunArg, printer: impl Printer + Sync
   let interactive = args.interactive || args.accept_all;
   let rewrite = args.rewrite;
   if !interactive {
-    run_walker(walker, |path| {
-      let Some(lang) = SupportLang::from_path(path) else {
-        return Ok(())
-      };
-      let pattern = Pattern::new(&pattern, lang);
-      let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
-      match_one_file(&printer, path, lang, &pattern, &rewrite)
-    })?;
+    run_walker_interactive(
+      walker,
+      |path| {
+        let lang = SupportLang::from_path(path)?;
+        let matcher = Pattern::new(&pattern, lang);
+        let match_unit = filter_file_interactive(path, lang, matcher)?;
+        Some((match_unit, lang))
+      },
+      |(match_unit, lang)| {
+        let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
+        match_one_file(&printer, &match_unit, &rewrite)
+      },
+    )?;
   } else {
     ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
     run_walker_interactive(
@@ -188,9 +193,11 @@ fn run_pattern_with_specified_language(args: RunArg, printer: impl Printer + Syn
   let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
   let interactive = args.interactive || args.accept_all;
   if !interactive {
-    run_walker(walker, |path| {
-      match_one_file(&printer, path, lang, &pattern, &rewrite)
-    })?;
+    run_walker_interactive(
+      walker,
+      |path| filter_file_interactive(path, lang, &pattern),
+      |match_unit| match_one_file(&printer, &match_unit, &rewrite),
+    )?;
   } else {
     ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
     run_walker_interactive(
@@ -221,13 +228,35 @@ fn run_config_with_printer(args: ScanArg, printer: impl Printer + Sync) -> Resul
     .build_parallel();
   let interactive = args.interactive || args.accept_all;
   if !interactive {
-    run_walker(walker, |path| {
-      for config in configs.for_path(path) {
-        let lang = config.language;
-        match_rule_on_file(path, lang, config, &printer)?;
-      }
-      Ok(())
-    })?;
+    run_walker_interactive(
+      walker,
+      |path| {
+        for config in configs.for_path(path) {
+          let lang = config.language;
+          let matcher = config.get_matcher();
+          // TODO: we are filtering multiple times here, perf sucks :(
+          let ret = filter_file_interactive(path, lang, matcher);
+          if ret.is_some() {
+            return ret;
+          }
+        }
+        None
+      },
+      // use a mut variable for reuse.
+      |mut match_unit| {
+        let path = match_unit.path.clone();
+        let file_content = read_to_string(&path)?;
+        for config in configs.for_path(&path) {
+          let matcher = config.get_matcher();
+          // important reuse and mutation start!
+          match_unit = match_unit.reuse_with_matcher(matcher);
+          // important reuse and mutation end!
+          // TODO: match should not happen here
+          match_rule_on_file(&match_unit, config, &file_content, &printer)?;
+        }
+        Ok(())
+      },
+    )?;
   } else {
     ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
     run_walker_interactive(
@@ -236,6 +265,7 @@ fn run_config_with_printer(args: ScanArg, printer: impl Printer + Sync) -> Resul
         for config in configs.for_path(path) {
           let lang = config.language;
           let matcher = config.get_matcher();
+          // TODO: we are filtering multiple times here, perf sucks :(
           let ret = filter_file_interactive(path, lang, matcher);
           if ret.is_some() {
             return ret;
@@ -365,46 +395,38 @@ fn file_too_large(file_content: &String) -> bool {
 }
 
 fn match_rule_on_file(
-  path: &Path,
-  lang: SupportLang,
+  match_unit: &MatchUnit<impl Matcher<SupportLang>>,
   rule: &RuleConfig<SupportLang>,
+  file_content: &String,
   reporter: &impl Printer,
 ) -> Result<()> {
-  let matcher = rule.get_matcher();
-  let file_content = read_to_string(path)?;
-  if file_too_large(&file_content) {
-    // TODO add output
-    return Ok(());
-  }
-  let grep = lang.ast_grep(&file_content);
+  let MatchUnit {
+    path,
+    grep,
+    matcher,
+  } = match_unit;
   let mut matches = grep.root().find_all(matcher).peekable();
   if matches.peek().is_none() {
     return Ok(());
   }
-  let file = SimpleFile::new(path.to_string_lossy(), &file_content);
+  let file = SimpleFile::new(path.to_string_lossy(), file_content);
   reporter.print_rule(matches, file, rule);
   Ok(())
 }
 
 fn match_one_file(
   printer: &impl Printer,
-  path: &Path,
-  lang: SupportLang,
-  pattern: &impl Matcher<SupportLang>,
+  match_unit: &MatchUnit<impl Matcher<SupportLang>>,
   rewrite: &Option<Pattern<SupportLang>>,
 ) -> Result<()> {
-  let file_content = read_to_string(path)?;
-  if file_too_large(&file_content) {
-    // TODO add output
-    return Ok(());
-  }
-  let grep = lang.ast_grep(file_content);
-  let mut matches = grep.root().find_all(pattern).peekable();
-  if matches.peek().is_none() {
-    return Ok(());
-  }
+  let MatchUnit {
+    path,
+    grep,
+    matcher,
+  } = match_unit;
+  let matches = grep.root().find_all(matcher);
   if let Some(rewrite) = rewrite {
-    let diffs = matches.map(|m| Diff::generate(m, pattern, rewrite));
+    let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
     printer.print_diffs(diffs, path)
   } else {
     printer.print_matches(matches, path)
