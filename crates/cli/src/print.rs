@@ -15,7 +15,9 @@ use similar::{ChangeTag, TextDiff};
 
 use std::borrow::Cow;
 use std::fmt::Display;
+use std::io::Write;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.
 macro_rules! Matches {
@@ -40,6 +42,8 @@ pub trait Printer {
     path: &Path,
     rule: &RuleConfig<SupportLang>,
   ) -> Result<()>;
+  fn before_print(&self) {}
+  fn after_print(&self) {}
 }
 
 #[derive(Clone, ValueEnum)]
@@ -284,12 +288,14 @@ pub fn print_diff(old: &str, new: &str, base_line: usize) {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Position {
   line: usize,
   column: usize,
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Range {
   /// inclusive start, exclusive end
   byte_offset: std::ops::Range<usize>,
@@ -298,12 +304,14 @@ struct Range {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct LabelJSON<'a> {
   text: &'a str,
   range: Range,
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct MatchJSON<'a> {
   text: Cow<'a, str>,
   file: Cow<'a, str>,
@@ -315,7 +323,32 @@ struct MatchJSON<'a> {
   // meta_variables: Option<()>,
 }
 
+impl<'a> MatchJSON<'a> {
+  fn new(nm: NodeMatch<'a, SupportLang>, path: &'a str) -> Self {
+    let start_pos = nm.start_pos();
+    let end_pos = nm.end_pos();
+    MatchJSON {
+      file: Cow::Borrowed(path),
+      text: nm.text(),
+      language: *nm.lang(),
+      replacement: None,
+      range: Range {
+        byte_offset: nm.range(),
+        start: Position {
+          line: start_pos.0,
+          column: start_pos.1,
+        },
+        end: Position {
+          line: end_pos.0,
+          column: end_pos.1,
+        },
+      },
+    }
+  }
+}
+
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct RuleMatchJSON<'a> {
   #[serde(flatten)]
   matched: MatchJSON<'a>,
@@ -325,8 +358,29 @@ struct RuleMatchJSON<'a> {
   // TODO
   // labels: Vec<LabelJSON<'a>>,
 }
+impl<'a> RuleMatchJSON<'a> {
+  fn new(nm: NodeMatch<'a, SupportLang>, path: &'a str, rule: &'a RuleConfig<SupportLang>) -> Self {
+    let message = rule.get_message(&nm);
+    let matched = MatchJSON::new(nm, path);
+    Self {
+      matched,
+      rule_id: &rule.id,
+      severity: rule.severity.clone(),
+      message,
+    }
+  }
+}
 
-pub struct JSONPrinter;
+// store atomic bool to indicate if any matches happened
+pub struct JSONPrinter(AtomicBool);
+impl JSONPrinter {
+  pub fn new() -> Self {
+    // no match happened yet
+    Self(AtomicBool::new(false))
+  }
+}
+
+// TODO: refactor this shitty code.
 impl Printer for JSONPrinter {
   fn print_rule<'a>(
     &self,
@@ -334,96 +388,81 @@ impl Printer for JSONPrinter {
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SupportLang>,
   ) {
+    let mut matches = matches.peekable();
+    if matches.peek().is_none() {
+      return;
+    }
+    // TODO: remove stdout lock
+    // WARNING! we rely on stdout for locking now
+    // without this lock, matched is not synced with output
+    // i.e. the first match found is not the first to print.
+    let mut lock = std::io::stdout().lock();
+    let matched = self.0.swap(true, Ordering::AcqRel);
     let path = file.name();
-    let v: Vec<_> = matches
-      .map(|nm| {
-        let start_pos = nm.start_pos();
-        let end_pos = nm.end_pos();
-        let matched = MatchJSON {
-          file: path.clone(),
-          text: nm.text(),
-          language: *nm.lang(),
-          replacement: None,
-          range: Range {
-            byte_offset: nm.range(),
-            start: Position {
-              line: start_pos.0,
-              column: start_pos.1,
-            },
-            end: Position {
-              line: end_pos.0,
-              column: end_pos.1,
-            },
-          },
-        };
-        RuleMatchJSON {
-          matched,
-          rule_id: &rule.id,
-          severity: rule.severity.clone(),
-          message: rule.get_message(&nm),
-        }
-      })
-      .collect();
-    let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
-    serde_json::to_writer_pretty(lock, &v).unwrap();
+    if !matched {
+      writeln!(&mut lock, "[").unwrap();
+      let nm = matches.next().unwrap();
+      let v = RuleMatchJSON::new(nm, path, rule);
+      serde_json::to_writer_pretty(&mut lock, &v).unwrap();
+    }
+    for nm in matches {
+      writeln!(&mut lock, ",").unwrap();
+      let v = RuleMatchJSON::new(nm, path, rule);
+      serde_json::to_writer_pretty(&mut lock, &v).unwrap();
+    }
   }
 
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {
-    let v: Vec<_> = matches
-      .map(|nm| {
-        let start_pos = nm.start_pos();
-        let end_pos = nm.end_pos();
-        MatchJSON {
-          file: path.to_string_lossy(),
-          text: nm.text(),
-          language: *nm.lang(),
-          replacement: None,
-          range: Range {
-            byte_offset: nm.range(),
-            start: Position {
-              line: start_pos.0,
-              column: start_pos.1,
-            },
-            end: Position {
-              line: end_pos.0,
-              column: end_pos.1,
-            },
-          },
-        }
-      })
-      .collect();
-    let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
-    serde_json::to_writer_pretty(lock, &v)?;
+    let mut matches = matches.peekable();
+    if matches.peek().is_none() {
+      return Ok(());
+    }
+    // TODO: remove stdout lock
+    // WARNING! we rely on stdout for locking now
+    // without this lock, matched is not synced with output
+    // i.e. the first match found is not the first to print.
+    let mut lock = std::io::stdout().lock();
+    let matched = self.0.swap(true, Ordering::AcqRel);
+    let path = path.to_string_lossy();
+    if !matched {
+      writeln!(&mut lock, "[").unwrap();
+      let nm = matches.next().unwrap();
+      let v = MatchJSON::new(nm, &path);
+      serde_json::to_writer_pretty(&mut lock, &v).unwrap();
+    }
+    for nm in matches {
+      writeln!(&mut lock, ",").unwrap();
+      let v = MatchJSON::new(nm, &path);
+      serde_json::to_writer_pretty(&mut lock, &v).unwrap();
+    }
     Ok(())
   }
 
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
-    let v: Vec<_> = diffs
-      .map(|diff| {
-        let nm = diff.node_match;
-        let start_pos = nm.start_pos();
-        let end_pos = nm.end_pos();
-        MatchJSON {
-          file: path.to_string_lossy(),
-          text: nm.text(),
-          language: *nm.lang(),
-          replacement: Some(diff.replacement),
-          range: Range {
-            byte_offset: nm.range(),
-            start: Position {
-              line: start_pos.0,
-              column: start_pos.1,
-            },
-            end: Position {
-              line: end_pos.0,
-              column: end_pos.1,
-            },
-          },
-        }
-      })
-      .collect();
-    let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
-    serde_json::to_writer(lock, &v)?;
+    let mut diffs = diffs.peekable();
+    if diffs.peek().is_none() {
+      return Ok(());
+    }
+    // TODO: remove stdout lock
+    // WARNING! we rely on stdout for locking now
+    // without this lock, matched is not synced with output
+    // i.e. the first match found is not the first to print.
+    let mut lock = std::io::stdout().lock();
+    let matched = self.0.swap(true, Ordering::AcqRel);
+    let path = path.to_string_lossy();
+    if !matched {
+      writeln!(&mut lock, "[").unwrap();
+      let diff = diffs.next().unwrap();
+      let mut v = MatchJSON::new(diff.node_match, &path);
+      v.replacement = Some(diff.replacement);
+      serde_json::to_writer_pretty(&mut lock, &v).unwrap();
+    }
+    for diff in diffs {
+      writeln!(&mut lock, ",").unwrap();
+      let mut v = MatchJSON::new(diff.node_match, &path);
+      v.replacement = Some(diff.replacement);
+      serde_json::to_writer_pretty(&mut lock, &v).unwrap();
+    }
     Ok(())
   }
   fn print_rule_diffs<'a>(
@@ -433,5 +472,13 @@ impl Printer for JSONPrinter {
     _rule: &RuleConfig<SupportLang>,
   ) -> Result<()> {
     self.print_diffs(diffs, path)
+  }
+
+  fn after_print(&self) {
+    let matched = self.0.load(Ordering::Acquire);
+    if matched {
+      println!();
+    }
+    print!("]");
   }
 }

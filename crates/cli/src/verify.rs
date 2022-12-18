@@ -25,6 +25,7 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TestCase {
   pub id: String,
   #[serde(default)]
@@ -34,12 +35,14 @@ pub struct TestCase {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub enum LabelStyle {
   Primary,
   Secondary,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Label {
   source: String,
   #[serde(skip_serializing_if = "Option::is_none")]
@@ -85,6 +88,7 @@ use std::collections::HashMap;
 type CaseId = String;
 type Source = String;
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct TestSnapshots {
   pub id: CaseId,
   #[serde(serialize_with = "ordered_map")]
@@ -94,6 +98,7 @@ pub struct TestSnapshots {
 pub type SnapshotCollection = HashMap<CaseId, TestSnapshots>;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct TestSnapshot {
   #[serde(skip_serializing_if = "Option::is_none")]
   pub fixed: Option<String>,

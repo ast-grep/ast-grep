@@ -102,7 +102,7 @@ static ACCEPT_ALL: AtomicBool = AtomicBool::new(false);
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(args: RunArg) -> Result<()> {
   if args.json {
-    run_pattern_with_printer(args, JSONPrinter)
+    run_pattern_with_printer(args, JSONPrinter::new())
   } else {
     let printer = ColoredPrinter::new(ColorChoice::Auto, ReportStyle::Rich);
     run_pattern_with_printer(args, printer)
@@ -110,10 +110,11 @@ pub fn run_with_pattern(args: RunArg) -> Result<()> {
 }
 fn run_pattern_with_printer(args: RunArg, printer: impl Printer + Sync) -> Result<()> {
   if args.lang.is_some() {
-    run_pattern_with_specified_language(args, printer)
+    run_pattern_with_specified_language(args, printer)?;
   } else {
-    run_pattern_with_inferred_language(args, printer)
+    run_pattern_with_inferred_language(args, printer)?;
   }
+  Ok(())
 }
 
 /// A single atomic unit where matches happen.
@@ -132,6 +133,7 @@ impl MatchUnit<RuleWithConstraint<SupportLang>> {
 }
 
 fn run_pattern_with_inferred_language(args: RunArg, printer: impl Printer + Sync) -> Result<()> {
+  printer.before_print();
   let pattern = args.pattern;
   let threads = num_cpus::get().min(12);
   let walker = WalkBuilder::new(&args.path)
@@ -148,7 +150,7 @@ fn run_pattern_with_inferred_language(args: RunArg, printer: impl Printer + Sync
       let pattern = Pattern::new(&pattern, lang);
       let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
       match_one_file(&printer, path, lang, &pattern, &rewrite)
-    })
+    })?;
   } else {
     ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
     run_walker_interactive(
@@ -163,11 +165,14 @@ fn run_pattern_with_inferred_language(args: RunArg, printer: impl Printer + Sync
         let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
         run_one_interaction(&printer, &match_unit, &rewrite)
       },
-    )
+    )?;
   }
+  printer.after_print();
+  Ok(())
 }
 
 fn run_pattern_with_specified_language(args: RunArg, printer: impl Printer + Sync) -> Result<()> {
+  printer.before_print();
   let pattern = args.pattern;
   let threads = num_cpus::get().min(12);
   let lang = args.lang.expect("must present");
@@ -185,19 +190,21 @@ fn run_pattern_with_specified_language(args: RunArg, printer: impl Printer + Syn
   if !interactive {
     run_walker(walker, |path| {
       match_one_file(&printer, path, lang, &pattern, &rewrite)
-    })
+    })?;
   } else {
     ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
     run_walker_interactive(
       walker,
       |path| filter_file_interactive(path, lang, &pattern),
       |match_unit| run_one_interaction(&printer, &match_unit, &rewrite),
-    )
+    )?;
   }
+  printer.after_print();
+  Ok(())
 }
 pub fn run_with_config(args: ScanArg) -> Result<()> {
   if args.json {
-    run_config_with_printer(args, JSONPrinter)
+    run_config_with_printer(args, JSONPrinter::new())
   } else {
     let printer = ColoredPrinter::new(args.color.into(), args.report_style.clone());
     run_config_with_printer(args, printer)
@@ -205,6 +212,7 @@ pub fn run_with_config(args: ScanArg) -> Result<()> {
 }
 
 fn run_config_with_printer(args: ScanArg, printer: impl Printer + Sync) -> Result<()> {
+  printer.before_print();
   let configs = find_config(args.config)?;
   let threads = num_cpus::get().min(12);
   let walker = WalkBuilder::new(&args.path)
@@ -219,7 +227,7 @@ fn run_config_with_printer(args: ScanArg, printer: impl Printer + Sync) -> Resul
         match_rule_on_file(path, lang, config, &printer)?;
       }
       Ok(())
-    })
+    })?;
   } else {
     ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
     run_walker_interactive(
@@ -248,8 +256,10 @@ fn run_config_with_printer(args: ScanArg, printer: impl Printer + Sync) -> Resul
         }
         Ok(())
       },
-    )
+    )?;
   }
+  printer.after_print();
+  Ok(())
 }
 
 const EDIT_PROMPT: &str = "Accept change? (Yes[y], No[n], Accept All[a], Quit[q], Edit[e])";
