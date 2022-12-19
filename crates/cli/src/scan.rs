@@ -7,11 +7,11 @@ use ast_grep_config::{RuleConfig, RuleWithConstraint};
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::{Args, Parser};
-use ignore::WalkBuilder;
+use ignore::{WalkBuilder, WalkParallel};
 
 use crate::config::find_config;
 use crate::error::ErrorContext as EC;
-use crate::interaction::{self, run_walker, run_walker_interactive};
+use crate::interaction::{self, run_walker_interactive, Items};
 use crate::print::{ColorArg, ColoredPrinter, Diff, JSONPrinter, Printer, ReportStyle, SimpleFile};
 use ast_grep_language::{file_types, SupportLang};
 use codespan_reporting::term::termcolor::ColorChoice;
@@ -129,6 +129,52 @@ struct MatchUnit<M: Matcher<SupportLang>> {
 impl MatchUnit<RuleWithConstraint<SupportLang>> {
   fn reuse_with_matcher(self, matcher: RuleWithConstraint<SupportLang>) -> Self {
     Self { matcher, ..self }
+  }
+}
+
+// TODO: add comment
+trait Worker {
+  type Item;
+  fn build_walk(&self) -> WalkParallel;
+  fn produce_item(&self, path: &Path) -> Self::Item;
+  fn consume_items(&self, items: Items<Self::Item>) -> Result<()>;
+}
+
+struct RunWithInferredLang<P: Printer> {
+  arg: RunArg,
+  printer: P,
+}
+
+impl<P: Printer> Worker for RunWithInferredLang<P> {
+  type Item = Option<(MatchUnit<Pattern<SupportLang>>, SupportLang)>;
+  fn build_walk(&self) -> WalkParallel {
+    let arg = &self.arg;
+    let threads = num_cpus::get().min(12);
+    WalkBuilder::new(&arg.path)
+      .hidden(arg.hidden)
+      .threads(threads)
+      .build_parallel()
+  }
+
+  fn produce_item(&self, path: &Path) -> Self::Item {
+    let lang = SupportLang::from_path(path)?;
+    let matcher = Pattern::new(&self.arg.pattern, lang);
+    let match_unit = filter_file_interactive(path, lang, matcher)?;
+    Some((match_unit, lang))
+  }
+
+  fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
+    let rewrite = &self.arg.rewrite;
+    let printer = &self.printer;
+    printer.before_print();
+    for item in items {
+      // TODO
+      let (match_unit, lang) = item.unwrap();
+      let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
+      match_one_file(printer, &match_unit, &rewrite)?;
+    }
+    printer.after_print();
+    Ok(())
   }
 }
 

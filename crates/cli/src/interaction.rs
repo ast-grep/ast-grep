@@ -122,6 +122,18 @@ pub fn run_walker_interactive_impl<T: Send>(
   })
 }
 
+pub struct Items<T>(mpsc::Receiver<T>);
+impl<T> Iterator for Items<T> {
+  type Item = T;
+  fn next(&mut self) -> Option<Self::Item> {
+    if let Ok(match_result) = self.0.recv() {
+      Some(match_result)
+    } else {
+      None
+    }
+  }
+}
+
 fn filter_file(entry: DirEntry) -> Option<DirEntry> {
   entry.file_type()?.is_file().then_some(entry)
 }
