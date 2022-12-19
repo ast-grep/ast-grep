@@ -243,21 +243,23 @@ fn run_config_with_printer(args: ScanArg, printer: impl Printer + Sync) -> Resul
     .threads(threads)
     .build_parallel();
   let interactive = args.interactive || args.accept_all;
+  let producer = |path: &'_ _| {
+    for config in configs.for_path(path) {
+      let lang = config.language;
+      let matcher = config.get_matcher();
+      // TODO: we are filtering multiple times here, perf sucks :(
+      let ret = filter_file_interactive(path, lang, matcher);
+      if ret.is_some() {
+        return ret;
+      }
+    }
+    None
+  };
+
   if !interactive {
     run_walker_interactive(
       walker,
-      |path| {
-        for config in configs.for_path(path) {
-          let lang = config.language;
-          let matcher = config.get_matcher();
-          // TODO: we are filtering multiple times here, perf sucks :(
-          let ret = filter_file_interactive(path, lang, matcher);
-          if ret.is_some() {
-            return ret;
-          }
-        }
-        None
-      },
+      producer,
       // use a mut variable for reuse.
       |mut match_unit| {
         let path = match_unit.path.clone();
@@ -277,18 +279,7 @@ fn run_config_with_printer(args: ScanArg, printer: impl Printer + Sync) -> Resul
     ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
     run_walker_interactive(
       walker,
-      |path| {
-        for config in configs.for_path(path) {
-          let lang = config.language;
-          let matcher = config.get_matcher();
-          // TODO: we are filtering multiple times here, perf sucks :(
-          let ret = filter_file_interactive(path, lang, matcher);
-          if ret.is_some() {
-            return ret;
-          }
-        }
-        None
-      },
+      producer,
       // use a mut variable for reuse.
       |mut match_unit| {
         let path = match_unit.path.clone();
