@@ -11,7 +11,7 @@ use ignore::{WalkBuilder, WalkParallel};
 
 use crate::config::find_config;
 use crate::error::ErrorContext as EC;
-use crate::interaction::{self, run_walker_interactive, Items};
+use crate::interaction::{self, run_walker_interactive, Items, Worker};
 use crate::print::{ColorArg, ColoredPrinter, Diff, JSONPrinter, Printer, ReportStyle, SimpleFile};
 use ast_grep_language::{file_types, SupportLang};
 use codespan_reporting::term::termcolor::ColorChoice;
@@ -130,14 +130,6 @@ impl MatchUnit<RuleWithConstraint<SupportLang>> {
   fn reuse_with_matcher(self, matcher: RuleWithConstraint<SupportLang>) -> Self {
     Self { matcher, ..self }
   }
-}
-
-// TODO: add comment
-trait Worker {
-  type Item;
-  fn build_walk(&self) -> WalkParallel;
-  fn produce_item(&self, path: &Path) -> Self::Item;
-  fn consume_items(&self, items: Items<Self::Item>) -> Result<()>;
 }
 
 struct RunWithInferredLang<P: Printer> {

@@ -117,6 +117,14 @@ pub fn run_walker_interactive_impl<T: Send>(
   })
 }
 
+// TODO: add comment
+pub trait Worker {
+  type Item;
+  fn build_walk(&self) -> WalkParallel;
+  fn produce_item(&self, path: &Path) -> Self::Item;
+  fn consume_items(&self, items: Items<Self::Item>) -> Result<()>;
+}
+
 pub struct Items<T>(mpsc::Receiver<T>);
 impl<T> Iterator for Items<T> {
   type Item = T;
