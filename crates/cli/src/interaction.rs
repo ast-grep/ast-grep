@@ -110,15 +110,10 @@ pub fn run_walker_interactive_impl<T: Send>(
         })
       })
     });
-    let interaction = s.spawn(move || -> Result<()> {
-      while let Ok(match_result) = rx.recv() {
-        consumer(match_result)?;
-      }
-      Ok(())
-    });
-    interaction
-      .join()
-      .expect("Error occurred during interaction.")
+    while let Ok(match_result) = rx.recv() {
+      consumer(match_result)?;
+    }
+    Ok(())
   })
 }
 
