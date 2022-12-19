@@ -11,7 +11,7 @@ use ignore::{WalkBuilder, WalkParallel};
 
 use crate::config::find_config;
 use crate::error::ErrorContext as EC;
-use crate::interaction::{self, run_walker_interactive, Items, Worker};
+use crate::interaction::{self, run_walker_interactive, run_worker, Items, Worker};
 use crate::print::{ColorArg, ColoredPrinter, Diff, JSONPrinter, Printer, ReportStyle, SimpleFile};
 use ast_grep_language::{file_types, SupportLang};
 use codespan_reporting::term::termcolor::ColorChoice;
@@ -108,13 +108,12 @@ pub fn run_with_pattern(args: RunArg) -> Result<()> {
     run_pattern_with_printer(args, printer)
   }
 }
-fn run_pattern_with_printer(args: RunArg, printer: impl Printer + Sync) -> Result<()> {
-  if args.lang.is_some() {
-    run_pattern_with_specified_language(args, printer)?;
+fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + Sync) -> Result<()> {
+  if arg.lang.is_some() {
+    run_worker(RunWithSpecificLang { arg, printer })
   } else {
-    run_pattern_with_inferred_language(args, printer)?;
+    run_worker(RunWithInferredLang { arg, printer })
   }
-  Ok(())
 }
 
 /// A single atomic unit where matches happen.
@@ -132,13 +131,13 @@ impl MatchUnit<RuleWithConstraint<SupportLang>> {
   }
 }
 
-struct RunWithInferredLang<P: Printer> {
+struct RunWithInferredLang<Printer> {
   arg: RunArg,
-  printer: P,
+  printer: Printer,
 }
 
-impl<P: Printer> Worker for RunWithInferredLang<P> {
-  type Item = Option<(MatchUnit<Pattern<SupportLang>>, SupportLang)>;
+impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
+  type Item = (MatchUnit<Pattern<SupportLang>>, SupportLang);
   fn build_walk(&self) -> WalkParallel {
     let arg = &self.arg;
     let threads = num_cpus::get().min(12);
@@ -148,7 +147,7 @@ impl<P: Printer> Worker for RunWithInferredLang<P> {
       .build_parallel()
   }
 
-  fn produce_item(&self, path: &Path) -> Self::Item {
+  fn produce_item(&self, path: &Path) -> Option<Self::Item> {
     let lang = SupportLang::from_path(path)?;
     let matcher = Pattern::new(&self.arg.pattern, lang);
     let match_unit = filter_file_interactive(path, lang, matcher)?;
@@ -156,97 +155,76 @@ impl<P: Printer> Worker for RunWithInferredLang<P> {
   }
 
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
+    let interactive = self.arg.interactive || self.arg.accept_all;
     let rewrite = &self.arg.rewrite;
     let printer = &self.printer;
     printer.before_print();
-    for item in items {
-      // TODO
-      let (match_unit, lang) = item.unwrap();
+    let consume = if interactive {
+      ACCEPT_ALL.store(self.arg.accept_all, Ordering::SeqCst);
+      run_one_interaction
+    } else {
+      match_one_file
+    };
+    for (match_unit, lang) in items {
       let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
-      match_one_file(printer, &match_unit, &rewrite)?;
+      consume(printer, &match_unit, &rewrite)?;
     }
     printer.after_print();
     Ok(())
   }
 }
 
-fn run_pattern_with_inferred_language(args: RunArg, printer: impl Printer + Sync) -> Result<()> {
-  printer.before_print();
-  let pattern = args.pattern;
-  let threads = num_cpus::get().min(12);
-  let walker = WalkBuilder::new(&args.path)
-    .hidden(args.hidden)
-    .threads(threads)
-    .build_parallel();
-  let interactive = args.interactive || args.accept_all;
-  let rewrite = args.rewrite;
-  if !interactive {
-    run_walker_interactive(
-      walker,
-      |path| {
-        let lang = SupportLang::from_path(path)?;
-        let matcher = Pattern::new(&pattern, lang);
-        let match_unit = filter_file_interactive(path, lang, matcher)?;
-        Some((match_unit, lang))
-      },
-      |(match_unit, lang)| {
-        let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
-        match_one_file(&printer, &match_unit, &rewrite)
-      },
-    )?;
-  } else {
-    ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
-    run_walker_interactive(
-      walker,
-      |path| {
-        let lang = SupportLang::from_path(path)?;
-        let matcher = Pattern::new(&pattern, lang);
-        let match_unit = filter_file_interactive(path, lang, matcher)?;
-        Some((match_unit, lang))
-      },
-      |(match_unit, lang)| {
-        let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
-        run_one_interaction(&printer, &match_unit, &rewrite)
-      },
-    )?;
-  }
-  printer.after_print();
-  Ok(())
+struct RunWithSpecificLang<Printer> {
+  arg: RunArg,
+  printer: Printer,
 }
 
-fn run_pattern_with_specified_language(args: RunArg, printer: impl Printer + Sync) -> Result<()> {
-  printer.before_print();
-  let pattern = args.pattern;
-  let threads = num_cpus::get().min(12);
-  let lang = args.lang.expect("must present");
-  let pattern = Pattern::new(&pattern, lang);
-  if args.debug_query {
-    println!("Pattern TreeSitter {:?}", pattern);
+impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
+  type Item = MatchUnit<Pattern<SupportLang>>;
+  fn build_walk(&self) -> WalkParallel {
+    let arg = &self.arg;
+    let threads = num_cpus::get().min(12);
+    let lang = arg.lang.expect("must present");
+    WalkBuilder::new(&arg.path)
+      .hidden(arg.hidden)
+      .threads(threads)
+      .types(file_types(&lang))
+      .build_parallel()
   }
-  let walker = WalkBuilder::new(&args.path)
-    .hidden(args.hidden)
-    .threads(threads)
-    .types(file_types(&lang))
-    .build_parallel();
-  let rewrite = args.rewrite.map(|s| Pattern::new(s.as_ref(), lang));
-  let interactive = args.interactive || args.accept_all;
-  if !interactive {
-    run_walker_interactive(
-      walker,
-      |path| filter_file_interactive(path, lang, &pattern),
-      |match_unit| match_one_file(&printer, &match_unit, &rewrite),
-    )?;
-  } else {
-    ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
-    run_walker_interactive(
-      walker,
-      |path| filter_file_interactive(path, lang, &pattern),
-      |match_unit| run_one_interaction(&printer, &match_unit, &rewrite),
-    )?;
+  fn produce_item(&self, path: &Path) -> Option<Self::Item> {
+    let arg = &self.arg;
+    let pattern = &arg.pattern;
+    // TODO: replace reuse pattern via GAT
+    let lang = arg.lang.expect("must present");
+    let pattern = Pattern::new(pattern, lang);
+    filter_file_interactive(path, lang, pattern)
   }
-  printer.after_print();
-  Ok(())
+  fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
+    let printer = &self.printer;
+    printer.before_print();
+    let arg = &self.arg;
+    let pattern = &arg.pattern;
+    let lang = arg.lang.expect("must present");
+    let pattern = Pattern::new(pattern, lang);
+    if arg.debug_query {
+      println!("Pattern TreeSitter {:?}", pattern);
+    }
+    let rewrite = arg.rewrite.as_ref().map(|s| Pattern::new(s, lang));
+    let interactive = arg.interactive || arg.accept_all;
+    let consumer = if !interactive {
+      match_one_file
+    } else {
+      ACCEPT_ALL.store(arg.accept_all, Ordering::SeqCst);
+      run_one_interaction
+    };
+    for match_unit in items {
+      consumer(printer, &match_unit, &rewrite)?;
+    }
+    printer.after_print();
+    Ok(())
+  }
 }
+
 pub fn run_with_config(args: ScanArg) -> Result<()> {
   if args.json {
     run_config_with_printer(args, JSONPrinter::new())

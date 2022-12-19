@@ -118,10 +118,10 @@ pub fn run_walker_interactive_impl<T: Send>(
 }
 
 // TODO: add comment
-pub trait Worker {
-  type Item;
+pub trait Worker: Sync {
+  type Item: Send;
   fn build_walk(&self) -> WalkParallel;
-  fn produce_item(&self, path: &Path) -> Self::Item;
+  fn produce_item(&self, path: &Path) -> Option<Self::Item>;
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()>;
 }
 
@@ -139,6 +139,42 @@ impl<T> Iterator for Items<T> {
 
 fn filter_file(entry: DirEntry) -> Option<DirEntry> {
   entry.file_type()?.is_file().then_some(entry)
+}
+
+fn filter_result(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
+  let entry = match result {
+    Ok(entry) => entry,
+    Err(err) => {
+      eprintln!("ERROR: {}", err);
+      return None;
+    }
+  };
+  entry.file_type()?.is_file().then(|| entry.into_path())
+}
+
+pub fn run_worker<MW: Worker>(worker: MW) -> Result<()> {
+  let producer = |path: PathBuf| worker.produce_item(&path);
+  let (tx, rx) = mpsc::channel();
+  let walker = worker.build_walk();
+  std::thread::scope(|s| {
+    s.spawn(move || {
+      walker.run(|| {
+        let tx = tx.clone();
+        Box::new(move |result| {
+          let maybe_result = filter_result(result).and_then(producer);
+          let result = match maybe_result {
+            Some(ret) => ret,
+            None => return WalkState::Continue,
+          };
+          match tx.send(result) {
+            Ok(_) => WalkState::Continue,
+            Err(_) => WalkState::Quit,
+          }
+        })
+      })
+    });
+    worker.consume_items(Items(rx))
+  })
 }
 
 pub fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> Result<()> + Sync) -> Result<()> {
