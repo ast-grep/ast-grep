@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{Context, Result};
-use ast_grep_config::{RuleConfig, RuleWithConstraint};
+use ast_grep_config::{RuleCollection, RuleConfig, RuleWithConstraint};
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::{Args, Parser};
@@ -225,26 +225,45 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
   }
 }
 
-pub fn run_with_config(args: ScanArg) -> Result<()> {
-  if args.json {
-    run_config_with_printer(args, JSONPrinter::new())
+pub fn run_with_config(arg: ScanArg) -> Result<()> {
+  if arg.json {
+    let worker = ScanWithConfig::try_new(arg, JSONPrinter::new())?;
+    run_worker(worker)
   } else {
-    let printer = ColoredPrinter::new(args.color.into(), args.report_style.clone());
-    run_config_with_printer(args, printer)
+    let printer = ColoredPrinter::new(arg.color.into(), arg.report_style.clone());
+    let worker = ScanWithConfig::try_new(arg, printer)?;
+    run_worker(worker)
   }
 }
 
-fn run_config_with_printer(args: ScanArg, printer: impl Printer + Sync) -> Result<()> {
-  printer.before_print();
-  let configs = find_config(args.config)?;
-  let threads = num_cpus::get().min(12);
-  let walker = WalkBuilder::new(&args.path)
-    .hidden(args.hidden)
-    .threads(threads)
-    .build_parallel();
-  let interactive = args.interactive || args.accept_all;
-  let producer = |path: &'_ _| {
-    for config in configs.for_path(path) {
+struct ScanWithConfig<Printer> {
+  arg: ScanArg,
+  printer: Printer,
+  configs: RuleCollection<SupportLang>,
+}
+impl<P: Printer> ScanWithConfig<P> {
+  fn try_new(mut arg: ScanArg, printer: P) -> Result<Self> {
+    let configs = find_config(arg.config.take())?;
+    Ok(Self {
+      arg,
+      printer,
+      configs,
+    })
+  }
+}
+
+impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
+  type Item = MatchUnit<RuleWithConstraint<SupportLang>>;
+  fn build_walk(&self) -> WalkParallel {
+    let arg = &self.arg;
+    let threads = num_cpus::get().min(12);
+    WalkBuilder::new(&arg.path)
+      .hidden(arg.hidden)
+      .threads(threads)
+      .build_parallel()
+  }
+  fn produce_item(&self, path: &Path) -> Option<Self::Item> {
+    for config in &self.configs.for_path(path) {
       let lang = config.language;
       let matcher = config.get_matcher();
       // TODO: we are filtering multiple times here, perf sucks :(
@@ -254,49 +273,33 @@ fn run_config_with_printer(args: ScanArg, printer: impl Printer + Sync) -> Resul
       }
     }
     None
-  };
-
-  if !interactive {
-    run_walker_interactive(
-      walker,
-      producer,
-      // use a mut variable for reuse.
-      |mut match_unit| {
-        let path = match_unit.path.clone();
-        let file_content = read_to_string(&path)?;
-        for config in configs.for_path(&path) {
-          let matcher = config.get_matcher();
-          // important reuse and mutation start!
-          match_unit = match_unit.reuse_with_matcher(matcher);
-          // important reuse and mutation end!
-          // TODO: match should not happen here
-          match_rule_on_file(&match_unit, config, &file_content, &printer)?;
-        }
-        Ok(())
-      },
-    )?;
-  } else {
-    ACCEPT_ALL.store(args.accept_all, Ordering::SeqCst);
-    run_walker_interactive(
-      walker,
-      producer,
-      // use a mut variable for reuse.
-      |mut match_unit| {
-        let path = match_unit.path.clone();
-        for config in configs.for_path(&path) {
-          let matcher = config.get_matcher();
-          let fixer = config.get_fixer();
-          // important reuse and mutation start!
-          match_unit = match_unit.reuse_with_matcher(matcher);
-          // important reuse and mutation end!
-          run_one_interaction(&printer, &match_unit, &fixer)?;
-        }
-        Ok(())
-      },
-    )?;
   }
-  printer.after_print();
-  Ok(())
+  fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
+    self.printer.before_print();
+    let arg = &self.arg;
+    let interactive = arg.interactive || arg.accept_all;
+    if interactive {
+      ACCEPT_ALL.store(arg.accept_all, Ordering::SeqCst);
+    }
+    for mut match_unit in items {
+      let path = &match_unit.path;
+      let file_content = read_to_string(path)?;
+      for config in self.configs.for_path(path) {
+        let matcher = config.get_matcher();
+        let fixer = config.get_fixer();
+        // important reuse and mutation start!
+        match_unit = match_unit.reuse_with_matcher(matcher);
+        // important reuse and mutation end!
+        if interactive {
+          run_one_interaction(&self.printer, &match_unit, &fixer)?;
+        } else {
+          match_rule_on_file(&match_unit, config, &file_content, &self.printer)?;
+        }
+      }
+    }
+    self.printer.after_print();
+    Ok(())
+  }
 }
 
 const EDIT_PROMPT: &str = "Accept change? (Yes[y], No[n], Accept All[a], Quit[q], Edit[e])";
