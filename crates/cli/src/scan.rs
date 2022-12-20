@@ -11,7 +11,7 @@ use ignore::{WalkBuilder, WalkParallel};
 
 use crate::config::find_config;
 use crate::error::ErrorContext as EC;
-use crate::interaction::{self, run_walker_interactive, run_worker, Items, Worker};
+use crate::interaction::{self, run_worker, Items, Worker};
 use crate::print::{ColorArg, ColoredPrinter, Diff, JSONPrinter, Printer, ReportStyle, SimpleFile};
 use ast_grep_language::{file_types, SupportLang};
 use codespan_reporting::term::termcolor::ColorChoice;

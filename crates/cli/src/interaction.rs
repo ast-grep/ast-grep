@@ -63,60 +63,6 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
   }
 }
 
-fn run_walker_impl(
-  walker: WalkParallel,
-  f: impl FnOnce(DirEntry) -> Result<WalkState> + Sync + Copy,
-) {
-  walker.run(|| {
-    Box::new(|result| {
-      result
-        .map_err(|e| anyhow::anyhow!(e))
-        .and_then(f)
-        .unwrap_or_else(|err| {
-          eprintln!("ERROR: {}", err);
-          WalkState::Continue
-        })
-    })
-  });
-}
-
-pub fn run_walker_interactive_impl<T: Send>(
-  walker: WalkParallel,
-  producer: impl Fn(DirEntry) -> Option<T> + Sync,
-  consumer: impl Fn(T) -> Result<()> + Send,
-) -> Result<()> {
-  let (tx, rx) = mpsc::channel();
-  let producer = &producer;
-  std::thread::scope(|s| {
-    s.spawn(move || {
-      walker.run(|| {
-        let tx = tx.clone();
-        Box::new(move |result| {
-          let entry = match result {
-            Ok(entry) => entry,
-            Err(err) => {
-              eprintln!("ERROR: {}", err);
-              return WalkState::Continue;
-            }
-          };
-          let result = match producer(entry) {
-            Some(ret) => ret,
-            None => return WalkState::Continue,
-          };
-          match tx.send(result) {
-            Ok(_) => WalkState::Continue,
-            Err(_) => WalkState::Quit,
-          }
-        })
-      })
-    });
-    while let Ok(match_result) = rx.recv() {
-      consumer(match_result)?;
-    }
-    Ok(())
-  })
-}
-
 // TODO: add comment
 pub trait Worker: Sync {
   type Item: Send;
@@ -135,10 +81,6 @@ impl<T> Iterator for Items<T> {
       None
     }
   }
-}
-
-fn filter_file(entry: DirEntry) -> Option<DirEntry> {
-  entry.file_type()?.is_file().then_some(entry)
 }
 
 fn filter_result(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
@@ -175,28 +117,6 @@ pub fn run_worker<MW: Worker>(worker: MW) -> Result<()> {
     });
     worker.consume_items(Items(rx))
   })
-}
-
-pub fn run_walker(walker: WalkParallel, f: impl Fn(&Path) -> Result<()> + Sync) -> Result<()> {
-  run_walker_impl(walker, |entry| {
-    if let Some(e) = filter_file(entry) {
-      f(e.path())?;
-    }
-    Ok(WalkState::Continue)
-  });
-  Ok(())
-}
-
-pub fn run_walker_interactive<T: Send>(
-  walker: WalkParallel,
-  producer: impl Fn(&Path) -> Option<T> + Sync,
-  consumer: impl Fn(T) -> Result<()> + Send,
-) -> Result<()> {
-  run_walker_interactive_impl(
-    walker,
-    |entry| producer(filter_file(entry)?.path()),
-    consumer,
-  )
 }
 
 pub fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
