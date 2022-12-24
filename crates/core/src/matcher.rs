@@ -90,12 +90,14 @@ where
   L: Language,
   M: Matcher<L> + ?Sized,
 {
-  if set.contains(node.kind_id().into()) {
-    if let Some(ret) = m.match_node(node.clone()) {
-      return Some(ret);
+  for n in node.dfs() {
+    if set.contains(n.kind_id().into()) {
+      if let Some(ret) = m.match_node(n.clone()) {
+        return Some(ret);
+      }
     }
   }
-  node.children().find_map(|sub| find_node_impl(m, sub, set))
+  None
 }
 
 impl<L: Language> Matcher<L> for str {
