@@ -196,7 +196,6 @@ impl<'n> Diff<'n> {
 
 fn print_diffs<'a>(diffs: Diffs!('a), path: &Path) -> Result<()> {
   print_prelude(path);
-  // TODO: actual matching happened in stdout lock, optimize it out
   for diff in diffs {
     let display = diff.node_match.display_context(3);
     let old_str = format!(
@@ -387,11 +386,7 @@ impl Printer for JSONPrinter {
     if matches.peek().is_none() {
       return;
     }
-    // TODO: remove stdout lock
-    // WARNING! we rely on stdout for locking now
-    // without this lock, matched is not synced with output
-    // i.e. the first match found is not the first to print.
-    let mut lock = std::io::stdout().lock();
+    let mut lock = std::io::stdout();
     let matched = self.0.swap(true, Ordering::AcqRel);
     let path = file.name();
     if !matched {
@@ -412,11 +407,7 @@ impl Printer for JSONPrinter {
     if matches.peek().is_none() {
       return Ok(());
     }
-    // TODO: remove stdout lock
-    // WARNING! we rely on stdout for locking now
-    // without this lock, matched is not synced with output
-    // i.e. the first match found is not the first to print.
-    let mut lock = std::io::stdout().lock();
+    let mut lock = std::io::stdout();
     let matched = self.0.swap(true, Ordering::AcqRel);
     let path = path.to_string_lossy();
     if !matched {
@@ -438,11 +429,7 @@ impl Printer for JSONPrinter {
     if diffs.peek().is_none() {
       return Ok(());
     }
-    // TODO: remove stdout lock
-    // WARNING! we rely on stdout for locking now
-    // without this lock, matched is not synced with output
-    // i.e. the first match found is not the first to print.
-    let mut lock = std::io::stdout().lock();
+    let mut lock = std::io::stdout();
     let matched = self.0.swap(true, Ordering::AcqRel);
     let path = path.to_string_lossy();
     if !matched {
