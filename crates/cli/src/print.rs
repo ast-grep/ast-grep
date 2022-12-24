@@ -142,15 +142,13 @@ fn adjust_dir_separator(p: &Path) -> String {
   }
 }
 
-fn print_prelude(path: &Path) -> std::io::StdoutLock {
-  let lock = std::io::stdout().lock(); // lock stdout to avoid interleaving output
+fn print_prelude(path: &Path) {
   let filepath = adjust_dir_separator(path);
   println!("{}", Color::Cyan.italic().paint(filepath));
-  lock
 }
 
 fn print_matches<'a>(matches: Matches!('a), path: &Path) -> Result<()> {
-  let lock = print_prelude(path);
+  print_prelude(path);
   for e in matches {
     let display = e.display_context(0);
     let leading = display.leading;
@@ -166,7 +164,6 @@ fn print_matches<'a>(matches: Matches!('a), path: &Path) -> Result<()> {
     print_highlight(trailing.lines(), Style::new().dimmed(), width, &mut num);
     println!(); // end match new line
   }
-  drop(lock);
   Ok(())
 }
 
@@ -198,7 +195,7 @@ impl<'n> Diff<'n> {
 }
 
 fn print_diffs<'a>(diffs: Diffs!('a), path: &Path) -> Result<()> {
-  let lock = print_prelude(path);
+  print_prelude(path);
   // TODO: actual matching happened in stdout lock, optimize it out
   for diff in diffs {
     let display = diff.node_match.display_context(3);
@@ -213,7 +210,6 @@ fn print_diffs<'a>(diffs: Diffs!('a), path: &Path) -> Result<()> {
     let base_line = display.start_line;
     print_diff(&old_str, &new_str, base_line);
   }
-  drop(lock);
   Ok(())
 }
 
