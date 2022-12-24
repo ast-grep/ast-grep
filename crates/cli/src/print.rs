@@ -321,6 +321,7 @@ struct MatchJSON<'a> {
   #[serde(skip_serializing_if = "Option::is_none")]
   replacement: Option<Cow<'a, str>>,
   language: SupportLang,
+  #[serde(skip_serializing_if = "Option::is_none")]
   meta_variables: Option<MetaVariables<'a>>,
 }
 
@@ -418,6 +419,7 @@ struct RuleMatchJSON<'a> {
   rule_id: &'a str,
   severity: Severity,
   message: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
   labels: Option<Vec<MatchNode<'a>>>,
 }
 impl<'a> RuleMatchJSON<'a> {
