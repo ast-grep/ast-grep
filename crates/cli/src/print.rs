@@ -1,6 +1,7 @@
 use ast_grep_config::{RuleConfig, Severity};
-use ast_grep_core::{Matcher, NodeMatch, Pattern};
+use ast_grep_core::{Matcher, MetaVariable, Node, NodeMatch, Pattern};
 use ast_grep_language::SupportLang;
+use std::collections::HashMap;
 
 use ansi_term::{Color, Style};
 use anyhow::Result;
@@ -306,39 +307,107 @@ struct LabelJSON<'a> {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct MatchNode<'a> {
+  text: Cow<'a, str>,
+  range: Range,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct MatchJSON<'a> {
   text: Cow<'a, str>,
+  range: Range,
   file: Cow<'a, str>,
   #[serde(skip_serializing_if = "Option::is_none")]
   replacement: Option<Cow<'a, str>>,
-  range: Range,
   language: SupportLang,
-  // TODO
-  // meta_variables: Option<()>,
+  meta_variables: Option<MetaVariables<'a>>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MetaVariables<'a> {
+  single: HashMap<String, MatchNode<'a>>,
+  multi: HashMap<String, Vec<MatchNode<'a>>>,
+}
+fn from_env<'a>(nm: &NodeMatch<'a, SupportLang>) -> Option<MetaVariables<'a>> {
+  let env = nm.get_env();
+  let mut vars = env.get_matched_variables().peekable();
+  vars.peek()?;
+  let mut single = HashMap::new();
+  let mut multi = HashMap::new();
+  for var in vars {
+    use MetaVariable as MV;
+    match var {
+      MV::Named(n) => {
+        let node = env.get_match(&n).expect("must exist!");
+        single.insert(
+          n,
+          MatchNode {
+            text: node.text(),
+            range: get_range(node),
+          },
+        );
+      }
+      MV::NamedEllipsis(n) => {
+        let nodes = env.get_multiple_matches(&n);
+        multi.insert(
+          n,
+          nodes
+            .into_iter()
+            .map(|node| MatchNode {
+              text: node.text(),
+              range: get_range(&node),
+            })
+            .collect(),
+        );
+      }
+      _ => continue,
+    }
+  }
+  Some(MetaVariables { single, multi })
+}
+
+fn get_range(n: &Node<'_, SupportLang>) -> Range {
+  let start_pos = n.start_pos();
+  let end_pos = n.end_pos();
+  Range {
+    byte_offset: n.range(),
+    start: Position {
+      line: start_pos.0,
+      column: start_pos.1,
+    },
+    end: Position {
+      line: end_pos.0,
+      column: end_pos.1,
+    },
+  }
 }
 
 impl<'a> MatchJSON<'a> {
   fn new(nm: NodeMatch<'a, SupportLang>, path: &'a str) -> Self {
-    let start_pos = nm.start_pos();
-    let end_pos = nm.end_pos();
     MatchJSON {
       file: Cow::Borrowed(path),
       text: nm.text(),
       language: *nm.lang(),
       replacement: None,
-      range: Range {
-        byte_offset: nm.range(),
-        start: Position {
-          line: start_pos.0,
-          column: start_pos.1,
-        },
-        end: Position {
-          line: end_pos.0,
-          column: end_pos.1,
-        },
-      },
+      range: get_range(&nm),
+      meta_variables: from_env(&nm),
     }
   }
+}
+fn get_labels<'a>(nm: &NodeMatch<'a, SupportLang>) -> Option<Vec<MatchNode<'a>>> {
+  let env = nm.get_env();
+  let labels = env.get_labels("secondary")?;
+  Some(
+    labels
+      .iter()
+      .map(|l| MatchNode {
+        text: l.text(),
+        range: get_range(l),
+      })
+      .collect(),
+  )
 }
 
 #[derive(Serialize, Deserialize)]
@@ -349,18 +418,19 @@ struct RuleMatchJSON<'a> {
   rule_id: &'a str,
   severity: Severity,
   message: String,
-  // TODO
-  // labels: Vec<LabelJSON<'a>>,
+  labels: Option<Vec<MatchNode<'a>>>,
 }
 impl<'a> RuleMatchJSON<'a> {
   fn new(nm: NodeMatch<'a, SupportLang>, path: &'a str, rule: &'a RuleConfig<SupportLang>) -> Self {
     let message = rule.get_message(&nm);
+    let labels = get_labels(&nm);
     let matched = MatchJSON::new(nm, path);
     Self {
       matched,
       rule_id: &rule.id,
       severity: rule.severity.clone(),
       message,
+      labels,
     }
   }
 }
