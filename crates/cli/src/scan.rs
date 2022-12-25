@@ -14,7 +14,6 @@ use crate::error::ErrorContext as EC;
 use crate::interaction::{self, run_worker, Items, Worker};
 use crate::print::{ColorArg, ColoredPrinter, Diff, JSONPrinter, Printer, ReportStyle, SimpleFile};
 use ast_grep_language::{file_types, SupportLang};
-use codespan_reporting::term::termcolor::ColorChoice;
 
 #[derive(Parser)]
 pub struct RunArg {
@@ -54,6 +53,10 @@ pub struct RunArg {
   /// Include hidden files in search
   #[clap(long)]
   hidden: bool,
+
+  /// Controls output color.
+  #[clap(long, default_value = "auto")]
+  color: ColorArg,
 }
 
 #[derive(Args)]
@@ -104,7 +107,7 @@ pub fn run_with_pattern(args: RunArg) -> Result<()> {
   if args.json {
     run_pattern_with_printer(args, JSONPrinter::new())
   } else {
-    let printer = ColoredPrinter::new(ColorChoice::Auto, ReportStyle::Rich);
+    let printer = ColoredPrinter::new(args.color.into(), ReportStyle::Rich);
     run_pattern_with_printer(args, printer)
   }
 }

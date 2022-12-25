@@ -1,7 +1,7 @@
 use crate::config::{find_config, find_tests, read_test_files, TestHarness};
 use crate::error::ErrorContext;
 use crate::interaction::{prompt, run_in_alternate_screen};
-use crate::print::print_diff;
+use crate::print::{print_diff, ColorChoice, PrintStyles};
 use ansi_term::{Color, Style};
 use anyhow::{anyhow, Result};
 use ast_grep_config::{RuleCollection, RuleConfig};
@@ -514,6 +514,7 @@ fn report_case_detail_impl<W: Write>(
   let missing = Style::new().underline().paint("Missing");
   let wrong = Style::new().underline().paint("Wrong");
   let error = Style::new().underline().paint("Error");
+  let styles = PrintStyles::from(ColorChoice::Auto);
   match result {
     CaseStatus::Validated | CaseStatus::Reported => (),
     CaseStatus::Wrong {
@@ -529,7 +530,7 @@ fn report_case_detail_impl<W: Write>(
         let actual_str = to_string(&actual)?;
         let expected_str = to_string(&expected)?;
         writeln!(output, "Diff:")?;
-        print_diff(&expected_str, &actual_str, 1);
+        print_diff(&expected_str, &actual_str, 1, &styles);
       } else {
         writeln!(output, "[{wrong}] No {case_id} basline found.")?;
         writeln!(output, "Generated Snapshot:")?;
