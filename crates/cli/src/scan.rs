@@ -9,7 +9,7 @@ use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::{Args, Parser};
 use ignore::{WalkBuilder, WalkParallel};
 
-use crate::config::find_config;
+use crate::config::{find_config, read_rule_file};
 use crate::error::ErrorContext as EC;
 use crate::interaction::{self, run_worker, Items, Worker};
 use crate::print::{ColorArg, ColoredPrinter, Diff, JSONPrinter, Printer, ReportStyle, SimpleFile};
@@ -65,7 +65,6 @@ pub struct ScanArg {
   #[clap(short, long)]
   config: Option<PathBuf>,
 
-  // TODO: implement scan one rule
   /// Scan the codebase with one specified rule, without project config setup.
   #[clap(short, long, conflicts_with = "config")]
   rule: Option<PathBuf>,
@@ -246,7 +245,12 @@ struct ScanWithConfig<Printer> {
 }
 impl<P: Printer> ScanWithConfig<P> {
   fn try_new(mut arg: ScanArg, printer: P) -> Result<Self> {
-    let configs = find_config(arg.config.take())?;
+    let configs = if let Some(path) = &arg.rule {
+      let rules = read_rule_file(path)?;
+      RuleCollection::try_new(rules).context(EC::GlobPattern)?
+    } else {
+      find_config(arg.config.take())?
+    };
     Ok(Self {
       arg,
       printer,

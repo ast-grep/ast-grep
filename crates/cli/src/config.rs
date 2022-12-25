@@ -1,7 +1,7 @@
 use crate::error::ErrorContext as EC;
 use crate::verify::{SnapshotCollection, TestCase, TestSnapshots};
 use anyhow::{Context, Result};
-use ast_grep_config::{from_str, from_yaml_string, RuleCollection};
+use ast_grep_config::{from_str, from_yaml_string, RuleCollection, RuleConfig};
 use ast_grep_language::{config_file_type, SupportLang};
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
@@ -59,13 +59,16 @@ fn read_directory_yaml(
         continue;
       }
       let path = config_file.path();
-      let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
-      let new_configs =
-        from_yaml_string(&yaml).with_context(|| EC::ParseRule(path.to_path_buf()))?;
+      let new_configs = read_rule_file(path)?;
       configs.extend(new_configs);
     }
   }
   RuleCollection::try_new(configs).context(EC::GlobPattern)
+}
+
+pub fn read_rule_file(path: &Path) -> Result<Vec<RuleConfig<SupportLang>>> {
+  let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
+  from_yaml_string(&yaml).with_context(|| EC::ParseRule(path.to_path_buf()))
 }
 
 pub struct TestHarness {
