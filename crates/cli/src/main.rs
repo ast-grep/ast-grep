@@ -46,15 +46,23 @@ fn main() -> Result<()> {
   }
 }
 
-// this wrapper function is for testing
-fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
-  let args: Vec<_> = args.collect();
+fn try_default_run(args: &[String]) -> Result<Option<RunArg>> {
   // use `run` if there is at lease one pattern arg with no user provided command
   let should_use_default_run_command =
     args.iter().skip(1).any(|p| p == "-p" || p == "--pattern") && args[1].starts_with('-');
   if should_use_default_run_command {
     // handle no subcommand
     let arg = RunArg::try_parse_from(args)?;
+    Ok(Some(arg))
+  } else {
+    Ok(None)
+  }
+}
+
+// this wrapper function is for testing
+fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
+  let args: Vec<_> = args.collect();
+  if let Some(arg) = try_default_run(&args)? {
     return run_with_pattern(arg);
   }
   let app = App::try_parse_from(args)?;
@@ -72,12 +80,20 @@ fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
 mod test_cli {
   use super::*;
 
-  fn sg(args: impl IntoIterator<Item = &'static str>) -> Result<()> {
-    main_with_args(std::iter::once("sg".into()).chain(args.into_iter().map(|s| s.to_string())))
+  fn sg(args: &str) -> Result<App> {
+    let app = App::try_parse_from(
+      std::iter::once("sg".into()).chain(args.split(' ').map(|s| s.to_string())),
+    )?;
+    Ok(app)
   }
 
-  fn wrong_usage(args: impl IntoIterator<Item = &'static str>) -> clap::Error {
-    let err = sg(args).unwrap_err();
+  fn ok(args: &str) -> App {
+    sg(args).expect("should parse")
+  }
+  fn error(args: &str) -> clap::Error {
+    let Err(err) = sg(args) else {
+      panic!("app parsing should fail!")
+    };
     err
       .downcast::<clap::Error>()
       .expect("should have clap::Error")
@@ -85,25 +101,58 @@ mod test_cli {
 
   #[test]
   fn test_wrong_usage() {
-    wrong_usage([]);
-    wrong_usage(["Some($A)", "-l", "rs"]);
-    wrong_usage(["-l", "rs"]);
+    error("");
+    error("Some($A) -l rs");
+    error("-l rs");
   }
 
   #[test]
   fn test_version_and_help() {
-    let version = wrong_usage(["--version"]);
+    let version = error("--version");
     assert!(version.to_string().starts_with("ast-grep"));
-    let version = wrong_usage(["-V"]);
+    let version = error("-V");
     assert!(version.to_string().starts_with("ast-grep"));
-    let help = wrong_usage(["--help"]);
+    let help = error("--help");
     assert!(help.to_string().contains("Search and Rewrite code"));
   }
 
+  fn default_run(args: &str) {
+    let args: Vec<_> = std::iter::once("sg".into())
+      .chain(args.split(' ').map(|s| s.to_string()))
+      .collect();
+    assert!(matches!(try_default_run(&args), Ok(Some(_))));
+  }
   #[test]
   fn test_default_subcommand() {
-    assert!(sg(["-p", "Some($A)", "-l", "rs"]).is_ok());
-    assert!(sg(["-p", "Some($A)"]).is_ok()); // inferred lang
-    assert!(sg(["-p", "Some($A)", "-l", "rs", "-r", "$A.unwrap()"]).is_ok());
+    default_run("-p Some($A) -l rs");
+    default_run("-p Some($A)");
+    default_run("-p Some($A) -l rs -r $A.unwrap()");
+  }
+
+  #[test]
+  fn test_run() {
+    ok("run -p test -i");
+    ok("run -p test --interactive dir");
+    ok("run -p test -r Test dir");
+    ok("run -p test -l rs --debug-query");
+    ok("run -p test -l rs --color always");
+    error("run test");
+    error("run --debug-query test"); // missing lang
+    error("run -r Test dir");
+    error("run -p test -i --json dir"); // conflict
+    error("run -p test -l rs -c always"); // no color shortcut
+  }
+
+  #[test]
+  fn test_scan() {
+    ok("scan");
+    ok("scan dir");
+    ok("scan -r test-rule.yml dir");
+    ok("scan -c test-rule.yml dir");
+    ok("scan -c test-rule.yml");
+    ok("scan --report-style short"); // conflict
+    error("scan -i --json dir"); // conflict
+    error("scan --report-style rich --json dir"); // conflict
+    error("scan -r test.yml -c test.yml --json dir"); // conflict
   }
 }
