@@ -47,7 +47,7 @@ pub struct RunArg {
 
   /// Output matches in structured JSON text useful for tools like jq.
   /// Conflicts with interactive.
-  #[clap(long)]
+  #[clap(long, conflicts_with = "interactive")]
   json: bool,
 
   /// Include hidden files in search
@@ -74,7 +74,7 @@ pub struct ScanArg {
   hidden: bool,
 
   /// Start interactive edit session. Code rewrite only happens inside a session.
-  #[clap(short, long)]
+  #[clap(short, long, conflicts_with = "json")]
   interactive: bool,
 
   /// Controls output color.
