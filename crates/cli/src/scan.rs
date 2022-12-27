@@ -12,24 +12,26 @@ use ignore::{WalkBuilder, WalkParallel};
 use crate::config::{find_config, read_rule_file};
 use crate::error::ErrorContext as EC;
 use crate::interaction::{self, run_worker, Items, Worker};
-use crate::print::{ColorArg, ColoredPrinter, Diff, JSONPrinter, Printer, ReportStyle, SimpleFile};
+use crate::print::{
+  ColorArg, ColoredPrinter, Diff, Heading, JSONPrinter, Printer, ReportStyle, SimpleFile,
+};
 use ast_grep_language::{file_types, SupportLang};
 
 #[derive(Parser)]
 pub struct RunArg {
-  /// AST pattern to match
+  /// AST pattern to match.
   #[clap(short, long)]
   pattern: String,
 
-  /// String to replace the matched AST node
+  /// String to replace the matched AST node.
   #[clap(short, long)]
   rewrite: Option<String>,
 
-  /// Print query pattern's tree-sitter AST. Requires lang be set explictly.
+  /// Print query pattern's tree-sitter AST. Requires lang be set explicitly.
   #[clap(long, requires = "lang")]
   debug_query: bool,
 
-  /// The language of the pattern query
+  /// The language of the pattern query.
   #[clap(short, long)]
   lang: Option<SupportLang>,
 
@@ -53,6 +55,10 @@ pub struct RunArg {
   /// Include hidden files in search
   #[clap(long)]
   hidden: bool,
+
+  /// Print file names before each file's matches. Default is auto: print heading for tty but not for piped output.
+  #[clap(long, default_value = "auto")]
+  heading: Heading,
 
   /// Controls output color.
   #[clap(long, default_value = "auto")]
@@ -106,7 +112,7 @@ pub fn run_with_pattern(args: RunArg) -> Result<()> {
   if args.json {
     run_pattern_with_printer(args, JSONPrinter::new())
   } else {
-    let printer = ColoredPrinter::new(args.color.into(), ReportStyle::Rich);
+    let printer = ColoredPrinter::color(args.color.into()).heading(args.heading);
     run_pattern_with_printer(args, printer)
   }
 }
@@ -232,7 +238,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
     let worker = ScanWithConfig::try_new(arg, JSONPrinter::new())?;
     run_worker(worker)
   } else {
-    let printer = ColoredPrinter::new(arg.color.into(), arg.report_style.clone());
+    let printer = ColoredPrinter::color(arg.color.into()).style(arg.report_style);
     let worker = ScanWithConfig::try_new(arg, printer)?;
     run_worker(worker)
   }

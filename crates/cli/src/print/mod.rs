@@ -6,16 +6,13 @@ use ast_grep_core::{Matcher, NodeMatch, Pattern};
 use ast_grep_language::SupportLang;
 
 use anyhow::Result;
-use clap::ValueEnum;
 pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
 
 use std::borrow::Cow;
 use std::path::Path;
 
 pub use codespan_reporting::term::termcolor::ColorChoice;
-pub use colored_print::print_diff;
-pub use colored_print::ColoredPrinter;
-pub use colored_print::PrintStyles;
+pub use colored_print::{print_diff, ColoredPrinter, Heading, PrintStyles, ReportStyle};
 pub use json_print::JSONPrinter;
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.
@@ -43,13 +40,6 @@ pub trait Printer {
   ) -> Result<()>;
   fn before_print(&self) {}
   fn after_print(&self) {}
-}
-
-#[derive(Clone, ValueEnum)]
-pub enum ReportStyle {
-  Rich,
-  Medium,
-  Short,
 }
 
 pub struct Diff<'n> {

@@ -136,6 +136,7 @@ mod test_cli {
     ok("run -p test -r Test dir");
     ok("run -p test -l rs --debug-query");
     ok("run -p test -l rs --color always");
+    ok("run -p test -l rs --heading always");
     error("run test");
     error("run --debug-query test"); // missing lang
     error("run -r Test dir");

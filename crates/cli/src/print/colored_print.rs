@@ -1,10 +1,11 @@
-use super::{Diff, Printer, ReportStyle};
+use super::{Diff, Printer};
 use ast_grep_config::{RuleConfig, Severity};
 use ast_grep_core::NodeMatch;
 use ast_grep_language::SupportLang;
 
 use ansi_term::{Color, Style};
 use anyhow::Result;
+use clap::ValueEnum;
 use codespan_reporting::diagnostic::{self, Diagnostic, Label};
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use codespan_reporting::term::{self, DisplayStyle};
@@ -23,27 +24,50 @@ macro_rules! Diffs {
   ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
 }
 
+#[derive(Clone, Copy, ValueEnum)]
+pub enum ReportStyle {
+  Rich,
+  Medium,
+  Short,
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+pub enum Heading {
+  Always,
+  Never,
+  Auto,
+}
+
 pub struct ColoredPrinter {
   writer: StandardStream,
   config: term::Config,
   styles: PrintStyles,
+  heading: Heading,
 }
 
 impl ColoredPrinter {
-  pub fn new(color: ColorChoice, style: ReportStyle) -> Self {
+  pub fn color(color: ColorChoice) -> Self {
+    Self {
+      writer: StandardStream::stdout(color),
+      styles: PrintStyles::from(color),
+      config: term::Config::default(),
+      heading: Heading::Auto,
+    }
+  }
+
+  pub fn style(mut self, style: ReportStyle) -> Self {
     let display_style = match style {
       ReportStyle::Rich => DisplayStyle::Rich,
       ReportStyle::Medium => DisplayStyle::Medium,
       ReportStyle::Short => DisplayStyle::Short,
     };
-    Self {
-      writer: StandardStream::stdout(color),
-      styles: PrintStyles::from(color),
-      config: term::Config {
-        display_style,
-        ..Default::default()
-      },
-    }
+    self.config.display_style = display_style;
+    self
+  }
+
+  pub fn heading(mut self, heading: Heading) -> Self {
+    self.heading = heading;
+    self
   }
 }
 
