@@ -178,7 +178,7 @@ impl<'r, L: Language> Node<'r, L> {
     trailing = trailing.min(bytes.len() - 1);
     let mut lines_after = context_lines + 1;
     while trailing < bytes.len() - 1 {
-      if bytes[trailing + 1] == b'\n' {
+      if bytes[trailing] == b'\n' || bytes[trailing + 1] == b'\n' {
         lines_after -= 1;
         if lines_after == 0 {
           break;

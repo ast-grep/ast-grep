@@ -38,6 +38,17 @@ pub enum Heading {
   Auto,
 }
 
+impl Heading {
+  fn should_print(&self) -> bool {
+    use Heading as H;
+    match self {
+      H::Always => true,
+      H::Never => false,
+      H::Auto => atty::is(atty::Stream::Stdout),
+    }
+  }
+}
+
 pub struct ColoredPrinter {
   writer: StandardStream,
   config: term::Config,
@@ -106,7 +117,11 @@ impl Printer for ColoredPrinter {
   }
 
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {
-    print_matches(matches, path, &self.styles)
+    if self.heading.should_print() {
+      print_matches_with_heading(matches, path, &self.styles)
+    } else {
+      print_matches_with_prefix(matches, path, &self.styles)
+    }
   }
 
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
@@ -144,7 +159,11 @@ fn print_prelude(path: &Path, styles: &PrintStyles) {
   println!("{}", styles.file_path.paint(filepath));
 }
 
-fn print_matches<'a>(matches: Matches!('a), path: &Path, styles: &PrintStyles) -> Result<()> {
+fn print_matches_with_heading<'a>(
+  matches: Matches!('a),
+  path: &Path,
+  styles: &PrintStyles,
+) -> Result<()> {
   print_prelude(path, styles);
   for e in matches {
     let display = e.display_context(0);
@@ -155,11 +174,31 @@ fn print_matches<'a>(matches: Matches!('a), path: &Path, styles: &PrintStyles) -
     let lines = highlighted.lines().count();
     let mut num = display.start_line;
     let width = (lines + display.start_line).to_string().chars().count();
-    print!("{num:>width$}|"); // initial line num
+    print!("{num:>width$}│"); // initial line num
     print_highlight(leading.lines(), Style::new(), width, &mut num);
     print_highlight(matched.lines(), styles.matched, width, &mut num);
     print_highlight(trailing.lines(), Style::new(), width, &mut num);
     println!(); // end match new line
+  }
+  Ok(())
+}
+
+fn print_matches_with_prefix<'a>(
+  matches: Matches!('a),
+  path: &Path,
+  styles: &PrintStyles,
+) -> Result<()> {
+  let path = path.display();
+  for e in matches {
+    let display = e.display_context(0);
+    let leading = display.leading;
+    let trailing = display.trailing;
+    let matched = styles.matched.paint(display.matched);
+    let highlighted = format!("{leading}{matched}{trailing}");
+    for (n, line) in highlighted.lines().enumerate() {
+      let num = display.start_line + n;
+      println!("{path}:{num}:{line}");
+    }
   }
   Ok(())
 }
@@ -196,7 +235,7 @@ fn print_highlight<'a>(
     println!();
     *num += 1;
     let line = style.paint(line);
-    print!("{num:>width$}|{line}");
+    print!("{num:>width$}│{line}");
   }
 }
 
