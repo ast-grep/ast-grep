@@ -10,6 +10,7 @@ use std::ops::Deref;
 /// Represents the matched node with populated MetaVarEnv.
 /// It derefs to the Node so you can use it as a Node.
 /// To access the underlying MetaVarEnv, call `get_env` method.
+#[derive(Clone)]
 pub struct NodeMatch<'tree, L: Language>(Node<'tree, L>, MetaVarEnv<'tree, L>);
 
 impl<'tree, L: Language> NodeMatch<'tree, L> {

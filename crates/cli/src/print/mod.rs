@@ -1,4 +1,5 @@
 mod colored_print;
+mod interactive_print;
 mod json_print;
 
 use ast_grep_config::RuleConfig;
@@ -13,6 +14,7 @@ use std::path::Path;
 
 pub use codespan_reporting::term::termcolor::ColorChoice;
 pub use colored_print::{print_diff, ColoredPrinter, Heading, PrintStyles, ReportStyle};
+pub use interactive_print::InteractivePrinter;
 pub use json_print::JSONPrinter;
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.
@@ -42,6 +44,7 @@ pub trait Printer {
   fn after_print(&self) {}
 }
 
+#[derive(Clone)]
 pub struct Diff<'n> {
   /// the matched node
   pub node_match: NodeMatch<'n, SupportLang>,
