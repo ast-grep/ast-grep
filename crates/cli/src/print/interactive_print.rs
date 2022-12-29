@@ -2,7 +2,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{Context, Result};
 use ast_grep_config::RuleConfig;
-use ast_grep_core::{AstGrep, Matcher, Pattern};
 
 use super::{ColoredPrinter, Diff, Printer};
 use crate::error::ErrorContext as EC;
@@ -133,13 +132,29 @@ fn print_matches_and_confirm_next<'a>(
 }
 
 fn apply_rewrite<'a>(diffs: Diffs!('a)) -> String {
-  todo!()
+  let mut diffs = diffs.peekable();
+  let mut new_content = String::new();
+  let Some(first) = diffs.peek() else {
+    return new_content
+  };
+  let old_content = first.node_match.ancestors().last().unwrap().text();
+  let mut start = 0;
+  for diff in diffs {
+    let range = diff.node_match.range();
+    new_content.push_str(&old_content[start..range.start]);
+    new_content.push_str(&diff.replacement);
+    start = range.end;
+  }
+  // add trailing statements
+  new_content.push_str(&old_content[start..]);
+  new_content
 }
 
 #[cfg(test)]
 mod test {
   use super::*;
   use ast_grep_config::from_yaml_string;
+  use ast_grep_core::{AstGrep, Matcher, Pattern};
 
   fn make_rule(rule: &str) -> RuleConfig<SupportLang> {
     from_yaml_string(&format!(
@@ -155,30 +170,47 @@ language: TypeScript
     .unwrap()
   }
 
-  // #[test]
-  // fn test_apply_rewrite() {
-  //   let root = AstGrep::new("let a = () => c++", SupportLang::TypeScript);
-  //   let config = make_rule(
-  //     r"
-  // rule:
-  // all:
-  //   - pattern: $B
-  //   - any:
-  //       - pattern: $A++
-  // fix: ($B, lifecycle.update(['$A']))",
-  //   );
-  //   let ret = apply_rewrite(&root, config.get_matcher(), &config.get_fixer().unwrap());
-  //   assert_eq!(ret, "let a = () => (c++, lifecycle.update(['c']))");
-  // }
+  fn make_diffs<'a>(
+    grep: &'a AstGrep<SupportLang>,
+    matcher: impl Matcher<SupportLang>,
+    fixer: &Pattern<SupportLang>,
+  ) -> Vec<Diff<'a>> {
+    let root = grep.root();
+    root
+      .find_all_without_nesting(&matcher)
+      .into_iter()
+      .map(|nm| Diff::generate(nm, &matcher, fixer))
+      .collect()
+  }
 
-  // #[test]
-  // fn test_rewrite_nested() {
-  //   let root = SupportLang::TypeScript.ast_grep("Some(Some(1))");
-  //   let ret = apply_rewrite(
-  //     &root,
-  //     "Some($A)",
-  //     &Pattern::new("$A", SupportLang::TypeScript),
-  //   );
-  //   assert_eq!("Some(1)", ret);
-  // }
+  #[test]
+  fn test_apply_rewrite() {
+    let root = AstGrep::new("let a = () => c++", SupportLang::TypeScript);
+    let config = make_rule(
+      r"
+rule:
+  all:
+    - pattern: $B
+    - any:
+        - pattern: $A++
+fix: ($B, lifecycle.update(['$A']))",
+    );
+    let matcher = config.get_matcher();
+    let fixer = config.get_fixer().unwrap();
+    let diffs = make_diffs(&root, matcher, &fixer);
+    let ret = apply_rewrite(diffs.into_iter());
+    assert_eq!(ret, "let a = () => (c++, lifecycle.update(['c']))");
+  }
+
+  #[test]
+  fn test_rewrite_nested() {
+    let root = AstGrep::new("Some(Some(1))", SupportLang::TypeScript);
+    let diffs = make_diffs(
+      &root,
+      "Some($A)",
+      &Pattern::new("$A", SupportLang::TypeScript),
+    );
+    let ret = apply_rewrite(diffs.into_iter());
+    assert_eq!("Some(1)", ret);
+  }
 }

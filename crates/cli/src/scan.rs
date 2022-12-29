@@ -1,6 +1,5 @@
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{RuleCollection, RuleConfig, RuleWithConstraint};
@@ -281,7 +280,6 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
   }
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print();
-    let arg = &self.arg;
     for mut match_unit in items {
       let path = &match_unit.path;
       let file_content = read_to_string(path)?;
@@ -335,7 +333,7 @@ fn match_one_file(
     grep,
     matcher,
   } = match_unit;
-  let matches = grep.root().find_all(matcher);
+  let matches = grep.root().find_all_without_nesting(matcher).into_iter();
   if let Some(rewrite) = rewrite {
     let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
     printer.print_diffs(diffs, path)
