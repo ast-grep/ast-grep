@@ -29,7 +29,7 @@ pub struct InteractivePrinter {
   inner: ColoredPrinter,
 }
 impl InteractivePrinter {
-  pub fn new() -> Self {
+  pub fn new(accept_all: bool) -> Self {
     Self {
       accept_all: false,
       inner: ColoredPrinter::color(codespan_reporting::term::termcolor::ColorChoice::Auto),

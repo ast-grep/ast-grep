@@ -109,7 +109,8 @@ pub struct ScanArg {
 pub fn run_with_pattern(arg: RunArg) -> Result<()> {
   let interactive = arg.interactive || arg.accept_all;
   if interactive {
-    run_pattern_with_printer(arg, InteractivePrinter::new())
+    let printer = InteractivePrinter::new(arg.accept_all);
+    run_pattern_with_printer(arg, printer)
   } else if arg.json {
     run_pattern_with_printer(arg, JSONPrinter::new())
   } else {
@@ -223,7 +224,8 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
   let interactive = arg.interactive || arg.accept_all;
   if interactive {
-    let worker = ScanWithConfig::try_new(arg, InteractivePrinter::new())?;
+    let printer = InteractivePrinter::new(arg.accept_all);
+    let worker = ScanWithConfig::try_new(arg, printer)?;
     run_worker(worker)
   } else if arg.json {
     let worker = ScanWithConfig::try_new(arg, JSONPrinter::new())?;
