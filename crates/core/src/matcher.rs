@@ -2,7 +2,7 @@ mod kind;
 mod node_match;
 
 use crate::meta_var::{MetaVarEnv, MetaVarMatchers};
-use crate::node::Dfs;
+use crate::traversal::Pre;
 use crate::Language;
 use crate::Node;
 use crate::Pattern;
@@ -172,7 +172,7 @@ impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
 pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
   // using dfs is not universally correct, say, when we want replace nested matches
   // e.g. for pattern Some($A) with replacement $A, Some(Some(1)) will cause panic
-  dfs: Dfs<'tree, L>,
+  dfs: Pre<'tree, L>,
   matcher: M,
 }
 

@@ -1,6 +1,7 @@
 use crate::language::Language;
 use crate::matcher::{FindAllNodes, Matcher, NodeMatch};
 use crate::replacer::Replacer;
+use crate::traversal::Pre;
 use crate::ts_parser::{parse, perform_edit, Edit, TSParseError};
 
 use std::borrow::Cow;
@@ -77,48 +78,6 @@ impl<'tree, L: Language> Iterator for NodeWalker<'tree, L> {
 impl<'tree, L: Language> ExactSizeIterator for NodeWalker<'tree, L> {
   fn len(&self) -> usize {
     self.count
-  }
-}
-
-pub struct Dfs<'tree, L: Language> {
-  cursor: tree_sitter::TreeCursor<'tree>,
-  root: &'tree Root<L>,
-  // record the starting node, if we return back to starting point
-  // we should terminate the dfs.
-  start_id: Option<usize>,
-}
-
-impl<'tree, L: Language> Dfs<'tree, L> {
-  fn new(node: &Node<'tree, L>) -> Self {
-    Self {
-      cursor: node.inner.walk(),
-      root: node.root,
-      start_id: Some(node.inner.id()),
-    }
-  }
-}
-
-impl<'tree, L: Language> Iterator for Dfs<'tree, L> {
-  type Item = Node<'tree, L>;
-  fn next(&mut self) -> Option<Self::Item> {
-    let start = self.start_id?;
-    let cursor = &mut self.cursor;
-    let inner = cursor.node();
-    let ret = Some(Node {
-      inner,
-      root: self.root,
-    });
-    if cursor.goto_first_child() {
-      return ret;
-    }
-    while cursor.node().id() != start {
-      if cursor.goto_next_sibling() {
-        return ret;
-      }
-      cursor.goto_parent();
-    }
-    self.start_id = None;
-    ret
   }
 }
 
@@ -247,8 +206,8 @@ impl<'r, L: Language> Node<'r, L> {
     }
   }
 
-  pub fn dfs<'s>(&'s self) -> Dfs<'r, L> {
-    Dfs::new(self)
+  pub fn dfs<'s>(&'s self) -> Pre<'r, L> {
+    Pre::new(self)
   }
 
   #[must_use]

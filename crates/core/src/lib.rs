@@ -6,6 +6,7 @@ mod node;
 pub mod ops;
 mod pattern;
 mod replacer;
+pub mod traversal;
 mod ts_parser;
 
 pub use matcher::{KindMatcher, Matcher, NodeMatch};
