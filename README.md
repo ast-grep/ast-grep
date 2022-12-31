@@ -2,6 +2,16 @@
   <img src="https://ast-grep.github.io/logo.svg" alt="ast-grep"/>
 </p>
 
+<p align="center">
+   <img src="https://img.shields.io/github/stars/ast-grep/ast-grep?style=social" alt="Badge"/>
+   <img src="https://img.shields.io/github/forks/ast-grep/ast-grep?style=social" alt="Badge"/>
+    <img alt="GitHub Sponsors" src="https://img.shields.io/github/sponsors/HerringtonDarkholme?style=social">   <a href="https://codecov.io/gh/ast-grep/ast-grep" > 
+    <img src="https://codecov.io/gh/ast-grep/ast-grep/branch/main/graph/badge.svg?token=37VX8H2EWV"/> 
+   </a>
+</p>
+  [![codecov](https://codecov.io/gh/ast-grep/ast-grep/branch/main/graph/badge.svg?token=37VX8H2EWV)](https://codecov.io/gh/ast-grep/ast-grep)
+
+
 ## ast-grep(sg)
 
 ast-grep(sg) is a lightning fast and user friendly tool for code searching, linting, rewriting at large scale.
