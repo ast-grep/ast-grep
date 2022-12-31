@@ -57,7 +57,8 @@ pub struct ColoredPrinter {
 }
 
 impl ColoredPrinter {
-  pub fn color(color: ColorChoice) -> Self {
+  pub fn color<C: Into<ColorChoice>>(color: C) -> Self {
+    let color = color.into();
     Self {
       writer: StandardStream::stdout(color),
       styles: PrintStyles::from(color),

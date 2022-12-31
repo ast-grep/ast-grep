@@ -107,17 +107,19 @@ pub struct ScanArg {
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(arg: RunArg) -> Result<()> {
+  if arg.json {
+    return run_pattern_with_printer(arg, JSONPrinter::new());
+  }
+  let printer = ColoredPrinter::color(arg.color).heading(arg.heading);
   let interactive = arg.interactive || arg.accept_all;
   if interactive {
-    let printer = InteractivePrinter::new(arg.accept_all);
+    let printer = InteractivePrinter::new(printer).accept_all(arg.accept_all);
     run_pattern_with_printer(arg, printer)
-  } else if arg.json {
-    run_pattern_with_printer(arg, JSONPrinter::new())
   } else {
-    let printer = ColoredPrinter::color(arg.color.into()).heading(arg.heading);
     run_pattern_with_printer(arg, printer)
   }
 }
+
 fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + Sync) -> Result<()> {
   if arg.lang.is_some() {
     run_worker(RunWithSpecificLang { arg, printer })
@@ -222,16 +224,17 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
 }
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
+  if arg.json {
+    let worker = ScanWithConfig::try_new(arg, JSONPrinter::new())?;
+    return run_worker(worker);
+  }
+  let printer = ColoredPrinter::color(arg.color).style(arg.report_style);
   let interactive = arg.interactive || arg.accept_all;
   if interactive {
-    let printer = InteractivePrinter::new(arg.accept_all);
+    let printer = InteractivePrinter::new(printer).accept_all(arg.accept_all);
     let worker = ScanWithConfig::try_new(arg, printer)?;
     run_worker(worker)
-  } else if arg.json {
-    let worker = ScanWithConfig::try_new(arg, JSONPrinter::new())?;
-    run_worker(worker)
   } else {
-    let printer = ColoredPrinter::color(arg.color.into()).style(arg.report_style);
     let worker = ScanWithConfig::try_new(arg, printer)?;
     run_worker(worker)
   }
