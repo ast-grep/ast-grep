@@ -22,29 +22,25 @@ macro_rules! Diffs {
   ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
 }
 
-static ACCEPT_ALL: AtomicBool = AtomicBool::new(false);
-
 pub struct InteractivePrinter {
-  accept_all: bool,
+  accept_all: AtomicBool,
   inner: ColoredPrinter,
 }
 impl InteractivePrinter {
   pub fn new(inner: ColoredPrinter) -> Self {
     Self {
-      accept_all: false,
+      accept_all: AtomicBool::new(false),
       inner,
     }
   }
 
   pub fn accept_all(self, accept_all: bool) -> Self {
-    Self { accept_all, ..self }
+    self.accept_all.store(accept_all, Ordering::SeqCst);
+    self
   }
 }
 
 impl Printer for InteractivePrinter {
-  fn before_print(&self) {
-    ACCEPT_ALL.store(self.accept_all, Ordering::SeqCst);
-  }
   fn print_rule<'a>(
     &self,
     matches: Matches!('a),
@@ -70,8 +66,16 @@ impl Printer for InteractivePrinter {
   }
 
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
+    let path = path.to_path_buf();
+    if self.accept_all.load(Ordering::SeqCst) {
+      return rewrite_action(diffs.collect(), &path);
+    }
     interaction::run_in_alternate_screen(|| {
-      print_diffs_and_prompt_action(&self.inner, &path.to_path_buf(), diffs)
+      let all = print_diffs_and_prompt_action(&self.inner, &path, diffs)?;
+      if all {
+        self.accept_all.store(true, Ordering::SeqCst);
+      }
+      Ok(())
     })
   }
   fn print_rule_diffs<'a>(
@@ -87,37 +91,41 @@ impl Printer for InteractivePrinter {
 const EDIT_PROMPT: &str = "Accept change? (Yes[y], No[n], Accept All[a], Quit[q], Edit[e])";
 const VIEW_PROMPT: &str = "Next[enter], Quit[q]";
 
+fn rewrite_action(diffs: Vec<Diff<'_>>, path: &PathBuf) -> Result<()> {
+  let new_content = apply_rewrite(diffs);
+  std::fs::write(path, new_content).with_context(|| EC::WriteFile(path.clone()))
+}
+
+/// returns if accept_all is chosen
 fn print_diffs_and_prompt_action<'a>(
   printer: &impl Printer,
   path: &PathBuf,
   diffs: Diffs!('a),
-) -> Result<()> {
+) -> Result<bool> {
   let diffs: Vec<_> = diffs.collect();
-  let rewrite_action = || {
-    let new_content = apply_rewrite(diffs.clone().into_iter());
-    std::fs::write(path, new_content).with_context(|| EC::WriteFile(path.clone()))?;
-    Ok(())
-  };
-  if ACCEPT_ALL.load(Ordering::SeqCst) {
-    return rewrite_action();
-  }
   let first_match = match diffs.first() {
     Some(n) => n.node_match.start_pos().0,
-    None => return Ok(()),
+    None => return Ok(false),
   };
   printer.print_diffs(diffs.clone().into_iter(), path)?;
   let response =
     interaction::prompt(EDIT_PROMPT, "ynaqe", Some('n')).expect("Error happened during prompt");
   match response {
-    'y' => rewrite_action(),
-    'a' => {
-      ACCEPT_ALL.store(true, Ordering::SeqCst);
-      rewrite_action()
+    'y' => {
+      rewrite_action(diffs, path)?;
+      Ok(false)
     }
-    'n' => Ok(()),
-    'e' => interaction::open_in_editor(path, first_match),
+    'a' => {
+      rewrite_action(diffs, path)?;
+      Ok(true)
+    }
+    'n' => Ok(false),
+    'e' => {
+      interaction::open_in_editor(path, first_match)?;
+      Ok(false)
+    }
     'q' => Err(anyhow::anyhow!("Exit interactive editing")),
-    _ => Ok(()),
+    _ => Ok(false),
   }
 }
 
@@ -135,10 +143,9 @@ fn print_matches_and_confirm_next<'a>(
   }
 }
 
-fn apply_rewrite<'a>(diffs: Diffs!('a)) -> String {
-  let mut diffs = diffs.peekable();
+fn apply_rewrite(diffs: Vec<Diff>) -> String {
   let mut new_content = String::new();
-  let Some(first) = diffs.peek() else {
+  let Some(first) = diffs.first() else {
     return new_content
   };
   let old_content = first.node_match.ancestors().last().unwrap().text();
@@ -202,7 +209,7 @@ fix: ($B, lifecycle.update(['$A']))",
     let matcher = config.get_matcher();
     let fixer = config.get_fixer().unwrap();
     let diffs = make_diffs(&root, matcher, &fixer);
-    let ret = apply_rewrite(diffs.into_iter());
+    let ret = apply_rewrite(diffs);
     assert_eq!(ret, "let a = () => (c++, lifecycle.update(['c']))");
   }
 
@@ -214,7 +221,7 @@ fix: ($B, lifecycle.update(['$A']))",
       "Some($A)",
       &Pattern::new("$A", SupportLang::TypeScript),
     );
-    let ret = apply_rewrite(diffs.into_iter());
+    let ret = apply_rewrite(diffs);
     assert_eq!("Some(1)", ret);
   }
 }
