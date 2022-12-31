@@ -20,6 +20,7 @@
 use crate::language::Language;
 use crate::{Node, Root};
 use std::collections::VecDeque;
+use std::iter::FusedIterator;
 use tree_sitter as ts;
 
 /// Represents a pre-order traversal
@@ -76,6 +77,7 @@ impl<'tree, L: Language> Iterator for Pre<'tree, L> {
     ret
   }
 }
+impl<'tree, L: Language> FusedIterator for Pre<'tree, L> {}
 
 /// Represents a post-order traversal
 pub struct Post<'tree, L: Language> {
@@ -127,6 +129,7 @@ impl<'tree, L: Language> Iterator for Post<'tree, L> {
     Some(node)
   }
 }
+impl<'tree, L: Language> FusedIterator for Post<'tree, L> {}
 
 /// Represents a level-order traversal.
 /// It is implemented with [`VecDeque`] since quadratic backtracking is too time consuming.
@@ -162,5 +165,112 @@ impl<'tree, L: Language> Iterator for Level<'tree, L> {
       inner,
       root: self.root,
     })
+  }
+}
+impl<'tree, L: Language> FusedIterator for Level<'tree, L> {}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::language::{Language, Tsx};
+  use std::ops::Range;
+
+  // recursive pre order as baseline
+  fn pre_order(node: Node<Tsx>) -> Vec<Range<usize>> {
+    let mut ret = vec![node.range()];
+    ret.extend(node.children().flat_map(pre_order));
+    ret
+  }
+
+  // recursion baseline
+  fn post_order(node: Node<Tsx>) -> Vec<Range<usize>> {
+    let mut ret: Vec<_> = node.children().flat_map(post_order).collect();
+    ret.push(node.range());
+    ret
+  }
+
+  fn pre_order_equivalent(source: &str) {
+    let grep = Tsx.ast_grep(source);
+    let node = grep.root();
+    let iterative: Vec<_> = Pre::new(&node).map(|n| n.range()).collect();
+    let recursive = pre_order(node);
+    assert_eq!(iterative, recursive);
+  }
+
+  fn post_order_equivalent(source: &str) {
+    let grep = Tsx.ast_grep(source);
+    let node = grep.root();
+    let iterative: Vec<_> = Post::new(&node).map(|n| n.range()).collect();
+    let recursive = post_order(node);
+    assert_eq!(iterative, recursive);
+  }
+
+  const CASES: &[&str] = &[
+    "console.log('hello world')",
+    "let a = (a, b, c)",
+    "function test() { let a = 1; let b = 2; a === b}",
+    "[[[[[[]]]]], 1 , 2 ,3]",
+    "class A { test() { class B {} } }",
+  ];
+
+  #[test]
+  fn tes_pre_order() {
+    for case in CASES {
+      pre_order_equivalent(case);
+    }
+  }
+
+  #[test]
+  fn test_post_order() {
+    for case in CASES {
+      post_order_equivalent(case);
+    }
+  }
+
+  #[test]
+  fn test_different_order() {
+    for case in CASES {
+      let grep = Tsx.ast_grep(case);
+      let node = grep.root();
+      let pre: Vec<_> = Pre::new(&node).map(|n| n.range()).collect();
+      let post: Vec<_> = Post::new(&node).map(|n| n.range()).collect();
+      let level: Vec<_> = Level::new(&node).map(|n| n.range()).collect();
+      assert_ne!(pre, post);
+      assert_ne!(pre, level);
+      assert_ne!(post, level);
+    }
+  }
+
+  #[test]
+  fn test_fused_traversal() {
+    for case in CASES {
+      let grep = Tsx.ast_grep(case);
+      let node = grep.root();
+      let mut pre = Pre::new(&node);
+      let mut post = Post::new(&node);
+      while pre.next().is_some() {}
+      while post.next().is_some() {}
+      assert!(pre.next().is_none());
+      assert!(pre.next().is_none());
+      assert!(post.next().is_none());
+      assert!(post.next().is_none());
+    }
+  }
+
+  #[test]
+  fn test_non_root_traverse() {
+    let grep = Tsx.ast_grep("let a = 123; let b = 123;");
+    let node = grep.root();
+    let pre: Vec<_> = Pre::new(&node).map(|n| n.range()).collect();
+    let post: Vec<_> = Post::new(&node).map(|n| n.range()).collect();
+    let node2 = node.child(0).unwrap();
+    let pre2: Vec<_> = Pre::new(&node2).map(|n| n.range()).collect();
+    let post2: Vec<_> = Post::new(&node2).map(|n| n.range()).collect();
+    // traversal should stop at node
+    assert_ne!(pre, pre2);
+    assert_ne!(post, post2);
+    // child traversal should be a part of parent traversal
+    assert!(pre[1..].starts_with(&pre2));
+    assert!(post.starts_with(&post2));
   }
 }
