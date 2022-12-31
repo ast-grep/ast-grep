@@ -51,19 +51,6 @@ pub trait Matcher<L: Language> {
     MetaVarEnv::from_matchers(self.get_meta_var_matchers())
   }
 
-  fn find_node_with_env<'tree>(
-    &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
-    let node = self.match_node_with_env(node.clone(), env).or_else(|| {
-      node
-        .children()
-        .find_map(|sub| self.find_node_with_env(sub, env))
-    })?;
-    env.match_constraints().then_some(node)
-  }
-
   fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
     if let Some(set) = self.potential_kinds() {
       return find_node_impl(self, node, &set);
@@ -71,13 +58,6 @@ pub trait Matcher<L: Language> {
     self
       .match_node(node.clone())
       .or_else(|| node.children().find_map(|sub| self.find_node(sub)))
-  }
-
-  fn find_all_nodes(self, node: Node<L>) -> FindAllNodes<L, Self>
-  where
-    Self: Sized,
-  {
-    FindAllNodes::new(self, node)
   }
 }
 
@@ -145,14 +125,6 @@ where
     (**self).get_meta_var_env()
   }
 
-  fn find_node_with_env<'tree>(
-    &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
-    (**self).find_node_with_env(node, env)
-  }
-
   fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
     (**self).find_node(node)
   }
@@ -188,14 +160,6 @@ impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
     (**self).get_meta_var_env()
   }
 
-  fn find_node_with_env<'tree>(
-    &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
-    (**self).find_node_with_env(node, env)
-  }
-
   fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
     (**self).find_node(node)
   }
@@ -213,7 +177,7 @@ pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
 }
 
 impl<'tree, L: Language, M: Matcher<L>> FindAllNodes<'tree, L, M> {
-  fn new(matcher: M, node: Node<'tree, L>) -> Self {
+  pub fn new(matcher: M, node: Node<'tree, L>) -> Self {
     Self {
       dfs: node.dfs(),
       matcher,

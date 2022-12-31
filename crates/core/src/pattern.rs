@@ -144,9 +144,8 @@ mod test {
     let pattern = Pattern::new(goal_str, Tsx);
     let cand = pattern_node(cand);
     let cand = cand.root();
-    let mut env = MetaVarEnv::new();
-    pattern.find_node_with_env(cand, &mut env).unwrap();
-    HashMap::from(env)
+    let nm = pattern.find_node(cand).unwrap();
+    HashMap::from(nm.get_env().clone())
   }
 
   #[test]
@@ -187,9 +186,9 @@ mod test {
   fn test_contextual_match_with_env() {
     let pattern = Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx);
     let cand = pattern_node("class B { b = 123 }");
-    let mut env = MetaVarEnv::new();
-    assert!(pattern.find_node_with_env(cand.root(), &mut env).is_some());
-    let env = HashMap::from(env);
+    let nm = pattern.find_node(cand.root()).expect("should match");
+    let env = nm.get_env();
+    let env = HashMap::from(env.clone());
     assert_eq!(env["F"], "b");
     assert_eq!(env["I"], "123");
   }
@@ -198,10 +197,8 @@ mod test {
   fn test_contextual_unmatch_with_env() {
     let pattern = Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx);
     let cand = pattern_node("let b = 123");
-    let mut env = MetaVarEnv::new();
-    assert!(pattern.find_node_with_env(cand.root(), &mut env).is_none());
-    let env = HashMap::from(env);
-    assert!(env.is_empty());
+    let nm = pattern.find_node(cand.root());
+    assert!(nm.is_none());
   }
 
   fn get_kind(kind_str: &str) -> usize {

@@ -333,8 +333,9 @@ mod test {
   }
   fn find_all(matcher: impl Matcher<Tsx>, code: &str) -> Vec<String> {
     let node = Root::new(code, Tsx);
-    matcher
-      .find_all_nodes(node.root())
+    node
+      .root()
+      .find_all(matcher)
       .map(|n| n.text().to_string())
       .collect()
   }

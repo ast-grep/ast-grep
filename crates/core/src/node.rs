@@ -1,5 +1,5 @@
 use crate::language::Language;
-use crate::matcher::{Matcher, NodeMatch};
+use crate::matcher::{FindAllNodes, Matcher, NodeMatch};
 use crate::replacer::Replacer;
 use crate::ts_parser::{parse, perform_edit, Edit, TSParseError};
 
@@ -257,7 +257,7 @@ impl<'r, L: Language> Node<'r, L> {
   }
 
   pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = NodeMatch<'r, L>> {
-    pat.find_all_nodes(self.clone())
+    FindAllNodes::new(pat, self.clone())
   }
 
   pub fn find_all_without_nesting<M: Matcher<L>>(&self, matcher: M) -> Vec<NodeMatch<'r, L>> {
