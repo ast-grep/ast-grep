@@ -8,7 +8,8 @@
 //! Note tree traversal can also be used with Matcher. A traversal with Matcher will
 //! produce a [`NodeMatch`] sequence where all items satisfies the Matcher.
 //!
-//! It is also possible to specify whether the Traversal should visit nested matches.
+//! It is also possible to specify the reentrancy of a traversal.
+//! That is, we can control whether a matching node should be visited when it is nested within another match.
 //! For example, suppose we want to find all usages of calling `foo` in the source `foo(foo())`.
 //! The code has two matching calls and we can configure a traversal
 //! to report only the inner one, only the outer one or both.
@@ -18,10 +19,128 @@
 //! Level order is also included for completeness and should be used sparingly.
 
 use crate::language::Language;
+use crate::matcher::Matcher;
 use crate::{Node, Root};
+
+use tree_sitter as ts;
+
 use std::collections::VecDeque;
 use std::iter::FusedIterator;
-use tree_sitter as ts;
+use std::marker::PhantomData;
+
+pub struct Visitor<M, A = PreOrder> {
+  /// Whether a node will match if it contains or is contained in another match.
+  pub reentrant: bool,
+  /// Whether visit named node only
+  pub named_only: bool,
+  /// optional matcher to filter nodes
+  pub matcher: M,
+  /// The algorithm to traverse the tree, can be pre/post/level order
+  pub algorithm: PhantomData<A>,
+}
+
+impl<M> Visitor<M> {
+  pub fn new<A>(matcher: M) -> Visitor<M, A> {
+    Visitor {
+      reentrant: true,
+      named_only: false,
+      matcher,
+      algorithm: PhantomData,
+    }
+  }
+  pub fn algorithm<A>(self) -> Visitor<M, A> {
+    Visitor {
+      reentrant: self.reentrant,
+      named_only: self.named_only,
+      matcher: self.matcher,
+      algorithm: PhantomData,
+    }
+  }
+}
+
+impl<M, A> Visitor<M, A>
+where
+  A: Algorithm,
+{
+  pub fn visit<L: Language>(self, node: Node<L>) -> Visit<'_, L, A::Traversal<'_, L>, M>
+  where
+    M: Matcher<L>,
+  {
+    let traversal = A::traverse(node);
+    Visit {
+      reentrant: self.reentrant,
+      named: self.named_only,
+      matcher: self.matcher,
+      traversal,
+      lang: PhantomData,
+    }
+  }
+}
+
+pub struct Visit<'t, L, T, M> {
+  reentrant: bool,
+  named: bool,
+  matcher: M,
+  traversal: T,
+  lang: PhantomData<&'t L>,
+}
+impl<'t, L, T, M> Visit<'t, L, T, M>
+where
+  L: Language + 't,
+  T: Traversal<'t, L>,
+  M: Matcher<L>,
+{
+  fn mark_match(&mut self, matched: bool) {
+    if !self.reentrant {
+      self.traversal.mark_last_node_matched(matched);
+    }
+  }
+}
+
+impl<'t, L, T, M> Iterator for Visit<'t, L, T, M>
+where
+  L: Language + 't,
+  T: Traversal<'t, L>,
+  M: Matcher<L>,
+{
+  type Item = Node<'t, L>;
+  fn next(&mut self) -> Option<Self::Item> {
+    while let Some(node) = self.traversal.next() {
+      let pass_named = !self.named || node.is_named();
+      if pass_named && node.matches(&self.matcher) {
+        self.mark_match(true);
+        return Some(node);
+      } else {
+        self.mark_match(false);
+      }
+    }
+    None
+  }
+}
+
+pub trait Algorithm {
+  type Traversal<'t, L: 't + Language>: Traversal<'t, L>;
+  fn traverse<L: Language>(node: Node<L>) -> Self::Traversal<'_, L>;
+}
+
+pub struct PreOrder;
+impl Algorithm for PreOrder {
+  type Traversal<'t, L: 't + Language> = Pre<'t, L>;
+  fn traverse<L: Language>(node: Node<L>) -> Self::Traversal<'_, L> {
+    Pre::new(&node)
+  }
+}
+pub struct PostOrder;
+impl Algorithm for PostOrder {
+  type Traversal<'t, L: 't + Language> = Post<'t, L>;
+  fn traverse<L: Language>(node: Node<L>) -> Self::Traversal<'_, L> {
+    Post::new(&node)
+  }
+}
+
+pub trait Traversal<'t, L: Language + 't>: Iterator<Item = Node<'t, L>> {
+  fn mark_last_node_matched(&mut self, matched: bool);
+}
 
 /// Represents a pre-order traversal
 pub struct Pre<'tree, L: Language> {
@@ -79,6 +198,13 @@ impl<'tree, L: Language> Iterator for Pre<'tree, L> {
 }
 impl<'tree, L: Language> FusedIterator for Pre<'tree, L> {}
 
+impl<'t, L: Language> Traversal<'t, L> for Pre<'t, L> {
+  #[inline]
+  fn mark_last_node_matched(&mut self, matched: bool) {
+    if matched {}
+  }
+}
+
 /// Represents a post-order traversal
 pub struct Post<'tree, L: Language> {
   cursor: ts::TreeCursor<'tree>,
@@ -130,6 +256,13 @@ impl<'tree, L: Language> Iterator for Post<'tree, L> {
   }
 }
 impl<'tree, L: Language> FusedIterator for Post<'tree, L> {}
+
+impl<'t, L: Language> Traversal<'t, L> for Post<'t, L> {
+  #[inline]
+  fn mark_last_node_matched(&mut self, matched: bool) {
+    todo!()
+  }
+}
 
 /// Represents a level-order traversal.
 /// It is implemented with [`VecDeque`] since quadratic backtracking is too time consuming.
