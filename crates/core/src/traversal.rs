@@ -90,9 +90,10 @@ where
   T: Traversal<'t, L>,
   M: Matcher<L>,
 {
-  fn mark_match(&mut self, matched: bool) {
+  #[inline]
+  fn mark_match(&mut self, depth: Option<usize>) {
     if !self.reentrant {
-      self.traversal.mark_last_node_matched(matched);
+      self.traversal.calibrate_for_match(depth);
     }
   }
 }
@@ -105,16 +106,17 @@ where
 {
   type Item = Node<'t, L>;
   fn next(&mut self) -> Option<Self::Item> {
-    while let Some(node) = self.traversal.next() {
+    loop {
+      let match_depth = self.traversal.get_current_depth();
+      let node = self.traversal.next()?;
       let pass_named = !self.named || node.is_named();
       if pass_named && node.matches(&self.matcher) {
-        self.mark_match(true);
+        self.mark_match(Some(match_depth));
         return Some(node);
       } else {
-        self.mark_match(false);
+        self.mark_match(None);
       }
     }
-    None
   }
 }
 
@@ -138,8 +140,18 @@ impl Algorithm for PostOrder {
   }
 }
 
+/// Traversal can iterate over node by using traversal algorithm.
+/// The `next` method should only handle normal, reentrant iteration.
+/// If reentrancy is not desired, traversal should mutate cursor in `calibrate_for_match`.
+/// Visit will maintain the matched node depth so traversal does not need to use extra field.
 pub trait Traversal<'t, L: Language + 't>: Iterator<Item = Node<'t, L>> {
-  fn mark_last_node_matched(&mut self, matched: bool);
+  /// Calibrate cursor position to skip overlapping matches.
+  /// node depth will be passed if matched, otherwise None.
+  fn calibrate_for_match(&mut self, depth: Option<usize>);
+  /// Returns the current depth of cursor depth.
+  /// Cursor depth is incremented by 1 when moving from parent to child.
+  /// Cursor depth at Root node is 0.
+  fn get_current_depth(&self) -> usize;
 }
 
 /// Represents a pre-order traversal
@@ -149,6 +161,7 @@ pub struct Pre<'tree, L: Language> {
   // record the starting node, if we return back to starting point
   // we should terminate the dfs.
   start_id: Option<usize>,
+  current_depth: usize,
 }
 
 impl<'tree, L: Language> Pre<'tree, L> {
@@ -157,7 +170,32 @@ impl<'tree, L: Language> Pre<'tree, L> {
       cursor: node.inner.walk(),
       root: node.root,
       start_id: Some(node.inner.id()),
+      current_depth: 0,
     }
+  }
+  fn step_down(&mut self) -> bool {
+    if self.cursor.goto_first_child() {
+      self.current_depth += 1;
+      true
+    } else {
+      false
+    }
+  }
+
+  // retrace back to ancestors and find next node to explore
+  fn trace_up(&mut self, start: usize) {
+    let cursor = &mut self.cursor;
+    while cursor.node().id() != start {
+      // try visit sibling nodes
+      if cursor.goto_next_sibling() {
+        return;
+      }
+      self.current_depth -= 1;
+      // go back to parent node
+      cursor.goto_parent();
+    }
+    // terminate traversal here
+    self.start_id = None;
   }
 }
 
@@ -178,30 +216,35 @@ impl<'tree, L: Language> Iterator for Pre<'tree, L> {
       root: self.root,
     });
     // try going to children first
-    if cursor.goto_first_child() {
+    if self.step_down() {
       return ret;
     }
     // if no child available, go to ancestor nodes
     // until we get to the starting point
-    while cursor.node().id() != start {
-      // try visit sibling nodes
-      if cursor.goto_next_sibling() {
-        return ret;
-      }
-      // go back to parent node
-      cursor.goto_parent();
-    }
-    // terminate traversal here
-    self.start_id = None;
+    self.trace_up(start);
     ret
   }
 }
 impl<'tree, L: Language> FusedIterator for Pre<'tree, L> {}
 
 impl<'t, L: Language> Traversal<'t, L> for Pre<'t, L> {
+  fn calibrate_for_match(&mut self, depth: Option<usize>) {
+    // not entering the node, ignore
+    let Some(depth) = depth else {
+      return;
+    };
+    // if already entering sibling, ignore
+    if self.current_depth == depth {
+      return;
+    }
+    if let Some(start) = self.start_id {
+      self.trace_up(start);
+    }
+  }
+
   #[inline]
-  fn mark_last_node_matched(&mut self, matched: bool) {
-    if matched {}
+  fn get_current_depth(&self) -> usize {
+    self.current_depth
   }
 }
 
@@ -210,24 +253,31 @@ pub struct Post<'tree, L: Language> {
   cursor: ts::TreeCursor<'tree>,
   root: &'tree Root<L>,
   start_id: Option<usize>,
+  current_depth: usize,
+  match_depth: usize,
 }
 
 /// Amortized time complexity is O(NlgN), depending on branching factor.
 impl<'tree, L: Language> Post<'tree, L> {
   pub fn new(node: &Node<'tree, L>) -> Self {
-    let mut cursor = node.inner.walk();
-    dive_down(&mut cursor);
-    Self {
-      cursor,
+    let mut ret = Self {
+      cursor: node.inner.walk(),
       root: node.root,
       start_id: Some(node.inner.id()),
+      current_depth: 0,
+      match_depth: 0,
+    };
+    ret.trace_down();
+    ret
+  }
+  fn trace_down(&mut self) {
+    while self.cursor.goto_first_child() {
+      self.current_depth += 1;
     }
   }
-}
-
-fn dive_down(cursor: &mut ts::TreeCursor) {
-  while cursor.goto_first_child() {
-    continue;
+  fn step_up(&mut self) {
+    self.current_depth -= 1;
+    self.cursor.goto_parent();
   }
 }
 
@@ -247,20 +297,48 @@ impl<'tree, L: Language> Iterator for Post<'tree, L> {
       self.start_id = None
     } else if cursor.goto_next_sibling() {
       // try visit sibling
-      dive_down(cursor);
+      self.trace_down();
     } else {
-      // go back to parent node
-      cursor.goto_parent();
+      self.step_up();
     }
     Some(node)
   }
 }
+
 impl<'tree, L: Language> FusedIterator for Post<'tree, L> {}
 
 impl<'t, L: Language> Traversal<'t, L> for Post<'t, L> {
+  fn calibrate_for_match(&mut self, depth: Option<usize>) {
+    if let Some(depth) = depth {
+      // Later matches' depth should always be greater than former matches.
+      // because we bump match_depth in `step_up` during traversal.
+      debug_assert!(depth >= self.match_depth);
+      self.match_depth = depth;
+      return;
+    }
+    // found new nodes to explore in trace_down, skip calibration.
+    if self.current_depth >= self.match_depth {
+      return;
+    }
+    let Some(start) = self.start_id else {
+      return;
+    };
+    while self.cursor.node().id() != start {
+      self.match_depth = self.current_depth;
+      if self.cursor.goto_next_sibling() {
+        // try visit sibling
+        self.trace_down();
+        return;
+      }
+      self.step_up();
+    }
+    // terminate because all ancestors are skipped
+    self.start_id = None;
+  }
+
   #[inline]
-  fn mark_last_node_matched(&mut self, matched: bool) {
-    todo!()
+  fn get_current_depth(&self) -> usize {
+    self.current_depth
   }
 }
 
