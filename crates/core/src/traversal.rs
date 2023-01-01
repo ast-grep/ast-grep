@@ -30,17 +30,17 @@ use std::marker::PhantomData;
 
 pub struct Visitor<M, A = PreOrder> {
   /// Whether a node will match if it contains or is contained in another match.
-  pub reentrant: bool,
+  reentrant: bool,
   /// Whether visit named node only
-  pub named_only: bool,
+  named_only: bool,
   /// optional matcher to filter nodes
-  pub matcher: M,
+  matcher: M,
   /// The algorithm to traverse the tree, can be pre/post/level order
-  pub algorithm: PhantomData<A>,
+  algorithm: PhantomData<A>,
 }
 
-impl<M> Visitor<M> {
-  pub fn new<A>(matcher: M) -> Visitor<M, A> {
+impl<M, A> Visitor<M, A> {
+  pub fn new<Algo>(matcher: M) -> Visitor<M, Algo> {
     Visitor {
       reentrant: true,
       named_only: false,
@@ -48,13 +48,21 @@ impl<M> Visitor<M> {
       algorithm: PhantomData,
     }
   }
-  pub fn algorithm<A>(self) -> Visitor<M, A> {
+  pub fn algorithm<Algo>(self) -> Visitor<M, Algo> {
     Visitor {
       reentrant: self.reentrant,
       named_only: self.named_only,
       matcher: self.matcher,
       algorithm: PhantomData,
     }
+  }
+
+  pub fn reentrant(self, reentrant: bool) -> Self {
+    Self { reentrant, ..self }
+  }
+
+  pub fn named_only(self, named_only: bool) -> Self {
+    Self { named_only, ..self }
   }
 }
 
