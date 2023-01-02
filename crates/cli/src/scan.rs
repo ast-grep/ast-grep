@@ -109,9 +109,9 @@ pub struct ScanArg {
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(arg: RunArg) -> Result<()> {
   if arg.json {
-    return run_pattern_with_printer(arg, JSONPrinter::new());
+    return run_pattern_with_printer(arg, JSONPrinter::stdout());
   }
-  let printer = ColoredPrinter::color(arg.color).heading(arg.heading);
+  let printer = ColoredPrinter::stdout(arg.color).heading(arg.heading);
   let interactive = arg.interactive || arg.accept_all;
   if interactive {
     let printer = InteractivePrinter::new(printer).accept_all(arg.accept_all);
@@ -226,10 +226,10 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
   if arg.json {
-    let worker = ScanWithConfig::try_new(arg, JSONPrinter::new())?;
+    let worker = ScanWithConfig::try_new(arg, JSONPrinter::stdout())?;
     return run_worker(worker);
   }
-  let printer = ColoredPrinter::color(arg.color).style(arg.report_style);
+  let printer = ColoredPrinter::stdout(arg.color).style(arg.report_style);
   let interactive = arg.interactive || arg.accept_all;
   if interactive {
     let printer = InteractivePrinter::new(printer).accept_all(arg.accept_all);

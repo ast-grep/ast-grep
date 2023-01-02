@@ -7,7 +7,7 @@ use ansi_term::{Color, Style};
 use anyhow::Result;
 use clap::ValueEnum;
 use codespan_reporting::diagnostic::{self, Diagnostic, Label};
-use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream, WriteColor};
 use codespan_reporting::term::{self, DisplayStyle};
 pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
 use similar::{ChangeTag, TextDiff};
@@ -15,6 +15,7 @@ use similar::{ChangeTag, TextDiff};
 use std::borrow::Cow;
 use std::fmt::Display;
 use std::path::Path;
+use std::sync::Mutex;
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.
 macro_rules! Matches {
@@ -49,22 +50,33 @@ impl Heading {
   }
 }
 
-pub struct ColoredPrinter {
-  writer: StandardStream,
+pub struct ColoredPrinter<W: WriteColor> {
+  writer: Mutex<W>,
   config: term::Config,
   styles: PrintStyles,
   heading: Heading,
 }
-
-impl ColoredPrinter {
-  pub fn color<C: Into<ColorChoice>>(color: C) -> Self {
+impl ColoredPrinter<StandardStream> {
+  pub fn stdout<C: Into<ColorChoice>>(color: C) -> Self {
     let color = color.into();
+    ColoredPrinter::new(StandardStream::stdout(color)).color(color)
+  }
+}
+
+impl<W: WriteColor> ColoredPrinter<W> {
+  pub fn new(writer: W) -> Self {
     Self {
-      writer: StandardStream::stdout(color),
-      styles: PrintStyles::from(color),
+      writer: Mutex::new(writer),
+      styles: PrintStyles::from(ColorChoice::Auto),
       config: term::Config::default(),
       heading: Heading::Auto,
     }
+  }
+
+  pub fn color<C: Into<ColorChoice>>(mut self, color: C) -> Self {
+    let color = color.into();
+    self.styles = PrintStyles::from(color);
+    self
   }
 
   pub fn style(mut self, style: ReportStyle) -> Self {
@@ -83,7 +95,7 @@ impl ColoredPrinter {
   }
 }
 
-impl Printer for ColoredPrinter {
+impl<W: WriteColor> Printer for ColoredPrinter<W> {
   fn print_rule<'a>(
     &self,
     matches: Matches!('a),
@@ -91,14 +103,13 @@ impl Printer for ColoredPrinter {
     rule: &RuleConfig<SupportLang>,
   ) {
     let config = &self.config;
-    let writer = &self.writer;
+    let mut writer = self.writer.lock().expect("should not fail");
     let serverity = match rule.severity {
       Severity::Error => diagnostic::Severity::Error,
       Severity::Warning => diagnostic::Severity::Warning,
       Severity::Info => diagnostic::Severity::Note,
       Severity::Hint => diagnostic::Severity::Help,
     };
-    let lock = &mut writer.lock();
     for m in matches {
       let range = m.range();
       let mut labels = vec![Label::primary((), range)];
@@ -113,7 +124,7 @@ impl Printer for ColoredPrinter {
         .with_message(rule.get_message(&m))
         .with_notes(rule.note.iter().cloned().collect())
         .with_labels(labels);
-      term::emit(lock, config, &file, &diagnostic).unwrap();
+      term::emit(&mut *writer, config, &file, &diagnostic).unwrap();
     }
   }
 

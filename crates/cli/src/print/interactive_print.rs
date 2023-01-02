@@ -3,10 +3,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use anyhow::{Context, Result};
 use ast_grep_config::RuleConfig;
 
-use super::{ColoredPrinter, Diff, Printer};
+use super::{Diff, Printer};
 use crate::error::ErrorContext as EC;
 use crate::interaction;
-use ast_grep_core::traversal::Visitor;
 use ast_grep_core::NodeMatch;
 use ast_grep_language::SupportLang;
 
@@ -23,12 +22,12 @@ macro_rules! Diffs {
   ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
 }
 
-pub struct InteractivePrinter {
+pub struct InteractivePrinter<P: Printer> {
   accept_all: AtomicBool,
-  inner: ColoredPrinter,
+  inner: P,
 }
-impl InteractivePrinter {
-  pub fn new(inner: ColoredPrinter) -> Self {
+impl<P: Printer> InteractivePrinter<P> {
+  pub fn new(inner: P) -> Self {
     Self {
       accept_all: AtomicBool::new(false),
       inner,
@@ -41,7 +40,7 @@ impl InteractivePrinter {
   }
 }
 
-impl Printer for InteractivePrinter {
+impl<P: Printer> Printer for InteractivePrinter<P> {
   fn print_rule<'a>(
     &self,
     matches: Matches!('a),
@@ -166,6 +165,7 @@ fn apply_rewrite(diffs: Vec<Diff>) -> String {
 mod test {
   use super::*;
   use ast_grep_config::from_yaml_string;
+  use ast_grep_core::traversal::Visitor;
   use ast_grep_core::{AstGrep, Matcher, Pattern};
 
   fn make_rule(rule: &str) -> RuleConfig<SupportLang> {

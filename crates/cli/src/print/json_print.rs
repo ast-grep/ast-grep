@@ -9,9 +9,10 @@ pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
 use serde::{Deserialize, Serialize};
 
 use std::borrow::Cow;
-use std::io::Write;
+use std::io::{Stdout, Write};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.
 macro_rules! Matches {
@@ -176,17 +177,29 @@ impl<'a> RuleMatchJSON<'a> {
   }
 }
 
-// store atomic bool to indicate if any matches happened
-pub struct JSONPrinter(AtomicBool);
-impl JSONPrinter {
-  pub fn new() -> Self {
+pub struct JSONPrinter<W: Write> {
+  output: Mutex<W>,
+  // indicate if any matches happened
+  matched: AtomicBool,
+}
+impl JSONPrinter<Stdout> {
+  pub fn stdout() -> Self {
+    Self::new(std::io::stdout())
+  }
+}
+
+impl<W: Write> JSONPrinter<W> {
+  pub fn new(output: W) -> Self {
     // no match happened yet
-    Self(AtomicBool::new(false))
+    Self {
+      output: Mutex::new(output),
+      matched: AtomicBool::new(false),
+    }
   }
 }
 
 // TODO: refactor this shitty code.
-impl Printer for JSONPrinter {
+impl<W: Write> Printer for JSONPrinter<W> {
   fn print_rule<'a>(
     &self,
     matches: Matches!('a),
@@ -197,19 +210,19 @@ impl Printer for JSONPrinter {
     if matches.peek().is_none() {
       return;
     }
-    let mut lock = std::io::stdout();
-    let matched = self.0.swap(true, Ordering::AcqRel);
+    let mut lock = self.output.lock().expect("should work");
+    let matched = self.matched.swap(true, Ordering::AcqRel);
     let path = file.name();
     if !matched {
       writeln!(&mut lock, "[").unwrap();
       let nm = matches.next().unwrap();
       let v = RuleMatchJSON::new(nm, path, rule);
-      serde_json::to_writer_pretty(&mut lock, &v).unwrap();
+      serde_json::to_writer_pretty(&mut *lock, &v).unwrap();
     }
     for nm in matches {
       writeln!(&mut lock, ",").unwrap();
       let v = RuleMatchJSON::new(nm, path, rule);
-      serde_json::to_writer_pretty(&mut lock, &v).unwrap();
+      serde_json::to_writer_pretty(&mut *lock, &v).unwrap();
     }
   }
 
@@ -218,19 +231,19 @@ impl Printer for JSONPrinter {
     if matches.peek().is_none() {
       return Ok(());
     }
-    let mut lock = std::io::stdout();
-    let matched = self.0.swap(true, Ordering::AcqRel);
+    let mut lock = self.output.lock().expect("should work");
+    let matched = self.matched.swap(true, Ordering::AcqRel);
     let path = path.to_string_lossy();
     if !matched {
-      writeln!(&mut lock, "[").unwrap();
+      writeln!(lock, "[").unwrap();
       let nm = matches.next().unwrap();
       let v = MatchJSON::new(nm, &path);
-      serde_json::to_writer_pretty(&mut lock, &v).unwrap();
+      serde_json::to_writer_pretty(&mut *lock, &v).unwrap();
     }
     for nm in matches {
-      writeln!(&mut lock, ",").unwrap();
+      writeln!(lock, ",").unwrap();
       let v = MatchJSON::new(nm, &path);
-      serde_json::to_writer_pretty(&mut lock, &v).unwrap();
+      serde_json::to_writer_pretty(&mut *lock, &v).unwrap();
     }
     Ok(())
   }
@@ -240,21 +253,21 @@ impl Printer for JSONPrinter {
     if diffs.peek().is_none() {
       return Ok(());
     }
-    let mut lock = std::io::stdout();
-    let matched = self.0.swap(true, Ordering::AcqRel);
+    let mut lock = self.output.lock().expect("should work");
+    let matched = self.matched.swap(true, Ordering::AcqRel);
     let path = path.to_string_lossy();
     if !matched {
-      writeln!(&mut lock, "[").unwrap();
+      writeln!(lock, "[").unwrap();
       let diff = diffs.next().unwrap();
       let mut v = MatchJSON::new(diff.node_match, &path);
       v.replacement = Some(diff.replacement);
-      serde_json::to_writer_pretty(&mut lock, &v).unwrap();
+      serde_json::to_writer_pretty(&mut *lock, &v).unwrap();
     }
     for diff in diffs {
-      writeln!(&mut lock, ",").unwrap();
+      writeln!(lock, ",").unwrap();
       let mut v = MatchJSON::new(diff.node_match, &path);
       v.replacement = Some(diff.replacement);
-      serde_json::to_writer_pretty(&mut lock, &v).unwrap();
+      serde_json::to_writer_pretty(&mut *lock, &v).unwrap();
     }
     Ok(())
   }
@@ -268,7 +281,7 @@ impl Printer for JSONPrinter {
   }
 
   fn after_print(&self) {
-    let matched = self.0.load(Ordering::Acquire);
+    let matched = self.matched.load(Ordering::Acquire);
     if matched {
       println!();
     } else {
