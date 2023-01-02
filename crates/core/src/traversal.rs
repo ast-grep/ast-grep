@@ -498,4 +498,67 @@ mod test {
     assert!(pre[1..].starts_with(&pre2));
     assert!(post.starts_with(&post2));
   }
+
+  fn pre_order_with_matcher(node: Node<Tsx>, matcher: &str) -> Vec<Range<usize>> {
+    if node.matches(matcher) {
+      vec![node.range()]
+    } else {
+      node
+        .children()
+        .flat_map(|n| pre_order_with_matcher(n, matcher))
+        .collect()
+    }
+  }
+
+  fn post_order_with_matcher(node: Node<Tsx>, matcher: &str) -> Vec<Range<usize>> {
+    let mut ret: Vec<_> = node
+      .children()
+      .flat_map(|n| post_order_with_matcher(n, matcher))
+      .collect();
+    if ret.is_empty() && node.matches(matcher) {
+      ret.push(node.range());
+    }
+    ret
+  }
+
+  const MATCHER_CASES: &[&str] = &[
+    "Some(123)",
+    "Some(1, 2, Some(2))",
+    "NoMatch",
+    "NoMatch(Some(123))",
+    "Some(1, Some(2), Some(3))",
+    "Some(1, Some(2), Some(Some(3)))",
+  ];
+
+  #[test]
+  fn test_pre_order_visitor() {
+    let matcher = "Some($$$)";
+    for case in MATCHER_CASES {
+      let grep = Tsx.ast_grep(case);
+      let node = grep.root();
+      let recur = pre_order_with_matcher(grep.root(), matcher);
+      let visit: Vec<_> = Visitor::new(matcher)
+        .reentrant(false)
+        .visit(node)
+        .map(|n| n.range())
+        .collect();
+      assert_eq!(recur, visit);
+    }
+  }
+  #[test]
+  fn test_post_order_visitor() {
+    let matcher = "Some($$$)";
+    for case in MATCHER_CASES {
+      let grep = Tsx.ast_grep(case);
+      let node = grep.root();
+      let recur = post_order_with_matcher(grep.root(), matcher);
+      let visit: Vec<_> = Visitor::new(matcher)
+        .algorithm::<PostOrder>()
+        .reentrant(false)
+        .visit(node)
+        .map(|n| n.range())
+        .collect();
+      assert_eq!(recur, visit);
+    }
+  }
 }
