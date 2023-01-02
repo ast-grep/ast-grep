@@ -176,27 +176,62 @@ fn print_prelude(path: &Path, styles: &PrintStyles, writer: &mut impl Write) -> 
 }
 
 fn print_matches_with_heading<'a, W: Write>(
-  matches: Matches!('a),
+  mut matches: Matches!('a),
   path: &Path,
   styles: &PrintStyles,
   writer: &mut W,
 ) -> Result<()> {
   print_prelude(path, styles, writer)?;
-  for e in matches {
-    let display = e.display_context(0);
-    let leading = display.leading;
-    let trailing = display.trailing;
-    let matched = display.matched;
-    let highlighted = format!("{leading}{matched}{trailing}");
-    let lines = highlighted.lines().count();
-    let mut num = display.start_line;
-    let width = (lines + display.start_line).to_string().chars().count();
+  let Some(last_match) = matches.next() else {
+    return Ok(())
+  };
+  let source = last_match.ancestors().last().unwrap().text();
+  let display = last_match.display_context(0);
+  let mut last_start_line = display.start_line;
+  let mut last_end_line = last_match.end_pos().0;
+  let mut last_trailing = display.trailing;
+  let mut last_range = last_match.range();
+  let mut ret = display.leading.to_string();
+  ret.push_str(&format!("{}", styles.matched.paint(&*display.matched)));
+  for nm in matches {
+    let range = nm.range();
+    // merge overlapping matches.
+    if range.start <= last_range.end {
+      // guaranteed by pre-order
+      debug_assert!(range.end <= last_range.end);
+      continue;
+    }
+    let start_line = nm.start_pos().0;
+    let display = nm.display_context(0);
+    // merge adjacent matches
+    if start_line == last_end_line {
+      ret.push_str(&source[last_range.end..nm.range().start]);
+      ret.push_str(&format!("{}", styles.matched.paint(&*display.matched)));
+      last_range = nm.range();
+      last_trailing = display.trailing;
+      continue;
+    }
+    ret.push_str(last_trailing);
+    let lines = ret.lines().count();
+    let width = (lines + last_start_line).to_string().chars().count();
+    let mut num = last_start_line;
     write!(writer, "{num:>width$}│")?; // initial line num
-    print_highlight(leading.lines(), Style::new(), width, &mut num, writer)?;
-    print_highlight(matched.lines(), styles.matched, width, &mut num, writer)?;
-    print_highlight(trailing.lines(), Style::new(), width, &mut num, writer)?;
+    print_highlight(ret.lines(), Style::new(), width, &mut num, writer)?;
     writeln!(writer)?; // end match new line
+    last_start_line = display.start_line;
+    last_trailing = display.trailing;
+    last_end_line = nm.end_pos().0;
+    last_range = nm.range();
+    ret = display.leading.to_string();
+    ret.push_str(&format!("{}", styles.matched.paint(&*display.matched)));
   }
+  ret.push_str(last_trailing);
+  let lines = ret.lines().count();
+  let mut num = last_start_line;
+  let width = (lines + last_start_line).to_string().chars().count();
+  write!(writer, "{num:>width$}│")?; // initial line num
+  print_highlight(ret.lines(), Style::new(), width, &mut num, writer)?;
+  writeln!(writer)?; // end match new line
   Ok(())
 }
 
@@ -459,12 +494,26 @@ mod test {
   }
 
   #[test]
-  fn test_printe_matches() {
+  fn test_print_matches() {
     let printer = make_test_printer();
     let grep = SupportLang::Tsx.ast_grep("let a = 123");
     let matches = grep.root().find_all("a");
     printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
     let expected = "test.tsx\n1│let a = 123\n";
+    assert_eq!(get_text(&printer), expected);
+  }
+
+  #[test]
+  #[ignore]
+  fn test_print_matches_without_heading() {}
+
+  #[test]
+  fn test_print_matches_on_same_line() {
+    let printer = make_test_printer();
+    let grep = SupportLang::Tsx.ast_grep("Some(1), Some(2), Some(3)");
+    let matches = grep.root().find_all("Some");
+    printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+    let expected = "test.tsx\n1│Some(1), Some(2), Some(3)\n";
     assert_eq!(get_text(&printer), expected);
   }
 
