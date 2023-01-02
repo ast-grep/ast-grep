@@ -20,7 +20,7 @@
 
 use crate::language::Language;
 use crate::matcher::Matcher;
-use crate::{Node, Root};
+use crate::{Node, NodeMatch, Root};
 
 use tree_sitter as ts;
 
@@ -39,8 +39,8 @@ pub struct Visitor<M, A = PreOrder> {
   algorithm: PhantomData<A>,
 }
 
-impl<M, A> Visitor<M, A> {
-  pub fn new<Algo>(matcher: M) -> Visitor<M, Algo> {
+impl<M> Visitor<M> {
+  pub fn new(matcher: M) -> Visitor<M> {
     Visitor {
       reentrant: true,
       named_only: false,
@@ -48,6 +48,9 @@ impl<M, A> Visitor<M, A> {
       algorithm: PhantomData,
     }
   }
+}
+
+impl<M, A> Visitor<M, A> {
   pub fn algorithm<Algo>(self) -> Visitor<M, Algo> {
     Visitor {
       reentrant: self.reentrant,
@@ -112,15 +115,15 @@ where
   T: Traversal<'t, L>,
   M: Matcher<L>,
 {
-  type Item = Node<'t, L>;
+  type Item = NodeMatch<'t, L>;
   fn next(&mut self) -> Option<Self::Item> {
     loop {
       let match_depth = self.traversal.get_current_depth();
       let node = self.traversal.next()?;
       let pass_named = !self.named || node.is_named();
-      if pass_named && node.matches(&self.matcher) {
+      if let Some(node_match) = pass_named.then(|| self.matcher.match_node(node)).flatten() {
         self.mark_match(Some(match_depth));
-        return Some(node);
+        return Some(node_match);
       } else {
         self.mark_match(None);
       }
@@ -245,7 +248,10 @@ impl<'t, L: Language> Traversal<'t, L> for Pre<'t, L> {
     if self.current_depth == depth {
       return;
     }
+    debug_assert!(self.current_depth > depth);
     if let Some(start) = self.start_id {
+      // revert the step down
+      self.cursor.goto_parent();
       self.trace_up(start);
     }
   }

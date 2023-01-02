@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use ast_grep_config::{RuleCollection, RuleConfig, RuleWithConstraint};
 use ast_grep_core::language::Language;
+use ast_grep_core::traversal::Visitor;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::{Args, Parser};
 use ignore::{WalkBuilder, WalkParallel};
@@ -338,7 +339,8 @@ fn match_one_file(
     grep,
     matcher,
   } = match_unit;
-  let matches = grep.root().find_all_without_nesting(matcher).into_iter();
+
+  let matches = Visitor::new(matcher).reentrant(false).visit(grep.root());
   if let Some(rewrite) = rewrite {
     let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
     printer.print_diffs(diffs, path)

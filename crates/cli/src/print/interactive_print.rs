@@ -6,6 +6,7 @@ use ast_grep_config::RuleConfig;
 use super::{ColoredPrinter, Diff, Printer};
 use crate::error::ErrorContext as EC;
 use crate::interaction;
+use ast_grep_core::traversal::Visitor;
 use ast_grep_core::NodeMatch;
 use ast_grep_language::SupportLang;
 
@@ -187,9 +188,9 @@ language: TypeScript
     fixer: &Pattern<SupportLang>,
   ) -> Vec<Diff<'a>> {
     let root = grep.root();
-    root
-      .find_all_without_nesting(&matcher)
-      .into_iter()
+    Visitor::new(&matcher)
+      .reentrant(false)
+      .visit(root)
       .map(|nm| Diff::generate(nm, &matcher, fixer))
       .collect()
   }

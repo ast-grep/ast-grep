@@ -1,7 +1,7 @@
 use crate::language::Language;
 use crate::matcher::{FindAllNodes, Matcher, NodeMatch};
 use crate::replacer::Replacer;
-use crate::traversal::Pre;
+use crate::traversal::{Pre, Visitor};
 use crate::ts_parser::{parse, perform_edit, Edit, TSParseError};
 
 use std::borrow::Cow;
@@ -219,21 +219,6 @@ impl<'r, L: Language> Node<'r, L> {
     FindAllNodes::new(pat, self.clone())
   }
 
-  pub fn find_all_without_nesting<M: Matcher<L>>(&self, matcher: M) -> Vec<NodeMatch<'r, L>> {
-    let mut stack = vec![self.clone()];
-    let mut ret = vec![];
-    let mut reverse = vec![];
-    while let Some(node) = stack.pop() {
-      if let Some(matched) = matcher.match_node(node.clone()) {
-        ret.push(matched);
-      } else {
-        reverse.extend(node.children());
-        stack.extend(reverse.drain(..).rev());
-      }
-    }
-    ret
-  }
-
   pub fn field(&self, name: &str) -> Option<Self> {
     let mut cursor = self.inner.walk();
     let inner = self
@@ -374,9 +359,9 @@ impl<'r, L: Language> Node<'r, L> {
 
   pub fn replace_all<M: Matcher<L>, R: Replacer<L>>(&self, matcher: M, replacer: R) -> Vec<Edit> {
     // TODO: support nested matches like Some(Some(1)) with pattern Some($A)
-    self
-      .find_all_without_nesting(&matcher)
-      .into_iter()
+    Visitor::new(&matcher)
+      .reentrant(false)
+      .visit(self.clone())
       .map(|matched| self.make_edit(matched, &matcher, &replacer))
       .collect()
   }
