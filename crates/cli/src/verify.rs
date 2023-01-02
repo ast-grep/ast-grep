@@ -530,7 +530,7 @@ fn report_case_detail_impl<W: Write>(
         let actual_str = to_string(&actual)?;
         let expected_str = to_string(&expected)?;
         writeln!(output, "Diff:")?;
-        print_diff(&expected_str, &actual_str, 1, &styles);
+        print_diff(&expected_str, &actual_str, 1, &styles, output)?;
       } else {
         writeln!(output, "[{wrong}] No {case_id} basline found.")?;
         writeln!(output, "Generated Snapshot:")?;

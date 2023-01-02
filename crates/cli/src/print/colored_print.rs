@@ -14,6 +14,7 @@ use similar::{ChangeTag, TextDiff};
 
 use std::borrow::Cow;
 use std::fmt::Display;
+use std::io::Write;
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -129,15 +130,17 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
   }
 
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {
+    let writer = &mut *self.writer.lock().expect("should success");
     if self.heading.should_print() {
-      print_matches_with_heading(matches, path, &self.styles)
+      print_matches_with_heading(matches, path, &self.styles, writer)
     } else {
-      print_matches_with_prefix(matches, path, &self.styles)
+      print_matches_with_prefix(matches, path, &self.styles, writer)
     }
   }
 
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
-    print_diffs(diffs, path, &self.styles)
+    let writer = &mut *self.writer.lock().expect("should success");
+    print_diffs(diffs, path, &self.styles, writer)
   }
   fn print_rule_diffs<'a>(
     &self,
@@ -145,7 +148,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     path: &Path,
     _rule: &RuleConfig<SupportLang>,
   ) -> Result<()> {
-    print_diffs(diffs, path, &self.styles)
+    self.print_diffs(diffs, path)
   }
 }
 
@@ -166,17 +169,19 @@ fn adjust_dir_separator(p: &Path) -> String {
   }
 }
 
-fn print_prelude(path: &Path, styles: &PrintStyles) {
+fn print_prelude(path: &Path, styles: &PrintStyles, writer: &mut impl Write) -> Result<()> {
   let filepath = adjust_dir_separator(path);
-  println!("{}", styles.file_path.paint(filepath));
+  writeln!(writer, "{}", styles.file_path.paint(filepath))?;
+  Ok(())
 }
 
-fn print_matches_with_heading<'a>(
+fn print_matches_with_heading<'a, W: Write>(
   matches: Matches!('a),
   path: &Path,
   styles: &PrintStyles,
+  writer: &mut W,
 ) -> Result<()> {
-  print_prelude(path, styles);
+  print_prelude(path, styles, writer)?;
   for e in matches {
     let display = e.display_context(0);
     let leading = display.leading;
@@ -186,19 +191,20 @@ fn print_matches_with_heading<'a>(
     let lines = highlighted.lines().count();
     let mut num = display.start_line;
     let width = (lines + display.start_line).to_string().chars().count();
-    print!("{num:>width$}│"); // initial line num
-    print_highlight(leading.lines(), Style::new(), width, &mut num);
-    print_highlight(matched.lines(), styles.matched, width, &mut num);
-    print_highlight(trailing.lines(), Style::new(), width, &mut num);
-    println!(); // end match new line
+    write!(writer, "{num:>width$}│")?; // initial line num
+    print_highlight(leading.lines(), Style::new(), width, &mut num, writer)?;
+    print_highlight(matched.lines(), styles.matched, width, &mut num, writer)?;
+    print_highlight(trailing.lines(), Style::new(), width, &mut num, writer)?;
+    writeln!(writer)?; // end match new line
   }
   Ok(())
 }
 
-fn print_matches_with_prefix<'a>(
+fn print_matches_with_prefix<'a, W: WriteColor>(
   matches: Matches!('a),
   path: &Path,
   styles: &PrintStyles,
+  writer: &mut W,
 ) -> Result<()> {
   let path = path.display();
   for e in matches {
@@ -209,14 +215,19 @@ fn print_matches_with_prefix<'a>(
     let highlighted = format!("{leading}{matched}{trailing}");
     for (n, line) in highlighted.lines().enumerate() {
       let num = display.start_line + n;
-      println!("{path}:{num}:{line}");
+      writeln!(writer, "{path}:{num}:{line}")?;
     }
   }
   Ok(())
 }
 
-fn print_diffs<'a>(diffs: Diffs!('a), path: &Path, styles: &PrintStyles) -> Result<()> {
-  print_prelude(path, styles);
+fn print_diffs<'a, W: WriteColor>(
+  diffs: Diffs!('a),
+  path: &Path,
+  styles: &PrintStyles,
+  writer: &mut W,
+) -> Result<()> {
+  print_prelude(path, styles, writer)?;
   for diff in diffs {
     let display = diff.node_match.display_context(3);
     let old_str = format!(
@@ -228,27 +239,29 @@ fn print_diffs<'a>(diffs: Diffs!('a), path: &Path, styles: &PrintStyles) -> Resu
       display.leading, diff.replacement, display.trailing
     );
     let base_line = display.start_line;
-    print_diff(&old_str, &new_str, base_line, styles);
+    print_diff(&old_str, &new_str, base_line, styles, writer)?;
   }
   Ok(())
 }
 
-fn print_highlight<'a>(
+fn print_highlight<'a, W: Write>(
   mut lines: impl Iterator<Item = &'a str>,
   style: Style,
   width: usize,
   num: &mut usize,
-) {
+  writer: &mut W,
+) -> Result<()> {
   if let Some(line) = lines.next() {
     let line = style.paint(line);
-    print!("{line}");
+    write!(writer, "{line}")?;
   }
   for line in lines {
-    println!();
+    writeln!(writer)?;
     *num += 1;
     let line = style.paint(line);
-    print!("{num:>width$}│{line}");
+    write!(writer, "{num:>width$}│{line}")?;
   }
+  Ok(())
 }
 
 fn index_display(index: Option<usize>, style: Style, width: usize) -> impl Display {
@@ -259,12 +272,18 @@ fn index_display(index: Option<usize>, style: Style, width: usize) -> impl Displ
   style.paint(index_str)
 }
 
-pub fn print_diff(old: &str, new: &str, base_line: usize, styles: &PrintStyles) {
+pub fn print_diff(
+  old: &str,
+  new: &str,
+  base_line: usize,
+  styles: &PrintStyles,
+  writer: &mut impl Write,
+) -> Result<()> {
   let diff = TextDiff::from_lines(old, new);
   let width = base_line.to_string().chars().count();
   for (idx, group) in diff.grouped_ops(5).iter().enumerate() {
     if idx > 0 {
-      println!("{:-^1$}", "-", 80);
+      writeln!(writer, "{:-^1$}", "-", 80)?;
     }
     for op in group {
       for change in diff.iter_inline_changes(op) {
@@ -273,25 +292,27 @@ pub fn print_diff(old: &str, new: &str, base_line: usize, styles: &PrintStyles) 
           ChangeTag::Insert => ("+", styles.insert, styles.insert_emphasis),
           ChangeTag::Equal => (" ", Style::new(), Style::new()),
         };
-        print!(
+        write!(
+          writer,
           "{}{}|{}",
           index_display(change.old_index().map(|i| i + base_line), s, width + 1),
           index_display(change.new_index().map(|i| i + base_line), s, width),
           s.paint(sign),
-        );
+        )?;
         for (emphasized, value) in change.iter_strings_lossy() {
           if emphasized {
-            print!("{}", em.paint(value));
+            write!(writer, "{}", em.paint(value))?;
           } else {
-            print!("{}", s.paint(value));
+            write!(writer, "{}", s.paint(value))?;
           }
         }
         if change.missing_newline() {
-          println!();
+          writeln!(writer)?;
         }
       }
     }
   }
+  Ok(())
 }
 
 // TODO: use termcolor instead
@@ -411,5 +432,51 @@ mod choose_color {
         }
       }
     }
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use ast_grep_core::language::Language;
+  use codespan_reporting::term::termcolor::Buffer;
+
+  fn make_test_printer() -> ColoredPrinter<Buffer> {
+    ColoredPrinter::new(Buffer::no_color()).color(ColorChoice::Never)
+  }
+  fn get_text(printer: &ColoredPrinter<Buffer>) -> String {
+    let buffer = printer.writer.lock().expect("should work");
+    let bytes = buffer.as_slice();
+    std::str::from_utf8(bytes)
+      .expect("buffer should be valid utf8")
+      .to_owned()
+  }
+
+  #[test]
+  fn test_emtpy_printer() {
+    let printer = make_test_printer();
+    assert_eq!(get_text(&printer), "");
+  }
+
+  #[test]
+  fn test_printe_matches() {
+    let printer = make_test_printer();
+    let grep = SupportLang::Tsx.ast_grep("let a = 123");
+    let matches = grep.root().find_all("a");
+    printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+    let expected = "test.tsx\n1│let a = 123\n";
+    assert_eq!(get_text(&printer), expected);
+  }
+
+  #[test]
+  #[ignore]
+  fn test_printe_rules() {
+    todo!()
+  }
+
+  #[test]
+  #[ignore]
+  fn test_printe_diffs() {
+    todo!()
   }
 }
