@@ -561,6 +561,7 @@ mod choose_color {
 #[cfg(test)]
 mod test {
   use super::*;
+  use ast_grep_config::from_yaml_string;
   use ast_grep_core::language::Language;
   use codespan_reporting::term::termcolor::Buffer;
 
@@ -581,64 +582,46 @@ mod test {
     assert_eq!(get_text(&printer), "");
   }
 
-  // source, pattern, expected, debug note
-  // note, expected does not have heading
-  type Case<'a> = (&'a str, &'a str, &'a str, &'a str);
+  // source, pattern, debug note
+  type Case<'a> = (&'a str, &'a str, &'a str);
 
   const MATCHES_CASES: &[Case] = &[
-    ("let a = 123", "a", "1│let a = 123", "Simple match"),
-    (
-      "Some(1), Some(2), Some(3)",
-      "Some",
-      "1│Some(1), Some(2), Some(3)",
-      "Same line match",
-    ),
+    ("let a = 123", "a", "Simple match"),
+    ("Some(1), Some(2), Some(3)", "Some", "Same line match"),
     (
       "Some(1), Some(2)\nSome(3), Some(4)",
       "Some",
-      "1│Some(1), Some(2)\n2│Some(3), Some(4)",
       "Multiple line match",
     ),
   ];
   #[test]
   fn test_print_matches() {
-    for &(source, pattern, expected, note) in MATCHES_CASES {
+    for &(source, pattern, note) in MATCHES_CASES {
       // heading is required for CI
       let printer = make_test_printer().heading(Heading::Always);
       let grep = SupportLang::Tsx.ast_grep(source);
       let matches = grep.root().find_all(pattern);
       printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+      let expected: String = source
+        .lines()
+        .enumerate()
+        .map(|(i, l)| format!("{}│{l}\n", i + 1))
+        .collect();
       // append heading to expected
-      let output = format!("test.tsx\n{expected}\n");
+      let output = format!("test.tsx\n{expected}");
       assert_eq!(get_text(&printer), output, "{note}");
     }
   }
 
-  const HEADING_CASES: &[Case] = &[
-    ("let a = 123", "a", "let a = 123", "Simple match"),
-    (
-      "Some(1), Some(2), Some(3)",
-      "Some",
-      "Some(1), Some(2), Some(3)",
-      "Same line match",
-    ),
-    (
-      "Some(1), Some(2)\nSome(3), Some(4)",
-      "Some",
-      "Some(1), Some(2)\nSome(3), Some(4)",
-      "Multiple line match",
-    ),
-  ];
-
   #[test]
   fn test_print_matches_without_heading() {
-    for &(source, pattern, expected, note) in HEADING_CASES {
+    for &(source, pattern, note) in MATCHES_CASES {
       let printer = make_test_printer().heading(Heading::Never);
       let grep = SupportLang::Tsx.ast_grep(source);
       let matches = grep.root().find_all(pattern);
       printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
       // append heading to expected
-      let output: String = expected
+      let output: String = source
         .lines()
         .enumerate()
         .map(|(i, e)| format!("test.tsx:{}:{e}\n", i + 1))
@@ -648,9 +631,33 @@ mod test {
   }
 
   #[test]
-  #[ignore]
   fn test_printe_rules() {
-    todo!()
+    for &(source, pattern, note) in MATCHES_CASES {
+      let printer = make_test_printer()
+        .heading(Heading::Never)
+        .style(ReportStyle::Short);
+      let grep = SupportLang::TypeScript.ast_grep(source);
+      let matches = grep.root().find_all(pattern);
+      let source = source.to_string();
+      let file = SimpleFile::new(Cow::Borrowed("test.tsx"), &source);
+      let rule = from_yaml_string(&format!(
+        r"
+id: test-id
+message: test rule
+severity: info
+language: TypeScript
+rule:
+  pattern: {pattern}"
+      ))
+      .expect("should parse")
+      .pop()
+      .unwrap();
+      printer.print_rule(matches, file, &rule);
+      let text = get_text(&printer);
+      assert!(text.contains("test.tsx"), "{note}");
+      assert!(text.contains("note[test-id]"), "{note}");
+      assert!(text.contains("test rule"), "{note}");
+    }
   }
 
   #[test]
