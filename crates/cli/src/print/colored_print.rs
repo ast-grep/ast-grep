@@ -175,6 +175,67 @@ fn print_prelude(path: &Path, styles: &PrintStyles, writer: &mut impl Write) -> 
   Ok(())
 }
 
+// merging overlapping/adjacent matches
+// adjacent matches: matches that starts or ends on the same line
+struct MatchMerger<'a> {
+  last_start_line: usize,
+  last_end_line: usize,
+  last_trailing: &'a str,
+  last_end_offset: usize,
+}
+
+impl<'a> MatchMerger<'a> {
+  fn new(nm: &NodeMatch<'a, SupportLang>) -> Self {
+    let display = nm.display_context(0);
+    let last_start_line = display.start_line;
+    let last_end_line = nm.end_pos().0;
+    let last_trailing = display.trailing;
+    let last_end_offset = nm.range().end;
+    Self {
+      last_start_line,
+      last_end_line,
+      last_end_offset,
+      last_trailing,
+    }
+  }
+
+  // merge non-overlapping matches but start/end on the same line
+  fn merge_adjacent(&mut self, nm: &NodeMatch<'a, SupportLang>) -> Option<usize> {
+    let start_line = nm.start_pos().0;
+    let display = nm.display_context(0);
+    if start_line == self.last_end_line {
+      let last_end_offset = self.last_end_offset;
+      self.last_end_offset = nm.range().end;
+      self.last_trailing = display.trailing;
+      Some(last_end_offset)
+    } else {
+      None
+    }
+  }
+
+  fn conclude_match(&mut self, nm: &NodeMatch<'a, SupportLang>) {
+    let display = nm.display_context(0);
+    self.last_start_line = display.start_line;
+    self.last_end_line = nm.end_pos().0;
+    self.last_trailing = display.trailing;
+    self.last_end_offset = nm.range().end;
+  }
+
+  #[inline]
+  fn check_overlapping(&self, nm: &NodeMatch<'a, SupportLang>) -> bool {
+    let range = nm.range();
+
+    // merge overlapping matches.
+    if range.start <= self.last_end_offset {
+      // guaranteed by pre-order
+      debug_assert!(range.end <= self.last_end_offset);
+      true
+    } else {
+      false
+    }
+  }
+}
+
 fn print_matches_with_heading<'a, W: Write>(
   mut matches: Matches!('a),
   path: &Path,
@@ -182,53 +243,43 @@ fn print_matches_with_heading<'a, W: Write>(
   writer: &mut W,
 ) -> Result<()> {
   print_prelude(path, styles, writer)?;
-  let Some(last_match) = matches.next() else {
+  let Some(first_match) = matches.next() else {
     return Ok(())
   };
-  let source = last_match.ancestors().last().unwrap().text();
-  let display = last_match.display_context(0);
-  let mut last_start_line = display.start_line;
-  let mut last_end_line = last_match.end_pos().0;
-  let mut last_trailing = display.trailing;
-  let mut last_range = last_match.range();
+  let source = first_match.ancestors().last().unwrap().text();
+  let display = first_match.display_context(0);
+
+  let mut merger = MatchMerger::new(&first_match);
   let mut ret = display.leading.to_string();
   ret.push_str(&format!("{}", styles.matched.paint(&*display.matched)));
+
   for nm in matches {
-    let range = nm.range();
-    // merge overlapping matches.
-    if range.start <= last_range.end {
-      // guaranteed by pre-order
-      debug_assert!(range.end <= last_range.end);
+    if merger.check_overlapping(&nm) {
       continue;
     }
-    let start_line = nm.start_pos().0;
     let display = nm.display_context(0);
     // merge adjacent matches
-    if start_line == last_end_line {
-      ret.push_str(&source[last_range.end..nm.range().start]);
+    if let Some(last_end_offset) = merger.merge_adjacent(&nm) {
+      ret.push_str(&source[last_end_offset..nm.range().start]);
       ret.push_str(&format!("{}", styles.matched.paint(&*display.matched)));
-      last_range = nm.range();
-      last_trailing = display.trailing;
       continue;
     }
-    ret.push_str(last_trailing);
+    ret.push_str(merger.last_trailing);
     let lines = ret.lines().count();
-    let width = (lines + last_start_line).to_string().chars().count();
-    let mut num = last_start_line;
+    let mut num = merger.last_start_line;
+    let width = (lines + num).to_string().chars().count();
     write!(writer, "{num:>width$}│")?; // initial line num
     print_highlight(ret.lines(), Style::new(), width, &mut num, writer)?;
     writeln!(writer)?; // end match new line
-    last_start_line = display.start_line;
-    last_trailing = display.trailing;
-    last_end_line = nm.end_pos().0;
-    last_range = nm.range();
+                       //
+    merger.conclude_match(&nm);
     ret = display.leading.to_string();
     ret.push_str(&format!("{}", styles.matched.paint(&*display.matched)));
   }
-  ret.push_str(last_trailing);
+  ret.push_str(merger.last_trailing);
   let lines = ret.lines().count();
-  let mut num = last_start_line;
-  let width = (lines + last_start_line).to_string().chars().count();
+  let mut num = merger.last_start_line;
+  let width = (lines + num).to_string().chars().count();
   write!(writer, "{num:>width$}│")?; // initial line num
   print_highlight(ret.lines(), Style::new(), width, &mut num, writer)?;
   writeln!(writer)?; // end match new line
