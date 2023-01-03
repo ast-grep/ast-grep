@@ -322,6 +322,11 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
     ret = display.leading.to_string();
     ret.push_str(&format!("{}", styles.matched.paint(&*display.matched)));
   }
+  ret.push_str(merger.last_trailing);
+  for (n, line) in ret.lines().enumerate() {
+    let num = merger.last_start_line + n;
+    writeln!(writer, "{path}:{num}:{line}")?;
+  }
   Ok(())
 }
 
@@ -609,9 +614,38 @@ mod test {
     }
   }
 
+  const HEADING_CASES: &[Case] = &[
+    ("let a = 123", "a", "let a = 123", "Simple match"),
+    (
+      "Some(1), Some(2), Some(3)",
+      "Some",
+      "Some(1), Some(2), Some(3)",
+      "Same line match",
+    ),
+    (
+      "Some(1), Some(2)\nSome(3), Some(4)",
+      "Some",
+      "Some(1), Some(2)\nSome(3), Some(4)",
+      "Multiple line match",
+    ),
+  ];
+
   #[test]
-  #[ignore]
-  fn test_print_matches_without_heading() {}
+  fn test_print_matches_without_heading() {
+    for &(source, pattern, expected, note) in HEADING_CASES {
+      let printer = make_test_printer().heading(Heading::Never);
+      let grep = SupportLang::Tsx.ast_grep(source);
+      let matches = grep.root().find_all(pattern);
+      printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+      // append heading to expected
+      let output: String = expected
+        .lines()
+        .enumerate()
+        .map(|(i, e)| format!("test.tsx:{}:{e}\n", i + 1))
+        .collect();
+      assert_eq!(get_text(&printer), output, "{note}");
+    }
+  }
 
   #[test]
   #[ignore]
