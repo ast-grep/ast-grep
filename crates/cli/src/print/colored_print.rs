@@ -379,8 +379,15 @@ fn index_display(index: Option<usize>, style: Style, width: usize) -> impl Displ
 }
 
 fn compupte_header(group: &[DiffOp]) -> String {
-  // TODO
-  String::new()
+  let old_start = group[0].old_range().start;
+  let new_start = group[0].new_range().start;
+  let (old_len, new_len) = group.iter().fold((0, 0), |(o, n), op| {
+    (o + op.old_range().len(), n + op.new_range().len())
+  });
+  format!(
+    "@@ -{},{} +{},{} @@",
+    old_start, old_len, new_start, new_len
+  )
 }
 
 pub fn print_diff(
@@ -390,14 +397,14 @@ pub fn print_diff(
   writer: &mut impl Write,
 ) -> Result<()> {
   let diff = TextDiff::from_lines(old, new);
-  for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
+  for group in diff.grouped_ops(3) {
     let op = group.last().unwrap();
     let old_width = op.old_range().end.to_string().chars().count();
     let new_width = op.new_range().end.to_string().chars().count();
-    let header = compupte_header(group);
+    let header = compupte_header(&group);
     writeln!(writer, "{}", Color::Blue.paint(header))?;
     for op in group {
-      for change in diff.iter_inline_changes(op) {
+      for change in diff.iter_inline_changes(&op) {
         let (sign, s, em) = match change.tag() {
           ChangeTag::Delete => ("-", styles.delete, styles.delete_emphasis),
           ChangeTag::Insert => ("+", styles.insert, styles.insert_emphasis),
