@@ -584,7 +584,8 @@ mod test {
   #[test]
   fn test_print_matches() {
     for &(source, pattern, expected, note) in MATCHES_CASES {
-      let printer = make_test_printer();
+      // heading is required for CI
+      let printer = make_test_printer().heading(Heading::Always);
       let grep = SupportLang::Tsx.ast_grep(source);
       let matches = grep.root().find_all(pattern);
       printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
