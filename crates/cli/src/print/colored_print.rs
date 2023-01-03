@@ -383,6 +383,8 @@ fn index_display(index: Option<usize>, style: Style, width: usize) -> impl Displ
   style.paint(index_str)
 }
 
+// TODO: currently diff print context is three lines before/after the match.
+// This is suboptimal. We should use function/class as the enclosing scope to print relevant lines. See #155
 fn compupte_header(group: &[DiffOp]) -> String {
   let old_start = group[0].old_range().start;
   let new_start = group[0].new_range().start;

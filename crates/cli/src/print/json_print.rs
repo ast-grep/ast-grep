@@ -290,3 +290,10 @@ impl<W: Write> Printer for JSONPrinter<W> {
     println!("]");
   }
 }
+
+#[cfg(test)]
+mod test {
+  #[test]
+  #[ignore]
+  fn test_invariant() {}
+}
