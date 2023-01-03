@@ -287,22 +287,40 @@ fn print_matches_with_heading<'a, W: Write>(
 }
 
 fn print_matches_with_prefix<'a, W: WriteColor>(
-  matches: Matches!('a),
+  mut matches: Matches!('a),
   path: &Path,
   styles: &PrintStyles,
   writer: &mut W,
 ) -> Result<()> {
   let path = path.display();
-  for e in matches {
-    let display = e.display_context(0);
-    let leading = display.leading;
-    let trailing = display.trailing;
-    let matched = styles.matched.paint(display.matched);
-    let highlighted = format!("{leading}{matched}{trailing}");
-    for (n, line) in highlighted.lines().enumerate() {
-      let num = display.start_line + n;
+  let Some(first_match) = matches.next() else {
+    return Ok(())
+  };
+  let source = first_match.ancestors().last().unwrap().text();
+  let display = first_match.display_context(0);
+
+  let mut merger = MatchMerger::new(&first_match);
+  let mut ret = display.leading.to_string();
+  ret.push_str(&format!("{}", styles.matched.paint(&*display.matched)));
+  for nm in matches {
+    if merger.check_overlapping(&nm) {
+      continue;
+    }
+    // merge adjacent matches
+    if let Some(last_end_offset) = merger.merge_adjacent(&nm) {
+      ret.push_str(&source[last_end_offset..nm.range().start]);
+      ret.push_str(&format!("{}", styles.matched.paint(nm.text())));
+      continue;
+    }
+    ret.push_str(merger.last_trailing);
+    for (n, line) in ret.lines().enumerate() {
+      let num = merger.last_start_line + n;
       writeln!(writer, "{path}:{num}:{line}")?;
     }
+    merger.conclude_match(&nm);
+    let display = nm.display_context(0);
+    ret = display.leading.to_string();
+    ret.push_str(&format!("{}", styles.matched.paint(&*display.matched)));
   }
   Ok(())
 }

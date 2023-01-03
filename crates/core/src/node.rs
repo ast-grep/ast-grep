@@ -118,6 +118,7 @@ impl<'r, L: Language> Node<'r, L> {
     self.inner.to_sexp()
   }
 
+  #[doc(hidden)]
   pub fn display_context(&self, context_lines: usize) -> DisplayContext<'r> {
     let bytes = self.root.source.as_bytes();
     let start = self.inner.start_byte() as usize;
@@ -183,6 +184,7 @@ impl<'r, L: Language> Node<'r, L> {
   }
 }
 
+#[doc(hidden)]
 pub struct DisplayContext<'r> {
   /// content for the matched node
   pub matched: Cow<'r, str>,
