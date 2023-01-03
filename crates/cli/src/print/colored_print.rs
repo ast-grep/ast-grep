@@ -10,7 +10,7 @@ use codespan_reporting::diagnostic::{self, Diagnostic, Label};
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream, WriteColor};
 use codespan_reporting::term::{self, DisplayStyle};
 pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
-use similar::{ChangeTag, TextDiff};
+use similar::{ChangeTag, DiffOp, TextDiff};
 
 use std::borrow::Cow;
 use std::fmt::Display;
@@ -326,25 +326,27 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
 }
 
 fn print_diffs<'a, W: WriteColor>(
-  diffs: Diffs!('a),
+  mut diffs: Diffs!('a),
   path: &Path,
   styles: &PrintStyles,
   writer: &mut W,
 ) -> Result<()> {
   print_prelude(path, styles, writer)?;
+  let Some(first_diff) = diffs.next() else {
+    return Ok(());
+  };
+  let range = first_diff.node_match.range();
+  let source = first_diff.node_match.ancestors().last().unwrap().text();
+  let mut start = range.end;
+  let mut new_str = format!("{}{}", &source[..range.start], first_diff.replacement);
   for diff in diffs {
-    let display = diff.node_match.display_context(3);
-    let old_str = format!(
-      "{}{}{}\n",
-      display.leading, display.matched, display.trailing
-    );
-    let new_str = format!(
-      "{}{}{}\n",
-      display.leading, diff.replacement, display.trailing
-    );
-    let base_line = display.start_line;
-    print_diff(&old_str, &new_str, base_line, styles, writer)?;
+    let range = diff.node_match.range();
+    new_str.push_str(&source[start..range.start]);
+    new_str.push_str(&diff.replacement);
+    start = range.end;
   }
+  new_str.push_str(&source[start..]);
+  print_diff(&source, &new_str, styles, writer)?;
   Ok(())
 }
 
@@ -376,19 +378,24 @@ fn index_display(index: Option<usize>, style: Style, width: usize) -> impl Displ
   style.paint(index_str)
 }
 
+fn compupte_header(group: &[DiffOp]) -> String {
+  // TODO
+  String::new()
+}
+
 pub fn print_diff(
   old: &str,
   new: &str,
-  base_line: usize,
   styles: &PrintStyles,
   writer: &mut impl Write,
 ) -> Result<()> {
   let diff = TextDiff::from_lines(old, new);
-  let width = base_line.to_string().chars().count();
-  for (idx, group) in diff.grouped_ops(5).iter().enumerate() {
-    if idx > 0 {
-      writeln!(writer, "{:-^1$}", "-", 80)?;
-    }
+  for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
+    let op = group.last().unwrap();
+    let old_width = op.old_range().end.to_string().chars().count();
+    let new_width = op.new_range().end.to_string().chars().count();
+    let header = compupte_header(group);
+    writeln!(writer, "{}", Color::Blue.paint(header))?;
     for op in group {
       for change in diff.iter_inline_changes(op) {
         let (sign, s, em) = match change.tag() {
@@ -398,9 +405,9 @@ pub fn print_diff(
         };
         write!(
           writer,
-          "{}{}|{}",
-          index_display(change.old_index().map(|i| i + base_line), s, width + 1),
-          index_display(change.new_index().map(|i| i + base_line), s, width),
+          "{} {}│{}",
+          index_display(change.old_index(), s, old_width),
+          index_display(change.new_index(), s, new_width),
           s.paint(sign),
         )?;
         for (emphasized, value) in change.iter_strings_lossy() {
