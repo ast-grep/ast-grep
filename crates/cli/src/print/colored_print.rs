@@ -493,29 +493,41 @@ mod test {
     assert_eq!(get_text(&printer), "");
   }
 
+  // source, pattern, expected, debug note
+  // note, expected does not have heading
+  type Case<'a> = (&'a str, &'a str, &'a str, &'a str);
+
+  const MATCHES_CASES: &[Case] = &[
+    ("let a = 123", "a", "1│let a = 123", "Simple match"),
+    (
+      "Some(1), Some(2), Some(3)",
+      "Some",
+      "1│Some(1), Some(2), Some(3)",
+      "Same line match",
+    ),
+    (
+      "Some(1), Some(2)\nSome(3), Some(4)",
+      "Some",
+      "1│Some(1), Some(2)\n2│Some(3), Some(4)",
+      "Multiple line match",
+    ),
+  ];
   #[test]
   fn test_print_matches() {
-    let printer = make_test_printer();
-    let grep = SupportLang::Tsx.ast_grep("let a = 123");
-    let matches = grep.root().find_all("a");
-    printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
-    let expected = "test.tsx\n1│let a = 123\n";
-    assert_eq!(get_text(&printer), expected);
+    for &(source, pattern, expected, note) in MATCHES_CASES {
+      let printer = make_test_printer();
+      let grep = SupportLang::Tsx.ast_grep(source);
+      let matches = grep.root().find_all(pattern);
+      printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+      // append heading to expected
+      let output = format!("test.tsx\n{expected}\n");
+      assert_eq!(get_text(&printer), output, "{note}");
+    }
   }
 
   #[test]
   #[ignore]
   fn test_print_matches_without_heading() {}
-
-  #[test]
-  fn test_print_matches_on_same_line() {
-    let printer = make_test_printer();
-    let grep = SupportLang::Tsx.ast_grep("Some(1), Some(2), Some(3)");
-    let matches = grep.root().find_all("Some");
-    printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
-    let expected = "test.tsx\n1│Some(1), Some(2), Some(3)\n";
-    assert_eq!(get_text(&printer), expected);
-  }
 
   #[test]
   #[ignore]
