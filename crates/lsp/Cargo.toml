@@ -1,6 +1,6 @@
 [package]
 name = "ast-grep-lsp"
-version = "0.1.13"
+version = "0.1.14"
 authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
 edition = "2021"
 description = "Search and Rewrite code at large scale using precise AST pattern"
@@ -12,8 +12,8 @@ rust-version = "1.63"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ast-grep-core = { version="0.1.13", path = "../core" }
-ast-grep-config = { version="0.1.13", path = "../config" }
+ast-grep-core = { version="0.1.14", path = "../core" }
+ast-grep-config = { version="0.1.14", path = "../config" }
 serde = { version = "1.0", features = ["derive"] }
 tower-lsp = "0.17.0"
 dashmap = "5.4.0"

@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/napi",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "Search and Rewrite code at large scale using precise AST pattern",
   "main": "index.js",
   "repository": "https://github.com/ast-grep/ast-grep",

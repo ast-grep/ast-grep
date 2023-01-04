@@ -487,15 +487,15 @@ mod choose_color {
   /// Returns true if we should attempt to write colored output.
   pub fn should_use_color(color: &ColorChoice) -> bool {
     match *color {
-      ColorChoice::Always => env_allow_ansi(),
+      ColorChoice::Always => env_allow_ansi(color),
       ColorChoice::AlwaysAnsi => true,
       ColorChoice::Never => false,
-      ColorChoice::Auto => env_allows_color(),
+      ColorChoice::Auto => env_allows_color(color),
     }
   }
 
   #[cfg(not(windows))]
-  fn env_allows_color() -> bool {
+  fn env_allows_color(color: &ColorChoice) -> bool {
     match env::var_os("TERM") {
       // If TERM isn't set, then we are in a weird environment that
       // probably doesn't support colors.
@@ -511,11 +511,11 @@ mod choose_color {
     if env::var_os("NO_COLOR").is_some() {
       return false;
     }
-    env_allow_ansi()
+    env_allow_ansi(color)
   }
 
   #[cfg(windows)]
-  fn env_allows_color() -> bool {
+  fn env_allows_color(color: &ColorChoice) -> bool {
     // On Windows, if TERM isn't set, then we shouldn't automatically
     // assume that colors aren't allowed. This is unlike Unix environments
     // where TERM is more rigorously set.
@@ -529,11 +529,11 @@ mod choose_color {
     if env::var_os("NO_COLOR").is_some() {
       return false;
     }
-    env_allow_ansi()
+    env_allow_ansi(color)
   }
 
   #[cfg(not(windows))]
-  fn env_allow_ansi() -> bool {
+  fn env_allow_ansi(_color: &ColorChoice) -> bool {
     true
   }
 
@@ -542,8 +542,8 @@ mod choose_color {
   /// It's possible that ANSI is still the correct choice even if this
   /// returns false.
   #[cfg(windows)]
-  fn env_allow_ansi() -> bool {
-    match *self {
+  fn env_allow_ansi(color: &ColorChoice) -> bool {
+    match *color {
       ColorChoice::Always => false,
       ColorChoice::AlwaysAnsi => true,
       ColorChoice::Never => false,

@@ -1,6 +1,6 @@
 [package]
 name = "ast-grep-napi"
-version = "0.1.13"
+version = "0.1.14"
 authors = ["HerringtonDarkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
 edition = "2018"
 description = "Search and Rewrite code at large scale using precise AST pattern"
@@ -12,8 +12,8 @@ rust-version = "1.63"
 [dependencies]
 napi = { version = "2", features = ["serde-json"] }
 napi-derive = "2"
-ast-grep-core = { version="0.1.13", path = "../core" }
-ast-grep-config = { version="0.1.13", path = "../config" }
+ast-grep-core = { version="0.1.14", path = "../core" }
+ast-grep-config = { version="0.1.14", path = "../config" }
 serde = { version = "1.0", features = ["derive"] }
 tree-sitter-typescript="0.20.1"
 tree-sitter-html = "0.19.0"
