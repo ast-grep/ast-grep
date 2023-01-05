@@ -97,76 +97,50 @@ impl FromStr for SupportLang {
   }
 }
 
+#[macro_export]
+macro_rules! execute_lang_method {
+  ($me: expr, $method: ident, $($pname:tt),*) => {
+    use SupportLang as S;
+    match $me {
+      S::C => C.$method($($pname,)*),
+      S::CSharp => CSharp.$method($($pname,)*),
+      S::Go => Go.$method($($pname,)*),
+      S::Html => Html.$method($($pname,)*),
+      S::Java => Java.$method($($pname,)*),
+      S::JavaScript => JavaScript.$method($($pname,)*),
+      S::Kotlin => Kotlin.$method($($pname,)*),
+      S::Lua => Lua.$method($($pname,)*),
+      S::Python => Python.$method($($pname,)*),
+      S::Rust => Rust.$method($($pname,)*),
+      S::Swift => Swift.$method($($pname,)*),
+      S::Tsx => Tsx.$method($($pname,)*),
+      S::TypeScript => TypeScript.$method($($pname,)*),
+    }
+  }
+}
+
+#[macro_export]
 macro_rules! impl_lang_method {
-  ($method: ident, $return_type: ty) => {
+  ($method: ident, ($($pname:tt: $ptype:ty),*) => $return_type: ty) => {
     #[inline]
-    fn $method(&self) -> $return_type {
-      use SupportLang as S;
-      match self {
-        S::C => C.$method(),
-        S::CSharp => CSharp.$method(),
-        S::Go => Go.$method(),
-        S::Html => Html.$method(),
-        S::Java => Java.$method(),
-        S::JavaScript => JavaScript.$method(),
-        S::Kotlin => Kotlin.$method(),
-        S::Lua => Lua.$method(),
-        S::Python => Python.$method(),
-        S::Rust => Rust.$method(),
-        S::Swift => Swift.$method(),
-        S::Tsx => Tsx.$method(),
-        S::TypeScript => TypeScript.$method(),
-      }
+    fn $method(&self, $($pname: $ptype),*) -> $return_type {
+      execute_lang_method!{ self, $method, $($pname),* }
     }
   };
 }
 
-// TODO: optimize this using macro
 impl Language for SupportLang {
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     from_extension(path.as_ref())
   }
 
-  impl_lang_method!(get_ts_language, TSLanguage);
-  impl_lang_method!(meta_var_char, char);
-  impl_lang_method!(expando_char, char);
-
-  fn extract_meta_var(&self, source: &str) -> Option<MetaVariable> {
-    use SupportLang as S;
-    match self {
-      S::C => C.extract_meta_var(source),
-      S::CSharp => CSharp.extract_meta_var(source),
-      S::Go => Go.extract_meta_var(source),
-      S::Html => Html.extract_meta_var(source),
-      S::Java => Java.extract_meta_var(source),
-      S::JavaScript => JavaScript.extract_meta_var(source),
-      S::Kotlin => Kotlin.extract_meta_var(source),
-      S::Lua => Lua.extract_meta_var(source),
-      S::Python => Python.extract_meta_var(source),
-      S::Rust => Rust.extract_meta_var(source),
-      S::Swift => Swift.extract_meta_var(source),
-      S::Tsx => Tsx.extract_meta_var(source),
-      S::TypeScript => TypeScript.extract_meta_var(source),
-    }
-  }
+  impl_lang_method!(get_ts_language, () => TSLanguage);
+  impl_lang_method!(meta_var_char, () => char);
+  impl_lang_method!(expando_char, () => char);
+  impl_lang_method!(extract_meta_var, (source: &str) => Option<MetaVariable>);
 
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
-    use SupportLang as S;
-    match self {
-      S::C => C.pre_process_pattern(query),
-      S::CSharp => CSharp.pre_process_pattern(query),
-      S::Go => Go.pre_process_pattern(query),
-      S::Html => Html.pre_process_pattern(query),
-      S::Java => Java.pre_process_pattern(query),
-      S::JavaScript => JavaScript.pre_process_pattern(query),
-      S::Kotlin => Kotlin.pre_process_pattern(query),
-      S::Lua => Lua.pre_process_pattern(query),
-      S::Python => Python.pre_process_pattern(query),
-      S::Rust => Rust.pre_process_pattern(query),
-      S::Swift => Swift.pre_process_pattern(query),
-      S::Tsx => Tsx.pre_process_pattern(query),
-      S::TypeScript => TypeScript.pre_process_pattern(query),
-    }
+    execute_lang_method! { self, pre_process_pattern, query }
   }
 }
 
