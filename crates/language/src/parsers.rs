@@ -10,11 +10,17 @@ mod parser_implmentation {
   pub fn language_c() -> TSLanguage {
     tree_sitter_c::language().into()
   }
+  pub fn language_c_sharp() -> TSLanguage {
+    tree_sitter_c_sharp::language().into()
+  }
   pub fn language_go() -> TSLanguage {
     tree_sitter_go::language().into()
   }
   pub fn language_html() -> TSLanguage {
     tree_sitter_html::language().into()
+  }
+  pub fn language_java() -> TSLanguage {
+    tree_sitter_java::language().into()
   }
   pub fn language_javascript() -> TSLanguage {
     tree_sitter_javascript::language().into()
@@ -22,11 +28,8 @@ mod parser_implmentation {
   pub fn language_kotlin() -> TSLanguage {
     tree_sitter_kotlin::language().into()
   }
-  pub fn language_java() -> TSLanguage {
-    tree_sitter_java::language().into()
-  }
-  pub fn language_c_sharp() -> TSLanguage {
-    tree_sitter_c_sharp::language().into()
+  pub fn language_lua() -> TSLanguage {
+    tree_sitter_lua::language().into()
   }
   pub fn language_python() -> TSLanguage {
     tree_sitter_python::language().into()
@@ -34,17 +37,14 @@ mod parser_implmentation {
   pub fn language_rust() -> TSLanguage {
     tree_sitter_rust::language().into()
   }
-  pub fn language_lua() -> TSLanguage {
-    tree_sitter_lua::language().into()
-  }
   pub fn language_swift() -> TSLanguage {
     tree_sitter_swift::language().into()
   }
-  pub fn language_typescript() -> TSLanguage {
-    tree_sitter_typescript::language_typescript().into()
-  }
   pub fn language_tsx() -> TSLanguage {
     tree_sitter_typescript::language_tsx().into()
+  }
+  pub fn language_typescript() -> TSLanguage {
+    tree_sitter_typescript::language_typescript().into()
   }
 }
 
@@ -69,17 +69,18 @@ mod parser_implmentation {
 
   impl_parsers!(
     language_c,
+    language_c_sharp,
     language_go,
     language_html,
+    language_java,
     language_javascript,
     language_kotlin,
     language_lua,
+    language_python,
+    language_rust,
     language_swift,
     language_tsx,
     language_typescript,
-    language_c_sharp,
-    language_python,
-    language_rust,
   );
 }
 
