@@ -1,13 +1,13 @@
+use crate::parsers::language_c_sharp;
 use ast_grep_core::language::{Language, TSLanguage};
 use std::borrow::Cow;
-use tree_sitter_c_sharp::language as language_c_sharp;
 
 // impl_lang!(CSharp, language_c_sharp);
 #[derive(Clone, Copy)]
 pub struct CSharp;
 impl Language for CSharp {
   fn get_ts_language(&self) -> TSLanguage {
-    TSLanguage::from(language_c_sharp())
+    language_c_sharp()
   }
   // https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/lexical-structure#643-identifiers
   // all letter number is accepted

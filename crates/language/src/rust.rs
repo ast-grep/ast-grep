@@ -1,13 +1,13 @@
+use crate::parsers::language_rust;
 use ast_grep_core::language::{Language, TSLanguage};
 use std::borrow::Cow;
-use tree_sitter_rust::language as language_rust;
 
 // impl_lang!(Rust, language_rust);
 #[derive(Clone, Copy)]
 pub struct Rust;
 impl Language for Rust {
   fn get_ts_language(&self) -> TSLanguage {
-    language_rust().into()
+    language_rust()
   }
   // we can use any char in unicode range [:XID_Start:]
   // https://doc.rust-lang.org/reference/identifiers.html

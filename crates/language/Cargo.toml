@@ -16,15 +16,32 @@ ast-grep-core = { version="0.1.14", path = "../core" }
 ignore = "0.4.18"
 serde = { version = "1.0", features = ["derive"] }
 
-tree-sitter-c = "0.20.2"
-tree-sitter-go = "0.19.1"
-tree-sitter-html = "0.19.0"
-tree-sitter-java = "0.20.0"
-tree-sitter-javascript = "0.20.0"
-tree-sitter-kotlin = "0.2.11"
-tree-sitter-lua = "0.0.14"
-tree-sitter-python = "0.20.2"
-tree-sitter-rust = "0.20.3"
-tree-sitter-swift = "0.3.4"
-tree-sitter-typescript="0.20.1"
-tree-sitter-c-sharp = { version = "0.20.0", package = "ast-grep-tree-sitter-c-sharp" }
+tree-sitter-c = { version = "0.20.2", optional = true }
+tree-sitter-go = { version = "0.19.1", optional = true }
+tree-sitter-html = { version = "0.19.0", optional = true }
+tree-sitter-java = { version = "0.20.0", optional = true }
+tree-sitter-javascript = { version = "0.20.0", optional = true }
+tree-sitter-kotlin = { version = "0.2.11", optional = true }
+tree-sitter-lua = { version = "0.0.14", optional = true }
+tree-sitter-python = { versoin = "0.20.2", optional = true }
+tree-sitter-rust = { versoin = "0.20.3", optional = true }
+tree-sitter-swift = { versoin = "0.3.4", optional = true }
+tree-sitter-typescript= { versoin = "0.20.1", optional = true }
+tree-sitter-c-sharp = { version = "0.20.0", package = "ast-grep-tree-sitter-c-sharp", optional = true }
+
+[features]
+builtin-parser = [
+  "tree-sitter-c",
+  "tree-sitter-go",
+  "tree-sitter-html",
+  "tree-sitter-java",
+  "tree-sitter-javascript",
+  "tree-sitter-kotlin",
+  "tree-sitter-lua",
+  "tree-sitter-python",
+  "tree-sitter-rust",
+  "tree-sitter-swift",
+  "tree-sitter-typescript",
+  "tree-sitter-c-sharp",
+]
+default = ["builtin-parser"]

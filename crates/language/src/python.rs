@@ -1,13 +1,13 @@
+use crate::parsers::language_python;
 use ast_grep_core::language::{Language, TSLanguage};
 use std::borrow::Cow;
-use tree_sitter_python::language as language_python;
 
 // impl_lang!(Python, language_python);
 #[derive(Clone, Copy)]
 pub struct Python;
 impl Language for Python {
   fn get_ts_language(&self) -> TSLanguage {
-    TSLanguage::from(language_python())
+    language_python()
   }
   // we can use any char in unicode range [:XID_Start:]
   // https://docs.python.org/3/reference/lexical_analysis.html#identifiers

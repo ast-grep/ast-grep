@@ -1,18 +1,10 @@
 mod csharp;
+mod parsers;
 mod python;
 mod rust;
 use ignore::types::{Types, TypesBuilder};
 use std::borrow::Cow;
 use std::path::Path;
-
-use tree_sitter_c::language as language_c;
-use tree_sitter_go::language as language_go;
-use tree_sitter_html::language as language_html;
-use tree_sitter_javascript::language as language_javascript;
-use tree_sitter_kotlin::language as language_kotlin;
-use tree_sitter_lua::language as language_lua;
-use tree_sitter_swift::language as language_swift;
-use tree_sitter_typescript::{language_tsx, language_typescript};
 
 pub use csharp::CSharp;
 pub use python::Python;
@@ -24,7 +16,7 @@ macro_rules! impl_lang {
     pub struct $lang;
     impl Language for $lang {
       fn get_ts_language(&self) -> TSLanguage {
-        $func().into()
+        parsers::$func().into()
       }
     }
   };
@@ -33,6 +25,7 @@ macro_rules! impl_lang {
 impl_lang!(C, language_c);
 impl_lang!(Go, language_go);
 impl_lang!(Html, language_html);
+impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
 impl_lang!(Kotlin, language_kotlin);
 impl_lang!(Lua, language_lua);
@@ -54,6 +47,7 @@ pub enum SupportLang {
   CSharp,
   Go,
   Html,
+  Java,
   JavaScript,
   Kotlin,
   Lua,
@@ -89,6 +83,7 @@ impl FromStr for SupportLang {
       "cs" | "csharp" => Ok(CSharp),
       "go" | "golang" => Ok(Go),
       "html" => Ok(Html),
+      "java" => Ok(Java),
       "js" | "jsx" => Ok(JavaScript),
       "kt" | "ktm" | "kts" => Ok(Kotlin),
       "lua" => Ok(Lua),
@@ -112,6 +107,7 @@ macro_rules! impl_lang_method {
         S::CSharp => CSharp.$method(),
         S::Go => Go.$method(),
         S::Html => Html.$method(),
+        S::Java => Java.$method(),
         S::JavaScript => JavaScript.$method(),
         S::Kotlin => Kotlin.$method(),
         S::Lua => Lua.$method(),
@@ -142,6 +138,7 @@ impl Language for SupportLang {
       S::CSharp => CSharp.extract_meta_var(source),
       S::Go => Go.extract_meta_var(source),
       S::Html => Html.extract_meta_var(source),
+      S::Java => Java.extract_meta_var(source),
       S::JavaScript => JavaScript.extract_meta_var(source),
       S::Kotlin => Kotlin.extract_meta_var(source),
       S::Lua => Lua.extract_meta_var(source),
@@ -160,6 +157,7 @@ impl Language for SupportLang {
       S::CSharp => CSharp.pre_process_pattern(query),
       S::Go => Go.pre_process_pattern(query),
       S::Html => Html.pre_process_pattern(query),
+      S::Java => Java.pre_process_pattern(query),
       S::JavaScript => JavaScript.pre_process_pattern(query),
       S::Kotlin => Kotlin.pre_process_pattern(query),
       S::Lua => Lua.pre_process_pattern(query),
@@ -181,6 +179,7 @@ pub fn from_extension(path: &Path) -> Option<SupportLang> {
     "cs" => Some(CSharp),
     "go" => Some(Go),
     "html" | "htm" | "xhtml" => Some(Html),
+    "java" => Some(Java),
     "cjs" | "js" | "mjs" | "jsx" => Some(JavaScript),
     "kt" | "ktm" | "kts" => Some(Kotlin),
     "lua" => Some(Lua),
@@ -215,6 +214,7 @@ pub fn file_types(lang: &SupportLang) -> Types {
     L::CSharp => builder.select("csharp"),
     L::Go => builder.select("go"),
     L::Html => builder.select("html"),
+    L::Java => builder.select("java"),
     L::JavaScript => {
       add_custom_file_type(&mut builder, "myjs", &["*.js", "*.cjs", "*.jsx", "*.mjs"])
     }
