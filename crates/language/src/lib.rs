@@ -97,9 +97,8 @@ impl FromStr for SupportLang {
   }
 }
 
-#[macro_export]
 macro_rules! execute_lang_method {
-  ($me: expr, $method: ident, $($pname:tt),*) => {
+  ($me: path, $method: ident, $($pname:tt),*) => {
     use SupportLang as S;
     match $me {
       S::C => C.$method($($pname,)*),
@@ -119,7 +118,6 @@ macro_rules! execute_lang_method {
   }
 }
 
-#[macro_export]
 macro_rules! impl_lang_method {
   ($method: ident, ($($pname:tt: $ptype:ty),*) => $return_type: ty) => {
     #[inline]
