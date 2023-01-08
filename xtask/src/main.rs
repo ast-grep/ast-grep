@@ -5,9 +5,9 @@ use std::process::{Command, Stdio};
 fn main() -> Result<()> {
   let version = get_new_version()?;
   check_git_status()?;
-  update_npm(&version)?;
-  update_napi(&version)?;
-  update_crates(&version)?;
+  bump_version(&version)?;
+  commit_and_tag(&version)?;
+  update_and_commit_changelog(&version)?;
   Ok(())
 }
 
@@ -30,6 +30,13 @@ fn check_git_status() -> Result<()> {
   }
 }
 
+fn bump_version(version: &str) -> Result<()> {
+  update_npm(&version)?;
+  update_napi(&version)?;
+  update_crates(&version)?;
+  Ok(())
+}
+
 fn update_npm(version: &str) -> Result<()> {
   Ok(())
 }
@@ -39,5 +46,13 @@ fn update_napi(version: &str) -> Result<()> {
 }
 
 fn update_crates(version: &str) -> Result<()> {
+  Ok(())
+}
+
+fn commit_and_tag(version: &str) -> Result<()> {
+  Ok(())
+}
+
+fn update_and_commit_changelog(version: &str) -> Result<()> {
   Ok(())
 }
