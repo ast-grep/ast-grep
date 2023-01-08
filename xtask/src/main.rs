@@ -1,5 +1,7 @@
 use anyhow::{bail, Context, Result};
+use serde_json::{from_str as parse_json, to_string_pretty, Value as JSON};
 use std::env::args;
+use std::fs::{self, read_dir, read_to_string};
 use std::process::{Command, Stdio};
 
 fn main() -> Result<()> {
@@ -38,6 +40,26 @@ fn bump_version(version: &str) -> Result<()> {
 }
 
 fn update_npm(version: &str) -> Result<()> {
+  let root_json = read_to_string("npm/package.json")?;
+  let mut root_json: JSON = parse_json(&root_json)?;
+  root_json["version"] = version.into();
+  let deps = root_json["optionalDependencies"]
+    .as_object_mut()
+    .context("parse json error")?;
+  for val in deps.values_mut() {
+    *val = version.into();
+  }
+  fs::write("npm/package.json", to_string_pretty(&root_json)?)?;
+  for entry in read_dir("npm/platforms")? {
+    let path = entry?.path();
+    if !path.is_dir() {
+      continue;
+    }
+    let path = path.join("package.json");
+    let mut json: JSON = parse_json(&read_to_string(&path)?)?;
+    json["version"] = version.into();
+    fs::write(&path, to_string_pretty(&json)?)?;
+  }
   Ok(())
 }
 
