@@ -45,7 +45,7 @@ impl<L: Language> Root<L> {
   }
 }
 
-// the lifetime r represents root
+/// 'r represents root lifetime
 #[derive(Clone)]
 pub struct Node<'r, L: Language> {
   pub(crate) inner: tree_sitter::Node<'r>,
@@ -81,7 +81,7 @@ impl<'tree, L: Language> ExactSizeIterator for NodeWalker<'tree, L> {
   }
 }
 
-// internal API
+/// APIs for Node inspection
 impl<'r, L: Language> Node<'r, L> {
   pub fn is_leaf(&self) -> bool {
     self.inner.child_count() == 0
@@ -97,23 +97,36 @@ impl<'r, L: Language> Node<'r, L> {
     self.inner.is_named()
   }
 
+  /// the underlying tree-sitter Node
+  pub fn get_ts_node(&self) -> tree_sitter::Node {
+    self.inner.clone()
+  }
+
+  /// byte offsets of start and end.
   pub fn range(&self) -> std::ops::Range<usize> {
     (self.inner.start_byte() as usize)..(self.inner.end_byte() as usize)
   }
+
+  /// Nodes' start position in terms of zero-based rows and columns.
   pub fn start_pos(&self) -> (usize, usize) {
     let pos = self.inner.start_position();
     (pos.row() as usize, pos.column() as usize)
   }
+
+  /// Nodes' end position in terms of rows and columns.
   pub fn end_pos(&self) -> (usize, usize) {
     let pos = self.inner.end_position();
     (pos.row() as usize, pos.column() as usize)
   }
+
   pub fn text(&self) -> Cow<'r, str> {
     self
       .inner
       .utf8_text(self.root.source.as_bytes())
       .expect("invalid source text encoding")
   }
+
+  /// Node's tree structure dumped in Lisp like S-experssion
   pub fn to_sexp(&self) -> Cow<'_, str> {
     self.inner.to_sexp()
   }
