@@ -11,7 +11,7 @@ fn main() -> Result<()> {
   check_git_status()?;
   bump_version(&version)?;
   commit_and_tag(&version)?;
-  update_and_commit_changelog(&version)?;
+  update_and_commit_changelog()?;
   Ok(())
 }
 
@@ -141,6 +141,10 @@ fn commit_and_tag(version: &str) -> Result<()> {
   Ok(())
 }
 
-fn update_and_commit_changelog(version: &str) -> Result<()> {
+fn update_and_commit_changelog() -> Result<()> {
+  Command::new("auto-changelog")
+    .spawn()
+    .context("cannot run command `auto-changelog`. Please install it.")?
+    .wait()?;
   Ok(())
 }
