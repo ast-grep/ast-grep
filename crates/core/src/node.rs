@@ -98,7 +98,7 @@ impl<'r, L: Language> Node<'r, L> {
   }
 
   /// the underlying tree-sitter Node
-  pub fn get_ts_node(&self) -> tree_sitter::Node {
+  pub fn get_ts_node(&self) -> tree_sitter::Node<'r> {
     self.inner.clone()
   }
 
