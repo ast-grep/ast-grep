@@ -2,6 +2,7 @@ use anyhow::{bail, Context, Result};
 use serde_json::{from_str as parse_json, to_string_pretty, Value as JSON};
 use std::env::args;
 use std::fs::{self, read_dir, read_to_string};
+use std::path::Path;
 use std::process::{Command, Stdio};
 
 fn main() -> Result<()> {
@@ -40,7 +41,8 @@ fn bump_version(version: &str) -> Result<()> {
 }
 
 fn update_npm(version: &str) -> Result<()> {
-  let root_json = read_to_string("npm/package.json")?;
+  let npm_path = "npm/package.json";
+  let root_json = read_to_string(npm_path)?;
   let mut root_json: JSON = parse_json(&root_json)?;
   root_json["version"] = version.into();
   let deps = root_json["optionalDependencies"]
@@ -49,21 +51,37 @@ fn update_npm(version: &str) -> Result<()> {
   for val in deps.values_mut() {
     *val = version.into();
   }
-  fs::write("npm/package.json", to_string_pretty(&root_json)?)?;
+  fs::write(npm_path, to_string_pretty(&root_json)?)?;
   for entry in read_dir("npm/platforms")? {
     let path = entry?.path();
     if !path.is_dir() {
       continue;
     }
     let path = path.join("package.json");
-    let mut json: JSON = parse_json(&read_to_string(&path)?)?;
-    json["version"] = version.into();
-    fs::write(&path, to_string_pretty(&json)?)?;
+    update_json_version(path, version)?;
   }
   Ok(())
 }
 
+fn update_json_version<P: AsRef<Path>>(path: P, version: &str) -> Result<()> {
+  let json_str = read_to_string(&path)?;
+  let mut json: JSON = parse_json(&json_str)?;
+  json["version"] = version.into();
+  fs::write(path, to_string_pretty(&json)?)?;
+  Ok(())
+}
+
 fn update_napi(version: &str) -> Result<()> {
+  let napi_path = "crates/napi/package.json";
+  update_json_version(napi_path, version)?;
+  for entry in read_dir("crates/napi/npm")? {
+    let path = entry?.path();
+    if !path.is_dir() {
+      continue;
+    }
+    let path = path.join("package.json");
+    update_json_version(path, version)?;
+  }
   Ok(())
 }
 
