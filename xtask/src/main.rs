@@ -4,6 +4,7 @@ use std::env::args;
 use std::fs::{self, read_dir, read_to_string};
 use std::path::Path;
 use std::process::{Command, Stdio};
+use toml_edit::{value as to_toml, Document};
 
 fn main() -> Result<()> {
   let version = get_new_version()?;
@@ -58,12 +59,12 @@ fn update_npm(version: &str) -> Result<()> {
       continue;
     }
     let path = path.join("package.json");
-    update_json_version(path, version)?;
+    edit_json(path, version)?;
   }
   Ok(())
 }
 
-fn update_json_version<P: AsRef<Path>>(path: P, version: &str) -> Result<()> {
+fn edit_json<P: AsRef<Path>>(path: P, version: &str) -> Result<()> {
   let json_str = read_to_string(&path)?;
   let mut json: JSON = parse_json(&json_str)?;
   json["version"] = version.into();
@@ -73,19 +74,49 @@ fn update_json_version<P: AsRef<Path>>(path: P, version: &str) -> Result<()> {
 
 fn update_napi(version: &str) -> Result<()> {
   let napi_path = "crates/napi/package.json";
-  update_json_version(napi_path, version)?;
+  edit_json(napi_path, version)?;
   for entry in read_dir("crates/napi/npm")? {
     let path = entry?.path();
     if !path.is_dir() {
       continue;
     }
     let path = path.join("package.json");
-    update_json_version(path, version)?;
+    edit_json(path, version)?;
   }
   Ok(())
 }
 
+fn edit_toml<P: AsRef<Path>>(path: P, version: &str) -> Result<()> {
+  let mut toml: Document = read_to_string(&path)?.parse()?;
+  toml["package"]["version"] = to_toml(version);
+  let deps = toml["dependencies"]
+    .as_table_mut()
+    .context("dep should be table")?;
+  for (key, value) in deps.iter_mut() {
+    if !key.starts_with("ast-grep-") {
+      continue;
+    }
+    if value.is_str() {
+      *value = to_toml(version);
+      continue;
+    }
+    if let Some(inline) = value.as_inline_table_mut() {
+      inline["version"] = version.into();
+    }
+  }
+  fs::write(path, toml.to_string())?;
+  Ok(())
+}
+
 fn update_crates(version: &str) -> Result<()> {
+  for entry in read_dir("crates")? {
+    let path = entry?.path();
+    if !path.is_dir() {
+      continue;
+    }
+    let toml_path = path.join("Cargo.toml");
+    edit_toml(toml_path, version)?;
+  }
   Ok(())
 }
 
