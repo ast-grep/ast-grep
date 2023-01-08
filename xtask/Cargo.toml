@@ -6,3 +6,4 @@ version = "0.0.0"
 authors = ["Herrington Darkholme"]
 
 [dependencies]
+anyhow = "1.0"

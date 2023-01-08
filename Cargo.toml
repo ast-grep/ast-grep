@@ -3,3 +3,4 @@ members = [
   "crates/*",
   "xtask"
 ]
+default-members = ["crates/*"]
