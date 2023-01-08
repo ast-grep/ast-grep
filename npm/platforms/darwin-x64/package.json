@@ -1,15 +1,23 @@
 {
   "name": "@ast-grep/cli-darwin-x64",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "os": [
     "darwin"
   ],
   "cpu": [
     "x64"
   ],
-  "files": [ "sg" ],
+  "files": [
+    "sg"
+  ],
   "description": "Search and Rewrite code at large scale using precise AST pattern",
-  "keywords": ["ast", "pattern", "codemod", "search", "rewrite"],
+  "keywords": [
+    "ast",
+    "pattern",
+    "codemod",
+    "search",
+    "rewrite"
+  ],
   "license": "MIT",
   "engines": {
     "node": ">= 10"

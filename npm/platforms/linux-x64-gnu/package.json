@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/cli-linux-x64-gnu",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "os": [
     "linux"
   ],
@@ -10,9 +10,17 @@
   "libc": [
     "glibc"
   ],
-  "files": [ "sg" ],
+  "files": [
+    "sg"
+  ],
   "description": "Search and Rewrite code at large scale using precise AST pattern",
-  "keywords": ["ast", "pattern", "codemod", "search", "rewrite"],
+  "keywords": [
+    "ast",
+    "pattern",
+    "codemod",
+    "search",
+    "rewrite"
+  ],
   "license": "MIT",
   "engines": {
     "node": ">= 10"
