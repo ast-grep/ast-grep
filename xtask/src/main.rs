@@ -121,6 +121,23 @@ fn update_crates(version: &str) -> Result<()> {
 }
 
 fn commit_and_tag(version: &str) -> Result<()> {
+  let commit = Command::new("git")
+    .arg("commit")
+    .arg("-am")
+    .arg(format!("{} bump version", version))
+    .spawn()?
+    .wait()?;
+  if !commit.success() {
+    bail!("commit failed");
+  }
+  let tag = Command::new("git")
+    .arg("tag")
+    .arg(version)
+    .spawn()?
+    .wait()?;
+  if !tag.success() {
+    bail!("create tag failed");
+  }
   Ok(())
 }
 
