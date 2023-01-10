@@ -37,11 +37,28 @@ impl<L: Language> Root<L> {
     Ok(())
   }
 
+  /// The root node represents the entire source
   pub fn root(&self) -> Node<L> {
     Node {
       inner: self.inner.root_node(),
       root: self,
     }
+  }
+
+  /// Adopt the tree_sitter as the descendant of the root and return the wrapped sg Node.
+  /// It assumes `inner` is the under the root and will panic at dev build if wrong node is used.
+  pub fn adopt<'r>(&'r self, inner: tree_sitter::Node<'r>) -> Node<'r, L> {
+    debug_assert_eq!(
+      {
+        let mut node = inner.clone();
+        while let Some(n) = node.parent() {
+          node = n;
+        }
+        node
+      },
+      self.inner.root_node()
+    );
+    Node { inner, root: self }
   }
 }
 

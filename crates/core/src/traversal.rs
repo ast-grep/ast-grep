@@ -222,10 +222,7 @@ impl<'tree, L: Language> Iterator for Pre<'tree, L> {
     let start = self.start_id?;
     let cursor = &mut self.cursor;
     let inner = cursor.node(); // get current node
-    let ret = Some(Node {
-      inner,
-      root: self.root,
-    });
+    let ret = Some(self.root.adopt(inner));
     // try going to children first
     if self.step_down() {
       return ret;
@@ -302,10 +299,7 @@ impl<'tree, L: Language> Iterator for Post<'tree, L> {
     // start_id will always be Some until the dfs terminates
     let start = self.start_id?;
     let cursor = &mut self.cursor;
-    let node = Node {
-      inner: cursor.node(),
-      root: self.root,
-    };
+    let node = self.root.adopt(cursor.node());
     // return to start
     if node.inner.id() == start {
       self.start_id = None
@@ -386,10 +380,7 @@ impl<'tree, L: Language> Iterator for Level<'tree, L> {
     let inner = self.deque.pop_front()?;
     let children = inner.children(&mut self.cursor);
     self.deque.extend(children);
-    Some(Node {
-      inner,
-      root: self.root,
-    })
+    Some(self.root.adopt(inner))
   }
 }
 impl<'tree, L: Language> FusedIterator for Level<'tree, L> {}
