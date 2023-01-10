@@ -86,7 +86,7 @@ impl<L: Language> Matcher<L> for str {
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
-    let pattern = Pattern::new(self, node.root.lang.clone());
+    let pattern = Pattern::new(self, node.lang().clone());
     pattern.match_node_with_env(node, env)
   }
 
