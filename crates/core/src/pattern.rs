@@ -2,13 +2,12 @@ use crate::language::Language;
 use crate::match_tree::{extract_var_from_node, match_end_non_recursive, match_node_non_recursive};
 use crate::matcher::{KindMatcher, Matcher};
 use crate::{meta_var::MetaVarEnv, Node, Root};
-use std::sync::Arc;
 
 use bit_set::BitSet;
 
 #[derive(Clone)]
 pub struct Pattern<L: Language> {
-  pub root: Arc<Root<L>>,
+  pub root: Root<L>,
   /// used in contextual pattern, specify which AST subpart is considered as pattern
   /// e.g. in js`class { $F }` we set selector to public_field_definition
   selector: Option<KindMatcher<L>>,
@@ -23,7 +22,7 @@ impl<L: Language> Pattern<L> {
       todo!("multi-children pattern is not supported yet.")
     }
     Self {
-      root: Arc::new(root),
+      root,
       selector: None,
     }
   }
@@ -40,7 +39,7 @@ impl<L: Language> Pattern<L> {
       todo!("use result to indicate failure");
     }
     Self {
-      root: Arc::new(root),
+      root,
       selector: Some(kind_matcher),
     }
   }

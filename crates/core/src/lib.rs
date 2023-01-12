@@ -22,6 +22,7 @@ use language::Language;
 use node::Root;
 use ts_parser::{Edit, TSParseError};
 
+#[derive(Clone)]
 pub struct AstGrep<L: Language> {
   inner: Root<L>,
 }

@@ -9,6 +9,7 @@ use std::borrow::Cow;
 
 /// Represents [`tree_sitter::Tree`] and owns source string
 /// Note: Root is generic against [`Language`](crate::language::Language)
+#[derive(Clone)]
 pub struct Root<L: Language> {
   pub(crate) inner: tree_sitter::Tree,
   pub(crate) source: Source,
