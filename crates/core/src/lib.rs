@@ -6,6 +6,7 @@ mod node;
 pub mod ops;
 mod pattern;
 mod replacer;
+mod source;
 pub mod traversal;
 mod ts_parser;
 
@@ -21,7 +22,6 @@ use language::Language;
 use node::Root;
 use ts_parser::{Edit, TSParseError};
 
-#[derive(Clone)]
 pub struct AstGrep<L: Language> {
   inner: Root<L>,
 }
@@ -64,7 +64,7 @@ impl<L: Language> AstGrep<L> {
   }
 
   pub fn generate(self) -> String {
-    self.inner.source
+    self.inner.source.to_string()
   }
 }
 

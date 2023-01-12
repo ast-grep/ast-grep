@@ -14,7 +14,6 @@ pub use tower_lsp::{LspService, Server};
 pub trait LSPLang: Language + Eq + Send + Sync + 'static {}
 impl<T> LSPLang for T where T: Language + Eq + Send + Sync + 'static {}
 
-#[derive(Clone)]
 struct VersionedAst<L: Language> {
   version: i32,
   root: AstGrep<L>,
@@ -223,7 +222,7 @@ impl<L: LSPLang> Backend<L> {
   }
   async fn on_open(&self, params: DidOpenTextDocumentParams) -> Option<()> {
     let text_doc = params.text_document;
-    let uri = text_doc.uri.as_str();
+    let uri = text_doc.uri.as_str().to_owned();
     let text = text_doc.text;
     let lang = Self::infer_lang_from_uri(&text_doc.uri)?;
     let root = AstGrep::new(text, lang);
@@ -231,9 +230,8 @@ impl<L: LSPLang> Backend<L> {
       version: text_doc.version,
       root,
     };
-    let copied = versioned.clone();
+    self.publish_diagnostics(text_doc.uri, &versioned).await;
     self.map.insert(uri.to_owned(), versioned); // don't lock dashmap
-    self.publish_diagnostics(text_doc.uri, &copied).await;
     Some(())
   }
   async fn on_change(&self, params: DidChangeTextDocumentParams) -> Option<()> {
@@ -251,9 +249,7 @@ impl<L: LSPLang> Backend<L> {
       version: text_doc.version,
       root,
     };
-    let copied = versioned.clone();
-    drop(versioned); // don't lock dashmap
-    self.publish_diagnostics(text_doc.uri, &copied).await;
+    self.publish_diagnostics(text_doc.uri, &versioned).await;
     Some(())
   }
   async fn on_close(&self, params: DidCloseTextDocumentParams) {
