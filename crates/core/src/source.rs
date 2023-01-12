@@ -17,6 +17,12 @@ impl From<&str> for Source {
   }
 }
 
+impl Clone for Source {
+  fn clone(&self) -> Self {
+    todo!()
+  }
+}
+
 impl Deref for Source {
   type Target = str;
   fn deref(&self) -> &Self::Target {
