@@ -268,7 +268,7 @@ mod test {
       inner: goal.root_node().child(0).unwrap(),
       root: &Root {
         inner: goal.clone(),
-        source: s1.to_string(),
+        source: s1.into(),
         lang: Tsx,
       },
     };
@@ -277,7 +277,7 @@ mod test {
       inner: cand.root_node(),
       root: &Root {
         inner: cand.clone(),
-        source: s2.to_string(),
+        source: s2.into(),
         lang: Tsx,
       },
     };
@@ -298,7 +298,7 @@ mod test {
       inner: goal.root_node().child(0).unwrap(),
       root: &Root {
         inner: goal.clone(),
-        source: s1.to_string(),
+        source: s1.into(),
         lang: Tsx,
       },
     };
@@ -307,7 +307,7 @@ mod test {
       inner: cand.root_node(),
       root: &Root {
         inner: cand.clone(),
-        source: s2.to_string(),
+        source: s2.into(),
         lang: Tsx,
       },
     };

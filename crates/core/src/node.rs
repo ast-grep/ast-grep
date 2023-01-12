@@ -1,6 +1,7 @@
 use crate::language::Language;
 use crate::matcher::{FindAllNodes, Matcher, NodeMatch};
 use crate::replacer::Replacer;
+use crate::source::{Content, Source};
 use crate::traversal::{Pre, Visitor};
 use crate::ts_parser::{parse, perform_edit, Edit, TSParseError};
 
@@ -8,10 +9,9 @@ use std::borrow::Cow;
 
 /// Represents [`tree_sitter::Tree`] and owns source string
 /// Note: Root is generic against [`Language`](crate::language::Language)
-#[derive(Clone)]
 pub struct Root<L: Language> {
   pub(crate) inner: tree_sitter::Tree,
-  pub(crate) source: String,
+  pub(crate) source: Source,
   pub(crate) lang: L,
 }
 
@@ -30,7 +30,7 @@ impl<L: Language> Root<L> {
   }
   // extract non generic implementation to reduce code size
   pub fn do_edit(&mut self, edit: Edit) -> Result<(), TSParseError> {
-    let input = unsafe { self.source.as_mut_vec() };
+    let input = self.source.as_mut_vec();
     let input_edit = perform_edit(&mut self.inner, input, &edit);
     self.inner.edit(&input_edit);
     self.inner = parse(&self.source, Some(&self.inner), self.lang.get_ts_language())?;
