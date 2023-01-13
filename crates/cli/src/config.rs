@@ -3,6 +3,7 @@ use crate::verify::{SnapshotCollection, TestCase, TestSnapshots};
 use anyhow::{Context, Result};
 use ast_grep_config::{from_str, from_yaml_string, RuleCollection, RuleConfig};
 use ast_grep_language::{config_file_type, SupportLang};
+use clap::ValueEnum;
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -26,6 +27,7 @@ pub struct AstGrepConfig {
   pub test_configs: Option<Vec<TestConfig>>,
   /// overriding config for rules
   pub rules: Option<Vec<()>>,
+  pub no_ignore: Vec<IgnoreFile>,
 }
 
 pub fn find_config(config_path: Option<PathBuf>) -> Result<RuleCollection<SupportLang>> {
@@ -167,5 +169,55 @@ fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<PathBuf
     } else {
       break Ok(PathBuf::from(CONFIG_FILE));
     }
+  }
+}
+
+#[derive(Clone, Copy, Deserialize, Serialize, ValueEnum)]
+pub enum IgnoreFile {
+  Hidden,
+  Dot,
+  Exclude,
+  Global,
+  Parent,
+  Vcs,
+}
+
+#[derive(Default)]
+pub struct NoIgnore {
+  disregard_hidden: bool,
+  disregard_parent: bool,
+  disregard_dot: bool,
+  disregard_vcs: bool,
+  disregard_global: bool,
+  disregard_exclude: bool,
+}
+
+impl NoIgnore {
+  pub fn disregard(ignores: &Vec<IgnoreFile>) -> Self {
+    let mut ret = NoIgnore::default();
+    use IgnoreFile::*;
+    for ignore in ignores {
+      match ignore {
+        Hidden => ret.disregard_hidden = true,
+        Dot => ret.disregard_dot = true,
+        Exclude => ret.disregard_exclude = true,
+        Global => ret.disregard_global = true,
+        Parent => ret.disregard_parent = true,
+        Vcs => ret.disregard_vcs = true,
+      }
+    }
+    ret
+  }
+
+  pub fn walk(&self, path: &Path) -> WalkBuilder {
+    let mut builder = WalkBuilder::new(path);
+    builder
+      .hidden(!self.disregard_hidden)
+      .parents(!self.disregard_parent)
+      .ignore(!self.disregard_dot)
+      .git_global(!self.disregard_vcs && !self.disregard_global)
+      .git_ignore(!self.disregard_vcs)
+      .git_exclude(!self.disregard_vcs && !self.disregard_exclude);
+    builder
   }
 }

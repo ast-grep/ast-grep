@@ -7,9 +7,9 @@ use ast_grep_core::language::Language;
 use ast_grep_core::traversal::Visitor;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
 use clap::{Args, Parser};
-use ignore::{WalkBuilder, WalkParallel};
+use ignore::WalkParallel;
 
-use crate::config::{find_config, read_rule_file};
+use crate::config::{find_config, read_rule_file, IgnoreFile, NoIgnore};
 use crate::error::ErrorContext as EC;
 use crate::interaction::{run_worker, Items, Worker};
 use crate::print::{
@@ -53,10 +53,6 @@ pub struct RunArg {
   #[clap(long, conflicts_with = "interactive")]
   json: bool,
 
-  /// Include hidden files in search
-  #[clap(long)]
-  hidden: bool,
-
   /// Print file names before each file's matches. Default is auto: print heading for tty but not for piped output.
   #[clap(long, default_value = "auto")]
   heading: Heading,
@@ -64,6 +60,11 @@ pub struct RunArg {
   /// Controls output color.
   #[clap(long, default_value = "auto")]
   color: ColorArg,
+
+  /// Do not respect hidden file system or ignore files (.gitignore, .ignore, etc.).
+  /// You can suppress multiple ignore files by passing `no-ignore` multiple times.
+  #[clap(long, action = clap::ArgAction::Append)]
+  no_ignore: Vec<IgnoreFile>,
 }
 
 #[derive(Args)]
@@ -75,10 +76,6 @@ pub struct ScanArg {
   /// Scan the codebase with one specified rule, without project config setup.
   #[clap(short, long, conflicts_with = "config")]
   rule: Option<PathBuf>,
-
-  /// Include hidden files in search
-  #[clap(long)]
-  hidden: bool,
 
   /// Start interactive edit session. Code rewrite only happens inside a session.
   #[clap(short, long, conflicts_with = "json")]
@@ -103,6 +100,10 @@ pub struct ScanArg {
   /// The path whose descendent files are to be explored.
   #[clap(value_parser, default_value = ".")]
   path: PathBuf,
+
+  /// Do not respect ignore files. You can suppress multiple ignore files by passing `no-ignore` multiple times.
+  #[clap(long, action = clap::ArgAction::Append)]
+  no_ignore: Vec<IgnoreFile>,
 }
 
 // Every run will include Search or Replace
@@ -154,8 +155,8 @@ impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
   fn build_walk(&self) -> WalkParallel {
     let arg = &self.arg;
     let threads = num_cpus::get().min(12);
-    WalkBuilder::new(&arg.path)
-      .hidden(arg.hidden)
+    NoIgnore::disregard(&arg.no_ignore)
+      .walk(&arg.path)
       .threads(threads)
       .build_parallel()
   }
@@ -191,8 +192,8 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
     let arg = &self.arg;
     let threads = num_cpus::get().min(12);
     let lang = arg.lang.expect("must present");
-    WalkBuilder::new(&arg.path)
-      .hidden(arg.hidden)
+    NoIgnore::disregard(&arg.no_ignore)
+      .walk(&arg.path)
       .threads(threads)
       .types(file_types(&lang))
       .build_parallel()
@@ -267,8 +268,8 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
   fn build_walk(&self) -> WalkParallel {
     let arg = &self.arg;
     let threads = num_cpus::get().min(12);
-    WalkBuilder::new(&arg.path)
-      .hidden(arg.hidden)
+    NoIgnore::disregard(&arg.no_ignore)
+      .walk(&arg.path)
       .threads(threads)
       .build_parallel()
   }
