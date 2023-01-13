@@ -226,7 +226,8 @@ impl<'a> MatchMerger<'a> {
     let range = nm.range();
 
     // merge overlapping matches.
-    if range.start <= self.last_end_offset {
+    // N.B. range.start == last_end_offset does not mean overlapping
+    if range.start < self.last_end_offset {
       // guaranteed by pre-order
       debug_assert!(range.end <= self.last_end_offset);
       true
@@ -595,6 +596,12 @@ mod test {
       "Some",
       "Multiple line match",
     ),
+    (
+      "import a from 'b';import a from 'b';",
+      "import a from 'b';",
+      "immediate following but not overlapping",
+    ),
+    ("Some(Some(123))", "Some($A)", "overlapping"),
   ];
   #[test]
   fn test_print_matches() {
