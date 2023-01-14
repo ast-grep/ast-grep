@@ -225,7 +225,8 @@ fn deserialze_augmented_atomic_rule<L: Language>(
     A::Kind(kind) => R::Kind(KindMatcher::new(&kind, lang)),
     A::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::new(&pattern, lang)),
     A::Pattern(PatternStyle::Contextual { context, selector }) => {
-      R::Pattern(Pattern::contextual(&context, &selector, lang))
+      // TODO
+      R::Pattern(Pattern::contextual(&context, &selector, lang).unwrap())
     }
   };
   augment_rule(deserialized_rule, augmentation, l)

@@ -1,9 +1,11 @@
 use crate::language::Language;
 use crate::match_tree::{extract_var_from_node, match_end_non_recursive, match_node_non_recursive};
 use crate::matcher::{KindMatcher, Matcher};
+use crate::ts_parser::TSParseError;
 use crate::{meta_var::MetaVarEnv, Node, Root};
 
 use bit_set::BitSet;
+use thiserror::Error;
 
 #[derive(Clone)]
 pub struct Pattern<L: Language> {
@@ -13,35 +15,52 @@ pub struct Pattern<L: Language> {
   selector: Option<KindMatcher<L>>,
 }
 
+#[derive(Debug, Error)]
+pub enum PatternError {
+  #[error("Tree-Sitter fails to parse the pattern.")]
+  TSParse(#[from] TSParseError),
+  #[error("Mutliple AST root is detected. Please check the pattern source `{0}`.")]
+  MultiRootPattern(String),
+  #[error("Fails to create Contextual pattern: selector `{selector}` matches no node in the context `{context}`.")]
+  NoSelectorInContext { context: String, selector: String },
+}
+
 impl<L: Language> Pattern<L> {
-  pub fn new(src: &str, lang: L) -> Self {
+  pub fn try_new(src: &str, lang: L) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(src);
-    let root = Root::new(&processed, lang);
+    let root = Root::try_new(&processed, lang)?;
     let goal = root.root();
     if goal.inner.child_count() != 1 {
-      todo!("multi-children pattern is not supported yet.")
+      return Err(PatternError::MultiRootPattern(src.into()));
     }
-    Self {
+    Ok(Self {
       root,
       selector: None,
-    }
+    })
   }
 
-  pub fn contextual(context: &str, selector: &str, lang: L) -> Self {
+  pub fn new(src: &str, lang: L) -> Self {
+    Self::try_new(src, lang).unwrap()
+  }
+
+  pub fn contextual(context: &str, selector: &str, lang: L) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(context);
     let root = Root::new(&processed, lang.clone());
     let goal = root.root();
     if goal.inner.child_count() != 1 {
-      todo!("multi-children pattern is not supported yet.")
+      return Err(PatternError::MultiRootPattern(context.into()));
     }
     let kind_matcher = KindMatcher::new(selector, lang);
     if goal.find(&kind_matcher).is_none() {
-      todo!("use result to indicate failure");
+      return Err(PatternError::NoSelectorInContext {
+        context: context.into(),
+        selector: selector.into(),
+      });
     }
-    Self {
+    Ok(Self {
       root,
       selector: Some(kind_matcher),
-    }
+    })
   }
 
   // TODO: extract out matcher in recursion
@@ -175,7 +194,8 @@ mod test {
 
   #[test]
   fn test_contextual_pattern() {
-    let pattern = Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx);
+    let pattern =
+      Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx).expect("test");
     let cand = pattern_node("class B { b = 123 }");
     assert!(pattern.find_node(cand.root()).is_some());
     let cand = pattern_node("let b = 123");
@@ -184,9 +204,10 @@ mod test {
 
   #[test]
   fn test_contextual_match_with_env() {
-    let pattern = Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx);
+    let pattern =
+      Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx).expect("test");
     let cand = pattern_node("class B { b = 123 }");
-    let nm = pattern.find_node(cand.root()).expect("should match");
+    let nm = pattern.find_node(cand.root()).expect("test");
     let env = nm.get_env();
     let env = HashMap::from(env.clone());
     assert_eq!(env["F"], "b");
@@ -195,7 +216,8 @@ mod test {
 
   #[test]
   fn test_contextual_unmatch_with_env() {
-    let pattern = Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx);
+    let pattern =
+      Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx).expect("test");
     let cand = pattern_node("let b = 123");
     let nm = pattern.find_node(cand.root());
     assert!(nm.is_none());
@@ -235,7 +257,8 @@ mod test {
 
   #[test]
   fn test_contextual_potential_kinds() {
-    let pattern = Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx);
+    let pattern =
+      Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx).expect("test");
     let kind = get_kind("public_field_definition");
     let kinds = pattern.potential_kinds().expect("should have kinds");
     assert_eq!(kinds.len(), 1);
@@ -244,7 +267,7 @@ mod test {
 
   #[test]
   fn test_contextual_wildcard() {
-    let pattern = Pattern::contextual("class A { $F }", "property_identifier", Tsx);
+    let pattern = Pattern::contextual("class A { $F }", "property_identifier", Tsx).expect("test");
     let kind = get_kind("property_identifier");
     let kinds = pattern.potential_kinds().expect("should have kinds");
     assert_eq!(kinds.len(), 1);
