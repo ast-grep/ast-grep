@@ -291,12 +291,12 @@ fn verify_invalid_case<'a>(
   snapshot: Option<&TestSnapshots>,
 ) -> CaseStatus<'a> {
   let sg = rule_config.language.ast_grep(case);
-  let rule = rule_config.get_matcher();
-  let Some(matched) = sg.root().find(&rule) else {
+  let rule = &rule_config.matcher;
+  let Some(matched) = sg.root().find(rule) else {
     return CaseStatus::Missing(case);
   };
   let labels = Label::from_matched(matched);
-  let fixer = rule_config.get_fixer();
+  let fixer = &rule_config.fixer;
   let mut sg = sg;
   let fixed = if let Some(fix) = fixer {
     match sg.replace(rule, fix) {
@@ -333,10 +333,10 @@ fn verify_test_case_simple<'a>(
 ) -> Option<CaseResult<'a>> {
   let rule_config = rules.get_rule(&test_case.id)?;
   let lang = rule_config.language;
-  let rule = rule_config.get_matcher();
+  let rule = &rule_config.matcher;
   let valid_cases = test_case.valid.iter().map(|valid| {
     let sg = lang.ast_grep(valid);
-    if sg.root().find(&rule).is_some() {
+    if sg.root().find(rule).is_some() {
       CaseStatus::Noisy(valid)
     } else {
       CaseStatus::Validated
@@ -351,7 +351,7 @@ fn verify_test_case_simple<'a>(
   } else {
     let invalid_cases = invalid_cases.map(|invalid| {
       let sg = rule_config.language.ast_grep(invalid);
-      let rule = rule_config.get_matcher();
+      let rule = &rule_config.matcher;
       if sg.root().find(rule).is_some() {
         CaseStatus::Reported
       } else {
@@ -662,12 +662,14 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_config::{from_str, CompositeRule, RuleConfig, SerializableRule, Severity};
+  use ast_grep_config::{
+    from_str, CompositeRule, RuleConfig, SerializableRule, SerializableRuleConfig, Severity,
+  };
 
   const TEST_RULE: &str = "test-rule";
 
   fn get_rule_config(rule: SerializableRule) -> RuleConfig<SupportLang> {
-    RuleConfig {
+    let inner = SerializableRuleConfig {
       id: TEST_RULE.into(),
       message: "test".into(),
       note: None,
@@ -680,7 +682,8 @@ mod test {
       ignores: None,
       url: None,
       metadata: None,
-    }
+    };
+    RuleConfig::try_from(inner).unwrap()
   }
   fn always_report_rule() -> RuleCollection<SupportLang> {
     // empty all should mean always

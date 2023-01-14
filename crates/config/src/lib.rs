@@ -5,28 +5,29 @@ mod rule_config;
 mod serialized_rule;
 
 use serde::Deserialize;
-use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Result};
+use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error as YamlError};
 
 use ast_grep_core::language::Language;
 
 pub use rule_collection::RuleCollection;
 pub use rule_config::{
   try_deserialize_matchers, try_from_serializable as deserialize_rule, Rule, RuleConfig,
-  RuleWithConstraint, SerializableMetaVarMatcher, Severity,
+  RuleConfigError, RuleWithConstraint, SerializableMetaVarMatcher, SerializableRuleConfig,
+  Severity,
 };
 pub use serialized_rule::{CompositeRule, SerializableRule};
 
-pub fn from_str<'de, T: Deserialize<'de>>(s: &'de str) -> Result<T> {
+pub fn from_str<'de, T: Deserialize<'de>>(s: &'de str) -> Result<T, YamlError> {
   let deserializer = Deserializer::from_str(s);
   deserialize(deserializer)
 }
 
 pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(
   yamls: &'a str,
-) -> Result<Vec<RuleConfig<L>>> {
+) -> Result<Vec<RuleConfig<L>>, RuleConfigError> {
   let mut ret = vec![];
   for yaml in Deserializer::from_str(yamls) {
-    let config: RuleConfig<L> = deserialize(yaml)?;
+    let config = RuleConfig::deserialize(yaml)?;
     ret.push(config);
   }
   Ok(ret)
@@ -53,13 +54,13 @@ mod test {
   fn test_rule_match(yaml: &str, source: &str) {
     let config = &from_yaml_string::<TypeScript>(yaml).expect("rule should parse")[0];
     let grep = config.language.ast_grep(source);
-    assert!(grep.root().find(config.get_matcher()).is_some());
+    assert!(grep.root().find(&config.matcher).is_some());
   }
 
   fn test_rule_unmatch(yaml: &str, source: &str) {
     let config = &from_yaml_string::<TypeScript>(yaml).expect("rule should parse")[0];
     let grep = config.language.ast_grep(source);
-    assert!(grep.root().find(config.get_matcher()).is_none());
+    assert!(grep.root().find(&config.matcher).is_none());
   }
 
   fn make_yaml(rule: &str) -> String {

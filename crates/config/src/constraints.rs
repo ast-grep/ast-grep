@@ -24,7 +24,7 @@ pub enum SerializableMetaVarMatcher {
 }
 
 #[derive(Debug, Error)]
-pub enum SerializeError {
+pub enum SerializeConstraintsError {
   #[error("Invalid Regex.")]
   RegexError(#[from] regex::Error),
   #[error("Invalid Kind.")]
@@ -36,7 +36,7 @@ pub enum SerializeError {
 pub fn try_from_serializable<L: Language>(
   meta_var: SerializableMetaVarMatcher,
   lang: L,
-) -> Result<MetaVarMatcher<L>, SerializeError> {
+) -> Result<MetaVarMatcher<L>, SerializeConstraintsError> {
   use SerializableMetaVarMatcher as S;
   Ok(match meta_var {
     S::Regex(s) => MetaVarMatcher::Regex(Regex::new(&s)?),
@@ -48,7 +48,7 @@ pub fn try_from_serializable<L: Language>(
 pub fn try_deserialize_matchers<L: Language>(
   meta_vars: HashMap<String, SerializableMetaVarMatcher>,
   lang: L,
-) -> Result<MetaVarMatchers<L>, SerializeError> {
+) -> Result<MetaVarMatchers<L>, SerializeConstraintsError> {
   let mut map = MetaVarMatchers::new();
   for (key, matcher) in meta_vars {
     map.insert(key, try_from_serializable(matcher, lang.clone())?);
@@ -133,7 +133,10 @@ mod test {
   fn test_non_serializable_regex() {
     let yaml = from_str("regex: '*'").expect("must parse");
     let matcher = try_from_serializable(yaml, TypeScript::Tsx);
-    assert!(matches!(matcher, Err(SerializeError::RegexError(_))));
+    assert!(matches!(
+      matcher,
+      Err(SerializeConstraintsError::RegexError(_))
+    ));
   }
 
   // TODO: test invalid pattern
@@ -164,7 +167,7 @@ mod test {
     let yaml = from_str("kind: IMPOSSIBLE_KIND").expect("must parse");
     let matcher = try_from_serializable(yaml, TypeScript::Tsx);
     let error = match matcher {
-      Err(SerializeError::InvalidKind(s)) => s,
+      Err(SerializeConstraintsError::InvalidKind(s)) => s,
       _ => panic!("serialization should fail for invalid kind"),
     };
     assert_eq!(error.to_string(), "Kind `IMPOSSIBLE_KIND` is invalid.");

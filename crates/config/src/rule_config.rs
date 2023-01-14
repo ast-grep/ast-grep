@@ -5,7 +5,7 @@ use crate::serialized_rule::{
 
 pub use crate::constraints::{
   try_deserialize_matchers, try_from_serializable as deserialize_meta_var, RuleWithConstraint,
-  SerializableMetaVarMatcher,
+  SerializableMetaVarMatcher, SerializeConstraintsError,
 };
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError};
@@ -17,9 +17,11 @@ use ast_grep_core::NodeMatch;
 use ast_grep_core::{Matcher, Node, Pattern, PatternError};
 use bit_set::BitSet;
 use serde::{Deserialize, Serialize};
+use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error as YamlError};
 use thiserror::Error;
 
 use std::collections::HashMap;
+use std::ops::Deref;
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -31,7 +33,7 @@ pub enum Severity {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct RuleConfig<L: Language> {
+pub struct SerializableRuleConfig<L: Language> {
   /// Unique, descriptive identifier, e.g., no-unused-variable
   pub id: String,
   /// Main message highlighting why this rule fired. It should be single line and concise,
@@ -59,33 +61,99 @@ pub struct RuleConfig<L: Language> {
   pub metadata: Option<HashMap<String, String>>,
 }
 
-impl<L: Language> RuleConfig<L> {
-  pub fn get_matcher(&self) -> RuleWithConstraint<L> {
-    let rule = self.get_rule();
-    let matchers = self.get_meta_var_matchers();
-    RuleWithConstraint { rule, matchers }
+type RResult<T> = Result<T, RuleConfigError>;
+
+impl<L: Language> SerializableRuleConfig<L> {
+  pub fn get_matcher(&self) -> RResult<RuleWithConstraint<L>> {
+    let rule = self.get_rule()?;
+    let matchers = self.get_meta_var_matchers()?;
+    Ok(RuleWithConstraint { rule, matchers })
   }
 
-  fn get_rule(&self) -> Rule<L> {
-    // TODO
-    try_from_serializable(self.rule.clone(), self.language.clone()).unwrap()
+  fn get_rule(&self) -> RResult<Rule<L>> {
+    Ok(try_from_serializable(
+      self.rule.clone(),
+      self.language.clone(),
+    )?)
   }
 
-  pub fn get_fixer(&self) -> Option<Pattern<L>> {
-    // TODO
-    Some(Pattern::try_new(self.fix.as_ref()?, self.language.clone()).unwrap())
-  }
-
-  pub fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {
-    if let Some(constraints) = self.constraints.clone() {
-      try_deserialize_matchers(constraints, self.language.clone()).unwrap()
+  fn get_fixer(&self) -> RResult<Option<Pattern<L>>> {
+    if let Some(fix) = &self.fix {
+      Ok(Some(Pattern::try_new(fix, self.language.clone())?))
     } else {
-      MetaVarMatchers::default()
+      Ok(None)
     }
   }
 
-  pub fn get_message(&self, node: &NodeMatch<L>) -> String {
+  fn get_meta_var_matchers(&self) -> RResult<MetaVarMatchers<L>> {
+    Ok(if let Some(constraints) = self.constraints.clone() {
+      try_deserialize_matchers(constraints, self.language.clone())?
+    } else {
+      MetaVarMatchers::default()
+    })
+  }
+
+  fn get_message(&self, node: &NodeMatch<L>) -> String {
     replace_meta_var_in_string(&self.message, node.get_env(), node.lang())
+  }
+}
+
+#[derive(Debug, Error)]
+pub enum RuleConfigError {
+  #[error("Fail to parse yaml as RuleConfig")]
+  Yaml(#[from] YamlError),
+  #[error("Rule is not configured correctly.")]
+  Rule(#[from] RuleSerializeError),
+  #[error("fix pattern is invalid.")]
+  Fixer(#[from] PatternError),
+  #[error("constraints is not configured correctly.")]
+  Constraints(#[from] SerializeConstraintsError),
+}
+
+pub struct RuleConfig<L: Language> {
+  inner: SerializableRuleConfig<L>,
+  pub matcher: RuleWithConstraint<L>,
+  pub fixer: Option<Pattern<L>>,
+}
+
+impl<L: Language> TryFrom<SerializableRuleConfig<L>> for RuleConfig<L> {
+  type Error = RuleConfigError;
+  fn try_from(inner: SerializableRuleConfig<L>) -> Result<Self, Self::Error> {
+    let matcher = inner.get_matcher()?;
+    let fixer = inner.get_fixer()?;
+    Ok(Self {
+      inner,
+      matcher,
+      fixer,
+    })
+  }
+}
+
+impl<L: Language> RuleConfig<L> {
+  pub fn deserialize_str<'de>(yaml_str: &'de str) -> Result<Self, RuleConfigError>
+  where
+    L: Deserialize<'de>,
+  {
+    let deserializer = Deserializer::from_str(yaml_str);
+    Self::deserialize(deserializer)
+  }
+
+  pub fn deserialize<'de>(deserializer: Deserializer<'de>) -> Result<Self, RuleConfigError>
+  where
+    L: Deserialize<'de>,
+  {
+    let inner: SerializableRuleConfig<L> = deserialize(deserializer)?;
+    Self::try_from(inner)
+  }
+
+  pub fn get_message(&self, node: &NodeMatch<L>) -> String {
+    self.inner.get_message(node)
+  }
+}
+impl<L: Language> Deref for RuleConfig<L> {
+  type Target = SerializableRuleConfig<L>;
+  fn deref(&self) -> &Self::Target {
+    &self.inner
   }
 }
 
@@ -156,7 +224,7 @@ fn match_and_add_label<'tree, L: Language, M: Matcher<L>>(
 }
 
 #[derive(Debug, Error)]
-pub enum SerializeError {
+pub enum RuleSerializeError {
   #[error("Rule must have one positive matcher.")]
   MissPositiveMatcher,
   #[error("Rule contains invalid kind matcher.")]
@@ -169,7 +237,7 @@ pub enum SerializeError {
 pub fn try_from_serializable<L: Language>(
   serialized: SerializableRule,
   lang: L,
-) -> Result<Rule<L>, SerializeError> {
+) -> Result<Rule<L>, RuleSerializeError> {
   use SerializableRule as S;
   match serialized {
     S::Composite(comp) => deserialze_composite_rule(comp, lang),
@@ -181,10 +249,10 @@ pub fn try_from_serializable<L: Language>(
 fn deserialze_composite_rule<L: Language>(
   composite: CompositeRule,
   lang: L,
-) -> Result<Rule<L>, SerializeError> {
+) -> Result<Rule<L>, RuleSerializeError> {
   use CompositeRule as C;
   use Rule as R;
-  let convert_rules = |rules: Vec<SerializableRule>| -> Result<_, SerializeError> {
+  let convert_rules = |rules: Vec<SerializableRule>| -> Result<_, RuleSerializeError> {
     let mut inner = Vec::with_capacity(rules.len());
     for rule in rules {
       inner.push(try_from_serializable(rule, lang.clone())?);
@@ -201,7 +269,7 @@ fn deserialze_composite_rule<L: Language>(
 fn deserialize_relational_rule<L: Language>(
   relational: RelationalRule,
   lang: L,
-) -> Result<Rule<L>, SerializeError> {
+) -> Result<Rule<L>, RuleSerializeError> {
   use RelationalRule as RR;
   use Rule as R;
   Ok(match relational {
@@ -216,7 +284,7 @@ fn deserialze_augmented_atomic_rule<L: Language>(
   rule: AtomicRule,
   augmentation: Augmentation,
   lang: L,
-) -> Result<Rule<L>, SerializeError> {
+) -> Result<Rule<L>, RuleSerializeError> {
   use AtomicRule as A;
   use Rule as R;
   let l = lang.clone();
@@ -234,7 +302,7 @@ fn augment_rule<L: Language>(
   rule: Rule<L>,
   aug: Augmentation,
   lang: L,
-) -> Result<Rule<L>, SerializeError> {
+) -> Result<Rule<L>, RuleSerializeError> {
   let mut rules = vec![];
   use Rule as R;
   if let Some(inside) = aug.inside {
@@ -266,8 +334,8 @@ mod test {
   use crate::from_str;
   use crate::test::TypeScript;
 
-  fn ts_rule_config(rule: SerializableRule) -> RuleConfig<TypeScript> {
-    RuleConfig {
+  fn ts_rule_config(rule: SerializableRule) -> SerializableRuleConfig<TypeScript> {
+    SerializableRuleConfig {
       id: "".into(),
       message: "".into(),
       note: None,
@@ -286,7 +354,7 @@ mod test {
   #[test]
   fn test_rule_message() {
     let rule = from_str("pattern: class $A {}").expect("cannot parse rule");
-    let config = RuleConfig {
+    let config = SerializableRuleConfig {
       id: "test".into(),
       message: "Found $A".into(),
       ..ts_rule_config(rule)
@@ -294,7 +362,7 @@ mod test {
     let grep = TypeScript::Tsx.ast_grep("class TestClass {}");
     let node_match = grep
       .root()
-      .find(config.get_matcher())
+      .find(config.get_matcher().unwrap())
       .expect("should find match");
     assert_eq!(config.get_message(&node_match), "Found TestClass");
   }
@@ -311,9 +379,9 @@ inside:
     .expect("should parse");
     let config = ts_rule_config(rule);
     let grep = TypeScript::Tsx.ast_grep("console.log(1)");
-    assert!(grep.root().find(config.get_matcher()).is_none());
+    assert!(grep.root().find(config.get_matcher().unwrap()).is_none());
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
-    assert!(grep.root().find(config.get_matcher()).is_some());
+    assert!(grep.root().find(config.get_matcher().unwrap()).is_some());
   }
 
   #[test]
@@ -330,9 +398,9 @@ has:
     .expect("should parse");
     let config = ts_rule_config(rule);
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
-    assert!(grep.root().find(config.get_matcher()).is_none());
+    assert!(grep.root().find(config.get_matcher().unwrap()).is_none());
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(123) }");
-    assert!(grep.root().find(config.get_matcher()).is_some());
+    assert!(grep.root().find(config.get_matcher().unwrap()).is_some());
   }
 
   #[test]
@@ -350,7 +418,7 @@ all:
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
     let node_match = grep
       .root()
-      .find(config.get_matcher())
+      .find(config.get_matcher().unwrap())
       .expect("should found");
     let env = node_match.get_env();
     let a = env.get_match("A").expect("should exist").text();

@@ -207,8 +207,8 @@ rule:
         - pattern: $A++
 fix: ($B, lifecycle.update(['$A']))",
     );
-    let matcher = config.get_matcher();
-    let fixer = config.get_fixer().unwrap();
+    let matcher = config.matcher;
+    let fixer = config.fixer.unwrap();
     let diffs = make_diffs(&root, matcher, &fixer);
     let ret = apply_rewrite(diffs);
     assert_eq!(ret, "let a = () => (c++, lifecycle.update(['c']))");

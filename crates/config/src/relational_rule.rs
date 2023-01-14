@@ -1,4 +1,4 @@
-use crate::rule_config::{try_from_serializable, Rule, SerializeError};
+use crate::rule_config::{try_from_serializable, Rule, RuleSerializeError};
 use crate::serialized_rule::Relation;
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
@@ -23,7 +23,7 @@ pub struct Inside<L: Language> {
   lang: PhantomData<L>,
 }
 impl<L: Language> Inside<L> {
-  pub fn try_new(relation: Relation, lang: L) -> Result<Inside<L>, SerializeError> {
+  pub fn try_new(relation: Relation, lang: L) -> Result<Inside<L>, RuleSerializeError> {
     let util_node = if let Some(until) = relation.until {
       Some(try_from_serializable(until, lang.clone())?)
     } else {
@@ -62,7 +62,7 @@ pub struct Has<L: Language> {
   lang: PhantomData<L>,
 }
 impl<L: Language> Has<L> {
-  pub fn try_new(relation: Relation, lang: L) -> Result<Self, SerializeError> {
+  pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
     let util_node = if let Some(until) = relation.until {
       Some(try_from_serializable(until, lang.clone())?)
     } else {
@@ -104,7 +104,7 @@ pub struct Precedes<L: Language> {
   lang: PhantomData<L>,
 }
 impl<L: Language> Precedes<L> {
-  pub fn try_new(relation: Relation, lang: L) -> Result<Self, SerializeError> {
+  pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
     let util_node = if let Some(until) = relation.until {
       Some(try_from_serializable(until, lang.clone())?)
     } else {
@@ -142,7 +142,7 @@ pub struct Follows<L: Language> {
   lang: PhantomData<L>,
 }
 impl<L: Language> Follows<L> {
-  pub fn try_new(relation: Relation, lang: L) -> Result<Self, SerializeError> {
+  pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
     let util_node = if let Some(until) = relation.until {
       Some(try_from_serializable(until, lang.clone())?)
     } else {

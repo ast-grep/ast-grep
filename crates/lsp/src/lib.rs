@@ -211,8 +211,8 @@ impl<L: LSPLang> Backend<L> {
     let rules = self.rules.for_path(&path);
     for rule in rules {
       let to_diagnostic = |m| convert_match_to_diagnostic(m, rule, &uri);
-      let matcher = rule.get_matcher();
-      diagnostics.extend(versioned.root.root().find_all(&matcher).map(to_diagnostic));
+      let matcher = &rule.matcher;
+      diagnostics.extend(versioned.root.root().find_all(matcher).map(to_diagnostic));
     }
     self
       .client
@@ -277,13 +277,13 @@ impl<L: LSPLang> Backend<L> {
         Some(ranges) => ranges,
         None => continue,
       };
-      let matcher = config.get_matcher();
+      let matcher = &config.matcher;
       for matched_node in versioned.root.root().find_all(&matcher) {
         let range = convert_node_to_range(&matched_node);
         if !ranges.contains(&range) {
           continue;
         }
-        let fixer = match config.get_fixer() {
+        let fixer = match &config.fixer {
           Some(fixer) => fixer,
           None => continue,
         };
