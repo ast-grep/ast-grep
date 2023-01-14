@@ -27,7 +27,6 @@ pub struct AstGrepConfig {
   pub test_configs: Option<Vec<TestConfig>>,
   /// overriding config for rules
   pub rules: Option<Vec<()>>,
-  pub no_ignore: Vec<IgnoreFile>,
 }
 
 pub fn find_config(config_path: Option<PathBuf>) -> Result<RuleCollection<SupportLang>> {
