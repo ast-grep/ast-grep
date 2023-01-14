@@ -22,7 +22,7 @@ impl Clone for Source {
   fn clone(&self) -> Self {
     match self {
       Plain(s) => Plain(s.clone()),
-      Customized(c) => todo!(),
+      Customized(_) => todo!(),
     }
   }
 }

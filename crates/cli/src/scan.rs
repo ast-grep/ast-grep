@@ -163,7 +163,7 @@ impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
 
   fn produce_item(&self, path: &Path) -> Option<Self::Item> {
     let lang = SupportLang::from_path(path)?;
-    let matcher = Pattern::new(&self.arg.pattern, lang);
+    let matcher = Pattern::try_new(&self.arg.pattern, lang).ok()?;
     let match_unit = filter_file_interactive(path, lang, matcher)?;
     Some((match_unit, lang))
   }
@@ -173,8 +173,18 @@ impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
     let printer = &self.printer;
     printer.before_print();
     for (match_unit, lang) in items {
-      let rewrite = rewrite.as_deref().map(|s| Pattern::new(s, lang));
-      match_one_file(printer, &match_unit, &rewrite)?;
+      let rewrite = rewrite
+        .as_ref()
+        .map(|s| Pattern::try_new(s, lang))
+        .transpose();
+      match rewrite {
+        Ok(r) => match_one_file(printer, &match_unit, &r)?,
+        Err(e) => {
+          match_one_file(printer, &match_unit, &None)?;
+          eprintln!("⚠️  Rewriting was skipped because pattern fails to parse. Error detail:");
+          eprintln!("╰▻ {e}");
+        }
+      }
     }
     printer.after_print();
     Ok(())
