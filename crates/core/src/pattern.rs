@@ -1,6 +1,6 @@
 use crate::language::Language;
 use crate::match_tree::{extract_var_from_node, match_end_non_recursive, match_node_non_recursive};
-use crate::matcher::{KindMatcher, Matcher};
+use crate::matcher::{KindMatcher, KindMatcherError, Matcher};
 use crate::ts_parser::TSParseError;
 use crate::{meta_var::MetaVarEnv, Node, Root};
 
@@ -21,6 +21,8 @@ pub enum PatternError {
   TSParse(#[from] TSParseError),
   #[error("Mutliple AST root is detected. Please check the pattern source `{0}`.")]
   MultiRootPattern(String),
+  #[error(transparent)]
+  InvalidKind(#[from] KindMatcherError),
   #[error("Fails to create Contextual pattern: selector `{selector}` matches no node in the context `{context}`.")]
   NoSelectorInContext { context: String, selector: String },
 }
@@ -50,7 +52,7 @@ impl<L: Language> Pattern<L> {
     if goal.inner.child_count() != 1 {
       return Err(PatternError::MultiRootPattern(context.into()));
     }
-    let kind_matcher = KindMatcher::new(selector, lang);
+    let kind_matcher = KindMatcher::try_new(selector, lang)?;
     if goal.find(&kind_matcher).is_none() {
       return Err(PatternError::NoSelectorInContext {
         context: context.into(),
