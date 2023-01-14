@@ -20,7 +20,10 @@ impl From<&str> for Source {
 
 impl Clone for Source {
   fn clone(&self) -> Self {
-    todo!()
+    match self {
+      Plain(s) => Plain(s.clone()),
+      Customized(c) => todo!(),
+    }
   }
 }
 

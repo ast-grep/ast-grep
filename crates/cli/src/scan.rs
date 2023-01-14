@@ -124,7 +124,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
 
 fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + Sync) -> Result<()> {
   if arg.lang.is_some() {
-    run_worker(RunWithSpecificLang { arg, printer })
+    run_worker(RunWithSpecificLang::new(arg, printer)?)
   } else {
     run_worker(RunWithInferredLang { arg, printer })
   }
@@ -184,6 +184,20 @@ impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
 struct RunWithSpecificLang<Printer> {
   arg: RunArg,
   printer: Printer,
+  pattern: Pattern<SupportLang>,
+}
+
+impl<Printer> RunWithSpecificLang<Printer> {
+  fn new(arg: RunArg, printer: Printer) -> Result<Self> {
+    let pattern = &arg.pattern;
+    let lang = arg.lang.expect("must present");
+    let pattern = Pattern::try_new(pattern, lang).context(EC::ParsePattern)?;
+    Ok(Self {
+      arg,
+      printer,
+      pattern,
+    })
+  }
 }
 
 impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
@@ -200,23 +214,23 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
   }
   fn produce_item(&self, path: &Path) -> Option<Self::Item> {
     let arg = &self.arg;
-    let pattern = &arg.pattern;
-    // TODO: replace reuse pattern via GAT
+    let pattern = self.pattern.clone();
     let lang = arg.lang.expect("must present");
-    let pattern = Pattern::new(pattern, lang);
     filter_file_interactive(path, lang, pattern)
   }
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     let printer = &self.printer;
     printer.before_print();
     let arg = &self.arg;
-    let pattern = &arg.pattern;
     let lang = arg.lang.expect("must present");
-    let pattern = Pattern::new(pattern, lang);
     if arg.debug_query {
-      println!("Pattern TreeSitter {:?}", pattern);
+      println!("Pattern TreeSitter {:?}", self.pattern);
     }
-    let rewrite = arg.rewrite.as_ref().map(|s| Pattern::new(s, lang));
+    let rewrite = if let Some(s) = &arg.rewrite {
+      Some(Pattern::try_new(s, lang).context(EC::ParsePattern)?)
+    } else {
+      None
+    };
     for match_unit in items {
       match_one_file(printer, &match_unit, &rewrite)?;
     }

@@ -5,6 +5,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
+const PATTERN_GUIDE: Option<&str> = Some("/guide/pattern-syntax.html");
 const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
 const CLI_USAGE: Option<&str> = Some("/reference/cli.html");
 const TEST_GUIDE: Option<&str> = Some("/guide/test-rule.html");
@@ -24,6 +25,8 @@ pub enum ErrorContext {
   ParseRule(PathBuf),
   ParseTest(PathBuf),
   GlobPattern,
+  // Run
+  ParsePattern,
   // LSP
   StartLanguageServer,
   // Edit
@@ -110,6 +113,11 @@ impl ErrorMessage {
         format!("Cannot parse test case {}", file.display()),
         "The file is not a valid ast-grep test case. Please refer to doc and fix the error.",
         TEST_GUIDE,
+      ),
+      ParsePattern => Self::new(
+        "Cannot parse query as a valid pattern",
+        "The pattern either fails to parse or contains error. Please refer to pattern syntax guide.",
+        PATTERN_GUIDE,
       ),
       StartLanguageServer => Self::new(
         "Cannot start language server.",

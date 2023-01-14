@@ -45,7 +45,7 @@ impl<L: Language> Pattern<L> {
 
   pub fn contextual(context: &str, selector: &str, lang: L) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(context);
-    let root = Root::new(&processed, lang.clone());
+    let root = Root::try_new(&processed, lang.clone())?;
     let goal = root.root();
     if goal.inner.child_count() != 1 {
       return Err(PatternError::MultiRootPattern(context.into()));
