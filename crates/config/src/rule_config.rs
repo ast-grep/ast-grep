@@ -8,17 +8,18 @@ pub use crate::constraints::{
   SerializableMetaVarMatcher,
 };
 use ast_grep_core::language::Language;
+use ast_grep_core::matcher::{KindMatcher, KindMatcherError};
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::meta_var::MetaVarMatchers;
 use ast_grep_core::ops as o;
 use ast_grep_core::replace_meta_var_in_string;
 use ast_grep_core::NodeMatch;
-use ast_grep_core::{matcher::KindMatcher, Matcher, Node, Pattern};
+use ast_grep_core::{Matcher, Node, Pattern, PatternError};
 use bit_set::BitSet;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use std::collections::HashMap;
-use std::fmt;
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -152,18 +153,14 @@ fn match_and_add_label<'tree, L: Language, M: Matcher<L>>(
   Some(matched)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum SerializeError {
+  #[error("Rule must have one positive matcher.")]
   MissPositiveMatcher,
-}
-
-impl std::error::Error for SerializeError {}
-impl fmt::Display for SerializeError {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      Self::MissPositiveMatcher => write!(f, "missing positive matcher"),
-    }
-  }
+  #[error("Rule contains invalid kind matcher.")]
+  InvalidKind(#[from] KindMatcherError),
+  #[error("Rule contains invalid pattern matcher.")]
+  InvalidPattern(#[from] PatternError),
 }
 
 // TODO: implement positive/non positive
@@ -185,7 +182,7 @@ fn deserialze_composite_rule<L: Language>(
 ) -> Result<Rule<L>, SerializeError> {
   use CompositeRule as C;
   use Rule as R;
-  let convert_rules = |rules: Vec<SerializableRule>| {
+  let convert_rules = |rules: Vec<SerializableRule>| -> Result<_, SerializeError> {
     let mut inner = Vec::with_capacity(rules.len());
     for rule in rules {
       inner.push(try_from_serializable(rule, lang.clone())?);
@@ -222,11 +219,10 @@ fn deserialze_augmented_atomic_rule<L: Language>(
   use Rule as R;
   let l = lang.clone();
   let deserialized_rule = match rule {
-    A::Kind(kind) => R::Kind(KindMatcher::new(&kind, lang)),
-    A::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::new(&pattern, lang)),
+    A::Kind(kind) => R::Kind(KindMatcher::try_new(&kind, lang)?),
+    A::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::try_new(&pattern, lang)?),
     A::Pattern(PatternStyle::Contextual { context, selector }) => {
-      // TODO
-      R::Pattern(Pattern::contextual(&context, &selector, lang).unwrap())
+      R::Pattern(Pattern::contextual(&context, &selector, lang)?)
     }
   };
   augment_rule(deserialized_rule, augmentation, l)

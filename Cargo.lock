@@ -60,6 +60,7 @@ dependencies = [
  "serde",
  "serde_yaml",
  "tempdir",
+ "thiserror",
  "tree-sitter-typescript",
 ]
 

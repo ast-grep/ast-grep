@@ -9,7 +9,7 @@ use crate::Pattern;
 
 use bit_set::BitSet;
 
-pub use kind::KindMatcher;
+pub use kind::{KindMatcher, KindMatcherError};
 pub use node_match::NodeMatch;
 
 /**
