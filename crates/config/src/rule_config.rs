@@ -67,11 +67,13 @@ impl<L: Language> RuleConfig<L> {
   }
 
   fn get_rule(&self) -> Rule<L> {
+    // TODO
     try_from_serializable(self.rule.clone(), self.language.clone()).unwrap()
   }
 
   pub fn get_fixer(&self) -> Option<Pattern<L>> {
-    Some(Pattern::new(self.fix.as_ref()?, self.language.clone()))
+    // TODO
+    Some(Pattern::try_new(self.fix.as_ref()?, self.language.clone()).unwrap())
   }
 
   pub fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {

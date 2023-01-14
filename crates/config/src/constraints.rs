@@ -2,11 +2,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::rule_config::Rule;
 use ast_grep_core::language::Language;
-use ast_grep_core::meta_var::MetaVarEnv;
-use ast_grep_core::meta_var::MetaVarMatchers;
-use ast_grep_core::{matcher::KindMatcher, meta_var::MetaVarMatcher, Matcher, Node, Pattern};
+use ast_grep_core::matcher::{KindMatcher, KindMatcherError};
+use ast_grep_core::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
+use ast_grep_core::{Matcher, Node, Pattern, PatternError};
+
 use bit_set::BitSet;
 use regex::Regex;
+use thiserror::Error;
+
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -20,11 +23,14 @@ pub enum SerializableMetaVarMatcher {
   Kind(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum SerializeError {
-  InvalidRegex(regex::Error),
-  InvalidKind(String),
-  // InvalidPattern,
+  #[error("Invalid Regex.")]
+  RegexError(#[from] regex::Error),
+  #[error("Invalid Kind.")]
+  InvalidKind(#[from] KindMatcherError),
+  #[error("Invalid Pattern.")]
+  PatternError(#[from] PatternError),
 }
 
 pub fn try_from_serializable<L: Language>(
@@ -32,21 +38,11 @@ pub fn try_from_serializable<L: Language>(
   lang: L,
 ) -> Result<MetaVarMatcher<L>, SerializeError> {
   use SerializableMetaVarMatcher as S;
-  match meta_var {
-    S::Regex(s) => match Regex::new(&s) {
-      Ok(r) => Ok(MetaVarMatcher::Regex(r)),
-      Err(e) => Err(SerializeError::InvalidRegex(e)),
-    },
-    S::Kind(p) => {
-      let kind = KindMatcher::new(&p, lang);
-      if kind.is_invalid() {
-        Err(SerializeError::InvalidKind(p))
-      } else {
-        Ok(MetaVarMatcher::Kind(kind))
-      }
-    }
-    S::Pattern(p) => Ok(MetaVarMatcher::Pattern(Pattern::new(&p, lang))),
-  }
+  Ok(match meta_var {
+    S::Regex(s) => MetaVarMatcher::Regex(Regex::new(&s)?),
+    S::Kind(p) => MetaVarMatcher::Kind(KindMatcher::try_new(&p, lang)?),
+    S::Pattern(p) => MetaVarMatcher::Pattern(Pattern::try_new(&p, lang)?),
+  })
 }
 
 pub fn try_deserialize_matchers<L: Language>(
@@ -137,7 +133,7 @@ mod test {
   fn test_non_serializable_regex() {
     let yaml = from_str("regex: '*'").expect("must parse");
     let matcher = try_from_serializable(yaml, TypeScript::Tsx);
-    assert!(matches!(matcher, Err(SerializeError::InvalidRegex(_))));
+    assert!(matches!(matcher, Err(SerializeError::RegexError(_))));
   }
 
   // TODO: test invalid pattern
@@ -171,6 +167,6 @@ mod test {
       Err(SerializeError::InvalidKind(s)) => s,
       _ => panic!("serialization should fail for invalid kind"),
     };
-    assert_eq!(error, "IMPOSSIBLE_KIND");
+    assert_eq!(error.to_string(), "Kind `IMPOSSIBLE_KIND` is invalid.");
   }
 }
