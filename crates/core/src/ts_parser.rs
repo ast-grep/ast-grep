@@ -1,29 +1,21 @@
+use thiserror::Error;
 use tree_sitter::{InputEdit, LanguageError, Parser, ParserError, Point};
 pub use tree_sitter::{Language, Tree};
 
 /// Represents tree-sitter related error
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum TSParseError {
-  Parse(ParserError),
-  Language(LanguageError),
+  #[error("web-tree-sitter parser is not available")]
+  Parse(#[from] ParserError),
+  #[error("incompatible `Language` is assigend to a `Parser`.")]
+  Language(#[from] LanguageError),
   /// A general error when tree sitter fails to parse in time. It can be caused by
   /// the following reasons but tree-sitter does not provide error detail.
   /// * The timeout set with [Parser::set_timeout_micros] expired
   /// * The cancellation flag set with [Parser::set_cancellation_flag] was flipped
   /// * The parser has not yet had a language assigned with [Parser::set_language]
+  #[error("general error when tree-sitter fails to parse.")]
   TreeUnavailable,
-}
-
-impl From<ParserError> for TSParseError {
-  fn from(e: ParserError) -> Self {
-    Self::Parse(e)
-  }
-}
-
-impl From<LanguageError> for TSParseError {
-  fn from(e: LanguageError) -> Self {
-    Self::Language(e)
-  }
 }
 
 pub fn parse(
