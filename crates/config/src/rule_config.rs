@@ -77,7 +77,7 @@ impl<L: Language> SerializableRuleConfig<L> {
     )?)
   }
 
-  fn get_fixer(&self) -> RResult<Option<Pattern<L>>> {
+  pub fn get_fixer(&self) -> RResult<Option<Pattern<L>>> {
     if let Some(fix) = &self.fix {
       Ok(Some(Pattern::try_new(fix, self.language.clone())?))
     } else {

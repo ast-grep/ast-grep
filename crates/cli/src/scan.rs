@@ -139,8 +139,8 @@ struct MatchUnit<M: Matcher<SupportLang>> {
   matcher: M,
 }
 
-impl MatchUnit<RuleWithConstraint<SupportLang>> {
-  fn reuse_with_matcher(self, matcher: RuleWithConstraint<SupportLang>) -> Self {
+impl<'a> MatchUnit<&'a RuleWithConstraint<SupportLang>> {
+  fn reuse_with_matcher(self, matcher: &'a RuleWithConstraint<SupportLang>) -> Self {
     Self { matcher, ..self }
   }
 }
@@ -288,7 +288,7 @@ impl<P: Printer> ScanWithConfig<P> {
 }
 
 impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
-  type Item = MatchUnit<RuleWithConstraint<SupportLang>>;
+  type Item = (PathBuf, AstGrep<SupportLang>);
   fn build_walk(&self) -> WalkParallel {
     let arg = &self.arg;
     let threads = num_cpus::get().min(12);
@@ -300,22 +300,27 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
   fn produce_item(&self, path: &Path) -> Option<Self::Item> {
     for config in &self.configs.for_path(path) {
       let lang = config.language;
-      let matcher = config.get_matcher().unwrap();
+      let matcher = &config.matcher;
       // TODO: we are filtering multiple times here, perf sucks :(
       let ret = filter_file_interactive(path, lang, matcher);
-      if ret.is_some() {
-        return ret;
+      if let Some(unit) = ret {
+        return Some((unit.path, unit.grep));
       }
     }
     None
   }
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print();
-    for mut match_unit in items {
+    for (path, grep) in items {
+      let mut match_unit = MatchUnit {
+        path,
+        grep,
+        matcher: &RuleWithConstraint::default(),
+      };
       let path = &match_unit.path;
       let file_content = read_to_string(path)?;
       for config in self.configs.for_path(path) {
-        let matcher = config.get_matcher().unwrap();
+        let matcher = &config.matcher;
         // important reuse and mutation start!
         match_unit = match_unit.reuse_with_matcher(matcher);
         // important reuse and mutation end!
