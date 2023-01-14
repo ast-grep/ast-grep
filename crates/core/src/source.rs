@@ -1,12 +1,13 @@
 use std::ops::Deref;
 
-pub trait Content: ToString + Deref<Target = str> {
+// Content is thread safe and owns the data
+pub trait Content: ToString + Deref<Target = str> + Send + Sync + 'static {
   fn as_mut_vec(&mut self) -> &mut Vec<u8>;
 }
 
 pub enum Source {
   Plain(String),
-  Customized(Box<dyn Content + Sync + Send>),
+  Customized(Box<dyn Content>),
 }
 
 use Source::*;

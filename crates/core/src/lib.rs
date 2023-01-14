@@ -6,7 +6,7 @@ mod node;
 pub mod ops;
 mod pattern;
 mod replacer;
-mod source;
+pub mod source;
 pub mod traversal;
 mod ts_parser;
 
@@ -20,6 +20,7 @@ pub use replacer::replace_meta_var_in_string;
 use crate::replacer::Replacer;
 use language::Language;
 use node::Root;
+use source::Content;
 use ts_parser::{Edit, TSParseError};
 
 #[derive(Clone)]
@@ -31,6 +32,12 @@ impl<L: Language> AstGrep<L> {
   pub fn new<S: AsRef<str>>(src: S, lang: L) -> Self {
     Self {
       inner: Root::new(src.as_ref(), lang),
+    }
+  }
+
+  pub fn customized<C: Content>(content: C, lang: L) -> Self {
+    Self {
+      inner: Root::customized(content, lang).expect("should parse"),
     }
   }
 
