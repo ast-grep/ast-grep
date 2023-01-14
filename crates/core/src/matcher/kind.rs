@@ -8,12 +8,19 @@ use crate::Node;
 use std::marker::PhantomData;
 
 use bit_set::BitSet;
+use thiserror::Error;
 
 // 0 is symbol_end for not found, 65535 is builtin symbol ERROR
 // see https://tree-sitter.docsforge.com/master/api/#TREE_SITTER_MIN_COMPATIBLE_LANGUAGE_VERSION
 // and https://tree-sitter.docsforge.com/master/api/ts_language_symbol_for_name/
 const TS_BUILTIN_SYM_END: KindId = 0;
 const TS_BUILTIN_SYM_ERROR: KindId = 65535;
+
+#[derive(Debug, Error)]
+pub enum KindMatcherError {
+  #[error("Kind `{0}` is invalid.")]
+  InvalidKindName(String),
+}
 
 #[derive(Clone)]
 pub struct KindMatcher<L: Language> {
@@ -28,6 +35,15 @@ impl<L: Language> KindMatcher<L> {
         .get_ts_language()
         .id_for_node_kind(node_kind, /*named*/ true),
       lang: PhantomData,
+    }
+  }
+
+  pub fn try_new(node_kind: &str, lang: L) -> Result<Self, KindMatcherError> {
+    let s = Self::new(node_kind, lang);
+    if s.is_invalid() {
+      Err(KindMatcherError::InvalidKindName(node_kind.into()))
+    } else {
+      Ok(s)
     }
   }
 

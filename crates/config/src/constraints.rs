@@ -4,7 +4,7 @@ use crate::rule_config::Rule;
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::meta_var::MetaVarMatchers;
-use ast_grep_core::{KindMatcher, Matcher, MetaVarMatcher, Node, Pattern};
+use ast_grep_core::{matcher::KindMatcher, meta_var::MetaVarMatcher, Matcher, Node, Pattern};
 use bit_set::BitSet;
 use regex::Regex;
 use std::collections::HashMap;

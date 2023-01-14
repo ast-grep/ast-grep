@@ -7,7 +7,7 @@ use ast_grep_config::{
 };
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::meta_var::MetaVarMatchers;
-use ast_grep_core::{AstGrep, KindMatcher, NodeMatch, Pattern};
+use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern};
 use napi::bindgen_prelude::*;
 use napi::bindgen_prelude::{Either3, Env, Reference, Result, SharedReference};
 use napi_derive::napi;

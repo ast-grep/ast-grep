@@ -13,7 +13,7 @@ use ast_grep_core::meta_var::MetaVarMatchers;
 use ast_grep_core::ops as o;
 use ast_grep_core::replace_meta_var_in_string;
 use ast_grep_core::NodeMatch;
-use ast_grep_core::{KindMatcher, Matcher, Node, Pattern};
+use ast_grep_core::{matcher::KindMatcher, Matcher, Node, Pattern};
 use bit_set::BitSet;
 use serde::{Deserialize, Serialize};
 

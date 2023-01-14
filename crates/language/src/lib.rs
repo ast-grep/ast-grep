@@ -33,9 +33,9 @@ impl_lang!(Swift, language_swift);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
 
-pub use ast_grep_core::language::Language;
 use ast_grep_core::language::TSLanguage;
-use ast_grep_core::MetaVariable;
+use ast_grep_core::meta_var::MetaVariable;
+pub use ast_grep_core::Language;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;

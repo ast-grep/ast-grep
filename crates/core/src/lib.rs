@@ -1,24 +1,23 @@
 pub mod language;
-mod match_tree;
-mod matcher;
+pub mod matcher;
 pub mod meta_var;
-mod node;
 pub mod ops;
-mod pattern;
-mod replacer;
 pub mod source;
 pub mod traversal;
+
+mod match_tree;
+mod node;
+mod pattern;
+mod replacer;
 mod ts_parser;
 
-pub use matcher::{KindMatcher, Matcher, NodeMatch};
-pub use meta_var::{MetaVarMatcher, MetaVariable};
+pub use language::Language;
+pub use matcher::{Matcher, NodeMatch};
 pub use node::Node;
-pub use ops::{All, Any, Op};
-pub use pattern::Pattern;
+pub use pattern::{Pattern, PatternError};
 pub use replacer::replace_meta_var_in_string;
 
 use crate::replacer::Replacer;
-use language::Language;
 use node::Root;
 use source::Content;
 use ts_parser::{Edit, TSParseError};
@@ -35,10 +34,10 @@ impl<L: Language> AstGrep<L> {
     }
   }
 
-  pub fn customized<C: Content>(content: C, lang: L) -> Self {
-    Self {
-      inner: Root::customized(content, lang).expect("should parse"),
-    }
+  pub fn customized<C: Content>(content: C, lang: L) -> Result<Self, TSParseError> {
+    Ok(Self {
+      inner: Root::customized(content, lang)?,
+    })
   }
 
   pub fn source(&self) -> &str {
@@ -80,6 +79,8 @@ impl<L: Language> AstGrep<L> {
 mod test {
   use super::*;
   use language::Tsx;
+  use ops::Op;
+
   #[test]
   fn test_replace() {
     let mut ast_grep = Tsx.ast_grep("var a = 1; let b = 2;");

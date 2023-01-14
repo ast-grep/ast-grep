@@ -1,5 +1,5 @@
 use ast_grep_config::{RuleConfig, Severity};
-use ast_grep_core::{MetaVariable, Node, NodeMatch};
+use ast_grep_core::{meta_var::MetaVariable, Node, NodeMatch};
 use ast_grep_language::SupportLang;
 use std::collections::HashMap;
 
