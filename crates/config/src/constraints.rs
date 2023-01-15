@@ -2,12 +2,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::rule_config::Rule;
 use ast_grep_core::language::Language;
-use ast_grep_core::matcher::{KindMatcher, KindMatcherError};
+use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
 use ast_grep_core::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
 use ast_grep_core::{Matcher, Node, Pattern, PatternError};
 
 use bit_set::BitSet;
-use regex::Regex;
 use thiserror::Error;
 
 use std::collections::HashMap;
@@ -26,7 +25,7 @@ pub enum SerializableMetaVarMatcher {
 #[derive(Debug, Error)]
 pub enum SerializeConstraintsError {
   #[error("Invalid Regex.")]
-  RegexError(#[from] regex::Error),
+  RegexError(#[from] RegexMatcherError),
   #[error("Invalid Kind.")]
   InvalidKind(#[from] KindMatcherError),
   #[error("Invalid Pattern.")]
@@ -39,7 +38,7 @@ pub fn try_from_serializable<L: Language>(
 ) -> Result<MetaVarMatcher<L>, SerializeConstraintsError> {
   use SerializableMetaVarMatcher as S;
   Ok(match meta_var {
-    S::Regex(s) => MetaVarMatcher::Regex(Regex::new(&s)?),
+    S::Regex(s) => MetaVarMatcher::Regex(RegexMatcher::try_new(&s)?),
     S::Kind(p) => MetaVarMatcher::Kind(KindMatcher::try_new(&p, lang)?),
     S::Pattern(p) => MetaVarMatcher::Pattern(Pattern::try_new(&p, lang)?),
   })
@@ -108,7 +107,7 @@ mod test {
     let mut matchers = MetaVarMatchers::new();
     matchers.insert(
       "A".to_string(),
-      MetaVarMatcher::Regex(Regex::new("a").unwrap()),
+      MetaVarMatcher::Regex(RegexMatcher::try_new("a").unwrap()),
     );
     let rule = RuleWithConstraint {
       rule: Rule::Pattern(Pattern::new("$A", TypeScript::Tsx)),
@@ -122,11 +121,13 @@ mod test {
 
   #[test]
   fn test_serializable_regex() {
-    let yaml = from_str("regex: a").expect("must parse");
+    let yaml = from_str("regex: aa").expect("must parse");
     let matcher = try_from_serializable(yaml, TypeScript::Tsx).expect("should parse");
     let reg = cast!(matcher, MetaVarMatcher::Regex);
-    assert!(reg.is_match("aaaaa"));
-    assert!(!reg.is_match("bbb"));
+    let matched = TypeScript::Tsx.ast_grep("var aa = 1");
+    assert!(matched.root().find(&reg).is_some());
+    let non_matched = TypeScript::Tsx.ast_grep("var b = 2");
+    assert!(non_matched.root().find(&reg).is_none());
   }
 
   #[test]

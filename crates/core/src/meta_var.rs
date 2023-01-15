@@ -1,5 +1,5 @@
 use crate::match_tree::does_node_match_exactly;
-use crate::matcher::KindMatcher;
+use crate::matcher::{KindMatcher, RegexMatcher};
 use crate::pattern::Pattern;
 use crate::Language;
 use crate::Node;
@@ -166,7 +166,7 @@ impl<L: Language> Default for MetaVarMatchers<L> {
 pub enum MetaVarMatcher<L: Language> {
   #[cfg(feature = "regex")]
   /// A regex to filter matched metavar based on its textual content.
-  Regex(regex::Regex),
+  Regex(RegexMatcher),
   /// A pattern to filter matched metavar based on its AST tree shape.
   Pattern(Pattern<L>),
   /// A kind_id to filter matched metavar based on its ts-node kind
@@ -180,7 +180,7 @@ impl<L: Language> MetaVarMatcher<L> {
     let mut env = MetaVarEnv::new();
     match self {
       #[cfg(feature = "regex")]
-      Regex(regexp) => regexp.is_match(&candidate.text()),
+      Regex(r) => r.match_node_with_env(candidate, &mut env).is_some(),
       Pattern(p) => p.match_node_with_env(candidate, &mut env).is_some(),
       Kind(k) => k.match_node_with_env(candidate, &mut env).is_some(),
     }

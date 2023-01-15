@@ -1,5 +1,7 @@
 mod kind;
 mod node_match;
+#[cfg(feature = "regex")]
+mod text;
 
 use crate::meta_var::{MetaVarEnv, MetaVarMatchers};
 use crate::traversal::Pre;
@@ -11,6 +13,8 @@ use bit_set::BitSet;
 
 pub use kind::{KindMatcher, KindMatcherError};
 pub use node_match::NodeMatch;
+#[cfg(feature = "regex")]
+pub use text::{RegexMatcher, RegexMatcherError};
 
 /**
  * N.B. At least one positive term is required for matching
