@@ -40,8 +40,14 @@ pub trait Printer {
     path: &Path,
     rule: &RuleConfig<SupportLang>,
   ) -> Result<()>;
-  fn before_print(&self) {}
-  fn after_print(&self) {}
+  #[inline]
+  fn before_print(&self) -> Result<()> {
+    Ok(())
+  }
+  #[inline]
+  fn after_print(&self) -> Result<()> {
+    Ok(())
+  }
 }
 
 #[derive(Clone)]

@@ -171,7 +171,7 @@ impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     let rewrite = &self.arg.rewrite;
     let printer = &self.printer;
-    printer.before_print();
+    printer.before_print()?;
     for (match_unit, lang) in items {
       let rewrite = rewrite
         .as_ref()
@@ -186,7 +186,7 @@ impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
         }
       }
     }
-    printer.after_print();
+    printer.after_print()?;
     Ok(())
   }
 }
@@ -230,7 +230,7 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
   }
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     let printer = &self.printer;
-    printer.before_print();
+    printer.before_print()?;
     let arg = &self.arg;
     let lang = arg.lang.expect("must present");
     if arg.debug_query {
@@ -244,7 +244,7 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
     for match_unit in items {
       match_one_file(printer, &match_unit, &rewrite)?;
     }
-    printer.after_print();
+    printer.after_print()?;
     Ok(())
   }
 }
@@ -310,7 +310,7 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
     None
   }
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
-    self.printer.before_print();
+    self.printer.before_print()?;
     for (path, grep) in items {
       let mut match_unit = MatchUnit {
         path,
@@ -327,7 +327,7 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
         match_rule_on_file(&match_unit, config, &file_content, &self.printer)?;
       }
     }
-    self.printer.after_print();
+    self.printer.after_print()?;
     Ok(())
   }
 }

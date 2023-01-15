@@ -205,7 +205,7 @@ impl<W: Write> JSONPrinter<W> {
     let mut lock = self.output.lock().expect("should work");
     let matched = self.matched.swap(true, Ordering::AcqRel);
     if !matched {
-      writeln!(&mut lock, "[")?;
+      writeln!(&mut lock)?;
       let doc = docs.next().expect("must not be empty");
       serde_json::to_writer_pretty(&mut *lock, &doc)?;
     }
@@ -217,7 +217,6 @@ impl<W: Write> JSONPrinter<W> {
   }
 }
 
-// TODO: refactor this shitty code.
 impl<W: Write> Printer for JSONPrinter<W> {
   fn print_rule<'a>(
     &self,
@@ -260,14 +259,20 @@ impl<W: Write> Printer for JSONPrinter<W> {
     self.print_docs(jsons)
   }
 
-  fn after_print(&self) {
+  fn before_print(&self) -> Result<()> {
+    let mut lock = self.output.lock().expect("should work");
+    write!(&mut lock, "[")?;
+    Ok(())
+  }
+
+  fn after_print(&self) -> Result<()> {
+    let mut lock = self.output.lock().expect("should work");
     let matched = self.matched.load(Ordering::Acquire);
     if matched {
-      println!();
-    } else {
-      print!("[");
+      writeln!(&mut lock)?;
     }
-    println!("]");
+    writeln!(&mut lock, "]")?;
+    Ok(())
   }
 }
 
