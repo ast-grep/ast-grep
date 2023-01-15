@@ -13,8 +13,17 @@ use error::exit_with_error;
 use scan::{run_with_config, run_with_pattern, RunArg, ScanArg};
 use verify::{run_test_rule, TestArg};
 
+const LOGO: &str = r#"
+Search and Rewrite code at large scale using AST pattern.
+                    __
+        ____ ______/ /_      ____ _________  ____
+       / __ `/ ___/ __/_____/ __ `/ ___/ _ \/ __ \
+      / /_/ (__  ) /_/_____/ /_/ / /  /  __/ /_/ /
+      \__,_/____/\__/      \__, /_/   \___/ .___/
+                          /____/         /_/
+"#;
 #[derive(Parser)]
-#[clap(author, version, about, long_about = None)]
+#[clap(author, version, about, long_about = LOGO)]
 /**
  * TODO: add some description for ast-grep: sg
  * Example:
