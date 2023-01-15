@@ -8,7 +8,7 @@ pub use crate::constraints::{
   SerializableMetaVarMatcher, SerializeConstraintsError,
 };
 use ast_grep_core::language::Language;
-use ast_grep_core::matcher::{KindMatcher, KindMatcherError};
+use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::meta_var::MetaVarMatchers;
 use ast_grep_core::ops as o;
@@ -167,6 +167,7 @@ pub enum Rule<L: Language> {
   Follows(Box<Follows<L>>),
   Pattern(Pattern<L>),
   Kind(KindMatcher<L>),
+  Regex(RegexMatcher<L>),
 }
 
 impl<L: Language> Matcher<L> for Rule<L> {
@@ -186,6 +187,7 @@ impl<L: Language> Matcher<L> for Rule<L> {
       Follows(former) => match_and_add_label(&**former, node, env),
       Pattern(pattern) => pattern.match_node_with_env(node, env),
       Kind(kind) => kind.match_node_with_env(node, env),
+      Regex(regex) => regex.match_node_with_env(node, env),
     }
   }
 
@@ -201,6 +203,7 @@ impl<L: Language> Matcher<L> for Rule<L> {
       Follows(former) => former.potential_kinds(),
       Pattern(pattern) => pattern.potential_kinds(),
       Kind(kind) => kind.potential_kinds(),
+      Regex(regex) => regex.potential_kinds(),
     }
   }
 }
@@ -231,6 +234,8 @@ pub enum RuleSerializeError {
   InvalidKind(#[from] KindMatcherError),
   #[error("Rule contains invalid pattern matcher.")]
   InvalidPattern(#[from] PatternError),
+  #[error("Rule contains invalid regex matcher.")]
+  WrongRegex(#[from] RegexMatcherError),
 }
 
 // TODO: implement positive/non positive
@@ -294,6 +299,7 @@ fn deserialze_augmented_atomic_rule<L: Language>(
     A::Pattern(PatternStyle::Contextual { context, selector }) => {
       R::Pattern(Pattern::contextual(&context, &selector, lang)?)
     }
+    A::Regex(r) => R::Regex(RegexMatcher::try_new(&r)?),
   };
   augment_rule(deserialized_rule, augmentation, l)
 }

@@ -22,6 +22,7 @@ pub enum SerializableRule {
 pub enum AtomicRule {
   Pattern(PatternStyle),
   Kind(String),
+  Regex(String),
 }
 
 #[derive(Serialize, Deserialize, Clone)]

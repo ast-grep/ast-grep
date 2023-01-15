@@ -7,6 +7,8 @@ use bit_set::BitSet;
 use regex::{Error as RegexError, Regex};
 use thiserror::Error;
 
+use std::marker::PhantomData;
+
 #[derive(Debug, Error)]
 pub enum RegexMatcherError {
   #[error("Parsing text matcher fails.")]
@@ -14,19 +16,21 @@ pub enum RegexMatcherError {
 }
 
 #[derive(Clone)]
-pub struct RegexMatcher {
+pub struct RegexMatcher<L: Language> {
   regex: Regex,
+  lang: PhantomData<L>,
 }
 
-impl RegexMatcher {
+impl<L: Language> RegexMatcher<L> {
   pub fn try_new(text: &str) -> Result<Self, RegexMatcherError> {
     Ok(RegexMatcher {
       regex: Regex::new(text)?,
+      lang: PhantomData,
     })
   }
 }
 
-impl<L: Language> Matcher<L> for RegexMatcher {
+impl<L: Language> Matcher<L> for RegexMatcher<L> {
   fn match_node_with_env<'tree>(
     &self,
     node: Node<'tree, L>,

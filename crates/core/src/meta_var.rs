@@ -166,7 +166,7 @@ impl<L: Language> Default for MetaVarMatchers<L> {
 pub enum MetaVarMatcher<L: Language> {
   #[cfg(feature = "regex")]
   /// A regex to filter matched metavar based on its textual content.
-  Regex(RegexMatcher),
+  Regex(RegexMatcher<L>),
   /// A pattern to filter matched metavar based on its AST tree shape.
   Pattern(Pattern<L>),
   /// A kind_id to filter matched metavar based on its ts-node kind
