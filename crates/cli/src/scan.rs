@@ -355,7 +355,12 @@ fn match_rule_on_file(
     return Ok(());
   }
   let file = SimpleFile::new(path.to_string_lossy(), file_content);
-  reporter.print_rule(matches, file, rule);
+  if let Some(fixer) = &rule.fixer {
+    let diffs = matches.map(|m| Diff::generate(m, matcher, fixer));
+    reporter.print_rule_diffs(diffs, path, rule)?;
+  } else {
+    reporter.print_rule(matches, file, rule);
+  }
   Ok(())
 }
 
