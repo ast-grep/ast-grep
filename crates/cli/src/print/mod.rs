@@ -31,7 +31,7 @@ pub trait Printer {
     matches: Matches!('a),
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SupportLang>,
-  );
+  ) -> Result<()>;
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()>;
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()>;
   fn print_rule_diffs<'a>(

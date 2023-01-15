@@ -205,25 +205,26 @@ impl<W: Write> Printer for JSONPrinter<W> {
     matches: Matches!('a),
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SupportLang>,
-  ) {
+  ) -> Result<()> {
     let mut matches = matches.peekable();
     if matches.peek().is_none() {
-      return;
+      return Ok(());
     }
     let mut lock = self.output.lock().expect("should work");
     let matched = self.matched.swap(true, Ordering::AcqRel);
     let path = file.name();
     if !matched {
-      writeln!(&mut lock, "[").unwrap();
-      let nm = matches.next().unwrap();
+      writeln!(&mut lock, "[")?;
+      let nm = matches.next().expect("must not be empty");
       let v = RuleMatchJSON::new(nm, path, rule);
-      serde_json::to_writer_pretty(&mut *lock, &v).unwrap();
+      serde_json::to_writer_pretty(&mut *lock, &v)?;
     }
     for nm in matches {
-      writeln!(&mut lock, ",").unwrap();
+      writeln!(&mut lock, ",")?;
       let v = RuleMatchJSON::new(nm, path, rule);
-      serde_json::to_writer_pretty(&mut *lock, &v).unwrap();
+      serde_json::to_writer_pretty(&mut *lock, &v)?;
     }
+    Ok(())
   }
 
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {

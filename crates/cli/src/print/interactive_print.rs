@@ -46,9 +46,9 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     matches: Matches!('a),
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SupportLang>,
-  ) {
+  ) -> Result<()> {
     interaction::run_in_alternate_screen(|| {
-      self.inner.print_rule(matches, file, rule);
+      self.inner.print_rule(matches, file, rule)?;
       let resp = interaction::prompt(VIEW_PROMPT, "q", Some('\n')).expect("cannot fail");
       if resp == 'q' {
         Err(anyhow::anyhow!("Exit interactive editing"))
@@ -56,7 +56,6 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
         Ok(())
       }
     })
-    .unwrap();
   }
 
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {

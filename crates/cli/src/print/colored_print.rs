@@ -102,7 +102,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     matches: Matches!('a),
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SupportLang>,
-  ) {
+  ) -> Result<()> {
     let config = &self.config;
     let mut writer = self.writer.lock().expect("should not fail");
     let serverity = match rule.severity {
@@ -125,8 +125,9 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
         .with_message(rule.get_message(&m))
         .with_notes(rule.note.iter().cloned().collect())
         .with_labels(labels);
-      term::emit(&mut *writer, config, &file, &diagnostic).unwrap();
+      term::emit(&mut *writer, config, &file, &diagnostic)?;
     }
+    Ok(())
   }
 
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {

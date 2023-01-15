@@ -359,7 +359,7 @@ fn match_rule_on_file(
     let diffs = matches.map(|m| Diff::generate(m, matcher, fixer));
     reporter.print_rule_diffs(diffs, path, rule)?;
   } else {
-    reporter.print_rule(matches, file, rule);
+    reporter.print_rule(matches, file, rule)?;
   }
   Ok(())
 }
