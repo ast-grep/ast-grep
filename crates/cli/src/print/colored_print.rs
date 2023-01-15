@@ -662,7 +662,7 @@ rule:
       .expect("should parse")
       .pop()
       .unwrap();
-      printer.print_rule(matches, file, &rule);
+      printer.print_rule(matches, file, &rule).expect("test only");
       let text = get_text(&printer);
       assert!(text.contains("test.tsx"), "{note}");
       assert!(text.contains("note[test-id]"), "{note}");

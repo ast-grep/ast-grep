@@ -196,6 +196,25 @@ impl<W: Write> JSONPrinter<W> {
       matched: AtomicBool::new(false),
     }
   }
+
+  fn print_docs<S: Serialize>(&self, docs: impl Iterator<Item = S>) -> Result<()> {
+    let mut docs = docs.peekable();
+    if docs.peek().is_none() {
+      return Ok(());
+    }
+    let mut lock = self.output.lock().expect("should work");
+    let matched = self.matched.swap(true, Ordering::AcqRel);
+    if !matched {
+      writeln!(&mut lock, "[")?;
+      let doc = docs.next().expect("must not be empty");
+      serde_json::to_writer_pretty(&mut *lock, &doc)?;
+    }
+    for doc in docs {
+      writeln!(&mut lock, ",")?;
+      serde_json::to_writer_pretty(&mut *lock, &doc)?;
+    }
+    Ok(())
+  }
 }
 
 // TODO: refactor this shitty code.
@@ -206,79 +225,39 @@ impl<W: Write> Printer for JSONPrinter<W> {
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SupportLang>,
   ) -> Result<()> {
-    let mut matches = matches.peekable();
-    if matches.peek().is_none() {
-      return Ok(());
-    }
-    let mut lock = self.output.lock().expect("should work");
-    let matched = self.matched.swap(true, Ordering::AcqRel);
     let path = file.name();
-    if !matched {
-      writeln!(&mut lock, "[")?;
-      let nm = matches.next().expect("must not be empty");
-      let v = RuleMatchJSON::new(nm, path, rule);
-      serde_json::to_writer_pretty(&mut *lock, &v)?;
-    }
-    for nm in matches {
-      writeln!(&mut lock, ",")?;
-      let v = RuleMatchJSON::new(nm, path, rule);
-      serde_json::to_writer_pretty(&mut *lock, &v)?;
-    }
-    Ok(())
+    let jsons = matches.map(|nm| RuleMatchJSON::new(nm, path, rule));
+    self.print_docs(jsons)
   }
 
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {
-    let mut matches = matches.peekable();
-    if matches.peek().is_none() {
-      return Ok(());
-    }
-    let mut lock = self.output.lock().expect("should work");
-    let matched = self.matched.swap(true, Ordering::AcqRel);
     let path = path.to_string_lossy();
-    if !matched {
-      writeln!(lock, "[").unwrap();
-      let nm = matches.next().unwrap();
-      let v = MatchJSON::new(nm, &path);
-      serde_json::to_writer_pretty(&mut *lock, &v).unwrap();
-    }
-    for nm in matches {
-      writeln!(lock, ",").unwrap();
-      let v = MatchJSON::new(nm, &path);
-      serde_json::to_writer_pretty(&mut *lock, &v).unwrap();
-    }
-    Ok(())
+    let jsons = matches.map(|nm| MatchJSON::new(nm, &path));
+    self.print_docs(jsons)
   }
 
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
-    let mut diffs = diffs.peekable();
-    if diffs.peek().is_none() {
-      return Ok(());
-    }
-    let mut lock = self.output.lock().expect("should work");
-    let matched = self.matched.swap(true, Ordering::AcqRel);
     let path = path.to_string_lossy();
-    if !matched {
-      writeln!(lock, "[").unwrap();
-      let diff = diffs.next().unwrap();
+    let jsons = diffs.map(|diff| {
       let mut v = MatchJSON::new(diff.node_match, &path);
       v.replacement = Some(diff.replacement);
-      serde_json::to_writer_pretty(&mut *lock, &v).unwrap();
-    }
-    for diff in diffs {
-      writeln!(lock, ",").unwrap();
-      let mut v = MatchJSON::new(diff.node_match, &path);
-      v.replacement = Some(diff.replacement);
-      serde_json::to_writer_pretty(&mut *lock, &v).unwrap();
-    }
-    Ok(())
+      v
+    });
+    self.print_docs(jsons)
   }
   fn print_rule_diffs<'a>(
     &self,
     diffs: Diffs!('a),
     path: &Path,
-    _rule: &RuleConfig<SupportLang>,
+    rule: &RuleConfig<SupportLang>,
   ) -> Result<()> {
-    self.print_diffs(diffs, path)
+    let path = path.to_string_lossy();
+    let jsons = diffs.map(|diff| {
+      let mut v = RuleMatchJSON::new(diff.node_match, &path, rule);
+      v.matched.replacement = Some(diff.replacement);
+      v
+    });
+    self.print_docs(jsons)
   }
 
   fn after_print(&self) {
