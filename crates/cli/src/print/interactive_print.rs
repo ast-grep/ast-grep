@@ -70,7 +70,7 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
       return rewrite_action(diffs.collect(), &path);
     }
     interaction::run_in_alternate_screen(|| {
-      let all = print_diffs_and_prompt_action(&self.inner, &path, diffs)?;
+      let all = print_diffs_and_prompt_action(&self.inner, &path, diffs, None)?;
       if all {
         self.accept_all.store(true, Ordering::SeqCst);
       }
@@ -81,9 +81,19 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     &self,
     diffs: Diffs!('a),
     path: &Path,
-    _rule: &RuleConfig<SupportLang>,
+    rule: &RuleConfig<SupportLang>,
   ) -> Result<()> {
-    self.print_diffs(diffs, path)
+    let path = path.to_path_buf();
+    if self.accept_all.load(Ordering::SeqCst) {
+      return rewrite_action(diffs.collect(), &path);
+    }
+    interaction::run_in_alternate_screen(|| {
+      let all = print_diffs_and_prompt_action(&self.inner, &path, diffs, Some(rule))?;
+      if all {
+        self.accept_all.store(true, Ordering::SeqCst);
+      }
+      Ok(())
+    })
   }
 }
 
@@ -100,13 +110,18 @@ fn print_diffs_and_prompt_action<'a>(
   printer: &impl Printer,
   path: &PathBuf,
   diffs: Diffs!('a),
+  rule: Option<&RuleConfig<SupportLang>>,
 ) -> Result<bool> {
   let diffs: Vec<_> = diffs.collect();
   let first_match = match diffs.first() {
     Some(n) => n.node_match.start_pos().0,
     None => return Ok(false),
   };
-  printer.print_diffs(diffs.clone().into_iter(), path)?;
+  if let Some(rule) = rule {
+    printer.print_rule_diffs(diffs.clone().into_iter(), path, rule)?;
+  } else {
+    printer.print_diffs(diffs.clone().into_iter(), path)?;
+  }
   let response =
     interaction::prompt(EDIT_PROMPT, "ynaqe", Some('n')).expect("Error happened during prompt");
   match response {

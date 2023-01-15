@@ -147,10 +147,35 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     &self,
     diffs: Diffs!('a),
     path: &Path,
-    _rule: &RuleConfig<SupportLang>,
+    rule: &RuleConfig<SupportLang>,
   ) -> Result<()> {
-    self.print_diffs(diffs, path)
+    let writer = &mut *self.writer.lock().expect("should success");
+    print_rule_title(rule, &self.styles.rule, writer)?;
+    print_diffs(diffs, path, &self.styles, writer)?;
+    if let Some(note) = &rule.note {
+      writeln!(writer, "{}", self.styles.rule.note.paint("Note:"))?;
+      writeln!(writer, "{note}")?;
+    }
+    Ok(())
   }
+}
+
+fn print_rule_title<'a, W: WriteColor>(
+  rule: &RuleConfig<SupportLang>,
+  style: &RuleStyle,
+  writer: &'a mut W,
+) -> Result<()> {
+  let (level, level_style) = match rule.severity {
+    Severity::Error => ("error", style.error),
+    Severity::Warning => ("warning", style.warning),
+    Severity::Info => ("note", style.info),
+    Severity::Hint => ("help", style.hint),
+  };
+  let header = format!("{level}[{}]:", &rule.id);
+  let header = level_style.paint(header);
+  let message = style.message.paint(&rule.message);
+  writeln!(writer, "{header} {message}")?;
+  Ok(())
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -442,6 +467,21 @@ pub fn print_diff(
   Ok(())
 }
 
+// warn[rule-id]: rule message here.
+// |------------|------------------|
+//    header            message
+#[derive(Default)]
+struct RuleStyle {
+  // header style
+  error: Style,
+  warning: Style,
+  info: Style,
+  hint: Style,
+  // message style
+  message: Style,
+  note: Style,
+}
+
 // TODO: use termcolor instead
 #[derive(Default)]
 pub struct PrintStyles {
@@ -451,6 +491,7 @@ pub struct PrintStyles {
   insert_emphasis: Style,
   delete: Style,
   delete_emphasis: Style,
+  rule: RuleStyle,
 }
 
 impl PrintStyles {
@@ -466,6 +507,14 @@ impl PrintStyles {
       insert_emphasis: Style::new().fg(GREEN).on(SEA_GREEN).bold(),
       delete: Style::new().fg(RED),
       delete_emphasis: Style::new().fg(RED).on(THISTLE1).bold(),
+      rule: RuleStyle {
+        error: Color::Red.bold(),
+        warning: Color::Yellow.bold(),
+        info: Style::new().bold(),
+        hint: Style::new().dimmed().bold(),
+        note: Style::new().italic(),
+        message: Style::new().bold(),
+      },
     }
   }
   fn no_color() -> Self {
