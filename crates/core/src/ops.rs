@@ -100,23 +100,18 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
+    let mut new_env = env.clone();
     self
       .patterns
       .iter()
-      .find_map(|p| p.match_node_with_env(node.clone(), env))
-      .map(|_| node)
-    // let mut new_env = env.clone();
-    // self
-    //   .patterns
-    //   .iter()
-    //   .find_map(|p| {
-    //     new_env = env.clone();
-    //     p.match_node_with_env(node.clone(), &mut new_env)
-    //   })
-    //   .map(|_| {
-    //     *env = new_env;
-    //     node
-    //   })
+      .find_map(|p| {
+        new_env = env.clone();
+        p.match_node_with_env(node.clone(), &mut new_env)
+      })
+      .map(|_| {
+        *env = new_env;
+        node
+      })
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
@@ -528,7 +523,6 @@ mod test {
   }
 
   #[test]
-  #[ignore]
   fn test_any_revert() {
     let matcher = Op::any([
       Op::all(["foo($A)".t(), "impossible".t()]),
