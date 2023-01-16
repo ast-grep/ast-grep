@@ -143,10 +143,16 @@ where
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
-    self
+    let mut new_env = env.clone();
+    if let Some(ret) = self
       .pattern1
-      .match_node_with_env(node.clone(), env)
-      .or_else(|| self.pattern2.match_node_with_env(node, env))
+      .match_node_with_env(node.clone(), &mut new_env)
+    {
+      *env = new_env;
+      Some(ret)
+    } else {
+      self.pattern2.match_node_with_env(node, env)
+    }
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
@@ -513,8 +519,7 @@ mod test {
   }
 
   #[test]
-  #[ignore]
-  fn test_or_revert() {
+  fn test_or_revert_env() {
     let matcher = Op::either(Op::every("foo($A)".t()).and("impossible".t())).or("foo($B)".t());
     let code = Root::new("foo(123)", Tsx);
     let matches = code.root().find(matcher).expect("should found");
@@ -523,7 +528,7 @@ mod test {
   }
 
   #[test]
-  fn test_any_revert() {
+  fn test_any_revert_env() {
     let matcher = Op::any([
       Op::all(["foo($A)".t(), "impossible".t()]),
       Op::all(["foo($B)".t()]),
