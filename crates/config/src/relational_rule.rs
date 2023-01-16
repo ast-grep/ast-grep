@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 fn until<L: Language>(pattern: &Option<Rule<L>>) -> impl Fn(&Node<L>) -> bool + '_ {
   move |n| {
     if let Some(m) = pattern {
-      m.match_node(n.clone()).is_none()
+      !n.matches(m)
     } else {
       true
     }
@@ -88,11 +88,13 @@ impl<L: Language> Matcher<L> for Has<L> {
         .children()
         .find_map(|n| self.inner.match_node_with_env(n, env))
     } else {
-      node
-        .dfs()
-        .skip(1)
-        .take_while(until(&self.until))
-        .find_map(|n| self.inner.match_node_with_env(n, env))
+      // TODO: use Pre traversal to reduce stack allocation
+      node.children().filter(until(&self.until)).find_map(|n| {
+        self
+          .inner
+          .match_node_with_env(n.clone(), env)
+          .or_else(|| self.match_node_with_env(n, env))
+      })
     }
   }
 }

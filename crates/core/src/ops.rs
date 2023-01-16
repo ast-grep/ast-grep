@@ -216,14 +216,14 @@ pub struct Predicate<F> {
 impl<L, F> Matcher<L> for Predicate<F>
 where
   L: Language,
-  F: for<'tree> Fn(Node<'tree, L>) -> bool,
+  F: for<'tree> Fn(&Node<'tree, L>) -> bool,
 {
   fn match_node_with_env<'tree>(
     &self,
     node: Node<'tree, L>,
     _env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
-    (self.func)(node.clone()).then_some(node)
+    (self.func)(&node).then_some(node)
   }
 }
 
@@ -231,7 +231,7 @@ where
 impl<L: Language> Op<L, MatchNone> {
   pub fn func<F>(func: F) -> Predicate<F>
   where
-    F: for<'tree> Fn(Node<'tree, L>) -> bool,
+    F: for<'tree> Fn(&Node<'tree, L>) -> bool,
   {
     Predicate { func }
   }
