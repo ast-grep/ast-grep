@@ -110,6 +110,7 @@ fn merge_edits_to_string<L: Language>(edits: Vec<Edit>, root: &Root<L>) -> Strin
   let mut ret = String::new();
   let mut start = 0;
   for edit in edits {
+    debug_assert!(start <= edit.position, "Edit must be ordered!");
     ret.push_str(&root.source[start..edit.position]);
     ret.push_str(&edit.inserted_text);
     start = edit.position + edit.deleted_length;

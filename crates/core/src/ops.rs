@@ -105,6 +105,18 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
       .iter()
       .find_map(|p| p.match_node_with_env(node.clone(), env))
       .map(|_| node)
+    // let mut new_env = env.clone();
+    // self
+    //   .patterns
+    //   .iter()
+    //   .find_map(|p| {
+    //     new_env = env.clone();
+    //     p.match_node_with_env(node.clone(), &mut new_env)
+    //   })
+    //   .map(|_| {
+    //     *env = new_env;
+    //     node
+    //   })
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
@@ -503,5 +515,28 @@ mod test {
     // two None kinds
     let matcher = Op::any(["$A".t(), "$B".t()]);
     assert_eq!(matcher.potential_kinds(), None);
+  }
+
+  #[test]
+  #[ignore]
+  fn test_or_revert() {
+    let matcher = Op::either(Op::every("foo($A)".t()).and("impossible".t())).or("foo($B)".t());
+    let code = Root::new("foo(123)", Tsx);
+    let matches = code.root().find(matcher).expect("should found");
+    assert!(matches.get_env().get_match("A").is_none());
+    assert_eq!(matches.get_env().get_match("B").unwrap().text(), "123");
+  }
+
+  #[test]
+  #[ignore]
+  fn test_any_revert() {
+    let matcher = Op::any([
+      Op::all(["foo($A)".t(), "impossible".t()]),
+      Op::all(["foo($B)".t()]),
+    ]);
+    let code = Root::new("foo(123)", Tsx);
+    let matches = code.root().find(matcher).expect("should found");
+    assert!(matches.get_env().get_match("A").is_none());
+    assert_eq!(matches.get_env().get_match("B").unwrap().text(), "123");
   }
 }

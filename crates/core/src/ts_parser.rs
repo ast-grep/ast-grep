@@ -41,6 +41,7 @@ pub struct Edit {
 }
 
 fn position_for_offset(input: &[u8], offset: usize) -> Point {
+  debug_assert!(offset <= input.len());
   let (mut row, mut col) = (0, 0);
   for c in &input[0..offset] {
     if *c as char == '\n' {

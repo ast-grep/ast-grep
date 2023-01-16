@@ -16,7 +16,10 @@ fn match_leaf_meta_var<'goal, 'tree, L: Language>(
     }
     MV::Anonymous => Some(candidate),
     // Ellipsis will be matched in parent level
-    MV::Ellipsis => Some(candidate),
+    MV::Ellipsis => {
+      debug_assert!(false, "Ellipsis should be matched in parent level");
+      Some(candidate)
+    }
     MV::NamedEllipsis(name) => {
       env.insert(name, candidate.clone())?;
       Some(candidate)
