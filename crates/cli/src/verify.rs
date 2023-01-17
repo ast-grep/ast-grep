@@ -529,14 +529,20 @@ fn report_case_detail_impl<W: Write>(
         )?;
         let actual_str = to_string(&actual)?;
         let expected_str = to_string(&expected)?;
-        writeln!(output, "Diff:")?;
+        writeln!(output, "{}", Style::new().italic().paint("Diff:"))?;
         print_diff(&expected_str, &actual_str, &styles, output)?;
       } else {
         writeln!(output, "[{wrong}] No {case_id} basline found.")?;
-        writeln!(output, "Generated Snapshot:")?;
+        // TODO: add to print_styles
+        writeln!(
+          output,
+          "{}",
+          Style::new().italic().paint("Generated Snapshot:")
+        )?;
         indented_write(output, &to_string(&actual)?)?;
       }
-      writeln!(output, "For Code:")?;
+      // TODO: add to print_styles
+      writeln!(output, "{}", Style::new().italic().paint("For Code:"))?;
       indented_write(output, source)?;
       writeln!(output)?;
     }
