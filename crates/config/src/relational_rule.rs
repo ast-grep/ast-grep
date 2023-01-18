@@ -179,6 +179,7 @@ impl<L: Language> Matcher<L> for Follows<L> {
 mod test {
   use super::*;
   use crate::test::TypeScript as TS;
+  use ast_grep_core::matcher::KindMatcher;
   use ast_grep_core::ops as o;
   use ast_grep_core::Pattern;
 
@@ -358,6 +359,37 @@ mod test {
       &rule,
     );
   }
+
+  #[test]
+  fn test_has_until_should_not_abort_prematurely() {
+    let has = Has {
+      immediate: false,
+      lang: PhantomData,
+      until: Some(Rule::Kind(KindMatcher::new(
+        "function_declaration",
+        TS::Tsx,
+      ))),
+      inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
+    };
+    let rule = make_rule("function test() { $$$ }", Rule::Has(Box::new(has)));
+    test_found(
+      &[
+        "function test() { var a = 1}",
+        "function test() { function inner() { var a = 1 }; var a = 1}",
+      ],
+      &rule,
+    );
+    test_not_found(
+      &[
+        "function test() { var a = 2}",
+        "function test() { function inner() { var a = 1 }}",
+      ],
+      &rule,
+    );
+  }
+
+  #[test]
+  fn test_has_until_should_be_inclusive() {}
 
   #[test]
   fn test_has_immediate() {
