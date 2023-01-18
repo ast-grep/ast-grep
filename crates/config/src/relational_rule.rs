@@ -87,14 +87,22 @@ impl<L: Language> Matcher<L> for Has<L> {
       node
         .children()
         .find_map(|n| self.inner.match_node_with_env(n, env))
-    } else {
+    } else if let Some(matcher) = &self.until {
       // TODO: use Pre traversal to reduce stack allocation
-      node.children().filter(until(&self.until)).find_map(|n| {
-        self
-          .inner
-          .match_node_with_env(n.clone(), env)
-          .or_else(|| self.match_node_with_env(n, env))
+      node.children().find_map(|n| {
+        self.inner.match_node_with_env(n.clone(), env).or_else(|| {
+          if n.matches(matcher) {
+            None
+          } else {
+            self.match_node_with_env(n, env)
+          }
+        })
       })
+    } else {
+      node
+        .dfs()
+        .skip(1)
+        .find_map(|n| self.inner.match_node_with_env(n, env))
     }
   }
 }
@@ -389,7 +397,6 @@ mod test {
   }
 
   #[test]
-  #[ignore]
   fn test_has_until_should_be_inclusive() {
     let has = Has {
       immediate: false,
