@@ -389,7 +389,34 @@ mod test {
   }
 
   #[test]
-  fn test_has_until_should_be_inclusive() {}
+  #[ignore]
+  fn test_has_until_should_be_inclusive() {
+    let has = Has {
+      immediate: false,
+      lang: PhantomData,
+      until: Some(Rule::Kind(KindMatcher::new(
+        "function_declaration",
+        TS::Tsx,
+      ))),
+      inner: Rule::Pattern(Pattern::new("function inner() {$$$}", TS::Tsx)),
+    };
+    let rule = make_rule("function test() { $$$ }", Rule::Has(Box::new(has)));
+    test_found(
+      &[
+        "function test() { function inner() { var a = 1 };}",
+        "function test() { var a = 1; function inner() { var a = 1 };}",
+        "function test() { if (false) { function inner() { var a = 1 };} }",
+      ],
+      &rule,
+    );
+    test_not_found(
+      &[
+        "function test() { var a = 2}",
+        "function test() { function bbb() { function inner() { var a = 1 } }}",
+      ],
+      &rule,
+    );
+  }
 
   #[test]
   fn test_has_immediate() {
