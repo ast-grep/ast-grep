@@ -405,7 +405,7 @@ fn print_highlight<'a, W: Write>(
 fn index_display(index: Option<usize>, style: Style, width: usize) -> impl Display {
   let index_str = match index {
     None => format!("{:width$}", ""),
-    Some(idx) => format!("{:<width$}", idx),
+    Some(idx) => format!("{:<width$}", idx + 1), // 0-based index -> 1-based line num
   };
   style.paint(index_str)
 }
