@@ -17,6 +17,7 @@ ignore = "0.4.20"
 serde = { version = "1.0", features = ["derive"] }
 
 tree-sitter-c = { version = "0.20.2", optional = true }
+tree-sitter-dart= { version = "0.0.2", optional = true }
 tree-sitter-go = { version = "0.19.1", optional = true }
 tree-sitter-html = { version = "0.19.0", optional = true }
 tree-sitter-java = { version = "0.20.0", optional = true }
@@ -32,6 +33,7 @@ tree-sitter-c-sharp = { version = "0.20.0", package = "ast-grep-tree-sitter-c-sh
 [features]
 builtin-parser = [
   "tree-sitter-c",
+  "tree-sitter-dart",
   "tree-sitter-go",
   "tree-sitter-html",
   "tree-sitter-java",

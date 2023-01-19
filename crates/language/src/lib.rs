@@ -23,6 +23,7 @@ macro_rules! impl_lang {
 }
 
 impl_lang!(C, language_c);
+impl_lang!(Dart, language_dart);
 impl_lang!(Go, language_go);
 impl_lang!(Html, language_html);
 impl_lang!(Java, language_java);
@@ -45,6 +46,7 @@ use std::str::FromStr;
 pub enum SupportLang {
   C,
   CSharp,
+  Dart,
   Go,
   Html,
   Java,
@@ -81,6 +83,7 @@ impl FromStr for SupportLang {
     match s {
       "c" => Ok(C),
       "cs" | "csharp" => Ok(CSharp),
+      "dart" => Ok(Dart),
       "go" | "golang" => Ok(Go),
       "html" => Ok(Html),
       "java" => Ok(Java),
@@ -103,6 +106,7 @@ macro_rules! execute_lang_method {
     match $me {
       S::C => C.$method($($pname,)*),
       S::CSharp => CSharp.$method($($pname,)*),
+      S::Dart => Dart.$method($($pname,)*),
       S::Go => Go.$method($($pname,)*),
       S::Html => Html.$method($($pname,)*),
       S::Java => Java.$method($($pname,)*),
@@ -149,6 +153,7 @@ pub fn from_extension(path: &Path) -> Option<SupportLang> {
   match path.extension()?.to_str()? {
     "c" | "h" => Some(C),
     "cs" => Some(CSharp),
+    "dart" => Some(Dart),
     "go" => Some(Go),
     "html" | "htm" | "xhtml" => Some(Html),
     "java" => Some(Java),
@@ -184,6 +189,7 @@ pub fn file_types(lang: &SupportLang) -> Types {
   let builder = match lang {
     L::C => builder.select("c"),
     L::CSharp => builder.select("csharp"),
+    L::Dart => builder.select("dart"),
     L::Go => builder.select("go"),
     L::Html => builder.select("html"),
     L::Java => builder.select("java"),
