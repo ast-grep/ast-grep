@@ -16,6 +16,14 @@ fn until<L: Language>(pattern: &Option<Rule<L>>) -> impl Fn(&Node<L>) -> bool + 
   }
 }
 
+/*
+enum StopBy<L: Language> {
+  Neighbor,
+  End,
+  Rule(Rule<L>),
+}
+*/
+
 pub struct Inside<L: Language> {
   outer: Rule<L>,
   until: Option<Rule<L>>,
