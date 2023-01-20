@@ -241,8 +241,8 @@ impl<'t, L: Language> Traversal<'t, L> for Pre<'t, L> {
     let Some(depth) = depth else {
       return;
     };
-    // if already entering sibling, ignore
-    if self.current_depth == depth {
+    // if already entering sibling or traced up, ignore
+    if self.current_depth <= depth {
       return;
     }
     debug_assert!(self.current_depth > depth);
@@ -551,5 +551,28 @@ mod test {
         .collect();
       assert_eq!(recur, visit);
     }
+  }
+
+  // match a leaf node will trace_up the cursor
+  #[test]
+  fn test_traversal_leaf() {
+    let matcher = "true";
+    let case = "((((true))));true";
+    let grep = Tsx.ast_grep(case);
+    let recur = pre_order_with_matcher(grep.root(), matcher);
+    let visit: Vec<_> = Visitor::new(matcher)
+      .reentrant(false)
+      .visit(grep.root())
+      .map(|n| n.range())
+      .collect();
+    assert_eq!(recur, visit);
+    let recur = post_order_with_matcher(grep.root(), matcher);
+    let visit: Vec<_> = Visitor::new(matcher)
+      .algorithm::<PostOrder>()
+      .reentrant(false)
+      .visit(grep.root())
+      .map(|n| n.range())
+      .collect();
+    assert_eq!(recur, visit);
   }
 }
