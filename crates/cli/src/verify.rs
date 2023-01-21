@@ -693,13 +693,25 @@ mod test {
   }
   fn always_report_rule() -> RuleCollection<SupportLang> {
     // empty all should mean always
-    let serialized = SerializableRule::Composite(CompositeRule::All(vec![]));
+    let serialized = SerializableRule {
+      composite: CompositeRule {
+        all: Some(vec![]),
+        ..Default::default()
+      },
+      ..Default::default()
+    };
     let rule = get_rule_config(serialized);
     RuleCollection::try_new(vec![rule]).expect("RuleCollection must be valid")
   }
   fn never_report_rule() -> RuleCollection<SupportLang> {
     // empty any should mean never
-    let serialized = SerializableRule::Composite(CompositeRule::Any(vec![]));
+    let serialized = SerializableRule {
+      composite: CompositeRule {
+        any: Some(vec![]),
+        ..Default::default()
+      },
+      ..Default::default()
+    };
     let rule = get_rule_config(serialized);
     RuleCollection::try_new(vec![rule]).expect("RuleCollection must be valid")
   }

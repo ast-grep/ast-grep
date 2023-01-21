@@ -1,6 +1,6 @@
 use crate::relational_rule::{Follows, Has, Inside, Precedes};
 use crate::serialized_rule::{
-  AtomicRule, Augmentation, CompositeRule, PatternStyle, RelationalRule, SerializableRule,
+  AtomicRule, CompositeRule, PatternStyle, RelationalRule, SerializableRule,
 };
 
 pub use crate::constraints::{
@@ -243,19 +243,23 @@ pub fn try_from_serializable<L: Language>(
   serialized: SerializableRule,
   lang: L,
 ) -> Result<Rule<L>, RuleSerializeError> {
-  use SerializableRule as S;
-  match serialized {
-    S::Composite(comp) => deserialze_composite_rule(comp, lang),
-    S::Relational(relational) => deserialize_relational_rule(relational, lang),
-    S::Atomic { rule, augmentation } => deserialze_augmented_atomic_rule(rule, augmentation, lang),
+  let mut rules = Vec::with_capacity(1);
+  use Rule as R;
+  deserialze_atomic_rule(serialized.atomic, &mut rules, &lang)?;
+  deserialize_relational_rule(serialized.relational, &mut rules, &lang)?;
+  deserialze_composite_rule(serialized.composite, &mut rules, &lang)?;
+  if rules.len() == 1 {
+    Ok(rules.pop().expect("should not be empty"))
+  } else {
+    Ok(R::All(o::All::new(rules)))
   }
 }
 
 fn deserialze_composite_rule<L: Language>(
   composite: CompositeRule,
-  lang: L,
-) -> Result<Rule<L>, RuleSerializeError> {
-  use CompositeRule as C;
+  rules: &mut Vec<Rule<L>>,
+  lang: &L,
+) -> Result<(), RuleSerializeError> {
   use Rule as R;
   let convert_rules = |rules: Vec<SerializableRule>| -> Result<_, RuleSerializeError> {
     let mut inner = Vec::with_capacity(rules.len());
@@ -264,74 +268,70 @@ fn deserialze_composite_rule<L: Language>(
     }
     Ok(inner)
   };
-  Ok(match composite {
-    C::All(all) => R::All(o::All::new(convert_rules(all)?)),
-    C::Any(any) => R::Any(o::Any::new(convert_rules(any)?)),
-    C::Not(not) => R::Not(Box::new(o::Not::new(try_from_serializable(*not, lang)?))),
-  })
+  if let Some(all) = composite.all {
+    rules.push(R::All(o::All::new(convert_rules(all)?)));
+  }
+  if let Some(any) = composite.any {
+    rules.push(R::Any(o::Any::new(convert_rules(any)?)));
+  }
+  if let Some(not) = composite.not {
+    rules.push(R::Not(Box::new(o::Not::new(try_from_serializable(
+      *not,
+      lang.clone(),
+    )?))));
+  }
+  Ok(())
 }
 
 fn deserialize_relational_rule<L: Language>(
   relational: RelationalRule,
-  lang: L,
-) -> Result<Rule<L>, RuleSerializeError> {
-  use RelationalRule as RR;
+  rules: &mut Vec<Rule<L>>,
+  lang: &L,
+) -> Result<(), RuleSerializeError> {
   use Rule as R;
-  Ok(match relational {
-    RR::Inside(inside) => R::Inside(Box::new(Inside::try_new(*inside, lang)?)),
-    RR::Has(has) => R::Has(Box::new(Has::try_new(*has, lang)?)),
-    RR::Precedes(precedes) => R::Precedes(Box::new(Precedes::try_new(*precedes, lang)?)),
-    RR::Follows(follows) => R::Follows(Box::new(Follows::try_new(*follows, lang)?)),
-  })
-}
-
-fn deserialze_augmented_atomic_rule<L: Language>(
-  rule: AtomicRule,
-  augmentation: Augmentation,
-  lang: L,
-) -> Result<Rule<L>, RuleSerializeError> {
-  use AtomicRule as A;
-  use Rule as R;
-  let l = lang.clone();
-  let deserialized_rule = match rule {
-    A::Kind(kind) => R::Kind(KindMatcher::try_new(&kind, lang)?),
-    A::Pattern(PatternStyle::Str(pattern)) => R::Pattern(Pattern::try_new(&pattern, lang)?),
-    A::Pattern(PatternStyle::Contextual { context, selector }) => {
-      R::Pattern(Pattern::contextual(&context, &selector, lang)?)
-    }
-    A::Regex(r) => R::Regex(RegexMatcher::try_new(&r)?),
-  };
-  augment_rule(deserialized_rule, augmentation, l)
-}
-
-fn augment_rule<L: Language>(
-  rule: Rule<L>,
-  aug: Augmentation,
-  lang: L,
-) -> Result<Rule<L>, RuleSerializeError> {
-  let mut rules = vec![];
-  use Rule as R;
-  if let Some(inside) = aug.inside {
+  // relational
+  if let Some(inside) = relational.inside {
     rules.push(R::Inside(Box::new(Inside::try_new(*inside, lang.clone())?)));
   }
-  if let Some(has) = aug.has {
+  if let Some(has) = relational.has {
     rules.push(R::Has(Box::new(Has::try_new(*has, lang.clone())?)));
   }
-  if let Some(precedes) = aug.precedes {
+  if let Some(precedes) = relational.precedes {
     rules.push(R::Precedes(Box::new(Precedes::try_new(
       *precedes,
       lang.clone(),
     )?)));
   }
-  if let Some(follows) = aug.follows {
-    rules.push(R::Follows(Box::new(Follows::try_new(*follows, lang)?)));
+  if let Some(follows) = relational.follows {
+    rules.push(R::Follows(Box::new(Follows::try_new(
+      *follows,
+      lang.clone(),
+    )?)));
   }
-  if rules.is_empty() {
-    Ok(rule)
-  } else {
-    rules.push(rule);
-    Ok(R::All(o::All::new(rules)))
+  Ok(())
+}
+
+fn deserialze_atomic_rule<L: Language>(
+  atomic: AtomicRule,
+  rules: &mut Vec<Rule<L>>,
+  lang: &L,
+) -> Result<(), RuleSerializeError> {
+  use Rule as R;
+  if let Some(pattern) = atomic.pattern {
+    rules.push(match pattern {
+      PatternStyle::Str(pat) => R::Pattern(Pattern::try_new(&pat, lang.clone())?),
+      PatternStyle::Contextual { context, selector } => {
+        R::Pattern(Pattern::contextual(&context, &selector, lang.clone())?)
+      }
+    });
   }
+  if let Some(kind) = atomic.kind {
+    rules.push(R::Kind(KindMatcher::try_new(&kind, lang.clone())?));
+  }
+  if let Some(regex) = atomic.regex {
+    rules.push(R::Regex(RegexMatcher::try_new(&regex)?));
+  }
+  Ok(())
 }
 
 #[cfg(test)]
