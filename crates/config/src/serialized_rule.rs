@@ -1,3 +1,4 @@
+use serde::de::{Deserializer, Error};
 use serde::{Deserialize, Serialize};
 use serde_yaml::with::singleton_map_recursive::deserialize as deserialize_untagged;
 use serde_yaml::{Mapping, Value};
@@ -19,30 +20,38 @@ pub enum SerializableRule {
   },
 }
 
+fn deserialize_rule_variant<'de, D, T>(mapping: Mapping) -> Result<T, D::Error>
+where
+  D: Deserializer<'de>,
+  T: Deserialize<'de>,
+{
+  match deserialize_untagged(Value::Mapping(mapping)) {
+    Ok(result) => Ok(result),
+    Err(err) => Err(Error::custom(err)),
+  }
+}
+
 // SerializableRule can be implmented by derive and untagged enum.
 // But for better error message, manual deserialization is needed. #200
 // https://serde.rs/deserialize-struct.html
-use serde::de::Deserializer;
 impl<'de> Deserialize<'de> for SerializableRule {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
     D: Deserializer<'de>,
   {
     let value: Mapping = Deserialize::deserialize(deserializer)?;
-    let check_keys = |keys: &[&str]| keys.iter().any(|k| value.contains_key(k));
-    if check_keys(&["all", "any", "not"]) {
-      let composite = deserialize_untagged(Value::Mapping(value)).unwrap();
+    if CompositeRule::should_deserialize(&value) {
+      let composite = deserialize_rule_variant::<D, _>(value)?;
       return Ok(SerializableRule::Composite(composite));
     }
-    if !check_keys(&["pattern", "kind", "regex"]) {
-      let relation: RelationalRule = deserialize_untagged(Value::Mapping(value)).unwrap();
+    if !AtomicRule::should_deserialize(&value) {
+      let relation = deserialize_rule_variant::<D, _>(value)?;
       return Ok(SerializableRule::Relational(relation));
     }
     let mut iter = value.into_iter();
-    let rule = Value::Mapping(iter.next().into_iter().collect());
-    let rule = deserialize_untagged(rule).unwrap();
-    let augmentation = Value::Mapping(iter.collect());
-    let augmentation = deserialize_untagged(augmentation).unwrap();
+    let atomic = iter.next().into_iter().collect();
+    let rule = deserialize_rule_variant::<D, _>(atomic)?;
+    let augmentation = deserialize_rule_variant::<D, _>(iter.collect())?;
     Ok(SerializableRule::Atomic { rule, augmentation })
   }
 }
@@ -53,6 +62,13 @@ pub enum AtomicRule {
   Pattern(PatternStyle),
   Kind(String),
   Regex(String),
+}
+
+// NOTE: adding atomic variant should change this
+impl AtomicRule {
+  fn should_deserialize(mapping: &Mapping) -> bool {
+    mapping.contains_key("pattern") || mapping.contains_key("kind") || mapping.contains_key("regex")
+  }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -79,6 +95,13 @@ pub enum CompositeRule {
   All(Vec<SerializableRule>),
   Any(Vec<SerializableRule>),
   Not(Box<SerializableRule>),
+}
+
+// NOTE: adding composite variant should change this
+impl CompositeRule {
+  fn should_deserialize(mapping: &Mapping) -> bool {
+    mapping.contains_key("all") || mapping.contains_key("any") || mapping.contains_key("not")
+  }
 }
 
 /// TODO: add doc
