@@ -1,10 +1,12 @@
 use serde::{Deserialize, Serialize};
+use serde_yaml::with::singleton_map_recursive::deserialize as deserialize_untagged;
+use serde_yaml::{Mapping, Value};
 
 /// We have three kinds of rules in ast-grep.
 /// * Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.
 /// * Relational: filter matched target according to their position relative to other nodes.
 /// * Composite: use logic operation all/any/not to compose the above rules to larger rules.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Clone)]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum SerializableRule {
   Composite(CompositeRule),
@@ -15,6 +17,34 @@ pub enum SerializableRule {
     #[serde(flatten)]
     augmentation: Augmentation,
   },
+}
+
+// SerializableRule can be implmented by derive and untagged enum.
+// But for better error message, manual deserialization is needed. #200
+// https://serde.rs/deserialize-struct.html
+use serde::de::Deserializer;
+impl<'de> Deserialize<'de> for SerializableRule {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let value: Mapping = Deserialize::deserialize(deserializer)?;
+    let check_keys = |keys: &[&str]| keys.iter().any(|k| value.contains_key(k));
+    if check_keys(&["all", "any", "not"]) {
+      let composite = deserialize_untagged(Value::Mapping(value)).unwrap();
+      return Ok(SerializableRule::Composite(composite));
+    }
+    if !check_keys(&["pattern", "kind", "regex"]) {
+      let relation: RelationalRule = deserialize_untagged(Value::Mapping(value)).unwrap();
+      return Ok(SerializableRule::Relational(relation));
+    }
+    let mut iter = value.into_iter();
+    let rule = Value::Mapping(iter.next().into_iter().collect());
+    let rule = deserialize_untagged(rule).unwrap();
+    let augmentation = Value::Mapping(iter.collect());
+    let augmentation = deserialize_untagged(augmentation).unwrap();
+    Ok(SerializableRule::Atomic { rule, augmentation })
+  }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
