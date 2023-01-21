@@ -6,13 +6,52 @@ use serde::{Deserialize, Serialize};
 /// * Composite: use logic operation all/any/not to compose the above rules to larger rules.
 /// Every rule has it's unique name so we can combine several rules in one object.
 #[derive(Serialize, Deserialize, Clone, Default)]
+#[serde(deny_unknown_fields)]
 pub struct SerializableRule {
-  #[serde(flatten)]
+  // avoid embedding AtomicRule/RelationalRule/CompositeRule with flatten here for better error message
+
+  // atomic
+  pub pattern: Option<PatternStyle>,
+  pub kind: Option<String>,
+  pub regex: Option<String>,
+  // relational
+  pub inside: Option<Box<Relation>>,
+  pub has: Option<Box<Relation>>,
+  pub precedes: Option<Box<Relation>>,
+  pub follows: Option<Box<Relation>>,
+  // composite
+  pub all: Option<Vec<SerializableRule>>,
+  pub any: Option<Vec<SerializableRule>>,
+  pub not: Option<Box<SerializableRule>>,
+}
+
+pub struct Categorized {
   pub atomic: AtomicRule,
-  #[serde(flatten)]
   pub relational: RelationalRule,
-  #[serde(flatten)]
   pub composite: CompositeRule,
+}
+
+impl SerializableRule {
+  pub fn categorized(self) -> Categorized {
+    Categorized {
+      atomic: AtomicRule {
+        pattern: self.pattern,
+        kind: self.kind,
+        regex: self.regex,
+      },
+      relational: RelationalRule {
+        inside: self.inside,
+        has: self.has,
+        precedes: self.precedes,
+        follows: self.follows,
+      },
+      composite: CompositeRule {
+        all: self.all,
+        any: self.any,
+        not: self.not,
+      },
+    }
+  }
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -67,14 +106,14 @@ mod test {
 pattern: Test
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(rule.atomic.pattern.is_some());
+    assert!(rule.pattern.is_some());
     let src = r"
 pattern:
   context: class $C { set $B() {} }
   selector: method_definition
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(matches!(rule.atomic.pattern, Some(Contextual { .. }),));
+    assert!(matches!(rule.pattern, Some(Contextual { .. }),));
   }
 
   #[test]
@@ -87,7 +126,7 @@ inside:
     pattern: function() {}
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(rule.relational.inside.unwrap().immediate);
+    assert!(rule.inside.unwrap().immediate);
   }
 
   #[test]
@@ -98,8 +137,8 @@ inside:
   pattern: function() {}
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(rule.relational.inside.is_some());
-    assert!(rule.atomic.pattern.is_some());
+    assert!(rule.inside.is_some());
+    assert!(rule.pattern.is_some());
   }
 
   #[test]
@@ -112,11 +151,11 @@ has:
   pattern: Some()
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(rule.relational.inside.is_some());
-    assert!(rule.relational.has.is_some());
-    assert!(rule.relational.follows.is_none());
-    assert!(rule.relational.precedes.is_none());
-    assert!(rule.atomic.pattern.is_some());
+    assert!(rule.inside.is_some());
+    assert!(rule.has.is_some());
+    assert!(rule.follows.is_none());
+    assert!(rule.precedes.is_none());
+    assert!(rule.pattern.is_some());
   }
 
   #[test]
@@ -131,17 +170,9 @@ inside:
       selector: ss
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(rule.relational.inside.is_some());
-    let inside = rule.relational.inside.unwrap();
-    assert!(inside.rule.atomic.pattern.is_some());
-    assert!(inside
-      .rule
-      .relational
-      .inside
-      .unwrap()
-      .rule
-      .atomic
-      .pattern
-      .is_some());
+    assert!(rule.inside.is_some());
+    let inside = rule.inside.unwrap();
+    assert!(inside.rule.pattern.is_some());
+    assert!(inside.rule.inside.unwrap().rule.pattern.is_some());
   }
 }

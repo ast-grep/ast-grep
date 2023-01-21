@@ -245,10 +245,13 @@ pub fn try_from_serializable<L: Language>(
 ) -> Result<Rule<L>, RuleSerializeError> {
   let mut rules = Vec::with_capacity(1);
   use Rule as R;
-  deserialze_atomic_rule(serialized.atomic, &mut rules, &lang)?;
-  deserialize_relational_rule(serialized.relational, &mut rules, &lang)?;
-  deserialze_composite_rule(serialized.composite, &mut rules, &lang)?;
-  if rules.len() == 1 {
+  let categorized = serialized.categorized();
+  deserialze_atomic_rule(categorized.atomic, &mut rules, &lang)?;
+  deserialize_relational_rule(categorized.relational, &mut rules, &lang)?;
+  deserialze_composite_rule(categorized.composite, &mut rules, &lang)?;
+  if rules.is_empty() {
+    Err(RuleSerializeError::MissPositiveMatcher)
+  } else if rules.len() == 1 {
     Ok(rules.pop().expect("should not be empty"))
   } else {
     Ok(R::All(o::All::new(rules)))
