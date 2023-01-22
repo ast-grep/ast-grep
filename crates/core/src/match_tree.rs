@@ -70,18 +70,16 @@ pub fn match_end_non_recursive<L: Language>(goal: &Node<L>, candidate: Node<L>) 
   }
   let goal_children = goal.children();
   let cand_children = candidate.children();
-  let end = candidate.range().end;
-  match_multi_nodes_end_non_recursive(end, goal_children, cand_children)
+  match_multi_nodes_end_non_recursive(goal_children, cand_children)
 }
 
 pub fn match_multi_nodes_end_non_recursive<'g, 'c, L: Language + 'g + 'c>(
-  mut end: usize, // initial guess of end
   goals: impl Iterator<Item = Node<'g, L>>,
   candidates: impl Iterator<Item = Node<'c, L>>,
 ) -> Option<usize> {
   let mut goal_children = goals.peekable();
   let mut cand_children = candidates.peekable();
-  cand_children.peek()?;
+  let mut end = cand_children.peek()?.range().end;
   loop {
     let curr_node = goal_children.peek().unwrap();
     if try_get_ellipsis_mode(curr_node).is_ok() {
