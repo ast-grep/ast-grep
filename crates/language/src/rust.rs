@@ -34,8 +34,8 @@ mod test {
     let cand = Rust.ast_grep(s2);
     assert!(
       pattern.find_node(cand.root()).is_some(),
-      "goal: {}, candidate: {}",
-      pattern.root.root().to_sexp(),
+      "goal: {:?}, candidate: {}",
+      pattern,
       cand.root().to_sexp(),
     );
   }

@@ -228,8 +228,7 @@ mod test {
     let pattern = Pattern::new(query, lang);
     assert!(
       pattern.find_node(cand.root()).is_some(),
-      "goal: {}, candidate: {}",
-      pattern.root.root().to_sexp(),
+      "goal: {pattern:?}, candidate: {}",
       cand.root().to_sexp(),
     );
   }

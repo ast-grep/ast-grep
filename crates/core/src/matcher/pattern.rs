@@ -25,7 +25,7 @@ enum PatternStyle<L: Language> {
 
 #[derive(Clone)]
 pub struct Pattern<L: Language> {
-  pub root: Root<L>,
+  pub(crate) root: Root<L>,
   style: PatternStyle<L>,
 }
 
