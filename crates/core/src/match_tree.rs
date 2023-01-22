@@ -68,10 +68,20 @@ pub fn match_end_non_recursive<L: Language>(goal: &Node<L>, candidate: Node<L>) 
       None
     };
   }
-  let mut goal_children = goal.children().peekable();
-  let mut cand_children = candidate.children().peekable();
+  let goal_children = goal.children();
+  let cand_children = candidate.children();
+  let end = candidate.range().end;
+  match_multi_nodes_end_non_recursive(end, goal_children, cand_children)
+}
+
+pub fn match_multi_nodes_end_non_recursive<'g, 'c, L: Language + 'g + 'c>(
+  mut end: usize, // initial guess of end
+  goals: impl Iterator<Item = Node<'g, L>>,
+  candidates: impl Iterator<Item = Node<'c, L>>,
+) -> Option<usize> {
+  let mut goal_children = goals.peekable();
+  let mut cand_children = candidates.peekable();
   cand_children.peek()?;
-  let mut end = candidate.range().end;
   loop {
     let curr_node = goal_children.peek().unwrap();
     if try_get_ellipsis_mode(curr_node).is_ok() {
@@ -142,8 +152,22 @@ pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
       None
     };
   }
-  let mut goal_children = goal.children().peekable();
-  let mut cand_children = candidate.children().peekable();
+  let goal_children = goal.children();
+  let cand_children = candidate.children();
+  if match_nodes_non_recursive(goal_children, cand_children, env).is_some() {
+    Some(candidate)
+  } else {
+    None
+  }
+}
+
+pub fn match_nodes_non_recursive<'goal, 'tree, L: Language + 'tree + 'goal>(
+  goals: impl Iterator<Item = Node<'goal, L>>,
+  candidates: impl Iterator<Item = Node<'tree, L>>,
+  env: &mut MetaVarEnv<'tree, L>,
+) -> Option<()> {
+  let mut goal_children = goals.peekable();
+  let mut cand_children = candidates.peekable();
   cand_children.peek()?;
   loop {
     let curr_node = goal_children.peek().unwrap();
@@ -153,7 +177,7 @@ pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
       // goal has all matched
       if goal_children.peek().is_none() {
         update_ellipsis_env(&optional_name, matched, env, cand_children, 0);
-        return Some(candidate);
+        return Some(());
       }
       let mut skipped_anonymous = 0;
       while !goal_children.peek().unwrap().is_named() {
@@ -167,7 +191,7 @@ pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
             cand_children,
             skipped_anonymous,
           );
-          return Some(candidate);
+          return Some(());
         }
       }
       // if next node is a Ellipsis, consume one candidate node
@@ -213,7 +237,7 @@ pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
     goal_children.next();
     if goal_children.peek().is_none() {
       // all goal found, return
-      return Some(candidate.clone());
+      return Some(());
     }
     cand_children.next();
     cand_children.peek()?;

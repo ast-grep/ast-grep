@@ -1,6 +1,5 @@
 use crate::match_tree::does_node_match_exactly;
-use crate::matcher::{KindMatcher, RegexMatcher};
-use crate::pattern::Pattern;
+use crate::matcher::{KindMatcher, Pattern, RegexMatcher};
 use crate::Language;
 use crate::Node;
 use std::collections::HashMap;

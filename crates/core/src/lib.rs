@@ -7,14 +7,12 @@ pub mod traversal;
 
 mod match_tree;
 mod node;
-mod pattern;
 mod replacer;
 mod ts_parser;
 
 pub use language::Language;
-pub use matcher::{Matcher, NodeMatch};
+pub use matcher::{Matcher, NodeMatch, Pattern, PatternError};
 pub use node::Node;
-pub use pattern::{Pattern, PatternError};
 pub use replacer::replace_meta_var_in_string;
 
 use crate::replacer::Replacer;
