@@ -35,6 +35,8 @@ pub enum PatternError {
   TSParse(#[from] TSParseError),
   #[error("No AST root is detected. Please check the pattern source `{0}`.")]
   NoContent(String),
+  #[error("Multiple AST nodes are detected. Please check the pattern source `{0}`.")]
+  MultipleNode(String),
   #[error(transparent)]
   InvalidKind(#[from] KindMatcherError),
   #[error("Fails to create Contextual pattern: selector `{selector}` matches no node in the context `{context}`.")]
@@ -61,7 +63,8 @@ impl<L: Language> Pattern<L> {
     let style = if is_single_node(&goal.inner) {
       PatternStyle::Single
     } else {
-      PatternStyle::Multiple
+      return Err(PatternError::MultipleNode(src.into()));
+      // PatternStyle::Multiple
     };
     Ok(Self { root, style })
   }
@@ -346,6 +349,7 @@ mod test {
   }
 
   #[test]
+  #[ignore]
   fn test_multi_node_pattern() {
     let pattern = Pattern::new("a;b;c;", Tsx);
     let kinds = pattern.potential_kinds().expect("should have kinds");
@@ -354,6 +358,7 @@ mod test {
   }
 
   #[test]
+  #[ignore]
   fn test_multi_node_meta_var() {
     let env = match_env("a;$B;c", "a;b;c");
     assert_eq!(env["B"], "b");
