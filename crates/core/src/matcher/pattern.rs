@@ -346,6 +346,22 @@ mod test {
   }
 
   #[test]
+  fn test_multi_node_pattern() {
+    let pattern = Pattern::new("a;b;c;", Tsx);
+    let kinds = pattern.potential_kinds().expect("should have kinds");
+    assert_eq!(kinds.len(), 1);
+    test_match("a;b;c", "a;b;c;");
+  }
+
+  #[test]
+  fn test_multi_node_meta_var() {
+    let env = match_env("a;$B;c", "a;b;c");
+    assert_eq!(env["B"], "b");
+    let env = match_env("a;$B;c", "a;1+2+3;c");
+    assert_eq!(env["B"], "1+2+3");
+  }
+
+  #[test]
   fn test_pattern_size() {
     assert_eq!(std::mem::size_of::<Pattern<Tsx>>(), 40);
   }
