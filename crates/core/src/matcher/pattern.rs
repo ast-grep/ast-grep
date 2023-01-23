@@ -1,8 +1,5 @@
 use crate::language::Language;
-use crate::match_tree::{
-  extract_var_from_node, match_end_non_recursive, match_multi_nodes_end_non_recursive,
-  match_node_non_recursive, match_nodes_non_recursive,
-};
+use crate::match_tree::{extract_var_from_node, match_end_non_recursive, match_node_non_recursive};
 use crate::matcher::{KindMatcher, KindMatcherError, Matcher};
 use crate::ts_parser::TSParseError;
 use crate::{meta_var::MetaVarEnv, Node, Root};
@@ -16,8 +13,6 @@ use thiserror::Error;
 enum PatternStyle<L: Language> {
   /// single non-program ast node, notwithstanding MISSING node.
   Single,
-  /// multiple nodes as direct children of Program
-  Multiple,
   /// sub AST node specified by user in contextual pattern
   /// e.g. in js`class { $F }` we set selector to public_field_definition
   Selector(KindMatcher<L>),
@@ -60,13 +55,13 @@ impl<L: Language> Pattern<L> {
     if goal.inner.child_count() == 0 {
       return Err(PatternError::NoContent(src.into()));
     }
-    let style = if is_single_node(&goal.inner) {
-      PatternStyle::Single
-    } else {
+    if !is_single_node(&goal.inner) {
       return Err(PatternError::MultipleNode(src.into()));
-      // PatternStyle::Multiple
-    };
-    Ok(Self { root, style })
+    }
+    Ok(Self {
+      root,
+      style: PatternStyle::Single,
+    })
   }
 
   pub fn new(src: &str, lang: L) -> Self {
@@ -112,15 +107,6 @@ impl<L: Language> Pattern<L> {
       .map(Node::from)
       .expect("contextual match should succeed")
   }
-
-  // TODO: find a better name. also what a signature LOL
-  fn multi_node_candidates<'t: 'a, 'a>(
-    &self,
-    node: &'a Node<'t, L>,
-  ) -> impl Iterator<Item = Node<'t, L>> + 'a {
-    let siblings = node.next_all();
-    std::iter::once(node.clone()).chain(siblings)
-  }
 }
 
 impl<L: Language> Matcher<L> for Pattern<L> {
@@ -134,12 +120,6 @@ impl<L: Language> Matcher<L> for Pattern<L> {
         let matcher = self.single_matcher();
         match_node_non_recursive(&matcher, node, env)
       }
-      PatternStyle::Multiple => match_nodes_non_recursive(
-        self.root.root().children(),
-        self.multi_node_candidates(&node),
-        env,
-      )
-      .map(|_| node),
       PatternStyle::Selector(kind) => {
         let matcher = self.kind_matcher(kind);
         match_node_non_recursive(&matcher, node, env)
@@ -150,12 +130,6 @@ impl<L: Language> Matcher<L> for Pattern<L> {
   fn potential_kinds(&self) -> Option<bit_set::BitSet> {
     let kind = match &self.style {
       PatternStyle::Selector(kind) => return kind.potential_kinds(),
-      PatternStyle::Multiple => self
-        .root
-        .root()
-        .child(0)
-        .expect("must have content")
-        .kind_id(),
       PatternStyle::Single => {
         let matcher = self.single_matcher();
         if matcher.is_leaf() && extract_var_from_node(&matcher).is_some() {
@@ -174,10 +148,6 @@ impl<L: Language> Matcher<L> for Pattern<L> {
     let end = match &self.style {
       PatternStyle::Single => match_end_non_recursive(&self.single_matcher(), node)?,
       PatternStyle::Selector(kind) => match_end_non_recursive(&self.kind_matcher(kind), node)?,
-      PatternStyle::Multiple => match_multi_nodes_end_non_recursive(
-        self.root.root().children(),
-        self.multi_node_candidates(&node),
-      )?,
     };
     Some(end - start)
   }
@@ -187,7 +157,6 @@ impl<L: Language> std::fmt::Debug for Pattern<L> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match &self.style {
       PatternStyle::Single => write!(f, "{}", self.single_matcher().to_sexp()),
-      PatternStyle::Multiple => write!(f, "{}", self.root.root().to_sexp()),
       PatternStyle::Selector(kind) => write!(f, "{}", self.kind_matcher(kind).to_sexp()),
     }
   }
