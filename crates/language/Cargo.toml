@@ -17,6 +17,8 @@ ignore = "0.4.20"
 serde = { version = "1.0", features = ["derive"] }
 
 tree-sitter-c = { version = "0.20.2", optional = true }
+tree-sitter-c-sharp = { version = "0.20.0", package = "ast-grep-tree-sitter-c-sharp", optional = true }
+tree-sitter-css = { version = "0.19.0", optional = true }
 tree-sitter-dart= { version = "0.0.3", optional = true }
 tree-sitter-go = { version = "0.19.1", optional = true }
 tree-sitter-html = { version = "0.19.0", optional = true }
@@ -28,11 +30,11 @@ tree-sitter-python = { version = "0.20.2", optional = true }
 tree-sitter-rust = { version = "0.20.3", optional = true }
 tree-sitter-swift = { version = "0.3.4", optional = true }
 tree-sitter-typescript= { version = "0.20.1", optional = true }
-tree-sitter-c-sharp = { version = "0.20.0", package = "ast-grep-tree-sitter-c-sharp", optional = true }
 
 [features]
 builtin-parser = [
   "tree-sitter-c",
+  "tree-sitter-css",
   "tree-sitter-dart",
   "tree-sitter-go",
   "tree-sitter-html",

@@ -13,6 +13,9 @@ mod parser_implmentation {
   pub fn language_c_sharp() -> TSLanguage {
     tree_sitter_c_sharp::language().into()
   }
+  pub fn language_css() -> TSLanguage {
+    tree_sitter_css::language().into()
+  }
   pub fn language_dart() -> TSLanguage {
     tree_sitter_dart::language().into()
   }
@@ -73,6 +76,7 @@ mod parser_implmentation {
   impl_parsers!(
     language_c,
     language_c_sharp,
+    language_css,
     language_dart,
     language_go,
     language_html,
