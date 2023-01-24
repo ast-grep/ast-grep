@@ -1,4 +1,5 @@
 mod csharp;
+mod css;
 mod parsers;
 mod python;
 mod rust;
@@ -7,6 +8,7 @@ use std::borrow::Cow;
 use std::path::Path;
 
 pub use csharp::CSharp;
+pub use css::Css;
 pub use python::Python;
 pub use rust::Rust;
 
@@ -23,7 +25,6 @@ macro_rules! impl_lang {
 }
 
 impl_lang!(C, language_c);
-impl_lang!(Css, language_css);
 impl_lang!(Dart, language_dart);
 impl_lang!(Go, language_go);
 impl_lang!(Html, language_html);
