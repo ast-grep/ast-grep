@@ -73,6 +73,7 @@ mod parser_implmentation {
   impl_parsers!(
     language_c,
     language_c_sharp,
+    language_dart,
     language_go,
     language_html,
     language_java,
