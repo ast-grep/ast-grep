@@ -115,11 +115,13 @@ version = "0.2.1"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
+ "ignore",
  "napi",
  "napi-build",
  "napi-derive",
  "serde",
  "serde_json",
+ "tree-sitter-css",
  "tree-sitter-html",
  "tree-sitter-javascript",
  "tree-sitter-typescript",
@@ -680,6 +682,7 @@ version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e2f9ad803cde148d81d0ca9e5fd4d80773d15e992d09e3a44f62f41b9af4558"
 dependencies = [
+ "anyhow",
  "bitflags",
  "ctor",
  "napi-sys",

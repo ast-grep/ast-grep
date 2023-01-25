@@ -10,7 +10,7 @@ repository = "https://github.com/ast-grep/ast-grep"
 rust-version = "1.63"
 
 [dependencies]
-napi = { version = "2", features = ["serde-json"] }
+napi = { version = "2", features = ["serde-json", "napi4", "error_anyhow"] }
 napi-derive = "2"
 ast-grep-core = { version= "0.2.1", path = "../core" }
 ast-grep-config = { version= "0.2.1", path = "../config" }
@@ -18,7 +18,9 @@ serde = { version = "1.0", features = ["derive"] }
 tree-sitter-typescript="0.20.1"
 tree-sitter-html = "0.19.0"
 tree-sitter-javascript = "0.20.0"
+tree-sitter-css = "0.19.0"
 serde_json = "1.0.91"
+ignore = "0.4.20"
 
 [features]
 # this feature is only for cargo test to avoid napi_ symbol undefined error

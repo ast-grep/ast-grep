@@ -7,7 +7,8 @@ export const enum FrontEndLanguage {
   Html = 0,
   JavaScript = 1,
   Tsx = 2,
-  TypeScript = 3
+  Css = 3,
+  TypeScript = 4
 }
 export interface Pos {
   /** line number starting from 1 */
@@ -26,6 +27,7 @@ export interface NapiConfig {
   constraints?: any
   language?: FrontEndLanguage
 }
+export function parseFiles(paths: string[], callback: (err: null | Error, result: SgRoot) => void): Promise<unknown>
 export class SgNode {
   range(): Range
   isLeaf(): boolean
@@ -52,6 +54,7 @@ export class SgNode {
 }
 export class SgRoot {
   root(): SgNode
+  filename(): string
 }
 export namespace html {
   export function parse(src: string): SgRoot

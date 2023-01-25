@@ -1,6 +1,6 @@
 import test from 'ava'
 
-import { js } from '../index'
+import { js, parseFiles } from '../index'
 const { parse, kind } = js
 
 test('find from native code', t => {
@@ -61,4 +61,19 @@ test('find by config', t => {
     start: { line: 0, column: 0, index: 0 },
     end: { line: 0, column: 11, index: 11 },
   })
+})
+
+test('test find files', async t => {
+  await parseFiles(['./__test__/index.spec.ts'], (err, tree) => {
+    t.is(err, null)
+    t.is(tree.filename(), './__test__/index.spec.ts')
+    t.assert(tree.root() !== null)
+  })
+
+  let i = 0;
+  await parseFiles(['./'], (err, _) => {
+    t.is(err, null)
+    i += 1;
+  })
+  t.not(i, 0)
 })

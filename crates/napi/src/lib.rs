@@ -8,16 +8,23 @@ use ast_grep_config::{
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::meta_var::MetaVarMatchers;
 use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern};
+use ignore::types::TypesBuilder;
+use ignore::{WalkBuilder, WalkState};
+use napi::anyhow::{anyhow, Context, Result as Ret};
 use napi::bindgen_prelude::*;
-use napi::bindgen_prelude::{Either3, Env, Reference, Result, SharedReference};
+use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
+use napi::Task;
 use napi_derive::napi;
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::sync::mpsc::channel;
 
 #[napi]
 pub enum FrontEndLanguage {
   Html,
   JavaScript,
   Tsx,
+  Css,
   TypeScript,
 }
 
@@ -28,9 +35,30 @@ impl Language for FrontEndLanguage {
       Html => tree_sitter_html::language(),
       JavaScript => tree_sitter_javascript::language(),
       TypeScript => tree_sitter_typescript::language_typescript(),
+      Css => tree_sitter_css::language(),
       Tsx => tree_sitter_typescript::language_tsx(),
     }
     .into()
+  }
+  fn expando_char(&self) -> char {
+    use FrontEndLanguage::*;
+    match self {
+      Css => '_',
+      _ => '$',
+    }
+  }
+  fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
+    use FrontEndLanguage::*;
+    match self {
+      Css => (),
+      _ => return Cow::Borrowed(query),
+    }
+    // use stack buffer to reduce allocation
+    let mut buf = [0; 4];
+    let expando = self.expando_char().encode_utf8(&mut buf);
+    // TODO: use more precise replacement
+    let replaced = query.replace(self.meta_var_char(), expando);
+    Cow::Owned(replaced)
   }
 }
 
@@ -326,7 +354,7 @@ impl SgNode {
 }
 
 #[napi]
-pub struct SgRoot(AstGrep<FrontEndLanguage>);
+pub struct SgRoot(AstGrep<FrontEndLanguage>, String);
 
 #[napi]
 impl SgRoot {
@@ -334,6 +362,10 @@ impl SgRoot {
   pub fn root(&self, root_ref: Reference<SgRoot>, env: Env) -> Result<SgNode> {
     let inner = root_ref.share_with(env, |root| Ok(root.0.root().into()))?;
     Ok(SgNode { inner })
+  }
+  #[napi]
+  pub fn filename(&self) -> Result<String> {
+    Ok(self.1.clone())
   }
 }
 
@@ -345,7 +377,7 @@ macro_rules! impl_lang_mod {
         use super::FrontEndLanguage::*;
         #[napi]
         pub fn parse(src: String) -> SgRoot {
-          SgRoot(AstGrep::new(src, $lang))
+          SgRoot(AstGrep::new(src, $lang), "anonymous".into())
         }
         #[napi]
         pub fn kind(kind_name: String) -> u16 {
@@ -370,3 +402,98 @@ impl_lang_mod!(js, JavaScript);
 impl_lang_mod!(jsx, JavaScript);
 impl_lang_mod!(ts, TypeScript);
 impl_lang_mod!(tsx, Tsx);
+
+pub struct ParseFiles {
+  paths: Vec<String>,
+  tsfn: ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled>,
+}
+
+impl Task for ParseFiles {
+  type Output = ();
+  type JsValue = Undefined;
+
+  fn compute(&mut self) -> Result<Self::Output> {
+    if self.paths.is_empty() {
+      return Err(anyhow!("paths cannot be empty.").into());
+    }
+    let types = TypesBuilder::new()
+      .add_defaults()
+      .select("css")
+      .select("html")
+      .select("js")
+      .select("ts")
+      .build()
+      .unwrap();
+    let tsfn = &self.tsfn;
+    let mut paths = self.paths.drain(..);
+    let mut builder = WalkBuilder::new(paths.next().unwrap());
+    for path in paths {
+      builder.add(path);
+    }
+    let (tx, rx) = channel();
+    let walker = builder.types(types).build_parallel();
+    walker.run(|| {
+      let tx = tx.clone();
+      Box::new(move |entry| match call_sg_root(tsfn, entry) {
+        Ok(_) => {
+          if tx.send(()).is_ok() {
+            WalkState::Continue
+          } else {
+            WalkState::Quit
+          }
+        }
+        Err(_) => WalkState::Skip,
+      })
+    });
+    // Drop the last sender to stop `rx` waiting for message.
+    // The program will not complete if we comment this out.
+    drop(tx);
+    while let Ok(_) = rx.recv() {
+      // pass
+    }
+    Ok(())
+  }
+  fn resolve(&mut self, _e: Env, _o: Self::Output) -> Result<Self::JsValue> {
+    Ok(())
+  }
+}
+
+#[napi(ts_args_type = "paths: string[], callback: (err: null | Error, result: SgRoot) => void")]
+pub fn parse_files(paths: Vec<String>, callback: JsFunction) -> Result<AsyncTask<ParseFiles>> {
+  let tsfn: ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled> =
+    callback.create_threadsafe_function(0, |ctx| Ok(vec![ctx.value]))?;
+  Ok(AsyncTask::new(ParseFiles { paths, tsfn }))
+}
+
+fn call_sg_root(
+  tsfn: &ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled>,
+  entry: std::result::Result<ignore::DirEntry, ignore::Error>,
+) -> Ret<()> {
+  use FrontEndLanguage::*;
+  let entry = entry?;
+  if !entry
+    .file_type()
+    .context("could not use stdin as file")?
+    .is_file()
+  {
+    return Ok(());
+  }
+  let path = entry.into_path();
+  let file_content = std::fs::read_to_string(&path)?;
+  let ext = path
+    .extension()
+    .context("check file")?
+    .to_str()
+    .context("to str")?;
+  let lang = match ext {
+    "css" | "scss" => Css,
+    "html" | "htm" | "xhtml" => Html,
+    "cjs" | "js" | "mjs" | "jsx" => JavaScript,
+    "ts" => TypeScript,
+    "tsx" => Tsx,
+    _ => return Err(anyhow!("file not recognized")),
+  };
+  let sg = SgRoot(lang.ast_grep(file_content), path.to_string_lossy().into());
+  tsfn.call(Ok(sg), ThreadsafeFunctionCallMode::Blocking);
+  Ok(())
+}

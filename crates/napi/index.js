@@ -11,7 +11,8 @@ function isMusl() {
   // For Node 10
   if (!process.report || typeof process.report.getReport !== 'function') {
     try {
-      return readFileSync('/usr/bin/ldd', 'utf8').includes('musl')
+      const lddPath = require('child_process').execSync('which ldd').toString().trim();
+      return readFileSync(lddPath, 'utf8').includes('musl')
     } catch (e) {
       return true
     }
@@ -101,6 +102,15 @@ switch (platform) {
     }
     break
   case 'darwin':
+    localFileExisted = existsSync(join(__dirname, 'ast-grep-napi.darwin-universal.node'))
+    try {
+      if (localFileExisted) {
+        nativeBinding = require('./ast-grep-napi.darwin-universal.node')
+      } else {
+        nativeBinding = require('@ast-grep/napi-darwin-universal')
+      }
+      break
+    } catch {}
     switch (arch) {
       case 'x64':
         localFileExisted = existsSync(join(__dirname, 'ast-grep-napi.darwin-x64.node'))
@@ -236,11 +246,12 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { FrontEndLanguage, SgNode, SgRoot, html, js, jsx, ts, tsx } = nativeBinding
+const { FrontEndLanguage, SgNode, SgRoot, parseFiles, html, js, jsx, ts, tsx } = nativeBinding
 
 module.exports.FrontEndLanguage = FrontEndLanguage
 module.exports.SgNode = SgNode
 module.exports.SgRoot = SgRoot
+module.exports.parseFiles = parseFiles
 module.exports.html = html
 module.exports.js = js
 module.exports.jsx = jsx
