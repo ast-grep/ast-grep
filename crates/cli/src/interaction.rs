@@ -98,25 +98,23 @@ pub fn run_worker<MW: Worker>(worker: MW) -> Result<()> {
   let producer = |path: PathBuf| worker.produce_item(&path);
   let (tx, rx) = mpsc::channel();
   let walker = worker.build_walk();
-  std::thread::scope(|s| {
-    s.spawn(move || {
-      walker.run(|| {
-        let tx = tx.clone();
-        Box::new(move |result| {
-          let maybe_result = filter_result(result).and_then(producer);
-          let result = match maybe_result {
-            Some(ret) => ret,
-            None => return WalkState::Continue,
-          };
-          match tx.send(result) {
-            Ok(_) => WalkState::Continue,
-            Err(_) => WalkState::Quit,
-          }
-        })
-      })
-    });
-    worker.consume_items(Items(rx))
-  })
+  walker.run(|| {
+    let tx = tx.clone();
+    Box::new(move |result| {
+      let maybe_result = filter_result(result).and_then(producer);
+      let result = match maybe_result {
+        Some(ret) => ret,
+        None => return WalkState::Continue,
+      };
+      match tx.send(result) {
+        Ok(_) => WalkState::Continue,
+        Err(_) => WalkState::Quit,
+      }
+    })
+  });
+  // drop the last sender to stop rx awaiting message
+  drop(tx);
+  worker.consume_items(Items(rx))
 }
 
 pub fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
