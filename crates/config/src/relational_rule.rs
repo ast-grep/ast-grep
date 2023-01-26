@@ -80,6 +80,8 @@ impl<L: Language> Matcher<L> for Inside<L> {
   }
 }
 
+// NOTE: Has is different from other relational rules
+// it does not use StopBy
 pub struct Has<L: Language> {
   inner: Rule<L>,
   until: Option<Rule<L>>,
@@ -131,21 +133,22 @@ impl<L: Language> Matcher<L> for Has<L> {
 }
 
 pub struct Precedes<L: Language> {
-  inner: Rule<L>,
-  until: Option<Rule<L>>,
-  immediate: bool,
+  later: Rule<L>,
+  stop_by: StopBy<L>,
 }
 impl<L: Language> Precedes<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
-    let util_node = if let Some(until) = relation.until {
-      Some(try_from_serializable(until, lang.clone())?)
+    let stop_by = if relation.immediate {
+      StopBy::Neighbor
+    } else if let Some(until) = relation.until {
+      let stop_rule = try_from_serializable(until, lang.clone())?;
+      StopBy::Rule(stop_rule)
     } else {
-      None
+      StopBy::End
     };
     Ok(Self {
-      inner: try_from_serializable(relation.rule, lang)?,
-      until: util_node,
-      immediate: relation.immediate,
+      later: try_from_serializable(relation.rule, lang)?,
+      stop_by,
     })
   }
 }
@@ -155,14 +158,9 @@ impl<L: Language> Matcher<L> for Precedes<L> {
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
-    if self.immediate {
-      self.inner.match_node_with_env(node.next()?, env)
-    } else {
-      node
-        .next_all()
-        .take_while(until(&self.until))
-        .find_map(|n| self.inner.match_node_with_env(n, env))
-    }
+    let next_all = node.next_all();
+    let finder = |n| self.later.match_node_with_env(n, env);
+    self.stop_by.find(next_all, finder)
   }
 }
 
@@ -234,9 +232,8 @@ mod test {
   #[test]
   fn test_precedes_operator() {
     let precedes = Precedes {
-      immediate: false,
-      until: None,
-      inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
+      later: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
+      stop_by: StopBy::End,
     };
     let rule = make_rule("var b = 2", Rule::Precedes(Box::new(precedes)));
     test_found(
@@ -263,9 +260,8 @@ mod test {
   #[test]
   fn test_precedes_immediate() {
     let precedes = Precedes {
-      immediate: true,
-      until: None,
-      inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
+      later: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
+      stop_by: StopBy::Neighbor,
     };
     let rule = make_rule("var b = 2", Rule::Precedes(Box::new(precedes)));
     test_found(
