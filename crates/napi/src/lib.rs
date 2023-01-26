@@ -13,10 +13,11 @@ use ignore::{WalkBuilder, WalkState};
 use napi::anyhow::{anyhow, Context, Result as Ret};
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
-use napi::Task;
+use napi::{JsNumber, Task};
 use napi_derive::napi;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 
 #[napi]
@@ -409,8 +410,8 @@ pub struct ParseFiles {
 }
 
 impl Task for ParseFiles {
-  type Output = ();
-  type JsValue = Undefined;
+  type Output = u32;
+  type JsValue = JsNumber;
 
   fn compute(&mut self) -> Result<Self::Output> {
     if self.paths.is_empty() {
@@ -430,13 +431,16 @@ impl Task for ParseFiles {
     for path in paths {
       builder.add(path);
     }
+    let file_count = AtomicU32::new(0);
     let (tx, rx) = channel();
     let walker = builder.types(types).build_parallel();
     walker.run(|| {
       let tx = tx.clone();
+      let file_count = &file_count;
       Box::new(move |entry| match call_sg_root(tsfn, entry) {
         Ok(_) => {
           if tx.send(()).is_ok() {
+            file_count.fetch_add(1, Ordering::AcqRel);
             WalkState::Continue
           } else {
             WalkState::Quit
@@ -451,17 +455,22 @@ impl Task for ParseFiles {
     while let Ok(_) = rx.recv() {
       // pass
     }
-    Ok(())
+    Ok(file_count.load(Ordering::Acquire))
   }
-  fn resolve(&mut self, _e: Env, _o: Self::Output) -> Result<Self::JsValue> {
-    Ok(())
+  fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+    env.create_uint32(output)
   }
 }
+
+// See https://github.com/ast-grep/ast-grep/issues/206
+// NodeJS has a 1000 file limitation on sync iteration count
+// https://github.com/nodejs/node/blob/8ba54e50496a6a5c21d93133df60a9f7cb6c46ce/src/node_api.cc#L336
+const THREAD_FUNC_QUEUE_SIZE: usize = 900;
 
 #[napi(ts_args_type = "paths: string[], callback: (err: null | Error, result: SgRoot) => void")]
 pub fn parse_files(paths: Vec<String>, callback: JsFunction) -> Result<AsyncTask<ParseFiles>> {
   let tsfn: ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled> =
-    callback.create_threadsafe_function(0, |ctx| Ok(vec![ctx.value]))?;
+    callback.create_threadsafe_function(THREAD_FUNC_QUEUE_SIZE, |ctx| Ok(vec![ctx.value]))?;
   Ok(AsyncTask::new(ParseFiles { paths, tsfn }))
 }
 

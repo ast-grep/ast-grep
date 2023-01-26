@@ -71,9 +71,12 @@ test('test find files', async t => {
   })
 
   let i = 0;
-  await parseFiles(['./'], (err, _) => {
+  let fileCount = await parseFiles(['../../../test/volar'], (err, _) => {
+    let start = Date.now()
+    // ZZZ... sleep a while to mock expensive operation
+    while (Date.now() - start < 1) { continue }
     t.is(err, null)
     i += 1;
   })
-  t.not(i, 0)
+  t.is(i, fileCount)
 })
