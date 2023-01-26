@@ -14,10 +14,37 @@ fn until<L: Language>(pattern: &Option<Rule<L>>) -> impl Fn(&Node<L>) -> bool + 
   }
 }
 
+fn inclusive_until<L: Language>(rule: &Rule<L>) -> impl FnMut(&Node<L>) -> bool + '_ {
+  let mut matched = false;
+  move |n| {
+    if matched {
+      false
+    } else {
+      matched = n.matches(rule);
+      true
+    }
+  }
+}
+
 enum StopBy<L: Language> {
   Neighbor,
   End,
   Rule(Rule<L>),
+}
+
+impl<L: Language> StopBy<L> {
+  fn find<'t, I, F>(&self, mut iter: I, mut finder: F) -> Option<Node<'t, L>>
+  where
+    L: 't,
+    I: Iterator<Item = Node<'t, L>>,
+    F: FnMut(Node<'t, L>) -> Option<Node<'t, L>>,
+  {
+    match self {
+      StopBy::End => iter.find_map(finder),
+      StopBy::Neighbor => finder(iter.next()?),
+      StopBy::Rule(stop) => iter.take_while(inclusive_until(stop)).find_map(finder),
+    }
+  }
 }
 
 pub struct Inside<L: Language> {
@@ -47,23 +74,9 @@ impl<L: Language> Matcher<L> for Inside<L> {
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
-    let mut matcher = |n| self.outer.match_node_with_env(n, env);
-    match &self.stop_by {
-      StopBy::End => node.ancestors().find_map(matcher),
-      StopBy::Neighbor => matcher(node.parent()?),
-      StopBy::Rule(stop) => {
-        for a in node.ancestors() {
-          let r = matcher(a.clone());
-          if r.is_some() {
-            return r;
-          }
-          if a.matches(stop) {
-            return None;
-          }
-        }
-        None
-      }
-    }
+    let finder = |n| self.outer.match_node_with_env(n, env);
+    let ancestors = node.ancestors();
+    self.stop_by.find(ancestors, finder)
   }
 }
 
