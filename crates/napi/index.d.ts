@@ -27,7 +27,7 @@ export interface NapiConfig {
   constraints?: any
   language?: FrontEndLanguage
 }
-export function parseFiles(paths: string[], callback: (err: null | Error, result: SgRoot) => void): Promise<unknown>
+export function parseFiles(paths: string[], callback: (err: null | Error, result: SgRoot) => void): Promise<number>
 export class SgNode {
   range(): Range
   isLeaf(): boolean

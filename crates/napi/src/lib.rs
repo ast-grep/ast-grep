@@ -438,7 +438,8 @@ impl Task for ParseFiles {
       let tx = tx.clone();
       let file_count = &file_count;
       Box::new(move |entry| match call_sg_root(tsfn, entry) {
-        Ok(_) => {
+        Ok(true) => {
+          // file is sent to JS thread, increment file count
           if tx.send(()).is_ok() {
             file_count.fetch_add(1, Ordering::AcqRel);
             WalkState::Continue
@@ -446,6 +447,7 @@ impl Task for ParseFiles {
             WalkState::Quit
           }
         }
+        Ok(false) => WalkState::Continue,
         Err(_) => WalkState::Skip,
       })
     });
@@ -463,21 +465,25 @@ impl Task for ParseFiles {
 }
 
 // See https://github.com/ast-grep/ast-grep/issues/206
-// NodeJS has a 1000 file limitation on sync iteration count
+// NodeJS has a 1000 file limitation on sync iteration count.
 // https://github.com/nodejs/node/blob/8ba54e50496a6a5c21d93133df60a9f7cb6c46ce/src/node_api.cc#L336
-const THREAD_FUNC_QUEUE_SIZE: usize = 900;
+const THREAD_FUNC_QUEUE_SIZE: usize = 1000;
 
-#[napi(ts_args_type = "paths: string[], callback: (err: null | Error, result: SgRoot) => void")]
+#[napi(
+  ts_args_type = "paths: string[], callback: (err: null | Error, result: SgRoot) => void",
+  ts_return_type = "Promise<number>"
+)]
 pub fn parse_files(paths: Vec<String>, callback: JsFunction) -> Result<AsyncTask<ParseFiles>> {
   let tsfn: ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled> =
     callback.create_threadsafe_function(THREAD_FUNC_QUEUE_SIZE, |ctx| Ok(vec![ctx.value]))?;
   Ok(AsyncTask::new(ParseFiles { paths, tsfn }))
 }
 
+// returns if the entry is a file and sent to JavaScript queue
 fn call_sg_root(
   tsfn: &ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled>,
   entry: std::result::Result<ignore::DirEntry, ignore::Error>,
-) -> Ret<()> {
+) -> Ret<bool> {
   use FrontEndLanguage::*;
   let entry = entry?;
   if !entry
@@ -485,7 +491,7 @@ fn call_sg_root(
     .context("could not use stdin as file")?
     .is_file()
   {
-    return Ok(());
+    return Ok(false);
   }
   let path = entry.into_path();
   let file_content = std::fs::read_to_string(&path)?;
@@ -504,5 +510,5 @@ fn call_sg_root(
   };
   let sg = SgRoot(lang.ast_grep(file_content), path.to_string_lossy().into());
   tsfn.call(Ok(sg), ThreadsafeFunctionCallMode::Blocking);
-  Ok(())
+  Ok(true)
 }

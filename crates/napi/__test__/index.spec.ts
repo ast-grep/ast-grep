@@ -69,14 +69,18 @@ test('test find files', async t => {
     t.is(tree.filename(), './__test__/index.spec.ts')
     t.assert(tree.root() !== null)
   })
+})
 
-  let i = 0;
-  let fileCount = await parseFiles(['../../../test/volar'], (err, _) => {
-    let start = Date.now()
+test('test file count', async t => {
+  let i = 0
+  let fileCount: number | undefined = undefined
+  fileCount = await parseFiles(['./'], (err, _) => {
     // ZZZ... sleep a while to mock expensive operation
-    while (Date.now() - start < 1) { continue }
+    let start = Date.now()
+    while (Date.now() - start < 1) continue
     t.is(err, null)
     i += 1;
+    if (fileCount) console.log(_.filename())
   })
   t.is(i, fileCount)
 })
