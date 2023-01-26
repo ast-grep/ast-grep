@@ -4,16 +4,6 @@ use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Matcher, Node};
 
-fn until<L: Language>(pattern: &Option<Rule<L>>) -> impl Fn(&Node<L>) -> bool + '_ {
-  move |n| {
-    if let Some(m) = pattern {
-      !n.matches(m)
-    } else {
-      true
-    }
-  }
-}
-
 fn inclusive_until<L: Language>(rule: &Rule<L>) -> impl FnMut(&Node<L>) -> bool + '_ {
   let mut matched = false;
   move |n| {
@@ -165,21 +155,22 @@ impl<L: Language> Matcher<L> for Precedes<L> {
 }
 
 pub struct Follows<L: Language> {
-  inner: Rule<L>,
-  until: Option<Rule<L>>,
-  immediate: bool,
+  former: Rule<L>,
+  stop_by: StopBy<L>,
 }
 impl<L: Language> Follows<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
-    let util_node = if let Some(until) = relation.until {
-      Some(try_from_serializable(until, lang.clone())?)
+    let stop_by = if relation.immediate {
+      StopBy::Neighbor
+    } else if let Some(until) = relation.until {
+      let stop_rule = try_from_serializable(until, lang.clone())?;
+      StopBy::Rule(stop_rule)
     } else {
-      None
+      StopBy::End
     };
     Ok(Self {
-      inner: try_from_serializable(relation.rule, lang)?,
-      until: util_node,
-      immediate: relation.immediate,
+      former: try_from_serializable(relation.rule, lang)?,
+      stop_by,
     })
   }
 }
@@ -189,14 +180,9 @@ impl<L: Language> Matcher<L> for Follows<L> {
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
-    if self.immediate {
-      self.inner.match_node_with_env(node.prev()?, env)
-    } else {
-      node
-        .prev_all()
-        .take_while(until(&self.until))
-        .find_map(|n| self.inner.match_node_with_env(n, env))
-    }
+    let prev_all = node.prev_all();
+    let finder = |n| self.former.match_node_with_env(n, env);
+    self.stop_by.find(prev_all, finder)
   }
 }
 
@@ -289,9 +275,8 @@ mod test {
   #[test]
   fn test_follows_operator() {
     let follows = Follows {
-      immediate: false,
-      until: None,
-      inner: Rule::Pattern(Pattern::new("var b = 2", TS::Tsx)),
+      former: Rule::Pattern(Pattern::new("var b = 2", TS::Tsx)),
+      stop_by: StopBy::End,
     };
     let rule = make_rule("var a = 1", Rule::Follows(Box::new(follows)));
     test_found(
@@ -321,9 +306,8 @@ mod test {
   #[test]
   fn test_follows_immediate() {
     let follows = Follows {
-      immediate: true,
-      until: None,
-      inner: Rule::Pattern(Pattern::new("var b = 2", TS::Tsx)),
+      former: Rule::Pattern(Pattern::new("var b = 2", TS::Tsx)),
+      stop_by: StopBy::Neighbor,
     };
     let rule = make_rule("var a = 1", Rule::Follows(Box::new(follows)));
     test_found(
