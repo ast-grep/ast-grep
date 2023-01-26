@@ -14,30 +14,29 @@ fn until<L: Language>(pattern: &Option<Rule<L>>) -> impl Fn(&Node<L>) -> bool + 
   }
 }
 
-/*
 enum StopBy<L: Language> {
   Neighbor,
   End,
   Rule(Rule<L>),
 }
-*/
 
 pub struct Inside<L: Language> {
   outer: Rule<L>,
-  until: Option<Rule<L>>,
-  immediate: bool,
+  stop_by: StopBy<L>,
 }
 impl<L: Language> Inside<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Inside<L>, RuleSerializeError> {
-    let util_node = if let Some(until) = relation.until {
-      Some(try_from_serializable(until, lang.clone())?)
+    let stop_by = if relation.immediate {
+      StopBy::Neighbor
+    } else if let Some(until) = relation.until {
+      let stop_rule = try_from_serializable(until, lang.clone())?;
+      StopBy::Rule(stop_rule)
     } else {
-      None
+      StopBy::End
     };
     Ok(Self {
       outer: try_from_serializable(relation.rule, lang)?,
-      until: util_node,
-      immediate: relation.immediate,
+      stop_by,
     })
   }
 }
@@ -48,13 +47,22 @@ impl<L: Language> Matcher<L> for Inside<L> {
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
-    if self.immediate {
-      self.outer.match_node_with_env(node.parent()?, env)
-    } else {
-      node
-        .ancestors()
-        .take_while(until(&self.until))
-        .find_map(|n| self.outer.match_node_with_env(n, env))
+    let mut matcher = |n| self.outer.match_node_with_env(n, env);
+    match &self.stop_by {
+      StopBy::End => node.ancestors().find_map(matcher),
+      StopBy::Neighbor => matcher(node.parent()?),
+      StopBy::Rule(stop) => {
+        for a in node.ancestors() {
+          let r = matcher(a.clone());
+          if r.is_some() {
+            return r;
+          }
+          if a.matches(stop) {
+            return None;
+          }
+        }
+        None
+      }
     }
   }
 }
@@ -427,8 +435,7 @@ mod test {
       Rule::Pattern(Pattern::new("{ $$$ }", TS::Tsx)),
       Rule::Inside(Box::new(Inside {
         outer: Rule::Pattern(Pattern::new("function test() { $$$ }", TS::Tsx)),
-        until: None,
-        immediate: true,
+        stop_by: StopBy::Neighbor,
       })),
       Rule::Has(Box::new(has)),
     ]);
@@ -456,8 +463,7 @@ mod test {
   #[test]
   fn test_inside_rule() {
     let inside = Inside {
-      immediate: false,
-      until: None,
+      stop_by: StopBy::End,
       outer: Rule::Pattern(Pattern::new("function test() { $$$ }", TS::Tsx)),
     };
     let rule = make_rule("var a = 1", Rule::Inside(Box::new(inside)));
@@ -482,11 +488,9 @@ mod test {
   }
 
   #[test]
-  #[ignore]
   fn test_inside_inclusive() {
     let inside = Inside {
-      immediate: false,
-      until: Some(Rule::Kind(KindMatcher::new(
+      stop_by: StopBy::Rule(Rule::Kind(KindMatcher::new(
         "function_declaration",
         TS::Tsx,
       ))),
@@ -516,14 +520,12 @@ mod test {
   #[test]
   fn test_inside_immediate() {
     let inside = Inside {
-      immediate: true,
-      until: None,
+      stop_by: StopBy::Neighbor,
       outer: Rule::All(o::All::new(vec![
         Rule::Pattern(Pattern::new("{ $$$ }", TS::Tsx)),
         Rule::Inside(Box::new(Inside {
           outer: Rule::Pattern(Pattern::new("function test() { $$$ }", TS::Tsx)),
-          until: None,
-          immediate: true,
+          stop_by: StopBy::Neighbor,
         })),
       ])),
     };
