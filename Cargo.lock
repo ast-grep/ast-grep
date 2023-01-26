@@ -281,9 +281,12 @@ dependencies = [
 
 [[package]]
 name = "convert_case"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb4a24b1aaf0fd0ce8b45161144d6f42cd91677fd5940fd431183eb023b3a2b8"
+checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
+dependencies = [
+ "unicode-segmentation",
+]
 
 [[package]]
 name = "crossterm"
@@ -678,9 +681,9 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "2.9.0"
+version = "2.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e2f9ad803cde148d81d0ca9e5fd4d80773d15e992d09e3a44f62f41b9af4558"
+checksum = "a967e17e9ba4e015a7bf9b92f90aa8dc321c6d913f6a6d2afd5b66a8ab36fc81"
 dependencies = [
  "anyhow",
  "bitflags",
@@ -700,9 +703,9 @@ checksum = "882a73d9ef23e8dc2ebbffb6a6ae2ef467c0f18ac10711e4cc59c5485d41df0e"
 
 [[package]]
 name = "napi-derive"
-version = "2.9.0"
+version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1be75210f300e9fbf386ccac1c8eaaed23410e2f7f7aa9295b78c436a172ef51"
+checksum = "0265746190f318c66aca7b2a6ad3cabff25906e43a939dddc17ea59300d0a827"
 dependencies = [
  "convert_case",
  "napi-derive-backend",
@@ -713,9 +716,9 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "1.0.37"
+version = "1.0.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92ba4800264fac8a7726b208d5dd4c6d637d1027d73b026061a69d3339a0a930"
+checksum = "aac6a809a2b7f1c2d29f835fa6a1c8aed4054738c5cf77f456f13009a13f528c"
 dependencies = [
  "convert_case",
  "once_cell",
@@ -1471,6 +1474,12 @@ checksum = "854cbdc4f7bc6ae19c820d44abdc3277ac3e1b2b93db20a636825d9322fb60e6"
 dependencies = [
  "tinyvec",
 ]
+
+[[package]]
+name = "unicode-segmentation"
+version = "1.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fdbf052a0783de01e944a6ce7a8cb939e295b1e7be835a1112c3b9a7f047a5a"
 
 [[package]]
 name = "unicode-width"
