@@ -208,8 +208,12 @@ impl NoIgnore {
     ret
   }
 
-  pub fn walk(&self, path: &Path) -> WalkBuilder {
-    let mut builder = WalkBuilder::new(path);
+  pub fn walk(&self, path: &[PathBuf]) -> WalkBuilder {
+    let mut paths = path.iter();
+    let mut builder = WalkBuilder::new(paths.next().expect("non empty"));
+    for path in paths {
+      builder.add(path);
+    }
     builder
       .hidden(!self.disregard_hidden)
       .parents(!self.disregard_parent)

@@ -40,9 +40,9 @@ pub struct RunArg {
   #[clap(short, long)]
   interactive: bool,
 
-  /// The path whose descendent files are to be explored.
+  /// The paths to search. You can provide multiple paths separated by spaces.
   #[clap(value_parser, default_value = ".")]
-  path: PathBuf,
+  paths: Vec<PathBuf>,
 
   /// Apply all rewrite without confirmation if true.
   #[clap(long)]
@@ -97,9 +97,9 @@ pub struct ScanArg {
   #[clap(long)]
   accept_all: bool,
 
-  /// The path whose descendent files are to be explored.
+  /// The paths to search. You can provide multiple paths separated by spaces.
   #[clap(value_parser, default_value = ".")]
-  path: PathBuf,
+  paths: Vec<PathBuf>,
 
   /// Do not respect ignore files. You can suppress multiple ignore files by passing `no-ignore` multiple times.
   #[clap(long, action = clap::ArgAction::Append)]
@@ -156,7 +156,7 @@ impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
     let arg = &self.arg;
     let threads = num_cpus::get().min(12);
     NoIgnore::disregard(&arg.no_ignore)
-      .walk(&arg.path)
+      .walk(&arg.paths)
       .threads(threads)
       .build_parallel()
   }
@@ -217,7 +217,7 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
     let threads = num_cpus::get().min(12);
     let lang = arg.lang.expect("must present");
     NoIgnore::disregard(&arg.no_ignore)
-      .walk(&arg.path)
+      .walk(&arg.paths)
       .threads(threads)
       .types(file_types(&lang))
       .build_parallel()
@@ -293,7 +293,7 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
     let arg = &self.arg;
     let threads = num_cpus::get().min(12);
     NoIgnore::disregard(&arg.no_ignore)
-      .walk(&arg.path)
+      .walk(&arg.paths)
       .threads(threads)
       .build_parallel()
   }

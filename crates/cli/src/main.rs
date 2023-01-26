@@ -146,6 +146,7 @@ mod test_cli {
     ok("run -p test -l rs --debug-query");
     ok("run -p test -l rs --color always");
     ok("run -p test -l rs --heading always");
+    ok("run -p test dir1 dir2 dir3"); // multiple paths
     error("run test");
     error("run --debug-query test"); // missing lang
     error("run -r Test dir");
@@ -161,6 +162,7 @@ mod test_cli {
     ok("scan -c test-rule.yml dir");
     ok("scan -c test-rule.yml");
     ok("scan --report-style short"); // conflict
+    ok("scan dir1 dir2 dir3"); // multiple paths
     error("scan -i --json dir"); // conflict
     error("scan --report-style rich --json dir"); // conflict
     error("scan -r test.yml -c test.yml --json dir"); // conflict
