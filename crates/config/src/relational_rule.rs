@@ -482,6 +482,38 @@ mod test {
   }
 
   #[test]
+  #[ignore]
+  fn test_inside_inclusive() {
+    let inside = Inside {
+      immediate: false,
+      until: Some(Rule::Kind(KindMatcher::new(
+        "function_declaration",
+        TS::Tsx,
+      ))),
+      outer: Rule::Pattern(Pattern::new("function test() { $$$ }", TS::Tsx)),
+    };
+    let rule = make_rule("var a = 1", Rule::Inside(Box::new(inside)));
+    test_found(
+      &[
+        "function test() { var a = 1 }",
+        "function test() { var a = 1; var b = 2 }",
+        "function test() { if (nested) { var a = 1 } }",
+        "function test() { var b = function(nested) { var a = 1 } }",
+      ],
+      &rule,
+    );
+    test_not_found(
+      &[
+        "function test() { function nested() { var a = 1 } }",
+        "var test = function () { var a = 2 }",
+        "function test() { var a = 2 }",
+        "function test() { let a = 1; var b = 2 }",
+      ],
+      &rule,
+    );
+  }
+
+  #[test]
   fn test_inside_immediate() {
     let inside = Inside {
       immediate: true,
