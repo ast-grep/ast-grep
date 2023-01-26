@@ -4,8 +4,6 @@ use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Matcher, Node};
 
-use std::marker::PhantomData;
-
 fn until<L: Language>(pattern: &Option<Rule<L>>) -> impl Fn(&Node<L>) -> bool + '_ {
   move |n| {
     if let Some(m) = pattern {
@@ -28,7 +26,6 @@ pub struct Inside<L: Language> {
   outer: Rule<L>,
   until: Option<Rule<L>>,
   immediate: bool,
-  lang: PhantomData<L>,
 }
 impl<L: Language> Inside<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Inside<L>, RuleSerializeError> {
@@ -41,7 +38,6 @@ impl<L: Language> Inside<L> {
       outer: try_from_serializable(relation.rule, lang)?,
       until: util_node,
       immediate: relation.immediate,
-      lang: PhantomData,
     })
   }
 }
@@ -67,7 +63,6 @@ pub struct Has<L: Language> {
   inner: Rule<L>,
   until: Option<Rule<L>>,
   immediate: bool,
-  lang: PhantomData<L>,
 }
 impl<L: Language> Has<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
@@ -80,7 +75,6 @@ impl<L: Language> Has<L> {
       inner: try_from_serializable(relation.rule, lang)?,
       until: util_node,
       immediate: relation.immediate,
-      lang: PhantomData,
     })
   }
 }
@@ -119,7 +113,6 @@ pub struct Precedes<L: Language> {
   inner: Rule<L>,
   until: Option<Rule<L>>,
   immediate: bool,
-  lang: PhantomData<L>,
 }
 impl<L: Language> Precedes<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
@@ -132,7 +125,6 @@ impl<L: Language> Precedes<L> {
       inner: try_from_serializable(relation.rule, lang)?,
       until: util_node,
       immediate: relation.immediate,
-      lang: PhantomData,
     })
   }
 }
@@ -157,7 +149,6 @@ pub struct Follows<L: Language> {
   inner: Rule<L>,
   until: Option<Rule<L>>,
   immediate: bool,
-  lang: PhantomData<L>,
 }
 impl<L: Language> Follows<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
@@ -170,7 +161,6 @@ impl<L: Language> Follows<L> {
       inner: try_from_serializable(relation.rule, lang)?,
       until: util_node,
       immediate: relation.immediate,
-      lang: PhantomData,
     })
   }
 }
@@ -224,7 +214,6 @@ mod test {
   fn test_precedes_operator() {
     let precedes = Precedes {
       immediate: false,
-      lang: PhantomData,
       until: None,
       inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
     };
@@ -254,7 +243,6 @@ mod test {
   fn test_precedes_immediate() {
     let precedes = Precedes {
       immediate: true,
-      lang: PhantomData,
       until: None,
       inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
     };
@@ -285,7 +273,6 @@ mod test {
   fn test_follows_operator() {
     let follows = Follows {
       immediate: false,
-      lang: PhantomData,
       until: None,
       inner: Rule::Pattern(Pattern::new("var b = 2", TS::Tsx)),
     };
@@ -318,7 +305,6 @@ mod test {
   fn test_follows_immediate() {
     let follows = Follows {
       immediate: true,
-      lang: PhantomData,
       until: None,
       inner: Rule::Pattern(Pattern::new("var b = 2", TS::Tsx)),
     };
@@ -351,7 +337,6 @@ mod test {
   fn test_has_rule() {
     let has = Has {
       immediate: false,
-      lang: PhantomData,
       until: None,
       inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
     };
@@ -380,7 +365,6 @@ mod test {
   fn test_has_until_should_not_abort_prematurely() {
     let has = Has {
       immediate: false,
-      lang: PhantomData,
       until: Some(Rule::Kind(KindMatcher::new(
         "function_declaration",
         TS::Tsx,
@@ -408,7 +392,6 @@ mod test {
   fn test_has_until_should_be_inclusive() {
     let has = Has {
       immediate: false,
-      lang: PhantomData,
       until: Some(Rule::Kind(KindMatcher::new(
         "function_declaration",
         TS::Tsx,
@@ -437,7 +420,6 @@ mod test {
   fn test_has_immediate() {
     let has = Has {
       immediate: true,
-      lang: PhantomData,
       until: None,
       inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
     };
@@ -447,7 +429,6 @@ mod test {
         outer: Rule::Pattern(Pattern::new("function test() { $$$ }", TS::Tsx)),
         until: None,
         immediate: true,
-        lang: PhantomData,
       })),
       Rule::Has(Box::new(has)),
     ]);
@@ -476,7 +457,6 @@ mod test {
   fn test_inside_rule() {
     let inside = Inside {
       immediate: false,
-      lang: PhantomData,
       until: None,
       outer: Rule::Pattern(Pattern::new("function test() { $$$ }", TS::Tsx)),
     };
@@ -505,7 +485,6 @@ mod test {
   fn test_inside_immediate() {
     let inside = Inside {
       immediate: true,
-      lang: PhantomData,
       until: None,
       outer: Rule::All(o::All::new(vec![
         Rule::Pattern(Pattern::new("{ $$$ }", TS::Tsx)),
@@ -513,7 +492,6 @@ mod test {
           outer: Rule::Pattern(Pattern::new("function test() { $$$ }", TS::Tsx)),
           until: None,
           immediate: true,
-          lang: PhantomData,
         })),
       ])),
     };
