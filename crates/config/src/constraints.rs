@@ -75,11 +75,16 @@ impl<L: Language> Matcher<L> for RuleWithConstraint<L> {
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
-    self.rule.match_node_with_env(node, env)
+    let ret = self.rule.match_node_with_env(node, env);
+    if ret.is_some() && env.match_constraints(&self.matchers) {
+      ret
+    } else {
+      None
+    }
   }
 
   fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {
-    MetaVarEnv::from_matchers(self.matchers.clone())
+    MetaVarEnv::new()
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
