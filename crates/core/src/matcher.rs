@@ -43,13 +43,10 @@ pub trait Matcher<L: Language> {
   }
 
   fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
-    let mut env = self.get_meta_var_env();
+    // in future we might need to customize initial MetaVarEnv
+    let mut env = MetaVarEnv::new();
     let node = self.match_node_with_env(node, &mut env)?;
     Some(NodeMatch::new(node, env))
-  }
-
-  fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {
-    MetaVarEnv::new()
   }
 
   fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
@@ -118,10 +115,6 @@ where
     (**self).match_node(node)
   }
 
-  fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {
-    (**self).get_meta_var_env()
-  }
-
   fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
     (**self).find_node(node)
   }
@@ -147,10 +140,6 @@ impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
 
   fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
     (**self).match_node(node)
-  }
-
-  fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {
-    (**self).get_meta_var_env()
   }
 
   fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
