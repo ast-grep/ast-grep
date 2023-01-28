@@ -4,7 +4,7 @@ mod pattern;
 #[cfg(feature = "regex")]
 mod text;
 
-use crate::meta_var::{MetaVarEnv, MetaVarMatchers};
+use crate::meta_var::MetaVarEnv;
 use crate::traversal::Pre;
 use crate::Language;
 use crate::Node;
@@ -48,12 +48,8 @@ pub trait Matcher<L: Language> {
     env.match_constraints().then_some(NodeMatch::new(node, env))
   }
 
-  fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {
-    MetaVarMatchers::new()
-  }
-
   fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {
-    MetaVarEnv::from_matchers(self.get_meta_var_matchers())
+    MetaVarEnv::new()
   }
 
   fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
@@ -122,10 +118,6 @@ where
     (**self).match_node(node)
   }
 
-  fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {
-    (**self).get_meta_var_matchers()
-  }
-
   fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {
     (**self).get_meta_var_env()
   }
@@ -155,10 +147,6 @@ impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
 
   fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
     (**self).match_node(node)
-  }
-
-  fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {
-    (**self).get_meta_var_matchers()
   }
 
   fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {

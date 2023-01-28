@@ -212,9 +212,9 @@ where
     self.inner.match_node_with_env(node, env)
   }
 
-  fn get_meta_var_matchers(&self) -> MetaVarMatchers<L> {
-    // TODO: avoid clone here
-    self.meta_vars.clone()
+  fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {
+    // TODO: avoid clone
+    MetaVarEnv::from_matchers(self.meta_vars.clone())
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
@@ -436,6 +436,7 @@ mod test {
     test_find(&matcher, "let a = 114514");
     test_not_find(&matcher, "let a = 1919810");
   }
+  use crate::matcher::RegexMatcher;
   use crate::Pattern;
   trait TsxMatcher {
     fn t(self) -> Pattern<Tsx>;
@@ -537,5 +538,16 @@ mod test {
     let matches = code.root().find(matcher).expect("should found");
     assert!(matches.get_env().get_match("A").is_none());
     assert_eq!(matches.get_env().get_match("B").unwrap().text(), "123");
+  }
+
+  #[test]
+  fn test_op_with_matchers() {
+    let var_matcher = MetaVarMatcher::Regex(RegexMatcher::try_new("a").unwrap());
+    let mut matcher = Op::every("$A");
+    matcher.with_meta_var("A".into(), var_matcher);
+    let code = Root::new("a", Tsx);
+    assert!(code.root().find(&matcher).is_some());
+    let code = Root::new("b", Tsx);
+    assert!(code.root().find(&matcher).is_none());
   }
 }
