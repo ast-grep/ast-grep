@@ -1,5 +1,5 @@
 use crate::language::Language;
-use crate::matcher::{FindAllNodes, Matcher, NodeMatch};
+use crate::matcher::{Matcher, NodeMatch, PreparedMatcher};
 use crate::replacer::Replacer;
 use crate::source::{Content, Source};
 use crate::traversal::{Pre, Visitor};
@@ -204,23 +204,27 @@ impl<'r, L: Language> Node<'r, L> {
  */
 impl<'r, L: Language> Node<'r, L> {
   pub fn matches<M: Matcher<L>>(&self, m: M) -> bool {
-    m.match_node(self.clone()).is_some()
+    PreparedMatcher::into_closure(m)(self.clone()).is_some()
   }
 
   pub fn inside<M: Matcher<L>>(&self, m: M) -> bool {
-    self.ancestors().find_map(|n| m.match_node(n)).is_some()
+    let match_func = PreparedMatcher::into_closure(m);
+    self.ancestors().find_map(match_func).is_some()
   }
 
   pub fn has<M: Matcher<L>>(&self, m: M) -> bool {
-    self.dfs().skip(1).find_map(|n| m.match_node(n)).is_some()
+    let match_func = PreparedMatcher::into_closure(m);
+    self.dfs().skip(1).find_map(match_func).is_some()
   }
 
   pub fn precedes<M: Matcher<L>>(&self, m: M) -> bool {
-    self.next_all().find_map(|n| m.match_node(n)).is_some()
+    let match_func = PreparedMatcher::into_closure(m);
+    self.next_all().find_map(match_func).is_some()
   }
 
   pub fn follows<M: Matcher<L>>(&self, m: M) -> bool {
-    self.prev_all().find_map(|n| m.match_node(n)).is_some()
+    let match_func = PreparedMatcher::into_closure(m);
+    self.prev_all().find_map(match_func).is_some()
   }
 }
 
@@ -258,7 +262,8 @@ impl<'r, L: Language> Node<'r, L> {
   }
 
   pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = NodeMatch<'r, L>> {
-    FindAllNodes::new(pat, self.clone())
+    let match_func = PreparedMatcher::into_closure(pat);
+    self.dfs().filter_map(match_func)
   }
 
   pub fn field(&self, name: &str) -> Option<Self> {
@@ -394,7 +399,7 @@ impl<'r, L: Language> Node<'r, L> {
   }
 
   pub fn replace<M: Matcher<L>, R: Replacer<L>>(&self, matcher: M, replacer: R) -> Option<Edit> {
-    let matched = matcher.find_node(self.clone())?;
+    let matched = self.find(&matcher)?;
     let edit = self.make_edit(matched, &matcher, &replacer);
     Some(edit)
   }

@@ -338,11 +338,11 @@ mod test {
 
   fn test_find(matcher: &impl Matcher<Tsx>, code: &str) {
     let node = Root::new(code, Tsx);
-    assert!(matcher.find_node(node.root()).is_some());
+    assert!(node.root().find(matcher).is_some());
   }
   fn test_not_find(matcher: &impl Matcher<Tsx>, code: &str) {
     let node = Root::new(code, Tsx);
-    assert!(matcher.find_node(node.root()).is_none());
+    assert!(node.root().find(matcher).is_none());
   }
   fn find_all(matcher: impl Matcher<Tsx>, code: &str) -> Vec<String> {
     let node = Root::new(code, Tsx);

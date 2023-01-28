@@ -19,7 +19,7 @@
 //! Level order is also included for completeness and should be used sparingly.
 
 use crate::language::Language;
-use crate::matcher::Matcher;
+use crate::matcher::{Matcher, PreparedMatcher};
 use crate::{Node, NodeMatch, Root};
 
 use tree_sitter as ts;
@@ -81,17 +81,21 @@ where
     Visit {
       reentrant: self.reentrant,
       named: self.named_only,
-      matcher: self.matcher,
+      matcher: PreparedMatcher::new(self.matcher),
       traversal,
       lang: PhantomData,
     }
   }
 }
 
-pub struct Visit<'t, L, T, M> {
+pub struct Visit<'t, L, T, M>
+where
+  L: Language,
+  M: Matcher<L>,
+{
   reentrant: bool,
   named: bool,
-  matcher: M,
+  matcher: PreparedMatcher<L, M>,
   traversal: T,
   lang: PhantomData<&'t L>,
 }
@@ -104,7 +108,7 @@ where
   #[inline]
   fn mark_match(&mut self, depth: Option<usize>) {
     if !self.reentrant {
-      self.traversal.calibrate_for_match(depth);
+      self.traversal.calibrate_for_skip(depth);
     }
   }
 }
@@ -121,7 +125,7 @@ where
       let match_depth = self.traversal.get_current_depth();
       let node = self.traversal.next()?;
       let pass_named = !self.named || node.is_named();
-      if let Some(node_match) = pass_named.then(|| self.matcher.match_node(node)).flatten() {
+      if let Some(node_match) = pass_named.then(|| self.matcher.do_match(node)).flatten() {
         self.mark_match(Some(match_depth));
         return Some(node_match);
       } else {
@@ -153,12 +157,12 @@ impl Algorithm for PostOrder {
 
 /// Traversal can iterate over node by using traversal algorithm.
 /// The `next` method should only handle normal, reentrant iteration.
-/// If reentrancy is not desired, traversal should mutate cursor in `calibrate_for_match`.
+/// If reentrancy is not desired, traversal should mutate cursor in `calibrate_for_skip`.
 /// Visit will maintain the matched node depth so traversal does not need to use extra field.
 pub trait Traversal<'t, L: Language + 't>: Iterator<Item = Node<'t, L>> {
   /// Calibrate cursor position to skip overlapping matches.
   /// node depth will be passed if matched, otherwise None.
-  fn calibrate_for_match(&mut self, depth: Option<usize>);
+  fn calibrate_for_skip(&mut self, depth: Option<usize>);
   /// Returns the current depth of cursor depth.
   /// Cursor depth is incremented by 1 when moving from parent to child.
   /// Cursor depth at Root node is 0.
@@ -236,7 +240,7 @@ impl<'tree, L: Language> Iterator for Pre<'tree, L> {
 impl<'tree, L: Language> FusedIterator for Pre<'tree, L> {}
 
 impl<'t, L: Language> Traversal<'t, L> for Pre<'t, L> {
-  fn calibrate_for_match(&mut self, depth: Option<usize>) {
+  fn calibrate_for_skip(&mut self, depth: Option<usize>) {
     // not entering the node, ignore
     let Some(depth) = depth else {
       return;
@@ -316,7 +320,7 @@ impl<'tree, L: Language> Iterator for Post<'tree, L> {
 impl<'tree, L: Language> FusedIterator for Post<'tree, L> {}
 
 impl<'t, L: Language> Traversal<'t, L> for Post<'t, L> {
-  fn calibrate_for_match(&mut self, depth: Option<usize>) {
+  fn calibrate_for_skip(&mut self, depth: Option<usize>) {
     if let Some(depth) = depth {
       // Later matches' depth should always be greater than former matches.
       // because we bump match_depth in `step_up` during traversal.
