@@ -45,7 +45,7 @@ pub trait Matcher<L: Language> {
   fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
     let mut env = self.get_meta_var_env();
     let node = self.match_node_with_env(node, &mut env)?;
-    env.match_constraints().then_some(NodeMatch::new(node, env))
+    Some(NodeMatch::new(node, env))
   }
 
   fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {

@@ -209,12 +209,16 @@ where
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
-    self.inner.match_node_with_env(node, env)
+    let ret = self.inner.match_node_with_env(node, env);
+    if ret.is_some() && env.match_constraints(&self.meta_vars) {
+      ret
+    } else {
+      None
+    }
   }
 
   fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {
-    // TODO: avoid clone
-    MetaVarEnv::from_matchers(self.meta_vars.clone())
+    MetaVarEnv::new()
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {

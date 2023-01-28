@@ -10,19 +10,13 @@ pub type MetaVariableID = String;
 /// const a = 123 matched with const a = $A will produce env: $A => 123
 #[derive(Clone)]
 pub struct MetaVarEnv<'tree, L: Language> {
-  var_matchers: MetaVarMatchers<L>,
   single_matched: HashMap<MetaVariableID, Node<'tree, L>>,
   multi_matched: HashMap<MetaVariableID, Vec<Node<'tree, L>>>,
 }
 
 impl<'tree, L: Language> MetaVarEnv<'tree, L> {
   pub fn new() -> Self {
-    Self::from_matchers(MetaVarMatchers::new())
-  }
-
-  pub fn from_matchers(var_matchers: MetaVarMatchers<L>) -> Self {
     Self {
-      var_matchers,
       single_matched: HashMap::new(),
       multi_matched: HashMap::new(),
     }
@@ -73,9 +67,9 @@ impl<'tree, L: Language> MetaVarEnv<'tree, L> {
     self.multi_matched.get(label)
   }
 
-  pub fn match_constraints(&self) -> bool {
+  pub fn match_constraints(&self, var_matchers: &MetaVarMatchers<L>) -> bool {
     for (var_id, candidate) in &self.single_matched {
-      if let Some(m) = self.var_matchers.0.get(var_id) {
+      if let Some(m) = var_matchers.0.get(var_id) {
         if !m.matches(candidate.clone()) {
           return false;
         }
@@ -257,11 +251,11 @@ mod test {
       "A".to_string(),
       MetaVarMatcher::Pattern(Pattern::new(pattern, Tsx)),
     );
-    let mut env = MetaVarEnv::from_matchers(matchers);
+    let mut env = MetaVarEnv::new();
     let root = Tsx.ast_grep(node);
     let node = root.root().child(0).unwrap().child(0).unwrap();
     env.insert("A".to_string(), node);
-    env.match_constraints()
+    env.match_constraints(&matchers)
   }
 
   #[test]
