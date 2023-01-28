@@ -156,23 +156,37 @@ pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
   // e.g. for pattern Some($A) with replacement $A, Some(Some(1)) will cause panic
   dfs: Pre<'tree, L>,
   matcher: M,
+  kinds: Option<BitSet>,
 }
 
 impl<'tree, L: Language, M: Matcher<L>> FindAllNodes<'tree, L, M> {
   pub fn new(matcher: M, node: Node<'tree, L>) -> Self {
     Self {
       dfs: node.dfs(),
+      kinds: matcher.potential_kinds(),
       matcher,
     }
   }
 }
 
+// TODO: make use of potential_kinds in more scenarios
 impl<'tree, L: Language, M: Matcher<L>> Iterator for FindAllNodes<'tree, L, M> {
   type Item = NodeMatch<'tree, L>;
   fn next(&mut self) -> Option<Self::Item> {
-    for cand in self.dfs.by_ref() {
-      if let Some(matched) = self.matcher.match_node(cand) {
-        return Some(matched);
+    if let Some(kinds) = &self.kinds {
+      for cand in self.dfs.by_ref() {
+        if !kinds.contains(cand.kind_id().into()) {
+          continue;
+        }
+        if let Some(matched) = self.matcher.match_node(cand) {
+          return Some(matched);
+        }
+      }
+    } else {
+      for cand in self.dfs.by_ref() {
+        if let Some(matched) = self.matcher.match_node(cand) {
+          return Some(matched);
+        }
       }
     }
     None
