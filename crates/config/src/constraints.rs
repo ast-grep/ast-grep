@@ -83,10 +83,6 @@ impl<L: Language> Matcher<L> for RuleWithConstraint<L> {
     }
   }
 
-  fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {
-    MetaVarEnv::new()
-  }
-
   fn potential_kinds(&self) -> Option<BitSet> {
     self.rule.potential_kinds()
   }

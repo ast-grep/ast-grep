@@ -217,10 +217,6 @@ where
     }
   }
 
-  fn get_meta_var_env<'tree>(&self) -> MetaVarEnv<'tree, L> {
-    MetaVarEnv::new()
-  }
-
   fn potential_kinds(&self) -> Option<BitSet> {
     self.inner.potential_kinds()
   }
