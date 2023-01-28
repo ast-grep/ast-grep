@@ -5,12 +5,11 @@ mod pattern;
 mod text;
 
 use crate::meta_var::MetaVarEnv;
+use crate::traversal::Pre;
 use crate::Language;
 use crate::Node;
 
 use bit_set::BitSet;
-
-use std::marker::PhantomData;
 
 pub use kind::{KindMatcher, KindMatcherError};
 pub use node_match::NodeMatch;
@@ -43,47 +42,40 @@ pub trait Matcher<L: Language> {
     None
   }
 
-  fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
-    let match_func = PreparedMatcher::into_closure(self);
-    node.dfs().find_map(match_func)
-  }
-}
-
-pub struct PreparedMatcher<L: Language, M: Matcher<L>> {
-  kinds: Option<BitSet>,
-  matcher: M,
-  lang: PhantomData<L>,
-}
-
-impl<L, M> PreparedMatcher<L, M>
-where
-  L: Language,
-  M: Matcher<L>,
-{
-  pub fn new(matcher: M) -> Self {
-    Self {
-      kinds: matcher.potential_kinds(),
-      matcher,
-      lang: PhantomData,
-    }
-  }
-
-  pub fn do_match<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
-    if let Some(kinds) = &self.kinds {
-      if !kinds.contains(node.kind_id().into()) {
-        return None;
-      }
-    }
+  fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
     // in future we might need to customize initial MetaVarEnv
     let mut env = MetaVarEnv::new();
-    let node = self.matcher.match_node_with_env(node, &mut env)?;
+    let node = self.match_node_with_env(node, &mut env)?;
     Some(NodeMatch::new(node, env))
   }
 
-  pub fn into_closure<'tree>(matcher: M) -> impl Fn(Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
-    let prepared = Self::new(matcher);
-    move |n| prepared.do_match(n)
+  fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
+    if let Some(set) = self.potential_kinds() {
+      return find_node_impl(self, node, &set);
+    }
+    self
+      .match_node(node.clone())
+      .or_else(|| node.children().find_map(|sub| self.find_node(sub)))
   }
+}
+
+fn find_node_impl<'tree, L, M>(
+  m: &M,
+  node: Node<'tree, L>,
+  set: &BitSet,
+) -> Option<NodeMatch<'tree, L>>
+where
+  L: Language,
+  M: Matcher<L> + ?Sized,
+{
+  for n in node.dfs() {
+    if set.contains(n.kind_id().into()) {
+      if let Some(ret) = m.match_node(n.clone()) {
+        return Some(ret);
+      }
+    }
+  }
+  None
 }
 
 impl<L: Language> Matcher<L> for str {
@@ -118,11 +110,17 @@ where
   fn potential_kinds(&self) -> Option<BitSet> {
     (**self).potential_kinds()
   }
-  fn get_match_len(&self, node: Node<L>) -> Option<usize> {
-    (**self).get_match_len(node)
+
+  fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
+    (**self).match_node(node)
   }
+
   fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
     (**self).find_node(node)
+  }
+
+  fn get_match_len(&self, node: Node<L>) -> Option<usize> {
+    (**self).get_match_len(node)
   }
 }
 
@@ -140,12 +138,58 @@ impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
     (**self).potential_kinds()
   }
 
+  fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
+    (**self).match_node(node)
+  }
+
   fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
     (**self).find_node(node)
   }
 
   fn get_match_len(&self, node: Node<L>) -> Option<usize> {
     (**self).get_match_len(node)
+  }
+}
+
+pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
+  // using dfs is not universally correct, say, when we want replace nested matches
+  // e.g. for pattern Some($A) with replacement $A, Some(Some(1)) will cause panic
+  dfs: Pre<'tree, L>,
+  matcher: M,
+  kinds: Option<BitSet>,
+}
+
+impl<'tree, L: Language, M: Matcher<L>> FindAllNodes<'tree, L, M> {
+  pub fn new(matcher: M, node: Node<'tree, L>) -> Self {
+    Self {
+      dfs: node.dfs(),
+      kinds: matcher.potential_kinds(),
+      matcher,
+    }
+  }
+}
+
+// TODO: make use of potential_kinds in more scenarios
+impl<'tree, L: Language, M: Matcher<L>> Iterator for FindAllNodes<'tree, L, M> {
+  type Item = NodeMatch<'tree, L>;
+  fn next(&mut self) -> Option<Self::Item> {
+    if let Some(kinds) = &self.kinds {
+      for cand in self.dfs.by_ref() {
+        if !kinds.contains(cand.kind_id().into()) {
+          continue;
+        }
+        if let Some(matched) = self.matcher.match_node(cand) {
+          return Some(matched);
+        }
+      }
+    } else {
+      for cand in self.dfs.by_ref() {
+        if let Some(matched) = self.matcher.match_node(cand) {
+          return Some(matched);
+        }
+      }
+    }
+    None
   }
 }
 
