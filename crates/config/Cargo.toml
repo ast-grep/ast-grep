@@ -24,5 +24,5 @@ bit-set = "0.5.3"
 thiserror = "1.0.38"
 
 [dev-dependencies]
-tree-sitter-typescript="0.20.1"
+tree-sitter-typescript="0.20.2"
 tempdir = "0.3"
