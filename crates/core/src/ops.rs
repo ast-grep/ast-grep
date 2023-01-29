@@ -37,15 +37,17 @@ where
   }
 }
 
+// we precompute and cache potential_kinds. So patterns should not be mutated.
+// Box<[P]> is used here for immutability so that kinds will never be invalidated.
 pub struct All<L: Language, P: Matcher<L>> {
-  patterns: Vec<P>,
+  patterns: Box<[P]>,
   kinds: Option<BitSet>,
   lang: PhantomData<L>,
 }
 
 impl<L: Language, P: Matcher<L>> All<L, P> {
   pub fn new<PS: IntoIterator<Item = P>>(patterns: PS) -> Self {
-    let patterns = patterns.into_iter().collect();
+    let patterns: Box<[P]> = patterns.into_iter().collect();
     let kinds = Self::compute_kinds(&patterns);
     Self {
       patterns,
@@ -54,7 +56,7 @@ impl<L: Language, P: Matcher<L>> All<L, P> {
     }
   }
 
-  fn compute_kinds(patterns: &Vec<P>) -> Option<BitSet> {
+  fn compute_kinds(patterns: &[P]) -> Option<BitSet> {
     let mut set: Option<BitSet> = None;
     for pattern in patterns {
       let Some(n) = pattern.potential_kinds() else {
@@ -93,15 +95,16 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
   }
 }
 
+// Box<[P]> for immutability and potential_kinds cache correctness
 pub struct Any<L, P> {
-  patterns: Vec<P>,
+  patterns: Box<[P]>,
   kinds: Option<BitSet>,
   lang: PhantomData<L>,
 }
 
 impl<L: Language, P: Matcher<L>> Any<L, P> {
   pub fn new<PS: IntoIterator<Item = P>>(patterns: PS) -> Self {
-    let patterns = patterns.into_iter().collect();
+    let patterns: Box<[P]> = patterns.into_iter().collect();
     let kinds = Self::compute_kinds(&patterns);
     Self {
       patterns,
@@ -110,7 +113,7 @@ impl<L: Language, P: Matcher<L>> Any<L, P> {
     }
   }
 
-  fn compute_kinds(patterns: &Vec<P>) -> Option<BitSet> {
+  fn compute_kinds(patterns: &[P]) -> Option<BitSet> {
     let mut set = BitSet::new();
     for pattern in patterns {
       let Some(n) = pattern.potential_kinds() else {
