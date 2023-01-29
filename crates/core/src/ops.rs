@@ -39,34 +39,24 @@ where
 
 pub struct All<L: Language, P: Matcher<L>> {
   patterns: Vec<P>,
+  kinds: Option<BitSet>,
   lang: PhantomData<L>,
 }
 
 impl<L: Language, P: Matcher<L>> All<L, P> {
   pub fn new<PS: IntoIterator<Item = P>>(patterns: PS) -> Self {
+    let patterns = patterns.into_iter().collect();
+    let kinds = Self::compute_kinds(&patterns);
     Self {
-      patterns: patterns.into_iter().collect(),
+      patterns,
+      kinds,
       lang: PhantomData,
     }
   }
-}
 
-impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
-  fn match_node_with_env<'tree>(
-    &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
-    self
-      .patterns
-      .iter()
-      .all(|p| p.match_node_with_env(node.clone(), env).is_some())
-      .then_some(node)
-  }
-
-  fn potential_kinds(&self) -> Option<BitSet> {
+  fn compute_kinds(patterns: &Vec<P>) -> Option<BitSet> {
     let mut set: Option<BitSet> = None;
-    for pattern in &self.patterns {
+    for pattern in patterns {
       let Some(n) = pattern.potential_kinds() else {
         continue;
       };
@@ -80,17 +70,55 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
   }
 }
 
+impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
+  fn match_node_with_env<'tree>(
+    &self,
+    node: Node<'tree, L>,
+    env: &mut MetaVarEnv<'tree, L>,
+  ) -> Option<Node<'tree, L>> {
+    if let Some(kinds) = &self.kinds {
+      if !kinds.contains(node.kind_id().into()) {
+        return None;
+      }
+    }
+    self
+      .patterns
+      .iter()
+      .all(|p| p.match_node_with_env(node.clone(), env).is_some())
+      .then_some(node)
+  }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    self.kinds.clone()
+  }
+}
+
 pub struct Any<L, P> {
   patterns: Vec<P>,
+  kinds: Option<BitSet>,
   lang: PhantomData<L>,
 }
 
 impl<L: Language, P: Matcher<L>> Any<L, P> {
   pub fn new<PS: IntoIterator<Item = P>>(patterns: PS) -> Self {
+    let patterns = patterns.into_iter().collect();
+    let kinds = Self::compute_kinds(&patterns);
     Self {
-      patterns: patterns.into_iter().collect(),
+      patterns,
+      kinds,
       lang: PhantomData,
     }
+  }
+
+  fn compute_kinds(patterns: &Vec<P>) -> Option<BitSet> {
+    let mut set = BitSet::new();
+    for pattern in patterns {
+      let Some(n) = pattern.potential_kinds() else {
+        return None;
+      };
+      set.union_with(&n);
+    }
+    Some(set)
   }
 }
 
@@ -100,6 +128,11 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
+    if let Some(kinds) = &self.kinds {
+      if !kinds.contains(node.kind_id().into()) {
+        return None;
+      }
+    }
     let mut new_env = env.clone();
     self
       .patterns
@@ -115,14 +148,7 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
-    let mut set = BitSet::new();
-    for pattern in &self.patterns {
-      let Some(n) = pattern.potential_kinds() else {
-        return None;
-      };
-      set.union_with(&n);
-    }
-    Some(set)
+    self.kinds.clone()
   }
 }
 
