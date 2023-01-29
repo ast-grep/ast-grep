@@ -3,6 +3,7 @@ mod error;
 mod interaction;
 mod lsp;
 mod print;
+mod run;
 mod scan;
 mod verify;
 
@@ -10,7 +11,8 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use error::exit_with_error;
-use scan::{run_with_config, run_with_pattern, RunArg, ScanArg};
+use run::{run_with_pattern, RunArg};
+use scan::{run_with_config, ScanArg};
 use verify::{run_test_rule, TestArg};
 
 const LOGO: &str = r#"
