@@ -56,8 +56,20 @@ pub fn try_deserialize_matchers<L: Language>(
 }
 
 pub struct RuleWithConstraint<L: Language> {
-  pub rule: Rule<L>,
-  pub matchers: MetaVarMatchers<L>,
+  rule: Rule<L>,
+  matchers: MetaVarMatchers<L>,
+  kinds: Option<BitSet>,
+}
+
+impl<L: Language> RuleWithConstraint<L> {
+  pub fn new(rule: Rule<L>, matchers: MetaVarMatchers<L>) -> Self {
+    let kinds = rule.potential_kinds();
+    Self {
+      rule,
+      kinds,
+      matchers,
+    }
+  }
 }
 
 impl<L: Language> Default for RuleWithConstraint<L> {
@@ -65,6 +77,7 @@ impl<L: Language> Default for RuleWithConstraint<L> {
     Self {
       rule: Rule::default(),
       matchers: MetaVarMatchers::default(),
+      kinds: None,
     }
   }
 }
@@ -75,6 +88,11 @@ impl<L: Language> Matcher<L> for RuleWithConstraint<L> {
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
+    if let Some(kinds) = &self.kinds {
+      if !kinds.contains(node.kind_id().into()) {
+        return None;
+      }
+    }
     let ret = self.rule.match_node_with_env(node, env);
     if ret.is_some() && env.match_constraints(&self.matchers) {
       ret
@@ -110,10 +128,8 @@ mod test {
       "A".to_string(),
       MetaVarMatcher::Regex(RegexMatcher::try_new("a").unwrap()),
     );
-    let rule = RuleWithConstraint {
-      rule: Rule::Pattern(Pattern::new("$A", TypeScript::Tsx)),
-      matchers,
-    };
+    let rule =
+      RuleWithConstraint::new(Rule::Pattern(Pattern::new("$A", TypeScript::Tsx)), matchers);
     let grep = TypeScript::Tsx.ast_grep("a");
     assert!(grep.root().find(&rule).is_some());
     let grep = TypeScript::Tsx.ast_grep("bbb");

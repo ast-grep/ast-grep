@@ -67,7 +67,7 @@ impl<L: Language> SerializableRuleConfig<L> {
   pub fn get_matcher(&self) -> RResult<RuleWithConstraint<L>> {
     let rule = self.get_rule()?;
     let matchers = self.get_meta_var_matchers()?;
-    Ok(RuleWithConstraint { rule, matchers })
+    Ok(RuleWithConstraint::new(rule, matchers))
   }
 
   fn get_rule(&self) -> RResult<Rule<L>> {

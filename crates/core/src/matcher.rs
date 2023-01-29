@@ -50,32 +50,13 @@ pub trait Matcher<L: Language> {
   }
 
   fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
-    if let Some(set) = self.potential_kinds() {
-      return find_node_impl(self, node, &set);
-    }
-    self
-      .match_node(node.clone())
-      .or_else(|| node.children().find_map(|sub| self.find_node(sub)))
-  }
-}
-
-fn find_node_impl<'tree, L, M>(
-  m: &M,
-  node: Node<'tree, L>,
-  set: &BitSet,
-) -> Option<NodeMatch<'tree, L>>
-where
-  L: Language,
-  M: Matcher<L> + ?Sized,
-{
-  for n in node.dfs() {
-    if set.contains(n.kind_id().into()) {
-      if let Some(ret) = m.match_node(n.clone()) {
+    for n in node.dfs() {
+      if let Some(ret) = self.match_node(n.clone()) {
         return Some(ret);
       }
     }
+    None
   }
-  None
 }
 
 impl<L: Language> Matcher<L> for str {
@@ -156,37 +137,23 @@ pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
   // e.g. for pattern Some($A) with replacement $A, Some(Some(1)) will cause panic
   dfs: Pre<'tree, L>,
   matcher: M,
-  kinds: Option<BitSet>,
 }
 
 impl<'tree, L: Language, M: Matcher<L>> FindAllNodes<'tree, L, M> {
   pub fn new(matcher: M, node: Node<'tree, L>) -> Self {
     Self {
       dfs: node.dfs(),
-      kinds: matcher.potential_kinds(),
       matcher,
     }
   }
 }
 
-// TODO: make use of potential_kinds in more scenarios
 impl<'tree, L: Language, M: Matcher<L>> Iterator for FindAllNodes<'tree, L, M> {
   type Item = NodeMatch<'tree, L>;
   fn next(&mut self) -> Option<Self::Item> {
-    if let Some(kinds) = &self.kinds {
-      for cand in self.dfs.by_ref() {
-        if !kinds.contains(cand.kind_id().into()) {
-          continue;
-        }
-        if let Some(matched) = self.matcher.match_node(cand) {
-          return Some(matched);
-        }
-      }
-    } else {
-      for cand in self.dfs.by_ref() {
-        if let Some(matched) = self.matcher.match_node(cand) {
-          return Some(matched);
-        }
+    for cand in self.dfs.by_ref() {
+      if let Some(matched) = self.matcher.match_node(cand) {
+        return Some(matched);
       }
     }
     None
