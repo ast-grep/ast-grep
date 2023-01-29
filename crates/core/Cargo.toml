@@ -21,4 +21,4 @@ thiserror = "1.0.38"
 default = ["regex"]
 
 [dev-dependencies]
-tree-sitter-typescript="0.20.1"
+tree-sitter-typescript="0.20.2"
