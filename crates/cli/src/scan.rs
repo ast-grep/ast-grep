@@ -1,9 +1,9 @@
-use std::fs::read_to_string;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use ast_grep_config::{RuleCollection, RuleConfig, RuleWithConstraint};
-use ast_grep_core::{AstGrep, Matcher};
+use ast_grep_config::{RuleCollection, RuleConfig};
+use ast_grep_core::{AstGrep, Matcher, NodeMatch};
 use clap::Args;
 use ignore::WalkParallel;
 
@@ -12,7 +12,7 @@ use crate::error::ErrorContext as EC;
 use crate::print::{
   ColorArg, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Printer, ReportStyle, SimpleFile,
 };
-use crate::utils::{filter_file_interactive, MatchUnit};
+use crate::utils::filter_file_interactive;
 use crate::utils::{run_worker, Items, Worker};
 use ast_grep_language::SupportLang;
 
@@ -53,12 +53,6 @@ pub struct ScanArg {
   /// Do not respect ignore files. You can suppress multiple ignore files by passing `no-ignore` multiple times.
   #[clap(long, action = clap::ArgAction::Append)]
   no_ignore: Vec<IgnoreFile>,
-}
-
-impl<'a> MatchUnit<&'a RuleWithConstraint<SupportLang>> {
-  fn reuse_with_matcher(self, matcher: &'a RuleWithConstraint<SupportLang>) -> Self {
-    Self { matcher, ..self }
-  }
 }
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
@@ -124,19 +118,14 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print()?;
     for (path, grep) in items {
-      let mut match_unit = MatchUnit {
-        path,
-        grep,
-        matcher: &RuleWithConstraint::default(),
-      };
-      let path = &match_unit.path;
-      let file_content = read_to_string(path)?;
-      for config in self.configs.for_path(path) {
-        let matcher = &config.matcher;
-        // important reuse and mutation start!
-        match_unit = match_unit.reuse_with_matcher(matcher);
-        // important reuse and mutation end!
-        match_rule_on_file(&match_unit, config, &file_content, &self.printer)?;
+      let file_content = grep.root().text().to_string();
+      let path = &path;
+      let rules = self.configs.for_path(path);
+      let combined = CombinedScan::new(rules);
+      let matched = combined.scan(&grep);
+      for (idx, matches) in matched {
+        let rule = &combined.rules[idx];
+        match_rule_on_file(path, matches, rule, &file_content, &self.printer)?;
       }
     }
     self.printer.after_print()?;
@@ -145,26 +134,64 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
 }
 
 fn match_rule_on_file(
-  match_unit: &MatchUnit<impl Matcher<SupportLang>>,
+  path: &Path,
+  matches: Vec<NodeMatch<SupportLang>>,
   rule: &RuleConfig<SupportLang>,
   file_content: &String,
   reporter: &impl Printer,
 ) -> Result<()> {
-  let MatchUnit {
-    path,
-    grep,
-    matcher,
-  } = match_unit;
-  let mut matches = grep.root().find_all(matcher).peekable();
-  if matches.peek().is_none() {
-    return Ok(());
-  }
+  let matches = matches.into_iter();
   let file = SimpleFile::new(path.to_string_lossy(), file_content);
   if let Some(fixer) = &rule.fixer {
-    let diffs = matches.map(|m| Diff::generate(m, matcher, fixer));
+    let diffs = matches.map(|m| Diff::generate(m, &rule.matcher, fixer));
     reporter.print_rule_diffs(diffs, path, rule)?;
   } else {
     reporter.print_rule(matches, file, rule)?;
   }
   Ok(())
+}
+
+struct CombinedScan<'r> {
+  rules: Vec<&'r RuleConfig<SupportLang>>,
+  kind_rule_mapping: HashMap<u16, Vec<usize>>,
+}
+
+impl<'r> CombinedScan<'r> {
+  fn new(rules: Vec<&'r RuleConfig<SupportLang>>) -> Self {
+    let mut mapping = HashMap::new();
+    for (idx, rule) in rules.iter().enumerate() {
+      for kind in &rule
+        .matcher
+        .potential_kinds()
+        .expect("rule must have kinds")
+      {
+        let v = mapping.entry(kind as u16).or_insert_with(Vec::new);
+        v.push(idx);
+      }
+    }
+    Self {
+      rules,
+      kind_rule_mapping: mapping,
+    }
+  }
+  fn scan<'a>(
+    &self,
+    root: &'a AstGrep<SupportLang>,
+  ) -> HashMap<usize, Vec<NodeMatch<'a, SupportLang>>> {
+    let mut results = HashMap::new();
+    for node in root.root().dfs() {
+      let kind = node.kind_id();
+      let Some(rule_idx) = self.kind_rule_mapping.get(&kind) else {
+        continue;
+      };
+      for &idx in rule_idx {
+        let rule = &self.rules[idx];
+        if let Some(ret) = rule.matcher.match_node(node.clone()) {
+          let matches = results.entry(idx).or_insert_with(|| vec![]);
+          matches.push(ret);
+        }
+      }
+    }
+    results
+  }
 }
