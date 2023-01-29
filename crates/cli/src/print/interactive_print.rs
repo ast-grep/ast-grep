@@ -5,7 +5,7 @@ use ast_grep_config::RuleConfig;
 
 use super::{Diff, Printer};
 use crate::error::ErrorContext as EC;
-use crate::interaction;
+use crate::utils;
 use ast_grep_core::NodeMatch;
 use ast_grep_language::SupportLang;
 
@@ -47,9 +47,9 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SupportLang>,
   ) -> Result<()> {
-    interaction::run_in_alternate_screen(|| {
+    utils::run_in_alternate_screen(|| {
       self.inner.print_rule(matches, file, rule)?;
-      let resp = interaction::prompt(VIEW_PROMPT, "q", Some('\n')).expect("cannot fail");
+      let resp = utils::prompt(VIEW_PROMPT, "q", Some('\n')).expect("cannot fail");
       if resp == 'q' {
         Err(anyhow::anyhow!("Exit interactive editing"))
       } else {
@@ -59,9 +59,7 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
   }
 
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {
-    interaction::run_in_alternate_screen(|| {
-      print_matches_and_confirm_next(&self.inner, matches, path)
-    })
+    utils::run_in_alternate_screen(|| print_matches_and_confirm_next(&self.inner, matches, path))
   }
 
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
@@ -69,7 +67,7 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     if self.accept_all.load(Ordering::SeqCst) {
       return rewrite_action(diffs.collect(), &path);
     }
-    interaction::run_in_alternate_screen(|| {
+    utils::run_in_alternate_screen(|| {
       let all = print_diffs_and_prompt_action(&self.inner, &path, diffs, None)?;
       if all {
         self.accept_all.store(true, Ordering::SeqCst);
@@ -87,7 +85,7 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     if self.accept_all.load(Ordering::SeqCst) {
       return rewrite_action(diffs.collect(), &path);
     }
-    interaction::run_in_alternate_screen(|| {
+    utils::run_in_alternate_screen(|| {
       let all = print_diffs_and_prompt_action(&self.inner, &path, diffs, Some(rule))?;
       if all {
         self.accept_all.store(true, Ordering::SeqCst);
@@ -123,7 +121,7 @@ fn print_diffs_and_prompt_action<'a>(
     printer.print_diffs(diffs.clone().into_iter(), path)?;
   }
   let response =
-    interaction::prompt(EDIT_PROMPT, "ynaqe", Some('n')).expect("Error happened during prompt");
+    utils::prompt(EDIT_PROMPT, "ynaqe", Some('n')).expect("Error happened during prompt");
   match response {
     'y' => {
       rewrite_action(diffs, path)?;
@@ -135,7 +133,7 @@ fn print_diffs_and_prompt_action<'a>(
     }
     'n' => Ok(false),
     'e' => {
-      interaction::open_in_editor(path, first_match)?;
+      utils::open_in_editor(path, first_match)?;
       Ok(false)
     }
     'q' => Err(anyhow::anyhow!("Exit interactive editing")),
@@ -149,7 +147,7 @@ fn print_matches_and_confirm_next<'a>(
   path: &Path,
 ) -> Result<()> {
   printer.print_matches(matches, path)?;
-  let resp = interaction::prompt(VIEW_PROMPT, "q", Some('\n')).expect("cannot fail");
+  let resp = utils::prompt(VIEW_PROMPT, "q", Some('\n')).expect("cannot fail");
   if resp == 'q' {
     Err(anyhow::anyhow!("Exit interactive editing"))
   } else {

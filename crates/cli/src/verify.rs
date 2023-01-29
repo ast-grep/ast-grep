@@ -1,7 +1,7 @@
 use crate::config::{find_config, find_tests, read_test_files, TestHarness};
 use crate::error::ErrorContext;
-use crate::interaction::{prompt, run_in_alternate_screen};
 use crate::print::{print_diff, ColorChoice, PrintStyles};
+use crate::utils::{prompt, run_in_alternate_screen};
 use ansi_term::{Color, Style};
 use anyhow::{anyhow, Result};
 use ast_grep_config::{RuleCollection, RuleConfig};

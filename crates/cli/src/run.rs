@@ -9,11 +9,11 @@ use ignore::WalkParallel;
 
 use crate::config::{IgnoreFile, NoIgnore};
 use crate::error::ErrorContext as EC;
-use crate::interaction::{filter_file_interactive, MatchUnit};
-use crate::interaction::{run_worker, Items, Worker};
 use crate::print::{
   ColorArg, ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer,
 };
+use crate::utils::{filter_file_interactive, MatchUnit};
+use crate::utils::{run_worker, Items, Worker};
 use ast_grep_language::{file_types, SupportLang};
 
 #[derive(Parser)]

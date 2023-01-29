@@ -1,10 +1,10 @@
 mod config;
 mod error;
-mod interaction;
 mod lsp;
 mod print;
 mod run;
 mod scan;
+mod utils;
 mod verify;
 
 use anyhow::Result;
