@@ -6,6 +6,11 @@ use crossterm::{
   terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ignore::{DirEntry, WalkParallel, WalkState};
+
+use ast_grep_core::{AstGrep, Matcher};
+use ast_grep_language::{Language, SupportLang};
+
+use std::fs::read_to_string;
 use std::io::stdout;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -131,6 +136,45 @@ pub fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
   } else {
     Err(anyhow!(EC::OpenEditor))
   }
+}
+
+pub fn filter_file_interactive<M: Matcher<SupportLang>>(
+  path: &Path,
+  lang: SupportLang,
+  matcher: M,
+) -> Option<MatchUnit<M>> {
+  let file_content = read_to_string(path)
+    .with_context(|| format!("Cannot read file {}", path.to_string_lossy()))
+    .map_err(|err| eprintln!("{err}"))
+    .ok()?;
+  // skip large files
+  if file_too_large(&file_content) {
+    // TODO add output
+    return None;
+  }
+  let grep = lang.ast_grep(file_content);
+  let has_match = grep.root().find(&matcher).is_some();
+  has_match.then(|| MatchUnit {
+    grep,
+    path: path.to_path_buf(),
+    matcher,
+  })
+}
+
+const MAX_FILE_SIZE: usize = 3_000_000;
+const MAX_LINE_COUNT: usize = 200_000;
+
+fn file_too_large(file_content: &String) -> bool {
+  file_content.len() > MAX_FILE_SIZE && file_content.lines().count() > MAX_LINE_COUNT
+}
+
+/// A single atomic unit where matches happen.
+/// It contains the file path, sg instance and matcher.
+/// An analogy to compilation unit in C programming language.
+pub struct MatchUnit<M: Matcher<SupportLang>> {
+  pub path: PathBuf,
+  pub grep: AstGrep<SupportLang>,
+  pub matcher: M,
 }
 
 #[cfg(test)]

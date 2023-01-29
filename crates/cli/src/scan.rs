@@ -3,13 +3,13 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{RuleCollection, RuleConfig, RuleWithConstraint};
-use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Matcher};
 use clap::Args;
 use ignore::WalkParallel;
 
 use crate::config::{find_config, read_rule_file, IgnoreFile, NoIgnore};
 use crate::error::ErrorContext as EC;
+use crate::interaction::{filter_file_interactive, MatchUnit};
 use crate::interaction::{run_worker, Items, Worker};
 use crate::print::{
   ColorArg, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Printer, ReportStyle, SimpleFile,
@@ -53,15 +53,6 @@ pub struct ScanArg {
   /// Do not respect ignore files. You can suppress multiple ignore files by passing `no-ignore` multiple times.
   #[clap(long, action = clap::ArgAction::Append)]
   no_ignore: Vec<IgnoreFile>,
-}
-
-/// A single atomic unit where matches happen.
-/// It contains the file path, sg instance and matcher.
-/// An analogy to compilation unit in C programming language.
-struct MatchUnit<M: Matcher<SupportLang>> {
-  path: PathBuf,
-  grep: AstGrep<SupportLang>,
-  matcher: M,
 }
 
 impl<'a> MatchUnit<&'a RuleWithConstraint<SupportLang>> {
@@ -153,13 +144,6 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
   }
 }
 
-const MAX_FILE_SIZE: usize = 3_000_000;
-const MAX_LINE_COUNT: usize = 200_000;
-
-fn file_too_large(file_content: &String) -> bool {
-  file_content.len() > MAX_FILE_SIZE && file_content.lines().count() > MAX_LINE_COUNT
-}
-
 fn match_rule_on_file(
   match_unit: &MatchUnit<impl Matcher<SupportLang>>,
   rule: &RuleConfig<SupportLang>,
@@ -183,27 +167,4 @@ fn match_rule_on_file(
     reporter.print_rule(matches, file, rule)?;
   }
   Ok(())
-}
-
-fn filter_file_interactive<M: Matcher<SupportLang>>(
-  path: &Path,
-  lang: SupportLang,
-  matcher: M,
-) -> Option<MatchUnit<M>> {
-  let file_content = read_to_string(path)
-    .with_context(|| format!("Cannot read file {}", path.to_string_lossy()))
-    .map_err(|err| eprintln!("{err}"))
-    .ok()?;
-  // skip large files
-  if file_too_large(&file_content) {
-    // TODO add output
-    return None;
-  }
-  let grep = lang.ast_grep(file_content);
-  let has_match = grep.root().find(&matcher).is_some();
-  has_match.then(|| MatchUnit {
-    grep,
-    path: path.to_path_buf(),
-    matcher,
-  })
 }
