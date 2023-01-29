@@ -104,14 +104,15 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
       .build_parallel()
   }
   fn produce_item(&self, path: &Path) -> Option<Self::Item> {
-    for config in &self.configs.for_path(path) {
-      let lang = config.language;
-      let matcher = &config.matcher;
-      // TODO: we are filtering multiple times here, perf sucks :(
-      let ret = filter_file_interactive(path, lang, matcher);
-      if let Some(unit) = ret {
-        return Some((unit.path, unit.grep));
-      }
+    let rules = self.configs.for_path(path);
+    if rules.is_empty() {
+      return None;
+    }
+    let lang = rules[0].language;
+    let combined = CombinedScan::new(rules);
+    let unit = filter_file_interactive(path, lang, ast_grep_core::matcher::MatchAll)?;
+    if combined.find(&unit.grep) {
+      return Some((unit.path, unit.grep));
     }
     None
   }
@@ -174,6 +175,22 @@ impl<'r> CombinedScan<'r> {
       kind_rule_mapping: mapping,
     }
   }
+
+  fn find(&self, root: &AstGrep<SupportLang>) -> bool {
+    for node in root.root().dfs() {
+      let kind = node.kind_id();
+      let Some(rule_idx) = self.kind_rule_mapping.get(&kind) else {
+        continue;
+      };
+      for &idx in rule_idx {
+        let rule = &self.rules[idx];
+        if rule.matcher.match_node(node.clone()).is_some() {
+          return true;
+        }
+      }
+    }
+    false
+  }
   fn scan<'a>(
     &self,
     root: &'a AstGrep<SupportLang>,
@@ -187,7 +204,7 @@ impl<'r> CombinedScan<'r> {
       for &idx in rule_idx {
         let rule = &self.rules[idx];
         if let Some(ret) = rule.matcher.match_node(node.clone()) {
-          let matches = results.entry(idx).or_insert_with(|| vec![]);
+          let matches = results.entry(idx).or_insert_with(Vec::new);
           matches.push(ret);
         }
       }
