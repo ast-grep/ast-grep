@@ -2,19 +2,17 @@ use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use ast_grep_config::{RuleCollection, RuleConfig, RuleWithConstraint};
 use ast_grep_core::language::Language;
 use ast_grep_core::traversal::Visitor;
 use ast_grep_core::{AstGrep, Matcher, Pattern};
-use clap::{Args, Parser};
+use clap::Parser;
 use ignore::WalkParallel;
 
 use crate::config::{IgnoreFile, NoIgnore};
 use crate::error::ErrorContext as EC;
 use crate::interaction::{run_worker, Items, Worker};
 use crate::print::{
-  ColorArg, ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer, ReportStyle,
-  SimpleFile,
+  ColorArg, ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer,
 };
 use ast_grep_language::{file_types, SupportLang};
 
@@ -67,45 +65,6 @@ pub struct RunArg {
   no_ignore: Vec<IgnoreFile>,
 }
 
-#[derive(Args)]
-pub struct ScanArg {
-  /// Path to ast-grep root config, default is sgconfig.yml.
-  #[clap(short, long)]
-  config: Option<PathBuf>,
-
-  /// Scan the codebase with one specified rule, without project config setup.
-  #[clap(short, long, conflicts_with = "config")]
-  rule: Option<PathBuf>,
-
-  /// Start interactive edit session. Code rewrite only happens inside a session.
-  #[clap(short, long, conflicts_with = "json")]
-  interactive: bool,
-
-  /// Controls output color.
-  #[clap(long, default_value = "auto")]
-  color: ColorArg,
-
-  #[clap(long, default_value = "rich")]
-  report_style: ReportStyle,
-
-  /// Output matches in structured JSON text. This is useful for tools like jq.
-  /// Conflicts with color and report-style.
-  #[clap(long, conflicts_with = "color", conflicts_with = "report_style")]
-  json: bool,
-
-  /// Apply all rewrite without confirmation if true.
-  #[clap(long)]
-  accept_all: bool,
-
-  /// The paths to search. You can provide multiple paths separated by spaces.
-  #[clap(value_parser, default_value = ".")]
-  paths: Vec<PathBuf>,
-
-  /// Do not respect ignore files. You can suppress multiple ignore files by passing `no-ignore` multiple times.
-  #[clap(long, action = clap::ArgAction::Append)]
-  no_ignore: Vec<IgnoreFile>,
-}
-
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(arg: RunArg) -> Result<()> {
@@ -137,12 +96,6 @@ struct MatchUnit<M: Matcher<SupportLang>> {
   path: PathBuf,
   grep: AstGrep<SupportLang>,
   matcher: M,
-}
-
-impl<'a> MatchUnit<&'a RuleWithConstraint<SupportLang>> {
-  fn reuse_with_matcher(self, matcher: &'a RuleWithConstraint<SupportLang>) -> Self {
-    Self { matcher, ..self }
-  }
 }
 
 struct RunWithInferredLang<Printer> {
@@ -249,87 +202,11 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
   }
 }
 
-struct ScanWithConfig<Printer> {
-  arg: ScanArg,
-  printer: Printer,
-  configs: RuleCollection<SupportLang>,
-}
-
-impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
-  type Item = (PathBuf, AstGrep<SupportLang>);
-  fn build_walk(&self) -> WalkParallel {
-    let arg = &self.arg;
-    let threads = num_cpus::get().min(12);
-    NoIgnore::disregard(&arg.no_ignore)
-      .walk(&arg.paths)
-      .threads(threads)
-      .build_parallel()
-  }
-  fn produce_item(&self, path: &Path) -> Option<Self::Item> {
-    for config in &self.configs.for_path(path) {
-      let lang = config.language;
-      let matcher = &config.matcher;
-      // TODO: we are filtering multiple times here, perf sucks :(
-      let ret = filter_file_interactive(path, lang, matcher);
-      if let Some(unit) = ret {
-        return Some((unit.path, unit.grep));
-      }
-    }
-    None
-  }
-  fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
-    self.printer.before_print()?;
-    for (path, grep) in items {
-      let mut match_unit = MatchUnit {
-        path,
-        grep,
-        matcher: &RuleWithConstraint::default(),
-      };
-      let path = &match_unit.path;
-      let file_content = read_to_string(path)?;
-      for config in self.configs.for_path(path) {
-        let matcher = &config.matcher;
-        // important reuse and mutation start!
-        match_unit = match_unit.reuse_with_matcher(matcher);
-        // important reuse and mutation end!
-        match_rule_on_file(&match_unit, config, &file_content, &self.printer)?;
-      }
-    }
-    self.printer.after_print()?;
-    Ok(())
-  }
-}
-
 const MAX_FILE_SIZE: usize = 3_000_000;
 const MAX_LINE_COUNT: usize = 200_000;
 
 fn file_too_large(file_content: &String) -> bool {
   file_content.len() > MAX_FILE_SIZE && file_content.lines().count() > MAX_LINE_COUNT
-}
-
-fn match_rule_on_file(
-  match_unit: &MatchUnit<impl Matcher<SupportLang>>,
-  rule: &RuleConfig<SupportLang>,
-  file_content: &String,
-  reporter: &impl Printer,
-) -> Result<()> {
-  let MatchUnit {
-    path,
-    grep,
-    matcher,
-  } = match_unit;
-  let mut matches = grep.root().find_all(matcher).peekable();
-  if matches.peek().is_none() {
-    return Ok(());
-  }
-  let file = SimpleFile::new(path.to_string_lossy(), file_content);
-  if let Some(fixer) = &rule.fixer {
-    let diffs = matches.map(|m| Diff::generate(m, matcher, fixer));
-    reporter.print_rule_diffs(diffs, path, rule)?;
-  } else {
-    reporter.print_rule(matches, file, rule)?;
-  }
-  Ok(())
 }
 
 fn match_one_file(
