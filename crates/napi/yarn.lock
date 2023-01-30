@@ -9,7 +9,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@ast-grep/napi@workspace:."
   dependencies:
-    "@napi-rs/cli": 2.14.4
+    "@napi-rs/cli": 2.14.5
     ava: 5.1.1
     chalk: 5.2.0
     ts-node: 10.9.1
@@ -57,12 +57,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@napi-rs/cli@npm:2.14.4":
-  version: 2.14.4
-  resolution: "@napi-rs/cli@npm:2.14.4"
+"@napi-rs/cli@npm:2.14.5":
+  version: 2.14.5
+  resolution: "@napi-rs/cli@npm:2.14.5"
   bin:
     napi: scripts/index.js
-  checksum: e8612af3d6cb78587430cfeb63b9cf0d985b73f92808469806beecb0f4dd27a3c8c4c5aec345c362ffabf19f2825f1203fa4abf9d048613865ce9a0b3986f98b
+  checksum: 2b6b16f90fbf49d0200792fb5a9c41da5e287eb666759182fb9c80e4ce05abe4a40002d129096ec2c47a53b5969619bdf9092b424f18bd605dcda2ebaff98eee
   languageName: node
   linkType: hard
 
