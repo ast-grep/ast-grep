@@ -69,6 +69,10 @@ sg -p 'new Zodios($URL,  $CONF as const,)' -l ts -r 'new Zodios($URL, $CONF)' -i
 
 If you find ast-grep interesting and useful for your work, please [buy me a coffee](https://github.com/sponsors/HerringtonDarkholme)
 so I can spend more time on the project!
+In case you don't have access to GitHub Sponsor, here are some alternative 
+| WeChat Reward | AliPay |
+|---|----|
+|![wechat](https://user-images.githubusercontent.com/2883231/215383929-794f419f-2665-4d82-9717-9651518a9430.png)|![image](https://user-images.githubusercontent.com/2883231/215385341-3b163d22-284a-4bf6-9136-2a4041f173ce.png)|
 
 
 ## Feature Highlight
