@@ -74,13 +74,21 @@ test('test find files', async t => {
 test('test file count', async t => {
   let i = 0
   let fileCount: number | undefined = undefined
+  let resolve: any
   fileCount = await parseFiles(['./'], (err, _) => {
     // ZZZ... sleep a while to mock expensive operation
     let start = Date.now()
     while (Date.now() - start < 1) continue
     t.is(err, null)
-    i += 1;
-    if (fileCount) console.log(_.filename())
+    if (++i === fileCount) resolve()
   })
-  t.is(i, fileCount)
+  if (fileCount != null) {
+    t.is(i, fileCount)
+  } else {
+    let n = new Promise(r => {
+      resolve = r
+    })
+    await n
+    t.is(i, fileCount)
+  }
 })
