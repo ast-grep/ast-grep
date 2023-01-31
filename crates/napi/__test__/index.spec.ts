@@ -92,3 +92,15 @@ test('test file count', async t => {
     t.is(i, fileCount)
   }
 })
+
+test('show good error message for invalid arg', async t => {
+  const sg = parse('console.log(123)')
+  t.throws(() => sg.root().find({rule: {regex: '('}}), {
+    message: 'Rule contains invalid regex matcher.'
+  })
+  t.throws(() => sg.root().find({
+    rule: { all: [{any: [{ kind: '33'}]}]}
+  }), {
+    message: 'Rule contains invalid kind matcher.'
+  })
+})

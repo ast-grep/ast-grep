@@ -192,11 +192,11 @@ fn parse_config(
   let lang = config.language.unwrap_or(language);
   let rule: SerializableRule = serde_json::from_value(config.rule)?;
   let rule = deserialize_rule(rule, lang)
-    .map_err(|_| napi::Error::new(napi::Status::InvalidArg, "invalid rule".to_string()))?;
+    .map_err(|e| napi::Error::new(napi::Status::InvalidArg, e.to_string()))?;
   let matchers = if let Some(matchers) = config.constraints {
     let matchers: HashMap<String, SerializableMetaVarMatcher> = serde_json::from_value(matchers)?;
     try_deserialize_matchers(matchers, lang)
-      .map_err(|_| napi::Error::new(napi::Status::InvalidArg, "invalid matchers".to_string()))?
+      .map_err(|e| napi::Error::new(napi::Status::InvalidArg, e.to_string()))?
   } else {
     MetaVarMatchers::default()
   };
