@@ -154,20 +154,23 @@ fn match_rule_on_file(
 
 struct CombinedScan<'r> {
   rules: Vec<&'r RuleConfig<SupportLang>>,
-  kind_rule_mapping: HashMap<u16, Vec<usize>>,
+  kind_rule_mapping: Vec<Vec<usize>>,
 }
 
 impl<'r> CombinedScan<'r> {
   fn new(rules: Vec<&'r RuleConfig<SupportLang>>) -> Self {
-    let mut mapping = HashMap::new();
+    let mut mapping = Vec::new();
     for (idx, rule) in rules.iter().enumerate() {
       for kind in &rule
         .matcher
         .potential_kinds()
         .expect("rule must have kinds")
       {
-        let v = mapping.entry(kind as u16).or_insert_with(Vec::new);
-        v.push(idx);
+        let k = kind as usize;
+        while mapping.len() <= k {
+          mapping.push(vec![]);
+        }
+        mapping[k].push(idx);
       }
     }
     Self {
@@ -178,8 +181,8 @@ impl<'r> CombinedScan<'r> {
 
   fn find(&self, root: &AstGrep<SupportLang>) -> bool {
     for node in root.root().dfs() {
-      let kind = node.kind_id();
-      let Some(rule_idx) = self.kind_rule_mapping.get(&kind) else {
+      let kind = node.kind_id() as usize;
+      let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
         continue;
       };
       for &idx in rule_idx {
@@ -197,8 +200,8 @@ impl<'r> CombinedScan<'r> {
   ) -> HashMap<usize, Vec<NodeMatch<'a, SupportLang>>> {
     let mut results = HashMap::new();
     for node in root.root().dfs() {
-      let kind = node.kind_id();
-      let Some(rule_idx) = self.kind_rule_mapping.get(&kind) else {
+      let kind = node.kind_id() as usize;
+      let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
         continue;
       };
       for &idx in rule_idx {
