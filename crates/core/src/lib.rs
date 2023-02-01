@@ -5,6 +5,9 @@ pub mod ops;
 pub mod source;
 pub mod traversal;
 
+#[doc(hidden)]
+pub mod pinned;
+
 mod match_tree;
 mod node;
 mod replacer;

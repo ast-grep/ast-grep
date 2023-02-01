@@ -58,17 +58,22 @@ impl<L: Language> Root<L> {
   /// Adopt the tree_sitter as the descendant of the root and return the wrapped sg Node.
   /// It assumes `inner` is the under the root and will panic at dev build if wrong node is used.
   pub fn adopt<'r>(&'r self, inner: tree_sitter::Node<'r>) -> Node<'r, L> {
-    debug_assert_eq!(
-      {
-        let mut node = inner.clone();
-        while let Some(n) = node.parent() {
-          node = n;
-        }
-        node
-      },
-      self.inner.root_node()
-    );
+    debug_assert!(self.check_lineage(&inner));
     Node { inner, root: self }
+  }
+
+  fn check_lineage(&self, inner: &tree_sitter::Node<'_>) -> bool {
+    let mut node = inner.clone();
+    while let Some(n) = node.parent() {
+      node = n;
+    }
+    node == self.inner.root_node()
+  }
+
+  /// P.S. I am your father.
+  pub(crate) unsafe fn readopt<'a: 'b, 'b>(&'a self, node: &mut Node<'b, L>) {
+    debug_assert!(self.check_lineage(&node.inner));
+    node.root = self;
   }
 }
 
