@@ -30,6 +30,9 @@ where
     self.data.visit_nodes(|n| unsafe { pin.readopt(n) });
     self.data.get_data()
   }
+  pub fn into_raw(self) -> (Root<L>, T) {
+    (self.pin, self.data)
+  }
 }
 
 /// # Safety
@@ -70,8 +73,8 @@ unsafe impl<L: Language> NodeData<L> for NodeMatch<'static, L> {
   }
 }
 
-unsafe impl<L: Language> NodeData<L> for Vec<Node<'static, L>> {
-  type Data<'a> = Vec<Node<'a, L>>;
+unsafe impl<L: Language> NodeData<L> for Vec<NodeMatch<'static, L>> {
+  type Data<'a> = Vec<NodeMatch<'a, L>>;
   fn get_data(&self) -> &Self::Data<'_> {
     self
   }
@@ -80,7 +83,7 @@ unsafe impl<L: Language> NodeData<L> for Vec<Node<'static, L>> {
     F: FnMut(&mut Node<'_, L>),
   {
     for n in self {
-      f(n)
+      f(unsafe { n.get_mut_node() })
     }
   }
 }
@@ -109,9 +112,16 @@ mod test {
     todo!()
   }
 
-  fn return_vec() -> PinnedNodeData<Tsx, Vec<Node<'static, Tsx>>> {
+  fn return_vec() -> PinnedNodeData<Tsx, Vec<NodeMatch<'static, Tsx>>> {
     let root = Root::new("let a = 123", Tsx);
-    PinnedNodeData::new(root, |r| r.root().child(0).unwrap().children().collect())
+    PinnedNodeData::new(root, |r| {
+      r.root()
+        .child(0)
+        .unwrap()
+        .children()
+        .map(NodeMatch::from)
+        .collect()
+    })
   }
 
   #[test]

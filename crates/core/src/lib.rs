@@ -25,7 +25,7 @@ use ts_parser::{Edit, TSParseError};
 
 #[derive(Clone)]
 pub struct AstGrep<L: Language> {
-  inner: Root<L>,
+  pub inner: Root<L>,
 }
 
 impl<L: Language> AstGrep<L> {

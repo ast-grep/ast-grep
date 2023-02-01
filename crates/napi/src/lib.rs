@@ -7,6 +7,7 @@ use ast_grep_config::{
 };
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::meta_var::MetaVarMatchers;
+use ast_grep_core::pinned::{NodeData, PinnedNodeData};
 use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern};
 use ignore::types::TypesBuilder;
 use ignore::{WalkBuilder, WalkState};
@@ -495,7 +496,6 @@ fn call_sg_root(
   tsfn: &ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled>,
   entry: std::result::Result<ignore::DirEntry, ignore::Error>,
 ) -> Ret<bool> {
-  use FrontEndLanguage::*;
   let entry = entry?;
   if !entry
     .file_type()
@@ -504,6 +504,14 @@ fn call_sg_root(
   {
     return Ok(false);
   }
+  let (root, path) = get_root(entry)?;
+  let sg = SgRoot(root, path);
+  tsfn.call(Ok(sg), ThreadsafeFunctionCallMode::Blocking);
+  Ok(true)
+}
+
+fn get_root(entry: ignore::DirEntry) -> Ret<(AstGrep<FrontEndLanguage>, String)> {
+  use FrontEndLanguage::*;
   let path = entry.into_path();
   let file_content = std::fs::read_to_string(&path)?;
   let ext = path
@@ -519,7 +527,73 @@ fn call_sg_root(
     "tsx" => Tsx,
     _ => return Err(anyhow!("file not recognized")),
   };
-  let sg = SgRoot(lang.ast_grep(file_content), path.to_string_lossy().into());
-  tsfn.call(Ok(sg), ThreadsafeFunctionCallMode::Blocking);
+  Ok((lang.ast_grep(file_content), path.to_string_lossy().into()))
+}
+
+type FindInFiles = IterateFiles<PinnedNodes>;
+
+pub struct PinnedNodes(
+  PinnedNodeData<FrontEndLanguage, Vec<NodeMatch<'static, FrontEndLanguage>>>,
+  String,
+);
+unsafe impl Send for PinnedNodes {}
+unsafe impl Sync for PinnedNodes {}
+
+#[napi(
+  ts_args_type = "paths: string[], callback: (err: null | Error, result: SgRoot) => void",
+  ts_return_type = "Promise<number>"
+)]
+pub fn find_in_files(paths: Vec<String>, callback: JsFunction) -> Result<AsyncTask<FindInFiles>> {
+  let tsfn: ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled> = callback
+    .create_threadsafe_function(THREAD_FUNC_QUEUE_SIZE, |ctx| {
+      from_pinned_data(ctx.value, ctx.env)
+    })?;
+  Ok(AsyncTask::new(FindInFiles {
+    paths,
+    tsfn,
+    producer: call_sg_node,
+  }))
+}
+
+fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<Vec<SgNode>>> {
+  let (root, nodes) = pinned.0.into_raw();
+  let sg_root = SgRoot(AstGrep { inner: root }, pinned.1);
+  let reference = SgRoot::into_reference(sg_root, env)?;
+  let mut v = vec![];
+  for mut node in nodes {
+    let root_ref = reference.clone(env)?;
+    let sg_node = SgNode {
+      inner: root_ref.share_with(env, |root| {
+        Ok({
+          unsafe {
+            root.0.inner.readopt(node.get_mut_node());
+          }
+          node
+        })
+      })?,
+    };
+    v.push(sg_node);
+  }
+  Ok(vec![v])
+}
+
+fn call_sg_node(
+  tsfn: &ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
+  entry: std::result::Result<ignore::DirEntry, ignore::Error>,
+) -> Ret<bool> {
+  let entry = entry?;
+  if !entry
+    .file_type()
+    .context("could not use stdin as file")?
+    .is_file()
+  {
+    return Ok(false);
+  }
+  let (root, path) = get_root(entry)?;
+  let pinned = PinnedNodeData::new(root.inner, |r| {
+    r.root().find_all("console.log($A)").collect()
+  });
+  let pinned = PinnedNodes(pinned, path);
+  tsfn.call(Ok(pinned), ThreadsafeFunctionCallMode::Blocking);
   Ok(true)
 }

@@ -40,7 +40,9 @@ impl<'tree, L: Language> NodeMatch<'tree, L> {
       inserted_text,
     }
   }
-  pub(crate) unsafe fn get_mut_node(&mut self) -> &mut Node<'tree, L> {
+  /// # Safety
+  /// should only called for readopting nodes
+  pub unsafe fn get_mut_node(&mut self) -> &mut Node<'tree, L> {
     &mut self.0
   }
 }

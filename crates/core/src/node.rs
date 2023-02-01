@@ -71,7 +71,7 @@ impl<L: Language> Root<L> {
   }
 
   /// P.S. I am your father.
-  pub(crate) unsafe fn readopt<'a: 'b, 'b>(&'a self, node: &mut Node<'b, L>) {
+  pub unsafe fn readopt<'a: 'b, 'b>(&'a self, node: &mut Node<'b, L>) {
     debug_assert!(self.check_lineage(&node.inner));
     node.root = self;
   }
