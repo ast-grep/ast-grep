@@ -404,12 +404,16 @@ impl_lang_mod!(jsx, JavaScript);
 impl_lang_mod!(ts, TypeScript);
 impl_lang_mod!(tsx, Tsx);
 
-pub struct ParseFiles {
+pub struct IterateFiles<T: 'static> {
   paths: Vec<String>,
-  tsfn: ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled>,
+  tsfn: ThreadsafeFunction<T, ErrorStrategy::CalleeHandled>,
+  producer: fn(
+    &ThreadsafeFunction<T, ErrorStrategy::CalleeHandled>,
+    std::result::Result<ignore::DirEntry, ignore::Error>,
+  ) -> Ret<bool>,
 }
 
-impl Task for ParseFiles {
+impl<T: 'static + Send + Sync> Task for IterateFiles<T> {
   type Output = u32;
   type JsValue = JsNumber;
 
@@ -434,10 +438,11 @@ impl Task for ParseFiles {
     let file_count = AtomicU32::new(0);
     let (tx, rx) = channel();
     let walker = builder.types(types).build_parallel();
+    let producer = self.producer;
     walker.run(|| {
       let tx = tx.clone();
       let file_count = &file_count;
-      Box::new(move |entry| match call_sg_root(tsfn, entry) {
+      Box::new(move |entry| match producer(tsfn, entry) {
         Ok(true) => {
           // file is sent to JS thread, increment file count
           if tx.send(()).is_ok() {
@@ -454,7 +459,7 @@ impl Task for ParseFiles {
     // Drop the last sender to stop `rx` waiting for message.
     // The program will not complete if we comment this out.
     drop(tx);
-    while let Ok(_) = rx.recv() {
+    while rx.recv().is_ok() {
       // pass
     }
     Ok(file_count.load(Ordering::Acquire))
@@ -469,6 +474,8 @@ impl Task for ParseFiles {
 // https://github.com/nodejs/node/blob/8ba54e50496a6a5c21d93133df60a9f7cb6c46ce/src/node_api.cc#L336
 const THREAD_FUNC_QUEUE_SIZE: usize = 1000;
 
+type ParseFiles = IterateFiles<SgRoot>;
+
 #[napi(
   ts_args_type = "paths: string[], callback: (err: null | Error, result: SgRoot) => void",
   ts_return_type = "Promise<number>"
@@ -476,7 +483,11 @@ const THREAD_FUNC_QUEUE_SIZE: usize = 1000;
 pub fn parse_files(paths: Vec<String>, callback: JsFunction) -> Result<AsyncTask<ParseFiles>> {
   let tsfn: ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled> =
     callback.create_threadsafe_function(THREAD_FUNC_QUEUE_SIZE, |ctx| Ok(vec![ctx.value]))?;
-  Ok(AsyncTask::new(ParseFiles { paths, tsfn }))
+  Ok(AsyncTask::new(ParseFiles {
+    paths,
+    tsfn,
+    producer: call_sg_root,
+  }))
 }
 
 // returns if the entry is a file and sent to JavaScript queue
