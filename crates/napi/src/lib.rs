@@ -7,7 +7,7 @@ use ast_grep_config::{
 };
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::meta_var::MetaVarMatchers;
-use ast_grep_core::pinned::{NodeData, PinnedNodeData};
+use ast_grep_core::pinned::PinnedNodeData;
 use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern};
 use ignore::types::TypesBuilder;
 use ignore::{WalkBuilder, WalkState};
@@ -405,13 +405,10 @@ impl_lang_mod!(jsx, JavaScript);
 impl_lang_mod!(ts, TypeScript);
 impl_lang_mod!(tsx, Tsx);
 
-pub struct IterateFiles<T: 'static> {
+pub struct IterateFiles<D> {
   paths: Vec<String>,
-  tsfn: ThreadsafeFunction<T, ErrorStrategy::CalleeHandled>,
-  producer: fn(
-    &ThreadsafeFunction<T, ErrorStrategy::CalleeHandled>,
-    std::result::Result<ignore::DirEntry, ignore::Error>,
-  ) -> Ret<bool>,
+  tsfn: D,
+  producer: fn(&D, std::result::Result<ignore::DirEntry, ignore::Error>) -> Ret<bool>,
 }
 
 impl<T: 'static + Send + Sync> Task for IterateFiles<T> {
@@ -475,7 +472,7 @@ impl<T: 'static + Send + Sync> Task for IterateFiles<T> {
 // https://github.com/nodejs/node/blob/8ba54e50496a6a5c21d93133df60a9f7cb6c46ce/src/node_api.cc#L336
 const THREAD_FUNC_QUEUE_SIZE: usize = 1000;
 
-type ParseFiles = IterateFiles<SgRoot>;
+type ParseFiles = IterateFiles<ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled>>;
 
 #[napi(
   ts_args_type = "paths: string[], callback: (err: null | Error, result: SgRoot) => void",
@@ -530,7 +527,10 @@ fn get_root(entry: ignore::DirEntry) -> Ret<(AstGrep<FrontEndLanguage>, String)>
   Ok((lang.ast_grep(file_content), path.to_string_lossy().into()))
 }
 
-type FindInFiles = IterateFiles<PinnedNodes>;
+type FindInFiles = IterateFiles<(
+  ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
+  RuleWithConstraint<FrontEndLanguage>,
+)>;
 
 pub struct PinnedNodes(
   PinnedNodeData<FrontEndLanguage, Vec<NodeMatch<'static, FrontEndLanguage>>>,
@@ -539,22 +539,43 @@ pub struct PinnedNodes(
 unsafe impl Send for PinnedNodes {}
 unsafe impl Sync for PinnedNodes {}
 
+#[napi(object)]
+pub struct FindConfig {
+  pub paths: Vec<String>,
+  pub matcher: NapiConfig,
+  pub language: String,
+}
+
+fn get_lang(ext: String) -> Ret<FrontEndLanguage> {
+  use FrontEndLanguage::*;
+  Ok(match &*ext {
+    "css" => Css,
+    "html" => Html,
+    "js" => JavaScript,
+    "ts" => TypeScript,
+    "tsx" => Tsx,
+    _ => return Err(anyhow!("file not recognized")),
+  })
+}
+
 #[napi(
-  ts_args_type = "paths: string[], callback: (err: null | Error, result: SgRoot) => void",
+  ts_args_type = "config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void",
   ts_return_type = "Promise<number>"
 )]
-pub fn find_in_files(paths: Vec<String>, callback: JsFunction) -> Result<AsyncTask<FindInFiles>> {
-  let tsfn: ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled> = callback
-    .create_threadsafe_function(THREAD_FUNC_QUEUE_SIZE, |ctx| {
-      from_pinned_data(ctx.value, ctx.env)
-    })?;
+pub fn find_in_files(config: FindConfig, callback: JsFunction) -> Result<AsyncTask<FindInFiles>> {
+  let tsfn = callback.create_threadsafe_function(THREAD_FUNC_QUEUE_SIZE, |ctx| {
+    from_pinned_data(ctx.value, ctx.env)
+  })?;
+  let lang = get_lang(config.language)?;
+  let rule = parse_config(config.matcher, lang)?;
   Ok(AsyncTask::new(FindInFiles {
-    paths,
-    tsfn,
+    paths: config.paths,
+    tsfn: (tsfn, rule),
     producer: call_sg_node,
   }))
 }
 
+// TODO: optimize
 fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<Vec<SgNode>>> {
   let (root, nodes) = pinned.0.into_raw();
   let sg_root = SgRoot(AstGrep { inner: root }, pinned.1);
@@ -578,7 +599,10 @@ fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<Vec<SgNod
 }
 
 fn call_sg_node(
-  tsfn: &ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
+  (tsfn, rule): &(
+    ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
+    RuleWithConstraint<FrontEndLanguage>,
+  ),
   entry: std::result::Result<ignore::DirEntry, ignore::Error>,
 ) -> Ret<bool> {
   let entry = entry?;
@@ -590,9 +614,11 @@ fn call_sg_node(
     return Ok(false);
   }
   let (root, path) = get_root(entry)?;
-  let pinned = PinnedNodeData::new(root.inner, |r| {
-    r.root().find_all("console.log($A)").collect()
-  });
+  let mut pinned = PinnedNodeData::new(root.inner, |r| r.root().find_all(rule).collect());
+  let hits: &Vec<_> = pinned.get_data();
+  if hits.is_empty() {
+    return Ok(false);
+  }
   let pinned = PinnedNodes(pinned, path);
   tsfn.call(Ok(pinned), ThreadsafeFunctionCallMode::Blocking);
   Ok(true)

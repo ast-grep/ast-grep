@@ -28,6 +28,12 @@ export interface NapiConfig {
   language?: FrontEndLanguage
 }
 export function parseFiles(paths: string[], callback: (err: null | Error, result: SgRoot) => void): Promise<number>
+export interface FindConfig {
+  paths: Array<string>
+  matcher: NapiConfig
+  language: string
+}
+export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 export class SgNode {
   range(): Range
   isLeaf(): boolean

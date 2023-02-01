@@ -1,6 +1,6 @@
 import test from 'ava'
 
-import { js, parseFiles } from '../index'
+import { js, parseFiles, findInFiles } from '../index'
 const { parse, kind } = js
 
 test('find from native code', t => {
@@ -103,4 +103,32 @@ test('show good error message for invalid arg', async t => {
   }), {
     message: 'Rule contains invalid kind matcher.'
   })
+})
+
+test('find in files', async t => {
+  let i = 0
+  let fileCount: number | undefined = undefined
+  let resolve: any
+  fileCount = await findInFiles({
+    paths: ['./'],
+    matcher: {
+      rule: {kind: 'member_expression'}
+    },
+    language: 'ts'
+  }, (err, n) => {
+    // ZZZ... sleep a while to mock expensive operation
+    let start = Date.now()
+    while (Date.now() - start < 1) continue
+    t.is(err, null)
+    t.assert(n.length > 0)
+    t.assert(n[0].text().includes('.'))
+    if (++i === fileCount) resolve()
+  })
+  if (fileCount > i) {
+    let n = new Promise(r => {
+      resolve = r
+    })
+    await n
+  }
+  t.is(i, fileCount)
 })
