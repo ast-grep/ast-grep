@@ -1,6 +1,6 @@
 import test from 'ava'
 
-import { js, parseFiles, findInFiles } from '../index'
+import { js, parseFiles, ts } from '../index'
 const { parse, kind } = js
 
 test('find from native code', t => {
@@ -109,12 +109,11 @@ test('find in files', async t => {
   let i = 0
   let fileCount: number | undefined = undefined
   let resolve: any
-  fileCount = await findInFiles({
+  fileCount = await ts.findInFiles({
     paths: ['./'],
     matcher: {
       rule: {kind: 'member_expression'}
     },
-    language: 'ts'
   }, (err, n) => {
     // ZZZ... sleep a while to mock expensive operation
     let start = Date.now()

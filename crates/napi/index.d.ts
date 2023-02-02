@@ -31,9 +31,7 @@ export function parseFiles(paths: string[], callback: (err: null | Error, result
 export interface FindConfig {
   paths: Array<string>
   matcher: NapiConfig
-  language: string
 }
-export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 export class SgNode {
   range(): Range
   isLeaf(): boolean
@@ -66,24 +64,29 @@ export namespace html {
   export function parse(src: string): SgRoot
   export function kind(kindName: string): number
   export function pattern(pattern: string): NapiConfig
+  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export namespace js {
   export function parse(src: string): SgRoot
   export function kind(kindName: string): number
   export function pattern(pattern: string): NapiConfig
+  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export namespace jsx {
   export function parse(src: string): SgRoot
   export function kind(kindName: string): number
   export function pattern(pattern: string): NapiConfig
+  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export namespace ts {
   export function parse(src: string): SgRoot
   export function kind(kindName: string): number
   export function pattern(pattern: string): NapiConfig
+  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export namespace tsx {
   export function parse(src: string): SgRoot
   export function kind(kindName: string): number
   export function pattern(pattern: string): NapiConfig
+  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
