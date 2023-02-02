@@ -395,6 +395,13 @@ macro_rules! impl_lang_mod {
             language: Some($lang),
           }
         }
+        #[napi(
+          ts_args_type = "config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void",
+          ts_return_type = "Promise<number>"
+        )]
+        pub fn find_in_files(config: FindConfig, callback: JsFunction) -> Result<AsyncTask<FindInFiles>> {
+          find_in_files_impl($lang, config, callback)
+        }
       }
     }
 }
@@ -543,30 +550,16 @@ unsafe impl Sync for PinnedNodes {}
 pub struct FindConfig {
   pub paths: Vec<String>,
   pub matcher: NapiConfig,
-  pub language: String,
 }
 
-fn get_lang(ext: String) -> Ret<FrontEndLanguage> {
-  use FrontEndLanguage::*;
-  Ok(match &*ext {
-    "css" => Css,
-    "html" => Html,
-    "js" => JavaScript,
-    "ts" => TypeScript,
-    "tsx" => Tsx,
-    _ => return Err(anyhow!("file not recognized")),
-  })
-}
-
-#[napi(
-  ts_args_type = "config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void",
-  ts_return_type = "Promise<number>"
-)]
-pub fn find_in_files(config: FindConfig, callback: JsFunction) -> Result<AsyncTask<FindInFiles>> {
+fn find_in_files_impl(
+  lang: FrontEndLanguage,
+  config: FindConfig,
+  callback: JsFunction,
+) -> Result<AsyncTask<FindInFiles>> {
   let tsfn = callback.create_threadsafe_function(THREAD_FUNC_QUEUE_SIZE, |ctx| {
     from_pinned_data(ctx.value, ctx.env)
   })?;
-  let lang = get_lang(config.language)?;
   let rule = parse_config(config.matcher, lang)?;
   Ok(AsyncTask::new(FindInFiles {
     paths: config.paths,
