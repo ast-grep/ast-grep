@@ -7,7 +7,7 @@ use ast_grep_config::{
 };
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::meta_var::MetaVarMatchers;
-use ast_grep_core::pinned::PinnedNodeData;
+use ast_grep_core::pinned::{NodeData, PinnedNodeData};
 use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern};
 use ignore::types::TypesBuilder;
 use ignore::{WalkBuilder, WalkState};
@@ -578,12 +578,9 @@ fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<Vec<SgNod
     let root_ref = reference.clone(env)?;
     let sg_node = SgNode {
       inner: root_ref.share_with(env, |root| {
-        Ok({
-          unsafe {
-            root.0.inner.readopt(node.get_mut_node());
-          }
-          node
-        })
+        let r = &root.0.inner;
+        node.visit_nodes(|n| unsafe { r.readopt(n) });
+        Ok(node)
       })?,
     };
     v.push(sg_node);
