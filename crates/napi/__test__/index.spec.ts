@@ -2,6 +2,7 @@ import test from 'ava'
 
 import { js, parseFiles, ts } from '../index'
 const { parse, kind } = js
+let parseMulti = countedPromise(parseFiles)
 
 test('find from native code', t => {
   const sg = parse('console.log(123)')
@@ -64,7 +65,7 @@ test('find by config', t => {
 })
 
 test('test find files', async t => {
-  await parseFiles(['./__test__/index.spec.ts'], (err, tree) => {
+  await parseMulti(['./__test__/index.spec.ts'], (err, tree) => {
     t.is(err, null)
     t.is(tree.filename(), './__test__/index.spec.ts')
     t.assert(tree.root() !== null)
@@ -73,24 +74,14 @@ test('test find files', async t => {
 
 test('test file count', async t => {
   let i = 0
-  let fileCount: number | undefined = undefined
-  let resolve: any
-  fileCount = await parseFiles(['./'], (err, _) => {
+  let fileCount = await parseMulti(['./'], (err, _) => {
     // ZZZ... sleep a while to mock expensive operation
     let start = Date.now()
     while (Date.now() - start < 1) continue
     t.is(err, null)
-    if (++i === fileCount) resolve()
+    i++
   })
-  if (fileCount != null) {
-    t.is(i, fileCount)
-  } else {
-    let n = new Promise(r => {
-      resolve = r
-    })
-    await n
-    t.is(i, fileCount)
-  }
+  t.is(i, fileCount)
 })
 
 test('show good error message for invalid arg', async t => {
@@ -106,10 +97,8 @@ test('show good error message for invalid arg', async t => {
 })
 
 test('find in files', async t => {
-  let i = 0
-  let fileCount: number | undefined = undefined
-  let resolve: any
-  fileCount = await ts.findInFiles({
+  let findInFiles = countedPromise(ts.findInFiles)
+  await findInFiles({
     paths: ['./'],
     matcher: {
       rule: {kind: 'member_expression'}
@@ -121,13 +110,27 @@ test('find in files', async t => {
     t.is(err, null)
     t.assert(n.length > 0)
     t.assert(n[0].text().includes('.'))
-    if (++i === fileCount) resolve()
   })
-  if (fileCount > i) {
-    let n = new Promise(r => {
-      resolve = r
-    })
-    await n
-  }
-  t.is(i, fileCount)
 })
+
+function countedPromise<F extends (t: any, cb: any) => Promise<number>>(func: F) {
+  type P = Parameters<F>
+  return async (t: P[0], cb: P[1]) => {
+    let i = 0
+    let fileCount: number | undefined = undefined
+    let resolve: any = () => {}
+    function wrapped(...args: any[]) {
+      let ret = cb(...args)
+      if (++i === fileCount) resolve()
+      return ret
+    }
+    fileCount = await func(t, wrapped as P[1])
+    if (fileCount > i) {
+      let n = new Promise(r => {
+        resolve = r
+      })
+      await n
+    }
+    return fileCount
+  }
+}
