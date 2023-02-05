@@ -50,12 +50,14 @@ impl<L: Language> StopBy<L> {
 
 pub struct Inside<L: Language> {
   outer: Rule<L>,
+  field: Option<String>,
   stop_by: StopBy<L>,
 }
 impl<L: Language> Inside<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Inside<L>, RuleSerializeError> {
     Ok(Self {
       stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
+      field: relation.field,
       outer: try_from_serializable(relation.rule, lang)?,
     })
   }
@@ -67,9 +69,24 @@ impl<L: Language> Matcher<L> for Inside<L> {
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
-    let finder = |n| self.outer.match_node_with_env(n, env);
     let ancestors = node.ancestors();
-    self.stop_by.find(ancestors, finder)
+    if let Some(field) = &self.field {
+      let mut last_id = node.node_id();
+      let finder = move |nd: Node<'tree, L>| {
+        let id = last_id;
+        last_id = nd.node_id();
+        let n = nd.field(field)?;
+        if n.node_id() != id {
+          None
+        } else {
+          self.outer.match_node_with_env(nd, env)
+        }
+      };
+      self.stop_by.find(ancestors, finder)
+    } else {
+      let finder = |n| self.outer.match_node_with_env(n, env);
+      self.stop_by.find(ancestors, finder)
+    }
   }
 }
 
@@ -78,12 +95,14 @@ impl<L: Language> Matcher<L> for Inside<L> {
 pub struct Has<L: Language> {
   inner: Rule<L>,
   stop_by: StopBy<L>,
+  field: Option<String>,
 }
 impl<L: Language> Has<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
     Ok(Self {
       stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
       inner: try_from_serializable(relation.rule, lang)?,
+      field: relation.field,
     })
   }
 }
@@ -94,6 +113,10 @@ impl<L: Language> Matcher<L> for Has<L> {
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
+    if let Some(field) = &self.field {
+      let n = node.field(field)?;
+      return self.inner.match_node_with_env(n, env);
+    }
     match &self.stop_by {
       StopBy::Neighbor => node
         .children()
@@ -124,6 +147,9 @@ pub struct Precedes<L: Language> {
 }
 impl<L: Language> Precedes<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
+    if relation.field.is_some() {
+      return Err(RuleSerializeError::FieldNotSupported);
+    }
     Ok(Self {
       stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
       later: try_from_serializable(relation.rule, lang)?,
@@ -148,6 +174,9 @@ pub struct Follows<L: Language> {
 }
 impl<L: Language> Follows<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
+    if relation.field.is_some() {
+      return Err(RuleSerializeError::FieldNotSupported);
+    }
     Ok(Self {
       stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
       former: try_from_serializable(relation.rule, lang)?,
@@ -319,6 +348,7 @@ mod test {
     let has = Has {
       stop_by: StopBy::End,
       inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
+      field: None,
     };
     let rule = make_rule("function test() { $$$ }", Rule::Has(Box::new(has)));
     test_found(
@@ -349,6 +379,7 @@ mod test {
         TS::Tsx,
       ))),
       inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
+      field: None,
     };
     let rule = make_rule("function test() { $$$ }", Rule::Has(Box::new(has)));
     test_found(
@@ -375,6 +406,7 @@ mod test {
         TS::Tsx,
       ))),
       inner: Rule::Pattern(Pattern::new("function inner() {$$$}", TS::Tsx)),
+      field: None,
     };
     let rule = make_rule("function test() { $$$ }", Rule::Has(Box::new(has)));
     test_found(
@@ -399,12 +431,14 @@ mod test {
     let has = Has {
       stop_by: StopBy::Neighbor,
       inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
+      field: None,
     };
     let rule = o::All::new(vec![
       Rule::Pattern(Pattern::new("{ $$$ }", TS::Tsx)),
       Rule::Inside(Box::new(Inside {
         outer: Rule::Pattern(Pattern::new("function test() { $$$ }", TS::Tsx)),
         stop_by: StopBy::Neighbor,
+        field: None,
       })),
       Rule::Has(Box::new(has)),
     ]);
@@ -434,6 +468,7 @@ mod test {
     let inside = Inside {
       stop_by: StopBy::End,
       outer: Rule::Pattern(Pattern::new("function test() { $$$ }", TS::Tsx)),
+      field: None,
     };
     let rule = make_rule("var a = 1", Rule::Inside(Box::new(inside)));
     test_found(
@@ -464,6 +499,7 @@ mod test {
         TS::Tsx,
       ))),
       outer: Rule::Pattern(Pattern::new("function test() { $$$ }", TS::Tsx)),
+      field: None,
     };
     let rule = make_rule("var a = 1", Rule::Inside(Box::new(inside)));
     test_found(
@@ -495,8 +531,10 @@ mod test {
         Rule::Inside(Box::new(Inside {
           outer: Rule::Pattern(Pattern::new("function test() { $$$ }", TS::Tsx)),
           stop_by: StopBy::Neighbor,
+          field: None,
         })),
       ])),
+      field: None,
     };
     let rule = make_rule("var a = 1", Rule::Inside(Box::new(inside)));
     test_found(
@@ -518,5 +556,17 @@ mod test {
       ],
       &rule,
     );
+  }
+
+  #[test]
+  fn test_inside_field() {
+    let inside = Inside {
+      stop_by: StopBy::End,
+      outer: Rule::Kind(KindMatcher::new("for_statement", TS::Tsx)),
+      field: Some("condition".into()),
+    };
+    let rule = make_rule("a = 1", Rule::Inside(Box::new(inside)));
+    test_found(&["for (;a = 1;) {}"], &rule);
+    test_not_found(&["for (;; a = 1) {}"], &rule);
   }
 }

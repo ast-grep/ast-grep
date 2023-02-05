@@ -236,6 +236,8 @@ pub enum RuleSerializeError {
   InvalidPattern(#[from] PatternError),
   #[error("Rule contains invalid regex matcher.")]
   WrongRegex(#[from] RegexMatcherError),
+  #[error("field is only supported in has/inside.")]
+  FieldNotSupported,
 }
 
 // TODO: implement positive/non positive

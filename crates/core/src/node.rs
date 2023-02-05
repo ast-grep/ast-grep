@@ -115,6 +115,9 @@ impl<'tree, L: Language> ExactSizeIterator for NodeWalker<'tree, L> {
 
 /// APIs for Node inspection
 impl<'r, L: Language> Node<'r, L> {
+  pub fn node_id(&self) -> usize {
+    self.inner.id()
+  }
   pub fn is_leaf(&self) -> bool {
     self.inner.child_count() == 0
   }
