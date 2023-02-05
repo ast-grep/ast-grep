@@ -118,18 +118,16 @@ function countedPromise<F extends (t: any, cb: any) => Promise<number>>(func: F)
   return async (t: P[0], cb: P[1]) => {
     let i = 0
     let fileCount: number | undefined = undefined
-    let resolve: any = () => {}
+    let resolve = () => {} // will be called after all files are processed
     function wrapped(...args: any[]) {
       let ret = cb(...args)
       if (++i === fileCount) resolve()
       return ret
     }
     fileCount = await func(t, wrapped as P[1])
+    // all files are not processed, wait the resolve function to be called
     if (fileCount > i) {
-      let n = new Promise(r => {
-        resolve = r
-      })
-      await n
+      await new Promise<void>(r => resolve = r)
     }
     return fileCount
   }
