@@ -114,8 +114,24 @@ impl<L: Language> Matcher<L> for Has<L> {
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
     if let Some(field) = &self.field {
-      let n = node.field(field)?;
-      return self.inner.match_node_with_env(n, env);
+      let nd = node.field(field)?;
+      return match &self.stop_by {
+        StopBy::Neighbor => self.inner.match_node_with_env(nd, env),
+        StopBy::End => nd
+          .dfs()
+          .find_map(|n| self.inner.match_node_with_env(n, env)),
+        StopBy::Rule(matcher) => {
+          // TODO: use Pre traversal to reduce stack allocation
+          self.inner.match_node_with_env(nd.clone(), env).or_else(|| {
+            if nd.matches(matcher) {
+              None
+            } else {
+              nd.children()
+                .find_map(|n| self.inner.match_node_with_env(n, env))
+            }
+          })
+        }
+      };
     }
     match &self.stop_by {
       StopBy::Neighbor => node
@@ -568,5 +584,20 @@ mod test {
     let rule = make_rule("a = 1", Rule::Inside(Box::new(inside)));
     test_found(&["for (;a = 1;) {}"], &rule);
     test_not_found(&["for (;; a = 1) {}"], &rule);
+  }
+
+  #[test]
+  fn test_has_field() {
+    let has = Has {
+      stop_by: StopBy::End,
+      inner: Rule::Pattern(Pattern::new("a = 1", TS::Tsx)),
+      field: Some("condition".into()),
+    };
+    let rule = o::All::new(vec![
+      Rule::Kind(KindMatcher::new("for_statement", TS::Tsx)),
+      Rule::Has(Box::new(has)),
+    ]);
+    test_found(&["for (;a = 1;) {}"], &rule);
+    test_not_found(&["for (;; a = 1) {}", "for (;;) { a = 1}"], &rule);
   }
 }
