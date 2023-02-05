@@ -75,6 +75,14 @@ pub struct RelationalRule {
   pub precedes: Option<Box<Relation>>,
   pub follows: Option<Box<Relation>>,
 }
+#[derive(Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum SerializableStopBy {
+  Neighbor,
+  #[default]
+  End,
+  Rule(SerializableRule),
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -82,9 +90,8 @@ pub struct Relation {
   #[serde(flatten)]
   pub rule: SerializableRule,
   #[serde(default)]
-  pub until: Option<SerializableRule>,
-  #[serde(default)]
-  pub immediate: bool,
+  pub stop_by: SerializableStopBy,
+  pub field: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -121,12 +128,11 @@ pattern:
     let src = r"
 inside:
   pattern: class A {}
-  immediate: true
-  until:
-    pattern: function() {}
+  stopBy: neighbor
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(rule.inside.unwrap().immediate);
+    let stop_by = rule.inside.unwrap().stop_by;
+    assert!(matches!(stop_by, SerializableStopBy::Neighbor));
   }
 
   #[test]

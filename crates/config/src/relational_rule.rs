@@ -1,5 +1,5 @@
 use crate::rule_config::{try_from_serializable, Rule, RuleSerializeError};
-use crate::serialized_rule::Relation;
+use crate::serialized_rule::{Relation, SerializableStopBy};
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Matcher, Node};
@@ -16,10 +16,21 @@ fn inclusive_until<L: Language>(rule: &Rule<L>) -> impl FnMut(&Node<L>) -> bool 
   }
 }
 
-enum StopBy<L: Language> {
+pub enum StopBy<L: Language> {
   Neighbor,
   End,
   Rule(Rule<L>),
+}
+
+impl<L: Language> StopBy<L> {
+  fn try_from(relation: SerializableStopBy, lang: L) -> Result<Self, RuleSerializeError> {
+    use SerializableStopBy as S;
+    Ok(match relation {
+      S::Neighbor => StopBy::Neighbor,
+      S::End => StopBy::End,
+      S::Rule(r) => StopBy::Rule(try_from_serializable(r, lang)?),
+    })
+  }
 }
 
 impl<L: Language> StopBy<L> {
@@ -43,17 +54,9 @@ pub struct Inside<L: Language> {
 }
 impl<L: Language> Inside<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Inside<L>, RuleSerializeError> {
-    let stop_by = if relation.immediate {
-      StopBy::Neighbor
-    } else if let Some(until) = relation.until {
-      let stop_rule = try_from_serializable(until, lang.clone())?;
-      StopBy::Rule(stop_rule)
-    } else {
-      StopBy::End
-    };
     Ok(Self {
+      stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
       outer: try_from_serializable(relation.rule, lang)?,
-      stop_by,
     })
   }
 }
@@ -74,20 +77,13 @@ impl<L: Language> Matcher<L> for Inside<L> {
 // it does not use StopBy
 pub struct Has<L: Language> {
   inner: Rule<L>,
-  until: Option<Rule<L>>,
-  immediate: bool,
+  stop_by: StopBy<L>,
 }
 impl<L: Language> Has<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
-    let util_node = if let Some(until) = relation.until {
-      Some(try_from_serializable(until, lang.clone())?)
-    } else {
-      None
-    };
     Ok(Self {
+      stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
       inner: try_from_serializable(relation.rule, lang)?,
-      until: util_node,
-      immediate: relation.immediate,
     })
   }
 }
@@ -98,26 +94,26 @@ impl<L: Language> Matcher<L> for Has<L> {
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
-    if self.immediate {
-      node
+    match &self.stop_by {
+      StopBy::Neighbor => node
         .children()
-        .find_map(|n| self.inner.match_node_with_env(n, env))
-    } else if let Some(matcher) = &self.until {
-      // TODO: use Pre traversal to reduce stack allocation
-      node.children().find_map(|n| {
-        self.inner.match_node_with_env(n.clone(), env).or_else(|| {
-          if n.matches(matcher) {
-            None
-          } else {
-            self.match_node_with_env(n, env)
-          }
-        })
-      })
-    } else {
-      node
+        .find_map(|n| self.inner.match_node_with_env(n, env)),
+      StopBy::End => node
         .dfs()
         .skip(1)
-        .find_map(|n| self.inner.match_node_with_env(n, env))
+        .find_map(|n| self.inner.match_node_with_env(n, env)),
+      StopBy::Rule(matcher) => {
+        // TODO: use Pre traversal to reduce stack allocation
+        node.children().find_map(|n| {
+          self.inner.match_node_with_env(n.clone(), env).or_else(|| {
+            if n.matches(matcher) {
+              None
+            } else {
+              self.match_node_with_env(n, env)
+            }
+          })
+        })
+      }
     }
   }
 }
@@ -128,17 +124,9 @@ pub struct Precedes<L: Language> {
 }
 impl<L: Language> Precedes<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
-    let stop_by = if relation.immediate {
-      StopBy::Neighbor
-    } else if let Some(until) = relation.until {
-      let stop_rule = try_from_serializable(until, lang.clone())?;
-      StopBy::Rule(stop_rule)
-    } else {
-      StopBy::End
-    };
     Ok(Self {
+      stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
       later: try_from_serializable(relation.rule, lang)?,
-      stop_by,
     })
   }
 }
@@ -160,17 +148,9 @@ pub struct Follows<L: Language> {
 }
 impl<L: Language> Follows<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
-    let stop_by = if relation.immediate {
-      StopBy::Neighbor
-    } else if let Some(until) = relation.until {
-      let stop_rule = try_from_serializable(until, lang.clone())?;
-      StopBy::Rule(stop_rule)
-    } else {
-      StopBy::End
-    };
     Ok(Self {
+      stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
       former: try_from_serializable(relation.rule, lang)?,
-      stop_by,
     })
   }
 }
@@ -337,8 +317,7 @@ mod test {
   #[test]
   fn test_has_rule() {
     let has = Has {
-      immediate: false,
-      until: None,
+      stop_by: StopBy::End,
       inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
     };
     let rule = make_rule("function test() { $$$ }", Rule::Has(Box::new(has)));
@@ -365,8 +344,7 @@ mod test {
   #[test]
   fn test_has_until_should_not_abort_prematurely() {
     let has = Has {
-      immediate: false,
-      until: Some(Rule::Kind(KindMatcher::new(
+      stop_by: StopBy::Rule(Rule::Kind(KindMatcher::new(
         "function_declaration",
         TS::Tsx,
       ))),
@@ -392,8 +370,7 @@ mod test {
   #[test]
   fn test_has_until_should_be_inclusive() {
     let has = Has {
-      immediate: false,
-      until: Some(Rule::Kind(KindMatcher::new(
+      stop_by: StopBy::Rule(Rule::Kind(KindMatcher::new(
         "function_declaration",
         TS::Tsx,
       ))),
@@ -420,8 +397,7 @@ mod test {
   #[test]
   fn test_has_immediate() {
     let has = Has {
-      immediate: true,
-      until: None,
+      stop_by: StopBy::Neighbor,
       inner: Rule::Pattern(Pattern::new("var a = 1", TS::Tsx)),
     };
     let rule = o::All::new(vec![
