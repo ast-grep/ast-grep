@@ -81,9 +81,9 @@ impl<'n> Diff<'n> {
 
 #[derive(ValueEnum, Clone, Copy)]
 pub enum ColorArg {
-  /// Try to use colors, but don't force the issue. If the console isn't
-  /// available on Windows, or if TERM=dumb, or if `NO_COLOR` is defined, for
-  /// example, then don't use colors.
+  /// Try to use colors, but don't force the issue. If the output is piped to another program,
+  /// or the console isn't available on Windows, or if TERM=dumb, or if `NO_COLOR` is defined,
+  /// for example, then don't use colors.
   Auto,
   /// Try very hard to emit colors. This includes emitting ANSI colors
   /// on Windows if the console API is unavailable (not implemented yet).
@@ -99,7 +99,13 @@ impl From<ColorArg> for ColorChoice {
   fn from(arg: ColorArg) -> ColorChoice {
     use ColorArg::*;
     match arg {
-      Auto => ColorChoice::Auto,
+      Auto => {
+        if atty::is(atty::Stream::Stdout) {
+          ColorChoice::Auto
+        } else {
+          ColorChoice::Never
+        }
+      }
       Always => ColorChoice::Always,
       Ansi => ColorChoice::AlwaysAnsi,
       Never => ColorChoice::Never,

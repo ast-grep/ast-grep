@@ -547,7 +547,8 @@ mod choose_color {
       ColorChoice::Always => env_allow_ansi(color),
       ColorChoice::AlwaysAnsi => true,
       ColorChoice::Never => false,
-      ColorChoice::Auto => env_allows_color(color),
+      // NOTE tty check is added
+      ColorChoice::Auto => atty::is(atty::Stream::Stdout) && env_allows_color(color),
     }
   }
 
