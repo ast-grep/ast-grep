@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use ast_grep_config::{RuleCollection, RuleConfig};
+use ast_grep_config::{RuleCollection, RuleConfig, Severity};
 use ast_grep_core::{AstGrep, Matcher, NodeMatch};
 use clap::Args;
 use ignore::WalkParallel;
@@ -118,6 +118,7 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
   }
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print()?;
+    let mut has_error = 0;
     for (path, grep) in items {
       let file_content = grep.root().text().to_string();
       let path = &path;
@@ -126,11 +127,18 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
       let matched = combined.scan(&grep);
       for (idx, matches) in matched {
         let rule = &combined.rules[idx];
+        if matches!(rule.severity, Severity::Error) {
+          has_error += 1;
+        }
         match_rule_on_file(path, matches, rule, &file_content, &self.printer)?;
       }
     }
     self.printer.after_print()?;
-    Ok(())
+    if has_error > 0 {
+      Err(anyhow::anyhow!(EC::DiagnosticError(has_error)))
+    } else {
+      Ok(())
+    }
   }
 }
 

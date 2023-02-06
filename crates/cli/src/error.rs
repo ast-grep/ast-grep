@@ -27,6 +27,8 @@ pub enum ErrorContext {
   GlobPattern,
   // Run
   ParsePattern,
+  // Scan
+  DiagnosticError(usize),
   // LSP
   StartLanguageServer,
   // Edit
@@ -44,6 +46,7 @@ impl ErrorContext {
       TestFail(_) => 3,
       ParseTest(_) | ParseRule(_) | ParseConfiguration => 5,
       OpenEditor => 126,
+      DiagnosticError(_) => 1,
       _ => 1,
     }
   }
@@ -113,6 +116,11 @@ impl ErrorMessage {
         format!("Cannot parse test case {}", file.display()),
         "The file is not a valid ast-grep test case. Please refer to doc and fix the error.",
         TEST_GUIDE,
+      ),
+      DiagnosticError(num) => Self::new(
+        format!("{num} error(s) found in code."),
+        "Scan succeeded and found error level diagnostics in the codebase.",
+        None,
       ),
       ParsePattern => Self::new(
         "Cannot parse query as a valid pattern",
