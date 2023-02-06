@@ -19,7 +19,7 @@ tree-sitter-typescript="0.20.2"
 tree-sitter-html = "0.19.0"
 tree-sitter-javascript = "0.20.0"
 tree-sitter-css = "0.19.0"
-serde_json = "1.0.91"
+serde_json = "1.0.92"
 ignore = "0.4.20"
 
 [features]
