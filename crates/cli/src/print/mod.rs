@@ -7,11 +7,12 @@ use ast_grep_core::{Matcher, NodeMatch, Pattern};
 use ast_grep_language::SupportLang;
 
 use anyhow::Result;
-pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
+use clap::ValueEnum;
 
 use std::borrow::Cow;
 use std::path::Path;
 
+pub use codespan_reporting::files::SimpleFile;
 pub use codespan_reporting::term::termcolor::ColorChoice;
 pub use colored_print::{print_diff, ColoredPrinter, Heading, PrintStyles, ReportStyle};
 pub use interactive_print::InteractivePrinter;
@@ -74,6 +75,34 @@ impl<'n> Diff<'n> {
     Self {
       node_match,
       replacement,
+    }
+  }
+}
+
+#[derive(ValueEnum, Clone, Copy)]
+pub enum ColorArg {
+  /// Try to use colors, but don't force the issue. If the console isn't
+  /// available on Windows, or if TERM=dumb, or if `NO_COLOR` is defined, for
+  /// example, then don't use colors.
+  Auto,
+  /// Try very hard to emit colors. This includes emitting ANSI colors
+  /// on Windows if the console API is unavailable (not implemented yet).
+  Always,
+  /// Ansi is like Always, except it never tries to use anything other
+  /// than emitting ANSI color codes.
+  Ansi,
+  /// Never emit colors.
+  Never,
+}
+
+impl From<ColorArg> for ColorChoice {
+  fn from(arg: ColorArg) -> ColorChoice {
+    use ColorArg::*;
+    match arg {
+      Auto => ColorChoice::Auto,
+      Always => ColorChoice::Always,
+      Ansi => ColorChoice::AlwaysAnsi,
+      Never => ColorChoice::Never,
     }
   }
 }

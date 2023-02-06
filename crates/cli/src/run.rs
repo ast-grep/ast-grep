@@ -51,7 +51,9 @@ pub struct RunArg {
   #[clap(long, conflicts_with = "interactive")]
   json: bool,
 
-  /// Print file names before each file's matches. Default is auto: print heading for tty but not for piped output.
+  /// Print the file name as heading before all matches of that file.
+  /// File path will be printed before each match as prefix if heading is disabled.
+  /// This is the default mode when printing to a terminal.
   #[clap(long, default_value = "auto")]
   heading: Heading,
 

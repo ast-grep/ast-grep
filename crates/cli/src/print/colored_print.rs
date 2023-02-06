@@ -28,16 +28,22 @@ macro_rules! Diffs {
 
 #[derive(Clone, Copy, ValueEnum)]
 pub enum ReportStyle {
+  /// Output a richly formatted diagnostic, with source code previews.
   Rich,
+  /// Output a condensed diagnostic, with a line number, severity, message and notes (if any).
   Medium,
+  /// Output a short diagnostic, with a line number, severity, and message.
   Short,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
 pub enum Heading {
-  Always,
-  Never,
+  /// Print heading for terminal tty but not for piped output
   Auto,
+  /// Always print heading regardless of output type.
+  Always,
+  /// Never print heading regardless of output type.
+  Never,
 }
 
 impl Heading {

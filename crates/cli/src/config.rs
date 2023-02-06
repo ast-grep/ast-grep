@@ -173,11 +173,22 @@ fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<PathBuf
 
 #[derive(Clone, Copy, Deserialize, Serialize, ValueEnum)]
 pub enum IgnoreFile {
+  /// Search hidden files and directories. By default, hidden files and directories are skipped.
   Hidden,
+  /// Don't respect .ignore files.
+  /// This does *not* affect whether ripgrep will ignore files and directories whose names begin with a dot.
+  /// For that, use --no-ignore hidden.
   Dot,
+  /// Don't respect ignore files that are manually configured for the repository such as git's '.git/info/exclude'.
   Exclude,
+  /// Don't respect ignore files that come from "global" sources such as git's
+  /// `core.excludesFile` configuration option (which defaults to `$HOME/.config/git/ignore`).
   Global,
+  /// Don't respect ignore files (.gitignore, .ignore, etc.) in parent directories.
   Parent,
+  /// Don't respect version control ignore files (.gitignore, etc.).
+  /// This implies --no-ignore parent for VCS files.
+  /// Note that .ignore files will continue to be respected.
   Vcs,
 }
 
