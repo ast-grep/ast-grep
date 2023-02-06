@@ -73,10 +73,10 @@ impl<L: Language> Matcher<L> for Inside<L> {
     if let Some(field) = &self.field {
       let mut last_id = node.node_id();
       let finder = move |nd: Node<'tree, L>| {
-        let id = last_id;
+        let expect_id = last_id;
         last_id = nd.node_id();
         let n = nd.field(field)?;
-        if n.node_id() != id {
+        if n.node_id() != expect_id {
           None
         } else {
           self.outer.match_node_with_env(nd, env)
