@@ -692,7 +692,7 @@ mod test {
   fn always_report_rule() -> RuleCollection<SupportLang> {
     // empty all should mean always
     let serialized = SerializableRule {
-      all: Some(vec![]),
+      all: Some(vec![]).into(),
       ..Default::default()
     };
     let rule = get_rule_config(serialized);
@@ -701,7 +701,7 @@ mod test {
   fn never_report_rule() -> RuleCollection<SupportLang> {
     // empty any should mean never
     let serialized = SerializableRule {
-      any: Some(vec![]),
+      any: Some(vec![]).into(),
       ..Default::default()
     };
     let rule = get_rule_config(serialized);

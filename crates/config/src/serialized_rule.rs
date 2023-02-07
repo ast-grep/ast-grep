@@ -1,3 +1,4 @@
+use crate::maybe::Maybe;
 use serde::{Deserialize, Serialize};
 
 /// We have three kinds of rules in ast-grep.
@@ -11,18 +12,28 @@ pub struct SerializableRule {
   // avoid embedding AtomicRule/RelationalRule/CompositeRule with flatten here for better error message
 
   // atomic
-  pub pattern: Option<PatternStyle>,
-  pub kind: Option<String>,
-  pub regex: Option<String>,
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  pub pattern: Maybe<PatternStyle>,
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  pub kind: Maybe<String>,
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  pub regex: Maybe<String>,
   // relational
-  pub inside: Option<Box<Relation>>,
-  pub has: Option<Box<Relation>>,
-  pub precedes: Option<Box<Relation>>,
-  pub follows: Option<Box<Relation>>,
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  pub inside: Maybe<Box<Relation>>,
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  pub has: Maybe<Box<Relation>>,
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  pub precedes: Maybe<Box<Relation>>,
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  pub follows: Maybe<Box<Relation>>,
   // composite
-  pub all: Option<Vec<SerializableRule>>,
-  pub any: Option<Vec<SerializableRule>>,
-  pub not: Option<Box<SerializableRule>>,
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  pub all: Maybe<Vec<SerializableRule>>,
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  pub any: Maybe<Vec<SerializableRule>>,
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  pub not: Maybe<Box<SerializableRule>>,
 }
 
 pub struct Categorized {
@@ -35,20 +46,20 @@ impl SerializableRule {
   pub fn categorized(self) -> Categorized {
     Categorized {
       atomic: AtomicRule {
-        pattern: self.pattern,
-        kind: self.kind,
-        regex: self.regex,
+        pattern: self.pattern.into(),
+        kind: self.kind.into(),
+        regex: self.regex.into(),
       },
       relational: RelationalRule {
-        inside: self.inside,
-        has: self.has,
-        precedes: self.precedes,
-        follows: self.follows,
+        inside: self.inside.into(),
+        has: self.has.into(),
+        precedes: self.precedes.into(),
+        follows: self.follows.into(),
       },
       composite: CompositeRule {
-        all: self.all,
-        any: self.any,
-        not: self.not,
+        all: self.all.into(),
+        any: self.any.into(),
+        not: self.not.into(),
       },
     }
   }
@@ -113,14 +124,14 @@ mod test {
 pattern: Test
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(rule.pattern.is_some());
+    assert!(rule.pattern.is_present());
     let src = r"
 pattern:
   context: class $C { set $B() {} }
   selector: method_definition
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(matches!(rule.pattern, Some(Contextual { .. }),));
+    assert!(matches!(rule.pattern, Maybe::Present(Contextual { .. }),));
   }
 
   #[test]
@@ -143,8 +154,8 @@ inside:
   pattern: function() {}
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(rule.inside.is_some());
-    assert!(rule.pattern.is_some());
+    assert!(rule.inside.is_present());
+    assert!(rule.pattern.is_present());
   }
 
   #[test]
@@ -157,11 +168,19 @@ has:
   pattern: Some()
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(rule.inside.is_some());
-    assert!(rule.has.is_some());
-    assert!(rule.follows.is_none());
-    assert!(rule.precedes.is_none());
-    assert!(rule.pattern.is_some());
+    assert!(rule.inside.is_present());
+    assert!(rule.has.is_present());
+    assert!(rule.follows.is_absent());
+    assert!(rule.precedes.is_absent());
+    assert!(rule.pattern.is_present());
+  }
+
+  #[test]
+  #[ignore]
+  fn test_maybe_not() {
+    let src = "not:";
+    let ret: Result<SerializableRule, _> = from_str(src);
+    assert!(ret.is_err());
   }
 
   #[test]
@@ -176,9 +195,9 @@ inside:
       selector: ss
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    assert!(rule.inside.is_some());
+    assert!(rule.inside.is_present());
     let inside = rule.inside.unwrap();
-    assert!(inside.rule.pattern.is_some());
-    assert!(inside.rule.inside.unwrap().rule.pattern.is_some());
+    assert!(inside.rule.pattern.is_present());
+    assert!(inside.rule.inside.unwrap().rule.pattern.is_present());
   }
 }
