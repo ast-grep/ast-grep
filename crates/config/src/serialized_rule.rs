@@ -120,7 +120,7 @@ struct StopByVisitor;
 impl<'de> Visitor<'de> for StopByVisitor {
   type Value = SerializableStopBy;
   fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-    formatter.write_str("unknown variant, expect `neighbor`, `end` or a rule object")
+    formatter.write_str("`neighbor`, `end` or a rule object")
   }
 
   fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -130,9 +130,9 @@ impl<'de> Visitor<'de> for StopByVisitor {
     match value {
       "neighbor" => Ok(SerializableStopBy::Neighbor),
       "end" => Ok(SerializableStopBy::End),
-      _ => Err(de::Error::custom(
-        "unknown variant, expect `neighbor`, `end` or a rule object",
-      )),
+      v => Err(de::Error::custom(format!(
+        "unknown variant `{v}`, expected `neighbor`, `end` or a rule object",
+      ))),
     }
   }
 
@@ -243,5 +243,37 @@ inside:
     let inside = rule.inside.unwrap();
     assert!(inside.rule.pattern.is_present());
     assert!(inside.rule.inside.unwrap().rule.pattern.is_present());
+  }
+
+  fn to_stop_by(src: &str) -> Result<SerializableStopBy, serde_yaml::Error> {
+    from_str(src)
+  }
+
+  #[test]
+  fn test_stop_by_ok() {
+    let stop = to_stop_by("'neighbor'").expect("cannot parse stopBy");
+    assert!(matches!(stop, SerializableStopBy::Neighbor));
+    let stop = to_stop_by("'end'").expect("cannot parse stopBy");
+    assert!(matches!(stop, SerializableStopBy::End));
+    let stop = to_stop_by("kind: some-kind").expect("cannot parse stopBy");
+    assert!(matches!(stop, SerializableStopBy::Rule(_)));
+  }
+
+  macro_rules! cast_err {
+    ($reg: expr) => {
+      match $reg {
+        Err(a) => a,
+        _ => panic!("non-matching variant"),
+      }
+    };
+  }
+
+  #[test]
+  fn test_stop_by_err() {
+    let err = cast_err!(to_stop_by("'ddd'")).to_string();
+    assert!(err.contains("unknown variant"));
+    assert!(err.contains("ddd"));
+    let err = cast_err!(to_stop_by("pattern: 1233"));
+    assert!(err.to_string().contains("variant"));
   }
 }
