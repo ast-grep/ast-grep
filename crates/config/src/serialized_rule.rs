@@ -176,8 +176,10 @@ has:
   }
 
   #[test]
-  #[ignore]
   fn test_maybe_not() {
+    let src = "not: 123";
+    let ret: Result<SerializableRule, _> = from_str(src);
+    assert!(ret.is_err());
     let src = "not:";
     let ret: Result<SerializableRule, _> = from_str(src);
     assert!(ret.is_err());

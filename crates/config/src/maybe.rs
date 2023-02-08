@@ -1,4 +1,4 @@
-use serde::{ser, Deserialize, Serialize};
+use serde::{de, ser, Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum Maybe<T> {
@@ -65,7 +65,9 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for Maybe<T> {
   where
     D: serde::Deserializer<'de>,
   {
-    let inner = T::deserialize(deserializer)?;
-    Ok(Maybe::Present(inner))
+    match Option::deserialize(deserializer)? {
+      Some(t) => Ok(Maybe::Present(t)),
+      None => Err(de::Error::custom("Maybe field cannot be null.")),
+    }
   }
 }
