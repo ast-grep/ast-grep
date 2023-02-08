@@ -32,6 +32,3 @@ crate-type = ["cdylib"]
 
 [build-dependencies]
 napi-build = "2"
-
-[profile.release]
-lto = true

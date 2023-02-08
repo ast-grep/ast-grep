@@ -4,3 +4,6 @@ members = [
   "xtask"
 ]
 default-members = ["crates/*"]
+
+[profile.release]
+lto = true
