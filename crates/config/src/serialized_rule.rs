@@ -1,5 +1,8 @@
 use crate::maybe::Maybe;
+use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
+
+use std::fmt;
 
 /// We have three kinds of rules in ast-grep.
 /// * Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.
@@ -86,14 +89,6 @@ pub struct RelationalRule {
   pub precedes: Option<Box<Relation>>,
   pub follows: Option<Box<Relation>>,
 }
-#[derive(Serialize, Deserialize, Clone, Default)]
-#[serde(rename_all = "camelCase")]
-pub enum SerializableStopBy {
-  Neighbor,
-  #[default]
-  End,
-  Rule(SerializableRule),
-}
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -110,6 +105,53 @@ pub struct CompositeRule {
   pub all: Option<Vec<SerializableRule>>,
   pub any: Option<Vec<SerializableRule>>,
   pub not: Option<Box<SerializableRule>>,
+}
+
+#[derive(Serialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum SerializableStopBy {
+  Neighbor,
+  #[default]
+  End,
+  Rule(SerializableRule),
+}
+
+struct StopByVisitor;
+impl<'de> Visitor<'de> for StopByVisitor {
+  type Value = SerializableStopBy;
+  fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    formatter.write_str("unknown variant, expect `neighbor`, `end` or a rule object")
+  }
+
+  fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+  where
+    E: de::Error,
+  {
+    match value {
+      "neighbor" => Ok(SerializableStopBy::Neighbor),
+      "end" => Ok(SerializableStopBy::End),
+      _ => Err(de::Error::custom(
+        "unknown variant, expect `neighbor`, `end` or a rule object",
+      )),
+    }
+  }
+
+  fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+  where
+    A: MapAccess<'de>,
+  {
+    let rule = Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))?;
+    Ok(SerializableStopBy::Rule(rule))
+  }
+}
+
+impl<'de> Deserialize<'de> for SerializableStopBy {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    deserializer.deserialize_any(StopByVisitor)
+  }
 }
 
 #[cfg(test)]
