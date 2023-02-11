@@ -80,7 +80,7 @@ fn from_env<'a>(nm: &NodeMatch<'a, SupportLang>) -> Option<MetaVariables<'a>> {
   for var in vars {
     use MetaVariable as MV;
     match var {
-      MV::Named(n) => {
+      MV::Named(n, _) => {
         let node = env.get_match(&n).expect("must exist!");
         single.insert(
           n,

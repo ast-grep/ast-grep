@@ -41,7 +41,7 @@ impl<'tree, L: Language> MetaVarEnv<'tree, L> {
 
   pub fn get(&self, var: &MetaVariable) -> Option<MatchResult<'_, 'tree, L>> {
     match var {
-      MetaVariable::Named(n) => self.single_matched.get(n).map(MatchResult::Single),
+      MetaVariable::Named(n, _) => self.single_matched.get(n).map(MatchResult::Single),
       MetaVariable::NamedEllipsis(n) => self.multi_matched.get(n).map(MatchResult::Multi),
       _ => None,
     }
@@ -79,7 +79,11 @@ impl<'tree, L: Language> MetaVarEnv<'tree, L> {
   }
 
   pub fn get_matched_variables(&self) -> impl Iterator<Item = MetaVariable> + '_ {
-    let single = self.single_matched.keys().cloned().map(MetaVariable::Named);
+    let single = self
+      .single_matched
+      .keys()
+      .cloned()
+      .map(|n| MetaVariable::Named(n, false));
     let multi = self
       .multi_matched
       .keys()
@@ -127,9 +131,9 @@ pub enum MatchResult<'a, 'tree, L: Language> {
 #[derive(Debug, PartialEq, Eq)]
 pub enum MetaVariable {
   /// $A for captured meta var
-  Named(MetaVariableID),
+  Named(MetaVariableID, bool),
   /// $_ for non-captured meta var
-  Anonymous,
+  Anonymous(bool),
   /// $$$ for non-captured ellipsis
   Ellipsis,
   /// $$$A for captured ellipsis
@@ -205,9 +209,9 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
     return None;
   }
   if trimmed.starts_with('_') {
-    Some(Anonymous)
+    Some(Anonymous(false))
   } else {
-    Some(Named(trimmed.to_owned()))
+    Some(Named(trimmed.to_owned(), false))
   }
 }
 
@@ -238,9 +242,9 @@ mod test {
   fn test_match_var() {
     use MetaVariable::*;
     assert_eq!(extract_var("$$$"), Some(Ellipsis));
-    assert_eq!(extract_var("$ABC"), Some(Named("ABC".into())));
+    assert_eq!(extract_var("$ABC"), Some(Named("ABC".into(), false)));
     assert_eq!(extract_var("$$$ABC"), Some(NamedEllipsis("ABC".into())));
-    assert_eq!(extract_var("$_"), Some(Anonymous));
+    assert_eq!(extract_var("$_"), Some(Anonymous(false)));
     assert_eq!(extract_var("abc"), None);
     assert_eq!(extract_var("$abc"), None);
   }
@@ -263,9 +267,9 @@ mod test {
     let extract = |s| extract_meta_var(s, 'µ');
     use MetaVariable::*;
     assert_eq!(extract("µµµ"), Some(Ellipsis));
-    assert_eq!(extract("µABC"), Some(Named("ABC".into())));
+    assert_eq!(extract("µABC"), Some(Named("ABC".into(), false)));
     assert_eq!(extract("µµµABC"), Some(NamedEllipsis("ABC".into())));
-    assert_eq!(extract("µ_"), Some(Anonymous));
+    assert_eq!(extract("µ_"), Some(Anonymous(false)));
     assert_eq!(extract("abc"), None);
     assert_eq!(extract("µabc"), None);
   }

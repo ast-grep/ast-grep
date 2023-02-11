@@ -10,11 +10,21 @@ fn match_leaf_meta_var<'goal, 'tree, L: Language>(
   let extracted = extract_var_from_node(goal)?;
   use MetaVariable as MV;
   match extracted {
-    MV::Named(name) => {
-      env.insert(name, candidate.clone())?;
-      Some(candidate)
+    MV::Named(name, named) => {
+      if named && !candidate.is_named() {
+        None
+      } else {
+        env.insert(name, candidate.clone())?;
+        Some(candidate)
+      }
     }
-    MV::Anonymous => Some(candidate),
+    MV::Anonymous(named) => {
+      if named && !candidate.is_named() {
+        None
+      } else {
+        Some(candidate)
+      }
+    }
     // Ellipsis will be matched in parent level
     MV::Ellipsis => {
       debug_assert!(false, "Ellipsis should be matched in parent level");
