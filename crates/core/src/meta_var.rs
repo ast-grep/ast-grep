@@ -204,14 +204,19 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
     return None;
   }
   let trimmed = &src[meta_char.len_utf8()..];
+  let (trimmed, named) = if let Some(t) = trimmed.strip_prefix(meta_char) {
+    (t, false)
+  } else {
+    (trimmed, true)
+  };
   // $A or $_
   if !trimmed.chars().all(is_valid_meta_var_char) {
     return None;
   }
   if trimmed.starts_with('_') {
-    Some(Anonymous(false))
+    Some(Anonymous(named))
   } else {
-    Some(Named(trimmed.to_owned(), false))
+    Some(Named(trimmed.to_owned(), named))
   }
 }
 
@@ -242,9 +247,10 @@ mod test {
   fn test_match_var() {
     use MetaVariable::*;
     assert_eq!(extract_var("$$$"), Some(Ellipsis));
-    assert_eq!(extract_var("$ABC"), Some(Named("ABC".into(), false)));
+    assert_eq!(extract_var("$ABC"), Some(Named("ABC".into(), true)));
+    assert_eq!(extract_var("$$ABC"), Some(Named("ABC".into(), false)));
     assert_eq!(extract_var("$$$ABC"), Some(NamedEllipsis("ABC".into())));
-    assert_eq!(extract_var("$_"), Some(Anonymous(false)));
+    assert_eq!(extract_var("$_"), Some(Anonymous(true)));
     assert_eq!(extract_var("abc"), None);
     assert_eq!(extract_var("$abc"), None);
   }
@@ -267,9 +273,10 @@ mod test {
     let extract = |s| extract_meta_var(s, 'µ');
     use MetaVariable::*;
     assert_eq!(extract("µµµ"), Some(Ellipsis));
-    assert_eq!(extract("µABC"), Some(Named("ABC".into(), false)));
+    assert_eq!(extract("µABC"), Some(Named("ABC".into(), true)));
+    assert_eq!(extract("µµABC"), Some(Named("ABC".into(), false)));
     assert_eq!(extract("µµµABC"), Some(NamedEllipsis("ABC".into())));
-    assert_eq!(extract("µ_"), Some(Anonymous(false)));
+    assert_eq!(extract("µ_"), Some(Anonymous(true)));
     assert_eq!(extract("abc"), None);
     assert_eq!(extract("µabc"), None);
   }

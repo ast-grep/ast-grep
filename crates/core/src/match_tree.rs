@@ -420,6 +420,16 @@ mod test {
   }
 
   #[test]
+  fn test_meta_var_named() {
+    test_match("return $A", "return 123;");
+    test_match("return $_", "return 123;");
+    test_non_match("return $A", "return;");
+    test_non_match("return $_", "return;");
+    test_match("return $$A", "return;");
+    test_match("return $$_A", "return;");
+  }
+
+  #[test]
   fn test_meta_var_multiple_occurrence() {
     test_match("$A($$$)", "test(123)");
     test_match("$A($B)", "test(123)");
