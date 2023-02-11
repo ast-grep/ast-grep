@@ -8,4 +8,4 @@ authors = ["Herrington Darkholme"]
 [dependencies]
 anyhow = "1.0"
 serde_json = { version = "1.0.93", features = ["preserve_order"] }
-toml_edit = "0.19.1"
+toml_edit = "0.19.3"
