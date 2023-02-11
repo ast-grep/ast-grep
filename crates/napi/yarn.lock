@@ -10,7 +10,7 @@ __metadata:
   resolution: "@ast-grep/napi@workspace:."
   dependencies:
     "@napi-rs/cli": 2.14.7
-    ava: 5.1.1
+    ava: 5.2.0
     chalk: 5.2.0
     ts-node: 10.9.1
     typescript: 4.9.5
@@ -321,9 +321,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ava@npm:5.1.1":
-  version: 5.1.1
-  resolution: "ava@npm:5.1.1"
+"ava@npm:5.2.0":
+  version: 5.2.0
+  resolution: "ava@npm:5.2.0"
   dependencies:
     acorn: ^8.8.1
     acorn-walk: ^8.2.0
@@ -377,7 +377,7 @@ __metadata:
       optional: true
   bin:
     ava: entrypoints/cli.mjs
-  checksum: cae5771ea651418c966dc7779128121f933aba7a39d86d8663c2097435bfc7264b0893b966d9ade3325a1051854d82b220e2db779482414a6283cb388ba00fb3
+  checksum: d5991f1f3d7ca0e63e0df185c5c025a9c80614dd42537336a9b96ea29e8a8d5ad680c1e775dacabb55f3b1b2d63764e468f201d52a44166c8a88d4e9309cde61
   languageName: node
   linkType: hard
 
