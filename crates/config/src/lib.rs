@@ -13,7 +13,7 @@ use ast_grep_core::language::Language;
 
 pub use rule_collection::RuleCollection;
 pub use rule_config::{
-  deserialize_rule, try_deserialize_matchers, Rule, RuleConfig, RuleConfigError,
+  deserialize_rule, try_deserialize_matchers, DeserializeEnv, Rule, RuleConfig, RuleConfigError,
   RuleWithConstraint, SerializableMetaVarMatcher, SerializableRuleConfig, Severity,
 };
 pub use serialized_rule::{CompositeRule, SerializableRule};

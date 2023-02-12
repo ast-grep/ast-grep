@@ -31,6 +31,7 @@ pub enum ReferentRuleError {
 
 pub struct ReferentRule<L: Language> {
   rule_id: String,
+  // TODO: this is WRONG! we should use weak ref here
   registration: RuleRegistration<L>,
 }
 

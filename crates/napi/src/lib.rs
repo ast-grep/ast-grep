@@ -2,8 +2,8 @@
 
 // use ast_grep_config::RuleConfig;
 use ast_grep_config::{
-  deserialize_rule, try_deserialize_matchers, RuleWithConstraint, SerializableMetaVarMatcher,
-  SerializableRule,
+  deserialize_rule, try_deserialize_matchers, DeserializeEnv, RuleWithConstraint,
+  SerializableMetaVarMatcher, SerializableRule,
 };
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::meta_var::MetaVarMatchers;
@@ -192,7 +192,7 @@ fn parse_config(
 ) -> Result<RuleWithConstraint<FrontEndLanguage>> {
   let lang = config.language.unwrap_or(language);
   let rule: SerializableRule = serde_json::from_value(config.rule)?;
-  let rule = deserialize_rule(rule, lang)
+  let rule = deserialize_rule(rule, &DeserializeEnv::new(lang))
     .map_err(|e| napi::Error::new(napi::Status::InvalidArg, e.to_string()))?;
   let matchers = if let Some(matchers) = config.constraints {
     let matchers: HashMap<String, SerializableMetaVarMatcher> = serde_json::from_value(matchers)?;

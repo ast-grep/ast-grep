@@ -1,4 +1,4 @@
-use crate::rule_config::{deserialize_rule, Rule, RuleSerializeError};
+use crate::rule_config::{deserialize_rule, DeserializeEnv, Rule, RuleSerializeError};
 use crate::serialized_rule::{Relation, SerializableStopBy};
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
@@ -23,12 +23,15 @@ pub enum StopBy<L: Language> {
 }
 
 impl<L: Language> StopBy<L> {
-  fn try_from(relation: SerializableStopBy, lang: L) -> Result<Self, RuleSerializeError> {
+  fn try_from(
+    relation: SerializableStopBy,
+    env: &DeserializeEnv<L>,
+  ) -> Result<Self, RuleSerializeError> {
     use SerializableStopBy as S;
     Ok(match relation {
       S::Neighbor => StopBy::Neighbor,
       S::End => StopBy::End,
-      S::Rule(r) => StopBy::Rule(deserialize_rule(r, lang)?), // TODO
+      S::Rule(r) => StopBy::Rule(deserialize_rule(r, env)?),
     })
   }
 }
@@ -54,11 +57,11 @@ pub struct Inside<L: Language> {
   stop_by: StopBy<L>,
 }
 impl<L: Language> Inside<L> {
-  pub fn try_new(relation: Relation, lang: L) -> Result<Inside<L>, RuleSerializeError> {
+  pub fn try_new(relation: Relation, env: &DeserializeEnv<L>) -> Result<Self, RuleSerializeError> {
     Ok(Self {
-      stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
+      stop_by: StopBy::try_from(relation.stop_by, env)?,
       field: relation.field,
-      outer: deserialize_rule(relation.rule, lang)?, // TODO
+      outer: deserialize_rule(relation.rule, env)?, // TODO
     })
   }
 }
@@ -98,10 +101,10 @@ pub struct Has<L: Language> {
   field: Option<String>,
 }
 impl<L: Language> Has<L> {
-  pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
+  pub fn try_new(relation: Relation, env: &DeserializeEnv<L>) -> Result<Self, RuleSerializeError> {
     Ok(Self {
-      stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
-      inner: deserialize_rule(relation.rule, lang)?,
+      stop_by: StopBy::try_from(relation.stop_by, env)?,
+      inner: deserialize_rule(relation.rule, env)?,
       field: relation.field,
     })
   }
@@ -162,13 +165,13 @@ pub struct Precedes<L: Language> {
   stop_by: StopBy<L>,
 }
 impl<L: Language> Precedes<L> {
-  pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
+  pub fn try_new(relation: Relation, env: &DeserializeEnv<L>) -> Result<Self, RuleSerializeError> {
     if relation.field.is_some() {
       return Err(RuleSerializeError::FieldNotSupported);
     }
     Ok(Self {
-      stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
-      later: deserialize_rule(relation.rule, lang)?,
+      stop_by: StopBy::try_from(relation.stop_by, env)?,
+      later: deserialize_rule(relation.rule, env)?,
     })
   }
 }
@@ -189,13 +192,13 @@ pub struct Follows<L: Language> {
   stop_by: StopBy<L>,
 }
 impl<L: Language> Follows<L> {
-  pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
+  pub fn try_new(relation: Relation, env: &DeserializeEnv<L>) -> Result<Self, RuleSerializeError> {
     if relation.field.is_some() {
       return Err(RuleSerializeError::FieldNotSupported);
     }
     Ok(Self {
-      stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
-      former: deserialize_rule(relation.rule, lang)?,
+      stop_by: StopBy::try_from(relation.stop_by, env)?,
+      former: deserialize_rule(relation.rule, env)?,
     })
   }
 }
