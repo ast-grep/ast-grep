@@ -285,6 +285,9 @@ fn deserialze_composite_rule<L: Language>(
       lang.clone(),
     )?))));
   }
+  if let Some(s) = composite.matches {
+    todo!("todo {s}")
+  }
   Ok(())
 }
 

@@ -37,6 +37,8 @@ pub struct SerializableRule {
   pub any: Maybe<Vec<SerializableRule>>,
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub not: Maybe<Box<SerializableRule>>,
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  pub matches: Maybe<String>,
 }
 
 pub struct Categorized {
@@ -63,6 +65,7 @@ impl SerializableRule {
         all: self.all.into(),
         any: self.any.into(),
         not: self.not.into(),
+        matches: self.matches.into(),
       },
     }
   }
@@ -100,13 +103,6 @@ pub struct Relation {
   pub field: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Default)]
-pub struct CompositeRule {
-  pub all: Option<Vec<SerializableRule>>,
-  pub any: Option<Vec<SerializableRule>>,
-  pub not: Option<Box<SerializableRule>>,
-}
-
 #[derive(Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum SerializableStopBy {
@@ -114,6 +110,14 @@ pub enum SerializableStopBy {
   #[default]
   End,
   Rule(SerializableRule),
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct CompositeRule {
+  pub all: Option<Vec<SerializableRule>>,
+  pub any: Option<Vec<SerializableRule>>,
+  pub not: Option<Box<SerializableRule>>,
+  pub matches: Option<String>,
 }
 
 struct StopByVisitor;
