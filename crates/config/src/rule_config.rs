@@ -1,3 +1,4 @@
+use crate::referent_rule::{ReferentRule, ReferentRuleError};
 use crate::relational_rule::{Follows, Has, Inside, Precedes};
 use crate::serialized_rule::{
   AtomicRule, CompositeRule, PatternStyle, RelationalRule, SerializableRule,
@@ -158,16 +159,20 @@ impl<L: Language> Deref for RuleConfig<L> {
 }
 
 pub enum Rule<L: Language> {
-  All(o::All<L, Rule<L>>),
-  Any(o::Any<L, Rule<L>>),
-  Not(Box<o::Not<L, Rule<L>>>),
+  // atomic
+  Pattern(Pattern<L>),
+  Kind(KindMatcher<L>),
+  Regex(RegexMatcher<L>),
+  // relational
   Inside(Box<Inside<L>>),
   Has(Box<Has<L>>),
   Precedes(Box<Precedes<L>>),
   Follows(Box<Follows<L>>),
-  Pattern(Pattern<L>),
-  Kind(KindMatcher<L>),
-  Regex(RegexMatcher<L>),
+  // composite
+  All(o::All<L, Rule<L>>),
+  Any(o::Any<L, Rule<L>>),
+  Not(Box<o::Not<L, Rule<L>>>),
+  Matches(ReferentRule<L>),
 }
 
 impl<L: Language> Matcher<L> for Rule<L> {
@@ -178,32 +183,40 @@ impl<L: Language> Matcher<L> for Rule<L> {
   ) -> Option<Node<'tree, L>> {
     use Rule::*;
     match self {
-      All(all) => all.match_node_with_env(node, env),
-      Any(any) => any.match_node_with_env(node, env),
-      Not(not) => not.match_node_with_env(node, env),
+      // atomic
+      Pattern(pattern) => pattern.match_node_with_env(node, env),
+      Kind(kind) => kind.match_node_with_env(node, env),
+      Regex(regex) => regex.match_node_with_env(node, env),
+      // relational
       Inside(parent) => match_and_add_label(&**parent, node, env),
       Has(child) => match_and_add_label(&**child, node, env),
       Precedes(latter) => match_and_add_label(&**latter, node, env),
       Follows(former) => match_and_add_label(&**former, node, env),
-      Pattern(pattern) => pattern.match_node_with_env(node, env),
-      Kind(kind) => kind.match_node_with_env(node, env),
-      Regex(regex) => regex.match_node_with_env(node, env),
+      // composite
+      All(all) => all.match_node_with_env(node, env),
+      Any(any) => any.match_node_with_env(node, env),
+      Not(not) => not.match_node_with_env(node, env),
+      Matches(rule) => rule.match_node_with_env(node, env),
     }
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
     use Rule::*;
     match self {
-      All(all) => all.potential_kinds(),
-      Any(any) => any.potential_kinds(),
-      Not(not) => not.potential_kinds(),
+      // atomic
+      Pattern(pattern) => pattern.potential_kinds(),
+      Kind(kind) => kind.potential_kinds(),
+      Regex(regex) => regex.potential_kinds(),
+      // relational
       Inside(parent) => parent.potential_kinds(),
       Has(child) => child.potential_kinds(),
       Precedes(latter) => latter.potential_kinds(),
       Follows(former) => former.potential_kinds(),
-      Pattern(pattern) => pattern.potential_kinds(),
-      Kind(kind) => kind.potential_kinds(),
-      Regex(regex) => regex.potential_kinds(),
+      // composite
+      All(all) => all.potential_kinds(),
+      Any(any) => any.potential_kinds(),
+      Not(not) => not.potential_kinds(),
+      Matches(rule) => rule.potential_kinds(),
     }
   }
 }
@@ -236,6 +249,8 @@ pub enum RuleSerializeError {
   InvalidPattern(#[from] PatternError),
   #[error("Rule contains invalid regex matcher.")]
   WrongRegex(#[from] RegexMatcherError),
+  #[error("Rule contains invalid matches reference.")]
+  MatchesRefrence(#[from] ReferentRuleError),
   #[error("field is only supported in has/inside.")]
   FieldNotSupported,
 }
@@ -280,13 +295,12 @@ fn deserialze_composite_rule<L: Language>(
     rules.push(R::Any(o::Any::new(convert_rules(any)?)));
   }
   if let Some(not) = composite.not {
-    rules.push(R::Not(Box::new(o::Not::new(try_from_serializable(
-      *not,
-      lang.clone(),
-    )?))));
+    let not = o::Not::new(try_from_serializable(*not, lang.clone())?);
+    rules.push(R::Not(Box::new(not)));
   }
-  if let Some(s) = composite.matches {
-    todo!("todo {s}")
+  if let Some(id) = composite.matches {
+    let matches = ReferentRule::try_new(id)?;
+    rules.push(R::Matches(matches));
   }
   Ok(())
 }

@@ -1,5 +1,6 @@
 mod constraints;
 mod maybe;
+mod referent_rule;
 mod relational_rule;
 mod rule_collection;
 mod rule_config;
