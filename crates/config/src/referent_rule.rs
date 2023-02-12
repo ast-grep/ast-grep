@@ -8,11 +8,26 @@ use bit_set::BitSet;
 use thiserror::Error;
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 #[derive(Clone)]
 pub struct RuleRegistration<L: Language> {
   inner: Arc<RwLock<HashMap<String, RuleWithConstraint<L>>>>,
+}
+
+// these are shit code
+impl<L: Language> RuleRegistration<L> {
+  fn get_rules(&self) -> RwLockReadGuard<HashMap<String, RuleWithConstraint<L>>> {
+    self.inner.read().unwrap()
+  }
+  fn insert_rule(&self, id: String, rule: RuleWithConstraint<L>) -> Result<(), ReferentRuleError> {
+    let mut map = self.inner.write().unwrap(); // TODO
+    if map.contains_key(&id) {
+      return Err(ReferentRuleError::DupicateRule(id));
+    }
+    map.insert(id, rule);
+    Ok(())
+  }
 }
 
 impl<L: Language> Default for RuleRegistration<L> {
@@ -27,6 +42,8 @@ impl<L: Language> Default for RuleRegistration<L> {
 pub enum ReferentRuleError {
   #[error("Rule `{0}` is not found.")]
   RuleNotFound(String),
+  #[error("Duplicate rule id `{0}` is found.")]
+  DupicateRule(String),
 }
 
 pub struct ReferentRule<L: Language> {
@@ -50,12 +67,16 @@ impl<L: Language> ReferentRule<L> {
 impl<L: Language> Matcher<L> for ReferentRule<L> {
   fn match_node_with_env<'tree>(
     &self,
-    _node: Node<'tree, L>,
-    _env: &mut MetaVarEnv<'tree, L>,
+    node: Node<'tree, L>,
+    env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
-    todo!()
+    let rules = self.registration.get_rules();
+    let rule = rules.get(&self.rule_id)?;
+    rule.match_node_with_env(node, env)
   }
   fn potential_kinds(&self) -> Option<BitSet> {
-    todo!()
+    let rules = self.registration.get_rules();
+    let rule = rules.get(&self.rule_id)?;
+    rule.potential_kinds()
   }
 }
