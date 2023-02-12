@@ -1,4 +1,4 @@
-use crate::rule_config::{try_from_serializable, Rule, RuleSerializeError};
+use crate::rule_config::{deserialize_rule, Rule, RuleSerializeError};
 use crate::serialized_rule::{Relation, SerializableStopBy};
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
@@ -28,7 +28,7 @@ impl<L: Language> StopBy<L> {
     Ok(match relation {
       S::Neighbor => StopBy::Neighbor,
       S::End => StopBy::End,
-      S::Rule(r) => StopBy::Rule(try_from_serializable(r, lang)?),
+      S::Rule(r) => StopBy::Rule(deserialize_rule(r, lang)?), // TODO
     })
   }
 }
@@ -58,7 +58,7 @@ impl<L: Language> Inside<L> {
     Ok(Self {
       stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
       field: relation.field,
-      outer: try_from_serializable(relation.rule, lang)?,
+      outer: deserialize_rule(relation.rule, lang)?, // TODO
     })
   }
 }
@@ -101,7 +101,7 @@ impl<L: Language> Has<L> {
   pub fn try_new(relation: Relation, lang: L) -> Result<Self, RuleSerializeError> {
     Ok(Self {
       stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
-      inner: try_from_serializable(relation.rule, lang)?,
+      inner: deserialize_rule(relation.rule, lang)?,
       field: relation.field,
     })
   }
@@ -168,7 +168,7 @@ impl<L: Language> Precedes<L> {
     }
     Ok(Self {
       stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
-      later: try_from_serializable(relation.rule, lang)?,
+      later: deserialize_rule(relation.rule, lang)?,
     })
   }
 }
@@ -195,7 +195,7 @@ impl<L: Language> Follows<L> {
     }
     Ok(Self {
       stop_by: StopBy::try_from(relation.stop_by, lang.clone())?,
-      former: try_from_serializable(relation.rule, lang)?,
+      former: deserialize_rule(relation.rule, lang)?,
     })
   }
 }
