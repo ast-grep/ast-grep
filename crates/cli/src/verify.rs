@@ -683,6 +683,7 @@ mod test {
       fix: None,
       constraints: None,
       files: None,
+      utils: None,
       ignores: None,
       url: None,
       metadata: None,
