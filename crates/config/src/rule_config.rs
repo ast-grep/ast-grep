@@ -52,6 +52,8 @@ pub struct SerializableRuleConfig<L: Language> {
   pub fix: Option<String>,
   /// Addtional meta variables pattern to filter matching
   pub constraints: Option<HashMap<String, SerializableMetaVarMatcher>>,
+  /// Utility rules that can be used in `matches`
+  pub utils: Option<HashMap<String, SerializableRule>>,
   /// Glob patterns to specify that the rule only applies to matching files
   pub files: Option<Vec<String>>,
   /// Glob patterns that exclude rules from applying to files
@@ -71,9 +73,26 @@ impl<L: Language> SerializableRuleConfig<L> {
     Ok(RuleWithConstraint::new(rule, matchers))
   }
 
+  fn get_util_rules(&self) -> RResult<RuleRegistration<L>> {
+    let registration = RuleRegistration::default();
+    let env = DeserializeEnv::new(self.language.clone()).register_utils(registration.clone());
+    if let Some(utils) = &self.utils {
+      for (id, rule) in utils {
+        let id = id.clone();
+        let rule = RuleWithConstraint::new(
+          deserialize_rule(rule.clone(), &env)?,
+          MetaVarMatchers::default(),
+        );
+        registration.insert_rule(id, rule).unwrap();
+      }
+    }
+    Ok(registration)
+  }
+
   fn get_rule(&self) -> RResult<Rule<L>> {
     // TODO: add rules
-    let env = DeserializeEnv::new(self.language.clone());
+    let registration = self.get_util_rules()?;
+    let env = DeserializeEnv::new(self.language.clone()).register_utils(registration);
     Ok(deserialize_rule(self.rule.clone(), &env)?)
   }
 
@@ -266,6 +285,11 @@ impl<L: Language> DeserializeEnv<L> {
       lang,
     }
   }
+
+  pub fn register_utils(mut self, registration: RuleRegistration<L>) -> Self {
+    self.registration = registration;
+    self
+  }
 }
 
 // TODO: implement positive/non positive
@@ -379,6 +403,7 @@ mod test {
       rule,
       fix: None,
       constraints: None,
+      utils: None,
       files: None,
       ignores: None,
       url: None,

@@ -17,10 +17,14 @@ pub struct RuleRegistration<L: Language> {
 
 // these are shit code
 impl<L: Language> RuleRegistration<L> {
-  fn get_rules(&self) -> RwLockReadGuard<HashMap<String, RuleWithConstraint<L>>> {
+  pub fn get_rules(&self) -> RwLockReadGuard<HashMap<String, RuleWithConstraint<L>>> {
     self.inner.read().unwrap()
   }
-  fn insert_rule(&self, id: String, rule: RuleWithConstraint<L>) -> Result<(), ReferentRuleError> {
+  pub fn insert_rule(
+    &self,
+    id: String,
+    rule: RuleWithConstraint<L>,
+  ) -> Result<(), ReferentRuleError> {
     let mut map = self.inner.write().unwrap(); // TODO
     if map.contains_key(&id) {
       return Err(ReferentRuleError::DupicateRule(id));
