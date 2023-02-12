@@ -1,4 +1,4 @@
-use crate::referent_rule::{ReferentRule, ReferentRuleError};
+use crate::referent_rule::{ReferentRule, ReferentRuleError, RuleRegistration};
 use crate::relational_rule::{Follows, Has, Inside, Precedes};
 use crate::serialized_rule::{
   AtomicRule, CompositeRule, PatternStyle, RelationalRule, SerializableRule,
@@ -72,10 +72,8 @@ impl<L: Language> SerializableRuleConfig<L> {
   }
 
   fn get_rule(&self) -> RResult<Rule<L>> {
-    Ok(try_from_serializable(
-      self.rule.clone(),
-      self.language.clone(),
-    )?)
+    // TODO: add rules
+    Ok(deserialize_rule(self.rule.clone(), self.language.clone())?)
   }
 
   pub fn get_fixer(&self) -> RResult<Option<Pattern<L>>> {
@@ -254,10 +252,17 @@ pub enum RuleSerializeError {
   #[error("field is only supported in has/inside.")]
   FieldNotSupported,
 }
+pub fn deserialize_rule<L: Language>(
+  serialized: SerializableRule,
+  lang: L,
+) -> Result<Rule<L>, RuleSerializeError> {
+  deserialize_rule_with_registered_rule(serialized, RuleRegistration::default(), lang)
+}
 
 // TODO: implement positive/non positive
-pub fn try_from_serializable<L: Language>(
+pub fn deserialize_rule_with_registered_rule<L: Language>(
   serialized: SerializableRule,
+  registration: RuleRegistration<L>,
   lang: L,
 ) -> Result<Rule<L>, RuleSerializeError> {
   let mut rules = Vec::with_capacity(1);
@@ -265,7 +270,7 @@ pub fn try_from_serializable<L: Language>(
   let categorized = serialized.categorized();
   deserialze_atomic_rule(categorized.atomic, &mut rules, &lang)?;
   deserialize_relational_rule(categorized.relational, &mut rules, &lang)?;
-  deserialze_composite_rule(categorized.composite, &mut rules, &lang)?;
+  deserialze_composite_rule(categorized.composite, &mut rules, registration, &lang)?;
   if rules.is_empty() {
     Err(RuleSerializeError::MissPositiveMatcher)
   } else if rules.len() == 1 {
@@ -278,13 +283,18 @@ pub fn try_from_serializable<L: Language>(
 fn deserialze_composite_rule<L: Language>(
   composite: CompositeRule,
   rules: &mut Vec<Rule<L>>,
+  registration: RuleRegistration<L>,
   lang: &L,
 ) -> Result<(), RuleSerializeError> {
   use Rule as R;
   let convert_rules = |rules: Vec<SerializableRule>| -> Result<_, RuleSerializeError> {
     let mut inner = Vec::with_capacity(rules.len());
     for rule in rules {
-      inner.push(try_from_serializable(rule, lang.clone())?);
+      inner.push(deserialize_rule_with_registered_rule(
+        rule,
+        registration.clone(),
+        lang.clone(),
+      )?);
     }
     Ok(inner)
   };
@@ -295,11 +305,15 @@ fn deserialze_composite_rule<L: Language>(
     rules.push(R::Any(o::Any::new(convert_rules(any)?)));
   }
   if let Some(not) = composite.not {
-    let not = o::Not::new(try_from_serializable(*not, lang.clone())?);
+    let not = o::Not::new(deserialize_rule_with_registered_rule(
+      *not,
+      registration.clone(),
+      lang.clone(),
+    )?);
     rules.push(R::Not(Box::new(not)));
   }
   if let Some(id) = composite.matches {
-    let matches = ReferentRule::try_new(id)?;
+    let matches = ReferentRule::try_new(id, registration)?;
     rules.push(R::Matches(matches));
   }
   Ok(())
