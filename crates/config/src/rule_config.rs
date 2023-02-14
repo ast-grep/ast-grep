@@ -336,7 +336,7 @@ fn deserialze_composite_rule<L: Language>(
     rules.push(R::Not(Box::new(not)));
   }
   if let Some(id) = composite.matches {
-    let matches = ReferentRule::try_new(id, env.registration.clone())?;
+    let matches = ReferentRule::try_new(id, &env.registration)?;
     rules.push(R::Matches(matches));
   }
   Ok(())

@@ -8,7 +8,7 @@ use bit_set::BitSet;
 use thiserror::Error;
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, RwLockReadGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard, Weak};
 
 #[derive(Clone)]
 pub struct RuleRegistration<L: Language> {
@@ -20,6 +20,12 @@ impl<L: Language> RuleRegistration<L> {
   pub fn get_rules(&self) -> RwLockReadGuard<HashMap<String, RuleWithConstraint<L>>> {
     self.inner.read().unwrap()
   }
+
+  pub fn get_ref(&self) -> RegistrationRef<L> {
+    let inner = Arc::downgrade(&self.inner);
+    RegistrationRef { inner }
+  }
+
   pub fn insert_rule(
     &self,
     id: String,
@@ -31,6 +37,17 @@ impl<L: Language> RuleRegistration<L> {
     }
     map.insert(id, rule);
     Ok(())
+  }
+}
+
+pub struct RegistrationRef<L: Language> {
+  inner: Weak<RwLock<HashMap<String, RuleWithConstraint<L>>>>,
+}
+// these are shit code
+impl<L: Language> RegistrationRef<L> {
+  pub fn unref(&self) -> RuleRegistration<L> {
+    let inner = self.inner.upgrade().unwrap();
+    RuleRegistration { inner }
   }
 }
 
@@ -52,17 +69,16 @@ pub enum ReferentRuleError {
 
 pub struct ReferentRule<L: Language> {
   rule_id: String,
-  // TODO: this is WRONG! we should use weak ref here
-  registration: RuleRegistration<L>,
+  reg_ref: RegistrationRef<L>,
 }
 
 impl<L: Language> ReferentRule<L> {
   pub fn try_new(
     rule_id: String,
-    registration: RuleRegistration<L>,
+    registration: &RuleRegistration<L>,
   ) -> Result<Self, ReferentRuleError> {
     Ok(Self {
-      registration,
+      reg_ref: registration.get_ref(),
       rule_id,
     })
   }
@@ -74,12 +90,14 @@ impl<L: Language> Matcher<L> for ReferentRule<L> {
     node: Node<'tree, L>,
     env: &mut MetaVarEnv<'tree, L>,
   ) -> Option<Node<'tree, L>> {
-    let rules = self.registration.get_rules();
+    let registration = self.reg_ref.unref();
+    let rules = registration.get_rules();
     let rule = rules.get(&self.rule_id)?;
     rule.match_node_with_env(node, env)
   }
   fn potential_kinds(&self) -> Option<BitSet> {
-    let rules = self.registration.get_rules();
+    let registration = self.reg_ref.unref();
+    let rules = registration.get_rules();
     let rule = rules.get(&self.rule_id)?;
     rule.potential_kinds()
   }
