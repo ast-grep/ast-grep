@@ -40,6 +40,14 @@ impl<L: Language> RuleRegistration<L> {
   }
 }
 
+impl<L: Language> Default for RuleRegistration<L> {
+  fn default() -> Self {
+    Self {
+      inner: Default::default(),
+    }
+  }
+}
+
 pub struct RegistrationRef<L: Language> {
   inner: Weak<RwLock<HashMap<String, RuleWithConstraint<L>>>>,
 }
@@ -48,14 +56,6 @@ impl<L: Language> RegistrationRef<L> {
   pub fn unref(&self) -> RuleRegistration<L> {
     let inner = self.inner.upgrade().unwrap();
     RuleRegistration { inner }
-  }
-}
-
-impl<L: Language> Default for RuleRegistration<L> {
-  fn default() -> Self {
-    Self {
-      inner: Default::default(),
-    }
   }
 }
 
@@ -100,5 +100,28 @@ impl<L: Language> Matcher<L> for ReferentRule<L> {
     let rules = registration.get_rules();
     let rule = rules.get(&self.rule_id)?;
     rule.potential_kinds()
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::rule_config::Rule;
+  use crate::test::TypeScript as TS;
+  use crate::RuleWithConstraint;
+  use ast_grep_core::meta_var::MetaVarMatchers;
+
+  #[test]
+  #[ignore = "fix stack overflow"]
+  fn test_potential_kinds() -> Result<(), ReferentRuleError> {
+    let registration = RuleRegistration::<TS>::default();
+    let rule = ReferentRule::try_new("test".into(), &registration)?;
+    let rule = Rule::Matches(rule);
+    let rule = RuleWithConstraint::new(rule, MetaVarMatchers::default());
+    registration.insert_rule("test".into(), rule)?;
+    let rules = registration.get_rules();
+    let rule = rules.get("test").unwrap();
+    assert_eq!(rule.potential_kinds(), None);
+    Ok(())
   }
 }
