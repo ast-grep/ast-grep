@@ -116,15 +116,42 @@ mod test {
   use crate::test::TypeScript as TS;
   use crate::RuleWithConstraint;
   use ast_grep_core::meta_var::MetaVarMatchers;
+  use ast_grep_core::ops as o;
+  use ast_grep_core::Pattern;
+
+  type Result = std::result::Result<(), ReferentRuleError>;
 
   #[test]
-  fn test_cyclic_error() -> Result<(), ReferentRuleError> {
+  fn test_cyclic_error() -> Result {
     let registration = RuleRegistration::<TS>::default();
     let rule = ReferentRule::try_new("test".into(), &registration)?;
     let rule = Rule::Matches(rule);
     let rule = RuleWithConstraint::new(rule, MetaVarMatchers::default());
     let error = registration.insert_rule("test", rule);
     assert!(matches!(error, Err(ReferentRuleError::CyclicRule)));
+    Ok(())
+  }
+
+  #[test]
+  fn test_cyclic_all() -> Result {
+    let registration = RuleRegistration::<TS>::default();
+    let rule = ReferentRule::try_new("test".into(), &registration)?;
+    let rule = Rule::All(o::All::new(std::iter::once(Rule::Matches(rule))));
+    let rule = RuleWithConstraint::new(rule, MetaVarMatchers::default());
+    let error = registration.insert_rule("test", rule);
+    assert!(matches!(error, Err(ReferentRuleError::CyclicRule)));
+    Ok(())
+  }
+
+  #[test]
+  fn test_success_rule() -> Result {
+    let registration = RuleRegistration::<TS>::default();
+    let rule = ReferentRule::try_new("test".into(), &registration)?;
+    let pattern = Rule::Pattern(Pattern::new("some", TS::Tsx));
+    let pattern = RuleWithConstraint::new(pattern, MetaVarMatchers::default());
+    let ret = registration.insert_rule("test", pattern);
+    assert!(ret.is_ok());
+    assert!(rule.potential_kinds().is_some());
     Ok(())
   }
 }
