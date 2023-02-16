@@ -10,6 +10,7 @@ use bit_set::BitSet;
 use thiserror::Error;
 
 use std::collections::HashMap;
+use std::ops::Deref;
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -69,6 +70,12 @@ impl<L: Language> RuleWithConstraint<L> {
       kinds,
       matchers,
     }
+  }
+}
+impl<L: Language> Deref for RuleWithConstraint<L> {
+  type Target = Rule<L>;
+  fn deref(&self) -> &Self::Target {
+    &self.rule
   }
 }
 

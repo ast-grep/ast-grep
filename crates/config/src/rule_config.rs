@@ -78,7 +78,6 @@ impl<L: Language> SerializableRuleConfig<L> {
     let env = DeserializeEnv::new(self.language.clone()).register_utils(registration.clone());
     if let Some(utils) = &self.utils {
       for (id, rule) in utils {
-        let id = id.clone();
         let rule = RuleWithConstraint::new(
           deserialize_rule(rule.clone(), &env)?,
           MetaVarMatchers::default(),
@@ -191,6 +190,34 @@ pub enum Rule<L: Language> {
   Any(o::Any<L, Rule<L>>),
   Not(Box<o::Not<L, Rule<L>>>),
   Matches(ReferentRule<L>),
+}
+impl<L: Language> Rule<L> {
+  pub fn is_atomic(&self) -> bool {
+    use Rule::*;
+    matches!(self, Pattern(_) | Kind(_) | Regex(_))
+  }
+  pub fn is_relational(&self) -> bool {
+    use Rule::*;
+    matches!(self, Inside(_) | Has(_) | Precedes(_) | Follows(_))
+  }
+
+  pub fn is_composite(&self) -> bool {
+    use Rule::*;
+    matches!(self, All(_) | Any(_) | Not(_) | Matches(_))
+  }
+
+  pub(crate) fn check_cyclic(&self, id: &str) -> bool {
+    match self {
+      Rule::All(all) => all.inner().iter().any(|r| r.check_cyclic(id)),
+      Rule::Any(any) => any.inner().iter().any(|r| r.check_cyclic(id)),
+      Rule::Not(not) => not.inner().check_cyclic(id),
+      Rule::Matches(m) => m.rule_id == id,
+      rule => {
+        debug_assert!(!rule.is_composite());
+        false
+      }
+    }
+  }
 }
 
 impl<L: Language> Matcher<L> for Rule<L> {

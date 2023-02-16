@@ -70,6 +70,10 @@ impl<L: Language, P: Matcher<L>> All<L, P> {
     }
     set
   }
+
+  pub fn inner(&self) -> &[P] {
+    &self.patterns
+  }
 }
 
 impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
@@ -122,6 +126,10 @@ impl<L: Language, P: Matcher<L>> Any<L, P> {
       set.union_with(&n);
     }
     Some(set)
+  }
+
+  pub fn inner(&self) -> &[P] {
+    &self.patterns
   }
 }
 
@@ -203,6 +211,10 @@ impl<L: Language, M: Matcher<L>> Not<L, M> {
       not,
       lang: PhantomData,
     }
+  }
+
+  pub fn inner(&self) -> &M {
+    &self.not
   }
 }
 impl<L, P> Matcher<L> for Not<L, P>

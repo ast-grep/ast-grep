@@ -28,14 +28,18 @@ impl<L: Language> RuleRegistration<L> {
 
   pub fn insert_rule(
     &self,
-    id: String,
+    id: &str,
     rule: RuleWithConstraint<L>,
   ) -> Result<(), ReferentRuleError> {
     let mut map = self.inner.write().unwrap(); // TODO
-    if map.contains_key(&id) {
-      return Err(ReferentRuleError::DupicateRule(id));
+    if map.contains_key(id) {
+      return Err(ReferentRuleError::DupicateRule(id.into()));
     }
-    map.insert(id, rule);
+    map.insert(id.to_string(), rule);
+    let rule = map.get(id).unwrap();
+    if rule.check_cyclic(id) {
+      return Err(ReferentRuleError::CyclicRule);
+    }
     Ok(())
   }
 }
@@ -65,10 +69,12 @@ pub enum ReferentRuleError {
   RuleNotFound(String),
   #[error("Duplicate rule id `{0}` is found.")]
   DupicateRule(String),
+  #[error("Rule has a cyclic dependency in its `matches` sub-rule.")]
+  CyclicRule,
 }
 
 pub struct ReferentRule<L: Language> {
-  rule_id: String,
+  pub(crate) rule_id: String,
   reg_ref: RegistrationRef<L>,
 }
 
@@ -112,16 +118,13 @@ mod test {
   use ast_grep_core::meta_var::MetaVarMatchers;
 
   #[test]
-  #[ignore = "fix stack overflow"]
-  fn test_potential_kinds() -> Result<(), ReferentRuleError> {
+  fn test_cyclic_error() -> Result<(), ReferentRuleError> {
     let registration = RuleRegistration::<TS>::default();
     let rule = ReferentRule::try_new("test".into(), &registration)?;
     let rule = Rule::Matches(rule);
     let rule = RuleWithConstraint::new(rule, MetaVarMatchers::default());
-    registration.insert_rule("test".into(), rule)?;
-    let rules = registration.get_rules();
-    let rule = rules.get("test").unwrap();
-    assert_eq!(rule.potential_kinds(), None);
+    let error = registration.insert_rule("test", rule);
+    assert!(matches!(error, Err(ReferentRuleError::CyclicRule)));
     Ok(())
   }
 }
