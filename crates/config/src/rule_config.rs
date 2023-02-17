@@ -67,8 +67,8 @@ pub struct SerializableRuleConfig<L: Language> {
 type RResult<T> = Result<T, RuleConfigError>;
 
 impl<L: Language> SerializableRuleConfig<L> {
-  pub fn get_matcher(&self) -> RResult<RuleWithConstraint<L>> {
-    let rule = self.get_rule()?;
+  pub fn get_matcher(&self, registration: RuleRegistration<L>) -> RResult<RuleWithConstraint<L>> {
+    let rule = self.get_rule(registration)?;
     let matchers = self.get_meta_var_matchers()?;
     Ok(RuleWithConstraint::new(rule, matchers))
   }
@@ -88,9 +88,8 @@ impl<L: Language> SerializableRuleConfig<L> {
     Ok(registration)
   }
 
-  fn get_rule(&self) -> RResult<Rule<L>> {
+  fn get_rule(&self, registration: RuleRegistration<L>) -> RResult<Rule<L>> {
     // TODO: add rules
-    let registration = self.get_util_rules()?;
     let env = DeserializeEnv::new(self.language.clone()).register_utils(registration);
     Ok(deserialize_rule(self.rule.clone(), &env)?)
   }
@@ -132,17 +131,21 @@ pub struct RuleConfig<L: Language> {
   inner: SerializableRuleConfig<L>,
   pub matcher: RuleWithConstraint<L>,
   pub fixer: Option<Pattern<L>>,
+  // this is required to hold util rule reference
+  _utils: RuleRegistration<L>,
 }
 
 impl<L: Language> TryFrom<SerializableRuleConfig<L>> for RuleConfig<L> {
   type Error = RuleConfigError;
   fn try_from(inner: SerializableRuleConfig<L>) -> Result<Self, Self::Error> {
-    let matcher = inner.get_matcher()?;
+    let registration = inner.get_util_rules()?;
+    let matcher = inner.get_matcher(registration.clone())?;
     let fixer = inner.get_fixer()?;
     Ok(Self {
       inner,
       matcher,
       fixer,
+      _utils: registration,
     })
   }
 }
@@ -449,7 +452,7 @@ mod test {
     let grep = TypeScript::Tsx.ast_grep("class TestClass {}");
     let node_match = grep
       .root()
-      .find(config.get_matcher().unwrap())
+      .find(config.get_matcher(Default::default()).unwrap())
       .expect("should find match");
     assert_eq!(config.get_message(&node_match), "Found TestClass");
   }
@@ -466,9 +469,15 @@ inside:
     .expect("should parse");
     let config = ts_rule_config(rule);
     let grep = TypeScript::Tsx.ast_grep("console.log(1)");
-    assert!(grep.root().find(config.get_matcher().unwrap()).is_none());
+    assert!(grep
+      .root()
+      .find(config.get_matcher(Default::default()).unwrap())
+      .is_none());
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
-    assert!(grep.root().find(config.get_matcher().unwrap()).is_some());
+    assert!(grep
+      .root()
+      .find(config.get_matcher(Default::default()).unwrap())
+      .is_some());
   }
 
   #[test]
@@ -485,9 +494,15 @@ has:
     .expect("should parse");
     let config = ts_rule_config(rule);
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
-    assert!(grep.root().find(config.get_matcher().unwrap()).is_none());
+    assert!(grep
+      .root()
+      .find(config.get_matcher(Default::default()).unwrap())
+      .is_none());
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(123) }");
-    assert!(grep.root().find(config.get_matcher().unwrap()).is_some());
+    assert!(grep
+      .root()
+      .find(config.get_matcher(Default::default()).unwrap())
+      .is_some());
   }
 
   #[test]
@@ -505,7 +520,7 @@ all:
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
     let node_match = grep
       .root()
-      .find(config.get_matcher().unwrap())
+      .find(config.get_matcher(Default::default()).unwrap())
       .expect("should found");
     let env = node_match.get_env();
     let a = env.get_match("A").expect("should exist").text();
