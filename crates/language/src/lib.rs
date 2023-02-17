@@ -33,6 +33,7 @@ impl_lang!(JavaScript, language_javascript);
 impl_lang!(Kotlin, language_kotlin);
 impl_lang!(Lua, language_lua);
 impl_lang!(Swift, language_swift);
+impl_lang!(Thrift, language_thrift);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
 
@@ -59,6 +60,7 @@ pub enum SupportLang {
   Python,
   Rust,
   Swift,
+  Thrift,
   Tsx,
   TypeScript,
 }
@@ -97,6 +99,7 @@ impl FromStr for SupportLang {
       "py" | "python" => Ok(Python),
       "rs" | "rust" => Ok(Rust),
       "swift" => Ok(Swift),
+      "thrift" => Ok(Thrift),
       "ts" => Ok(TypeScript),
       "tsx" => Ok(Tsx),
       _ => Err(SupportLangErr::LanguageNotSupported(s.to_string())),
@@ -121,6 +124,7 @@ macro_rules! execute_lang_method {
       S::Python => Python.$method($($pname,)*),
       S::Rust => Rust.$method($($pname,)*),
       S::Swift => Swift.$method($($pname,)*),
+      S::Thrift => Thrift.$method($($pname,)*),
       S::Tsx => Tsx.$method($($pname,)*),
       S::TypeScript => TypeScript.$method($($pname,)*),
     }
@@ -169,6 +173,7 @@ pub fn from_extension(path: &Path) -> Option<SupportLang> {
     "py" | "py3" | "pyi" | "bzl" => Some(Python),
     "rs" => Some(Rust),
     "swift" => Some(Swift),
+    "thrift" => Some(Thrift),
     "ts" => Some(TypeScript),
     "tsx" => Some(Tsx),
     _ => None,
@@ -208,6 +213,7 @@ pub fn file_types(lang: &SupportLang) -> Types {
     L::Python => builder.select("py"),
     L::Rust => builder.select("rust"),
     L::Swift => builder.select("swift"),
+    L::Thrift => builder.select("thrift"),
     L::Tsx => {
       builder
         .add("mytsx", "*.tsx")

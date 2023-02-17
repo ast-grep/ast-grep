@@ -46,6 +46,9 @@ mod parser_implmentation {
   pub fn language_swift() -> TSLanguage {
     tree_sitter_swift::language().into()
   }
+  pub fn language_thrift() -> TSLanguage {
+    tree_sitter_thrift::language().into()
+  }
   pub fn language_tsx() -> TSLanguage {
     tree_sitter_typescript::language_tsx().into()
   }
@@ -87,6 +90,7 @@ mod parser_implmentation {
     language_python,
     language_rust,
     language_swift,
+    language_thrift,
     language_tsx,
     language_typescript,
   );

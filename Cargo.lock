@@ -95,6 +95,7 @@ dependencies = [
  "tree-sitter-python",
  "tree-sitter-rust",
  "tree-sitter-swift",
+ "tree-sitter-thrift",
  "tree-sitter-typescript",
 ]
 
@@ -1423,6 +1424,16 @@ name = "tree-sitter-swift"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fe0df6a792c4cd3066239195b65a322066c9ebbff58686a9de3e9ad9f25b510"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
+name = "tree-sitter-thrift"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd6f2cc69291989e590b100be88f41b47e72abf8befcec41e798e37ee389e5db"
 dependencies = [
  "cc",
  "tree-sitter",
