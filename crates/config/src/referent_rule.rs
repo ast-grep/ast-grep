@@ -105,7 +105,7 @@ impl<L: Language> Matcher<L> for ReferentRule<L> {
     let registration = self.reg_ref.unref();
     let rules = registration.get_rules();
     let rule = rules.get(&self.rule_id)?;
-    debug_assert!(!rule.check_cyclic(&self.rule_id));
+    debug_assert!(!rule.check_cyclic(&self.rule_id), "no cyclic rule allowed");
     rule.potential_kinds()
   }
 }

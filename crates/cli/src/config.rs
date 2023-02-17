@@ -25,6 +25,8 @@ pub struct AstGrepConfig {
   pub rule_dirs: Vec<PathBuf>,
   /// test configurations
   pub test_configs: Option<Vec<TestConfig>>,
+  /// util rules directories
+  pub util_dirs: Option<Vec<PathBuf>>,
   /// overriding config for rules
   pub rules: Option<Vec<()>>,
 }
@@ -36,15 +38,23 @@ pub fn find_config(config_path: Option<PathBuf>) -> Result<RuleCollection<Suppor
   let base_dir = config_path
     .parent()
     .expect("config file must have parent directory");
-  read_directory_yaml(base_dir, sg_config)
+  if let Some(util_dirs) = sg_config.util_dirs {
+    find_util_rules(base_dir, util_dirs)?;
+  }
+  read_directory_yaml(base_dir, sg_config.rule_dirs)
+}
+
+fn find_util_rules(base_dir: &Path, util_dirs: Vec<PathBuf>) -> Result<()> {
+  // todo
+  Ok(())
 }
 
 fn read_directory_yaml(
   base_dir: &Path,
-  sg_config: AstGrepConfig,
+  rule_dirs: Vec<PathBuf>,
 ) -> Result<RuleCollection<SupportLang>> {
   let mut configs = vec![];
-  for dir in sg_config.rule_dirs {
+  for dir in rule_dirs {
     let dir_path = base_dir.join(dir);
     let walker = WalkBuilder::new(&dir_path)
       .types(config_file_type())
