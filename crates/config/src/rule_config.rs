@@ -67,7 +67,7 @@ pub struct SerializableRuleConfig<L: Language> {
 type RResult<T> = Result<T, RuleConfigError>;
 
 impl<L: Language> SerializableRuleConfig<L> {
-  pub fn get_matcher(&self, registration: RuleRegistration<L>) -> RResult<RuleWithConstraint<L>> {
+  fn get_matcher(&self, registration: RuleRegistration<L>) -> RResult<RuleWithConstraint<L>> {
     let rule = self.get_rule(registration)?;
     let matchers = self.get_meta_var_matchers()?;
     Ok(RuleWithConstraint::new(rule, matchers))
@@ -94,7 +94,7 @@ impl<L: Language> SerializableRuleConfig<L> {
     Ok(deserialize_rule(self.rule.clone(), &env)?)
   }
 
-  pub fn get_fixer(&self) -> RResult<Option<Pattern<L>>> {
+  fn get_fixer(&self) -> RResult<Option<Pattern<L>>> {
     if let Some(fix) = &self.fix {
       Ok(Some(Pattern::try_new(fix, self.language.clone())?))
     } else {
