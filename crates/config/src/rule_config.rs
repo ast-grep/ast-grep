@@ -528,4 +528,48 @@ all:
     let b = env.get_match("B").expect("should exist").text();
     assert_eq!(b, "test");
   }
+
+  fn get_matches_config() -> SerializableRuleConfig<TypeScript> {
+    let rule = from_str(
+      "
+matches: test-rule
+",
+    )
+    .unwrap();
+    let utils = from_str(
+      "
+test-rule:
+  pattern: some($A)
+",
+    )
+    .unwrap();
+    SerializableRuleConfig {
+      utils: Some(utils),
+      ..ts_rule_config(rule)
+    }
+  }
+
+  #[test]
+  fn test_utils_rule() {
+    let config = get_matches_config();
+    // reg should not be moved here
+    let reg = config.get_util_rules().unwrap();
+    let matcher = config.get_matcher(reg.clone()).unwrap();
+    let grep = TypeScript::Tsx.ast_grep("some(123)");
+    assert!(grep.root().find(&matcher).is_some());
+    let grep = TypeScript::Tsx.ast_grep("some()");
+    assert!(grep.root().find(&matcher).is_none());
+    drop(reg); // drop here
+  }
+
+  #[test]
+  #[should_panic]
+  fn test_utils_wrong_usage() {
+    let config = get_matches_config();
+    // reg should not be moved here
+    let reg = config.get_util_rules().unwrap();
+    let matcher = config.get_matcher(reg).unwrap();
+    let grep = TypeScript::Tsx.ast_grep("some(123)");
+    let _ = grep.root().find(&matcher); // should panic because dropped reg
+  }
 }
