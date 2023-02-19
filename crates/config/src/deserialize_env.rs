@@ -1,9 +1,7 @@
-use crate::constraints::RuleWithConstraint;
 use crate::referent_rule::RuleRegistration;
 use crate::rule::{deserialize_rule, RuleSerializeError, SerializableRule};
 
 use ast_grep_core::language::Language;
-use ast_grep_core::meta_var::MetaVarMatchers;
 
 use std::collections::HashMap;
 
@@ -26,10 +24,7 @@ impl<L: Language> DeserializeEnv<L> {
   ) -> Result<Self, RuleSerializeError> {
     let registration = RuleRegistration::default();
     for (id, rule) in utils {
-      let rule = RuleWithConstraint::new(
-        deserialize_rule(rule.clone(), &self)?,
-        MetaVarMatchers::default(),
-      );
+      let rule = deserialize_rule(rule.clone(), &self)?;
       registration.insert_rule(id, rule)?;
     }
     self.registration = registration;
