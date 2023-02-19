@@ -2,21 +2,21 @@ mod constraints;
 mod maybe;
 mod referent_rule;
 mod relational_rule;
+mod rule;
 mod rule_collection;
 mod rule_config;
-mod serialized_rule;
 
 use serde::Deserialize;
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error as YamlError};
 
 use ast_grep_core::language::Language;
 
+pub use rule::{CompositeRule, SerializableRule};
 pub use rule_collection::RuleCollection;
 pub use rule_config::{
   deserialize_rule, try_deserialize_matchers, DeserializeEnv, Rule, RuleConfig, RuleConfigError,
   RuleWithConstraint, SerializableMetaVarMatcher, SerializableRuleConfig, Severity,
 };
-pub use serialized_rule::{CompositeRule, SerializableRule};
 
 pub fn from_str<'de, T: Deserialize<'de>>(s: &'de str) -> Result<T, YamlError> {
   let deserializer = Deserializer::from_str(s);

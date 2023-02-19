@@ -1,5 +1,5 @@
+use crate::rule::{Relation, SerializableStopBy};
 use crate::rule_config::{deserialize_rule, DeserializeEnv, Rule, RuleSerializeError};
-use crate::serialized_rule::{Relation, SerializableStopBy};
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Matcher, Node};
