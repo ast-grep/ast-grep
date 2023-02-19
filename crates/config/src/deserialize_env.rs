@@ -30,8 +30,4 @@ impl<L: Language> DeserializeEnv<L> {
     self.registration = registration;
     Ok(self)
   }
-  pub fn with_registration(mut self, registration: RuleRegistration<L>) -> Self {
-    self.registration = registration;
-    self
-  }
 }
