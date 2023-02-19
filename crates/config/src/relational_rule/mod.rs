@@ -1,54 +1,22 @@
+mod stop_by;
+
 use crate::deserialize_env::DeserializeEnv;
-use crate::rule::{deserialize_rule, Relation, Rule, RuleSerializeError, SerializableStopBy};
+use crate::rule::{deserialize_rule, Rule, RuleSerializeError, SerializableRule};
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Matcher, Node};
+use stop_by::{SerializableStopBy, StopBy};
 
-fn inclusive_until<L: Language>(rule: &Rule<L>) -> impl FnMut(&Node<L>) -> bool + '_ {
-  let mut matched = false;
-  move |n| {
-    if matched {
-      false
-    } else {
-      matched = n.matches(rule);
-      true
-    }
-  }
-}
+use serde::{Deserialize, Serialize};
 
-pub enum StopBy<L: Language> {
-  Neighbor,
-  End,
-  Rule(Rule<L>),
-}
-
-impl<L: Language> StopBy<L> {
-  fn try_from(
-    relation: SerializableStopBy,
-    env: &DeserializeEnv<L>,
-  ) -> Result<Self, RuleSerializeError> {
-    use SerializableStopBy as S;
-    Ok(match relation {
-      S::Neighbor => StopBy::Neighbor,
-      S::End => StopBy::End,
-      S::Rule(r) => StopBy::Rule(deserialize_rule(r, env)?),
-    })
-  }
-}
-
-impl<L: Language> StopBy<L> {
-  fn find<'t, I, F>(&self, mut iter: I, mut finder: F) -> Option<Node<'t, L>>
-  where
-    L: 't,
-    I: Iterator<Item = Node<'t, L>>,
-    F: FnMut(Node<'t, L>) -> Option<Node<'t, L>>,
-  {
-    match self {
-      StopBy::End => iter.find_map(finder),
-      StopBy::Neighbor => finder(iter.next()?),
-      StopBy::Rule(stop) => iter.take_while(inclusive_until(stop)).find_map(finder),
-    }
-  }
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Relation {
+  #[serde(flatten)]
+  pub rule: SerializableRule,
+  #[serde(default)]
+  pub stop_by: SerializableStopBy,
+  pub field: Option<String>,
 }
 
 pub struct Inside<L: Language> {

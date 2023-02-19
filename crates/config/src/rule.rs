@@ -1,7 +1,7 @@
 use crate::deserialize_env::DeserializeEnv;
 use crate::maybe::Maybe;
 use crate::referent_rule::{ReferentRule, ReferentRuleError};
-use crate::relational_rule::{Follows, Has, Inside, Precedes};
+use crate::relational_rule::{Follows, Has, Inside, Precedes, Relation};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
@@ -10,11 +10,8 @@ use ast_grep_core::ops as o;
 use ast_grep_core::{Matcher, Node, Pattern, PatternError};
 
 use bit_set::BitSet;
-use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-
-use std::fmt;
 
 /// We have three kinds of rules in ast-grep.
 /// * Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.
@@ -105,69 +102,12 @@ pub struct RelationalRule {
   pub follows: Option<Box<Relation>>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct Relation {
-  #[serde(flatten)]
-  pub rule: SerializableRule,
-  #[serde(default)]
-  pub stop_by: SerializableStopBy,
-  pub field: Option<String>,
-}
-
-#[derive(Serialize, Clone, Default)]
-#[serde(rename_all = "camelCase")]
-pub enum SerializableStopBy {
-  Neighbor,
-  #[default]
-  End,
-  Rule(SerializableRule),
-}
-
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct CompositeRule {
   pub all: Option<Vec<SerializableRule>>,
   pub any: Option<Vec<SerializableRule>>,
   pub not: Option<Box<SerializableRule>>,
   pub matches: Option<String>,
-}
-
-struct StopByVisitor;
-impl<'de> Visitor<'de> for StopByVisitor {
-  type Value = SerializableStopBy;
-  fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-    formatter.write_str("`neighbor`, `end` or a rule object")
-  }
-
-  fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-  where
-    E: de::Error,
-  {
-    match value {
-      "neighbor" => Ok(SerializableStopBy::Neighbor),
-      "end" => Ok(SerializableStopBy::End),
-      v => Err(de::Error::custom(format!(
-        "unknown variant `{v}`, expected `neighbor`, `end` or a rule object",
-      ))),
-    }
-  }
-
-  fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
-  where
-    A: MapAccess<'de>,
-  {
-    let rule = Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))?;
-    Ok(SerializableStopBy::Rule(rule))
-  }
-}
-
-impl<'de> Deserialize<'de> for SerializableStopBy {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    deserializer.deserialize_any(StopByVisitor)
-  }
 }
 
 pub enum Rule<L: Language> {
@@ -413,18 +353,6 @@ pattern:
   }
 
   #[test]
-  fn test_relational() {
-    let src = r"
-inside:
-  pattern: class A {}
-  stopBy: neighbor
-";
-    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
-    let stop_by = rule.inside.unwrap().stop_by;
-    assert!(matches!(stop_by, SerializableStopBy::Neighbor));
-  }
-
-  #[test]
   fn test_augmentation() {
     let src = r"
 pattern: class A {}
@@ -479,37 +407,5 @@ inside:
     let inside = rule.inside.unwrap();
     assert!(inside.rule.pattern.is_present());
     assert!(inside.rule.inside.unwrap().rule.pattern.is_present());
-  }
-
-  fn to_stop_by(src: &str) -> Result<SerializableStopBy, serde_yaml::Error> {
-    from_str(src)
-  }
-
-  #[test]
-  fn test_stop_by_ok() {
-    let stop = to_stop_by("'neighbor'").expect("cannot parse stopBy");
-    assert!(matches!(stop, SerializableStopBy::Neighbor));
-    let stop = to_stop_by("'end'").expect("cannot parse stopBy");
-    assert!(matches!(stop, SerializableStopBy::End));
-    let stop = to_stop_by("kind: some-kind").expect("cannot parse stopBy");
-    assert!(matches!(stop, SerializableStopBy::Rule(_)));
-  }
-
-  macro_rules! cast_err {
-    ($reg: expr) => {
-      match $reg {
-        Err(a) => a,
-        _ => panic!("non-matching variant"),
-      }
-    };
-  }
-
-  #[test]
-  fn test_stop_by_err() {
-    let err = cast_err!(to_stop_by("'ddd'")).to_string();
-    assert!(err.contains("unknown variant"));
-    assert!(err.contains("ddd"));
-    let err = cast_err!(to_stop_by("pattern: 1233"));
-    assert!(err.to_string().contains("variant"));
   }
 }
