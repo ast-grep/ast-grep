@@ -1,4 +1,5 @@
 mod constraints;
+mod deserialize_env;
 mod maybe;
 mod referent_rule;
 mod relational_rule;
@@ -11,11 +12,12 @@ use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error
 
 use ast_grep_core::language::Language;
 
-pub use rule::{CompositeRule, Rule, SerializableRule};
+pub use deserialize_env::DeserializeEnv;
+pub use rule::{deserialize_rule, Rule, RuleSerializeError, SerializableRule};
 pub use rule_collection::RuleCollection;
 pub use rule_config::{
-  deserialize_rule, try_deserialize_matchers, DeserializeEnv, RuleConfig, RuleConfigError,
-  RuleWithConstraint, SerializableMetaVarMatcher, SerializableRuleConfig, Severity,
+  try_deserialize_matchers, RuleConfig, RuleConfigError, RuleWithConstraint,
+  SerializableMetaVarMatcher, SerializableRuleConfig, Severity,
 };
 
 pub fn from_str<'de, T: Deserialize<'de>>(s: &'de str) -> Result<T, YamlError> {
