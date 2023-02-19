@@ -41,6 +41,26 @@ pub struct SerializableRuleCore<L: Language> {
   pub utils: Option<HashMap<String, SerializableRule>>,
 }
 
+impl<L: Language> SerializableRuleCore<L> {
+  fn get_meta_var_matchers(&self) -> RResult<MetaVarMatchers<L>> {
+    Ok(if let Some(constraints) = self.constraints.clone() {
+      try_deserialize_matchers(constraints, self.language.clone())?
+    } else {
+      MetaVarMatchers::default()
+    })
+  }
+
+  fn get_rule(&self, env: &DeserializeEnv<L>) -> RResult<Rule<L>> {
+    Ok(deserialize_rule(self.rule.clone(), env)?)
+  }
+
+  fn get_matcher(&self, env: &DeserializeEnv<L>) -> RResult<RuleWithConstraint<L>> {
+    let rule = self.get_rule(env)?;
+    let matchers = self.get_meta_var_matchers()?;
+    Ok(RuleWithConstraint::new(rule, matchers))
+  }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializableRuleConfig<L: Language> {
   #[serde(flatten)]
@@ -67,12 +87,6 @@ pub struct SerializableRuleConfig<L: Language> {
 type RResult<T> = std::result::Result<T, RuleConfigError>;
 
 impl<L: Language> SerializableRuleConfig<L> {
-  fn get_matcher(&self, env: &DeserializeEnv<L>) -> RResult<RuleWithConstraint<L>> {
-    let rule = self.get_rule(env)?;
-    let matchers = self.get_meta_var_matchers()?;
-    Ok(RuleWithConstraint::new(rule, matchers))
-  }
-
   fn get_deserialize_env(&self) -> RResult<DeserializeEnv<L>> {
     let env = DeserializeEnv::new(self.language.clone());
     if let Some(utils) = &self.utils {
@@ -83,24 +97,12 @@ impl<L: Language> SerializableRuleConfig<L> {
     }
   }
 
-  fn get_rule(&self, env: &DeserializeEnv<L>) -> RResult<Rule<L>> {
-    Ok(deserialize_rule(self.rule.clone(), env)?)
-  }
-
   fn get_fixer(&self) -> RResult<Option<Pattern<L>>> {
     if let Some(fix) = &self.fix {
       Ok(Some(Pattern::try_new(fix, self.language.clone())?))
     } else {
       Ok(None)
     }
-  }
-
-  fn get_meta_var_matchers(&self) -> RResult<MetaVarMatchers<L>> {
-    Ok(if let Some(constraints) = self.constraints.clone() {
-      try_deserialize_matchers(constraints, self.language.clone())?
-    } else {
-      MetaVarMatchers::default()
-    })
   }
 
   fn get_message(&self, node: &NodeMatch<L>) -> String {
