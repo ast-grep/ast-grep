@@ -1,4 +1,4 @@
-use crate::RuleWithConstraint;
+use crate::Rule;
 
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
@@ -12,12 +12,12 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, Weak};
 
 #[derive(Clone)]
 pub struct RuleRegistration<L: Language> {
-  inner: Arc<RwLock<HashMap<String, RuleWithConstraint<L>>>>,
+  inner: Arc<RwLock<HashMap<String, Rule<L>>>>,
 }
 
 // these are shit code
 impl<L: Language> RuleRegistration<L> {
-  pub fn get_rules(&self) -> RwLockReadGuard<HashMap<String, RuleWithConstraint<L>>> {
+  pub fn get_rules(&self) -> RwLockReadGuard<HashMap<String, Rule<L>>> {
     self.inner.read().unwrap()
   }
 
@@ -26,11 +26,7 @@ impl<L: Language> RuleRegistration<L> {
     RegistrationRef { inner }
   }
 
-  pub fn insert_rule(
-    &self,
-    id: &str,
-    rule: RuleWithConstraint<L>,
-  ) -> Result<(), ReferentRuleError> {
+  pub fn insert_rule(&self, id: &str, rule: Rule<L>) -> Result<(), ReferentRuleError> {
     let mut map = self.inner.write().unwrap(); // TODO
     if map.contains_key(id) {
       return Err(ReferentRuleError::DupicateRule(id.into()));
@@ -53,7 +49,7 @@ impl<L: Language> Default for RuleRegistration<L> {
 }
 
 pub struct RegistrationRef<L: Language> {
-  inner: Weak<RwLock<HashMap<String, RuleWithConstraint<L>>>>,
+  inner: Weak<RwLock<HashMap<String, Rule<L>>>>,
 }
 // these are shit code
 impl<L: Language> RegistrationRef<L> {
@@ -115,8 +111,6 @@ mod test {
   use super::*;
   use crate::rule::Rule;
   use crate::test::TypeScript as TS;
-  use crate::RuleWithConstraint;
-  use ast_grep_core::meta_var::MetaVarMatchers;
   use ast_grep_core::ops as o;
   use ast_grep_core::Pattern;
 
@@ -127,7 +121,6 @@ mod test {
     let registration = RuleRegistration::<TS>::default();
     let rule = ReferentRule::try_new("test".into(), &registration)?;
     let rule = Rule::Matches(rule);
-    let rule = RuleWithConstraint::new(rule, MetaVarMatchers::default());
     let error = registration.insert_rule("test", rule);
     assert!(matches!(error, Err(ReferentRuleError::CyclicRule)));
     Ok(())
@@ -138,7 +131,6 @@ mod test {
     let registration = RuleRegistration::<TS>::default();
     let rule = ReferentRule::try_new("test".into(), &registration)?;
     let rule = Rule::All(o::All::new(std::iter::once(Rule::Matches(rule))));
-    let rule = RuleWithConstraint::new(rule, MetaVarMatchers::default());
     let error = registration.insert_rule("test", rule);
     assert!(matches!(error, Err(ReferentRuleError::CyclicRule)));
     Ok(())
@@ -149,7 +141,6 @@ mod test {
     let registration = RuleRegistration::<TS>::default();
     let rule = ReferentRule::try_new("test".into(), &registration)?;
     let pattern = Rule::Pattern(Pattern::new("some", TS::Tsx));
-    let pattern = RuleWithConstraint::new(pattern, MetaVarMatchers::default());
     let ret = registration.insert_rule("test", pattern);
     assert!(ret.is_ok());
     assert!(rule.potential_kinds().is_some());
