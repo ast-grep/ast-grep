@@ -44,7 +44,7 @@ impl<L: Language> SerializableRuleCore<L> {
   fn get_deserialize_env(&self) -> RResult<DeserializeEnv<L>> {
     let env = DeserializeEnv::new(self.language.clone());
     if let Some(utils) = &self.utils {
-      let env = env.register_utils(utils)?;
+      let env = env.register_local_utils(utils)?;
       Ok(env)
     } else {
       Ok(env)
@@ -59,7 +59,7 @@ impl<L: Language> SerializableRuleCore<L> {
     })
   }
 
-  fn get_matcher(&self) -> RResult<RuleWithConstraint<L>> {
+  pub fn get_matcher(&self) -> RResult<RuleWithConstraint<L>> {
     let env = self.get_deserialize_env()?;
     let rule = deserialize_rule(self.rule.clone(), &env)?;
     let matchers = self.get_meta_var_matchers()?;
