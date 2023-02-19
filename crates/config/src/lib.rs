@@ -11,10 +11,10 @@ use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error
 
 use ast_grep_core::language::Language;
 
-pub use rule::{CompositeRule, SerializableRule};
+pub use rule::{CompositeRule, Rule, SerializableRule};
 pub use rule_collection::RuleCollection;
 pub use rule_config::{
-  deserialize_rule, try_deserialize_matchers, DeserializeEnv, Rule, RuleConfig, RuleConfigError,
+  deserialize_rule, try_deserialize_matchers, DeserializeEnv, RuleConfig, RuleConfigError,
   RuleWithConstraint, SerializableMetaVarMatcher, SerializableRuleConfig, Severity,
 };
 

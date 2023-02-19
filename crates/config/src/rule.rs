@@ -1,4 +1,14 @@
 use crate::maybe::Maybe;
+use crate::referent_rule::{ReferentRule, ReferentRuleError, RuleRegistration};
+use crate::relational_rule::{Follows, Has, Inside, Precedes};
+
+use ast_grep_core::language::Language;
+use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
+use ast_grep_core::meta_var::MetaVarEnv;
+use ast_grep_core::ops as o;
+use ast_grep_core::{Matcher, Node, Pattern};
+
+use bit_set::BitSet;
 use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
 
@@ -156,6 +166,115 @@ impl<'de> Deserialize<'de> for SerializableStopBy {
   {
     deserializer.deserialize_any(StopByVisitor)
   }
+}
+
+pub enum Rule<L: Language> {
+  // atomic
+  Pattern(Pattern<L>),
+  Kind(KindMatcher<L>),
+  Regex(RegexMatcher<L>),
+  // relational
+  Inside(Box<Inside<L>>),
+  Has(Box<Has<L>>),
+  Precedes(Box<Precedes<L>>),
+  Follows(Box<Follows<L>>),
+  // composite
+  All(o::All<L, Rule<L>>),
+  Any(o::Any<L, Rule<L>>),
+  Not(Box<o::Not<L, Rule<L>>>),
+  Matches(ReferentRule<L>),
+}
+impl<L: Language> Rule<L> {
+  pub fn is_atomic(&self) -> bool {
+    use Rule::*;
+    matches!(self, Pattern(_) | Kind(_) | Regex(_))
+  }
+  pub fn is_relational(&self) -> bool {
+    use Rule::*;
+    matches!(self, Inside(_) | Has(_) | Precedes(_) | Follows(_))
+  }
+
+  pub fn is_composite(&self) -> bool {
+    use Rule::*;
+    matches!(self, All(_) | Any(_) | Not(_) | Matches(_))
+  }
+
+  pub(crate) fn check_cyclic(&self, id: &str) -> bool {
+    match self {
+      Rule::All(all) => all.inner().iter().any(|r| r.check_cyclic(id)),
+      Rule::Any(any) => any.inner().iter().any(|r| r.check_cyclic(id)),
+      Rule::Not(not) => not.inner().check_cyclic(id),
+      Rule::Matches(m) => m.rule_id == id,
+      rule => {
+        debug_assert!(!rule.is_composite());
+        false
+      }
+    }
+  }
+}
+
+impl<L: Language> Matcher<L> for Rule<L> {
+  fn match_node_with_env<'tree>(
+    &self,
+    node: Node<'tree, L>,
+    env: &mut MetaVarEnv<'tree, L>,
+  ) -> Option<Node<'tree, L>> {
+    use Rule::*;
+    match self {
+      // atomic
+      Pattern(pattern) => pattern.match_node_with_env(node, env),
+      Kind(kind) => kind.match_node_with_env(node, env),
+      Regex(regex) => regex.match_node_with_env(node, env),
+      // relational
+      Inside(parent) => match_and_add_label(&**parent, node, env),
+      Has(child) => match_and_add_label(&**child, node, env),
+      Precedes(latter) => match_and_add_label(&**latter, node, env),
+      Follows(former) => match_and_add_label(&**former, node, env),
+      // composite
+      All(all) => all.match_node_with_env(node, env),
+      Any(any) => any.match_node_with_env(node, env),
+      Not(not) => not.match_node_with_env(node, env),
+      Matches(rule) => rule.match_node_with_env(node, env),
+    }
+  }
+
+  fn potential_kinds(&self) -> Option<BitSet> {
+    use Rule::*;
+    match self {
+      // atomic
+      Pattern(pattern) => pattern.potential_kinds(),
+      Kind(kind) => kind.potential_kinds(),
+      Regex(regex) => regex.potential_kinds(),
+      // relational
+      Inside(parent) => parent.potential_kinds(),
+      Has(child) => child.potential_kinds(),
+      Precedes(latter) => latter.potential_kinds(),
+      Follows(former) => former.potential_kinds(),
+      // composite
+      All(all) => all.potential_kinds(),
+      Any(any) => any.potential_kinds(),
+      Not(not) => not.potential_kinds(),
+      Matches(rule) => rule.potential_kinds(),
+    }
+  }
+}
+
+/// Rule matches nothing by default.
+/// In Math jargon, Rule is vacuously false.
+impl<L: Language> Default for Rule<L> {
+  fn default() -> Self {
+    Self::Any(o::Any::new(std::iter::empty()))
+  }
+}
+
+fn match_and_add_label<'tree, L: Language, M: Matcher<L>>(
+  inner: &M,
+  node: Node<'tree, L>,
+  env: &mut MetaVarEnv<'tree, L>,
+) -> Option<Node<'tree, L>> {
+  let matched = inner.match_node_with_env(node, env)?;
+  env.add_label("secondary", matched.clone());
+  Some(matched)
 }
 
 #[cfg(test)]
