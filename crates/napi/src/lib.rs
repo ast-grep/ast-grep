@@ -201,7 +201,7 @@ fn parse_config(
   } else {
     MetaVarMatchers::default()
   };
-  Ok(RuleWithConstraint::new(rule, matchers))
+  Ok(RuleWithConstraint::new(rule).with_matchers(matchers))
 }
 
 /// tree traversal API

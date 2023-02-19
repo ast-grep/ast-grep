@@ -1,6 +1,6 @@
 use crate::deserialize_env::DeserializeEnv;
 use crate::referent_rule::RuleRegistration;
-use crate::rule::{deserialize_rule, Rule, RuleSerializeError, SerializableRule};
+use crate::rule::{deserialize_rule, RuleSerializeError, SerializableRule};
 
 pub use crate::constraints::{
   try_deserialize_matchers, try_from_serializable as deserialize_meta_var, RuleWithConstraint,
@@ -60,14 +60,14 @@ impl<L: Language> SerializableRuleCore<L> {
     })
   }
 
-  fn get_rule(&self, env: &DeserializeEnv<L>) -> RResult<Rule<L>> {
-    Ok(deserialize_rule(self.rule.clone(), env)?)
-  }
-
-  fn get_matcher(&self, env: &DeserializeEnv<L>) -> RResult<RuleWithConstraint<L>> {
-    let rule = self.get_rule(env)?;
+  fn get_matcher(&self, env: DeserializeEnv<L>) -> RResult<RuleWithConstraint<L>> {
+    let rule = deserialize_rule(self.rule.clone(), &env)?;
     let matchers = self.get_meta_var_matchers()?;
-    Ok(RuleWithConstraint::new(rule, matchers))
+    Ok(
+      RuleWithConstraint::new(rule)
+        .with_matchers(matchers)
+        .with_utils(env.registration),
+    )
   }
 }
 
@@ -139,21 +139,18 @@ pub struct RuleConfig<L: Language> {
   inner: SerializableRuleConfig<L>,
   pub matcher: RuleWithConstraint<L>,
   pub fixer: Option<Pattern<L>>,
-  // this is required to hold util rule reference
-  _utils: RuleRegistration<L>,
 }
 
 impl<L: Language> TryFrom<SerializableRuleConfig<L>> for RuleConfig<L> {
   type Error = RuleConfigError;
   fn try_from(inner: SerializableRuleConfig<L>) -> Result<Self, Self::Error> {
     let env = inner.get_deserialize_env()?;
-    let matcher = inner.get_matcher(&env)?;
+    let matcher = inner.get_matcher(env)?;
     let fixer = inner.get_fixer()?;
     Ok(Self {
       inner,
       matcher,
       fixer,
-      _utils: env.registration,
     })
   }
 }
@@ -223,7 +220,7 @@ mod test {
     let env = config.get_deserialize_env().unwrap();
     let node_match = grep
       .root()
-      .find(config.get_matcher(&env).unwrap())
+      .find(config.get_matcher(env).unwrap())
       .expect("should find match");
     assert_eq!(config.get_message(&node_match), "Found TestClass");
   }
@@ -241,15 +238,10 @@ inside:
     let config = ts_rule_config(rule);
     let grep = TypeScript::Tsx.ast_grep("console.log(1)");
     let env = config.get_deserialize_env().unwrap();
-    assert!(grep
-      .root()
-      .find(config.get_matcher(&env).unwrap())
-      .is_none());
+    let matcher = config.get_matcher(env).unwrap();
+    assert!(grep.root().find(&matcher).is_none());
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
-    assert!(grep
-      .root()
-      .find(config.get_matcher(&env).unwrap())
-      .is_some());
+    assert!(grep.root().find(&matcher).is_some());
   }
 
   #[test]
@@ -267,15 +259,10 @@ has:
     let config = ts_rule_config(rule);
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
     let env = config.get_deserialize_env().unwrap();
-    assert!(grep
-      .root()
-      .find(config.get_matcher(&env).unwrap())
-      .is_none());
+    let matcher = config.get_matcher(env).unwrap();
+    assert!(grep.root().find(&matcher).is_none());
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(123) }");
-    assert!(grep
-      .root()
-      .find(config.get_matcher(&env).unwrap())
-      .is_some());
+    assert!(grep.root().find(&matcher).is_some());
   }
 
   #[test]
@@ -294,7 +281,7 @@ all:
     let env = config.get_deserialize_env().unwrap();
     let node_match = grep
       .root()
-      .find(config.get_matcher(&env).unwrap())
+      .find(config.get_matcher(env).unwrap())
       .expect("should found");
     let env = node_match.get_env();
     let a = env.get_match("A").expect("should exist").text();
@@ -327,22 +314,21 @@ test-rule:
     let config = get_matches_config();
     // env should not be moved here
     let env = config.get_deserialize_env().unwrap();
-    let matcher = config.get_matcher(&env).unwrap();
+    let matcher = config.get_matcher(env).unwrap();
     let grep = TypeScript::Tsx.ast_grep("some(123)");
     assert!(grep.root().find(&matcher).is_some());
     let grep = TypeScript::Tsx.ast_grep("some()");
     assert!(grep.root().find(&matcher).is_none());
-    drop(env); // drop here
   }
 
-  #[test]
-  #[should_panic]
-  fn test_utils_wrong_usage() {
-    let config = get_matches_config();
-    let env = config.get_deserialize_env().unwrap();
-    let matcher = config.get_matcher(&env).unwrap();
-    drop(env); // env moved here!!
-    let grep = TypeScript::Tsx.ast_grep("some(123)");
-    let _ = grep.root().find(&matcher); // should panic because dropped env
-  }
+  // #[test]
+  // #[should_panic]
+  // fn test_utils_wrong_usage() {
+  //   let config = get_matches_config();
+  //   let env = config.get_deserialize_env().unwrap();
+  //   let matcher = config.get_matcher(env).unwrap();
+  //   drop(env); // env moved here!!
+  //   let grep = TypeScript::Tsx.ast_grep("some(123)");
+  //   let _ = grep.root().find(&matcher); // should panic because dropped env
+  // }
 }

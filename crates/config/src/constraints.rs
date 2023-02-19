@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::referent_rule::RuleRegistration;
 use crate::rule::Rule;
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
@@ -60,16 +61,29 @@ pub struct RuleWithConstraint<L: Language> {
   rule: Rule<L>,
   matchers: MetaVarMatchers<L>,
   kinds: Option<BitSet>,
+  // this is required to hold util rule reference
+  utils: RuleRegistration<L>,
 }
 
 impl<L: Language> RuleWithConstraint<L> {
-  pub fn new(rule: Rule<L>, matchers: MetaVarMatchers<L>) -> Self {
+  #[inline]
+  pub fn new(rule: Rule<L>) -> Self {
     let kinds = rule.potential_kinds();
     Self {
       rule,
       kinds,
-      matchers,
+      ..Default::default()
     }
+  }
+
+  #[inline]
+  pub fn with_matchers(self, matchers: MetaVarMatchers<L>) -> Self {
+    Self { matchers, ..self }
+  }
+
+  #[inline]
+  pub fn with_utils(self, utils: RuleRegistration<L>) -> Self {
+    Self { utils, ..self }
   }
 }
 impl<L: Language> Deref for RuleWithConstraint<L> {
@@ -80,11 +94,13 @@ impl<L: Language> Deref for RuleWithConstraint<L> {
 }
 
 impl<L: Language> Default for RuleWithConstraint<L> {
+  #[inline]
   fn default() -> Self {
     Self {
       rule: Rule::default(),
       matchers: MetaVarMatchers::default(),
       kinds: None,
+      utils: RuleRegistration::default(),
     }
   }
 }
@@ -135,8 +151,8 @@ mod test {
       "A".to_string(),
       MetaVarMatcher::Regex(RegexMatcher::try_new("a").unwrap()),
     );
-    let rule =
-      RuleWithConstraint::new(Rule::Pattern(Pattern::new("$A", TypeScript::Tsx)), matchers);
+    let rule = RuleWithConstraint::new(Rule::Pattern(Pattern::new("$A", TypeScript::Tsx)))
+      .with_matchers(matchers);
     let grep = TypeScript::Tsx.ast_grep("a");
     assert!(grep.root().find(&rule).is_some());
     let grep = TypeScript::Tsx.ast_grep("bbb");
