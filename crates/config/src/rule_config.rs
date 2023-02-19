@@ -16,7 +16,7 @@ use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error
 use thiserror::Error;
 
 use std::collections::HashMap;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -28,9 +28,23 @@ pub enum Severity {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct SerializableRuleConfig<L: Language> {
+pub struct SerializableRuleCore<L: Language> {
   /// Unique, descriptive identifier, e.g., no-unused-variable
   pub id: String,
+  /// Specify the language to parse and the file extension to includ in matching.
+  pub language: L,
+  /// Pattern rules to find matching AST nodes
+  pub rule: SerializableRule,
+  /// Addtional meta variables pattern to filter matching
+  pub constraints: Option<HashMap<String, SerializableMetaVarMatcher>>,
+  /// Utility rules that can be used in `matches`
+  pub utils: Option<HashMap<String, SerializableRule>>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SerializableRuleConfig<L: Language> {
+  #[serde(flatten)]
+  pub core: SerializableRuleCore<L>,
   /// Main message highlighting why this rule fired. It should be single line and concise,
   /// but specific enough to be understood without additional context.
   pub message: String,
@@ -38,16 +52,8 @@ pub struct SerializableRuleConfig<L: Language> {
   pub note: Option<String>,
   /// One of: Info, Warning, or Error
   pub severity: Severity,
-  /// Specify the language to parse and the file extension to includ in matching.
-  pub language: L,
-  /// Pattern rules to find matching AST nodes
-  pub rule: SerializableRule,
   /// A pattern to auto fix the issue. It can reference metavariables appeared in rule.
   pub fix: Option<String>,
-  /// Addtional meta variables pattern to filter matching
-  pub constraints: Option<HashMap<String, SerializableMetaVarMatcher>>,
-  /// Utility rules that can be used in `matches`
-  pub utils: Option<HashMap<String, SerializableRule>>,
   /// Glob patterns to specify that the rule only applies to matching files
   pub files: Option<Vec<String>>,
   /// Glob patterns that exclude rules from applying to files
@@ -58,7 +64,7 @@ pub struct SerializableRuleConfig<L: Language> {
   pub metadata: Option<HashMap<String, String>>,
 }
 
-type RResult<T> = Result<T, RuleConfigError>;
+type RResult<T> = std::result::Result<T, RuleConfigError>;
 
 impl<L: Language> SerializableRuleConfig<L> {
   fn get_matcher(&self, env: &DeserializeEnv<L>) -> RResult<RuleWithConstraint<L>> {
@@ -99,6 +105,19 @@ impl<L: Language> SerializableRuleConfig<L> {
 
   fn get_message(&self, node: &NodeMatch<L>) -> String {
     replace_meta_var_in_string(&self.message, node.get_env(), node.lang())
+  }
+}
+
+impl<L: Language> Deref for SerializableRuleConfig<L> {
+  type Target = SerializableRuleCore<L>;
+  fn deref(&self) -> &Self::Target {
+    &self.core
+  }
+}
+
+impl<L: Language> DerefMut for SerializableRuleConfig<L> {
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    &mut self.core
   }
 }
 
@@ -172,16 +191,19 @@ mod test {
   use crate::test::TypeScript;
 
   fn ts_rule_config(rule: SerializableRule) -> SerializableRuleConfig<TypeScript> {
-    SerializableRuleConfig {
+    let core = SerializableRuleCore {
       id: "".into(),
+      language: TypeScript::Tsx,
+      rule,
+      constraints: None,
+      utils: None,
+    };
+    SerializableRuleConfig {
+      core,
       message: "".into(),
       note: None,
       severity: Severity::Hint,
-      language: TypeScript::Tsx,
-      rule,
       fix: None,
-      constraints: None,
-      utils: None,
       files: None,
       ignores: None,
       url: None,
@@ -192,11 +214,9 @@ mod test {
   #[test]
   fn test_rule_message() {
     let rule = from_str("pattern: class $A {}").expect("cannot parse rule");
-    let config = SerializableRuleConfig {
-      id: "test".into(),
-      message: "Found $A".into(),
-      ..ts_rule_config(rule)
-    };
+    let mut config = ts_rule_config(rule);
+    config.id = "test".into();
+    config.message = "Found $A".into();
     let grep = TypeScript::Tsx.ast_grep("class TestClass {}");
     let env = config.get_deserialize_env().unwrap();
     let node_match = grep
@@ -295,10 +315,9 @@ test-rule:
 ",
     )
     .unwrap();
-    SerializableRuleConfig {
-      utils: Some(utils),
-      ..ts_rule_config(rule)
-    }
+    let mut ret = ts_rule_config(rule);
+    ret.utils = Some(utils);
+    ret
   }
 
   #[test]

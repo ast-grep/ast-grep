@@ -668,26 +668,23 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_config::{from_str, RuleConfig, SerializableRule, SerializableRuleConfig, Severity};
+  use ast_grep_config::{from_str, RuleConfig, SerializableRule, SerializableRuleConfig};
 
   const TEST_RULE: &str = "test-rule";
 
   fn get_rule_config(rule: SerializableRule) -> RuleConfig<SupportLang> {
-    let inner = SerializableRuleConfig {
-      id: TEST_RULE.into(),
-      message: "test".into(),
-      note: None,
-      severity: Severity::Hint,
-      language: SupportLang::TypeScript,
-      rule,
-      fix: None,
-      constraints: None,
-      files: None,
-      utils: None,
-      ignores: None,
-      url: None,
-      metadata: None,
-    };
+    let mut inner: SerializableRuleConfig<SupportLang> = from_str(&format!(
+      "
+id: {TEST_RULE}
+message: test
+severity: hint
+language: TypeScript
+rule:
+  all: []
+"
+    ))
+    .unwrap();
+    inner.rule = rule;
     RuleConfig::try_from(inner).unwrap()
   }
   fn always_report_rule() -> RuleCollection<SupportLang> {

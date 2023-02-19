@@ -1,6 +1,6 @@
 use crate::constraints::RuleWithConstraint;
 use crate::referent_rule::RuleRegistration;
-use crate::rule::{deserialize_rule, Rule, RuleSerializeError, SerializableRule};
+use crate::rule::{deserialize_rule, RuleSerializeError, SerializableRule};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarMatchers;
