@@ -113,7 +113,7 @@ impl<L: Language> Matcher<L> for ReferentRule<L> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::rule_config::Rule;
+  use crate::rule::Rule;
   use crate::test::TypeScript as TS;
   use crate::RuleWithConstraint;
   use ast_grep_core::meta_var::MetaVarMatchers;
