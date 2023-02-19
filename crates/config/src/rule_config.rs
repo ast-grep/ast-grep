@@ -42,6 +42,16 @@ pub struct SerializableRuleCore<L: Language> {
 }
 
 impl<L: Language> SerializableRuleCore<L> {
+  fn get_deserialize_env(&self) -> RResult<DeserializeEnv<L>> {
+    let env = DeserializeEnv::new(self.language.clone());
+    if let Some(utils) = &self.utils {
+      let env = env.register_utils(utils)?;
+      Ok(env)
+    } else {
+      Ok(env)
+    }
+  }
+
   fn get_meta_var_matchers(&self) -> RResult<MetaVarMatchers<L>> {
     Ok(if let Some(constraints) = self.constraints.clone() {
       try_deserialize_matchers(constraints, self.language.clone())?
@@ -87,16 +97,6 @@ pub struct SerializableRuleConfig<L: Language> {
 type RResult<T> = std::result::Result<T, RuleConfigError>;
 
 impl<L: Language> SerializableRuleConfig<L> {
-  fn get_deserialize_env(&self) -> RResult<DeserializeEnv<L>> {
-    let env = DeserializeEnv::new(self.language.clone());
-    if let Some(utils) = &self.utils {
-      let env = env.register_utils(utils)?;
-      Ok(env)
-    } else {
-      Ok(env)
-    }
-  }
-
   fn get_fixer(&self) -> RResult<Option<Pattern<L>>> {
     if let Some(fix) = &self.fix {
       Ok(Some(Pattern::try_new(fix, self.language.clone())?))
