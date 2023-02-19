@@ -62,7 +62,7 @@ pub struct RuleWithConstraint<L: Language> {
   matchers: MetaVarMatchers<L>,
   kinds: Option<BitSet>,
   // this is required to hold util rule reference
-  utils: RuleRegistration<L>,
+  _utils: RuleRegistration<L>,
 }
 
 impl<L: Language> RuleWithConstraint<L> {
@@ -82,8 +82,8 @@ impl<L: Language> RuleWithConstraint<L> {
   }
 
   #[inline]
-  pub fn with_utils(self, utils: RuleRegistration<L>) -> Self {
-    Self { utils, ..self }
+  pub fn with_utils(self, _utils: RuleRegistration<L>) -> Self {
+    Self { _utils, ..self }
   }
 }
 impl<L: Language> Deref for RuleWithConstraint<L> {
@@ -100,7 +100,7 @@ impl<L: Language> Default for RuleWithConstraint<L> {
       rule: Rule::default(),
       matchers: MetaVarMatchers::default(),
       kinds: None,
-      utils: RuleRegistration::default(),
+      _utils: RuleRegistration::default(),
     }
   }
 }
