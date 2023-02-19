@@ -1,8 +1,6 @@
 use crate::referent_rule::{ReferentRule, ReferentRuleError, RuleRegistration};
 use crate::relational_rule::{Follows, Has, Inside, Precedes};
-use crate::serialized_rule::{
-  AtomicRule, CompositeRule, PatternStyle, RelationalRule, SerializableRule,
-};
+use crate::rule::{AtomicRule, CompositeRule, PatternStyle, RelationalRule, SerializableRule};
 
 pub use crate::constraints::{
   try_deserialize_matchers, try_from_serializable as deserialize_meta_var, RuleWithConstraint,
