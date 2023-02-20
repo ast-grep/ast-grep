@@ -43,4 +43,11 @@ impl<L: Language> DeserializeEnv<L> {
     }
     Ok(self)
   }
+
+  pub fn fork(&self) -> Self {
+    Self {
+      registration: self.registration.create_new_local(),
+      lang: self.lang.clone(),
+    }
+  }
 }

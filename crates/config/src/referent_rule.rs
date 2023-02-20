@@ -26,6 +26,13 @@ impl<L: Language> RuleRegistration<L> {
     self.global.read().unwrap()
   }
 
+  pub fn create_new_local(&self) -> Self {
+    Self {
+      local: Default::default(),
+      global: self.global.clone(),
+    }
+  }
+
   pub fn get_ref(&self) -> RegistrationRef<L> {
     let local = Arc::downgrade(&self.local);
     let global = Arc::downgrade(&self.global);
