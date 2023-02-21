@@ -1,7 +1,9 @@
 use crate::error::ErrorContext as EC;
 use crate::verify::{SnapshotCollection, TestCase, TestSnapshots};
 use anyhow::{Context, Result};
-use ast_grep_config::{from_str, from_yaml_string, GlobalRules, RuleCollection, RuleConfig};
+use ast_grep_config::{
+  from_str, from_yaml_string, DeserializeEnv, GlobalRules, RuleCollection, RuleConfig,
+};
 use ast_grep_language::{config_file_type, SupportLang};
 use clap::ValueEnum;
 use ignore::WalkBuilder;
@@ -49,7 +51,31 @@ fn find_util_rules(
   let Some(util_dirs) = util_dirs else {
     return Ok(GlobalRules::default())
   };
-  todo!()
+  let mut utils = vec![];
+  // TODO: use WalkBuilder::add to avoid loop
+  for dir in util_dirs {
+    let dir_path = base_dir.join(dir);
+    let walker = WalkBuilder::new(&dir_path)
+      .types(config_file_type())
+      .build();
+    for dir in walker {
+      let config_file = dir.with_context(|| EC::WalkRuleDir(dir_path.clone()))?;
+      // file_type is None only if it is stdin, safe to unwrap here
+      if !config_file
+        .file_type()
+        .expect("file type should be available for non-stdin")
+        .is_file()
+      {
+        continue;
+      }
+      let path = config_file.path();
+      let file = read_to_string(path)?;
+      let new_configs = from_str(&file)?;
+      utils.push(new_configs);
+    }
+  }
+  let ret = DeserializeEnv::parse_global_utils(utils).context("TODO!")?;
+  Ok(ret)
 }
 
 fn read_directory_yaml(
