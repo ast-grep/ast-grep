@@ -8,39 +8,28 @@ use bit_set::BitSet;
 use thiserror::Error;
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, RwLockReadGuard, Weak};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak};
 
-#[derive(Clone)]
-pub struct RuleRegistration<L: Language> {
-  local: Arc<RwLock<HashMap<String, Rule<L>>>>,
-  global: Arc<RwLock<HashMap<String, RuleWithConstraint<L>>>>,
+pub struct Registration<R>(Arc<RwLock<HashMap<String, R>>>);
+
+impl<R> Clone for Registration<R> {
+  fn clone(&self) -> Self {
+    Self(self.0.clone())
+  }
 }
 
-// these are shit code
-impl<L: Language> RuleRegistration<L> {
-  fn get_local(&self) -> RwLockReadGuard<HashMap<String, Rule<L>>> {
-    self.local.read().unwrap()
+impl<R> Registration<R> {
+  fn read(&self) -> RwLockReadGuard<HashMap<String, R>> {
+    self.0.read().unwrap()
   }
-
-  fn get_global(&self) -> RwLockReadGuard<HashMap<String, RuleWithConstraint<L>>> {
-    self.global.read().unwrap()
+  fn write(&self) -> RwLockWriteGuard<HashMap<String, R>> {
+    self.0.write().unwrap()
   }
+}
 
-  pub fn create_new_local(&self) -> Self {
-    Self {
-      local: Default::default(),
-      global: self.global.clone(),
-    }
-  }
-
-  pub fn get_ref(&self) -> RegistrationRef<L> {
-    let local = Arc::downgrade(&self.local);
-    let global = Arc::downgrade(&self.global);
-    RegistrationRef { local, global }
-  }
-
-  pub fn insert_local(&self, id: &str, rule: Rule<L>) -> Result<(), ReferentRuleError> {
-    let mut map = self.local.write().unwrap(); // TODO
+impl<L: Language> Registration<RuleWithConstraint<L>> {
+  pub fn insert(&self, id: &str, rule: RuleWithConstraint<L>) -> Result<(), ReferentRuleError> {
+    let mut map = self.write();
     if map.contains_key(id) {
       return Err(ReferentRuleError::DupicateRule(id.into()));
     }
@@ -51,13 +40,45 @@ impl<L: Language> RuleRegistration<L> {
     }
     Ok(())
   }
+}
 
-  pub fn insert_global(
-    &self,
-    id: &str,
-    rule: RuleWithConstraint<L>,
-  ) -> Result<(), ReferentRuleError> {
-    let mut map = self.global.write().unwrap(); // TODO
+impl<R> Default for Registration<R> {
+  fn default() -> Self {
+    Self(Default::default())
+  }
+}
+
+#[derive(Clone)]
+pub struct RuleRegistration<L: Language> {
+  local: Registration<Rule<L>>,
+  global: Registration<RuleWithConstraint<L>>,
+}
+
+// these are shit code
+impl<L: Language> RuleRegistration<L> {
+  fn get_local(&self) -> RwLockReadGuard<HashMap<String, Rule<L>>> {
+    self.local.read()
+  }
+
+  fn get_global(&self) -> RwLockReadGuard<HashMap<String, RuleWithConstraint<L>>> {
+    self.global.read()
+  }
+
+  pub fn from_globals(global: &Registration<RuleWithConstraint<L>>) -> Self {
+    Self {
+      local: Default::default(),
+      global: global.clone(),
+    }
+  }
+
+  pub fn get_ref(&self) -> RegistrationRef<L> {
+    let local = Arc::downgrade(&self.local.0);
+    let global = Arc::downgrade(&self.global.0);
+    RegistrationRef { local, global }
+  }
+
+  pub fn insert_local(&self, id: &str, rule: Rule<L>) -> Result<(), ReferentRuleError> {
+    let mut map = self.local.write();
     if map.contains_key(id) {
       return Err(ReferentRuleError::DupicateRule(id.into()));
     }
@@ -86,8 +107,8 @@ pub struct RegistrationRef<L: Language> {
 // these are shit code
 impl<L: Language> RegistrationRef<L> {
   pub fn unref(&self) -> RuleRegistration<L> {
-    let local = self.local.upgrade().unwrap();
-    let global = self.global.upgrade().unwrap();
+    let local = Registration(self.local.upgrade().unwrap());
+    let global = Registration(self.global.upgrade().unwrap());
     RuleRegistration { local, global }
   }
 }
