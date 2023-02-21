@@ -1,5 +1,4 @@
-use crate::constraints::RuleWithConstraint;
-use crate::referent_rule::{Registration, RuleRegistration};
+use crate::referent_rule::{GlobalRules, RuleRegistration};
 use crate::rule::{deserialize_rule, RuleSerializeError, SerializableRule};
 use crate::rule_config::{RuleConfigError, SerializableRuleCore};
 
@@ -33,10 +32,10 @@ impl<L: Language> DeserializeEnv<L> {
 
   pub fn parse_global_utils(
     utils: Vec<SerializableRuleCore<L>>,
-  ) -> Result<Registration<RuleWithConstraint<L>>, RuleConfigError> {
-    let registration = Registration::default();
+  ) -> Result<GlobalRules<L>, RuleConfigError> {
+    let registration = GlobalRules::default();
     for rule in utils {
-      let matcher = rule.get_matcher()?;
+      let matcher = rule.get_matcher(&registration)?;
       registration
         .insert(&rule.id, matcher)
         .map_err(RuleSerializeError::MatchesRefrence)?;
@@ -44,7 +43,7 @@ impl<L: Language> DeserializeEnv<L> {
     Ok(registration)
   }
 
-  pub fn with_globals(self, globals: &Registration<RuleWithConstraint<L>>) -> Self {
+  pub fn with_globals(self, globals: &GlobalRules<L>) -> Self {
     Self {
       registration: RuleRegistration::from_globals(globals),
       lang: self.lang,

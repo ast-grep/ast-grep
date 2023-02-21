@@ -621,7 +621,7 @@ mod choose_color {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_config::from_yaml_string;
+  use ast_grep_config::{from_yaml_string, GlobalRules};
   use ast_grep_core::language::Language;
   use codespan_reporting::term::termcolor::Buffer;
 
@@ -698,6 +698,7 @@ mod test {
 
   #[test]
   fn test_printe_rules() {
+    let globals = GlobalRules::default();
     for &(source, pattern, note) in MATCHES_CASES {
       let printer = make_test_printer()
         .heading(Heading::Never)
@@ -706,15 +707,18 @@ mod test {
       let matches = grep.root().find_all(pattern);
       let source = source.to_string();
       let file = SimpleFile::new(Cow::Borrowed("test.tsx"), &source);
-      let rule = from_yaml_string(&format!(
-        r"
+      let rule = from_yaml_string(
+        &format!(
+          r"
 id: test-id
 message: test rule
 severity: info
 language: TypeScript
 rule:
   pattern: {pattern}"
-      ))
+        ),
+        &globals,
+      )
       .expect("should parse")
       .pop()
       .unwrap();

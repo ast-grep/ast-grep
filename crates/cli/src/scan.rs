@@ -80,7 +80,7 @@ struct ScanWithConfig<Printer> {
 impl<P: Printer> ScanWithConfig<P> {
   fn try_new(mut arg: ScanArg, printer: P) -> Result<Self> {
     let configs = if let Some(path) = &arg.rule {
-      let rules = read_rule_file(path)?;
+      let rules = read_rule_file(path, None)?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
     } else {
       find_config(arg.config.take())?

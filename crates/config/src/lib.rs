@@ -13,6 +13,7 @@ use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error
 use ast_grep_core::language::Language;
 
 pub use deserialize_env::DeserializeEnv;
+pub use referent_rule::GlobalRules;
 pub use rule::{deserialize_rule, Rule, RuleSerializeError, SerializableRule};
 pub use rule_collection::RuleCollection;
 pub use rule_config::{
@@ -27,10 +28,11 @@ pub fn from_str<'de, T: Deserialize<'de>>(s: &'de str) -> Result<T, YamlError> {
 
 pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(
   yamls: &'a str,
+  registration: &GlobalRules<L>,
 ) -> Result<Vec<RuleConfig<L>>, RuleConfigError> {
   let mut ret = vec![];
   for yaml in Deserializer::from_str(yamls) {
-    let config = RuleConfig::deserialize(yaml)?;
+    let config = RuleConfig::deserialize(yaml, registration)?;
     ret.push(config);
   }
   Ok(ret)
@@ -41,6 +43,7 @@ mod test {
   use super::*;
   use ast_grep_core::language::TSLanguage;
   use std::path::Path;
+
   #[derive(Clone, Deserialize, PartialEq, Eq)]
   pub enum TypeScript {
     Tsx,
@@ -55,13 +58,15 @@ mod test {
   }
 
   fn test_rule_match(yaml: &str, source: &str) {
-    let config = &from_yaml_string::<TypeScript>(yaml).expect("rule should parse")[0];
+    let globals = GlobalRules::default();
+    let config = &from_yaml_string::<TypeScript>(yaml, &globals).expect("rule should parse")[0];
     let grep = config.language.ast_grep(source);
     assert!(grep.root().find(&config.matcher).is_some());
   }
 
   fn test_rule_unmatch(yaml: &str, source: &str) {
-    let config = &from_yaml_string::<TypeScript>(yaml).expect("rule should parse")[0];
+    let globals = GlobalRules::default();
+    let config = &from_yaml_string::<TypeScript>(yaml, &globals).expect("rule should parse")[0];
     let grep = config.language.ast_grep(source);
     assert!(grep.root().find(&config.matcher).is_none());
   }

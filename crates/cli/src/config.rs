@@ -1,7 +1,7 @@
 use crate::error::ErrorContext as EC;
 use crate::verify::{SnapshotCollection, TestCase, TestSnapshots};
 use anyhow::{Context, Result};
-use ast_grep_config::{from_str, from_yaml_string, RuleCollection, RuleConfig};
+use ast_grep_config::{from_str, from_yaml_string, GlobalRules, RuleCollection, RuleConfig};
 use ast_grep_language::{config_file_type, SupportLang};
 use clap::ValueEnum;
 use ignore::WalkBuilder;
@@ -38,20 +38,24 @@ pub fn find_config(config_path: Option<PathBuf>) -> Result<RuleCollection<Suppor
   let base_dir = config_path
     .parent()
     .expect("config file must have parent directory");
-  if let Some(util_dirs) = sg_config.util_dirs {
-    find_util_rules(base_dir, util_dirs)?;
-  }
-  read_directory_yaml(base_dir, sg_config.rule_dirs)
+  let global_rules = find_util_rules(base_dir, sg_config.util_dirs)?;
+  read_directory_yaml(base_dir, sg_config.rule_dirs, global_rules)
 }
 
-fn find_util_rules(base_dir: &Path, util_dirs: Vec<PathBuf>) -> Result<()> {
-  // todo
-  Ok(())
+fn find_util_rules(
+  base_dir: &Path,
+  util_dirs: Option<Vec<PathBuf>>,
+) -> Result<GlobalRules<SupportLang>> {
+  let Some(util_dirs) = util_dirs else {
+    return Ok(GlobalRules::default())
+  };
+  todo!()
 }
 
 fn read_directory_yaml(
   base_dir: &Path,
   rule_dirs: Vec<PathBuf>,
+  global_rules: GlobalRules<SupportLang>,
 ) -> Result<RuleCollection<SupportLang>> {
   let mut configs = vec![];
   for dir in rule_dirs {
@@ -70,16 +74,24 @@ fn read_directory_yaml(
         continue;
       }
       let path = config_file.path();
-      let new_configs = read_rule_file(path)?;
+      let new_configs = read_rule_file(path, Some(&global_rules))?;
       configs.extend(new_configs);
     }
   }
   RuleCollection::try_new(configs).context(EC::GlobPattern)
 }
 
-pub fn read_rule_file(path: &Path) -> Result<Vec<RuleConfig<SupportLang>>> {
+pub fn read_rule_file(
+  path: &Path,
+  global_rules: Option<&GlobalRules<SupportLang>>,
+) -> Result<Vec<RuleConfig<SupportLang>>> {
   let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
-  from_yaml_string(&yaml).with_context(|| EC::ParseRule(path.to_path_buf()))
+  let parsed = if let Some(globals) = global_rules {
+    from_yaml_string(&yaml, globals)
+  } else {
+    from_yaml_string(&yaml, &Default::default())
+  };
+  parsed.with_context(|| EC::ParseRule(path.to_path_buf()))
 }
 
 pub struct TestHarness {

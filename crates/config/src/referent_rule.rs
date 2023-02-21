@@ -26,8 +26,9 @@ impl<R> Registration<R> {
     self.0.write().unwrap()
   }
 }
+pub type GlobalRules<L> = Registration<RuleWithConstraint<L>>;
 
-impl<L: Language> Registration<RuleWithConstraint<L>> {
+impl<L: Language> GlobalRules<L> {
   pub fn insert(&self, id: &str, rule: RuleWithConstraint<L>) -> Result<(), ReferentRuleError> {
     let mut map = self.write();
     if map.contains_key(id) {
@@ -64,7 +65,7 @@ impl<L: Language> RuleRegistration<L> {
     self.global.read()
   }
 
-  pub fn from_globals(global: &Registration<RuleWithConstraint<L>>) -> Self {
+  pub fn from_globals(global: &GlobalRules<L>) -> Self {
     Self {
       local: Default::default(),
       global: global.clone(),
@@ -90,7 +91,6 @@ impl<L: Language> RuleRegistration<L> {
     Ok(())
   }
 }
-
 impl<L: Language> Default for RuleRegistration<L> {
   fn default() -> Self {
     Self {

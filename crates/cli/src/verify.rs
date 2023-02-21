@@ -668,11 +668,14 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_config::{from_str, RuleConfig, SerializableRule, SerializableRuleConfig};
+  use ast_grep_config::{
+    from_str, GlobalRules, RuleConfig, SerializableRule, SerializableRuleConfig,
+  };
 
   const TEST_RULE: &str = "test-rule";
 
   fn get_rule_config(rule: SerializableRule) -> RuleConfig<SupportLang> {
+    let globals = GlobalRules::default();
     let mut inner: SerializableRuleConfig<SupportLang> = from_str(&format!(
       "
 id: {TEST_RULE}
@@ -685,7 +688,7 @@ rule:
     ))
     .unwrap();
     inner.rule = rule;
-    RuleConfig::try_from(inner).unwrap()
+    RuleConfig::try_from(inner, &globals).unwrap()
   }
   fn always_report_rule() -> RuleCollection<SupportLang> {
     // empty all should mean always

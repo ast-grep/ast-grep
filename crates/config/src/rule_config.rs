@@ -1,4 +1,5 @@
 use crate::deserialize_env::DeserializeEnv;
+use crate::referent_rule::GlobalRules;
 use crate::rule::{deserialize_rule, RuleSerializeError, SerializableRule};
 
 pub use crate::constraints::{
@@ -41,8 +42,8 @@ pub struct SerializableRuleCore<L: Language> {
 }
 
 impl<L: Language> SerializableRuleCore<L> {
-  fn get_deserialize_env(&self) -> RResult<DeserializeEnv<L>> {
-    let env = DeserializeEnv::new(self.language.clone());
+  fn get_deserialize_env(&self, globals: &GlobalRules<L>) -> RResult<DeserializeEnv<L>> {
+    let env = DeserializeEnv::new(self.language.clone()).with_globals(globals);
     if let Some(utils) = &self.utils {
       let env = env.register_local_utils(utils)?;
       Ok(env)
@@ -59,8 +60,8 @@ impl<L: Language> SerializableRuleCore<L> {
     })
   }
 
-  pub fn get_matcher(&self) -> RResult<RuleWithConstraint<L>> {
-    let env = self.get_deserialize_env()?;
+  pub fn get_matcher(&self, globals: &GlobalRules<L>) -> RResult<RuleWithConstraint<L>> {
+    let env = self.get_deserialize_env(globals)?;
     let rule = deserialize_rule(self.rule.clone(), &env)?;
     let matchers = self.get_meta_var_matchers()?;
     Ok(
@@ -141,10 +142,20 @@ pub struct RuleConfig<L: Language> {
   pub fixer: Option<Pattern<L>>,
 }
 
-impl<L: Language> TryFrom<SerializableRuleConfig<L>> for RuleConfig<L> {
-  type Error = RuleConfigError;
-  fn try_from(inner: SerializableRuleConfig<L>) -> Result<Self, Self::Error> {
-    let matcher = inner.get_matcher()?;
+impl<L: Language> RuleConfig<L> {
+  // pub fn deserialize_str<'de>(yaml_str: &'de str) -> Result<Self, RuleConfigError>
+  // where
+  //   L: Deserialize<'de>,
+  // {
+  //   let deserializer = Deserializer::from_str(yaml_str);
+  //   Self::deserialize(deserializer)
+  // }
+
+  pub fn try_from(
+    inner: SerializableRuleConfig<L>,
+    globals: &GlobalRules<L>,
+  ) -> Result<Self, RuleConfigError> {
+    let matcher = inner.get_matcher(globals)?;
     let fixer = inner.get_fixer()?;
     Ok(Self {
       inner,
@@ -152,23 +163,16 @@ impl<L: Language> TryFrom<SerializableRuleConfig<L>> for RuleConfig<L> {
       fixer,
     })
   }
-}
 
-impl<L: Language> RuleConfig<L> {
-  pub fn deserialize_str<'de>(yaml_str: &'de str) -> Result<Self, RuleConfigError>
-  where
-    L: Deserialize<'de>,
-  {
-    let deserializer = Deserializer::from_str(yaml_str);
-    Self::deserialize(deserializer)
-  }
-
-  pub fn deserialize<'de>(deserializer: Deserializer<'de>) -> Result<Self, RuleConfigError>
+  pub fn deserialize<'de>(
+    deserializer: Deserializer<'de>,
+    globals: &GlobalRules<L>,
+  ) -> Result<Self, RuleConfigError>
   where
     L: Deserialize<'de>,
   {
     let inner: SerializableRuleConfig<L> = deserialize(deserializer)?;
-    Self::try_from(inner)
+    Self::try_from(inner, globals)
   }
 
   pub fn get_message(&self, node: &NodeMatch<L>) -> String {
@@ -211,6 +215,7 @@ mod test {
 
   #[test]
   fn test_rule_message() {
+    let globals = GlobalRules::default();
     let rule = from_str("pattern: class $A {}").expect("cannot parse rule");
     let mut config = ts_rule_config(rule);
     config.id = "test".into();
@@ -218,13 +223,14 @@ mod test {
     let grep = TypeScript::Tsx.ast_grep("class TestClass {}");
     let node_match = grep
       .root()
-      .find(config.get_matcher().unwrap())
+      .find(config.get_matcher(&globals).unwrap())
       .expect("should find match");
     assert_eq!(config.get_message(&node_match), "Found TestClass");
   }
 
   #[test]
   fn test_augmented_rule() {
+    let globals = GlobalRules::default();
     let rule = from_str(
       "
 pattern: console.log($A)
@@ -235,7 +241,7 @@ inside:
     .expect("should parse");
     let config = ts_rule_config(rule);
     let grep = TypeScript::Tsx.ast_grep("console.log(1)");
-    let matcher = config.get_matcher().unwrap();
+    let matcher = config.get_matcher(&globals).unwrap();
     assert!(grep.root().find(&matcher).is_none());
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
     assert!(grep.root().find(&matcher).is_some());
@@ -243,6 +249,7 @@ inside:
 
   #[test]
   fn test_multiple_augment_rule() {
+    let globals = GlobalRules::default();
     let rule = from_str(
       "
 pattern: console.log($A)
@@ -255,7 +262,7 @@ has:
     .expect("should parse");
     let config = ts_rule_config(rule);
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
-    let matcher = config.get_matcher().unwrap();
+    let matcher = config.get_matcher(&globals).unwrap();
     assert!(grep.root().find(&matcher).is_none());
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(123) }");
     assert!(grep.root().find(&matcher).is_some());
@@ -263,6 +270,7 @@ has:
 
   #[test]
   fn test_rule_env() {
+    let globals = GlobalRules::default();
     let rule = from_str(
       "
 all:
@@ -276,7 +284,7 @@ all:
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
     let node_match = grep
       .root()
-      .find(config.get_matcher().unwrap())
+      .find(config.get_matcher(&globals).unwrap())
       .expect("should found");
     let env = node_match.get_env();
     let a = env.get_match("A").expect("should exist").text();
@@ -306,8 +314,9 @@ test-rule:
 
   #[test]
   fn test_utils_rule() {
+    let globals = GlobalRules::default();
     let config = get_matches_config();
-    let matcher = config.get_matcher().unwrap();
+    let matcher = config.get_matcher(&globals).unwrap();
     let grep = TypeScript::Tsx.ast_grep("some(123)");
     assert!(grep.root().find(&matcher).is_some());
     let grep = TypeScript::Tsx.ast_grep("some()");

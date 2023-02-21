@@ -176,19 +176,23 @@ fn apply_rewrite(diffs: Vec<Diff>) -> String {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_config::from_yaml_string;
+  use ast_grep_config::{from_yaml_string, GlobalRules};
   use ast_grep_core::traversal::Visitor;
   use ast_grep_core::{AstGrep, Matcher, Pattern};
 
   fn make_rule(rule: &str) -> RuleConfig<SupportLang> {
-    from_yaml_string(&format!(
-      r"
+    let globals = GlobalRules::default();
+    from_yaml_string(
+      &format!(
+        r"
 id: test
 message: test rule
 severity: info
 language: TypeScript
 {rule}"
-    ))
+      ),
+      &globals,
+    )
     .unwrap()
     .pop()
     .unwrap()

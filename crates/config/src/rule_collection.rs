@@ -144,11 +144,14 @@ impl<L: Language + Eq> RuleCollection<L> {
 mod test {
   use super::*;
   use crate::from_yaml_string;
+  use crate::referent_rule::GlobalRules;
   use crate::test::TypeScript;
 
   fn make_rule(files: &str) -> RuleCollection<TypeScript> {
-    let rule_config = from_yaml_string(&format!(
-      r"
+    let globals = GlobalRules::default();
+    let rule_config = from_yaml_string(
+      &format!(
+        r"
 id: test
 message: test rule
 severity: info
@@ -156,7 +159,9 @@ language: Tsx
 rule:
   all: []
 {files}"
-    ))
+      ),
+      &globals,
+    )
     .unwrap()
     .pop()
     .unwrap();
