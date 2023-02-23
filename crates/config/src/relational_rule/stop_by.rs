@@ -11,8 +11,8 @@ use std::fmt;
 #[derive(Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum SerializableStopBy {
-  Neighbor,
   #[default]
+  Neighbor,
   End,
   Rule(SerializableRule),
 }
