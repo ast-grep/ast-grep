@@ -235,6 +235,7 @@ mod test {
       "
 pattern: console.log($A)
 inside:
+  stopBy: end
   pattern: function test() { $$$ }
 ",
     )
@@ -254,8 +255,10 @@ inside:
       "
 pattern: console.log($A)
 inside:
+  stopBy: end
   pattern: function test() { $$$ }
 has:
+  stopBy: end
   pattern: '123'
 ",
     )
@@ -276,6 +279,7 @@ has:
 all:
   - pattern: console.log($A)
   - inside:
+      stopBy: end
       pattern: function $B() {$$$}
 ",
     )

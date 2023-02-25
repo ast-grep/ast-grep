@@ -129,6 +129,7 @@ rule:
   all:
     - inside:
         kind: class_body
+        stopBy: end
     - pattern: let a = 123
 ",
     );
@@ -145,6 +146,7 @@ rule:
     - not:
         inside:
           kind: class_body
+          stopBy: end
     - pattern: let a = 123
 ",
     );
@@ -162,6 +164,7 @@ rule:
         any:
           - pattern: function $A($$$) { $$$ }
           - pattern: let $A = ($$$) => $$$
+        stopBy: end
     - pattern: $A($$$)
 ",
     );
@@ -182,6 +185,7 @@ rule:
     - pattern: console.log($A)
     - inside:
         pattern: function $B() {$$$}
+        stopBy: end
 constraints:
   B:
     regex: test
