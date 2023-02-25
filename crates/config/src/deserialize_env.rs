@@ -50,3 +50,31 @@ impl<L: Language> DeserializeEnv<L> {
     }
   }
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::from_str;
+  use crate::test::TypeScript;
+
+  #[test]
+  fn test_deserialize_local() {
+    let utils = from_str(
+      "
+accessor-name:
+  matches: member-name
+  regex: whatever
+member-name:
+  kind: identifier
+",
+    )
+    .unwrap();
+    let env = DeserializeEnv::new(TypeScript::Tsx)
+      .register_local_utils(&utils)
+      .unwrap();
+    let rule = from_str("matches: accessor-name").unwrap();
+    let rule = deserialize_rule(rule, &env).unwrap();
+    let grep = TypeScript::Tsx.ast_grep("whatever");
+    assert!(grep.root().find(rule).is_some());
+  }
+}
