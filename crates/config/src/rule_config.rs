@@ -143,14 +143,6 @@ pub struct RuleConfig<L: Language> {
 }
 
 impl<L: Language> RuleConfig<L> {
-  // pub fn deserialize_str<'de>(yaml_str: &'de str) -> Result<Self, RuleConfigError>
-  // where
-  //   L: Deserialize<'de>,
-  // {
-  //   let deserializer = Deserializer::from_str(yaml_str);
-  //   Self::deserialize(deserializer)
-  // }
-
   pub fn try_from(
     inner: SerializableRuleConfig<L>,
     globals: &GlobalRules<L>,
