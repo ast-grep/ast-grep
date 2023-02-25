@@ -172,7 +172,7 @@ impl<'r> CombinedScan<'r> {
       for kind in &rule
         .matcher
         .potential_kinds()
-        .expect("rule must have kinds")
+        .unwrap_or_else(|| panic!("rule `{}` must have kind", &rule.id))
       {
         let k = kind as usize;
         while mapping.len() <= k {
