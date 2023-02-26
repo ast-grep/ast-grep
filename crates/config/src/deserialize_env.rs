@@ -60,8 +60,8 @@ impl<'a, T: DepedentRule> TopologicalSort<'a, T> {
       // if rule_id not found in local, it can be a global rule
       return;
     };
-    rule.visit_dependent_rules(self);
     self.seen.insert(rule_id);
+    rule.visit_dependent_rules(self);
     self.order.push(rule_id);
   }
 }
@@ -177,5 +177,53 @@ member-name:
       let (rule, _env) = get_dependent_utils();
       assert!(rule.potential_kinds().is_some());
     }
+  }
+
+  #[test]
+  fn test_using_global_rule_in_local() {
+    let utils = from_str(
+      "
+local-rule:
+  matches: global-rule
+",
+    )
+    .unwrap();
+    // should not panic
+    DeserializeEnv::new(TypeScript::Tsx)
+      .register_local_utils(&utils)
+      .unwrap();
+  }
+
+  #[test]
+  fn test_using_cyclic_local() {
+    let utils = from_str(
+      "
+local-rule:
+  matches: local-rule
+",
+    )
+    .unwrap();
+    let ret = DeserializeEnv::new(TypeScript::Tsx).register_local_utils(&utils);
+    assert!(ret.is_err());
+  }
+
+  #[test]
+  #[ignore]
+  fn test_using_transitive_cycle() {
+    let utils = from_str(
+      "
+local-rule-a:
+  matches: local-rule-b
+local-rule-b:
+  all:
+    - matches: local-rule-c
+local-rule-c:
+  any:
+    - matches: local-rule-a
+",
+    )
+    .unwrap();
+    let ret = DeserializeEnv::new(TypeScript::Tsx).register_local_utils(&utils);
+    assert!(ret.is_err());
   }
 }
