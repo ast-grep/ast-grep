@@ -5,7 +5,7 @@ use crate::rule_config::{RuleConfigError, SerializableRuleCore};
 
 use ast_grep_core::language::Language;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub struct DeserializeEnv<L: Language> {
   pub(crate) registration: RuleRegistration<L>,
@@ -31,7 +31,8 @@ impl<L: Language> DepedentRule for SerializableRuleCore<L> {
 struct TopologicalSort<'a, T: DepedentRule> {
   utils: &'a HashMap<String, T>,
   order: Vec<&'a String>,
-  seen: HashSet<&'a String>,
+  // bool stands for if the rule has completed visit
+  seen: HashMap<&'a String, bool>,
 }
 
 impl<'a, T: DepedentRule> TopologicalSort<'a, T> {
@@ -47,21 +48,26 @@ impl<'a, T: DepedentRule> TopologicalSort<'a, T> {
     Self {
       utils,
       order: vec![],
-      seen: HashSet::new(),
+      seen: HashMap::new(),
     }
   }
 
   fn visit(&mut self, rule_id: &'a String) {
-    if self.seen.contains(rule_id) {
-      return;
+    if let Some(&completed) = self.seen.get(rule_id) {
+      if completed {
+        return;
+      } else {
+        panic!("cyclic!!!");
+      }
     }
     let Some(rule) = self.utils.get(rule_id) else {
       // if rule_id not found in global, it can be a local rule
       // if rule_id not found in local, it can be a global rule
       return;
     };
-    self.seen.insert(rule_id);
+    self.seen.insert(rule_id, false);
     rule.visit_dependent_rules(self);
+    self.seen.insert(rule_id, true);
     self.order.push(rule_id);
   }
 }
@@ -198,6 +204,7 @@ local-rule:
   }
 
   #[test]
+  #[should_panic]
   fn test_using_cyclic_local() {
     let utils = from_str(
       "
@@ -211,7 +218,7 @@ local-rule:
   }
 
   #[test]
-  #[ignore]
+  #[should_panic]
   fn test_using_transitive_cycle() {
     let utils = from_str(
       "
