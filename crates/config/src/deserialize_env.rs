@@ -117,7 +117,10 @@ impl<L: Language> DeserializeEnv<L> {
     utils: Vec<SerializableRuleCore<L>>,
   ) -> Result<GlobalRules<L>, RuleConfigError> {
     let registration = GlobalRules::default();
-    for rule in utils {
+    let utils = utils.into_iter().map(|r| (r.id.clone(), r)).collect();
+    let order = TopologicalSort::get_order(&utils);
+    for id in order {
+      let rule = utils.get(id).expect("must exist");
       let matcher = rule.get_matcher(&registration)?;
       registration
         .insert(&rule.id, matcher)
