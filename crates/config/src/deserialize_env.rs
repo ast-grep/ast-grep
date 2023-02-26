@@ -1,5 +1,5 @@
 use crate::maybe::Maybe;
-use crate::referent_rule::{GlobalRules, RuleRegistration};
+use crate::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
 use crate::rule::{deserialize_rule, RuleSerializeError, SerializableRule};
 use crate::rule_config::{RuleConfigError, SerializableRuleCore};
 
@@ -7,23 +7,32 @@ use ast_grep_core::language::Language;
 
 use std::collections::HashMap;
 
+type OrderResult<T> = Result<T, ReferentRuleError>;
+
 pub struct DeserializeEnv<L: Language> {
   pub(crate) registration: RuleRegistration<L>,
   pub(crate) lang: L,
 }
 
 trait DepedentRule: Sized {
-  fn visit_dependent_rules<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>);
+  fn visit_dependent_rules<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>)
+    -> OrderResult<()>;
 }
 
 impl DepedentRule for SerializableRule {
-  fn visit_dependent_rules<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) {
+  fn visit_dependent_rules<'a>(
+    &'a self,
+    sorter: &mut TopologicalSort<'a, Self>,
+  ) -> OrderResult<()> {
     visit_dependent_rule_ids(self, sorter)
   }
 }
 
 impl<L: Language> DepedentRule for SerializableRuleCore<L> {
-  fn visit_dependent_rules<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) {
+  fn visit_dependent_rules<'a>(
+    &'a self,
+    sorter: &mut TopologicalSort<'a, Self>,
+  ) -> OrderResult<()> {
     visit_dependent_rule_ids(&self.rule, sorter)
   }
 }
@@ -36,12 +45,12 @@ struct TopologicalSort<'a, T: DepedentRule> {
 }
 
 impl<'a, T: DepedentRule> TopologicalSort<'a, T> {
-  fn get_order(utils: &HashMap<String, T>) -> Vec<&String> {
+  fn get_order(utils: &HashMap<String, T>) -> OrderResult<Vec<&String>> {
     let mut top_sort = TopologicalSort::new(utils);
     for rule_id in utils.keys() {
-      top_sort.visit(rule_id);
+      top_sort.visit(rule_id)?;
     }
-    top_sort.order
+    Ok(top_sort.order)
   }
 
   fn new(utils: &'a HashMap<String, T>) -> Self {
@@ -52,47 +61,50 @@ impl<'a, T: DepedentRule> TopologicalSort<'a, T> {
     }
   }
 
-  fn visit(&mut self, rule_id: &'a String) {
+  fn visit(&mut self, rule_id: &'a String) -> OrderResult<()> {
     if let Some(&completed) = self.seen.get(rule_id) {
-      if completed {
-        return;
+      return if completed {
+        Ok(())
       } else {
-        panic!("cyclic!!!");
-      }
+        Err(ReferentRuleError::CyclicRule)
+      };
     }
     let Some(rule) = self.utils.get(rule_id) else {
       // if rule_id not found in global, it can be a local rule
       // if rule_id not found in local, it can be a global rule
-      return;
+      // TODO: add check here and return Err if rule not found
+      return Ok(());
     };
     self.seen.insert(rule_id, false);
-    rule.visit_dependent_rules(self);
+    rule.visit_dependent_rules(self)?;
     self.seen.insert(rule_id, true);
     self.order.push(rule_id);
+    Ok(())
   }
 }
 
 fn visit_dependent_rule_ids<'a, T: DepedentRule>(
   rule: &'a SerializableRule,
   sort: &mut TopologicalSort<'a, T>,
-) {
+) -> OrderResult<()> {
   // handle all composite rule here
   if let Maybe::Present(matches) = &rule.matches {
-    sort.visit(matches);
+    sort.visit(matches)?;
   }
   if let Maybe::Present(all) = &rule.all {
     for sub in all {
-      visit_dependent_rule_ids(sub, sort);
+      visit_dependent_rule_ids(sub, sort)?;
     }
   }
   if let Maybe::Present(any) = &rule.any {
     for sub in any {
-      visit_dependent_rule_ids(sub, sort);
+      visit_dependent_rule_ids(sub, sort)?;
     }
   }
   if let Maybe::Present(_not) = &rule.not {
     // TODO: check cyclic here
   }
+  Ok(())
 }
 
 impl<L: Language> DeserializeEnv<L> {
@@ -110,7 +122,7 @@ impl<L: Language> DeserializeEnv<L> {
     self,
     utils: &HashMap<String, SerializableRule>,
   ) -> Result<Self, RuleSerializeError> {
-    let order = TopologicalSort::get_order(utils);
+    let order = TopologicalSort::get_order(utils)?;
     for id in order {
       let rule = utils.get(id).expect("must exist");
       let rule = deserialize_rule(rule.clone(), &self)?;
@@ -124,7 +136,7 @@ impl<L: Language> DeserializeEnv<L> {
   ) -> Result<GlobalRules<L>, RuleConfigError> {
     let registration = GlobalRules::default();
     let utils = utils.into_iter().map(|r| (r.id.clone(), r)).collect();
-    let order = TopologicalSort::get_order(&utils);
+    let order = TopologicalSort::get_order(&utils).map_err(RuleSerializeError::from)?;
     for id in order {
       let rule = utils.get(id).expect("must exist");
       let matcher = rule.get_matcher(&registration)?;
@@ -204,7 +216,6 @@ local-rule:
   }
 
   #[test]
-  #[should_panic]
   fn test_using_cyclic_local() {
     let utils = from_str(
       "
@@ -218,7 +229,6 @@ local-rule:
   }
 
   #[test]
-  #[should_panic]
   fn test_using_transitive_cycle() {
     let utils = from_str(
       "
