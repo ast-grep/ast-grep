@@ -174,6 +174,9 @@ impl<'r> CombinedScan<'r> {
         .potential_kinds()
         .unwrap_or_else(|| panic!("rule `{}` must have kind", &rule.id))
       {
+        // NOTE: common languages usually have about several hundred kinds
+        // from 200+ ~ 500+, it is okay to waste about 500 * 24 Byte vec size = 12kB
+        // see https://github.com/Wilfred/difftastic/tree/master/vendored_parsers
         let k = kind as usize;
         while mapping.len() <= k {
           mapping.push(vec![]);

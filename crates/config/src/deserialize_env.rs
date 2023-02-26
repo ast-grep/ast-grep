@@ -79,8 +79,8 @@ impl<L: Language> DeserializeEnv<L> {
   }
 
   /// register utils rule in the DeserializeEnv for later usage.
-  /// N.B. this function will manage the util registration order
-  /// by their dependency. potential_kinds need orderd insertion.
+  /// N.B. This function will manage the util registration order
+  /// by their dependency. `potential_kinds` need ordered insertion.
   pub fn register_local_utils(
     self,
     utils: &HashMap<String, SerializableRule>,
