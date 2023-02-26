@@ -23,7 +23,7 @@ ast-grep-language = { version = "0.2.6", path = "../language" }
 
 ansi_term = "0.12"
 atty = "0.2.14"
-crossterm = "0.26.0"
+crossterm = "0.26.1"
 anyhow = "1.0"
 clap = { version = "4.1.6", features = ["derive"] }
 codespan-reporting = "0.11.1"
