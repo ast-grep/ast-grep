@@ -36,6 +36,8 @@ impl<L: Language> GlobalRules<L> {
     }
     map.insert(id.to_string(), rule);
     let rule = map.get(id).unwrap();
+    // TODO: we can skip check here because insertion order
+    // is guaranteed in deserialize_env
     if rule.check_cyclic(id) {
       return Err(ReferentRuleError::CyclicRule);
     }
@@ -85,6 +87,8 @@ impl<L: Language> RuleRegistration<L> {
     }
     map.insert(id.to_string(), rule);
     let rule = map.get(id).unwrap();
+    // TODO: we can skip check here because insertion order
+    // is guaranteed in deserialize_env
     if rule.check_cyclic(id) {
       return Err(ReferentRuleError::CyclicRule);
     }

@@ -63,6 +63,8 @@ impl<'a, T: DepedentRule> TopologicalSort<'a, T> {
 
   fn visit(&mut self, rule_id: &'a String) -> OrderResult<()> {
     if let Some(&completed) = self.seen.get(rule_id) {
+      // if the rule has been seen but not completed
+      // it means we have a cyclic dependency and report an error here
       return if completed {
         Ok(())
       } else {
@@ -75,8 +77,10 @@ impl<'a, T: DepedentRule> TopologicalSort<'a, T> {
       // TODO: add check here and return Err if rule not found
       return Ok(());
     };
+    // mark the id as seen but not completed
     self.seen.insert(rule_id, false);
     rule.visit_dependent_rules(self)?;
+    // mark the id as seen and completed
     self.seen.insert(rule_id, true);
     self.order.push(rule_id);
     Ok(())
