@@ -12,13 +12,37 @@ pub struct DeserializeEnv<L: Language> {
   pub(crate) lang: L,
 }
 
-struct TopologicalSort<'a, T: DependentRule> {
+trait DepedentRule: Sized {
+  fn visit_dependent_rules<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>);
+}
+
+impl DepedentRule for SerializableRule {
+  fn visit_dependent_rules<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) {
+    visit_dependent_rule_ids(self, sorter)
+  }
+}
+
+impl<L: Language> DepedentRule for SerializableRuleCore<L> {
+  fn visit_dependent_rules<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) {
+    visit_dependent_rule_ids(&self.rule, sorter)
+  }
+}
+
+struct TopologicalSort<'a, T: DepedentRule> {
   utils: &'a HashMap<String, T>,
   order: Vec<&'a String>,
   seen: HashSet<&'a String>,
 }
 
-impl<'a, T: DependentRule> TopologicalSort<'a, T> {
+impl<'a, T: DepedentRule> TopologicalSort<'a, T> {
+  fn get_order(utils: &HashMap<String, T>) -> Vec<&String> {
+    let mut top_sort = TopologicalSort::new(utils);
+    for rule_id in utils.keys() {
+      top_sort.visit(rule_id);
+    }
+    top_sort.order
+  }
+
   fn new(utils: &'a HashMap<String, T>) -> Self {
     Self {
       utils,
@@ -31,49 +55,38 @@ impl<'a, T: DependentRule> TopologicalSort<'a, T> {
     if self.seen.contains(rule_id) {
       return;
     }
-    let rule = self
-      .utils
-      .get(rule_id)
-      .expect("rule_id must exist in utils");
-    rule.visit_dependent_rule_ids(self);
+    let Some(rule) = self.utils.get(rule_id) else {
+      // if rule_id not found in global, it can be a local rule
+      // if rule_id not found in local, it can be a global rule
+      return;
+    };
+    rule.visit_dependent_rules(self);
     self.seen.insert(rule_id);
     self.order.push(rule_id);
   }
 }
 
-trait DependentRule: Sized {
-  /// NOTE: this function only needs to handle rules used in potential_kinds
-  fn visit_dependent_rule_ids<'a>(&'a self, sort: &mut TopologicalSort<'a, Self>);
-}
-
-impl DependentRule for SerializableRule {
-  fn visit_dependent_rule_ids<'a>(&'a self, sort: &mut TopologicalSort<'a, Self>) {
-    // handle all composite rule here
-    if let Maybe::Present(matches) = &self.matches {
-      sort.visit(matches);
-    }
-    if let Maybe::Present(all) = &self.all {
-      for sub in all {
-        sub.visit_dependent_rule_ids(sort);
-      }
-    }
-    if let Maybe::Present(any) = &self.any {
-      for sub in any {
-        sub.visit_dependent_rule_ids(sort);
-      }
-    }
-    if let Maybe::Present(_not) = &self.not {
-      // TODO: check cyclic here
+fn visit_dependent_rule_ids<'a, T: DepedentRule>(
+  rule: &'a SerializableRule,
+  sort: &mut TopologicalSort<'a, T>,
+) {
+  // handle all composite rule here
+  if let Maybe::Present(matches) = &rule.matches {
+    sort.visit(matches);
+  }
+  if let Maybe::Present(all) = &rule.all {
+    for sub in all {
+      visit_dependent_rule_ids(sub, sort);
     }
   }
-}
-
-fn get_order<T: DependentRule>(utils: &HashMap<String, T>) -> Vec<&String> {
-  let mut top_sort = TopologicalSort::new(utils);
-  for rule_id in utils.keys() {
-    top_sort.visit(rule_id);
+  if let Maybe::Present(any) = &rule.any {
+    for sub in any {
+      visit_dependent_rule_ids(sub, sort);
+    }
   }
-  top_sort.order
+  if let Maybe::Present(_not) = &rule.not {
+    // TODO: check cyclic here
+  }
 }
 
 impl<L: Language> DeserializeEnv<L> {
@@ -91,7 +104,7 @@ impl<L: Language> DeserializeEnv<L> {
     self,
     utils: &HashMap<String, SerializableRule>,
   ) -> Result<Self, RuleSerializeError> {
-    let order = get_order(utils);
+    let order = TopologicalSort::get_order(utils);
     for id in order {
       let rule = utils.get(id).expect("must exist");
       let rule = deserialize_rule(rule.clone(), &self)?;
