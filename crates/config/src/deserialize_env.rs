@@ -12,14 +12,14 @@ pub struct DeserializeEnv<L: Language> {
   pub(crate) lang: L,
 }
 
-struct TopologicalSort<'a> {
-  utils: &'a HashMap<String, SerializableRule>,
+struct TopologicalSort<'a, T: DependentRule> {
+  utils: &'a HashMap<String, T>,
   order: Vec<&'a String>,
   seen: HashSet<&'a String>,
 }
 
-impl<'a> TopologicalSort<'a> {
-  fn new(utils: &'a HashMap<String, SerializableRule>) -> Self {
+impl<'a, T: DependentRule> TopologicalSort<'a, T> {
+  fn new(utils: &'a HashMap<String, T>) -> Self {
     Self {
       utils,
       order: vec![],
@@ -35,34 +35,40 @@ impl<'a> TopologicalSort<'a> {
       .utils
       .get(rule_id)
       .expect("rule_id must exist in utils");
-    visit_dependent_rule_ids(rule, self);
+    rule.visit_dependent_rule_ids(self);
     self.seen.insert(rule_id);
     self.order.push(rule_id);
   }
 }
 
-/// NOTE: this function only needs to handle rules used in potential_kinds
-fn visit_dependent_rule_ids<'a>(rule: &'a SerializableRule, sort: &mut TopologicalSort<'a>) {
-  // handle all composite rule here
-  if let Maybe::Present(matches) = &rule.matches {
-    sort.visit(matches);
-  }
-  if let Maybe::Present(all) = &rule.all {
-    for sub in all {
-      visit_dependent_rule_ids(sub, sort);
+trait DependentRule: Sized {
+  /// NOTE: this function only needs to handle rules used in potential_kinds
+  fn visit_dependent_rule_ids<'a>(&'a self, sort: &mut TopologicalSort<'a, Self>);
+}
+
+impl DependentRule for SerializableRule {
+  fn visit_dependent_rule_ids<'a>(&'a self, sort: &mut TopologicalSort<'a, Self>) {
+    // handle all composite rule here
+    if let Maybe::Present(matches) = &self.matches {
+      sort.visit(matches);
     }
-  }
-  if let Maybe::Present(any) = &rule.any {
-    for sub in any {
-      visit_dependent_rule_ids(sub, sort);
+    if let Maybe::Present(all) = &self.all {
+      for sub in all {
+        sub.visit_dependent_rule_ids(sort);
+      }
     }
-  }
-  if let Maybe::Present(_not) = &rule.not {
-    // TODO: check cyclic here
+    if let Maybe::Present(any) = &self.any {
+      for sub in any {
+        sub.visit_dependent_rule_ids(sort);
+      }
+    }
+    if let Maybe::Present(_not) = &self.not {
+      // TODO: check cyclic here
+    }
   }
 }
 
-fn get_order(utils: &HashMap<String, SerializableRule>) -> Vec<&String> {
+fn get_order<T: DependentRule>(utils: &HashMap<String, T>) -> Vec<&String> {
   let mut top_sort = TopologicalSort::new(utils);
   for rule_id in utils.keys() {
     top_sort.visit(rule_id);
