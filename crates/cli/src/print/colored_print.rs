@@ -697,7 +697,7 @@ mod test {
   }
 
   #[test]
-  fn test_printe_rules() {
+  fn test_print_rules() {
     let globals = GlobalRules::default();
     for &(source, pattern, note) in MATCHES_CASES {
       let printer = make_test_printer()
@@ -732,7 +732,7 @@ rule:
 
   #[test]
   #[ignore]
-  fn test_printe_diffs() {
+  fn test_print_diffs() {
     todo!()
   }
 }
