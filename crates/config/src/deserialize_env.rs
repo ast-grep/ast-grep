@@ -1,7 +1,9 @@
 use crate::maybe::Maybe;
 use crate::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
 use crate::rule::{deserialize_rule, RuleSerializeError, SerializableRule};
-use crate::rule_config::{RuleConfigError, SerializableRuleCore};
+use crate::rule_config::{
+  into_map, RuleConfigError, SerializableRuleConfigCore, SerializableRuleCore,
+};
 
 use ast_grep_core::language::Language;
 
@@ -136,16 +138,16 @@ impl<L: Language> DeserializeEnv<L> {
   }
 
   pub fn parse_global_utils(
-    utils: Vec<SerializableRuleCore<L>>,
+    utils: Vec<SerializableRuleConfigCore<L>>,
   ) -> Result<GlobalRules<L>, RuleConfigError> {
     let registration = GlobalRules::default();
-    let utils = utils.into_iter().map(|r| (r.id.clone(), r)).collect();
+    let utils = into_map(utils);
     let order = TopologicalSort::get_order(&utils).map_err(RuleSerializeError::from)?;
     for id in order {
       let rule = utils.get(id).expect("must exist");
       let matcher = rule.get_matcher(&registration)?;
       registration
-        .insert(&rule.id, matcher)
+        .insert(id, matcher)
         .map_err(RuleSerializeError::MatchesRefrence)?;
     }
     Ok(registration)

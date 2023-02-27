@@ -29,8 +29,6 @@ pub enum Severity {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializableRuleCore<L: Language> {
-  /// Unique, descriptive identifier, e.g., no-unused-variable
-  pub id: String,
   /// Specify the language to parse and the file extension to includ in matching.
   pub language: L,
   /// Pattern rules to find matching AST nodes
@@ -71,11 +69,26 @@ impl<L: Language> SerializableRuleCore<L> {
     )
   }
 }
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SerializableRuleConfigCore<L: Language> {
+  #[serde(flatten)]
+  pub core: SerializableRuleCore<L>,
+  /// Unique, descriptive identifier, e.g., no-unused-variable
+  pub id: String,
+}
+
+pub fn into_map<L: Language>(
+  rules: Vec<SerializableRuleConfigCore<L>>,
+) -> HashMap<String, SerializableRuleCore<L>> {
+  rules.into_iter().map(|r| (r.id, r.core)).collect()
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializableRuleConfig<L: Language> {
   #[serde(flatten)]
   pub core: SerializableRuleCore<L>,
+  /// Unique, descriptive identifier, e.g., no-unused-variable
+  pub id: String,
   /// Main message highlighting why this rule fired. It should be single line and concise,
   /// but specific enough to be understood without additional context.
   pub message: String,
@@ -186,7 +199,6 @@ mod test {
 
   fn ts_rule_config(rule: SerializableRule) -> SerializableRuleConfig<TypeScript> {
     let core = SerializableRuleCore {
-      id: "".into(),
       language: TypeScript::Tsx,
       rule,
       constraints: None,
@@ -194,6 +206,7 @@ mod test {
     };
     SerializableRuleConfig {
       core,
+      id: "".into(),
       message: "".into(),
       note: None,
       severity: Severity::Hint,

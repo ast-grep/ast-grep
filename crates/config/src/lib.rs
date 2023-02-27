@@ -18,7 +18,7 @@ pub use rule::{deserialize_rule, Rule, RuleSerializeError, SerializableRule};
 pub use rule_collection::RuleCollection;
 pub use rule_config::{
   try_deserialize_matchers, RuleConfig, RuleConfigError, RuleWithConstraint,
-  SerializableMetaVarMatcher, SerializableRuleConfig, Severity,
+  SerializableMetaVarMatcher, SerializableRuleConfig, SerializableRuleConfigCore, Severity,
 };
 
 pub fn from_str<'de, T: Deserialize<'de>>(s: &'de str) -> Result<T, YamlError> {
