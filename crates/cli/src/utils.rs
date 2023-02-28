@@ -147,8 +147,8 @@ pub fn filter_file_interactive<M: Matcher<SupportLang>>(
     .with_context(|| format!("Cannot read file {}", path.to_string_lossy()))
     .map_err(|err| eprintln!("{err}"))
     .ok()?;
-  // skip large files
-  if file_too_large(&file_content) {
+  // skip large files or empty file
+  if file_too_large(&file_content) || file_content.is_empty() {
     // TODO add output
     return None;
   }

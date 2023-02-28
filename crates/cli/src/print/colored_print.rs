@@ -279,7 +279,10 @@ fn print_matches_with_heading<'a, W: Write>(
   let Some(first_match) = matches.next() else {
     return Ok(())
   };
-  let source = first_match.ancestors().last().unwrap().text();
+  let source = first_match
+    .ancestors()
+    .last()
+    .map_or_else(|| first_match.text(), |n| n.text());
   let display = first_match.display_context(0);
 
   let mut merger = MatchMerger::new(&first_match);
@@ -329,7 +332,10 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
   let Some(first_match) = matches.next() else {
     return Ok(())
   };
-  let source = first_match.ancestors().last().unwrap().text();
+  let source = first_match
+    .ancestors()
+    .last()
+    .map_or_else(|| first_match.text(), |n| n.text());
   let display = first_match.display_context(0);
 
   let mut merger = MatchMerger::new(&first_match);
