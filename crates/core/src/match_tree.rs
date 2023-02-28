@@ -83,7 +83,7 @@ pub fn match_end_non_recursive<L: Language>(goal: &Node<L>, candidate: Node<L>) 
   match_multi_nodes_end_non_recursive(goal_children, cand_children)
 }
 
-pub fn match_multi_nodes_end_non_recursive<'g, 'c, L: Language + 'g + 'c>(
+fn match_multi_nodes_end_non_recursive<'g, 'c, L: Language + 'g + 'c>(
   goals: impl Iterator<Item = Node<'g, L>>,
   candidates: impl Iterator<Item = Node<'c, L>>,
 ) -> Option<usize> {
@@ -169,7 +169,7 @@ pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
   }
 }
 
-pub fn match_nodes_non_recursive<'goal, 'tree, L: Language + 'tree + 'goal>(
+fn match_nodes_non_recursive<'goal, 'tree, L: Language + 'tree + 'goal>(
   goals: impl Iterator<Item = Node<'goal, L>>,
   candidates: impl Iterator<Item = Node<'tree, L>>,
   env: &mut MetaVarEnv<'tree, L>,
