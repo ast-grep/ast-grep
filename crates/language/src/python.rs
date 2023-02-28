@@ -34,6 +34,19 @@ mod test {
     test_match_lang(query, source, Python);
   }
 
+  fn test_non_match(query: &str, source: &str) {
+    use crate::test::test_non_match_lang;
+    test_non_match_lang(query, source, Python);
+  }
+
+  #[test]
+  fn test_python_str() {
+    test_match("print($A)", "print(123)");
+    test_match("print('123')", "print('123')");
+    test_non_match("print('123')", "print('456')");
+    test_non_match("'123'", "'456'");
+  }
+
   #[test]
   fn test_python_pattern() {
     test_match("$A = 0", "a = 0");

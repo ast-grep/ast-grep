@@ -123,7 +123,7 @@ fn get_meta_var_replacement<L: Language>(
   env: &MetaVarEnv<L>,
   lang: L,
 ) -> Option<String> {
-  if !node.is_leaf() {
+  if !node.is_named_leaf() {
     return None;
   }
   let meta_var = lang.extract_meta_var(&node.text())?;

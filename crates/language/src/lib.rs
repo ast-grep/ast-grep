@@ -245,6 +245,16 @@ mod test {
       cand.root().to_sexp(),
     );
   }
+
+  pub fn test_non_match_lang(query: &str, source: &str, lang: impl Language) {
+    let cand = lang.ast_grep(source);
+    let pattern = Pattern::new(query, lang);
+    assert!(
+      pattern.find_node(cand.root()).is_none(),
+      "goal: {pattern:?}, candidate: {}",
+      cand.root().to_sexp(),
+    );
+  }
   pub fn test_replace_lang(
     src: &str,
     pattern: &str,

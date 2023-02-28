@@ -105,6 +105,10 @@ impl SgNode {
     self.inner.is_leaf()
   }
   #[napi]
+  pub fn is_named_leaf(&self) -> bool {
+    self.inner.is_named_leaf()
+  }
+  #[napi]
   pub fn kind(&self) -> String {
     self.inner.kind().to_string()
   }

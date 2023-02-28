@@ -61,7 +61,7 @@ fn update_ellipsis_env<'t, L: Language>(
 }
 
 pub fn match_end_non_recursive<L: Language>(goal: &Node<L>, candidate: Node<L>) -> Option<usize> {
-  let is_leaf = goal.is_leaf();
+  let is_leaf = goal.is_named_leaf();
   if is_leaf && extract_var_from_node(goal).is_some() {
     return Some(candidate.range().end);
   }
@@ -141,7 +141,7 @@ pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
   candidate: Node<'tree, L>,
   env: &mut MetaVarEnv<'tree, L>,
 ) -> Option<Node<'tree, L>> {
-  let is_leaf = goal.is_leaf();
+  let is_leaf = goal.is_named_leaf();
   if is_leaf {
     if let Some(matched) = match_leaf_meta_var(goal, candidate.clone(), env) {
       return Some(matched);
@@ -256,7 +256,7 @@ pub fn does_node_match_exactly<L: Language>(goal: &Node<L>, candidate: Node<L>) 
   if goal.kind_id() != candidate.kind_id() {
     return false;
   }
-  if goal.is_leaf() {
+  if goal.is_named_leaf() {
     return goal.text() == candidate.text();
   }
   let goal_children = goal.children();

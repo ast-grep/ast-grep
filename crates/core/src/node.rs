@@ -121,6 +121,9 @@ impl<'r, L: Language> Node<'r, L> {
   pub fn is_leaf(&self) -> bool {
     self.inner.child_count() == 0
   }
+  pub fn is_named_leaf(&self) -> bool {
+    self.inner.named_child_count() == 0
+  }
   pub fn kind(&self) -> Cow<str> {
     self.inner.kind()
   }
