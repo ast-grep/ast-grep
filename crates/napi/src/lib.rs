@@ -1,12 +1,7 @@
 #![cfg(not(feature = "napi-noop-in-unit-test"))]
 
-// use ast_grep_config::RuleConfig;
-use ast_grep_config::{
-  deserialize_rule, try_deserialize_matchers, DeserializeEnv, RuleWithConstraint,
-  SerializableMetaVarMatcher, SerializableRule,
-};
+use ast_grep_config::{RuleWithConstraint, SerializableRuleCore};
 use ast_grep_core::language::{Language, TSLanguage};
-use ast_grep_core::meta_var::MetaVarMatchers;
 use ast_grep_core::pinned::{NodeData, PinnedNodeData};
 use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern};
 use ignore::types::TypesBuilder;
@@ -17,7 +12,6 @@ use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFun
 use napi::{JsNumber, Task};
 use napi_derive::napi;
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 
@@ -184,6 +178,7 @@ pub struct NapiConfig {
   pub rule: serde_json::Value,
   pub constraints: Option<serde_json::Value>,
   pub language: Option<FrontEndLanguage>,
+  pub utils: Option<serde_json::Value>,
 }
 
 fn parse_config(
@@ -191,17 +186,15 @@ fn parse_config(
   language: FrontEndLanguage,
 ) -> Result<RuleWithConstraint<FrontEndLanguage>> {
   let lang = config.language.unwrap_or(language);
-  let rule: SerializableRule = serde_json::from_value(config.rule)?;
-  let rule = deserialize_rule(rule, &DeserializeEnv::new(lang))
-    .map_err(|e| napi::Error::new(napi::Status::InvalidArg, e.to_string()))?;
-  let matchers = if let Some(matchers) = config.constraints {
-    let matchers: HashMap<String, SerializableMetaVarMatcher> = serde_json::from_value(matchers)?;
-    try_deserialize_matchers(matchers, lang)
-      .map_err(|e| napi::Error::new(napi::Status::InvalidArg, e.to_string()))?
-  } else {
-    MetaVarMatchers::default()
+  let rule = SerializableRuleCore {
+    language: lang,
+    rule: serde_json::from_value(config.rule)?,
+    constraints: config.constraints.map(serde_json::from_value).transpose()?,
+    utils: config.utils.map(serde_json::from_value).transpose()?,
   };
-  Ok(RuleWithConstraint::new(rule).with_matchers(matchers))
+  rule
+    .get_matcher(&Default::default())
+    .map_err(|e| napi::Error::new(napi::Status::InvalidArg, e.to_string()))
 }
 
 /// tree traversal API
@@ -393,6 +386,7 @@ macro_rules! impl_lang_mod {
             }),
             constraints: None,
             language: Some($lang),
+            utils: None,
           }
         }
         #[napi(

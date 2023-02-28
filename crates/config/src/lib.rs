@@ -17,9 +17,16 @@ pub use referent_rule::GlobalRules;
 pub use rule::{deserialize_rule, Rule, RuleSerializeError, SerializableRule};
 pub use rule_collection::RuleCollection;
 pub use rule_config::{
-  try_deserialize_matchers, RuleConfig, RuleConfigError, RuleWithConstraint,
-  SerializableMetaVarMatcher, SerializableRuleConfig, SerializableRuleConfigCore, Severity,
+  RuleConfig, RuleConfigError, RuleWithConstraint, SerializableRuleConfig,
+  SerializableRuleConfigCore, SerializableRuleCore, Severity,
 };
+
+pub mod internal {
+  pub use crate::rule_config::{
+    try_deserialize_matchers, SerializableMetaVarMatcher, SerializableRuleConfig,
+    SerializableRuleConfigCore,
+  };
+}
 
 pub fn from_str<'de, T: Deserialize<'de>>(s: &'de str) -> Result<T, YamlError> {
   let deserializer = Deserializer::from_str(s);
