@@ -668,44 +668,33 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_config::{
-    from_str, GlobalRules, RuleConfig, SerializableRule, SerializableRuleConfig,
-  };
+  use ast_grep_config::{from_str, GlobalRules, RuleConfig};
 
   const TEST_RULE: &str = "test-rule";
 
-  fn get_rule_config(rule: SerializableRule) -> RuleConfig<SupportLang> {
+  fn get_rule_config(rule: &str) -> RuleConfig<SupportLang> {
     let globals = GlobalRules::default();
-    let mut inner: SerializableRuleConfig<SupportLang> = from_str(&format!(
+    let inner = from_str(&format!(
       "
 id: {TEST_RULE}
 message: test
 severity: hint
 language: TypeScript
 rule:
-  all: []
+  {rule}
 "
     ))
     .unwrap();
-    inner.rule = rule;
     RuleConfig::try_from(inner, &globals).unwrap()
   }
   fn always_report_rule() -> RuleCollection<SupportLang> {
     // empty all should mean always
-    let serialized = SerializableRule {
-      all: Some(vec![]).into(),
-      ..Default::default()
-    };
-    let rule = get_rule_config(serialized);
+    let rule = get_rule_config("all: []");
     RuleCollection::try_new(vec![rule]).expect("RuleCollection must be valid")
   }
   fn never_report_rule() -> RuleCollection<SupportLang> {
     // empty any should mean never
-    let serialized = SerializableRule {
-      any: Some(vec![]).into(),
-      ..Default::default()
-    };
-    let rule = get_rule_config(serialized);
+    let rule = get_rule_config("any: []");
     RuleCollection::try_new(vec![rule]).expect("RuleCollection must be valid")
   }
 
@@ -776,8 +765,7 @@ rule:
 
   #[test]
   fn test_snapshot() {
-    let serialize = from_str("pattern: let a = 1").expect("should parse");
-    let rule = get_rule_config(serialize);
+    let rule = get_rule_config("pattern: let a = 1");
     let ret = verify_invalid_case(&rule, "function () { let a = 1 }", None);
     assert!(matches!(&ret, CaseStatus::Wrong { expected: None, .. }));
     let CaseStatus::Wrong { actual, source, .. } = ret else {
