@@ -6,7 +6,7 @@ use ast_grep_core::pinned::{NodeData, PinnedNodeData};
 use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern};
 use ignore::types::TypesBuilder;
 use ignore::{WalkBuilder, WalkState};
-use napi::anyhow::{anyhow, Context, Result as Ret};
+use napi::anyhow::{anyhow, Context, Error, Result as Ret};
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi::{JsNumber, Task};
@@ -196,9 +196,13 @@ fn parse_config(
     constraints: config.constraints.map(serde_json::from_value).transpose()?,
     utils: config.utils.map(serde_json::from_value).transpose()?,
   };
-  rule
-    .get_matcher(&Default::default())
-    .map_err(|e| napi::Error::new(napi::Status::InvalidArg, e.to_string()))
+  rule.get_matcher(&Default::default()).map_err(|e| {
+    let error = Error::from(e)
+      .chain()
+      .map(ToString::to_string)
+      .collect::<Vec<_>>();
+    napi::Error::new(napi::Status::InvalidArg, error.join("\n |->"))
+  })
 }
 
 /// tree traversal API

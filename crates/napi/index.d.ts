@@ -26,6 +26,7 @@ export interface NapiConfig {
   rule: any
   constraints?: any
   language?: FrontEndLanguage
+  utils?: any
 }
 export function parseFiles(paths: string[], callback: (err: null | Error, result: SgRoot) => void): Promise<number>
 export interface FindConfig {
@@ -35,6 +36,7 @@ export interface FindConfig {
 export class SgNode {
   range(): Range
   isLeaf(): boolean
+  isNamedLeaf(): boolean
   kind(): string
   text(): string
   matches(m: string): boolean
