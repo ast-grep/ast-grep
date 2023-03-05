@@ -17,7 +17,7 @@ default = ["regex"]
 [dependencies]
 ast-grep-core = { version= "0.3.1", path = "../core" }
 serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.9.17"
+serde_yaml = "0.9.18"
 regex = {version = "1.7.1", optional = true }
 globset = "0.4.10"
 bit-set = "0.5.3"
