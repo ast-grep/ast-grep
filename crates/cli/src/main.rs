@@ -1,6 +1,7 @@
 mod config;
 mod error;
 mod lsp;
+mod new;
 mod print;
 mod run;
 mod scan;
@@ -11,6 +12,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use error::exit_with_error;
+use new::{run_create_new, NewArg};
 use run::{run_with_pattern, RunArg};
 use scan::{run_with_config, ScanArg};
 use verify::{run_test_rule, TestArg};
@@ -42,11 +44,13 @@ enum Commands {
   Run(RunArg),
   /// Scan and rewrite code by configuration
   Scan(ScanArg),
-  /// test ast-grep rule
+  /// Test ast-grep rule
   Test(TestArg),
-  /// starts language server
+  /// Create new ast-grep project or rules
+  New(NewArg),
+  /// Starts language server
   Lsp,
-  /// generate rule docs for current configuration
+  /// Generate rule docs for current configuration
   Docs,
 }
 
@@ -82,6 +86,7 @@ fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
     Commands::Run(arg) => run_with_pattern(arg),
     Commands::Scan(arg) => run_with_config(arg),
     Commands::Test(arg) => run_test_rule(arg),
+    Commands::New(arg) => run_create_new(arg),
     Commands::Lsp => lsp::run_language_server(),
     Commands::Docs => todo!("todo, generate rule docs based on current config"),
   }
