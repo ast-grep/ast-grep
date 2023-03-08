@@ -9,7 +9,7 @@ use clap::ValueEnum;
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs::{self, read_to_string};
+use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -17,7 +17,18 @@ use std::path::{Path, PathBuf};
 pub struct TestConfig {
   test_dir: PathBuf,
   /// Specify the directory containing snapshots. The path is relative to `test_dir`
+  #[serde(skip_serializing_if = "Option::is_none")]
   snapshot_dir: Option<PathBuf>,
+}
+
+impl From<String> for TestConfig {
+  fn from(s: String) -> Self {
+    let path = PathBuf::from(s);
+    TestConfig {
+      test_dir: path,
+      snapshot_dir: None,
+    }
+  }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -26,11 +37,14 @@ pub struct AstGrepConfig {
   /// YAML rule directories
   pub rule_dirs: Vec<PathBuf>,
   /// test configurations
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub test_configs: Option<Vec<TestConfig>>,
   /// util rules directories
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub util_dirs: Option<Vec<PathBuf>>,
-  /// overriding config for rules
-  pub rules: Option<Vec<()>>,
+  // /// overriding config for rules
+  // #[serde(skip_serializing_if="Option::is_none")]
+  // pub rules: Option<Vec<()>>,
 }
 
 pub fn find_rules(config_path: Option<PathBuf>) -> Result<RuleCollection<SupportLang>> {
