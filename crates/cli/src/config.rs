@@ -9,7 +9,7 @@ use clap::ValueEnum;
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs::read_to_string;
+use std::fs::{self, read_to_string};
 use std::path::{Path, PathBuf};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -196,6 +196,16 @@ pub fn read_test_files(
     snapshots,
     path_map,
   })
+}
+
+pub fn read_sg_config_from_current_dir() -> Result<Option<AstGrepConfig>> {
+  let config_path = find_config_path_with_default(None).context(EC::ReadConfiguration)?;
+  if !config_path.is_file() {
+    return Ok(None);
+  }
+  let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
+  let sg_config = from_str(&config_str).context(EC::ParseConfiguration)?;
+  Ok(Some(sg_config))
 }
 
 const CONFIG_FILE: &str = "sgconfig.yml";
