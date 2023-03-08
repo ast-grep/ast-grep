@@ -1,4 +1,4 @@
-use crate::config::find_config;
+use crate::config::find_rules;
 use crate::error::ErrorContext as EC;
 use anyhow::{Context, Result};
 use ast_grep_lsp::{Backend, LspService, Server};
@@ -8,7 +8,7 @@ async fn run_language_server_impl() -> Result<()> {
 
   let stdin = tokio::io::stdin();
   let stdout = tokio::io::stdout();
-  let config = find_config(None)?;
+  let config = find_rules(None)?;
 
   let (service, socket) = LspService::build(|client| Backend::new(client, config)).finish();
   Server::new(stdin, stdout, socket).serve(service).await;

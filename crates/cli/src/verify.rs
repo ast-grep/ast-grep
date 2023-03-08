@@ -1,4 +1,4 @@
-use crate::config::{find_config, find_tests, read_test_files, TestHarness};
+use crate::config::{find_rules, find_tests, read_test_files, TestHarness};
 use crate::error::ErrorContext;
 use crate::print::{print_diff, ColorChoice, PrintStyles};
 use crate::utils::{prompt, run_in_alternate_screen};
@@ -172,7 +172,7 @@ where
 }
 
 fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<()> {
-  let collections = &find_config(arg.config.clone())?;
+  let collections = &find_rules(arg.config.clone())?;
   let TestHarness {
     test_cases,
     snapshots,

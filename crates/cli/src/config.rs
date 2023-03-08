@@ -33,7 +33,7 @@ pub struct AstGrepConfig {
   pub rules: Option<Vec<()>>,
 }
 
-pub fn find_config(config_path: Option<PathBuf>) -> Result<RuleCollection<SupportLang>> {
+pub fn find_rules(config_path: Option<PathBuf>) -> Result<RuleCollection<SupportLang>> {
   let config_path = find_config_path_with_default(config_path).context(EC::ReadConfiguration)?;
   let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
   let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;

@@ -7,7 +7,7 @@ use ast_grep_core::{AstGrep, Matcher, NodeMatch};
 use clap::Args;
 use ignore::WalkParallel;
 
-use crate::config::{find_config, read_rule_file, IgnoreFile, NoIgnore};
+use crate::config::{find_rules, read_rule_file, IgnoreFile, NoIgnore};
 use crate::error::ErrorContext as EC;
 use crate::print::{
   ColorArg, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Printer, ReportStyle, SimpleFile,
@@ -83,7 +83,7 @@ impl<P: Printer> ScanWithConfig<P> {
       let rules = read_rule_file(path, None)?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
     } else {
-      find_config(arg.config.take())?
+      find_rules(arg.config.take())?
     };
     Ok(Self {
       arg,

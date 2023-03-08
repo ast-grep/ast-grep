@@ -5,6 +5,8 @@ use clap::{Parser, Subcommand};
 pub struct NewArg {
   #[clap(subcommand)]
   entity: Option<Entity>,
+  #[clap(value_parser)]
+  name: Option<String>,
 }
 
 #[derive(Subcommand, Debug, PartialEq, Eq)]
