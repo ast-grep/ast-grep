@@ -66,7 +66,7 @@ fn do_create_entity(entity: Entity, sg_config: AstGrepConfig, arg: NewArg) -> Re
   match entity {
     Entity::Rule => create_new_rule(sg_config, arg)?,
     Entity::Test => create_new_test(sg_config.test_configs, arg.name)?,
-    Entity::Util => create_new_util()?,
+    Entity::Util => create_new_util(sg_config, arg)?,
     _ => unreachable!(),
   }
   // ask if a test is needed if user is creating a rule
@@ -219,6 +219,44 @@ fn create_new_test(test_configs: Option<Vec<TestConfig>>, name: Option<String>) 
   Ok(())
 }
 
-fn create_new_util() -> Result<()> {
+fn default_util(id: &str, lang: SupportLang) -> String {
+  format!(
+    r#"id: {id}
+language: {lang}
+rule:
+  pattern: Your Rule Pattern here...
+# utils: Extract repeated rule as local utility here."#
+  )
+}
+
+fn create_new_util(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
+  let Some(utils) = sg_config.util_dirs else {
+    return Err(anyhow::anyhow!("TODO, add error message"))
+  };
+  if utils.is_empty() {
+    return Err(anyhow::anyhow!("TODO, add error message"));
+  }
+  let util_dir = if utils.len() > 1 {
+    let dirs = utils.iter().map(|p| p.display()).collect();
+    let display =
+      inquire::Select::new("Which util dir do you want to save your rule?", dirs).prompt()?;
+    PathBuf::from(display.to_string())
+  } else {
+    utils[0].clone()
+  };
+  let name = if let Some(name) = arg.name {
+    name
+  } else {
+    inquire::Text::new("What is your util name?")
+      .with_validator(ValueRequiredValidator::default())
+      .prompt()?
+  };
+  let path = util_dir.join(format!("{name}.yml"));
+  if path.exists() {
+    return Err(anyhow::anyhow!("file already exist"));
+  }
+  let lang = choose_language()?;
+  fs::write(&path, default_util(&name, lang))?;
+  println!("Created util at {}", path.display());
   Ok(())
 }
