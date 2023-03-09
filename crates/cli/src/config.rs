@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TestConfig {
-  test_dir: PathBuf,
+  pub test_dir: PathBuf,
   /// Specify the directory containing snapshots. The path is relative to `test_dir`
   #[serde(skip_serializing_if = "Option::is_none")]
   snapshot_dir: Option<PathBuf>,

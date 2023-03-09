@@ -1,6 +1,6 @@
 use crate::config::{read_sg_config_from_current_dir, AstGrepConfig, TestConfig};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use ast_grep_language::SupportLang;
 use clap::{Parser, Subcommand};
 use inquire::validator::ValueRequiredValidator;
@@ -14,9 +14,6 @@ pub struct NewArg {
   /// TODO: add doc
   #[clap(subcommand)]
   entity: Option<Entity>,
-  /// TODO: add doc
-  #[clap(short, long)]
-  accept_all: bool,
   /// TODO: add doc
   #[clap(value_parser)]
   name: Option<String>,
@@ -68,7 +65,7 @@ fn do_create_entity(entity: Entity, sg_config: AstGrepConfig, arg: NewArg) -> Re
   // ask user what destination to create if multiple dirs exist
   match entity {
     Entity::Rule => create_new_rule(sg_config, arg)?,
-    Entity::Test => create_new_test()?,
+    Entity::Test => create_new_test(sg_config.test_configs, arg.name)?,
     Entity::Util => create_new_util()?,
     _ => unreachable!(),
   }
@@ -176,13 +173,49 @@ fn create_new_rule(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
     .with_default(true)
     .prompt()?;
   if need_test {
-    create_new_test()?;
+    create_new_test(sg_config.test_configs, Some(name))?;
   }
   Ok(())
 }
 
-fn create_new_test() -> Result<()> {
-  println!("create test!");
+fn default_test(id: &str) -> String {
+  format!(
+    r#"id: {id}
+valid:
+- "valid code"
+invalid:
+- "invalid code"
+"#
+  )
+}
+
+fn create_new_test(test_configs: Option<Vec<TestConfig>>, name: Option<String>) -> Result<()> {
+  let Some(tests) = test_configs else {
+    return Err(anyhow::anyhow!("TODO, add error message"))
+  };
+  if tests.is_empty() {
+    return Err(anyhow::anyhow!("TODO, add error message"));
+  }
+  let test_dir = if tests.len() > 1 {
+    let dirs = tests.iter().map(|t| t.test_dir.display()).collect();
+    let display = inquire::Select::new("Which test dir do you want to use?", dirs).prompt()?;
+    PathBuf::from(display.to_string())
+  } else {
+    tests[0].test_dir.clone()
+  };
+  let name = if let Some(name) = name {
+    name
+  } else {
+    inquire::Text::new("What is the rule's id that you want to test?")
+      .with_validator(ValueRequiredValidator::default())
+      .prompt()?
+  };
+  let path = test_dir.join(format!("{name}-test.yml"));
+  if path.exists() {
+    return Err(anyhow::anyhow!("file already exist"));
+  }
+  fs::write(&path, default_test(&name))?;
+  println!("Created test at {}", path.display());
   Ok(())
 }
 
