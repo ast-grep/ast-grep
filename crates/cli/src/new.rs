@@ -1,7 +1,9 @@
 use crate::config::{read_sg_config_from_current_dir, AstGrepConfig, TestConfig};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use ast_grep_language::SupportLang;
 use clap::{Parser, Subcommand};
+use inquire::validator::ValueRequiredValidator;
 
 use std::fmt::Display;
 use std::fs::{self, File};
@@ -130,11 +132,30 @@ fn create_new_project() -> Result<()> {
   Ok(())
 }
 
+fn choose_language() -> Result<SupportLang> {
+  Ok(inquire::Select::new("Choose rule's language", SupportLang::all_langs()).prompt()?)
+}
+
+fn default_rule(id: &str, lang: SupportLang) -> String {
+  format!(
+    r#"id: {id}
+message: Add your rule message here....
+severity: error # error, warning, hint, info
+language: {lang}
+rule:
+  pattern: Your Rule Pattern here...
+# utils: Extract repeated rule as local utility here.
+# note: Add detailed explanation for the rule."#
+  )
+}
+
 fn create_new_rule(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
   let name = if let Some(name) = arg.name {
     name
   } else {
-    inquire::Text::new("What is your rule name?").prompt()?
+    inquire::Text::new("What is your rule name?")
+      .with_validator(ValueRequiredValidator::default())
+      .prompt()?
   };
   let rule_dir = if sg_config.rule_dirs.len() > 1 {
     let dirs = sg_config.rule_dirs.iter().map(|p| p.display()).collect();
@@ -144,6 +165,13 @@ fn create_new_rule(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
   } else {
     sg_config.rule_dirs[0].clone()
   };
+  let path = rule_dir.join(format!("{name}.yml"));
+  if path.exists() {
+    return Err(anyhow::anyhow!("file already exist"));
+  }
+  let lang = choose_language()?;
+  fs::write(&path, default_rule(&name, lang))?;
+  println!("Created rules at {}", path.display());
   let need_test = inquire::Confirm::new("Do you also need to create a test for the rule?")
     .with_default(true)
     .prompt()?;

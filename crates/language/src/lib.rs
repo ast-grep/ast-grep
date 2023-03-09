@@ -5,6 +5,7 @@ mod python;
 mod rust;
 use ignore::types::{Types, TypesBuilder};
 use std::borrow::Cow;
+use std::fmt;
 use std::path::Path;
 
 pub use csharp::CSharp;
@@ -63,6 +64,22 @@ pub enum SupportLang {
   Thrift,
   Tsx,
   TypeScript,
+}
+
+impl SupportLang {
+  pub fn all_langs() -> Vec<SupportLang> {
+    use SupportLang::*;
+    vec![
+      C, CSharp, Css, Dart, Go, Html, Java, JavaScript, Kotlin, Lua, Python, Rust, Swift, Thrift,
+      Tsx, TypeScript,
+    ]
+  }
+}
+
+impl fmt::Display for SupportLang {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{:?}", self)
+  }
 }
 
 #[derive(Debug)]

@@ -94,7 +94,7 @@ pub struct SerializableRuleConfig<L: Language> {
   pub message: String,
   /// Additional notes to elaborate the message and provide potential fix to the issue.
   pub note: Option<String>,
-  /// One of: Info, Warning, or Error
+  /// One of: Hint, Info, Warning, or Error
   pub severity: Severity,
   /// A pattern to auto fix the issue. It can reference metavariables appeared in rule.
   pub fix: Option<String>,
