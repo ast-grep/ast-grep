@@ -21,9 +21,8 @@ pub struct TestConfig {
   snapshot_dir: Option<PathBuf>,
 }
 
-impl From<String> for TestConfig {
-  fn from(s: String) -> Self {
-    let path = PathBuf::from(s);
+impl From<PathBuf> for TestConfig {
+  fn from(path: PathBuf) -> Self {
     TestConfig {
       test_dir: path,
       snapshot_dir: None,

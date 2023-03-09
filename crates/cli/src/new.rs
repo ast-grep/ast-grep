@@ -2,10 +2,9 @@ use crate::config::{read_sg_config_from_current_dir, AstGrepConfig, TestConfig};
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use serde_yaml::to_writer;
 
 use std::fmt::Display;
-use std::fs::File;
+use std::fs::{self, File};
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -74,6 +73,13 @@ fn do_create_entity(entity: Entity, sg_config: AstGrepConfig, arg: NewArg) -> Re
   Ok(())
 }
 
+fn ask_dir_and_create(prompt: &str, default: &str) -> Result<PathBuf> {
+  let dir = inquire::Text::new(prompt).with_default(default).prompt()?;
+  let path = PathBuf::from(dir);
+  fs::create_dir_all(&path)?;
+  Ok(path)
+}
+
 // TODO:
 // 1. check if we are under a sgconfig.yml
 // 2. ask users what to create if yes
@@ -93,17 +99,13 @@ fn ask_entity_type(arg: NewArg) -> Result<()> {
 
 fn create_new_project() -> Result<()> {
   println!("Creating a new ast-grep project...");
-  let rule_dirs = inquire::Text::new("Where do you want to have your rules?")
-    .with_default("rules")
-    .prompt()?;
+  let rule_dirs = ask_dir_and_create("Where do you want to have your rules?", "rules")?;
   let test_dirs = if inquire::Confirm::new("Do you want to create rule tests?")
     .with_default(true)
     .prompt()?
   {
-    let test = inquire::Text::new("Where do you want to have your tests?")
-      .with_default("rule-test")
-      .prompt()?;
-    Some(TestConfig::from(test))
+    let test_dirs = ask_dir_and_create("Where do you want to have your tests?", "rule-test")?;
+    Some(TestConfig::from(test_dirs))
   } else {
     None
   };
@@ -111,21 +113,18 @@ fn create_new_project() -> Result<()> {
     .with_default(true)
     .prompt()?
   {
-    Some(
-      inquire::Text::new("Where do you want to have your tests?")
-        .with_default("rule-test")
-        .prompt()?,
-    )
+    let util_dirs = ask_dir_and_create("Where do you want to have your utilities?", "utils")?;
+    Some(util_dirs)
   } else {
     None
   };
   let root_config = AstGrepConfig {
-    rule_dirs: vec![PathBuf::from(rule_dirs)],
+    rule_dirs: vec![rule_dirs],
     test_configs: test_dirs.map(|t| vec![t]),
-    util_dirs: utils.map(|u| vec![PathBuf::from(u)]),
+    util_dirs: utils.map(|u| vec![u]),
   };
   let f = File::create("sgconfig.yml")?;
-  to_writer(f, &root_config)?;
+  serde_yaml::to_writer(f, &root_config)?;
   Ok(())
 }
 
