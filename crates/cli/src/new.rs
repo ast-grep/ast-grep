@@ -64,12 +64,14 @@ fn run_create_entity(entity: Entity, arg: NewArg) -> Result<()> {
 
 fn do_create_entity(entity: Entity, sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
   // ask user what destination to create if multiple dirs exist
-  println!("Creating {entity}");
-  // ask if a test is needed if user is creating a rule
-  if entity == Entity::Rule {
-    println!("Do you also need to create a rule?");
-    create_new_test();
+  match entity {
+    Entity::Rule => create_new_rule(sg_config, arg)?,
+    Entity::Test => create_new_test()?,
+    Entity::Util => create_new_util()?,
+    _ => unreachable!(),
   }
+  // ask if a test is needed if user is creating a rule
+  if entity == Entity::Rule {}
   Ok(())
 }
 
@@ -128,6 +130,34 @@ fn create_new_project() -> Result<()> {
   Ok(())
 }
 
-fn create_new_test() {
+fn create_new_rule(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
+  let name = if let Some(name) = arg.name {
+    name
+  } else {
+    inquire::Text::new("What is your rule name?").prompt()?
+  };
+  let rule_dir = if sg_config.rule_dirs.len() > 1 {
+    let dirs = sg_config.rule_dirs.iter().map(|p| p.display()).collect();
+    let display =
+      inquire::Select::new("Which rule dir do you want to save your rule?", dirs).prompt()?;
+    PathBuf::from(display.to_string())
+  } else {
+    sg_config.rule_dirs[0].clone()
+  };
+  let need_test = inquire::Confirm::new("Do you also need to create a test for the rule?")
+    .with_default(true)
+    .prompt()?;
+  if need_test {
+    create_new_test()?;
+  }
+  Ok(())
+}
+
+fn create_new_test() -> Result<()> {
   println!("create test!");
+  Ok(())
+}
+
+fn create_new_util() -> Result<()> {
+  Ok(())
 }
