@@ -46,7 +46,7 @@ enum Commands {
   Scan(ScanArg),
   /// Test ast-grep rule
   Test(TestArg),
-  /// Create new ast-grep project or rules
+  /// Create new ast-grep project or items like rules or tests.
   New(NewArg),
   /// Starts language server
   Lsp,

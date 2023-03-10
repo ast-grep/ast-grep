@@ -11,10 +11,10 @@ use std::path::PathBuf;
 
 #[derive(Parser)]
 pub struct NewArg {
-  /// TODO: add doc
+  /// The ast-grep item type to create. Available options: project/rule/test/utils.
   #[clap(subcommand)]
   entity: Option<Entity>,
-  /// TODO: add doc
+  /// The id of the item to create.
   #[clap(value_parser)]
   name: Option<String>,
 }
@@ -48,13 +48,18 @@ pub fn run_create_new(mut arg: NewArg) -> Result<()> {
 }
 
 fn run_create_entity(entity: Entity, arg: NewArg) -> Result<()> {
+  let maybe_sg_config = read_sg_config_from_current_dir()?;
   // check if we creating a project
   if entity == Entity::Project {
-    // create the project if user choose to create
-    return create_new_project();
+    return if maybe_sg_config.is_some() {
+      Err(anyhow::anyhow!("TODO: cannot create a nested project"))
+    } else {
+      // create the project if user choose to create
+      create_new_project()
+    };
   }
   // check if we are under a project dir
-  let Some(sg_config) = read_sg_config_from_current_dir()? else {
+  let Some(sg_config) = maybe_sg_config else {
     // if not, return error
     return Err(anyhow::anyhow!("TODO: add proper error message"));
   };
@@ -81,12 +86,10 @@ fn ask_dir_and_create(prompt: &str, default: &str) -> Result<PathBuf> {
   Ok(path)
 }
 
-// TODO:
-// 1. check if we are under a sgconfig.yml
-// 2. ask users what to create if yes
-// 3. ask users to provide project info if no sgconfig found
 fn ask_entity_type(arg: NewArg) -> Result<()> {
+  // 1. check if we are under a sgconfig.yml
   if let Some(sg_config) = read_sg_config_from_current_dir()? {
+    // 2. ask users what to create if yes
     let entity = inquire::Select::new(
       "Select the item you want to create:",
       vec![Entity::Rule, Entity::Test, Entity::Util],
@@ -94,6 +97,8 @@ fn ask_entity_type(arg: NewArg) -> Result<()> {
     .prompt()?;
     do_create_entity(entity, sg_config, arg)
   } else {
+    // 3. ask users to provide project info if no sgconfig found
+    print!("No sgconfig.yml found. ");
     create_new_project()
   }
 }
