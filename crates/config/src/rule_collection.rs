@@ -223,4 +223,22 @@ ignores:
     assert_match_path(&collection, "./src/some_folder/test.py");
     assert_ignore_path(&collection, "./src/excluded/app.py");
   }
+
+  #[test]
+  fn test_rule_collection_get_contingent_rule() {
+    let src = r#"
+files:
+  - ./manage.py
+  - "**/test*"
+"#;
+    let collection = make_rule(src);
+    assert!(collection.get_rule("test").is_some());
+  }
+
+  #[test]
+  fn test_rule_collection_get_tenured_rule() {
+    let src = r#""#;
+    let collection = make_rule(src);
+    assert!(collection.get_rule("test").is_some());
+  }
 }
