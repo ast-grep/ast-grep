@@ -1,4 +1,5 @@
 use crate::config::{read_sg_config_from_current_dir, AstGrepConfig, TestConfig};
+use crate::error::ErrorContext as EC;
 
 use anyhow::Result;
 use ast_grep_language::SupportLang;
@@ -52,7 +53,7 @@ fn run_create_entity(entity: Entity, arg: NewArg) -> Result<()> {
   // check if we creating a project
   if entity == Entity::Project {
     return if maybe_sg_config.is_some() {
-      Err(anyhow::anyhow!("TODO: cannot create a nested project"))
+      Err(anyhow::anyhow!(EC::ProjectAlreadyExist))
     } else {
       // create the project if user choose to create
       create_new_project()
@@ -61,7 +62,7 @@ fn run_create_entity(entity: Entity, arg: NewArg) -> Result<()> {
   // check if we are under a project dir
   let Some(sg_config) = maybe_sg_config else {
     // if not, return error
-    return Err(anyhow::anyhow!("TODO: add proper error message"));
+    return Err(anyhow::anyhow!(EC::ProjectNotExist));
   };
   do_create_entity(entity, sg_config, arg)
 }
@@ -74,8 +75,6 @@ fn do_create_entity(entity: Entity, sg_config: AstGrepConfig, arg: NewArg) -> Re
     Entity::Util => create_new_util(sg_config, arg)?,
     _ => unreachable!(),
   }
-  // ask if a test is needed if user is creating a rule
-  if entity == Entity::Rule {}
   Ok(())
 }
 
@@ -169,7 +168,7 @@ fn create_new_rule(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
   };
   let path = rule_dir.join(format!("{name}.yml"));
   if path.exists() {
-    return Err(anyhow::anyhow!("file already exist"));
+    return Err(anyhow::anyhow!(EC::FileAlreadyExist(path)));
   }
   let lang = choose_language()?;
   fs::write(&path, default_rule(&name, lang))?;
@@ -196,10 +195,10 @@ invalid:
 
 fn create_new_test(test_configs: Option<Vec<TestConfig>>, name: Option<String>) -> Result<()> {
   let Some(tests) = test_configs else {
-    return Err(anyhow::anyhow!("TODO, add error message"))
+    return Err(anyhow::anyhow!(EC::NoTestDirConfigured))
   };
   if tests.is_empty() {
-    return Err(anyhow::anyhow!("TODO, add error message"));
+    return Err(anyhow::anyhow!(EC::NoTestDirConfigured));
   }
   let test_dir = if tests.len() > 1 {
     let dirs = tests.iter().map(|t| t.test_dir.display()).collect();
@@ -217,7 +216,7 @@ fn create_new_test(test_configs: Option<Vec<TestConfig>>, name: Option<String>) 
   };
   let path = test_dir.join(format!("{name}-test.yml"));
   if path.exists() {
-    return Err(anyhow::anyhow!("file already exist"));
+    return Err(anyhow::anyhow!(EC::FileAlreadyExist(path)));
   }
   fs::write(&path, default_test(&name))?;
   println!("Created test at {}", path.display());
@@ -236,10 +235,10 @@ rule:
 
 fn create_new_util(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
   let Some(utils) = sg_config.util_dirs else {
-    return Err(anyhow::anyhow!("TODO, add error message"))
+    return Err(anyhow::anyhow!(EC::NoUtilDirConfigured));
   };
   if utils.is_empty() {
-    return Err(anyhow::anyhow!("TODO, add error message"));
+    return Err(anyhow::anyhow!(EC::NoUtilDirConfigured));
   }
   let util_dir = if utils.len() > 1 {
     let dirs = utils.iter().map(|p| p.display()).collect();
@@ -258,7 +257,7 @@ fn create_new_util(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
   };
   let path = util_dir.join(format!("{name}.yml"));
   if path.exists() {
-    return Err(anyhow::anyhow!("file already exist"));
+    return Err(anyhow::anyhow!(EC::FileAlreadyExist(path)));
   }
   let lang = choose_language()?;
   fs::write(&path, default_util(&name, lang))?;

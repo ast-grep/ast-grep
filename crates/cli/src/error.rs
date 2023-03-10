@@ -9,6 +9,7 @@ const PATTERN_GUIDE: Option<&str> = Some("/guide/pattern-syntax.html");
 const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
 const CLI_USAGE: Option<&str> = Some("/reference/cli.html");
 const TEST_GUIDE: Option<&str> = Some("/guide/test-rule.html");
+const UTIL_GUIDE: Option<&str> = Some("/guide/rule-config/utility-rule.html");
 const EDITOR_INTEGRATION: Option<&str> = Some("/guide/editor-integration.html");
 const PLAYGROUND: Option<&str> = Some("/playground.html");
 
@@ -36,6 +37,12 @@ pub enum ErrorContext {
   WriteFile(PathBuf),
   // Test
   TestFail(String),
+  // New
+  ProjectAlreadyExist,
+  ProjectNotExist,
+  FileAlreadyExist(PathBuf),
+  NoTestDirConfigured,
+  NoUtilDirConfigured,
 }
 
 impl ErrorContext {
@@ -146,6 +153,31 @@ impl ErrorMessage {
         message,
         "You can use ast-grep playground to debug your rules and test cases.",
         PLAYGROUND,
+      ),
+      ProjectAlreadyExist => Self::new(
+        "ast-grep project already exists.",
+        "You are already inside a sub-folder of an ast-grep project. Try finding sgconfig.yml in ancestor directory?",
+        CONFIG_GUIDE,
+      ),
+      ProjectNotExist => Self::new(
+        "Fail to create the item because no project configuration is found.",
+        "You need to create an ast-grep project before creating rule. Try `sg new` to create one.",
+        CONFIG_GUIDE,
+      ),
+      FileAlreadyExist(path) => Self::new(
+        format!("File `{}` already exists.", path.display()),
+        "The item you want to create already exists. Try editing the existing file or create a new one with a different name?",
+        None,
+      ),
+      NoTestDirConfigured => Self::new(
+        "No test file directory is configured.",
+        "Fail to create a test file because the project `sgconfig.yml` does not specify any test configuration.",
+        TEST_GUIDE,
+      ),
+      NoUtilDirConfigured => Self::new(
+        "No util file directory is configured.",
+        "Fail to create a utility rule because the project `sgconfig.yml` does not specify any utils directory.",
+        UTIL_GUIDE,
       ),
     }
   }
