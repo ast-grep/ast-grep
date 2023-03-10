@@ -241,4 +241,10 @@ files:
     let collection = make_rule(src);
     assert!(collection.get_rule("test").is_some());
   }
+
+  #[test]
+  #[ignore]
+  fn test_rules_for_path() {
+    todo!()
+  }
 }
