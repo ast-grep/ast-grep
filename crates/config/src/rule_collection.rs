@@ -123,6 +123,11 @@ impl<L: Language + Eq> RuleCollection<L> {
         }
       }
     }
+    for rule in &self.contingent {
+      if rule.rule.id == id {
+        return Some(&rule.rule);
+      }
+    }
     None
   }
 

@@ -204,7 +204,7 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
       Some(result)
     } else {
       let output = reporter.get_output();
-      writeln!(output, "Configuraiont not found! {}", case.id).unwrap();
+      writeln!(output, "Configuration not found! {}", case.id).unwrap();
       None
     }
   };
