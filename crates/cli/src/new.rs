@@ -49,33 +49,27 @@ pub fn run_create_new(mut arg: NewArg) -> Result<()> {
 }
 
 fn run_create_entity(entity: Entity, arg: NewArg) -> Result<()> {
-  let maybe_sg_config = read_sg_config_from_current_dir()?;
+  // check if we are under a project dir
+  if let Some(sg_config) = read_sg_config_from_current_dir()? {
+    return do_create_entity(entity, sg_config, arg);
+  }
   // check if we creating a project
   if entity == Entity::Project {
-    return if maybe_sg_config.is_some() {
-      Err(anyhow::anyhow!(EC::ProjectAlreadyExist))
-    } else {
-      // create the project if user choose to create
-      create_new_project()
-    };
-  }
-  // check if we are under a project dir
-  let Some(sg_config) = maybe_sg_config else {
+    create_new_project()
+  } else {
     // if not, return error
-    return Err(anyhow::anyhow!(EC::ProjectNotExist));
-  };
-  do_create_entity(entity, sg_config, arg)
+    Err(anyhow::anyhow!(EC::ProjectNotExist))
+  }
 }
 
 fn do_create_entity(entity: Entity, sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
   // ask user what destination to create if multiple dirs exist
   match entity {
-    Entity::Rule => create_new_rule(sg_config, arg)?,
-    Entity::Test => create_new_test(sg_config.test_configs, arg.name)?,
-    Entity::Util => create_new_util(sg_config, arg)?,
-    _ => unreachable!(),
+    Entity::Rule => create_new_rule(sg_config, arg),
+    Entity::Test => create_new_test(sg_config.test_configs, arg.name),
+    Entity::Util => create_new_util(sg_config, arg),
+    Entity::Project => Err(anyhow::anyhow!(EC::ProjectAlreadyExist)),
   }
-  Ok(())
 }
 
 fn ask_dir_and_create(prompt: &str, default: &str) -> Result<PathBuf> {
