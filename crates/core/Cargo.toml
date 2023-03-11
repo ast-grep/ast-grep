@@ -15,7 +15,7 @@ rust-version = "1.63"
 regex = {version = "1.7.1", optional = true }
 tree-sitter = { version = "0.9.1", package = "tree-sitter-facade-sg" }
 bit-set = "0.5.3"
-thiserror = "1.0.38"
+thiserror = "1.0.39"
 
 [features]
 default = ["regex"]
