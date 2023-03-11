@@ -1,6 +1,6 @@
 [package]
 name = "ast-grep-config"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
 edition = "2021"
 description = "Search and Rewrite code at large scale using precise AST pattern"
@@ -15,7 +15,7 @@ rust-version = "1.63"
 default = ["regex"]
 
 [dependencies]
-ast-grep-core = { version= "0.3.1", path = "../core" }
+ast-grep-core = { version= "0.3.2", path = "../core" }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9.19"
 regex = {version = "1.7.1", optional = true }
