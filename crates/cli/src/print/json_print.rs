@@ -278,7 +278,69 @@ impl<W: Write> Printer for JSONPrinter<W> {
 
 #[cfg(test)]
 mod test {
+  use super::*;
+  use ast_grep_core::language::Language;
+
+  struct Test(String);
+  impl Write for Test {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+      let s = std::str::from_utf8(buf).expect("should ok");
+      self.0.push_str(s);
+      Ok(buf.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+      Ok(())
+    }
+  }
+  fn make_test_printer() -> JSONPrinter<Test> {
+    JSONPrinter::new(Test(String::new()))
+  }
+  fn get_text(printer: &JSONPrinter<Test>) -> String {
+    let lock = printer.output.lock().unwrap();
+    lock.0.to_string()
+  }
+
   #[test]
-  #[ignore]
-  fn test_invariant() {}
+  fn test_emtpy_printer() {
+    let printer = make_test_printer();
+    printer.before_print().unwrap();
+    printer
+      .print_matches(std::iter::empty(), "test.tsx".as_ref())
+      .unwrap();
+    printer.after_print().unwrap();
+    assert_eq!(get_text(&printer), "[]\n");
+  }
+
+  // source, pattern, debug note
+  type Case<'a> = (&'a str, &'a str, &'a str);
+
+  const MATCHES_CASES: &[Case] = &[
+    ("let a = 123", "a", "Simple match"),
+    ("Some(1), Some(2), Some(3)", "Some", "Same line match"),
+    (
+      "Some(1), Some(2)\nSome(3), Some(4)",
+      "Some",
+      "Multiple line match",
+    ),
+    (
+      "import a from 'b';import a from 'b';",
+      "import a from 'b';",
+      "immediate following but not overlapping",
+    ),
+  ];
+  #[test]
+  fn test_invariant() {
+    for &(source, pattern, note) in MATCHES_CASES {
+      // heading is required for CI
+      let printer = make_test_printer();
+      let grep = SupportLang::Tsx.ast_grep(source);
+      let matches = grep.root().find_all(pattern);
+      printer.before_print().unwrap();
+      printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+      printer.after_print().unwrap();
+      let json_str = get_text(&printer);
+      let json: Vec<MatchJSON> = serde_json::from_str(&json_str).unwrap();
+      assert_eq!(json[0].text, pattern, "{note}");
+    }
+  }
 }
