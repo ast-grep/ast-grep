@@ -1,5 +1,5 @@
 use crate::deserialize_env::DeserializeEnv;
-use crate::rule::{deserialize_rule, Rule, RuleSerializeError, SerializableRule};
+use crate::rule::{Rule, RuleSerializeError, SerializableRule};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::Node;
@@ -70,7 +70,7 @@ impl<L: Language> StopBy<L> {
     Ok(match relation {
       S::Neighbor => StopBy::Neighbor,
       S::End => StopBy::End,
-      S::Rule(r) => StopBy::Rule(deserialize_rule(r, env)?),
+      S::Rule(r) => StopBy::Rule(env.deserialize_rule(r)?),
     })
   }
 }

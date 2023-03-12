@@ -1,6 +1,6 @@
 use crate::deserialize_env::DeserializeEnv;
 use crate::referent_rule::GlobalRules;
-use crate::rule::{deserialize_rule, RuleSerializeError, SerializableRule};
+use crate::rule::{RuleSerializeError, SerializableRule};
 
 pub use crate::constraints::{
   try_deserialize_matchers, try_from_serializable as deserialize_meta_var, RuleWithConstraint,
@@ -60,7 +60,7 @@ impl<L: Language> SerializableRuleCore<L> {
 
   pub fn get_matcher(&self, globals: &GlobalRules<L>) -> RResult<RuleWithConstraint<L>> {
     let env = self.get_deserialize_env(globals)?;
-    let rule = deserialize_rule(self.rule.clone(), &env)?;
+    let rule = env.deserialize_rule(self.rule.clone())?;
     let matchers = self.get_meta_var_matchers()?;
     Ok(
       RuleWithConstraint::new(rule)

@@ -1,6 +1,6 @@
 use crate::maybe::Maybe;
 use crate::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
-use crate::rule::{deserialize_rule, RuleSerializeError, SerializableRule};
+use crate::rule::{self, Rule, RuleSerializeError, SerializableRule};
 use crate::rule_config::{
   into_map, RuleConfigError, SerializableRuleConfigCore, SerializableRuleCore,
 };
@@ -131,7 +131,7 @@ impl<L: Language> DeserializeEnv<L> {
     let order = TopologicalSort::get_order(utils)?;
     for id in order {
       let rule = utils.get(id).expect("must exist");
-      let rule = deserialize_rule(rule.clone(), &self)?;
+      let rule = self.deserialize_rule(rule.clone())?;
       self.registration.insert_local(id, rule)?;
     }
     Ok(self)
@@ -151,6 +151,13 @@ impl<L: Language> DeserializeEnv<L> {
         .map_err(RuleSerializeError::MatchesRefrence)?;
     }
     Ok(registration)
+  }
+
+  pub fn deserialize_rule(
+    &self,
+    serialized: SerializableRule,
+  ) -> Result<Rule<L>, RuleSerializeError> {
+    rule::deserialize_rule(serialized, self)
   }
 
   pub fn with_globals(self, globals: &GlobalRules<L>) -> Self {
@@ -185,7 +192,7 @@ member-name:
     assert_eq!(utils.keys().count(), 2);
     let rule = from_str("matches: accessor-name").unwrap();
     (
-      deserialize_rule(rule, &env).unwrap(),
+      env.deserialize_rule(rule).unwrap(),
       env, // env is required for weak ref
     )
   }

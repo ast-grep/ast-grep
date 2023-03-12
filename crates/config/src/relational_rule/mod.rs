@@ -1,7 +1,7 @@
 mod stop_by;
 
 use crate::deserialize_env::DeserializeEnv;
-use crate::rule::{deserialize_rule, Rule, RuleSerializeError, SerializableRule};
+use crate::rule::{Rule, RuleSerializeError, SerializableRule};
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Matcher, Node};
@@ -29,7 +29,7 @@ impl<L: Language> Inside<L> {
     Ok(Self {
       stop_by: StopBy::try_from(relation.stop_by, env)?,
       field: relation.field,
-      outer: deserialize_rule(relation.rule, env)?, // TODO
+      outer: env.deserialize_rule(relation.rule)?, // TODO
     })
   }
 }
@@ -72,7 +72,7 @@ impl<L: Language> Has<L> {
   pub fn try_new(relation: Relation, env: &DeserializeEnv<L>) -> Result<Self, RuleSerializeError> {
     Ok(Self {
       stop_by: StopBy::try_from(relation.stop_by, env)?,
-      inner: deserialize_rule(relation.rule, env)?,
+      inner: env.deserialize_rule(relation.rule)?,
       field: relation.field,
     })
   }
@@ -139,7 +139,7 @@ impl<L: Language> Precedes<L> {
     }
     Ok(Self {
       stop_by: StopBy::try_from(relation.stop_by, env)?,
-      later: deserialize_rule(relation.rule, env)?,
+      later: env.deserialize_rule(relation.rule)?,
     })
   }
 }
@@ -166,7 +166,7 @@ impl<L: Language> Follows<L> {
     }
     Ok(Self {
       stop_by: StopBy::try_from(relation.stop_by, env)?,
-      former: deserialize_rule(relation.rule, env)?,
+      former: env.deserialize_rule(relation.rule)?,
     })
   }
 }

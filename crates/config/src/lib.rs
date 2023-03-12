@@ -14,7 +14,7 @@ use ast_grep_core::language::Language;
 
 pub use deserialize_env::DeserializeEnv;
 pub use referent_rule::GlobalRules;
-pub use rule::{deserialize_rule, Rule, RuleSerializeError, SerializableRule};
+pub use rule::{Rule, RuleSerializeError, SerializableRule};
 pub use rule_collection::RuleCollection;
 pub use rule_config::{
   RuleConfig, RuleConfigError, RuleWithConstraint, SerializableRuleConfig, SerializableRuleCore,
