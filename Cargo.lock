@@ -27,11 +27,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98161a4e3e2184da77bb14f02184cdd111e83bbbcc9979dfee3c44b9a85f5602"
 
 [[package]]
+name = "assert_cmd"
+version = "2.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9834fcc22e0874394a010230586367d4a3e9f11b560f469262678547e1d2575e"
+dependencies = [
+ "bstr",
+ "doc-comment",
+ "predicates",
+ "predicates-core",
+ "predicates-tree",
+ "wait-timeout",
+]
+
+[[package]]
 name = "ast-grep"
 version = "0.3.2"
 dependencies = [
  "ansi_term",
  "anyhow",
+ "assert_cmd",
  "ast-grep-config",
  "ast-grep-core",
  "ast-grep-language",
@@ -43,10 +58,12 @@ dependencies = [
  "ignore",
  "inquire",
  "num_cpus",
+ "predicates",
  "serde",
  "serde_json",
  "serde_yaml",
  "similar",
+ "tempdir",
  "tokio",
 ]
 
@@ -207,6 +224,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b45ea9b00a7b3f2988e9a65ad3917e62123c38dba709b666506207be96d1790b"
 dependencies = [
  "memchr",
+ "once_cell",
+ "regex-automata",
  "serde",
 ]
 
@@ -355,10 +374,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "difflib"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6184e33543162437515c2e2b48714794e37845ec9851711914eec9d308f6ebe8"
+
+[[package]]
+name = "doc-comment"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
+
+[[package]]
 name = "dyn-clone"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68b0cf012f1230e43cd00ebb729c6bb58707ecfa8ad08b52ef3a4ccd2697fc30"
+
+[[package]]
+name = "either"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
 
 [[package]]
 name = "errno"
@@ -379,6 +416,15 @@ checksum = "aa68f1b12764fab894d2755d2518754e71b4fd80ecfb822714a1206c2aab39bf"
 dependencies = [
  "cc",
  "libc",
+]
+
+[[package]]
+name = "float-cmp"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98de4bbd547a563b716d8dfa9aad1cb19bfab00f4fa09a6a4ed21dbcf44ce9c4"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -606,6 +652,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.10.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -772,6 +827,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "normalize-line-endings"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61807f77802ff30975e01f4f071c8ba10c022052f98b3294119f3e615d13e5be"
+
+[[package]]
+name = "num-traits"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "578ede34cf02f8924ab9447f50c28075b4d3e5b269972345e7e0372b38c6cdcd"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
 name = "num_cpus"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -853,6 +923,36 @@ name = "pin-utils"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
+
+[[package]]
+name = "predicates"
+version = "2.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59230a63c37f3e18569bdb90e4a89cbf5bf8b06fea0b84e65ea10cc4df47addd"
+dependencies = [
+ "difflib",
+ "float-cmp",
+ "itertools",
+ "normalize-line-endings",
+ "predicates-core",
+ "regex",
+]
+
+[[package]]
+name = "predicates-core"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72f883590242d3c6fc5bf50299011695fa6590c2c70eac95ee1bdb9a733ad1a2"
+
+[[package]]
+name = "predicates-tree"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54ff541861505aabf6ea722d2131ee980b8276e10a1297b94e896dd8b621850d"
+dependencies = [
+ "predicates-core",
+ "termtree",
+]
 
 [[package]]
 name = "proc-macro-error"
@@ -952,6 +1052,12 @@ dependencies = [
  "memchr",
  "regex-syntax",
 ]
+
+[[package]]
+name = "regex-automata"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132"
 
 [[package]]
 name = "regex-syntax"
@@ -1145,6 +1251,12 @@ checksum = "bab24d30b911b2376f3a13cc2cd443142f0c81dda04c118693e35b3835757755"
 dependencies = [
  "winapi-util",
 ]
+
+[[package]]
+name = "termtree"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95059e91184749cb66be6dc994f67f182b6d897cb3df74a5bf66b5e709295fd8"
 
 [[package]]
 name = "thiserror"
@@ -1545,6 +1657,15 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "wait-timeout"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f200f5b12eb75f8c1ed65abd4b2db8a6e1b138a20de009dacee265a2498f3f6"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "walkdir"
