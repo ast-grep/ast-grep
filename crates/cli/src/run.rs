@@ -214,3 +214,25 @@ fn match_one_file(
     printer.print_matches(matches, path)
   }
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  #[test]
+  fn test_run_with_pattern() {
+    let arg = RunArg {
+      pattern: "console.log".to_string(),
+      rewrite: None,
+      color: ColorArg::Never,
+      no_ignore: vec![],
+      interactive: false,
+      lang: None,
+      json: false,
+      heading: Heading::Never,
+      debug_query: false,
+      accept_all: false,
+      paths: vec![PathBuf::from(".")],
+    };
+    assert!(run_with_pattern(arg).is_ok())
+  }
+}
