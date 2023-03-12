@@ -476,16 +476,7 @@ trait Reporter {
     } else {
       style.on(Color::Red).paint("FAIL")
     };
-    let summary: String = summary
-      .iter()
-      .map(|s| match s {
-        CaseStatus::Validated | CaseStatus::Reported => '.',
-        CaseStatus::Wrong { .. } => 'W',
-        CaseStatus::Missing(_) => 'M',
-        CaseStatus::Noisy(_) => 'N',
-        CaseStatus::Error => 'E',
-      })
-      .collect();
+    let summary = report_summary(summary);
     writeln!(self.get_output(), "{case_status} {case_id}  {summary}")?;
     Ok(())
   }
@@ -495,6 +486,55 @@ trait Reporter {
     report_case_detail_impl(self.get_output(), case_id, result)
   }
   fn collect_snapshot_action(&self) -> SnapshotAction;
+}
+
+fn report_summary(summary: &[CaseStatus]) -> String {
+  if summary.len() > 40 {
+    let mut pass = 0;
+    let mut wrong = 0;
+    let mut missing = 0;
+    let mut noisy = 0;
+    let mut error = 0;
+    for s in summary {
+      match s {
+        CaseStatus::Validated | CaseStatus::Reported => pass += 1,
+        CaseStatus::Wrong { .. } => wrong += 1,
+        CaseStatus::Missing(_) => missing += 1,
+        CaseStatus::Noisy(_) => noisy += 1,
+        CaseStatus::Error => error += 1,
+      }
+    }
+    let stats = vec![
+      ("Pass", pass),
+      ("Wrong", wrong),
+      ("Missing", missing),
+      ("Noisy", noisy),
+      ("Error", error),
+    ];
+    let result: Vec<_> = stats
+      .into_iter()
+      .filter_map(|(label, count)| {
+        if count > 0 {
+          Some(format!("{label} × {count}"))
+        } else {
+          None
+        }
+      })
+      .collect();
+    let result = result.join(", ");
+    format!("{result:.^50}")
+  } else {
+    summary
+      .iter()
+      .map(|s| match s {
+        CaseStatus::Validated | CaseStatus::Reported => '.',
+        CaseStatus::Wrong { .. } => 'W',
+        CaseStatus::Missing(_) => 'M',
+        CaseStatus::Noisy(_) => 'N',
+        CaseStatus::Error => 'E',
+      })
+      .collect()
+  }
 }
 
 fn indented_write<W: Write>(output: &mut W, code: &str) -> Result<()> {
