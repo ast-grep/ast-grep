@@ -226,3 +226,54 @@ impl<'r> CombinedScan<'r> {
     results
   }
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use std::fs::File;
+  use std::io::Write;
+  use tempdir::TempDir;
+
+  const RULE: &str = r#"
+id: test
+message: Add your rule message here....
+severity: error # error, warning, hint, info
+language: Rust
+rule:
+  pattern: Some(123)
+"#;
+
+  pub fn create_test_files<'a>(
+    names_and_contents: impl IntoIterator<Item = (&'a str, &'a str)>,
+  ) -> TempDir {
+    let dir = TempDir::new("sgtest").unwrap();
+    for (name, contents) in names_and_contents {
+      let path = dir.path().join(name);
+      let mut file = File::create(path.clone()).unwrap();
+      file.write_all(contents.as_bytes()).unwrap();
+      file.sync_all().unwrap();
+    }
+    dir
+  }
+
+  #[test]
+  fn test_run_with_config() {
+    let dir = create_test_files([("sgconfig.yml", "ruleDirs: [rules]")]);
+    std::fs::create_dir_all(dir.path().join("rules")).unwrap();
+    let mut file = File::create(dir.path().join("rules/test.yml")).unwrap();
+    file.write_all(RULE.as_bytes()).unwrap();
+    file.sync_all().unwrap();
+    let arg = ScanArg {
+      config: Some(dir.path().join("sgconfig.yml")),
+      rule: None,
+      report_style: ReportStyle::Rich,
+      color: ColorArg::Never,
+      no_ignore: vec![],
+      interactive: false,
+      json: false,
+      accept_all: false,
+      paths: vec![PathBuf::from(".")],
+    };
+    assert!(run_with_config(arg).is_ok());
+  }
+}
