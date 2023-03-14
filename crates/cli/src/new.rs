@@ -21,13 +21,14 @@ pub struct NewArg {
   /// The language of the item. Appliable to rule and utils.
   #[clap(short, long)]
   lang: Option<SupportLang>,
+  /// Accept all default options without interactive input during creation.
   #[clap(short, long)]
-  accept_all: bool,
+  yes: bool,
 }
 
 impl NewArg {
   fn ask_dir_and_create(&self, prompt: &str, default: &str) -> Result<PathBuf> {
-    let dir = if self.accept_all {
+    let dir = if self.yes {
       default.to_owned()
     } else {
       inquire::Text::new(prompt).with_default(default).prompt()?
@@ -35,6 +36,13 @@ impl NewArg {
     let path = PathBuf::from(dir);
     fs::create_dir_all(&path)?;
     Ok(path)
+  }
+
+  fn confirm(&self, prompt: &str) -> Result<bool> {
+    if self.yes {
+      return Ok(true);
+    }
+    Ok(inquire::Confirm::new(prompt).with_default(true).prompt()?)
   }
 }
 
@@ -110,19 +118,13 @@ fn ask_entity_type(arg: NewArg) -> Result<()> {
 fn create_new_project(arg: NewArg) -> Result<()> {
   println!("Creating a new ast-grep project...");
   let rule_dirs = arg.ask_dir_and_create("Where do you want to have your rules?", "rules")?;
-  let test_dirs = if inquire::Confirm::new("Do you want to create rule tests?")
-    .with_default(true)
-    .prompt()?
-  {
+  let test_dirs = if arg.confirm("Do you want to create rule tests?")? {
     let test_dirs = arg.ask_dir_and_create("Where do you want to have your tests?", "rule-test")?;
     Some(TestConfig::from(test_dirs))
   } else {
     None
   };
-  let utils = if inquire::Confirm::new("Do you want to create folder for utility rules?")
-    .with_default(true)
-    .prompt()?
-  {
+  let utils = if arg.confirm("Do you want to create folder for utility rules?")? {
     let util_dirs = arg.ask_dir_and_create("Where do you want to have your utilities?", "utils")?;
     Some(util_dirs)
   } else {
@@ -135,6 +137,7 @@ fn create_new_project(arg: NewArg) -> Result<()> {
   };
   let f = File::create("sgconfig.yml")?;
   serde_yaml::to_writer(f, &root_config)?;
+  println!("Your new ast-grep project is created!");
   Ok(())
 }
 
@@ -156,8 +159,8 @@ rule:
 }
 
 fn create_new_rule(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
-  let name = if let Some(name) = arg.name {
-    name
+  let name = if let Some(name) = &arg.name {
+    name.to_string()
   } else {
     inquire::Text::new("What is your rule name?")
       .with_validator(ValueRequiredValidator::default())
@@ -178,9 +181,7 @@ fn create_new_rule(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
   let lang = choose_language()?;
   fs::write(&path, default_rule(&name, lang))?;
   println!("Created rules at {}", path.display());
-  let need_test = inquire::Confirm::new("Do you also need to create a test for the rule?")
-    .with_default(true)
-    .prompt()?;
+  let need_test = arg.confirm("Do you also need to create a test for the rule?")?;
   if need_test {
     create_new_test(sg_config.test_configs, Some(name))?;
   }
@@ -268,4 +269,28 @@ fn create_new_util(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
   fs::write(&path, default_util(&name, lang))?;
   println!("Created util at {}", path.display());
   Ok(())
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use tempdir::TempDir;
+
+  #[test]
+  fn test_create_new_project() -> Result<()> {
+    let current_dir = std::env::current_dir()?;
+    let dir = TempDir::new("sgtest")?;
+    std::env::set_current_dir(&dir)?;
+    let arg = NewArg {
+      entity: None,
+      name: None,
+      lang: None,
+      yes: true,
+    };
+    run_create_new(arg)?;
+    assert!(PathBuf::from("sgconfig.yml").exists());
+    std::env::set_current_dir(current_dir)?;
+    drop(dir); // drop at the end since temp dir clean up is done in Drop
+    Ok(())
+  }
 }
