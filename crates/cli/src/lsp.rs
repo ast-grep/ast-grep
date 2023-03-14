@@ -22,3 +22,13 @@ pub fn run_language_server() -> Result<()> {
     .context(EC::StartLanguageServer)?
     .block_on(async { run_language_server_impl().await })
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  #[test]
+  fn test_lsp_start() {
+    assert!(run_language_server().is_err())
+  }
+}
