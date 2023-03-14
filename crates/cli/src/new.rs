@@ -18,6 +18,24 @@ pub struct NewArg {
   /// The id of the item to create.
   #[clap(value_parser)]
   name: Option<String>,
+  /// The language of the item. Appliable to rule and utils.
+  #[clap(short, long)]
+  lang: Option<SupportLang>,
+  #[clap(short, long)]
+  accept_all: bool,
+}
+
+impl NewArg {
+  fn ask_dir_and_create(&self, prompt: &str, default: &str) -> Result<PathBuf> {
+    let dir = if self.accept_all {
+      default.to_owned()
+    } else {
+      inquire::Text::new(prompt).with_default(default).prompt()?
+    };
+    let path = PathBuf::from(dir);
+    fs::create_dir_all(&path)?;
+    Ok(path)
+  }
 }
 
 #[derive(Subcommand, Debug, PartialEq, Eq)]
@@ -55,7 +73,7 @@ fn run_create_entity(entity: Entity, arg: NewArg) -> Result<()> {
   }
   // check if we creating a project
   if entity == Entity::Project {
-    create_new_project()
+    create_new_project(arg)
   } else {
     // if not, return error
     Err(anyhow::anyhow!(EC::ProjectNotExist))
@@ -72,13 +90,6 @@ fn do_create_entity(entity: Entity, sg_config: AstGrepConfig, arg: NewArg) -> Re
   }
 }
 
-fn ask_dir_and_create(prompt: &str, default: &str) -> Result<PathBuf> {
-  let dir = inquire::Text::new(prompt).with_default(default).prompt()?;
-  let path = PathBuf::from(dir);
-  fs::create_dir_all(&path)?;
-  Ok(path)
-}
-
 fn ask_entity_type(arg: NewArg) -> Result<()> {
   // 1. check if we are under a sgconfig.yml
   if let Some(sg_config) = read_sg_config_from_current_dir()? {
@@ -92,18 +103,18 @@ fn ask_entity_type(arg: NewArg) -> Result<()> {
   } else {
     // 3. ask users to provide project info if no sgconfig found
     print!("No sgconfig.yml found. ");
-    create_new_project()
+    create_new_project(arg)
   }
 }
 
-fn create_new_project() -> Result<()> {
+fn create_new_project(arg: NewArg) -> Result<()> {
   println!("Creating a new ast-grep project...");
-  let rule_dirs = ask_dir_and_create("Where do you want to have your rules?", "rules")?;
+  let rule_dirs = arg.ask_dir_and_create("Where do you want to have your rules?", "rules")?;
   let test_dirs = if inquire::Confirm::new("Do you want to create rule tests?")
     .with_default(true)
     .prompt()?
   {
-    let test_dirs = ask_dir_and_create("Where do you want to have your tests?", "rule-test")?;
+    let test_dirs = arg.ask_dir_and_create("Where do you want to have your tests?", "rule-test")?;
     Some(TestConfig::from(test_dirs))
   } else {
     None
@@ -112,7 +123,7 @@ fn create_new_project() -> Result<()> {
     .with_default(true)
     .prompt()?
   {
-    let util_dirs = ask_dir_and_create("Where do you want to have your utilities?", "utils")?;
+    let util_dirs = arg.ask_dir_and_create("Where do you want to have your utilities?", "utils")?;
     Some(util_dirs)
   } else {
     None
