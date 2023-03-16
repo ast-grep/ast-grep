@@ -44,9 +44,51 @@ impl NewArg {
     }
     Ok(inquire::Confirm::new(prompt).with_default(true).prompt()?)
   }
+
+  fn ask_entity_type(&self) -> Result<Entity> {
+    if self.yes {
+      self
+        .entity
+        .clone()
+        .map(Ok)
+        .unwrap_or_else(|| Err(anyhow::anyhow!(EC::InsufficientCLIArgument("entity"))))
+    } else {
+      let entity = inquire::Select::new(
+        "Select the item you want to create:",
+        vec![Entity::Rule, Entity::Test, Entity::Util],
+      )
+      .prompt()?;
+      Ok(entity)
+    }
+  }
+
+  fn choose_language(&self) -> Result<SupportLang> {
+    if self.yes {
+      self
+        .lang
+        .map(Ok)
+        .unwrap_or_else(|| Err(anyhow::anyhow!(EC::InsufficientCLIArgument("lang"))))
+    } else {
+      Ok(inquire::Select::new("Choose rule's language", SupportLang::all_langs()).prompt()?)
+    }
+  }
+
+  fn ask_name(&self, entity: &str) -> Result<String> {
+    if let Some(name) = &self.name {
+      Ok(name.to_string())
+    } else if self.yes {
+      Err(anyhow::anyhow!(EC::InsufficientCLIArgument("")))
+    } else {
+      Ok(
+        inquire::Text::new(&format!("What is your {entity}'s name?"))
+          .with_validator(ValueRequiredValidator::default())
+          .prompt()?,
+      )
+    }
+  }
 }
 
-#[derive(Subcommand, Debug, PartialEq, Eq)]
+#[derive(Subcommand, Debug, PartialEq, Eq, Clone)]
 enum Entity {
   Project,
   Rule,
@@ -102,11 +144,7 @@ fn ask_entity_type(arg: NewArg) -> Result<()> {
   // 1. check if we are under a sgconfig.yml
   if let Some(sg_config) = read_sg_config_from_current_dir()? {
     // 2. ask users what to create if yes
-    let entity = inquire::Select::new(
-      "Select the item you want to create:",
-      vec![Entity::Rule, Entity::Test, Entity::Util],
-    )
-    .prompt()?;
+    let entity = arg.ask_entity_type()?;
     do_create_entity(entity, sg_config, arg)
   } else {
     // 3. ask users to provide project info if no sgconfig found
@@ -141,10 +179,6 @@ fn create_new_project(arg: NewArg) -> Result<()> {
   Ok(())
 }
 
-fn choose_language() -> Result<SupportLang> {
-  Ok(inquire::Select::new("Choose rule's language", SupportLang::all_langs()).prompt()?)
-}
-
 fn default_rule(id: &str, lang: SupportLang) -> String {
   format!(
     r#"id: {id}
@@ -159,13 +193,7 @@ rule:
 }
 
 fn create_new_rule(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
-  let name = if let Some(name) = &arg.name {
-    name.to_string()
-  } else {
-    inquire::Text::new("What is your rule name?")
-      .with_validator(ValueRequiredValidator::default())
-      .prompt()?
-  };
+  let name = arg.ask_name("rule")?;
   let rule_dir = if sg_config.rule_dirs.len() > 1 {
     let dirs = sg_config.rule_dirs.iter().map(|p| p.display()).collect();
     let display =
@@ -178,7 +206,7 @@ fn create_new_rule(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
   if path.exists() {
     return Err(anyhow::anyhow!(EC::FileAlreadyExist(path)));
   }
-  let lang = choose_language()?;
+  let lang = arg.choose_language()?;
   fs::write(&path, default_rule(&name, lang))?;
   println!("Created rules at {}", path.display());
   let need_test = arg.confirm("Do you also need to create a test for the rule?")?;
@@ -254,18 +282,12 @@ fn create_new_util(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
   } else {
     utils[0].clone()
   };
-  let name = if let Some(name) = arg.name {
-    name
-  } else {
-    inquire::Text::new("What is your util name?")
-      .with_validator(ValueRequiredValidator::default())
-      .prompt()?
-  };
+  let name = arg.ask_name("util")?;
   let path = util_dir.join(format!("{name}.yml"));
   if path.exists() {
     return Err(anyhow::anyhow!(EC::FileAlreadyExist(path)));
   }
-  let lang = choose_language()?;
+  let lang = arg.choose_language()?;
   fs::write(&path, default_util(&name, lang))?;
   println!("Created util at {}", path.display());
   Ok(())

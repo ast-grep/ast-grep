@@ -43,6 +43,7 @@ pub enum ErrorContext {
   FileAlreadyExist(PathBuf),
   NoTestDirConfigured,
   NoUtilDirConfigured,
+  InsufficientCLIArgument(&'static str),
 }
 
 impl ErrorContext {
@@ -178,6 +179,11 @@ impl ErrorMessage {
         "No util file directory is configured.",
         "Fail to create a utility rule because the project `sgconfig.yml` does not specify any utils directory.",
         UTIL_GUIDE,
+      ),
+      InsufficientCLIArgument(name) => Self::new(
+        "Insufficient command line argument provided to use `--yes`.",
+        format!("You need to provide `{name}` in command line to use non-interactive `new`."),
+        None,
       ),
     }
   }
