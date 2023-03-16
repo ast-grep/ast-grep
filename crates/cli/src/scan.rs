@@ -262,6 +262,10 @@ rule:
     std::fs::create_dir_all(dir.path().join("rules")).unwrap();
     let mut file = File::create(dir.path().join("rules/test.yml")).unwrap();
     file.write_all(RULE.as_bytes()).unwrap();
+    let mut file = File::create(dir.path().join("test.rs")).unwrap();
+    file
+      .write_all("fn test() { Some(123) }".as_bytes())
+      .unwrap();
     file.sync_all().unwrap();
     let arg = ScanArg {
       config: Some(dir.path().join("sgconfig.yml")),
