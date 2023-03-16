@@ -235,4 +235,22 @@ mod test {
     };
     assert!(run_with_pattern(arg).is_ok())
   }
+
+  #[test]
+  fn test_run_with_specific_lang() {
+    let arg = RunArg {
+      pattern: "Some(result)".to_string(),
+      rewrite: None,
+      color: ColorArg::Never,
+      no_ignore: vec![],
+      interactive: false,
+      lang: Some(SupportLang::Rust),
+      json: false,
+      heading: Heading::Never,
+      debug_query: false,
+      accept_all: false,
+      paths: vec![PathBuf::from(".")],
+    };
+    assert!(run_with_pattern(arg).is_ok())
+  }
 }
