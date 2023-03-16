@@ -175,7 +175,7 @@ fn create_new_project(arg: NewArg) -> Result<()> {
   };
   let f = File::create("sgconfig.yml")?;
   serde_yaml::to_writer(f, &root_config)?;
-  println!("Your new ast-grep project is created!");
+  println!("Your new ast-grep project has been created!");
   Ok(())
 }
 
@@ -298,11 +298,7 @@ mod test {
   use super::*;
   use tempdir::TempDir;
 
-  #[test]
-  fn test_create_new_project() -> Result<()> {
-    let current_dir = std::env::current_dir()?;
-    let dir = TempDir::new("sgtest")?;
-    std::env::set_current_dir(&dir)?;
+  fn create_project() -> Result<()> {
     let arg = NewArg {
       entity: None,
       name: None,
@@ -311,6 +307,28 @@ mod test {
     };
     run_create_new(arg)?;
     assert!(PathBuf::from("sgconfig.yml").exists());
+    Ok(())
+  }
+
+  fn create_rule() -> Result<()> {
+    let arg = NewArg {
+      entity: Some(Entity::Rule),
+      name: Some("test-rule".into()),
+      lang: Some(SupportLang::Rust),
+      yes: true,
+    };
+    run_create_new(arg).unwrap();
+    assert!(PathBuf::from("rules/test-rule.yml").exists());
+    Ok(())
+  }
+
+  #[test]
+  fn test_create_new() -> Result<()> {
+    let current_dir = std::env::current_dir()?;
+    let dir = TempDir::new("sgtest")?;
+    std::env::set_current_dir(&dir)?;
+    create_project()?;
+    create_rule()?;
     std::env::set_current_dir(current_dir)?;
     drop(dir); // drop at the end since temp dir clean up is done in Drop
     Ok(())
