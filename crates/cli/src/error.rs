@@ -181,7 +181,7 @@ impl ErrorMessage {
         UTIL_GUIDE,
       ),
       InsufficientCLIArgument(name) => Self::new(
-        "Insufficient command line argument provided to use `--yes`.",
+        "Insufficient command line argument provided to use `--yes` option.",
         format!("You need to provide `{name}` in command line to use non-interactive `new`."),
         None,
       ),

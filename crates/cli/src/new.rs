@@ -16,13 +16,13 @@ pub struct NewArg {
   #[clap(subcommand)]
   entity: Option<Entity>,
   /// The id of the item to create.
-  #[clap(value_parser)]
+  #[arg(value_parser, global = true)]
   name: Option<String>,
   /// The language of the item. Appliable to rule and utils.
-  #[clap(short, long)]
+  #[arg(short, long, global = true)]
   lang: Option<SupportLang>,
   /// Accept all default options without interactive input during creation.
-  #[clap(short, long)]
+  #[arg(short, long, global = true)]
   yes: bool,
 }
 
@@ -73,11 +73,11 @@ impl NewArg {
     }
   }
 
-  fn ask_name(&self, entity: &str) -> Result<String> {
+  fn ask_name(&self, entity: &'static str) -> Result<String> {
     if let Some(name) = &self.name {
       Ok(name.to_string())
     } else if self.yes {
-      Err(anyhow::anyhow!(EC::InsufficientCLIArgument("")))
+      Err(anyhow::anyhow!(EC::InsufficientCLIArgument("name")))
     } else {
       Ok(
         inquire::Text::new(&format!("What is your {entity}'s name?"))
