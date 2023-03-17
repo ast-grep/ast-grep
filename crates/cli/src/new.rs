@@ -1,4 +1,4 @@
-use crate::config::{read_sg_config_from_current_dir, AstGrepConfig, TestConfig};
+use crate::config::{read_config_from_dir, AstGrepConfig, TestConfig};
 use crate::error::ErrorContext as EC;
 
 use anyhow::Result;
@@ -24,6 +24,8 @@ pub struct NewArg {
   /// Accept all default options without interactive input during creation.
   #[arg(short, long, global = true)]
   yes: bool,
+  #[arg(short, long, global = true, default_value = ".")]
+  base_dir: PathBuf,
 }
 
 impl NewArg {
@@ -33,7 +35,7 @@ impl NewArg {
     } else {
       inquire::Text::new(prompt).with_default(default).prompt()?
     };
-    let path = PathBuf::from(dir);
+    let path = self.base_dir.join(dir);
     fs::create_dir_all(&path)?;
     Ok(path)
   }
@@ -116,10 +118,12 @@ pub fn run_create_new(mut arg: NewArg) -> Result<()> {
   }
 }
 
+type FoundConfig = (PathBuf, AstGrepConfig);
+
 fn run_create_entity(entity: Entity, arg: NewArg) -> Result<()> {
   // check if we are under a project dir
-  if let Some(sg_config) = read_sg_config_from_current_dir()? {
-    return do_create_entity(entity, sg_config, arg);
+  if let Some(found) = read_config_from_dir(&arg.base_dir)? {
+    return do_create_entity(entity, found, arg);
   }
   // check if we creating a project
   if entity == Entity::Project {
@@ -130,19 +134,19 @@ fn run_create_entity(entity: Entity, arg: NewArg) -> Result<()> {
   }
 }
 
-fn do_create_entity(entity: Entity, sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
+fn do_create_entity(entity: Entity, found: FoundConfig, arg: NewArg) -> Result<()> {
   // ask user what destination to create if multiple dirs exist
   match entity {
-    Entity::Rule => create_new_rule(sg_config, arg),
-    Entity::Test => create_new_test(sg_config.test_configs, arg.name),
-    Entity::Util => create_new_util(sg_config, arg),
+    Entity::Rule => create_new_rule(found, arg),
+    Entity::Test => create_new_test(found.1.test_configs, arg.name),
+    Entity::Util => create_new_util(found, arg),
     Entity::Project => Err(anyhow::anyhow!(EC::ProjectAlreadyExist)),
   }
 }
 
 fn ask_entity_type(arg: NewArg) -> Result<()> {
   // 1. check if we are under a sgconfig.yml
-  if let Some(sg_config) = read_sg_config_from_current_dir()? {
+  if let Some(sg_config) = read_config_from_dir(&arg.base_dir)? {
     // 2. ask users what to create if yes
     let entity = arg.ask_entity_type()?;
     do_create_entity(entity, sg_config, arg)
@@ -173,7 +177,8 @@ fn create_new_project(arg: NewArg) -> Result<()> {
     test_configs: test_dirs.map(|t| vec![t]),
     util_dirs: utils.map(|u| vec![u]),
   };
-  let f = File::create("sgconfig.yml")?;
+  let config_path = arg.base_dir.join("sgconfig.yml");
+  let f = File::create(config_path)?;
   serde_yaml::to_writer(f, &root_config)?;
   println!("Your new ast-grep project has been created!");
   Ok(())
@@ -192,15 +197,17 @@ rule:
   )
 }
 
-fn create_new_rule(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
+fn create_new_rule(found: FoundConfig, arg: NewArg) -> Result<()> {
+  let base_dir = found.0;
+  let sg_config = found.1;
   let name = arg.ask_name("rule")?;
   let rule_dir = if sg_config.rule_dirs.len() > 1 {
     let dirs = sg_config.rule_dirs.iter().map(|p| p.display()).collect();
     let display =
       inquire::Select::new("Which rule dir do you want to save your rule?", dirs).prompt()?;
-    PathBuf::from(display.to_string())
+    base_dir.join(display.to_string())
   } else {
-    sg_config.rule_dirs[0].clone()
+    base_dir.join(&sg_config.rule_dirs[0])
   };
   let path = rule_dir.join(format!("{name}.yml"));
   if path.exists() {
@@ -267,7 +274,9 @@ rule:
   )
 }
 
-fn create_new_util(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
+fn create_new_util(found: FoundConfig, arg: NewArg) -> Result<()> {
+  let base_dir = found.0;
+  let sg_config = found.1;
   let Some(utils) = sg_config.util_dirs else {
     return Err(anyhow::anyhow!(EC::NoUtilDirConfigured));
   };
@@ -278,9 +287,9 @@ fn create_new_util(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
     let dirs = utils.iter().map(|p| p.display()).collect();
     let display =
       inquire::Select::new("Which util dir do you want to save your rule?", dirs).prompt()?;
-    PathBuf::from(display.to_string())
+    base_dir.join(display.to_string())
   } else {
-    utils[0].clone()
+    base_dir.join(&utils[0])
   };
   let name = arg.ask_name("util")?;
   let path = util_dir.join(format!("{name}.yml"));
@@ -296,40 +305,40 @@ fn create_new_util(sg_config: AstGrepConfig, arg: NewArg) -> Result<()> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use std::path::Path;
   use tempdir::TempDir;
 
-  fn create_project() -> Result<()> {
+  fn create_project(tempdir: &Path) -> Result<()> {
     let arg = NewArg {
       entity: None,
       name: None,
       lang: None,
       yes: true,
+      base_dir: tempdir.to_path_buf(),
     };
     run_create_new(arg)?;
-    assert!(PathBuf::from("sgconfig.yml").exists());
+    assert!(tempdir.join("sgconfig.yml").exists());
     Ok(())
   }
 
-  fn create_rule() -> Result<()> {
+  fn create_rule(temp: &Path) -> Result<()> {
     let arg = NewArg {
       entity: Some(Entity::Rule),
       name: Some("test-rule".into()),
       lang: Some(SupportLang::Rust),
       yes: true,
+      base_dir: temp.to_path_buf(),
     };
     run_create_new(arg).unwrap();
-    assert!(PathBuf::from("rules/test-rule.yml").exists());
+    assert!(temp.join("rules/test-rule.yml").exists());
     Ok(())
   }
 
   #[test]
   fn test_create_new() -> Result<()> {
-    let current_dir = std::env::current_dir()?;
     let dir = TempDir::new("sgtest")?;
-    std::env::set_current_dir(&dir)?;
-    create_project()?;
-    create_rule()?;
-    std::env::set_current_dir(current_dir)?;
+    create_project(dir.path())?;
+    create_rule(dir.path())?;
     drop(dir); // drop at the end since temp dir clean up is done in Drop
     Ok(())
   }

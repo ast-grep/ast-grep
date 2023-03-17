@@ -7,6 +7,10 @@ pub fn create_test_files<'a>(
 ) -> TempDir {
   let dir = TempDir::new("sgtest").unwrap();
   for (name, contents) in names_and_contents {
+    if let Some((sub, _)) = name.split_once('/') {
+      let sub_dir = dir.path().join(sub);
+      std::fs::create_dir_all(sub_dir).unwrap();
+    }
     let path = dir.path().join(name);
     let mut file = File::create(path.clone()).unwrap();
     file.write_all(contents.as_bytes()).unwrap();

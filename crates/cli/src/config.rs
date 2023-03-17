@@ -47,7 +47,8 @@ pub struct AstGrepConfig {
 }
 
 pub fn find_rules(config_path: Option<PathBuf>) -> Result<RuleCollection<SupportLang>> {
-  let config_path = find_config_path_with_default(config_path).context(EC::ReadConfiguration)?;
+  let config_path =
+    find_config_path_with_default(config_path, None).context(EC::ReadConfiguration)?;
   let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
   let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
   let base_dir = config_path
@@ -140,7 +141,8 @@ pub struct TestHarness {
 }
 
 pub fn find_tests(config_path: Option<PathBuf>) -> Result<TestHarness> {
-  let config_path = find_config_path_with_default(config_path).context(EC::ReadConfiguration)?;
+  let config_path =
+    find_config_path_with_default(config_path, None).context(EC::ReadConfiguration)?;
   let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
   let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
   let base_dir = config_path
@@ -211,24 +213,32 @@ pub fn read_test_files(
   })
 }
 
-pub fn read_sg_config_from_current_dir() -> Result<Option<AstGrepConfig>> {
-  let config_path = find_config_path_with_default(None).context(EC::ReadConfiguration)?;
+pub fn read_config_from_dir<P: AsRef<Path>>(path: P) -> Result<Option<(PathBuf, AstGrepConfig)>> {
+  let config_path =
+    find_config_path_with_default(None, Some(path.as_ref())).context(EC::ReadConfiguration)?;
   if !config_path.is_file() {
     return Ok(None);
   }
   let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
   let sg_config = from_str(&config_str).context(EC::ParseConfiguration)?;
-  Ok(Some(sg_config))
+  Ok(Some((config_path, sg_config)))
 }
 
 const CONFIG_FILE: &str = "sgconfig.yml";
 const SNAPSHOT_DIR: &str = "__snapshots__";
 
-fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<PathBuf> {
+fn find_config_path_with_default(
+  config_path: Option<PathBuf>,
+  base: Option<&Path>,
+) -> Result<PathBuf> {
   if let Some(config) = config_path {
     return Ok(config);
   }
-  let mut path = std::env::current_dir()?;
+  let mut path = if let Some(base) = base {
+    base.to_path_buf()
+  } else {
+    std::env::current_dir()?
+  };
   loop {
     let maybe_config = path.join(CONFIG_FILE);
     if maybe_config.exists() {

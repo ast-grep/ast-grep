@@ -75,7 +75,7 @@ fn try_default_run(args: &[String]) -> Result<Option<RunArg>> {
 }
 
 // this wrapper function is for testing
-fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
+pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
   let args: Vec<_> = args.collect();
   if let Some(arg) = try_default_run(&args)? {
     return run_with_pattern(arg);
