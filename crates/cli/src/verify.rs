@@ -823,4 +823,23 @@ rule:
     let ret = verify_invalid_case(&rule, "function () { let a = 1 }", Some(&test_snapshots));
     assert!(matches!(ret, CaseStatus::Reported));
   }
+
+  use codespan_reporting::term::termcolor::Buffer;
+  #[test]
+  fn test_run_verify() {
+    let reporter = DefaultReporter {
+      output: Buffer::no_color(),
+      update_snapshots: false,
+    };
+    let arg = TestArg {
+      config: None,
+      interactive: false,
+      skip_snapshot_tests: true,
+      snapshot_dir: None,
+      test_dir: None,
+      update_snapshots: false,
+    };
+    // TODO
+    assert!(run_test_rule_impl(arg, reporter).is_err());
+  }
 }
