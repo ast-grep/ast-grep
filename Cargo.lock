@@ -768,9 +768,9 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "2.11.2"
+version = "2.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a04bc019733ca752e011422075141df43ecf3f782b5e71c7a04443e5a474782c"
+checksum = "1e46a2274a0b01c5d80576b193ae573ddd1c10bf9739c80cf50029d69438eed8"
 dependencies = [
  "anyhow",
  "bitflags",
@@ -779,7 +779,6 @@ dependencies = [
  "once_cell",
  "serde",
  "serde_json",
- "thread_local",
 ]
 
 [[package]]
