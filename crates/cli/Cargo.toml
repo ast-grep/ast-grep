@@ -38,5 +38,5 @@ tokio = { version = "1", features = ["rt-multi-thread", "io-std"] }
 
 [dev-dependencies]
 tempdir = "0.3.7"
-assert_cmd = "2.0.8"
+assert_cmd = "2.0.10"
 predicates = "2.1.5"
