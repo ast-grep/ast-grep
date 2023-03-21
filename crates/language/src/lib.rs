@@ -197,10 +197,10 @@ pub fn from_extension(path: &Path) -> Option<SupportLang> {
   }
 }
 
-fn add_custom_file_type<'b, 'suf>(
+fn add_custom_file_type<'b>(
   builder: &'b mut TypesBuilder,
   file_type: &str,
-  suffix_list: &'suf [&str],
+  suffix_list: &[&str],
 ) -> &'b mut TypesBuilder {
   for suffix in suffix_list {
     builder

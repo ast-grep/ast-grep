@@ -2,8 +2,8 @@ use crate::meta_var::{MetaVarEnv, MetaVariable};
 use crate::Language;
 use crate::Node;
 
-fn match_leaf_meta_var<'goal, 'tree, L: Language>(
-  goal: &Node<'goal, L>,
+fn match_leaf_meta_var<'tree, L: Language>(
+  goal: &Node<L>,
   candidate: Node<'tree, L>,
   env: &mut MetaVarEnv<'tree, L>,
 ) -> Option<Node<'tree, L>> {
@@ -136,8 +136,8 @@ fn match_multi_nodes_end_non_recursive<'g, 'c, L: Language + 'g + 'c>(
   }
 }
 
-pub fn match_node_non_recursive<'goal, 'tree, L: Language>(
-  goal: &Node<'goal, L>,
+pub fn match_node_non_recursive<'tree, L: Language>(
+  goal: &Node<L>,
   candidate: Node<'tree, L>,
   env: &mut MetaVarEnv<'tree, L>,
 ) -> Option<Node<'tree, L>> {
@@ -285,8 +285,8 @@ mod test {
   fn parse(src: &str) -> tree_sitter::Tree {
     parse_base(src, None, Tsx.get_ts_language()).unwrap()
   }
-  fn find_node_recursive<'goal, 'tree>(
-    goal: &Node<'goal, Tsx>,
+  fn find_node_recursive<'tree>(
+    goal: &Node<Tsx>,
     node: Node<'tree, Tsx>,
     env: &mut MetaVarEnv<'tree, Tsx>,
   ) -> Option<Node<'tree, Tsx>> {

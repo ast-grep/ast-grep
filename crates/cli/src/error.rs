@@ -49,13 +49,17 @@ pub enum ErrorContext {
 impl ErrorContext {
   fn exit_code(&self) -> i32 {
     use ErrorContext::*;
+    // reference: https://mariadb.com/kb/en/operating-system-error-codes/
     match self {
-      ReadConfiguration | ReadRule(_) | WalkRuleDir(_) => 2,
-      TestFail(_) => 3,
-      ParseTest(_) | ParseRule(_) | ParseConfiguration => 5,
-      OpenEditor => 126,
       DiagnosticError(_) => 1,
-      _ => 1,
+      ProjectNotExist => 2,
+      TestFail(_) => 3,
+      NoTestDirConfigured | NoUtilDirConfigured => 4,
+      ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 5,
+      ParseTest(_) | ParseRule(_) | ParseConfiguration | GlobPattern | ParsePattern => 8,
+      ProjectAlreadyExist | FileAlreadyExist(_) => 17,
+      InsufficientCLIArgument(_) => 22,
+      OpenEditor | StartLanguageServer => 126,
     }
   }
 }

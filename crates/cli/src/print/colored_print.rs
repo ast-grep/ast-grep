@@ -166,10 +166,10 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
   }
 }
 
-fn print_rule_title<'a, W: WriteColor>(
+fn print_rule_title<W: WriteColor>(
   rule: &RuleConfig<SupportLang>,
   style: &RuleStyle,
-  writer: &'a mut W,
+  writer: &mut W,
 ) -> Result<()> {
   let (level, level_style) = match rule.severity {
     Severity::Error => ("error", style.error),

@@ -1,7 +1,8 @@
 use serde::{de, ser, Deserialize, Serialize};
 
-#[derive(Clone, PartialEq, Eq, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, Debug, Copy, Default)]
 pub enum Maybe<T> {
+  #[default]
   Absent,
   Present(T),
 }
@@ -18,12 +19,6 @@ impl<T> Maybe<T> {
       Maybe::Absent => panic!("called `Maybe::unwrap()` on an `Absent` value"),
       Maybe::Present(t) => t,
     }
-  }
-}
-
-impl<T> Default for Maybe<T> {
-  fn default() -> Self {
-    Maybe::Absent
   }
 }
 
