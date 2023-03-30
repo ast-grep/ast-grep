@@ -48,10 +48,19 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     rule: &RuleConfig<SupportLang>,
   ) -> Result<()> {
     utils::run_in_alternate_screen(|| {
-      self.inner.print_rule(matches, file, rule)?;
-      let resp = utils::prompt(VIEW_PROMPT, "q", Some('\n')).expect("cannot fail");
+      let matches: Vec<_> = matches.collect();
+      let first_match = match matches.first() {
+        Some(n) => n.start_pos().0,
+        None => return Ok(()),
+      };
+      let file_path = PathBuf::from(file.name().to_string());
+      self.inner.print_rule(matches.into_iter(), file, rule)?;
+      let resp = utils::prompt(VIEW_PROMPT, "qe", Some('\n')).expect("cannot fail");
       if resp == 'q' {
         Err(anyhow::anyhow!("Exit interactive editing"))
+      } else if resp == 'e' {
+        utils::open_in_editor(&file_path, first_match)?;
+        Ok(())
       } else {
         Ok(())
       }
@@ -96,7 +105,7 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
 }
 
 const EDIT_PROMPT: &str = "Accept change? (Yes[y], No[n], Accept All[a], Quit[q], Edit[e])";
-const VIEW_PROMPT: &str = "Next[enter], Quit[q]";
+const VIEW_PROMPT: &str = "Next[enter], Quit[q], Edit[e]";
 
 fn rewrite_action(diffs: Vec<Diff<'_>>, path: &PathBuf) -> Result<()> {
   let new_content = apply_rewrite(diffs);
@@ -146,10 +155,18 @@ fn print_matches_and_confirm_next<'a>(
   matches: Matches!('a),
   path: &Path,
 ) -> Result<()> {
-  printer.print_matches(matches, path)?;
-  let resp = utils::prompt(VIEW_PROMPT, "q", Some('\n')).expect("cannot fail");
+  let matches: Vec<_> = matches.collect();
+  let first_match = match matches.first() {
+    Some(n) => n.start_pos().0,
+    None => return Ok(()),
+  };
+  printer.print_matches(matches.into_iter(), path)?;
+  let resp = utils::prompt(VIEW_PROMPT, "qe", Some('\n')).expect("cannot fail");
   if resp == 'q' {
     Err(anyhow::anyhow!("Exit interactive editing"))
+  } else if resp == 'e' {
+    utils::open_in_editor(&path.to_path_buf(), first_match)?;
+    Ok(())
   } else {
     Ok(())
   }
