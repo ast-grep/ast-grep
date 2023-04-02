@@ -11,7 +11,7 @@ async fn run_language_server_impl() -> Result<()> {
   let config = find_rules(None)?;
 
   let (service, socket) = LspService::build(|client| Backend::new(client, config))
-    .custom_method("ast-grep/scan", Backend::scan)
+    .custom_method("ast-grep/search", Backend::search)
     .finish();
   Server::new(stdin, stdout, socket).serve(service).await;
   Ok(())

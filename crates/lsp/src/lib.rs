@@ -49,7 +49,7 @@ impl MatchResult {
 }
 
 impl<L: LSPLang> Backend<L> {
-  pub async fn scan(&self, params: MatchRequest) -> Result<Vec<MatchResult>> {
+  pub async fn search(&self, params: MatchRequest) -> Result<Vec<MatchResult>> {
     let matcher = params.pattern;
     let mut match_result = vec![];
     for slot in self.map.iter() {
