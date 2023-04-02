@@ -1,4 +1,5 @@
 use dashmap::DashMap;
+use serde::{Deserialize, Serialize};
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
@@ -23,6 +24,45 @@ pub struct Backend<L: LSPLang> {
   client: Client,
   map: DashMap<String, VersionedAst<L>>,
   rules: RuleCollection<L>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct MatchRequest {
+  pattern: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct MatchResult {
+  uri: String,
+  position: Range,
+  content: String,
+}
+
+impl MatchResult {
+  fn new(uri: String, position: Range, content: String) -> Self {
+    Self {
+      uri,
+      position,
+      content,
+    }
+  }
+}
+
+impl<L: LSPLang> Backend<L> {
+  pub async fn scan(&self, params: MatchRequest) -> Result<Vec<MatchResult>> {
+    let matcher = params.pattern;
+    let mut match_result = vec![];
+    for slot in self.map.iter() {
+      let uri = slot.key();
+      let versioned = slot.value();
+      for matched_node in versioned.root.root().find_all(matcher.as_str()) {
+        let content = matched_node.text().to_string();
+        let range = convert_node_to_range(&matched_node);
+        match_result.push(MatchResult::new(uri.clone(), range, content));
+      }
+    }
+    Ok(match_result)
+  }
 }
 
 const FALLBAKC_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =

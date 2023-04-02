@@ -166,6 +166,7 @@ dependencies = [
  "ast-grep-core",
  "dashmap",
  "serde",
+ "serde_json",
  "tower-lsp",
 ]
 

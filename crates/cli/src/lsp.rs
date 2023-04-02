@@ -10,7 +10,9 @@ async fn run_language_server_impl() -> Result<()> {
   let stdout = tokio::io::stdout();
   let config = find_rules(None)?;
 
-  let (service, socket) = LspService::build(|client| Backend::new(client, config)).finish();
+  let (service, socket) = LspService::build(|client| Backend::new(client, config))
+    .custom_method("ast-grep/scan", Backend::scan)
+    .finish();
   Server::new(stdin, stdout, socket).serve(service).await;
   Ok(())
 }
