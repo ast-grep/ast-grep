@@ -1,0 +1,17 @@
+[package]
+name = "benches"
+version = "0.1.0"
+authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
+edition = "2021"
+
+[dependencies]
+ast-grep-core = { version = "0.3.2", path = "../crates/core" }
+ast-grep-language = { version = "0.3.2", path = "../crates/language" }
+
+[dev-dependencies]
+criterion = "0.4"
+
+[[bench]]
+name = "core"
+path = "src/core_benchmark.rs"
+harness = false

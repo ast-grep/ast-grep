@@ -117,6 +117,9 @@ fn update_crates(version: &str) -> Result<()> {
     let toml_path = path.join("Cargo.toml");
     edit_toml(toml_path, version)?;
   }
+  // update benches
+  let toml_path = Path::new("benches/Cargo.toml");
+  edit_toml(toml_path, version)?;
   Ok(())
 }
 
