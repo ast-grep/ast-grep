@@ -1,10 +1,19 @@
-use ast_grep_core::{AstGrep, Language, Pattern};
+use ast_grep_config::{from_yaml_string, RuleConfig};
+use ast_grep_core::{AstGrep, Language, Matcher, Pattern};
 use ast_grep_language::SupportLang;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::env::current_dir;
 use std::fs::read_to_string;
 
-fn find_pattern(sg: &AstGrep<SupportLang>, pattern: &Pattern<SupportLang>) {
+fn read_rule() -> RuleConfig<SupportLang> {
+  let cwd = current_dir().unwrap();
+  let ts_file = cwd.join("fixtures/rules/has-rule.yml");
+  let rule = read_to_string(ts_file).unwrap();
+  let mut rules = from_yaml_string(&rule, &Default::default()).unwrap();
+  rules.pop().unwrap()
+}
+
+fn find_pattern<M: Matcher<SupportLang>>(sg: &AstGrep<SupportLang>, pattern: &M) {
   sg.root().find_all(pattern).for_each(|n| drop(n));
 }
 
@@ -33,5 +42,13 @@ fn find_all_bench(c: &mut Criterion) {
   });
 }
 
-criterion_group!(benches, find_all_bench);
+fn rule_bench(c: &mut Criterion) {
+  let ref_sg = get_sg("fixtures/ref.ts.fixture");
+  let rule = read_rule();
+  c.bench_function("test has rule", |b| {
+    b.iter(|| find_pattern(&ref_sg, &rule.matcher))
+  });
+}
+
+criterion_group!(benches, find_all_bench, rule_bench);
 criterion_main!(benches);

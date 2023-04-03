@@ -1,0 +1,8 @@
+id: test-rule
+message: Add your rule message here....
+severity: error
+language: TypeScript
+rule:
+  pattern: if ($$$) { $$$ }
+  has:
+    pattern: return $$$

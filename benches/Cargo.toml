@@ -6,12 +6,13 @@ edition = "2021"
 
 [dependencies]
 ast-grep-core = { version = "0.3.2", path = "../crates/core" }
+ast-grep-config = { version = "0.3.2", path = "../crates/config" }
 ast-grep-language = { version = "0.3.2", path = "../crates/language" }
 
 [dev-dependencies]
 criterion = "0.4"
 
 [[bench]]
-name = "core"
-path = "src/core_benchmark.rs"
+name = "sg"
+path = "src/sg_benchmark.rs"
 harness = false
