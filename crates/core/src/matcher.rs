@@ -151,7 +151,13 @@ impl<'tree, L: Language, M: Matcher<L>> FindAllNodes<'tree, L, M> {
 impl<'tree, L: Language, M: Matcher<L>> Iterator for FindAllNodes<'tree, L, M> {
   type Item = NodeMatch<'tree, L>;
   fn next(&mut self) -> Option<Self::Item> {
+    let kinds = self.matcher.potential_kinds();
     for cand in self.dfs.by_ref() {
+      if let Some(k) = &kinds {
+        if !k.contains(cand.kind_id().into()) {
+          continue;
+        }
+      }
       if let Some(matched) = self.matcher.match_node(cand) {
         return Some(matched);
       }
