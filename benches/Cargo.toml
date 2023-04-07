@@ -1,4 +1,5 @@
 [package]
+publish = false
 name = "benches"
 version = "0.3.3"
 authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
