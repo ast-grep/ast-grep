@@ -89,7 +89,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -116,7 +116,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-config"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "ast-grep-core",
  "bit-set",
@@ -131,7 +131,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-core"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "bit-set",
  "regex",
@@ -142,7 +142,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-language"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "ast-grep-core",
  "ast-grep-tree-sitter-c-sharp",
@@ -166,7 +166,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-lsp"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
@@ -178,7 +178,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-napi"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
@@ -246,7 +246,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "benches"
-version = "0.1.0"
+version = "0.3.3"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
@@ -844,9 +844,9 @@ dependencies = [
 
 [[package]]
 name = "inquire"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd079157ad94a32f7511b2e13037f3ae417ad80a6a9b0de29154d48b86f5d6c8"
+checksum = "f4bf420bd01f298a3ed8f57af9babedb296b4edfc1dbd8b159cee883aa90edaa"
 dependencies = [
  "bitflags 1.3.2",
  "crossterm 0.25.0",
