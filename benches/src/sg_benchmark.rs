@@ -1,5 +1,5 @@
 use ast_grep_config::{from_yaml_string, RuleConfig};
-use ast_grep_core::{AstGrep, Language, Matcher, Pattern};
+use ast_grep_core::{AstGrep, Language, Matcher, Pattern, StrDoc};
 use ast_grep_language::SupportLang;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::env::current_dir;
@@ -13,11 +13,11 @@ fn read_rule() -> RuleConfig<SupportLang> {
   rules.pop().unwrap()
 }
 
-fn find_pattern<M: Matcher<SupportLang>>(sg: &AstGrep<SupportLang>, pattern: &M) {
+fn find_pattern<M: Matcher<SupportLang>>(sg: &AstGrep<StrDoc<SupportLang>>, pattern: &M) {
   sg.root().find_all(pattern).for_each(|n| drop(n));
 }
 
-fn get_sg(path: &str) -> AstGrep<SupportLang> {
+fn get_sg(path: &str) -> AstGrep<StrDoc<SupportLang>> {
   let lang = SupportLang::TypeScript;
   let cwd = current_dir().unwrap();
   let ts_file = cwd.join(path);

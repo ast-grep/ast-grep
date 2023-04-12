@@ -1,5 +1,6 @@
 use crate::meta_var::{extract_meta_var, MetaVariable};
 use crate::AstGrep;
+use crate::StrDoc;
 use std::borrow::Cow;
 use std::path::Path;
 pub use tree_sitter::Language as TSLanguage;
@@ -16,7 +17,7 @@ pub trait Language: Clone {
   }
 
   /// Create an [`AstGrep`] instance for the language
-  fn ast_grep<S: AsRef<str>>(&self, source: S) -> AstGrep<Self> {
+  fn ast_grep<S: AsRef<str>>(&self, source: S) -> AstGrep<StrDoc<Self>> {
     AstGrep::new(source, self.clone())
   }
 

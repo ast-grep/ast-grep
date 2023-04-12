@@ -20,16 +20,16 @@ pub use replacer::replace_meta_var_in_string;
 
 use crate::replacer::Replacer;
 use node::Root;
-use source::Content;
+pub use source::{Content, Doc, StrDoc};
 use ts_parser::{Edit, TSParseError};
 
 #[derive(Clone)]
-pub struct AstGrep<L: Language> {
+pub struct AstGrep<D: Doc> {
   #[doc(hidden)]
-  pub inner: Root<L>,
+  pub inner: Root<D::Lang>,
 }
 
-impl<L: Language> AstGrep<L> {
+impl<L: Language> AstGrep<StrDoc<L>> {
   pub fn new<S: AsRef<str>>(src: S, lang: L) -> Self {
     Self {
       inner: Root::new(src.as_ref(), lang),

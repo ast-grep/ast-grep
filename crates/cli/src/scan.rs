@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{RuleCollection, RuleConfig, Severity};
-use ast_grep_core::{AstGrep, Matcher, NodeMatch};
+use ast_grep_core::{AstGrep, Matcher, NodeMatch, StrDoc};
 use clap::Args;
 use ignore::WalkParallel;
 
@@ -94,7 +94,7 @@ impl<P: Printer> ScanWithConfig<P> {
 }
 
 impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
-  type Item = (PathBuf, AstGrep<SupportLang>);
+  type Item = (PathBuf, AstGrep<StrDoc<SupportLang>>);
   fn build_walk(&self) -> WalkParallel {
     let arg = &self.arg;
     let threads = num_cpus::get().min(12);
@@ -189,7 +189,7 @@ impl<'r> CombinedScan<'r> {
     }
   }
 
-  fn find(&self, root: &AstGrep<SupportLang>) -> bool {
+  fn find(&self, root: &AstGrep<StrDoc<SupportLang>>) -> bool {
     for node in root.root().dfs() {
       let kind = node.kind_id() as usize;
       let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
@@ -206,7 +206,7 @@ impl<'r> CombinedScan<'r> {
   }
   fn scan<'a>(
     &self,
-    root: &'a AstGrep<SupportLang>,
+    root: &'a AstGrep<StrDoc<SupportLang>>,
   ) -> HashMap<usize, Vec<NodeMatch<'a, SupportLang>>> {
     let mut results = HashMap::new();
     for node in root.root().dfs() {
