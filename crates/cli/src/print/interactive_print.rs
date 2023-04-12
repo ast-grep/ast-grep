@@ -195,7 +195,7 @@ mod test {
   use super::*;
   use ast_grep_config::{from_yaml_string, GlobalRules};
   use ast_grep_core::traversal::Visitor;
-  use ast_grep_core::{AstGrep, Matcher, Pattern};
+  use ast_grep_core::{AstGrep, Matcher, Pattern, StrDoc};
 
   fn make_rule(rule: &str) -> RuleConfig<SupportLang> {
     let globals = GlobalRules::default();
@@ -216,7 +216,7 @@ language: TypeScript
   }
 
   fn make_diffs<'a>(
-    grep: &'a AstGrep<SupportLang>,
+    grep: &'a AstGrep<StrDoc<SupportLang>>,
     matcher: impl Matcher<SupportLang>,
     fixer: &Pattern<SupportLang>,
   ) -> Vec<Diff<'a>> {

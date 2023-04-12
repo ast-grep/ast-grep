@@ -7,7 +7,7 @@ use crossterm::{
 };
 use ignore::{DirEntry, WalkParallel, WalkState};
 
-use ast_grep_core::{AstGrep, Matcher};
+use ast_grep_core::{AstGrep, Matcher, StrDoc};
 use ast_grep_language::{Language, SupportLang};
 
 use std::fs::read_to_string;
@@ -173,7 +173,7 @@ fn file_too_large(file_content: &String) -> bool {
 /// An analogy to compilation unit in C programming language.
 pub struct MatchUnit<M: Matcher<SupportLang>> {
   pub path: PathBuf,
-  pub grep: AstGrep<SupportLang>,
+  pub grep: AstGrep<StrDoc<SupportLang>>,
   pub matcher: M,
 }
 

@@ -6,7 +6,7 @@ use tower_lsp::{Client, LanguageServer};
 
 use ast_grep_config::Severity;
 use ast_grep_config::{RuleCollection, RuleConfig};
-use ast_grep_core::{language::Language, AstGrep, Node, NodeMatch};
+use ast_grep_core::{language::Language, AstGrep, Node, NodeMatch, StrDoc};
 
 use std::collections::HashMap;
 
@@ -17,7 +17,7 @@ impl<T> LSPLang for T where T: Language + Eq + Send + Sync + 'static {}
 
 struct VersionedAst<L: Language> {
   version: i32,
-  root: AstGrep<L>,
+  root: AstGrep<StrDoc<L>>,
 }
 
 pub struct Backend<L: LSPLang> {

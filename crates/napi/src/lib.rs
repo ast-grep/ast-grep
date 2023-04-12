@@ -3,7 +3,7 @@
 use ast_grep_config::{RuleWithConstraint, SerializableRuleCore};
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::pinned::{NodeData, PinnedNodeData};
-use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern};
+use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern, StrDoc};
 use ignore::types::TypesBuilder;
 use ignore::{WalkBuilder, WalkState};
 use napi::anyhow::{anyhow, Context, Error, Result as Ret};
@@ -357,7 +357,7 @@ impl SgNode {
 }
 
 #[napi]
-pub struct SgRoot(AstGrep<FrontEndLanguage>, String);
+pub struct SgRoot(AstGrep<StrDoc<FrontEndLanguage>>, String);
 
 #[napi]
 impl SgRoot {
@@ -516,7 +516,7 @@ fn call_sg_root(
   Ok(true)
 }
 
-fn get_root(entry: ignore::DirEntry) -> Ret<(AstGrep<FrontEndLanguage>, String)> {
+fn get_root(entry: ignore::DirEntry) -> Ret<(AstGrep<StrDoc<FrontEndLanguage>>, String)> {
   use FrontEndLanguage::*;
   let path = entry.into_path();
   let file_content = std::fs::read_to_string(&path)?;
