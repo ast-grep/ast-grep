@@ -279,7 +279,7 @@ mod test {
   use super::*;
   use crate::language::{Language, Tsx};
   use crate::ts_parser::parse as parse_base;
-  use crate::Root;
+  use crate::{Root, StrDoc};
   use std::collections::HashMap;
 
   fn parse(src: &str) -> tree_sitter::Tree {
@@ -303,8 +303,7 @@ mod test {
       inner: goal.root_node().child(0).unwrap(),
       root: &Root {
         inner: goal.clone(),
-        source: s1.into(),
-        lang: Tsx,
+        doc: StrDoc::new(s1, Tsx),
       },
     };
     let cand = parse(s2);
@@ -312,8 +311,7 @@ mod test {
       inner: cand.root_node(),
       root: &Root {
         inner: cand.clone(),
-        source: s2.into(),
-        lang: Tsx,
+        doc: StrDoc::new(s2, Tsx),
       },
     };
     let mut env = MetaVarEnv::new();
@@ -333,8 +331,7 @@ mod test {
       inner: goal.root_node().child(0).unwrap(),
       root: &Root {
         inner: goal.clone(),
-        source: s1.into(),
-        lang: Tsx,
+        doc: StrDoc::new(s1, Tsx),
       },
     };
     let cand = parse(s2);
@@ -342,8 +339,7 @@ mod test {
       inner: cand.root_node(),
       root: &Root {
         inner: cand.clone(),
-        source: s2.into(),
-        lang: Tsx,
+        doc: StrDoc::new(s2, Tsx),
       },
     };
     let mut env = MetaVarEnv::new();

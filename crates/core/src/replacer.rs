@@ -2,7 +2,7 @@ use crate::language::Language;
 use crate::meta_var::{split_first_meta_var, MatchResult, MetaVarEnv};
 use crate::ts_parser::Edit;
 use crate::Pattern;
-use crate::{Node, Root};
+use crate::{Node, Root, StrDoc};
 
 /// Replace meta variable in the replacer string
 pub trait Replacer<L: Language> {
@@ -34,7 +34,7 @@ where
   }
 }
 
-fn collect_edits<L: Language>(root: &Root<L>, env: &MetaVarEnv<L>, lang: L) -> Vec<Edit> {
+fn collect_edits<L: Language>(root: &Root<StrDoc<L>>, env: &MetaVarEnv<L>, lang: L) -> Vec<Edit> {
   let mut node = root.root();
   let root_id = node.inner.id();
   let mut edits = vec![];
@@ -77,7 +77,7 @@ fn collect_edits<L: Language>(root: &Root<L>, env: &MetaVarEnv<L>, lang: L) -> V
   }
   // add the missing one
   edits.push(Edit {
-    position: root.source.len(),
+    position: root.source().len(),
     deleted_length: 0,
     inserted_text: String::new(),
   });
@@ -106,12 +106,12 @@ pub fn replace_meta_var_in_string<L: Language>(
   ret
 }
 
-fn merge_edits_to_string<L: Language>(edits: Vec<Edit>, root: &Root<L>) -> String {
+fn merge_edits_to_string<L: Language>(edits: Vec<Edit>, root: &Root<StrDoc<L>>) -> String {
   let mut ret = String::new();
   let mut start = 0;
   for edit in edits {
     debug_assert!(start <= edit.position, "Edit must be ordered!");
-    ret.push_str(&root.source[start..edit.position]);
+    ret.push_str(&root.source()[start..edit.position]);
     ret.push_str(&edit.inserted_text);
     start = edit.position + edit.deleted_length;
   }
@@ -135,7 +135,7 @@ fn get_meta_var_replacement<L: Language>(
       } else {
         let start = nodes[0].inner.start_byte() as usize;
         let end = nodes[nodes.len() - 1].inner.end_byte() as usize;
-        nodes[0].root.source[start..end].to_string()
+        nodes[0].root.source()[start..end].to_string()
       }
     }
   };

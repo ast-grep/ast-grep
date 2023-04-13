@@ -4,28 +4,34 @@ use crate::replacer::Replacer;
 use crate::source::{Content, Source};
 use crate::traversal::{Pre, Visitor};
 use crate::ts_parser::{parse, perform_edit, Edit, TSParseError};
+use crate::{Doc, StrDoc};
 
 use std::borrow::Cow;
 
 /// Represents [`tree_sitter::Tree`] and owns source string
 /// Note: Root is generic against [`Language`](crate::language::Language)
 #[derive(Clone)]
-pub struct Root<L: Language> {
+pub struct Root<D: Doc> {
   pub(crate) inner: tree_sitter::Tree,
-  pub(crate) source: Source,
-  pub(crate) lang: L,
+  pub(crate) doc: D,
 }
 
-impl<L: Language> Root<L> {
+impl<L: Language> Root<StrDoc<L>> {
+  pub fn source(&self) -> &str {
+    self.doc.get_source()
+  }
+  pub fn lang(&self) -> &L {
+    self.doc.get_lang()
+  }
   pub fn try_new(src: &str, lang: L) -> Result<Self, TSParseError> {
     let inner = parse(src, None, lang.get_ts_language())?;
     Ok(Self {
       inner,
-      source: src.into(),
-      lang,
+      doc: StrDoc::new(src, lang),
     })
   }
 
+  /*
   pub fn customized<C: Content>(content: C, lang: L) -> Result<Self, TSParseError> {
     let inner = parse(&content, None, lang.get_ts_language())?;
     Ok(Self {
@@ -34,16 +40,21 @@ impl<L: Language> Root<L> {
       lang,
     })
   }
+  */
 
   pub fn new(src: &str, lang: L) -> Self {
     Self::try_new(src, lang).expect("should parse")
   }
   // extract non generic implementation to reduce code size
   pub fn do_edit(&mut self, edit: Edit) -> Result<(), TSParseError> {
-    let input = self.source.as_mut_vec();
+    let input = unsafe { self.doc.src.as_mut_vec() };
     let input_edit = perform_edit(&mut self.inner, input, &edit);
     self.inner.edit(&input_edit);
-    self.inner = parse(&self.source, Some(&self.inner), self.lang.get_ts_language())?;
+    self.inner = parse(
+      self.source(),
+      Some(&self.inner),
+      self.lang().get_ts_language(),
+    )?;
     Ok(())
   }
 
@@ -81,13 +92,13 @@ impl<L: Language> Root<L> {
 #[derive(Clone)]
 pub struct Node<'r, L: Language> {
   pub(crate) inner: tree_sitter::Node<'r>,
-  pub(crate) root: &'r Root<L>,
+  pub(crate) root: &'r Root<StrDoc<L>>,
 }
 pub type KindId = u16;
 
 struct NodeWalker<'tree, L: Language> {
   cursor: tree_sitter::TreeCursor<'tree>,
-  root: &'tree Root<L>,
+  root: &'tree Root<StrDoc<L>>,
   count: usize,
 }
 
@@ -160,7 +171,7 @@ impl<'r, L: Language> Node<'r, L> {
   pub fn text(&self) -> Cow<'r, str> {
     self
       .inner
-      .utf8_text(self.root.source.as_bytes())
+      .utf8_text(self.root.source().as_bytes())
       .expect("invalid source text encoding")
   }
 
@@ -171,7 +182,7 @@ impl<'r, L: Language> Node<'r, L> {
 
   #[doc(hidden)]
   pub fn display_context(&self, context_lines: usize) -> DisplayContext<'r> {
-    let bytes = self.root.source.as_bytes();
+    let bytes = self.root.source().as_bytes();
     let start = self.inner.start_byte() as usize;
     let end = self.inner.end_byte() as usize;
     let (mut leading, mut trailing) = (start, end);
@@ -199,14 +210,14 @@ impl<'r, L: Language> Node<'r, L> {
     }
     DisplayContext {
       matched: self.text(),
-      leading: &self.root.source[leading..start],
-      trailing: &self.root.source[end..=trailing],
+      leading: &self.root.source()[leading..start],
+      trailing: &self.root.source()[end..=trailing],
       start_line: self.inner.start_position().row() as usize + 1,
     }
   }
 
   pub fn lang(&self) -> &L {
-    &self.root.lang
+    self.root.lang()
   }
 }
 
@@ -287,7 +298,7 @@ impl<'r, L: Language> Node<'r, L> {
   pub fn field_children(&self, name: &str) -> impl Iterator<Item = Node<'r, L>> {
     let field_id = self
       .root
-      .lang
+      .lang()
       .get_ts_language()
       .field_id_for_name(name)
       .unwrap_or(0);
@@ -389,7 +400,7 @@ impl<'r, L: Language> Node<'r, L> {
     M: Matcher<L>,
     R: Replacer<L>,
   {
-    let lang = self.root.lang.clone();
+    let lang = self.root.lang().clone();
     let env = matched.get_env();
     let range = matched.range();
     let position = range.start;

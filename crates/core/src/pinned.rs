@@ -1,21 +1,22 @@
 use crate::language::Language;
 use crate::matcher::NodeMatch;
 use crate::node::{Node, Root};
+use crate::StrDoc;
 
 // TODO: add comments
 #[doc(hidden)]
 pub struct PinnedNodeData<L: Language, T> {
-  pin: Root<L>,
+  pin: Root<StrDoc<L>>,
   data: T,
 }
 
 impl<T, L: Language + 'static> PinnedNodeData<L, T> {
-  pub fn new<F>(pin: Root<L>, func: F) -> Self
+  pub fn new<F>(pin: Root<StrDoc<L>>, func: F) -> Self
   where
-    F: FnOnce(&'static Root<L>) -> T,
+    F: FnOnce(&'static Root<StrDoc<L>>) -> T,
   {
     // TODO: explain why unsafe works here and what guarantee it needs
-    let reference = unsafe { &*(&pin as *const Root<L>) as &'static Root<L> };
+    let reference = unsafe { &*(&pin as *const Root<StrDoc<L>>) as &'static Root<StrDoc<L>> };
     let data = func(reference);
     Self { pin, data }
   }
@@ -26,11 +27,11 @@ where
   T: NodeData<L>,
 {
   pub fn get_data(&mut self) -> &T::Data<'_> {
-    let pin = unsafe { &*(&self.pin as *const Root<L>) as &'static Root<L> };
+    let pin = unsafe { &*(&self.pin as *const Root<StrDoc<L>>) as &'static Root<StrDoc<L>> };
     self.data.visit_nodes(|n| unsafe { pin.readopt(n) });
     self.data.get_data()
   }
-  pub fn into_raw(self) -> (Root<L>, T) {
+  pub fn into_raw(self) -> (Root<StrDoc<L>>, T) {
     (self.pin, self.data)
   }
 }

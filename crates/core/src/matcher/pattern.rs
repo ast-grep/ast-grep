@@ -2,6 +2,7 @@ use crate::language::Language;
 use crate::match_tree::{extract_var_from_node, match_end_non_recursive, match_node_non_recursive};
 use crate::matcher::{KindMatcher, KindMatcherError, Matcher};
 use crate::ts_parser::TSParseError;
+use crate::StrDoc;
 use crate::{meta_var::MetaVarEnv, Node, Root};
 
 use bit_set::BitSet;
@@ -20,7 +21,7 @@ enum PatternStyle<L: Language> {
 
 #[derive(Clone)]
 pub struct Pattern<L: Language> {
-  pub(crate) root: Root<L>,
+  pub(crate) root: Root<StrDoc<L>>,
   style: PatternStyle<L>,
 }
 
@@ -168,7 +169,7 @@ mod test {
   use crate::language::Tsx;
   use std::collections::HashMap;
 
-  fn pattern_node(s: &str) -> Root<Tsx> {
+  fn pattern_node(s: &str) -> Root<StrDoc<Tsx>> {
     Root::new(s, Tsx)
   }
 

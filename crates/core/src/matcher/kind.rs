@@ -92,9 +92,9 @@ impl<L: Language> Matcher<L> for KindMatcher<L> {
 mod test {
   use super::*;
   use crate::language::Tsx;
-  use crate::Root;
+  use crate::{Root, StrDoc};
 
-  fn pattern_node(s: &str) -> Root<Tsx> {
+  fn pattern_node(s: &str) -> Root<StrDoc<Tsx>> {
     Root::new(s, Tsx)
   }
   #[test]

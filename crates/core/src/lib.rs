@@ -26,7 +26,7 @@ use ts_parser::{Edit, TSParseError};
 #[derive(Clone)]
 pub struct AstGrep<D: Doc> {
   #[doc(hidden)]
-  pub inner: Root<D::Lang>,
+  pub inner: Root<D>,
 }
 
 impl<L: Language> AstGrep<StrDoc<L>> {
@@ -36,14 +36,16 @@ impl<L: Language> AstGrep<StrDoc<L>> {
     }
   }
 
+  /*
   pub fn customized<C: Content>(content: C, lang: L) -> Result<Self, TSParseError> {
     Ok(Self {
       inner: Root::customized(content, lang)?,
     })
   }
+  */
 
   pub fn source(&self) -> &str {
-    &self.inner.source
+    self.inner.source()
   }
 
   pub fn root(&self) -> Node<L> {
@@ -69,11 +71,11 @@ impl<L: Language> AstGrep<StrDoc<L>> {
   }
 
   pub fn lang(&self) -> &L {
-    &self.inner.lang
+    self.inner.lang()
   }
 
   pub fn generate(self) -> String {
-    self.inner.source.to_string()
+    self.inner.source().to_string()
   }
 }
 

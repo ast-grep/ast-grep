@@ -20,7 +20,7 @@
 
 use crate::language::Language;
 use crate::matcher::Matcher;
-use crate::{Node, NodeMatch, Root};
+use crate::{Node, NodeMatch, Root, StrDoc};
 
 use tree_sitter as ts;
 
@@ -168,7 +168,7 @@ pub trait Traversal<'t, L: Language + 't>: Iterator<Item = Node<'t, L>> {
 /// Represents a pre-order traversal
 pub struct Pre<'tree, L: Language> {
   cursor: ts::TreeCursor<'tree>,
-  root: &'tree Root<L>,
+  root: &'tree Root<StrDoc<L>>,
   // record the starting node, if we return back to starting point
   // we should terminate the dfs.
   start_id: Option<usize>,
@@ -262,7 +262,7 @@ impl<'t, L: Language> Traversal<'t, L> for Pre<'t, L> {
 /// Represents a post-order traversal
 pub struct Post<'tree, L: Language> {
   cursor: ts::TreeCursor<'tree>,
-  root: &'tree Root<L>,
+  root: &'tree Root<StrDoc<L>>,
   start_id: Option<usize>,
   current_depth: usize,
   match_depth: usize,
@@ -357,7 +357,7 @@ impl<'t, L: Language> Traversal<'t, L> for Post<'t, L> {
 pub struct Level<'tree, L: Language> {
   deque: VecDeque<ts::Node<'tree>>,
   cursor: ts::TreeCursor<'tree>,
-  root: &'tree Root<L>,
+  root: &'tree Root<StrDoc<L>>,
 }
 
 impl<'tree, L: Language> Level<'tree, L> {

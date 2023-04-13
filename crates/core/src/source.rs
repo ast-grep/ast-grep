@@ -5,17 +5,31 @@ pub trait Doc {
   type Repr: Content;
   type Lang: Language;
   fn get_lang(&self) -> &Self::Lang;
+  fn get_source(&self) -> &str;
 }
 
+#[derive(Clone)]
 pub struct StrDoc<L: Language> {
-  source: String,
-  lang: L,
+  pub src: String,
+  pub lang: L,
 }
+impl<L: Language> StrDoc<L> {
+  pub fn new(src: &str, lang: L) -> Self {
+    Self {
+      src: src.into(),
+      lang,
+    }
+  }
+}
+
 impl<L: Language> Doc for StrDoc<L> {
   type Repr = String;
   type Lang = L;
   fn get_lang(&self) -> &Self::Lang {
     &self.lang
+  }
+  fn get_source(&self) -> &str {
+    &self.src
   }
 }
 
