@@ -172,7 +172,7 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
   }
 }
 
-fn convert_node_to_range<L: Language>(node_match: &Node<L>) -> Range {
+fn convert_node_to_range<L: Language>(node_match: &Node<StrDoc<L>>) -> Range {
   let (start_row, start_col) = node_match.start_pos();
   let (end_row, end_col) = node_match.end_pos();
   Range {
@@ -188,7 +188,7 @@ fn convert_node_to_range<L: Language>(node_match: &Node<L>) -> Range {
 }
 
 fn convert_match_to_diagnostic<L: Language>(
-  node_match: NodeMatch<L>,
+  node_match: NodeMatch<StrDoc<L>>,
   rule: &RuleConfig<L>,
   uri: &Url,
 ) -> Diagnostic {
@@ -211,7 +211,7 @@ fn convert_match_to_diagnostic<L: Language>(
 }
 
 fn collect_labels<L: Language>(
-  node_match: &NodeMatch<L>,
+  node_match: &NodeMatch<StrDoc<L>>,
   uri: &Url,
 ) -> Option<Vec<DiagnosticRelatedInformation>> {
   let secondary_nodes = node_match.get_env().get_labels("secondary")?;

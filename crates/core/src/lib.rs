@@ -48,7 +48,7 @@ impl<L: Language> AstGrep<StrDoc<L>> {
     self.inner.source()
   }
 
-  pub fn root(&self) -> Node<L> {
+  pub fn root(&self) -> Node<StrDoc<L>> {
     self.inner.root()
   }
 

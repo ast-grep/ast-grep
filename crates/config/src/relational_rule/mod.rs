@@ -4,7 +4,7 @@ use crate::deserialize_env::DeserializeEnv;
 use crate::rule::{Rule, RuleSerializeError, SerializableRule};
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
-use ast_grep_core::{Matcher, Node};
+use ast_grep_core::{Matcher, Node, StrDoc};
 use stop_by::{SerializableStopBy, StopBy};
 
 use serde::{Deserialize, Serialize};
@@ -37,13 +37,13 @@ impl<L: Language> Inside<L> {
 impl<L: Language> Matcher<L> for Inside<L> {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     let ancestors = node.ancestors();
     if let Some(field) = &self.field {
       let mut last_id = node.node_id();
-      let finder = move |nd: Node<'tree, L>| {
+      let finder = move |nd: Node<'tree, StrDoc<L>>| {
         let expect_id = last_id;
         last_id = nd.node_id();
         let n = nd.field(field)?;
@@ -81,9 +81,9 @@ impl<L: Language> Has<L> {
 impl<L: Language> Matcher<L> for Has<L> {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     if let Some(field) = &self.field {
       let nd = node.field(field)?;
       return match &self.stop_by {
@@ -146,9 +146,9 @@ impl<L: Language> Precedes<L> {
 impl<L: Language> Matcher<L> for Precedes<L> {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     let next_all = node.next_all();
     let finder = |n| self.later.match_node_with_env(n, env);
     self.stop_by.find(next_all, finder)
@@ -173,9 +173,9 @@ impl<L: Language> Follows<L> {
 impl<L: Language> Matcher<L> for Follows<L> {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     let prev_all = node.prev_all();
     let finder = |n| self.former.match_node_with_env(n, env);
     self.stop_by.find(prev_all, finder)

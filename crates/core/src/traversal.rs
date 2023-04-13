@@ -73,7 +73,7 @@ impl<M, A> Visitor<M, A>
 where
   A: Algorithm,
 {
-  pub fn visit<L: Language>(self, node: Node<L>) -> Visit<'_, L, A::Traversal<'_, L>, M>
+  pub fn visit<L: Language>(self, node: Node<StrDoc<L>>) -> Visit<'_, L, A::Traversal<'_, L>, M>
   where
     M: Matcher<L>,
   {
@@ -115,7 +115,7 @@ where
   T: Traversal<'t, L>,
   M: Matcher<L>,
 {
-  type Item = NodeMatch<'t, L>;
+  type Item = NodeMatch<'t, StrDoc<L>>;
   fn next(&mut self) -> Option<Self::Item> {
     loop {
       let match_depth = self.traversal.get_current_depth();
@@ -133,20 +133,20 @@ where
 
 pub trait Algorithm {
   type Traversal<'t, L: 't + Language>: Traversal<'t, L>;
-  fn traverse<L: Language>(node: Node<L>) -> Self::Traversal<'_, L>;
+  fn traverse<L: Language>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L>;
 }
 
 pub struct PreOrder;
 impl Algorithm for PreOrder {
   type Traversal<'t, L: 't + Language> = Pre<'t, L>;
-  fn traverse<L: Language>(node: Node<L>) -> Self::Traversal<'_, L> {
+  fn traverse<L: Language>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L> {
     Pre::new(&node)
   }
 }
 pub struct PostOrder;
 impl Algorithm for PostOrder {
   type Traversal<'t, L: 't + Language> = Post<'t, L>;
-  fn traverse<L: Language>(node: Node<L>) -> Self::Traversal<'_, L> {
+  fn traverse<L: Language>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L> {
     Post::new(&node)
   }
 }
@@ -155,7 +155,7 @@ impl Algorithm for PostOrder {
 /// The `next` method should only handle normal, reentrant iteration.
 /// If reentrancy is not desired, traversal should mutate cursor in `calibrate_for_match`.
 /// Visit will maintain the matched node depth so traversal does not need to use extra field.
-pub trait Traversal<'t, L: Language + 't>: Iterator<Item = Node<'t, L>> {
+pub trait Traversal<'t, L: Language + 't>: Iterator<Item = Node<'t, StrDoc<L>>> {
   /// Calibrate cursor position to skip overlapping matches.
   /// node depth will be passed if matched, otherwise None.
   fn calibrate_for_match(&mut self, depth: Option<usize>);
@@ -176,7 +176,7 @@ pub struct Pre<'tree, L: Language> {
 }
 
 impl<'tree, L: Language> Pre<'tree, L> {
-  pub fn new(node: &Node<'tree, L>) -> Self {
+  pub fn new(node: &Node<'tree, StrDoc<L>>) -> Self {
     Self {
       cursor: node.inner.walk(),
       root: node.root,
@@ -212,7 +212,7 @@ impl<'tree, L: Language> Pre<'tree, L> {
 
 /// Amortized time complexity is O(NlgN), depending on branching factor.
 impl<'tree, L: Language> Iterator for Pre<'tree, L> {
-  type Item = Node<'tree, L>;
+  type Item = Node<'tree, StrDoc<L>>;
   // 1. Yield the node itself
   // 2. Try visit the child node until no child available
   // 3. Try visit next sibling after going back to parent
@@ -270,7 +270,7 @@ pub struct Post<'tree, L: Language> {
 
 /// Amortized time complexity is O(NlgN), depending on branching factor.
 impl<'tree, L: Language> Post<'tree, L> {
-  pub fn new(node: &Node<'tree, L>) -> Self {
+  pub fn new(node: &Node<'tree, StrDoc<L>>) -> Self {
     let mut ret = Self {
       cursor: node.inner.walk(),
       root: node.root,
@@ -294,7 +294,7 @@ impl<'tree, L: Language> Post<'tree, L> {
 
 /// Amortized time complexity is O(NlgN), depending on branching factor.
 impl<'tree, L: Language> Iterator for Post<'tree, L> {
-  type Item = Node<'tree, L>;
+  type Item = Node<'tree, StrDoc<L>>;
   fn next(&mut self) -> Option<Self::Item> {
     // start_id will always be Some until the dfs terminates
     let start = self.start_id?;
@@ -361,7 +361,7 @@ pub struct Level<'tree, L: Language> {
 }
 
 impl<'tree, L: Language> Level<'tree, L> {
-  pub fn new(node: &Node<'tree, L>) -> Self {
+  pub fn new(node: &Node<'tree, StrDoc<L>>) -> Self {
     let mut deque = VecDeque::new();
     deque.push_back(node.inner.clone());
     let cursor = node.inner.walk();
@@ -375,7 +375,7 @@ impl<'tree, L: Language> Level<'tree, L> {
 
 /// Time complexity is O(N). Space complexity is O(N)
 impl<'tree, L: Language> Iterator for Level<'tree, L> {
-  type Item = Node<'tree, L>;
+  type Item = Node<'tree, StrDoc<L>>;
   fn next(&mut self) -> Option<Self::Item> {
     let inner = self.deque.pop_front()?;
     let children = inner.children(&mut self.cursor);
@@ -392,14 +392,14 @@ mod test {
   use std::ops::Range;
 
   // recursive pre order as baseline
-  fn pre_order(node: Node<Tsx>) -> Vec<Range<usize>> {
+  fn pre_order(node: Node<StrDoc<Tsx>>) -> Vec<Range<usize>> {
     let mut ret = vec![node.range()];
     ret.extend(node.children().flat_map(pre_order));
     ret
   }
 
   // recursion baseline
-  fn post_order(node: Node<Tsx>) -> Vec<Range<usize>> {
+  fn post_order(node: Node<StrDoc<Tsx>>) -> Vec<Range<usize>> {
     let mut ret: Vec<_> = node.children().flat_map(post_order).collect();
     ret.push(node.range());
     ret
@@ -490,7 +490,7 @@ mod test {
     assert!(post.starts_with(&post2));
   }
 
-  fn pre_order_with_matcher(node: Node<Tsx>, matcher: &str) -> Vec<Range<usize>> {
+  fn pre_order_with_matcher(node: Node<StrDoc<Tsx>>, matcher: &str) -> Vec<Range<usize>> {
     if node.matches(matcher) {
       vec![node.range()]
     } else {
@@ -501,7 +501,7 @@ mod test {
     }
   }
 
-  fn post_order_with_matcher(node: Node<Tsx>, matcher: &str) -> Vec<Range<usize>> {
+  fn post_order_with_matcher(node: Node<StrDoc<Tsx>>, matcher: &str) -> Vec<Range<usize>> {
     let mut ret: Vec<_> = node
       .children()
       .flat_map(|n| post_order_with_matcher(n, matcher))

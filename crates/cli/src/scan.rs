@@ -144,7 +144,7 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
 
 fn match_rule_on_file(
   path: &Path,
-  matches: Vec<NodeMatch<SupportLang>>,
+  matches: Vec<NodeMatch<StrDoc<SupportLang>>>,
   rule: &RuleConfig<SupportLang>,
   file_content: &String,
   reporter: &impl Printer,
@@ -207,7 +207,7 @@ impl<'r> CombinedScan<'r> {
   fn scan<'a>(
     &self,
     root: &'a AstGrep<StrDoc<SupportLang>>,
-  ) -> HashMap<usize, Vec<NodeMatch<'a, SupportLang>>> {
+  ) -> HashMap<usize, Vec<NodeMatch<'a, StrDoc<SupportLang>>>> {
     let mut results = HashMap::new();
     for node in root.root().dfs() {
       let kind = node.kind_id() as usize;

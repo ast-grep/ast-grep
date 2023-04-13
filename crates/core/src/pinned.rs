@@ -45,43 +45,43 @@ pub unsafe trait NodeData<L> {
   fn get_data(&self) -> &Self::Data<'_>;
   fn visit_nodes<F>(&mut self, f: F)
   where
-    F: FnMut(&mut Node<'_, L>);
+    F: FnMut(&mut Node<'_, StrDoc<L>>);
 }
 
-unsafe impl<L: Language> NodeData<L> for Node<'static, L> {
-  type Data<'a> = Node<'a, L>;
+unsafe impl<L: Language> NodeData<L> for Node<'static, StrDoc<L>> {
+  type Data<'a> = Node<'a, StrDoc<L>>;
   fn get_data(&self) -> &Self::Data<'_> {
     self
   }
   fn visit_nodes<F>(&mut self, mut f: F)
   where
-    F: FnMut(&mut Node<'_, L>),
+    F: FnMut(&mut Node<'_, StrDoc<L>>),
   {
     f(self)
   }
 }
 
-unsafe impl<L: Language> NodeData<L> for NodeMatch<'static, L> {
-  type Data<'a> = NodeMatch<'a, L>;
+unsafe impl<L: Language> NodeData<L> for NodeMatch<'static, StrDoc<L>> {
+  type Data<'a> = NodeMatch<'a, StrDoc<L>>;
   fn get_data(&self) -> &Self::Data<'_> {
     self
   }
   fn visit_nodes<F>(&mut self, mut f: F)
   where
-    F: FnMut(&mut Node<'_, L>),
+    F: FnMut(&mut Node<'_, StrDoc<L>>),
   {
     f(unsafe { self.get_mut_node() })
   }
 }
 
-unsafe impl<L: Language> NodeData<L> for Vec<NodeMatch<'static, L>> {
-  type Data<'a> = Vec<NodeMatch<'a, L>>;
+unsafe impl<L: Language> NodeData<L> for Vec<NodeMatch<'static, StrDoc<L>>> {
+  type Data<'a> = Vec<NodeMatch<'a, StrDoc<L>>>;
   fn get_data(&self) -> &Self::Data<'_> {
     self
   }
   fn visit_nodes<F>(&mut self, mut f: F)
   where
-    F: FnMut(&mut Node<'_, L>),
+    F: FnMut(&mut Node<'_, StrDoc<L>>),
   {
     for n in self {
       f(unsafe { n.get_mut_node() })
@@ -94,7 +94,7 @@ mod test {
   use super::*;
   use crate::language::Tsx;
   use crate::node::Root;
-  fn return_from_func() -> PinnedNodeData<Tsx, Node<'static, Tsx>> {
+  fn return_from_func() -> PinnedNodeData<Tsx, Node<'static, StrDoc<Tsx>>> {
     let root = Root::new("let a = 123", Tsx);
     PinnedNodeData::new(root, |r| r.root().child(0).unwrap().child(1).unwrap())
   }
@@ -113,7 +113,7 @@ mod test {
     todo!()
   }
 
-  fn return_vec() -> PinnedNodeData<Tsx, Vec<NodeMatch<'static, Tsx>>> {
+  fn return_vec() -> PinnedNodeData<Tsx, Vec<NodeMatch<'static, StrDoc<Tsx>>>> {
     let root = Root::new("let a = 123", Tsx);
     PinnedNodeData::new(root, |r| {
       r.root()

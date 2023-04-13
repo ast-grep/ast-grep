@@ -7,7 +7,7 @@ use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::ops as o;
-use ast_grep_core::{Matcher, Node, Pattern, PatternError};
+use ast_grep_core::{Matcher, Node, Pattern, PatternError, StrDoc};
 
 use bit_set::BitSet;
 use serde::{Deserialize, Serialize};
@@ -158,9 +158,9 @@ impl<L: Language> Rule<L> {
 impl<L: Language> Matcher<L> for Rule<L> {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     use Rule::*;
     match self {
       // atomic
@@ -211,9 +211,9 @@ impl<L: Language> Default for Rule<L> {
 
 fn match_and_add_label<'tree, L: Language, M: Matcher<L>>(
   inner: &M,
-  node: Node<'tree, L>,
-  env: &mut MetaVarEnv<'tree, L>,
-) -> Option<Node<'tree, L>> {
+  node: Node<'tree, StrDoc<L>>,
+  env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+) -> Option<Node<'tree, StrDoc<L>>> {
   let matched = inner.match_node_with_env(node, env)?;
   env.add_label("secondary", matched.clone());
   Some(matched)

@@ -84,7 +84,7 @@ pub struct Range {
 
 #[napi]
 pub struct SgNode {
-  inner: SharedReference<SgRoot, NodeMatch<'static, FrontEndLanguage>>,
+  inner: SharedReference<SgRoot, NodeMatch<'static, StrDoc<FrontEndLanguage>>>,
 }
 
 #[napi]
@@ -242,7 +242,7 @@ impl SgNode {
   fn transpose_option(
     reference: Reference<SgNode>,
     env: Env,
-    node: Option<NodeMatch<'static, FrontEndLanguage>>,
+    node: Option<NodeMatch<'static, StrDoc<FrontEndLanguage>>>,
   ) -> Result<Option<SgNode>> {
     if let Some(node) = node {
       let root_ref = reference.inner.clone_owner(env)?;
@@ -289,7 +289,7 @@ impl SgNode {
   fn from_iter_to_vec(
     reference: &Reference<SgNode>,
     env: Env,
-    iter: impl Iterator<Item = NodeMatch<'static, FrontEndLanguage>>,
+    iter: impl Iterator<Item = NodeMatch<'static, StrDoc<FrontEndLanguage>>>,
   ) -> Result<Vec<SgNode>> {
     let mut ret = vec![];
     for node in iter {
@@ -542,7 +542,7 @@ type FindInFiles = IterateFiles<(
 )>;
 
 pub struct PinnedNodes(
-  PinnedNodeData<FrontEndLanguage, Vec<NodeMatch<'static, FrontEndLanguage>>>,
+  PinnedNodeData<FrontEndLanguage, Vec<NodeMatch<'static, StrDoc<FrontEndLanguage>>>>,
   String,
 );
 unsafe impl Send for PinnedNodes {}

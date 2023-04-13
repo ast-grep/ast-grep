@@ -86,7 +86,7 @@ impl<L: Language> Pattern<L> {
     })
   }
 
-  fn single_matcher(&self) -> Node<L> {
+  fn single_matcher(&self) -> Node<StrDoc<L>> {
     debug_assert!(matches!(self.style, PatternStyle::Single));
     let root = self.root.root();
     let mut node = root.inner;
@@ -99,7 +99,7 @@ impl<L: Language> Pattern<L> {
     }
   }
 
-  fn kind_matcher(&self, kind_matcher: &KindMatcher<L>) -> Node<L> {
+  fn kind_matcher(&self, kind_matcher: &KindMatcher<L>) -> Node<StrDoc<L>> {
     debug_assert!(matches!(self.style, PatternStyle::Selector(_)));
     self
       .root
@@ -113,9 +113,9 @@ impl<L: Language> Pattern<L> {
 impl<L: Language> Matcher<L> for Pattern<L> {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     match &self.style {
       PatternStyle::Single => {
         let matcher = self.single_matcher();
@@ -144,7 +144,7 @@ impl<L: Language> Matcher<L> for Pattern<L> {
     Some(kinds)
   }
 
-  fn get_match_len(&self, node: Node<L>) -> Option<usize> {
+  fn get_match_len(&self, node: Node<StrDoc<L>>) -> Option<usize> {
     let start = node.range().start;
     let end = match &self.style {
       PatternStyle::Single => match_end_non_recursive(&self.single_matcher(), node)?,

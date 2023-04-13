@@ -1,5 +1,8 @@
 use ast_grep_config::{RuleConfig, Severity};
-use ast_grep_core::{meta_var::MetaVariable, Node, NodeMatch};
+use ast_grep_core::{meta_var::MetaVariable, Node as SgNode, NodeMatch as SgNodeMatch, StrDoc};
+type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
+type Node<'a, L> = SgNode<'a, StrDoc<L>>;
+
 use ast_grep_language::SupportLang;
 use std::collections::HashMap;
 
