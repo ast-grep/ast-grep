@@ -9,7 +9,7 @@ pub use crate::constraints::{
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarMatchers;
 use ast_grep_core::replace_meta_var_in_string;
-use ast_grep_core::NodeMatch;
+use ast_grep_core::{NodeMatch, StrDoc};
 use ast_grep_core::{Pattern, PatternError};
 use serde::{Deserialize, Serialize};
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error as YamlError};
@@ -50,7 +50,7 @@ impl<L: Language> SerializableRuleCore<L> {
     }
   }
 
-  fn get_meta_var_matchers(&self) -> RResult<MetaVarMatchers<L>> {
+  fn get_meta_var_matchers(&self) -> RResult<MetaVarMatchers<StrDoc<L>>> {
     Ok(if let Some(constraints) = self.constraints.clone() {
       try_deserialize_matchers(constraints, self.language.clone())?
     } else {
@@ -119,7 +119,7 @@ impl<L: Language> SerializableRuleConfig<L> {
     }
   }
 
-  fn get_message(&self, node: &NodeMatch<L>) -> String {
+  fn get_message(&self, node: &NodeMatch<StrDoc<L>>) -> String {
     replace_meta_var_in_string(&self.message, node.get_env(), node.lang())
   }
 }
@@ -180,7 +180,7 @@ impl<L: Language> RuleConfig<L> {
     Self::try_from(inner, globals)
   }
 
-  pub fn get_message(&self, node: &NodeMatch<L>) -> String {
+  pub fn get_message(&self, node: &NodeMatch<StrDoc<L>>) -> String {
     self.inner.get_message(node)
   }
 }

@@ -1,7 +1,7 @@
 use crate::language::Language;
 use std::ops::Deref;
 
-pub trait Doc {
+pub trait Doc: Clone {
   type Repr: Content;
   type Lang: Language;
   fn get_lang(&self) -> &Self::Lang;

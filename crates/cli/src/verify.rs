@@ -5,7 +5,7 @@ use crate::utils::{prompt, run_in_alternate_screen};
 use ansi_term::{Color, Style};
 use anyhow::{anyhow, Result};
 use ast_grep_config::{RuleCollection, RuleConfig};
-use ast_grep_core::{Node, NodeMatch};
+use ast_grep_core::{Node as SgNode, NodeMatch, StrDoc};
 use ast_grep_language::{Language, SupportLang};
 use clap::Args;
 use serde::{Deserialize, Serialize, Serializer};
@@ -15,6 +15,8 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
+
+type Node<'a, L> = SgNode<'a, StrDoc<L>>;
 
 fn ordered_map<S>(value: &HashMap<String, TestSnapshot>, serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -75,7 +77,7 @@ impl Label {
     }
   }
 
-  fn from_matched(n: NodeMatch<SupportLang>) -> Vec<Self> {
+  fn from_matched(n: NodeMatch<StrDoc<SupportLang>>) -> Vec<Self> {
     let mut ret = vec![Self::primary(&n)];
     if let Some(secondary) = n.get_env().get_labels("secondary") {
       ret.extend(secondary.iter().map(Self::secondary));

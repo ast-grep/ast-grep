@@ -1,7 +1,6 @@
 use crate::matcher::{MatchAll, MatchNone, Matcher};
 use crate::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
-use crate::Language;
-use crate::Node;
+use crate::{Language, Node, StrDoc};
 use bit_set::BitSet;
 use std::marker::PhantomData;
 
@@ -18,9 +17,9 @@ where
 {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     let node = self.pattern1.match_node_with_env(node, env)?;
     self.pattern2.match_node_with_env(node, env)
   }
@@ -79,9 +78,9 @@ impl<L: Language, P: Matcher<L>> All<L, P> {
 impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     if let Some(kinds) = &self.kinds {
       if !kinds.contains(node.kind_id().into()) {
         return None;
@@ -136,9 +135,9 @@ impl<L: Language, P: Matcher<L>> Any<L, P> {
 impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     if let Some(kinds) = &self.kinds {
       if !kinds.contains(node.kind_id().into()) {
         return None;
@@ -177,9 +176,9 @@ where
 {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     let mut new_env = env.clone();
     if let Some(ret) = self
       .pattern1
@@ -224,9 +223,9 @@ where
 {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     self
       .not
       .match_node_with_env(node.clone(), env)
@@ -237,7 +236,7 @@ where
 #[derive(Clone)]
 pub struct Op<L: Language, M: Matcher<L>> {
   inner: M,
-  meta_vars: MetaVarMatchers<L>,
+  meta_vars: MetaVarMatchers<StrDoc<L>>,
 }
 
 impl<L, M> Matcher<L> for Op<L, M>
@@ -247,9 +246,9 @@ where
 {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     let ret = self.inner.match_node_with_env(node, env);
     if ret.is_some() && env.match_constraints(&self.meta_vars) {
       ret
@@ -270,13 +269,13 @@ pub struct Predicate<F> {
 impl<L, F> Matcher<L> for Predicate<F>
 where
   L: Language,
-  F: for<'tree> Fn(&Node<'tree, L>) -> bool,
+  F: for<'tree> Fn(&Node<'tree, StrDoc<L>>) -> bool,
 {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    _env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    _env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     (self.func)(&node).then_some(node)
   }
 }
@@ -285,7 +284,7 @@ where
 impl<L: Language> Op<L, MatchNone> {
   pub fn func<F>(func: F) -> Predicate<F>
   where
-    F: for<'tree> Fn(&Node<'tree, L>) -> bool,
+    F: for<'tree> Fn(&Node<'tree, StrDoc<L>>) -> bool,
   {
     Predicate { func }
   }
@@ -299,7 +298,7 @@ impl<L: Language, M: Matcher<L>> Op<L, M> {
     }
   }
 
-  pub fn with_meta_var(&mut self, var_id: String, matcher: MetaVarMatcher<L>) -> &mut Self {
+  pub fn with_meta_var(&mut self, var_id: String, matcher: MetaVarMatcher<StrDoc<L>>) -> &mut Self {
     self.meta_vars.insert(var_id, matcher);
     self
   }

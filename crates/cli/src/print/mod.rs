@@ -3,7 +3,7 @@ mod interactive_print;
 mod json_print;
 
 use ast_grep_config::RuleConfig;
-use ast_grep_core::{Matcher, NodeMatch, Pattern};
+use ast_grep_core::{Matcher, NodeMatch as SgNodeMatch, Pattern, StrDoc};
 use ast_grep_language::SupportLang;
 
 use anyhow::Result;
@@ -17,6 +17,8 @@ pub use codespan_reporting::term::termcolor::ColorChoice;
 pub use colored_print::{print_diff, ColoredPrinter, Heading, PrintStyles, ReportStyle};
 pub use interactive_print::InteractivePrinter;
 pub use json_print::JSONPrinter;
+
+type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.
 macro_rules! Matches {

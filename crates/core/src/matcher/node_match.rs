@@ -1,8 +1,7 @@
 use crate::meta_var::MetaVarEnv;
 use crate::replacer::Replacer;
 use crate::ts_parser::Edit;
-use crate::Language;
-use crate::Node;
+use crate::{Doc, Language, Node, StrDoc};
 
 use std::borrow::Borrow;
 use std::ops::Deref;
@@ -11,22 +10,28 @@ use std::ops::Deref;
 /// It derefs to the Node so you can use it as a Node.
 /// To access the underlying MetaVarEnv, call `get_env` method.
 #[derive(Clone)]
-pub struct NodeMatch<'tree, L: Language>(Node<'tree, L>, MetaVarEnv<'tree, L>);
+pub struct NodeMatch<'tree, D: Doc>(Node<'tree, D>, MetaVarEnv<'tree, D>);
 
-impl<'tree, L: Language> NodeMatch<'tree, L> {
-  pub fn new(node: Node<'tree, L>, env: MetaVarEnv<'tree, L>) -> Self {
+impl<'tree, D: Doc> NodeMatch<'tree, D> {
+  pub fn new(node: Node<'tree, D>, env: MetaVarEnv<'tree, D>) -> Self {
     Self(node, env)
   }
 
-  pub fn get_node(&self) -> &Node<'tree, L> {
+  pub fn get_node(&self) -> &Node<'tree, D> {
     &self.0
   }
 
   /// Returns the populated MetaVarEnv for this match.
-  pub fn get_env(&self) -> &MetaVarEnv<'tree, L> {
+  pub fn get_env(&self) -> &MetaVarEnv<'tree, D> {
     &self.1
   }
-
+  /// # Safety
+  /// should only called for readopting nodes
+  pub(crate) unsafe fn get_mut_node(&mut self) -> &mut Node<'tree, D> {
+    &mut self.0
+  }
+}
+impl<'tree, L: Language> NodeMatch<'tree, StrDoc<L>> {
   pub fn replace_by<R: Replacer<L>>(&self, replacer: R) -> Edit {
     let lang = self.lang().clone();
     let env = self.get_env();
@@ -40,37 +45,32 @@ impl<'tree, L: Language> NodeMatch<'tree, L> {
       inserted_text,
     }
   }
-  /// # Safety
-  /// should only called for readopting nodes
-  pub(crate) unsafe fn get_mut_node(&mut self) -> &mut Node<'tree, L> {
-    &mut self.0
-  }
 }
 
-impl<'tree, L: Language> From<Node<'tree, L>> for NodeMatch<'tree, L> {
-  fn from(node: Node<'tree, L>) -> Self {
+impl<'tree, D: Doc> From<Node<'tree, D>> for NodeMatch<'tree, D> {
+  fn from(node: Node<'tree, D>) -> Self {
     Self(node, MetaVarEnv::new())
   }
 }
 
 /// NodeMatch is an immutable view to Node
-impl<'tree, L: Language> From<NodeMatch<'tree, L>> for Node<'tree, L> {
-  fn from(node_match: NodeMatch<'tree, L>) -> Self {
+impl<'tree, D: Doc> From<NodeMatch<'tree, D>> for Node<'tree, D> {
+  fn from(node_match: NodeMatch<'tree, D>) -> Self {
     node_match.0
   }
 }
 
 /// NodeMatch is an immutable view to Node
-impl<'tree, L: Language> Deref for NodeMatch<'tree, L> {
-  type Target = Node<'tree, L>;
+impl<'tree, D: Doc> Deref for NodeMatch<'tree, D> {
+  type Target = Node<'tree, D>;
   fn deref(&self) -> &Self::Target {
     &self.0
   }
 }
 
 /// NodeMatch is an immutable view to Node
-impl<'tree, L: Language> Borrow<Node<'tree, L>> for NodeMatch<'tree, L> {
-  fn borrow(&self) -> &Node<'tree, L> {
+impl<'tree, D: Doc> Borrow<Node<'tree, D>> for NodeMatch<'tree, D> {
+  fn borrow(&self) -> &Node<'tree, D> {
     &self.0
   }
 }
@@ -79,15 +79,16 @@ impl<'tree, L: Language> Borrow<Node<'tree, L>> for NodeMatch<'tree, L> {
 mod test {
   use super::*;
   use crate::language::Tsx;
+  use crate::{Language, StrDoc};
 
-  fn use_node<L: Language>(n: &Node<L>) -> String {
+  fn use_node<L: Language>(n: &Node<StrDoc<L>>) -> String {
     n.text().to_string()
   }
 
-  fn borrow_node<'a, L, B>(b: B) -> String
+  fn borrow_node<'a, D, B>(b: B) -> String
   where
-    L: Language + 'static,
-    B: Borrow<Node<'a, L>>,
+    D: Doc + 'static,
+    B: Borrow<Node<'a, D>>,
   {
     b.borrow().text().to_string()
   }

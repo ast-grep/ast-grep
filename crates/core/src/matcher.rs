@@ -6,8 +6,7 @@ mod text;
 
 use crate::meta_var::MetaVarEnv;
 use crate::traversal::Pre;
-use crate::Language;
-use crate::Node;
+use crate::{Language, Node, StrDoc};
 
 use bit_set::BitSet;
 
@@ -26,9 +25,9 @@ pub trait Matcher<L: Language> {
   /// For example `Has` matcher can return the child or descendant node.
   fn match_node_with_env<'tree>(
     &self,
-    _node: Node<'tree, L>,
-    _env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>>;
+    _node: Node<'tree, StrDoc<L>>,
+    _env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>>;
 
   /// Returns a bitset for all possible target node kind ids.
   /// Returns None if the matcher needs to try against all node kind.
@@ -38,18 +37,18 @@ pub trait Matcher<L: Language> {
 
   /// get_match_len will skip trailing anonymous child node to exclude punctuation.
   // This is not included in NodeMatch since it is only used in replace
-  fn get_match_len(&self, _node: Node<L>) -> Option<usize> {
+  fn get_match_len(&self, _node: Node<StrDoc<L>>) -> Option<usize> {
     None
   }
 
-  fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
+  fn match_node<'tree>(&self, node: Node<'tree, StrDoc<L>>) -> Option<NodeMatch<'tree, StrDoc<L>>> {
     // in future we might need to customize initial MetaVarEnv
     let mut env = MetaVarEnv::new();
     let node = self.match_node_with_env(node, &mut env)?;
     Some(NodeMatch::new(node, env))
   }
 
-  fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
+  fn find_node<'tree>(&self, node: Node<'tree, StrDoc<L>>) -> Option<NodeMatch<'tree, StrDoc<L>>> {
     for n in node.dfs() {
       if let Some(ret) = self.match_node(n.clone()) {
         return Some(ret);
@@ -62,14 +61,14 @@ pub trait Matcher<L: Language> {
 impl<L: Language> Matcher<L> for str {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     let pattern = Pattern::new(self, node.lang().clone());
     pattern.match_node_with_env(node, env)
   }
 
-  fn get_match_len(&self, node: Node<L>) -> Option<usize> {
+  fn get_match_len(&self, node: Node<StrDoc<L>>) -> Option<usize> {
     let pattern = Pattern::new(self, node.lang().clone());
     pattern.get_match_len(node)
   }
@@ -82,9 +81,9 @@ where
 {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     (**self).match_node_with_env(node, env)
   }
 
@@ -92,15 +91,15 @@ where
     (**self).potential_kinds()
   }
 
-  fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
+  fn match_node<'tree>(&self, node: Node<'tree, StrDoc<L>>) -> Option<NodeMatch<'tree, StrDoc<L>>> {
     (**self).match_node(node)
   }
 
-  fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
+  fn find_node<'tree>(&self, node: Node<'tree, StrDoc<L>>) -> Option<NodeMatch<'tree, StrDoc<L>>> {
     (**self).find_node(node)
   }
 
-  fn get_match_len(&self, node: Node<L>) -> Option<usize> {
+  fn get_match_len(&self, node: Node<StrDoc<L>>) -> Option<usize> {
     (**self).get_match_len(node)
   }
 }
@@ -108,9 +107,9 @@ where
 impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     // NOTE: must double deref boxed value to avoid recursion
     (**self).match_node_with_env(node, env)
   }
@@ -119,15 +118,15 @@ impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
     (**self).potential_kinds()
   }
 
-  fn match_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
+  fn match_node<'tree>(&self, node: Node<'tree, StrDoc<L>>) -> Option<NodeMatch<'tree, StrDoc<L>>> {
     (**self).match_node(node)
   }
 
-  fn find_node<'tree>(&self, node: Node<'tree, L>) -> Option<NodeMatch<'tree, L>> {
+  fn find_node<'tree>(&self, node: Node<'tree, StrDoc<L>>) -> Option<NodeMatch<'tree, StrDoc<L>>> {
     (**self).find_node(node)
   }
 
-  fn get_match_len(&self, node: Node<L>) -> Option<usize> {
+  fn get_match_len(&self, node: Node<StrDoc<L>>) -> Option<usize> {
     (**self).get_match_len(node)
   }
 }
@@ -140,7 +139,7 @@ pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
 }
 
 impl<'tree, L: Language, M: Matcher<L>> FindAllNodes<'tree, L, M> {
-  pub fn new(matcher: M, node: Node<'tree, L>) -> Self {
+  pub fn new(matcher: M, node: Node<'tree, StrDoc<L>>) -> Self {
     Self {
       dfs: node.dfs(),
       matcher,
@@ -149,7 +148,7 @@ impl<'tree, L: Language, M: Matcher<L>> FindAllNodes<'tree, L, M> {
 }
 
 impl<'tree, L: Language, M: Matcher<L>> Iterator for FindAllNodes<'tree, L, M> {
-  type Item = NodeMatch<'tree, L>;
+  type Item = NodeMatch<'tree, StrDoc<L>>;
   fn next(&mut self) -> Option<Self::Item> {
     let kinds = self.matcher.potential_kinds();
     for cand in self.dfs.by_ref() {
@@ -170,9 +169,9 @@ pub struct MatchAll;
 impl<L: Language> Matcher<L> for MatchAll {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    _env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    _env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     Some(node)
   }
 
@@ -186,9 +185,9 @@ pub struct MatchNone;
 impl<L: Language> Matcher<L> for MatchNone {
   fn match_node_with_env<'tree>(
     &self,
-    _node: Node<'tree, L>,
-    _env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    _node: Node<'tree, StrDoc<L>>,
+    _env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     None
   }
 

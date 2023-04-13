@@ -6,10 +6,13 @@ use ast_grep_config::RuleConfig;
 use super::{Diff, Printer};
 use crate::error::ErrorContext as EC;
 use crate::utils;
-use ast_grep_core::NodeMatch;
 use ast_grep_language::SupportLang;
 
 pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
+
+use ast_grep_core::{Node as SgNode, NodeMatch as SgNodeMatch, StrDoc};
+type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
+type Node<'a, L> = SgNode<'a, StrDoc<L>>;
 
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};

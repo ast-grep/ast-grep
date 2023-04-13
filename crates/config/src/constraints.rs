@@ -5,7 +5,7 @@ use crate::rule::Rule;
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
 use ast_grep_core::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
-use ast_grep_core::{Matcher, Node, Pattern, PatternError};
+use ast_grep_core::{Matcher, Node, Pattern, PatternError, StrDoc};
 
 use bit_set::BitSet;
 use thiserror::Error;
@@ -37,7 +37,7 @@ pub enum SerializeConstraintsError {
 pub fn try_from_serializable<L: Language>(
   meta_var: SerializableMetaVarMatcher,
   lang: L,
-) -> Result<MetaVarMatcher<L>, SerializeConstraintsError> {
+) -> Result<MetaVarMatcher<StrDoc<L>>, SerializeConstraintsError> {
   use SerializableMetaVarMatcher as S;
   Ok(match meta_var {
     S::Regex(s) => MetaVarMatcher::Regex(RegexMatcher::try_new(&s)?),
@@ -49,7 +49,7 @@ pub fn try_from_serializable<L: Language>(
 pub fn try_deserialize_matchers<L: Language>(
   meta_vars: HashMap<String, SerializableMetaVarMatcher>,
   lang: L,
-) -> Result<MetaVarMatchers<L>, SerializeConstraintsError> {
+) -> Result<MetaVarMatchers<StrDoc<L>>, SerializeConstraintsError> {
   let mut map = MetaVarMatchers::new();
   for (key, matcher) in meta_vars {
     map.insert(key, try_from_serializable(matcher, lang.clone())?);
@@ -59,7 +59,7 @@ pub fn try_deserialize_matchers<L: Language>(
 
 pub struct RuleWithConstraint<L: Language> {
   rule: Rule<L>,
-  matchers: MetaVarMatchers<L>,
+  matchers: MetaVarMatchers<StrDoc<L>>,
   kinds: Option<BitSet>,
   // this is required to hold util rule reference
   _utils: RuleRegistration<L>,
@@ -77,7 +77,7 @@ impl<L: Language> RuleWithConstraint<L> {
   }
 
   #[inline]
-  pub fn with_matchers(self, matchers: MetaVarMatchers<L>) -> Self {
+  pub fn with_matchers(self, matchers: MetaVarMatchers<StrDoc<L>>) -> Self {
     Self { matchers, ..self }
   }
 
@@ -108,9 +108,9 @@ impl<L: Language> Default for RuleWithConstraint<L> {
 impl<L: Language> Matcher<L> for RuleWithConstraint<L> {
   fn match_node_with_env<'tree>(
     &self,
-    node: Node<'tree, L>,
-    env: &mut MetaVarEnv<'tree, L>,
-  ) -> Option<Node<'tree, L>> {
+    node: Node<'tree, StrDoc<L>>,
+    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+  ) -> Option<Node<'tree, StrDoc<L>>> {
     if let Some(kinds) = &self.kinds {
       if !kinds.contains(node.kind_id().into()) {
         return None;

@@ -1,6 +1,5 @@
 use super::{Diff, Printer};
 use ast_grep_config::{RuleConfig, Severity};
-use ast_grep_core::NodeMatch;
 use ast_grep_language::SupportLang;
 
 use ansi_term::{Color, Style};
@@ -17,6 +16,10 @@ use std::fmt::Display;
 use std::io::Write;
 use std::path::Path;
 use std::sync::Mutex;
+
+use ast_grep_core::{Node as SgNode, NodeMatch as SgNodeMatch, StrDoc};
+type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
+type Node<'a, L> = SgNode<'a, StrDoc<L>>;
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.
 macro_rules! Matches {
