@@ -6,7 +6,7 @@ use tower_lsp::{Client, LanguageServer};
 
 use ast_grep_config::Severity;
 use ast_grep_config::{RuleCollection, RuleConfig};
-use ast_grep_core::{language::Language, AstGrep, Node, NodeMatch, StrDoc};
+use ast_grep_core::{language::Language, AstGrep, Doc, Node, NodeMatch, StrDoc};
 
 use std::collections::HashMap;
 
@@ -15,14 +15,14 @@ pub use tower_lsp::{LspService, Server};
 pub trait LSPLang: Language + Eq + Send + Sync + 'static {}
 impl<T> LSPLang for T where T: Language + Eq + Send + Sync + 'static {}
 
-struct VersionedAst<L: Language> {
+struct VersionedAst<D: Doc> {
   version: i32,
-  root: AstGrep<StrDoc<L>>,
+  root: AstGrep<D>,
 }
 
 pub struct Backend<L: LSPLang> {
   client: Client,
-  map: DashMap<String, VersionedAst<L>>,
+  map: DashMap<String, VersionedAst<StrDoc<L>>>,
   rules: RuleCollection<L>,
 }
 
@@ -172,7 +172,7 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
   }
 }
 
-fn convert_node_to_range<L: Language>(node_match: &Node<StrDoc<L>>) -> Range {
+fn convert_node_to_range<D: Doc>(node_match: &Node<D>) -> Range {
   let (start_row, start_col) = node_match.start_pos();
   let (end_row, end_col) = node_match.end_pos();
   Range {
@@ -245,7 +245,7 @@ impl<L: LSPLang> Backend<L> {
       map: DashMap::new(),
     }
   }
-  async fn publish_diagnostics(&self, uri: Url, versioned: &VersionedAst<L>) -> Option<()> {
+  async fn publish_diagnostics(&self, uri: Url, versioned: &VersionedAst<StrDoc<L>>) -> Option<()> {
     let mut diagnostics = vec![];
     let path = uri.to_file_path().ok()?;
     let rules = self.rules.for_path(&path);
