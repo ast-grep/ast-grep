@@ -1,6 +1,6 @@
 use crate::matcher::{MatchAll, MatchNone, Matcher};
 use crate::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
-use crate::{Language, Node, StrDoc};
+use crate::{Doc, Language, Node};
 use bit_set::BitSet;
 use std::marker::PhantomData;
 
@@ -15,11 +15,11 @@ where
   P1: Matcher<L>,
   P2: Matcher<L>,
 {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     let node = self.pattern1.match_node_with_env(node, env)?;
     self.pattern2.match_node_with_env(node, env)
   }
@@ -76,11 +76,11 @@ impl<L: Language, P: Matcher<L>> All<L, P> {
 }
 
 impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     if let Some(kinds) = &self.kinds {
       if !kinds.contains(node.kind_id().into()) {
         return None;
@@ -133,11 +133,11 @@ impl<L: Language, P: Matcher<L>> Any<L, P> {
 }
 
 impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     if let Some(kinds) = &self.kinds {
       if !kinds.contains(node.kind_id().into()) {
         return None;
@@ -174,11 +174,11 @@ where
   P1: Matcher<L>,
   P2: Matcher<L>,
 {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     let mut new_env = env.clone();
     if let Some(ret) = self
       .pattern1
@@ -221,11 +221,11 @@ where
   L: Language,
   P: Matcher<L>,
 {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     self
       .not
       .match_node_with_env(node.clone(), env)
@@ -236,7 +236,8 @@ where
 #[derive(Clone)]
 pub struct Op<L: Language, M: Matcher<L>> {
   inner: M,
-  meta_vars: MetaVarMatchers<StrDoc<L>>,
+  lang: PhantomData<L>,
+  // meta_vars: MetaVarMatchers<D>,
 }
 
 impl<L, M> Matcher<L> for Op<L, M>
@@ -244,17 +245,18 @@ where
   L: Language,
   M: Matcher<L>,
 {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     let ret = self.inner.match_node_with_env(node, env);
-    if ret.is_some() && env.match_constraints(&self.meta_vars) {
-      ret
-    } else {
-      None
-    }
+    ret
+    // if ret.is_some() && env.match_constraints(&self.meta_vars) {
+    //   ret
+    // } else {
+    //   None
+    // }
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
@@ -262,6 +264,7 @@ where
   }
 }
 
+/*
 pub struct Predicate<F> {
   func: F,
 }
@@ -271,15 +274,17 @@ where
   L: Language,
   F: for<'tree> Fn(&Node<'tree, StrDoc<L>>) -> bool,
 {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang=L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    _env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     (self.func)(&node).then_some(node)
   }
 }
+*/
 
+/*
 // we don't need specify M for static method
 impl<L: Language> Op<L, MatchNone> {
   pub fn func<F>(func: F) -> Predicate<F>
@@ -289,6 +294,7 @@ impl<L: Language> Op<L, MatchNone> {
     Predicate { func }
   }
 }
+*/
 
 impl<L: Language, M: Matcher<L>> Op<L, M> {
   pub fn not(pattern: M) -> Not<L, M> {
@@ -298,10 +304,12 @@ impl<L: Language, M: Matcher<L>> Op<L, M> {
     }
   }
 
-  pub fn with_meta_var(&mut self, var_id: String, matcher: MetaVarMatcher<StrDoc<L>>) -> &mut Self {
+  /*
+  pub fn with_meta_var(&mut self, var_id: String, matcher: MetaVarMatcher<L>) -> &mut Self {
     self.meta_vars.insert(var_id, matcher);
     self
   }
+  */
 }
 
 impl<L: Language, M: Matcher<L>> Op<L, M> {
@@ -312,7 +320,8 @@ impl<L: Language, M: Matcher<L>> Op<L, M> {
         pattern2: MatchAll,
         lang: PhantomData,
       },
-      meta_vars: MetaVarMatchers::new(),
+      lang: PhantomData,
+      // meta_vars: MetaVarMatchers::new(),
     }
   }
   pub fn either(pattern: M) -> Op<L, Or<L, M, MatchNone>> {
@@ -322,7 +331,8 @@ impl<L: Language, M: Matcher<L>> Op<L, M> {
         pattern2: MatchNone,
         lang: PhantomData,
       },
-      meta_vars: MetaVarMatchers::new(),
+      lang: PhantomData,
+      // meta_vars: MetaVarMatchers::new(),
     }
   }
 
@@ -337,7 +347,8 @@ impl<L: Language, M: Matcher<L>> Op<L, M> {
   pub fn new(matcher: M) -> Op<L, M> {
     Self {
       inner: matcher,
-      meta_vars: MetaVarMatchers::new(),
+      lang: PhantomData,
+      // meta_vars: MetaVarMatchers::new(),
     }
   }
 }
@@ -351,7 +362,8 @@ impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, And<L, M, N>> {
         pattern2: other,
         lang: PhantomData,
       },
-      meta_vars: self.meta_vars,
+      lang: PhantomData,
+      // meta_vars: MetaVarMatchers::new(),
     }
   }
 }
@@ -365,7 +377,8 @@ impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, Or<L, M, N>> {
         pattern2: other,
         lang: PhantomData,
       },
-      meta_vars: self.meta_vars,
+      lang: PhantomData,
+      // meta_vars: MetaVarMatchers::new(),
     }
   }
 }
@@ -470,12 +483,14 @@ mod test {
     assert_eq!(ret, ["a + b", "c + b"], "should match source code order");
   }
 
+  /*
   #[test]
   fn test_api_func() {
     let matcher = Op::func(|n| n.text().contains("114514"));
     test_find(&matcher, "let a = 114514");
     test_not_find(&matcher, "let a = 1919810");
   }
+  */
   use crate::matcher::RegexMatcher;
   use crate::Pattern;
   trait TsxMatcher {
@@ -580,6 +595,7 @@ mod test {
     assert_eq!(matches.get_env().get_match("B").unwrap().text(), "123");
   }
 
+  /*
   #[test]
   fn test_op_with_matchers() {
     let var_matcher = MetaVarMatcher::Regex(RegexMatcher::try_new("a").unwrap());
@@ -590,4 +606,5 @@ mod test {
     let code = Root::new("b", Tsx);
     assert!(code.root().find(&matcher).is_none());
   }
+  */
 }

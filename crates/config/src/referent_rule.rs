@@ -2,7 +2,7 @@ use crate::{Rule, RuleWithConstraint};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
-use ast_grep_core::{Matcher, Node, StrDoc};
+use ast_grep_core::{Doc, Matcher, Node};
 
 use bit_set::BitSet;
 use thiserror::Error;
@@ -165,11 +165,11 @@ impl<L: Language> ReferentRule<L> {
 }
 
 impl<L: Language> Matcher<L> for ReferentRule<L> {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     self
       .eval_local(|r| r.match_node_with_env(node.clone(), env))
       .or_else(|| self.eval_global(|r| r.match_node_with_env(node, env)))
