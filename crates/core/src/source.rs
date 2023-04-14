@@ -6,6 +6,9 @@ pub trait Doc: Clone {
   type Lang: Language;
   fn get_lang(&self) -> &Self::Lang;
   fn get_source(&self) -> &str;
+  /// # Safety
+  /// TODO
+  unsafe fn as_mut(&mut self) -> &mut Vec<u8>;
 }
 
 #[derive(Clone)]
@@ -30,6 +33,9 @@ impl<L: Language> Doc for StrDoc<L> {
   }
   fn get_source(&self) -> &str {
     &self.src
+  }
+  unsafe fn as_mut(&mut self) -> &mut Vec<u8> {
+    self.src.as_mut_vec()
   }
 }
 

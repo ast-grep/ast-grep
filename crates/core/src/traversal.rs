@@ -20,7 +20,7 @@
 
 use crate::language::Language;
 use crate::matcher::Matcher;
-use crate::{Node, NodeMatch, Root, StrDoc};
+use crate::{Doc, Node, NodeMatch, Root, StrDoc};
 
 use tree_sitter as ts;
 
@@ -98,7 +98,7 @@ pub struct Visit<'t, L, T, M> {
 impl<'t, L, T, M> Visit<'t, L, T, M>
 where
   L: Language + 't,
-  T: Traversal<'t, L>,
+  T: Traversal<'t, StrDoc<L>>,
   M: Matcher<L>,
 {
   #[inline]
@@ -112,7 +112,7 @@ where
 impl<'t, L, T, M> Iterator for Visit<'t, L, T, M>
 where
   L: Language + 't,
-  T: Traversal<'t, L>,
+  T: Traversal<'t, StrDoc<L>>,
   M: Matcher<L>,
 {
   type Item = NodeMatch<'t, StrDoc<L>>;
@@ -132,20 +132,20 @@ where
 }
 
 pub trait Algorithm {
-  type Traversal<'t, L: 't + Language>: Traversal<'t, L>;
+  type Traversal<'t, L: 't + Language>: Traversal<'t, StrDoc<L>>;
   fn traverse<L: Language>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L>;
 }
 
 pub struct PreOrder;
 impl Algorithm for PreOrder {
-  type Traversal<'t, L: 't + Language> = Pre<'t, L>;
+  type Traversal<'t, L: 't + Language> = Pre<'t, StrDoc<L>>;
   fn traverse<L: Language>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L> {
     Pre::new(&node)
   }
 }
 pub struct PostOrder;
 impl Algorithm for PostOrder {
-  type Traversal<'t, L: 't + Language> = Post<'t, L>;
+  type Traversal<'t, L: 't + Language> = Post<'t, StrDoc<L>>;
   fn traverse<L: Language>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L> {
     Post::new(&node)
   }
@@ -155,7 +155,7 @@ impl Algorithm for PostOrder {
 /// The `next` method should only handle normal, reentrant iteration.
 /// If reentrancy is not desired, traversal should mutate cursor in `calibrate_for_match`.
 /// Visit will maintain the matched node depth so traversal does not need to use extra field.
-pub trait Traversal<'t, L: Language + 't>: Iterator<Item = Node<'t, StrDoc<L>>> {
+pub trait Traversal<'t, D: Doc + 't>: Iterator<Item = Node<'t, D>> {
   /// Calibrate cursor position to skip overlapping matches.
   /// node depth will be passed if matched, otherwise None.
   fn calibrate_for_match(&mut self, depth: Option<usize>);
@@ -166,17 +166,17 @@ pub trait Traversal<'t, L: Language + 't>: Iterator<Item = Node<'t, StrDoc<L>>> 
 }
 
 /// Represents a pre-order traversal
-pub struct Pre<'tree, L: Language> {
+pub struct Pre<'tree, D: Doc> {
   cursor: ts::TreeCursor<'tree>,
-  root: &'tree Root<StrDoc<L>>,
+  root: &'tree Root<D>,
   // record the starting node, if we return back to starting point
   // we should terminate the dfs.
   start_id: Option<usize>,
   current_depth: usize,
 }
 
-impl<'tree, L: Language> Pre<'tree, L> {
-  pub fn new(node: &Node<'tree, StrDoc<L>>) -> Self {
+impl<'tree, D: Doc> Pre<'tree, D> {
+  pub fn new(node: &Node<'tree, D>) -> Self {
     Self {
       cursor: node.inner.walk(),
       root: node.root,
@@ -211,8 +211,8 @@ impl<'tree, L: Language> Pre<'tree, L> {
 }
 
 /// Amortized time complexity is O(NlgN), depending on branching factor.
-impl<'tree, L: Language> Iterator for Pre<'tree, L> {
-  type Item = Node<'tree, StrDoc<L>>;
+impl<'tree, D: Doc> Iterator for Pre<'tree, D> {
+  type Item = Node<'tree, D>;
   // 1. Yield the node itself
   // 2. Try visit the child node until no child available
   // 3. Try visit next sibling after going back to parent
@@ -233,9 +233,9 @@ impl<'tree, L: Language> Iterator for Pre<'tree, L> {
     ret
   }
 }
-impl<'tree, L: Language> FusedIterator for Pre<'tree, L> {}
+impl<'tree, D: Doc> FusedIterator for Pre<'tree, D> {}
 
-impl<'t, L: Language> Traversal<'t, L> for Pre<'t, L> {
+impl<'t, D: Doc> Traversal<'t, D> for Pre<'t, D> {
   fn calibrate_for_match(&mut self, depth: Option<usize>) {
     // not entering the node, ignore
     let Some(depth) = depth else {
@@ -260,17 +260,17 @@ impl<'t, L: Language> Traversal<'t, L> for Pre<'t, L> {
 }
 
 /// Represents a post-order traversal
-pub struct Post<'tree, L: Language> {
+pub struct Post<'tree, D: Doc> {
   cursor: ts::TreeCursor<'tree>,
-  root: &'tree Root<StrDoc<L>>,
+  root: &'tree Root<D>,
   start_id: Option<usize>,
   current_depth: usize,
   match_depth: usize,
 }
 
 /// Amortized time complexity is O(NlgN), depending on branching factor.
-impl<'tree, L: Language> Post<'tree, L> {
-  pub fn new(node: &Node<'tree, StrDoc<L>>) -> Self {
+impl<'tree, D: Doc> Post<'tree, D> {
+  pub fn new(node: &Node<'tree, D>) -> Self {
     let mut ret = Self {
       cursor: node.inner.walk(),
       root: node.root,
@@ -293,8 +293,8 @@ impl<'tree, L: Language> Post<'tree, L> {
 }
 
 /// Amortized time complexity is O(NlgN), depending on branching factor.
-impl<'tree, L: Language> Iterator for Post<'tree, L> {
-  type Item = Node<'tree, StrDoc<L>>;
+impl<'tree, D: Doc> Iterator for Post<'tree, D> {
+  type Item = Node<'tree, D>;
   fn next(&mut self) -> Option<Self::Item> {
     // start_id will always be Some until the dfs terminates
     let start = self.start_id?;
@@ -313,9 +313,9 @@ impl<'tree, L: Language> Iterator for Post<'tree, L> {
   }
 }
 
-impl<'tree, L: Language> FusedIterator for Post<'tree, L> {}
+impl<'tree, D: Doc> FusedIterator for Post<'tree, D> {}
 
-impl<'t, L: Language> Traversal<'t, L> for Post<'t, L> {
+impl<'t, D: Doc> Traversal<'t, D> for Post<'t, D> {
   fn calibrate_for_match(&mut self, depth: Option<usize>) {
     if let Some(depth) = depth {
       // Later matches' depth should always be greater than former matches.
