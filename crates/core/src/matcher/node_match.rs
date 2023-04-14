@@ -1,7 +1,7 @@
 use crate::meta_var::MetaVarEnv;
 use crate::replacer::Replacer;
 use crate::ts_parser::Edit;
-use crate::{Doc, Language, Node, StrDoc};
+use crate::{Doc, Node};
 
 use std::borrow::Borrow;
 use std::ops::Deref;
@@ -32,8 +32,8 @@ impl<'tree, D: Doc> NodeMatch<'tree, D> {
   }
 }
 
-impl<'tree, L: Language> NodeMatch<'tree, StrDoc<L>> {
-  pub fn replace_by<R: Replacer<L>>(&self, replacer: R) -> Edit {
+impl<'tree, D: Doc> NodeMatch<'tree, D> {
+  pub fn replace_by<R: Replacer<D::Lang>>(&self, replacer: R) -> Edit {
     let lang = self.lang().clone();
     let env = self.get_env();
     let range = self.range();

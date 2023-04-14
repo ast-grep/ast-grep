@@ -71,7 +71,7 @@ impl<L: Language> Matcher<L> for KindMatcher<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    _env: &mut MetaVarEnv<'tree, D>,
   ) -> Option<Node<'tree, D>> {
     if node.kind_id() == self.kind {
       Some(node)
