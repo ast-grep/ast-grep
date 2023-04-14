@@ -33,7 +33,7 @@ impl<L: Language> Matcher<L> for RegexMatcher<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    _env: &mut MetaVarEnv<'tree, D>,
   ) -> Option<Node<'tree, D>> {
     self.regex.is_match(&node.text()).then_some(node)
   }
