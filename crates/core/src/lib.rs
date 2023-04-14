@@ -20,7 +20,7 @@ pub use replacer::replace_meta_var_in_string;
 
 use crate::replacer::Replacer;
 use node::Root;
-pub use source::{Content, Doc, StrDoc};
+pub use source::{Doc, StrDoc};
 use ts_parser::{Edit, TSParseError};
 
 #[derive(Clone)]
