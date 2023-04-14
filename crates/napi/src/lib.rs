@@ -542,7 +542,7 @@ type FindInFiles = IterateFiles<(
 )>;
 
 pub struct PinnedNodes(
-  PinnedNodeData<FrontEndLanguage, Vec<NodeMatch<'static, StrDoc<FrontEndLanguage>>>>,
+  PinnedNodeData<StrDoc<FrontEndLanguage>, Vec<NodeMatch<'static, StrDoc<FrontEndLanguage>>>>,
   String,
 );
 unsafe impl Send for PinnedNodes {}
