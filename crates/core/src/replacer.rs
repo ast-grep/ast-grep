@@ -2,15 +2,15 @@ use crate::language::Language;
 use crate::meta_var::{split_first_meta_var, MatchResult, MetaVarEnv};
 use crate::ts_parser::Edit;
 use crate::Pattern;
-use crate::{Node, Root, StrDoc};
+use crate::{Doc, Node, Root, StrDoc};
 
 /// Replace meta variable in the replacer string
 pub trait Replacer<L: Language> {
-  fn generate_replacement(&self, env: &MetaVarEnv<StrDoc<L>>, lang: L) -> String;
+  fn generate_replacement<D: Doc<Lang = L>>(&self, env: &MetaVarEnv<D>, lang: L) -> String;
 }
 
 impl<L: Language> Replacer<L> for str {
-  fn generate_replacement(&self, env: &MetaVarEnv<StrDoc<L>>, lang: L) -> String {
+  fn generate_replacement<D: Doc<Lang = L>>(&self, env: &MetaVarEnv<D>, lang: L) -> String {
     let root = Root::new(self, lang.clone());
     let edits = collect_edits(&root, env, lang);
     merge_edits_to_string(edits, &root)
@@ -18,7 +18,7 @@ impl<L: Language> Replacer<L> for str {
 }
 
 impl<L: Language> Replacer<L> for Pattern<L> {
-  fn generate_replacement(&self, env: &MetaVarEnv<StrDoc<L>>, lang: L) -> String {
+  fn generate_replacement<D: Doc<Lang = L>>(&self, env: &MetaVarEnv<D>, lang: L) -> String {
     let edits = collect_edits(&self.root, env, lang);
     merge_edits_to_string(edits, &self.root)
   }
@@ -29,15 +29,15 @@ where
   L: Language,
   T: Replacer<L> + ?Sized,
 {
-  fn generate_replacement(&self, env: &MetaVarEnv<StrDoc<L>>, lang: L) -> String {
+  fn generate_replacement<D: Doc<Lang = L>>(&self, env: &MetaVarEnv<D>, lang: L) -> String {
     (**self).generate_replacement(env, lang)
   }
 }
 
-fn collect_edits<L: Language>(
-  root: &Root<StrDoc<L>>,
-  env: &MetaVarEnv<StrDoc<L>>,
-  lang: L,
+fn collect_edits<D: Doc>(
+  root: &Root<StrDoc<D::Lang>>,
+  env: &MetaVarEnv<D>,
+  lang: D::Lang,
 ) -> Vec<Edit> {
   let mut node = root.root();
   let root_id = node.inner.id();
@@ -122,10 +122,10 @@ fn merge_edits_to_string<L: Language>(edits: Vec<Edit>, root: &Root<StrDoc<L>>) 
   ret
 }
 
-fn get_meta_var_replacement<L: Language>(
-  node: &Node<StrDoc<L>>,
-  env: &MetaVarEnv<StrDoc<L>>,
-  lang: L,
+fn get_meta_var_replacement<D: Doc>(
+  node: &Node<StrDoc<D::Lang>>,
+  env: &MetaVarEnv<D>,
+  lang: D::Lang,
 ) -> Option<String> {
   if !node.is_named_leaf() {
     return None;
@@ -147,7 +147,7 @@ fn get_meta_var_replacement<L: Language>(
 }
 
 impl<'a, L: Language> Replacer<L> for Node<'a, StrDoc<L>> {
-  fn generate_replacement(&self, _: &MetaVarEnv<StrDoc<L>>, _: L) -> String {
+  fn generate_replacement<D: Doc<Lang = L>>(&self, _env: &MetaVarEnv<D>, _lang: L) -> String {
     self.text().to_string()
   }
 }
