@@ -24,18 +24,6 @@ impl<L: Language> Root<StrDoc<L>> {
     })
   }
 
-  /*
-  use crate::source::{Content, Source};
-  pub fn customized<C: Content>(content: C, lang: L) -> Result<Self, TSParseError> {
-    let inner = parse(&content, None, lang.get_ts_language())?;
-    Ok(Self {
-      inner,
-      source: Source::Customized(Box::new(content)),
-      lang,
-    })
-  }
-  */
-
   pub fn new(src: &str, lang: L) -> Self {
     Self::try_new(src, lang).expect("should parse")
   }
