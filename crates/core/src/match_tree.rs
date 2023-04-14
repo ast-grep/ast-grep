@@ -279,14 +279,10 @@ pub fn extract_var_from_node<D: Doc>(goal: &Node<D>) -> Option<MetaVariable> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::language::{Language, Tsx};
-  use crate::ts_parser::parse as parse_base;
+  use crate::language::Tsx;
   use crate::{Root, StrDoc};
   use std::collections::HashMap;
 
-  fn parse(src: &str) -> tree_sitter::Tree {
-    parse_base(src, None, Tsx.get_ts_language()).unwrap()
-  }
   fn find_node_recursive<'tree>(
     goal: &Node<StrDoc<Tsx>>,
     node: Node<'tree, StrDoc<Tsx>>,
@@ -300,22 +296,10 @@ mod test {
   }
 
   fn test_match(s1: &str, s2: &str) -> HashMap<String, String> {
-    let goal = parse(s1);
-    let goal = Node {
-      inner: goal.root_node().child(0).unwrap(),
-      root: &Root {
-        inner: goal.clone(),
-        doc: StrDoc::new(s1, Tsx),
-      },
-    };
-    let cand = parse(s2);
-    let cand = Node {
-      inner: cand.root_node(),
-      root: &Root {
-        inner: cand.clone(),
-        doc: StrDoc::new(s2, Tsx),
-      },
-    };
+    let goal = Root::new(s1, Tsx);
+    let goal = goal.root().child(0).unwrap();
+    let cand = Root::new(s2, Tsx);
+    let cand = cand.root();
     let mut env = MetaVarEnv::new();
     let ret = find_node_recursive(&goal, cand.clone(), &mut env);
     assert!(
@@ -328,22 +312,10 @@ mod test {
   }
 
   fn test_non_match(s1: &str, s2: &str) {
-    let goal = parse(s1);
-    let goal = Node {
-      inner: goal.root_node().child(0).unwrap(),
-      root: &Root {
-        inner: goal.clone(),
-        doc: StrDoc::new(s1, Tsx),
-      },
-    };
-    let cand = parse(s2);
-    let cand = Node {
-      inner: cand.root_node(),
-      root: &Root {
-        inner: cand.clone(),
-        doc: StrDoc::new(s2, Tsx),
-      },
-    };
+    let goal = Root::new(s1, Tsx);
+    let goal = goal.root().child(0).unwrap();
+    let cand = Root::new(s2, Tsx);
+    let cand = cand.root();
     let mut env = MetaVarEnv::new();
     let ret = find_node_recursive(&goal, cand, &mut env);
     assert!(ret.is_none());
