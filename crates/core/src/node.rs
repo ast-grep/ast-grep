@@ -12,7 +12,7 @@ use std::borrow::Cow;
 #[derive(Clone)]
 pub struct Root<D: Doc> {
   pub(crate) inner: tree_sitter::Tree,
-  pub(crate) doc: D,
+  doc: D,
 }
 
 impl<L: Language> Root<StrDoc<L>> {
