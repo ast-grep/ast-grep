@@ -492,7 +492,6 @@ mod test {
     test_not_find(&matcher, "let a = 1919810");
   }
   */
-  use crate::matcher::RegexMatcher;
   use crate::Pattern;
   trait TsxMatcher {
     fn t(self) -> Pattern<Tsx>;
@@ -597,6 +596,7 @@ mod test {
   }
 
   /*
+  use crate::matcher::RegexMatcher;
   #[test]
   fn test_op_with_matchers() {
     let var_matcher = MetaVarMatcher::Regex(RegexMatcher::try_new("a").unwrap());
