@@ -144,7 +144,7 @@ impl<L: Language> Matcher<L> for Pattern<L> {
     Some(kinds)
   }
 
-  fn get_match_len(&self, node: Node<StrDoc<L>>) -> Option<usize> {
+  fn get_match_len<D: Doc<Lang = L>>(&self, node: Node<D>) -> Option<usize> {
     let start = node.range().start;
     let end = match &self.style {
       PatternStyle::Single => match_end_non_recursive(&self.single_matcher(), node)?,
