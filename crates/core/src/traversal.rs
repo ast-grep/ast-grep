@@ -18,9 +18,8 @@
 //! It is recommended to use traversal instead of tree recursion to avoid stack overflow and memory overhead.
 //! Level order is also included for completeness and should be used sparingly.
 
-use crate::language::Language;
 use crate::matcher::Matcher;
-use crate::{Doc, Node, NodeMatch, Root, StrDoc};
+use crate::{Doc, Node, NodeMatch, Root};
 
 use tree_sitter as ts;
 
@@ -73,9 +72,9 @@ impl<M, A> Visitor<M, A>
 where
   A: Algorithm,
 {
-  pub fn visit<L: Language>(self, node: Node<StrDoc<L>>) -> Visit<'_, L, A::Traversal<'_, L>, M>
+  pub fn visit<D: Doc>(self, node: Node<D>) -> Visit<'_, D, A::Traversal<'_, D>, M>
   where
-    M: Matcher<L>,
+    M: Matcher<D::Lang>,
   {
     let traversal = A::traverse(node);
     Visit {
@@ -88,18 +87,18 @@ where
   }
 }
 
-pub struct Visit<'t, L, T, M> {
+pub struct Visit<'t, D, T, M> {
   reentrant: bool,
   named: bool,
   matcher: M,
   traversal: T,
-  lang: PhantomData<&'t L>,
+  lang: PhantomData<&'t D>,
 }
-impl<'t, L, T, M> Visit<'t, L, T, M>
+impl<'t, D, T, M> Visit<'t, D, T, M>
 where
-  L: Language + 't,
-  T: Traversal<'t, StrDoc<L>>,
-  M: Matcher<L>,
+  D: Doc + 't,
+  T: Traversal<'t, D>,
+  M: Matcher<D::Lang>,
 {
   #[inline]
   fn mark_match(&mut self, depth: Option<usize>) {
@@ -109,13 +108,13 @@ where
   }
 }
 
-impl<'t, L, T, M> Iterator for Visit<'t, L, T, M>
+impl<'t, D, T, M> Iterator for Visit<'t, D, T, M>
 where
-  L: Language + 't,
-  T: Traversal<'t, StrDoc<L>>,
-  M: Matcher<L>,
+  D: Doc + 't,
+  T: Traversal<'t, D>,
+  M: Matcher<D::Lang>,
 {
-  type Item = NodeMatch<'t, StrDoc<L>>;
+  type Item = NodeMatch<'t, D>;
   fn next(&mut self) -> Option<Self::Item> {
     loop {
       let match_depth = self.traversal.get_current_depth();
@@ -132,21 +131,21 @@ where
 }
 
 pub trait Algorithm {
-  type Traversal<'t, L: 't + Language>: Traversal<'t, StrDoc<L>>;
-  fn traverse<L: Language>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L>;
+  type Traversal<'t, D: 't + Doc>: Traversal<'t, D>;
+  fn traverse<D: Doc>(node: Node<D>) -> Self::Traversal<'_, D>;
 }
 
 pub struct PreOrder;
 impl Algorithm for PreOrder {
-  type Traversal<'t, L: 't + Language> = Pre<'t, StrDoc<L>>;
-  fn traverse<L: Language>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L> {
+  type Traversal<'t, D: 't + Doc> = Pre<'t, D>;
+  fn traverse<D: Doc>(node: Node<D>) -> Self::Traversal<'_, D> {
     Pre::new(&node)
   }
 }
 pub struct PostOrder;
 impl Algorithm for PostOrder {
-  type Traversal<'t, L: 't + Language> = Post<'t, StrDoc<L>>;
-  fn traverse<L: Language>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L> {
+  type Traversal<'t, D: 't + Doc> = Post<'t, D>;
+  fn traverse<D: Doc>(node: Node<D>) -> Self::Traversal<'_, D> {
     Post::new(&node)
   }
 }
@@ -389,6 +388,7 @@ impl<'tree, D: Doc> FusedIterator for Level<'tree, D> {}
 mod test {
   use super::*;
   use crate::language::{Language, Tsx};
+  use crate::StrDoc;
   use std::ops::Range;
 
   // recursive pre order as baseline
