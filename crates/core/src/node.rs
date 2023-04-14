@@ -1,7 +1,6 @@
 use crate::language::Language;
 use crate::matcher::{FindAllNodes, Matcher, NodeMatch};
 use crate::replacer::Replacer;
-use crate::source::{Content, Source};
 use crate::traversal::{Pre, Visitor};
 use crate::ts_parser::{parse, perform_edit, Edit, TSParseError};
 use crate::{Doc, StrDoc};
@@ -26,6 +25,7 @@ impl<L: Language> Root<StrDoc<L>> {
   }
 
   /*
+  use crate::source::{Content, Source};
   pub fn customized<C: Content>(content: C, lang: L) -> Result<Self, TSParseError> {
     let inner = parse(&content, None, lang.get_ts_language())?;
     Ok(Self {
@@ -385,15 +385,13 @@ impl<'r, D: Doc> Node<'r, D> {
   pub fn dfs<'s>(&'s self) -> Pre<'r, D> {
     Pre::new(self)
   }
-}
 
-impl<'r, L: Language> Node<'r, StrDoc<L>> {
   #[must_use]
-  pub fn find<M: Matcher<L>>(&self, pat: M) -> Option<NodeMatch<'r, StrDoc<L>>> {
+  pub fn find<M: Matcher<D::Lang>>(&self, pat: M) -> Option<NodeMatch<'r, D>> {
     pat.find_node(self.clone())
   }
 
-  pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = NodeMatch<'r, StrDoc<L>>> {
+  pub fn find_all<M: Matcher<D::Lang>>(&self, pat: M) -> impl Iterator<Item = NodeMatch<'r, D>> {
     FindAllNodes::new(pat, self.clone())
   }
 }
