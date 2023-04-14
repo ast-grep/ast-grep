@@ -37,7 +37,7 @@ pub trait Matcher<L: Language> {
 
   /// get_match_len will skip trailing anonymous child node to exclude punctuation.
   // This is not included in NodeMatch since it is only used in replace
-  fn get_match_len(&self, _node: Node<StrDoc<L>>) -> Option<usize> {
+  fn get_match_len<D: Doc<Lang = L>>(&self, _node: Node<D>) -> Option<usize> {
     None
   }
 
@@ -71,7 +71,7 @@ impl<L: Language> Matcher<L> for str {
     pattern.match_node_with_env(node, env)
   }
 
-  fn get_match_len(&self, node: Node<StrDoc<L>>) -> Option<usize> {
+  fn get_match_len<D: Doc<Lang = L>>(&self, node: Node<D>) -> Option<usize> {
     let pattern = Pattern::new(self, node.lang().clone());
     pattern.get_match_len(node)
   }
@@ -105,7 +105,7 @@ where
     (**self).find_node(node)
   }
 
-  fn get_match_len(&self, node: Node<StrDoc<L>>) -> Option<usize> {
+  fn get_match_len<D: Doc<Lang = L>>(&self, node: Node<D>) -> Option<usize> {
     (**self).get_match_len(node)
   }
 }

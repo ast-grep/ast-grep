@@ -59,7 +59,10 @@ fn update_ellipsis_env<'t, D: Doc>(
   }
 }
 
-pub fn match_end_non_recursive<D: Doc>(goal: &Node<D>, candidate: Node<D>) -> Option<usize> {
+pub fn match_end_non_recursive<D: Doc>(
+  goal: &Node<impl Doc<Lang = D::Lang>>,
+  candidate: Node<D>,
+) -> Option<usize> {
   let is_leaf = goal.is_named_leaf();
   if is_leaf && extract_var_from_node(goal).is_some() {
     return Some(candidate.range().end);
@@ -82,8 +85,8 @@ pub fn match_end_non_recursive<D: Doc>(goal: &Node<D>, candidate: Node<D>) -> Op
   match_multi_nodes_end_non_recursive(goal_children, cand_children)
 }
 
-fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'g + 'c>(
-  goals: impl Iterator<Item = Node<'g, D>>,
+fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
+  goals: impl Iterator<Item = Node<'g, impl Doc<Lang = D::Lang> + 'g>>,
   candidates: impl Iterator<Item = Node<'c, D>>,
 ) -> Option<usize> {
   let mut goal_children = goals.peekable();
