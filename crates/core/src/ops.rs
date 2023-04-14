@@ -1,5 +1,6 @@
 use crate::matcher::{MatchAll, MatchNone, Matcher};
-use crate::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
+use crate::meta_var::MetaVarEnv;
+// use crate::meta_var::{MetaVarMatcher, MetaVarMatchers};
 use crate::{Doc, Language, Node};
 use bit_set::BitSet;
 use std::marker::PhantomData;

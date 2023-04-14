@@ -1,7 +1,6 @@
-use crate::language::Language;
 use crate::matcher::NodeMatch;
 use crate::node::{Node, Root};
-use crate::{Doc, StrDoc};
+use crate::Doc;
 
 // TODO: add comments
 #[doc(hidden)]
@@ -94,6 +93,8 @@ mod test {
   use super::*;
   use crate::language::Tsx;
   use crate::node::Root;
+  use crate::StrDoc;
+
   fn return_from_func() -> PinnedNodeData<StrDoc<Tsx>, Node<'static, StrDoc<Tsx>>> {
     let root = Root::new("let a = 123", Tsx);
     PinnedNodeData::new(root, |r| r.root().child(0).unwrap().child(1).unwrap())
