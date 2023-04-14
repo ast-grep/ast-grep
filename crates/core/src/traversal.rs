@@ -354,14 +354,14 @@ impl<'t, D: Doc> Traversal<'t, D> for Post<'t, D> {
 /// It is implemented with [`VecDeque`] since quadratic backtracking is too time consuming.
 /// Though level-order is not used as frequently as other DFS traversals,
 /// traversing a big AST with level-order should be done with caution since it might increase the memory usage.
-pub struct Level<'tree, L: Language> {
+pub struct Level<'tree, D: Doc> {
   deque: VecDeque<ts::Node<'tree>>,
   cursor: ts::TreeCursor<'tree>,
-  root: &'tree Root<StrDoc<L>>,
+  root: &'tree Root<D>,
 }
 
-impl<'tree, L: Language> Level<'tree, L> {
-  pub fn new(node: &Node<'tree, StrDoc<L>>) -> Self {
+impl<'tree, D: Doc> Level<'tree, D> {
+  pub fn new(node: &Node<'tree, D>) -> Self {
     let mut deque = VecDeque::new();
     deque.push_back(node.inner.clone());
     let cursor = node.inner.walk();
@@ -374,8 +374,8 @@ impl<'tree, L: Language> Level<'tree, L> {
 }
 
 /// Time complexity is O(N). Space complexity is O(N)
-impl<'tree, L: Language> Iterator for Level<'tree, L> {
-  type Item = Node<'tree, StrDoc<L>>;
+impl<'tree, D: Doc> Iterator for Level<'tree, D> {
+  type Item = Node<'tree, D>;
   fn next(&mut self) -> Option<Self::Item> {
     let inner = self.deque.pop_front()?;
     let children = inner.children(&mut self.cursor);
@@ -383,7 +383,7 @@ impl<'tree, L: Language> Iterator for Level<'tree, L> {
     Some(self.root.adopt(inner))
   }
 }
-impl<'tree, L: Language> FusedIterator for Level<'tree, L> {}
+impl<'tree, D: Doc> FusedIterator for Level<'tree, D> {}
 
 #[cfg(test)]
 mod test {
