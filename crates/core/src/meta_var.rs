@@ -1,6 +1,6 @@
 use crate::match_tree::does_node_match_exactly;
 use crate::matcher::{KindMatcher, Pattern, RegexMatcher};
-use crate::{Doc, Language, Node, StrDoc};
+use crate::{Doc, Node};
 use std::collections::HashMap;
 
 pub type MetaVariableID = String;
@@ -80,22 +80,23 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     single.chain(multi)
   }
 
-  fn match_variable(&self, id: &MetaVariableID, candidate: Node<D>) -> bool {
-    if let Some(m) = self.single_matched.get(id) {
-      return does_node_match_exactly(m, candidate);
-    }
-    true
-  }
-}
-
-impl<'tree, L: Language> MetaVarEnv<'tree, StrDoc<L>> {
-  pub fn match_constraints(&self, var_matchers: &MetaVarMatchers<StrDoc<L>>) -> bool {
+  pub fn match_constraints(
+    &self,
+    var_matchers: &MetaVarMatchers<impl Doc<Lang = D::Lang>>,
+  ) -> bool {
     for (var_id, candidate) in &self.single_matched {
       if let Some(m) = var_matchers.0.get(var_id) {
         if !m.matches(candidate.clone()) {
           return false;
         }
       }
+    }
+    true
+  }
+
+  fn match_variable(&self, id: &MetaVariableID, candidate: Node<D>) -> bool {
+    if let Some(m) = self.single_matched.get(id) {
+      return does_node_match_exactly(m, candidate);
     }
     true
   }
@@ -171,8 +172,8 @@ pub enum MetaVarMatcher<D: Doc> {
   Kind(KindMatcher<D::Lang>),
 }
 
-impl<L: Language> MetaVarMatcher<StrDoc<L>> {
-  pub fn matches(&self, candidate: Node<StrDoc<L>>) -> bool {
+impl<D: Doc> MetaVarMatcher<D> {
+  pub fn matches(&self, candidate: Node<impl Doc<Lang = D::Lang>>) -> bool {
     use crate::matcher::Matcher;
     use MetaVarMatcher::*;
     let mut env = MetaVarEnv::new();
@@ -238,8 +239,8 @@ fn is_valid_meta_var_char(c: char) -> bool {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::language::Tsx;
-  use crate::Pattern;
+  use crate::language::{Language, Tsx};
+  use crate::{Pattern, StrDoc};
 
   fn extract_var(s: &str) -> Option<MetaVariable> {
     extract_meta_var(s, '$')
@@ -257,7 +258,7 @@ mod test {
   }
 
   fn match_constraints(pattern: &str, node: &str) -> bool {
-    let mut matchers = MetaVarMatchers(HashMap::new());
+    let mut matchers: MetaVarMatchers<StrDoc<_>> = MetaVarMatchers(HashMap::new());
     matchers.insert(
       "A".to_string(),
       MetaVarMatcher::Pattern(Pattern::new(pattern, Tsx)),

@@ -2,8 +2,8 @@ use crate::language::Language;
 use crate::match_tree::{extract_var_from_node, match_end_non_recursive, match_node_non_recursive};
 use crate::matcher::{KindMatcher, KindMatcherError, Matcher};
 use crate::ts_parser::TSParseError;
-use crate::StrDoc;
 use crate::{meta_var::MetaVarEnv, Node, Root};
+use crate::{Doc, StrDoc};
 
 use bit_set::BitSet;
 use thiserror::Error;
@@ -111,11 +111,11 @@ impl<L: Language> Pattern<L> {
 }
 
 impl<L: Language> Matcher<L> for Pattern<L> {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     match &self.style {
       PatternStyle::Single => {
         let matcher = self.single_matcher();

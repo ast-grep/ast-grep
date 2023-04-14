@@ -6,7 +6,7 @@ mod text;
 
 use crate::meta_var::MetaVarEnv;
 use crate::traversal::Pre;
-use crate::{Language, Node, StrDoc};
+use crate::{Doc, Language, Node, StrDoc};
 
 use bit_set::BitSet;
 
@@ -23,11 +23,11 @@ pub trait Matcher<L: Language> {
   /// Returns the node why the input is matched or None if not matched.
   /// The return value is usually input node itself, but it can be different node.
   /// For example `Has` matcher can return the child or descendant node.
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    _node: Node<'tree, StrDoc<L>>,
-    _env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>>;
+    _node: Node<'tree, D>,
+    _env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>>;
 
   /// Returns a bitset for all possible target node kind ids.
   /// Returns None if the matcher needs to try against all node kind.
@@ -59,11 +59,11 @@ pub trait Matcher<L: Language> {
 }
 
 impl<L: Language> Matcher<L> for str {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     let pattern = Pattern::new(self, node.lang().clone());
     pattern.match_node_with_env(node, env)
   }
@@ -79,11 +79,11 @@ where
   L: Language,
   T: Matcher<L> + ?Sized,
 {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     (**self).match_node_with_env(node, env)
   }
 
@@ -104,6 +104,7 @@ where
   }
 }
 
+/*
 impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
   fn match_node_with_env<'tree>(
     &self,
@@ -130,6 +131,7 @@ impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
     (**self).get_match_len(node)
   }
 }
+*/
 
 pub struct FindAllNodes<'tree, L: Language, M: Matcher<L>> {
   // using dfs is not universally correct, say, when we want replace nested matches
@@ -167,11 +169,11 @@ impl<'tree, L: Language, M: Matcher<L>> Iterator for FindAllNodes<'tree, L, M> {
 
 pub struct MatchAll;
 impl<L: Language> Matcher<L> for MatchAll {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    _env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     Some(node)
   }
 
@@ -183,11 +185,11 @@ impl<L: Language> Matcher<L> for MatchAll {
 
 pub struct MatchNone;
 impl<L: Language> Matcher<L> for MatchNone {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    _node: Node<'tree, StrDoc<L>>,
-    _env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     None
   }
 
@@ -207,6 +209,7 @@ mod test {
     Root::new(s, Tsx)
   }
 
+  /*
   #[test]
   fn test_box_match() {
     let boxed: Box<dyn Matcher<Tsx>> = Box::new("const a = 123");
@@ -214,4 +217,5 @@ mod test {
     let cand = cand.root();
     assert!(boxed.find_node(cand).is_some());
   }
+  */
 }

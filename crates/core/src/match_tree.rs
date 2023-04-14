@@ -2,7 +2,7 @@ use crate::meta_var::{MetaVarEnv, MetaVariable};
 use crate::{Doc, Language, Node};
 
 fn match_leaf_meta_var<'tree, D: Doc>(
-  goal: &Node<D>,
+  goal: &Node<impl Doc>,
   candidate: Node<'tree, D>,
   env: &mut MetaVarEnv<'tree, D>,
 ) -> Option<Node<'tree, D>> {
@@ -136,7 +136,7 @@ fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'g + 'c>(
 }
 
 pub fn match_node_non_recursive<'tree, D: Doc>(
-  goal: &Node<D>,
+  goal: &Node<impl Doc>,
   candidate: Node<'tree, D>,
   env: &mut MetaVarEnv<'tree, D>,
 ) -> Option<Node<'tree, D>> {
@@ -168,8 +168,8 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
   }
 }
 
-fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree + 'goal>(
-  goals: impl Iterator<Item = Node<'goal, D>>,
+fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
+  goals: impl Iterator<Item = Node<'goal, impl Doc + 'goal>>,
   candidates: impl Iterator<Item = Node<'tree, D>>,
   env: &mut MetaVarEnv<'tree, D>,
 ) -> Option<()> {

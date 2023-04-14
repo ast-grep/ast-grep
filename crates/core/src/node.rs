@@ -227,11 +227,15 @@ impl<'r, D: Doc> Node<'r, D> {
 /**
  * Corresponds to inside/has/precedes/follows
  */
-impl<'r, L: Language> Node<'r, StrDoc<L>> {
-  pub fn matches<M: Matcher<L>>(&self, m: M) -> bool {
-    m.match_node(self.clone()).is_some()
+impl<'r, D: Doc> Node<'r, D> {
+  // TODO: remove this
+  pub fn matches<M: Matcher<D::Lang>>(&self, m: M) -> bool {
+    // in future we might need to customize initial MetaVarEnv
+    let mut env = crate::meta_var::MetaVarEnv::new();
+    m.match_node_with_env(self.clone(), &mut env).is_some()
   }
-
+}
+impl<'r, L: Language> Node<'r, StrDoc<L>> {
   pub fn inside<M: Matcher<L>>(&self, m: M) -> bool {
     self.ancestors().find_map(|n| m.match_node(n)).is_some()
   }

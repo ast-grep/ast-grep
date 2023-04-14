@@ -1,6 +1,6 @@
 use super::Matcher;
 use crate::meta_var::MetaVarEnv;
-use crate::{Language, Node, StrDoc};
+use crate::{Doc, Language, Node};
 
 use bit_set::BitSet;
 use regex::{Error as RegexError, Regex};
@@ -30,11 +30,11 @@ impl<L: Language> RegexMatcher<L> {
 }
 
 impl<L: Language> Matcher<L> for RegexMatcher<L> {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    _env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     self.regex.is_match(&node.text()).then_some(node)
   }
 

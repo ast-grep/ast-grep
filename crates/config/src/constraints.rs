@@ -5,7 +5,7 @@ use crate::rule::Rule;
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
 use ast_grep_core::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
-use ast_grep_core::{Matcher, Node, Pattern, PatternError, StrDoc};
+use ast_grep_core::{Doc, Matcher, Node, Pattern, PatternError, StrDoc};
 
 use bit_set::BitSet;
 use thiserror::Error;
@@ -106,11 +106,11 @@ impl<L: Language> Default for RuleWithConstraint<L> {
 }
 
 impl<L: Language> Matcher<L> for RuleWithConstraint<L> {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     if let Some(kinds) = &self.kinds {
       if !kinds.contains(node.kind_id().into()) {
         return None;

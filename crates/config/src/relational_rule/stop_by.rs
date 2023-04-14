@@ -2,7 +2,7 @@ use crate::deserialize_env::DeserializeEnv;
 use crate::rule::{Rule, RuleSerializeError, SerializableRule};
 
 use ast_grep_core::language::Language;
-use ast_grep_core::{Node, StrDoc};
+use ast_grep_core::{Doc, Node};
 
 use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
@@ -76,11 +76,11 @@ impl<L: Language> StopBy<L> {
 }
 
 impl<L: Language> StopBy<L> {
-  pub(crate) fn find<'t, I, F>(&self, mut iter: I, mut finder: F) -> Option<Node<'t, StrDoc<L>>>
+  pub(crate) fn find<'t, I, F, D>(&self, mut iter: I, mut finder: F) -> Option<Node<'t, D>>
   where
-    L: 't,
-    I: Iterator<Item = Node<'t, StrDoc<L>>>,
-    F: FnMut(Node<'t, StrDoc<L>>) -> Option<Node<'t, StrDoc<L>>>,
+    D: Doc<Lang = L> + 't,
+    I: Iterator<Item = Node<'t, D>>,
+    F: FnMut(Node<'t, D>) -> Option<Node<'t, D>>,
   {
     match self {
       StopBy::End => iter.find_map(finder),
@@ -90,7 +90,7 @@ impl<L: Language> StopBy<L> {
   }
 }
 
-fn inclusive_until<L: Language>(rule: &Rule<L>) -> impl FnMut(&Node<StrDoc<L>>) -> bool + '_ {
+fn inclusive_until<D: Doc>(rule: &Rule<D::Lang>) -> impl FnMut(&Node<D>) -> bool + '_ {
   let mut matched = false;
   move |n| {
     if matched {

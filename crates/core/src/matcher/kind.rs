@@ -2,7 +2,7 @@ use super::Matcher;
 
 use crate::meta_var::MetaVarEnv;
 use crate::node::KindId;
-use crate::{Language, Node, StrDoc};
+use crate::{Doc, Language, Node};
 
 use std::marker::PhantomData;
 
@@ -68,11 +68,11 @@ impl<L: Language> KindMatcher<L> {
 }
 
 impl<L: Language> Matcher<L> for KindMatcher<L> {
-  fn match_node_with_env<'tree>(
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
-    node: Node<'tree, StrDoc<L>>,
-    _env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-  ) -> Option<Node<'tree, StrDoc<L>>> {
+    node: Node<'tree, D>,
+    env: &mut MetaVarEnv<'tree, D>,
+  ) -> Option<Node<'tree, D>> {
     if node.kind_id() == self.kind {
       Some(node)
     } else {
