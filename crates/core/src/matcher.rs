@@ -41,7 +41,10 @@ pub trait Matcher<L: Language> {
     None
   }
 
-  fn match_node<'tree>(&self, node: Node<'tree, StrDoc<L>>) -> Option<NodeMatch<'tree, StrDoc<L>>> {
+  fn match_node<'tree, D: Doc<Lang = L>>(
+    &self,
+    node: Node<'tree, D>,
+  ) -> Option<NodeMatch<'tree, D>> {
     // in future we might need to customize initial MetaVarEnv
     let mut env = MetaVarEnv::new();
     let node = self.match_node_with_env(node, &mut env)?;
@@ -91,7 +94,10 @@ where
     (**self).potential_kinds()
   }
 
-  fn match_node<'tree>(&self, node: Node<'tree, StrDoc<L>>) -> Option<NodeMatch<'tree, StrDoc<L>>> {
+  fn match_node<'tree, D: Doc<Lang = L>>(
+    &self,
+    node: Node<'tree, D>,
+  ) -> Option<NodeMatch<'tree, D>> {
     (**self).match_node(node)
   }
 

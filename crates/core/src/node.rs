@@ -228,27 +228,23 @@ impl<'r, D: Doc> Node<'r, D> {
  * Corresponds to inside/has/precedes/follows
  */
 impl<'r, D: Doc> Node<'r, D> {
-  // TODO: remove this
   pub fn matches<M: Matcher<D::Lang>>(&self, m: M) -> bool {
-    // in future we might need to customize initial MetaVarEnv
-    let mut env = crate::meta_var::MetaVarEnv::new();
-    m.match_node_with_env(self.clone(), &mut env).is_some()
+    m.match_node(self.clone()).is_some()
   }
-}
-impl<'r, L: Language> Node<'r, StrDoc<L>> {
-  pub fn inside<M: Matcher<L>>(&self, m: M) -> bool {
+
+  pub fn inside<M: Matcher<D::Lang>>(&self, m: M) -> bool {
     self.ancestors().find_map(|n| m.match_node(n)).is_some()
   }
 
-  pub fn has<M: Matcher<L>>(&self, m: M) -> bool {
+  pub fn has<M: Matcher<D::Lang>>(&self, m: M) -> bool {
     self.dfs().skip(1).find_map(|n| m.match_node(n)).is_some()
   }
 
-  pub fn precedes<M: Matcher<L>>(&self, m: M) -> bool {
+  pub fn precedes<M: Matcher<D::Lang>>(&self, m: M) -> bool {
     self.next_all().find_map(|n| m.match_node(n)).is_some()
   }
 
-  pub fn follows<M: Matcher<L>>(&self, m: M) -> bool {
+  pub fn follows<M: Matcher<D::Lang>>(&self, m: M) -> bool {
     self.prev_all().find_map(|n| m.match_node(n)).is_some()
   }
 }
