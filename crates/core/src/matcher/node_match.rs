@@ -31,6 +31,7 @@ impl<'tree, D: Doc> NodeMatch<'tree, D> {
     &mut self.0
   }
 }
+
 impl<'tree, L: Language> NodeMatch<'tree, StrDoc<L>> {
   pub fn replace_by<R: Replacer<L>>(&self, replacer: R) -> Edit {
     let lang = self.lang().clone();

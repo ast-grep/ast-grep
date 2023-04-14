@@ -1,11 +1,11 @@
 use crate::meta_var::{MetaVarEnv, MetaVariable};
-use crate::{Doc, Language, Node, StrDoc};
+use crate::{Doc, Language, Node};
 
-fn match_leaf_meta_var<'tree, L: Language>(
-  goal: &Node<StrDoc<L>>,
-  candidate: Node<'tree, StrDoc<L>>,
-  env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-) -> Option<Node<'tree, StrDoc<L>>> {
+fn match_leaf_meta_var<'tree, D: Doc>(
+  goal: &Node<D>,
+  candidate: Node<'tree, D>,
+  env: &mut MetaVarEnv<'tree, D>,
+) -> Option<Node<'tree, D>> {
   let extracted = extract_var_from_node(goal)?;
   use MetaVariable as MV;
   match extracted {
@@ -36,7 +36,7 @@ fn match_leaf_meta_var<'tree, L: Language>(
   }
 }
 
-fn try_get_ellipsis_mode(node: &Node<StrDoc<impl Language>>) -> Result<Option<String>, ()> {
+fn try_get_ellipsis_mode(node: &Node<impl Doc>) -> Result<Option<String>, ()> {
   match extract_var_from_node(node).ok_or(())? {
     MetaVariable::Ellipsis => Ok(None),
     MetaVariable::NamedEllipsis(n) => Ok(Some(n)),
@@ -44,11 +44,11 @@ fn try_get_ellipsis_mode(node: &Node<StrDoc<impl Language>>) -> Result<Option<St
   }
 }
 
-fn update_ellipsis_env<'t, L: Language>(
+fn update_ellipsis_env<'t, D: Doc>(
   optional_name: &Option<String>,
-  mut matched: Vec<Node<'t, StrDoc<L>>>,
-  env: &mut MetaVarEnv<'t, StrDoc<L>>,
-  cand_children: impl Iterator<Item = Node<'t, StrDoc<L>>>,
+  mut matched: Vec<Node<'t, D>>,
+  env: &mut MetaVarEnv<'t, D>,
+  cand_children: impl Iterator<Item = Node<'t, D>>,
   skipped_anonymous: usize,
 ) {
   if let Some(name) = optional_name.as_ref() {
@@ -59,10 +59,7 @@ fn update_ellipsis_env<'t, L: Language>(
   }
 }
 
-pub fn match_end_non_recursive<L: Language>(
-  goal: &Node<StrDoc<L>>,
-  candidate: Node<StrDoc<L>>,
-) -> Option<usize> {
+pub fn match_end_non_recursive<D: Doc>(goal: &Node<D>, candidate: Node<D>) -> Option<usize> {
   let is_leaf = goal.is_named_leaf();
   if is_leaf && extract_var_from_node(goal).is_some() {
     return Some(candidate.range().end);
@@ -85,9 +82,9 @@ pub fn match_end_non_recursive<L: Language>(
   match_multi_nodes_end_non_recursive(goal_children, cand_children)
 }
 
-fn match_multi_nodes_end_non_recursive<'g, 'c, L: Language + 'g + 'c>(
-  goals: impl Iterator<Item = Node<'g, StrDoc<L>>>,
-  candidates: impl Iterator<Item = Node<'c, StrDoc<L>>>,
+fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'g + 'c>(
+  goals: impl Iterator<Item = Node<'g, D>>,
+  candidates: impl Iterator<Item = Node<'c, D>>,
 ) -> Option<usize> {
   let mut goal_children = goals.peekable();
   let mut cand_children = candidates.peekable();
@@ -138,11 +135,11 @@ fn match_multi_nodes_end_non_recursive<'g, 'c, L: Language + 'g + 'c>(
   }
 }
 
-pub fn match_node_non_recursive<'tree, L: Language>(
-  goal: &Node<StrDoc<L>>,
-  candidate: Node<'tree, StrDoc<L>>,
-  env: &mut MetaVarEnv<'tree, StrDoc<L>>,
-) -> Option<Node<'tree, StrDoc<L>>> {
+pub fn match_node_non_recursive<'tree, D: Doc>(
+  goal: &Node<D>,
+  candidate: Node<'tree, D>,
+  env: &mut MetaVarEnv<'tree, D>,
+) -> Option<Node<'tree, D>> {
   let is_leaf = goal.is_named_leaf();
   if is_leaf {
     if let Some(matched) = match_leaf_meta_var(goal, candidate.clone(), env) {
@@ -171,10 +168,10 @@ pub fn match_node_non_recursive<'tree, L: Language>(
   }
 }
 
-fn match_nodes_non_recursive<'goal, 'tree, L: Language + 'tree + 'goal>(
-  goals: impl Iterator<Item = Node<'goal, StrDoc<L>>>,
-  candidates: impl Iterator<Item = Node<'tree, StrDoc<L>>>,
-  env: &mut MetaVarEnv<'tree, StrDoc<L>>,
+fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree + 'goal>(
+  goals: impl Iterator<Item = Node<'goal, D>>,
+  candidates: impl Iterator<Item = Node<'tree, D>>,
+  env: &mut MetaVarEnv<'tree, D>,
 ) -> Option<()> {
   let mut goal_children = goals.peekable();
   let mut cand_children = candidates.peekable();
@@ -271,7 +268,7 @@ pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: Node<D>) -> bo
     .all(|(g, c)| does_node_match_exactly(&g, c))
 }
 
-pub fn extract_var_from_node<L: Language>(goal: &Node<StrDoc<L>>) -> Option<MetaVariable> {
+pub fn extract_var_from_node<D: Doc>(goal: &Node<D>) -> Option<MetaVariable> {
   let key = goal.text();
   goal.lang().extract_meta_var(&key)
 }
