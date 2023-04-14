@@ -1,87 +1,87 @@
 use crate::language::Language;
 use crate::matcher::NodeMatch;
 use crate::node::{Node, Root};
-use crate::StrDoc;
+use crate::{Doc, StrDoc};
 
 // TODO: add comments
 #[doc(hidden)]
-pub struct PinnedNodeData<L: Language, T> {
-  pin: Root<StrDoc<L>>,
+pub struct PinnedNodeData<D: Doc, T> {
+  pin: Root<D>,
   data: T,
 }
 
-impl<T, L: Language + 'static> PinnedNodeData<L, T> {
-  pub fn new<F>(pin: Root<StrDoc<L>>, func: F) -> Self
+impl<T, D: Doc + 'static> PinnedNodeData<D, T> {
+  pub fn new<F>(pin: Root<D>, func: F) -> Self
   where
-    F: FnOnce(&'static Root<StrDoc<L>>) -> T,
+    F: FnOnce(&'static Root<D>) -> T,
   {
     // TODO: explain why unsafe works here and what guarantee it needs
-    let reference = unsafe { &*(&pin as *const Root<StrDoc<L>>) as &'static Root<StrDoc<L>> };
+    let reference = unsafe { &*(&pin as *const Root<D>) as &'static Root<D> };
     let data = func(reference);
     Self { pin, data }
   }
 }
 
-impl<L: Language + 'static, T> PinnedNodeData<L, T>
+impl<D: Doc + 'static, T> PinnedNodeData<D, T>
 where
-  T: NodeData<L>,
+  T: NodeData<D>,
 {
   pub fn get_data(&mut self) -> &T::Data<'_> {
-    let pin = unsafe { &*(&self.pin as *const Root<StrDoc<L>>) as &'static Root<StrDoc<L>> };
+    let pin = unsafe { &*(&self.pin as *const Root<D>) as &'static Root<D> };
     self.data.visit_nodes(|n| unsafe { pin.readopt(n) });
     self.data.get_data()
   }
-  pub fn into_raw(self) -> (Root<StrDoc<L>>, T) {
+  pub fn into_raw(self) -> (Root<D>, T) {
     (self.pin, self.data)
   }
 }
 
 /// # Safety
 /// TODO: explain unsafe trait
-pub unsafe trait NodeData<L> {
+pub unsafe trait NodeData<D> {
   type Data<'a>
   where
     Self: 'a;
   fn get_data(&self) -> &Self::Data<'_>;
   fn visit_nodes<F>(&mut self, f: F)
   where
-    F: FnMut(&mut Node<'_, StrDoc<L>>);
+    F: FnMut(&mut Node<'_, D>);
 }
 
-unsafe impl<L: Language> NodeData<L> for Node<'static, StrDoc<L>> {
-  type Data<'a> = Node<'a, StrDoc<L>>;
+unsafe impl<D: Doc> NodeData<D> for Node<'static, D> {
+  type Data<'a> = Node<'a, D>;
   fn get_data(&self) -> &Self::Data<'_> {
     self
   }
   fn visit_nodes<F>(&mut self, mut f: F)
   where
-    F: FnMut(&mut Node<'_, StrDoc<L>>),
+    F: FnMut(&mut Node<'_, D>),
   {
     f(self)
   }
 }
 
-unsafe impl<L: Language> NodeData<L> for NodeMatch<'static, StrDoc<L>> {
-  type Data<'a> = NodeMatch<'a, StrDoc<L>>;
+unsafe impl<D: Doc> NodeData<D> for NodeMatch<'static, D> {
+  type Data<'a> = NodeMatch<'a, D>;
   fn get_data(&self) -> &Self::Data<'_> {
     self
   }
   fn visit_nodes<F>(&mut self, mut f: F)
   where
-    F: FnMut(&mut Node<'_, StrDoc<L>>),
+    F: FnMut(&mut Node<'_, D>),
   {
     f(unsafe { self.get_mut_node() })
   }
 }
 
-unsafe impl<L: Language> NodeData<L> for Vec<NodeMatch<'static, StrDoc<L>>> {
-  type Data<'a> = Vec<NodeMatch<'a, StrDoc<L>>>;
+unsafe impl<D: Doc> NodeData<D> for Vec<NodeMatch<'static, D>> {
+  type Data<'a> = Vec<NodeMatch<'a, D>>;
   fn get_data(&self) -> &Self::Data<'_> {
     self
   }
   fn visit_nodes<F>(&mut self, mut f: F)
   where
-    F: FnMut(&mut Node<'_, StrDoc<L>>),
+    F: FnMut(&mut Node<'_, D>),
   {
     for n in self {
       f(unsafe { n.get_mut_node() })
@@ -94,7 +94,7 @@ mod test {
   use super::*;
   use crate::language::Tsx;
   use crate::node::Root;
-  fn return_from_func() -> PinnedNodeData<Tsx, Node<'static, StrDoc<Tsx>>> {
+  fn return_from_func() -> PinnedNodeData<StrDoc<Tsx>, Node<'static, StrDoc<Tsx>>> {
     let root = Root::new("let a = 123", Tsx);
     PinnedNodeData::new(root, |r| r.root().child(0).unwrap().child(1).unwrap())
   }
@@ -113,7 +113,7 @@ mod test {
     todo!()
   }
 
-  fn return_vec() -> PinnedNodeData<Tsx, Vec<NodeMatch<'static, StrDoc<Tsx>>>> {
+  fn return_vec() -> PinnedNodeData<StrDoc<Tsx>, Vec<NodeMatch<'static, StrDoc<Tsx>>>> {
     let root = Root::new("let a = 123", Tsx);
     PinnedNodeData::new(root, |r| {
       r.root()
