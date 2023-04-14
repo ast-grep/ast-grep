@@ -39,19 +39,6 @@ impl<L: Language> Root<StrDoc<L>> {
   pub fn new(src: &str, lang: L) -> Self {
     Self::try_new(src, lang).expect("should parse")
   }
-
-  // extract non generic implementation to reduce code size
-  pub fn do_edit(&mut self, edit: Edit) -> Result<(), TSParseError> {
-    let input = unsafe { self.doc.src.as_mut_vec() };
-    let input_edit = perform_edit(&mut self.inner, input, &edit);
-    self.inner.edit(&input_edit);
-    self.inner = parse(
-      self.source(),
-      Some(&self.inner),
-      self.lang().get_ts_language(),
-    )?;
-    Ok(())
-  }
 }
 
 impl<D: Doc> Root<D> {
@@ -67,6 +54,19 @@ impl<D: Doc> Root<D> {
       inner: self.inner.root_node(),
       root: self,
     }
+  }
+
+  // extract non generic implementation to reduce code size
+  pub fn do_edit(&mut self, edit: Edit) -> Result<(), TSParseError> {
+    let input = unsafe { self.doc.as_mut() };
+    let input_edit = perform_edit(&mut self.inner, input, &edit);
+    self.inner.edit(&input_edit);
+    self.inner = parse(
+      self.source(),
+      Some(&self.inner),
+      self.lang().get_ts_language(),
+    )?;
+    Ok(())
   }
 
   /// Adopt the tree_sitter as the descendant of the root and return the wrapped sg Node.
@@ -263,6 +263,15 @@ pub struct DisplayContext<'r> {
 
 /// tree traversal API
 impl<'r, D: Doc> Node<'r, D> {
+  #[must_use]
+  pub fn parent(&self) -> Option<Self> {
+    let inner = self.inner.parent()?;
+    Some(Node {
+      inner,
+      root: self.root,
+    })
+  }
+
   pub fn children<'s>(&'s self) -> impl ExactSizeIterator<Item = Node<'r, D>> + 's {
     let mut cursor = self.inner.walk();
     cursor.goto_first_child();
@@ -272,19 +281,15 @@ impl<'r, D: Doc> Node<'r, D> {
       count: self.inner.child_count() as usize,
     }
   }
-}
-impl<'r, L: Language> Node<'r, StrDoc<L>> {
-  pub fn dfs<'s>(&'s self) -> Pre<'r, L> {
-    Pre::new(self)
-  }
 
   #[must_use]
-  pub fn find<M: Matcher<L>>(&self, pat: M) -> Option<NodeMatch<'r, StrDoc<L>>> {
-    pat.find_node(self.clone())
-  }
-
-  pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = NodeMatch<'r, StrDoc<L>>> {
-    FindAllNodes::new(pat, self.clone())
+  pub fn child(&self, nth: usize) -> Option<Self> {
+    // TODO: support usize
+    let inner = self.inner.child(nth as u32)?;
+    Some(Node {
+      inner,
+      root: self.root,
+    })
   }
 
   pub fn field(&self, name: &str) -> Option<Self> {
@@ -299,7 +304,7 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
     })
   }
 
-  pub fn field_children(&self, name: &str) -> impl Iterator<Item = Node<'r, StrDoc<L>>> {
+  pub fn field_children(&self, name: &str) -> impl Iterator<Item = Node<'r, D>> {
     let field_id = self
       .root
       .lang()
@@ -327,26 +332,7 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
     })
   }
 
-  #[must_use]
-  pub fn parent(&self) -> Option<Self> {
-    let inner = self.inner.parent()?;
-    Some(Node {
-      inner,
-      root: self.root,
-    })
-  }
-
-  #[must_use]
-  pub fn child(&self, nth: usize) -> Option<Self> {
-    // TODO: support usize
-    let inner = self.inner.child(nth as u32)?;
-    Some(Node {
-      inner,
-      root: self.root,
-    })
-  }
-
-  pub fn ancestors(&self) -> impl Iterator<Item = Node<'r, StrDoc<L>>> + '_ {
+  pub fn ancestors(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
     let mut parent = self.inner.parent();
     std::iter::from_fn(move || {
       let inner = parent.clone()?;
@@ -366,7 +352,7 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
       root: self.root,
     })
   }
-  pub fn next_all(&self) -> impl Iterator<Item = Node<'r, StrDoc<L>>> + '_ {
+  pub fn next_all(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
     let mut node = self.clone();
     std::iter::from_fn(move || {
       node.next().map(|n| {
@@ -376,7 +362,7 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
     })
   }
   #[must_use]
-  pub fn prev(&self) -> Option<Node<'r, StrDoc<L>>> {
+  pub fn prev(&self) -> Option<Node<'r, D>> {
     let inner = self.inner.prev_sibling()?;
     Some(Node {
       inner,
@@ -386,7 +372,7 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
 
   // TODO: use cursor to optimize clone.
   // investigate why tree_sitter cursor cannot goto next_sibling
-  pub fn prev_all(&self) -> impl Iterator<Item = Node<'r, StrDoc<L>>> + '_ {
+  pub fn prev_all(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
     let mut node = self.clone();
     std::iter::from_fn(move || {
       node.prev().map(|n| {
@@ -394,6 +380,21 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
         n
       })
     })
+  }
+
+  pub fn dfs<'s>(&'s self) -> Pre<'r, D> {
+    Pre::new(self)
+  }
+}
+
+impl<'r, L: Language> Node<'r, StrDoc<L>> {
+  #[must_use]
+  pub fn find<M: Matcher<L>>(&self, pat: M) -> Option<NodeMatch<'r, StrDoc<L>>> {
+    pat.find_node(self.clone())
+  }
+
+  pub fn find_all<M: Matcher<L>>(&self, pat: M) -> impl Iterator<Item = NodeMatch<'r, StrDoc<L>>> {
+    FindAllNodes::new(pat, self.clone())
   }
 }
 
