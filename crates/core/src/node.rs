@@ -397,11 +397,11 @@ impl<'r, D: Doc> Node<'r, D> {
 }
 
 /// Tree manipulation API
-impl<'r, L: Language> Node<'r, StrDoc<L>> {
-  fn make_edit<M, R>(&self, matched: NodeMatch<StrDoc<L>>, matcher: &M, replacer: &R) -> Edit
+impl<'r, D: Doc> Node<'r, D> {
+  fn make_edit<M, R>(&self, matched: NodeMatch<D>, matcher: &M, replacer: &R) -> Edit
   where
-    M: Matcher<L>,
-    R: Replacer<L>,
+    M: Matcher<D::Lang>,
+    R: Replacer<D::Lang>,
   {
     let lang = self.root.lang().clone();
     let env = matched.get_env();
@@ -418,13 +418,21 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
     }
   }
 
-  pub fn replace<M: Matcher<L>, R: Replacer<L>>(&self, matcher: M, replacer: R) -> Option<Edit> {
+  pub fn replace<M: Matcher<D::Lang>, R: Replacer<D::Lang>>(
+    &self,
+    matcher: M,
+    replacer: R,
+  ) -> Option<Edit> {
     let matched = matcher.find_node(self.clone())?;
     let edit = self.make_edit(matched, &matcher, &replacer);
     Some(edit)
   }
 
-  pub fn replace_all<M: Matcher<L>, R: Replacer<L>>(&self, matcher: M, replacer: R) -> Vec<Edit> {
+  pub fn replace_all<M: Matcher<D::Lang>, R: Replacer<D::Lang>>(
+    &self,
+    matcher: M,
+    replacer: R,
+  ) -> Vec<Edit> {
     // TODO: support nested matches like Some(Some(1)) with pattern Some($A)
     Visitor::new(&matcher)
       .reentrant(false)
