@@ -2,10 +2,10 @@ use crate::language::Language;
 use std::ops::Deref;
 
 pub trait Doc: Clone {
-  type Repr<'a>: Content;
+  type Repr: Content;
   type Lang: Language;
   fn get_lang(&self) -> &Self::Lang;
-  fn get_source(&self) -> &str;
+  fn get_source(&self) -> &Self::Repr;
   /// # Safety
   /// TODO
   unsafe fn as_mut(&mut self) -> &mut Vec<u8>;
@@ -26,12 +26,12 @@ impl<L: Language> StrDoc<L> {
 }
 
 impl<L: Language> Doc for StrDoc<L> {
-  type Repr<'a> = String;
+  type Repr = String;
   type Lang = L;
   fn get_lang(&self) -> &Self::Lang {
     &self.lang
   }
-  fn get_source(&self) -> &str {
+  fn get_source(&self) -> &Self::Repr {
     &self.src
   }
   unsafe fn as_mut(&mut self) -> &mut Vec<u8> {
@@ -40,12 +40,6 @@ impl<L: Language> Doc for StrDoc<L> {
 }
 
 // Content is thread safe and owns the data
-pub trait Content: ToString + Deref<Target = str> + Send + Sync + 'static {
-  fn as_mut_vec(&mut self) -> &mut Vec<u8>;
-}
+pub trait Content: ToString + Deref<Target = str> {}
 
-impl Content for String {
-  fn as_mut_vec(&mut self) -> &mut Vec<u8> {
-    unsafe { self.as_mut_vec() }
-  }
-}
+impl Content for String {}

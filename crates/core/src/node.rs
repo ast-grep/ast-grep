@@ -30,7 +30,7 @@ impl<L: Language> Root<StrDoc<L>> {
 }
 
 impl<D: Doc> Root<D> {
-  pub fn source(&self) -> &str {
+  pub fn source(&self) -> &D::Repr {
     self.doc.get_source()
   }
   pub fn lang(&self) -> &D::Lang {
