@@ -32,7 +32,7 @@ ignore = "0.4.20"
 num_cpus = "1.15.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9.21"
-serde_json = "1.0.95"
+serde_json = "1.0.96"
 similar = { version = "2.2.1", features = ["inline"] }
 tokio = { version = "1", features = ["rt-multi-thread", "io-std"] }
 
