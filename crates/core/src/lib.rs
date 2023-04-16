@@ -52,7 +52,7 @@ impl<L: Language> AstGrep<StrDoc<L>> {
     self.inner.root()
   }
 
-  pub fn edit(&mut self, edit: Edit) -> Result<&mut Self, TSParseError> {
+  pub fn edit(&mut self, edit: Edit<String>) -> Result<&mut Self, TSParseError> {
     self.inner.do_edit(edit)?;
     Ok(self)
   }

@@ -1,9 +1,11 @@
 use crate::language::Language;
 use crate::meta_var::{split_first_meta_var, MatchResult, MetaVarEnv};
 use crate::source::Content;
-use crate::ts_parser::Edit;
+use crate::ts_parser::Edit as E;
 use crate::Pattern;
 use crate::{Doc, Node, Root, StrDoc};
+
+type Edit = E<String>;
 
 /// Replace meta variable in the replacer string
 pub trait Replacer<L: Language> {

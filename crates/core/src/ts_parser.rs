@@ -33,10 +33,10 @@ pub fn parse(
 
 // https://github.com/tree-sitter/tree-sitter/blob/e4e5ffe517ca2c668689b24cb17c51b8c6db0790/cli/src/parse.rs
 #[derive(Debug)]
-pub struct Edit {
+pub struct Edit<B> {
   pub position: usize,
   pub deleted_length: usize,
-  pub inserted_text: String,
+  pub inserted_text: B,
 }
 
 fn position_for_offset(input: &[u8], offset: usize) -> Point {
@@ -53,7 +53,7 @@ fn position_for_offset(input: &[u8], offset: usize) -> Point {
   Point::new(row, col)
 }
 
-pub fn perform_edit(tree: &mut Tree, input: &mut Vec<u8>, edit: &Edit) -> InputEdit {
+pub fn perform_edit(tree: &mut Tree, input: &mut Vec<u8>, edit: &Edit<String>) -> InputEdit {
   let start_byte = edit.position;
   let old_end_byte = edit.position + edit.deleted_length;
   let new_end_byte = edit.position + edit.inserted_text.len();
