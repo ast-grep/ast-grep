@@ -3,8 +3,10 @@ use crate::matcher::{FindAllNodes, Matcher, NodeMatch};
 use crate::replacer::Replacer;
 use crate::source::Content;
 use crate::traversal::{Pre, Visitor};
-use crate::ts_parser::{parse, perform_edit, Edit, TSParseError};
+use crate::ts_parser::{parse, perform_edit, Edit as E, TSParseError};
 use crate::{Doc, StrDoc};
+
+type Edit = E<String>;
 
 use std::borrow::Cow;
 
