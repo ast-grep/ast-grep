@@ -1,14 +1,12 @@
 use crate::language::Language;
-use std::ops::Deref;
+use tree_sitter::{Parser, ParserError, Tree};
 
 pub trait Doc: Clone {
-  type Repr: Content;
+  type Source: Content;
   type Lang: Language;
   fn get_lang(&self) -> &Self::Lang;
-  fn get_source(&self) -> &Self::Repr;
-  /// # Safety
-  /// TODO
-  unsafe fn as_mut(&mut self) -> &mut Vec<u8>;
+  fn get_source(&self) -> &Self::Source;
+  fn get_source_mut(&mut self) -> &mut Self::Source;
 }
 
 #[derive(Clone)]
@@ -26,20 +24,45 @@ impl<L: Language> StrDoc<L> {
 }
 
 impl<L: Language> Doc for StrDoc<L> {
-  type Repr = String;
+  type Source = String;
   type Lang = L;
   fn get_lang(&self) -> &Self::Lang {
     &self.lang
   }
-  fn get_source(&self) -> &Self::Repr {
+  fn get_source(&self) -> &Self::Source {
     &self.src
   }
-  unsafe fn as_mut(&mut self) -> &mut Vec<u8> {
-    self.src.as_mut_vec()
+  fn get_source_mut(&mut self) -> &mut Self::Source {
+    &mut self.src
   }
 }
 
-// Content is thread safe and owns the data
-pub trait Content: ToString + Deref<Target = str> {}
+pub trait Content {
+  type Underlying;
+  fn parse_tree_sitter(
+    &self,
+    parser: &mut Parser,
+    tree: Option<&Tree>,
+  ) -> Result<Option<Tree>, ParserError>;
+  fn as_slice(&self) -> &str;
+  /// # Safety
+  /// TODO
+  unsafe fn as_mut(&mut self) -> &mut Vec<u8>;
+}
 
-impl Content for String {}
+impl Content for String {
+  type Underlying = u8;
+  fn parse_tree_sitter(
+    &self,
+    parser: &mut Parser,
+    tree: Option<&Tree>,
+  ) -> Result<Option<Tree>, ParserError> {
+    parser.parse(self.as_bytes(), tree)
+  }
+  fn as_slice(&self) -> &str {
+    self.as_str()
+  }
+  unsafe fn as_mut(&mut self) -> &mut Vec<u8> {
+    self.as_mut_vec()
+  }
+}

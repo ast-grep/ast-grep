@@ -19,13 +19,12 @@ pub enum TSParseError {
 }
 
 pub fn parse(
-  source_code: &str,
-  old_tree: Option<&Tree>,
+  parse_fn: impl Fn(&mut Parser) -> Result<Option<Tree>, ParserError>,
   ts_lang: Language,
 ) -> Result<Tree, TSParseError> {
   let mut parser = Parser::new()?;
   parser.set_language(&ts_lang)?;
-  if let Some(tree) = parser.parse(source_code, old_tree)? {
+  if let Some(tree) = parse_fn(&mut parser)? {
     Ok(tree)
   } else {
     Err(TSParseError::TreeUnavailable)
@@ -80,7 +79,7 @@ mod test {
   use crate::language::{Language, Tsx};
 
   fn parse(src: &str) -> Tree {
-    parse_lang(src, None, Tsx.get_ts_language()).unwrap()
+    parse_lang(|p| p.parse(src, None), Tsx.get_ts_language()).unwrap()
   }
 
   #[test]
@@ -128,7 +127,7 @@ mod test {
       },
     );
     tree.edit(&edit);
-    let tree2 = parse_lang(&src, Some(&tree), Tsx.get_ts_language()).unwrap();
+    let tree2 = parse_lang(|p| p.parse(&src, Some(&tree)), Tsx.get_ts_language()).unwrap();
     assert_eq!(
       tree.root_node().to_sexp(),
       "(program (expression_statement (binary_expression left: (identifier) right: (identifier))))"

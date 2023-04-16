@@ -45,7 +45,7 @@ impl<L: Language> AstGrep<StrDoc<L>> {
   */
 
   pub fn source(&self) -> &str {
-    self.inner.source()
+    self.inner.doc.get_source().as_str()
   }
 
   pub fn root(&self) -> Node<StrDoc<L>> {
@@ -75,7 +75,7 @@ impl<L: Language> AstGrep<StrDoc<L>> {
   }
 
   pub fn generate(self) -> String {
-    self.inner.source().to_string()
+    self.inner.doc.src
   }
 }
 
