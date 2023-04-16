@@ -140,7 +140,7 @@ fn get_meta_var_replacement<D: Doc>(
       } else {
         let start = nodes[0].inner.start_byte() as usize;
         let end = nodes[nodes.len() - 1].inner.end_byte() as usize;
-        let s = &nodes[0].root.doc.get_source().as_slice()[start..end];
+        let s = &nodes[0].root.doc.get_source().as_str()[start..end];
         s.to_string()
       }
     }
