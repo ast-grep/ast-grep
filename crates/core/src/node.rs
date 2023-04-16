@@ -1,6 +1,7 @@
 use crate::language::Language;
 use crate::matcher::{FindAllNodes, Matcher, NodeMatch};
 use crate::replacer::Replacer;
+use crate::source::Content;
 use crate::traversal::{Pre, Visitor};
 use crate::ts_parser::{parse, perform_edit, Edit, TSParseError};
 use crate::{Doc, StrDoc};
@@ -12,16 +13,15 @@ use std::borrow::Cow;
 #[derive(Clone)]
 pub struct Root<D: Doc> {
   pub(crate) inner: tree_sitter::Tree,
-  doc: D,
+  pub(crate) doc: D,
 }
 
 impl<L: Language> Root<StrDoc<L>> {
   pub fn try_new(src: &str, lang: L) -> Result<Self, TSParseError> {
-    let inner = parse(src, None, lang.get_ts_language())?;
-    Ok(Self {
-      inner,
-      doc: StrDoc::new(src, lang),
-    })
+    let ts_lang = lang.get_ts_language();
+    let doc = StrDoc::new(src, lang);
+    let inner = parse(|p| doc.get_source().parse_tree_sitter(p, None), ts_lang)?;
+    Ok(Self { inner, doc })
   }
 
   pub fn new(src: &str, lang: L) -> Self {
@@ -30,9 +30,6 @@ impl<L: Language> Root<StrDoc<L>> {
 }
 
 impl<D: Doc> Root<D> {
-  pub fn source(&self) -> &D::Repr {
-    self.doc.get_source()
-  }
   pub fn lang(&self) -> &D::Lang {
     self.doc.get_lang()
   }
@@ -46,12 +43,17 @@ impl<D: Doc> Root<D> {
 
   // extract non generic implementation to reduce code size
   pub fn do_edit(&mut self, edit: Edit) -> Result<(), TSParseError> {
-    let input = unsafe { self.doc.as_mut() };
+    let mut source = self.doc.get_source_mut();
+    let input = unsafe { source.as_mut() };
     let input_edit = perform_edit(&mut self.inner, input, &edit);
     self.inner.edit(&input_edit);
     self.inner = parse(
-      self.source(),
-      Some(&self.inner),
+      |p| {
+        self
+          .doc
+          .get_source()
+          .parse_tree_sitter(p, Some(&self.inner))
+      },
       self.lang().get_ts_language(),
     )?;
     Ok(())
@@ -162,7 +164,7 @@ impl<'r, D: Doc> Node<'r, D> {
   pub fn text(&self) -> Cow<'r, str> {
     self
       .inner
-      .utf8_text(self.root.source().as_bytes())
+      .utf8_text(self.root.doc.get_source().as_slice().as_bytes())
       .expect("invalid source text encoding")
   }
 
@@ -173,7 +175,7 @@ impl<'r, D: Doc> Node<'r, D> {
 
   #[doc(hidden)]
   pub fn display_context(&self, context_lines: usize) -> DisplayContext<'r> {
-    let bytes = self.root.source().as_bytes();
+    let bytes = self.root.doc.get_source().as_slice().as_bytes();
     let start = self.inner.start_byte() as usize;
     let end = self.inner.end_byte() as usize;
     let (mut leading, mut trailing) = (start, end);
@@ -201,8 +203,8 @@ impl<'r, D: Doc> Node<'r, D> {
     }
     DisplayContext {
       matched: self.text(),
-      leading: &self.root.source()[leading..start],
-      trailing: &self.root.source()[end..=trailing],
+      leading: &self.root.doc.get_source().as_slice()[leading..start],
+      trailing: &self.root.doc.get_source().as_slice()[end..=trailing],
       start_line: self.inner.start_position().row() as usize + 1,
     }
   }
