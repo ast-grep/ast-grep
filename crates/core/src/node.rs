@@ -43,7 +43,7 @@ impl<D: Doc> Root<D> {
 
   // extract non generic implementation to reduce code size
   pub fn do_edit(&mut self, edit: Edit) -> Result<(), TSParseError> {
-    let mut source = self.doc.get_source_mut();
+    let source = self.doc.get_source_mut();
     let input = unsafe { source.as_mut() };
     let input_edit = perform_edit(&mut self.inner, input, &edit);
     self.inner.edit(&input_edit);
@@ -162,10 +162,8 @@ impl<'r, D: Doc> Node<'r, D> {
   }
 
   pub fn text(&self) -> Cow<'r, str> {
-    self
-      .inner
-      .utf8_text(self.root.doc.get_source().as_slice().as_bytes())
-      .expect("invalid source text encoding")
+    let source = self.root.doc.get_source();
+    source.get_text(&self.inner)
   }
 
   /// Node's tree structure dumped in Lisp like S-experssion
@@ -173,9 +171,16 @@ impl<'r, D: Doc> Node<'r, D> {
     self.inner.to_sexp()
   }
 
+  pub fn lang(&self) -> &D::Lang {
+    self.root.lang()
+  }
+}
+
+// TODO: figure out how to do this
+impl<'r, L: Language> Node<'r, StrDoc<L>> {
   #[doc(hidden)]
   pub fn display_context(&self, context_lines: usize) -> DisplayContext<'r> {
-    let bytes = self.root.doc.get_source().as_slice().as_bytes();
+    let bytes = self.root.doc.get_source().as_slice();
     let start = self.inner.start_byte() as usize;
     let end = self.inner.end_byte() as usize;
     let (mut leading, mut trailing) = (start, end);
@@ -203,14 +208,10 @@ impl<'r, D: Doc> Node<'r, D> {
     }
     DisplayContext {
       matched: self.text(),
-      leading: &self.root.doc.get_source().as_slice()[leading..start],
-      trailing: &self.root.doc.get_source().as_slice()[end..=trailing],
+      leading: &self.root.doc.get_source().as_str()[leading..start],
+      trailing: &self.root.doc.get_source().as_str()[end..=trailing],
       start_line: self.inner.start_position().row() as usize + 1,
     }
-  }
-
-  pub fn lang(&self) -> &D::Lang {
-    self.root.lang()
   }
 }
 

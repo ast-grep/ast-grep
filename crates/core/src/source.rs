@@ -1,5 +1,6 @@
 use crate::language::Language;
-use tree_sitter::{Parser, ParserError, Tree};
+use std::borrow::Cow;
+use tree_sitter::{Node, Parser, ParserError, Tree};
 
 pub trait Doc: Clone {
   type Source: Content;
@@ -44,7 +45,9 @@ pub trait Content {
     parser: &mut Parser,
     tree: Option<&Tree>,
   ) -> Result<Option<Tree>, ParserError>;
-  fn as_slice(&self) -> &str;
+  fn as_slice(&self) -> &[Self::Underlying];
+  fn as_str(&self) -> &str;
+  fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str>;
   /// # Safety
   /// TODO
   unsafe fn as_mut(&mut self) -> &mut Vec<u8>;
@@ -59,8 +62,16 @@ impl Content for String {
   ) -> Result<Option<Tree>, ParserError> {
     parser.parse(self.as_bytes(), tree)
   }
-  fn as_slice(&self) -> &str {
+  fn as_slice(&self) -> &[Self::Underlying] {
+    self.as_bytes()
+  }
+  fn as_str(&self) -> &str {
     self.as_str()
+  }
+  fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str> {
+    node
+      .utf8_text(self.as_bytes())
+      .expect("invalid source text encoding")
   }
   unsafe fn as_mut(&mut self) -> &mut Vec<u8> {
     self.as_mut_vec()
