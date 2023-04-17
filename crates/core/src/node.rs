@@ -1,9 +1,8 @@
 use crate::language::Language;
 use crate::matcher::{FindAllNodes, Matcher, NodeMatch};
 use crate::replacer::Replacer;
-use crate::source::Content;
+use crate::source::{perform_edit, Content, Edit as E, TSParseError};
 use crate::traversal::{Pre, Visitor};
-use crate::ts_parser::{parse, perform_edit, Edit as E, TSParseError};
 use crate::{Doc, StrDoc};
 
 type Edit = E<String>;
@@ -22,7 +21,7 @@ impl<L: Language> Root<StrDoc<L>> {
   pub fn try_new(src: &str, lang: L) -> Result<Self, TSParseError> {
     let ts_lang = lang.get_ts_language();
     let doc = StrDoc::new(src, lang);
-    let inner = parse(|p| doc.get_source().parse_tree_sitter(p, None), ts_lang)?;
+    let inner = doc.parse(None)?;
     Ok(Self { inner, doc })
   }
 
@@ -46,18 +45,9 @@ impl<D: Doc> Root<D> {
   // extract non generic implementation to reduce code size
   pub fn do_edit(&mut self, edit: Edit) -> Result<(), TSParseError> {
     let source = self.doc.get_source_mut();
-    let input = unsafe { source.as_mut() };
-    let input_edit = perform_edit(&mut self.inner, input, &edit);
+    let input_edit = perform_edit(&mut self.inner, source, &edit);
     self.inner.edit(&input_edit);
-    self.inner = parse(
-      |p| {
-        self
-          .doc
-          .get_source()
-          .parse_tree_sitter(p, Some(&self.inner))
-      },
-      self.lang().get_ts_language(),
-    )?;
+    self.inner = self.doc.parse(Some(&self.inner))?;
     Ok(())
   }
 

@@ -1,7 +1,6 @@
 use crate::language::Language;
 use crate::meta_var::{split_first_meta_var, MatchResult, MetaVarEnv};
-use crate::source::Content;
-use crate::ts_parser::Edit as E;
+use crate::source::{Content, Edit as E};
 use crate::Pattern;
 use crate::{Doc, Node, Root, StrDoc};
 
