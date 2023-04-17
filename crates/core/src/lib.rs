@@ -11,7 +11,6 @@ pub mod pinned;
 mod match_tree;
 mod node;
 mod replacer;
-mod ts_parser;
 
 pub use language::Language;
 pub use matcher::{Matcher, NodeMatch, Pattern, PatternError};
@@ -21,7 +20,7 @@ pub use replacer::replace_meta_var_in_string;
 use crate::replacer::Replacer;
 use node::Root;
 pub use source::{Doc, StrDoc};
-use ts_parser::{Edit, TSParseError};
+use source::{Edit, TSParseError};
 
 #[derive(Clone)]
 pub struct AstGrep<D: Doc> {

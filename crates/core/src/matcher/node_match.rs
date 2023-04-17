@@ -1,6 +1,6 @@
 use crate::meta_var::MetaVarEnv;
 use crate::replacer::Replacer;
-use crate::ts_parser::Edit;
+use crate::source::Edit;
 use crate::{Doc, Node};
 
 use std::borrow::Borrow;

@@ -1,6 +1,67 @@
 use crate::language::Language;
 use std::borrow::Cow;
-use tree_sitter::{Node, Parser, ParserError, Tree};
+use thiserror::Error;
+use tree_sitter::{
+  InputEdit, Language as TsLang, LanguageError, Node, Parser, ParserError, Point, Tree,
+};
+
+#[inline]
+fn parse_lang(
+  parse_fn: impl Fn(&mut Parser) -> Result<Option<Tree>, ParserError>,
+  ts_lang: TsLang,
+) -> Result<Tree, TSParseError> {
+  let mut parser = Parser::new()?;
+  parser.set_language(&ts_lang)?;
+  if let Some(tree) = parse_fn(&mut parser)? {
+    Ok(tree)
+  } else {
+    Err(TSParseError::TreeUnavailable)
+  }
+}
+
+// https://github.com/tree-sitter/tree-sitter/blob/e4e5ffe517ca2c668689b24cb17c51b8c6db0790/cli/src/parse.rs
+#[derive(Debug)]
+pub struct Edit<B> {
+  pub position: usize,
+  pub deleted_length: usize,
+  pub inserted_text: B,
+}
+
+fn position_for_offset(input: &[u8], offset: usize) -> Point {
+  debug_assert!(offset <= input.len());
+  let (mut row, mut col) = (0, 0);
+  for c in &input[0..offset] {
+    if *c as char == '\n' {
+      row += 1;
+      col = 0;
+    } else {
+      col += 1;
+    }
+  }
+  Point::new(row, col)
+}
+
+pub fn perform_edit<C: Content>(tree: &mut Tree, input: &mut C, edit: &Edit<String>) -> InputEdit {
+  let edit = input.accept_edit(edit);
+  tree.edit(&edit);
+  edit
+}
+
+/// Represents tree-sitter related error
+#[derive(Debug, Error)]
+pub enum TSParseError {
+  #[error("web-tree-sitter parser is not available")]
+  Parse(#[from] ParserError),
+  #[error("incompatible `Language` is assigend to a `Parser`.")]
+  Language(#[from] LanguageError),
+  /// A general error when tree sitter fails to parse in time. It can be caused by
+  /// the following reasons but tree-sitter does not provide error detail.
+  /// * The timeout set with [Parser::set_timeout_micros] expired
+  /// * The cancellation flag set with [Parser::set_cancellation_flag] was flipped
+  /// * The parser has not yet had a language assigned with [Parser::set_language]
+  #[error("general error when tree-sitter fails to parse.")]
+  TreeUnavailable,
+}
 
 pub trait Doc: Clone {
   type Source: Content;
@@ -8,6 +69,11 @@ pub trait Doc: Clone {
   fn get_lang(&self) -> &Self::Lang;
   fn get_source(&self) -> &Self::Source;
   fn get_source_mut(&mut self) -> &mut Self::Source;
+  fn parse(&self, old_tree: Option<&Tree>) -> Result<Tree, TSParseError> {
+    let source = self.get_source();
+    let lang = self.get_lang().get_ts_language();
+    parse_lang(|p| source.parse_tree_sitter(p, old_tree), lang)
+  }
 }
 
 #[derive(Clone)]
@@ -15,6 +81,7 @@ pub struct StrDoc<L: Language> {
   pub src: String,
   pub lang: L,
 }
+
 impl<L: Language> StrDoc<L> {
   pub fn new(src: &str, lang: L) -> Self {
     Self {
@@ -47,6 +114,7 @@ pub trait Content {
   ) -> Result<Option<Tree>, ParserError>;
   fn as_slice(&self) -> &[Self::Underlying];
   fn as_str(&self) -> &str;
+  fn accept_edit(&mut self, edit: &Edit<String>) -> InputEdit;
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str>;
   /// # Safety
   /// TODO
@@ -75,5 +143,94 @@ impl Content for String {
   }
   unsafe fn as_mut(&mut self) -> &mut Vec<u8> {
     self.as_mut_vec()
+  }
+  fn accept_edit(&mut self, edit: &Edit<String>) -> InputEdit {
+    let start_byte = edit.position;
+    let old_end_byte = edit.position + edit.deleted_length;
+    let new_end_byte = edit.position + edit.inserted_text.len();
+    let input = unsafe { Content::as_mut(self) };
+    let start_position = position_for_offset(input, start_byte);
+    let old_end_position = position_for_offset(input, old_end_byte);
+    input.splice(start_byte..old_end_byte, edit.inserted_text.bytes());
+    let new_end_position = position_for_offset(input, new_end_byte);
+    InputEdit::new(
+      start_byte as u32,
+      old_end_byte as u32,
+      new_end_byte as u32,
+      &start_position,
+      &old_end_position,
+      &new_end_position,
+    )
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::language::{Language, Tsx};
+
+  fn parse(src: &str) -> Tree {
+    parse_lang(|p| p.parse(src, None), Tsx.get_ts_language()).unwrap()
+  }
+
+  #[test]
+  fn test_tree_sitter() {
+    let tree = parse("var a = 1234");
+    let root_node = tree.root_node();
+    assert_eq!(root_node.kind(), "program");
+    assert_eq!(root_node.start_position().column(), 0);
+    assert_eq!(root_node.end_position().column(), 12);
+    assert_eq!(
+      root_node.to_sexp(),
+      "(program (variable_declaration (variable_declarator name: (identifier) value: (number))))"
+    );
+  }
+
+  #[test]
+  fn test_object_literal() {
+    let tree = parse("{a: $X}");
+    let root_node = tree.root_node();
+    // wow this is not label. technically it is wrong but practically it is better LOL
+    assert_eq!(root_node.to_sexp(), "(program (expression_statement (object (pair key: (property_identifier) value: (identifier)))))");
+  }
+
+  #[test]
+  fn test_string() {
+    let tree = parse("'$A'");
+    let root_node = tree.root_node();
+    assert_eq!(
+      root_node.to_sexp(),
+      "(program (expression_statement (string (string_fragment))))"
+    );
+  }
+
+  #[test]
+  fn test_row_col() {
+    let tree = parse("😄");
+    let root = tree.root_node();
+    assert_eq!(root.start_position(), Point::new(0, 0));
+    // NOTE: Point in tree-sitter is counted in bytes instead of char
+    assert_eq!(root.end_position(), Point::new(0, 4));
+  }
+
+  #[test]
+  fn test_edit() {
+    let mut src = "a + b".to_string();
+    let mut tree = parse(&src);
+    let _ = perform_edit(
+      &mut tree,
+      &mut src,
+      &Edit {
+        position: 1,
+        deleted_length: 0,
+        inserted_text: " * b".into(),
+      },
+    );
+    let tree2 = parse_lang(|p| p.parse(&src, Some(&tree)), Tsx.get_ts_language()).unwrap();
+    assert_eq!(
+      tree.root_node().to_sexp(),
+      "(program (expression_statement (binary_expression left: (identifier) right: (identifier))))"
+    );
+    assert_eq!(tree2.root_node().to_sexp(), "(program (expression_statement (binary_expression left: (binary_expression left: (identifier) right: (identifier)) right: (identifier))))");
   }
 }

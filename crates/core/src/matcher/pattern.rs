@@ -1,7 +1,7 @@
 use crate::language::Language;
 use crate::match_tree::{extract_var_from_node, match_end_non_recursive, match_node_non_recursive};
 use crate::matcher::{KindMatcher, KindMatcherError, Matcher};
-use crate::ts_parser::TSParseError;
+use crate::source::TSParseError;
 use crate::{meta_var::MetaVarEnv, Node, Root};
 use crate::{Doc, StrDoc};
 
