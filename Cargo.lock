@@ -198,6 +198,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tree-sitter-css",
+ "tree-sitter-facade-sg",
  "tree-sitter-html",
  "tree-sitter-javascript",
  "tree-sitter-typescript",
