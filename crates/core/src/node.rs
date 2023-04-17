@@ -19,7 +19,6 @@ pub struct Root<D: Doc> {
 
 impl<L: Language> Root<StrDoc<L>> {
   pub fn try_new(src: &str, lang: L) -> Result<Self, TSParseError> {
-    let ts_lang = lang.get_ts_language();
     let doc = StrDoc::new(src, lang);
     let inner = doc.parse(None)?;
     Ok(Self { inner, doc })
