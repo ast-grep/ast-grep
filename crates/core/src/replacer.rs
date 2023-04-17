@@ -4,25 +4,39 @@ use crate::source::{Content, Edit as E};
 use crate::Pattern;
 use crate::{Doc, Node, Root, StrDoc};
 
-type Edit = E<String>;
+type Edit<D> = E<<D as Doc>::Source>;
+
+type Underlying<S> = Vec<<S as Content>::Underlying>;
 
 /// Replace meta variable in the replacer string
 pub trait Replacer<L: Language> {
-  fn generate_replacement<D: Doc<Lang = L>>(&self, env: &MetaVarEnv<D>, lang: L) -> String;
+  fn generate_replacement<D: Doc<Lang = L>>(
+    &self,
+    env: &MetaVarEnv<D>,
+    lang: L,
+  ) -> Underlying<D::Source>;
 }
 
 impl<L: Language> Replacer<L> for str {
-  fn generate_replacement<D: Doc<Lang = L>>(&self, env: &MetaVarEnv<D>, lang: L) -> String {
+  fn generate_replacement<D: Doc<Lang = L>>(
+    &self,
+    env: &MetaVarEnv<D>,
+    lang: L,
+  ) -> Underlying<D::Source> {
     let root = Root::new(self, lang.clone());
     let edits = collect_edits(&root, env, lang);
-    merge_edits_to_string(edits, &root)
+    merge_edits_to_string::<D, _>(edits, &root)
   }
 }
 
 impl<L: Language> Replacer<L> for Pattern<L> {
-  fn generate_replacement<D: Doc<Lang = L>>(&self, env: &MetaVarEnv<D>, lang: L) -> String {
+  fn generate_replacement<D: Doc<Lang = L>>(
+    &self,
+    env: &MetaVarEnv<D>,
+    lang: L,
+  ) -> Underlying<D::Source> {
     let edits = collect_edits(&self.root, env, lang);
-    merge_edits_to_string(edits, &self.root)
+    merge_edits_to_string::<D, _>(edits, &self.root)
   }
 }
 
@@ -31,7 +45,11 @@ where
   L: Language,
   T: Replacer<L> + ?Sized,
 {
-  fn generate_replacement<D: Doc<Lang = L>>(&self, env: &MetaVarEnv<D>, lang: L) -> String {
+  fn generate_replacement<D: Doc<Lang = L>>(
+    &self,
+    env: &MetaVarEnv<D>,
+    lang: L,
+  ) -> Underlying<D::Source> {
     (**self).generate_replacement(env, lang)
   }
 }
@@ -40,7 +58,7 @@ fn collect_edits<D: Doc>(
   root: &Root<StrDoc<D::Lang>>,
   env: &MetaVarEnv<D>,
   lang: D::Lang,
-) -> Vec<Edit> {
+) -> Vec<Edit<D>> {
   let mut node = root.root();
   let root_id = node.inner.id();
   let mut edits = vec![];
@@ -50,7 +68,7 @@ fn collect_edits<D: Doc>(
     if let Some(text) = get_meta_var_replacement(&node, env, lang.clone()) {
       let position = node.inner.start_byte();
       let length = node.inner.end_byte() - position;
-      edits.push(Edit {
+      edits.push(Edit::<D> {
         position: position as usize,
         deleted_length: length as usize,
         inserted_text: text,
@@ -82,10 +100,10 @@ fn collect_edits<D: Doc>(
     }
   }
   // add the missing one
-  edits.push(Edit {
+  edits.push(Edit::<D> {
     position: root.doc.src.len(),
     deleted_length: 0,
-    inserted_text: String::new(),
+    inserted_text: vec![],
   });
   edits
 }
@@ -112,13 +130,18 @@ pub fn replace_meta_var_in_string<L: Language>(
   ret
 }
 
-fn merge_edits_to_string<L: Language>(edits: Vec<Edit>, root: &Root<StrDoc<L>>) -> String {
-  let mut ret = String::new();
+fn merge_edits_to_string<D: Doc, L: Language>(
+  edits: Vec<Edit<D>>,
+  root: &Root<StrDoc<L>>,
+) -> Underlying<D::Source> {
+  let mut ret = vec![];
   let mut start = 0;
   for edit in edits {
     debug_assert!(start <= edit.position, "Edit must be ordered!");
-    ret.push_str(&root.doc.src[start..edit.position]);
-    ret.push_str(&edit.inserted_text);
+    ret.extend(D::Source::transform_str(
+      &root.doc.src[start..edit.position],
+    ));
+    ret.extend(edit.inserted_text.iter().cloned());
     start = edit.position + edit.deleted_length;
   }
   ret
@@ -128,21 +151,20 @@ fn get_meta_var_replacement<D: Doc>(
   node: &Node<StrDoc<D::Lang>>,
   env: &MetaVarEnv<D>,
   lang: D::Lang,
-) -> Option<String> {
+) -> Option<Underlying<D::Source>> {
   if !node.is_named_leaf() {
     return None;
   }
   let meta_var = lang.extract_meta_var(&node.text())?;
   let replaced = match env.get(&meta_var)? {
-    MatchResult::Single(replaced) => replaced.text().to_string(),
+    MatchResult::Single(replaced) => D::Source::transform_str(&replaced.text()),
     MatchResult::Multi(nodes) => {
       if nodes.is_empty() {
-        String::new()
+        vec![]
       } else {
         let start = nodes[0].inner.start_byte() as usize;
         let end = nodes[nodes.len() - 1].inner.end_byte() as usize;
-        let s = &nodes[0].root.doc.get_source().as_str()[start..end];
-        s.to_string()
+        nodes[0].root.doc.get_source().as_slice()[start..end].to_vec()
       }
     }
   };
@@ -150,8 +172,12 @@ fn get_meta_var_replacement<D: Doc>(
 }
 
 impl<'a, L: Language> Replacer<L> for Node<'a, StrDoc<L>> {
-  fn generate_replacement<D: Doc<Lang = L>>(&self, _env: &MetaVarEnv<D>, _lang: L) -> String {
-    self.text().to_string()
+  fn generate_replacement<D: Doc<Lang = L>>(
+    &self,
+    _env: &MetaVarEnv<D>,
+    _lang: L,
+  ) -> Underlying<D::Source> {
+    D::Source::transform_str(&self.text())
   }
 }
 
@@ -171,6 +197,7 @@ mod test {
       env.insert(var.to_string(), root.root());
     }
     let replaced = replacer.generate_replacement(&env, Tsx);
+    let replaced = String::from_utf8_lossy(&replaced);
     assert_eq!(
       replaced,
       expected,
@@ -230,6 +257,7 @@ mod test {
       env.insert_multi(var.to_string(), root.root().children().collect());
     }
     let replaced = replacer.generate_replacement(&env, Tsx);
+    let replaced = String::from_utf8_lossy(&replaced);
     assert_eq!(
       replaced,
       expected,

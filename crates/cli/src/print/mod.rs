@@ -67,12 +67,14 @@ impl<'n> Diff<'n> {
     matcher: &impl Matcher<SupportLang>,
     rewrite: &Pattern<SupportLang>,
   ) -> Self {
-    let replacement = Cow::Owned(
+    let replacement = String::from_utf8(
       node_match
         .replace(matcher, rewrite)
         .expect("edit must exist")
         .inserted_text,
-    );
+    )
+    .unwrap();
+    let replacement = Cow::Owned(replacement);
 
     Self {
       node_match,
