@@ -116,9 +116,6 @@ pub trait Content: Sized {
   fn transform_str(s: &str) -> Vec<Self::Underlying>;
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit;
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str>;
-  /// # Safety
-  /// TODO
-  unsafe fn as_mut(&mut self) -> &mut Vec<u8>;
 }
 
 impl Content for String {
@@ -141,14 +138,11 @@ impl Content for String {
       .utf8_text(self.as_bytes())
       .expect("invalid source text encoding")
   }
-  unsafe fn as_mut(&mut self) -> &mut Vec<u8> {
-    self.as_mut_vec()
-  }
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit {
     let start_byte = edit.position;
     let old_end_byte = edit.position + edit.deleted_length;
     let new_end_byte = edit.position + edit.inserted_text.len();
-    let input = unsafe { Content::as_mut(self) };
+    let input = unsafe { self.as_mut_vec() };
     let start_position = position_for_offset(input, start_byte);
     let old_end_position = position_for_offset(input, old_end_byte);
     input.splice(start_byte..old_end_byte, edit.inserted_text.clone());

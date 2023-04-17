@@ -15,6 +15,7 @@ napi-derive = "2.12.3"
 ast-grep-core = { version= "0.3.3", path = "../core" }
 ast-grep-config = { version= "0.3.3", path = "../config" }
 serde = { version = "1.0", features = ["derive"] }
+tree-sitter = { version = "0.9.1", package = "tree-sitter-facade-sg" }
 tree-sitter-typescript="0.20.2"
 tree-sitter-html = "0.19.0"
 tree-sitter-javascript = "0.20.0"
