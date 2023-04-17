@@ -21,10 +21,10 @@ fn parse_lang(
 
 // https://github.com/tree-sitter/tree-sitter/blob/e4e5ffe517ca2c668689b24cb17c51b8c6db0790/cli/src/parse.rs
 #[derive(Debug)]
-pub struct Edit<B> {
+pub struct Edit<S: Content> {
   pub position: usize,
   pub deleted_length: usize,
-  pub inserted_text: B,
+  pub inserted_text: Vec<S::Underlying>,
 }
 
 fn position_for_offset(input: &[u8], offset: usize) -> Point {
@@ -41,7 +41,7 @@ fn position_for_offset(input: &[u8], offset: usize) -> Point {
   Point::new(row, col)
 }
 
-pub fn perform_edit<C: Content>(tree: &mut Tree, input: &mut C, edit: &Edit<String>) -> InputEdit {
+pub fn perform_edit<S: Content>(tree: &mut Tree, input: &mut S, edit: &Edit<S>) -> InputEdit {
   let edit = input.accept_edit(edit);
   tree.edit(&edit);
   edit
@@ -105,16 +105,16 @@ impl<L: Language> Doc for StrDoc<L> {
   }
 }
 
-pub trait Content {
-  type Underlying;
+pub trait Content: Sized {
+  type Underlying: Clone;
   fn parse_tree_sitter(
     &self,
     parser: &mut Parser,
     tree: Option<&Tree>,
   ) -> Result<Option<Tree>, ParserError>;
   fn as_slice(&self) -> &[Self::Underlying];
-  fn as_str(&self) -> &str;
-  fn accept_edit(&mut self, edit: &Edit<String>) -> InputEdit;
+  fn transform_str(s: &str) -> Vec<Self::Underlying>;
+  fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit;
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str>;
   /// # Safety
   /// TODO
@@ -133,8 +133,8 @@ impl Content for String {
   fn as_slice(&self) -> &[Self::Underlying] {
     self.as_bytes()
   }
-  fn as_str(&self) -> &str {
-    self.as_str()
+  fn transform_str(s: &str) -> Vec<Self::Underlying> {
+    s.bytes().collect()
   }
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str> {
     node
@@ -144,14 +144,14 @@ impl Content for String {
   unsafe fn as_mut(&mut self) -> &mut Vec<u8> {
     self.as_mut_vec()
   }
-  fn accept_edit(&mut self, edit: &Edit<String>) -> InputEdit {
+  fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit {
     let start_byte = edit.position;
     let old_end_byte = edit.position + edit.deleted_length;
     let new_end_byte = edit.position + edit.inserted_text.len();
     let input = unsafe { Content::as_mut(self) };
     let start_position = position_for_offset(input, start_byte);
     let old_end_position = position_for_offset(input, old_end_byte);
-    input.splice(start_byte..old_end_byte, edit.inserted_text.bytes());
+    input.splice(start_byte..old_end_byte, edit.inserted_text.clone());
     let new_end_position = position_for_offset(input, new_end_byte);
     InputEdit::new(
       start_byte as u32,

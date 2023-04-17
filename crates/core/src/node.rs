@@ -5,7 +5,7 @@ use crate::source::{perform_edit, Content, Edit as E, TSParseError};
 use crate::traversal::{Pre, Visitor};
 use crate::{Doc, StrDoc};
 
-type Edit = E<String>;
+type Edit<D> = E<<D as Doc>::Source>;
 
 use std::borrow::Cow;
 
@@ -43,7 +43,7 @@ impl<D: Doc> Root<D> {
   }
 
   // extract non generic implementation to reduce code size
-  pub fn do_edit(&mut self, edit: Edit) -> Result<(), TSParseError> {
+  pub fn do_edit(&mut self, edit: Edit<D>) -> Result<(), TSParseError> {
     let source = self.doc.get_source_mut();
     let input_edit = perform_edit(&mut self.inner, source, &edit);
     self.inner.edit(&input_edit);
@@ -381,7 +381,7 @@ impl<'r, D: Doc> Node<'r, D> {
 
 /// Tree manipulation API
 impl<'r, D: Doc> Node<'r, D> {
-  fn make_edit<M, R>(&self, matched: NodeMatch<D>, matcher: &M, replacer: &R) -> Edit
+  fn make_edit<M, R>(&self, matched: NodeMatch<D>, matcher: &M, replacer: &R) -> Edit<D>
   where
     M: Matcher<D::Lang>,
     R: Replacer<D::Lang>,
@@ -394,7 +394,7 @@ impl<'r, D: Doc> Node<'r, D> {
       .get_match_len(matched.get_node().clone())
       .unwrap_or_else(|| range.len());
     let inserted_text = replacer.generate_replacement(env, lang);
-    Edit {
+    Edit::<D> {
       position,
       deleted_length,
       inserted_text,
@@ -405,7 +405,7 @@ impl<'r, D: Doc> Node<'r, D> {
     &self,
     matcher: M,
     replacer: R,
-  ) -> Option<Edit> {
+  ) -> Option<Edit<D>> {
     let matched = matcher.find_node(self.clone())?;
     let edit = self.make_edit(matched, &matcher, &replacer);
     Some(edit)
@@ -415,7 +415,7 @@ impl<'r, D: Doc> Node<'r, D> {
     &self,
     matcher: M,
     replacer: R,
-  ) -> Vec<Edit> {
+  ) -> Vec<Edit<D>> {
     // TODO: support nested matches like Some(Some(1)) with pattern Some($A)
     Visitor::new(&matcher)
       .reentrant(false)
@@ -424,38 +424,38 @@ impl<'r, D: Doc> Node<'r, D> {
       .collect()
   }
 
-  pub fn after(&self) -> Edit {
+  pub fn after(&self) -> Edit<D> {
     todo!()
   }
-  pub fn before(&self) -> Edit {
+  pub fn before(&self) -> Edit<D> {
     todo!()
   }
-  pub fn append(&self) -> Edit {
+  pub fn append(&self) -> Edit<D> {
     todo!()
   }
-  pub fn prepend(&self) -> Edit {
+  pub fn prepend(&self) -> Edit<D> {
     todo!()
   }
 
   /// Empty children. Remove all child node
-  pub fn empty(&self) -> Option<Edit> {
+  pub fn empty(&self) -> Option<Edit<D>> {
     let mut children = self.children().peekable();
     let start = children.peek()?.range().start;
     let end = children.last()?.range().end;
-    Some(Edit {
+    Some(Edit::<D> {
       position: start,
       deleted_length: end - start,
-      inserted_text: String::new(),
+      inserted_text: Vec::new(),
     })
   }
 
   /// Remove the node itself
-  pub fn remove(&self) -> Edit {
+  pub fn remove(&self) -> Edit<D> {
     let range = self.range();
-    Edit {
+    Edit::<D> {
       position: range.start,
       deleted_length: range.end - range.start,
-      inserted_text: String::new(),
+      inserted_text: Vec::new(),
     }
   }
 }
@@ -499,7 +499,7 @@ mod test {
     let node = root.root();
     let edits = node.replace_all("Some($A)", "$A");
     assert_eq!(edits.len(), 1);
-    assert_eq!(edits[0].inserted_text, "Some(1)");
+    assert_eq!(edits[0].inserted_text, "Some(1)".as_bytes());
   }
 
   #[test]
@@ -509,7 +509,7 @@ mod test {
     let edits = node.replace_all("Some($A)", "$A");
     // edits must be sorted by position
     assert_eq!(edits.len(), 2);
-    assert_eq!(edits[0].inserted_text, "Some(1)");
-    assert_eq!(edits[1].inserted_text, "2");
+    assert_eq!(edits[0].inserted_text, "Some(1)".as_bytes());
+    assert_eq!(edits[1].inserted_text, "2".as_bytes());
   }
 }

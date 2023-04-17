@@ -330,7 +330,7 @@ impl<L: LSPLang> Backend<L> {
         let edit = matched_node.replace_by(fixer);
         let edit = TextEdit {
           range,
-          new_text: edit.inserted_text,
+          new_text: String::from_utf8(edit.inserted_text).unwrap(),
         };
         let mut changes = HashMap::new();
         changes.insert(text_doc.uri.clone(), vec![edit]);

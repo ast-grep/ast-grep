@@ -33,7 +33,7 @@ impl<'tree, D: Doc> NodeMatch<'tree, D> {
 }
 
 impl<'tree, D: Doc> NodeMatch<'tree, D> {
-  pub fn replace_by<R: Replacer<D::Lang>>(&self, replacer: R) -> Edit<String> {
+  pub fn replace_by<R: Replacer<D::Lang>>(&self, replacer: R) -> Edit<D::Source> {
     let lang = self.lang().clone();
     let env = self.get_env();
     let range = self.range();
@@ -121,6 +121,6 @@ mod test {
     let fixed = find.replace_by("var b = $A");
     assert_eq!(fixed.position, 0);
     assert_eq!(fixed.deleted_length, 9);
-    assert_eq!(fixed.inserted_text, "var b = a");
+    assert_eq!(fixed.inserted_text, "var b = a".as_bytes());
   }
 }
