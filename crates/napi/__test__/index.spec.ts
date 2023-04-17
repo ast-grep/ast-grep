@@ -18,6 +18,20 @@ test('find from native code', t => {
   })
 })
 
+test('find unicode', t => {
+  const sg = parse('console.log(祇園)')
+  const match = sg.root().find('console.log($_)')
+  t.deepEqual(match!.range(), {
+    start: { line: 0, column: 0, index: 0 },
+    end: { line: 0, column: 15, index: 15 },
+  })
+  const node = match!.find('console')
+  t.deepEqual(node!.range(), {
+    start: { line: 0, column: 0, index: 0 },
+    end: { line: 0, column: 7, index: 7 },
+  })
+})
+
 test('findAll from native code', t => {
   const sg = parse('console.log(123); let a = console.log.bind(console);')
   const match = sg.root().findAll('console.log')
