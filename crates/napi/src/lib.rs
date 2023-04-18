@@ -6,7 +6,7 @@ mod sg_node;
 use ast_grep_config::{RuleWithConstraint, SerializableRuleCore};
 use ast_grep_core::language::Language;
 use ast_grep_core::pinned::{NodeData, PinnedNodeData};
-use ast_grep_core::{AstGrep, NodeMatch, StrDoc};
+use ast_grep_core::{AstGrep, NodeMatch};
 use ignore::types::TypesBuilder;
 use ignore::{WalkBuilder, WalkState};
 use napi::anyhow::{anyhow, Context, Error, Result as Ret};
@@ -17,7 +17,7 @@ use napi_derive::napi;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 
-use doc::FrontEndLanguage;
+use doc::{FrontEndLanguage, JsDoc};
 use sg_node::{SgNode, SgRoot};
 
 #[napi(object)]
@@ -56,7 +56,8 @@ macro_rules! impl_lang_mod {
         use super::FrontEndLanguage::*;
         #[napi]
         pub fn parse(src: String) -> SgRoot {
-          SgRoot(AstGrep::new(src, $lang), "anonymous".into())
+          let doc = JsDoc::new(src, $lang);
+          SgRoot(AstGrep::doc(doc), "anonymous".into())
         }
         #[napi]
         pub fn kind(kind_name: String) -> u16 {
@@ -192,7 +193,7 @@ fn call_sg_root(
   Ok(true)
 }
 
-fn get_root(entry: ignore::DirEntry) -> Ret<(AstGrep<StrDoc<FrontEndLanguage>>, String)> {
+fn get_root(entry: ignore::DirEntry) -> Ret<(AstGrep<JsDoc>, String)> {
   use FrontEndLanguage::*;
   let path = entry.into_path();
   let file_content = std::fs::read_to_string(&path)?;
@@ -209,7 +210,8 @@ fn get_root(entry: ignore::DirEntry) -> Ret<(AstGrep<StrDoc<FrontEndLanguage>>, 
     "tsx" => Tsx,
     _ => return Err(anyhow!("file not recognized")),
   };
-  Ok((lang.ast_grep(file_content), path.to_string_lossy().into()))
+  let doc = JsDoc::new(file_content, lang);
+  Ok((AstGrep::doc(doc), path.to_string_lossy().into()))
 }
 
 type FindInFiles = IterateFiles<(
@@ -218,7 +220,7 @@ type FindInFiles = IterateFiles<(
 )>;
 
 pub struct PinnedNodes(
-  PinnedNodeData<StrDoc<FrontEndLanguage>, Vec<NodeMatch<'static, StrDoc<FrontEndLanguage>>>>,
+  PinnedNodeData<JsDoc, Vec<NodeMatch<'static, JsDoc>>>,
   String,
 );
 unsafe impl Send for PinnedNodes {}

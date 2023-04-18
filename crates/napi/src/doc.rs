@@ -1,7 +1,6 @@
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
 use napi::bindgen_prelude::*;
-use napi::JsStringUtf16;
 use napi_derive::napi;
 use std::borrow::Cow;
 use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
@@ -49,19 +48,9 @@ impl Language for FrontEndLanguage {
   }
 }
 
+#[derive(Clone)]
 pub struct Wrapper {
-  inner: JsStringUtf16,
-  env: Env,
-}
-impl Clone for Wrapper {
-  fn clone(&self) -> Self {
-    let s = self.env.create_string_utf16(self.inner.as_slice()).unwrap();
-    let inner = s.into_utf16().unwrap();
-    Self {
-      inner,
-      env: self.env.clone(),
-    }
-  }
+  inner: Vec<u16>,
 }
 
 impl Content for Wrapper {
@@ -81,13 +70,13 @@ impl Content for Wrapper {
   }
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit {
     let start_byte = edit.position;
-    let old_end_byte = edit.position + edit.deleted_length;
-    let new_end_byte = edit.position + edit.inserted_text.len();
+    let old_end_byte = edit.position + edit.deleted_length * 2;
+    let new_end_byte = edit.position + edit.inserted_text.len() * 2;
     let mut input = self.inner.to_vec();
-    let start_position = position_for_offset(&input, start_byte);
-    let old_end_position = position_for_offset(&input, old_end_byte);
+    let start_position = pos_for_byte_offset(&input, start_byte);
+    let old_end_position = pos_for_byte_offset(&input, old_end_byte);
     input.splice(start_byte..old_end_byte, edit.inserted_text.clone());
-    let new_end_position = position_for_offset(&input, new_end_byte);
+    let new_end_position = pos_for_byte_offset(&input, new_end_byte);
     InputEdit::new(
       start_byte as u32,
       old_end_byte as u32,
@@ -99,14 +88,17 @@ impl Content for Wrapper {
   }
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str> {
     let slice = self.inner.as_slice();
-    String::from_utf16_lossy(node.utf16_text(slice)).into()
+    let start = node.start_byte() as usize / 2;
+    let end = node.end_byte() as usize / 2;
+    String::from_utf16_lossy(&slice[start..end]).into()
   }
 }
 
-fn position_for_offset(input: &[u16], offset: usize) -> Point {
+fn pos_for_byte_offset(input: &[u16], byte_offset: usize) -> Point {
+  let offset = byte_offset / 2;
   debug_assert!(offset <= input.len());
   let (mut row, mut col) = (0, 0);
-  for c in char::decode_utf16(input.iter().copied()) {
+  for c in char::decode_utf16(input.iter().copied()).take(offset) {
     if let Ok('\n') = c {
       row += 1;
       col = 0;
@@ -121,6 +113,15 @@ fn position_for_offset(input: &[u16], offset: usize) -> Point {
 pub struct JsDoc {
   lang: FrontEndLanguage,
   source: Wrapper,
+}
+
+impl JsDoc {
+  pub fn new(src: String, lang: FrontEndLanguage) -> Self {
+    let source = Wrapper {
+      inner: src.encode_utf16().collect(),
+    };
+    Self { source, lang }
+  }
 }
 
 impl Doc for JsDoc {
@@ -144,5 +145,19 @@ impl Doc for JsDoc {
   }
   fn get_source_mut(&mut self) -> &mut Self::Source {
     &mut self.source
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use ast_grep_core::AstGrep;
+  #[test]
+  fn test_js_doc() {
+    let doc = JsDoc::new("console.log(123)".into(), FrontEndLanguage::JavaScript);
+    let grep = AstGrep::doc(doc);
+    assert_eq!(grep.root().text(), "console.log(123)");
+    let node = grep.root().find("console");
+    assert!(node.is_some());
   }
 }

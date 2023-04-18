@@ -30,6 +30,15 @@ impl<L: Language> Root<StrDoc<L>> {
 }
 
 impl<D: Doc> Root<D> {
+  pub fn try_doc(doc: D) -> Result<Self, TSParseError> {
+    let inner = doc.parse(None)?;
+    Ok(Self { inner, doc })
+  }
+
+  pub fn doc(doc: D) -> Self {
+    Self::try_doc(doc).expect("Parse doc error")
+  }
+
   pub fn lang(&self) -> &D::Lang {
     self.doc.get_lang()
   }
