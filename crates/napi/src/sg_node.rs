@@ -18,8 +18,8 @@ pub struct Pos {
 fn to_pos(pos: (usize, usize), offset: usize) -> Pos {
   Pos {
     line: pos.0 as u32,
-    column: pos.1 as u32,
-    index: offset as u32,
+    column: pos.1 as u32 / 2,
+    index: offset as u32 / 2,
   }
 }
 
