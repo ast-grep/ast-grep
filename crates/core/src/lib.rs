@@ -27,6 +27,39 @@ pub struct AstGrep<D: Doc> {
   #[doc(hidden)]
   pub inner: Root<D>,
 }
+impl<D: Doc> AstGrep<D> {
+  pub fn root(&self) -> Node<D> {
+    self.inner.root()
+  }
+
+  pub fn edit(&mut self, edit: Edit<D::Source>) -> Result<&mut Self, TSParseError> {
+    self.inner.do_edit(edit)?;
+    Ok(self)
+  }
+
+  pub fn replace<M: Matcher<D::Lang>, R: Replacer<D::Lang>>(
+    &mut self,
+    pattern: M,
+    replacer: R,
+  ) -> Result<bool, TSParseError> {
+    if let Some(edit) = self.root().replace(pattern, replacer) {
+      self.edit(edit)?;
+      Ok(true)
+    } else {
+      Ok(false)
+    }
+  }
+
+  pub fn lang(&self) -> &D::Lang {
+    self.inner.lang()
+  }
+
+  pub fn doc(d: D) -> Self {
+    Self {
+      inner: Root::doc(d),
+    }
+  }
+}
 
 impl<L: Language> AstGrep<StrDoc<L>> {
   pub fn new<S: AsRef<str>>(src: S, lang: L) -> Self {
@@ -42,35 +75,8 @@ impl<L: Language> AstGrep<StrDoc<L>> {
     })
   }
   */
-
   pub fn source(&self) -> &str {
     self.inner.doc.get_source().as_str()
-  }
-
-  pub fn root(&self) -> Node<StrDoc<L>> {
-    self.inner.root()
-  }
-
-  pub fn edit(&mut self, edit: Edit<String>) -> Result<&mut Self, TSParseError> {
-    self.inner.do_edit(edit)?;
-    Ok(self)
-  }
-
-  pub fn replace<M: Matcher<L>, R: Replacer<L>>(
-    &mut self,
-    pattern: M,
-    replacer: R,
-  ) -> Result<bool, TSParseError> {
-    if let Some(edit) = self.root().replace(pattern, replacer) {
-      self.edit(edit)?;
-      Ok(true)
-    } else {
-      Ok(false)
-    }
-  }
-
-  pub fn lang(&self) -> &L {
-    self.inner.lang()
   }
 
   pub fn generate(self) -> String {

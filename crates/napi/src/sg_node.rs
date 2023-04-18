@@ -1,9 +1,9 @@
-use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern, StrDoc};
+use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
 use super::{parse_config, NapiConfig};
-use crate::doc::FrontEndLanguage;
+use crate::doc::JsDoc;
 
 #[napi(object)]
 pub struct Pos {
@@ -31,7 +31,7 @@ pub struct Range {
 
 #[napi]
 pub struct SgNode {
-  pub(super) inner: SharedReference<SgRoot, NodeMatch<'static, StrDoc<FrontEndLanguage>>>,
+  pub(super) inner: SharedReference<SgRoot, NodeMatch<'static, JsDoc>>,
 }
 
 #[napi]
@@ -161,7 +161,7 @@ impl SgNode {
   fn transpose_option(
     reference: Reference<SgNode>,
     env: Env,
-    node: Option<NodeMatch<'static, StrDoc<FrontEndLanguage>>>,
+    node: Option<NodeMatch<'static, JsDoc>>,
   ) -> Result<Option<SgNode>> {
     if let Some(node) = node {
       let root_ref = reference.inner.clone_owner(env)?;
@@ -208,7 +208,7 @@ impl SgNode {
   fn from_iter_to_vec(
     reference: &Reference<SgNode>,
     env: Env,
-    iter: impl Iterator<Item = NodeMatch<'static, StrDoc<FrontEndLanguage>>>,
+    iter: impl Iterator<Item = NodeMatch<'static, JsDoc>>,
   ) -> Result<Vec<SgNode>> {
     let mut ret = vec![];
     for node in iter {
@@ -276,10 +276,7 @@ impl SgNode {
 }
 
 #[napi]
-pub struct SgRoot(
-  pub(super) AstGrep<StrDoc<FrontEndLanguage>>,
-  pub(super) String,
-);
+pub struct SgRoot(pub(super) AstGrep<JsDoc>, pub(super) String);
 
 #[napi]
 impl SgRoot {
