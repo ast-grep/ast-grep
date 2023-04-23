@@ -264,12 +264,20 @@ impl<L: LSPLang> Backend<L> {
     let text_doc = params.text_document;
     let uri = text_doc.uri.as_str().to_owned();
     let text = text_doc.text;
+    self
+      .client
+      .log_message(MessageType::LOG, "Parsing doc.")
+      .await;
     let lang = Self::infer_lang_from_uri(&text_doc.uri)?;
     let root = AstGrep::new(text, lang);
     let versioned = VersionedAst {
       version: text_doc.version,
       root,
     };
+    self
+      .client
+      .log_message(MessageType::LOG, "Publishing init diagnostics.")
+      .await;
     self.publish_diagnostics(text_doc.uri, &versioned).await;
     self.map.insert(uri.to_owned(), versioned); // don't lock dashmap
     Some(())
@@ -278,6 +286,10 @@ impl<L: LSPLang> Backend<L> {
     let text_doc = params.text_document;
     let uri = text_doc.uri.as_str();
     let text = &params.content_changes[0].text;
+    self
+      .client
+      .log_message(MessageType::LOG, "Parsing changed doc.")
+      .await;
     let lang = Self::infer_lang_from_uri(&text_doc.uri)?;
     let root = AstGrep::new(text, lang);
     let mut versioned = self.map.get_mut(uri)?;
@@ -289,6 +301,10 @@ impl<L: LSPLang> Backend<L> {
       version: text_doc.version,
       root,
     };
+    self
+      .client
+      .log_message(MessageType::LOG, "Publishing diagnostics.")
+      .await;
     self.publish_diagnostics(text_doc.uri, &versioned).await;
     Some(())
   }
@@ -301,15 +317,7 @@ impl<L: LSPLang> Backend<L> {
     let uri = text_doc.uri.as_str();
     let path = text_doc.uri.to_file_path().ok()?;
     let diagnostics = params.context.diagnostics;
-    let mut error_id_to_ranges = HashMap::new();
-    for diagnostic in diagnostics {
-      let rule_id = match diagnostic.code {
-        Some(NumberOrString::String(rule)) => rule,
-        _ => continue,
-      };
-      let ranges = error_id_to_ranges.entry(rule_id).or_insert_with(Vec::new);
-      ranges.push(diagnostic.range);
-    }
+    let error_id_to_ranges = Self::build_error_id_to_ranges(diagnostics);
     let versioned = self.map.get(uri)?;
     let mut response = CodeActionResponse::new();
     for config in self.rules.for_path(&path) {
@@ -353,6 +361,19 @@ impl<L: LSPLang> Backend<L> {
       }
     }
     Some(response)
+  }
+
+  fn build_error_id_to_ranges(diagnostics: Vec<Diagnostic>) -> HashMap<String, Vec<Range>> {
+    let mut error_id_to_ranges = HashMap::new();
+    for diagnostic in diagnostics {
+      let rule_id = match diagnostic.code {
+        Some(NumberOrString::String(rule)) => rule,
+        _ => continue,
+      };
+      let ranges = error_id_to_ranges.entry(rule_id).or_insert_with(Vec::new);
+      ranges.push(diagnostic.range);
+    }
+    error_id_to_ranges
   }
 
   // TODO: support other urls besides file_scheme
