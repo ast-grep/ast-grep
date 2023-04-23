@@ -145,18 +145,17 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
         return None;
       }
     }
-    let mut new_env = env.clone();
-    self
-      .patterns
-      .iter()
-      .find_map(|p| {
-        new_env = env.clone();
-        p.match_node_with_env(node.clone(), &mut new_env)
-      })
-      .map(|_| {
-        *env = new_env;
-        node
-      })
+    let mut new_env = Cow::Borrowed(env.as_ref());
+    let found = self.patterns.iter().find_map(|p| {
+      new_env = Cow::Borrowed(env.as_ref());
+      p.match_node_with_env(node.clone(), &mut new_env)
+    });
+    if found.is_some() {
+      *env = Cow::Owned(new_env.into_owned());
+      Some(node)
+    } else {
+      None
+    }
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
@@ -181,12 +180,12 @@ where
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    let mut new_env = env.clone();
+    let mut new_env = Cow::Borrowed(env.as_ref());
     if let Some(ret) = self
       .pattern1
       .match_node_with_env(node.clone(), &mut new_env)
     {
-      *env = new_env;
+      *env = Cow::Owned(new_env.into_owned());
       Some(ret)
     } else {
       self.pattern2.match_node_with_env(node, env)
