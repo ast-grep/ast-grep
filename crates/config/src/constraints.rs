@@ -10,6 +10,7 @@ use ast_grep_core::{Doc, Matcher, Node, Pattern, PatternError, StrDoc};
 use bit_set::BitSet;
 use thiserror::Error;
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ops::Deref;
 
@@ -109,7 +110,7 @@ impl<L: Language> Matcher<L> for RuleWithConstraint<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     if let Some(kinds) = &self.kinds {
       if !kinds.contains(node.kind_id().into()) {

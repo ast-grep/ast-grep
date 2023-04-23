@@ -6,6 +6,7 @@ use bit_set::BitSet;
 use regex::{Error as RegexError, Regex};
 use thiserror::Error;
 
+use std::borrow::Cow;
 use std::marker::PhantomData;
 
 #[derive(Debug, Error)]
@@ -33,7 +34,7 @@ impl<L: Language> Matcher<L> for RegexMatcher<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    _env: &mut MetaVarEnv<'tree, D>,
+    _env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     self.regex.is_match(&node.text()).then_some(node)
   }

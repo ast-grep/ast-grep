@@ -6,6 +6,7 @@ use crate::{meta_var::MetaVarEnv, Node, Root};
 use crate::{Doc, StrDoc};
 
 use bit_set::BitSet;
+use std::borrow::Cow;
 use thiserror::Error;
 
 /// Pattern style specify how we find the ast node to match, assuming pattern text's root is `Program`
@@ -114,7 +115,7 @@ impl<L: Language> Matcher<L> for Pattern<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     match &self.style {
       PatternStyle::Single => {

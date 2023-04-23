@@ -3,6 +3,7 @@ use crate::meta_var::MetaVarEnv;
 // use crate::meta_var::{MetaVarMatcher, MetaVarMatchers};
 use crate::{Doc, Language, Node};
 use bit_set::BitSet;
+use std::borrow::Cow;
 use std::marker::PhantomData;
 
 pub struct And<L: Language, P1: Matcher<L>, P2: Matcher<L>> {
@@ -19,7 +20,7 @@ where
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     let node = self.pattern1.match_node_with_env(node, env)?;
     self.pattern2.match_node_with_env(node, env)
@@ -80,7 +81,7 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     if let Some(kinds) = &self.kinds {
       if !kinds.contains(node.kind_id().into()) {
@@ -137,7 +138,7 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     if let Some(kinds) = &self.kinds {
       if !kinds.contains(node.kind_id().into()) {
@@ -178,7 +179,7 @@ where
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     let mut new_env = env.clone();
     if let Some(ret) = self
@@ -225,7 +226,7 @@ where
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     self
       .not
@@ -249,7 +250,7 @@ where
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     let ret = self.inner.match_node_with_env(node, env);
     ret

@@ -1,6 +1,7 @@
 use crate::match_tree::does_node_match_exactly;
 use crate::matcher::{KindMatcher, Pattern, RegexMatcher};
 use crate::{Doc, Node};
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 pub type MetaVariableID = String;
@@ -176,7 +177,7 @@ impl<D: Doc> MetaVarMatcher<D> {
   pub fn matches(&self, candidate: Node<impl Doc<Lang = D::Lang>>) -> bool {
     use crate::matcher::Matcher;
     use MetaVarMatcher::*;
-    let mut env = MetaVarEnv::new();
+    let mut env = Cow::Owned(MetaVarEnv::new());
     match self {
       #[cfg(feature = "regex")]
       Regex(r) => r.match_node_with_env(candidate, &mut env).is_some(),

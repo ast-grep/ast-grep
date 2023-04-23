@@ -9,6 +9,7 @@ use crate::traversal::Pre;
 use crate::{Doc, Language, Node};
 
 use bit_set::BitSet;
+use std::borrow::Cow;
 
 pub use kind::{KindMatcher, KindMatcherError};
 pub use node_match::NodeMatch;
@@ -26,7 +27,7 @@ pub trait Matcher<L: Language> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     _node: Node<'tree, D>,
-    _env: &mut MetaVarEnv<'tree, D>,
+    _env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>>;
 
   /// Returns a bitset for all possible target node kind ids.
@@ -46,9 +47,9 @@ pub trait Matcher<L: Language> {
     node: Node<'tree, D>,
   ) -> Option<NodeMatch<'tree, D>> {
     // in future we might need to customize initial MetaVarEnv
-    let mut env = MetaVarEnv::new();
+    let mut env = Cow::Owned(MetaVarEnv::new());
     let node = self.match_node_with_env(node, &mut env)?;
-    Some(NodeMatch::new(node, env))
+    Some(NodeMatch::new(node, env.into_owned()))
   }
 
   fn find_node<'tree, D: Doc<Lang = L>>(
@@ -68,7 +69,7 @@ impl<L: Language> Matcher<L> for str {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     let pattern = Pattern::new(self, node.lang().clone());
     pattern.match_node_with_env(node, env)
@@ -88,7 +89,7 @@ where
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     (**self).match_node_with_env(node, env)
   }
@@ -187,7 +188,7 @@ impl<L: Language> Matcher<L> for MatchAll {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    _env: &mut MetaVarEnv<'tree, D>,
+    _env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     Some(node)
   }
@@ -203,7 +204,7 @@ impl<L: Language> Matcher<L> for MatchNone {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     _node: Node<'tree, D>,
-    _env: &mut MetaVarEnv<'tree, D>,
+    _env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     None
   }

@@ -7,6 +7,7 @@ use ast_grep_core::{Doc, Matcher, Node};
 use bit_set::BitSet;
 use thiserror::Error;
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak};
 
@@ -168,7 +169,7 @@ impl<L: Language> Matcher<L> for ReferentRule<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     self
       .eval_local(|r| r.match_node_with_env(node.clone(), env))

@@ -4,6 +4,7 @@ use crate::meta_var::MetaVarEnv;
 use crate::node::KindId;
 use crate::{Doc, Language, Node};
 
+use std::borrow::Cow;
 use std::marker::PhantomData;
 
 use bit_set::BitSet;
@@ -71,7 +72,7 @@ impl<L: Language> Matcher<L> for KindMatcher<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    _env: &mut MetaVarEnv<'tree, D>,
+    _env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     if node.kind_id() == self.kind {
       Some(node)

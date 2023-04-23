@@ -8,6 +8,7 @@ use ast_grep_core::{Doc, Matcher, Node};
 use stop_by::{SerializableStopBy, StopBy};
 
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -38,7 +39,7 @@ impl<L: Language> Matcher<L> for Inside<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     let ancestors = node.ancestors();
     if let Some(field) = &self.field {
@@ -82,7 +83,7 @@ impl<L: Language> Matcher<L> for Has<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     if let Some(field) = &self.field {
       let nd = node.field(field)?;
@@ -147,7 +148,7 @@ impl<L: Language> Matcher<L> for Precedes<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     let next_all = node.next_all();
     let finder = |n| self.later.match_node_with_env(n, env);
@@ -174,7 +175,7 @@ impl<L: Language> Matcher<L> for Follows<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     let prev_all = node.prev_all();
     let finder = |n| self.former.match_node_with_env(n, env);

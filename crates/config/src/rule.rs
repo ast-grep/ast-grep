@@ -11,6 +11,7 @@ use ast_grep_core::{Doc, Matcher, Node, Pattern, PatternError};
 
 use bit_set::BitSet;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use thiserror::Error;
 
 /// We have three kinds of rules in ast-grep.
@@ -159,7 +160,7 @@ impl<L: Language> Matcher<L> for Rule<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     use Rule::*;
     match self {
@@ -212,10 +213,10 @@ impl<L: Language> Default for Rule<L> {
 fn match_and_add_label<'tree, D: Doc, M: Matcher<D::Lang>>(
   inner: &M,
   node: Node<'tree, D>,
-  env: &mut MetaVarEnv<'tree, D>,
+  env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<Node<'tree, D>> {
   let matched = inner.match_node_with_env(node, env)?;
-  env.add_label("secondary", matched.clone());
+  env.to_mut().add_label("secondary", matched.clone());
   Some(matched)
 }
 
