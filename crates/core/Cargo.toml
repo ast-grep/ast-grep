@@ -1,6 +1,6 @@
 [package]
 name = "ast-grep-core"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
 edition = "2021"
 description = "Search and Rewrite code at large scale using precise AST pattern"
