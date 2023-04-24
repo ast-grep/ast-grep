@@ -122,7 +122,8 @@ type FoundConfig = (PathBuf, AstGrepConfig);
 
 fn run_create_entity(entity: Entity, arg: NewArg) -> Result<()> {
   // check if we are under a project dir
-  if let Some(found) = read_config_from_dir(&arg.base_dir)? {
+  if let Some(mut found) = read_config_from_dir(&arg.base_dir)? {
+    found.0.pop(); // remove sgconfig.yml from the path
     return do_create_entity(entity, found, arg);
   }
   // check if we creating a project
