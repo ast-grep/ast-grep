@@ -26,7 +26,7 @@ atty = "0.2.14"
 crossterm = "0.26.0"
 inquire = "0.6.1"
 anyhow = "1.0"
-clap = { version = "4.2.4", features = ["derive"] }
+clap = { version = "4.2.5", features = ["derive"] }
 codespan-reporting = "0.11.1"
 ignore = "0.4.20"
 num_cpus = "1.15.0"
