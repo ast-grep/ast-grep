@@ -68,9 +68,6 @@ mod test {
   #[derive(Clone)]
   pub struct Tsx;
   impl Language for Tsx {
-    fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
-      Some(Tsx)
-    }
     fn get_ts_language(&self) -> TSLanguage {
       tree_sitter_typescript::language_tsx().into()
     }

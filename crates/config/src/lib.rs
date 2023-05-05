@@ -52,9 +52,6 @@ mod test {
     fn get_ts_language(&self) -> TSLanguage {
       tree_sitter_typescript::language_tsx().into()
     }
-    fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
-      Some(TypeScript::Tsx)
-    }
   }
 
   fn test_rule_match(yaml: &str, source: &str) {
