@@ -49,6 +49,9 @@ mod test {
     Tsx,
   }
   impl Language for TypeScript {
+    fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
+      Some(TypeScript::Tsx)
+    }
     fn get_ts_language(&self) -> TSLanguage {
       tree_sitter_typescript::language_tsx().into()
     }
