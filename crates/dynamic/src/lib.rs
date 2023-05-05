@@ -3,10 +3,11 @@ use ast_grep_core::Language;
 
 use libloading::{Error as LibError, Library, Symbol};
 use thiserror::Error;
-use tree_sitter_native::{Language as TSLang, LANGUAGE_VERSION, MIN_COMPATIBLE_LANGUAGE_VERSION};
+use tree_sitter_native::{Language as NativeTS, LANGUAGE_VERSION, MIN_COMPATIBLE_LANGUAGE_VERSION};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fs::canonicalize;
 use std::path::PathBuf;
 
 #[derive(Clone)]
@@ -24,21 +25,34 @@ pub enum DynamicLangError {
   ReadSymbol(#[source] LibError),
   #[error("Incompatible tree-sitter parser version `{0}`")]
   IncompatibleVersion(usize),
+  #[error("cannot get the absolute path of dynamic lib")]
+  GetLibPath(#[from] std::io::Error),
 }
 
+/// # Safety: we must keep lib in memory after load it.
+/// libloading will do cleanup if `Library` is dropped which makes any lib symbol null pointer.
+/// This is not desirable for our case.
 fn load_ts_language(path: PathBuf, name: String) -> Result<TSLanguage, DynamicLangError> {
-  unsafe {
-    let lib = Library::new(path.as_os_str()).map_err(DynamicLangError::OpenLib)?;
-    let func: Symbol<unsafe extern "C" fn() -> TSLang> = lib
+  let lang = unsafe {
+    let abs_path = canonicalize(path)?;
+    let lib = Library::new(abs_path.as_os_str()).map_err(DynamicLangError::OpenLib)?;
+    // NOTE: func is a symbol with lifetime bound to `lib`.
+    // If we drop lib in the scope, func will be a dangling pointer.
+    let func: Symbol<unsafe extern "C" fn() -> NativeTS> = lib
       .get(name.as_bytes())
       .map_err(DynamicLangError::ReadSymbol)?;
     let lang = func();
-    let version = lang.version();
-    if !(MIN_COMPATIBLE_LANGUAGE_VERSION..=LANGUAGE_VERSION).contains(&version) {
-      Err(DynamicLangError::IncompatibleVersion(version))
-    } else {
-      Ok(lang.into())
-    }
+    // ATTENTIOIN: dragon ahead
+    // TODO: make a struct to hold lib reference
+    std::mem::forget(lib);
+    //  end of mem safety critical code
+    lang
+  };
+  let version = lang.version();
+  if !(MIN_COMPATIBLE_LANGUAGE_VERSION..=LANGUAGE_VERSION).contains(&version) {
+    Err(DynamicLangError::IncompatibleVersion(version))
+  } else {
+    Ok(lang.into())
   }
 }
 
@@ -118,5 +132,29 @@ impl Language for DynamicLang {
   #[inline]
   fn expando_char(&self) -> char {
     self.expando_char
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  #[test]
+  fn test_load_parser() {
+    let lang = load_ts_language(
+      "../../benches/fixtures/json.so".into(),
+      "tree_sitter_json".into(),
+    )
+    .unwrap();
+    let dl = DynamicLang {
+      lang,
+      meta_var_char: '$',
+      expando_char: '$',
+    };
+    let sg = dl.ast_grep("{\"a\": 123}");
+    assert_eq!(
+      sg.root().to_sexp(),
+      "(document (object (pair key: (string (string_content)) value: (number))))"
+    );
   }
 }
