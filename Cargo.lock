@@ -159,6 +159,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ast-grep-dynamic"
+version = "0.4.1"
+dependencies = [
+ "ast-grep-core",
+ "libloading 0.8.0",
+ "thiserror",
+ "tree-sitter",
+]
+
+[[package]]
 name = "ast-grep-language"
 version = "0.4.1"
 dependencies = [
@@ -937,6 +947,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "libloading"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d580318f95776505201b28cf98eb1fa5e4be3b689633ba6a3e6cd880ff22d8cb"
+dependencies = [
+ "cfg-if",
+ "windows-sys 0.48.0",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1064,7 +1084,7 @@ version = "2.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "166b5ef52a3ab5575047a9fe8d4a030cdd0f63c96f071cd6907674453b07bae3"
 dependencies = [
- "libloading",
+ "libloading 0.7.3",
 ]
 
 [[package]]
