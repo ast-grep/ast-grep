@@ -139,10 +139,11 @@ impl Language for DynamicLang {
 mod test {
   use super::*;
 
+  #[cfg(target_os = "macos")]
   #[test]
   fn test_load_parser() {
     let lang = load_ts_language(
-      "../../benches/fixtures/json.so".into(),
+      "../../benches/fixtures/json-mac.so".into(),
       "tree_sitter_json".into(),
     )
     .unwrap();
