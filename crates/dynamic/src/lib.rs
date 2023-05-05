@@ -3,7 +3,7 @@ use ast_grep_core::Language;
 
 use libloading::{Error as LibError, Library, Symbol};
 use thiserror::Error;
-use tree_sitter_native::Language as TSLang;
+use tree_sitter_native::{Language as TSLang, LANGUAGE_VERSION, MIN_COMPATIBLE_LANGUAGE_VERSION};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -22,8 +22,8 @@ pub enum DynamicLangError {
   OpenLib(#[source] LibError),
   #[error("cannot read symbol")]
   ReadSymbol(#[source] LibError),
-  #[error("Incompatible tree-sitter parser version")]
-  IncompatibleVersion,
+  #[error("Incompatible tree-sitter parser version `{0}`")]
+  IncompatibleVersion(usize),
 }
 
 fn load_ts_language(path: PathBuf, name: String) -> Result<TSLanguage, DynamicLangError> {
@@ -33,7 +33,12 @@ fn load_ts_language(path: PathBuf, name: String) -> Result<TSLanguage, DynamicLa
       .get(name.as_bytes())
       .map_err(DynamicLangError::ReadSymbol)?;
     let lang = func();
-    Ok(lang.into())
+    let version = lang.version();
+    if !(MIN_COMPATIBLE_LANGUAGE_VERSION..=LANGUAGE_VERSION).contains(&version) {
+      Err(DynamicLangError::IncompatibleVersion(version))
+    } else {
+      Ok(lang.into())
+    }
   }
 }
 
