@@ -114,6 +114,7 @@ dependencies = [
  "assert_cmd",
  "ast-grep-config",
  "ast-grep-core",
+ "ast-grep-dynamic",
  "ast-grep-language",
  "ast-grep-lsp",
  "atty",
@@ -164,6 +165,7 @@ version = "0.4.1"
 dependencies = [
  "ast-grep-core",
  "libloading 0.8.0",
+ "serde",
  "thiserror",
  "tree-sitter",
 ]

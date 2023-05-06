@@ -16,5 +16,6 @@ rust-version = "1.63"
 [dependencies]
 ast-grep-core = { version = "0.4.1", path = "../core" }
 libloading = "0.8"
-tree-sitter-native = { version = "0.20.9", package = "tree-sitter" }
+serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0.40"
+tree-sitter-native = { version = "0.20.9", package = "tree-sitter" }

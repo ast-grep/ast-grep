@@ -19,6 +19,7 @@ path = "src/main.rs"
 ast-grep-core = { version = "0.4.1", path = "../core" }
 ast-grep-config = { version = "0.4.1", path = "../config" }
 ast-grep-lsp = { version = "0.4.1", path = "../lsp" }
+ast-grep-dynamic = { version = "0.4.1", path = "../dynamic" }
 ast-grep-language = { version = "0.4.1", path = "../language" }
 
 ansi_term = "0.12"
