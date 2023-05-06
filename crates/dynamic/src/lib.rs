@@ -13,7 +13,11 @@ use std::path::{Path, PathBuf};
 type LangIndex = u32;
 
 #[derive(Clone, PartialEq, Eq)]
-pub struct DynamicLang(LangIndex);
+pub struct DynamicLang {
+  index: LangIndex,
+  // inline expando char since it is used frequently
+  expando: char,
+}
 
 // impl Serialize for DynamicLang {
 // }
@@ -118,7 +122,7 @@ impl DynamicLang {
   }
   fn inner(&self) -> &Inner {
     let langs = unsafe { DYNAMIC_LANG.as_ref().unwrap() };
-    &langs[self.0 as usize]
+    &langs[self.index as usize]
   }
 }
 
@@ -131,9 +135,14 @@ impl Language for DynamicLang {
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     let ext = path.as_ref().extension()?.to_str()?;
     let mapping = unsafe { LANG_INDEX.as_ref().unwrap() };
-    mapping.iter().map(|n| &n.0).enumerate().find_map(|(i, e)| {
-      if e == ext {
-        Some(Self(i as LangIndex))
+    let langs = unsafe { DYNAMIC_LANG.as_ref().unwrap() };
+    mapping.iter().find_map(|(p, idx)| {
+      if p == ext {
+        let index = *idx;
+        Some(Self {
+          index,
+          expando: langs[*idx as usize].expando_char,
+        })
       } else {
         None
       }
@@ -166,7 +175,7 @@ impl Language for DynamicLang {
   /// By default this is the same as meta_var char so replacement is done at runtime.
   #[inline]
   fn expando_char(&self) -> char {
-    self.inner().expando_char
+    self.expando
   }
 }
 
