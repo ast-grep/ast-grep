@@ -156,8 +156,16 @@ impl DynamicLang {
     Ok(())
   }
   fn inner(&self) -> &Inner {
-    let langs = unsafe { DYNAMIC_LANG.as_ref().unwrap() };
+    let langs = Self::langs();
     &langs[self.index as usize]
+  }
+
+  fn langs() -> &'static Vec<Inner> {
+    unsafe { DYNAMIC_LANG.as_ref().unwrap() }
+  }
+
+  pub fn all_langs() -> Vec<String> {
+    Self::langs().iter().map(|i| i.name.clone()).collect()
   }
 }
 
@@ -170,7 +178,7 @@ impl Language for DynamicLang {
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     let ext = path.as_ref().extension()?.to_str()?;
     let mapping = unsafe { LANG_INDEX.as_ref().unwrap() };
-    let langs = unsafe { DYNAMIC_LANG.as_ref().unwrap() };
+    let langs = Self::langs();
     mapping.iter().find_map(|(p, idx)| {
       if p == ext {
         let index = *idx;

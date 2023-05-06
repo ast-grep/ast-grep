@@ -30,7 +30,7 @@ impl Language for SgLang {
 
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     SupportLang::from_path(path.as_ref())
-      .map(SgLang::Builtin)
+      .map(SgLang::from)
       .or_else(|| DynamicLang::from_path(path).map(SgLang::Custom))
   }
 
