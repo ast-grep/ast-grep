@@ -164,6 +164,7 @@ name = "ast-grep-dynamic"
 version = "0.4.1"
 dependencies = [
  "ast-grep-core",
+ "ignore",
  "libloading 0.8.0",
  "serde",
  "thiserror",

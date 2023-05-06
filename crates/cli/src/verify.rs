@@ -1,12 +1,13 @@
 use crate::config::{find_rules, find_tests, read_test_files, TestHarness};
 use crate::error::ErrorContext;
+use crate::lang::SgLang;
 use crate::print::{print_diff, ColorChoice, PrintStyles};
 use crate::utils::{prompt, run_in_alternate_screen};
 use ansi_term::{Color, Style};
 use anyhow::{anyhow, Result};
 use ast_grep_config::{RuleCollection, RuleConfig};
 use ast_grep_core::{Node as SgNode, NodeMatch, StrDoc};
-use ast_grep_language::{Language, SupportLang};
+use ast_grep_language::Language;
 use clap::Args;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_yaml::to_string;
@@ -55,7 +56,7 @@ pub struct Label {
 }
 
 impl Label {
-  fn primary(n: &Node<SupportLang>) -> Self {
+  fn primary(n: &Node<SgLang>) -> Self {
     let range = n.range();
     Self {
       source: n.text().to_string(),
@@ -66,7 +67,7 @@ impl Label {
     }
   }
 
-  fn secondary(n: &Node<SupportLang>) -> Self {
+  fn secondary(n: &Node<SgLang>) -> Self {
     let range = n.range();
     Self {
       source: n.text().to_string(),
@@ -77,7 +78,7 @@ impl Label {
     }
   }
 
-  fn from_matched(n: NodeMatch<StrDoc<SupportLang>>) -> Vec<Self> {
+  fn from_matched(n: NodeMatch<StrDoc<SgLang>>) -> Vec<Self> {
     let mut ret = vec![Self::primary(&n)];
     if let Some(secondary) = n.get_env().get_labels("secondary") {
       ret.extend(secondary.iter().map(Self::secondary));
@@ -288,7 +289,7 @@ enum SnapshotAction {
 }
 
 fn verify_invalid_case<'a>(
-  rule_config: &RuleConfig<SupportLang>,
+  rule_config: &RuleConfig<SgLang>,
   case: &'a str,
   snapshot: Option<&TestSnapshots>,
 ) -> CaseStatus<'a> {
@@ -329,7 +330,7 @@ fn verify_invalid_case<'a>(
 }
 
 fn verify_test_case_simple<'a>(
-  rules: &RuleCollection<SupportLang>,
+  rules: &RuleCollection<SgLang>,
   test_case: &'a TestCase,
   snapshots: Option<&SnapshotCollection>,
 ) -> Option<CaseResult<'a>> {
@@ -714,7 +715,7 @@ mod test {
 
   const TEST_RULE: &str = "test-rule";
 
-  fn get_rule_config(rule: &str) -> RuleConfig<SupportLang> {
+  fn get_rule_config(rule: &str) -> RuleConfig<SgLang> {
     let globals = GlobalRules::default();
     let inner = from_str(&format!(
       "
@@ -729,12 +730,12 @@ rule:
     .unwrap();
     RuleConfig::try_from(inner, &globals).unwrap()
   }
-  fn always_report_rule() -> RuleCollection<SupportLang> {
+  fn always_report_rule() -> RuleCollection<SgLang> {
     // empty all should mean always
     let rule = get_rule_config("all: []");
     RuleCollection::try_new(vec![rule]).expect("RuleCollection must be valid")
   }
-  fn never_report_rule() -> RuleCollection<SupportLang> {
+  fn never_report_rule() -> RuleCollection<SgLang> {
     // empty any should mean never
     let rule = get_rule_config("any: []");
     RuleCollection::try_new(vec![rule]).expect("RuleCollection must be valid")

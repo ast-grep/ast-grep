@@ -1,9 +1,10 @@
+use crate::lang::SgLang;
 use ast_grep_config::{RuleConfig, Severity};
 use ast_grep_core::{meta_var::MetaVariable, Node as SgNode, NodeMatch as SgNodeMatch, StrDoc};
+
 type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
 type Node<'a, L> = SgNode<'a, StrDoc<L>>;
 
-use ast_grep_language::SupportLang;
 use std::collections::HashMap;
 
 use super::{Diff, Printer};
@@ -19,7 +20,7 @@ use std::sync::Mutex;
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.
 macro_rules! Matches {
-  ($lt: lifetime) => { impl Iterator<Item = NodeMatch<$lt, SupportLang>> };
+  ($lt: lifetime) => { impl Iterator<Item = NodeMatch<$lt, SgLang>> };
 }
 macro_rules! Diffs {
   ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
@@ -63,7 +64,7 @@ struct MatchJSON<'a> {
   file: Cow<'a, str>,
   #[serde(skip_serializing_if = "Option::is_none")]
   replacement: Option<Cow<'a, str>>,
-  language: SupportLang,
+  language: SgLang,
   #[serde(skip_serializing_if = "Option::is_none")]
   meta_variables: Option<MetaVariables<'a>>,
 }
@@ -74,7 +75,7 @@ struct MetaVariables<'a> {
   single: HashMap<String, MatchNode<'a>>,
   multi: HashMap<String, Vec<MatchNode<'a>>>,
 }
-fn from_env<'a>(nm: &NodeMatch<'a, SupportLang>) -> Option<MetaVariables<'a>> {
+fn from_env<'a>(nm: &NodeMatch<'a, SgLang>) -> Option<MetaVariables<'a>> {
   let env = nm.get_env();
   let mut vars = env.get_matched_variables().peekable();
   vars.peek()?;
@@ -112,7 +113,7 @@ fn from_env<'a>(nm: &NodeMatch<'a, SupportLang>) -> Option<MetaVariables<'a>> {
   Some(MetaVariables { single, multi })
 }
 
-fn get_range(n: &Node<'_, SupportLang>) -> Range {
+fn get_range(n: &Node<'_, SgLang>) -> Range {
   let start_pos = n.start_pos();
   let end_pos = n.end_pos();
   Range {
@@ -129,7 +130,7 @@ fn get_range(n: &Node<'_, SupportLang>) -> Range {
 }
 
 impl<'a> MatchJSON<'a> {
-  fn new(nm: NodeMatch<'a, SupportLang>, path: &'a str) -> Self {
+  fn new(nm: NodeMatch<'a, SgLang>, path: &'a str) -> Self {
     MatchJSON {
       file: Cow::Borrowed(path),
       text: nm.text(),
@@ -140,7 +141,7 @@ impl<'a> MatchJSON<'a> {
     }
   }
 }
-fn get_labels<'a>(nm: &NodeMatch<'a, SupportLang>) -> Option<Vec<MatchNode<'a>>> {
+fn get_labels<'a>(nm: &NodeMatch<'a, SgLang>) -> Option<Vec<MatchNode<'a>>> {
   let env = nm.get_env();
   let labels = env.get_labels("secondary")?;
   Some(
@@ -166,7 +167,7 @@ struct RuleMatchJSON<'a> {
   labels: Option<Vec<MatchNode<'a>>>,
 }
 impl<'a> RuleMatchJSON<'a> {
-  fn new(nm: NodeMatch<'a, SupportLang>, path: &'a str, rule: &'a RuleConfig<SupportLang>) -> Self {
+  fn new(nm: NodeMatch<'a, SgLang>, path: &'a str, rule: &'a RuleConfig<SgLang>) -> Self {
     let message = rule.get_message(&nm);
     let labels = get_labels(&nm);
     let matched = MatchJSON::new(nm, path);
@@ -225,7 +226,7 @@ impl<W: Write> Printer for JSONPrinter<W> {
     &self,
     matches: Matches!('a),
     file: SimpleFile<Cow<str>, &String>,
-    rule: &RuleConfig<SupportLang>,
+    rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
     let path = file.name();
     let jsons = matches.map(|nm| RuleMatchJSON::new(nm, path, rule));
@@ -251,7 +252,7 @@ impl<W: Write> Printer for JSONPrinter<W> {
     &self,
     diffs: Diffs!('a),
     path: &Path,
-    rule: &RuleConfig<SupportLang>,
+    rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
     let path = path.to_string_lossy();
     let jsons = diffs.map(|diff| {
@@ -282,7 +283,7 @@ impl<W: Write> Printer for JSONPrinter<W> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_core::language::Language;
+  use ast_grep_language::{Language, SupportLang};
 
   struct Test(String);
   impl Write for Test {
@@ -336,7 +337,7 @@ mod test {
     for &(source, pattern, note) in MATCHES_CASES {
       // heading is required for CI
       let printer = make_test_printer();
-      let grep = SupportLang::Tsx.ast_grep(source);
+      let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
       let matches = grep.root().find_all(pattern);
       printer.before_print().unwrap();
       printer.print_matches(matches, "test.tsx".as_ref()).unwrap();

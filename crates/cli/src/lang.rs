@@ -1,16 +1,58 @@
 use ast_grep_core::language::TSLanguage;
 use ast_grep_dynamic::DynamicLang;
 use ast_grep_language::{Language, SupportLang};
+use ignore::types::Types;
 use serde::{Deserialize, Serialize};
 
 use std::borrow::Cow;
+use std::fmt::{Display, Formatter};
 use std::path::Path;
+use std::str::FromStr;
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SgLang {
+  // inlined support lang expando char
   Builtin(SupportLang),
   Custom(DynamicLang),
+}
+
+impl SgLang {
+  pub fn file_types(&self) -> Types {
+    match self {
+      Builtin(b) => b.file_types(),
+      Custom(c) => c.file_types(),
+    }
+  }
+}
+
+#[derive(Debug)]
+pub enum SgLangErr {
+  LanguageNotSupported(String),
+}
+
+impl Display for SgLangErr {
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+    use SgLangErr::*;
+    match self {
+      LanguageNotSupported(lang) => write!(f, "{} is not supported!", lang),
+    }
+  }
+}
+
+impl std::error::Error for SgLangErr {}
+
+impl FromStr for SgLang {
+  type Err = SgLangErr;
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    if let Ok(b) = SupportLang::from_str(s) {
+      Ok(SgLang::Builtin(b))
+    } else if let Ok(c) = DynamicLang::from_str(s) {
+      Ok(SgLang::Custom(c))
+    } else {
+      Err(SgLangErr::LanguageNotSupported(s.into()))
+    }
+  }
 }
 
 impl From<SupportLang> for SgLang {

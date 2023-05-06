@@ -1,20 +1,20 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use ast_grep_core::language::Language;
 use ast_grep_core::traversal::Visitor;
 use ast_grep_core::{Matcher, Pattern};
+use ast_grep_language::Language;
 use clap::Parser;
 use ignore::WalkParallel;
 
 use crate::config::{IgnoreFile, NoIgnore};
 use crate::error::ErrorContext as EC;
+use crate::lang::SgLang;
 use crate::print::{
   ColorArg, ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer,
 };
 use crate::utils::{filter_file_interactive, MatchUnit};
 use crate::utils::{run_worker, Items, Worker};
-use ast_grep_language::{file_types, SupportLang};
 
 #[derive(Parser)]
 pub struct RunArg {
@@ -32,7 +32,7 @@ pub struct RunArg {
 
   /// The language of the pattern query.
   #[clap(short, long)]
-  lang: Option<SupportLang>,
+  lang: Option<SgLang>,
 
   /// Start interactive edit session. Code rewrite only happens inside a session.
   #[clap(short, long)]
@@ -97,7 +97,7 @@ struct RunWithInferredLang<Printer> {
 }
 
 impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
-  type Item = (MatchUnit<Pattern<SupportLang>>, SupportLang);
+  type Item = (MatchUnit<Pattern<SgLang>>, SgLang);
   fn build_walk(&self) -> WalkParallel {
     let arg = &self.arg;
     let threads = num_cpus::get().min(12);
@@ -108,7 +108,7 @@ impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
   }
 
   fn produce_item(&self, path: &Path) -> Option<Self::Item> {
-    let lang = SupportLang::from_path(path)?;
+    let lang = SgLang::from_path(path)?;
     let matcher = Pattern::try_new(&self.arg.pattern, lang).ok()?;
     let match_unit = filter_file_interactive(path, lang, matcher)?;
     Some((match_unit, lang))
@@ -140,7 +140,7 @@ impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
 struct RunWithSpecificLang<Printer> {
   arg: RunArg,
   printer: Printer,
-  pattern: Pattern<SupportLang>,
+  pattern: Pattern<SgLang>,
 }
 
 impl<Printer> RunWithSpecificLang<Printer> {
@@ -157,7 +157,7 @@ impl<Printer> RunWithSpecificLang<Printer> {
 }
 
 impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
-  type Item = MatchUnit<Pattern<SupportLang>>;
+  type Item = MatchUnit<Pattern<SgLang>>;
   fn build_walk(&self) -> WalkParallel {
     let arg = &self.arg;
     let threads = num_cpus::get().min(12);
@@ -165,7 +165,7 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
     NoIgnore::disregard(&arg.no_ignore)
       .walk(&arg.paths)
       .threads(threads)
-      .types(file_types(&lang))
+      .types(lang.file_types())
       .build_parallel()
   }
   fn produce_item(&self, path: &Path) -> Option<Self::Item> {
@@ -197,8 +197,8 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
 
 fn match_one_file(
   printer: &impl Printer,
-  match_unit: &MatchUnit<impl Matcher<SupportLang>>,
-  rewrite: &Option<Pattern<SupportLang>>,
+  match_unit: &MatchUnit<impl Matcher<SgLang>>,
+  rewrite: &Option<Pattern<SgLang>>,
 ) -> Result<()> {
   let MatchUnit {
     path,
@@ -218,6 +218,7 @@ fn match_one_file(
 #[cfg(test)]
 mod test {
   use super::*;
+  use ast_grep_language::SupportLang;
   #[test]
   fn test_run_with_pattern() {
     let arg = RunArg {
@@ -244,7 +245,7 @@ mod test {
       color: ColorArg::Never,
       no_ignore: vec![],
       interactive: false,
-      lang: Some(SupportLang::Rust),
+      lang: Some(SupportLang::Rust.into()),
       json: false,
       heading: Heading::Never,
       debug_query: false,

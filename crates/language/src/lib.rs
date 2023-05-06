@@ -74,6 +74,10 @@ impl SupportLang {
       Tsx, TypeScript,
     ]
   }
+
+  pub fn file_types(&self) -> Types {
+    file_types(self)
+  }
 }
 
 impl fmt::Display for SupportLang {
@@ -174,7 +178,7 @@ impl Language for SupportLang {
 
 /// Guess which programming language a file is written in
 /// Adapt from `<https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs>`
-pub fn from_extension(path: &Path) -> Option<SupportLang> {
+fn from_extension(path: &Path) -> Option<SupportLang> {
   use SupportLang::*;
   match path.extension()?.to_str()? {
     "c" | "h" => Some(C),
@@ -210,7 +214,7 @@ fn add_custom_file_type<'b>(
   builder.select(file_type)
 }
 
-pub fn file_types(lang: &SupportLang) -> Types {
+fn file_types(lang: &SupportLang) -> Types {
   use SupportLang as L;
   let mut builder = TypesBuilder::new();
   builder.add_defaults();

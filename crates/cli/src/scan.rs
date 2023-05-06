@@ -3,18 +3,20 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{RuleCollection, RuleConfig, Severity};
-use ast_grep_core::{AstGrep, Matcher, NodeMatch, StrDoc};
+use ast_grep_core::{Matcher, NodeMatch, StrDoc};
 use clap::Args;
 use ignore::WalkParallel;
 
 use crate::config::{find_rules, read_rule_file, IgnoreFile, NoIgnore};
 use crate::error::ErrorContext as EC;
+use crate::lang::SgLang;
 use crate::print::{
   ColorArg, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Printer, ReportStyle, SimpleFile,
 };
 use crate::utils::filter_file_interactive;
 use crate::utils::{run_worker, Items, Worker};
-use ast_grep_language::SupportLang;
+
+type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
 
 #[derive(Args)]
 pub struct ScanArg {
@@ -75,7 +77,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
 struct ScanWithConfig<Printer> {
   arg: ScanArg,
   printer: Printer,
-  configs: RuleCollection<SupportLang>,
+  configs: RuleCollection<SgLang>,
 }
 impl<P: Printer> ScanWithConfig<P> {
   fn try_new(mut arg: ScanArg, printer: P) -> Result<Self> {
@@ -94,7 +96,7 @@ impl<P: Printer> ScanWithConfig<P> {
 }
 
 impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
-  type Item = (PathBuf, AstGrep<StrDoc<SupportLang>>);
+  type Item = (PathBuf, AstGrep);
   fn build_walk(&self) -> WalkParallel {
     let arg = &self.arg;
     let threads = num_cpus::get().min(12);
@@ -144,8 +146,8 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
 
 fn match_rule_on_file(
   path: &Path,
-  matches: Vec<NodeMatch<StrDoc<SupportLang>>>,
-  rule: &RuleConfig<SupportLang>,
+  matches: Vec<NodeMatch<StrDoc<SgLang>>>,
+  rule: &RuleConfig<SgLang>,
   file_content: &String,
   reporter: &impl Printer,
 ) -> Result<()> {
@@ -161,12 +163,12 @@ fn match_rule_on_file(
 }
 
 struct CombinedScan<'r> {
-  rules: Vec<&'r RuleConfig<SupportLang>>,
+  rules: Vec<&'r RuleConfig<SgLang>>,
   kind_rule_mapping: Vec<Vec<usize>>,
 }
 
 impl<'r> CombinedScan<'r> {
-  fn new(rules: Vec<&'r RuleConfig<SupportLang>>) -> Self {
+  fn new(rules: Vec<&'r RuleConfig<SgLang>>) -> Self {
     let mut mapping = Vec::new();
     for (idx, rule) in rules.iter().enumerate() {
       for kind in &rule
@@ -189,7 +191,7 @@ impl<'r> CombinedScan<'r> {
     }
   }
 
-  fn find(&self, root: &AstGrep<StrDoc<SupportLang>>) -> bool {
+  fn find(&self, root: &AstGrep) -> bool {
     for node in root.root().dfs() {
       let kind = node.kind_id() as usize;
       let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
@@ -204,10 +206,7 @@ impl<'r> CombinedScan<'r> {
     }
     false
   }
-  fn scan<'a>(
-    &self,
-    root: &'a AstGrep<StrDoc<SupportLang>>,
-  ) -> HashMap<usize, Vec<NodeMatch<'a, StrDoc<SupportLang>>>> {
+  fn scan<'a>(&self, root: &'a AstGrep) -> HashMap<usize, Vec<NodeMatch<'a, StrDoc<SgLang>>>> {
     let mut results = HashMap::new();
     for node in root.root().dfs() {
       let kind = node.kind_id() as usize;

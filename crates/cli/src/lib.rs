@@ -1,5 +1,6 @@
 mod config;
 mod error;
+mod lang;
 mod lsp;
 mod new;
 mod print;

@@ -1,6 +1,6 @@
 use super::{Diff, Printer};
+use crate::lang::SgLang;
 use ast_grep_config::{RuleConfig, Severity};
-use ast_grep_language::SupportLang;
 
 use ansi_term::{Color, Style};
 use anyhow::Result;
@@ -22,7 +22,7 @@ type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.
 macro_rules! Matches {
-  ($lt: lifetime) => { impl Iterator<Item = NodeMatch<$lt, SupportLang>> };
+  ($lt: lifetime) => { impl Iterator<Item = NodeMatch<$lt, SgLang>> };
 }
 macro_rules! Diffs {
   ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
@@ -109,7 +109,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     &self,
     matches: Matches!('a),
     file: SimpleFile<Cow<str>, &String>,
-    rule: &RuleConfig<SupportLang>,
+    rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
     let config = &self.config;
     let mut writer = self.writer.lock().expect("should not fail");
@@ -155,7 +155,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     &self,
     diffs: Diffs!('a),
     path: &Path,
-    rule: &RuleConfig<SupportLang>,
+    rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
     let writer = &mut *self.writer.lock().expect("should success");
     print_rule_title(rule, &self.styles.rule, writer)?;
@@ -169,7 +169,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
 }
 
 fn print_rule_title<W: WriteColor>(
-  rule: &RuleConfig<SupportLang>,
+  rule: &RuleConfig<SgLang>,
   style: &RuleStyle,
   writer: &mut W,
 ) -> Result<()> {
@@ -219,7 +219,7 @@ struct MatchMerger<'a> {
 }
 
 impl<'a> MatchMerger<'a> {
-  fn new(nm: &NodeMatch<'a, SupportLang>) -> Self {
+  fn new(nm: &NodeMatch<'a, SgLang>) -> Self {
     let display = nm.display_context(0);
     let last_start_line = display.start_line;
     let last_end_line = nm.end_pos().0;
@@ -234,7 +234,7 @@ impl<'a> MatchMerger<'a> {
   }
 
   // merge non-overlapping matches but start/end on the same line
-  fn merge_adjacent(&mut self, nm: &NodeMatch<'a, SupportLang>) -> Option<usize> {
+  fn merge_adjacent(&mut self, nm: &NodeMatch<'a, SgLang>) -> Option<usize> {
     let start_line = nm.start_pos().0;
     let display = nm.display_context(0);
     if start_line == self.last_end_line {
@@ -247,7 +247,7 @@ impl<'a> MatchMerger<'a> {
     }
   }
 
-  fn conclude_match(&mut self, nm: &NodeMatch<'a, SupportLang>) {
+  fn conclude_match(&mut self, nm: &NodeMatch<'a, SgLang>) {
     let display = nm.display_context(0);
     self.last_start_line = display.start_line;
     self.last_end_line = nm.end_pos().0;
@@ -256,7 +256,7 @@ impl<'a> MatchMerger<'a> {
   }
 
   #[inline]
-  fn check_overlapping(&self, nm: &NodeMatch<'a, SupportLang>) -> bool {
+  fn check_overlapping(&self, nm: &NodeMatch<'a, SgLang>) -> bool {
     let range = nm.range();
 
     // merge overlapping matches.
@@ -630,7 +630,7 @@ mod choose_color {
 mod test {
   use super::*;
   use ast_grep_config::{from_yaml_string, GlobalRules};
-  use ast_grep_core::language::Language;
+  use ast_grep_language::{Language, SupportLang};
   use codespan_reporting::term::termcolor::Buffer;
 
   fn make_test_printer() -> ColoredPrinter<Buffer> {
@@ -673,7 +673,7 @@ mod test {
     for &(source, pattern, note) in MATCHES_CASES {
       // heading is required for CI
       let printer = make_test_printer().heading(Heading::Always);
-      let grep = SupportLang::Tsx.ast_grep(source);
+      let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
       let matches = grep.root().find_all(pattern);
       printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
       let expected: String = source
@@ -691,7 +691,7 @@ mod test {
   fn test_print_matches_without_heading() {
     for &(source, pattern, note) in MATCHES_CASES {
       let printer = make_test_printer().heading(Heading::Never);
-      let grep = SupportLang::Tsx.ast_grep(source);
+      let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
       let matches = grep.root().find_all(pattern);
       printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
       // append heading to expected
@@ -711,7 +711,7 @@ mod test {
       let printer = make_test_printer()
         .heading(Heading::Never)
         .style(ReportStyle::Short);
-      let grep = SupportLang::TypeScript.ast_grep(source);
+      let grep = SgLang::from(SupportLang::TypeScript).ast_grep(source);
       let matches = grep.root().find_all(pattern);
       let source = source.to_string();
       let file = SimpleFile::new(Cow::Borrowed("test.tsx"), &source);

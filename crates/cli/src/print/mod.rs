@@ -2,9 +2,9 @@ mod colored_print;
 mod interactive_print;
 mod json_print;
 
+use crate::lang::SgLang;
 use ast_grep_config::RuleConfig;
 use ast_grep_core::{Matcher, NodeMatch as SgNodeMatch, Pattern, StrDoc};
-use ast_grep_language::SupportLang;
 
 use anyhow::Result;
 use clap::ValueEnum;
@@ -22,7 +22,7 @@ type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.
 macro_rules! Matches {
-  ($lt: lifetime) => { impl Iterator<Item = NodeMatch<$lt, SupportLang>> };
+  ($lt: lifetime) => { impl Iterator<Item = NodeMatch<$lt, SgLang>> };
 }
 macro_rules! Diffs {
   ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
@@ -33,7 +33,7 @@ pub trait Printer {
     &self,
     matches: Matches!('a),
     file: SimpleFile<Cow<str>, &String>,
-    rule: &RuleConfig<SupportLang>,
+    rule: &RuleConfig<SgLang>,
   ) -> Result<()>;
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()>;
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()>;
@@ -41,7 +41,7 @@ pub trait Printer {
     &self,
     diffs: Diffs!('a),
     path: &Path,
-    rule: &RuleConfig<SupportLang>,
+    rule: &RuleConfig<SgLang>,
   ) -> Result<()>;
   #[inline]
   fn before_print(&self) -> Result<()> {
@@ -56,16 +56,16 @@ pub trait Printer {
 #[derive(Clone)]
 pub struct Diff<'n> {
   /// the matched node
-  pub node_match: NodeMatch<'n, SupportLang>,
+  pub node_match: NodeMatch<'n, SgLang>,
   /// string content for the replacement
   pub replacement: Cow<'n, str>,
 }
 
 impl<'n> Diff<'n> {
   pub fn generate(
-    node_match: NodeMatch<'n, SupportLang>,
-    matcher: &impl Matcher<SupportLang>,
-    rewrite: &Pattern<SupportLang>,
+    node_match: NodeMatch<'n, SgLang>,
+    matcher: &impl Matcher<SgLang>,
+    rewrite: &Pattern<SgLang>,
   ) -> Self {
     let replacement = String::from_utf8(
       node_match

@@ -5,8 +5,8 @@ use ast_grep_config::RuleConfig;
 
 use super::{Diff, Printer};
 use crate::error::ErrorContext as EC;
+use crate::lang::SgLang;
 use crate::utils;
-use ast_grep_language::SupportLang;
 
 pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
 
@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.
 macro_rules! Matches {
-  ($lt: lifetime) => { impl Iterator<Item = NodeMatch<$lt, SupportLang>> };
+  ($lt: lifetime) => { impl Iterator<Item = NodeMatch<$lt, SgLang>> };
 }
 macro_rules! Diffs {
   ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
@@ -47,7 +47,7 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     &self,
     matches: Matches!('a),
     file: SimpleFile<Cow<str>, &String>,
-    rule: &RuleConfig<SupportLang>,
+    rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
     utils::run_in_alternate_screen(|| {
       let matches: Vec<_> = matches.collect();
@@ -90,7 +90,7 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     &self,
     diffs: Diffs!('a),
     path: &Path,
-    rule: &RuleConfig<SupportLang>,
+    rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
     let path = path.to_path_buf();
     if self.accept_all.load(Ordering::SeqCst) {
@@ -119,7 +119,7 @@ fn print_diffs_and_prompt_action<'a>(
   printer: &impl Printer,
   path: &PathBuf,
   diffs: Diffs!('a),
-  rule: Option<&RuleConfig<SupportLang>>,
+  rule: Option<&RuleConfig<SgLang>>,
 ) -> Result<bool> {
   let diffs: Vec<_> = diffs.collect();
   let first_match = match diffs.first() {
@@ -198,8 +198,9 @@ mod test {
   use ast_grep_config::{from_yaml_string, GlobalRules};
   use ast_grep_core::traversal::Visitor;
   use ast_grep_core::{AstGrep, Matcher, Pattern, StrDoc};
+  use ast_grep_language::SupportLang;
 
-  fn make_rule(rule: &str) -> RuleConfig<SupportLang> {
+  fn make_rule(rule: &str) -> RuleConfig<SgLang> {
     let globals = GlobalRules::default();
     from_yaml_string(
       &format!(
@@ -218,9 +219,9 @@ language: TypeScript
   }
 
   fn make_diffs<'a>(
-    grep: &'a AstGrep<StrDoc<SupportLang>>,
-    matcher: impl Matcher<SupportLang>,
-    fixer: &Pattern<SupportLang>,
+    grep: &'a AstGrep<StrDoc<SgLang>>,
+    matcher: impl Matcher<SgLang>,
+    fixer: &Pattern<SgLang>,
   ) -> Vec<Diff<'a>> {
     let root = grep.root();
     Visitor::new(&matcher)
@@ -232,7 +233,7 @@ language: TypeScript
 
   #[test]
   fn test_apply_rewrite() {
-    let root = AstGrep::new("let a = () => c++", SupportLang::TypeScript);
+    let root = AstGrep::new("let a = () => c++", SupportLang::TypeScript.into());
     let config = make_rule(
       r"
 rule:
@@ -251,11 +252,11 @@ fix: ($B, lifecycle.update(['$A']))",
 
   #[test]
   fn test_rewrite_nested() {
-    let root = AstGrep::new("Some(Some(1))", SupportLang::TypeScript);
+    let root = AstGrep::new("Some(Some(1))", SupportLang::TypeScript.into());
     let diffs = make_diffs(
       &root,
       "Some($A)",
-      &Pattern::new("$A", SupportLang::TypeScript),
+      &Pattern::new("$A", SupportLang::TypeScript.into()),
     );
     let ret = apply_rewrite(diffs);
     assert_eq!("Some(1)", ret);

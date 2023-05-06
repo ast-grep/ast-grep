@@ -1,4 +1,5 @@
 use crate::error::ErrorContext as EC;
+use crate::lang::SgLang;
 use anyhow::{anyhow, Context, Result};
 use crossterm::{
   event::{self, Event, KeyCode},
@@ -8,7 +9,7 @@ use crossterm::{
 use ignore::{DirEntry, WalkParallel, WalkState};
 
 use ast_grep_core::{AstGrep, Matcher, StrDoc};
-use ast_grep_language::{Language, SupportLang};
+use ast_grep_language::Language;
 
 use std::fs::read_to_string;
 use std::io::stdout;
@@ -138,9 +139,9 @@ pub fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
   }
 }
 
-pub fn filter_file_interactive<M: Matcher<SupportLang>>(
+pub fn filter_file_interactive<M: Matcher<SgLang>>(
   path: &Path,
-  lang: SupportLang,
+  lang: SgLang,
   matcher: M,
 ) -> Option<MatchUnit<M>> {
   let file_content = read_to_string(path)
@@ -171,9 +172,9 @@ fn file_too_large(file_content: &String) -> bool {
 /// A single atomic unit where matches happen.
 /// It contains the file path, sg instance and matcher.
 /// An analogy to compilation unit in C programming language.
-pub struct MatchUnit<M: Matcher<SupportLang>> {
+pub struct MatchUnit<M: Matcher<SgLang>> {
   pub path: PathBuf,
-  pub grep: AstGrep<StrDoc<SupportLang>>,
+  pub grep: AstGrep<StrDoc<SgLang>>,
   pub matcher: M,
 }
 

@@ -1,6 +1,7 @@
 use ast_grep_core::language::TSLanguage;
 use ast_grep_core::Language;
 
+use ignore::types::{Types, TypesBuilder};
 use libloading::{Error as LibError, Library, Symbol};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -14,11 +15,31 @@ use std::str::FromStr;
 type LangIndex = u32;
 
 /// Represents a tree-sitter language loaded as dynamic lib.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct DynamicLang {
   index: LangIndex,
   // inline expando char since it is used frequently
   expando: char,
+}
+
+impl DynamicLang {
+  pub fn all_langs() -> Vec<String> {
+    Self::langs().iter().map(|i| i.name.clone()).collect()
+  }
+  pub fn file_types(&self) -> Types {
+    let mut builder = TypesBuilder::new();
+    let inner = self.inner();
+    let mapping = unsafe { &LANG_INDEX };
+    for (ext, i) in mapping.iter() {
+      if *i == self.index {
+        builder
+          .add(&inner.name, &format!("*.{ext}"))
+          .expect("file pattern must compile");
+      }
+    }
+    builder.select(&inner.name);
+    builder.build().expect("file type must be valid")
+  }
 }
 
 impl Serialize for DynamicLang {
@@ -44,7 +65,7 @@ impl<'de> Deserialize<'de> for DynamicLang {
 impl FromStr for DynamicLang {
   type Err = String;
   fn from_str(name: &str) -> Result<Self, Self::Err> {
-    let langs = unsafe { DYNAMIC_LANG.as_ref().unwrap() };
+    let langs = unsafe { &DYNAMIC_LANG };
     for (i, lang) in langs.iter().enumerate() {
       if lang.name == name {
         return Ok(DynamicLang {
@@ -104,8 +125,8 @@ unsafe fn load_ts_language(
 }
 
 // both use vec since lang will be small
-static mut DYNAMIC_LANG: Option<Vec<Inner>> = None;
-static mut LANG_INDEX: Option<Vec<(String, u32)>> = None;
+static mut DYNAMIC_LANG: Vec<Inner> = vec![];
+static mut LANG_INDEX: Vec<(String, u32)> = vec![];
 
 #[derive(Default)]
 pub struct Registration {
@@ -127,8 +148,8 @@ impl DynamicLang {
     for reg in regs {
       Self::register_one(reg, &mut langs, &mut mapping)?;
     }
-    DYNAMIC_LANG.replace(langs);
-    LANG_INDEX.replace(mapping);
+    std::mem::replace(&mut DYNAMIC_LANG, langs);
+    std::mem::replace(&mut LANG_INDEX, mapping);
     Ok(())
   }
 
@@ -161,11 +182,7 @@ impl DynamicLang {
   }
 
   fn langs() -> &'static Vec<Inner> {
-    unsafe { DYNAMIC_LANG.as_ref().unwrap() }
-  }
-
-  pub fn all_langs() -> Vec<String> {
-    Self::langs().iter().map(|i| i.name.clone()).collect()
+    unsafe { &DYNAMIC_LANG }
   }
 }
 
@@ -177,7 +194,7 @@ impl Language for DynamicLang {
 
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     let ext = path.as_ref().extension()?.to_str()?;
-    let mapping = unsafe { LANG_INDEX.as_ref().unwrap() };
+    let mapping = unsafe { &LANG_INDEX };
     let langs = Self::langs();
     mapping.iter().find_map(|(p, idx)| {
       if p == ext {

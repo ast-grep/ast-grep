@@ -1,10 +1,11 @@
 use crate::error::ErrorContext as EC;
+use crate::lang::SgLang;
 use crate::verify::{SnapshotCollection, TestCase, TestSnapshots};
 use anyhow::{Context, Result};
 use ast_grep_config::{
   from_str, from_yaml_string, DeserializeEnv, GlobalRules, RuleCollection, RuleConfig,
 };
-use ast_grep_language::{config_file_type, SupportLang};
+use ast_grep_language::config_file_type;
 use clap::ValueEnum;
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
@@ -46,7 +47,7 @@ pub struct AstGrepConfig {
   // pub rules: Option<Vec<()>>,
 }
 
-pub fn find_rules(config_path: Option<PathBuf>) -> Result<RuleCollection<SupportLang>> {
+pub fn find_rules(config_path: Option<PathBuf>) -> Result<RuleCollection<SgLang>> {
   let config_path =
     find_config_path_with_default(config_path, None).context(EC::ReadConfiguration)?;
   let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
@@ -61,7 +62,7 @@ pub fn find_rules(config_path: Option<PathBuf>) -> Result<RuleCollection<Support
 fn find_util_rules(
   base_dir: &Path,
   util_dirs: Option<Vec<PathBuf>>,
-) -> Result<GlobalRules<SupportLang>> {
+) -> Result<GlobalRules<SgLang>> {
   let Some(util_dirs) = util_dirs else {
     return Ok(GlobalRules::default())
   };
@@ -95,8 +96,8 @@ fn find_util_rules(
 fn read_directory_yaml(
   base_dir: &Path,
   rule_dirs: Vec<PathBuf>,
-  global_rules: GlobalRules<SupportLang>,
-) -> Result<RuleCollection<SupportLang>> {
+  global_rules: GlobalRules<SgLang>,
+) -> Result<RuleCollection<SgLang>> {
   let mut configs = vec![];
   for dir in rule_dirs {
     let dir_path = base_dir.join(dir);
@@ -123,8 +124,8 @@ fn read_directory_yaml(
 
 pub fn read_rule_file(
   path: &Path,
-  global_rules: Option<&GlobalRules<SupportLang>>,
-) -> Result<Vec<RuleConfig<SupportLang>>> {
+  global_rules: Option<&GlobalRules<SgLang>>,
+) -> Result<Vec<RuleConfig<SgLang>>> {
   let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
   let parsed = if let Some(globals) = global_rules {
     from_yaml_string(&yaml, globals)
