@@ -9,6 +9,7 @@ use tree_sitter_native::{Language as NativeTS, LANGUAGE_VERSION, MIN_COMPATIBLE_
 use std::borrow::Cow;
 use std::fs::canonicalize;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 type LangIndex = u32;
 
@@ -36,6 +37,13 @@ impl<'de> Deserialize<'de> for DynamicLang {
     D: serde::Deserializer<'de>,
   {
     let name = String::deserialize(deserializer)?;
+    DynamicLang::from_str(&name).map_err(serde::de::Error::custom)
+  }
+}
+
+impl FromStr for DynamicLang {
+  type Err = String;
+  fn from_str(name: &str) -> Result<Self, Self::Err> {
     let langs = unsafe { DYNAMIC_LANG.as_ref().unwrap() };
     for (i, lang) in langs.iter().enumerate() {
       if lang.name == name {
@@ -45,7 +53,7 @@ impl<'de> Deserialize<'de> for DynamicLang {
         });
       }
     }
-    Err(serde::de::Error::custom("unknown language"))
+    Err(format!("unknow language `{name}`."))
   }
 }
 
