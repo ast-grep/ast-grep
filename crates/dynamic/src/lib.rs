@@ -2,7 +2,7 @@ use ast_grep_core::language::TSLanguage;
 use ast_grep_core::Language;
 
 use libloading::{Error as LibError, Library, Symbol};
-// use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tree_sitter_native::{Language as NativeTS, LANGUAGE_VERSION, MIN_COMPATIBLE_LANGUAGE_VERSION};
 
@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 
 type LangIndex = u32;
 
+/// Represents a tree-sitter language loaded as dynamic lib.
 #[derive(Clone, PartialEq, Eq)]
 pub struct DynamicLang {
   index: LangIndex,
@@ -19,14 +20,38 @@ pub struct DynamicLang {
   expando: char,
 }
 
-// impl Serialize for DynamicLang {
-// }
+impl Serialize for DynamicLang {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    let name = &self.inner().name;
+    serializer.serialize_str(name)
+  }
+}
 
-// impl Deserialize for DynamicLang {
-// }
+impl<'de> Deserialize<'de> for DynamicLang {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let name = String::deserialize(deserializer)?;
+    let langs = unsafe { DYNAMIC_LANG.as_ref().unwrap() };
+    for (i, lang) in langs.iter().enumerate() {
+      if lang.name == name {
+        return Ok(DynamicLang {
+          index: i as LangIndex,
+          expando: lang.expando_char,
+        });
+      }
+    }
+    Err(serde::de::Error::custom("unknown language"))
+  }
+}
 
 struct Inner {
   lang: TSLanguage,
+  name: String,
   meta_var_char: char,
   expando_char: char,
   // NOTE: need to hold a reference of lib to avoid cleanup
@@ -76,8 +101,9 @@ static mut LANG_INDEX: Option<Vec<(String, u32)>> = None;
 
 #[derive(Default)]
 pub struct Registration {
-  path: PathBuf,
-  name: String,
+  lang_name: String,
+  lib_path: PathBuf,
+  symbol: String,
   meta_var_char: Option<char>,
   expando_char: Option<char>,
   extensions: Vec<String>,
@@ -104,10 +130,11 @@ impl DynamicLang {
     mapping: &mut Vec<(String, LangIndex)>,
   ) -> Result<(), DynamicLangError> {
     // lib must be retained!!
-    let (_lib, lang) = unsafe { load_ts_language(reg.path, reg.name)? };
+    let (_lib, lang) = unsafe { load_ts_language(reg.lib_path, reg.symbol)? };
     let meta_var_char = reg.meta_var_char.unwrap_or('$');
     let expando_char = reg.expando_char.unwrap_or(meta_var_char);
     let inner = Inner {
+      name: reg.lang_name,
       lang,
       meta_var_char,
       expando_char,
