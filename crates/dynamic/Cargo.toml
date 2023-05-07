@@ -19,4 +19,4 @@ libloading = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0.40"
 ignore = "0.4.20"
-tree-sitter-native = { version = "0.20.9", package = "tree-sitter" }
+tree-sitter-native = { version = "0.20.10", package = "tree-sitter" }
