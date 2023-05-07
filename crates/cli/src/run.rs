@@ -7,7 +7,7 @@ use ast_grep_language::Language;
 use clap::Parser;
 use ignore::WalkParallel;
 
-use crate::config::{IgnoreFile, NoIgnore};
+use crate::config::{register_custom_language, IgnoreFile, NoIgnore};
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{
@@ -70,6 +70,7 @@ pub struct RunArg {
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(arg: RunArg) -> Result<()> {
+  register_custom_language(None);
   if arg.json {
     return run_pattern_with_printer(arg, JSONPrinter::stdout());
   }

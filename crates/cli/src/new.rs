@@ -1,4 +1,4 @@
-use crate::config::{read_config_from_dir, AstGrepConfig, TestConfig};
+use crate::config::{read_config_from_dir, register_custom_language, AstGrepConfig, TestConfig};
 use crate::error::ErrorContext as EC;
 
 use anyhow::Result;
@@ -111,6 +111,7 @@ impl Display for Entity {
 }
 
 pub fn run_create_new(mut arg: NewArg) -> Result<()> {
+  register_custom_language(Some(arg.base_dir.clone()));
   if let Some(entity) = arg.entity.take() {
     run_create_entity(entity, arg)
   } else {
@@ -177,6 +178,7 @@ fn create_new_project(arg: NewArg) -> Result<()> {
     rule_dirs: vec![rule_dirs],
     test_configs: test_dirs.map(|t| vec![t]),
     util_dirs: utils.map(|u| vec![u]),
+    custom_languages: None, // advanced feature, skip now
   };
   let config_path = arg.base_dir.join("sgconfig.yml");
   let f = File::create(config_path)?;

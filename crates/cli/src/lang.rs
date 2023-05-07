@@ -1,13 +1,23 @@
 use ast_grep_core::language::TSLanguage;
-use ast_grep_dynamic::DynamicLang;
+use ast_grep_dynamic::{DynamicLang, Registration};
 use ast_grep_language::{Language, SupportLang};
 use ignore::types::Types;
 use serde::{Deserialize, Serialize};
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct CustomLang {
+  library_path: PathBuf,
+  language_symbol: Option<String>,
+  meta_var_char: Option<char>,
+  expando_char: Option<char>,
+  extensions: Vec<String>,
+}
 
 #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -23,6 +33,30 @@ impl SgLang {
       Builtin(b) => b.file_types(),
       Custom(c) => c.file_types(),
     }
+  }
+
+  pub fn register_custom_language(base: PathBuf, langs: HashMap<String, CustomLang>) {
+    let registrations = langs
+      .into_iter()
+      .map(|(name, custom)| custom_lang_to_registration(name, custom, &base))
+      .collect();
+    // TODO, add error handling
+    unsafe { DynamicLang::register(registrations).expect("TODO") }
+  }
+}
+
+fn custom_lang_to_registration(name: String, custom_lang: CustomLang, base: &Path) -> Registration {
+  let path = base.join(custom_lang.library_path);
+  let sym = custom_lang
+    .language_symbol
+    .unwrap_or_else(|| format!("tree_sitter_{name}"));
+  Registration {
+    lang_name: name,
+    lib_path: path,
+    symbol: sym,
+    meta_var_char: custom_lang.meta_var_char,
+    expando_char: custom_lang.expando_char,
+    extensions: custom_lang.extensions,
   }
 }
 

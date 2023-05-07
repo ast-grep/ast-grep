@@ -7,7 +7,7 @@ use ast_grep_core::{Matcher, NodeMatch, StrDoc};
 use clap::Args;
 use ignore::WalkParallel;
 
-use crate::config::{find_rules, read_rule_file, IgnoreFile, NoIgnore};
+use crate::config::{find_rules, read_rule_file, register_custom_language, IgnoreFile, NoIgnore};
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{
@@ -58,6 +58,7 @@ pub struct ScanArg {
 }
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
+  register_custom_language(arg.config.clone());
   if arg.json {
     let worker = ScanWithConfig::try_new(arg, JSONPrinter::stdout())?;
     return run_worker(worker);

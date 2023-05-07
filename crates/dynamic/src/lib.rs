@@ -130,14 +130,15 @@ static mut LANG_INDEX: Vec<(String, u32)> = vec![];
 
 #[derive(Default)]
 pub struct Registration {
-  lang_name: String,
-  lib_path: PathBuf,
-  symbol: String,
-  meta_var_char: Option<char>,
-  expando_char: Option<char>,
-  extensions: Vec<String>,
+  pub lang_name: String,
+  pub lib_path: PathBuf,
+  pub symbol: String,
+  pub meta_var_char: Option<char>,
+  pub expando_char: Option<char>,
+  pub extensions: Vec<String>,
 }
 
+// TODO: add registered checking here
 impl DynamicLang {
   /// # Safety
   /// the register function should be called exactly once before use.
@@ -148,8 +149,8 @@ impl DynamicLang {
     for reg in regs {
       Self::register_one(reg, &mut langs, &mut mapping)?;
     }
-    std::mem::replace(&mut DYNAMIC_LANG, langs);
-    std::mem::replace(&mut LANG_INDEX, mapping);
+    _ = std::mem::replace(&mut DYNAMIC_LANG, langs);
+    _ = std::mem::replace(&mut LANG_INDEX, mapping);
     Ok(())
   }
 

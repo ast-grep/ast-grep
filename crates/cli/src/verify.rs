@@ -1,4 +1,6 @@
-use crate::config::{find_rules, find_tests, read_test_files, TestHarness};
+use crate::config::{
+  find_rules, find_tests, read_test_files, register_custom_language, TestHarness,
+};
 use crate::error::ErrorContext;
 use crate::lang::SgLang;
 use crate::print::{print_diff, ColorChoice, PrintStyles};
@@ -132,6 +134,7 @@ pub struct TestArg {
 }
 
 pub fn run_test_rule(arg: TestArg) -> Result<()> {
+  register_custom_language(arg.config.clone());
   if arg.interactive {
     let reporter = InteractiveReporter {
       output: std::io::stdout(),
