@@ -16,6 +16,14 @@ use crate::print::{
 use crate::utils::{filter_file_interactive, MatchUnit};
 use crate::utils::{run_worker, Items, Worker};
 
+// NOTE: have to register custom lang before clap read arg
+// RunArg has a field of SgLang
+pub fn register_custom_language_if_is_run(args: &[String]) {
+  if args[1].starts_with('-') || args[1] == "run" {
+    register_custom_language(None);
+  }
+}
+
 #[derive(Parser)]
 pub struct RunArg {
   /// AST pattern to match.
@@ -70,7 +78,6 @@ pub struct RunArg {
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(arg: RunArg) -> Result<()> {
-  register_custom_language(None);
   if arg.json {
     return run_pattern_with_printer(arg, JSONPrinter::stdout());
   }

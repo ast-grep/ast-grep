@@ -14,7 +14,7 @@ use clap::{Parser, Subcommand};
 
 use error::exit_with_error;
 use new::{run_create_new, NewArg};
-use run::{run_with_pattern, RunArg};
+use run::{register_custom_language_if_is_run, run_with_pattern, RunArg};
 use scan::{run_with_config, ScanArg};
 use verify::{run_test_rule, TestArg};
 
@@ -78,6 +78,7 @@ fn try_default_run(args: &[String]) -> Result<Option<RunArg>> {
 // this wrapper function is for testing
 pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
   let args: Vec<_> = args.collect();
+  register_custom_language_if_is_run(&args);
   if let Some(arg) = try_default_run(&args)? {
     return run_with_pattern(arg);
   }
