@@ -19,7 +19,7 @@ use crate::utils::{run_worker, Items, Worker};
 // NOTE: have to register custom lang before clap read arg
 // RunArg has a field of SgLang
 pub fn register_custom_language_if_is_run(args: &[String]) {
-  if args[1].starts_with('-') || args[1] == "run" {
+  if !args.is_empty() || args[1].starts_with('-') || args[1] == "run" {
     register_custom_language(None);
   }
 }

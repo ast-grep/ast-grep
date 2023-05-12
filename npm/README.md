@@ -1,3 +1,3 @@
 # @ast-grep/cli
 
-See https://github.com/ast-grep/ast-grep
+Please see https://github.com/ast-grep/ast-grep

@@ -8,12 +8,16 @@ keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
 license = "MIT"
 repository = "https://github.com/ast-grep/ast-grep"
 rust-version = "1.63"
+default-run = "sg"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[bin]]
 name = "sg"
 path = "src/main.rs"
+[[bin]]
+name = "ast-grep"
+path = "src/bin/ast-grep.rs"
 
 [dependencies]
 ast-grep-core = { version = "0.4.1", path = "../core" }
