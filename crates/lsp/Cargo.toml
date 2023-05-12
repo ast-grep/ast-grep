@@ -1,6 +1,6 @@
 [package]
 name = "ast-grep-lsp"
-version = "0.4.1"
+version = "0.5.0"
 authors = [
   "Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>",
 ]
@@ -14,8 +14,8 @@ rust-version = "1.63"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ast-grep-core = { version = "0.4.1", path = "../core" }
-ast-grep-config = { version = "0.4.1", path = "../config" }
+ast-grep-core = { version = "0.5.0", path = "../core" }
+ast-grep-config = { version = "0.5.0", path = "../config" }
 serde = { version = "1.0", features = ["derive"] }
 tower-lsp = "0.19.0"
 dashmap = "5.4.0"
