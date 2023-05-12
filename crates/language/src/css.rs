@@ -23,6 +23,8 @@ impl Language for Css {
 
 #[cfg(test)]
 mod test {
+  use ast_grep_core::source::TSParseError;
+
   use super::*;
 
   fn test_match(query: &str, source: &str) {
@@ -37,18 +39,19 @@ mod test {
     test_match(".a { $PROP: red; }", ".a { color: red; }");
   }
 
-  fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
+  fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
     use crate::test::test_replace_lang;
-    test_replace_lang(src, pattern, replacer, Css)
+    Ok(test_replace_lang(src, pattern, replacer, Css)?)
   }
 
   #[test]
-  fn test_c_sharp_replace() {
+  fn test_c_sharp_replace() -> Result<(), TSParseError> {
     let ret = test_replace(
       ".a {color: red; }",
       ".a { color: $COLOR}",
       ".a {background: $COLOR}",
-    );
+    )?;
     assert_eq!(ret, ".a {background: red}");
+    Ok(())
   }
 }

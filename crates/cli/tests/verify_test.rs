@@ -28,15 +28,15 @@ invalid:
 - Some(123)
 ";
 
-fn setup() -> TempDir {
+fn setup() -> Result<TempDir> {
   let dir = create_test_files([
     ("sgconfig.yml", CONFIG),
     ("rules/test-rule.yml", RULE),
     ("rule-test/test-rule-test.yml", TEST),
     ("test.ts", "Some(123)"),
-  ]);
+  ])?;
   assert!(dir.path().join("sgconfig.yml").exists());
-  dir
+  Ok(dir)
 }
 
 fn sg(s: &str) -> Result<()> {
@@ -46,8 +46,8 @@ fn sg(s: &str) -> Result<()> {
 }
 
 #[test]
-fn test_sg_test() {
-  let dir = setup();
+fn test_sg_test() -> Result<()> {
+  let dir = setup()?;
   let config = dir.path().join("sgconfig.yml");
   let ret = sg(&format!(
     "sg test -c {} --skip-snapshot-tests",
@@ -55,4 +55,5 @@ fn test_sg_test() {
   ));
   assert!(ret.is_ok());
   drop(dir);
+  Ok(())
 }

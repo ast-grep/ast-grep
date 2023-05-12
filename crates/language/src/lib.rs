@@ -255,7 +255,7 @@ pub fn config_file_type() -> Types {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_core::{Matcher, Pattern};
+  use ast_grep_core::{source::TSParseError, Matcher, Pattern};
 
   pub fn test_match_lang(query: &str, source: &str, lang: impl Language) {
     let cand = lang.ast_grep(source);
@@ -281,11 +281,11 @@ mod test {
     pattern: &str,
     replacer: &str,
     lang: impl Language,
-  ) -> String {
+  ) -> Result<String, TSParseError> {
     let mut source = lang.ast_grep(src);
     let replacer = Pattern::new(replacer, lang);
-    assert!(source.replace(pattern, replacer).unwrap());
-    source.generate()
+    assert!(source.replace(pattern, replacer)?);
+    Ok(source.generate())
   }
 
   #[test]

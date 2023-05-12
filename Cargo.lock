@@ -137,6 +137,7 @@ dependencies = [
 name = "ast-grep-config"
 version = "0.4.1"
 dependencies = [
+ "anyhow",
  "ast-grep-core",
  "bit-set",
  "globset",

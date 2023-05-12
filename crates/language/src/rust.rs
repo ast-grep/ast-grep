@@ -27,7 +27,7 @@ impl Language for Rust {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_core::{Matcher, Pattern};
+  use ast_grep_core::{source::TSParseError, Matcher, Pattern};
 
   fn test_match(s1: &str, s2: &str) {
     let pattern = Pattern::new(s1, Rust);
@@ -63,16 +63,16 @@ patterns = match config.include.clone() {
     );
   }
 
-  fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
+  fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
     let mut source = Rust.ast_grep(src);
     let replacer = Pattern::new(replacer, Rust);
-    assert!(source.replace(pattern, replacer).unwrap());
-    source.generate()
+    assert!(source.replace(pattern, replacer)?);
+    Ok(source.generate())
   }
 
   #[test]
-  fn test_rust_replace() {
-    let ret = test_replace("fn test() { Some(123) }", "Some($A)", "Ok($A)");
+  fn test_rust_replace() -> Result<(), TSParseError> {
+    let ret = test_replace("fn test() { Some(123) }", "Some($A)", "Ok($A)")?;
     assert_eq!(ret, "fn test() { Ok(123) }");
     let ret = test_replace(
       r#"
@@ -85,7 +85,8 @@ patterns = match config.include.clone() {
     None => $C,
 }",
       "$A.unwrap_or($C)",
-    );
-    assert_eq!(ret, "\npatterns = config.include.clone().unwrap_or(123)")
+    )?;
+    assert_eq!(ret, "\npatterns = config.include.clone().unwrap_or(123)");
+    Ok(())
   }
 }
