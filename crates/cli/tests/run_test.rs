@@ -8,7 +8,7 @@ use predicates::str::contains;
 
 #[test]
 fn test_simple_infer_lang() -> Result<()> {
-  let dir = create_test_files([("a.ts", "console.log(123)"), ("b.rs", "console.log(456)")]);
+  let dir = create_test_files([("a.ts", "console.log(123)"), ("b.rs", "console.log(456)")])?;
   Command::cargo_bin("sg")?
     .current_dir(dir.path())
     .args(["-p", "console.log($A)"])
@@ -21,7 +21,7 @@ fn test_simple_infer_lang() -> Result<()> {
 
 #[test]
 fn test_simple_specific_lang() -> Result<()> {
-  let dir = create_test_files([("a.ts", "console.log(123)"), ("b.rs", "console.log(456)")]);
+  let dir = create_test_files([("a.ts", "console.log(123)"), ("b.rs", "console.log(456)")])?;
   Command::cargo_bin("sg")?
     .current_dir(dir.path())
     .args(["-p", "console.log($A)", "-l", "rs"])

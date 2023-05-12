@@ -173,9 +173,10 @@ mod test {
   use super::*;
   use crate::test::TypeScript;
   use crate::{from_str, Rule};
+  use anyhow::Result;
   use ast_grep_core::Matcher;
 
-  fn get_dependent_utils() -> (Rule<TypeScript>, DeserializeEnv<TypeScript>) {
+  fn get_dependent_utils() -> Result<(Rule<TypeScript>, DeserializeEnv<TypeScript>)> {
     let utils = from_str(
       "
 accessor-name:
@@ -184,65 +185,62 @@ accessor-name:
 member-name:
   kind: identifier
 ",
-    )
-    .unwrap();
-    let env = DeserializeEnv::new(TypeScript::Tsx)
-      .register_local_utils(&utils)
-      .unwrap();
+    )?;
+    let env = DeserializeEnv::new(TypeScript::Tsx).register_local_utils(&utils)?;
     assert_eq!(utils.keys().count(), 2);
     let rule = from_str("matches: accessor-name").unwrap();
-    (
+    Ok((
       env.deserialize_rule(rule).unwrap(),
       env, // env is required for weak ref
-    )
+    ))
   }
 
   #[test]
-  fn test_local_util_matches() {
-    let (rule, _env) = get_dependent_utils();
+  fn test_local_util_matches() -> Result<()> {
+    let (rule, _env) = get_dependent_utils()?;
     let grep = TypeScript::Tsx.ast_grep("whatever");
     assert!(grep.root().find(rule).is_some());
+    Ok(())
   }
 
   #[test]
-  fn test_local_util_kinds() {
+  fn test_local_util_kinds() -> Result<()> {
     // run multiple times to avoid accidental working order due to HashMap randomness
     for _ in 0..10 {
-      let (rule, _env) = get_dependent_utils();
+      let (rule, _env) = get_dependent_utils()?;
       assert!(rule.potential_kinds().is_some());
     }
+    Ok(())
   }
 
   #[test]
-  fn test_using_global_rule_in_local() {
+  fn test_using_global_rule_in_local() -> Result<()> {
     let utils = from_str(
       "
 local-rule:
   matches: global-rule
 ",
-    )
-    .unwrap();
+    )?;
     // should not panic
-    DeserializeEnv::new(TypeScript::Tsx)
-      .register_local_utils(&utils)
-      .unwrap();
+    DeserializeEnv::new(TypeScript::Tsx).register_local_utils(&utils)?;
+    Ok(())
   }
 
   #[test]
-  fn test_using_cyclic_local() {
+  fn test_using_cyclic_local() -> Result<()> {
     let utils = from_str(
       "
 local-rule:
   matches: local-rule
 ",
-    )
-    .unwrap();
+    )?;
     let ret = DeserializeEnv::new(TypeScript::Tsx).register_local_utils(&utils);
     assert!(ret.is_err());
+    Ok(())
   }
 
   #[test]
-  fn test_using_transitive_cycle() {
+  fn test_using_transitive_cycle() -> Result<()> {
     let utils = from_str(
       "
 local-rule-a:
@@ -254,9 +252,9 @@ local-rule-c:
   any:
     - matches: local-rule-a
 ",
-    )
-    .unwrap();
+    )?;
     let ret = DeserializeEnv::new(TypeScript::Tsx).register_local_utils(&utils);
     assert!(ret.is_err());
+    Ok(())
   }
 }

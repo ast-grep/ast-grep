@@ -163,13 +163,13 @@ mod test {
   use super::*;
   use crate::language::{Language, Tsx};
 
-  fn parse(src: &str) -> Tree {
-    parse_lang(|p| p.parse(src, None), Tsx.get_ts_language()).unwrap()
+  fn parse(src: &str) -> Result<Tree, TSParseError> {
+    Ok(parse_lang(|p| p.parse(src, None), Tsx.get_ts_language())?)
   }
 
   #[test]
-  fn test_tree_sitter() {
-    let tree = parse("var a = 1234");
+  fn test_tree_sitter() -> Result<(), TSParseError> {
+    let tree = parse("var a = 1234")?;
     let root_node = tree.root_node();
     assert_eq!(root_node.kind(), "program");
     assert_eq!(root_node.start_position().column(), 0);
@@ -178,39 +178,43 @@ mod test {
       root_node.to_sexp(),
       "(program (variable_declaration (variable_declarator name: (identifier) value: (number))))"
     );
+    Ok(())
   }
 
   #[test]
-  fn test_object_literal() {
-    let tree = parse("{a: $X}");
+  fn test_object_literal() -> Result<(), TSParseError> {
+    let tree = parse("{a: $X}")?;
     let root_node = tree.root_node();
     // wow this is not label. technically it is wrong but practically it is better LOL
     assert_eq!(root_node.to_sexp(), "(program (expression_statement (object (pair key: (property_identifier) value: (identifier)))))");
+    Ok(())
   }
 
   #[test]
-  fn test_string() {
-    let tree = parse("'$A'");
+  fn test_string() -> Result<(), TSParseError> {
+    let tree = parse("'$A'")?;
     let root_node = tree.root_node();
     assert_eq!(
       root_node.to_sexp(),
       "(program (expression_statement (string (string_fragment))))"
     );
+    Ok(())
   }
 
   #[test]
-  fn test_row_col() {
-    let tree = parse("😄");
+  fn test_row_col() -> Result<(), TSParseError> {
+    let tree = parse("😄")?;
     let root = tree.root_node();
     assert_eq!(root.start_position(), Point::new(0, 0));
     // NOTE: Point in tree-sitter is counted in bytes instead of char
     assert_eq!(root.end_position(), Point::new(0, 4));
+    Ok(())
   }
 
   #[test]
-  fn test_edit() {
+  fn test_edit() -> Result<(), TSParseError> {
     let mut src = "a + b".to_string();
-    let mut tree = parse(&src);
+    let mut tree = parse(&src)?;
     let _ = perform_edit(
       &mut tree,
       &mut src,
@@ -220,11 +224,12 @@ mod test {
         inserted_text: " * b".into(),
       },
     );
-    let tree2 = parse_lang(|p| p.parse(&src, Some(&tree)), Tsx.get_ts_language()).unwrap();
+    let tree2 = parse_lang(|p| p.parse(&src, Some(&tree)), Tsx.get_ts_language())?;
     assert_eq!(
       tree.root_node().to_sexp(),
       "(program (expression_statement (binary_expression left: (identifier) right: (identifier))))"
     );
     assert_eq!(tree2.root_node().to_sexp(), "(program (expression_statement (binary_expression left: (binary_expression left: (identifier) right: (identifier)) right: (identifier))))");
+    Ok(())
   }
 }
