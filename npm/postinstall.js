@@ -33,6 +33,7 @@ try {
   fs.linkSync(path.join(pkgPath, binary), path.join(__dirname, alternative));
 } catch (err) {
   try {
+    fs.copyFileSync(path.join(pkgPath, binary), path.join(__dirname, binary));
     fs.copyFileSync(path.join(pkgPath, binary), path.join(__dirname, alternative));
   } catch (err) {
     console.error('Failed to move @ast-grep/cli binary into place.');
