@@ -10,6 +10,7 @@
   },
   "files": [
     "sg",
+    "ast-grep",
     "postinstall.js"
   ],
   "dependencies": {
@@ -25,6 +26,7 @@
     "@ast-grep/cli-darwin-arm64": "0.4.1"
   },
   "bin": {
-    "sg": "sg"
+    "sg": "sg",
+    "ast-grep": "ast-grep"
   }
 }

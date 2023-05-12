@@ -1,0 +1,2 @@
+This file is required so that dumb npm creates the ast-grep binary.
+N.B. pnpm does not have this issue.
