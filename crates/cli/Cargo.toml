@@ -1,6 +1,6 @@
 [package]
 name = "ast-grep"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
 edition = "2021"
 repository = "https://github.com/ast-grep/ast-grep"
@@ -23,11 +23,11 @@ name = "ast-grep"
 path = "src/bin/ast-grep.rs"
 
 [dependencies]
-ast-grep-core = { version = "0.5.0", path = "../core" }
-ast-grep-config = { version = "0.5.0", path = "../config" }
-ast-grep-lsp = { version = "0.5.0", path = "../lsp" }
-ast-grep-dynamic = { version = "0.5.0", path = "../dynamic" }
-ast-grep-language = { version = "0.5.0", path = "../language" }
+ast-grep-core = { version = "0.5.1", path = "../core" }
+ast-grep-config = { version = "0.5.1", path = "../config" }
+ast-grep-lsp = { version = "0.5.1", path = "../lsp" }
+ast-grep-dynamic = { version = "0.5.1", path = "../dynamic" }
+ast-grep-language = { version = "0.5.1", path = "../language" }
 
 ansi_term = "0.12"
 atty = "0.2.14"
