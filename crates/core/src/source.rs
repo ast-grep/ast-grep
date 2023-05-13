@@ -164,7 +164,7 @@ mod test {
   use crate::language::{Language, Tsx};
 
   fn parse(src: &str) -> Result<Tree, TSParseError> {
-    Ok(parse_lang(|p| p.parse(src, None), Tsx.get_ts_language())?)
+    parse_lang(|p| p.parse(src, None), Tsx.get_ts_language())
   }
 
   #[test]

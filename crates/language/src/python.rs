@@ -85,7 +85,7 @@ match points:
 
   fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
     use crate::test::test_replace_lang;
-    Ok(test_replace_lang(src, pattern, replacer, Python)?)
+    test_replace_lang(src, pattern, replacer, Python)
   }
 
   #[test]

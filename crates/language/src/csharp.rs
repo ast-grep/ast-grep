@@ -46,7 +46,7 @@ mod test {
 
   fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
     use crate::test::test_replace_lang;
-    Ok(test_replace_lang(src, pattern, replacer, CSharp)?)
+    test_replace_lang(src, pattern, replacer, CSharp)
   }
 
   #[test]
