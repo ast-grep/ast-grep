@@ -38,6 +38,7 @@ fn bump_version(version: &str) -> Result<()> {
   update_npm(&version)?;
   update_napi(&version)?;
   update_crates(&version)?;
+  update_cargo_lock()?;
   Ok(())
 }
 
@@ -121,6 +122,14 @@ fn update_crates(version: &str) -> Result<()> {
   let toml_path = Path::new("benches/Cargo.toml");
   edit_toml(toml_path, version)?;
   Ok(())
+}
+
+fn update_cargo_lock() -> Result<()> {
+  if Command::new("cargo").args(["build"]).status()?.success() {
+    Ok(())
+  } else {
+    bail!("cargo build fail! cannot update Cargo.lock")
+  }
 }
 
 fn commit_and_tag(version: &str) -> Result<()> {
