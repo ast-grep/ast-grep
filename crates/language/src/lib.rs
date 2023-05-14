@@ -1,5 +1,6 @@
 mod csharp;
 mod css;
+mod go;
 mod parsers;
 mod python;
 mod rust;
@@ -10,6 +11,7 @@ use std::path::Path;
 
 pub use csharp::CSharp;
 pub use css::Css;
+pub use go::Go;
 pub use python::Python;
 pub use rust::Rust;
 
@@ -27,7 +29,6 @@ macro_rules! impl_lang {
 
 impl_lang!(C, language_c);
 impl_lang!(Dart, language_dart);
-impl_lang!(Go, language_go);
 impl_lang!(Html, language_html);
 impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
