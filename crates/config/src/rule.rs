@@ -409,4 +409,23 @@ inside:
     assert!(inside.rule.pattern.is_present());
     assert!(inside.rule.inside.unwrap().rule.pattern.is_present());
   }
+
+  #[test]
+  fn test_precedes_follows() {
+    let src = r"
+pattern: class A {}
+precedes:
+  pattern: function() {}
+follows:
+  pattern:
+    context: Some()
+    selector: ss
+";
+    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+    assert!(rule.precedes.is_present());
+    assert!(rule.follows.is_present());
+    let follows = rule.follows.unwrap();
+    assert!(follows.rule.pattern.is_present());
+    assert!(follows.rule.pattern.is_present());
+  }
 }
