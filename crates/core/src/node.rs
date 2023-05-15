@@ -520,4 +520,33 @@ mod test {
     assert_eq!(edits[0].inserted_text, "Some(1)".as_bytes());
     assert_eq!(edits[1].inserted_text, "2".as_bytes());
   }
+
+  #[test]
+  fn test_inside() {
+    let root = Tsx.ast_grep("Some(Some(1)); Some(2)");
+    let root = root.root();
+    let node = root.find("Some(1)").expect("should exist");
+    assert!(node.inside("Some($A)"));
+  }
+  #[test]
+  fn test_has() {
+    let root = Tsx.ast_grep("Some(Some(1)); Some(2)");
+    let root = root.root();
+    let node = root.find("Some($A)").expect("should exist");
+    assert!(node.has("Some(1)"));
+  }
+  #[test]
+  fn precedes() {
+    let root = Tsx.ast_grep("Some(Some(1)); Some(2);");
+    let root = root.root();
+    let node = root.find("Some($A);").expect("should exist");
+    assert!(node.precedes("Some(2);"));
+  }
+  #[test]
+  fn follows() {
+    let root = Tsx.ast_grep("Some(Some(1)); Some(2);");
+    let root = root.root();
+    let node = root.find("Some(2);").expect("should exist");
+    assert!(node.follows("Some(Some(1));"));
+  }
 }
