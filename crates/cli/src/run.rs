@@ -51,7 +51,7 @@ pub struct RunArg {
   paths: Vec<PathBuf>,
 
   /// Apply all rewrite without confirmation if true.
-  #[clap(long)]
+  #[clap(short = 'A', long)]
   accept_all: bool,
 
   /// Output matches in structured JSON text useful for tools like jq.
