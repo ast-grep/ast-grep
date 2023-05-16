@@ -323,6 +323,9 @@ impl<'r, D: Doc> Node<'r, D> {
     })
   }
 
+  /// Returns all ancestors nodes of `self`.
+  /// Note: each invocation of the returned iterator is O(n)
+  /// Using cursor is overkill here because adjust cursor is too expensive.
   pub fn ancestors(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
     let mut parent = self.inner.parent();
     std::iter::from_fn(move || {

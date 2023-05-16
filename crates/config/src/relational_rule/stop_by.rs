@@ -76,16 +76,30 @@ impl<L: Language> StopBy<L> {
 }
 
 impl<L: Language> StopBy<L> {
-  pub(crate) fn find<'t, I, F, D>(&self, mut iter: I, mut finder: F) -> Option<Node<'t, D>>
+  // TODO: document this monster method
+  pub(crate) fn find<'t, O, M, I, F, D>(
+    &self,
+    once: O,
+    multi: M,
+    mut finder: F,
+  ) -> Option<Node<'t, D>>
   where
     D: Doc<Lang = L> + 't,
     I: Iterator<Item = Node<'t, D>>,
+    O: FnOnce() -> Option<Node<'t, D>>,
+    M: FnOnce() -> I,
     F: FnMut(Node<'t, D>) -> Option<Node<'t, D>>,
   {
     match self {
-      StopBy::End => iter.find_map(finder),
-      StopBy::Neighbor => finder(iter.next()?),
-      StopBy::Rule(stop) => iter.take_while(inclusive_until(stop)).find_map(finder),
+      StopBy::Neighbor => finder(once()?),
+      StopBy::End => {
+        let mut iter = multi();
+        iter.find_map(finder)
+      }
+      StopBy::Rule(stop) => {
+        let iter = multi();
+        iter.take_while(inclusive_until(stop)).find_map(finder)
+      }
     }
   }
 }
