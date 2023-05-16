@@ -343,15 +343,25 @@ impl<'r, D: Doc> Node<'r, D> {
       root: self.root,
     })
   }
+
+  /// Returns all sibling nodes next to `self`.
+  // NOTE: Need go to parent first, then move to current node by byte offset.
+  // This is because tree_sitter cursor is scoped to the starting node.
+  // See https://github.com/tree-sitter/tree-sitter/issues/567
   pub fn next_all(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
-    let mut node = self.clone();
+    // if root is none, use self as fallback to return a type-stable Iterator
+    let node = self.parent().unwrap_or_else(|| self.clone());
+    let mut cursor = node.inner.walk();
+    cursor.goto_first_child_for_byte(self.inner.start_byte());
     std::iter::from_fn(move || {
-      node.next().map(|n| {
-        node = n.clone();
-        n
-      })
+      if cursor.goto_next_sibling() {
+        Some(self.root.adopt(cursor.node()))
+      } else {
+        None
+      }
     })
   }
+
   #[must_use]
   pub fn prev(&self) -> Option<Node<'r, D>> {
     let inner = self.inner.prev_sibling()?;
