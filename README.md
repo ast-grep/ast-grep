@@ -4,7 +4,7 @@
 
 <p align="center">
    <img src="https://github.com/ast-grep/ast-grep/actions/workflows/coverage.yaml/badge.svg" alt="coverage badge"/>
-   <img src="https://codecov.io/gh/ast-grep/ast-grep/branch/main/graph/badge.svg?token=37VX8H2EWV"/>
+   <a href="https://app.codecov.io/gh/ast-grep/ast-grep"><img src="https://codecov.io/gh/ast-grep/ast-grep/branch/main/graph/badge.svg?token=37VX8H2EWV"/></a>
    <img src="https://img.shields.io/github/stars/ast-grep/ast-grep?style=social" alt="Badge"/>
    <img src="https://img.shields.io/github/forks/ast-grep/ast-grep?style=social" alt="Badge"/>
    <img alt="GitHub Sponsors" src="https://img.shields.io/github/sponsors/HerringtonDarkholme?style=social">
