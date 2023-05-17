@@ -4,6 +4,8 @@ use anyhow::{Error, Result};
 use std::fmt;
 use std::path::PathBuf;
 
+use crate::utils::ansi_link;
+
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const PATTERN_GUIDE: Option<&str> = Some("/guide/pattern-syntax.html");
 const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
@@ -229,11 +231,7 @@ impl<'a> fmt::Display for ErrorFormat<'a> {
     writeln!(f, "{help} {description}")?;
     if let Some(url) = link {
       let reference = Style::new().bold().dimmed().paint("See also:");
-      let link = format!(
-        "\u{1b}]8;;{DOC_SITE_HOST}{url}\u{1b}\\{}{}\u{1b}]8;;\u{1b}\\",
-        Color::Cyan.italic().paint(DOC_SITE_HOST),
-        Color::Cyan.italic().paint(url)
-      );
+      let link = ansi_link(format!("{DOC_SITE_HOST}{url}"));
       writeln!(f, "{reference} {link}")?;
     }
 
