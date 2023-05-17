@@ -41,7 +41,8 @@ impl<L: Language> Matcher<L> for Inside<L> {
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    let ancestors = node.ancestors();
+    let parent = || node.parent();
+    let ancestors = || node.ancestors();
     if let Some(field) = &self.field {
       let mut last_id = node.node_id();
       let finder = move |nd: Node<'tree, D>| {
@@ -54,10 +55,10 @@ impl<L: Language> Matcher<L> for Inside<L> {
           self.outer.match_node_with_env(nd, env)
         }
       };
-      self.stop_by.find(ancestors, finder)
+      self.stop_by.find(parent, ancestors, finder)
     } else {
       let finder = |n| self.outer.match_node_with_env(n, env);
-      self.stop_by.find(ancestors, finder)
+      self.stop_by.find(parent, ancestors, finder)
     }
   }
 }
@@ -150,9 +151,10 @@ impl<L: Language> Matcher<L> for Precedes<L> {
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    let next_all = node.next_all();
+    let next = || node.next();
+    let next_all = || node.next_all();
     let finder = |n| self.later.match_node_with_env(n, env);
-    self.stop_by.find(next_all, finder)
+    self.stop_by.find(next, next_all, finder)
   }
 }
 
@@ -177,9 +179,10 @@ impl<L: Language> Matcher<L> for Follows<L> {
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    let prev_all = node.prev_all();
+    let prev = || node.prev();
+    let prev_all = || node.prev_all();
     let finder = |n| self.former.match_node_with_env(n, env);
-    self.stop_by.find(prev_all, finder)
+    self.stop_by.find(prev, prev_all, finder)
   }
 }
 
