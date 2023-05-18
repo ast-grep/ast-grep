@@ -27,7 +27,7 @@ Try the [online playground](https://ast-grep.github.io/playground.html) for a ta
 ![output](https://user-images.githubusercontent.com/2883231/183275066-8d9c342f-46cb-4fa5-aa4e-b98aac011869.gif)
 
 ## Installation
-You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) or [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)!
+You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) or [homebrew](https://brew.sh/)!
 
 ```bash
 # install via pnpm
@@ -35,16 +35,13 @@ npm install --global @ast-grep/cli
 
 # install via cargo
 cargo install ast-grep
+
+# install via homebrew, thank @henryhchchc
+brew install ast-grep
 ```
 Or you can build ast-grep from source. You need install rustup, clone the repository and then
 ```bash
 cargo install --path ./crates/cli
-```
-
-ast-grep is also available on [homebrew](https://formulae.brew.sh/formula/ast-grep)!
-
-```bash
-brew install ast-grep
 ```
 
 ## Command line usage example
