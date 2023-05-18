@@ -1,5 +1,6 @@
-use ansi_term::{Color, Style};
 use anyhow::{Error, Result};
+use std::io::Write;
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use std::fmt;
 use std::path::PathBuf;
@@ -217,35 +218,56 @@ struct ErrorFormat<'a> {
 }
 
 impl<'a> fmt::Display for ErrorFormat<'a> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+  fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut f = StandardStream::stdout(ColorChoice::Always);
     let ErrorMessage {
       title,
       description,
       link,
     } = ErrorMessage::from_context(self.context);
-    let bold = Style::new().bold();
-    let error = Color::Red.paint("Error:");
-    let message = bold.paint(title);
-    writeln!(f, "{error} {message}")?;
-    let help = Color::Blue.paint("Help:");
-    writeln!(f, "{help} {description}")?;
+
+    f.set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+      .unwrap();
+    write!(f, "Error: ").unwrap();
+    f.set_color(ColorSpec::new().set_bold(true)).unwrap();
+    writeln!(f, "{title}").unwrap();
+
+    f.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))
+      .unwrap();
+    write!(f, "Help: ").unwrap();
+    f.reset().unwrap();
+    writeln!(f, "{description}").unwrap();
+
     if let Some(url) = link {
-      let reference = Style::new().bold().dimmed().paint("See also:");
-      let link = ansi_link(format!("{DOC_SITE_HOST}{url}"));
-      writeln!(f, "{reference} {link}")?;
+      f.set_color(ColorSpec::new().set_bold(true).set_dimmed(true))
+        .unwrap();
+      write!(f, "See also: ").unwrap();
+      f.reset().unwrap();
+      writeln!(f, "{}", ansi_link(format!("{DOC_SITE_HOST}{url}"))).unwrap();
     }
 
     // skip root error
-    let mut causes = self.inner.chain().skip(1).peekable();
+    let mut causes: std::iter::Peekable<std::iter::Skip<anyhow::Chain>> =
+      self.inner.chain().skip(1).peekable();
     if causes.peek().is_none() {
       return Ok(());
     }
-    writeln!(f)?;
-    writeln!(f, "{} Caused by", Color::Red.paint("×"))?;
+    writeln!(f).unwrap();
+
+    f.set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+      .unwrap();
+    write!(f, "×").unwrap();
+    f.reset().unwrap();
+    writeln!(f, " Caused by").unwrap();
+
     for err in causes {
-      let prefix = Color::Red.paint("╰▻");
-      writeln!(f, "{prefix} {err}")?;
+      f.set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+        .unwrap();
+      write!(f, "╰▻").unwrap();
+      f.reset().unwrap();
+      writeln!(f, " {err}").unwrap();
     }
+
     Ok(())
   }
 }

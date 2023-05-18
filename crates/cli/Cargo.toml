@@ -30,6 +30,7 @@ ast-grep-dynamic = { version = "0.5.2", path = "../dynamic" }
 ast-grep-language = { version = "0.5.2", path = "../language" }
 
 ansi_term = "0.12"
+termcolor = "1.2"
 atty = "0.2.14"
 crossterm = "0.26.0"
 inquire = "0.6.2"
