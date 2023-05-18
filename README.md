@@ -41,11 +41,10 @@ Or you can build ast-grep from source. You need install rustup, clone the reposi
 cargo install --path ./crates/cli
 ```
 
-A [brew](https://brew.sh/) formula is also available for ast-grep.
+ast-grep is also available on [homebrew](https://formulae.brew.sh/formula/ast-grep)!
 
 ```bash
-brew tap ast-grep/tap
-brew install ast-grep/tap/ast-grep
+brew install ast-grep
 ```
 
 ## Command line usage example
