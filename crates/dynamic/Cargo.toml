@@ -1,6 +1,6 @@
 [package]
 name = "ast-grep-dynamic"
-version = "0.5.2"
+version = "0.5.3"
 authors = [
   "Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>",
 ]
@@ -14,7 +14,7 @@ rust-version = "1.63"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ast-grep-core = { version = "0.5.2", path = "../core" }
+ast-grep-core = { version = "0.5.3", path = "../core" }
 libloading = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0.40"
