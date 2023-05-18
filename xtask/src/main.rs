@@ -136,7 +136,7 @@ fn commit_and_tag(version: &str) -> Result<()> {
   let commit = Command::new("git")
     .arg("commit")
     .arg("-am")
-    .arg(format!("{} bump version", version))
+    .arg(format!("{}\nbump version", version))
     .spawn()?
     .wait()?;
   if !commit.success() {
