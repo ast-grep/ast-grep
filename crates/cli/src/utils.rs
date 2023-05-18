@@ -10,6 +10,7 @@ use ignore::{DirEntry, WalkParallel, WalkState};
 
 use ast_grep_core::{AstGrep, Matcher, StrDoc};
 use ast_grep_language::Language;
+use termcolor::{ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use std::fs::read_to_string;
 use std::io::stdout;
@@ -178,6 +179,14 @@ pub fn ansi_link(url: String) -> String {
     url,
     ansi_term::Color::Cyan.italic().paint(&url)
   )
+}
+
+pub fn write_with_style<S: AsRef<str>>(s: S, color_spec: ColorSpec) {
+  let mut writer = StandardStream::stdout(ColorChoice::Always);
+
+  writer.set_color(&color_spec).unwrap();
+  writer.write_all(s.as_ref().as_bytes()).unwrap();
+  writer.reset().unwrap();
 }
 
 /// A single atomic unit where matches happen.
