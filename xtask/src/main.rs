@@ -87,9 +87,15 @@ fn update_napi(version: &str) -> Result<()> {
   Ok(())
 }
 
+fn edit_root_toml<P: AsRef<Path>>(path: P, version: &str) -> Result<()> {
+  let mut toml: Document = read_to_string(&path)?.parse()?;
+  toml["workspace"]["package"]["version"] = to_toml(version);
+  fs::write(path, toml.to_string())?;
+  Ok(())
+}
+
 fn edit_toml<P: AsRef<Path>>(path: P, version: &str) -> Result<()> {
   let mut toml: Document = read_to_string(&path)?.parse()?;
-  toml["package"]["version"] = to_toml(version);
   let deps = toml["dependencies"]
     .as_table_mut()
     .context("dep should be table")?;
@@ -110,6 +116,9 @@ fn edit_toml<P: AsRef<Path>>(path: P, version: &str) -> Result<()> {
 }
 
 fn update_crates(version: &str) -> Result<()> {
+  // update root toml
+  let root_toml = Path::new("Cargo.toml");
+  edit_root_toml(root_toml, version)?;
   for entry in read_dir("crates")? {
     let path = entry?.path();
     if !path.is_dir() {
@@ -119,8 +128,8 @@ fn update_crates(version: &str) -> Result<()> {
     edit_toml(toml_path, version)?;
   }
   // update benches
-  let toml_path = Path::new("benches/Cargo.toml");
-  edit_toml(toml_path, version)?;
+  let bench_toml = Path::new("benches/Cargo.toml");
+  edit_toml(bench_toml, version)?;
   Ok(())
 }
 
