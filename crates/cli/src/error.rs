@@ -286,7 +286,7 @@ mod test {
       inner: &error,
     };
     let display = format!("{error_fmt}");
-    // assert_eq!(display.lines().count(), 6); // FIXME:
+    assert_eq!(display.lines().count(), 6);
     assert!(display.contains("Cannot read configuration."));
     assert!(
       display.contains("Caused by"),
@@ -303,7 +303,7 @@ mod test {
       inner: &error,
     };
     let display = format!("{error_fmt}");
-    // assert_eq!(display.lines().count(), 3); // FIXME:
+    assert_eq!(display.lines().count(), 3);
     assert!(display.contains("Cannot read configuration."));
     assert!(
       !display.contains("Caused by"),
