@@ -13,6 +13,7 @@ documentation.workspace = true
 homepage.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+readme.workspace = true
 
 [[bin]]
 name = "sg"
