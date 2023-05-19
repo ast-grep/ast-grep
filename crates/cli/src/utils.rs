@@ -181,10 +181,10 @@ pub fn ansi_link(url: String) -> String {
   )
 }
 
-pub fn write_with_style<S: AsRef<str>>(s: S, color_spec: ColorSpec) {
+pub fn write_with_style<S: AsRef<str>>(s: S, color_spec: Option<ColorSpec>) {
   let mut writer = StandardStream::stdout(ColorChoice::Always);
 
-  writer.set_color(&color_spec).unwrap();
+  writer.set_color(&color_spec.unwrap_or_default()).unwrap();
   writer.write_all(s.as_ref().as_bytes()).unwrap();
   writer.reset().unwrap();
 }
