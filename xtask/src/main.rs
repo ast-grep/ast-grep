@@ -110,6 +110,9 @@ fn edit_toml<P: AsRef<Path>>(path: P, version: &str) -> Result<()> {
 }
 
 fn update_crates(version: &str) -> Result<()> {
+  // update root toml
+  let root_toml = Path::new("Cargo.toml");
+  edit_toml(root_toml, version)?;
   for entry in read_dir("crates")? {
     let path = entry?.path();
     if !path.is_dir() {
@@ -119,8 +122,8 @@ fn update_crates(version: &str) -> Result<()> {
     edit_toml(toml_path, version)?;
   }
   // update benches
-  let toml_path = Path::new("benches/Cargo.toml");
-  edit_toml(toml_path, version)?;
+  let bench_toml = Path::new("benches/Cargo.toml");
+  edit_toml(bench_toml, version)?;
   Ok(())
 }
 
