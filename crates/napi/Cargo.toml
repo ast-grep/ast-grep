@@ -1,13 +1,14 @@
 [package]
 name = "ast-grep-napi"
-version = "0.5.3"
-authors = ["HerringtonDarkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
-edition = "2018"
 description = "Search and Rewrite code at large scale using precise AST pattern"
 keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
-license = "MIT"
-repository = "https://github.com/ast-grep/ast-grep"
-rust-version = "1.63"
+edition = "2018"
+
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 napi = { version = "2.12.6", features = ["serde-json", "napi4", "error_anyhow"] }
