@@ -6,6 +6,7 @@ mod new;
 mod print;
 mod run;
 mod scan;
+mod style;
 mod utils;
 mod verify;
 

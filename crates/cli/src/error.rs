@@ -1,10 +1,10 @@
 use anyhow::{Error, Result};
 use termcolor::{Color, ColorSpec};
 
+use crate::style::{fg_color, write};
+use crate::utils::ansi_link;
 use std::fmt;
 use std::path::PathBuf;
-
-use crate::utils::{ansi_link, write_with_style};
 
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const PATTERN_GUIDE: Option<&str> = Some("/guide/pattern-syntax.html");
@@ -224,26 +224,20 @@ impl<'a> fmt::Display for ErrorFormat<'a> {
       link,
     } = ErrorMessage::from_context(self.context);
 
-    write_with_style(
-      "Error: ",
-      Some(ColorSpec::new().set_fg(Some(Color::Red)).to_owned()),
-    );
-    write_with_style(
+    write("Error: ", fg_color(Color::Red));
+    write(
       format!("{title}\n"),
       Some(ColorSpec::new().set_bold(true).to_owned()),
     );
-    write_with_style(
-      "Help: ",
-      Some(ColorSpec::new().set_fg(Some(Color::Blue)).to_owned()),
-    );
-    write_with_style(format!("{description}\n"), None);
+    write("Help: ", fg_color(Color::Blue));
+    write(format!("{description}\n"), None);
 
     if let Some(url) = link {
-      write_with_style(
+      write(
         "See also: ",
         Some(ColorSpec::new().set_bold(true).set_dimmed(true).to_owned()),
       );
-      write_with_style(
+      write(
         format!("{}\n\n", ansi_link(format!("{DOC_SITE_HOST}{url}"))),
         None,
       );
@@ -256,18 +250,12 @@ impl<'a> fmt::Display for ErrorFormat<'a> {
       return Ok(());
     }
 
-    write_with_style(
-      "×",
-      Some(ColorSpec::new().set_fg(Some(Color::Red)).to_owned()),
-    );
-    write_with_style(" Caused by\n", None);
+    write("×", fg_color(Color::Red));
+    write(" Caused by\n", None);
 
     for err in causes {
-      write_with_style(
-        "╰▻",
-        Some(ColorSpec::new().set_fg(Some(Color::Red)).to_owned()),
-      );
-      write_with_style(format!(" {err}\n"), None);
+      write("╰▻", fg_color(Color::Red));
+      write(format!(" {err}\n"), None);
     }
 
     Ok(())
