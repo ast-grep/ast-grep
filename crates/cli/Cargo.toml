@@ -1,19 +1,18 @@
 [package]
 name = "ast-grep"
-version = "0.5.3"
-authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
-edition = "2021"
-repository = "https://github.com/ast-grep/ast-grep"
-documentation = "https://ast-grep.github.io/guide/introduction.html"
-homepage = "https://ast-grep.github.io/"
 description = "Search and Rewrite code at large scale using precise AST pattern"
 keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
 categories = ["command-line-utilities", "development-tools", "parsing"]
-license = "MIT"
-rust-version = "1.63"
 default-run = "sg"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 
 [[bin]]
 name = "sg"
