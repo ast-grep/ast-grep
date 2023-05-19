@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/napi",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Search and Rewrite code at large scale using precise AST pattern",
   "main": "index.js",
   "repository": "https://github.com/ast-grep/ast-grep",
@@ -38,7 +38,7 @@
     "artifacts": "napi artifacts",
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
-    "prepublishOnly": "napi prepublish -t npm",
+    "prepublishOnly": "napi prepublish -t npm --skip-gh-release",
     "test": "ava",
     "version": "napi version"
   },
