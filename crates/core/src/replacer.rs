@@ -162,6 +162,8 @@ fn get_meta_var_replacement<D: Doc>(
       if nodes.is_empty() {
         vec![]
       } else {
+        // TODO: this is wrong. start_byte is not always index range of slice.
+        // e.g. start_byte is still byte_offset in utf_16 (napi). start_byte
         let start = nodes[0].inner.start_byte() as usize;
         let end = nodes[nodes.len() - 1].inner.end_byte() as usize;
         nodes[0].root.doc.get_source().as_slice()[start..end].to_vec()
