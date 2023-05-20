@@ -388,7 +388,7 @@ impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, Or<L, M, N>> {
 mod test {
   use super::*;
   use crate::language::Tsx;
-  use crate::Root;
+  use crate::{Root, StrDoc};
 
   fn test_find(matcher: &impl Matcher<Tsx>, code: &str) {
     let node = Root::new(code, Tsx);
@@ -494,10 +494,10 @@ mod test {
   */
   use crate::Pattern;
   trait TsxMatcher {
-    fn t(self) -> Pattern<Tsx>;
+    fn t(self) -> Pattern<StrDoc<Tsx>>;
   }
   impl TsxMatcher for &str {
-    fn t(self) -> Pattern<Tsx> {
+    fn t(self) -> Pattern<StrDoc<Tsx>> {
       Pattern::new(self, Tsx)
     }
   }

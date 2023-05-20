@@ -4,7 +4,7 @@ mod json_print;
 
 use crate::lang::SgLang;
 use ast_grep_config::RuleConfig;
-use ast_grep_core::{Matcher, NodeMatch as SgNodeMatch, Pattern, StrDoc};
+use ast_grep_core::{Matcher, NodeMatch as SgNodeMatch, Pattern as SgPattern, StrDoc};
 
 use anyhow::Result;
 use clap::ValueEnum;
@@ -18,6 +18,7 @@ pub use colored_print::{print_diff, ColoredPrinter, Heading, PrintStyles, Report
 pub use interactive_print::InteractivePrinter;
 pub use json_print::JSONPrinter;
 
+type Pattern<L> = SgPattern<StrDoc<L>>;
 type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.

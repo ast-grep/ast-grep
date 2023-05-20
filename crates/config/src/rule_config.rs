@@ -10,13 +10,15 @@ use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarMatchers;
 use ast_grep_core::replace_meta_var_in_string;
 use ast_grep_core::{NodeMatch, StrDoc};
-use ast_grep_core::{Pattern, PatternError};
+use ast_grep_core::{Pattern as PatternCore, PatternError};
 use serde::{Deserialize, Serialize};
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error as YamlError};
 use thiserror::Error;
 
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
+
+type Pattern<L> = PatternCore<StrDoc<L>>;
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
