@@ -1,10 +1,10 @@
-use ansi_term::{Color, Style};
 use anyhow::{Error, Result};
+use termcolor::{Color, ColorSpec};
 
+use crate::style::{fg_color, write};
+use crate::utils::ansi_link;
 use std::fmt;
 use std::path::PathBuf;
-
-use crate::utils::ansi_link;
 
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const PATTERN_GUIDE: Option<&str> = Some("/guide/pattern-syntax.html");
@@ -217,35 +217,47 @@ struct ErrorFormat<'a> {
 }
 
 impl<'a> fmt::Display for ErrorFormat<'a> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+  fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
     let ErrorMessage {
       title,
       description,
       link,
     } = ErrorMessage::from_context(self.context);
-    let bold = Style::new().bold();
-    let error = Color::Red.paint("Error:");
-    let message = bold.paint(title);
-    writeln!(f, "{error} {message}")?;
-    let help = Color::Blue.paint("Help:");
-    writeln!(f, "{help} {description}")?;
+
+    write("Error: ", fg_color(Color::Red));
+    write(
+      format!("{title}\n"),
+      Some(ColorSpec::new().set_bold(true).to_owned()),
+    );
+    write("Help: ", fg_color(Color::Blue));
+    write(format!("{description}\n"), None);
+
     if let Some(url) = link {
-      let reference = Style::new().bold().dimmed().paint("See also:");
-      let link = ansi_link(format!("{DOC_SITE_HOST}{url}"));
-      writeln!(f, "{reference} {link}")?;
+      write(
+        "See also: ",
+        Some(ColorSpec::new().set_bold(true).set_dimmed(true).to_owned()),
+      );
+      write(
+        format!("{}\n\n", ansi_link(format!("{DOC_SITE_HOST}{url}"))),
+        None,
+      );
     }
 
     // skip root error
-    let mut causes = self.inner.chain().skip(1).peekable();
+    let mut causes: std::iter::Peekable<std::iter::Skip<anyhow::Chain>> =
+      self.inner.chain().skip(1).peekable();
     if causes.peek().is_none() {
       return Ok(());
     }
-    writeln!(f)?;
-    writeln!(f, "{} Caused by", Color::Red.paint("×"))?;
+
+    write("×", fg_color(Color::Red));
+    write(" Caused by\n", None);
+
     for err in causes {
-      let prefix = Color::Red.paint("╰▻");
-      writeln!(f, "{prefix} {err}")?;
+      write("╰▻", fg_color(Color::Red));
+      write(format!(" {err}\n"), None);
     }
+
     Ok(())
   }
 }
