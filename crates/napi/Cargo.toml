@@ -4,17 +4,20 @@ description = "Search and Rewrite code at large scale using precise AST pattern"
 keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
 edition = "2018"
 
-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+version.workspace = true
 
 [dependencies]
+ast-grep-core.workspace = true
+ast-grep-config.workspace = true
+
 napi = { version = "2.12.7", features = ["serde-json", "napi4", "error_anyhow"] }
 napi-derive = "2.12.5"
-ast-grep-core = { version= "0.5.3", path = "../core" }
-ast-grep-config = { version= "0.5.3", path = "../config" }
+
+ignore = "0.4.20"
 serde = { version = "1.0", features = ["derive"] }
 tree-sitter = { version = "0.9.1", package = "tree-sitter-facade-sg" }
 tree-sitter-typescript="0.20.2"
@@ -22,7 +25,6 @@ tree-sitter-html = "0.19.0"
 tree-sitter-javascript = "0.20.0"
 tree-sitter-css = "0.19.0"
 serde_json = "1.0.96"
-ignore = "0.4.20"
 
 [features]
 # this feature is only for cargo test to avoid napi_ symbol undefined error

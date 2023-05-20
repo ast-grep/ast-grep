@@ -19,3 +19,10 @@ homepage = "https://ast-grep.github.io/"
 repository = "https://github.com/ast-grep/ast-grep"
 rust-version = "1.63"
 readme = "README.md"
+
+[workspace.dependencies]
+ast-grep-core = { version = "0.5.3", path = "crates/core" }
+ast-grep-config = { version = "0.5.3", path = "crates/config" }
+ast-grep-dynamic = { version = "0.5.3", path = "crates/dynamic" }
+ast-grep-language = { version = "0.5.3", path = "crates/language" }
+ast-grep-lsp = { version = "0.5.3", path = "crates/lsp" }

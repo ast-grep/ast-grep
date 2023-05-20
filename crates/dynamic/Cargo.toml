@@ -3,17 +3,18 @@ name = "ast-grep-dynamic"
 description = "Load tree-sitter dynamic library for ast-grep"
 keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
 
-version.workspace = true
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+version.workspace = true
 
 [dependencies]
-ast-grep-core = { version = "0.5.3", path = "../core" }
+ast-grep-core.workspace = true
+
+ignore = "0.4.20"
 libloading = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0.40"
-ignore = "0.4.20"
 tree-sitter-native = { version = "0.20.10", package = "tree-sitter" }
