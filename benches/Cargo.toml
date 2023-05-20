@@ -1,14 +1,15 @@
 [package]
 publish = false
 name = "benches"
-authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
-edition = "2021"
+
+authors.workspace = true
+edition.workspace = true
 version.workspace = true
 
 [dependencies]
-ast-grep-core = { version = "0.5.3", path = "../crates/core" }
-ast-grep-config = { version = "0.5.3", path = "../crates/config" }
-ast-grep-language = { version = "0.5.3", path = "../crates/language" }
+ast-grep-core.workspace = true
+ast-grep-config.workspace = true
+ast-grep-language.workspace = true
 
 [dev-dependencies]
 criterion = "0.4"

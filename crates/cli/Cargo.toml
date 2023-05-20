@@ -18,33 +18,34 @@ readme.workspace = true
 [[bin]]
 name = "sg"
 path = "src/main.rs"
+
 [[bin]]
 name = "ast-grep"
 path = "src/bin/ast-grep.rs"
 
 [dependencies]
-ast-grep-core = { version = "0.5.3", path = "../core" }
-ast-grep-config = { version = "0.5.3", path = "../config" }
-ast-grep-lsp = { version = "0.5.3", path = "../lsp" }
-ast-grep-dynamic = { version = "0.5.3", path = "../dynamic" }
-ast-grep-language = { version = "0.5.3", path = "../language" }
+ast-grep-core.workspace = true
+ast-grep-config.workspace = true
+ast-grep-dynamic.workspace = true
+ast-grep-language.workspace = true
+ast-grep-lsp.workspace = true
 
 ansi_term = "0.12"
-atty = "0.2.14"
-crossterm = "0.26.0"
-inquire = "0.6.2"
 anyhow = "1.0"
+atty = "0.2.14"
 clap = { version = "4.3.0", features = ["derive"] }
 codespan-reporting = "0.11.1"
+crossterm = "0.26.0"
 ignore = "0.4.20"
+inquire = "0.6.2"
 num_cpus = "1.15.0"
 serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.9.21"
 serde_json = "1.0.96"
+serde_yaml = "0.9.21"
 similar = { version = "2.2.1", features = ["inline"] }
 tokio = { version = "1", features = ["rt-multi-thread", "io-std"] }
 
 [dev-dependencies]
-tempdir = "0.3.7"
 assert_cmd = "2.0.11"
 predicates = "3.0.3"
+tempdir = "0.3.7"
