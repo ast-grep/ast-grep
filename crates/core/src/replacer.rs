@@ -21,7 +21,7 @@ impl<L: Language> Replacer<StrDoc<L>> for str {
   }
 }
 
-impl<L: Language> Replacer<StrDoc<L>> for Pattern<L> {
+impl<L: Language> Replacer<StrDoc<L>> for Pattern<StrDoc<L>> {
   fn generate_replacement(&self, env: &MetaVarEnv<StrDoc<L>>, lang: L) -> Underlying<String> {
     let edits = collect_edits(&self.root, env, lang);
     merge_edits_to_string(edits, &self.root)

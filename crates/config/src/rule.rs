@@ -7,12 +7,14 @@ use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::ops as o;
-use ast_grep_core::{Doc, Matcher, Node, Pattern, PatternError};
+use ast_grep_core::{Doc, Matcher, Node, Pattern as PatternCore, PatternError, StrDoc};
 
 use bit_set::BitSet;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use thiserror::Error;
+
+type Pattern<L> = PatternCore<StrDoc<L>>;
 
 /// We have three kinds of rules in ast-grep.
 /// * Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.

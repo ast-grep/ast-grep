@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ast_grep_core::traversal::Visitor;
-use ast_grep_core::{Matcher, Pattern};
+use ast_grep_core::{Matcher, Pattern as SgPattern, StrDoc};
 use ast_grep_language::Language;
 use clap::Parser;
 use ignore::WalkParallel;
@@ -15,6 +15,8 @@ use crate::print::{
 };
 use crate::utils::{filter_file_interactive, MatchUnit};
 use crate::utils::{run_worker, Items, Worker};
+
+type Pattern<L> = SgPattern<StrDoc<L>>;
 
 // NOTE: have to register custom lang before clap read arg
 // RunArg has a field of SgLang

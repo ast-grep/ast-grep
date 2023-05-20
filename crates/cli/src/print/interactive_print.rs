@@ -197,8 +197,9 @@ mod test {
   use super::*;
   use ast_grep_config::{from_yaml_string, GlobalRules};
   use ast_grep_core::traversal::Visitor;
-  use ast_grep_core::{AstGrep, Matcher, Pattern, StrDoc};
+  use ast_grep_core::{AstGrep, Matcher, Pattern as SgPattern, StrDoc};
   use ast_grep_language::SupportLang;
+  type Pattern<L> = SgPattern<StrDoc<L>>;
 
   fn make_rule(rule: &str) -> RuleConfig<SgLang> {
     let globals = GlobalRules::default();
