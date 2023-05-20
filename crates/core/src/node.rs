@@ -405,7 +405,7 @@ impl<'r, D: Doc> Node<'r, D> {
   fn make_edit<M, R>(&self, matched: NodeMatch<D>, matcher: &M, replacer: &R) -> Edit<D>
   where
     M: Matcher<D::Lang>,
-    R: Replacer<D::Lang>,
+    R: Replacer<D>,
   {
     let lang = self.root.lang().clone();
     let env = matched.get_env();
@@ -422,7 +422,7 @@ impl<'r, D: Doc> Node<'r, D> {
     }
   }
 
-  pub fn replace<M: Matcher<D::Lang>, R: Replacer<D::Lang>>(
+  pub fn replace<M: Matcher<D::Lang>, R: Replacer<D>>(
     &self,
     matcher: M,
     replacer: R,
@@ -432,7 +432,7 @@ impl<'r, D: Doc> Node<'r, D> {
     Some(edit)
   }
 
-  pub fn replace_all<M: Matcher<D::Lang>, R: Replacer<D::Lang>>(
+  pub fn replace_all<M: Matcher<D::Lang>, R: Replacer<D>>(
     &self,
     matcher: M,
     replacer: R,
