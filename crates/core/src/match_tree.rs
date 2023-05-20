@@ -100,12 +100,18 @@ fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
       goal_children.next();
       // goal has all matched
       if goal_children.peek().is_none() {
-        return Some(end);
+        // TODO: handle named and unnamed ellipsis
+        // we need to consume all cand_children to match ellipsis
+        let updated_end = cand_children.last().map(|n| n.range().end).unwrap_or(end);
+        return Some(updated_end);
       }
       while !goal_children.peek().unwrap().is_named() {
         goal_children.next();
         if goal_children.peek().is_none() {
-          return Some(end);
+          // TODO: handle named and unnamed ellipsis
+          // we need to consume all cand_children to match ellipsis
+          let updated_end = cand_children.last().map(|n| n.range().end).unwrap_or(end);
+          return Some(updated_end);
         }
       }
       // if next node is a Ellipsis, consume one candidate node

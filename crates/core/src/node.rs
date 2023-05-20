@@ -180,7 +180,7 @@ impl<'r, D: Doc> Node<'r, D> {
 impl<'r, L: Language> Node<'r, StrDoc<L>> {
   #[doc(hidden)]
   pub fn display_context(&self, context_lines: usize) -> DisplayContext<'r> {
-    let bytes = self.root.doc.get_source().as_slice();
+    let bytes = self.root.doc.get_source().as_bytes();
     let start = self.inner.start_byte() as usize;
     let end = self.inner.end_byte() as usize;
     let (mut leading, mut trailing) = (start, end);

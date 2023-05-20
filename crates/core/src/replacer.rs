@@ -162,11 +162,17 @@ fn get_meta_var_replacement<D: Doc>(
       if nodes.is_empty() {
         vec![]
       } else {
-        // TODO: this is wrong. start_byte is not always index range of slice.
+        // NOTE: start_byte is not always index range of source's slice.
         // e.g. start_byte is still byte_offset in utf_16 (napi). start_byte
+        // so we need to call source's get_range method
         let start = nodes[0].inner.start_byte() as usize;
         let end = nodes[nodes.len() - 1].inner.end_byte() as usize;
-        nodes[0].root.doc.get_source().as_slice()[start..end].to_vec()
+        nodes[0]
+          .root
+          .doc
+          .get_source()
+          .get_range(start..end)
+          .to_vec()
       }
     }
   };
