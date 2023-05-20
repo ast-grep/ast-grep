@@ -11,7 +11,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-napi = { version = "2.12.6", features = ["serde-json", "napi4", "error_anyhow"] }
+napi = { version = "2.12.7", features = ["serde-json", "napi4", "error_anyhow"] }
 napi-derive = "2.12.5"
 ast-grep-core = { version= "0.5.3", path = "../core" }
 ast-grep-config = { version= "0.5.3", path = "../config" }
