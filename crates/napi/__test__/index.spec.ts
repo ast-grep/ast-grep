@@ -18,6 +18,20 @@ test('find from native code', t => {
   })
 })
 
+test('find multiple nodes', t => {
+  const sg = parse('a(1, 2, 3)')
+  const match = sg.root().find('a($$$B)')
+  t.deepEqual(match!.range(), {
+    start: { line: 0, column: 0, index: 0 },
+    end: { line: 0, column: 10, index: 10 },
+  })
+  const matchedVar = match!.getMultipleMatches('B')
+  let start = matchedVar[0].range().start;
+  let end = matchedVar[matchedVar.length - 1].range().end;
+  t.deepEqual(start, { line: 0, column: 2, index: 2 })
+  t.deepEqual(end, { line: 0, column: 9, index: 9 })
+})
+
 test('find unicode', t => {
   const str = `console.log("Hello, 世界")
   print("ザ・ワールド")`
