@@ -9,47 +9,31 @@ type Edit<D> = E<<D as Doc>::Source>;
 type Underlying<S> = Vec<<S as Content>::Underlying>;
 
 /// Replace meta variable in the replacer string
-pub trait Replacer<L: Language> {
-  fn generate_replacement<D: Doc<Lang = L>>(
-    &self,
-    env: &MetaVarEnv<D>,
-    lang: L,
-  ) -> Underlying<D::Source>;
+pub trait Replacer<D: Doc> {
+  fn generate_replacement(&self, env: &MetaVarEnv<D>, lang: D::Lang) -> Underlying<D::Source>;
 }
 
-impl<L: Language> Replacer<L> for str {
-  fn generate_replacement<D: Doc<Lang = L>>(
-    &self,
-    env: &MetaVarEnv<D>,
-    lang: L,
-  ) -> Underlying<D::Source> {
+impl<L: Language> Replacer<StrDoc<L>> for str {
+  fn generate_replacement(&self, env: &MetaVarEnv<StrDoc<L>>, lang: L) -> Underlying<String> {
     let root = Root::new(self, lang.clone());
     let edits = collect_edits(&root, env, lang);
-    merge_edits_to_string::<D, _>(edits, &root)
+    merge_edits_to_string(edits, &root)
   }
 }
 
-impl<L: Language> Replacer<L> for Pattern<L> {
-  fn generate_replacement<D: Doc<Lang = L>>(
-    &self,
-    env: &MetaVarEnv<D>,
-    lang: L,
-  ) -> Underlying<D::Source> {
+impl<L: Language> Replacer<StrDoc<L>> for Pattern<L> {
+  fn generate_replacement(&self, env: &MetaVarEnv<StrDoc<L>>, lang: L) -> Underlying<String> {
     let edits = collect_edits(&self.root, env, lang);
-    merge_edits_to_string::<D, _>(edits, &self.root)
+    merge_edits_to_string(edits, &self.root)
   }
 }
 
-impl<L, T> Replacer<L> for &T
+impl<D, T> Replacer<D> for &T
 where
-  L: Language,
-  T: Replacer<L> + ?Sized,
+  D: Doc,
+  T: Replacer<D> + ?Sized,
 {
-  fn generate_replacement<D: Doc<Lang = L>>(
-    &self,
-    env: &MetaVarEnv<D>,
-    lang: L,
-  ) -> Underlying<D::Source> {
+  fn generate_replacement(&self, env: &MetaVarEnv<D>, lang: D::Lang) -> Underlying<D::Source> {
     (**self).generate_replacement(env, lang)
   }
 }
@@ -130,17 +114,19 @@ pub fn replace_meta_var_in_string<L: Language>(
   ret
 }
 
-fn merge_edits_to_string<D: Doc, L: Language>(
-  edits: Vec<Edit<D>>,
-  root: &Root<StrDoc<L>>,
-) -> Underlying<D::Source> {
+fn merge_edits_to_string<D: Doc>(edits: Vec<Edit<D>>, root: &Root<D>) -> Underlying<D::Source> {
   let mut ret = vec![];
   let mut start = 0;
   for edit in edits {
     debug_assert!(start <= edit.position, "Edit must be ordered!");
-    ret.extend(D::Source::transform_str(
-      &root.doc.src[start..edit.position],
-    ));
+    ret.extend(
+      root
+        .doc
+        .get_source()
+        .get_range(start..edit.position)
+        .iter()
+        .cloned(),
+    );
     ret.extend(edit.inserted_text.iter().cloned());
     start = edit.position + edit.deleted_length;
   }
@@ -179,13 +165,10 @@ fn get_meta_var_replacement<D: Doc>(
   Some(replaced)
 }
 
-impl<'a, L: Language> Replacer<L> for Node<'a, StrDoc<L>> {
-  fn generate_replacement<D: Doc<Lang = L>>(
-    &self,
-    _env: &MetaVarEnv<D>,
-    _lang: L,
-  ) -> Underlying<D::Source> {
-    D::Source::transform_str(&self.text())
+impl<'a, D: Doc> Replacer<D> for Node<'a, D> {
+  fn generate_replacement(&self, _env: &MetaVarEnv<D>, _lang: D::Lang) -> Underlying<D::Source> {
+    let range = self.range();
+    self.root.doc.get_source().get_range(range).to_vec()
   }
 }
 
