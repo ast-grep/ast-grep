@@ -5,6 +5,8 @@ use napi_derive::napi;
 use std::borrow::Cow;
 use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
 
+use std::ops::Range;
+
 #[napi]
 pub enum FrontEndLanguage {
   Html,
@@ -62,20 +64,23 @@ impl Content for Wrapper {
   ) -> std::result::Result<Option<Tree>, ParserError> {
     parser.parse_utf16(self.inner.as_slice(), tree)
   }
-  fn as_slice(&self) -> &[Self::Underlying] {
-    self.inner.as_slice()
+  fn get_range(&self, range: Range<usize>) -> &[Self::Underlying] {
+    // the range is in byte offset, but our underlying is u16
+    let start = range.start / 2;
+    let end = range.end / 2;
+    &self.inner.as_slice()[start..end]
   }
   fn transform_str(s: &str) -> Vec<Self::Underlying> {
     s.encode_utf16().collect()
   }
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit {
     let start_byte = edit.position;
-    let old_end_byte = edit.position + edit.deleted_length * 2;
+    let old_end_byte = edit.position + edit.deleted_length;
     let new_end_byte = edit.position + edit.inserted_text.len() * 2;
-    let mut input = self.inner.to_vec();
+    let input = &mut self.inner;
     let start_position = pos_for_byte_offset(&input, start_byte);
     let old_end_position = pos_for_byte_offset(&input, old_end_byte);
-    input.splice(start_byte..old_end_byte, edit.inserted_text.clone());
+    input.splice(start_byte / 2..old_end_byte / 2, edit.inserted_text.clone());
     let new_end_position = pos_for_byte_offset(&input, new_end_byte);
     InputEdit::new(
       start_byte as u32,

@@ -1,5 +1,6 @@
 use crate::language::Language;
 use std::borrow::Cow;
+use std::ops::Range;
 use thiserror::Error;
 use tree_sitter::{
   InputEdit, Language as TsLang, LanguageError, Node, Parser, ParserError, Point, Tree,
@@ -112,7 +113,7 @@ pub trait Content: Sized {
     parser: &mut Parser,
     tree: Option<&Tree>,
   ) -> Result<Option<Tree>, ParserError>;
-  fn as_slice(&self) -> &[Self::Underlying];
+  fn get_range(&self, range: Range<usize>) -> &[Self::Underlying];
   fn transform_str(s: &str) -> Vec<Self::Underlying>;
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit;
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str>;
@@ -127,8 +128,8 @@ impl Content for String {
   ) -> Result<Option<Tree>, ParserError> {
     parser.parse(self.as_bytes(), tree)
   }
-  fn as_slice(&self) -> &[Self::Underlying] {
-    self.as_bytes()
+  fn get_range(&self, range: Range<usize>) -> &[Self::Underlying] {
+    &self.as_bytes()[range]
   }
   fn transform_str(s: &str) -> Vec<Self::Underlying> {
     s.bytes().collect()
