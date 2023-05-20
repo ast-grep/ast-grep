@@ -21,9 +21,9 @@ enum PatternStyle<L: Language> {
 }
 
 #[derive(Clone)]
-pub struct Pattern<L: Language> {
-  pub(crate) root: Root<StrDoc<L>>,
-  style: PatternStyle<L>,
+pub struct Pattern<D: Doc> {
+  pub(crate) root: Root<D>,
+  style: PatternStyle<D::Lang>,
 }
 
 #[derive(Debug, Error)]
@@ -49,7 +49,7 @@ fn is_single_node(n: &tree_sitter::Node) -> bool {
   }
 }
 
-impl<L: Language> Pattern<L> {
+impl<L: Language> Pattern<StrDoc<L>> {
   pub fn try_new(src: &str, lang: L) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(src);
     let root = Root::try_new(&processed, lang)?;
@@ -86,8 +86,10 @@ impl<L: Language> Pattern<L> {
       style: PatternStyle::Selector(kind_matcher),
     })
   }
+}
 
-  fn single_matcher(&self) -> Node<StrDoc<L>> {
+impl<D: Doc> Pattern<D> {
+  fn single_matcher(&self) -> Node<D> {
     debug_assert!(matches!(self.style, PatternStyle::Single));
     let root = self.root.root();
     let mut node = root.inner;
@@ -100,7 +102,7 @@ impl<L: Language> Pattern<L> {
     }
   }
 
-  fn kind_matcher(&self, kind_matcher: &KindMatcher<L>) -> Node<StrDoc<L>> {
+  fn kind_matcher(&self, kind_matcher: &KindMatcher<D::Lang>) -> Node<D> {
     debug_assert!(matches!(self.style, PatternStyle::Selector(_)));
     self
       .root
@@ -111,8 +113,8 @@ impl<L: Language> Pattern<L> {
   }
 }
 
-impl<L: Language> Matcher<L> for Pattern<L> {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+impl<P: Doc> Matcher<P::Lang> for Pattern<P> {
+  fn match_node_with_env<'tree, D: Doc<Lang = P::Lang>>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -145,7 +147,7 @@ impl<L: Language> Matcher<L> for Pattern<L> {
     Some(kinds)
   }
 
-  fn get_match_len<D: Doc<Lang = L>>(&self, node: Node<D>) -> Option<usize> {
+  fn get_match_len<D: Doc<Lang = P::Lang>>(&self, node: Node<D>) -> Option<usize> {
     let start = node.range().start;
     let end = match &self.style {
       PatternStyle::Single => match_end_non_recursive(&self.single_matcher(), node)?,
@@ -155,7 +157,7 @@ impl<L: Language> Matcher<L> for Pattern<L> {
   }
 }
 
-impl<L: Language> std::fmt::Debug for Pattern<L> {
+impl<D: Doc> std::fmt::Debug for Pattern<D> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match &self.style {
       PatternStyle::Single => write!(f, "{}", self.single_matcher().to_sexp()),
@@ -340,6 +342,6 @@ mod test {
   #[test]
   #[ignore]
   fn test_pattern_size() {
-    assert_eq!(std::mem::size_of::<Pattern<Tsx>>(), 40);
+    assert_eq!(std::mem::size_of::<Pattern<StrDoc<Tsx>>>(), 40);
   }
 }
