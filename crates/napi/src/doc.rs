@@ -70,9 +70,6 @@ impl Content for Wrapper {
     let end = range.end / 2;
     &self.inner.as_slice()[start..end]
   }
-  fn transform_str(s: &str) -> Vec<Self::Underlying> {
-    s.encode_utf16().collect()
-  }
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit {
     let start_byte = edit.position;
     let old_end_byte = edit.position + edit.deleted_length;

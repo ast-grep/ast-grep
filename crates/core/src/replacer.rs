@@ -139,7 +139,12 @@ fn get_meta_var_replacement<D: Doc>(
   }
   let meta_var = lang.extract_meta_var(&node.text())?;
   let replaced = match env.get(&meta_var)? {
-    MatchResult::Single(replaced) => D::Source::transform_str(&replaced.text()),
+    MatchResult::Single(replaced) => replaced
+      .root
+      .doc
+      .get_source()
+      .get_range(replaced.range())
+      .to_vec(),
     MatchResult::Multi(nodes) => {
       if nodes.is_empty() {
         vec![]
