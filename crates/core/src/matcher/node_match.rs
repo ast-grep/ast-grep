@@ -33,7 +33,7 @@ impl<'tree, D: Doc> NodeMatch<'tree, D> {
 }
 
 impl<'tree, D: Doc> NodeMatch<'tree, D> {
-  pub fn replace_by<R: Replacer<D::Lang>>(&self, replacer: R) -> Edit<D::Source> {
+  pub fn replace_by<R: Replacer<D>>(&self, replacer: R) -> Edit<D::Source> {
     let lang = self.lang().clone();
     let env = self.get_env();
     let range = self.range();
