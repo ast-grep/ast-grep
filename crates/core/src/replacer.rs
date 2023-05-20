@@ -21,8 +21,8 @@ impl<L: Language> Replacer<StrDoc<L>> for str {
   }
 }
 
-impl<L: Language> Replacer<StrDoc<L>> for Pattern<StrDoc<L>> {
-  fn generate_replacement(&self, env: &MetaVarEnv<StrDoc<L>>, lang: L) -> Underlying<String> {
+impl<D: Doc> Replacer<D> for Pattern<D> {
+  fn generate_replacement(&self, env: &MetaVarEnv<D>, lang: D::Lang) -> Underlying<D::Source> {
     let edits = collect_edits(&self.root, env, lang);
     merge_edits_to_string(edits, &self.root)
   }
@@ -38,11 +38,7 @@ where
   }
 }
 
-fn collect_edits<D: Doc>(
-  root: &Root<StrDoc<D::Lang>>,
-  env: &MetaVarEnv<D>,
-  lang: D::Lang,
-) -> Vec<Edit<D>> {
+fn collect_edits<D: Doc>(root: &Root<D>, env: &MetaVarEnv<D>, lang: D::Lang) -> Vec<Edit<D>> {
   let mut node = root.root();
   let root_id = node.inner.id();
   let mut edits = vec![];
@@ -85,7 +81,7 @@ fn collect_edits<D: Doc>(
   }
   // add the missing one
   edits.push(Edit::<D> {
-    position: root.doc.src.len(),
+    position: root.root().range().end,
     deleted_length: 0,
     inserted_text: vec![],
   });
@@ -94,10 +90,10 @@ fn collect_edits<D: Doc>(
 
 // replace meta_var in template string, e.g. "Hello $NAME" -> "Hello World"
 // TODO: use Cow instead of String
-pub fn replace_meta_var_in_string<L: Language>(
+pub fn replace_meta_var_in_string<D: Doc>(
   mut template: &str,
-  env: &MetaVarEnv<StrDoc<L>>,
-  lang: &L,
+  env: &MetaVarEnv<D>,
+  lang: &D::Lang,
 ) -> String {
   let mv_char = lang.meta_var_char();
   let mut ret = String::new();
@@ -134,7 +130,7 @@ fn merge_edits_to_string<D: Doc>(edits: Vec<Edit<D>>, root: &Root<D>) -> Underly
 }
 
 fn get_meta_var_replacement<D: Doc>(
-  node: &Node<StrDoc<D::Lang>>,
+  node: &Node<D>,
   env: &MetaVarEnv<D>,
   lang: D::Lang,
 ) -> Option<Underlying<D::Source>> {
