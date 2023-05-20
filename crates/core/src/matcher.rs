@@ -71,12 +71,12 @@ impl<L: Language> Matcher<L> for str {
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    let pattern = Pattern::new(self, node.lang().clone());
+    let pattern = Pattern::str(self, node.lang().clone());
     pattern.match_node_with_env(node, env)
   }
 
   fn get_match_len<D: Doc<Lang = L>>(&self, node: Node<D>) -> Option<usize> {
-    let pattern = Pattern::new(self, node.lang().clone());
+    let pattern = Pattern::str(self, node.lang().clone());
     pattern.get_match_len(node)
   }
 }

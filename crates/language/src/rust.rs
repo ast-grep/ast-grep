@@ -30,7 +30,7 @@ mod test {
   use ast_grep_core::{source::TSParseError, Matcher, Pattern};
 
   fn test_match(s1: &str, s2: &str) {
-    let pattern = Pattern::new(s1, Rust);
+    let pattern = Pattern::str(s1, Rust);
     let cand = Rust.ast_grep(s2);
     assert!(
       pattern.find_node(cand.root()).is_some(),

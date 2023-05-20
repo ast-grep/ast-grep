@@ -148,6 +148,9 @@ impl Doc for JsDoc {
   fn get_source_mut(&mut self) -> &mut Self::Source {
     &mut self.source
   }
+  fn from_str(src: &str, lang: Self::Lang) -> Self {
+    JsDoc::new(src.into(), lang)
+  }
 }
 
 #[cfg(test)]
@@ -165,17 +168,16 @@ mod test {
 
   #[test]
   fn test_js_doc_multiple_node_replace() {
-    // TODO: temporarily comment out
-    // let doc = JsDoc::new(
-    //   "console.log(1 + 2 + 3)".into(),
-    //   FrontEndLanguage::JavaScript,
-    // );
-    // let mut grep = AstGrep::doc(doc);
-    // let edit = grep
-    //   .root()
-    //   .replace("console.log($$$MULTI)", "log($$$MULTI)")
-    //   .expect("should exist");
-    // grep.edit(edit).expect("should work");
-    // assert_eq!(grep.root().text(), "log(1 + 2 + 3)");
+    let doc = JsDoc::new(
+      "console.log(1 + 2 + 3)".into(),
+      FrontEndLanguage::JavaScript,
+    );
+    let mut grep = AstGrep::doc(doc);
+    let edit = grep
+      .root()
+      .replace("console.log($$$MULTI)", "log($$$MULTI)")
+      .expect("should exist");
+    grep.edit(edit).expect("should work");
+    assert_eq!(grep.root().text(), "log(1 + 2 + 3)");
   }
 }

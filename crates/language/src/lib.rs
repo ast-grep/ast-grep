@@ -260,7 +260,7 @@ mod test {
 
   pub fn test_match_lang(query: &str, source: &str, lang: impl Language) {
     let cand = lang.ast_grep(source);
-    let pattern = Pattern::new(query, lang);
+    let pattern = Pattern::str(query, lang);
     assert!(
       pattern.find_node(cand.root()).is_some(),
       "goal: {pattern:?}, candidate: {}",
@@ -270,7 +270,7 @@ mod test {
 
   pub fn test_non_match_lang(query: &str, source: &str, lang: impl Language) {
     let cand = lang.ast_grep(source);
-    let pattern = Pattern::new(query, lang);
+    let pattern = Pattern::str(query, lang);
     assert!(
       pattern.find_node(cand.root()).is_none(),
       "goal: {pattern:?}, candidate: {}",
