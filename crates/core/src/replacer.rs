@@ -2,7 +2,7 @@ use crate::language::Language;
 use crate::meta_var::{split_first_meta_var, MatchResult, MetaVarEnv};
 use crate::source::{Content, Edit as E};
 use crate::Pattern;
-use crate::{Doc, Node, Root, StrDoc};
+use crate::{Doc, Node, Root};
 
 type Edit<D> = E<<D as Doc>::Source>;
 
@@ -13,8 +13,8 @@ pub trait Replacer<D: Doc> {
   fn generate_replacement(&self, env: &MetaVarEnv<D>, lang: D::Lang) -> Underlying<D::Source>;
 }
 
-impl<L: Language> Replacer<StrDoc<L>> for str {
-  fn generate_replacement(&self, env: &MetaVarEnv<StrDoc<L>>, lang: L) -> Underlying<String> {
+impl<D: Doc> Replacer<D> for str {
+  fn generate_replacement(&self, env: &MetaVarEnv<D>, lang: D::Lang) -> Underlying<D::Source> {
     let root = Root::new(self, lang.clone());
     let edits = collect_edits(&root, env, lang);
     merge_edits_to_string(edits, &root)

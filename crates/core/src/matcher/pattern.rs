@@ -48,9 +48,14 @@ fn is_single_node(n: &tree_sitter::Node) -> bool {
     _ => false,
   }
 }
-
 impl<L: Language> Pattern<StrDoc<L>> {
-  pub fn try_new(src: &str, lang: L) -> Result<Self, PatternError> {
+  pub fn str(src: &str, lang: L) -> Self {
+    Self::new(src, lang)
+  }
+}
+
+impl<D: Doc> Pattern<D> {
+  pub fn try_new(src: &str, lang: D::Lang) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(src);
     let root = Root::try_new(&processed, lang)?;
     let goal = root.root();
@@ -66,11 +71,11 @@ impl<L: Language> Pattern<StrDoc<L>> {
     })
   }
 
-  pub fn new(src: &str, lang: L) -> Self {
+  pub fn new(src: &str, lang: D::Lang) -> Self {
     Self::try_new(src, lang).unwrap()
   }
 
-  pub fn contextual(context: &str, selector: &str, lang: L) -> Result<Self, PatternError> {
+  pub fn contextual(context: &str, selector: &str, lang: D::Lang) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(context);
     let root = Root::try_new(&processed, lang.clone())?;
     let goal = root.root();
@@ -86,9 +91,12 @@ impl<L: Language> Pattern<StrDoc<L>> {
       style: PatternStyle::Selector(kind_matcher),
     })
   }
-}
-
-impl<D: Doc> Pattern<D> {
+  pub fn doc(doc: D) -> Self {
+    Self {
+      root: Root::doc(doc),
+      style: PatternStyle::Single,
+    }
+  }
   fn single_matcher(&self) -> Node<D> {
     debug_assert!(matches!(self.style, PatternStyle::Single));
     let root = self.root.root();
@@ -177,7 +185,7 @@ mod test {
   }
 
   fn test_match(s1: &str, s2: &str) {
-    let pattern = Pattern::new(s1, Tsx);
+    let pattern = Pattern::str(s1, Tsx);
     let cand = pattern_node(s2);
     let cand = cand.root();
     assert!(
@@ -188,7 +196,7 @@ mod test {
     );
   }
   fn test_non_match(s1: &str, s2: &str) {
-    let pattern = Pattern::new(s1, Tsx);
+    let pattern = Pattern::str(s1, Tsx);
     let cand = pattern_node(s2);
     let cand = cand.root();
     assert!(
@@ -207,7 +215,7 @@ mod test {
   }
 
   fn match_env(goal_str: &str, cand: &str) -> HashMap<String, String> {
-    let pattern = Pattern::new(goal_str, Tsx);
+    let pattern = Pattern::str(goal_str, Tsx);
     let cand = pattern_node(cand);
     let cand = cand.root();
     let nm = pattern.find_node(cand).unwrap();
@@ -241,7 +249,7 @@ mod test {
 
   #[test]
   fn test_contextual_pattern() {
-    let pattern =
+    let pattern: Pattern<StrDoc<_>> =
       Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx).expect("test");
     let cand = pattern_node("class B { b = 123 }");
     assert!(pattern.find_node(cand.root()).is_some());
@@ -251,7 +259,7 @@ mod test {
 
   #[test]
   fn test_contextual_match_with_env() {
-    let pattern =
+    let pattern: Pattern<StrDoc<_>> =
       Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx).expect("test");
     let cand = pattern_node("class B { b = 123 }");
     let nm = pattern.find_node(cand.root()).expect("test");
@@ -263,7 +271,7 @@ mod test {
 
   #[test]
   fn test_contextual_unmatch_with_env() {
-    let pattern =
+    let pattern: Pattern<StrDoc<_>> =
       Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx).expect("test");
     let cand = pattern_node("let b = 123");
     let nm = pattern.find_node(cand.root());
@@ -279,7 +287,7 @@ mod test {
 
   #[test]
   fn test_pattern_potential_kinds() {
-    let pattern = Pattern::new("const a = 1", Tsx);
+    let pattern = Pattern::str("const a = 1", Tsx);
     let kind = get_kind("lexical_declaration");
     let kinds = pattern.potential_kinds().expect("should have kinds");
     assert_eq!(kinds.len(), 1);
@@ -288,7 +296,7 @@ mod test {
 
   #[test]
   fn test_pattern_with_non_root_meta_var() {
-    let pattern = Pattern::new("const $A = $B", Tsx);
+    let pattern = Pattern::str("const $A = $B", Tsx);
     let kind = get_kind("lexical_declaration");
     let kinds = pattern.potential_kinds().expect("should have kinds");
     assert_eq!(kinds.len(), 1);
@@ -297,14 +305,14 @@ mod test {
 
   #[test]
   fn test_bare_wildcard() {
-    let pattern = Pattern::new("$A", Tsx);
+    let pattern = Pattern::str("$A", Tsx);
     // wildcard should match anything, so kinds should be None
     assert!(pattern.potential_kinds().is_none());
   }
 
   #[test]
   fn test_contextual_potential_kinds() {
-    let pattern =
+    let pattern: Pattern<StrDoc<_>> =
       Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx).expect("test");
     let kind = get_kind("public_field_definition");
     let kinds = pattern.potential_kinds().expect("should have kinds");
@@ -314,7 +322,8 @@ mod test {
 
   #[test]
   fn test_contextual_wildcard() {
-    let pattern = Pattern::contextual("class A { $F }", "property_identifier", Tsx).expect("test");
+    let pattern =
+      Pattern::<StrDoc<_>>::contextual("class A { $F }", "property_identifier", Tsx).expect("test");
     let kind = get_kind("property_identifier");
     let kinds = pattern.potential_kinds().expect("should have kinds");
     assert_eq!(kinds.len(), 1);
@@ -324,7 +333,7 @@ mod test {
   #[test]
   #[ignore]
   fn test_multi_node_pattern() {
-    let pattern = Pattern::new("a;b;c;", Tsx);
+    let pattern = Pattern::str("a;b;c;", Tsx);
     let kinds = pattern.potential_kinds().expect("should have kinds");
     assert_eq!(kinds.len(), 1);
     test_match("a;b;c", "a;b;c;");

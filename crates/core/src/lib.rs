@@ -15,11 +15,12 @@ mod replacer;
 pub use language::Language;
 pub use matcher::{Matcher, NodeMatch, Pattern, PatternError};
 pub use node::Node;
+#[doc(hidden)]
 pub use replacer::replace_meta_var_in_string;
+pub use source::{Doc, StrDoc};
 
 use crate::replacer::Replacer;
 use node::Root;
-pub use source::{Doc, StrDoc};
 use source::{Edit, TSParseError};
 
 #[derive(Clone)]
@@ -54,6 +55,8 @@ impl<D: Doc> AstGrep<D> {
     self.inner.lang()
   }
 
+  /// Use this method to avoid expensive string encoding overhead
+  /// TODO: add more documents on what is happening
   pub fn doc(d: D) -> Self {
     Self {
       inner: Root::doc(d),

@@ -391,15 +391,15 @@ mod test {
   use crate::{Root, StrDoc};
 
   fn test_find(matcher: &impl Matcher<Tsx>, code: &str) {
-    let node = Root::new(code, Tsx);
+    let node = Root::str(code, Tsx);
     assert!(matcher.find_node(node.root()).is_some());
   }
   fn test_not_find(matcher: &impl Matcher<Tsx>, code: &str) {
-    let node = Root::new(code, Tsx);
+    let node = Root::str(code, Tsx);
     assert!(matcher.find_node(node.root()).is_none());
   }
   fn find_all(matcher: impl Matcher<Tsx>, code: &str) -> Vec<String> {
-    let node = Root::new(code, Tsx);
+    let node = Root::str(code, Tsx);
     node
       .root()
       .find_all(matcher)
@@ -577,7 +577,7 @@ mod test {
   #[test]
   fn test_or_revert_env() {
     let matcher = Op::either(Op::every("foo($A)".t()).and("impossible".t())).or("foo($B)".t());
-    let code = Root::new("foo(123)", Tsx);
+    let code = Root::str("foo(123)", Tsx);
     let matches = code.root().find(matcher).expect("should found");
     assert!(matches.get_env().get_match("A").is_none());
     assert_eq!(matches.get_env().get_match("B").unwrap().text(), "123");
@@ -589,7 +589,7 @@ mod test {
       Op::all(["foo($A)".t(), "impossible".t()]),
       Op::all(["foo($B)".t()]),
     ]);
-    let code = Root::new("foo(123)", Tsx);
+    let code = Root::str("foo(123)", Tsx);
     let matches = code.root().find(matcher).expect("should found");
     assert!(matches.get_env().get_match("A").is_none());
     assert_eq!(matches.get_env().get_match("B").unwrap().text(), "123");

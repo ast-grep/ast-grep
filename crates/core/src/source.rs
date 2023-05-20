@@ -75,6 +75,10 @@ pub trait Doc: Clone {
     let lang = self.get_lang().get_ts_language();
     parse_lang(|p| source.parse_tree_sitter(p, old_tree), lang)
   }
+  /// TODO: are we paying too much to support str as Pattern/Replacer??
+  /// this method is to conver string to Doc, so that we can support using
+  /// string as replacer/searcher. Natively.
+  fn from_str(src: &str, lang: Self::Lang) -> Self;
 }
 
 #[derive(Clone)]
@@ -103,6 +107,9 @@ impl<L: Language> Doc for StrDoc<L> {
   }
   fn get_source_mut(&mut self) -> &mut Self::Source {
     &mut self.src
+  }
+  fn from_str(src: &str, lang: L) -> Self {
+    Self::new(src, lang)
   }
 }
 
