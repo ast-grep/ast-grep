@@ -114,7 +114,6 @@ pub trait Content: Sized {
     tree: Option<&Tree>,
   ) -> Result<Option<Tree>, ParserError>;
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying];
-  fn transform_str(s: &str) -> Vec<Self::Underlying>;
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit;
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str>;
 }
@@ -130,9 +129,6 @@ impl Content for String {
   }
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying] {
     &self.as_bytes()[range]
-  }
-  fn transform_str(s: &str) -> Vec<Self::Underlying> {
-    s.bytes().collect()
   }
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str> {
     node
