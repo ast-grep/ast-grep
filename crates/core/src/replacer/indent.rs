@@ -106,4 +106,73 @@ if (true) {
   )
 }
 ```
+
+The steps 3,4 and steps 5,6 are similar. We can define a `insert_with_indentation` to it.
+Following the same path, we can define a `extract_with_deindent` for steps 1,2.
 */
+
+use crate::source::Content;
+use std::ops::Range;
+
+pub trait IndentationSensitiveContent: Content {
+  fn indent_when_inserted(&self, lines: Vec<Vec<Self::Underlying>>) -> Vec<Self::Underlying>;
+  /// Returns None if we don't need to use complicated deindent.
+  fn extract_with_deindent(&self, range: Range<usize>) -> Option<Vec<Vec<Self::Underlying>>>;
+}
+
+const MAX_LOOK_AHEAD: usize = 150;
+
+impl IndentationSensitiveContent for String {
+  fn indent_when_inserted(&self, lines: Vec<Vec<Self::Underlying>>) -> Vec<Self::Underlying> {
+    todo!()
+  }
+  fn extract_with_deindent(&self, range: Range<usize>) -> Option<Vec<Vec<Self::Underlying>>> {
+    // no need to compute indentation for single line
+    if !self[range.clone()].contains('\n') {
+      return None;
+    }
+    let lookahead = if range.start > MAX_LOOK_AHEAD {
+      range.start - MAX_LOOK_AHEAD
+    } else {
+      0
+    };
+    // TODO: only whitespace is supported now
+    let mut indent = 0;
+    for c in self[lookahead..range.start].chars().rev() {
+      if c == '\n' {
+        return if indent == 0 {
+          None
+        } else {
+          Some(remove_indent(indent, &self[range]))
+        };
+      }
+      if c == ' ' {
+        indent += 1;
+      } else {
+        indent = 0;
+      }
+    }
+    None
+  }
+}
+
+fn remove_indent(indent: usize, src: &str) -> Vec<Vec<u8>> {
+  let mut result = vec![];
+  let indentation = " ".repeat(indent);
+  for line in src.lines() {
+    let s = match line.strip_prefix(&indentation) {
+      Some(stripped) => stripped,
+      None => line,
+    };
+    result.push(s.bytes().collect());
+  }
+  result
+}
+
+#[cfg(test)]
+mod test {
+  #[test]
+  fn test_remove_indent() {
+    // TODO
+  }
+}
