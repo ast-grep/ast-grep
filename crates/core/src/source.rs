@@ -161,6 +161,8 @@ impl Content for String {
       &new_end_position,
     )
   }
+  /// Used for string replacement. We need this for
+  /// indentation and deindentation.
   fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
     Cow::Borrowed(src.as_bytes())
   }

@@ -4,6 +4,8 @@ use crate::source::{Content, Edit as E};
 use crate::Pattern;
 use crate::{Doc, Node, Root};
 
+mod indent;
+
 type Edit<D> = E<<D as Doc>::Source>;
 
 type Underlying<S> = Vec<<S as Content>::Underlying>;
