@@ -17,14 +17,14 @@ impl<D: Doc> Replacer<D> for str {
   fn generate_replacement(&self, env: &MetaVarEnv<D>, lang: D::Lang) -> Underlying<D::Source> {
     let root = Root::new(self, lang.clone());
     let edits = collect_edits(&root, env, lang);
-    merge_edits_to_string(edits, &root)
+    merge_edits_to_vec(edits, &root)
   }
 }
 
 impl<D: Doc> Replacer<D> for Pattern<D> {
   fn generate_replacement(&self, env: &MetaVarEnv<D>, lang: D::Lang) -> Underlying<D::Source> {
     let edits = collect_edits(&self.root, env, lang);
-    merge_edits_to_string(edits, &self.root)
+    merge_edits_to_vec(edits, &self.root)
   }
 }
 
@@ -110,7 +110,7 @@ pub fn replace_meta_var_in_string<D: Doc>(
   ret
 }
 
-fn merge_edits_to_string<D: Doc>(edits: Vec<Edit<D>>, root: &Root<D>) -> Underlying<D::Source> {
+fn merge_edits_to_vec<D: Doc>(edits: Vec<Edit<D>>, root: &Root<D>) -> Underlying<D::Source> {
   let mut ret = vec![];
   let mut start = 0;
   for edit in edits {
