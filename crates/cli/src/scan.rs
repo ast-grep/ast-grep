@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -165,12 +166,12 @@ fn match_rule_on_file(
 
 struct CombinedScan<'r> {
   rules: Vec<&'r RuleConfig<SgLang>>,
-  kind_rule_mapping: Vec<Vec<usize>>,
+  kind_rule_mapping: BTreeMap<usize, Vec<usize>>,
 }
 
 impl<'r> CombinedScan<'r> {
   fn new(rules: Vec<&'r RuleConfig<SgLang>>) -> Self {
-    let mut mapping = Vec::new();
+    let mut mapping = BTreeMap::new();
     for (idx, rule) in rules.iter().enumerate() {
       for kind in &rule
         .matcher
@@ -180,10 +181,13 @@ impl<'r> CombinedScan<'r> {
         // NOTE: common languages usually have about several hundred kinds
         // from 200+ ~ 500+, it is okay to waste about 500 * 24 Byte vec size = 12kB
         // see https://github.com/Wilfred/difftastic/tree/master/vendored_parsers
-        while mapping.len() <= kind {
-          mapping.push(vec![]);
+        if !mapping.contains_key(&kind) {
+          mapping.insert(kind, vec![]);
         }
-        mapping[kind].push(idx);
+
+        if let Some (rule) = mapping.get_mut(&kind) {
+            rule.push(idx);
+        }
       }
     }
     Self {
@@ -195,7 +199,7 @@ impl<'r> CombinedScan<'r> {
   fn find(&self, root: &AstGrep) -> bool {
     for node in root.root().dfs() {
       let kind = node.kind_id() as usize;
-      let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
+      let Some(rule_idx) = self.kind_rule_mapping.get(&kind) else {
         continue;
       };
       for &idx in rule_idx {
@@ -211,7 +215,7 @@ impl<'r> CombinedScan<'r> {
     let mut results = HashMap::new();
     for node in root.root().dfs() {
       let kind = node.kind_id() as usize;
-      let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
+      let Some(rule_idx) = self.kind_rule_mapping.get(&kind) else {
         continue;
       };
       for &idx in rule_idx {
