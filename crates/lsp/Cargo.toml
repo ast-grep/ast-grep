@@ -15,6 +15,6 @@ ast-grep-core.workspace = true
 ast-grep-config.workspace = true
 
 dashmap = "5.4.0"
-serde = { version = "1.0", features = ["derive"] }
+serde.workspace = true
 serde_json = "1.0.96"
 tower-lsp = "0.19.0"

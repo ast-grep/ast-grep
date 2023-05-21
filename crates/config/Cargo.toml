@@ -17,12 +17,12 @@ default = ["regex"]
 ast-grep-core.workspace = true
 
 anyhow = "1.0"
-bit-set = "0.5.3"
+bit-set.workspace = true
 globset = "0.4.10"
-regex = { version = "1.8.1", optional = true }
-serde = { version = "1.0", features = ["derive"] }
+regex = { workspace = true, optional = true }
+serde.workspace = true
 serde_yaml = "0.9.21"
-thiserror = "1.0.40"
+thiserror.workspace = true
 
 [dev-dependencies]
 tempdir = "0.3"
