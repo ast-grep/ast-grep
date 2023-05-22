@@ -94,42 +94,11 @@ fn edit_root_toml<P: AsRef<Path>>(path: P, version: &str) -> Result<()> {
   Ok(())
 }
 
-fn edit_toml<P: AsRef<Path>>(path: P, version: &str) -> Result<()> {
-  let mut toml: Document = read_to_string(&path)?.parse()?;
-  let deps = toml["dependencies"]
-    .as_table_mut()
-    .context("dep should be table")?;
-  for (key, value) in deps.iter_mut() {
-    if !key.starts_with("ast-grep-") {
-      continue;
-    }
-    if value.is_str() {
-      *value = to_toml(version);
-      continue;
-    }
-    if let Some(inline) = value.as_inline_table_mut() {
-      inline["version"] = version.into();
-    }
-  }
-  fs::write(path, toml.to_string())?;
-  Ok(())
-}
-
 fn update_crates(version: &str) -> Result<()> {
   // update root toml
   let root_toml = Path::new("Cargo.toml");
   edit_root_toml(root_toml, version)?;
-  for entry in read_dir("crates")? {
-    let path = entry?.path();
-    if !path.is_dir() {
-      continue;
-    }
-    let toml_path = path.join("Cargo.toml");
-    edit_toml(toml_path, version)?;
-  }
-  // update benches
-  let bench_toml = Path::new("benches/Cargo.toml");
-  edit_toml(bench_toml, version)?;
+  // no need to update crates or benches
   Ok(())
 }
 

@@ -21,11 +21,11 @@ rust-version = "1.63"
 readme = "README.md"
 
 [workspace.dependencies]
-ast-grep-core = { version = "0.5.3", path = "crates/core" }
-ast-grep-config = { version = "0.5.3", path = "crates/config" }
-ast-grep-dynamic = { version = "0.5.3", path = "crates/dynamic" }
-ast-grep-language = { version = "0.5.3", path = "crates/language" }
-ast-grep-lsp = { version = "0.5.3", path = "crates/lsp" }
+ast-grep-core = { path = "crates/core" }
+ast-grep-config = { path = "crates/config" }
+ast-grep-dynamic = { path = "crates/dynamic" }
+ast-grep-language = { path = "crates/language" }
+ast-grep-lsp = { path = "crates/lsp" }
 
 bit-set = { version = "0.5.3" }
 ignore = { version = "0.4.20" }
