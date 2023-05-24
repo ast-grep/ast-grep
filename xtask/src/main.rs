@@ -90,6 +90,21 @@ fn update_napi(version: &str) -> Result<()> {
 fn edit_root_toml<P: AsRef<Path>>(path: P, version: &str) -> Result<()> {
   let mut toml: Document = read_to_string(&path)?.parse()?;
   toml["workspace"]["package"]["version"] = to_toml(version);
+  let deps = toml["workspace"]["dependencies"]
+    .as_table_mut()
+    .context("dep should be table")?;
+  for (key, value) in deps.iter_mut() {
+    if !key.starts_with("ast-grep-") {
+      continue;
+    }
+    if value.is_str() {
+      *value = to_toml(version);
+      continue;
+    }
+    if let Some(inline) = value.as_inline_table_mut() {
+      inline["version"] = version.into();
+    }
+  }
   fs::write(path, toml.to_string())?;
   Ok(())
 }
