@@ -10,7 +10,7 @@ default-members = ["crates/*"]
 lto = true
 
 [workspace.package]
-version = "0.5.3"
+version = "0.5.4"
 authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
 edition = "2021"
 license = "MIT"
