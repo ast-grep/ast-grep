@@ -63,6 +63,29 @@ patterns = match config.include.clone() {
     );
   }
 
+  #[test]
+  fn test_rust_wildcard_pattern() {
+    // fix #412
+    test_match("|$A, $B|", "let w = v.into_iter().reduce(|x, y| x + y);");
+    //test_match("|$A, $B|", "let w = v.into_iter().reduce(|x, _| x + x);");
+    //test_match("let ($X, $Y) = $$$T;", "let (_, y) = (1, 2);");
+  }
+
+  #[test]
+  fn test_rust_spread_syntax() {
+    test_match(
+      "let ($X, $Y) = $$$T;",
+      "let (.., y) = (1,2,3,4,5,6,7,8,9,10);",
+    );
+    test_match(
+      "$C { $$$A, ..$B};",
+      r#"User { 
+      username: String::from(name),
+      ..DEFAULT_USER 
+    };"#,
+    );
+  }
+
   fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
     let mut source = Rust.ast_grep(src);
     let replacer = Pattern::new(replacer, Rust);
