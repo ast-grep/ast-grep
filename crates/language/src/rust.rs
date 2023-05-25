@@ -67,8 +67,8 @@ patterns = match config.include.clone() {
   fn test_rust_wildcard_pattern() {
     // fix #412
     test_match("|$A, $B|", "let w = v.into_iter().reduce(|x, y| x + y);");
-    //test_match("|$A, $B|", "let w = v.into_iter().reduce(|x, _| x + x);");
-    //test_match("let ($X, $Y) = $$$T;", "let (_, y) = (1, 2);");
+    test_match("|$$A, $$B|", "let w = v.into_iter().reduce(|x, _| x + x);");
+    test_match("let ($$X, $$Y) = $$$T;", "let (_, y) = (1, 2);");
   }
 
   #[test]
