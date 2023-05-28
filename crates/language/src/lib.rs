@@ -196,7 +196,7 @@ fn from_extension(path: &Path) -> Option<SupportLang> {
     "rs" => Some(Rust),
     "swift" => Some(Swift),
     "thrift" => Some(Thrift),
-    "ts" => Some(TypeScript),
+    "ts" | "cts" | "mts" => Some(TypeScript),
     "tsx" => Some(Tsx),
     _ => None,
   }
