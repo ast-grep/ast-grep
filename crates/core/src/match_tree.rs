@@ -197,6 +197,7 @@ fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
         update_ellipsis_env(&optional_name, matched, env, cand_children, 0);
         return Some(());
       }
+      // skip trivial nodes in goal after ellipsis
       let mut skipped_anonymous = 0;
       while !goal_children.peek().unwrap().is_named() {
         goal_children.next();
@@ -247,11 +248,25 @@ fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
         cand_children.peek()?;
       }
     }
-    match_node_non_recursive(
-      goal_children.peek().unwrap(),
-      cand_children.peek().unwrap().clone(),
-      env,
-    )?;
+    let mut matched = false;
+    // skip if cand children is trivial
+    while let Some(cand) = cand_children.peek() {
+      // try match goal node with candidate node
+      if match_node_non_recursive(goal_children.peek().unwrap(), cand.clone(), env).is_some() {
+        matched = true;
+        break;
+      } else if !cand.is_named() {
+        // skip trivial node
+        // TODO: nade with field should not be skipped
+        cand_children.next();
+      } else {
+        // unmatched significant node
+        return None;
+      }
+    }
+    if !matched {
+      return None;
+    }
     goal_children.next();
     if goal_children.peek().is_none() {
       // all goal found, return
@@ -424,5 +439,19 @@ mod test {
     test_match("`abcdefg`", "`abcdefg`");
     test_non_match("'a'", "'b'");
     test_non_match("'abcdefg'", "'gggggg'");
+  }
+
+  #[test]
+  fn test_skip_trivial_node() {
+    test_match("foo($A, $B)", "foo(a, b,)");
+    test_match("class A { b() {}}", "class A { get b() {}}");
+  }
+
+  #[test]
+  fn test_trivias_in_pattern() {
+    test_match("foo($A, $B,)", "foo(a, b,)");
+    test_non_match("foo($A, $B,)", "foo(a, b)");
+    test_match("class A { get b() {}}", "class A { get b() {}}");
+    test_non_match("class A { get b() {}}", "class A { b() {}}");
   }
 }
