@@ -248,12 +248,16 @@ fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
         cand_children.peek()?;
       }
     }
-    let mut matched = false;
     // skip if cand children is trivial
-    while let Some(cand) = cand_children.peek() {
+    loop {
+      let Some(cand) = cand_children.peek() else {
+        // if cand runs out, remaining goal is not matched
+        return None;
+      };
+      let matched =
+        match_node_non_recursive(goal_children.peek().unwrap(), cand.clone(), env).is_some();
       // try match goal node with candidate node
-      if match_node_non_recursive(goal_children.peek().unwrap(), cand.clone(), env).is_some() {
-        matched = true;
+      if matched {
         break;
       } else if !cand.is_named() {
         // skip trivial node
@@ -263,9 +267,6 @@ fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
         // unmatched significant node
         return None;
       }
-    }
-    if !matched {
-      return None;
     }
     goal_children.next();
     if goal_children.peek().is_none() {
