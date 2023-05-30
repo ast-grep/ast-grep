@@ -105,6 +105,7 @@ fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
         let updated_end = cand_children.last().map(|n| n.range().end).unwrap_or(end);
         return Some(updated_end);
       }
+      // skip trivial nodes in goal after ellipsis
       while !goal_children.peek().unwrap().is_named() {
         goal_children.next();
         if goal_children.peek().is_none() {
@@ -116,6 +117,7 @@ fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
       }
       // if next node is a Ellipsis, consume one candidate node
       if try_get_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
+        cand_children.next();
         cand_children.peek()?;
         continue;
       }
@@ -129,6 +131,7 @@ fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
           // found match non Ellipsis,
           break;
         }
+        cand_children.next();
         cand_children.peek()?;
       }
     }
@@ -493,5 +496,15 @@ mod test {
     assert_eq!(end.expect("should work"), 10);
     let end = test_end("return f($A)", "return f(1,) /* trivia */");
     assert_eq!(end.expect("should work"), 12);
+  }
+
+  // see https://github.com/ast-grep/ast-grep/issues/411
+  #[test]
+  fn test_ellipsis_end() {
+    let end = test_end(
+      "import {$$$A, B, $$$C} from 'a'",
+      "import {A, B, C} from 'a'",
+    );
+    assert_eq!(end.expect("must match"), 25);
   }
 }

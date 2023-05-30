@@ -273,6 +273,15 @@ mod test {
   }
 
   #[test]
+  fn test_multi_ellipsis() {
+    test_ellipsis_replace(
+      "import {$$$A, B, $$$C} from 'a'",
+      &[("A", "A"), ("C", "C")],
+      "import {A, B, C} from 'a'",
+    );
+  }
+
+  #[test]
   fn test_replace_in_string() {
     test_str_replace("'$A'", &[("A", "123")], "'123'");
   }
