@@ -132,10 +132,25 @@ fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
         cand_children.peek()?;
       }
     }
-    end = match_end_non_recursive(
-      goal_children.peek().unwrap(),
-      cand_children.peek().unwrap().clone(),
-    )?;
+    // skip if cand children is trivial
+    end = loop {
+      let Some(cand) = cand_children.peek() else {
+        // if cand runs out, remaining goal is not matched
+        return None;
+      };
+      let matched_end = match_end_non_recursive(goal_children.peek().unwrap(), cand.clone());
+      // try match goal node with candidate node
+      if let Some(end) = matched_end {
+        break end;
+      } else if !cand.is_named() {
+        // skip trivial node
+        // TODO: nade with field should not be skipped
+        cand_children.next();
+      } else {
+        // unmatched significant node
+        return None;
+      }
+    };
     goal_children.next();
     if goal_children.peek().is_none() {
       // all goal found, return
@@ -454,5 +469,29 @@ mod test {
     test_non_match("foo($A, $B,)", "foo(a, b)");
     test_match("class A { get b() {}}", "class A { get b() {}}");
     test_non_match("class A { get b() {}}", "class A { b() {}}");
+  }
+
+  fn find_end_recursive(goal: &Node<StrDoc<Tsx>>, node: Node<StrDoc<Tsx>>) -> Option<usize> {
+    match_end_non_recursive(goal, node.clone()).or_else(|| {
+      node
+        .children()
+        .find_map(|sub| find_end_recursive(goal, sub))
+    })
+  }
+
+  fn test_end(s1: &str, s2: &str) -> Option<usize> {
+    let goal = Root::new(s1, Tsx);
+    let goal = goal.root().child(0).unwrap();
+    let cand = Root::new(s2, Tsx);
+    let cand = cand.root();
+    find_end_recursive(&goal, cand.clone())
+  }
+
+  #[test]
+  fn test_match_end() {
+    let end = test_end("return $A", "return 123 /* trivia */");
+    assert_eq!(end.expect("should work"), 10);
+    let end = test_end("return f($A)", "return f(1,) /* trivia */");
+    assert_eq!(end.expect("should work"), 12);
   }
 }

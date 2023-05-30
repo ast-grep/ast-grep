@@ -138,4 +138,13 @@ mod test {
     assert_eq!(source, "let a = 1; /*haha*/");
     Ok(())
   }
+
+  #[test]
+  fn test_replace_trivia_with_skipped() -> Result {
+    let mut ast_grep = Tsx.ast_grep("return foo(1, 2,) /*haha*/;");
+    ast_grep.replace("return foo($A, $B)", "return bar($A, $B)")?;
+    let source = ast_grep.generate();
+    assert_eq!(source, "return bar(1, 2) /*haha*/;"); // semicolon
+    Ok(())
+  }
 }
