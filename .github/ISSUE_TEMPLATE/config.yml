@@ -1,0 +1,15 @@
+---
+blank_issues_enabled: true
+contact_links:
+  -
+    about: "Please ask and answer usage questions on GitHub Discussion."
+    name: Question
+    url: "https://github.com/ast-grep/ast-grep/discussions"
+  -
+    about: "Alternatively, you can use the ast-grep Community Discord."
+    name: Chat
+    url: "https://discord.gg/4YZjf6htSQ"
+  # -
+  #   about: "Please check the FAQ before filing new issues"
+  #   name: "ast-grep FAQ"
+  #   url: "https://github.com/microsoft/TypeScript/wiki/FAQ"
