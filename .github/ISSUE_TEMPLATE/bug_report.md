@@ -1,7 +1,7 @@
 ---
 name: Bug
 about: Create a report to help us improve ast-grep
-title: ''
+title: '[bug]'
 labels: 'bug'
 assignees: ''
 
