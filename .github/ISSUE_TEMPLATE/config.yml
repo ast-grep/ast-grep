@@ -4,7 +4,7 @@ contact_links:
   -
     about: "Please ask and answer usage questions on GitHub Discussion."
     name: Question
-    url: "https://github.com/ast-grep/ast-grep/discussions"
+    url: "https://github.com/ast-grep/ast-grep/discussions/categories/q-a"
   -
     about: "Alternatively, you can use the ast-grep Community Discord."
     name: Chat
