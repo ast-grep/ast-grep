@@ -107,7 +107,7 @@ if (true) {
 }
 ```
 
-The steps 3,4 and steps 5,6 are similar. We can define a `insert_with_indentation` to it.
+The steps 3,4 and steps 5,6 are similar. We can define a `replace_with_indent` to it.
 Following the same path, we can define a `extract_with_deindent` for steps 1,2.
 */
 
@@ -115,45 +115,81 @@ use crate::source::Content;
 use std::ops::Range;
 
 pub trait IndentationSensitiveContent: Content {
-  fn indent_when_inserted(&self, lines: Vec<Vec<Self::Underlying>>) -> Vec<Self::Underlying>;
+  fn replace_with_indent(
+    &self,
+    start: usize,
+    replace_lines: Vec<Vec<Self::Underlying>>,
+  ) -> Vec<Self::Underlying>;
   /// Returns None if we don't need to use complicated deindent.
   fn extract_with_deindent(&self, range: Range<usize>) -> Option<Vec<Vec<Self::Underlying>>>;
 }
 
-const MAX_LOOK_AHEAD: usize = 150;
+const MAX_LOOK_AHEAD: usize = 512;
 
 impl IndentationSensitiveContent for String {
-  fn indent_when_inserted(&self, lines: Vec<Vec<Self::Underlying>>) -> Vec<Self::Underlying> {
-    todo!()
+  fn replace_with_indent(
+    &self,
+    start: usize,
+    replace_lines: Vec<Vec<Self::Underlying>>,
+  ) -> Vec<Self::Underlying> {
+    let mut ret = vec![];
+    let mut lines = replace_lines.into_iter();
+    if let Some(indent) = get_indent_at_offset(self, start) {
+      let leading = " ".repeat(indent);
+      if let Some(line) = lines.next() {
+        ret.extend(leading.bytes());
+        ret.extend(line);
+      };
+      for line in lines {
+        ret.push(b'\n');
+        ret.extend(leading.bytes());
+        ret.extend(line);
+      }
+    } else {
+      if let Some(line) = lines.next() {
+        ret.extend(line);
+      };
+      for line in lines {
+        ret.push(b'\n');
+        ret.extend(line);
+      }
+    }
+    ret
   }
+  // TODO: should use single_line, no_leading_indent, de_indented
+  // None is not enough
   fn extract_with_deindent(&self, range: Range<usize>) -> Option<Vec<Vec<Self::Underlying>>> {
     // no need to compute indentation for single line
     if !self[range.clone()].contains('\n') {
       return None;
     }
-    let lookahead = if range.start > MAX_LOOK_AHEAD {
-      range.start - MAX_LOOK_AHEAD
-    } else {
-      0
-    };
-    // TODO: only whitespace is supported now
-    let mut indent = 0;
-    for c in self[lookahead..range.start].chars().rev() {
-      if c == '\n' {
-        return if indent == 0 {
-          None
-        } else {
-          Some(remove_indent(indent, &self[range]))
-        };
-      }
-      if c == ' ' {
-        indent += 1;
-      } else {
-        indent = 0;
-      }
-    }
-    None
+    let indent = get_indent_at_offset(self, range.start)?;
+    Some(remove_indent(indent, &self[range]))
   }
+}
+
+/// returns None if no newline char is found before the offset
+/// this happens if the replacement is in a long line
+fn get_indent_at_offset(src: &str, start: usize) -> Option<usize> {
+  let lookahead = if start > MAX_LOOK_AHEAD {
+    start - MAX_LOOK_AHEAD
+  } else {
+    0
+  };
+
+  let mut indent = 0;
+  // TODO: support TAB. only whitespace is supported now
+  for c in src[lookahead..start].chars().rev() {
+    if c == '\n' {
+      return if indent == 0 { None } else { Some(indent) };
+    }
+    if c == ' ' {
+      indent += 1;
+    } else {
+      indent = 0;
+    }
+  }
+  None
 }
 
 fn remove_indent(indent: usize, src: &str) -> Vec<Vec<u8>> {
