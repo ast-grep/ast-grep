@@ -7,24 +7,11 @@ assignees: ''
 
 ---
 
-# Suggestion
-
-<!--
-  Please fill in each section completely. Thank you!
--->
-
-## ⭐ Suggestion
+# ⭐ Suggestion
 
 <!-- A summary of what you'd like to see added or changed -->
 
-## 📃 Motivating Example
-
-<!--
-  If you were announcing this feature in a blog post, what's a short explanation that shows
-  a developer why this feature improves the tool?
--->
-
-## 💻 Use Cases
+# 💻 Use Cases
 
 <!--
   What do you want to use this for?
