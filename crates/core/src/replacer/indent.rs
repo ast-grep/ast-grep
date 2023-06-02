@@ -9,7 +9,7 @@ The algorithm is quite complicated, uncomprehensive, sluggish and buggy.
 But let's walk through it by example.
 
 consider this code
-```
+```ignore
 if (true) {
   a(
     1
@@ -21,7 +21,7 @@ if (true) {
 
 and this pattern and replacement
 
-```
+```ignore
 // pattern
 a($B)
 // replacement
@@ -48,7 +48,7 @@ Key concepts here:
 1. Initial meta-var node B text:
 The meta-var source indentation for `$B` is 4.
 However, meta-var node does not have the first line indentation.
-```
+```ignore
 1
       + 2
       + 3
@@ -56,7 +56,7 @@ However, meta-var node does not have the first line indentation.
 2. Deindent meta-var node B, except first line:
 De-indenting all lines following the first line by 4 spaces gives us this relative code layout.
 
-```
+```ignore
 1
   + 2
   + 3
@@ -67,14 +67,14 @@ De-indenting all lines following the first line by 4 spaces gives us this relati
 3. Re-indent by meta-var replacement indentation.
 meta-var node $B occurs in replace with first line indentation of 2.
 We need to re-indent the meta-var code before replacement, except the first line
-```
+```ignore
 1
     + 2
     + 3
 ```
 
 4. Insert meta-var code in to replacement
-```
+```ignore
 c(
   1
     + 2
@@ -87,7 +87,7 @@ c(
 5. Re-indent the replaced template code except first line
 The whole matched node first line indentation is 2.
 We need to reindent the replacement code by 2, except the first line.
-```
+```ignore
 c(
     1
       + 2
@@ -97,7 +97,7 @@ c(
 
 6. Inserted replacement code to original tree
 
-```
+```ignore
 if (true) {
   c(
     1
@@ -132,29 +132,8 @@ impl IndentationSensitiveContent for String {
     start: usize,
     replace_lines: Vec<Vec<Self::Underlying>>,
   ) -> Vec<Self::Underlying> {
-    let mut ret = vec![];
-    let mut lines = replace_lines.into_iter();
-    if let Some(indent) = get_indent_at_offset(self, start) {
-      let leading = " ".repeat(indent);
-      if let Some(line) = lines.next() {
-        ret.extend(leading.bytes());
-        ret.extend(line);
-      };
-      for line in lines {
-        ret.push(b'\n');
-        ret.extend(leading.bytes());
-        ret.extend(line);
-      }
-    } else {
-      if let Some(line) = lines.next() {
-        ret.extend(line);
-      };
-      for line in lines {
-        ret.push(b'\n');
-        ret.extend(line);
-      }
-    }
-    ret
+    let indent = get_indent_at_offset(self, start).unwrap_or(0);
+    indent_lines(indent, replace_lines)
   }
   // TODO: should use single_line, no_leading_indent, de_indented
   // None is not enough
@@ -166,6 +145,22 @@ impl IndentationSensitiveContent for String {
     let indent = get_indent_at_offset(self, range.start)?;
     Some(remove_indent(indent, &self[range]))
   }
+}
+
+fn indent_lines(indent: usize, lines: Vec<Vec<u8>>) -> Vec<u8> {
+  let mut ret = vec![];
+  let mut lines = lines.into_iter();
+  let leading = " ".repeat(indent);
+  if let Some(line) = lines.next() {
+    ret.extend(leading.bytes());
+    ret.extend(line);
+  };
+  for line in lines {
+    ret.push(b'\n');
+    ret.extend(leading.bytes());
+    ret.extend(line);
+  }
+  ret
 }
 
 /// returns None if no newline char is found before the offset
@@ -207,8 +202,20 @@ fn remove_indent(indent: usize, src: &str) -> Vec<Vec<u8>> {
 
 #[cfg(test)]
 mod test {
+  use super::*;
   #[test]
   fn test_remove_indent() {
-    // TODO
+    let a = r"
+  def test():
+    pass"
+      .to_string();
+    let extracted = a.extract_with_deindent(3..a.len()).unwrap();
+    let n = indent_lines(0, extracted);
+    let m = std::str::from_utf8(&n).unwrap();
+    assert_eq!(
+      m,
+      r"def test():
+  pass"
+    )
   }
 }
