@@ -206,15 +206,18 @@ mod test {
 
   fn test_deindent(source: &str, expected: &str) {
     let source = source.to_string();
-    let expected = expected.strip_prefix(|n| n == '\n').unwrap_or(expected);
+    let expected = expected.trim();
     let start = source.chars().take_while(|n| n.is_whitespace()).count();
-    let end = source.chars().count()
-      - source
-        .chars()
-        .rev()
-        .take_while(|n| n.is_whitespace())
-        .count();
-    let extracted = source.extract_with_deindent(start..end).unwrap();
+    let trailing_white = source
+      .chars()
+      .rev()
+      .take_while(|n| n.is_whitespace())
+      .count();
+    let end = source.chars().count() - trailing_white;
+    let Some(extracted) = source.extract_with_deindent(start..end) else {
+      assert_eq!(&source[start..end], expected, "no deindented src should be equal to expected");
+      return;
+    };
     let result_bytes = indent_lines(0, extracted);
     let actual = std::str::from_utf8(&result_bytes).unwrap();
     assert_eq!(actual, expected);
@@ -229,5 +232,33 @@ mod test {
 def test():
   pass";
     test_deindent(src, expected);
+  }
+
+  #[test]
+  fn test_no_deindent() {
+    let src = r"
+def test():
+  pass
+";
+    test_deindent(src, src);
+  }
+
+  #[test]
+  fn test_malformed_deindent() {
+    let src = r"
+  def test():
+pass
+";
+    let expected = r"
+def test():
+pass
+";
+    test_deindent(src, expected);
+  }
+
+  #[test]
+  fn test_long_line_no_deindent() {
+    let src = format!("{}abc\n  def", " ".repeat(MAX_LOOK_AHEAD + 1));
+    test_deindent(&src, &src);
   }
 }
