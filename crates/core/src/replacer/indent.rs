@@ -204,10 +204,14 @@ fn remove_indent(indent: usize, src: &str) -> Vec<Vec<u8>> {
 mod test {
   use super::*;
 
-  fn test_deindent(source: &str, expected: &str) {
+  fn test_deindent(source: &str, expected: &str, offset: usize) {
     let source = source.to_string();
     let expected = expected.trim();
-    let start = source.chars().take_while(|n| n.is_whitespace()).count();
+    let start = source[offset..]
+      .chars()
+      .take_while(|n| n.is_whitespace())
+      .count()
+      + offset;
     let trailing_white = source
       .chars()
       .rev()
@@ -231,7 +235,41 @@ mod test {
     let expected = r"
 def test():
   pass";
-    test_deindent(src, expected);
+    test_deindent(src, expected, 0);
+  }
+
+  #[test]
+  fn test_space_in_middle_deindent() {
+    let src = r"
+a = lambda:
+  pass";
+    let expected = r"
+lambda:
+  pass";
+    test_deindent(src, expected, 4);
+  }
+
+  #[test]
+  fn test_middle_deindent() {
+    let src = r"
+  a = lambda:
+    pass";
+    let expected = r"
+lambda:
+  pass";
+    test_deindent(src, expected, 6);
+  }
+
+  #[test]
+  fn test_nested_deindent() {
+    let src = r"
+def outer():
+  def test():
+    pass";
+    let expected = r"
+def test():
+  pass";
+    test_deindent(src, expected, 13);
   }
 
   #[test]
@@ -240,7 +278,7 @@ def test():
 def test():
   pass
 ";
-    test_deindent(src, src);
+    test_deindent(src, src, 0);
   }
 
   #[test]
@@ -253,12 +291,12 @@ pass
 def test():
 pass
 ";
-    test_deindent(src, expected);
+    test_deindent(src, expected, 0);
   }
 
   #[test]
   fn test_long_line_no_deindent() {
     let src = format!("{}abc\n  def", " ".repeat(MAX_LOOK_AHEAD + 1));
-    test_deindent(&src, &src);
+    test_deindent(&src, &src, 0);
   }
 }
