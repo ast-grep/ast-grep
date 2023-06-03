@@ -151,8 +151,8 @@ fn indent_lines(indent: usize, lines: Vec<Vec<u8>>) -> Vec<u8> {
   let mut ret = vec![];
   let mut lines = lines.into_iter();
   let leading = " ".repeat(indent);
+  // first line never got indent
   if let Some(line) = lines.next() {
-    ret.extend(leading.bytes());
     ret.extend(line);
   };
   for line in lines {
@@ -184,7 +184,12 @@ fn get_indent_at_offset(src: &str, start: usize) -> Option<usize> {
       indent = 0;
     }
   }
-  None
+  // lookahead == 0 means we have indentation at first line.
+  if lookahead == 0 && indent != 0 {
+    Some(indent)
+  } else {
+    None
+  }
 }
 
 fn remove_indent(indent: usize, src: &str) -> Vec<Vec<u8>> {
@@ -231,6 +236,17 @@ mod test {
   fn test_simple_deindent() {
     let src = r"
   def test():
+    pass";
+    let expected = r"
+def test():
+  pass";
+    test_deindent(src, expected, 0);
+  }
+
+  #[test]
+  fn test_first_line_indent_deindent() {
+    // note this indentation has no newline
+    let src = r"  def test():
     pass";
     let expected = r"
 def test():
@@ -298,5 +314,56 @@ pass
   fn test_long_line_no_deindent() {
     let src = format!("{}abc\n  def", " ".repeat(MAX_LOOK_AHEAD + 1));
     test_deindent(&src, &src, 0);
+  }
+
+  fn test_replace_with_indent(target: &str, range: usize, inserted: &str) -> String {
+    let target = target.to_string();
+    let replace_lines = inserted.lines().map(|n| n.bytes().collect()).collect();
+    let ret = target.replace_with_indent(range, replace_lines);
+    String::from_utf8(ret).unwrap()
+  }
+
+  #[test]
+  fn test_simple_replace() {
+    let target = "";
+    let inserted = "def abc(): pass";
+    let actual = test_replace_with_indent(target, 0, inserted);
+    assert_eq!(actual, inserted);
+    let inserted = "def abc():\n  pass";
+    let actual = test_replace_with_indent(target, 0, inserted);
+    assert_eq!(actual, inserted);
+  }
+
+  #[test]
+  fn test_indent_replace() {
+    let target = "  ";
+    let inserted = "def abc(): pass";
+    let actual = test_replace_with_indent(target, 2, inserted);
+    assert_eq!(actual, "def abc(): pass");
+    let inserted = "def abc():\n  pass";
+    let actual = test_replace_with_indent(target, 2, inserted);
+    assert_eq!(actual, "def abc():\n    pass");
+  }
+
+  #[test]
+  fn test_leading_text_replace() {
+    let target = "a = ";
+    let inserted = "def abc(): pass";
+    let actual = test_replace_with_indent(target, 4, inserted);
+    assert_eq!(actual, "def abc(): pass");
+    let inserted = "def abc():\n  pass";
+    let actual = test_replace_with_indent(target, 4, inserted);
+    assert_eq!(actual, "def abc():\n  pass");
+  }
+
+  #[test]
+  fn test_leading_text_indent_replace() {
+    let target = "  a = ";
+    let inserted = "def abc(): pass";
+    let actual = test_replace_with_indent(target, 6, inserted);
+    assert_eq!(actual, "def abc(): pass");
+    let inserted = "def abc():\n  pass";
+    let actual = test_replace_with_indent(target, 6, inserted);
+    assert_eq!(actual, "def abc():\n    pass");
   }
 }
