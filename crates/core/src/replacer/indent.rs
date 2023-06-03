@@ -203,19 +203,31 @@ fn remove_indent(indent: usize, src: &str) -> Vec<Vec<u8>> {
 #[cfg(test)]
 mod test {
   use super::*;
+
+  fn test_deindent(source: &str, expected: &str) {
+    let source = source.to_string();
+    let expected = expected.strip_prefix(|n| n == '\n').unwrap_or(expected);
+    let start = source.chars().take_while(|n| n.is_whitespace()).count();
+    let end = source.chars().count()
+      - source
+        .chars()
+        .rev()
+        .take_while(|n| n.is_whitespace())
+        .count();
+    let extracted = source.extract_with_deindent(start..end).unwrap();
+    let result_bytes = indent_lines(0, extracted);
+    let actual = std::str::from_utf8(&result_bytes).unwrap();
+    assert_eq!(actual, expected);
+  }
+
   #[test]
-  fn test_remove_indent() {
-    let a = r"
+  fn test_simple_deindent() {
+    let src = r"
   def test():
-    pass"
-      .to_string();
-    let extracted = a.extract_with_deindent(3..a.len()).unwrap();
-    let n = indent_lines(0, extracted);
-    let m = std::str::from_utf8(&n).unwrap();
-    assert_eq!(
-      m,
-      r"def test():
-  pass"
-    )
+    pass";
+    let expected = r"
+def test():
+  pass";
+    test_deindent(src, expected);
   }
 }
