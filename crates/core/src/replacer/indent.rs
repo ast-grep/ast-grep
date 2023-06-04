@@ -132,7 +132,7 @@ impl IndentationSensitiveContent for String {
     start: usize,
     replace_lines: Vec<Vec<Self::Underlying>>,
   ) -> Vec<Self::Underlying> {
-    let indent = get_indent_at_offset(self, start).unwrap_or(0);
+    let indent = get_indent_at_offset(self.get_range(0..start)).unwrap_or(0);
     indent_lines(indent, replace_lines)
   }
   // TODO: should use single_line, no_leading_indent, de_indented
@@ -142,8 +142,8 @@ impl IndentationSensitiveContent for String {
     if !self[range.clone()].contains('\n') {
       return None;
     }
-    let indent = get_indent_at_offset(self, range.start)?;
-    Some(remove_indent(indent, &self[range]))
+    let indent = get_indent_at_offset(self.get_range(0..range.start))?;
+    Some(remove_indent(indent, self.get_range(range)))
   }
 }
 
@@ -165,20 +165,16 @@ fn indent_lines(indent: usize, lines: Vec<Vec<u8>>) -> Vec<u8> {
 
 /// returns None if no newline char is found before the offset
 /// this happens if the replacement is in a long line
-fn get_indent_at_offset(src: &str, start: usize) -> Option<usize> {
-  let lookahead = if start > MAX_LOOK_AHEAD {
-    start - MAX_LOOK_AHEAD
-  } else {
-    0
-  };
+fn get_indent_at_offset(src: &[u8]) -> Option<usize> {
+  let lookahead = src.len().max(MAX_LOOK_AHEAD) - MAX_LOOK_AHEAD;
 
   let mut indent = 0;
   // TODO: support TAB. only whitespace is supported now
-  for c in src[lookahead..start].chars().rev() {
-    if c == '\n' {
+  for &c in src[lookahead..].iter().rev() {
+    if c == b'\n' {
       return if indent == 0 { None } else { Some(indent) };
     }
-    if c == ' ' {
+    if c == b' ' {
       indent += 1;
     } else {
       indent = 0;
@@ -192,17 +188,19 @@ fn get_indent_at_offset(src: &str, start: usize) -> Option<usize> {
   }
 }
 
-fn remove_indent(indent: usize, src: &str) -> Vec<Vec<u8>> {
-  let mut result = vec![];
+fn remove_indent(indent: usize, src: &[u8]) -> Vec<Vec<u8>> {
   let indentation = " ".repeat(indent);
-  for line in src.lines() {
-    let s = match line.strip_prefix(&indentation) {
-      Some(stripped) => stripped,
-      None => line,
-    };
-    result.push(s.bytes().collect());
-  }
-  result
+  let indentation = indentation.as_bytes();
+  src
+    .split(|b| *b == b'\n')
+    .map(|line| {
+      let s = match line.strip_prefix(indentation) {
+        Some(stripped) => stripped,
+        None => line,
+      };
+      s.to_vec()
+    })
+    .collect()
 }
 
 #[cfg(test)]
