@@ -34,12 +34,10 @@ impl<'tree, D: Doc> NodeMatch<'tree, D> {
 
 impl<'tree, D: Doc> NodeMatch<'tree, D> {
   pub fn replace_by<R: Replacer<D>>(&self, replacer: R) -> Edit<D::Source> {
-    let lang = self.lang().clone();
-    let env = self.get_env();
     let range = self.range();
     let position = range.start;
     let deleted_length = range.len();
-    let inserted_text = replacer.generate_replacement(env, lang);
+    let inserted_text = replacer.generate_replacement(self);
     Edit {
       position,
       deleted_length,

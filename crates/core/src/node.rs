@@ -428,14 +428,12 @@ impl<'r, D: Doc> Node<'r, D> {
     M: Matcher<D::Lang>,
     R: Replacer<D>,
   {
-    let lang = self.root.lang().clone();
-    let env = matched.get_env();
     let range = matched.range();
     let position = range.start;
     let deleted_length = matcher
       .get_match_len(matched.get_node().clone())
       .unwrap_or_else(|| range.len());
-    let inserted_text = replacer.generate_replacement(env, lang);
+    let inserted_text = replacer.generate_replacement(&matched);
     Edit::<D> {
       position,
       deleted_length,

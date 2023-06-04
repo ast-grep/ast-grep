@@ -1,4 +1,5 @@
 use crate::language::Language;
+use crate::matcher::NodeMatch;
 use crate::meta_var::{split_first_meta_var, MatchResult, MetaVarEnv};
 use crate::source::{Content, Edit as E};
 use crate::Pattern;
@@ -12,20 +13,20 @@ type Underlying<S> = Vec<<S as Content>::Underlying>;
 
 /// Replace meta variable in the replacer string
 pub trait Replacer<D: Doc> {
-  fn generate_replacement(&self, env: &MetaVarEnv<D>, lang: D::Lang) -> Underlying<D::Source>;
+  fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source>;
 }
 
 impl<D: Doc> Replacer<D> for str {
-  fn generate_replacement(&self, env: &MetaVarEnv<D>, lang: D::Lang) -> Underlying<D::Source> {
-    let root = Root::new(self, lang.clone());
-    let edits = collect_edits(&root, env, lang);
+  fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
+    let root = Root::new(self, nm.lang().clone());
+    let edits = collect_edits(&root, nm.get_env(), nm.lang());
     merge_edits_to_vec(edits, &root)
   }
 }
 
 impl<D: Doc> Replacer<D> for Pattern<D> {
-  fn generate_replacement(&self, env: &MetaVarEnv<D>, lang: D::Lang) -> Underlying<D::Source> {
-    let edits = collect_edits(&self.root, env, lang);
+  fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
+    let edits = collect_edits(&self.root, nm.get_env(), nm.lang());
     merge_edits_to_vec(edits, &self.root)
   }
 }
@@ -35,12 +36,12 @@ where
   D: Doc,
   T: Replacer<D> + ?Sized,
 {
-  fn generate_replacement(&self, env: &MetaVarEnv<D>, lang: D::Lang) -> Underlying<D::Source> {
-    (**self).generate_replacement(env, lang)
+  fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
+    (**self).generate_replacement(nm)
   }
 }
 
-fn collect_edits<D: Doc>(root: &Root<D>, env: &MetaVarEnv<D>, lang: D::Lang) -> Vec<Edit<D>> {
+fn collect_edits<D: Doc>(root: &Root<D>, env: &MetaVarEnv<D>, lang: &D::Lang) -> Vec<Edit<D>> {
   let mut node = root.root();
   let root_id = node.inner.id();
   let mut edits = vec![];
@@ -169,7 +170,7 @@ fn get_meta_var_replacement<D: Doc>(
 }
 
 impl<'a, D: Doc> Replacer<D> for Node<'a, D> {
-  fn generate_replacement(&self, _env: &MetaVarEnv<D>, _lang: D::Lang) -> Underlying<D::Source> {
+  fn generate_replacement(&self, _nm: &NodeMatch<D>) -> Underlying<D::Source> {
     let range = self.range();
     self.root.doc.get_source().get_range(range).to_vec()
   }
@@ -190,7 +191,9 @@ mod test {
     for (var, root) in &roots {
       env.insert(var.to_string(), root.root());
     }
-    let replaced = replacer.generate_replacement(&env, Tsx);
+    let dummy = Tsx.ast_grep("dummy");
+    let node_match = NodeMatch::new(dummy.root(), env.clone());
+    let replaced = replacer.generate_replacement(&node_match);
     let replaced = String::from_utf8_lossy(&replaced);
     assert_eq!(
       replaced,
@@ -250,7 +253,9 @@ mod test {
     for (var, root) in &roots {
       env.insert_multi(var.to_string(), root.root().children().collect());
     }
-    let replaced = replacer.generate_replacement(&env, Tsx);
+    let dummy = Tsx.ast_grep("dummy");
+    let node_match = NodeMatch::new(dummy.root(), env.clone());
+    let replaced = replacer.generate_replacement(&node_match);
     let replaced = String::from_utf8_lossy(&replaced);
     assert_eq!(
       replaced,
