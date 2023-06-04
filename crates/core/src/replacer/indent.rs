@@ -118,10 +118,10 @@ pub trait IndentationSensitiveContent: Content {
   fn replace_with_indent(
     &self,
     start: usize,
-    replace_lines: Vec<Vec<Self::Underlying>>,
+    replace_lines: Vec<&[Self::Underlying]>,
   ) -> Vec<Self::Underlying>;
   /// Returns None if we don't need to use complicated deindent.
-  fn extract_with_deindent(&self, range: Range<usize>) -> Option<Vec<Vec<Self::Underlying>>>;
+  fn extract_with_deindent(&self, range: Range<usize>) -> Option<Vec<&[Self::Underlying]>>;
 }
 
 const MAX_LOOK_AHEAD: usize = 512;
@@ -130,14 +130,14 @@ impl IndentationSensitiveContent for String {
   fn replace_with_indent(
     &self,
     start: usize,
-    replace_lines: Vec<Vec<Self::Underlying>>,
+    replace_lines: Vec<&[Self::Underlying]>,
   ) -> Vec<Self::Underlying> {
     let indent = get_indent_at_offset(self.get_range(0..start)).unwrap_or(0);
     indent_lines(indent, replace_lines)
   }
   // TODO: should use single_line, no_leading_indent, de_indented
   // None is not enough
-  fn extract_with_deindent(&self, range: Range<usize>) -> Option<Vec<Vec<Self::Underlying>>> {
+  fn extract_with_deindent(&self, range: Range<usize>) -> Option<Vec<&[Self::Underlying]>> {
     // no need to compute indentation for single line
     if !self[range.clone()].contains('\n') {
       return None;
@@ -147,7 +147,7 @@ impl IndentationSensitiveContent for String {
   }
 }
 
-fn indent_lines(indent: usize, lines: Vec<Vec<u8>>) -> Vec<u8> {
+fn indent_lines(indent: usize, lines: Vec<&[u8]>) -> Vec<u8> {
   let mut ret = vec![];
   let mut lines = lines.into_iter();
   let leading = " ".repeat(indent);
@@ -188,17 +188,14 @@ fn get_indent_at_offset(src: &[u8]) -> Option<usize> {
   }
 }
 
-fn remove_indent(indent: usize, src: &[u8]) -> Vec<Vec<u8>> {
+fn remove_indent(indent: usize, src: &[u8]) -> Vec<&[u8]> {
   let indentation = " ".repeat(indent);
   let indentation = indentation.as_bytes();
   src
     .split(|b| *b == b'\n')
-    .map(|line| {
-      let s = match line.strip_prefix(indentation) {
-        Some(stripped) => stripped,
-        None => line,
-      };
-      s.to_vec()
+    .map(|line| match line.strip_prefix(indentation) {
+      Some(stripped) => stripped,
+      None => line,
     })
     .collect()
 }
@@ -316,7 +313,7 @@ pass
 
   fn test_replace_with_indent(target: &str, range: usize, inserted: &str) -> String {
     let target = target.to_string();
-    let replace_lines = inserted.lines().map(|n| n.bytes().collect()).collect();
+    let replace_lines = inserted.lines().map(|n| n.as_bytes()).collect();
     let ret = target.replace_with_indent(range, replace_lines);
     String::from_utf8(ret).unwrap()
   }
