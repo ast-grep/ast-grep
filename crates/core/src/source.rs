@@ -114,7 +114,7 @@ impl<L: Language> Doc for StrDoc<L> {
 }
 
 pub trait Content: Sized {
-  type Underlying: Clone + Eq;
+  type Underlying: Clone + PartialEq;
   fn parse_tree_sitter(
     &self,
     parser: &mut Parser,

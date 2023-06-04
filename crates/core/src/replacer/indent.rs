@@ -121,41 +121,38 @@ pub trait IndentSensitive: Content {
   const SPACE: Self::Underlying;
   // TODO: support tab
   const TAB: Self::Underlying;
-
-  fn replace_with_indent(
-    &self,
-    start: usize,
-    replace_lines: Vec<&[Self::Underlying]>,
-  ) -> Vec<Self::Underlying>;
-  /// Returns None if we don't need to use complicated deindent.
-  fn extract_with_deindent(&self, range: Range<usize>) -> Option<Vec<&[Self::Underlying]>>;
 }
-
-const MAX_LOOK_AHEAD: usize = 512;
 
 impl IndentSensitive for String {
   const NEW_LINE: u8 = b'\n';
   const SPACE: u8 = b' ';
   const TAB: u8 = b'\t';
+}
 
-  fn replace_with_indent(
-    &self,
-    start: usize,
-    replace_lines: Vec<&[Self::Underlying]>,
-  ) -> Vec<Self::Underlying> {
-    let indent = get_indent_at_offset::<Self>(self.get_range(0..start)).unwrap_or(0);
-    indent_lines::<Self>(indent, replace_lines)
+const MAX_LOOK_AHEAD: usize = 512;
+
+pub fn replace_with_indent<C: IndentSensitive>(
+  content: &C,
+  start: usize,
+  replace_lines: Vec<&[C::Underlying]>,
+) -> Vec<C::Underlying> {
+  let indent = get_indent_at_offset::<C>(content.get_range(0..start)).unwrap_or(0);
+  indent_lines::<C>(indent, replace_lines)
+}
+
+/// Returns None if we don't need to use complicated deindent.
+// TODO: should use single_line, no_leading_indent, de_indented
+// None is not enough
+pub fn extract_with_deindent<C: IndentSensitive>(
+  content: &C,
+  range: Range<usize>,
+) -> Option<Vec<&[C::Underlying]>> {
+  // no need to compute indentation for single line
+  if !content.get_range(range.clone()).contains(&C::NEW_LINE) {
+    return None;
   }
-  // TODO: should use single_line, no_leading_indent, de_indented
-  // None is not enough
-  fn extract_with_deindent(&self, range: Range<usize>) -> Option<Vec<&[Self::Underlying]>> {
-    // no need to compute indentation for single line
-    if !self[range.clone()].contains('\n') {
-      return None;
-    }
-    let indent = get_indent_at_offset::<Self>(self.get_range(0..range.start))?;
-    Some(remove_indent(indent, self.get_range(range)))
-  }
+  let indent = get_indent_at_offset::<C>(content.get_range(0..range.start))?;
+  Some(remove_indent::<C>(indent, content.get_range(range)))
 }
 
 fn indent_lines<C: IndentSensitive>(
@@ -203,12 +200,14 @@ fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> Option<usi
   }
 }
 
-fn remove_indent(indent: usize, src: &[u8]) -> Vec<&[u8]> {
-  let indentation = " ".repeat(indent);
-  let indentation = indentation.as_bytes();
+fn remove_indent<C: IndentSensitive>(
+  indent: usize,
+  src: &[C::Underlying],
+) -> Vec<&[C::Underlying]> {
+  let indentation: Vec<_> = std::iter::repeat(C::SPACE).take(indent).collect();
   src
-    .split(|b| *b == b'\n')
-    .map(|line| match line.strip_prefix(indentation) {
+    .split(|b| *b == C::NEW_LINE)
+    .map(|line| match line.strip_prefix(&*indentation) {
       Some(stripped) => stripped,
       None => line,
     })
@@ -233,7 +232,7 @@ mod test {
       .take_while(|n| n.is_whitespace())
       .count();
     let end = source.chars().count() - trailing_white;
-    let Some(extracted) = source.extract_with_deindent(start..end) else {
+    let Some(extracted) = extract_with_deindent(&source, start..end) else {
       assert_eq!(&source[start..end], expected, "no deindented src should be equal to expected");
       return;
     };
@@ -329,7 +328,7 @@ pass
   fn test_replace_with_indent(target: &str, range: usize, inserted: &str) -> String {
     let target = target.to_string();
     let replace_lines = inserted.lines().map(|n| n.as_bytes()).collect();
-    let ret = target.replace_with_indent(range, replace_lines);
+    let ret = replace_with_indent(&target, range, replace_lines);
     String::from_utf8(ret).unwrap()
   }
 
