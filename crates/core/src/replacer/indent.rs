@@ -114,7 +114,14 @@ Following the same path, we can define a `extract_with_deindent` for steps 1,2.
 use crate::source::Content;
 use std::ops::Range;
 
-pub trait IndentationSensitiveContent: Content {
+pub trait IndentSensitive: Content {
+  /// We assume NEW_LINE, TAB, SPACE is only one code unit.
+  /// This is sufficently true for utf8, utf16 and char.
+  const NEW_LINE: Self::Underlying;
+  const SPACE: Self::Underlying;
+  // TODO: support tab
+  const TAB: Self::Underlying;
+
   fn replace_with_indent(
     &self,
     start: usize,
@@ -126,14 +133,18 @@ pub trait IndentationSensitiveContent: Content {
 
 const MAX_LOOK_AHEAD: usize = 512;
 
-impl IndentationSensitiveContent for String {
+impl IndentSensitive for String {
+  const NEW_LINE: u8 = b'\n';
+  const SPACE: u8 = b' ';
+  const TAB: u8 = b'\t';
+
   fn replace_with_indent(
     &self,
     start: usize,
     replace_lines: Vec<&[Self::Underlying]>,
   ) -> Vec<Self::Underlying> {
-    let indent = get_indent_at_offset(self.get_range(0..start)).unwrap_or(0);
-    indent_lines(indent, replace_lines)
+    let indent = get_indent_at_offset::<Self>(self.get_range(0..start)).unwrap_or(0);
+    indent_lines::<Self>(indent, replace_lines)
   }
   // TODO: should use single_line, no_leading_indent, de_indented
   // None is not enough
@@ -142,39 +153,43 @@ impl IndentationSensitiveContent for String {
     if !self[range.clone()].contains('\n') {
       return None;
     }
-    let indent = get_indent_at_offset(self.get_range(0..range.start))?;
+    let indent = get_indent_at_offset::<Self>(self.get_range(0..range.start))?;
     Some(remove_indent(indent, self.get_range(range)))
   }
 }
 
-fn indent_lines(indent: usize, lines: Vec<&[u8]>) -> Vec<u8> {
+fn indent_lines<C: IndentSensitive>(
+  indent: usize,
+  lines: Vec<&[C::Underlying]>,
+) -> Vec<C::Underlying> {
   let mut ret = vec![];
   let mut lines = lines.into_iter();
-  let leading = " ".repeat(indent);
+  let space = <C as IndentSensitive>::SPACE;
+  let leading: Vec<_> = std::iter::repeat(space).take(indent).collect();
   // first line never got indent
   if let Some(line) = lines.next() {
-    ret.extend(line);
+    ret.extend(line.iter().cloned());
   };
   for line in lines {
-    ret.push(b'\n');
-    ret.extend(leading.bytes());
-    ret.extend(line);
+    ret.push(<C as IndentSensitive>::NEW_LINE);
+    ret.extend(leading.iter().cloned());
+    ret.extend(line.iter().cloned());
   }
   ret
 }
 
 /// returns None if no newline char is found before the offset
 /// this happens if the replacement is in a long line
-fn get_indent_at_offset(src: &[u8]) -> Option<usize> {
+fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> Option<usize> {
   let lookahead = src.len().max(MAX_LOOK_AHEAD) - MAX_LOOK_AHEAD;
 
   let mut indent = 0;
   // TODO: support TAB. only whitespace is supported now
-  for &c in src[lookahead..].iter().rev() {
-    if c == b'\n' {
+  for c in src[lookahead..].iter().rev() {
+    if *c == <C as IndentSensitive>::NEW_LINE {
       return if indent == 0 { None } else { Some(indent) };
     }
-    if c == b' ' {
+    if *c == <C as IndentSensitive>::SPACE {
       indent += 1;
     } else {
       indent = 0;
@@ -222,7 +237,7 @@ mod test {
       assert_eq!(&source[start..end], expected, "no deindented src should be equal to expected");
       return;
     };
-    let result_bytes = indent_lines(0, extracted);
+    let result_bytes = indent_lines::<String>(0, extracted);
     let actual = std::str::from_utf8(&result_bytes).unwrap();
     assert_eq!(actual, expected);
   }
