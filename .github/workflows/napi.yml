@@ -41,7 +41,7 @@ jobs:
               yarn build --target i686-pc-windows-msvc
               yarn test
             target: i686-pc-windows-msvc
-          - host: ubuntu-latest
+          - host: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |-
@@ -129,7 +129,7 @@ jobs:
           if-no-files-found: error
   publish:
     name: Publish
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs:
       - build
     steps:
@@ -145,7 +145,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: .yarn/cache
-          key: npm-cache-ubuntu-latest-publish
+          key: npm-cache-ubuntu-20.04-publish
           restore-keys: |
             npm-cache-
       - name: Install dependencies

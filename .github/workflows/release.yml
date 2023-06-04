@@ -12,7 +12,7 @@ on:
 
 jobs:
   push_crates_io:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
       - uses: katyo/publish-crates@v2
@@ -21,7 +21,7 @@ jobs:
           publish-delay: 5000
 
   create-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
       - uses: taiki-e/create-gh-release-action@v1
@@ -37,7 +37,7 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
+            os: ubuntu-20.04
           - target: x86_64-apple-darwin
             os: macos-latest
     runs-on: ${{ matrix.os }}
@@ -56,7 +56,7 @@ jobs:
           # (required)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   release-npm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     name: Release npm cli
     needs:
       - upload-assets
