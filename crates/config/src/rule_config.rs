@@ -122,7 +122,7 @@ impl<L: Language> SerializableRuleConfig<L> {
   }
 
   fn get_message(&self, node: &NodeMatch<StrDoc<L>>) -> String {
-    replace_meta_var_in_string(&self.message, node.get_env(), node.lang())
+    replace_meta_var_in_string(&self.message, node.get_env(), node.lang()).into_owned()
   }
 }
 
