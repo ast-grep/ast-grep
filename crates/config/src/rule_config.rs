@@ -8,8 +8,7 @@ pub use crate::constraints::{
 };
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarMatchers;
-use ast_grep_core::replace_meta_var_in_string;
-use ast_grep_core::{NodeMatch, StrDoc};
+use ast_grep_core::{NodeMatch, Replacer, StrDoc};
 use ast_grep_core::{Pattern as PatternCore, PatternError};
 use serde::{Deserialize, Serialize};
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error as YamlError};
@@ -121,8 +120,9 @@ impl<L: Language> SerializableRuleConfig<L> {
     }
   }
 
-  fn get_message(&self, node: &NodeMatch<StrDoc<L>>) -> String {
-    replace_meta_var_in_string(&self.message, node.get_env(), node.lang()).into_owned()
+  fn get_message(&self, node_match: &NodeMatch<StrDoc<L>>) -> String {
+    let bytes = self.message.generate_replacement(node_match);
+    String::from_utf8(bytes).expect("replacement must be valid")
   }
 }
 

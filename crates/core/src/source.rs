@@ -123,9 +123,6 @@ pub trait Content: Sized {
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying];
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit;
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str>;
-  /// Used for string replacement. We need this for
-  /// indentation and deindentation.
-  fn decode_str(src: &str) -> Cow<[Self::Underlying]>;
 }
 
 impl Content for String {
@@ -162,9 +159,6 @@ impl Content for String {
       &old_end_position,
       &new_end_position,
     )
-  }
-  fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
-    Cow::Borrowed(src.as_bytes())
   }
 }
 

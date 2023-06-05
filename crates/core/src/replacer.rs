@@ -10,7 +10,7 @@ mod indent;
 mod structural;
 mod template;
 
-pub use template::replace_meta_var_in_string;
+use template::replace_meta_var_in_string;
 
 /// Replace meta variable in the replacer string
 pub trait Replacer<D: Doc> {

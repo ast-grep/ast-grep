@@ -15,11 +15,9 @@ mod replacer;
 pub use language::Language;
 pub use matcher::{Matcher, NodeMatch, Pattern, PatternError};
 pub use node::Node;
-#[doc(hidden)]
-pub use replacer::replace_meta_var_in_string;
+pub use replacer::Replacer;
 pub use source::{Doc, StrDoc};
 
-use crate::replacer::Replacer;
 use node::Root;
 use source::{Edit, TSParseError};
 

@@ -94,10 +94,11 @@ impl Content for Wrapper {
     let end = node.end_byte() as usize / 2;
     String::from_utf16_lossy(&slice[start..end]).into()
   }
-  fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
-    let v: Vec<_> = src.encode_utf16().collect();
-    Cow::Owned(v)
-  }
+  // TODO: implement this
+  // fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
+  //   let v: Vec<_> = src.encode_utf16().collect();
+  //   Cow::Owned(v)
+  // }
 }
 
 fn pos_for_byte_offset(input: &[u16], byte_offset: usize) -> Point {

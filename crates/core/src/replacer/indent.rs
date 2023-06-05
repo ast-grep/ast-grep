@@ -112,6 +112,7 @@
 */
 
 use crate::source::Content;
+use std::borrow::Cow;
 use std::ops::Range;
 
 pub trait IndentSensitive: Content {
@@ -121,12 +122,19 @@ pub trait IndentSensitive: Content {
   const SPACE: Self::Underlying;
   // TODO: support tab
   const TAB: Self::Underlying;
+  /// Used for string replacement. We need this for
+  /// indentation and deindentation.
+  fn decode_str(src: &str) -> Cow<[Self::Underlying]>;
 }
 
 impl IndentSensitive for String {
   const NEW_LINE: u8 = b'\n';
   const SPACE: u8 = b' ';
   const TAB: u8 = b'\t';
+
+  fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
+    Cow::Borrowed(src.as_bytes())
+  }
 }
 
 const MAX_LOOK_AHEAD: usize = 512;

@@ -1,20 +1,21 @@
+use super::indent::IndentSensitive;
 use crate::language::Language;
 use crate::meta_var::{split_first_meta_var, MetaVarEnv};
 use crate::source::{Content, Doc, StrDoc};
 use std::borrow::Cow;
 
-enum Fixer<'a, C: Content> {
+enum Fixer<'a, C: IndentSensitive> {
   // no meta_var, pure text
   Textual(Cow<'a, [C::Underlying]>),
   WithMetaVar(Template<'a, C>),
 }
 
-struct Template<'a, C: Content> {
+struct Template<'a, C: IndentSensitive> {
   fragments: Vec<Cow<'a, [C::Underlying]>>,
   vars: Vec<&'a str>,
 }
 
-fn create_fixer<C: Content>(mut template: &str, mv_char: char) -> Fixer<C> {
+fn create_fixer<C: IndentSensitive>(mut template: &str, mv_char: char) -> Fixer<C> {
   let mut fragments = vec![];
   let mut vars = vec![];
   while let Some(i) = template.find(mv_char) {
@@ -35,7 +36,10 @@ fn create_fixer<C: Content>(mut template: &str, mv_char: char) -> Fixer<C> {
 fn replace_fixer<'a, D: Doc>(
   fixer: &Fixer<'a, D::Source>,
   env: &MetaVarEnv<D>,
-) -> Cow<'a, [<D::Source as Content>::Underlying]> {
+) -> Cow<'a, [<D::Source as Content>::Underlying]>
+where
+  D::Source: IndentSensitive,
+{
   let template = match fixer {
     Fixer::Textual(n) => return n.clone(),
     Fixer::WithMetaVar(t) => t,
@@ -51,7 +55,7 @@ fn replace_fixer<'a, D: Doc>(
     if let Some(node) = env.get_match(var) {
       // TODO: add indentation
       let text = node.text();
-      let bytes = <D::Source as Content>::decode_str(&text);
+      let bytes = <D::Source as IndentSensitive>::decode_str(&text);
       ret.extend_from_slice(&bytes);
     }
     ret.extend_from_slice(frag);
