@@ -1,4 +1,4 @@
-use super::indent::IndentSensitive;
+use super::indent::{extract_with_deindent, replace_with_indent, IndentSensitive};
 use super::Underlying;
 use crate::language::Language;
 use crate::matcher::NodeMatch;
@@ -64,30 +64,32 @@ where
   for (var, frag) in vars.zip(frags) {
     if let Some(matched) = env.get(var) {
       // TODO: abstract this with structral
-      let bytes = match matched {
-        MatchResult::Single(replaced) => replaced
-          .root
-          .doc
-          .get_source()
-          .get_range(replaced.range())
-          .to_vec(),
+      let (source, range) = match matched {
+        MatchResult::Single(replaced) => {
+          let source = replaced.root.doc.get_source();
+          let range = replaced.range();
+          (source, range)
+        }
         MatchResult::Multi(nodes) => {
           if nodes.is_empty() {
-            vec![]
+            continue;
           } else {
             // NOTE: start_byte is not always index range of source's slice.
             // e.g. start_byte is still byte_offset in utf_16 (napi). start_byte
             // so we need to call source's get_range method
             let start = nodes[0].inner.start_byte() as usize;
             let end = nodes[nodes.len() - 1].inner.end_byte() as usize;
-            nodes[0]
-              .root
-              .doc
-              .get_source()
-              .get_range(start..end)
-              .to_vec()
+            let source = nodes[0].root.doc.get_source();
+            (source, start..end)
           }
         }
+      };
+      let extracted = extract_with_deindent(source, range.clone());
+      let bytes = if let Some(ext) = extracted {
+        // TODO: we should indent according to the template...
+        replace_with_indent::<D::Source>(&ret, ret.len(), ext)
+      } else {
+        source.get_range(range).to_vec()
       };
       ret.extend_from_slice(&bytes);
     }

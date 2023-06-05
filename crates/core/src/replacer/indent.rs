@@ -140,11 +140,11 @@ impl IndentSensitive for String {
 const MAX_LOOK_AHEAD: usize = 512;
 
 pub fn replace_with_indent<C: IndentSensitive>(
-  content: &C,
+  content: &[C::Underlying],
   start: usize,
   replace_lines: Vec<&[C::Underlying]>,
 ) -> Vec<C::Underlying> {
-  let indent = get_indent_at_offset::<C>(content.get_range(0..start)).unwrap_or(0);
+  let indent = get_indent_at_offset::<C>(&content[..start]).unwrap_or(0);
   indent_lines::<C>(indent, replace_lines)
 }
 
@@ -336,7 +336,7 @@ pass
   fn test_replace_with_indent(target: &str, range: usize, inserted: &str) -> String {
     let target = target.to_string();
     let replace_lines = inserted.lines().map(|n| n.as_bytes()).collect();
-    let ret = replace_with_indent(&target, range, replace_lines);
+    let ret = replace_with_indent::<String>(target.as_bytes(), range, replace_lines);
     String::from_utf8(ret).unwrap()
   }
 
@@ -360,6 +360,12 @@ pass
     let inserted = "def abc():\n  pass";
     let actual = test_replace_with_indent(target, 2, inserted);
     assert_eq!(actual, "def abc():\n    pass");
+    let target = "    "; // 4 spaces, but insert at 2
+    let actual = test_replace_with_indent(target, 2, inserted);
+    assert_eq!(actual, "def abc():\n    pass");
+    let target = "    "; // 4 spaces, insert at 4
+    let actual = test_replace_with_indent(target, 4, inserted);
+    assert_eq!(actual, "def abc():\n      pass");
   }
 
   #[test]
