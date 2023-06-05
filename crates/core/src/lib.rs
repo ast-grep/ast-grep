@@ -2,6 +2,7 @@ pub mod language;
 pub mod matcher;
 pub mod meta_var;
 pub mod ops;
+pub mod replacer;
 pub mod source;
 pub mod traversal;
 
@@ -10,13 +11,13 @@ pub mod pinned;
 
 mod match_tree;
 mod node;
-mod replacer;
 
 pub use language::Language;
 pub use matcher::{Matcher, NodeMatch, Pattern, PatternError};
 pub use node::Node;
-pub use replacer::Replacer;
 pub use source::{Doc, StrDoc};
+
+use replacer::Replacer;
 
 use node::Root;
 use source::{Edit, TSParseError};

@@ -1,7 +1,9 @@
 use super::indent::IndentSensitive;
+use super::Underlying;
 use crate::language::Language;
+use crate::matcher::NodeMatch;
 use crate::meta_var::{split_first_meta_var, MetaVarEnv};
-use crate::source::{Content, Doc, StrDoc};
+use crate::source::{Content, Doc};
 use std::borrow::Cow;
 
 enum Fixer<'a, C: IndentSensitive> {
@@ -33,15 +35,15 @@ fn create_fixer<C: IndentSensitive>(mut template: &str, mv_char: char) -> Fixer<
   }
 }
 
-fn replace_fixer<'a, D: Doc>(
-  fixer: &Fixer<'a, D::Source>,
+fn replace_fixer<D: Doc>(
+  fixer: &Fixer<D::Source>,
   env: &MetaVarEnv<D>,
-) -> Cow<'a, [<D::Source as Content>::Underlying]>
+) -> Vec<<D::Source as Content>::Underlying>
 where
   D::Source: IndentSensitive,
 {
   let template = match fixer {
-    Fixer::Textual(n) => return n.clone(),
+    Fixer::Textual(n) => return n.to_vec(),
     Fixer::WithMetaVar(t) => t,
   };
   let mut ret = vec![];
@@ -60,19 +62,14 @@ where
     }
     ret.extend_from_slice(frag);
   }
-  Cow::Owned(ret)
+  ret
 }
 
 // replace meta_var in template string, e.g. "Hello $NAME" -> "Hello World"
-// use Cow instead of String to avoid allocation
-pub fn replace_meta_var_in_string<'a, L: Language>(
-  template: &'a str,
-  env: &MetaVarEnv<StrDoc<L>>,
-  lang: &L,
-) -> Cow<'a, str> {
-  let fixer = create_fixer(template, lang.meta_var_char());
-  match replace_fixer(&fixer, env) {
-    Cow::Borrowed(n) => Cow::Borrowed(unsafe { std::str::from_utf8_unchecked(n) }),
-    Cow::Owned(n) => Cow::Owned(unsafe { String::from_utf8_unchecked(n) }),
-  }
+pub fn gen_replacement<D: Doc>(template: &str, nm: &NodeMatch<D>) -> Underlying<D::Source>
+where
+  D::Source: IndentSensitive,
+{
+  let fixer = create_fixer(template, nm.lang().meta_var_char());
+  replace_fixer(&fixer, nm.get_env())
 }
