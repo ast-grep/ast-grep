@@ -145,8 +145,6 @@ mod test {
     );
   }
 
-  // TODO
-  #[ignore]
   #[test]
   fn test_ellipsis_meta_var() {
     test_ellipsis_replace(
@@ -161,8 +159,6 @@ mod test {
     );
   }
 
-  // TODO
-  #[ignore]
   #[test]
   fn test_multi_ellipsis() {
     test_ellipsis_replace(

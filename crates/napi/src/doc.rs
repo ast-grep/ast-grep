@@ -178,6 +178,7 @@ mod test {
     assert!(node.is_some());
   }
 
+  #[test]
   fn test_js_doc_single_node_replace() {
     let doc = JsDoc::new(
       "console.log(1 + 2 + 3)".into(),
@@ -192,8 +193,6 @@ mod test {
     assert_eq!(grep.root().text(), "log(1 + 2 + 3)");
   }
 
-  // TODO
-  #[ignore]
   #[test]
   fn test_js_doc_multiple_node_replace() {
     let doc = JsDoc::new(
