@@ -6,6 +6,7 @@ use crate::meta_var::{split_first_meta_var, MetaVarEnv};
 use crate::source::{Content, Doc};
 use std::borrow::Cow;
 
+// TODO: this should be public
 enum Fixer<'a, C: IndentSensitive> {
   // no meta_var, pure text
   Textual(Cow<'a, [C::Underlying]>),

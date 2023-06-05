@@ -115,3 +115,130 @@ fn get_meta_var_replacement<D: Doc>(
   };
   Some(replaced)
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::language::{Language, Tsx};
+  use crate::meta_var::MetaVarEnv;
+  use crate::{replacer::Replacer, Root};
+  use std::collections::HashMap;
+
+  fn test_pattern_replace(replacer: &str, vars: &[(&str, &str)], expected: &str) {
+    let mut env = MetaVarEnv::new();
+    let roots: Vec<_> = vars
+      .iter()
+      .map(|(v, p)| (v, Tsx.ast_grep(p).inner))
+      .collect();
+    for (var, root) in &roots {
+      env.insert(var.to_string(), root.root());
+    }
+    let dummy = Tsx.ast_grep("dummy");
+    let node_match = NodeMatch::new(dummy.root(), env.clone());
+    let replacer = Root::new(replacer, Tsx);
+    let replaced = replacer.generate_replacement(&node_match);
+    let replaced = String::from_utf8_lossy(&replaced);
+    assert_eq!(
+      replaced,
+      expected,
+      "wrong replacement {replaced} {expected} {:?}",
+      HashMap::from(env)
+    );
+  }
+
+  #[test]
+  fn test_no_env() {
+    test_pattern_replace("let a = 123", &[], "let a = 123");
+    test_pattern_replace(
+      "console.log('hello world'); let b = 123;",
+      &[],
+      "console.log('hello world'); let b = 123;",
+    );
+  }
+
+  #[test]
+  fn test_single_env() {
+    test_pattern_replace("let a = $A", &[("A", "123")], "let a = 123");
+    test_pattern_replace(
+      "console.log($HW); let b = 123;",
+      &[("HW", "'hello world'")],
+      "console.log('hello world'); let b = 123;",
+    );
+  }
+
+  #[test]
+  fn test_multiple_env() {
+    test_pattern_replace("let $V = $A", &[("A", "123"), ("V", "a")], "let a = 123");
+    test_pattern_replace(
+      "console.log($HW); let $B = 123;",
+      &[("HW", "'hello world'"), ("B", "b")],
+      "console.log('hello world'); let b = 123;",
+    );
+  }
+
+  #[test]
+  fn test_multiple_occurrences() {
+    test_pattern_replace("let $A = $A", &[("A", "a")], "let a = a");
+    test_pattern_replace("var $A = () => $A", &[("A", "a")], "var a = () => a");
+    test_pattern_replace(
+      "const $A = () => { console.log($B); $A(); };",
+      &[("B", "'hello world'"), ("A", "a")],
+      "const a = () => { console.log('hello world'); a(); };",
+    );
+  }
+
+  fn test_ellipsis_replace(replacer: &str, vars: &[(&str, &str)], expected: &str) {
+    let mut env = MetaVarEnv::new();
+    let roots: Vec<_> = vars
+      .iter()
+      .map(|(v, p)| (v, Tsx.ast_grep(p).inner))
+      .collect();
+    for (var, root) in &roots {
+      env.insert_multi(var.to_string(), root.root().children().collect());
+    }
+    let dummy = Tsx.ast_grep("dummy");
+    let node_match = NodeMatch::new(dummy.root(), env.clone());
+    let replacer = Root::new(replacer, Tsx);
+    let replaced = replacer.generate_replacement(&node_match);
+    let replaced = String::from_utf8_lossy(&replaced);
+    assert_eq!(
+      replaced,
+      expected,
+      "wrong replacement {replaced} {expected} {:?}",
+      HashMap::from(env)
+    );
+  }
+
+  #[test]
+  fn test_ellipsis_meta_var() {
+    test_ellipsis_replace(
+      "let a = () => { $$$B }",
+      &[("B", "alert('works!')")],
+      "let a = () => { alert('works!') }",
+    );
+    test_ellipsis_replace(
+      "let a = () => { $$$B }",
+      &[("B", "alert('works!');console.log(123)")],
+      "let a = () => { alert('works!');console.log(123) }",
+    );
+  }
+
+  #[test]
+  fn test_multi_ellipsis() {
+    test_ellipsis_replace(
+      "import {$$$A, B, $$$C} from 'a'",
+      &[("A", "A"), ("C", "C")],
+      "import {A, B, C} from 'a'",
+    );
+  }
+
+  #[test]
+  fn test_replace_in_string() {
+    test_pattern_replace("'$A'", &[("A", "123")], "'123'");
+  }
+
+  #[test]
+  fn test_nested_matching_replace() {
+    // TODO
+  }
+}

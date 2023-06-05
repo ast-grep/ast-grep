@@ -1,7 +1,7 @@
 use crate::matcher::NodeMatch;
 use crate::source::{Content, Edit as E};
 use crate::Pattern;
-use crate::{Doc, Node};
+use crate::{Doc, Node, Root};
 
 type Edit<D> = E<<D as Doc>::Source>;
 type Underlying<S> = Vec<<S as Content>::Underlying>;
@@ -23,6 +23,12 @@ where
 {
   fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
     template::gen_replacement(self, nm)
+  }
+}
+
+impl<D: Doc> Replacer<D> for Root<D> {
+  fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
+    structural::gen_replacement(self, nm)
   }
 }
 
