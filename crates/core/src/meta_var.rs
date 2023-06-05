@@ -142,6 +142,13 @@ pub enum MetaVariable {
   /// $$$A for captured ellipsis
   NamedEllipsis(MetaVariableID),
 }
+// TODO add var_extract
+pub enum MetaVarExtract {
+  Single(),
+  Multiple(),
+  // TODO: add transform
+  // Transformed(),
+}
 
 #[derive(Clone)]
 pub struct MetaVarMatchers<D: Doc>(HashMap<MetaVariableID, MetaVarMatcher<D>>);
@@ -223,14 +230,34 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
   }
 }
 
-pub fn split_first_meta_var(src: &str, meta_char: char) -> (&str, &str) {
-  assert!(src.starts_with(meta_char));
-  let src = &src[meta_char.len_utf8()..];
-  if let Some(i) = src.find(|c| !is_valid_meta_var_char(c)) {
-    (&src[..i], &src[i..])
-  } else {
-    (src, "")
+pub fn split_first_meta_var(mut src: &str, meta_char: char) -> Option<(MetaVariable, &str)> {
+  debug_assert!(src.starts_with(meta_char));
+  let mut i = 0;
+  let (trimmed, is_multi) = loop {
+    i += 1;
+    src = &src[meta_char.len_utf8()..];
+    if i == 3 {
+      break (src, true);
+    }
+    if !src.starts_with(meta_char) {
+      break (src, false);
+    }
+  };
+  // no Anonymous meta var allowed, so _ is not allowed
+  let i = trimmed
+    .find(|c: char| !c.is_ascii_uppercase())
+    .unwrap_or(trimmed.len());
+  // no name found
+  if i == 0 {
+    return None;
   }
+  let name = trimmed[..i].to_string();
+  let var = if is_multi {
+    MetaVariable::NamedEllipsis(name)
+  } else {
+    MetaVariable::Named(name, true)
+  };
+  Some((var, &trimmed[i..]))
 }
 
 fn is_valid_meta_var_char(c: char) -> bool {
