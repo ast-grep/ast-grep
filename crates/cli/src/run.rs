@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+use ast_grep_core::replacer::Fixer;
 use ast_grep_core::traversal::Visitor;
 use ast_grep_core::{Matcher, Pattern as SgPattern, StrDoc};
 use ast_grep_language::Language;
@@ -131,7 +132,7 @@ impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
     for (match_unit, lang) in items {
       let rewrite = rewrite
         .as_ref()
-        .map(|s| Pattern::try_new(s, lang))
+        .map(|s| Fixer::try_new(s, &lang))
         .transpose();
       match rewrite {
         Ok(r) => match_one_file(printer, &match_unit, &r)?,
@@ -193,7 +194,7 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
       println!("Pattern TreeSitter {:?}", self.pattern);
     }
     let rewrite = if let Some(s) = &arg.rewrite {
-      Some(Pattern::try_new(s, lang).context(EC::ParsePattern)?)
+      Some(Fixer::try_new(s, &lang).context(EC::ParsePattern)?)
     } else {
       None
     };
@@ -208,7 +209,7 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
 fn match_one_file(
   printer: &impl Printer,
   match_unit: &MatchUnit<impl Matcher<SgLang>>,
-  rewrite: &Option<Pattern<SgLang>>,
+  rewrite: &Option<Fixer<String>>,
 ) -> Result<()> {
   let MatchUnit {
     path,

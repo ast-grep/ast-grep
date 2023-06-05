@@ -196,10 +196,10 @@ fn apply_rewrite(diffs: Vec<Diff>) -> String {
 mod test {
   use super::*;
   use ast_grep_config::{from_yaml_string, GlobalRules};
+  use ast_grep_core::replacer::Fixer;
   use ast_grep_core::traversal::Visitor;
-  use ast_grep_core::{AstGrep, Matcher, Pattern as SgPattern, StrDoc};
+  use ast_grep_core::{AstGrep, Matcher, StrDoc};
   use ast_grep_language::SupportLang;
-  type Pattern<L> = SgPattern<StrDoc<L>>;
 
   fn make_rule(rule: &str) -> RuleConfig<SgLang> {
     let globals = GlobalRules::default();
@@ -222,7 +222,7 @@ language: TypeScript
   fn make_diffs<'a>(
     grep: &'a AstGrep<StrDoc<SgLang>>,
     matcher: impl Matcher<SgLang>,
-    fixer: &Pattern<SgLang>,
+    fixer: &Fixer<String>,
   ) -> Vec<Diff<'a>> {
     let root = grep.root();
     Visitor::new(&matcher)
@@ -257,7 +257,7 @@ fix: ($B, lifecycle.update(['$A']))",
     let diffs = make_diffs(
       &root,
       "Some($A)",
-      &Pattern::new("$A", SupportLang::TypeScript.into()),
+      &Fixer::try_new("$A", &SupportLang::TypeScript).expect("fixer must compile"),
     );
     let ret = apply_rewrite(diffs);
     assert_eq!("Some(1)", ret);

@@ -1,20 +1,39 @@
 use super::indent::{extract_with_deindent, replace_with_indent, IndentSensitive};
-use super::Underlying;
+use super::{Replacer, Underlying};
 use crate::language::Language;
 use crate::matcher::NodeMatch;
 use crate::meta_var::{split_first_meta_var, MatchResult, MetaVarEnv, MetaVariable};
 use crate::source::{Content, Doc};
-use std::borrow::Cow;
 
-// TODO: this should be public
-enum Fixer<'a, C: IndentSensitive> {
+use thiserror::Error;
+
+pub enum Fixer<C: IndentSensitive> {
   // no meta_var, pure text
-  Textual(Cow<'a, [C::Underlying]>),
-  WithMetaVar(Template<'a, C>),
+  Textual(Vec<C::Underlying>),
+  WithMetaVar(Template<C>),
 }
 
-struct Template<'a, C: IndentSensitive> {
-  fragments: Vec<Cow<'a, [C::Underlying]>>,
+#[derive(Debug, Error)]
+pub enum FixerError {}
+
+impl<C: IndentSensitive> Fixer<C> {
+  pub fn try_new<L: Language>(template: &str, lang: &L) -> Result<Self, FixerError> {
+    Ok(create_fixer(template, lang.meta_var_char()))
+  }
+}
+
+impl<C, D> Replacer<D> for Fixer<C>
+where
+  C: IndentSensitive,
+  D: Doc<Source = C>,
+{
+  fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
+    replace_fixer(self, nm.get_env())
+  }
+}
+
+pub struct Template<C: IndentSensitive> {
+  fragments: Vec<Vec<C::Underlying>>,
   vars: Vec<MetaVariable>,
 }
 
@@ -24,7 +43,7 @@ fn create_fixer<C: IndentSensitive>(mut template: &str, mv_char: char) -> Fixer<
   let mut offset = 0;
   while let Some(i) = template[offset..].find(mv_char) {
     if let Some((meta_var, remaining)) = split_first_meta_var(&template[offset + i..], mv_char) {
-      fragments.push(C::decode_str(&template[..offset + i]));
+      fragments.push(C::decode_str(&template[..offset + i]).into_owned());
       vars.push(meta_var);
       template = remaining;
       offset = 0;
@@ -37,9 +56,9 @@ fn create_fixer<C: IndentSensitive>(mut template: &str, mv_char: char) -> Fixer<
     offset = offset + i + 1;
   }
   if fragments.is_empty() {
-    Fixer::Textual(C::decode_str(template))
+    Fixer::Textual(C::decode_str(template).into_owned())
   } else {
-    fragments.push(C::decode_str(template));
+    fragments.push(C::decode_str(template).into_owned());
     Fixer::WithMetaVar(Template { fragments, vars })
   }
 }

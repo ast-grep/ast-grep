@@ -11,6 +11,7 @@ mod structural;
 mod template;
 
 pub use indent::IndentSensitive;
+pub use template::{Fixer, FixerError};
 
 /// Replace meta variable in the replacer string
 pub trait Replacer<D: Doc> {

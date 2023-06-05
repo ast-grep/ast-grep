@@ -9,8 +9,8 @@ pub use crate::constraints::{
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarMatchers;
 use ast_grep_core::replacer::Replacer;
+use ast_grep_core::replacer::{Fixer, FixerError};
 use ast_grep_core::{NodeMatch, StrDoc};
-use ast_grep_core::{Pattern as PatternCore, PatternError};
 use serde::{Deserialize, Serialize};
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error as YamlError};
 use thiserror::Error;
@@ -18,7 +18,7 @@ use thiserror::Error;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
-type Pattern<L> = PatternCore<StrDoc<L>>;
+// type Pattern<L> = PatternCore<StrDoc<L>>;
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -113,9 +113,9 @@ pub struct SerializableRuleConfig<L: Language> {
 type RResult<T> = std::result::Result<T, RuleConfigError>;
 
 impl<L: Language> SerializableRuleConfig<L> {
-  fn get_fixer(&self) -> RResult<Option<Pattern<L>>> {
+  fn get_fixer(&self) -> RResult<Option<Fixer<String>>> {
     if let Some(fix) = &self.fix {
-      Ok(Some(Pattern::try_new(fix, self.language.clone())?))
+      Ok(Some(Fixer::try_new(fix, &self.language)?))
     } else {
       Ok(None)
     }
@@ -147,7 +147,7 @@ pub enum RuleConfigError {
   #[error("Rule is not configured correctly.")]
   Rule(#[from] RuleSerializeError),
   #[error("fix pattern is invalid.")]
-  Fixer(#[from] PatternError),
+  Fixer(#[from] FixerError),
   #[error("constraints is not configured correctly.")]
   Constraints(#[from] SerializeConstraintsError),
 }
@@ -155,7 +155,7 @@ pub enum RuleConfigError {
 pub struct RuleConfig<L: Language> {
   inner: SerializableRuleConfig<L>,
   pub matcher: RuleWithConstraint<L>,
-  pub fixer: Option<Pattern<L>>,
+  pub fixer: Option<Fixer<String>>,
 }
 
 impl<L: Language> RuleConfig<L> {
