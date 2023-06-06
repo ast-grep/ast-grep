@@ -1,4 +1,4 @@
-use super::indent::{extract_with_deindent, replace_with_indent, IndentSensitive};
+use super::indent::{extract_with_deindent, get_indent_at_offset, indent_lines, IndentSensitive};
 use super::{Replacer, Underlying};
 use crate::language::Language;
 use crate::matcher::NodeMatch;
@@ -32,9 +32,11 @@ where
   }
 }
 
+type Indent = Option<usize>;
+
 pub struct Template<C: IndentSensitive> {
   fragments: Vec<Vec<C::Underlying>>,
-  vars: Vec<MetaVariable>,
+  vars: Vec<(MetaVariable, Indent)>,
 }
 
 fn create_fixer<C: IndentSensitive>(mut template: &str, mv_char: char) -> Fixer<C> {
@@ -44,7 +46,8 @@ fn create_fixer<C: IndentSensitive>(mut template: &str, mv_char: char) -> Fixer<
   while let Some(i) = template[offset..].find(mv_char) {
     if let Some((meta_var, remaining)) = split_first_meta_var(&template[offset + i..], mv_char) {
       fragments.push(C::decode_str(&template[..offset + i]).into_owned());
-      vars.push(meta_var);
+      let indent = get_indent_at_offset::<String>(template[..offset + i].as_bytes());
+      vars.push((meta_var, indent));
       template = remaining;
       offset = 0;
       continue;
@@ -80,7 +83,7 @@ where
   if let Some(frag) = frags.next() {
     ret.extend_from_slice(frag);
   }
-  for (var, frag) in vars.zip(frags) {
+  for ((var, indent), frag) in vars.zip(frags) {
     if let Some(matched) = env.get(var) {
       // TODO: abstract this with structral
       let (source, range) = match matched {
@@ -106,7 +109,7 @@ where
       let extracted = extract_with_deindent(source, range.clone());
       let bytes = if let Some(ext) = extracted {
         // TODO: we should indent according to the template...
-        replace_with_indent::<D::Source>(&ret, ret.len(), ext)
+        indent_lines::<D::Source>(*indent, ext)
       } else {
         source.get_range(range).to_vec()
       };
@@ -123,5 +126,43 @@ where
   D::Source: IndentSensitive,
 {
   let fixer = create_fixer(template, nm.lang().meta_var_char());
-  replace_fixer(&fixer, nm.get_env())
+  let leading = nm.root.doc.get_source().get_range(0..nm.range().start);
+  let indent = get_indent_at_offset::<D::Source>(leading);
+  let bytes = replace_fixer(&fixer, nm.get_env());
+  let lines: Vec<_> = bytes.split(|b| *b == D::Source::NEW_LINE).collect();
+  indent_lines::<D::Source>(indent, lines)
+}
+
+#[cfg(test)]
+mod test {
+  use crate::language::{Language, Tsx};
+  use crate::Pattern;
+
+  #[test]
+  fn test_example() {
+    let src = r"
+if (true) {
+  a(
+    1
+      + 2
+      + 3
+  )
+}";
+    let pattern = "a($B)";
+    let template = r"c(
+  $B
+)";
+    let mut src = Tsx.ast_grep(src);
+    let pattern = Pattern::str(pattern, Tsx);
+    let success = src.replace(pattern, template).expect("should replace");
+    assert!(success);
+    let expect = r"if (true) {
+  c(
+    1
+      + 2
+      + 3
+  )
+}";
+    assert_eq!(src.root().text(), expect);
+  }
 }

@@ -139,15 +139,6 @@ impl IndentSensitive for String {
 
 const MAX_LOOK_AHEAD: usize = 512;
 
-pub fn replace_with_indent<C: IndentSensitive>(
-  content: &[C::Underlying],
-  start: usize,
-  replace_lines: Vec<&[C::Underlying]>,
-) -> Vec<C::Underlying> {
-  let indent = get_indent_at_offset::<C>(&content[..start]).unwrap_or(0);
-  indent_lines::<C>(indent, replace_lines)
-}
-
 /// Returns None if we don't need to use complicated deindent.
 // TODO: should use single_line, no_leading_indent, de_indented
 // None is not enough
@@ -163,10 +154,11 @@ pub fn extract_with_deindent<C: IndentSensitive>(
   Some(remove_indent::<C>(indent, content.get_range(range)))
 }
 
-fn indent_lines<C: IndentSensitive>(
-  indent: usize,
+pub fn indent_lines<C: IndentSensitive>(
+  indent: Option<usize>,
   lines: Vec<&[C::Underlying]>,
 ) -> Vec<C::Underlying> {
+  let indent = indent.unwrap_or(0);
   let mut ret = vec![];
   let mut lines = lines.into_iter();
   let space = <C as IndentSensitive>::SPACE;
@@ -185,7 +177,7 @@ fn indent_lines<C: IndentSensitive>(
 
 /// returns None if no newline char is found before the offset
 /// this happens if the replacement is in a long line
-fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> Option<usize> {
+pub fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> Option<usize> {
   let lookahead = src.len().max(MAX_LOOK_AHEAD) - MAX_LOOK_AHEAD;
 
   let mut indent = 0;
@@ -244,7 +236,7 @@ mod test {
       assert_eq!(&source[start..end], expected, "no deindented src should be equal to expected");
       return;
     };
-    let result_bytes = indent_lines::<String>(0, extracted);
+    let result_bytes = indent_lines::<String>(None, extracted);
     let actual = std::str::from_utf8(&result_bytes).unwrap();
     assert_eq!(actual, expected);
   }
@@ -333,10 +325,11 @@ pass
     test_deindent(&src, &src, 0);
   }
 
-  fn test_replace_with_indent(target: &str, range: usize, inserted: &str) -> String {
+  fn test_replace_with_indent(target: &str, start: usize, inserted: &str) -> String {
     let target = target.to_string();
     let replace_lines = inserted.lines().map(|n| n.as_bytes()).collect();
-    let ret = replace_with_indent::<String>(target.as_bytes(), range, replace_lines);
+    let indent = get_indent_at_offset::<String>(&target.as_bytes()[..start]);
+    let ret = indent_lines::<String>(indent, replace_lines);
     String::from_utf8(ret).unwrap()
   }
 
