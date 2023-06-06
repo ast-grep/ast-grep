@@ -139,19 +139,32 @@ impl IndentSensitive for String {
 
 const MAX_LOOK_AHEAD: usize = 512;
 
+/// Represents how we de-indent matched meta var.
+pub enum DeindentedExtract<'a, C: IndentSensitive> {
+  /// If meta-var is only one line, no need to de-indent/re-indent
+  SingleLine(&'a [C::Underlying]),
+  /// meta-var's first line has no indent, no need to de-indent but need re-indent
+  NoLeadingIndent(&'a [C::Underlying]),
+  /// need both de-indent and re-indent
+  FullIndent(Vec<&'a [C::Underlying]>),
+}
+
 /// Returns None if we don't need to use complicated deindent.
 // TODO: should use single_line, no_leading_indent, de_indented
 // None is not enough
 pub fn extract_with_deindent<C: IndentSensitive>(
   content: &C,
   range: Range<usize>,
-) -> Option<Vec<&[C::Underlying]>> {
+) -> DeindentedExtract<C> {
+  let extract_slice = content.get_range(range.clone());
   // no need to compute indentation for single line
-  if !content.get_range(range.clone()).contains(&C::NEW_LINE) {
-    return None;
+  if !extract_slice.contains(&C::NEW_LINE) {
+    return DeindentedExtract::SingleLine(extract_slice);
   }
-  let indent = get_indent_at_offset::<C>(content.get_range(0..range.start))?;
-  Some(remove_indent::<C>(indent, content.get_range(range)))
+  let Some(indent) = get_indent_at_offset::<C>(content.get_range(0..range.start)) else {
+    return DeindentedExtract::NoLeadingIndent(extract_slice);
+  };
+  DeindentedExtract::FullIndent(remove_indent::<C>(indent, extract_slice))
 }
 
 pub fn indent_lines<C: IndentSensitive>(
@@ -175,8 +188,8 @@ pub fn indent_lines<C: IndentSensitive>(
   ret
 }
 
-/// returns None if no newline char is found before the offset
-/// this happens if the replacement is in a long line
+/// returns None if no indent is found before the offset
+/// either truly no indent exists, or the offset is in a long line
 pub fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> Option<usize> {
   let lookahead = src.len().max(MAX_LOOK_AHEAD) - MAX_LOOK_AHEAD;
 
@@ -232,7 +245,7 @@ mod test {
       .take_while(|n| n.is_whitespace())
       .count();
     let end = source.chars().count() - trailing_white;
-    let Some(extracted) = extract_with_deindent(&source, start..end) else {
+    let DeindentedExtract::FullIndent(extracted) = extract_with_deindent(&source, start..end) else {
       assert_eq!(&source[start..end], expected, "no deindented src should be equal to expected");
       return;
     };
