@@ -41,7 +41,7 @@ cargo install ast-grep
 brew install ast-grep
 
 # install via scoop, thank @brian6932
-scoop install ast-grep
+scoop install main/ast-grep
 ```
 Or you can build ast-grep from source. You need install rustup, clone the repository and then
 ```bash
