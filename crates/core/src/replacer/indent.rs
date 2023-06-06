@@ -172,23 +172,24 @@ pub fn extract_with_deindent<C: IndentSensitive>(
 pub fn indent_lines<C: IndentSensitive>(
   indent: usize,
   extract: DeindentedExtract<C>,
-) -> Vec<C::Underlying> {
+) -> Cow<[C::Underlying]> {
   use DeindentedExtract::*;
   match (extract, indent) {
     // single line var needs no re-indent
-    (SingleLine(line), _) => line.to_vec(),
+    (SingleLine(line), _) => Cow::Borrowed(line),
     // no indent on first line nor indent in replaced pos.
     // no need to re-indent
-    (NoLeadingIndent(l), 0) => l.to_vec(),
+    (NoLeadingIndent(l), 0) => Cow::Borrowed(l),
     // no indent on first line but indent in target pos.
     // Need to re-indent
-    (NoLeadingIndent(line), id) => {
-      indent_lines_impl::<C>(id, line.split(|b| *b == C::NEW_LINE).collect())
-    }
+    (NoLeadingIndent(line), id) => Cow::Owned(indent_lines_impl::<C>(
+      id,
+      line.split(|b| *b == C::NEW_LINE).collect(),
+    )),
     // just need to join lines if no indent in target
-    (FullIndent(lines), 0) => lines.join(&C::NEW_LINE).to_vec(),
+    (FullIndent(lines), 0) => Cow::Owned(lines.join(&C::NEW_LINE).to_vec()),
     // need re-indent
-    (FullIndent(lines), id) => indent_lines_impl::<C>(id, lines),
+    (FullIndent(lines), id) => Cow::Owned(indent_lines_impl::<C>(id, lines)),
   }
 }
 
@@ -365,7 +366,7 @@ pass
       DeindentedExtract::FullIndent(inserted.lines().map(|n| n.as_bytes()).collect());
     let indent = get_indent_at_offset::<String>(&target.as_bytes()[..start]);
     let ret = indent_lines::<String>(indent, replace_lines);
-    String::from_utf8(ret).unwrap()
+    String::from_utf8(ret.to_vec()).unwrap()
   }
 
   #[test]
