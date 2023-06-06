@@ -109,11 +109,7 @@ where
         }
       };
       let extracted = extract_with_deindent(source, range.clone());
-      let bytes = if let DeindentedExtract::FullIndent(ext) = extracted {
-        indent_lines::<D::Source>(*indent, ext)
-      } else {
-        source.get_range(range).to_vec()
-      };
+      let bytes = indent_lines::<D::Source>(*indent, extracted);
       ret.extend_from_slice(&bytes);
     }
     ret.extend_from_slice(frag);
@@ -130,8 +126,8 @@ where
   let leading = nm.root.doc.get_source().get_range(0..nm.range().start);
   let indent = get_indent_at_offset::<D::Source>(leading);
   let bytes = replace_fixer(&fixer, nm.get_env());
-  let lines: Vec<_> = bytes.split(|b| *b == D::Source::NEW_LINE).collect();
-  indent_lines::<D::Source>(indent, lines)
+  let replaced = DeindentedExtract::NoLeadingIndent(&bytes);
+  indent_lines::<D::Source>(indent, replaced)
 }
 
 #[cfg(test)]

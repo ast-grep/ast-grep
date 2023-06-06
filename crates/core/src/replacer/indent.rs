@@ -169,9 +169,31 @@ pub fn extract_with_deindent<C: IndentSensitive>(
 
 pub fn indent_lines<C: IndentSensitive>(
   indent: Option<usize>,
+  extract: DeindentedExtract<C>,
+) -> Vec<C::Underlying> {
+  use DeindentedExtract::*;
+  match (extract, indent) {
+    // single line var needs no re-indent
+    (SingleLine(line), _) => line.to_vec(),
+    // no indent on first line nor indent in replaced pos.
+    // no need to re-indent
+    (NoLeadingIndent(l), None) => l.to_vec(),
+    // no indent on first line but indent in target pos.
+    // Need to re-indent
+    (NoLeadingIndent(line), Some(id)) => {
+      indent_lines_impl::<C>(id, line.split(|b| *b == C::NEW_LINE).collect())
+    }
+    // just need to join lines if no indent in target
+    (FullIndent(lines), None) => lines.join(&C::NEW_LINE).to_vec(),
+    // need re-indent
+    (FullIndent(lines), Some(id)) => indent_lines_impl::<C>(id, lines),
+  }
+}
+
+fn indent_lines_impl<C: IndentSensitive>(
+  indent: usize,
   lines: Vec<&[C::Underlying]>,
 ) -> Vec<C::Underlying> {
-  let indent = indent.unwrap_or(0);
   let mut ret = vec![];
   let mut lines = lines.into_iter();
   let space = <C as IndentSensitive>::SPACE;
@@ -245,10 +267,7 @@ mod test {
       .take_while(|n| n.is_whitespace())
       .count();
     let end = source.chars().count() - trailing_white;
-    let DeindentedExtract::FullIndent(extracted) = extract_with_deindent(&source, start..end) else {
-      assert_eq!(&source[start..end], expected, "no deindented src should be equal to expected");
-      return;
-    };
+    let extracted = extract_with_deindent(&source, start..end);
     let result_bytes = indent_lines::<String>(None, extracted);
     let actual = std::str::from_utf8(&result_bytes).unwrap();
     assert_eq!(actual, expected);
@@ -340,7 +359,8 @@ pass
 
   fn test_replace_with_indent(target: &str, start: usize, inserted: &str) -> String {
     let target = target.to_string();
-    let replace_lines = inserted.lines().map(|n| n.as_bytes()).collect();
+    let replace_lines =
+      DeindentedExtract::FullIndent(inserted.lines().map(|n| n.as_bytes()).collect());
     let indent = get_indent_at_offset::<String>(&target.as_bytes()[..start]);
     let ret = indent_lines::<String>(indent, replace_lines);
     String::from_utf8(ret).unwrap()
