@@ -113,6 +113,7 @@
 
 use crate::source::Content;
 use std::borrow::Cow;
+use std::cmp::Ordering;
 use std::ops::Range;
 
 pub trait IndentSensitive: Content {
@@ -143,15 +144,11 @@ const MAX_LOOK_AHEAD: usize = 512;
 pub enum DeindentedExtract<'a, C: IndentSensitive> {
   /// If meta-var is only one line, no need to de-indent/re-indent
   SingleLine(&'a [C::Underlying]),
-  /// meta-var's first line has no indent, no need to de-indent but need re-indent
-  NoLeadingIndent(&'a [C::Underlying]),
-  /// need both de-indent and re-indent
-  FullIndent(Vec<&'a [C::Underlying]>),
+  /// meta-var's has multiple lines, may need re-indent
+  MultiLine(&'a [C::Underlying], usize),
 }
 
-/// Returns None if we don't need to use complicated deindent.
-// TODO: should use single_line, no_leading_indent, de_indented
-// None is not enough
+/// Returns DeindentedExtract for later de-indent/re-indent.
 pub fn extract_with_deindent<C: IndentSensitive>(
   content: &C,
   range: Range<usize>,
@@ -162,11 +159,7 @@ pub fn extract_with_deindent<C: IndentSensitive>(
     return DeindentedExtract::SingleLine(extract_slice);
   }
   let indent = get_indent_at_offset::<C>(content.get_range(0..range.start));
-  if indent > 0 {
-    DeindentedExtract::FullIndent(remove_indent::<C>(indent, extract_slice))
-  } else {
-    DeindentedExtract::NoLeadingIndent(extract_slice)
-  }
+  DeindentedExtract::MultiLine(extract_slice, indent)
 }
 
 pub fn indent_lines<C: IndentSensitive>(
@@ -174,31 +167,29 @@ pub fn indent_lines<C: IndentSensitive>(
   extract: DeindentedExtract<C>,
 ) -> Cow<[C::Underlying]> {
   use DeindentedExtract::*;
-  match (extract, indent) {
-    // single line var needs no re-indent
-    (SingleLine(line), _) => Cow::Borrowed(line),
-    // no indent on first line nor indent in replaced pos.
-    // no need to re-indent
-    (NoLeadingIndent(l), 0) => Cow::Borrowed(l),
-    // no indent on first line but indent in target pos.
-    // Need to re-indent
-    (NoLeadingIndent(line), id) => Cow::Owned(indent_lines_impl::<C>(
-      id,
-      line.split(|b| *b == C::NEW_LINE).collect(),
+  let (lines, original_indent) = match extract {
+    SingleLine(line) => return Cow::Borrowed(line),
+    MultiLine(lines, id) => (lines, id),
+  };
+  match original_indent.cmp(&indent) {
+    // if old and new indent match, just return old lines
+    Ordering::Equal => Cow::Borrowed(lines),
+    // need strip old indent
+    Ordering::Greater => Cow::Owned(remove_indent::<C>(original_indent - indent, lines)),
+    // need add missing indent
+    Ordering::Less => Cow::Owned(indent_lines_impl::<C, _>(
+      indent - original_indent,
+      lines.split(|b| *b == C::NEW_LINE),
     )),
-    // just need to join lines if no indent in target
-    (FullIndent(lines), 0) => Cow::Owned(lines.join(&C::NEW_LINE).to_vec()),
-    // need re-indent
-    (FullIndent(lines), id) => Cow::Owned(indent_lines_impl::<C>(id, lines)),
   }
 }
 
-fn indent_lines_impl<C: IndentSensitive>(
-  indent: usize,
-  lines: Vec<&[C::Underlying]>,
-) -> Vec<C::Underlying> {
+fn indent_lines_impl<'a, C, Lines>(indent: usize, mut lines: Lines) -> Vec<C::Underlying>
+where
+  C: IndentSensitive + 'a,
+  Lines: Iterator<Item = &'a [C::Underlying]>,
+{
   let mut ret = vec![];
-  let mut lines = lines.into_iter();
   let space = <C as IndentSensitive>::SPACE;
   let leading: Vec<_> = std::iter::repeat(space).take(indent).collect();
   // first line never got indent
@@ -213,7 +204,7 @@ fn indent_lines_impl<C: IndentSensitive>(
   ret
 }
 
-/// returns None if no indent is found before the offset
+/// returns 0 if no indent is found before the offset
 /// either truly no indent exists, or the offset is in a long line
 pub fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> usize {
   let lookahead = src.len().max(MAX_LOOK_AHEAD) - MAX_LOOK_AHEAD;
@@ -238,18 +229,18 @@ pub fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> usize 
   }
 }
 
-fn remove_indent<C: IndentSensitive>(
-  indent: usize,
-  src: &[C::Underlying],
-) -> Vec<&[C::Underlying]> {
+// NOTE: we assume input is well indented.
+// following line's should have fewer indentation than initial line
+fn remove_indent<C: IndentSensitive>(indent: usize, src: &[C::Underlying]) -> Vec<C::Underlying> {
   let indentation: Vec<_> = std::iter::repeat(C::SPACE).take(indent).collect();
-  src
+  let lines: Vec<_> = src
     .split(|b| *b == C::NEW_LINE)
     .map(|line| match line.strip_prefix(&*indentation) {
       Some(stripped) => stripped,
       None => line,
     })
-    .collect()
+    .collect();
+  lines.join(&C::NEW_LINE).to_vec()
 }
 
 #[cfg(test)]
@@ -362,8 +353,7 @@ pass
 
   fn test_replace_with_indent(target: &str, start: usize, inserted: &str) -> String {
     let target = target.to_string();
-    let replace_lines =
-      DeindentedExtract::FullIndent(inserted.lines().map(|n| n.as_bytes()).collect());
+    let replace_lines = DeindentedExtract::MultiLine(inserted.as_bytes(), 0);
     let indent = get_indent_at_offset::<String>(&target.as_bytes()[..start]);
     let ret = indent_lines::<String>(indent, replace_lines);
     String::from_utf8(ret.to_vec()).unwrap()
