@@ -1,4 +1,6 @@
-use super::indent::{extract_with_deindent, get_indent_at_offset, indent_lines, IndentSensitive};
+use super::indent::{
+  extract_with_deindent, get_indent_at_offset, indent_lines, DeindentedExtract, IndentSensitive,
+};
 use super::{Replacer, Underlying};
 use crate::language::Language;
 use crate::matcher::NodeMatch;
@@ -107,8 +109,7 @@ where
         }
       };
       let extracted = extract_with_deindent(source, range.clone());
-      let bytes = if let Some(ext) = extracted {
-        // TODO: we should indent according to the template...
+      let bytes = if let DeindentedExtract::FullIndent(ext) = extracted {
         indent_lines::<D::Source>(*indent, ext)
       } else {
         source.get_range(range).to_vec()
