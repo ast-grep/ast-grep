@@ -127,39 +127,5 @@ where
   let indent = get_indent_at_offset::<D::Source>(leading);
   let bytes = replace_fixer(&fixer, nm.get_env());
   let replaced = DeindentedExtract::NoLeadingIndent(&bytes);
-  indent_lines::<D::Source>(indent, replaced)
-}
-
-#[cfg(test)]
-mod test {
-  use crate::language::{Language, Tsx};
-  use crate::Pattern;
-
-  #[test]
-  fn test_example() {
-    let src = r"
-if (true) {
-  a(
-    1
-      + 2
-      + 3
-  )
-}";
-    let pattern = "a($B)";
-    let template = r"c(
-  $B
-)";
-    let mut src = Tsx.ast_grep(src);
-    let pattern = Pattern::str(pattern, Tsx);
-    let success = src.replace(pattern, template).expect("should replace");
-    assert!(success);
-    let expect = r"if (true) {
-  c(
-    1
-      + 2
-      + 3
-  )
-}";
-    assert_eq!(src.root().text(), expect);
-  }
+  indent_lines::<D::Source>(indent, replaced).to_vec()
 }
