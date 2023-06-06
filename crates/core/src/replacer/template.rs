@@ -30,7 +30,11 @@ where
   D: Doc<Source = C>,
 {
   fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
-    replace_fixer(self, nm.get_env())
+    let leading = nm.root.doc.get_source().get_range(0..nm.range().start);
+    let indent = get_indent_at_offset::<D::Source>(leading);
+    let bytes = replace_fixer(self, nm.get_env());
+    let replaced = DeindentedExtract::MultiLine(&bytes, 0);
+    indent_lines::<D::Source>(indent, replaced).to_vec()
   }
 }
 
@@ -123,11 +127,7 @@ where
   D::Source: IndentSensitive,
 {
   let fixer = create_fixer(template, nm.lang().meta_var_char());
-  let leading = nm.root.doc.get_source().get_range(0..nm.range().start);
-  let indent = get_indent_at_offset::<D::Source>(leading);
-  let bytes = replace_fixer(&fixer, nm.get_env());
-  let replaced = DeindentedExtract::MultiLine(&bytes, 0);
-  indent_lines::<D::Source>(indent, replaced).to_vec()
+  fixer.generate_replacement(nm)
 }
 
 #[cfg(test)]
