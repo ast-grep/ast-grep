@@ -126,6 +126,6 @@ where
   let leading = nm.root.doc.get_source().get_range(0..nm.range().start);
   let indent = get_indent_at_offset::<D::Source>(leading);
   let bytes = replace_fixer(&fixer, nm.get_env());
-  let replaced = DeindentedExtract::NoLeadingIndent(&bytes);
+  let replaced = DeindentedExtract::MultiLine(&bytes, 0);
   indent_lines::<D::Source>(indent, replaced).to_vec()
 }
