@@ -34,7 +34,7 @@ where
   }
 }
 
-type Indent = Option<usize>;
+type Indent = usize;
 
 pub struct Template<C: IndentSensitive> {
   fragments: Vec<Vec<C::Underlying>>,
