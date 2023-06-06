@@ -161,14 +161,16 @@ pub fn extract_with_deindent<C: IndentSensitive>(
   if !extract_slice.contains(&C::NEW_LINE) {
     return DeindentedExtract::SingleLine(extract_slice);
   }
-  let Some(indent) = get_indent_at_offset::<C>(content.get_range(0..range.start)) else {
-    return DeindentedExtract::NoLeadingIndent(extract_slice);
-  };
-  DeindentedExtract::FullIndent(remove_indent::<C>(indent, extract_slice))
+  let indent = get_indent_at_offset::<C>(content.get_range(0..range.start));
+  if indent > 0 {
+    DeindentedExtract::FullIndent(remove_indent::<C>(indent, extract_slice))
+  } else {
+    DeindentedExtract::NoLeadingIndent(extract_slice)
+  }
 }
 
 pub fn indent_lines<C: IndentSensitive>(
-  indent: Option<usize>,
+  indent: usize,
   extract: DeindentedExtract<C>,
 ) -> Vec<C::Underlying> {
   use DeindentedExtract::*;
@@ -177,16 +179,16 @@ pub fn indent_lines<C: IndentSensitive>(
     (SingleLine(line), _) => line.to_vec(),
     // no indent on first line nor indent in replaced pos.
     // no need to re-indent
-    (NoLeadingIndent(l), None) => l.to_vec(),
+    (NoLeadingIndent(l), 0) => l.to_vec(),
     // no indent on first line but indent in target pos.
     // Need to re-indent
-    (NoLeadingIndent(line), Some(id)) => {
+    (NoLeadingIndent(line), id) => {
       indent_lines_impl::<C>(id, line.split(|b| *b == C::NEW_LINE).collect())
     }
     // just need to join lines if no indent in target
-    (FullIndent(lines), None) => lines.join(&C::NEW_LINE).to_vec(),
+    (FullIndent(lines), 0) => lines.join(&C::NEW_LINE).to_vec(),
     // need re-indent
-    (FullIndent(lines), Some(id)) => indent_lines_impl::<C>(id, lines),
+    (FullIndent(lines), id) => indent_lines_impl::<C>(id, lines),
   }
 }
 
@@ -212,14 +214,14 @@ fn indent_lines_impl<C: IndentSensitive>(
 
 /// returns None if no indent is found before the offset
 /// either truly no indent exists, or the offset is in a long line
-pub fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> Option<usize> {
+pub fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> usize {
   let lookahead = src.len().max(MAX_LOOK_AHEAD) - MAX_LOOK_AHEAD;
 
   let mut indent = 0;
   // TODO: support TAB. only whitespace is supported now
   for c in src[lookahead..].iter().rev() {
     if *c == <C as IndentSensitive>::NEW_LINE {
-      return if indent == 0 { None } else { Some(indent) };
+      return indent;
     }
     if *c == <C as IndentSensitive>::SPACE {
       indent += 1;
@@ -229,9 +231,9 @@ pub fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> Option
   }
   // lookahead == 0 means we have indentation at first line.
   if lookahead == 0 && indent != 0 {
-    Some(indent)
+    indent
   } else {
-    None
+    0
   }
 }
 
@@ -268,7 +270,7 @@ mod test {
       .count();
     let end = source.chars().count() - trailing_white;
     let extracted = extract_with_deindent(&source, start..end);
-    let result_bytes = indent_lines::<String>(None, extracted);
+    let result_bytes = indent_lines::<String>(0, extracted);
     let actual = std::str::from_utf8(&result_bytes).unwrap();
     assert_eq!(actual, expected);
   }
