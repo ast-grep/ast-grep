@@ -145,6 +145,15 @@ impl<L: Language + Eq> RuleCollection<L> {
   }
 }
 
+impl<L: Language + Eq> Default for RuleCollection<L> {
+  fn default() -> Self {
+    Self {
+      tenured: vec![],
+      contingent: vec![],
+    }
+  }
+}
+
 #[cfg(test)]
 mod test {
   use super::*;

@@ -8,7 +8,7 @@ async fn run_language_server_impl() -> Result<()> {
   register_custom_language(None);
   let stdin = tokio::io::stdin();
   let stdout = tokio::io::stdout();
-  let config = find_rules(None)?;
+  let config = find_rules(None).unwrap_or_default();
 
   let (service, socket) = LspService::build(|client| Backend::new(client, config))
     .custom_method("ast-grep/search", Backend::search)
