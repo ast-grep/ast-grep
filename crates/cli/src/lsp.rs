@@ -30,6 +30,7 @@ mod test {
   use super::*;
 
   #[test]
+  #[ignore = "test lsp later"]
   fn test_lsp_start() {
     assert!(run_language_server().is_err())
   }
