@@ -20,9 +20,10 @@ use std::ops::{Deref, DerefMut};
 
 // type Pattern<L> = PatternCore<StrDoc<L>>;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum Severity {
+  #[default]
   Hint,
   Info,
   Warning,
@@ -93,10 +94,12 @@ pub struct SerializableRuleConfig<L: Language> {
   pub id: String,
   /// Main message highlighting why this rule fired. It should be single line and concise,
   /// but specific enough to be understood without additional context.
+  #[serde(default)]
   pub message: String,
   /// Additional notes to elaborate the message and provide potential fix to the issue.
   pub note: Option<String>,
-  /// One of: Hint, Info, Warning, or Error
+  /// One of: hint, info, warning, or error
+  #[serde(default)]
   pub severity: Severity,
   /// A pattern to auto fix the issue. It can reference metavariables appeared in rule.
   pub fix: Option<String>,
