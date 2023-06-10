@@ -125,6 +125,7 @@ dependencies = [
  "inquire",
  "num_cpus",
  "predicates",
+ "regex",
  "serde",
  "serde_json",
  "serde_yaml",

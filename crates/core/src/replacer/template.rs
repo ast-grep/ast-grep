@@ -23,6 +23,10 @@ impl<C: IndentSensitive> Fixer<C> {
   pub fn try_new<L: Language>(template: &str, lang: &L) -> Result<Self, FixerError> {
     Ok(create_fixer(template, lang.meta_var_char(), &[]))
   }
+
+  pub fn with_transform<L: Language>(tpl: &str, lang: &L, trans: &[String]) -> Self {
+    create_fixer(tpl, lang.meta_var_char(), trans)
+  }
 }
 
 impl<C, D> Replacer<D> for Fixer<C>

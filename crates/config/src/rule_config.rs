@@ -101,6 +101,10 @@ pub struct SerializableRuleConfig<L: Language> {
   /// One of: hint, info, warning, or error
   #[serde(default)]
   pub severity: Severity,
+  /// A dictionary for meatvariable manipulation. Dict key is the new variable name.
+  /// Dict value is a [transformation] that specifies how meta var is processed.
+  /// Warning: this is experimental option. https://github.com/ast-grep/ast-grep/issues/436
+  pub transform: Option<HashMap<String, serde_yaml::Value>>,
   /// A pattern to auto fix the issue. It can reference metavariables appeared in rule.
   pub fix: Option<String>,
   /// Glob patterns to specify that the rule only applies to matching files
@@ -216,6 +220,7 @@ mod test {
       message: "".into(),
       note: None,
       severity: Severity::Hint,
+      transform: None,
       fix: None,
       files: None,
       ignores: None,
