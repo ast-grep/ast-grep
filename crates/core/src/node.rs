@@ -423,31 +423,13 @@ impl<'r, D: Doc> Node<'r, D> {
 
 /// Tree manipulation API
 impl<'r, D: Doc> Node<'r, D> {
-  pub fn make_edit<M, R>(&self, matched: NodeMatch<D>, matcher: &M, replacer: &R) -> Edit<D>
-  where
-    M: Matcher<D::Lang>,
-    R: Replacer<D>,
-  {
-    let range = matched.range();
-    let position = range.start;
-    let deleted_length = matcher
-      .get_match_len(matched.get_node().clone())
-      .unwrap_or_else(|| range.len());
-    let inserted_text = replacer.generate_replacement(&matched);
-    Edit::<D> {
-      position,
-      deleted_length,
-      inserted_text,
-    }
-  }
-
   pub fn replace<M: Matcher<D::Lang>, R: Replacer<D>>(
     &self,
     matcher: M,
     replacer: R,
   ) -> Option<Edit<D>> {
     let matched = matcher.find_node(self.clone())?;
-    let edit = self.make_edit(matched, &matcher, &replacer);
+    let edit = matched.make_edit(&matcher, &replacer);
     Some(edit)
   }
 
@@ -460,7 +442,7 @@ impl<'r, D: Doc> Node<'r, D> {
     Visitor::new(&matcher)
       .reentrant(false)
       .visit(self.clone())
-      .map(|matched| self.make_edit(matched, &matcher, &replacer))
+      .map(|matched| matched.make_edit(&matcher, &replacer))
       .collect()
   }
 

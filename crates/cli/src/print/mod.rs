@@ -68,15 +68,9 @@ impl<'n> Diff<'n> {
     matcher: &impl Matcher<SgLang>,
     rewrite: &Fixer<String>,
   ) -> Self {
-    let replacement = String::from_utf8(
-      // TODO: fix this shit
-      node_match
-        .make_edit(node_match.clone(), matcher, rewrite)
-        .inserted_text,
-    )
-    .unwrap();
+    let edit = node_match.make_edit(matcher, rewrite);
+    let replacement = String::from_utf8(edit.inserted_text).unwrap();
     let replacement = Cow::Owned(replacement);
-
     Self {
       node_match,
       replacement,

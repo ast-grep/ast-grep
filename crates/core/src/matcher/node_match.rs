@@ -1,3 +1,4 @@
+use super::Matcher;
 use crate::meta_var::MetaVarEnv;
 use crate::replacer::Replacer;
 use crate::source::Edit;
@@ -40,6 +41,25 @@ impl<'tree, D: Doc> NodeMatch<'tree, D> {
     let range = self.range();
     let position = range.start;
     let deleted_length = range.len();
+    let inserted_text = replacer.generate_replacement(self);
+    Edit {
+      position,
+      deleted_length,
+      inserted_text,
+    }
+  }
+
+  #[doc(hidden)]
+  pub fn make_edit<M, R>(&self, matcher: &M, replacer: &R) -> Edit<D::Source>
+  where
+    M: Matcher<D::Lang>,
+    R: Replacer<D>,
+  {
+    let range = self.range();
+    let position = range.start;
+    let deleted_length = matcher
+      .get_match_len(self.get_node().clone())
+      .unwrap_or_else(|| range.len());
     let inserted_text = replacer.generate_replacement(self);
     Edit {
       position,
