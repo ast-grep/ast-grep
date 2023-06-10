@@ -69,7 +69,7 @@ unsafe impl<D: Doc> NodeData<D> for NodeMatch<'static, D> {
   where
     F: FnMut(&mut Node<'_, D>),
   {
-    f(unsafe { self.get_mut_node() })
+    f(unsafe { self.get_node_mut() })
   }
 }
 
@@ -83,7 +83,7 @@ unsafe impl<D: Doc> NodeData<D> for Vec<NodeMatch<'static, D>> {
     F: FnMut(&mut Node<'_, D>),
   {
     for n in self {
-      f(unsafe { n.get_mut_node() })
+      f(unsafe { n.get_node_mut() })
     }
   }
 }

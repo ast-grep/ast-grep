@@ -122,7 +122,12 @@ type RResult<T> = std::result::Result<T, RuleConfigError>;
 impl<L: Language> SerializableRuleConfig<L> {
   fn get_fixer(&self) -> RResult<Option<Fixer<String>>> {
     if let Some(fix) = &self.fix {
-      Ok(Some(Fixer::try_new(fix, &self.language)?))
+      if let Some(trans) = &self.transform {
+        let keys: Vec<_> = trans.keys().cloned().collect();
+        Ok(Some(Fixer::with_transform(fix, &self.language, &keys)))
+      } else {
+        Ok(Some(Fixer::try_new(fix, &self.language)?))
+      }
     } else {
       Ok(None)
     }

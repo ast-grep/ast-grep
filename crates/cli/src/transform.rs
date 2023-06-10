@@ -2,10 +2,11 @@ use ast_grep_core::meta_var::{MetaVarEnv, MetaVariable};
 use ast_grep_core::{Language, StrDoc};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SubString {
+struct SubString {
   source: String,
   start_char: Option<i32>,
   end_char: Option<i32>,
@@ -13,7 +14,7 @@ pub struct SubString {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Replace {
+struct Replace {
   source: String,
   replace: String,
   by: String,
@@ -21,13 +22,13 @@ pub struct Replace {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum Transformation {
+enum Transformation {
   SubString(SubString),
   Replace(Replace),
 }
 
 impl Transformation {
-  pub fn insert<L: Language>(&self, key: &str, lang: &L, env: &mut MetaVarEnv<StrDoc<L>>) {
+  fn insert<L: Language>(&self, key: &str, lang: &L, env: &mut MetaVarEnv<StrDoc<L>>) {
     // avoid cyclic
     env.insert_transformation(key.to_string(), vec![]);
     let Some(s) = self.compute(lang, env) else {
@@ -80,5 +81,16 @@ fn resolve_char(opt: &Option<i32>, dft: i32, len: i32) -> usize {
     len as usize
   } else {
     c as usize
+  }
+}
+
+pub fn apply_env_transform<L: Language>(
+  transforms: &HashMap<String, serde_yaml::Value>,
+  lang: &L,
+  env: &mut MetaVarEnv<StrDoc<L>>,
+) {
+  for (key, val) in transforms {
+    let tr: Transformation = serde_yaml::from_value(val.clone()).unwrap();
+    tr.insert(key, lang, env);
   }
 }

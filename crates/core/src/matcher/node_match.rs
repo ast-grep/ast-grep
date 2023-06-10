@@ -25,9 +25,12 @@ impl<'tree, D: Doc> NodeMatch<'tree, D> {
   pub fn get_env(&self) -> &MetaVarEnv<'tree, D> {
     &self.1
   }
+  pub fn get_env_mut(&mut self) -> &mut MetaVarEnv<'tree, D> {
+    &mut self.1
+  }
   /// # Safety
   /// should only called for readopting nodes
-  pub(crate) unsafe fn get_mut_node(&mut self) -> &mut Node<'tree, D> {
+  pub(crate) unsafe fn get_node_mut(&mut self) -> &mut Node<'tree, D> {
     &mut self.0
   }
 }
