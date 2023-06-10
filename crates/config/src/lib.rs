@@ -6,6 +6,7 @@ mod relational_rule;
 mod rule;
 mod rule_collection;
 mod rule_config;
+mod transform;
 
 use serde::Deserialize;
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error as YamlError};

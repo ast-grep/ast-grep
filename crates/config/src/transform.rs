@@ -1,8 +1,10 @@
 use ast_grep_core::meta_var::{MetaVarEnv, MetaVariable};
 use ast_grep_core::{Language, StrDoc};
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_yaml::with::singleton_map_recursive::deserialize;
+
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
@@ -97,3 +99,6 @@ pub fn apply_env_transform<L: Language>(
     tr.insert(key, lang, env);
   }
 }
+
+#[cfg(test)]
+mod test {}

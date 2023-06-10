@@ -218,10 +218,7 @@ impl<'r> CombinedScan<'r> {
         let rule = &self.rules[idx];
         if let Some(mut ret) = rule.matcher.match_node(node.clone()) {
           let matches = results.entry(idx).or_insert_with(Vec::new);
-          if let Some(trans) = &rule.transform {
-            let env = ret.get_env_mut();
-            crate::transform::apply_env_transform(trans, &rule.language, env);
-          }
+          rule.apply_transform(&mut ret);
           matches.push(ret);
         }
       }

@@ -198,6 +198,12 @@ impl<L: Language> RuleConfig<L> {
   pub fn get_message(&self, node: &NodeMatch<StrDoc<L>>) -> String {
     self.inner.get_message(node)
   }
+  pub fn apply_transform(&self, node_match: &mut NodeMatch<StrDoc<L>>) {
+    if let Some(trans) = &self.transform {
+      let env = node_match.get_env_mut();
+      crate::transform::apply_env_transform(trans, &self.language, env);
+    }
+  }
 }
 impl<L: Language> Deref for RuleConfig<L> {
   type Target = SerializableRuleConfig<L>;
