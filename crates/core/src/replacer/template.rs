@@ -1,12 +1,13 @@
 use super::indent::{
   extract_with_deindent, get_indent_at_offset, indent_lines, DeindentedExtract, IndentSensitive,
 };
-use super::{Replacer, Underlying};
+use super::{split_first_meta_var, MetaVarExtract, Replacer, Underlying};
 use crate::language::Language;
 use crate::matcher::NodeMatch;
-use crate::meta_var::{split_first_meta_var, MatchResult, MetaVarEnv, MetaVariable};
+use crate::meta_var::MetaVarEnv;
 use crate::source::{Content, Doc};
 
+use std::borrow::Cow;
 use thiserror::Error;
 
 pub enum Fixer<C: IndentSensitive> {
@@ -20,7 +21,7 @@ pub enum FixerError {}
 
 impl<C: IndentSensitive> Fixer<C> {
   pub fn try_new<L: Language>(template: &str, lang: &L) -> Result<Self, FixerError> {
-    Ok(create_fixer(template, lang.meta_var_char()))
+    Ok(create_fixer(template, lang.meta_var_char(), &[]))
   }
 }
 
@@ -42,15 +43,21 @@ type Indent = usize;
 
 pub struct Template<C: IndentSensitive> {
   fragments: Vec<Vec<C::Underlying>>,
-  vars: Vec<(MetaVariable, Indent)>,
+  vars: Vec<(MetaVarExtract, Indent)>,
 }
 
-fn create_fixer<C: IndentSensitive>(mut template: &str, mv_char: char) -> Fixer<C> {
+fn create_fixer<C: IndentSensitive>(
+  mut template: &str,
+  mv_char: char,
+  transforms: &[String],
+) -> Fixer<C> {
   let mut fragments = vec![];
   let mut vars = vec![];
   let mut offset = 0;
   while let Some(i) = template[offset..].find(mv_char) {
-    if let Some((meta_var, remaining)) = split_first_meta_var(&template[offset + i..], mv_char) {
+    if let Some((meta_var, remaining)) =
+      split_first_meta_var(&template[offset + i..], mv_char, transforms)
+    {
       fragments.push(C::decode_str(&template[..offset + i]).into_owned());
       let indent = get_indent_at_offset::<String>(template[..offset + i].as_bytes());
       vars.push((meta_var, indent));
@@ -90,30 +97,7 @@ where
     ret.extend_from_slice(frag);
   }
   for ((var, indent), frag) in vars.zip(frags) {
-    if let Some(matched) = env.get(var) {
-      // TODO: abstract this with structral
-      let (source, range) = match matched {
-        MatchResult::Single(replaced) => {
-          let source = replaced.root.doc.get_source();
-          let range = replaced.range();
-          (source, range)
-        }
-        MatchResult::Multi(nodes) => {
-          if nodes.is_empty() {
-            continue;
-          } else {
-            // NOTE: start_byte is not always index range of source's slice.
-            // e.g. start_byte is still byte_offset in utf_16 (napi). start_byte
-            // so we need to call source's get_range method
-            let start = nodes[0].inner.start_byte() as usize;
-            let end = nodes[nodes.len() - 1].inner.end_byte() as usize;
-            let source = nodes[0].root.doc.get_source();
-            (source, start..end)
-          }
-        }
-      };
-      let extracted = extract_with_deindent(source, range.clone());
-      let bytes = indent_lines::<D::Source>(*indent, extracted);
+    if let Some(bytes) = maybe_get_var(env, var, indent) {
       ret.extend_from_slice(&bytes);
     }
     ret.extend_from_slice(frag);
@@ -121,12 +105,51 @@ where
   ret
 }
 
+fn maybe_get_var<'e, C, D>(
+  env: &'e MetaVarEnv<D>,
+  var: &MetaVarExtract,
+  indent: &usize,
+) -> Option<Cow<'e, [C::Underlying]>>
+where
+  C: IndentSensitive + 'e,
+  D: Doc<Source = C>,
+{
+  let (source, range) = match var {
+    MetaVarExtract::Transformed(name) => {
+      let source = env.get_transformed(name)?;
+      return Some(Cow::Borrowed(source));
+    }
+    MetaVarExtract::Single(name) => {
+      let replaced = env.get_match(name)?;
+      let source = replaced.root.doc.get_source();
+      let range = replaced.range();
+      (source, range)
+    }
+    MetaVarExtract::Multiple(name) => {
+      let nodes = env.get_multiple_matches(name);
+      if nodes.is_empty() {
+        return None;
+      }
+      // NOTE: start_byte is not always index range of source's slice.
+      // e.g. start_byte is still byte_offset in utf_16 (napi). start_byte
+      // so we need to call source's get_range method
+      let start = nodes[0].inner.start_byte() as usize;
+      let end = nodes[nodes.len() - 1].inner.end_byte() as usize;
+      let source = nodes[0].root.doc.get_source();
+      (source, start..end)
+    }
+  };
+  let extracted = extract_with_deindent(source, range);
+  let bytes = indent_lines::<D::Source>(*indent, extracted);
+  Some(bytes)
+}
+
 // replace meta_var in template string, e.g. "Hello $NAME" -> "Hello World"
 pub fn gen_replacement<D: Doc>(template: &str, nm: &NodeMatch<D>) -> Underlying<D::Source>
 where
   D::Source: IndentSensitive,
 {
-  let fixer = create_fixer(template, nm.lang().meta_var_char());
+  let fixer = create_fixer(template, nm.lang().meta_var_char(), &[]);
   fixer.generate_replacement(nm)
 }
 

@@ -1,7 +1,7 @@
-use super::{Edit, Underlying};
+use super::{Edit, MetaVarExtract, Underlying};
 use crate::language::Language;
 use crate::matcher::NodeMatch;
-use crate::meta_var::{MatchResult, MetaVarEnv};
+use crate::meta_var::MetaVarEnv;
 use crate::source::Content;
 use crate::{Doc, Node, Root};
 
@@ -88,14 +88,19 @@ fn get_meta_var_replacement<D: Doc>(
     return None;
   }
   let meta_var = lang.extract_meta_var(&node.text())?;
-  let replaced = match env.get(&meta_var)? {
-    MatchResult::Single(replaced) => replaced
-      .root
-      .doc
-      .get_source()
-      .get_range(replaced.range())
-      .to_vec(),
-    MatchResult::Multi(nodes) => {
+  let extract = MetaVarExtract::from(meta_var)?;
+  let replaced = match extract {
+    MetaVarExtract::Single(name) => {
+      let replaced = env.get_match(&name)?;
+      replaced
+        .root
+        .doc
+        .get_source()
+        .get_range(replaced.range())
+        .to_vec()
+    }
+    MetaVarExtract::Multiple(name) => {
+      let nodes = env.get_multiple_matches(&name);
       if nodes.is_empty() {
         vec![]
       } else {
@@ -112,6 +117,7 @@ fn get_meta_var_replacement<D: Doc>(
           .to_vec()
       }
     }
+    MetaVarExtract::Transformed(_) => return None,
   };
   Some(replaced)
 }

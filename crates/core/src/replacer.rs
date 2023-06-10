@@ -1,4 +1,5 @@
 use crate::matcher::NodeMatch;
+use crate::meta_var::{MetaVariable, MetaVariableID};
 use crate::source::{Content, Edit as E};
 use crate::Pattern;
 use crate::{Doc, Node, Root};
@@ -54,4 +55,58 @@ impl<'a, D: Doc> Replacer<D> for Node<'a, D> {
     let range = self.range();
     self.root.doc.get_source().get_range(range).to_vec()
   }
+}
+
+enum MetaVarExtract {
+  /// $A for captured meta var
+  Single(MetaVariableID),
+  /// $$$A for captured ellipsis
+  Multiple(MetaVariableID),
+  Transformed(MetaVariableID),
+}
+
+impl MetaVarExtract {
+  fn from(value: MetaVariable) -> Option<Self> {
+    match value {
+      MetaVariable::Named(n, _) => Some(MetaVarExtract::Single(n)),
+      MetaVariable::NamedEllipsis(n) => Some(MetaVarExtract::Multiple(n)),
+      _ => None,
+    }
+  }
+}
+
+fn split_first_meta_var<'a>(
+  mut src: &'a str,
+  meta_char: char,
+  transform: &[MetaVariableID],
+) -> Option<(MetaVarExtract, &'a str)> {
+  debug_assert!(src.starts_with(meta_char));
+  let mut i = 0;
+  let (trimmed, is_multi) = loop {
+    i += 1;
+    src = &src[meta_char.len_utf8()..];
+    if i == 3 {
+      break (src, true);
+    }
+    if !src.starts_with(meta_char) {
+      break (src, false);
+    }
+  };
+  // no Anonymous meta var allowed, so _ is not allowed
+  let i = trimmed
+    .find(|c: char| !c.is_ascii_uppercase())
+    .unwrap_or(trimmed.len());
+  // no name found
+  if i == 0 {
+    return None;
+  }
+  let name = trimmed[..i].to_string();
+  let var = if is_multi {
+    MetaVarExtract::Multiple(name)
+  } else if transform.contains(&name) {
+    MetaVarExtract::Transformed(name)
+  } else {
+    MetaVarExtract::Single(name)
+  };
+  Some((var, &trimmed[i..]))
 }

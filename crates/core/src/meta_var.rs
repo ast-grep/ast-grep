@@ -1,17 +1,20 @@
 use crate::match_tree::does_node_match_exactly;
 use crate::matcher::{KindMatcher, Pattern, RegexMatcher};
+use crate::source::Content;
 use crate::{Doc, Node};
 use std::borrow::Cow;
 use std::collections::HashMap;
 
 pub type MetaVariableID = String;
 
+type Underlying<D> = Vec<<<D as Doc>::Source as Content>::Underlying>;
 /// a dictionary that stores metavariable instantiation
 /// const a = 123 matched with const a = $A will produce env: $A => 123
 #[derive(Clone)]
 pub struct MetaVarEnv<'tree, D: Doc> {
   single_matched: HashMap<MetaVariableID, Node<'tree, D>>,
   multi_matched: HashMap<MetaVariableID, Vec<Node<'tree, D>>>,
+  transformed_var: HashMap<MetaVariableID, Underlying<D>>,
 }
 
 impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
@@ -19,6 +22,7 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     Self {
       single_matched: HashMap::new(),
       multi_matched: HashMap::new(),
+      transformed_var: HashMap::new(),
     }
   }
 
@@ -39,20 +43,16 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     Some(self)
   }
 
-  pub fn get(&self, var: &MetaVariable) -> Option<MatchResult<'_, 'tree, D>> {
-    match var {
-      MetaVariable::Named(n, _) => self.single_matched.get(n).map(MatchResult::Single),
-      MetaVariable::NamedEllipsis(n) => self.multi_matched.get(n).map(MatchResult::Multi),
-      _ => None,
-    }
-  }
-
   pub fn get_match(&self, var: &str) -> Option<&'_ Node<'tree, D>> {
     self.single_matched.get(var)
   }
 
   pub fn get_multiple_matches(&self, var: &str) -> Vec<Node<'tree, D>> {
     self.multi_matched.get(var).cloned().unwrap_or_default()
+  }
+
+  pub fn get_transformed(&self, var: &str) -> Option<&Underlying<D>> {
+    self.transformed_var.get(var)
   }
 
   pub fn add_label(&mut self, label: &str, node: Node<'tree, D>) {
@@ -101,6 +101,10 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     }
     true
   }
+
+  pub fn insert_transformation(&mut self, name: MetaVariableID, src: Underlying<D>) {
+    self.transformed_var.insert(name, src);
+  }
 }
 
 impl<'tree, D: Doc> Default for MetaVarEnv<'tree, D> {
@@ -124,13 +128,6 @@ impl<'tree, D: Doc> From<MetaVarEnv<'tree, D>> for HashMap<String, String> {
   }
 }
 
-pub enum MatchResult<'a, 'tree, D: Doc> {
-  /// $A for captured meta var
-  Single(&'a Node<'tree, D>),
-  /// $$$A for captured ellipsis
-  Multi(&'a Vec<Node<'tree, D>>),
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum MetaVariable {
   /// $A for captured meta var
@@ -141,13 +138,6 @@ pub enum MetaVariable {
   Ellipsis,
   /// $$$A for captured ellipsis
   NamedEllipsis(MetaVariableID),
-}
-// TODO add var_extract
-pub enum MetaVarExtract {
-  Single(),
-  Multiple(),
-  // TODO: add transform
-  // Transformed(),
 }
 
 #[derive(Clone)]
@@ -228,36 +218,6 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
   } else {
     Some(Named(trimmed.to_owned(), named))
   }
-}
-
-pub fn split_first_meta_var(mut src: &str, meta_char: char) -> Option<(MetaVariable, &str)> {
-  debug_assert!(src.starts_with(meta_char));
-  let mut i = 0;
-  let (trimmed, is_multi) = loop {
-    i += 1;
-    src = &src[meta_char.len_utf8()..];
-    if i == 3 {
-      break (src, true);
-    }
-    if !src.starts_with(meta_char) {
-      break (src, false);
-    }
-  };
-  // no Anonymous meta var allowed, so _ is not allowed
-  let i = trimmed
-    .find(|c: char| !c.is_ascii_uppercase())
-    .unwrap_or(trimmed.len());
-  // no name found
-  if i == 0 {
-    return None;
-  }
-  let name = trimmed[..i].to_string();
-  let var = if is_multi {
-    MetaVariable::NamedEllipsis(name)
-  } else {
-    MetaVariable::Named(name, true)
-  };
-  Some((var, &trimmed[i..]))
 }
 
 fn is_valid_meta_var_char(c: char) -> bool {
