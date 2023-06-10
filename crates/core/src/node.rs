@@ -423,7 +423,7 @@ impl<'r, D: Doc> Node<'r, D> {
 
 /// Tree manipulation API
 impl<'r, D: Doc> Node<'r, D> {
-  fn make_edit<M, R>(&self, matched: NodeMatch<D>, matcher: &M, replacer: &R) -> Edit<D>
+  pub fn make_edit<M, R>(&self, matched: NodeMatch<D>, matcher: &M, replacer: &R) -> Edit<D>
   where
     M: Matcher<D::Lang>,
     R: Replacer<D>,

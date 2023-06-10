@@ -69,9 +69,9 @@ impl<'n> Diff<'n> {
     rewrite: &Fixer<String>,
   ) -> Self {
     let replacement = String::from_utf8(
+      // TODO: fix this shit
       node_match
-        .replace(matcher, rewrite)
-        .expect("edit must exist")
+        .make_edit(node_match.clone(), matcher, rewrite)
         .inserted_text,
     )
     .unwrap();

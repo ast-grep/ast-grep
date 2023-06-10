@@ -2,11 +2,12 @@ use ast_grep_core::meta_var::{MetaVarEnv, MetaVariable};
 use ast_grep_core::{Language, StrDoc};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer};
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct SubString {
+struct Substring {
   source: String,
   start_char: Option<i32>,
   end_char: Option<i32>,
@@ -23,7 +24,7 @@ struct Replace {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 enum Transformation {
-  SubString(SubString),
+  Substring(Substring),
   Replace(Replace),
 }
 
@@ -49,7 +50,7 @@ impl Transformation {
         let re = Regex::new(&r.replace).unwrap();
         Some(re.replace_all(&text, &r.by).into_owned())
       }
-      T::SubString(s) => {
+      T::Substring(s) => {
         let source = lang.pre_process_pattern(&s.source);
         let node = match lang.extract_meta_var(&source)? {
           MetaVariable::Named(n, _) => env.get_match(&n)?,
@@ -90,7 +91,11 @@ pub fn apply_env_transform<L: Language>(
   env: &mut MetaVarEnv<StrDoc<L>>,
 ) {
   for (key, val) in transforms {
-    let tr: Transformation = serde_yaml::from_value(val.clone()).unwrap();
+    let mut buf = Vec::new();
+    let mut serializer = serde_yaml::Serializer::new(&mut buf);
+    serde_yaml::with::singleton_map_recursive::serialize(val, &mut serializer).unwrap();
+    let deserializer = Deserializer::from_slice(&buf);
+    let tr: Transformation = deserialize(deserializer).unwrap();
     tr.insert(key, lang, env);
   }
 }
