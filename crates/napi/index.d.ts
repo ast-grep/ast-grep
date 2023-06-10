@@ -36,6 +36,7 @@ export interface FindConfig {
 export class SgNode {
   range(): Range
   isLeaf(): boolean
+  isNamed(): boolean
   isNamedLeaf(): boolean
   kind(): string
   text(): string

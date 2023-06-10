@@ -52,6 +52,10 @@ impl SgNode {
     self.inner.is_leaf()
   }
   #[napi]
+  pub fn is_named(&self) -> bool {
+    self.inner.is_named()
+  }
+  #[napi]
   pub fn is_named_leaf(&self) -> bool {
     self.inner.is_named_leaf()
   }
