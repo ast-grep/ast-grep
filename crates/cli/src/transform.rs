@@ -2,7 +2,7 @@ use ast_grep_core::meta_var::{MetaVarEnv, MetaVariable};
 use ast_grep_core::{Language, StrDoc};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer};
+use serde_yaml::with::singleton_map_recursive::deserialize;
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
@@ -70,18 +70,19 @@ impl Transformation {
   }
 }
 
+/// resolve relative negative char index to absolute index
+/// e.g. -1 => len - 1, n > len => n
 fn resolve_char(opt: &Option<i32>, dft: i32, len: i32) -> usize {
   let c = *opt.as_ref().unwrap_or(&dft);
-  if c < 0 {
-    if len + c < 0 {
-      0
-    } else {
-      (len + c) as usize
-    }
-  } else if c >= len {
+  if c >= len {
     len as usize
-  } else {
+  } else if c >= 0 {
     c as usize
+  } else if len + c < 0 {
+    0
+  } else {
+    debug_assert!(c < 0);
+    (len + c) as usize
   }
 }
 
@@ -91,11 +92,8 @@ pub fn apply_env_transform<L: Language>(
   env: &mut MetaVarEnv<StrDoc<L>>,
 ) {
   for (key, val) in transforms {
-    let mut buf = Vec::new();
-    let mut serializer = serde_yaml::Serializer::new(&mut buf);
-    serde_yaml::with::singleton_map_recursive::serialize(val, &mut serializer).unwrap();
-    let deserializer = Deserializer::from_slice(&buf);
-    let tr: Transformation = deserialize(deserializer).unwrap();
+    // we need use singleton_map_recursive to deserialize value
+    let tr: Transformation = deserialize(val).unwrap();
     tr.insert(key, lang, env);
   }
 }
