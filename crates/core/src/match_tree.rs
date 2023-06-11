@@ -52,13 +52,14 @@ fn update_ellipsis_env<'t, D: Doc>(
   env: &mut Cow<MetaVarEnv<'t, D>>,
   cand_children: impl Iterator<Item = Node<'t, D>>,
   skipped_anonymous: usize,
-) {
+) -> Option<()> {
   if let Some(name) = optional_name.as_ref() {
     matched.extend(cand_children);
     let skipped = matched.len().saturating_sub(skipped_anonymous);
     drop(matched.drain(skipped..));
-    env.to_mut().insert_multi(name.to_string(), matched);
+    env.to_mut().insert_multi(name.to_string(), matched)?;
   }
+  Some(())
 }
 
 pub fn match_end_non_recursive<D: Doc>(
@@ -212,7 +213,7 @@ fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
       goal_children.next();
       // goal has all matched
       if goal_children.peek().is_none() {
-        update_ellipsis_env(&optional_name, matched, env, cand_children, 0);
+        update_ellipsis_env(&optional_name, matched, env, cand_children, 0)?;
         return Some(());
       }
       // skip trivial nodes in goal after ellipsis
@@ -227,7 +228,7 @@ fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
             env,
             cand_children,
             skipped_anonymous,
-          );
+          )?;
           return Some(());
         }
       }
@@ -241,7 +242,7 @@ fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
           env,
           std::iter::empty(),
           skipped_anonymous,
-        );
+        )?;
         continue;
       }
       loop {
@@ -259,7 +260,7 @@ fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
             env,
             std::iter::empty(),
             skipped_anonymous,
-          );
+          )?;
           break;
         }
         matched.push(cand_children.next().unwrap());
@@ -296,7 +297,7 @@ fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
   }
 }
 
-pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: Node<D>) -> bool {
+pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: &Node<D>) -> bool {
   if goal.kind_id() != candidate.kind_id() {
     return false;
   }
@@ -310,7 +311,7 @@ pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: Node<D>) -> bo
   }
   goal_children
     .zip(cand_children)
-    .all(|(g, c)| does_node_match_exactly(&g, c))
+    .all(|(g, c)| does_node_match_exactly(&g, &c))
 }
 
 pub fn extract_var_from_node<D: Doc>(goal: &Node<D>) -> Option<MetaVariable> {

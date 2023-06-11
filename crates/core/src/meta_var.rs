@@ -27,11 +27,12 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
   }
 
   pub fn insert(&mut self, id: MetaVariableID, ret: Node<'tree, D>) -> Option<&mut Self> {
-    if !self.match_variable(&id, ret.clone()) {
-      return None;
+    if self.match_variable(&id, &ret) {
+      self.single_matched.insert(id, ret);
+      Some(self)
+    } else {
+      None
     }
-    self.single_matched.insert(id, ret);
-    Some(self)
   }
 
   pub fn insert_multi(
@@ -39,8 +40,16 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     id: MetaVariableID,
     ret: Vec<Node<'tree, D>>,
   ) -> Option<&mut Self> {
-    self.multi_matched.insert(id, ret);
-    Some(self)
+    if self.match_multi_var(&id, &ret) {
+      self.multi_matched.insert(id, ret);
+      Some(self)
+    } else {
+      None
+    }
+  }
+
+  pub fn insert_transformation(&mut self, name: MetaVariableID, src: Underlying<D>) {
+    self.transformed_var.insert(name, src);
   }
 
   pub fn get_match(&self, var: &str) -> Option<&'_ Node<'tree, D>> {
@@ -53,6 +62,12 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
 
   pub fn get_transformed(&self, var: &str) -> Option<&Underlying<D>> {
     self.transformed_var.get(var)
+  }
+  pub fn get_var_bytes<'s>(
+    &'s self,
+    var: &MetaVariable,
+  ) -> Option<&'s [<D::Source as Content>::Underlying]> {
+    get_var_bytes_impl(self, var)
   }
 
   pub fn add_label(&mut self, label: &str, node: Node<'tree, D>) {
@@ -100,22 +115,22 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     true
   }
 
-  fn match_variable(&self, id: &MetaVariableID, candidate: Node<D>) -> bool {
+  fn match_variable(&self, id: &MetaVariableID, candidate: &Node<D>) -> bool {
     if let Some(m) = self.single_matched.get(id) {
       return does_node_match_exactly(m, candidate);
     }
     true
   }
-
-  pub fn insert_transformation(&mut self, name: MetaVariableID, src: Underlying<D>) {
-    self.transformed_var.insert(name, src);
-  }
-
-  pub fn get_var_bytes<'s>(
-    &'s self,
-    var: &MetaVariable,
-  ) -> Option<&'s [<D::Source as Content>::Underlying]> {
-    get_var_bytes_impl(self, var)
+  fn match_multi_var(&self, id: &MetaVariableID, cands: &[Node<D>]) -> bool {
+    let Some(nodes) = self.multi_matched.get(id) else {
+      return true;
+    };
+    let mut named_nodes = nodes.iter().filter(|n| n.is_named());
+    let mut named_cands = cands.iter().filter(|n| n.is_named());
+    named_cands
+      .by_ref()
+      .zip(named_nodes.by_ref())
+      .all(|(node, cand)| does_node_match_exactly(node, cand))
   }
 }
 
@@ -333,5 +348,17 @@ mod test {
   #[test]
   fn test_match_not_constraints() {
     assert!(!match_constraints("a - b", "a + b"));
+  }
+
+  #[test]
+  fn test_multi_var_match() {
+    let grep = Tsx.ast_grep("if (true) { a += 1 } else { a += 1 }");
+    let node = grep.root();
+    let found = node.find("if (true) { $$$A } else { $$$A }");
+    assert!(found.is_some());
+    let grep = Tsx.ast_grep("if (true) { a += 1 } else { b += 1 }");
+    let node = grep.root();
+    let not_found = node.find("if (true) { $$$A } else { $$$A }");
+    assert!(not_found.is_none());
   }
 }
