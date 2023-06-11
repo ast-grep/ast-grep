@@ -74,6 +74,7 @@ struct MatchJSON<'a> {
 struct MetaVariables<'a> {
   single: HashMap<String, MatchNode<'a>>,
   multi: HashMap<String, Vec<MatchNode<'a>>>,
+  transformed: HashMap<String, String>,
 }
 fn from_env<'a>(nm: &NodeMatch<'a, SgLang>) -> Option<MetaVariables<'a>> {
   let env = nm.get_env();
@@ -81,18 +82,22 @@ fn from_env<'a>(nm: &NodeMatch<'a, SgLang>) -> Option<MetaVariables<'a>> {
   vars.peek()?;
   let mut single = HashMap::new();
   let mut multi = HashMap::new();
+  let mut transformed = HashMap::new();
   for var in vars {
     use MetaVariable as MV;
     match var {
       MV::Named(n, _) => {
-        let node = env.get_match(&n).expect("must exist!");
-        single.insert(
-          n,
-          MatchNode {
-            text: node.text(),
-            range: get_range(node),
-          },
-        );
+        if let Some(node) = env.get_match(&n) {
+          single.insert(
+            n,
+            MatchNode {
+              text: node.text(),
+              range: get_range(node),
+            },
+          );
+        } else if let Some(bytes) = env.get_transformed(&n) {
+          transformed.insert(n, String::from_utf8_lossy(bytes).into_owned());
+        }
       }
       MV::NamedEllipsis(n) => {
         let nodes = env.get_multiple_matches(&n);
@@ -110,7 +115,11 @@ fn from_env<'a>(nm: &NodeMatch<'a, SgLang>) -> Option<MetaVariables<'a>> {
       _ => continue,
     }
   }
-  Some(MetaVariables { single, multi })
+  Some(MetaVariables {
+    single,
+    multi,
+    transformed,
+  })
 }
 
 fn get_range(n: &Node<'_, SgLang>) -> Range {

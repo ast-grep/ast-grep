@@ -73,12 +73,17 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
       .keys()
       .cloned()
       .map(|n| MetaVariable::Named(n, false));
+    let transformed = self
+      .transformed_var
+      .keys()
+      .cloned()
+      .map(|n| MetaVariable::Named(n, false));
     let multi = self
       .multi_matched
       .keys()
       .cloned()
       .map(MetaVariable::NamedEllipsis);
-    single.chain(multi)
+    single.chain(multi).chain(transformed)
   }
 
   pub fn match_constraints(
