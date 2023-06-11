@@ -250,9 +250,8 @@ mod test {
   }
 
   #[test]
-  #[ignore]
   fn test_dependent_trans() -> R {
-    let tr1 = parse(
+    let rep = parse(
       r#"
       replace:
         source: "$A"
@@ -260,20 +259,20 @@ mod test {
         by: "b"
     "#,
     )?;
-    let tr2 = parse(
+    let sub = parse(
       r#"
       substring:
-        source: "$TR1"
+        source: "$REP"
         startChar: 1
         endChar: -1
     "#,
     )?;
     let mut map = HashMap::new();
-    map.insert("TR1".into(), tr1);
-    map.insert("TR2".into(), tr2);
+    map.insert("REP".into(), rep);
+    map.insert("SUB".into(), sub);
     let env = transform_env(map);
-    assert_eq!(env["TR1"], "bbb");
-    assert_eq!(env["TR2"], "b");
+    assert_eq!(env["REP"], "bbb");
+    assert_eq!(env["SUB"], "b");
     Ok(())
   }
 }
