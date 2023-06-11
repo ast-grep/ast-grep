@@ -51,7 +51,7 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     self.multi_matched.get(var).cloned().unwrap_or_default()
   }
 
-  pub fn get_transformed<'e>(&'e self, var: &str) -> Option<&'e Underlying<D>> {
+  pub fn get_transformed(&self, var: &str) -> Option<&Underlying<D>> {
     self.transformed_var.get(var)
   }
 
@@ -106,18 +106,21 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     self.transformed_var.insert(name, src);
   }
 
-  pub fn get_var_bytes(&self, var: &MetaVariable) -> Option<&[<D::Source as Content>::Underlying]> {
+  pub fn get_var_bytes<'s>(
+    &'s self,
+    var: &MetaVariable,
+  ) -> Option<&'s [<D::Source as Content>::Underlying]> {
     get_var_bytes_impl(self, var)
   }
 }
 
-fn get_var_bytes_impl<'tree, C, D>(
-  env: &'tree MetaVarEnv<'tree, D>,
+fn get_var_bytes_impl<'t, C, D>(
+  env: &'t MetaVarEnv<'t, D>,
   var: &MetaVariable,
-) -> Option<&'tree [C::Underlying]>
+) -> Option<&'t [C::Underlying]>
 where
   D: Doc<Source = C>,
-  C: Content + 'tree,
+  C: Content + 't,
 {
   match var {
     MetaVariable::Named(n, _) => {

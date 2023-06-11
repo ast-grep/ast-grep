@@ -1,21 +1,27 @@
-use ast_grep_core::meta_var::MetaVarEnv;
+use ast_grep_core::meta_var::{MetaVarEnv, MetaVariable};
 use ast_grep_core::{Language, StrDoc};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use std::borrow::Cow;
 use std::collections::HashMap;
 
-fn get_text_from_env<'tree, L: Language>(
+fn get_text_from_env<L: Language>(
   src: &str,
-  lang: &L,
-  env: &'tree MetaVarEnv<'tree, StrDoc<L>>,
-) -> Option<Cow<'tree, str>> {
-  let source = lang.pre_process_pattern(src);
-  let var = lang.extract_meta_var(&source)?;
+  ctx: &Ctx<L>,
+  env: &mut MetaVarEnv<StrDoc<L>>,
+) -> Option<String> {
+  let source = ctx.lang.pre_process_pattern(src);
+  let var = ctx.lang.extract_meta_var(&source)?;
+  if let MetaVariable::Named(n, _) = &var {
+    if let Some(tr) = ctx.transforms.get(n) {
+      if env.get_transformed(n).is_none() {
+        tr.insert(n, ctx, env);
+      }
+    }
+  }
   let bytes = env.get_var_bytes(&var)?;
-  Some(String::from_utf8_lossy(bytes))
+  Some(String::from_utf8_lossy(bytes).into_owned())
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -34,8 +40,8 @@ pub struct Replace {
   by: String,
 }
 impl Substring {
-  fn compute<L: Language>(&self, lang: &L, env: &mut MetaVarEnv<StrDoc<L>>) -> Option<String> {
-    let text = get_text_from_env(&self.source, lang, env)?;
+  fn compute<L: Language>(&self, ctx: &Ctx<L>, env: &mut MetaVarEnv<StrDoc<L>>) -> Option<String> {
+    let text = get_text_from_env(&self.source, ctx, env)?;
     let chars: Vec<_> = text.chars().collect();
     let len = chars.len() as i32;
     let start = resolve_char(&self.start_char, 0, len);
@@ -64,8 +70,8 @@ fn resolve_char(opt: &Option<i32>, dft: i32, len: i32) -> usize {
 }
 
 impl Replace {
-  fn compute<L: Language>(&self, lang: &L, env: &mut MetaVarEnv<StrDoc<L>>) -> Option<String> {
-    let text = get_text_from_env(&self.source, lang, env)?;
+  fn compute<L: Language>(&self, ctx: &Ctx<L>, env: &mut MetaVarEnv<StrDoc<L>>) -> Option<String> {
+    let text = get_text_from_env(&self.source, ctx, env)?;
     let re = Regex::new(&self.replace).unwrap();
     Some(re.replace_all(&text, &self.by).into_owned())
   }
@@ -79,21 +85,30 @@ pub enum Transformation {
 }
 
 impl Transformation {
-  fn insert<L: Language>(&self, key: &str, lang: &L, env: &mut MetaVarEnv<StrDoc<L>>) {
+  fn insert<L: Language>(&self, key: &str, ctx: &Ctx<L>, env: &mut MetaVarEnv<StrDoc<L>>) {
     // avoid cyclic
     env.insert_transformation(key.to_string(), vec![]);
-    let Some(s) = self.compute(lang, env) else {
-      return;
+    let opt = self.compute(ctx, env);
+    let bytes = if let Some(s) = opt {
+      s.into_bytes()
+    } else {
+      vec![]
     };
-    env.insert_transformation(key.to_string(), s.into_bytes());
+    env.insert_transformation(key.to_string(), bytes);
   }
-  fn compute<L: Language>(&self, lang: &L, env: &mut MetaVarEnv<StrDoc<L>>) -> Option<String> {
+  fn compute<L: Language>(&self, ctx: &Ctx<L>, env: &mut MetaVarEnv<StrDoc<L>>) -> Option<String> {
     use Transformation as T;
     match self {
-      T::Replace(r) => r.compute(lang, env),
-      T::Substring(s) => s.compute(lang, env),
+      T::Replace(r) => r.compute(ctx, env),
+      T::Substring(s) => s.compute(ctx, env),
     }
   }
+}
+
+struct Ctx<'b, L: Language> {
+  transforms: &'b HashMap<String, Transformation>,
+  lang: &'b L,
+  // env: &'b mut MetaVarEnv<'b, StrDoc<L>>,
 }
 
 pub fn apply_env_transform<L: Language>(
@@ -101,8 +116,9 @@ pub fn apply_env_transform<L: Language>(
   lang: &L,
   env: &mut MetaVarEnv<StrDoc<L>>,
 ) {
+  let ctx = Ctx { transforms, lang };
   for (key, tr) in transforms {
-    tr.insert(key, lang, env);
+    tr.insert(key, &ctx, env);
   }
 }
 
@@ -118,7 +134,11 @@ mod test {
     let grep = TypeScript::Tsx.ast_grep(src);
     let root = grep.root();
     let mut nm = root.find(pat).expect("should find");
-    trans.compute(&TypeScript::Tsx, nm.get_env_mut())
+    let ctx = Ctx {
+      lang: &TypeScript::Tsx,
+      transforms: &HashMap::new(),
+    };
+    trans.compute(&ctx, nm.get_env_mut())
   }
 
   fn parse(trans: &str) -> Result<Transformation, ()> {
