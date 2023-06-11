@@ -110,7 +110,7 @@ mod test {
   use crate::test::TypeScript;
   use serde_yaml::with::singleton_map_recursive;
 
-  type Result = std::result::Result<(), ()>;
+  type R = std::result::Result<(), ()>;
 
   fn get_transformed(src: &str, pat: &str, trans: &Transformation) -> Option<String> {
     let grep = TypeScript::Tsx.ast_grep(src);
@@ -119,13 +119,13 @@ mod test {
     trans.compute(&TypeScript::Tsx, nm.get_env_mut())
   }
 
-  fn parse(trans: &str) -> Transformation {
+  fn parse(trans: &str) -> Result<Transformation, ()> {
     let deserializer = serde_yaml::Deserializer::from_str(trans);
-    singleton_map_recursive::deserialize(deserializer).unwrap()
+    singleton_map_recursive::deserialize(deserializer).map_err(|_| ())
   }
 
   #[test]
-  fn test_simple_replace() -> Result {
+  fn test_simple_replace() -> R {
     let trans = parse(
       r#"
       substring:
@@ -133,9 +133,133 @@ mod test {
         startChar: 1
         endChar: -1
     "#,
-    );
+    )?;
     let actual = get_transformed("let a = 123", "let a= $A", &trans).ok_or(())?;
     assert_eq!(actual, "2");
+    Ok(())
+  }
+
+  #[test]
+  fn test_no_end_char() -> R {
+    let trans = parse(
+      r#"
+      substring:
+        source: "$A"
+        startChar: 1
+    "#,
+    )?;
+    let actual = get_transformed("let a = 123", "let a= $A", &trans).ok_or(())?;
+    assert_eq!(actual, "23");
+    Ok(())
+  }
+  #[test]
+  fn test_no_start_char() -> R {
+    let trans = parse(
+      r#"
+      substring:
+        source: "$A"
+        endChar: -1
+    "#,
+    )?;
+    let actual = get_transformed("let a = 123", "let a= $A", &trans).ok_or(())?;
+    assert_eq!(actual, "12");
+    Ok(())
+  }
+
+  #[test]
+  fn test_replace() -> R {
+    let trans = parse(
+      r#"
+      replace:
+        source: "$A"
+        replace: \d
+        by: "b"
+    "#,
+    )?;
+    let actual = get_transformed("let a = 123", "let a= $A", &trans).ok_or(())?;
+    assert_eq!(actual, "bbb");
+    Ok(())
+  }
+
+  #[test]
+  fn test_wrong_rule() {
+    let parsed = parse(
+      r#"
+      replace:
+        source: "$A"
+    "#,
+    );
+    assert!(parsed.is_err());
+  }
+
+  fn transform_env(trans: HashMap<String, Transformation>) -> HashMap<String, String> {
+    let grep = TypeScript::Tsx.ast_grep("let a = 123");
+    let root = grep.root();
+    let mut nm = root.find("let a = $A").expect("should find");
+    apply_env_transform(&trans, &TypeScript::Tsx, nm.get_env_mut());
+    let env = nm.get_env();
+    trans
+      .keys()
+      .map(|k| {
+        (
+          k.into(),
+          String::from_utf8(env.get_transformed(k).unwrap().to_vec()).unwrap(),
+        )
+      })
+      .collect()
+  }
+
+  #[test]
+  fn test_insert_env() -> R {
+    let tr1 = parse(
+      r#"
+      replace:
+        source: "$A"
+        replace: \d
+        by: "b"
+    "#,
+    )?;
+    let tr2 = parse(
+      r#"
+      substring:
+        source: "$A"
+        startChar: 1
+        endChar: -1
+    "#,
+    )?;
+    let mut map = HashMap::new();
+    map.insert("TR1".into(), tr1);
+    map.insert("TR2".into(), tr2);
+    let env = transform_env(map);
+    assert_eq!(env.get("TR1").expect("should get"), "bbb");
+    assert_eq!(env.get("TR2").expect("should get"), "2");
+    Ok(())
+  }
+
+  #[test]
+  #[ignore]
+  fn test_dependent_trans() -> R {
+    let tr1 = parse(
+      r#"
+      replace:
+        source: "$A"
+        replace: \d
+        by: "b"
+    "#,
+    )?;
+    let tr2 = parse(
+      r#"
+      substring:
+        source: "$TR1"
+        startChar: 1
+        endChar: -1
+    "#,
+    )?;
+    let mut map = HashMap::new();
+    map.insert("TR1".into(), tr1);
+    map.insert("TR2".into(), tr2);
+    let env = transform_env(map);
+    assert_eq!(env.get("TR2").expect("should get"), "b");
     Ok(())
   }
 }
