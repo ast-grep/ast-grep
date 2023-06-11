@@ -21,6 +21,7 @@ pub use rule_config::{
   RuleConfig, RuleConfigError, RuleWithConstraint, SerializableRuleConfig, SerializableRuleCore,
   Severity,
 };
+pub use transform::Transformation;
 
 pub fn from_str<'de, T: Deserialize<'de>>(s: &'de str) -> Result<T, YamlError> {
   let deserializer = Deserializer::from_str(s);
