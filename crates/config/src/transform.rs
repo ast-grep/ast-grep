@@ -3,29 +3,28 @@ use ast_grep_core::{Language, StrDoc};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_yaml::with::singleton_map_recursive::deserialize;
 
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct Substring {
+pub struct Substring {
   source: String,
   start_char: Option<i32>,
   end_char: Option<i32>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct Replace {
+pub struct Replace {
   source: String,
   replace: String,
   by: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-enum Transformation {
+pub enum Transformation {
   Substring(Substring),
   Replace(Replace),
 }
@@ -89,13 +88,11 @@ fn resolve_char(opt: &Option<i32>, dft: i32, len: i32) -> usize {
 }
 
 pub fn apply_env_transform<L: Language>(
-  transforms: &HashMap<String, serde_yaml::Value>,
+  transforms: &HashMap<String, Transformation>,
   lang: &L,
   env: &mut MetaVarEnv<StrDoc<L>>,
 ) {
-  for (key, val) in transforms {
-    // we need use singleton_map_recursive to deserialize value
-    let tr: Transformation = deserialize(val).unwrap();
+  for (key, tr) in transforms {
     tr.insert(key, lang, env);
   }
 }

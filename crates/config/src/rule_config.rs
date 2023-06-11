@@ -1,6 +1,7 @@
 use crate::deserialize_env::DeserializeEnv;
 use crate::referent_rule::GlobalRules;
 use crate::rule::{RuleSerializeError, SerializableRule};
+use crate::transform::Transformation;
 
 pub use crate::constraints::{
   try_deserialize_matchers, try_from_serializable as deserialize_meta_var, RuleWithConstraint,
@@ -104,7 +105,7 @@ pub struct SerializableRuleConfig<L: Language> {
   /// A dictionary for meatvariable manipulation. Dict key is the new variable name.
   /// Dict value is a [transformation] that specifies how meta var is processed.
   /// Warning: this is experimental option. https://github.com/ast-grep/ast-grep/issues/436
-  pub transform: Option<HashMap<String, serde_yaml::Value>>,
+  pub transform: Option<HashMap<String, Transformation>>,
   /// A pattern to auto fix the issue. It can reference metavariables appeared in rule.
   pub fix: Option<String>,
   /// Glob patterns to specify that the rule only applies to matching files
