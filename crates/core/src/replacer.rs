@@ -1,5 +1,5 @@
 use crate::matcher::NodeMatch;
-use crate::meta_var::{MetaVariable, MetaVariableID};
+use crate::meta_var::MetaVariableID;
 use crate::source::{Content, Edit as E};
 use crate::Pattern;
 use crate::{Doc, Node, Root};
@@ -63,16 +63,6 @@ enum MetaVarExtract {
   /// $$$A for captured ellipsis
   Multiple(MetaVariableID),
   Transformed(MetaVariableID),
-}
-
-impl MetaVarExtract {
-  fn from(value: MetaVariable) -> Option<Self> {
-    match value {
-      MetaVariable::Named(n, _) => Some(MetaVarExtract::Single(n)),
-      MetaVariable::NamedEllipsis(n) => Some(MetaVarExtract::Multiple(n)),
-      _ => None,
-    }
-  }
 }
 
 fn split_first_meta_var<'a>(

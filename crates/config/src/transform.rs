@@ -1,10 +1,22 @@
-use ast_grep_core::meta_var::{MetaVarEnv, MetaVariable};
+use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Language, StrDoc};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use std::borrow::Cow;
 use std::collections::HashMap;
+
+fn get_text_from_env<'tree, L: Language>(
+  src: &str,
+  lang: &L,
+  env: &'tree MetaVarEnv<'tree, StrDoc<L>>,
+) -> Option<Cow<'tree, str>> {
+  let source = lang.pre_process_pattern(src);
+  let var = lang.extract_meta_var(&source)?;
+  let bytes = env.get_var_bytes(&var)?;
+  Some(String::from_utf8_lossy(bytes))
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -23,12 +35,7 @@ pub struct Replace {
 }
 impl Substring {
   fn compute<L: Language>(&self, lang: &L, env: &mut MetaVarEnv<StrDoc<L>>) -> Option<String> {
-    let source = lang.pre_process_pattern(&self.source);
-    let node = match lang.extract_meta_var(&source)? {
-      MetaVariable::Named(n, _) => env.get_match(&n)?,
-      _ => return None,
-    };
-    let text = node.text();
+    let text = get_text_from_env(&self.source, lang, env)?;
     let chars: Vec<_> = text.chars().collect();
     let len = chars.len() as i32;
     let start = resolve_char(&self.start_char, 0, len);
@@ -58,12 +65,7 @@ fn resolve_char(opt: &Option<i32>, dft: i32, len: i32) -> usize {
 
 impl Replace {
   fn compute<L: Language>(&self, lang: &L, env: &mut MetaVarEnv<StrDoc<L>>) -> Option<String> {
-    let source = lang.pre_process_pattern(&self.source);
-    let node = match lang.extract_meta_var(&source)? {
-      MetaVariable::Named(n, _) => env.get_match(&n)?,
-      _ => return None,
-    };
-    let text = node.text();
+    let text = get_text_from_env(&self.source, lang, env)?;
     let re = Regex::new(&self.replace).unwrap();
     Some(re.replace_all(&text, &self.by).into_owned())
   }
@@ -197,16 +199,7 @@ mod test {
     let root = grep.root();
     let mut nm = root.find("let a = $A").expect("should find");
     apply_env_transform(&trans, &TypeScript::Tsx, nm.get_env_mut());
-    let env = nm.get_env();
-    trans
-      .keys()
-      .map(|k| {
-        (
-          k.into(),
-          String::from_utf8(env.get_transformed(k).unwrap().to_vec()).unwrap(),
-        )
-      })
-      .collect()
+    nm.get_env().clone().into()
   }
 
   #[test]
@@ -231,8 +224,8 @@ mod test {
     map.insert("TR1".into(), tr1);
     map.insert("TR2".into(), tr2);
     let env = transform_env(map);
-    assert_eq!(env.get("TR1").expect("should get"), "bbb");
-    assert_eq!(env.get("TR2").expect("should get"), "2");
+    assert_eq!(env["TR1"], "bbb");
+    assert_eq!(env["TR2"], "2");
     Ok(())
   }
 
@@ -259,7 +252,8 @@ mod test {
     map.insert("TR1".into(), tr1);
     map.insert("TR2".into(), tr2);
     let env = transform_env(map);
-    assert_eq!(env.get("TR2").expect("should get"), "b");
+    assert_eq!(env["TR1"], "bbb");
+    assert_eq!(env["TR2"], "b");
     Ok(())
   }
 }

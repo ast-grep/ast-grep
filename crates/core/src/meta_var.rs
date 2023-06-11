@@ -1,7 +1,7 @@
 use crate::match_tree::does_node_match_exactly;
 use crate::matcher::{KindMatcher, Pattern, RegexMatcher};
 use crate::source::Content;
-use crate::{Doc, Node};
+use crate::{Doc, Language, Node, StrDoc};
 use std::borrow::Cow;
 use std::collections::HashMap;
 
@@ -51,7 +51,7 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     self.multi_matched.get(var).cloned().unwrap_or_default()
   }
 
-  pub fn get_transformed(&self, var: &str) -> Option<&Underlying<D>> {
+  pub fn get_transformed<'e>(&'e self, var: &str) -> Option<&'e Underlying<D>> {
     self.transformed_var.get(var)
   }
 
@@ -105,26 +105,51 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
   pub fn insert_transformation(&mut self, name: MetaVariableID, src: Underlying<D>) {
     self.transformed_var.insert(name, src);
   }
+
+  pub fn get_var_bytes(&self, var: &MetaVariable) -> Option<&[<D::Source as Content>::Underlying]> {
+    get_var_bytes_impl(self, var)
+  }
+}
+
+fn get_var_bytes_impl<'tree, C, D>(
+  env: &'tree MetaVarEnv<'tree, D>,
+  var: &MetaVariable,
+) -> Option<&'tree [C::Underlying]>
+where
+  D: Doc<Source = C>,
+  C: Content + 'tree,
+{
+  match var {
+    MetaVariable::Named(n, _) => {
+      if let Some(node) = env.get_match(n) {
+        let bytes = node.root.doc.get_source().get_range(node.range());
+        Some(bytes)
+      } else if let Some(bytes) = env.get_transformed(n) {
+        Some(bytes)
+      } else {
+        None
+      }
+    }
+    MetaVariable::NamedEllipsis(n) => {
+      let nodes = env.get_multiple_matches(n);
+      if nodes.is_empty() {
+        None
+      } else {
+        // NOTE: start_byte is not always index range of source's slice.
+        // e.g. start_byte is still byte_offset in utf_16 (napi). start_byte
+        // so we need to call source's get_range method
+        let start = nodes[0].inner.start_byte() as usize;
+        let end = nodes[nodes.len() - 1].inner.end_byte() as usize;
+        Some(nodes[0].root.doc.get_source().get_range(start..end))
+      }
+    }
+    _ => None,
+  }
 }
 
 impl<'tree, D: Doc> Default for MetaVarEnv<'tree, D> {
   fn default() -> Self {
     Self::new()
-  }
-}
-
-impl<'tree, D: Doc> From<MetaVarEnv<'tree, D>> for HashMap<String, String> {
-  fn from(env: MetaVarEnv<'tree, D>) -> Self {
-    let mut ret = HashMap::new();
-    for (id, node) in env.single_matched {
-      ret.insert(id, node.text().into());
-    }
-    for (id, nodes) in env.multi_matched {
-      let s: Vec<_> = nodes.iter().map(|n| n.text()).collect();
-      let s = s.join(", ");
-      ret.insert(id, format!("[{s}]"));
-    }
-    ret
   }
 }
 
@@ -222,6 +247,27 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
 
 fn is_valid_meta_var_char(c: char) -> bool {
   matches!(c, 'A'..='Z' | '_')
+}
+
+impl<'tree, L: Language> From<MetaVarEnv<'tree, StrDoc<L>>> for HashMap<String, String> {
+  fn from(env: MetaVarEnv<'tree, StrDoc<L>>) -> Self {
+    let mut ret = HashMap::new();
+    for (id, node) in env.single_matched {
+      ret.insert(id, node.text().into());
+    }
+    for (id, bytes) in env.transformed_var {
+      ret.insert(
+        id,
+        String::from_utf8(bytes).expect("invalid transform variable"),
+      );
+    }
+    for (id, nodes) in env.multi_matched {
+      let s: Vec<_> = nodes.iter().map(|n| n.text()).collect();
+      let s = s.join(", ");
+      ret.insert(id, format!("[{s}]"));
+    }
+    ret
+  }
 }
 
 #[cfg(test)]
