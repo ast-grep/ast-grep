@@ -105,4 +105,37 @@ pub fn apply_env_transform<L: Language>(
 }
 
 #[cfg(test)]
-mod test {}
+mod test {
+  use super::*;
+  use crate::test::TypeScript;
+  use serde_yaml::with::singleton_map_recursive;
+
+  type Result = std::result::Result<(), ()>;
+
+  fn get_transformed(src: &str, pat: &str, trans: &Transformation) -> Option<String> {
+    let grep = TypeScript::Tsx.ast_grep(src);
+    let root = grep.root();
+    let mut nm = root.find(pat).expect("should find");
+    trans.compute(&TypeScript::Tsx, nm.get_env_mut())
+  }
+
+  fn parse(trans: &str) -> Transformation {
+    let deserializer = serde_yaml::Deserializer::from_str(trans);
+    singleton_map_recursive::deserialize(deserializer).unwrap()
+  }
+
+  #[test]
+  fn test_simple_replace() -> Result {
+    let trans = parse(
+      r#"
+      substring:
+        source: "$A"
+        startChar: 1
+        endChar: -1
+    "#,
+    );
+    let actual = get_transformed("let a = 123", "let a= $A", &trans).ok_or(())?;
+    assert_eq!(actual, "2");
+    Ok(())
+  }
+}
