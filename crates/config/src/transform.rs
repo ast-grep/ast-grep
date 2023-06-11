@@ -6,21 +6,17 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 
-fn get_text_from_env<L: Language>(
-  src: &str,
-  ctx: &Ctx<L>,
-  env: &mut MetaVarEnv<StrDoc<L>>,
-) -> Option<String> {
+fn get_text_from_env<L: Language>(src: &str, ctx: &mut Ctx<L>) -> Option<String> {
   let source = ctx.lang.pre_process_pattern(src);
   let var = ctx.lang.extract_meta_var(&source)?;
   if let MetaVariable::Named(n, _) = &var {
     if let Some(tr) = ctx.transforms.get(n) {
-      if env.get_transformed(n).is_none() {
-        tr.insert(n, ctx, env);
+      if ctx.env.get_transformed(n).is_none() {
+        tr.insert(n, ctx);
       }
     }
   }
-  let bytes = env.get_var_bytes(&var)?;
+  let bytes = ctx.env.get_var_bytes(&var)?;
   Some(String::from_utf8_lossy(bytes).into_owned())
 }
 
@@ -40,8 +36,8 @@ pub struct Replace {
   by: String,
 }
 impl Substring {
-  fn compute<L: Language>(&self, ctx: &Ctx<L>, env: &mut MetaVarEnv<StrDoc<L>>) -> Option<String> {
-    let text = get_text_from_env(&self.source, ctx, env)?;
+  fn compute<L: Language>(&self, ctx: &mut Ctx<L>) -> Option<String> {
+    let text = get_text_from_env(&self.source, ctx)?;
     let chars: Vec<_> = text.chars().collect();
     let len = chars.len() as i32;
     let start = resolve_char(&self.start_char, 0, len);
@@ -70,8 +66,8 @@ fn resolve_char(opt: &Option<i32>, dft: i32, len: i32) -> usize {
 }
 
 impl Replace {
-  fn compute<L: Language>(&self, ctx: &Ctx<L>, env: &mut MetaVarEnv<StrDoc<L>>) -> Option<String> {
-    let text = get_text_from_env(&self.source, ctx, env)?;
+  fn compute<L: Language>(&self, ctx: &mut Ctx<L>) -> Option<String> {
+    let text = get_text_from_env(&self.source, ctx)?;
     let re = Regex::new(&self.replace).unwrap();
     Some(re.replace_all(&text, &self.by).into_owned())
   }
@@ -85,30 +81,31 @@ pub enum Transformation {
 }
 
 impl Transformation {
-  fn insert<L: Language>(&self, key: &str, ctx: &Ctx<L>, env: &mut MetaVarEnv<StrDoc<L>>) {
+  fn insert<L: Language>(&self, key: &str, ctx: &mut Ctx<L>) {
     // avoid cyclic
-    env.insert_transformation(key.to_string(), vec![]);
-    let opt = self.compute(ctx, env);
+    ctx.env.insert_transformation(key.to_string(), vec![]);
+    let opt = self.compute(ctx);
     let bytes = if let Some(s) = opt {
       s.into_bytes()
     } else {
       vec![]
     };
-    env.insert_transformation(key.to_string(), bytes);
+    ctx.env.insert_transformation(key.to_string(), bytes);
   }
-  fn compute<L: Language>(&self, ctx: &Ctx<L>, env: &mut MetaVarEnv<StrDoc<L>>) -> Option<String> {
+  fn compute<L: Language>(&self, ctx: &mut Ctx<L>) -> Option<String> {
     use Transformation as T;
     match self {
-      T::Replace(r) => r.compute(ctx, env),
-      T::Substring(s) => s.compute(ctx, env),
+      T::Replace(r) => r.compute(ctx),
+      T::Substring(s) => s.compute(ctx),
     }
   }
 }
 
-struct Ctx<'b, L: Language> {
+// two lifetime to represent env root lifetime and lang/trans lifetime
+struct Ctx<'b, 'c, L: Language> {
   transforms: &'b HashMap<String, Transformation>,
   lang: &'b L,
-  // env: &'b mut MetaVarEnv<'b, StrDoc<L>>,
+  env: &'b mut MetaVarEnv<'c, StrDoc<L>>,
 }
 
 pub fn apply_env_transform<L: Language>(
@@ -116,9 +113,13 @@ pub fn apply_env_transform<L: Language>(
   lang: &L,
   env: &mut MetaVarEnv<StrDoc<L>>,
 ) {
-  let ctx = Ctx { transforms, lang };
+  let mut ctx = Ctx {
+    transforms,
+    lang,
+    env,
+  };
   for (key, tr) in transforms {
-    tr.insert(key, &ctx, env);
+    tr.insert(key, &mut ctx);
   }
 }
 
@@ -134,11 +135,12 @@ mod test {
     let grep = TypeScript::Tsx.ast_grep(src);
     let root = grep.root();
     let mut nm = root.find(pat).expect("should find");
-    let ctx = Ctx {
+    let mut ctx = Ctx {
       lang: &TypeScript::Tsx,
       transforms: &HashMap::new(),
+      env: nm.get_env_mut(),
     };
-    trans.compute(&ctx, nm.get_env_mut())
+    trans.compute(&mut ctx)
   }
 
   fn parse(trans: &str) -> Result<Transformation, ()> {
