@@ -21,6 +21,53 @@ pub struct Replace {
   replace: String,
   by: String,
 }
+impl Substring {
+  fn compute<L: Language>(&self, lang: &L, env: &mut MetaVarEnv<StrDoc<L>>) -> Option<String> {
+    let source = lang.pre_process_pattern(&self.source);
+    let node = match lang.extract_meta_var(&source)? {
+      MetaVariable::Named(n, _) => env.get_match(&n)?,
+      _ => return None,
+    };
+    let text = node.text();
+    let chars: Vec<_> = text.chars().collect();
+    let len = chars.len() as i32;
+    let start = resolve_char(&self.start_char, 0, len);
+    let end = resolve_char(&self.end_char, len, len);
+    if start > end || start >= len as usize || end > len as usize {
+      return Some(String::new());
+    }
+    Some(chars[start..end].iter().collect())
+  }
+}
+
+/// resolve relative negative char index to absolute index
+/// e.g. -1 => len - 1, n > len => n
+fn resolve_char(opt: &Option<i32>, dft: i32, len: i32) -> usize {
+  let c = *opt.as_ref().unwrap_or(&dft);
+  if c >= len {
+    len as usize
+  } else if c >= 0 {
+    c as usize
+  } else if len + c < 0 {
+    0
+  } else {
+    debug_assert!(c < 0);
+    (len + c) as usize
+  }
+}
+
+impl Replace {
+  fn compute<L: Language>(&self, lang: &L, env: &mut MetaVarEnv<StrDoc<L>>) -> Option<String> {
+    let source = lang.pre_process_pattern(&self.source);
+    let node = match lang.extract_meta_var(&source)? {
+      MetaVariable::Named(n, _) => env.get_match(&n)?,
+      _ => return None,
+    };
+    let text = node.text();
+    let re = Regex::new(&self.replace).unwrap();
+    Some(re.replace_all(&text, &self.by).into_owned())
+  }
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -41,49 +88,9 @@ impl Transformation {
   fn compute<L: Language>(&self, lang: &L, env: &mut MetaVarEnv<StrDoc<L>>) -> Option<String> {
     use Transformation as T;
     match self {
-      T::Replace(r) => {
-        let source = lang.pre_process_pattern(&r.source);
-        let node = match lang.extract_meta_var(&source)? {
-          MetaVariable::Named(n, _) => env.get_match(&n)?,
-          _ => return None,
-        };
-        let text = node.text();
-        let re = Regex::new(&r.replace).unwrap();
-        Some(re.replace_all(&text, &r.by).into_owned())
-      }
-      T::Substring(s) => {
-        let source = lang.pre_process_pattern(&s.source);
-        let node = match lang.extract_meta_var(&source)? {
-          MetaVariable::Named(n, _) => env.get_match(&n)?,
-          _ => return None,
-        };
-        let text = node.text();
-        let chars: Vec<_> = text.chars().collect();
-        let len = chars.len() as i32;
-        let start = resolve_char(&s.start_char, 0, len);
-        let end = resolve_char(&s.end_char, len, len);
-        if start > end || start >= len as usize || end > len as usize {
-          return Some(String::new());
-        }
-        Some(chars[start..end].iter().collect())
-      }
+      T::Replace(r) => r.compute(lang, env),
+      T::Substring(s) => s.compute(lang, env),
     }
-  }
-}
-
-/// resolve relative negative char index to absolute index
-/// e.g. -1 => len - 1, n > len => n
-fn resolve_char(opt: &Option<i32>, dft: i32, len: i32) -> usize {
-  let c = *opt.as_ref().unwrap_or(&dft);
-  if c >= len {
-    len as usize
-  } else if c >= 0 {
-    c as usize
-  } else if len + c < 0 {
-    0
-  } else {
-    debug_assert!(c < 0);
-    (len + c) as usize
   }
 }
 
