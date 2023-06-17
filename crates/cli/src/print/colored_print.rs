@@ -387,6 +387,10 @@ fn print_diffs<'a, W: WriteColor>(
   let mut new_str = format!("{}{}", &source[..range.start], first_diff.replacement);
   for diff in diffs {
     let range = diff.node_match.range();
+    // skip overlapping diff
+    if range.start < start {
+      continue;
+    }
     new_str.push_str(&source[start..range.start]);
     new_str.push_str(&diff.replacement);
     start = range.end;
