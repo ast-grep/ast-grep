@@ -42,7 +42,10 @@ mod test {
     test_match("ns::ns2::$F()", "ns::ns2::func()");
     test_match("template <typename $T>", "template <typename T>");
     test_match("if constexpr ($C) {}", "if constexpr (13+5==18) {}");
-    test_match("template <typename T> typename std::enable_if<$C, T>::type;", "template <typename T> typename std::enable_if<std::is_signed<T>::value, T>::type;");
+    test_match(
+      "template <typename T> typename std::enable_if<$C, T>::type;",
+      "template <typename T> typename std::enable_if<std::is_signed<T>::value, T>::type;",
+    );
   }
 
   fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
@@ -52,11 +55,7 @@ mod test {
 
   #[test]
   fn test_cpp_replace() -> Result<(), TSParseError> {
-    let ret = test_replace(
-      "expr->b()",
-      "$A->b()",
-      "func($A)->b()",
-    )?;
+    let ret = test_replace("expr->b()", "$A->b()", "func($A)->b()")?;
     assert_eq!(ret, "func(expr)->b()");
     Ok(())
   }

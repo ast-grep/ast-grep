@@ -74,8 +74,8 @@ impl SupportLang {
   pub fn all_langs() -> Vec<SupportLang> {
     use SupportLang::*;
     vec![
-      C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Kotlin, Lua, Python, Rust, Swift, Thrift,
-      Tsx, TypeScript,
+      C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Kotlin, Lua, Python, Rust, Swift,
+      Thrift, Tsx, TypeScript,
     ]
   }
 

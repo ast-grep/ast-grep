@@ -1,3 +1,10 @@
+//! This module defines the core `Matcher` trait in ast-grep.
+//!
+//! `Matcher` has three notable implementations in this module:
+//! * Pattern: matches against a tree-sitter node based on its tree structure.
+//! * KindMatcher: matches a node based on its `kind`
+//! * RegexMatcher: matches a node based on its textual content using regex.
+
 mod kind;
 mod node_match;
 mod pattern;
@@ -17,9 +24,9 @@ pub use pattern::{Pattern, PatternError};
 #[cfg(feature = "regex")]
 pub use text::{RegexMatcher, RegexMatcherError};
 
-/**
- * N.B. At least one positive term is required for matching
- */
+/// `Matcher` defines whether a tree-sitter node matches certain pattern,
+/// and update the matched meta-variable values in `MetaVarEnv`.
+/// N.B. At least one positive term is required for matching
 pub trait Matcher<L: Language> {
   /// Returns the node why the input is matched or None if not matched.
   /// The return value is usually input node itself, but it can be different node.

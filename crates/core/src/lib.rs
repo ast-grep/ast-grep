@@ -1,3 +1,11 @@
+/*!
+This module contains the core library for ast-grep.
+
+It provides APIs for parsing, traversing, searching and replacing tree-sitter nodes.
+Usually you will only need ast-grep CLI instead of this crate.
+But if you want to use ast-grep as a library, this is the right place.
+*/
+
 pub mod language;
 pub mod matcher;
 pub mod meta_var;
