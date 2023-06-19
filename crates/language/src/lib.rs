@@ -1,3 +1,4 @@
+mod cpp;
 mod csharp;
 mod css;
 mod go;
@@ -9,6 +10,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::path::Path;
 
+pub use cpp::Cpp;
 pub use csharp::CSharp;
 pub use css::Css;
 pub use go::Go;
@@ -50,6 +52,7 @@ use std::str::FromStr;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum SupportLang {
   C,
+  Cpp,
   CSharp,
   Css,
   Dart,
@@ -71,7 +74,7 @@ impl SupportLang {
   pub fn all_langs() -> Vec<SupportLang> {
     use SupportLang::*;
     vec![
-      C, CSharp, Css, Dart, Go, Html, Java, JavaScript, Kotlin, Lua, Python, Rust, Swift, Thrift,
+      C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Kotlin, Lua, Python, Rust, Swift, Thrift,
       Tsx, TypeScript,
     ]
   }
@@ -109,6 +112,7 @@ impl FromStr for SupportLang {
     use SupportLang::*;
     match s {
       "c" => Ok(C),
+      "cc" | "c++" | "cpp" | "cxx" => Ok(Cpp),
       "cs" | "csharp" => Ok(CSharp),
       "css" | "scss" => Ok(Css),
       "dart" => Ok(Dart),
@@ -134,6 +138,7 @@ macro_rules! execute_lang_method {
     use SupportLang as S;
     match $me {
       S::C => C.$method($($pname,)*),
+      S::Cpp => Cpp.$method($($pname,)*),
       S::CSharp => CSharp.$method($($pname,)*),
       S::Css => Css.$method($($pname,)*),
       S::Dart => Dart.$method($($pname,)*),
@@ -183,6 +188,7 @@ fn from_extension(path: &Path) -> Option<SupportLang> {
   use SupportLang::*;
   match path.extension()?.to_str()? {
     "c" | "h" => Some(C),
+    "cc" | "hpp" | "cpp" | "c++" | "hh" | "cxx" | "cu" | "ino" => Some(Cpp),
     "cs" => Some(CSharp),
     "css" | "scss" => Some(Css),
     "dart" => Some(Dart),
@@ -221,6 +227,7 @@ fn file_types(lang: &SupportLang) -> Types {
   builder.add_defaults();
   let builder = match lang {
     L::C => builder.select("c"),
+    L::Cpp => builder.select("cpp"),
     L::CSharp => builder.select("csharp"),
     L::Css => builder.select("css"),
     L::Dart => builder.select("dart"),

@@ -10,6 +10,9 @@ mod parser_implmentation {
   pub fn language_c() -> TSLanguage {
     tree_sitter_c::language().into()
   }
+  pub fn language_cpp() -> TSLanguage {
+    tree_sitter_cpp::language().into()
+  }
   pub fn language_c_sharp() -> TSLanguage {
     tree_sitter_c_sharp::language().into()
   }
