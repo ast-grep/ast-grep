@@ -81,6 +81,7 @@ mod parser_implmentation {
 
   impl_parsers!(
     language_c,
+    language_cpp,
     language_c_sharp,
     language_css,
     language_dart,
