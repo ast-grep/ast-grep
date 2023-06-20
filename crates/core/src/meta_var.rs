@@ -127,10 +127,23 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     };
     let mut named_nodes = nodes.iter().filter(|n| n.is_named());
     let mut named_cands = cands.iter().filter(|n| n.is_named());
-    named_cands
-      .by_ref()
-      .zip(named_nodes.by_ref())
-      .all(|(node, cand)| does_node_match_exactly(node, cand))
+    loop {
+      if let Some(node) = named_nodes.next() {
+        let Some(cand) = named_cands.next() else {
+          // cand is done but node is not
+          break false
+        };
+        if !does_node_match_exactly(node, cand) {
+          break false;
+        }
+      } else if named_cands.next().is_some() {
+        // node is done but cand is not
+        break false;
+      } else {
+        // both None, matches
+        break true;
+      }
+    }
   }
 }
 
@@ -352,11 +365,23 @@ mod test {
 
   #[test]
   fn test_multi_var_match() {
-    let grep = Tsx.ast_grep("if (true) { a += 1 } else { a += 1 }");
+    let grep = Tsx.ast_grep("if (true) { a += 1; b += 1 } else { a += 1; b += 1 }");
     let node = grep.root();
     let found = node.find("if (true) { $$$A } else { $$$A }");
     assert!(found.is_some());
     let grep = Tsx.ast_grep("if (true) { a += 1 } else { b += 1 }");
+    let node = grep.root();
+    let not_found = node.find("if (true) { $$$A } else { $$$A }");
+    assert!(not_found.is_none());
+  }
+
+  #[test]
+  fn test_multi_var_match_with_trailing() {
+    let grep = Tsx.ast_grep("if (true) { a += 1; } else { a += 1; b += 1 }");
+    let node = grep.root();
+    let not_found = node.find("if (true) { $$$A } else { $$$A }");
+    assert!(not_found.is_none());
+    let grep = Tsx.ast_grep("if (true) { a += 1; b += 1; } else { a += 1 }");
     let node = grep.root();
     let not_found = node.find("if (true) { $$$A } else { $$$A }");
     assert!(not_found.is_none());
