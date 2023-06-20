@@ -41,6 +41,9 @@ pub struct SerializableRuleCore<L: Language> {
   pub constraints: Option<HashMap<String, SerializableMetaVarMatcher>>,
   /// Utility rules that can be used in `matches`
   pub utils: Option<HashMap<String, SerializableRule>>,
+  /// A dictionary for meatvariable manipulation. Dict key is the new variable name.
+  /// Dict value is a [transformation] that specifies how meta var is processed.
+  /// Warning: this is experimental option. [`https://github.com/ast-grep/ast-grep/issues/436`]
   pub transform: Option<HashMap<String, Transformation>>,
 }
 
@@ -105,10 +108,6 @@ pub struct SerializableRuleConfig<L: Language> {
   /// One of: hint, info, warning, or error
   #[serde(default)]
   pub severity: Severity,
-  /// A dictionary for meatvariable manipulation. Dict key is the new variable name.
-  /// Dict value is a [transformation] that specifies how meta var is processed.
-  /// Warning: this is experimental option. https://github.com/ast-grep/ast-grep/issues/436
-  pub transform: Option<HashMap<String, Transformation>>,
   /// A pattern to auto fix the issue. It can reference metavariables appeared in rule.
   pub fix: Option<String>,
   /// Glob patterns to specify that the rule only applies to matching files
@@ -202,12 +201,6 @@ impl<L: Language> RuleConfig<L> {
   pub fn get_message(&self, node: &NodeMatch<StrDoc<L>>) -> String {
     self.inner.get_message(node)
   }
-  pub fn apply_transform(&self, node_match: &mut NodeMatch<StrDoc<L>>) {
-    if let Some(trans) = &self.transform {
-      let env = node_match.get_env_mut();
-      crate::transform::apply_env_transform(trans, &self.language, env);
-    }
-  }
 }
 impl<L: Language> Deref for RuleConfig<L> {
   type Target = SerializableRuleConfig<L>;
@@ -236,7 +229,6 @@ mod test {
       message: "".into(),
       note: None,
       severity: Severity::Hint,
-      transform: None,
       fix: None,
       files: None,
       ignores: None,
@@ -327,6 +319,34 @@ all:
     assert_eq!(a, "1");
     let b = env.get_match("B").expect("should exist").text();
     assert_eq!(b, "test");
+  }
+
+  #[test]
+  fn test_transform() {
+    let globals = GlobalRules::default();
+    let rule = from_str("pattern: console.log($A)").expect("should parse");
+    let mut config = ts_rule_config(rule);
+    let transform = from_str(
+      "
+B:
+  substring:
+    source: $A
+    startChar: 1
+    endChar: -1
+",
+    )
+    .expect("should parse");
+    config.transform = Some(transform);
+    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(123) }");
+    let node_match = grep
+      .root()
+      .find(config.get_matcher(&globals).unwrap())
+      .expect("should found");
+    let env = node_match.get_env();
+    let a = env.get_match("A").expect("should exist").text();
+    assert_eq!(a, "123");
+    let b = env.get_transformed("B").expect("should exist");
+    assert_eq!(b, b"2");
   }
 
   fn get_matches_config() -> SerializableRuleConfig<TypeScript> {
