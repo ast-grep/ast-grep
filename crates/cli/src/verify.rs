@@ -848,4 +848,45 @@ rule:
     // TODO
     assert!(run_test_rule_impl(arg, reporter).is_err());
   }
+
+  #[test]
+  fn test_verify_transform() {
+    let globals = GlobalRules::default();
+    let inner = from_str(
+      "
+id: test-rule
+message: test
+severity: hint
+language: TypeScript
+rule:
+  pattern: console.log($A)
+transform:
+  B:
+    substring:
+      source: $A
+      startChar: 1
+      endChar: -1
+fix: 'log($B)'
+",
+    )
+    .unwrap();
+    let rule = RuleConfig::try_from(inner, &globals).unwrap();
+    let rule = RuleCollection::try_new(vec![rule]).expect("RuleCollection must be valid");
+    let case = TestCase {
+      id: TEST_RULE.into(),
+      valid: vec![],
+      invalid: vec!["console.log(123)".to_string()],
+    };
+    let snapshots = SnapshotCollection::new();
+    let mut ret = verify_test_case_simple(&rule, &case, Some(&snapshots)).unwrap();
+    let case = ret.cases.pop().unwrap();
+    match case {
+      CaseStatus::Wrong { actual, .. } => {
+        assert_eq!(actual.fixed.unwrap(), "log(2)");
+      }
+      _ => {
+        panic!("wrong case status");
+      }
+    }
+  }
 }
