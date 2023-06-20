@@ -89,7 +89,7 @@ pub trait Doc: Clone {
     parse_lang(|p| source.parse_tree_sitter(p, old_tree), lang)
   }
   /// TODO: are we paying too much to support str as Pattern/Replacer??
-  /// this method is to conver string to Doc, so that we can support using
+  /// this method converts string to Doc, so that we can support using
   /// string as replacer/searcher. Natively.
   fn from_str(src: &str, lang: Self::Lang) -> Self;
 }
@@ -136,6 +136,12 @@ pub trait Content: Sized {
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying];
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit;
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str>;
+  /// Used for string replacement. We need this for
+  /// indentation and deindentation.
+  fn decode_str(src: &str) -> Cow<[Self::Underlying]>;
+  /// Used for string replacement. We need this for
+  /// transformation.
+  fn encode_str(bytes: &[Self::Underlying]) -> Cow<str>;
 }
 
 impl Content for String {
@@ -172,6 +178,12 @@ impl Content for String {
       &old_end_position,
       &new_end_position,
     )
+  }
+  fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
+    Cow::Borrowed(src.as_bytes())
+  }
+  fn encode_str(bytes: &[Self::Underlying]) -> Cow<str> {
+    String::from_utf8_lossy(bytes)
   }
 }
 

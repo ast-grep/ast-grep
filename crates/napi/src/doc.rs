@@ -95,17 +95,22 @@ impl Content for Wrapper {
     let end = node.end_byte() as usize / 2;
     String::from_utf16_lossy(&slice[start..end]).into()
   }
+
+  fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
+    let v: Vec<_> = src.encode_utf16().collect();
+    Cow::Owned(v)
+  }
+
+  fn encode_str(bytes: &[Self::Underlying]) -> Cow<str> {
+    let s = String::from_utf16_lossy(bytes);
+    Cow::Owned(s)
+  }
 }
 
 impl IndentSensitive for Wrapper {
   const NEW_LINE: u16 = b'\n' as u16;
   const SPACE: u16 = b' ' as u16;
   const TAB: u16 = b'\t' as u16;
-
-  fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
-    let v: Vec<_> = src.encode_utf16().collect();
-    Cow::Owned(v)
-  }
 }
 
 fn pos_for_byte_offset(input: &[u16], byte_offset: usize) -> Point {
