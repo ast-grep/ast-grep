@@ -216,11 +216,11 @@ impl<'r> CombinedScan<'r> {
       };
       for &idx in rule_idx {
         let rule = &self.rules[idx];
-        if let Some(mut ret) = rule.matcher.match_node(node.clone()) {
-          let matches = results.entry(idx).or_insert_with(Vec::new);
-          rule.apply_transform(&mut ret);
-          matches.push(ret);
-        }
+        let Some(ret) = rule.matcher.match_node(node.clone()) else {
+          continue;
+        };
+        let matches = results.entry(idx).or_insert_with(Vec::new);
+        matches.push(ret);
       }
     }
     results

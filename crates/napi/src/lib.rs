@@ -25,6 +25,7 @@ pub struct NapiConfig {
   pub rule: serde_json::Value,
   pub constraints: Option<serde_json::Value>,
   pub language: Option<FrontEndLanguage>,
+  pub transform: Option<serde_json::Value>,
   pub utils: Option<serde_json::Value>,
 }
 
@@ -37,6 +38,7 @@ fn parse_config(
     language: lang,
     rule: serde_json::from_value(config.rule)?,
     constraints: config.constraints.map(serde_json::from_value).transpose()?,
+    transform: config.transform.map(serde_json::from_value).transpose()?,
     utils: config.utils.map(serde_json::from_value).transpose()?,
   };
   rule.get_matcher(&Default::default()).map_err(|e| {
@@ -72,6 +74,7 @@ macro_rules! impl_lang_mod {
             constraints: None,
             language: Some($lang),
             utils: None,
+            transform: None,
           }
         }
         #[napi(

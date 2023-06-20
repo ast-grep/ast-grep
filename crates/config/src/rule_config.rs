@@ -41,6 +41,7 @@ pub struct SerializableRuleCore<L: Language> {
   pub constraints: Option<HashMap<String, SerializableMetaVarMatcher>>,
   /// Utility rules that can be used in `matches`
   pub utils: Option<HashMap<String, SerializableRule>>,
+  pub transform: Option<HashMap<String, Transformation>>,
 }
 
 impl<L: Language> SerializableRuleCore<L> {
@@ -66,10 +67,12 @@ impl<L: Language> SerializableRuleCore<L> {
     let env = self.get_deserialize_env(globals)?;
     let rule = env.deserialize_rule(self.rule.clone())?;
     let matchers = self.get_meta_var_matchers()?;
+    let transform = self.transform.clone();
     Ok(
       RuleWithConstraint::new(rule)
         .with_matchers(matchers)
-        .with_utils(env.registration),
+        .with_utils(env.registration)
+        .with_transform(transform),
     )
   }
 }
@@ -224,6 +227,7 @@ mod test {
       language: TypeScript::Tsx,
       rule,
       constraints: None,
+      transform: None,
       utils: None,
     };
     SerializableRuleConfig {

@@ -26,6 +26,7 @@ export interface NapiConfig {
   rule: any
   constraints?: any
   language?: FrontEndLanguage
+  transform?: any
   utils?: any
 }
 export function parseFiles(paths: string[], callback: (err: null | Error, result: SgRoot) => void): Promise<number>

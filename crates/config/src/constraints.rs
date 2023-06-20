@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::referent_rule::RuleRegistration;
 use crate::rule::Rule;
+use crate::transform::{apply_env_transform, Transformation};
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
 use ast_grep_core::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
@@ -62,6 +63,7 @@ pub struct RuleWithConstraint<L: Language> {
   rule: Rule<L>,
   matchers: MetaVarMatchers<StrDoc<L>>,
   kinds: Option<BitSet>,
+  transform: Option<HashMap<String, Transformation>>,
   // this is required to hold util rule reference
   _utils: RuleRegistration<L>,
 }
@@ -86,6 +88,11 @@ impl<L: Language> RuleWithConstraint<L> {
   pub fn with_utils(self, _utils: RuleRegistration<L>) -> Self {
     Self { _utils, ..self }
   }
+
+  #[inline]
+  pub fn with_transform(self, transform: Option<HashMap<String, Transformation>>) -> Self {
+    Self { transform, ..self }
+  }
 }
 impl<L: Language> Deref for RuleWithConstraint<L> {
   type Target = Rule<L>;
@@ -101,6 +108,7 @@ impl<L: Language> Default for RuleWithConstraint<L> {
       rule: Rule::default(),
       matchers: MetaVarMatchers::default(),
       kinds: None,
+      transform: None,
       _utils: RuleRegistration::default(),
     }
   }
@@ -117,12 +125,15 @@ impl<L: Language> Matcher<L> for RuleWithConstraint<L> {
         return None;
       }
     }
-    let ret = self.rule.match_node_with_env(node, env);
-    if ret.is_some() && env.match_constraints(&self.matchers) {
-      ret
-    } else {
-      None
+    let ret = self.rule.match_node_with_env(node, env)?;
+    if !env.match_constraints(&self.matchers) {
+      return None;
     }
+    if let Some(trans) = &self.transform {
+      let lang = ret.lang();
+      apply_env_transform(trans, lang, env.to_mut());
+    }
+    Some(ret)
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
