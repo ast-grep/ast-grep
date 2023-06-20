@@ -47,7 +47,7 @@ Or you can build ast-grep from source. You need install rustup, clone the reposi
 ```bash
 cargo install --path ./crates/cli
 ```
-[Packages](https://repology.org/project/ast-grep/versions) are available on other platofrms too.
+[Packages](https://repology.org/project/ast-grep/versions) are available on other platforms too.
 
 ## Command line usage example
 
