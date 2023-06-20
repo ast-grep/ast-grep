@@ -31,7 +31,7 @@ Try the [online playground](https://ast-grep.github.io/playground.html) for a ta
 You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html), [homebrew](https://brew.sh/) or [scoop](https://scoop.sh/)!
 
 ```bash
-# install via pnpm
+# install via npm
 npm install --global @ast-grep/cli
 
 # install via cargo
