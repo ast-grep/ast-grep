@@ -141,7 +141,7 @@ pub trait Content: Sized {
   fn decode_str(src: &str) -> Cow<[Self::Underlying]>;
   /// Used for string replacement. We need this for
   /// transformation.
-  fn encode_str(bytes: &[Self::Underlying]) -> Cow<str>;
+  fn encode_bytes(bytes: &[Self::Underlying]) -> Cow<str>;
 }
 
 impl Content for String {
@@ -182,7 +182,7 @@ impl Content for String {
   fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
     Cow::Borrowed(src.as_bytes())
   }
-  fn encode_str(bytes: &[Self::Underlying]) -> Cow<str> {
+  fn encode_bytes(bytes: &[Self::Underlying]) -> Cow<str> {
     String::from_utf8_lossy(bytes)
   }
 }

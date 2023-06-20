@@ -101,7 +101,7 @@ impl Content for Wrapper {
     Cow::Owned(v)
   }
 
-  fn encode_str(bytes: &[Self::Underlying]) -> Cow<str> {
+  fn encode_bytes(bytes: &[Self::Underlying]) -> Cow<str> {
     let s = String::from_utf16_lossy(bytes);
     Cow::Owned(s)
   }
