@@ -215,9 +215,6 @@ jobs:
       - windows
       - linux
       - linux-cross
-      - musllinux
-      - musllinux-cross
-      - validate-tag
     # If you don't set an input tag, it's a dry run (no uploads).
     if: "startsWith(github.event.ref, 'refs/tags')"
     environment:
