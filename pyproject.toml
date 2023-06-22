@@ -1,0 +1,43 @@
+[build-system]
+requires = ["maturin>=1.1,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "ast-grep"
+version = "0.6.6"
+description = "Structural Search and Rewrite code at large scale using precise AST pattern."
+authors = [{ name = "Herrington Darkholme", email = "2883231+HerringtonDarkholme@users.noreply.github.com" }]
+maintainers = [{ name = "Herrington Darkholme", email = "2883231+HerringtonDarkholme@users.noreply.github.com" }]
+readme = "README.md"
+license = { file = "LICENSE" }
+keywords = [
+  "ast",
+  "pattern",
+  "codemod",
+  "structural search",
+  "rewrite"
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Rust",
+  "Topic :: Security",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Software Development",
+  "Topic :: Text Processing"
+]
+
+
+[project.urls]
+Repository = "https://github.com/ast-grep/ast-grep"
+Documentation = "https://ast-grep.github.io/"
+Changelog = "https://github.com/ast-grep/ast-grep/blob/main/CHANGELOG.md"
+
+
+[tool.maturin]
+bindings = "bin"
+manifest-path = "crates/cli/Cargo.toml"
+strip = true
