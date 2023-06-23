@@ -167,57 +167,6 @@ jobs:
           name: wheels
           path: dist
 
-  linux-cross:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        platform:
-          - target: aarch64-unknown-linux-gnu
-            arch: aarch64
-            # see https://github.com/astral-sh/ruff/issues/3791
-            # and https://github.com/gnzlbg/jemallocator/issues/170#issuecomment-1503228963
-            maturin_docker_options: -e JEMALLOC_SYS_WITH_LG_PAGE=16
-          - target: armv7-unknown-linux-gnueabihf
-            arch: armv7
-          - target: s390x-unknown-linux-gnu
-            arch: s390x
-          - target: powerpc64le-unknown-linux-gnu
-            arch: ppc64le
-          - target: powerpc64-unknown-linux-gnu
-            arch: ppc64
-
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: "Build wheels"
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.platform.target }}
-          manylinux: auto
-          docker-options: ${{ matrix.platform.maturin_docker_options }}
-          args: --release --out dist
-      - uses: uraimo/run-on-arch-action@v2
-        if: matrix.platform.arch != 'ppc64'
-        name: Test wheel
-        with:
-          arch: ${{ matrix.platform.arch }}
-          distro: ubuntu20.04
-          githubToken: ${{ github.token }}
-          install: |
-            apt-get update
-            apt-get install -y --no-install-recommends python3 python3-pip
-            pip3 install -U pip
-          run: |
-            pip3 install ${{ env.PACKAGE_NAME }} --no-index --find-links dist/ --force-reinstall
-            sg --help
-      - name: "Upload wheels"
-        uses: actions/upload-artifact@v3
-        with:
-          name: wheels
-          path: dist
-
   upload-release:
     name: Upload to PyPI
     runs-on: ubuntu-latest
@@ -226,7 +175,7 @@ jobs:
       - macos-x86_64
       - windows
       - linux
-      - linux-cross
+        # - linux-cross I would want to support linux-cross but it is too hard for me to compile c projects for tree-sitter-languages
     # If you don't set an input tag, it's a dry run (no uploads).
     if: "startsWith(github.event.ref, 'refs/tags')"
     environment:
