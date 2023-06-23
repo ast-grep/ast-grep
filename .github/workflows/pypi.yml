@@ -150,7 +150,8 @@ jobs:
       - name: "Build wheels"
         uses: PyO3/maturin-action@v1
         env:
-          CFLAGS: "-std=c99 -lstdc++"
+          CFLAGS: "-std=c99"
+          CXXFLAGS: "-std=c++11"
         with:
           target: ${{ matrix.target }}
           manylinux: auto
