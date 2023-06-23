@@ -4,14 +4,15 @@ permissions:
   contents: write
 
 on:
+  # enable workflow_dispatch when debugging
+  workflow_dispatch: null
   push:
     tags:
       - "[0-9]+.*"
-  # enable workflow_dispatch when debugging
-  # workflow_dispatch: null
-
 jobs:
   push_crates_io:
+    # If you don't set an input tag, it's a dry run (no uploads).
+    if: "startsWith(github.event.ref, 'refs/tags')"
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -21,6 +22,8 @@ jobs:
           publish-delay: 5000
 
   create-release:
+    # If you don't set an input tag, it's a dry run (no uploads).
+    if: "startsWith(github.event.ref, 'refs/tags')"
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -34,12 +37,18 @@ jobs:
         include:
           - target: x86_64-pc-windows-msvc
             os: windows-latest
+          - target: i686-pc-windows-msvc
+            os: windows-latest
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
           - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
             os: macos-latest
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-20.04
-          - target: x86_64-apple-darwin
-            os: macos-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-20.04
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
@@ -72,16 +81,16 @@ jobs:
           out-file-path: artifacts
       - name: Unzip packages
         run: |
-          files=(aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-gnu)
-          target_dir=(darwin-arm64 darwin-x64 linux-x64-gnu)
+          files=(aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu)
+          target_dir=(darwin-arm64 darwin-x64 linux-x64-gnu linux-arm64-gnu)
           length=${#files[@]}
           for (( i=0; i<${length}; i++ ));
           do
             unzip "artifacts/sg-${files[$i]}.zip" -d "npm/platforms/${target_dir[$i]}/"
           done
           # windows
-          files=(x86_64-pc-windows-msvc)
-          target_dir=(win32-x64-msvc)
+          files=(x86_64-pc-windows-msvc i686-pc-windows-msvc aarch64-pc-windows-msvc)
+          target_dir=(win32-x64-msvc win32-ia32-msvc win32-arm64-msvc)
           length=${#files[@]}
           for (( i=0; i<${length}; i++ ));
           do

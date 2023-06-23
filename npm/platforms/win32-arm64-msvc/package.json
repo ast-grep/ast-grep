@@ -1,0 +1,30 @@
+{
+  "name": "@ast-grep/cli-win32-arm64-msvc",
+  "version": "0.6.6",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "sg.exe"
+  ],
+  "description": "Search and Rewrite code at large scale using precise AST pattern",
+  "keywords": [
+    "ast",
+    "pattern",
+    "codemod",
+    "search",
+    "rewrite"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "repository": "https://github.com/ast-grep/ast-grep"
+}
