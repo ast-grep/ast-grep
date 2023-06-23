@@ -1,11 +1,7 @@
 name: "PyPi Release"
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "The version to tag, without the leading 'v'. If omitted, will initiate a dry run (no uploads)."
-        type: string
+  workflow_dispatch: null
   push:
     tags:
       - "[0-9]+.*"
@@ -54,6 +50,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: x64
+      # https://github.com/actions/runner-images/issues/658#issuecomment-611921753
       - name: Update clang
         run: |
           brew update
@@ -138,12 +135,12 @@ jobs:
           path: dist
 
   linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         target:
           - x86_64-unknown-linux-gnu
-          - i686-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
