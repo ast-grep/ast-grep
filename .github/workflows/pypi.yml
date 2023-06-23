@@ -54,13 +54,17 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: x64
+      - name: Update clang
+        run: |
+          brew update
+          brew upgrade llvm # temporary step because macOS image still contains Clang 9 by default
       - name: "Build wheels - x86_64"
         uses: PyO3/maturin-action@v1
+        env:
+          CXX: "/usr/local/opt/llvm/bin/clang++" # Switch to Clang 10
         with:
           target: x86_64
           args: --release --out dist
-        env:
-          CXXFLAG: '-stdlib=libc++'
       - name: "Test wheel - x86_64"
         run: |
           pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
@@ -79,8 +83,14 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: x64
+      - name: Update clang
+        run: |
+          brew update
+          brew upgrade llvm # temporary step because macOS image still contains Clang 9 by default
       - name: "Build wheels - universal2"
         uses: PyO3/maturin-action@v1
+        env:
+          CXX: "/usr/local/opt/llvm/bin/clang++" # Switch to Clang 10
         with:
           args: --release --target universal2-apple-darwin --out dist
       - name: "Test wheel - universal2"
