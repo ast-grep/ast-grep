@@ -57,7 +57,7 @@ jobs:
       - name: Update clang
         run: |
           brew update
-          brew upgrade llvm # temporary step because macOS image still contains Clang 9 by default
+          brew install llvm # temporary step because macOS image still contains Clang 9 by default
       - name: "Build wheels - x86_64"
         uses: PyO3/maturin-action@v1
         env:
@@ -86,7 +86,7 @@ jobs:
       - name: Update clang
         run: |
           brew update
-          brew upgrade llvm # temporary step because macOS image still contains Clang 9 by default
+          brew install llvm # temporary step because macOS image still contains Clang 9 by default
       - name: "Build wheels - universal2"
         uses: PyO3/maturin-action@v1
         env:
