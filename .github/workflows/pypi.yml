@@ -59,6 +59,8 @@ jobs:
         with:
           target: x86_64
           args: --release --out dist
+        env:
+          CXXFLAG: '-stdlib=libc++'
       - name: "Test wheel - x86_64"
         run: |
           pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
