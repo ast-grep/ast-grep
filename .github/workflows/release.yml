@@ -61,6 +61,7 @@ jobs:
           # [possible values: all, unix, windows, none]
           zip: all
           target: ${{ matrix.target }}
+          ref: refs/tags/debug_release
         env:
           # (required)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
