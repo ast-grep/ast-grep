@@ -281,10 +281,7 @@ fn print_matches_with_heading<'a, W: Write>(
   let Some(first_match) = matches.next() else {
     return Ok(())
   };
-  let source = first_match
-    .ancestors()
-    .last()
-    .map_or_else(|| first_match.text(), |n| n.text());
+  let source = first_match.root().text();
   let display = first_match.display_context(0);
 
   let mut merger = MatchMerger::new(&first_match);
@@ -335,10 +332,7 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
   let Some(first_match) = matches.next() else {
     return Ok(())
   };
-  let source = first_match
-    .ancestors()
-    .last()
-    .map_or_else(|| first_match.text(), |n| n.text());
+  let source = first_match.root().text();
   let display = first_match.display_context(0);
 
   let mut merger = MatchMerger::new(&first_match);
@@ -383,7 +377,7 @@ fn print_diffs<'a, W: WriteColor>(
     return Ok(());
   };
   let range = first_diff.node_match.range();
-  let source = first_diff.node_match.ancestors().last().unwrap().text();
+  let source = first_diff.node_match.root().text();
   let mut start = range.end;
   let mut new_str = format!("{}{}", &source[..range.start], first_diff.replacement);
   for diff in diffs {
@@ -687,7 +681,7 @@ mod test {
         .map(|(i, l)| format!("{}│{l}\n", i + 1))
         .collect();
       // append heading to expected
-      let output = format!("test.tsx\n{expected}");
+      let output = format!("test.tsx\n{expected}\n");
       assert_eq!(get_text(&printer), output, "{note}");
     }
   }

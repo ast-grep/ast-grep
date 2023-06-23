@@ -78,6 +78,7 @@ impl<D: Doc> Root<D> {
   }
 
   /// P.S. I am your father.
+  #[doc(hidden)]
   pub unsafe fn readopt<'a: 'b, 'b>(&'a self, node: &mut Node<'b, D>) {
     debug_assert!(self.check_lineage(&node.inner));
     node.root = self;
@@ -215,6 +216,10 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
       trailing: &self.root.doc.get_source().as_str()[end..=trailing],
       start_line: self.inner.start_position().row() as usize + 1,
     }
+  }
+
+  pub fn root(&self) -> Self {
+    self.root.root()
   }
 }
 
