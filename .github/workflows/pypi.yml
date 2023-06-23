@@ -147,13 +147,10 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: x64
-      - name: Add environ
-        run: |
-          export CFLAGS="-std=c99"
-      - name: debug
-        run: "echo $CFLAGS"
       - name: "Build wheels"
         uses: PyO3/maturin-action@v1
+        env:
+          CFLAGS: "-std=c99"
         with:
           target: ${{ matrix.target }}
           manylinux: auto
