@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PACKAGE_NAME: ast_grep # note: maturin package name only accepts underscore
+  PACKAGE_NAME: ast_grep_cli # note: maturin package name only accepts underscore
   PYTHON_VERSION: "3.7" # to build abi3 wheels
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
