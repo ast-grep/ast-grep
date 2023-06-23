@@ -286,7 +286,7 @@ fn print_matches_with_heading<'a, W: Write>(
 
   let mut merger = MatchMerger::new(&first_match);
   let mut ret = display.leading.to_string();
-  ret.push_str(&format!("{}", styles.matched.paint(&*display.matched)));
+  styles.push_matched_to_ret(&mut ret, &display.matched)?;
 
   for nm in matches {
     if merger.check_overlapping(&nm) {
@@ -296,7 +296,7 @@ fn print_matches_with_heading<'a, W: Write>(
     // merge adjacent matches
     if let Some(last_end_offset) = merger.merge_adjacent(&nm) {
       ret.push_str(&source[last_end_offset..nm.range().start]);
-      ret.push_str(&format!("{}", styles.matched.paint(&*display.matched)));
+      styles.push_matched_to_ret(&mut ret, &display.matched)?;
       continue;
     }
     ret.push_str(merger.last_trailing);
@@ -304,21 +304,21 @@ fn print_matches_with_heading<'a, W: Write>(
     let mut num = merger.last_start_line;
     let width = (lines + num).to_string().chars().count();
     write!(writer, "{num:>width$}│")?; // initial line num
-    print_highlight(ret.lines(), Style::new(), width, &mut num, writer)?;
+    print_highlight(ret.lines(), width, &mut num, writer)?;
     writeln!(writer)?; // end match new line
                        //
     merger.conclude_match(&nm);
     ret = display.leading.to_string();
-    ret.push_str(&format!("{}", styles.matched.paint(&*display.matched)));
+    styles.push_matched_to_ret(&mut ret, &display.matched)?;
   }
   ret.push_str(merger.last_trailing);
   let lines = ret.lines().count();
   let mut num = merger.last_start_line;
   let width = (lines + num).to_string().chars().count();
   write!(writer, "{num:>width$}│")?; // initial line num
-  print_highlight(ret.lines(), Style::new(), width, &mut num, writer)?;
+  print_highlight(ret.lines(), width, &mut num, writer)?;
   writeln!(writer)?; // end match new line
-  writeln!(writer)?;
+  writeln!(writer)?; // end
   Ok(())
 }
 
@@ -337,7 +337,7 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
 
   let mut merger = MatchMerger::new(&first_match);
   let mut ret = display.leading.to_string();
-  ret.push_str(&format!("{}", styles.matched.paint(&*display.matched)));
+  styles.push_matched_to_ret(&mut ret, &display.matched)?;
   for nm in matches {
     if merger.check_overlapping(&nm) {
       continue;
@@ -345,7 +345,7 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
     // merge adjacent matches
     if let Some(last_end_offset) = merger.merge_adjacent(&nm) {
       ret.push_str(&source[last_end_offset..nm.range().start]);
-      ret.push_str(&format!("{}", styles.matched.paint(nm.text())));
+      styles.push_matched_to_ret(&mut ret, &display.matched)?;
       continue;
     }
     ret.push_str(merger.last_trailing);
@@ -356,7 +356,7 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
     merger.conclude_match(&nm);
     let display = nm.display_context(0);
     ret = display.leading.to_string();
-    ret.push_str(&format!("{}", styles.matched.paint(&*display.matched)));
+    styles.push_matched_to_ret(&mut ret, &display.matched)?;
   }
   ret.push_str(merger.last_trailing);
   for (n, line) in ret.lines().enumerate() {
@@ -397,19 +397,16 @@ fn print_diffs<'a, W: WriteColor>(
 
 fn print_highlight<'a, W: Write>(
   mut lines: impl Iterator<Item = &'a str>,
-  style: Style,
   width: usize,
   num: &mut usize,
   writer: &mut W,
 ) -> Result<()> {
   if let Some(line) = lines.next() {
-    let line = style.paint(line);
     write!(writer, "{line}")?;
   }
   for line in lines {
     writeln!(writer)?;
     *num += 1;
-    let line = style.paint(line);
     write!(writer, "{num:>width$}│{line}")?;
   }
   Ok(())
@@ -532,6 +529,22 @@ impl PrintStyles {
   }
   fn no_color() -> Self {
     Self::default()
+  }
+
+  fn push_matched_to_ret(&self, ret: &mut String, matched: &str) -> Result<()> {
+    use std::fmt::Write;
+    // TODO: use intersperse
+    let mut lines = matched.lines();
+    if let Some(line) = lines.next() {
+      write!(ret, "{}", self.matched.paint(line))?;
+    } else {
+      return Ok(());
+    }
+    for line in lines {
+      ret.push('\n');
+      write!(ret, "{}", self.matched.paint(line))?;
+    }
+    Ok(())
   }
 }
 impl From<ColorChoice> for PrintStyles {
