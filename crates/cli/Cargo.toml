@@ -4,6 +4,8 @@ description = "Search and Rewrite code at large scale using precise AST pattern"
 keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
 categories = ["command-line-utilities", "development-tools", "parsing"]
 default-run = "sg"
+# use relative path because maturin does not recognize
+readme = "../../README.md"
 
 version.workspace = true
 authors.workspace = true
@@ -13,7 +15,6 @@ documentation.workspace = true
 homepage.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-readme.workspace = true
 
 [[bin]]
 name = "sg"
