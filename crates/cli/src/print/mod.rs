@@ -44,10 +44,12 @@ pub trait Printer {
     path: &Path,
     rule: &RuleConfig<SgLang>,
   ) -> Result<()>;
+  /// Run before all printing. One CLI will run this exactly once.
   #[inline]
   fn before_print(&self) -> Result<()> {
     Ok(())
   }
+  /// Run after all printing. One CLI will run this exactly once.
   #[inline]
   fn after_print(&self) -> Result<()> {
     Ok(())

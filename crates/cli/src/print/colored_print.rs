@@ -321,6 +321,7 @@ fn print_matches_with_heading<'a, W: Write>(
   write!(writer, "{num:>width$}│")?; // initial line num
   print_highlight(ret.lines(), Style::new(), width, &mut num, writer)?;
   writeln!(writer)?; // end match new line
+  writeln!(writer)?;
   Ok(())
 }
 
