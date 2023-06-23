@@ -151,6 +151,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         env:
           CFLAGS: "-std=c99"
+          CXXFLAGS: "-lstdc++"
         with:
           target: ${{ matrix.target }}
           manylinux: auto
