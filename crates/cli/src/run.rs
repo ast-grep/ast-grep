@@ -210,10 +210,11 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
 }
 
 impl<P: Printer + Sync> StdinWorker for RunWithSpecificLang<P> {
-  fn parse_stdin(&self, src: String) -> Result<Self::Item> {
+  fn parse_stdin(&self, src: String) -> Option<Self::Item> {
     let lang = self.arg.lang.expect("must present");
     let grep = lang.ast_grep(src);
-    Ok(MatchUnit {
+    let has_match = grep.root().find(&self.pattern).is_some();
+    has_match.then(|| MatchUnit {
       path: PathBuf::from("STDIN"),
       matcher: self.pattern.clone(),
       grep,

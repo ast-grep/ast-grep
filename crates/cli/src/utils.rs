@@ -78,7 +78,7 @@ pub trait Worker: Sync {
 }
 
 pub trait StdinWorker: Worker {
-  fn parse_stdin(&self, src: String) -> Result<Self::Item>;
+  fn parse_stdin(&self, src: String) -> Option<Self::Item>;
 }
 
 pub struct Items<T>(mpsc::Receiver<T>);
@@ -117,8 +117,11 @@ fn filter_result(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
 
 pub fn run_std_in<MW: StdinWorker>(worker: MW) -> Result<()> {
   let source = std::io::read_to_string(std::io::stdin())?;
-  let item = worker.parse_stdin(source)?;
-  worker.consume_items(Items::once(item)?)
+  if let Some(item) = worker.parse_stdin(source) {
+    worker.consume_items(Items::once(item)?)
+  } else {
+    Ok(())
+  }
 }
 
 pub fn run_worker<MW: Worker>(worker: MW) -> Result<()> {
