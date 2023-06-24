@@ -1,16 +1,15 @@
-use std::sync::atomic::{AtomicBool, Ordering};
-
-use anyhow::{Context, Result};
-use ast_grep_config::RuleConfig;
-
 use super::{Diff, Printer};
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::utils;
 
+use anyhow::{Context, Result};
+use ast_grep_config::RuleConfig;
+use ast_grep_core::{NodeMatch as SgNodeMatch, StrDoc};
 pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
 
-use ast_grep_core::{NodeMatch as SgNodeMatch, StrDoc};
+use std::sync::atomic::{AtomicBool, Ordering};
+
 type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
 
 use std::borrow::Cow;
@@ -26,12 +25,15 @@ macro_rules! Diffs {
 
 pub struct InteractivePrinter<P: Printer> {
   accept_all: AtomicBool,
+  from_stdin: bool,
   inner: P,
 }
+
 impl<P: Printer> InteractivePrinter<P> {
   pub fn new(inner: P) -> Self {
     Self {
       accept_all: AtomicBool::new(false),
+      from_stdin: !atty::is(atty::Stream::Stdin),
       inner,
     }
   }
@@ -39,6 +41,26 @@ impl<P: Printer> InteractivePrinter<P> {
   pub fn accept_all(self, accept_all: bool) -> Self {
     self.accept_all.store(accept_all, Ordering::SeqCst);
     self
+  }
+
+  fn prompt_edit(&self) -> char {
+    const EDIT_PROMPT: &str = "Accept change? (Yes[y], No[n], Accept All[a], Quit[q], Edit[e])";
+    utils::prompt(EDIT_PROMPT, "ynaqe", Some('n')).expect("Error happened during prompt")
+  }
+
+  fn prompt_view(&self) -> char {
+    const VIEW_PROMPT: &str = "Next[enter], Quit[q], Edit[e]";
+    utils::prompt(VIEW_PROMPT, "qe", Some('\n')).expect("cannot fail")
+  }
+
+  fn rewrite_action(&self, diffs: Vec<Diff<'_>>, path: &PathBuf) -> Result<()> {
+    let new_content = apply_rewrite(diffs);
+    if self.from_stdin {
+      println!("{new_content}");
+      Ok(())
+    } else {
+      std::fs::write(path, new_content).with_context(|| EC::WriteFile(path.clone()))
+    }
   }
 }
 
@@ -57,7 +79,7 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
       };
       let file_path = PathBuf::from(file.name().to_string());
       self.inner.print_rule(matches.into_iter(), file, rule)?;
-      let resp = utils::prompt(VIEW_PROMPT, "qe", Some('\n')).expect("cannot fail");
+      let resp = self.prompt_view();
       if resp == 'q' {
         Err(anyhow::anyhow!("Exit interactive editing"))
       } else if resp == 'e' {
@@ -70,16 +92,16 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
   }
 
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {
-    utils::run_in_alternate_screen(|| print_matches_and_confirm_next(&self.inner, matches, path))
+    utils::run_in_alternate_screen(|| print_matches_and_confirm_next(self, matches, path))
   }
 
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
     let path = path.to_path_buf();
     if self.accept_all.load(Ordering::SeqCst) {
-      return rewrite_action(diffs.collect(), &path);
+      return self.rewrite_action(diffs.collect(), &path);
     }
     utils::run_in_alternate_screen(|| {
-      let all = print_diffs_and_prompt_action(&self.inner, &path, diffs, None)?;
+      let all = print_diffs_and_prompt_action(self, &path, diffs, None)?;
       if all {
         self.accept_all.store(true, Ordering::SeqCst);
       }
@@ -94,10 +116,10 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
   ) -> Result<()> {
     let path = path.to_path_buf();
     if self.accept_all.load(Ordering::SeqCst) {
-      return rewrite_action(diffs.collect(), &path);
+      return self.rewrite_action(diffs.collect(), &path);
     }
     utils::run_in_alternate_screen(|| {
-      let all = print_diffs_and_prompt_action(&self.inner, &path, diffs, Some(rule))?;
+      let all = print_diffs_and_prompt_action(self, &path, diffs, Some(rule))?;
       if all {
         self.accept_all.store(true, Ordering::SeqCst);
       }
@@ -106,21 +128,14 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
   }
 }
 
-const EDIT_PROMPT: &str = "Accept change? (Yes[y], No[n], Accept All[a], Quit[q], Edit[e])";
-const VIEW_PROMPT: &str = "Next[enter], Quit[q], Edit[e]";
-
-fn rewrite_action(diffs: Vec<Diff<'_>>, path: &PathBuf) -> Result<()> {
-  let new_content = apply_rewrite(diffs);
-  std::fs::write(path, new_content).with_context(|| EC::WriteFile(path.clone()))
-}
-
 /// returns if accept_all is chosen
 fn print_diffs_and_prompt_action<'a>(
-  printer: &impl Printer,
+  interactive: &InteractivePrinter<impl Printer>,
   path: &PathBuf,
   diffs: Diffs!('a),
   rule: Option<&RuleConfig<SgLang>>,
 ) -> Result<bool> {
+  let printer = &interactive.inner;
   let diffs: Vec<_> = diffs.collect();
   let first_match = match diffs.first() {
     Some(n) => n.node_match.start_pos().0,
@@ -131,15 +146,13 @@ fn print_diffs_and_prompt_action<'a>(
   } else {
     printer.print_diffs(diffs.clone().into_iter(), path)?;
   }
-  let response =
-    utils::prompt(EDIT_PROMPT, "ynaqe", Some('n')).expect("Error happened during prompt");
-  match response {
+  match interactive.prompt_edit() {
     'y' => {
-      rewrite_action(diffs, path)?;
+      interactive.rewrite_action(diffs, path)?;
       Ok(false)
     }
     'a' => {
-      rewrite_action(diffs, path)?;
+      interactive.rewrite_action(diffs, path)?;
       Ok(true)
     }
     'n' => Ok(false),
@@ -153,17 +166,18 @@ fn print_diffs_and_prompt_action<'a>(
 }
 
 fn print_matches_and_confirm_next<'a>(
-  printer: &impl Printer,
+  interactive: &InteractivePrinter<impl Printer>,
   matches: Matches!('a),
   path: &Path,
 ) -> Result<()> {
+  let printer = &interactive.inner;
   let matches: Vec<_> = matches.collect();
   let first_match = match matches.first() {
     Some(n) => n.start_pos().0,
     None => return Ok(()),
   };
   printer.print_matches(matches.into_iter(), path)?;
-  let resp = utils::prompt(VIEW_PROMPT, "qe", Some('\n')).expect("cannot fail");
+  let resp = interactive.prompt_view();
   if resp == 'q' {
     Err(anyhow::anyhow!("Exit interactive editing"))
   } else if resp == 'e' {

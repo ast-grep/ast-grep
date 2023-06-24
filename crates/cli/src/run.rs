@@ -214,7 +214,7 @@ impl<P: Printer + Sync> StdinWorker for RunWithSpecificLang<P> {
     let lang = self.arg.lang.expect("must present");
     let grep = lang.ast_grep(src);
     Ok(MatchUnit {
-      path: PathBuf::from("Standard Input"),
+      path: PathBuf::from("STDIN"),
       matcher: self.pattern.clone(),
       grep,
     })
