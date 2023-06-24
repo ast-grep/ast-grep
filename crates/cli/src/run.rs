@@ -248,6 +248,7 @@ mod test {
   use ast_grep_language::SupportLang;
   #[test]
   fn test_run_with_pattern() {
+    std::env::set_var("AST_GREP_ALWAYS_TTY", "1");
     let arg = RunArg {
       pattern: "console.log".to_string(),
       rewrite: None,
