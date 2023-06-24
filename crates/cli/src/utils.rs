@@ -214,9 +214,15 @@ pub struct MatchUnit<M: Matcher<SgLang>> {
   pub matcher: M,
 }
 
+#[inline]
 pub fn is_from_stdin() -> bool {
   // disable stdin if tty env presents or is_atty == true
-  env::var_os("AST_GREP_ALWAYS_TTY").is_none() && !atty::is(atty::Stream::Stdin)
+  // env is used for testing purpose only
+  if cfg!(debug_assertions) {
+    env::var_os("AST_GREP_ALWAYS_TTY").is_none() && !atty::is(atty::Stream::Stdin)
+  } else {
+    !atty::is(atty::Stream::Stdin)
+  }
 }
 
 #[cfg(test)]
