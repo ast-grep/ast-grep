@@ -11,6 +11,7 @@ use ignore::{DirEntry, WalkParallel, WalkState};
 use ast_grep_core::{AstGrep, Matcher, StrDoc};
 use ast_grep_language::Language;
 
+use std::env;
 use std::fs::read_to_string;
 use std::io::stdout;
 use std::io::Write;
@@ -211,6 +212,11 @@ pub struct MatchUnit<M: Matcher<SgLang>> {
   pub path: PathBuf,
   pub grep: AstGrep<StrDoc<SgLang>>,
   pub matcher: M,
+}
+
+pub fn is_from_stdin() -> bool {
+  // disable stdin if tty env presents or is_atty == true
+  env::var_os("AST_GREP_ALWAYS_TTY").is_none() && !atty::is(atty::Stream::Stdin)
 }
 
 #[cfg(test)]

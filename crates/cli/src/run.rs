@@ -14,7 +14,7 @@ use crate::lang::SgLang;
 use crate::print::{
   ColorArg, ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer,
 };
-use crate::utils::{filter_file_interactive, MatchUnit};
+use crate::utils::{filter_file_interactive, is_from_stdin, MatchUnit};
 use crate::utils::{run_std_in, StdInWorker};
 use crate::utils::{run_worker, Items, Worker};
 
@@ -96,7 +96,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
 }
 
 fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + Sync) -> Result<()> {
-  if !atty::is(atty::Stream::Stdin) {
+  if is_from_stdin() {
     run_std_in(RunWithSpecificLang::new(arg, printer)?)
   } else if arg.lang.is_some() {
     run_worker(RunWithSpecificLang::new(arg, printer)?)

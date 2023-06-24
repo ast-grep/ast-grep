@@ -31,7 +31,7 @@ pub struct InteractivePrinter<P: Printer> {
 
 impl<P: Printer> InteractivePrinter<P> {
   pub fn new(inner: P, accept_all: bool) -> Result<Self> {
-    let from_stdin = !atty::is(atty::Stream::Stdin);
+    let from_stdin = utils::is_from_stdin();
     if from_stdin && !accept_all {
       Err(anyhow::anyhow!(EC::StdInIsNotInteractive))
     } else {
