@@ -282,7 +282,7 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
 }
 
 fn is_valid_meta_var_char(c: char) -> bool {
-  matches!(c, 'A'..='Z' | '_')
+  matches!(c, 'A'..='Z' | '_' | '0'..='9')
 }
 
 impl<'tree, L: Language> From<MetaVarEnv<'tree, StrDoc<L>>> for HashMap<String, String> {
