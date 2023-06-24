@@ -281,7 +281,7 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
   }
 }
 
-fn is_valid_meta_var_char(c: char) -> bool {
+pub(crate) fn is_valid_meta_var_char(c: char) -> bool {
   matches!(c, 'A'..='Z' | '_' | '0'..='9')
 }
 
@@ -321,6 +321,7 @@ mod test {
     assert_eq!(extract_var("$$$"), Some(Ellipsis));
     assert_eq!(extract_var("$ABC"), Some(Named("ABC".into(), true)));
     assert_eq!(extract_var("$$ABC"), Some(Named("ABC".into(), false)));
+    assert_eq!(extract_var("$MATCH1"), Some(Named("MATCH1".into(), true)));
     assert_eq!(extract_var("$$$ABC"), Some(NamedEllipsis("ABC".into())));
     assert_eq!(extract_var("$_"), Some(Anonymous(true)));
     assert_eq!(extract_var("abc"), None);

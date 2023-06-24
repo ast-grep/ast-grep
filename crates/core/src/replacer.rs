@@ -1,5 +1,5 @@
 use crate::matcher::NodeMatch;
-use crate::meta_var::MetaVariableID;
+use crate::meta_var::{is_valid_meta_var_char, MetaVariableID};
 use crate::source::{Content, Edit as E};
 use crate::Pattern;
 use crate::{Doc, Node, Root};
@@ -84,7 +84,7 @@ fn split_first_meta_var<'a>(
   };
   // no Anonymous meta var allowed, so _ is not allowed
   let i = trimmed
-    .find(|c: char| !c.is_ascii_uppercase())
+    .find(|c: char| !is_valid_meta_var_char(c))
     .unwrap_or(trimmed.len());
   // no name found
   if i == 0 {
