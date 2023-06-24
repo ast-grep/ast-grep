@@ -34,7 +34,7 @@ ast-grep-lsp.workspace = true
 ansi_term = "0.12"
 anyhow = "1.0"
 atty = "0.2.14"
-clap = { version = "4.3.4", features = ["derive"] }
+clap = { version = "4.3.8", features = ["derive"] }
 codespan-reporting = "0.11.1"
 crossterm = "0.26.1"
 ignore.workspace = true
