@@ -32,6 +32,7 @@ pub enum ErrorContext {
   // Run
   ParsePattern,
   LanguageNotSpecified,
+  StdInIsNotInteractive,
   // Scan
   DiagnosticError(usize),
   // LSP
@@ -60,6 +61,7 @@ impl ErrorContext {
       TestFail(_) => 3,
       NoTestDirConfigured | NoUtilDirConfigured => 4,
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 5,
+      StdInIsNotInteractive => 6,
       ParseTest(_) | ParseRule(_) | ParseConfiguration | GlobPattern | ParsePattern => 8,
       ProjectAlreadyExist | FileAlreadyExist(_) => 17,
       InsufficientCLIArgument(_) => 22,
@@ -144,8 +146,13 @@ impl ErrorMessage {
         PATTERN_GUIDE,
       ),
       LanguageNotSpecified => Self::new(
-        "Language must be specified.",
-        "The argument `--language` is required to parse code from standard input.",
+        "Language must be specified for code from StdIn.",
+        "Please use `--language` to specify the code language.",
+        TOOL_OVERVIEW,
+      ),
+      StdInIsNotInteractive => Self::new(
+        "Interactive mode is incompatible with parsing code from StdIn.",
+        "`--interactive` needs StdIn, but it is used as source code. Please use files as input.",
         TOOL_OVERVIEW,
       ),
       StartLanguageServer => Self::new(

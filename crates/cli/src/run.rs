@@ -88,7 +88,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
   let printer = ColoredPrinter::stdout(arg.color).heading(arg.heading);
   let interactive = arg.interactive || arg.accept_all;
   if interactive {
-    let printer = InteractivePrinter::new(printer).accept_all(arg.accept_all);
+    let printer = InteractivePrinter::new(printer, arg.accept_all)?;
     run_pattern_with_printer(arg, printer)
   } else {
     run_pattern_with_printer(arg, printer)

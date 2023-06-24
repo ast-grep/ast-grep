@@ -30,17 +30,17 @@ pub struct InteractivePrinter<P: Printer> {
 }
 
 impl<P: Printer> InteractivePrinter<P> {
-  pub fn new(inner: P) -> Self {
-    Self {
-      accept_all: AtomicBool::new(false),
-      from_stdin: !atty::is(atty::Stream::Stdin),
-      inner,
+  pub fn new(inner: P, accept_all: bool) -> Result<Self> {
+    let from_stdin = !atty::is(atty::Stream::Stdin);
+    if from_stdin && !accept_all {
+      Err(anyhow::anyhow!(EC::StdInIsNotInteractive))
+    } else {
+      Ok(Self {
+        accept_all: AtomicBool::new(accept_all),
+        from_stdin,
+        inner,
+      })
     }
-  }
-
-  pub fn accept_all(self, accept_all: bool) -> Self {
-    self.accept_all.store(accept_all, Ordering::SeqCst);
-    self
   }
 
   fn prompt_edit(&self) -> char {
