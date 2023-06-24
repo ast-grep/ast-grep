@@ -35,6 +35,7 @@ pub enum ErrorContext {
   StdInIsNotInteractive,
   // Scan
   DiagnosticError(usize),
+  RuleNotSpecified,
   // LSP
   StartLanguageServer,
   // Edit
@@ -57,7 +58,7 @@ impl ErrorContext {
     // reference: https://mariadb.com/kb/en/operating-system-error-codes/
     match self {
       DiagnosticError(_) => 1,
-      ProjectNotExist | LanguageNotSpecified => 2,
+      ProjectNotExist | LanguageNotSpecified | RuleNotSpecified => 2,
       TestFail(_) => 3,
       NoTestDirConfigured | NoUtilDirConfigured => 4,
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 5,
@@ -153,6 +154,11 @@ impl ErrorMessage {
       StdInIsNotInteractive => Self::new(
         "Interactive mode is incompatible with parsing code from StdIn.",
         "`--interactive` needs StdIn, but it is used as source code. Please use files as input.",
+        TOOL_OVERVIEW,
+      ),
+      RuleNotSpecified => Self::new(
+        "Only one rule can scan code from StdIn.",
+        "Please use `--rule path/to/rule.yml` to choose the rule.",
         TOOL_OVERVIEW,
       ),
       StartLanguageServer => Self::new(

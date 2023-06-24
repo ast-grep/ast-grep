@@ -14,6 +14,7 @@ use crate::print::{
   ColorArg, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Printer, ReportStyle, SimpleFile,
 };
 use crate::utils::filter_file_interactive;
+use crate::utils::{is_from_stdin, run_std_in, StdInWorker};
 use crate::utils::{run_worker, Items, Worker};
 
 type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
@@ -45,7 +46,7 @@ pub struct ScanArg {
   json: bool,
 
   /// Apply all rewrite without confirmation if true.
-  #[clap(long)]
+  #[clap(short = 'A', long)]
   accept_all: bool,
 
   /// The paths to search. You can provide multiple paths separated by spaces.
@@ -60,15 +61,23 @@ pub struct ScanArg {
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
   register_custom_language(arg.config.clone());
   if arg.json {
-    let worker = ScanWithConfig::try_new(arg, JSONPrinter::stdout())?;
-    return run_worker(worker);
+    let printer = JSONPrinter::stdout();
+    return run_scan(arg, printer);
   }
   let printer = ColoredPrinter::stdout(arg.color).style(arg.report_style);
   let interactive = arg.interactive || arg.accept_all;
   if interactive {
     let printer = InteractivePrinter::new(printer, arg.accept_all)?;
-    let worker = ScanWithConfig::try_new(arg, printer)?;
-    run_worker(worker)
+    run_scan(arg, printer)
+  } else {
+    run_scan(arg, printer)
+  }
+}
+
+fn run_scan<P: Printer + Sync>(arg: ScanArg, printer: P) -> Result<()> {
+  if is_from_stdin() {
+    let worker = ScanWithRule::try_new(arg, printer)?;
+    run_std_in(worker)
   } else {
     let worker = ScanWithConfig::try_new(arg, printer)?;
     run_worker(worker)
@@ -142,6 +151,60 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
     } else {
       Ok(())
     }
+  }
+}
+
+struct ScanWithRule<Printer> {
+  printer: Printer,
+  rule: RuleConfig<SgLang>,
+}
+impl<P: Printer> ScanWithRule<P> {
+  fn try_new(arg: ScanArg, printer: P) -> Result<Self> {
+    let rule = if let Some(path) = &arg.rule {
+      read_rule_file(path, None)?.pop().unwrap()
+    } else {
+      return Err(anyhow::anyhow!(EC::RuleNotSpecified));
+    };
+    Ok(Self { printer, rule })
+  }
+}
+
+impl<P: Printer + Sync> Worker for ScanWithRule<P> {
+  type Item = (PathBuf, AstGrep);
+  fn build_walk(&self) -> WalkParallel {
+    unreachable!()
+  }
+  fn produce_item(&self, _p: &Path) -> Option<Self::Item> {
+    unreachable!()
+  }
+  fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
+    self.printer.before_print()?;
+    let mut has_error = 0;
+    for (path, grep) in items {
+      let file_content = grep.root().text().to_string();
+      let rule = &self.rule;
+      let matches = grep.root().find_all(&rule.matcher).collect();
+      if matches!(rule.severity, Severity::Error) {
+        has_error += 1;
+      }
+      match_rule_on_file(&path, matches, rule, &file_content, &self.printer)?;
+    }
+    self.printer.after_print()?;
+    if has_error > 0 {
+      Err(anyhow::anyhow!(EC::DiagnosticError(has_error)))
+    } else {
+      Ok(())
+    }
+  }
+}
+
+impl<P: Printer + Sync> StdInWorker for ScanWithRule<P> {
+  fn parse_stdin(&self, src: String) -> Option<Self::Item> {
+    use ast_grep_core::Language;
+    let lang = self.rule.language;
+    let grep = lang.ast_grep(src);
+    let has_match = grep.root().find(&self.rule.matcher).is_some();
+    has_match.then(|| (PathBuf::from("STDIN"), grep))
   }
 }
 
