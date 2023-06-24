@@ -330,6 +330,7 @@ rule:
       .write_all("fn test() { Some(123) }".as_bytes())
       .unwrap();
     file.sync_all().unwrap();
+    std::env::set_var("AST_GREP_ALWAYS_TTY", "1");
     let arg = ScanArg {
       config: Some(dir.path().join("sgconfig.yml")),
       rule: None,
