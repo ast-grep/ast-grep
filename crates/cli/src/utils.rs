@@ -77,7 +77,7 @@ pub trait Worker: Sync {
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()>;
 }
 
-pub trait StdinWorker: Worker {
+pub trait StdInWorker: Worker {
   fn parse_stdin(&self, src: String) -> Option<Self::Item>;
 }
 
@@ -115,7 +115,7 @@ fn filter_result(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
   entry.file_type()?.is_file().then(|| entry.into_path())
 }
 
-pub fn run_std_in<MW: StdinWorker>(worker: MW) -> Result<()> {
+pub fn run_std_in<MW: StdInWorker>(worker: MW) -> Result<()> {
   let source = std::io::read_to_string(std::io::stdin())?;
   if let Some(item) = worker.parse_stdin(source) {
     worker.consume_items(Items::once(item)?)

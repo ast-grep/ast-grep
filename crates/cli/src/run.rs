@@ -15,7 +15,7 @@ use crate::print::{
   ColorArg, ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer,
 };
 use crate::utils::{filter_file_interactive, MatchUnit};
-use crate::utils::{run_std_in, StdinWorker};
+use crate::utils::{run_std_in, StdInWorker};
 use crate::utils::{run_worker, Items, Worker};
 
 type Pattern<L> = SgPattern<StrDoc<L>>;
@@ -209,7 +209,7 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
   }
 }
 
-impl<P: Printer + Sync> StdinWorker for RunWithSpecificLang<P> {
+impl<P: Printer + Sync> StdInWorker for RunWithSpecificLang<P> {
   fn parse_stdin(&self, src: String) -> Option<Self::Item> {
     let lang = self.arg.lang.expect("must present");
     let grep = lang.ast_grep(src);
