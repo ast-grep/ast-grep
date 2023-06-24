@@ -77,6 +77,10 @@ pub trait Worker: Sync {
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()>;
 }
 
+pub trait StdinWorker: Worker {
+  fn parse_stdin(&self, src: String) -> Result<Self::Item>;
+}
+
 pub struct Items<T>(mpsc::Receiver<T>);
 impl<T> Iterator for Items<T> {
   type Item = T;
@@ -86,6 +90,17 @@ impl<T> Iterator for Items<T> {
     } else {
       None
     }
+  }
+}
+impl<T> Items<T> {
+  pub fn once(t: T) -> Result<Self> {
+    let (tx, rx) = mpsc::channel();
+    // use write to avoid send/sync trait bound
+    match tx.send(t) {
+      Ok(_) => (),
+      Err(e) => return Err(anyhow!(e.to_string())),
+    };
+    Ok(Items(rx))
   }
 }
 
@@ -98,6 +113,12 @@ fn filter_result(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
     }
   };
   entry.file_type()?.is_file().then(|| entry.into_path())
+}
+
+pub fn run_std_in<MW: StdinWorker>(worker: MW) -> Result<()> {
+  let source = std::io::read_to_string(std::io::stdin())?;
+  let item = worker.parse_stdin(source)?;
+  worker.consume_items(Items::once(item)?)
 }
 
 pub fn run_worker<MW: Worker>(worker: MW) -> Result<()> {

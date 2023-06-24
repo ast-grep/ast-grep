@@ -9,6 +9,7 @@ use crate::utils::ansi_link;
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const PATTERN_GUIDE: Option<&str> = Some("/guide/pattern-syntax.html");
 const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
+const TOOL_OVERVIEW: Option<&str> = Some("/guide/tooling-overview.html");
 const CLI_USAGE: Option<&str> = Some("/reference/cli.html");
 const TEST_GUIDE: Option<&str> = Some("/guide/test-rule.html");
 const UTIL_GUIDE: Option<&str> = Some("/guide/rule-config/utility-rule.html");
@@ -30,6 +31,7 @@ pub enum ErrorContext {
   GlobPattern,
   // Run
   ParsePattern,
+  LanguageNotSpecified,
   // Scan
   DiagnosticError(usize),
   // LSP
@@ -54,7 +56,7 @@ impl ErrorContext {
     // reference: https://mariadb.com/kb/en/operating-system-error-codes/
     match self {
       DiagnosticError(_) => 1,
-      ProjectNotExist => 2,
+      ProjectNotExist | LanguageNotSpecified => 2,
       TestFail(_) => 3,
       NoTestDirConfigured | NoUtilDirConfigured => 4,
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 5,
@@ -137,9 +139,14 @@ impl ErrorMessage {
         None,
       ),
       ParsePattern => Self::new(
-        "Cannot parse query as a valid pattern",
+        "Cannot parse query as a valid pattern.",
         "The pattern either fails to parse or contains error. Please refer to pattern syntax guide.",
         PATTERN_GUIDE,
+      ),
+      LanguageNotSpecified => Self::new(
+        "Language must be specified.",
+        "The argument `--language` is required to parse code from standard input.",
+        TOOL_OVERVIEW,
       ),
       StartLanguageServer => Self::new(
         "Cannot start language server.",

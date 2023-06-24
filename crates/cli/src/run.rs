@@ -15,6 +15,7 @@ use crate::print::{
   ColorArg, ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer,
 };
 use crate::utils::{filter_file_interactive, MatchUnit};
+use crate::utils::{run_std_in, StdinWorker};
 use crate::utils::{run_worker, Items, Worker};
 
 type Pattern<L> = SgPattern<StrDoc<L>>;
@@ -95,7 +96,9 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
 }
 
 fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + Sync) -> Result<()> {
-  if arg.lang.is_some() {
+  if !atty::is(atty::Stream::Stdin) {
+    run_std_in(RunWithSpecificLang::new(arg, printer)?)
+  } else if arg.lang.is_some() {
     run_worker(RunWithSpecificLang::new(arg, printer)?)
   } else {
     run_worker(RunWithInferredLang { arg, printer })
@@ -157,7 +160,7 @@ struct RunWithSpecificLang<Printer> {
 impl<Printer> RunWithSpecificLang<Printer> {
   fn new(arg: RunArg, printer: Printer) -> Result<Self> {
     let pattern = &arg.pattern;
-    let lang = arg.lang.expect("must present");
+    let lang = arg.lang.ok_or(anyhow::anyhow!(EC::LanguageNotSpecified))?;
     let pattern = Pattern::try_new(pattern, lang).context(EC::ParsePattern)?;
     Ok(Self {
       arg,
@@ -203,6 +206,18 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
     }
     printer.after_print()?;
     Ok(())
+  }
+}
+
+impl<P: Printer + Sync> StdinWorker for RunWithSpecificLang<P> {
+  fn parse_stdin(&self, src: String) -> Result<Self::Item> {
+    let lang = self.arg.lang.expect("must present");
+    let grep = lang.ast_grep(src);
+    Ok(MatchUnit {
+      path: PathBuf::from("Standard Input"),
+      matcher: self.pattern.clone(),
+      grep,
+    })
   }
 }
 
