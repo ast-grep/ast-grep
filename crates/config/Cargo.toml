@@ -21,7 +21,7 @@ bit-set.workspace = true
 globset = "0.4.10"
 regex = { workspace = true, optional = true }
 serde.workspace = true
-serde_yaml = "0.9.21"
+serde_yaml = "0.9.22"
 thiserror.workspace = true
 
 [dev-dependencies]
