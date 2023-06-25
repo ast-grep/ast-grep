@@ -6,6 +6,7 @@ categories = ["command-line-utilities", "development-tools", "parsing"]
 default-run = "sg"
 # use relative path because maturin does not recognize
 readme = "../../README.md"
+license-file = "../../LICENSE"
 
 version.workspace = true
 authors.workspace = true
