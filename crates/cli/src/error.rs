@@ -148,7 +148,7 @@ impl ErrorMessage {
       ),
       LanguageNotSpecified => Self::new(
         "Language must be specified for code from StdIn.",
-        "Please use `--language` to specify the code language.",
+        "Please use `--lang` to specify the code language.",
         TOOL_OVERVIEW,
       ),
       StdInIsNotInteractive => Self::new(
