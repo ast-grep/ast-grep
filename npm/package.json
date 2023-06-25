@@ -23,7 +23,7 @@
     "@ast-grep/cli-win32-arm64-msvc": "0.7.0",
     "@ast-grep/cli-win32-ia32-msvc": "0.7.0",
     "@ast-grep/cli-win32-x64-msvc": "0.7.0",
-    "@ast-grep/cli-darwin-arm64": "0.7.0",
+    "@ast-grep/cli-darwin-arm64": "0.6.7",
     "@ast-grep/cli-darwin-x64": "0.7.0",
     "@ast-grep/cli-linux-arm64-gnu": "0.7.0",
     "@ast-grep/cli-linux-x64-gnu": "0.7.0"
