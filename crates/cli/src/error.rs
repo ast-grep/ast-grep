@@ -9,7 +9,7 @@ use crate::utils::ansi_link;
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const PATTERN_GUIDE: Option<&str> = Some("/guide/pattern-syntax.html");
 const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
-const TOOL_OVERVIEW: Option<&str> = Some("/guide/tooling-overview.html");
+const TOOL_OVERVIEW: Option<&str> = Some("/guide/tooling-overview.html#parse-code-from-stdin");
 const CLI_USAGE: Option<&str> = Some("/reference/cli.html");
 const TEST_GUIDE: Option<&str> = Some("/guide/test-rule.html");
 const UTIL_GUIDE: Option<&str> = Some("/guide/rule-config/utility-rule.html");
