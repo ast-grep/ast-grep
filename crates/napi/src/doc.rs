@@ -76,10 +76,10 @@ impl Content for Wrapper {
     let old_end_byte = edit.position + edit.deleted_length;
     let new_end_byte = edit.position + edit.inserted_text.len() * 2;
     let input = &mut self.inner;
-    let start_position = pos_for_byte_offset(&input, start_byte);
-    let old_end_position = pos_for_byte_offset(&input, old_end_byte);
+    let start_position = pos_for_byte_offset(input, start_byte);
+    let old_end_position = pos_for_byte_offset(input, old_end_byte);
     input.splice(start_byte / 2..old_end_byte / 2, edit.inserted_text.clone());
-    let new_end_position = pos_for_byte_offset(&input, new_end_byte);
+    let new_end_position = pos_for_byte_offset(input, new_end_byte);
     InputEdit::new(
       start_byte as u32,
       old_end_byte as u32,
