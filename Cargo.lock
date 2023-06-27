@@ -192,6 +192,7 @@ dependencies = [
  "tree-sitter-lua",
  "tree-sitter-python",
  "tree-sitter-rust",
+ "tree-sitter-scala",
  "tree-sitter-swift",
  "tree-sitter-thrift",
  "tree-sitter-typescript",
@@ -1919,6 +1920,16 @@ name = "tree-sitter-rust"
 version = "0.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "797842733e252dc11ae5d403a18060bf337b822fc2ae5ddfaa6ff4d9cc20bda6"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
+name = "tree-sitter-scala"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e1f1de7a274c95937c40bc75dcaee97b5f23107ffcc78fc99a7b982d4f745ef"
 dependencies = [
  "cc",
  "tree-sitter",

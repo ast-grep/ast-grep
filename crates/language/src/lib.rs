@@ -5,6 +5,7 @@ mod go;
 mod parsers;
 mod python;
 mod rust;
+mod scala;
 use ignore::types::{Types, TypesBuilder};
 use std::borrow::Cow;
 use std::fmt;
@@ -36,6 +37,7 @@ impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
 impl_lang!(Kotlin, language_kotlin);
 impl_lang!(Lua, language_lua);
+impl_lang!(Scala, language_scala);
 impl_lang!(Swift, language_swift);
 impl_lang!(Thrift, language_thrift);
 impl_lang!(Tsx, language_tsx);
@@ -64,6 +66,7 @@ pub enum SupportLang {
   Lua,
   Python,
   Rust,
+  Scala,
   Swift,
   Thrift,
   Tsx,
@@ -74,8 +77,8 @@ impl SupportLang {
   pub fn all_langs() -> Vec<SupportLang> {
     use SupportLang::*;
     vec![
-      C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Kotlin, Lua, Python, Rust, Swift,
-      Thrift, Tsx, TypeScript,
+      C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Kotlin, Lua, Python, Rust, Scala,
+      Swift, Thrift, Tsx, TypeScript,
     ]
   }
 
@@ -124,6 +127,7 @@ impl FromStr for SupportLang {
       "lua" => Ok(Lua),
       "py" | "python" => Ok(Python),
       "rs" | "rust" => Ok(Rust),
+      "scala" => Ok(Scala),
       "swift" => Ok(Swift),
       "thrift" => Ok(Thrift),
       "ts" => Ok(TypeScript),
@@ -150,6 +154,7 @@ macro_rules! execute_lang_method {
       S::Lua => Lua.$method($($pname,)*),
       S::Python => Python.$method($($pname,)*),
       S::Rust => Rust.$method($($pname,)*),
+      S::Scala => Scala.$method($($pname,)*),
       S::Swift => Swift.$method($($pname,)*),
       S::Thrift => Thrift.$method($($pname,)*),
       S::Tsx => Tsx.$method($($pname,)*),
@@ -200,6 +205,7 @@ fn from_extension(path: &Path) -> Option<SupportLang> {
     "lua" => Some(Lua),
     "py" | "py3" | "pyi" | "bzl" => Some(Python),
     "rs" => Some(Rust),
+    "scala" | "sc" | "sbt" => Some(Scala),
     "swift" => Some(Swift),
     "thrift" => Some(Thrift),
     "ts" | "cts" | "mts" => Some(TypeScript),
@@ -241,6 +247,7 @@ fn file_types(lang: &SupportLang) -> Types {
     L::Lua => builder.select("lua"),
     L::Python => builder.select("py"),
     L::Rust => builder.select("rust"),
+    L::Scala => builder.select("scala"),
     L::Swift => builder.select("swift"),
     L::Thrift => builder.select("thrift"),
     L::Tsx => {

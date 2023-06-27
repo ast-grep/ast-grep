@@ -46,6 +46,9 @@ mod parser_implmentation {
   pub fn language_rust() -> TSLanguage {
     tree_sitter_rust::language().into()
   }
+  pub fn language_scala() -> TSLanguage {
+    tree_sitter_scala::language().into()
+  }
   pub fn language_swift() -> TSLanguage {
     tree_sitter_swift::language().into()
   }
@@ -93,6 +96,7 @@ mod parser_implmentation {
     language_lua,
     language_python,
     language_rust,
+    language_scala,
     language_swift,
     language_thrift,
     language_tsx,
