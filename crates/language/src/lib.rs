@@ -1,3 +1,10 @@
+//! This module defines the supported programming languages for ast-grep.
+//! It provides a set of customized languages with expando_char / pre_process_pattern,
+//! and a set of stub languages without preprocessing.
+//! A rule of thumb: if your language does not accept identifiers like `$VAR`.
+//! You need to create a standalone file and implement expando_char / pre_process_pattern.
+//! Otherwise, you can define it as a stub language using `impl_lang!`.
+
 mod cpp;
 mod csharp;
 mod css;
@@ -6,17 +13,18 @@ mod parsers;
 mod python;
 mod rust;
 mod scala;
+
+use ast_grep_core::language::TSLanguage;
+use ast_grep_core::meta_var::MetaVariable;
 use ignore::types::{Types, TypesBuilder};
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt;
+use std::fmt::{Display, Formatter};
 use std::path::Path;
+use std::str::FromStr;
 
-pub use cpp::Cpp;
-pub use csharp::CSharp;
-pub use css::Css;
-pub use go::Go;
-pub use python::Python;
-pub use rust::Rust;
+pub use ast_grep_core::Language;
 
 macro_rules! impl_lang {
   ($lang: ident, $func: ident) => {
@@ -30,6 +38,16 @@ macro_rules! impl_lang {
   };
 }
 
+// Customized Language with expando_char / pre_process_pattern
+pub use cpp::Cpp;
+pub use csharp::CSharp;
+pub use css::Css;
+pub use go::Go;
+pub use python::Python;
+pub use rust::Rust;
+pub use scala::Scala;
+
+// Stub Language without preprocessing
 impl_lang!(C, language_c);
 impl_lang!(Dart, language_dart);
 impl_lang!(Html, language_html);
@@ -37,20 +55,12 @@ impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
 impl_lang!(Kotlin, language_kotlin);
 impl_lang!(Lua, language_lua);
-impl_lang!(Scala, language_scala);
 impl_lang!(Swift, language_swift);
 impl_lang!(Thrift, language_thrift);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
 
-use ast_grep_core::language::TSLanguage;
-use ast_grep_core::meta_var::MetaVariable;
-pub use ast_grep_core::Language;
-use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
-use std::str::FromStr;
-
-/// represents a dynamic language
+/// Represents all built-in languages.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum SupportLang {
   C,
@@ -109,6 +119,7 @@ impl Display for SupportLangErr {
 
 impl std::error::Error for SupportLangErr {}
 
+/// Implements the language names and aliases.
 impl FromStr for SupportLang {
   type Err = SupportLangErr;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -189,6 +200,7 @@ impl Language for SupportLang {
 
 /// Guess which programming language a file is written in
 /// Adapt from `<https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs>`
+/// N.B do not confuse it with `FromStr` trait. This function is to guess language from file extension.
 fn from_extension(path: &Path) -> Option<SupportLang> {
   use SupportLang::*;
   match path.extension()?.to_str()? {

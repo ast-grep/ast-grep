@@ -1,6 +1,9 @@
+//! Standalone Scala file to test syntax.
+//! Scala does not need special processing and can be a stub lang.
+//! But this file is created for testing Scala2 and Scala3.
+
 use crate::parsers::language_scala;
 use ast_grep_core::language::{Language, TSLanguage};
-use std::borrow::Cow;
 
 #[derive(Clone, Copy)]
 pub struct Scala;
@@ -8,18 +11,8 @@ impl Language for Scala {
   fn get_ts_language(&self) -> TSLanguage {
     language_scala()
   }
-
-  fn expando_char(&self) -> char {
-    'µ'
-  }
-  fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
-    // use stack buffer to reduce allocation
-    let mut buf = [0; 4];
-    let expando = self.expando_char().encode_utf8(&mut buf);
-    // TODO: use more precise replacement
-    let replaced = query.replace(self.meta_var_char(), expando);
-    Cow::Owned(replaced)
-  }
+  // no need to configure expando_char
+  // nor pre_process_pattern
 }
 
 #[cfg(test)]

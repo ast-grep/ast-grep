@@ -1,6 +1,7 @@
 //! This mod maintains a list of tree-sitter parsers crate.
 //! When feature flag `builtin-parser` is on, this mod will import all dependent crates.
-//! However, tree-sitter bs cannot be compiled by wasm-pack. In this case, we can use a blank implementation by turning feature flag off.
+//! However, tree-sitter bs cannot be compiled by wasm-pack.
+//! In this case, we can use a blank implementation by turning feature flag off.
 //! And use other implementation.
 
 #[cfg(feature = "builtin-parser")]
