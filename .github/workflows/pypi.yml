@@ -61,7 +61,7 @@ jobs:
       - name: "Build wheels - x86_64"
         uses: PyO3/maturin-action@v1
         env:
-          CXX: "/usr/bin/clang++" # Switch to Clang 10
+          CXXFLAGS: "-stdlib=libc++"
         with:
           target: x86_64
           args: --release --out dist
@@ -90,7 +90,7 @@ jobs:
       - name: "Build wheels - universal2"
         uses: PyO3/maturin-action@v1
         env:
-          CXX: "/usr/bin/clang++" # Switch to Clang 10
+          CXXFLAGS: "-stdlib=libc++"
         with:
           args: --release --target universal2-apple-darwin --out dist
       - name: "Test wheel - universal2"
