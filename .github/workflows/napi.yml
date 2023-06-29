@@ -4,10 +4,10 @@ env:
   APP_NAME: ast-grep-napi
   MACOSX_DEPLOYMENT_TARGET: '10.13'
 on:
+  workflow_dispatch: null
   push:
     tags:
       - "[0-9]+.*"
-  workflow_dispatch: null
   schedule:
     # run napi every day 9 am
     - cron: '0 9 * * *'
