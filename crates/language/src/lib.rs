@@ -17,7 +17,7 @@ mod scala;
 use ast_grep_core::language::TSLanguage;
 use ast_grep_core::meta_var::MetaVariable;
 use ignore::types::{Types, TypesBuilder};
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize};
 use std::borrow::Cow;
 use std::fmt;
 use std::fmt::{Display, Formatter};
@@ -61,7 +61,7 @@ impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
 
 /// Represents all built-in languages.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
 pub enum SupportLang {
   C,
   Cpp,
@@ -119,12 +119,22 @@ impl Display for SupportLangErr {
 
 impl std::error::Error for SupportLangErr {}
 
+impl<'de> Deserialize<'de> for SupportLang {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where D: Deserializer<'de>
+  {
+    let s = String::deserialize(deserializer)?;
+    FromStr::from_str(&s).map_err(de::Error::custom)
+  }
+}
+
 /// Implements the language names and aliases.
 impl FromStr for SupportLang {
   type Err = SupportLangErr;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     use SupportLang::*;
-    match s {
+    let normalized = s.to_lowercase();
+    match normalized.as_str() {
       "c" => Ok(C),
       "cc" | "c++" | "cpp" | "cxx" => Ok(Cpp),
       "cs" | "csharp" => Ok(CSharp),
@@ -133,15 +143,15 @@ impl FromStr for SupportLang {
       "go" | "golang" => Ok(Go),
       "html" => Ok(Html),
       "java" => Ok(Java),
-      "js" | "jsx" => Ok(JavaScript),
-      "kt" | "ktm" | "kts" => Ok(Kotlin),
+      "javascript" | "js" | "jsx" => Ok(JavaScript),
+      "kotlin" | "kt" | "ktm" | "kts" => Ok(Kotlin),
       "lua" => Ok(Lua),
       "py" | "python" => Ok(Python),
       "rs" | "rust" => Ok(Rust),
       "scala" => Ok(Scala),
       "swift" => Ok(Swift),
       "thrift" => Ok(Thrift),
-      "ts" => Ok(TypeScript),
+      "ts" | "typescript" => Ok(TypeScript),
       "tsx" => Ok(Tsx),
       _ => Err(SupportLangErr::LanguageNotSupported(s.to_string())),
     }
