@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       need_release:
-        description: "If false, this execution will be a dry run (no uploads)."
+        description: "Select this for publish. If not selected, it will be a dry run (no uploads)."
         type: boolean
   push:
     tags:
