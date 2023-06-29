@@ -5,6 +5,9 @@ on:
   push:
     tags:
       - "[0-9]+.*"
+  schedule:
+    # run pypi every day 9 am
+    - cron: '0 9 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -51,14 +54,14 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: x64
       # https://github.com/actions/runner-images/issues/658#issuecomment-611921753
-      - name: Update clang
-        run: |
-          brew update
-          brew install llvm # temporary step because macOS image still contains Clang 9 by default
+      # - name: Update clang
+      #   run: |
+      #     brew update
+      #     brew install llvm # temporary step because macOS image still contains Clang 9 by default
       - name: "Build wheels - x86_64"
         uses: PyO3/maturin-action@v1
         env:
-          CXX: "/usr/local/opt/llvm/bin/clang++" # Switch to Clang 10
+          CXX: "/usr/bin/clang++" # Switch to Clang 10
         with:
           target: x86_64
           args: --release --out dist
@@ -80,14 +83,14 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: x64
-      - name: Update clang
-        run: |
-          brew update
-          brew install llvm # temporary step because macOS image still contains Clang 9 by default
+      # - name: Update clang
+      #   run: |
+      #     brew update
+      #     brew install llvm # temporary step because macOS image still contains Clang 9 by default
       - name: "Build wheels - universal2"
         uses: PyO3/maturin-action@v1
         env:
-          CXX: "/usr/local/opt/llvm/bin/clang++" # Switch to Clang 10
+          CXX: "/usr/bin/clang++" # Switch to Clang 10
         with:
           args: --release --target universal2-apple-darwin --out dist
       - name: "Test wheel - universal2"
