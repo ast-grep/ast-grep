@@ -2,8 +2,8 @@ name: "PyPi Release"
 
 on:
   workflow_dispatch:
-    need_release:
-      tag:
+    inputs:
+      need_release:
         description: "If false, this execution will be a dry run (no uploads)."
         type: boolean
   push:
@@ -177,8 +177,8 @@ jobs:
       - windows
       - linux
         # - linux-cross I would want to support linux-cross but it is too hard for me to compile c projects for tree-sitter-languages
-    # If you don't set an input tag, it's a dry run (no uploads).
-    if: "startsWith(github.event.ref, 'refs/tags') || inputs.tag"
+    # If you don't set release flag, it's a dry run (no uploads).
+    if: "startsWith(github.event.ref, 'refs/tags') || inputs.need_release"
     environment:
       name: release
     permissions:
