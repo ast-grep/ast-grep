@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -14,6 +14,7 @@ use std::str::FromStr;
 #[serde(rename_all = "camelCase")]
 pub struct CustomLang {
   library_path: PathBuf,
+  /// the dylib symbol to load ts-language, default is tree-sitter-{name}
   language_symbol: Option<String>,
   meta_var_char: Option<char>,
   expando_char: Option<char>,
@@ -43,6 +44,21 @@ impl SgLang {
       .collect();
     // TODO, add error handling
     unsafe { DynamicLang::register(registrations).expect("TODO") }
+  }
+
+  pub fn all_langs() -> Vec<Self> {
+    let builtin = SupportLang::all_langs().into_iter().map(Self::Builtin);
+    let customs = DynamicLang::all_langs().into_iter().map(Self::Custom);
+    builtin.chain(customs).collect()
+  }
+}
+
+impl Debug for SgLang {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Builtin(b) => write!(f, "{}", b),
+      Custom(c) => write!(f, "{}", c.name()),
+    }
   }
 }
 

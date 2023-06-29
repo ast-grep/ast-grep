@@ -28,6 +28,14 @@ pub fn register_custom_language_if_is_run(args: &[String]) {
   }
 }
 
+// TODO: add long_help
+fn lang_help() -> String {
+  format!(
+    "The language of the pattern. Supported languages are:\n{:?}",
+    SgLang::all_langs()
+  )
+}
+
 #[derive(Parser)]
 pub struct RunArg {
   /// AST pattern to match.
@@ -43,7 +51,7 @@ pub struct RunArg {
   debug_query: bool,
 
   /// The language of the pattern query.
-  #[clap(short, long)]
+  #[clap(short, long, help(lang_help()))]
   lang: Option<SgLang>,
 
   /// Start interactive edit session. Code rewrite only happens inside a session.

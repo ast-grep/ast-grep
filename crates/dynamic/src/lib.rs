@@ -23,8 +23,15 @@ pub struct DynamicLang {
 }
 
 impl DynamicLang {
-  pub fn all_langs() -> Vec<String> {
-    Self::langs().iter().map(|i| i.name.clone()).collect()
+  pub fn all_langs() -> Vec<Self> {
+    Self::langs()
+      .iter()
+      .enumerate()
+      .map(|(index, inner)| DynamicLang {
+        index: index as LangIndex,
+        expando: inner.expando_char,
+      })
+      .collect()
   }
   pub fn file_types(&self) -> Types {
     let mut builder = TypesBuilder::new();
@@ -65,7 +72,7 @@ impl<'de> Deserialize<'de> for DynamicLang {
 impl FromStr for DynamicLang {
   type Err = String;
   fn from_str(name: &str) -> Result<Self, Self::Err> {
-    let langs = unsafe { &DYNAMIC_LANG };
+    let langs = Self::langs();
     for (i, lang) in langs.iter().enumerate() {
       if lang.name == name {
         return Ok(DynamicLang {
@@ -152,6 +159,10 @@ impl DynamicLang {
     _ = std::mem::replace(&mut DYNAMIC_LANG, langs);
     _ = std::mem::replace(&mut LANG_INDEX, mapping);
     Ok(())
+  }
+
+  pub fn name(&self) -> &str {
+    &self.inner().name
   }
 
   fn register_one(

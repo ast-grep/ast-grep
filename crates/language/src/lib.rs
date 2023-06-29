@@ -121,7 +121,8 @@ impl std::error::Error for SupportLangErr {}
 
 impl<'de> Deserialize<'de> for SupportLang {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where D: Deserializer<'de>
+  where
+    D: Deserializer<'de>,
   {
     let s = String::deserialize(deserializer)?;
     FromStr::from_str(&s).map_err(de::Error::custom)
