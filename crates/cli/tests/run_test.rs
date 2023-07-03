@@ -10,7 +10,7 @@ use predicates::str::contains;
 fn test_simple_infer_lang() -> Result<()> {
   let dir = create_test_files([("a.ts", "console.log(123)"), ("b.rs", "console.log(456)")])?;
   Command::cargo_bin("sg")?
-    .env("AST_GREP_ALWAYS_TTY", "1")
+    .env("AST_GREP_NO_STDIN", "1")
     .current_dir(dir.path())
     .args(["-p", "console.log($A)"])
     .assert()
@@ -24,7 +24,7 @@ fn test_simple_infer_lang() -> Result<()> {
 fn test_simple_specific_lang() -> Result<()> {
   let dir = create_test_files([("a.ts", "console.log(123)"), ("b.rs", "console.log(456)")])?;
   Command::cargo_bin("sg")?
-    .env("AST_GREP_ALWAYS_TTY", "1")
+    .env("AST_GREP_NO_STDIN", "1")
     .current_dir(dir.path())
     .args(["-p", "console.log($A)", "-l", "rs"])
     .assert()

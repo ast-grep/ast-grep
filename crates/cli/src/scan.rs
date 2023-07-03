@@ -56,6 +56,13 @@ pub struct ScanArg {
   /// Do not respect ignore files. You can suppress multiple ignore files by passing `no-ignore` multiple times.
   #[clap(long, action = clap::ArgAction::Append)]
   no_ignore: Vec<IgnoreFile>,
+
+  /// Disable search code from StdIn.
+  ///
+  /// Use this if you need search files but ast-grep is launched from another process.
+  /// You can also use the environment variable `AST_GREP_NO_STDIN` to disable StdIn mode.
+  #[clap(long)]
+  no_stdin: bool,
 }
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
@@ -67,7 +74,8 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
   let printer = ColoredPrinter::stdout(arg.color).style(arg.report_style);
   let interactive = arg.interactive || arg.accept_all;
   if interactive {
-    let printer = InteractivePrinter::new(printer, arg.accept_all)?;
+    let from_stdin = !arg.no_stdin && is_from_stdin();
+    let printer = InteractivePrinter::new(printer, arg.accept_all, from_stdin)?;
     run_scan(arg, printer)
   } else {
     run_scan(arg, printer)
@@ -75,7 +83,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
 }
 
 fn run_scan<P: Printer + Sync>(arg: ScanArg, printer: P) -> Result<()> {
-  if is_from_stdin() {
+  if !arg.no_stdin && is_from_stdin() {
     let worker = ScanWithRule::try_new(arg, printer)?;
     run_std_in(worker)
   } else {
@@ -330,7 +338,6 @@ rule:
       .write_all("fn test() { Some(123) }".as_bytes())
       .unwrap();
     file.sync_all().unwrap();
-    std::env::set_var("AST_GREP_ALWAYS_TTY", "1");
     let arg = ScanArg {
       config: Some(dir.path().join("sgconfig.yml")),
       rule: None,
@@ -341,6 +348,7 @@ rule:
       json: false,
       accept_all: false,
       paths: vec![PathBuf::from(".")],
+      no_stdin: true,
     };
     assert!(run_with_config(arg).is_ok());
   }
