@@ -14,7 +14,7 @@ use crate::lang::SgLang;
 use crate::print::{
   ColorArg, ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer,
 };
-use crate::utils::{filter_file_interactive, is_from_stdin, MatchUnit};
+use crate::utils::{filter_file_pattern, is_from_stdin, MatchUnit};
 use crate::utils::{run_std_in, StdInWorker};
 use crate::utils::{run_worker, Items, Worker};
 
@@ -140,7 +140,7 @@ impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
   fn produce_item(&self, path: &Path) -> Option<Self::Item> {
     let lang = SgLang::from_path(path)?;
     let matcher = Pattern::try_new(&self.arg.pattern, lang).ok()?;
-    let match_unit = filter_file_interactive(path, lang, matcher)?;
+    let match_unit = filter_file_pattern(path, lang, matcher)?;
     Some((match_unit, lang))
   }
 
@@ -202,7 +202,7 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
     let arg = &self.arg;
     let pattern = self.pattern.clone();
     let lang = arg.lang.expect("must present");
-    filter_file_interactive(path, lang, pattern)
+    filter_file_pattern(path, lang, pattern)
   }
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     let printer = &self.printer;

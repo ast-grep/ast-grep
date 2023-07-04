@@ -8,6 +8,7 @@ use crossterm::{
 };
 use ignore::{DirEntry, WalkParallel, WalkState};
 
+use ast_grep_core::Pattern;
 use ast_grep_core::{AstGrep, Matcher, StrDoc};
 use ast_grep_language::Language;
 
@@ -164,11 +165,7 @@ pub fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
   }
 }
 
-pub fn filter_file_interactive<M: Matcher<SgLang>>(
-  path: &Path,
-  lang: SgLang,
-  matcher: M,
-) -> Option<MatchUnit<M>> {
+fn read_file(path: &Path) -> Option<String> {
   let file_content = read_to_string(path)
     .with_context(|| format!("Cannot read file {}", path.to_string_lossy()))
     .map_err(|err| eprintln!("{err}"))
@@ -176,6 +173,35 @@ pub fn filter_file_interactive<M: Matcher<SgLang>>(
   // skip large files or empty file
   if file_too_large(&file_content) || file_content.is_empty() {
     // TODO add output
+    None
+  } else {
+    Some(file_content)
+  }
+}
+
+pub fn filter_file_interactive<M: Matcher<SgLang>>(
+  path: &Path,
+  lang: SgLang,
+  matcher: M,
+) -> Option<MatchUnit<M>> {
+  let file_content = read_file(path)?;
+  let grep = lang.ast_grep(file_content);
+  let has_match = grep.root().find(&matcher).is_some();
+  has_match.then(|| MatchUnit {
+    grep,
+    path: path.to_path_buf(),
+    matcher,
+  })
+}
+
+pub fn filter_file_pattern(
+  path: &Path,
+  lang: SgLang,
+  matcher: Pattern<StrDoc<SgLang>>,
+) -> Option<MatchUnit<Pattern<StrDoc<SgLang>>>> {
+  let file_content = read_file(path)?;
+  let fixed = matcher.fixed_string();
+  if !fixed.is_empty() && !file_content.contains(&*fixed) {
     return None;
   }
   let grep = lang.ast_grep(file_content);
@@ -217,8 +243,12 @@ pub struct MatchUnit<M: Matcher<SgLang>> {
 #[inline]
 pub fn is_from_stdin() -> bool {
   // disable stdin if tty env presents or is_atty == true
-  // env is used for piping commands
-  env::var_os("AST_GREP_NO_STDIN").is_none() && !atty::is(atty::Stream::Stdin)
+  // env is used for testing purpose only
+  if cfg!(debug_assertions) {
+    env::var_os("AST_GREP_ALWAYS_TTY").is_none() && !atty::is(atty::Stream::Stdin)
+  } else {
+    !atty::is(atty::Stream::Stdin)
+  }
 }
 
 #[cfg(test)]

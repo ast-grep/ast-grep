@@ -52,6 +52,20 @@ impl<L: Language> Pattern<StrDoc<L>> {
   pub fn str(src: &str, lang: L) -> Self {
     Self::new(src, lang)
   }
+
+  pub fn fixed_string(&self) -> Cow<str> {
+    let node = match &self.style {
+      PatternStyle::Single => self.single_matcher(),
+      PatternStyle::Selector(kind) => self.kind_matcher(kind),
+    };
+    let mut fixed = Cow::Borrowed("");
+    for n in node.dfs() {
+      if n.is_leaf() && extract_var_from_node(&n).is_none() && n.text().len() > fixed.len() {
+        fixed = n.text();
+      }
+    }
+    fixed
+  }
 }
 
 impl<D: Doc> Pattern<D> {
