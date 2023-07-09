@@ -51,7 +51,7 @@ fn sg(s: &str) -> Result<()> {
 fn test_sg_scan() -> Result<()> {
   let dir = setup()?;
   let config = dir.path().join("sgconfig.yml");
-  let ret = sg(&format!("sg scan -c {}", config.display()));
+  let ret = sg(&format!("sg scan -c {} --no-stdin", config.display()));
   assert!(ret.is_ok());
   drop(dir);
   Ok(())
@@ -61,8 +61,9 @@ fn test_sg_scan() -> Result<()> {
 fn test_sg_rule_off() -> Result<()> {
   let dir = setup()?;
   Command::cargo_bin("sg")?
+    .env("AST_GREP_NO_STDIN", "1")
     .current_dir(dir.path())
-    .args(["scan", "--no-stdin"])
+    .args(["scan"])
     .assert()
     .success()
     .stdout(contains("on-rule"))
