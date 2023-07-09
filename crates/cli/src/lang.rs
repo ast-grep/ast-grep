@@ -47,7 +47,7 @@ impl SgLang {
   }
 
   pub fn all_langs() -> Vec<Self> {
-    let builtin = SupportLang::all_langs().into_iter().map(Self::Builtin);
+    let builtin = SupportLang::all_langs().iter().copied().map(Self::Builtin);
     let customs = DynamicLang::all_langs().into_iter().map(Self::Custom);
     builtin.chain(customs).collect()
   }
@@ -74,6 +74,15 @@ fn custom_lang_to_registration(name: String, custom_lang: CustomLang, base: &Pat
     meta_var_char: custom_lang.meta_var_char,
     expando_char: custom_lang.expando_char,
     extensions: custom_lang.extensions,
+  }
+}
+
+impl Display for SgLang {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    match self {
+      Builtin(b) => write!(f, "{:?}", b),
+      Custom(c) => write!(f, "{:?}", c.name()),
+    }
   }
 }
 

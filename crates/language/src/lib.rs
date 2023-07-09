@@ -48,6 +48,7 @@ pub use rust::Rust;
 pub use scala::Scala;
 
 // Stub Language without preprocessing
+// Language Name, tree-sitter-name, alias, extension
 impl_lang!(C, language_c);
 impl_lang!(Dart, language_dart);
 impl_lang!(Html, language_html);
@@ -59,6 +60,8 @@ impl_lang!(Swift, language_swift);
 impl_lang!(Thrift, language_thrift);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
+// See ripgrep for extensions
+// https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/src/default_types.rs
 
 /// Represents all built-in languages.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
@@ -84,9 +87,9 @@ pub enum SupportLang {
 }
 
 impl SupportLang {
-  pub fn all_langs() -> Vec<SupportLang> {
+  pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
-    vec![
+    &[
       C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Kotlin, Lua, Python, Rust, Scala,
       Swift, Thrift, Tsx, TypeScript,
     ]
