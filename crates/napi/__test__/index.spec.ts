@@ -153,7 +153,7 @@ test('find in files with filename', async t => {
   }, (err, n) => {
     t.is(err, null)
     const root = n[0].getRoot();
-    t.deepEqual(root.filename(), './__test__/index.spec.ts')
+    t.is(root.filename().replace('\\', '/'), './__test__/index.spec.ts')
   })
 })
 
