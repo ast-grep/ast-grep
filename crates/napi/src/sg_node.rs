@@ -132,6 +132,11 @@ impl SgNode {
 #[napi]
 impl SgNode {
   #[napi]
+  pub fn get_root(&self, _: Reference<SgNode>, env: Env) -> Result<Reference<SgRoot>> {
+    let root = self.inner.clone_owner(env)?;
+    Ok(root)
+  }
+  #[napi]
   pub fn children(&self, reference: Reference<SgNode>, env: Env) -> Result<Vec<SgNode>> {
     let children = reference.inner.children().map(NodeMatch::from);
     Self::from_iter_to_vec(&reference, env, children)

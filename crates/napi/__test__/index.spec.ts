@@ -143,6 +143,20 @@ test('find in files', async t => {
   })
 })
 
+test('find in files with filename', async t => {
+  let findInFiles = countedPromise(ts.findInFiles)
+  await findInFiles({
+    paths: ['./'],
+    matcher: {
+      rule: {kind: 'member_expression'}
+    },
+  }, (err, n) => {
+    t.is(err, null)
+    const root = n[0].getRoot();
+    t.deepEqual(root.filename(), './__test__/index.spec.ts')
+  })
+})
+
 function countedPromise<F extends (t: any, cb: any) => Promise<number>>(func: F) {
   type P = Parameters<F>
   return async (t: P[0], cb: P[1]) => {

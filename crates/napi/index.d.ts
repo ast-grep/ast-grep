@@ -48,6 +48,7 @@ export class SgNode {
   follows(m: string): boolean
   getMatch(m: string): SgNode | null
   getMultipleMatches(m: string): Array<SgNode>
+  getRoot(): SgRoot
   children(): Array<SgNode>
   find(matcher: string | number | NapiConfig): SgNode | null
   findAll(matcher: string | number | NapiConfig): Array<SgNode>
