@@ -48,6 +48,7 @@ pub use rust::Rust;
 pub use scala::Scala;
 
 // Stub Language without preprocessing
+// Language Name, tree-sitter-name, alias, extension
 impl_lang!(C, language_c);
 impl_lang!(Dart, language_dart);
 impl_lang!(Html, language_html);
@@ -59,6 +60,8 @@ impl_lang!(Swift, language_swift);
 impl_lang!(Thrift, language_thrift);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
+// See ripgrep for extensions
+// https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/src/default_types.rs
 
 /// Represents all built-in languages.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
@@ -84,9 +87,9 @@ pub enum SupportLang {
 }
 
 impl SupportLang {
-  pub fn all_langs() -> Vec<SupportLang> {
+  pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
-    vec![
+    &[
       C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Kotlin, Lua, Python, Rust, Scala,
       Swift, Thrift, Tsx, TypeScript,
     ]
@@ -129,33 +132,42 @@ impl<'de> Deserialize<'de> for SupportLang {
   }
 }
 
+const fn alias(lang: &SupportLang) -> &[&str] {
+  use SupportLang::*;
+  match lang {
+    C => &["c"],
+    Cpp => &["cc", "c++", "cpp", "cxx"],
+    CSharp => &["cs", "csharp"],
+    Css => &["css"],
+    Dart => &["dart"],
+    Go => &["go", "golang"],
+    Html => &["html"],
+    Java => &["java"],
+    JavaScript => &["javascript", "js", "jsx"],
+    Kotlin => &["kotlin", "kt"],
+    Lua => &["lua"],
+    Python => &["py", "python"],
+    Rust => &["rs", "rust"],
+    Scala => &["scala"],
+    Swift => &["swift"],
+    Thrift => &["thrift"],
+    TypeScript => &["ts", "typescript"],
+    Tsx => &["tsx"],
+  }
+}
+
 /// Implements the language names and aliases.
 impl FromStr for SupportLang {
   type Err = SupportLangErr;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    use SupportLang::*;
-    let normalized = s.to_lowercase();
-    match normalized.as_str() {
-      "c" => Ok(C),
-      "cc" | "c++" | "cpp" | "cxx" => Ok(Cpp),
-      "cs" | "csharp" => Ok(CSharp),
-      "css" | "scss" => Ok(Css),
-      "dart" => Ok(Dart),
-      "go" | "golang" => Ok(Go),
-      "html" => Ok(Html),
-      "java" => Ok(Java),
-      "javascript" | "js" | "jsx" => Ok(JavaScript),
-      "kotlin" | "kt" | "ktm" | "kts" => Ok(Kotlin),
-      "lua" => Ok(Lua),
-      "py" | "python" => Ok(Python),
-      "rs" | "rust" => Ok(Rust),
-      "scala" => Ok(Scala),
-      "swift" => Ok(Swift),
-      "thrift" => Ok(Thrift),
-      "ts" | "typescript" => Ok(TypeScript),
-      "tsx" => Ok(Tsx),
-      _ => Err(SupportLangErr::LanguageNotSupported(s.to_string())),
+    for lang in Self::all_langs() {
+      for moniker in alias(lang) {
+        if s.eq_ignore_ascii_case(moniker) {
+          return Ok(*lang);
+        }
+      }
     }
+    Err(SupportLangErr::LanguageNotSupported(s.to_string()))
   }
 }
 
@@ -209,32 +221,39 @@ impl Language for SupportLang {
   }
 }
 
+fn extensions(lang: &SupportLang) -> &[&str] {
+  use SupportLang::*;
+  match lang {
+    C => &["c", "h"],
+    Cpp => &["cc", "hpp", "cpp", "c++", "hh", "cxx", "cu", "ino"],
+    CSharp => &["cs"],
+    Css => &["css", "scss"],
+    Dart => &["dart"],
+    Go => &["go"],
+    Html => &["html", "htm", "xhtml"],
+    Java => &["java"],
+    JavaScript => &["cjs", "js", "mjs", "jsx"],
+    Kotlin => &["kt", "ktm", "kts"],
+    Lua => &["lua"],
+    Python => &["py", "py3", "pyi", "bzl"],
+    Rust => &["rs"],
+    Scala => &["scala", "sc", "sbt"],
+    Swift => &["swift"],
+    Thrift => &["thrift"],
+    TypeScript => &["ts", "cts", "mts"],
+    Tsx => &["tsx"],
+  }
+}
+
 /// Guess which programming language a file is written in
 /// Adapt from `<https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs>`
 /// N.B do not confuse it with `FromStr` trait. This function is to guess language from file extension.
 fn from_extension(path: &Path) -> Option<SupportLang> {
-  use SupportLang::*;
-  match path.extension()?.to_str()? {
-    "c" | "h" => Some(C),
-    "cc" | "hpp" | "cpp" | "c++" | "hh" | "cxx" | "cu" | "ino" => Some(Cpp),
-    "cs" => Some(CSharp),
-    "css" | "scss" => Some(Css),
-    "dart" => Some(Dart),
-    "go" => Some(Go),
-    "html" | "htm" | "xhtml" => Some(Html),
-    "java" => Some(Java),
-    "cjs" | "js" | "mjs" | "jsx" => Some(JavaScript),
-    "kt" | "ktm" | "kts" => Some(Kotlin),
-    "lua" => Some(Lua),
-    "py" | "py3" | "pyi" | "bzl" => Some(Python),
-    "rs" => Some(Rust),
-    "scala" | "sc" | "sbt" => Some(Scala),
-    "swift" => Some(Swift),
-    "thrift" => Some(Thrift),
-    "ts" | "cts" | "mts" => Some(TypeScript),
-    "tsx" => Some(Tsx),
-    _ => None,
-  }
+  let ext = path.extension()?.to_str()?;
+  SupportLang::all_langs()
+    .iter()
+    .copied()
+    .find(|l| extensions(l).contains(&ext))
 }
 
 fn add_custom_file_type<'b>(

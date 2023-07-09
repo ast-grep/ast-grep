@@ -1,8 +1,8 @@
 use crate::config::{read_config_from_dir, register_custom_language, AstGrepConfig, TestConfig};
 use crate::error::ErrorContext as EC;
+use crate::lang::SgLang;
 
 use anyhow::Result;
-use ast_grep_language::SupportLang;
 use clap::{Parser, Subcommand};
 use inquire::validator::ValueRequiredValidator;
 
@@ -20,7 +20,7 @@ pub struct NewArg {
   name: Option<String>,
   /// The language of the item. Appliable to rule and utils.
   #[arg(short, long, global = true)]
-  lang: Option<SupportLang>,
+  lang: Option<SgLang>,
   /// Accept all default options without interactive input during creation.
   #[arg(short, long, global = true)]
   yes: bool,
@@ -64,14 +64,14 @@ impl NewArg {
     }
   }
 
-  fn choose_language(&self) -> Result<SupportLang> {
+  fn choose_language(&self) -> Result<SgLang> {
     if self.yes {
       self
         .lang
         .map(Ok)
         .unwrap_or_else(|| Err(anyhow::anyhow!(EC::InsufficientCLIArgument("lang"))))
     } else {
-      Ok(inquire::Select::new("Choose rule's language", SupportLang::all_langs()).prompt()?)
+      Ok(inquire::Select::new("Choose rule's language", SgLang::all_langs()).prompt()?)
     }
   }
 
@@ -187,7 +187,7 @@ fn create_new_project(arg: NewArg) -> Result<()> {
   Ok(())
 }
 
-fn default_rule(id: &str, lang: SupportLang) -> String {
+fn default_rule(id: &str, lang: SgLang) -> String {
   format!(
     r#"id: {id}
 message: Add your rule message here....
@@ -267,7 +267,7 @@ fn create_new_test(test_configs: Option<Vec<TestConfig>>, name: Option<String>) 
   Ok(())
 }
 
-fn default_util(id: &str, lang: SupportLang) -> String {
+fn default_util(id: &str, lang: SgLang) -> String {
   format!(
     r#"id: {id}
 language: {lang}
@@ -308,6 +308,7 @@ fn create_new_util(found: FoundConfig, arg: NewArg) -> Result<()> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use ast_grep_language::SupportLang;
   use std::path::Path;
   use tempdir::TempDir;
 
@@ -328,7 +329,7 @@ mod test {
     let arg = NewArg {
       entity: Some(Entity::Rule),
       name: Some("test-rule".into()),
-      lang: Some(SupportLang::Rust),
+      lang: Some(SupportLang::Rust.into()),
       yes: true,
       base_dir: temp.to_path_buf(),
     };

@@ -14,7 +14,7 @@ use crate::lang::SgLang;
 use crate::print::{
   ColorArg, ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer,
 };
-use crate::utils::{filter_file_interactive, is_from_stdin, MatchUnit};
+use crate::utils::{filter_file_pattern, is_from_stdin, MatchUnit};
 use crate::utils::{run_std_in, StdInWorker};
 use crate::utils::{run_worker, Items, Worker};
 
@@ -28,13 +28,14 @@ pub fn register_custom_language_if_is_run(args: &[String]) {
   }
 }
 
-// TODO: add long_help
 fn lang_help() -> String {
   format!(
     "The language of the pattern. Supported languages are:\n{:?}",
     SgLang::all_langs()
   )
 }
+
+const LANG_HELP_LONG: &str = "The language of the pattern. For full language list, visit https://ast-grep.github.io/reference/languages.html";
 
 #[derive(Parser)]
 pub struct RunArg {
@@ -51,7 +52,7 @@ pub struct RunArg {
   debug_query: bool,
 
   /// The language of the pattern query.
-  #[clap(short, long, help(lang_help()))]
+  #[clap(short, long, help(lang_help()), long_help=LANG_HELP_LONG)]
   lang: Option<SgLang>,
 
   /// Start interactive edit session. Code rewrite only happens inside a session.
@@ -85,6 +86,13 @@ pub struct RunArg {
   /// You can suppress multiple ignore files by passing `no-ignore` multiple times.
   #[clap(long, action = clap::ArgAction::Append)]
   no_ignore: Vec<IgnoreFile>,
+
+  /// Disable search code from StdIn.
+  ///
+  /// Use this if you need search files but ast-grep is launched from another process.
+  /// You can also use the environment variable `AST_GREP_NO_STDIN` to disable StdIn mode.
+  #[clap(long)]
+  no_stdin: bool,
 }
 
 // Every run will include Search or Replace
@@ -96,7 +104,8 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
   let printer = ColoredPrinter::stdout(arg.color).heading(arg.heading);
   let interactive = arg.interactive || arg.accept_all;
   if interactive {
-    let printer = InteractivePrinter::new(printer, arg.accept_all)?;
+    let from_stdin = !arg.no_stdin && is_from_stdin();
+    let printer = InteractivePrinter::new(printer, arg.accept_all, from_stdin)?;
     run_pattern_with_printer(arg, printer)
   } else {
     run_pattern_with_printer(arg, printer)
@@ -104,7 +113,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
 }
 
 fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + Sync) -> Result<()> {
-  if is_from_stdin() {
+  if !arg.no_stdin && is_from_stdin() {
     run_std_in(RunWithSpecificLang::new(arg, printer)?)
   } else if arg.lang.is_some() {
     run_worker(RunWithSpecificLang::new(arg, printer)?)
@@ -132,7 +141,7 @@ impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
   fn produce_item(&self, path: &Path) -> Option<Self::Item> {
     let lang = SgLang::from_path(path)?;
     let matcher = Pattern::try_new(&self.arg.pattern, lang).ok()?;
-    let match_unit = filter_file_interactive(path, lang, matcher)?;
+    let match_unit = filter_file_pattern(path, lang, matcher)?;
     Some((match_unit, lang))
   }
 
@@ -194,7 +203,7 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
     let arg = &self.arg;
     let pattern = self.pattern.clone();
     let lang = arg.lang.expect("must present");
-    filter_file_interactive(path, lang, pattern)
+    filter_file_pattern(path, lang, pattern)
   }
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     let printer = &self.printer;
@@ -256,12 +265,12 @@ mod test {
   use ast_grep_language::SupportLang;
   #[test]
   fn test_run_with_pattern() {
-    std::env::set_var("AST_GREP_ALWAYS_TTY", "1");
     let arg = RunArg {
       pattern: "console.log".to_string(),
       rewrite: None,
       color: ColorArg::Never,
       no_ignore: vec![],
+      no_stdin: true,
       interactive: false,
       lang: None,
       json: false,
@@ -286,6 +295,7 @@ mod test {
       heading: Heading::Never,
       debug_query: false,
       accept_all: false,
+      no_stdin: false,
       paths: vec![PathBuf::from(".")],
     };
     assert!(run_with_pattern(arg).is_ok())

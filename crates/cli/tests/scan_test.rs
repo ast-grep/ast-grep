@@ -1,8 +1,11 @@
 mod common;
 
 use anyhow::Result;
+use assert_cmd::Command;
 use ast_grep::main_with_args;
 use common::create_test_files;
+use predicates::prelude::*;
+use predicates::str::contains;
 use tempdir::TempDir;
 
 const CONFIG: &str = "
@@ -11,8 +14,8 @@ ruleDirs:
 testConfigs:
 - testDir: rule-test
 ";
-const RULE: &str = "
-id: test-rule
+const RULE1: &str = "
+id: on-rule
 message: test rule
 severity: warning
 language: TypeScript
@@ -20,19 +23,19 @@ rule:
   pattern: Some($A)
 ";
 
-const TEST: &str = "
-id: test-rule
-valid:
-- None
-invalid:
-- Some(123)
+const RULE2: &str = "
+id: off-rule
+severity: off
+language: TypeScript
+rule:
+  pattern: Some($A)
 ";
 
 fn setup() -> Result<TempDir> {
   let dir = create_test_files([
     ("sgconfig.yml", CONFIG),
-    ("rules/test-rule.yml", RULE),
-    ("rule-test/test-rule-test.yml", TEST),
+    ("rules/on-rule.yml", RULE1),
+    ("rules/off-rule.yml", RULE2),
     ("test.ts", "Some(123)"),
   ])?;
   assert!(dir.path().join("sgconfig.yml").exists());
@@ -45,14 +48,26 @@ fn sg(s: &str) -> Result<()> {
 }
 
 #[test]
-fn test_sg_test() -> Result<()> {
+fn test_sg_scan() -> Result<()> {
   let dir = setup()?;
   let config = dir.path().join("sgconfig.yml");
-  let ret = sg(&format!(
-    "sg test -c {} --skip-snapshot-tests",
-    config.display()
-  ));
+  let ret = sg(&format!("sg scan -c {} --no-stdin", config.display()));
   assert!(ret.is_ok());
+  drop(dir);
+  Ok(())
+}
+
+#[test]
+fn test_sg_rule_off() -> Result<()> {
+  let dir = setup()?;
+  Command::cargo_bin("sg")?
+    .env("AST_GREP_NO_STDIN", "1")
+    .current_dir(dir.path())
+    .args(["scan"])
+    .assert()
+    .success()
+    .stdout(contains("on-rule"))
+    .stdout(contains("off-rule").not());
   drop(dir);
   Ok(())
 }
