@@ -28,13 +28,14 @@ pub fn register_custom_language_if_is_run(args: &[String]) {
   }
 }
 
-// TODO: add long_help
 fn lang_help() -> String {
   format!(
     "The language of the pattern. Supported languages are:\n{:?}",
     SgLang::all_langs()
   )
 }
+
+const LANG_HELP_LONG: &str = "The language of the pattern. For full language list, visit https://ast-grep.github.io/reference/languages.html";
 
 #[derive(Parser)]
 pub struct RunArg {
@@ -51,7 +52,7 @@ pub struct RunArg {
   debug_query: bool,
 
   /// The language of the pattern query.
-  #[clap(short, long, help(lang_help()))]
+  #[clap(short, long, help(lang_help()), long_help=LANG_HELP_LONG)]
   lang: Option<SgLang>,
 
   /// Start interactive edit session. Code rewrite only happens inside a session.

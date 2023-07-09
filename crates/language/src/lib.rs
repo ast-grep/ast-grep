@@ -138,7 +138,7 @@ const fn alias(lang: &SupportLang) -> &[&str] {
     C => &["c"],
     Cpp => &["cc", "c++", "cpp", "cxx"],
     CSharp => &["cs", "csharp"],
-    Css => &["css", "scss"],
+    Css => &["css"],
     Dart => &["dart"],
     Go => &["go", "golang"],
     Html => &["html"],
