@@ -1,4 +1,4 @@
-use crate::RuleConfig;
+use crate::{RuleConfig, Severity};
 use ast_grep_core::language::Language;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use std::path::Path;
@@ -82,7 +82,9 @@ impl<L: Language + Eq> RuleCollection<L> {
     let mut tenured = vec![];
     let mut contingent = vec![];
     for config in configs {
-      if config.files.is_none() && config.ignores.is_none() {
+      if matches!(config.severity, Severity::Off) {
+        continue;
+      } else if config.files.is_none() && config.ignores.is_none() {
         Self::add_tenured_rule(&mut tenured, config);
       } else {
         contingent.push(ContingentRule::try_from(config)?);

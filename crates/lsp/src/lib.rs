@@ -201,6 +201,7 @@ fn convert_match_to_diagnostic<L: Language>(
       Severity::Warning => DiagnosticSeverity::WARNING,
       Severity::Info => DiagnosticSeverity::INFORMATION,
       Severity::Hint => DiagnosticSeverity::HINT,
+      Severity::Off => unreachable!("turned-off rule should not have match"),
     }),
     message: rule.get_message(&node_match),
     source: Some(String::from("ast-grep")),

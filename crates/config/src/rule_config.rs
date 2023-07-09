@@ -25,10 +25,16 @@ use std::ops::{Deref, DerefMut};
 #[serde(rename_all = "camelCase")]
 pub enum Severity {
   #[default]
+  /// A kind reminder for code with potential improvement.
   Hint,
+  /// A suggestion that code can be improved or optimized.
   Info,
+  /// A warning that code might produce bugs or does not follow best practice.
   Warning,
+  /// An error that code produces bugs or has logic errors.
   Error,
+  /// Turns off the rule.
+  Off,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

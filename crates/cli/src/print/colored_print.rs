@@ -118,6 +118,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
       Severity::Warning => diagnostic::Severity::Warning,
       Severity::Info => diagnostic::Severity::Note,
       Severity::Hint => diagnostic::Severity::Help,
+      Severity::Off => unreachable!("turned-off rule should not have match."),
     };
     for m in matches {
       let range = m.range();
@@ -178,6 +179,7 @@ fn print_rule_title<W: WriteColor>(
     Severity::Warning => ("warning", style.warning),
     Severity::Info => ("note", style.info),
     Severity::Hint => ("help", style.hint),
+    Severity::Off => unreachable!("turned-off rule should not have match."),
   };
   let header = format!("{level}[{}]:", &rule.id);
   let header = level_style.paint(header);
