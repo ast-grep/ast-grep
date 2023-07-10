@@ -25,7 +25,9 @@ fn to_pos(pos: (usize, usize), offset: usize) -> Pos {
 
 #[napi(object)]
 pub struct Range {
+  /// starting position of the range
   pub start: Pos,
+  /// ending position of the range
   pub end: Pos,
 }
 
@@ -59,6 +61,7 @@ impl SgNode {
   pub fn is_named_leaf(&self) -> bool {
     self.inner.is_named_leaf()
   }
+  /// Returns the string name of the node kind
   #[napi]
   pub fn kind(&self) -> String {
     self.inner.kind().to_string()
@@ -131,6 +134,7 @@ impl SgNode {
 /// tree traversal API
 #[napi]
 impl SgNode {
+  /// Returns the node's SgRoot
   #[napi]
   pub fn get_root(&self, _: Reference<SgNode>, env: Env) -> Result<Reference<SgRoot>> {
     let root = self.inner.clone_owner(env)?;
@@ -230,6 +234,7 @@ impl SgNode {
     Ok(ret)
   }
 
+  /// Finds the child node in the `field`
   #[napi]
   pub fn field(
     &self,

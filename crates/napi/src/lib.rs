@@ -20,12 +20,19 @@ use std::sync::mpsc::channel;
 use doc::{FrontEndLanguage, JsDoc};
 use sg_node::{SgNode, SgRoot};
 
+/// Rule configuration similar to YAML
+/// See https://ast-grep.github.io/reference/yaml.html
 #[napi(object)]
 pub struct NapiConfig {
+  /// The rule object, see https://ast-grep.github.io/reference/rule.html
   pub rule: serde_json::Value,
+  /// See https://ast-grep.github.io/guide/rule-config.html#constraints
   pub constraints: Option<serde_json::Value>,
+  /// Available languages: html, css, js, jsx, ts, tsx
   pub language: Option<FrontEndLanguage>,
+  /// https://ast-grep.github.io/reference/yaml.html#transform
   pub transform: Option<serde_json::Value>,
+  /// https://ast-grep.github.io/guide/rule-config/utility-rule.html
   pub utils: Option<serde_json::Value>,
 }
 
@@ -240,7 +247,9 @@ unsafe impl Sync for PinnedNodes {}
 
 #[napi(object)]
 pub struct FindConfig {
+  /// specify the file paths to recursively find files
   pub paths: Vec<String>,
+  /// a Rule object to find what nodes will match
   pub matcher: NapiConfig,
 }
 

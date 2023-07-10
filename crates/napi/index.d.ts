@@ -19,19 +19,32 @@ export interface Pos {
   index: number
 }
 export interface Range {
+  /** starting position of the range */
   start: Pos
+  /** ending position of the range */
   end: Pos
 }
+/**
+ * Rule configuration similar to YAML
+ * See https://ast-grep.github.io/reference/yaml.html
+ */
 export interface NapiConfig {
+  /** The rule object, see https://ast-grep.github.io/reference/rule.html */
   rule: any
+  /** See https://ast-grep.github.io/guide/rule-config.html#constraints */
   constraints?: any
+  /** Available languages: html, css, js, jsx, ts, tsx */
   language?: FrontEndLanguage
+  /** https://ast-grep.github.io/reference/yaml.html#transform */
   transform?: any
+  /** https://ast-grep.github.io/guide/rule-config/utility-rule.html */
   utils?: any
 }
 export function parseFiles(paths: string[], callback: (err: null | Error, result: SgRoot) => void): Promise<number>
 export interface FindConfig {
+  /** specify the file paths to recursively find files */
   paths: Array<string>
+  /** a Rule object to find what nodes will match */
   matcher: NapiConfig
 }
 export class SgNode {
@@ -39,6 +52,7 @@ export class SgNode {
   isLeaf(): boolean
   isNamed(): boolean
   isNamedLeaf(): boolean
+  /** Returns the string name of the node kind */
   kind(): string
   text(): string
   matches(m: string): boolean
@@ -48,10 +62,12 @@ export class SgNode {
   follows(m: string): boolean
   getMatch(m: string): SgNode | null
   getMultipleMatches(m: string): Array<SgNode>
+  /** Returns the node's SgRoot */
   getRoot(): SgRoot
   children(): Array<SgNode>
   find(matcher: string | number | NapiConfig): SgNode | null
   findAll(matcher: string | number | NapiConfig): Array<SgNode>
+  /** Finds the child node in the `field` */
   field(name: string): SgNode | null
   parent(): SgNode | null
   child(nth: number): SgNode | null
