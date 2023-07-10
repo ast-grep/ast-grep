@@ -87,12 +87,12 @@ pub struct RunArg {
   #[clap(long, action = clap::ArgAction::Append)]
   no_ignore: Vec<IgnoreFile>,
 
-  /// Disable search code from StdIn.
+  /// Enable search code from StdIn.
   ///
-  /// Use this if you need search files but ast-grep is launched from another process.
-  /// You can also use the environment variable `AST_GREP_NO_STDIN` to disable StdIn mode.
+  /// Use this if you need to take code stream from standard input.
+  /// If the environment variable `AST_GREP_NO_STDIN` exist, ast-grep will disable StdIn mode.
   #[clap(long)]
-  no_stdin: bool,
+  stdin: bool,
 }
 
 // Every run will include Search or Replace
@@ -104,7 +104,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
   let printer = ColoredPrinter::stdout(arg.color).heading(arg.heading);
   let interactive = arg.interactive || arg.accept_all;
   if interactive {
-    let from_stdin = !arg.no_stdin && is_from_stdin();
+    let from_stdin = arg.stdin && is_from_stdin();
     let printer = InteractivePrinter::new(printer, arg.accept_all, from_stdin)?;
     run_pattern_with_printer(arg, printer)
   } else {
@@ -113,7 +113,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
 }
 
 fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + Sync) -> Result<()> {
-  if !arg.no_stdin && is_from_stdin() {
+  if arg.stdin && is_from_stdin() {
     run_std_in(RunWithSpecificLang::new(arg, printer)?)
   } else if arg.lang.is_some() {
     run_worker(RunWithSpecificLang::new(arg, printer)?)
@@ -270,7 +270,7 @@ mod test {
       rewrite: None,
       color: ColorArg::Never,
       no_ignore: vec![],
-      no_stdin: true,
+      stdin: false,
       interactive: false,
       lang: None,
       json: false,
@@ -295,7 +295,7 @@ mod test {
       heading: Heading::Never,
       debug_query: false,
       accept_all: false,
-      no_stdin: false,
+      stdin: true,
       paths: vec![PathBuf::from(".")],
     };
     assert!(run_with_pattern(arg).is_ok())

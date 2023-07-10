@@ -57,12 +57,12 @@ pub struct ScanArg {
   #[clap(long, action = clap::ArgAction::Append)]
   no_ignore: Vec<IgnoreFile>,
 
-  /// Disable search code from StdIn.
+  /// Enable search code from StdIn.
   ///
-  /// Use this if you need search files but ast-grep is launched from another process.
-  /// You can also use the environment variable `AST_GREP_NO_STDIN` to disable StdIn mode.
+  /// Use this if you need to take code stream from standard input.
+  /// If the environment variable `AST_GREP_NO_STDIN` exist, ast-grep will disable StdIn mode.
   #[clap(long)]
-  no_stdin: bool,
+  stdin: bool,
 }
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
@@ -74,7 +74,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
   let printer = ColoredPrinter::stdout(arg.color).style(arg.report_style);
   let interactive = arg.interactive || arg.accept_all;
   if interactive {
-    let from_stdin = !arg.no_stdin && is_from_stdin();
+    let from_stdin = arg.stdin && is_from_stdin();
     let printer = InteractivePrinter::new(printer, arg.accept_all, from_stdin)?;
     run_scan(arg, printer)
   } else {
@@ -83,7 +83,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
 }
 
 fn run_scan<P: Printer + Sync>(arg: ScanArg, printer: P) -> Result<()> {
-  if !arg.no_stdin && is_from_stdin() {
+  if arg.stdin && is_from_stdin() {
     let worker = ScanWithRule::try_new(arg, printer)?;
     run_std_in(worker)
   } else {
@@ -348,7 +348,7 @@ rule:
       json: false,
       accept_all: false,
       paths: vec![PathBuf::from(".")],
-      no_stdin: true,
+      stdin: false,
     };
     assert!(run_with_config(arg).is_ok());
   }
