@@ -61,37 +61,97 @@ export class SgNode {
   prev(): SgNode | null
   prevAll(): Array<SgNode>
 }
+/** Represents the parsed tree of code. */
 export class SgRoot {
+  /** Returns the root SgNode of the ast-grep instance. */
   root(): SgNode
+  /**
+   * Returns the path of the file if it is discovered by ast-grep's `findInFiles`.
+   * Returns `"anonymous"` if the instance is created by `lang.parse(source)`.
+   */
   filename(): string
 }
 export namespace html {
+  /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
+  /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
+  /** Compile a string to ast-grep Pattern. */
   export function pattern(pattern: string): NapiConfig
+  /**
+   * Discover and parse multiple files in Rust.
+   * `config` specifies the file path and matcher.
+   * `callback` will receive matching nodes found in a file.
+   */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export namespace js {
+  /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
+  /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
+  /** Compile a string to ast-grep Pattern. */
   export function pattern(pattern: string): NapiConfig
+  /**
+   * Discover and parse multiple files in Rust.
+   * `config` specifies the file path and matcher.
+   * `callback` will receive matching nodes found in a file.
+   */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export namespace jsx {
+  /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
+  /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
+  /** Compile a string to ast-grep Pattern. */
   export function pattern(pattern: string): NapiConfig
+  /**
+   * Discover and parse multiple files in Rust.
+   * `config` specifies the file path and matcher.
+   * `callback` will receive matching nodes found in a file.
+   */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export namespace ts {
+  /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
+  /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
+  /** Compile a string to ast-grep Pattern. */
   export function pattern(pattern: string): NapiConfig
+  /**
+   * Discover and parse multiple files in Rust.
+   * `config` specifies the file path and matcher.
+   * `callback` will receive matching nodes found in a file.
+   */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export namespace tsx {
+  /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
+  /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
+  /** Compile a string to ast-grep Pattern. */
   export function pattern(pattern: string): NapiConfig
+  /**
+   * Discover and parse multiple files in Rust.
+   * `config` specifies the file path and matcher.
+   * `callback` will receive matching nodes found in a file.
+   */
+  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
+}
+export namespace css {
+  /** Parse a string to an ast-grep instance */
+  export function parse(src: string): SgRoot
+  /** Get the `kind` number from its string name. */
+  export function kind(kindName: string): number
+  /** Compile a string to ast-grep Pattern. */
+  export function pattern(pattern: string): NapiConfig
+  /**
+   * Discover and parse multiple files in Rust.
+   * `config` specifies the file path and matcher.
+   * `callback` will receive matching nodes found in a file.
+   */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }

@@ -252,7 +252,7 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { FrontEndLanguage, SgNode, SgRoot, parseFiles, html, js, jsx, ts, tsx } = nativeBinding
+const { FrontEndLanguage, SgNode, SgRoot, parseFiles, html, js, jsx, ts, tsx, css } = nativeBinding
 
 module.exports.FrontEndLanguage = FrontEndLanguage
 module.exports.SgNode = SgNode
@@ -263,3 +263,4 @@ module.exports.js = js
 module.exports.jsx = jsx
 module.exports.ts = ts
 module.exports.tsx = tsx
+module.exports.css = css

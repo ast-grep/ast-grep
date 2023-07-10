@@ -284,16 +284,20 @@ impl SgNode {
   }
 }
 
+/// Represents the parsed tree of code.
 #[napi]
 pub struct SgRoot(pub(super) AstGrep<JsDoc>, pub(super) String);
 
 #[napi]
 impl SgRoot {
+  /// Returns the root SgNode of the ast-grep instance.
   #[napi]
   pub fn root(&self, root_ref: Reference<SgRoot>, env: Env) -> Result<SgNode> {
     let inner = root_ref.share_with(env, |root| Ok(root.0.root().into()))?;
     Ok(SgNode { inner })
   }
+  /// Returns the path of the file if it is discovered by ast-grep's `findInFiles`.
+  /// Returns `"anonymous"` if the instance is created by `lang.parse(source)`.
   #[napi]
   pub fn filename(&self) -> Result<String> {
     Ok(self.1.clone())

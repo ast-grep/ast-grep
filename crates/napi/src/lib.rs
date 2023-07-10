@@ -56,15 +56,19 @@ macro_rules! impl_lang_mod {
       pub mod $name {
         use super::*;
         use super::FrontEndLanguage::*;
+
+        /// Parse a string to an ast-grep instance
         #[napi]
         pub fn parse(src: String) -> SgRoot {
           let doc = JsDoc::new(src, $lang);
           SgRoot(AstGrep::doc(doc), "anonymous".into())
         }
+        /// Get the `kind` number from its string name.
         #[napi]
         pub fn kind(kind_name: String) -> u16 {
           $lang.get_ts_language().id_for_node_kind(&kind_name, /* named */ true)
         }
+        /// Compile a string to ast-grep Pattern.
         #[napi]
         pub fn pattern(pattern: String) -> NapiConfig {
           NapiConfig {
@@ -77,6 +81,10 @@ macro_rules! impl_lang_mod {
             transform: None,
           }
         }
+
+        /// Discover and parse multiple files in Rust.
+        /// `config` specifies the file path and matcher.
+        /// `callback` will receive matching nodes found in a file.
         #[napi(
           ts_args_type = "config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void",
           ts_return_type = "Promise<number>"
@@ -93,6 +101,7 @@ impl_lang_mod!(js, JavaScript);
 impl_lang_mod!(jsx, JavaScript);
 impl_lang_mod!(ts, TypeScript);
 impl_lang_mod!(tsx, Tsx);
+impl_lang_mod!(css, Css);
 
 pub struct IterateFiles<D> {
   paths: Vec<String>,
