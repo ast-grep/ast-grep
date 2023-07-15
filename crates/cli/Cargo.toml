@@ -48,6 +48,6 @@ similar = { version = "2.2.1", features = ["inline"] }
 tokio = { version = "1", features = ["rt-multi-thread", "io-std"] }
 
 [dev-dependencies]
-assert_cmd = "2.0.11"
+assert_cmd = "2.0.12"
 predicates = "3.0.3"
 tempdir = "0.3.7"
