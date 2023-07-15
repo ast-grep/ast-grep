@@ -1,6 +1,6 @@
 import test from 'ava'
 
-import { js, parseFiles, ts } from '../index'
+import { js, parseFiles, ts, tsx } from '../index'
 const { parse, kind } = js
 let parseMulti = countedPromise(parseFiles)
 
@@ -148,13 +148,25 @@ test('find in files with filename', async t => {
   await findInFiles({
     paths: ['./'],
     matcher: {
-      rule: {kind: 'member_expression'}
+      rule: {kind: 'member_expression'},
     },
   }, (err, n) => {
     t.is(err, null)
     const root = n[0].getRoot();
     t.is(root.filename().replace('\\', '/'), './__test__/index.spec.ts')
   })
+})
+
+test('tsx should not find ts file', async t => {
+  await tsx.findInFiles({
+    paths: ['./'],
+    matcher: {
+      rule: {kind: 'member_expression'},
+    },
+  }, () => {
+    t.assert(false)
+  })
+  t.assert(true)
 })
 
 function countedPromise<F extends (t: any, cb: any) => Promise<number>>(func: F) {

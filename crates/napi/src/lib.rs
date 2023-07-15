@@ -230,9 +230,9 @@ fn get_root(entry: ignore::DirEntry) -> Ret<(AstGrep<JsDoc>, String)> {
   let lang = match ext {
     "css" | "scss" => Css,
     "html" | "htm" | "xhtml" => Html,
-    "cjs" | "js" | "mjs" | "jsx" => JavaScript,
-    "ts" => TypeScript,
-    "tsx" => Tsx,
+    "cjs" | "js" | "mjs" | "jsx" | "mjsx" | "cjsx" => JavaScript,
+    "ts" | "mts" | "cts" => TypeScript,
+    "tsx" | "mtsx" | "ctsx" => Tsx,
     _ => return Err(anyhow!("file not recognized")),
   };
   let doc = JsDoc::new(file_content, lang);
@@ -259,6 +259,44 @@ pub struct FindConfig {
   pub matcher: NapiConfig,
 }
 
+fn select_custom<'b>(
+  builder: &'b mut TypesBuilder,
+  file_type: &str,
+  suffix_list: &[&str],
+) -> &'b mut TypesBuilder {
+  for suffix in suffix_list {
+    builder
+      .add(file_type, suffix)
+      .expect("file pattern must compile");
+  }
+  builder.select(file_type)
+}
+
+fn find_files_with_lang(paths: Vec<String>, lang: &FrontEndLanguage) -> Result<WalkParallel> {
+  if paths.is_empty() {
+    return Err(anyhow!("paths cannot be empty.").into());
+  }
+
+  let mut types = TypesBuilder::new();
+  let types = types.add_defaults();
+  let types = match lang {
+    FrontEndLanguage::TypeScript => select_custom(types, "myts", &["*.ts", "*.mts", "*.cts"]),
+    FrontEndLanguage::Tsx => select_custom(types, "mytsx", &["*.tsx", "*.mtsx", "*.ctsx"]),
+    FrontEndLanguage::Css => types.select("css"),
+    FrontEndLanguage::Html => types.select("html"),
+    FrontEndLanguage::JavaScript => types.select("js"),
+  }
+  .build()
+  .unwrap();
+  let mut paths = paths.into_iter();
+  let mut builder = WalkBuilder::new(paths.next().unwrap());
+  for path in paths {
+    builder.add(path);
+  }
+  let walk = builder.types(types).build_parallel();
+  Ok(walk)
+}
+
 fn find_in_files_impl(
   lang: FrontEndLanguage,
   config: FindConfig,
@@ -268,7 +306,7 @@ fn find_in_files_impl(
     from_pinned_data(ctx.value, ctx.env)
   })?;
   let rule = parse_config(config.matcher, lang)?;
-  let walk = build_files(config.paths)?;
+  let walk = find_files_with_lang(config.paths, &lang)?;
   Ok(AsyncTask::new(FindInFiles {
     walk,
     tsfn: (tsfn, rule),
