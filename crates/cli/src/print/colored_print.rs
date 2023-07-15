@@ -305,7 +305,7 @@ fn print_matches_with_heading<'a, W: Write>(
     let lines = ret.lines().count();
     let mut num = merger.last_start_line;
     let width = (lines + num).to_string().chars().count();
-    write!(writer, "{num:>width$}│")?; // initial line num
+    write!(writer, "{num:>width$}:")?; // initial line num
     print_highlight(ret.lines(), width, &mut num, writer)?;
     writeln!(writer)?; // end match new line
                        //
@@ -317,7 +317,7 @@ fn print_matches_with_heading<'a, W: Write>(
   let lines = ret.lines().count();
   let mut num = merger.last_start_line;
   let width = (lines + num).to_string().chars().count();
-  write!(writer, "{num:>width$}│")?; // initial line num
+  write!(writer, "{num:>width$}:")?; // initial line num
   print_highlight(ret.lines(), width, &mut num, writer)?;
   writeln!(writer)?; // end match new line
   writeln!(writer)?; // end
@@ -409,7 +409,7 @@ fn print_highlight<'a, W: Write>(
   for line in lines {
     writeln!(writer)?;
     *num += 1;
-    write!(writer, "{num:>width$}│{line}")?;
+    write!(writer, "{num:>width$}:{line}")?;
   }
   Ok(())
 }
@@ -458,7 +458,7 @@ pub fn print_diff(
         };
         write!(
           writer,
-          "{} {}│{}",
+          "{} {}:{}",
           index_display(change.old_index(), s, old_width),
           index_display(change.new_index(), s, new_width),
           s.paint(sign),
@@ -693,7 +693,7 @@ mod test {
       let expected: String = source
         .lines()
         .enumerate()
-        .map(|(i, l)| format!("{}│{l}\n", i + 1))
+        .map(|(i, l)| format!("{}:{l}\n", i + 1))
         .collect();
       // append heading to expected
       let output = format!("test.tsx\n{expected}\n");
