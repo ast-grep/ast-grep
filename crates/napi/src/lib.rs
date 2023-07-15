@@ -8,7 +8,7 @@ use ast_grep_core::language::Language;
 use ast_grep_core::pinned::{NodeData, PinnedNodeData};
 use ast_grep_core::{AstGrep, NodeMatch};
 use ignore::types::TypesBuilder;
-use ignore::{WalkBuilder, WalkState};
+use ignore::{WalkBuilder, WalkParallel, WalkState};
 use napi::anyhow::{anyhow, Context, Error, Result as Ret};
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
@@ -111,9 +111,30 @@ impl_lang_mod!(tsx, Tsx);
 impl_lang_mod!(css, Css);
 
 pub struct IterateFiles<D> {
-  paths: Vec<String>,
+  walk: WalkParallel,
   tsfn: D,
   producer: fn(&D, std::result::Result<ignore::DirEntry, ignore::Error>) -> Ret<bool>,
+}
+
+fn build_files(paths: Vec<String>) -> Result<WalkParallel> {
+  if paths.is_empty() {
+    return Err(anyhow!("paths cannot be empty.").into());
+  }
+  let types = TypesBuilder::new()
+    .add_defaults()
+    .select("css")
+    .select("html")
+    .select("js")
+    .select("ts")
+    .build()
+    .unwrap();
+  let mut paths = paths.into_iter();
+  let mut builder = WalkBuilder::new(paths.next().unwrap());
+  for path in paths {
+    builder.add(path);
+  }
+  let walk = builder.types(types).build_parallel();
+  Ok(walk)
 }
 
 impl<T: 'static + Send + Sync> Task for IterateFiles<T> {
@@ -121,27 +142,11 @@ impl<T: 'static + Send + Sync> Task for IterateFiles<T> {
   type JsValue = JsNumber;
 
   fn compute(&mut self) -> Result<Self::Output> {
-    if self.paths.is_empty() {
-      return Err(anyhow!("paths cannot be empty.").into());
-    }
-    let types = TypesBuilder::new()
-      .add_defaults()
-      .select("css")
-      .select("html")
-      .select("js")
-      .select("ts")
-      .build()
-      .unwrap();
     let tsfn = &self.tsfn;
-    let mut paths = self.paths.drain(..);
-    let mut builder = WalkBuilder::new(paths.next().unwrap());
-    for path in paths {
-      builder.add(path);
-    }
     let file_count = AtomicU32::new(0);
     let (tx, rx) = channel();
-    let walker = builder.types(types).build_parallel();
     let producer = self.producer;
+    let walker = std::mem::replace(&mut self.walk, WalkBuilder::new(".").build_parallel());
     walker.run(|| {
       let tx = tx.clone();
       let file_count = &file_count;
@@ -186,8 +191,9 @@ type ParseFiles = IterateFiles<ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeH
 pub fn parse_files(paths: Vec<String>, callback: JsFunction) -> Result<AsyncTask<ParseFiles>> {
   let tsfn: ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled> =
     callback.create_threadsafe_function(THREAD_FUNC_QUEUE_SIZE, |ctx| Ok(vec![ctx.value]))?;
+  let walk = build_files(paths)?;
   Ok(AsyncTask::new(ParseFiles {
-    paths,
+    walk,
     tsfn,
     producer: call_sg_root,
   }))
@@ -262,8 +268,9 @@ fn find_in_files_impl(
     from_pinned_data(ctx.value, ctx.env)
   })?;
   let rule = parse_config(config.matcher, lang)?;
+  let walk = build_files(config.paths)?;
   Ok(AsyncTask::new(FindInFiles {
-    paths: config.paths,
+    walk,
     tsfn: (tsfn, rule),
     producer: call_sg_node,
   }))
