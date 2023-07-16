@@ -283,7 +283,7 @@ fn print_matches_with_heading<'a, W: Write>(
   let Some(first_match) = matches.next() else {
     return Ok(())
   };
-  let source = first_match.root().text();
+  let source = first_match.root().get_text();
   let display = first_match.display_context(0);
 
   let mut merger = MatchMerger::new(&first_match);
@@ -334,7 +334,7 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
   let Some(first_match) = matches.next() else {
     return Ok(())
   };
-  let source = first_match.root().text();
+  let source = first_match.root().get_text();
   let display = first_match.display_context(0);
 
   let mut merger = MatchMerger::new(&first_match);
@@ -379,7 +379,7 @@ fn print_diffs<'a, W: WriteColor>(
     return Ok(());
   };
   let range = first_diff.node_match.range();
-  let source = first_diff.node_match.root().text();
+  let source = first_diff.node_match.root().get_text();
   let mut start = range.end;
   let mut new_str = format!("{}{}", &source[..range.start], first_diff.replacement);
   for diff in diffs {
@@ -393,7 +393,7 @@ fn print_diffs<'a, W: WriteColor>(
     start = range.end;
   }
   new_str.push_str(&source[start..]);
-  print_diff(&source, &new_str, styles, writer)?;
+  print_diff(source, &new_str, styles, writer)?;
   Ok(())
 }
 

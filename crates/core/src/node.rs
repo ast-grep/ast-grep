@@ -21,6 +21,9 @@ impl<L: Language> Root<StrDoc<L>> {
   pub fn str(src: &str, lang: L) -> Self {
     Self::try_new(src, lang).expect("should parse")
   }
+  pub fn get_text(&self) -> &str {
+    &self.doc.src
+  }
 }
 
 impl<D: Doc> Root<D> {
@@ -218,8 +221,8 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
     }
   }
 
-  pub fn root(&self) -> Self {
-    self.root.root()
+  pub fn root(&self) -> &Root<StrDoc<L>> {
+    self.root
   }
 }
 
