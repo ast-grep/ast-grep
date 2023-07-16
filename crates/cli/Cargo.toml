@@ -42,7 +42,7 @@ ignore.workspace = true
 inquire = "0.6.2"
 num_cpus = "1.16.0"
 serde.workspace = true
-serde_json = "1.0.102"
+serde_json = "1.0.103"
 serde_yaml = "0.9.22"
 similar = { version = "2.2.1", features = ["inline"] }
 tokio = { version = "1", features = ["rt-multi-thread", "io-std"] }
