@@ -644,6 +644,7 @@ mod choose_color {
 mod test {
   use super::*;
   use ast_grep_config::{from_yaml_string, GlobalRules};
+  use ast_grep_core::replacer::Fixer;
   use ast_grep_language::{Language, SupportLang};
   use codespan_reporting::term::termcolor::Buffer;
 
@@ -752,9 +753,50 @@ rule:
     }
   }
 
+  // source, pattern, rewrite, debug note
+  type DiffCase<'a> = (&'a str, &'a str, &'a str, &'a str);
+
+  const DIFF_CASES: &[DiffCase] = &[
+    ("let a = 123", "a", "b", "Simple match"),
+    (
+      "Some(1), Some(2), Some(3)",
+      "Some",
+      "Any",
+      "Same line match",
+    ),
+    (
+      "Some(1), Some(2)\nSome(3), Some(4)",
+      "Some",
+      "Any",
+      "Multiple line match",
+    ),
+    (
+      "import a from 'b';import a from 'b';",
+      "import a from 'b';",
+      "",
+      "immediate following but not overlapping",
+    ),
+    (
+      "\n\ntest",
+      "test",
+      "rest",
+      // https://github.com/ast-grep/ast-grep/issues/517
+      "leading empty space",
+    ),
+  ];
+
   #[test]
-  #[ignore]
   fn test_print_diffs() {
-    todo!()
+    for &(source, pattern, rewrite, note) in DIFF_CASES {
+      // heading is required for CI
+      let printer = make_test_printer().heading(Heading::Always);
+      let lang = SgLang::from(SupportLang::Tsx);
+      let fixer = Fixer::try_new(rewrite, &lang).expect("should work");
+      let grep = lang.ast_grep(source);
+      let matches = grep.root().find_all(pattern);
+      let diffs = matches.map(|n| Diff::generate(n, &pattern, &fixer));
+      printer.print_diffs(diffs, "test.tsx".as_ref()).unwrap();
+      assert!(get_text(&printer).contains(rewrite), "{note}");
+    }
   }
 }
