@@ -1,14 +1,17 @@
 //! This module defines the supported programming languages for ast-grep.
+//!
 //! It provides a set of customized languages with expando_char / pre_process_pattern,
 //! and a set of stub languages without preprocessing.
 //! A rule of thumb: if your language does not accept identifiers like `$VAR`.
 //! You need use `impl_lang_expando!` macro and a standalone file for testing.
 //! Otherwise, you can define it as a stub language using `impl_lang!`.
+//! To see the full list of languages, visit `<https://ast-grep.github.io/reference/languages.html>`
 
 mod cpp;
 mod csharp;
 mod css;
 mod go;
+mod kotlin;
 mod parsers;
 mod python;
 mod rust;
@@ -26,6 +29,7 @@ use std::str::FromStr;
 
 pub use ast_grep_core::Language;
 
+/// this macro implements bare-bone methods for a language
 macro_rules! impl_lang {
   ($lang: ident, $func: ident) => {
     #[derive(Clone, Copy)]
@@ -38,6 +42,8 @@ macro_rules! impl_lang {
   };
 }
 
+/// this macro will implement expando_char and pre_process_pattern
+/// use this if your language does not accept $ as valid identifier char
 macro_rules! impl_lang_expando {
   ($lang: ident, $func: ident, $char: expr) => {
     #[derive(Clone, Copy)]
@@ -76,6 +82,8 @@ impl_lang_expando!(Css, language_css, '_');
 // we can use any Unicode code point categorized as "Letter"
 // https://go.dev/ref/spec#letter
 impl_lang_expando!(Go, language_go, 'µ');
+// https://github.com/fwcd/tree-sitter-kotlin/pull/93
+impl_lang_expando!(Kotlin, language_kotlin, '_');
 // we can use any char in unicode range [:XID_Start:]
 // https://docs.python.org/3/reference/lexical_analysis.html#identifiers
 // see also [PEP 3131](https://peps.python.org/pep-3131/) for further details.
@@ -90,7 +98,6 @@ impl_lang!(Dart, language_dart);
 impl_lang!(Html, language_html);
 impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
-impl_lang!(Kotlin, language_kotlin);
 impl_lang!(Lua, language_lua);
 impl_lang!(Scala, language_scala);
 impl_lang!(Swift, language_swift);
