@@ -2,7 +2,7 @@
 //! It provides a set of customized languages with expando_char / pre_process_pattern,
 //! and a set of stub languages without preprocessing.
 //! A rule of thumb: if your language does not accept identifiers like `$VAR`.
-//! You need to create a standalone file and implement expando_char / pre_process_pattern.
+//! You need use `impl_lang_expando!` macro and a standalone file for testing.
 //! Otherwise, you can define it as a stub language using `impl_lang!`.
 
 mod cpp;
@@ -38,24 +38,61 @@ macro_rules! impl_lang {
   };
 }
 
-// Customized Language with expando_char / pre_process_pattern
-pub use cpp::Cpp;
-pub use csharp::CSharp;
-pub use css::Css;
-pub use go::Go;
-pub use python::Python;
-pub use rust::Rust;
-pub use scala::Scala;
+macro_rules! impl_lang_expando {
+  ($lang: ident, $func: ident, $char: expr) => {
+    #[derive(Clone, Copy)]
+    pub struct $lang;
+    impl ast_grep_core::language::Language for $lang {
+      fn get_ts_language(&self) -> ast_grep_core::language::TSLanguage {
+        $crate::parsers::$func().into()
+      }
+      fn expando_char(&self) -> char {
+        $char
+      }
+      fn pre_process_pattern<'q>(&self, query: &'q str) -> std::borrow::Cow<'q, str> {
+        // use stack buffer to reduce allocation
+        let mut buf = [0; 4];
+        let expando = self.expando_char().encode_utf8(&mut buf);
+        // TODO: use more precise replacement
+        let replaced = query.replace(self.meta_var_char(), expando);
+        std::borrow::Cow::Owned(replaced)
+      }
+    }
+  };
+}
+
+/* Customized Language with expando_char / pre_process_pattern */
+// https://en.cppreference.com/w/cpp/language/identifiers
+// Due to some issues in the tree-sitter parser, it is not possible to use
+// unicode literals in identifiers for C/C++ parsers
+impl_lang_expando!(C, language_c, '_');
+impl_lang_expando!(Cpp, language_cpp, '_');
+// https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/lexical-structure#643-identifiers
+// all letter number is accepted
+// https://www.compart.com/en/unicode/category/Nl
+impl_lang_expando!(CSharp, language_c_sharp, 'µ');
+// https://www.w3.org/TR/CSS21/grammar.html#scanner
+impl_lang_expando!(Css, language_css, '_');
+// we can use any Unicode code point categorized as "Letter"
+// https://go.dev/ref/spec#letter
+impl_lang_expando!(Go, language_go, 'µ');
+// we can use any char in unicode range [:XID_Start:]
+// https://docs.python.org/3/reference/lexical_analysis.html#identifiers
+// see also [PEP 3131](https://peps.python.org/pep-3131/) for further details.
+impl_lang_expando!(Python, language_python, 'µ');
+// we can use any char in unicode range [:XID_Start:]
+// https://doc.rust-lang.org/reference/identifiers.html
+impl_lang_expando!(Rust, language_rust, 'µ');
 
 // Stub Language without preprocessing
 // Language Name, tree-sitter-name, alias, extension
-impl_lang!(C, language_c);
 impl_lang!(Dart, language_dart);
 impl_lang!(Html, language_html);
 impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
 impl_lang!(Kotlin, language_kotlin);
 impl_lang!(Lua, language_lua);
+impl_lang!(Scala, language_scala);
 impl_lang!(Swift, language_swift);
 impl_lang!(Thrift, language_thrift);
 impl_lang!(Tsx, language_tsx);
