@@ -163,6 +163,8 @@ fn update_and_commit_changelog() -> Result<()> {
   Command::new("auto-changelog")
     .arg("-p")
     .arg("npm/package.json")
+    .arg("--breaking-pattern")
+    .arg("BREAKING CHANGE")
     .spawn()
     .context("cannot run command `auto-changelog`. Please install it.")?
     .wait()?;
