@@ -44,6 +44,9 @@ mod parser_implmentation {
   pub fn language_python() -> TSLanguage {
     tree_sitter_python::language().into()
   }
+  pub fn language_ruby() -> TSLanguage {
+    tree_sitter_ruby::language().into()
+  }
   pub fn language_rust() -> TSLanguage {
     tree_sitter_rust::language().into()
   }
@@ -96,6 +99,7 @@ mod parser_implmentation {
     language_kotlin,
     language_lua,
     language_python,
+    language_ruby,
     language_rust,
     language_scala,
     language_swift,

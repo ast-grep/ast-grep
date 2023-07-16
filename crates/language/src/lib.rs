@@ -88,6 +88,8 @@ impl_lang_expando!(Kotlin, language_kotlin, '_');
 // https://docs.python.org/3/reference/lexical_analysis.html#identifiers
 // see also [PEP 3131](https://peps.python.org/pep-3131/) for further details.
 impl_lang_expando!(Python, language_python, 'µ');
+// https://github.com/tree-sitter/tree-sitter-ruby/blob/f257f3f57833d584050336921773738a3fd8ca22/grammar.js#L30C26-L30C78
+impl_lang_expando!(Ruby, language_ruby, 'µ');
 // we can use any char in unicode range [:XID_Start:]
 // https://doc.rust-lang.org/reference/identifiers.html
 impl_lang_expando!(Rust, language_rust, 'µ');
@@ -122,6 +124,7 @@ pub enum SupportLang {
   Kotlin,
   Lua,
   Python,
+  Ruby,
   Rust,
   Scala,
   Swift,
@@ -134,8 +137,8 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Kotlin, Lua, Python, Rust, Scala,
-      Swift, Thrift, Tsx, TypeScript,
+      C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Kotlin, Lua, Python, Ruby, Rust,
+      Scala, Swift, Thrift, Tsx, TypeScript,
     ]
   }
 
@@ -191,6 +194,7 @@ const fn alias(lang: &SupportLang) -> &[&str] {
     Kotlin => &["kotlin", "kt"],
     Lua => &["lua"],
     Python => &["py", "python"],
+    Ruby => &["rb", "ruby"],
     Rust => &["rs", "rust"],
     Scala => &["scala"],
     Swift => &["swift"],
@@ -231,6 +235,7 @@ macro_rules! execute_lang_method {
       S::Kotlin => Kotlin.$method($($pname,)*),
       S::Lua => Lua.$method($($pname,)*),
       S::Python => Python.$method($($pname,)*),
+      S::Ruby => Ruby.$method($($pname,)*),
       S::Rust => Rust.$method($($pname,)*),
       S::Scala => Scala.$method($($pname,)*),
       S::Swift => Swift.$method($($pname,)*),
@@ -280,6 +285,7 @@ fn extensions(lang: &SupportLang) -> &[&str] {
     Kotlin => &["kt", "ktm", "kts"],
     Lua => &["lua"],
     Python => &["py", "py3", "pyi", "bzl"],
+    Ruby => &["rb", "rbw", "gemspec"],
     Rust => &["rs"],
     Scala => &["scala", "sc", "sbt"],
     Swift => &["swift"],
@@ -332,6 +338,7 @@ fn file_types(lang: &SupportLang) -> Types {
     L::Kotlin => builder.select("kotlin"),
     L::Lua => builder.select("lua"),
     L::Python => builder.select("py"),
+    L::Ruby => builder.select("ruby"),
     L::Rust => builder.select("rust"),
     L::Scala => builder.select("scala"),
     L::Swift => builder.select("swift"),
