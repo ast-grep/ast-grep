@@ -180,4 +180,14 @@ mod test_cli {
     error("scan --report-style rich --json dir"); // conflict
     error("scan -r test.yml -c test.yml --json dir"); // conflict
   }
+
+  #[test]
+  fn test_test() {
+    ok("test");
+    ok("test -c sgconfig.yml");
+    ok("test --skip-snapshot-tests");
+    ok("test -U");
+    ok("test --update-all");
+    error("test --update-all --skip-snapshot-tests");
+  }
 }

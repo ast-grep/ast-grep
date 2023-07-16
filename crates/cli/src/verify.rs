@@ -123,9 +123,11 @@ pub struct TestArg {
   snapshot_dir: Option<PathBuf>,
   /// Only check if the test code is valid, without checking rule output.
   /// Turn it on when you want to ignore the output of rules.
-  #[clap(long)]
+  /// Conflicts with --update-all.
+  #[clap(long, conflicts_with = "update_all")]
   skip_snapshot_tests: bool,
   /// Update the content of all snapshots that have changed in test.
+  /// Conflicts with --skip-snapshot-tests.
   #[clap(short = 'U', long)]
   update_all: bool,
   /// start an interactive review to update snapshots selectively
