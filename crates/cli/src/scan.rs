@@ -46,8 +46,8 @@ pub struct ScanArg {
   json: bool,
 
   /// Apply all rewrite without confirmation if true.
-  #[clap(short = 'A', long)]
-  accept_all: bool,
+  #[clap(short = 'U', long)]
+  update_all: bool,
 
   /// The paths to search. You can provide multiple paths separated by spaces.
   #[clap(value_parser, default_value = ".")]
@@ -72,10 +72,10 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
     return run_scan(arg, printer);
   }
   let printer = ColoredPrinter::stdout(arg.color).style(arg.report_style);
-  let interactive = arg.interactive || arg.accept_all;
+  let interactive = arg.interactive || arg.update_all;
   if interactive {
     let from_stdin = arg.stdin && is_from_stdin();
-    let printer = InteractivePrinter::new(printer, arg.accept_all, from_stdin)?;
+    let printer = InteractivePrinter::new(printer, arg.update_all, from_stdin)?;
     run_scan(arg, printer)
   } else {
     run_scan(arg, printer)
@@ -346,7 +346,7 @@ rule:
       no_ignore: vec![],
       interactive: false,
       json: false,
-      accept_all: false,
+      update_all: false,
       paths: vec![PathBuf::from(".")],
       stdin: false,
     };

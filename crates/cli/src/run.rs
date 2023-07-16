@@ -64,8 +64,8 @@ pub struct RunArg {
   paths: Vec<PathBuf>,
 
   /// Apply all rewrite without confirmation if true.
-  #[clap(short = 'A', long)]
-  accept_all: bool,
+  #[clap(short = 'U', long, requires = "rewrite")]
+  update_all: bool,
 
   /// Output matches in structured JSON text useful for tools like jq.
   /// Conflicts with interactive.
@@ -102,10 +102,10 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
     return run_pattern_with_printer(arg, JSONPrinter::stdout());
   }
   let printer = ColoredPrinter::stdout(arg.color).heading(arg.heading);
-  let interactive = arg.interactive || arg.accept_all;
+  let interactive = arg.interactive || arg.update_all;
   if interactive {
     let from_stdin = arg.stdin && is_from_stdin();
-    let printer = InteractivePrinter::new(printer, arg.accept_all, from_stdin)?;
+    let printer = InteractivePrinter::new(printer, arg.update_all, from_stdin)?;
     run_pattern_with_printer(arg, printer)
   } else {
     run_pattern_with_printer(arg, printer)
@@ -276,7 +276,7 @@ mod test {
       json: false,
       heading: Heading::Never,
       debug_query: false,
-      accept_all: false,
+      update_all: false,
       paths: vec![PathBuf::from(".")],
     };
     assert!(run_with_pattern(arg).is_ok())
@@ -294,7 +294,7 @@ mod test {
       json: false,
       heading: Heading::Never,
       debug_query: false,
-      accept_all: false,
+      update_all: false,
       stdin: true,
       paths: vec![PathBuf::from(".")],
     };

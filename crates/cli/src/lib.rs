@@ -156,11 +156,15 @@ mod test_cli {
     ok("run -p test -l rs --color always");
     ok("run -p test -l rs --heading always");
     ok("run -p test dir1 dir2 dir3"); // multiple paths
+    ok("run -p testm -r restm -U"); // update all
+    ok("run -p testm -r restm --update-all"); // update all
     error("run test");
     error("run --debug-query test"); // missing lang
     error("run -r Test dir");
     error("run -p test -i --json dir"); // conflict
     error("run -p test -l rs -c always"); // no color shortcut
+    error("run -p test -U");
+    error("run -p test --update-all");
   }
 
   #[test]

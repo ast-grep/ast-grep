@@ -126,8 +126,8 @@ pub struct TestArg {
   #[clap(long)]
   skip_snapshot_tests: bool,
   /// Update the content of all snapshots that have changed in test.
-  #[clap(short, long)]
-  update_snapshots: bool,
+  #[clap(short = 'U', long)]
+  update_all: bool,
   /// start an interactive review to update snapshots selectively
   #[clap(short, long)]
   interactive: bool,
@@ -145,7 +145,7 @@ pub fn run_test_rule(arg: TestArg) -> Result<()> {
   } else {
     let reporter = DefaultReporter {
       output: std::io::stdout(),
-      update_snapshots: arg.update_snapshots,
+      update_all: arg.update_all,
     };
     run_test_rule_impl(arg, reporter)
   }
@@ -620,7 +620,7 @@ fn report_case_detail_impl<W: Write>(
 
 struct DefaultReporter<Output: Write> {
   output: Output,
-  update_snapshots: bool,
+  update_all: bool,
 }
 
 impl<O: Write> Reporter for DefaultReporter<O> {
@@ -630,7 +630,7 @@ impl<O: Write> Reporter for DefaultReporter<O> {
     &mut self.output
   }
   fn collect_snapshot_action(&self) -> SnapshotAction {
-    if self.update_snapshots {
+    if self.update_all {
       SnapshotAction::AcceptAll
     } else {
       SnapshotAction::AcceptNone
@@ -835,7 +835,7 @@ rule:
   fn test_run_verify() {
     let reporter = DefaultReporter {
       output: Buffer::no_color(),
-      update_snapshots: false,
+      update_all: false,
     };
     let arg = TestArg {
       config: None,
@@ -843,7 +843,7 @@ rule:
       skip_snapshot_tests: true,
       snapshot_dir: None,
       test_dir: None,
-      update_snapshots: false,
+      update_all: false,
     };
     // TODO
     assert!(run_test_rule_impl(arg, reporter).is_err());
