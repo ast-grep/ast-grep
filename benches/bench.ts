@@ -39,7 +39,7 @@ async function run() {
       }),
       b.add('oxc parse(false positive for now)', () => {
         oxc.parseSync(source, {
-          sourceType: 'module'
+          sourceType: 'module',
         })
       }),
       b.add('swc parse', () => {
@@ -48,11 +48,7 @@ async function run() {
         })
       }),
       b.add('TypeScript parse', () => {
-        ts.createSourceFile(
-          'benchmark.ts',
-          source,
-          ts.ScriptTarget.Latest,
-        )
+        ts.createSourceFile('benchmark.ts', source, ts.ScriptTarget.Latest)
       }),
       b.cycle(),
       b.complete(),
