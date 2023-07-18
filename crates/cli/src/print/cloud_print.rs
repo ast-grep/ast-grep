@@ -23,6 +23,7 @@ macro_rules! Diffs {
 }
 
 #[derive(PartialEq, Eq, Clone, Default, ValueEnum)]
+#[clap(rename_all = "lower")]
 pub enum Platform {
   #[default]
   Local,
@@ -52,11 +53,11 @@ impl<W: Write> Printer for CloudPrinter<W> {
     print_rule(self, matches, &path, rule)
   }
 
-  fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {
+  fn print_matches<'a>(&self, _m: Matches!('a), _p: &Path) -> Result<()> {
     unreachable!()
   }
 
-  fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
+  fn print_diffs<'a>(&self, _d: Diffs!('a), _p: &Path) -> Result<()> {
     unreachable!()
   }
 
