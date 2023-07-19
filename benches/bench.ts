@@ -37,9 +37,10 @@ async function run() {
           sourceType: 'module',
         })
       }),
-      b.add('oxc parse(false positive for now)', () => {
+      b.add('oxc parse', () => {
         oxc.parseSync(source, {
           sourceType: 'module',
+          sourceFilename: 'test.ts',
         })
       }),
       b.add('swc parse', () => {
