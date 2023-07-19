@@ -35,6 +35,9 @@ mod parser_implmentation {
   pub fn language_javascript() -> TSLanguage {
     tree_sitter_javascript::language().into()
   }
+  pub fn language_json() -> TSLanguage {
+    tree_sitter_json::language().into()
+  }
   pub fn language_kotlin() -> TSLanguage {
     tree_sitter_kotlin::language().into()
   }
@@ -93,6 +96,7 @@ mod parser_implmentation {
     language_html,
     language_java,
     language_javascript,
+    language_json,
     language_kotlin,
     language_lua,
     language_python,
