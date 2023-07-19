@@ -1,14 +1,17 @@
 //! This module defines the supported programming languages for ast-grep.
+//!
 //! It provides a set of customized languages with expando_char / pre_process_pattern,
 //! and a set of stub languages without preprocessing.
 //! A rule of thumb: if your language does not accept identifiers like `$VAR`.
-//! You need to create a standalone file and implement expando_char / pre_process_pattern.
+//! You need use `impl_lang_expando!` macro and a standalone file for testing.
 //! Otherwise, you can define it as a stub language using `impl_lang!`.
+//! To see the full list of languages, visit `<https://ast-grep.github.io/reference/languages.html>`
 
 mod cpp;
 mod csharp;
 mod css;
 mod go;
+mod kotlin;
 mod parsers;
 mod python;
 mod rust;
@@ -26,6 +29,7 @@ use std::str::FromStr;
 
 pub use ast_grep_core::Language;
 
+/// this macro implements bare-bone methods for a language
 macro_rules! impl_lang {
   ($lang: ident, $func: ident) => {
     #[derive(Clone, Copy)]
@@ -38,25 +42,67 @@ macro_rules! impl_lang {
   };
 }
 
-// Customized Language with expando_char / pre_process_pattern
-pub use cpp::Cpp;
-pub use csharp::CSharp;
-pub use css::Css;
-pub use go::Go;
-pub use python::Python;
-pub use rust::Rust;
-pub use scala::Scala;
+/// this macro will implement expando_char and pre_process_pattern
+/// use this if your language does not accept $ as valid identifier char
+macro_rules! impl_lang_expando {
+  ($lang: ident, $func: ident, $char: expr) => {
+    #[derive(Clone, Copy)]
+    pub struct $lang;
+    impl ast_grep_core::language::Language for $lang {
+      fn get_ts_language(&self) -> ast_grep_core::language::TSLanguage {
+        $crate::parsers::$func().into()
+      }
+      fn expando_char(&self) -> char {
+        $char
+      }
+      fn pre_process_pattern<'q>(&self, query: &'q str) -> std::borrow::Cow<'q, str> {
+        // use stack buffer to reduce allocation
+        let mut buf = [0; 4];
+        let expando = self.expando_char().encode_utf8(&mut buf);
+        // TODO: use more precise replacement
+        let replaced = query.replace(self.meta_var_char(), expando);
+        std::borrow::Cow::Owned(replaced)
+      }
+    }
+  };
+}
+
+/* Customized Language with expando_char / pre_process_pattern */
+// https://en.cppreference.com/w/cpp/language/identifiers
+// Due to some issues in the tree-sitter parser, it is not possible to use
+// unicode literals in identifiers for C/C++ parsers
+impl_lang_expando!(C, language_c, '_');
+impl_lang_expando!(Cpp, language_cpp, '_');
+// https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/lexical-structure#643-identifiers
+// all letter number is accepted
+// https://www.compart.com/en/unicode/category/Nl
+impl_lang_expando!(CSharp, language_c_sharp, 'µ');
+// https://www.w3.org/TR/CSS21/grammar.html#scanner
+impl_lang_expando!(Css, language_css, '_');
+// we can use any Unicode code point categorized as "Letter"
+// https://go.dev/ref/spec#letter
+impl_lang_expando!(Go, language_go, 'µ');
+// https://github.com/fwcd/tree-sitter-kotlin/pull/93
+impl_lang_expando!(Kotlin, language_kotlin, '_');
+// we can use any char in unicode range [:XID_Start:]
+// https://docs.python.org/3/reference/lexical_analysis.html#identifiers
+// see also [PEP 3131](https://peps.python.org/pep-3131/) for further details.
+impl_lang_expando!(Python, language_python, 'µ');
+// https://github.com/tree-sitter/tree-sitter-ruby/blob/f257f3f57833d584050336921773738a3fd8ca22/grammar.js#L30C26-L30C78
+impl_lang_expando!(Ruby, language_ruby, 'µ');
+// we can use any char in unicode range [:XID_Start:]
+// https://doc.rust-lang.org/reference/identifiers.html
+impl_lang_expando!(Rust, language_rust, 'µ');
 
 // Stub Language without preprocessing
 // Language Name, tree-sitter-name, alias, extension
-impl_lang!(C, language_c);
 impl_lang!(Dart, language_dart);
 impl_lang!(Html, language_html);
 impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
 impl_lang!(Json, language_json);
-impl_lang!(Kotlin, language_kotlin);
 impl_lang!(Lua, language_lua);
+impl_lang!(Scala, language_scala);
 impl_lang!(Swift, language_swift);
 impl_lang!(Thrift, language_thrift);
 impl_lang!(Tsx, language_tsx);
@@ -80,6 +126,7 @@ pub enum SupportLang {
   Kotlin,
   Lua,
   Python,
+  Ruby,
   Rust,
   Scala,
   Swift,
@@ -92,7 +139,7 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Json, Kotlin, Lua, Python, Rust,
+      C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Json, Kotlin, Lua, Python, Ruby, Rust,
       Scala, Swift, Thrift, Tsx, TypeScript,
     ]
   }
@@ -150,6 +197,7 @@ const fn alias(lang: &SupportLang) -> &[&str] {
     Kotlin => &["kotlin", "kt"],
     Lua => &["lua"],
     Python => &["py", "python"],
+    Ruby => &["rb", "ruby"],
     Rust => &["rs", "rust"],
     Scala => &["scala"],
     Swift => &["swift"],
@@ -191,6 +239,7 @@ macro_rules! execute_lang_method {
       S::Kotlin => Kotlin.$method($($pname,)*),
       S::Lua => Lua.$method($($pname,)*),
       S::Python => Python.$method($($pname,)*),
+      S::Ruby => Ruby.$method($($pname,)*),
       S::Rust => Rust.$method($($pname,)*),
       S::Scala => Scala.$method($($pname,)*),
       S::Swift => Swift.$method($($pname,)*),
@@ -241,6 +290,7 @@ fn extensions(lang: &SupportLang) -> &[&str] {
     Kotlin => &["kt", "ktm", "kts"],
     Lua => &["lua"],
     Python => &["py", "py3", "pyi", "bzl"],
+    Ruby => &["rb", "rbw", "gemspec"],
     Rust => &["rs"],
     Scala => &["scala", "sc", "sbt"],
     Swift => &["swift"],
@@ -294,6 +344,7 @@ fn file_types(lang: &SupportLang) -> Types {
     L::Kotlin => builder.select("kotlin"),
     L::Lua => builder.select("lua"),
     L::Python => builder.select("py"),
+    L::Ruby => builder.select("ruby"),
     L::Rust => builder.select("rust"),
     L::Scala => builder.select("scala"),
     L::Swift => builder.select("swift"),

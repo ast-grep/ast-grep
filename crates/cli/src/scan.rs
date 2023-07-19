@@ -11,7 +11,8 @@ use crate::config::{find_rules, read_rule_file, register_custom_language, Ignore
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{
-  ColorArg, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Printer, ReportStyle, SimpleFile,
+  CloudPrinter, ColorArg, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, Printer,
+  ReportStyle, SimpleFile,
 };
 use crate::utils::filter_file_interactive;
 use crate::utils::{is_from_stdin, run_std_in, StdInWorker};
@@ -30,12 +31,15 @@ pub struct ScanArg {
   rule: Option<PathBuf>,
 
   /// Start interactive edit session. Code rewrite only happens inside a session.
-  #[clap(short, long, conflicts_with = "json")]
+  #[clap(short, long, conflicts_with = "json", conflicts_with = "format")]
   interactive: bool,
 
   /// Controls output color.
   #[clap(long, default_value = "auto")]
   color: ColorArg,
+
+  #[clap(short, long, conflicts_with = "json", default_value = "local")]
+  format: Platform,
 
   #[clap(long, default_value = "rich")]
   report_style: ReportStyle,
@@ -69,6 +73,10 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
   register_custom_language(arg.config.clone());
   if arg.json {
     let printer = JSONPrinter::stdout();
+    return run_scan(arg, printer);
+  }
+  if arg.format != Platform::Local {
+    let printer = CloudPrinter::stdout();
     return run_scan(arg, printer);
   }
   let printer = ColoredPrinter::stdout(arg.color).style(arg.report_style);
@@ -349,6 +357,7 @@ rule:
       update_all: false,
       paths: vec![PathBuf::from(".")],
       stdin: false,
+      format: Platform::Local,
     };
     assert!(run_with_config(arg).is_ok());
   }

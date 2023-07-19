@@ -283,7 +283,7 @@ fn print_matches_with_heading<'a, W: Write>(
   let Some(first_match) = matches.next() else {
     return Ok(())
   };
-  let source = first_match.root().text();
+  let source = first_match.root().get_text();
   let display = first_match.display_context(0);
 
   let mut merger = MatchMerger::new(&first_match);
@@ -305,7 +305,7 @@ fn print_matches_with_heading<'a, W: Write>(
     let lines = ret.lines().count();
     let mut num = merger.last_start_line;
     let width = (lines + num).to_string().chars().count();
-    write!(writer, "{num:>width$}:")?; // initial line num
+    write!(writer, "{num:>width$}│")?; // initial line num
     print_highlight(ret.lines(), width, &mut num, writer)?;
     writeln!(writer)?; // end match new line
                        //
@@ -317,7 +317,7 @@ fn print_matches_with_heading<'a, W: Write>(
   let lines = ret.lines().count();
   let mut num = merger.last_start_line;
   let width = (lines + num).to_string().chars().count();
-  write!(writer, "{num:>width$}:")?; // initial line num
+  write!(writer, "{num:>width$}│")?; // initial line num
   print_highlight(ret.lines(), width, &mut num, writer)?;
   writeln!(writer)?; // end match new line
   writeln!(writer)?; // end
@@ -334,7 +334,7 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
   let Some(first_match) = matches.next() else {
     return Ok(())
   };
-  let source = first_match.root().text();
+  let source = first_match.root().get_text();
   let display = first_match.display_context(0);
 
   let mut merger = MatchMerger::new(&first_match);
@@ -379,7 +379,7 @@ fn print_diffs<'a, W: WriteColor>(
     return Ok(());
   };
   let range = first_diff.node_match.range();
-  let source = first_diff.node_match.root().text();
+  let source = first_diff.node_match.root().get_text();
   let mut start = range.end;
   let mut new_str = format!("{}{}", &source[..range.start], first_diff.replacement);
   for diff in diffs {
@@ -393,7 +393,7 @@ fn print_diffs<'a, W: WriteColor>(
     start = range.end;
   }
   new_str.push_str(&source[start..]);
-  print_diff(&source, &new_str, styles, writer)?;
+  print_diff(source, &new_str, styles, writer)?;
   Ok(())
 }
 
@@ -409,7 +409,7 @@ fn print_highlight<'a, W: Write>(
   for line in lines {
     writeln!(writer)?;
     *num += 1;
-    write!(writer, "{num:>width$}:{line}")?;
+    write!(writer, "{num:>width$}│{line}")?;
   }
   Ok(())
 }
@@ -458,7 +458,7 @@ pub fn print_diff(
         };
         write!(
           writer,
-          "{} {}:{}",
+          "{} {}│{}",
           index_display(change.old_index(), s, old_width),
           index_display(change.new_index(), s, new_width),
           s.paint(sign),
@@ -644,6 +644,7 @@ mod choose_color {
 mod test {
   use super::*;
   use ast_grep_config::{from_yaml_string, GlobalRules};
+  use ast_grep_core::replacer::Fixer;
   use ast_grep_language::{Language, SupportLang};
   use codespan_reporting::term::termcolor::Buffer;
 
@@ -693,7 +694,7 @@ mod test {
       let expected: String = source
         .lines()
         .enumerate()
-        .map(|(i, l)| format!("{}:{l}\n", i + 1))
+        .map(|(i, l)| format!("{}│{l}\n", i + 1))
         .collect();
       // append heading to expected
       let output = format!("test.tsx\n{expected}\n");
@@ -752,9 +753,50 @@ rule:
     }
   }
 
+  // source, pattern, rewrite, debug note
+  type DiffCase<'a> = (&'a str, &'a str, &'a str, &'a str);
+
+  const DIFF_CASES: &[DiffCase] = &[
+    ("let a = 123", "a", "b", "Simple match"),
+    (
+      "Some(1), Some(2), Some(3)",
+      "Some",
+      "Any",
+      "Same line match",
+    ),
+    (
+      "Some(1), Some(2)\nSome(3), Some(4)",
+      "Some",
+      "Any",
+      "Multiple line match",
+    ),
+    (
+      "import a from 'b';import a from 'b';",
+      "import a from 'b';",
+      "",
+      "immediate following but not overlapping",
+    ),
+    (
+      "\n\ntest",
+      "test",
+      "rest",
+      // https://github.com/ast-grep/ast-grep/issues/517
+      "leading empty space",
+    ),
+  ];
+
   #[test]
-  #[ignore]
   fn test_print_diffs() {
-    todo!()
+    for &(source, pattern, rewrite, note) in DIFF_CASES {
+      // heading is required for CI
+      let printer = make_test_printer().heading(Heading::Always);
+      let lang = SgLang::from(SupportLang::Tsx);
+      let fixer = Fixer::try_new(rewrite, &lang).expect("should work");
+      let grep = lang.ast_grep(source);
+      let matches = grep.root().find_all(pattern);
+      let diffs = matches.map(|n| Diff::generate(n, &pattern, &fixer));
+      printer.print_diffs(diffs, "test.tsx".as_ref()).unwrap();
+      assert!(get_text(&printer).contains(rewrite), "{note}");
+    }
   }
 }

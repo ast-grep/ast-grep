@@ -255,20 +255,26 @@ impl Language for DynamicLang {
 mod test {
   use super::*;
 
-  #[cfg(target_os = "macos")]
-  #[test]
-  fn test_load_parser() {
-    let (_lib, lang) = unsafe {
-      load_ts_language(
-        "../../benches/fixtures/json-mac.so".into(),
-        "tree_sitter_json".into(),
-      )
-      .unwrap()
-    };
+  fn test_load_parser(path: &str) {
+    let (_lib, lang) = unsafe { load_ts_language(path.into(), "tree_sitter_json".into()).unwrap() };
     let sg = lang.ast_grep("{\"a\": 123}");
     assert_eq!(
       sg.root().to_sexp(),
       "(document (object (pair key: (string (string_content)) value: (number))))"
     );
+  }
+
+  #[test]
+  #[cfg(target_os = "macos")]
+  fn test_load_parser_mac() {
+    let path = "../../benches/fixtures/json-mac.so";
+    test_load_parser(path);
+  }
+
+  #[test]
+  #[cfg(target_os = "linux")]
+  fn test_load_parser_mac() {
+    let path = "../../benches/fixtures/json-linux.so";
+    test_load_parser(path);
   }
 }
