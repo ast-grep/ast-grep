@@ -38,6 +38,13 @@ fn match_leaf_meta_var<'tree, D: Doc>(
   }
 }
 
+#[inline]
+fn is_node_eligible_for_meta_var(goal: &Node<impl Doc>, is_leaf: bool) -> bool {
+  // allow Error as meta_var
+  // see https://github.com/ast-grep/ast-grep/issues/526
+  is_leaf || goal.is_error()
+}
+
 fn try_get_ellipsis_mode(node: &Node<impl Doc>) -> Result<Option<String>, ()> {
   match extract_var_from_node(node).ok_or(())? {
     MetaVariable::Ellipsis => Ok(None),
@@ -67,7 +74,7 @@ pub fn match_end_non_recursive<D: Doc>(
   candidate: Node<D>,
 ) -> Option<usize> {
   let is_leaf = goal.is_named_leaf();
-  if is_leaf && extract_var_from_node(goal).is_some() {
+  if is_node_eligible_for_meta_var(goal, is_leaf) && extract_var_from_node(goal).is_some() {
     return Some(candidate.range().end);
   }
   if goal.kind_id() != candidate.kind_id() {
@@ -171,7 +178,7 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<Node<'tree, D>> {
   let is_leaf = goal.is_named_leaf();
-  if is_leaf {
+  if is_node_eligible_for_meta_var(goal, is_leaf) {
     if let Some(matched) = match_leaf_meta_var(goal, candidate.clone(), env) {
       return Some(matched);
     }

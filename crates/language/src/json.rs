@@ -24,10 +24,7 @@ fn test_json_str() {
 #[test]
 fn test_json_pattern() {
   test_match("$A", "123");
-  // test_match(
-  //   r#"[$A]"#,
-  //   r#"[123]"#,
-  // );
+  test_match(r#"[$A]"#, r#"[123]"#);
   test_match(r#"{ $$$ }"#, r#"{"abc": 123}"#);
 }
 
