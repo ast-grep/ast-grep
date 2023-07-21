@@ -11,6 +11,7 @@ mod cpp;
 mod csharp;
 mod css;
 mod go;
+mod json;
 mod kotlin;
 mod parsers;
 mod python;
@@ -100,6 +101,7 @@ impl_lang!(Dart, language_dart);
 impl_lang!(Html, language_html);
 impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
+impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
 impl_lang!(Scala, language_scala);
 impl_lang!(Swift, language_swift);
@@ -121,6 +123,7 @@ pub enum SupportLang {
   Html,
   Java,
   JavaScript,
+  Json,
   Kotlin,
   Lua,
   Python,
@@ -137,7 +140,7 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Kotlin, Lua, Python, Ruby, Rust,
+      C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Json, Kotlin, Lua, Python, Ruby, Rust,
       Scala, Swift, Thrift, Tsx, TypeScript,
     ]
   }
@@ -191,6 +194,7 @@ const fn alias(lang: &SupportLang) -> &[&str] {
     Html => &["html"],
     Java => &["java"],
     JavaScript => &["javascript", "js", "jsx"],
+    Json => &["json"],
     Kotlin => &["kotlin", "kt"],
     Lua => &["lua"],
     Python => &["py", "python"],
@@ -232,6 +236,7 @@ macro_rules! execute_lang_method {
       S::Html => Html.$method($($pname,)*),
       S::Java => Java.$method($($pname,)*),
       S::JavaScript => JavaScript.$method($($pname,)*),
+      S::Json => Json.$method($($pname,)*),
       S::Kotlin => Kotlin.$method($($pname,)*),
       S::Lua => Lua.$method($($pname,)*),
       S::Python => Python.$method($($pname,)*),
@@ -282,6 +287,7 @@ fn extensions(lang: &SupportLang) -> &[&str] {
     Html => &["html", "htm", "xhtml"],
     Java => &["java"],
     JavaScript => &["cjs", "js", "mjs", "jsx"],
+    Json => &["json"],
     Kotlin => &["kt", "ktm", "kts"],
     Lua => &["lua"],
     Python => &["py", "py3", "pyi", "bzl"],
@@ -335,6 +341,7 @@ fn file_types(lang: &SupportLang) -> Types {
     L::JavaScript => {
       add_custom_file_type(&mut builder, "myjs", &["*.js", "*.cjs", "*.jsx", "*.mjs"])
     }
+    L::Json => builder.select("json"),
     L::Kotlin => builder.select("kotlin"),
     L::Lua => builder.select("lua"),
     L::Python => builder.select("py"),
