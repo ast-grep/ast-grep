@@ -11,6 +11,7 @@ mod cpp;
 mod csharp;
 mod css;
 mod go;
+mod json;
 mod kotlin;
 mod parsers;
 mod python;
