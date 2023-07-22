@@ -12,7 +12,7 @@ const CONFIG: &str = "
 ruleDirs:
 - rules
 testConfigs:
-- testDir: rule-test
+- testDir: rule-tests
 ";
 const RULE1: &str = "
 id: on-rule
