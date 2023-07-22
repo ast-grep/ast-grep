@@ -163,7 +163,8 @@ fn create_new_project(arg: NewArg) -> Result<()> {
   println!("Creating a new ast-grep project...");
   let rule_dirs = arg.ask_dir_and_create("Where do you want to have your rules?", "rules")?;
   let test_dirs = if arg.confirm("Do you want to create rule tests?")? {
-    let test_dirs = arg.ask_dir_and_create("Where do you want to have your tests?", "rule-test")?;
+    let test_dirs =
+      arg.ask_dir_and_create("Where do you want to have your tests?", "rule-tests")?;
     Some(TestConfig::from(test_dirs))
   } else {
     None

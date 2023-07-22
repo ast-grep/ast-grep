@@ -9,7 +9,7 @@ const CONFIG: &str = "
 ruleDirs:
 - rules
 testConfigs:
-- testDir: rule-test
+- testDir: rule-tests
 ";
 const RULE: &str = "
 id: test-rule
@@ -32,7 +32,7 @@ fn setup() -> Result<TempDir> {
   let dir = create_test_files([
     ("sgconfig.yml", CONFIG),
     ("rules/test-rule.yml", RULE),
-    ("rule-test/test-rule-test.yml", TEST),
+    ("rule-tests/test-rule-test.yml", TEST),
     ("test.ts", "Some(123)"),
   ])?;
   assert!(dir.path().join("sgconfig.yml").exists());
