@@ -13,6 +13,7 @@ mod css;
 mod go;
 mod json;
 mod kotlin;
+mod lua;
 mod parsers;
 mod python;
 mod rust;
