@@ -9,7 +9,7 @@ fn test_match(query: &str, source: &str) {
 }
 
 #[test]
-fn test_c_sharp_pattern() {
+fn test_css_pattern() {
   test_match("$A { color: red; }", ".a { color: red; }");
   test_match(".a { color: $COLOR; }", ".a { color: red; }");
   test_match(".a { $PROP: red; }", ".a { color: red; }");
@@ -21,7 +21,7 @@ fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSPa
 }
 
 #[test]
-fn test_c_sharp_replace() -> Result<(), TSParseError> {
+fn test_css_replace() -> Result<(), TSParseError> {
   let ret = test_replace(
     ".a {color: red; }",
     ".a { color: $COLOR}",
