@@ -178,13 +178,13 @@ mod test_cli {
     ok("scan dir1 dir2 dir3"); // multiple paths
     ok("scan -r test.yml --format github");
     ok("scan -f github");
-    ok("scan -f local");
+    ok("scan --interactive");
     error("scan -i --json dir"); // conflict
     error("scan --report-style rich --json dir"); // conflict
     error("scan -r test.yml -c test.yml --json dir"); // conflict
     error("scan -f gitlab");
-    error("scan -f local --interactive");
-    error("scan -f local -i");
+    error("scan -f github -i");
+    error("scan -f local");
   }
 
   #[test]

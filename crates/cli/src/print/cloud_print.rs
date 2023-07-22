@@ -22,11 +22,9 @@ macro_rules! Diffs {
   ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
 }
 
-#[derive(PartialEq, Eq, Clone, Default, ValueEnum)]
+#[derive(PartialEq, Eq, Clone, ValueEnum)]
 #[clap(rename_all = "lower")]
 pub enum Platform {
-  #[default]
-  Local,
   GitHub,
 }
 
@@ -34,11 +32,17 @@ pub struct CloudPrinter<W: Write> {
   writer: Mutex<W>,
 }
 
+impl<W: Write> CloudPrinter<W> {
+  pub fn new(w: W) -> Self {
+    Self {
+      writer: Mutex::new(w),
+    }
+  }
+}
+
 impl CloudPrinter<Stdout> {
   pub fn stdout() -> Self {
-    Self {
-      writer: Mutex::new(std::io::stdout()),
-    }
+    Self::new(std::io::stdout())
   }
 }
 
@@ -103,10 +107,19 @@ fn print_rule<'a, W: Write>(
 mod test {
   use super::*;
   use ast_grep_config::{from_yaml_string, GlobalRules};
-  use ast_grep_core::replacer::Fixer;
-  use ast_grep_core::traversal::Visitor;
-  use ast_grep_core::{AstGrep, Matcher, StrDoc};
-  use ast_grep_language::SupportLang;
+  use ast_grep_language::{Language, SupportLang};
+  use codespan_reporting::term::termcolor::Buffer;
+
+  fn make_test_printer() -> CloudPrinter<Buffer> {
+    CloudPrinter::new(Buffer::no_color())
+  }
+  fn get_text(printer: &CloudPrinter<Buffer>) -> String {
+    let buffer = printer.writer.lock().expect("should work");
+    let bytes = buffer.as_slice();
+    std::str::from_utf8(bytes)
+      .expect("buffer should be valid utf8")
+      .to_owned()
+  }
 
   fn make_rule(rule: &str) -> RuleConfig<SgLang> {
     let globals = GlobalRules::default();
@@ -115,7 +128,6 @@ mod test {
         r"
 id: test
 message: test rule
-severity: info
 language: TypeScript
 {rule}"
       ),
@@ -126,16 +138,75 @@ language: TypeScript
     .unwrap()
   }
 
-  fn make_diffs<'a>(
-    grep: &'a AstGrep<StrDoc<SgLang>>,
-    matcher: impl Matcher<SgLang>,
-    fixer: &Fixer<String>,
-  ) -> Vec<Diff<'a>> {
-    let root = grep.root();
-    Visitor::new(&matcher)
-      .reentrant(false)
-      .visit(root)
-      .map(|nm| Diff::generate(nm, &matcher, fixer))
-      .collect()
+  fn test_output(src: &str, rule_str: &str, expect: &str) {
+    let src = src.to_owned();
+    let printer = make_test_printer();
+    let grep = SgLang::from(SupportLang::Tsx).ast_grep(&src);
+    let rule = make_rule(rule_str);
+    let matches = grep.root().find_all(&rule.matcher);
+    let file = SimpleFile::new(Cow::Borrowed("test.tsx"), &src);
+    printer.print_rule(matches, file, &rule).unwrap();
+    let actual = get_text(&printer);
+    assert_eq!(actual, expect);
+  }
+
+  #[test]
+  fn test_no_match_output() {
+    test_output("let a = 123", "rule: { pattern: console }", "");
+    test_output(
+      "let a = 123",
+      "
+rule: { pattern: console }
+severity: error",
+      "",
+    );
+  }
+
+  #[test]
+  fn test_hint_output() {
+    test_output(
+      "console.log(123)",
+      "
+rule: { pattern: console }
+severity: hint
+",
+      "",
+    );
+  }
+
+  #[test]
+  fn test_info_output() {
+    test_output(
+      "console.log(123)",
+      "
+rule: { pattern: console }
+severity: info
+",
+      "::notice file=test.tsx,line=1,endLine=1,title=test::test rule\n",
+    );
+  }
+
+  #[test]
+  fn test_warning_output() {
+    test_output(
+      "console.log(123)",
+      "
+rule: { pattern: console }
+severity: warning
+",
+      "::warning file=test.tsx,line=1,endLine=1,title=test::test rule\n",
+    );
+  }
+
+  #[test]
+  fn test_error_output() {
+    test_output(
+      "console.log(123)",
+      "
+rule: { pattern: console }
+severity: error
+",
+      "::error file=test.tsx,line=1,endLine=1,title=test::test rule\n",
+    );
   }
 }

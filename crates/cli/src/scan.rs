@@ -38,8 +38,8 @@ pub struct ScanArg {
   #[clap(long, default_value = "auto")]
   color: ColorArg,
 
-  #[clap(short, long, conflicts_with = "json", default_value = "local")]
-  format: Platform,
+  #[clap(short, long, conflicts_with = "json")]
+  format: Option<Platform>,
 
   #[clap(long, default_value = "rich")]
   report_style: ReportStyle,
@@ -75,7 +75,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
     let printer = JSONPrinter::stdout();
     return run_scan(arg, printer);
   }
-  if arg.format != Platform::Local {
+  if let Some(_format) = &arg.format {
     let printer = CloudPrinter::stdout();
     return run_scan(arg, printer);
   }
@@ -357,7 +357,7 @@ rule:
       update_all: false,
       paths: vec![PathBuf::from(".")],
       stdin: false,
-      format: Platform::Local,
+      format: None,
     };
     assert!(run_with_config(arg).is_ok());
   }
