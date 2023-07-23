@@ -93,6 +93,14 @@ pub struct RunArg {
   /// If the environment variable `AST_GREP_NO_STDIN` exist, ast-grep will disable StdIn mode.
   #[clap(long)]
   stdin: bool,
+
+  // context related options
+  #[clap(short = 'A', long, default_value = "0")]
+  after: u32,
+  #[clap(short = 'B', long, default_value = "0")]
+  before: u32,
+  #[clap(short = 'C', long, default_value = "0")]
+  context: u32,
 }
 
 // Every run will include Search or Replace
@@ -263,10 +271,10 @@ fn match_one_file(
 mod test {
   use super::*;
   use ast_grep_language::SupportLang;
-  #[test]
-  fn test_run_with_pattern() {
-    let arg = RunArg {
-      pattern: "console.log".to_string(),
+
+  fn default_run_arg() -> RunArg {
+    RunArg {
+      pattern: String::new(),
       rewrite: None,
       color: ColorArg::Never,
       no_ignore: vec![],
@@ -278,6 +286,17 @@ mod test {
       debug_query: false,
       update_all: false,
       paths: vec![PathBuf::from(".")],
+      before: 0,
+      after: 0,
+      context: 0,
+    }
+  }
+
+  #[test]
+  fn test_run_with_pattern() {
+    let arg = RunArg {
+      pattern: "console.log".to_string(),
+      ..default_run_arg()
     };
     assert!(run_with_pattern(arg).is_ok())
   }
@@ -286,17 +305,9 @@ mod test {
   fn test_run_with_specific_lang() {
     let arg = RunArg {
       pattern: "Some(result)".to_string(),
-      rewrite: None,
-      color: ColorArg::Never,
-      no_ignore: vec![],
-      interactive: false,
       lang: Some(SupportLang::Rust.into()),
-      json: false,
-      heading: Heading::Never,
-      debug_query: false,
-      update_all: false,
       stdin: true,
-      paths: vec![PathBuf::from(".")],
+      ..default_run_arg()
     };
     assert!(run_with_pattern(arg).is_ok())
   }
