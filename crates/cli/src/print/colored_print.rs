@@ -64,6 +64,7 @@ pub struct ColoredPrinter<W: WriteColor> {
   config: term::Config,
   styles: PrintStyles,
   heading: Heading,
+  context: u16,
 }
 impl ColoredPrinter<StandardStream> {
   pub fn stdout<C: Into<ColorChoice>>(color: C) -> Self {
@@ -79,6 +80,7 @@ impl<W: WriteColor> ColoredPrinter<W> {
       styles: PrintStyles::from(ColorChoice::Auto),
       config: term::Config::default(),
       heading: Heading::Auto,
+      context: 0,
     }
   }
 
@@ -100,6 +102,11 @@ impl<W: WriteColor> ColoredPrinter<W> {
 
   pub fn heading(mut self, heading: Heading) -> Self {
     self.heading = heading;
+    self
+  }
+
+  pub fn context(mut self, context: u16) -> Self {
+    self.context = context;
     self
   }
 }
