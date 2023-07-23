@@ -25,6 +25,9 @@ pub use matcher::{Matcher, NodeMatch, Pattern, PatternError};
 pub use node::Node;
 pub use source::{Doc, StrDoc};
 
+#[doc(hidden)]
+pub use node::DisplayContext;
+
 use replacer::Replacer;
 
 use node::Root;
