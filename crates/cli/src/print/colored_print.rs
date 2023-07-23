@@ -148,11 +148,10 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
   }
 
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {
-    let writer = &mut *self.writer.lock().expect("should success");
     if self.heading.should_print() {
-      print_matches_with_heading(matches, path, &self.styles, writer)
+      print_matches_with_heading(matches, path, self)
     } else {
-      print_matches_with_prefix(matches, path, &self.styles, writer)
+      print_matches_with_prefix(matches, path, self)
     }
   }
 
@@ -287,19 +286,20 @@ impl<'a> MatchMerger<'a> {
   }
 }
 
-fn print_matches_with_heading<'a, W: Write>(
+fn print_matches_with_heading<'a, W: WriteColor>(
   mut matches: Matches!('a),
   path: &Path,
-  styles: &PrintStyles,
-  writer: &mut W,
+  printer: &ColoredPrinter<W>,
 ) -> Result<()> {
+  let styles = &printer.styles;
+  let writer = &mut *printer.writer.lock().expect("cannot get printer lock");
   print_prelude(path, styles, writer)?;
   let Some(first_match) = matches.next() else {
     return Ok(())
   };
   let source = first_match.root().get_text();
 
-  let mut merger = MatchMerger::new(&first_match, 0);
+  let mut merger = MatchMerger::new(&first_match, printer.context);
 
   let display = merger.display(&first_match);
   let mut ret = display.leading.to_string();
@@ -342,16 +342,17 @@ fn print_matches_with_heading<'a, W: Write>(
 fn print_matches_with_prefix<'a, W: WriteColor>(
   mut matches: Matches!('a),
   path: &Path,
-  styles: &PrintStyles,
-  writer: &mut W,
+  printer: &ColoredPrinter<W>,
 ) -> Result<()> {
+  let styles = &printer.styles;
+  let writer = &mut *printer.writer.lock().expect("cannot get printer lock");
   let path = path.display();
   let Some(first_match) = matches.next() else {
     return Ok(())
   };
   let source = first_match.root().get_text();
 
-  let mut merger = MatchMerger::new(&first_match, 0);
+  let mut merger = MatchMerger::new(&first_match, printer.context);
   let display = merger.display(&first_match);
   let mut ret = display.leading.to_string();
   styles.push_matched_to_ret(&mut ret, &display.matched)?;
