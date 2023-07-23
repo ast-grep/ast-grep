@@ -95,12 +95,12 @@ pub struct RunArg {
   stdin: bool,
 
   // context related options
-  #[clap(short = 'A', long, default_value = "0")]
-  after: u32,
-  #[clap(short = 'B', long, default_value = "0")]
-  before: u32,
+  // #[clap(short = 'A', long, default_value = "0")]
+  // after: u16,
+  // #[clap(short = 'B', long, default_value = "0")]
+  // before: u16,
   #[clap(short = 'C', long, default_value = "0")]
-  context: u32,
+  context: u16,
 }
 
 // Every run will include Search or Replace
@@ -109,7 +109,10 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
   if arg.json {
     return run_pattern_with_printer(arg, JSONPrinter::stdout());
   }
-  let printer = ColoredPrinter::stdout(arg.color).heading(arg.heading);
+  let context = arg.context;
+  let printer = ColoredPrinter::stdout(arg.color)
+    .heading(arg.heading)
+    .context(context);
   let interactive = arg.interactive || arg.update_all;
   if interactive {
     let from_stdin = arg.stdin && is_from_stdin();
@@ -286,8 +289,8 @@ mod test {
       debug_query: false,
       update_all: false,
       paths: vec![PathBuf::from(".")],
-      before: 0,
-      after: 0,
+      // before: 0,
+      // after: 0,
       context: 0,
     }
   }
