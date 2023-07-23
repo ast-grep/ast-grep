@@ -191,7 +191,7 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
   #[doc(hidden)]
   pub fn display_context(&self, context_lines: usize) -> DisplayContext<'r> {
     let source = self.root.doc.get_source().as_str();
-    let bytes = self.root.doc.get_source().as_bytes();
+    let bytes = source.as_bytes();
     let start = self.inner.start_byte() as usize;
     let end = self.inner.end_byte() as usize;
     let (mut leading, mut trailing) = (start, end);
@@ -205,22 +205,17 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
       }
       leading -= 1;
     }
+    let mut lines_after = context_lines + 1;
     // tree-sitter will append line ending to source so trailing can be out of bound
     trailing = trailing.min(bytes.len());
-    let mut lines_after = context_lines + 1;
-    while let Some(new_line_idx) = source[trailing..].find('\n') {
-      lines_after -= 1;
-      if lines_after == 0 {
-        // skip the last new line in trailing
-        trailing += new_line_idx;
-        break;
-      } else {
-        trailing += new_line_idx + 1;
+    while trailing < bytes.len() {
+      if bytes[trailing] == b'\n' {
+        lines_after -= 1;
+        if lines_after == 0 {
+          break;
+        }
       }
-    }
-    // source ends with fewer than `context` new lines
-    if lines_after > 0 {
-      trailing = bytes.len();
+      trailing += 1;
     }
     DisplayContext {
       matched: self.text(),
@@ -532,7 +527,11 @@ if (a) {
   #[test]
   fn test_display_context() {
     // src, matcher, lead, trail
-    let cases = [["i()", "i()", "", ""], [MULTI_LINE, "test", "  ", "(1)"]];
+    let cases = [
+      ["i()", "i()", "", ""],
+      ["i()", "i", "", "()"],
+      [MULTI_LINE, "test", "  ", "(1)"],
+    ];
     // display context should not panic
     for [src, matcher, lead, trail] in cases {
       let root = Tsx.ast_grep(src);
