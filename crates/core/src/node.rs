@@ -526,6 +526,18 @@ mod test {
   }
 
   #[test]
+  fn test_multi_line_context() {
+    // display context should not panic
+    let s = "if (a) {
+  test(1)
+} else { x }";
+    let root = Tsx.ast_grep(s);
+    let node = root.root().find("test($)").expect("should find");
+    assert_eq!(node.display_context(1).leading, "if (a) {\n  ");
+    assert_eq!(node.display_context(1).trailing, "\n} else { x }");
+  }
+
+  #[test]
   fn test_replace_all_nested() {
     let root = Tsx.ast_grep("Some(Some(1))");
     let node = root.root();
