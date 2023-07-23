@@ -190,6 +190,7 @@ impl<'r, D: Doc> Node<'r, D> {
 impl<'r, L: Language> Node<'r, StrDoc<L>> {
   #[doc(hidden)]
   pub fn display_context(&self, context_lines: usize) -> DisplayContext<'r> {
+    let source = self.root.doc.get_source().as_str();
     let bytes = self.root.doc.get_source().as_bytes();
     let start = self.inner.start_byte() as usize;
     let end = self.inner.end_byte() as usize;
@@ -205,21 +206,26 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
       leading -= 1;
     }
     // tree-sitter will append line ending to source so trailing can be out of bound
-    trailing = trailing.min(bytes.len() - 1);
+    trailing = trailing.min(bytes.len());
     let mut lines_after = context_lines + 1;
-    while trailing < bytes.len() - 1 {
-      if bytes[trailing] == b'\n' || bytes[trailing + 1] == b'\n' {
-        lines_after -= 1;
-        if lines_after == 0 {
-          break;
-        }
+    while let Some(new_line_idx) = source[trailing..].find('\n') {
+      lines_after -= 1;
+      if lines_after == 0 {
+        // skip the last new line in trailing
+        trailing += new_line_idx;
+        break;
+      } else {
+        trailing += new_line_idx + 1;
       }
-      trailing += 1;
+    }
+    // source ends with fewer than `context` new lines
+    if lines_after > 0 {
+      trailing = bytes.len();
     }
     DisplayContext {
       matched: self.text(),
-      leading: &self.root.doc.get_source().as_str()[leading..start],
-      trailing: &self.root.doc.get_source().as_str()[end..=trailing],
+      leading: &source[leading..start],
+      trailing: &source[end..trailing],
       start_line: self.inner.start_position().row() as usize + 1,
     }
   }
@@ -515,26 +521,42 @@ mod test {
     assert_eq!(texts, vec!["let", "a = 123"]);
   }
 
+  const MULTI_LINE: &str = "
+if (a) {
+  test(1)
+} else {
+  x
+}
+";
+
   #[test]
   fn test_display_context() {
+    // src, matcher, lead, trail
+    let cases = [["i()", "i()", "", ""], [MULTI_LINE, "test", "  ", "(1)"]];
     // display context should not panic
-    let s = "i()";
-    assert_eq!(s.len(), 3);
-    let root = Tsx.ast_grep(s);
-    let node = root.root();
-    assert_eq!(node.display_context(0).trailing.len(), 0);
+    for [src, matcher, lead, trail] in cases {
+      let root = Tsx.ast_grep(src);
+      let node = root.root().find(matcher).expect("should match");
+      let display = node.display_context(0);
+      assert_eq!(display.leading, lead);
+      assert_eq!(display.trailing, trail);
+    }
   }
 
   #[test]
   fn test_multi_line_context() {
+    let cases = [
+      ["i()", "i()", "", ""],
+      [MULTI_LINE, "test", "if (a) {\n  ", "(1)\n} else {"],
+    ];
     // display context should not panic
-    let s = "if (a) {
-  test(1)
-} else { x }";
-    let root = Tsx.ast_grep(s);
-    let node = root.root().find("test($)").expect("should find");
-    assert_eq!(node.display_context(1).leading, "if (a) {\n  ");
-    assert_eq!(node.display_context(1).trailing, "\n} else { x }");
+    for [src, matcher, lead, trail] in cases {
+      let root = Tsx.ast_grep(src);
+      let node = root.root().find(matcher).expect("should match");
+      let display = node.display_context(1);
+      assert_eq!(display.leading, lead);
+      assert_eq!(display.trailing, trail);
+    }
   }
 
   #[test]
