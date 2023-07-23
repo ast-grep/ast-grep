@@ -1,6 +1,7 @@
 use super::{Diff, Printer};
 use crate::lang::SgLang;
 use ast_grep_config::{RuleConfig, Severity};
+use ast_grep_core::DisplayContext;
 
 use ansi_term::{Color, Style};
 use anyhow::Result;
@@ -225,11 +226,12 @@ struct MatchMerger<'a> {
   last_end_line: usize,
   last_trailing: &'a str,
   last_end_offset: usize,
+  context: u16,
 }
 
 impl<'a> MatchMerger<'a> {
-  fn new(nm: &NodeMatch<'a, SgLang>) -> Self {
-    let display = nm.display_context(0);
+  fn new(nm: &NodeMatch<'a, SgLang>, context: u16) -> Self {
+    let display = nm.display_context(context.into());
     let last_start_line = display.start_line;
     let last_end_line = nm.end_pos().0;
     let last_trailing = display.trailing;
@@ -239,13 +241,14 @@ impl<'a> MatchMerger<'a> {
       last_end_line,
       last_end_offset,
       last_trailing,
+      context,
     }
   }
 
   // merge non-overlapping matches but start/end on the same line
   fn merge_adjacent(&mut self, nm: &NodeMatch<'a, SgLang>) -> Option<usize> {
     let start_line = nm.start_pos().0;
-    let display = nm.display_context(0);
+    let display = nm.display_context(self.context.into());
     if start_line == self.last_end_line {
       let last_end_offset = self.last_end_offset;
       self.last_end_offset = nm.range().end;
@@ -257,7 +260,7 @@ impl<'a> MatchMerger<'a> {
   }
 
   fn conclude_match(&mut self, nm: &NodeMatch<'a, SgLang>) {
-    let display = nm.display_context(0);
+    let display = nm.display_context(self.context.into());
     self.last_start_line = display.start_line;
     self.last_end_line = nm.end_pos().0;
     self.last_trailing = display.trailing;
@@ -278,6 +281,10 @@ impl<'a> MatchMerger<'a> {
       false
     }
   }
+
+  fn display<'r>(&self, nm: &'r NodeMatch<'a, SgLang>) -> DisplayContext<'r> {
+    nm.display_context(self.context.into())
+  }
 }
 
 fn print_matches_with_heading<'a, W: Write>(
@@ -291,9 +298,10 @@ fn print_matches_with_heading<'a, W: Write>(
     return Ok(())
   };
   let source = first_match.root().get_text();
-  let display = first_match.display_context(0);
 
-  let mut merger = MatchMerger::new(&first_match);
+  let mut merger = MatchMerger::new(&first_match, 0);
+
+  let display = merger.display(&first_match);
   let mut ret = display.leading.to_string();
   styles.push_matched_to_ret(&mut ret, &display.matched)?;
 
@@ -301,7 +309,7 @@ fn print_matches_with_heading<'a, W: Write>(
     if merger.check_overlapping(&nm) {
       continue;
     }
-    let display = nm.display_context(0);
+    let display = merger.display(&nm);
     // merge adjacent matches
     if let Some(last_end_offset) = merger.merge_adjacent(&nm) {
       ret.push_str(&source[last_end_offset..nm.range().start]);
@@ -342,9 +350,9 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
     return Ok(())
   };
   let source = first_match.root().get_text();
-  let display = first_match.display_context(0);
 
-  let mut merger = MatchMerger::new(&first_match);
+  let mut merger = MatchMerger::new(&first_match, 0);
+  let display = merger.display(&first_match);
   let mut ret = display.leading.to_string();
   styles.push_matched_to_ret(&mut ret, &display.matched)?;
   for nm in matches {
@@ -363,7 +371,7 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
       writeln!(writer, "{path}:{num}:{line}")?;
     }
     merger.conclude_match(&nm);
-    let display = nm.display_context(0);
+    let display = merger.display(&nm);
     ret = display.leading.to_string();
     styles.push_matched_to_ret(&mut ret, &display.matched)?;
   }

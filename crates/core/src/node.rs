@@ -254,7 +254,6 @@ impl<'r, D: Doc> Node<'r, D> {
   }
 }
 
-#[doc(hidden)]
 pub struct DisplayContext<'r> {
   /// content for the matched node
   pub matched: Cow<'r, str>,
