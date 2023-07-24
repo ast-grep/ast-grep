@@ -5,7 +5,7 @@ use clap::ValueEnum;
 
 use anyhow::Result;
 use ast_grep_core::{NodeMatch as SgNodeMatch, StrDoc};
-pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
+use codespan_reporting::files::SimpleFile;
 use std::io::{Stdout, Write};
 use std::sync::Mutex;
 

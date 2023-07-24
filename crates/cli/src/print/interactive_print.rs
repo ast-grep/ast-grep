@@ -6,7 +6,7 @@ use crate::utils;
 use anyhow::{Context, Result};
 use ast_grep_config::RuleConfig;
 use ast_grep_core::{NodeMatch as SgNodeMatch, StrDoc};
-pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
+use codespan_reporting::files::SimpleFile;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
