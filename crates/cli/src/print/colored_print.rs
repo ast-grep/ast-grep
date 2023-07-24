@@ -7,9 +7,9 @@ use ansi_term::{Color, Style};
 use anyhow::Result;
 use clap::ValueEnum;
 use codespan_reporting::diagnostic::{self, Diagnostic, Label};
+use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream, WriteColor};
 use codespan_reporting::term::{self, DisplayStyle};
-pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
 use similar::{ChangeTag, DiffOp, TextDiff};
 
 use std::borrow::Cow;

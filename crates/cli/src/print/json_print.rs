@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use super::{Diff, Printer};
 use anyhow::Result;
-pub use codespan_reporting::{files::SimpleFile, term::ColorArg};
+use codespan_reporting::files::SimpleFile;
 use serde::{Deserialize, Serialize};
 
 use std::borrow::Cow;
