@@ -98,10 +98,10 @@ pub struct RunArg {
   stdin: bool,
 
   // context related options
-  // #[clap(short = 'A', long, default_value = "0")]
-  // after: u16,
-  // #[clap(short = 'B', long, default_value = "0")]
-  // before: u16,
+  #[clap(short = 'A', long, default_value = "0", conflicts_with = "context")]
+  after: u16,
+  #[clap(short = 'B', long, default_value = "0", conflicts_with = "context")]
+  before: u16,
   #[clap(short = 'C', long, default_value = "0")]
   context: u16,
 }
@@ -112,7 +112,11 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
   if arg.json {
     return run_pattern_with_printer(arg, JSONPrinter::stdout());
   }
-  let context = arg.context;
+  let context = if arg.context != 0 {
+    (arg.context, arg.context)
+  } else {
+    (arg.before, arg.after)
+  };
   let printer = ColoredPrinter::stdout(arg.color)
     .heading(arg.heading)
     .context(context);
@@ -292,8 +296,8 @@ mod test {
       debug_query: false,
       update_all: false,
       paths: vec![PathBuf::from(".")],
-      // before: 0,
-      // after: 0,
+      before: 0,
+      after: 0,
       context: 0,
     }
   }

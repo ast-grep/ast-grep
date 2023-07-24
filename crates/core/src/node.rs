@@ -189,13 +189,13 @@ impl<'r, D: Doc> Node<'r, D> {
 // TODO: figure out how to do this
 impl<'r, L: Language> Node<'r, StrDoc<L>> {
   #[doc(hidden)]
-  pub fn display_context(&self, context_lines: usize) -> DisplayContext<'r> {
+  pub fn display_context(&self, before: usize, after: usize) -> DisplayContext<'r> {
     let source = self.root.doc.get_source().as_str();
     let bytes = source.as_bytes();
     let start = self.inner.start_byte() as usize;
     let end = self.inner.end_byte() as usize;
     let (mut leading, mut trailing) = (start, end);
-    let mut lines_before = context_lines + 1;
+    let mut lines_before = before + 1;
     while leading > 0 {
       if bytes[leading - 1] == b'\n' {
         lines_before -= 1;
@@ -205,7 +205,7 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
       }
       leading -= 1;
     }
-    let mut lines_after = context_lines + 1;
+    let mut lines_after = after + 1;
     // tree-sitter will append line ending to source so trailing can be out of bound
     trailing = trailing.min(bytes.len());
     while trailing < bytes.len() {
@@ -217,12 +217,12 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
       }
       trailing += 1;
     }
-    // lines_before means we matched all context, offset is context itself
+    // lines_before means we matched all context, offset is `before` itself
     let offset = if lines_before == 0 {
-      context_lines
+      before
     } else {
-      // otherwise, there are fewer than `context` line in src, compute the actual line
-      context_lines + 1 - lines_before
+      // otherwise, there are fewer than `before` line in src, compute the actual line
+      before + 1 - lines_before
     };
     DisplayContext {
       matched: self.text(),
@@ -543,7 +543,7 @@ if (a) {
     for [src, matcher, lead, trail] in cases {
       let root = Tsx.ast_grep(src);
       let node = root.root().find(matcher).expect("should match");
-      let display = node.display_context(0);
+      let display = node.display_context(0, 0);
       assert_eq!(display.leading, lead);
       assert_eq!(display.trailing, trail);
     }
@@ -559,7 +559,7 @@ if (a) {
     for [src, matcher, lead, trail] in cases {
       let root = Tsx.ast_grep(src);
       let node = root.root().find(matcher).expect("should match");
-      let display = node.display_context(1);
+      let display = node.display_context(1, 1);
       assert_eq!(display.leading, lead);
       assert_eq!(display.trailing, trail);
     }
