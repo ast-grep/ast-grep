@@ -325,7 +325,9 @@ fn print_matches_with_heading<'a, W: WriteColor>(
     write!(writer, "{num:>width$}│")?; // initial line num
     print_highlight(ret.lines(), width, &mut num, writer)?;
     writeln!(writer)?; // end match new line
-                       //
+    if printer.context >= 1 {
+      writeln!(writer, "{:╴>width$}┤", "")?; // make separation
+    }
     merger.conclude_match(&nm);
     ret = display.leading.to_string();
     styles.push_matched_to_ret(&mut ret, &display.matched)?;
@@ -373,6 +375,9 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
     for (n, line) in ret.lines().enumerate() {
       let num = merger.last_start_line + n;
       writeln!(writer, "{path}:{num}:{line}")?;
+    }
+    if printer.context >= 1 {
+      writeln!(writer, "--")?; // make separation
     }
     merger.conclude_match(&nm);
     ret = display.leading.to_string();
