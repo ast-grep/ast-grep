@@ -67,7 +67,7 @@ pub struct ColoredPrinter<W: WriteColor> {
   config: term::Config,
   styles: PrintStyles,
   heading: Heading,
-  context: u16,
+  context: (u16, u16),
 }
 impl ColoredPrinter<StandardStream> {
   pub fn stdout<C: Into<ColorChoice>>(color: C) -> Self {
@@ -83,7 +83,7 @@ impl<W: WriteColor> ColoredPrinter<W> {
       styles: PrintStyles::from(ColorChoice::Auto),
       config: term::Config::default(),
       heading: Heading::Auto,
-      context: 0,
+      context: (0, 0),
     }
   }
 
@@ -108,9 +108,13 @@ impl<W: WriteColor> ColoredPrinter<W> {
     self
   }
 
-  pub fn context(mut self, context: u16) -> Self {
+  pub fn context(mut self, context: (u16, u16)) -> Self {
     self.context = context;
     self
+  }
+
+  fn context_span(&self) -> usize {
+    (self.context.0 + self.context.1) as usize
   }
 }
 
@@ -227,12 +231,12 @@ struct MatchMerger<'a> {
   last_end_line: usize,
   last_trailing: &'a str,
   last_end_offset: usize,
-  context: u16,
+  context: (u16, u16),
 }
 
 impl<'a> MatchMerger<'a> {
-  fn new(nm: &NodeMatch<'a, SgLang>, context: u16) -> Self {
-    let display = nm.display_context(context.into());
+  fn new(nm: &NodeMatch<'a, SgLang>, (before, after): (u16, u16)) -> Self {
+    let display = nm.display_context(before as usize, after as usize);
     let last_start_line = display.start_line + 1;
     let last_end_line = nm.end_pos().0 + 1;
     let last_trailing = display.trailing;
@@ -242,15 +246,15 @@ impl<'a> MatchMerger<'a> {
       last_end_line,
       last_end_offset,
       last_trailing,
-      context,
+      context: (before, after),
     }
   }
 
   // merge non-overlapping matches but start/end on the same line
   fn merge_adjacent(&mut self, nm: &NodeMatch<'a, SgLang>) -> Option<usize> {
-    let display = nm.display_context(self.context.into());
+    let display = self.display(nm);
     let start_line = display.start_line;
-    if start_line <= self.last_end_line + self.context as usize {
+    if start_line <= self.last_end_line + self.context.1 as usize {
       let last_end_offset = self.last_end_offset;
       self.last_end_offset = nm.range().end;
       self.last_trailing = display.trailing;
@@ -261,7 +265,7 @@ impl<'a> MatchMerger<'a> {
   }
 
   fn conclude_match(&mut self, nm: &NodeMatch<'a, SgLang>) {
-    let display = nm.display_context(self.context.into());
+    let display = self.display(nm);
     self.last_start_line = display.start_line + 1;
     self.last_end_line = nm.end_pos().0 + 1;
     self.last_trailing = display.trailing;
@@ -283,8 +287,9 @@ impl<'a> MatchMerger<'a> {
     }
   }
 
-  fn display<'r>(&self, nm: &'r NodeMatch<'a, SgLang>) -> DisplayContext<'r> {
-    nm.display_context(self.context.into())
+  fn display(&self, nm: &NodeMatch<'a, SgLang>) -> DisplayContext<'a> {
+    let (before, after) = self.context;
+    nm.display_context(before as usize, after as usize)
   }
 }
 
@@ -325,7 +330,7 @@ fn print_matches_with_heading<'a, W: WriteColor>(
     write!(writer, "{num:>width$}│")?; // initial line num
     print_highlight(ret.lines(), width, &mut num, writer)?;
     writeln!(writer)?; // end match new line
-    if printer.context >= 1 {
+    if printer.context_span() >= 1 {
       writeln!(writer, "{:╴>width$}┤", "")?; // make separation
     }
     merger.conclude_match(&nm);
@@ -376,7 +381,7 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
       let num = merger.last_start_line + n;
       writeln!(writer, "{path}:{num}:{line}")?;
     }
-    if printer.context >= 1 {
+    if printer.context_span() >= 1 {
       writeln!(writer, "--")?; // make separation
     }
     merger.conclude_match(&nm);
