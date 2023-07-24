@@ -815,4 +815,24 @@ rule:
       assert!(get_text(&printer).contains(rewrite), "{note}");
     }
   }
+
+  #[test]
+  #[ignore]
+  fn test_overlap_print() {
+    let src = "
+      Some(1)
+      // empty
+      Some(2)
+    ";
+    let printer = make_test_printer().heading(Heading::Always).context(1);
+    let lang = SgLang::from(SupportLang::Tsx);
+    let grep = lang.ast_grep(src);
+    let matches = grep.root().find_all("Some($A)");
+    printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+    let text = get_text(&printer);
+    // Overlapped match should only print once.
+    assert_eq!(text.matches("Some(1)").count(), 1);
+    assert_eq!(text.matches("empty").count(), 1);
+    assert_eq!(text.matches("Some(2)").count(), 1);
+  }
 }
