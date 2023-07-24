@@ -85,7 +85,6 @@ fn test_print_rules() {
       .heading(Heading::Never)
       .style(ReportStyle::Short);
     let grep = SgLang::from(SupportLang::TypeScript).ast_grep(source);
-    let matches = grep.root().find_all(pattern);
     let source = source.to_string();
     let file = SimpleFile::new(Cow::Borrowed("test.tsx"), &source);
     let rule = from_yaml_string(
@@ -103,6 +102,8 @@ rule:
     .expect("should parse")
     .pop()
     .unwrap();
+    let matcher = rule.get_matcher(&globals).expect("should parse");
+    let matches = grep.root().find_all(&matcher);
     printer.print_rule(matches, file, &rule).expect("test only");
     let text = get_text(&printer);
     assert!(text.contains("test.tsx"), "{note}");
@@ -170,7 +171,6 @@ fn test_overlap_print_impl(heading: Heading) {
   let matches = grep.root().find_all("Some($A)");
   printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
   let text = get_text(&printer);
-  dbg!(&text);
   // Overlapped match should only print once.
   assert_eq!(text.matches("Some(1)").count(), 1);
   assert_eq!(text.matches("empty").count(), 1);
@@ -206,4 +206,42 @@ fn test_non_overlap_print() {
   test_non_overlap_print_impl(Heading::Always);
   test_non_overlap_print_impl(Heading::Never);
   test_non_overlap_print_impl(Heading::Auto);
+}
+
+#[test]
+fn test_print_rule_diffs() {
+  let globals = GlobalRules::default();
+  for &(source, pattern, rewrite, note) in DIFF_CASES {
+    let printer = make_test_printer()
+      .heading(Heading::Never)
+      .style(ReportStyle::Short);
+    let grep = SgLang::from(SupportLang::TypeScript).ast_grep(source);
+    let rule = from_yaml_string(
+      &format!(
+        r"
+id: test-id
+message: test rule
+severity: info
+language: TypeScript
+rule:
+  pattern: {pattern}
+fix: '{rewrite}'"
+      ),
+      &globals,
+    )
+    .expect("should parse")
+    .pop()
+    .unwrap();
+    let matcher = rule.get_matcher(&globals).expect("should parse");
+    let fixer = rule.fixer.as_ref().expect("should have fixer");
+    let matches = grep.root().find_all(&matcher);
+    let diffs = matches.map(|n| Diff::generate(n, &pattern, fixer));
+    printer
+      .print_rule_diffs(diffs, Path::new("test.tsx"), &rule)
+      .expect("test only");
+    let text = get_text(&printer);
+    assert!(text.contains("test.tsx"), "{note}");
+    assert!(text.contains("note[test-id]"), "{note}");
+    assert!(text.contains(rewrite), "{note}");
+  }
 }
