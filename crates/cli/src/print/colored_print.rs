@@ -231,8 +231,8 @@ struct MatchMerger<'a> {
 impl<'a> MatchMerger<'a> {
   fn new(nm: &NodeMatch<'a, SgLang>, context: u16) -> Self {
     let display = nm.display_context(context.into());
-    let last_start_line = display.start_line;
-    let last_end_line = nm.end_pos().0;
+    let last_start_line = display.start_line + 1;
+    let last_end_line = nm.end_pos().0 + 1;
     let last_trailing = display.trailing;
     let last_end_offset = nm.range().end;
     Self {
@@ -246,9 +246,9 @@ impl<'a> MatchMerger<'a> {
 
   // merge non-overlapping matches but start/end on the same line
   fn merge_adjacent(&mut self, nm: &NodeMatch<'a, SgLang>) -> Option<usize> {
-    let start_line = nm.start_pos().0;
     let display = nm.display_context(self.context.into());
-    if start_line == self.last_end_line {
+    let start_line = display.start_line;
+    if start_line <= self.last_end_line + self.context as usize {
       let last_end_offset = self.last_end_offset;
       self.last_end_offset = nm.range().end;
       self.last_trailing = display.trailing;
@@ -260,8 +260,8 @@ impl<'a> MatchMerger<'a> {
 
   fn conclude_match(&mut self, nm: &NodeMatch<'a, SgLang>) {
     let display = nm.display_context(self.context.into());
-    self.last_start_line = display.start_line;
-    self.last_end_line = nm.end_pos().0;
+    self.last_start_line = display.start_line + 1;
+    self.last_end_line = nm.end_pos().0 + 1;
     self.last_trailing = display.trailing;
     self.last_end_offset = nm.range().end;
   }
@@ -817,7 +817,6 @@ rule:
   }
 
   #[test]
-  #[ignore]
   fn test_overlap_print() {
     let src = "
       Some(1)

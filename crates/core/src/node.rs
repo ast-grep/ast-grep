@@ -217,11 +217,18 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
       }
       trailing += 1;
     }
+    // lines_before means we matched all context, offset is context itself
+    let offset = if lines_before == 0 {
+      context_lines
+    } else {
+      // otherwise, there are fewer than `context` line in src, compute the actual line
+      context_lines + 1 - lines_before
+    };
     DisplayContext {
       matched: self.text(),
       leading: &source[leading..start],
       trailing: &source[end..trailing],
-      start_line: self.inner.start_position().row() as usize + 1,
+      start_line: self.start_pos().0 - offset,
     }
   }
 
@@ -262,7 +269,7 @@ pub struct DisplayContext<'r> {
   pub leading: &'r str,
   /// content after the matched node
   pub trailing: &'r str,
-  /// start line of the matched node
+  /// zero-based start line of the context
   pub start_line: usize,
 }
 
