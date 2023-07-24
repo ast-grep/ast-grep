@@ -39,6 +39,7 @@ const LANG_HELP_LONG: &str = "The language of the pattern. For full language lis
 
 #[derive(Parser)]
 pub struct RunArg {
+  // search pattern related options
   /// AST pattern to match.
   #[clap(short, long)]
   pattern: String,
@@ -55,17 +56,10 @@ pub struct RunArg {
   #[clap(short, long, help(lang_help()), long_help=LANG_HELP_LONG)]
   lang: Option<SgLang>,
 
+  // output related options
   /// Start interactive edit session. Code rewrite only happens inside a session.
   #[clap(short, long)]
   interactive: bool,
-
-  /// The paths to search. You can provide multiple paths separated by spaces.
-  #[clap(value_parser, default_value = ".")]
-  paths: Vec<PathBuf>,
-
-  /// Apply all rewrite without confirmation if true.
-  #[clap(short = 'U', long, requires = "rewrite")]
-  update_all: bool,
 
   /// Output matches in structured JSON text useful for tools like jq.
   /// Conflicts with interactive.
@@ -81,6 +75,15 @@ pub struct RunArg {
   /// Controls output color.
   #[clap(long, default_value = "auto")]
   color: ColorArg,
+
+  // input related options
+  /// The paths to search. You can provide multiple paths separated by spaces.
+  #[clap(value_parser, default_value = ".")]
+  paths: Vec<PathBuf>,
+
+  /// Apply all rewrite without confirmation if true.
+  #[clap(short = 'U', long, requires = "rewrite")]
+  update_all: bool,
 
   /// Do not respect hidden file system or ignore files (.gitignore, .ignore, etc.).
   /// You can suppress multiple ignore files by passing `no-ignore` multiple times.
