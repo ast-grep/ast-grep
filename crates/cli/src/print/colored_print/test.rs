@@ -245,3 +245,37 @@ fix: '{rewrite}'"
     assert!(text.contains(rewrite), "{note}");
   }
 }
+
+#[test]
+fn test_before_after() {
+  let src = "
+    // b 3
+    // b 2
+    // b 1
+    Some(match)
+    // a 1
+    // a 2
+    // a 3
+  ";
+  for b in 0..3 {
+    for a in 0..3 {
+      let printer = make_test_printer().context((b, a));
+      let lang = SgLang::from(SupportLang::Tsx);
+      let grep = lang.ast_grep(src);
+      let matches = grep.root().find_all("Some($A)");
+      printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+      let text = get_text(&printer);
+      // Overlapped match should only print once.
+      assert!(text.contains("Some(match)"));
+      for i in 1..3 {
+        let contains_before = text.contains(&format!("b {i}"));
+        let b_in_bound = i <= b;
+        let contains_after = text.contains(&format!("a {i}"));
+        let a_in_bound = i <= a;
+        // text occurrence should be the same as inbound check
+        assert_eq!(contains_before, b_in_bound);
+        assert_eq!(contains_after, a_in_bound);
+      }
+    }
+  }
+}
