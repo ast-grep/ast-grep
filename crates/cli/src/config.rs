@@ -44,9 +44,7 @@ pub struct AstGrepConfig {
   pub util_dirs: Option<Vec<PathBuf>>,
   /// configuration for custom languages
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub custom_languages: Option<HashMap<String, CustomLang>>, // /// overriding config for rules
-                                                             // #[serde(skip_serializing_if="Option::is_none")]
-                                                             // pub rules: Option<Vec<()>>,
+  pub custom_languages: Option<HashMap<String, CustomLang>>,
 }
 
 pub fn find_rules(config_path: Option<PathBuf>) -> Result<RuleCollection<SgLang>> {
