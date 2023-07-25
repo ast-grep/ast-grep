@@ -6,8 +6,8 @@ use std::ops::Range;
 /**
   This module is for indentation-sensitive replacement.
 
-  Ideally, structral search and replacement should all be based on AST.
-  But this means our changed AST need to be pretty-printed by structral rules,
+  Ideally, structural search and replacement should all be based on AST.
+  But this means our changed AST need to be pretty-printed by structural rules,
   which we don't have enough resource to support. An indentation solution is used.
 
   The algorithm is quite complicated, uncomprehensive, sluggish and buggy.
