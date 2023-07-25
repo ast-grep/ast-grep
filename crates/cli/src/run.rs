@@ -39,6 +39,7 @@ const LANG_HELP_LONG: &str = "The language of the pattern. For full language lis
 
 #[derive(Parser)]
 pub struct RunArg {
+  // search pattern related options
   /// AST pattern to match.
   #[clap(short, long)]
   pattern: String,
@@ -55,17 +56,10 @@ pub struct RunArg {
   #[clap(short, long, help(lang_help()), long_help=LANG_HELP_LONG)]
   lang: Option<SgLang>,
 
+  // output related options
   /// Start interactive edit session. Code rewrite only happens inside a session.
   #[clap(short, long)]
   interactive: bool,
-
-  /// The paths to search. You can provide multiple paths separated by spaces.
-  #[clap(value_parser, default_value = ".")]
-  paths: Vec<PathBuf>,
-
-  /// Apply all rewrite without confirmation if true.
-  #[clap(short = 'U', long, requires = "rewrite")]
-  update_all: bool,
 
   /// Output matches in structured JSON text useful for tools like jq.
   /// Conflicts with interactive.
@@ -82,6 +76,15 @@ pub struct RunArg {
   #[clap(long, default_value = "auto")]
   color: ColorArg,
 
+  // input related options
+  /// The paths to search. You can provide multiple paths separated by spaces.
+  #[clap(value_parser, default_value = ".")]
+  paths: Vec<PathBuf>,
+
+  /// Apply all rewrite without confirmation if true.
+  #[clap(short = 'U', long, requires = "rewrite")]
+  update_all: bool,
+
   /// Do not respect hidden file system or ignore files (.gitignore, .ignore, etc.).
   /// You can suppress multiple ignore files by passing `no-ignore` multiple times.
   #[clap(long, action = clap::ArgAction::Append)]
@@ -95,10 +98,10 @@ pub struct RunArg {
   stdin: bool,
 
   // context related options
-  // #[clap(short = 'A', long, default_value = "0")]
-  // after: u16,
-  // #[clap(short = 'B', long, default_value = "0")]
-  // before: u16,
+  #[clap(short = 'A', long, default_value = "0", conflicts_with = "context")]
+  after: u16,
+  #[clap(short = 'B', long, default_value = "0", conflicts_with = "context")]
+  before: u16,
   #[clap(short = 'C', long, default_value = "0")]
   context: u16,
 }
@@ -109,7 +112,11 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
   if arg.json {
     return run_pattern_with_printer(arg, JSONPrinter::stdout());
   }
-  let context = arg.context;
+  let context = if arg.context != 0 {
+    (arg.context, arg.context)
+  } else {
+    (arg.before, arg.after)
+  };
   let printer = ColoredPrinter::stdout(arg.color)
     .heading(arg.heading)
     .context(context);
@@ -289,8 +296,8 @@ mod test {
       debug_query: false,
       update_all: false,
       paths: vec![PathBuf::from(".")],
-      // before: 0,
-      // after: 0,
+      before: 0,
+      after: 0,
       context: 0,
     }
   }

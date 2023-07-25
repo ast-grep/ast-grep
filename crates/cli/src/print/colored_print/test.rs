@@ -165,7 +165,7 @@ fn test_overlap_print_impl(heading: Heading) {
     // empty
     Some(2)
   ";
-  let printer = make_test_printer().heading(heading).context(1);
+  let printer = make_test_printer().heading(heading).context((1, 1));
   let lang = SgLang::from(SupportLang::Tsx);
   let grep = lang.ast_grep(src);
   let matches = grep.root().find_all("Some($A)");
