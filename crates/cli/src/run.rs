@@ -98,11 +98,26 @@ pub struct RunArg {
   stdin: bool,
 
   // context related options
-  #[clap(short = 'A', long, default_value = "0", conflicts_with = "context")]
+  /// Show NUM lines after each match.
+  #[clap(
+    short = 'A',
+    long,
+    default_value = "0",
+    conflicts_with = "context",
+    value_name = "NUM"
+  )]
   after: u16,
-  #[clap(short = 'B', long, default_value = "0", conflicts_with = "context")]
+  /// Show NUM lines before each match.
+  #[clap(
+    short = 'B',
+    long,
+    default_value = "0",
+    conflicts_with = "context",
+    value_name = "NUM"
+  )]
   before: u16,
-  #[clap(short = 'C', long, default_value = "0")]
+  /// Show NUM lines around each match.
+  #[clap(short = 'C', long, default_value = "0", value_name = "NUM")]
   context: u16,
 }
 
