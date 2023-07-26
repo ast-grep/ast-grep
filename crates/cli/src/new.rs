@@ -337,11 +337,33 @@ mod test {
     Ok(())
   }
 
+  fn create_util(temp: &Path) -> Result<()> {
+    let arg = NewArg {
+      entity: Some(Entity::Util),
+      name: Some("test-utils".into()),
+      lang: Some(SupportLang::Rust.into()),
+      yes: true,
+      base_dir: temp.to_path_buf(),
+    };
+    run_create_new(arg).unwrap();
+    assert!(temp.join("utils/test-utils.yml").exists());
+    Ok(())
+  }
+
   #[test]
   fn test_create_new() -> Result<()> {
     let dir = TempDir::new("sgtest")?;
     create_project(dir.path())?;
     create_rule(dir.path())?;
+    drop(dir); // drop at the end since temp dir clean up is done in Drop
+    Ok(())
+  }
+
+  #[test]
+  fn test_create_util() -> Result<()> {
+    let dir = TempDir::new("sgtest")?;
+    create_project(dir.path())?;
+    create_util(dir.path())?;
     drop(dir); // drop at the end since temp dir clean up is done in Drop
     Ok(())
   }
