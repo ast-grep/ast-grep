@@ -65,11 +65,10 @@ impl NewArg {
   }
 
   fn choose_language(&self) -> Result<SgLang> {
-    if self.yes {
-      self
-        .lang
-        .map(Ok)
-        .unwrap_or_else(|| Err(anyhow::anyhow!(EC::InsufficientCLIArgument("lang"))))
+    if let Some(lang) = self.lang {
+      Ok(lang)
+    } else if self.yes {
+      Err(anyhow::anyhow!(EC::InsufficientCLIArgument("lang")))
     } else {
       Ok(inquire::Select::new("Choose rule's language", SgLang::all_langs()).prompt()?)
     }
