@@ -227,14 +227,17 @@ pub fn read_test_files(
   })
 }
 
+/// Returns the base_directory where config is and config object.
 pub fn read_config_from_dir<P: AsRef<Path>>(path: P) -> Result<Option<(PathBuf, AstGrepConfig)>> {
-  let config_path =
+  let mut config_path =
     find_config_path_with_default(None, Some(path.as_ref())).context(EC::ReadConfiguration)?;
   if !config_path.is_file() {
     return Ok(None);
   }
   let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
   let sg_config = from_str(&config_str).context(EC::ParseConfiguration)?;
+  // remove sgconfig.yml from the path
+  config_path.pop(); // ./sg_config -> ./
   Ok(Some((config_path, sg_config)))
 }
 

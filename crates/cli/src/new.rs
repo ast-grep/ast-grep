@@ -119,12 +119,12 @@ pub fn run_create_new(mut arg: NewArg) -> Result<()> {
   }
 }
 
+// base_dir, config
 type FoundConfig = (PathBuf, AstGrepConfig);
 
 fn run_create_entity(entity: Entity, arg: NewArg) -> Result<()> {
   // check if we are under a project dir
-  if let Some(mut found) = read_config_from_dir(&arg.base_dir)? {
-    found.0.pop(); // remove sgconfig.yml from the path
+  if let Some(found) = read_config_from_dir(&arg.base_dir)? {
     return do_create_entity(entity, found, arg);
   }
   // check if we creating a project
@@ -148,10 +148,10 @@ fn do_create_entity(entity: Entity, found: FoundConfig, arg: NewArg) -> Result<(
 
 fn ask_entity_type(arg: NewArg) -> Result<()> {
   // 1. check if we are under a sgconfig.yml
-  if let Some(sg_config) = read_config_from_dir(&arg.base_dir)? {
+  if let Some(found) = read_config_from_dir(&arg.base_dir)? {
     // 2. ask users what to create if yes
     let entity = arg.ask_entity_type()?;
-    do_create_entity(entity, sg_config, arg)
+    do_create_entity(entity, found, arg)
   } else {
     // 3. ask users to provide project info if no sgconfig found
     print!("No sgconfig.yml found. ");
@@ -202,8 +202,7 @@ rule:
 }
 
 fn create_new_rule(found: FoundConfig, arg: NewArg) -> Result<()> {
-  let base_dir = found.0;
-  let sg_config = found.1;
+  let (base_dir, sg_config) = found;
   let name = arg.ask_name("rule")?;
   let rule_dir = if sg_config.rule_dirs.len() > 1 {
     let dirs = sg_config.rule_dirs.iter().map(|p| p.display()).collect();
@@ -279,8 +278,7 @@ rule:
 }
 
 fn create_new_util(found: FoundConfig, arg: NewArg) -> Result<()> {
-  let base_dir = found.0;
-  let sg_config = found.1;
+  let (base_dir, sg_config) = found;
   let Some(utils) = sg_config.util_dirs else {
     return Err(anyhow::anyhow!(EC::NoUtilDirConfigured));
   };
