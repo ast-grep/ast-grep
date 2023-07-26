@@ -191,7 +191,7 @@ fn default_rule(id: &str, lang: SgLang) -> String {
   format!(
     r#"id: {id}
 message: Add your rule message here....
-severity: error # error, warning, hint, info
+severity: error # error, warning, info, hint
 language: {lang}
 rule:
   pattern: Your Rule Pattern here...
