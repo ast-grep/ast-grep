@@ -292,6 +292,8 @@ impl<W: Write> Printer for JSONPrinter<W> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use ast_grep_config::{from_yaml_string, GlobalRules};
+  use ast_grep_core::replacer::Fixer;
   use ast_grep_language::{Language, SupportLang};
 
   struct Test(String);
@@ -324,32 +326,101 @@ mod test {
     assert_eq!(get_text(&printer), "[]\n");
   }
 
-  // source, pattern, debug note
-  type Case<'a> = (&'a str, &'a str, &'a str);
+  // source, pattern, replace, debug note
+  type Case<'a> = (&'a str, &'a str, &'a str, &'a str);
 
   const MATCHES_CASES: &[Case] = &[
-    ("let a = 123", "a", "Simple match"),
-    ("Some(1), Some(2), Some(3)", "Some", "Same line match"),
+    ("let a = 123", "a", "b", "Simple match"),
+    (
+      "Some(1), Some(2), Some(3)",
+      "Some",
+      "Any",
+      "Same line match",
+    ),
     (
       "Some(1), Some(2)\nSome(3), Some(4)",
       "Some",
+      "Any",
       "Multiple line match",
     ),
     (
       "import a from 'b';import a from 'b';",
       "import a from 'b';",
+      "import c from 'b';",
       "immediate following but not overlapping",
     ),
   ];
+
   #[test]
   fn test_invariant() {
-    for &(source, pattern, note) in MATCHES_CASES {
+    for &(source, pattern, _, note) in MATCHES_CASES {
       // heading is required for CI
       let printer = make_test_printer();
       let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
       let matches = grep.root().find_all(pattern);
       printer.before_print().unwrap();
       printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+      printer.after_print().unwrap();
+      let json_str = get_text(&printer);
+      let json: Vec<MatchJSON> = serde_json::from_str(&json_str).unwrap();
+      assert_eq!(json[0].text, pattern, "{note}");
+    }
+  }
+
+  #[test]
+  fn test_replace_json() {
+    for &(source, pattern, replace, note) in MATCHES_CASES {
+      // heading is required for CI
+      let printer = make_test_printer();
+      let lang = SgLang::from(SupportLang::Tsx);
+      let grep = lang.ast_grep(source);
+      let matches = grep.root().find_all(pattern);
+      let fixer = Fixer::try_new(replace, &lang).expect("should work");
+      let diffs = matches.map(|m| Diff::generate(m, &pattern, &fixer));
+      printer.before_print().unwrap();
+      printer.print_diffs(diffs, "test.tsx".as_ref()).unwrap();
+      printer.after_print().unwrap();
+      let json_str = get_text(&printer);
+      let json: Vec<MatchJSON> = serde_json::from_str(&json_str).unwrap();
+      let actual = json[0].replacement.as_ref().expect("should have diff");
+      assert_eq!(actual, replace, "{note}");
+    }
+  }
+
+  fn make_rule(rule: &str) -> RuleConfig<SgLang> {
+    let globals = GlobalRules::default();
+    from_yaml_string(
+      &format!(
+        r#"
+id: test
+message: test rule
+severity: info
+language: TypeScript
+rule:
+  pattern: "{rule}""#
+      ),
+      &globals,
+    )
+    .unwrap()
+    .pop()
+    .unwrap()
+  }
+
+  #[test]
+  fn test_rule_json() {
+    for &(source, pattern, _, note) in MATCHES_CASES {
+      // TODO: understand why import does not work
+      if source.contains("import") {
+        continue;
+      }
+      let source = source.to_string();
+      let printer = make_test_printer();
+      let grep = SgLang::from(SupportLang::Tsx).ast_grep(&source);
+      let rule = make_rule(pattern);
+      let matches = grep.root().find_all(&rule.matcher);
+      printer.before_print().unwrap();
+      let file = SimpleFile::new(Cow::Borrowed("test.ts"), &source);
+      printer.print_rule(matches, file, &rule).unwrap();
       printer.after_print().unwrap();
       let json_str = get_text(&printer);
       let json: Vec<MatchJSON> = serde_json::from_str(&json_str).unwrap();
