@@ -427,4 +427,40 @@ rule:
       assert_eq!(json[0].text, pattern, "{note}");
     }
   }
+
+  #[test]
+  fn test_single_matched_json() {
+    let printer = make_test_printer();
+    let lang = SgLang::from(SupportLang::Tsx);
+    let grep = lang.ast_grep("console.log(123)");
+    let matches = grep.root().find_all("console.log($A)");
+    printer.before_print().unwrap();
+    printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+    printer.after_print().unwrap();
+    let json_str = get_text(&printer);
+    let json: Vec<MatchJSON> = serde_json::from_str(&json_str).unwrap();
+    let actual = &json[0]
+      .meta_variables
+      .as_ref()
+      .expect("should exist")
+      .single;
+    assert_eq!(actual["A"].text, "123");
+  }
+
+  #[test]
+  fn test_multi_matched_json() {
+    let printer = make_test_printer();
+    let lang = SgLang::from(SupportLang::Tsx);
+    let grep = lang.ast_grep("console.log(1, 2, 3)");
+    let matches = grep.root().find_all("console.log($$$A)");
+    printer.before_print().unwrap();
+    printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+    printer.after_print().unwrap();
+    let json_str = get_text(&printer);
+    let json: Vec<MatchJSON> = serde_json::from_str(&json_str).unwrap();
+    let actual = &json[0].meta_variables.as_ref().expect("should exist").multi;
+    assert_eq!(actual["A"][0].text, "1");
+    assert_eq!(actual["A"][2].text, "2");
+    assert_eq!(actual["A"][4].text, "3");
+  }
 }
