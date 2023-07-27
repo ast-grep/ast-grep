@@ -327,8 +327,9 @@ fn print_matches_with_heading<'a, W: WriteColor>(
     let lines = ret.lines().count();
     let mut num = merger.last_start_line;
     let width = (lines + num).to_string().chars().count();
-    write!(writer, "{num:>width$}│")?; // initial line num
-    print_highlight(ret.lines(), width, &mut num, writer)?;
+    let line_num = styles.line_num.paint(format!("{num}"));
+    write!(writer, "{line_num:>width$}│")?; // initial line num
+    print_highlight(ret.lines(), width, &mut num, writer, styles)?;
     writeln!(writer)?; // end match new line
     if printer.context_span() >= 1 {
       writeln!(writer, "{:╴>width$}┤", "")?; // make separation
@@ -341,8 +342,9 @@ fn print_matches_with_heading<'a, W: WriteColor>(
   let lines = ret.lines().count();
   let mut num = merger.last_start_line;
   let width = (lines + num).to_string().chars().count();
-  write!(writer, "{num:>width$}│")?; // initial line num
-  print_highlight(ret.lines(), width, &mut num, writer)?;
+  let line_num = styles.line_num.paint(format!("{num}"));
+  write!(writer, "{line_num:>width$}│")?; // initial line num
+  print_highlight(ret.lines(), width, &mut num, writer, styles)?;
   writeln!(writer)?; // end match new line
   writeln!(writer)?; // end
   Ok(())
@@ -430,6 +432,7 @@ fn print_highlight<'a, W: Write>(
   width: usize,
   num: &mut usize,
   writer: &mut W,
+  styles: &PrintStyles,
 ) -> Result<()> {
   if let Some(line) = lines.next() {
     write!(writer, "{line}")?;
@@ -437,7 +440,8 @@ fn print_highlight<'a, W: Write>(
   for line in lines {
     writeln!(writer)?;
     *num += 1;
-    write!(writer, "{num:>width$}│{line}")?;
+    let line_num = styles.line_num.paint(format!("{num}"));
+    write!(writer, "{line_num:>width$}│{line}")?;
   }
   Ok(())
 }
@@ -479,16 +483,16 @@ pub fn print_diff(
     writeln!(writer, "{}", Color::Blue.paint(header))?;
     for op in group {
       for change in diff.iter_inline_changes(&op) {
-        let (sign, s, em) = match change.tag() {
-          ChangeTag::Delete => ("-", styles.delete, styles.delete_emphasis),
-          ChangeTag::Insert => ("+", styles.insert, styles.insert_emphasis),
-          ChangeTag::Equal => (" ", Style::new(), Style::new()),
+        let (sign, s, em, line_num) = match change.tag() {
+          ChangeTag::Delete => ("-", styles.delete, styles.delete_emphasis, styles.delete),
+          ChangeTag::Insert => ("+", styles.insert, styles.insert_emphasis, styles.insert),
+          ChangeTag::Equal => (" ", Style::new(), Style::new(), styles.line_num),
         };
         write!(
           writer,
           "{} {}│{}",
-          index_display(change.old_index(), s, old_width),
-          index_display(change.new_index(), s, new_width),
+          index_display(change.old_index(), line_num, old_width),
+          index_display(change.new_index(), line_num, new_width),
           s.paint(sign),
         )?;
         for (emphasized, value) in change.iter_strings_lossy() {
@@ -525,10 +529,14 @@ struct RuleStyle {
 // TODO: use termcolor instead
 #[derive(Default)]
 pub struct PrintStyles {
+  // print match color
   file_path: Style,
   matched: Style,
+  line_num: Style,
+  // diff insert style
   insert: Style,
   insert_emphasis: Style,
+  // diff deletion style
   delete: Style,
   delete_emphasis: Style,
   rule: RuleStyle,
@@ -540,13 +548,16 @@ impl PrintStyles {
     static SEA_GREEN: Color = Color::Fixed(158);
     static RED: Color = Color::Fixed(161);
     static GREEN: Color = Color::Fixed(35);
+    let insert = Style::new().fg(GREEN);
+    let delete = Style::new().fg(RED);
     Self {
       file_path: Color::Cyan.italic(),
       matched: Color::Red.bold(),
-      insert: Style::new().fg(GREEN),
-      insert_emphasis: Style::new().fg(GREEN).on(SEA_GREEN).bold(),
-      delete: Style::new().fg(RED),
-      delete_emphasis: Style::new().fg(RED).on(THISTLE1).bold(),
+      line_num: Style::new().fg(Color::Black),
+      insert,
+      insert_emphasis: insert.on(SEA_GREEN).bold(),
+      delete,
+      delete_emphasis: delete.on(THISTLE1).bold(),
       rule: RuleStyle {
         error: Color::Red.bold(),
         warning: Color::Yellow.bold(),
