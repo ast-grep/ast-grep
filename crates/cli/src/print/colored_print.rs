@@ -326,7 +326,7 @@ fn print_matches_with_heading<'a, W: WriteColor>(
     ret.push_str(merger.last_trailing);
     let lines = ret.lines().count();
     let mut num = merger.last_start_line;
-    let width = (lines + num).to_string().chars().count();
+    let width = (lines + num).checked_ilog10().unwrap_or(0) as usize + 1;
     let line_num = styles.line_num.paint(format!("{num}"));
     write!(writer, "{line_num:>width$}│")?; // initial line num
     print_highlight(ret.lines(), width, &mut num, writer, styles)?;
@@ -341,7 +341,7 @@ fn print_matches_with_heading<'a, W: WriteColor>(
   ret.push_str(merger.last_trailing);
   let lines = ret.lines().count();
   let mut num = merger.last_start_line;
-  let width = (lines + num).to_string().chars().count();
+  let width = (lines + num).checked_ilog10().unwrap_or(0) as usize + 1;
   let line_num = styles.line_num.paint(format!("{num}"));
   write!(writer, "{line_num:>width$}│")?; // initial line num
   print_highlight(ret.lines(), width, &mut num, writer, styles)?;
@@ -477,8 +477,8 @@ pub fn print_diff(
   let diff = TextDiff::from_lines(old, new);
   for group in diff.grouped_ops(3) {
     let op = group.last().unwrap();
-    let old_width = op.old_range().end.to_string().chars().count();
-    let new_width = op.new_range().end.to_string().chars().count();
+    let old_width = op.old_range().end.checked_ilog10().unwrap_or(0) as usize + 1;
+    let new_width = op.new_range().end.checked_ilog10().unwrap_or(0) as usize + 1;
     let header = compupte_header(&group);
     writeln!(writer, "{}", Color::Blue.paint(header))?;
     for op in group {
