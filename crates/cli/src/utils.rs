@@ -149,11 +149,12 @@ pub fn run_worker<MW: Worker>(worker: MW) -> Result<()> {
   worker.consume_items(Items(rx))
 }
 
+/// start_line is zero-based
 pub fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
   let editor = std::env::var("EDITOR").unwrap_or_else(|_| String::from("vim"));
   let exit = std::process::Command::new(editor)
     .arg(path)
-    .arg(format!("+{}", start_line))
+    .arg(format!("+{}", start_line + 1))
     .spawn()
     .context(EC::OpenEditor)?
     .wait()
