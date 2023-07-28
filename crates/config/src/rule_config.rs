@@ -39,15 +39,15 @@ pub enum Severity {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializableRuleCore<L: Language> {
-  /// Specify the language to parse and the file extension to includ in matching.
+  /// Specify the language to parse and the file extension to include in matching.
   pub language: L,
   /// Pattern rules to find matching AST nodes
   pub rule: SerializableRule,
-  /// Addtional meta variables pattern to filter matching
+  /// Additional meta variables pattern to filter matching
   pub constraints: Option<HashMap<String, SerializableMetaVarMatcher>>,
   /// Utility rules that can be used in `matches`
   pub utils: Option<HashMap<String, SerializableRule>>,
-  /// A dictionary for meatvariable manipulation. Dict key is the new variable name.
+  /// A dictionary for metavariable manipulation. Dict key is the new variable name.
   /// Dict value is a [transformation] that specifies how meta var is processed.
   /// Warning: this is experimental option. [`https://github.com/ast-grep/ast-grep/issues/436`]
   pub transform: Option<HashMap<String, Transformation>>,

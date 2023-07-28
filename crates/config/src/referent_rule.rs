@@ -33,7 +33,7 @@ impl<L: Language> GlobalRules<L> {
   pub fn insert(&self, id: &str, rule: RuleWithConstraint<L>) -> Result<(), ReferentRuleError> {
     let mut map = self.write();
     if map.contains_key(id) {
-      return Err(ReferentRuleError::DupicateRule(id.into()));
+      return Err(ReferentRuleError::DuplicateRule(id.into()));
     }
     map.insert(id.to_string(), rule);
     let rule = map.get(id).unwrap();
@@ -84,7 +84,7 @@ impl<L: Language> RuleRegistration<L> {
   pub fn insert_local(&self, id: &str, rule: Rule<L>) -> Result<(), ReferentRuleError> {
     let mut map = self.local.write();
     if map.contains_key(id) {
-      return Err(ReferentRuleError::DupicateRule(id.into()));
+      return Err(ReferentRuleError::DuplicateRule(id.into()));
     }
     map.insert(id.to_string(), rule);
     let rule = map.get(id).unwrap();
@@ -123,7 +123,7 @@ pub enum ReferentRuleError {
   #[error("Rule `{0}` is not found.")]
   RuleNotFound(String),
   #[error("Duplicate rule id `{0}` is found.")]
-  DupicateRule(String),
+  DuplicateRule(String),
   #[error("Rule has a cyclic dependency in its `matches` sub-rule.")]
   CyclicRule,
 }

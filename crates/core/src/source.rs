@@ -66,7 +66,7 @@ pub fn perform_edit<S: Content>(tree: &mut Tree, input: &mut S, edit: &Edit<S>) 
 pub enum TSParseError {
   #[error("web-tree-sitter parser is not available")]
   Parse(#[from] ParserError),
-  #[error("incompatible `Language` is assigend to a `Parser`.")]
+  #[error("incompatible `Language` is assigned to a `Parser`.")]
   Language(#[from] LanguageError),
   /// A general error when tree sitter fails to parse in time. It can be caused by
   /// the following reasons but tree-sitter does not provide error detail.

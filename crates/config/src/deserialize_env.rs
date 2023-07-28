@@ -148,7 +148,7 @@ impl<L: Language> DeserializeEnv<L> {
       let matcher = rule.get_matcher(&registration)?;
       registration
         .insert(id, matcher)
-        .map_err(RuleSerializeError::MatchesRefrence)?;
+        .map_err(RuleSerializeError::MatchesReference)?;
     }
     Ok(registration)
   }

@@ -125,7 +125,7 @@ unsafe fn load_ts_language(
   if !(MIN_COMPATIBLE_LANGUAGE_VERSION..=LANGUAGE_VERSION).contains(&version) {
     Err(DynamicLangError::IncompatibleVersion(version))
   } else {
-    // ATTENTIOIN: dragon ahead
+    // ATTENTION: dragon ahead
     // must hold valid reference to NativeTS
     Ok((lib, lang.into()))
   }

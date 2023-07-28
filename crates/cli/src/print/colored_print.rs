@@ -127,7 +127,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
   ) -> Result<()> {
     let config = &self.config;
     let mut writer = self.writer.lock().expect("should not fail");
-    let serverity = match rule.severity {
+    let severity = match rule.severity {
       Severity::Error => diagnostic::Severity::Error,
       Severity::Warning => diagnostic::Severity::Warning,
       Severity::Info => diagnostic::Severity::Note,
@@ -143,7 +143,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
           Label::secondary((), range)
         }));
       }
-      let diagnostic = Diagnostic::new(serverity)
+      let diagnostic = Diagnostic::new(severity)
         .with_code(&rule.id)
         .with_message(rule.get_message(&m))
         .with_notes(rule.note.iter().cloned().collect())
@@ -456,7 +456,7 @@ fn index_display(index: Option<usize>, style: Style, width: usize) -> impl Displ
 
 // TODO: currently diff print context is three lines before/after the match.
 // This is suboptimal. We should use function/class as the enclosing scope to print relevant lines. See #155
-fn compupte_header(group: &[DiffOp]) -> String {
+fn compute_header(group: &[DiffOp]) -> String {
   let old_start = group[0].old_range().start;
   let new_start = group[0].new_range().start;
   let (old_len, new_len) = group.iter().fold((0, 0), |(o, n), op| {
@@ -479,7 +479,7 @@ pub fn print_diff(
     let op = group.last().unwrap();
     let old_width = op.old_range().end.checked_ilog10().unwrap_or(0) as usize + 1;
     let new_width = op.new_range().end.checked_ilog10().unwrap_or(0) as usize + 1;
-    let header = compupte_header(&group);
+    let header = compute_header(&group);
     writeln!(writer, "{}", Color::Blue.paint(header))?;
     for op in group {
       for change in diff.iter_inline_changes(&op) {
@@ -635,7 +635,7 @@ mod choose_color {
 
   #[cfg(windows)]
   fn env_allows_color(color: &ColorChoice) -> bool {
-    // On Windows, if TERM isn't set, then we shouldn't automatically
+    // On Windows, if TERM isn't set, then we should not automatically
     // assume that colors aren't allowed. This is unlike Unix environments
     // where TERM is more rigorously set.
     if let Some(k) = env::var_os("TERM") {

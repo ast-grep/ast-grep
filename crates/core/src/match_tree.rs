@@ -475,7 +475,7 @@ mod test {
   }
 
   #[test]
-  fn test_trivias_in_pattern() {
+  fn test_trivia_in_pattern() {
     test_match("foo($A, $B,)", "foo(a, b,)");
     test_non_match("foo($A, $B,)", "foo(a, b)");
     test_match("class A { get b() {}}", "class A { get b() {}}");

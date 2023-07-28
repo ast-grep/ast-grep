@@ -233,7 +233,7 @@ pub enum RuleSerializeError {
   #[error("Rule contains invalid regex matcher.")]
   WrongRegex(#[from] RegexMatcherError),
   #[error("Rule contains invalid matches reference.")]
-  MatchesRefrence(#[from] ReferentRuleError),
+  MatchesReference(#[from] ReferentRuleError),
   #[error("field is only supported in has/inside.")]
   FieldNotSupported,
 }

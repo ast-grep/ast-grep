@@ -117,7 +117,7 @@ use std::ops::Range;
 */
 pub trait IndentSensitive: Content {
   /// We assume NEW_LINE, TAB, SPACE is only one code unit.
-  /// This is sufficently true for utf8, utf16 and char.
+  /// This is sufficiently true for utf8, utf16 and char.
   const NEW_LINE: Self::Underlying;
   const SPACE: Self::Underlying;
   // TODO: support tab

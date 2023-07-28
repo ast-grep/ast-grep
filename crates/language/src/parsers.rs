@@ -5,7 +5,7 @@
 //! And use other implementation.
 
 #[cfg(feature = "builtin-parser")]
-mod parser_implmentation {
+mod parser_implementation {
   use ast_grep_core::language::TSLanguage;
 
   pub fn language_c() -> TSLanguage {
@@ -71,7 +71,7 @@ mod parser_implmentation {
 }
 
 #[cfg(not(feature = "builtin-parser"))]
-mod parser_implmentation {
+mod parser_implementation {
   use ast_grep_core::language::TSLanguage;
   macro_rules! impl_parsers {
     // simple parser for one lang
@@ -113,4 +113,4 @@ mod parser_implmentation {
   );
 }
 
-pub use parser_implmentation::*;
+pub use parser_implementation::*;

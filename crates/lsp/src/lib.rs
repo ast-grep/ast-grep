@@ -65,7 +65,7 @@ impl<L: LSPLang> Backend<L> {
   }
 }
 
-const FALLBAKC_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
+const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
   Some(CodeActionProviderCapability::Simple(true));
 fn code_action_provider(
   client_capability: &ClientCapabilities,
@@ -99,7 +99,7 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
         // TODO: change this to incremental
         text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
         code_action_provider: code_action_provider(&params.capabilities)
-          .or(FALLBAKC_CODE_ACTION_PROVIDER),
+          .or(FALLBACK_CODE_ACTION_PROVIDER),
         ..ServerCapabilities::default()
       },
     })
