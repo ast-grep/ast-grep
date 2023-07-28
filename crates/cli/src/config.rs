@@ -300,7 +300,7 @@ pub enum IgnoreFile {
   /// Search hidden files and directories. By default, hidden files and directories are skipped.
   Hidden,
   /// Don't respect .ignore files.
-  /// This does *not* affect whether ripgrep will ignore files and directories whose names begin with a dot.
+  /// This does *not* affect whether ast-grep will ignore files and directories whose names begin with a dot.
   /// For that, use --no-ignore hidden.
   Dot,
   /// Don't respect ignore files that are manually configured for the repository such as git's '.git/info/exclude'.
