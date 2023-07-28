@@ -242,7 +242,7 @@ pub fn read_test_files(
     } else {
       let test_case: TestCase =
         from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
-      path_map.insert(test_case.id.clone(), dir_path.join(SNAPSHOT_DIR));
+      path_map.insert(test_case.id.clone(), test_path.join(snapshot_dirname));
       test_cases.push(test_case);
     }
   }
