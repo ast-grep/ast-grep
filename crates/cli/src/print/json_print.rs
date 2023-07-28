@@ -316,7 +316,7 @@ mod test {
   }
 
   #[test]
-  fn test_emtpy_printer() {
+  fn test_empty_printer() {
     let printer = make_test_printer();
     printer.before_print().unwrap();
     printer
