@@ -133,6 +133,9 @@ pub struct TestArg {
   /// start an interactive review to update snapshots selectively
   #[clap(short, long)]
   interactive: bool,
+  /// Filter rule test cases to execute using a glob pattern
+  #[clap(short, long)]
+  filter: Option<String>,
 }
 
 pub fn run_test_rule(arg: TestArg) -> Result<()> {
@@ -185,18 +188,14 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
     test_cases,
     snapshots,
     path_map,
-  } = if let Some(test_dir) = arg.test_dir {
+  } = if let Some(test_dirname) = arg.test_dir {
     let base_dir = std::env::current_dir()?;
-    let snapshot_dir = arg.snapshot_dir.as_deref();
-    read_test_files(&base_dir, &test_dir, snapshot_dir)?
+    let snapshot_dirname = arg.snapshot_dir.as_deref();
+    read_test_files(&base_dir, &test_dirname, snapshot_dirname, arg.filter.as_deref())?
   } else {
-    find_tests(arg.config)?
+    find_tests(arg.config, arg.filter.as_deref())?
   };
-  let snapshots = if arg.skip_snapshot_tests {
-    None
-  } else {
-    Some(snapshots)
-  };
+  let snapshots = (!arg.skip_snapshot_tests).then(|| snapshots);
   let reporter = &Arc::new(Mutex::new(reporter));
   {
     reporter.lock().unwrap().before_report(&test_cases)?;
@@ -580,7 +579,7 @@ fn report_case_detail_impl<W: Write>(
         writeln!(output, "{}", Style::new().italic().paint("Diff:"))?;
         print_diff(&expected_str, &actual_str, &styles, output)?;
       } else {
-        writeln!(output, "[{wrong}] No {case_id} basline found.")?;
+        writeln!(output, "[{wrong}] No {case_id} baseline found.")?;
         // TODO: add to print_styles
         writeln!(
           output,
@@ -846,6 +845,7 @@ rule:
       snapshot_dir: None,
       test_dir: None,
       update_all: false,
+      filter: None,
     };
     // TODO
     assert!(run_test_rule_impl(arg, reporter).is_err());

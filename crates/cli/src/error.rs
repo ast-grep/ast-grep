@@ -43,6 +43,7 @@ pub enum ErrorContext {
   WriteFile(PathBuf),
   // Test
   TestFail(String),
+  TestCaseGlobFilter,
   // New
   ProjectAlreadyExist,
   ProjectNotExist,
@@ -63,7 +64,8 @@ impl ErrorContext {
       NoTestDirConfigured | NoUtilDirConfigured => 4,
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 5,
       StdInIsNotInteractive => 6,
-      ParseTest(_) | ParseRule(_) | ParseConfiguration | GlobPattern | ParsePattern => 8,
+      ParseTest(_) | ParseRule(_) | ParseConfiguration | GlobPattern | ParsePattern
+      | TestCaseGlobFilter => 8,
       ProjectAlreadyExist | FileAlreadyExist(_) => 17,
       InsufficientCLIArgument(_) => 22,
       OpenEditor | StartLanguageServer => 126,
@@ -180,6 +182,11 @@ impl ErrorMessage {
         message,
         "You can use ast-grep playground to debug your rules and test cases.",
         PLAYGROUND,
+      ),
+      TestCaseGlobFilter => Self::new(
+        "Cannot parse the test case glob pattern.",
+        "The pattern provided to filter test cases to run is not a valid glob. Please refer to the doc and fix the error.",
+        CLI_USAGE,
       ),
       ProjectAlreadyExist => Self::new(
         "ast-grep project already exists.",
