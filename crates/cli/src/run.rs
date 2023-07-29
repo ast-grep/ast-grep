@@ -65,6 +65,10 @@ pub struct RunArg {
   #[clap(short, long)]
   interactive: bool,
 
+  /// Apply all rewrite without confirmation if true.
+  #[clap(short = 'U', long, requires = "rewrite")]
+  update_all: bool,
+
   /// Output matches in structured JSON .
   ///
   /// This option is useful for tools like jq. It conflicts with interactive.
@@ -95,10 +99,6 @@ pub struct RunArg {
   /// The paths to search. You can provide multiple paths separated by spaces.
   #[clap(value_parser, default_value = ".")]
   paths: Vec<PathBuf>,
-
-  /// Apply all rewrite without confirmation if true.
-  #[clap(short = 'U', long, requires = "rewrite")]
-  update_all: bool,
 
   /// Do not respect hidden file system or ignore files (.gitignore, .ignore, etc.).
   ///
