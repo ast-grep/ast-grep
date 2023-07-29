@@ -47,7 +47,7 @@ pub struct ScanArg {
   /// Output matches in structured JSON text.
   ///
   /// This is useful for tools like jq.
-  /// It conflicts with color and report-style.
+  /// It conflicts with interactive.
   #[clap(long, conflicts_with = "interactive")]
   json: bool,
 
@@ -75,8 +75,10 @@ pub struct ScanArg {
   #[clap(value_parser, default_value = ".")]
   paths: Vec<PathBuf>,
 
-  /// Do not respect ignore files. You can suppress multiple ignore files by passing `no-ignore` multiple times.
-  #[clap(long, action = clap::ArgAction::Append)]
+  /// Do not respect hidden file system or ignore files (.gitignore, .ignore, etc.).
+  ///
+  /// You can suppress multiple ignore files by passing `no-ignore` multiple times.
+  #[clap(long, action = clap::ArgAction::Append, value_name = "FILE_TYPE")]
   no_ignore: Vec<IgnoreFile>,
 
   /// Enable search code from StdIn.
