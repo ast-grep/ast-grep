@@ -45,7 +45,7 @@ pub struct RunArg {
   pattern: String,
 
   /// String to replace the matched AST node.
-  #[clap(short, long)]
+  #[clap(short, long, value_name = "FIX")]
   rewrite: Option<String>,
 
   /// Print query pattern's tree-sitter AST. Requires lang be set explicitly.
@@ -57,23 +57,38 @@ pub struct RunArg {
   lang: Option<SgLang>,
 
   // output related options
-  /// Start interactive edit session. Code rewrite only happens inside a session.
+  /// Start interactive edit session.
+  ///
+  /// You can confirm the code change and apply it to files selectively,
+  /// or you can open text editor to tweak the changed code.
+  /// Note that code rewrite only happens inside a session.
   #[clap(short, long)]
   interactive: bool,
 
-  /// Output matches in structured JSON text useful for tools like jq.
-  /// Conflicts with interactive.
+  /// Output matches in structured JSON .
+  ///
+  /// This option is useful for tools like jq. It conflicts with interactive.
   #[clap(long, conflicts_with = "interactive")]
   json: bool,
 
-  /// Print the file name as heading before all matches of that file.
-  /// File path will be printed before each match as prefix if heading is disabled.
-  /// This is the default mode when printing to a terminal.
-  #[clap(long, default_value = "auto")]
+  /// Controls whether to print the file name as heading.
+  ///
+  /// If heading is used, the file name will be printed as heading before all matches of that file.
+  /// If heading is not used, ast-grep will print the file path before each match as prefix.
+  /// The default value `auto` is to use heading when printing to a terminal
+  /// and to disable heading when piping to another program or redirected to files.
+  #[clap(long, default_value = "auto", value_name = "WHEN")]
   heading: Heading,
 
   /// Controls output color.
-  #[clap(long, default_value = "auto")]
+  ///
+  /// This flag controls when to use colors. The default setting is 'auto', which
+  /// means ast-grep will try to guess when to use colors. If ast-grep is
+  /// printing to a terminal, then it will use colors, but if it is redirected to a
+  /// file or a pipe, then it will suppress color output. ast-grep will also suppress
+  /// color output in some other circumstances. For example, no color will be used
+  /// if the TERM environment variable is not set or set to 'dumb'.
+  #[clap(long, default_value = "auto", value_name = "COLOR_SPEC")]
   color: ColorArg,
 
   // input related options
@@ -86,8 +101,9 @@ pub struct RunArg {
   update_all: bool,
 
   /// Do not respect hidden file system or ignore files (.gitignore, .ignore, etc.).
+  ///
   /// You can suppress multiple ignore files by passing `no-ignore` multiple times.
-  #[clap(long, action = clap::ArgAction::Append)]
+  #[clap(long, action = clap::ArgAction::Append, value_name = "FILE_TYPE")]
   no_ignore: Vec<IgnoreFile>,
 
   /// Enable search code from StdIn.
@@ -99,6 +115,8 @@ pub struct RunArg {
 
   // context related options
   /// Show NUM lines after each match.
+  ///
+  /// It conflicts with both the -C/--context flag.
   #[clap(
     short = 'A',
     long,
@@ -108,6 +126,8 @@ pub struct RunArg {
   )]
   after: u16,
   /// Show NUM lines before each match.
+  ///
+  /// It conflicts with both the -C/--context flag.
   #[clap(
     short = 'B',
     long,
@@ -117,6 +137,10 @@ pub struct RunArg {
   )]
   before: u16,
   /// Show NUM lines around each match.
+  ///
+  /// This is equivalent to providing both the
+  /// -B/--before and -A/--after flags with the same value.
+  /// It conflicts with both the -B/--before and -A/--after flags.
   #[clap(short = 'C', long, default_value = "0", value_name = "NUM")]
   context: u16,
 }

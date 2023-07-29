@@ -299,6 +299,7 @@ fn find_config_path_with_default(
   }
 }
 
+/// File types to ignore
 #[derive(Clone, Copy, Deserialize, Serialize, ValueEnum)]
 pub enum IgnoreFile {
   /// Search hidden files and directories. By default, hidden files and directories are skipped.
