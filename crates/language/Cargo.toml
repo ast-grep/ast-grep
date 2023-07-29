@@ -21,7 +21,7 @@ tree-sitter-cpp = { version = "0.20.1", optional = true }
 tree-sitter-c-sharp = { version = "0.20.0", package = "ast-grep-tree-sitter-c-sharp", optional = true }
 tree-sitter-css = { version = "0.19.0", optional = true }
 tree-sitter-dart= { version = "0.0.3", optional = true }
-tree-sitter-go = { version = "0.19.1", optional = true }
+tree-sitter-go = { version = "0.20.0", optional = true }
 tree-sitter-html = { version = "0.19.0", optional = true }
 tree-sitter-java = { version = "0.20.0", optional = true }
 tree-sitter-javascript = { version = "0.20.0", optional = true }
