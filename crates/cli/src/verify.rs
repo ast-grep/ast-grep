@@ -191,11 +191,16 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
   } = if let Some(test_dirname) = arg.test_dir {
     let base_dir = std::env::current_dir()?;
     let snapshot_dirname = arg.snapshot_dir.as_deref();
-    read_test_files(&base_dir, &test_dirname, snapshot_dirname, arg.filter.as_deref())?
+    read_test_files(
+      &base_dir,
+      &test_dirname,
+      snapshot_dirname,
+      arg.filter.as_deref(),
+    )?
   } else {
     find_tests(arg.config, arg.filter.as_deref())?
   };
-  let snapshots = (!arg.skip_snapshot_tests).then(|| snapshots);
+  let snapshots = (!arg.skip_snapshot_tests).then_some(snapshots);
   let reporter = &Arc::new(Mutex::new(reporter));
   {
     reporter.lock().unwrap().before_report(&test_cases)?;

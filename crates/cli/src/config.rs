@@ -196,12 +196,16 @@ fn build_test_dir_walker(
 ) -> Result<ignore::Walk> {
   let snapshot_glob = snapshot_dirname.join("*");
 
-  let glob_override = OverrideBuilder::new(&test_path)
+  let glob_override = OverrideBuilder::new(test_path)
     .add(glob_filter.unwrap_or("*"))?
-    .add(snapshot_glob.to_str().expect("snapshot glob should be valid utf-8"))?
+    .add(
+      snapshot_glob
+        .to_str()
+        .expect("snapshot glob should be valid utf-8"),
+    )?
     .build()?;
 
-  let walker = WalkBuilder::new(&test_path)
+  let walker = WalkBuilder::new(test_path)
     .types(config_file_type())
     .overrides(glob_override)
     .build();
@@ -221,7 +225,7 @@ pub fn read_test_files(
   let test_path = base_dir.join(test_dirname);
   let snapshot_dirname = snapshot_dirname.unwrap_or_else(|| SNAPSHOT_DIR.as_ref());
   let snapshot_path = test_path.join(snapshot_dirname);
-  let walker = build_test_dir_walker(&test_path, &snapshot_dirname, glob_filter)
+  let walker = build_test_dir_walker(&test_path, snapshot_dirname, glob_filter)
     .with_context(|| EC::TestCaseGlobFilter)?;
   for dir in walker {
     let config_file = dir.with_context(|| EC::WalkRuleDir(test_path.clone()))?;
