@@ -88,7 +88,7 @@ pub struct RunArg {
   /// file or a pipe, then it will suppress color output. ast-grep will also suppress
   /// color output in some other circumstances. For example, no color will be used
   /// if the TERM environment variable is not set or set to 'dumb'.
-  #[clap(long, default_value = "auto", value_name = "COLOR_SPEC")]
+  #[clap(long, default_value = "auto", value_name = "WHEN")]
   color: ColorArg,
 
   // input related options
