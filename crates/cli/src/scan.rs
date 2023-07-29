@@ -37,8 +37,19 @@ pub struct ScanArg {
   /// You can confirm the code change and apply it to files selectively,
   /// or you can open text editor to tweak the changed code.
   /// Note that code rewrite only happens inside a session.
-  #[clap(short, long, conflicts_with = "json", conflicts_with = "format")]
+  #[clap(short, long)]
   interactive: bool,
+
+  /// Apply all rewrite without confirmation if true.
+  #[clap(short = 'U', long)]
+  update_all: bool,
+
+  /// Output matches in structured JSON text.
+  ///
+  /// This is useful for tools like jq.
+  /// It conflicts with color and report-style.
+  #[clap(long, conflicts_with = "interactive")]
+  json: bool,
 
   /// Controls output color.
   ///
@@ -54,21 +65,11 @@ pub struct ScanArg {
   /// Output warning/error messages in GitHub Action format.
   ///
   /// Currently, only GitHub is supported.
-  #[clap(short, long, conflicts_with = "json")]
+  #[clap(short, long, conflicts_with = "json", conflicts_with = "interactive")]
   format: Option<Platform>,
 
-  #[clap(long, default_value = "rich", conflicts_with = "report_style")]
+  #[clap(long, default_value = "rich", conflicts_with = "json")]
   report_style: ReportStyle,
-
-  /// Output matches in structured JSON text. This is useful for tools like jq.
-  ///
-  /// Conflicts with color and report-style.
-  #[clap(long, conflicts_with = "color")]
-  json: bool,
-
-  /// Apply all rewrite without confirmation if true.
-  #[clap(short = 'U', long)]
-  update_all: bool,
 
   /// The paths to search. You can provide multiple paths separated by spaces.
   #[clap(value_parser, default_value = ".")]
