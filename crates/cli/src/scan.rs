@@ -23,30 +23,47 @@ type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
 #[derive(Args)]
 pub struct ScanArg {
   /// Path to ast-grep root config, default is sgconfig.yml.
-  #[clap(short, long)]
+  #[clap(short, long, value_name = "CONFIG_FILE")]
   config: Option<PathBuf>,
 
-  /// Scan the codebase with one specified rule, without project config setup.
-  #[clap(short, long, conflicts_with = "config")]
+  /// Scan the codebase with the single rule located at the path RULE_FILE.
+  ///
+  /// This flags conflicts with --config. It is useful to run single rule without project setup.
+  #[clap(short, long, conflicts_with = "config", value_name = "RULE_FILE")]
   rule: Option<PathBuf>,
 
-  /// Start interactive edit session. Code rewrite only happens inside a session.
+  /// Start interactive edit session.
+  ///
+  /// You can confirm the code change and apply it to files selectively,
+  /// or you can open text editor to tweak the changed code.
+  /// Note that code rewrite only happens inside a session.
   #[clap(short, long, conflicts_with = "json", conflicts_with = "format")]
   interactive: bool,
 
   /// Controls output color.
-  #[clap(long, default_value = "auto")]
+  ///
+  /// This flag controls when to use colors. The default setting is 'auto', which
+  /// means ast-grep will try to guess when to use colors. If ast-grep is
+  /// printing to a terminal, then it will use colors, but if it is redirected to a
+  /// file or a pipe, then it will suppress color output. ast-grep will also suppress
+  /// color output in some other circumstances. For example, no color will be used
+  /// if the TERM environment variable is not set or set to 'dumb'.
+  #[clap(long, default_value = "auto", value_name = "WHEN")]
   color: ColorArg,
 
+  /// Output warning/error messages in GitHub Action format.
+  ///
+  /// Currently, only GitHub is supported.
   #[clap(short, long, conflicts_with = "json")]
   format: Option<Platform>,
 
-  #[clap(long, default_value = "rich")]
+  #[clap(long, default_value = "rich", conflicts_with = "report_style")]
   report_style: ReportStyle,
 
   /// Output matches in structured JSON text. This is useful for tools like jq.
+  ///
   /// Conflicts with color and report-style.
-  #[clap(long, conflicts_with = "color", conflicts_with = "report_style")]
+  #[clap(long, conflicts_with = "color")]
   json: bool,
 
   /// Apply all rewrite without confirmation if true.
