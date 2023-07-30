@@ -54,6 +54,14 @@ pub struct RunArg {
   #[clap(short, long, help(lang_help()), long_help=LANG_HELP_LONG)]
   lang: Option<SgLang>,
 
+  /// input related options
+  #[clap(flatten)]
+  input: InputArgs,
+
+  /// output related options
+  #[clap(flatten)]
+  output: OutputArgs,
+
   /// Controls whether to print the file name as heading.
   ///
   /// If heading is used, the file name will be printed as heading before all matches of that file.
@@ -62,13 +70,6 @@ pub struct RunArg {
   /// and to disable heading when piping to another program or redirected to files.
   #[clap(long, default_value = "auto", value_name = "WHEN")]
   heading: Heading,
-
-  /// input related options
-  #[clap(flatten)]
-  input: InputArgs,
-  /// output related options
-  #[clap(flatten)]
-  output: OutputArgs,
 
   // context related options
   /// Show NUM lines after each match.
@@ -82,6 +83,7 @@ pub struct RunArg {
     value_name = "NUM"
   )]
   after: u16,
+
   /// Show NUM lines before each match.
   ///
   /// It conflicts with both the -C/--context flag.
@@ -93,6 +95,7 @@ pub struct RunArg {
     value_name = "NUM"
   )]
   before: u16,
+
   /// Show NUM lines around each match.
   ///
   /// This is equivalent to providing both the
@@ -116,7 +119,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
   let printer = ColoredPrinter::stdout(arg.output.color)
     .heading(arg.heading)
     .context(context);
-  let interactive = arg.output.interactive || arg.output.update_all;
+  let interactive = arg.output.needs_interacive();
   if interactive {
     let from_stdin = arg.input.is_stdin();
     let printer = InteractivePrinter::new(printer, arg.output.update_all, from_stdin)?;

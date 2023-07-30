@@ -60,7 +60,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
     return run_scan(arg, printer);
   }
   let printer = ColoredPrinter::stdout(arg.output.color).style(arg.report_style);
-  let interactive = arg.output.interactive || arg.output.update_all;
+  let interactive = arg.output.needs_interacive();
   if interactive {
     let from_stdin = arg.input.is_stdin();
     let printer = InteractivePrinter::new(printer, arg.output.update_all, from_stdin)?;
