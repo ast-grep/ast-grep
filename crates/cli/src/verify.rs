@@ -582,7 +582,7 @@ fn report_case_detail_impl<W: Write>(
         let actual_str = to_string(&actual)?;
         let expected_str = to_string(&expected)?;
         writeln!(output, "{}", Style::new().italic().paint("Diff:"))?;
-        print_diff(&expected_str, &actual_str, &styles, output)?;
+        print_diff(&expected_str, &actual_str, &styles, output, 3)?;
       } else {
         writeln!(output, "[{wrong}] No {case_id} baseline found.")?;
         // TODO: add to print_styles
