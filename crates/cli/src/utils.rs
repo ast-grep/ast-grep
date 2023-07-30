@@ -294,3 +294,10 @@ pub struct OutputArgs {
   #[clap(long, default_value = "auto", value_name = "WHEN")]
   pub color: ColorArg,
 }
+
+impl OutputArgs {
+  // either explicit interactive or implicit update_all
+  pub fn needs_interacive(&self) -> bool {
+    self.interactive || self.update_all
+  }
+}
