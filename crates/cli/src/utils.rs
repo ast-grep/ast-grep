@@ -1,4 +1,4 @@
-use crate::config::IgnoreFile;
+use crate::config::{IgnoreFile, NoIgnore};
 use crate::lang::SgLang;
 use crate::print::ColorArg;
 
@@ -258,6 +258,23 @@ pub struct InputArgs {
 impl InputArgs {
   pub fn is_stdin(&self) -> bool {
     self.stdin && is_from_stdin()
+  }
+
+  pub fn walk(&self) -> WalkParallel {
+    let threads = num_cpus::get().min(12);
+    NoIgnore::disregard(&self.no_ignore)
+      .walk(&self.paths)
+      .threads(threads)
+      .build_parallel()
+  }
+
+  pub fn walk_lang(&self, lang: SgLang) -> WalkParallel {
+    let threads = num_cpus::get().min(12);
+    NoIgnore::disregard(&self.no_ignore)
+      .walk(&self.paths)
+      .threads(threads)
+      .types(lang.file_types())
+      .build_parallel()
   }
 }
 

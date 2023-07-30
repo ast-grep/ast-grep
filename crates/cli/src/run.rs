@@ -8,7 +8,7 @@ use ast_grep_language::Language;
 use clap::Parser;
 use ignore::WalkParallel;
 
-use crate::config::{register_custom_language, NoIgnore};
+use crate::config::register_custom_language;
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
@@ -147,12 +147,7 @@ struct RunWithInferredLang<Printer> {
 impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
   type Item = (MatchUnit<Pattern<SgLang>>, SgLang);
   fn build_walk(&self) -> WalkParallel {
-    let arg = &self.arg;
-    let threads = num_cpus::get().min(12);
-    NoIgnore::disregard(&arg.input.no_ignore)
-      .walk(&arg.input.paths)
-      .threads(threads)
-      .build_parallel()
+    self.arg.input.walk()
   }
 
   fn produce_item(&self, path: &Path) -> Option<Self::Item> {
@@ -207,14 +202,8 @@ impl<Printer> RunWithSpecificLang<Printer> {
 impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
   type Item = MatchUnit<Pattern<SgLang>>;
   fn build_walk(&self) -> WalkParallel {
-    let arg = &self.arg;
-    let threads = num_cpus::get().min(12);
-    let lang = arg.lang.expect("must present");
-    NoIgnore::disregard(&arg.input.no_ignore)
-      .walk(&arg.input.paths)
-      .threads(threads)
-      .types(lang.file_types())
-      .build_parallel()
+    let lang = self.arg.lang.expect("must present");
+    self.arg.input.walk_lang(lang)
   }
   fn produce_item(&self, path: &Path) -> Option<Self::Item> {
     let arg = &self.arg;
