@@ -35,7 +35,7 @@ pub struct ScanArg {
   /// Start interactive edit session.
   ///
   /// You can confirm the code change and apply it to files selectively,
-  /// or you can open text editor to tweak the changed code.
+  /// or you can open text editor to tweak the matched code.
   /// Note that code rewrite only happens inside a session.
   #[clap(short, long)]
   interactive: bool,
