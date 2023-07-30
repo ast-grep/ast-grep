@@ -45,7 +45,7 @@ pub struct RunArg {
   pattern: String,
 
   /// String to replace the matched AST node.
-  #[clap(short, long, value_name = "FIX")]
+  #[clap(short, long, value_name = "FIX", required_if_eq("update_all", "true"))]
   rewrite: Option<String>,
 
   /// Print query pattern's tree-sitter AST. Requires lang be set explicitly.
@@ -60,18 +60,19 @@ pub struct RunArg {
   /// Start interactive edit session.
   ///
   /// You can confirm the code change and apply it to files selectively,
-  /// or you can open text editor to tweak the changed code.
+  /// or you can open text editor to tweak the matched code.
   /// Note that code rewrite only happens inside a session.
   #[clap(short, long)]
   interactive: bool,
 
   /// Apply all rewrite without confirmation if true.
-  #[clap(short = 'U', long, requires = "rewrite")]
+  #[clap(short = 'U', long)]
   update_all: bool,
 
   /// Output matches in structured JSON .
   ///
-  /// This option is useful for tools like jq. It conflicts with interactive.
+  /// This option is useful for tools like jq.
+  /// It conflicts with interactive.
   #[clap(long, conflicts_with = "interactive")]
   json: bool,
 
