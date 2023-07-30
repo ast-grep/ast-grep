@@ -1,6 +1,8 @@
 use crate::config::IgnoreFile;
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
+use crate::print::ColorArg;
+
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use crossterm::{
@@ -269,6 +271,40 @@ pub struct InputArgs {
   /// If the environment variable `AST_GREP_NO_STDIN` exist, ast-grep will disable StdIn mode.
   #[clap(long)]
   pub stdin: bool,
+}
+
+/// output related options
+#[derive(Args)]
+pub struct OutputArgs {
+  /// Start interactive edit session.
+  ///
+  /// You can confirm the code change and apply it to files selectively,
+  /// or you can open text editor to tweak the matched code.
+  /// Note that code rewrite only happens inside a session.
+  #[clap(short, long)]
+  pub interactive: bool,
+
+  /// Apply all rewrite without confirmation if true.
+  #[clap(short = 'U', long)]
+  pub update_all: bool,
+
+  /// Output matches in structured JSON .
+  ///
+  /// This option is useful for tools like jq.
+  /// It conflicts with interactive.
+  #[clap(long, conflicts_with = "interactive")]
+  pub json: bool,
+
+  /// Controls output color.
+  ///
+  /// This flag controls when to use colors. The default setting is 'auto', which
+  /// means ast-grep will try to guess when to use colors. If ast-grep is
+  /// printing to a terminal, then it will use colors, but if it is redirected to a
+  /// file or a pipe, then it will suppress color output. ast-grep will also suppress
+  /// color output in some other circumstances. For example, no color will be used
+  /// if the TERM environment variable is not set or set to 'dumb'.
+  #[clap(long, default_value = "auto", value_name = "WHEN")]
+  pub color: ColorArg,
 }
 
 #[cfg(test)]
