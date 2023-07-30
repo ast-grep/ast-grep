@@ -7,7 +7,7 @@ use ast_grep_core::{Matcher, NodeMatch, StrDoc};
 use clap::Args;
 use ignore::WalkParallel;
 
-use crate::config::{find_rules, read_rule_file, register_custom_language, NoIgnore};
+use crate::config::{find_rules, read_rule_file, register_custom_language};
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{
@@ -104,12 +104,7 @@ impl<P: Printer> ScanWithConfig<P> {
 impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
   type Item = (PathBuf, AstGrep);
   fn build_walk(&self) -> WalkParallel {
-    let arg = &self.arg;
-    let threads = num_cpus::get().min(12);
-    NoIgnore::disregard(&arg.input.no_ignore)
-      .walk(&arg.input.paths)
-      .threads(threads)
-      .build_parallel()
+    self.arg.input.walk()
   }
   fn produce_item(&self, path: &Path) -> Option<Self::Item> {
     let rules = self.configs.for_path(path);
