@@ -4,8 +4,6 @@ use anyhow::{Error, Result};
 use std::fmt;
 use std::path::PathBuf;
 
-use crate::utils::ansi_link;
-
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const PATTERN_GUIDE: Option<&str> = Some("/guide/pattern-syntax.html");
 const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
@@ -236,6 +234,17 @@ pub fn exit_with_error(error: Error) -> Result<()> {
   }
   // use anyhow's default error reporting
   Err(error)
+}
+
+// use raw ansi escape code to render links in terminal. references:
+// https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda
+// https://github.com/zkat/miette/blob/c25676cb1f4266c2607836e6359f15b9cbd8637e/src/handlers/graphical.rs#L186
+fn ansi_link(url: String) -> String {
+  format!(
+    "\u{1b}]8;;{}\u{1b}\\{}\u{1b}]8;;\u{1b}\\",
+    url,
+    ansi_term::Color::Cyan.italic().paint(&url)
+  )
 }
 
 struct ErrorFormat<'a> {

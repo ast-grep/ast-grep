@@ -218,17 +218,6 @@ fn file_too_large(file_content: &String) -> bool {
   file_content.len() > MAX_FILE_SIZE && file_content.lines().count() > MAX_LINE_COUNT
 }
 
-// use raw ansi escape code to render links in terminal. references:
-// https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda
-// https://github.com/zkat/miette/blob/c25676cb1f4266c2607836e6359f15b9cbd8637e/src/handlers/graphical.rs#L186
-pub fn ansi_link(url: String) -> String {
-  format!(
-    "\u{1b}]8;;{}\u{1b}\\{}\u{1b}]8;;\u{1b}\\",
-    url,
-    ansi_term::Color::Cyan.italic().paint(&url)
-  )
-}
-
 /// A single atomic unit where matches happen.
 /// It contains the file path, sg instance and matcher.
 /// An analogy to compilation unit in C programming language.
