@@ -82,7 +82,7 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
       if resp == 'q' {
         Err(anyhow::anyhow!("Exit interactive editing"))
       } else if resp == 'e' {
-        utils::open_in_editor(&file_path, first_match)?;
+        open_in_editor(&file_path, first_match)?;
         Ok(())
       } else {
         Ok(())
@@ -156,7 +156,7 @@ fn print_diffs_and_prompt_action<'a>(
     }
     'n' => Ok(false),
     'e' => {
-      utils::open_in_editor(path, first_match)?;
+      open_in_editor(path, first_match)?;
       Ok(false)
     }
     'q' => Err(anyhow::anyhow!("Exit interactive editing")),
@@ -180,7 +180,7 @@ fn print_matches_and_confirm_next<'a>(
   if resp == 'q' {
     Err(anyhow::anyhow!("Exit interactive editing"))
   } else if resp == 'e' {
-    utils::open_in_editor(&path.to_path_buf(), first_match)?;
+    open_in_editor(&path.to_path_buf(), first_match)?;
     Ok(())
   } else {
     Ok(())
@@ -203,6 +203,23 @@ fn apply_rewrite(diffs: Vec<Diff>) -> String {
   // add trailing statements
   new_content.push_str(&old_content[start..]);
   new_content
+}
+
+/// start_line is zero-based
+fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
+  let editor = std::env::var("EDITOR").unwrap_or_else(|_| String::from("vim"));
+  let exit = std::process::Command::new(editor)
+    .arg(path)
+    .arg(format!("+{}", start_line + 1))
+    .spawn()
+    .context(EC::OpenEditor)?
+    .wait()
+    .context(EC::OpenEditor)?;
+  if exit.success() {
+    Ok(())
+  } else {
+    Err(anyhow::anyhow!(EC::OpenEditor))
+  }
 }
 
 #[cfg(test)]
@@ -274,5 +291,27 @@ fix: ($B, lifecycle.update(['$A']))",
     );
     let ret = apply_rewrite(diffs);
     assert_eq!("Some(1)", ret);
+  }
+
+  fn test_open_editor_respect_editor_env() {
+    std::env::set_var("EDITOR", "echo");
+    let exit = open_in_editor(&PathBuf::from("Cargo.toml"), 1);
+    assert!(exit.is_ok());
+  }
+
+  fn test_open_editor_error_handling() {
+    std::env::set_var("EDITOR", "NOT_EXIST_XXXXX");
+    let exit = open_in_editor(&PathBuf::from("Cargo.toml"), 1);
+    let error = exit.expect_err("should be error");
+    let error = error.downcast_ref::<EC>().expect("should be error context");
+    assert!(matches!(error, EC::OpenEditor));
+  }
+
+  #[test]
+  fn test_open_editor() {
+    // these two tests must run in sequence
+    // since setting env will cause racing condition
+    test_open_editor_respect_editor_env();
+    test_open_editor_error_handling();
   }
 }
