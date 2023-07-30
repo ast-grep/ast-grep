@@ -239,7 +239,7 @@ pub struct MatchUnit<M: Matcher<SgLang>> {
 }
 
 #[inline]
-pub fn is_from_stdin() -> bool {
+fn is_from_stdin() -> bool {
   // disable stdin if tty env presents or is_atty == true
   // env is used for testing purpose only
   env::var_os("AST_GREP_NO_STDIN").is_none() && !atty::is(atty::Stream::Stdin)
@@ -264,6 +264,12 @@ pub struct InputArgs {
   /// If the environment variable `AST_GREP_NO_STDIN` exist, ast-grep will disable StdIn mode.
   #[clap(long)]
   pub stdin: bool,
+}
+
+impl InputArgs {
+  pub fn is_stdin(&self) -> bool {
+    self.stdin && is_from_stdin()
+  }
 }
 
 /// output related options

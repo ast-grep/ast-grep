@@ -12,7 +12,7 @@ use crate::config::{register_custom_language, NoIgnore};
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
-use crate::utils::{filter_file_pattern, is_from_stdin, InputArgs, MatchUnit, OutputArgs};
+use crate::utils::{filter_file_pattern, InputArgs, MatchUnit, OutputArgs};
 use crate::utils::{run_std_in, StdInWorker};
 use crate::utils::{run_worker, Items, Worker};
 
@@ -118,7 +118,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
     .context(context);
   let interactive = arg.output.interactive || arg.output.update_all;
   if interactive {
-    let from_stdin = arg.input.stdin && is_from_stdin();
+    let from_stdin = arg.input.is_stdin();
     let printer = InteractivePrinter::new(printer, arg.output.update_all, from_stdin)?;
     run_pattern_with_printer(arg, printer)
   } else {
@@ -127,7 +127,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
 }
 
 fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + Sync) -> Result<()> {
-  if arg.input.stdin && is_from_stdin() {
+  if arg.input.is_stdin() {
     run_std_in(RunWithSpecificLang::new(arg, printer)?)
   } else if arg.lang.is_some() {
     run_worker(RunWithSpecificLang::new(arg, printer)?)
