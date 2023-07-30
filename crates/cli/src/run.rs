@@ -11,10 +11,8 @@ use ignore::WalkParallel;
 use crate::config::{register_custom_language, NoIgnore};
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
-use crate::print::{
-  ColorArg, ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer,
-};
-use crate::utils::{filter_file_pattern, is_from_stdin, InputArgs, MatchUnit};
+use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
+use crate::utils::{filter_file_pattern, is_from_stdin, InputArgs, MatchUnit, OutputArgs};
 use crate::utils::{run_std_in, StdInWorker};
 use crate::utils::{run_worker, Items, Worker};
 
@@ -56,26 +54,6 @@ pub struct RunArg {
   #[clap(short, long, help(lang_help()), long_help=LANG_HELP_LONG)]
   lang: Option<SgLang>,
 
-  // output related options
-  /// Start interactive edit session.
-  ///
-  /// You can confirm the code change and apply it to files selectively,
-  /// or you can open text editor to tweak the matched code.
-  /// Note that code rewrite only happens inside a session.
-  #[clap(short, long)]
-  interactive: bool,
-
-  /// Apply all rewrite without confirmation if true.
-  #[clap(short = 'U', long)]
-  update_all: bool,
-
-  /// Output matches in structured JSON .
-  ///
-  /// This option is useful for tools like jq.
-  /// It conflicts with interactive.
-  #[clap(long, conflicts_with = "interactive")]
-  json: bool,
-
   /// Controls whether to print the file name as heading.
   ///
   /// If heading is used, the file name will be printed as heading before all matches of that file.
@@ -85,20 +63,12 @@ pub struct RunArg {
   #[clap(long, default_value = "auto", value_name = "WHEN")]
   heading: Heading,
 
-  /// Controls output color.
-  ///
-  /// This flag controls when to use colors. The default setting is 'auto', which
-  /// means ast-grep will try to guess when to use colors. If ast-grep is
-  /// printing to a terminal, then it will use colors, but if it is redirected to a
-  /// file or a pipe, then it will suppress color output. ast-grep will also suppress
-  /// color output in some other circumstances. For example, no color will be used
-  /// if the TERM environment variable is not set or set to 'dumb'.
-  #[clap(long, default_value = "auto", value_name = "WHEN")]
-  color: ColorArg,
-
-  // input related options
+  /// input related options
   #[clap(flatten)]
   input: InputArgs,
+  /// output related options
+  #[clap(flatten)]
+  output: OutputArgs,
 
   // context related options
   /// Show NUM lines after each match.
@@ -135,7 +105,7 @@ pub struct RunArg {
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(arg: RunArg) -> Result<()> {
-  if arg.json {
+  if arg.output.json {
     return run_pattern_with_printer(arg, JSONPrinter::stdout());
   }
   let context = if arg.context != 0 {
@@ -143,13 +113,13 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
   } else {
     (arg.before, arg.after)
   };
-  let printer = ColoredPrinter::stdout(arg.color)
+  let printer = ColoredPrinter::stdout(arg.output.color)
     .heading(arg.heading)
     .context(context);
-  let interactive = arg.interactive || arg.update_all;
+  let interactive = arg.output.interactive || arg.output.update_all;
   if interactive {
     let from_stdin = arg.input.stdin && is_from_stdin();
-    let printer = InteractivePrinter::new(printer, arg.update_all, from_stdin)?;
+    let printer = InteractivePrinter::new(printer, arg.output.update_all, from_stdin)?;
     run_pattern_with_printer(arg, printer)
   } else {
     run_pattern_with_printer(arg, printer)
@@ -306,23 +276,26 @@ fn match_one_file(
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::print::ColorArg;
   use ast_grep_language::SupportLang;
 
   fn default_run_arg() -> RunArg {
     RunArg {
       pattern: String::new(),
       rewrite: None,
-      color: ColorArg::Never,
-      interactive: false,
       lang: None,
-      json: false,
       heading: Heading::Never,
       debug_query: false,
-      update_all: false,
       input: InputArgs {
         no_ignore: vec![],
         stdin: false,
         paths: vec![PathBuf::from(".")],
+      },
+      output: OutputArgs {
+        color: ColorArg::Never,
+        interactive: false,
+        json: false,
+        update_all: false,
       },
       before: 0,
       after: 0,

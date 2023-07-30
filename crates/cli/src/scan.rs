@@ -11,10 +11,10 @@ use crate::config::{find_rules, read_rule_file, register_custom_language, NoIgno
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{
-  CloudPrinter, ColorArg, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, Printer,
+  CloudPrinter, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, Printer,
   ReportStyle, SimpleFile,
 };
-use crate::utils::{filter_file_interactive, InputArgs};
+use crate::utils::{filter_file_interactive, InputArgs, OutputArgs};
 use crate::utils::{is_from_stdin, run_std_in, StdInWorker};
 use crate::utils::{run_worker, Items, Worker};
 
@@ -32,36 +32,6 @@ pub struct ScanArg {
   #[clap(short, long, conflicts_with = "config", value_name = "RULE_FILE")]
   rule: Option<PathBuf>,
 
-  /// Start interactive edit session.
-  ///
-  /// You can confirm the code change and apply it to files selectively,
-  /// or you can open text editor to tweak the matched code.
-  /// Note that code rewrite only happens inside a session.
-  #[clap(short, long)]
-  interactive: bool,
-
-  /// Apply all rewrite without confirmation if true.
-  #[clap(short = 'U', long)]
-  update_all: bool,
-
-  /// Output matches in structured JSON text.
-  ///
-  /// This is useful for tools like jq.
-  /// It conflicts with interactive.
-  #[clap(long, conflicts_with = "interactive")]
-  json: bool,
-
-  /// Controls output color.
-  ///
-  /// This flag controls when to use colors. The default setting is 'auto', which
-  /// means ast-grep will try to guess when to use colors. If ast-grep is
-  /// printing to a terminal, then it will use colors, but if it is redirected to a
-  /// file or a pipe, then it will suppress color output. ast-grep will also suppress
-  /// color output in some other circumstances. For example, no color will be used
-  /// if the TERM environment variable is not set or set to 'dumb'.
-  #[clap(long, default_value = "auto", value_name = "WHEN")]
-  color: ColorArg,
-
   /// Output warning/error messages in GitHub Action format.
   ///
   /// Currently, only GitHub is supported.
@@ -71,14 +41,17 @@ pub struct ScanArg {
   #[clap(long, default_value = "rich", conflicts_with = "json")]
   report_style: ReportStyle,
 
-  /// Input Related Options
+  /// input related options
   #[clap(flatten)]
   input: InputArgs,
+  /// output related options
+  #[clap(flatten)]
+  output: OutputArgs,
 }
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
   register_custom_language(arg.config.clone());
-  if arg.json {
+  if arg.output.json {
     let printer = JSONPrinter::stdout();
     return run_scan(arg, printer);
   }
@@ -86,11 +59,11 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
     let printer = CloudPrinter::stdout();
     return run_scan(arg, printer);
   }
-  let printer = ColoredPrinter::stdout(arg.color).style(arg.report_style);
-  let interactive = arg.interactive || arg.update_all;
+  let printer = ColoredPrinter::stdout(arg.output.color).style(arg.report_style);
+  let interactive = arg.output.interactive || arg.output.update_all;
   if interactive {
     let from_stdin = arg.input.stdin && is_from_stdin();
-    let printer = InteractivePrinter::new(printer, arg.update_all, from_stdin)?;
+    let printer = InteractivePrinter::new(printer, arg.output.update_all, from_stdin)?;
     run_scan(arg, printer)
   } else {
     run_scan(arg, printer)
@@ -316,6 +289,7 @@ impl<'r> CombinedScan<'r> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::print::ColorArg;
   use std::fs::File;
   use std::io::Write;
   use tempdir::TempDir;
@@ -357,14 +331,16 @@ rule:
       config: Some(dir.path().join("sgconfig.yml")),
       rule: None,
       report_style: ReportStyle::Rich,
-      color: ColorArg::Never,
-      interactive: false,
-      json: false,
-      update_all: false,
       input: InputArgs {
         no_ignore: vec![],
         paths: vec![PathBuf::from(".")],
         stdin: false,
+      },
+      output: OutputArgs {
+        interactive: false,
+        json: false,
+        update_all: false,
+        color: ColorArg::Never,
       },
       format: None,
     };
