@@ -12,11 +12,12 @@ use anyhow::Result;
 use clap::ValueEnum;
 
 use std::borrow::Cow;
+use std::io::Stdout;
 use std::path::Path;
 
 pub use cloud_print::{CloudPrinter, Platform};
 pub use codespan_reporting::files::SimpleFile;
-pub use codespan_reporting::term::termcolor::ColorChoice;
+pub use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 pub use colored_print::{print_diff, ColoredPrinter, Heading, PrintStyles, ReportStyle};
 pub use interactive_print::InteractivePrinter;
 pub use json_print::JSONPrinter;
@@ -114,4 +115,10 @@ impl From<ColorArg> for ColorChoice {
       Never => ColorChoice::Never,
     }
   }
+}
+
+pub enum PrinterChoice {
+  Colored(ColoredPrinter<StandardStream>),
+  Interactive(InteractivePrinter<ColoredPrinter<StandardStream>>),
+  Json(JSONPrinter<Stdout>),
 }

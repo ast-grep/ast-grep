@@ -1,6 +1,6 @@
 use crate::config::{IgnoreFile, NoIgnore};
 use crate::lang::SgLang;
-use crate::print::ColorArg;
+use crate::print::{ColorArg, ColoredPrinter, InteractivePrinter, JSONPrinter, PrinterChoice};
 
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
@@ -314,7 +314,23 @@ pub struct OutputArgs {
 
 impl OutputArgs {
   // either explicit interactive or implicit update_all
-  pub fn needs_interacive(&self) -> bool {
+  fn needs_interactive(&self) -> bool {
     self.interactive || self.update_all
+  }
+
+  pub fn get_printer(&self, input: &InputArgs) -> Result<PrinterChoice> {
+    use PrinterChoice as P;
+    if self.json {
+      let printer = JSONPrinter::stdout();
+      return Ok(P::Json(printer));
+    }
+    let printer = ColoredPrinter::stdout(self.color);
+    if self.needs_interactive() {
+      let from_stdin = input.is_stdin();
+      let printer = InteractivePrinter::new(printer, self.update_all, from_stdin)?;
+      Ok(P::Interactive(printer))
+    } else {
+      Ok(P::Colored(printer))
+    }
   }
 }

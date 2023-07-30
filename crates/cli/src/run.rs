@@ -11,7 +11,7 @@ use ignore::WalkParallel;
 use crate::config::register_custom_language;
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
-use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
+use crate::print::{Diff, Heading, Printer, PrinterChoice};
 use crate::utils::{filter_file_pattern, InputArgs, MatchUnit, OutputArgs};
 use crate::utils::{run_std_in, StdInWorker};
 use crate::utils::{run_worker, Items, Worker};
@@ -108,24 +108,19 @@ pub struct RunArg {
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(arg: RunArg) -> Result<()> {
-  if arg.output.json {
-    return run_pattern_with_printer(arg, JSONPrinter::stdout());
-  }
-  let context = if arg.context != 0 {
-    (arg.context, arg.context)
-  } else {
-    (arg.before, arg.after)
-  };
-  let printer = ColoredPrinter::stdout(arg.output.color)
-    .heading(arg.heading)
-    .context(context);
-  let interactive = arg.output.needs_interacive();
-  if interactive {
-    let from_stdin = arg.input.is_stdin();
-    let printer = InteractivePrinter::new(printer, arg.output.update_all, from_stdin)?;
-    run_pattern_with_printer(arg, printer)
-  } else {
-    run_pattern_with_printer(arg, printer)
+  use PrinterChoice as PC;
+  match arg.output.get_printer(&arg.input)? {
+    PC::Json(printer) => run_pattern_with_printer(arg, printer),
+    PC::Interactive(printer) => run_pattern_with_printer(arg, printer),
+    PC::Colored(printer) => {
+      let context = if arg.context != 0 {
+        (arg.context, arg.context)
+      } else {
+        (arg.before, arg.after)
+      };
+      let printer = printer.heading(arg.heading).context(context);
+      run_pattern_with_printer(arg, printer)
+    }
   }
 }
 

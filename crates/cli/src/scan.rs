@@ -10,10 +10,7 @@ use ignore::WalkParallel;
 use crate::config::{find_rules, read_rule_file, register_custom_language};
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
-use crate::print::{
-  CloudPrinter, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, Printer,
-  ReportStyle, SimpleFile,
-};
+use crate::print::{CloudPrinter, Diff, Platform, Printer, PrinterChoice, ReportStyle, SimpleFile};
 use crate::utils::{filter_file_interactive, InputArgs, OutputArgs};
 use crate::utils::{run_std_in, StdInWorker};
 use crate::utils::{run_worker, Items, Worker};
@@ -51,22 +48,17 @@ pub struct ScanArg {
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
   register_custom_language(arg.config.clone());
-  if arg.output.json {
-    let printer = JSONPrinter::stdout();
-    return run_scan(arg, printer);
-  }
   if let Some(_format) = &arg.format {
     let printer = CloudPrinter::stdout();
     return run_scan(arg, printer);
   }
-  let printer = ColoredPrinter::stdout(arg.output.color).style(arg.report_style);
-  let interactive = arg.output.needs_interacive();
-  if interactive {
-    let from_stdin = arg.input.is_stdin();
-    let printer = InteractivePrinter::new(printer, arg.output.update_all, from_stdin)?;
-    run_scan(arg, printer)
-  } else {
-    run_scan(arg, printer)
+  match arg.output.get_printer(&arg.input)? {
+    PrinterChoice::Json(printer) => run_scan(arg, printer),
+    PrinterChoice::Interactive(printer) => run_scan(arg, printer),
+    PrinterChoice::Colored(printer) => {
+      let printer = printer.style(arg.report_style);
+      run_scan(arg, printer)
+    }
   }
 }
 
