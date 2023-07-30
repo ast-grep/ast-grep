@@ -163,7 +163,8 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
 
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
     let writer = &mut *self.writer.lock().expect("should success");
-    print_diffs(diffs, path, &self.styles, writer)
+    let context = self.context.0 as usize;
+    print_diffs(diffs, path, &self.styles, writer, context)
   }
   fn print_rule_diffs<'a>(
     &self,
@@ -173,7 +174,8 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
   ) -> Result<()> {
     let writer = &mut *self.writer.lock().expect("should success");
     print_rule_title(rule, &self.styles.rule, writer)?;
-    print_diffs(diffs, path, &self.styles, writer)?;
+    let context = self.context.0 as usize;
+    print_diffs(diffs, path, &self.styles, writer, context)?;
     if let Some(note) = &rule.note {
       writeln!(writer, "{}", self.styles.rule.note.paint("Note:"))?;
       writeln!(writer, "{note}")?;
@@ -403,6 +405,7 @@ fn print_diffs<'a, W: WriteColor>(
   path: &Path,
   styles: &PrintStyles,
   writer: &mut W,
+  context: usize,
 ) -> Result<()> {
   print_prelude(path, styles, writer)?;
   let Some(first_diff) = diffs.next() else {
@@ -423,7 +426,7 @@ fn print_diffs<'a, W: WriteColor>(
     start = range.end;
   }
   new_str.push_str(&source[start..]);
-  print_diff(source, &new_str, styles, writer)?;
+  print_diff(source, &new_str, styles, writer, context)?;
   Ok(())
 }
 
@@ -473,9 +476,10 @@ pub fn print_diff(
   new: &str,
   styles: &PrintStyles,
   writer: &mut impl Write,
+  context: usize,
 ) -> Result<()> {
   let diff = TextDiff::from_lines(old, new);
-  for group in diff.grouped_ops(3) {
+  for group in diff.grouped_ops(context) {
     let op = group.last().unwrap();
     let old_width = op.old_range().end.checked_ilog10().unwrap_or(0) as usize + 1;
     let new_width = op.new_range().end.checked_ilog10().unwrap_or(0) as usize + 1;
