@@ -1,6 +1,8 @@
+use crate::config::IgnoreFile;
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use anyhow::{anyhow, Context, Result};
+use clap::Args;
 use crossterm::{
   event::{self, Event, KeyCode},
   execute,
@@ -246,6 +248,27 @@ pub fn is_from_stdin() -> bool {
   // disable stdin if tty env presents or is_atty == true
   // env is used for testing purpose only
   env::var_os("AST_GREP_NO_STDIN").is_none() && !atty::is(atty::Stream::Stdin)
+}
+
+/// input related options
+#[derive(Args)]
+pub struct InputArgs {
+  /// The paths to search. You can provide multiple paths separated by spaces.
+  #[clap(value_parser, default_value = ".")]
+  pub paths: Vec<PathBuf>,
+
+  /// Do not respect hidden file system or ignore files (.gitignore, .ignore, etc.).
+  ///
+  /// You can suppress multiple ignore files by passing `no-ignore` multiple times.
+  #[clap(long, action = clap::ArgAction::Append, value_name = "FILE_TYPE")]
+  pub no_ignore: Vec<IgnoreFile>,
+
+  /// Enable search code from StdIn.
+  ///
+  /// Use this if you need to take code stream from standard input.
+  /// If the environment variable `AST_GREP_NO_STDIN` exist, ast-grep will disable StdIn mode.
+  #[clap(long)]
+  pub stdin: bool,
 }
 
 #[cfg(test)]
