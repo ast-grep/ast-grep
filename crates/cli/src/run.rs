@@ -8,13 +8,13 @@ use ast_grep_language::Language;
 use clap::Parser;
 use ignore::WalkParallel;
 
-use crate::config::{register_custom_language, IgnoreFile, NoIgnore};
+use crate::config::{register_custom_language, NoIgnore};
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{
   ColorArg, ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer,
 };
-use crate::utils::{filter_file_pattern, is_from_stdin, MatchUnit};
+use crate::utils::{filter_file_pattern, is_from_stdin, InputArgs, MatchUnit};
 use crate::utils::{run_std_in, StdInWorker};
 use crate::utils::{run_worker, Items, Worker};
 
@@ -96,22 +96,8 @@ pub struct RunArg {
   color: ColorArg,
 
   // input related options
-  /// The paths to search. You can provide multiple paths separated by spaces.
-  #[clap(value_parser, default_value = ".")]
-  paths: Vec<PathBuf>,
-
-  /// Do not respect hidden file system or ignore files (.gitignore, .ignore, etc.).
-  ///
-  /// You can suppress multiple ignore files by passing `no-ignore` multiple times.
-  #[clap(long, action = clap::ArgAction::Append, value_name = "FILE_TYPE")]
-  no_ignore: Vec<IgnoreFile>,
-
-  /// Enable search code from StdIn.
-  ///
-  /// Use this if you need to take code stream from standard input.
-  /// If the environment variable `AST_GREP_NO_STDIN` exist, ast-grep will disable StdIn mode.
-  #[clap(long)]
-  stdin: bool,
+  #[clap(flatten)]
+  input: InputArgs,
 
   // context related options
   /// Show NUM lines after each match.
@@ -161,7 +147,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
     .context(context);
   let interactive = arg.interactive || arg.update_all;
   if interactive {
-    let from_stdin = arg.stdin && is_from_stdin();
+    let from_stdin = arg.input.stdin && is_from_stdin();
     let printer = InteractivePrinter::new(printer, arg.update_all, from_stdin)?;
     run_pattern_with_printer(arg, printer)
   } else {
@@ -170,7 +156,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
 }
 
 fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + Sync) -> Result<()> {
-  if arg.stdin && is_from_stdin() {
+  if arg.input.stdin && is_from_stdin() {
     run_std_in(RunWithSpecificLang::new(arg, printer)?)
   } else if arg.lang.is_some() {
     run_worker(RunWithSpecificLang::new(arg, printer)?)
@@ -189,8 +175,8 @@ impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
   fn build_walk(&self) -> WalkParallel {
     let arg = &self.arg;
     let threads = num_cpus::get().min(12);
-    NoIgnore::disregard(&arg.no_ignore)
-      .walk(&arg.paths)
+    NoIgnore::disregard(&arg.input.no_ignore)
+      .walk(&arg.input.paths)
       .threads(threads)
       .build_parallel()
   }
@@ -250,8 +236,8 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
     let arg = &self.arg;
     let threads = num_cpus::get().min(12);
     let lang = arg.lang.expect("must present");
-    NoIgnore::disregard(&arg.no_ignore)
-      .walk(&arg.paths)
+    NoIgnore::disregard(&arg.input.no_ignore)
+      .walk(&arg.input.paths)
       .threads(threads)
       .types(lang.file_types())
       .build_parallel()
@@ -326,15 +312,17 @@ mod test {
       pattern: String::new(),
       rewrite: None,
       color: ColorArg::Never,
-      no_ignore: vec![],
-      stdin: false,
       interactive: false,
       lang: None,
       json: false,
       heading: Heading::Never,
       debug_query: false,
       update_all: false,
-      paths: vec![PathBuf::from(".")],
+      input: InputArgs {
+        no_ignore: vec![],
+        stdin: false,
+        paths: vec![PathBuf::from(".")],
+      },
       before: 0,
       after: 0,
       context: 0,
@@ -355,7 +343,6 @@ mod test {
     let arg = RunArg {
       pattern: "Some(result)".to_string(),
       lang: Some(SupportLang::Rust.into()),
-      stdin: true,
       ..default_run_arg()
     };
     assert!(run_with_pattern(arg).is_ok())

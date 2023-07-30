@@ -7,14 +7,14 @@ use ast_grep_core::{Matcher, NodeMatch, StrDoc};
 use clap::Args;
 use ignore::WalkParallel;
 
-use crate::config::{find_rules, read_rule_file, register_custom_language, IgnoreFile, NoIgnore};
+use crate::config::{find_rules, read_rule_file, register_custom_language, NoIgnore};
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{
   CloudPrinter, ColorArg, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, Printer,
   ReportStyle, SimpleFile,
 };
-use crate::utils::filter_file_interactive;
+use crate::utils::{filter_file_interactive, InputArgs};
 use crate::utils::{is_from_stdin, run_std_in, StdInWorker};
 use crate::utils::{run_worker, Items, Worker};
 
@@ -71,22 +71,9 @@ pub struct ScanArg {
   #[clap(long, default_value = "rich", conflicts_with = "json")]
   report_style: ReportStyle,
 
-  /// The paths to search. You can provide multiple paths separated by spaces.
-  #[clap(value_parser, default_value = ".")]
-  paths: Vec<PathBuf>,
-
-  /// Do not respect hidden file system or ignore files (.gitignore, .ignore, etc.).
-  ///
-  /// You can suppress multiple ignore files by passing `no-ignore` multiple times.
-  #[clap(long, action = clap::ArgAction::Append, value_name = "FILE_TYPE")]
-  no_ignore: Vec<IgnoreFile>,
-
-  /// Enable search code from StdIn.
-  ///
-  /// Use this if you need to take code stream from standard input.
-  /// If the environment variable `AST_GREP_NO_STDIN` exist, ast-grep will disable StdIn mode.
-  #[clap(long)]
-  stdin: bool,
+  /// Input Related Options
+  #[clap(flatten)]
+  input: InputArgs,
 }
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
@@ -102,7 +89,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
   let printer = ColoredPrinter::stdout(arg.color).style(arg.report_style);
   let interactive = arg.interactive || arg.update_all;
   if interactive {
-    let from_stdin = arg.stdin && is_from_stdin();
+    let from_stdin = arg.input.stdin && is_from_stdin();
     let printer = InteractivePrinter::new(printer, arg.update_all, from_stdin)?;
     run_scan(arg, printer)
   } else {
@@ -111,7 +98,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
 }
 
 fn run_scan<P: Printer + Sync>(arg: ScanArg, printer: P) -> Result<()> {
-  if arg.stdin && is_from_stdin() {
+  if arg.input.stdin && is_from_stdin() {
     let worker = ScanWithRule::try_new(arg, printer)?;
     run_std_in(worker)
   } else {
@@ -146,8 +133,8 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
   fn build_walk(&self) -> WalkParallel {
     let arg = &self.arg;
     let threads = num_cpus::get().min(12);
-    NoIgnore::disregard(&arg.no_ignore)
-      .walk(&arg.paths)
+    NoIgnore::disregard(&arg.input.no_ignore)
+      .walk(&arg.input.paths)
       .threads(threads)
       .build_parallel()
   }
@@ -371,12 +358,14 @@ rule:
       rule: None,
       report_style: ReportStyle::Rich,
       color: ColorArg::Never,
-      no_ignore: vec![],
       interactive: false,
       json: false,
       update_all: false,
-      paths: vec![PathBuf::from(".")],
-      stdin: false,
+      input: InputArgs {
+        no_ignore: vec![],
+        paths: vec![PathBuf::from(".")],
+        stdin: false,
+      },
       format: None,
     };
     assert!(run_with_config(arg).is_ok());
