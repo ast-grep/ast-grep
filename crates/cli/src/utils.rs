@@ -1,5 +1,4 @@
 use crate::config::IgnoreFile;
-use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::ColorArg;
 
@@ -75,11 +74,22 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
   }
 }
 
-// TODO: add comment
+/// A trait to abstract how ast-grep discovers, parses and processes files.
+///
+/// It follows multiple-producer-single-consumer pattern.
+/// ast-grep discovers files in parallel by `build_walk`.
+/// Then every file is parsed and filtered in `produce_item`.
+/// Finally, `produce_item` will send `Item` to the consumer thread.
 pub trait Worker: Sync {
+  /// The item to send between producer/consumer threads.
+  /// It is usually parsed tree-sitter Root with optional data.
   type Item: Send;
+  /// WalkParallel will determine what files will be processed.
   fn build_walk(&self) -> WalkParallel;
+  /// Parse and find_match can be done in `produce_item`.
   fn produce_item(&self, path: &Path) -> Option<Self::Item>;
+  /// `consume_items` will run in a separate single thread.
+  /// printing matches or error reporting can happen here.
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()>;
 }
 
@@ -151,23 +161,6 @@ pub fn run_worker<MW: Worker>(worker: MW) -> Result<()> {
   // drop the last sender to stop rx awaiting message
   drop(tx);
   worker.consume_items(Items(rx))
-}
-
-/// start_line is zero-based
-pub fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
-  let editor = std::env::var("EDITOR").unwrap_or_else(|_| String::from("vim"));
-  let exit = std::process::Command::new(editor)
-    .arg(path)
-    .arg(format!("+{}", start_line + 1))
-    .spawn()
-    .context(EC::OpenEditor)?
-    .wait()
-    .context(EC::OpenEditor)?;
-  if exit.success() {
-    Ok(())
-  } else {
-    Err(anyhow!(EC::OpenEditor))
-  }
 }
 
 fn read_file(path: &Path) -> Option<String> {
@@ -305,31 +298,4 @@ pub struct OutputArgs {
   /// if the TERM environment variable is not set or set to 'dumb'.
   #[clap(long, default_value = "auto", value_name = "WHEN")]
   pub color: ColorArg,
-}
-
-#[cfg(test)]
-mod test {
-  use super::*;
-
-  #[test]
-  fn test_open_editor() {
-    // these two tests must run in sequence
-    // since setting env will cause racing condition
-    test_open_editor_respect_editor_env();
-    test_open_editor_error_handling();
-  }
-
-  fn test_open_editor_respect_editor_env() {
-    std::env::set_var("EDITOR", "echo");
-    let exit = open_in_editor(&PathBuf::from("Cargo.toml"), 1);
-    assert!(exit.is_ok());
-  }
-
-  fn test_open_editor_error_handling() {
-    std::env::set_var("EDITOR", "NOT_EXIST_XXXXX");
-    let exit = open_in_editor(&PathBuf::from("Cargo.toml"), 1);
-    let error = exit.expect_err("should be error");
-    let error = error.downcast_ref::<EC>().expect("should be error context");
-    assert!(matches!(error, EC::OpenEditor));
-  }
 }
