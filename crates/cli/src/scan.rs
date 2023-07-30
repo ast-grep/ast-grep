@@ -15,7 +15,7 @@ use crate::print::{
   ReportStyle, SimpleFile,
 };
 use crate::utils::{filter_file_interactive, InputArgs, OutputArgs};
-use crate::utils::{is_from_stdin, run_std_in, StdInWorker};
+use crate::utils::{run_std_in, StdInWorker};
 use crate::utils::{run_worker, Items, Worker};
 
 type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
@@ -62,7 +62,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
   let printer = ColoredPrinter::stdout(arg.output.color).style(arg.report_style);
   let interactive = arg.output.interactive || arg.output.update_all;
   if interactive {
-    let from_stdin = arg.input.stdin && is_from_stdin();
+    let from_stdin = arg.input.is_stdin();
     let printer = InteractivePrinter::new(printer, arg.output.update_all, from_stdin)?;
     run_scan(arg, printer)
   } else {
@@ -71,7 +71,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
 }
 
 fn run_scan<P: Printer + Sync>(arg: ScanArg, printer: P) -> Result<()> {
-  if arg.input.stdin && is_from_stdin() {
+  if arg.input.is_stdin() {
     let worker = ScanWithRule::try_new(arg, printer)?;
     run_std_in(worker)
   } else {
