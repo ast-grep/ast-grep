@@ -353,8 +353,8 @@ mod test {
       Ok(())
     }
   }
-  fn make_test_printer() -> JSONPrinter<Test> {
-    JSONPrinter::new(Test(String::new()), JsonStyle::Pretty)
+  fn make_test_printer(style: JsonStyle) -> JSONPrinter<Test> {
+    JSONPrinter::new(Test(String::new()), style)
   }
   fn get_text(printer: &JSONPrinter<Test>) -> String {
     let lock = printer.output.lock().unwrap();
@@ -363,13 +363,15 @@ mod test {
 
   #[test]
   fn test_empty_printer() {
-    let printer = make_test_printer();
-    printer.before_print().unwrap();
-    printer
-      .print_matches(std::iter::empty(), "test.tsx".as_ref())
-      .unwrap();
-    printer.after_print().unwrap();
-    assert_eq!(get_text(&printer), "[]\n");
+    for style in [JsonStyle::Pretty, JsonStyle::Compact] {
+      let printer = make_test_printer(style);
+      printer.before_print().unwrap();
+      printer
+        .print_matches(std::iter::empty(), "test.tsx".as_ref())
+        .unwrap();
+      printer.after_print().unwrap();
+      assert_eq!(get_text(&printer), "[]\n");
+    }
   }
 
   // source, pattern, replace, debug note
@@ -401,7 +403,7 @@ mod test {
   fn test_invariant() {
     for &(source, pattern, _, note) in MATCHES_CASES {
       // heading is required for CI
-      let printer = make_test_printer();
+      let printer = make_test_printer(JsonStyle::Pretty);
       let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
       let matches = grep.root().find_all(pattern);
       printer.before_print().unwrap();
@@ -417,7 +419,7 @@ mod test {
   fn test_replace_json() {
     for &(source, pattern, replace, note) in MATCHES_CASES {
       // heading is required for CI
-      let printer = make_test_printer();
+      let printer = make_test_printer(JsonStyle::Compact);
       let lang = SgLang::from(SupportLang::Tsx);
       let grep = lang.ast_grep(source);
       let matches = grep.root().find_all(pattern);
@@ -460,7 +462,7 @@ rule:
         continue;
       }
       let source = source.to_string();
-      let printer = make_test_printer();
+      let printer = make_test_printer(JsonStyle::Pretty);
       let grep = SgLang::from(SupportLang::Tsx).ast_grep(&source);
       let rule = make_rule(pattern);
       let matches = grep.root().find_all(&rule.matcher);
@@ -476,7 +478,7 @@ rule:
 
   #[test]
   fn test_single_matched_json() {
-    let printer = make_test_printer();
+    let printer = make_test_printer(JsonStyle::Pretty);
     let lang = SgLang::from(SupportLang::Tsx);
     let grep = lang.ast_grep("console.log(123)");
     let matches = grep.root().find_all("console.log($A)");
@@ -495,7 +497,7 @@ rule:
 
   #[test]
   fn test_multi_matched_json() {
-    let printer = make_test_printer();
+    let printer = make_test_printer(JsonStyle::Compact);
     let lang = SgLang::from(SupportLang::Tsx);
     let grep = lang.ast_grep("console.log(1, 2, 3)");
     let matches = grep.root().find_all("console.log($$$A)");
@@ -508,5 +510,25 @@ rule:
     assert_eq!(actual["A"][0].text, "1");
     assert_eq!(actual["A"][2].text, "2");
     assert_eq!(actual["A"][4].text, "3");
+  }
+
+  #[test]
+  fn test_streaming() {
+    for &(source, pattern, _, note) in MATCHES_CASES {
+      let printer = make_test_printer(JsonStyle::Stream);
+      let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
+      let matches = grep.root().find_all(pattern);
+      printer.before_print().unwrap();
+      printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+      printer.after_print().unwrap();
+      let json_str = get_text(&printer);
+      let jsons: Vec<&str> = json_str.lines().collect();
+      assert!(!jsons.is_empty());
+      let json: Vec<MatchJSON> = jsons
+        .into_iter()
+        .map(|s| serde_json::from_str(s).unwrap())
+        .collect();
+      assert_eq!(json[0].text, pattern, "{note}");
+    }
   }
 }
