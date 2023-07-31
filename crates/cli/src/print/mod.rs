@@ -19,7 +19,7 @@ pub use codespan_reporting::files::SimpleFile;
 pub use codespan_reporting::term::termcolor::ColorChoice;
 pub use colored_print::{print_diff, ColoredPrinter, Heading, PrintStyles, ReportStyle};
 pub use interactive_print::InteractivePrinter;
-pub use json_print::JSONPrinter;
+pub use json_print::{JSONPrinter, JsonStyle};
 
 type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
 

@@ -51,12 +51,12 @@ pub struct ScanArg {
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
   register_custom_language(arg.config.clone());
-  if arg.output.json {
-    let printer = JSONPrinter::stdout();
-    return run_scan(arg, printer);
-  }
   if let Some(_format) = &arg.format {
     let printer = CloudPrinter::stdout();
+    return run_scan(arg, printer);
+  }
+  if let Some(json) = arg.output.json {
+    let printer = JSONPrinter::stdout(json);
     return run_scan(arg, printer);
   }
   let printer = ColoredPrinter::stdout(arg.output.color).style(arg.report_style);
@@ -333,7 +333,7 @@ rule:
       },
       output: OutputArgs {
         interactive: false,
-        json: false,
+        json: None,
         update_all: false,
         color: ColorArg::Never,
       },

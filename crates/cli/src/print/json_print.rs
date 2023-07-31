@@ -9,6 +9,7 @@ use std::collections::HashMap;
 
 use super::{Diff, Printer};
 use anyhow::Result;
+use clap::ValueEnum;
 use codespan_reporting::files::SimpleFile;
 use serde::{Deserialize, Serialize};
 
@@ -190,41 +191,80 @@ impl<'a> RuleMatchJSON<'a> {
   }
 }
 
+/// Controls how to print and format JSON object in output.
+#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum JsonStyle {
+  /// Prints the matches as a pretty-printed JSON array, with indentation and line breaks.
+  /// This is useful for human readability, but not for parsing by other programs.
+  /// This is the default value for the `--json` option.
+  Pretty,
+  /// Prints each match as a separate JSON object, followed by a newline character.
+  /// This is useful for streaming the output to other programs that can read one object per line.
+  Stream,
+  /// Prints the matches as a single-line JSON array, without any whitespace.
+  /// This is useful for saving space and minimizing the output size.
+  Compact,
+}
+
 pub struct JSONPrinter<W: Write> {
   output: Mutex<W>,
+  style: JsonStyle,
   // indicate if any matches happened
   matched: AtomicBool,
 }
 impl JSONPrinter<Stdout> {
-  pub fn stdout() -> Self {
-    Self::new(std::io::stdout())
+  pub fn stdout(style: JsonStyle) -> Self {
+    Self::new(std::io::stdout(), style)
   }
 }
 
 impl<W: Write> JSONPrinter<W> {
-  pub fn new(output: W) -> Self {
+  pub fn new(output: W, style: JsonStyle) -> Self {
     // no match happened yet
     Self {
+      style,
       output: Mutex::new(output),
       matched: AtomicBool::new(false),
     }
   }
 
-  fn print_docs<S: Serialize>(&self, docs: impl Iterator<Item = S>) -> Result<()> {
-    let mut docs = docs.peekable();
-    if docs.peek().is_none() {
+  fn print_docs<S: Serialize>(&self, mut docs: impl Iterator<Item = S>) -> Result<()> {
+    let Some(doc) = docs.next() else {
       return Ok(());
-    }
+    };
     let mut lock = self.output.lock().expect("should work");
     let matched = self.matched.swap(true, Ordering::AcqRel);
-    if !matched {
-      writeln!(&mut lock)?;
-      let doc = docs.next().expect("must not be empty");
-      serde_json::to_writer_pretty(&mut *lock, &doc)?;
-    }
-    for doc in docs {
-      writeln!(&mut lock, ",")?;
-      serde_json::to_writer_pretty(&mut *lock, &doc)?;
+    match self.style {
+      JsonStyle::Pretty => {
+        if matched {
+          writeln!(&mut lock, ",")?;
+        } else {
+          writeln!(&mut lock)?;
+        }
+        serde_json::to_writer_pretty(&mut *lock, &doc)?;
+        for doc in docs {
+          writeln!(&mut lock, ",")?;
+          serde_json::to_writer_pretty(&mut *lock, &doc)?;
+        }
+      }
+      JsonStyle::Stream => {
+        serde_json::to_writer(&mut *lock, &doc)?;
+        writeln!(&mut lock)?;
+        for doc in docs {
+          serde_json::to_writer(&mut *lock, &doc)?;
+          writeln!(&mut lock)?;
+        }
+      }
+      JsonStyle::Compact => {
+        if matched {
+          write!(&mut lock, ",")?;
+        }
+        serde_json::to_writer(&mut *lock, &doc)?;
+        for doc in docs {
+          write!(&mut lock, ",")?;
+          serde_json::to_writer(&mut *lock, &doc)?;
+        }
+      }
     }
     Ok(())
   }
@@ -273,15 +313,21 @@ impl<W: Write> Printer for JSONPrinter<W> {
   }
 
   fn before_print(&self) -> Result<()> {
+    if self.style == JsonStyle::Stream {
+      return Ok(());
+    }
     let mut lock = self.output.lock().expect("should work");
     write!(&mut lock, "[")?;
     Ok(())
   }
 
   fn after_print(&self) -> Result<()> {
+    if self.style == JsonStyle::Stream {
+      return Ok(());
+    }
     let mut lock = self.output.lock().expect("should work");
     let matched = self.matched.load(Ordering::Acquire);
-    if matched {
+    if matched && self.style == JsonStyle::Pretty {
       writeln!(&mut lock)?;
     }
     writeln!(&mut lock, "]")?;
@@ -308,7 +354,7 @@ mod test {
     }
   }
   fn make_test_printer() -> JSONPrinter<Test> {
-    JSONPrinter::new(Test(String::new()))
+    JSONPrinter::new(Test(String::new()), JsonStyle::Pretty)
   }
   fn get_text(printer: &JSONPrinter<Test>) -> String {
     let lock = printer.output.lock().unwrap();
