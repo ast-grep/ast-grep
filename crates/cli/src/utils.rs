@@ -1,6 +1,6 @@
 use crate::config::{IgnoreFile, NoIgnore};
 use crate::lang::SgLang;
-use crate::print::ColorArg;
+use crate::print::{ColorArg, JsonStyle};
 
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
@@ -295,10 +295,12 @@ pub struct OutputArgs {
 
   /// Output matches in structured JSON .
   ///
-  /// This option is useful for tools like jq.
+  /// If this flag is set, ast-grep will output matches in JSON format.
+  /// You can pass optional value to this flag by using `--json=<style>` syntax
+  /// to further control how JSON object is formatted and printed. ast-grep will `pretty`-print JSON if no value is passed.
   /// It conflicts with interactive.
-  #[clap(long, conflicts_with = "interactive")]
-  pub json: bool,
+  #[clap(long, conflicts_with = "interactive", value_name="style", num_args(0..=1), require_equals = true, default_missing_value = "pretty")]
+  pub json: Option<JsonStyle>,
 
   /// Controls output color.
   ///

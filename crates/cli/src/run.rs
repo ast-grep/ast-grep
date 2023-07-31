@@ -108,8 +108,9 @@ pub struct RunArg {
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(arg: RunArg) -> Result<()> {
-  if arg.output.json {
-    return run_pattern_with_printer(arg, JSONPrinter::stdout());
+  if let Some(json) = arg.output.json {
+    let printer = JSONPrinter::stdout(json);
+    return run_pattern_with_printer(arg, printer);
   }
   let context = if arg.context != 0 {
     (arg.context, arg.context)
@@ -286,7 +287,7 @@ mod test {
       output: OutputArgs {
         color: ColorArg::Never,
         interactive: false,
-        json: false,
+        json: None,
         update_all: false,
       },
       before: 0,
