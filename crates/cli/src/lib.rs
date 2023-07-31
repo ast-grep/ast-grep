@@ -158,6 +158,9 @@ mod test_cli {
     ok("run -p test dir1 dir2 dir3"); // multiple paths
     ok("run -p testm -r restm -U"); // update all
     ok("run -p testm -r restm --update-all"); // update all
+    ok("run -p test --json compact"); // argument after --json should not be parsed as JsonStyle
+    ok("run -p test --json=pretty dir");
+    ok("run -p test --json dir"); // arg after --json should not be parsed as JsonStyle
     error("run test");
     error("run --debug-query test"); // missing lang
     error("run -r Test dir");
@@ -185,6 +188,8 @@ mod test_cli {
     error("scan -f gitlab");
     error("scan -f github -i");
     error("scan -f local");
+    error("scan --json=dir"); // wrong json flag
+    error("scan --json= not-pretty"); // wrong json flag
   }
 
   #[test]
