@@ -46,13 +46,13 @@ pub struct RunArg {
   #[clap(short, long, value_name = "FIX", required_if_eq("update_all", "true"))]
   rewrite: Option<String>,
 
-  /// Print query pattern's tree-sitter AST. Requires lang be set explicitly.
-  #[clap(long, requires = "lang")]
-  debug_query: bool,
-
   /// The language of the pattern query.
   #[clap(short, long, help(lang_help()), long_help=LANG_HELP_LONG)]
   lang: Option<SgLang>,
+
+  /// Print query pattern's tree-sitter AST. Requires lang be set explicitly.
+  #[clap(long, requires = "lang")]
+  debug_query: bool,
 
   /// input related options
   #[clap(flatten)]
