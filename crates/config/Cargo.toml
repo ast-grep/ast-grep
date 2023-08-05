@@ -18,7 +18,7 @@ ast-grep-core.workspace = true
 
 anyhow = "1.0"
 bit-set.workspace = true
-globset = "0.4.12"
+globset = "0.4.13"
 regex = { workspace = true, optional = true }
 serde.workspace = true
 serde_yaml = "0.9.25"
