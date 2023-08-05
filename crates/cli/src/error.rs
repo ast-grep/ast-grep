@@ -72,6 +72,10 @@ impl ErrorContext {
       PatternHasError => 0,
     }
   }
+
+  fn is_soft_error(&self) -> bool {
+    self.exit_code() == 0
+  }
 }
 
 impl fmt::Display for ErrorContext {
@@ -267,10 +271,14 @@ impl<'a> fmt::Display for ErrorFormat<'a> {
       description,
       link,
     } = ErrorMessage::from_context(self.context);
+    let (notice_style, notice, sign) = if self.context.is_soft_error() {
+      (Color::Yellow, "Warning:", "⚠")
+    } else {
+      (Color::Red, "Error:", "✖")
+    };
     let bold = Style::new().bold();
-    let error = Color::Red.paint("Error:");
     let message = bold.paint(title);
-    writeln!(f, "{error} {message}")?;
+    writeln!(f, "{} {message}", notice_style.paint(notice))?;
     let help = Color::Blue.paint("Help:");
     writeln!(f, "{help} {description}")?;
     if let Some(url) = link {
@@ -285,9 +293,9 @@ impl<'a> fmt::Display for ErrorFormat<'a> {
       return Ok(());
     }
     writeln!(f)?;
-    writeln!(f, "{} Caused by", Color::Red.paint("✖"))?;
+    writeln!(f, "{} Caused by", notice_style.paint(sign))?;
     for err in causes {
-      let prefix = Color::Red.paint("╰▻");
+      let prefix = notice_style.paint("╰▻");
       writeln!(f, "{prefix} {err}")?;
     }
     Ok(())
@@ -313,6 +321,21 @@ mod test {
       "Should display the error chain"
     );
     assert!(display.contains("test error"));
+    assert!(display.contains("Error"));
+    assert!(display.contains('✖'));
+  }
+
+  #[test]
+  fn test_display_warning() {
+    let error = anyhow::anyhow!("test error");
+    let error_fmt = ErrorFormat {
+      context: &ErrorContext::PatternHasError,
+      inner: &error,
+    };
+    let display = format!("{error_fmt}");
+    assert_eq!(display.lines().count(), 3);
+    assert!(display.contains("Pattern contains an ERROR node"));
+    assert!(display.contains("Warning"));
   }
 
   #[test]
