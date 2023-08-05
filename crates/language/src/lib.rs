@@ -18,6 +18,7 @@ mod parsers;
 mod python;
 mod rust;
 mod scala;
+mod swift;
 
 use ast_grep_core::language::TSLanguage;
 use ast_grep_core::meta_var::MetaVariable;
@@ -95,6 +96,8 @@ impl_lang_expando!(Ruby, language_ruby, 'µ');
 // we can use any char in unicode range [:XID_Start:]
 // https://doc.rust-lang.org/reference/identifiers.html
 impl_lang_expando!(Rust, language_rust, 'µ');
+//https://docs.swift.org/swift-book/documentation/the-swift-programming-language/lexicalstructure/#Identifiers
+impl_lang_expando!(Swift, language_swift, 'µ');
 
 // Stub Language without preprocessing
 // Language Name, tree-sitter-name, alias, extension
@@ -105,7 +108,6 @@ impl_lang!(JavaScript, language_javascript);
 impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
 impl_lang!(Scala, language_scala);
-impl_lang!(Swift, language_swift);
 impl_lang!(Thrift, language_thrift);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
