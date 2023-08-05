@@ -66,6 +66,14 @@ impl<L: Language> Pattern<StrDoc<L>> {
     }
     fixed
   }
+
+  pub fn has_error(&self) -> bool {
+    let node = match &self.style {
+      PatternStyle::Single => self.single_matcher(),
+      PatternStyle::Selector(kind) => self.kind_matcher(kind),
+    };
+    node.matches(KindMatcher::error_matcher())
+  }
 }
 
 impl<D: Doc> Pattern<D> {

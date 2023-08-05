@@ -225,11 +225,17 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
     } else {
       None
     };
+    let mut has_matches = false;
     for match_unit in items {
       match_one_file(printer, &match_unit, &rewrite)?;
+      has_matches = true;
     }
     printer.after_print()?;
-    Ok(())
+    if !has_matches && self.pattern.has_error() {
+      Err(anyhow::anyhow!(EC::PatternHasError))
+    } else {
+      Ok(())
+    }
   }
 }
 

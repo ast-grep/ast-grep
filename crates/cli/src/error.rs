@@ -31,6 +31,7 @@ pub enum ErrorContext {
   ParsePattern,
   LanguageNotSpecified,
   StdInIsNotInteractive,
+  PatternHasError,
   // Scan
   DiagnosticError(usize),
   RuleNotSpecified,
@@ -67,6 +68,8 @@ impl ErrorContext {
       ProjectAlreadyExist | FileAlreadyExist(_) => 17,
       InsufficientCLIArgument(_) => 22,
       OpenEditor | StartLanguageServer => 126,
+      // soft error
+      PatternHasError => 0,
     }
   }
 }
@@ -155,6 +158,11 @@ impl ErrorMessage {
         "Interactive mode is incompatible with parsing code from StdIn.",
         "`--interactive` needs StdIn, but it is used as source code. Please use files as input.",
         TOOL_OVERVIEW,
+      ),
+      PatternHasError => Self::new(
+        "Pattern contains an ERROR node and may cause unexpected results.",
+        "ast-grep parsed the pattern but it matched nothing in this run. Try using playground to refine the pattern.",
+        PLAYGROUND,
       ),
       RuleNotSpecified => Self::new(
         "Only one rule can scan code from StdIn.",
@@ -277,7 +285,7 @@ impl<'a> fmt::Display for ErrorFormat<'a> {
       return Ok(());
     }
     writeln!(f)?;
-    writeln!(f, "{} Caused by", Color::Red.paint("×"))?;
+    writeln!(f, "{} Caused by", Color::Red.paint("✖"))?;
     for err in causes {
       let prefix = Color::Red.paint("╰▻");
       writeln!(f, "{prefix} {err}")?;
