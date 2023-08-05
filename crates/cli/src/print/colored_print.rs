@@ -116,6 +116,14 @@ impl<W: WriteColor> ColoredPrinter<W> {
   fn context_span(&self) -> usize {
     (self.context.0 + self.context.1) as usize
   }
+
+  fn diff_context(&self) -> usize {
+    if self.context.0 == 0 {
+      3
+    } else {
+      self.context.0 as usize
+    }
+  }
 }
 
 impl<W: WriteColor> Printer for ColoredPrinter<W> {
@@ -163,7 +171,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
 
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
     let writer = &mut *self.writer.lock().expect("should success");
-    let context = self.context.0 as usize;
+    let context = self.diff_context();
     print_diffs(diffs, path, &self.styles, writer, context)
   }
   fn print_rule_diffs<'a>(
@@ -174,7 +182,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
   ) -> Result<()> {
     let writer = &mut *self.writer.lock().expect("should success");
     print_rule_title(rule, &self.styles.rule, writer)?;
-    let context = self.context.0 as usize;
+    let context = self.diff_context();
     print_diffs(diffs, path, &self.styles, writer, context)?;
     if let Some(note) = &rule.note {
       writeln!(writer, "{}", self.styles.rule.note.paint("Note:"))?;
@@ -333,7 +341,7 @@ fn print_matches_with_heading<'a, W: WriteColor>(
     write!(writer, "{line_num:>width$}│")?; // initial line num
     print_highlight(ret.lines(), width, &mut num, writer, styles)?;
     writeln!(writer)?; // end match new line
-    if printer.context_span() >= 1 {
+    if printer.context_span() > 0 {
       writeln!(writer, "{:╴>width$}┤", "")?; // make separation
     }
     merger.conclude_match(&nm);
@@ -385,7 +393,7 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
       let num = merger.last_start_line + n;
       writeln!(writer, "{path}:{num}:{line}")?;
     }
-    if printer.context_span() >= 1 {
+    if printer.context_span() > 0 {
       writeln!(writer, "--")?; // make separation
     }
     merger.conclude_match(&nm);
