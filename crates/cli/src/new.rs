@@ -18,12 +18,18 @@ pub struct NewArg {
   /// The id of the item to create.
   #[arg(value_parser, global = true)]
   name: Option<String>,
-  /// The language of the item. Appliable to rule and utils.
+  /// The language of the item to create.
+  ///
+  /// This option is only available when creating rule and util.
   #[arg(short, long, global = true)]
   lang: Option<SgLang>,
   /// Accept all default options without interactive input during creation.
+  ///
+  /// You need to provide all required arguments via command line if this flag is true.
+  /// Please see the command description for the what arguments are required.
   #[arg(short, long, global = true)]
   yes: bool,
+  /// Create new project/items in the folder specified by this argument.
   #[arg(short, long, global = true, default_value = ".")]
   base_dir: PathBuf,
 }
@@ -89,11 +95,35 @@ impl NewArg {
   }
 }
 
+/// The ast-grep item type to create.
 #[derive(Subcommand, Debug, PartialEq, Eq, Clone)]
 enum Entity {
+  /// Create an new project by scaffolding.
+  ///
+  /// By default, this command will create a root config file `sgconfig.yml`,
+  /// a rule folder `rules`, a test case folder `rule-tests` and a utility rule folder `utils`.
+  /// You can customize the folder names during the creation.
   Project,
+  /// Create a new rule.
+  ///
+  /// This command will create a new rule in one of the `rule_dirs`.
+  /// You need to provide `name` and `language` either by interactive input or via command line arguments.
+  /// ast-grep will ask you which `rule_dir` to use if multiple ones are configured in the `sgconfig.yml`.
+  /// If `-y, --yes` flag is true, ast-grep will choose the first `rule_dir` to create the new rule.
   Rule,
+  /// Create a new test case.
+  ///
+  /// This command will create a new test in one of the `test_dirs`.
+  /// You need to provide `name` either by interactive input or via command line arguments.
+  /// ast-grep will ask you which `test_dir` to use if multiple ones are configured in the `sgconfig.yml`.
+  /// If `-y, --yes` flag is true, ast-grep will choose the first `test_dir` to create the new test.
   Test,
+  /// Create a new global utility rule.
+  ///
+  /// This command will create a new global utility rule in one of the `utils` folders.
+  /// You need to provide `name` and `language` either by interactive input or via command line arguments.
+  /// ast-grep will ask you which `util_dir` to use if multiple ones are configured in the `sgconfig.yml`.
+  /// If `-y, --yes` flag is true, ast-grep will choose the first `util_dir` to create the new item.
   Util,
 }
 
