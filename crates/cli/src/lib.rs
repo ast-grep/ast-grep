@@ -43,15 +43,15 @@ struct App {
 enum Commands {
   /// Run one time search or rewrite in command line. (default command)
   Run(RunArg),
-  /// Scan and rewrite code by configuration
+  /// Scan and rewrite code by configuration.
   Scan(ScanArg),
-  /// Test ast-grep rule
+  /// Test ast-grep rules.
   Test(TestArg),
-  /// Create new ast-grep project or items like rules or tests.
+  /// Create new ast-grep project or items like rules/tests.
   New(NewArg),
-  /// Starts language server
+  /// Starts language server.
   Lsp,
-  /// Generate rule docs for current configuration
+  /// Generate rule docs for current configuration. (Not Implemented Yet)
   Docs,
 }
 
