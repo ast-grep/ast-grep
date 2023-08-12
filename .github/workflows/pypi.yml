@@ -136,7 +136,7 @@ jobs:
           path: dist
 
   linux:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         target:
