@@ -35,6 +35,7 @@ pub enum ErrorContext {
   // Scan
   DiagnosticError(usize),
   RuleNotSpecified,
+  RuleNotFound(String),
   // LSP
   StartLanguageServer,
   // Edit
@@ -58,7 +59,7 @@ impl ErrorContext {
     // reference: https://mariadb.com/kb/en/operating-system-error-codes/
     match self {
       DiagnosticError(_) => 1,
-      ProjectNotExist | LanguageNotSpecified | RuleNotSpecified => 2,
+      ProjectNotExist | LanguageNotSpecified | RuleNotSpecified | RuleNotFound(_) => 2,
       TestFail(_) => 3,
       NoTestDirConfigured | NoUtilDirConfigured => 4,
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 5,
@@ -171,6 +172,11 @@ impl ErrorMessage {
       RuleNotSpecified => Self::new(
         "Only one rule can scan code from StdIn.",
         "Please use `--rule path/to/rule.yml` to choose the rule.",
+        TOOL_OVERVIEW,
+      ),
+      RuleNotFound(id) => Self::new(
+        format!("Rule not found: {}", id),
+        format!("Rule with id '{id}' not found in project configuration. Please make sure it exists."),
         TOOL_OVERVIEW,
       ),
       StartLanguageServer => Self::new(

@@ -48,7 +48,10 @@ pub struct AstGrepConfig {
   pub custom_languages: Option<HashMap<String, CustomLang>>,
 }
 
-pub fn find_rules(config_path: Option<PathBuf>) -> Result<RuleCollection<SgLang>> {
+pub fn find_rules(
+  config_path: Option<PathBuf>,
+  selected_rule_ids: Option<&[String]>,
+) -> Result<RuleCollection<SgLang>> {
   let config_path =
     find_config_path_with_default(config_path, None).context(EC::ReadConfiguration)?;
   let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
@@ -57,7 +60,12 @@ pub fn find_rules(config_path: Option<PathBuf>) -> Result<RuleCollection<SgLang>
     .parent()
     .expect("config file must have parent directory");
   let global_rules = find_util_rules(base_dir, sg_config.util_dirs)?;
-  read_directory_yaml(base_dir, sg_config.rule_dirs, global_rules)
+  read_directory_yaml(
+    base_dir,
+    sg_config.rule_dirs,
+    global_rules,
+    selected_rule_ids,
+  )
 }
 
 // TODO: add error
@@ -111,6 +119,7 @@ fn read_directory_yaml(
   base_dir: &Path,
   rule_dirs: Vec<PathBuf>,
   global_rules: GlobalRules<SgLang>,
+  selected_rule_ids: Option<&[String]>,
 ) -> Result<RuleCollection<SgLang>> {
   let mut configs = vec![];
   for dir in rule_dirs {
@@ -133,7 +142,35 @@ fn read_directory_yaml(
       configs.extend(new_configs);
     }
   }
+
+  let configs = if let Some(selected_rule_ids) = selected_rule_ids {
+    select_rules_by_id(configs, selected_rule_ids)?
+  } else {
+    configs
+  };
+
   RuleCollection::try_new(configs).context(EC::GlobPattern)
+}
+
+fn select_rules_by_id(
+  configs: Vec<RuleConfig<SgLang>>,
+  rule_ids: &[String],
+) -> Result<Vec<RuleConfig<SgLang>>> {
+  let selected: Vec<_> = configs
+    .into_iter()
+    .filter(|c| rule_ids.contains(&c.id))
+    .collect();
+
+  if selected.len() < rule_ids.len() {
+    // find selected rule that is missing
+    let selected_ids = selected.iter().map(|s| &s.id).collect::<Vec<_>>();
+    for id_rule in rule_ids {
+      if !selected_ids.contains(&id_rule) {
+        return Err(anyhow::anyhow!(EC::RuleNotFound(id_rule.clone())));
+      }
+    }
+  }
+  Ok(selected)
 }
 
 pub fn read_rule_file(
