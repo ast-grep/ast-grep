@@ -32,6 +32,13 @@ pub struct ScanArg {
   #[clap(short, long, conflicts_with = "config", value_name = "RULE_FILE")]
   rule: Option<PathBuf>,
 
+  /// Scan the codebase with specified subset of RULE_IDs only.
+  ///
+  /// This flags conflicts with --rule. It is useful to only specific rules from a large set of
+  /// rule definitions within a project.
+  #[clap(short = 'R', long, conflicts_with = "rule", value_name = "RULE_ID")]
+  rule_id: Vec<String>,
+
   /// Output warning/error messages in GitHub Action format.
   ///
   /// Currently, only GitHub is supported.
@@ -91,7 +98,12 @@ impl<P: Printer> ScanWithConfig<P> {
       let rules = read_rule_file(path, None)?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
     } else {
-      find_rules(arg.config.take())?
+      let selected_rule_ids = if arg.rule_id.is_empty() {
+        None
+      } else {
+        Some(&arg.rule_id[..])
+      };
+      find_rules(arg.config.take(), selected_rule_ids)?
     };
     Ok(Self {
       arg,
@@ -324,6 +336,7 @@ rule:
     file.sync_all().unwrap();
     let arg = ScanArg {
       config: Some(dir.path().join("sgconfig.yml")),
+      rule_id: Vec::new(),
       rule: None,
       report_style: ReportStyle::Rich,
       input: InputArgs {
