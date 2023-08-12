@@ -956,9 +956,9 @@ dependencies = [
 
 [[package]]
 name = "lsp-types"
-version = "0.94.0"
+version = "0.94.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b63735a13a1f9cd4f4835223d828ed9c2e35c8c5e61837774399f558b6a1237"
+checksum = "c66bfd44a06ae10647fe3f8214762e9369fd4248df1350924b4ef9e770a85ea1"
 dependencies = [
  "bitflags 1.3.2",
  "serde",
@@ -1694,9 +1694,9 @@ checksum = "343bc9466d3fe6b0f960ef45960509f84480bf4fd96f92901afe7ff3df9d3a62"
 
 [[package]]
 name = "tower-lsp"
-version = "0.19.0"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b38fb0e6ce037835174256518aace3ca621c4f96383c56bb846cfc11b341910"
+checksum = "d4ba052b54a6627628d9b3c34c176e7eda8359b7da9acd497b9f20998d118508"
 dependencies = [
  "async-trait",
  "auto_impl",
@@ -1717,13 +1717,13 @@ dependencies = [
 
 [[package]]
 name = "tower-lsp-macros"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34723c06344244474fdde365b76aebef8050bf6be61a935b91ee9ff7c4e91157"
+checksum = "84fd902d4e0b9a4b27f2f440108dc034e1758628a9b702f8ec61ad66355422fa"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 1.0.98",
+ "syn 2.0.23",
 ]
 
 [[package]]
