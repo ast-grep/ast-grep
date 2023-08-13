@@ -23,6 +23,8 @@ use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use clap_complete::{generate, Shell};
 
+use crate::error::ErrorContext as EC;
+
 use std::env;
 use std::io;
 
@@ -43,7 +45,7 @@ fn run_shell_completion_impl<C: CommandFactory, W: io::Write>(
   output: &mut W,
 ) -> Result<()> {
   let Some(shell) = arg.shell.or_else(Shell::from_env) else {
-    return Err(anyhow::anyhow!("impossible"))
+    return Err(anyhow::anyhow!(EC::CannotInferShell))
   };
   let mut cmd = C::command();
   let cmd_name = match env::args().next() {
