@@ -51,6 +51,8 @@ pub enum ErrorContext {
   NoTestDirConfigured,
   NoUtilDirConfigured,
   InsufficientCLIArgument(&'static str),
+  // Completions
+  CannotInferShell,
 }
 
 impl ErrorContext {
@@ -66,6 +68,7 @@ impl ErrorContext {
       StdInIsNotInteractive => 6,
       ParseTest(_) | ParseRule(_) | ParseConfiguration | GlobPattern | ParsePattern
       | TestCaseGlobFilter => 8,
+      CannotInferShell => 10,
       ProjectAlreadyExist | FileAlreadyExist(_) => 17,
       InsufficientCLIArgument(_) => 22,
       OpenEditor | StartLanguageServer => 126,
@@ -233,6 +236,11 @@ impl ErrorMessage {
         "Insufficient command line argument provided to use `--yes` option.",
         format!("You need to provide `{name}` in command line to use non-interactive `new`."),
         None,
+      ),
+      CannotInferShell => Self::new(
+        "Can not infer which shell to generate completions.",
+        "Either specify shell flavor by `sg completions [SHELL]` or set correct `SHELL` environment.",
+        CLI_USAGE,
       ),
     }
   }
