@@ -1,3 +1,19 @@
+//! How to use generate shell completions.
+//!
+//! Usage with zsh:
+//! ```console
+//! $ cargo run -- --generate=zsh > $HOME/.zsh/site-functions/_ast_grep
+//! $ compinit
+//! $ ./target/debug/examples/sg <TAB>
+//! $ ./target/debug/examples/sg run --<TAB>
+//! ```
+//! fish:
+//! ```console
+//! $ cargo run -- --generate=fish > ast_grep.fish
+//! $ . ./ast_grep.fish
+//! $ ./target/debug/examples/sg <TAB>
+//! $ ./target/debug/examples/sg run --<TAB>
+//! ```
 mod config;
 mod error;
 mod lang;
@@ -10,7 +26,10 @@ mod utils;
 mod verify;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{Command, CommandFactory, Parser, Subcommand};
+use clap_complete::{generate, Generator, Shell};
+use std::io;
+use std::io::Write;
 
 use error::exit_with_error;
 use new::{run_create_new, NewArg};
@@ -29,14 +48,18 @@ Search and Rewrite code at large scale using AST pattern.
 "#;
 #[derive(Parser)]
 #[clap(author, version, about, long_about = LOGO)]
+#[command(name = "sg")]
 /**
  * TODO: add some description for ast-grep: sg
  * Example:
  * sg -p "$PATTERN.to($MATCH)" -l ts --rewrite "use($MATCH)"
  */
 struct App {
+  // If provided, outputs the completion file for given shell
+  #[arg(long = "generate", value_enum)]
+  generator: Option<Shell>,
   #[clap(subcommand)]
-  command: Commands,
+  command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -75,6 +98,10 @@ fn try_default_run(args: &[String]) -> Result<Option<RunArg>> {
   }
 }
 
+fn print_completions<G: Generator, W: Write>(gen: G, cmd: &mut Command, writer: &mut W) {
+  generate(gen, cmd, cmd.get_name().to_string(), writer);
+}
+
 // this wrapper function is for testing
 pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
   let args: Vec<_> = args.collect();
@@ -82,15 +109,27 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
   if let Some(arg) = try_default_run(&args)? {
     return run_with_pattern(arg);
   }
+
+  if let Some(generator) = App::parse().generator {
+    let mut cmd = App::command();
+    eprintln!("Generating completion file for {generator:?}...");
+    print_completions(generator, &mut cmd, &mut io::stdout());
+    return Ok(());
+  }
+
   let app = App::try_parse_from(args)?;
   // TODO: add test for app parse
   match app.command {
-    Commands::Run(arg) => run_with_pattern(arg),
-    Commands::Scan(arg) => run_with_config(arg),
-    Commands::Test(arg) => run_test_rule(arg),
-    Commands::New(arg) => run_create_new(arg),
-    Commands::Lsp => lsp::run_language_server(),
-    Commands::Docs => todo!("todo, generate rule docs based on current config"),
+    Some(Commands::Run(arg)) => run_with_pattern(arg),
+    Some(Commands::Scan(arg)) => run_with_config(arg),
+    Some(Commands::Test(arg)) => run_test_rule(arg),
+    Some(Commands::New(arg)) => run_create_new(arg),
+    Some(Commands::Lsp) => lsp::run_language_server(),
+    Some(Commands::Docs) => todo!("todo, generate rule docs based on current config"),
+    None => {
+      eprintln!("Unknown command, use `sg --help` to see available commands");
+      Ok(())
+    }
   }
 }
 
@@ -132,6 +171,13 @@ mod test_cli {
     assert!(version.to_string().starts_with("ast-grep"));
     let help = error("--help");
     assert!(help.to_string().contains("Search and Rewrite code"));
+  }
+
+  #[test]
+  fn test_generate_command() {
+    let shell_type = "zsh";
+    let app = ok(format!("--generate {}", shell_type).as_str());
+    assert_eq!(app.generator, Some(Shell::Zsh));
   }
 
   fn default_run(args: &str) {

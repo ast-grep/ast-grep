@@ -110,6 +110,7 @@ dependencies = [
  "ast-grep-lsp",
  "atty",
  "clap",
+ "clap_complete",
  "codespan-reporting",
  "crossterm 0.27.0",
  "ignore",
@@ -398,6 +399,15 @@ dependencies = [
  "anstyle",
  "clap_lex",
  "strsim",
+]
+
+[[package]]
+name = "clap_complete"
+version = "4.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5fc443334c81a804575546c5a8a79b4913b50e28d69232903604cada1de817ce"
+dependencies = [
+ "clap",
 ]
 
 [[package]]
