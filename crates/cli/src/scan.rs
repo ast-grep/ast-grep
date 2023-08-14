@@ -36,13 +36,13 @@ pub struct ScanArg {
   ///
   /// This flags conflicts with --rule. It is useful to scan with a subset of rules from a large
   /// set of rule definitions within a project.
-  #[clap(short = 'F', long, conflicts_with = "rule", value_name = "RULE_ID")]
+  #[clap(long, conflicts_with = "rule", value_name = "RULE_ID")]
   filter: Vec<String>,
 
   /// Output warning/error messages in GitHub Action format.
   ///
   /// Currently, only GitHub is supported.
-  #[clap(short, long, conflicts_with = "json", conflicts_with = "interactive")]
+  #[clap(long, conflicts_with = "json", conflicts_with = "interactive")]
   format: Option<Platform>,
 
   #[clap(long, default_value = "rich", conflicts_with = "json")]
