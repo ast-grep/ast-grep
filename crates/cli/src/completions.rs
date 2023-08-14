@@ -27,6 +27,7 @@ use crate::error::ErrorContext as EC;
 
 use std::env;
 use std::io;
+use std::path::Path;
 
 #[derive(Parser)]
 pub struct CompletionsArg {
@@ -48,12 +49,20 @@ fn run_shell_completion_impl<C: CommandFactory, W: io::Write>(
     return Err(anyhow::anyhow!(EC::CannotInferShell))
   };
   let mut cmd = C::command();
-  let cmd_name = match env::args().next() {
-    Some(bin_name) => bin_name,
+  let cmd_name = match get_bin_name() {
+    Some(cmd) => cmd,
     None => cmd.get_name().to_string(),
   };
   generate(shell, &mut cmd, cmd_name, output);
   Ok(())
+}
+
+// https://github.com/clap-rs/clap/blob/063b1536289f72369bcd59d61449d355aa3a1d6b/clap_builder/src/builder/command.rs#L781
+fn get_bin_name() -> Option<String> {
+  let bin_path = env::args().next()?;
+  let p = Path::new(&bin_path);
+  let name = p.file_name()?;
+  Some(name.to_str()?.to_string())
 }
 
 #[cfg(test)]
@@ -69,6 +78,6 @@ mod test {
     };
     run_shell_completion_impl::<App, _>(arg, &mut output).expect("should succeed");
     let output = String::from_utf8(output).expect("should be valid");
-    assert!(output.contains("ast-grep"));
+    assert!(output.contains("ast_grep"));
   }
 }
