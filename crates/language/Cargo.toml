@@ -16,7 +16,7 @@ ast-grep-core.workspace = true
 ignore.workspace = true
 serde.workspace = true
 
-tree-sitter-c = { version = "0.20.5", optional = true }
+tree-sitter-c = { version = "0.20.6", optional = true }
 tree-sitter-cpp = { version = "0.20.2", optional = true }
 tree-sitter-c-sharp = { version = "0.20.0", package = "ast-grep-tree-sitter-c-sharp", optional = true }
 tree-sitter-css = { version = "0.19.0", optional = true }
