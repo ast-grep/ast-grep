@@ -186,14 +186,14 @@ mod test_cli {
     ok("scan --report-style short"); // conflict
     ok("scan dir1 dir2 dir3"); // multiple paths
     ok("scan -r test.yml --format github");
-    ok("scan -f github");
+    ok("scan --format github");
     ok("scan --interactive");
     error("scan -i --json dir"); // conflict
     error("scan --report-style rich --json dir"); // conflict
     error("scan -r test.yml -c test.yml --json dir"); // conflict
-    error("scan -f gitlab");
-    error("scan -f github -i");
-    error("scan -f local");
+    error("scan --format gitlab");
+    error("scan --format github -i");
+    error("scan --format local");
     error("scan --json=dir"); // wrong json flag
     error("scan --json= not-pretty"); // wrong json flag
   }
