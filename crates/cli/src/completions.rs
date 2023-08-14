@@ -1,19 +1,22 @@
 //! How to use generate shell completions.
 //! Usage with bash:
 //! ```console
-//! sg complete > /usr/share/bash-completion/completions/ast_grep.bash
+//! sg completions > ast_grep.bash
+//! $ ./ast_grep.bash
+//! $ sg <TAB>
+//! $ sg run --<TAB>
 //! ```
-
-//! Usage with zsh:
+//! Usage with zsh, the completion scripts have to be in a path that belongs to `$fpath`:
 //! ```console
-//! $ sg complete zsh > $HOME/.zsh/site-functions/_ast_grep
+//! $ sg completions zsh > $HOME/.zsh/completions/_ast_grep
+//! $ echo "fpath=($HOME/.zsh/completions $fpath)" >> ~/.zshrc
 //! $ compinit
 //! $ sg <TAB>
 //! $ sg run --<TAB>
 //! ```
-//! fish:
+//! Usage with fish:
 //! ```console
-//! $ sg complete fish > ast_grep.fish
+//! $ sg completions fish > ast_grep.fish
 //! $ ./ast_grep.fish
 //! $ sg <TAB>
 //! $ sg run --<TAB>
