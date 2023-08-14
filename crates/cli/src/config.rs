@@ -1,6 +1,7 @@
 use crate::error::ErrorContext as EC;
 use crate::lang::{CustomLang, SgLang};
 use crate::verify::{SnapshotCollection, TestCase, TestSnapshots};
+
 use anyhow::{Context, Result};
 use ast_grep_config::{
   from_str, from_yaml_string, DeserializeEnv, GlobalRules, RuleCollection, RuleConfig,
@@ -9,7 +10,9 @@ use ast_grep_language::config_file_type;
 use clap::ValueEnum;
 use ignore::overrides::OverrideBuilder;
 use ignore::WalkBuilder;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
@@ -50,7 +53,7 @@ pub struct AstGrepConfig {
 
 pub fn find_rules(
   config_path: Option<PathBuf>,
-  selected_rule_ids: Option<&[String]>,
+  rule_filter: Option<&Regex>,
 ) -> Result<RuleCollection<SgLang>> {
   let config_path =
     find_config_path_with_default(config_path, None).context(EC::ReadConfiguration)?;
@@ -60,12 +63,7 @@ pub fn find_rules(
     .parent()
     .expect("config file must have parent directory");
   let global_rules = find_util_rules(base_dir, sg_config.util_dirs)?;
-  read_directory_yaml(
-    base_dir,
-    sg_config.rule_dirs,
-    global_rules,
-    selected_rule_ids,
-  )
+  read_directory_yaml(base_dir, sg_config.rule_dirs, global_rules, rule_filter)
 }
 
 // TODO: add error
@@ -119,7 +117,7 @@ fn read_directory_yaml(
   base_dir: &Path,
   rule_dirs: Vec<PathBuf>,
   global_rules: GlobalRules<SgLang>,
-  selected_rule_ids: Option<&[String]>,
+  rule_filter: Option<&Regex>,
 ) -> Result<RuleCollection<SgLang>> {
   let mut configs = vec![];
   for dir in rule_dirs {
@@ -143,8 +141,8 @@ fn read_directory_yaml(
     }
   }
 
-  let configs = if let Some(selected_rule_ids) = selected_rule_ids {
-    select_rules_by_id(configs, selected_rule_ids)?
+  let configs = if let Some(filter) = rule_filter {
+    filter_rule_by_regex(configs, filter)?
   } else {
     configs
   };
@@ -152,25 +150,20 @@ fn read_directory_yaml(
   RuleCollection::try_new(configs).context(EC::GlobPattern)
 }
 
-fn select_rules_by_id(
+fn filter_rule_by_regex(
   configs: Vec<RuleConfig<SgLang>>,
-  rule_ids: &[String],
+  filter: &Regex,
 ) -> Result<Vec<RuleConfig<SgLang>>> {
   let selected: Vec<_> = configs
     .into_iter()
-    .filter(|c| rule_ids.contains(&c.id))
+    .filter(|c| filter.is_match(&c.id))
     .collect();
 
-  if selected.len() < rule_ids.len() {
-    // find selected rule that is missing
-    let selected_ids = selected.iter().map(|s| &s.id).collect::<Vec<_>>();
-    for id_rule in rule_ids {
-      if !selected_ids.contains(&id_rule) {
-        return Err(anyhow::anyhow!(EC::RuleNotFound(id_rule.clone())));
-      }
-    }
+  if selected.is_empty() {
+    Err(anyhow::anyhow!(EC::RuleNotFound(filter.to_string())))
+  } else {
+    Ok(selected)
   }
-  Ok(selected)
 }
 
 pub fn read_rule_file(

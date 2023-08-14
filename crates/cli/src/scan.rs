@@ -6,6 +6,7 @@ use ast_grep_config::{RuleCollection, RuleConfig, Severity};
 use ast_grep_core::{Matcher, NodeMatch, StrDoc};
 use clap::Args;
 use ignore::WalkParallel;
+use regex::Regex;
 
 use crate::config::{find_rules, read_rule_file, register_custom_language};
 use crate::error::ErrorContext as EC;
@@ -32,12 +33,12 @@ pub struct ScanArg {
   #[clap(short, long, conflicts_with = "config", value_name = "RULE_FILE")]
   rule: Option<PathBuf>,
 
-  /// Scan the codebase with specified subset of RULE_IDs only.
+  /// Scan the codebase with rules with ids matching REGEX.
   ///
   /// This flags conflicts with --rule. It is useful to scan with a subset of rules from a large
   /// set of rule definitions within a project.
-  #[clap(long, conflicts_with = "rule", value_name = "RULE_ID")]
-  filter: Vec<String>,
+  #[clap(long, conflicts_with = "rule", value_name = "REGEX")]
+  filter: Option<Regex>,
 
   /// Output warning/error messages in GitHub Action format.
   ///
@@ -98,12 +99,7 @@ impl<P: Printer> ScanWithConfig<P> {
       let rules = read_rule_file(path, None)?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
     } else {
-      let selected_rule_ids = if arg.filter.is_empty() {
-        None
-      } else {
-        Some(&arg.filter[..])
-      };
-      find_rules(arg.config.take(), selected_rule_ids)?
+      find_rules(arg.config.take(), arg.filter.as_ref())?
     };
     Ok(Self {
       arg,
@@ -336,7 +332,7 @@ rule:
     file.sync_all().unwrap();
     let arg = ScanArg {
       config: Some(dir.path().join("sgconfig.yml")),
-      filter: Vec::new(),
+      filter: None,
       rule: None,
       report_style: ReportStyle::Rich,
       input: InputArgs {
