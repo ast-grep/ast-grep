@@ -8,7 +8,6 @@ use ast_grep_config::{
 };
 use ast_grep_language::config_file_type;
 use clap::ValueEnum;
-use ignore::overrides::OverrideBuilder;
 use ignore::WalkBuilder;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -185,7 +184,10 @@ pub struct TestHarness {
   pub path_map: HashMap<String, PathBuf>,
 }
 
-pub fn find_tests(config_path: Option<PathBuf>, glob_filter: Option<&str>) -> Result<TestHarness> {
+pub fn find_tests(
+  config_path: Option<PathBuf>,
+  regex_filter: Option<&Regex>,
+) -> Result<TestHarness> {
   let config_path =
     find_config_path_with_default(config_path, None).context(EC::ReadConfiguration)?;
   let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
@@ -206,7 +208,7 @@ pub fn find_tests(config_path: Option<PathBuf>, glob_filter: Option<&str>) -> Re
       base_dir,
       &test.test_dir,
       test.snapshot_dir.as_deref(),
-      glob_filter,
+      regex_filter,
     )?;
     path_map.extend(new_path_map);
     test_cases.extend(new_cases);
@@ -219,35 +221,11 @@ pub fn find_tests(config_path: Option<PathBuf>, glob_filter: Option<&str>) -> Re
   })
 }
 
-fn build_test_dir_walker(
-  test_path: &Path,
-  snapshot_dirname: &Path,
-  glob_filter: Option<&str>,
-) -> Result<ignore::Walk> {
-  let snapshot_glob = snapshot_dirname.join("*");
-
-  let glob_override = OverrideBuilder::new(test_path)
-    .add(glob_filter.unwrap_or("*"))?
-    .add(
-      snapshot_glob
-        .to_str()
-        .expect("snapshot glob should be valid utf-8"),
-    )?
-    .build()?;
-
-  let walker = WalkBuilder::new(test_path)
-    .types(config_file_type())
-    .overrides(glob_override)
-    .build();
-
-  Ok(walker)
-}
-
 pub fn read_test_files(
   base_dir: &Path,
   test_dirname: &Path,
   snapshot_dirname: Option<&Path>,
-  glob_filter: Option<&str>,
+  regex_filter: Option<&Regex>,
 ) -> Result<TestHarness> {
   let mut test_cases = vec![];
   let mut snapshots = HashMap::new();
@@ -255,8 +233,9 @@ pub fn read_test_files(
   let test_path = base_dir.join(test_dirname);
   let snapshot_dirname = snapshot_dirname.unwrap_or_else(|| SNAPSHOT_DIR.as_ref());
   let snapshot_path = test_path.join(snapshot_dirname);
-  let walker = build_test_dir_walker(&test_path, snapshot_dirname, glob_filter)
-    .with_context(|| EC::TestCaseGlobFilter)?;
+  let walker = WalkBuilder::new(&test_path)
+    .types(config_file_type())
+    .build();
   for dir in walker {
     let config_file = dir.with_context(|| EC::WalkRuleDir(test_path.clone()))?;
     // file_type is None only if it is stdin, safe to unwrap here
@@ -272,12 +251,22 @@ pub fn read_test_files(
     if path.starts_with(&snapshot_path) {
       let snapshot: TestSnapshots =
         from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
-      snapshots.insert(snapshot.id.clone(), snapshot);
+      if regex_filter
+        .map(|r| r.is_match(&snapshot.id))
+        .unwrap_or(true)
+      {
+        snapshots.insert(snapshot.id.clone(), snapshot);
+      }
     } else {
       let test_case: TestCase =
         from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
-      path_map.insert(test_case.id.clone(), test_path.join(snapshot_dirname));
-      test_cases.push(test_case);
+      if regex_filter
+        .map(|r| r.is_match(&test_case.id))
+        .unwrap_or(true)
+      {
+        path_map.insert(test_case.id.clone(), test_path.join(snapshot_dirname));
+        test_cases.push(test_case);
+      }
     }
   }
   Ok(TestHarness {

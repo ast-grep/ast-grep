@@ -11,6 +11,7 @@ use ast_grep_config::{RuleCollection, RuleConfig};
 use ast_grep_core::{Node as SgNode, NodeMatch, StrDoc};
 use ast_grep_language::Language;
 use clap::Args;
+use regex::Regex;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_yaml::to_string;
 use std::collections::BTreeMap;
@@ -130,12 +131,12 @@ pub struct TestArg {
   /// Conflicts with --skip-snapshot-tests.
   #[clap(short = 'U', long)]
   update_all: bool,
-  /// start an interactive review to update snapshots selectively
+  /// Start an interactive review to update snapshots selectively
   #[clap(short, long)]
   interactive: bool,
-  /// Filter rule test cases to execute using a glob pattern
-  #[clap(short, long)]
-  filter: Option<String>,
+  /// Only run rule test cases that matches REGEX.
+  #[clap(short, long, value_name = "REGEX")]
+  filter: Option<Regex>,
 }
 
 pub fn run_test_rule(arg: TestArg) -> Result<()> {
@@ -195,10 +196,10 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
       &base_dir,
       &test_dirname,
       snapshot_dirname,
-      arg.filter.as_deref(),
+      arg.filter.as_ref(),
     )?
   } else {
-    find_tests(arg.config, arg.filter.as_deref())?
+    find_tests(arg.config, arg.filter.as_ref())?
   };
   let snapshots = (!arg.skip_snapshot_tests).then_some(snapshots);
   let reporter = &Arc::new(Mutex::new(reporter));
