@@ -63,6 +63,7 @@ struct MatchJSON<'a> {
   text: Cow<'a, str>,
   range: Range,
   file: Cow<'a, str>,
+  lines: String,
   #[serde(skip_serializing_if = "Option::is_none")]
   replacement: Option<Cow<'a, str>>,
   language: SgLang,
@@ -141,9 +142,12 @@ fn get_range(n: &Node<'_, SgLang>) -> Range {
 
 impl<'a> MatchJSON<'a> {
   fn new(nm: NodeMatch<'a, SgLang>, path: &'a str) -> Self {
+    let display = nm.display_context(0, 0);
+    let lines = format!("{}{}{}", display.leading, display.matched, display.trailing);
     MatchJSON {
       file: Cow::Borrowed(path),
       text: nm.text(),
+      lines,
       language: *nm.lang(),
       replacement: None,
       range: get_range(&nm),
