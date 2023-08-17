@@ -306,6 +306,7 @@ rule:
   pattern: Some(123)
 "#;
 
+  // TODO: unify with verify::test
   pub fn create_test_files<'a>(
     names_and_contents: impl IntoIterator<Item = (&'a str, &'a str)>,
   ) -> TempDir {

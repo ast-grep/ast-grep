@@ -839,7 +839,7 @@ rule:
 
   use codespan_reporting::term::termcolor::Buffer;
   #[test]
-  fn test_run_verify() {
+  fn test_run_verify_error() {
     let reporter = DefaultReporter {
       output: Buffer::no_color(),
       update_all: false,
@@ -853,7 +853,6 @@ rule:
       update_all: false,
       filter: None,
     };
-    // TODO
     assert!(run_test_rule_impl(arg, reporter).is_err());
   }
 
@@ -896,5 +895,27 @@ fix: 'log($B)'
         panic!("wrong case status");
       }
     }
+  }
+
+  // TODO: unify with scan::test
+  use std::fs::File;
+  use tempdir::TempDir;
+  pub fn create_test_files<'a>(
+    names_and_contents: impl IntoIterator<Item = (&'a str, &'a str)>,
+  ) -> TempDir {
+    let dir = TempDir::new("sgtest").unwrap();
+    for (name, contents) in names_and_contents {
+      let path = dir.path().join(name);
+      let mut file = File::create(path.clone()).unwrap();
+      file.write_all(contents.as_bytes()).unwrap();
+      file.sync_all().unwrap();
+    }
+    dir
+  }
+
+  #[test]
+  #[ignore]
+  fn test_run_verify_ok() {
+    let dir = create_test_files([]);
   }
 }
