@@ -1,9 +1,8 @@
+mod find_file;
 mod reporter;
 mod snapshot;
 
-use crate::config::{
-  find_rules, find_tests, read_test_files, register_custom_language, TestHarness,
-};
+use crate::config::{find_rules, register_custom_language};
 use crate::error::ErrorContext;
 use crate::lang::SgLang;
 use anyhow::{anyhow, Result};
@@ -21,6 +20,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use find_file::{find_tests, read_test_files, TestHarness};
 use reporter::{DefaultReporter, InteractiveReporter, Reporter};
 use snapshot::{Label, TestSnapshot};
 pub use snapshot::{SnapshotCollection, TestSnapshots};

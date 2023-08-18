@@ -1,6 +1,5 @@
 use crate::error::ErrorContext as EC;
 use crate::lang::{CustomLang, SgLang};
-use crate::verify::{SnapshotCollection, TestCase, TestSnapshots};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{
@@ -22,7 +21,7 @@ pub struct TestConfig {
   pub test_dir: PathBuf,
   /// Specify the directory containing snapshots. The path is relative to `test_dir`
   #[serde(skip_serializing_if = "Option::is_none")]
-  snapshot_dir: Option<PathBuf>,
+  pub snapshot_dir: Option<PathBuf>,
 }
 
 impl From<PathBuf> for TestConfig {
@@ -178,104 +177,6 @@ pub fn read_rule_file(
   parsed.with_context(|| EC::ParseRule(path.to_path_buf()))
 }
 
-pub struct TestHarness {
-  pub test_cases: Vec<TestCase>,
-  pub snapshots: SnapshotCollection,
-  pub path_map: HashMap<String, PathBuf>,
-}
-
-pub fn find_tests(
-  config_path: Option<PathBuf>,
-  regex_filter: Option<&Regex>,
-) -> Result<TestHarness> {
-  let config_path =
-    find_config_path_with_default(config_path, None).context(EC::ReadConfiguration)?;
-  let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
-  let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
-  let base_dir = config_path
-    .parent()
-    .expect("config file must have parent directory");
-  let test_configs = sg_config.test_configs.unwrap_or_default();
-  let mut test_cases = vec![];
-  let mut snapshots = SnapshotCollection::new();
-  let mut path_map = HashMap::new();
-  for test in test_configs {
-    let TestHarness {
-      test_cases: new_cases,
-      snapshots: new_snapshots,
-      path_map: new_path_map,
-    } = read_test_files(
-      base_dir,
-      &test.test_dir,
-      test.snapshot_dir.as_deref(),
-      regex_filter,
-    )?;
-    path_map.extend(new_path_map);
-    test_cases.extend(new_cases);
-    snapshots.extend(new_snapshots);
-  }
-  Ok(TestHarness {
-    test_cases,
-    snapshots,
-    path_map,
-  })
-}
-
-pub fn read_test_files(
-  base_dir: &Path,
-  test_dirname: &Path,
-  snapshot_dirname: Option<&Path>,
-  regex_filter: Option<&Regex>,
-) -> Result<TestHarness> {
-  let mut test_cases = vec![];
-  let mut snapshots = HashMap::new();
-  let mut path_map = HashMap::new();
-  let test_path = base_dir.join(test_dirname);
-  let snapshot_dirname = snapshot_dirname.unwrap_or_else(|| SNAPSHOT_DIR.as_ref());
-  let snapshot_path = test_path.join(snapshot_dirname);
-  let walker = WalkBuilder::new(&test_path)
-    .types(config_file_type())
-    .build();
-  for dir in walker {
-    let config_file = dir.with_context(|| EC::WalkRuleDir(test_path.clone()))?;
-    // file_type is None only if it is stdin, safe to unwrap here
-    if !config_file
-      .file_type()
-      .expect("file type should be available for non-stdin")
-      .is_file()
-    {
-      continue;
-    }
-    let path = config_file.path();
-    let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
-    if path.starts_with(&snapshot_path) {
-      let snapshot: TestSnapshots =
-        from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
-      if regex_filter
-        .map(|r| r.is_match(&snapshot.id))
-        .unwrap_or(true)
-      {
-        snapshots.insert(snapshot.id.clone(), snapshot);
-      }
-    } else {
-      let test_case: TestCase =
-        from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
-      if regex_filter
-        .map(|r| r.is_match(&test_case.id))
-        .unwrap_or(true)
-      {
-        path_map.insert(test_case.id.clone(), test_path.join(snapshot_dirname));
-        test_cases.push(test_case);
-      }
-    }
-  }
-  Ok(TestHarness {
-    test_cases,
-    snapshots,
-    path_map,
-  })
-}
-
 /// Returns the base_directory where config is and config object.
 pub fn read_config_from_dir<P: AsRef<Path>>(path: P) -> Result<Option<(PathBuf, AstGrepConfig)>> {
   let mut config_path =
@@ -291,9 +192,8 @@ pub fn read_config_from_dir<P: AsRef<Path>>(path: P) -> Result<Option<(PathBuf, 
 }
 
 const CONFIG_FILE: &str = "sgconfig.yml";
-const SNAPSHOT_DIR: &str = "__snapshots__";
 
-fn find_config_path_with_default(
+pub fn find_config_path_with_default(
   config_path: Option<PathBuf>,
   base: Option<&Path>,
 ) -> Result<PathBuf> {
