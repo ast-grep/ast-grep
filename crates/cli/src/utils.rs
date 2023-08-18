@@ -1,15 +1,15 @@
-use crate::config::{IgnoreFile, NoIgnore};
 use crate::lang::SgLang;
 use crate::print::{ColorArg, JsonStyle};
 
 use anyhow::{anyhow, Context, Result};
-use clap::Args;
+use clap::{Args, ValueEnum};
 use crossterm::{
   event::{self, Event, KeyCode},
   execute,
   terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ignore::{DirEntry, WalkParallel, WalkState};
+use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
+use serde::{Deserialize, Serialize};
 
 use ast_grep_core::Pattern;
 use ast_grep_core::{AstGrep, Matcher, StrDoc};
@@ -326,5 +326,71 @@ impl OutputArgs {
   // either explicit interactive or implicit update_all
   pub fn needs_interacive(&self) -> bool {
     self.interactive || self.update_all
+  }
+}
+
+/// File types to ignore, this is mostly the same as ripgrep.
+#[derive(Clone, Copy, Deserialize, Serialize, ValueEnum)]
+pub enum IgnoreFile {
+  /// Search hidden files and directories. By default, hidden files and directories are skipped.
+  Hidden,
+  /// Don't respect .ignore files.
+  /// This does *not* affect whether ast-grep will ignore files and directories whose names begin with a dot.
+  /// For that, use --no-ignore hidden.
+  Dot,
+  /// Don't respect ignore files that are manually configured for the repository such as git's '.git/info/exclude'.
+  Exclude,
+  /// Don't respect ignore files that come from "global" sources such as git's
+  /// `core.excludesFile` configuration option (which defaults to `$HOME/.config/git/ignore`).
+  Global,
+  /// Don't respect ignore files (.gitignore, .ignore, etc.) in parent directories.
+  Parent,
+  /// Don't respect version control ignore files (.gitignore, etc.).
+  /// This implies --no-ignore parent for VCS files.
+  /// Note that .ignore files will continue to be respected.
+  Vcs,
+}
+
+#[derive(Default)]
+pub struct NoIgnore {
+  disregard_hidden: bool,
+  disregard_parent: bool,
+  disregard_dot: bool,
+  disregard_vcs: bool,
+  disregard_global: bool,
+  disregard_exclude: bool,
+}
+
+impl NoIgnore {
+  pub fn disregard(ignores: &Vec<IgnoreFile>) -> Self {
+    let mut ret = NoIgnore::default();
+    use IgnoreFile::*;
+    for ignore in ignores {
+      match ignore {
+        Hidden => ret.disregard_hidden = true,
+        Dot => ret.disregard_dot = true,
+        Exclude => ret.disregard_exclude = true,
+        Global => ret.disregard_global = true,
+        Parent => ret.disregard_parent = true,
+        Vcs => ret.disregard_vcs = true,
+      }
+    }
+    ret
+  }
+
+  pub fn walk(&self, path: &[PathBuf]) -> WalkBuilder {
+    let mut paths = path.iter();
+    let mut builder = WalkBuilder::new(paths.next().expect("non empty"));
+    for path in paths {
+      builder.add(path);
+    }
+    builder
+      .hidden(!self.disregard_hidden)
+      .parents(!self.disregard_parent)
+      .ignore(!self.disregard_dot)
+      .git_global(!self.disregard_vcs && !self.disregard_global)
+      .git_ignore(!self.disregard_vcs)
+      .git_exclude(!self.disregard_vcs && !self.disregard_exclude);
+    builder
   }
 }
