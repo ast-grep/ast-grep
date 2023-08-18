@@ -1,3 +1,5 @@
+mod snapshot;
+
 use crate::config::{
   find_rules, find_tests, read_test_files, register_custom_language, TestHarness,
 };
@@ -8,27 +10,23 @@ use crate::utils::{prompt, run_in_alternate_screen};
 use ansi_term::{Color, Style};
 use anyhow::{anyhow, Result};
 use ast_grep_config::{RuleCollection, RuleConfig};
-use ast_grep_core::{Node as SgNode, NodeMatch, StrDoc};
+use ast_grep_core::{Node as SgNode, StrDoc};
 use ast_grep_language::Language;
 use clap::Args;
 use regex::Regex;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use serde_yaml::to_string;
-use std::collections::{BTreeMap, HashMap};
+
+use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-type Node<'a, L> = SgNode<'a, StrDoc<L>>;
+use snapshot::{Label, TestSnapshot};
+pub use snapshot::{SnapshotCollection, TestSnapshots};
 
-fn ordered_map<S>(value: &HashMap<String, TestSnapshot>, serializer: S) -> Result<S::Ok, S::Error>
-where
-  S: Serializer,
-{
-  let ordered: BTreeMap<_, _> = value.iter().collect();
-  ordered.serialize(serializer)
-}
+type Node<'a, L> = SgNode<'a, StrDoc<L>>;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,76 +36,6 @@ pub struct TestCase {
   pub valid: Vec<String>,
   #[serde(default)]
   pub invalid: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub enum LabelStyle {
-  Primary,
-  Secondary,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct Label {
-  source: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  message: Option<String>,
-  style: LabelStyle,
-  start: usize,
-  end: usize,
-}
-
-impl Label {
-  fn primary(n: &Node<SgLang>) -> Self {
-    let range = n.range();
-    Self {
-      source: n.text().to_string(),
-      message: None,
-      style: LabelStyle::Primary,
-      start: range.start,
-      end: range.end,
-    }
-  }
-
-  fn secondary(n: &Node<SgLang>) -> Self {
-    let range = n.range();
-    Self {
-      source: n.text().to_string(),
-      message: None,
-      style: LabelStyle::Secondary,
-      start: range.start,
-      end: range.end,
-    }
-  }
-
-  fn from_matched(n: NodeMatch<StrDoc<SgLang>>) -> Vec<Self> {
-    let mut ret = vec![Self::primary(&n)];
-    if let Some(secondary) = n.get_env().get_labels("secondary") {
-      ret.extend(secondary.iter().map(Self::secondary));
-    }
-    ret
-  }
-}
-
-type CaseId = String;
-type Source = String;
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct TestSnapshots {
-  pub id: CaseId,
-  #[serde(serialize_with = "ordered_map")]
-  pub snapshots: HashMap<Source, TestSnapshot>,
-}
-
-pub type SnapshotCollection = HashMap<CaseId, TestSnapshots>;
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct TestSnapshot {
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub fixed: Option<String>,
-  pub labels: Vec<Label>,
 }
 
 fn parallel_collect<'a, T, R, F>(cases: &'a [T], filter_mapper: F) -> Vec<R>
