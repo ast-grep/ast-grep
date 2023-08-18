@@ -725,9 +725,8 @@ mod test {
 
   const TEST_RULE: &str = "test-rule";
 
-  fn get_rule_config(rule: &str) -> RuleConfig<SgLang> {
-    let globals = GlobalRules::default();
-    let inner = from_str(&format!(
+  fn get_rule_text(rule: &str) -> String {
+    format!(
       "
 id: {TEST_RULE}
 message: test
@@ -736,8 +735,12 @@ language: TypeScript
 rule:
   {rule}
 "
-    ))
-    .unwrap();
+    )
+  }
+
+  fn get_rule_config(rule: &str) -> RuleConfig<SgLang> {
+    let globals = GlobalRules::default();
+    let inner = from_str(&get_rule_text(rule)).unwrap();
     RuleConfig::try_from(inner, &globals).unwrap()
   }
   fn always_report_rule() -> RuleCollection<SgLang> {
@@ -855,27 +858,21 @@ rule:
     };
     assert!(run_test_rule_impl(arg, reporter).is_err());
   }
-
-  #[test]
-  fn test_verify_transform() {
-    let globals = GlobalRules::default();
-    let inner = from_str(
-      "
-id: test-rule
-message: test
-severity: hint
-language: TypeScript
-rule:
-  pattern: console.log($A)
+  const TRANSFORM_TEXT: &str = "
 transform:
   B:
     substring:
       source: $A
       startChar: 1
       endChar: -1
-fix: 'log($B)'
-",
-    )
+fix: 'log($B)'";
+  #[test]
+  fn test_verify_transform() {
+    let globals = GlobalRules::default();
+    let inner = from_str(&get_rule_text(&format!(
+      "pattern: console.log($A)\n{}",
+      TRANSFORM_TEXT
+    )))
     .unwrap();
     let rule = RuleConfig::try_from(inner, &globals).unwrap();
     let rule = RuleCollection::try_new(vec![rule]).expect("RuleCollection must be valid");
@@ -895,27 +892,5 @@ fix: 'log($B)'
         panic!("wrong case status");
       }
     }
-  }
-
-  // TODO: unify with scan::test
-  use std::fs::File;
-  use tempdir::TempDir;
-  pub fn create_test_files<'a>(
-    names_and_contents: impl IntoIterator<Item = (&'a str, &'a str)>,
-  ) -> TempDir {
-    let dir = TempDir::new("sgtest").unwrap();
-    for (name, contents) in names_and_contents {
-      let path = dir.path().join(name);
-      let mut file = File::create(path.clone()).unwrap();
-      file.write_all(contents.as_bytes()).unwrap();
-      file.sync_all().unwrap();
-    }
-    dir
-  }
-
-  #[test]
-  #[ignore]
-  fn test_run_verify_ok() {
-    let dir = create_test_files([]);
   }
 }

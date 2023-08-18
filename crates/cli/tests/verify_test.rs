@@ -28,6 +28,14 @@ invalid:
 - Some(123)
 ";
 
+const WRONG_TEST: &str = "
+id: test-rule
+valid:
+- Some(123)
+invalid:
+- None
+";
+
 fn setup() -> Result<TempDir> {
   let dir = create_test_files([
     ("sgconfig.yml", CONFIG),
@@ -53,6 +61,49 @@ fn test_sg_test() -> Result<()> {
     config.display()
   ));
   assert!(ret.is_ok());
+  drop(dir);
+  Ok(())
+}
+
+fn setup_error() -> Result<TempDir> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/test-rule.yml", RULE),
+    ("rule-tests/test-rule-test.yml", WRONG_TEST),
+    ("test.ts", "Some(123)"),
+  ])?;
+  assert!(dir.path().join("sgconfig.yml").exists());
+  Ok(dir)
+}
+
+#[test]
+fn test_sg_test_error() -> Result<()> {
+  let dir = setup_error()?;
+  let config = dir.path().join("sgconfig.yml");
+  let ret = sg(&format!(
+    "sg test -c {} --skip-snapshot-tests",
+    config.display()
+  ));
+  assert!(ret.is_err());
+  drop(dir);
+  Ok(())
+}
+
+// should skip/pick wrong_test based on filter
+#[test]
+fn test_sg_test_filter() -> Result<()> {
+  let dir = setup_error()?;
+  let config = dir.path().join("sgconfig.yml");
+  let ret = sg(&format!(
+    "sg test -c {} --skip-snapshot-tests -f error-rule",
+    config.display()
+  ));
+  assert!(ret.is_ok());
+  let ret = sg(&format!(
+    "sg test -c {} --skip-snapshot-tests -f test-rule",
+    config.display()
+  ));
+  assert!(ret.is_err());
   drop(dir);
   Ok(())
 }
