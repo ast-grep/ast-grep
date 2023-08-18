@@ -14,7 +14,7 @@ use clap::Args;
 use regex::Regex;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_yaml::to_string;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -90,7 +90,6 @@ impl Label {
   }
 }
 
-use std::collections::HashMap;
 type CaseId = String;
 type Source = String;
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -109,52 +108,6 @@ pub struct TestSnapshot {
   #[serde(skip_serializing_if = "Option::is_none")]
   pub fixed: Option<String>,
   pub labels: Vec<Label>,
-}
-
-#[derive(Args)]
-pub struct TestArg {
-  /// Path to the root ast-grep config YAML
-  #[clap(short, long)]
-  config: Option<PathBuf>,
-  /// the directories to search test YAML files
-  #[clap(short, long)]
-  test_dir: Option<PathBuf>,
-  /// Specify the directory name storing snapshots. Default to __snapshots__.
-  #[clap(long)]
-  snapshot_dir: Option<PathBuf>,
-  /// Only check if the test code is valid, without checking rule output.
-  /// Turn it on when you want to ignore the output of rules.
-  /// Conflicts with --update-all.
-  #[clap(long, conflicts_with = "update_all")]
-  skip_snapshot_tests: bool,
-  /// Update the content of all snapshots that have changed in test.
-  /// Conflicts with --skip-snapshot-tests.
-  #[clap(short = 'U', long)]
-  update_all: bool,
-  /// Start an interactive review to update snapshots selectively
-  #[clap(short, long)]
-  interactive: bool,
-  /// Only run rule test cases that matches REGEX.
-  #[clap(short, long, value_name = "REGEX")]
-  filter: Option<Regex>,
-}
-
-pub fn run_test_rule(arg: TestArg) -> Result<()> {
-  register_custom_language(arg.config.clone());
-  if arg.interactive {
-    let reporter = InteractiveReporter {
-      output: std::io::stdout(),
-      accepted_snapshots: HashMap::new(),
-      should_accept_all: false,
-    };
-    run_test_rule_impl(arg, reporter)
-  } else {
-    let reporter = DefaultReporter {
-      output: std::io::stdout(),
-      update_all: arg.update_all,
-    };
-    run_test_rule_impl(arg, reporter)
-  }
 }
 
 fn parallel_collect<'a, T, R, F>(cases: &'a [T], filter_mapper: F) -> Vec<R>
@@ -288,16 +241,6 @@ fn write_merged_to_disk(
   Ok(())
 }
 
-#[derive(Debug)]
-enum SnapshotAction {
-  /// Accept all changes
-  AcceptAll,
-  /// Reject all changes.
-  AcceptNone,
-  /// Delete outdated snapshots.
-  Selectively(SnapshotCollection),
-}
-
 fn verify_invalid_case<'a>(
   rule_config: &RuleConfig<SgLang>,
   case: &'a str,
@@ -379,6 +322,36 @@ fn verify_test_case_simple<'a>(
   })
 }
 
+#[derive(Debug)]
+enum SnapshotAction {
+  /// Accept all changes
+  AcceptAll,
+  /// Reject all changes.
+  AcceptNone,
+  /// Delete outdated snapshots.
+  Selectively(SnapshotCollection),
+}
+
+#[derive(PartialEq, Eq, Debug)]
+enum CaseStatus<'a> {
+  /// Reported no issue for valid code
+  Validated,
+  /// Reported correct issue for invalid code
+  Reported,
+  /// Reported wrong issues.
+  Wrong {
+    source: &'a str,
+    actual: TestSnapshot,
+    expected: Option<TestSnapshot>,
+  },
+  /// Reported no issue for invalid code
+  Missing(&'a str),
+  /// Reported some issue for valid code
+  Noisy(&'a str),
+  /// Error occurred when applying fix
+  Error,
+}
+
 #[derive(PartialEq, Eq, Default, Debug)]
 struct CaseResult<'a> {
   id: &'a str,
@@ -406,26 +379,6 @@ impl<'a> CaseResult<'a> {
       snapshots,
     }
   }
-}
-
-#[derive(PartialEq, Eq, Debug)]
-enum CaseStatus<'a> {
-  /// Reported no issue for valid code
-  Validated,
-  /// Reported correct issue for invalid code
-  Reported,
-  /// Reported wrong issues.
-  Wrong {
-    source: &'a str,
-    actual: TestSnapshot,
-    expected: Option<TestSnapshot>,
-  },
-  /// Reported no issue for invalid code
-  Missing(&'a str),
-  /// Reported some issue for valid code
-  Noisy(&'a str),
-  /// Error occurred when applying fix
-  Error,
 }
 
 fn report_case_number(output: &mut impl Write, test_cases: &[TestCase]) -> Result<()> {
@@ -717,6 +670,52 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
 //     CaseStatus::Noisy(_) => print!("🔊"),
 //   }
 // }
+
+#[derive(Args)]
+pub struct TestArg {
+  /// Path to the root ast-grep config YAML
+  #[clap(short, long)]
+  config: Option<PathBuf>,
+  /// the directories to search test YAML files
+  #[clap(short, long)]
+  test_dir: Option<PathBuf>,
+  /// Specify the directory name storing snapshots. Default to __snapshots__.
+  #[clap(long)]
+  snapshot_dir: Option<PathBuf>,
+  /// Only check if the test code is valid, without checking rule output.
+  /// Turn it on when you want to ignore the output of rules.
+  /// Conflicts with --update-all.
+  #[clap(long, conflicts_with = "update_all")]
+  skip_snapshot_tests: bool,
+  /// Update the content of all snapshots that have changed in test.
+  /// Conflicts with --skip-snapshot-tests.
+  #[clap(short = 'U', long)]
+  update_all: bool,
+  /// Start an interactive review to update snapshots selectively
+  #[clap(short, long)]
+  interactive: bool,
+  /// Only run rule test cases that matches REGEX.
+  #[clap(short, long, value_name = "REGEX")]
+  filter: Option<Regex>,
+}
+
+pub fn run_test_rule(arg: TestArg) -> Result<()> {
+  register_custom_language(arg.config.clone());
+  if arg.interactive {
+    let reporter = InteractiveReporter {
+      output: std::io::stdout(),
+      accepted_snapshots: HashMap::new(),
+      should_accept_all: false,
+    };
+    run_test_rule_impl(arg, reporter)
+  } else {
+    let reporter = DefaultReporter {
+      output: std::io::stdout(),
+      update_all: arg.update_all,
+    };
+    run_test_rule_impl(arg, reporter)
+  }
+}
 
 #[cfg(test)]
 mod test {
