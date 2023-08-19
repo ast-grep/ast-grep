@@ -1,3 +1,4 @@
+mod case_result;
 mod find_file;
 mod reporter;
 mod snapshot;
@@ -20,6 +21,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+pub use case_result::{CaseResult, CaseStatus, SnapshotAction};
 use find_file::{find_tests, read_test_files, TestHarness};
 use reporter::{DefaultReporter, InteractiveReporter, Reporter};
 use snapshot::{Label, TestSnapshot};
@@ -247,65 +249,6 @@ fn verify_test_case_simple<'a>(
     id: &test_case.id,
     cases,
   })
-}
-
-#[derive(Debug)]
-enum SnapshotAction {
-  /// Accept all changes
-  AcceptAll,
-  /// Reject all changes.
-  AcceptNone,
-  /// Delete outdated snapshots.
-  Selectively(SnapshotCollection),
-}
-
-#[derive(PartialEq, Eq, Debug)]
-enum CaseStatus<'a> {
-  /// Reported no issue for valid code
-  Validated,
-  /// Reported correct issue for invalid code
-  Reported,
-  /// Reported wrong issues.
-  Wrong {
-    source: &'a str,
-    actual: TestSnapshot,
-    expected: Option<TestSnapshot>,
-  },
-  /// Reported no issue for invalid code
-  Missing(&'a str),
-  /// Reported some issue for valid code
-  Noisy(&'a str),
-  /// Error occurred when applying fix
-  Error,
-}
-
-#[derive(PartialEq, Eq, Default, Debug)]
-struct CaseResult<'a> {
-  id: &'a str,
-  cases: Vec<CaseStatus<'a>>,
-}
-
-impl<'a> CaseResult<'a> {
-  fn passed(&self) -> bool {
-    self
-      .cases
-      .iter()
-      .all(|c| matches!(c, CaseStatus::Validated | CaseStatus::Reported))
-  }
-  fn changed_snapshots(&self) -> TestSnapshots {
-    let snapshots = self
-      .cases
-      .iter()
-      .filter_map(|c| match c {
-        CaseStatus::Wrong { source, actual, .. } => Some((source.to_string(), actual.clone())),
-        _ => None,
-      })
-      .collect();
-    TestSnapshots {
-      id: self.id.to_string(),
-      snapshots,
-    }
-  }
 }
 
 // for result in summary {
