@@ -29,6 +29,12 @@ pub use snapshot::{SnapshotCollection, TestSnapshots};
 
 type Node<'a, L> = SgNode<'a, StrDoc<L>>;
 
+/// Corresponds to one rule-test.yml for testing.
+///
+/// A rule-test contains these fields:
+/// * id: the id of the rule that will be tested against
+/// * valid: code that we do not expect to have any issues
+/// * invalid: code that we do expect to have some issues
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestCase {
