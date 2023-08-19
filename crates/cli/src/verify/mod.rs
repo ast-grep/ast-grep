@@ -24,7 +24,7 @@ use std::thread;
 pub use case_result::{CaseResult, CaseStatus, SnapshotAction};
 use find_file::{find_tests, read_test_files, TestHarness};
 use reporter::{DefaultReporter, InteractiveReporter, Reporter};
-use snapshot::{Label, TestSnapshot};
+use snapshot::TestSnapshot;
 pub use snapshot::{SnapshotCollection, TestSnapshots};
 
 type Node<'a, L> = SgNode<'a, StrDoc<L>>;
@@ -181,24 +181,11 @@ fn verify_invalid_case<'a>(
   case: &'a str,
   snapshot: Option<&TestSnapshots>,
 ) -> CaseStatus<'a> {
-  let sg = rule_config.language.ast_grep(case);
-  let rule = &rule_config.matcher;
-  let Some(matched) = sg.root().find(rule) else {
-    return CaseStatus::Missing(case);
+  let actual = match TestSnapshot::generate(rule_config, case) {
+    Ok(Some(snapshot)) => snapshot,
+    Ok(None) => return CaseStatus::Missing(case),
+    Err(_) => return CaseStatus::Error,
   };
-  let labels = Label::from_matched(matched);
-  let fixer = &rule_config.fixer;
-  let mut sg = sg;
-  let fixed = if let Some(fix) = fixer {
-    match sg.replace(rule, fix) {
-      Ok(changed) => debug_assert!(changed),
-      Err(_) => return CaseStatus::Error,
-    };
-    Some(sg.source().to_string())
-  } else {
-    None
-  };
-  let actual = TestSnapshot { fixed, labels };
   let Some(expected) = snapshot.and_then(|s| s.snapshots.get(case)) else {
     return CaseStatus::Wrong {
       source: case,

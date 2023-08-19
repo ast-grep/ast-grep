@@ -1,5 +1,7 @@
 use crate::lang::SgLang;
-use ast_grep_core::{NodeMatch, StrDoc};
+use anyhow::Result;
+use ast_grep_config::RuleConfig;
+use ast_grep_core::{Language, NodeMatch, StrDoc};
 
 use super::Node;
 use serde::{Deserialize, Serialize, Serializer};
@@ -27,6 +29,32 @@ pub struct TestSnapshot {
   #[serde(skip_serializing_if = "Option::is_none")]
   pub fixed: Option<String>,
   pub labels: Vec<Label>,
+}
+
+impl TestSnapshot {
+  /// Generate snapshot from rule and test case code
+  // Ideally we should return Option<Result<T>>
+  // because Some/None indicates if we have found matches,
+  // then Result<T> indicates if we have error during replace
+  // But to reuse anyhow we use the Result<Option<T>>
+  pub fn generate(rule_config: &RuleConfig<SgLang>, case: &str) -> Result<Option<Self>> {
+    let sg = rule_config.language.ast_grep(case);
+    let rule = &rule_config.matcher;
+    let Some(matched) = sg.root().find(rule) else {
+      return Ok(None);
+    };
+    let labels = Label::from_matched(matched);
+    let fixer = &rule_config.fixer;
+    let mut sg = sg;
+    let fixed = if let Some(fix) = fixer {
+      let changed = sg.replace(rule, fix)?;
+      debug_assert!(changed);
+      Some(sg.source().to_string())
+    } else {
+      None
+    };
+    Ok(Some(Self { fixed, labels }))
+  }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -71,8 +99,7 @@ impl Label {
     }
   }
 
-  // TODO: change visibility
-  pub fn from_matched(n: NodeMatch<StrDoc<SgLang>>) -> Vec<Self> {
+  fn from_matched(n: NodeMatch<StrDoc<SgLang>>) -> Vec<Self> {
     let mut ret = vec![Self::primary(&n)];
     if let Some(secondary) = n.get_env().get_labels("secondary") {
       ret.extend(secondary.iter().map(Self::secondary));
