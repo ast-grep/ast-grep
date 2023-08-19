@@ -11,10 +11,13 @@ use std::collections::{BTreeMap, HashMap};
 type CaseId = String;
 type Source = String;
 
-// TODO: add comment
+/// A collection of test snapshots for different rules
+/// where each [TestSnapshots] is identified by its rule ID.
 pub type SnapshotCollection = HashMap<CaseId, TestSnapshots>;
 
-// TODO: add comment
+/// A list of test snapshots for one specific rule-test identified by its `CaseId`.
+/// A test yaml for one rule have multiple valid/invalid test cases.
+/// Each invalid code test case has its [TestSnapshot].
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TestSnapshots {
