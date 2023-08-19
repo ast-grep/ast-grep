@@ -320,7 +320,7 @@ rule:
     )
   }
 
-  fn get_rule_config(rule: &str) -> RuleConfig<SgLang> {
+  pub fn get_rule_config(rule: &str) -> RuleConfig<SgLang> {
     let globals = GlobalRules::default();
     let inner = from_str(&get_rule_text(rule)).unwrap();
     RuleConfig::try_from(inner, &globals).unwrap()

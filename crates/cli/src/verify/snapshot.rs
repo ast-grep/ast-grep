@@ -115,3 +115,70 @@ where
   let ordered: BTreeMap<_, _> = value.iter().collect();
   ordered.serialize(serializer)
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::verify::test::get_rule_config;
+
+  #[test]
+  fn test_generate() -> Result<()> {
+    let rule_config = get_rule_config("pattern: let x = $A");
+    let case = "let x = 42;";
+    let result = TestSnapshot::generate(&rule_config, case)?;
+    assert_eq!(
+      result,
+      Some(TestSnapshot {
+        fixed: None,
+        labels: vec![Label {
+          source: "let x = 42;".into(),
+          message: None,
+          style: LabelStyle::Primary,
+          start: 0,
+          end: 11,
+        }]
+      })
+    );
+    Ok(())
+  }
+
+  #[test]
+  fn test_not_found() -> Result<()> {
+    let rule_config = get_rule_config("pattern: var x = $A");
+    let case = "let x = 42;";
+    let result = TestSnapshot::generate(&rule_config, case)?;
+    assert_eq!(result, None,);
+    Ok(())
+  }
+
+  #[test]
+  fn test_secondary_label() -> Result<()> {
+    let rule_config =
+      get_rule_config("{pattern: 'let x = $A;', inside: {kind: 'statement_block'}}");
+    let case = "function test() { let x = 42; }";
+    let result = TestSnapshot::generate(&rule_config, case)?;
+    assert_eq!(
+      result,
+      Some(TestSnapshot {
+        fixed: None,
+        labels: vec![
+          Label {
+            source: "let x = 42;".into(),
+            message: None,
+            style: LabelStyle::Primary,
+            start: 18,
+            end: 29,
+          },
+          Label {
+            source: "{ let x = 42; }".into(),
+            message: None,
+            style: LabelStyle::Secondary,
+            start: 16,
+            end: 31
+          }
+        ],
+      })
+    );
+    Ok(())
+  }
+}
