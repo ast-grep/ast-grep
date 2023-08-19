@@ -44,7 +44,7 @@
     "version": "napi version"
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.16.2",
+    "@napi-rs/cli": "2.16.3",
     "ava": "5.3.1",
     "chalk": "5.3.0",
     "ts-node": "10.9.1",
