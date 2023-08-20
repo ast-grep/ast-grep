@@ -5,7 +5,9 @@ ast-grep rule test has several concepts.
 Refer to https://ast-grep.github.io/guide/test-rule.html#basic-concepts
 for general review.
 */
-use super::{SnapshotCollection, TestSnapshot, TestSnapshots};
+use super::{SgLang, SnapshotCollection, TestSnapshot, TestSnapshots};
+use ast_grep_config::RuleConfig;
+use ast_grep_language::Language;
 
 /// Represents user's decision when [CaseStatus::Wrong].
 /// Snapshot update can be accepted or rejected.
@@ -43,6 +45,28 @@ pub enum CaseStatus<'a> {
   Noisy(&'a str),
   /// Error occurred when applying fix
   Error,
+}
+
+impl<'a> CaseStatus<'a> {
+  pub fn verfiy_valid(rule_config: &RuleConfig<SgLang>, case: &'a str) -> CaseStatus<'a> {
+    let rule = &rule_config.matcher;
+    let sg = rule_config.language.ast_grep(case);
+    if sg.root().find(rule).is_some() {
+      CaseStatus::Noisy(case)
+    } else {
+      CaseStatus::Validated
+    }
+  }
+
+  pub fn verfiy_invalid(rule_config: &RuleConfig<SgLang>, case: &'a str) -> CaseStatus<'a> {
+    let sg = rule_config.language.ast_grep(case);
+    let rule = &rule_config.matcher;
+    if sg.root().find(rule).is_some() {
+      CaseStatus::Reported
+    } else {
+      CaseStatus::Missing(case)
+    }
+  }
 }
 
 /// The result for one rule-test.yml

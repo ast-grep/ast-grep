@@ -15,6 +15,20 @@ type Source = String;
 /// where each [TestSnapshots] is identified by its rule ID.
 pub type SnapshotCollection = HashMap<CaseId, TestSnapshots>;
 
+pub fn merge_snapshots(
+  accepted: SnapshotCollection,
+  mut old: SnapshotCollection,
+) -> SnapshotCollection {
+  for (id, tests) in accepted {
+    if let Some(existing) = old.get_mut(&id) {
+      existing.snapshots.extend(tests.snapshots);
+    } else {
+      old.insert(id, tests);
+    }
+  }
+  old
+}
+
 /// A list of test snapshots for one specific rule-test identified by its `CaseId`.
 /// A test yaml for one rule have multiple valid/invalid test cases.
 /// Each invalid code test case has its [TestSnapshot].
