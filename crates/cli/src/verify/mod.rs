@@ -131,6 +131,17 @@ fn apply_snapshot_action(
   let Some(snapshots) = snapshots else {
     return Ok(())
   };
+  let Some(merged) = update_snapshot_collection(action, results, snapshots) else {
+    return Ok(())
+  };
+  write_merged_to_disk(merged, path_map)
+}
+
+fn update_snapshot_collection(
+  action: SnapshotAction,
+  results: &[CaseResult],
+  snapshots: SnapshotCollection,
+) -> Option<SnapshotCollection> {
   let accepted = match action {
     SnapshotAction::AcceptAll => {
       let mut snapshot_collection = SnapshotCollection::new();
@@ -140,11 +151,10 @@ fn apply_snapshot_action(
       }
       snapshot_collection
     }
-    SnapshotAction::AcceptNone => return Ok(()),
+    SnapshotAction::AcceptNone => return None,
     SnapshotAction::Selectively(a) => a,
   };
-  let merged = merge_snapshots(accepted, snapshots);
-  write_merged_to_disk(merged, path_map)
+  Some(merge_snapshots(accepted, snapshots))
 }
 
 fn write_merged_to_disk(
