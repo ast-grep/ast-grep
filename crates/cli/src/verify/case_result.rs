@@ -48,7 +48,7 @@ pub enum CaseStatus<'a> {
 }
 
 impl<'a> CaseStatus<'a> {
-  pub fn verfiy_valid(rule_config: &RuleConfig<SgLang>, case: &'a str) -> CaseStatus<'a> {
+  pub fn verfiy_valid(rule_config: &RuleConfig<SgLang>, case: &'a str) -> Self {
     let rule = &rule_config.matcher;
     let sg = rule_config.language.ast_grep(case);
     if sg.root().find(rule).is_some() {
@@ -58,13 +58,33 @@ impl<'a> CaseStatus<'a> {
     }
   }
 
-  pub fn verfiy_invalid(rule_config: &RuleConfig<SgLang>, case: &'a str) -> CaseStatus<'a> {
+  pub fn verfiy_invalid(rule_config: &RuleConfig<SgLang>, case: &'a str) -> Self {
     let sg = rule_config.language.ast_grep(case);
     let rule = &rule_config.matcher;
     if sg.root().find(rule).is_some() {
       CaseStatus::Reported
     } else {
       CaseStatus::Missing(case)
+    }
+  }
+
+  pub fn verify_snapshot(
+    rule_config: &RuleConfig<SgLang>,
+    case: &'a str,
+    snapshot: Option<&TestSnapshot>,
+  ) -> Self {
+    let actual = match TestSnapshot::generate(rule_config, case) {
+      Ok(Some(snap)) => snap,
+      Ok(None) => return CaseStatus::Missing(case),
+      Err(_) => return CaseStatus::Error,
+    };
+    match snapshot {
+      Some(e) if e == &actual => CaseStatus::Reported,
+      nullable => CaseStatus::Wrong {
+        source: case,
+        actual,
+        expected: nullable.map(Clone::clone),
+      },
     }
   }
 }
@@ -98,5 +118,26 @@ impl<'a> CaseResult<'a> {
       id: self.id.to_string(),
       snapshots,
     }
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::verify::test::get_rule_config;
+
+  #[test]
+  fn test_snapshot() {
+    let rule = get_rule_config("pattern: let a = 1");
+    let ret = CaseStatus::verify_snapshot(&rule, "function () { let a = 1 }", None);
+    assert!(matches!(&ret, CaseStatus::Wrong { expected: None, .. }));
+    let CaseStatus::Wrong { actual, source, .. } = ret else {
+        panic!("wrong");
+    };
+    assert_eq!(source, "function () { let a = 1 }");
+    let primary = &actual.labels[0];
+    assert_eq!(primary.source, "let a = 1");
+    let ret = CaseStatus::verify_snapshot(&rule, "function () { let a = 1 }", Some(&actual));
+    assert!(matches!(ret, CaseStatus::Reported));
   }
 }

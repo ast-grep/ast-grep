@@ -7,7 +7,7 @@ use crate::config::{find_rules, register_custom_language};
 use crate::error::ErrorContext;
 use crate::lang::SgLang;
 use anyhow::{anyhow, Result};
-use ast_grep_config::{RuleCollection, RuleConfig};
+use ast_grep_config::RuleCollection;
 use ast_grep_core::{Node as SgNode, StrDoc};
 use clap::Args;
 use regex::Regex;
@@ -163,26 +163,6 @@ fn write_merged_to_disk(
   Ok(())
 }
 
-fn verify_invalid_case<'a>(
-  rule_config: &RuleConfig<SgLang>,
-  case: &'a str,
-  snapshot: Option<&TestSnapshot>,
-) -> CaseStatus<'a> {
-  let actual = match TestSnapshot::generate(rule_config, case) {
-    Ok(Some(snap)) => snap,
-    Ok(None) => return CaseStatus::Missing(case),
-    Err(_) => return CaseStatus::Error,
-  };
-  match snapshot {
-    Some(e) if e == &actual => CaseStatus::Reported,
-    nullable => CaseStatus::Wrong {
-      source: case,
-      actual,
-      expected: nullable.map(Clone::clone),
-    },
-  }
-}
-
 fn verify_test_case_simple<'a>(
   rules: &RuleCollection<SgLang>,
   test_case: &'a TestCase,
@@ -198,7 +178,7 @@ fn verify_test_case_simple<'a>(
     let snapshot = snapshots.get(&test_case.id);
     let invalid_cases = invalid_cases.map(|invalid| {
       let snap = snapshot.and_then(|s| s.snapshots.get(invalid));
-      verify_invalid_case(rule_config, invalid, snap)
+      CaseStatus::verify_snapshot(rule_config, invalid, snap)
     });
     valid_cases.chain(invalid_cases).collect()
   } else {
@@ -367,21 +347,6 @@ rule:
     let rule = never_report_rule();
     let ret = verify_test_case_simple(&rule, &case, None);
     assert!(ret.is_none());
-  }
-
-  #[test]
-  fn test_snapshot() {
-    let rule = get_rule_config("pattern: let a = 1");
-    let ret = verify_invalid_case(&rule, "function () { let a = 1 }", None);
-    assert!(matches!(&ret, CaseStatus::Wrong { expected: None, .. }));
-    let CaseStatus::Wrong { actual, source, .. } = ret else {
-        panic!("wrong");
-    };
-    assert_eq!(source, "function () { let a = 1 }");
-    let primary = &actual.labels[0];
-    assert_eq!(primary.source, "let a = 1");
-    let ret = verify_invalid_case(&rule, "function () { let a = 1 }", Some(&actual));
-    assert!(matches!(ret, CaseStatus::Reported));
   }
 
   use codespan_reporting::term::termcolor::Buffer;
