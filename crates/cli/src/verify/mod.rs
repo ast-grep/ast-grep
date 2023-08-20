@@ -20,10 +20,10 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-pub use case_result::{CaseResult, CaseStatus, SnapshotAction};
+pub use case_result::{CaseResult, CaseStatus};
 use find_file::{find_tests, read_test_files, TestHarness};
 use reporter::{DefaultReporter, InteractiveReporter, Reporter};
-use snapshot::{merge_snapshots, TestSnapshot};
+use snapshot::{update_snapshot_collection, SnapshotAction, TestSnapshot};
 pub use snapshot::{SnapshotCollection, TestSnapshots};
 
 type Node<'a, L> = SgNode<'a, StrDoc<L>>;
@@ -135,26 +135,6 @@ fn apply_snapshot_action(
     return Ok(())
   };
   write_merged_to_disk(merged, path_map)
-}
-
-fn update_snapshot_collection(
-  action: SnapshotAction,
-  results: &[CaseResult],
-  snapshots: SnapshotCollection,
-) -> Option<SnapshotCollection> {
-  let accepted = match action {
-    SnapshotAction::AcceptAll => {
-      let mut snapshot_collection = SnapshotCollection::new();
-      for result in results {
-        let case_id = result.id.to_string();
-        snapshot_collection.insert(case_id.clone(), result.changed_snapshots());
-      }
-      snapshot_collection
-    }
-    SnapshotAction::AcceptNone => return None,
-    SnapshotAction::Selectively(a) => a,
-  };
-  Some(merge_snapshots(accepted, snapshots))
 }
 
 fn write_merged_to_disk(

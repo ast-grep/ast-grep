@@ -5,21 +5,9 @@ ast-grep rule test has several concepts.
 Refer to https://ast-grep.github.io/guide/test-rule.html#basic-concepts
 for general review.
 */
-use super::{SgLang, SnapshotCollection, TestSnapshot, TestSnapshots};
+use super::{SgLang, TestSnapshot, TestSnapshots};
 use ast_grep_config::RuleConfig;
 use ast_grep_language::Language;
-
-/// Represents user's decision when [CaseStatus::Wrong].
-/// Snapshot update can be accepted or rejected.
-#[derive(Debug)]
-pub enum SnapshotAction {
-  /// Accept all changes
-  AcceptAll,
-  /// Reject all changes.
-  AcceptNone,
-  /// Delete outdated snapshots.
-  Selectively(SnapshotCollection),
-}
 
 /// [CaseStatus] categorize whether and how ast-grep
 /// reports error for either valid or invalid code.
