@@ -23,8 +23,9 @@ use std::thread;
 pub use case_result::{CaseResult, CaseStatus};
 use find_file::{find_tests, read_test_files, TestHarness};
 use reporter::{DefaultReporter, InteractiveReporter, Reporter};
-use snapshot::{update_snapshot_collection, SnapshotAction, TestSnapshot};
-pub use snapshot::{SnapshotCollection, TestSnapshots};
+use snapshot::{
+  update_snapshot_collection, SnapshotAction, SnapshotCollection, TestSnapshot, TestSnapshots,
+};
 
 type Node<'a, L> = SgNode<'a, StrDoc<L>>;
 
