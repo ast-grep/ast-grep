@@ -166,28 +166,20 @@ fn write_merged_to_disk(
 fn verify_invalid_case<'a>(
   rule_config: &RuleConfig<SgLang>,
   case: &'a str,
-  snapshot: Option<&TestSnapshots>,
+  snapshot: Option<&TestSnapshot>,
 ) -> CaseStatus<'a> {
   let actual = match TestSnapshot::generate(rule_config, case) {
-    Ok(Some(snapshot)) => snapshot,
+    Ok(Some(snap)) => snap,
     Ok(None) => return CaseStatus::Missing(case),
     Err(_) => return CaseStatus::Error,
   };
-  let Some(expected) = snapshot.and_then(|s| s.snapshots.get(case)) else {
-    return CaseStatus::Wrong {
+  match snapshot {
+    Some(e) if e == &actual => CaseStatus::Reported,
+    nullable => CaseStatus::Wrong {
       source: case,
       actual,
-      expected: None,
-    }
-  };
-  if &actual == expected {
-    CaseStatus::Reported
-  } else {
-    CaseStatus::Wrong {
-      source: case,
-      actual,
-      expected: Some(expected.clone()),
-    }
+      expected: nullable.map(Clone::clone),
+    },
   }
 }
 
@@ -204,8 +196,10 @@ fn verify_test_case_simple<'a>(
   let invalid_cases = test_case.invalid.iter();
   let cases = if let Some(snapshots) = snapshots {
     let snapshot = snapshots.get(&test_case.id);
-    let invalid_cases =
-      invalid_cases.map(|invalid| verify_invalid_case(rule_config, invalid, snapshot));
+    let invalid_cases = invalid_cases.map(|invalid| {
+      let snap = snapshot.and_then(|s| s.snapshots.get(invalid));
+      verify_invalid_case(rule_config, invalid, snap)
+    });
     valid_cases.chain(invalid_cases).collect()
   } else {
     let invalid_cases =
@@ -386,13 +380,7 @@ rule:
     assert_eq!(source, "function () { let a = 1 }");
     let primary = &actual.labels[0];
     assert_eq!(primary.source, "let a = 1");
-    let mut snapshots = HashMap::new();
-    snapshots.insert(source.to_string(), actual);
-    let test_snapshots = TestSnapshots {
-      id: TEST_RULE.to_string(),
-      snapshots,
-    };
-    let ret = verify_invalid_case(&rule, "function () { let a = 1 }", Some(&test_snapshots));
+    let ret = verify_invalid_case(&rule, "function () { let a = 1 }", Some(&actual));
     assert!(matches!(ret, CaseStatus::Reported));
   }
 
