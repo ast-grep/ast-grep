@@ -7,7 +7,7 @@ use crate::config::{find_rules, register_custom_language};
 use crate::error::ErrorContext;
 use crate::lang::SgLang;
 use anyhow::{anyhow, Result};
-use ast_grep_config::RuleCollection;
+use ast_grep_config::{RuleCollection, RuleConfig};
 use ast_grep_core::{Node as SgNode, StrDoc};
 use clap::Args;
 use regex::Regex;
@@ -133,7 +133,7 @@ fn apply_snapshot_action(
   };
   let accepted = match action {
     SnapshotAction::AcceptAll => {
-      let mut snapshot_collection = HashMap::new();
+      let mut snapshot_collection = SnapshotCollection::new();
       for result in results {
         let case_id = result.id.to_string();
         snapshot_collection.insert(case_id.clone(), result.changed_snapshots());
@@ -152,8 +152,7 @@ fn write_merged_to_disk(
   path_map: HashMap<String, PathBuf>,
 ) -> Result<()> {
   for (id, snaps) in merged {
-    // TODO
-    let path = path_map.get(&id).unwrap();
+    let path = &path_map[&id];
     if !path.exists() {
       std::fs::create_dir(path)?;
     }
@@ -169,27 +168,50 @@ fn verify_test_case_simple<'a>(
   snapshots: Option<&SnapshotCollection>,
 ) -> Option<CaseResult<'a>> {
   let rule_config = rules.get_rule(&test_case.id)?;
+  let test_case = if let Some(snapshots) = snapshots {
+    let snaps = snapshots.get(&test_case.id);
+    verify_test_case_with_snapshots(rule_config, test_case, snaps)
+  } else {
+    verify_test_case(rule_config, test_case)
+  };
+  Some(test_case)
+}
+
+fn verify_test_case<'a>(
+  rule_config: &RuleConfig<SgLang>,
+  test_case: &'a TestCase,
+) -> CaseResult<'a> {
   let valid_cases = test_case
     .valid
     .iter()
-    .map(|valid| CaseStatus::verfiy_valid(rule_config, valid));
-  let invalid_cases = test_case.invalid.iter();
-  let cases = if let Some(snapshots) = snapshots {
-    let snapshot = snapshots.get(&test_case.id);
-    let invalid_cases = invalid_cases.map(|invalid| {
-      let snap = snapshot.and_then(|s| s.snapshots.get(invalid));
-      CaseStatus::verify_snapshot(rule_config, invalid, snap)
-    });
-    valid_cases.chain(invalid_cases).collect()
-  } else {
-    let invalid_cases =
-      invalid_cases.map(|invalid| CaseStatus::verfiy_invalid(rule_config, invalid));
-    valid_cases.chain(invalid_cases).collect()
-  };
-  Some(CaseResult {
+    .map(|valid| CaseStatus::verify_valid(rule_config, valid));
+  let invalid_cases = test_case
+    .invalid
+    .iter()
+    .map(|invalid| CaseStatus::verify_invalid(rule_config, invalid));
+  CaseResult {
     id: &test_case.id,
-    cases,
-  })
+    cases: valid_cases.chain(invalid_cases).collect(),
+  }
+}
+
+fn verify_test_case_with_snapshots<'a>(
+  rule_config: &RuleConfig<SgLang>,
+  test_case: &'a TestCase,
+  snapshots: Option<&TestSnapshots>,
+) -> CaseResult<'a> {
+  let valid_cases = test_case
+    .valid
+    .iter()
+    .map(|valid| CaseStatus::verify_valid(rule_config, valid));
+  let invalid_cases = test_case.invalid.iter().map(|invalid| {
+    let snap = snapshots.and_then(|s| s.snapshots.get(invalid));
+    CaseStatus::verify_snapshot(rule_config, invalid, snap)
+  });
+  CaseResult {
+    id: &test_case.id,
+    cases: valid_cases.chain(invalid_cases).collect(),
+  }
 }
 
 // for result in summary {
