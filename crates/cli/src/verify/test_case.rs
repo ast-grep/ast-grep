@@ -21,7 +21,21 @@ pub struct TestCase {
   pub invalid: Vec<String>,
 }
 
-pub fn verify_test_case<'a>(
+impl TestCase {
+  pub fn verify_rule(&self, rule_config: &RuleConfig<SgLang>) -> CaseResult {
+    verify_test_case(self, rule_config)
+  }
+
+  pub fn verify_with_snapshot(
+    &self,
+    rule_config: &RuleConfig<SgLang>,
+    snapshots: Option<&TestSnapshots>,
+  ) -> CaseResult {
+    verify_test_case_with_snapshots(self, rule_config, snapshots)
+  }
+}
+
+fn verify_test_case<'a>(
   test_case: &'a TestCase,
   rule_config: &RuleConfig<SgLang>,
 ) -> CaseResult<'a> {
@@ -39,7 +53,7 @@ pub fn verify_test_case<'a>(
   }
 }
 
-pub fn verify_test_case_with_snapshots<'a>(
+fn verify_test_case_with_snapshots<'a>(
   test_case: &'a TestCase,
   rule_config: &RuleConfig<SgLang>,
   snapshots: Option<&TestSnapshots>,

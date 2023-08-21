@@ -20,12 +20,11 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-pub use case_result::{CaseResult, CaseStatus};
+use case_result::{CaseResult, CaseStatus};
 use find_file::{find_tests, read_test_files, TestHarness};
 use reporter::{DefaultReporter, InteractiveReporter, Reporter};
 use snapshot::{SnapshotAction, SnapshotCollection, TestSnapshots};
-pub use test_case::TestCase;
-use test_case::{verify_test_case, verify_test_case_with_snapshots};
+use test_case::TestCase;
 
 type Node<'a, L> = SgNode<'a, StrDoc<L>>;
 
@@ -145,9 +144,9 @@ fn verify_test_case_simple<'a>(
   let rule_config = rules.get_rule(&test_case.id)?;
   let test_case = if let Some(snapshots) = snapshots {
     let snaps = snapshots.get(&test_case.id);
-    verify_test_case_with_snapshots(test_case, rule_config, snaps)
+    test_case.verify_with_snapshot(rule_config, snaps)
   } else {
-    verify_test_case(test_case, rule_config)
+    test_case.verify_rule(rule_config)
   };
   Some(test_case)
 }

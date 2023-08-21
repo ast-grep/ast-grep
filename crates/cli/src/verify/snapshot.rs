@@ -48,16 +48,12 @@ impl SnapshotAction {
     results: &[CaseResult],
   ) -> Option<SnapshotCollection> {
     let accepted = match self {
-      Self::AcceptAll => {
-        let mut snapshot_collection = SnapshotCollection::new();
-        for result in results {
-          let case_id = result.id.to_string();
-          snapshot_collection.insert(case_id.clone(), result.changed_snapshots());
-        }
-        snapshot_collection
-      }
-      Self::AcceptNone => return None,
+      Self::AcceptAll => results
+        .iter()
+        .map(|result| (result.id.to_string(), result.changed_snapshots()))
+        .collect(),
       Self::Selectively(a) => a,
+      Self::AcceptNone => return None,
     };
     Some(merge_snapshots(accepted, existing))
   }
