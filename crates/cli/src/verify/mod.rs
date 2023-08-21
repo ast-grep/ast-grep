@@ -94,7 +94,7 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
   }
 
   let check_one_case = |case| {
-    let result = verify_test_case_simple(collections, case, snapshots.as_ref());
+    let result = verify_test_case_simple(case, collections, snapshots.as_ref());
     let mut reporter = reporter.lock().unwrap();
     if let Some(result) = result {
       reporter
@@ -152,23 +152,23 @@ fn write_merged_to_disk(
 }
 
 fn verify_test_case_simple<'a>(
-  rules: &RuleCollection<SgLang>,
   test_case: &'a TestCase,
+  rules: &RuleCollection<SgLang>,
   snapshots: Option<&SnapshotCollection>,
 ) -> Option<CaseResult<'a>> {
   let rule_config = rules.get_rule(&test_case.id)?;
   let test_case = if let Some(snapshots) = snapshots {
     let snaps = snapshots.get(&test_case.id);
-    verify_test_case_with_snapshots(rule_config, test_case, snaps)
+    verify_test_case_with_snapshots(test_case, rule_config, snaps)
   } else {
-    verify_test_case(rule_config, test_case)
+    verify_test_case(test_case, rule_config)
   };
   Some(test_case)
 }
 
 fn verify_test_case<'a>(
-  rule_config: &RuleConfig<SgLang>,
   test_case: &'a TestCase,
+  rule_config: &RuleConfig<SgLang>,
 ) -> CaseResult<'a> {
   let valid_cases = test_case
     .valid
@@ -185,8 +185,8 @@ fn verify_test_case<'a>(
 }
 
 fn verify_test_case_with_snapshots<'a>(
-  rule_config: &RuleConfig<SgLang>,
   test_case: &'a TestCase,
+  rule_config: &RuleConfig<SgLang>,
   snapshots: Option<&TestSnapshots>,
 ) -> CaseResult<'a> {
   let valid_cases = test_case
@@ -322,7 +322,7 @@ rule:
   fn test_validated() {
     let rule = never_report_rule();
     let case = valid_case();
-    let ret = verify_test_case_simple(&rule, &case, None);
+    let ret = verify_test_case_simple(&case, &rule, None);
     assert_eq!(ret, test_case_result(CaseStatus::Validated),);
   }
 
@@ -330,21 +330,21 @@ rule:
   fn test_reported() {
     let case = invalid_case();
     let rule = always_report_rule();
-    let ret = verify_test_case_simple(&rule, &case, None);
+    let ret = verify_test_case_simple(&case, &rule, None);
     assert_eq!(ret, test_case_result(CaseStatus::Reported),);
   }
   #[test]
   fn test_noisy() {
     let case = valid_case();
     let rule = always_report_rule();
-    let ret = verify_test_case_simple(&rule, &case, None);
+    let ret = verify_test_case_simple(&case, &rule, None);
     assert_eq!(ret, test_case_result(CaseStatus::Noisy("123")),);
   }
   #[test]
   fn test_missing() {
     let case = invalid_case();
     let rule = never_report_rule();
-    let ret = verify_test_case_simple(&rule, &case, None);
+    let ret = verify_test_case_simple(&case, &rule, None);
     assert_eq!(ret, test_case_result(CaseStatus::Missing("123")),);
   }
 
@@ -356,7 +356,7 @@ rule:
       invalid: vec![],
     };
     let rule = never_report_rule();
-    let ret = verify_test_case_simple(&rule, &case, None);
+    let ret = verify_test_case_simple(&case, &rule, None);
     assert!(ret.is_none());
   }
 
@@ -402,7 +402,7 @@ fix: 'log($B)'";
       invalid: vec!["console.log(123)".to_string()],
     };
     let snapshots = SnapshotCollection::new();
-    let mut ret = verify_test_case_simple(&rule, &case, Some(&snapshots)).unwrap();
+    let mut ret = verify_test_case_simple(&case, &rule, Some(&snapshots)).unwrap();
     let case = ret.cases.pop().unwrap();
     match case {
       CaseStatus::Wrong { actual, .. } => {
