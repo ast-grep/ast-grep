@@ -77,6 +77,7 @@ fn verify_test_case_with_snapshots<'a>(
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::verify::snapshot::TestSnapshot;
   use crate::verify::test::{get_rule_config, TEST_RULE};
 
   fn mock_test_case(valid: &[&str], invalid: &[&str]) -> TestCase {
@@ -85,6 +86,19 @@ mod tests {
       valid: valid.iter().map(|s| s.to_string()).collect(),
       invalid: invalid.iter().map(|s| s.to_string()).collect(),
     }
+  }
+
+  fn mock_snapshots(case: &str, snap: TestSnapshot) -> TestSnapshots {
+    TestSnapshots {
+      id: TEST_RULE.to_string(),
+      snapshots: vec![(case.to_string(), snap)].into_iter().collect(),
+    }
+  }
+
+  fn mock_snapshot(rule_config: &RuleConfig<SgLang>, case: &str) -> TestSnapshot {
+    TestSnapshot::generate(rule_config, case)
+      .expect("should ok")
+      .expect("should generate")
   }
 
   #[test]
@@ -108,6 +122,67 @@ mod tests {
       result.cases[1],
       CaseStatus::Missing("var x = 123")
     ));
+  }
+  #[test]
+  fn test_verify_snapshot_with_existing() {
+    let rule_config = get_rule_config("pattern: let x = $A");
+    let test_case = mock_test_case(&[], &["let x = 123"]);
+    let snap = mock_snapshot(&rule_config, "let x = 123");
+    let snaps = mock_snapshots("let x = 123", snap.clone());
+    let result = test_case.verify_with_snapshot(&rule_config, Some(&snaps));
+    assert_eq!(result.cases[0], CaseStatus::Reported);
+  }
+
+  #[test]
+  fn test_verify_snapshot_with_mismatch() {
+    let rule_config = get_rule_config("pattern: let x = $A");
+    let test_case = mock_test_case(&["var x = 123"], &["let x = 123"]);
+    let snap = mock_snapshot(&rule_config, "let x = 456");
+    let snaps = mock_snapshots("let x = 123", snap.clone());
+    let result = test_case.verify_with_snapshot(&rule_config, Some(&snaps));
+    assert_eq!(result.cases[0], CaseStatus::Validated);
+    assert_eq!(
+      result.cases[1],
+      CaseStatus::Wrong {
+        source: "let x = 123",
+        actual: mock_snapshot(&rule_config, "let x = 123"),
+        expected: Some(mock_snapshot(&rule_config, "let x = 456")),
+      }
+    );
+  }
+
+  #[test]
+  fn test_verify_snapshot_without_existing() {
+    let rule_config = get_rule_config("pattern: let x = $A");
+    let test_case = mock_test_case(&["var x = 123"], &["let x = 123"]);
+    let result = test_case.verify_with_snapshot(&rule_config, None);
+    assert_eq!(result.cases[0], CaseStatus::Validated);
+    assert_eq!(
+      result.cases[1],
+      CaseStatus::Wrong {
+        source: "let x = 123",
+        actual: mock_snapshot(&rule_config, "let x = 123"),
+        expected: None,
+      }
+    );
+  }
+
+  #[test]
+  fn test_verify_snapshot_without_existing_2() {
+    let rule_config = get_rule_config("pattern: let x = $A");
+    let test_case = mock_test_case(&["var x = 123"], &["let x = 123"]);
+    let snap = mock_snapshot(&rule_config, "let x = 456");
+    let snaps = mock_snapshots("let x = 456", snap.clone());
+    let result = test_case.verify_with_snapshot(&rule_config, Some(&snaps));
+    assert_eq!(result.cases[0], CaseStatus::Validated);
+    assert_eq!(
+      result.cases[1],
+      CaseStatus::Wrong {
+        source: "let x = 123",
+        actual: mock_snapshot(&rule_config, "let x = 123"),
+        expected: None,
+      }
+    );
   }
 
   #[test]
