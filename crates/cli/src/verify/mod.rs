@@ -212,7 +212,7 @@ mod test {
   use super::*;
   use ast_grep_config::{from_str, GlobalRules, RuleConfig};
 
-  const TEST_RULE: &str = "test-rule";
+  pub const TEST_RULE: &str = "test-rule";
 
   fn get_rule_text(rule: &str) -> String {
     format!(

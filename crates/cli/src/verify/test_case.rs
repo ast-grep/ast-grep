@@ -23,6 +23,7 @@ pub struct TestCase {
 
 impl TestCase {
   pub fn verify_rule(&self, rule_config: &RuleConfig<SgLang>) -> CaseResult {
+    debug_assert_eq!(self.id, rule_config.id);
     verify_test_case(self, rule_config)
   }
 
@@ -31,6 +32,7 @@ impl TestCase {
     rule_config: &RuleConfig<SgLang>,
     snapshots: Option<&TestSnapshots>,
   ) -> CaseResult {
+    debug_assert_eq!(self.id, rule_config.id);
     verify_test_case_with_snapshots(self, rule_config, snapshots)
   }
 }
@@ -69,5 +71,54 @@ fn verify_test_case_with_snapshots<'a>(
   CaseResult {
     id: &test_case.id,
     cases: valid_cases.chain(invalid_cases).collect(),
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::verify::test::{get_rule_config, TEST_RULE};
+
+  fn mock_test_case(valid: &[&str], invalid: &[&str]) -> TestCase {
+    TestCase {
+      id: TEST_RULE.to_string(),
+      valid: valid.iter().map(|s| s.to_string()).collect(),
+      invalid: invalid.iter().map(|s| s.to_string()).collect(),
+    }
+  }
+
+  #[test]
+  fn test_verify_rule() {
+    let rule_config = get_rule_config("pattern: let x = $A");
+    let test_case = mock_test_case(&["var x = 123"], &["let x = 123"]);
+    let result = test_case.verify_rule(&rule_config);
+    assert_eq!(result.id, test_case.id);
+    assert!(matches!(result.cases[0], CaseStatus::Validated));
+    assert!(matches!(result.cases[1], CaseStatus::Reported));
+  }
+
+  #[test]
+  fn test_invalid() {
+    let rule_config = get_rule_config("pattern: let x = $A");
+    let test_case = mock_test_case(&["let x = 123"], &["var x = 123"]);
+    let result = test_case.verify_rule(&rule_config);
+    assert_eq!(result.id, test_case.id);
+    assert!(matches!(result.cases[0], CaseStatus::Noisy("let x = 123")));
+    assert!(matches!(
+      result.cases[1],
+      CaseStatus::Missing("var x = 123")
+    ));
+  }
+
+  #[test]
+  #[should_panic]
+  fn test_unmatching_id() {
+    let rule_config = get_rule_config("pattern: let x = $A");
+    let test_case = TestCase {
+      id: "non-matching".into(),
+      valid: vec![],
+      invalid: vec![],
+    };
+    test_case.verify_rule(&rule_config);
   }
 }
