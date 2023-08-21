@@ -2,16 +2,16 @@ mod case_result;
 mod find_file;
 mod reporter;
 mod snapshot;
+mod test_case;
 
 use crate::config::{find_rules, register_custom_language};
 use crate::error::ErrorContext;
 use crate::lang::SgLang;
 use anyhow::{anyhow, Result};
-use ast_grep_config::{RuleCollection, RuleConfig};
+use ast_grep_config::RuleCollection;
 use ast_grep_core::{Node as SgNode, StrDoc};
 use clap::Args;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 use serde_yaml::to_string;
 
 use std::collections::HashMap;
@@ -24,24 +24,10 @@ pub use case_result::{CaseResult, CaseStatus};
 use find_file::{find_tests, read_test_files, TestHarness};
 use reporter::{DefaultReporter, InteractiveReporter, Reporter};
 use snapshot::{SnapshotAction, SnapshotCollection, TestSnapshots};
+pub use test_case::TestCase;
+use test_case::{verify_test_case, verify_test_case_with_snapshots};
 
 type Node<'a, L> = SgNode<'a, StrDoc<L>>;
-
-/// Corresponds to one rule-test.yml for testing.
-///
-/// A rule-test contains these fields:
-/// * id: the id of the rule that will be tested against
-/// * valid: code that we do not expect to have any issues
-/// * invalid: code that we do expect to have some issues
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TestCase {
-  pub id: String,
-  #[serde(default)]
-  pub valid: Vec<String>,
-  #[serde(default)]
-  pub invalid: Vec<String>,
-}
 
 fn parallel_collect<'a, T, R, F>(cases: &'a [T], filter_mapper: F) -> Vec<R>
 where
@@ -164,43 +150,6 @@ fn verify_test_case_simple<'a>(
     verify_test_case(test_case, rule_config)
   };
   Some(test_case)
-}
-
-fn verify_test_case<'a>(
-  test_case: &'a TestCase,
-  rule_config: &RuleConfig<SgLang>,
-) -> CaseResult<'a> {
-  let valid_cases = test_case
-    .valid
-    .iter()
-    .map(|valid| CaseStatus::verify_valid(rule_config, valid));
-  let invalid_cases = test_case
-    .invalid
-    .iter()
-    .map(|invalid| CaseStatus::verify_invalid(rule_config, invalid));
-  CaseResult {
-    id: &test_case.id,
-    cases: valid_cases.chain(invalid_cases).collect(),
-  }
-}
-
-fn verify_test_case_with_snapshots<'a>(
-  test_case: &'a TestCase,
-  rule_config: &RuleConfig<SgLang>,
-  snapshots: Option<&TestSnapshots>,
-) -> CaseResult<'a> {
-  let valid_cases = test_case
-    .valid
-    .iter()
-    .map(|valid| CaseStatus::verify_valid(rule_config, valid));
-  let invalid_cases = test_case.invalid.iter().map(|invalid| {
-    let snap = snapshots.and_then(|s| s.snapshots.get(invalid));
-    CaseStatus::verify_snapshot(rule_config, invalid, snap)
-  });
-  CaseResult {
-    id: &test_case.id,
-    cases: valid_cases.chain(invalid_cases).collect(),
-  }
 }
 
 // for result in summary {
