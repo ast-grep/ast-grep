@@ -145,12 +145,12 @@ pub struct Registration {
   pub extensions: Vec<String>,
 }
 
-// TODO: add registered checking here
 impl DynamicLang {
   /// # Safety
   /// the register function should be called exactly once before use.
   /// It relies on a global mut static variable to be initialized.
   pub unsafe fn register(regs: Vec<Registration>) -> Result<(), DynamicLangError> {
+    debug_assert!(Self::langs().is_empty());
     let mut langs = vec![];
     let mut mapping = vec![];
     for reg in regs {
@@ -255,7 +255,18 @@ impl Language for DynamicLang {
 mod test {
   use super::*;
 
-  fn test_load_parser(path: &str) {
+  #[cfg(target_os = "macos")]
+  fn get_tree_sitter_path() -> &'static str {
+    "../../benches/fixtures/json-mac.so"
+  }
+  #[cfg(target_os = "linux")]
+  fn get_tree_sitter_path() -> &'static str {
+    "../../benches/fixtures/json-linux.so"
+  }
+
+  #[test]
+  fn test_load_parser() {
+    let path = get_tree_sitter_path();
     let (_lib, lang) = unsafe { load_ts_language(path.into(), "tree_sitter_json".into()).unwrap() };
     let sg = lang.ast_grep("{\"a\": 123}");
     assert_eq!(
@@ -265,16 +276,25 @@ mod test {
   }
 
   #[test]
-  #[cfg(target_os = "macos")]
-  fn test_load_parser_mac() {
-    let path = "../../benches/fixtures/json-mac.so";
-    test_load_parser(path);
-  }
-
-  #[test]
-  #[cfg(target_os = "linux")]
-  fn test_load_parser_mac() {
-    let path = "../../benches/fixtures/json-linux.so";
-    test_load_parser(path);
+  fn test_register_lang() {
+    let registration = Registration {
+      lang_name: "json".to_string(),
+      expando_char: None,
+      extensions: vec!["json".into()],
+      lib_path: PathBuf::from(get_tree_sitter_path()),
+      meta_var_char: None,
+      symbol: "tree_sitter_json".into(),
+    };
+    unsafe {
+      DynamicLang::register(vec![registration]).expect("should succeed");
+    }
+    let langs = DynamicLang::all_langs();
+    assert_eq!(langs.len(), 1);
+    let lang = langs[0];
+    let file_types = lang.file_types();
+    assert!(file_types.matched("test.json", false).is_whitelist());
+    assert_eq!(lang.name(), "json");
+    let sg = lang.ast_grep("{\"test\": 123}");
+    assert!(sg.root().find("123").is_some());
   }
 }
