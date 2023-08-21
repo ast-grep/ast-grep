@@ -15,6 +15,20 @@ type Source = String;
 /// where each [TestSnapshots] is identified by its rule ID.
 pub type SnapshotCollection = HashMap<CaseId, TestSnapshots>;
 
+fn merge_snapshots(
+  accepted: SnapshotCollection,
+  mut existing: SnapshotCollection,
+) -> SnapshotCollection {
+  for (id, tests) in accepted {
+    if let Some(existing) = existing.get_mut(&id) {
+      existing.snapshots.extend(tests.snapshots);
+    } else {
+      existing.insert(id, tests);
+    }
+  }
+  existing
+}
+
 /// Represents user's decision when [CaseStatus::Wrong].
 /// Snapshot update can be accepted or rejected.
 #[derive(Debug)]
@@ -27,38 +41,26 @@ pub enum SnapshotAction {
   Selectively(SnapshotCollection),
 }
 
-fn merge_snapshots(
-  accepted: SnapshotCollection,
-  mut old: SnapshotCollection,
-) -> SnapshotCollection {
-  for (id, tests) in accepted {
-    if let Some(existing) = old.get_mut(&id) {
-      existing.snapshots.extend(tests.snapshots);
-    } else {
-      old.insert(id, tests);
-    }
-  }
-  old
-}
-
-pub fn update_snapshot_collection(
-  action: SnapshotAction,
-  results: &[CaseResult],
-  snapshots: SnapshotCollection,
-) -> Option<SnapshotCollection> {
-  let accepted = match action {
-    SnapshotAction::AcceptAll => {
-      let mut snapshot_collection = SnapshotCollection::new();
-      for result in results {
-        let case_id = result.id.to_string();
-        snapshot_collection.insert(case_id.clone(), result.changed_snapshots());
+impl SnapshotAction {
+  pub fn update_snapshot_collection(
+    self,
+    existing: SnapshotCollection,
+    results: &[CaseResult],
+  ) -> Option<SnapshotCollection> {
+    let accepted = match self {
+      Self::AcceptAll => {
+        let mut snapshot_collection = SnapshotCollection::new();
+        for result in results {
+          let case_id = result.id.to_string();
+          snapshot_collection.insert(case_id.clone(), result.changed_snapshots());
+        }
+        snapshot_collection
       }
-      snapshot_collection
-    }
-    SnapshotAction::AcceptNone => return None,
-    SnapshotAction::Selectively(a) => a,
-  };
-  Some(merge_snapshots(accepted, snapshots))
+      Self::AcceptNone => return None,
+      Self::Selectively(a) => a,
+    };
+    Some(merge_snapshots(accepted, existing))
+  }
 }
 
 /// A list of test snapshots for one specific rule-test identified by its `CaseId`.

@@ -23,9 +23,7 @@ use std::thread;
 pub use case_result::{CaseResult, CaseStatus};
 use find_file::{find_tests, read_test_files, TestHarness};
 use reporter::{DefaultReporter, InteractiveReporter, Reporter};
-use snapshot::{
-  update_snapshot_collection, SnapshotAction, SnapshotCollection, TestSnapshot, TestSnapshots,
-};
+use snapshot::{SnapshotAction, SnapshotCollection, TestSnapshots};
 
 type Node<'a, L> = SgNode<'a, StrDoc<L>>;
 
@@ -132,7 +130,7 @@ fn apply_snapshot_action(
   let Some(snapshots) = snapshots else {
     return Ok(())
   };
-  let Some(merged) = update_snapshot_collection(action, results, snapshots) else {
+  let Some(merged) = action.update_snapshot_collection(snapshots, results) else {
     return Ok(())
   };
   write_merged_to_disk(merged, path_map)
