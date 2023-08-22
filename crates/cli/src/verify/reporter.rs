@@ -327,4 +327,20 @@ mod test {
     assert!(s.contains(".MNWE"));
     Ok(())
   }
+
+  #[test]
+  fn test_many_cases() -> Result<()> {
+    let output = vec![];
+    let mut reporter = DefaultReporter {
+      output,
+      update_all: false,
+    };
+    use std::iter::repeat_with;
+    let cases: Vec<_> = repeat_with(mock_case_status).flatten().take(50).collect();
+    reporter.report_case_summary("test-rule", &cases)?;
+    let s = String::from_utf8(reporter.output)?;
+    assert!(!s.contains(".MNWE"));
+    assert!(s.contains("Pass × 10, Wrong × 10, Missing × 10, Noisy × 10, Error × 10"));
+    Ok(())
+  }
 }
