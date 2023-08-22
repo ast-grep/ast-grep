@@ -279,7 +279,7 @@ mod test {
   fn test_register_lang() {
     let registration = Registration {
       lang_name: "json".to_string(),
-      expando_char: None,
+      expando_char: Some('_'),
       extensions: vec!["json".into()],
       lib_path: PathBuf::from(get_tree_sitter_path()),
       meta_var_char: None,
@@ -296,5 +296,7 @@ mod test {
     assert_eq!(lang.name(), "json");
     let sg = lang.ast_grep("{\"test\": 123}");
     assert!(sg.root().find("123").is_some());
+    let parsed = DynamicLang::from_str("json").expect("ok");
+    assert_eq!(parsed.index, lang.index);
   }
 }
