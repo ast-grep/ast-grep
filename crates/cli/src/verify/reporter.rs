@@ -290,3 +290,41 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
     })
   }
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::verify::snapshot::TestSnapshot;
+
+  const MOCK: &str = "hello";
+
+  fn mock_case_status() -> Vec<CaseStatus<'static>> {
+    vec![
+      CaseStatus::Reported,
+      CaseStatus::Missing(MOCK),
+      CaseStatus::Noisy(MOCK),
+      CaseStatus::Wrong {
+        source: MOCK,
+        actual: TestSnapshot {
+          fixed: None,
+          labels: vec![],
+        },
+        expected: None,
+      },
+      CaseStatus::Error,
+    ]
+  }
+
+  #[test]
+  fn test_report_summary() -> Result<()> {
+    let output = vec![];
+    let mut reporter = DefaultReporter {
+      output,
+      update_all: false,
+    };
+    reporter.report_case_summary("test-rule", &mock_case_status())?;
+    let s = String::from_utf8(reporter.output)?;
+    assert!(s.contains(".MNWE"));
+    Ok(())
+  }
+}
