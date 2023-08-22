@@ -295,6 +295,7 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
 mod test {
   use super::*;
   use crate::verify::snapshot::TestSnapshot;
+  use crate::verify::test::TEST_RULE;
 
   const MOCK: &str = "hello";
 
@@ -322,7 +323,7 @@ mod test {
       output,
       update_all: false,
     };
-    reporter.report_case_summary("test-rule", &mock_case_status())?;
+    reporter.report_case_summary(TEST_RULE, &mock_case_status())?;
     let s = String::from_utf8(reporter.output)?;
     assert!(s.contains(".MNWE"));
     Ok(())
@@ -337,10 +338,43 @@ mod test {
     };
     use std::iter::repeat_with;
     let cases: Vec<_> = repeat_with(mock_case_status).flatten().take(50).collect();
-    reporter.report_case_summary("test-rule", &cases)?;
+    reporter.report_case_summary(TEST_RULE, &cases)?;
     let s = String::from_utf8(reporter.output)?;
     assert!(!s.contains(".MNWE"));
     assert!(s.contains("Pass × 10, Wrong × 10, Missing × 10, Noisy × 10, Error × 10"));
+    Ok(())
+  }
+
+  #[test]
+  fn test_valid_case_detail() -> Result<()> {
+    let output = vec![];
+    let mut reporter = DefaultReporter {
+      output,
+      update_all: false,
+    };
+    reporter.report_case_detail(TEST_RULE, &CaseStatus::Reported)?;
+    reporter.report_case_detail(TEST_RULE, &CaseStatus::Validated)?;
+    let s = String::from_utf8(reporter.output)?;
+    assert_eq!(s, "");
+    Ok(())
+  }
+
+  #[test]
+  fn test_invalid_case_detail() -> Result<()> {
+    let output = vec![];
+    let mut reporter = DefaultReporter {
+      output,
+      update_all: false,
+    };
+    reporter.report_case_detail(TEST_RULE, &CaseStatus::Missing(MOCK))?;
+    reporter.report_case_detail(TEST_RULE, &CaseStatus::Noisy(MOCK))?;
+    let s = String::from_utf8(reporter.output)?;
+    assert!(s.contains("Missing"));
+    assert!(s.contains("Noisy"));
+    assert!(!s.contains("Error"));
+    assert!(!s.contains("Wrong"));
+    assert!(s.contains(MOCK));
+    assert!(s.contains(TEST_RULE));
     Ok(())
   }
 }
