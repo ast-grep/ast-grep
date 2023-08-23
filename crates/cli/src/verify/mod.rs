@@ -208,7 +208,7 @@ pub fn run_test_rule(arg: TestArg) -> Result<()> {
 }
 
 #[cfg(test)]
-mod test {
+pub mod test {
   use super::*;
   use ast_grep_config::{from_str, GlobalRules, RuleConfig};
 

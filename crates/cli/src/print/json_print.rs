@@ -535,4 +535,29 @@ rule:
       assert_eq!(json[0].text, pattern, "{note}");
     }
   }
+
+  use crate::verify::test::get_rule_config;
+  const TRANSFORM_TEXT: &str = "
+transform:
+  B:
+    substring:
+      source: $A
+      startChar: 1
+      endChar: -1
+";
+  #[test]
+  fn test_transform() {
+    let printer = make_test_printer(JsonStyle::Compact);
+    let rule = get_rule_config(&format!("pattern: console.log($A)\n{}", TRANSFORM_TEXT));
+    let grep = SgLang::from(SupportLang::TypeScript).ast_grep("console.log(123)");
+    let matches = grep.root().find_all(&rule.matcher);
+    printer.before_print().unwrap();
+    printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+    printer.after_print().unwrap();
+    let json_str = get_text(&printer);
+    let json: Vec<MatchJSON> = serde_json::from_str(&json_str).unwrap();
+    let metas = &json[0].meta_variables.as_ref().expect("should exist");
+    assert_eq!(metas.single["A"].text, "123");
+    assert_eq!(metas.transformed["B"], "2");
+  }
 }
