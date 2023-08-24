@@ -18,3 +18,8 @@ dashmap = "5.5.0"
 serde.workspace = true
 serde_json = "1.0.105"
 tower-lsp = "0.20.0"
+
+[dev-dependencies]
+tempdir = "0.3"
+tree-sitter-typescript = "0.20.2"
+tokio = { version = "1", features = ["rt-multi-thread", "io-std", "io-util"] }

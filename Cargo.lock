@@ -202,7 +202,10 @@ dependencies = [
  "dashmap",
  "serde",
  "serde_json",
+ "tempdir",
+ "tokio",
  "tower-lsp",
+ "tree-sitter-typescript",
 ]
 
 [[package]]
@@ -1650,6 +1653,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a8325f63a7d4774dd041e363b2409ed1c5cbbd0f867795e661df066b2b0a581"
 dependencies = [
  "autocfg",
+ "bytes",
+ "memchr",
  "num_cpus",
  "once_cell",
  "pin-project-lite",

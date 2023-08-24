@@ -383,3 +383,69 @@ impl<L: LSPLang> Backend<L> {
     L::from_path(path)
   }
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use ast_grep_core::language::TSLanguage;
+  use std::path::Path;
+  use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt, DuplexStream};
+
+  #[derive(Clone, Deserialize, PartialEq, Eq)]
+  pub enum TypeScript {
+    Tsx,
+  }
+  impl Language for TypeScript {
+    fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
+      Some(TypeScript::Tsx)
+    }
+    fn get_ts_language(&self) -> TSLanguage {
+      tree_sitter_typescript::language_tsx().into()
+    }
+  }
+
+  fn start_lsp() -> (DuplexStream, DuplexStream) {
+    let rc: RuleCollection<TypeScript> = RuleCollection::try_new(vec![]).unwrap();
+    let (service, socket) = LspService::build(|client| Backend::new(client, rc)).finish();
+    let (req_client, req_server) = duplex(1024);
+    let (resp_server, resp_client) = duplex(1024);
+
+    // start server as concurrent task
+    tokio::spawn(Server::new(req_server, resp_server, socket).serve(service));
+
+    (req_client, resp_client)
+  }
+
+  fn req(msg: &str) -> String {
+    format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg)
+  }
+
+  // A function that takes a byte slice as input and returns the content length as an option
+  fn resp(input: &[u8]) -> Option<&str> {
+    let input_str = std::str::from_utf8(input).ok()?;
+    let mut splits = input_str.split("\r\n\r\n");
+    let header = splits.next()?;
+    let body = splits.next()?;
+    let length_str = header.trim_start_matches("Content-Length: ");
+    let length = length_str.parse::<usize>().ok()?;
+    Some(&body[..length])
+  }
+
+  async fn test_lsp() {
+    let initialize = r#"{"jsonrpc":"2.0","method":"initialize","params":{"capabilities":{"textDocumentSync":1}},"id":1}"#;
+    let (mut req_client, mut resp_client) = start_lsp();
+    let mut buf = vec![0; 1024];
+
+    req_client
+      .write_all(req(initialize).as_bytes())
+      .await
+      .unwrap();
+    let _ = resp_client.read(&mut buf).await.unwrap();
+
+    assert!(resp(&buf).unwrap().starts_with('{'));
+  }
+  #[test]
+  fn actual_test() {
+    tokio::runtime::Runtime::new().unwrap().block_on(test_lsp());
+  }
+}
