@@ -522,6 +522,24 @@ mod test {
       .collect();
     assert_eq!(texts, vec!["let", "a = 123"]);
   }
+  #[test]
+  fn test_empty() {
+    let root = Tsx.ast_grep("let a = 123");
+    let node = root.root();
+    let edit = node.empty().unwrap();
+    assert_eq!(edit.inserted_text.len(), 0);
+    assert_eq!(edit.deleted_length, 11);
+    assert_eq!(edit.position, 0);
+  }
+
+  #[test]
+  fn test_field_children() {
+    let root = Tsx.ast_grep("let a = 123");
+    let node = root.root().find("let a = $A").unwrap();
+    let children: Vec<_> = node.field_children("kind").collect();
+    assert_eq!(children.len(), 1);
+    assert_eq!(children[0].text(), "let");
+  }
 
   const MULTI_LINE: &str = "
 if (a) {
