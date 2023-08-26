@@ -18,7 +18,7 @@
     "benny": "^3.7.1",
     "tree-sitter": "^0.20.5",
     "tree-sitter-typescript": "^0.20.1",
-    "typescript": "5.1.6"
+    "typescript": "5.2.2"
   },
   "devDependencies": {
     "@types/node": "^20.4.2",
