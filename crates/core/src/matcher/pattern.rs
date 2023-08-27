@@ -375,4 +375,20 @@ mod test {
   fn test_pattern_size() {
     assert_eq!(std::mem::size_of::<Pattern<StrDoc<Tsx>>>(), 40);
   }
+
+  #[test]
+  fn test_doc_pattern() {
+    let doc = StrDoc::new("let a = 123", Tsx);
+    let pattern = Pattern::doc(doc);
+    let kinds = pattern.potential_kinds().expect("should have kinds");
+    assert_eq!(kinds.len(), 1);
+  }
+
+  #[test]
+  fn test_error() {
+    let ret = Pattern::<StrDoc<_>>::contextual("a", "property_identifier", Tsx);
+    assert!(ret.is_err());
+    let ret = Pattern::str("123+", Tsx);
+    assert!(ret.has_error());
+  }
 }
