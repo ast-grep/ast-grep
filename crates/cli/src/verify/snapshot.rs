@@ -165,7 +165,7 @@ where
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::verify::test::get_rule_config;
+  use crate::verify::test::{get_rule_config, TEST_RULE};
 
   #[test]
   fn test_generate() -> Result<()> {
@@ -224,6 +224,32 @@ mod tests {
           }
         ],
       })
+    );
+    Ok(())
+  }
+
+  #[test]
+  fn test_snapshot_action() -> Result<()> {
+    use crate::verify::CaseStatus;
+    let action = SnapshotAction::AcceptAll;
+    let rule_config = get_rule_config("pattern: let x = $A");
+    let sc = SnapshotCollection::new();
+    let op = action
+      .update_snapshot_collection(
+        sc,
+        &[CaseResult {
+          id: TEST_RULE,
+          cases: vec![CaseStatus::Wrong {
+            source: "let x = 123",
+            expected: None,
+            actual: TestSnapshot::generate(&rule_config, "let x = 123")?.unwrap(),
+          }],
+        }],
+      )
+      .expect("should have new op");
+    assert_eq!(
+      op[TEST_RULE].snapshots["let x = 123"].labels[0].source,
+      "let x = 123"
     );
     Ok(())
   }
