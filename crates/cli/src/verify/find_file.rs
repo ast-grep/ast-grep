@@ -87,11 +87,16 @@ pub fn read_test_files(
     if path.starts_with(&snapshot_path) {
       let snapshot: TestSnapshots =
         from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
-      if regex_filter
+      let included_in_filter = regex_filter
         .map(|r| r.is_match(&snapshot.id))
-        .unwrap_or(true)
-      {
-        snapshots.insert(snapshot.id.clone(), snapshot);
+        .unwrap_or(true);
+      if !included_in_filter {
+        continue;
+      }
+      let id = snapshot.id.clone();
+      let existing = snapshots.insert(id.clone(), snapshot);
+      if existing.is_some() {
+        eprintln!("Warning: found duplicate test case snapshot for `{id}`");
       }
     } else {
       let test_case: TestCase =
