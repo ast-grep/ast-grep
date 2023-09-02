@@ -21,7 +21,7 @@ jobs:
           submodules : true
       - name: Generate code coverage
         run: |
-          cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out Xml
+          cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3
         with:
