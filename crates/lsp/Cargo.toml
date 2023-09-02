@@ -14,7 +14,7 @@ rust-version.workspace = true
 ast-grep-core.workspace = true
 ast-grep-config.workspace = true
 
-dashmap = "5.5.1"
+dashmap = "5.5.3"
 serde.workspace = true
 serde_json = "1.0.105"
 tower-lsp = "0.20.0"
