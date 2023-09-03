@@ -181,9 +181,26 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
     let writer = &mut *self.writer.lock().expect("should success");
-    print_rule_title(rule, &self.styles.rule, writer)?;
     let context = self.diff_context();
-    print_diffs(diffs, path, &self.styles, writer, context)?;
+    let mut start = 0;
+    print_prelude(path, &self.styles, writer)?;
+    for diff in diffs {
+      let range = diff.node_match.range();
+      // skip overlapping diff
+      if range.start < start {
+        continue;
+      }
+      start = range.end;
+      print_rule_title(rule, &diff.node_match, &self.styles.rule, writer)?;
+      let source = diff.node_match.root().get_text();
+      let new_str = format!(
+        "{}{}{}",
+        &source[..range.start],
+        diff.replacement,
+        &source[start..],
+      );
+      print_diff(source, &new_str, &self.styles, writer, context)?;
+    }
     if let Some(note) = &rule.note {
       writeln!(writer, "{}", self.styles.rule.note.paint("Note:"))?;
       writeln!(writer, "{note}")?;
@@ -194,6 +211,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
 
 fn print_rule_title<W: WriteColor>(
   rule: &RuleConfig<SgLang>,
+  nm: &NodeMatch<SgLang>,
   style: &RuleStyle,
   writer: &mut W,
 ) -> Result<()> {
@@ -206,7 +224,7 @@ fn print_rule_title<W: WriteColor>(
   };
   let header = format!("{level}[{}]:", &rule.id);
   let header = level_style.paint(header);
-  let message = style.message.paint(&rule.message);
+  let message = style.message.paint(rule.get_message(nm));
   writeln!(writer, "{header} {message}")?;
   Ok(())
 }

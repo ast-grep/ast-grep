@@ -124,38 +124,6 @@ where
   }
 }
 
-/*
-impl<L: Language> Matcher<L> for Box<dyn Matcher<L>> {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
-    &self,
-    node: Node<'tree, D>,
-    env: &mut MetaVarEnv<'tree, D>,
-  ) -> Option<Node<'tree, D>> {
-    // NOTE: must double deref boxed value to avoid recursion
-    (**self).match_node_with_env(node, env)
-  }
-
-  fn potential_kinds(&self) -> Option<BitSet> {
-    (**self).potential_kinds()
-  }
-
-  fn match_node<'tree, D: Doc<Lang = L>>(
-    &self,
-    node: Node<'tree, D>,
-  ) -> Option<NodeMatch<'tree, D>> {
-    (**self).match_node(node)
-  }
-
-  fn find_node<'tree, D: Doc<Lang=L>>(&self, node: Node<'tree, D>) -> Option<NodeMatch<'tree, D>> {
-    (**self).find_node(node)
-  }
-
-  fn get_match_len<D: Doc<Lang = L>>(&self, node: Node<D>) -> Option<usize> {
-    (**self).get_match_len(node)
-  }
-}
-*/
-
 pub struct FindAllNodes<'tree, D: Doc, M: Matcher<D::Lang>> {
   // using dfs is not universally correct, say, when we want replace nested matches
   // e.g. for pattern Some($A) with replacement $A, Some(Some(1)) will cause panic
@@ -221,24 +189,3 @@ impl<L: Language> Matcher<L> for MatchNone {
     Some(BitSet::new())
   }
 }
-
-/*
-#[cfg(test)]
-mod test {
-  use super::*;
-  use crate::language::Tsx;
-  use crate::{Root, StrDoc};
-
-  fn pattern_node(s: &str) -> Root<StrDoc<Tsx>> {
-    Root::new(s, Tsx)
-  }
-
-  #[test]
-  fn test_box_match() {
-    let boxed: Box<dyn Matcher<Tsx>> = Box::new("const a = 123");
-    let cand = pattern_node("const a = 123");
-    let cand = cand.root();
-    assert!(boxed.find_node(cand).is_some());
-  }
-}
-*/
