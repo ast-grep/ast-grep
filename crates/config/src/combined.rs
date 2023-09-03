@@ -4,6 +4,7 @@ use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{AstGrep, Doc, Matcher, Node, NodeMatch};
 
+use bit_set::BitSet;
 use std::borrow::Cow;
 use std::collections::HashMap;
 
@@ -36,26 +37,34 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     }
   }
 
-  pub fn find<D>(&self, root: &AstGrep<D>) -> bool
+  pub fn find<D>(&self, root: &AstGrep<D>) -> BitSet
   where
     D: Doc<Lang = L>,
   {
+    let mut hit = BitSet::new();
     for node in root.root().dfs() {
       let kind = node.kind_id() as usize;
       let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
         continue;
       };
       for &idx in rule_idx {
+        if hit.contains(idx) {
+          continue;
+        }
         let rule = &self.rules[idx];
         if rule.matcher.match_node(node.clone()).is_some() {
-          return true;
+          hit.insert(idx);
         }
       }
     }
-    false
+    hit
   }
 
-  pub fn scan<'a, D>(&self, root: &'a AstGrep<D>) -> HashMap<usize, Vec<NodeMatch<'a, D>>>
+  pub fn scan<'a, D>(
+    &self,
+    root: &'a AstGrep<D>,
+    hit: BitSet,
+  ) -> HashMap<usize, Vec<NodeMatch<'a, D>>>
   where
     D: Doc<Lang = L>,
   {
@@ -66,6 +75,9 @@ impl<'r, L: Language> CombinedScan<'r, L> {
         continue;
       };
       for &idx in rule_idx {
+        if !hit.contains(idx) {
+          continue;
+        }
         let rule = &self.rules[idx];
         let Some(ret) = rule.matcher.match_node(node.clone()) else {
           continue;

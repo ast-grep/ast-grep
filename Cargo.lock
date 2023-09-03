@@ -108,6 +108,7 @@ dependencies = [
  "ast-grep-language",
  "ast-grep-lsp",
  "atty",
+ "bit-set",
  "clap",
  "clap_complete",
  "codespan-reporting",

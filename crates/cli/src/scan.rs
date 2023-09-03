@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig, Severity};
 use ast_grep_core::{NodeMatch, StrDoc};
+use bit_set::BitSet;
 use clap::Args;
 use ignore::WalkParallel;
 use regex::Regex;
@@ -109,7 +110,7 @@ impl<P: Printer> ScanWithConfig<P> {
 }
 
 impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
-  type Item = (PathBuf, AstGrep);
+  type Item = (PathBuf, AstGrep, BitSet);
   fn build_walk(&self) -> WalkParallel {
     self.arg.input.walk()
   }
@@ -121,20 +122,21 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
     let lang = rules[0].language;
     let combined = CombinedScan::new(rules);
     let unit = filter_file_interactive(path, lang, ast_grep_core::matcher::MatchAll)?;
-    if combined.find(&unit.grep) {
-      return Some((unit.path, unit.grep));
+    let hit_set = combined.find(&unit.grep);
+    if !hit_set.is_empty() {
+      return Some((unit.path, unit.grep, hit_set));
     }
     None
   }
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print()?;
     let mut has_error = 0;
-    for (path, grep) in items {
+    for (path, grep, hit_set) in items {
       let file_content = grep.root().text().to_string();
       let path = &path;
       let rules = self.configs.for_path(path);
       let combined = CombinedScan::new(rules);
-      let matched = combined.scan(&grep);
+      let matched = combined.scan(&grep, hit_set);
       for (idx, matches) in matched {
         let rule = combined.get_rule(idx);
         if matches!(rule.severity, Severity::Error) {
