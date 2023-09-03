@@ -1,9 +1,8 @@
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use ast_grep_config::{RuleCollection, RuleConfig, Severity};
-use ast_grep_core::{Matcher, NodeMatch, StrDoc};
+use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig, Severity};
+use ast_grep_core::{NodeMatch, StrDoc};
 use clap::Args;
 use ignore::WalkParallel;
 use regex::Regex;
@@ -137,7 +136,7 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
       let combined = CombinedScan::new(rules);
       let matched = combined.scan(&grep);
       for (idx, matches) in matched {
-        let rule = &combined.rules[idx];
+        let rule = combined.get_rule(idx);
         if matches!(rule.severity, Severity::Error) {
           has_error += 1;
         }
@@ -223,70 +222,6 @@ fn match_rule_on_file(
     reporter.print_rule(matches, file, rule)?;
   }
   Ok(())
-}
-
-struct CombinedScan<'r> {
-  rules: Vec<&'r RuleConfig<SgLang>>,
-  kind_rule_mapping: Vec<Vec<usize>>,
-}
-
-impl<'r> CombinedScan<'r> {
-  fn new(rules: Vec<&'r RuleConfig<SgLang>>) -> Self {
-    let mut mapping = Vec::new();
-    for (idx, rule) in rules.iter().enumerate() {
-      for kind in &rule
-        .matcher
-        .potential_kinds()
-        .unwrap_or_else(|| panic!("rule `{}` must have kind", &rule.id))
-      {
-        // NOTE: common languages usually have about several hundred kinds
-        // from 200+ ~ 500+, it is okay to waste about 500 * 24 Byte vec size = 12kB
-        // see https://github.com/Wilfred/difftastic/tree/master/vendored_parsers
-        while mapping.len() <= kind {
-          mapping.push(vec![]);
-        }
-        mapping[kind].push(idx);
-      }
-    }
-    Self {
-      rules,
-      kind_rule_mapping: mapping,
-    }
-  }
-
-  fn find(&self, root: &AstGrep) -> bool {
-    for node in root.root().dfs() {
-      let kind = node.kind_id() as usize;
-      let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
-        continue;
-      };
-      for &idx in rule_idx {
-        let rule = &self.rules[idx];
-        if rule.matcher.match_node(node.clone()).is_some() {
-          return true;
-        }
-      }
-    }
-    false
-  }
-  fn scan<'a>(&self, root: &'a AstGrep) -> HashMap<usize, Vec<NodeMatch<'a, StrDoc<SgLang>>>> {
-    let mut results = HashMap::new();
-    for node in root.root().dfs() {
-      let kind = node.kind_id() as usize;
-      let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
-        continue;
-      };
-      for &idx in rule_idx {
-        let rule = &self.rules[idx];
-        let Some(ret) = rule.matcher.match_node(node.clone()) else {
-          continue;
-        };
-        let matches = results.entry(idx).or_insert_with(Vec::new);
-        matches.push(ret);
-      }
-    }
-    results
-  }
 }
 
 #[cfg(test)]

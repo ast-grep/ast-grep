@@ -1,3 +1,4 @@
+mod combined;
 mod constraints;
 mod deserialize_env;
 mod maybe;
@@ -13,6 +14,7 @@ use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error
 
 use ast_grep_core::language::Language;
 
+pub use combined::CombinedScan;
 pub use deserialize_env::DeserializeEnv;
 pub use referent_rule::GlobalRules;
 pub use rule::{Rule, RuleSerializeError, SerializableRule};
