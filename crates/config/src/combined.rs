@@ -1,8 +1,10 @@
 use crate::RuleConfig;
 
 use ast_grep_core::language::Language;
-use ast_grep_core::{AstGrep, Matcher, NodeMatch, StrDoc};
+use ast_grep_core::meta_var::MetaVarEnv;
+use ast_grep_core::{AstGrep, Doc, Matcher, Node, NodeMatch};
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 pub struct CombinedScan<'r, L: Language> {
@@ -34,7 +36,10 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     }
   }
 
-  pub fn find(&self, root: &AstGrep<StrDoc<L>>) -> bool {
+  pub fn find<D>(&self, root: &AstGrep<D>) -> bool
+  where
+    D: Doc<Lang = L>,
+  {
     for node in root.root().dfs() {
       let kind = node.kind_id() as usize;
       let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
@@ -50,10 +55,10 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     false
   }
 
-  pub fn scan<'a>(
-    &self,
-    root: &'a AstGrep<StrDoc<L>>,
-  ) -> HashMap<usize, Vec<NodeMatch<'a, StrDoc<L>>>> {
+  pub fn scan<'a, D>(&self, root: &'a AstGrep<D>) -> HashMap<usize, Vec<NodeMatch<'a, D>>>
+  where
+    D: Doc<Lang = L>,
+  {
     let mut results = HashMap::new();
     for node in root.root().dfs() {
       let kind = node.kind_id() as usize;
@@ -74,5 +79,25 @@ impl<'r, L: Language> CombinedScan<'r, L> {
 
   pub fn get_rule(&self, idx: usize) -> &RuleConfig<L> {
     self.rules[idx]
+  }
+}
+
+// only visit fixable rules for now
+// NOTE:it may be changed in future
+impl<'r, L: Language> Matcher<L> for CombinedScan<'r, L> {
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+    &self,
+    node: Node<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
+    let kind = node.kind_id() as usize;
+    let rule_idx = self.kind_rule_mapping.get(kind)?;
+    rule_idx
+      .iter()
+      .find_map(|&idx| {
+        let rule = &self.rules[idx];
+        rule.fixer.as_ref().map(|_| &rule.matcher)
+      })
+      .and_then(|matcher| matcher.match_node_with_env(node.clone(), env))
   }
 }
