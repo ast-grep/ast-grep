@@ -102,7 +102,7 @@ jobs:
           path: dist
 
   windows:
-    runs-on: windows-2022
+    runs-on: windows-2019
     strategy:
       matrix:
         platform:
