@@ -14,7 +14,9 @@ pub struct CombinedScan<'r, L: Language> {
 }
 
 impl<'r, L: Language> CombinedScan<'r, L> {
-  pub fn new(rules: Vec<&'r RuleConfig<L>>) -> Self {
+  pub fn new(mut rules: Vec<&'r RuleConfig<L>>) -> Self {
+    // process fixable rule first, the order by id
+    rules.sort_unstable_by_key(|r| (r.fixer.is_none(), &r.id));
     let mut mapping = Vec::new();
     for (idx, rule) in rules.iter().enumerate() {
       for kind in &rule
