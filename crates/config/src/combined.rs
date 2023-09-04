@@ -1,11 +1,9 @@
 use crate::RuleConfig;
 
 use ast_grep_core::language::Language;
-use ast_grep_core::meta_var::MetaVarEnv;
-use ast_grep_core::{AstGrep, Doc, Matcher, Node, NodeMatch};
+use ast_grep_core::{AstGrep, Doc, Matcher, NodeMatch};
 
 use bit_set::BitSet;
-use std::borrow::Cow;
 use std::collections::HashMap;
 
 pub struct CombinedScan<'r, L: Language> {
@@ -92,27 +90,38 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     results
   }
 
+  // only visit fixable rules for now
+  // NOTE:it may be changed in future
+  pub fn diffs<'a, D>(&self, root: &'a AstGrep<D>, hit: BitSet) -> Vec<(NodeMatch<'a, D>, usize)>
+  where
+    D: Doc<Lang = L>,
+  {
+    let mut results = vec![];
+    let mut end = 0;
+    for node in root.root().dfs() {
+      if node.range().start < end {
+        continue;
+      }
+      let kind = node.kind_id() as usize;
+      let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
+        continue;
+      };
+      for &idx in rule_idx {
+        let rule = &self.rules[idx];
+        if !hit.contains(idx) || rule.fix.is_none() {
+          continue;
+        }
+        let Some(ret) = rule.matcher.match_node(node.clone()) else {
+          continue;
+        };
+        results.push((ret, idx));
+        end = node.range().end;
+      }
+    }
+    results
+  }
+
   pub fn get_rule(&self, idx: usize) -> &RuleConfig<L> {
     self.rules[idx]
-  }
-}
-
-// only visit fixable rules for now
-// NOTE:it may be changed in future
-impl<'r, L: Language> Matcher<L> for CombinedScan<'r, L> {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
-    &self,
-    node: Node<'tree, D>,
-    env: &mut Cow<MetaVarEnv<'tree, D>>,
-  ) -> Option<Node<'tree, D>> {
-    let kind = node.kind_id() as usize;
-    let rule_idx = self.kind_rule_mapping.get(kind)?;
-    rule_idx
-      .iter()
-      .find_map(|&idx| {
-        let rule = &self.rules[idx];
-        rule.fixer.as_ref().map(|_| &rule.matcher)
-      })
-      .and_then(|matcher| matcher.match_node_with_env(node.clone(), env))
   }
 }

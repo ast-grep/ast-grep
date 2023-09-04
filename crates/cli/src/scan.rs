@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig, Severity};
+use ast_grep_core::traversal::Visitor;
 use ast_grep_core::{NodeMatch, StrDoc};
 use bit_set::BitSet;
 use clap::Args;
@@ -136,6 +137,13 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
       let path = &path;
       let rules = self.configs.for_path(path);
       let combined = CombinedScan::new(rules);
+      if self.arg.output.needs_interacive() {
+        for (nm, idx) in combined.diffs(&grep, hit_set) {
+          let rule = combined.get_rule(idx);
+          match_rule_on_file(path, vec![nm], rule, &file_content, &self.printer)?;
+        }
+        continue;
+      }
       let matched = combined.scan(&grep, hit_set);
       for (idx, matches) in matched {
         let rule = combined.get_rule(idx);
