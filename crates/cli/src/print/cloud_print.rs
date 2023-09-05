@@ -65,13 +65,15 @@ impl<W: Write> Printer for CloudPrinter<W> {
     unreachable!()
   }
 
-  fn print_rule_diffs<'a>(
+  fn print_rule_diffs(
     &self,
-    diffs: Diffs!('a),
+    diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
-    rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
-    print_rule(self, diffs.map(|d| d.node_match), path, rule)
+    for (diff, rule) in diffs {
+      print_rule(self, std::iter::once(diff.node_match), path, rule)?;
+    }
+    Ok(())
   }
 }
 

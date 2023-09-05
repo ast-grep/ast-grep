@@ -174,17 +174,16 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     let context = self.diff_context();
     print_diffs(diffs, path, &self.styles, writer, context)
   }
-  fn print_rule_diffs<'a>(
+  fn print_rule_diffs(
     &self,
-    diffs: Diffs!('a),
+    diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
-    rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
     let writer = &mut *self.writer.lock().expect("should success");
     let context = self.diff_context();
     let mut start = 0;
     print_prelude(path, &self.styles, writer)?;
-    for diff in diffs {
+    for (diff, rule) in diffs {
       let range = diff.node_match.range();
       // skip overlapping diff
       if range.start < start {
@@ -200,10 +199,10 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
         &source[start..],
       );
       print_diff(source, &new_str, &self.styles, writer, context)?;
-    }
-    if let Some(note) = &rule.note {
-      writeln!(writer, "{}", self.styles.rule.note.paint("Note:"))?;
-      writeln!(writer, "{note}")?;
+      if let Some(note) = &rule.note {
+        writeln!(writer, "{}", self.styles.rule.note.paint("Note:"))?;
+        writeln!(writer, "{note}")?;
+      }
     }
     Ok(())
   }

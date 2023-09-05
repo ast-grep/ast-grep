@@ -100,51 +100,81 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
       return self.rewrite_action(diffs.collect(), &path);
     }
     utils::run_in_alternate_screen(|| {
-      let all = print_diffs_and_prompt_action(self, &path, diffs, None)?;
+      let all = print_diffs_and_prompt_action(self, &path, diffs.collect())?;
       if all {
         self.accept_all.store(true, Ordering::SeqCst);
       }
       Ok(())
     })
   }
-  fn print_rule_diffs<'a>(
+  fn print_rule_diffs(
     &self,
-    diffs: Diffs!('a),
+    diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
-    rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
     let path = path.to_path_buf();
     if self.accept_all.load(Ordering::SeqCst) {
-      return self.rewrite_action(diffs.collect(), &path);
+      return self.rewrite_action(diffs.into_iter().map(|p| p.0).collect(), &path);
     }
-    utils::run_in_alternate_screen(|| {
-      let all = print_diffs_and_prompt_action(self, &path, diffs, Some(rule))?;
+    let mut confirmed = vec![];
+    let mut all = false;
+    for (diff, rule) in diffs {
       if all {
-        self.accept_all.store(true, Ordering::SeqCst);
+        confirmed.push(diff);
+        continue;
       }
-      Ok(())
-    })
+      all = print_rule_diff_and_prompt_action(self, &path, (diff, rule), &mut confirmed)?;
+    }
+    self.rewrite_action(confirmed, &path)?;
+    if all {
+      self.accept_all.store(true, Ordering::SeqCst);
+    }
+    Ok(())
   }
+}
+/// returns if accept_all is chosen
+fn print_rule_diff_and_prompt_action<'a>(
+  interactive: &InteractivePrinter<impl Printer>,
+  path: &PathBuf,
+  (diff, rule): (Diff<'a>, &RuleConfig<SgLang>),
+  confirmed: &mut Vec<Diff<'a>>,
+) -> Result<bool> {
+  let printer = &interactive.inner;
+  utils::run_in_alternate_screen(|| {
+    printer.print_rule_diffs(vec![(diff.clone(), rule)], path)?;
+    match interactive.prompt_edit() {
+      'y' => {
+        confirmed.push(diff);
+        Ok(false)
+      }
+      'a' => {
+        confirmed.push(diff);
+        Ok(true)
+      }
+      'e' => {
+        let pos = diff.node_match.start_pos().0;
+        open_in_editor(path, pos)?;
+        Ok(false)
+      }
+      'q' => Err(anyhow::anyhow!("Exit interactive editing")),
+      'n' => Ok(false),
+      _ => Ok(false),
+    }
+  })
 }
 
 /// returns if accept_all is chosen
-fn print_diffs_and_prompt_action<'a>(
+fn print_diffs_and_prompt_action(
   interactive: &InteractivePrinter<impl Printer>,
   path: &PathBuf,
-  diffs: Diffs!('a),
-  rule: Option<&RuleConfig<SgLang>>,
+  diffs: Vec<Diff<'_>>,
 ) -> Result<bool> {
   let printer = &interactive.inner;
-  let diffs: Vec<_> = diffs.collect();
   let first_match = match diffs.first() {
     Some(n) => n.node_match.start_pos().0,
     None => return Ok(false),
   };
-  if let Some(rule) = rule {
-    printer.print_rule_diffs(diffs.clone().into_iter(), path, rule)?;
-  } else {
-    printer.print_diffs(diffs.clone().into_iter(), path)?;
-  }
+  printer.print_diffs(diffs.clone().into_iter(), path)?;
   match interactive.prompt_edit() {
     'y' => {
       interactive.rewrite_action(diffs, path)?;

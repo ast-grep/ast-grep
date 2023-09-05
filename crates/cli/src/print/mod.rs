@@ -40,11 +40,10 @@ pub trait Printer {
   ) -> Result<()>;
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()>;
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()>;
-  fn print_rule_diffs<'a>(
+  fn print_rule_diffs(
     &self,
-    diffs: Diffs!('a),
+    diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
-    rule: &RuleConfig<SgLang>,
   ) -> Result<()>;
   /// Run before all printing. One CLI will run this exactly once.
   #[inline]

@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig, Severity};
-use ast_grep_core::traversal::Visitor;
 use ast_grep_core::{NodeMatch, StrDoc};
 use bit_set::BitSet;
 use clap::Args;
@@ -138,10 +137,15 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
       let rules = self.configs.for_path(path);
       let combined = CombinedScan::new(rules);
       if self.arg.output.needs_interacive() {
-        for (nm, idx) in combined.diffs(&grep, hit_set) {
-          let rule = combined.get_rule(idx);
-          match_rule_on_file(path, vec![nm], rule, &file_content, &self.printer)?;
-        }
+        let diffs = combined
+          .diffs(&grep, hit_set)
+          .into_iter()
+          .map(|(nm, idx)| {
+            let rule = combined.get_rule(idx);
+            (nm, rule)
+          })
+          .collect();
+        match_rule_diff_on_file(path, diffs, &self.printer)?;
         continue;
       }
       let matched = combined.scan(&grep, hit_set);
@@ -215,6 +219,22 @@ impl<P: Printer + Sync> StdInWorker for ScanWithRule<P> {
     has_match.then(|| (PathBuf::from("STDIN"), grep))
   }
 }
+fn match_rule_diff_on_file(
+  path: &Path,
+  matches: Vec<(NodeMatch<StrDoc<SgLang>>, &RuleConfig<SgLang>)>,
+  reporter: &impl Printer,
+) -> Result<()> {
+  let diffs = matches
+    .into_iter()
+    .filter_map(|(m, rule)| {
+      let fix = rule.fixer.as_ref()?;
+      let diff = Diff::generate(m, &rule.matcher, fix);
+      Some((diff, rule))
+    })
+    .collect();
+  reporter.print_rule_diffs(diffs, path)?;
+  Ok(())
+}
 
 fn match_rule_on_file(
   path: &Path,
@@ -226,8 +246,10 @@ fn match_rule_on_file(
   let matches = matches.into_iter();
   let file = SimpleFile::new(path.to_string_lossy(), file_content);
   if let Some(fixer) = &rule.fixer {
-    let diffs = matches.map(|m| Diff::generate(m, &rule.matcher, fixer));
-    reporter.print_rule_diffs(diffs, path, rule)?;
+    let diffs = matches
+      .map(|m| (Diff::generate(m, &rule.matcher, fixer), rule))
+      .collect();
+    reporter.print_rule_diffs(diffs, path)?;
   } else {
     reporter.print_rule(matches, file, rule)?;
   }

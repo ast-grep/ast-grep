@@ -235,9 +235,9 @@ fix: '{rewrite}'"
     let matcher = rule.get_matcher(&globals).expect("should parse");
     let fixer = rule.fixer.as_ref().expect("should have fixer");
     let matches = grep.root().find_all(&matcher);
-    let diffs = matches.map(|n| Diff::generate(n, &pattern, fixer));
+    let diffs = matches.map(|n| (Diff::generate(n, &pattern, fixer), &rule));
     printer
-      .print_rule_diffs(diffs, Path::new("test.tsx"), &rule)
+      .print_rule_diffs(diffs.collect(), Path::new("test.tsx"))
       .expect("test only");
     let text = get_text(&printer);
     assert!(text.contains("test.tsx"), "{note}");

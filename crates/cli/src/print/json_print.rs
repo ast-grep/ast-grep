@@ -301,14 +301,13 @@ impl<W: Write> Printer for JSONPrinter<W> {
     });
     self.print_docs(jsons)
   }
-  fn print_rule_diffs<'a>(
+  fn print_rule_diffs(
     &self,
-    diffs: Diffs!('a),
+    diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
-    rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
     let path = path.to_string_lossy();
-    let jsons = diffs.map(|diff| {
+    let jsons = diffs.into_iter().map(|(diff, rule)| {
       let mut v = RuleMatchJSON::new(diff.node_match, &path, rule);
       v.matched.replacement = Some(diff.replacement);
       v
