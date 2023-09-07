@@ -136,9 +136,10 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
       let path = &path;
       let rules = self.configs.for_path(path);
       let combined = CombinedScan::new(rules);
-      if self.arg.output.needs_interacive() {
+      let interactive = self.arg.output.needs_interacive();
+      if interactive {
         let diffs = combined
-          .diffs(&grep, hit_set)
+          .diffs(&grep, hit_set.clone())
           .into_iter()
           .map(|(nm, idx)| {
             let rule = combined.get_rule(idx);
@@ -146,9 +147,9 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
           })
           .collect();
         match_rule_diff_on_file(path, diffs, &self.printer)?;
-        continue;
       }
-      let matched = combined.scan(&grep, hit_set);
+      // exclude_fix rule because we already have diff inspection before
+      let matched = combined.scan(&grep, hit_set, /* exclude_fix*/ interactive);
       for (idx, matches) in matched {
         let rule = combined.get_rule(idx);
         if matches!(rule.severity, Severity::Error) {

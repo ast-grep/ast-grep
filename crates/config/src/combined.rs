@@ -65,6 +65,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     &self,
     root: &'a AstGrep<D>,
     hit: BitSet,
+    exclude_fix: bool,
   ) -> HashMap<usize, Vec<NodeMatch<'a, D>>>
   where
     D: Doc<Lang = L>,
@@ -80,6 +81,9 @@ impl<'r, L: Language> CombinedScan<'r, L> {
           continue;
         }
         let rule = &self.rules[idx];
+        if exclude_fix && rule.fixer.is_some() {
+          continue;
+        }
         let Some(ret) = rule.matcher.match_node(node.clone()) else {
           continue;
         };
