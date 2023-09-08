@@ -53,6 +53,9 @@ impl<P: Printer> InteractivePrinter<P> {
   }
 
   fn rewrite_action(&self, diffs: Vec<Diff<'_>>, path: &PathBuf) -> Result<()> {
+    if diffs.is_empty() {
+      return Ok(());
+    }
     let new_content = apply_rewrite(diffs);
     if self.from_stdin {
       println!("{new_content}");
@@ -99,13 +102,20 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     if self.accept_all.load(Ordering::SeqCst) {
       return self.rewrite_action(diffs.collect(), &path);
     }
-    utils::run_in_alternate_screen(|| {
-      let all = print_diffs_and_prompt_action(self, &path, diffs.collect())?;
+    let mut confirmed = vec![];
+    let mut all = false;
+    for diff in diffs {
       if all {
-        self.accept_all.store(true, Ordering::SeqCst);
+        confirmed.push(diff);
+        continue;
       }
-      Ok(())
-    })
+      all = print_rule_diff_and_prompt_action(self, &path, (diff, None), &mut confirmed)?;
+    }
+    self.rewrite_action(confirmed, &path)?;
+    if all {
+      self.accept_all.store(true, Ordering::SeqCst);
+    }
+    Ok(())
   }
   fn print_rule_diffs(
     &self,
@@ -123,7 +133,7 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
         confirmed.push(diff);
         continue;
       }
-      all = print_rule_diff_and_prompt_action(self, &path, (diff, rule), &mut confirmed)?;
+      all = print_rule_diff_and_prompt_action(self, &path, (diff, Some(rule)), &mut confirmed)?;
     }
     self.rewrite_action(confirmed, &path)?;
     if all {
@@ -136,12 +146,16 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
 fn print_rule_diff_and_prompt_action<'a>(
   interactive: &InteractivePrinter<impl Printer>,
   path: &PathBuf,
-  (diff, rule): (Diff<'a>, &RuleConfig<SgLang>),
+  (diff, rule): (Diff<'a>, Option<&RuleConfig<SgLang>>),
   confirmed: &mut Vec<Diff<'a>>,
 ) -> Result<bool> {
   let printer = &interactive.inner;
   utils::run_in_alternate_screen(|| {
-    printer.print_rule_diffs(vec![(diff.clone(), rule)], path)?;
+    if let Some(rule) = rule {
+      printer.print_rule_diffs(vec![(diff.clone(), rule)], path)?;
+    } else {
+      printer.print_diffs(std::iter::once(diff.clone()), path)?;
+    }
     match interactive.prompt_edit() {
       'y' => {
         confirmed.push(diff);
@@ -161,37 +175,6 @@ fn print_rule_diff_and_prompt_action<'a>(
       _ => Ok(false),
     }
   })
-}
-
-/// returns if accept_all is chosen
-fn print_diffs_and_prompt_action(
-  interactive: &InteractivePrinter<impl Printer>,
-  path: &PathBuf,
-  diffs: Vec<Diff<'_>>,
-) -> Result<bool> {
-  let printer = &interactive.inner;
-  let first_match = match diffs.first() {
-    Some(n) => n.node_match.start_pos().0,
-    None => return Ok(false),
-  };
-  printer.print_diffs(diffs.clone().into_iter(), path)?;
-  match interactive.prompt_edit() {
-    'y' => {
-      interactive.rewrite_action(diffs, path)?;
-      Ok(false)
-    }
-    'a' => {
-      interactive.rewrite_action(diffs, path)?;
-      Ok(true)
-    }
-    'n' => Ok(false),
-    'e' => {
-      open_in_editor(path, first_match)?;
-      Ok(false)
-    }
-    'q' => Err(anyhow::anyhow!("Exit interactive editing")),
-    _ => Ok(false),
-  }
 }
 
 fn print_matches_and_confirm_next<'a>(
