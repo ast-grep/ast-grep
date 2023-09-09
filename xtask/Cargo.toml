@@ -9,4 +9,4 @@ edition.workspace = true
 [dependencies]
 anyhow = "1.0"
 serde_json = { version = "1.0.105", features = ["preserve_order"] }
-toml_edit = "0.19.14"
+toml_edit = "0.19.15"
