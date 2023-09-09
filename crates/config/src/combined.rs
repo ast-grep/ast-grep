@@ -101,11 +101,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     D: Doc<Lang = L>,
   {
     let mut results = vec![];
-    let mut end = 0;
     for node in root.root().dfs() {
-      if node.range().start < end {
-        continue;
-      }
       let kind = node.kind_id() as usize;
       let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
         continue;
@@ -119,7 +115,6 @@ impl<'r, L: Language> CombinedScan<'r, L> {
           continue;
         };
         results.push((ret, idx));
-        end = node.range().end;
       }
     }
     results

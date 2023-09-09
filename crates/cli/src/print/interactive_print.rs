@@ -99,18 +99,8 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
 
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
     let path = path.to_path_buf();
-    if self.accept_all.load(Ordering::SeqCst) {
-      return self.rewrite_action(diffs.collect(), &path);
-    }
-    let mut confirmed = vec![];
-    let mut all = false;
-    for diff in diffs {
-      if all {
-        confirmed.push(diff);
-        continue;
-      }
-      all = print_rule_diff_and_prompt_action(self, &path, (diff, None), &mut confirmed)?;
-    }
+    let (confirmed, all) =
+      print_diffs_interactive(self, &path, diffs.map(|d| (d, None)).collect())?;
     self.rewrite_action(confirmed, &path)?;
     if all {
       self.accept_all.store(true, Ordering::SeqCst);
@@ -123,18 +113,11 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     path: &Path,
   ) -> Result<()> {
     let path = path.to_path_buf();
-    if self.accept_all.load(Ordering::SeqCst) {
-      return self.rewrite_action(diffs.into_iter().map(|p| p.0).collect(), &path);
-    }
-    let mut confirmed = vec![];
-    let mut all = false;
-    for (diff, rule) in diffs {
-      if all {
-        confirmed.push(diff);
-        continue;
-      }
-      all = print_rule_diff_and_prompt_action(self, &path, (diff, Some(rule)), &mut confirmed)?;
-    }
+    let (confirmed, all) = print_diffs_interactive(
+      self,
+      &path,
+      diffs.into_iter().map(|(d, r)| (d, Some(r))).collect(),
+    )?;
     self.rewrite_action(confirmed, &path)?;
     if all {
       self.accept_all.store(true, Ordering::SeqCst);
@@ -142,13 +125,38 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     Ok(())
   }
 }
-/// returns if accept_all is chosen
-fn print_rule_diff_and_prompt_action<'a>(
+
+fn print_diffs_interactive<'a>(
   interactive: &InteractivePrinter<impl Printer>,
-  path: &PathBuf,
-  (diff, rule): (Diff<'a>, Option<&RuleConfig<SgLang>>),
-  confirmed: &mut Vec<Diff<'a>>,
-) -> Result<bool> {
+  path: &Path,
+  diffs: Vec<(Diff<'a>, Option<&RuleConfig<SgLang>>)>,
+) -> Result<(Vec<Diff<'a>>, bool)> {
+  let mut confirmed = vec![];
+  let mut all = interactive.accept_all.load(Ordering::SeqCst);
+  let mut end = 0;
+  for (diff, rule) in diffs {
+    if diff.node_match.range().start < end {
+      continue;
+    }
+    let confirm = all || {
+      let (accept_curr, accept_all) =
+        print_diff_and_prompt_action(interactive, path, (diff.clone(), rule))?;
+      all = accept_all;
+      accept_curr
+    };
+    if confirm {
+      end = diff.node_match.range().end;
+      confirmed.push(diff);
+    }
+  }
+  Ok((confirmed, all))
+}
+/// returns if accept_current and accept_all
+fn print_diff_and_prompt_action(
+  interactive: &InteractivePrinter<impl Printer>,
+  path: &Path,
+  (diff, rule): (Diff, Option<&RuleConfig<SgLang>>),
+) -> Result<(bool, bool)> {
   let printer = &interactive.inner;
   utils::run_in_alternate_screen(|| {
     if let Some(rule) = rule {
@@ -157,22 +165,16 @@ fn print_rule_diff_and_prompt_action<'a>(
       printer.print_diffs(std::iter::once(diff.clone()), path)?;
     }
     match interactive.prompt_edit() {
-      'y' => {
-        confirmed.push(diff);
-        Ok(false)
-      }
-      'a' => {
-        confirmed.push(diff);
-        Ok(true)
-      }
+      'y' => Ok((true, false)),
+      'a' => Ok((true, true)),
       'e' => {
         let pos = diff.node_match.start_pos().0;
         open_in_editor(path, pos)?;
-        Ok(false)
+        Ok((false, false))
       }
       'q' => Err(anyhow::anyhow!("Exit interactive editing")),
-      'n' => Ok(false),
-      _ => Ok(false),
+      'n' => Ok((false, false)),
+      _ => Ok((false, false)),
     }
   })
 }
@@ -193,7 +195,7 @@ fn print_matches_and_confirm_next<'a>(
   if resp == 'q' {
     Err(anyhow::anyhow!("Exit interactive editing"))
   } else if resp == 'e' {
-    open_in_editor(&path.to_path_buf(), first_match)?;
+    open_in_editor(path, first_match)?;
     Ok(())
   } else {
     Ok(())
@@ -219,7 +221,7 @@ fn apply_rewrite(diffs: Vec<Diff>) -> String {
 }
 
 /// start_line is zero-based
-fn open_in_editor(path: &PathBuf, start_line: usize) -> Result<()> {
+fn open_in_editor(path: &Path, start_line: usize) -> Result<()> {
   let editor = std::env::var("EDITOR").unwrap_or_else(|_| String::from("vim"));
   let exit = std::process::Command::new(editor)
     .arg(path)
