@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ast_grep_core::replacer::Fixer;
-use ast_grep_core::traversal::Visitor;
 use ast_grep_core::{Matcher, Pattern as SgPattern, StrDoc};
 use ast_grep_language::Language;
 use clap::Parser;
@@ -263,7 +262,7 @@ fn match_one_file(
     matcher,
   } = match_unit;
 
-  let matches = Visitor::new(matcher).reentrant(false).visit(grep.root());
+  let matches = grep.root().find_all(matcher);
   if let Some(rewrite) = rewrite {
     let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
     printer.print_diffs(diffs, path)
