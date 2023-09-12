@@ -449,6 +449,7 @@ id: test
 message: test rule
 severity: info
 language: TypeScript
+note: a long random note
 rule:
   pattern: "{rule}""#
       ),
@@ -476,8 +477,9 @@ rule:
       printer.print_rule(matches, file, &rule).unwrap();
       printer.after_print().unwrap();
       let json_str = get_text(&printer);
-      let json: Vec<MatchJSON> = serde_json::from_str(&json_str).unwrap();
-      assert_eq!(json[0].text, pattern, "{note}");
+      let json: Vec<RuleMatchJSON> = serde_json::from_str(&json_str).unwrap();
+      assert_eq!(json[0].matched.text, pattern, "{note}");
+      assert_eq!(json[0].note, rule.note);
     }
   }
 
