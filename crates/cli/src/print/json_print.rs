@@ -176,6 +176,7 @@ struct RuleMatchJSON<'a> {
   matched: MatchJSON<'a>,
   rule_id: &'a str,
   severity: Severity,
+  note: Option<String>,
   message: String,
   #[serde(skip_serializing_if = "Option::is_none")]
   labels: Option<Vec<MatchNode<'a>>>,
@@ -189,6 +190,7 @@ impl<'a> RuleMatchJSON<'a> {
       matched,
       rule_id: &rule.id,
       severity: rule.severity.clone(),
+      note: rule.note.clone(),
       message,
       labels,
     }
