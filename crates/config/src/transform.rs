@@ -6,6 +6,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
+use crate::string_conversion::{StringConversion, apply_string_conversion};
 
 fn get_text_from_env<D: Doc>(src: &str, ctx: &mut Ctx<D>) -> Option<String> {
   let source = ctx.lang.pre_process_pattern(src);
@@ -76,9 +77,23 @@ impl Replace {
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct Convert {
+  source: String,
+  convert: StringConversion,
+}
+impl Convert {
+  fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
+    let text = get_text_from_env(&self.source, ctx)?;
+    Some(apply_string_conversion(text, &self.convert))
+  }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub enum Transformation {
   Substring(Substring),
   Replace(Replace),
+  Convert(Convert),
 }
 
 impl Transformation {
@@ -98,6 +113,7 @@ impl Transformation {
     match self {
       T::Replace(r) => r.compute(ctx),
       T::Substring(s) => s.compute(ctx),
+      T::Convert(c) => c.compute(ctx),
     }
   }
 }
@@ -270,12 +286,63 @@ mod test {
         endChar: -1
     "#,
     )?;
+    let up = parse(
+      r#"
+      convert:
+        source: "$SUB"
+        convert: uppercase
+    "#,
+    )?;
     let mut map = HashMap::new();
     map.insert("REP".into(), rep);
     map.insert("SUB".into(), sub);
+    map.insert("UP".into(), up);
     let env = transform_env(map);
     assert_eq!(env["REP"], "bbb");
     assert_eq!(env["SUB"], "b");
+    assert_eq!(env["UP"], "B");
+    Ok(())
+  }
+
+  #[test]
+  fn test_uppercase_convert() -> R {
+    let trans = parse(
+      r#"
+      convert:
+        source: "$A"
+        convert: uppercase
+    "#,
+    )?;
+    let actual = get_transformed("let a = real_quiet_now", "let a = $A", &trans).ok_or(())?;
+    assert_eq!(actual, "REAL_QUIET_NOW");
+    Ok(())
+  }
+
+  #[test]
+  fn test_capitalize_convert() -> R {
+    let trans = parse(
+      r#"
+      convert:
+        source: "$A"
+        convert: capitalize
+    "#,
+    )?;
+    let actual = get_transformed("let a = snugglebunny", "let a = $A", &trans).ok_or(())?;
+    assert_eq!(actual, "Snugglebunny");
+    Ok(())
+  }
+
+  #[test]
+  fn test_lowercase_convert() -> R {
+    let trans = parse(
+      r#"
+      convert:
+        source: "$A"
+        convert: lowercase
+    "#,
+    )?;
+    let actual = get_transformed("let a = SCREAMS", "let a = $A", &trans).ok_or(())?;
+    assert_eq!(actual, "screams");
     Ok(())
   }
 }
