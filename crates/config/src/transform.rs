@@ -29,13 +29,6 @@ pub struct Substring {
   end_char: Option<i32>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct Replace {
-  source: String,
-  replace: String,
-  by: String,
-}
 impl Substring {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
@@ -66,6 +59,13 @@ fn resolve_char(opt: &Option<i32>, dft: i32, len: i32) -> usize {
   }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Replace {
+  source: String,
+  replace: String,
+  by: String,
+}
 impl Replace {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
