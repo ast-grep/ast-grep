@@ -290,7 +290,7 @@ mod test {
       r#"
       convert:
         source: "$SUB"
-        convert: uppercase
+        letterCase: uppercase
     "#,
     )?;
     let mut map = HashMap::new();
@@ -310,7 +310,7 @@ mod test {
       r#"
       convert:
         source: "$A"
-        convert: uppercase
+        letterCase: uppercase
     "#,
     )?;
     let actual = get_transformed("let a = real_quiet_now", "let a = $A", &trans).ok_or(())?;
@@ -324,7 +324,7 @@ mod test {
       r#"
       convert:
         source: "$A"
-        convert: capitalize
+        letterCase: capitalize
     "#,
     )?;
     let actual = get_transformed("let a = snugglebunny", "let a = $A", &trans).ok_or(())?;
@@ -338,7 +338,7 @@ mod test {
       r#"
       convert:
         source: "$A"
-        convert: lowercase
+        letterCase: lowercase
     "#,
     )?;
     let actual = get_transformed("let a = SCREAMS", "let a = $A", &trans).ok_or(())?;
