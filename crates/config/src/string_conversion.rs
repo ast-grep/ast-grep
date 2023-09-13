@@ -19,6 +19,6 @@ pub fn apply_string_conversion(string: String, transform: &StringConversion) -> 
       } else {
         string
       }
-    },
+    }
   }
 }
