@@ -5,7 +5,7 @@ use ast_grep_core::{Doc, Language};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::string_conversion::{apply_case_conversion, CaseConversion};
+use crate::string_conversion::{CaseConversion, IdentifierConventionConversion};
 use std::collections::HashMap;
 
 fn get_text_from_env<D: Doc>(src: &str, ctx: &mut Ctx<D>) -> Option<String> {
@@ -79,12 +79,23 @@ impl Replace {
 #[serde(rename_all = "camelCase")]
 pub struct Convert {
   source: String,
-  letter_case: CaseConversion,
+  letter_case: Option<CaseConversion>,
+  identifier: Option<IdentifierConventionConversion>,
 }
 impl Convert {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
-    Some(self.letter_case.apply(text))
+    let text = if let Some(c) = self.letter_case {
+      c.apply(&text)
+    } else {
+      text
+    };
+    let text = if let Some(c) = self.identifier {
+      c.apply(&text)
+    } else {
+      text
+    };
+    Some(text)
   }
 }
 
@@ -345,4 +356,22 @@ mod test {
     assert_eq!(actual, "screams");
     Ok(())
   }
+
+  #[test]
+  fn test_identifier_convention_convert() -> R {
+    // Other transformations are tested in string_conversion.rs
+    let trans = parse(
+      r#"
+      convert:
+        source: "$A"
+        identifier:
+          from: snakecase
+          to: camelcase
+    "#,
+    )?;
+    let actual = get_transformed("let a = this_is_not_python", "let a = $A", &trans).ok_or(())?;
+    assert_eq!(actual, "thisIsNotPython");
+    Ok(())
+  }
+
 }
