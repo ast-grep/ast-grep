@@ -5,7 +5,7 @@ use ast_grep_core::{Doc, Language};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::string_conversion::{apply_string_conversion, StringConversion};
+use crate::string_conversion::{apply_case_conversion, CaseConversion};
 use std::collections::HashMap;
 
 fn get_text_from_env<D: Doc>(src: &str, ctx: &mut Ctx<D>) -> Option<String> {
@@ -79,12 +79,12 @@ impl Replace {
 #[serde(rename_all = "camelCase")]
 pub struct Convert {
   source: String,
-  letter_case: StringConversion,
+  letter_case: CaseConversion,
 }
 impl Convert {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
-    Some(apply_string_conversion(text, &self.letter_case))
+    Some(self.letter_case.apply(text))
   }
 }
 
