@@ -34,6 +34,7 @@ pub enum IdentifierConvention {
   SnakeCase,
   KebabCase,
   PascalCase,
+  Words,
 }
 
 impl IdentifierConvention {
@@ -43,6 +44,7 @@ impl IdentifierConvention {
       IdentifierConvention::SnakeCase => split_snake_case(&string),
       IdentifierConvention::KebabCase => split_kebab_case(&string),
       IdentifierConvention::PascalCase => split_by_capital_letters(&string),
+      IdentifierConvention::Words => split_words(&string),
     }
   }
   pub fn join(&self, words: &Vec<String>) -> String {
@@ -51,8 +53,13 @@ impl IdentifierConvention {
       IdentifierConvention::SnakeCase => words.join("_"),
       IdentifierConvention::KebabCase => words.join("-"),
       IdentifierConvention::PascalCase => words.iter().map(|s| capitalize(s)).collect::<Vec<_>>().join(""),
+      IdentifierConvention::Words => words.join(" "),
     }
   }
+}
+
+fn split_words(s: &String) -> Vec<String> {
+    s.split_whitespace().map(|s| s.to_string()).collect()
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
@@ -145,5 +152,6 @@ mod test {
     icc(IdentifierConvention::PascalCase, IdentifierConvention::CamelCase, "PascalIsACoolGuy", "pascalIsACoolGuy");
     icc_case(IdentifierConvention::CamelCase, IdentifierConvention::SnakeCase, CaseConversion::UpperCase, "birdsAreLoudAnimals", "BIRDS_ARE_LOUD_ANIMALS");
     icc_case(IdentifierConvention::SnakeCase, IdentifierConvention::KebabCase, CaseConversion::Capitalize, "hiss_snarl_roar", "Hiss-Snarl-Roar");
+    icc_case(IdentifierConvention::Words, IdentifierConvention::KebabCase, CaseConversion::LowerCase, "THIS  IS ABSOLUTELY UNACCEPTABLE", "this-is-absolutely-unacceptable");
   }
 }
