@@ -52,5 +52,5 @@ clap_complete = "4.4.1"
 
 [dev-dependencies]
 assert_cmd = "2.0.12"
-predicates = "3.0.3"
+predicates = "3.0.4"
 tempdir = "0.3.7"
