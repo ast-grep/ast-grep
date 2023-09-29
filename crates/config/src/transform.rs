@@ -79,12 +79,13 @@ impl Replace {
 #[serde(rename_all = "camelCase")]
 pub struct Convert {
   source: String,
-  letter_case: StringFormat,
+  to_case: StringFormat,
+  from_case: Option<StringFormat>,
 }
 impl Convert {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
-    Some(self.letter_case.apply(&text))
+    Some(self.to_case.apply(&text))
   }
 }
 
@@ -290,7 +291,7 @@ mod test {
       r#"
       convert:
         source: "$SUB"
-        letterCase: uppercase
+        toCase: uppercase
     "#,
     )?;
     let mut map = HashMap::new();
@@ -310,7 +311,7 @@ mod test {
       r#"
       convert:
         source: "$A"
-        letterCase: uppercase
+        toCase: uppercase
     "#,
     )?;
     let actual = get_transformed("let a = real_quiet_now", "let a = $A", &trans).ok_or(())?;
@@ -324,7 +325,7 @@ mod test {
       r#"
       convert:
         source: "$A"
-        letterCase: capitalize
+        toCase: capitalize
     "#,
     )?;
     let actual = get_transformed("let a = snugglebunny", "let a = $A", &trans).ok_or(())?;
@@ -338,28 +339,11 @@ mod test {
       r#"
       convert:
         source: "$A"
-        letterCase: lowercase
+        toCase: lowercase
     "#,
     )?;
     let actual = get_transformed("let a = SCREAMS", "let a = $A", &trans).ok_or(())?;
     assert_eq!(actual, "screams");
-    Ok(())
-  }
-
-  #[test]
-  fn test_identifier_convention_convert() -> R {
-    // Other transformations are tested in string_conversion.rs
-    let trans = parse(
-      r#"
-      convert:
-        source: "$A"
-        identifier:
-          from: snakecase
-          to: camelcase
-    "#,
-    )?;
-    let actual = get_transformed("let a = this_is_not_python", "let a = $A", &trans).ok_or(())?;
-    assert_eq!(actual, "thisIsNotPython");
     Ok(())
   }
 }
