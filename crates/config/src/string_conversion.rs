@@ -9,6 +9,8 @@ fn capitalize(string: &str) -> String {
   }
 }
 
+enum Separator {}
+
 #[derive(Serialize, Deserialize, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum StringFormat {
@@ -21,37 +23,67 @@ pub enum StringFormat {
   PascalCase,
 }
 
+use StringFormat::*;
+
 impl StringFormat {
   pub fn apply(&self, string: &str) -> String {
     match &self {
-      StringFormat::LowerCase => string.to_lowercase(),
-      StringFormat::UpperCase => string.to_uppercase(),
-      StringFormat::Capitalize => capitalize(string),
-      _ => todo!(),
+      LowerCase => string.to_lowercase(),
+      UpperCase => string.to_uppercase(),
+      Capitalize => capitalize(string),
+      _ => todo!()
+      // CamelCase => camelize(string),
+      // SnakeCase => snake_case(string),
+      // KebabCase => kebab_case(string),
+      // PascalCase => pascalize(string),
     }
   }
-  // pub fn split(&self, string: &str) -> Vec<String> {
-  //   match &self {
-  //     StringFormat::CamelCase => split_by_capital_letters(string),
-  //     StringFormat::SnakeCase => split_snake_case(string),
-  //     StringFormat::KebabCase => split_kebab_case(string),
-  //     StringFormat::PascalCase => split_by_capital_letters(string),
-  //     _ => todo!(),
-  //   }
-  // }
-  // pub fn join(&self, words: &[String]) -> String {
-  //   match &self {
-  //     StringFormat::CamelCase => join_camel_case(words),
-  //     StringFormat::SnakeCase => words.join("_"),
-  //     StringFormat::KebabCase => words.join("-"),
-  //     StringFormat::PascalCase => words
-  //       .iter()
-  //       .map(|s| capitalize(s))
-  //       .collect::<Vec<_>>()
-  //       .join(""),
-  //     _ => todo!(),
-  //   }
-  // }
+}
+
+/**
+  Split string by
+  * CaseChange
+  * Dash
+  * Dot
+  * Slash
+  * Space
+  * Underscore
+*/
+fn split(s: &str) -> impl Iterator<Item = &str> {
+  let delimiters = ['-', '.', '/', ' ', '_'];
+  let mut chars = s.chars();
+  let mut is_lower = true;
+  let mut left = 0;
+  let mut right = 0;
+  std::iter::from_fn(move || {
+    for c in chars.by_ref() {
+      // normal delimiter
+      if delimiters.contains(&c) {
+        let range = left..right;
+        left = right + 1;
+        right = left;
+        is_lower = false;
+        return Some(&s[range]);
+      }
+      // case delimiter
+      if is_lower && c.is_uppercase() {
+        let range = left..right;
+        left = right;
+        right = left + c.len_utf8();
+        is_lower = c.is_lowercase();
+        return Some(&s[range]);
+      }
+      is_lower = c.is_lowercase();
+      right += c.len_utf8();
+    }
+    if left < right && right <= s.len() {
+      let range = left..right;
+      left = right;
+      Some(&s[range])
+    } else {
+      None
+    }
+  })
 }
 
 // fn split_words(s: &str) -> Vec<String> {
@@ -104,70 +136,27 @@ mod test {
     assert_eq!(StringFormat::UpperCase.apply("aBc"), "ABC");
     assert_eq!(StringFormat::Capitalize.apply("aBc"), "ABc");
   }
+  const CAMEL: &str = "camelsLiveInTheDesert";
+  const SNAKE: &str = "snakes_live_in_forests";
+  const KEBAB: &str = "kebab-is-a-delicious-food";
+  const PASCAl: &str = "PascalIsACoolGuy";
+  const PATH: &str = "path/is/a/slashed/string";
+  const DOT: &str = "www.dot.com";
+  const URL: &str = "x.com/hd_nvim";
 
-  fn icc(from: StringFormat, to: StringFormat, input: &str, expected: &str) {
-    // let conversion = IdentifierConventionConversion {
-    //   from,
-    //   to,
-    //   letter_case: None,
-    // };
-    // assert_eq!(conversion.apply(&input.to_string()), expected);
-  }
-
-  fn icc_case(
-    from: StringFormat,
-    to: StringFormat,
-    case: StringFormat,
-    input: &str,
-    expected: &str,
-  ) {
-    // let conversion = IdentifierConventionConversion {
-    //   from,
-    //   to,
-    //   letter_case: Some(case),
-    // };
-    // assert_eq!(conversion.apply(&input.to_string()), expected);
+  fn assert_split(s: &str, v: &[&str]) {
+    let actual: Vec<_> = split(s).collect();
+    assert_eq!(v, actual)
   }
 
   #[test]
-  fn test_identifier_convention_conversions() {
-    icc(
-      StringFormat::CamelCase,
-      StringFormat::SnakeCase,
-      "camelsLiveInTheDesert",
-      "camels_live_in_the_desert",
-    );
-    icc(
-      StringFormat::SnakeCase,
-      StringFormat::KebabCase,
-      "snakes_live_in_forests",
-      "snakes-live-in-forests",
-    );
-    icc(
-      StringFormat::KebabCase,
-      StringFormat::PascalCase,
-      "kebab-is-a-delicious-food",
-      "KebabIsADeliciousFood",
-    );
-    icc(
-      StringFormat::PascalCase,
-      StringFormat::CamelCase,
-      "PascalIsACoolGuy",
-      "pascalIsACoolGuy",
-    );
-    icc_case(
-      StringFormat::CamelCase,
-      StringFormat::SnakeCase,
-      StringFormat::UpperCase,
-      "birdsAreLoudAnimals",
-      "BIRDS_ARE_LOUD_ANIMALS",
-    );
-    icc_case(
-      StringFormat::SnakeCase,
-      StringFormat::KebabCase,
-      StringFormat::Capitalize,
-      "hiss_snarl_roar",
-      "Hiss-Snarl-Roar",
-    );
+  fn test_split() {
+    assert_split(CAMEL, &["camels", "Live", "In", "The", "Desert"]);
+    assert_split(SNAKE, &["snakes", "live", "in", "forests"]);
+    assert_split(KEBAB, &["kebab", "is", "a", "delicious", "food"]);
+    assert_split(PASCAl, &["", "Pascal", "Is", "ACool", "Guy"]);
+    assert_split(PATH, &["path", "is", "a", "slashed", "string"]);
+    assert_split(DOT, &["www", "dot", "com"]);
+    assert_split(URL, &["x", "com", "hd", "nvim"]);
   }
 }
