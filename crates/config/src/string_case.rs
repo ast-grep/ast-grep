@@ -38,27 +38,77 @@ impl StringCase {
   }
 }
 
-const DELIMITER: &[char] = &['-', '.', '/', ' ', '_'];
-#[derive(Default, PartialEq, Eq)]
-enum DelimitState {
-  #[default]
+#[derive(Serialize, Deserialize, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub enum Separator {
+  CaseChange,
+  Dash,
+  Dot,
+  Slash,
+  Space,
+  Underscore,
+}
+
+impl Separator {
+  fn all() -> Delimiter {
+    Delimiter {
+      left: 0,
+      right: 0,
+      state: CaseState::Lower,
+      delimiter: vec!['-', '.', '/', ' ', '_'],
+    }
+  }
+}
+
+impl From<Vec<Separator>> for Delimiter {
+  fn from(value: Vec<Separator>) -> Self {
+    use Separator::*;
+    let mut delimiter = vec![];
+    let mut state = CaseState::IgnoreCase;
+    for v in value {
+      match v {
+        CaseChange => state = CaseState::Lower,
+        Dash => delimiter.push('-'),
+        Dot => delimiter.push('.'),
+        Slash => delimiter.push('/'),
+        Space => delimiter.push(' '),
+        Underscore => delimiter.push('_'),
+      }
+    }
+    Self {
+      left: 0,
+      right: 0,
+      state,
+      delimiter,
+    }
+  }
+}
+
+#[derive(PartialEq, Eq)]
+enum CaseState {
   Lower,
   OneUpper,
   MultiUpper(char),
+  IgnoreCase,
 }
 
-#[derive(Default)]
 struct Delimiter {
   left: usize,
   right: usize,
-  state: DelimitState,
+  state: CaseState,
+  delimiter: Vec<char>,
 }
 impl Delimiter {
   fn delimit(&mut self, c: char) -> Option<Range<usize>> {
-    let Self { left, right, state } = self;
-    use DelimitState::*;
+    let Self {
+      left,
+      right,
+      state,
+      delimiter,
+    } = self;
+    use CaseState::*;
     // normal delimiter
-    if DELIMITER.contains(&c) {
+    if delimiter.contains(&c) {
       let range = *left..*right;
       *left = *right + 1;
       *right = *left;
@@ -85,14 +135,16 @@ impl Delimiter {
         return Some(range);
       }
     }
-    if c.is_lowercase() {
+    *right += c.len_utf8();
+    if *state == CaseState::IgnoreCase {
+      return None;
+    } else if c.is_lowercase() {
       self.state = Lower;
     } else if *state == Lower {
       self.state = OneUpper;
     } else {
       self.state = MultiUpper(c);
     }
-    *right += c.len_utf8();
     None
   }
   fn conclude(&mut self, len: usize) -> Option<Range<usize>> {
@@ -108,17 +160,11 @@ impl Delimiter {
 }
 
 /**
-  Split string by
-  * CaseChange
-  * Dash
-  * Dot
-  * Slash
-  * Space
-  * Underscore
+  Split string by Separator
 */
 fn split(s: &str) -> impl Iterator<Item = &str> {
   let mut chars = s.chars();
-  let mut delimiter = Delimiter::default();
+  let mut delimiter = Separator::all();
   std::iter::from_fn(move || {
     for c in chars.by_ref() {
       if let Some(range) = delimiter.delimit(c) {
