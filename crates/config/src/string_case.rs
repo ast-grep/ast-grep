@@ -9,11 +9,9 @@ fn capitalize(string: &str) -> String {
   }
 }
 
-enum Separator {}
-
 #[derive(Serialize, Deserialize, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
-pub enum StringFormat {
+pub enum StringCase {
   LowerCase,
   UpperCase,
   Capitalize,
@@ -23,19 +21,18 @@ pub enum StringFormat {
   PascalCase,
 }
 
-use StringFormat::*;
+use StringCase::*;
 
-impl StringFormat {
-  pub fn apply(&self, string: &str) -> String {
+impl StringCase {
+  pub fn apply(&self, s: &str) -> String {
     match &self {
-      LowerCase => string.to_lowercase(),
-      UpperCase => string.to_uppercase(),
-      Capitalize => capitalize(string),
-      _ => todo!()
-      // CamelCase => camelize(string),
-      // SnakeCase => snake_case(string),
-      // KebabCase => kebab_case(string),
-      // PascalCase => pascalize(string),
+      LowerCase => s.to_lowercase(),
+      UpperCase => s.to_uppercase(),
+      Capitalize => capitalize(s),
+      CamelCase => join_camel_case(split(s)),
+      SnakeCase => join(split(s), '_'),
+      KebabCase => join(split(s), '-'),
+      PascalCase => split(s).map(capitalize).collect(),
     }
   }
 }
@@ -86,45 +83,35 @@ fn split(s: &str) -> impl Iterator<Item = &str> {
   })
 }
 
-// fn split_words(s: &str) -> Vec<String> {
-//   s.split_whitespace().map(|s| s.to_string()).collect()
-// }
+fn join<'a, I>(mut words: I, sep: char) -> String
+where
+  I: Iterator<Item = &'a str>,
+{
+  let mut result = String::new();
+  if let Some(w) = words.next() {
+    result.push_str(&w.to_lowercase());
+  }
+  for w in words {
+    result.push(sep);
+    result.push_str(&w.to_lowercase());
+  }
+  result
+}
 
-// fn join_camel_case(words: &[String]) -> String {
-//   let mut result = String::new();
-//   for (i, word) in words.iter().enumerate() {
-//     if i == 0 {
-//       result.push_str(&word.to_lowercase());
-//     } else {
-//       result.push_str(&capitalize(word));
-//     }
-//   }
-//   result
-// }
-
-// fn split_by_capital_letters(camel_string: &str) -> Vec<String> {
-//   let mut words = vec![];
-//   let mut word = String::new();
-//   for c in camel_string.chars() {
-//     if c.is_uppercase() {
-//       if !word.is_empty() {
-//         words.push(word);
-//       }
-//       word = String::new();
-//     }
-//     word.push(c.to_ascii_lowercase());
-//   }
-//   words.push(word);
-//   words
-// }
-
-// fn split_snake_case(snake_string: &str) -> Vec<String> {
-//   snake_string.split('_').map(|s| s.to_string()).collect()
-// }
-
-// fn split_kebab_case(kebab_string: &str) -> Vec<String> {
-//   kebab_string.split('-').map(|s| s.to_string()).collect()
-// }
+fn join_camel_case<'a, I>(words: I) -> String
+where
+  I: Iterator<Item = &'a str>,
+{
+  let mut result = String::new();
+  for (i, word) in words.enumerate() {
+    if i == 0 {
+      result.push_str(&word.to_lowercase());
+    } else {
+      result.push_str(&capitalize(word));
+    }
+  }
+  result
+}
 
 #[cfg(test)]
 mod test {
@@ -132,14 +119,14 @@ mod test {
 
   #[test]
   fn test_case_conversions() {
-    assert_eq!(StringFormat::LowerCase.apply("aBc"), "abc");
-    assert_eq!(StringFormat::UpperCase.apply("aBc"), "ABC");
-    assert_eq!(StringFormat::Capitalize.apply("aBc"), "ABc");
+    assert_eq!(StringCase::LowerCase.apply("aBc"), "abc");
+    assert_eq!(StringCase::UpperCase.apply("aBc"), "ABC");
+    assert_eq!(StringCase::Capitalize.apply("aBc"), "ABc");
   }
   const CAMEL: &str = "camelsLiveInTheDesert";
   const SNAKE: &str = "snakes_live_in_forests";
   const KEBAB: &str = "kebab-is-a-delicious-food";
-  const PASCAl: &str = "PascalIsACoolGuy";
+  const PASCAL: &str = "PascalIsACoolGuy";
   const PATH: &str = "path/is/a/slashed/string";
   const DOT: &str = "www.dot.com";
   const URL: &str = "x.com/hd_nvim";
@@ -154,9 +141,21 @@ mod test {
     assert_split(CAMEL, &["camels", "Live", "In", "The", "Desert"]);
     assert_split(SNAKE, &["snakes", "live", "in", "forests"]);
     assert_split(KEBAB, &["kebab", "is", "a", "delicious", "food"]);
-    assert_split(PASCAl, &["", "Pascal", "Is", "ACool", "Guy"]);
+    assert_split(PASCAL, &["", "Pascal", "Is", "ACool", "Guy"]);
     assert_split(PATH, &["path", "is", "a", "slashed", "string"]);
     assert_split(DOT, &["www", "dot", "com"]);
     assert_split(URL, &["x", "com", "hd", "nvim"]);
+  }
+
+  fn assert_format(fmt: StringCase, src: &str, expected: &str) {
+    assert_eq!(fmt.apply(src), expected)
+  }
+
+  #[test]
+  fn test_format() {
+    assert_format(SnakeCase, CAMEL, "camels_live_in_the_desert");
+    assert_format(KebabCase, CAMEL, "camels-live-in-the-desert");
+    assert_format(PascalCase, KEBAB, "KebabIsADeliciousFood");
+    assert_format(PascalCase, SNAKE, "SnakesLiveInForests");
   }
 }

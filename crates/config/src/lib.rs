@@ -7,7 +7,7 @@ mod relational_rule;
 mod rule;
 mod rule_collection;
 mod rule_config;
-mod string_conversion;
+mod string_case;
 mod transform;
 
 use serde::Deserialize;
