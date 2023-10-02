@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::ops::Range;
 
 fn capitalize(string: &str) -> String {
   let mut chars = string.chars();
@@ -37,6 +38,75 @@ impl StringCase {
   }
 }
 
+const DELIMITER: &[char] = &['-', '.', '/', ' ', '_'];
+#[derive(Default, PartialEq, Eq)]
+enum DelimitState {
+  #[default]
+  Lower,
+  OneUpper,
+  MultiUpper(char),
+}
+
+#[derive(Default)]
+struct Delimiter {
+  left: usize,
+  right: usize,
+  state: DelimitState,
+}
+impl Delimiter {
+  fn delimit(&mut self, c: char) -> Option<Range<usize>> {
+    let Self { left, right, state } = self;
+    use DelimitState::*;
+    // normal delimiter
+    if DELIMITER.contains(&c) {
+      let range = *left..*right;
+      *left = *right + 1;
+      *right = *left;
+      self.state = Lower;
+      return Some(range);
+    }
+    // case delimiter, from lowercase to uppercase
+    if *state == Lower && c.is_uppercase() {
+      let range = *left..*right;
+      *left = *right;
+      *right = *left + c.len_utf8();
+      self.state = OneUpper;
+      return Some(range);
+    }
+    // case 2, consecutive UpperCases followed by lowercase
+    // e.g. XMLHttp -> XML Http
+    if let MultiUpper(last_char) = state {
+      if c.is_lowercase() {
+        let new_left = *right - last_char.len_utf8();
+        let range = *left..new_left;
+        *left = new_left;
+        *right += c.len_utf8();
+        self.state = Lower;
+        return Some(range);
+      }
+    }
+    if c.is_lowercase() {
+      self.state = Lower;
+    } else if *state == Lower {
+      self.state = OneUpper;
+    } else {
+      self.state = MultiUpper(c);
+    }
+    *right += c.len_utf8();
+    None
+  }
+  fn conclude(&mut self, len: usize) -> Option<Range<usize>> {
+    let Self { left, right, .. } = self;
+    if left < right && *right <= len {
+      let range = *left..*right;
+      *left = *right;
+      Some(range)
+    } else {
+      None
+    }
+  }
+}
+
 /**
   Split string by
   * CaseChange
@@ -47,35 +117,18 @@ impl StringCase {
   * Underscore
 */
 fn split(s: &str) -> impl Iterator<Item = &str> {
-  let delimiters = ['-', '.', '/', ' ', '_'];
   let mut chars = s.chars();
-  let mut is_lower = true;
-  let mut left = 0;
-  let mut right = 0;
+  let mut delimiter = Delimiter::default();
   std::iter::from_fn(move || {
     for c in chars.by_ref() {
-      // normal delimiter
-      if delimiters.contains(&c) {
-        let range = left..right;
-        left = right + 1;
-        right = left;
-        is_lower = false;
-        return Some(&s[range]);
+      if let Some(range) = delimiter.delimit(c) {
+        if range.start != range.end {
+          return Some(&s[range]);
+        }
       }
-      // case delimiter
-      if is_lower && c.is_uppercase() {
-        let range = left..right;
-        left = right;
-        right = left + c.len_utf8();
-        is_lower = c.is_lowercase();
-        return Some(&s[range]);
-      }
-      is_lower = c.is_lowercase();
-      right += c.len_utf8();
     }
-    if left < right && right <= s.len() {
-      let range = left..right;
-      left = right;
+    let range = delimiter.conclude(s.len())?;
+    if range.start != range.end {
       Some(&s[range])
     } else {
       None
@@ -141,10 +194,12 @@ mod test {
     assert_split(CAMEL, &["camels", "Live", "In", "The", "Desert"]);
     assert_split(SNAKE, &["snakes", "live", "in", "forests"]);
     assert_split(KEBAB, &["kebab", "is", "a", "delicious", "food"]);
-    assert_split(PASCAL, &["", "Pascal", "Is", "ACool", "Guy"]);
+    assert_split(PASCAL, &["Pascal", "Is", "A", "Cool", "Guy"]);
     assert_split(PATH, &["path", "is", "a", "slashed", "string"]);
     assert_split(DOT, &["www", "dot", "com"]);
     assert_split(URL, &["x", "com", "hd", "nvim"]);
+    assert_split("XMLHttpRequest", &["XML", "Http", "Request"]);
+    assert_split("whatHTML", &["what", "HTML"]);
   }
 
   fn assert_format(fmt: StringCase, src: &str, expected: &str) {
