@@ -25,7 +25,7 @@ pub enum StringCase {
 use StringCase::*;
 
 impl StringCase {
-  pub fn apply(&self, s: &str, seps: Option<Vec<Separator>>) -> String {
+  pub fn apply(&self, s: &str, seps: Option<&[Separator]>) -> String {
     match &self {
       LowerCase => s.to_lowercase(),
       UpperCase => s.to_uppercase(),
@@ -60,8 +60,8 @@ impl Separator {
   }
 }
 
-impl From<Vec<Separator>> for Delimiter {
-  fn from(value: Vec<Separator>) -> Self {
+impl From<&[Separator]> for Delimiter {
+  fn from(value: &[Separator]) -> Self {
     use Separator::*;
     let mut delimiter = vec![];
     let mut state = CaseState::IgnoreCase;
@@ -162,7 +162,7 @@ impl Delimiter {
 /**
   Split string by Separator
 */
-fn split(s: &str, seps: Option<Vec<Separator>>) -> impl Iterator<Item = &str> {
+fn split<'a>(s: &'a str, seps: Option<&[Separator]>) -> impl Iterator<Item = &'a str> {
   let mut chars = s.chars();
   let mut delimiter = if let Some(seps) = seps {
     Delimiter::from(seps)

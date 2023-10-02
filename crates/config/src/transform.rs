@@ -85,7 +85,7 @@ pub struct Convert {
 impl Convert {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
-    Some(self.to_case.apply(&text, None))
+    Some(self.to_case.apply(&text, self.separated_by.as_deref()))
   }
 }
 
@@ -344,6 +344,21 @@ mod test {
     )?;
     let actual = get_transformed("let a = SCREAMS", "let a = $A", &trans).ok_or(())?;
     assert_eq!(actual, "screams");
+    Ok(())
+  }
+
+  #[test]
+  fn test_separation_convert() -> R {
+    let trans = parse(
+      r#"
+      convert:
+        source: "$A"
+        toCase: snakeCase
+        separatedBy: [underscore]
+    "#,
+    )?;
+    let actual = get_transformed("let a = camelCase_Not", "let a = $A", &trans).ok_or(())?;
+    assert_eq!(actual, "camelcase_not");
     Ok(())
   }
 }
