@@ -11,7 +11,7 @@ fn capitalize(string: &str) -> String {
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum StringCase {
   LowerCase,
   UpperCase,
@@ -25,15 +25,15 @@ pub enum StringCase {
 use StringCase::*;
 
 impl StringCase {
-  pub fn apply(&self, s: &str) -> String {
+  pub fn apply(&self, s: &str, seps: Option<Vec<Separator>>) -> String {
     match &self {
       LowerCase => s.to_lowercase(),
       UpperCase => s.to_uppercase(),
       Capitalize => capitalize(s),
-      CamelCase => join_camel_case(split(s)),
-      SnakeCase => join(split(s), '_'),
-      KebabCase => join(split(s), '-'),
-      PascalCase => split(s).map(capitalize).collect(),
+      CamelCase => join_camel_case(split(s, seps)),
+      SnakeCase => join(split(s, seps), '_'),
+      KebabCase => join(split(s, seps), '-'),
+      PascalCase => split(s, seps).map(capitalize).collect(),
     }
   }
 }
@@ -162,9 +162,13 @@ impl Delimiter {
 /**
   Split string by Separator
 */
-fn split(s: &str) -> impl Iterator<Item = &str> {
+fn split(s: &str, seps: Option<Vec<Separator>>) -> impl Iterator<Item = &str> {
   let mut chars = s.chars();
-  let mut delimiter = Separator::all();
+  let mut delimiter = if let Some(seps) = seps {
+    Delimiter::from(seps)
+  } else {
+    Separator::all()
+  };
   std::iter::from_fn(move || {
     for c in chars.by_ref() {
       if let Some(range) = delimiter.delimit(c) {
@@ -218,9 +222,9 @@ mod test {
 
   #[test]
   fn test_case_conversions() {
-    assert_eq!(StringCase::LowerCase.apply("aBc"), "abc");
-    assert_eq!(StringCase::UpperCase.apply("aBc"), "ABC");
-    assert_eq!(StringCase::Capitalize.apply("aBc"), "ABc");
+    assert_eq!(StringCase::LowerCase.apply("aBc", None), "abc");
+    assert_eq!(StringCase::UpperCase.apply("aBc", None), "ABC");
+    assert_eq!(StringCase::Capitalize.apply("aBc", None), "ABc");
   }
   const CAMEL: &str = "camelsLiveInTheDesert";
   const SNAKE: &str = "snakes_live_in_forests";
@@ -231,7 +235,7 @@ mod test {
   const URL: &str = "x.com/hd_nvim";
 
   fn assert_split(s: &str, v: &[&str]) {
-    let actual: Vec<_> = split(s).collect();
+    let actual: Vec<_> = split(s, None).collect();
     assert_eq!(v, actual)
   }
 
@@ -249,7 +253,7 @@ mod test {
   }
 
   fn assert_format(fmt: StringCase, src: &str, expected: &str) {
-    assert_eq!(fmt.apply(src), expected)
+    assert_eq!(fmt.apply(src, None), expected)
   }
 
   #[test]

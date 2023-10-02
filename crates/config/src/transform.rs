@@ -5,7 +5,7 @@ use ast_grep_core::{Doc, Language};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::string_case::StringCase;
+use crate::string_case::{Separator, StringCase};
 use std::collections::HashMap;
 
 fn get_text_from_env<D: Doc>(src: &str, ctx: &mut Ctx<D>) -> Option<String> {
@@ -80,12 +80,12 @@ impl Replace {
 pub struct Convert {
   source: String,
   to_case: StringCase,
-  from_case: Option<StringCase>,
+  separated_by: Option<Vec<Separator>>,
 }
 impl Convert {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
-    Some(self.to_case.apply(&text))
+    Some(self.to_case.apply(&text, None))
   }
 }
 
@@ -291,7 +291,7 @@ mod test {
       r#"
       convert:
         source: "$SUB"
-        toCase: uppercase
+        toCase: upperCase
     "#,
     )?;
     let mut map = HashMap::new();
@@ -311,7 +311,7 @@ mod test {
       r#"
       convert:
         source: "$A"
-        toCase: uppercase
+        toCase: upperCase
     "#,
     )?;
     let actual = get_transformed("let a = real_quiet_now", "let a = $A", &trans).ok_or(())?;
@@ -339,7 +339,7 @@ mod test {
       r#"
       convert:
         source: "$A"
-        toCase: lowercase
+        toCase: lowerCase
     "#,
     )?;
     let actual = get_transformed("let a = SCREAMS", "let a = $A", &trans).ok_or(())?;
