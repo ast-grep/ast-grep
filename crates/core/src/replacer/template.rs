@@ -50,35 +50,33 @@ pub struct Template<C: IndentSensitive> {
   vars: Vec<(MetaVarExtract, Indent)>,
 }
 
-fn create_fixer<C: IndentSensitive>(
-  mut template: &str,
-  mv_char: char,
-  transforms: &[String],
-) -> Fixer<C> {
+fn create_fixer<C: IndentSensitive>(tmpl: &str, mv_char: char, transforms: &[String]) -> Fixer<C> {
   let mut fragments = vec![];
   let mut vars = vec![];
   let mut offset = 0;
-  while let Some(i) = template[offset..].find(mv_char) {
-    if let Some((meta_var, remaining)) =
-      split_first_meta_var(&template[offset + i..], mv_char, transforms)
+  let mut len = 0;
+  while let Some(i) = tmpl[len + offset..].find(mv_char) {
+    if let Some((meta_var, skipped)) =
+      split_first_meta_var(&tmpl[len + offset + i..], mv_char, transforms)
     {
-      fragments.push(C::decode_str(&template[..offset + i]).into_owned());
-      let indent = get_indent_at_offset::<String>(template[..offset + i].as_bytes());
+      fragments.push(C::decode_str(&tmpl[len..len + offset + i]).into_owned());
+      // NB we have to count ident of the full string
+      let indent = get_indent_at_offset::<String>(tmpl[..len + offset + i].as_bytes());
       vars.push((meta_var, indent));
-      template = remaining;
+      len += skipped + offset + i;
       offset = 0;
       continue;
     }
-    debug_assert!(offset + i < template.len());
+    debug_assert!(len + offset + i < tmpl.len());
     // offset = 0, i = 0,
     // 0 1 2
     // $ a $
     offset = offset + i + 1;
   }
   if fragments.is_empty() {
-    Fixer::Textual(C::decode_str(template).into_owned())
+    Fixer::Textual(C::decode_str(&tmpl[len..]).into_owned())
   } else {
-    fragments.push(C::decode_str(template).into_owned());
+    fragments.push(C::decode_str(&tmpl[len..]).into_owned());
     Fixer::WithMetaVar(Template { fragments, vars })
   }
 }
@@ -325,6 +323,16 @@ if (true) {
   fn test_template() {
     test_template_replace("Hello $A", &[("A", "World")], "Hello World");
     test_template_replace("$B $A", &[("A", "World"), ("B", "Hello")], "Hello World");
+  }
+
+  // GH #641
+  #[test]
+  fn test_multi_row_replace() {
+    test_template_replace(
+      "$A = $B",
+      &[("A", "x"), ("B", "[\n  1\n]")],
+      "x = [\n  1\n]",
+    );
   }
 
   #[test]

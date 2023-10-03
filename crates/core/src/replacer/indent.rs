@@ -161,7 +161,7 @@ pub fn indent_lines<C: IndentSensitive>(
   use DeindentedExtract::*;
   let (lines, original_indent) = match extract {
     SingleLine(line) => return Cow::Borrowed(line),
-    MultiLine(lines, id) => (lines, id),
+    MultiLine(lines, ind) => (lines, ind),
   };
   match original_indent.cmp(&indent) {
     // if old and new indent match, just return old lines

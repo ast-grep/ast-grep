@@ -65,32 +65,33 @@ enum MetaVarExtract {
   Transformed(MetaVariableID),
 }
 
-fn split_first_meta_var<'a>(
-  mut src: &'a str,
+fn split_first_meta_var(
+  src: &str,
   meta_char: char,
   transform: &[MetaVariableID],
-) -> Option<(MetaVarExtract, &'a str)> {
+) -> Option<(MetaVarExtract, usize)> {
   debug_assert!(src.starts_with(meta_char));
   let mut i = 0;
-  let (trimmed, is_multi) = loop {
+  let mut skipped = 0;
+  let is_multi = loop {
     i += 1;
-    src = &src[meta_char.len_utf8()..];
+    skipped += meta_char.len_utf8();
     if i == 3 {
-      break (src, true);
+      break true;
     }
-    if !src.starts_with(meta_char) {
-      break (src, false);
+    if !src[skipped..].starts_with(meta_char) {
+      break false;
     }
   };
   // no Anonymous meta var allowed, so _ is not allowed
-  let i = trimmed
+  let i = src[skipped..]
     .find(|c: char| !is_valid_meta_var_char(c))
-    .unwrap_or(trimmed.len());
+    .unwrap_or(src.len() - skipped);
   // no name found
   if i == 0 {
     return None;
   }
-  let name = trimmed[..i].to_string();
+  let name = src[skipped..skipped + i].to_string();
   let var = if is_multi {
     MetaVarExtract::Multiple(name)
   } else if transform.contains(&name) {
@@ -98,5 +99,5 @@ fn split_first_meta_var<'a>(
   } else {
     MetaVarExtract::Single(name)
   };
-  Some((var, &trimmed[i..]))
+  Some((var, skipped + i))
 }
