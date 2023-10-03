@@ -49,32 +49,19 @@ pub enum Separator {
   Underscore,
 }
 
-impl Separator {
-  fn all() -> Delimiter {
-    Delimiter {
-      left: 0,
-      right: 0,
-      state: CaseState::Lower,
-      delimiter: vec!['-', '.', '/', ' ', '_'],
-    }
-  }
-}
-
 impl From<&[Separator]> for Delimiter {
   fn from(value: &[Separator]) -> Self {
     use Separator::*;
     let mut delimiter = vec![];
     let mut state = CaseState::IgnoreCase;
-    for v in value {
-      match v {
-        CaseChange => state = CaseState::Lower,
-        Dash => delimiter.push('-'),
-        Dot => delimiter.push('.'),
-        Slash => delimiter.push('/'),
-        Space => delimiter.push(' '),
-        Underscore => delimiter.push('_'),
-      }
-    }
+    value.iter().for_each(|v| match v {
+      CaseChange => state = CaseState::Lower,
+      Dash => delimiter.push('-'),
+      Dot => delimiter.push('.'),
+      Slash => delimiter.push('/'),
+      Space => delimiter.push(' '),
+      Underscore => delimiter.push('_'),
+    });
     Self {
       left: 0,
       right: 0,
@@ -99,6 +86,14 @@ struct Delimiter {
   delimiter: Vec<char>,
 }
 impl Delimiter {
+  fn all() -> Delimiter {
+    Delimiter {
+      left: 0,
+      right: 0,
+      state: CaseState::Lower,
+      delimiter: vec!['-', '.', '/', ' ', '_'],
+    }
+  }
   fn delimit(&mut self, c: char) -> Option<Range<usize>> {
     let Self {
       left,
@@ -112,7 +107,9 @@ impl Delimiter {
       let range = *left..*right;
       *left = *right + 1;
       *right = *left;
-      self.state = Lower;
+      if *state != IgnoreCase {
+        self.state = Lower;
+      }
       return Some(range);
     }
     // case delimiter, from lowercase to uppercase
@@ -167,7 +164,7 @@ fn split<'a>(s: &'a str, seps: Option<&[Separator]>) -> impl Iterator<Item = &'a
   let mut delimiter = if let Some(seps) = seps {
     Delimiter::from(seps)
   } else {
-    Separator::all()
+    Delimiter::all()
   };
   std::iter::from_fn(move || {
     for c in chars.by_ref() {
@@ -250,6 +247,19 @@ mod test {
     assert_split(URL, &["x", "com", "hd", "nvim"]);
     assert_split("XMLHttpRequest", &["XML", "Http", "Request"]);
     assert_split("whatHTML", &["what", "HTML"]);
+  }
+
+  fn assert_split_sep(s: &str, seps: &[Separator], v: &[&str]) {
+    let actual: Vec<_> = split(s, Some(seps)).collect();
+    assert_eq!(v, actual)
+  }
+
+  #[test]
+  fn test_split_by_separator() {
+    use Separator::*;
+    assert_split_sep("user_accountName", &[Underscore], &["user", "accountName"]);
+    assert_split_sep("user_accountName", &[Space], &["user_accountName"]);
+    assert_split_sep("user_accountName", &[CaseChange], &["user_account", "Name"]);
   }
 
   fn assert_format(fmt: StringCase, src: &str, expected: &str) {
