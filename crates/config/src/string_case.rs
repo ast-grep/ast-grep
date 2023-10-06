@@ -1,3 +1,4 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
@@ -10,7 +11,7 @@ fn capitalize(string: &str) -> String {
   }
 }
 
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum StringCase {
   LowerCase,
@@ -38,7 +39,7 @@ impl StringCase {
   }
 }
 
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum Separator {
   CaseChange,

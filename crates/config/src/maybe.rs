@@ -1,4 +1,6 @@
+use schemars::{gen::SchemaGenerator, schema::Schema, JsonSchema};
 use serde::{de, ser, Deserialize, Serialize};
+use std::borrow::Cow;
 
 #[derive(Clone, PartialEq, Eq, Debug, Copy, Default)]
 pub enum Maybe<T> {
@@ -64,6 +66,26 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for Maybe<T> {
       Some(t) => Ok(Maybe::Present(t)),
       None => Err(de::Error::custom("Maybe field cannot be null.")),
     }
+  }
+}
+
+impl<T: JsonSchema> JsonSchema for Maybe<T> {
+  fn schema_name() -> String {
+    format!("Maybe_{}", T::schema_name())
+  }
+  fn schema_id() -> Cow<'static, str> {
+    Cow::Owned(format!("Maybe<{}>", T::schema_id()))
+  }
+  fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+    gen.subschema_for::<T>()
+  }
+
+  fn _schemars_private_non_optional_json_schema(gen: &mut SchemaGenerator) -> Schema {
+    T::_schemars_private_non_optional_json_schema(gen)
+  }
+
+  fn _schemars_private_is_option() -> bool {
+    true
   }
 }
 

@@ -12,6 +12,7 @@ use ast_grep_core::meta_var::MetaVarMatchers;
 use ast_grep_core::replacer::Replacer;
 use ast_grep_core::replacer::{Fixer, FixerError};
 use ast_grep_core::{NodeMatch, StrDoc};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error as YamlError};
 use thiserror::Error;
@@ -21,7 +22,7 @@ use std::ops::{Deref, DerefMut};
 
 // type Pattern<L> = PatternCore<StrDoc<L>>;
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum Severity {
   #[default]
@@ -37,7 +38,7 @@ pub enum Severity {
   Off,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableRuleCore<L: Language> {
   /// Specify the language to parse and the file extension to include in matching.
   pub language: L,
@@ -85,7 +86,7 @@ impl<L: Language> SerializableRuleCore<L> {
     )
   }
 }
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableRuleConfigCore<L: Language> {
   #[serde(flatten)]
   pub core: SerializableRuleCore<L>,
@@ -99,7 +100,7 @@ pub fn into_map<L: Language>(
   rules.into_iter().map(|r| (r.id, r.core)).collect()
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableRuleConfig<L: Language> {
   #[serde(flatten)]
   pub core: SerializableRuleCore<L>,

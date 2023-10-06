@@ -10,6 +10,7 @@ use ast_grep_core::ops as o;
 use ast_grep_core::{Doc, Matcher, Node, Pattern as PatternCore, PatternError, StrDoc};
 
 use bit_set::BitSet;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use thiserror::Error;
@@ -21,7 +22,7 @@ type Pattern<L> = PatternCore<StrDoc<L>>;
 /// * Relational: filter matched target according to their position relative to other nodes.
 /// * Composite: use logic operation all/any/not to compose the above rules to larger rules.
 /// Every rule has it's unique name so we can combine several rules in one object.
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SerializableRule {
   // avoid embedding AtomicRule/RelationalRule/CompositeRule with flatten here for better error message
@@ -83,21 +84,21 @@ impl SerializableRule {
   }
 }
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, JsonSchema)]
 pub struct AtomicRule {
   pub pattern: Option<PatternStyle>,
   pub kind: Option<String>,
   pub regex: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(untagged)]
 pub enum PatternStyle {
   Str(String),
   Contextual { context: String, selector: String },
 }
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, JsonSchema)]
 pub struct RelationalRule {
   pub inside: Option<Box<Relation>>,
   pub has: Option<Box<Relation>>,

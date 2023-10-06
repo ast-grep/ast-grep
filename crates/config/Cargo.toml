@@ -23,6 +23,7 @@ regex = { workspace = true, optional = true }
 serde.workspace = true
 serde_yaml = "0.9.25"
 thiserror.workspace = true
+schemars = "0.8.15"
 
 [dev-dependencies]
 tempdir = "0.3"

@@ -4,11 +4,12 @@ use crate::rule::{Rule, RuleSerializeError, SerializableRule};
 use ast_grep_core::language::Language;
 use ast_grep_core::{Doc, Node};
 
+use schemars::JsonSchema;
 use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Serialize, Clone, Default)]
+#[derive(Serialize, Clone, Default, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum SerializableStopBy {
   #[default]

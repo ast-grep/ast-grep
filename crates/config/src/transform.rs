@@ -6,6 +6,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::string_case::{Separator, StringCase};
+use schemars::JsonSchema;
 use std::collections::HashMap;
 
 fn get_text_from_env<D: Doc>(src: &str, ctx: &mut Ctx<D>) -> Option<String> {
@@ -22,7 +23,7 @@ fn get_text_from_env<D: Doc>(src: &str, ctx: &mut Ctx<D>) -> Option<String> {
   Some(<D::Source as Content>::encode_bytes(bytes).into_owned())
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Substring {
   source: String,
@@ -60,7 +61,7 @@ fn resolve_char(opt: &Option<i32>, dft: i32, len: i32) -> usize {
   }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Replace {
   source: String,
@@ -75,7 +76,7 @@ impl Replace {
   }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Convert {
   source: String,
@@ -89,7 +90,7 @@ impl Convert {
   }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum Transformation {
   Substring(Substring),

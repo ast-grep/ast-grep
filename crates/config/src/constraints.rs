@@ -9,13 +9,14 @@ use ast_grep_core::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
 use ast_grep_core::{Doc, Matcher, Node, Pattern, PatternError, StrDoc};
 
 use bit_set::BitSet;
+use schemars::JsonSchema;
 use thiserror::Error;
 
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ops::Deref;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum SerializableMetaVarMatcher {
   /// A regex to filter metavar based on its textual content.
