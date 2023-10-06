@@ -1,0 +1,492 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SerializableRuleConfig",
+  "type": "object",
+  "required": [
+    "rule"
+  ],
+  "properties": {
+    "constraints": {
+      "description": "Additional meta variables pattern to filter matching",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/definitions/SerializableMetaVarMatcher"
+      }
+    },
+    "files": {
+      "description": "Glob patterns to specify that the rule only applies to matching files",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "fix": {
+      "description": "A pattern to auto fix the issue. It can reference metavariables appeared in rule.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "id": {
+      "description": "Unique, descriptive identifier, e.g., no-unused-variable",
+      "type": "string"
+    },
+    "ignores": {
+      "description": "Glob patterns that exclude rules from applying to files",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "language": {
+      "description": "Specify the language to parse and the file extension to include in matching.",
+      "type": "string"
+    },
+    "message": {
+      "description": "Main message highlighting why this rule fired. It should be single line and concise, but specific enough to be understood without additional context.",
+      "default": "",
+      "type": "string"
+    },
+    "metadata": {
+      "description": "Extra information for the rule",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "note": {
+      "description": "Additional notes to elaborate the message and provide potential fix to the issue.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rule": {
+      "description": "Pattern rules to find matching AST nodes",
+      "allOf": [
+        {
+          "$ref": "#/definitions/SerializableRule"
+        }
+      ]
+    },
+    "severity": {
+      "description": "One of: hint, info, warning, or error",
+      "default": "hint",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Severity"
+        }
+      ]
+    },
+    "transform": {
+      "description": "A dictionary for metavariable manipulation. Dict key is the new variable name. Dict value is a [transformation] that specifies how meta var is processed. Warning: this is experimental option. [`https://github.com/ast-grep/ast-grep/issues/436`]",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/definitions/Transformation"
+      }
+    },
+    "url": {
+      "description": "Documentation link to this rule",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "utils": {
+      "description": "Utility rules that can be used in `matches`",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/definitions/SerializableRule"
+      }
+    }
+  },
+  "definitions": {
+    "Convert": {
+      "type": "object",
+      "required": [
+        "source",
+        "toCase"
+      ],
+      "properties": {
+        "separatedBy": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/Separator"
+          }
+        },
+        "source": {
+          "type": "string"
+        },
+        "toCase": {
+          "$ref": "#/definitions/StringCase"
+        }
+      }
+    },
+    "Maybe_Array_of_SerializableRule": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/SerializableRule"
+      }
+    },
+    "Maybe_PatternStyle": {
+      "$ref": "#/definitions/PatternStyle"
+    },
+    "Maybe_Relation": {
+      "$ref": "#/definitions/Relation"
+    },
+    "Maybe_SerializableRule": {
+      "$ref": "#/definitions/SerializableRule"
+    },
+    "Maybe_String": {
+      "type": "string"
+    },
+    "PatternStyle": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "required": [
+            "context",
+            "selector"
+          ],
+          "properties": {
+            "context": {
+              "type": "string"
+            },
+            "selector": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "Relation": {
+      "description": "We have three kinds of rules in ast-grep. * Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind. * Relational: filter matched target according to their position relative to other nodes. * Composite: use logic operation all/any/not to compose the above rules to larger rules. Every rule has it's unique name so we can combine several rules in one object.",
+      "type": "object",
+      "properties": {
+        "all": {
+          "$ref": "#/definitions/Maybe_Array_of_SerializableRule"
+        },
+        "any": {
+          "$ref": "#/definitions/Maybe_Array_of_SerializableRule"
+        },
+        "field": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "follows": {
+          "$ref": "#/definitions/Maybe_Relation"
+        },
+        "has": {
+          "$ref": "#/definitions/Maybe_Relation"
+        },
+        "inside": {
+          "$ref": "#/definitions/Maybe_Relation"
+        },
+        "kind": {
+          "$ref": "#/definitions/Maybe_String"
+        },
+        "matches": {
+          "$ref": "#/definitions/Maybe_String"
+        },
+        "not": {
+          "$ref": "#/definitions/Maybe_SerializableRule"
+        },
+        "pattern": {
+          "$ref": "#/definitions/Maybe_PatternStyle"
+        },
+        "precedes": {
+          "$ref": "#/definitions/Maybe_Relation"
+        },
+        "regex": {
+          "$ref": "#/definitions/Maybe_String"
+        },
+        "stopBy": {
+          "default": "neighbor",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SerializableStopBy"
+            }
+          ]
+        }
+      }
+    },
+    "Replace": {
+      "type": "object",
+      "required": [
+        "by",
+        "replace",
+        "source"
+      ],
+      "properties": {
+        "by": {
+          "type": "string"
+        },
+        "replace": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      }
+    },
+    "Separator": {
+      "type": "string",
+      "enum": [
+        "caseChange",
+        "dash",
+        "dot",
+        "slash",
+        "space",
+        "underscore"
+      ]
+    },
+    "SerializableMetaVarMatcher": {
+      "oneOf": [
+        {
+          "description": "A regex to filter metavar based on its textual content.",
+          "type": "object",
+          "required": [
+            "regex"
+          ],
+          "properties": {
+            "regex": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "A pattern to filter matched metavar based on its AST tree shape.",
+          "type": "object",
+          "required": [
+            "pattern"
+          ],
+          "properties": {
+            "pattern": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "A kind_id to filter matched metavar based on its ts-node kind",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "SerializableRule": {
+      "description": "We have three kinds of rules in ast-grep. * Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind. * Relational: filter matched target according to their position relative to other nodes. * Composite: use logic operation all/any/not to compose the above rules to larger rules. Every rule has it's unique name so we can combine several rules in one object.",
+      "type": "object",
+      "properties": {
+        "all": {
+          "$ref": "#/definitions/Maybe_Array_of_SerializableRule"
+        },
+        "any": {
+          "$ref": "#/definitions/Maybe_Array_of_SerializableRule"
+        },
+        "follows": {
+          "$ref": "#/definitions/Maybe_Relation"
+        },
+        "has": {
+          "$ref": "#/definitions/Maybe_Relation"
+        },
+        "inside": {
+          "$ref": "#/definitions/Maybe_Relation"
+        },
+        "kind": {
+          "$ref": "#/definitions/Maybe_String"
+        },
+        "matches": {
+          "$ref": "#/definitions/Maybe_String"
+        },
+        "not": {
+          "$ref": "#/definitions/Maybe_SerializableRule"
+        },
+        "pattern": {
+          "$ref": "#/definitions/Maybe_PatternStyle"
+        },
+        "precedes": {
+          "$ref": "#/definitions/Maybe_Relation"
+        },
+        "regex": {
+          "$ref": "#/definitions/Maybe_String"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SerializableStopBy": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "neighbor",
+            "end"
+          ]
+        },
+        {
+          "type": "object",
+          "required": [
+            "rule"
+          ],
+          "properties": {
+            "rule": {
+              "$ref": "#/definitions/SerializableRule"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Severity": {
+      "oneOf": [
+        {
+          "description": "A kind reminder for code with potential improvement.",
+          "type": "string",
+          "enum": [
+            "hint"
+          ]
+        },
+        {
+          "description": "A suggestion that code can be improved or optimized.",
+          "type": "string",
+          "enum": [
+            "info"
+          ]
+        },
+        {
+          "description": "A warning that code might produce bugs or does not follow best practice.",
+          "type": "string",
+          "enum": [
+            "warning"
+          ]
+        },
+        {
+          "description": "An error that code produces bugs or has logic errors.",
+          "type": "string",
+          "enum": [
+            "error"
+          ]
+        },
+        {
+          "description": "Turns off the rule.",
+          "type": "string",
+          "enum": [
+            "off"
+          ]
+        }
+      ]
+    },
+    "StringCase": {
+      "type": "string",
+      "enum": [
+        "lowerCase",
+        "upperCase",
+        "capitalize",
+        "camelCase",
+        "snakeCase",
+        "kebabCase",
+        "pascalCase"
+      ]
+    },
+    "Substring": {
+      "type": "object",
+      "required": [
+        "source"
+      ],
+      "properties": {
+        "endChar": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "source": {
+          "type": "string"
+        },
+        "startChar": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        }
+      }
+    },
+    "Transformation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "substring"
+          ],
+          "properties": {
+            "substring": {
+              "$ref": "#/definitions/Substring"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "replace"
+          ],
+          "properties": {
+            "replace": {
+              "$ref": "#/definitions/Replace"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "convert"
+          ],
+          "properties": {
+            "convert": {
+              "$ref": "#/definitions/Convert"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}
