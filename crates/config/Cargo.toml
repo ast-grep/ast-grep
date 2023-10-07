@@ -27,4 +27,4 @@ schemars = "0.8.15"
 
 [dev-dependencies]
 tempdir = "0.3"
-tree-sitter-typescript = "0.20.2"
+tree-sitter-typescript = "0.20.3"

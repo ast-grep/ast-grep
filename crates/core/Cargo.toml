@@ -23,4 +23,4 @@ tree-sitter.workspace = true
 default = ["regex"]
 
 [dev-dependencies]
-tree-sitter-typescript = "0.20.2"
+tree-sitter-typescript = "0.20.3"
