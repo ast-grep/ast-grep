@@ -42,15 +42,7 @@ pub enum Severity {
 pub struct SerializableRuleCore<L: Language> {
   /// Specify the language to parse and the file extension to include in matching.
   pub language: L,
-  /// A rule object to find matching AST nodes. We have three categories of rules in ast-grep.
-  ///
-  /// * Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.
-  ///
-  /// * Relational: filter matched target according to their position relative to other nodes.
-  ///
-  /// * Composite: use logic operation all/any/not to compose the above rules to larger rules.
-  ///
-  /// Every rule has it's unique name so we can combine several rules in one object.
+  /// A rule object to find matching AST nodes
   pub rule: SerializableRule,
   /// Additional meta variables pattern to filter matching
   pub constraints: Option<HashMap<String, SerializableMetaVarMatcher>>,
