@@ -32,6 +32,7 @@ pub struct SerializableRule {
   // avoid embedding AtomicRule/RelationalRule/CompositeRule with flatten here for better error message
 
   // atomic
+  /// A pattern string or a pattern object.
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub pattern: Maybe<PatternStyle>,
   /// The kind name of the node to match. You can look up code's kind names in playground.
@@ -41,21 +42,35 @@ pub struct SerializableRule {
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub regex: Maybe<String>,
   // relational
+  /// `inside` accepts a relational rule object.
+  /// the target node must appear inside of another node matching the `inside` sub-rule.
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub inside: Maybe<Box<Relation>>,
+  /// `has` accepts a relational rule object.
+  /// the target node must has a descendant node matching the `has` sub-rule.
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub has: Maybe<Box<Relation>>,
+  /// `precedes` accepts a relational rule object.
+  /// the target node must appear before another node matching the `precedes` sub-rule.
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub precedes: Maybe<Box<Relation>>,
+  /// `follows` accepts a relational rule object.
+  /// the target node must appear after another node matching the `follows` sub-rule.
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub follows: Maybe<Box<Relation>>,
   // composite
+  /// A list of sub rules and matches a node if all of sub rules match.
+  /// The meta variables of the matched node contain all variables from the sub-rules.
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub all: Maybe<Vec<SerializableRule>>,
+  /// A list of sub rules and matches a node if any of sub rules match.
+  /// The meta variables of the matched node only contain those of the matched sub-rule.
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub any: Maybe<Vec<SerializableRule>>,
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  /// A single sub-rule and matches a node if the sub rule does not match.
   pub not: Maybe<Box<SerializableRule>>,
+  /// A utility rule id and matches a node if the utility rule matches.
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub matches: Maybe<String>,
 }
@@ -97,6 +112,8 @@ pub struct AtomicRule {
   pub regex: Option<String>,
 }
 
+/// A String pattern will match one single AST node according to pattern syntax.
+/// Or an object with field `context` and `selector`.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(untagged)]
 pub enum PatternStyle {
