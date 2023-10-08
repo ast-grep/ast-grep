@@ -18,9 +18,13 @@ use thiserror::Error;
 type Pattern<L> = PatternCore<StrDoc<L>>;
 
 /// We have three kinds of rules in ast-grep.
+///
 /// * Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.
+///
 /// * Relational: filter matched target according to their position relative to other nodes.
+///
 /// * Composite: use logic operation all/any/not to compose the above rules to larger rules.
+///
 /// Every rule has it's unique name so we can combine several rules in one object.
 #[derive(Serialize, Deserialize, Clone, Default, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -30,8 +34,10 @@ pub struct SerializableRule {
   // atomic
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub pattern: Maybe<PatternStyle>,
+  /// The kind name of the node to match. You can look up code's kind names in playground.
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub kind: Maybe<String>,
+  /// A Rust regular expression to match the node's text. https://docs.rs/regex/latest/regex/#syntax
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub regex: Maybe<String>,
   // relational

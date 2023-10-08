@@ -42,7 +42,7 @@ pub enum Severity {
 pub struct SerializableRuleCore<L: Language> {
   /// Specify the language to parse and the file extension to include in matching.
   pub language: L,
-  /// Pattern rules to find matching AST nodes
+  /// A rule object to find matching AST nodes
   pub rule: SerializableRule,
   /// Additional meta variables pattern to filter matching
   pub constraints: Option<HashMap<String, SerializableMetaVarMatcher>>,

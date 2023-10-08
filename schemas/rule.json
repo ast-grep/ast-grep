@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "SerializableRuleConfig_for_Language",
+  "title": "ast-grep rule",
   "type": "object",
   "required": [
     "id",
@@ -80,7 +80,7 @@
       ]
     },
     "rule": {
-      "description": "Pattern rules to find matching AST nodes",
+      "description": "A rule object to find matching AST nodes",
       "allOf": [
         {
           "$ref": "#/definitions/SerializableRule"
@@ -193,7 +193,7 @@
       ]
     },
     "Relation": {
-      "description": "We have three kinds of rules in ast-grep. * Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind. * Relational: filter matched target according to their position relative to other nodes. * Composite: use logic operation all/any/not to compose the above rules to larger rules. Every rule has it's unique name so we can combine several rules in one object.",
+      "description": "A relational rule object, which is a rule object with two additional fields stopBy and field.",
       "type": "object",
       "properties": {
         "all": {
@@ -218,7 +218,12 @@
           "$ref": "#/definitions/Maybe_Relation"
         },
         "kind": {
-          "$ref": "#/definitions/Maybe_String"
+          "description": "The kind name of the node to match. You can look up code's kind names in playground.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Maybe_String"
+            }
+          ]
         },
         "matches": {
           "$ref": "#/definitions/Maybe_String"
@@ -233,7 +238,12 @@
           "$ref": "#/definitions/Maybe_Relation"
         },
         "regex": {
-          "$ref": "#/definitions/Maybe_String"
+          "description": "A Rust regular expression to match the node's text. https://docs.rs/regex/latest/regex/#syntax",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Maybe_String"
+            }
+          ]
         },
         "stopBy": {
           "default": "neighbor",
@@ -319,7 +329,7 @@
       ]
     },
     "SerializableRule": {
-      "description": "We have three kinds of rules in ast-grep. * Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind. * Relational: filter matched target according to their position relative to other nodes. * Composite: use logic operation all/any/not to compose the above rules to larger rules. Every rule has it's unique name so we can combine several rules in one object.",
+      "description": "We have three kinds of rules in ast-grep.\n\n* Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.\n\n* Relational: filter matched target according to their position relative to other nodes.\n\n* Composite: use logic operation all/any/not to compose the above rules to larger rules.\n\nEvery rule has it's unique name so we can combine several rules in one object.",
       "type": "object",
       "properties": {
         "all": {
@@ -338,7 +348,12 @@
           "$ref": "#/definitions/Maybe_Relation"
         },
         "kind": {
-          "$ref": "#/definitions/Maybe_String"
+          "description": "The kind name of the node to match. You can look up code's kind names in playground.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Maybe_String"
+            }
+          ]
         },
         "matches": {
           "$ref": "#/definitions/Maybe_String"
@@ -353,7 +368,12 @@
           "$ref": "#/definitions/Maybe_Relation"
         },
         "regex": {
-          "$ref": "#/definitions/Maybe_String"
+          "description": "A Rust regular expression to match the node's text. https://docs.rs/regex/latest/regex/#syntax",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Maybe_String"
+            }
+          ]
         }
       },
       "additionalProperties": false

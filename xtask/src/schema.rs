@@ -12,7 +12,8 @@ use std::borrow::Cow;
 use std::fs::File;
 
 pub fn generate_schema() -> Result<()> {
-  let schema = schema_for!(SerializableRuleConfig<PlaceholderLang>);
+  let mut schema = schema_for!(SerializableRuleConfig<PlaceholderLang>);
+  schema.schema.metadata().title = Some("ast-grep rule".to_string());
   let mut file = File::create("schemas/rule.json")?;
   to_writer_pretty(&mut file, &schema).context("cannot print JSON schema")
 }

@@ -11,6 +11,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
+/// A relational rule object, which is a rule object with two additional fields stopBy and field.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Relation {
@@ -64,8 +65,6 @@ impl<L: Language> Matcher<L> for Inside<L> {
   }
 }
 
-// NOTE: Has is different from other relational rules
-// it does not use StopBy
 pub struct Has<L: Language> {
   inner: Rule<L>,
   stop_by: StopBy<L>,
