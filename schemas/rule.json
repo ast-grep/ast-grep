@@ -80,7 +80,7 @@
       ]
     },
     "rule": {
-      "description": "A rule object to find matching AST nodes",
+      "description": "A rule object to find matching AST nodes. We have three categories of rules in ast-grep.\n\n* Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.\n\n* Relational: filter matched target according to their position relative to other nodes.\n\n* Composite: use logic operation all/any/not to compose the above rules to larger rules.\n\nEvery rule has it's unique name so we can combine several rules in one object.",
       "allOf": [
         {
           "$ref": "#/definitions/SerializableRule"
@@ -126,6 +126,7 @@
   },
   "definitions": {
     "Convert": {
+      "description": "Converts the source meta variable's text content to a specified case format.",
       "type": "object",
       "required": [
         "source",
@@ -133,6 +134,7 @@
       ],
       "properties": {
         "separatedBy": {
+          "description": "optional separators to specify how to separate word",
           "type": [
             "array",
             "null"
@@ -142,10 +144,16 @@
           }
         },
         "source": {
+          "description": "source meta variable to be transformed",
           "type": "string"
         },
         "toCase": {
-          "$ref": "#/definitions/StringCase"
+          "description": "the target case format to convert the text content to",
+          "allOf": [
+            {
+              "$ref": "#/definitions/StringCase"
+            }
+          ]
         }
       }
     },
@@ -184,9 +192,11 @@
           ],
           "properties": {
             "context": {
+              "description": "The surrounding code that helps to resolve any ambiguity in the syntax.",
               "type": "string"
             },
             "selector": {
+              "description": "The sub-syntax node kind that is the actual matcher of the pattern.",
               "type": "string"
             }
           }
@@ -194,7 +204,6 @@
       ]
     },
     "Relation": {
-      "description": "A relational rule object, which is a rule object with two additional fields stopBy and field.",
       "type": "object",
       "properties": {
         "all": {
@@ -302,6 +311,7 @@
       }
     },
     "Replace": {
+      "description": "Replaces a substring in the meta variable's text content with another string.",
       "type": "object",
       "required": [
         "by",
@@ -310,12 +320,15 @@
       ],
       "properties": {
         "by": {
+          "description": "the replacement string",
           "type": "string"
         },
         "replace": {
+          "description": "a regex to find substring to be replaced",
           "type": "string"
         },
         "source": {
+          "description": "source meta variable to be transformed",
           "type": "string"
         }
       }
@@ -375,7 +388,6 @@
       ]
     },
     "SerializableRule": {
-      "description": "We have three kinds of rules in ast-grep.\n\n* Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.\n\n* Relational: filter matched target according to their position relative to other nodes.\n\n* Composite: use logic operation all/any/not to compose the above rules to larger rules.\n\nEvery rule has it's unique name so we can combine several rules in one object.",
       "type": "object",
       "properties": {
         "all": {
@@ -544,12 +556,14 @@
       ]
     },
     "Substring": {
+      "description": "Extracts a substring from the meta variable's text content.\n\nBoth `start_char` and `end_char` support negative indexing, which counts character from the end of an array, moving backwards.",
       "type": "object",
       "required": [
         "source"
       ],
       "properties": {
         "endChar": {
+          "description": "optional ending character index of the substring, defaults to the end of the string.",
           "type": [
             "integer",
             "null"
@@ -557,9 +571,11 @@
           "format": "int32"
         },
         "source": {
+          "description": "source meta variable to be transformed",
           "type": "string"
         },
         "startChar": {
+          "description": "optional starting character index of the substring, defaults to 0.",
           "type": [
             "integer",
             "null"
@@ -569,6 +585,7 @@
       }
     },
     "Transformation": {
+      "description": "Represents a transformation that can be applied to a matched AST node. Available transformations are `substring`, `replace` and `convert`.",
       "oneOf": [
         {
           "type": "object",

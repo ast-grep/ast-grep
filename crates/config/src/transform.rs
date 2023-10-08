@@ -23,11 +23,18 @@ fn get_text_from_env<D: Doc>(src: &str, ctx: &mut Ctx<D>) -> Option<String> {
   Some(<D::Source as Content>::encode_bytes(bytes).into_owned())
 }
 
+/// Extracts a substring from the meta variable's text content.
+///
+/// Both `start_char` and `end_char` support negative indexing,
+/// which counts character from the end of an array, moving backwards.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Substring {
+  /// source meta variable to be transformed
   source: String,
+  /// optional starting character index of the substring, defaults to 0.
   start_char: Option<i32>,
+  /// optional ending character index of the substring, defaults to the end of the string.
   end_char: Option<i32>,
 }
 
@@ -61,11 +68,15 @@ fn resolve_char(opt: &Option<i32>, dft: i32, len: i32) -> usize {
   }
 }
 
+/// Replaces a substring in the meta variable's text content with another string.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Replace {
+  /// source meta variable to be transformed
   source: String,
+  /// a regex to find substring to be replaced
   replace: String,
+  /// the replacement string
   by: String,
 }
 impl Replace {
@@ -76,11 +87,15 @@ impl Replace {
   }
 }
 
+/// Converts the source meta variable's text content to a specified case format.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Convert {
+  /// source meta variable to be transformed
   source: String,
+  /// the target case format to convert the text content to
   to_case: StringCase,
+  /// optional separators to specify how to separate word
   separated_by: Option<Vec<Separator>>,
 }
 impl Convert {
@@ -90,6 +105,8 @@ impl Convert {
   }
 }
 
+/// Represents a transformation that can be applied to a matched AST node.
+/// Available transformations are `substring`, `replace` and `convert`.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum Transformation {

@@ -17,15 +17,6 @@ use thiserror::Error;
 
 type Pattern<L> = PatternCore<StrDoc<L>>;
 
-/// We have three kinds of rules in ast-grep.
-///
-/// * Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.
-///
-/// * Relational: filter matched target according to their position relative to other nodes.
-///
-/// * Composite: use logic operation all/any/not to compose the above rules to larger rules.
-///
-/// Every rule has it's unique name so we can combine several rules in one object.
 #[derive(Serialize, Deserialize, Clone, Default, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SerializableRule {
@@ -118,7 +109,12 @@ pub struct AtomicRule {
 #[serde(untagged)]
 pub enum PatternStyle {
   Str(String),
-  Contextual { context: String, selector: String },
+  Contextual {
+    /// The surrounding code that helps to resolve any ambiguity in the syntax.
+    context: String,
+    /// The sub-syntax node kind that is the actual matcher of the pattern.
+    selector: String,
+  },
 }
 
 #[derive(Serialize, Deserialize, Clone, Default, JsonSchema)]
