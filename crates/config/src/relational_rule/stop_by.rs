@@ -7,8 +7,11 @@ use ast_grep_core::{Doc, Node};
 use schemars::JsonSchema;
 use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
+
 use std::fmt;
 
+// NB StopBy's JsonSchema is changed in xtask/schema.rs
+// revise schema is easier than manually implementation
 #[derive(Serialize, Clone, Default, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum SerializableStopBy {

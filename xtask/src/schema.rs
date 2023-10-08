@@ -21,6 +21,8 @@ pub fn generate_schema() -> Result<()> {
 fn tweak_schema(schema: &mut RootSchema) -> Result<()> {
   // better schema name
   schema.schema.metadata().title = Some("ast-grep rule".to_string());
+  // stopby's rule does not need to be nested
+  simplify_stop_by(schema)?;
   // using rule/relation will be too noisy
   let description = remove_recursive_rule_relation_description(schema)?;
   // set description to rule
@@ -42,6 +44,28 @@ fn remove_recursive_rule_relation_description(schema: &mut RootSchema) -> Result
     bail!("SerializableRule's type is not object!");
   };
   Ok(rule.metadata().description.take())
+}
+
+fn simplify_stop_by(schema: &mut RootSchema) -> Result<()> {
+  let definitions = &mut schema.definitions;
+  let Schema::Object(stop_by) = definitions.get_mut("SerializableStopBy").context("must have stopby")? else {
+    bail!("StopBy's type is not object!");
+  };
+  let one_ofs = stop_by
+    .subschemas()
+    .one_of
+    .as_mut()
+    .context("should have one_of")?;
+  let Schema::Object(rule) = &mut one_ofs[1] else {
+    bail!("type is not object!");
+  };
+  let rule = rule
+    .object()
+    .properties
+    .remove("rule")
+    .context("should have rule")?;
+  one_ofs[1] = rule;
+  Ok(())
 }
 
 #[derive(Clone)]

@@ -491,16 +491,7 @@
           ]
         },
         {
-          "type": "object",
-          "required": [
-            "rule"
-          ],
-          "properties": {
-            "rule": {
-              "$ref": "#/definitions/SerializableRule"
-            }
-          },
-          "additionalProperties": false
+          "$ref": "#/definitions/SerializableRule"
         }
       ]
     },
