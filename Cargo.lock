@@ -2442,6 +2442,9 @@ name = "xtask"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "ast-grep-config",
+ "ast-grep-core",
+ "schemars",
  "serde_json",
  "toml_edit",
 ]

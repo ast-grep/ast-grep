@@ -1,3 +1,4 @@
+mod schema;
 use anyhow::{bail, Context, Result};
 use serde_json::{from_str as parse_json, to_string_pretty, Value as JSON};
 use std::env::args;
@@ -6,18 +7,34 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use toml_edit::{value as to_toml, Document};
 
+enum Task {
+  Schema,
+  Release(String),
+}
+
+fn get_task() -> Result<Task> {
+  let message = "argument is missing. Example usage: \ncargo xtask 0.1.3\ncargo xtask schema";
+  let arg = args().skip(1).next().context(message)?;
+  if arg == "schema" {
+    Ok(Task::Schema)
+  } else {
+    Ok(Task::Release(arg))
+  }
+}
+
 fn main() -> Result<()> {
-  let version = get_new_version()?;
+  match get_task()? {
+    Task::Schema => schema::generate_schema(),
+    Task::Release(version) => release_new_version(&version),
+  }
+}
+
+fn release_new_version(version: &str) -> Result<()> {
   check_git_status()?;
   bump_version(&version)?;
   update_and_commit_changelog()?;
   commit_and_tag(&version)?;
   Ok(())
-}
-
-fn get_new_version() -> Result<String> {
-  let message = "Version number is missing. Example usage: cargo xtask 0.1.3";
-  args().skip(1).next().context(message)
 }
 
 fn check_git_status() -> Result<()> {
