@@ -31,6 +31,7 @@ fn main() -> Result<()> {
 
 fn release_new_version(version: &str) -> Result<()> {
   check_git_status()?;
+  schema::generate_schema()?;
   bump_version(&version)?;
   update_and_commit_changelog()?;
   commit_and_tag(&version)?;
