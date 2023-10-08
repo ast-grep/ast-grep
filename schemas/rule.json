@@ -1,8 +1,10 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "SerializableRuleConfig",
+  "title": "SerializableRuleConfig_for_Language",
   "type": "object",
   "required": [
+    "id",
+    "language",
     "rule"
   ],
   "properties": {
@@ -49,7 +51,11 @@
     },
     "language": {
       "description": "Specify the language to parse and the file extension to include in matching.",
-      "type": "string"
+      "allOf": [
+        {
+          "$ref": "#/definitions/Language"
+        }
+      ]
     },
     "message": {
       "description": "Main message highlighting why this rule fired. It should be single line and concise, but specific enough to be understood without additional context.",
@@ -142,6 +148,9 @@
           "$ref": "#/definitions/StringCase"
         }
       }
+    },
+    "Language": {
+      "type": "string"
     },
     "Maybe_Array_of_SerializableRule": {
       "type": "array",

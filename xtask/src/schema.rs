@@ -6,15 +6,15 @@ use schemars::{
   schema::{InstanceType, Schema, SchemaObject},
   schema_for, JsonSchema,
 };
-use serde_json::to_string_pretty;
+use serde_json::to_writer_pretty;
 
 use std::borrow::Cow;
+use std::fs::File;
 
 pub fn generate_schema() -> Result<()> {
   let schema = schema_for!(SerializableRuleConfig<PlaceholderLang>);
-  let json = to_string_pretty(&schema).context("cannot print JSON schema")?;
-  println!("{}", json);
-  Ok(())
+  let mut file = File::create("schemas/rule.json")?;
+  to_writer_pretty(&mut file, &schema).context("cannot print JSON schema")
 }
 
 #[derive(Clone)]
