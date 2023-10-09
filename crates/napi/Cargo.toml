@@ -8,6 +8,7 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
+edition.workspace = true
 
 [dependencies]
 ast-grep-core.workspace = true
