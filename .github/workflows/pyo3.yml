@@ -59,7 +59,7 @@ jobs:
           path: dist
 
   windows:
-    runs-on: windows-2019
+    runs-on: windows-latest
     strategy:
       matrix:
         platform:
