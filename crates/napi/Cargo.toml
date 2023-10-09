@@ -2,7 +2,6 @@
 name = "ast-grep-napi"
 description = "Search and Rewrite code at large scale using precise AST pattern"
 keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
-edition = "2018"
 
 authors.workspace = true
 license.workspace = true
