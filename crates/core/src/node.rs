@@ -181,7 +181,7 @@ impl<'r, D: Doc> Node<'r, D> {
     self.inner.to_sexp()
   }
 
-  pub fn lang(&self) -> &D::Lang {
+  pub fn lang(&self) -> &'r D::Lang {
     self.root.lang()
   }
 }
@@ -232,7 +232,7 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
     }
   }
 
-  pub fn root(&self) -> &Root<StrDoc<L>> {
+  pub fn root(&self) -> &'r Root<StrDoc<L>> {
     self.root
   }
 }

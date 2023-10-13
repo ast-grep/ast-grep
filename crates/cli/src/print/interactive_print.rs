@@ -207,7 +207,7 @@ fn apply_rewrite(diffs: Vec<Diff>) -> String {
   let Some(first) = diffs.first() else {
     return new_content
   };
-  let old_content = first.node_match.ancestors().last().unwrap().text();
+  let old_content = first.node_match.root().get_text();
   let mut start = 0;
   for diff in diffs {
     let range = diff.node_match.range();
@@ -306,6 +306,19 @@ fix: ($B, lifecycle.update(['$A']))",
     );
     let ret = apply_rewrite(diffs);
     assert_eq!("Some(1)", ret);
+  }
+
+  // https://github.com/ast-grep/ast-grep/issues/668
+  #[test]
+  fn test_rewrite_with_empty_lines() {
+    let root = AstGrep::new("\n\n\nSome(1)", SupportLang::TypeScript.into());
+    let diffs = make_diffs(
+      &root,
+      "Some($A)",
+      &Fixer::try_new("$A", &SupportLang::TypeScript).expect("fixer must compile"),
+    );
+    let ret = apply_rewrite(diffs);
+    assert_eq!("\n\n\n1", ret);
   }
 
   fn test_open_editor_respect_editor_env() {
