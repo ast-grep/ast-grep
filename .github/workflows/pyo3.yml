@@ -10,9 +10,8 @@ env:
 
 
 defaults:
-    run:
-      working-directory: ./crates/pyo3
-
+  run:
+    working-directory: ./crates/pyo3
 on:
   workflow_dispatch:
     inputs:
