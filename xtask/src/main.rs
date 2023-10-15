@@ -55,7 +55,7 @@ fn check_git_status() -> Result<()> {
 fn bump_version(version: &str) -> Result<()> {
   update_npm(&version)?;
   update_napi(&version)?;
-  update_pypi(&version)?;
+  update_python(&version)?;
   update_crates(&version)?;
   update_cargo_lock()?;
   Ok(())
@@ -136,12 +136,14 @@ fn update_crates(version: &str) -> Result<()> {
   Ok(())
 }
 
-fn update_pypi(version: &str) -> Result<()> {
-  // update pyproject.toml
-  let pyproject = Path::new("pyproject.toml");
-  let mut toml: Document = read_to_string(&pyproject)?.parse()?;
-  toml["project"]["version"] = to_toml(version);
-  fs::write(pyproject, toml.to_string())?;
+fn update_python(version: &str) -> Result<()> {
+  // update pypi pyproject.toml and pyo3 bindings
+  for path in ["pyproject.toml", "crates/pyo3/pyproject.toml"] {
+    let pyproject = Path::new(path);
+    let mut toml: Document = read_to_string(&pyproject)?.parse()?;
+    toml["project"]["version"] = to_toml(version);
+    fs::write(pyproject, toml.to_string())?;
+  }
   Ok(())
 }
 
