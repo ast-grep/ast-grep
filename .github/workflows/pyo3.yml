@@ -51,6 +51,7 @@ jobs:
           target: ${{ matrix.target }}
           manylinux: auto
           args: --release --out dist --find-interpreter
+          working-directory: crates/pyo3
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
@@ -79,6 +80,7 @@ jobs:
         with:
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter
+          working-directory: crates/pyo3
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
@@ -103,6 +105,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
+          working-directory: crates/pyo3
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
@@ -118,6 +121,7 @@ jobs:
         with:
           command: sdist
           args: --out dist
+          working-directory: crates/pyo3
       - name: Upload sdist
         uses: actions/upload-artifact@v3
         with:
@@ -141,3 +145,4 @@ jobs:
         with:
           command: upload
           args: --skip-existing *
+          working-directory: crates/pyo3
