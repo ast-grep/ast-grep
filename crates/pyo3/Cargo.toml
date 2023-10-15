@@ -16,4 +16,4 @@ name = "ast_grep"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.19.0"
+pyo3 = { version = "0.19.0", optional = true }

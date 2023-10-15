@@ -1,4 +1,5 @@
 #![cfg(not(test))]
+#![cfg(feature = "pyo3")]
 use pyo3::prelude::*;
 
 /// Formats the sum of two numbers as string.
