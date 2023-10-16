@@ -1,6 +1,6 @@
 #![cfg(not(test))]
 #![cfg(feature = "pyo3")]
-use ast_grep_core::{AstGrep, Language, StrDoc};
+use ast_grep_core::{pinned::PinnedNodeData, AstGrep, Language, Node, StrDoc};
 use ast_grep_language::SupportLang;
 use pyo3::prelude::*;
 
@@ -30,8 +30,13 @@ impl SgRoot {
     }
   }
 
-  fn root(&self) -> SgNode {
-    SgNode {}
+  fn root(slf: PyRef<Self>) -> SgNode {
+    let tree = unsafe { &*(&slf.inner as *const AstGrep<_>) } as &'static AstGrep<_>;
+    let inner = tree.root();
+    SgNode {
+      inner,
+      root: slf.into(),
+    }
   }
 
   fn filename(&self) -> &str {
@@ -40,4 +45,19 @@ impl SgRoot {
 }
 
 #[pyclass]
-struct SgNode {}
+struct SgNode {
+  inner: Node<'static, StrDoc<SupportLang>>,
+  // refcount SgRoot
+  root: Py<SgRoot>,
+}
+
+// it is safe to send tree-sitter Node
+// because it is refcnt and concurrency safe
+unsafe impl Send for SgNode {}
+
+#[pymethods]
+impl SgNode {
+  fn to_sexp(&self, py: Python) -> String {
+    self.inner.to_sexp().to_string()
+  }
+}

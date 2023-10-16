@@ -21,4 +21,6 @@ ast-grep-config.workspace = true
 ast-grep-language.workspace = true
 pyo3 = { version = "0.20.0", optional = true }
 
-# features.default = ["pyo3"]
+# uncomment default features when developing pyo3
+# [features]
+# default = ["pyo3"]
