@@ -2,7 +2,31 @@ use crate::matcher::NodeMatch;
 use crate::node::{Node, Root};
 use crate::Doc;
 
-// TODO: add comments
+// TODO: refine comments
+// ast-grep Node contains a reference to Root. It implies that
+// node can be used only when the Root is valid and not dropped.
+// By default, tree-sitter Node<'r> is scoped by ast Root's lifetime
+// That is, Node can be only used when root is on the call stack (RAII)
+// It is usually sufficient but for following scenario the brwchck is too conservative:
+// 1. passing Root and Node across threads
+// 2. passing Root and Node across FFI boundary (from Rust to napi/pyo3)
+//
+// This resembles self-referencing pattern and we can use solution similar to PinBox.
+// Actually, tree-sitter's Node reference is already pointing to a heap address.
+// N.B. it is not documented but can be inferred from the source code and concurrency doc paragraph.
+// https://github.com/tree-sitter/tree-sitter/blob/20924fa4cdeb10d82ac308481e39bf8519334e55/lib/src/tree.c#L9-L20
+// https://github.com/tree-sitter/tree-sitter/blob/20924fa4cdeb10d82ac308481e39bf8519334e55/lib/src/tree.c#L37-L39
+// https://tree-sitter.github.io/tree-sitter/using-parsers#concurrency
+//
+// So **as long as Root is not dropped, the Tree will not be freed. And Node will be valid.**
+//
+// PinnedNodeData provides a systematical way to keep Root live and `T` can be anything containing valid Nodes.
+// Nodes' lifetime is 'static, meaning the Node is not borrow checked instead of living throughout the program.
+// There are two ways to use PinnedNodeData
+// 1. use it by borrowing. PinnedNodeData guarantees Root is alive and Node in T is valid.
+//    Notable example is sending Node across threads.
+// 2. take its ownership. Users should take extra care to keep Root alive.
+//    Notable example is sending Root to JavaScript/Python heap.
 #[doc(hidden)]
 pub struct PinnedNodeData<D: Doc, T> {
   pin: Root<D>,
