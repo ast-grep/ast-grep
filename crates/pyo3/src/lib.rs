@@ -1,6 +1,6 @@
 #![cfg(not(test))]
 #![cfg(feature = "pyo3")]
-use ast_grep_core::{pinned::PinnedNodeData, AstGrep, Language, Node, StrDoc};
+use ast_grep_core::{AstGrep, Language, Node, StrDoc};
 use ast_grep_language::SupportLang;
 use pyo3::prelude::*;
 
@@ -57,7 +57,59 @@ unsafe impl Send for SgNode {}
 
 #[pymethods]
 impl SgNode {
-  fn to_sexp(&self, py: Python) -> String {
-    self.inner.to_sexp().to_string()
+  /*----------  Node Inspection ----------*/
+  // TODO range
+
+  fn is_leaf(&self) -> bool {
+    self.inner.is_leaf()
+  }
+
+  fn is_named(&self) -> bool {
+    self.inner.is_named()
+  }
+
+  fn is_named_leaf(&self) -> bool {
+    self.inner.is_named_leaf()
+  }
+
+  fn kind(&self) -> String {
+    self.inner.kind().to_string()
+  }
+
+  fn text(&self) -> String {
+    self.inner.text().to_string()
+  }
+
+  /*---------- Search Refinement  ----------*/
+  fn matches(&self, m: String) -> bool {
+    self.inner.matches(&*m)
+  }
+
+  fn inside(&self, m: String) -> bool {
+    self.inner.inside(&*m)
+  }
+
+  fn has(&self, m: String) -> bool {
+    self.inner.has(&*m)
+  }
+
+  fn precedes(&self, m: String) -> bool {
+    self.inner.precedes(&*m)
+  }
+
+  fn follows(&self, m: String) -> bool {
+    self.inner.follows(&*m)
+  }
+
+  // TODO get_match
+  // TODO get_multiple_matches
+
+  /*---------- Tree Traversal  ----------*/
+  fn find(&self, pattern: String) -> Option<Self> {
+    let nm = self.inner.find(&*pattern)?;
+    Some(Self {
+      inner: nm.into(),
+      root: self.root.clone(),
+    })
   }
 }
