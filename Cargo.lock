@@ -232,6 +232,9 @@ dependencies = [
 name = "ast-grep-pyo3"
 version = "0.12.5"
 dependencies = [
+ "ast-grep-config",
+ "ast-grep-core",
+ "ast-grep-language",
  "pyo3",
 ]
 

@@ -16,4 +16,9 @@ name = "ast_grep_pyo3"
 crate-type = ["cdylib"]
 
 [dependencies]
+ast-grep-core.workspace = true
+ast-grep-config.workspace = true
+ast-grep-language.workspace = true
 pyo3 = { version = "0.20.0", optional = true }
+
+# features.default = ["pyo3"]
