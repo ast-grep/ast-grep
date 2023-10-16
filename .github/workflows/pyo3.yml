@@ -62,23 +62,17 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        platform:
-          - target: x86_64-pc-windows-msvc
-            arch: x64
-          - target: i686-pc-windows-msvc
-            arch: x86
-          - target: aarch64-pc-windows-msvc
-            arch: x64
+        target: [x64, x86]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          architecture: ${{ matrix.platform.arch }}
+          architecture: ${{ matrix.target }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
-          target: ${{ matrix.platform.target }}
+          target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           working-directory: crates/pyo3
       - name: Upload wheels
