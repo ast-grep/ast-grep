@@ -139,4 +139,6 @@ jobs:
         with:
           command: upload
           args: --skip-existing *
-          working-directory: crates/pyo3
+          # note, release does not need working-directory
+          # because artifacts are stored under the root dir
+          # and it does not involve pyproject.toml
