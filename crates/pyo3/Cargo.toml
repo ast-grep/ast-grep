@@ -25,4 +25,4 @@ pythonize = { version = "0.20.0", optional = true }
 # uncomment default features when developing pyo3
 [features]
 # default = ["python"]
-python = ["pythonize", "pyo3"]
+python = ["pythonize", "pyo3", "pyo3/extension-module"]
