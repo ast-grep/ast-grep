@@ -1,9 +1,11 @@
 #![cfg(not(test))]
 #![cfg(feature = "python")]
+use ast_grep_config::SerializableRuleCore;
 use ast_grep_core::{AstGrep, Language, Node, StrDoc};
 use ast_grep_language::SupportLang;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use pythonize::depythonize;
 
 /// A Python module implemented in Rust.
 #[pymodule]
@@ -108,12 +110,9 @@ impl SgNode {
   /*---------- Tree Traversal  ----------*/
   #[pyo3(signature = (**kwargs))]
   fn find(&self, kwargs: Option<&PyDict>) -> Option<Self> {
-    let pattern = kwargs?
-      .get_item("pattern")
-      .unwrap()?
-      .extract::<String>()
-      .unwrap();
-    let nm = self.inner.find(&*pattern)?;
+    let config: SerializableRuleCore<SupportLang> = depythonize(kwargs?).unwrap();
+    let matcher = config.get_matcher(&Default::default()).unwrap();
+    let nm = self.inner.find(matcher)?;
     Some(Self {
       inner: nm.into(),
       root: self.root.clone(),
