@@ -236,6 +236,7 @@ dependencies = [
  "ast-grep-core",
  "ast-grep-language",
  "pyo3",
+ "pythonize",
 ]
 
 [[package]]
@@ -1369,6 +1370,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.23",
+]
+
+[[package]]
+name = "pythonize"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffd1c3ef39c725d63db5f9bc455461bafd80540cb7824c61afb823501921a850"
+dependencies = [
+ "pyo3",
+ "serde",
 ]
 
 [[package]]

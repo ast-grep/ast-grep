@@ -1,8 +1,9 @@
 #![cfg(not(test))]
-#![cfg(feature = "pyo3")]
+#![cfg(feature = "python")]
 use ast_grep_core::{AstGrep, Language, Node, StrDoc};
 use ast_grep_language::SupportLang;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 /// A Python module implemented in Rust.
 #[pymodule]
@@ -105,7 +106,13 @@ impl SgNode {
   // TODO get_multiple_matches
 
   /*---------- Tree Traversal  ----------*/
-  fn find(&self, pattern: String) -> Option<Self> {
+  #[pyo3(signature = (**kwargs))]
+  fn find(&self, kwargs: Option<&PyDict>) -> Option<Self> {
+    let pattern = kwargs?
+      .get_item("pattern")
+      .unwrap()?
+      .extract::<String>()
+      .unwrap();
     let nm = self.inner.find(&*pattern)?;
     Some(Self {
       inner: nm.into(),

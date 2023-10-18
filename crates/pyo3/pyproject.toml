@@ -36,4 +36,4 @@ Changelog = "https://github.com/ast-grep/ast-grep/blob/main/CHANGELOG.md"
 
 
 [tool.maturin]
-features = ["pyo3", "pyo3/extension-module"]
+features = ["python"]
