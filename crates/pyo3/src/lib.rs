@@ -1,6 +1,6 @@
 #![cfg(not(test))]
 #![cfg(feature = "python")]
-use ast_grep_config::SerializableRuleCore;
+use ast_grep_config::{SerializableRule, SerializableRuleCore};
 use ast_grep_core::{AstGrep, Language, Node, StrDoc};
 use ast_grep_language::SupportLang;
 use pyo3::prelude::*;
@@ -108,10 +108,21 @@ impl SgNode {
   // TODO get_multiple_matches
 
   /*---------- Tree Traversal  ----------*/
-  #[pyo3(signature = (**kwargs))]
-  fn find(&self, kwargs: Option<&PyDict>) -> Option<Self> {
+  #[pyo3(signature = (config=None, **kwargs))]
+  fn find(&self, config: Option<&PyDict>, kwargs: Option<&PyDict>) -> Option<Self> {
     let lang = self.inner.lang();
-    let config = rule_from_py_dict(lang, kwargs?);
+    let config = if let Some(config) = config {
+      config_from_dict(lang, config)
+    } else {
+      let rule = rule_from_dict(kwargs?);
+      SerializableRuleCore {
+        language: *lang,
+        rule,
+        constraints: None,
+        utils: None,
+        transform: None,
+      }
+    };
     let matcher = config.get_matcher(&Default::default()).unwrap();
     let nm = self.inner.find(matcher)?;
     Some(Self {
@@ -121,7 +132,11 @@ impl SgNode {
   }
 }
 
-fn rule_from_py_dict(lang: &SupportLang, dict: &PyDict) -> SerializableRuleCore<SupportLang> {
-  dict.set_item("language", lang.to_string());
+fn config_from_dict(lang: &SupportLang, dict: &PyDict) -> SerializableRuleCore<SupportLang> {
+  dict.set_item("language", lang.to_string()).unwrap();
+  depythonize(dict).unwrap()
+}
+
+fn rule_from_dict(dict: &PyDict) -> SerializableRule {
   depythonize(dict).unwrap()
 }
