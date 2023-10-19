@@ -110,7 +110,8 @@ impl SgNode {
   /*---------- Tree Traversal  ----------*/
   #[pyo3(signature = (**kwargs))]
   fn find(&self, kwargs: Option<&PyDict>) -> Option<Self> {
-    let config: SerializableRuleCore<SupportLang> = depythonize(kwargs?).unwrap();
+    let lang = self.inner.lang();
+    let config = rule_from_py_dict(lang, kwargs?);
     let matcher = config.get_matcher(&Default::default()).unwrap();
     let nm = self.inner.find(matcher)?;
     Some(Self {
@@ -118,4 +119,9 @@ impl SgNode {
       root: self.root.clone(),
     })
   }
+}
+
+fn rule_from_py_dict(lang: &SupportLang, dict: &PyDict) -> SerializableRuleCore<SupportLang> {
+  dict.set_item("language", lang.to_string());
+  depythonize(dict).unwrap()
 }
