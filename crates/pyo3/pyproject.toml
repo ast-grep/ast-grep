@@ -34,6 +34,10 @@ Repository = "https://github.com/ast-grep/ast-grep"
 Documentation = "https://ast-grep.github.io/"
 Changelog = "https://github.com/ast-grep/ast-grep/blob/main/CHANGELOG.md"
 
+[project.optional-dependencies]
+test = [
+  "pytest >= 7",
+]
 
 [tool.maturin]
 features = ["python"]

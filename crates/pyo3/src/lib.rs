@@ -1,5 +1,8 @@
 #![cfg(not(test))]
 #![cfg(feature = "python")]
+mod range;
+use range::Range;
+
 use ast_grep_config::{SerializableRule, SerializableRuleCore};
 use ast_grep_core::{AstGrep, Language, Node, StrDoc};
 use ast_grep_language::SupportLang;
@@ -61,7 +64,9 @@ unsafe impl Send for SgNode {}
 #[pymethods]
 impl SgNode {
   /*----------  Node Inspection ----------*/
-  // TODO range
+  fn range(&self) -> Range {
+    Range::from(&self.inner)
+  }
 
   fn is_leaf(&self) -> bool {
     self.inner.is_leaf()
@@ -108,6 +113,8 @@ impl SgNode {
   // TODO get_multiple_matches
 
   /*---------- Tree Traversal  ----------*/
+  // TODO get_root
+
   #[pyo3(signature = (config=None, **kwargs))]
   fn find(&self, config: Option<&PyDict>, kwargs: Option<&PyDict>) -> Option<Self> {
     let lang = self.inner.lang();
@@ -130,6 +137,16 @@ impl SgNode {
       root: self.root.clone(),
     })
   }
+
+  // TODO find_all
+  // TODO field
+  // TODO parent
+  // TODO child
+  // TODO ancestors
+  // TODO next
+  // TODO next_all
+  // TODO prev
+  // TODO prev_all
 }
 
 fn config_from_dict(lang: &SupportLang, dict: &PyDict) -> SerializableRuleCore<SupportLang> {
