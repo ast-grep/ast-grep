@@ -7,9 +7,9 @@ use crate::doc::JsDoc;
 
 #[napi(object)]
 pub struct Pos {
-  /// line number starting from 1
+  /// line number starting from 0
   pub line: u32,
-  /// column number starting from 1
+  /// column number starting from 0
   pub column: u32,
   /// byte offset of the position
   pub index: u32,

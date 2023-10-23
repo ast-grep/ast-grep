@@ -3,15 +3,15 @@ use pyo3::prelude::*;
 use std::fmt::{self, Debug, Display, Formatter};
 
 #[pyclass(frozen, get_all)]
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Pos {
-  /// line number starting from 1
-  line: u32,
-  /// column number starting from 1
-  column: u32,
+  /// line number starting from 0
+  line: usize,
+  /// column number starting from 0
+  column: usize,
   // TODO: this should be char offset
   /// byte offset of the position
-  index: u32,
+  index: usize,
 }
 
 impl Display for Pos {
@@ -32,6 +32,9 @@ impl Debug for Pos {
 
 #[pymethods]
 impl Pos {
+  fn __eq__(&self, other: &Self) -> bool {
+    self == other
+  }
   fn __repr__(&self) -> String {
     format!("{:?}", self)
   }
@@ -42,14 +45,14 @@ impl Pos {
 
 fn to_pos(pos: (usize, usize), offset: usize) -> Pos {
   Pos {
-    line: pos.0 as u32,
-    column: pos.1 as u32 / 2,
-    index: offset as u32 / 2,
+    line: pos.0,
+    column: pos.1,
+    index: offset,
   }
 }
 
 #[pyclass(frozen, get_all)]
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Range {
   /// starting position of the range
   start: Pos,
@@ -71,6 +74,10 @@ impl Debug for Range {
 
 #[pymethods]
 impl Range {
+  fn __eq__(&self, other: &Self) -> bool {
+    self == other
+  }
+
   fn __repr__(&self) -> String {
     format!("{:?}", self)
   }
