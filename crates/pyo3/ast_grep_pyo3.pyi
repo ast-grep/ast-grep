@@ -1,3 +1,6 @@
+from typing import Optional
+
+
 class Pos:
   line: int
   column: int
@@ -14,3 +17,4 @@ class SgRoot:
 class SgNode:
   def range(self) -> Range: pass
   def find(self, config = None, **kwargs) -> SgNode: ...
+  def get_match(self, meta_var: str) -> Optional[SgNode]: ...

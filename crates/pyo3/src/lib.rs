@@ -1,10 +1,10 @@
 #![cfg(not(test))]
 #![cfg(feature = "python")]
 mod range;
-use range::Range;
+use range::{Pos, Range};
 
 use ast_grep_config::{SerializableRule, SerializableRuleCore};
-use ast_grep_core::{AstGrep, Language, Node, StrDoc};
+use ast_grep_core::{AstGrep, Language, NodeMatch, StrDoc};
 use ast_grep_language::SupportLang;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -15,6 +15,8 @@ use pythonize::depythonize;
 fn ast_grep_pyo3(_py: Python, m: &PyModule) -> PyResult<()> {
   m.add_class::<SgRoot>()?;
   m.add_class::<SgNode>()?;
+  m.add_class::<Range>()?;
+  m.add_class::<Pos>()?;
   Ok(())
 }
 
@@ -38,7 +40,7 @@ impl SgRoot {
 
   fn root(slf: PyRef<Self>) -> SgNode {
     let tree = unsafe { &*(&slf.inner as *const AstGrep<_>) } as &'static AstGrep<_>;
-    let inner = tree.root();
+    let inner = NodeMatch::from(tree.root());
     SgNode {
       inner,
       root: slf.into(),
@@ -52,7 +54,7 @@ impl SgRoot {
 
 #[pyclass]
 struct SgNode {
-  inner: Node<'static, StrDoc<SupportLang>>,
+  inner: NodeMatch<'static, StrDoc<SupportLang>>,
   // refcount SgRoot
   root: Py<SgRoot>,
 }
@@ -109,7 +111,17 @@ impl SgNode {
     self.inner.follows(&*m)
   }
 
-  // TODO get_match
+  fn get_match(&self, meta_var: &str) -> Option<Self> {
+    self
+      .inner
+      .get_env()
+      .get_match(meta_var)
+      .cloned()
+      .map(|n| Self {
+        inner: NodeMatch::from(n),
+        root: self.root.clone(),
+      })
+  }
   // TODO get_multiple_matches
 
   /*---------- Tree Traversal  ----------*/
@@ -131,9 +143,9 @@ impl SgNode {
       }
     };
     let matcher = config.get_matcher(&Default::default()).unwrap();
-    let nm = self.inner.find(matcher)?;
+    let inner = self.inner.find(matcher)?;
     Some(Self {
-      inner: nm.into(),
+      inner,
       root: self.root.clone(),
     })
   }
