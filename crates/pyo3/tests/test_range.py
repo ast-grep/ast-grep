@@ -20,6 +20,7 @@ def test_pos():
   assert pos.column == 2
   assert pos.index == 20
   assert pos == pos2
+  assert hash(pos) == hash(pos2)
 
 def test_range():
   r1 = node1.range()
@@ -31,3 +32,4 @@ def test_range():
   assert r1.start.index == 20
   assert r1.end.index == 31
   assert r1 == r2
+  assert hash(r1) == hash(r2)

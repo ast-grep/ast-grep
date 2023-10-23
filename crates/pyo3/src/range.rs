@@ -1,9 +1,11 @@
 use ast_grep_core::{Doc, Node};
 use pyo3::prelude::*;
+use std::collections::hash_map::DefaultHasher;
 use std::fmt::{self, Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
 
 #[pyclass(frozen, get_all)]
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Pos {
   /// line number starting from 0
   line: usize,
@@ -32,6 +34,11 @@ impl Debug for Pos {
 
 #[pymethods]
 impl Pos {
+  fn __hash__(&self) -> u64 {
+    let mut s = DefaultHasher::new();
+    self.hash(&mut s);
+    s.finish()
+  }
   fn __eq__(&self, other: &Self) -> bool {
     self == other
   }
@@ -52,7 +59,7 @@ fn to_pos(pos: (usize, usize), offset: usize) -> Pos {
 }
 
 #[pyclass(frozen, get_all)]
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Range {
   /// starting position of the range
   start: Pos,
@@ -77,11 +84,14 @@ impl Range {
   fn __eq__(&self, other: &Self) -> bool {
     self == other
   }
-
+  fn __hash__(&self) -> u64 {
+    let mut s = DefaultHasher::new();
+    self.hash(&mut s);
+    s.finish()
+  }
   fn __repr__(&self) -> String {
     format!("{:?}", self)
   }
-
   fn __str__(&self) -> String {
     self.to_string()
   }
