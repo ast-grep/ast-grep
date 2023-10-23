@@ -1,5 +1,12 @@
-from typing import Optional
+from typing import Optional, TypedDict, Unpack, NotRequired
 
+class Pattern(TypedDict):
+  selector: str
+  context: str
+
+class Rule(TypedDict):
+  pattern: NotRequired[str | Pattern]
+  kind: NotRequired[str]
 
 class Pos:
   line: int
@@ -16,6 +23,6 @@ class SgRoot:
 
 class SgNode:
   def range(self) -> Range: pass
-  def find(self, config = None, **kwargs) -> SgNode: ...
+  def find(self, config = None, **kwargs: Unpack[Rule]) -> SgNode: ...
   def get_match(self, meta_var: str) -> Optional[SgNode]: ...
   def text(self) -> str: ...
