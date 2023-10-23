@@ -122,7 +122,19 @@ impl SgNode {
         root: self.root.clone(),
       })
   }
-  // TODO get_multiple_matches
+
+  fn get_multiple_matches(&self, meta_var: &str) -> Vec<SgNode> {
+    self
+      .inner
+      .get_env()
+      .get_multiple_matches(meta_var)
+      .into_iter()
+      .map(|n| Self {
+        inner: NodeMatch::from(n),
+        root: self.root.clone(),
+      })
+      .collect()
+  }
 
   /*---------- Tree Traversal  ----------*/
   // TODO get_root
