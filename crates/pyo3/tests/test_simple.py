@@ -25,3 +25,13 @@ def test_get_match():
   rng = a.range()
   assert rng.start.line == 1
   assert rng.start.column == 6
+
+def test_get_multi_match():
+  pass
+
+def test_get_root():
+  node = root.find(pattern = 'let a = $A')
+  assert node is not None
+  root2 = node.get_root()
+  assert root2.filename() == 'anonymous'
+  # assert root2 == root

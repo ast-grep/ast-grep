@@ -94,7 +94,9 @@ impl SgNode {
   }
 
   /*---------- Tree Traversal  ----------*/
-  // TODO get_root
+  fn get_root(&self) -> Py<SgRoot> {
+    self.root.clone()
+  }
 
   #[pyo3(signature = (config=None, **kwargs))]
   fn find(&self, config: Option<&PyDict>, kwargs: Option<&PyDict>) -> Option<Self> {
