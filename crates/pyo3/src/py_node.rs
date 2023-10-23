@@ -100,19 +100,7 @@ impl SgNode {
 
   #[pyo3(signature = (config=None, **kwargs))]
   fn find(&self, config: Option<&PyDict>, kwargs: Option<&PyDict>) -> Option<Self> {
-    let lang = self.inner.lang();
-    let config = if let Some(config) = config {
-      config_from_dict(lang, config)
-    } else {
-      let rule = rule_from_dict(kwargs?);
-      SerializableRuleCore {
-        language: *lang,
-        rule,
-        constraints: None,
-        utils: None,
-        transform: None,
-      }
-    };
+    let config = self.get_config(config, kwargs);
     let matcher = config.get_matcher(&Default::default()).unwrap();
     let inner = self.inner.find(matcher)?;
     Some(Self {
@@ -120,8 +108,20 @@ impl SgNode {
       root: self.root.clone(),
     })
   }
+  #[pyo3(signature = (config=None, **kwargs))]
+  fn find_all(&self, config: Option<&PyDict>, kwargs: Option<&PyDict>) -> Vec<Self> {
+    let config = self.get_config(config, kwargs);
+    let matcher = config.get_matcher(&Default::default()).unwrap();
+    self
+      .inner
+      .find_all(matcher)
+      .map(|n| Self {
+        inner: n,
+        root: self.root.clone(),
+      })
+      .collect()
+  }
 
-  // TODO find_all
   // TODO field
   // TODO parent
   // TODO child
@@ -130,6 +130,28 @@ impl SgNode {
   // TODO next_all
   // TODO prev
   // TODO prev_all
+}
+
+impl SgNode {
+  fn get_config(
+    &self,
+    config: Option<&PyDict>,
+    kwargs: Option<&PyDict>,
+  ) -> SerializableRuleCore<SupportLang> {
+    let lang = self.inner.lang();
+    if let Some(config) = config {
+      config_from_dict(lang, config)
+    } else {
+      let rule = rule_from_dict(kwargs.unwrap());
+      SerializableRuleCore {
+        language: *lang,
+        rule,
+        constraints: None,
+        utils: None,
+        transform: None,
+      }
+    }
+  }
 }
 
 fn config_from_dict(lang: &SupportLang, dict: &PyDict) -> SerializableRuleCore<SupportLang> {
