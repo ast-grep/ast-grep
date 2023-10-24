@@ -1,4 +1,4 @@
-from ast_grep_pyo3 import SgRoot
+from ast_grep_pyo3 import SgNode, SgRoot
 
 source = '''
 function test() {
@@ -38,9 +38,13 @@ def test_get_root():
   assert root2.filename() == 'anonymous'
   # assert root2 == root
 
-def test_get_all():
+def test_find_all():
   nodes = root.find_all(pattern = 'let $N = $V')
   assert len(nodes) == 3
-  assert nodes[0].get_match('N').text() == 'a'
-  assert nodes[1].get_match('N').text() == 'b'
-  assert nodes[2].get_match('N').text() == 'c'
+  def assert_name(node: SgNode, text: str):
+    n = node.get_match('N')
+    assert n is not None
+    assert n.text() == text
+  assert_name(nodes[0], 'a')
+  assert_name(nodes[1], 'b')
+  assert_name(nodes[2], 'c')
