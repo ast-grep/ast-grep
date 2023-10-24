@@ -21,6 +21,23 @@ def test_simple():
     )
     assert node is not None
 
+def test_inspection():
+    pass
+
+def test_matches():
+    pass
+
+def test_inside():
+    pass
+
+def test_has():
+    pass
+
+def test_precedes():
+    pass
+
+def test_follows():
+    pass
 
 def test_get_match():
     node = root.find(pattern="let $A = $B")
