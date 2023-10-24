@@ -73,3 +73,12 @@ def test_find_all():
     assert_name(nodes[0], "a")
     assert_name(nodes[1], "b")
     assert_name(nodes[2], "c")
+
+def test_field(): pass
+def test_parent(): pass
+def test_child(): pass
+def test_ancestors(): pass
+def test_next(): pass
+def test_next_all(): pass
+def test_prev(): pass
+def test_prev_all(): pass

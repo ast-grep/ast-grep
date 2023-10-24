@@ -122,14 +122,73 @@ impl SgNode {
       .collect()
   }
 
-  // TODO field
-  // TODO parent
-  // TODO child
-  // TODO ancestors
-  // TODO next
-  // TODO next_all
-  // TODO prev
-  // TODO prev_all
+  fn field(&self, name: &str) -> Option<SgNode> {
+    self.inner.field(name).map(|inner| Self {
+      inner: inner.into(),
+      root: self.root.clone(),
+    })
+  }
+
+  fn parent(&self) -> Option<SgNode> {
+    self.inner.parent().map(|inner| Self {
+      inner: inner.into(),
+      root: self.root.clone(),
+    })
+  }
+
+  fn child(&self, nth: usize) -> Option<SgNode> {
+    self.inner.child(nth).map(|inner| Self {
+      inner: inner.into(),
+      root: self.root.clone(),
+    })
+  }
+
+  fn ancestors(&self) -> Vec<SgNode> {
+    self
+      .inner
+      .ancestors()
+      .map(|inner| Self {
+        inner: inner.into(),
+        root: self.root.clone(),
+      })
+      .collect()
+  }
+
+  fn next(&self) -> Option<SgNode> {
+    self.inner.next().map(|inner| Self {
+      inner: inner.into(),
+      root: self.root.clone(),
+    })
+  }
+
+  fn next_all(&self) -> Vec<SgNode> {
+    self
+      .inner
+      .next_all()
+      .map(|inner| Self {
+        inner: inner.into(),
+        root: self.root.clone(),
+      })
+      .collect()
+  }
+
+  fn prev(&self) -> Option<SgNode> {
+    self.inner.prev().map(|inner| Self {
+      inner: inner.into(),
+      root: self.root.clone(),
+    })
+  }
+
+  fn prev_all(&self) -> Vec<SgNode> {
+    self
+      .inner
+      .prev_all()
+      .map(|inner| Self {
+        inner: inner.into(),
+        root: self.root.clone(),
+      })
+      .collect()
+  }
 }
 
 impl SgNode {
