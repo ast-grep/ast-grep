@@ -1,4 +1,4 @@
-from typing import List, Optional, TypedDict, Unpack, NotRequired, Literal
+from typing import List, Optional, TypedDict, Unpack, Literal
 
 class Pattern(TypedDict):
   selector: str
