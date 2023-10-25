@@ -5,11 +5,15 @@ use ast_grep_config::{SerializableRule, SerializableRuleCore};
 use ast_grep_core::{NodeMatch, StrDoc};
 use ast_grep_language::SupportLang;
 
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pythonize::depythonize;
 
-#[pyclass]
+#[pyclass(mapping)]
 pub struct SgNode {
   pub inner: NodeMatch<'static, StrDoc<SupportLang>>,
   // refcount SgRoot
@@ -188,6 +192,38 @@ impl SgNode {
         root: self.root.clone(),
       })
       .collect()
+  }
+
+  /*---------- Magic Method  ----------*/
+  fn __hash__(&self) -> u64 {
+    let mut s = DefaultHasher::new();
+    self.inner.node_id().hash(&mut s);
+    s.finish()
+  }
+  fn __eq__(&self, other: &Self) -> bool {
+    self.inner.node_id() == other.inner.node_id()
+  }
+  fn __str__(&self) -> String {
+    let range = self.range();
+    format!("{}@{}", self.inner.kind(), range)
+  }
+  fn __repr__(&self) -> String {
+    let range = self.range();
+    let chars: Vec<_> = self.text().chars().take(10).collect();
+    let src = if chars.len() > 9 {
+      let s: String = chars.into_iter().take(5).collect();
+      format!("{}...", s)
+    } else {
+      chars.into_iter().collect()
+    };
+    format!("SgNode(`{src}`, kind={}, range={range})", self.inner.kind())
+  }
+  fn __getitem__(&self, key: &str) -> PyResult<Self> {
+    if let Some(node) = self.get_match(key) {
+      Ok(node)
+    } else {
+      Err(PyErr::new::<PyKeyError, _>(key.to_string()))
+    }
   }
 }
 
