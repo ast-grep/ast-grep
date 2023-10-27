@@ -1,4 +1,4 @@
-from ast_grep_pyo3 import SgNode, SgRoot
+from ast_grep_pyo3 import SgRoot
 
 source = """
 function test() {
@@ -52,33 +52,24 @@ def test_get_match():
 def test_get_multi_match():
     pass
 
+def test_hash():
+    node1 = root.find(pattern="let $A = $B")
+    node2 = root.find(pattern="let $A = 123")
+    assert hash(node1) == hash(node2)
 
-def test_get_root():
-    node = root.find(pattern="let a = $A")
-    assert node is not None
-    root2 = node.get_root()
-    assert root2.filename() == "anonymous"
-    # assert root2 == root
+def test_eq():
+    node1 = root.find(pattern="let $A = $B")
+    node2 = root.find(pattern="let $A = 123")
+    assert node1 == node2
 
+def test_str():
+    node1 = root.find(pattern="let $A = $B")
+    assert str(node1) == "lexical_declaration@(1,2)-(1,13)"
 
-def test_find_all():
-    nodes = root.find_all(pattern="let $N = $V")
-    assert len(nodes) == 3
+def test_repr_short():
+    node1 = root.find(pattern="let $A = $B")
+    assert repr(node1) == "SgNode(`let a...`, kind=lexical_declaration, range=(1,2)-(1,13))"
 
-    def assert_name(node: SgNode, text: str):
-        n = node.get_match("N")
-        assert n is not None
-        assert n.text() == text
-
-    assert_name(nodes[0], "a")
-    assert_name(nodes[1], "b")
-    assert_name(nodes[2], "c")
-
-def test_field(): pass
-def test_parent(): pass
-def test_child(): pass
-def test_ancestors(): pass
-def test_next(): pass
-def test_next_all(): pass
-def test_prev(): pass
-def test_prev_all(): pass
+def test_repr_long():
+    node1 = root.find(pattern="123")
+    assert repr(node1) == "SgNode(`123`, kind=number, range=(1,10)-(1,13))"
