@@ -50,7 +50,10 @@ def test_get_match():
 
 
 def test_get_multi_match():
-    pass
+    node = root.find(pattern="function test() { $$$STMT }")
+    stmts = node.get_multiple_matches("STMT")
+    assert len(stmts) == 3
+    assert stmts[0] == root.find(pattern="let a = 123")
 
 def test_hash():
     node1 = root.find(pattern="let $A = $B")
