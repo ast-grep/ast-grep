@@ -21,8 +21,29 @@ def test_simple():
     )
     assert node is not None
 
-def test_inspection():
-    pass
+def test_is_leaft():
+    node = root.find(pattern="let $A = $B")
+    assert not node.is_leaf()
+    node = root.find(pattern="123")
+    assert node.is_leaf()
+
+def test_is_named():
+    node = root.find(pattern="let $A = $B")
+    assert node.is_named()
+    node = root.find(pattern="123")
+    assert node.is_named()
+
+def test_kind():
+    node = root.find(pattern="let $A = $B")
+    assert node.kind() == "lexical_declaration"
+    node = root.find(pattern="123")
+    assert node.kind() == "number"
+
+def test_text():
+    node = root.find(pattern="let $A = $B")
+    assert node.text() == "let a = 123"
+    node = root.find(kind="number")
+    assert node.text() == "123"
 
 def test_matches():
     pass
