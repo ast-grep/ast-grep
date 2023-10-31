@@ -46,19 +46,33 @@ def test_text():
     assert node.text() == "123"
 
 def test_matches():
-    pass
+    node = root.find(pattern="let $A = $B")
+    assert node.matches(kind="lexical_declaration")
+    assert not node.matches(kind="number")
+    assert node.matches(pattern="let a = 123")
+    assert not node.matches(pattern="let b = 456")
 
 def test_inside():
-    pass
+    node = root.find(pattern="let $A = $B")
+    assert node.inside(kind="function_declaration")
+    assert not node.inside(kind="function")
 
 def test_has():
-    pass
+    node = root.find(pattern="let $A = $B")
+    assert node.has(pattern="123")
+    assert node.has(kind="number")
+    assert not node.has(kind="function")
 
 def test_precedes():
-    pass
+    node = root.find(pattern="let $A = $B\n")
+    assert node.precedes(pattern="let b = 456\n")
+    assert node.precedes(pattern="let c = 789\n")
+    assert not node.precedes(pattern="notExist")
 
 def test_follows():
-    pass
+    node = root.find(pattern="let b = 456\n")
+    assert node.follows(pattern="let a = 123\n")
+    assert not node.follows(pattern="let c = 789\n")
 
 def test_get_match():
     node = root.find(pattern="let $A = $B")

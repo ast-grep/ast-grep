@@ -1,7 +1,7 @@
 use crate::range::Range;
 use crate::SgRoot;
 
-use ast_grep_config::{SerializableRule, SerializableRuleCore};
+use ast_grep_config::SerializableRuleCore;
 use ast_grep_core::{NodeMatch, StrDoc};
 use ast_grep_language::SupportLang;
 
@@ -52,24 +52,39 @@ impl SgNode {
   }
 
   /*---------- Search Refinement  ----------*/
-  fn matches(&self, m: String) -> bool {
-    self.inner.matches(&*m)
+  #[pyo3(signature = (**kwargs))]
+  fn matches(&self, kwargs: Option<&PyDict>) -> bool {
+    let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
+    let matcher = config.get_matcher(&Default::default()).unwrap();
+    self.inner.matches(matcher)
   }
 
-  fn inside(&self, m: String) -> bool {
-    self.inner.inside(&*m)
+  #[pyo3(signature = (**kwargs))]
+  fn inside(&self, kwargs: Option<&PyDict>) -> bool {
+    let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
+    let matcher = config.get_matcher(&Default::default()).unwrap();
+    self.inner.inside(matcher)
   }
 
-  fn has(&self, m: String) -> bool {
-    self.inner.has(&*m)
+  #[pyo3(signature = (**kwargs))]
+  fn has(&self, kwargs: Option<&PyDict>) -> bool {
+    let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
+    let matcher = config.get_matcher(&Default::default()).unwrap();
+    self.inner.has(matcher)
   }
 
-  fn precedes(&self, m: String) -> bool {
-    self.inner.precedes(&*m)
+  #[pyo3(signature = (**kwargs))]
+  fn precedes(&self, kwargs: Option<&PyDict>) -> bool {
+    let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
+    let matcher = config.get_matcher(&Default::default()).unwrap();
+    self.inner.precedes(matcher)
   }
 
-  fn follows(&self, m: String) -> bool {
-    self.inner.follows(&*m)
+  #[pyo3(signature = (**kwargs))]
+  fn follows(&self, kwargs: Option<&PyDict>) -> bool {
+    let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
+    let matcher = config.get_matcher(&Default::default()).unwrap();
+    self.inner.follows(matcher)
   }
 
   fn get_match(&self, meta_var: &str) -> Option<Self> {
@@ -237,14 +252,8 @@ impl SgNode {
     if let Some(config) = config {
       config_from_dict(lang, config)
     } else {
-      let rule = rule_from_dict(kwargs.unwrap());
-      SerializableRuleCore {
-        language: *lang,
-        rule,
-        constraints: None,
-        utils: None,
-        transform: None,
-      }
+      // TODO: remove unwrap
+      config_from_rule(lang, kwargs.unwrap())
     }
   }
 }
@@ -254,6 +263,13 @@ fn config_from_dict(lang: &SupportLang, dict: &PyDict) -> SerializableRuleCore<S
   depythonize(dict).unwrap()
 }
 
-fn rule_from_dict(dict: &PyDict) -> SerializableRule {
-  depythonize(dict).unwrap()
+fn config_from_rule(lang: &SupportLang, dict: &PyDict) -> SerializableRuleCore<SupportLang> {
+  let rule = depythonize(dict).unwrap();
+  SerializableRuleCore {
+    language: *lang,
+    rule,
+    constraints: None,
+    utils: None,
+    transform: None,
+  }
 }
