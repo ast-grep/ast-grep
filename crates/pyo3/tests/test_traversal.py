@@ -31,7 +31,17 @@ def test_find_all():
     assert_name(nodes[1], "b")
     assert_name(nodes[2], "c")
 
-def test_field(): pass
+def test_field():
+    node = root.find(kind="variable_declarator")
+    name = node.field("name")
+    assert name is not None
+    assert name.text() == "a"
+    value = node.field("value")
+    assert value is not None
+    assert value.text() == "123"
+    non = node.field("notexist")
+    assert non is None
+
 def test_parent(): pass
 def test_child(): pass
 def test_ancestors(): pass
