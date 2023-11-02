@@ -50,6 +50,15 @@ def test_parent():
     assert root.parent() is None
 
 def test_child(): pass
+
+def test_children():
+    node = root.find(kind="variable_declarator")
+    children = node.children()
+    assert len(children) == 3
+    assert children[0].text() == "a"
+    assert children[2].text() == "123"
+    assert not children[0].children()
+
 def test_ancestors(): pass
 def test_next(): pass
 def test_next_all(): pass

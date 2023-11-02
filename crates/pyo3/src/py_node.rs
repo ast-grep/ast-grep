@@ -173,6 +173,17 @@ impl SgNode {
       .collect()
   }
 
+  fn children(&self) -> Vec<SgNode> {
+    self
+      .inner
+      .children()
+      .map(|inner| Self {
+        inner: inner.into(),
+        root: self.root.clone(),
+      })
+      .collect()
+  }
+
   fn next(&self) -> Option<SgNode> {
     self.inner.next().map(|inner| Self {
       inner: inner.into(),
