@@ -42,7 +42,13 @@ def test_field():
     non = node.field("notexist")
     assert non is None
 
-def test_parent(): pass
+def test_parent():
+    node = root.find(kind="variable_declarator")
+    parent = node.parent()
+    assert parent is not None
+    assert parent.kind() == "lexical_declaration"
+    assert root.parent() is None
+
 def test_child(): pass
 def test_ancestors(): pass
 def test_next(): pass
