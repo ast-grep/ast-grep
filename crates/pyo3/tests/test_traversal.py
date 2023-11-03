@@ -75,7 +75,39 @@ def test_ancestors():
     assert len(ancestors) == 4
     assert not root.ancestors()
 
-def test_next(): pass
-def test_next_all(): pass
-def test_prev(): pass
-def test_prev_all(): pass
+def test_next():
+    node = root.find(pattern="let a = $A\n")
+    assert node is not None
+    neighbor = node.next()
+    assert neighbor is not None
+    assert neighbor.text() == "let b = 456"
+    node = root.find(pattern="let c = $A\n").next()
+    assert node # `}` is the last node
+    assert not node.next()
+
+def test_next_all():
+    node = root.find(pattern="let a = $A\n")
+    assert node is not None
+    next_all = node.next_all()
+    assert len(next_all) == 3
+    assert len(next_all[0].next_all()) == 2
+    assert not next_all[2].next_all()
+
+def test_prev():
+    node = root.find(pattern="let c = $A\n")
+    assert node is not None
+    neighbor = node.prev()
+    assert neighbor is not None
+    assert neighbor.text() == "let b = 456"
+    node = root.find(pattern="let a = $A\n").prev()
+    assert node # `{` is the first node
+    assert not node.prev()
+
+def test_prev_all():
+    node = root.find(pattern="let c = $A\n")
+    assert node is not None
+    prev_all = node.prev_all()
+    assert len(prev_all) == 3
+    assert len(prev_all[0].prev_all()) == 2
+    assert prev_all[0].text() == "let b = 456"
+    assert not prev_all[2].prev_all()
