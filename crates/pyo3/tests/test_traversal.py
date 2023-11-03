@@ -69,7 +69,12 @@ def test_children():
     assert children[2].text() == "123"
     assert not children[0].children()
 
-def test_ancestors(): pass
+def test_ancestors():
+    node = root.find(kind="variable_declarator")
+    ancestors = node.ancestors()
+    assert len(ancestors) == 4
+    assert not root.ancestors()
+
 def test_next(): pass
 def test_next_all(): pass
 def test_prev(): pass
