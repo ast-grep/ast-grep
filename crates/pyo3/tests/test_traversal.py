@@ -1,3 +1,4 @@
+from typing import Optional, TypeVar
 from ast_grep_pyo3 import SgNode, SgRoot
 
 source = """
@@ -49,7 +50,16 @@ def test_parent():
     assert parent.kind() == "lexical_declaration"
     assert root.parent() is None
 
-def test_child(): pass
+T = TypeVar('T')
+def unwrap(n: Optional[T]) -> T:
+    assert n is not None
+    return n
+
+def test_child():
+    node = root.find(kind="variable_declarator")
+    assert unwrap(node.child(0)).text() == "a"
+    assert unwrap(node.child(2)).text() == "123"
+    assert node.child(3) is None
 
 def test_children():
     node = root.find(kind="variable_declarator")
