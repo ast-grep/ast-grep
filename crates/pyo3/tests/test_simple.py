@@ -83,6 +83,15 @@ def test_get_match():
     assert rng.start.line == 1
     assert rng.start.column == 6
 
+def test_must_get_match():
+    node = root.find(pattern="let $A = $B")
+    a = node["A"]
+    assert a is not None
+    assert a.text() == "a"
+    rng = a.range()
+    assert rng.start.line == 1
+    assert rng.start.column == 6
+
 
 def test_get_multi_match():
     node = root.find(pattern="function test() { $$$STMT }")
