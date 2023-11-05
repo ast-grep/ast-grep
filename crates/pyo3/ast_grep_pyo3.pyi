@@ -1,4 +1,4 @@
-from typing import List, Optional, TypedDict, Unpack, Literal, overload
+from typing import List, Optional, TypedDict, Unpack, Literal, overload, Dict
 
 class Pattern(TypedDict):
     selector: str
@@ -34,6 +34,12 @@ StopBy = Literal["neighbor"] | Literal["end"] | Rule
 class Relation(Rule, total=False):
     stop_by: StopBy
     field: str
+
+class Config(TypedDict, total=False):
+    rule: Rule
+    constraints: Dict[str, Dict]
+    utils: Dict[str, Rule]
+    transform: Dict[str, Dict]
 
 class Pos:
     line: int
