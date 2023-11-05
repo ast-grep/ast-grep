@@ -8,6 +8,7 @@ use ast_grep_language::SupportLang;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
+use anyhow::Context;
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -53,10 +54,12 @@ impl SgNode {
 
   /*---------- Search Refinement  ----------*/
   #[pyo3(signature = (**kwargs))]
-  fn matches(&self, kwargs: Option<&PyDict>) -> bool {
+  fn matches(&self, kwargs: Option<&PyDict>) -> PyResult<bool> {
     let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
-    let matcher = config.get_matcher(&Default::default()).unwrap();
-    self.inner.matches(matcher)
+    let matcher = config
+      .get_matcher(&Default::default())
+      .context("cannot get matcher")?;
+    Ok(self.inner.matches(matcher))
   }
 
   #[pyo3(signature = (**kwargs))]

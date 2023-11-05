@@ -10,7 +10,7 @@ edition.workspace = true
 ast-grep-core.workspace = true
 ast-grep-config.workspace = true
 
-anyhow = "1.0"
+anyhow.workspace = true
 serde_json = { version = "1.0.107", features = ["preserve_order"] }
 toml_edit = "0.20.7"
 schemars.workspace = true

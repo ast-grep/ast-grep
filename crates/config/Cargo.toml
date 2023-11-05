@@ -16,7 +16,7 @@ default = ["regex"]
 [dependencies]
 ast-grep-core.workspace = true
 
-anyhow = "1.0"
+anyhow.workspace = true
 bit-set.workspace = true
 globset = "0.4.13"
 regex = { workspace = true, optional = true }

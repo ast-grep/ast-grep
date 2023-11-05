@@ -34,3 +34,4 @@ serde = { version = "1.0", features = ["derive"] }
 tree-sitter = { version = "0.9.2", package = "tree-sitter-facade-sg" }
 thiserror = "1.0.50"
 schemars = "0.8.15"
+anyhow = "1.0.65"
