@@ -1,7 +1,7 @@
 use crate::range::Range;
 use crate::SgRoot;
 
-use ast_grep_config::{GlobalRules, SerializableRuleCore};
+use ast_grep_config::{GlobalRules, RuleWithConstraint, SerializableRuleCore};
 use ast_grep_core::{NodeMatch, StrDoc};
 use ast_grep_language::SupportLang;
 
@@ -10,7 +10,7 @@ use std::hash::{Hash, Hasher};
 
 use anyhow::Context;
 use once_cell::sync::Lazy;
-use pyo3::exceptions::PyKeyError;
+use pyo3::exceptions::{PyKeyError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pythonize::depythonize;
@@ -58,39 +58,32 @@ impl SgNode {
   /*---------- Search Refinement  ----------*/
   #[pyo3(signature = (**kwargs))]
   fn matches(&self, kwargs: Option<&PyDict>) -> PyResult<bool> {
-    let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
-    let matcher = config
-      .get_matcher(&GLOBAL_RULES)
-      .context("cannot get matcher")?;
+    let matcher = get_matcher_from_rule(self.inner.lang(), kwargs)?;
     Ok(self.inner.matches(matcher))
   }
 
   #[pyo3(signature = (**kwargs))]
-  fn inside(&self, kwargs: Option<&PyDict>) -> bool {
-    let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
-    let matcher = config.get_matcher(&GLOBAL_RULES).unwrap();
-    self.inner.inside(matcher)
+  fn inside(&self, kwargs: Option<&PyDict>) -> PyResult<bool> {
+    let matcher = get_matcher_from_rule(self.inner.lang(), kwargs)?;
+    Ok(self.inner.inside(matcher))
   }
 
   #[pyo3(signature = (**kwargs))]
-  fn has(&self, kwargs: Option<&PyDict>) -> bool {
-    let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
-    let matcher = config.get_matcher(&GLOBAL_RULES).unwrap();
-    self.inner.has(matcher)
+  fn has(&self, kwargs: Option<&PyDict>) -> PyResult<bool> {
+    let matcher = get_matcher_from_rule(self.inner.lang(), kwargs)?;
+    Ok(self.inner.has(matcher))
   }
 
   #[pyo3(signature = (**kwargs))]
-  fn precedes(&self, kwargs: Option<&PyDict>) -> bool {
-    let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
-    let matcher = config.get_matcher(&GLOBAL_RULES).unwrap();
-    self.inner.precedes(matcher)
+  fn precedes(&self, kwargs: Option<&PyDict>) -> PyResult<bool> {
+    let matcher = get_matcher_from_rule(self.inner.lang(), kwargs)?;
+    Ok(self.inner.precedes(matcher))
   }
 
   #[pyo3(signature = (**kwargs))]
-  fn follows(&self, kwargs: Option<&PyDict>) -> bool {
-    let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
-    let matcher = config.get_matcher(&GLOBAL_RULES).unwrap();
-    self.inner.follows(matcher)
+  fn follows(&self, kwargs: Option<&PyDict>) -> PyResult<bool> {
+    let matcher = get_matcher_from_rule(self.inner.lang(), kwargs)?;
+    Ok(self.inner.follows(matcher))
   }
 
   fn get_match(&self, meta_var: &str) -> Option<Self> {
@@ -276,7 +269,9 @@ impl SgNode {
 }
 
 fn config_from_dict(lang: &SupportLang, dict: &PyDict) -> SerializableRuleCore<SupportLang> {
-  dict.set_item("language", lang.to_string()).unwrap();
+  dict
+    .set_item("language", lang.to_string())
+    .expect("set language should never fail");
   depythonize(dict).unwrap()
 }
 
@@ -289,4 +284,16 @@ fn config_from_rule(lang: &SupportLang, dict: &PyDict) -> SerializableRuleCore<S
     utils: None,
     transform: None,
   }
+}
+
+fn get_matcher_from_rule(
+  lang: &SupportLang,
+  dict: Option<&PyDict>,
+) -> PyResult<RuleWithConstraint<SupportLang>> {
+  let rule = dict.ok_or_else(|| PyErr::new::<PyValueError, _>("rule must not be empty"))?;
+  let config = config_from_rule(lang, rule);
+  let matcher = config
+    .get_matcher(&GLOBAL_RULES)
+    .context("cannot get matcher")?;
+  Ok(matcher)
 }

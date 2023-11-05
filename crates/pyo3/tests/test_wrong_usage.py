@@ -26,8 +26,16 @@ def test_wrong_rule_key():
         root.find(pat="not") # type: ignore
 
 def test_no_rule_key():
-    with pytest.raises(BaseException):
-        root.find()
+    with pytest.raises(ValueError):
+        root.matches()
+    with pytest.raises(ValueError):
+        root.inside()
+    with pytest.raises(ValueError):
+        root.has()
+    with pytest.raises(ValueError):
+        root.follows()
+    with pytest.raises(ValueError):
+        root.follows()
 
 def test_error_for_invalid_kind():
     with pytest.raises(BaseException):
