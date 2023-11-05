@@ -116,28 +116,32 @@ impl SgNode {
     self.root.clone()
   }
 
-  #[pyo3(signature = (config=None, **kwargs))]
-  fn find(&self, config: Option<&PyDict>, kwargs: Option<&PyDict>) -> Option<Self> {
-    let config = self.get_config(config, kwargs);
-    let matcher = config.get_matcher(&GLOBAL_RULES).unwrap();
-    let inner = self.inner.find(matcher)?;
-    Some(Self {
-      inner,
-      root: self.root.clone(),
-    })
-  }
-  #[pyo3(signature = (config=None, **kwargs))]
-  fn find_all(&self, config: Option<&PyDict>, kwargs: Option<&PyDict>) -> Vec<Self> {
-    let config = self.get_config(config, kwargs);
-    let matcher = config.get_matcher(&GLOBAL_RULES).unwrap();
-    self
-      .inner
-      .find_all(matcher)
-      .map(|n| Self {
-        inner: n,
+  #[pyo3(signature = (config=None, **rule))]
+  fn find(&self, config: Option<&PyDict>, rule: Option<&PyDict>) -> PyResult<Option<Self>> {
+    let matcher = self.get_matcher(config, rule)?;
+    if let Some(inner) = self.inner.find(matcher) {
+      Ok(Some(Self {
+        inner,
         root: self.root.clone(),
-      })
-      .collect()
+      }))
+    } else {
+      Ok(None)
+    }
+  }
+
+  #[pyo3(signature = (config=None, **rule))]
+  fn find_all(&self, config: Option<&PyDict>, rule: Option<&PyDict>) -> PyResult<Vec<Self>> {
+    let matcher = self.get_matcher(config, rule)?;
+    Ok(
+      self
+        .inner
+        .find_all(matcher)
+        .map(|n| Self {
+          inner: n,
+          root: self.root.clone(),
+        })
+        .collect(),
+    )
   }
 
   fn field(&self, name: &str) -> Option<SgNode> {
@@ -253,18 +257,23 @@ impl SgNode {
 }
 
 impl SgNode {
-  fn get_config(
+  fn get_matcher(
     &self,
     config: Option<&PyDict>,
     kwargs: Option<&PyDict>,
-  ) -> SerializableRuleCore<SupportLang> {
+  ) -> PyResult<RuleWithConstraint<SupportLang>> {
     let lang = self.inner.lang();
-    if let Some(config) = config {
+    let config = if let Some(config) = config {
       config_from_dict(lang, config)
+    } else if let Some(rule) = kwargs {
+      config_from_rule(lang, rule)
     } else {
-      // TODO: remove unwrap
-      config_from_rule(lang, kwargs.unwrap())
-    }
+      return Err(PyErr::new::<PyValueError, _>("rule must not be empty"));
+    };
+    let matcher = config
+      .get_matcher(&GLOBAL_RULES)
+      .context("cannot get matcher")?;
+    Ok(matcher)
   }
 }
 

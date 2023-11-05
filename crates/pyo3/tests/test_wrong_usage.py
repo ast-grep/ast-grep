@@ -38,11 +38,11 @@ def test_no_rule_key():
         root.follows()
 
 def test_error_for_invalid_kind():
-    with pytest.raises(BaseException):
+    with pytest.raises(RuntimeError):
         root.find(kind="nonsense")
 
 def test_no_error_for_invalid_pattern():
-    with pytest.raises(BaseException):
+    with pytest.raises(RuntimeError):
         root.find(pattern="$@!!--l3**+no//nsense")
     # but not this
     assert not root.find(pattern="@test")
