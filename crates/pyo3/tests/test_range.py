@@ -1,4 +1,4 @@
-from ast_grep_pyo3 import SgRoot
+from ast_grep_pyo3 import SgRoot, Range, Pos
 
 source = """
 function test() {
@@ -19,6 +19,7 @@ def test_pos():
     r2 = node2.range()
     pos = r1.start
     pos2 = r2.start
+    assert isinstance(pos, Pos)
     assert pos.line == 1
     assert pos.column == 2
     assert pos.index == 20
@@ -29,6 +30,7 @@ def test_pos():
 def test_range():
     r1 = node1.range()
     r2 = node2.range()
+    assert isinstance(r1, Range)
     assert r1.start.line == 1
     assert r1.end.line == 1
     assert r1.start.column == 2
