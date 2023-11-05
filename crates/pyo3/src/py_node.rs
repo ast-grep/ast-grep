@@ -1,7 +1,7 @@
 use crate::range::Range;
 use crate::SgRoot;
 
-use ast_grep_config::SerializableRuleCore;
+use ast_grep_config::{GlobalRules, SerializableRuleCore};
 use ast_grep_core::{NodeMatch, StrDoc};
 use ast_grep_language::SupportLang;
 
@@ -9,10 +9,13 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 use anyhow::Context;
+use once_cell::sync::Lazy;
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pythonize::depythonize;
+
+static GLOBAL_RULES: Lazy<GlobalRules<SupportLang>> = Lazy::new(GlobalRules::default);
 
 #[pyclass(mapping)]
 pub struct SgNode {
@@ -57,7 +60,7 @@ impl SgNode {
   fn matches(&self, kwargs: Option<&PyDict>) -> PyResult<bool> {
     let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
     let matcher = config
-      .get_matcher(&Default::default())
+      .get_matcher(&GLOBAL_RULES)
       .context("cannot get matcher")?;
     Ok(self.inner.matches(matcher))
   }
@@ -65,28 +68,28 @@ impl SgNode {
   #[pyo3(signature = (**kwargs))]
   fn inside(&self, kwargs: Option<&PyDict>) -> bool {
     let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
-    let matcher = config.get_matcher(&Default::default()).unwrap();
+    let matcher = config.get_matcher(&GLOBAL_RULES).unwrap();
     self.inner.inside(matcher)
   }
 
   #[pyo3(signature = (**kwargs))]
   fn has(&self, kwargs: Option<&PyDict>) -> bool {
     let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
-    let matcher = config.get_matcher(&Default::default()).unwrap();
+    let matcher = config.get_matcher(&GLOBAL_RULES).unwrap();
     self.inner.has(matcher)
   }
 
   #[pyo3(signature = (**kwargs))]
   fn precedes(&self, kwargs: Option<&PyDict>) -> bool {
     let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
-    let matcher = config.get_matcher(&Default::default()).unwrap();
+    let matcher = config.get_matcher(&GLOBAL_RULES).unwrap();
     self.inner.precedes(matcher)
   }
 
   #[pyo3(signature = (**kwargs))]
   fn follows(&self, kwargs: Option<&PyDict>) -> bool {
     let config = config_from_rule(self.inner.lang(), kwargs.unwrap());
-    let matcher = config.get_matcher(&Default::default()).unwrap();
+    let matcher = config.get_matcher(&GLOBAL_RULES).unwrap();
     self.inner.follows(matcher)
   }
 
@@ -123,7 +126,7 @@ impl SgNode {
   #[pyo3(signature = (config=None, **kwargs))]
   fn find(&self, config: Option<&PyDict>, kwargs: Option<&PyDict>) -> Option<Self> {
     let config = self.get_config(config, kwargs);
-    let matcher = config.get_matcher(&Default::default()).unwrap();
+    let matcher = config.get_matcher(&GLOBAL_RULES).unwrap();
     let inner = self.inner.find(matcher)?;
     Some(Self {
       inner,
@@ -133,7 +136,7 @@ impl SgNode {
   #[pyo3(signature = (config=None, **kwargs))]
   fn find_all(&self, config: Option<&PyDict>, kwargs: Option<&PyDict>) -> Vec<Self> {
     let config = self.get_config(config, kwargs);
-    let matcher = config.get_matcher(&Default::default()).unwrap();
+    let matcher = config.get_matcher(&GLOBAL_RULES).unwrap();
     self
       .inner
       .find_all(matcher)
