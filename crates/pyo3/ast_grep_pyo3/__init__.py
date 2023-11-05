@@ -1,4 +1,6 @@
-from typing import List, TypedDict,  Literal, Dict
+from __future__ import annotations
+
+from typing import List, TypedDict,  Literal, Dict, Union
 from .ast_grep_pyo3 import SgNode, SgRoot, Pos, Range
 
 class Pattern(TypedDict):
@@ -31,7 +33,7 @@ class Rule(RuleWithoutNot, TypedDict("Not", {"not": "Rule"}, total=False)):
     pass
 
 # Relational Rule Related
-StopBy = Literal["neighbor"] | Literal["end"] | Rule
+StopBy = Union[Literal["neighbor"], Literal["end"], Rule]
 
 class Relation(Rule, total=False):
     stopBy: StopBy

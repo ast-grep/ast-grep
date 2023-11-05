@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "ast-grep-pyo3"
-requires-python = ">=3.11"
+requires-python = ">=3.8"
 version = "0.12.5"
 description = "Structural Search and Rewrite code at large scale using precise AST pattern."
 authors = [{ name = "Herrington Darkholme", email = "2883231+HerringtonDarkholme@users.noreply.github.com" }]
@@ -28,6 +28,7 @@ classifiers = [
   "Topic :: Software Development",
   "Topic :: Text Processing"
 ]
+dependencies = ["typing-extensions"]
 
 [project.urls]
 Repository = "https://github.com/ast-grep/ast-grep"
