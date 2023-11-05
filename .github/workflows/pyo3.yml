@@ -52,6 +52,11 @@ jobs:
           manylinux: auto
           args: --release --out dist --find-interpreter
           working-directory: crates/pyo3
+      - name: Test sdist
+        run: |
+          pip install dist/${{ env.PACKAGE_NAME }}-*.tar.gz --force-reinstall
+          pip install pytest
+          pytest
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
@@ -75,6 +80,11 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           working-directory: crates/pyo3
+      - name: Test sdist
+        run: |
+          pip install dist/${{ env.PACKAGE_NAME }}-*.tar.gz --force-reinstall
+          pip install pytest
+          pytest
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
@@ -100,6 +110,11 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           working-directory: crates/pyo3
+      - name: Test sdist
+        run: |
+          pip install dist/${{ env.PACKAGE_NAME }}-*.tar.gz --force-reinstall
+          pip install pytest
+          pytest
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
