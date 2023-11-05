@@ -1,6 +1,4 @@
-from typing import List, Optional, overload
-
-from typing import Unpack
+from typing import List, Optional, overload, Unpack
 
 from . import Rule, Config
 

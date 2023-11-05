@@ -56,7 +56,7 @@ jobs:
         # GH action only has x86 runner
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: |
-          pip install pytest typing_extensions
+          pip install pytest
           pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
           pytest
       - name: Upload wheels
@@ -84,7 +84,7 @@ jobs:
           working-directory: crates/pyo3
       - name: Test sdist
         run: |
-          pip install pytest typing_extensions
+          pip install pytest
           pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
           pytest
       - name: Upload wheels
@@ -115,7 +115,7 @@ jobs:
       - name: Test sdist
         run: |
           if: matrix.target == 'x86_64'
-          pip install pytest typing_extensions
+          pip install pytest
           pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
           pytest
       - name: Upload wheels
