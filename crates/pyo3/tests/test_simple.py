@@ -21,11 +21,12 @@ def test_simple():
     )
     assert node is not None
 
-def test_is_leaft():
+def test_is_leaf():
     node = root.find(pattern="let $A = $B")
     assert node
     assert not node.is_leaf()
     node = root.find(pattern="123")
+    assert node
     assert node.is_leaf()
 
 def test_is_named():
@@ -62,6 +63,7 @@ def test_matches():
 
 def test_inside():
     node = root.find(pattern="let $A = $B")
+    assert node
     assert node.inside(kind="function_declaration")
     assert not node.inside(kind="function")
 
