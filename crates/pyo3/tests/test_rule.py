@@ -47,10 +47,10 @@ def test_not_rule():
     node = root.find(**rule)
     assert node
 
-# def test_relational_rule():
-#     relation: Relation = Relation(kind="function_declaration", stopBy="end")
-#     node = root.find(
-#         pattern="let a = 123\n",
-#         inside=relation,
-#     )
-#     assert node
+def test_relational_rule():
+    relation: Relation = Relation(kind="function_declaration", stopBy="end")
+    node = root.find(
+        pattern="let a = 123\n",
+        inside=relation,
+    )
+    assert node
