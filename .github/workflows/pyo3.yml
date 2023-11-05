@@ -113,8 +113,8 @@ jobs:
           args: --release --out dist --find-interpreter
           working-directory: crates/pyo3
       - name: Test sdist
+        if: matrix.target == 'x86_64'
         run: |
-          if: matrix.target == 'x86_64'
           pip install pytest
           pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
           pytest
