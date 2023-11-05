@@ -9,7 +9,9 @@ function test() {
 sg = SgRoot(source, "javascript")
 root = sg.root()
 node1 = root.find(pattern="let $A = $B")
+assert node1 is not None
 node2 = root.find(pattern="let $A = 123")
+assert node2 is not None
 
 
 def test_pos():

@@ -264,9 +264,9 @@ impl SgNode {
   ) -> PyResult<RuleWithConstraint<SupportLang>> {
     let lang = self.inner.lang();
     let config = if let Some(config) = config {
-      config_from_dict(lang, config)
+      config_from_dict(lang, config)?
     } else if let Some(rule) = kwargs {
-      config_from_rule(lang, rule)
+      config_from_rule(lang, rule)?
     } else {
       return Err(PyErr::new::<PyValueError, _>("rule must not be empty"));
     };
@@ -277,22 +277,28 @@ impl SgNode {
   }
 }
 
-fn config_from_dict(lang: &SupportLang, dict: &PyDict) -> SerializableRuleCore<SupportLang> {
+fn config_from_dict(
+  lang: &SupportLang,
+  dict: &PyDict,
+) -> PyResult<SerializableRuleCore<SupportLang>> {
   dict
     .set_item("language", lang.to_string())
     .expect("set language should never fail");
-  depythonize(dict).unwrap()
+  Ok(depythonize(dict)?)
 }
 
-fn config_from_rule(lang: &SupportLang, dict: &PyDict) -> SerializableRuleCore<SupportLang> {
-  let rule = depythonize(dict).unwrap();
-  SerializableRuleCore {
+fn config_from_rule(
+  lang: &SupportLang,
+  dict: &PyDict,
+) -> PyResult<SerializableRuleCore<SupportLang>> {
+  let rule = depythonize(dict)?;
+  Ok(SerializableRuleCore {
     language: *lang,
     rule,
     constraints: None,
     utils: None,
     transform: None,
-  }
+  })
 }
 
 fn get_matcher_from_rule(
@@ -300,7 +306,7 @@ fn get_matcher_from_rule(
   dict: Option<&PyDict>,
 ) -> PyResult<RuleWithConstraint<SupportLang>> {
   let rule = dict.ok_or_else(|| PyErr::new::<PyValueError, _>("rule must not be empty"))?;
-  let config = config_from_rule(lang, rule);
+  let config = config_from_rule(lang, rule)?;
   let matcher = config
     .get_matcher(&GLOBAL_RULES)
     .context("cannot get matcher")?;

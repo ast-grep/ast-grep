@@ -17,12 +17,13 @@ def test_wrong_use_pattern_as_dict():
 
 def test_get_unfound_match():
     node = root.find(pattern="let $A = 123")
+    assert node is not None
     with pytest.raises(KeyError):
         node["B"]
 
 # TODO: remove BaseException
 def test_wrong_rule_key():
-    with pytest.raises(BaseException):
+    with pytest.raises(Exception):
         root.find(pat="not") # type: ignore
 
 def test_no_rule_key():
