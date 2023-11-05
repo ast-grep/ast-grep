@@ -1,4 +1,7 @@
-from typing import List, Optional, Unpack, overload
+from typing import List, Optional, overload
+
+from typing_extensions import Unpack
+
 from . import Rule, Config
 
 class Pos:
