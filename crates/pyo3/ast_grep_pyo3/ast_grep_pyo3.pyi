@@ -1,6 +1,6 @@
 from typing import List, Optional, overload
 
-from typing_extensions import Unpack
+from typing import Unpack
 
 from . import Rule, Config
 

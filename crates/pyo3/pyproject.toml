@@ -28,7 +28,7 @@ classifiers = [
   "Topic :: Software Development",
   "Topic :: Text Processing"
 ]
-dependencies = ["typing-extensions"]
+# dependencies = ["typing-extensions"]
 
 [project.urls]
 Repository = "https://github.com/ast-grep/ast-grep"
