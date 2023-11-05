@@ -7,7 +7,6 @@ class Pattern(TypedDict):
     selector: str
     context: str
 
-
 class RuleWithoutNot(TypedDict, total=False):
     # atomic rule
     pattern: str | Pattern
@@ -15,14 +14,14 @@ class RuleWithoutNot(TypedDict, total=False):
     regex: str
 
     # relational rule
-    inside: "Relation"
-    has: "Relation"
-    precedes: "Relation"
-    follows: "Relation"
+    inside: "Relation" # pyright report error if forward reference here?
+    has: Relation
+    precedes: Relation
+    follows: Relation
 
     # composite rule
-    all: List["Rule"]
-    any: List["Rule"]
+    all: List[Rule]
+    any: List[Rule]
     # cannot add here due to reserved keyword
     # not: Rule
     matches: str
