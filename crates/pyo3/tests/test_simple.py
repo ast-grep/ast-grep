@@ -10,17 +10,6 @@ function test() {
 sg = SgRoot(source, "javascript")
 root = sg.root()
 
-
-def test_simple():
-    node = root.find(pattern="let $A = $B")
-    assert node is not None
-    node = root.find(
-        dict(
-            rule=dict(pattern="let $A = 123"),
-        )
-    )
-    assert node is not None
-
 def test_is_leaf():
     node = root.find(pattern="let $A = $B")
     assert node

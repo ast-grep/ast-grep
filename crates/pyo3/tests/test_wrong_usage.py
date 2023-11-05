@@ -13,7 +13,7 @@ root = sg.root()
 
 def test_wrong_use_pattern_as_dict():
     with pytest.raises(TypeError):
-        root.find("let $A = 123")
+        root.find("let $A = 123") # type: ignore
 
 def test_get_unfound_match():
     node = root.find(pattern="let $A = 123")
