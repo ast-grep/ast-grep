@@ -1,4 +1,4 @@
-from .ast_grep_pyo3 import Pos, Range, SgNode, SgRoot
+from .ast_grep_pyo3 import SgNode, SgRoot, Pos, Range
 
 Pattern = dict
 Config = dict
