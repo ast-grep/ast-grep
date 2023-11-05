@@ -23,30 +23,38 @@ def test_simple():
 
 def test_is_leaft():
     node = root.find(pattern="let $A = $B")
+    assert node
     assert not node.is_leaf()
     node = root.find(pattern="123")
     assert node.is_leaf()
 
 def test_is_named():
     node = root.find(pattern="let $A = $B")
+    assert node
     assert node.is_named()
     node = root.find(pattern="123")
+    assert node
     assert node.is_named()
 
 def test_kind():
     node = root.find(pattern="let $A = $B")
+    assert node
     assert node.kind() == "lexical_declaration"
     node = root.find(pattern="123")
+    assert node
     assert node.kind() == "number"
 
 def test_text():
     node = root.find(pattern="let $A = $B")
+    assert node
     assert node.text() == "let a = 123"
     node = root.find(kind="number")
+    assert node
     assert node.text() == "123"
 
 def test_matches():
     node = root.find(pattern="let $A = $B")
+    assert node
     assert node.matches(kind="lexical_declaration")
     assert not node.matches(kind="number")
     assert node.matches(pattern="let a = 123")
@@ -59,23 +67,27 @@ def test_inside():
 
 def test_has():
     node = root.find(pattern="let $A = $B")
+    assert node
     assert node.has(pattern="123")
     assert node.has(kind="number")
     assert not node.has(kind="function")
 
 def test_precedes():
     node = root.find(pattern="let $A = $B\n")
+    assert node
     assert node.precedes(pattern="let b = 456\n")
     assert node.precedes(pattern="let c = 789\n")
     assert not node.precedes(pattern="notExist")
 
 def test_follows():
     node = root.find(pattern="let b = 456\n")
+    assert node
     assert node.follows(pattern="let a = 123\n")
     assert not node.follows(pattern="let c = 789\n")
 
 def test_get_match():
     node = root.find(pattern="let $A = $B")
+    assert node
     a = node.get_match("A")
     assert a is not None
     assert a.text() == "a"
@@ -85,6 +97,7 @@ def test_get_match():
 
 def test_must_get_match():
     node = root.find(pattern="let $A = $B")
+    assert node
     a = node["A"]
     assert a is not None
     assert a.text() == "a"
@@ -95,6 +108,7 @@ def test_must_get_match():
 
 def test_get_multi_match():
     node = root.find(pattern="function test() { $$$STMT }")
+    assert node
     stmts = node.get_multiple_matches("STMT")
     assert len(stmts) == 3
     assert stmts[0] == root.find(pattern="let a = 123")

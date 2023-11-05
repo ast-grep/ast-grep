@@ -34,6 +34,7 @@ def test_find_all():
 
 def test_field():
     node = root.find(kind="variable_declarator")
+    assert node
     name = node.field("name")
     assert name is not None
     assert name.text() == "a"
@@ -45,6 +46,7 @@ def test_field():
 
 def test_parent():
     node = root.find(kind="variable_declarator")
+    assert node
     parent = node.parent()
     assert parent is not None
     assert parent.kind() == "lexical_declaration"
@@ -57,12 +59,14 @@ def unwrap(n: Optional[T]) -> T:
 
 def test_child():
     node = root.find(kind="variable_declarator")
+    assert node
     assert unwrap(node.child(0)).text() == "a"
     assert unwrap(node.child(2)).text() == "123"
     assert node.child(3) is None
 
 def test_children():
     node = root.find(kind="variable_declarator")
+    assert node
     children = node.children()
     assert len(children) == 3
     assert children[0].text() == "a"
@@ -71,6 +75,7 @@ def test_children():
 
 def test_ancestors():
     node = root.find(kind="variable_declarator")
+    assert node
     ancestors = node.ancestors()
     assert len(ancestors) == 4
     assert not root.ancestors()
@@ -81,7 +86,9 @@ def test_next():
     neighbor = node.next()
     assert neighbor is not None
     assert neighbor.text() == "let b = 456"
-    node = root.find(pattern="let c = $A\n").next()
+    node = root.find(pattern="let c = $A\n")
+    assert node
+    node = node.next()
     assert node # `}` is the last node
     assert not node.next()
 
@@ -99,7 +106,7 @@ def test_prev():
     neighbor = node.prev()
     assert neighbor is not None
     assert neighbor.text() == "let b = 456"
-    node = root.find(pattern="let a = $A\n").prev()
+    node = unwrap(root.find(pattern="let a = $A\n")).prev()
     assert node # `{` is the first node
     assert not node.prev()
 
