@@ -1,5 +1,5 @@
 [package]
-name = "ast-grep-pyo3"
+name = "ast-grep-py"
 description = "Search and Rewrite code at large scale using precise AST pattern"
 keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
 
@@ -12,7 +12,7 @@ edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "ast_grep_pyo3"
+name = "ast_grep_py"
 crate-type = ["cdylib"]
 
 [dependencies]

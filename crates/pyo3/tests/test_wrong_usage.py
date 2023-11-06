@@ -1,4 +1,4 @@
-from ast_grep_pyo3 import SgRoot
+from ast_grep_py import SgRoot
 import pytest
 
 source = """
