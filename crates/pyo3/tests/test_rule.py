@@ -1,4 +1,4 @@
-from ast_grep_py import SgRoot, Rule, Config, Relation, Pattern
+from ast_grep import SgRoot, Rule, Config, Relation, Pattern
 
 source = """
 function test() {

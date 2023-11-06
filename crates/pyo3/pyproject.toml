@@ -13,7 +13,7 @@ keywords = [
   "ast",
   "pattern",
   "codemod",
-  "structural search",
+  "structural_search",
   "rewrite"
 ]
 classifiers = [
@@ -41,3 +41,4 @@ test = [
 
 [tool.maturin]
 features = ["python"]
+module-name = "ast_grep._ast_grep"

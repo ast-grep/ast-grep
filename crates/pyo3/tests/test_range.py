@@ -1,4 +1,4 @@
-from ast_grep_py import SgRoot, Range, Pos
+from ast_grep import SgRoot, Range, Pos
 
 source = """
 function test() {

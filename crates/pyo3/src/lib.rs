@@ -11,7 +11,7 @@ use pyo3::prelude::*;
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn ast_grep_py(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _ast_grep(_py: Python, m: &PyModule) -> PyResult<()> {
   m.add_class::<SgRoot>()?;
   m.add_class::<SgNode>()?;
   m.add_class::<Range>()?;
