@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, TypedDict,  Literal, Dict, Union
+from typing import List, TypedDict,  Literal, Dict, Union, Mapping
 from .ast_grep_pyo3 import SgNode, SgRoot, Pos, Range
 
 class Pattern(TypedDict):
@@ -34,15 +34,17 @@ class Rule(RuleWithoutNot, TypedDict("Not", {"not": "Rule"}, total=False)):
 # Relational Rule Related
 StopBy = Union[Literal["neighbor"], Literal["end"], Rule]
 
-class Relation(Rule, total=False):
+# Relation do NOT inherit from Rule due to pyright bug
+# see tests/test_rule.py
+class Relation(RuleWithoutNot, TypedDict("Not", {"not": "Rule"}, total=False), total=False):
     stopBy: StopBy
     field: str
 
 class Config(TypedDict, total=False):
     rule: Rule
-    constraints: Dict[str, Dict]
+    constraints: Dict[str, Mapping]
     utils: Dict[str, Rule]
-    transform: Dict[str, Dict]
+    transform: Dict[str, Mapping]
 
 __all__ = [
     "Rule",

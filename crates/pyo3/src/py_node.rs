@@ -111,6 +111,14 @@ impl SgNode {
       .collect()
   }
 
+  fn get_transformed(&self, meta_var: &str) -> Option<String> {
+    self
+      .inner
+      .get_env()
+      .get_transformed(meta_var)
+      .map(|n| String::from_utf8_lossy(n).to_string())
+  }
+
   /*---------- Tree Traversal  ----------*/
   fn get_root(&self) -> Py<SgRoot> {
     self.root.clone()
