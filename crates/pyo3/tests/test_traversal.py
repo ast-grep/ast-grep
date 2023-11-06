@@ -1,5 +1,5 @@
 from typing import Optional, TypeVar
-from ast_grep_pyo3 import SgNode, SgRoot
+from ast_grep_py import SgNode, SgRoot
 
 source = """
 function test() {

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import List, TypedDict,  Literal, Dict, Union, Mapping
-from .ast_grep_pyo3 import SgNode, SgRoot, Pos, Range
+from .ast_grep_py import SgNode, SgRoot, Pos, Range
 
 class Pattern(TypedDict):
     selector: str

@@ -229,7 +229,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ast-grep-pyo3"
+name = "ast-grep-py"
 version = "0.13.0"
 dependencies = [
  "anyhow",
