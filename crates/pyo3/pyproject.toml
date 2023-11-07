@@ -9,6 +9,8 @@ version = "0.13.0"
 description = "Structural Search and Rewrite code at large scale using precise AST pattern."
 authors = [{ name = "Herrington Darkholme", email = "2883231+HerringtonDarkholme@users.noreply.github.com" }]
 maintainers = [{ name = "Herrington Darkholme", email = "2883231+HerringtonDarkholme@users.noreply.github.com" }]
+readme = "README.md"
+license = { text = "MIT" }
 keywords = [
   "ast",
   "pattern",
