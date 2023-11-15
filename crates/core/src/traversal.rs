@@ -202,7 +202,11 @@ impl<'tree, D: Doc> Pre<'tree, D> {
       }
       self.current_depth -= 1;
       // go back to parent node
-      cursor.goto_parent();
+      if !cursor.goto_parent() {
+        // it should never fail here. However, tree-sitter has bad parsing bugs
+        // stop to avoid panic. https://github.com/ast-grep/ast-grep/issues/713
+        break;
+      }
     }
     // terminate traversal here
     self.start_id = None;

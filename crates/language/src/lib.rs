@@ -16,6 +16,7 @@ mod kotlin;
 mod lua;
 mod parsers;
 mod python;
+mod ruby;
 mod rust;
 mod scala;
 mod swift;
