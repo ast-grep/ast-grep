@@ -634,20 +634,24 @@ mod choose_color {
   /// Returns true if we should attempt to write colored output.
   pub fn should_use_color(color: &ColorChoice) -> bool {
     match *color {
-      ColorChoice::Always => env_allow_ansi(color),
+      // TODO: we should check if ansi is supported on windows console
+      ColorChoice::Always => true,
       ColorChoice::AlwaysAnsi => true,
       ColorChoice::Never => false,
       // NOTE tty check is added
-      ColorChoice::Auto => atty::is(atty::Stream::Stdout) && env_allows_color(color),
+      ColorChoice::Auto => atty::is(atty::Stream::Stdout) && env_allows_color(),
     }
   }
 
-  #[cfg(not(windows))]
-  fn env_allows_color(color: &ColorChoice) -> bool {
+  fn env_allows_color() -> bool {
     match env::var_os("TERM") {
-      // If TERM isn't set, then we are in a weird environment that
-      // probably doesn't support colors.
-      None => return false,
+      // On Windows, if TERM isn't set, then we should not automatically
+      // assume that colors aren't allowed. This is unlike Unix environments
+      None => {
+        if !cfg!(windows) {
+          return false;
+        }
+      }
       Some(k) => {
         if k == "dumb" {
           return false;
@@ -659,51 +663,6 @@ mod choose_color {
     if env::var_os("NO_COLOR").is_some() {
       return false;
     }
-    env_allow_ansi(color)
-  }
-
-  #[cfg(windows)]
-  fn env_allows_color(color: &ColorChoice) -> bool {
-    // On Windows, if TERM isn't set, then we should not automatically
-    // assume that colors aren't allowed. This is unlike Unix environments
-    // where TERM is more rigorously set.
-    if let Some(k) = env::var_os("TERM") {
-      if k == "dumb" {
-        return false;
-      }
-    }
-    // If TERM != dumb, then the only way we don't allow colors at this
-    // point is if NO_COLOR is set.
-    if env::var_os("NO_COLOR").is_some() {
-      return false;
-    }
-    env_allow_ansi(color)
-  }
-
-  #[cfg(not(windows))]
-  fn env_allow_ansi(_color: &ColorChoice) -> bool {
     true
-  }
-
-  /// Returns true if this choice should forcefully use ANSI color codes.
-  ///
-  /// It's possible that ANSI is still the correct choice even if this
-  /// returns false.
-  #[cfg(windows)]
-  fn env_allow_ansi(color: &ColorChoice) -> bool {
-    match *color {
-      ColorChoice::Always => false,
-      ColorChoice::AlwaysAnsi => true,
-      ColorChoice::Never => false,
-      ColorChoice::Auto => {
-        match env::var("TERM") {
-          Err(_) => false,
-          // cygwin doesn't seem to support ANSI escape sequences
-          // and instead has its own variety. However, the Windows
-          // console API may be available.
-          Ok(k) => k != "dumb" && k != "cygwin",
-        }
-      }
-    }
   }
 }

@@ -1,7 +1,6 @@
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::replacer::IndentSensitive;
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
-use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use std::borrow::Cow;
 use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
