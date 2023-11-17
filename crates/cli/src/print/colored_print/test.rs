@@ -6,6 +6,8 @@ use ast_grep_core::replacer::Fixer;
 use ast_grep_language::{Language, SupportLang};
 use codespan_reporting::term::termcolor::Buffer;
 
+use std::fmt::Write;
+
 fn make_test_printer() -> ColoredPrinter<Buffer> {
   ColoredPrinter::new(Buffer::no_color()).color(ColorChoice::Never)
 }
@@ -49,11 +51,13 @@ fn test_print_matches() {
     let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
     let matches = grep.root().find_all(pattern);
     printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
-    let expected: String = source
+    let expected = source
       .lines()
       .enumerate()
-      .map(|(i, l)| format!("{}│{l}\n", i + 1))
-      .collect();
+      .fold(String::new(), |mut b, (i, l)| {
+        _ = writeln!(b, "{}│{l}", i + 1);
+        b
+      });
     // append heading to expected
     let output = format!("test.tsx\n{expected}\n");
     assert_eq!(get_text(&printer), output, "{note}");
@@ -68,11 +72,13 @@ fn test_print_matches_without_heading() {
     let matches = grep.root().find_all(pattern);
     printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
     // append heading to expected
-    let output: String = source
+    let output = source
       .lines()
       .enumerate()
-      .map(|(i, e)| format!("test.tsx:{}:{e}\n", i + 1))
-      .collect();
+      .fold(String::new(), |mut b, (i, e)| {
+        _ = writeln!(b, "test.tsx:{}:{e}", i + 1);
+        b
+      });
     assert_eq!(get_text(&printer), output, "{note}");
   }
 }
