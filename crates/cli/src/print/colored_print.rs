@@ -329,7 +329,7 @@ fn print_matches_with_heading<'a, W: WriteColor>(
   let writer = &mut *printer.writer.lock().expect("cannot get printer lock");
   print_prelude(path, styles, writer)?;
   let Some(first_match) = matches.next() else {
-    return Ok(())
+    return Ok(());
   };
   let source = first_match.root().get_text();
 
@@ -386,7 +386,7 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
   let writer = &mut *printer.writer.lock().expect("cannot get printer lock");
   let path = path.display();
   let Some(first_match) = matches.next() else {
-    return Ok(())
+    return Ok(());
   };
   let source = first_match.root().get_text();
 

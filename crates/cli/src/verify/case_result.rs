@@ -120,7 +120,7 @@ mod test {
     let ret = CaseStatus::verify_snapshot(&rule, "function () { let a = 1 }", None);
     assert!(matches!(&ret, CaseStatus::Wrong { expected: None, .. }));
     let CaseStatus::Wrong { actual, source, .. } = ret else {
-        panic!("wrong");
+      panic!("wrong");
     };
     assert_eq!(source, "function () { let a = 1 }");
     let primary = &actual.labels[0];

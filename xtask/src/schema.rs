@@ -36,11 +36,17 @@ fn tweak_schema(schema: &mut RootSchema) -> Result<()> {
 
 fn remove_recursive_rule_relation_description(schema: &mut RootSchema) -> Result<Option<String>> {
   let definitions = &mut schema.definitions;
-  let Schema::Object(relation) = definitions.get_mut("Relation").context("must have relation")? else {
+  let Schema::Object(relation) = definitions
+    .get_mut("Relation")
+    .context("must have relation")?
+  else {
     bail!("Relation's type is not object!");
   };
   relation.metadata().description = None;
-  let Schema::Object(rule) = definitions.get_mut("SerializableRule").context("must have rule")? else {
+  let Schema::Object(rule) = definitions
+    .get_mut("SerializableRule")
+    .context("must have rule")?
+  else {
     bail!("SerializableRule's type is not object!");
   };
   Ok(rule.metadata().description.take())
@@ -48,7 +54,10 @@ fn remove_recursive_rule_relation_description(schema: &mut RootSchema) -> Result
 
 fn simplify_stop_by(schema: &mut RootSchema) -> Result<()> {
   let definitions = &mut schema.definitions;
-  let Schema::Object(stop_by) = definitions.get_mut("SerializableStopBy").context("must have stopby")? else {
+  let Schema::Object(stop_by) = definitions
+    .get_mut("SerializableStopBy")
+    .context("must have stopby")?
+  else {
     bail!("StopBy's type is not object!");
   };
   let one_ofs = stop_by

@@ -68,7 +68,9 @@ pub fn register_custom_language(config_path: Option<PathBuf>) {
   let Ok(mut path) = find_config_path_with_default(config_path, None) else {
     return;
   };
-  let Ok(config_str) = read_to_string(&path) else { return };
+  let Ok(config_str) = read_to_string(&path) else {
+    return;
+  };
   let sg_config: AstGrepConfig = from_str(&config_str).unwrap();
   path.pop();
   if let Some(custom_langs) = sg_config.custom_languages {
@@ -81,7 +83,7 @@ fn find_util_rules(
   util_dirs: Option<Vec<PathBuf>>,
 ) -> Result<GlobalRules<SgLang>> {
   let Some(util_dirs) = util_dirs else {
-    return Ok(GlobalRules::default())
+    return Ok(GlobalRules::default());
   };
   let mut utils = vec![];
   // TODO: use WalkBuilder::add to avoid loop

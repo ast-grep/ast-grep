@@ -92,7 +92,10 @@ impl TestSnapshot {
     };
     let labels = Label::from_matched(matched);
     let Some(fix) = &rule_config.fixer else {
-      return Ok(Some(Self { fixed: None, labels }));
+      return Ok(Some(Self {
+        fixed: None,
+        labels,
+      }));
     };
     let changed = sg.replace(rule, fix)?;
     debug_assert!(changed);

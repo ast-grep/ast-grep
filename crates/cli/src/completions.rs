@@ -49,7 +49,7 @@ fn run_shell_completion_impl<C: CommandFactory, W: io::Write>(
   output: &mut W,
 ) -> Result<()> {
   let Some(shell) = arg.shell.or_else(Shell::from_env) else {
-    return Err(anyhow::anyhow!(EC::CannotInferShell))
+    return Err(anyhow::anyhow!(EC::CannotInferShell));
   };
   let mut cmd = C::command();
   let cmd_name = match get_bin_name() {

@@ -113,10 +113,10 @@ fn apply_snapshot_action(
   path_map: HashMap<String, PathBuf>,
 ) -> Result<()> {
   let Some(snapshots) = snapshots else {
-    return Ok(())
+    return Ok(());
   };
   let Some(merged) = action.update_snapshot_collection(snapshots, results) else {
-    return Ok(())
+    return Ok(());
   };
   write_merged_to_disk(merged, path_map)
 }

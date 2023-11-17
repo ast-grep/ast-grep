@@ -74,7 +74,7 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     self
       .multi_matched
       .entry(label.into())
-      .or_insert_with(Vec::new)
+      .or_default()
       .push(node);
   }
 
@@ -131,7 +131,7 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
       if let Some(node) = named_nodes.next() {
         let Some(cand) = named_cands.next() else {
           // cand is done but node is not
-          break false
+          break false;
         };
         if !does_node_match_exactly(node, cand) {
           break false;

@@ -268,7 +268,7 @@ invalid:
 
 fn create_new_test(test_configs: Option<Vec<TestConfig>>, name: Option<String>) -> Result<()> {
   let Some(tests) = test_configs else {
-    return Err(anyhow::anyhow!(EC::NoTestDirConfigured))
+    return Err(anyhow::anyhow!(EC::NoTestDirConfigured));
   };
   if tests.is_empty() {
     return Err(anyhow::anyhow!(EC::NoTestDirConfigured));

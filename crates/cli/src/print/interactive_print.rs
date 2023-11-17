@@ -205,7 +205,7 @@ fn print_matches_and_confirm_next<'a>(
 fn apply_rewrite(diffs: Vec<Diff>) -> String {
   let mut new_content = String::new();
   let Some(first) = diffs.first() else {
-    return new_content
+    return new_content;
   };
   let old_content = first.node_match.root().get_text();
   let mut start = 0;
