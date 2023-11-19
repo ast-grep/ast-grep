@@ -110,12 +110,6 @@ impl_lang_mod!(ts, TypeScript);
 impl_lang_mod!(tsx, Tsx);
 impl_lang_mod!(css, Css);
 
-pub struct IterateFiles<D> {
-  walk: WalkParallel,
-  tsfn: D,
-  producer: fn(&D, std::result::Result<ignore::DirEntry, ignore::Error>) -> Ret<bool>,
-}
-
 fn build_files(paths: Vec<String>) -> Result<WalkParallel> {
   if paths.is_empty() {
     return Err(anyhow!("paths cannot be empty.").into());
@@ -135,6 +129,12 @@ fn build_files(paths: Vec<String>) -> Result<WalkParallel> {
   }
   let walk = builder.types(types).build_parallel();
   Ok(walk)
+}
+
+pub struct IterateFiles<D> {
+  walk: WalkParallel,
+  tsfn: D,
+  producer: fn(&D, std::result::Result<ignore::DirEntry, ignore::Error>) -> Ret<bool>,
 }
 
 impl<T: 'static + Send + Sync> Task for IterateFiles<T> {
