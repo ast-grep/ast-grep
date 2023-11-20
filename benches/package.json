@@ -12,17 +12,19 @@
   "license": "ISC",
   "dependencies": {
     "@ast-grep/napi": "link:../crates/napi",
-    "@babel/parser": "^7.22.7",
-    "@oxidation-compiler/napi": "^0.2.0",
-    "@swc/core": "^1.3.70",
-    "benny": "^3.7.1",
-    "tree-sitter": "^0.20.5",
-    "tree-sitter-typescript": "^0.20.1",
+    "@babel/core": "7.23.3",
+    "@babel/plugin-syntax-typescript": "7.23.3",
+    "@oxidation-compiler/napi": "0.2.0",
+    "@swc/core": "1.3.70",
+    "benny": "3.7.1",
+    "tree-sitter": "0.20.5",
+    "tree-sitter-typescript": "0.20.1",
     "typescript": "5.2.2"
   },
   "devDependencies": {
-    "@types/node": "^20.4.2",
-    "prettier": "^3.0.0",
+    "@types/babel__core": "7.20.4",
+    "@types/node": "20.4.2",
+    "prettier": "3.0.0",
     "ts-node": "10.9.1"
   }
 }

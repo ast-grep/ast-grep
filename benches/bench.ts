@@ -2,7 +2,7 @@ import b from 'benny'
 import fs from 'fs'
 
 import { ts as sg } from '@ast-grep/napi'
-import * as babel from '@babel/parser'
+import * as babel from '@babel/core'
 import oxc from '@oxidation-compiler/napi'
 import * as swc from '@swc/core'
 import * as ts from 'typescript'
@@ -25,41 +25,71 @@ function prepareCases() {
   ]
 }
 
-function parseSyncBench(source: string) {
+export function parseSyncBench(source: string) {
   return {
-    'ast-grep parse': () => {
+    'ast-grep sync parse': () => {
       sg.parse(source)
     },
-    'tree-sitter parse': () => {
+    'tree-sitter sync parse': () => {
       treeSitter.parse(source)
     },
-    'babel parse': () => {
-      babel.parse(source, {
-        plugins: ['typescript'],
+    'babel sync parse': () => {
+      babel.parseSync(source, {
+        plugins: ['@babel/plugin-syntax-typescript'],
         sourceType: 'module',
       })
     },
-    'oxc parse': () => {
-      oxc.parseSync(source, {
-        sourceType: 'module',
-        sourceFilename: 'test.ts',
-      })
+    'oxc sync parse': () => {
+      JSON.parse(
+        oxc.parseSync(source, {
+          sourceType: 'module',
+          sourceFilename: 'test.ts',
+        }).program,
+      )
     },
-    'swc parse': () => {
+    'swc sync parse': () => {
       swc.parseSync(source, {
         syntax: 'typescript',
       })
     },
-    'TypeScript parse': () => {
+    'TypeScript sync parse': () => {
       ts.createSourceFile('benchmark.ts', source, ts.ScriptTarget.Latest)
     },
   }
 }
 
-async function run() {
+function parseAsyncBench(source: string) {
+  return {
+    'ast-grep async parse': () => sg.parseAsync(source),
+    'tree-sitter parse(not async)': () => {
+      treeSitter.parse(source)
+    },
+    'babel async parse': () =>
+      babel.parseAsync(source, {
+        plugins: ['@babel/plugin-syntax-typescript'],
+        sourceType: 'module',
+      }),
+    'oxc async parse': async () => {
+      const src = await oxc.parseAsync(source, {
+        sourceType: 'module',
+        sourceFilename: 'test.ts',
+      })
+      JSON.parse(src.program)
+    },
+    'swc async parse': () =>
+      swc.parse(source, {
+        syntax: 'typescript',
+      }),
+    'TypeScript parse(not async)': () => {
+      ts.createSourceFile('benchmark.ts', source, ts.ScriptTarget.Latest)
+    },
+  }
+}
+
+async function run(func: (s: string) => Record<string, () => unknown>) {
   const cases = prepareCases()
   for (const [title, source] of cases) {
-    const benches = parseSyncBench(source)
+    const benches = func(source)
     await b.suite(
       title,
       ...Object.entries(benches).map(([runnerName, runner]) =>
@@ -71,6 +101,10 @@ async function run() {
   }
 }
 
-run().catch((e) => {
+run(parseAsyncBench).catch((e) => {
+  console.error(e)
+})
+
+run(parseSyncBench).catch((e) => {
   console.error(e)
 })
