@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/napi-win32-arm64-msvc",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "os": [
     "win32"
   ],
