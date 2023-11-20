@@ -167,12 +167,6 @@ pub struct IterateFiles<D> {
   producer: fn(&D, std::result::Result<ignore::DirEntry, ignore::Error>) -> Ret<bool>,
 }
 
-pub struct IterateFiles<D> {
-  walk: WalkParallel,
-  tsfn: D,
-  producer: fn(&D, std::result::Result<ignore::DirEntry, ignore::Error>) -> Ret<bool>,
-}
-
 impl<T: 'static + Send + Sync> Task for IterateFiles<T> {
   type Output = u32;
   type JsValue = JsNumber;
