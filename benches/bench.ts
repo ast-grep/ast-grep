@@ -58,10 +58,18 @@ export function parseSyncBench(source: string) {
   }
 }
 
+const CONCURRENCY = 5
+function concurrent(f: () => Promise<unknown>) {
+  return () => {
+    const tasks = Array(CONCURRENCY).fill(undefined).map(() => f())
+    return Promise.all(tasks)
+  }
+}
+
 function parseAsyncBench(source: string) {
-  return {
+  const tasks = {
     'ast-grep async parse': () => sg.parseAsync(source),
-    'tree-sitter parse(not async)': () => {
+    'tree-sitter parse(not async)': async () => {
       treeSitter.parse(source)
     },
     'babel async parse': () =>
@@ -80,18 +88,21 @@ function parseAsyncBench(source: string) {
       swc.parse(source, {
         syntax: 'typescript',
       }),
-    'TypeScript parse(not async)': () => {
+    'TypeScript parse(not async)': async () => {
       ts.createSourceFile('benchmark.ts', source, ts.ScriptTarget.Latest)
     },
   }
+
+  const newTasks = Object.entries(tasks).map(([n, f]) => [n, concurrent(f)])
+  return Object.fromEntries(newTasks)
 }
 
-async function run(func: (s: string) => Record<string, () => unknown>) {
+async function run(benchGenerator: (s: string) => Record<string, () => unknown>) {
   const cases = prepareCases()
   for (const [title, source] of cases) {
-    const benches = func(source)
+    const benches = benchGenerator(source)
     await b.suite(
-      title,
+      `${benchGenerator.name}: ${title}`,
       ...Object.entries(benches).map(([runnerName, runner]) =>
         b.add(runnerName, runner),
       ),
@@ -101,10 +112,10 @@ async function run(func: (s: string) => Record<string, () => unknown>) {
   }
 }
 
-run(parseAsyncBench).catch((e) => {
+run(parseSyncBench).catch((e) => {
   console.error(e)
 })
 
-run(parseSyncBench).catch((e) => {
+run(parseAsyncBench).catch((e) => {
   console.error(e)
 })
