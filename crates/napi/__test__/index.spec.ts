@@ -18,6 +18,20 @@ test('find from native code', t => {
   })
 })
 
+test('parse async', async t => {
+  const sg = await js.parseAsync('console.log(123)')
+  const match = sg.root().find('console.log')
+  t.deepEqual(match!.range(), {
+    start: { line: 0, column: 0, index: 0 },
+    end: { line: 0, column: 11, index: 11 },
+  })
+  const node = match!.find('console')
+  t.deepEqual(node!.range(), {
+    start: { line: 0, column: 0, index: 0 },
+    end: { line: 0, column: 7, index: 7 },
+  })
+})
+
 test('find multiple nodes', t => {
   const sg = parse('a(1, 2, 3)')
   const match = sg.root().find('a($$$B)')

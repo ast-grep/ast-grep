@@ -70,6 +70,18 @@ macro_rules! impl_lang_mod {
           let doc = JsDoc::new(src, $lang);
           SgRoot(AstGrep::doc(doc), "anonymous".into())
         }
+
+        /// Parse a string to an ast-grep instance asynchronously in threads.
+        /// It utlizes multiple CPU cores when **concurrent processing sources**.
+        /// However, spawning excessive many threads may backfire.
+        /// Please refer to libuv doc, nodejs' underlying runtime
+        /// for its default behavior and performance tuning tricks.
+        #[napi(ts_return_type = "Promise<SgRoot>")]
+        pub fn parse_async(src: String) -> AsyncTask<ParseAsync> {
+          AsyncTask::new(ParseAsync {
+            src, lang: $lang,
+          })
+        }
         /// Get the `kind` number from its string name.
         #[napi]
         pub fn kind(kind_name: String) -> u16 {
@@ -129,6 +141,30 @@ fn build_files(paths: Vec<String>) -> Result<WalkParallel> {
   }
   let walk = builder.types(types).build_parallel();
   Ok(walk)
+}
+pub struct ParseAsync {
+  src: String,
+  lang: FrontEndLanguage,
+}
+
+impl Task for ParseAsync {
+  type Output = SgRoot;
+  type JsValue = SgRoot;
+
+  fn compute(&mut self) -> Result<Self::Output> {
+    let src = std::mem::take(&mut self.src);
+    let doc = JsDoc::new(src, self.lang);
+    Ok(SgRoot(AstGrep::doc(doc), "anonymous".into()))
+  }
+  fn resolve(&mut self, _env: Env, output: Self::Output) -> Result<Self::JsValue> {
+    Ok(output)
+  }
+}
+
+pub struct IterateFiles<D> {
+  walk: WalkParallel,
+  tsfn: D,
+  producer: fn(&D, std::result::Result<ignore::DirEntry, ignore::Error>) -> Ret<bool>,
 }
 
 pub struct IterateFiles<D> {

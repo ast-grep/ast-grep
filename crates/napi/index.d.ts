@@ -11,9 +11,9 @@ export const enum FrontEndLanguage {
   TypeScript = 4
 }
 export interface Pos {
-  /** line number starting from 1 */
+  /** line number starting from 0 */
   line: number
-  /** column number starting from 1 */
+  /** column number starting from 0 */
   column: number
   /** byte offset of the position */
   index: number
@@ -90,6 +90,14 @@ export class SgRoot {
 export namespace html {
   /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
+  /**
+   * Parse a string to an ast-grep instance asynchronously in threads.
+   * It utlizes multiple CPU cores when **concurrent processing sources**.
+   * However, spawning excessive many threads may backfire.
+   * Please refer to libuv doc, nodejs' underlying runtime
+   * for its default behavior and performance tuning tricks.
+   */
+  export function parseAsync(src: string): Promise<SgRoot>
   /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
   /** Compile a string to ast-grep Pattern. */
@@ -104,6 +112,14 @@ export namespace html {
 export namespace js {
   /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
+  /**
+   * Parse a string to an ast-grep instance asynchronously in threads.
+   * It utlizes multiple CPU cores when **concurrent processing sources**.
+   * However, spawning excessive many threads may backfire.
+   * Please refer to libuv doc, nodejs' underlying runtime
+   * for its default behavior and performance tuning tricks.
+   */
+  export function parseAsync(src: string): Promise<SgRoot>
   /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
   /** Compile a string to ast-grep Pattern. */
@@ -118,6 +134,14 @@ export namespace js {
 export namespace jsx {
   /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
+  /**
+   * Parse a string to an ast-grep instance asynchronously in threads.
+   * It utlizes multiple CPU cores when **concurrent processing sources**.
+   * However, spawning excessive many threads may backfire.
+   * Please refer to libuv doc, nodejs' underlying runtime
+   * for its default behavior and performance tuning tricks.
+   */
+  export function parseAsync(src: string): Promise<SgRoot>
   /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
   /** Compile a string to ast-grep Pattern. */
@@ -132,6 +156,14 @@ export namespace jsx {
 export namespace ts {
   /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
+  /**
+   * Parse a string to an ast-grep instance asynchronously in threads.
+   * It utlizes multiple CPU cores when **concurrent processing sources**.
+   * However, spawning excessive many threads may backfire.
+   * Please refer to libuv doc, nodejs' underlying runtime
+   * for its default behavior and performance tuning tricks.
+   */
+  export function parseAsync(src: string): Promise<SgRoot>
   /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
   /** Compile a string to ast-grep Pattern. */
@@ -146,6 +178,14 @@ export namespace ts {
 export namespace tsx {
   /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
+  /**
+   * Parse a string to an ast-grep instance asynchronously in threads.
+   * It utlizes multiple CPU cores when **concurrent processing sources**.
+   * However, spawning excessive many threads may backfire.
+   * Please refer to libuv doc, nodejs' underlying runtime
+   * for its default behavior and performance tuning tricks.
+   */
+  export function parseAsync(src: string): Promise<SgRoot>
   /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
   /** Compile a string to ast-grep Pattern. */
@@ -160,6 +200,14 @@ export namespace tsx {
 export namespace css {
   /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
+  /**
+   * Parse a string to an ast-grep instance asynchronously in threads.
+   * It utlizes multiple CPU cores when **concurrent processing sources**.
+   * However, spawning excessive many threads may backfire.
+   * Please refer to libuv doc, nodejs' underlying runtime
+   * for its default behavior and performance tuning tricks.
+   */
+  export function parseAsync(src: string): Promise<SgRoot>
   /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
   /** Compile a string to ast-grep Pattern. */
