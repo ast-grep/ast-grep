@@ -25,8 +25,17 @@ function prepareCases() {
   ]
 }
 
+const CONCURRENCY = 5
+function concurrent(f: () => unknown) {
+  return () => {
+    const tasks = Array(CONCURRENCY).fill(undefined).map(() => f())
+    return Promise.all(tasks)
+  }
+}
+
+
 export function parseSyncBench(source: string) {
-  return {
+  const tasks = {
     'ast-grep sync parse': () => {
       sg.parse(source)
     },
@@ -56,14 +65,8 @@ export function parseSyncBench(source: string) {
       ts.createSourceFile('benchmark.ts', source, ts.ScriptTarget.Latest)
     },
   }
-}
-
-const CONCURRENCY = 5
-function concurrent(f: () => Promise<unknown>) {
-  return () => {
-    const tasks = Array(CONCURRENCY).fill(undefined).map(() => f())
-    return Promise.all(tasks)
-  }
+  const newTasks = Object.entries(tasks).map(([n, f]) => [n, concurrent(f)])
+  return Object.fromEntries(newTasks)
 }
 
 function parseAsyncBench(source: string) {
@@ -112,10 +115,14 @@ async function run(benchGenerator: (s: string) => Record<string, () => unknown>)
   }
 }
 
-run(parseSyncBench).catch((e) => {
-  console.error(e)
-})
+async function benchmark() {
+  await run(parseSyncBench).catch((e) => {
+    console.error(e)
+  })
 
-run(parseAsyncBench).catch((e) => {
-  console.error(e)
-})
+  await run(parseAsyncBench).catch((e) => {
+    console.error(e)
+  })
+}
+
+benchmark()
