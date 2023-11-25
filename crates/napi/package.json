@@ -48,7 +48,7 @@
     "ava": "5.3.1",
     "chalk": "5.3.0",
     "ts-node": "10.9.1",
-    "typescript": "5.2.2"
+    "typescript": "5.3.2"
   },
   "ava": {
     "require": [
