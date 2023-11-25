@@ -22,7 +22,7 @@
     "typescript": "5.3.2"
   },
   "devDependencies": {
-    "@types/babel__core": "7.20.4",
+    "@types/babel__core": "7.20.5",
     "@types/node": "20.4.2",
     "prettier": "3.1.0",
     "ts-node": "10.9.1"
