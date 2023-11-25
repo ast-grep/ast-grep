@@ -24,8 +24,8 @@ dependencies:
     specifier: 3.7.1
     version: 3.7.1
   tree-sitter:
-    specifier: 0.20.5
-    version: 0.20.5
+    specifier: 0.20.6
+    version: 0.20.6
   tree-sitter-typescript:
     specifier: 0.20.1
     version: 0.20.1
@@ -926,6 +926,10 @@ packages:
     resolution: {integrity: sha512-2ZTgtl0nJsO0KQCjEpxcIr5D+Yv90plTitZt9JBfQvVJDS5seMl3FOvsh3+9CoYWXf/1l5OaZzzF6nDm4cagaQ==}
     dev: false
 
+  /nan@2.18.0:
+    resolution: {integrity: sha512-W7tfG7vMOGtD30sHoZSSc/JVYiyDPEyQVso/Zz+/uQd0B0L46gtC+pHha5FFMRpil6fm/AoEcRWyOVi4+E/f8w==}
+    dev: false
+
   /napi-build-utils@1.0.2:
     resolution: {integrity: sha512-ONmRUqK7zj7DWX0D9ADe03wbwOBZxNAfF20PlGfCWQcD3+/MakShIHrMqx9YwPTfxDdF1zLeL+RGZiR9kGMLdg==}
     dev: false
@@ -1128,11 +1132,11 @@ packages:
       nan: 2.17.0
     dev: false
 
-  /tree-sitter@0.20.5:
-    resolution: {integrity: sha512-xjxkKCKV7F2F5HWmyRE4bosoxkbxe9lYvFRc/nzmtHNqFNTwYwh0oWVVEt0VnbupZHMirEQW7vDx8ddJn72tjg==}
+  /tree-sitter@0.20.6:
+    resolution: {integrity: sha512-GxJodajVpfgb3UREzzIbtA1hyRnTxVbWVXrbC6sk4xTMH5ERMBJk9HJNq4c8jOJeUaIOmLcwg+t6mez/PDvGqg==}
     requiresBuild: true
     dependencies:
-      nan: 2.17.0
+      nan: 2.18.0
       prebuild-install: 7.1.1
     dev: false
 
