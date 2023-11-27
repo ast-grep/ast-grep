@@ -1,5 +1,5 @@
 use crate::error::ErrorContext as EC;
-use crate::lang::{CustomLang, SgLang};
+use crate::lang::{AliasRegistration, CustomLang, SgLang};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{
@@ -46,6 +46,9 @@ pub struct AstGrepConfig {
   /// configuration for custom languages
   #[serde(skip_serializing_if = "Option::is_none")]
   pub custom_languages: Option<HashMap<String, CustomLang>>,
+  /// configuration for alias languages
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub alias_languages: Option<HashMap<String, AliasRegistration>>,
 }
 
 pub fn find_rules(
@@ -75,6 +78,9 @@ pub fn register_custom_language(config_path: Option<PathBuf>) {
   path.pop();
   if let Some(custom_langs) = sg_config.custom_languages {
     SgLang::register_custom_language(path, custom_langs);
+  }
+  if let Some(aliases) = sg_config.alias_languages {
+    SgLang::register_alias_language(aliases);
   }
 }
 
