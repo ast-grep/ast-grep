@@ -19,6 +19,7 @@ pub struct AliasLang {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AliasRegistration {
   pub alias_of: SupportLang,
   pub extensions: Vec<String>,
