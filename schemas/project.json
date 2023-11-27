@@ -44,7 +44,7 @@
         },
         "snapshotDir": {
           "type": "string",
-          "description": "A string path relative to testDir that specifies where to store test snapshots for ast-grep. You can think it like __snapshots___ in popular test framework like jest. If this option is not specified, ast-grep will store the snapshot under the __snapshots__ folder undert the testDir."
+          "description": "A string path relative to testDir that specifies where to store test snapshots for ast-grep. You can think it like __snapshots___ in popular test framework like jest. If this option is not specified, ast-grep will store the snapshot under the __snapshots__ folder under the testDir."
         }
       },
       "required": ["testDir"],

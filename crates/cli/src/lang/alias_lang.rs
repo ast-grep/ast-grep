@@ -143,7 +143,7 @@ impl FromStr for AliasLang {
         });
       }
     }
-    Err(format!("unknow language `{name}`."))
+    Err(format!("unknown language `{name}`."))
   }
 }
 

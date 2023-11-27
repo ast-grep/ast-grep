@@ -16,12 +16,12 @@ pub struct DeserializeEnv<L: Language> {
   pub(crate) lang: L,
 }
 
-trait DepedentRule: Sized {
+trait DependentRule: Sized {
   fn visit_dependent_rules<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>)
     -> OrderResult<()>;
 }
 
-impl DepedentRule for SerializableRule {
+impl DependentRule for SerializableRule {
   fn visit_dependent_rules<'a>(
     &'a self,
     sorter: &mut TopologicalSort<'a, Self>,
@@ -30,7 +30,7 @@ impl DepedentRule for SerializableRule {
   }
 }
 
-impl<L: Language> DepedentRule for SerializableRuleCore<L> {
+impl<L: Language> DependentRule for SerializableRuleCore<L> {
   fn visit_dependent_rules<'a>(
     &'a self,
     sorter: &mut TopologicalSort<'a, Self>,
@@ -39,14 +39,14 @@ impl<L: Language> DepedentRule for SerializableRuleCore<L> {
   }
 }
 
-struct TopologicalSort<'a, T: DepedentRule> {
+struct TopologicalSort<'a, T: DependentRule> {
   utils: &'a HashMap<String, T>,
   order: Vec<&'a String>,
   // bool stands for if the rule has completed visit
   seen: HashMap<&'a String, bool>,
 }
 
-impl<'a, T: DepedentRule> TopologicalSort<'a, T> {
+impl<'a, T: DependentRule> TopologicalSort<'a, T> {
   fn get_order(utils: &HashMap<String, T>) -> OrderResult<Vec<&String>> {
     let mut top_sort = TopologicalSort::new(utils);
     for rule_id in utils.keys() {
@@ -89,7 +89,7 @@ impl<'a, T: DepedentRule> TopologicalSort<'a, T> {
   }
 }
 
-fn visit_dependent_rule_ids<'a, T: DepedentRule>(
+fn visit_dependent_rule_ids<'a, T: DependentRule>(
   rule: &'a SerializableRule,
   sort: &mut TopologicalSort<'a, T>,
 ) -> OrderResult<()> {

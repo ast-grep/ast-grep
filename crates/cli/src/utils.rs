@@ -324,7 +324,7 @@ pub struct OutputArgs {
 
 impl OutputArgs {
   // either explicit interactive or implicit update_all
-  pub fn needs_interacive(&self) -> bool {
+  pub fn needs_interactive(&self) -> bool {
     self.interactive || self.update_all
   }
 }
