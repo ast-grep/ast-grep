@@ -119,7 +119,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
   let printer = ColoredPrinter::stdout(arg.output.color)
     .heading(arg.heading)
     .context(context);
-  let interactive = arg.output.needs_interacive();
+  let interactive = arg.output.needs_interactive();
   if interactive {
     let from_stdin = arg.input.is_stdin();
     let printer = InteractivePrinter::new(printer, arg.output.update_all, from_stdin)?;

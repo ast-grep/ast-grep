@@ -29,7 +29,7 @@ where
   fn potential_kinds(&self) -> Option<BitSet> {
     let set1 = self.pattern1.potential_kinds();
     let set2 = self.pattern2.potential_kinds();
-    // if both constituent have Some(bitset), intesect them
+    // if both constituent have Some(bitset), intersect them
     // otherwise returns either of the non-null set
     match (&set1, &set2) {
       (Some(s1), Some(s2)) => Some(s1.intersection(s2).collect()),
@@ -38,7 +38,7 @@ where
   }
 }
 
-// we precompute and cache potential_kinds. So patterns should not be mutated.
+// we pre-compute and cache potential_kinds. So patterns should not be mutated.
 // Box<[P]> is used here for immutability so that kinds will never be invalidated.
 pub struct All<L: Language, P: Matcher<L>> {
   patterns: Box<[P]>,

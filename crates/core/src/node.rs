@@ -176,7 +176,7 @@ impl<'r, D: Doc> Node<'r, D> {
     source.get_text(&self.inner)
   }
 
-  /// Node's tree structure dumped in Lisp like S-experssion
+  /// Node's tree structure dumped in Lisp like S-expression
   pub fn to_sexp(&self) -> Cow<'_, str> {
     self.inner.to_sexp()
   }

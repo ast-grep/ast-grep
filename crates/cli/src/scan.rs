@@ -68,7 +68,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
     return run_scan(arg, printer);
   }
   let printer = ColoredPrinter::stdout(arg.output.color).style(arg.report_style);
-  let interactive = arg.output.needs_interacive();
+  let interactive = arg.output.needs_interactive();
   if interactive {
     let from_stdin = arg.input.is_stdin();
     let printer = InteractivePrinter::new(printer, arg.output.update_all, from_stdin)?;
@@ -136,7 +136,7 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
       let path = &path;
       let rules = self.configs.for_path(path);
       let combined = CombinedScan::new(rules);
-      let interactive = self.arg.output.needs_interacive();
+      let interactive = self.arg.output.needs_interactive();
       if interactive {
         let diffs = combined
           .diffs(&grep, hit_set.clone())

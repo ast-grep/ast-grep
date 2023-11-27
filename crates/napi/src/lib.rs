@@ -72,7 +72,7 @@ macro_rules! impl_lang_mod {
         }
 
         /// Parse a string to an ast-grep instance asynchronously in threads.
-        /// It utlizes multiple CPU cores when **concurrent processing sources**.
+        /// It utilize multiple CPU cores when **concurrent processing sources**.
         /// However, spawning excessive many threads may backfire.
         /// Please refer to libuv doc, nodejs' underlying runtime
         /// for its default behavior and performance tuning tricks.
