@@ -67,8 +67,12 @@ pub fn find_rules(
 }
 
 pub fn register_custom_language(config_path: Option<PathBuf>) -> Result<()> {
-  let mut path = find_config_path_with_default(config_path, None)?;
-  let config_str = read_to_string(&path)?;
+  let Ok(mut path) = find_config_path_with_default(config_path, None) else {
+    return Ok(()); // do not report error if no sgconfig.yml is found
+  };
+  let Ok(config_str) = read_to_string(&path) else {
+    return Ok(()); // suppress error when register custom lang
+  };
   let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
   path.pop();
   if let Some(custom_langs) = sg_config.custom_languages {
