@@ -5,7 +5,7 @@ use ast_grep_lsp::{Backend, LspService, Server};
 
 async fn run_language_server_impl() -> Result<()> {
   // env_logger::init();
-  register_custom_language(None);
+  register_custom_language(None)?;
   let stdin = tokio::io::stdin();
   let stdout = tokio::io::stdout();
   let config = find_rules(None, None).unwrap_or_default();

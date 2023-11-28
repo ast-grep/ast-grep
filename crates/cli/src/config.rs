@@ -66,15 +66,10 @@ pub fn find_rules(
   read_directory_yaml(base_dir, sg_config.rule_dirs, global_rules, rule_filter)
 }
 
-// TODO: add error
-pub fn register_custom_language(config_path: Option<PathBuf>) {
-  let Ok(mut path) = find_config_path_with_default(config_path, None) else {
-    return;
-  };
-  let Ok(config_str) = read_to_string(&path) else {
-    return;
-  };
-  let sg_config: AstGrepConfig = from_str(&config_str).unwrap();
+pub fn register_custom_language(config_path: Option<PathBuf>) -> Result<()> {
+  let mut path = find_config_path_with_default(config_path, None)?;
+  let config_str = read_to_string(&path)?;
+  let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
   path.pop();
   if let Some(custom_langs) = sg_config.custom_languages {
     SgLang::register_custom_language(path, custom_langs);
@@ -82,6 +77,7 @@ pub fn register_custom_language(config_path: Option<PathBuf>) {
   if let Some(aliases) = sg_config.alias_languages {
     SgLang::register_alias_language(aliases);
   }
+  Ok(())
 }
 
 fn find_util_rules(

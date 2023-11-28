@@ -82,7 +82,7 @@ fn try_default_run(args: &[String]) -> Result<Option<RunArg>> {
 // this wrapper function is for testing
 pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
   let args: Vec<_> = args.collect();
-  register_custom_language_if_is_run(&args);
+  register_custom_language_if_is_run(&args)?;
   if let Some(arg) = try_default_run(&args)? {
     return run_with_pattern(arg);
   }

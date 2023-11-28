@@ -140,7 +140,7 @@ impl Display for Entity {
 }
 
 pub fn run_create_new(mut arg: NewArg) -> Result<()> {
-  register_custom_language(Some(arg.base_dir.clone()));
+  register_custom_language(Some(arg.base_dir.clone()))?;
   if let Some(entity) = arg.entity.take() {
     run_create_entity(entity, arg)
   } else {

@@ -190,7 +190,7 @@ pub struct TestArg {
 }
 
 pub fn run_test_rule(arg: TestArg) -> Result<()> {
-  register_custom_language(arg.config.clone());
+  register_custom_language(arg.config.clone())?;
   if arg.interactive {
     let reporter = InteractiveReporter {
       output: std::io::stdout(),

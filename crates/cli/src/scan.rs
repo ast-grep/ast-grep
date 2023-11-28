@@ -58,7 +58,7 @@ pub struct ScanArg {
 }
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
-  register_custom_language(arg.config.clone());
+  register_custom_language(arg.config.clone())?;
   if let Some(_format) = &arg.format {
     let printer = CloudPrinter::stdout();
     return run_scan(arg, printer);
