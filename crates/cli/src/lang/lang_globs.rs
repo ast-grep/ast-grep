@@ -47,24 +47,24 @@ fn add_types(builder: &mut TypesBuilder, types: &Types) {
   }
 }
 
-pub fn merge_types(lang: &str, type1: Types, type2: Option<&Types>) -> Types {
-  let Some(type2) = type2 else {
-    return type1;
-  };
-  let mut builder = TypesBuilder::new();
-  add_types(&mut builder, &type1);
-  add_types(&mut builder, type2);
-  builder.select(lang);
-  builder.build().expect("file type must be valid")
-}
-
-pub fn get_types(lang: &SgLang) -> Option<&Types> {
+fn get_types(lang: &SgLang) -> Option<&Types> {
   for (l, types) in unsafe { &LANG_GLOBS } {
     if l == lang {
       return Some(types);
     }
   }
   None
+}
+
+pub fn merge_types(lang: &SgLang, type1: Types) -> Types {
+  let Some(type2) = get_types(lang) else {
+    return type1;
+  };
+  let mut builder = TypesBuilder::new();
+  add_types(&mut builder, &type1);
+  add_types(&mut builder, type2);
+  builder.select(&lang.to_string());
+  builder.build().expect("file type must be valid")
 }
 
 pub fn from_path(p: &Path) -> Option<SgLang> {

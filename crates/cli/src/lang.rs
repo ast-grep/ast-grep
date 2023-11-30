@@ -31,15 +31,16 @@ impl SgLang {
       Builtin(b) => b.file_types(),
       Custom(c) => c.file_types(),
     };
-    let glob = lang_globs::get_types(self);
-    let name = self.to_string();
-    lang_globs::merge_types(&name, default_types, glob)
+    lang_globs::merge_types(self, default_types)
   }
 
+  // register_globs must be called after register_custom_language
   pub fn register_custom_language(base: PathBuf, langs: HashMap<String, CustomLang>) {
     CustomLang::register(base, langs)
   }
 
+  // TODO: add tests
+  // register_globs must be called after register_custom_language
   pub fn register_globs(langs: LanguageGlobs) -> Result<()> {
     unsafe {
       lang_globs::register(langs)?;
