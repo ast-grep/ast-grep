@@ -1,5 +1,5 @@
-mod alias_lang;
 mod custom_lang;
+mod lang_globs;
 
 use ast_grep_core::language::TSLanguage;
 use ast_grep_dynamic::DynamicLang;
@@ -13,8 +13,8 @@ use std::fmt::{Debug, Display, Formatter};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-pub use alias_lang::LanguageGlobs;
 pub use custom_lang::CustomLang;
+pub use lang_globs::LanguageGlobs;
 
 #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -26,10 +26,12 @@ pub enum SgLang {
 
 impl SgLang {
   pub fn file_types(&self) -> Types {
-    match self {
+    let default_types = match self {
       Builtin(b) => b.file_types(),
       Custom(c) => c.file_types(),
-    }
+    };
+    let glob = lang_globs::get_types(self);
+    lang_globs::merge_types(default_types, glob)
   }
 
   pub fn register_custom_language(base: PathBuf, langs: HashMap<String, CustomLang>) {
@@ -37,7 +39,7 @@ impl SgLang {
   }
 
   pub fn register_globs(langs: LanguageGlobs) {
-    unsafe { alias_lang::register(langs) }
+    unsafe { lang_globs::register(langs) }
   }
 
   pub fn all_langs() -> Vec<Self> {
@@ -111,8 +113,9 @@ impl Language for SgLang {
 
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     SupportLang::from_path(path.as_ref())
-      .map(SgLang::from)
-      .or_else(|| DynamicLang::from_path(path).map(SgLang::Custom))
+      .map(SgLang::Builtin)
+      .or_else(|| DynamicLang::from_path(path.as_ref()).map(SgLang::Custom))
+      .or_else(|| lang_globs::from_path(path.as_ref()))
   }
 
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
