@@ -32,7 +32,8 @@ impl SgLang {
       Custom(c) => c.file_types(),
     };
     let glob = lang_globs::get_types(self);
-    lang_globs::merge_types(default_types, glob)
+    let name = self.to_string();
+    lang_globs::merge_types(&name, default_types, glob)
   }
 
   pub fn register_custom_language(base: PathBuf, langs: HashMap<String, CustomLang>) {

@@ -16,8 +16,11 @@ pub unsafe fn register(regs: LanguageGlobs) -> Result<()> {
   debug_assert!(LANG_GLOBS.is_empty());
   let mut lang_globs = vec![];
   for (lang, globs) in regs {
-    let types = build_types(&lang, globs)?;
     let lang = SgLang::from_str(&lang).with_context(|| EC::UnrecognizableLanguage(lang))?;
+    // Note: we have to use lang.to_string() for normalized language name
+    // TODO: add test
+    let lang_name = lang.to_string();
+    let types = build_types(&lang_name, globs)?;
     lang_globs.push((lang, types));
   }
   _ = std::mem::replace(&mut LANG_GLOBS, lang_globs);
@@ -44,13 +47,14 @@ fn add_types(builder: &mut TypesBuilder, types: &Types) {
   }
 }
 
-pub fn merge_types(type1: Types, type2: Option<&Types>) -> Types {
+pub fn merge_types(lang: &str, type1: Types, type2: Option<&Types>) -> Types {
   let Some(type2) = type2 else {
     return type1;
   };
   let mut builder = TypesBuilder::new();
   add_types(&mut builder, &type1);
   add_types(&mut builder, type2);
+  builder.select(lang);
   builder.build().expect("file type must be valid")
 }
 

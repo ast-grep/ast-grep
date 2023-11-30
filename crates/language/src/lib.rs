@@ -322,52 +322,25 @@ fn add_custom_file_type<'b>(
   suffix_list: &[&str],
 ) -> &'b mut TypesBuilder {
   for suffix in suffix_list {
+    let glob = format!("*.{suffix}");
     builder
-      .add(file_type, suffix)
+      .add(file_type, &glob)
       .expect("file pattern must compile");
   }
   builder.select(file_type)
 }
 
 fn file_types(lang: &SupportLang) -> Types {
-  use SupportLang as L;
   let mut builder = TypesBuilder::new();
-  builder.add_defaults();
-  let builder = match lang {
-    L::C => builder.select("c"),
-    L::Cpp => builder.select("cpp"),
-    L::CSharp => builder.select("csharp"),
-    L::Css => builder.select("css"),
-    L::Dart => builder.select("dart"),
-    L::Go => builder.select("go"),
-    L::Html => builder.select("html"),
-    L::Java => builder.select("java"),
-    L::JavaScript => {
-      add_custom_file_type(&mut builder, "myjs", &["*.js", "*.cjs", "*.jsx", "*.mjs"])
-    }
-    L::Json => builder.select("json"),
-    L::Kotlin => builder.select("kotlin"),
-    L::Lua => builder.select("lua"),
-    L::Python => builder.select("py"),
-    L::Ruby => builder.select("ruby"),
-    L::Rust => builder.select("rust"),
-    L::Scala => builder.select("scala"),
-    L::Swift => builder.select("swift"),
-    L::Thrift => builder.select("thrift"),
-    L::Tsx => {
-      builder
-        .add("mytsx", "*.tsx")
-        .expect("file pattern must compile");
-      builder.select("mytsx")
-    }
-    L::TypeScript => add_custom_file_type(&mut builder, "myts", &["*.ts", "*.cts", "*.mts"]),
-  };
+  let exts = extensions(lang);
+  let lang_name = lang.to_string();
+  add_custom_file_type(&mut builder, &lang_name, exts);
   builder.build().expect("file type must be valid")
 }
 
 pub fn config_file_type() -> Types {
   let mut builder = TypesBuilder::new();
-  let builder = add_custom_file_type(&mut builder, "yml", &["*.yml", "*.yaml"]);
+  let builder = add_custom_file_type(&mut builder, "yml", &["yml", "yaml"]);
   builder.build().expect("yaml type must be valid")
 }
 
