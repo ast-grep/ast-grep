@@ -46,7 +46,7 @@ pub struct AstGrepConfig {
   /// configuration for custom languages
   #[serde(skip_serializing_if = "Option::is_none")]
   pub custom_languages: Option<HashMap<String, CustomLang>>,
-  /// configuration for alias languages
+  /// additional file globs for languages
   #[serde(skip_serializing_if = "Option::is_none")]
   pub language_globs: Option<LanguageGlobs>,
 }
@@ -79,7 +79,7 @@ pub fn register_custom_language(config_path: Option<PathBuf>) -> Result<()> {
     SgLang::register_custom_language(path, custom_langs);
   }
   if let Some(globs) = sg_config.language_globs {
-    SgLang::register_globs(globs);
+    SgLang::register_globs(globs)?;
   }
   Ok(())
 }

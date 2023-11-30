@@ -4,29 +4,35 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
 
+use crate::error::ErrorContext as EC;
+use anyhow::{Context, Result};
+
 // both use vec since lang will be small
 static mut LANG_GLOBS: Vec<(SgLang, Types)> = vec![];
 
 pub type LanguageGlobs = HashMap<String, Vec<String>>;
 
-pub unsafe fn register(regs: LanguageGlobs) {
+pub unsafe fn register(regs: LanguageGlobs) -> Result<()> {
   debug_assert!(LANG_GLOBS.is_empty());
   let mut lang_globs = vec![];
   for (lang, globs) in regs {
-    let types = build_types(&lang, globs);
-    let lang = SgLang::from_str(&lang).expect("should work");
+    let types = build_types(&lang, globs)?;
+    let lang = SgLang::from_str(&lang).with_context(|| EC::UnrecognizableLanguage(lang))?;
     lang_globs.push((lang, types));
   }
   _ = std::mem::replace(&mut LANG_GLOBS, lang_globs);
+  Ok(())
 }
 
-fn build_types(lang: &str, globs: Vec<String>) -> Types {
+fn build_types(lang: &str, globs: Vec<String>) -> Result<Types> {
   let mut builder = TypesBuilder::new();
   for glob in globs {
-    builder.add(lang, &glob).expect("file pattern must compile");
+    // TODO: change glob pattern error message to be more generic
+    // it only mentions "file/ignore"
+    builder.add(lang, &glob).context(EC::GlobPattern)?;
   }
   builder.select(lang);
-  builder.build().expect("file type must be valid")
+  builder.build().context(EC::GlobPattern)
 }
 
 fn add_types(builder: &mut TypesBuilder, types: &Types) {

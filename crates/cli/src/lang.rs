@@ -1,6 +1,7 @@
 mod custom_lang;
 mod lang_globs;
 
+use anyhow::Result;
 use ast_grep_core::language::TSLanguage;
 use ast_grep_dynamic::DynamicLang;
 use ast_grep_language::{Language, SupportLang};
@@ -38,8 +39,11 @@ impl SgLang {
     CustomLang::register(base, langs)
   }
 
-  pub fn register_globs(langs: LanguageGlobs) {
-    unsafe { lang_globs::register(langs) }
+  pub fn register_globs(langs: LanguageGlobs) -> Result<()> {
+    unsafe {
+      lang_globs::register(langs)?;
+    }
+    Ok(())
   }
 
   pub fn all_langs() -> Vec<Self> {

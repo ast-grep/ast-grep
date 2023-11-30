@@ -13,6 +13,7 @@ const CLI_USAGE: Option<&str> = Some("/reference/cli.html");
 const TEST_GUIDE: Option<&str> = Some("/guide/test-rule.html");
 const UTIL_GUIDE: Option<&str> = Some("/guide/rule-config/utility-rule.html");
 const EDITOR_INTEGRATION: Option<&str> = Some("/guide/editor-integration.html");
+const LANGUAGE_LIST: Option<&str> = Some("/reference/languages.html");
 const PLAYGROUND: Option<&str> = Some("/playground.html");
 
 /// AppError stands for ast-grep command line usage.
@@ -28,6 +29,7 @@ pub enum ErrorContext {
   ParseRule(PathBuf),
   ParseTest(PathBuf),
   GlobPattern,
+  UnrecognizableLanguage(String),
   // Run
   ParsePattern,
   LanguageNotSpecified,
@@ -70,6 +72,7 @@ impl ErrorContext {
       CannotInferShell => 10,
       ProjectAlreadyExist | FileAlreadyExist(_) => 17,
       InsufficientCLIArgument(_) => 22,
+      UnrecognizableLanguage(_) => 33,
       OpenEditor | StartLanguageServer => 126,
       // soft error
       PatternHasError => 0,
@@ -140,6 +143,11 @@ impl ErrorMessage {
         "Cannot parse glob pattern in config",
         "The pattern in files/ignore is not a valid glob. Please refer to doc and fix the error.",
         CONFIG_GUIDE,
+      ),
+      UnrecognizableLanguage(lang) => Self::new(
+        format!("Language `{lang}` is not supported"),
+        "Please choose a built-in language or register a custom language in sgconfig.yml.",
+        LANGUAGE_LIST,
       ),
       ParseTest(file) => Self::new(
         format!("Cannot parse test case {}", file.display()),
