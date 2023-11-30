@@ -13,14 +13,12 @@ use std::fmt::{Debug, Display, Formatter};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use alias_lang::AliasLang;
-pub use alias_lang::AliasRegistration;
+pub use alias_lang::LanguageGlobs;
 pub use custom_lang::CustomLang;
 
 #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SgLang {
-  Alias(AliasLang),
   // inlined support lang expando char
   Builtin(SupportLang),
   Custom(DynamicLang),
@@ -29,7 +27,6 @@ pub enum SgLang {
 impl SgLang {
   pub fn file_types(&self) -> Types {
     match self {
-      Alias(a) => a.file_types(),
       Builtin(b) => b.file_types(),
       Custom(c) => c.file_types(),
     }
@@ -39,22 +36,20 @@ impl SgLang {
     CustomLang::register(base, langs)
   }
 
-  pub fn register_alias_language(langs: HashMap<String, AliasRegistration>) {
-    unsafe { AliasLang::register(langs) }
+  pub fn register_globs(langs: LanguageGlobs) {
+    unsafe { alias_lang::register(langs) }
   }
 
   pub fn all_langs() -> Vec<Self> {
-    let aliases = AliasLang::all_langs().into_iter().map(Self::Alias);
     let builtin = SupportLang::all_langs().iter().copied().map(Self::Builtin);
     let customs = DynamicLang::all_langs().into_iter().map(Self::Custom);
-    builtin.chain(customs).chain(aliases).collect()
+    builtin.chain(customs).collect()
   }
 }
 
 impl Debug for SgLang {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     match self {
-      Alias(a) => write!(f, "{}", a.name()),
       Builtin(b) => write!(f, "{}", b),
       Custom(c) => write!(f, "{}", c.name()),
     }
@@ -64,7 +59,6 @@ impl Debug for SgLang {
 impl Display for SgLang {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
     match self {
-      Alias(a) => write!(f, "{:?}", a.name()),
       Builtin(b) => write!(f, "{:?}", b),
       Custom(c) => write!(f, "{:?}", c.name()),
     }
@@ -110,7 +104,6 @@ use SgLang::*;
 impl Language for SgLang {
   fn get_ts_language(&self) -> TSLanguage {
     match self {
-      Alias(a) => a.get_ts_language(),
       Builtin(b) => b.get_ts_language(),
       Custom(c) => c.get_ts_language(),
     }
@@ -119,13 +112,11 @@ impl Language for SgLang {
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     SupportLang::from_path(path.as_ref())
       .map(SgLang::from)
-      .or_else(|| DynamicLang::from_path(path.as_ref()).map(SgLang::Custom))
-      .or_else(|| AliasLang::from_path(path).map(SgLang::Alias))
+      .or_else(|| DynamicLang::from_path(path).map(SgLang::Custom))
   }
 
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
     match self {
-      Alias(a) => a.pre_process_pattern(query),
       Builtin(b) => b.pre_process_pattern(query),
       Custom(c) => c.pre_process_pattern(query),
     }
@@ -134,7 +125,6 @@ impl Language for SgLang {
   #[inline]
   fn meta_var_char(&self) -> char {
     match self {
-      Alias(a) => a.meta_var_char(),
       Builtin(b) => b.meta_var_char(),
       Custom(c) => c.meta_var_char(),
     }
@@ -143,7 +133,6 @@ impl Language for SgLang {
   #[inline]
   fn expando_char(&self) -> char {
     match self {
-      Alias(a) => a.expando_char(),
       Builtin(b) => b.expando_char(),
       Custom(c) => c.expando_char(),
     }
