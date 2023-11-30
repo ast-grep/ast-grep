@@ -30,12 +30,13 @@ pub unsafe fn register(regs: LanguageGlobs) -> Result<()> {
 fn build_types(lang: &str, globs: Vec<String>) -> Result<Types> {
   let mut builder = TypesBuilder::new();
   for glob in globs {
-    // TODO: change glob pattern error message to be more generic
-    // it only mentions "file/ignore"
-    builder.add(lang, &glob).context(EC::GlobPattern)?;
+    // builder add will only trigger error when lang name is `all`
+    builder
+      .add(lang, &glob)
+      .with_context(|| EC::UnrecognizableLanguage(lang.into()))?;
   }
   builder.select(lang);
-  builder.build().context(EC::GlobPattern)
+  builder.build().context(EC::ParseConfiguration)
 }
 
 fn add_types(builder: &mut TypesBuilder, types: &Types) {
