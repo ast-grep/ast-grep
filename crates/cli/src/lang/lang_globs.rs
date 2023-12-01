@@ -76,3 +76,51 @@ pub fn from_path(p: &Path) -> Option<SgLang> {
   }
   None
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use serde_yaml::from_str;
+
+  const YAML: &str = r"
+js: ['.eslintrc']
+html: ['*.vue', '*.svelte']";
+
+  fn get_globs() -> LanguageGlobs {
+    from_str(YAML).expect("should parse")
+  }
+  #[test]
+  fn test_parse_globs() {
+    let globs = get_globs();
+    assert_eq!(globs["js"], &[".eslintrc"]);
+    assert_eq!(globs["html"], &["*.vue", "*.svelte"]);
+  }
+
+  #[test]
+  fn test_register() -> Result<()> {
+    let globs = get_globs();
+    unsafe {
+      // cleanup
+      std::mem::take(&mut LANG_GLOBS);
+      register(globs)?;
+      assert_eq!(LANG_GLOBS.len(), 2);
+    }
+    Ok(())
+  }
+
+  #[test]
+  fn test_invalid_language() {
+    let mut globs = get_globs();
+    globs.insert("php".into(), vec!["bestlang".into()]);
+    let ret = unsafe {
+      // cleanup
+      std::mem::take(&mut LANG_GLOBS);
+      register(globs)
+    };
+    let err = ret.expect_err("should wrong");
+    assert!(matches!(
+      err.downcast::<EC>(),
+      Ok(EC::UnrecognizableLanguage(_))
+    ));
+  }
+}
