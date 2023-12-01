@@ -43,7 +43,7 @@ fn add_types(builder: &mut TypesBuilder, types: &Types) {
   for def in types.definitions() {
     let name = def.name();
     for glob in def.globs() {
-      builder.add(name, glob).expect("file type must be valid");
+      builder.add(name, glob).expect(name);
     }
   }
 }
