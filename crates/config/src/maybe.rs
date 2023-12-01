@@ -128,4 +128,19 @@ mod test {
     let wrong: Result<Wrong, _> = from_str("");
     assert!(wrong.is_err());
   }
+
+  #[test]
+  #[should_panic]
+  fn test_unwrap_absent() {
+    let nothing: Maybe<()> = Maybe::Absent;
+    nothing.unwrap();
+  }
+
+  #[test]
+  fn test_from_optio() {
+    let mut maybe = Maybe::from(None);
+    assert!(maybe.is_absent());
+    maybe = Maybe::from(Some(123));
+    assert!(maybe.is_present());
+  }
 }
