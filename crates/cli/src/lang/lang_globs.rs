@@ -80,6 +80,7 @@ pub fn from_path(p: &Path) -> Option<SgLang> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use ast_grep_language::SupportLang;
   use serde_yaml::from_str;
 
   const YAML: &str = r"
@@ -122,5 +123,33 @@ html: ['*.vue', '*.svelte']";
       err.downcast::<EC>(),
       Ok(EC::UnrecognizableLanguage(_))
     ));
+  }
+
+  #[test]
+  fn test_merge_types() {
+    let lang: SgLang = SupportLang::Rust.into();
+    let default_types = lang.file_types();
+    let rust_types = merge_types(&lang, default_types);
+    assert!(rust_types.matched("a.php", false).is_ignore());
+    assert!(rust_types.matched("a.rs", false).is_whitelist());
+  }
+
+  #[test]
+  fn test_merge_with_globs() -> Result<()> {
+    let globs = get_globs();
+    unsafe {
+      // cleanup
+      std::mem::take(&mut LANG_GLOBS);
+      register(globs)?;
+      assert_eq!(LANG_GLOBS.len(), 2);
+    }
+    let lang: SgLang = SupportLang::Html.into();
+    let default_types = lang.file_types();
+    let html_types = merge_types(&lang, default_types);
+    assert!(html_types.matched("a.php", false).is_ignore());
+    assert!(html_types.matched("a.html", false).is_whitelist());
+    assert!(html_types.matched("a.vue", false).is_whitelist());
+    assert!(html_types.matched("a.svelte", false).is_whitelist());
+    Ok(())
   }
 }
