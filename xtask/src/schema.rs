@@ -102,3 +102,14 @@ impl Language for PlaceholderLang {
     unreachable!("PlaceholderLang is only for json schema")
   }
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  #[test]
+  fn test_json_schema() {
+    let ret = generate_schema();
+    assert!(ret.is_ok())
+  }
+}
