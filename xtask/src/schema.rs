@@ -14,7 +14,11 @@ use std::fs::File;
 pub fn generate_schema() -> Result<()> {
   let mut schema = schema_for!(SerializableRuleConfig<PlaceholderLang>);
   tweak_schema(&mut schema)?;
-  let mut file = File::create("schemas/rule.json")?;
+  // use manifest to locate schema. "schemas/rule.json" only works when cwd is root dir
+  // however, pwd is set to manifest dir, xtask in this case, during cargo test
+  let xtask_path = std::env::var("CARGO_MANIFEST_DIR")?;
+  let rule_path = std::fs::canonicalize(format!("{xtask_path}/../schemas/rule.json"))?;
+  let mut file = File::create(rule_path)?;
   to_writer_pretty(&mut file, &schema).context("cannot print JSON schema")
 }
 
@@ -110,6 +114,6 @@ mod test {
   #[test]
   fn test_json_schema() {
     let ret = generate_schema();
-    assert!(ret.is_ok())
+    assert!(ret.is_ok());
   }
 }
