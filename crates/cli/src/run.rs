@@ -20,7 +20,10 @@ type Pattern<L> = SgPattern<StrDoc<L>>;
 // NOTE: have to register custom lang before clap read arg
 // RunArg has a field of SgLang
 pub fn register_custom_language_if_is_run(args: &[String]) -> Result<()> {
-  if args.len() > 1 && (args[1].starts_with('-') || args[1] == "run") {
+  let Some(arg) = args.get(1) else {
+    return Ok(());
+  };
+  if arg.starts_with('-') || arg == "run" {
     register_custom_language(None)?;
   }
   Ok(())
