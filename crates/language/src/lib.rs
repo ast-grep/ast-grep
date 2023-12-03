@@ -10,6 +10,7 @@
 mod cpp;
 mod csharp;
 mod css;
+mod elixir;
 mod go;
 mod json;
 mod kotlin;
@@ -103,6 +104,7 @@ impl_lang_expando!(Swift, language_swift, 'µ');
 // Stub Language without preprocessing
 // Language Name, tree-sitter-name, alias, extension
 impl_lang!(Dart, language_dart);
+impl_lang!(Elixir, language_elixir);
 impl_lang!(Html, language_html);
 impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
@@ -124,6 +126,7 @@ pub enum SupportLang {
   Css,
   Dart,
   Go,
+  Elixir,
   Html,
   Java,
   JavaScript,
@@ -144,8 +147,8 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Json, Kotlin, Lua, Python, Ruby, Rust,
-      Scala, Swift, Thrift, Tsx, TypeScript,
+      C, Cpp, CSharp, Css, Dart, Elixir, Go, Html, Java, JavaScript, Json, Kotlin, Lua, Python,
+      Ruby, Rust, Scala, Swift, Thrift, Tsx, TypeScript,
     ]
   }
 
@@ -194,6 +197,7 @@ const fn alias(lang: &SupportLang) -> &[&str] {
     CSharp => &["cs", "csharp"],
     Css => &["css"],
     Dart => &["dart"],
+    Elixir => &["elixir"],
     Go => &["go", "golang"],
     Html => &["html"],
     Java => &["java"],
@@ -236,6 +240,7 @@ macro_rules! execute_lang_method {
       S::CSharp => CSharp.$method($($pname,)*),
       S::Css => Css.$method($($pname,)*),
       S::Dart => Dart.$method($($pname,)*),
+      S::Elixir => Elixir.$method($($pname,)*),
       S::Go => Go.$method($($pname,)*),
       S::Html => Html.$method($($pname,)*),
       S::Java => Java.$method($($pname,)*),
@@ -287,6 +292,7 @@ fn extensions(lang: &SupportLang) -> &[&str] {
     CSharp => &["cs"],
     Css => &["css", "scss"],
     Dart => &["dart"],
+    Elixir => &["ex", "exs"],
     Go => &["go"],
     Html => &["html", "htm", "xhtml"],
     Java => &["java"],
