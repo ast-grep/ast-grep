@@ -582,7 +582,7 @@ impl PrintStyles {
     Self {
       file_path: Color::Cyan.italic(),
       matched: Color::Red.bold(),
-      line_num: Style::new().fg(Color::Black),
+      line_num: Style::new().dimmed(),
       insert,
       insert_emphasis: insert.on(SEA_GREEN).bold(),
       delete,
