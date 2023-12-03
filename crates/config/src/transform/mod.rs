@@ -1,3 +1,4 @@
+mod string_case;
 use ast_grep_core::meta_var::{MetaVarEnv, MetaVariable};
 use ast_grep_core::source::Content;
 use ast_grep_core::{Doc, Language};
@@ -5,9 +6,9 @@ use ast_grep_core::{Doc, Language};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::string_case::{Separator, StringCase};
 use schemars::JsonSchema;
 use std::collections::HashMap;
+use string_case::{Separator, StringCase};
 
 fn get_text_from_env<D: Doc>(src: &str, ctx: &mut Ctx<D>) -> Option<String> {
   let source = ctx.lang.pre_process_pattern(src);

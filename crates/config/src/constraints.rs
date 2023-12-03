@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::referent_rule::RuleRegistration;
+use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::Rule;
 use crate::transform::{apply_env_transform, Transformation};
 use ast_grep_core::language::Language;

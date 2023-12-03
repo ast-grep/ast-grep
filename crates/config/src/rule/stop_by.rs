@@ -1,4 +1,4 @@
-use crate::deserialize_env::DeserializeEnv;
+use super::deserialize_env::DeserializeEnv;
 use crate::rule::{Rule, RuleSerializeError, SerializableRule};
 
 use ast_grep_core::language::Language;

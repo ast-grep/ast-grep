@@ -160,8 +160,8 @@ impl<L: Language + Eq> Default for RuleCollection<L> {
 mod test {
   use super::*;
   use crate::from_yaml_string;
-  use crate::referent_rule::GlobalRules;
   use crate::test::TypeScript;
+  use crate::GlobalRules;
 
   fn make_rule(files: &str) -> RuleCollection<TypeScript> {
     let globals = GlobalRules::default();

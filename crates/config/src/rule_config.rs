@@ -1,7 +1,7 @@
-use crate::deserialize_env::DeserializeEnv;
-use crate::referent_rule::GlobalRules;
 use crate::rule::{RuleSerializeError, SerializableRule};
 use crate::transform::Transformation;
+use crate::DeserializeEnv;
+use crate::GlobalRules;
 
 pub use crate::constraints::{
   try_deserialize_matchers, try_from_serializable as deserialize_meta_var, RuleWithConstraint,

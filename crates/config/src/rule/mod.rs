@@ -1,7 +1,12 @@
-use crate::deserialize_env::DeserializeEnv;
+mod deserialize_env;
+pub mod referent_rule;
+mod relational_rule;
+mod stop_by;
+
 use crate::maybe::Maybe;
-use crate::referent_rule::{ReferentRule, ReferentRuleError};
-use crate::relational_rule::{Follows, Has, Inside, Precedes, Relation};
+pub use deserialize_env::DeserializeEnv;
+use referent_rule::{ReferentRule, ReferentRuleError};
+use relational_rule::{Follows, Has, Inside, Precedes, Relation};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
