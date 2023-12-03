@@ -197,7 +197,7 @@ const fn alias(lang: &SupportLang) -> &[&str] {
     CSharp => &["cs", "csharp"],
     Css => &["css"],
     Dart => &["dart"],
-    Elixir => &["elixir"],
+    Elixir => &["ex", "elixir"],
     Go => &["go", "golang"],
     Html => &["html"],
     Java => &["java"],
