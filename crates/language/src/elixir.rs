@@ -24,6 +24,7 @@ fn test_elixir_str() {
 #[test]
 fn test_elixir_pattern() {
   test_match("$A", ":ok");
+  test_match("$A != nil", "a != nil");
   test_match(r#"IO.inspect($A)"#, r#"IO.inspect(:hello)"#);
 }
 
