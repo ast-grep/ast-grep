@@ -147,6 +147,12 @@ mod test_cli {
     assert!(matches!(try_default_run(&args), Ok(Some(_))));
   }
   #[test]
+  fn test_no_arg_run() {
+    let ret = main_with_args(["sg".to_owned()].into_iter());
+    let err = ret.unwrap_err();
+    assert!(err.to_string().contains("sg <COMMAND>"));
+  }
+  #[test]
   fn test_default_subcommand() {
     default_run("-p Some($A) -l rs");
     default_run("-p Some($A)");
