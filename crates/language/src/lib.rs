@@ -84,6 +84,7 @@ impl_lang_expando!(Cpp, language_cpp, '_');
 impl_lang_expando!(CSharp, language_c_sharp, 'µ');
 // https://www.w3.org/TR/CSS21/grammar.html#scanner
 impl_lang_expando!(Css, language_css, '_');
+// https://github.com/elixir-lang/tree-sitter-elixir/blob/a2861e88a730287a60c11ea9299c033c7d076e30/grammar.js#L245
 impl_lang_expando!(Elixir, language_elixir, 'µ');
 // we can use any Unicode code point categorized as "Letter"
 // https://go.dev/ref/spec#letter
