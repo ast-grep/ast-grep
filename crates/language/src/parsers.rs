@@ -98,6 +98,7 @@ mod parser_implementation {
     language_c_sharp,
     language_css,
     language_dart,
+    language_elixir,
     language_go,
     language_html,
     language_java,
