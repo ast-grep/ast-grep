@@ -10,7 +10,7 @@ pub use crate::constraints::{
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarMatchers;
 use ast_grep_core::replacer::Replacer;
-use ast_grep_core::replacer::{Fixer, FixerError};
+use ast_grep_core::replacer::{TemplateFix, TemplateFixError};
 use ast_grep_core::{NodeMatch, StrDoc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -130,13 +130,17 @@ pub struct SerializableRuleConfig<L: Language> {
 type RResult<T> = std::result::Result<T, RuleConfigError>;
 
 impl<L: Language> SerializableRuleConfig<L> {
-  fn get_fixer(&self) -> RResult<Option<Fixer<String>>> {
+  fn get_fixer(&self) -> RResult<Option<TemplateFix<String>>> {
     if let Some(fix) = &self.fix {
       if let Some(trans) = &self.transform {
         let keys: Vec<_> = trans.keys().cloned().collect();
-        Ok(Some(Fixer::with_transform(fix, &self.language, &keys)))
+        Ok(Some(TemplateFix::with_transform(
+          fix,
+          &self.language,
+          &keys,
+        )))
       } else {
-        Ok(Some(Fixer::try_new(fix, &self.language)?))
+        Ok(Some(TemplateFix::try_new(fix, &self.language)?))
       }
     } else {
       Ok(None)
@@ -169,7 +173,7 @@ pub enum RuleConfigError {
   #[error("Rule is not configured correctly.")]
   Rule(#[from] RuleSerializeError),
   #[error("fix pattern is invalid.")]
-  Fixer(#[from] FixerError),
+  Fixer(#[from] TemplateFixError),
   #[error("constraints is not configured correctly.")]
   Constraints(#[from] SerializeConstraintsError),
 }
@@ -177,7 +181,7 @@ pub enum RuleConfigError {
 pub struct RuleConfig<L: Language> {
   inner: SerializableRuleConfig<L>,
   pub matcher: RuleWithConstraint<L>,
-  pub fixer: Option<Fixer<String>>,
+  pub fixer: Option<TemplateFix<String>>,
 }
 
 impl<L: Language> RuleConfig<L> {

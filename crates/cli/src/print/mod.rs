@@ -5,7 +5,7 @@ mod json_print;
 
 use crate::lang::SgLang;
 use ast_grep_config::RuleConfig;
-use ast_grep_core::replacer::Fixer;
+use ast_grep_core::replacer::TemplateFix;
 use ast_grep_core::{Matcher, NodeMatch as SgNodeMatch, StrDoc};
 
 use anyhow::Result;
@@ -69,7 +69,7 @@ impl<'n> Diff<'n> {
   pub fn generate(
     node_match: NodeMatch<'n, SgLang>,
     matcher: &impl Matcher<SgLang>,
-    rewrite: &Fixer<String>,
+    rewrite: &TemplateFix<String>,
   ) -> Self {
     let edit = node_match.make_edit(matcher, rewrite);
     let replacement = String::from_utf8(edit.inserted_text).unwrap();

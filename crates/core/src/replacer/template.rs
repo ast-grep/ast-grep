@@ -10,26 +10,26 @@ use crate::source::{Content, Doc};
 use std::borrow::Cow;
 use thiserror::Error;
 
-pub enum Fixer<C: IndentSensitive> {
+pub enum TemplateFix<C: IndentSensitive> {
   // no meta_var, pure text
   Textual(Vec<C::Underlying>),
   WithMetaVar(Template<C>),
 }
 
 #[derive(Debug, Error)]
-pub enum FixerError {}
+pub enum TemplateFixError {}
 
-impl<C: IndentSensitive> Fixer<C> {
-  pub fn try_new<L: Language>(template: &str, lang: &L) -> Result<Self, FixerError> {
-    Ok(create_fixer(template, lang.meta_var_char(), &[]))
+impl<C: IndentSensitive> TemplateFix<C> {
+  pub fn try_new<L: Language>(template: &str, lang: &L) -> Result<Self, TemplateFixError> {
+    Ok(create_template(template, lang.meta_var_char(), &[]))
   }
 
   pub fn with_transform<L: Language>(tpl: &str, lang: &L, trans: &[String]) -> Self {
-    create_fixer(tpl, lang.meta_var_char(), trans)
+    create_template(tpl, lang.meta_var_char(), trans)
   }
 }
 
-impl<C, D> Replacer<D> for Fixer<C>
+impl<C, D> Replacer<D> for TemplateFix<C>
 where
   C: IndentSensitive,
   D: Doc<Source = C>,
@@ -50,7 +50,11 @@ pub struct Template<C: IndentSensitive> {
   vars: Vec<(MetaVarExtract, Indent)>,
 }
 
-fn create_fixer<C: IndentSensitive>(tmpl: &str, mv_char: char, transforms: &[String]) -> Fixer<C> {
+fn create_template<C: IndentSensitive>(
+  tmpl: &str,
+  mv_char: char,
+  transforms: &[String],
+) -> TemplateFix<C> {
   let mut fragments = vec![];
   let mut vars = vec![];
   let mut offset = 0;
@@ -74,23 +78,23 @@ fn create_fixer<C: IndentSensitive>(tmpl: &str, mv_char: char, transforms: &[Str
     offset = offset + i + 1;
   }
   if fragments.is_empty() {
-    Fixer::Textual(C::decode_str(&tmpl[len..]).into_owned())
+    TemplateFix::Textual(C::decode_str(&tmpl[len..]).into_owned())
   } else {
     fragments.push(C::decode_str(&tmpl[len..]).into_owned());
-    Fixer::WithMetaVar(Template { fragments, vars })
+    TemplateFix::WithMetaVar(Template { fragments, vars })
   }
 }
 
 fn replace_fixer<D: Doc>(
-  fixer: &Fixer<D::Source>,
+  fixer: &TemplateFix<D::Source>,
   env: &MetaVarEnv<D>,
 ) -> Vec<<D::Source as Content>::Underlying>
 where
   D::Source: IndentSensitive,
 {
   let template = match fixer {
-    Fixer::Textual(n) => return n.to_vec(),
-    Fixer::WithMetaVar(t) => t,
+    TemplateFix::Textual(n) => return n.to_vec(),
+    TemplateFix::WithMetaVar(t) => t,
   };
   let mut ret = vec![];
   let mut frags = template.fragments.iter();
@@ -151,7 +155,7 @@ pub fn gen_replacement<D: Doc>(template: &str, nm: &NodeMatch<D>) -> Underlying<
 where
   D::Source: IndentSensitive,
 {
-  let fixer = create_fixer(template, nm.lang().meta_var_char(), &[]);
+  let fixer = create_template(template, nm.lang().meta_var_char(), &[]);
   fixer.generate_replacement(nm)
 }
 
