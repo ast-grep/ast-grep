@@ -10,6 +10,7 @@
 mod cpp;
 mod csharp;
 mod css;
+mod elixir;
 mod go;
 mod json;
 mod kotlin;
@@ -83,6 +84,8 @@ impl_lang_expando!(Cpp, language_cpp, '_');
 impl_lang_expando!(CSharp, language_c_sharp, 'µ');
 // https://www.w3.org/TR/CSS21/grammar.html#scanner
 impl_lang_expando!(Css, language_css, '_');
+// https://github.com/elixir-lang/tree-sitter-elixir/blob/a2861e88a730287a60c11ea9299c033c7d076e30/grammar.js#L245
+impl_lang_expando!(Elixir, language_elixir, 'µ');
 // we can use any Unicode code point categorized as "Letter"
 // https://go.dev/ref/spec#letter
 impl_lang_expando!(Go, language_go, 'µ');
@@ -124,6 +127,7 @@ pub enum SupportLang {
   Css,
   Dart,
   Go,
+  Elixir,
   Html,
   Java,
   JavaScript,
@@ -144,8 +148,8 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      C, Cpp, CSharp, Css, Dart, Go, Html, Java, JavaScript, Json, Kotlin, Lua, Python, Ruby, Rust,
-      Scala, Swift, Thrift, Tsx, TypeScript,
+      C, Cpp, CSharp, Css, Dart, Elixir, Go, Html, Java, JavaScript, Json, Kotlin, Lua, Python,
+      Ruby, Rust, Scala, Swift, Thrift, Tsx, TypeScript,
     ]
   }
 
@@ -194,6 +198,7 @@ const fn alias(lang: &SupportLang) -> &[&str] {
     CSharp => &["cs", "csharp"],
     Css => &["css"],
     Dart => &["dart"],
+    Elixir => &["ex", "elixir"],
     Go => &["go", "golang"],
     Html => &["html"],
     Java => &["java"],
@@ -236,6 +241,7 @@ macro_rules! execute_lang_method {
       S::CSharp => CSharp.$method($($pname,)*),
       S::Css => Css.$method($($pname,)*),
       S::Dart => Dart.$method($($pname,)*),
+      S::Elixir => Elixir.$method($($pname,)*),
       S::Go => Go.$method($($pname,)*),
       S::Html => Html.$method($($pname,)*),
       S::Java => Java.$method($($pname,)*),
@@ -287,6 +293,7 @@ fn extensions(lang: &SupportLang) -> &[&str] {
     CSharp => &["cs"],
     Css => &["css", "scss"],
     Dart => &["dart"],
+    Elixir => &["ex", "exs"],
     Go => &["go"],
     Html => &["html", "htm", "xhtml"],
     Java => &["java"],
