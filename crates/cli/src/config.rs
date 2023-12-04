@@ -67,7 +67,7 @@ pub fn find_rules(
 }
 
 pub fn register_custom_language(config_path: Option<PathBuf>) -> Result<()> {
-  let Ok(mut path) = find_config_path_with_default(None, config_path.as_deref()) else {
+  let Ok(mut path) = find_config_path_with_default(config_path, None) else {
     return Ok(()); // do not report error if no sgconfig.yml is found
   };
   let Ok(config_str) = read_to_string(&path) else {
