@@ -81,5 +81,15 @@ fn test_elixir_replace() -> Result<(), TSParseError> {
   )?;
   assert_eq!(ret, "Greeter.greet(:hello, name: \"human\")");
 
+  let ret = test_replace(
+    "for x <- [\"budgie\", \"cat\", \"dog\"], do: String.to_atom(x)",
+    "for $I <- $LIST, do: $MODULE.$FUNCTION($I)",
+    "Enum.map($LIST, fn $I -> $MODULE.$FUNCTION($I) end)",
+  )?;
+  assert_eq!(
+    ret,
+    "Enum.map([\"budgie\", \"cat\", \"dog\"], fn x -> String.to_atom(x) end)"
+  );
+
   Ok(())
 }
