@@ -36,11 +36,11 @@ fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSPa
 #[test]
 fn test_elixir_replace() -> Result<(), TSParseError> {
   let ret = test_replace(
-    r#"Stream.map([1, 2, 3], fn x -> x * 2 end)"#,
-    r#"Stream.map($$$ARGS)"#,
-    r#"Enum.map($$$ARGS)"#,
+    "Stream.map([1, 2, 3], fn x -> x * 2 end)",
+    "Stream.map($$$ARGS)",
+    "Enum.map($$$ARGS)",
   )?;
-  assert_eq!(ret, r#"Enum.map([1, 2, 3], fn x -> x * 2 end)"#);
+  assert_eq!(ret, "Enum.map([1, 2, 3], fn x -> x * 2 end)");
 
   let ret = test_replace(
     ":budgie = hd([:budgie, :cat, :dog])",
