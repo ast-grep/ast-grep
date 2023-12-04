@@ -25,7 +25,18 @@ fn test_elixir_str() {
 fn test_elixir_pattern() {
   test_match("$A", ":ok");
   test_match("$A != nil", "a != nil");
-  test_match(r#"IO.inspect($A)"#, r#"IO.inspect(:hello)"#);
+  test_match(
+    r#"
+    def $FUNC($$$ARGS) when $GUARDS do
+      $$$BODY
+    end
+    "#,
+    r#"
+    def add(a, b) when is_integer(a) and is_integer(b) do
+      a + b
+    end
+    "#,
+  );
 }
 
 fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
