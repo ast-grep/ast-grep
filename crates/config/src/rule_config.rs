@@ -4,8 +4,8 @@ use crate::DeserializeEnv;
 use crate::GlobalRules;
 
 pub use crate::constraints::{
-  try_deserialize_matchers, try_from_serializable as deserialize_meta_var, RuleWithConstraint,
-  SerializableMetaVarMatcher, SerializeConstraintsError,
+  try_deserialize_matchers, RuleWithConstraint, SerializableMetaVarMatcher,
+  SerializeConstraintsError,
 };
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarMatchers;
@@ -19,8 +19,6 @@ use thiserror::Error;
 
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-
-// type Pattern<L> = PatternCore<StrDoc<L>>;
 
 #[derive(Serialize, Deserialize, Clone, Default, JsonSchema)]
 #[serde(rename_all = "camelCase")]
