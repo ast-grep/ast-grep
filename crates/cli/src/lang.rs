@@ -55,8 +55,8 @@ impl SgLang {
   }
 }
 
-impl Debug for SgLang {
-  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl Display for SgLang {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
     match self {
       Builtin(b) => write!(f, "{}", b),
       Custom(c) => write!(f, "{}", c.name()),
@@ -64,7 +64,7 @@ impl Debug for SgLang {
   }
 }
 
-impl Display for SgLang {
+impl Debug for SgLang {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
     match self {
       Builtin(b) => write!(f, "{:?}", b),
