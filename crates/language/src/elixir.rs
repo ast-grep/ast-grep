@@ -56,5 +56,19 @@ fn test_elixir_replace() -> Result<(), TSParseError> {
   )?;
   assert_eq!(ret, "Keyword.get(opts, :hostname, \"localhost\")");
 
+  let ret = test_replace(
+    "Module.function(:a, :b)",
+    "Module.function($ARG1, $ARG2)",
+    "Module.function($ARG2, $ARG1)",
+  )?;
+  assert_eq!(ret, "Module.function(:b, :a)");
+
+  let ret = test_replace(
+    "Greeter.greet(:hello, \"human\")",
+    "Greeter.greet($ARG1, $ARG2)",
+    "Greeter.greet($ARG1, name: $ARG2)",
+  )?;
+  assert_eq!(ret, "Greeter.greet(:hello, name: \"human\")");
+
   Ok(())
 }
