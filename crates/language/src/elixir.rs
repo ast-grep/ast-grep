@@ -49,5 +49,12 @@ fn test_elixir_replace() -> Result<(), TSParseError> {
   )?;
   assert_eq!(ret, "[:budgie | _] = [:budgie, :cat, :dog]");
 
+  let ret = test_replace(
+    "opts[:hostname] || \"localhost\"",
+    "opts[$KEY] || $DEFAULT",
+    "Keyword.get(opts, $KEY, $DEFAULT)",
+  )?;
+  assert_eq!(ret, "Keyword.get(opts, :hostname, \"localhost\")");
+
   Ok(())
 }
