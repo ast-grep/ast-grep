@@ -41,5 +41,13 @@ fn test_elixir_replace() -> Result<(), TSParseError> {
     r#"Enum.map($$$ARGS)"#,
   )?;
   assert_eq!(ret, r#"Enum.map([1, 2, 3], fn x -> x * 2 end)"#);
+
+  let ret = test_replace(
+    ":budgie = hd([:budgie, :cat, :dog])",
+    "$FIRST = hd($LIST)",
+    "[$FIRST | _] = $LIST",
+  )?;
+  assert_eq!(ret, "[:budgie | _] = [:budgie, :cat, :dog]");
+
   Ok(())
 }
