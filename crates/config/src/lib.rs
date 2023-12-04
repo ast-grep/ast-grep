@@ -1,5 +1,6 @@
 mod combined;
 mod constraints;
+mod fixer;
 mod maybe;
 mod rule;
 mod rule_collection;
