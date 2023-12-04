@@ -1,5 +1,5 @@
+use super::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
 use crate::maybe::Maybe;
-use crate::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
 use crate::rule::{self, Rule, RuleSerializeError, SerializableRule};
 use crate::rule_config::{
   into_map, RuleConfigError, SerializableRuleConfigCore, SerializableRuleCore,

@@ -1,16 +1,17 @@
-use crate::deserialize_env::DeserializeEnv;
-use crate::referent_rule::GlobalRules;
+use crate::fixer::Fixer;
 use crate::rule::{RuleSerializeError, SerializableRule};
 use crate::transform::Transformation;
+use crate::DeserializeEnv;
+use crate::GlobalRules;
 
 pub use crate::constraints::{
-  try_deserialize_matchers, try_from_serializable as deserialize_meta_var, RuleWithConstraint,
-  SerializableMetaVarMatcher, SerializeConstraintsError,
+  try_deserialize_matchers, RuleWithConstraint, SerializableMetaVarMatcher,
+  SerializeConstraintsError,
 };
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarMatchers;
 use ast_grep_core::replacer::Replacer;
-use ast_grep_core::replacer::{Fixer, FixerError};
+use ast_grep_core::replacer::{TemplateFix, TemplateFixError};
 use ast_grep_core::{NodeMatch, StrDoc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -19,8 +20,6 @@ use thiserror::Error;
 
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-
-// type Pattern<L> = PatternCore<StrDoc<L>>;
 
 #[derive(Serialize, Deserialize, Clone, Default, JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -116,7 +115,7 @@ pub struct SerializableRuleConfig<L: Language> {
   #[serde(default)]
   pub severity: Severity,
   /// A pattern to auto fix the issue. It can reference metavariables appeared in rule.
-  pub fix: Option<String>,
+  pub fix: Option<Fixer>,
   /// Glob patterns to specify that the rule only applies to matching files
   pub files: Option<Vec<String>>,
   /// Glob patterns that exclude rules from applying to files
@@ -130,13 +129,17 @@ pub struct SerializableRuleConfig<L: Language> {
 type RResult<T> = std::result::Result<T, RuleConfigError>;
 
 impl<L: Language> SerializableRuleConfig<L> {
-  fn get_fixer(&self) -> RResult<Option<Fixer<String>>> {
-    if let Some(fix) = &self.fix {
+  fn get_fixer(&self) -> RResult<Option<TemplateFix<String>>> {
+    if let Some(Fixer::Str(fix)) = &self.fix {
       if let Some(trans) = &self.transform {
         let keys: Vec<_> = trans.keys().cloned().collect();
-        Ok(Some(Fixer::with_transform(fix, &self.language, &keys)))
+        Ok(Some(TemplateFix::with_transform(
+          fix,
+          &self.language,
+          &keys,
+        )))
       } else {
-        Ok(Some(Fixer::try_new(fix, &self.language)?))
+        Ok(Some(TemplateFix::try_new(fix, &self.language)?))
       }
     } else {
       Ok(None)
@@ -169,7 +172,7 @@ pub enum RuleConfigError {
   #[error("Rule is not configured correctly.")]
   Rule(#[from] RuleSerializeError),
   #[error("fix pattern is invalid.")]
-  Fixer(#[from] FixerError),
+  Fixer(#[from] TemplateFixError),
   #[error("constraints is not configured correctly.")]
   Constraints(#[from] SerializeConstraintsError),
 }
@@ -177,7 +180,7 @@ pub enum RuleConfigError {
 pub struct RuleConfig<L: Language> {
   inner: SerializableRuleConfig<L>,
   pub matcher: RuleWithConstraint<L>,
-  pub fixer: Option<Fixer<String>>,
+  pub fixer: Option<TemplateFix<String>>,
 }
 
 impl<L: Language> RuleConfig<L> {

@@ -1,11 +1,9 @@
-mod stop_by;
-
-use crate::deserialize_env::DeserializeEnv;
+use super::deserialize_env::DeserializeEnv;
+use super::stop_by::{SerializableStopBy, StopBy};
 use crate::rule::{Rule, RuleSerializeError, SerializableRule};
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Doc, Matcher, Node};
-use stop_by::{SerializableStopBy, StopBy};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
