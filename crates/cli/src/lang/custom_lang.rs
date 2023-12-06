@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 #[serde(rename_all = "camelCase")]
 pub struct CustomLang {
   library_path: PathBuf,
-  /// the dylib symbol to load ts-language, default is tree-sitter-{name}
+  /// the dylib symbol to load ts-language, default is `tree_sitter_{name}`
   language_symbol: Option<String>,
   meta_var_char: Option<char>,
   expando_char: Option<char>,
