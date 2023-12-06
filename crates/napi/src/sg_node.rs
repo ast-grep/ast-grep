@@ -129,6 +129,11 @@ impl SgNode {
       .map(NodeMatch::from);
     Self::from_iter_to_vec(&reference, env, nodes)
   }
+  #[napi]
+  pub fn get_transformed(&self, m: String) -> Option<String> {
+    let bytes = self.inner.get_env().get_transformed(&m)?;
+    Some(String::from_utf16_lossy(bytes))
+  }
 }
 
 /// tree traversal API

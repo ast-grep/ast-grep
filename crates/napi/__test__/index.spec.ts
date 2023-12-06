@@ -62,6 +62,27 @@ test('find unicode', t => {
   })
 })
 
+test('find with transformation', t => {
+  const str = `console.log("Hello, 世界")`
+  const sg = parse(str)
+  const match = sg.root().find({
+    rule: {
+      pattern: 'console.log($A)',
+    },
+    transform: {
+      NEW_ARG: {
+        substring: {
+          source: '$A',
+          startChar: 1,
+          endChar: -1,
+        }
+      },
+    }
+  })!
+  t.deepEqual(match.getTransformed('NEW_ARG'), 'Hello, 世界')
+  t.deepEqual(match.getMatch('A')?.text(), '"Hello, 世界"')
+})
+
 test('findAll from native code', t => {
   const sg = parse('console.log(123); let a = console.log.bind(console);')
   const match = sg.root().findAll('console.log')

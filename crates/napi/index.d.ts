@@ -62,6 +62,7 @@ export class SgNode {
   follows(m: string): boolean
   getMatch(m: string): SgNode | null
   getMultipleMatches(m: string): Array<SgNode>
+  getTransformed(m: string): string | null
   /** Returns the node's SgRoot */
   getRoot(): SgRoot
   children(): Array<SgNode>
@@ -92,7 +93,7 @@ export namespace html {
   export function parse(src: string): SgRoot
   /**
    * Parse a string to an ast-grep instance asynchronously in threads.
-   * It utlizes multiple CPU cores when **concurrent processing sources**.
+   * It utilize multiple CPU cores when **concurrent processing sources**.
    * However, spawning excessive many threads may backfire.
    * Please refer to libuv doc, nodejs' underlying runtime
    * for its default behavior and performance tuning tricks.
@@ -114,7 +115,7 @@ export namespace js {
   export function parse(src: string): SgRoot
   /**
    * Parse a string to an ast-grep instance asynchronously in threads.
-   * It utlizes multiple CPU cores when **concurrent processing sources**.
+   * It utilize multiple CPU cores when **concurrent processing sources**.
    * However, spawning excessive many threads may backfire.
    * Please refer to libuv doc, nodejs' underlying runtime
    * for its default behavior and performance tuning tricks.
@@ -136,7 +137,7 @@ export namespace jsx {
   export function parse(src: string): SgRoot
   /**
    * Parse a string to an ast-grep instance asynchronously in threads.
-   * It utlizes multiple CPU cores when **concurrent processing sources**.
+   * It utilize multiple CPU cores when **concurrent processing sources**.
    * However, spawning excessive many threads may backfire.
    * Please refer to libuv doc, nodejs' underlying runtime
    * for its default behavior and performance tuning tricks.
@@ -158,7 +159,7 @@ export namespace ts {
   export function parse(src: string): SgRoot
   /**
    * Parse a string to an ast-grep instance asynchronously in threads.
-   * It utlizes multiple CPU cores when **concurrent processing sources**.
+   * It utilize multiple CPU cores when **concurrent processing sources**.
    * However, spawning excessive many threads may backfire.
    * Please refer to libuv doc, nodejs' underlying runtime
    * for its default behavior and performance tuning tricks.
@@ -180,7 +181,7 @@ export namespace tsx {
   export function parse(src: string): SgRoot
   /**
    * Parse a string to an ast-grep instance asynchronously in threads.
-   * It utlizes multiple CPU cores when **concurrent processing sources**.
+   * It utilize multiple CPU cores when **concurrent processing sources**.
    * However, spawning excessive many threads may backfire.
    * Please refer to libuv doc, nodejs' underlying runtime
    * for its default behavior and performance tuning tricks.
@@ -202,7 +203,7 @@ export namespace css {
   export function parse(src: string): SgRoot
   /**
    * Parse a string to an ast-grep instance asynchronously in threads.
-   * It utlizes multiple CPU cores when **concurrent processing sources**.
+   * It utilize multiple CPU cores when **concurrent processing sources**.
    * However, spawning excessive many threads may backfire.
    * Please refer to libuv doc, nodejs' underlying runtime
    * for its default behavior and performance tuning tricks.
