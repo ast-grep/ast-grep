@@ -45,7 +45,7 @@
   },
   "devDependencies": {
     "@napi-rs/cli": "2.16.5",
-    "ava": "5.3.1",
+    "ava": "6.0.1",
     "chalk": "5.3.0",
     "ts-node": "10.9.1",
     "typescript": "5.3.2"
