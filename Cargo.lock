@@ -1980,9 +1980,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-go"
-version = "0.19.1"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71967701c8214be4aa77e0260e98361e6fd71ceec1d9d03abb37a22c9f60d0ff"
+checksum = "1ad6d11f19441b961af2fda7f12f5d0dac325f6d6de83836a1d3750018cc5114"
 dependencies = [
  "cc",
  "tree-sitter",

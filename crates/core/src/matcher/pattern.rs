@@ -44,7 +44,12 @@ pub enum PatternError {
 fn is_single_node(n: &tree_sitter::Node) -> bool {
   match n.child_count() {
     1 => true,
-    2 => n.child(1).expect("second child must exist").is_missing(),
+    2 => {
+      let c = n.child(1).expect("second child must exist");
+      // some language will have weird empty syntax node at the end
+      // see golang's `$A = 0` pattern test case
+      c.is_missing() || c.kind().is_empty()
+    }
     _ => false,
   }
 }
@@ -85,7 +90,7 @@ impl<D: Doc> Pattern<D> {
       return Err(PatternError::NoContent(src.into()));
     }
     if !is_single_node(&goal.inner) {
-      return Err(PatternError::MultipleNode(src.into()));
+      return Err(PatternError::MultipleNode(goal.inner.to_sexp().to_string()));
     }
     Ok(Self {
       root,
