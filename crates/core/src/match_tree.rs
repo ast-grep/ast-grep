@@ -42,7 +42,8 @@ fn match_leaf_meta_var<'tree, D: Doc>(
 fn is_node_eligible_for_meta_var(goal: &Node<impl Doc>, is_leaf: bool) -> bool {
   // allow Error as meta_var
   // see https://github.com/ast-grep/ast-grep/issues/526
-  is_leaf || goal.is_error()
+  extract_var_from_node(goal).is_some()
+  // is_leaf || goal.is_error()
 }
 
 fn try_get_ellipsis_mode(node: &Node<impl Doc>) -> Result<Option<String>, ()> {
