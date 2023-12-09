@@ -90,7 +90,7 @@ impl<D: Doc> Pattern<D> {
       return Err(PatternError::NoContent(src.into()));
     }
     if !is_single_node(&goal.inner) {
-      return Err(PatternError::MultipleNode(goal.inner.to_sexp().to_string()));
+      return Err(PatternError::MultipleNode(src.into()));
     }
     Ok(Self {
       root,
