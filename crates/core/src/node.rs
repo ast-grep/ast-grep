@@ -132,6 +132,8 @@ impl<'r, D: Doc> Node<'r, D> {
   pub fn is_leaf(&self) -> bool {
     self.inner.child_count() == 0
   }
+  /// if has no named children.
+  /// N.B. it is different from is_named && is_leaf
   pub fn is_named_leaf(&self) -> bool {
     self.inner.named_child_count() == 0
   }

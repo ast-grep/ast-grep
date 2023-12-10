@@ -26,6 +26,7 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     }
   }
 
+  // TODO: change id to use borrow
   pub fn insert(&mut self, id: MetaVariableID, ret: Node<'tree, D>) -> Option<&mut Self> {
     if self.match_variable(&id, &ret) {
       self.single_matched.insert(id, ret);
