@@ -1,26 +1,25 @@
 use crate::meta_var::{MetaVarEnv, MetaVariable};
-use crate::{Doc, Language, Node};
+use crate::{Doc, Language, Node, Pattern};
 
 use std::borrow::Cow;
 
 fn match_leaf_meta_var<'tree, D: Doc>(
-  goal: &Node<impl Doc>,
+  mv: &MetaVariable,
   candidate: Node<'tree, D>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<Node<'tree, D>> {
-  let extracted = extract_var_from_node(goal)?;
   use MetaVariable as MV;
-  match extracted {
+  match mv {
     MV::Named(name, named) => {
-      if named && !candidate.is_named() {
+      if *named && !candidate.is_named() {
         None
       } else {
-        env.to_mut().insert(name, candidate.clone())?;
+        env.to_mut().insert(name.clone(), candidate.clone())?;
         Some(candidate)
       }
     }
     MV::Anonymous(named) => {
-      if named && !candidate.is_named() {
+      if *named && !candidate.is_named() {
         None
       } else {
         Some(candidate)
@@ -32,7 +31,7 @@ fn match_leaf_meta_var<'tree, D: Doc>(
       Some(candidate)
     }
     MV::NamedEllipsis(name) => {
-      env.to_mut().insert(name, candidate.clone())?;
+      env.to_mut().insert(name.clone(), candidate.clone())?;
       Some(candidate)
     }
   }
@@ -174,135 +173,161 @@ fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
 }
 
 pub fn match_node_non_recursive<'tree, D: Doc>(
-  goal: &Node<impl Doc>,
+  goal: &Pattern<impl Doc>,
   candidate: Node<'tree, D>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<Node<'tree, D>> {
-  let is_leaf = goal.is_named_leaf();
-  if is_node_eligible_for_meta_var(goal, is_leaf) {
-    if let Some(matched) = match_leaf_meta_var(goal, candidate.clone(), env) {
-      return Some(matched);
+  use Pattern as P;
+  return match goal {
+    P::Leaf {
+      text,
+      is_named,
+      kind_id,
+      ..
+    } if *kind_id == candidate.kind_id() => {
+      if *text == candidate.text() {
+        Some(candidate)
+      } else {
+        None
+      }
     }
-  }
-  if goal.kind_id() != candidate.kind_id() {
-    return None;
-  }
-  if is_leaf {
-    if extract_var_from_node(goal).is_some() {
-      return None;
+    P::MetaVar(mv) => match_leaf_meta_var(mv, candidate, env),
+    P::NonTerminal { kind_id, children } if *kind_id == candidate.kind_id() => {
+      let cand_children = candidate.children();
+      if match_nodes_non_recursive(children, cand_children, env).is_some() {
+        Some(candidate)
+      } else {
+        None
+      }
     }
-    return if goal.text() == candidate.text() {
-      Some(candidate)
-    } else {
-      None
-    };
-  }
-  let goal_children = goal.children();
-  let cand_children = candidate.children();
-  if match_nodes_non_recursive(goal_children, cand_children, env).is_some() {
-    Some(candidate)
-  } else {
-    None
-  }
+    _ => None,
+  };
+  // let is_leaf = goal.is_named_leaf();
+  // if is_node_eligible_for_meta_var(goal, is_leaf) {
+  //   if let Some(matched) = match_leaf_meta_var(goal, candidate.clone(), env) {
+  //     return Some(matched);
+  //   }
+  // }
+  // if goal.kind_id() != candidate.kind_id() {
+  //   return None;
+  // }
+  // if is_leaf {
+  //   if extract_var_from_node(goal).is_some() {
+  //     return None;
+  //   }
+  //   return if goal.text() == candidate.text() {
+  //     Some(candidate)
+  //   } else {
+  //     None
+  //   };
+  // }
+  // let goal_children = goal.children();
+  // let cand_children = candidate.children();
+  // if match_nodes_non_recursive(goal_children, cand_children, env).is_some() {
+  //   Some(candidate)
+  // } else {
+  //   None
+  // }
 }
 
 fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
-  goals: impl Iterator<Item = Node<'goal, impl Doc + 'goal>>,
+  goals: &[Pattern<impl Doc + 'goal>],
   candidates: impl Iterator<Item = Node<'tree, D>>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<()> {
-  let mut goal_children = goals.peekable();
-  let mut cand_children = candidates.peekable();
-  cand_children.peek()?;
-  loop {
-    let curr_node = goal_children.peek().unwrap();
-    if let Ok(optional_name) = try_get_ellipsis_mode(curr_node) {
-      let mut matched = vec![];
-      goal_children.next();
-      // goal has all matched
-      if goal_children.peek().is_none() {
-        update_ellipsis_env(&optional_name, matched, env, cand_children, 0)?;
-        return Some(());
-      }
-      // skip trivial nodes in goal after ellipsis
-      let mut skipped_anonymous = 0;
-      while !goal_children.peek().unwrap().is_named() {
-        goal_children.next();
-        skipped_anonymous += 1;
-        if goal_children.peek().is_none() {
-          update_ellipsis_env(
-            &optional_name,
-            matched,
-            env,
-            cand_children,
-            skipped_anonymous,
-          )?;
-          return Some(());
-        }
-      }
-      // if next node is a Ellipsis, consume one candidate node
-      if try_get_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
-        matched.push(cand_children.next().unwrap());
-        cand_children.peek()?;
-        update_ellipsis_env(
-          &optional_name,
-          matched,
-          env,
-          std::iter::empty(),
-          skipped_anonymous,
-        )?;
-        continue;
-      }
-      loop {
-        if match_node_non_recursive(
-          goal_children.peek().unwrap(),
-          cand_children.peek().unwrap().clone(),
-          env,
-        )
-        .is_some()
-        {
-          // found match non Ellipsis,
-          update_ellipsis_env(
-            &optional_name,
-            matched,
-            env,
-            std::iter::empty(),
-            skipped_anonymous,
-          )?;
-          break;
-        }
-        matched.push(cand_children.next().unwrap());
-        cand_children.peek()?;
-      }
-    }
-    // skip if cand children is trivial
-    loop {
-      let Some(cand) = cand_children.peek() else {
-        // if cand runs out, remaining goal is not matched
-        return None;
-      };
-      let matched =
-        match_node_non_recursive(goal_children.peek().unwrap(), cand.clone(), env).is_some();
-      // try match goal node with candidate node
-      if matched {
-        break;
-      } else if !cand.is_named() {
-        // skip trivial node
-        // TODO: nade with field should not be skipped
-        cand_children.next();
-      } else {
-        // unmatched significant node
-        return None;
-      }
-    }
-    goal_children.next();
-    if goal_children.peek().is_none() {
-      // all goal found, return
-      return Some(());
-    }
-    cand_children.next();
-    cand_children.peek()?;
-  }
+  todo!()
+  // let mut goal_children = goals.peekable();
+  // let mut cand_children = candidates.peekable();
+  // cand_children.peek()?;
+  // loop {
+  //   let curr_node = goal_children.peek().unwrap();
+  //   if let Ok(optional_name) = try_get_ellipsis_mode(curr_node) {
+  //     let mut matched = vec![];
+  //     goal_children.next();
+  //     // goal has all matched
+  //     if goal_children.peek().is_none() {
+  //       update_ellipsis_env(&optional_name, matched, env, cand_children, 0)?;
+  //       return Some(());
+  //     }
+  //     // skip trivial nodes in goal after ellipsis
+  //     let mut skipped_anonymous = 0;
+  //     while !goal_children.peek().unwrap().is_named() {
+  //       goal_children.next();
+  //       skipped_anonymous += 1;
+  //       if goal_children.peek().is_none() {
+  //         update_ellipsis_env(
+  //           &optional_name,
+  //           matched,
+  //           env,
+  //           cand_children,
+  //           skipped_anonymous,
+  //         )?;
+  //         return Some(());
+  //       }
+  //     }
+  //     // if next node is a Ellipsis, consume one candidate node
+  //     if try_get_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
+  //       matched.push(cand_children.next().unwrap());
+  //       cand_children.peek()?;
+  //       update_ellipsis_env(
+  //         &optional_name,
+  //         matched,
+  //         env,
+  //         std::iter::empty(),
+  //         skipped_anonymous,
+  //       )?;
+  //       continue;
+  //     }
+  //     loop {
+  //       if match_node_non_recursive(
+  //         goal_children.peek().unwrap(),
+  //         cand_children.peek().unwrap().clone(),
+  //         env,
+  //       )
+  //       .is_some()
+  //       {
+  //         // found match non Ellipsis,
+  //         update_ellipsis_env(
+  //           &optional_name,
+  //           matched,
+  //           env,
+  //           std::iter::empty(),
+  //           skipped_anonymous,
+  //         )?;
+  //         break;
+  //       }
+  //       matched.push(cand_children.next().unwrap());
+  //       cand_children.peek()?;
+  //     }
+  //   }
+  //   // skip if cand children is trivial
+  //   loop {
+  //     let Some(cand) = cand_children.peek() else {
+  //       // if cand runs out, remaining goal is not matched
+  //       return None;
+  //     };
+  //     let matched =
+  //       match_node_non_recursive(goal_children.peek().unwrap(), cand.clone(), env).is_some();
+  //     // try match goal node with candidate node
+  //     if matched {
+  //       break;
+  //     } else if !cand.is_named() {
+  //       // skip trivial node
+  //       // TODO: nade with field should not be skipped
+  //       cand_children.next();
+  //     } else {
+  //       // unmatched significant node
+  //       return None;
+  //     }
+  //   }
+  //   goal_children.next();
+  //   if goal_children.peek().is_none() {
+  //     // all goal found, return
+  //     return Some(());
+  //   }
+  //   cand_children.next();
+  //   cand_children.peek()?;
+  // }
 }
 
 pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: &Node<D>) -> bool {
@@ -335,7 +360,7 @@ mod test {
   use std::collections::HashMap;
 
   fn find_node_recursive<'tree>(
-    goal: &Node<StrDoc<Tsx>>,
+    goal: &Pattern<StrDoc<Tsx>>,
     node: Node<'tree, StrDoc<Tsx>>,
     env: &mut Cow<MetaVarEnv<'tree, StrDoc<Tsx>>>,
   ) -> Option<Node<'tree, StrDoc<Tsx>>> {
@@ -347,24 +372,21 @@ mod test {
   }
 
   fn test_match(s1: &str, s2: &str) -> HashMap<String, String> {
-    let goal = Root::new(s1, Tsx);
-    let goal = goal.root().child(0).unwrap();
+    let goal = Pattern::new(s1, Tsx);
     let cand = Root::new(s2, Tsx);
     let cand = cand.root();
     let mut env = Cow::Owned(MetaVarEnv::new());
     let ret = find_node_recursive(&goal, cand.clone(), &mut env);
     assert!(
       ret.is_some(),
-      "goal: {}, candidate: {}",
-      goal.to_sexp(),
+      "goal: {goal:?}, candidate: {}",
       cand.to_sexp(),
     );
     HashMap::from(env.into_owned())
   }
 
   fn test_non_match(s1: &str, s2: &str) {
-    let goal = Root::new(s1, Tsx);
-    let goal = goal.root().child(0).unwrap();
+    let goal = Pattern::new(s1, Tsx);
     let cand = Root::new(s2, Tsx);
     let cand = cand.root();
     let mut env = Cow::Owned(MetaVarEnv::new());
@@ -458,6 +480,7 @@ mod test {
     test_non_match("$A($A)", "test(123)");
     test_non_match("$A($A, $A)", "test(123, 456)");
     test_match("$A($A)", "test(test)");
+    test_non_match("$A($A)", "foo(bar)");
   }
 
   #[test]
