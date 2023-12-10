@@ -36,7 +36,8 @@ impl<D: Doc> Replacer<D> for Root<D> {
 
 impl<D: Doc> Replacer<D> for Pattern<D> {
   fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
-    structural::gen_replacement(&self.root, nm)
+    todo!("pattern")
+    // structural::gen_replacement(&self.root, nm)
   }
 }
 

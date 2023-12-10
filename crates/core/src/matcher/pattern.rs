@@ -1,29 +1,48 @@
 use crate::language::Language;
 use crate::match_tree::{extract_var_from_node, match_end_non_recursive, match_node_non_recursive};
 use crate::matcher::{KindMatcher, KindMatcherError, Matcher};
+use crate::meta_var::{MetaVarEnv, MetaVariable};
 use crate::source::TSParseError;
-use crate::{meta_var::MetaVarEnv, Node, Root};
-use crate::{Doc, StrDoc};
+use crate::{Doc, Node, Root, StrDoc};
 
 use bit_set::BitSet;
 use std::borrow::Cow;
+use std::marker::PhantomData;
 use thiserror::Error;
 
-/// Pattern style specify how we find the ast node to match, assuming pattern text's root is `Program`
-/// the effective AST node to match is either
 #[derive(Clone)]
-enum PatternStyle<L: Language> {
-  /// single non-program ast node, notwithstanding MISSING node.
-  Single,
-  /// sub AST node specified by user in contextual pattern
-  /// e.g. in js`class { $F }` we set selector to public_field_definition
-  Selector(KindMatcher<L>),
+pub enum Pattern<D: Doc> {
+  MetaVar(MetaVariable),
+  Leaf {
+    text: String,
+    is_named: bool,
+    kind_id: u16,
+    lang: PhantomData<D>,
+  },
+  NonTerminal {
+    kind_id: u16,
+    children: Vec<Pattern<D>>,
+  },
 }
 
-#[derive(Clone)]
-pub struct Pattern<D: Doc> {
-  pub(crate) root: Root<D>,
-  style: PatternStyle<D::Lang>,
+impl<'r, D: Doc> From<Node<'r, D>> for Pattern<D> {
+  fn from(node: Node<'r, D>) -> Self {
+    if let Some(meta_var) = extract_var_from_node(&node) {
+      Self::MetaVar(meta_var)
+    } else if node.is_leaf() {
+      Self::Leaf {
+        text: node.text().to_string(),
+        is_named: node.is_named(),
+        kind_id: node.kind_id(),
+        lang: PhantomData,
+      }
+    } else {
+      Self::NonTerminal {
+        kind_id: node.kind_id(),
+        children: node.children().map(Self::from).collect(),
+      }
+    }
+  }
 }
 
 #[derive(Debug, Error)]
@@ -59,32 +78,38 @@ impl<L: Language> Pattern<StrDoc<L>> {
   }
 
   pub fn fixed_string(&self) -> Cow<str> {
-    let node = match &self.style {
-      PatternStyle::Single => self.single_matcher(),
-      PatternStyle::Selector(kind) => self.kind_matcher(kind),
-    };
-    let mut fixed = Cow::Borrowed("");
-    for n in node.dfs() {
-      if n.is_leaf() && extract_var_from_node(&n).is_none() && n.text().len() > fixed.len() {
-        fixed = n.text();
+    match self {
+      Self::Leaf { text, .. } => Cow::Borrowed(text),
+      Self::MetaVar(_) => Cow::Borrowed(""),
+      Self::NonTerminal { children, .. } => {
+        children
+          .iter()
+          .map(|n| n.fixed_string())
+          .fold(Cow::Borrowed(""), |longest, curr| {
+            if longest.len() >= curr.len() {
+              longest
+            } else {
+              curr
+            }
+          })
       }
     }
-    fixed
   }
 
   pub fn has_error(&self) -> bool {
-    let node = match &self.style {
-      PatternStyle::Single => self.single_matcher(),
-      PatternStyle::Selector(kind) => self.kind_matcher(kind),
-    };
-    node.matches(KindMatcher::error_matcher())
+    todo!("pattern")
+    // let node = match &self.style {
+    //   PatternStyle::Single => self.single_matcher(),
+    //   PatternStyle::Selector(kind) => self.kind_matcher(kind),
+    // };
+    // node.matches(KindMatcher::error_matcher())
   }
 }
 
-impl<D: Doc> Pattern<D> {
-  pub fn try_new(src: &str, lang: D::Lang) -> Result<Self, PatternError> {
+impl<L: Language> Pattern<StrDoc<L>> {
+  pub fn try_new(src: &str, lang: L) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(src);
-    let root = Root::try_new(&processed, lang)?;
+    let root = Root::<StrDoc<L>>::try_new(&processed, lang)?;
     let goal = root.root();
     if goal.inner.child_count() == 0 {
       return Err(PatternError::NoContent(src.into()));
@@ -92,111 +117,88 @@ impl<D: Doc> Pattern<D> {
     if !is_single_node(&goal.inner) {
       return Err(PatternError::MultipleNode(src.into()));
     }
-    Ok(Self {
-      root,
-      style: PatternStyle::Single,
-    })
+    let node = Self::single_matcher(&root);
+    Ok(Self::from(node))
   }
 
-  pub fn new(src: &str, lang: D::Lang) -> Self {
+  pub fn new(src: &str, lang: L) -> Self {
     Self::try_new(src, lang).unwrap()
   }
 
-  pub fn contextual(context: &str, selector: &str, lang: D::Lang) -> Result<Self, PatternError> {
+  pub fn contextual(context: &str, selector: &str, lang: L) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(context);
-    let root = Root::try_new(&processed, lang.clone())?;
+    let root = Root::<StrDoc<L>>::try_new(&processed, lang.clone())?;
     let goal = root.root();
     let kind_matcher = KindMatcher::try_new(selector, lang)?;
-    if goal.find(&kind_matcher).is_none() {
+    let Some(node) = goal.find(&kind_matcher) else {
       return Err(PatternError::NoSelectorInContext {
         context: context.into(),
         selector: selector.into(),
       });
-    }
-    Ok(Self {
-      root,
-      style: PatternStyle::Selector(kind_matcher),
-    })
+    };
+    Ok(Self::from(node.get_node().clone()))
   }
-  pub fn doc(doc: D) -> Self {
-    Self {
-      root: Root::doc(doc),
-      style: PatternStyle::Single,
-    }
+  pub fn doc(doc: StrDoc<L>) -> Self {
+    let root = Root::doc(doc);
+    Self::from(root.root())
   }
-  fn single_matcher(&self) -> Node<D> {
-    debug_assert!(matches!(self.style, PatternStyle::Single));
-    let root = self.root.root();
-    let mut node = root.inner;
-    while is_single_node(&node) {
-      node = node.child(0).unwrap();
+  fn single_matcher<D: Doc>(root: &Root<D>) -> Node<D> {
+    // debug_assert!(matches!(self.style, PatternStyle::Single));
+    let node = root.root();
+    let mut inner = node.inner;
+    while is_single_node(&inner) {
+      inner = inner.child(0).unwrap();
     }
-    Node {
-      inner: node,
-      root: &self.root,
-    }
+    Node { inner, root }
   }
 
-  fn kind_matcher(&self, kind_matcher: &KindMatcher<D::Lang>) -> Node<D> {
-    debug_assert!(matches!(self.style, PatternStyle::Selector(_)));
-    self
-      .root
-      .root()
-      .find(kind_matcher)
-      .map(Node::from)
-      .expect("contextual match should succeed")
+  fn kind_matcher<D: Doc>(&self, kind_matcher: &KindMatcher<D::Lang>) -> Node<D> {
+    todo!("pattern")
+    // debug_assert!(matches!(self.style, PatternStyle::Selector(_)));
+    // self
+    //   .root
+    //   .root()
+    //   .find(kind_matcher)
+    //   .map(Node::from)
+    //   .expect("contextual match should succeed")
   }
 }
 
-impl<P: Doc> Matcher<P::Lang> for Pattern<P> {
-  fn match_node_with_env<'tree, D: Doc<Lang = P::Lang>>(
+impl<L: Language, P: Doc<Lang = L>> Matcher<L> for Pattern<P> {
+  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    match &self.style {
-      PatternStyle::Single => {
-        let matcher = self.single_matcher();
-        match_node_non_recursive(&matcher, node, env)
-      }
-      PatternStyle::Selector(kind) => {
-        let matcher = self.kind_matcher(kind);
-        match_node_non_recursive(&matcher, node, env)
-      }
-    }
+    todo!("pattern")
+    // match_node_non_recursive(&self, node, env)
   }
 
   fn potential_kinds(&self) -> Option<bit_set::BitSet> {
-    let kind = match &self.style {
-      PatternStyle::Selector(kind) => return kind.potential_kinds(),
-      PatternStyle::Single => {
-        let matcher = self.single_matcher();
-        if matcher.is_leaf() && extract_var_from_node(&matcher).is_some() {
-          return None;
-        }
-        matcher.kind_id()
-      }
+    let kind = match self {
+      Self::Leaf { kind_id, .. } => *kind_id,
+      Self::MetaVar(_) => return None,
+      Self::NonTerminal { kind_id, .. } => *kind_id,
     };
     let mut kinds = BitSet::new();
     kinds.insert(kind.into());
     Some(kinds)
   }
 
-  fn get_match_len<D: Doc<Lang = P::Lang>>(&self, node: Node<D>) -> Option<usize> {
-    let start = node.range().start;
-    let end = match &self.style {
-      PatternStyle::Single => match_end_non_recursive(&self.single_matcher(), node)?,
-      PatternStyle::Selector(kind) => match_end_non_recursive(&self.kind_matcher(kind), node)?,
-    };
-    Some(end - start)
+  fn get_match_len<D: Doc<Lang = L>>(&self, node: Node<D>) -> Option<usize> {
+    todo!("pattern")
+    // let start = node.range().start;
+    // let end = match_end_non_recursive(self, node)?;
+    // Some(end - start)
   }
 }
 
 impl<D: Doc> std::fmt::Debug for Pattern<D> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match &self.style {
-      PatternStyle::Single => write!(f, "{}", self.single_matcher().to_sexp()),
-      PatternStyle::Selector(kind) => write!(f, "{}", self.kind_matcher(kind).to_sexp()),
+    match self {
+      Self::MetaVar(m) => write!(f, "{:?}", m),
+      Self::Leaf { text, .. } => write!(f, "{}", text),
+      Self::NonTerminal { children, .. } => write!(f, "{:?}", children),
     }
   }
 }
@@ -217,8 +219,8 @@ mod test {
     let cand = cand.root();
     assert!(
       pattern.find_node(cand.clone()).is_some(),
-      "goal: {}, candidate: {}",
-      pattern.root.root().to_sexp(),
+      "goal: {:?}, candidate: {}",
+      pattern,
       cand.to_sexp(),
     );
   }
@@ -228,8 +230,8 @@ mod test {
     let cand = cand.root();
     assert!(
       pattern.find_node(cand.clone()).is_none(),
-      "goal: {}, candidate: {}",
-      pattern.root.root().to_sexp(),
+      "goal: {:?}, candidate: {}",
+      pattern,
       cand.to_sexp(),
     );
   }
@@ -276,7 +278,7 @@ mod test {
 
   #[test]
   fn test_contextual_pattern() {
-    let pattern: Pattern<StrDoc<_>> =
+    let pattern =
       Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx).expect("test");
     let cand = pattern_node("class B { b = 123 }");
     assert!(pattern.find_node(cand.root()).is_some());
@@ -286,7 +288,7 @@ mod test {
 
   #[test]
   fn test_contextual_match_with_env() {
-    let pattern: Pattern<StrDoc<_>> =
+    let pattern =
       Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx).expect("test");
     let cand = pattern_node("class B { b = 123 }");
     let nm = pattern.find_node(cand.root()).expect("test");
@@ -298,7 +300,7 @@ mod test {
 
   #[test]
   fn test_contextual_unmatch_with_env() {
-    let pattern: Pattern<StrDoc<_>> =
+    let pattern =
       Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx).expect("test");
     let cand = pattern_node("let b = 123");
     let nm = pattern.find_node(cand.root());
@@ -339,7 +341,7 @@ mod test {
 
   #[test]
   fn test_contextual_potential_kinds() {
-    let pattern: Pattern<StrDoc<_>> =
+    let pattern =
       Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx).expect("test");
     let kind = get_kind("public_field_definition");
     let kinds = pattern.potential_kinds().expect("should have kinds");
@@ -349,8 +351,7 @@ mod test {
 
   #[test]
   fn test_contextual_wildcard() {
-    let pattern =
-      Pattern::<StrDoc<_>>::contextual("class A { $F }", "property_identifier", Tsx).expect("test");
+    let pattern = Pattern::contextual("class A { $F }", "property_identifier", Tsx).expect("test");
     let kind = get_kind("property_identifier");
     let kinds = pattern.potential_kinds().expect("should have kinds");
     assert_eq!(kinds.len(), 1);
@@ -391,7 +392,7 @@ mod test {
 
   #[test]
   fn test_error() {
-    let ret = Pattern::<StrDoc<_>>::contextual("a", "property_identifier", Tsx);
+    let ret = Pattern::contextual("a", "property_identifier", Tsx);
     assert!(ret.is_err());
     let ret = Pattern::str("123+", Tsx);
     assert!(ret.has_error());

@@ -189,7 +189,7 @@ impl<'tree, D: Doc> Default for MetaVarEnv<'tree, D> {
   }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MetaVariable {
   /// $A for captured meta var
   Named(MetaVariableID, bool),
