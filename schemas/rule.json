@@ -30,9 +30,13 @@
     },
     "fix": {
       "description": "A pattern to auto fix the issue. It can reference metavariables appeared in rule.",
-      "type": [
-        "string",
-        "null"
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Fixer"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
     "id": {
@@ -156,6 +160,14 @@
           ]
         }
       }
+    },
+    "Fixer": {
+      "description": "A pattern string or fix object to auto fix the issue. It can reference metavariables appeared in rule.",
+      "anyOf": [
+        {
+          "type": "string"
+        }
+      ]
     },
     "Language": {
       "type": "string"
