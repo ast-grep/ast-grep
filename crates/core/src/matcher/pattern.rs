@@ -105,6 +105,15 @@ impl<L: Language> Pattern<StrDoc<L>> {
     // node.matches(KindMatcher::error_matcher())
   }
 }
+impl<D: Doc> Pattern<D> {
+  // for skipping trivial nodes in goal after ellipsis
+  pub fn is_trivial(&self) -> bool {
+    match self {
+      Pattern::Leaf { is_named, .. } => *is_named,
+      _ => false,
+    }
+  }
+}
 
 impl<L: Language> Pattern<StrDoc<L>> {
   pub fn try_new(src: &str, lang: L) -> Result<Self, PatternError> {
@@ -170,8 +179,7 @@ impl<L: Language, P: Doc<Lang = L>> Matcher<L> for Pattern<P> {
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    todo!("pattern")
-    // match_node_non_recursive(&self, node, env)
+    match_node_non_recursive(self, node, env)
   }
 
   fn potential_kinds(&self) -> Option<bit_set::BitSet> {
