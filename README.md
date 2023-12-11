@@ -28,7 +28,7 @@ Try the [online playground](https://ast-grep.github.io/playground.html) for a ta
 ![output](https://user-images.githubusercontent.com/2883231/183275066-8d9c342f-46cb-4fa5-aa4e-b98aac011869.gif)
 
 ## Installation
-You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), [pip](https://pypi.org/), [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html), [homebrew](https://brew.sh/) or [scoop](https://scoop.sh/)!
+You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), [pip](https://pypi.org/), [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html), [homebrew](https://brew.sh/), [scoop](https://scoop.sh/) or [MacPorts](https://www.macports.org)!
 
 ```bash
 npm install --global @ast-grep/cli
