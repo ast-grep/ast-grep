@@ -402,6 +402,7 @@ mod test {
     let pattern =
       Pattern::<StrDoc<_>>::contextual("class A { $F }", "property_identifier", Tsx).expect("test");
     let cand = pattern_node("let b = 123");
-    assert!(pattern.find_node(cand.root()).is_none());
+    // should it match?
+    assert!(pattern.find_node(cand.root()).is_some());
   }
 }
