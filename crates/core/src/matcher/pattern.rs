@@ -396,4 +396,12 @@ mod test {
     let ret = Pattern::str("123+", Tsx);
     assert!(ret.has_error());
   }
+
+  #[test]
+  fn test_bare_wildcard_in_context() {
+    let pattern =
+      Pattern::<StrDoc<_>>::contextual("class A { $F }", "property_identifier", Tsx).expect("test");
+    let cand = pattern_node("let b = 123");
+    assert!(pattern.find_node(cand.root()).is_none());
+  }
 }
