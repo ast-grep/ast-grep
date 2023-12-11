@@ -40,6 +40,9 @@ brew install ast-grep
 
 # install via scoop, thank @brian6932
 scoop install main/ast-grep
+
+# install via MacPorts
+sudo port install ast-grep
 ```
 Or you can build ast-grep from source. You need install rustup, clone the repository and then
 ```bash
