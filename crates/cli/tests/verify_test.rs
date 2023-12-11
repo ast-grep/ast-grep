@@ -3,7 +3,7 @@ mod common;
 use anyhow::Result;
 use ast_grep::main_with_args;
 use common::create_test_files;
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 const CONFIG: &str = "
 ruleDirs:

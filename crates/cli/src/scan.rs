@@ -263,7 +263,7 @@ mod test {
   use crate::print::ColorArg;
   use std::fs::File;
   use std::io::Write;
-  use tempdir::TempDir;
+  use tempfile::TempDir;
 
   const RULE: &str = r#"
 id: test
@@ -278,7 +278,7 @@ rule:
   pub fn create_test_files<'a>(
     names_and_contents: impl IntoIterator<Item = (&'a str, &'a str)>,
   ) -> TempDir {
-    let dir = TempDir::new("sgtest").unwrap();
+    let dir = TempDir::new().unwrap();
     for (name, contents) in names_and_contents {
       let path = dir.path().join(name);
       let mut file = File::create(path.clone()).unwrap();

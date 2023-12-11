@@ -20,6 +20,6 @@ serde_json = "1.0.108"
 tower-lsp = "0.20.0"
 
 [dev-dependencies]
-tempdir = "0.3"
+tempfile = "3.8.1"
 tree-sitter-typescript = "0.20.3"
 tokio = { version = "1", features = ["rt-multi-thread", "io-std", "io-util"] }

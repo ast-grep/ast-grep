@@ -6,7 +6,7 @@ use ast_grep::main_with_args;
 use common::create_test_files;
 use predicates::prelude::*;
 use predicates::str::contains;
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 const CONFIG: &str = "
 ruleDirs:

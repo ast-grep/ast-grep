@@ -343,7 +343,7 @@ mod test {
   use super::*;
   use ast_grep_language::SupportLang;
   use std::path::Path;
-  use tempdir::TempDir;
+  use tempfile::TempDir;
 
   fn create_project(tempdir: &Path) -> Result<()> {
     let arg = NewArg {
@@ -386,7 +386,7 @@ mod test {
 
   #[test]
   fn test_create_new() -> Result<()> {
-    let dir = TempDir::new("sgtest")?;
+    let dir = TempDir::new()?;
     create_project(dir.path())?;
     create_rule(dir.path())?;
     drop(dir); // drop at the end since temp dir clean up is done in Drop
@@ -395,7 +395,7 @@ mod test {
 
   #[test]
   fn test_create_util() -> Result<()> {
-    let dir = TempDir::new("sgtest")?;
+    let dir = TempDir::new()?;
     create_project(dir.path())?;
     create_util(dir.path())?;
     drop(dir); // drop at the end since temp dir clean up is done in Drop
