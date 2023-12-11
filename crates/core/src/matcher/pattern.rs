@@ -113,7 +113,7 @@ impl<D: Doc> Pattern<D> {
   // for skipping trivial nodes in goal after ellipsis
   pub fn is_trivial(&self) -> bool {
     match self {
-      Pattern::Leaf { is_named, .. } => *is_named,
+      Pattern::Leaf { is_named, .. } => !*is_named,
       _ => false,
     }
   }
