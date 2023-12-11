@@ -134,6 +134,7 @@ impl<'r, D: Doc> Node<'r, D> {
   }
   /// if has no named children.
   /// N.B. it is different from is_named && is_leaf
+  // see https://github.com/ast-grep/ast-grep/issues/276
   pub fn is_named_leaf(&self) -> bool {
     self.inner.named_child_count() == 0
   }

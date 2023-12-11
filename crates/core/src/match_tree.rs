@@ -82,41 +82,57 @@ fn update_ellipsis_env<'t, D: Doc>(
 }
 
 pub fn match_end_non_recursive<D: Doc>(
-  goal: &Node<impl Doc<Lang = D::Lang>>,
+  goal: &Pattern<impl Doc<Lang = D::Lang>>,
   candidate: Node<D>,
 ) -> Option<usize> {
-  let is_leaf = goal.is_named_leaf();
-  if is_node_eligible_for_meta_var(goal, is_leaf) && extract_var_from_node(goal).is_some() {
-    return Some(candidate.range().end);
-  }
-  if goal.kind_id() != candidate.kind_id() {
-    return None;
-  }
-  if is_leaf {
-    if extract_var_from_node(goal).is_some() {
-      return None;
+  use Pattern as P;
+  match goal {
+    P::MetaVar(_) => Some(candidate.range().end),
+    P::NonTerminal { kind_id, children } if *kind_id == candidate.kind_id() => {
+      let cand_children = candidate.children();
+      match_multi_nodes_end_non_recursive(children, cand_children)
     }
-    return if goal.text() == candidate.text() {
-      Some(candidate.range().end)
-    } else {
-      None
-    };
+    P::Leaf { text, kind_id, .. } if *kind_id == candidate.kind_id() => {
+      if *text == candidate.text() {
+        Some(candidate.range().end)
+      } else {
+        None
+      }
+    }
+    _ => None,
   }
-  let goal_children = goal.children();
-  let cand_children = candidate.children();
-  match_multi_nodes_end_non_recursive(goal_children, cand_children)
+  // let is_leaf = goal.is_named_leaf();
+  // if is_node_eligible_for_meta_var(goal, is_leaf) && extract_var_from_node(goal).is_some() {
+  //   return Some(candidate.range().end);
+  // }
+  // if goal.kind_id() != candidate.kind_id() {
+  //   return None;
+  // }
+  // if is_leaf {
+  //   if extract_var_from_node(goal).is_some() {
+  //     return None;
+  //   }
+  //   return if goal.text() == candidate.text() {
+  //     Some(candidate.range().end)
+  //   } else {
+  //     None
+  //   };
+  // }
+  // let goal_children = goal.children();
+  // let cand_children = candidate.children();
+  // match_multi_nodes_end_non_recursive(goal_children, cand_children)
 }
 
 fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
-  goals: impl Iterator<Item = Node<'g, impl Doc<Lang = D::Lang> + 'g>>,
+  goals: &[Pattern<impl Doc<Lang = D::Lang>>],
   candidates: impl Iterator<Item = Node<'c, D>>,
 ) -> Option<usize> {
-  let mut goal_children = goals.peekable();
+  let mut goal_children = goals.iter().peekable();
   let mut cand_children = candidates.peekable();
   let mut end = cand_children.peek()?.range().end;
   loop {
     let curr_node = goal_children.peek().unwrap();
-    if try_get_ellipsis_mode(curr_node).is_ok() {
+    if try_get_pattern_ellipsis_mode(curr_node).is_ok() {
       goal_children.next();
       // goal has all matched
       if goal_children.peek().is_none() {
@@ -126,7 +142,7 @@ fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
         return Some(updated_end);
       }
       // skip trivial nodes in goal after ellipsis
-      while !goal_children.peek().unwrap().is_named() {
+      while goal_children.peek().unwrap().is_trivial() {
         goal_children.next();
         if goal_children.peek().is_none() {
           // TODO: handle named and unnamed ellipsis
@@ -136,7 +152,7 @@ fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
         }
       }
       // if next node is a Ellipsis, consume one candidate node
-      if try_get_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
+      if try_get_pattern_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
         cand_children.next();
         cand_children.peek()?;
         continue;
@@ -483,7 +499,7 @@ mod test {
     test_non_match("class A { get b() {}}", "class A { b() {}}");
   }
 
-  fn find_end_recursive(goal: &Node<StrDoc<Tsx>>, node: Node<StrDoc<Tsx>>) -> Option<usize> {
+  fn find_end_recursive(goal: &Pattern<StrDoc<Tsx>>, node: Node<StrDoc<Tsx>>) -> Option<usize> {
     match_end_non_recursive(goal, node.clone()).or_else(|| {
       node
         .children()
@@ -492,8 +508,7 @@ mod test {
   }
 
   fn test_end(s1: &str, s2: &str) -> Option<usize> {
-    let goal = Root::new(s1, Tsx);
-    let goal = goal.root().child(0).unwrap();
+    let goal = Pattern::new(s1, Tsx);
     let cand = Root::new(s2, Tsx);
     let cand = cand.root();
     find_end_recursive(&goal, cand.clone())

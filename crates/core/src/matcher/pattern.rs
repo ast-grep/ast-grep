@@ -13,6 +13,10 @@ use thiserror::Error;
 #[derive(Clone)]
 pub enum Pattern<D: Doc> {
   MetaVar(MetaVariable),
+  // https://github.com/ast-grep/ast-grep/issues/276
+  /// Node without named children.
+  /// Some ts grammar will produce one node with multiple unnamed children.
+  /// We don't need to count it as NonTerminal.
   Leaf {
     text: String,
     is_named: bool,
@@ -29,7 +33,7 @@ impl<'r, D: Doc> From<Node<'r, D>> for Pattern<D> {
   fn from(node: Node<'r, D>) -> Self {
     if let Some(meta_var) = extract_var_from_node(&node) {
       Self::MetaVar(meta_var)
-    } else if node.is_leaf() {
+    } else if node.is_named_leaf() {
       Self::Leaf {
         text: node.text().to_string(),
         is_named: node.is_named(),
@@ -194,10 +198,9 @@ impl<L: Language, P: Doc<Lang = L>> Matcher<L> for Pattern<P> {
   }
 
   fn get_match_len<D: Doc<Lang = L>>(&self, node: Node<D>) -> Option<usize> {
-    todo!("pattern")
-    // let start = node.range().start;
-    // let end = match_end_non_recursive(self, node)?;
-    // Some(end - start)
+    let start = node.range().start;
+    let end = match_end_non_recursive(self, node)?;
+    Some(end - start)
   }
 }
 
