@@ -48,7 +48,7 @@ fn is_node_eligible_for_meta_var(goal: &Node<impl Doc>, is_leaf: bool) -> bool {
 /// Returns Ok if ellipsis pattern is found. If the ellipsis is named, returns it name.
 /// If the ellipsis is unnamed, returns None. If it is not ellipsis node, returns Err.
 fn try_get_pattern_ellipsis_mode(node: &Pattern<impl Doc>) -> Result<Option<String>, ()> {
-  let Pattern::MetaVar(mv) = node else {
+  let Pattern::MetaVar(mv, _) = node else {
     return Err(());
   };
   match mv {
@@ -87,7 +87,7 @@ pub fn match_end_non_recursive<D: Doc>(
 ) -> Option<usize> {
   use Pattern as P;
   match goal {
-    P::MetaVar(_) => Some(candidate.range().end),
+    P::MetaVar(_, _) => Some(candidate.range().end),
     P::NonTerminal { kind_id, children } if *kind_id == candidate.kind_id() => {
       let cand_children = candidate.children();
       match_multi_nodes_end_non_recursive(children, cand_children)
@@ -215,7 +215,7 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
         None
       }
     }
-    P::MetaVar(mv) => match_leaf_meta_var(mv, candidate, env),
+    P::MetaVar(mv, _) => match_leaf_meta_var(mv, candidate, env),
     P::NonTerminal { kind_id, children } if *kind_id == candidate.kind_id() => {
       let cand_children = candidate.children();
       match_nodes_non_recursive(children, cand_children, env).map(|_| candidate)
