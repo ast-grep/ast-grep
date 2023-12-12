@@ -88,7 +88,7 @@ It can help you to do lightweight static analysis and massive scale code manipul
 Key highlights:
 
 * An intuitive pattern to find and replace AST.
-ast-grep's pattern looks like ordinary code you would write every day. (You can call the pattern is isomorphic to code).
+ast-grep's pattern looks like ordinary code you would write every day (you could say the pattern is isomorphic to code).
 
 * jQuery like API for AST traversal and manipulation.
 
