@@ -1,6 +1,7 @@
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::replacer::IndentSensitive;
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
+use ast_grep_language::SupportLang;
 use napi_derive::napi;
 use std::borrow::Cow;
 use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
@@ -8,6 +9,7 @@ use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
 use std::ops::Range;
 
 #[napi]
+#[derive(PartialEq)]
 pub enum FrontEndLanguage {
   Html,
   JavaScript,
@@ -47,6 +49,20 @@ impl Language for FrontEndLanguage {
     // TODO: use more precise replacement
     let replaced = query.replace(self.meta_var_char(), expando);
     Cow::Owned(replaced)
+  }
+}
+
+impl TryFrom<SupportLang> for FrontEndLanguage {
+  type Error = String;
+  fn try_from(s: SupportLang) -> Result<Self, Self::Error> {
+    match s {
+      SupportLang::Html => Ok(FrontEndLanguage::Html),
+      SupportLang::JavaScript => Ok(FrontEndLanguage::JavaScript),
+      SupportLang::Tsx => Ok(FrontEndLanguage::Tsx),
+      SupportLang::Css => Ok(FrontEndLanguage::Css),
+      SupportLang::TypeScript => Ok(FrontEndLanguage::TypeScript),
+      _ => Err(s.to_string())
+    }
   }
 }
 

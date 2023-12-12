@@ -46,6 +46,8 @@ export interface FindConfig {
   paths: Array<string>
   /** a Rule object to find what nodes will match */
   matcher: NapiConfig
+  /** find file by language (extension) */
+  languageGlobs?: LanguageGlobs
 }
 export class SgNode {
   range(): Range

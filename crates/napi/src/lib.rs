@@ -7,6 +7,7 @@ use ast_grep_config::{RuleWithConstraint, SerializableRuleCore};
 use ast_grep_core::language::Language;
 use ast_grep_core::pinned::{NodeData, PinnedNodeData};
 use ast_grep_core::{AstGrep, NodeMatch};
+use ast_grep_language::SupportLang;
 use ignore::types::TypesBuilder;
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use napi::anyhow::{anyhow, Context, Error, Result as Ret};
@@ -14,11 +15,15 @@ use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi::{JsNumber, Task};
 use napi_derive::napi;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
+use std::collections::HashMap;
 
 use doc::{FrontEndLanguage, JsDoc};
 use sg_node::{SgNode, SgRoot};
+
+pub type LanguageGlobs = HashMap<String, Vec<String>>;
 
 /// Rule configuration similar to YAML
 /// See https://ast-grep.github.io/reference/yaml.html
@@ -287,13 +292,18 @@ pub struct FindConfig {
   pub paths: Vec<String>,
   /// a Rule object to find what nodes will match
   pub matcher: NapiConfig,
+  /// find file by language (extension)
+  pub language_globs: Option<LanguageGlobs>,
 }
 
 fn select_custom<'b>(
   builder: &'b mut TypesBuilder,
   file_type: &str,
-  suffix_list: &[&str],
+  default_suffix_list: Vec<&str>,
+  custom_suffix_list: Vec<&str>,
 ) -> &'b mut TypesBuilder {
+  let mut suffix_list = default_suffix_list.clone();
+  suffix_list.extend(custom_suffix_list);
   for suffix in suffix_list {
     builder
       .add(file_type, suffix)
@@ -302,19 +312,40 @@ fn select_custom<'b>(
   builder.select(file_type)
 }
 
-fn find_files_with_lang(paths: Vec<String>, lang: &FrontEndLanguage) -> Result<WalkParallel> {
+fn find_files_with_lang(paths: Vec<String>, language_globs: Option<LanguageGlobs>, lang: &FrontEndLanguage) -> Result<WalkParallel> {
   if paths.is_empty() {
     return Err(anyhow!("paths cannot be empty.").into());
   }
 
   let mut types = TypesBuilder::new();
   let types = types.add_defaults();
+
+  let mut custom_file_type = vec![];
+  if let Some(lgs) = language_globs {
+    for (l, globs) in lgs {
+      let result = SupportLang::from_str(&l);
+      if result.is_err(){
+        return Err(anyhow!("unrecognized language in language globs").into());
+      }
+      let result = FrontEndLanguage::try_from(result.unwrap());
+      match result {
+        Ok(value) => {
+          if value == *lang{
+            custom_file_type.extend(globs);
+          }
+        },
+        Err(e) => return Err(anyhow!(format!("{} is not supported in napi", e)).into()),
+      }
+    } 
+  }
+
+  let custom_file_type: Vec<&str> = custom_file_type.iter().map(|s| s.as_str()).collect();
   let types = match lang {
-    FrontEndLanguage::TypeScript => select_custom(types, "myts", &["*.ts", "*.mts", "*.cts"]),
-    FrontEndLanguage::Tsx => select_custom(types, "mytsx", &["*.tsx", "*.mtsx", "*.ctsx"]),
-    FrontEndLanguage::Css => types.select("css"),
-    FrontEndLanguage::Html => types.select("html"),
-    FrontEndLanguage::JavaScript => types.select("js"),
+    FrontEndLanguage::TypeScript => select_custom(types, "myts", vec!["*.ts", "*.mts", "*.cts"], custom_file_type),
+    FrontEndLanguage::Tsx => select_custom(types, "mytsx", vec!["*.tsx", "*.mtsx", "*.ctsx"], custom_file_type),
+    FrontEndLanguage::Css => select_custom(types, "css", vec!["css"], custom_file_type),
+    FrontEndLanguage::Html => select_custom(types, "html",  vec!["html"], custom_file_type),
+    FrontEndLanguage::JavaScript => select_custom(types, "js", vec!["js"], custom_file_type),
   }
   .build()
   .unwrap();
@@ -336,7 +367,7 @@ fn find_in_files_impl(
     from_pinned_data(ctx.value, ctx.env)
   })?;
   let rule = parse_config(config.matcher, lang)?;
-  let walk = find_files_with_lang(config.paths, &lang)?;
+  let walk = find_files_with_lang(config.paths, config.language_globs, &lang)?;
   Ok(AsyncTask::new(FindInFiles {
     walk,
     tsfn: (tsfn, rule),

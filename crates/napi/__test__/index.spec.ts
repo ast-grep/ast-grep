@@ -204,6 +204,54 @@ test('tsx should not find ts file', async t => {
   t.assert(true)
 })
 
+test('find with language globs', async t => {
+  countedPromise
+  await tsx.findInFiles({
+    paths: ['./'],
+    matcher: {
+      rule: {kind: 'member_expression'},
+    },
+    languageGlobs: {
+      'tsx': ['*.ts'],
+    }
+  }, (err, n) => {
+    t.assert(true)
+    t.is(err, null)
+    const root = n[0].getRoot();
+    t.is(root.filename().replace('\\', '/'), './__test__/index.spec.ts')
+  })
+})
+
+test('find with invalid language globs: not supported language', async t => {
+  await t.throwsAsync(async () => {
+    await tsx.findInFiles({
+      paths: ['./'],
+      matcher: {
+        rule: {kind: 'member_expression'},
+      },
+      languageGlobs: {
+        cpp: ['*.c']
+      }
+    }, () => {});
+  }, { message: /Cpp is not supported in napi/ });
+})
+  
+
+test('find with invalid language globs: unknown language', async t => {
+  await t.throwsAsync(async () => {
+    await tsx.findInFiles({
+      paths: ['./'],
+      matcher: {
+        rule: {kind: 'member_expression'},
+      },
+      languageGlobs: {
+        aaa: ['*.c']
+      }
+    }, () => {});
+  }, { message: /unrecognized language in language globs/ });
+})
+
+
 function countedPromise<F extends (t: any, cb: any) => Promise<number>>(func: F) {
   type P = Parameters<F>
   return async (t: P[0], cb: P[1]) => {
