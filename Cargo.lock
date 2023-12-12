@@ -97,7 +97,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -128,7 +128,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-config"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "anyhow",
  "ast-grep-core",
@@ -145,7 +145,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-core"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "bit-set",
  "regex",
@@ -156,7 +156,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-dynamic"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "ast-grep-core",
  "ignore",
@@ -168,7 +168,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-language"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "ast-grep-core",
  "ast-grep-tree-sitter-c-sharp",
@@ -197,7 +197,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-lsp"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
@@ -212,7 +212,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-napi"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
@@ -231,7 +231,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-py"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "anyhow",
  "ast-grep-config",
@@ -294,7 +294,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "benches"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
