@@ -1,16 +1,10 @@
 #![cfg(test)]
 use super::*;
-use ast_grep_core::{source::TSParseError, Matcher, Pattern};
+use crate::test::{test_match_lang, test_replace_lang};
+use ast_grep_core::source::TSParseError;
 
 fn test_match(s1: &str, s2: &str) {
-  let pattern = Pattern::str(s1, Rust);
-  let cand = Rust.ast_grep(s2);
-  assert!(
-    pattern.find_node(cand.root()).is_some(),
-    "goal: {:?}, candidate: {}",
-    pattern,
-    cand.root().to_sexp(),
-  );
+  test_match_lang(s1, s2, Rust)
 }
 
 #[test]
@@ -60,10 +54,7 @@ fn test_rust_spread_syntax() {
 }
 
 fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
-  let mut source = Rust.ast_grep(src);
-  let replacer = Pattern::new(replacer, Rust);
-  assert!(source.replace(pattern, replacer)?);
-  Ok(source.generate())
+  test_replace_lang(src, pattern, replacer, Rust)
 }
 
 #[test]
