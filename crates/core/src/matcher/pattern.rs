@@ -101,7 +101,12 @@ impl<L: Language> Pattern<StrDoc<L>> {
   }
 
   pub fn has_error(&self) -> bool {
-    todo!("pattern")
+    let kind = match self {
+      Pattern::Leaf { kind_id, .. } => *kind_id,
+      Pattern::MetaVar(_) => return false,
+      Pattern::NonTerminal { kind_id, .. } => *kind_id,
+    };
+    KindMatcher::<L>::from_id(kind).is_error_matcher()
     // let node = match &self.style {
     //   PatternStyle::Single => self.single_matcher(),
     //   PatternStyle::Selector(kind) => self.kind_matcher(kind),
