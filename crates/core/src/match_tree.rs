@@ -39,7 +39,7 @@ fn match_leaf_meta_var<'tree, D: Doc>(
 
 /// Returns Ok if ellipsis pattern is found. If the ellipsis is named, returns it name.
 /// If the ellipsis is unnamed, returns None. If it is not ellipsis node, returns Err.
-fn try_get_ellipsis_mode(node: &Pattern<impl Doc>) -> Result<Option<String>, ()> {
+fn try_get_ellipsis_mode(node: &Pattern<impl Language>) -> Result<Option<String>, ()> {
   let Pattern::MetaVar { meta_var, .. } = node else {
     return Err(());
   };
@@ -67,13 +67,15 @@ fn update_ellipsis_env<'t, D: Doc>(
 }
 
 pub fn match_end_non_recursive<D: Doc>(
-  goal: &Pattern<impl Doc<Lang = D::Lang>>,
+  goal: &Pattern<D::Lang>,
   candidate: Node<D>,
 ) -> Option<usize> {
   use Pattern as P;
   match goal {
     P::MetaVar { .. } => Some(candidate.range().end),
-    P::Internal { kind_id, children } if *kind_id == candidate.kind_id() => {
+    P::Internal {
+      kind_id, children, ..
+    } if *kind_id == candidate.kind_id() => {
       let cand_children = candidate.children();
       match_multi_nodes_end_non_recursive(children, cand_children)
     }
@@ -89,7 +91,7 @@ pub fn match_end_non_recursive<D: Doc>(
 }
 
 fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
-  goals: &[Pattern<impl Doc<Lang = D::Lang>>],
+  goals: &[Pattern<D::Lang>],
   candidates: impl Iterator<Item = Node<'c, D>>,
 ) -> Option<usize> {
   let mut goal_children = goals.iter().peekable();
@@ -166,7 +168,7 @@ fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
 }
 
 pub fn match_node_non_recursive<'tree, D: Doc>(
-  goal: &Pattern<impl Doc>,
+  goal: &Pattern<D::Lang>,
   candidate: Node<'tree, D>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<Node<'tree, D>> {
@@ -181,7 +183,9 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
       }
     }
     P::MetaVar { meta_var, .. } => match_leaf_meta_var(meta_var, candidate, env),
-    P::Internal { kind_id, children } if *kind_id == candidate.kind_id() => {
+    P::Internal {
+      kind_id, children, ..
+    } if *kind_id == candidate.kind_id() => {
       let cand_children = candidate.children();
       match_nodes_non_recursive(children, cand_children, env).map(|_| candidate)
     }
@@ -190,7 +194,7 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
 }
 
 fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
-  goals: &[Pattern<impl Doc + 'goal>],
+  goals: &[Pattern<D::Lang>],
   candidates: impl Iterator<Item = Node<'tree, D>>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<()> {
@@ -318,7 +322,7 @@ mod test {
   use std::collections::HashMap;
 
   fn find_node_recursive<'tree>(
-    goal: &Pattern<StrDoc<Tsx>>,
+    goal: &Pattern<Tsx>,
     node: Node<'tree, StrDoc<Tsx>>,
     env: &mut Cow<MetaVarEnv<'tree, StrDoc<Tsx>>>,
   ) -> Option<Node<'tree, StrDoc<Tsx>>> {
@@ -464,7 +468,7 @@ mod test {
     test_non_match("class A { get b() {}}", "class A { b() {}}");
   }
 
-  fn find_end_recursive(goal: &Pattern<StrDoc<Tsx>>, node: Node<StrDoc<Tsx>>) -> Option<usize> {
+  fn find_end_recursive(goal: &Pattern<Tsx>, node: Node<StrDoc<Tsx>>) -> Option<usize> {
     match_end_non_recursive(goal, node.clone()).or_else(|| {
       node
         .children()

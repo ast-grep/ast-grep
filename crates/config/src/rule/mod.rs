@@ -12,15 +12,13 @@ use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::ops as o;
-use ast_grep_core::{Doc, Matcher, Node, Pattern as PatternCore, PatternError, StrDoc};
+use ast_grep_core::{Doc, Matcher, Node, Pattern, PatternError};
 
 use bit_set::BitSet;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use thiserror::Error;
-
-type Pattern<L> = PatternCore<StrDoc<L>>;
 
 /// A rule object to find matching AST nodes. We have three categories of rules in ast-grep.
 ///
