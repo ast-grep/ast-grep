@@ -26,31 +26,26 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     }
   }
 
-  // TODO: change id to use borrow
-  pub fn insert(&mut self, id: MetaVariableID, ret: Node<'tree, D>) -> Option<&mut Self> {
-    if self.match_variable(&id, &ret) {
-      self.single_matched.insert(id, ret);
+  pub fn insert(&mut self, id: &str, ret: Node<'tree, D>) -> Option<&mut Self> {
+    if self.match_variable(id, &ret) {
+      self.single_matched.insert(id.to_string(), ret);
       Some(self)
     } else {
       None
     }
   }
 
-  pub fn insert_multi(
-    &mut self,
-    id: MetaVariableID,
-    ret: Vec<Node<'tree, D>>,
-  ) -> Option<&mut Self> {
-    if self.match_multi_var(&id, &ret) {
-      self.multi_matched.insert(id, ret);
+  pub fn insert_multi(&mut self, id: &str, ret: Vec<Node<'tree, D>>) -> Option<&mut Self> {
+    if self.match_multi_var(id, &ret) {
+      self.multi_matched.insert(id.to_string(), ret);
       Some(self)
     } else {
       None
     }
   }
 
-  pub fn insert_transformation(&mut self, name: MetaVariableID, src: Underlying<D>) {
-    self.transformed_var.insert(name, src);
+  pub fn insert_transformation(&mut self, name: &str, src: Underlying<D>) {
+    self.transformed_var.insert(name.to_string(), src);
   }
 
   pub fn get_match(&self, var: &str) -> Option<&'_ Node<'tree, D>> {
@@ -116,13 +111,13 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     true
   }
 
-  fn match_variable(&self, id: &MetaVariableID, candidate: &Node<D>) -> bool {
+  fn match_variable(&self, id: &str, candidate: &Node<D>) -> bool {
     if let Some(m) = self.single_matched.get(id) {
       return does_node_match_exactly(m, candidate);
     }
     true
   }
-  fn match_multi_var(&self, id: &MetaVariableID, cands: &[Node<D>]) -> bool {
+  fn match_multi_var(&self, id: &str, cands: &[Node<D>]) -> bool {
     let Some(nodes) = self.multi_matched.get(id) else {
       return true;
     };
@@ -338,7 +333,7 @@ mod test {
     let mut env = MetaVarEnv::new();
     let root = Tsx.ast_grep(node);
     let node = root.root().child(0).unwrap().child(0).unwrap();
-    env.insert("A".to_string(), node);
+    env.insert("A", node);
     env.match_constraints(&matchers)
   }
 
