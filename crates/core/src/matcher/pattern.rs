@@ -112,11 +112,6 @@ impl<L: Language> Pattern<StrDoc<L>> {
       Pattern::MetaVar(_, None) => return false,
     };
     KindMatcher::<L>::from_id(kind).is_error_matcher()
-    // let node = match &self.style {
-    //   PatternStyle::Single => self.single_matcher(),
-    //   PatternStyle::Selector(kind) => self.kind_matcher(kind),
-    // };
-    // node.matches(KindMatcher::error_matcher())
   }
 }
 impl<D: Doc> Pattern<D> {
@@ -176,17 +171,6 @@ impl<L: Language> Pattern<StrDoc<L>> {
       inner = inner.child(0).unwrap();
     }
     Node { inner, root }
-  }
-
-  fn kind_matcher<D: Doc>(&self, kind_matcher: &KindMatcher<D::Lang>) -> Node<D> {
-    todo!("pattern")
-    // debug_assert!(matches!(self.style, PatternStyle::Selector(_)));
-    // self
-    //   .root
-    //   .root()
-    //   .find(kind_matcher)
-    //   .map(Node::from)
-    //   .expect("contextual match should succeed")
   }
 }
 
