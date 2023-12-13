@@ -215,27 +215,11 @@ test('find with language globs', async t => {
       'tsx': ['*.ts'],
     }
   }, (err, n) => {
-    t.assert(true)
     t.is(err, null)
     const root = n[0].getRoot();
     t.is(root.filename().replace('\\', '/'), './__test__/index.spec.ts')
   })
 })
-
-test('find with invalid language globs: not supported language', async t => {
-  await t.throwsAsync(async () => {
-    await tsx.findInFiles({
-      paths: ['./'],
-      matcher: {
-        rule: {kind: 'member_expression'},
-      },
-      languageGlobs: {
-        cpp: ['*.c']
-      }
-    }, () => {});
-  }, { message: /Cpp is not supported in napi/ });
-})
-  
 
 test('find with invalid language globs: unknown language', async t => {
   await t.throwsAsync(async () => {

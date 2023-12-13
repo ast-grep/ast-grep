@@ -1,11 +1,10 @@
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::replacer::IndentSensitive;
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
-use ast_grep_language::SupportLang;
 use napi_derive::napi;
 use std::borrow::Cow;
 use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
-
+use std::str::FromStr;
 use std::ops::Range;
 
 #[napi]
@@ -52,19 +51,50 @@ impl Language for FrontEndLanguage {
   }
 }
 
-impl TryFrom<SupportLang> for FrontEndLanguage {
-  type Error = String;
-  fn try_from(s: SupportLang) -> Result<Self, Self::Error> {
-    match s {
-      SupportLang::Html => Ok(FrontEndLanguage::Html),
-      SupportLang::JavaScript => Ok(FrontEndLanguage::JavaScript),
-      SupportLang::Tsx => Ok(FrontEndLanguage::Tsx),
-      SupportLang::Css => Ok(FrontEndLanguage::Css),
-      SupportLang::TypeScript => Ok(FrontEndLanguage::TypeScript),
-      _ => Err(s.to_string())
-    }
+
+impl FrontEndLanguage{
+  pub const fn all_langs() -> &'static [FrontEndLanguage] {
+    use FrontEndLanguage::*;
+    &[
+      Html,
+      JavaScript,
+      Tsx,
+      Css,
+      TypeScript,
+    ]
   }
 }
+
+const fn alias(lang: &FrontEndLanguage) -> &[&str] {
+  use FrontEndLanguage::*;
+  match lang {
+    Css => &["css"],
+    Html => &["html"],
+    JavaScript => &["javascript", "js", "jsx"],
+    TypeScript => &["ts", "typescript"],
+    Tsx => &["tsx"],
+  }
+}
+
+pub enum FrontEndLanguageErr {
+  LanguageNotSupported(String),
+}
+
+
+impl FromStr for FrontEndLanguage {
+  type Err = FrontEndLanguageErr;
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    for lang in Self::all_langs() {
+      for moniker in alias(lang) {
+        if s.eq_ignore_ascii_case(moniker) {
+          return Ok(*lang);
+        }
+      }
+    }
+    Err(FrontEndLanguageErr::LanguageNotSupported(s.to_string()))
+  }
+}
+
 
 #[derive(Clone)]
 pub struct Wrapper {

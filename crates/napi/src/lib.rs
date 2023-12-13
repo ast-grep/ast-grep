@@ -7,7 +7,6 @@ use ast_grep_config::{RuleWithConstraint, SerializableRuleCore};
 use ast_grep_core::language::Language;
 use ast_grep_core::pinned::{NodeData, PinnedNodeData};
 use ast_grep_core::{AstGrep, NodeMatch};
-use ast_grep_language::SupportLang;
 use ignore::types::TypesBuilder;
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use napi::anyhow::{anyhow, Context, Error, Result as Ret};
@@ -15,12 +14,12 @@ use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi::{JsNumber, Task};
 use napi_derive::napi;
-use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 use std::collections::HashMap;
+use std::str::FromStr;
 
-use doc::{FrontEndLanguage, JsDoc};
+use doc::{FrontEndLanguage, FrontEndLanguageErr, JsDoc};
 use sg_node::{SgNode, SgRoot};
 
 pub type LanguageGlobs = HashMap<String, Vec<String>>;
@@ -323,18 +322,14 @@ fn find_files_with_lang(paths: Vec<String>, language_globs: Option<LanguageGlobs
   let mut custom_file_type = vec![];
   if let Some(lgs) = language_globs {
     for (l, globs) in lgs {
-      let result = SupportLang::from_str(&l);
-      if result.is_err(){
-        return Err(anyhow!("unrecognized language in language globs").into());
-      }
-      let result = FrontEndLanguage::try_from(result.unwrap());
+      let result = FrontEndLanguage::from_str(&l);
       match result {
-        Ok(value) => {
-          if value == *lang{
+        Ok(v) => {
+          if v == *lang{
             custom_file_type.extend(globs);
           }
-        },
-        Err(e) => return Err(anyhow!(format!("{} is not supported in napi", e)).into()),
+        }
+        Err(FrontEndLanguageErr::LanguageNotSupported(language)) => return Err(anyhow!(format!("{} is not supported in napi", language)).into())
       }
     } 
   }
