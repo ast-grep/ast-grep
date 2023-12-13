@@ -119,14 +119,14 @@ pub enum Transformation {
 impl Transformation {
   fn insert<D: Doc>(&self, key: &str, ctx: &mut Ctx<D>) {
     // avoid cyclic
-    ctx.env.insert_transformation(key.to_string(), vec![]);
+    ctx.env.insert_transformation(key, vec![]);
     let opt = self.compute(ctx);
     let bytes = if let Some(s) = opt {
       <D::Source as Content>::decode_str(&s).to_vec()
     } else {
       vec![]
     };
-    ctx.env.insert_transformation(key.to_string(), bytes);
+    ctx.env.insert_transformation(key, bytes);
   }
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     use Transformation as T;

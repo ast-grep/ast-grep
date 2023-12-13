@@ -14,7 +14,7 @@ fn match_leaf_meta_var<'tree, D: Doc>(
       if *named && !candidate.is_named() {
         None
       } else {
-        env.to_mut().insert(name.clone(), candidate.clone())?;
+        env.to_mut().insert(name, candidate.clone())?;
         Some(candidate)
       }
     }
@@ -31,7 +31,7 @@ fn match_leaf_meta_var<'tree, D: Doc>(
       Some(candidate)
     }
     MV::NamedEllipsis(name) => {
-      env.to_mut().insert(name.clone(), candidate.clone())?;
+      env.to_mut().insert(name, candidate.clone())?;
       Some(candidate)
     }
   }
@@ -61,7 +61,7 @@ fn update_ellipsis_env<'t, D: Doc>(
     matched.extend(cand_children);
     let skipped = matched.len().saturating_sub(skipped_anonymous);
     drop(matched.drain(skipped..));
-    env.to_mut().insert_multi(name.to_string(), matched)?;
+    env.to_mut().insert_multi(name, matched)?;
   }
   Some(())
 }
