@@ -195,8 +195,8 @@ pub fn filter_file_interactive<M: Matcher<SgLang>>(
 pub fn filter_file_pattern(
   path: &Path,
   lang: SgLang,
-  matcher: Pattern<StrDoc<SgLang>>,
-) -> Option<MatchUnit<Pattern<StrDoc<SgLang>>>> {
+  matcher: Pattern<SgLang>,
+) -> Option<MatchUnit<Pattern<SgLang>>> {
   let file_content = read_file(path)?;
   let fixed = matcher.fixed_string();
   if !fixed.is_empty() && !file_content.contains(&*fixed) {

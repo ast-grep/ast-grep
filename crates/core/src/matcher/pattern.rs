@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 use thiserror::Error;
 
 #[derive(Clone)]
-pub enum Pattern<D: Doc> {
+pub enum Pattern<L: Language> {
   MetaVar {
     meta_var: MetaVariable,
     kind: Option<u16>,
@@ -24,22 +24,22 @@ pub enum Pattern<D: Doc> {
     text: String,
     is_named: bool,
     kind_id: u16,
-    lang: PhantomData<D>,
   },
   /// Non-Terminal Syntax Nodes are called Internal
   Internal {
     kind_id: u16,
-    children: Vec<Pattern<D>>,
+    children: Vec<Pattern<L>>,
+    lang: PhantomData<L>,
   },
 }
 
-impl<'r, D: Doc> From<Node<'r, D>> for Pattern<D> {
+impl<'r, D: Doc> From<Node<'r, D>> for Pattern<D::Lang> {
   fn from(node: Node<'r, D>) -> Self {
     convert_node_to_pattern(node, None)
   }
 }
 
-fn convert_node_to_pattern<D: Doc>(node: Node<D>, kind: Option<u16>) -> Pattern<D> {
+fn convert_node_to_pattern<D: Doc>(node: Node<D>, kind: Option<u16>) -> Pattern<D::Lang> {
   if let Some(meta_var) = extract_var_from_node(&node) {
     Pattern::MetaVar { meta_var, kind }
   } else if node.is_named_leaf() {
@@ -47,12 +47,12 @@ fn convert_node_to_pattern<D: Doc>(node: Node<D>, kind: Option<u16>) -> Pattern<
       text: node.text().to_string(),
       is_named: node.is_named(),
       kind_id: node.kind_id(),
-      lang: PhantomData,
     }
   } else {
     Pattern::Internal {
       kind_id: node.kind_id(),
       children: node.children().map(Pattern::from).collect(),
+      lang: PhantomData,
     }
   }
 }
@@ -84,7 +84,7 @@ fn is_single_node(n: &tree_sitter::Node) -> bool {
     _ => false,
   }
 }
-impl<L: Language> Pattern<StrDoc<L>> {
+impl<L: Language> Pattern<L> {
   pub fn str(src: &str, lang: L) -> Self {
     Self::new(src, lang)
   }
@@ -120,8 +120,7 @@ impl<L: Language> Pattern<StrDoc<L>> {
     };
     KindMatcher::<L>::from_id(kind).is_error_matcher()
   }
-}
-impl<D: Doc> Pattern<D> {
+
   // for skipping trivial nodes in goal after ellipsis
   pub fn is_trivial(&self) -> bool {
     match self {
@@ -131,7 +130,7 @@ impl<D: Doc> Pattern<D> {
   }
 }
 
-impl<L: Language> Pattern<StrDoc<L>> {
+impl<L: Language> Pattern<L> {
   pub fn try_new(src: &str, lang: L) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(src);
     let root = Root::<StrDoc<L>>::try_new(&processed, lang)?;
@@ -181,7 +180,7 @@ impl<L: Language> Pattern<StrDoc<L>> {
   }
 }
 
-impl<L: Language, P: Doc<Lang = L>> Matcher<L> for Pattern<P> {
+impl<L: Language> Matcher<L> for Pattern<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
@@ -208,7 +207,7 @@ impl<L: Language, P: Doc<Lang = L>> Matcher<L> for Pattern<P> {
   }
 }
 
-impl<D: Doc> std::fmt::Debug for Pattern<D> {
+impl<L: Language> std::fmt::Debug for Pattern<L> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Self::MetaVar { meta_var, .. } => write!(f, "{:?}", meta_var),
@@ -394,7 +393,7 @@ mod test {
   #[test]
   #[ignore]
   fn test_pattern_size() {
-    assert_eq!(std::mem::size_of::<Pattern<StrDoc<Tsx>>>(), 40);
+    assert_eq!(std::mem::size_of::<Pattern<Tsx>>(), 40);
   }
 
   #[test]
@@ -415,8 +414,7 @@ mod test {
 
   #[test]
   fn test_bare_wildcard_in_context() {
-    let pattern =
-      Pattern::<StrDoc<_>>::contextual("class A { $F }", "property_identifier", Tsx).expect("test");
+    let pattern = Pattern::contextual("class A { $F }", "property_identifier", Tsx).expect("test");
     let cand = pattern_node("let b = 123");
     // should it match?
     assert!(pattern.find_node(cand.root()).is_some());
@@ -426,8 +424,7 @@ mod test {
   fn test_pattern_fixed_string() {
     let pattern = Pattern::new("class A { $F }", Tsx);
     assert_eq!(pattern.fixed_string(), "class");
-    let pattern =
-      Pattern::<StrDoc<_>>::contextual("class A { $F }", "property_identifier", Tsx).expect("test");
+    let pattern = Pattern::contextual("class A { $F }", "property_identifier", Tsx).expect("test");
     assert!(pattern.fixed_string().is_empty());
   }
 

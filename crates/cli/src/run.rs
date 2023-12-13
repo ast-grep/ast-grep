@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ast_grep_core::replacer::TemplateFix;
-use ast_grep_core::{Matcher, Pattern as SgPattern, StrDoc};
+use ast_grep_core::{Matcher, Pattern};
 use ast_grep_language::Language;
 use clap::Parser;
 use ignore::WalkParallel;
@@ -14,8 +14,6 @@ use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinte
 use crate::utils::{filter_file_pattern, InputArgs, MatchUnit, OutputArgs};
 use crate::utils::{run_std_in, StdInWorker};
 use crate::utils::{run_worker, Items, Worker};
-
-type Pattern<L> = SgPattern<StrDoc<L>>;
 
 // NOTE: have to register custom lang before clap read arg
 // RunArg has a field of SgLang

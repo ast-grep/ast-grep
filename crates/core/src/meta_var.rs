@@ -222,7 +222,7 @@ pub enum MetaVarMatcher<D: Doc> {
   /// A regex to filter matched metavar based on its textual content.
   Regex(RegexMatcher<D::Lang>),
   /// A pattern to filter matched metavar based on its AST tree shape.
-  Pattern(Pattern<D>),
+  Pattern(Pattern<D::Lang>),
   /// A kind_id to filter matched metavar based on its ts-node kind
   Kind(KindMatcher<D::Lang>),
 }
