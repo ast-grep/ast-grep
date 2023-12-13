@@ -37,30 +37,15 @@ fn match_leaf_meta_var<'tree, D: Doc>(
   }
 }
 
-#[inline]
-fn is_node_eligible_for_meta_var(goal: &Node<impl Doc>, is_leaf: bool) -> bool {
-  // allow Error as meta_var
-  // see https://github.com/ast-grep/ast-grep/issues/526
-  extract_var_from_node(goal).is_some()
-  // is_leaf || goal.is_error()
-}
-
 /// Returns Ok if ellipsis pattern is found. If the ellipsis is named, returns it name.
 /// If the ellipsis is unnamed, returns None. If it is not ellipsis node, returns Err.
-fn try_get_pattern_ellipsis_mode(node: &Pattern<impl Doc>) -> Result<Option<String>, ()> {
+fn try_get_ellipsis_mode(node: &Pattern<impl Doc>) -> Result<Option<String>, ()> {
   let Pattern::MetaVar(mv, _) = node else {
     return Err(());
   };
   match mv {
     MetaVariable::Ellipsis => Ok(None),
     MetaVariable::NamedEllipsis(n) => Ok(Some(n.into())),
-    _ => Err(()),
-  }
-}
-fn try_get_ellipsis_mode(node: &Node<impl Doc>) -> Result<Option<String>, ()> {
-  match extract_var_from_node(node).ok_or(())? {
-    MetaVariable::Ellipsis => Ok(None),
-    MetaVariable::NamedEllipsis(n) => Ok(Some(n)),
     _ => Err(()),
   }
 }
@@ -132,7 +117,7 @@ fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
   let mut end = cand_children.peek()?.range().end;
   loop {
     let curr_node = goal_children.peek().unwrap();
-    if try_get_pattern_ellipsis_mode(curr_node).is_ok() {
+    if try_get_ellipsis_mode(curr_node).is_ok() {
       goal_children.next();
       // goal has all matched
       if goal_children.peek().is_none() {
@@ -152,7 +137,7 @@ fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
         }
       }
       // if next node is a Ellipsis, consume one candidate node
-      if try_get_pattern_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
+      if try_get_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
         cand_children.next();
         cand_children.peek()?;
         continue;
@@ -234,7 +219,7 @@ fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
   cand_children.peek()?;
   loop {
     let curr_node = goal_children.peek().unwrap();
-    if let Ok(optional_name) = try_get_pattern_ellipsis_mode(curr_node) {
+    if let Ok(optional_name) = try_get_ellipsis_mode(curr_node) {
       let mut matched = vec![];
       goal_children.next();
       // goal has all matched
@@ -259,7 +244,7 @@ fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
         }
       }
       // if next node is a Ellipsis, consume one candidate node
-      if try_get_pattern_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
+      if try_get_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
         matched.push(cand_children.next().unwrap());
         cand_children.peek()?;
         update_ellipsis_env(

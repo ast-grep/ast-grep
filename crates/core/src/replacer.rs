@@ -1,7 +1,6 @@
 use crate::matcher::NodeMatch;
 use crate::meta_var::{is_valid_meta_var_char, MetaVariableID};
 use crate::source::{Content, Edit as E};
-use crate::Pattern;
 use crate::{Doc, Node, Root};
 
 type Edit<D> = E<<D as Doc>::Source>;
@@ -33,12 +32,6 @@ impl<D: Doc> Replacer<D> for Root<D> {
     structural::gen_replacement(self, nm)
   }
 }
-
-// impl<D: Doc> Replacer<D> for Pattern<D> {
-//   fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
-//     structural::gen_replacement(&self.root, nm)
-//   }
-// }
 
 impl<D, T> Replacer<D> for &T
 where
