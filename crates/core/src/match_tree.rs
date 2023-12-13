@@ -40,10 +40,10 @@ fn match_leaf_meta_var<'tree, D: Doc>(
 /// Returns Ok if ellipsis pattern is found. If the ellipsis is named, returns it name.
 /// If the ellipsis is unnamed, returns None. If it is not ellipsis node, returns Err.
 fn try_get_ellipsis_mode(node: &Pattern<impl Doc>) -> Result<Option<String>, ()> {
-  let Pattern::MetaVar(mv, _) = node else {
+  let Pattern::MetaVar { meta_var, .. } = node else {
     return Err(());
   };
-  match mv {
+  match meta_var {
     MetaVariable::Ellipsis => Ok(None),
     MetaVariable::NamedEllipsis(n) => Ok(Some(n.into())),
     _ => Err(()),
@@ -72,12 +72,12 @@ pub fn match_end_non_recursive<D: Doc>(
 ) -> Option<usize> {
   use Pattern as P;
   match goal {
-    P::MetaVar(_, _) => Some(candidate.range().end),
-    P::NonTerminal { kind_id, children } if *kind_id == candidate.kind_id() => {
+    P::MetaVar { .. } => Some(candidate.range().end),
+    P::Internal { kind_id, children } if *kind_id == candidate.kind_id() => {
       let cand_children = candidate.children();
       match_multi_nodes_end_non_recursive(children, cand_children)
     }
-    P::Leaf { text, kind_id, .. } if *kind_id == candidate.kind_id() => {
+    P::Terminal { text, kind_id, .. } if *kind_id == candidate.kind_id() => {
       if *text == candidate.text() {
         Some(candidate.range().end)
       } else {
@@ -86,26 +86,6 @@ pub fn match_end_non_recursive<D: Doc>(
     }
     _ => None,
   }
-  // let is_leaf = goal.is_named_leaf();
-  // if is_node_eligible_for_meta_var(goal, is_leaf) && extract_var_from_node(goal).is_some() {
-  //   return Some(candidate.range().end);
-  // }
-  // if goal.kind_id() != candidate.kind_id() {
-  //   return None;
-  // }
-  // if is_leaf {
-  //   if extract_var_from_node(goal).is_some() {
-  //     return None;
-  //   }
-  //   return if goal.text() == candidate.text() {
-  //     Some(candidate.range().end)
-  //   } else {
-  //     None
-  //   };
-  // }
-  // let goal_children = goal.children();
-  // let cand_children = candidate.children();
-  // match_multi_nodes_end_non_recursive(goal_children, cand_children)
 }
 
 fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
@@ -193,15 +173,15 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
   use Pattern as P;
   match goal {
     // leaf = without named children
-    P::Leaf { text, kind_id, .. } if *kind_id == candidate.kind_id() => {
+    P::Terminal { text, kind_id, .. } if *kind_id == candidate.kind_id() => {
       if *text == candidate.text() {
         Some(candidate)
       } else {
         None
       }
     }
-    P::MetaVar(mv, _) => match_leaf_meta_var(mv, candidate, env),
-    P::NonTerminal { kind_id, children } if *kind_id == candidate.kind_id() => {
+    P::MetaVar { meta_var, .. } => match_leaf_meta_var(meta_var, candidate, env),
+    P::Internal { kind_id, children } if *kind_id == candidate.kind_id() => {
       let cand_children = candidate.children();
       match_nodes_non_recursive(children, cand_children, env).map(|_| candidate)
     }
