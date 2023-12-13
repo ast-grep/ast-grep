@@ -5,14 +5,14 @@ use std::borrow::Cow;
 use std::path::Path;
 pub use tree_sitter::Language as TSLanguage;
 
-/// Trait to abstract ts-language usage in ast-grep, which includes:
+/// Trait to abtsract ts-language usage in ast-grep, which includes:
 /// * which character is used for meta variable.
 /// * if we need to use other char in meta var for parser at runtime
 /// * pre process the Pattern code.
 pub trait Language: Clone {
   /// Return the file language from path. Return None if the file type is not supported.
   fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
-    // TODO: throw panic here if not implemented properly?
+    // TODO: throw panic here if not implmented properly?
     None
   }
 
