@@ -12,18 +12,22 @@ use thiserror::Error;
 
 #[derive(Clone)]
 pub enum Pattern<D: Doc> {
-  MetaVar(MetaVariable, Option<u16>),
+  MetaVar {
+    meta_var: MetaVariable,
+    kind: Option<u16>,
+  },
   // https://github.com/ast-grep/ast-grep/issues/276
   /// Node without named children.
   /// Some ts grammar will produce one node with multiple unnamed children.
-  /// We don't need to count it as NonTerminal.
-  Leaf {
+  /// We don't need to count it as Internal.
+  Terminal {
     text: String,
     is_named: bool,
     kind_id: u16,
     lang: PhantomData<D>,
   },
-  NonTerminal {
+  /// Non-Terminal Syntax Nodes are called Internal
+  Internal {
     kind_id: u16,
     children: Vec<Pattern<D>>,
   },
@@ -37,16 +41,16 @@ impl<'r, D: Doc> From<Node<'r, D>> for Pattern<D> {
 
 fn convert_node_to_pattern<D: Doc>(node: Node<D>, kind: Option<u16>) -> Pattern<D> {
   if let Some(meta_var) = extract_var_from_node(&node) {
-    Pattern::MetaVar(meta_var, kind)
+    Pattern::MetaVar { meta_var, kind }
   } else if node.is_named_leaf() {
-    Pattern::Leaf {
+    Pattern::Terminal {
       text: node.text().to_string(),
       is_named: node.is_named(),
       kind_id: node.kind_id(),
       lang: PhantomData,
     }
   } else {
-    Pattern::NonTerminal {
+    Pattern::Internal {
       kind_id: node.kind_id(),
       children: node.children().map(Pattern::from).collect(),
     }
@@ -87,9 +91,9 @@ impl<L: Language> Pattern<StrDoc<L>> {
 
   pub fn fixed_string(&self) -> Cow<str> {
     match self {
-      Self::Leaf { text, .. } => Cow::Borrowed(text),
-      Self::MetaVar(_, _) => Cow::Borrowed(""),
-      Self::NonTerminal { children, .. } => {
+      Self::Terminal { text, .. } => Cow::Borrowed(text),
+      Self::MetaVar { .. } => Cow::Borrowed(""),
+      Self::Internal { children, .. } => {
         children
           .iter()
           .map(|n| n.fixed_string())
@@ -106,10 +110,13 @@ impl<L: Language> Pattern<StrDoc<L>> {
 
   pub fn has_error(&self) -> bool {
     let kind = match self {
-      Pattern::Leaf { kind_id, .. } => *kind_id,
-      Pattern::NonTerminal { kind_id, .. } => *kind_id,
-      Pattern::MetaVar(_, Some(kind_id)) => *kind_id,
-      Pattern::MetaVar(_, None) => return false,
+      Pattern::Terminal { kind_id, .. } => *kind_id,
+      Pattern::Internal { kind_id, .. } => *kind_id,
+      Pattern::MetaVar {
+        kind: Some(kind_id),
+        ..
+      } => *kind_id,
+      Pattern::MetaVar { kind: None, .. } => return false,
     };
     KindMatcher::<L>::from_id(kind).is_error_matcher()
   }
@@ -118,7 +125,7 @@ impl<D: Doc> Pattern<D> {
   // for skipping trivial nodes in goal after ellipsis
   pub fn is_trivial(&self) -> bool {
     match self {
-      Pattern::Leaf { is_named, .. } => !*is_named,
+      Pattern::Terminal { is_named, .. } => !*is_named,
       _ => false,
     }
   }
@@ -185,9 +192,9 @@ impl<L: Language, P: Doc<Lang = L>> Matcher<L> for Pattern<P> {
 
   fn potential_kinds(&self) -> Option<bit_set::BitSet> {
     let kind = match self {
-      Self::Leaf { kind_id, .. } => *kind_id,
-      Self::MetaVar(_, kind) => (*kind)?,
-      Self::NonTerminal { kind_id, .. } => *kind_id,
+      Self::Terminal { kind_id, .. } => *kind_id,
+      Self::MetaVar { kind, .. } => (*kind)?,
+      Self::Internal { kind_id, .. } => *kind_id,
     };
     let mut kinds = BitSet::new();
     kinds.insert(kind.into());
@@ -204,9 +211,9 @@ impl<L: Language, P: Doc<Lang = L>> Matcher<L> for Pattern<P> {
 impl<D: Doc> std::fmt::Debug for Pattern<D> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::MetaVar(m, _) => write!(f, "{:?}", m),
-      Self::Leaf { text, .. } => write!(f, "{}", text),
-      Self::NonTerminal { children, .. } => write!(f, "{:?}", children),
+      Self::MetaVar { meta_var, .. } => write!(f, "{:?}", meta_var),
+      Self::Terminal { text, .. } => write!(f, "{}", text),
+      Self::Internal { children, .. } => write!(f, "{:?}", children),
     }
   }
 }
