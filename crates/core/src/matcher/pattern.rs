@@ -406,7 +406,7 @@ mod test {
   }
 
   #[test]
-  fn test_error() {
+  fn test_error_kind() {
     let ret = Pattern::contextual("a", "property_identifier", Tsx);
     assert!(ret.is_err());
     let ret = Pattern::str("123+", Tsx);
@@ -420,5 +420,28 @@ mod test {
     let cand = pattern_node("let b = 123");
     // should it match?
     assert!(pattern.find_node(cand.root()).is_some());
+  }
+
+  #[test]
+  fn test_pattern_fixed_string() {
+    let pattern = Pattern::new("class A { $F }", Tsx);
+    assert_eq!(pattern.fixed_string(), "class");
+    let pattern =
+      Pattern::<StrDoc<_>>::contextual("class A { $F }", "property_identifier", Tsx).expect("test");
+    assert!(pattern.fixed_string().is_empty());
+  }
+
+  #[test]
+  fn test_pattern_error() {
+    let pattern = Pattern::try_new("", Tsx);
+    assert!(matches!(pattern, Err(PatternError::NoContent(_))));
+    let pattern = Pattern::try_new("12  3344", Tsx);
+    assert!(matches!(pattern, Err(PatternError::MultipleNode(_))));
+  }
+
+  #[test]
+  fn test_debug_pattern() {
+    let pattern = Pattern::str("var $A = 1", Tsx);
+    assert_eq!(format!("{pattern:?}"), "[var, [Named(\"A\", true), =, 1]]");
   }
 }
