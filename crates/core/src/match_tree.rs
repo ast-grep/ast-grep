@@ -90,7 +90,7 @@ pub fn match_end_non_recursive<D: Doc>(
   }
 }
 
-fn match_multi_nodes_end_non_recursive<'g, 'c, D: Doc + 'c>(
+fn match_multi_nodes_end_non_recursive<'c, D: Doc + 'c>(
   goals: &[Pattern<D::Lang>],
   candidates: impl Iterator<Item = Node<'c, D>>,
 ) -> Option<usize> {
@@ -193,7 +193,7 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
   }
 }
 
-fn match_nodes_non_recursive<'goal, 'tree, D: Doc + 'tree>(
+fn match_nodes_non_recursive<'tree, D: Doc + 'tree>(
   goals: &[Pattern<D::Lang>],
   candidates: impl Iterator<Item = Node<'tree, D>>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
