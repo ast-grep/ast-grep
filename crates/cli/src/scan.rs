@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig, Severity};
+use ast_grep_config::{from_yaml_string, CombinedScan, RuleCollection, RuleConfig, Severity};
 use ast_grep_core::{NodeMatch, StrDoc};
 use bit_set::BitSet;
 use clap::Args;
@@ -106,7 +106,9 @@ impl<P: Printer> ScanWithConfig<P> {
       let rules = read_rule_file(path, None)?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
     } else if let Some(text) = &arg.inline_rules {
-      todo!("{text}")
+      let rules = from_yaml_string(text, &Default::default())
+        .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
+      RuleCollection::try_new(rules).context(EC::GlobPattern)?
     } else {
       find_rules(arg.config.take(), arg.filter.as_ref())?
     };
@@ -185,7 +187,9 @@ impl<P: Printer> ScanWithRule<P> {
     let rule = if let Some(path) = &arg.rule {
       read_rule_file(path, None)?.pop().unwrap()
     } else if let Some(text) = &arg.inline_rules {
-      todo!("{text}")
+      let mut rules: Vec<_> = from_yaml_string(text, &Default::default())
+        .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
+      rules.pop().unwrap()
     } else {
       return Err(anyhow::anyhow!(EC::RuleNotSpecified));
     };
@@ -299,19 +303,9 @@ rule:
     dir
   }
 
-  #[test]
-  fn test_run_with_config() {
-    let dir = create_test_files([("sgconfig.yml", "ruleDirs: [rules]")]);
-    std::fs::create_dir_all(dir.path().join("rules")).unwrap();
-    let mut file = File::create(dir.path().join("rules/test.yml")).unwrap();
-    file.write_all(RULE.as_bytes()).unwrap();
-    let mut file = File::create(dir.path().join("test.rs")).unwrap();
-    file
-      .write_all("fn test() { Some(123) }".as_bytes())
-      .unwrap();
-    file.sync_all().unwrap();
-    let arg = ScanArg {
-      config: Some(dir.path().join("sgconfig.yml")),
+  fn default_scan_arg() -> ScanArg {
+    ScanArg {
+      config: None,
       filter: None,
       rule: None,
       inline_rules: None,
@@ -328,7 +322,46 @@ rule:
         color: ColorArg::Never,
       },
       format: None,
+    }
+  }
+
+  #[test]
+  fn test_run_with_config() {
+    let dir = create_test_files([("sgconfig.yml", "ruleDirs: [rules]")]);
+    std::fs::create_dir_all(dir.path().join("rules")).unwrap();
+    let mut file = File::create(dir.path().join("rules/test.yml")).unwrap();
+    file.write_all(RULE.as_bytes()).unwrap();
+    let mut file = File::create(dir.path().join("test.rs")).unwrap();
+    file
+      .write_all("fn test() { Some(123) }".as_bytes())
+      .unwrap();
+    file.sync_all().unwrap();
+    let arg = ScanArg {
+      config: Some(dir.path().join("sgconfig.yml")),
+      ..default_scan_arg()
     };
     assert!(run_with_config(arg).is_ok());
+  }
+
+  #[test]
+  fn test_scan_with_inline_rules() {
+    let inline_rules = "{id: test, language: ts, rule: {pattern: console.log($A)}}".to_string();
+    let arg = ScanArg {
+      inline_rules: Some(inline_rules),
+      ..default_scan_arg()
+    };
+    assert!(run_with_config(arg).is_ok());
+  }
+
+  #[test]
+  fn test_scan_with_inline_rules_error() {
+    let inline_rules = "nonesnese".to_string();
+    let arg = ScanArg {
+      inline_rules: Some(inline_rules),
+      ..default_scan_arg()
+    };
+    let err = run_with_config(arg).expect_err("should error");
+    assert!(err.is::<EC>());
+    assert_eq!(err.to_string(), "Cannot parse rule INLINE_RULES");
   }
 }
