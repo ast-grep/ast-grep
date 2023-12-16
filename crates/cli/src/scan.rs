@@ -77,7 +77,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
   let printer = ColoredPrinter::stdout(arg.output.color).style(arg.report_style);
   let interactive = arg.output.needs_interactive();
   if interactive {
-    let from_stdin = arg.input.is_stdin();
+    let from_stdin = arg.input.stdin;
     let printer = InteractivePrinter::new(printer, arg.output.update_all, from_stdin)?;
     run_scan(arg, printer)
   } else {
@@ -86,7 +86,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
 }
 
 fn run_scan<P: Printer + Sync>(arg: ScanArg, printer: P) -> Result<()> {
-  if arg.input.is_stdin() {
+  if arg.input.stdin {
     let worker = ScanWithRule::try_new(arg, printer)?;
     run_std_in(worker)
   } else {

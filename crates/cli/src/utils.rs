@@ -15,7 +15,6 @@ use ast_grep_core::Pattern;
 use ast_grep_core::{AstGrep, Matcher, StrDoc};
 use ast_grep_language::Language;
 
-use std::env;
 use std::fs::read_to_string;
 use std::io::stdout;
 use std::io::Write;
@@ -227,13 +226,6 @@ pub struct MatchUnit<M: Matcher<SgLang>> {
   pub matcher: M,
 }
 
-#[inline]
-fn is_from_stdin() -> bool {
-  // disable stdin if tty env presents or is_atty == true
-  // env is used for testing purpose only
-  env::var_os("AST_GREP_NO_STDIN").is_none() && !atty::is(atty::Stream::Stdin)
-}
-
 /// input related options
 #[derive(Args)]
 pub struct InputArgs {
@@ -250,16 +242,11 @@ pub struct InputArgs {
   /// Enable search code from StdIn.
   ///
   /// Use this if you need to take code stream from standard input.
-  /// If the environment variable `AST_GREP_NO_STDIN` exist, ast-grep will disable StdIn mode.
   #[clap(long)]
   pub stdin: bool,
 }
 
 impl InputArgs {
-  pub fn is_stdin(&self) -> bool {
-    self.stdin && is_from_stdin()
-  }
-
   pub fn walk(&self) -> WalkParallel {
     let threads = num_cpus::get().min(12);
     NoIgnore::disregard(&self.no_ignore)

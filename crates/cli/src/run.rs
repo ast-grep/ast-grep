@@ -123,7 +123,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
     .context(context);
   let interactive = arg.output.needs_interactive();
   if interactive {
-    let from_stdin = arg.input.is_stdin();
+    let from_stdin = arg.input.stdin;
     let printer = InteractivePrinter::new(printer, arg.output.update_all, from_stdin)?;
     run_pattern_with_printer(arg, printer)
   } else {
@@ -132,7 +132,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
 }
 
 fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + Sync) -> Result<()> {
-  if arg.input.is_stdin() {
+  if arg.input.stdin {
     run_std_in(RunWithSpecificLang::new(arg, printer)?)
   } else if arg.lang.is_some() {
     run_worker(RunWithSpecificLang::new(arg, printer)?)
