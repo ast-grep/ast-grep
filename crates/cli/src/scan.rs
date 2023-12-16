@@ -30,8 +30,15 @@ pub struct ScanArg {
   /// Scan the codebase with the single rule located at the path RULE_FILE.
   ///
   /// This flags conflicts with --config. It is useful to run single rule without project setup.
-  #[clap(short, long, conflicts_with = "config", value_name = "RULE_FILE")]
+  #[clap(short, long, value_name = "RULE_FILE")]
   rule: Option<PathBuf>,
+
+  /// Scan the codebase with a rule defined by the provided RULE_TEXT.
+  ///
+  /// Use this argument if you want to test a rule without creating a YAML file on disk.
+  /// --inline-rules is incompatible with --rule.
+  #[clap(long, conflicts_with = "rule", value_name = "RULE_TEXT")]
+  inline_rules: Option<String>,
 
   /// Scan the codebase with rules with ids matching REGEX.
   ///
@@ -98,6 +105,8 @@ impl<P: Printer> ScanWithConfig<P> {
     let configs = if let Some(path) = &arg.rule {
       let rules = read_rule_file(path, None)?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
+    } else if let Some(text) = &arg.inline_rules {
+      todo!("{text}")
     } else {
       find_rules(arg.config.take(), arg.filter.as_ref())?
     };
@@ -175,6 +184,8 @@ impl<P: Printer> ScanWithRule<P> {
   fn try_new(arg: ScanArg, printer: P) -> Result<Self> {
     let rule = if let Some(path) = &arg.rule {
       read_rule_file(path, None)?.pop().unwrap()
+    } else if let Some(text) = &arg.inline_rules {
+      todo!("{text}")
     } else {
       return Err(anyhow::anyhow!(EC::RuleNotSpecified));
     };
@@ -303,6 +314,7 @@ rule:
       config: Some(dir.path().join("sgconfig.yml")),
       filter: None,
       rule: None,
+      inline_rules: None,
       report_style: ReportStyle::Rich,
       input: InputArgs {
         no_ignore: vec![],
