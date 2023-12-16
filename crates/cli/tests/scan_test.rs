@@ -6,6 +6,7 @@ use ast_grep::main_with_args;
 use common::create_test_files;
 use predicates::prelude::*;
 use predicates::str::contains;
+use serde_json::{from_slice, Value};
 use tempfile::TempDir;
 
 const CONFIG: &str = "
@@ -68,5 +69,17 @@ fn test_sg_rule_off() -> Result<()> {
     .stdout(contains("on-rule"))
     .stdout(contains("off-rule").not());
   drop(dir);
+  Ok(())
+}
+
+#[test]
+fn test_sg_scan_inline_rules() -> Result<()> {
+  let inline_rules = "{id: test, language: ts, rule: {pattern: console.log($A)}}";
+  Command::cargo_bin("sg")?
+    .args(["scan", "--stdin", "--inline-rules", inline_rules, "--json"])
+    .write_stdin("console.log(123)")
+    .assert()
+    .stdout(contains("console.log(123)"))
+    .stdout(predicate::function(|n| from_slice::<Value>(n).is_ok()));
   Ok(())
 }
