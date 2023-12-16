@@ -353,9 +353,10 @@ rule:
     assert!(run_with_config(arg).is_ok());
   }
 
+  // baseline test for coverage
   #[test]
   fn test_scan_with_inline_rules_error() {
-    let inline_rules = "nonesnese".to_string();
+    let inline_rules = "nonsense".to_string();
     let arg = ScanArg {
       inline_rules: Some(inline_rules),
       ..default_scan_arg()

@@ -79,7 +79,7 @@ fn test_sg_scan_inline_rules() -> Result<()> {
     .args(["scan", "--stdin", "--inline-rules", inline_rules, "--json"])
     .write_stdin("console.log(123)")
     .assert()
-    .stdout(contains("console.log(123)"))
+    .stdout(contains("\"text\": \"console.log(123)\""))
     .stdout(predicate::function(|n| from_slice::<Value>(n).is_ok()));
   Ok(())
 }
