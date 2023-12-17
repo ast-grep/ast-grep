@@ -13,7 +13,7 @@ use crate::lang::SgLang;
 use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
 use crate::utils::{filter_file_pattern, InputArgs, MatchUnit, OutputArgs};
 use crate::utils::{run_std_in, StdInWorker};
-use crate::utils::{run_worker, Items, PathWorker};
+use crate::utils::{run_worker, Items, PathWorker, Worker};
 
 // NOTE: have to register custom lang before clap read arg
 // RunArg has a field of SgLang
@@ -145,19 +145,8 @@ struct RunWithInferredLang<Printer> {
   arg: RunArg,
   printer: Printer,
 }
-
-impl<P: Printer + Sync> PathWorker for RunWithInferredLang<P> {
+impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
   type Item = (MatchUnit<Pattern<SgLang>>, SgLang);
-  fn build_walk(&self) -> WalkParallel {
-    self.arg.input.walk()
-  }
-
-  fn produce_item(&self, path: &Path) -> Option<Self::Item> {
-    let lang = SgLang::from_path(path)?;
-    let matcher = Pattern::try_new(&self.arg.pattern, lang).ok()?;
-    let match_unit = filter_file_pattern(path, lang, matcher)?;
-    Some((match_unit, lang))
-  }
 
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     let rewrite = &self.arg.rewrite;
@@ -182,6 +171,19 @@ impl<P: Printer + Sync> PathWorker for RunWithInferredLang<P> {
   }
 }
 
+impl<P: Printer + Sync> PathWorker for RunWithInferredLang<P> {
+  fn build_walk(&self) -> WalkParallel {
+    self.arg.input.walk()
+  }
+
+  fn produce_item(&self, path: &Path) -> Option<Self::Item> {
+    let lang = SgLang::from_path(path)?;
+    let matcher = Pattern::try_new(&self.arg.pattern, lang).ok()?;
+    let match_unit = filter_file_pattern(path, lang, matcher)?;
+    Some((match_unit, lang))
+  }
+}
+
 struct RunWithSpecificLang<Printer> {
   arg: RunArg,
   printer: Printer,
@@ -201,18 +203,9 @@ impl<Printer> RunWithSpecificLang<Printer> {
   }
 }
 
-impl<P: Printer + Sync> PathWorker for RunWithSpecificLang<P> {
+impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
   type Item = MatchUnit<Pattern<SgLang>>;
-  fn build_walk(&self) -> WalkParallel {
-    let lang = self.arg.lang.expect("must present");
-    self.arg.input.walk_lang(lang)
-  }
-  fn produce_item(&self, path: &Path) -> Option<Self::Item> {
-    let arg = &self.arg;
-    let pattern = self.pattern.clone();
-    let lang = arg.lang.expect("must present");
-    filter_file_pattern(path, lang, pattern)
-  }
+
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     let printer = &self.printer;
     printer.before_print()?;
@@ -237,6 +230,19 @@ impl<P: Printer + Sync> PathWorker for RunWithSpecificLang<P> {
     } else {
       Ok(())
     }
+  }
+}
+
+impl<P: Printer + Sync> PathWorker for RunWithSpecificLang<P> {
+  fn build_walk(&self) -> WalkParallel {
+    let lang = self.arg.lang.expect("must present");
+    self.arg.input.walk_lang(lang)
+  }
+  fn produce_item(&self, path: &Path) -> Option<Self::Item> {
+    let arg = &self.arg;
+    let pattern = self.pattern.clone();
+    let lang = arg.lang.expect("must present");
+    filter_file_pattern(path, lang, pattern)
   }
 }
 
