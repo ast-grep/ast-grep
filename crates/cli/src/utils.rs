@@ -101,10 +101,23 @@ pub trait PathWorker: Worker {
   fn build_walk(&self) -> WalkParallel;
   /// Parse and find_match can be done in `produce_item`.
   fn produce_item(&self, path: &Path) -> Option<Self::Item>;
+
+  fn run_path(&self) -> Result<()> {
+    run_worker(self)
+  }
 }
 
 pub trait StdInWorker: Worker {
   fn parse_stdin(&self, src: String) -> Option<Self::Item>;
+
+  fn run_std_in(&self) -> Result<()> {
+    let source = std::io::read_to_string(std::io::stdin())?;
+    if let Some(item) = self.parse_stdin(source) {
+      self.consume_items(Items::once(item)?)
+    } else {
+      Ok(())
+    }
+  }
 }
 
 pub struct Items<T>(mpsc::Receiver<T>);
@@ -119,7 +132,7 @@ impl<T> Iterator for Items<T> {
   }
 }
 impl<T> Items<T> {
-  pub fn once(t: T) -> Result<Self> {
+  fn once(t: T) -> Result<Self> {
     let (tx, rx) = mpsc::channel();
     // use write to avoid send/sync trait bound
     match tx.send(t) {
@@ -141,16 +154,7 @@ fn filter_result(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
   entry.file_type()?.is_file().then(|| entry.into_path())
 }
 
-pub fn run_std_in<MW: StdInWorker>(worker: MW) -> Result<()> {
-  let source = std::io::read_to_string(std::io::stdin())?;
-  if let Some(item) = worker.parse_stdin(source) {
-    worker.consume_items(Items::once(item)?)
-  } else {
-    Ok(())
-  }
-}
-
-pub fn run_worker<MW: PathWorker>(worker: MW) -> Result<()> {
+fn run_worker<W: PathWorker + ?Sized>(worker: &W) -> Result<()> {
   let producer = |path: PathBuf| worker.produce_item(&path);
   let (tx, rx) = mpsc::channel();
   let walker = worker.build_walk();

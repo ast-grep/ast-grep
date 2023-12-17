@@ -16,8 +16,7 @@ use crate::print::{
   ReportStyle, SimpleFile,
 };
 use crate::utils::{filter_file_interactive, InputArgs, OutputArgs};
-use crate::utils::{run_std_in, StdInWorker, Worker};
-use crate::utils::{run_worker, Items, PathWorker};
+use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
 
@@ -88,10 +87,10 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
 fn run_scan<P: Printer + Sync>(arg: ScanArg, printer: P) -> Result<()> {
   if arg.input.stdin {
     let worker = ScanWithRule::try_new(arg, printer)?;
-    run_std_in(worker)
+    worker.run_std_in()
   } else {
     let worker = ScanWithConfig::try_new(arg, printer)?;
-    run_worker(worker)
+    worker.run_path()
   }
 }
 

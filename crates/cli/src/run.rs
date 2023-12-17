@@ -12,8 +12,7 @@ use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
 use crate::utils::{filter_file_pattern, InputArgs, MatchUnit, OutputArgs};
-use crate::utils::{run_std_in, StdInWorker};
-use crate::utils::{run_worker, Items, PathWorker, Worker};
+use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 // NOTE: have to register custom lang before clap read arg
 // RunArg has a field of SgLang
@@ -133,11 +132,11 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
 
 fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + Sync) -> Result<()> {
   if arg.input.stdin {
-    run_std_in(RunWithSpecificLang::new(arg, printer)?)
+    RunWithSpecificLang::new(arg, printer)?.run_std_in()
   } else if arg.lang.is_some() {
-    run_worker(RunWithSpecificLang::new(arg, printer)?)
+    RunWithSpecificLang::new(arg, printer)?.run_path()
   } else {
-    run_worker(RunWithInferredLang { arg, printer })
+    RunWithInferredLang { arg, printer }.run_path()
   }
 }
 
