@@ -73,26 +73,37 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
   }
 }
 
+/// A trait to abstract how ast-grep discovers work Items.
+///
+/// It follows multiple-producer-single-consumer pattern.
+/// ast-grep will produce items in one or more separate thread(s) and
+/// `consumer_items` in the main thread, blocking the function return.
+/// Worker at the moment has two main flavors:
+/// * PathWorker: discovers files on the file system, based on ignore
+/// * StdInWorker: parse text content from standard input stream
+pub trait Worker: Sync {
+  /// The item to send between producer/consumer threads.
+  /// It is usually parsed tree-sitter Root with optional data.
+  type Item: Send;
+  /// `consume_items` will run in a separate single thread.
+  /// printing matches or error reporting can happen here.
+  fn consume_items(&self, items: Items<Self::Item>) -> Result<()>;
+}
+
 /// A trait to abstract how ast-grep discovers, parses and processes files.
 ///
 /// It follows multiple-producer-single-consumer pattern.
 /// ast-grep discovers files in parallel by `build_walk`.
 /// Then every file is parsed and filtered in `produce_item`.
 /// Finally, `produce_item` will send `Item` to the consumer thread.
-pub trait PathWorker: Sync {
-  /// The item to send between producer/consumer threads.
-  /// It is usually parsed tree-sitter Root with optional data.
-  type Item: Send;
+pub trait PathWorker: Worker {
   /// WalkParallel will determine what files will be processed.
   fn build_walk(&self) -> WalkParallel;
   /// Parse and find_match can be done in `produce_item`.
   fn produce_item(&self, path: &Path) -> Option<Self::Item>;
-  /// `consume_items` will run in a separate single thread.
-  /// printing matches or error reporting can happen here.
-  fn consume_items(&self, items: Items<Self::Item>) -> Result<()>;
 }
 
-pub trait StdInWorker: PathWorker {
+pub trait StdInWorker: Worker {
   fn parse_stdin(&self, src: String) -> Option<Self::Item>;
 }
 

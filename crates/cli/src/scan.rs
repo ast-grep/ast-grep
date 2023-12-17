@@ -16,7 +16,7 @@ use crate::print::{
   ReportStyle, SimpleFile,
 };
 use crate::utils::{filter_file_interactive, InputArgs, OutputArgs};
-use crate::utils::{run_std_in, StdInWorker};
+use crate::utils::{run_std_in, StdInWorker, Worker};
 use crate::utils::{run_worker, Items, PathWorker};
 
 type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
@@ -119,26 +119,8 @@ impl<P: Printer> ScanWithConfig<P> {
     })
   }
 }
-
-impl<P: Printer + Sync> PathWorker for ScanWithConfig<P> {
+impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
   type Item = (PathBuf, AstGrep, BitSet);
-  fn build_walk(&self) -> WalkParallel {
-    self.arg.input.walk()
-  }
-  fn produce_item(&self, path: &Path) -> Option<Self::Item> {
-    let rules = self.configs.for_path(path);
-    if rules.is_empty() {
-      return None;
-    }
-    let lang = rules[0].language;
-    let combined = CombinedScan::new(rules);
-    let unit = filter_file_interactive(path, lang, ast_grep_core::matcher::MatchAll)?;
-    let hit_set = combined.find(&unit.grep);
-    if !hit_set.is_empty() {
-      return Some((unit.path, unit.grep, hit_set));
-    }
-    None
-  }
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print()?;
     let mut has_error = 0;
@@ -178,6 +160,26 @@ impl<P: Printer + Sync> PathWorker for ScanWithConfig<P> {
   }
 }
 
+impl<P: Printer + Sync> PathWorker for ScanWithConfig<P> {
+  fn build_walk(&self) -> WalkParallel {
+    self.arg.input.walk()
+  }
+  fn produce_item(&self, path: &Path) -> Option<Self::Item> {
+    let rules = self.configs.for_path(path);
+    if rules.is_empty() {
+      return None;
+    }
+    let lang = rules[0].language;
+    let combined = CombinedScan::new(rules);
+    let unit = filter_file_interactive(path, lang, ast_grep_core::matcher::MatchAll)?;
+    let hit_set = combined.find(&unit.grep);
+    if !hit_set.is_empty() {
+      return Some((unit.path, unit.grep, hit_set));
+    }
+    None
+  }
+}
+
 struct ScanWithRule<Printer> {
   printer: Printer,
   rule: RuleConfig<SgLang>,
@@ -197,14 +199,8 @@ impl<P: Printer> ScanWithRule<P> {
   }
 }
 
-impl<P: Printer + Sync> PathWorker for ScanWithRule<P> {
+impl<P: Printer + Sync> Worker for ScanWithRule<P> {
   type Item = (PathBuf, AstGrep);
-  fn build_walk(&self) -> WalkParallel {
-    unreachable!()
-  }
-  fn produce_item(&self, _p: &Path) -> Option<Self::Item> {
-    unreachable!()
-  }
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print()?;
     let mut has_error = 0;
