@@ -17,7 +17,7 @@ use crate::print::{
 };
 use crate::utils::{filter_file_interactive, InputArgs, OutputArgs};
 use crate::utils::{run_std_in, StdInWorker};
-use crate::utils::{run_worker, Items, Worker};
+use crate::utils::{run_worker, Items, PathWorker};
 
 type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
 
@@ -120,7 +120,7 @@ impl<P: Printer> ScanWithConfig<P> {
   }
 }
 
-impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
+impl<P: Printer + Sync> PathWorker for ScanWithConfig<P> {
   type Item = (PathBuf, AstGrep, BitSet);
   fn build_walk(&self) -> WalkParallel {
     self.arg.input.walk()
@@ -197,7 +197,7 @@ impl<P: Printer> ScanWithRule<P> {
   }
 }
 
-impl<P: Printer + Sync> Worker for ScanWithRule<P> {
+impl<P: Printer + Sync> PathWorker for ScanWithRule<P> {
   type Item = (PathBuf, AstGrep);
   fn build_walk(&self) -> WalkParallel {
     unreachable!()

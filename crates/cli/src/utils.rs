@@ -79,7 +79,7 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
 /// ast-grep discovers files in parallel by `build_walk`.
 /// Then every file is parsed and filtered in `produce_item`.
 /// Finally, `produce_item` will send `Item` to the consumer thread.
-pub trait Worker: Sync {
+pub trait PathWorker: Sync {
   /// The item to send between producer/consumer threads.
   /// It is usually parsed tree-sitter Root with optional data.
   type Item: Send;
@@ -92,7 +92,7 @@ pub trait Worker: Sync {
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()>;
 }
 
-pub trait StdInWorker: Worker {
+pub trait StdInWorker: PathWorker {
   fn parse_stdin(&self, src: String) -> Option<Self::Item>;
 }
 
@@ -139,7 +139,7 @@ pub fn run_std_in<MW: StdInWorker>(worker: MW) -> Result<()> {
   }
 }
 
-pub fn run_worker<MW: Worker>(worker: MW) -> Result<()> {
+pub fn run_worker<MW: PathWorker>(worker: MW) -> Result<()> {
   let producer = |path: PathBuf| worker.produce_item(&path);
   let (tx, rx) = mpsc::channel();
   let walker = worker.build_walk();

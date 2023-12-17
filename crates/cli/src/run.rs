@@ -13,7 +13,7 @@ use crate::lang::SgLang;
 use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
 use crate::utils::{filter_file_pattern, InputArgs, MatchUnit, OutputArgs};
 use crate::utils::{run_std_in, StdInWorker};
-use crate::utils::{run_worker, Items, Worker};
+use crate::utils::{run_worker, Items, PathWorker};
 
 // NOTE: have to register custom lang before clap read arg
 // RunArg has a field of SgLang
@@ -146,7 +146,7 @@ struct RunWithInferredLang<Printer> {
   printer: Printer,
 }
 
-impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
+impl<P: Printer + Sync> PathWorker for RunWithInferredLang<P> {
   type Item = (MatchUnit<Pattern<SgLang>>, SgLang);
   fn build_walk(&self) -> WalkParallel {
     self.arg.input.walk()
@@ -201,7 +201,7 @@ impl<Printer> RunWithSpecificLang<Printer> {
   }
 }
 
-impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
+impl<P: Printer + Sync> PathWorker for RunWithSpecificLang<P> {
   type Item = MatchUnit<Pattern<SgLang>>;
   fn build_walk(&self) -> WalkParallel {
     let lang = self.arg.lang.expect("must present");
