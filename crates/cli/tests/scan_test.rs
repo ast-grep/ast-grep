@@ -83,3 +83,39 @@ fn test_sg_scan_inline_rules() -> Result<()> {
     .stdout(predicate::function(|n| from_slice::<Value>(n).is_ok()));
   Ok(())
 }
+
+const MULTI_RULES: &str = "
+id: rule-1
+language: TypeScript
+rule: { pattern: Some($A) }
+---
+id: rule-2
+language: TypeScript
+rule: { pattern: None }
+";
+
+#[test]
+fn test_sg_scan_multiple_rules_in_one_file() -> Result<()> {
+  let dir = create_test_files([("rule.yml", MULTI_RULES), ("test.ts", "Some(123) + None")])?;
+  Command::cargo_bin("sg")?
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml"])
+    .assert()
+    .success()
+    .stdout(contains("rule-1"))
+    .stdout(contains("rule-2"))
+    .stdout(contains("rule-3").not());
+  Ok(())
+}
+
+// see #517, #668
+#[test]
+fn test_sg_scan_py_empty_text() -> Result<()> {
+  let inline_rules = "{id: test, language: py, rule: {pattern: None}}";
+  Command::cargo_bin("sg")?
+    .args(["scan", "--stdin", "--inline-rules", inline_rules])
+    .write_stdin("\n\n\n\n\nNone")
+    .assert()
+    .stdout(contains("STDIN:6:1"));
+  Ok(())
+}
