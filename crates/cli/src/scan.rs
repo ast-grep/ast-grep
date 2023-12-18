@@ -124,7 +124,7 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
     self.printer.before_print()?;
     let mut has_error = 0;
     for (path, grep, hit_set) in items {
-      let file_content = grep.root().text().to_string();
+      let file_content = grep.source().to_string();
       let path = &path;
       let rules = self.configs.for_path(path);
       let combined = CombinedScan::new(rules);
@@ -181,36 +181,39 @@ impl<P: Printer + Sync> PathWorker for ScanWithConfig<P> {
 
 struct ScanWithRule<Printer> {
   printer: Printer,
-  rule: RuleConfig<SgLang>,
+  rules: Vec<RuleConfig<SgLang>>,
 }
 impl<P: Printer> ScanWithRule<P> {
   fn try_new(arg: ScanArg, printer: P) -> Result<Self> {
-    let rule = if let Some(path) = &arg.rule {
-      read_rule_file(path, None)?.pop().unwrap()
+    let rules = if let Some(path) = &arg.rule {
+      read_rule_file(path, None)?
     } else if let Some(text) = &arg.inline_rules {
-      let mut rules: Vec<_> = from_yaml_string(text, &Default::default())
-        .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
-      rules.pop().unwrap()
+      from_yaml_string(text, &Default::default())
+        .with_context(|| EC::ParseRule("INLINE_RULES".into()))?
     } else {
       return Err(anyhow::anyhow!(EC::RuleNotSpecified));
     };
-    Ok(Self { printer, rule })
+    Ok(Self { printer, rules })
   }
 }
 
 impl<P: Printer + Sync> Worker for ScanWithRule<P> {
-  type Item = (PathBuf, AstGrep);
+  type Item = (PathBuf, AstGrep, BitSet);
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print()?;
     let mut has_error = 0;
-    for (path, grep) in items {
-      let file_content = grep.root().text().to_string();
-      let rule = &self.rule;
-      let matches = grep.root().find_all(&rule.matcher).collect();
-      if matches!(rule.severity, Severity::Error) {
-        has_error += 1;
+    let combined = CombinedScan::new(self.rules.iter().collect());
+    for (path, grep, hit_set) in items {
+      let file_content = grep.source().to_string();
+      // exclude_fix rule because we already have diff inspection before
+      let matched = combined.scan(&grep, hit_set, false);
+      for (idx, matches) in matched {
+        let rule = combined.get_rule(idx);
+        if matches!(rule.severity, Severity::Error) {
+          has_error += 1;
+        }
+        match_rule_on_file(&path, matches, rule, &file_content, &self.printer)?;
       }
-      match_rule_on_file(&path, matches, rule, &file_content, &self.printer)?;
     }
     self.printer.after_print()?;
     if has_error > 0 {
@@ -224,10 +227,15 @@ impl<P: Printer + Sync> Worker for ScanWithRule<P> {
 impl<P: Printer + Sync> StdInWorker for ScanWithRule<P> {
   fn parse_stdin(&self, src: String) -> Option<Self::Item> {
     use ast_grep_core::Language;
-    let lang = self.rule.language;
+    let lang = self.rules[0].language;
+    let combined = CombinedScan::new(self.rules.iter().collect());
     let grep = lang.ast_grep(src);
-    let has_match = grep.root().find(&self.rule.matcher).is_some();
-    has_match.then(|| (PathBuf::from("STDIN"), grep))
+    let hit_set = combined.find(&grep);
+    if !hit_set.is_empty() {
+      Some((PathBuf::from("STDIN"), grep, hit_set))
+    } else {
+      None
+    }
   }
 }
 fn match_rule_diff_on_file(
