@@ -28,13 +28,14 @@ pub struct ScanArg {
 
   /// Scan the codebase with the single rule located at the path RULE_FILE.
   ///
-  /// This flags conflicts with --config. It is useful to run single rule without project setup.
+  /// It is useful to run single rule without project setup or sgconfig.yml.
   #[clap(short, long, value_name = "RULE_FILE")]
   rule: Option<PathBuf>,
 
   /// Scan the codebase with a rule defined by the provided RULE_TEXT.
   ///
   /// Use this argument if you want to test a rule without creating a YAML file on disk.
+  /// You can run multiple rules by separating them with `---` in the RULE_TEXT.
   /// --inline-rules is incompatible with --rule.
   #[clap(long, conflicts_with = "rule", value_name = "RULE_TEXT")]
   inline_rules: Option<String>,
@@ -87,6 +88,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
 fn run_scan<P: Printer + Sync>(arg: ScanArg, printer: P) -> Result<()> {
   if arg.input.stdin {
     let worker = ScanWithRule::try_new(arg, printer)?;
+    // TODO: report a soft error if rules have different languages
     worker.run_std_in()
   } else {
     let worker = ScanWithConfig::try_new(arg, printer)?;
@@ -205,7 +207,7 @@ impl<P: Printer + Sync> Worker for ScanWithRule<P> {
     let combined = CombinedScan::new(self.rules.iter().collect());
     for (path, grep, hit_set) in items {
       let file_content = grep.source().to_string();
-      // exclude_fix rule because we already have diff inspection before
+      // do not exclude_fix rule in run_with_rule
       let matched = combined.scan(&grep, hit_set, false);
       for (idx, matches) in matched {
         let rule = combined.get_rule(idx);
