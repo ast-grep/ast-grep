@@ -6,7 +6,8 @@ mod stop_by;
 use crate::maybe::Maybe;
 pub use deserialize_env::DeserializeEnv;
 use referent_rule::{ReferentRule, ReferentRuleError};
-use relational_rule::{Follows, Has, Inside, Precedes, Relation};
+pub use relational_rule::Relation;
+use relational_rule::{Follows, Has, Inside, Precedes};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
