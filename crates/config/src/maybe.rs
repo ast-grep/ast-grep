@@ -42,7 +42,7 @@ impl<T> From<Option<T>> for Maybe<T> {
   }
 }
 
-const ERROR_STR: &str = r#"Maybe fields need to be annotated with:G
+const ERROR_STR: &str = r#"Maybe fields need to be annotated with:
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]"#;
 
 impl<T: Serialize> Serialize for Maybe<T> {

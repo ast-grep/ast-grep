@@ -1,4 +1,4 @@
-use crate::fixer::Fixer;
+use crate::fixer::SerializableFixer;
 use crate::rule::{RuleSerializeError, SerializableRule};
 use crate::transform::Transformation;
 use crate::DeserializeEnv;
@@ -115,7 +115,7 @@ pub struct SerializableRuleConfig<L: Language> {
   #[serde(default)]
   pub severity: Severity,
   /// A pattern to auto fix the issue. It can reference metavariables appeared in rule.
-  pub fix: Option<Fixer>,
+  pub fix: Option<SerializableFixer>,
   /// Glob patterns to specify that the rule only applies to matching files
   pub files: Option<Vec<String>>,
   /// Glob patterns that exclude rules from applying to files
@@ -130,7 +130,7 @@ type RResult<T> = std::result::Result<T, RuleConfigError>;
 
 impl<L: Language> SerializableRuleConfig<L> {
   pub fn get_fixer<C: IndentSensitive>(&self) -> RResult<Option<TemplateFix<C>>> {
-    if let Some(Fixer::Str(fix)) = &self.fix {
+    if let Some(SerializableFixer::Str(fix)) = &self.fix {
       if let Some(trans) = &self.transform {
         let keys: Vec<_> = trans.keys().cloned().collect();
         Ok(Some(TemplateFix::with_transform(

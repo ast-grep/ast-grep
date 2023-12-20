@@ -1,3 +1,4 @@
+use crate::maybe::Maybe;
 use crate::rule::Relation;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -6,18 +7,20 @@ use serde::{Deserialize, Serialize};
 /// It can reference metavariables appeared in rule.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(untagged)]
-pub enum Fixer {
+pub enum SerializableFixer {
   Str(String),
-  Config(FixConfig),
+  Config(SerializableFixConfig),
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct FixConfig {
+pub struct SerializableFixConfig {
   template: String,
-  expand_forward: Relation,
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  expand_end: Maybe<Relation>,
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  expand_start: Maybe<Relation>,
   // TODO: add these
-  // expand_backward: RelationalRule,
   // prepend: String,
 }
 
@@ -29,18 +32,18 @@ mod test {
 
   #[test]
   fn test_parse() {
-    let fixer: Fixer = from_str("test").expect("should parse");
-    assert!(matches!(fixer, Fixer::Str(_)));
+    let fixer: SerializableFixer = from_str("test").expect("should parse");
+    assert!(matches!(fixer, SerializableFixer::Str(_)));
   }
 
   #[test]
   fn test_parse_object() -> Result<(), serde_yaml::Error> {
-    let src = "{template: 'abc', expandForward: {regex: ',', stopBy: neighbor}}";
-    let Fixer::Config(cfg) = from_str(src)? else {
+    let src = "{template: 'abc', expandEnd: {regex: ',', stopBy: neighbor}}";
+    let SerializableFixer::Config(cfg) = from_str(src)? else {
       panic!("wrong parsing")
     };
     assert_eq!(cfg.template, "abc");
-    let rule = cfg.expand_forward.rule;
+    let rule = cfg.expand_end.unwrap().rule;
     assert_eq!(rule.regex, Maybe::Present(",".to_string()));
     assert!(rule.pattern.is_absent());
     Ok(())
