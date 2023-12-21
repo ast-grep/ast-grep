@@ -3,10 +3,12 @@ pub mod referent_rule;
 mod relational_rule;
 mod stop_by;
 
-use crate::maybe::Maybe;
 pub use deserialize_env::DeserializeEnv;
-use referent_rule::{ReferentRule, ReferentRuleError};
 pub use relational_rule::Relation;
+pub use stop_by::StopBy;
+
+use crate::maybe::Maybe;
+use referent_rule::{ReferentRule, ReferentRuleError};
 use relational_rule::{Follows, Has, Inside, Precedes};
 
 use ast_grep_core::language::Language;
