@@ -56,6 +56,8 @@ jobs:
             build: |-
               set -e &&
               cd crates/napi &&
+              export CFLAGS="-std=c99" &&
+              export CXXFLAGS="-std=c++11" &&
               yarn build --target aarch64-unknown-linux-gnu &&
               aarch64-unknown-linux-gnu-strip *.node
           - host: macos-latest
