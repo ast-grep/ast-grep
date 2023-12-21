@@ -1,5 +1,8 @@
 use crate::maybe::Maybe;
-use crate::rule::Relation;
+use crate::rule::{Relation, Rule, StopBy};
+use ast_grep_core::replacer::IndentSensitive;
+use ast_grep_core::replacer::{TemplateFix, TemplateFixError};
+use ast_grep_core::Language;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +25,27 @@ pub struct SerializableFixConfig {
   expand_start: Maybe<Relation>,
   // TODO: add these
   // prepend: String,
+}
+
+struct Expander<L: Language> {
+  matches: Rule<L>,
+  stop_by: StopBy<L>,
+}
+
+pub struct Fixer<C: IndentSensitive, L: Language> {
+  template: TemplateFix<C>,
+  expand_start: Option<Expander<L>>,
+  expand_end: Option<Expander<L>>,
+}
+
+impl<C, L> Fixer<C, L>
+where
+  C: IndentSensitive,
+  L: Language,
+{
+  pub fn parse(serialized: SerializableFixConfig, lang: &L) -> Result<Self, TemplateFixError> {
+    todo!()
+  }
 }
 
 #[cfg(test)]
