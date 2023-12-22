@@ -44,9 +44,9 @@ export interface NapiConfig {
 /**
  * Custom LanguageGLobs object to indicate treating of certain files in specified language 
  * The key is the language and the value is filename pattern
- * eg. {'html': '*.vue'}
+ * eg. {'html': ['*.vue']}
  */
-export type LanguageGlobs = Record<string, string>
+export type LanguageGlobs = Record<string, Array<string>>
 
 export function parseFiles(paths: string[], callback: (err: null | Error, result: SgRoot) => void): Promise<number>
 export interface FindConfig {
