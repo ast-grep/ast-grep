@@ -88,7 +88,7 @@ fn from_env<'a>(nm: &NodeMatch<'a, SgLang>) -> Option<MetaVariables<'a>> {
   for var in vars {
     use MetaVariable as MV;
     match var {
-      MV::Named(n, _) => {
+      MV::Capture(n, _) => {
         if let Some(node) = env.get_match(&n) {
           single.insert(
             n,
@@ -101,7 +101,7 @@ fn from_env<'a>(nm: &NodeMatch<'a, SgLang>) -> Option<MetaVariables<'a>> {
           transformed.insert(n, String::from_utf8_lossy(bytes).into_owned());
         }
       }
-      MV::NamedEllipsis(n) => {
+      MV::MultiCapture(n) => {
         let nodes = env.get_multiple_matches(&n);
         multi.insert(
           n,

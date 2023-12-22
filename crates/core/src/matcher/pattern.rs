@@ -439,6 +439,9 @@ mod test {
   #[test]
   fn test_debug_pattern() {
     let pattern = Pattern::str("var $A = 1", Tsx);
-    assert_eq!(format!("{pattern:?}"), "[var, [Named(\"A\", true), =, 1]]");
+    assert_eq!(
+      format!("{pattern:?}"),
+      "[var, [Capture(\"A\", true), =, 1]]"
+    );
   }
 }

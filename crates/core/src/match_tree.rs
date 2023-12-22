@@ -10,7 +10,7 @@ fn match_leaf_meta_var<'tree, D: Doc>(
 ) -> Option<Node<'tree, D>> {
   use MetaVariable as MV;
   match mv {
-    MV::Named(name, named) => {
+    MV::Capture(name, named) => {
       if *named && !candidate.is_named() {
         None
       } else {
@@ -18,7 +18,7 @@ fn match_leaf_meta_var<'tree, D: Doc>(
         Some(candidate)
       }
     }
-    MV::Anonymous(named) => {
+    MV::Dropped(named) => {
       if *named && !candidate.is_named() {
         None
       } else {
@@ -26,11 +26,11 @@ fn match_leaf_meta_var<'tree, D: Doc>(
       }
     }
     // Ellipsis will be matched in parent level
-    MV::Ellipsis => {
+    MV::Mutliple => {
       debug_assert!(false, "Ellipsis should be matched in parent level");
       Some(candidate)
     }
-    MV::NamedEllipsis(name) => {
+    MV::MultiCapture(name) => {
       env.to_mut().insert(name, candidate.clone())?;
       Some(candidate)
     }
@@ -44,8 +44,8 @@ fn try_get_ellipsis_mode(node: &Pattern<impl Language>) -> Result<Option<String>
     return Err(());
   };
   match meta_var {
-    MetaVariable::Ellipsis => Ok(None),
-    MetaVariable::NamedEllipsis(n) => Ok(Some(n.into())),
+    MetaVariable::Mutliple => Ok(None),
+    MetaVariable::MultiCapture(n) => Ok(Some(n.into())),
     _ => Err(()),
   }
 }

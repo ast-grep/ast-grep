@@ -13,7 +13,7 @@ use string_case::{Separator, StringCase};
 fn get_text_from_env<D: Doc>(src: &str, ctx: &mut Ctx<D>) -> Option<String> {
   let source = ctx.lang.pre_process_pattern(src);
   let var = ctx.lang.extract_meta_var(&source)?;
-  if let MetaVariable::Named(n, _) = &var {
+  if let MetaVariable::Capture(n, _) = &var {
     if let Some(tr) = ctx.transforms.get(n) {
       if ctx.env.get_transformed(n).is_none() {
         tr.insert(n, ctx);
