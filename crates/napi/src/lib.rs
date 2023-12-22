@@ -314,11 +314,11 @@ pub struct FindConfig {
 fn select_custom<'b>(
   builder: &'b mut TypesBuilder,
   file_type: &str,
-  default_suffix_list: Vec<&str>,
-  custom_suffix_list: Vec<&str>,
+  default_suffix_list: &[&str],
+  custom_suffix_list: &[&str],
 ) -> &'b mut TypesBuilder {
-  let mut suffix_list = default_suffix_list.clone();
-  suffix_list.extend(custom_suffix_list);
+  let mut suffix_list = default_suffix_list.to_vec();
+  suffix_list.extend_from_slice(custom_suffix_list);
   for suffix in suffix_list {
     builder
       .add(file_type, suffix)
@@ -354,27 +354,27 @@ fn find_files_with_lang(
     FrontEndLanguage::TypeScript => select_custom(
       types,
       "myts",
-      vec!["*.ts", "*.mts", "*.cts"],
-      custom_file_type,
+      &["*.ts", "*.mts", "*.cts"],
+      &custom_file_type,
     ),
     FrontEndLanguage::Tsx => select_custom(
       types,
       "mytsx",
-      vec!["*.tsx", "*.mtsx", "*.ctsx"],
-      custom_file_type,
+      &["*.tsx", "*.mtsx", "*.ctsx"],
+      &custom_file_type,
     ),
-    FrontEndLanguage::Css => select_custom(types, "css", vec!["*.css", "*.scss"], custom_file_type),
+    FrontEndLanguage::Css => select_custom(types, "css", &["*.css", "*.scss"], &custom_file_type),
     FrontEndLanguage::Html => select_custom(
       types,
       "html",
-      vec!["*.html", "*.htm", "*.xhtml"],
-      custom_file_type,
+      &["*.html", "*.htm", "*.xhtml"],
+      &custom_file_type,
     ),
     FrontEndLanguage::JavaScript => select_custom(
       types,
       "js",
-      vec!["*.cjs", "*.js", "*.mjs", "*.jsx"],
-      custom_file_type,
+      &["*.cjs", "*.js", "*.mjs", "*.jsx"],
+      &custom_file_type,
     ),
   }
   .build()
