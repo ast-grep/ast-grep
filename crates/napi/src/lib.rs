@@ -323,8 +323,8 @@ fn select_custom<'b>(
 
 fn find_files_with_lang(
   paths: Vec<String>,
-  language_globs: Option<LanguageGlobs>,
   lang: &FrontEndLanguage,
+  language_globs: Option<LanguageGlobs>,
 ) -> Result<WalkParallel> {
   if paths.is_empty() {
     return Err(anyhow!("paths cannot be empty.").into());
@@ -388,7 +388,7 @@ fn find_in_files_impl(
     from_pinned_data(ctx.value, ctx.env)
   })?;
   let rule = parse_config(config.matcher, lang)?;
-  let walk = find_files_with_lang(config.paths, config.language_globs, &lang)?;
+  let walk = find_files_with_lang(config.paths, &lang, config.language_globs)?;
   Ok(AsyncTask::new(FindInFiles {
     walk,
     tsfn: (tsfn, rule, lang),
