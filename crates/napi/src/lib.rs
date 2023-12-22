@@ -363,9 +363,19 @@ fn find_files_with_lang(
       vec!["*.tsx", "*.mtsx", "*.ctsx"],
       custom_file_type,
     ),
-    FrontEndLanguage::Css => select_custom(types, "css", vec!["*.css"], custom_file_type),
-    FrontEndLanguage::Html => select_custom(types, "html", vec!["*.html"], custom_file_type),
-    FrontEndLanguage::JavaScript => select_custom(types, "js", vec!["*.js"], custom_file_type),
+    FrontEndLanguage::Css => select_custom(types, "css", vec!["*.css", "*.scss"], custom_file_type),
+    FrontEndLanguage::Html => select_custom(
+      types,
+      "html",
+      vec!["*.html", "*.htm", "*.xhtml"],
+      custom_file_type,
+    ),
+    FrontEndLanguage::JavaScript => select_custom(
+      types,
+      "js",
+      vec!["*.cjs", "*.js", "*.mjs", "*.jsx"],
+      custom_file_type,
+    ),
   }
   .build()
   .unwrap();
