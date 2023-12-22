@@ -1,14 +1,18 @@
 {
-  "name": "@ast-grep/cli-darwin-arm64",
+  "name": "@ast-grep/napi-linux-arm64-gnu",
   "version": "0.15.1",
   "os": [
-    "darwin"
+    "linux"
   ],
   "cpu": [
     "arm64"
   ],
+  "libc": [
+    "glibc"
+  ],
+  "main": "ast-grep-napi.linux-arm64-gnu.node",
   "files": [
-    "sg"
+    "ast-grep-napi.linux-arm64-gnu.node"
   ],
   "description": "Search and Rewrite code at large scale using precise AST pattern",
   "keywords": [

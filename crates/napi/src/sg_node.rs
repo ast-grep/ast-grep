@@ -161,7 +161,7 @@ impl SgNode {
     let lang = *reference.inner.lang();
     let node_match = match matcher {
       Either3::A(pattern) => {
-        let pattern = Pattern::<JsDoc>::new(&pattern, lang);
+        let pattern = Pattern::new(&pattern, lang);
         reference.inner.find(pattern)
       }
       Either3::B(kind) => {
@@ -201,7 +201,7 @@ impl SgNode {
     let lang = *reference.inner.lang();
     let all_matches: Vec<_> = match matcher {
       Either3::A(pattern) => {
-        let pattern = Pattern::<JsDoc>::new(&pattern, lang);
+        let pattern = Pattern::new(&pattern, lang);
         reference.inner.find_all(pattern).collect()
       }
       Either3::B(kind) => {

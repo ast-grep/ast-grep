@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/napi",
-  "version": "0.14.4",
+  "version": "0.15.1",
   "description": "Search and Rewrite code at large scale using precise AST pattern",
   "homepage": "https://ast-grep.github.io",
   "main": "index.js",
@@ -24,7 +24,8 @@
       "additional": [
         "i686-pc-windows-msvc",
         "aarch64-apple-darwin",
-        "aarch64-pc-windows-msvc"
+        "aarch64-pc-windows-msvc",
+        "aarch64-unknown-linux-gnu"
       ]
     }
   },

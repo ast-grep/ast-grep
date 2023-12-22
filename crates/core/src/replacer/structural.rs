@@ -107,7 +107,7 @@ mod test {
       .map(|(v, p)| (v, Tsx.ast_grep(p).inner))
       .collect();
     for (var, root) in &roots {
-      env.insert(var.to_string(), root.root());
+      env.insert(var, root.root());
     }
     let dummy = Tsx.ast_grep("dummy");
     let node_match = NodeMatch::new(dummy.root(), env.clone());
@@ -170,7 +170,7 @@ mod test {
       .map(|(v, p)| (v, Tsx.ast_grep(p).inner))
       .collect();
     for (var, root) in &roots {
-      env.insert_multi(var.to_string(), root.root().children().collect());
+      env.insert_multi(var, root.root().children().collect());
     }
     let dummy = Tsx.ast_grep("dummy");
     let node_match = NodeMatch::new(dummy.root(), env.clone());

@@ -26,30 +26,26 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     }
   }
 
-  pub fn insert(&mut self, id: MetaVariableID, ret: Node<'tree, D>) -> Option<&mut Self> {
-    if self.match_variable(&id, &ret) {
-      self.single_matched.insert(id, ret);
+  pub fn insert(&mut self, id: &str, ret: Node<'tree, D>) -> Option<&mut Self> {
+    if self.match_variable(id, &ret) {
+      self.single_matched.insert(id.to_string(), ret);
       Some(self)
     } else {
       None
     }
   }
 
-  pub fn insert_multi(
-    &mut self,
-    id: MetaVariableID,
-    ret: Vec<Node<'tree, D>>,
-  ) -> Option<&mut Self> {
-    if self.match_multi_var(&id, &ret) {
-      self.multi_matched.insert(id, ret);
+  pub fn insert_multi(&mut self, id: &str, ret: Vec<Node<'tree, D>>) -> Option<&mut Self> {
+    if self.match_multi_var(id, &ret) {
+      self.multi_matched.insert(id.to_string(), ret);
       Some(self)
     } else {
       None
     }
   }
 
-  pub fn insert_transformation(&mut self, name: MetaVariableID, src: Underlying<D>) {
-    self.transformed_var.insert(name, src);
+  pub fn insert_transformation(&mut self, name: &str, src: Underlying<D>) {
+    self.transformed_var.insert(name.to_string(), src);
   }
 
   pub fn get_match(&self, var: &str) -> Option<&'_ Node<'tree, D>> {
@@ -87,17 +83,17 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
       .single_matched
       .keys()
       .cloned()
-      .map(|n| MetaVariable::Named(n, false));
+      .map(|n| MetaVariable::Capture(n, false));
     let transformed = self
       .transformed_var
       .keys()
       .cloned()
-      .map(|n| MetaVariable::Named(n, false));
+      .map(|n| MetaVariable::Capture(n, false));
     let multi = self
       .multi_matched
       .keys()
       .cloned()
-      .map(MetaVariable::NamedEllipsis);
+      .map(MetaVariable::MultiCapture);
     single.chain(multi).chain(transformed)
   }
 
@@ -115,13 +111,13 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     true
   }
 
-  fn match_variable(&self, id: &MetaVariableID, candidate: &Node<D>) -> bool {
+  fn match_variable(&self, id: &str, candidate: &Node<D>) -> bool {
     if let Some(m) = self.single_matched.get(id) {
       return does_node_match_exactly(m, candidate);
     }
     true
   }
-  fn match_multi_var(&self, id: &MetaVariableID, cands: &[Node<D>]) -> bool {
+  fn match_multi_var(&self, id: &str, cands: &[Node<D>]) -> bool {
     let Some(nodes) = self.multi_matched.get(id) else {
       return true;
     };
@@ -156,7 +152,7 @@ where
   C: Content + 't,
 {
   match var {
-    MetaVariable::Named(n, _) => {
+    MetaVariable::Capture(n, _) => {
       if let Some(node) = env.get_match(n) {
         let bytes = node.root.doc.get_source().get_range(node.range());
         Some(bytes)
@@ -166,7 +162,7 @@ where
         None
       }
     }
-    MetaVariable::NamedEllipsis(n) => {
+    MetaVariable::MultiCapture(n) => {
       let nodes = env.get_multiple_matches(n);
       if nodes.is_empty() {
         None
@@ -189,16 +185,16 @@ impl<'tree, D: Doc> Default for MetaVarEnv<'tree, D> {
   }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MetaVariable {
   /// $A for captured meta var
-  Named(MetaVariableID, bool),
+  Capture(MetaVariableID, bool),
   /// $_ for non-captured meta var
-  Anonymous(bool),
-  /// $$$ for non-captured ellipsis
-  Ellipsis,
+  Dropped(bool),
+  /// $$$ for non-captured multi var
+  Mutliple,
   /// $$$A for captured ellipsis
-  NamedEllipsis(MetaVariableID),
+  MultiCapture(MetaVariableID),
 }
 
 #[derive(Clone)]
@@ -226,7 +222,7 @@ pub enum MetaVarMatcher<D: Doc> {
   /// A regex to filter matched metavar based on its textual content.
   Regex(RegexMatcher<D::Lang>),
   /// A pattern to filter matched metavar based on its AST tree shape.
-  Pattern(Pattern<D>),
+  Pattern(Pattern<D::Lang>),
   /// A kind_id to filter matched metavar based on its ts-node kind
   Kind(KindMatcher<D::Lang>),
 }
@@ -249,16 +245,16 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
   use MetaVariable::*;
   let ellipsis: String = std::iter::repeat(meta_char).take(3).collect();
   if src == ellipsis {
-    return Some(Ellipsis);
+    return Some(Mutliple);
   }
   if let Some(trimmed) = src.strip_prefix(&ellipsis) {
     if !trimmed.chars().all(is_valid_meta_var_char) {
       return None;
     }
     if trimmed.starts_with('_') {
-      return Some(Ellipsis);
+      return Some(Mutliple);
     } else {
-      return Some(NamedEllipsis(trimmed.to_owned()));
+      return Some(MultiCapture(trimmed.to_owned()));
     }
   }
   if !src.starts_with(meta_char) {
@@ -275,9 +271,9 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
     return None;
   }
   if trimmed.starts_with('_') {
-    Some(Anonymous(named))
+    Some(Dropped(named))
   } else {
-    Some(Named(trimmed.to_owned(), named))
+    Some(Capture(trimmed.to_owned(), named))
   }
 }
 
@@ -318,12 +314,12 @@ mod test {
   #[test]
   fn test_match_var() {
     use MetaVariable::*;
-    assert_eq!(extract_var("$$$"), Some(Ellipsis));
-    assert_eq!(extract_var("$ABC"), Some(Named("ABC".into(), true)));
-    assert_eq!(extract_var("$$ABC"), Some(Named("ABC".into(), false)));
-    assert_eq!(extract_var("$MATCH1"), Some(Named("MATCH1".into(), true)));
-    assert_eq!(extract_var("$$$ABC"), Some(NamedEllipsis("ABC".into())));
-    assert_eq!(extract_var("$_"), Some(Anonymous(true)));
+    assert_eq!(extract_var("$$$"), Some(Mutliple));
+    assert_eq!(extract_var("$ABC"), Some(Capture("ABC".into(), true)));
+    assert_eq!(extract_var("$$ABC"), Some(Capture("ABC".into(), false)));
+    assert_eq!(extract_var("$MATCH1"), Some(Capture("MATCH1".into(), true)));
+    assert_eq!(extract_var("$$$ABC"), Some(MultiCapture("ABC".into())));
+    assert_eq!(extract_var("$_"), Some(Dropped(true)));
     assert_eq!(extract_var("abc"), None);
     assert_eq!(extract_var("$abc"), None);
   }
@@ -337,7 +333,7 @@ mod test {
     let mut env = MetaVarEnv::new();
     let root = Tsx.ast_grep(node);
     let node = root.root().child(0).unwrap().child(0).unwrap();
-    env.insert("A".to_string(), node);
+    env.insert("A", node);
     env.match_constraints(&matchers)
   }
 
@@ -345,11 +341,11 @@ mod test {
   fn test_non_ascii_meta_var() {
     let extract = |s| extract_meta_var(s, 'µ');
     use MetaVariable::*;
-    assert_eq!(extract("µµµ"), Some(Ellipsis));
-    assert_eq!(extract("µABC"), Some(Named("ABC".into(), true)));
-    assert_eq!(extract("µµABC"), Some(Named("ABC".into(), false)));
-    assert_eq!(extract("µµµABC"), Some(NamedEllipsis("ABC".into())));
-    assert_eq!(extract("µ_"), Some(Anonymous(true)));
+    assert_eq!(extract("µµµ"), Some(Mutliple));
+    assert_eq!(extract("µABC"), Some(Capture("ABC".into(), true)));
+    assert_eq!(extract("µµABC"), Some(Capture("ABC".into(), false)));
+    assert_eq!(extract("µµµABC"), Some(MultiCapture("ABC".into())));
+    assert_eq!(extract("µ_"), Some(Dropped(true)));
     assert_eq!(extract("abc"), None);
     assert_eq!(extract("µabc"), None);
   }

@@ -15,13 +15,13 @@ ast-grep-core.workspace = true
 ast-grep-config.workspace = true
 
 napi = { version = "2.14.1", features = ["serde-json", "napi4", "error_anyhow"] }
-napi-derive = "2.14.2"
+napi-derive = "2.14.4"
 
 ignore.workspace = true
 serde.workspace = true
 tree-sitter.workspace = true
 tree-sitter-typescript="0.20.3"
-tree-sitter-html = "0.19.0"
+tree-sitter-html = { version = "0.20.0", package = "tree-sitter-html-dvdb" }
 tree-sitter-javascript = "0.20.1"
 tree-sitter-css = "0.20.0"
 serde_json = "1.0.108"

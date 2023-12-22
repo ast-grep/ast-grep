@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig, Severity};
+use ast_grep_config::{from_yaml_string, CombinedScan, RuleCollection, RuleConfig, Severity};
 use ast_grep_core::{NodeMatch, StrDoc};
 use bit_set::BitSet;
 use clap::Args;
@@ -16,8 +16,7 @@ use crate::print::{
   ReportStyle, SimpleFile,
 };
 use crate::utils::{filter_file_interactive, InputArgs, OutputArgs};
-use crate::utils::{run_std_in, StdInWorker};
-use crate::utils::{run_worker, Items, Worker};
+use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
 
@@ -29,9 +28,17 @@ pub struct ScanArg {
 
   /// Scan the codebase with the single rule located at the path RULE_FILE.
   ///
-  /// This flags conflicts with --config. It is useful to run single rule without project setup.
-  #[clap(short, long, conflicts_with = "config", value_name = "RULE_FILE")]
+  /// It is useful to run single rule without project setup or sgconfig.yml.
+  #[clap(short, long, value_name = "RULE_FILE")]
   rule: Option<PathBuf>,
+
+  /// Scan the codebase with a rule defined by the provided RULE_TEXT.
+  ///
+  /// Use this argument if you want to test a rule without creating a YAML file on disk.
+  /// You can run multiple rules by separating them with `---` in the RULE_TEXT.
+  /// --inline-rules is incompatible with --rule.
+  #[clap(long, conflicts_with = "rule", value_name = "RULE_TEXT")]
+  inline_rules: Option<String>,
 
   /// Scan the codebase with rules with ids matching REGEX.
   ///
@@ -70,7 +77,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
   let printer = ColoredPrinter::stdout(arg.output.color).style(arg.report_style);
   let interactive = arg.output.needs_interactive();
   if interactive {
-    let from_stdin = arg.input.is_stdin();
+    let from_stdin = arg.input.stdin;
     let printer = InteractivePrinter::new(printer, arg.output.update_all, from_stdin)?;
     run_scan(arg, printer)
   } else {
@@ -79,12 +86,13 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
 }
 
 fn run_scan<P: Printer + Sync>(arg: ScanArg, printer: P) -> Result<()> {
-  if arg.input.is_stdin() {
+  if arg.input.stdin {
     let worker = ScanWithRule::try_new(arg, printer)?;
-    run_std_in(worker)
+    // TODO: report a soft error if rules have different languages
+    worker.run_std_in()
   } else {
     let worker = ScanWithConfig::try_new(arg, printer)?;
-    run_worker(worker)
+    worker.run_path()
   }
 }
 
@@ -98,6 +106,10 @@ impl<P: Printer> ScanWithConfig<P> {
     let configs = if let Some(path) = &arg.rule {
       let rules = read_rule_file(path, None)?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
+    } else if let Some(text) = &arg.inline_rules {
+      let rules = from_yaml_string(text, &Default::default())
+        .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
+      RuleCollection::try_new(rules).context(EC::GlobPattern)?
     } else {
       find_rules(arg.config.take(), arg.filter.as_ref())?
     };
@@ -108,31 +120,13 @@ impl<P: Printer> ScanWithConfig<P> {
     })
   }
 }
-
 impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
   type Item = (PathBuf, AstGrep, BitSet);
-  fn build_walk(&self) -> WalkParallel {
-    self.arg.input.walk()
-  }
-  fn produce_item(&self, path: &Path) -> Option<Self::Item> {
-    let rules = self.configs.for_path(path);
-    if rules.is_empty() {
-      return None;
-    }
-    let lang = rules[0].language;
-    let combined = CombinedScan::new(rules);
-    let unit = filter_file_interactive(path, lang, ast_grep_core::matcher::MatchAll)?;
-    let hit_set = combined.find(&unit.grep);
-    if !hit_set.is_empty() {
-      return Some((unit.path, unit.grep, hit_set));
-    }
-    None
-  }
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print()?;
     let mut has_error = 0;
     for (path, grep, hit_set) in items {
-      let file_content = grep.root().text().to_string();
+      let file_content = grep.source().to_string();
       let path = &path;
       let rules = self.configs.for_path(path);
       let combined = CombinedScan::new(rules);
@@ -167,40 +161,61 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
   }
 }
 
+impl<P: Printer + Sync> PathWorker for ScanWithConfig<P> {
+  fn build_walk(&self) -> WalkParallel {
+    self.arg.input.walk()
+  }
+  fn produce_item(&self, path: &Path) -> Option<Self::Item> {
+    let rules = self.configs.for_path(path);
+    if rules.is_empty() {
+      return None;
+    }
+    let lang = rules[0].language;
+    let combined = CombinedScan::new(rules);
+    let unit = filter_file_interactive(path, lang, ast_grep_core::matcher::MatchAll)?;
+    let hit_set = combined.find(&unit.grep);
+    if !hit_set.is_empty() {
+      return Some((unit.path, unit.grep, hit_set));
+    }
+    None
+  }
+}
+
 struct ScanWithRule<Printer> {
   printer: Printer,
-  rule: RuleConfig<SgLang>,
+  rules: Vec<RuleConfig<SgLang>>,
 }
 impl<P: Printer> ScanWithRule<P> {
   fn try_new(arg: ScanArg, printer: P) -> Result<Self> {
-    let rule = if let Some(path) = &arg.rule {
-      read_rule_file(path, None)?.pop().unwrap()
+    let rules = if let Some(path) = &arg.rule {
+      read_rule_file(path, None)?
+    } else if let Some(text) = &arg.inline_rules {
+      from_yaml_string(text, &Default::default())
+        .with_context(|| EC::ParseRule("INLINE_RULES".into()))?
     } else {
       return Err(anyhow::anyhow!(EC::RuleNotSpecified));
     };
-    Ok(Self { printer, rule })
+    Ok(Self { printer, rules })
   }
 }
 
 impl<P: Printer + Sync> Worker for ScanWithRule<P> {
-  type Item = (PathBuf, AstGrep);
-  fn build_walk(&self) -> WalkParallel {
-    unreachable!()
-  }
-  fn produce_item(&self, _p: &Path) -> Option<Self::Item> {
-    unreachable!()
-  }
+  type Item = (PathBuf, AstGrep, BitSet);
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print()?;
     let mut has_error = 0;
-    for (path, grep) in items {
-      let file_content = grep.root().text().to_string();
-      let rule = &self.rule;
-      let matches = grep.root().find_all(&rule.matcher).collect();
-      if matches!(rule.severity, Severity::Error) {
-        has_error += 1;
+    let combined = CombinedScan::new(self.rules.iter().collect());
+    for (path, grep, hit_set) in items {
+      let file_content = grep.source().to_string();
+      // do not exclude_fix rule in run_with_rule
+      let matched = combined.scan(&grep, hit_set, false);
+      for (idx, matches) in matched {
+        let rule = combined.get_rule(idx);
+        if matches!(rule.severity, Severity::Error) {
+          has_error += 1;
+        }
+        match_rule_on_file(&path, matches, rule, &file_content, &self.printer)?;
       }
-      match_rule_on_file(&path, matches, rule, &file_content, &self.printer)?;
     }
     self.printer.after_print()?;
     if has_error > 0 {
@@ -214,10 +229,15 @@ impl<P: Printer + Sync> Worker for ScanWithRule<P> {
 impl<P: Printer + Sync> StdInWorker for ScanWithRule<P> {
   fn parse_stdin(&self, src: String) -> Option<Self::Item> {
     use ast_grep_core::Language;
-    let lang = self.rule.language;
+    let lang = self.rules[0].language;
+    let combined = CombinedScan::new(self.rules.iter().collect());
     let grep = lang.ast_grep(src);
-    let has_match = grep.root().find(&self.rule.matcher).is_some();
-    has_match.then(|| (PathBuf::from("STDIN"), grep))
+    let hit_set = combined.find(&grep);
+    if !hit_set.is_empty() {
+      Some((PathBuf::from("STDIN"), grep, hit_set))
+    } else {
+      None
+    }
   }
 }
 fn match_rule_diff_on_file(
@@ -288,21 +308,12 @@ rule:
     dir
   }
 
-  #[test]
-  fn test_run_with_config() {
-    let dir = create_test_files([("sgconfig.yml", "ruleDirs: [rules]")]);
-    std::fs::create_dir_all(dir.path().join("rules")).unwrap();
-    let mut file = File::create(dir.path().join("rules/test.yml")).unwrap();
-    file.write_all(RULE.as_bytes()).unwrap();
-    let mut file = File::create(dir.path().join("test.rs")).unwrap();
-    file
-      .write_all("fn test() { Some(123) }".as_bytes())
-      .unwrap();
-    file.sync_all().unwrap();
-    let arg = ScanArg {
-      config: Some(dir.path().join("sgconfig.yml")),
+  fn default_scan_arg() -> ScanArg {
+    ScanArg {
+      config: None,
       filter: None,
       rule: None,
+      inline_rules: None,
       report_style: ReportStyle::Rich,
       input: InputArgs {
         no_ignore: vec![],
@@ -316,7 +327,47 @@ rule:
         color: ColorArg::Never,
       },
       format: None,
+    }
+  }
+
+  #[test]
+  fn test_run_with_config() {
+    let dir = create_test_files([("sgconfig.yml", "ruleDirs: [rules]")]);
+    std::fs::create_dir_all(dir.path().join("rules")).unwrap();
+    let mut file = File::create(dir.path().join("rules/test.yml")).unwrap();
+    file.write_all(RULE.as_bytes()).unwrap();
+    let mut file = File::create(dir.path().join("test.rs")).unwrap();
+    file
+      .write_all("fn test() { Some(123) }".as_bytes())
+      .unwrap();
+    file.sync_all().unwrap();
+    let arg = ScanArg {
+      config: Some(dir.path().join("sgconfig.yml")),
+      ..default_scan_arg()
     };
     assert!(run_with_config(arg).is_ok());
+  }
+
+  #[test]
+  fn test_scan_with_inline_rules() {
+    let inline_rules = "{id: test, language: ts, rule: {pattern: console.log($A)}}".to_string();
+    let arg = ScanArg {
+      inline_rules: Some(inline_rules),
+      ..default_scan_arg()
+    };
+    assert!(run_with_config(arg).is_ok());
+  }
+
+  // baseline test for coverage
+  #[test]
+  fn test_scan_with_inline_rules_error() {
+    let inline_rules = "nonsense".to_string();
+    let arg = ScanArg {
+      inline_rules: Some(inline_rules),
+      ..default_scan_arg()
+    };
+    let err = run_with_config(arg).expect_err("should error");
+    assert!(err.is::<EC>());
+    assert_eq!(err.to_string(), "Cannot parse rule INLINE_RULES");
   }
 }

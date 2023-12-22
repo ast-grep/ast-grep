@@ -194,9 +194,10 @@ mod test_cli {
     ok("scan -r test.yml --format github");
     ok("scan --format github");
     ok("scan --interactive");
+    ok("scan -r test.yml -c test.yml --json dir"); // allow registering custom lang
     error("scan -i --json dir"); // conflict
     error("scan --report-style rich --json dir"); // conflict
-    error("scan -r test.yml -c test.yml --json dir"); // conflict
+    error("scan -r test.yml --inline-rules '{}'"); // conflict
     error("scan --format gitlab");
     error("scan --format github -i");
     error("scan --format local");
