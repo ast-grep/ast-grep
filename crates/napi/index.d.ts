@@ -40,21 +40,16 @@ export interface NapiConfig {
   /** https://ast-grep.github.io/guide/rule-config/utility-rule.html */
   utils?: any
 }
-
-/**
- * Custom LanguageGLobs object to indicate treating of certain files in specified language 
- * The key is the language and the value is filename pattern
- * eg. {'html': ['*.vue']}
- */
-export type LanguageGlobs = Record<string, Array<string>>
-
 export function parseFiles(paths: string[], callback: (err: null | Error, result: SgRoot) => void): Promise<number>
 export interface FindConfig {
   /** specify the file paths to recursively find files */
   paths: Array<string>
   /** a Rule object to find what nodes will match */
   matcher: NapiConfig
-  /** find file by language (extension) */
+  /**
+   * find file by language (extension)
+   * for detailed usage, see LanguageGlob definition
+   */
   languageGlobs?: LanguageGlobs
 }
 export class SgNode {

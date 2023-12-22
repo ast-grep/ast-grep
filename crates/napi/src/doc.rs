@@ -6,6 +6,7 @@ use std::borrow::Cow;
 use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
 use std::str::FromStr;
 use std::ops::Range;
+use napi::anyhow::{anyhow, Error};
 
 #[napi]
 #[derive(PartialEq)]
@@ -76,13 +77,10 @@ const fn alias(lang: &FrontEndLanguage) -> &[&str] {
   }
 }
 
-pub enum FrontEndLanguageErr {
-  LanguageNotSupported(String),
-}
 
 
 impl FromStr for FrontEndLanguage {
-  type Err = FrontEndLanguageErr;
+  type Err = Error;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     for lang in Self::all_langs() {
       for moniker in alias(lang) {
@@ -91,7 +89,7 @@ impl FromStr for FrontEndLanguage {
         }
       }
     }
-    Err(FrontEndLanguageErr::LanguageNotSupported(s.to_string()))
+    Err(anyhow!(format!("{} is not supported in napi", s.to_string())).into())
   }
 }
 

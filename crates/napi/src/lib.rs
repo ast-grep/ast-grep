@@ -19,9 +19,14 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 
-use doc::{FrontEndLanguage, FrontEndLanguageErr, JsDoc};
+use doc::{FrontEndLanguage, JsDoc};
 use sg_node::{SgNode, SgRoot};
 
+/**
+ * Custom LanguageGLobs object to indicate treating of certain files in specified language
+ * The key is the language and the value is filename pattern
+ * eg. {'html': ['*.vue']}
+ */
 pub type LanguageGlobs = HashMap<String, Vec<String>>;
 
 /// Rule configuration similar to YAML
@@ -302,6 +307,7 @@ pub struct FindConfig {
   /// a Rule object to find what nodes will match
   pub matcher: NapiConfig,
   /// find file by language (extension)
+  /// for detailed usage, see LanguageGlob definition
   pub language_globs: Option<LanguageGlobs>,
 }
 
@@ -336,16 +342,9 @@ fn find_files_with_lang(
   let mut custom_file_type = vec![];
   if let Some(lgs) = language_globs {
     for (l, globs) in lgs {
-      let result = FrontEndLanguage::from_str(&l);
-      match result {
-        Ok(v) => {
-          if v == *lang {
-            custom_file_type.extend(globs);
-          }
-        }
-        Err(FrontEndLanguageErr::LanguageNotSupported(language)) => {
-          return Err(anyhow!(format!("{} is not supported in napi", language)).into())
-        }
+      let result = FrontEndLanguage::from_str(&l)?;
+      if result == *lang {
+        custom_file_type.extend(globs);
       }
     }
   }
