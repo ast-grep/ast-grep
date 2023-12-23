@@ -21,7 +21,7 @@ bit-set.workspace = true
 globset = "0.4.14"
 regex = { workspace = true, optional = true }
 serde.workspace = true
-serde_yaml = "0.9.27"
+serde_yaml = "0.9.29"
 thiserror.workspace = true
 schemars.workspace = true
 
