@@ -1,12 +1,12 @@
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::replacer::IndentSensitive;
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
+use napi::anyhow::{anyhow, Error};
 use napi_derive::napi;
 use std::borrow::Cow;
-use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
-use std::str::FromStr;
 use std::ops::Range;
-use napi::anyhow::{anyhow, Error};
+use std::str::FromStr;
+use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
 
 #[napi]
 #[derive(PartialEq)]
@@ -52,17 +52,10 @@ impl Language for FrontEndLanguage {
   }
 }
 
-
-impl FrontEndLanguage{
+impl FrontEndLanguage {
   pub const fn all_langs() -> &'static [FrontEndLanguage] {
     use FrontEndLanguage::*;
-    &[
-      Html,
-      JavaScript,
-      Tsx,
-      Css,
-      TypeScript,
-    ]
+    &[Html, JavaScript, Tsx, Css, TypeScript]
   }
 }
 
@@ -77,8 +70,6 @@ const fn alias(lang: &FrontEndLanguage) -> &[&str] {
   }
 }
 
-
-
 impl FromStr for FrontEndLanguage {
   type Err = Error;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -92,7 +83,6 @@ impl FromStr for FrontEndLanguage {
     Err(anyhow!(format!("{} is not supported in napi", s.to_string())).into())
   }
 }
-
 
 #[derive(Clone)]
 pub struct Wrapper {
