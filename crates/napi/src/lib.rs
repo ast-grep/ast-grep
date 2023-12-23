@@ -1,13 +1,13 @@
 #![cfg(not(feature = "napi-noop-in-unit-test"))]
 
 mod doc;
+mod file_types;
 mod sg_node;
 
 use ast_grep_config::{RuleWithConstraint, SerializableRuleCore};
 use ast_grep_core::language::Language;
 use ast_grep_core::pinned::{NodeData, PinnedNodeData};
 use ast_grep_core::{AstGrep, NodeMatch};
-use ignore::types::TypesBuilder;
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use napi::anyhow::{anyhow, Context, Error, Result as Ret};
 use napi::bindgen_prelude::*;
@@ -15,11 +15,11 @@ use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFun
 use napi::{JsNumber, Task};
 use napi_derive::napi;
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 
 use doc::{FrontEndLanguage, JsDoc};
+use file_types::{build_files, find_files_with_lang};
 use sg_node::{SgNode, SgRoot};
 
 /// Rule configuration similar to YAML
@@ -124,26 +124,6 @@ impl_lang_mod!(ts, TypeScript);
 impl_lang_mod!(tsx, Tsx);
 impl_lang_mod!(css, Css);
 
-fn build_files(paths: Vec<String>) -> Result<WalkParallel> {
-  if paths.is_empty() {
-    return Err(anyhow!("paths cannot be empty.").into());
-  }
-  let types = TypesBuilder::new()
-    .add_defaults()
-    .select("css")
-    .select("html")
-    .select("js")
-    .select("ts")
-    .build()
-    .unwrap();
-  let mut paths = paths.into_iter();
-  let mut builder = WalkBuilder::new(paths.next().unwrap());
-  for path in paths {
-    builder.add(path);
-  }
-  let walk = builder.types(types).build_parallel();
-  Ok(walk)
-}
 pub struct ParseAsync {
   src: String,
   lang: FrontEndLanguage,
@@ -303,83 +283,6 @@ pub struct FindConfig {
   /// The key is the language and the value is a list of pattern globs
   /// eg. {'html': ['*.vue']}
   pub language_globs: Option<HashMap<String, Vec<String>>>,
-}
-
-fn select_custom<'b>(
-  builder: &'b mut TypesBuilder,
-  file_type: &str,
-  default_suffix_list: &[&str],
-  custom_suffix_list: &[&str],
-) -> &'b mut TypesBuilder {
-  let mut suffix_list = default_suffix_list.to_vec();
-  suffix_list.extend_from_slice(custom_suffix_list);
-  for suffix in suffix_list {
-    builder
-      .add(file_type, suffix)
-      .expect("file pattern must compile");
-  }
-  builder.select(file_type)
-}
-
-fn find_files_with_lang(
-  paths: Vec<String>,
-  lang: &FrontEndLanguage,
-  language_globs: Option<HashMap<String, Vec<String>>>,
-) -> Result<WalkParallel> {
-  if paths.is_empty() {
-    return Err(anyhow!("paths cannot be empty.").into());
-  }
-
-  let mut types = TypesBuilder::new();
-  let types = types.add_defaults();
-
-  let mut custom_file_type = vec![];
-  if let Some(lgs) = language_globs {
-    for (l, globs) in lgs {
-      let result = FrontEndLanguage::from_str(&l)?;
-      if result == *lang {
-        custom_file_type.extend(globs);
-      }
-    }
-  }
-
-  let custom_file_type: Vec<&str> = custom_file_type.iter().map(|s| s.as_str()).collect();
-  let types = match lang {
-    FrontEndLanguage::TypeScript => select_custom(
-      types,
-      "myts",
-      &["*.ts", "*.mts", "*.cts"],
-      &custom_file_type,
-    ),
-    FrontEndLanguage::Tsx => select_custom(
-      types,
-      "mytsx",
-      &["*.tsx", "*.mtsx", "*.ctsx"],
-      &custom_file_type,
-    ),
-    FrontEndLanguage::Css => select_custom(types, "css", &["*.css", "*.scss"], &custom_file_type),
-    FrontEndLanguage::Html => select_custom(
-      types,
-      "html",
-      &["*.html", "*.htm", "*.xhtml"],
-      &custom_file_type,
-    ),
-    FrontEndLanguage::JavaScript => select_custom(
-      types,
-      "js",
-      &["*.cjs", "*.js", "*.mjs", "*.jsx"],
-      &custom_file_type,
-    ),
-  }
-  .build()
-  .unwrap();
-  let mut paths = paths.into_iter();
-  let mut builder = WalkBuilder::new(paths.next().unwrap());
-  for path in paths {
-    builder.add(path);
-  }
-  let walk = builder.types(types).build_parallel();
-  Ok(walk)
 }
 
 fn find_in_files_impl(
