@@ -1,13 +1,15 @@
 use ast_grep_core::language::{Language, TSLanguage};
 use ast_grep_core::replacer::IndentSensitive;
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
+use napi::anyhow::{anyhow, Error};
 use napi_derive::napi;
 use std::borrow::Cow;
+use std::ops::Range;
+use std::str::FromStr;
 use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
 
-use std::ops::Range;
-
 #[napi]
+#[derive(PartialEq)]
 pub enum FrontEndLanguage {
   Html,
   JavaScript,
@@ -47,6 +49,38 @@ impl Language for FrontEndLanguage {
     // TODO: use more precise replacement
     let replaced = query.replace(self.meta_var_char(), expando);
     Cow::Owned(replaced)
+  }
+}
+
+impl FrontEndLanguage {
+  pub const fn all_langs() -> &'static [FrontEndLanguage] {
+    use FrontEndLanguage::*;
+    &[Html, JavaScript, Tsx, Css, TypeScript]
+  }
+}
+
+const fn alias(lang: &FrontEndLanguage) -> &[&str] {
+  use FrontEndLanguage::*;
+  match lang {
+    Css => &["css"],
+    Html => &["html"],
+    JavaScript => &["javascript", "js", "jsx"],
+    TypeScript => &["ts", "typescript"],
+    Tsx => &["tsx"],
+  }
+}
+
+impl FromStr for FrontEndLanguage {
+  type Err = Error;
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    for lang in Self::all_langs() {
+      for moniker in alias(lang) {
+        if s.eq_ignore_ascii_case(moniker) {
+          return Ok(*lang);
+        }
+      }
+    }
+    Err(anyhow!(format!("{} is not supported in napi", s.to_string())).into())
   }
 }
 

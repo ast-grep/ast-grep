@@ -14,11 +14,20 @@ use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi::{JsNumber, Task};
 use napi_derive::napi;
+use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 
 use doc::{FrontEndLanguage, JsDoc};
 use sg_node::{SgNode, SgRoot};
+
+/**
+ * Custom LanguageGLobs object to indicate treating of certain files in specified language
+ * The key is the language and the value is filename pattern
+ * eg. {'html': ['*.vue']}
+ */
+pub type LanguageGlobs = HashMap<String, Vec<String>>;
 
 /// Rule configuration similar to YAML
 /// See https://ast-grep.github.io/reference/yaml.html
@@ -242,28 +251,37 @@ fn call_sg_root(
   {
     return Ok(false);
   }
-  let (root, path) = get_root(entry)?;
+  let (root, path) = get_root(entry, None)?;
   let sg = SgRoot(root, path);
   tsfn.call(Ok(sg), ThreadsafeFunctionCallMode::Blocking);
   Ok(true)
 }
 
-fn get_root(entry: ignore::DirEntry) -> Ret<(AstGrep<JsDoc>, String)> {
+fn get_root(
+  entry: ignore::DirEntry,
+  custom_lang: Option<FrontEndLanguage>,
+) -> Ret<(AstGrep<JsDoc>, String)> {
   use FrontEndLanguage::*;
   let path = entry.into_path();
   let file_content = std::fs::read_to_string(&path)?;
-  let ext = path
-    .extension()
-    .context("check file")?
-    .to_str()
-    .context("to str")?;
-  let lang = match ext {
-    "css" | "scss" => Css,
-    "html" | "htm" | "xhtml" => Html,
-    "cjs" | "js" | "mjs" | "jsx" | "mjsx" | "cjsx" => JavaScript,
-    "ts" | "mts" | "cts" => TypeScript,
-    "tsx" | "mtsx" | "ctsx" => Tsx,
-    _ => return Err(anyhow!("file not recognized")),
+
+  let lang = match custom_lang {
+    Some(l) => l,
+    None => {
+      let ext = path
+        .extension()
+        .context("check file")?
+        .to_str()
+        .context("to str")?;
+      match ext {
+        "css" | "scss" => Css,
+        "html" | "htm" | "xhtml" => Html,
+        "cjs" | "js" | "mjs" | "jsx" | "mjsx" | "cjsx" => JavaScript,
+        "ts" | "mts" | "cts" => TypeScript,
+        "tsx" | "mtsx" | "ctsx" => Tsx,
+        _ => return Err(anyhow!("file not recognized")),
+      }
+    }
   };
   let doc = JsDoc::new(file_content, lang);
   Ok((AstGrep::doc(doc), path.to_string_lossy().into()))
@@ -272,6 +290,7 @@ fn get_root(entry: ignore::DirEntry) -> Ret<(AstGrep<JsDoc>, String)> {
 type FindInFiles = IterateFiles<(
   ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
   RuleWithConstraint<FrontEndLanguage>,
+  FrontEndLanguage,
 )>;
 
 pub struct PinnedNodes(
@@ -287,13 +306,19 @@ pub struct FindConfig {
   pub paths: Vec<String>,
   /// a Rule object to find what nodes will match
   pub matcher: NapiConfig,
+  /// find file by language (extension)
+  /// for detailed usage, see LanguageGlob definition
+  pub language_globs: Option<LanguageGlobs>,
 }
 
 fn select_custom<'b>(
   builder: &'b mut TypesBuilder,
   file_type: &str,
-  suffix_list: &[&str],
+  default_suffix_list: &[&str],
+  custom_suffix_list: &[&str],
 ) -> &'b mut TypesBuilder {
+  let mut suffix_list = default_suffix_list.to_vec();
+  suffix_list.extend_from_slice(custom_suffix_list);
   for suffix in suffix_list {
     builder
       .add(file_type, suffix)
@@ -302,19 +327,55 @@ fn select_custom<'b>(
   builder.select(file_type)
 }
 
-fn find_files_with_lang(paths: Vec<String>, lang: &FrontEndLanguage) -> Result<WalkParallel> {
+fn find_files_with_lang(
+  paths: Vec<String>,
+  lang: &FrontEndLanguage,
+  language_globs: Option<LanguageGlobs>,
+) -> Result<WalkParallel> {
   if paths.is_empty() {
     return Err(anyhow!("paths cannot be empty.").into());
   }
 
   let mut types = TypesBuilder::new();
   let types = types.add_defaults();
+
+  let mut custom_file_type = vec![];
+  if let Some(lgs) = language_globs {
+    for (l, globs) in lgs {
+      let result = FrontEndLanguage::from_str(&l)?;
+      if result == *lang {
+        custom_file_type.extend(globs);
+      }
+    }
+  }
+
+  let custom_file_type: Vec<&str> = custom_file_type.iter().map(|s| s.as_str()).collect();
   let types = match lang {
-    FrontEndLanguage::TypeScript => select_custom(types, "myts", &["*.ts", "*.mts", "*.cts"]),
-    FrontEndLanguage::Tsx => select_custom(types, "mytsx", &["*.tsx", "*.mtsx", "*.ctsx"]),
-    FrontEndLanguage::Css => types.select("css"),
-    FrontEndLanguage::Html => types.select("html"),
-    FrontEndLanguage::JavaScript => types.select("js"),
+    FrontEndLanguage::TypeScript => select_custom(
+      types,
+      "myts",
+      &["*.ts", "*.mts", "*.cts"],
+      &custom_file_type,
+    ),
+    FrontEndLanguage::Tsx => select_custom(
+      types,
+      "mytsx",
+      &["*.tsx", "*.mtsx", "*.ctsx"],
+      &custom_file_type,
+    ),
+    FrontEndLanguage::Css => select_custom(types, "css", &["*.css", "*.scss"], &custom_file_type),
+    FrontEndLanguage::Html => select_custom(
+      types,
+      "html",
+      &["*.html", "*.htm", "*.xhtml"],
+      &custom_file_type,
+    ),
+    FrontEndLanguage::JavaScript => select_custom(
+      types,
+      "js",
+      &["*.cjs", "*.js", "*.mjs", "*.jsx"],
+      &custom_file_type,
+    ),
   }
   .build()
   .unwrap();
@@ -336,10 +397,10 @@ fn find_in_files_impl(
     from_pinned_data(ctx.value, ctx.env)
   })?;
   let rule = parse_config(config.matcher, lang)?;
-  let walk = find_files_with_lang(config.paths, &lang)?;
+  let walk = find_files_with_lang(config.paths, &lang, config.language_globs)?;
   Ok(AsyncTask::new(FindInFiles {
     walk,
-    tsfn: (tsfn, rule),
+    tsfn: (tsfn, rule, lang),
     producer: call_sg_node,
   }))
 }
@@ -365,9 +426,10 @@ fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<Vec<SgNod
 }
 
 fn call_sg_node(
-  (tsfn, rule): &(
+  (tsfn, rule, lang): &(
     ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
     RuleWithConstraint<FrontEndLanguage>,
+    FrontEndLanguage,
   ),
   entry: std::result::Result<ignore::DirEntry, ignore::Error>,
 ) -> Ret<bool> {
@@ -379,7 +441,7 @@ fn call_sg_node(
   {
     return Ok(false);
   }
-  let (root, path) = get_root(entry)?;
+  let (root, path) = get_root(entry, Some(*lang))?;
   let mut pinned = PinnedNodeData::new(root.inner, |r| r.root().find_all(rule).collect());
   let hits: &Vec<_> = pinned.get_data();
   if hits.is_empty() {

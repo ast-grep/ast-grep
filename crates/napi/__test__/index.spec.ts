@@ -1,6 +1,6 @@
 import test from 'ava'
 
-import { js, parseFiles, ts, tsx } from '../index'
+import { js, parseFiles, ts, tsx, html } from '../index'
 const { parse, kind } = js
 let parseMulti = countedPromise(parseFiles)
 
@@ -203,6 +203,59 @@ test('tsx should not find ts file', async t => {
   })
   t.assert(true)
 })
+
+test('find with language globs', async t => {
+  let findInFiles = countedPromise(tsx.findInFiles)
+  await findInFiles({
+    paths: ['./'],
+    matcher: {
+      rule: {kind: 'member_expression'},
+    },
+    languageGlobs: {
+      'tsx': ['*.ts'],
+    }
+  }, (err, n) => {
+    t.is(err, null)
+    const root = n[0].getRoot();
+    t.is(root.filename().replace('\\', '/'), './__test__/index.spec.ts')
+  })
+})
+
+test('find with language globs can parse with correct language', async t => {
+  let findInFiles = countedPromise(html.findInFiles)
+  await findInFiles({
+    paths: ['./'],
+    matcher: {
+      rule: {pattern: '<template>$A</template>'},
+    },
+    languageGlobs: {
+      'html': ['*.vue'],
+    }
+  }, (err, n) => {
+    t.is(err, null)
+    const root = n[0].getRoot();
+    t.is(root.filename().replace('\\', '/'), './__test__/test.vue')
+    // console.log(root.root().)
+    const div = root.root().find('<h1>$A</h1>')?.getMatch('A')?.text()
+    t.is(div, '{{ greeting }}')
+  })
+})
+
+
+test('find with invalid language globs: unknown language', async t => {
+  await t.throwsAsync(async () => {
+    await tsx.findInFiles({
+      paths: ['./'],
+      matcher: {
+        rule: {kind: 'member_expression'},
+      },
+      languageGlobs: {
+        aaa: ['*.c']
+      }
+    }, () => {});
+  }, { message: /aaa is not supported in napi/ });
+})
+
 
 function countedPromise<F extends (t: any, cb: any) => Promise<number>>(func: F) {
   type P = Parameters<F>
