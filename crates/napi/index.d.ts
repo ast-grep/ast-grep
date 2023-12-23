@@ -47,10 +47,11 @@ export interface FindConfig {
   /** a Rule object to find what nodes will match */
   matcher: NapiConfig
   /**
-   * find file by language (extension)
-   * for detailed usage, see LanguageGlob definition
+   * An object to indicate treating of certain files in specified language
+   * The key is the language and the value is a list of pattern globs
+   * eg. {'html': ['*.vue']}
    */
-  languageGlobs?: LanguageGlobs
+  languageGlobs?: Record<string, Array<string>>
 }
 export class SgNode {
   range(): Range

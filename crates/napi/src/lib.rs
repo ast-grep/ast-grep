@@ -22,13 +22,6 @@ use std::sync::mpsc::channel;
 use doc::{FrontEndLanguage, JsDoc};
 use sg_node::{SgNode, SgRoot};
 
-/**
- * Custom LanguageGLobs object to indicate treating of certain files in specified language
- * The key is the language and the value is filename pattern
- * eg. {'html': ['*.vue']}
- */
-pub type LanguageGlobs = HashMap<String, Vec<String>>;
-
 /// Rule configuration similar to YAML
 /// See https://ast-grep.github.io/reference/yaml.html
 #[napi(object)]
@@ -306,9 +299,10 @@ pub struct FindConfig {
   pub paths: Vec<String>,
   /// a Rule object to find what nodes will match
   pub matcher: NapiConfig,
-  /// find file by language (extension)
-  /// for detailed usage, see LanguageGlob definition
-  pub language_globs: Option<LanguageGlobs>,
+  /// An object to indicate treating of certain files in specified language
+  /// The key is the language and the value is a list of pattern globs
+  /// eg. {'html': ['*.vue']}
+  pub language_globs: Option<HashMap<String, Vec<String>>>,
 }
 
 fn select_custom<'b>(
@@ -330,7 +324,7 @@ fn select_custom<'b>(
 fn find_files_with_lang(
   paths: Vec<String>,
   lang: &FrontEndLanguage,
-  language_globs: Option<LanguageGlobs>,
+  language_globs: Option<HashMap<String, Vec<String>>>,
 ) -> Result<WalkParallel> {
   if paths.is_empty() {
     return Err(anyhow!("paths cannot be empty.").into());
