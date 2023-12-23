@@ -5,9 +5,6 @@ use ignore::{WalkBuilder, WalkParallel};
 use napi::anyhow::anyhow;
 use napi::bindgen_prelude::Result;
 
-use std::collections::HashMap;
-use std::str::FromStr;
-
 pub fn build_files(paths: Vec<String>) -> Result<WalkParallel> {
   if paths.is_empty() {
     return Err(anyhow!("paths cannot be empty.").into());
@@ -48,7 +45,7 @@ pub fn select_custom<'b>(
 pub fn find_files_with_lang(
   paths: Vec<String>,
   lang: &FrontEndLanguage,
-  language_globs: Option<HashMap<String, Vec<String>>>,
+  language_globs: Option<Vec<String>>,
 ) -> Result<WalkParallel> {
   if paths.is_empty() {
     return Err(anyhow!("paths cannot be empty.").into());
@@ -57,16 +54,7 @@ pub fn find_files_with_lang(
   let mut types = TypesBuilder::new();
   let types = types.add_defaults();
 
-  let mut custom_file_type = vec![];
-  if let Some(lgs) = language_globs {
-    for (l, globs) in lgs {
-      let result = FrontEndLanguage::from_str(&l)?;
-      if result == *lang {
-        custom_file_type.extend(globs);
-      }
-    }
-  }
-
+  let custom_file_type = language_globs.unwrap_or_else(Vec::new);
   let custom_file_type: Vec<&str> = custom_file_type.iter().map(|s| s.as_str()).collect();
   let types = match lang {
     FrontEndLanguage::TypeScript => select_custom(

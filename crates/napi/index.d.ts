@@ -47,11 +47,11 @@ export interface FindConfig {
   /** a Rule object to find what nodes will match */
   matcher: NapiConfig
   /**
-   * An object to indicate treating of certain files in specified language
-   * The key is the language and the value is a list of pattern globs
-   * eg. {'html': ['*.vue']}
+   * An list of pattern globs to treat of certain files in the specified language.
+   * eg. ['*.vue', '*.svelte'] for html.findFiles, or ['*.ts'] for tsx.findFiles.
+   * It is slightly different from https://ast-grep.github.io/reference/sgconfig.html#languageglobs
    */
-  languageGlobs?: Record<string, Array<string>>
+  languageGlobs?: Array<string>
 }
 export class SgNode {
   range(): Range

@@ -211,9 +211,7 @@ test('find with language globs', async t => {
     matcher: {
       rule: {kind: 'member_expression'},
     },
-    languageGlobs: {
-      'tsx': ['*.ts'],
-    }
+    languageGlobs: ['*.ts'],
   }, (err, n) => {
     t.is(err, null)
     const root = n[0].getRoot();
@@ -228,9 +226,7 @@ test('find with language globs can parse with correct language', async t => {
     matcher: {
       rule: {pattern: '<template>$A</template>'},
     },
-    languageGlobs: {
-      'html': ['*.vue'],
-    }
+    languageGlobs: ['*.vue'],
   }, (err, n) => {
     t.is(err, null)
     const root = n[0].getRoot();
@@ -239,21 +235,6 @@ test('find with language globs can parse with correct language', async t => {
     const div = root.root().find('<h1>$A</h1>')?.getMatch('A')?.text()
     t.is(div, '{{ greeting }}')
   })
-})
-
-
-test('find with invalid language globs: unknown language', async t => {
-  await t.throwsAsync(async () => {
-    await tsx.findInFiles({
-      paths: ['./'],
-      matcher: {
-        rule: {kind: 'member_expression'},
-      },
-      languageGlobs: {
-        aaa: ['*.c']
-      }
-    }, () => {});
-  }, { message: /aaa is not supported in napi/ });
 })
 
 

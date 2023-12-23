@@ -14,7 +14,6 @@ use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi::{JsNumber, Task};
 use napi_derive::napi;
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 
@@ -279,10 +278,10 @@ pub struct FindConfig {
   pub paths: Vec<String>,
   /// a Rule object to find what nodes will match
   pub matcher: NapiConfig,
-  /// An object to indicate treating of certain files in specified language
-  /// The key is the language and the value is a list of pattern globs
-  /// eg. {'html': ['*.vue']}
-  pub language_globs: Option<HashMap<String, Vec<String>>>,
+  /// An list of pattern globs to treat of certain files in the specified language.
+  /// eg. ['*.vue', '*.svelte'] for html.findFiles, or ['*.ts'] for tsx.findFiles.
+  /// It is slightly different from https://ast-grep.github.io/reference/sgconfig.html#languageglobs
+  pub language_globs: Option<Vec<String>>,
 }
 
 fn find_in_files_impl(
