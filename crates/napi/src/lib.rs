@@ -241,23 +241,6 @@ fn get_root(entry: ignore::DirEntry, lang_option: &LangOption) -> Ret<(AstGrep<J
   let lang = lang_option
     .get_lang(&path)
     .context(anyhow!("file not recognized"))?;
-  // if let Some(l) = custom_lang {
-  //   l
-  // } else {
-  //   let ext = path
-  //     .extension()
-  //     .context("check file")?
-  //     .to_str()
-  //     .context("to str")?;
-  //   match ext {
-  //     "css" | "scss" => Css,
-  //     "html" | "htm" | "xhtml" => Html,
-  //     "cjs" | "js" | "mjs" | "jsx" | "mjsx" | "cjsx" => JavaScript,
-  //     "ts" | "mts" | "cts" => TypeScript,
-  //     "tsx" | "mtsx" | "ctsx" => Tsx,
-  //     _ => return Err(anyhow!("file not recognized")),
-  //   }
-  // };
   let doc = JsDoc::new(file_content, lang);
   Ok((AstGrep::doc(doc), path.to_string_lossy().into()))
 }
