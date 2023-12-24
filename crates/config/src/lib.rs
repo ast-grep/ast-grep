@@ -196,4 +196,22 @@ constraints:
     test_rule_match(yaml, "function test() { console.log(2) }");
     test_rule_unmatch(yaml, "function tt() { console.log(2) }");
   }
+
+  // https://github.com/ast-grep/ast-grep/issues/813
+  #[test]
+  fn test_util_rule_with_vaargs() {
+    let yaml = r"
+id: sibling
+language: Tsx
+utils:
+  utilpat:
+    pattern: '$A($$$B);'
+rule:
+  matches: utilpat
+  follows:
+    matches: utilpat
+    stopBy: end
+";
+    test_rule_match(yaml, "a();a(123);a();a(123)");
+  }
 }
