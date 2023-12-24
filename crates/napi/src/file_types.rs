@@ -1,9 +1,44 @@
 use crate::FrontEndLanguage;
 
-use ignore::types::TypesBuilder;
+use ignore::types::{Types, TypesBuilder};
 use ignore::{WalkBuilder, WalkParallel};
 use napi::anyhow::anyhow;
 use napi::bindgen_prelude::Result;
+use std::path::Path;
+
+pub enum LangOption {
+  /// Used when language is inferred from file path
+  /// e.g. in parse_files
+  Inferred(Vec<(FrontEndLanguage, Types)>),
+  /// Used when language is specified
+  /// e.g. in frontend_lang.find_in_files
+  Specified(FrontEndLanguage),
+}
+
+impl LangOption {
+  pub fn get_lang(&self, path: &Path) -> Option<FrontEndLanguage> {
+    use LangOption::*;
+    match self {
+      Specified(lang) => Some(*lang),
+      Inferred(pairs) => pairs
+        .iter()
+        .find_map(|(lang, types)| types.matched(path, false).is_whitelist().then(|| *lang)),
+    }
+  }
+  pub fn infer() -> Self {
+    let mut types = vec![];
+    for lang in FrontEndLanguage::all_langs() {
+      let (tpe, list) = file_patterns(lang);
+      let mut builder = TypesBuilder::new();
+      for pattern in list {
+        builder.add(tpe, pattern).expect("should build");
+      }
+      builder.select(tpe);
+      types.push((*lang, builder.build().unwrap()));
+    }
+    Self::Inferred(types)
+  }
+}
 
 const fn file_patterns(lang: &FrontEndLanguage) -> (&str, &[&str]) {
   match lang {
