@@ -237,22 +237,21 @@ fn get_root(
   let path = entry.into_path();
   let file_content = std::fs::read_to_string(&path)?;
 
-  let lang = match custom_lang {
-    Some(l) => l,
-    None => {
-      let ext = path
-        .extension()
-        .context("check file")?
-        .to_str()
-        .context("to str")?;
-      match ext {
-        "css" | "scss" => Css,
-        "html" | "htm" | "xhtml" => Html,
-        "cjs" | "js" | "mjs" | "jsx" | "mjsx" | "cjsx" => JavaScript,
-        "ts" | "mts" | "cts" => TypeScript,
-        "tsx" | "mtsx" | "ctsx" => Tsx,
-        _ => return Err(anyhow!("file not recognized")),
-      }
+  let lang = if let Some(l) = custom_lang {
+    l
+  } else {
+    let ext = path
+      .extension()
+      .context("check file")?
+      .to_str()
+      .context("to str")?;
+    match ext {
+      "css" | "scss" => Css,
+      "html" | "htm" | "xhtml" => Html,
+      "cjs" | "js" | "mjs" | "jsx" | "mjsx" | "cjsx" => JavaScript,
+      "ts" | "mts" | "cts" => TypeScript,
+      "tsx" | "mtsx" | "ctsx" => Tsx,
+      _ => return Err(anyhow!("file not recognized")),
     }
   };
   let doc = JsDoc::new(file_content, lang);
