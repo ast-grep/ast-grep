@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 
 use doc::{FrontEndLanguage, JsDoc};
-use file_types::{build_files, find_files_with_lang};
+use file_types::{build_files, find_files_with_lang, LangOption};
 use sg_node::{SgNode, SgRoot};
 
 /// Rule configuration similar to YAML
@@ -142,10 +142,13 @@ impl Task for ParseAsync {
   }
 }
 
+type Entry = std::result::Result<ignore::DirEntry, ignore::Error>;
+
 pub struct IterateFiles<D> {
   walk: WalkParallel,
+  lang_option: LangOption,
   tsfn: D,
-  producer: fn(&D, std::result::Result<ignore::DirEntry, ignore::Error>) -> Ret<bool>,
+  producer: fn(&D, Entry, &LangOption) -> Ret<bool>,
 }
 
 impl<T: 'static + Send + Sync> Task for IterateFiles<T> {
@@ -161,7 +164,8 @@ impl<T: 'static + Send + Sync> Task for IterateFiles<T> {
     walker.run(|| {
       let tx = tx.clone();
       let file_count = &file_count;
-      Box::new(move |entry| match producer(tsfn, entry) {
+      let lang_option = &self.lang_option;
+      Box::new(move |entry| match producer(tsfn, entry, lang_option) {
         Ok(true) => {
           // file is sent to JS thread, increment file count
           if tx.send(()).is_ok() {
@@ -206,6 +210,7 @@ pub fn parse_files(paths: Vec<String>, callback: JsFunction) -> Result<AsyncTask
   Ok(AsyncTask::new(ParseFiles {
     walk,
     tsfn,
+    lang_option: LangOption::infer(),
     producer: call_sg_root,
   }))
 }
@@ -214,6 +219,7 @@ pub fn parse_files(paths: Vec<String>, callback: JsFunction) -> Result<AsyncTask
 fn call_sg_root(
   tsfn: &ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled>,
   entry: std::result::Result<ignore::DirEntry, ignore::Error>,
+  lang_option: &LangOption,
 ) -> Ret<bool> {
   let entry = entry?;
   if !entry
@@ -223,37 +229,35 @@ fn call_sg_root(
   {
     return Ok(false);
   }
-  let (root, path) = get_root(entry, None)?;
+  let (root, path) = get_root(entry, lang_option)?;
   let sg = SgRoot(root, path);
   tsfn.call(Ok(sg), ThreadsafeFunctionCallMode::Blocking);
   Ok(true)
 }
 
-fn get_root(
-  entry: ignore::DirEntry,
-  custom_lang: Option<FrontEndLanguage>,
-) -> Ret<(AstGrep<JsDoc>, String)> {
-  use FrontEndLanguage::*;
+fn get_root(entry: ignore::DirEntry, lang_option: &LangOption) -> Ret<(AstGrep<JsDoc>, String)> {
   let path = entry.into_path();
   let file_content = std::fs::read_to_string(&path)?;
-
-  let lang = if let Some(l) = custom_lang {
-    l
-  } else {
-    let ext = path
-      .extension()
-      .context("check file")?
-      .to_str()
-      .context("to str")?;
-    match ext {
-      "css" | "scss" => Css,
-      "html" | "htm" | "xhtml" => Html,
-      "cjs" | "js" | "mjs" | "jsx" | "mjsx" | "cjsx" => JavaScript,
-      "ts" | "mts" | "cts" => TypeScript,
-      "tsx" | "mtsx" | "ctsx" => Tsx,
-      _ => return Err(anyhow!("file not recognized")),
-    }
-  };
+  let lang = lang_option
+    .get_lang(&path)
+    .context(anyhow!("file not recognized"))?;
+  // if let Some(l) = custom_lang {
+  //   l
+  // } else {
+  //   let ext = path
+  //     .extension()
+  //     .context("check file")?
+  //     .to_str()
+  //     .context("to str")?;
+  //   match ext {
+  //     "css" | "scss" => Css,
+  //     "html" | "htm" | "xhtml" => Html,
+  //     "cjs" | "js" | "mjs" | "jsx" | "mjsx" | "cjsx" => JavaScript,
+  //     "ts" | "mts" | "cts" => TypeScript,
+  //     "tsx" | "mtsx" | "ctsx" => Tsx,
+  //     _ => return Err(anyhow!("file not recognized")),
+  //   }
+  // };
   let doc = JsDoc::new(file_content, lang);
   Ok((AstGrep::doc(doc), path.to_string_lossy().into()))
 }
@@ -261,7 +265,6 @@ fn get_root(
 type FindInFiles = IterateFiles<(
   ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
   RuleWithConstraint<FrontEndLanguage>,
-  FrontEndLanguage,
 )>;
 
 pub struct PinnedNodes(
@@ -295,7 +298,8 @@ fn find_in_files_impl(
   let walk = find_files_with_lang(config.paths, &lang, config.language_globs)?;
   Ok(AsyncTask::new(FindInFiles {
     walk,
-    tsfn: (tsfn, rule, lang),
+    tsfn: (tsfn, rule),
+    lang_option: LangOption::Specified(lang),
     producer: call_sg_node,
   }))
 }
@@ -321,12 +325,12 @@ fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<Vec<SgNod
 }
 
 fn call_sg_node(
-  (tsfn, rule, lang): &(
+  (tsfn, rule): &(
     ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
     RuleWithConstraint<FrontEndLanguage>,
-    FrontEndLanguage,
   ),
   entry: std::result::Result<ignore::DirEntry, ignore::Error>,
+  lang_option: &LangOption,
 ) -> Ret<bool> {
   let entry = entry?;
   if !entry
@@ -336,7 +340,7 @@ fn call_sg_node(
   {
     return Ok(false);
   }
-  let (root, path) = get_root(entry, Some(*lang))?;
+  let (root, path) = get_root(entry, lang_option)?;
   let mut pinned = PinnedNodeData::new(root.inner, |r| r.root().find_all(rule).collect());
   let hits: &Vec<_> = pinned.get_data();
   if hits.is_empty() {

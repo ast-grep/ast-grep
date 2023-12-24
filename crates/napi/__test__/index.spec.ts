@@ -231,7 +231,6 @@ test('find with language globs can parse with correct language', async t => {
     t.is(err, null)
     const root = n[0].getRoot();
     t.is(root.filename().replace('\\', '/'), './__test__/test.vue')
-    // console.log(root.root().)
     const div = root.root().find('<h1>$A</h1>')?.getMatch('A')?.text()
     t.is(div, '{{ greeting }}')
   })
