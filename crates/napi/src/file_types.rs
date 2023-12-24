@@ -19,14 +19,12 @@ pub fn build_files(paths: Vec<String>) -> Result<WalkParallel> {
   if paths.is_empty() {
     return Err(anyhow!("paths cannot be empty.").into());
   }
-  let types = TypesBuilder::new()
-    .add_defaults()
-    .select("css")
-    .select("html")
-    .select("js")
-    .select("ts")
-    .build()
-    .unwrap();
+  let mut types = TypesBuilder::new();
+  for lang in FrontEndLanguage::all_langs() {
+    let (type_name, default_types) = file_patterns(lang);
+    select_custom(&mut types, type_name, default_types, &vec![]);
+  }
+  let types = types.build().unwrap();
   let mut paths = paths.into_iter();
   let mut builder = WalkBuilder::new(paths.next().unwrap());
   for path in paths {
