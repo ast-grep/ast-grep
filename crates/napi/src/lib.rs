@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 
 use doc::{FrontEndLanguage, JsDoc};
-use file_types::{build_files, find_files_with_lang, LangOption};
+use file_types::{build_files, find_files_with_lang, FileConfig, LangOption};
 use sg_node::{SgNode, SgRoot};
 
 /// Rule configuration similar to YAML
@@ -199,14 +199,21 @@ const THREAD_FUNC_QUEUE_SIZE: usize = 1000;
 
 type ParseFiles = IterateFiles<ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled>>;
 
-#[napi(
-  ts_args_type = "paths: string[], callback: (err: null | Error, result: SgRoot) => void",
-  ts_return_type = "Promise<number>"
-)]
-pub fn parse_files(paths: Vec<String>, callback: JsFunction) -> Result<AsyncTask<ParseFiles>> {
+#[napi(ts_return_type = "Promise<number>")]
+pub fn parse_files(
+  paths: Either<Vec<String>, FileConfig>,
+  #[napi(ts_arg_type = "(err: null | Error, result: SgRoot) => void")] callback: JsFunction,
+) -> Result<AsyncTask<ParseFiles>> {
   let tsfn: ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled> =
     callback.create_threadsafe_function(THREAD_FUNC_QUEUE_SIZE, |ctx| Ok(vec![ctx.value]))?;
-  let walk = build_files(paths)?;
+  let config = match paths {
+    Either::A(v) => FileConfig {
+      paths: v,
+      language_globs: Default::default(),
+    },
+    Either::B(config) => config,
+  };
+  let walk = build_files(config)?;
   Ok(AsyncTask::new(ParseFiles {
     walk,
     tsfn,
@@ -277,8 +284,13 @@ fn find_in_files_impl(
   let tsfn = callback.create_threadsafe_function(THREAD_FUNC_QUEUE_SIZE, |ctx| {
     from_pinned_data(ctx.value, ctx.env)
   })?;
-  let rule = parse_config(config.matcher, lang)?;
-  let walk = find_files_with_lang(config.paths, &lang, config.language_globs)?;
+  let FindConfig {
+    paths,
+    matcher,
+    language_globs,
+  } = config;
+  let rule = parse_config(matcher, lang)?;
+  let walk = find_files_with_lang(paths, &lang, language_globs)?;
   Ok(AsyncTask::new(FindInFiles {
     walk,
     tsfn: (tsfn, rule),

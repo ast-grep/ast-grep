@@ -4,7 +4,11 @@ use ignore::types::{Types, TypesBuilder};
 use ignore::{WalkBuilder, WalkParallel};
 use napi::anyhow::anyhow;
 use napi::bindgen_prelude::Result;
+use napi_derive::napi;
+
+use std::collections::HashMap;
 use std::path::Path;
+use std::str::FromStr;
 
 pub enum LangOption {
   /// Used when language is inferred from file path
@@ -50,14 +54,39 @@ const fn file_patterns(lang: &FrontEndLanguage) -> (&str, &[&str]) {
   }
 }
 
-pub fn build_files(paths: Vec<String>) -> Result<WalkParallel> {
+#[napi(object)]
+pub struct FileConfig {
+  pub paths: Vec<String>,
+  pub language_globs: HashMap<String, Vec<String>>,
+}
+
+pub fn build_files(
+  FileConfig {
+    paths,
+    language_globs,
+  }: FileConfig,
+) -> Result<WalkParallel> {
   if paths.is_empty() {
     return Err(anyhow!("paths cannot be empty.").into());
   }
   let mut types = TypesBuilder::new();
   for lang in FrontEndLanguage::all_langs() {
     let (type_name, default_types) = file_patterns(lang);
-    select_custom(&mut types, type_name, default_types, &vec![]);
+    let empty = vec![];
+    let custom = {
+      let mut ret = &empty;
+      for (k, v) in &language_globs {
+        let Ok(l) = FrontEndLanguage::from_str(k) else {
+          continue;
+        };
+        if l == *lang {
+          ret = v;
+          break;
+        }
+      }
+      ret
+    };
+    select_custom(&mut types, type_name, default_types, custom);
   }
   let types = types.build().unwrap();
   let mut paths = paths.into_iter();

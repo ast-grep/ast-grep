@@ -10,6 +10,10 @@ export const enum FrontEndLanguage {
   Css = 3,
   TypeScript = 4
 }
+export interface FileConfig {
+  paths: Array<string>
+  languageGlobs: Record<string, Array<string>>
+}
 export interface Pos {
   /** line number starting from 0 */
   line: number
@@ -40,7 +44,7 @@ export interface NapiConfig {
   /** https://ast-grep.github.io/guide/rule-config/utility-rule.html */
   utils?: any
 }
-export function parseFiles(paths: string[], callback: (err: null | Error, result: SgRoot) => void): Promise<number>
+export function parseFiles(paths: Array<string> | FileConfig, callback: (err: null | Error, result: SgRoot) => void): Promise<number>
 export interface FindConfig {
   /** specify the file paths to recursively find files */
   paths: Array<string>
