@@ -369,6 +369,7 @@ fn deserialze_atomic_rule<L: Language>(
 mod test {
   use super::*;
   use crate::from_str;
+  use crate::test::TypeScript;
   use PatternStyle::*;
 
   #[test]
@@ -461,5 +462,19 @@ follows:
     let follows = rule.follows.unwrap();
     assert!(follows.rule.pattern.is_present());
     assert!(follows.rule.pattern.is_present());
+  }
+
+  #[test]
+  fn test_deserialize_rule() {
+    let src = r"
+pattern: class A {}
+kind: class_declaration
+";
+    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let rule = deserialize_rule(rule, &env).expect("should deserialize");
+    assert!(rule.is_composite());
+    let root = TypeScript::Tsx.ast_grep("class A {}");
+    assert!(root.root().find(rule).is_some());
   }
 }
