@@ -278,9 +278,12 @@ pub fn deserialize_rule<L: Language>(
   let mut rules = Vec::with_capacity(1);
   use Rule as R;
   let categorized = serialized.categorized();
+  // ATTENTION, relational_rule should always come at last
+  // after target node is decided by atomic/composite rule
   deserialze_atomic_rule(categorized.atomic, &mut rules, env)?;
-  deserialize_relational_rule(categorized.relational, &mut rules, env)?;
   deserialze_composite_rule(categorized.composite, &mut rules, env)?;
+  deserialize_relational_rule(categorized.relational, &mut rules, env)?;
+
   if rules.is_empty() {
     Err(RuleSerializeError::MissPositiveMatcher)
   } else if rules.len() == 1 {
