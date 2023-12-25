@@ -480,4 +480,24 @@ kind: class_declaration
     let root = TypeScript::Tsx.ast_grep("class A {}");
     assert!(root.root().find(rule).is_some());
   }
+
+  #[test]
+  fn test_deserialize_order() {
+    let src = r"
+pattern: class A {}
+inside:
+  kind: class
+";
+    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let rule = deserialize_rule(rule, &env).expect("should deserialize");
+    assert!(rule.is_composite());
+    let Rule::All(rules) = rule else {
+      panic!("should parsed as all");
+    };
+    // relational_rule should be the last
+    let rules = rules.inner();
+    assert!(rules[0].is_atomic());
+    assert!(rules[1].is_relational());
+  }
 }
