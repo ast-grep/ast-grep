@@ -12,7 +12,7 @@ use std::path::Path;
 use std::str::FromStr;
 
 #[napi]
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum FrontEndLanguage {
   Html,
   JavaScript,
@@ -216,4 +216,37 @@ fn find_files_with_lang(
   }
   let walk = builder.types(types).build_parallel();
   Ok(walk)
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  fn lang_globs() -> HashMap<FrontEndLanguage, Vec<String>> {
+    let mut lang = HashMap::new();
+    lang.insert("html".into(), vec!["*.vue".into()]);
+    FrontEndLanguage::lang_globs(lang)
+  }
+
+  #[test]
+  fn test_lang_globs() {
+    let globs = lang_globs();
+    assert!(globs.contains_key(&FrontEndLanguage::Html));
+    assert!(!globs.contains_key(&FrontEndLanguage::Tsx));
+    assert_eq!(globs[&FrontEndLanguage::Html], vec!["*.vue"]);
+  }
+
+  #[test]
+  fn test_lang_option() {
+    let globs = lang_globs();
+    let option = LangOption::infer(&globs);
+    let lang = option.get_lang(Path::new("test.vue"));
+    assert_eq!(lang, Some(FrontEndLanguage::Html));
+    let lang = option.get_lang(Path::new("test.html"));
+    assert_eq!(lang, Some(FrontEndLanguage::Html));
+    let lang = option.get_lang(Path::new("test.js"));
+    assert_eq!(lang, Some(FrontEndLanguage::JavaScript));
+    let lang = option.get_lang(Path::new("test.xss"));
+    assert_eq!(lang, None);
+  }
 }
