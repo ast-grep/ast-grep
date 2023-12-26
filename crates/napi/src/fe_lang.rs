@@ -249,4 +249,16 @@ mod test {
     let lang = option.get_lang(Path::new("test.xss"));
     assert_eq!(lang, None);
   }
+
+  #[test]
+  fn test_from_str() {
+    let lang = FrontEndLanguage::from_str("html");
+    assert_eq!(lang.unwrap(), FrontEndLanguage::Html);
+    let lang = FrontEndLanguage::from_str("Html");
+    assert_eq!(lang.unwrap(), FrontEndLanguage::Html);
+    let lang = FrontEndLanguage::from_str("htML");
+    assert_eq!(lang.unwrap(), FrontEndLanguage::Html);
+    let lang = FrontEndLanguage::from_str("ocaml");
+    assert!(lang.is_err());
+  }
 }
