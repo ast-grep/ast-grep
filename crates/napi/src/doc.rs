@@ -3,13 +3,15 @@ use ast_grep_core::replacer::IndentSensitive;
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
 use napi::anyhow::{anyhow, Error};
 use napi_derive::napi;
-use std::borrow::Cow;
-use std::ops::Range;
-use std::str::FromStr;
 use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
 
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::ops::Range;
+use std::str::FromStr;
+
 #[napi]
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq, Hash)]
 pub enum FrontEndLanguage {
   Html,
   JavaScript,
@@ -52,10 +54,21 @@ impl Language for FrontEndLanguage {
   }
 }
 
+pub type LanguageGlobs = HashMap<FrontEndLanguage, Vec<String>>;
+
 impl FrontEndLanguage {
   pub const fn all_langs() -> &'static [FrontEndLanguage] {
     use FrontEndLanguage::*;
     &[Html, JavaScript, Tsx, Css, TypeScript]
+  }
+  pub fn lang_globs(map: HashMap<String, Vec<String>>) -> LanguageGlobs {
+    let mut ret = HashMap::new();
+    for (name, patterns) in map {
+      if let Ok(lang) = FrontEndLanguage::from_str(&name) {
+        ret.insert(lang, patterns);
+      }
+    }
+    ret
   }
 }
 

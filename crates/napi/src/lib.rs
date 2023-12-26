@@ -14,11 +14,12 @@ use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi::{JsNumber, Task};
 use napi_derive::napi;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 
 use doc::{FrontEndLanguage, JsDoc};
-use file_types::{build_files, find_files_with_lang, FileConfig, LangOption};
+use file_types::{build_files, find_files_with_lang, LangOption};
 use sg_node::{SgNode, SgRoot};
 
 /// Rule configuration similar to YAML
@@ -199,25 +200,31 @@ const THREAD_FUNC_QUEUE_SIZE: usize = 1000;
 
 type ParseFiles = IterateFiles<ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled>>;
 
+#[napi(object)]
+pub struct FileOption {
+  pub paths: Vec<String>,
+  pub language_globs: HashMap<String, Vec<String>>,
+}
+
 #[napi(ts_return_type = "Promise<number>")]
 pub fn parse_files(
-  paths: Either<Vec<String>, FileConfig>,
+  paths: Either<Vec<String>, FileOption>,
   #[napi(ts_arg_type = "(err: null | Error, result: SgRoot) => void")] callback: JsFunction,
 ) -> Result<AsyncTask<ParseFiles>> {
   let tsfn: ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled> =
     callback.create_threadsafe_function(THREAD_FUNC_QUEUE_SIZE, |ctx| Ok(vec![ctx.value]))?;
-  let config = match paths {
-    Either::A(v) => FileConfig {
-      paths: v,
-      language_globs: Default::default(),
-    },
-    Either::B(config) => config,
+  let (paths, globs) = match paths {
+    Either::A(v) => (v, HashMap::new()),
+    Either::B(FileOption {
+      paths,
+      language_globs,
+    }) => (paths, FrontEndLanguage::lang_globs(language_globs)),
   };
-  let walk = build_files(config)?;
+  let walk = build_files(paths, &globs)?;
   Ok(AsyncTask::new(ParseFiles {
     walk,
     tsfn,
-    lang_option: LangOption::infer(),
+    lang_option: LangOption::infer(&globs),
     producer: call_sg_root,
   }))
 }

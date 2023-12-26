@@ -149,6 +149,25 @@ test('test file count', async t => {
   t.is(i, fileCount)
 })
 
+test('test languageGlobs', async t => {
+  let i = 0
+  let foundVue = false
+  let fileCount = await parseMulti({
+    paths: ['./'],
+    languageGlobs: {
+      'html': ['*.vue']
+    },
+  }, (err, root) => {
+    t.is(err, null)
+    if (root.filename().endsWith('.vue')) {
+      foundVue = true
+    }
+    i++
+  })
+  t.is(i, fileCount)
+  t.true(foundVue)
+})
+
 test('show good error message for invalid arg', async t => {
   const sg = parse('console.log(123)')
   t.throws(() => sg.root().find({rule: {regex: '('}}), {

@@ -4,11 +4,9 @@ use ignore::types::{Types, TypesBuilder};
 use ignore::{WalkBuilder, WalkParallel};
 use napi::anyhow::anyhow;
 use napi::bindgen_prelude::Result;
-use napi_derive::napi;
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::str::FromStr;
 
 pub enum LangOption {
   /// Used when language is inferred from file path
@@ -29,12 +27,16 @@ impl LangOption {
         .find_map(|(lang, types)| types.matched(path, false).is_whitelist().then(|| *lang)),
     }
   }
-  pub fn infer() -> Self {
+  pub fn infer(language_globs: &HashMap<FrontEndLanguage, Vec<String>>) -> Self {
     let mut types = vec![];
+    let empty = vec![];
     for lang in FrontEndLanguage::all_langs() {
       let (tpe, list) = file_patterns(lang);
       let mut builder = TypesBuilder::new();
       for pattern in list {
+        builder.add(tpe, pattern).expect("should build");
+      }
+      for pattern in language_globs.get(lang).unwrap_or(&empty) {
         builder.add(tpe, pattern).expect("should build");
       }
       builder.select(tpe);
@@ -54,38 +56,18 @@ const fn file_patterns(lang: &FrontEndLanguage) -> (&str, &[&str]) {
   }
 }
 
-#[napi(object)]
-pub struct FileConfig {
-  pub paths: Vec<String>,
-  pub language_globs: HashMap<String, Vec<String>>,
-}
-
 pub fn build_files(
-  FileConfig {
-    paths,
-    language_globs,
-  }: FileConfig,
+  paths: Vec<String>,
+  language_globs: &HashMap<FrontEndLanguage, Vec<String>>,
 ) -> Result<WalkParallel> {
   if paths.is_empty() {
     return Err(anyhow!("paths cannot be empty.").into());
   }
   let mut types = TypesBuilder::new();
+  let empty = vec![];
   for lang in FrontEndLanguage::all_langs() {
     let (type_name, default_types) = file_patterns(lang);
-    let empty = vec![];
-    let custom = {
-      let mut ret = &empty;
-      for (k, v) in &language_globs {
-        let Ok(l) = FrontEndLanguage::from_str(k) else {
-          continue;
-        };
-        if l == *lang {
-          ret = v;
-          break;
-        }
-      }
-      ret
-    };
+    let custom = language_globs.get(lang).unwrap_or(&empty);
     select_custom(&mut types, type_name, default_types, custom);
   }
   let types = types.build().unwrap();
