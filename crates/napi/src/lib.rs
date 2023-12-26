@@ -19,7 +19,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 
 use doc::{JsDoc, NapiConfig};
-use fe_lang::{build_files, find_files_with_lang, FrontEndLanguage, LangOption};
+use fe_lang::{build_files, FrontEndLanguage, LangOption};
 use sg_node::{SgNode, SgRoot};
 
 macro_rules! impl_lang_mod {
@@ -260,7 +260,7 @@ fn find_in_files_impl(
     language_globs,
   } = config;
   let rule = matcher.parse_with(lang)?;
-  let walk = find_files_with_lang(paths, &lang, language_globs)?;
+  let walk = lang.find_files(paths, language_globs)?;
   Ok(AsyncTask::new(FindInFiles {
     walk,
     tsfn: (tsfn, rule),

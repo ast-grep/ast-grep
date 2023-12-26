@@ -21,6 +21,32 @@ pub enum FrontEndLanguage {
   TypeScript,
 }
 
+pub type LanguageGlobs = HashMap<FrontEndLanguage, Vec<String>>;
+
+impl FrontEndLanguage {
+  pub const fn all_langs() -> &'static [FrontEndLanguage] {
+    use FrontEndLanguage::*;
+    &[Html, JavaScript, Tsx, Css, TypeScript]
+  }
+  pub fn lang_globs(map: HashMap<String, Vec<String>>) -> LanguageGlobs {
+    let mut ret = HashMap::new();
+    for (name, patterns) in map {
+      if let Ok(lang) = FrontEndLanguage::from_str(&name) {
+        ret.insert(lang, patterns);
+      }
+    }
+    ret
+  }
+
+  pub fn find_files(
+    &self,
+    paths: Vec<String>,
+    language_globs: Option<Vec<String>>,
+  ) -> Result<WalkParallel> {
+    find_files_with_lang(self, paths, language_globs)
+  }
+}
+
 impl Language for FrontEndLanguage {
   fn get_ts_language(&self) -> TSLanguage {
     use FrontEndLanguage::*;
@@ -52,24 +78,6 @@ impl Language for FrontEndLanguage {
     // TODO: use more precise replacement
     let replaced = query.replace(self.meta_var_char(), expando);
     Cow::Owned(replaced)
-  }
-}
-
-pub type LanguageGlobs = HashMap<FrontEndLanguage, Vec<String>>;
-
-impl FrontEndLanguage {
-  pub const fn all_langs() -> &'static [FrontEndLanguage] {
-    use FrontEndLanguage::*;
-    &[Html, JavaScript, Tsx, Css, TypeScript]
-  }
-  pub fn lang_globs(map: HashMap<String, Vec<String>>) -> LanguageGlobs {
-    let mut ret = HashMap::new();
-    for (name, patterns) in map {
-      if let Ok(lang) = FrontEndLanguage::from_str(&name) {
-        ret.insert(lang, patterns);
-      }
-    }
-    ret
   }
 }
 
@@ -117,7 +125,7 @@ impl LangOption {
         .find_map(|(lang, types)| types.matched(path, false).is_whitelist().then(|| *lang)),
     }
   }
-  pub fn infer(language_globs: &HashMap<FrontEndLanguage, Vec<String>>) -> Self {
+  pub fn infer(language_globs: &LanguageGlobs) -> Self {
     let mut types = vec![];
     let empty = vec![];
     for lang in FrontEndLanguage::all_langs() {
@@ -146,10 +154,7 @@ const fn file_patterns(lang: &FrontEndLanguage) -> (&str, &[&str]) {
   }
 }
 
-pub fn build_files(
-  paths: Vec<String>,
-  language_globs: &HashMap<FrontEndLanguage, Vec<String>>,
-) -> Result<WalkParallel> {
+pub fn build_files(paths: Vec<String>, language_globs: &LanguageGlobs) -> Result<WalkParallel> {
   if paths.is_empty() {
     return Err(anyhow!("paths cannot be empty.").into());
   }
@@ -189,9 +194,9 @@ fn select_custom<'b>(
   builder.select(file_type)
 }
 
-pub fn find_files_with_lang(
-  paths: Vec<String>,
+fn find_files_with_lang(
   lang: &FrontEndLanguage,
+  paths: Vec<String>,
   language_globs: Option<Vec<String>>,
 ) -> Result<WalkParallel> {
   if paths.is_empty() {
