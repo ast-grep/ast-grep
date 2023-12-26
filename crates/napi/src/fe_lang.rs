@@ -1,12 +1,102 @@
-use crate::FrontEndLanguage;
-
+use ast_grep_core::language::{Language, TSLanguage};
 use ignore::types::{Types, TypesBuilder};
 use ignore::{WalkBuilder, WalkParallel};
 use napi::anyhow::anyhow;
+use napi::anyhow::Error;
 use napi::bindgen_prelude::Result;
+use napi_derive::napi;
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
+use std::str::FromStr;
+
+#[napi]
+#[derive(PartialEq, Eq, Hash)]
+pub enum FrontEndLanguage {
+  Html,
+  JavaScript,
+  Tsx,
+  Css,
+  TypeScript,
+}
+
+impl Language for FrontEndLanguage {
+  fn get_ts_language(&self) -> TSLanguage {
+    use FrontEndLanguage::*;
+    match self {
+      Html => tree_sitter_html::language(),
+      JavaScript => tree_sitter_javascript::language(),
+      TypeScript => tree_sitter_typescript::language_typescript(),
+      Css => tree_sitter_css::language(),
+      Tsx => tree_sitter_typescript::language_tsx(),
+    }
+    .into()
+  }
+  fn expando_char(&self) -> char {
+    use FrontEndLanguage::*;
+    match self {
+      Css => '_',
+      _ => '$',
+    }
+  }
+  fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
+    use FrontEndLanguage::*;
+    match self {
+      Css => (),
+      _ => return Cow::Borrowed(query),
+    }
+    // use stack buffer to reduce allocation
+    let mut buf = [0; 4];
+    let expando = self.expando_char().encode_utf8(&mut buf);
+    // TODO: use more precise replacement
+    let replaced = query.replace(self.meta_var_char(), expando);
+    Cow::Owned(replaced)
+  }
+}
+
+pub type LanguageGlobs = HashMap<FrontEndLanguage, Vec<String>>;
+
+impl FrontEndLanguage {
+  pub const fn all_langs() -> &'static [FrontEndLanguage] {
+    use FrontEndLanguage::*;
+    &[Html, JavaScript, Tsx, Css, TypeScript]
+  }
+  pub fn lang_globs(map: HashMap<String, Vec<String>>) -> LanguageGlobs {
+    let mut ret = HashMap::new();
+    for (name, patterns) in map {
+      if let Ok(lang) = FrontEndLanguage::from_str(&name) {
+        ret.insert(lang, patterns);
+      }
+    }
+    ret
+  }
+}
+
+const fn alias(lang: &FrontEndLanguage) -> &[&str] {
+  use FrontEndLanguage::*;
+  match lang {
+    Css => &["css"],
+    Html => &["html"],
+    JavaScript => &["javascript", "js", "jsx"],
+    TypeScript => &["ts", "typescript"],
+    Tsx => &["tsx"],
+  }
+}
+
+impl FromStr for FrontEndLanguage {
+  type Err = Error;
+  fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+    for lang in Self::all_langs() {
+      for moniker in alias(lang) {
+        if s.eq_ignore_ascii_case(moniker) {
+          return Ok(*lang);
+        }
+      }
+    }
+    Err(anyhow!(format!("{} is not supported in napi", s.to_string())).into())
+  }
+}
 
 pub enum LangOption {
   /// Used when language is inferred from file path

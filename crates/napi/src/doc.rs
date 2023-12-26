@@ -1,99 +1,53 @@
-use ast_grep_core::language::{Language, TSLanguage};
+use crate::FrontEndLanguage;
+
+use ast_grep_config::{RuleWithConstraint, SerializableRuleCore};
 use ast_grep_core::replacer::IndentSensitive;
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
-use napi::anyhow::{anyhow, Error};
+use ast_grep_core::Language;
+use napi::anyhow::Error;
+use napi::bindgen_prelude::Result as NapiResult;
 use napi_derive::napi;
 use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
 
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::ops::Range;
-use std::str::FromStr;
 
-#[napi]
-#[derive(PartialEq, Eq, Hash)]
-pub enum FrontEndLanguage {
-  Html,
-  JavaScript,
-  Tsx,
-  Css,
-  TypeScript,
+/// Rule configuration similar to YAML
+/// See https://ast-grep.github.io/reference/yaml.html
+#[napi(object)]
+pub struct NapiConfig {
+  /// The rule object, see https://ast-grep.github.io/reference/rule.html
+  pub rule: serde_json::Value,
+  /// See https://ast-grep.github.io/guide/rule-config.html#constraints
+  pub constraints: Option<serde_json::Value>,
+  /// Available languages: html, css, js, jsx, ts, tsx
+  pub language: Option<FrontEndLanguage>,
+  /// https://ast-grep.github.io/reference/yaml.html#transform
+  pub transform: Option<serde_json::Value>,
+  /// https://ast-grep.github.io/guide/rule-config/utility-rule.html
+  pub utils: Option<serde_json::Value>,
 }
 
-impl Language for FrontEndLanguage {
-  fn get_ts_language(&self) -> TSLanguage {
-    use FrontEndLanguage::*;
-    match self {
-      Html => tree_sitter_html::language(),
-      JavaScript => tree_sitter_javascript::language(),
-      TypeScript => tree_sitter_typescript::language_typescript(),
-      Css => tree_sitter_css::language(),
-      Tsx => tree_sitter_typescript::language_tsx(),
-    }
-    .into()
-  }
-  fn expando_char(&self) -> char {
-    use FrontEndLanguage::*;
-    match self {
-      Css => '_',
-      _ => '$',
-    }
-  }
-  fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
-    use FrontEndLanguage::*;
-    match self {
-      Css => (),
-      _ => return Cow::Borrowed(query),
-    }
-    // use stack buffer to reduce allocation
-    let mut buf = [0; 4];
-    let expando = self.expando_char().encode_utf8(&mut buf);
-    // TODO: use more precise replacement
-    let replaced = query.replace(self.meta_var_char(), expando);
-    Cow::Owned(replaced)
-  }
-}
-
-pub type LanguageGlobs = HashMap<FrontEndLanguage, Vec<String>>;
-
-impl FrontEndLanguage {
-  pub const fn all_langs() -> &'static [FrontEndLanguage] {
-    use FrontEndLanguage::*;
-    &[Html, JavaScript, Tsx, Css, TypeScript]
-  }
-  pub fn lang_globs(map: HashMap<String, Vec<String>>) -> LanguageGlobs {
-    let mut ret = HashMap::new();
-    for (name, patterns) in map {
-      if let Ok(lang) = FrontEndLanguage::from_str(&name) {
-        ret.insert(lang, patterns);
-      }
-    }
-    ret
-  }
-}
-
-const fn alias(lang: &FrontEndLanguage) -> &[&str] {
-  use FrontEndLanguage::*;
-  match lang {
-    Css => &["css"],
-    Html => &["html"],
-    JavaScript => &["javascript", "js", "jsx"],
-    TypeScript => &["ts", "typescript"],
-    Tsx => &["tsx"],
-  }
-}
-
-impl FromStr for FrontEndLanguage {
-  type Err = Error;
-  fn from_str(s: &str) -> Result<Self, Self::Err> {
-    for lang in Self::all_langs() {
-      for moniker in alias(lang) {
-        if s.eq_ignore_ascii_case(moniker) {
-          return Ok(*lang);
-        }
-      }
-    }
-    Err(anyhow!(format!("{} is not supported in napi", s.to_string())).into())
+impl NapiConfig {
+  pub fn parse_with(
+    self,
+    language: FrontEndLanguage,
+  ) -> NapiResult<RuleWithConstraint<FrontEndLanguage>> {
+    let lang = self.language.unwrap_or(language);
+    let rule = SerializableRuleCore {
+      language: lang,
+      rule: serde_json::from_value(self.rule)?,
+      constraints: self.constraints.map(serde_json::from_value).transpose()?,
+      transform: self.transform.map(serde_json::from_value).transpose()?,
+      utils: self.utils.map(serde_json::from_value).transpose()?,
+    };
+    rule.get_matcher(&Default::default()).map_err(|e| {
+      let error = Error::from(e)
+        .chain()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+      napi::Error::new(napi::Status::InvalidArg, error.join("\n |->"))
+    })
   }
 }
 

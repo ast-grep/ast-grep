@@ -1,15 +1,15 @@
 #![cfg(not(feature = "napi-noop-in-unit-test"))]
 
 mod doc;
-mod file_types;
+mod fe_lang;
 mod sg_node;
 
-use ast_grep_config::{RuleWithConstraint, SerializableRuleCore};
+use ast_grep_config::RuleWithConstraint;
 use ast_grep_core::language::Language;
 use ast_grep_core::pinned::{NodeData, PinnedNodeData};
 use ast_grep_core::{AstGrep, NodeMatch};
 use ignore::{WalkBuilder, WalkParallel, WalkState};
-use napi::anyhow::{anyhow, Context, Error, Result as Ret};
+use napi::anyhow::{anyhow, Context, Result as Ret};
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi::{JsNumber, Task};
@@ -18,46 +18,9 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 
-use doc::{FrontEndLanguage, JsDoc};
-use file_types::{build_files, find_files_with_lang, LangOption};
+use doc::{JsDoc, NapiConfig};
+use fe_lang::{build_files, find_files_with_lang, FrontEndLanguage, LangOption};
 use sg_node::{SgNode, SgRoot};
-
-/// Rule configuration similar to YAML
-/// See https://ast-grep.github.io/reference/yaml.html
-#[napi(object)]
-pub struct NapiConfig {
-  /// The rule object, see https://ast-grep.github.io/reference/rule.html
-  pub rule: serde_json::Value,
-  /// See https://ast-grep.github.io/guide/rule-config.html#constraints
-  pub constraints: Option<serde_json::Value>,
-  /// Available languages: html, css, js, jsx, ts, tsx
-  pub language: Option<FrontEndLanguage>,
-  /// https://ast-grep.github.io/reference/yaml.html#transform
-  pub transform: Option<serde_json::Value>,
-  /// https://ast-grep.github.io/guide/rule-config/utility-rule.html
-  pub utils: Option<serde_json::Value>,
-}
-
-fn parse_config(
-  config: NapiConfig,
-  language: FrontEndLanguage,
-) -> Result<RuleWithConstraint<FrontEndLanguage>> {
-  let lang = config.language.unwrap_or(language);
-  let rule = SerializableRuleCore {
-    language: lang,
-    rule: serde_json::from_value(config.rule)?,
-    constraints: config.constraints.map(serde_json::from_value).transpose()?,
-    transform: config.transform.map(serde_json::from_value).transpose()?,
-    utils: config.utils.map(serde_json::from_value).transpose()?,
-  };
-  rule.get_matcher(&Default::default()).map_err(|e| {
-    let error = Error::from(e)
-      .chain()
-      .map(ToString::to_string)
-      .collect::<Vec<_>>();
-    napi::Error::new(napi::Status::InvalidArg, error.join("\n |->"))
-  })
-}
 
 macro_rules! impl_lang_mod {
     ($name: ident, $lang: ident) =>  {
@@ -296,7 +259,7 @@ fn find_in_files_impl(
     matcher,
     language_globs,
   } = config;
-  let rule = parse_config(matcher, lang)?;
+  let rule = matcher.parse_with(lang)?;
   let walk = find_files_with_lang(paths, &lang, language_globs)?;
   Ok(AsyncTask::new(FindInFiles {
     walk,

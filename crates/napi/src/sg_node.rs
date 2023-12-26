@@ -2,7 +2,7 @@ use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
-use super::{parse_config, NapiConfig};
+use super::NapiConfig;
 use crate::doc::JsDoc;
 
 #[napi(object)]
@@ -169,7 +169,7 @@ impl SgNode {
         reference.inner.find(pattern)
       }
       Either3::C(config) => {
-        let pattern = parse_config(config, lang)?;
+        let pattern = config.parse_with(lang)?;
         reference.inner.find(pattern)
       }
     };
@@ -209,7 +209,7 @@ impl SgNode {
         reference.inner.find_all(pattern).collect()
       }
       Either3::C(config) => {
-        let pattern = parse_config(config, lang)?;
+        let pattern = config.parse_with(lang)?;
         reference.inner.find_all(pattern).collect()
       }
     };
