@@ -63,6 +63,9 @@ impl Language for TSLanguage {
 }
 
 #[cfg(test)]
+pub use test::*;
+
+#[cfg(test)]
 mod test {
   use super::*;
   #[derive(Clone)]
@@ -73,6 +76,3 @@ mod test {
     }
   }
 }
-
-#[cfg(test)]
-pub use test::*;
