@@ -112,7 +112,6 @@ impl_lang!(JavaScript, language_javascript);
 impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
 impl_lang!(Scala, language_scala);
-impl_lang!(Thrift, language_thrift);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
 // See ripgrep for extensions
@@ -139,7 +138,6 @@ pub enum SupportLang {
   Rust,
   Scala,
   Swift,
-  Thrift,
   Tsx,
   TypeScript,
 }
@@ -149,7 +147,7 @@ impl SupportLang {
     use SupportLang::*;
     &[
       C, Cpp, CSharp, Css, Dart, Elixir, Go, Html, Java, JavaScript, Json, Kotlin, Lua, Python,
-      Ruby, Rust, Scala, Swift, Thrift, Tsx, TypeScript,
+      Ruby, Rust, Scala, Swift, Tsx, TypeScript,
     ]
   }
 
@@ -211,7 +209,6 @@ const fn alias(lang: &SupportLang) -> &[&str] {
     Rust => &["rs", "rust"],
     Scala => &["scala"],
     Swift => &["swift"],
-    Thrift => &["thrift"],
     TypeScript => &["ts", "typescript"],
     Tsx => &["tsx"],
   }
@@ -254,7 +251,6 @@ macro_rules! execute_lang_method {
       S::Rust => Rust.$method($($pname,)*),
       S::Scala => Scala.$method($($pname,)*),
       S::Swift => Swift.$method($($pname,)*),
-      S::Thrift => Thrift.$method($($pname,)*),
       S::Tsx => Tsx.$method($($pname,)*),
       S::TypeScript => TypeScript.$method($($pname,)*),
     }
@@ -306,7 +302,6 @@ fn extensions(lang: &SupportLang) -> &[&str] {
     Rust => &["rs"],
     Scala => &["scala", "sc", "sbt"],
     Swift => &["swift"],
-    Thrift => &["thrift"],
     TypeScript => &["ts", "cts", "mts"],
     Tsx => &["tsx"],
   }
