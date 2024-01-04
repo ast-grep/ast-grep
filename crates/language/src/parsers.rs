@@ -8,6 +8,9 @@
 mod parser_implementation {
   use ast_grep_core::language::TSLanguage;
 
+  pub fn language_bash() -> TSLanguage {
+    tree_sitter_bash::language().into()
+  }
   pub fn language_c() -> TSLanguage {
     tree_sitter_c::language().into()
   }
@@ -46,6 +49,9 @@ mod parser_implementation {
   }
   pub fn language_lua() -> TSLanguage {
     tree_sitter_lua::language().into()
+  }
+  pub fn language_php() -> TSLanguage {
+    tree_sitter_php::language().into()
   }
   pub fn language_python() -> TSLanguage {
     tree_sitter_python::language().into()
@@ -90,6 +96,7 @@ mod parser_implementation {
   }
 
   impl_parsers!(
+    language_bash,
     language_c,
     language_cpp,
     language_c_sharp,
@@ -103,6 +110,7 @@ mod parser_implementation {
     language_json,
     language_kotlin,
     language_lua,
+    language_php,
     language_python,
     language_ruby,
     language_rust,

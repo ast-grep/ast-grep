@@ -105,12 +105,14 @@ impl_lang_expando!(Swift, language_swift, 'µ');
 
 // Stub Language without preprocessing
 // Language Name, tree-sitter-name, alias, extension
+impl_lang!(Bash, language_bash);
 impl_lang!(Dart, language_dart);
 impl_lang!(Html, language_html);
 impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
 impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
+impl_lang!(Php, language_php);
 impl_lang!(Scala, language_scala);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
@@ -120,6 +122,7 @@ impl_lang!(TypeScript, language_typescript);
 /// Represents all built-in languages.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
 pub enum SupportLang {
+  Bash,
   C,
   Cpp,
   CSharp,
@@ -133,6 +136,7 @@ pub enum SupportLang {
   Json,
   Kotlin,
   Lua,
+  Php,
   Python,
   Ruby,
   Rust,
@@ -146,8 +150,8 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      C, Cpp, CSharp, Css, Dart, Elixir, Go, Html, Java, JavaScript, Json, Kotlin, Lua, Python,
-      Ruby, Rust, Scala, Swift, Tsx, TypeScript,
+      Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Html, Java, JavaScript, Json, Kotlin, Lua, Php,
+      Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript,
     ]
   }
 
@@ -191,6 +195,7 @@ impl<'de> Deserialize<'de> for SupportLang {
 const fn alias(lang: &SupportLang) -> &[&str] {
   use SupportLang::*;
   match lang {
+    Bash => &["bash-exp"],
     C => &["c"],
     Cpp => &["cc", "c++", "cpp", "cxx"],
     CSharp => &["cs", "csharp"],
@@ -204,6 +209,7 @@ const fn alias(lang: &SupportLang) -> &[&str] {
     Json => &["json"],
     Kotlin => &["kotlin", "kt"],
     Lua => &["lua"],
+    Php => &["php-exp"],
     Python => &["py", "python"],
     Ruby => &["rb", "ruby"],
     Rust => &["rs", "rust"],
@@ -233,6 +239,7 @@ macro_rules! execute_lang_method {
   ($me: path, $method: ident, $($pname:tt),*) => {
     use SupportLang as S;
     match $me {
+      S::Bash => Bash.$method($($pname,)*),
       S::C => C.$method($($pname,)*),
       S::Cpp => Cpp.$method($($pname,)*),
       S::CSharp => CSharp.$method($($pname,)*),
@@ -246,6 +253,7 @@ macro_rules! execute_lang_method {
       S::Json => Json.$method($($pname,)*),
       S::Kotlin => Kotlin.$method($($pname,)*),
       S::Lua => Lua.$method($($pname,)*),
+      S::Php => Php.$method($($pname,)*),
       S::Python => Python.$method($($pname,)*),
       S::Ruby => Ruby.$method($($pname,)*),
       S::Rust => Rust.$method($($pname,)*),
@@ -284,6 +292,9 @@ impl Language for SupportLang {
 fn extensions(lang: &SupportLang) -> &[&str] {
   use SupportLang::*;
   match lang {
+    Bash => &[
+      "bash", "bats", "cgi", "command", "env", "fcgi", "ksh", "sh", "sh.in", "tmux", "tool", "zsh",
+    ],
     C => &["c", "h"],
     Cpp => &["cc", "hpp", "cpp", "c++", "hh", "cxx", "cu", "ino"],
     CSharp => &["cs"],
@@ -297,6 +308,7 @@ fn extensions(lang: &SupportLang) -> &[&str] {
     Json => &["json"],
     Kotlin => &["kt", "ktm", "kts"],
     Lua => &["lua"],
+    Php => &["php"],
     Python => &["py", "py3", "pyi", "bzl"],
     Ruby => &["rb", "rbw", "gemspec"],
     Rust => &["rs"],
