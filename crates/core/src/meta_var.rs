@@ -266,8 +266,10 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
   } else {
     (trimmed, true)
   };
-  // $A or $_
-  if !trimmed.chars().all(is_valid_meta_var_char) {
+  if !trimmed.starts_with(is_valid_first_char) || // empty or started with number
+    !trimmed.chars().all(is_valid_meta_var_char)
+  // not in form of $A or $_
+  {
     return None;
   }
   if trimmed.starts_with('_') {
@@ -277,8 +279,14 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
   }
 }
 
+#[inline]
+fn is_valid_first_char(c: char) -> bool {
+  matches!(c, 'A'..='Z' | '_')
+}
+
+#[inline]
 pub(crate) fn is_valid_meta_var_char(c: char) -> bool {
-  matches!(c, 'A'..='Z' | '_' | '0'..='9')
+  is_valid_first_char(c) || c.is_ascii_digit()
 }
 
 impl<'tree, L: Language> From<MetaVarEnv<'tree, StrDoc<L>>> for HashMap<String, String> {
@@ -320,6 +328,15 @@ mod test {
     assert_eq!(extract_var("$MATCH1"), Some(Capture("MATCH1".into(), true)));
     assert_eq!(extract_var("$$$ABC"), Some(MultiCapture("ABC".into())));
     assert_eq!(extract_var("$_"), Some(Dropped(true)));
+    assert_eq!(extract_var("$_123"), Some(Dropped(true)));
+    assert_eq!(extract_var("$$_"), Some(Dropped(false)));
+  }
+
+  #[test]
+  fn test_not_meta_var() {
+    assert_eq!(extract_var("$123"), None);
+    assert_eq!(extract_var("$"), None);
+    assert_eq!(extract_var("$$"), None);
     assert_eq!(extract_var("abc"), None);
     assert_eq!(extract_var("$abc"), None);
   }

@@ -12,8 +12,8 @@ fn test_match(query: &str, source: &str) {
 fn test_c_sharp_pattern() {
   let target = "if (table == null) ThrowHelper.ThrowArgumentNullException(nameof(table));";
   test_match("int $A = 0;", "int nint = 0;");
-  test_match("ThrowHelper.ThrowArgumentNullException($)", target);
-  test_match("ThrowHelper.$", target);
+  test_match("ThrowHelper.ThrowArgumentNullException($_)", target);
+  test_match("ThrowHelper.$_", target);
 }
 
 fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
