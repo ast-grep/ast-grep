@@ -90,7 +90,7 @@ impl_lang_expando!(Elixir, language_elixir, 'µ');
 // https://go.dev/ref/spec#letter
 impl_lang_expando!(Go, language_go, 'µ');
 // https://github.com/fwcd/tree-sitter-kotlin/pull/93
-impl_lang_expando!(Kotlin, language_kotlin, '_');
+impl_lang_expando!(Kotlin, language_kotlin, 'µ');
 // we can use any char in unicode range [:XID_Start:]
 // https://docs.python.org/3/reference/lexical_analysis.html#identifiers
 // see also [PEP 3131](https://peps.python.org/pep-3131/) for further details.
