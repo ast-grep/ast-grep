@@ -7,6 +7,7 @@
 //! Otherwise, you can define it as a stub language using `impl_lang!`.
 //! To see the full list of languages, visit `<https://ast-grep.github.io/reference/languages.html>`
 
+mod bash;
 mod cpp;
 mod csharp;
 mod css;
@@ -16,6 +17,7 @@ mod json;
 mod kotlin;
 mod lua;
 mod parsers;
+mod php;
 mod python;
 mod ruby;
 mod rust;
