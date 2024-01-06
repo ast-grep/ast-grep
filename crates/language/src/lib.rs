@@ -295,7 +295,7 @@ fn extensions(lang: &SupportLang) -> &[&str] {
   use SupportLang::*;
   match lang {
     Bash => &[
-      "bash", "bats", "cgi", "command", "env", "fcgi", "ksh", "sh", "sh.in", "tmux", "tool", "zsh",
+      "bash", "bats", "cgi", "command", "env", "fcgi", "ksh", "sh", "tmux", "tool", "zsh",
     ],
     C => &["c", "h"],
     Cpp => &["cc", "hpp", "cpp", "c++", "hh", "cxx", "cu", "ino"],
