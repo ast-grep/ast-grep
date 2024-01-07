@@ -130,8 +130,12 @@ type RResult<T> = std::result::Result<T, RuleConfigError>;
 
 impl<L: Language> SerializableRuleConfig<L> {
   pub fn get_fixer<C: IndentSensitive>(&self) -> RResult<Option<TemplateFix<C>>> {
-    if let Some(SerializableFixer::Str(fix)) = &self.fix {
-      if let Some(trans) = &self.transform {
+    let transform = &self.transform;
+    if let Some(fixer) = &self.fix {
+      let SerializableFixer::Str(fix) = fixer else {
+        return Ok(None);
+      };
+      if let Some(trans) = transform {
         let keys: Vec<_> = trans.keys().cloned().collect();
         Ok(Some(TemplateFix::with_transform(
           fix,
