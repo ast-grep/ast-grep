@@ -1,5 +1,6 @@
 use crate::maybe::Maybe;
 use crate::rule::{Relation, Rule, StopBy};
+use crate::DeserializeEnv;
 use ast_grep_core::replacer::IndentSensitive;
 use ast_grep_core::replacer::{TemplateFix, TemplateFixError};
 use ast_grep_core::Language;
@@ -32,6 +33,18 @@ struct Expander<L: Language> {
   stop_by: StopBy<L>,
 }
 
+impl<L: Language> Expander<L> {
+  fn parse(relation: Maybe<Relation>, env: &DeserializeEnv<L>) -> Option<Self> {
+    let Maybe::Present(inner) = relation else {
+      return None;
+    };
+    // TODO
+    let stop_by = StopBy::try_from(inner.stop_by, env).unwrap();
+    let matches = env.deserialize_rule(inner.rule).unwrap();
+    Some(Self { matches, stop_by })
+  }
+}
+
 pub struct Fixer<C: IndentSensitive, L: Language> {
   template: TemplateFix<C>,
   expand_start: Option<Expander<L>>,
@@ -43,8 +56,22 @@ where
   C: IndentSensitive,
   L: Language,
 {
-  pub fn parse(serialized: SerializableFixConfig, lang: &L) -> Result<Self, TemplateFixError> {
-    todo!()
+  pub fn parse(
+    serialized: SerializableFixConfig,
+    env: &DeserializeEnv<L>,
+  ) -> Result<Self, TemplateFixError> {
+    let SerializableFixConfig {
+      template,
+      expand_end,
+      expand_start,
+    } = serialized;
+    let expand_start = Expander::parse(expand_start, env);
+    let expand_end = Expander::parse(expand_end, env);
+    Ok(Self {
+      template: TemplateFix::try_new(&template, &env.lang)?,
+      expand_start,
+      expand_end,
+    })
   }
 }
 
