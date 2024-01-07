@@ -1,11 +1,14 @@
 use crate::maybe::Maybe;
 use crate::rule::{Relation, Rule, StopBy};
+use crate::transform::Transformation;
 use crate::DeserializeEnv;
 use ast_grep_core::replacer::IndentSensitive;
 use ast_grep_core::replacer::{TemplateFix, TemplateFixError};
 use ast_grep_core::Language;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+use std::collections::HashMap;
 
 /// A pattern string or fix object to auto fix the issue.
 /// It can reference metavariables appeared in rule.
@@ -56,7 +59,7 @@ where
   C: IndentSensitive,
   L: Language,
 {
-  pub fn parse(
+  fn do_parse(
     serialized: SerializableFixConfig,
     env: &DeserializeEnv<L>,
   ) -> Result<Self, TemplateFixError> {
@@ -72,6 +75,22 @@ where
       expand_start,
       expand_end,
     })
+  }
+
+  pub fn parse(
+    fixer: &SerializableFixer,
+    env: &DeserializeEnv<L>,
+    transform: &Option<HashMap<String, Transformation>>,
+  ) -> Result<Option<TemplateFix<C>>, TemplateFixError> {
+    let SerializableFixer::Str(fix) = fixer else {
+      return Ok(None);
+    };
+    if let Some(trans) = transform {
+      let keys: Vec<_> = trans.keys().cloned().collect();
+      Ok(Some(TemplateFix::with_transform(fix, &env.lang, &keys)))
+    } else {
+      Ok(Some(TemplateFix::try_new(fix, &env.lang)?))
+    }
   }
 }
 
