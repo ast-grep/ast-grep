@@ -13,6 +13,7 @@ use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error
 use ast_grep_core::language::Language;
 
 pub use combined::CombinedScan;
+pub use fixer::Fixer;
 pub use rule::referent_rule::GlobalRules;
 pub use rule::DeserializeEnv;
 pub use rule::{Rule, RuleSerializeError, SerializableRule};
