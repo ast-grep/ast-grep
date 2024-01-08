@@ -99,6 +99,7 @@ mod test {
   use super::*;
   use crate::from_str;
   use crate::maybe::Maybe;
+  use crate::test::TypeScript;
 
   #[test]
   fn test_parse() {
@@ -107,7 +108,7 @@ mod test {
   }
 
   #[test]
-  fn test_parse_object() -> Result<(), serde_yaml::Error> {
+  fn test_deserialize_object() -> Result<(), serde_yaml::Error> {
     let src = "{template: 'abc', expandEnd: {regex: ',', stopBy: neighbor}}";
     let SerializableFixer::Config(cfg) = from_str(src)? else {
       panic!("wrong parsing")
@@ -116,6 +117,30 @@ mod test {
     let rule = cfg.expand_end.unwrap().rule;
     assert_eq!(rule.regex, Maybe::Present(",".to_string()));
     assert!(rule.pattern.is_absent());
+    Ok(())
+  }
+
+  #[test]
+  fn test_parse_config() -> Result<(), serde_yaml::Error> {
+    let config = SerializableFixConfig {
+      expand_end: Maybe::Present(from_str("{regex: ',', stopBy: neighbor}")?),
+      expand_start: Maybe::Absent,
+      template: "abcd".to_string(),
+    };
+    let config = SerializableFixer::Config(config);
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ret = Fixer::<String, _>::parse(&config, &env, &Some(Default::default())).unwrap();
+    assert!(ret.is_none());
+    Ok(())
+  }
+
+  #[test]
+  fn test_parse_str() -> Result<(), serde_yaml::Error> {
+    let config = SerializableFixer::Str("abcd".to_string());
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ret = Fixer::<String, _>::parse(&config, &env, &Some(Default::default())).unwrap();
+    assert!(ret.is_some());
+    assert!(matches!(ret, Some(TemplateFix::Textual(_))));
     Ok(())
   }
 }
