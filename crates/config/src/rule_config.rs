@@ -133,7 +133,8 @@ impl<L: Language> SerializableRuleConfig<L> {
     let transform = &self.transform;
     if let Some(fixer) = &self.fix {
       let env = self.get_deserialize_env(&Default::default())?;
-      Ok(Fixer::parse(fixer, &env, transform)?)
+      let parsed = Fixer::parse(fixer, &env, transform)?;
+      Ok(Some(parsed))
     } else {
       Ok(None)
     }
