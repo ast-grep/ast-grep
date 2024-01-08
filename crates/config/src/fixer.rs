@@ -117,7 +117,7 @@ where
   C: IndentSensitive,
 {
   fn generate_replacement(&self, nm: &ast_grep_core::NodeMatch<D>) -> Vec<C::Underlying> {
-    // TODO: refine this method
+    // simple forwarding to template
     self.template.generate_replacement(nm)
   }
 }
