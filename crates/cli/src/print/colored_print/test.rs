@@ -1,8 +1,7 @@
 #![cfg(test)]
 
 use super::*;
-use ast_grep_config::{from_yaml_string, GlobalRules};
-use ast_grep_core::replacer::TemplateFix;
+use ast_grep_config::{from_yaml_string, Fixer, GlobalRules};
 use ast_grep_language::{Language, SupportLang};
 use codespan_reporting::term::termcolor::Buffer;
 
@@ -156,7 +155,7 @@ fn test_print_diffs() {
     // heading is required for CI
     let printer = make_test_printer().heading(Heading::Always);
     let lang = SgLang::from(SupportLang::Tsx);
-    let fixer = TemplateFix::try_new(rewrite, &lang).expect("should work");
+    let fixer = Fixer::from_str(rewrite, &lang).expect("should work");
     let grep = lang.ast_grep(source);
     let matches = grep.root().find_all(pattern);
     let diffs = matches.map(|n| Diff::generate(n, &pattern, &fixer));

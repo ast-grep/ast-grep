@@ -80,16 +80,30 @@ where
     fixer: &SerializableFixer,
     env: &DeserializeEnv<L>,
     transform: &Option<HashMap<String, Transformation>>,
-  ) -> Result<Option<TemplateFix<C>>, TemplateFixError> {
+  ) -> Result<Option<Self>, TemplateFixError> {
     let SerializableFixer::Str(fix) = fixer else {
       return Ok(None);
     };
-    if let Some(trans) = transform {
+    let template = if let Some(trans) = transform {
       let keys: Vec<_> = trans.keys().cloned().collect();
-      Ok(Some(TemplateFix::with_transform(fix, &env.lang, &keys)))
+      TemplateFix::with_transform(fix, &env.lang, &keys)
     } else {
-      Ok(Some(TemplateFix::try_new(fix, &env.lang)?))
-    }
+      TemplateFix::try_new(fix, &env.lang)?
+    };
+    Ok(Some(Self {
+      template,
+      expand_end: None,
+      expand_start: None,
+    }))
+  }
+
+  pub fn from_str(src: &str, lang: &L) -> Result<Self, TemplateFixError> {
+    let template = TemplateFix::try_new(src, lang)?;
+    Ok(Self {
+      template,
+      expand_start: None,
+      expand_end: None,
+    })
   }
 }
 
@@ -150,8 +164,9 @@ mod test {
     let config = SerializableFixer::Str("abcd".to_string());
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let ret = Fixer::<String, _>::parse(&config, &env, &Some(Default::default())).unwrap();
-    assert!(ret.is_some());
-    assert!(matches!(ret, Some(TemplateFix::Textual(_))));
+    let ret = ret.unwrap();
+    assert!(ret.expand_end.is_none());
+    assert!(ret.expand_start.is_none());
     Ok(())
   }
 }

@@ -343,8 +343,7 @@ impl<W: Write> Printer for JSONPrinter<W> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_config::{from_yaml_string, GlobalRules};
-  use ast_grep_core::replacer::TemplateFix;
+  use ast_grep_config::{from_yaml_string, Fixer, GlobalRules};
   use ast_grep_language::{Language, SupportLang};
 
   struct Test(String);
@@ -428,7 +427,7 @@ mod test {
       let lang = SgLang::from(SupportLang::Tsx);
       let grep = lang.ast_grep(source);
       let matches = grep.root().find_all(pattern);
-      let fixer = TemplateFix::try_new(replace, &lang).expect("should work");
+      let fixer = Fixer::from_str(replace, &lang).expect("should work");
       let diffs = matches.map(|m| Diff::generate(m, &pattern, &fixer));
       printer.before_print().unwrap();
       printer.print_diffs(diffs, "test.tsx".as_ref()).unwrap();

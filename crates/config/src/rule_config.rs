@@ -10,8 +10,8 @@ pub use crate::constraints::{
 };
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarMatchers;
+use ast_grep_core::replacer::TemplateFixError;
 use ast_grep_core::replacer::{IndentSensitive, Replacer};
-use ast_grep_core::replacer::{TemplateFix, TemplateFixError};
 use ast_grep_core::{NodeMatch, StrDoc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -129,7 +129,7 @@ pub struct SerializableRuleConfig<L: Language> {
 type RResult<T> = std::result::Result<T, RuleConfigError>;
 
 impl<L: Language> SerializableRuleConfig<L> {
-  pub fn get_fixer<C: IndentSensitive>(&self) -> RResult<Option<TemplateFix<C>>> {
+  pub fn get_fixer<C: IndentSensitive>(&self) -> RResult<Option<Fixer<C, L>>> {
     let transform = &self.transform;
     if let Some(fixer) = &self.fix {
       let env = self.get_deserialize_env(&Default::default())?;
@@ -173,7 +173,7 @@ pub enum RuleConfigError {
 pub struct RuleConfig<L: Language> {
   inner: SerializableRuleConfig<L>,
   pub matcher: RuleWithConstraint<L>,
-  pub fixer: Option<TemplateFix<String>>,
+  pub fixer: Option<Fixer<String, L>>,
 }
 
 impl<L: Language> RuleConfig<L> {
