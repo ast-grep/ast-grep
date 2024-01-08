@@ -174,4 +174,21 @@ mod test {
     assert!(matches!(ret.template, TemplateFix::Textual(_)));
     Ok(())
   }
+
+  #[test]
+  fn test_replace_fixer() {
+    let expand_end = from_str("{regex: ',', stopBy: neighbor}").expect("should word");
+    let config = SerializableFixConfig {
+      expand_end: Maybe::Present(expand_end),
+      expand_start: Maybe::Absent,
+      template: "var $A = 456".to_string(),
+    };
+    let config = SerializableFixer::Config(config);
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ret = Fixer::<String, _>::parse(&config, &env, &Some(Default::default())).unwrap();
+    let grep = TypeScript::Tsx.ast_grep("let a = 123");
+    let node = grep.root().find("let $A = 123").expect("should found");
+    let edit = ret.generate_replacement(&node);
+    assert_eq!(String::from_utf8_lossy(&edit), "var a = 456");
+  }
 }
