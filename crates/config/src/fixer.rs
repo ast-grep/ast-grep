@@ -142,22 +142,26 @@ mod test {
       panic!("wrong parsing")
     };
     assert_eq!(cfg.template, "abc");
-    let rule = cfg.expand_end.unwrap().rule;
+    let Maybe::Present(relation) = cfg.expand_end else {
+      panic!("wrong parsing")
+    };
+    let rule = relation.rule;
     assert_eq!(rule.regex, Maybe::Present(",".to_string()));
     assert!(rule.pattern.is_absent());
     Ok(())
   }
 
   #[test]
-  fn test_parse_config() -> Result<(), serde_yaml::Error> {
+  fn test_parse_config() -> Result<(), TemplateFixError> {
+    let relation = from_str("{regex: ',', stopBy: neighbor}").expect("should deser");
     let config = SerializableFixConfig {
-      expand_end: Maybe::Present(from_str("{regex: ',', stopBy: neighbor}")?),
+      expand_end: Maybe::Present(relation),
       expand_start: Maybe::Absent,
       template: "abcd".to_string(),
     };
     let config = SerializableFixer::Config(config);
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let ret = Fixer::<String, _>::parse(&config, &env, &Some(Default::default())).unwrap();
+    let ret = Fixer::<String, _>::parse(&config, &env, &Some(Default::default()))?;
     assert!(ret.expand_start.is_none());
     assert!(ret.expand_end.is_some());
     assert!(matches!(ret.template, TemplateFix::Textual(_)));
@@ -165,10 +169,10 @@ mod test {
   }
 
   #[test]
-  fn test_parse_str() -> Result<(), serde_yaml::Error> {
+  fn test_parse_str() -> Result<(), TemplateFixError> {
     let config = SerializableFixer::Str("abcd".to_string());
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let ret = Fixer::<String, _>::parse(&config, &env, &Some(Default::default())).unwrap();
+    let ret = Fixer::<String, _>::parse(&config, &env, &Some(Default::default()))?;
     assert!(ret.expand_end.is_none());
     assert!(ret.expand_start.is_none());
     assert!(matches!(ret.template, TemplateFix::Textual(_)));
@@ -176,7 +180,7 @@ mod test {
   }
 
   #[test]
-  fn test_replace_fixer() {
+  fn test_replace_fixer() -> Result<(), TemplateFixError> {
     let expand_end = from_str("{regex: ',', stopBy: neighbor}").expect("should word");
     let config = SerializableFixConfig {
       expand_end: Maybe::Present(expand_end),
@@ -185,10 +189,11 @@ mod test {
     };
     let config = SerializableFixer::Config(config);
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let ret = Fixer::<String, _>::parse(&config, &env, &Some(Default::default())).unwrap();
+    let ret = Fixer::<String, _>::parse(&config, &env, &Some(Default::default()))?;
     let grep = TypeScript::Tsx.ast_grep("let a = 123");
     let node = grep.root().find("let $A = 123").expect("should found");
     let edit = ret.generate_replacement(&node);
     assert_eq!(String::from_utf8_lossy(&edit), "var a = 456");
+    Ok(())
   }
 }
