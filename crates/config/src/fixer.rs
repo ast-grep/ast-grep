@@ -1,11 +1,12 @@
 use crate::maybe::Maybe;
-use crate::rule::{Relation, Rule, StopBy};
+use crate::rule::{Relation, Rule, RuleSerializeError, StopBy};
 use crate::transform::Transformation;
 use crate::DeserializeEnv;
 use ast_grep_core::replacer::{IndentSensitive, Replacer, TemplateFix, TemplateFixError};
 use ast_grep_core::{Doc, Language};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use std::collections::HashMap;
 
@@ -30,20 +31,31 @@ pub struct SerializableFixConfig {
   // prepend: String,
 }
 
+#[derive(Debug, Error)]
+pub enum FixerError {
+  #[error("Fixer template is invalid.")]
+  InvalidTemplate(#[from] TemplateFixError),
+  #[error("Fixer expansion contains invalid rule.")]
+  WrongExpansion(#[from] RuleSerializeError),
+}
+
 struct Expander<L: Language> {
   matches: Rule<L>,
   stop_by: StopBy<L>,
 }
 
 impl<L: Language> Expander<L> {
-  fn parse(relation: Maybe<Relation>, env: &DeserializeEnv<L>) -> Option<Self> {
-    let Maybe::Present(inner) = relation else {
-      return None;
+  fn parse(
+    relation: &Maybe<Relation>,
+    env: &DeserializeEnv<L>,
+  ) -> Result<Option<Self>, FixerError> {
+    let inner = match relation {
+      Maybe::Absent => return Ok(None),
+      Maybe::Present(r) => r.clone(),
     };
-    // TODO
-    let stop_by = StopBy::try_from(inner.stop_by, env).unwrap();
-    let matches = env.deserialize_rule(inner.rule).unwrap();
-    Some(Self { matches, stop_by })
+    let stop_by = StopBy::try_from(inner.stop_by, env)?;
+    let matches = env.deserialize_rule(inner.rule)?;
+    Ok(Some(Self { matches, stop_by }))
   }
 }
 
@@ -61,14 +73,14 @@ where
   fn do_parse(
     serialized: &SerializableFixConfig,
     env: &DeserializeEnv<L>,
-  ) -> Result<Self, TemplateFixError> {
+  ) -> Result<Self, FixerError> {
     let SerializableFixConfig {
       template,
       expand_end,
       expand_start,
     } = serialized;
-    let expand_start = Expander::parse(expand_start.clone(), env);
-    let expand_end = Expander::parse(expand_end.clone(), env);
+    let expand_start = Expander::parse(expand_start, env)?;
+    let expand_end = Expander::parse(expand_end, env)?;
     Ok(Self {
       template: TemplateFix::try_new(template, &env.lang)?,
       expand_start,
@@ -80,7 +92,7 @@ where
     fixer: &SerializableFixer,
     env: &DeserializeEnv<L>,
     transform: &Option<HashMap<String, Transformation>>,
-  ) -> Result<Self, TemplateFixError> {
+  ) -> Result<Self, FixerError> {
     let fixer = match fixer {
       SerializableFixer::Str(fix) => {
         let template = if let Some(trans) = transform {
@@ -100,7 +112,7 @@ where
     Ok(fixer)
   }
 
-  pub fn from_str(src: &str, lang: &L) -> Result<Self, TemplateFixError> {
+  pub fn from_str(src: &str, lang: &L) -> Result<Self, FixerError> {
     let template = TemplateFix::try_new(src, lang)?;
     Ok(Self {
       template,
@@ -152,7 +164,7 @@ mod test {
   }
 
   #[test]
-  fn test_parse_config() -> Result<(), TemplateFixError> {
+  fn test_parse_config() -> Result<(), FixerError> {
     let relation = from_str("{regex: ',', stopBy: neighbor}").expect("should deser");
     let config = SerializableFixConfig {
       expand_end: Maybe::Present(relation),
@@ -169,7 +181,7 @@ mod test {
   }
 
   #[test]
-  fn test_parse_str() -> Result<(), TemplateFixError> {
+  fn test_parse_str() -> Result<(), FixerError> {
     let config = SerializableFixer::Str("abcd".to_string());
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let ret = Fixer::<String, _>::parse(&config, &env, &Some(Default::default()))?;
@@ -180,7 +192,7 @@ mod test {
   }
 
   #[test]
-  fn test_replace_fixer() -> Result<(), TemplateFixError> {
+  fn test_replace_fixer() -> Result<(), FixerError> {
     let expand_end = from_str("{regex: ',', stopBy: neighbor}").expect("should word");
     let config = SerializableFixConfig {
       expand_end: Maybe::Present(expand_end),
