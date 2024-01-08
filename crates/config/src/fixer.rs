@@ -2,9 +2,8 @@ use crate::maybe::Maybe;
 use crate::rule::{Relation, Rule, StopBy};
 use crate::transform::Transformation;
 use crate::DeserializeEnv;
-use ast_grep_core::replacer::IndentSensitive;
-use ast_grep_core::replacer::{TemplateFix, TemplateFixError};
-use ast_grep_core::Language;
+use ast_grep_core::replacer::{IndentSensitive, Replacer, TemplateFix, TemplateFixError};
+use ast_grep_core::{Doc, Language};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -91,6 +90,18 @@ where
     } else {
       Ok(Some(TemplateFix::try_new(fix, &env.lang)?))
     }
+  }
+}
+
+impl<D, L, C> Replacer<D> for Fixer<C, L>
+where
+  D: Doc<Source = C, Lang = L>,
+  L: Language,
+  C: IndentSensitive,
+{
+  fn generate_replacement(&self, nm: &ast_grep_core::NodeMatch<D>) -> Vec<C::Underlying> {
+    // TODO: refine this method
+    self.template.generate_replacement(nm)
   }
 }
 
