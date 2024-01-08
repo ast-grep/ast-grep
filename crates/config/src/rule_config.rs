@@ -1,4 +1,4 @@
-use crate::fixer::{Fixer, SerializableFixer};
+use crate::fixer::{Fixer, FixerError, SerializableFixer};
 use crate::rule::{RuleSerializeError, SerializableRule};
 use crate::transform::Transformation;
 use crate::DeserializeEnv;
@@ -10,7 +10,6 @@ pub use crate::constraints::{
 };
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarMatchers;
-use ast_grep_core::replacer::TemplateFixError;
 use ast_grep_core::replacer::{IndentSensitive, Replacer};
 use ast_grep_core::{NodeMatch, StrDoc};
 use schemars::JsonSchema;
@@ -166,7 +165,7 @@ pub enum RuleConfigError {
   #[error("Rule is not configured correctly.")]
   Rule(#[from] RuleSerializeError),
   #[error("fix pattern is invalid.")]
-  Fixer(#[from] TemplateFixError),
+  Fixer(#[from] FixerError),
   #[error("constraints is not configured correctly.")]
   Constraints(#[from] SerializeConstraintsError),
 }
