@@ -2,6 +2,7 @@ use crate::matcher::{Matcher, NodeMatch};
 use crate::meta_var::{is_valid_meta_var_char, MetaVariableID};
 use crate::source::{Content, Edit as E};
 use crate::{Doc, Node, Root};
+use std::ops::Range;
 
 type Edit<D> = E<<D as Doc>::Source>;
 type Underlying<S> = Vec<<S as Content>::Underlying>;
@@ -16,12 +17,12 @@ pub use template::{TemplateFix, TemplateFixError};
 /// Replace meta variable in the replacer string
 pub trait Replacer<D: Doc> {
   fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source>;
-  fn modify_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher<D::Lang>) -> (usize, usize) {
+  fn get_replaced_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher<D::Lang>) -> Range<usize> {
     let range = nm.range();
     if let Some(len) = matcher.get_match_len(nm.get_node().clone()) {
-      (range.start, range.start + len)
+      range.start..range.start + len
     } else {
-      (range.start, range.end)
+      range
     }
   }
 }
