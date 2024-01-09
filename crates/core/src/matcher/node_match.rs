@@ -55,13 +55,11 @@ impl<'tree, D: Doc> NodeMatch<'tree, D> {
     M: Matcher<D::Lang>,
     R: Replacer<D>,
   {
-    let range = replacer.modify_range(self, matcher);
-    let position = range.0;
-    let deleted_length = range.1 - range.0;
+    let range = replacer.get_replaced_range(self, matcher);
     let inserted_text = replacer.generate_replacement(self);
     Edit {
-      position,
-      deleted_length,
+      position: range.start,
+      deleted_length: range.len(),
       inserted_text,
     }
   }

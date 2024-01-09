@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use std::collections::HashMap;
+use std::ops::Range;
 
 /// A pattern string or fix object to auto fix the issue.
 /// It can reference metavariables appeared in rule.
@@ -132,18 +133,18 @@ where
     // simple forwarding to template
     self.template.generate_replacement(nm)
   }
-  fn modify_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher<D::Lang>) -> (usize, usize) {
+  fn get_replaced_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher<D::Lang>) -> Range<usize> {
     let range = nm.range();
     if self.expand_start.is_none() && self.expand_end.is_none() {
       return if let Some(len) = matcher.get_match_len(nm.get_node().clone()) {
-        (range.start, range.start + len)
+        range.start..range.start + len
       } else {
-        (range.start, range.end)
+        range
       };
     }
     let start = expand_start(self.expand_start.as_ref(), nm);
     let end = expand_end(self.expand_end.as_ref(), nm);
-    (start, end)
+    start..end
   }
 }
 
@@ -153,32 +154,30 @@ fn expand_start<D: Doc>(expansion: Option<&Expansion<D::Lang>>, nm: &NodeMatch<D
   let Some(start) = expansion else {
     return node.range().start;
   };
-  let node = start
-    .stop_by
-    .find(
-      || node.prev(),
-      || node.prev_all(),
-      |n| start.matches.match_node_with_env(n, &mut env),
-    )
-    .unwrap_or(node.clone());
-  node.range().start
+  let node = start.stop_by.find(
+    || node.prev(),
+    || node.prev_all(),
+    |n| start.matches.match_node_with_env(n, &mut env),
+  );
+  node
+    .map(|n| n.range().start)
+    .unwrap_or_else(|| nm.range().start)
 }
 
 fn expand_end<D: Doc>(expansion: Option<&Expansion<D::Lang>>, nm: &NodeMatch<D>) -> usize {
   let node = nm.get_node();
   let mut env = std::borrow::Cow::Borrowed(nm.get_env());
-  let Some(start) = expansion else {
-    return node.range().start;
+  let Some(end) = expansion else {
+    return node.range().end;
   };
-  let node = start
-    .stop_by
-    .find(
-      || node.next(),
-      || node.next_all(),
-      |n| start.matches.match_node_with_env(n, &mut env),
-    )
-    .unwrap_or(node.clone());
-  node.range().end
+  let node = end.stop_by.find(
+    || node.next(),
+    || node.next_all(),
+    |n| end.matches.match_node_with_env(n, &mut env),
+  );
+  node
+    .map(|n| n.range().end)
+    .unwrap_or_else(|| nm.range().end)
 }
 
 #[cfg(test)]
