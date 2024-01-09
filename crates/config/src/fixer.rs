@@ -3,7 +3,7 @@ use crate::rule::{Relation, Rule, RuleSerializeError, StopBy};
 use crate::transform::Transformation;
 use crate::DeserializeEnv;
 use ast_grep_core::replacer::{IndentSensitive, Replacer, TemplateFix, TemplateFixError};
-use ast_grep_core::{Doc, Language};
+use ast_grep_core::{Doc, Language, Matcher, NodeMatch};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -39,12 +39,12 @@ pub enum FixerError {
   WrongExpansion(#[from] RuleSerializeError),
 }
 
-struct Expander<L: Language> {
+struct Expansion<L: Language> {
   matches: Rule<L>,
   stop_by: StopBy<L>,
 }
 
-impl<L: Language> Expander<L> {
+impl<L: Language> Expansion<L> {
   fn parse(
     relation: &Maybe<Relation>,
     env: &DeserializeEnv<L>,
@@ -61,8 +61,8 @@ impl<L: Language> Expander<L> {
 
 pub struct Fixer<C: IndentSensitive, L: Language> {
   template: TemplateFix<C>,
-  expand_start: Option<Expander<L>>,
-  expand_end: Option<Expander<L>>,
+  expand_start: Option<Expansion<L>>,
+  expand_end: Option<Expansion<L>>,
 }
 
 impl<C, L> Fixer<C, L>
@@ -79,8 +79,8 @@ where
       expand_end,
       expand_start,
     } = serialized;
-    let expand_start = Expander::parse(expand_start, env)?;
-    let expand_end = Expander::parse(expand_end, env)?;
+    let expand_start = Expansion::parse(expand_start, env)?;
+    let expand_end = Expansion::parse(expand_end, env)?;
     Ok(Self {
       template: TemplateFix::try_new(template, &env.lang)?,
       expand_start,
@@ -132,6 +132,53 @@ where
     // simple forwarding to template
     self.template.generate_replacement(nm)
   }
+  fn modify_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher<D::Lang>) -> (usize, usize) {
+    let range = nm.range();
+    if self.expand_start.is_none() && self.expand_end.is_none() {
+      return if let Some(len) = matcher.get_match_len(nm.get_node().clone()) {
+        (range.start, range.start + len)
+      } else {
+        (range.start, range.end)
+      };
+    }
+    let start = expand_start(self.expand_start.as_ref(), nm);
+    let end = expand_end(self.expand_end.as_ref(), nm);
+    (start, end)
+  }
+}
+
+fn expand_start<D: Doc>(expansion: Option<&Expansion<D::Lang>>, nm: &NodeMatch<D>) -> usize {
+  let node = nm.get_node();
+  let mut env = std::borrow::Cow::Borrowed(nm.get_env());
+  let Some(start) = expansion else {
+    return node.range().start;
+  };
+  let node = start
+    .stop_by
+    .find(
+      || node.prev(),
+      || node.prev_all(),
+      |n| start.matches.match_node_with_env(n, &mut env),
+    )
+    .unwrap_or(node.clone());
+  node.range().start
+}
+
+fn expand_end<D: Doc>(expansion: Option<&Expansion<D::Lang>>, nm: &NodeMatch<D>) -> usize {
+  let node = nm.get_node();
+  let mut env = std::borrow::Cow::Borrowed(nm.get_env());
+  let Some(start) = expansion else {
+    return node.range().start;
+  };
+  let node = start
+    .stop_by
+    .find(
+      || node.next(),
+      || node.next_all(),
+      |n| start.matches.match_node_with_env(n, &mut env),
+    )
+    .unwrap_or(node.clone());
+  node.range().start
 }
 
 #[cfg(test)]
