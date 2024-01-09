@@ -135,7 +135,7 @@ fn print_diffs_interactive<'a>(
   let mut all = interactive.accept_all.load(Ordering::SeqCst);
   let mut end = 0;
   for (diff, rule) in diffs {
-    if diff.node_match.range().start < end {
+    if diff.range.start < end {
       continue;
     }
     let confirm = all || {
@@ -145,7 +145,7 @@ fn print_diffs_interactive<'a>(
       accept_curr
     };
     if confirm {
-      end = diff.node_match.range().end;
+      end = diff.range.end;
       confirmed.push(diff);
     }
   }
@@ -210,7 +210,7 @@ fn apply_rewrite(diffs: Vec<Diff>) -> String {
   let old_content = first.node_match.root().get_text();
   let mut start = 0;
   for diff in diffs {
-    let range = diff.node_match.range();
+    let range = diff.range;
     new_content.push_str(&old_content[start..range.start]);
     new_content.push_str(&diff.replacement);
     start = range.end;
