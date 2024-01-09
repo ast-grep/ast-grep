@@ -178,7 +178,7 @@ fn expand_end<D: Doc>(expansion: Option<&Expansion<D::Lang>>, nm: &NodeMatch<D>)
       |n| start.matches.match_node_with_env(n, &mut env),
     )
     .unwrap_or(node.clone());
-  node.range().start
+  node.range().end
 }
 
 #[cfg(test)]
