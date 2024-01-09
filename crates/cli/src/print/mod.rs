@@ -62,6 +62,7 @@ pub struct Diff<'n> {
   pub node_match: NodeMatch<'n, SgLang>,
   /// string content for the replacement
   pub replacement: Cow<'n, str>,
+  pub range: std::ops::Range<usize>,
 }
 
 impl<'n> Diff<'n> {
@@ -76,6 +77,7 @@ impl<'n> Diff<'n> {
     Self {
       node_match,
       replacement,
+      range: edit.position..edit.position + edit.deleted_length,
     }
   }
 }
