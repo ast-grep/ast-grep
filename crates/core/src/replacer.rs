@@ -1,4 +1,4 @@
-use crate::matcher::NodeMatch;
+use crate::matcher::{Matcher, NodeMatch};
 use crate::meta_var::{is_valid_meta_var_char, MetaVariableID};
 use crate::source::{Content, Edit as E};
 use crate::{Doc, Node, Root};
@@ -16,6 +16,14 @@ pub use template::{TemplateFix, TemplateFixError};
 /// Replace meta variable in the replacer string
 pub trait Replacer<D: Doc> {
   fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source>;
+  fn modify_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher<D::Lang>) -> (usize, usize) {
+    let range = nm.range();
+    if let Some(len) = matcher.get_match_len(nm.get_node().clone()) {
+      (range.start, range.start + len)
+    } else {
+      (range.start, range.end)
+    }
+  }
 }
 
 impl<D: Doc> Replacer<D> for str

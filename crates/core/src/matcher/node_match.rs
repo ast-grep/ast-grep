@@ -55,11 +55,9 @@ impl<'tree, D: Doc> NodeMatch<'tree, D> {
     M: Matcher<D::Lang>,
     R: Replacer<D>,
   {
-    let range = self.range();
-    let position = range.start;
-    let deleted_length = matcher
-      .get_match_len(self.get_node().clone())
-      .unwrap_or_else(|| range.len());
+    let range = replacer.modify_range(self, matcher);
+    let position = range.0;
+    let deleted_length = range.1 - range.0;
     let inserted_text = replacer.generate_replacement(self);
     Edit {
       position,
