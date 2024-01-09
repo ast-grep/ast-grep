@@ -247,11 +247,34 @@ mod test {
     };
     let config = SerializableFixer::Config(config);
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let ret = Fixer::<String, _>::parse(&config, &env, &Some(Default::default()))?;
+    let fixer = Fixer::<String, _>::parse(&config, &env, &Some(Default::default()))?;
     let grep = TypeScript::Tsx.ast_grep("let a = 123");
     let node = grep.root().find("let $A = 123").expect("should found");
-    let edit = ret.generate_replacement(&node);
+    let edit = fixer.generate_replacement(&node);
     assert_eq!(String::from_utf8_lossy(&edit), "var a = 456");
+    Ok(())
+  }
+
+  #[test]
+  fn test_relace_range() -> Result<(), FixerError> {
+    use ast_grep_core::matcher::KindMatcher;
+    let expand_end = from_str("{regex: ',', stopBy: neighbor}").expect("should word");
+    let config = SerializableFixConfig {
+      expand_end: Maybe::Present(expand_end),
+      expand_start: Maybe::Absent,
+      template: "c: 456".to_string(),
+    };
+    let config = SerializableFixer::Config(config);
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let fixer = Fixer::<String, _>::parse(&config, &env, &Some(Default::default()))?;
+    let grep = TypeScript::Tsx.ast_grep("var a = { b: 123, }");
+    let matcher = KindMatcher::new("pair", TypeScript::Tsx);
+    let node = grep.root().find(&matcher).expect("should found");
+    let edit = node.make_edit(&matcher, &fixer);
+    let text = String::from_utf8_lossy(&edit.inserted_text);
+    assert_eq!(text, "c: 456");
+    assert_eq!(edit.position, 10);
+    assert_eq!(edit.deleted_length, 7);
     Ok(())
   }
 }
