@@ -184,14 +184,14 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     let mut start = 0;
     print_prelude(path, &self.styles, writer)?;
     for (diff, rule) in diffs {
-      let range = diff.range;
+      let range = &diff.range;
       // skip overlapping diff
       if range.start < start {
         continue;
       }
       start = range.end;
       print_rule_title(rule, &diff.node_match, &self.styles.rule, writer)?;
-      let source = diff.node_match.root().get_text();
+      let source = diff.get_root_text();
       let new_str = format!(
         "{}{}{}",
         &source[..range.start],
@@ -436,8 +436,8 @@ fn print_diffs<'a, W: WriteColor>(
   let Some(first_diff) = diffs.next() else {
     return Ok(());
   };
+  let source = first_diff.get_root_text();
   let range = first_diff.range;
-  let source = first_diff.node_match.root().get_text();
   let mut start = range.end;
   let mut new_str = format!("{}{}", &source[..range.start], first_diff.replacement);
   for diff in diffs {
