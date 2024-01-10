@@ -207,7 +207,7 @@ fn apply_rewrite(diffs: Vec<Diff>) -> String {
   let Some(first) = diffs.first() else {
     return new_content;
   };
-  let old_content = first.node_match.root().get_text();
+  let old_content = first.get_root_text();
   let mut start = 0;
   for diff in diffs {
     let range = diff.range;

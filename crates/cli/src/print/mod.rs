@@ -80,6 +80,13 @@ impl<'n> Diff<'n> {
       range: edit.position..edit.position + edit.deleted_length,
     }
   }
+
+  /// Returns the root doc source code
+  /// N.B. this can be different from node.text() because
+  /// tree-sitter's root Node may not start at the begining
+  pub fn get_root_text(&self) -> &'n str {
+    self.node_match.root().get_text()
+  }
 }
 
 #[derive(ValueEnum, Clone, Copy)]
