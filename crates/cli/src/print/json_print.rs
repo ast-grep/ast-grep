@@ -66,6 +66,8 @@ struct MatchJSON<'a> {
   lines: String,
   #[serde(skip_serializing_if = "Option::is_none")]
   replacement: Option<Cow<'a, str>>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  replacement_offsets: Option<std::ops::Range<usize>>,
   language: SgLang,
   #[serde(skip_serializing_if = "Option::is_none")]
   meta_variables: Option<MetaVariables<'a>>,
@@ -150,9 +152,17 @@ impl<'a> MatchJSON<'a> {
       lines,
       language: *nm.lang(),
       replacement: None,
+      replacement_offsets: None,
       range: get_range(&nm),
       meta_variables: from_env(&nm),
     }
+  }
+
+  fn diff(diff: Diff<'a>, path: &'a str) -> Self {
+    let mut ret = Self::new(diff.node_match, path);
+    ret.replacement = Some(diff.replacement);
+    ret.replacement_offsets = Some(diff.range);
+    ret
   }
 }
 fn get_labels<'a>(nm: &NodeMatch<'a, SgLang>) -> Option<Vec<MatchNode<'a>>> {
@@ -186,6 +196,20 @@ impl<'a> RuleMatchJSON<'a> {
     let message = rule.get_message(&nm);
     let labels = get_labels(&nm);
     let matched = MatchJSON::new(nm, path);
+    Self {
+      matched,
+      rule_id: &rule.id,
+      severity: rule.severity.clone(),
+      note: rule.note.clone(),
+      message,
+      labels,
+    }
+  }
+  fn diff(diff: Diff<'a>, path: &'a str, rule: &'a RuleConfig<SgLang>) -> Self {
+    let nm = &diff.node_match;
+    let message = rule.get_message(nm);
+    let labels = get_labels(nm);
+    let matched = MatchJSON::diff(diff, path);
     Self {
       matched,
       rule_id: &rule.id,
@@ -296,11 +320,7 @@ impl<W: Write> Printer for JSONPrinter<W> {
 
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
     let path = path.to_string_lossy();
-    let jsons = diffs.map(|diff| {
-      let mut v = MatchJSON::new(diff.node_match, &path);
-      v.replacement = Some(diff.replacement);
-      v
-    });
+    let jsons = diffs.map(|diff| MatchJSON::diff(diff, &path));
     self.print_docs(jsons)
   }
   fn print_rule_diffs(
@@ -309,11 +329,9 @@ impl<W: Write> Printer for JSONPrinter<W> {
     path: &Path,
   ) -> Result<()> {
     let path = path.to_string_lossy();
-    let jsons = diffs.into_iter().map(|(diff, rule)| {
-      let mut v = RuleMatchJSON::new(diff.node_match, &path, rule);
-      v.matched.replacement = Some(diff.replacement);
-      v
-    });
+    let jsons = diffs
+      .into_iter()
+      .map(|(diff, rule)| RuleMatchJSON::diff(diff, &path, rule));
     self.print_docs(jsons)
   }
 
