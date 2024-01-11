@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/napi-linux-arm64-gnu",
-  "version": "0.16.1",
+  "version": "0.17.0",
   "os": [
     "linux"
   ],

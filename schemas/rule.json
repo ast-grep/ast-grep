@@ -32,7 +32,7 @@
       "description": "A pattern to auto fix the issue. It can reference metavariables appeared in rule.",
       "anyOf": [
         {
-          "$ref": "#/definitions/Fixer"
+          "$ref": "#/definitions/SerializableFixer"
         },
         {
           "type": "null"
@@ -160,14 +160,6 @@
           ]
         }
       }
-    },
-    "Fixer": {
-      "description": "A pattern string or fix object to auto fix the issue. It can reference metavariables appeared in rule.",
-      "anyOf": [
-        {
-          "type": "string"
-        }
-      ]
     },
     "Language": {
       "type": "string"
@@ -346,6 +338,7 @@
       }
     },
     "Separator": {
+      "description": "Separator to split string. e.g. `user_accountName` -> `user`, `accountName` It will be rejoin according to `StringCase`.",
       "type": "string",
       "enum": [
         "caseChange",
@@ -354,6 +347,34 @@
         "slash",
         "space",
         "underscore"
+      ]
+    },
+    "SerializableFixConfig": {
+      "type": "object",
+      "required": [
+        "template"
+      ],
+      "properties": {
+        "expandEnd": {
+          "$ref": "#/definitions/Maybe_Relation"
+        },
+        "expandStart": {
+          "$ref": "#/definitions/Maybe_Relation"
+        },
+        "template": {
+          "type": "string"
+        }
+      }
+    },
+    "SerializableFixer": {
+      "description": "A pattern string or fix object to auto fix the issue. It can reference metavariables appeared in rule.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/SerializableFixConfig"
+        }
       ]
     },
     "SerializableMetaVarMatcher": {
@@ -547,6 +568,7 @@
       ]
     },
     "StringCase": {
+      "description": "An enumeration representing different cases for strings.",
       "type": "string",
       "enum": [
         "lowerCase",
