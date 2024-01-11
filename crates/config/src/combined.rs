@@ -6,8 +6,12 @@ use ast_grep_core::{AstGrep, Doc, Matcher, NodeMatch};
 use bit_set::BitSet;
 use std::collections::HashMap;
 
+/// A struct to group all rules according to their potential kinds.
+/// This can greatly reduce traversal times and skip unmatchable rules.
+/// Rules are referenced by their index in the rules vector.
 pub struct CombinedScan<'r, L: Language> {
   rules: Vec<&'r RuleConfig<L>>,
+  /// a vec of vec, mapping from kind to a list of rule index
   kind_rule_mapping: Vec<Vec<usize>>,
 }
 

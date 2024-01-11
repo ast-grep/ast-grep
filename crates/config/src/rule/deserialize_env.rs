@@ -11,8 +11,11 @@ use std::collections::HashMap;
 
 type OrderResult<T> = Result<T, ReferentRuleError>;
 
+/// A struct to store information to deserialize rules.
 pub struct DeserializeEnv<L: Language> {
+  /// registration for global utility rules and local utility rules.
   pub(crate) registration: RuleRegistration<L>,
+  /// current rules' language
   pub(crate) lang: L,
 }
 
@@ -39,6 +42,8 @@ impl<L: Language> DependentRule for SerializableRuleCore<L> {
   }
 }
 
+/// A struct to topological sort rules
+/// it is used to report cyclic dependency errors in rules
 struct TopologicalSort<'a, T: DependentRule> {
   utils: &'a HashMap<String, T>,
   order: Vec<&'a String>,
@@ -137,6 +142,7 @@ impl<L: Language> DeserializeEnv<L> {
     Ok(self)
   }
 
+  /// register global utils rule discovered in the config.
   pub fn parse_global_utils(
     utils: Vec<SerializableRuleConfigCore<L>>,
   ) -> Result<GlobalRules<L>, RuleConfigError> {

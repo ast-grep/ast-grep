@@ -11,6 +11,7 @@ fn capitalize(string: &str) -> String {
   }
 }
 
+/// An enumeration representing different cases for strings.
 #[derive(Serialize, Deserialize, Clone, Copy, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum StringCase {
@@ -41,6 +42,8 @@ impl StringCase {
 
 #[derive(Serialize, Deserialize, Clone, Copy, JsonSchema)]
 #[serde(rename_all = "camelCase")]
+/// Separator to split string. e.g. `user_accountName` -> `user`, `accountName`
+/// It will be rejoin according to `StringCase`.
 pub enum Separator {
   CaseChange,
   Dash,
@@ -73,9 +76,13 @@ impl From<&[Separator]> for Delimiter {
 }
 
 #[derive(PartialEq, Eq)]
+/// CaseState is used to record the case change between two characters.
+/// It will be used if separator is CaseChange.
 enum CaseState {
   Lower,
   OneUpper,
+  /// MultiUpper records consecutive uppercase characters.
+  /// char is the last uppercase char, used to calculate the split range.
   MultiUpper(char),
   IgnoreCase,
 }
