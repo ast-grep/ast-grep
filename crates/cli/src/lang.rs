@@ -118,10 +118,12 @@ impl Language for SgLang {
   }
 
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
-    SupportLang::from_path(path.as_ref())
-      .map(SgLang::Builtin)
-      .or_else(|| DynamicLang::from_path(path.as_ref()).map(SgLang::Custom))
-      .or_else(|| lang_globs::from_path(path.as_ref()))
+    // respect user overriding like languageGlobs and custom lang
+    // TODO: test this preference
+    let path = path.as_ref();
+    lang_globs::from_path(path)
+      .or_else(|| DynamicLang::from_path(path).map(Custom))
+      .or_else(|| SupportLang::from_path(path).map(Builtin))
   }
 
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
