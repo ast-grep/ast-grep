@@ -1,4 +1,4 @@
-use crate::fixer::{FixerError, SerializableFixer};
+use crate::fixer::{Fixer, FixerError, SerializableFixer};
 use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::Rule;
 use crate::rule::{RuleSerializeError, SerializableRule};
@@ -9,6 +9,7 @@ use crate::GlobalRules;
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
 use ast_grep_core::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
+use ast_grep_core::replacer::IndentSensitive;
 use ast_grep_core::{Doc, Matcher, Node, Pattern, PatternError, StrDoc};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Error as YamlError;
@@ -119,16 +120,31 @@ impl<L: Language> SerializableRuleCore<L> {
     })
   }
 
+  pub fn get_fixer<C: IndentSensitive>(
+    &self,
+    globals: &GlobalRules<L>,
+  ) -> RResult<Option<Fixer<C, L>>> {
+    let env = self.get_deserialize_env(globals)?;
+    if let Some(fix) = &self.fix {
+      let parsed = Fixer::parse(fix, &env, &self.transform)?;
+      Ok(Some(parsed))
+    } else {
+      Ok(None)
+    }
+  }
+
   pub fn get_matcher(&self, globals: &GlobalRules<L>) -> RResult<RuleWithConstraint<L>> {
     let env = self.get_deserialize_env(globals)?;
     let rule = env.deserialize_rule(self.rule.clone())?;
     let matchers = self.get_meta_var_matchers()?;
     let transform = self.transform.clone();
+    let fixer = self.get_fixer(globals)?;
     Ok(
       RuleWithConstraint::new(rule)
         .with_matchers(matchers)
         .with_utils(env.registration)
-        .with_transform(transform),
+        .with_transform(transform)
+        .with_fixer(fixer),
     )
   }
 }
@@ -138,6 +154,7 @@ pub struct RuleWithConstraint<L: Language> {
   matchers: MetaVarMatchers<StrDoc<L>>,
   kinds: Option<BitSet>,
   transform: Option<HashMap<String, Transformation>>,
+  pub fixer: Option<Fixer<String, L>>,
   // this is required to hold util rule reference
   _utils: RuleRegistration<L>,
 }
@@ -167,6 +184,11 @@ impl<L: Language> RuleWithConstraint<L> {
   pub fn with_transform(self, transform: Option<HashMap<String, Transformation>>) -> Self {
     Self { transform, ..self }
   }
+
+  #[inline]
+  pub fn with_fixer(self, fixer: Option<Fixer<String, L>>) -> Self {
+    Self { fixer, ..self }
+  }
 }
 impl<L: Language> Deref for RuleWithConstraint<L> {
   type Target = Rule<L>;
@@ -183,6 +205,7 @@ impl<L: Language> Default for RuleWithConstraint<L> {
       matchers: MetaVarMatchers::default(),
       kinds: None,
       transform: None,
+      fixer: None,
       _utils: RuleRegistration::default(),
     }
   }

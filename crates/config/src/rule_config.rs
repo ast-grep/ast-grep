@@ -1,4 +1,3 @@
-use crate::fixer::Fixer;
 use crate::GlobalRules;
 
 pub use crate::rule_core::{
@@ -6,7 +5,7 @@ pub use crate::rule_core::{
   SerializableRuleCore, SerializeConstraintsError,
 };
 use ast_grep_core::language::Language;
-use ast_grep_core::replacer::{IndentSensitive, Replacer};
+use ast_grep_core::replacer::Replacer;
 use ast_grep_core::{NodeMatch, StrDoc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -70,20 +69,7 @@ pub struct SerializableRuleConfig<L: Language> {
   pub metadata: Option<HashMap<String, String>>,
 }
 
-type RResult<T> = std::result::Result<T, RuleConfigError>;
-
 impl<L: Language> SerializableRuleConfig<L> {
-  pub fn get_fixer<C: IndentSensitive>(&self) -> RResult<Option<Fixer<C, L>>> {
-    let transform = &self.transform;
-    if let Some(fixer) = &self.fix {
-      let env = self.get_deserialize_env(&Default::default())?;
-      let parsed = Fixer::parse(fixer, &env, transform)?;
-      Ok(Some(parsed))
-    } else {
-      Ok(None)
-    }
-  }
-
   fn get_message(&self, node_match: &NodeMatch<StrDoc<L>>) -> String {
     let bytes = self.message.generate_replacement(node_match);
     String::from_utf8(bytes).expect("replacement must be valid utf-8")
@@ -106,7 +92,6 @@ impl<L: Language> DerefMut for SerializableRuleConfig<L> {
 pub struct RuleConfig<L: Language> {
   inner: SerializableRuleConfig<L>,
   pub matcher: RuleWithConstraint<L>,
-  pub fixer: Option<Fixer<String, L>>,
 }
 
 impl<L: Language> RuleConfig<L> {
@@ -115,12 +100,7 @@ impl<L: Language> RuleConfig<L> {
     globals: &GlobalRules<L>,
   ) -> Result<Self, RuleConfigError> {
     let matcher = inner.get_matcher(globals)?;
-    let fixer = inner.get_fixer()?;
-    Ok(Self {
-      inner,
-      matcher,
-      fixer,
-    })
+    Ok(Self { inner, matcher })
   }
 
   pub fn deserialize<'de>(
@@ -314,5 +294,17 @@ test-rule:
     assert!(grep.root().find(&matcher).is_some());
     let grep = TypeScript::Tsx.ast_grep("some()");
     assert!(grep.root().find(&matcher).is_none());
+  }
+  #[test]
+  fn test_get_fixer() {
+    let globals = GlobalRules::default();
+    let mut config = get_matches_config();
+    config.fix = Some(from_str("string!!").unwrap());
+    let rule = RuleConfig::try_from(config, &globals).unwrap();
+    let fixer = rule.get_fixer::<String>(&globals).unwrap().unwrap();
+    let grep = TypeScript::Tsx.ast_grep("some(123)");
+    let nm = grep.root().find(&rule.matcher).unwrap();
+    let replacement = fixer.generate_replacement(&nm);
+    assert_eq!(String::from_utf8_lossy(&replacement), "string!!");
   }
 }

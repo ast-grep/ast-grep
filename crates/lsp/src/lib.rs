@@ -332,7 +332,7 @@ impl<L: LSPLang> Backend<L> {
         if !ranges.contains(&range) {
           continue;
         }
-        let fixer = match &config.fixer {
+        let fixer = match &config.matcher.fixer {
           Some(fixer) => fixer,
           None => continue,
         };

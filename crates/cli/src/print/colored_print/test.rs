@@ -238,7 +238,7 @@ fix: '{rewrite}'"
     .pop()
     .unwrap();
     let matcher = rule.get_matcher(&globals).expect("should parse");
-    let fixer = rule.fixer.as_ref().expect("should have fixer");
+    let fixer = matcher.fixer.as_ref().expect("should have fixer");
     let matches = grep.root().find_all(&matcher);
     let diffs = matches.map(|n| (Diff::generate(n, &pattern, fixer), &rule));
     printer
