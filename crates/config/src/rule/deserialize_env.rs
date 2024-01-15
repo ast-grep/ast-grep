@@ -2,7 +2,7 @@ use super::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
 use crate::maybe::Maybe;
 use crate::rule::{self, Rule, RuleSerializeError, SerializableRule};
 use crate::rule_config::{
-  into_map, RuleConfigError, SerializableRuleConfigCore, SerializableRuleCore,
+  into_map, RuleConfigError, SerializableRuleCore, SerializableRuleCoreWithId,
 };
 
 use ast_grep_core::language::Language;
@@ -144,7 +144,7 @@ impl<L: Language> DeserializeEnv<L> {
 
   /// register global utils rule discovered in the config.
   pub fn parse_global_utils(
-    utils: Vec<SerializableRuleConfigCore<L>>,
+    utils: Vec<SerializableRuleCoreWithId<L>>,
   ) -> Result<GlobalRules<L>, RuleConfigError> {
     let registration = GlobalRules::default();
     let utils = into_map(utils);

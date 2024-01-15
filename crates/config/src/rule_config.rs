@@ -89,7 +89,7 @@ impl<L: Language> SerializableRuleCore<L> {
   }
 }
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
-pub struct SerializableRuleConfigCore<L: Language> {
+pub struct SerializableRuleCoreWithId<L: Language> {
   #[serde(flatten)]
   pub core: SerializableRuleCore<L>,
   /// Unique, descriptive identifier, e.g., no-unused-variable
@@ -97,7 +97,7 @@ pub struct SerializableRuleConfigCore<L: Language> {
 }
 
 pub fn into_map<L: Language>(
-  rules: Vec<SerializableRuleConfigCore<L>>,
+  rules: Vec<SerializableRuleCoreWithId<L>>,
 ) -> HashMap<String, SerializableRuleCore<L>> {
   rules.into_iter().map(|r| (r.id, r.core)).collect()
 }
