@@ -1,21 +1,16 @@
-use crate::fixer::{Fixer, FixerError, SerializableFixer};
-use crate::rule::{RuleSerializeError, SerializableRule};
-use crate::transform::Transformation;
-use crate::DeserializeEnv;
+use crate::fixer::Fixer;
 use crate::GlobalRules;
 
 pub use crate::rule_core::{
-  try_deserialize_matchers, RuleWithConstraint, SerializableMetaVarMatcher,
-  SerializeConstraintsError,
+  try_deserialize_matchers, RuleConfigError, RuleWithConstraint, SerializableMetaVarMatcher,
+  SerializableRuleCore, SerializeConstraintsError,
 };
 use ast_grep_core::language::Language;
-use ast_grep_core::meta_var::MetaVarMatchers;
 use ast_grep_core::replacer::{IndentSensitive, Replacer};
 use ast_grep_core::{NodeMatch, StrDoc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error as YamlError};
-use thiserror::Error;
+use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer};
 
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
@@ -36,58 +31,6 @@ pub enum Severity {
   Off,
 }
 
-#[derive(Serialize, Deserialize, Clone, JsonSchema)]
-pub struct SerializableRuleCore<L: Language> {
-  /// Specify the language to parse and the file extension to include in matching.
-  pub language: L,
-  /// A rule object to find matching AST nodes
-  pub rule: SerializableRule,
-  /// Additional meta variables pattern to filter matching
-  pub constraints: Option<HashMap<String, SerializableMetaVarMatcher>>,
-  /// Utility rules that can be used in `matches`
-  pub utils: Option<HashMap<String, SerializableRule>>,
-  /// A dictionary for metavariable manipulation. Dict key is the new variable name.
-  /// Dict value is a [transformation] that specifies how meta var is processed.
-  /// See [transformation doc](https://ast-grep.github.io/reference/yaml/transformation.html).
-  pub transform: Option<HashMap<String, Transformation>>,
-  /// A pattern string or a FixConfig object to auto fix the issue.
-  /// It can reference metavariables appeared in rule.
-  /// See details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).
-  pub fix: Option<SerializableFixer>,
-}
-
-impl<L: Language> SerializableRuleCore<L> {
-  fn get_deserialize_env(&self, globals: &GlobalRules<L>) -> RResult<DeserializeEnv<L>> {
-    let env = DeserializeEnv::new(self.language.clone()).with_globals(globals);
-    if let Some(utils) = &self.utils {
-      let env = env.register_local_utils(utils)?;
-      Ok(env)
-    } else {
-      Ok(env)
-    }
-  }
-
-  fn get_meta_var_matchers(&self) -> RResult<MetaVarMatchers<StrDoc<L>>> {
-    Ok(if let Some(constraints) = self.constraints.clone() {
-      try_deserialize_matchers(constraints, self.language.clone())?
-    } else {
-      MetaVarMatchers::default()
-    })
-  }
-
-  pub fn get_matcher(&self, globals: &GlobalRules<L>) -> RResult<RuleWithConstraint<L>> {
-    let env = self.get_deserialize_env(globals)?;
-    let rule = env.deserialize_rule(self.rule.clone())?;
-    let matchers = self.get_meta_var_matchers()?;
-    let transform = self.transform.clone();
-    Ok(
-      RuleWithConstraint::new(rule)
-        .with_matchers(matchers)
-        .with_utils(env.registration)
-        .with_transform(transform),
-    )
-  }
-}
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableRuleCoreWithId<L: Language> {
   #[serde(flatten)]
@@ -160,18 +103,6 @@ impl<L: Language> DerefMut for SerializableRuleConfig<L> {
   }
 }
 
-#[derive(Debug, Error)]
-pub enum RuleConfigError {
-  #[error("Fail to parse yaml as RuleConfig")]
-  Yaml(#[from] YamlError),
-  #[error("Rule is not configured correctly.")]
-  Rule(#[from] RuleSerializeError),
-  #[error("fix pattern is invalid.")]
-  Fixer(#[from] FixerError),
-  #[error("constraints is not configured correctly.")]
-  Constraints(#[from] SerializeConstraintsError),
-}
-
 pub struct RuleConfig<L: Language> {
   inner: SerializableRuleConfig<L>,
   pub matcher: RuleWithConstraint<L>,
@@ -218,6 +149,7 @@ impl<L: Language> Deref for RuleConfig<L> {
 mod test {
   use super::*;
   use crate::from_str;
+  use crate::rule::SerializableRule;
   use crate::test::TypeScript;
 
   fn ts_rule_config(rule: SerializableRule) -> SerializableRuleConfig<TypeScript> {
