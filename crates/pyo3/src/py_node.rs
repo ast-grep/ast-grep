@@ -306,6 +306,7 @@ fn config_from_rule(
     constraints: None,
     utils: None,
     transform: None,
+    fix: None,
   })
 }
 
