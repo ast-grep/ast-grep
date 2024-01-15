@@ -91,7 +91,7 @@ impl TestSnapshot {
       return Ok(None);
     };
     let labels = Label::from_matched(matched);
-    let Some(fix) = &rule_config.fixer else {
+    let Some(fix) = &rule_config.matcher.fixer else {
       return Ok(Some(Self {
         fixed: None,
         labels,

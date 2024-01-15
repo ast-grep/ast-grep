@@ -248,7 +248,7 @@ fn match_rule_diff_on_file(
   let diffs = matches
     .into_iter()
     .filter_map(|(m, rule)| {
-      let fix = rule.fixer.as_ref()?;
+      let fix = rule.matcher.fixer.as_ref()?;
       let diff = Diff::generate(m, &rule.matcher, fix);
       Some((diff, rule))
     })
@@ -266,7 +266,7 @@ fn match_rule_on_file(
 ) -> Result<()> {
   let matches = matches.into_iter();
   let file = SimpleFile::new(path.to_string_lossy(), file_content);
-  if let Some(fixer) = &rule.fixer {
+  if let Some(fixer) = &rule.matcher.fixer {
     let diffs = matches
       .map(|m| (Diff::generate(m, &rule.matcher, fixer), rule))
       .collect();

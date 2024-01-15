@@ -19,7 +19,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
   pub fn new(mut rules: Vec<&'r RuleConfig<L>>) -> Self {
     // process fixable rule first, the order by id
     // note, mapping.push will invert order so we sort fixable order in reverse
-    rules.sort_unstable_by_key(|r| (r.fixer.is_some(), &r.id));
+    rules.sort_unstable_by_key(|r| (r.fix.is_some(), &r.id));
     let mut mapping = Vec::new();
     for (idx, rule) in rules.iter().enumerate() {
       for kind in &rule
@@ -85,7 +85,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
           continue;
         }
         let rule = &self.rules[idx];
-        if exclude_fix && rule.fixer.is_some() {
+        if exclude_fix && rule.fix.is_some() {
           continue;
         }
         let Some(ret) = rule.matcher.match_node(node.clone()) else {
