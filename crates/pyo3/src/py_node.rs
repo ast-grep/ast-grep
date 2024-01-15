@@ -1,7 +1,7 @@
 use crate::range::Range;
 use crate::SgRoot;
 
-use ast_grep_config::{GlobalRules, RuleWithConstraint, SerializableRuleCore};
+use ast_grep_config::{GlobalRules, RuleCore, SerializableRuleCore};
 use ast_grep_core::{NodeMatch, StrDoc};
 use ast_grep_language::SupportLang;
 
@@ -269,7 +269,7 @@ impl SgNode {
     &self,
     config: Option<&PyDict>,
     kwargs: Option<&PyDict>,
-  ) -> PyResult<RuleWithConstraint<SupportLang>> {
+  ) -> PyResult<RuleCore<SupportLang>> {
     let lang = self.inner.lang();
     let config = if let Some(config) = config {
       config_from_dict(lang, config)?
@@ -313,7 +313,7 @@ fn config_from_rule(
 fn get_matcher_from_rule(
   lang: &SupportLang,
   dict: Option<&PyDict>,
-) -> PyResult<RuleWithConstraint<SupportLang>> {
+) -> PyResult<RuleCore<SupportLang>> {
   let rule = dict.ok_or_else(|| PyErr::new::<PyValueError, _>("rule must not be empty"))?;
   let config = config_from_rule(lang, rule)?;
   let matcher = config

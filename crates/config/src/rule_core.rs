@@ -133,14 +133,14 @@ impl<L: Language> SerializableRuleCore<L> {
     }
   }
 
-  pub fn get_matcher(&self, globals: &GlobalRules<L>) -> RResult<RuleWithConstraint<L>> {
+  pub fn get_matcher(&self, globals: &GlobalRules<L>) -> RResult<RuleCore<L>> {
     let env = self.get_deserialize_env(globals)?;
     let rule = env.deserialize_rule(self.rule.clone())?;
     let matchers = self.get_meta_var_matchers()?;
     let transform = self.transform.clone();
     let fixer = self.get_fixer(globals)?;
     Ok(
-      RuleWithConstraint::new(rule)
+      RuleCore::new(rule)
         .with_matchers(matchers)
         .with_utils(env.registration)
         .with_transform(transform)
@@ -149,7 +149,7 @@ impl<L: Language> SerializableRuleCore<L> {
   }
 }
 
-pub struct RuleWithConstraint<L: Language> {
+pub struct RuleCore<L: Language> {
   rule: Rule<L>,
   matchers: MetaVarMatchers<StrDoc<L>>,
   kinds: Option<BitSet>,
@@ -159,7 +159,7 @@ pub struct RuleWithConstraint<L: Language> {
   _utils: RuleRegistration<L>,
 }
 
-impl<L: Language> RuleWithConstraint<L> {
+impl<L: Language> RuleCore<L> {
   #[inline]
   pub fn new(rule: Rule<L>) -> Self {
     let kinds = rule.potential_kinds();
@@ -190,14 +190,14 @@ impl<L: Language> RuleWithConstraint<L> {
     Self { fixer, ..self }
   }
 }
-impl<L: Language> Deref for RuleWithConstraint<L> {
+impl<L: Language> Deref for RuleCore<L> {
   type Target = Rule<L>;
   fn deref(&self) -> &Self::Target {
     &self.rule
   }
 }
 
-impl<L: Language> Default for RuleWithConstraint<L> {
+impl<L: Language> Default for RuleCore<L> {
   #[inline]
   fn default() -> Self {
     Self {
@@ -211,7 +211,7 @@ impl<L: Language> Default for RuleWithConstraint<L> {
   }
 }
 
-impl<L: Language> Matcher<L> for RuleWithConstraint<L> {
+impl<L: Language> Matcher<L> for RuleCore<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
@@ -260,8 +260,8 @@ mod test {
       "A".to_string(),
       MetaVarMatcher::Regex(RegexMatcher::try_new("a").unwrap()),
     );
-    let rule = RuleWithConstraint::new(Rule::Pattern(Pattern::new("$A", TypeScript::Tsx)))
-      .with_matchers(matchers);
+    let rule =
+      RuleCore::new(Rule::Pattern(Pattern::new("$A", TypeScript::Tsx))).with_matchers(matchers);
     let grep = TypeScript::Tsx.ast_grep("a");
     assert!(grep.root().find(&rule).is_some());
     let grep = TypeScript::Tsx.ast_grep("bbb");

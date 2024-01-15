@@ -1,7 +1,7 @@
 use crate::GlobalRules;
 
 pub use crate::rule_core::{
-  try_deserialize_matchers, RuleConfigError, RuleWithConstraint, SerializableMetaVarMatcher,
+  try_deserialize_matchers, RuleConfigError, RuleCore, SerializableMetaVarMatcher,
   SerializableRuleCore, SerializeConstraintsError,
 };
 use ast_grep_core::language::Language;
@@ -91,7 +91,7 @@ impl<L: Language> DerefMut for SerializableRuleConfig<L> {
 
 pub struct RuleConfig<L: Language> {
   inner: SerializableRuleConfig<L>,
-  pub matcher: RuleWithConstraint<L>,
+  pub matcher: RuleCore<L>,
 }
 
 impl<L: Language> RuleConfig<L> {
