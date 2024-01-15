@@ -40,6 +40,7 @@ impl NapiConfig {
       constraints: self.constraints.map(serde_json::from_value).transpose()?,
       transform: self.transform.map(serde_json::from_value).transpose()?,
       utils: self.utils.map(serde_json::from_value).transpose()?,
+      fix: None,
     };
     rule.get_matcher(&Default::default()).map_err(|e| {
       let error = Error::from(e)

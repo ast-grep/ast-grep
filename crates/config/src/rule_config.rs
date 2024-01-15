@@ -48,8 +48,12 @@ pub struct SerializableRuleCore<L: Language> {
   pub utils: Option<HashMap<String, SerializableRule>>,
   /// A dictionary for metavariable manipulation. Dict key is the new variable name.
   /// Dict value is a [transformation] that specifies how meta var is processed.
-  /// Warning: this is experimental option. [`https://github.com/ast-grep/ast-grep/issues/436`]
+  /// See [transformation doc](https://ast-grep.github.io/reference/yaml/transformation.html).
   pub transform: Option<HashMap<String, Transformation>>,
+  /// A pattern string or a FixConfig object to auto fix the issue.
+  /// It can reference metavariables appeared in rule.
+  /// See details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).
+  pub fix: Option<SerializableFixer>,
 }
 
 impl<L: Language> SerializableRuleCore<L> {
@@ -113,8 +117,6 @@ pub struct SerializableRuleConfig<L: Language> {
   /// One of: hint, info, warning, or error
   #[serde(default)]
   pub severity: Severity,
-  /// A pattern to auto fix the issue. It can reference metavariables appeared in rule.
-  pub fix: Option<SerializableFixer>,
   /// Glob patterns to specify that the rule only applies to matching files
   pub files: Option<Vec<String>>,
   /// Glob patterns that exclude rules from applying to files
@@ -225,6 +227,7 @@ mod test {
       constraints: None,
       transform: None,
       utils: None,
+      fix: None,
     };
     SerializableRuleConfig {
       core,
@@ -232,7 +235,6 @@ mod test {
       message: "".into(),
       note: None,
       severity: Severity::Hint,
-      fix: None,
       files: None,
       ignores: None,
       url: None,
