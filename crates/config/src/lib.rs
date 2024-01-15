@@ -19,8 +19,7 @@ pub use rule::DeserializeEnv;
 pub use rule::{Rule, RuleSerializeError, SerializableRule};
 pub use rule_collection::RuleCollection;
 pub use rule_config::{
-  RuleConfig, RuleConfigError, RuleWithConstraint, SerializableRuleConfig, SerializableRuleCore,
-  Severity,
+  RuleConfig, RuleConfigError, RuleCore, SerializableRuleConfig, SerializableRuleCore, Severity,
 };
 pub use transform::Transformation;
 

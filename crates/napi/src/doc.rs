@@ -1,6 +1,6 @@
 use crate::FrontEndLanguage;
 
-use ast_grep_config::{RuleWithConstraint, SerializableRuleCore};
+use ast_grep_config::{RuleCore, SerializableRuleCore};
 use ast_grep_core::replacer::IndentSensitive;
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
 use ast_grep_core::Language;
@@ -29,10 +29,7 @@ pub struct NapiConfig {
 }
 
 impl NapiConfig {
-  pub fn parse_with(
-    self,
-    language: FrontEndLanguage,
-  ) -> NapiResult<RuleWithConstraint<FrontEndLanguage>> {
+  pub fn parse_with(self, language: FrontEndLanguage) -> NapiResult<RuleCore<FrontEndLanguage>> {
     let lang = self.language.unwrap_or(language);
     let rule = SerializableRuleCore {
       language: lang,

@@ -1,4 +1,4 @@
-use crate::{Rule, RuleWithConstraint};
+use crate::{Rule, RuleCore};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
@@ -27,10 +27,10 @@ impl<R> Registration<R> {
     self.0.write().unwrap()
   }
 }
-pub type GlobalRules<L> = Registration<RuleWithConstraint<L>>;
+pub type GlobalRules<L> = Registration<RuleCore<L>>;
 
 impl<L: Language> GlobalRules<L> {
-  pub fn insert(&self, id: &str, rule: RuleWithConstraint<L>) -> Result<(), ReferentRuleError> {
+  pub fn insert(&self, id: &str, rule: RuleCore<L>) -> Result<(), ReferentRuleError> {
     let mut map = self.write();
     if map.contains_key(id) {
       return Err(ReferentRuleError::DuplicateRule(id.into()));
@@ -55,7 +55,7 @@ impl<R> Default for Registration<R> {
 #[derive(Clone)]
 pub struct RuleRegistration<L: Language> {
   local: Registration<Rule<L>>,
-  global: Registration<RuleWithConstraint<L>>,
+  global: Registration<RuleCore<L>>,
 }
 
 // these are shit code
@@ -64,7 +64,7 @@ impl<L: Language> RuleRegistration<L> {
     self.local.read()
   }
 
-  fn get_global(&self) -> RwLockReadGuard<HashMap<String, RuleWithConstraint<L>>> {
+  fn get_global(&self) -> RwLockReadGuard<HashMap<String, RuleCore<L>>> {
     self.global.read()
   }
 
@@ -107,7 +107,7 @@ impl<L: Language> Default for RuleRegistration<L> {
 
 pub struct RegistrationRef<L: Language> {
   local: Weak<RwLock<HashMap<String, Rule<L>>>>,
-  global: Weak<RwLock<HashMap<String, RuleWithConstraint<L>>>>,
+  global: Weak<RwLock<HashMap<String, RuleCore<L>>>>,
 }
 // these are shit code
 impl<L: Language> RegistrationRef<L> {
@@ -156,7 +156,7 @@ impl<L: Language> ReferentRule<L> {
 
   fn eval_global<F, T>(&self, func: F) -> Option<T>
   where
-    F: FnOnce(&RuleWithConstraint<L>) -> T,
+    F: FnOnce(&RuleCore<L>) -> T,
   {
     let registration = self.reg_ref.unref();
     let rules = registration.get_global();

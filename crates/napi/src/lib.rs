@@ -4,7 +4,7 @@ mod doc;
 mod fe_lang;
 mod sg_node;
 
-use ast_grep_config::RuleWithConstraint;
+use ast_grep_config::RuleCore;
 use ast_grep_core::language::Language;
 use ast_grep_core::pinned::{NodeData, PinnedNodeData};
 use ast_grep_core::{AstGrep, NodeMatch};
@@ -224,7 +224,7 @@ fn get_root(entry: ignore::DirEntry, lang_option: &LangOption) -> Ret<(AstGrep<J
 
 type FindInFiles = IterateFiles<(
   ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
-  RuleWithConstraint<FrontEndLanguage>,
+  RuleCore<FrontEndLanguage>,
 )>;
 
 pub struct PinnedNodes(
@@ -292,7 +292,7 @@ fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<Vec<SgNod
 fn call_sg_node(
   (tsfn, rule): &(
     ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
-    RuleWithConstraint<FrontEndLanguage>,
+    RuleCore<FrontEndLanguage>,
   ),
   entry: std::result::Result<ignore::DirEntry, ignore::Error>,
   lang_option: &LangOption,
