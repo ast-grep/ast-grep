@@ -1,10 +1,10 @@
 mod combined;
-mod constraints;
 mod fixer;
 mod maybe;
 mod rule;
 mod rule_collection;
 mod rule_config;
+mod rule_core;
 mod transform;
 
 use serde::Deserialize;

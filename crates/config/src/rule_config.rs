@@ -4,7 +4,7 @@ use crate::transform::Transformation;
 use crate::DeserializeEnv;
 use crate::GlobalRules;
 
-pub use crate::constraints::{
+pub use crate::rule_core::{
   try_deserialize_matchers, RuleWithConstraint, SerializableMetaVarMatcher,
   SerializeConstraintsError,
 };
