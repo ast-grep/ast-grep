@@ -69,6 +69,10 @@ impl<L: Language> RuleRegistration<L> {
     self.global.read()
   }
 
+  pub fn get_rewrites(&self) -> RwLockReadGuard<HashMap<String, RuleCore<L>>> {
+    self.rewrites.read()
+  }
+
   pub fn from_globals(global: &GlobalRules<L>) -> Self {
     Self {
       local: Default::default(),

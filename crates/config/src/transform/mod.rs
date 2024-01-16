@@ -1,4 +1,5 @@
 mod string_case;
+use crate::rule_core::RuleCore;
 use ast_grep_core::meta_var::{MetaVarEnv, MetaVariable};
 use ast_grep_core::source::Content;
 use ast_grep_core::{Doc, Language};
@@ -142,6 +143,7 @@ impl Transformation {
 struct Ctx<'b, 'c, D: Doc> {
   transforms: &'b HashMap<String, Transformation>,
   lang: &'b D::Lang,
+  rewriters: &'b HashMap<String, RuleCore<D::Lang>>,
   env: &'b mut MetaVarEnv<'c, D>,
 }
 
@@ -149,11 +151,13 @@ pub fn apply_env_transform<D: Doc>(
   transforms: &HashMap<String, Transformation>,
   lang: &D::Lang,
   env: &mut MetaVarEnv<D>,
+  rewriters: &HashMap<String, RuleCore<D::Lang>>,
 ) {
   let mut ctx = Ctx {
     transforms,
     lang,
     env,
+    rewriters,
   };
   for (key, tr) in transforms {
     tr.insert(key, &mut ctx);
@@ -176,6 +180,7 @@ mod test {
       lang: &TypeScript::Tsx,
       transforms: &HashMap::new(),
       env: nm.get_env_mut(),
+      rewriters: &HashMap::new(),
     };
     trans.compute(&mut ctx)
   }
@@ -257,7 +262,7 @@ mod test {
     let grep = TypeScript::Tsx.ast_grep("let a = 123");
     let root = grep.root();
     let mut nm = root.find("let a = $A").expect("should find");
-    apply_env_transform(&trans, &TypeScript::Tsx, nm.get_env_mut());
+    apply_env_transform(&trans, &TypeScript::Tsx, nm.get_env_mut(), &HashMap::new());
     nm.get_env().clone().into()
   }
 
