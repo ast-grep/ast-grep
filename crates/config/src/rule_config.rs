@@ -102,7 +102,18 @@ impl<L: Language> RuleConfig<L> {
     inner: SerializableRuleConfig<L>,
     globals: &GlobalRules<L>,
   ) -> Result<Self, RuleConfigError> {
-    let matcher = inner.get_matcher(globals)?;
+    let mut matcher = inner.get_matcher(globals)?;
+    let Some(ser) = inner.rewriters.clone() else {
+      return Ok(Self { inner, matcher });
+    };
+    let env = matcher.get_env(inner.language.clone());
+    let mut rewriters = HashMap::new();
+    for val in ser {
+      // NB should inherit env from matcher to inherit utils
+      let rewriter = val.core.get_matcher_from_env(&env)?;
+      rewriters.insert(val.id, rewriter);
+    }
+    matcher.add_rewrites(rewriters)?;
     Ok(Self { inner, matcher })
   }
 

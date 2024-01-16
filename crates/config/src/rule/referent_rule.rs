@@ -97,6 +97,16 @@ impl<L: Language> RuleRegistration<L> {
     }
     Ok(())
   }
+
+  pub fn insert_rewrite(&self, id: &str, rewrite: RuleCore<L>) -> Result<(), ReferentRuleError> {
+    let mut map = self.rewrites.write();
+    if map.contains_key(id) {
+      return Err(ReferentRuleError::DuplicateRule(id.into()));
+    }
+    map.insert(id.to_string(), rewrite);
+    // TODO: add cyclic rewrite check?
+    Ok(())
+  }
 }
 impl<L: Language> Default for RuleRegistration<L> {
   fn default() -> Self {
