@@ -50,6 +50,8 @@ pub struct SerializableRuleConfig<L: Language> {
   pub core: SerializableRuleCore<L>,
   /// Unique, descriptive identifier, e.g., no-unused-variable
   pub id: String,
+  /// Rewrite rules for `applyRewriters` transformation
+  pub rewriters: Option<Vec<SerializableRuleCoreWithId<L>>>,
   /// Main message highlighting why this rule fired. It should be single line and concise,
   /// but specific enough to be understood without additional context.
   #[serde(default)]
@@ -144,6 +146,7 @@ mod test {
     SerializableRuleConfig {
       core,
       id: "".into(),
+      rewriters: None,
       message: "".into(),
       note: None,
       severity: Severity::Hint,
