@@ -1,13 +1,16 @@
+mod rewriters;
 mod string_case;
+
 use crate::rule_core::RuleCore;
 use ast_grep_core::meta_var::{MetaVarEnv, MetaVariable};
 use ast_grep_core::source::Content;
 use ast_grep_core::{Doc, Language};
+pub use rewriters::Rewriters;
 
 use regex::Regex;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use schemars::JsonSchema;
 use std::collections::HashMap;
 use string_case::{Separator, StringCase};
 
@@ -115,6 +118,7 @@ pub enum Transformation {
   Substring(Substring),
   Replace(Replace),
   Convert(Convert),
+  ApplyRewriters(Rewriters),
 }
 
 impl Transformation {
@@ -135,6 +139,7 @@ impl Transformation {
       T::Replace(r) => r.compute(ctx),
       T::Substring(s) => s.compute(ctx),
       T::Convert(c) => c.compute(ctx),
+      T::ApplyRewriters(r) => r.compute(ctx),
     }
   }
 }
