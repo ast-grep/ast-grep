@@ -1,11 +1,12 @@
 use crate::GlobalRules;
 
+use crate::fixer::Fixer;
 pub use crate::rule_core::{
   try_deserialize_matchers, RuleConfigError, RuleCore, SerializableMetaVarMatcher,
   SerializableRuleCore, SerializeConstraintsError,
 };
 use ast_grep_core::language::Language;
-use ast_grep_core::replacer::Replacer;
+use ast_grep_core::replacer::{IndentSensitive, Replacer};
 use ast_grep_core::{NodeMatch, StrDoc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -118,6 +119,15 @@ impl<L: Language> RuleConfig<L> {
 
   pub fn get_message(&self, node: &NodeMatch<StrDoc<L>>) -> String {
     self.inner.get_message(node)
+  }
+  pub fn get_fixer<C: IndentSensitive>(&self) -> Result<Option<Fixer<C, L>>, RuleConfigError> {
+    if let Some(fix) = &self.fix {
+      let env = self.matcher.get_env(self.language.clone());
+      let parsed = Fixer::parse(fix, &env, &self.transform)?;
+      Ok(Some(parsed))
+    } else {
+      Ok(None)
+    }
   }
 }
 impl<L: Language> Deref for RuleConfig<L> {
@@ -304,7 +314,7 @@ test-rule:
     let mut config = get_matches_config();
     config.fix = Some(from_str("string!!").unwrap());
     let rule = RuleConfig::try_from(config, &globals).unwrap();
-    let fixer = rule.get_fixer::<String>(&globals).unwrap().unwrap();
+    let fixer = rule.get_fixer::<String>().unwrap().unwrap();
     let grep = TypeScript::Tsx.ast_grep("some(123)");
     let nm = grep.root().find(&rule.matcher).unwrap();
     let replacement = fixer.generate_replacement(&nm);

@@ -120,13 +120,9 @@ impl<L: Language> SerializableRuleCore<L> {
     })
   }
 
-  pub fn get_fixer<C: IndentSensitive>(
-    &self,
-    globals: &GlobalRules<L>,
-  ) -> RResult<Option<Fixer<C, L>>> {
-    let env = self.get_deserialize_env(globals)?;
+  fn get_fixer<C: IndentSensitive>(&self, env: &DeserializeEnv<L>) -> RResult<Option<Fixer<C, L>>> {
     if let Some(fix) = &self.fix {
-      let parsed = Fixer::parse(fix, &env, &self.transform)?;
+      let parsed = Fixer::parse(fix, env, &self.transform)?;
       Ok(Some(parsed))
     } else {
       Ok(None)
@@ -138,7 +134,7 @@ impl<L: Language> SerializableRuleCore<L> {
     let rule = env.deserialize_rule(self.rule.clone())?;
     let matchers = self.get_meta_var_matchers()?;
     let transform = self.transform.clone();
-    let fixer = self.get_fixer(globals)?;
+    let fixer = self.get_fixer(&env)?;
     Ok(
       RuleCore::new(rule)
         .with_matchers(matchers)
@@ -156,7 +152,7 @@ pub struct RuleCore<L: Language> {
   transform: Option<HashMap<String, Transformation>>,
   pub fixer: Option<Fixer<String, L>>,
   // this is required to hold util rule reference
-  _utils: RuleRegistration<L>,
+  utils: RuleRegistration<L>,
 }
 
 impl<L: Language> RuleCore<L> {
@@ -176,8 +172,8 @@ impl<L: Language> RuleCore<L> {
   }
 
   #[inline]
-  pub fn with_utils(self, _utils: RuleRegistration<L>) -> Self {
-    Self { _utils, ..self }
+  pub fn with_utils(self, utils: RuleRegistration<L>) -> Self {
+    Self { utils, ..self }
   }
 
   #[inline]
@@ -188,6 +184,13 @@ impl<L: Language> RuleCore<L> {
   #[inline]
   pub fn with_fixer(self, fixer: Option<Fixer<String, L>>) -> Self {
     Self { fixer, ..self }
+  }
+
+  pub fn get_env(&self, lang: L) -> DeserializeEnv<L> {
+    DeserializeEnv {
+      lang,
+      registration: self.utils.clone(),
+    }
   }
 }
 impl<L: Language> Deref for RuleCore<L> {
@@ -206,7 +209,7 @@ impl<L: Language> Default for RuleCore<L> {
       kinds: None,
       transform: None,
       fixer: None,
-      _utils: RuleRegistration::default(),
+      utils: RuleRegistration::default(),
     }
   }
 }
