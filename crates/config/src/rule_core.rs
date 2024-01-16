@@ -129,19 +129,23 @@ impl<L: Language> SerializableRuleCore<L> {
     }
   }
 
-  pub fn get_matcher(&self, globals: &GlobalRules<L>) -> RResult<RuleCore<L>> {
-    let env = self.get_deserialize_env(globals)?;
+  pub(crate) fn get_matcher_from_env(&self, env: &DeserializeEnv<L>) -> RResult<RuleCore<L>> {
     let rule = env.deserialize_rule(self.rule.clone())?;
     let matchers = self.get_meta_var_matchers()?;
     let transform = self.transform.clone();
-    let fixer = self.get_fixer(&env)?;
+    let fixer = self.get_fixer(env)?;
     Ok(
       RuleCore::new(rule)
         .with_matchers(matchers)
-        .with_utils(env.registration)
+        .with_utils(env.registration.clone())
         .with_transform(transform)
         .with_fixer(fixer),
     )
+  }
+
+  pub fn get_matcher(&self, globals: &GlobalRules<L>) -> RResult<RuleCore<L>> {
+    let env = self.get_deserialize_env(globals)?;
+    self.get_matcher_from_env(&env)
   }
 }
 
@@ -191,6 +195,16 @@ impl<L: Language> RuleCore<L> {
       lang,
       registration: self.utils.clone(),
     }
+  }
+
+  pub fn add_rewrites(&mut self, rewrites: HashMap<String, RuleCore<L>>) -> RResult<()> {
+    for (id, rewrite) in rewrites {
+      self
+        .utils
+        .insert_rewrite(&id, rewrite)
+        .map_err(RuleSerializeError::from)?;
+    }
+    Ok(())
   }
 }
 impl<L: Language> Deref for RuleCore<L> {
