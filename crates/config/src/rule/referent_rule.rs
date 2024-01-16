@@ -56,6 +56,7 @@ impl<R> Default for Registration<R> {
 pub struct RuleRegistration<L: Language> {
   local: Registration<Rule<L>>,
   global: Registration<RuleCore<L>>,
+  rewrites: Registration<RuleCore<L>>,
 }
 
 // these are shit code
@@ -72,6 +73,7 @@ impl<L: Language> RuleRegistration<L> {
     Self {
       local: Default::default(),
       global: global.clone(),
+      rewrites: Default::default(),
     }
   }
 
@@ -101,6 +103,7 @@ impl<L: Language> Default for RuleRegistration<L> {
     Self {
       local: Default::default(),
       global: Default::default(),
+      rewrites: Default::default(),
     }
   }
 }
@@ -114,7 +117,11 @@ impl<L: Language> RegistrationRef<L> {
   pub fn unref(&self) -> RuleRegistration<L> {
     let local = Registration(self.local.upgrade().unwrap());
     let global = Registration(self.global.upgrade().unwrap());
-    RuleRegistration { local, global }
+    RuleRegistration {
+      local,
+      global,
+      rewrites: Default::default(),
+    }
   }
 }
 
