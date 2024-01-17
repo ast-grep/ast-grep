@@ -1,8 +1,11 @@
 use super::Ctx;
 
+use crate::fixer::{Fixer, SerializableFixer};
+use crate::rule_core::RuleCore;
+
 use ast_grep_core::meta_var::MetaVariable;
-use ast_grep_core::source::Content;
-use ast_grep_core::{Doc, Language, Node};
+use ast_grep_core::source::{Content, Edit};
+use ast_grep_core::{Doc, Language, Matcher, Node};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -36,12 +39,44 @@ impl Rewriters {
     let var = ctx.lang.extract_meta_var(&source)?;
     let nodes = get_nodes_from_env(&var, ctx);
     let bytes = ctx.env.get_var_bytes(&var)?;
-    let _ = find_and_make_edits(bytes, nodes);
-    todo!()
+    let rules: Vec<_> = self
+      .rewrites
+      .iter()
+      .filter_map(|id| ctx.rewriters.get(id))
+      .collect();
+    let edits = find_and_make_edits(nodes, &rules);
+    let rewritten = make_edit::<D>(bytes, edits);
+    Some(D::Source::encode_bytes(rewritten).to_string())
   }
 }
 
 type Bytes<D> = [<<D as Doc>::Source as Content>::Underlying];
-fn find_and_make_edits<D: Doc>(_bytes: &Bytes<D>, _nodes: Vec<Node<D>>) -> Option<()> {
+fn find_and_make_edits<D: Doc>(
+  nodes: Vec<Node<D>>,
+  rules: &[&RuleCore<D::Lang>],
+) -> Vec<Edit<D::Source>> {
+  nodes
+    .into_iter()
+    .flat_map(|n| replace_one(n, rules))
+    .collect()
+}
+
+fn replace_one<D: Doc>(node: Node<D>, rules: &[&RuleCore<D::Lang>]) -> Vec<Edit<D::Source>> {
+  let mut edits = vec![];
+  for child in node.dfs() {
+    for rule in rules {
+      // TODO inherit deserialize_env and meta_var_env
+      if let Some(nm) = rule.match_node(child.clone()) {
+        let deserialize_env = rule.get_env(node.lang().clone());
+        todo!()
+        // let fixer = Fixer::parse(fixer, &deserialize_env, &Default::default()).unwrap();
+        // edits.push(nm.make_edit(rule, &fixer));
+      }
+    }
+  }
+  edits
+}
+
+fn make_edit<D: Doc>(bytes: &Bytes<D>, edits: Vec<Edit<D::Source>>) -> &Bytes<D> {
   todo!()
 }
