@@ -2,7 +2,7 @@ use crate::maybe::Maybe;
 use crate::rule::{Relation, Rule, RuleSerializeError, StopBy};
 use crate::transform::Transformation;
 use crate::DeserializeEnv;
-use ast_grep_core::replacer::{IndentSensitive, Replacer, TemplateFix, TemplateFixError};
+use ast_grep_core::replacer::{Content, Replacer, TemplateFix, TemplateFixError};
 use ast_grep_core::{Doc, Language, Matcher, NodeMatch};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -60,7 +60,7 @@ impl<L: Language> Expansion<L> {
   }
 }
 
-pub struct Fixer<C: IndentSensitive, L: Language> {
+pub struct Fixer<C: Content, L: Language> {
   template: TemplateFix<C>,
   expand_start: Option<Expansion<L>>,
   expand_end: Option<Expansion<L>>,
@@ -68,7 +68,7 @@ pub struct Fixer<C: IndentSensitive, L: Language> {
 
 impl<C, L> Fixer<C, L>
 where
-  C: IndentSensitive,
+  C: Content,
   L: Language,
 {
   fn do_parse(
@@ -127,7 +127,7 @@ impl<D, L, C> Replacer<D> for Fixer<C, L>
 where
   D: Doc<Source = C, Lang = L>,
   L: Language,
-  C: IndentSensitive,
+  C: Content,
 {
   fn generate_replacement(&self, nm: &ast_grep_core::NodeMatch<D>) -> Vec<C::Underlying> {
     // simple forwarding to template

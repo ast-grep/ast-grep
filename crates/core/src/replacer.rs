@@ -1,6 +1,6 @@
 use crate::matcher::{Matcher, NodeMatch};
 use crate::meta_var::{is_valid_meta_var_char, MetaVariableID};
-use crate::source::{Content, Edit as E};
+use crate::source::Edit as E;
 use crate::{Doc, Node, Root};
 use std::ops::Range;
 
@@ -11,7 +11,7 @@ mod indent;
 mod structural;
 mod template;
 
-pub use indent::IndentSensitive;
+pub use crate::source::Content;
 pub use template::{TemplateFix, TemplateFixError};
 
 /// Replace meta variable in the replacer string
@@ -27,10 +27,7 @@ pub trait Replacer<D: Doc> {
   }
 }
 
-impl<D: Doc> Replacer<D> for str
-where
-  D::Source: indent::IndentSensitive,
-{
+impl<D: Doc> Replacer<D> for str {
   fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
     template::gen_replacement(self, nm)
   }

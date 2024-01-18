@@ -115,28 +115,20 @@ use std::ops::Range;
   The steps 3,4 and steps 5,6 are similar. We can define a `replace_with_indent` to it.
   Following the same path, we can define a `extract_with_deindent` for steps 1,2.
 */
-pub trait IndentSensitive: Content {
-  /// We assume NEW_LINE, TAB, SPACE is only one code unit.
-  /// This is sufficiently true for utf8, utf16 and char.
-  fn get_new_line() -> Self::Underlying;
-  fn get_space() -> Self::Underlying;
-  // TODO: support tab
-  // fn get_tab(): Self::Underlying;
-}
 
-impl<T: Content> IndentSensitive for T {
-  fn get_new_line() -> Self::Underlying {
-    T::decode_str("\n")[0].clone()
-  }
-  fn get_space() -> Self::Underlying {
-    T::decode_str(" ")[0].clone()
-  }
+/// We assume NEW_LINE, TAB, SPACE is only one code unit.
+/// This is sufficiently true for utf8, utf16 and char.
+fn get_new_line<C: Content>() -> C::Underlying {
+  C::decode_str("\n")[0].clone()
+}
+fn get_space<C: Content>() -> C::Underlying {
+  C::decode_str(" ")[0].clone()
 }
 
 const MAX_LOOK_AHEAD: usize = 512;
 
 /// Represents how we de-indent matched meta var.
-pub enum DeindentedExtract<'a, C: IndentSensitive> {
+pub enum DeindentedExtract<'a, C: Content> {
   /// If meta-var is only one line, no need to de-indent/re-indent
   SingleLine(&'a [C::Underlying]),
   /// meta-var's has multiple lines, may need re-indent
@@ -144,20 +136,17 @@ pub enum DeindentedExtract<'a, C: IndentSensitive> {
 }
 
 /// Returns DeindentedExtract for later de-indent/re-indent.
-pub fn extract_with_deindent<C: IndentSensitive>(
-  content: &C,
-  range: Range<usize>,
-) -> DeindentedExtract<C> {
+pub fn extract_with_deindent<C: Content>(content: &C, range: Range<usize>) -> DeindentedExtract<C> {
   let extract_slice = content.get_range(range.clone());
   // no need to compute indentation for single line
-  if !extract_slice.contains(&C::get_new_line()) {
+  if !extract_slice.contains(&get_new_line::<C>()) {
     return DeindentedExtract::SingleLine(extract_slice);
   }
   let indent = get_indent_at_offset::<C>(content.get_range(0..range.start));
   DeindentedExtract::MultiLine(extract_slice, indent)
 }
 
-pub fn indent_lines<C: IndentSensitive>(
+pub fn indent_lines<C: Content>(
   indent: usize,
   extract: DeindentedExtract<C>,
 ) -> Cow<[C::Underlying]> {
@@ -174,24 +163,24 @@ pub fn indent_lines<C: IndentSensitive>(
     // need add missing indent
     Ordering::Less => Cow::Owned(indent_lines_impl::<C, _>(
       indent - original_indent,
-      lines.split(|b| *b == C::get_new_line()),
+      lines.split(|b| *b == get_new_line::<C>()),
     )),
   }
 }
 
 fn indent_lines_impl<'a, C, Lines>(indent: usize, mut lines: Lines) -> Vec<C::Underlying>
 where
-  C: IndentSensitive + 'a,
+  C: Content + 'a,
   Lines: Iterator<Item = &'a [C::Underlying]>,
 {
   let mut ret = vec![];
-  let space = <C as IndentSensitive>::get_space();
+  let space = get_space::<C>();
   let leading: Vec<_> = std::iter::repeat(space).take(indent).collect();
   // first line never got indent
   if let Some(line) = lines.next() {
     ret.extend(line.iter().cloned());
   };
-  let new_line = C::get_new_line();
+  let new_line = get_new_line::<C>();
   for line in lines {
     ret.push(new_line.clone());
     ret.extend(leading.iter().cloned());
@@ -202,12 +191,12 @@ where
 
 /// returns 0 if no indent is found before the offset
 /// either truly no indent exists, or the offset is in a long line
-pub fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> usize {
+pub fn get_indent_at_offset<C: Content>(src: &[C::Underlying]) -> usize {
   let lookahead = src.len().max(MAX_LOOK_AHEAD) - MAX_LOOK_AHEAD;
 
   let mut indent = 0;
-  let new_line = C::get_new_line();
-  let space = C::get_space();
+  let new_line = get_new_line::<C>();
+  let space = get_space::<C>();
   // TODO: support TAB. only whitespace is supported now
   for c in src[lookahead..].iter().rev() {
     if *c == new_line {
@@ -229,9 +218,9 @@ pub fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> usize 
 
 // NOTE: we assume input is well indented.
 // following line's should have fewer indentation than initial line
-fn remove_indent<C: IndentSensitive>(indent: usize, src: &[C::Underlying]) -> Vec<C::Underlying> {
-  let indentation: Vec<_> = std::iter::repeat(C::get_space()).take(indent).collect();
-  let new_line = C::get_new_line();
+fn remove_indent<C: Content>(indent: usize, src: &[C::Underlying]) -> Vec<C::Underlying> {
+  let indentation: Vec<_> = std::iter::repeat(get_space::<C>()).take(indent).collect();
+  let new_line = get_new_line::<C>();
   let lines: Vec<_> = src
     .split(|b| *b == new_line)
     .map(|line| match line.strip_prefix(&*indentation) {
