@@ -9,7 +9,7 @@ use crate::GlobalRules;
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
 use ast_grep_core::meta_var::{MetaVarEnv, MetaVarMatcher, MetaVarMatchers};
-use ast_grep_core::replacer::IndentSensitive;
+use ast_grep_core::replacer::Content;
 use ast_grep_core::{Doc, Matcher, Node, Pattern, PatternError, StrDoc};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Error as YamlError;
@@ -120,7 +120,7 @@ impl<L: Language> SerializableRuleCore<L> {
     })
   }
 
-  fn get_fixer<C: IndentSensitive>(&self, env: &DeserializeEnv<L>) -> RResult<Option<Fixer<C, L>>> {
+  fn get_fixer<C: Content>(&self, env: &DeserializeEnv<L>) -> RResult<Option<Fixer<C, L>>> {
     if let Some(fix) = &self.fix {
       let parsed = Fixer::parse(fix, env, &self.transform)?;
       Ok(Some(parsed))

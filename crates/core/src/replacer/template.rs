@@ -1,6 +1,4 @@
-use super::indent::{
-  extract_with_deindent, get_indent_at_offset, indent_lines, DeindentedExtract, IndentSensitive,
-};
+use super::indent::{extract_with_deindent, get_indent_at_offset, indent_lines, DeindentedExtract};
 use super::{split_first_meta_var, MetaVarExtract, Replacer, Underlying};
 use crate::language::Language;
 use crate::matcher::NodeMatch;
@@ -10,7 +8,7 @@ use crate::source::{Content, Doc};
 use std::borrow::Cow;
 use thiserror::Error;
 
-pub enum TemplateFix<C: IndentSensitive> {
+pub enum TemplateFix<C: Content> {
   // no meta_var, pure text
   Textual(Vec<C::Underlying>),
   WithMetaVar(Template<C>),
@@ -19,7 +17,7 @@ pub enum TemplateFix<C: IndentSensitive> {
 #[derive(Debug, Error)]
 pub enum TemplateFixError {}
 
-impl<C: IndentSensitive> TemplateFix<C> {
+impl<C: Content> TemplateFix<C> {
   pub fn try_new<L: Language>(template: &str, lang: &L) -> Result<Self, TemplateFixError> {
     Ok(create_template(template, lang.meta_var_char(), &[]))
   }
@@ -29,11 +27,7 @@ impl<C: IndentSensitive> TemplateFix<C> {
   }
 }
 
-impl<C, D> Replacer<D> for TemplateFix<C>
-where
-  C: IndentSensitive,
-  D: Doc<Source = C>,
-{
+impl<D: Doc> Replacer<D> for TemplateFix<D::Source> {
   fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
     let leading = nm.root.doc.get_source().get_range(0..nm.range().start);
     let indent = get_indent_at_offset::<D::Source>(leading);
@@ -45,16 +39,12 @@ where
 
 type Indent = usize;
 
-pub struct Template<C: IndentSensitive> {
+pub struct Template<C: Content> {
   fragments: Vec<Vec<C::Underlying>>,
   vars: Vec<(MetaVarExtract, Indent)>,
 }
 
-fn create_template<C: IndentSensitive>(
-  tmpl: &str,
-  mv_char: char,
-  transforms: &[String],
-) -> TemplateFix<C> {
+fn create_template<C: Content>(tmpl: &str, mv_char: char, transforms: &[String]) -> TemplateFix<C> {
   let mut fragments = vec![];
   let mut vars = vec![];
   let mut offset = 0;
@@ -88,10 +78,7 @@ fn create_template<C: IndentSensitive>(
 fn replace_fixer<D: Doc>(
   fixer: &TemplateFix<D::Source>,
   env: &MetaVarEnv<D>,
-) -> Vec<<D::Source as Content>::Underlying>
-where
-  D::Source: IndentSensitive,
-{
+) -> Vec<<D::Source as Content>::Underlying> {
   let template = match fixer {
     TemplateFix::Textual(n) => return n.to_vec(),
     TemplateFix::WithMetaVar(t) => t,
@@ -117,7 +104,7 @@ fn maybe_get_var<'e, C, D>(
   indent: &usize,
 ) -> Option<Cow<'e, [C::Underlying]>>
 where
-  C: IndentSensitive + 'e,
+  C: Content + 'e,
   D: Doc<Source = C>,
 {
   let (source, range) = match var {
@@ -151,10 +138,7 @@ where
 }
 
 // replace meta_var in template string, e.g. "Hello $NAME" -> "Hello World"
-pub fn gen_replacement<D: Doc>(template: &str, nm: &NodeMatch<D>) -> Underlying<D::Source>
-where
-  D::Source: IndentSensitive,
-{
+pub fn gen_replacement<D: Doc>(template: &str, nm: &NodeMatch<D>) -> Underlying<D::Source> {
   let fixer = create_template(template, nm.lang().meta_var_char(), &[]);
   fixer.generate_replacement(nm)
 }

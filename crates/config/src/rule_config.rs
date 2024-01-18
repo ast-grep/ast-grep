@@ -6,7 +6,7 @@ pub use crate::rule_core::{
   SerializableRuleCore, SerializeConstraintsError,
 };
 use ast_grep_core::language::Language;
-use ast_grep_core::replacer::{IndentSensitive, Replacer};
+use ast_grep_core::replacer::{Content, Replacer};
 use ast_grep_core::{NodeMatch, StrDoc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -131,7 +131,7 @@ impl<L: Language> RuleConfig<L> {
   pub fn get_message(&self, node: &NodeMatch<StrDoc<L>>) -> String {
     self.inner.get_message(node)
   }
-  pub fn get_fixer<C: IndentSensitive>(&self) -> Result<Option<Fixer<C, L>>, RuleConfigError> {
+  pub fn get_fixer<C: Content>(&self) -> Result<Option<Fixer<C, L>>, RuleConfigError> {
     if let Some(fix) = &self.fix {
       let env = self.matcher.get_env(self.language.clone());
       let parsed = Fixer::parse(fix, &env, &self.transform)?;
