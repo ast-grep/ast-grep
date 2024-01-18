@@ -81,9 +81,7 @@ type RResult<T> = std::result::Result<T, RuleConfigError>;
 
 /// Used for global rules, rewriters, and pyo3/napi
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
-pub struct SerializableRuleCore<L: Language> {
-  /// Specify the language to parse and the file extension to include in matching.
-  pub language: L,
+pub struct SerializableRuleCore {
   /// A rule object to find matching AST nodes
   pub rule: SerializableRule,
   /// Additional meta variables pattern to filter matching
@@ -100,8 +98,8 @@ pub struct SerializableRuleCore<L: Language> {
   pub fix: Option<SerializableFixer>,
 }
 
-impl<L: Language> SerializableRuleCore<L> {
-  fn get_deserialize_env(&self, env: DeserializeEnv<L>) -> RResult<DeserializeEnv<L>> {
+impl SerializableRuleCore {
+  fn get_deserialize_env<L: Language>(&self, env: DeserializeEnv<L>) -> RResult<DeserializeEnv<L>> {
     if let Some(utils) = &self.utils {
       let env = env.register_local_utils(utils)?;
       Ok(env)
@@ -110,15 +108,21 @@ impl<L: Language> SerializableRuleCore<L> {
     }
   }
 
-  fn get_meta_var_matchers(&self) -> RResult<MetaVarMatchers<StrDoc<L>>> {
+  fn get_meta_var_matchers<L: Language>(
+    &self,
+    env: &DeserializeEnv<L>,
+  ) -> RResult<MetaVarMatchers<StrDoc<L>>> {
     Ok(if let Some(constraints) = self.constraints.clone() {
-      try_deserialize_matchers(constraints, self.language.clone())?
+      try_deserialize_matchers(constraints, env.lang.clone())?
     } else {
       MetaVarMatchers::default()
     })
   }
 
-  fn get_fixer<C: Content>(&self, env: &DeserializeEnv<L>) -> RResult<Option<Fixer<C, L>>> {
+  fn get_fixer<C: Content, L: Language>(
+    &self,
+    env: &DeserializeEnv<L>,
+  ) -> RResult<Option<Fixer<C, L>>> {
     if let Some(fix) = &self.fix {
       let parsed = Fixer::parse(fix, env, &self.transform)?;
       Ok(Some(parsed))
@@ -127,9 +131,13 @@ impl<L: Language> SerializableRuleCore<L> {
     }
   }
 
-  pub(crate) fn get_matcher_from_env(&self, env: &DeserializeEnv<L>) -> RResult<RuleCore<L>> {
+  // TODO: this is wrong, it does not register local utils to the env
+  pub(crate) fn get_matcher_from_env<L: Language>(
+    &self,
+    env: &DeserializeEnv<L>,
+  ) -> RResult<RuleCore<L>> {
     let rule = env.deserialize_rule(self.rule.clone())?;
-    let matchers = self.get_meta_var_matchers()?;
+    let matchers = self.get_meta_var_matchers(env)?;
     let transform = self.transform.clone();
     let fixer = self.get_fixer(env)?;
     Ok(
@@ -141,7 +149,7 @@ impl<L: Language> SerializableRuleCore<L> {
     )
   }
 
-  pub fn get_matcher(&self, env: DeserializeEnv<L>) -> RResult<RuleCore<L>> {
+  pub fn get_matcher<L: Language>(&self, env: DeserializeEnv<L>) -> RResult<RuleCore<L>> {
     let env = self.get_deserialize_env(env)?;
     self.get_matcher_from_env(&env)
   }
