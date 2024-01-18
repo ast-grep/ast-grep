@@ -325,6 +325,6 @@ if (true) {
 
   #[test]
   fn test_nested_matching_replace() {
-    // TODO
+    // TODO impossible, we don't support nested replacement
   }
 }

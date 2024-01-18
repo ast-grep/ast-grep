@@ -4,7 +4,6 @@ use crate::rule::Rule;
 use crate::rule::{RuleSerializeError, SerializableRule};
 use crate::transform::{apply_env_transform, Transformation};
 use crate::DeserializeEnv;
-use crate::GlobalRules;
 
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
@@ -102,8 +101,7 @@ pub struct SerializableRuleCore<L: Language> {
 }
 
 impl<L: Language> SerializableRuleCore<L> {
-  pub fn get_deserialize_env(&self, globals: &GlobalRules<L>) -> RResult<DeserializeEnv<L>> {
-    let env = DeserializeEnv::new(self.language.clone()).with_globals(globals);
+  fn get_deserialize_env(&self, env: DeserializeEnv<L>) -> RResult<DeserializeEnv<L>> {
     if let Some(utils) = &self.utils {
       let env = env.register_local_utils(utils)?;
       Ok(env)
@@ -143,8 +141,8 @@ impl<L: Language> SerializableRuleCore<L> {
     )
   }
 
-  pub fn get_matcher(&self, globals: &GlobalRules<L>) -> RResult<RuleCore<L>> {
-    let env = self.get_deserialize_env(globals)?;
+  pub fn get_matcher(&self, env: DeserializeEnv<L>) -> RResult<RuleCore<L>> {
+    let env = self.get_deserialize_env(env)?;
     self.get_matcher_from_env(&env)
   }
 }

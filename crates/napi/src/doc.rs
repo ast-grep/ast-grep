@@ -1,6 +1,6 @@
 use crate::FrontEndLanguage;
 
-use ast_grep_config::{RuleCore, SerializableRuleCore};
+use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
 use ast_grep_core::Language;
 use napi::anyhow::Error;
@@ -38,7 +38,8 @@ impl NapiConfig {
       utils: self.utils.map(serde_json::from_value).transpose()?,
       fix: None,
     };
-    rule.get_matcher(&Default::default()).map_err(|e| {
+    let env = DeserializeEnv::new(lang);
+    rule.get_matcher(env).map_err(|e| {
       let error = Error::from(e)
         .chain()
         .map(ToString::to_string)
