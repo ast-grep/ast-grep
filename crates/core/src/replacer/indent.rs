@@ -133,11 +133,6 @@ impl<T: Content> IndentSensitive for T {
   }
 }
 
-// impl IndentSensitive for String {
-//   fn get_new_line() -> Self::Underlying { b'\n' }
-//   fn get_space() -> Self::Underlying { b' ' }
-// }
-
 const MAX_LOOK_AHEAD: usize = 512;
 
 /// Represents how we de-indent matched meta var.
@@ -211,12 +206,14 @@ pub fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> usize 
   let lookahead = src.len().max(MAX_LOOK_AHEAD) - MAX_LOOK_AHEAD;
 
   let mut indent = 0;
+  let new_line = C::get_new_line();
+  let space = C::get_space();
   // TODO: support TAB. only whitespace is supported now
   for c in src[lookahead..].iter().rev() {
-    if *c == <C as IndentSensitive>::get_new_line() {
+    if *c == new_line {
       return indent;
     }
-    if *c == <C as IndentSensitive>::get_space() {
+    if *c == space {
       indent += 1;
     } else {
       indent = 0;
@@ -234,14 +231,15 @@ pub fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> usize 
 // following line's should have fewer indentation than initial line
 fn remove_indent<C: IndentSensitive>(indent: usize, src: &[C::Underlying]) -> Vec<C::Underlying> {
   let indentation: Vec<_> = std::iter::repeat(C::get_space()).take(indent).collect();
+  let new_line = C::get_new_line();
   let lines: Vec<_> = src
-    .split(|b| *b == C::get_new_line())
+    .split(|b| *b == new_line)
     .map(|line| match line.strip_prefix(&*indentation) {
       Some(stripped) => stripped,
       None => line,
     })
     .collect();
-  lines.join(&C::get_new_line()).to_vec()
+  lines.join(&new_line).to_vec()
 }
 
 #[cfg(test)]
