@@ -1,7 +1,6 @@
 use crate::FrontEndLanguage;
 
 use ast_grep_config::{RuleCore, SerializableRuleCore};
-use ast_grep_core::replacer::IndentSensitive;
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
 use ast_grep_core::Language;
 use napi::anyhow::Error;
@@ -104,12 +103,6 @@ impl Content for Wrapper {
     Cow::Owned(s)
   }
 }
-
-// impl IndentSensitive for Wrapper {
-//   const NEW_LINE: u16 = b'\n' as u16;
-//   const SPACE: u16 = b' ' as u16;
-//   const TAB: u16 = b'\t' as u16;
-// }
 
 fn pos_for_byte_offset(input: &[u16], byte_offset: usize) -> Point {
   let offset = byte_offset / 2;
