@@ -4,7 +4,6 @@ mod string_case;
 use crate::fixer::SerializableFixer;
 use crate::rule_core::RuleCore;
 use ast_grep_core::meta_var::{MetaVarEnv, MetaVariable};
-use ast_grep_core::replacer::IndentSensitive;
 use ast_grep_core::source::Content;
 use ast_grep_core::{Doc, Language};
 pub use rewriters::Rewriters;
@@ -150,7 +149,7 @@ impl Transformation {
 struct Ctx<'b, 'c, D: Doc> {
   transforms: &'b HashMap<String, Transformation>,
   lang: &'b D::Lang,
-  rewriters: &'b HashMap<String, RuleCore<D::Lang>>,
+  rewriters: &'b HashMap<String, (RuleCore<D::Lang>, SerializableFixer)>,
   env: &'b mut MetaVarEnv<'c, D>,
 }
 
@@ -158,7 +157,7 @@ pub fn apply_env_transform<D: Doc>(
   transforms: &HashMap<String, Transformation>,
   lang: &D::Lang,
   env: &mut MetaVarEnv<D>,
-  rewriters: &HashMap<String, RuleCore<D::Lang>>,
+  rewriters: &HashMap<String, (RuleCore<D::Lang>, SerializableFixer)>,
 ) {
   let mut ctx = Ctx {
     transforms,

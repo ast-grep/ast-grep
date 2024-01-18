@@ -38,6 +38,10 @@ impl Rewriters {
     let source = ctx.lang.pre_process_pattern(&self.source);
     let var = ctx.lang.extract_meta_var(&source)?;
     let nodes = get_nodes_from_env(&var, ctx);
+    if nodes.is_empty() {
+      return None;
+    }
+    let start = nodes[0].range().start;
     let bytes = ctx.env.get_var_bytes(&var)?;
     let rules: Vec<_> = self
       .rewrites
@@ -45,7 +49,7 @@ impl Rewriters {
       .filter_map(|id| ctx.rewriters.get(id))
       .collect();
     let edits = find_and_make_edits(nodes, &rules);
-    let rewritten = make_edit::<D>(bytes, edits);
+    let rewritten = make_edit::<D>(bytes, edits, start);
     Some(D::Source::encode_bytes(rewritten).to_string())
   }
 }
@@ -53,7 +57,7 @@ impl Rewriters {
 type Bytes<D> = [<<D as Doc>::Source as Content>::Underlying];
 fn find_and_make_edits<D: Doc>(
   nodes: Vec<Node<D>>,
-  rules: &[&RuleCore<D::Lang>],
+  rules: &[&(RuleCore<D::Lang>, SerializableFixer)],
 ) -> Vec<Edit<D::Source>> {
   nodes
     .into_iter()
@@ -61,22 +65,24 @@ fn find_and_make_edits<D: Doc>(
     .collect()
 }
 
-fn replace_one<D: Doc>(node: Node<D>, rules: &[&RuleCore<D::Lang>]) -> Vec<Edit<D::Source>> {
+fn replace_one<D: Doc>(
+  node: Node<D>,
+  rules: &[&(RuleCore<D::Lang>, SerializableFixer)],
+) -> Vec<Edit<D::Source>> {
   let mut edits = vec![];
   for child in node.dfs() {
-    for rule in rules {
+    for (rule, fixer) in rules {
       // TODO inherit deserialize_env and meta_var_env
       if let Some(nm) = rule.match_node(child.clone()) {
         let deserialize_env = rule.get_env(node.lang().clone());
-        todo!()
-        // let fixer = Fixer::parse(fixer, &deserialize_env, &Default::default()).unwrap();
-        // edits.push(nm.make_edit(rule, &fixer));
+        let fixer = Fixer::parse(fixer, &deserialize_env, &Default::default()).unwrap();
+        edits.push(nm.make_edit(rule, &fixer));
       }
     }
   }
   edits
 }
 
-fn make_edit<D: Doc>(bytes: &Bytes<D>, edits: Vec<Edit<D::Source>>) -> &Bytes<D> {
+fn make_edit<D: Doc>(bytes: &Bytes<D>, edits: Vec<Edit<D::Source>>, offset: usize) -> &Bytes<D> {
   todo!()
 }

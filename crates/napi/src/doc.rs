@@ -105,11 +105,11 @@ impl Content for Wrapper {
   }
 }
 
-impl IndentSensitive for Wrapper {
-  const NEW_LINE: u16 = b'\n' as u16;
-  const SPACE: u16 = b' ' as u16;
-  const TAB: u16 = b'\t' as u16;
-}
+// impl IndentSensitive for Wrapper {
+//   const NEW_LINE: u16 = b'\n' as u16;
+//   const SPACE: u16 = b' ' as u16;
+//   const TAB: u16 = b'\t' as u16;
+// }
 
 fn pos_for_byte_offset(input: &[u16], byte_offset: usize) -> Point {
   let offset = byte_offset / 2;
