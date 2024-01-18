@@ -269,9 +269,9 @@ impl SgNode {
   ) -> PyResult<RuleCore<SupportLang>> {
     let lang = self.inner.lang();
     let config = if let Some(config) = config {
-      config_from_dict(lang, config)?
+      config_from_dict(config)?
     } else if let Some(rule) = kwargs {
-      config_from_rule(lang, rule)?
+      config_from_rule(rule)?
     } else {
       return Err(PyErr::new::<PyValueError, _>("rule must not be empty"));
     };
@@ -281,23 +281,13 @@ impl SgNode {
   }
 }
 
-fn config_from_dict(
-  lang: &SupportLang,
-  dict: &PyDict,
-) -> PyResult<SerializableRuleCore<SupportLang>> {
-  dict
-    .set_item("language", lang.to_string())
-    .expect("set language should never fail");
+fn config_from_dict(dict: &PyDict) -> PyResult<SerializableRuleCore> {
   Ok(depythonize(dict)?)
 }
 
-fn config_from_rule(
-  lang: &SupportLang,
-  dict: &PyDict,
-) -> PyResult<SerializableRuleCore<SupportLang>> {
+fn config_from_rule(dict: &PyDict) -> PyResult<SerializableRuleCore> {
   let rule = depythonize(dict)?;
   Ok(SerializableRuleCore {
-    language: *lang,
     rule,
     constraints: None,
     utils: None,
@@ -312,7 +302,7 @@ fn get_matcher_from_rule(
 ) -> PyResult<RuleCore<SupportLang>> {
   let rule = dict.ok_or_else(|| PyErr::new::<PyValueError, _>("rule must not be empty"))?;
   let env = DeserializeEnv::new(*lang);
-  let config = config_from_rule(lang, rule)?;
+  let config = config_from_rule(rule)?;
   let matcher = config.get_matcher(env).context("cannot get matcher")?;
   Ok(matcher)
 }

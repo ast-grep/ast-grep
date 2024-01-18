@@ -35,23 +35,27 @@ pub enum Severity {
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableRuleCoreWithId<L: Language> {
   #[serde(flatten)]
-  pub core: SerializableRuleCore<L>,
+  pub core: SerializableRuleCore,
   /// Unique, descriptive identifier, e.g., no-unused-variable
   pub id: String,
+  /// Specify the language to parse and the file extension to include in matching.
+  pub language: L,
 }
 
 pub fn into_map<L: Language>(
   rules: Vec<SerializableRuleCoreWithId<L>>,
-) -> HashMap<String, SerializableRuleCore<L>> {
-  rules.into_iter().map(|r| (r.id, r.core)).collect()
+) -> HashMap<String, SerializableRuleCoreWithId<L>> {
+  rules.into_iter().map(|r| (r.id.clone(), r)).collect()
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableRuleConfig<L: Language> {
   #[serde(flatten)]
-  pub core: SerializableRuleCore<L>,
+  pub core: SerializableRuleCore,
   /// Unique, descriptive identifier, e.g., no-unused-variable
   pub id: String,
+  /// Specify the language to parse and the file extension to include in matching.
+  pub language: L,
   /// Rewrite rules for `applyRewriters` transformation
   pub rewriters: Option<Vec<SerializableRuleCoreWithId<L>>>,
   /// Main message highlighting why this rule fired. It should be single line and concise,
@@ -86,7 +90,7 @@ impl<L: Language> SerializableRuleConfig<L> {
 }
 
 impl<L: Language> Deref for SerializableRuleConfig<L> {
-  type Target = SerializableRuleCore<L>;
+  type Target = SerializableRuleCore;
   fn deref(&self) -> &Self::Target {
     &self.core
   }
@@ -163,7 +167,6 @@ mod test {
 
   fn ts_rule_config(rule: SerializableRule) -> SerializableRuleConfig<TypeScript> {
     let core = SerializableRuleCore {
-      language: TypeScript::Tsx,
       rule,
       constraints: None,
       transform: None,
@@ -173,6 +176,7 @@ mod test {
     SerializableRuleConfig {
       core,
       id: "".into(),
+      language: TypeScript::Tsx,
       rewriters: None,
       message: "".into(),
       note: None,

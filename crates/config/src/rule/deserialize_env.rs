@@ -1,9 +1,7 @@
 use super::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
 use crate::maybe::Maybe;
 use crate::rule::{self, Rule, RuleSerializeError, SerializableRule};
-use crate::rule_config::{
-  into_map, RuleConfigError, SerializableRuleCore, SerializableRuleCoreWithId,
-};
+use crate::rule_config::{into_map, RuleConfigError, SerializableRuleCoreWithId};
 
 use ast_grep_core::language::Language;
 
@@ -33,12 +31,12 @@ impl DependentRule for SerializableRule {
   }
 }
 
-impl<L: Language> DependentRule for SerializableRuleCore<L> {
+impl<L: Language> DependentRule for SerializableRuleCoreWithId<L> {
   fn visit_dependent_rules<'a>(
     &'a self,
     sorter: &mut TopologicalSort<'a, Self>,
   ) -> OrderResult<()> {
-    visit_dependent_rule_ids(&self.rule, sorter)
+    visit_dependent_rule_ids(&self.core.rule, sorter)
   }
 }
 
@@ -152,7 +150,7 @@ impl<L: Language> DeserializeEnv<L> {
     for id in order {
       let rule = utils.get(id).expect("must exist");
       let env = DeserializeEnv::new(rule.language.clone()).with_globals(&registration);
-      let matcher = rule.get_matcher(env)?;
+      let matcher = rule.core.get_matcher(env)?;
       registration
         .insert(id, matcher)
         .map_err(RuleSerializeError::MatchesReference)?;

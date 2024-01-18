@@ -31,7 +31,6 @@ impl NapiConfig {
   pub fn parse_with(self, language: FrontEndLanguage) -> NapiResult<RuleCore<FrontEndLanguage>> {
     let lang = self.language.unwrap_or(language);
     let rule = SerializableRuleCore {
-      language: lang,
       rule: serde_json::from_value(self.rule)?,
       constraints: self.constraints.map(serde_json::from_value).transpose()?,
       transform: self.transform.map(serde_json::from_value).transpose()?,
