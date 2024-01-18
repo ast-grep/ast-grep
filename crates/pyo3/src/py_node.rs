@@ -1,7 +1,7 @@
 use crate::range::Range;
 use crate::SgRoot;
 
-use ast_grep_config::{GlobalRules, RuleCore, SerializableRuleCore};
+use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
 use ast_grep_core::{NodeMatch, StrDoc};
 use ast_grep_language::SupportLang;
 
@@ -9,13 +9,10 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 use anyhow::Context;
-use once_cell::sync::Lazy;
 use pyo3::exceptions::{PyKeyError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pythonize::depythonize;
-
-static GLOBAL_RULES: Lazy<GlobalRules<SupportLang>> = Lazy::new(GlobalRules::default);
 
 #[pyclass(mapping)]
 pub struct SgNode {
@@ -278,9 +275,8 @@ impl SgNode {
     } else {
       return Err(PyErr::new::<PyValueError, _>("rule must not be empty"));
     };
-    let matcher = config
-      .get_matcher(&GLOBAL_RULES)
-      .context("cannot get matcher")?;
+    let env = DeserializeEnv::new(*lang);
+    let matcher = config.get_matcher(env).context("cannot get matcher")?;
     Ok(matcher)
   }
 }
@@ -315,9 +311,8 @@ fn get_matcher_from_rule(
   dict: Option<&PyDict>,
 ) -> PyResult<RuleCore<SupportLang>> {
   let rule = dict.ok_or_else(|| PyErr::new::<PyValueError, _>("rule must not be empty"))?;
+  let env = DeserializeEnv::new(*lang);
   let config = config_from_rule(lang, rule)?;
-  let matcher = config
-    .get_matcher(&GLOBAL_RULES)
-    .context("cannot get matcher")?;
+  let matcher = config.get_matcher(env).context("cannot get matcher")?;
   Ok(matcher)
 }

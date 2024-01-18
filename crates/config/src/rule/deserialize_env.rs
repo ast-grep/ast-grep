@@ -151,7 +151,8 @@ impl<L: Language> DeserializeEnv<L> {
     let order = TopologicalSort::get_order(&utils).map_err(RuleSerializeError::from)?;
     for id in order {
       let rule = utils.get(id).expect("must exist");
-      let matcher = rule.get_matcher(&registration)?;
+      let env = DeserializeEnv::new(rule.language.clone()).with_globals(&registration);
+      let matcher = rule.get_matcher(env)?;
       registration
         .insert(id, matcher)
         .map_err(RuleSerializeError::MatchesReference)?;

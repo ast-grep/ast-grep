@@ -1,6 +1,7 @@
 use crate::GlobalRules;
 
 use crate::fixer::Fixer;
+use crate::rule::DeserializeEnv;
 pub use crate::rule_core::{
   try_deserialize_matchers, RuleConfigError, RuleCore, SerializableMetaVarMatcher,
   SerializableRuleCore, SerializeConstraintsError,
@@ -76,6 +77,11 @@ impl<L: Language> SerializableRuleConfig<L> {
   fn get_message(&self, node_match: &NodeMatch<StrDoc<L>>) -> String {
     let bytes = self.message.generate_replacement(node_match);
     String::from_utf8(bytes).expect("replacement must be valid utf-8")
+  }
+
+  pub fn get_matcher(&self, globals: &GlobalRules<L>) -> Result<RuleCore<L>, RuleConfigError> {
+    let env = DeserializeEnv::new(self.language.clone()).with_globals(globals);
+    self.core.get_matcher(env)
   }
 }
 
