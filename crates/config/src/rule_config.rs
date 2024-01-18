@@ -111,7 +111,7 @@ impl<L: Language> RuleConfig<L> {
     for val in ser {
       // NB should inherit env from matcher to inherit utils
       let rewriter = val.core.get_matcher_from_env(&env)?;
-      rewriters.insert(val.id, rewriter);
+      rewriters.insert(val.id, (rewriter, val.core.fix.unwrap()));
     }
     matcher.add_rewrites(rewriters)?;
     Ok(Self { inner, matcher })

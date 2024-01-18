@@ -197,7 +197,10 @@ impl<L: Language> RuleCore<L> {
     }
   }
 
-  pub fn add_rewrites(&mut self, rewrites: HashMap<String, RuleCore<L>>) -> RResult<()> {
+  pub fn add_rewrites(
+    &mut self,
+    rewrites: HashMap<String, (RuleCore<L>, SerializableFixer)>,
+  ) -> RResult<()> {
     for (id, rewrite) in rewrites {
       self
         .utils

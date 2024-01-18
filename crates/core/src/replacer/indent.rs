@@ -118,17 +118,25 @@ use std::ops::Range;
 pub trait IndentSensitive: Content {
   /// We assume NEW_LINE, TAB, SPACE is only one code unit.
   /// This is sufficiently true for utf8, utf16 and char.
-  const NEW_LINE: Self::Underlying;
-  const SPACE: Self::Underlying;
+  fn get_new_line() -> Self::Underlying;
+  fn get_space() -> Self::Underlying;
   // TODO: support tab
-  const TAB: Self::Underlying;
+  // fn get_tab(): Self::Underlying;
 }
 
-impl IndentSensitive for String {
-  const NEW_LINE: u8 = b'\n';
-  const SPACE: u8 = b' ';
-  const TAB: u8 = b'\t';
+impl<T: Content> IndentSensitive for T {
+  fn get_new_line() -> Self::Underlying {
+    T::decode_str("\n")[0].clone()
+  }
+  fn get_space() -> Self::Underlying {
+    T::decode_str(" ")[0].clone()
+  }
 }
+
+// impl IndentSensitive for String {
+//   fn get_new_line() -> Self::Underlying { b'\n' }
+//   fn get_space() -> Self::Underlying { b' ' }
+// }
 
 const MAX_LOOK_AHEAD: usize = 512;
 
@@ -147,7 +155,7 @@ pub fn extract_with_deindent<C: IndentSensitive>(
 ) -> DeindentedExtract<C> {
   let extract_slice = content.get_range(range.clone());
   // no need to compute indentation for single line
-  if !extract_slice.contains(&C::NEW_LINE) {
+  if !extract_slice.contains(&C::get_new_line()) {
     return DeindentedExtract::SingleLine(extract_slice);
   }
   let indent = get_indent_at_offset::<C>(content.get_range(0..range.start));
@@ -171,7 +179,7 @@ pub fn indent_lines<C: IndentSensitive>(
     // need add missing indent
     Ordering::Less => Cow::Owned(indent_lines_impl::<C, _>(
       indent - original_indent,
-      lines.split(|b| *b == C::NEW_LINE),
+      lines.split(|b| *b == C::get_new_line()),
     )),
   }
 }
@@ -182,14 +190,15 @@ where
   Lines: Iterator<Item = &'a [C::Underlying]>,
 {
   let mut ret = vec![];
-  let space = <C as IndentSensitive>::SPACE;
+  let space = <C as IndentSensitive>::get_space();
   let leading: Vec<_> = std::iter::repeat(space).take(indent).collect();
   // first line never got indent
   if let Some(line) = lines.next() {
     ret.extend(line.iter().cloned());
   };
+  let new_line = C::get_new_line();
   for line in lines {
-    ret.push(<C as IndentSensitive>::NEW_LINE);
+    ret.push(new_line.clone());
     ret.extend(leading.iter().cloned());
     ret.extend(line.iter().cloned());
   }
@@ -204,10 +213,10 @@ pub fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> usize 
   let mut indent = 0;
   // TODO: support TAB. only whitespace is supported now
   for c in src[lookahead..].iter().rev() {
-    if *c == <C as IndentSensitive>::NEW_LINE {
+    if *c == <C as IndentSensitive>::get_new_line() {
       return indent;
     }
-    if *c == <C as IndentSensitive>::SPACE {
+    if *c == <C as IndentSensitive>::get_space() {
       indent += 1;
     } else {
       indent = 0;
@@ -224,15 +233,15 @@ pub fn get_indent_at_offset<C: IndentSensitive>(src: &[C::Underlying]) -> usize 
 // NOTE: we assume input is well indented.
 // following line's should have fewer indentation than initial line
 fn remove_indent<C: IndentSensitive>(indent: usize, src: &[C::Underlying]) -> Vec<C::Underlying> {
-  let indentation: Vec<_> = std::iter::repeat(C::SPACE).take(indent).collect();
+  let indentation: Vec<_> = std::iter::repeat(C::get_space()).take(indent).collect();
   let lines: Vec<_> = src
-    .split(|b| *b == C::NEW_LINE)
+    .split(|b| *b == C::get_new_line())
     .map(|line| match line.strip_prefix(&*indentation) {
       Some(stripped) => stripped,
       None => line,
     })
     .collect();
-  lines.join(&C::NEW_LINE).to_vec()
+  lines.join(&C::get_new_line()).to_vec()
 }
 
 #[cfg(test)]

@@ -1,3 +1,4 @@
+use crate::fixer::SerializableFixer;
 use crate::{Rule, RuleCore};
 
 use ast_grep_core::language::Language;
@@ -56,7 +57,7 @@ impl<R> Default for Registration<R> {
 pub struct RuleRegistration<L: Language> {
   local: Registration<Rule<L>>,
   global: Registration<RuleCore<L>>,
-  rewrites: Registration<RuleCore<L>>,
+  rewrites: Registration<(RuleCore<L>, SerializableFixer)>,
 }
 
 // these are shit code
@@ -69,7 +70,7 @@ impl<L: Language> RuleRegistration<L> {
     self.global.read()
   }
 
-  pub fn get_rewrites(&self) -> RwLockReadGuard<HashMap<String, RuleCore<L>>> {
+  pub fn get_rewrites(&self) -> RwLockReadGuard<HashMap<String, (RuleCore<L>, SerializableFixer)>> {
     self.rewrites.read()
   }
 
@@ -102,7 +103,11 @@ impl<L: Language> RuleRegistration<L> {
     Ok(())
   }
 
-  pub fn insert_rewrite(&self, id: &str, rewrite: RuleCore<L>) -> Result<(), ReferentRuleError> {
+  pub fn insert_rewrite(
+    &self,
+    id: &str,
+    rewrite: (RuleCore<L>, SerializableFixer),
+  ) -> Result<(), ReferentRuleError> {
     let mut map = self.rewrites.write();
     if map.contains_key(id) {
       return Err(ReferentRuleError::DuplicateRule(id.into()));
