@@ -49,8 +49,24 @@ impl Rewriters {
       .filter_map(|id| ctx.rewriters.get(id))
       .collect();
     let edits = find_and_make_edits(nodes, &rules);
-    let rewritten = make_edit::<D>(bytes, edits, start);
-    Some(D::Source::encode_bytes(rewritten).to_string())
+    let rewritten = if let Some(joiner) = &self.join_by {
+      let mut ret = vec![];
+      let mut edits = edits.into_iter();
+      if let Some(first) = edits.next() {
+        ret.extend(first.inserted_text);
+        let joiner = D::Source::decode_str(joiner);
+        for edit in edits {
+          ret.extend_from_slice(&joiner);
+          ret.extend(edit.inserted_text);
+        }
+        ret
+      } else {
+        ret
+      }
+    } else {
+      make_edit::<D>(bytes, edits, start)
+    };
+    Some(D::Source::encode_bytes(&rewritten).to_string())
   }
 }
 
@@ -83,6 +99,20 @@ fn replace_one<D: Doc>(
   edits
 }
 
-fn make_edit<D: Doc>(bytes: &Bytes<D>, edits: Vec<Edit<D::Source>>, offset: usize) -> &Bytes<D> {
-  todo!()
+fn make_edit<D: Doc>(
+  old_content: &Bytes<D>,
+  edits: Vec<Edit<D::Source>>,
+  offset: usize,
+) -> Vec<<<D as Doc>::Source as Content>::Underlying> {
+  let mut new_content = vec![];
+  let mut start = 0;
+  for edit in edits {
+    let pos = edit.position - offset;
+    new_content.extend_from_slice(&old_content[start..pos]);
+    new_content.extend_from_slice(&edit.inserted_text);
+    start = pos + edit.deleted_length;
+  }
+  // add trailing statements
+  new_content.extend_from_slice(&old_content[start..]);
+  new_content
 }
