@@ -2,10 +2,7 @@ use crate::GlobalRules;
 
 use crate::fixer::Fixer;
 use crate::rule::DeserializeEnv;
-pub use crate::rule_core::{
-  try_deserialize_matchers, RuleConfigError, RuleCore, SerializableMetaVarMatcher,
-  SerializableRuleCore, SerializeConstraintsError,
-};
+pub use crate::rule_core::{RuleConfigError, RuleCore, SerializableRuleCore};
 use ast_grep_core::language::Language;
 use ast_grep_core::replacer::{Content, Replacer};
 use ast_grep_core::{NodeMatch, StrDoc};
