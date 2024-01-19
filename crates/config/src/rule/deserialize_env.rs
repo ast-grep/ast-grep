@@ -1,11 +1,34 @@
 use super::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
 use crate::maybe::Maybe;
 use crate::rule::{self, Rule, RuleSerializeError, SerializableRule};
-use crate::rule_config::{into_map, RuleConfigError, SerializableRuleCoreWithId};
+use crate::rule_config::RuleConfigError;
+use crate::rule_core::SerializableRuleCore;
 
 use ast_grep_core::language::Language;
 
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
+
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
+pub struct SerializableGlobalRule<L: Language> {
+  #[serde(flatten)]
+  pub core: SerializableRuleCore,
+  /// Unique, descriptive identifier, e.g., no-unused-variable
+  pub id: String,
+  /// Specify the language to parse and the file extension to include in matching.
+  pub language: L,
+}
+
+fn into_map<L: Language>(
+  rules: Vec<SerializableGlobalRule<L>>,
+) -> HashMap<String, (L, SerializableRuleCore)> {
+  rules
+    .into_iter()
+    .map(|r| (r.id, (r.language, r.core)))
+    .collect()
+}
 
 type OrderResult<T> = Result<T, ReferentRuleError>;
 
@@ -31,12 +54,12 @@ impl DependentRule for SerializableRule {
   }
 }
 
-impl<L: Language> DependentRule for SerializableRuleCoreWithId<L> {
+impl<L: Language> DependentRule for (L, SerializableRuleCore) {
   fn visit_dependent_rules<'a>(
     &'a self,
     sorter: &mut TopologicalSort<'a, Self>,
   ) -> OrderResult<()> {
-    visit_dependent_rule_ids(&self.core.rule, sorter)
+    visit_dependent_rule_ids(&self.1.rule, sorter)
   }
 }
 
@@ -142,15 +165,15 @@ impl<L: Language> DeserializeEnv<L> {
 
   /// register global utils rule discovered in the config.
   pub fn parse_global_utils(
-    utils: Vec<SerializableRuleCoreWithId<L>>,
+    utils: Vec<SerializableGlobalRule<L>>,
   ) -> Result<GlobalRules<L>, RuleConfigError> {
     let registration = GlobalRules::default();
     let utils = into_map(utils);
     let order = TopologicalSort::get_order(&utils).map_err(RuleSerializeError::from)?;
     for id in order {
-      let rule = utils.get(id).expect("must exist");
-      let env = DeserializeEnv::new(rule.language.clone()).with_globals(&registration);
-      let matcher = rule.core.get_matcher(env)?;
+      let (lang, core) = utils.get(id).expect("must exist");
+      let env = DeserializeEnv::new(lang.clone()).with_globals(&registration);
+      let matcher = core.get_matcher(env)?;
       registration
         .insert(id, matcher)
         .map_err(RuleSerializeError::MatchesReference)?;

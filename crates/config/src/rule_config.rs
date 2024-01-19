@@ -33,22 +33,6 @@ pub enum Severity {
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
-pub struct SerializableRuleCoreWithId<L: Language> {
-  #[serde(flatten)]
-  pub core: SerializableRuleCore,
-  /// Unique, descriptive identifier, e.g., no-unused-variable
-  pub id: String,
-  /// Specify the language to parse and the file extension to include in matching.
-  pub language: L,
-}
-
-pub fn into_map<L: Language>(
-  rules: Vec<SerializableRuleCoreWithId<L>>,
-) -> HashMap<String, SerializableRuleCoreWithId<L>> {
-  rules.into_iter().map(|r| (r.id.clone(), r)).collect()
-}
-
-#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableRewriter {
   #[serde(flatten)]
   pub core: SerializableRuleCore,
