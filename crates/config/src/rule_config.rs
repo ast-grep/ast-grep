@@ -49,6 +49,14 @@ pub fn into_map<L: Language>(
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
+pub struct SerializableRewriter {
+  #[serde(flatten)]
+  pub core: SerializableRuleCore,
+  /// Unique, descriptive identifier, e.g., no-unused-variable
+  pub id: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableRuleConfig<L: Language> {
   #[serde(flatten)]
   pub core: SerializableRuleCore,
@@ -57,7 +65,7 @@ pub struct SerializableRuleConfig<L: Language> {
   /// Specify the language to parse and the file extension to include in matching.
   pub language: L,
   /// Rewrite rules for `applyRewriters` transformation
-  pub rewriters: Option<Vec<SerializableRuleCoreWithId<L>>>,
+  pub rewriters: Option<Vec<SerializableRewriter>>,
   /// Main message highlighting why this rule fired. It should be single line and concise,
   /// but specific enough to be understood without additional context.
   #[serde(default)]
@@ -119,6 +127,8 @@ impl<L: Language> RuleConfig<L> {
     let env = matcher.get_env(inner.language.clone());
     let mut rewriters = HashMap::new();
     for val in ser {
+      // TODO: reusing env is not correct here. because we are
+      // inserting rewriter utils into the env.
       // NB should inherit env from matcher to inherit utils
       let rewriter = val.core.get_matcher_from_env(&env)?;
       rewriters.insert(val.id, (rewriter, val.core.fix.unwrap()));
