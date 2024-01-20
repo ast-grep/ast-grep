@@ -1,6 +1,5 @@
 use crate::matcher::{MatchAll, MatchNone, Matcher};
 use crate::meta_var::MetaVarEnv;
-// use crate::meta_var::{MetaVarMatcher, MetaVarMatchers};
 use crate::{Doc, Language, Node};
 use bit_set::BitSet;
 use std::borrow::Cow;
@@ -238,7 +237,6 @@ where
 pub struct Op<L: Language, M: Matcher<L>> {
   inner: M,
   lang: PhantomData<L>,
-  // meta_vars: MetaVarMatchers<D>,
 }
 
 impl<L, M> Matcher<L> for Op<L, M>
@@ -253,11 +251,6 @@ where
   ) -> Option<Node<'tree, D>> {
     let ret = self.inner.match_node_with_env(node, env);
     ret
-    // if ret.is_some() && env.match_constraints(&self.meta_vars) {
-    //   ret
-    // } else {
-    //   None
-    // }
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
@@ -304,13 +297,6 @@ impl<L: Language, M: Matcher<L>> Op<L, M> {
       lang: PhantomData,
     }
   }
-
-  /*
-  pub fn with_meta_var(&mut self, var_id: String, matcher: MetaVarMatcher<L>) -> &mut Self {
-    self.meta_vars.insert(var_id, matcher);
-    self
-  }
-  */
 }
 
 impl<L: Language, M: Matcher<L>> Op<L, M> {
@@ -322,7 +308,6 @@ impl<L: Language, M: Matcher<L>> Op<L, M> {
         lang: PhantomData,
       },
       lang: PhantomData,
-      // meta_vars: MetaVarMatchers::new(),
     }
   }
   pub fn either(pattern: M) -> Op<L, Or<L, M, MatchNone>> {
@@ -333,7 +318,6 @@ impl<L: Language, M: Matcher<L>> Op<L, M> {
         lang: PhantomData,
       },
       lang: PhantomData,
-      // meta_vars: MetaVarMatchers::new(),
     }
   }
 
@@ -349,7 +333,6 @@ impl<L: Language, M: Matcher<L>> Op<L, M> {
     Self {
       inner: matcher,
       lang: PhantomData,
-      // meta_vars: MetaVarMatchers::new(),
     }
   }
 }
@@ -364,7 +347,6 @@ impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, And<L, M, N>> {
         lang: PhantomData,
       },
       lang: PhantomData,
-      // meta_vars: MetaVarMatchers::new(),
     }
   }
 }
@@ -379,7 +361,6 @@ impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, Or<L, M, N>> {
         lang: PhantomData,
       },
       lang: PhantomData,
-      // meta_vars: MetaVarMatchers::new(),
     }
   }
 }
@@ -594,18 +575,4 @@ mod test {
     assert!(matches.get_env().get_match("A").is_none());
     assert_eq!(matches.get_env().get_match("B").unwrap().text(), "123");
   }
-
-  /*
-  use crate::matcher::RegexMatcher;
-  #[test]
-  fn test_op_with_matchers() {
-    let var_matcher = MetaVarMatcher::Regex(RegexMatcher::try_new("a").unwrap());
-    let mut matcher = Op::every("$A");
-    matcher.with_meta_var("A".into(), var_matcher);
-    let code = Root::new("a", Tsx);
-    assert!(code.root().find(&matcher).is_some());
-    let code = Root::new("b", Tsx);
-    assert!(code.root().find(&matcher).is_none());
-  }
-  */
 }

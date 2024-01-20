@@ -1,5 +1,5 @@
 use crate::match_tree::does_node_match_exactly;
-use crate::matcher::{KindMatcher, Pattern, RegexMatcher};
+use crate::matcher::Matcher;
 use crate::source::Content;
 use crate::{Doc, Language, Node, StrDoc};
 use std::borrow::Cow;
@@ -97,16 +97,20 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     single.chain(multi).chain(transformed)
   }
 
-  pub fn match_constraints(
-    &self,
-    var_matchers: &MetaVarMatchers<impl Doc<Lang = D::Lang>>,
+  pub fn match_constraints<M: Matcher<D::Lang>>(
+    &mut self,
+    var_matchers: &HashMap<MetaVariableID, M>,
   ) -> bool {
+    let mut env = Cow::Borrowed(self);
     for (var_id, candidate) in &self.single_matched {
-      if let Some(m) = var_matchers.0.get(var_id) {
-        if !m.matches(candidate.clone()) {
+      if let Some(m) = var_matchers.get(var_id) {
+        if m.match_node_with_env(candidate.clone(), &mut env).is_none() {
           return false;
         }
       }
+    }
+    if let Cow::Owned(env) = env {
+      *self = env;
     }
     true
   }
@@ -197,50 +201,6 @@ pub enum MetaVariable {
   MultiCapture(MetaVariableID),
 }
 
-#[derive(Clone)]
-pub struct MetaVarMatchers<D: Doc>(HashMap<MetaVariableID, MetaVarMatcher<D>>);
-
-impl<D: Doc> MetaVarMatchers<D> {
-  pub fn new() -> Self {
-    Self(HashMap::new())
-  }
-
-  pub fn insert(&mut self, var_id: MetaVariableID, matcher: MetaVarMatcher<D>) {
-    self.0.insert(var_id, matcher);
-  }
-}
-
-impl<D: Doc> Default for MetaVarMatchers<D> {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-#[derive(Clone)]
-pub enum MetaVarMatcher<D: Doc> {
-  #[cfg(feature = "regex")]
-  /// A regex to filter matched metavar based on its textual content.
-  Regex(RegexMatcher<D::Lang>),
-  /// A pattern to filter matched metavar based on its AST tree shape.
-  Pattern(Pattern<D::Lang>),
-  /// A kind_id to filter matched metavar based on its ts-node kind
-  Kind(KindMatcher<D::Lang>),
-}
-
-impl<D: Doc> MetaVarMatcher<D> {
-  pub fn matches(&self, candidate: Node<impl Doc<Lang = D::Lang>>) -> bool {
-    use crate::matcher::Matcher;
-    use MetaVarMatcher::*;
-    let mut env = Cow::Owned(MetaVarEnv::new());
-    match self {
-      #[cfg(feature = "regex")]
-      Regex(r) => r.match_node_with_env(candidate, &mut env).is_some(),
-      Pattern(p) => p.match_node_with_env(candidate, &mut env).is_some(),
-      Kind(k) => k.match_node_with_env(candidate, &mut env).is_some(),
-    }
-  }
-}
-
 pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariable> {
   use MetaVariable::*;
   let ellipsis: String = std::iter::repeat(meta_char).take(3).collect();
@@ -314,7 +274,7 @@ impl<'tree, L: Language> From<MetaVarEnv<'tree, StrDoc<L>>> for HashMap<String, 
 mod test {
   use super::*;
   use crate::language::{Language, Tsx};
-  use crate::{Pattern, StrDoc};
+  use crate::Pattern;
 
   fn extract_var(s: &str) -> Option<MetaVariable> {
     extract_meta_var(s, '$')
@@ -342,11 +302,8 @@ mod test {
   }
 
   fn match_constraints(pattern: &str, node: &str) -> bool {
-    let mut matchers: MetaVarMatchers<StrDoc<_>> = MetaVarMatchers(HashMap::new());
-    matchers.insert(
-      "A".to_string(),
-      MetaVarMatcher::Pattern(Pattern::new(pattern, Tsx)),
-    );
+    let mut matchers = HashMap::new();
+    matchers.insert("A".to_string(), Pattern::new(pattern, Tsx));
     let mut env = MetaVarEnv::new();
     let root = Tsx.ast_grep(node);
     let node = root.root().child(0).unwrap().child(0).unwrap();
