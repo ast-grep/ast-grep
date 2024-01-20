@@ -87,7 +87,7 @@ jobs:
           toolchain: stable
           target: ${{ matrix.settings.target }}
       - name: Cache cargo
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry/index/
@@ -97,7 +97,7 @@ jobs:
             target/
           key: ${{ matrix.settings.target }}-cargo-registry
       - name: Cache NPM dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .yarn/cache
           key: npm-cache-build-${{ matrix.settings.target }}-node@18
@@ -152,7 +152,7 @@ jobs:
           cache: yarn
           cache-dependency-path: ./crates/napi/yarn.lock
       - name: Cache NPM dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .yarn/cache
           key: npm-cache-ubuntu-20.04-publish
