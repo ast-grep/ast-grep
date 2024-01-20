@@ -61,9 +61,10 @@ impl<L: Language> Expansion<L> {
 }
 
 pub struct Fixer<C: Content, L: Language> {
-  template: TemplateFix<C>,
+  template: TemplateFix,
   expand_start: Option<Expansion<L>>,
   expand_end: Option<Expansion<L>>,
+  _to_remove: std::marker::PhantomData<C>,
 }
 
 impl<C, L> Fixer<C, L>
@@ -86,6 +87,7 @@ where
       template: TemplateFix::try_new(template, &env.lang)?,
       expand_start,
       expand_end,
+      _to_remove: std::marker::PhantomData,
     })
   }
 
@@ -106,6 +108,7 @@ where
           template,
           expand_end: None,
           expand_start: None,
+          _to_remove: std::marker::PhantomData,
         }
       }
       SerializableFixer::Config(cfg) => Self::do_parse(cfg, env)?,
@@ -119,6 +122,7 @@ where
       template,
       expand_start: None,
       expand_end: None,
+      _to_remove: std::marker::PhantomData,
     })
   }
 }

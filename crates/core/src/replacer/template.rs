@@ -8,16 +8,16 @@ use crate::source::{Content, Doc};
 use std::borrow::Cow;
 use thiserror::Error;
 
-pub enum TemplateFix<C: Content> {
+pub enum TemplateFix {
   // no meta_var, pure text
-  Textual(Vec<C::Underlying>),
-  WithMetaVar(Template<C>),
+  Textual(String),
+  WithMetaVar(Template),
 }
 
 #[derive(Debug, Error)]
 pub enum TemplateFixError {}
 
-impl<C: Content> TemplateFix<C> {
+impl TemplateFix {
   pub fn try_new<L: Language>(template: &str, lang: &L) -> Result<Self, TemplateFixError> {
     Ok(create_template(template, lang.meta_var_char(), &[]))
   }
@@ -27,7 +27,7 @@ impl<C: Content> TemplateFix<C> {
   }
 }
 
-impl<D: Doc> Replacer<D> for TemplateFix<D::Source> {
+impl<D: Doc> Replacer<D> for TemplateFix {
   fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
     let leading = nm.root.doc.get_source().get_range(0..nm.range().start);
     let indent = get_indent_at_offset::<D::Source>(leading);
@@ -39,12 +39,12 @@ impl<D: Doc> Replacer<D> for TemplateFix<D::Source> {
 
 type Indent = usize;
 
-pub struct Template<C: Content> {
-  fragments: Vec<Vec<C::Underlying>>,
+pub struct Template {
+  fragments: Vec<String>,
   vars: Vec<(MetaVarExtract, Indent)>,
 }
 
-fn create_template<C: Content>(tmpl: &str, mv_char: char, transforms: &[String]) -> TemplateFix<C> {
+fn create_template(tmpl: &str, mv_char: char, transforms: &[String]) -> TemplateFix {
   let mut fragments = vec![];
   let mut vars = vec![];
   let mut offset = 0;
@@ -53,7 +53,7 @@ fn create_template<C: Content>(tmpl: &str, mv_char: char, transforms: &[String])
     if let Some((meta_var, skipped)) =
       split_first_meta_var(&tmpl[len + offset + i..], mv_char, transforms)
     {
-      fragments.push(C::decode_str(&tmpl[len..len + offset + i]).into_owned());
+      fragments.push(tmpl[len..len + offset + i].to_string());
       // NB we have to count ident of the full string
       let indent = get_indent_at_offset::<String>(tmpl[..len + offset + i].as_bytes());
       vars.push((meta_var, indent));
@@ -68,32 +68,32 @@ fn create_template<C: Content>(tmpl: &str, mv_char: char, transforms: &[String])
     offset = offset + i + 1;
   }
   if fragments.is_empty() {
-    TemplateFix::Textual(C::decode_str(&tmpl[len..]).into_owned())
+    TemplateFix::Textual(tmpl[len..].to_string())
   } else {
-    fragments.push(C::decode_str(&tmpl[len..]).into_owned());
+    fragments.push(tmpl[len..].to_string());
     TemplateFix::WithMetaVar(Template { fragments, vars })
   }
 }
 
 fn replace_fixer<D: Doc>(
-  fixer: &TemplateFix<D::Source>,
+  fixer: &TemplateFix,
   env: &MetaVarEnv<D>,
 ) -> Vec<<D::Source as Content>::Underlying> {
   let template = match fixer {
-    TemplateFix::Textual(n) => return n.to_vec(),
+    TemplateFix::Textual(n) => return D::Source::decode_str(n).to_vec(),
     TemplateFix::WithMetaVar(t) => t,
   };
   let mut ret = vec![];
   let mut frags = template.fragments.iter();
   let vars = template.vars.iter();
   if let Some(frag) = frags.next() {
-    ret.extend_from_slice(frag);
+    ret.extend_from_slice(&D::Source::decode_str(frag));
   }
   for ((var, indent), frag) in vars.zip(frags) {
     if let Some(bytes) = maybe_get_var(env, var, indent) {
       ret.extend_from_slice(&bytes);
     }
-    ret.extend_from_slice(frag);
+    ret.extend_from_slice(&D::Source::decode_str(frag));
   }
   ret
 }
