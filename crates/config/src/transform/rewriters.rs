@@ -101,6 +101,10 @@ fn make_edit<D: Doc>(
   let mut start = 0;
   for edit in edits {
     let pos = edit.position - offset;
+    // skip overlapping edits
+    if start > pos {
+      continue;
+    }
     new_content.extend_from_slice(&old_content[start..pos]);
     new_content.extend_from_slice(&edit.inserted_text);
     start = pos + edit.deleted_length;
@@ -158,19 +162,57 @@ mod test {
       rewrites: str_vec!["rewrite"],
       join_by: None,
     };
-    let rewriters = make_rewriter(&[("rewrite", "{rule: {kind: number}, fix: '114514'}")]);
+    let rewriters = make_rewriter(&[("rewrite", "{rule: {kind: number}, fix: '810'}")]);
     let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", &rewriters);
-    assert_eq!(ret, "t(114514, 114514, 114514)");
+    assert_eq!(ret, "t(810, 810, 810)");
   }
 
   #[test]
   fn test_perform_multiple_rewrites() {}
 
   #[test]
-  fn test_rewrites_order_and_overlapping() {}
+  fn test_ignore_unused_rewrites() {
+    let rewrite = Rewriters {
+      source: "$A".into(),
+      rewrites: str_vec!["re1"],
+      join_by: None,
+    };
+    let rewriters = make_rewriter(&[
+      ("ignored", "{rule: {regex: '^2$'}, fix: '1919'}"),
+      ("re1", "{rule: {kind: number}, fix: '810'}"),
+    ]);
+    let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", &rewriters);
+    assert_eq!(ret, "t(810, 810, 810)");
+  }
 
   #[test]
-  fn test_rewrites_join_by() {}
+  fn test_rewrites_order_and_overlapping() {
+    let rewrite = Rewriters {
+      source: "$A".into(),
+      rewrites: str_vec!["re2", "re1"],
+      join_by: None,
+    };
+    // first match wins the rewrite
+    let rewriters = make_rewriter(&[
+      ("re2", "{rule: {regex: '^2$'}, fix: '1919'}"),
+      ("re1", "{rule: {kind: number}, fix: '810'}"),
+    ]);
+    let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", &rewriters);
+    assert_eq!(ret, "t(810, 1919, 810)");
+  }
+
+  #[test]
+  fn test_rewrites_join_by() {
+    let rewrite = Rewriters {
+      source: "$A".into(),
+      rewrites: str_vec!["re1"],
+      join_by: Some(" + ".into()),
+    };
+    // first match wins the rewrite
+    let rewriters = make_rewriter(&[("re1", "{rule: {kind: number}, fix: '810'}")]);
+    let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", &rewriters);
+    assert_eq!(ret, "810 + 810 + 810");
+  }
 
   #[test]
   fn test_recursive_rewrites() {}
