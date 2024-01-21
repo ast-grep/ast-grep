@@ -112,5 +112,66 @@ fn make_edit<D: Doc>(
 
 #[cfg(test)]
 mod test {
-  // test applyRewriters actually works given correct env and rewriters
+  use super::*;
+  use crate::from_str;
+  use crate::rule::DeserializeEnv;
+  use crate::rule_core::SerializableRuleCore;
+  use crate::test::TypeScript;
+  use std::collections::HashMap;
+
+  fn apply_transformation(
+    rewrite: Rewriters,
+    src: &str,
+    pat: &str,
+    rewriters: &HashMap<String, RuleCore<TypeScript>>,
+  ) -> String {
+    let grep = TypeScript::Tsx.ast_grep(src);
+    let root = grep.root();
+    let mut nm = root.find(pat).expect("should find");
+    let mut ctx = Ctx {
+      lang: &TypeScript::Tsx,
+      transforms: &Default::default(),
+      env: nm.get_env_mut(),
+      rewriters,
+    };
+    rewrite.compute(&mut ctx).expect("should have transforms")
+  }
+  macro_rules! str_vec {
+    ( $($a: expr),* ) => { vec![ $($a.to_string()),* ] };
+  }
+
+  fn make_rewriter(pairs: &[(&str, &str)]) -> HashMap<String, RuleCore<TypeScript>> {
+    let mut rewriters = HashMap::new();
+    for (key, ser) in pairs {
+      let serialized: SerializableRuleCore = from_str(ser).unwrap();
+      let env = DeserializeEnv::new(TypeScript::Tsx);
+      let rule = serialized.get_matcher(env).unwrap();
+      rewriters.insert(key.to_string(), rule);
+    }
+    rewriters
+  }
+
+  #[test]
+  fn test_perform_one_rewrite() {
+    let rewrite = Rewriters {
+      source: "$A".into(),
+      rewrites: str_vec!["rewrite"],
+      join_by: None,
+    };
+    let rewriters = make_rewriter(&[("rewrite", "{rule: {kind: number}, fix: '114514'}")]);
+    let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", &rewriters);
+    assert_eq!(ret, "t(114514, 114514, 114514)");
+  }
+
+  #[test]
+  fn test_perform_multiple_rewrites() {}
+
+  #[test]
+  fn test_rewrites_order_and_overlapping() {}
+
+  #[test]
+  fn test_rewrites_join_by() {}
+
+  #[test]
+  fn test_recursive_rewrites() {}
 }
