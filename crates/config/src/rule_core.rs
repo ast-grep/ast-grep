@@ -320,4 +320,6 @@ mod test {
     };
     assert_eq!(error.to_string(), "Kind `IMPOSSIBLE_KIND` is invalid.");
   }
+  // TODO: add test for utils registration and rewriters
+  // TODO: add test that multiple envs will not interfer
 }

@@ -332,4 +332,8 @@ test-rule:
     let replacement = fixer.generate_replacement(&nm);
     assert_eq!(String::from_utf8_lossy(&replacement), "string!!");
   }
+
+  // TODO: add rewriters test
+  // TODO: verify rewriters can access upper level utils
+  // TODO: verify rewriters should not have rewriters in registration
 }

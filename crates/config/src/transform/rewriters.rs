@@ -109,3 +109,8 @@ fn make_edit<D: Doc>(
   new_content.extend_from_slice(&old_content[start..]);
   new_content
 }
+
+#[cfg(test)]
+mod test {
+  // test applyRewriters actually works given correct env and rewriters
+}

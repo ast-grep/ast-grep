@@ -390,4 +390,5 @@ mod test {
     assert_eq!(actual, "camelcase_not");
     Ok(())
   }
+  // TODO: add a symbolic test for ApplyRewriters
 }
