@@ -1,6 +1,4 @@
 use super::Ctx;
-
-use crate::fixer::{Fixer, SerializableFixer};
 use crate::rule_core::RuleCore;
 
 use ast_grep_core::meta_var::MetaVariable;
@@ -73,7 +71,7 @@ impl Rewriters {
 type Bytes<D> = [<<D as Doc>::Source as Content>::Underlying];
 fn find_and_make_edits<D: Doc>(
   nodes: Vec<Node<D>>,
-  rules: &[&(RuleCore<D::Lang>, SerializableFixer)],
+  rules: &[&RuleCore<D::Lang>],
 ) -> Vec<Edit<D::Source>> {
   nodes
     .into_iter()
@@ -81,18 +79,13 @@ fn find_and_make_edits<D: Doc>(
     .collect()
 }
 
-fn replace_one<D: Doc>(
-  node: Node<D>,
-  rules: &[&(RuleCore<D::Lang>, SerializableFixer)],
-) -> Vec<Edit<D::Source>> {
+fn replace_one<D: Doc>(node: Node<D>, rules: &[&RuleCore<D::Lang>]) -> Vec<Edit<D::Source>> {
   let mut edits = vec![];
   for child in node.dfs() {
-    for (rule, fixer) in rules {
+    for rule in rules {
       // TODO inherit deserialize_env and meta_var_env
       if let Some(nm) = rule.match_node(child.clone()) {
-        let deserialize_env = rule.get_env(node.lang().clone());
-        let fixer = Fixer::parse(fixer, &deserialize_env, &Default::default()).unwrap();
-        edits.push(nm.make_edit(rule, &fixer));
+        edits.push(nm.make_edit(rule, rule.fixer.as_ref().expect("TODO")));
       }
     }
   }
