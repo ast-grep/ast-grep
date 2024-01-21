@@ -7,7 +7,6 @@ use crate::DeserializeEnv;
 
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
-use ast_grep_core::replacer::Content;
 use ast_grep_core::{Doc, Matcher, Node};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Error as YamlError;
@@ -81,10 +80,7 @@ impl SerializableRuleCore {
     Ok(matchers)
   }
 
-  fn get_fixer<C: Content, L: Language>(
-    &self,
-    env: &DeserializeEnv<L>,
-  ) -> RResult<Option<Fixer<C, L>>> {
+  fn get_fixer<L: Language>(&self, env: &DeserializeEnv<L>) -> RResult<Option<Fixer<L>>> {
     if let Some(fix) = &self.fix {
       let parsed = Fixer::parse(fix, env, &self.transform)?;
       Ok(Some(parsed))
@@ -122,7 +118,7 @@ pub struct RuleCore<L: Language> {
   matchers: HashMap<String, Rule<L>>,
   kinds: Option<BitSet>,
   transform: Option<HashMap<String, Transformation>>,
-  pub fixer: Option<Fixer<String, L>>,
+  pub fixer: Option<Fixer<L>>,
   // this is required to hold util rule reference
   utils: RuleRegistration<L>,
 }
@@ -154,7 +150,7 @@ impl<L: Language> RuleCore<L> {
   }
 
   #[inline]
-  pub fn with_fixer(self, fixer: Option<Fixer<String, L>>) -> Self {
+  pub fn with_fixer(self, fixer: Option<Fixer<L>>) -> Self {
     Self { fixer, ..self }
   }
 

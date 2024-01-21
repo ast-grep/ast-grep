@@ -261,7 +261,7 @@ impl<P: Printer + Sync> StdInWorker for RunWithSpecificLang<P> {
 fn match_one_file(
   printer: &impl Printer,
   match_unit: &MatchUnit<impl Matcher<SgLang>>,
-  rewrite: &Option<Fixer<String, SgLang>>,
+  rewrite: &Option<Fixer<SgLang>>,
 ) -> Result<()> {
   let MatchUnit {
     path,

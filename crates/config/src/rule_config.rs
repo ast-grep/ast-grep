@@ -132,7 +132,7 @@ impl<L: Language> RuleConfig<L> {
   pub fn get_message(&self, node: &NodeMatch<StrDoc<L>>) -> String {
     self.inner.get_message(node)
   }
-  pub fn get_fixer<C: Content>(&self) -> Result<Option<Fixer<C, L>>, RuleConfigError> {
+  pub fn get_fixer<C: Content>(&self) -> Result<Option<Fixer<L>>, RuleConfigError> {
     if let Some(fix) = &self.fix {
       let env = self.matcher.get_env(self.language.clone());
       let parsed = Fixer::parse(fix, &env, &self.transform)?;

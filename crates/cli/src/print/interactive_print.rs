@@ -266,7 +266,7 @@ language: TypeScript
   fn make_diffs<'a>(
     grep: &'a AstGrep<StrDoc<SgLang>>,
     matcher: impl Matcher<SgLang>,
-    fixer: &Fixer<String, SgLang>,
+    fixer: &Fixer<SgLang>,
   ) -> Vec<Diff<'a>> {
     let root = grep.root();
     Visitor::new(&matcher)

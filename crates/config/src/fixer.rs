@@ -60,18 +60,13 @@ impl<L: Language> Expansion<L> {
   }
 }
 
-pub struct Fixer<C: Content, L: Language> {
+pub struct Fixer<L: Language> {
   template: TemplateFix,
   expand_start: Option<Expansion<L>>,
   expand_end: Option<Expansion<L>>,
-  _to_remove: std::marker::PhantomData<C>,
 }
 
-impl<C, L> Fixer<C, L>
-where
-  C: Content,
-  L: Language,
-{
+impl<L: Language> Fixer<L> {
   fn do_parse(
     serialized: &SerializableFixConfig,
     env: &DeserializeEnv<L>,
@@ -87,7 +82,6 @@ where
       template: TemplateFix::try_new(template, &env.lang)?,
       expand_start,
       expand_end,
-      _to_remove: std::marker::PhantomData,
     })
   }
 
@@ -108,7 +102,6 @@ where
           template,
           expand_end: None,
           expand_start: None,
-          _to_remove: std::marker::PhantomData,
         }
       }
       SerializableFixer::Config(cfg) => Self::do_parse(cfg, env)?,
@@ -122,12 +115,11 @@ where
       template,
       expand_start: None,
       expand_end: None,
-      _to_remove: std::marker::PhantomData,
     })
   }
 }
 
-impl<D, L, C> Replacer<D> for Fixer<C, L>
+impl<D, L, C> Replacer<D> for Fixer<L>
 where
   D: Doc<Source = C, Lang = L>,
   L: Language,
@@ -137,7 +129,7 @@ where
     // simple forwarding to template
     self.template.generate_replacement(nm)
   }
-  fn get_replaced_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher<D::Lang>) -> Range<usize> {
+  fn get_replaced_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher<L>) -> Range<usize> {
     let range = nm.range();
     if self.expand_start.is_none() && self.expand_end.is_none() {
       return if let Some(len) = matcher.get_match_len(nm.get_node().clone()) {
@@ -223,7 +215,7 @@ mod test {
     };
     let config = SerializableFixer::Config(config);
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let ret = Fixer::<String, _>::parse(&config, &env, &Some(Default::default()))?;
+    let ret = Fixer::parse(&config, &env, &Some(Default::default()))?;
     assert!(ret.expand_start.is_none());
     assert!(ret.expand_end.is_some());
     assert!(matches!(ret.template, TemplateFix::Textual(_)));
@@ -234,7 +226,7 @@ mod test {
   fn test_parse_str() -> Result<(), FixerError> {
     let config = SerializableFixer::Str("abcd".to_string());
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let ret = Fixer::<String, _>::parse(&config, &env, &Some(Default::default()))?;
+    let ret = Fixer::parse(&config, &env, &Some(Default::default()))?;
     assert!(ret.expand_end.is_none());
     assert!(ret.expand_start.is_none());
     assert!(matches!(ret.template, TemplateFix::Textual(_)));
@@ -251,7 +243,7 @@ mod test {
     };
     let config = SerializableFixer::Config(config);
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let fixer = Fixer::<String, _>::parse(&config, &env, &Some(Default::default()))?;
+    let fixer = Fixer::parse(&config, &env, &Some(Default::default()))?;
     let grep = TypeScript::Tsx.ast_grep("let a = 123");
     let node = grep.root().find("let $A = 123").expect("should found");
     let edit = fixer.generate_replacement(&node);
@@ -270,7 +262,7 @@ mod test {
     };
     let config = SerializableFixer::Config(config);
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let fixer = Fixer::<String, _>::parse(&config, &env, &Some(Default::default()))?;
+    let fixer = Fixer::parse(&config, &env, &Some(Default::default()))?;
     let grep = TypeScript::Tsx.ast_grep("var a = { b: 123, }");
     let matcher = KindMatcher::new("pair", TypeScript::Tsx);
     let node = grep.root().find(&matcher).expect("should found");
