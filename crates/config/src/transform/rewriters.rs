@@ -87,9 +87,8 @@ fn replace_one<D: Doc>(node: Node<D>, rules: &[&RuleCore<D::Lang>]) -> Vec<Edit<
       // TODO inherit deserialize_env and meta_var_env
       if let Some(nm) = rule.match_node(child.clone()) {
         edits.push(nm.make_edit(rule, rule.fixer.as_ref().expect("TODO")));
-        // TODO: uncomment this, to make commit clean
-        // // stop at first fix, skip duplicate fix
-        // break;
+        // stop at first fix, skip duplicate fix
+        break;
       }
     }
   }
