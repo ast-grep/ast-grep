@@ -20,7 +20,8 @@ impl<R> Clone for Registration<R> {
 }
 
 impl<R> Registration<R> {
-  fn read(&self) -> RwLockReadGuard<HashMap<String, R>> {
+  // TODO: this is sooo wrong
+  pub(crate) fn read(&self) -> RwLockReadGuard<HashMap<String, R>> {
     self.0.read().unwrap()
   }
   fn write(&self) -> RwLockWriteGuard<HashMap<String, R>> {
@@ -69,8 +70,8 @@ impl<L: Language> RuleRegistration<L> {
     self.global.read()
   }
 
-  pub fn get_rewrites(&self) -> RwLockReadGuard<HashMap<String, RuleCore<L>>> {
-    self.rewrites.read()
+  pub fn get_rewrites(&self) -> GlobalRules<L> {
+    self.rewrites.clone()
   }
 
   pub fn from_globals(global: &GlobalRules<L>) -> Self {
@@ -78,6 +79,14 @@ impl<L: Language> RuleRegistration<L> {
       local: Default::default(),
       global: global.clone(),
       rewrites: Default::default(),
+    }
+  }
+
+  pub fn with_rewriters(&self, rewriters: &GlobalRules<L>) -> Self {
+    Self {
+      local: self.local.clone(),
+      global: self.global.clone(),
+      rewrites: rewriters.clone(),
     }
   }
 

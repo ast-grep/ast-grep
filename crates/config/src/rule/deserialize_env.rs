@@ -194,6 +194,12 @@ impl<L: Language> DeserializeEnv<L> {
       lang: self.lang,
     }
   }
+  pub fn with_rewriters(self, globals: &GlobalRules<L>) -> Self {
+    Self {
+      registration: self.registration.with_rewriters(globals),
+      lang: self.lang,
+    }
+  }
 }
 
 #[cfg(test)]

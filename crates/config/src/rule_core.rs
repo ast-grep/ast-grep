@@ -213,7 +213,7 @@ impl<L: Language> Matcher<L> for RuleCore<L> {
     if let Some(trans) = &self.transform {
       let lang = ret.lang();
       let rewriters = self.utils.get_rewrites();
-      apply_env_transform(trans, lang, env.to_mut(), &*rewriters);
+      apply_env_transform(trans, lang, env.to_mut(), rewriters);
     }
     Some(ret)
   }
