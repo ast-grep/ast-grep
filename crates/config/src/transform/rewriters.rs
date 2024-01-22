@@ -213,7 +213,7 @@ mod test {
   }
 
   #[test]
-  fn test_rewrites_order_and_overlapping() {
+  fn test_rewrites_order() {
     let rewrite = Rewriters {
       source: "$A".into(),
       rewrites: str_vec!["re2", "re1"],
@@ -226,6 +226,22 @@ mod test {
     ]);
     let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", rewriters);
     assert_eq!(ret, "t(810, 1919, 810)");
+  }
+
+  #[test]
+  fn test_rewrites_overlapping() {
+    let rewrite = Rewriters {
+      source: "$A".into(),
+      rewrites: str_vec!["re1", "re2"],
+      join_by: None,
+    };
+    // parent node wins fix, even if rule comes later
+    let rewriters = make_rewriter(&[
+      ("re1", "{rule: {kind: number}, fix: '810'}"),
+      ("re2", "{rule: {kind: array}, fix: '1919'}"),
+    ]);
+    let ret = apply_transformation(rewrite, "[1, 2, 3]", "$A", rewriters);
+    assert_eq!(ret, "1919");
   }
 
   #[test]
