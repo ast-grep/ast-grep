@@ -274,4 +274,25 @@ fix: $D
     let ret = apply_transformation(rewrite, "[1, 1]", "[$A, $B]", rewriters);
     assert_eq!(ret, "123");
   }
+
+  #[test]
+  fn test_node_not_found() {
+    let rewrite = Rewriters {
+      source: "$A".into(),
+      rewrites: str_vec!["re"],
+      join_by: None,
+    };
+    let rewriters = make_rewriter(&[("re", "{rule: {pattern: $B}, fix: '123'}")]);
+    let grep = TypeScript::Tsx.ast_grep("[1, 2]");
+    let root = grep.root();
+    let mut nm = root.find("[$B, $C]").expect("should find");
+    let mut ctx = Ctx {
+      lang: &TypeScript::Tsx,
+      transforms: &Default::default(),
+      env: nm.get_env_mut(),
+      rewriters,
+    };
+    let ret = rewrite.compute(&mut ctx);
+    assert_eq!(ret, None);
+  }
 }
