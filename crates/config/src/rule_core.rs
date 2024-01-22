@@ -204,11 +204,8 @@ impl<L: Language> Matcher<L> for RuleCore<L> {
       }
     }
     let ret = self.rule.match_node_with_env(node, env)?;
-    for (key, matcher) in &self.matchers {
-      let Some(node) = env.get_match(key) else {
-        continue;
-      };
-      _ = matcher.match_node_with_env(node.clone(), env)?;
+    if !env.to_mut().match_constraints(&self.matchers) {
+      return None;
     }
     if let Some(trans) = &self.transform {
       let lang = ret.lang();
