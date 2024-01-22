@@ -84,7 +84,13 @@ fn replace_one<D: Doc>(node: Node<D>, rules: &[&RuleCore<D::Lang>]) -> Vec<Edit<
   let mut edits = vec![];
   for child in node.dfs() {
     for rule in rules {
-      // TODO inherit deserialize_env and meta_var_env
+      // TODO: should it inherit meta_var_env?
+      // if yes, it is very confusing recursive env is not inherited
+      // e.g. $B is matched in parent linter and it is inherited.
+      // $C is matched in rewriter and is not inherited in recursive rewriter?
+      // if no, it is not flexible enough to support cross-rule communication
+      // but it is clear that no env inhertance in rewriter.
+      // in future, we can use the explict `expose` to control env inheritance
       if let Some(nm) = rule.match_node(child.clone()) {
         edits.push(nm.make_edit(rule, rule.fixer.as_ref().expect("TODO")));
         // stop at first fix, skip duplicate fix
@@ -251,5 +257,19 @@ fix: $D
     let rewriters = make_rewriter(&[("re1", rule)]);
     let ret = apply_transformation(rewrite, "[1, [2, [3, [4]]]]", "$A", rewriters);
     assert_eq!(ret, "1, 2, 3, 4");
+  }
+
+  #[test]
+  fn test_should_not_inherit_match_env() {
+    let rewrite = Rewriters {
+      source: "$A".into(),
+      rewrites: str_vec!["re"],
+      join_by: None,
+    };
+    let rewriters = make_rewriter(&[("re", "{rule: {pattern: $B}, fix: '123'}")]);
+    let ret = apply_transformation(rewrite.clone(), "[1, 2]", "[$A, $B]", rewriters.clone());
+    assert_eq!(ret, "123");
+    let ret = apply_transformation(rewrite, "[1, 1]", "[$A, $B]", rewriters);
+    assert_eq!(ret, "123");
   }
 }
