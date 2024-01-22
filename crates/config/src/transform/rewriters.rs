@@ -141,16 +141,18 @@ mod test {
     let grep = TypeScript::Tsx.ast_grep(src);
     let root = grep.root();
     let mut nm = root.find(pat).expect("should find");
-    // TODO: make sure captured and MultiCapture has not changed
-    // let before_vars: Vec<_> = nm.get_env().get_matched_variables().collect();
+    let before_vars: Vec<_> = nm.get_env().get_matched_variables().collect();
     let mut ctx = Ctx {
       lang: &TypeScript::Tsx,
       transforms: &Default::default(),
       env: nm.get_env_mut(),
       rewriters,
     };
-    // let after_vars: Vec<_> = ctx.env.get_matched_variables().collect();
-    // assert_eq!(before_vars, after_vars, "rewrite should not write back to env");
+    let after_vars: Vec<_> = ctx.env.get_matched_variables().collect();
+    assert_eq!(
+      before_vars, after_vars,
+      "rewrite should not write back to env"
+    );
     rewrite.compute(&mut ctx).expect("should have transforms")
   }
   macro_rules! str_vec {
