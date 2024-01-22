@@ -227,15 +227,6 @@ mod test {
   use crate::test::TypeScript;
   use ast_grep_core::matcher::{Pattern, RegexMatcher};
 
-  macro_rules! cast {
-    ($reg: expr, $pattern: path) => {
-      match $reg {
-        $pattern(a) => a,
-        _ => panic!("non-matching variant"),
-      }
-    };
-  }
-
   #[test]
   fn test_rule_with_constraints() {
     let mut matchers = HashMap::new();
@@ -252,71 +243,36 @@ mod test {
   }
 
   #[test]
-  fn test_serializable_regex() {
-    let yaml = from_str("regex: aa").expect("must parse");
+  fn test_constraints_inheriting_env() {
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let matcher = env.deserialize_rule(yaml).expect("should parse");
-    let reg = cast!(matcher, Rule::Regex);
-    let matched = TypeScript::Tsx.ast_grep("var aa = 1");
-    assert!(matched.root().find(&reg).is_some());
-    let non_matched = TypeScript::Tsx.ast_grep("var b = 2");
-    assert!(non_matched.root().find(&reg).is_none());
+    let ser_rule: SerializableRuleCore =
+      from_str("{rule: {pattern: $A = $B}, constraints: {A: {pattern: $B}} }")
+        .expect("should deser");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("a = a");
+    assert!(grep.root().find(&matcher).is_some());
+    let grep = TypeScript::Tsx.ast_grep("a = b");
+    assert!(grep.root().find(&matcher).is_none());
   }
 
   #[test]
-  fn test_non_serializable_regex() {
-    let yaml = from_str("regex: '*'").expect("must parse");
+  fn test_constraints_writing_to_env() {
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let matcher = env.deserialize_rule(yaml);
-    assert!(matches!(matcher, Err(RuleSerializeError::WrongRegex(_))));
+    let ser_rule: SerializableRuleCore =
+      from_str("{rule: {pattern: $A = $B}, constraints: {B: {pattern: $C + $D}} }")
+        .expect("should deser");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("a = a");
+    assert!(grep.root().find(&matcher).is_none());
+    let grep = TypeScript::Tsx.ast_grep("a = 1 + 2");
+    let nm = grep.root().find(&matcher).expect("should match");
+    let env = nm.get_env();
+    let matched = env.get_match("C").expect("should match C").text();
+    assert_eq!(matched, "1");
+    let matched = env.get_match("D").expect("should match D").text();
+    assert_eq!(matched, "2");
   }
 
-  #[test]
-  fn test_serializable_pattern() {
-    let yaml = from_str("pattern: var a = 1").expect("must parse");
-    let env = DeserializeEnv::new(TypeScript::Tsx);
-    let matcher = env.deserialize_rule(yaml).expect("should parse");
-    let pattern = cast!(matcher, Rule::Pattern);
-    let matched = TypeScript::Tsx.ast_grep("var a = 1");
-    assert!(matched.root().find(&pattern).is_some());
-    let non_matched = TypeScript::Tsx.ast_grep("var b = 2");
-    assert!(non_matched.root().find(&pattern).is_none());
-  }
-
-  #[test]
-  fn test_non_serializable_pattern() {
-    let yaml = from_str("pattern: 'aaa bbb ccc'").expect("must parse");
-    let env = DeserializeEnv::new(TypeScript::Tsx);
-    let matcher = env.deserialize_rule(yaml);
-    assert!(matches!(
-      matcher,
-      Err(RuleSerializeError::InvalidPattern(_))
-    ));
-  }
-
-  #[test]
-  fn test_serializable_kind() {
-    let yaml = from_str("kind: class_body").expect("must parse");
-    let env = DeserializeEnv::new(TypeScript::Tsx);
-    let matcher = env.deserialize_rule(yaml).expect("should parse");
-    let pattern = cast!(matcher, Rule::Kind);
-    let matched = TypeScript::Tsx.ast_grep("class A {}");
-    assert!(matched.root().find(&pattern).is_some());
-    let non_matched = TypeScript::Tsx.ast_grep("function b() {}");
-    assert!(non_matched.root().find(&pattern).is_none());
-  }
-
-  #[test]
-  fn test_non_serializable_kind() {
-    let yaml = from_str("kind: IMPOSSIBLE_KIND").expect("must parse");
-    let env = DeserializeEnv::new(TypeScript::Tsx);
-    let matcher = env.deserialize_rule(yaml);
-    let error = match matcher {
-      Err(RuleSerializeError::InvalidKind(s)) => s,
-      _ => panic!("serialization should fail for invalid kind"),
-    };
-    assert_eq!(error.to_string(), "Kind `IMPOSSIBLE_KIND` is invalid.");
-  }
   // TODO: add test for utils registration and rewriters
   // TODO: add test that multiple envs will not interfer
 }
