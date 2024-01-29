@@ -333,7 +333,85 @@ test-rule:
     assert_eq!(String::from_utf8_lossy(&replacement), "string!!");
   }
 
-  // TODO: add rewriters test
-  // TODO: verify rewriters can access upper level utils
-  // TODO: verify rewriters should not have rewriters in registration
+  #[test]
+  fn test_add_rewriters() {
+    let rule: SerializableRuleConfig<TypeScript> = from_str(
+      r"
+id: test
+rule: {pattern: 'a = $A'}
+language: Tsx
+transform:
+  B:
+    applyRewriters:
+      rewrites: [re]
+      source: $A
+rewriters:
+- id: re
+  rule: {kind: number}
+  fix: yjsnp
+    ",
+    )
+    .expect("should parse");
+    let rule = RuleConfig::try_from(rule, &Default::default()).expect("work");
+    let grep = TypeScript::Tsx.ast_grep("a = 123");
+    let nm = grep.root().find(&rule.matcher).unwrap();
+    let b = nm.get_env().get_transformed("B").expect("should have");
+    assert_eq!(String::from_utf8_lossy(b), "yjsnp");
+  }
+
+  #[test]
+  #[ignore = "TODO"]
+  fn test_rewriters_access_utils() {
+    let rule: SerializableRuleConfig<TypeScript> = from_str(
+      r"
+id: test
+rule: {pattern: 'a = $A'}
+language: Tsx
+utils:
+  num: { kind: number }
+transform:
+  B:
+    applyRewriters:
+      rewrites: [re]
+      source: $A
+rewriter:
+- id: re
+  rule: {matches: num}
+  fix: yjsnp
+    ",
+    )
+    .expect("should parse");
+    let rule = RuleConfig::try_from(rule, &Default::default()).expect("work");
+    let grep = TypeScript::Tsx.ast_grep("a = 456");
+    let nm = grep.root().find(&rule.matcher).unwrap();
+    let b = nm.get_env().get_transformed("B").expect("should have");
+    assert_eq!(String::from_utf8_lossy(b), "yjsnp");
+  }
+
+  #[test]
+  fn test_rewriter_utils_should_not_pollute_registration() {
+    let rule: SerializableRuleConfig<TypeScript> = from_str(
+      r"
+id: test
+rule: {matches: num}
+language: Tsx
+transform:
+  B:
+    applyRewriters:
+      rewrites: [re]
+      source: $A
+rewriter:
+- id: re
+  rule: {matches: num}
+  fix: yjsnp
+  utils:
+    num: { kind: number }
+    ",
+    )
+    .expect("should parse");
+    let rule = RuleConfig::try_from(rule, &Default::default()).expect("work");
+    let grep = TypeScript::Tsx.ast_grep("a = 456");
+    let nm = grep.root().find(&rule.matcher);
+    assert!(nm.is_none());
+  }
 }
