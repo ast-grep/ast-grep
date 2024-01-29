@@ -323,9 +323,7 @@ transform:
     matcher
       .add_rewrites(get_rewriters())
       .expect("should succeed");
-    let grep = TypeScript::Tsx.ast_grep("a = a");
-    assert!(grep.root().find(&matcher).is_some());
-    // TODO: add rewriter assertion
+
     let grep = TypeScript::Tsx.ast_grep("a = 1 + 2");
     let nm = grep.root().find(&matcher).expect("should match");
     let env = nm.get_env();
@@ -336,7 +334,13 @@ transform:
     let transformed = env.get_transformed("C").expect("should transform");
     assert_eq!(String::from_utf8_lossy(transformed), "yjsnp + yjsnp");
     assert!(env.get_match("REWRITE").is_none());
-  }
 
-  // TODO: add test for rewriters
+    let grep = TypeScript::Tsx.ast_grep("a = a");
+    let nm = grep.root().find(&matcher).expect("should match");
+    let env = nm.get_env();
+    let matched = env.get_match("B").expect("should match").text();
+    assert_eq!(matched, "a");
+    let transformed = env.get_transformed("C").expect("should transform");
+    assert_eq!(String::from_utf8_lossy(transformed), "a");
+  }
 }
