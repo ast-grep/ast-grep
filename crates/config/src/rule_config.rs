@@ -109,7 +109,7 @@ impl<L: Language> RuleConfig<L> {
     let mut rewriters = HashMap::new();
     for val in ser {
       // TODO: reusing env is not correct here. because we are
-      // inserting rewriter utils into the env.
+      // NOT inserting rewriter utils into the env.
       // NB should inherit env from matcher to inherit utils
       let rewriter = val.core.get_matcher_from_env(&env)?;
       rewriters.insert(val.id, rewriter);
@@ -376,7 +376,7 @@ transform:
       source: $A
 rewriter:
 - id: re
-  rule: {matches: num}
+  rule: {matches: num, pattern: $NOT}
   fix: yjsnp
     ",
     )
@@ -385,6 +385,7 @@ rewriter:
     let grep = TypeScript::Tsx.ast_grep("a = 456");
     let nm = grep.root().find(&rule.matcher).unwrap();
     let b = nm.get_env().get_transformed("B").expect("should have");
+    assert!(nm.get_env().get_match("NOT").is_none());
     assert_eq!(String::from_utf8_lossy(b), "yjsnp");
   }
 
