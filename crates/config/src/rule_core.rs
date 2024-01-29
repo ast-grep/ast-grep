@@ -224,8 +224,27 @@ impl<L: Language> Matcher<L> for RuleCore<L> {
 mod test {
   use super::*;
   use crate::from_str;
+  use crate::rule::referent_rule::ReferentRule;
   use crate::test::TypeScript;
   use ast_grep_core::matcher::{Pattern, RegexMatcher};
+
+  #[test]
+  fn test_rule_reg_with_utils() {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore =
+      from_str("{rule: {matches: test}, utils: {test: {kind: number}} }").expect("should deser");
+    let rule = ReferentRule::try_new("test".into(), &env.registration).expect("should work");
+    let not = ReferentRule::try_new("test2".into(), &env.registration).expect("should work");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("a = 123");
+    assert!(grep.root().find(&matcher).is_some());
+    assert!(grep.root().find(&rule).is_some());
+    assert!(grep.root().find(&not).is_none());
+    let grep = TypeScript::Tsx.ast_grep("a = '123'");
+    assert!(grep.root().find(&matcher).is_none());
+    assert!(grep.root().find(&rule).is_none());
+    assert!(grep.root().find(&not).is_none());
+  }
 
   #[test]
   fn test_rule_with_constraints() {
