@@ -292,6 +292,51 @@ mod test {
     assert_eq!(matched, "2");
   }
 
-  // TODO: add test for utils registration and rewriters
-  // TODO: add test that multiple envs will not interfer
+  fn get_rewriters() -> HashMap<String, RuleCore<TypeScript>> {
+    // NOTE: initialize a DeserializeEnv here is not 100% correct
+    // it does not inherit global rules or local rules
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let mut ret = HashMap::new();
+    let rewriter: SerializableRuleCore =
+      from_str("{rule: {kind: number, pattern: $REWRITE}, fix: yjsnp}").expect("should parse");
+    ret.insert(
+      "re".to_string(),
+      rewriter.get_matcher(env).expect("should work"),
+    );
+    ret
+  }
+
+  #[test]
+  fn test_rewriter_writing_to_env() {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule: {pattern: $A = $B}
+transform:
+  C:
+    applyRewriters:
+      source: $B
+      rewrites: [re]",
+    )
+    .expect("should deser");
+    let mut matcher = ser_rule.get_matcher(env).expect("should parse");
+    matcher
+      .add_rewrites(get_rewriters())
+      .expect("should succeed");
+    let grep = TypeScript::Tsx.ast_grep("a = a");
+    assert!(grep.root().find(&matcher).is_some());
+    // TODO: add rewriter assertion
+    let grep = TypeScript::Tsx.ast_grep("a = 1 + 2");
+    let nm = grep.root().find(&matcher).expect("should match");
+    let env = nm.get_env();
+    let matched = env.get_match("B").expect("should match").text();
+    assert_eq!(matched, "1 + 2");
+    let matched = env.get_match("A").expect("should match").text();
+    assert_eq!(matched, "a");
+    let transformed = env.get_transformed("C").expect("should transform");
+    assert_eq!(String::from_utf8_lossy(transformed), "yjsnp + yjsnp");
+    assert!(env.get_match("REWRITE").is_none());
+  }
+
+  // TODO: add test for rewriters
 }
