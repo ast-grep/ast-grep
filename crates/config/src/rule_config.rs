@@ -414,4 +414,33 @@ rewriter:
     let nm = grep.root().find(&rule.matcher);
     assert!(nm.is_none());
   }
+
+  #[test]
+  #[ignore = "TODO"]
+  fn test_utils_in_rewriter_should_work() {
+    let rule: SerializableRuleConfig<TypeScript> = from_str(
+      r"
+id: test
+rule: {pattern: 'a = $A'}
+language: Tsx
+transform:
+  B:
+    applyRewriters:
+      rewrites: [re]
+      source: $A
+rewriter:
+- id: re
+  rule: {matches: num}
+  fix: yjsnp
+  utils:
+    num: { kind: number }
+    ",
+    )
+    .expect("should parse");
+    let rule = RuleConfig::try_from(rule, &Default::default()).expect("work");
+    let grep = TypeScript::Tsx.ast_grep("a = 114514");
+    let nm = grep.root().find(&rule.matcher).unwrap();
+    let b = nm.get_env().get_transformed("B").expect("should have");
+    assert_eq!(String::from_utf8_lossy(b), "yjsnp");
+  }
 }
