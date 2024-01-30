@@ -55,7 +55,10 @@ pub struct SerializableRuleCore {
 }
 
 impl SerializableRuleCore {
-  fn get_deserialize_env<L: Language>(&self, env: DeserializeEnv<L>) -> RResult<DeserializeEnv<L>> {
+  pub(crate) fn get_deserialize_env<L: Language>(
+    &self,
+    env: DeserializeEnv<L>,
+  ) -> RResult<DeserializeEnv<L>> {
     if let Some(utils) = &self.utils {
       let env = env
         .register_local_utils(utils)

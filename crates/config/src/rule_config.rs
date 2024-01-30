@@ -109,8 +109,12 @@ impl<L: Language> RuleConfig<L> {
     let mut rewriters = HashMap::new();
     for val in ser {
       // TODO: reusing env is not correct here. because we are
-      // NOT inserting rewriter utils into the env.
+      // inserting rewriter utils into the parent env.
       // NB should inherit env from matcher to inherit utils
+      let env = val.core.get_deserialize_env(DeserializeEnv {
+        registration: env.registration.clone(),
+        lang: env.lang.clone(),
+      })?;
       let rewriter = val.core.get_matcher_from_env(&env)?;
       rewriters.insert(val.id, rewriter);
     }
@@ -360,7 +364,6 @@ rewriters:
   }
 
   #[test]
-  #[ignore = "TODO"]
   fn test_rewriters_access_utils() {
     let rule: SerializableRuleConfig<TypeScript> = from_str(
       r"
@@ -374,7 +377,7 @@ transform:
     applyRewriters:
       rewrites: [re]
       source: $A
-rewriter:
+rewriters:
 - id: re
   rule: {matches: num, pattern: $NOT}
   fix: yjsnp
@@ -390,6 +393,7 @@ rewriter:
   }
 
   #[test]
+  #[ignore = "todo"]
   fn test_rewriter_utils_should_not_pollute_registration() {
     let rule: SerializableRuleConfig<TypeScript> = from_str(
       r"
@@ -401,7 +405,7 @@ transform:
     applyRewriters:
       rewrites: [re]
       source: $A
-rewriter:
+rewriters:
 - id: re
   rule: {matches: num}
   fix: yjsnp
@@ -417,7 +421,6 @@ rewriter:
   }
 
   #[test]
-  #[ignore = "TODO"]
   fn test_utils_in_rewriter_should_work() {
     let rule: SerializableRuleConfig<TypeScript> = from_str(
       r"
@@ -429,7 +432,7 @@ transform:
     applyRewriters:
       rewrites: [re]
       source: $A
-rewriter:
+rewriters:
 - id: re
   rule: {matches: num}
   fix: yjsnp
