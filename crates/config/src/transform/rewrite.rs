@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct Rewriter {
+pub struct Rewrite {
   source: String,
   rewriters: Vec<String>,
   // do we need this?
@@ -31,7 +31,7 @@ fn get_nodes_from_env<'b, D: Doc>(var: &MetaVariable, ctx: &Ctx<'_, 'b, D>) -> V
   }
 }
 
-impl Rewriter {
+impl Rewrite {
   pub(super) fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let source = ctx.lang.pre_process_pattern(&self.source);
     let var = ctx.lang.extract_meta_var(&source)?;
@@ -133,7 +133,7 @@ mod test {
   use crate::GlobalRules;
 
   fn apply_transformation(
-    rewrite: Rewriter,
+    rewrite: Rewrite,
     src: &str,
     pat: &str,
     rewriters: GlobalRules<TypeScript>,
@@ -172,7 +172,7 @@ mod test {
 
   #[test]
   fn test_perform_one_rewrite() {
-    let rewrite = Rewriter {
+    let rewrite = Rewrite {
       source: "$A".into(),
       rewriters: str_vec!["rewrite"],
       join_by: None,
@@ -184,7 +184,7 @@ mod test {
 
   #[test]
   fn test_perform_multiple_rewriters() {
-    let rewrite = Rewriter {
+    let rewrite = Rewrite {
       source: "$A".into(),
       rewriters: str_vec!["re1", "re2"],
       join_by: None,
@@ -199,7 +199,7 @@ mod test {
 
   #[test]
   fn test_ignore_unused_rewriters() {
-    let rewrite = Rewriter {
+    let rewrite = Rewrite {
       source: "$A".into(),
       rewriters: str_vec!["re1"],
       join_by: None,
@@ -214,7 +214,7 @@ mod test {
 
   #[test]
   fn test_rewriters_order() {
-    let rewrite = Rewriter {
+    let rewrite = Rewrite {
       source: "$A".into(),
       rewriters: str_vec!["re2", "re1"],
       join_by: None,
@@ -230,7 +230,7 @@ mod test {
 
   #[test]
   fn test_rewriters_overlapping() {
-    let rewrite = Rewriter {
+    let rewrite = Rewrite {
       source: "$A".into(),
       rewriters: str_vec!["re1", "re2"],
       join_by: None,
@@ -246,7 +246,7 @@ mod test {
 
   #[test]
   fn test_rewriters_join_by() {
-    let rewrite = Rewriter {
+    let rewrite = Rewrite {
       source: "$A".into(),
       rewriters: str_vec!["re1"],
       join_by: Some(" + ".into()),
@@ -258,7 +258,7 @@ mod test {
 
   #[test]
   fn test_recursive_rewriters() {
-    let rewrite = Rewriter {
+    let rewrite = Rewrite {
       source: "$A".into(),
       rewriters: str_vec!["re1"],
       join_by: None,
@@ -279,7 +279,7 @@ fix: $D
 
   #[test]
   fn test_should_not_inherit_match_env() {
-    let rewrite = Rewriter {
+    let rewrite = Rewrite {
       source: "$A".into(),
       rewriters: str_vec!["re"],
       join_by: None,
@@ -293,7 +293,7 @@ fix: $D
 
   #[test]
   fn test_node_not_found() {
-    let rewrite = Rewriter {
+    let rewrite = Rewrite {
       source: "$A".into(),
       rewriters: str_vec!["re"],
       join_by: None,
