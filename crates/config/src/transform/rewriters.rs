@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct Rewriters {
+pub struct Rewriter {
   source: String,
-  rewrites: Vec<String>,
+  rewriters: Vec<String>,
   // do we need this?
   // sort_by: Option<String>,
   join_by: Option<String>,
@@ -31,7 +31,7 @@ fn get_nodes_from_env<'b, D: Doc>(var: &MetaVariable, ctx: &Ctx<'_, 'b, D>) -> V
   }
 }
 
-impl Rewriters {
+impl Rewriter {
   pub(super) fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let source = ctx.lang.pre_process_pattern(&self.source);
     let var = ctx.lang.extract_meta_var(&source)?;
@@ -43,7 +43,7 @@ impl Rewriters {
     let start = nodes[0].range().start;
     let bytes = ctx.env.get_var_bytes(&var)?;
     let rules: Vec<_> = self
-      .rewrites
+      .rewriters
       .iter()
       .filter_map(|id| rewriters.get(id))
       .collect();
@@ -133,7 +133,7 @@ mod test {
   use crate::GlobalRules;
 
   fn apply_transformation(
-    rewrite: Rewriters,
+    rewrite: Rewriter,
     src: &str,
     pat: &str,
     rewriters: GlobalRules<TypeScript>,
@@ -172,9 +172,9 @@ mod test {
 
   #[test]
   fn test_perform_one_rewrite() {
-    let rewrite = Rewriters {
+    let rewrite = Rewriter {
       source: "$A".into(),
-      rewrites: str_vec!["rewrite"],
+      rewriters: str_vec!["rewrite"],
       join_by: None,
     };
     let rewriters = make_rewriter(&[("rewrite", "{rule: {kind: number}, fix: '810'}")]);
@@ -183,10 +183,10 @@ mod test {
   }
 
   #[test]
-  fn test_perform_multiple_rewrites() {
-    let rewrite = Rewriters {
+  fn test_perform_multiple_rewriters() {
+    let rewrite = Rewriter {
       source: "$A".into(),
-      rewrites: str_vec!["re1", "re2"],
+      rewriters: str_vec!["re1", "re2"],
       join_by: None,
     };
     let rewriters = make_rewriter(&[
@@ -198,10 +198,10 @@ mod test {
   }
 
   #[test]
-  fn test_ignore_unused_rewrites() {
-    let rewrite = Rewriters {
+  fn test_ignore_unused_rewriters() {
+    let rewrite = Rewriter {
       source: "$A".into(),
-      rewrites: str_vec!["re1"],
+      rewriters: str_vec!["re1"],
       join_by: None,
     };
     let rewriters = make_rewriter(&[
@@ -213,10 +213,10 @@ mod test {
   }
 
   #[test]
-  fn test_rewrites_order() {
-    let rewrite = Rewriters {
+  fn test_rewriters_order() {
+    let rewrite = Rewriter {
       source: "$A".into(),
-      rewrites: str_vec!["re2", "re1"],
+      rewriters: str_vec!["re2", "re1"],
       join_by: None,
     };
     // first match wins the rewrite
@@ -229,10 +229,10 @@ mod test {
   }
 
   #[test]
-  fn test_rewrites_overlapping() {
-    let rewrite = Rewriters {
+  fn test_rewriters_overlapping() {
+    let rewrite = Rewriter {
       source: "$A".into(),
-      rewrites: str_vec!["re1", "re2"],
+      rewriters: str_vec!["re1", "re2"],
       join_by: None,
     };
     // parent node wins fix, even if rule comes later
@@ -245,10 +245,10 @@ mod test {
   }
 
   #[test]
-  fn test_rewrites_join_by() {
-    let rewrite = Rewriters {
+  fn test_rewriters_join_by() {
+    let rewrite = Rewriter {
       source: "$A".into(),
-      rewrites: str_vec!["re1"],
+      rewriters: str_vec!["re1"],
       join_by: Some(" + ".into()),
     };
     let rewriters = make_rewriter(&[("re1", "{rule: {kind: number}, fix: '810'}")]);
@@ -257,10 +257,10 @@ mod test {
   }
 
   #[test]
-  fn test_recursive_rewrites() {
-    let rewrite = Rewriters {
+  fn test_recursive_rewriters() {
+    let rewrite = Rewriter {
       source: "$A".into(),
-      rewrites: str_vec!["re1"],
+      rewriters: str_vec!["re1"],
       join_by: None,
     };
     let rule = r#"
@@ -269,7 +269,7 @@ transform:
   D:
     applyRewriters:
       source: $$$C
-      rewrites: [re1]
+      rewriters: [re1]
 fix: $D
     "#;
     let rewriters = make_rewriter(&[("re1", rule)]);
@@ -279,9 +279,9 @@ fix: $D
 
   #[test]
   fn test_should_not_inherit_match_env() {
-    let rewrite = Rewriters {
+    let rewrite = Rewriter {
       source: "$A".into(),
-      rewrites: str_vec!["re"],
+      rewriters: str_vec!["re"],
       join_by: None,
     };
     let rewriters = make_rewriter(&[("re", "{rule: {pattern: $B}, fix: '123'}")]);
@@ -293,9 +293,9 @@ fix: $D
 
   #[test]
   fn test_node_not_found() {
-    let rewrite = Rewriters {
+    let rewrite = Rewriter {
       source: "$A".into(),
-      rewrites: str_vec!["re"],
+      rewriters: str_vec!["re"],
       join_by: None,
     };
     let rewriters = make_rewriter(&[("re", "{rule: {pattern: $B}, fix: '123'}")]);

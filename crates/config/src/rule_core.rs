@@ -164,11 +164,11 @@ impl<L: Language> RuleCore<L> {
     }
   }
 
-  pub fn add_rewrites(&mut self, rewrites: HashMap<String, RuleCore<L>>) -> RResult<()> {
-    for (id, rewrite) in rewrites {
+  pub fn add_rewriters(&mut self, rewriters: HashMap<String, RuleCore<L>>) -> RResult<()> {
+    for (id, rewriter) in rewriters {
       self
         .utils
-        .insert_rewrite(&id, rewrite)
+        .insert_rewriter(&id, rewriter)
         .map_err(RuleSerializeError::from)?;
     }
     Ok(())
@@ -212,7 +212,7 @@ impl<L: Language> Matcher<L> for RuleCore<L> {
     }
     if let Some(trans) = &self.transform {
       let lang = ret.lang();
-      let rewriters = self.utils.get_rewrites();
+      let rewriters = self.utils.get_rewriters();
       apply_env_transform(trans, lang, env.to_mut(), rewriters);
     }
     Some(ret)
@@ -319,12 +319,12 @@ transform:
   C:
     applyRewriters:
       source: $B
-      rewrites: [re]",
+      rewriters: [re]",
     )
     .expect("should deser");
     let mut matcher = ser_rule.get_matcher(env).expect("should parse");
     matcher
-      .add_rewrites(get_rewriters())
+      .add_rewriters(get_rewriters())
       .expect("should succeed");
 
     let grep = TypeScript::Tsx.ast_grep("a = 1 + 2");

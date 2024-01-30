@@ -115,7 +115,7 @@ impl<L: Language> RuleConfig<L> {
       let rewriter = val.core.get_matcher_from_env(&env)?;
       rewriters.insert(val.id, rewriter);
     }
-    matcher.add_rewrites(rewriters)?;
+    matcher.add_rewriters(rewriters)?;
     Ok(Self { inner, matcher })
   }
 
@@ -344,7 +344,7 @@ language: Tsx
 transform:
   B:
     applyRewriters:
-      rewrites: [re]
+      rewriters: [re]
       source: $A
 rewriters:
 - id: re
@@ -372,7 +372,7 @@ utils:
 transform:
   B:
     applyRewriters:
-      rewrites: [re]
+      rewriters: [re]
       source: $A
 rewriters:
 - id: re
@@ -399,7 +399,7 @@ language: Tsx
 transform:
   B:
     applyRewriters:
-      rewrites: [re]
+      rewriters: [re]
       source: $A
 rewriters:
 - id: re
@@ -426,7 +426,7 @@ language: Tsx
 transform:
   B:
     applyRewriters:
-      rewrites: [re]
+      rewriters: [re]
       source: $A
 rewriters:
 - id: re

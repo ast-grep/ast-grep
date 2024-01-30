@@ -57,7 +57,7 @@ impl<R> Default for Registration<R> {
 pub struct RuleRegistration<L: Language> {
   local: Registration<Rule<L>>,
   global: Registration<RuleCore<L>>,
-  rewrites: Registration<RuleCore<L>>,
+  rewriters: Registration<RuleCore<L>>,
 }
 
 // these are shit code
@@ -70,15 +70,15 @@ impl<L: Language> RuleRegistration<L> {
     self.global.read()
   }
 
-  pub fn get_rewrites(&self) -> GlobalRules<L> {
-    self.rewrites.clone()
+  pub fn get_rewriters(&self) -> GlobalRules<L> {
+    self.rewriters.clone()
   }
 
   pub fn from_globals(global: &GlobalRules<L>) -> Self {
     Self {
       local: Default::default(),
       global: global.clone(),
-      rewrites: Default::default(),
+      rewriters: Default::default(),
     }
   }
 
@@ -86,7 +86,7 @@ impl<L: Language> RuleRegistration<L> {
     Self {
       local: self.local.clone(),
       global: self.global.clone(),
-      rewrites: rewriters.clone(),
+      rewriters: rewriters.clone(),
     }
   }
 
@@ -111,12 +111,12 @@ impl<L: Language> RuleRegistration<L> {
     Ok(())
   }
 
-  pub fn insert_rewrite(&self, id: &str, rewrite: RuleCore<L>) -> Result<(), ReferentRuleError> {
-    let mut map = self.rewrites.write();
+  pub fn insert_rewriter(&self, id: &str, rewriter: RuleCore<L>) -> Result<(), ReferentRuleError> {
+    let mut map = self.rewriters.write();
     if map.contains_key(id) {
       return Err(ReferentRuleError::DuplicateRule(id.into()));
     }
-    map.insert(id.to_string(), rewrite);
+    map.insert(id.to_string(), rewriter);
     // TODO: add cyclic rewrite check?
     Ok(())
   }
@@ -126,7 +126,7 @@ impl<L: Language> Default for RuleRegistration<L> {
     Self {
       local: Default::default(),
       global: Default::default(),
-      rewrites: Default::default(),
+      rewriters: Default::default(),
     }
   }
 }
@@ -143,7 +143,7 @@ impl<L: Language> RegistrationRef<L> {
     RuleRegistration {
       local,
       global,
-      rewrites: Default::default(),
+      rewriters: Default::default(),
     }
   }
 }

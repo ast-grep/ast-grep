@@ -5,7 +5,7 @@ use crate::GlobalRules;
 use ast_grep_core::meta_var::{MetaVarEnv, MetaVariable};
 use ast_grep_core::source::Content;
 use ast_grep_core::{Doc, Language};
-pub use rewriters::Rewriters;
+pub use rewriters::Rewriter;
 
 use regex::Regex;
 use schemars::JsonSchema;
@@ -118,7 +118,7 @@ pub enum Transformation {
   Substring(Substring),
   Replace(Replace),
   Convert(Convert),
-  ApplyRewriters(Rewriters),
+  ApplyRewriters(Rewriter),
 }
 
 impl Transformation {
