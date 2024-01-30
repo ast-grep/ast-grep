@@ -105,16 +105,13 @@ impl<L: Language> RuleConfig<L> {
     let Some(ser) = inner.rewriters.clone() else {
       return Ok(Self { inner, matcher });
     };
-    let env = matcher.get_env(inner.language.clone());
     let mut rewriters = HashMap::new();
     for val in ser {
-      // TODO: reusing env is not correct here. because we are
-      // inserting rewriter utils into the parent env.
       // NB should inherit env from matcher to inherit utils
-      let env = val.core.get_deserialize_env(DeserializeEnv {
-        registration: env.registration.clone(),
-        lang: env.lang.clone(),
-      })?;
+      // TODO: optimize duplicate env creation/util registraion
+      let env = DeserializeEnv::new(inner.language.clone());
+      let env = inner.get_deserialize_env(env)?;
+      let env = val.core.get_deserialize_env(env)?;
       let rewriter = val.core.get_matcher_from_env(&env)?;
       rewriters.insert(val.id, rewriter);
     }
@@ -393,7 +390,6 @@ rewriters:
   }
 
   #[test]
-  #[ignore = "todo"]
   fn test_rewriter_utils_should_not_pollute_registration() {
     let rule: SerializableRuleConfig<TypeScript> = from_str(
       r"
