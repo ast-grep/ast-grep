@@ -109,7 +109,7 @@ impl<L: Language> RuleConfig<L> {
     for val in ser {
       // NB should inherit env from matcher to inherit utils
       // TODO: optimize duplicate env creation/util registraion
-      let env = DeserializeEnv::new(inner.language.clone());
+      let env = DeserializeEnv::new(inner.language.clone()).with_globals(globals);
       let env = inner.get_deserialize_env(env)?;
       let env = val.core.get_deserialize_env(env)?;
       let rewriter = val.core.get_matcher_from_env(&env)?;
