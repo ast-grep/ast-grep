@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ast-grep rule",
+  "description": "Used for global rules, rewriters, and pyo3/napi",
   "type": "object",
   "required": [
     "id",
@@ -15,7 +16,7 @@
         "null"
       ],
       "additionalProperties": {
-        "$ref": "#/definitions/SerializableMetaVarMatcher"
+        "$ref": "#/definitions/SerializableRule"
       }
     },
     "files": {
@@ -29,7 +30,7 @@
       }
     },
     "fix": {
-      "description": "A pattern to auto fix the issue. It can reference metavariables appeared in rule.",
+      "description": "A pattern string or a FixConfig object to auto fix the issue. It can reference metavariables appeared in rule. See details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).",
       "anyOf": [
         {
           "$ref": "#/definitions/SerializableFixer"
@@ -83,6 +84,16 @@
         "null"
       ]
     },
+    "rewriters": {
+      "description": "Rewrite rules for `applyRewriters` transformation",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/definitions/SerializableRewriter"
+      }
+    },
     "rule": {
       "description": "A rule object to find matching AST nodes. We have three categories of rules in ast-grep.\n\n* Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.\n\n* Relational: filter matched target according to their position relative to other nodes.\n\n* Composite: use logic operation all/any/not to compose the above rules to larger rules.\n\nEvery rule has it's unique name so we can combine several rules in one object.",
       "allOf": [
@@ -101,7 +112,7 @@
       ]
     },
     "transform": {
-      "description": "A dictionary for metavariable manipulation. Dict key is the new variable name. Dict value is a [transformation] that specifies how meta var is processed. Warning: this is experimental option. [`https://github.com/ast-grep/ast-grep/issues/436`]",
+      "description": "A dictionary for metavariable manipulation. Dict key is the new variable name. Dict value is a [transformation] that specifies how meta var is processed. See [transformation doc](https://ast-grep.github.io/reference/yaml/transformation.html).",
       "type": [
         "object",
         "null"
@@ -337,6 +348,30 @@
         }
       }
     },
+    "Rewrite": {
+      "type": "object",
+      "required": [
+        "rewriters",
+        "source"
+      ],
+      "properties": {
+        "joinBy": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rewriters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source": {
+          "type": "string"
+        }
+      }
+    },
     "Separator": {
       "description": "Separator to split string. e.g. `user_accountName` -> `user`, `accountName` It will be rejoin according to `StringCase`.",
       "type": "string",
@@ -377,48 +412,68 @@
         }
       ]
     },
-    "SerializableMetaVarMatcher": {
-      "oneOf": [
-        {
-          "description": "A regex to filter metavar based on its textual content.",
-          "type": "object",
-          "required": [
-            "regex"
+    "SerializableRewriter": {
+      "description": "Used for global rules, rewriters, and pyo3/napi",
+      "type": "object",
+      "required": [
+        "id",
+        "rule"
+      ],
+      "properties": {
+        "constraints": {
+          "description": "Additional meta variables pattern to filter matching",
+          "type": [
+            "object",
+            "null"
           ],
-          "properties": {
-            "regex": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
+          "additionalProperties": {
+            "$ref": "#/definitions/SerializableRule"
+          }
         },
-        {
-          "description": "A pattern to filter matched metavar based on its AST tree shape.",
-          "type": "object",
-          "required": [
-            "pattern"
-          ],
-          "properties": {
-            "pattern": {
-              "type": "string"
+        "fix": {
+          "description": "A pattern string or a FixConfig object to auto fix the issue. It can reference metavariables appeared in rule. See details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SerializableFixer"
+            },
+            {
+              "type": "null"
             }
-          },
-          "additionalProperties": false
+          ]
         },
-        {
-          "description": "A kind_id to filter matched metavar based on its ts-node kind",
-          "type": "object",
-          "required": [
-            "kind"
-          ],
-          "properties": {
-            "kind": {
-              "type": "string"
+        "id": {
+          "description": "Unique, descriptive identifier, e.g., no-unused-variable",
+          "type": "string"
+        },
+        "rule": {
+          "description": "A rule object to find matching AST nodes",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SerializableRule"
             }
-          },
-          "additionalProperties": false
+          ]
+        },
+        "transform": {
+          "description": "A dictionary for metavariable manipulation. Dict key is the new variable name. Dict value is a [transformation] that specifies how meta var is processed. See [transformation doc](https://ast-grep.github.io/reference/yaml/transformation.html).",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/definitions/Transformation"
+          }
+        },
+        "utils": {
+          "description": "Utility rules that can be used in `matches`",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/definitions/SerializableRule"
+          }
         }
-      ]
+      }
     },
     "SerializableRule": {
       "type": "object",
@@ -644,6 +699,18 @@
           "properties": {
             "convert": {
               "$ref": "#/definitions/Convert"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "applyRewriters"
+          ],
+          "properties": {
+            "applyRewriters": {
+              "$ref": "#/definitions/Rewrite"
             }
           },
           "additionalProperties": false
