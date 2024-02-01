@@ -4,7 +4,7 @@ use crate::fixer::Fixer;
 use crate::rule::DeserializeEnv;
 pub use crate::rule_core::{RuleConfigError, RuleCore, SerializableRuleCore};
 use ast_grep_core::language::Language;
-use ast_grep_core::replacer::{Content, Replacer};
+use ast_grep_core::replacer::Replacer;
 use ast_grep_core::{NodeMatch, StrDoc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -133,7 +133,7 @@ impl<L: Language> RuleConfig<L> {
   pub fn get_message(&self, node: &NodeMatch<StrDoc<L>>) -> String {
     self.inner.get_message(node)
   }
-  pub fn get_fixer<C: Content>(&self) -> Result<Option<Fixer<L>>, RuleConfigError> {
+  pub fn get_fixer(&self) -> Result<Option<Fixer<L>>, RuleConfigError> {
     if let Some(fix) = &self.fix {
       let env = self.matcher.get_env(self.language.clone());
       let parsed = Fixer::parse(fix, &env, &self.transform)?;
@@ -327,7 +327,7 @@ test-rule:
     let mut config = get_matches_config();
     config.fix = Some(from_str("string!!").unwrap());
     let rule = RuleConfig::try_from(config, &globals).unwrap();
-    let fixer = rule.get_fixer::<String>().unwrap().unwrap();
+    let fixer = rule.get_fixer().unwrap().unwrap();
     let grep = TypeScript::Tsx.ast_grep("some(123)");
     let nm = grep.root().find(&rule.matcher).unwrap();
     let replacement = fixer.generate_replacement(&nm);
