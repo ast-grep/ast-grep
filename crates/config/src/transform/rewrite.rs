@@ -267,7 +267,7 @@ mod test {
 rule: {pattern: '[$$$C]'}
 transform:
   D:
-    applyRewriters:
+    rewrite:
       source: $$$C
       rewriters: [re1]
 fix: $D

@@ -317,7 +317,7 @@ mod test {
 rule: {pattern: $A = $B}
 transform:
   C:
-    applyRewriters:
+    rewrite:
       source: $B
       rewriters: [re]",
     )

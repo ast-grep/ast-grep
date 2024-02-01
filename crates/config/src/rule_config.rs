@@ -45,7 +45,7 @@ pub struct SerializableRuleConfig<L: Language> {
   pub id: String,
   /// Specify the language to parse and the file extension to include in matching.
   pub language: L,
-  /// Rewrite rules for `applyRewriters` transformation
+  /// Rewrite rules for `rewrite` transformation
   pub rewriters: Option<Vec<SerializableRewriter>>,
   /// Main message highlighting why this rule fired. It should be single line and concise,
   /// but specific enough to be understood without additional context.
@@ -343,7 +343,7 @@ rule: {pattern: 'a = $A'}
 language: Tsx
 transform:
   B:
-    applyRewriters:
+    rewrite:
       rewriters: [re]
       source: $A
 rewriters:
@@ -371,7 +371,7 @@ utils:
   num: { kind: number }
 transform:
   B:
-    applyRewriters:
+    rewrite:
       rewriters: [re]
       source: $A
 rewriters:
@@ -398,7 +398,7 @@ rule: {matches: num}
 language: Tsx
 transform:
   B:
-    applyRewriters:
+    rewrite:
       rewriters: [re]
       source: $A
 rewriters:
@@ -425,7 +425,7 @@ rule: {pattern: 'a = $A'}
 language: Tsx
 transform:
   B:
-    applyRewriters:
+    rewrite:
       rewriters: [re]
       source: $A
 rewriters:

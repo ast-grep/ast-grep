@@ -118,7 +118,7 @@ pub enum Transformation {
   Substring(Substring),
   Replace(Replace),
   Convert(Convert),
-  ApplyRewriters(Rewrite),
+  Rewrite(Rewrite),
 }
 
 impl Transformation {
@@ -139,7 +139,7 @@ impl Transformation {
       T::Replace(r) => r.compute(ctx),
       T::Substring(s) => s.compute(ctx),
       T::Convert(c) => c.compute(ctx),
-      T::ApplyRewriters(r) => r.compute(ctx),
+      T::Rewrite(r) => r.compute(ctx),
     }
   }
 }
@@ -395,5 +395,5 @@ mod test {
     assert_eq!(actual, "camelcase_not");
     Ok(())
   }
-  // TODO: add a symbolic test for ApplyRewriters
+  // TODO: add a symbolic test for Rewrite
 }
