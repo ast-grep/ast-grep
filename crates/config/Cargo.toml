@@ -27,4 +27,4 @@ schemars.workspace = true
 
 [dev-dependencies]
 tempfile = "3.9.0"
-tree-sitter-typescript = "0.20.3"
+tree-sitter-typescript = "0.20.5"

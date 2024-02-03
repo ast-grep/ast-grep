@@ -20,7 +20,7 @@ napi-derive = "2.15.0"
 ignore.workspace = true
 serde.workspace = true
 tree-sitter.workspace = true
-tree-sitter-typescript="0.20.3"
+tree-sitter-typescript="0.20.5"
 tree-sitter-html = { version = "0.20.0", package = "tree-sitter-html-dvdb" }
 tree-sitter-javascript = "0.20.3"
 tree-sitter-css = "0.20.0"
