@@ -48,7 +48,7 @@ serde_json = "1.0.113"
 serde_yaml = "0.9.30"
 similar = { version = "2.4.0", features = ["inline"] }
 tokio = { version = "1", features = ["rt-multi-thread", "io-std"] }
-clap_complete = "4.4.9"
+clap_complete = "4.4.10"
 
 [dev-dependencies]
 assert_cmd = "2.0.13"
