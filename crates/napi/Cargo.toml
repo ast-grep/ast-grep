@@ -22,7 +22,7 @@ serde.workspace = true
 tree-sitter.workspace = true
 tree-sitter-typescript="0.20.3"
 tree-sitter-html = { version = "0.20.0", package = "tree-sitter-html-dvdb" }
-tree-sitter-javascript = "0.20.1"
+tree-sitter-javascript = "0.20.3"
 tree-sitter-css = "0.20.0"
 serde_json = "1.0.112"
 
