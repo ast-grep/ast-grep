@@ -51,7 +51,7 @@ mod parser_implementation {
     tree_sitter_lua::language().into()
   }
   pub fn language_php() -> TSLanguage {
-    tree_sitter_php::language().into()
+    tree_sitter_php::language_php().into()
   }
   pub fn language_python() -> TSLanguage {
     tree_sitter_python::language().into()
