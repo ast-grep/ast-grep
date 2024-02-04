@@ -54,14 +54,14 @@ def test_inside():
     node = root.find(pattern="let $A = $B")
     assert node
     assert node.inside(kind="function_declaration")
-    assert not node.inside(kind="function")
+    assert not node.inside(kind="function_expression")
 
 def test_has():
     node = root.find(pattern="let $A = $B")
     assert node
     assert node.has(pattern="123")
     assert node.has(kind="number")
-    assert not node.has(kind="function")
+    assert not node.has(kind="function_expression")
 
 def test_precedes():
     node = root.find(pattern="let $A = $B\n")
