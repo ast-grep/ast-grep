@@ -18,7 +18,7 @@ serde.workspace = true
 
 tree-sitter-bash = { version = "0.20.3", optional = true }
 tree-sitter-c = { version = "0.20.7", optional = true }
-tree-sitter-cpp = { version = "0.20.3", optional = true }
+tree-sitter-cpp = { version = "0.20.4", optional = true }
 tree-sitter-c-sharp = { version = "0.20.0", package = "ast-grep-tree-sitter-c-sharp", optional = true }
 tree-sitter-css = { version = "0.20.0", optional = true }
 tree-sitter-dart= { version = "0.0.3", optional = true }
