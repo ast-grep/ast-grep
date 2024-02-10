@@ -228,7 +228,7 @@ pub fn filter_file_pattern(
 const MAX_FILE_SIZE: usize = 3_000_000;
 const MAX_LINE_COUNT: usize = 200_000;
 
-fn file_too_large(file_content: &String) -> bool {
+fn file_too_large(file_content: &str) -> bool {
   file_content.len() > MAX_FILE_SIZE && file_content.lines().count() > MAX_LINE_COUNT
 }
 

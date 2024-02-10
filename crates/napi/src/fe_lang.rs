@@ -102,7 +102,7 @@ impl FromStr for FrontEndLanguage {
         }
       }
     }
-    Err(anyhow!(format!("{} is not supported in napi", s.to_string())).into())
+    Err(anyhow!(format!("{s} is not supported in napi")))
   }
 }
 
@@ -122,7 +122,7 @@ impl LangOption {
       Specified(lang) => Some(*lang),
       Inferred(pairs) => pairs
         .iter()
-        .find_map(|(lang, types)| types.matched(path, false).is_whitelist().then(|| *lang)),
+        .find_map(|(lang, types)| types.matched(path, false).is_whitelist().then_some(*lang)),
     }
   }
   pub fn infer(language_globs: &LanguageGlobs) -> Self {
@@ -204,7 +204,7 @@ fn find_files_with_lang(
   }
 
   let mut types = TypesBuilder::new();
-  let custom_file_type = language_globs.unwrap_or_else(Vec::new);
+  let custom_file_type = language_globs.unwrap_or_default();
   let (type_name, default_types) = file_patterns(lang);
   let types = select_custom(&mut types, type_name, default_types, &custom_file_type)
     .build()
