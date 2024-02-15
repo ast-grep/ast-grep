@@ -30,7 +30,7 @@ macro_rules! Diffs {
   ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
 }
 
-pub trait Printer {
+pub trait Printer: Sync + Send {
   fn print_rule<'a>(
     &self,
     matches: Matches!('a),

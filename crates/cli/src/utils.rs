@@ -19,7 +19,7 @@ use std::fs::read_to_string;
 use std::io::stdout;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
 
 fn read_char() -> Result<char> {
   loop {
@@ -81,10 +81,10 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
 /// Worker at the moment has two main flavors:
 /// * PathWorker: discovers files on the file system, based on ignore
 /// * StdInWorker: parse text content from standard input stream
-pub trait Worker: Sync {
+pub trait Worker: Sync + Send {
   /// The item to send between producer/consumer threads.
   /// It is usually parsed tree-sitter Root with optional data.
-  type Item: Send;
+  type Item: Send + 'static;
   /// `consume_items` will run in a separate single thread.
   /// printing matches or error reporting can happen here.
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()>;
@@ -102,8 +102,11 @@ pub trait PathWorker: Worker {
   /// Parse and find_match can be done in `produce_item`.
   fn produce_item(&self, path: &Path) -> Option<Self::Item>;
 
-  fn run_path(&self) -> Result<()> {
-    run_worker(self)
+  fn run_path(self) -> Result<()>
+  where
+    Self: Sized + 'static,
+  {
+    run_worker(Arc::new(self))
   }
 }
 
@@ -154,26 +157,30 @@ fn filter_result(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
   entry.file_type()?.is_file().then(|| entry.into_path())
 }
 
-fn run_worker<W: PathWorker + ?Sized>(worker: &W) -> Result<()> {
-  let producer = |path: PathBuf| worker.produce_item(&path);
+fn run_worker<W: PathWorker + ?Sized + 'static>(worker: Arc<W>) -> Result<()> {
   let (tx, rx) = mpsc::channel();
+  let w = worker.clone();
   let walker = worker.build_walk();
-  walker.run(|| {
-    let tx = tx.clone();
-    Box::new(move |result| {
-      let maybe_result = filter_result(result).and_then(producer);
-      let result = match maybe_result {
-        Some(ret) => ret,
-        None => return WalkState::Continue,
-      };
-      match tx.send(result) {
-        Ok(_) => WalkState::Continue,
-        Err(_) => WalkState::Quit,
-      }
-    })
+  // walker run will block the thread
+  std::thread::spawn(move || {
+    let tx = tx;
+    walker.run(|| {
+      let tx = tx.clone();
+      let w = w.clone();
+      Box::new(move |result| {
+        let producer = |path: PathBuf| w.produce_item(&path);
+        let maybe_result = filter_result(result).and_then(producer);
+        let result = match maybe_result {
+          Some(ret) => ret,
+          None => return WalkState::Continue,
+        };
+        match tx.send(result) {
+          Ok(_) => WalkState::Continue,
+          Err(_) => WalkState::Quit,
+        }
+      })
+    });
   });
-  // drop the last sender to stop rx awaiting message
-  drop(tx);
   worker.consume_items(Items(rx))
 }
 

@@ -85,7 +85,7 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
   }
 }
 
-fn run_scan<P: Printer + Sync>(arg: ScanArg, printer: P) -> Result<()> {
+fn run_scan<P: Printer + 'static>(arg: ScanArg, printer: P) -> Result<()> {
   if arg.input.stdin {
     let worker = ScanWithRule::try_new(arg, printer)?;
     // TODO: report a soft error if rules have different languages
@@ -120,7 +120,7 @@ impl<P: Printer> ScanWithConfig<P> {
     })
   }
 }
-impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
+impl<P: Printer> Worker for ScanWithConfig<P> {
   type Item = (PathBuf, AstGrep, BitSet);
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print()?;
@@ -161,7 +161,7 @@ impl<P: Printer + Sync> Worker for ScanWithConfig<P> {
   }
 }
 
-impl<P: Printer + Sync> PathWorker for ScanWithConfig<P> {
+impl<P: Printer> PathWorker for ScanWithConfig<P> {
   fn build_walk(&self) -> WalkParallel {
     self.arg.input.walk()
   }
@@ -199,7 +199,7 @@ impl<P: Printer> ScanWithRule<P> {
   }
 }
 
-impl<P: Printer + Sync> Worker for ScanWithRule<P> {
+impl<P: Printer> Worker for ScanWithRule<P> {
   type Item = (PathBuf, AstGrep, BitSet);
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print()?;
@@ -226,7 +226,7 @@ impl<P: Printer + Sync> Worker for ScanWithRule<P> {
   }
 }
 
-impl<P: Printer + Sync> StdInWorker for ScanWithRule<P> {
+impl<P: Printer> StdInWorker for ScanWithRule<P> {
   fn parse_stdin(&self, src: String) -> Option<Self::Item> {
     use ast_grep_core::Language;
     let lang = self.rules[0].language;

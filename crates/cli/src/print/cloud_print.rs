@@ -28,11 +28,11 @@ pub enum Platform {
   GitHub,
 }
 
-pub struct CloudPrinter<W: Write> {
+pub struct CloudPrinter<W: Write + Send + Sync> {
   writer: Mutex<W>,
 }
 
-impl<W: Write> CloudPrinter<W> {
+impl<W: Write + Send + Sync> CloudPrinter<W> {
   pub fn new(w: W) -> Self {
     Self {
       writer: Mutex::new(w),
@@ -46,7 +46,7 @@ impl CloudPrinter<Stdout> {
   }
 }
 
-impl<W: Write> Printer for CloudPrinter<W> {
+impl<W: Write + Send + Sync> Printer for CloudPrinter<W> {
   fn print_rule<'a>(
     &self,
     matches: Matches!('a),
@@ -77,7 +77,7 @@ impl<W: Write> Printer for CloudPrinter<W> {
   }
 }
 
-fn print_rule<'a, W: Write>(
+fn print_rule<'a, W: Write + Send + Sync>(
   p: &CloudPrinter<W>,
   matches: Matches!('a),
   path: &Path,

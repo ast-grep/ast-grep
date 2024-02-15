@@ -130,7 +130,7 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
   }
 }
 
-fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + Sync) -> Result<()> {
+fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + 'static) -> Result<()> {
   if arg.input.stdin {
     RunWithSpecificLang::new(arg, printer)?.run_std_in()
   } else if arg.lang.is_some() {
@@ -144,7 +144,7 @@ struct RunWithInferredLang<Printer> {
   arg: RunArg,
   printer: Printer,
 }
-impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
+impl<P: Printer> Worker for RunWithInferredLang<P> {
   type Item = (MatchUnit<Pattern<SgLang>>, SgLang);
 
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
@@ -170,7 +170,7 @@ impl<P: Printer + Sync> Worker for RunWithInferredLang<P> {
   }
 }
 
-impl<P: Printer + Sync> PathWorker for RunWithInferredLang<P> {
+impl<P: Printer> PathWorker for RunWithInferredLang<P> {
   fn build_walk(&self) -> WalkParallel {
     self.arg.input.walk()
   }
@@ -202,7 +202,7 @@ impl<Printer> RunWithSpecificLang<Printer> {
   }
 }
 
-impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
+impl<P: Printer> Worker for RunWithSpecificLang<P> {
   type Item = MatchUnit<Pattern<SgLang>>;
 
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
@@ -232,7 +232,7 @@ impl<P: Printer + Sync> Worker for RunWithSpecificLang<P> {
   }
 }
 
-impl<P: Printer + Sync> PathWorker for RunWithSpecificLang<P> {
+impl<P: Printer> PathWorker for RunWithSpecificLang<P> {
   fn build_walk(&self) -> WalkParallel {
     let lang = self.arg.lang.expect("must present");
     self.arg.input.walk_lang(lang)
@@ -245,7 +245,7 @@ impl<P: Printer + Sync> PathWorker for RunWithSpecificLang<P> {
   }
 }
 
-impl<P: Printer + Sync> StdInWorker for RunWithSpecificLang<P> {
+impl<P: Printer> StdInWorker for RunWithSpecificLang<P> {
   fn parse_stdin(&self, src: String) -> Option<Self::Item> {
     let lang = self.arg.lang.expect("must present");
     let grep = lang.ast_grep(src);

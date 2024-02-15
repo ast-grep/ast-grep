@@ -62,7 +62,7 @@ impl Heading {
   }
 }
 
-pub struct ColoredPrinter<W: WriteColor> {
+pub struct ColoredPrinter<W: WriteColor + Send + Sync> {
   writer: Mutex<W>,
   config: term::Config,
   styles: PrintStyles,
@@ -76,7 +76,7 @@ impl ColoredPrinter<StandardStream> {
   }
 }
 
-impl<W: WriteColor> ColoredPrinter<W> {
+impl<W: WriteColor + Send + Sync> ColoredPrinter<W> {
   pub fn new(writer: W) -> Self {
     Self {
       writer: Mutex::new(writer),
@@ -126,7 +126,7 @@ impl<W: WriteColor> ColoredPrinter<W> {
   }
 }
 
-impl<W: WriteColor> Printer for ColoredPrinter<W> {
+impl<W: WriteColor + Send + Sync> Printer for ColoredPrinter<W> {
   fn print_rule<'a>(
     &self,
     matches: Matches!('a),
@@ -320,7 +320,7 @@ impl<'a> MatchMerger<'a> {
   }
 }
 
-fn print_matches_with_heading<'a, W: WriteColor>(
+fn print_matches_with_heading<'a, W: WriteColor + Send + Sync>(
   mut matches: Matches!('a),
   path: &Path,
   printer: &ColoredPrinter<W>,
@@ -377,7 +377,7 @@ fn print_matches_with_heading<'a, W: WriteColor>(
   Ok(())
 }
 
-fn print_matches_with_prefix<'a, W: WriteColor>(
+fn print_matches_with_prefix<'a, W: WriteColor + Send + Sync>(
   mut matches: Matches!('a),
   path: &Path,
   printer: &ColoredPrinter<W>,
