@@ -69,7 +69,7 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
     if letters.contains(input) {
       return Ok(input);
     }
-    println!("Unrecognized command, try again?")
+    eprintln!("Unrecognized command, try again?")
   }
 }
 
