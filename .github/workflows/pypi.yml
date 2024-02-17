@@ -44,7 +44,7 @@ jobs:
           pip install dist/${{ env.PACKAGE_NAME }}-*.tar.gz --force-reinstall
           sg --help
       - name: "Upload sdist"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: dist
@@ -71,7 +71,7 @@ jobs:
           pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
           sg --help
       - name: "Upload wheels"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: dist
@@ -96,7 +96,7 @@ jobs:
           pip install dist/${{ env.PACKAGE_NAME }}-*universal2.whl --force-reinstall
           sg --help
       - name: "Upload wheels"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: dist
@@ -130,7 +130,7 @@ jobs:
           python -m pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
           sg --help
       - name: "Upload wheels"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: dist
@@ -163,7 +163,7 @@ jobs:
           pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
           sg --help
       - name: "Upload wheels"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: dist
@@ -185,7 +185,7 @@ jobs:
       # For pypi trusted publishing
       id-token: write
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: wheels
           path: wheels
