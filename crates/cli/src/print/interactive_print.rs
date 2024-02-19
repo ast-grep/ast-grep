@@ -43,11 +43,17 @@ impl<P: Printer> InteractivePrinter<P> {
   }
 
   fn prompt_edit(&self) -> char {
+    if self.accept_all.load(Ordering::SeqCst) {
+      return 'a';
+    }
     const EDIT_PROMPT: &str = "Accept change? (Yes[y], No[n], Accept All[a], Quit[q], Edit[e])";
     utils::prompt(EDIT_PROMPT, "ynaqe", Some('n')).expect("Error happened during prompt")
   }
 
   fn prompt_view(&self) -> char {
+    if self.accept_all.load(Ordering::SeqCst) {
+      return '\n';
+    }
     const VIEW_PROMPT: &str = "Next[enter], Quit[q], Edit[e]";
     utils::prompt(VIEW_PROMPT, "qe", Some('\n')).expect("cannot fail")
   }
