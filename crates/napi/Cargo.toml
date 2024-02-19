@@ -14,8 +14,8 @@ edition.workspace = true
 ast-grep-core.workspace = true
 ast-grep-config.workspace = true
 
-napi = { version = "2.15.2", features = ["serde-json", "napi4", "error_anyhow"] }
-napi-derive = "2.15.2"
+napi = { version = "2.15.1", features = ["serde-json", "napi4", "error_anyhow"] }
+napi-derive = "2.15.1"
 
 ignore.workspace = true
 serde.workspace = true
@@ -35,4 +35,4 @@ napi-noop-in-unit-test = ["napi-derive/noop"]
 crate-type = ["cdylib"]
 
 [build-dependencies]
-napi-build = "2"
+napi-build = "2.1.2"
