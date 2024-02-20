@@ -25,8 +25,9 @@ You can use `$` sign + upper case letters as wildcard, e.g. `$MATCH`, to match a
 Try the [online playground](https://ast-grep.github.io/playground.html) for a taste!
 
 ## Demo
+![demo](https://ast-grep.github.io/image/search-replace.png)
 
-![output](https://user-images.githubusercontent.com/2883231/183275066-8d9c342f-46cb-4fa5-aa4e-b98aac011869.gif)
+See more screenshots on the [website](https://ast-grep.github.io/).
 
 ## Installation
 You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), [pip](https://pypi.org/), [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html), [homebrew](https://brew.sh/), [scoop](https://scoop.sh/) or [MacPorts](https://www.macports.org)!
@@ -103,13 +104,3 @@ ast-grep's vision is to democratize abstract syntax tree magic and to liberate o
 * If you are an open source library author, ast-grep can help your library users adopt breaking changes more easily.
 * if you are a tech lead in your team, ast-grep can help you enforce code best practice tailored to your business need.
 * If you are a security researcher, ast-grep can help you write rules much faster.
-
-
-## CLI Screenshot
-
-### Search
-| Feature | Command | Screenshot |
-| ------- | ------- | ---------- |
-| Search  | `sg -p 'Some($A)' -l rs` | ![image](https://github.com/ast-grep/ast-grep/assets/2883231/002db3a2-8a79-4838-ad5c-563634183c3f) |
-| Rewrite | `sg -p '$F && $F($$$ARGS)' -r '$F?.($$$ARGS)' -l ts` | ![image](https://github.com/ast-grep/ast-grep/assets/2883231/ad9394d8-3aea-4b96-8d54-6e01f06174d2)|
-| Report  | `sg scan` | ![image](https://user-images.githubusercontent.com/2883231/187094977-fd544d4b-64de-4bba-8bea-8c0de047b352.png) |
