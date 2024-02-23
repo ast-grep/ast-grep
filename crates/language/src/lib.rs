@@ -31,6 +31,7 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use std::borrow::Cow;
 use std::fmt;
 use std::fmt::{Display, Formatter};
+use std::iter::repeat;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -49,6 +50,27 @@ macro_rules! impl_lang {
   };
 }
 
+fn pre_process_pattern(expando: char, query: &str) -> std::borrow::Cow<str> {
+  let mut ret = Vec::with_capacity(query.len());
+  let mut dollar_count = 0;
+  for c in query.chars() {
+    if c == '$' {
+      dollar_count += 1;
+      continue;
+    }
+    let need_replace = matches!(c, 'A'..='Z' | '_') // $A or $$A or $$$A
+      || dollar_count == 3; // anonymous multiple
+    let sigil = if need_replace { expando } else { '$' };
+    ret.extend(repeat(sigil).take(dollar_count));
+    dollar_count = 0;
+    ret.push(c);
+  }
+  // trailing anonymous multiple
+  let sigil = if dollar_count == 3 { expando } else { '$' };
+  ret.extend(repeat(sigil).take(dollar_count));
+  std::borrow::Cow::Owned(ret.into_iter().collect())
+}
+
 /// this macro will implement expando_char and pre_process_pattern
 /// use this if your language does not accept $ as valid identifier char
 macro_rules! impl_lang_expando {
@@ -63,12 +85,7 @@ macro_rules! impl_lang_expando {
         $char
       }
       fn pre_process_pattern<'q>(&self, query: &'q str) -> std::borrow::Cow<'q, str> {
-        // use stack buffer to reduce allocation
-        let mut buf = [0; 4];
-        let expando = self.expando_char().encode_utf8(&mut buf);
-        // TODO: use more precise replacement
-        let replaced = query.replace(self.meta_var_char(), expando);
-        std::borrow::Cow::Owned(replaced)
+        pre_process_pattern(self.expando_char(), query)
       }
     }
   };

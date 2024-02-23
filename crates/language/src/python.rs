@@ -31,6 +31,12 @@ fn test_python_str() {
   );
 }
 
+// https://github.com/ast-grep/ast-grep/issues/883
+#[test]
+fn test_issue_883() {
+  test_match("r'^[A-Za-z0-9_-]+\\$'", "r'^[A-Za-z0-9_-]+\\$'");
+}
+
 #[test]
 fn test_python_pattern() {
   test_match("$A = 0", "a = 0");
