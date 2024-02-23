@@ -16,10 +16,7 @@ pub enum Pattern<L: Language> {
     meta_var: MetaVariable,
     kind: Option<u16>,
   },
-  // https://github.com/ast-grep/ast-grep/issues/276
-  /// Node without named children.
-  /// Some ts grammar will produce one node with multiple unnamed children.
-  /// We don't need to count it as Internal.
+  /// Node without children.
   Terminal {
     text: String,
     is_named: bool,
@@ -42,7 +39,7 @@ impl<'r, D: Doc> From<Node<'r, D>> for Pattern<D::Lang> {
 fn convert_node_to_pattern<D: Doc>(node: Node<D>, kind: Option<u16>) -> Pattern<D::Lang> {
   if let Some(meta_var) = extract_var_from_node(&node) {
     Pattern::MetaVar { meta_var, kind }
-  } else if node.is_named_leaf() {
+  } else if node.is_leaf() {
     Pattern::Terminal {
       text: node.text().to_string(),
       is_named: node.is_named(),
@@ -255,6 +252,12 @@ mod test {
     test_match("const a = $VALUE", "const a = 123");
     test_match("const $VARIABLE = $VALUE", "const a = 123");
     test_match("const $VARIABLE = $VALUE", "const a = 123");
+  }
+
+  #[test]
+  fn test_whitespace() {
+    test_match("function t() { }", "function t() {}");
+    test_match("function t() {}", "function t() {  }");
   }
 
   fn match_env(goal_str: &str, cand: &str) -> HashMap<String, String> {

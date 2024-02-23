@@ -19,6 +19,16 @@ fn test_python_str() {
   test_match("print('123')", "print('123')");
   test_non_match("print('123')", "print('456')");
   test_non_match("'123'", "'456'");
+  // https://github.com/ast-grep/ast-grep/issues/276
+  // python has fixed the wrong parsing issue
+  test_non_match(
+    "getattr($O, \"__spec__\", None)",
+    "getattr(response, \"render\", None)",
+  );
+  test_match(
+    "getattr($O, \"render\", None)",
+    "getattr(response, \"render\", None)",
+  );
 }
 
 #[test]
