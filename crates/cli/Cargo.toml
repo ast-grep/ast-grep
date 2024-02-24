@@ -51,6 +51,6 @@ tokio = { version = "1", features = ["rt-multi-thread", "io-std"] }
 clap_complete = "4.5.1"
 
 [dev-dependencies]
-assert_cmd = "2.0.13"
+assert_cmd = "2.0.14"
 predicates = "3.1.0"
 tempfile = "3.10.0"
