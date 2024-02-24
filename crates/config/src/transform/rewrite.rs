@@ -52,11 +52,18 @@ impl Rewrite {
       let mut ret = vec![];
       let mut edits = edits.into_iter();
       if let Some(first) = edits.next() {
+        let mut pos = first.position - start + first.deleted_length;
         ret.extend(first.inserted_text);
         let joiner = D::Source::decode_str(joiner);
         for edit in edits {
+          let p = edit.position - start;
+          // skip overlapping edits
+          if pos > p {
+            continue;
+          }
           ret.extend_from_slice(&joiner);
           ret.extend(edit.inserted_text);
+          pos = p + edit.deleted_length;
         }
         ret
       } else {
