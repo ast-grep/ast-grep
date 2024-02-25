@@ -72,8 +72,14 @@ impl<L: Language> SerializableRuleConfig<L> {
     String::from_utf8(bytes).expect("replacement must be valid utf-8")
   }
 
-  pub fn get_matcher(&self, globals: &GlobalRules<L>) -> Result<RuleCore<L>, RuleConfigError> {
-    let env = DeserializeEnv::new(self.language.clone()).with_globals(globals);
+  pub fn get_matcher(
+    &self,
+    globals: &GlobalRules<L>,
+    rewriters: &GlobalRules<L>,
+  ) -> Result<RuleCore<L>, RuleConfigError> {
+    let env = DeserializeEnv::new(self.language.clone())
+      .with_globals(globals)
+      .with_rewriters(rewriters);
     self.core.get_matcher(env)
   }
 }
@@ -101,21 +107,22 @@ impl<L: Language> RuleConfig<L> {
     inner: SerializableRuleConfig<L>,
     globals: &GlobalRules<L>,
   ) -> Result<Self, RuleConfigError> {
-    let mut matcher = inner.get_matcher(globals)?;
+    let rewriters = GlobalRules::default();
+    let matcher = inner.get_matcher(globals, &rewriters)?;
     let Some(ser) = inner.rewriters.clone() else {
       return Ok(Self { inner, matcher });
     };
-    let mut rewriters = HashMap::new();
     for val in ser {
       // NB should inherit env from matcher to inherit utils
       // TODO: optimize duplicate env creation/util registraion
-      let env = DeserializeEnv::new(inner.language.clone()).with_globals(globals);
+      let env = DeserializeEnv::new(inner.language.clone())
+        .with_globals(globals)
+        .with_rewriters(&rewriters);
       let env = inner.get_deserialize_env(env)?;
       let env = val.core.get_deserialize_env(env)?;
       let rewriter = val.core.get_matcher_from_env(&env)?;
-      rewriters.insert(val.id, rewriter);
+      rewriters.insert(&val.id, rewriter).expect("should work");
     }
-    matcher.add_rewriters(rewriters)?;
     Ok(Self { inner, matcher })
   }
 
@@ -190,7 +197,7 @@ mod test {
     let grep = TypeScript::Tsx.ast_grep("class TestClass {}");
     let node_match = grep
       .root()
-      .find(config.get_matcher(&globals).unwrap())
+      .find(config.get_matcher(&globals, &globals).unwrap())
       .expect("should find match");
     assert_eq!(config.get_message(&node_match), "Found TestClass");
   }
@@ -209,7 +216,7 @@ inside:
     .expect("should parse");
     let config = ts_rule_config(rule);
     let grep = TypeScript::Tsx.ast_grep("console.log(1)");
-    let matcher = config.get_matcher(&globals).unwrap();
+    let matcher = config.get_matcher(&globals, &globals).unwrap();
     assert!(grep.root().find(&matcher).is_none());
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
     assert!(grep.root().find(&matcher).is_some());
@@ -232,7 +239,7 @@ has:
     .expect("should parse");
     let config = ts_rule_config(rule);
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
-    let matcher = config.get_matcher(&globals).unwrap();
+    let matcher = config.get_matcher(&globals, &globals).unwrap();
     assert!(grep.root().find(&matcher).is_none());
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(123) }");
     assert!(grep.root().find(&matcher).is_some());
@@ -255,7 +262,7 @@ all:
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
     let node_match = grep
       .root()
-      .find(config.get_matcher(&globals).unwrap())
+      .find(config.get_matcher(&globals, &globals).unwrap())
       .expect("should found");
     let env = node_match.get_env();
     let a = env.get_match("A").expect("should exist").text();
@@ -283,7 +290,7 @@ B:
     let grep = TypeScript::Tsx.ast_grep("function test() { console.log(123) }");
     let node_match = grep
       .root()
-      .find(config.get_matcher(&globals).unwrap())
+      .find(config.get_matcher(&globals, &globals).unwrap())
       .expect("should found");
     let env = node_match.get_env();
     let a = env.get_match("A").expect("should exist").text();
@@ -315,7 +322,7 @@ test-rule:
   fn test_utils_rule() {
     let globals = GlobalRules::default();
     let config = get_matches_config();
-    let matcher = config.get_matcher(&globals).unwrap();
+    let matcher = config.get_matcher(&globals, &globals).unwrap();
     let grep = TypeScript::Tsx.ast_grep("some(123)");
     assert!(grep.root().find(&matcher).is_some());
     let grep = TypeScript::Tsx.ast_grep("some()");
