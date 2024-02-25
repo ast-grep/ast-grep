@@ -163,16 +163,6 @@ impl<L: Language> RuleCore<L> {
       registration: self.utils.clone(),
     }
   }
-
-  pub fn add_rewriters(&mut self, rewriters: HashMap<String, RuleCore<L>>) -> RResult<()> {
-    for (id, rewriter) in rewriters {
-      self
-        .utils
-        .insert_rewriter(&id, rewriter)
-        .map_err(RuleSerializeError::from)?;
-    }
-    Ok(())
-  }
 }
 impl<L: Language> Deref for RuleCore<L> {
   type Target = Rule<L>;
@@ -226,9 +216,9 @@ impl<L: Language> Matcher<L> for RuleCore<L> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::from_str;
   use crate::rule::referent_rule::ReferentRule;
   use crate::test::TypeScript;
+  use crate::{from_str, GlobalRules};
   use ast_grep_core::matcher::{Pattern, RegexMatcher};
 
   #[test]
@@ -295,23 +285,22 @@ mod test {
     assert_eq!(matched, "2");
   }
 
-  fn get_rewriters() -> HashMap<String, RuleCore<TypeScript>> {
+  fn get_rewriters() -> GlobalRules<TypeScript> {
     // NOTE: initialize a DeserializeEnv here is not 100% correct
     // it does not inherit global rules or local rules
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let mut ret = HashMap::new();
+    let ret = GlobalRules::default();
     let rewriter: SerializableRuleCore =
       from_str("{rule: {kind: number, pattern: $REWRITE}, fix: yjsnp}").expect("should parse");
-    ret.insert(
-      "re".to_string(),
-      rewriter.get_matcher(env).expect("should work"),
-    );
+    let rewriter = rewriter.get_matcher(env).expect("should work");
+    ret.insert("re", rewriter).expect("should work");
     ret
   }
 
   #[test]
   fn test_rewriter_writing_to_env() {
-    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let rewriters = get_rewriters();
+    let env = DeserializeEnv::new(TypeScript::Tsx).with_rewriters(&rewriters);
     let ser_rule: SerializableRuleCore = from_str(
       r"
 rule: {pattern: $A = $B}
@@ -322,11 +311,7 @@ transform:
       rewriters: [re]",
     )
     .expect("should deser");
-    let mut matcher = ser_rule.get_matcher(env).expect("should parse");
-    matcher
-      .add_rewriters(get_rewriters())
-      .expect("should succeed");
-
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
     let grep = TypeScript::Tsx.ast_grep("a = 1 + 2");
     let nm = grep.root().find(&matcher).expect("should match");
     let env = nm.get_env();

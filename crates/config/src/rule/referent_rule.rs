@@ -55,8 +55,11 @@ impl<R> Default for Registration<R> {
 
 #[derive(Clone)]
 pub struct RuleRegistration<L: Language> {
+  /// utility rule to every RuleCore, every sub-rule has its own local utility
   local: Registration<Rule<L>>,
+  /// global rules are shared by all RuleConfigs. It is a singleton.
   global: Registration<RuleCore<L>>,
+  /// Every RuleConfig has its own rewriters. But sub-rules share parent's rewriters.
   rewriters: Registration<RuleCore<L>>,
 }
 
@@ -108,16 +111,6 @@ impl<L: Language> RuleRegistration<L> {
     if rule.check_cyclic(id) {
       return Err(ReferentRuleError::CyclicRule);
     }
-    Ok(())
-  }
-
-  pub fn insert_rewriter(&self, id: &str, rewriter: RuleCore<L>) -> Result<(), ReferentRuleError> {
-    let mut map = self.rewriters.write();
-    if map.contains_key(id) {
-      return Err(ReferentRuleError::DuplicateRule(id.into()));
-    }
-    map.insert(id.to_string(), rewriter);
-    // TODO: add cyclic rewrite check?
     Ok(())
   }
 }
