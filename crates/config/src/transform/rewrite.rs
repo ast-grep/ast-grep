@@ -45,7 +45,7 @@ impl Rewrite {
     let rules: Vec<_> = self
       .rewriters
       .iter()
-      .map(|id| rewriters.get(id).expect(id))
+      .filter_map(|id| rewriters.get(id)) // TODO: better handling
       .collect();
     let edits = find_and_make_edits(nodes, &rules);
     let rewritten = if let Some(joiner) = &self.join_by {

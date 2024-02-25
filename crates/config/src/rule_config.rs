@@ -450,4 +450,32 @@ rewriters:
     let b = nm.get_env().get_transformed("B").expect("should have");
     assert_eq!(String::from_utf8_lossy(b), "yjsnp");
   }
+
+  #[test]
+  fn test_use_rewriter_recursive() {
+    let rule: SerializableRuleConfig<TypeScript> = from_str(
+      r"
+id: test
+rule: {pattern: 'a = $A'}
+language: Tsx
+transform:
+  B: { rewrite: { rewriters: [re], source: $A } }
+rewriters:
+- id: handle-num
+  rule: {regex: '114'}
+  fix: '1919810'
+- id: re
+  rule: {kind: number, pattern: $A}
+  transform:
+    B: { rewrite: { rewriters: [handle-num], source: $A } }
+  fix: $B
+    ",
+    )
+    .expect("should parse");
+    let rule = RuleConfig::try_from(rule, &Default::default()).expect("work");
+    let grep = TypeScript::Tsx.ast_grep("a = 114514");
+    let nm = grep.root().find(&rule.matcher).unwrap();
+    let b = nm.get_env().get_transformed("B").expect("should have");
+    assert_eq!(String::from_utf8_lossy(b), "1919810");
+  }
 }
