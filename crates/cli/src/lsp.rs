@@ -8,9 +8,15 @@ async fn run_language_server_impl() -> Result<()> {
   register_custom_language(None)?;
   let stdin = tokio::io::stdin();
   let stdout = tokio::io::stdout();
-  let config = find_rules(None, None).unwrap_or_default();
-
-  let (service, socket) = LspService::build(|client| Backend::new(client, config))
+  let config_result = find_rules(None, None);
+  let config_result_std: std::result::Result<_, String> = config_result.map_err(|e| {
+    // convert anyhow::Error to String with chain of causes
+    e.chain()
+      .map(|e| e.to_string())
+      .collect::<Vec<_>>()
+      .join(". ")
+  });
+  let (service, socket) = LspService::build(|client| Backend::new(client, config_result_std))
     .custom_method("ast-grep/search", Backend::search)
     .finish();
   Server::new(stdin, stdout, socket).serve(service).await;

@@ -23,7 +23,7 @@ struct VersionedAst<D: Doc> {
 pub struct Backend<L: LSPLang> {
   client: Client,
   map: DashMap<String, VersionedAst<StrDoc<L>>>,
-  rules: RuleCollection<L>,
+  rules: std::result::Result<RuleCollection<L>, String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -110,6 +110,26 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       .client
       .log_message(MessageType::INFO, "server initialized!")
       .await;
+
+    // Report errors loading config once, upon initialization
+    if let Err(error) = &self.rules {
+      // popup message
+      self
+        .client
+        .show_message(
+          MessageType::ERROR,
+          format!("Failed to load rules: {}", error),
+        )
+        .await;
+      // log message
+      self
+        .client
+        .log_message(
+          MessageType::ERROR,
+          format!("Failed to load rules: {}", error),
+        )
+        .await;
+    }
   }
 
   async fn shutdown(&self) -> Result<()> {
@@ -239,7 +259,7 @@ fn url_to_code_description(url: &Option<String>) -> Option<CodeDescription> {
 }
 
 impl<L: LSPLang> Backend<L> {
-  pub fn new(client: Client, rules: RuleCollection<L>) -> Self {
+  pub fn new(client: Client, rules: std::result::Result<RuleCollection<L>, String>) -> Self {
     Self {
       client,
       rules,
@@ -249,7 +269,14 @@ impl<L: LSPLang> Backend<L> {
   async fn publish_diagnostics(&self, uri: Url, versioned: &VersionedAst<StrDoc<L>>) -> Option<()> {
     let mut diagnostics = vec![];
     let path = uri.to_file_path().ok()?;
-    let rules = self.rules.for_path(&path);
+
+    let rules = match &self.rules {
+      Ok(rules) => rules.for_path(&path),
+      Err(_) => {
+        return Some(());
+      }
+    };
+
     for rule in rules {
       let to_diagnostic = |m| convert_match_to_diagnostic(m, rule, &uri);
       let matcher = &rule.matcher;
@@ -321,7 +348,12 @@ impl<L: LSPLang> Backend<L> {
     let error_id_to_ranges = Self::build_error_id_to_ranges(diagnostics);
     let versioned = self.map.get(uri)?;
     let mut response = CodeActionResponse::new();
-    for config in self.rules.for_path(&path) {
+    let rules = if let Ok(rules) = &self.rules {
+      rules
+    } else {
+      return Some(response);
+    };
+    for config in rules.for_path(&path) {
       let ranges = match error_id_to_ranges.get(&config.id) {
         Some(ranges) => ranges,
         None => continue,
@@ -406,7 +438,8 @@ mod test {
 
   fn start_lsp() -> (DuplexStream, DuplexStream) {
     let rc: RuleCollection<TypeScript> = RuleCollection::try_new(vec![]).unwrap();
-    let (service, socket) = LspService::build(|client| Backend::new(client, rc)).finish();
+    let rc_result: std::result::Result<_, String> = Ok(rc);
+    let (service, socket) = LspService::build(|client| Backend::new(client, rc_result)).finish();
     let (req_client, req_server) = duplex(1024);
     let (resp_server, resp_client) = duplex(1024);
 
