@@ -207,6 +207,14 @@ fn convert_node_to_range<D: Doc>(node_match: &Node<D>) -> Range {
   }
 }
 
+fn get_non_empty_message<L: Language>(rule: &RuleConfig<L>) -> String {
+  // Note: The LSP client in vscode won't show any diagnostics at all if it receives one with an empty message
+  if rule.message.is_empty() {
+    rule.id.to_string()
+  } else {
+    rule.message.to_string()
+  }
+}
 fn convert_match_to_diagnostic<L: Language>(
   node_match: NodeMatch<StrDoc<L>>,
   rule: &RuleConfig<L>,
@@ -223,7 +231,7 @@ fn convert_match_to_diagnostic<L: Language>(
       Severity::Hint => DiagnosticSeverity::HINT,
       Severity::Off => unreachable!("turned-off rule should not have match"),
     }),
-    message: rule.get_message(&node_match),
+    message: get_non_empty_message(rule),
     source: Some(String::from("ast-grep")),
     tags: None,
     related_information: collect_labels(&node_match, uri),
