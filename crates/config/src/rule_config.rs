@@ -67,18 +67,8 @@ pub struct SerializableRuleConfig<L: Language> {
 }
 
 impl<L: Language> SerializableRuleConfig<L> {
-  fn get_default_message(&self) -> &str {
-    &self.id
-  }
-
   fn get_message(&self, node_match: &NodeMatch<StrDoc<L>>) -> String {
-    // Note: The LSP client in vscode won't show any diagnostics at all if it receives one with an empty message
-    let msg = if self.message.is_empty() {
-      self.get_default_message()
-    } else {
-      &self.message
-    };
-    let bytes = msg.generate_replacement(node_match);
+    let bytes = self.message.generate_replacement(node_match);
     String::from_utf8(bytes).expect("replacement must be valid utf-8")
   }
 
