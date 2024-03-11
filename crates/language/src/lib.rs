@@ -13,6 +13,7 @@ mod csharp;
 mod css;
 mod elixir;
 mod go;
+mod html;
 mod json;
 mod kotlin;
 mod lua;
@@ -108,6 +109,9 @@ impl_lang_expando!(Elixir, language_elixir, 'µ');
 // we can use any Unicode code point categorized as "Letter"
 // https://go.dev/ref/spec#letter
 impl_lang_expando!(Go, language_go, 'µ');
+// tree-sitter-html uses locale dependent iswalnum for tagName
+// https://github.com/tree-sitter/tree-sitter-html/blob/b5d9758e22b4d3d25704b72526670759a9e4d195/src/scanner.c#L194
+impl_lang_expando!(Html, language_html, 'z');
 // https://github.com/fwcd/tree-sitter-kotlin/pull/93
 impl_lang_expando!(Kotlin, language_kotlin, 'µ');
 // we can use any char in unicode range [:XID_Start:]
@@ -126,7 +130,6 @@ impl_lang_expando!(Swift, language_swift, 'µ');
 // Language Name, tree-sitter-name, alias, extension
 impl_lang!(Bash, language_bash);
 impl_lang!(Dart, language_dart);
-impl_lang!(Html, language_html);
 impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
 impl_lang!(Json, language_json);
