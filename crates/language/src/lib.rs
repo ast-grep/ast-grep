@@ -8,6 +8,7 @@
 //! To see the full list of languages, visit `<https://ast-grep.github.io/reference/languages.html>`
 
 mod bash;
+mod cmake;
 mod cpp;
 mod csharp;
 mod css;
@@ -129,6 +130,7 @@ impl_lang_expando!(Swift, language_swift, 'µ');
 // Stub Language without preprocessing
 // Language Name, tree-sitter-name, alias, extension
 impl_lang!(Bash, language_bash);
+impl_lang!(Cmake, language_cmake);
 impl_lang!(Dart, language_dart);
 impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
@@ -147,6 +149,7 @@ pub enum SupportLang {
   Bash,
   C,
   Cpp,
+  Cmake,
   CSharp,
   Css,
   Dart,
@@ -172,8 +175,8 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Html, Java, JavaScript, Json, Kotlin, Lua, Php,
-      Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript,
+      Bash, C, Cpp, Cmake, CSharp, Css, Dart, Elixir, Go, Html, Java, JavaScript, Json, Kotlin,
+      Lua, Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript,
     ]
   }
 
@@ -220,6 +223,7 @@ const fn alias(lang: &SupportLang) -> &[&str] {
     Bash => &["bash-exp"],
     C => &["c"],
     Cpp => &["cc", "c++", "cpp", "cxx"],
+    Cmake => &["cmake"],
     CSharp => &["cs", "csharp"],
     Css => &["css"],
     Dart => &["dart"],
@@ -264,6 +268,7 @@ macro_rules! execute_lang_method {
       S::Bash => Bash.$method($($pname,)*),
       S::C => C.$method($($pname,)*),
       S::Cpp => Cpp.$method($($pname,)*),
+      S::Cmake => Cmake.$method($($pname,)*),
       S::CSharp => CSharp.$method($($pname,)*),
       S::Css => Css.$method($($pname,)*),
       S::Dart => Dart.$method($($pname,)*),
@@ -319,6 +324,7 @@ fn extensions(lang: &SupportLang) -> &[&str] {
     ],
     C => &["c", "h"],
     Cpp => &["cc", "hpp", "cpp", "c++", "hh", "cxx", "cu", "ino"],
+    Cmake => &["cmake", "txt"],
     CSharp => &["cs"],
     Css => &["css", "scss"],
     Dart => &["dart"],

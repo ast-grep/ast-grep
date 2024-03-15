@@ -17,6 +17,9 @@ mod parser_implementation {
   pub fn language_cpp() -> TSLanguage {
     tree_sitter_cpp::language().into()
   }
+  pub fn language_cmake() -> TSLanguage {
+    tree_sitter_cmake::language().into()
+  }
   pub fn language_c_sharp() -> TSLanguage {
     tree_sitter_c_sharp::language().into()
   }
@@ -99,6 +102,7 @@ mod parser_implementation {
     language_bash,
     language_c,
     language_cpp,
+    language_cmake,
     language_c_sharp,
     language_css,
     language_dart,
