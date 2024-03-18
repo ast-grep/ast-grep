@@ -153,7 +153,6 @@ dependencies = [
  "schemars",
  "serde",
  "serde_yaml",
- "tempfile",
  "thiserror",
  "tree-sitter-typescript",
 ]
@@ -219,7 +218,6 @@ dependencies = [
  "ast-grep-core",
  "dashmap",
  "serde",
- "tempfile",
  "tokio",
  "tower-lsp",
  "tree-sitter-typescript",
