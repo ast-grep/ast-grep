@@ -18,7 +18,6 @@ napi = { version = "2.16.0", features = ["serde-json", "napi4", "error_anyhow"] 
 napi-derive = "2.16.0"
 
 ignore.workspace = true
-serde.workspace = true
 tree-sitter.workspace = true
 tree-sitter-typescript="0.20.5"
 tree-sitter-html = { version = "0.20.0", package = "tree-sitter-html-dvdb" }

@@ -219,7 +219,6 @@ dependencies = [
  "ast-grep-core",
  "dashmap",
  "serde",
- "serde_json",
  "tempfile",
  "tokio",
  "tower-lsp",
@@ -236,7 +235,6 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
- "serde",
  "serde_json",
  "tree-sitter-css",
  "tree-sitter-facade-sg",
@@ -253,7 +251,6 @@ dependencies = [
  "ast-grep-config",
  "ast-grep-core",
  "ast-grep-language",
- "once_cell",
  "pyo3",
  "pythonize",
 ]
