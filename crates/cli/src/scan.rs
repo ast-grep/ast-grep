@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{from_yaml_string, CombinedScan, RuleCollection, RuleConfig, Severity};
-use ast_grep_core::{NodeMatch, StrDoc};
+use ast_grep_core::{Node, NodeMatch, StrDoc};
 use bit_set::BitSet;
 use clap::Args;
 use ignore::WalkParallel;
@@ -247,6 +247,7 @@ fn match_rule_diff_on_file(
 ) -> Result<()> {
   let diffs = matches
     .into_iter()
+    .filter(|n| no_ignore(n.0.get_node().clone()))
     .filter_map(|(m, rule)| {
       let fix = rule.matcher.fixer.as_ref()?;
       let diff = Diff::generate(m, &rule.matcher, fix);
@@ -264,7 +265,9 @@ fn match_rule_on_file(
   file_content: &String,
   reporter: &impl Printer,
 ) -> Result<()> {
-  let matches = matches.into_iter();
+  let matches = matches
+    .into_iter()
+    .filter(|n| no_ignore(n.get_node().clone()));
   let file = SimpleFile::new(path.to_string_lossy(), file_content);
   if let Some(fixer) = &rule.matcher.fixer {
     let diffs = matches
@@ -275,6 +278,29 @@ fn match_rule_on_file(
     reporter.print_rule(matches, file, rule)?;
   }
   Ok(())
+}
+
+// check if there is no ast-grep-ignore
+fn no_ignore(mut node: Node<StrDoc<SgLang>>) -> bool {
+  loop {
+    let Some(prev) = node.prev() else {
+      let Some(n) = node.parent() else {
+        return true;
+      };
+      node = n;
+      continue;
+    };
+    if prev.start_pos().0 == node.start_pos().0 {
+      let Some(n) = node.parent() else {
+        return true;
+      };
+      node = n;
+    } else if prev.start_pos().0 + 1 == node.start_pos().0 {
+      return !prev.text().contains("ast-grep-ignore");
+    } else {
+      return true;
+    }
+  }
 }
 
 #[cfg(test)]
