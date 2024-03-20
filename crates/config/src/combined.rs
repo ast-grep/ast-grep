@@ -4,7 +4,7 @@ use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Doc, Matcher, Node, NodeMatch};
 
 use bit_set::BitSet;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// A struct to group all rules according to their potential kinds.
 /// This can greatly reduce traversal times and skip unmatchable rules.
@@ -80,6 +80,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
       let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
         continue;
       };
+      let mut suppression = NodeSuppression::new(node.clone());
       for &idx in rule_idx {
         if !hit.contains(idx) {
           continue;
@@ -91,7 +92,10 @@ impl<'r, L: Language> CombinedScan<'r, L> {
         let Some(ret) = rule.matcher.match_node(node.clone()) else {
           continue;
         };
-        if suppressed(node.clone()) {
+        if suppression.check_ignore_all() {
+          break;
+        }
+        if suppression.contains_rule(&rule.id) {
           break;
         }
         let matches = results.entry(idx).or_insert_with(Vec::new);
@@ -113,18 +117,24 @@ impl<'r, L: Language> CombinedScan<'r, L> {
       let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
         continue;
       };
+      let mut suppression = NodeSuppression::new(node.clone());
       for &idx in rule_idx {
         let rule = &self.rules[idx];
+        if suppression.contains_rule(&rule.id) {
+          continue;
+        }
         if !hit.contains(idx) || rule.fix.is_none() {
           continue;
         }
         let Some(ret) = rule.matcher.match_node(node.clone()) else {
           continue;
         };
-        if suppressed(node.clone()) {
+        if suppression.check_ignore_all() {
           break;
         }
-        results.push((ret, idx));
+        if !suppression.contains_rule(&rule.id) {
+          results.push((ret, idx));
+        }
       }
     }
     results
@@ -135,25 +145,72 @@ impl<'r, L: Language> CombinedScan<'r, L> {
   }
 }
 
+enum NodeSuppression<'r, D: Doc> {
+  Unchecked(Node<'r, D>),
+  NoSuppression,
+  AllSuppressed,
+  Specific(HashSet<&'r str>),
+}
+
+impl<'r, D: Doc> NodeSuppression<'r, D> {
+  fn new(node: Node<'r, D>) -> Self {
+    Self::Unchecked(node)
+  }
+  /// returns if a rule should be suppressed
+  /// the return value is always false before check_ignore_all is called
+  /// that is, we never ignore error before looking at its surrounding
+  /// so this method needs to be called twice
+  fn contains_rule(&self, id: &str) -> bool {
+    use NodeSuppression::*;
+    match self {
+      Unchecked(_) => false,
+      NoSuppression => false,
+      AllSuppressed => panic!("AllSuppression should never be called"),
+      Specific(set) => set.contains(id),
+    }
+  }
+  /// this method will lazily check suppression
+  /// contains_rule will only return truth after this
+  fn check_ignore_all(&mut self) -> bool {
+    use NodeSuppression::*;
+    *self = match self {
+      Unchecked(n) => suppressed(n),
+      AllSuppressed => panic!("impossible"),
+      _ => return false,
+    };
+    matches!(self, AllSuppressed)
+  }
+}
+
 // check if there is no ast-grep-ignore
-fn suppressed<D: Doc>(mut node: Node<D>) -> bool {
+fn suppressed<'r, D: Doc>(node: &Node<'r, D>) -> NodeSuppression<'r, D> {
+  let mut node = node.clone();
+  use NodeSuppression::*;
   loop {
     let Some(prev) = node.prev() else {
       let Some(n) = node.parent() else {
-        return false;
+        return NoSuppression;
       };
       node = n;
       continue;
     };
     if prev.start_pos().0 == node.start_pos().0 {
       let Some(n) = node.parent() else {
-        return false;
+        return NoSuppression;
       };
       node = n;
     } else if prev.start_pos().0 + 1 == node.start_pos().0 {
-      return prev.text().contains("ast-grep-ignore");
+      return parse_suppression(&prev.text());
     } else {
-      return false;
+      return NoSuppression;
     }
+  }
+}
+
+fn parse_suppression<'r, D: Doc>(text: &str) -> NodeSuppression<'r, D> {
+  if text.trim().contains("ast-grep-ignore") {
+    NodeSuppression::AllSuppressed
+  } else {
+    NodeSuppression::NoSuppression
   }
 }
