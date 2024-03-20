@@ -1,7 +1,7 @@
 use crate::RuleConfig;
 
 use ast_grep_core::language::Language;
-use ast_grep_core::{AstGrep, Doc, Matcher, NodeMatch};
+use ast_grep_core::{AstGrep, Doc, Matcher, Node, NodeMatch};
 
 use bit_set::BitSet;
 use std::collections::HashMap;
@@ -91,6 +91,9 @@ impl<'r, L: Language> CombinedScan<'r, L> {
         let Some(ret) = rule.matcher.match_node(node.clone()) else {
           continue;
         };
+        if suppressed(node.clone()) {
+          break;
+        }
         let matches = results.entry(idx).or_insert_with(Vec::new);
         matches.push(ret);
       }
@@ -118,6 +121,9 @@ impl<'r, L: Language> CombinedScan<'r, L> {
         let Some(ret) = rule.matcher.match_node(node.clone()) else {
           continue;
         };
+        if suppressed(node.clone()) {
+          break;
+        }
         results.push((ret, idx));
       }
     }
@@ -126,5 +132,28 @@ impl<'r, L: Language> CombinedScan<'r, L> {
 
   pub fn get_rule(&self, idx: usize) -> &RuleConfig<L> {
     self.rules[idx]
+  }
+}
+
+// check if there is no ast-grep-ignore
+fn suppressed<D: Doc>(mut node: Node<D>) -> bool {
+  loop {
+    let Some(prev) = node.prev() else {
+      let Some(n) = node.parent() else {
+        return false;
+      };
+      node = n;
+      continue;
+    };
+    if prev.start_pos().0 == node.start_pos().0 {
+      let Some(n) = node.parent() else {
+        return false;
+      };
+      node = n;
+    } else if prev.start_pos().0 + 1 == node.start_pos().0 {
+      return prev.text().contains("ast-grep-ignore");
+    } else {
+      return false;
+    }
   }
 }
