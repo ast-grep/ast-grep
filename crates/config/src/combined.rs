@@ -149,7 +149,7 @@ enum NodeSuppression<'r, D: Doc> {
   Unchecked(Node<'r, D>),
   NoSuppression,
   AllSuppressed,
-  Specific(HashSet<&'r str>),
+  Specific(HashSet<String>),
 }
 
 impl<'r, D: Doc> NodeSuppression<'r, D> {
@@ -208,9 +208,16 @@ fn suppressed<'r, D: Doc>(node: &Node<'r, D>) -> NodeSuppression<'r, D> {
 }
 
 fn parse_suppression<'r, D: Doc>(text: &str) -> NodeSuppression<'r, D> {
-  if text.trim().contains("ast-grep-ignore") {
-    NodeSuppression::AllSuppressed
-  } else {
-    NodeSuppression::NoSuppression
+  let Some((_, after)) = text.trim().split_once("ast-grep-ignore") else {
+    return NodeSuppression::NoSuppression;
+  };
+  let after = after.trim();
+  if after.is_empty() {
+    return NodeSuppression::AllSuppressed;
   }
+  let Some((_, rules)) = after.split_once(':') else {
+    return NodeSuppression::AllSuppressed;
+  };
+  let set = rules.split(',').map(|r| r.trim().to_string()).collect();
+  NodeSuppression::Specific(set)
 }
