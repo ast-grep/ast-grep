@@ -120,9 +120,7 @@ impl<L: Language, P: Matcher<L>> Any<L, P> {
   fn compute_kinds(patterns: &[P]) -> Option<BitSet> {
     let mut set = BitSet::new();
     for pattern in patterns {
-      let Some(n) = pattern.potential_kinds() else {
-        return None;
-      };
+      let n = pattern.potential_kinds()?;
       set.union_with(&n);
     }
     Some(set)
