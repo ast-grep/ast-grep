@@ -15,6 +15,7 @@ use clap::{Parser, Subcommand};
 
 use completions::{run_shell_completion, CompletionsArg};
 use error::exit_with_error;
+use lsp::{run_language_server, LspArg};
 use new::{run_create_new, NewArg};
 use run::{register_custom_language_if_is_run, run_with_pattern, RunArg};
 use scan::{run_with_config, ScanArg};
@@ -52,7 +53,7 @@ enum Commands {
   /// Create new ast-grep project or items like rules/tests.
   New(NewArg),
   /// Start language server.
-  Lsp,
+  Lsp(LspArg),
   /// Generate shell completion script.
   Completions(CompletionsArg),
   /// Generate rule docs for current configuration. (Not Implemented Yet)
@@ -94,7 +95,7 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
     Commands::Scan(arg) => run_with_config(arg),
     Commands::Test(arg) => run_test_rule(arg),
     Commands::New(arg) => run_create_new(arg),
-    Commands::Lsp => lsp::run_language_server(),
+    Commands::Lsp(arg) => run_language_server(arg),
     Commands::Completions(arg) => run_shell_completion::<App>(arg),
     Commands::Docs => todo!("todo, generate rule docs based on current config"),
   }
