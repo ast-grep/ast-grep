@@ -124,7 +124,7 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
   type Item = (PathBuf, AstGrep, BitSet);
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print()?;
-    let mut has_error = 0;
+    let mut error_count = 0usize;
     for (path, grep, hit_set) in items {
       let file_content = grep.source().to_string();
       let path = &path;
@@ -147,14 +147,14 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       for (idx, matches) in matched {
         let rule = combined.get_rule(idx);
         if matches!(rule.severity, Severity::Error) {
-          has_error += 1;
+          error_count = error_count.saturating_add(matches.len());
         }
         match_rule_on_file(path, matches, rule, &file_content, &self.printer)?;
       }
     }
     self.printer.after_print()?;
-    if has_error > 0 {
-      Err(anyhow::anyhow!(EC::DiagnosticError(has_error)))
+    if error_count > 0 {
+      Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
       Ok(())
     }
@@ -203,7 +203,7 @@ impl<P: Printer> Worker for ScanWithRule<P> {
   type Item = (PathBuf, AstGrep, BitSet);
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print()?;
-    let mut has_error = 0;
+    let mut error_count = 0usize;
     let combined = CombinedScan::new(self.rules.iter().collect());
     for (path, grep, hit_set) in items {
       let file_content = grep.source().to_string();
@@ -212,14 +212,14 @@ impl<P: Printer> Worker for ScanWithRule<P> {
       for (idx, matches) in matched {
         let rule = combined.get_rule(idx);
         if matches!(rule.severity, Severity::Error) {
-          has_error += 1;
+          error_count = error_count.saturating_add(matches.len());
         }
         match_rule_on_file(&path, matches, rule, &file_content, &self.printer)?;
       }
     }
     self.printer.after_print()?;
-    if has_error > 0 {
-      Err(anyhow::anyhow!(EC::DiagnosticError(has_error)))
+    if error_count > 0 {
+      Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
       Ok(())
     }
