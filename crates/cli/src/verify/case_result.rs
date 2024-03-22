@@ -71,7 +71,7 @@ impl<'a> CaseStatus<'a> {
       nullable => CaseStatus::Wrong {
         source: case,
         actual,
-        expected: nullable.map(Clone::clone),
+        expected: nullable.cloned(),
       },
     }
   }
