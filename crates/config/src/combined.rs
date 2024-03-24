@@ -198,3 +198,47 @@ fn parse_suppression<'r, D: Doc>(text: &str) -> NodeSuppression<'r, D> {
   let set = rules.split(',').map(|r| r.trim().to_string()).collect();
   NodeSuppression::Specific(set)
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::from_str;
+  use crate::test::TypeScript;
+  use crate::SerializableRuleConfig;
+
+  fn create_rule() -> RuleConfig<TypeScript> {
+    let rule: SerializableRuleConfig<TypeScript> = from_str(
+      r"
+id: test
+rule: {pattern: 'console.log($A)'}
+language: Tsx",
+    )
+    .expect("parse");
+    RuleConfig::try_from(rule, &Default::default()).expect("work")
+  }
+
+  #[test]
+  fn test_ignore_node() {
+    let source = r#"
+    // ast-grep-ignore
+    console.log('ignored all')
+    console.log('no ignore')
+    // ast-grep-ignore: test
+    console.log('ignore one')
+    // ast-grep-ignore: not-test
+    console.log('ignore another')
+    // ast-grep-ignore: not-test, test
+    console.log('multiple ignore')
+    "#;
+    let root = TypeScript::Tsx.ast_grep(source);
+    let rule = create_rule();
+    let rules = vec![&rule];
+    let scan = CombinedScan::new(rules);
+    let bits = scan.find(&root);
+    let scanned = scan.scan(&root, bits, false);
+    let matches = &scanned.matches[&0];
+    assert_eq!(matches.len(), 2);
+    assert_eq!(matches[0].text(), "console.log('no ignore')");
+    assert_eq!(matches[1].text(), "console.log('ignore another')");
+  }
+}
