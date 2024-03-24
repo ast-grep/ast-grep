@@ -6,6 +6,11 @@ use ast_grep_core::{AstGrep, Doc, Matcher, Node, NodeMatch};
 use bit_set::BitSet;
 use std::collections::{HashMap, HashSet};
 
+pub struct ScanResult<'r, D: Doc> {
+  pub diffs: Vec<(usize, NodeMatch<'r, D>)>,
+  pub matches: HashMap<usize, Vec<NodeMatch<'r, D>>>,
+}
+
 /// A struct to group all rules according to their potential kinds.
 /// This can greatly reduce traversal times and skip unmatchable rules.
 /// Rules are referenced by their index in the rules vector.
@@ -69,12 +74,15 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     &self,
     root: &'a AstGrep<D>,
     hit: BitSet,
-    exclude_fix: bool,
-  ) -> HashMap<usize, Vec<NodeMatch<'a, D>>>
+    separate_fix: bool,
+  ) -> ScanResult<'a, D>
   where
     D: Doc<Lang = L>,
   {
-    let mut results = HashMap::new();
+    let mut result = ScanResult {
+      diffs: vec![],
+      matches: HashMap::new(),
+    };
     for node in root.root().dfs() {
       let kind = node.kind_id() as usize;
       let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
@@ -86,7 +94,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
           continue;
         }
         let rule = &self.rules[idx];
-        if exclude_fix && rule.fix.is_some() {
+        if suppression.contains_rule(&rule.id) {
           continue;
         }
         let Some(ret) = rule.matcher.match_node(node.clone()) else {
@@ -96,48 +104,17 @@ impl<'r, L: Language> CombinedScan<'r, L> {
           break;
         }
         if suppression.contains_rule(&rule.id) {
-          break;
-        }
-        let matches = results.entry(idx).or_insert_with(Vec::new);
-        matches.push(ret);
-      }
-    }
-    results
-  }
-
-  // only visit fixable rules for now
-  // NOTE:it may be changed in future
-  pub fn diffs<'a, D>(&self, root: &'a AstGrep<D>, hit: BitSet) -> Vec<(NodeMatch<'a, D>, usize)>
-  where
-    D: Doc<Lang = L>,
-  {
-    let mut results = vec![];
-    for node in root.root().dfs() {
-      let kind = node.kind_id() as usize;
-      let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
-        continue;
-      };
-      let mut suppression = NodeSuppression::new(node.clone());
-      for &idx in rule_idx {
-        let rule = &self.rules[idx];
-        if suppression.contains_rule(&rule.id) {
           continue;
         }
-        if !hit.contains(idx) || rule.fix.is_none() {
-          continue;
-        }
-        let Some(ret) = rule.matcher.match_node(node.clone()) else {
-          continue;
-        };
-        if suppression.check_ignore_all() {
-          break;
-        }
-        if !suppression.contains_rule(&rule.id) {
-          results.push((ret, idx));
+        if rule.fix.is_none() || !separate_fix {
+          let matches = result.matches.entry(idx).or_default();
+          matches.push(ret);
+        } else {
+          result.diffs.push((idx, ret));
         }
       }
     }
-    results
+    result
   }
 
   pub fn get_rule(&self, idx: usize) -> &RuleConfig<L> {

@@ -131,20 +131,20 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       let rules = self.configs.for_path(path);
       let combined = CombinedScan::new(rules);
       let interactive = self.arg.output.needs_interactive();
+      // exclude_fix rule because we already have diff inspection before
+      let scanned = combined.scan(&grep, hit_set, /* separate_fix*/ interactive);
       if interactive {
-        let diffs = combined
-          .diffs(&grep, hit_set.clone())
+        let diffs = scanned
+          .diffs
           .into_iter()
-          .map(|(nm, idx)| {
+          .map(|(idx, nm)| {
             let rule = combined.get_rule(idx);
             (nm, rule)
           })
           .collect();
         match_rule_diff_on_file(path, diffs, &self.printer)?;
       }
-      // exclude_fix rule because we already have diff inspection before
-      let matched = combined.scan(&grep, hit_set, /* exclude_fix*/ interactive);
-      for (idx, matches) in matched {
+      for (idx, matches) in scanned.matches {
         let rule = combined.get_rule(idx);
         if matches!(rule.severity, Severity::Error) {
           error_count = error_count.saturating_add(matches.len());
@@ -208,8 +208,8 @@ impl<P: Printer> Worker for ScanWithRule<P> {
     for (path, grep, hit_set) in items {
       let file_content = grep.source().to_string();
       // do not exclude_fix rule in run_with_rule
-      let matched = combined.scan(&grep, hit_set, false);
-      for (idx, matches) in matched {
+      let scanned = combined.scan(&grep, hit_set, false);
+      for (idx, matches) in scanned.matches {
         let rule = combined.get_rule(idx);
         if matches!(rule.severity, Severity::Error) {
           error_count = error_count.saturating_add(matches.len());
