@@ -5,7 +5,7 @@ use std::env::args;
 use std::fs::{self, read_dir, read_to_string};
 use std::path::Path;
 use std::process::{Command, Stdio};
-use toml_edit::{value as to_toml, Document};
+use toml_edit::{value as to_toml, DocumentMut};
 
 enum Task {
   Schema,
@@ -107,7 +107,7 @@ fn update_napi(version: &str) -> Result<()> {
 }
 
 fn edit_root_toml<P: AsRef<Path>>(path: P, version: &str) -> Result<()> {
-  let mut toml: Document = read_to_string(&path)?.parse()?;
+  let mut toml: DocumentMut = read_to_string(&path)?.parse()?;
   toml["workspace"]["package"]["version"] = to_toml(version);
   let deps = toml["workspace"]["dependencies"]
     .as_table_mut()
@@ -140,7 +140,7 @@ fn update_python(version: &str) -> Result<()> {
   // update pypi pyproject.toml and pyo3 bindings
   for path in ["pyproject.toml", "crates/pyo3/pyproject.toml"] {
     let pyproject = Path::new(path);
-    let mut toml: Document = read_to_string(&pyproject)?.parse()?;
+    let mut toml: DocumentMut = read_to_string(&pyproject)?.parse()?;
     toml["project"]["version"] = to_toml(version);
     fs::write(pyproject, toml.to_string())?;
   }
