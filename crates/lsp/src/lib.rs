@@ -5,7 +5,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
 use ast_grep_config::Severity;
-use ast_grep_config::{RuleCollection, RuleConfig};
+use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig};
 use ast_grep_core::{language::Language, AstGrep, Doc, Node, NodeMatch, StrDoc};
 
 use std::collections::HashMap;
@@ -284,11 +284,13 @@ impl<L: LSPLang> Backend<L> {
         return Some(());
       }
     };
-
-    for rule in rules {
+    let scan = CombinedScan::new(rules);
+    let hit_set = scan.all_kinds();
+    let matches = scan.scan(&versioned.root, hit_set, false).matches;
+    for (id, ms) in matches {
+      let rule = scan.get_rule(id);
       let to_diagnostic = |m| convert_match_to_diagnostic(m, rule, &uri);
-      let matcher = &rule.matcher;
-      diagnostics.extend(versioned.root.root().find_all(matcher).map(to_diagnostic));
+      diagnostics.extend(ms.into_iter().map(to_diagnostic));
     }
     self
       .client

@@ -120,6 +120,10 @@ impl<'r, L: Language> CombinedScan<'r, L> {
   pub fn get_rule(&self, idx: usize) -> &RuleConfig<L> {
     self.rules[idx]
   }
+
+  pub fn all_kinds(&self) -> BitSet {
+    (0..self.kind_rule_mapping.len()).collect()
+  }
 }
 
 enum NodeSuppression<'r, D: Doc> {
