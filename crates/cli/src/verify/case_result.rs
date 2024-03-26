@@ -120,7 +120,7 @@ impl<'a> CaseResult<'a> {
       .cases
       .iter()
       .filter_map(|c| match c {
-        CaseStatus::Wrong { source, actual, .. } => Some((source.to_string(), actual.clone())),
+        CaseStatus::Updated { source, updated } => Some((source.to_string(), updated.clone())),
         _ => None,
       })
       .collect();
