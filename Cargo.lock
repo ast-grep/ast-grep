@@ -218,6 +218,7 @@ dependencies = [
  "ast-grep-core",
  "dashmap",
  "serde",
+ "serde_json",
  "tokio",
  "tower-lsp",
  "tree-sitter-typescript",
