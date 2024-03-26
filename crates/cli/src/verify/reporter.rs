@@ -37,7 +37,7 @@ pub(super) trait Reporter {
     }
   }
 
-  fn report_failed_cases(&mut self, results: &[CaseResult]) -> Result<()> {
+  fn report_failed_cases(&mut self, results: &mut [CaseResult]) -> Result<()> {
     let output = self.get_output();
     writeln!(output)?;
     writeln!(output, "----------- Failure Details -----------")?;
@@ -45,7 +45,7 @@ pub(super) trait Reporter {
       if result.passed() {
         continue;
       }
-      for status in &result.cases {
+      for status in &mut result.cases {
         if !self.report_case_detail(result.id, status)? {
           return Ok(());
         }
@@ -72,7 +72,8 @@ pub(super) trait Reporter {
   }
 
   /// returns if should continue reporting
-  fn report_case_detail(&mut self, case_id: &str, result: &CaseStatus) -> Result<bool> {
+  /// user can mutate case_status to Updated in this function
+  fn report_case_detail(&mut self, case_id: &str, result: &mut CaseStatus) -> Result<bool> {
     report_case_detail_impl(self.get_output(), case_id, result)
   }
   fn collect_snapshot_action(&self) -> SnapshotAction;
@@ -246,7 +247,7 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
     SnapshotAction::Selectively(self.accepted_snapshots.clone())
   }
 
-  fn report_case_detail(&mut self, case_id: &str, result: &CaseStatus) -> Result<bool> {
+  fn report_case_detail(&mut self, case_id: &str, result: &mut CaseStatus) -> Result<bool> {
     if matches!(result, CaseStatus::Validated | CaseStatus::Reported) {
       return Ok(true);
     }
@@ -352,8 +353,8 @@ mod test {
       output,
       update_all: false,
     };
-    reporter.report_case_detail(TEST_RULE, &CaseStatus::Reported)?;
-    reporter.report_case_detail(TEST_RULE, &CaseStatus::Validated)?;
+    reporter.report_case_detail(TEST_RULE, &mut CaseStatus::Reported)?;
+    reporter.report_case_detail(TEST_RULE, &mut CaseStatus::Validated)?;
     let s = String::from_utf8(reporter.output)?;
     assert_eq!(s, "");
     Ok(())
@@ -366,8 +367,8 @@ mod test {
       output,
       update_all: false,
     };
-    reporter.report_case_detail(TEST_RULE, &CaseStatus::Missing(MOCK))?;
-    reporter.report_case_detail(TEST_RULE, &CaseStatus::Noisy(MOCK))?;
+    reporter.report_case_detail(TEST_RULE, &mut CaseStatus::Missing(MOCK))?;
+    reporter.report_case_detail(TEST_RULE, &mut CaseStatus::Noisy(MOCK))?;
     let s = String::from_utf8(reporter.output)?;
     assert!(s.contains("Missing"));
     assert!(s.contains("Noisy"));
