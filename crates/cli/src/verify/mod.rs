@@ -80,17 +80,12 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
 
   let check_one_case = |case| {
     let result = verify_test_case_simple(case, collections, snapshots.as_ref());
-    let mut reporter = reporter.lock().unwrap();
-    if let Some(result) = result {
-      reporter
-        .report_case_summary(&case.id, &result.cases)
-        .unwrap();
-      Some(result)
-    } else {
+    if result.is_none() {
+      let mut reporter = reporter.lock().unwrap();
       let output = reporter.get_output();
       writeln!(output, "Configuration not found! {}", case.id).unwrap();
-      None
     }
+    result
   };
   let mut results = parallel_collect(&test_cases, check_one_case);
   let mut reporter = reporter.lock().unwrap();
@@ -98,7 +93,11 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
   reporter.report_failed_cases(&mut results)?;
   let action = reporter.collect_snapshot_action();
   apply_snapshot_action(action, &results, snapshots, path_map)?;
-
+  for result in &results {
+    reporter
+      .report_case_summary(result.id, &result.cases)
+      .unwrap();
+  }
   let (passed, message) = reporter.after_report(&results)?;
   if passed {
     writeln!(reporter.get_output(), "{message}",)?;

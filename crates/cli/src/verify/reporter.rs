@@ -54,9 +54,7 @@ pub(super) trait Reporter {
   }
 
   fn report_case_summary(&mut self, case_id: &str, summary: &[CaseStatus]) -> Result<()> {
-    let passed = summary
-      .iter()
-      .all(|c| matches!(c, CaseStatus::Validated | CaseStatus::Reported));
+    let passed = summary.iter().all(CaseStatus::is_pass);
     let style = Style::new().fg(Color::White).bold();
     let case_status = if summary.is_empty() {
       style.on(Color::Yellow).paint("SKIP")
@@ -229,6 +227,9 @@ impl<O: Write> Reporter for DefaultReporter<O> {
     &mut self.output
   }
   fn report_case_detail(&mut self, case_id: &str, result: &mut CaseStatus) -> Result<bool> {
+    if self.update_all {
+      result.accept();
+    }
     report_case_detail_impl(self.get_output(), case_id, result)
   }
   fn collect_snapshot_action(&self) -> SnapshotAction {

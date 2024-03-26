@@ -95,6 +95,13 @@ impl<'a> CaseStatus<'a> {
     *self = CaseStatus::Updated { source, updated };
     true
   }
+
+  pub fn is_pass(&self) -> bool {
+    matches!(
+      self,
+      CaseStatus::Validated | CaseStatus::Reported | CaseStatus::Updated { .. }
+    )
+  }
 }
 
 /// The result for one rule-test.yml
@@ -108,12 +115,7 @@ pub struct CaseResult<'a> {
 impl<'a> CaseResult<'a> {
   /// Did all cases in the rule-test pass the test?
   pub fn passed(&self) -> bool {
-    self.cases.iter().all(|c| {
-      matches!(
-        c,
-        CaseStatus::Validated | CaseStatus::Reported | CaseStatus::Updated { .. }
-      )
-    })
+    self.cases.iter().all(CaseStatus::is_pass)
   }
   pub fn changed_snapshots(&self) -> TestSnapshots {
     let snapshots = self
