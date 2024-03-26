@@ -27,6 +27,8 @@ pub enum CaseStatus<'a> {
     actual: TestSnapshot,
     expected: Option<TestSnapshot>,
   },
+  /// User accepted new snapshot updates
+  Updated,
   /// Reported no issue for invalid code
   Missing(&'a str),
   /// Reported some issue for valid code
