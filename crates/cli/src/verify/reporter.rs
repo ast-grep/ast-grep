@@ -251,46 +251,45 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
     SnapshotAction::Selectively(self.accepted_snapshots.clone())
   }
 
-  fn report_case_detail(&mut self, case_id: &str, result: &mut CaseStatus) -> Result<bool> {
-    if matches!(result, CaseStatus::Validated | CaseStatus::Reported) {
+  fn report_case_detail(&mut self, case_id: &str, status: &mut CaseStatus) -> Result<bool> {
+    if matches!(status, CaseStatus::Validated | CaseStatus::Reported) {
       return Ok(true);
     }
     run_in_alternate_screen(|| {
-      report_case_detail_impl(self.get_output(), case_id, result)?;
-      if let CaseStatus::Wrong { source, actual, .. } = result {
-        let mut accept = || {
-          if let Some(existing) = self.accepted_snapshots.get_mut(case_id) {
-            existing
-              .snapshots
-              .insert(source.to_string(), actual.clone());
-          } else {
-            let mut snapshots = HashMap::new();
-            snapshots.insert(source.to_string(), actual.clone());
-            let shots = TestSnapshots {
-              id: case_id.to_string(),
-              snapshots,
-            };
-            self.accepted_snapshots.insert(case_id.to_string(), shots);
-          }
-          Ok(true)
-        };
-        if self.should_accept_all {
-          return accept();
-        }
-        let response = prompt(PROMPT, "ynaq", Some('n'))?;
-        match response {
-          'y' => accept(),
-          'n' => Ok(true),
-          'a' => {
-            self.should_accept_all = true;
-            accept()
-          }
-          'q' => Ok(false),
-          _ => unreachable!(),
-        }
-      } else {
+      report_case_detail_impl(self.get_output(), case_id, status)?;
+      let CaseStatus::Wrong { source, actual, .. } = status else {
         let response = prompt("Next[enter], Quit[q]", "q", Some('\n'))?;
-        Ok(response != 'q')
+        return Ok(response != 'q');
+      };
+      let mut accept = || {
+        if let Some(existing) = self.accepted_snapshots.get_mut(case_id) {
+          existing
+            .snapshots
+            .insert(source.to_string(), actual.clone());
+        } else {
+          let mut snapshots = HashMap::new();
+          snapshots.insert(source.to_string(), actual.clone());
+          let shots = TestSnapshots {
+            id: case_id.to_string(),
+            snapshots,
+          };
+          self.accepted_snapshots.insert(case_id.to_string(), shots);
+        }
+        Ok(true)
+      };
+      if self.should_accept_all {
+        return accept();
+      }
+      let response = prompt(PROMPT, "ynaq", Some('n'))?;
+      match response {
+        'y' => accept(),
+        'n' => Ok(true),
+        'a' => {
+          self.should_accept_all = true;
+          accept()
+        }
+        'q' => Ok(false),
+        _ => unreachable!(),
       }
     })
   }
