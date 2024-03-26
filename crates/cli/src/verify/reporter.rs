@@ -87,16 +87,16 @@ fn report_case_number(output: &mut impl Write, test_cases: &[TestCase]) -> Resul
 fn report_summary(summary: &[CaseStatus]) -> String {
   if summary.len() > 40 {
     let mut pass = 0;
+    let mut updated = 0;
     let mut wrong = 0;
     let mut missing = 0;
     let mut noisy = 0;
     let mut error = 0;
-    let mut updated = 0;
     for s in summary {
       match s {
         CaseStatus::Validated | CaseStatus::Reported => pass += 1,
-        CaseStatus::Wrong { .. } => wrong += 1,
         CaseStatus::Updated => updated += 1,
+        CaseStatus::Wrong { .. } => wrong += 1,
         CaseStatus::Missing(_) => missing += 1,
         CaseStatus::Noisy(_) => noisy += 1,
         CaseStatus::Error => error += 1,
@@ -104,8 +104,8 @@ fn report_summary(summary: &[CaseStatus]) -> String {
     }
     let stats = vec![
       ("Pass", pass),
-      ("Wrong", wrong),
       ("Updated", updated),
+      ("Wrong", wrong),
       ("Missing", missing),
       ("Noisy", noisy),
       ("Error", error),
@@ -256,25 +256,19 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
       return Ok(true);
     }
     run_in_alternate_screen(|| {
+      use CaseStatus::{Updated, Wrong};
       report_case_detail_impl(self.get_output(), case_id, status)?;
-      let CaseStatus::Wrong { source, actual, .. } = status else {
+      if !matches!(status, Wrong { .. }) {
         let response = prompt("Next[enter], Quit[q]", "q", Some('\n'))?;
         return Ok(response != 'q');
-      };
+      }
       let mut accept = || {
-        if let Some(existing) = self.accepted_snapshots.get_mut(case_id) {
-          existing
-            .snapshots
-            .insert(source.to_string(), actual.clone());
-        } else {
-          let mut snapshots = HashMap::new();
-          snapshots.insert(source.to_string(), actual.clone());
-          let shots = TestSnapshots {
-            id: case_id.to_string(),
-            snapshots,
-          };
-          self.accepted_snapshots.insert(case_id.to_string(), shots);
-        }
+        let accepted = get_snapshot_entry(&mut self.accepted_snapshots, case_id);
+        let Wrong { source, actual, .. } = std::mem::replace(status, Updated) else {
+          debug_assert!(false, "status must be `Wrong`");
+          return Ok(true);
+        };
+        accepted.snapshots.insert(source.to_owned(), actual);
         Ok(true)
       };
       if self.should_accept_all {
@@ -293,6 +287,20 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
       }
     })
   }
+}
+
+fn get_snapshot_entry<'s>(
+  collection: &'s mut SnapshotCollection,
+  case_id: &str,
+) -> &'s mut TestSnapshots {
+  if !collection.contains_key(case_id) {
+    let shots = TestSnapshots {
+      id: case_id.to_string(),
+      snapshots: HashMap::new(),
+    };
+    collection.insert(case_id.to_owned(), shots);
+  }
+  collection.get_mut(case_id).expect("must exist")
 }
 
 #[cfg(test)]

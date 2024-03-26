@@ -21,14 +21,14 @@ pub enum CaseStatus<'a> {
   Validated,
   /// Reported correct issue for invalid code
   Reported,
+  /// User accepted new snapshot updates
+  Updated,
   /// Reported issues for invalid code but it is wrong
   Wrong {
     source: &'a str,
     actual: TestSnapshot,
     expected: Option<TestSnapshot>,
   },
-  /// User accepted new snapshot updates
-  Updated,
   /// Reported no issue for invalid code
   Missing(&'a str),
   /// Reported some issue for valid code
@@ -90,10 +90,12 @@ pub struct CaseResult<'a> {
 impl<'a> CaseResult<'a> {
   /// Did all cases in the rule-test pass the test?
   pub fn passed(&self) -> bool {
-    self
-      .cases
-      .iter()
-      .all(|c| matches!(c, CaseStatus::Validated | CaseStatus::Reported))
+    self.cases.iter().all(|c| {
+      matches!(
+        c,
+        CaseStatus::Validated | CaseStatus::Reported | CaseStatus::Updated
+      )
+    })
   }
   pub fn changed_snapshots(&self) -> TestSnapshots {
     let snapshots = self
