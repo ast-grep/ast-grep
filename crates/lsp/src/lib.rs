@@ -9,6 +9,7 @@ use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig};
 use ast_grep_core::{language::Language, AstGrep, Doc, Node, NodeMatch, StrDoc};
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 pub use tower_lsp::{LspService, Server};
 
@@ -67,6 +68,15 @@ impl<L: LSPLang> Backend<L> {
 
 const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
   Some(CodeActionProviderCapability::Simple(true));
+
+trait AstGrepActionKind {
+  const SOURCE_FIX_ALL_AST_GREP: CodeActionKind;
+}
+
+impl AstGrepActionKind for CodeActionKind {
+  const SOURCE_FIX_ALL_AST_GREP: CodeActionKind = CodeActionKind::new("source.fixAll.ast-grep");
+}
+
 fn code_action_provider(
   client_capability: &ClientCapabilities,
 ) -> Option<CodeActionProviderCapability> {
@@ -81,7 +91,11 @@ fn code_action_provider(
     return None;
   }
   Some(CodeActionProviderCapability::Options(CodeActionOptions {
-    code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+    code_action_kinds: Some(vec![
+      CodeActionKind::QUICKFIX,
+      CodeActionKind::SOURCE_FIX_ALL,
+      CodeActionKind::SOURCE_FIX_ALL_AST_GREP,
+    ]),
     work_done_progress_options: Default::default(),
     resolve_provider: Some(true),
   }))
@@ -350,25 +364,27 @@ impl<L: LSPLang> Backend<L> {
     self.map.remove(params.text_document.uri.as_str());
   }
 
-  async fn on_code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
-    let text_doc = params.text_document;
-    let uri = text_doc.uri.as_str();
-    let path = text_doc.uri.to_file_path().ok()?;
-    let diagnostics = params.context.diagnostics;
-    let error_id_to_ranges = Self::build_error_id_to_ranges(diagnostics);
+  fn compute_all_fixes(
+    &self,
+    text_document: TextDocumentIdentifier,
+    error_id_to_ranges: HashMap<String, Vec<Range>>,
+    rules: &RuleCollection<L>,
+    path: PathBuf,
+  ) -> Option<HashMap<Url, Vec<TextEdit>>>
+  where
+    L: ast_grep_core::Language + std::cmp::Eq,
+  {
+    let uri = text_document.uri.as_str();
     let versioned = self.map.get(uri)?;
-    let mut response = CodeActionResponse::new();
-    let rules = if let Ok(rules) = &self.rules {
-      rules
-    } else {
-      return Some(response);
-    };
+    let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+
     for config in rules.for_path(&path) {
       let ranges = match error_id_to_ranges.get(&config.id) {
         Some(ranges) => ranges,
         None => continue,
       };
       let matcher = &config.matcher;
+
       for matched_node in versioned.root.root().find_all(&matcher) {
         let range = convert_node_to_range(&matched_node);
         if !ranges.contains(&range) {
@@ -383,26 +399,66 @@ impl<L: LSPLang> Backend<L> {
           range,
           new_text: String::from_utf8(edit.inserted_text).unwrap(),
         };
-        let mut changes = HashMap::new();
-        changes.insert(text_doc.uri.clone(), vec![edit]);
-        let edit = Some(WorkspaceEdit {
-          changes: Some(changes),
-          document_changes: None,
-          change_annotations: None,
-        });
-        let action = CodeAction {
-          title: config.message.clone(),
-          command: None,
-          diagnostics: None,
-          edit,
-          disabled: None,
-          kind: Some(CodeActionKind::QUICKFIX),
-          is_preferred: Some(true),
-          data: None,
-        };
-        response.push(CodeActionOrCommand::from(action));
+        changes
+          .entry(text_document.uri.clone())
+          .or_default()
+          .push(edit);
       }
     }
+    Some(changes)
+  }
+
+  async fn on_code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
+    let text_doc = params.text_document;
+    let path = text_doc.uri.to_file_path().ok()?;
+    let diagnostics = params.context.diagnostics;
+    let error_id_to_ranges = Self::build_error_id_to_ranges(diagnostics);
+    let mut response = CodeActionResponse::new();
+
+    let code_action = params.context.only.as_ref()?.first();
+
+    // we only handle these code_actions
+    // 1. QuickFix
+    // 2. "source.fixAll" and "source.fixAll.ast-grep"
+    match code_action {
+      Some(code_action) => {
+        if *code_action != CodeActionKind::QUICKFIX
+          && *code_action != CodeActionKind::SOURCE_FIX_ALL
+          && *code_action != CodeActionKind::SOURCE_FIX_ALL_AST_GREP
+        {
+          return Some(response);
+        }
+      }
+      None => {
+        return Some(response);
+      }
+    }
+
+    let rules = if let Ok(rules) = &self.rules {
+      rules
+    } else {
+      return Some(response);
+    };
+
+    let changes = self.compute_all_fixes(text_doc, error_id_to_ranges, rules, path);
+
+    let edit = Some(WorkspaceEdit {
+      changes,
+      document_changes: None,
+      change_annotations: None,
+    });
+    let action = CodeAction {
+      title: "Source Code fix action".to_string(),
+      command: None,
+      diagnostics: None,
+      edit,
+      disabled: None,
+      kind: code_action.map(|x| x.to_owned()),
+      is_preferred: Some(true),
+      data: None,
+    };
+
+    response.push(CodeActionOrCommand::from(action));
     Some(response)
   }
 
