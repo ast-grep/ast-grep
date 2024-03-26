@@ -256,31 +256,21 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
       return Ok(true);
     }
     run_in_alternate_screen(|| {
-      use CaseStatus::{Updated, Wrong};
       report_case_detail_impl(self.get_output(), case_id, status)?;
-      if !matches!(status, Wrong { .. }) {
+      if !matches!(status, CaseStatus::Wrong { .. }) {
         let response = prompt("Next[enter], Quit[q]", "q", Some('\n'))?;
         return Ok(response != 'q');
       }
-      let mut accept = || {
-        let accepted = get_snapshot_entry(&mut self.accepted_snapshots, case_id);
-        let Wrong { source, actual, .. } = std::mem::replace(status, Updated) else {
-          debug_assert!(false, "status must be `Wrong`");
-          return Ok(true);
-        };
-        accepted.snapshots.insert(source.to_owned(), actual);
-        Ok(true)
-      };
       if self.should_accept_all {
-        return accept();
+        return self.accept_new_snapshot(case_id, status);
       }
       let response = prompt(PROMPT, "ynaq", Some('n'))?;
       match response {
-        'y' => accept(),
+        'y' => self.accept_new_snapshot(case_id, status),
         'n' => Ok(true),
         'a' => {
           self.should_accept_all = true;
-          accept()
+          self.accept_new_snapshot(case_id, status)
         }
         'q' => Ok(false),
         _ => unreachable!(),
@@ -289,10 +279,25 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
   }
 }
 
+impl<O: Write> InteractiveReporter<O> {
+  fn accept_new_snapshot(&mut self, case_id: &str, status: &mut CaseStatus) -> Result<bool> {
+    use CaseStatus::{Updated, Wrong};
+    let accepted = get_snapshot_entry(&mut self.accepted_snapshots, case_id);
+    // CRITICAL: mem::replace changes CaseStatus to Updated
+    let Wrong { source, actual, .. } = std::mem::replace(status, Updated) else {
+      debug_assert!(false, "status must be `Wrong`");
+      return Ok(true);
+    };
+    accepted.snapshots.insert(source.to_owned(), actual);
+    Ok(true)
+  }
+}
+
 fn get_snapshot_entry<'s>(
   collection: &'s mut SnapshotCollection,
   case_id: &str,
 ) -> &'s mut TestSnapshots {
+  // this impl makes multiple hashing, but it is not hot so okayish
   if !collection.contains_key(case_id) {
     let shots = TestSnapshots {
       id: case_id.to_string(),
