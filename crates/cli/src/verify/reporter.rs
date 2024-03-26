@@ -91,10 +91,12 @@ fn report_summary(summary: &[CaseStatus]) -> String {
     let mut missing = 0;
     let mut noisy = 0;
     let mut error = 0;
+    let mut updated = 0;
     for s in summary {
       match s {
         CaseStatus::Validated | CaseStatus::Reported => pass += 1,
         CaseStatus::Wrong { .. } => wrong += 1,
+        CaseStatus::Updated => updated += 1,
         CaseStatus::Missing(_) => missing += 1,
         CaseStatus::Noisy(_) => noisy += 1,
         CaseStatus::Error => error += 1,
@@ -103,6 +105,7 @@ fn report_summary(summary: &[CaseStatus]) -> String {
     let stats = vec![
       ("Pass", pass),
       ("Wrong", wrong),
+      ("Updated", updated),
       ("Missing", missing),
       ("Noisy", noisy),
       ("Error", error),
@@ -125,6 +128,7 @@ fn report_summary(summary: &[CaseStatus]) -> String {
       .map(|s| match s {
         CaseStatus::Validated | CaseStatus::Reported => '.',
         CaseStatus::Wrong { .. } => 'W',
+        CaseStatus::Updated => 'U',
         CaseStatus::Missing(_) => 'M',
         CaseStatus::Noisy(_) => 'N',
         CaseStatus::Error => 'E',
@@ -152,7 +156,7 @@ fn report_case_detail_impl<W: Write>(
   let error = Style::new().underline().paint("Error");
   let styles = PrintStyles::from(ColorChoice::Auto);
   match result {
-    CaseStatus::Validated | CaseStatus::Reported => (),
+    CaseStatus::Validated | CaseStatus::Reported | CaseStatus::Updated => (),
     CaseStatus::Wrong {
       source,
       actual,
