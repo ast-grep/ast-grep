@@ -7,7 +7,7 @@ use serde_yaml::to_string;
 
 use std::io::Write;
 
-use super::{CaseResult, CaseStatus, SnapshotAction, SnapshotCollection, TestCase};
+use super::{CaseResult, CaseStatus, SnapshotAction, TestCase};
 
 pub(super) trait Reporter {
   type Output: Write;
@@ -233,7 +233,7 @@ impl<O: Write> Reporter for DefaultReporter<O> {
   }
   fn collect_snapshot_action(&self) -> SnapshotAction {
     if self.update_all {
-      SnapshotAction::AcceptAll
+      SnapshotAction::NeedUpdate
     } else {
       SnapshotAction::AcceptNone
     }
@@ -242,7 +242,6 @@ impl<O: Write> Reporter for DefaultReporter<O> {
 
 pub struct InteractiveReporter<Output: Write> {
   pub output: Output,
-  pub accepted_snapshots: SnapshotCollection,
   pub should_accept_all: bool,
 }
 
@@ -255,7 +254,7 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
   }
 
   fn collect_snapshot_action(&self) -> SnapshotAction {
-    SnapshotAction::Selectively(self.accepted_snapshots.clone())
+    SnapshotAction::NeedUpdate
   }
 
   fn report_case_detail(&mut self, case_id: &str, status: &mut CaseStatus) -> Result<bool> {

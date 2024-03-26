@@ -196,7 +196,6 @@ pub fn run_test_rule(arg: TestArg) -> Result<()> {
   if arg.interactive {
     let reporter = InteractiveReporter {
       output: std::io::stdout(),
-      accepted_snapshots: HashMap::new(),
       should_accept_all: false,
     };
     run_test_rule_impl(arg, reporter)
