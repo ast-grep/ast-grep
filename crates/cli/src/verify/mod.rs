@@ -94,14 +94,16 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
   };
   let mut results = parallel_collect(&test_cases, check_one_case);
   let mut reporter = reporter.lock().unwrap();
+
+  reporter.report_failed_cases(&mut results)?;
+  let action = reporter.collect_snapshot_action();
+  apply_snapshot_action(action, &results, snapshots, path_map)?;
+
   let (passed, message) = reporter.after_report(&results)?;
   if passed {
     writeln!(reporter.get_output(), "{message}",)?;
     Ok(())
   } else {
-    reporter.report_failed_cases(&mut results)?;
-    let action = reporter.collect_snapshot_action();
-    apply_snapshot_action(action, &results, snapshots, path_map)?;
     Err(anyhow!(ErrorContext::TestFail(message)))
   }
 }

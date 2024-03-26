@@ -22,7 +22,10 @@ pub enum CaseStatus<'a> {
   /// Reported correct issue for invalid code
   Reported,
   /// User accepted new snapshot updates
-  Updated,
+  Updated {
+    source: &'a str,
+    updated: TestSnapshot,
+  },
   /// Reported issues for invalid code but it is wrong
   Wrong {
     source: &'a str,
@@ -77,6 +80,21 @@ impl<'a> CaseStatus<'a> {
       },
     }
   }
+
+  pub fn accept(&mut self) -> bool {
+    let CaseStatus::Wrong { source, actual, .. } = self else {
+      return false;
+    };
+    let updated = std::mem::replace(
+      actual,
+      TestSnapshot {
+        fixed: None,
+        labels: vec![],
+      },
+    );
+    *self = CaseStatus::Updated { source, updated };
+    true
+  }
 }
 
 /// The result for one rule-test.yml
@@ -93,7 +111,7 @@ impl<'a> CaseResult<'a> {
     self.cases.iter().all(|c| {
       matches!(
         c,
-        CaseStatus::Validated | CaseStatus::Reported | CaseStatus::Updated
+        CaseStatus::Validated | CaseStatus::Reported | CaseStatus::Updated { .. }
       )
     })
   }

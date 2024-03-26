@@ -5,10 +5,9 @@ use ansi_term::{Color, Style};
 use anyhow::Result;
 use serde_yaml::to_string;
 
-use std::collections::HashMap;
 use std::io::Write;
 
-use super::{CaseResult, CaseStatus, SnapshotAction, SnapshotCollection, TestCase, TestSnapshots};
+use super::{CaseResult, CaseStatus, SnapshotAction, SnapshotCollection, TestCase};
 
 pub(super) trait Reporter {
   type Output: Write;
@@ -73,9 +72,7 @@ pub(super) trait Reporter {
 
   /// returns if should continue reporting
   /// user can mutate case_status to Updated in this function
-  fn report_case_detail(&mut self, case_id: &str, result: &mut CaseStatus) -> Result<bool> {
-    report_case_detail_impl(self.get_output(), case_id, result)
-  }
+  fn report_case_detail(&mut self, case_id: &str, result: &mut CaseStatus) -> Result<bool>;
   fn collect_snapshot_action(&self) -> SnapshotAction;
 }
 
@@ -95,7 +92,7 @@ fn report_summary(summary: &[CaseStatus]) -> String {
     for s in summary {
       match s {
         CaseStatus::Validated | CaseStatus::Reported => pass += 1,
-        CaseStatus::Updated => updated += 1,
+        CaseStatus::Updated { .. } => updated += 1,
         CaseStatus::Wrong { .. } => wrong += 1,
         CaseStatus::Missing(_) => missing += 1,
         CaseStatus::Noisy(_) => noisy += 1,
@@ -128,7 +125,7 @@ fn report_summary(summary: &[CaseStatus]) -> String {
       .map(|s| match s {
         CaseStatus::Validated | CaseStatus::Reported => '.',
         CaseStatus::Wrong { .. } => 'W',
-        CaseStatus::Updated => 'U',
+        CaseStatus::Updated { .. } => 'U',
         CaseStatus::Missing(_) => 'M',
         CaseStatus::Noisy(_) => 'N',
         CaseStatus::Error => 'E',
@@ -154,9 +151,16 @@ fn report_case_detail_impl<W: Write>(
   let missing = Style::new().underline().paint("Missing");
   let wrong = Style::new().underline().paint("Wrong");
   let error = Style::new().underline().paint("Error");
+  let update = Style::new().underline().paint("Updated");
   let styles = PrintStyles::from(ColorChoice::Auto);
   match result {
-    CaseStatus::Validated | CaseStatus::Reported | CaseStatus::Updated => (),
+    CaseStatus::Validated | CaseStatus::Reported => (),
+    CaseStatus::Updated { .. } => {
+      writeln!(
+        output,
+        "[{update}] Rule {case_id}'s snapshot baselien has been updated."
+      )?;
+    }
     CaseStatus::Wrong {
       source,
       actual,
@@ -224,6 +228,9 @@ impl<O: Write> Reporter for DefaultReporter<O> {
   fn get_output(&mut self) -> &mut Self::Output {
     &mut self.output
   }
+  fn report_case_detail(&mut self, case_id: &str, result: &mut CaseStatus) -> Result<bool> {
+    report_case_detail_impl(self.get_output(), case_id, result)
+  }
   fn collect_snapshot_action(&self) -> SnapshotAction {
     if self.update_all {
       SnapshotAction::AcceptAll
@@ -262,15 +269,15 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
         return Ok(response != 'q');
       }
       if self.should_accept_all {
-        return self.accept_new_snapshot(case_id, status);
+        return self.accept_new_snapshot(status);
       }
       let response = prompt(PROMPT, "ynaq", Some('n'))?;
       match response {
-        'y' => self.accept_new_snapshot(case_id, status),
+        'y' => self.accept_new_snapshot(status),
         'n' => Ok(true),
         'a' => {
           self.should_accept_all = true;
-          self.accept_new_snapshot(case_id, status)
+          self.accept_new_snapshot(status)
         }
         'q' => Ok(false),
         _ => unreachable!(),
@@ -280,32 +287,11 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
 }
 
 impl<O: Write> InteractiveReporter<O> {
-  fn accept_new_snapshot(&mut self, case_id: &str, status: &mut CaseStatus) -> Result<bool> {
-    use CaseStatus::{Updated, Wrong};
-    let accepted = get_snapshot_entry(&mut self.accepted_snapshots, case_id);
-    // CRITICAL: mem::replace changes CaseStatus to Updated
-    let Wrong { source, actual, .. } = std::mem::replace(status, Updated) else {
-      debug_assert!(false, "status must be `Wrong`");
-      return Ok(true);
-    };
-    accepted.snapshots.insert(source.to_owned(), actual);
+  fn accept_new_snapshot(&mut self, status: &mut CaseStatus) -> Result<bool> {
+    let accepted = status.accept();
+    debug_assert!(accepted, "status should be updated");
     Ok(true)
   }
-}
-
-fn get_snapshot_entry<'s>(
-  collection: &'s mut SnapshotCollection,
-  case_id: &str,
-) -> &'s mut TestSnapshots {
-  // this impl makes multiple hashing, but it is not hot so okayish
-  if !collection.contains_key(case_id) {
-    let shots = TestSnapshots {
-      id: case_id.to_string(),
-      snapshots: HashMap::new(),
-    };
-    collection.insert(case_id.to_owned(), shots);
-  }
-  collection.get_mut(case_id).expect("must exist")
 }
 
 #[cfg(test)]
