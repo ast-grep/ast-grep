@@ -177,7 +177,7 @@ dependencies = [
  "libloading",
  "serde",
  "thiserror",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -260,7 +260,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69bb67af006de48085e828eb70bdf65adfd148d6cee34aad192ffaec0bc04538"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -1880,13 +1880,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "tree-sitter"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "705bf7c0958d0171dd7d3a6542f2f4f21d87ed5f1dc8db52919d3a6bed9a359a"
+dependencies = [
+ "cc",
+ "regex",
+]
+
+[[package]]
 name = "tree-sitter-bash"
 version = "0.20.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57da2032c37eb2ce29fd18df7d3b94355fec8d6d854d8f80934955df542b5906"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -1896,7 +1906,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4bbd5f3d8658c08581f8f2adac6c391c2e9fa00fe9246bf6c5f52213b9cc6b72"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -1906,7 +1916,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46b04a5ada71059afb9895966a6cc1094acc8d2ea1971006db26573e7dfebb74"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -1916,7 +1926,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3306ddefa1d2681adda2613d11974ffabfbeb215e23235da6c862f3493a04fd"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -1926,7 +1936,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fb6a2192689dd0554c558cfb81d96e446c41d101d701521fd1b452774d132ba"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -1936,17 +1946,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1bc0b1f3e6d9f12ca22ae5171f32fd154e3aea29dff565d05ef785c28931415b"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
 name = "tree-sitter-facade-sg"
-version = "0.9.2"
+version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf5a4036a699b30bb1360c9883502d8473c5fe5a7f10d4cb0fefb0fbfd97228b"
+checksum = "f63c810977b9572faca8b50a473e86e574cbdee944ef2cb6c7105bce1332261b"
 dependencies = [
  "js-sys",
- "tree-sitter",
+ "tree-sitter 0.21.0",
  "wasm-bindgen",
  "web-sys",
  "web-tree-sitter-sg",
@@ -1959,7 +1969,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ad6d11f19441b961af2fda7f12f5d0dac325f6d6de83836a1d3750018cc5114"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -1969,7 +1979,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c6805488422bca82cc4d399e7b8177126b68287ff3d8ae209e4022c8fa44829"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -1979,7 +1989,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2adc5696bf5abf761081d7457d2bb82d0e3b28964f4214f63fd7e720ef462653"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -1989,7 +1999,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d015c02ea98b62c806f7329ff71c383286dfc3a7a7da0cc484f6e42922f73c2c"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -1999,7 +2009,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a9a38a9c679b55cc8d17350381ec08d69fa1a17a53fcf197f344516e485ed4d"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -2009,7 +2019,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8df217a0e1fec649f3e13157de932439f3d37ea4e265038dd0873971ef56e726"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -2019,7 +2029,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0968cf4962ead1d26da28921dde1fd97407e7bbcf2f959cd20cf04ba2daa9421"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -2029,7 +2039,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7b46f2b021f0e1e51d4fd3b78bec588ce478b291c1affeb7e2acadda3b5fda5"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -2039,7 +2049,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6c93b1b1fbd0d399db3445f51fd3058e43d0b4dcff62ddbdb46e66550978aa5"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -2049,7 +2059,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44d50ef383469df8485f024c5fb01faced8cb90368192a7ba02605b43b2427fe"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -2059,7 +2069,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0832309b0b2b6d33760ce5c0e818cb47e1d72b468516bfe4134408926fa7594"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -2069,7 +2079,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44fcf4628a88a3b5cbac3ff52658b924f3e545abddfa245ab9cf683c1adda350"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -2079,7 +2089,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e55ecb0372483057cb8f0f80c54d1cf76a3e301281d8db16d6c080e19395360f"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -2089,7 +2099,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8bc1d2c24276a48ef097a71b56888ac9db63717e8f8d0b324668a27fd619670"
 dependencies = [
  "cc",
- "tree-sitter",
+ "tree-sitter 0.20.10",
 ]
 
 [[package]]
@@ -2258,9 +2268,9 @@ dependencies = [
 
 [[package]]
 name = "web-tree-sitter-sg"
-version = "1.3.4"
+version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9a450701853b465dddfd9edb45b5ab2ff191cd666d9f54382fad24fe6c5503a"
+checksum = "bc75548851e72f700a7babdeeb6c60cc8a8d2e753a551f404ab890f416a7d355"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
