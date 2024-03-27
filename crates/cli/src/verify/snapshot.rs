@@ -239,10 +239,9 @@ mod tests {
         sc,
         &[CaseResult {
           id: TEST_RULE,
-          cases: vec![CaseStatus::Wrong {
+          cases: vec![CaseStatus::Updated {
             source: "let x = 123",
-            expected: None,
-            actual: TestSnapshot::generate(&rule_config, "let x = 123")?.unwrap(),
+            updated: TestSnapshot::generate(&rule_config, "let x = 123")?.unwrap(),
           }],
         }],
       )
