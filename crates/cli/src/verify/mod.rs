@@ -98,6 +98,7 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
       .report_case_summary(result.id, &result.cases)
       .unwrap();
   }
+  writeln!(reporter.get_output())?;
   let (passed, message) = reporter.after_report(&results)?;
   if passed {
     writeln!(reporter.get_output(), "{message}",)?;

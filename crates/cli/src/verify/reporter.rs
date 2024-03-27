@@ -39,7 +39,7 @@ pub(super) trait Reporter {
   fn report_failed_cases(&mut self, results: &mut [CaseResult]) -> Result<()> {
     let output = self.get_output();
     writeln!(output)?;
-    writeln!(output, "----------- Failure Details -----------")?;
+    writeln!(output, "----------- Case Details -----------")?;
     for result in results {
       if result.passed() {
         continue;
@@ -153,11 +153,14 @@ fn report_case_detail_impl<W: Write>(
   let styles = PrintStyles::from(ColorChoice::Auto);
   match result {
     CaseStatus::Validated | CaseStatus::Reported => (),
-    CaseStatus::Updated { .. } => {
+    CaseStatus::Updated { source, .. } => {
       writeln!(
         output,
         "[{update}] Rule {case_id}'s snapshot baselien has been updated."
       )?;
+      writeln!(output)?;
+      indented_write(output, source)?;
+      writeln!(output)?;
     }
     CaseStatus::Wrong {
       source,
