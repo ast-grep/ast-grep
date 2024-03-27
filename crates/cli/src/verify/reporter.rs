@@ -53,6 +53,15 @@ pub(super) trait Reporter {
     Ok(())
   }
 
+  fn report_summaries(&mut self, results: &[CaseResult]) -> Result<()> {
+    for result in results {
+      self.report_case_summary(result.id, &result.cases)?;
+    }
+    let output = self.get_output();
+    writeln!(output)?;
+    Ok(())
+  }
+
   fn report_case_summary(&mut self, case_id: &str, summary: &[CaseStatus]) -> Result<()> {
     let passed = summary.iter().all(CaseStatus::is_pass);
     let style = Style::new().fg(Color::White).bold();

@@ -93,12 +93,7 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
   reporter.report_failed_cases(&mut results)?;
   let action = reporter.collect_snapshot_action();
   apply_snapshot_action(action, &results, snapshots, path_map)?;
-  for result in &results {
-    reporter
-      .report_case_summary(result.id, &result.cases)
-      .unwrap();
-  }
-  writeln!(reporter.get_output())?;
+  reporter.report_summaries(&results)?;
   let (passed, message) = reporter.after_report(&results)?;
   if passed {
     writeln!(reporter.get_output(), "{message}",)?;
