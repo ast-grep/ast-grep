@@ -7,8 +7,10 @@ use tower_lsp::{Client, LanguageServer};
 use ast_grep_config::Severity;
 use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig};
 use ast_grep_core::{language::Language, AstGrep, Doc, Node, NodeMatch, StrDoc};
+use serde_json::Value;
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 pub use tower_lsp::{LspService, Server};
 
@@ -81,7 +83,12 @@ fn code_action_provider(
     return None;
   }
   Some(CodeActionProviderCapability::Options(CodeActionOptions {
-    code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+    code_action_kinds: Some(vec![
+      CodeActionKind::QUICKFIX,
+      CodeActionKind::SOURCE,
+      CodeActionKind::SOURCE_FIX_ALL,
+      CodeActionKind::new("ast-grep.applyAllFixes"),
+    ]),
     work_done_progress_options: Default::default(),
     resolve_provider: Some(true),
   }))
@@ -100,6 +107,10 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
         text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
         code_action_provider: code_action_provider(&params.capabilities)
           .or(FALLBACK_CODE_ACTION_PROVIDER),
+        execute_command_provider: Some(ExecuteCommandOptions {
+          commands: vec!["ast-grep.applyAllFixes".to_string()],
+          work_done_progress_options: Default::default(),
+        }),
         ..ServerCapabilities::default()
       },
     })
@@ -189,6 +200,14 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       .log_message(MessageType::INFO, "run code action!")
       .await;
     Ok(self.on_code_action(params).await)
+  }
+
+  async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<Value>> {
+    self
+      .client
+      .log_message(MessageType::INFO, "execute command!")
+      .await;
+    Ok(self.on_execute_command(params).await)
   }
 }
 
@@ -350,6 +369,50 @@ impl<L: LSPLang> Backend<L> {
     self.map.remove(params.text_document.uri.as_str());
   }
 
+  fn compute_all_fixes(
+    &self,
+    text_document: TextDocumentIdentifier,
+    error_id_to_ranges: HashMap<String, Vec<Range>>,
+    rules: &RuleCollection<L>,
+    path: PathBuf,
+  ) -> Option<HashMap<Url, Vec<TextEdit>>>
+  where
+    L: ast_grep_core::Language + std::cmp::Eq,
+  {
+    let uri = text_document.uri.as_str();
+    let versioned = self.map.get(uri)?;
+    let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+
+    for config in rules.for_path(&path) {
+      let ranges = match error_id_to_ranges.get(&config.id) {
+        Some(ranges) => ranges,
+        None => continue,
+      };
+      let matcher = &config.matcher;
+
+      for matched_node in versioned.root.root().find_all(&matcher) {
+        let range = convert_node_to_range(&matched_node);
+        if !ranges.contains(&range) {
+          continue;
+        }
+        let fixer = match &config.matcher.fixer {
+          Some(fixer) => fixer,
+          None => continue,
+        };
+        let edit = matched_node.replace_by(fixer);
+        let edit = TextEdit {
+          range,
+          new_text: String::from_utf8(edit.inserted_text).unwrap(),
+        };
+        changes
+          .entry(text_document.uri.clone())
+          .or_default()
+          .push(edit);
+      }
+    }
+    Some(changes)
+  }
+
   async fn on_code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
     let text_doc = params.text_document;
     let uri = text_doc.uri.as_str();
@@ -358,11 +421,43 @@ impl<L: LSPLang> Backend<L> {
     let error_id_to_ranges = Self::build_error_id_to_ranges(diagnostics);
     let versioned = self.map.get(uri)?;
     let mut response = CodeActionResponse::new();
+
+    let code_action = params.context.only.as_ref()?.first();
+    let is_source_code_action = code_action.is_some_and(|kind| {
+      kind == &CodeActionKind::SOURCE
+        || kind == &CodeActionKind::SOURCE_FIX_ALL
+        || kind == &CodeActionKind::new("source.fixAll.ast-grep")
+    });
+    dbg!(is_source_code_action);
+
     let rules = if let Ok(rules) = &self.rules {
       rules
     } else {
       return Some(response);
     };
+
+    if is_source_code_action {
+      let changes = self.compute_all_fixes(text_doc, error_id_to_ranges, rules, path);
+
+      let edit = Some(WorkspaceEdit {
+        changes,
+        document_changes: None,
+        change_annotations: None,
+      });
+      let action = CodeAction {
+        title: "Source Code fix action".to_string(),
+        command: None,
+        diagnostics: None,
+        edit,
+        disabled: None,
+        kind: code_action.map(|x| x.to_owned()),
+        is_preferred: Some(true),
+        data: None,
+      };
+
+      response.push(CodeActionOrCommand::from(action));
+      return Some(response);
+    }
     for config in rules.for_path(&path) {
       let ranges = match error_id_to_ranges.get(&config.id) {
         Some(ranges) => ranges,
@@ -404,6 +499,18 @@ impl<L: LSPLang> Backend<L> {
       }
     }
     Some(response)
+  }
+
+  async fn on_execute_command(&self, params: ExecuteCommandParams) -> Option<Value> {
+    dbg!(&params);
+    match params.command.as_ref() {
+      "ast-grep.applyAllFixes" => {
+
+        self.client.send_request()
+        Some(1.into())
+      }
+      _ => None,
+    }
   }
 
   fn build_error_id_to_ranges(diagnostics: Vec<Diagnostic>) -> HashMap<String, Vec<Range>> {
