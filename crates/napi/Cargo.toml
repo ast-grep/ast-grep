@@ -15,7 +15,7 @@ ast-grep-core.workspace = true
 ast-grep-config.workspace = true
 
 napi = { version = "2.16.1", features = ["serde-json", "napi4", "error_anyhow"] }
-napi-derive = "2.16.0"
+napi-derive = "2.16.1"
 
 ignore.workspace = true
 tree-sitter.workspace = true
