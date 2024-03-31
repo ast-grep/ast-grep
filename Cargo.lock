@@ -195,7 +195,7 @@ dependencies = [
  "tree-sitter-dart",
  "tree-sitter-elixir",
  "tree-sitter-go",
- "tree-sitter-html-dvdb",
+ "tree-sitter-html",
  "tree-sitter-java",
  "tree-sitter-javascript",
  "tree-sitter-json",
@@ -236,7 +236,7 @@ dependencies = [
  "serde_json",
  "tree-sitter-css",
  "tree-sitter-facade-sg",
- "tree-sitter-html-dvdb",
+ "tree-sitter-html",
  "tree-sitter-javascript",
  "tree-sitter-typescript",
 ]
@@ -1963,10 +1963,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "tree-sitter-html-dvdb"
+name = "tree-sitter-html"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c6805488422bca82cc4d399e7b8177126b68287ff3d8ae209e4022c8fa44829"
+checksum = "017822b6bd42843c4bd67fabb834f61ce23254e866282dd93871350fd6b7fa1d"
 dependencies = [
  "cc",
  "tree-sitter",
