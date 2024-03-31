@@ -485,25 +485,31 @@ impl<L: LSPLang> Backend<L> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_core::language::TSLanguage;
-  use std::path::Path;
+  use ast_grep_config::{from_yaml_string, GlobalRules};
+  use ast_grep_language::SupportLang;
+  use serde_json::Value;
   use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt, DuplexStream};
 
-  #[derive(Clone, Deserialize, PartialEq, Eq)]
-  pub enum TypeScript {
-    Tsx,
-  }
-  impl Language for TypeScript {
-    fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
-      Some(TypeScript::Tsx)
-    }
-    fn get_ts_language(&self) -> TSLanguage {
-      tree_sitter_typescript::language_tsx().into()
-    }
-  }
-
   fn start_lsp() -> (DuplexStream, DuplexStream) {
-    let rc: RuleCollection<TypeScript> = RuleCollection::try_new(vec![]).unwrap();
+    let globals = GlobalRules::default();
+    let config: RuleConfig<SupportLang> = from_yaml_string(
+      r"
+id: no-console-rule
+message: No console.log
+severity: warning
+language: TypeScript
+rule:
+  pattern: console.log($$$A)
+note: no console.log
+fix: |
+  alert($$$A)
+",
+      &globals,
+    )
+    .unwrap()
+    .pop()
+    .unwrap();
+    let rc: RuleCollection<SupportLang> = RuleCollection::try_new(vec![config]).unwrap();
     let rc_result: std::result::Result<_, String> = Ok(rc);
     let (service, socket) = LspService::build(|client| Backend::new(client, rc_result)).finish();
     let (req_client, req_server) = duplex(1024);
@@ -531,7 +537,16 @@ mod test {
   }
 
   async fn test_lsp() {
-    let initialize = r#"{"jsonrpc":"2.0","method":"initialize","params":{"capabilities":{"textDocumentSync":1}},"id":1}"#;
+    let initialize = r#"{
+      "jsonrpc":"2.0",
+      "id": 1,
+      "method": "initialize",
+      "params": {
+        "capabilities": {
+          "textDocumentSync": 1
+        }
+      }
+    }"#;
     let (mut req_client, mut resp_client) = start_lsp();
     let mut buf = vec![0; 1024];
 
@@ -542,7 +557,61 @@ mod test {
     let _ = resp_client.read(&mut buf).await.unwrap();
 
     assert!(resp(&buf).unwrap().starts_with('{'));
+
+    let save_file = r#"{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "textDocument/codeAction",
+  "params": {
+    "range": {
+      "end": {
+        "character": 10,
+        "line": 1
+      },
+      "start": {
+        "character": 10,
+        "line": 1
+      }
+    },
+    "textDocument": {
+      "uri": "file:///Users/codes/ast-grep-vscode/test.tsx"
+    },
+    "context": {
+      "diagnostics": [
+        {
+          "range": {
+            "start": {
+              "line": 0,
+              "character": 0
+            },
+            "end": {
+              "line": 0,
+              "character": 16
+            }
+          },
+          "code": "no-console-rule",
+          "source": "ast-grep",
+          "message": "No console.log"
+        }
+      ],
+      "only": ["source.fixAll"]
+    }
   }
+  }"#;
+
+    let mut buf = vec![0; 1024];
+    req_client
+      .write_all(req(save_file).as_bytes())
+      .await
+      .unwrap();
+    let _ = resp_client.read(&mut buf).await.unwrap();
+
+    let x: Value = serde_json::from_str(resp(&buf).unwrap()).unwrap();
+
+    // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"run code action!","type":3}}
+    assert_eq!(x["method"], "window/logMessage");
+  }
+
   #[test]
   fn actual_test() {
     tokio::runtime::Runtime::new().unwrap().block_on(test_lsp());

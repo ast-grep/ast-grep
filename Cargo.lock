@@ -216,11 +216,12 @@ version = "0.20.2"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
+ "ast-grep-language",
  "dashmap",
  "serde",
+ "serde_json",
  "tokio",
  "tower-lsp",
- "tree-sitter-typescript",
 ]
 
 [[package]]
