@@ -185,11 +185,11 @@ name = "ast-grep-language"
 version = "0.20.2"
 dependencies = [
  "ast-grep-core",
- "ast-grep-tree-sitter-c-sharp",
  "ignore",
  "serde",
  "tree-sitter-bash",
  "tree-sitter-c",
+ "tree-sitter-c-sharp",
  "tree-sitter-cpp",
  "tree-sitter-css",
  "tree-sitter-dart",
@@ -251,16 +251,6 @@ dependencies = [
  "ast-grep-language",
  "pyo3",
  "pythonize",
-]
-
-[[package]]
-name = "ast-grep-tree-sitter-c-sharp"
-version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69bb67af006de48085e828eb70bdf65adfd148d6cee34aad192ffaec0bc04538"
-dependencies = [
- "cc",
- "tree-sitter",
 ]
 
 [[package]]
@@ -1894,6 +1884,16 @@ name = "tree-sitter-c"
 version = "0.20.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4bbd5f3d8658c08581f8f2adac6c391c2e9fa00fe9246bf6c5f52213b9cc6b72"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
+name = "tree-sitter-c-sharp"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9ab3dc608f34924fa9e10533a95f62dbc14b6de0ddd7107722eba66fe19ae31"
 dependencies = [
  "cc",
  "tree-sitter",
