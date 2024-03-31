@@ -45,7 +45,7 @@ inquire = "0.7.4"
 num_cpus = "1.16.0"
 serde.workspace = true
 serde_json = "1.0.115"
-serde_yaml = "0.9.33"
+serde_yaml = "0.9.34"
 similar = { version = "2.5.0", features = ["inline"] }
 tokio = { version = "1", features = ["rt-multi-thread", "io-std"] }
 clap_complete = "4.5.1"
