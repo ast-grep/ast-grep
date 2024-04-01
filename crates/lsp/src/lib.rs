@@ -371,6 +371,7 @@ impl<L: LSPLang> Backend<L> {
     let uri = text_document.uri.as_str();
     let versioned = self.map.get(uri)?;
     let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+    let edits = changes.entry(text_document.uri.clone()).or_default();
 
     for config in rules.for_path(&path) {
       let ranges = match error_id_to_ranges.get(&config.id) {
@@ -379,7 +380,6 @@ impl<L: LSPLang> Backend<L> {
       };
       let matcher = &config.matcher;
 
-      let entry = changes.entry(text_document.uri.clone()).or_default();
       for matched_node in versioned.root.root().find_all(&matcher) {
         let range = convert_node_to_range(&matched_node);
         if !ranges.contains(&range) {
@@ -395,7 +395,7 @@ impl<L: LSPLang> Backend<L> {
           new_text: String::from_utf8(edit.inserted_text).unwrap(),
         };
 
-        entry.push(edit);
+        edits.push(edit);
       }
     }
     Some(changes)
@@ -590,10 +590,10 @@ fix: |
       .unwrap();
     let _ = resp_client.read(&mut buf).await.unwrap();
 
-    let x: Value = serde_json::from_str(resp(&buf).unwrap()).unwrap();
+    let json_val: Value = serde_json::from_str(resp(&buf).unwrap()).unwrap();
 
     // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"run code action!","type":3}}
-    assert_eq!(x["method"], "window/logMessage");
+    assert_eq!(json_val["method"], "window/logMessage");
   }
 
   #[test]
