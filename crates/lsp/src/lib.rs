@@ -9,6 +9,7 @@ use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig};
 use ast_grep_core::{language::Language, AstGrep, Doc, Node, NodeMatch, StrDoc};
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 pub use tower_lsp::{LspService, Server};
 
@@ -67,6 +68,9 @@ impl<L: LSPLang> Backend<L> {
 
 const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
   Some(CodeActionProviderCapability::Simple(true));
+
+const SOURCE_FIX_ALL_AST_GREP: CodeActionKind = CodeActionKind::new("source.fixAll.ast-grep");
+
 fn code_action_provider(
   client_capability: &ClientCapabilities,
 ) -> Option<CodeActionProviderCapability> {
@@ -81,7 +85,11 @@ fn code_action_provider(
     return None;
   }
   Some(CodeActionProviderCapability::Options(CodeActionOptions {
-    code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+    code_action_kinds: Some(vec![
+      CodeActionKind::QUICKFIX,
+      CodeActionKind::SOURCE_FIX_ALL,
+      SOURCE_FIX_ALL_AST_GREP,
+    ]),
     work_done_progress_options: Default::default(),
     resolve_provider: Some(true),
   }))
@@ -350,25 +358,28 @@ impl<L: LSPLang> Backend<L> {
     self.map.remove(params.text_document.uri.as_str());
   }
 
-  async fn on_code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
-    let text_doc = params.text_document;
-    let uri = text_doc.uri.as_str();
-    let path = text_doc.uri.to_file_path().ok()?;
-    let diagnostics = params.context.diagnostics;
-    let error_id_to_ranges = Self::build_error_id_to_ranges(diagnostics);
+  fn compute_all_fixes(
+    &self,
+    text_document: TextDocumentIdentifier,
+    error_id_to_ranges: HashMap<String, Vec<Range>>,
+    rules: &RuleCollection<L>,
+    path: PathBuf,
+  ) -> Option<HashMap<Url, Vec<TextEdit>>>
+  where
+    L: ast_grep_core::Language + std::cmp::Eq,
+  {
+    let uri = text_document.uri.as_str();
     let versioned = self.map.get(uri)?;
-    let mut response = CodeActionResponse::new();
-    let rules = if let Ok(rules) = &self.rules {
-      rules
-    } else {
-      return Some(response);
-    };
+    let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+    let edits = changes.entry(text_document.uri.clone()).or_default();
+
     for config in rules.for_path(&path) {
       let ranges = match error_id_to_ranges.get(&config.id) {
         Some(ranges) => ranges,
         None => continue,
       };
       let matcher = &config.matcher;
+
       for matched_node in versioned.root.root().find_all(&matcher) {
         let range = convert_node_to_range(&matched_node);
         if !ranges.contains(&range) {
@@ -383,26 +394,55 @@ impl<L: LSPLang> Backend<L> {
           range,
           new_text: String::from_utf8(edit.inserted_text).unwrap(),
         };
-        let mut changes = HashMap::new();
-        changes.insert(text_doc.uri.clone(), vec![edit]);
-        let edit = Some(WorkspaceEdit {
-          changes: Some(changes),
-          document_changes: None,
-          change_annotations: None,
-        });
-        let action = CodeAction {
-          title: config.message.clone(),
-          command: None,
-          diagnostics: None,
-          edit,
-          disabled: None,
-          kind: Some(CodeActionKind::QUICKFIX),
-          is_preferred: Some(true),
-          data: None,
-        };
-        response.push(CodeActionOrCommand::from(action));
+
+        edits.push(edit);
       }
     }
+    Some(changes)
+  }
+
+  async fn on_code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
+    let text_doc = params.text_document;
+    let path = text_doc.uri.to_file_path().ok()?;
+    let diagnostics = params.context.diagnostics;
+    let error_id_to_ranges = Self::build_error_id_to_ranges(diagnostics);
+    let mut response = CodeActionResponse::new();
+
+    let code_action = params.context.only.as_ref()?.first()?.clone();
+
+    // we only handle these code_actions
+    // 1. QuickFix
+    // 2. "source.fixAll" and "source.fixAll.ast-grep"
+    if code_action != CodeActionKind::QUICKFIX
+      && code_action != CodeActionKind::SOURCE_FIX_ALL
+      && code_action != SOURCE_FIX_ALL_AST_GREP
+    {
+      return Some(response);
+    }
+
+    let Ok(rules) = &self.rules else {
+      return Some(response);
+    };
+
+    let changes = self.compute_all_fixes(text_doc, error_id_to_ranges, rules, path);
+
+    let edit = Some(WorkspaceEdit {
+      changes,
+      document_changes: None,
+      change_annotations: None,
+    });
+    let action = CodeAction {
+      title: "Source Code fix action".to_string(),
+      command: None,
+      diagnostics: None,
+      edit,
+      disabled: None,
+      kind: Some(code_action),
+      is_preferred: Some(true),
+      data: None,
+    };
+
+    response.push(CodeActionOrCommand::from(action));
     Some(response)
   }
 
@@ -429,25 +469,31 @@ impl<L: LSPLang> Backend<L> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_core::language::TSLanguage;
-  use std::path::Path;
+  use ast_grep_config::{from_yaml_string, GlobalRules};
+  use ast_grep_language::SupportLang;
+  use serde_json::Value;
   use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt, DuplexStream};
 
-  #[derive(Clone, Deserialize, PartialEq, Eq)]
-  pub enum TypeScript {
-    Tsx,
-  }
-  impl Language for TypeScript {
-    fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
-      Some(TypeScript::Tsx)
-    }
-    fn get_ts_language(&self) -> TSLanguage {
-      tree_sitter_typescript::language_tsx().into()
-    }
-  }
-
   fn start_lsp() -> (DuplexStream, DuplexStream) {
-    let rc: RuleCollection<TypeScript> = RuleCollection::try_new(vec![]).unwrap();
+    let globals = GlobalRules::default();
+    let config: RuleConfig<SupportLang> = from_yaml_string(
+      r"
+id: no-console-rule
+message: No console.log
+severity: warning
+language: TypeScript
+rule:
+  pattern: console.log($$$A)
+note: no console.log
+fix: |
+  alert($$$A)
+",
+      &globals,
+    )
+    .unwrap()
+    .pop()
+    .unwrap();
+    let rc: RuleCollection<SupportLang> = RuleCollection::try_new(vec![config]).unwrap();
     let rc_result: std::result::Result<_, String> = Ok(rc);
     let (service, socket) = LspService::build(|client| Backend::new(client, rc_result)).finish();
     let (req_client, req_server) = duplex(1024);
@@ -475,7 +521,16 @@ mod test {
   }
 
   async fn test_lsp() {
-    let initialize = r#"{"jsonrpc":"2.0","method":"initialize","params":{"capabilities":{"textDocumentSync":1}},"id":1}"#;
+    let initialize = r#"{
+      "jsonrpc":"2.0",
+      "id": 1,
+      "method": "initialize",
+      "params": {
+        "capabilities": {
+          "textDocumentSync": 1
+        }
+      }
+    }"#;
     let (mut req_client, mut resp_client) = start_lsp();
     let mut buf = vec![0; 1024];
 
@@ -486,7 +541,61 @@ mod test {
     let _ = resp_client.read(&mut buf).await.unwrap();
 
     assert!(resp(&buf).unwrap().starts_with('{'));
+
+    let save_file = r#"{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "textDocument/codeAction",
+  "params": {
+    "range": {
+      "end": {
+        "character": 10,
+        "line": 1
+      },
+      "start": {
+        "character": 10,
+        "line": 1
+      }
+    },
+    "textDocument": {
+      "uri": "file:///Users/codes/ast-grep-vscode/test.tsx"
+    },
+    "context": {
+      "diagnostics": [
+        {
+          "range": {
+            "start": {
+              "line": 0,
+              "character": 0
+            },
+            "end": {
+              "line": 0,
+              "character": 16
+            }
+          },
+          "code": "no-console-rule",
+          "source": "ast-grep",
+          "message": "No console.log"
+        }
+      ],
+      "only": ["source.fixAll"]
+    }
   }
+  }"#;
+
+    let mut buf = vec![0; 1024];
+    req_client
+      .write_all(req(save_file).as_bytes())
+      .await
+      .unwrap();
+    let _ = resp_client.read(&mut buf).await.unwrap();
+
+    let json_val: Value = serde_json::from_str(resp(&buf).unwrap()).unwrap();
+
+    // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"run code action!","type":3}}
+    assert_eq!(json_val["method"], "window/logMessage");
+  }
+
   #[test]
   fn actual_test() {
     tokio::runtime::Runtime::new().unwrap().block_on(test_lsp());

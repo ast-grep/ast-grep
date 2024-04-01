@@ -1,7 +1,13 @@
 [package]
 name = "ast-grep-lsp"
 description = "Search and Rewrite code at large scale using precise AST pattern"
-keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
+keywords = [
+  "ast",
+  "pattern",
+  "codemod",
+  "search",
+  "rewrite",
+]
 
 version.workspace = true
 authors.workspace = true
@@ -19,5 +25,10 @@ serde.workspace = true
 tower-lsp = "0.20.0"
 
 [dev-dependencies]
-tree-sitter-typescript = "0.20.5"
-tokio = { version = "1", features = ["rt-multi-thread", "io-std", "io-util"] }
+ast-grep-language.workspace = true
+serde_json = "1.0.115"
+tokio = { version = "1", features = [
+  "rt-multi-thread",
+  "io-std",
+  "io-util",
+] }
