@@ -69,13 +69,7 @@ impl<L: LSPLang> Backend<L> {
 const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
   Some(CodeActionProviderCapability::Simple(true));
 
-trait AstGrepActionKind {
-  const SOURCE_FIX_ALL_AST_GREP: CodeActionKind;
-}
-
-impl AstGrepActionKind for CodeActionKind {
-  const SOURCE_FIX_ALL_AST_GREP: CodeActionKind = CodeActionKind::new("source.fixAll.ast-grep");
-}
+const SOURCE_FIX_ALL_AST_GREP: CodeActionKind = CodeActionKind::new("source.fixAll.ast-grep");
 
 fn code_action_provider(
   client_capability: &ClientCapabilities,
@@ -94,7 +88,7 @@ fn code_action_provider(
     code_action_kinds: Some(vec![
       CodeActionKind::QUICKFIX,
       CodeActionKind::SOURCE_FIX_ALL,
-      CodeActionKind::SOURCE_FIX_ALL_AST_GREP,
+      SOURCE_FIX_ALL_AST_GREP,
     ]),
     work_done_progress_options: Default::default(),
     resolve_provider: Some(true),
@@ -415,30 +409,19 @@ impl<L: LSPLang> Backend<L> {
     let error_id_to_ranges = Self::build_error_id_to_ranges(diagnostics);
     let mut response = CodeActionResponse::new();
 
-    let code_action = params.context.only.as_ref()?.first();
+    let code_action = params.context.only.as_ref()?.first()?.clone();
 
     // we only handle these code_actions
     // 1. QuickFix
     // 2. "source.fixAll" and "source.fixAll.ast-grep"
-    match code_action {
-      Some(code_action) => {
-        if *code_action != CodeActionKind::QUICKFIX
-          && *code_action != CodeActionKind::SOURCE_FIX_ALL
-          && *code_action != CodeActionKind::SOURCE_FIX_ALL_AST_GREP
-        {
-          return Some(response);
-        }
-      }
-      None => {
-        return Some(response);
-      }
+    if code_action != CodeActionKind::QUICKFIX
+      && code_action != CodeActionKind::SOURCE_FIX_ALL
+      && code_action != SOURCE_FIX_ALL_AST_GREP
+    {
+      return Some(response);
     }
 
     let Ok(rules) = &self.rules else {
-      return Some(response);
-    }
-      rules
-    } else {
       return Some(response);
     };
 
@@ -455,7 +438,7 @@ impl<L: LSPLang> Backend<L> {
       diagnostics: None,
       edit,
       disabled: None,
-      kind: code_action.map(|x| x.to_owned()),
+      kind: Some(code_action),
       is_preferred: Some(true),
       data: None,
     };
