@@ -1,5 +1,6 @@
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
@@ -71,6 +72,8 @@ const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
 
 const SOURCE_FIX_ALL_AST_GREP: CodeActionKind = CodeActionKind::new("source.fixAll.ast-grep");
 
+const APPLY_ALL_FIXES: &str = "ast-grep.applyAllFixes";
+
 fn code_action_provider(
   client_capability: &ClientCapabilities,
 ) -> Option<CodeActionProviderCapability> {
@@ -108,6 +111,10 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
         text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
         code_action_provider: code_action_provider(&params.capabilities)
           .or(FALLBACK_CODE_ACTION_PROVIDER),
+        execute_command_provider: Some(ExecuteCommandOptions {
+          commands: vec![APPLY_ALL_FIXES.to_string()],
+          work_done_progress_options: Default::default(),
+        }),
         ..ServerCapabilities::default()
       },
     })
@@ -198,6 +205,14 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       .await;
     Ok(self.on_code_action(params).await)
   }
+
+  async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<Value>> {
+    self
+      .client
+      .log_message(MessageType::INFO, "execute command!")
+      .await;
+    Ok(self.on_execute_command(params).await)
+  }
 }
 
 fn convert_node_to_range<D: Doc>(node_match: &Node<D>) -> Range {
@@ -282,30 +297,39 @@ impl<L: LSPLang> Backend<L> {
       map: DashMap::new(),
     }
   }
-  async fn publish_diagnostics(&self, uri: Url, versioned: &VersionedAst<StrDoc<L>>) -> Option<()> {
+  async fn get_diagnostics(
+    &self,
+    uri: &Url,
+    versioned: &VersionedAst<StrDoc<L>>,
+  ) -> Option<Vec<Diagnostic>> {
     let mut diagnostics = vec![];
     let path = uri.to_file_path().ok()?;
 
-    let rules = match &self.rules {
-      Ok(rules) => rules.for_path(&path),
-      Err(_) => {
-        return Some(());
-      }
-    };
+    let rules = self.rules.as_ref().ok()?.for_path(&path);
+
     let scan = CombinedScan::new(rules);
     let hit_set = scan.all_kinds();
     let matches = scan.scan(&versioned.root, hit_set, false).matches;
     for (id, ms) in matches {
       let rule = scan.get_rule(id);
-      let to_diagnostic = |m| convert_match_to_diagnostic(m, rule, &uri);
+      let to_diagnostic = |m| convert_match_to_diagnostic(m, rule, uri);
       diagnostics.extend(ms.into_iter().map(to_diagnostic));
     }
+    Some(diagnostics)
+  }
+
+  async fn publish_diagnostics(&self, uri: Url, versioned: &VersionedAst<StrDoc<L>>) -> Option<()> {
+    let diagnostics = self
+      .get_diagnostics(&uri, versioned)
+      .await
+      .unwrap_or_default();
     self
       .client
       .publish_diagnostics(uri, diagnostics, Some(versioned.version))
       .await;
     Some(())
   }
+
   async fn on_open(&self, params: DidOpenTextDocumentParams) -> Option<()> {
     let text_doc = params.text_document;
     let uri = text_doc.uri.as_str().to_owned();
@@ -362,7 +386,6 @@ impl<L: LSPLang> Backend<L> {
     &self,
     text_document: TextDocumentIdentifier,
     error_id_to_ranges: HashMap<String, Vec<Range>>,
-    rules: &RuleCollection<L>,
     path: PathBuf,
   ) -> Option<HashMap<Url, Vec<TextEdit>>>
   where
@@ -372,6 +395,10 @@ impl<L: LSPLang> Backend<L> {
     let versioned = self.map.get(uri)?;
     let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
     let edits = changes.entry(text_document.uri.clone()).or_default();
+
+    let Ok(rules) = &self.rules else {
+      return None;
+    };
 
     for config in rules.for_path(&path) {
       let ranges = match error_id_to_ranges.get(&config.id) {
@@ -409,6 +436,10 @@ impl<L: LSPLang> Backend<L> {
     let mut response = CodeActionResponse::new();
 
     let code_action = params.context.only.as_ref()?.first()?.clone();
+    self
+      .client
+      .log_message(MessageType::LOG, "")
+      .await;
 
     // we only handle these code_actions
     // 1. QuickFix
@@ -420,11 +451,7 @@ impl<L: LSPLang> Backend<L> {
       return Some(response);
     }
 
-    let Ok(rules) = &self.rules else {
-      return Some(response);
-    };
-
-    let changes = self.compute_all_fixes(text_doc, error_id_to_ranges, rules, path);
+    let changes = self.compute_all_fixes(text_doc, error_id_to_ranges, path);
 
     let edit = Some(WorkspaceEdit {
       changes,
@@ -463,6 +490,51 @@ impl<L: LSPLang> Backend<L> {
   fn infer_lang_from_uri(uri: &Url) -> Option<L> {
     let path = uri.to_file_path().ok()?;
     L::from_path(path)
+  }
+
+  async fn on_execute_command(&self, params: ExecuteCommandParams) -> Option<Value> {
+    let ExecuteCommandParams {
+      arguments,
+      command,
+      work_done_progress_params: _,
+    } = params;
+
+    match command.as_ref() {
+      APPLY_ALL_FIXES => {
+        let uri = Url::parse(arguments.first()?["uri"].as_str()?).ok()?;
+        let path = uri.to_file_path().ok()?;
+        let version = arguments.first()?["version"].as_number()?.as_i64()? as i32;
+        let text = arguments.first()?["text"].as_str()?;
+
+        let text_doc = TextDocumentIdentifier::new(uri.clone());
+
+        let lang = Self::infer_lang_from_uri(&text_doc.uri)?;
+
+        let root = AstGrep::new(text, lang);
+        let versioned = VersionedAst { version, root };
+
+        let diagnostics = self.get_diagnostics(&uri, &versioned).await?;
+        let error_id_to_ranges = Self::build_error_id_to_ranges(diagnostics);
+        self
+          .client
+          .log_message(MessageType::LOG, "Parsing doc.")
+          .await;
+
+        let changes = self.compute_all_fixes(text_doc, error_id_to_ranges, path);
+        self
+          .client
+          .apply_edit(WorkspaceEdit {
+            changes,
+            document_changes: None,
+            change_annotations: None,
+          })
+          .await
+          .ok()?;
+
+        None
+      }
+      _ => None,
+    }
   }
 }
 
