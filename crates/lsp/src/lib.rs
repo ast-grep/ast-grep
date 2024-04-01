@@ -436,10 +436,6 @@ impl<L: LSPLang> Backend<L> {
     let mut response = CodeActionResponse::new();
 
     let code_action = params.context.only.as_ref()?.first()?.clone();
-    self
-      .client
-      .log_message(MessageType::LOG, "")
-      .await;
 
     // we only handle these code_actions
     // 1. QuickFix
@@ -450,6 +446,14 @@ impl<L: LSPLang> Backend<L> {
     {
       return Some(response);
     }
+
+    self
+      .client
+      .log_message(
+        MessageType::LOG,
+        format!("Running CodeAction {}", code_action.as_str()),
+      )
+      .await;
 
     let changes = self.compute_all_fixes(text_doc, error_id_to_ranges, path);
 
@@ -501,6 +505,13 @@ impl<L: LSPLang> Backend<L> {
 
     match command.as_ref() {
       APPLY_ALL_FIXES => {
+        self
+          .client
+          .log_message(
+            MessageType::LOG,
+            format!("Running ExecuteCommand {}", command),
+          )
+          .await;
         let uri = Url::parse(arguments.first()?["uri"].as_str()?).ok()?;
         let path = uri.to_file_path().ok()?;
         let version = arguments.first()?["version"].as_number()?.as_i64()? as i32;
