@@ -434,7 +434,9 @@ impl<L: LSPLang> Backend<L> {
       }
     }
 
-    let rules = if let Ok(rules) = &self.rules {
+    let Ok(rules) = &self.rules else {
+      return Some(response);
+    }
       rules
     } else {
       return Some(response);
