@@ -379,6 +379,7 @@ impl<L: LSPLang> Backend<L> {
       };
       let matcher = &config.matcher;
 
+      let entry = changes.entry(text_document.uri.clone()).or_default();
       for matched_node in versioned.root.root().find_all(&matcher) {
         let range = convert_node_to_range(&matched_node);
         if !ranges.contains(&range) {
@@ -393,10 +394,8 @@ impl<L: LSPLang> Backend<L> {
           range,
           new_text: String::from_utf8(edit.inserted_text).unwrap(),
         };
-        changes
-          .entry(text_document.uri.clone())
-          .or_default()
-          .push(edit);
+
+        entry.push(edit);
       }
     }
     Some(changes)
