@@ -130,6 +130,37 @@ pub async fn request_code_action_to_lsp(
   buf
 }
 
+pub async fn request_execute_command_to_lsp(
+  req_client: &mut DuplexStream,
+  resp_client: &mut DuplexStream,
+) -> Vec<u8> {
+  let execute_command_request: &str = r#"
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "workspace/executeCommand",
+    "params": {
+      "command": "ast-grep.applyAllFixes",
+      "arguments": [
+        {
+          "text": "class AstGrepTest {\n  test() {\n    console.log('Hello, world!')\n  }\n}\n\nclass AnotherCase {\n  get test2() {\n    return 123\n  }\n}\n\nconst NoProblemHere = {\n  test() {\n    if (Math.random() > 3) {\n      throw new Error('This is not an error')\n    }\n  },\n}\n",
+          "uri": "file:///Users/appe/Documents/codes/ast-grep-vscode/fixture/test.ts",
+          "version": 1
+        }
+      ]
+    }
+  }
+  "#;
+  let mut buf = vec![0; 1024];
+  req_client
+    .write_all(req(execute_command_request).as_bytes())
+    .await
+    .unwrap();
+  let _ = resp_client.read(&mut buf).await.unwrap();
+
+  buf
+}
+
 #[test]
 fn test_basic() {
   tokio::runtime::Runtime::new().unwrap().block_on(async {
@@ -149,6 +180,21 @@ fn test_code_action() {
     assert!(resp(&buf).unwrap().starts_with('{'));
 
     let buf = request_code_action_to_lsp(&mut req_client, &mut resp_client).await;
+    let json_val: Value = serde_json::from_str(resp(&buf).unwrap()).unwrap();
+    // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"run code action!","type":3}}
+    assert_eq!(json_val["method"], "window/logMessage");
+  });
+}
+
+#[test]
+fn test_execute_apply_all_fixes() {
+  tokio::runtime::Runtime::new().unwrap().block_on(async {
+    let (mut req_client, mut resp_client) = create_lsp();
+
+    let buf = initialize_lsp(&mut req_client, &mut resp_client).await;
+    assert!(resp(&buf).unwrap().starts_with('{'));
+
+    let buf = request_execute_command_to_lsp(&mut req_client, &mut resp_client).await;
     let json_val: Value = serde_json::from_str(resp(&buf).unwrap()).unwrap();
     // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"run code action!","type":3}}
     assert_eq!(json_val["method"], "window/logMessage");
