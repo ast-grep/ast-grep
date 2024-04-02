@@ -72,7 +72,7 @@ const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
 
 const SOURCE_FIX_ALL_AST_GREP: CodeActionKind = CodeActionKind::new("source.fixAll.ast-grep");
 
-const APPLY_ALL_FIXES: &str = "ast-grep.applyAllFixes";
+pub const APPLY_ALL_FIXES: &str = "ast-grep.applyAllFixes";
 
 fn code_action_provider(
   client_capability: &ClientCapabilities,
