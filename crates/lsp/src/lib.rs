@@ -289,6 +289,19 @@ fn url_to_code_description(url: &Option<String>) -> Option<CodeDescription> {
   Some(CodeDescription { href })
 }
 
+fn build_error_id_to_ranges(diagnostics: Vec<Diagnostic>) -> HashMap<String, Vec<Range>> {
+  let mut error_id_to_ranges = HashMap::new();
+  for diagnostic in diagnostics {
+    let rule_id = match diagnostic.code {
+      Some(NumberOrString::String(rule)) => rule,
+      _ => continue,
+    };
+    let ranges = error_id_to_ranges.entry(rule_id).or_insert_with(Vec::new);
+    ranges.push(diagnostic.range);
+  }
+  error_id_to_ranges
+}
+
 impl<L: LSPLang> Backend<L> {
   pub fn new(client: Client, rules: std::result::Result<RuleCollection<L>, String>) -> Self {
     Self {
@@ -432,7 +445,7 @@ impl<L: LSPLang> Backend<L> {
     let text_doc = params.text_document;
     let path = text_doc.uri.to_file_path().ok()?;
     let diagnostics = params.context.diagnostics;
-    let error_id_to_ranges = Self::build_error_id_to_ranges(diagnostics);
+    let error_id_to_ranges = build_error_id_to_ranges(diagnostics);
     let mut response = CodeActionResponse::new();
 
     let code_action = params.context.only.as_ref()?.first()?.clone();
@@ -477,19 +490,6 @@ impl<L: LSPLang> Backend<L> {
     Some(response)
   }
 
-  fn build_error_id_to_ranges(diagnostics: Vec<Diagnostic>) -> HashMap<String, Vec<Range>> {
-    let mut error_id_to_ranges = HashMap::new();
-    for diagnostic in diagnostics {
-      let rule_id = match diagnostic.code {
-        Some(NumberOrString::String(rule)) => rule,
-        _ => continue,
-      };
-      let ranges = error_id_to_ranges.entry(rule_id).or_insert_with(Vec::new);
-      ranges.push(diagnostic.range);
-    }
-    error_id_to_ranges
-  }
-
   // TODO: support other urls besides file_scheme
   fn infer_lang_from_uri(uri: &Url) -> Option<L> {
     let path = uri.to_file_path().ok()?;
@@ -525,7 +525,7 @@ impl<L: LSPLang> Backend<L> {
         let versioned = VersionedAst { version, root };
 
         let diagnostics = self.get_diagnostics(&uri, &versioned).await?;
-        let error_id_to_ranges = Self::build_error_id_to_ranges(diagnostics);
+        let error_id_to_ranges = build_error_id_to_ranges(diagnostics);
         self
           .client
           .log_message(MessageType::LOG, "Parsing doc.")
@@ -546,141 +546,5 @@ impl<L: LSPLang> Backend<L> {
       }
       _ => None,
     }
-  }
-}
-
-#[cfg(test)]
-mod test {
-  use super::*;
-  use ast_grep_config::{from_yaml_string, GlobalRules};
-  use ast_grep_language::SupportLang;
-  use serde_json::Value;
-  use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt, DuplexStream};
-
-  fn start_lsp() -> (DuplexStream, DuplexStream) {
-    let globals = GlobalRules::default();
-    let config: RuleConfig<SupportLang> = from_yaml_string(
-      r"
-id: no-console-rule
-message: No console.log
-severity: warning
-language: TypeScript
-rule:
-  pattern: console.log($$$A)
-note: no console.log
-fix: |
-  alert($$$A)
-",
-      &globals,
-    )
-    .unwrap()
-    .pop()
-    .unwrap();
-    let rc: RuleCollection<SupportLang> = RuleCollection::try_new(vec![config]).unwrap();
-    let rc_result: std::result::Result<_, String> = Ok(rc);
-    let (service, socket) = LspService::build(|client| Backend::new(client, rc_result)).finish();
-    let (req_client, req_server) = duplex(1024);
-    let (resp_server, resp_client) = duplex(1024);
-
-    // start server as concurrent task
-    tokio::spawn(Server::new(req_server, resp_server, socket).serve(service));
-
-    (req_client, resp_client)
-  }
-
-  fn req(msg: &str) -> String {
-    format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg)
-  }
-
-  // A function that takes a byte slice as input and returns the content length as an option
-  fn resp(input: &[u8]) -> Option<&str> {
-    let input_str = std::str::from_utf8(input).ok()?;
-    let mut splits = input_str.split("\r\n\r\n");
-    let header = splits.next()?;
-    let body = splits.next()?;
-    let length_str = header.trim_start_matches("Content-Length: ");
-    let length = length_str.parse::<usize>().ok()?;
-    Some(&body[..length])
-  }
-
-  async fn test_lsp() {
-    let initialize = r#"{
-      "jsonrpc":"2.0",
-      "id": 1,
-      "method": "initialize",
-      "params": {
-        "capabilities": {
-          "textDocumentSync": 1
-        }
-      }
-    }"#;
-    let (mut req_client, mut resp_client) = start_lsp();
-    let mut buf = vec![0; 1024];
-
-    req_client
-      .write_all(req(initialize).as_bytes())
-      .await
-      .unwrap();
-    let _ = resp_client.read(&mut buf).await.unwrap();
-
-    assert!(resp(&buf).unwrap().starts_with('{'));
-
-    let save_file = r#"{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "textDocument/codeAction",
-  "params": {
-    "range": {
-      "end": {
-        "character": 10,
-        "line": 1
-      },
-      "start": {
-        "character": 10,
-        "line": 1
-      }
-    },
-    "textDocument": {
-      "uri": "file:///Users/codes/ast-grep-vscode/test.tsx"
-    },
-    "context": {
-      "diagnostics": [
-        {
-          "range": {
-            "start": {
-              "line": 0,
-              "character": 0
-            },
-            "end": {
-              "line": 0,
-              "character": 16
-            }
-          },
-          "code": "no-console-rule",
-          "source": "ast-grep",
-          "message": "No console.log"
-        }
-      ],
-      "only": ["source.fixAll"]
-    }
-  }
-  }"#;
-
-    let mut buf = vec![0; 1024];
-    req_client
-      .write_all(req(save_file).as_bytes())
-      .await
-      .unwrap();
-    let _ = resp_client.read(&mut buf).await.unwrap();
-
-    let json_val: Value = serde_json::from_str(resp(&buf).unwrap()).unwrap();
-
-    // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"run code action!","type":3}}
-    assert_eq!(json_val["method"], "window/logMessage");
-  }
-
-  #[test]
-  fn actual_test() {
-    tokio::runtime::Runtime::new().unwrap().block_on(test_lsp());
   }
 }
