@@ -169,7 +169,6 @@ fn test_basic() {
 
     let buf = initialize_lsp(&mut req_client, &mut resp_client).await;
 
-    dbg!(&buf);
     assert!(resp(&buf).unwrap().starts_with('{'));
   });
 }
@@ -183,10 +182,8 @@ fn test_code_action() {
     assert!(resp(&buf).unwrap().starts_with('{'));
 
     let buf = request_code_action_to_lsp(&mut req_client, &mut resp_client).await;
+    // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"Running CodeAction source.fixAll","type":3}}
     let json_val: Value = serde_json::from_str(resp(&buf).unwrap()).unwrap();
-    // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"run code action!","type":3}}
-    dbg!(String::from_utf8(buf).unwrap());
-
     assert_eq!(json_val["method"], "window/logMessage");
     assert_eq!(
       json_val["params"]["message"],
@@ -206,7 +203,6 @@ fn test_execute_apply_all_fixes() {
     let buf = request_execute_command_to_lsp(&mut req_client, &mut resp_client).await;
     // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"Running ExecuteCommand ast-grep.applyAllFixes","type":3}}
     let json_val: Value = serde_json::from_str(resp(&buf).unwrap()).unwrap();
-    dbg!(String::from_utf8(buf).unwrap());
     assert_eq!(json_val["method"], "window/logMessage");
     assert_eq!(
       json_val["params"]["message"],
