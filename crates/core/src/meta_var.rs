@@ -196,7 +196,7 @@ pub enum MetaVariable {
   /// $_ for non-captured meta var
   Dropped(bool),
   /// $$$ for non-captured multi var
-  Mutliple,
+  Multiple,
   /// $$$A for captured ellipsis
   MultiCapture(MetaVariableID),
 }
@@ -205,14 +205,14 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
   use MetaVariable::*;
   let ellipsis: String = std::iter::repeat(meta_char).take(3).collect();
   if src == ellipsis {
-    return Some(Mutliple);
+    return Some(Multiple);
   }
   if let Some(trimmed) = src.strip_prefix(&ellipsis) {
     if !trimmed.chars().all(is_valid_meta_var_char) {
       return None;
     }
     if trimmed.starts_with('_') {
-      return Some(Mutliple);
+      return Some(Multiple);
     } else {
       return Some(MultiCapture(trimmed.to_owned()));
     }
@@ -282,7 +282,7 @@ mod test {
   #[test]
   fn test_match_var() {
     use MetaVariable::*;
-    assert_eq!(extract_var("$$$"), Some(Mutliple));
+    assert_eq!(extract_var("$$$"), Some(Multiple));
     assert_eq!(extract_var("$ABC"), Some(Capture("ABC".into(), true)));
     assert_eq!(extract_var("$$ABC"), Some(Capture("ABC".into(), false)));
     assert_eq!(extract_var("$MATCH1"), Some(Capture("MATCH1".into(), true)));
@@ -315,7 +315,7 @@ mod test {
   fn test_non_ascii_meta_var() {
     let extract = |s| extract_meta_var(s, 'µ');
     use MetaVariable::*;
-    assert_eq!(extract("µµµ"), Some(Mutliple));
+    assert_eq!(extract("µµµ"), Some(Multiple));
     assert_eq!(extract("µABC"), Some(Capture("ABC".into(), true)));
     assert_eq!(extract("µµABC"), Some(Capture("ABC".into(), false)));
     assert_eq!(extract("µµµABC"), Some(MultiCapture("ABC".into())));
