@@ -318,7 +318,12 @@ impl<L: LSPLang> Backend<L> {
     let mut diagnostics = vec![];
     let path = uri.to_file_path().ok()?;
 
-    let rules = self.rules.as_ref().ok()?.for_path(&path);
+    let rules = match &self.rules {
+      Ok(rules) => rules.for_path(&path),
+      Err(_) => {
+        return Some(diagnostics);
+      }
+    };
 
     let scan = CombinedScan::new(rules);
     let hit_set = scan.all_kinds();
