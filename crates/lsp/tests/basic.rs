@@ -8,15 +8,49 @@ pub fn req(msg: &str) -> String {
   format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg)
 }
 
-// A function that takes a byte slice as input and returns the content length as an option
-pub fn resp(input: &[u8]) -> Option<&str> {
-  let input_str = std::str::from_utf8(input).ok()?;
-  let mut splits = input_str.split("\r\n\r\n");
-  let header = splits.next()?;
-  let body = splits.next()?;
-  let length_str = header.trim_start_matches("Content-Length: ");
-  let length = length_str.parse::<usize>().ok()?;
-  Some(&body[..length])
+// parse json rpc format
+pub fn parse_jsonrpc(input: &mut &str) -> Option<Value> {
+  let input_str = input.trim_start().trim_start_matches("Content-Length: ");
+
+  let index = input_str.find('\r')?;
+  let length = input_str[..index].parse::<usize>().ok()?;
+  let input_str = &input_str[length.to_string().len()..];
+
+  let input_str = input_str.trim_start_matches("\r\n\r\n");
+
+  let body = &input_str[..length];
+  let value = serde_json::from_str(&body[..length]).ok()?;
+  *input = &input_str[length..];
+  value
+}
+
+// A function that takes a byte slice as input and parse them to Vec<serde_json::Value>
+pub fn resp(input: &[u8]) -> Vec<Value> {
+  let mut input_str = std::str::from_utf8(input).unwrap();
+
+  let mut resp_list = Vec::new();
+
+  while let Some(val) = parse_jsonrpc(&mut input_str) {
+    resp_list.push(val);
+  }
+  resp_list
+}
+
+#[test]
+fn req_resp_should_work() {
+  let req1_str = "{\"jsonrpc\":\"2.0\",\"method\":\"window/logMessage\",\"params\":{\"message\":\"Running CodeAction source.fixAll\",\"type\":4}}";
+  let req2_str = "{\"jsonrpc\":\"2.0\",\"result\":[{\"edit\":{},\"isPreferred\":true,\"kind\":\"source.fixAll\",\"title\":\"Source Code fix action\"}],\"id\":1}";
+
+  let test_buf = format!("{}{}", req(req1_str), req(req2_str));
+
+  let resp_list = resp(test_buf.as_bytes());
+  assert_eq!(
+    resp_list,
+    vec![
+      serde_json::from_str::<Value>(req1_str).unwrap(),
+      serde_json::from_str::<Value>(req2_str).unwrap()
+    ]
+  )
 }
 
 pub fn create_lsp() -> (DuplexStream, DuplexStream) {
@@ -169,7 +203,7 @@ fn test_basic() {
 
     let buf = initialize_lsp(&mut req_client, &mut resp_client).await;
 
-    assert!(resp(&buf).unwrap().starts_with('{'));
+    assert!(!resp(&buf).is_empty());
   });
 }
 
@@ -178,16 +212,19 @@ fn test_code_action() {
   tokio::runtime::Runtime::new().unwrap().block_on(async {
     let (mut req_client, mut resp_client) = create_lsp();
 
-    let buf = initialize_lsp(&mut req_client, &mut resp_client).await;
-    assert!(resp(&buf).unwrap().starts_with('{'));
+    initialize_lsp(&mut req_client, &mut resp_client).await;
 
     let buf = request_code_action_to_lsp(&mut req_client, &mut resp_client).await;
     // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"Running CodeAction source.fixAll","type":3}}
-    dbg!(String::from_utf8(buf.clone()));
-    let json_val: Value = serde_json::from_str(resp(&buf).unwrap()).unwrap();
-    assert_eq!(json_val["method"], "window/logMessage");
+    let resp_list = resp(&buf);
+
+    let running_code_action_resp = resp_list
+      .iter()
+      .find(|v| v["method"] == "window/logMessage")
+      .unwrap();
+
     assert_eq!(
-      json_val["params"]["message"],
+      running_code_action_resp["params"]["message"],
       "Running CodeAction source.fixAll"
     );
   });
@@ -198,15 +235,20 @@ fn test_execute_apply_all_fixes() {
   tokio::runtime::Runtime::new().unwrap().block_on(async {
     let (mut req_client, mut resp_client) = create_lsp();
 
-    let buf = initialize_lsp(&mut req_client, &mut resp_client).await;
-    assert!(resp(&buf).unwrap().starts_with('{'));
+    initialize_lsp(&mut req_client, &mut resp_client).await;
 
     let buf = request_execute_command_to_lsp(&mut req_client, &mut resp_client).await;
+
     // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"Running ExecuteCommand ast-grep.applyAllFixes","type":3}}
-    let json_val: Value = serde_json::from_str(resp(&buf).unwrap()).unwrap();
-    assert_eq!(json_val["method"], "window/logMessage");
+    let resp_list = resp(&buf);
+
+    let running_command_resp = resp_list
+      .iter()
+      .find(|v| v["method"] == "window/logMessage")
+      .unwrap();
+
     assert_eq!(
-      json_val["params"]["message"],
+      running_command_resp["params"]["message"],
       "Running ExecuteCommand ast-grep.applyAllFixes"
     );
   });
