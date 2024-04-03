@@ -145,7 +145,8 @@ pub async fn request_execute_command_to_lsp(
         {
           "text": "class AstGrepTest {\n  test() {\n    console.log('Hello, world!')\n  }\n}\n\nclass AnotherCase {\n  get test2() {\n    return 123\n  }\n}\n\nconst NoProblemHere = {\n  test() {\n    if (Math.random() > 3) {\n      throw new Error('This is not an error')\n    }\n  },\n}\n",
           "uri": "file:///Users/appe/Documents/codes/ast-grep-vscode/fixture/test.ts",
-          "version": 1
+          "version": 1,
+          "languageId": "typescript"
         }
       ]
     }
@@ -167,6 +168,8 @@ fn test_basic() {
     let (mut req_client, mut resp_client) = create_lsp();
 
     let buf = initialize_lsp(&mut req_client, &mut resp_client).await;
+
+    dbg!(&buf);
     assert!(resp(&buf).unwrap().starts_with('{'));
   });
 }
@@ -182,7 +185,13 @@ fn test_code_action() {
     let buf = request_code_action_to_lsp(&mut req_client, &mut resp_client).await;
     let json_val: Value = serde_json::from_str(resp(&buf).unwrap()).unwrap();
     // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"run code action!","type":3}}
+    dbg!(String::from_utf8(buf).unwrap());
+
     assert_eq!(json_val["method"], "window/logMessage");
+    assert_eq!(
+      json_val["params"]["message"],
+      "Running CodeAction source.fixAll"
+    );
   });
 }
 
@@ -195,8 +204,13 @@ fn test_execute_apply_all_fixes() {
     assert!(resp(&buf).unwrap().starts_with('{'));
 
     let buf = request_execute_command_to_lsp(&mut req_client, &mut resp_client).await;
+    // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"Running ExecuteCommand ast-grep.applyAllFixes","type":3}}
     let json_val: Value = serde_json::from_str(resp(&buf).unwrap()).unwrap();
-    // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"run code action!","type":3}}
+    dbg!(String::from_utf8(buf).unwrap());
     assert_eq!(json_val["method"], "window/logMessage");
+    assert_eq!(
+      json_val["params"]["message"],
+      "Running ExecuteCommand ast-grep.applyAllFixes"
+    );
   });
 }

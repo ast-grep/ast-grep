@@ -199,18 +199,10 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
   }
 
   async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
-    self
-      .client
-      .log_message(MessageType::INFO, "run code action!")
-      .await;
     Ok(self.on_code_action(params).await)
   }
 
   async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<Value>> {
-    self
-      .client
-      .log_message(MessageType::INFO, "execute command!")
-      .await;
     Ok(self.on_execute_command(params).await)
   }
 }
@@ -513,18 +505,20 @@ impl<L: LSPLang> Backend<L> {
         self
           .client
           .log_message(
-            MessageType::LOG,
+            MessageType::INFO,
             format!("Running ExecuteCommand {}", command),
           )
           .await;
-        let uri = Url::parse(arguments.first()?["uri"].as_str()?).ok()?;
+
+        let text_doc: TextDocumentItem =
+          serde_json::from_value(arguments.first()?.clone()).unwrap();
+
+        let uri = text_doc.uri;
         let path = uri.to_file_path().ok()?;
-        let version = arguments.first()?["version"].as_number()?.as_i64()? as i32;
-        let text = arguments.first()?["text"].as_str()?;
+        let version = text_doc.version;
+        let text = text_doc.text;
 
-        let text_doc = TextDocumentIdentifier::new(uri.clone());
-
-        let lang = Self::infer_lang_from_uri(&text_doc.uri)?;
+        let lang = Self::infer_lang_from_uri(&uri)?;
 
         let root = AstGrep::new(text, lang);
         let versioned = VersionedAst { version, root };
@@ -536,7 +530,8 @@ impl<L: LSPLang> Backend<L> {
           .log_message(MessageType::LOG, "Parsing doc.")
           .await;
 
-        let changes = self.compute_all_fixes(text_doc, error_id_to_ranges, path);
+        let changes =
+          self.compute_all_fixes(TextDocumentIdentifier::new(uri), error_id_to_ranges, path);
         self
           .client
           .apply_edit(WorkspaceEdit {
