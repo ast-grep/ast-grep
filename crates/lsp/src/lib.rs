@@ -510,11 +510,31 @@ impl<L: LSPLang> Backend<L> {
           )
           .await;
 
-        let text_doc: TextDocumentItem =
-          serde_json::from_value(arguments.first()?.clone()).unwrap();
+        let text_doc: TextDocumentItem = match serde_json::from_value(arguments.first()?.clone()) {
+          Ok(value) => value,
+          Err(e) => {
+            self
+              .client
+              .log_message(
+                MessageType::ERROR,
+                format!("JSON deserialization error: {}", e),
+              )
+              .await;
+            return None;
+          }
+        };
 
         let uri = text_doc.uri;
-        let path = uri.to_file_path().ok()?;
+        let path = match uri.to_file_path() {
+          Ok(path) => path,
+          Err(_) => {
+            self
+              .client
+              .log_message(MessageType::ERROR, "Invalid URI format")
+              .await;
+            return None;
+          }
+        };
         let version = text_doc.version;
         let text = text_doc.text;
 
