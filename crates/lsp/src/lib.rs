@@ -509,62 +509,74 @@ impl<L: LSPLang> Backend<L> {
             format!("Running ExecuteCommand {}", command),
           )
           .await;
-
-        let text_doc: TextDocumentItem = match serde_json::from_value(arguments.first()?.clone()) {
-          Ok(value) => value,
-          Err(e) => {
-            self
-              .client
-              .log_message(
-                MessageType::ERROR,
-                format!("JSON deserialization error: {}", e),
-              )
-              .await;
-            return None;
-          }
-        };
-
-        let uri = text_doc.uri;
-        let path = match uri.to_file_path() {
-          Ok(path) => path,
-          Err(_) => {
-            self
-              .client
-              .log_message(MessageType::ERROR, "Invalid URI format")
-              .await;
-            return None;
-          }
-        };
-        let version = text_doc.version;
-        let text = text_doc.text;
-
-        let lang = Self::infer_lang_from_uri(&uri)?;
-
-        let root = AstGrep::new(text, lang);
-        let versioned = VersionedAst { version, root };
-
-        let diagnostics = self.get_diagnostics(&uri, &versioned).await?;
-        let error_id_to_ranges = build_error_id_to_ranges(diagnostics);
-        self
-          .client
-          .log_message(MessageType::LOG, "Parsing doc.")
-          .await;
-
-        let changes =
-          self.compute_all_fixes(TextDocumentIdentifier::new(uri), error_id_to_ranges, path);
-        self
-          .client
-          .apply_edit(WorkspaceEdit {
-            changes,
-            document_changes: None,
-            change_annotations: None,
-          })
-          .await
-          .ok()?;
-
+        self.on_apply_all_fix(arguments).await?;
         None
       }
-      _ => None,
+      _ => {
+        self
+          .client
+          .log_message(
+            MessageType::LOG,
+            format!("Unrecognized command: {}", command),
+          )
+          .await;
+        None
+      }
     }
+  }
+
+  async fn on_apply_all_fix(&self, arguments: Vec<Value>) -> Option<()> {
+    let text_doc: TextDocumentItem = match serde_json::from_value(arguments.first()?.clone()) {
+      Ok(value) => value,
+      Err(e) => {
+        self
+          .client
+          .log_message(
+            MessageType::ERROR,
+            format!("JSON deserialization error: {}", e),
+          )
+          .await;
+        return None;
+      }
+    };
+
+    let uri = text_doc.uri;
+    let path = match uri.to_file_path() {
+      Ok(path) => path,
+      Err(_) => {
+        self
+          .client
+          .log_message(MessageType::ERROR, "Invalid URI format")
+          .await;
+        return None;
+      }
+    };
+    let version = text_doc.version;
+    let text = text_doc.text;
+
+    let lang = Self::infer_lang_from_uri(&uri)?;
+
+    let root = AstGrep::new(text, lang);
+    let versioned = VersionedAst { version, root };
+
+    let diagnostics = self.get_diagnostics(&uri, &versioned).await?;
+    let error_id_to_ranges = build_error_id_to_ranges(diagnostics);
+    self
+      .client
+      .log_message(MessageType::LOG, "Parsing doc.")
+      .await;
+
+    let changes =
+      self.compute_all_fixes(TextDocumentIdentifier::new(uri), error_id_to_ranges, path);
+    self
+      .client
+      .apply_edit(WorkspaceEdit {
+        changes,
+        document_changes: None,
+        change_annotations: None,
+      })
+      .await
+      .ok()?;
+    None
   }
 }
