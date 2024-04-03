@@ -26,7 +26,7 @@ fn match_leaf_meta_var<'tree, D: Doc>(
       }
     }
     // Ellipsis will be matched in parent level
-    MV::Mutliple => {
+    MV::Multiple => {
       debug_assert!(false, "Ellipsis should be matched in parent level");
       Some(candidate)
     }
@@ -44,7 +44,7 @@ fn try_get_ellipsis_mode(node: &Pattern<impl Language>) -> Result<Option<String>
     return Err(());
   };
   match meta_var {
-    MetaVariable::Mutliple => Ok(None),
+    MetaVariable::Multiple => Ok(None),
     MetaVariable::MultiCapture(n) => Ok(Some(n.into())),
     _ => Err(()),
   }
