@@ -12,7 +12,7 @@ use anyhow::Context;
 use pyo3::exceptions::{PyKeyError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use pythonize::depythonize;
+use pythonize::depythonize_bound;
 
 #[pyclass(mapping)]
 pub struct SgNode {
@@ -54,31 +54,31 @@ impl SgNode {
 
   /*---------- Search Refinement  ----------*/
   #[pyo3(signature = (**kwargs))]
-  fn matches(&self, kwargs: Option<&PyDict>) -> PyResult<bool> {
+  fn matches(&self, kwargs: Option<Bound<PyDict>>) -> PyResult<bool> {
     let matcher = get_matcher_from_rule(self.inner.lang(), kwargs)?;
     Ok(self.inner.matches(matcher))
   }
 
   #[pyo3(signature = (**kwargs))]
-  fn inside(&self, kwargs: Option<&PyDict>) -> PyResult<bool> {
+  fn inside(&self, kwargs: Option<Bound<PyDict>>) -> PyResult<bool> {
     let matcher = get_matcher_from_rule(self.inner.lang(), kwargs)?;
     Ok(self.inner.inside(matcher))
   }
 
   #[pyo3(signature = (**kwargs))]
-  fn has(&self, kwargs: Option<&PyDict>) -> PyResult<bool> {
+  fn has(&self, kwargs: Option<Bound<PyDict>>) -> PyResult<bool> {
     let matcher = get_matcher_from_rule(self.inner.lang(), kwargs)?;
     Ok(self.inner.has(matcher))
   }
 
   #[pyo3(signature = (**kwargs))]
-  fn precedes(&self, kwargs: Option<&PyDict>) -> PyResult<bool> {
+  fn precedes(&self, kwargs: Option<Bound<PyDict>>) -> PyResult<bool> {
     let matcher = get_matcher_from_rule(self.inner.lang(), kwargs)?;
     Ok(self.inner.precedes(matcher))
   }
 
   #[pyo3(signature = (**kwargs))]
-  fn follows(&self, kwargs: Option<&PyDict>) -> PyResult<bool> {
+  fn follows(&self, kwargs: Option<Bound<PyDict>>) -> PyResult<bool> {
     let matcher = get_matcher_from_rule(self.inner.lang(), kwargs)?;
     Ok(self.inner.follows(matcher))
   }
@@ -122,7 +122,11 @@ impl SgNode {
   }
 
   #[pyo3(signature = (config=None, **rule))]
-  fn find(&self, config: Option<&PyDict>, rule: Option<&PyDict>) -> PyResult<Option<Self>> {
+  fn find(
+    &self,
+    config: Option<Bound<PyDict>>,
+    rule: Option<Bound<PyDict>>,
+  ) -> PyResult<Option<Self>> {
     let matcher = self.get_matcher(config, rule)?;
     if let Some(inner) = self.inner.find(matcher) {
       Ok(Some(Self {
@@ -135,7 +139,11 @@ impl SgNode {
   }
 
   #[pyo3(signature = (config=None, **rule))]
-  fn find_all(&self, config: Option<&PyDict>, rule: Option<&PyDict>) -> PyResult<Vec<Self>> {
+  fn find_all(
+    &self,
+    config: Option<Bound<PyDict>>,
+    rule: Option<Bound<PyDict>>,
+  ) -> PyResult<Vec<Self>> {
     let matcher = self.get_matcher(config, rule)?;
     Ok(
       self
@@ -264,8 +272,8 @@ impl SgNode {
 impl SgNode {
   fn get_matcher(
     &self,
-    config: Option<&PyDict>,
-    kwargs: Option<&PyDict>,
+    config: Option<Bound<PyDict>>,
+    kwargs: Option<Bound<PyDict>>,
   ) -> PyResult<RuleCore<SupportLang>> {
     let lang = self.inner.lang();
     let config = if let Some(config) = config {
@@ -281,12 +289,12 @@ impl SgNode {
   }
 }
 
-fn config_from_dict(dict: &PyDict) -> PyResult<SerializableRuleCore> {
-  Ok(depythonize(dict)?)
+fn config_from_dict(dict: Bound<PyDict>) -> PyResult<SerializableRuleCore> {
+  Ok(depythonize_bound(dict.into_any())?)
 }
 
-fn config_from_rule(dict: &PyDict) -> PyResult<SerializableRuleCore> {
-  let rule = depythonize(dict)?;
+fn config_from_rule(dict: Bound<PyDict>) -> PyResult<SerializableRuleCore> {
+  let rule = depythonize_bound(dict.into_any())?;
   Ok(SerializableRuleCore {
     rule,
     constraints: None,
@@ -298,7 +306,7 @@ fn config_from_rule(dict: &PyDict) -> PyResult<SerializableRuleCore> {
 
 fn get_matcher_from_rule(
   lang: &SupportLang,
-  dict: Option<&PyDict>,
+  dict: Option<Bound<PyDict>>,
 ) -> PyResult<RuleCore<SupportLang>> {
   let rule = dict.ok_or_else(|| PyErr::new::<PyValueError, _>("rule must not be empty"))?;
   let env = DeserializeEnv::new(*lang);
