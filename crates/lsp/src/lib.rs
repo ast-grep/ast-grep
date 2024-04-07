@@ -302,7 +302,7 @@ impl<L: LSPLang> Backend<L> {
       map: DashMap::new(),
     }
   }
-  async fn get_diagnostics(
+  fn get_diagnostics(
     &self,
     uri: &Url,
     versioned: &VersionedAst<StrDoc<L>>,
@@ -329,10 +329,7 @@ impl<L: LSPLang> Backend<L> {
   }
 
   async fn publish_diagnostics(&self, uri: Url, versioned: &VersionedAst<StrDoc<L>>) -> Option<()> {
-    let diagnostics = self
-      .get_diagnostics(&uri, versioned)
-      .await
-      .unwrap_or_default();
+    let diagnostics = self.get_diagnostics(&uri, versioned).unwrap_or_default();
     self
       .client
       .publish_diagnostics(uri, diagnostics, Some(versioned.version))
@@ -526,7 +523,8 @@ impl<L: LSPLang> Backend<L> {
   }
 
   async fn on_apply_all_fix(&self, arguments: Vec<Value>) -> Option<()> {
-    let text_doc: TextDocumentItem = match serde_json::from_value(arguments.first()?.clone()) {
+    let first = arguments.first()?.clone();
+    let text_doc: TextDocumentItem = match serde_json::from_value(first) {
       Ok(value) => value,
       Err(e) => {
         self
@@ -559,7 +557,7 @@ impl<L: LSPLang> Backend<L> {
     let root = AstGrep::new(text, lang);
     let versioned = VersionedAst { version, root };
 
-    let diagnostics = self.get_diagnostics(&uri, &versioned).await?;
+    let diagnostics = self.get_diagnostics(&uri, &versioned)?;
     let error_id_to_ranges = build_error_id_to_ranges(diagnostics);
     self
       .client
@@ -568,15 +566,12 @@ impl<L: LSPLang> Backend<L> {
 
     let changes =
       self.compute_all_fixes(TextDocumentIdentifier::new(uri), error_id_to_ranges, path);
-    self
-      .client
-      .apply_edit(WorkspaceEdit {
-        changes,
-        document_changes: None,
-        change_annotations: None,
-      })
-      .await
-      .ok()?;
+    let workspace_edit = WorkspaceEdit {
+      changes,
+      document_changes: None,
+      change_annotations: None,
+    };
+    self.client.apply_edit(workspace_edit).await.ok()?;
     None
   }
 }
