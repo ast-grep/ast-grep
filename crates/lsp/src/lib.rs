@@ -499,14 +499,7 @@ impl<L: LSPLang> Backend<L> {
 
     match command.as_ref() {
       APPLY_ALL_FIXES => {
-        self
-          .client
-          .log_message(
-            MessageType::INFO,
-            format!("Running ExecuteCommand {}", command),
-          )
-          .await;
-        self.on_apply_all_fix(arguments).await?;
+        self.on_apply_all_fix(command, arguments).await?;
         None
       }
       _ => {
@@ -522,47 +515,23 @@ impl<L: LSPLang> Backend<L> {
     }
   }
 
-  async fn on_apply_all_fix(&self, arguments: Vec<Value>) -> Option<()> {
-    let first = arguments.first()?.clone();
-    let text_doc: TextDocumentItem = match serde_json::from_value(first) {
-      Ok(value) => value,
-      Err(e) => {
-        self
-          .client
-          .log_message(
-            MessageType::ERROR,
-            format!("JSON deserialization error: {}", e),
-          )
-          .await;
-        return None;
-      }
-    };
-
+  fn on_apply_all_fix_impl(&self, first: Value) -> std::result::Result<WorkspaceEdit, LspError> {
+    let text_doc: TextDocumentItem =
+      serde_json::from_value(first).map_err(LspError::JSONDecodeError)?;
     let uri = text_doc.uri;
-    let path = match uri.to_file_path() {
-      Ok(path) => path,
-      Err(_) => {
-        self
-          .client
-          .log_message(MessageType::ERROR, "Invalid URI format")
-          .await;
-        return None;
-      }
+    let path = uri.to_file_path().map_err(|_| LspError::InvalidFileURI)?;
+    let Some(lang) = Self::infer_lang_from_uri(&uri) else {
+      return Err(LspError::UnsupportedFileType);
     };
+
     let version = text_doc.version;
-    let text = text_doc.text;
-
-    let lang = Self::infer_lang_from_uri(&uri)?;
-
-    let root = AstGrep::new(text, lang);
+    let root = AstGrep::new(text_doc.text, lang);
     let versioned = VersionedAst { version, root };
 
-    let diagnostics = self.get_diagnostics(&uri, &versioned)?;
+    let Some(diagnostics) = self.get_diagnostics(&uri, &versioned) else {
+      return Err(LspError::NoActionableFix);
+    };
     let error_id_to_ranges = build_error_id_to_ranges(diagnostics);
-    self
-      .client
-      .log_message(MessageType::LOG, "Parsing doc.")
-      .await;
 
     let changes =
       self.compute_all_fixes(TextDocumentIdentifier::new(uri), error_id_to_ranges, path);
@@ -571,7 +540,65 @@ impl<L: LSPLang> Backend<L> {
       document_changes: None,
       change_annotations: None,
     };
+    Ok(workspace_edit)
+  }
+
+  async fn on_apply_all_fix(&self, command: String, arguments: Vec<Value>) -> Option<()> {
+    self
+      .client
+      .log_message(
+        MessageType::INFO,
+        format!("Running ExecuteCommand {}", command),
+      )
+      .await;
+    let first = arguments.first()?.clone();
+    let workspace_edit = match self.on_apply_all_fix_impl(first) {
+      Ok(workspace_edit) => workspace_edit,
+      Err(error) => {
+        self.report_error(error).await;
+        return None;
+      }
+    };
     self.client.apply_edit(workspace_edit).await.ok()?;
     None
   }
+
+  async fn report_error(&self, error: LspError) {
+    match error {
+      LspError::JSONDecodeError(e) => {
+        self
+          .client
+          .log_message(
+            MessageType::ERROR,
+            format!("JSON deserialization error: {}", e),
+          )
+          .await;
+      }
+      LspError::InvalidFileURI => {
+        self
+          .client
+          .log_message(MessageType::ERROR, "Invalid URI format")
+          .await;
+      }
+      LspError::UnsupportedFileType => {
+        self
+          .client
+          .log_message(MessageType::ERROR, "Unsupported file type")
+          .await;
+      }
+      LspError::NoActionableFix => {
+        self
+          .client
+          .log_message(MessageType::LOG, "No actionable fix")
+          .await;
+      }
+    }
+  }
+}
+
+enum LspError {
+  JSONDecodeError(serde_json::Error),
+  InvalidFileURI,
+  UnsupportedFileType,
+  NoActionableFix,
 }
