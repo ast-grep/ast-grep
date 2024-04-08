@@ -2,6 +2,7 @@ use super::SgLang;
 use ignore::types::{Types, TypesBuilder};
 use std::collections::HashMap;
 use std::path::Path;
+use std::ptr::{addr_of, addr_of_mut};
 use std::str::FromStr;
 
 use crate::error::ErrorContext as EC;
@@ -23,7 +24,7 @@ pub unsafe fn register(regs: LanguageGlobs) -> Result<()> {
     let types = build_types(&lang_name, globs)?;
     lang_globs.push((lang, types));
   }
-  _ = std::mem::replace(&mut LANG_GLOBS, lang_globs);
+  _ = std::mem::replace(&mut *addr_of_mut!(LANG_GLOBS), lang_globs);
   Ok(())
 }
 
@@ -49,7 +50,7 @@ fn add_types(builder: &mut TypesBuilder, types: &Types) {
 }
 
 fn get_types(lang: &SgLang) -> Option<&Types> {
-  for (l, types) in unsafe { &LANG_GLOBS } {
+  for (l, types) in unsafe { &*addr_of!(LANG_GLOBS) } {
     if l == lang {
       return Some(types);
     }
@@ -69,7 +70,7 @@ pub fn merge_types(lang: &SgLang, type1: Types) -> Types {
 }
 
 pub fn from_path(p: &Path) -> Option<SgLang> {
-  for (lang, types) in unsafe { &LANG_GLOBS } {
+  for (lang, types) in unsafe { &*addr_of!(LANG_GLOBS) } {
     if types.matched(p, false).is_whitelist() {
       return Some(*lang);
     }
@@ -102,7 +103,7 @@ html: ['*.vue', '*.svelte']";
     let globs = get_globs();
     unsafe {
       // cleanup
-      std::mem::take(&mut LANG_GLOBS);
+      std::mem::take(&mut *addr_of_mut!(LANG_GLOBS));
       register(globs)?;
       assert_eq!(LANG_GLOBS.len(), 2);
     }
@@ -115,7 +116,7 @@ html: ['*.vue', '*.svelte']";
     globs.insert("php".into(), vec!["bestlang".into()]);
     let ret = unsafe {
       // cleanup
-      std::mem::take(&mut LANG_GLOBS);
+      std::mem::take(&mut *addr_of_mut!(LANG_GLOBS));
       register(globs)
     };
     let err = ret.expect_err("should wrong");
@@ -139,7 +140,7 @@ html: ['*.vue', '*.svelte']";
     let globs = get_globs();
     unsafe {
       // cleanup
-      std::mem::take(&mut LANG_GLOBS);
+      std::mem::take(&mut *addr_of_mut!(LANG_GLOBS));
       register(globs)?;
       assert_eq!(LANG_GLOBS.len(), 2);
     }

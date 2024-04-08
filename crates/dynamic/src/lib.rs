@@ -10,6 +10,7 @@ use tree_sitter_native::{Language as NativeTS, LANGUAGE_VERSION, MIN_COMPATIBLE_
 use std::borrow::Cow;
 use std::fs::canonicalize;
 use std::path::{Path, PathBuf};
+use std::ptr::{addr_of, addr_of_mut};
 use std::str::FromStr;
 
 type LangIndex = u32;
@@ -36,7 +37,7 @@ impl DynamicLang {
   pub fn file_types(&self) -> Types {
     let mut builder = TypesBuilder::new();
     let inner = self.inner();
-    let mapping = unsafe { &LANG_INDEX };
+    let mapping = unsafe { &*addr_of!(LANG_INDEX) };
     for (ext, i) in mapping.iter() {
       if *i == self.index {
         builder
@@ -156,8 +157,8 @@ impl DynamicLang {
     for reg in regs {
       Self::register_one(reg, &mut langs, &mut mapping)?;
     }
-    _ = std::mem::replace(&mut DYNAMIC_LANG, langs);
-    _ = std::mem::replace(&mut LANG_INDEX, mapping);
+    _ = std::mem::replace(&mut *addr_of_mut!(DYNAMIC_LANG), langs);
+    _ = std::mem::replace(&mut *addr_of_mut!(LANG_INDEX), mapping);
     Ok(())
   }
 
@@ -194,7 +195,7 @@ impl DynamicLang {
   }
 
   fn langs() -> &'static Vec<Inner> {
-    unsafe { &DYNAMIC_LANG }
+    unsafe { &*addr_of!(DYNAMIC_LANG) }
   }
 }
 
@@ -206,7 +207,7 @@ impl Language for DynamicLang {
 
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     let ext = path.as_ref().extension()?.to_str()?;
-    let mapping = unsafe { &LANG_INDEX };
+    let mapping = unsafe { &*addr_of!(LANG_INDEX) };
     let langs = Self::langs();
     mapping.iter().find_map(|(p, idx)| {
       if p == ext {
