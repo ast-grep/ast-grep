@@ -449,7 +449,7 @@ impl<L: LSPLang> Backend<L> {
       change_annotations: None,
     });
     let action = CodeAction {
-      title: "Source Code fix action".to_string(),
+      title: "Fix with ast-grep".to_string(),
       command: None,
       diagnostics: None,
       edit,
