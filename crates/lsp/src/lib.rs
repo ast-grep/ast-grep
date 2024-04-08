@@ -441,27 +441,6 @@ impl<L: LSPLang> Backend<L> {
     let diagnostics = params.context.diagnostics;
     let error_id_to_ranges = build_error_id_to_ranges(diagnostics);
     let mut response = CodeActionResponse::new();
-
-    let code_action = params.context.only.as_ref()?.first()?.clone();
-
-    // we only handle these code_actions
-    // 1. QuickFix
-    // 2. "source.fixAll" and "source.fixAll.ast-grep"
-    if code_action != CodeActionKind::QUICKFIX
-      && code_action != CodeActionKind::SOURCE_FIX_ALL
-      && code_action != SOURCE_FIX_ALL_AST_GREP
-    {
-      return Some(response);
-    }
-
-    self
-      .client
-      .log_message(
-        MessageType::LOG,
-        format!("Running CodeAction {}", code_action.as_str()),
-      )
-      .await;
-
     let changes = self.compute_all_fixes(text_doc, error_id_to_ranges, path);
 
     let edit = Some(WorkspaceEdit {
@@ -475,7 +454,7 @@ impl<L: LSPLang> Backend<L> {
       diagnostics: None,
       edit,
       disabled: None,
-      kind: Some(code_action),
+      kind: Some(CodeActionKind::QUICKFIX),
       is_preferred: Some(true),
       data: None,
     };
