@@ -15,6 +15,7 @@ const UTIL_GUIDE: Option<&str> = Some("/guide/rule-config/utility-rule.html");
 const EDITOR_INTEGRATION: Option<&str> = Some("/guide/editor-integration.html");
 const LANGUAGE_LIST: Option<&str> = Some("/reference/languages.html");
 const PLAYGROUND: Option<&str> = Some("/playground.html");
+const UTILITY_RULE: Option<&str> = Some("/guide/rule-config/utility-rule.html");
 
 /// AppError stands for ast-grep command line usage.
 /// It provides abstraction around exit code, context,
@@ -28,6 +29,7 @@ pub enum ErrorContext {
   ReadRule(PathBuf),
   ParseRule(PathBuf),
   ParseTest(PathBuf),
+  InvalidGlobalUtils,
   GlobPattern,
   UnrecognizableLanguage(String),
   // Run
@@ -68,7 +70,8 @@ impl ErrorContext {
       NoTestDirConfigured | NoUtilDirConfigured => 4,
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 5,
       StdInIsNotInteractive => 6,
-      ParseTest(_) | ParseRule(_) | ParseConfiguration | GlobPattern | ParsePattern => 8,
+      ParseTest(_) | ParseRule(_) | ParseConfiguration | GlobPattern | ParsePattern
+      | InvalidGlobalUtils => 8,
       CannotInferShell => 10,
       ProjectAlreadyExist | FileAlreadyExist(_) => 17,
       InsufficientCLIArgument(_) => 22,
@@ -143,6 +146,11 @@ impl ErrorMessage {
         "Cannot parse glob pattern in config",
         "The pattern in files/ignore is not a valid glob. Please refer to doc and fix the error.",
         CONFIG_GUIDE,
+      ),
+      InvalidGlobalUtils => Self::new(
+        "Error occurs when parsing global utility rules",
+        "Please check the YAML rules inside the rule directory",
+        UTILITY_RULE,
       ),
       UnrecognizableLanguage(lang) => Self::new(
         format!("Language `{lang}` is not supported"),

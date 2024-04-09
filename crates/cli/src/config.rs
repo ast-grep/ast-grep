@@ -114,7 +114,7 @@ fn find_util_rules(
       utils.push(new_configs);
     }
   }
-  let ret = DeserializeEnv::parse_global_utils(utils).context("TODO!")?;
+  let ret = DeserializeEnv::parse_global_utils(utils).context(EC::InvalidGlobalUtils)?;
   Ok(ret)
 }
 
