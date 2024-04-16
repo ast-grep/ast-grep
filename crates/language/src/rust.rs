@@ -7,6 +7,11 @@ fn test_match(s1: &str, s2: &str) {
   test_match_lang(s1, s2, Rust)
 }
 
+fn test_non_match(query: &str, source: &str) {
+  use crate::test::test_non_match_lang;
+  test_non_match_lang(query, source, Rust);
+}
+
 #[test]
 fn test_rust_pattern() {
   // fix #6
@@ -28,6 +33,16 @@ patterns = match config.include.clone() {
 };
 }"#,
   );
+}
+
+// it is fixed in https://github.com/tree-sitter/tree-sitter-rust/issues/218
+// but not released yet
+#[test]
+#[ignore]
+fn test_issue_1057() {
+  // fix #1057
+  test_match("foo(\"meaning\");", "fn t() { foo(\"meaning\");}");
+  test_non_match("foo(\"meaning\");", "fn t() { foo(\"service\");}");
 }
 
 #[test]
