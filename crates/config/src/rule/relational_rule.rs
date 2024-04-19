@@ -19,16 +19,30 @@ pub struct Relation {
   pub field: Option<String>,
 }
 
+fn field_name_to_id<L: Language>(
+  field: Option<String>,
+  env: &DeserializeEnv<L>,
+) -> Result<Option<u16>, RuleSerializeError> {
+  let Some(field) = field else {
+    return Ok(None);
+  };
+  let ts_lang = env.lang.get_ts_language();
+  match ts_lang.field_id_for_name(&field) {
+    Some(id) => Ok(Some(id)),
+    None => Err(RuleSerializeError::InvalidField(field)),
+  }
+}
+
 pub struct Inside<L: Language> {
   outer: Rule<L>,
-  field: Option<String>,
+  field: Option<u16>,
   stop_by: StopBy<L>,
 }
 impl<L: Language> Inside<L> {
   pub fn try_new(relation: Relation, env: &DeserializeEnv<L>) -> Result<Self, RuleSerializeError> {
     Ok(Self {
       stop_by: StopBy::try_from(relation.stop_by, env)?,
-      field: relation.field,
+      field: field_name_to_id(relation.field, env)?,
       outer: env.deserialize_rule(relation.rule)?, // TODO
     })
   }
@@ -42,12 +56,12 @@ impl<L: Language> Matcher<L> for Inside<L> {
   ) -> Option<Node<'tree, D>> {
     let parent = || node.parent();
     let ancestors = || node.ancestors();
-    if let Some(field) = &self.field {
+    if let Some(field) = self.field {
       let mut last_id = node.node_id();
       let finder = move |nd: Node<'tree, D>| {
         let expect_id = last_id;
         last_id = nd.node_id();
-        let n = nd.field(field)?;
+        let n = nd.child_by_field_id(field)?;
         if n.node_id() != expect_id {
           None
         } else {
@@ -65,14 +79,14 @@ impl<L: Language> Matcher<L> for Inside<L> {
 pub struct Has<L: Language> {
   inner: Rule<L>,
   stop_by: StopBy<L>,
-  field: Option<String>,
+  field: Option<u16>,
 }
 impl<L: Language> Has<L> {
   pub fn try_new(relation: Relation, env: &DeserializeEnv<L>) -> Result<Self, RuleSerializeError> {
     Ok(Self {
       stop_by: StopBy::try_from(relation.stop_by, env)?,
       inner: env.deserialize_rule(relation.rule)?,
-      field: relation.field,
+      field: field_name_to_id(relation.field, env)?,
     })
   }
 }
@@ -83,8 +97,8 @@ impl<L: Language> Matcher<L> for Has<L> {
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    if let Some(field) = &self.field {
-      let nd = node.field(field)?;
+    if let Some(field) = self.field {
+      let nd = node.child_by_field_id(field)?;
       return match &self.stop_by {
         StopBy::Neighbor => self.inner.match_node_with_env(nd, env),
         StopBy::End => nd
@@ -551,7 +565,7 @@ mod test {
     let inside = Inside {
       stop_by: StopBy::End,
       outer: Rule::Kind(KindMatcher::new("for_statement", TS::Tsx)),
-      field: Some("condition".into()),
+      field: TS::Tsx.get_ts_language().field_id_for_name("condition"),
     };
     let rule = make_rule("a = 1", Rule::Inside(Box::new(inside)));
     test_found(&["for (;a = 1;) {}"], &rule);
@@ -563,7 +577,7 @@ mod test {
     let has = Has {
       stop_by: StopBy::End,
       inner: Rule::Pattern(Pattern::new("a = 1", TS::Tsx)),
-      field: Some("condition".into()),
+      field: TS::Tsx.get_ts_language().field_id_for_name("condition"),
     };
     let rule = o::All::new(vec![
       Rule::Kind(KindMatcher::new("for_statement", TS::Tsx)),

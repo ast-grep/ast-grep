@@ -271,6 +271,8 @@ pub enum RuleSerializeError {
   MatchesReference(#[from] ReferentRuleError),
   #[error("field is only supported in has/inside.")]
   FieldNotSupported,
+  #[error("Relational rule contains invalid field {0}.")]
+  InvalidField(String),
 }
 
 // TODO: implement positive/non positive
