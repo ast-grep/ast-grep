@@ -308,11 +308,15 @@ impl<'r, D: Doc> Node<'r, D> {
   }
 
   pub fn field(&self, name: &str) -> Option<Self> {
-    let mut cursor = self.inner.walk();
-    let inner = self
-      .inner
-      .children_by_field_name(name, &mut cursor)
-      .next()?;
+    let inner = self.inner.child_by_field_name(name)?;
+    Some(Node {
+      inner,
+      root: self.root,
+    })
+  }
+
+  pub fn child_by_field_id(&self, field_id: u16) -> Option<Self> {
+    let inner = self.inner.child_by_field_id(field_id)?;
     Some(Node {
       inner,
       root: self.root,
@@ -633,5 +637,23 @@ if (a) {
     let root = root.root();
     let node = root.find("Some(2);").expect("should exist");
     assert!(node.follows("Some(Some(1));"));
+  }
+
+  #[test]
+  fn test_field() {
+    let root = Tsx.ast_grep("class A{}");
+    let root = root.root();
+    let node = root.find("class $C {}").expect("should exist");
+    assert!(node.field("name").is_some());
+    assert!(node.field("none").is_none());
+  }
+  #[test]
+  fn test_child_by_field_id() {
+    let root = Tsx.ast_grep("class A{}");
+    let root = root.root();
+    let node = root.find("class $C {}").expect("should exist");
+    let id = Tsx.get_ts_language().field_id_for_name("name").unwrap();
+    assert!(node.child_by_field_id(id).is_some());
+    assert!(node.child_by_field_id(id + 1).is_none());
   }
 }
