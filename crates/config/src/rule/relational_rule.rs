@@ -586,4 +586,20 @@ mod test {
     test_found(&["for (;a = 1;) {}"], &rule);
     test_not_found(&["for (;; a = 1) {}", "for (;;) { a = 1}"], &rule);
   }
+
+  #[test]
+  fn test_invalid_field() {
+    let env = DeserializeEnv::new(TS::Tsx);
+    let relation = Relation {
+      rule: crate::from_str("pattern: test").unwrap(),
+      stop_by: SerializableStopBy::End,
+      field: Some("invalid_field".to_string()),
+    };
+    let inside = Inside::try_new(relation, &env);
+    assert!(inside.is_err());
+    match inside {
+      Err(RuleSerializeError::InvalidField(_)) => {}
+      _ => panic!("expected InvalidField error"),
+    }
+  }
 }
