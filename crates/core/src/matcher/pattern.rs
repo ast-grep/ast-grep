@@ -125,6 +125,42 @@ impl<L: Language> Pattern<L> {
       _ => false,
     }
   }
+
+  /// Get all defined variables in the pattern.
+  /// Used for validating rules and report undefined variables.
+  pub fn defined_vars(&self) -> Vec<&str> {
+    let mut vars = Vec::new();
+    collect_vars(self, &mut vars);
+    vars
+  }
+}
+
+fn meta_var_name(meta_var: &MetaVariable) -> Option<&str> {
+  use MetaVariable as MV;
+  match meta_var {
+    MV::Capture(name, _) => Some(name),
+    MV::MultiCapture(name) => Some(name),
+    MV::Dropped(_) => None,
+    MV::Multiple => None,
+  }
+}
+
+fn collect_vars<'p, L: Language>(p: &'p Pattern<L>, vars: &mut Vec<&'p str>) {
+  match p {
+    Pattern::MetaVar { meta_var, .. } => {
+      if let Some(name) = meta_var_name(meta_var) {
+        vars.push(name);
+      }
+    }
+    Pattern::Terminal { .. } => {
+      // collect nothing for terminal nodes!
+    }
+    Pattern::Internal { children, .. } => {
+      for c in children {
+        collect_vars(c, vars);
+      }
+    }
+  }
 }
 
 impl<L: Language> Pattern<L> {
