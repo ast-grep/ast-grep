@@ -23,7 +23,7 @@ tree-sitter-c-sharp = { version = "0.20.0", optional = true }
 tree-sitter-css = { version = "0.20.0", optional = true }
 tree-sitter-dart= { version = "0.0.3", optional = true }
 tree-sitter-elixir = { version = "0.1.1", optional = true }
-tree-sitter-go = { version = "0.20.0", optional = true }
+tree-sitter-go = { version = "0.21.0", optional = true }
 tree-sitter-html = { version = "0.20.0", optional = true }
 tree-sitter-java = { version = "0.20.2", optional = true }
 tree-sitter-javascript = { version = "0.20.4", optional = true }
