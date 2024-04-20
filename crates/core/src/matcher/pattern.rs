@@ -6,9 +6,11 @@ use crate::source::TSParseError;
 use crate::{Doc, Node, Root, StrDoc};
 
 use bit_set::BitSet;
-use std::borrow::Cow;
-use std::marker::PhantomData;
 use thiserror::Error;
+
+use std::borrow::Cow;
+use std::collections::HashSet;
+use std::marker::PhantomData;
 
 #[derive(Clone)]
 pub enum Pattern<L: Language> {
@@ -128,8 +130,8 @@ impl<L: Language> Pattern<L> {
 
   /// Get all defined variables in the pattern.
   /// Used for validating rules and report undefined variables.
-  pub fn defined_vars(&self) -> Vec<&str> {
-    let mut vars = Vec::new();
+  pub fn defined_vars(&self) -> HashSet<&str> {
+    let mut vars = HashSet::new();
     collect_vars(self, &mut vars);
     vars
   }
@@ -145,11 +147,11 @@ fn meta_var_name(meta_var: &MetaVariable) -> Option<&str> {
   }
 }
 
-fn collect_vars<'p, L: Language>(p: &'p Pattern<L>, vars: &mut Vec<&'p str>) {
+fn collect_vars<'p, L: Language>(p: &'p Pattern<L>, vars: &mut HashSet<&'p str>) {
   match p {
     Pattern::MetaVar { meta_var, .. } => {
       if let Some(name) = meta_var_name(meta_var) {
-        vars.push(name);
+        vars.insert(name);
       }
     }
     Pattern::Terminal { .. } => {
@@ -482,5 +484,34 @@ mod test {
       format!("{pattern:?}"),
       "[var, [Capture(\"A\", true), =, 1]]"
     );
+  }
+
+  fn defined_vars(s: &str) -> Vec<String> {
+    let pattern = Pattern::str(s, Tsx);
+    let mut vars: Vec<_> = pattern
+      .defined_vars()
+      .into_iter()
+      .map(String::from)
+      .collect();
+    vars.sort();
+    vars
+  }
+
+  #[test]
+  fn test_extract_meta_var_from_pattern() {
+    let vars = defined_vars("var $A = 1");
+    assert_eq!(vars, ["A"]);
+  }
+
+  #[test]
+  fn test_extract_complex_meta_var() {
+    let vars = defined_vars("function $FUNC($$$ARGS): $RET { $$$BODY }");
+    assert_eq!(vars, ["ARGS", "BODY", "FUNC", "RET"]);
+  }
+
+  #[test]
+  fn test_extract_duplicate_meta_var() {
+    let vars = defined_vars("var $A = $A");
+    assert_eq!(vars, ["A"]);
   }
 }
