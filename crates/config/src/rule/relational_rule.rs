@@ -638,4 +638,30 @@ mod test {
       _ => panic!("expected InvalidField error"),
     }
   }
+
+  #[test]
+  fn test_defined_vars() {
+    let precedes = Precedes {
+      later: Rule::Pattern(Pattern::new("var a = $A", TS::Tsx)),
+      stop_by: StopBy::Rule(Rule::Pattern(Pattern::new("var b = $B", TS::Tsx))),
+    };
+    assert_eq!(precedes.defined_vars(), ["A", "B"].into_iter().collect());
+    let follows = Follows {
+      former: Rule::Pattern(Pattern::new("var a = 123", TS::Tsx)),
+      stop_by: StopBy::Rule(Rule::Pattern(Pattern::new("var b = $B", TS::Tsx))),
+    };
+    assert_eq!(follows.defined_vars(), ["B"].into_iter().collect());
+    let inside = Inside {
+      stop_by: StopBy::Rule(Rule::Pattern(Pattern::new("var $C", TS::Tsx))),
+      outer: Rule::Pattern(Pattern::new("var a = $A", TS::Tsx)),
+      field: TS::Tsx.get_ts_language().field_id_for_name("condition"),
+    };
+    assert_eq!(inside.defined_vars(), ["A", "C"].into_iter().collect());
+    let has = Has {
+      stop_by: StopBy::Rule(Rule::Kind(KindMatcher::new("for_statement", TS::Tsx))),
+      inner: Rule::Pattern(Pattern::new("var a = $A", TS::Tsx)),
+      field: TS::Tsx.get_ts_language().field_id_for_name("condition"),
+    };
+    assert_eq!(has.defined_vars(), ["A"].into_iter().collect());
+  }
 }
