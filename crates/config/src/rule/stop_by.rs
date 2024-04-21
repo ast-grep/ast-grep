@@ -132,6 +132,7 @@ fn inclusive_until<D: Doc>(rule: &Rule<D::Lang>) -> impl FnMut(&Node<D>) -> bool
 mod test {
   use super::*;
   use crate::from_str;
+  use crate::test::TypeScript;
 
   #[test]
   fn test_relational() {
@@ -175,5 +176,26 @@ inside:
     assert!(err.contains("ddd"));
     let err = cast_err!(to_stop_by("pattern: 1233"));
     assert!(err.to_string().contains("variant"));
+  }
+
+  fn parse_stop_by(src: &str) -> StopBy<TypeScript> {
+    let stop_by = to_stop_by(src).expect("cannot parse stopBy");
+    StopBy::try_from(stop_by, &DeserializeEnv::new(TypeScript::Tsx)).expect("cannot convert")
+  }
+
+  #[test]
+  fn test_stop_by_no_defined_vars() {
+    let stop_by = parse_stop_by("neighbor");
+    assert!(stop_by.defined_vars().is_empty());
+    let stop_by = parse_stop_by("end");
+    assert!(stop_by.defined_vars().is_empty());
+  }
+
+  #[test]
+  fn test_stop_by_defined_vars() {
+    let stop_by = parse_stop_by("kind: class");
+    assert_eq!(stop_by.defined_vars(), HashSet::new());
+    let stop_by = parse_stop_by("pattern: $A");
+    assert_eq!(stop_by.defined_vars(), ["A"].into_iter().collect());
   }
 }
