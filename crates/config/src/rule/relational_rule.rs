@@ -8,6 +8,7 @@ use ast_grep_core::{Doc, Matcher, Node};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use std::collections::HashSet;
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -45,6 +46,15 @@ impl<L: Language> Inside<L> {
       field: field_name_to_id(relation.field, env)?,
       outer: env.deserialize_rule(relation.rule)?, // TODO
     })
+  }
+
+  pub fn defined_vars(&self) -> HashSet<&str> {
+    self
+      .outer
+      .defined_vars()
+      .union(&self.stop_by.defined_vars())
+      .copied()
+      .collect()
   }
 }
 
@@ -88,6 +98,15 @@ impl<L: Language> Has<L> {
       inner: env.deserialize_rule(relation.rule)?,
       field: field_name_to_id(relation.field, env)?,
     })
+  }
+
+  pub fn defined_vars(&self) -> HashSet<&str> {
+    self
+      .inner
+      .defined_vars()
+      .union(&self.stop_by.defined_vars())
+      .copied()
+      .collect()
   }
 }
 
@@ -155,6 +174,15 @@ impl<L: Language> Precedes<L> {
       later: env.deserialize_rule(relation.rule)?,
     })
   }
+
+  pub fn defined_vars(&self) -> HashSet<&str> {
+    self
+      .later
+      .defined_vars()
+      .union(&self.stop_by.defined_vars())
+      .copied()
+      .collect()
+  }
 }
 impl<L: Language> Matcher<L> for Precedes<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
@@ -182,6 +210,14 @@ impl<L: Language> Follows<L> {
       stop_by: StopBy::try_from(relation.stop_by, env)?,
       former: env.deserialize_rule(relation.rule)?,
     })
+  }
+  pub fn defined_vars(&self) -> HashSet<&str> {
+    self
+      .former
+      .defined_vars()
+      .union(&self.stop_by.defined_vars())
+      .copied()
+      .collect()
   }
 }
 impl<L: Language> Matcher<L> for Follows<L> {
