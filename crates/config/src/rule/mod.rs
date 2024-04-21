@@ -523,4 +523,17 @@ inside:
     assert!(rules[0].is_atomic());
     assert!(rules[1].is_relational());
   }
+
+  #[test]
+  fn test_defined_vars() {
+    let src = r"
+pattern: var $A = 123
+inside:
+  pattern: var $B = 456
+";
+    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let rule = deserialize_rule(rule, &env).expect("should deserialize");
+    assert_eq!(rule.defined_vars(), ["A", "B"].into_iter().collect());
+  }
 }
