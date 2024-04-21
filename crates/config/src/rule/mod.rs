@@ -21,6 +21,7 @@ use bit_set::BitSet;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use std::collections::HashSet;
 use thiserror::Error;
 
 /// A rule object to find matching AST nodes. We have three categories of rules in ast-grep.
@@ -179,6 +180,7 @@ impl<L: Language> Rule<L> {
     matches!(self, All(_) | Any(_) | Not(_) | Matches(_))
   }
 
+  /// Check if it has a cyclic referent rule with the id.
   pub(crate) fn check_cyclic(&self, id: &str) -> bool {
     match self {
       Rule::All(all) => all.inner().iter().any(|r| r.check_cyclic(id)),
@@ -189,6 +191,22 @@ impl<L: Language> Rule<L> {
         debug_assert!(!rule.is_composite());
         false
       }
+    }
+  }
+
+  pub fn defined_vars(&self) -> HashSet<&str> {
+    match self {
+      Rule::Pattern(p) => p.defined_vars(),
+      Rule::Kind(_) => HashSet::new(),
+      Rule::Regex(_) => HashSet::new(),
+      Rule::Has(c) => c.defined_vars(),
+      Rule::Inside(p) => p.defined_vars(),
+      Rule::Precedes(f) => f.defined_vars(),
+      Rule::Follows(f) => f.defined_vars(),
+      Rule::All(sub) => sub.inner().iter().flat_map(|r| r.defined_vars()).collect(),
+      Rule::Any(sub) => sub.inner().iter().flat_map(|r| r.defined_vars()).collect(),
+      Rule::Not(sub) => sub.inner().defined_vars(),
+      Rule::Matches(r) => r.defined_vars(),
     }
   }
 }

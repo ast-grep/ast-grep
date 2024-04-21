@@ -8,6 +8,7 @@ use schemars::JsonSchema;
 use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
 
+use std::collections::HashSet;
 use std::fmt;
 
 // NB StopBy's JsonSchema is changed in xtask/schema.rs
@@ -76,6 +77,13 @@ impl<L: Language> StopBy<L> {
       S::End => StopBy::End,
       S::Rule(r) => StopBy::Rule(env.deserialize_rule(r)?),
     })
+  }
+
+  pub fn defined_vars(&self) -> HashSet<&str> {
+    match self {
+      StopBy::Rule(rule) => rule.defined_vars(),
+      _ => HashSet::new(),
+    }
   }
 }
 

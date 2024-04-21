@@ -8,7 +8,7 @@ use bit_set::BitSet;
 use thiserror::Error;
 
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak};
 
 pub struct Registration<R>(Arc<RwLock<HashMap<String, R>>>);
@@ -167,13 +167,18 @@ impl<L: Language> ReferentRule<L> {
     })
   }
 
-  fn eval_local<F, T>(&self, func: F) -> Option<T>
+  pub fn defined_vars(&self) -> HashSet<&str> {
+    self.eval_local(|r| r.defined_vars()).unwrap_or_default()
+  }
+
+  fn eval_local<'a, F, T>(&'a self, func: F) -> Option<T>
   where
-    F: FnOnce(&Rule<L>) -> T,
+    F: FnOnce(&'a Rule<L>) -> T,
   {
     let registration = self.reg_ref.unref();
     let rules = registration.get_local();
-    let rule = rules.get(&self.rule_id)?;
+    // SAFETY: self will retain the reg_ref and guarantee &Rule is valid
+    let rule = unsafe { &*(rules.get(&self.rule_id)? as *const Rule<L>) as &'a Rule<L> };
     Some(func(rule))
   }
 
