@@ -34,4 +34,4 @@ napi-noop-in-unit-test = ["napi-derive/noop"]
 crate-type = ["cdylib"]
 
 [build-dependencies]
-napi-build = "2.1.2"
+napi-build = "2.1.3"
