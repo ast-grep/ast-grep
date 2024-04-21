@@ -24,8 +24,8 @@ dependencies:
     specifier: 3.7.1
     version: 3.7.1
   tree-sitter:
-    specifier: 0.20.6
-    version: 0.20.6
+    specifier: 0.21.1
+    version: 0.21.1
   tree-sitter-typescript:
     specifier: 0.20.5
     version: 0.20.5
@@ -975,6 +975,16 @@ packages:
       semver: 7.5.4
     dev: false
 
+  /node-addon-api@8.0.0:
+    resolution: {integrity: sha512-ipO7rsHEBqa9STO5C5T10fj732ml+5kLN1cAG8/jdHd56ldQeGj3Q7+scUS+VHK/qy1zLEwC4wMK5+yM0btPvw==}
+    engines: {node: ^18 || ^20 || >= 21}
+    dev: false
+
+  /node-gyp-build@4.8.0:
+    resolution: {integrity: sha512-u6fs2AEUljNho3EYTJNBfImO5QTo/J/1Etd+NVdCj7qWKUSN/bSLkZwhDv7I+w/MSC6qJ4cknepkAYykDdK8og==}
+    hasBin: true
+    dev: false
+
   /node-releases@2.0.14:
     resolution: {integrity: sha512-y10wOWt8yZpqXmOgRo77WaHEmhYQYGNA6y421PKsKYWEK8aW+cqAphborZDhqfyKrbZEN92CN1X2KbafY2s7Yw==}
     dev: false
@@ -1173,6 +1183,14 @@ packages:
     dependencies:
       nan: 2.18.0
       prebuild-install: 7.1.1
+    dev: false
+
+  /tree-sitter@0.21.1:
+    resolution: {integrity: sha512-7dxoA6kYvtgWw80265MyqJlkRl4yawIjO7S5MigytjELkX43fV2WsAXzsNfO7sBpPPCF5Gp0+XzHk0DwLCq3xQ==}
+    requiresBuild: true
+    dependencies:
+      node-addon-api: 8.0.0
+      node-gyp-build: 4.8.0
     dev: false
 
   /ts-node@10.9.2(@swc/core@1.4.12)(@types/node@20.12.7)(typescript@5.4.4):
