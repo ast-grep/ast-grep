@@ -31,6 +31,8 @@ pub enum RuleConfigError {
   Fixer(#[from] FixerError),
   #[error("constraints is not configured correctly.")]
   Constraints(#[source] RuleSerializeError),
+  #[error("Undefined meta var {0} used in {1}")]
+  UndefinedMetaVar(String, &'static str),
 }
 
 type RResult<T> = std::result::Result<T, RuleConfigError>;
@@ -69,7 +71,7 @@ impl SerializableRuleCore {
     }
   }
 
-  fn get_meta_var_matchers<L: Language>(
+  fn get_constraints<L: Language>(
     &self,
     env: &DeserializeEnv<L>,
   ) -> RResult<HashMap<String, Rule<L>>> {
@@ -98,7 +100,9 @@ impl SerializableRuleCore {
     env: &DeserializeEnv<L>,
   ) -> RResult<RuleCore<L>> {
     let rule = env.deserialize_rule(self.rule.clone())?;
-    let matchers = self.get_meta_var_matchers(env)?;
+    let matchers = self.get_constraints(env)?;
+    let vars = Self::check_var_in_constraints(&rule, &matchers)?;
+    Self::check_var_in_transform(vars, &self.transform)?;
     let transform = self.transform.clone();
     let fixer = self.get_fixer(env)?;
     Ok(
@@ -108,6 +112,50 @@ impl SerializableRuleCore {
         .with_transform(transform)
         .with_fixer(fixer),
     )
+  }
+
+  fn check_var_in_constraints<'r, L: Language>(
+    rule: &'r Rule<L>,
+    constraints: &'r HashMap<String, Rule<L>>,
+  ) -> RResult<HashSet<&'r str>> {
+    let mut vars = rule.defined_vars();
+    for rule in constraints.values() {
+      for var in rule.defined_vars() {
+        vars.insert(var);
+      }
+    }
+    for var in constraints.keys() {
+      let var: &str = var;
+      if !vars.contains(var) {
+        return Err(RuleConfigError::UndefinedMetaVar(
+          var.to_owned(),
+          "constraints",
+        ));
+      }
+    }
+    Ok(vars)
+  }
+
+  fn check_var_in_transform<'r>(
+    mut vars: HashSet<&'r str>,
+    transform: &'r Option<HashMap<String, Transformation>>,
+  ) -> RResult<()> {
+    let Some(transform) = transform else {
+      return Ok(());
+    };
+    for var in transform.keys() {
+      vars.insert(var);
+    }
+    for trans in transform.values() {
+      let needed = trans.used_vars();
+      if !vars.contains(needed) {
+        return Err(RuleConfigError::UndefinedMetaVar(
+          needed.to_string(),
+          "transform",
+        ));
+      }
+    }
+    Ok(())
   }
 
   pub fn get_matcher<L: Language>(&self, env: DeserializeEnv<L>) -> RResult<RuleCore<L>> {

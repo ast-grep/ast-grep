@@ -143,14 +143,17 @@ impl Transformation {
     }
   }
 
-  pub fn used_vars<L: Language>(&self) -> &str {
+  pub fn used_vars(&self) -> &str {
+    fn strip(s: &str) -> &str {
+      s.strip_prefix("$$$").unwrap_or_else(|| &s[1..])
+    }
     use Transformation as T;
     // NOTE: meta_var in transform always starts with `$`, for now
     match self {
-      T::Replace(r) => &r.source[1..],
-      T::Substring(s) => &s.source[1..],
-      T::Convert(c) => &c.source[1..],
-      T::Rewrite(r) => &r.source[1..],
+      T::Replace(r) => strip(&r.source),
+      T::Substring(s) => strip(&s.source),
+      T::Convert(c) => strip(&c.source),
+      T::Rewrite(r) => strip(&r.source),
     }
   }
 }

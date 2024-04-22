@@ -407,7 +407,7 @@ transform:
   B:
     rewrite:
       rewriters: [re]
-      source: $A
+      source: $B
 rewriters:
 - id: re
   rule: {matches: num}
