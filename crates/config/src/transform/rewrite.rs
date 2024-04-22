@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Rewrite {
-  source: String,
+  pub(super) source: String,
   rewriters: Vec<String>,
   // do we need this?
   // sort_by: Option<String>,
