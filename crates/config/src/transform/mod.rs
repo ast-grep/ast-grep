@@ -142,6 +142,17 @@ impl Transformation {
       T::Rewrite(r) => r.compute(ctx),
     }
   }
+
+  pub fn used_vars<L: Language>(&self) -> &str {
+    use Transformation as T;
+    // NOTE: meta_var in transform always starts with `$`, for now
+    match self {
+      T::Replace(r) => &r.source[1..],
+      T::Substring(s) => &s.source[1..],
+      T::Convert(c) => &c.source[1..],
+      T::Rewrite(r) => &r.source[1..],
+    }
+  }
 }
 
 // two lifetime to represent env root lifetime and lang/trans lifetime
