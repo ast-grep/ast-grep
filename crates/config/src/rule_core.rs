@@ -16,7 +16,7 @@ use schemars::JsonSchema;
 use thiserror::Error;
 
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 
 #[derive(Debug, Error)]
@@ -162,6 +162,21 @@ impl<L: Language> RuleCore<L> {
       lang,
       registration: self.utils.clone(),
     }
+  }
+
+  pub fn defined_vars(&self) -> HashSet<&str> {
+    let mut ret = self.rule.defined_vars();
+    for constraint in self.matchers.values() {
+      for var in constraint.defined_vars() {
+        ret.insert(var);
+      }
+    }
+    if let Some(trans) = &self.transform {
+      for key in trans.keys() {
+        ret.insert(key);
+      }
+    }
+    ret
   }
 }
 impl<L: Language> Deref for RuleCore<L> {
@@ -330,5 +345,27 @@ transform:
     assert_eq!(matched, "a");
     let transformed = env.get_transformed("C").expect("should transform");
     assert_eq!(String::from_utf8_lossy(transformed), "a");
+  }
+
+  #[test]
+  fn test_defined_vars() {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule: {pattern: $A = $B}
+constraints:
+  A: { pattern: $C = $D }
+transform:
+  E:
+    substring:
+      source: $B
+      startCar: 1",
+    )
+    .expect("should deser");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    assert_eq!(
+      matcher.defined_vars(),
+      ["A", "B", "C", "D", "E"].into_iter().collect()
+    );
   }
 }
