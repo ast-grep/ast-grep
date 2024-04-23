@@ -102,9 +102,10 @@ impl SerializableRuleCore {
     let rule = env.deserialize_rule(self.rule.clone())?;
     let matchers = self.get_constraints(env)?;
     let vars = Self::check_var_in_constraints(&rule, &matchers)?;
-    Self::check_var_in_transform(vars, &self.transform)?;
+    let vars = Self::check_var_in_transform(vars, &self.transform)?;
     let transform = self.transform.clone();
     let fixer = self.get_fixer(env)?;
+    Self::check_var_in_fix(vars, &fixer)?;
     Ok(
       RuleCore::new(rule)
         .with_matchers(matchers)
@@ -139,9 +140,9 @@ impl SerializableRuleCore {
   fn check_var_in_transform<'r>(
     mut vars: HashSet<&'r str>,
     transform: &'r Option<HashMap<String, Transformation>>,
-  ) -> RResult<()> {
+  ) -> RResult<HashSet<&'r str>> {
     let Some(transform) = transform else {
-      return Ok(());
+      return Ok(vars);
     };
     for var in transform.keys() {
       vars.insert(var);
@@ -153,6 +154,18 @@ impl SerializableRuleCore {
           needed.to_string(),
           "transform",
         ));
+      }
+    }
+    Ok(vars)
+  }
+
+  fn check_var_in_fix<L: Language>(vars: HashSet<&str>, fixer: &Option<Fixer<L>>) -> RResult<()> {
+    let Some(fixer) = fixer else {
+      return Ok(());
+    };
+    for var in fixer.used_vars() {
+      if !vars.contains(&var) {
+        return Err(RuleConfigError::UndefinedMetaVar(var.to_string(), "fix"));
       }
     }
     Ok(())
@@ -415,5 +428,57 @@ transform:
       matcher.defined_vars(),
       ["A", "B", "C", "D", "E"].into_iter().collect()
     );
+  }
+
+  fn get_undefined(src: &str) -> (String, &str) {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(src).expect("should deser");
+    match ser_rule.get_matcher(env) {
+      Err(RuleConfigError::UndefinedMetaVar(name, section)) => (name, section),
+      _ => panic!("should error"),
+    }
+  }
+
+  #[test]
+  fn test_undefined_vars_in_constraints() {
+    let (name, section) = get_undefined(
+      r"
+rule: {pattern: $A}
+constraints: {B: {pattern: bbb}}
+",
+    );
+    assert_eq!(name, "B");
+    assert_eq!(section, "constraints");
+  }
+  #[test]
+  fn test_undefined_vars_in_transform() {
+    let (name, section) = get_undefined(
+      r"
+rule: {pattern: $A}
+constraints: {A: {pattern: $C}}
+transform:
+  B:
+    replace: {source: $C, replace: a, by: b }
+  D:
+    replace: {source: $E, replace: a, by: b }
+",
+    );
+    assert_eq!(name, "E");
+    assert_eq!(section, "transform");
+  }
+  #[test]
+  fn test_undefined_vars_in_fix() {
+    let (name, section) = get_undefined(
+      r"
+rule: {pattern: $A}
+constraints: {A: {pattern: $C}}
+transform:
+  B:
+    replace: {source: $C, replace: a, by: b }
+fix: $D
+",
+    );
+    assert_eq!(name, "D");
+    assert_eq!(section, "fix");
   }
 }
