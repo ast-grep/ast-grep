@@ -94,11 +94,7 @@ impl SerializableRuleCore {
     }
   }
 
-  // TODO: this is wrong, it does not register local utils to the env
-  pub(crate) fn get_matcher_from_env<L: Language>(
-    &self,
-    env: &DeserializeEnv<L>,
-  ) -> RResult<RuleCore<L>> {
+  fn get_matcher_from_env<L: Language>(&self, env: &DeserializeEnv<L>) -> RResult<RuleCore<L>> {
     let rule = env.deserialize_rule(self.rule.clone())?;
     let matchers = self.get_constraints(env)?;
     let vars = Self::check_var_in_constraints(&rule, &matchers)?;
