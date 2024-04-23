@@ -5,8 +5,10 @@ use crate::matcher::NodeMatch;
 use crate::meta_var::MetaVarEnv;
 use crate::source::{Content, Doc};
 
-use std::borrow::Cow;
 use thiserror::Error;
+
+use std::borrow::Cow;
+use std::collections::HashSet;
 
 pub enum TemplateFix {
   // no meta_var, pure text
@@ -24,6 +26,14 @@ impl TemplateFix {
 
   pub fn with_transform<L: Language>(tpl: &str, lang: &L, trans: &[String]) -> Self {
     create_template(tpl, lang.meta_var_char(), trans)
+  }
+
+  pub fn used_vars(&self) -> HashSet<&str> {
+    let template = match self {
+      TemplateFix::WithMetaVar(t) => t,
+      TemplateFix::Textual(_) => return HashSet::new(),
+    };
+    template.vars.iter().map(|v| v.0.used_var()).collect()
   }
 }
 
@@ -311,6 +321,16 @@ if (true) {
   fn test_template() {
     test_template_replace("Hello $A", &[("A", "World")], "Hello World");
     test_template_replace("$B $A", &[("A", "World"), ("B", "Hello")], "Hello World");
+  }
+
+  #[test]
+  fn test_template_vars() {
+    let tf = TemplateFix::try_new("$A $B $C", &Tsx).expect("ok");
+    assert_eq!(tf.used_vars(), ["A", "B", "C"].into_iter().collect());
+    let tf = TemplateFix::try_new("$a$B$C", &Tsx).expect("ok");
+    assert_eq!(tf.used_vars(), ["B", "C"].into_iter().collect());
+    let tf = TemplateFix::try_new("$a$B$C", &Tsx).expect("ok");
+    assert_eq!(tf.used_vars(), ["B", "C"].into_iter().collect());
   }
 
   // GH #641

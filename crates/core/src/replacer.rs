@@ -64,6 +64,16 @@ enum MetaVarExtract {
   Transformed(MetaVariableID),
 }
 
+impl MetaVarExtract {
+  fn used_var(&self) -> &str {
+    match self {
+      MetaVarExtract::Single(s) => s,
+      MetaVarExtract::Multiple(s) => s,
+      MetaVarExtract::Transformed(s) => s,
+    }
+  }
+}
+
 fn split_first_meta_var(
   src: &str,
   meta_char: char,
