@@ -91,8 +91,7 @@ impl<L: Language> SerializableRuleConfig<L> {
         .with_globals(globals)
         .with_rewriters(&rewriters);
       let env = self.get_deserialize_env(env)?;
-      let env = val.core.get_deserialize_env(env)?;
-      let rewriter = val.core.get_matcher_from_env(&env)?;
+      let rewriter = val.core.get_matcher(env)?;
       rewriters.insert(&val.id, rewriter).expect("should work");
     }
     Ok(rule)
