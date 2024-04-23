@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 
 /// A pattern string or fix object to auto fix the issue.
@@ -116,6 +116,10 @@ impl<L: Language> Fixer<L> {
       expand_start: None,
       expand_end: None,
     })
+  }
+
+  pub(crate) fn used_vars(&self) -> HashSet<&str> {
+    self.template.used_vars()
   }
 }
 
