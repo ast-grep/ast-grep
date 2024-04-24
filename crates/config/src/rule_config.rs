@@ -98,6 +98,21 @@ impl<L: Language> SerializableRuleConfig<L> {
   }
 }
 
+fn check_rewriters_in_transform<L: Language>(
+  rule: &RuleCore<L>,
+  rewriters: &GlobalRules<L>,
+) -> Option<RuleConfigError> {
+  let rewriters = rewriters.read();
+  let transform = rule.transform.as_ref()?;
+  let mut used_rewriters = transform
+    .values()
+    .flat_map(|trans| trans.used_rewriters().iter());
+  let undefined_writers = used_rewriters.find(|r| !rewriters.contains_key(*r))?;
+  Some(RuleConfigError::UndefinedRewriter(
+    undefined_writers.to_string(),
+  ))
+}
+
 impl<L: Language> Deref for SerializableRuleConfig<L> {
   type Target = SerializableRuleCore;
   fn deref(&self) -> &Self::Target {

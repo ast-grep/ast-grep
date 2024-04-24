@@ -156,6 +156,16 @@ impl Transformation {
       T::Rewrite(r) => strip(&r.source),
     }
   }
+
+  pub fn used_rewriters(&self) -> &[String] {
+    use Transformation as T;
+    match self {
+      T::Replace(_) => &[],
+      T::Substring(_) => &[],
+      T::Convert(_) => &[],
+      T::Rewrite(r) => &r.rewriters,
+    }
+  }
 }
 
 // two lifetime to represent env root lifetime and lang/trans lifetime

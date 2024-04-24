@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Rewrite {
   pub(super) source: String,
-  rewriters: Vec<String>,
+  pub(super) rewriters: Vec<String>,
   // do we need this?
   // sort_by: Option<String>,
   join_by: Option<String>,

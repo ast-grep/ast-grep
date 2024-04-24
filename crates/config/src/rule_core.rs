@@ -31,8 +31,10 @@ pub enum RuleConfigError {
   Fixer(#[from] FixerError),
   #[error("constraints is not configured correctly.")]
   Constraints(#[source] RuleSerializeError),
-  #[error("Undefined meta var {0} used in {1}")]
+  #[error("Undefined meta var {0} used in {1}.")]
   UndefinedMetaVar(String, &'static str),
+  #[error("Undefined rewriter {0} used in transform.")]
+  UndefinedRewriter(String),
 }
 
 type RResult<T> = std::result::Result<T, RuleConfigError>;
@@ -177,7 +179,7 @@ pub struct RuleCore<L: Language> {
   rule: Rule<L>,
   matchers: HashMap<String, Rule<L>>,
   kinds: Option<BitSet>,
-  transform: Option<HashMap<String, Transformation>>,
+  pub(crate) transform: Option<HashMap<String, Transformation>>,
   pub fixer: Option<Fixer<L>>,
   // this is required to hold util rule reference
   utils: RuleRegistration<L>,
