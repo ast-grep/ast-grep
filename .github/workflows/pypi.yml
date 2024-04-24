@@ -50,6 +50,7 @@ jobs:
           path: dist
 
   macos-x86_64:
+    # use old macos due to https://github.com/actions/setup-python/issues/852
     runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
@@ -77,6 +78,7 @@ jobs:
           path: dist
 
   macos-universal:
+    # use old macos due to https://github.com/actions/setup-python/issues/852
     runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
