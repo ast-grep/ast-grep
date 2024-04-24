@@ -94,7 +94,11 @@ impl<L: Language> SerializableRuleConfig<L> {
       let rewriter = val.core.get_matcher(env)?;
       rewriters.insert(&val.id, rewriter).expect("should work");
     }
-    Ok(rule)
+    if let Some(err) = check_rewriters_in_transform(&rule, &rewriters) {
+      Err(err)
+    } else {
+      Ok(rule)
+    }
   }
 }
 
@@ -491,5 +495,32 @@ rewriters:
     let nm = grep.root().find(&rule.matcher).unwrap();
     let b = nm.get_env().get_transformed("B").expect("should have");
     assert_eq!(String::from_utf8_lossy(b), "1919810");
+  }
+
+  fn make_undefined_error(src: &str) -> String {
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+    let err = RuleConfig::try_from(rule, &Default::default());
+    match err {
+      Err(RuleConfigError::UndefinedRewriter(name)) => name,
+      _ => panic!("unexpected parsing result"),
+    }
+  }
+
+  #[test]
+  fn test_undefined_rewriter() {
+    let undefined = make_undefined_error(
+      r"
+id: test
+rule: {pattern: 'a = $A'}
+language: Tsx
+transform:
+  B: { rewrite: { rewriters: [not-defined], source: $A } }
+rewriters:
+- id: re
+  rule: {kind: number, pattern: $A}
+  fix: hah
+    ",
+    );
+    assert_eq!(undefined, "not-defined");
   }
 }
