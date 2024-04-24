@@ -496,4 +496,19 @@ utils:
     let matcher = ser_rule.get_matcher(env).expect("should parse");
     assert_eq!(matcher.defined_vars(), ["B"].into_iter().collect());
   }
+
+  #[test]
+  fn test_defined_vars_cyclic() {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule: { matches: test1 }
+utils:
+  test1: { pattern: $B, inside: {matches: test2} }
+  test2: { pattern: $A, has: {matches: test1} }",
+    )
+    .expect("should deser");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    assert_eq!(matcher.defined_vars(), ["A", "B"].into_iter().collect());
+  }
 }
