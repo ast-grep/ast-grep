@@ -234,7 +234,7 @@ impl<L: Language> Matcher<L> for Follows<L> {
 }
 
 #[cfg(test)]
-mod test {
+pub mod test {
   use super::*;
   use crate::test::TypeScript as TS;
   use ast_grep_core::matcher::KindMatcher;
@@ -663,5 +663,13 @@ mod test {
       field: TS::Tsx.get_ts_language().field_id_for_name("condition"),
     };
     assert_eq!(has.defined_vars(), ["A"].into_iter().collect());
+  }
+
+  pub fn create_inside<L: Language>(rule: Rule<L>) -> Inside<L> {
+    Inside {
+      stop_by: StopBy::Neighbor,
+      outer: rule,
+      field: None,
+    }
   }
 }

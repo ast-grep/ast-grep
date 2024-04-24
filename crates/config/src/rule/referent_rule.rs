@@ -167,7 +167,7 @@ impl<L: Language> ReferentRule<L> {
     })
   }
 
-  pub fn defined_vars(&self) -> HashSet<&str> {
+  pub(super) fn defined_vars(&self) -> HashSet<&str> {
     self.eval_local(|r| r.defined_vars()).unwrap_or_default()
   }
 
@@ -224,6 +224,7 @@ impl<L: Language> Matcher<L> for ReferentRule<L> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::rule::relational_rule::test::create_inside;
   use crate::rule::Rule;
   use crate::test::TypeScript as TS;
   use ast_grep_core::ops as o;
@@ -259,6 +260,31 @@ mod test {
     let ret = registration.insert_local("test", pattern);
     assert!(ret.is_ok());
     assert!(rule.potential_kinds().is_some());
+    Ok(())
+  }
+
+  #[test]
+  fn test_referent_rule_vars() -> Result {
+    let registration = RuleRegistration::<TS>::default();
+    let rule = ReferentRule::try_new("test".into(), &registration)?;
+    let pattern = Rule::Pattern(Pattern::new("$ABC", TS::Tsx));
+    let ret = registration.insert_local("test", pattern);
+    assert!(ret.is_ok());
+    assert_eq!(rule.defined_vars(), ["ABC"].into_iter().collect());
+    Ok(())
+  }
+
+  #[test]
+  #[ignore = "TODO, fix it later"]
+  fn test_cyclic_inside() -> Result {
+    let registration = RuleRegistration::<TS>::default();
+    let rule = ReferentRule::try_new("test".into(), &registration)?;
+    let inside = ReferentRule::try_new("test".into(), &registration)?;
+    let inside = create_inside(Rule::Matches(inside));
+    let inside = Rule::Inside(Box::new(inside));
+    let ret = registration.insert_local("test", inside);
+    assert!(ret.is_ok());
+    assert!(rule.defined_vars().is_empty());
     Ok(())
   }
 }
