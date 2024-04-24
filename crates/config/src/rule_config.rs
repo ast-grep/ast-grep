@@ -94,19 +94,32 @@ impl<L: Language> SerializableRuleConfig<L> {
       let rewriter = val.core.get_matcher(env)?;
       rewriters.insert(&val.id, rewriter).expect("should work");
     }
-    if let Some(err) = check_rewriters_in_transform(&rule, &rewriters) {
-      Err(err)
-    } else {
-      Ok(rule)
-    }
+    check_rewriters_in_transform(&rule, &rewriters)?;
+    Ok(rule)
   }
 }
 
 fn check_rewriters_in_transform<L: Language>(
   rule: &RuleCore<L>,
   rewriters: &GlobalRules<L>,
-) -> Option<RuleConfigError> {
+) -> Result<(), RuleConfigError> {
   let rewriters = rewriters.read();
+  if let Some(err) = check_one_rewriter_in_rule(rule, &rewriters) {
+    return Err(err);
+  }
+  let error = rewriters
+    .values()
+    .find_map(|rewriter| check_one_rewriter_in_rule(rewriter, &rewriters));
+  if let Some(err) = error {
+    return Err(err);
+  }
+  Ok(())
+}
+
+fn check_one_rewriter_in_rule<L: Language>(
+  rule: &RuleCore<L>,
+  rewriters: &HashMap<String, RuleCore<L>>,
+) -> Option<RuleConfigError> {
   let transform = rule.transform.as_ref()?;
   let mut used_rewriters = transform
     .values()
@@ -522,5 +535,25 @@ rewriters:
     ",
     );
     assert_eq!(undefined, "not-defined");
+  }
+
+  #[test]
+  fn test_undefined_rewriter_in_transform() {
+    let undefined = make_undefined_error(
+      r"
+id: test
+rule: {pattern: 'a = $A'}
+language: Tsx
+transform:
+  B: { rewrite: { rewriters: [re], source: $A } }
+rewriters:
+- id: re
+  rule: {kind: number, pattern: $A}
+  transform:
+    C: { rewrite: { rewriters: [nested-undefined], source: $A } }
+  fix: hah
+    ",
+    );
+    assert_eq!(undefined, "nested-undefined");
   }
 }
