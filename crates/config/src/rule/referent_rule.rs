@@ -177,8 +177,9 @@ impl<L: Language> ReferentRule<L> {
   {
     let registration = self.reg_ref.unref();
     let rules = registration.get_local();
+    let rule = rules.get(&self.rule_id)?;
     // SAFETY: self will retain the reg_ref and guarantee &Rule is valid
-    let rule = unsafe { &*(rules.get(&self.rule_id)? as *const Rule<L>) as &'a Rule<L> };
+    let rule = unsafe { &*(rule as *const Rule<L>) as &'a Rule<L> };
     Some(func(rule))
   }
 
