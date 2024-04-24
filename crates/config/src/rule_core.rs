@@ -225,6 +225,9 @@ impl<L: Language> RuleCore<L> {
 
   pub fn defined_vars(&self) -> HashSet<&str> {
     let mut ret = self.rule.defined_vars();
+    for v in self.utils.get_local_util_vars() {
+      ret.insert(v);
+    }
     for constraint in self.matchers.values() {
       for var in constraint.defined_vars() {
         ret.insert(var);
@@ -478,5 +481,19 @@ fix: $D
     );
     assert_eq!(name, "D");
     assert_eq!(section, "fix");
+  }
+
+  #[test]
+  fn test_defined_vars_in_utils() {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule: {matches: test}
+utils:
+  test: { pattern: $B}",
+    )
+    .expect("should deser");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    assert_eq!(matcher.defined_vars(), ["B"].into_iter().collect());
   }
 }

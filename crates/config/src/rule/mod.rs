@@ -206,7 +206,8 @@ impl<L: Language> Rule<L> {
       Rule::All(sub) => sub.inner().iter().flat_map(|r| r.defined_vars()).collect(),
       Rule::Any(sub) => sub.inner().iter().flat_map(|r| r.defined_vars()).collect(),
       Rule::Not(sub) => sub.inner().defined_vars(),
-      Rule::Matches(r) => r.defined_vars(),
+      // TODO: this is not correct, we are collecting util vars else where
+      Rule::Matches(_r) => HashSet::new(),
     }
   }
 }

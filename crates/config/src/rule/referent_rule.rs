@@ -113,6 +113,19 @@ impl<L: Language> RuleRegistration<L> {
     }
     Ok(())
   }
+
+  pub(crate) fn get_local_util_vars<'a>(&'a self) -> HashSet<&'a str> {
+    let mut ret = HashSet::new();
+    let utils = self.get_local();
+    for rule in utils.values() {
+      // SAFETY: self will retain the reg_ref and guarantee &Rule is valid
+      let rule = unsafe { &*(rule as *const Rule<L>) as &'a Rule<L> };
+      for v in rule.defined_vars() {
+        ret.insert(v);
+      }
+    }
+    ret
+  }
 }
 impl<L: Language> Default for RuleRegistration<L> {
   fn default() -> Self {
@@ -167,19 +180,13 @@ impl<L: Language> ReferentRule<L> {
     })
   }
 
-  pub(super) fn defined_vars(&self) -> HashSet<&str> {
-    self.eval_local(|r| r.defined_vars()).unwrap_or_default()
-  }
-
-  fn eval_local<'a, F, T>(&'a self, func: F) -> Option<T>
+  fn eval_local<F, T>(&self, func: F) -> Option<T>
   where
-    F: FnOnce(&'a Rule<L>) -> T,
+    F: FnOnce(&Rule<L>) -> T,
   {
     let registration = self.reg_ref.unref();
     let rules = registration.get_local();
     let rule = rules.get(&self.rule_id)?;
-    // SAFETY: self will retain the reg_ref and guarantee &Rule is valid
-    let rule = unsafe { &*(rule as *const Rule<L>) as &'a Rule<L> };
     Some(func(rule))
   }
 
@@ -224,7 +231,6 @@ impl<L: Language> Matcher<L> for ReferentRule<L> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::rule::relational_rule::test::create_inside;
   use crate::rule::Rule;
   use crate::test::TypeScript as TS;
   use ast_grep_core::ops as o;
@@ -260,31 +266,6 @@ mod test {
     let ret = registration.insert_local("test", pattern);
     assert!(ret.is_ok());
     assert!(rule.potential_kinds().is_some());
-    Ok(())
-  }
-
-  #[test]
-  fn test_referent_rule_vars() -> Result {
-    let registration = RuleRegistration::<TS>::default();
-    let rule = ReferentRule::try_new("test".into(), &registration)?;
-    let pattern = Rule::Pattern(Pattern::new("$ABC", TS::Tsx));
-    let ret = registration.insert_local("test", pattern);
-    assert!(ret.is_ok());
-    assert_eq!(rule.defined_vars(), ["ABC"].into_iter().collect());
-    Ok(())
-  }
-
-  #[test]
-  #[ignore = "TODO, fix it later"]
-  fn test_cyclic_inside() -> Result {
-    let registration = RuleRegistration::<TS>::default();
-    let rule = ReferentRule::try_new("test".into(), &registration)?;
-    let inside = ReferentRule::try_new("test".into(), &registration)?;
-    let inside = create_inside(Rule::Matches(inside));
-    let inside = Rule::Inside(Box::new(inside));
-    let ret = registration.insert_local("test", inside);
-    assert!(ret.is_ok());
-    assert!(rule.defined_vars().is_empty());
     Ok(())
   }
 }
