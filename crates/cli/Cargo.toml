@@ -44,7 +44,7 @@ bit-set.workspace = true
 inquire = "0.7.5"
 num_cpus = "1.16.0"
 serde.workspace = true
-serde_json = "1.0.115"
+serde_json = "1.0.116"
 serde_yaml = "0.9.33"
 similar = { version = "2.5.0", features = ["inline"] }
 tokio = { version = "1", features = ["rt-multi-thread", "io-std"] }
