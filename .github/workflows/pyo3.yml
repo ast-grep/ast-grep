@@ -95,7 +95,7 @@ jobs:
 
   macos:
     # use old macos due to https://github.com/actions/setup-python/issues/852
-    runs-on: macos-13
+    runs-on: macos-14
     strategy:
       matrix:
         target: [x86_64, aarch64]
