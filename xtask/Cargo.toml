@@ -12,5 +12,5 @@ ast-grep-config.workspace = true
 
 anyhow.workspace = true
 serde_json = { version = "1.0.116", features = ["preserve_order"] }
-toml_edit = "0.22.9"
+toml_edit = "0.22.12"
 schemars.workspace = true
