@@ -20,7 +20,7 @@ ast-grep-core.workspace = true
 ast-grep-config.workspace = true
 ast-grep-language.workspace = true
 anyhow.workspace = true
-pyo3 = { version = "0.21.1", optional = true, features = ["anyhow"] }
+pyo3 = { version = "0.21.2", optional = true, features = ["anyhow"] }
 pythonize = { version = "0.21.1", optional = true }
 
 # uncomment default features when developing pyo3
