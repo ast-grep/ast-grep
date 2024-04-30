@@ -86,7 +86,7 @@ impl<L: Language> SerializableRuleConfig<L> {
     };
     for val in ser {
       // NB should inherit env from matcher to inherit utils
-      // TODO: optimize duplicate env creation/util registraion
+      // TODO: optimize duplicate env creation/util registration
       let env = DeserializeEnv::new(self.language.clone())
         .with_globals(globals)
         .with_rewriters(&rewriters);

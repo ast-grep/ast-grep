@@ -1,3 +1,4 @@
+use crate::check_var::check_vars;
 use crate::fixer::{Fixer, FixerError, SerializableFixer};
 use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::Rule;
@@ -77,14 +78,14 @@ impl SerializableRuleCore {
     &self,
     env: &DeserializeEnv<L>,
   ) -> RResult<HashMap<String, Rule<L>>> {
-    let mut matchers = HashMap::new();
-    let Some(constraints) = &self.constraints else {
-      return Ok(matchers);
+    let mut constraints = HashMap::new();
+    let Some(serde_cons) = &self.constraints else {
+      return Ok(constraints);
     };
-    for (key, ser) in constraints {
-      matchers.insert(key.to_string(), env.deserialize_rule(ser.clone())?);
+    for (key, ser) in serde_cons {
+      constraints.insert(key.to_string(), env.deserialize_rule(ser.clone())?);
     }
-    Ok(matchers)
+    Ok(constraints)
   }
 
   fn get_fixer<L: Language>(&self, env: &DeserializeEnv<L>) -> RResult<Option<Fixer<L>>> {
@@ -98,75 +99,17 @@ impl SerializableRuleCore {
 
   fn get_matcher_from_env<L: Language>(&self, env: &DeserializeEnv<L>) -> RResult<RuleCore<L>> {
     let rule = env.deserialize_rule(self.rule.clone())?;
-    let matchers = self.get_constraints(env)?;
-    let vars = Self::check_var_in_constraints(&rule, &matchers)?;
-    let vars = Self::check_var_in_transform(vars, &self.transform)?;
+    let constraints = self.get_constraints(env)?;
     let transform = self.transform.clone();
     let fixer = self.get_fixer(env)?;
-    Self::check_var_in_fix(vars, &fixer)?;
+    check_vars(&rule, &constraints, &transform, &fixer)?;
     Ok(
       RuleCore::new(rule)
-        .with_matchers(matchers)
+        .with_matchers(constraints)
         .with_utils(env.registration.clone())
         .with_transform(transform)
         .with_fixer(fixer),
     )
-  }
-
-  fn check_var_in_constraints<'r, L: Language>(
-    rule: &'r Rule<L>,
-    constraints: &'r HashMap<String, Rule<L>>,
-  ) -> RResult<HashSet<&'r str>> {
-    let mut vars = rule.defined_vars();
-    for rule in constraints.values() {
-      for var in rule.defined_vars() {
-        vars.insert(var);
-      }
-    }
-    for var in constraints.keys() {
-      let var: &str = var;
-      if !vars.contains(var) {
-        return Err(RuleConfigError::UndefinedMetaVar(
-          var.to_owned(),
-          "constraints",
-        ));
-      }
-    }
-    Ok(vars)
-  }
-
-  fn check_var_in_transform<'r>(
-    mut vars: HashSet<&'r str>,
-    transform: &'r Option<HashMap<String, Transformation>>,
-  ) -> RResult<HashSet<&'r str>> {
-    let Some(transform) = transform else {
-      return Ok(vars);
-    };
-    for var in transform.keys() {
-      vars.insert(var);
-    }
-    for trans in transform.values() {
-      let needed = trans.used_vars();
-      if !vars.contains(needed) {
-        return Err(RuleConfigError::UndefinedMetaVar(
-          needed.to_string(),
-          "transform",
-        ));
-      }
-    }
-    Ok(vars)
-  }
-
-  fn check_var_in_fix<L: Language>(vars: HashSet<&str>, fixer: &Option<Fixer<L>>) -> RResult<()> {
-    let Some(fixer) = fixer else {
-      return Ok(());
-    };
-    for var in fixer.used_vars() {
-      if !vars.contains(&var) {
-        return Err(RuleConfigError::UndefinedMetaVar(var.to_string(), "fix"));
-      }
-    }
-    Ok(())
   }
 
   pub fn get_matcher<L: Language>(&self, env: DeserializeEnv<L>) -> RResult<RuleCore<L>> {
@@ -177,7 +120,7 @@ impl SerializableRuleCore {
 
 pub struct RuleCore<L: Language> {
   rule: Rule<L>,
-  matchers: HashMap<String, Rule<L>>,
+  constraints: HashMap<String, Rule<L>>,
   kinds: Option<BitSet>,
   pub(crate) transform: Option<HashMap<String, Transformation>>,
   pub fixer: Option<Fixer<L>>,
@@ -197,8 +140,11 @@ impl<L: Language> RuleCore<L> {
   }
 
   #[inline]
-  pub fn with_matchers(self, matchers: HashMap<String, Rule<L>>) -> Self {
-    Self { matchers, ..self }
+  pub fn with_matchers(self, constraints: HashMap<String, Rule<L>>) -> Self {
+    Self {
+      constraints,
+      ..self
+    }
   }
 
   #[inline]
@@ -228,7 +174,7 @@ impl<L: Language> RuleCore<L> {
     for v in self.utils.get_local_util_vars() {
       ret.insert(v);
     }
-    for constraint in self.matchers.values() {
+    for constraint in self.constraints.values() {
       for var in constraint.defined_vars() {
         ret.insert(var);
       }
@@ -253,7 +199,7 @@ impl<L: Language> Default for RuleCore<L> {
   fn default() -> Self {
     Self {
       rule: Rule::default(),
-      matchers: HashMap::default(),
+      constraints: HashMap::default(),
       kinds: None,
       transform: None,
       fixer: None,
@@ -274,7 +220,7 @@ impl<L: Language> Matcher<L> for RuleCore<L> {
       }
     }
     let ret = self.rule.match_node_with_env(node, env)?;
-    if !env.to_mut().match_constraints(&self.matchers) {
+    if !env.to_mut().match_constraints(&self.constraints) {
       return None;
     }
     if let Some(trans) = &self.transform {
@@ -318,13 +264,13 @@ mod test {
 
   #[test]
   fn test_rule_with_constraints() {
-    let mut matchers = HashMap::new();
-    matchers.insert(
+    let mut constraints = HashMap::new();
+    constraints.insert(
       "A".to_string(),
       Rule::Regex(RegexMatcher::try_new("a").unwrap()),
     );
     let rule =
-      RuleCore::new(Rule::Pattern(Pattern::new("$A", TypeScript::Tsx))).with_matchers(matchers);
+      RuleCore::new(Rule::Pattern(Pattern::new("$A", TypeScript::Tsx))).with_matchers(constraints);
     let grep = TypeScript::Tsx.ast_grep("a");
     assert!(grep.root().find(&rule).is_some());
     let grep = TypeScript::Tsx.ast_grep("bbb");

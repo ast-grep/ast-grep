@@ -1,3 +1,4 @@
+mod check_var;
 mod combined;
 mod fixer;
 mod maybe;
