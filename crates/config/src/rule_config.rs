@@ -537,4 +537,40 @@ rewriters:
     );
     assert_eq!(undefined, "nested-undefined");
   }
+
+  #[test]
+  fn test_rewriter_use_upper_var() {
+    let src = r"
+id: test
+rule: {pattern: '$B = $A'}
+language: Tsx
+transform:
+  B: { rewrite: { rewriters: [re], source: $A } }
+rewriters:
+- id: re
+  rule: {kind: number, pattern: $C}
+  fix: $B.$C
+    ";
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+    let ret = RuleConfig::try_from(rule, &Default::default());
+    assert!(ret.is_ok());
+  }
+
+  #[test]
+  fn test_rewriter_use_undefined_var() {
+    let src = r"
+id: test
+rule: {pattern: '$B = $A'}
+language: Tsx
+transform:
+  B: { rewrite: { rewriters: [re], source: $A } }
+rewriters:
+- id: re
+  rule: {kind: number, pattern: $C}
+  fix: $D.$C
+    ";
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+    let ret = RuleConfig::try_from(rule, &Default::default());
+    assert!(ret.is_err());
+  }
 }
