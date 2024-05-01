@@ -1,4 +1,4 @@
-use crate::check_var::check_vars;
+use crate::check_var::{check_vars, check_vars_in_rewriter};
 use crate::fixer::{Fixer, FixerError, SerializableFixer};
 use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::Rule;
@@ -115,6 +115,24 @@ impl SerializableRuleCore {
     let env = self.get_deserialize_env(env)?;
     let ret = self.get_matcher_from_env(&env)?;
     check_vars(&ret.rule, &ret.constraints, &ret.transform, &ret.fixer)?;
+    Ok(ret)
+  }
+
+  /// this is needed for checking metavar defined in containing vars
+  pub(crate) fn get_rewriter<L: Language>(
+    &self,
+    env: DeserializeEnv<L>,
+    upper_vars: &HashSet<&str>,
+  ) -> RResult<RuleCore<L>> {
+    let env = self.get_deserialize_env(env)?;
+    let ret = self.get_matcher_from_env(&env)?;
+    check_vars_in_rewriter(
+      &ret.rule,
+      &ret.constraints,
+      &ret.transform,
+      &ret.fixer,
+      upper_vars,
+    )?;
     Ok(ret)
   }
 }

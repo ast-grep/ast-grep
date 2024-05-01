@@ -82,19 +82,20 @@ impl<L: Language> SerializableRuleConfig<L> {
       .with_globals(globals)
       .with_rewriters(&rewriters);
     let rule = self.core.get_matcher(env)?;
-    self.register_rewriter(globals, &rewriters)?;
-    check_rewriters_in_transform(&rule, &rewriters)?;
+    self.register_rewriter(&rule, globals, &rewriters)?;
     Ok(rule)
   }
 
   fn register_rewriter(
     &self,
+    rule: &RuleCore<L>,
     globals: &GlobalRules<L>,
     rewriters: &GlobalRules<L>,
   ) -> Result<(), RuleConfigError> {
     let Some(ser) = &self.rewriters else {
       return Ok(());
     };
+    let vars = rule.defined_vars();
     for val in ser {
       // NB should inherit env from matcher to inherit utils
       // TODO: optimize duplicate env creation/util registration
@@ -102,9 +103,10 @@ impl<L: Language> SerializableRuleConfig<L> {
         .with_globals(globals)
         .with_rewriters(rewriters);
       let env = self.get_deserialize_env(env)?;
-      let rewriter = val.core.get_matcher(env)?;
+      let rewriter = val.core.get_rewriter(env, &vars)?;
       rewriters.insert(&val.id, rewriter).expect("should work");
     }
+    check_rewriters_in_transform(rule, rewriters)?;
     Ok(())
   }
 }

@@ -41,6 +41,22 @@ fn check_one_rewriter_in_rule<L: Language>(
   ))
 }
 
+pub fn check_vars_in_rewriter<'r, L: Language>(
+  rule: &'r Rule<L>,
+  constraints: &'r HashMap<String, Rule<L>>,
+  transform: &'r Option<HashMap<String, Transformation>>,
+  fixer: &Option<Fixer<L>>,
+  upper_var: &HashSet<&str>,
+) -> RResult<()> {
+  let vars = check_var_in_constraints(rule, constraints)?;
+  let mut vars = check_var_in_transform(vars, transform)?;
+  for v in upper_var {
+    vars.insert(v);
+  }
+  check_var_in_fix(vars, fixer)?;
+  Ok(())
+}
+
 pub fn check_vars<'r, L: Language>(
   rule: &'r Rule<L>,
   constraints: &'r HashMap<String, Rule<L>>,
