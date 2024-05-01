@@ -67,7 +67,7 @@ impl SerializableRuleCore {
     if let Some(utils) = &self.utils {
       let env = env
         .register_local_utils(utils)
-        .map_err(RuleConfigError::Rule)?;
+        .map_err(RuleConfigError::Utils)?;
       Ok(env)
     } else {
       Ok(env)
@@ -102,7 +102,6 @@ impl SerializableRuleCore {
     let constraints = self.get_constraints(env)?;
     let transform = self.transform.clone();
     let fixer = self.get_fixer(env)?;
-    check_vars(&rule, &constraints, &transform, &fixer)?;
     Ok(
       RuleCore::new(rule)
         .with_matchers(constraints)
@@ -114,7 +113,9 @@ impl SerializableRuleCore {
 
   pub fn get_matcher<L: Language>(&self, env: DeserializeEnv<L>) -> RResult<RuleCore<L>> {
     let env = self.get_deserialize_env(env)?;
-    self.get_matcher_from_env(&env)
+    let ret = self.get_matcher_from_env(&env)?;
+    check_vars(&ret.rule, &ret.constraints, &ret.transform, &ret.fixer)?;
+    Ok(ret)
   }
 }
 

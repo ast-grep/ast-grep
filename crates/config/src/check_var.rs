@@ -2,12 +2,44 @@ use crate::fixer::Fixer;
 use crate::rule::Rule;
 use crate::rule_core::RuleConfigError;
 use crate::transform::Transformation;
+use crate::{GlobalRules, RuleCore};
 
 use ast_grep_core::language::Language;
 
 use std::collections::{HashMap, HashSet};
 
 type RResult<T> = std::result::Result<T, RuleConfigError>;
+
+pub fn check_rewriters_in_transform<L: Language>(
+  rule: &RuleCore<L>,
+  rewriters: &GlobalRules<L>,
+) -> Result<(), RuleConfigError> {
+  let rewriters = rewriters.read();
+  if let Some(err) = check_one_rewriter_in_rule(rule, &rewriters) {
+    return Err(err);
+  }
+  let error = rewriters
+    .values()
+    .find_map(|rewriter| check_one_rewriter_in_rule(rewriter, &rewriters));
+  if let Some(err) = error {
+    return Err(err);
+  }
+  Ok(())
+}
+
+fn check_one_rewriter_in_rule<L: Language>(
+  rule: &RuleCore<L>,
+  rewriters: &HashMap<String, RuleCore<L>>,
+) -> Option<RuleConfigError> {
+  let transform = rule.transform.as_ref()?;
+  let mut used_rewriters = transform
+    .values()
+    .flat_map(|trans| trans.used_rewriters().iter());
+  let undefined_writers = used_rewriters.find(|r| !rewriters.contains_key(*r))?;
+  Some(RuleConfigError::UndefinedRewriter(
+    undefined_writers.to_string(),
+  ))
+}
 
 pub fn check_vars<'r, L: Language>(
   rule: &'r Rule<L>,

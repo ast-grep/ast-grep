@@ -1,5 +1,6 @@
 use crate::GlobalRules;
 
+use crate::check_var::check_rewriters_in_transform;
 use crate::fixer::Fixer;
 use crate::rule::DeserializeEnv;
 pub use crate::rule_core::{RuleConfigError, RuleCore, SerializableRuleCore};
@@ -81,53 +82,31 @@ impl<L: Language> SerializableRuleConfig<L> {
       .with_globals(globals)
       .with_rewriters(&rewriters);
     let rule = self.core.get_matcher(env)?;
+    self.register_rewriter(globals, &rewriters)?;
+    check_rewriters_in_transform(&rule, &rewriters)?;
+    Ok(rule)
+  }
+
+  fn register_rewriter(
+    &self,
+    globals: &GlobalRules<L>,
+    rewriters: &GlobalRules<L>,
+  ) -> Result<(), RuleConfigError> {
     let Some(ser) = &self.rewriters else {
-      return Ok(rule);
+      return Ok(());
     };
     for val in ser {
       // NB should inherit env from matcher to inherit utils
       // TODO: optimize duplicate env creation/util registration
       let env = DeserializeEnv::new(self.language.clone())
         .with_globals(globals)
-        .with_rewriters(&rewriters);
+        .with_rewriters(rewriters);
       let env = self.get_deserialize_env(env)?;
       let rewriter = val.core.get_matcher(env)?;
       rewriters.insert(&val.id, rewriter).expect("should work");
     }
-    check_rewriters_in_transform(&rule, &rewriters)?;
-    Ok(rule)
+    Ok(())
   }
-}
-
-fn check_rewriters_in_transform<L: Language>(
-  rule: &RuleCore<L>,
-  rewriters: &GlobalRules<L>,
-) -> Result<(), RuleConfigError> {
-  let rewriters = rewriters.read();
-  if let Some(err) = check_one_rewriter_in_rule(rule, &rewriters) {
-    return Err(err);
-  }
-  let error = rewriters
-    .values()
-    .find_map(|rewriter| check_one_rewriter_in_rule(rewriter, &rewriters));
-  if let Some(err) = error {
-    return Err(err);
-  }
-  Ok(())
-}
-
-fn check_one_rewriter_in_rule<L: Language>(
-  rule: &RuleCore<L>,
-  rewriters: &HashMap<String, RuleCore<L>>,
-) -> Option<RuleConfigError> {
-  let transform = rule.transform.as_ref()?;
-  let mut used_rewriters = transform
-    .values()
-    .flat_map(|trans| trans.used_rewriters().iter());
-  let undefined_writers = used_rewriters.find(|r| !rewriters.contains_key(*r))?;
-  Some(RuleConfigError::UndefinedRewriter(
-    undefined_writers.to_string(),
-  ))
 }
 
 impl<L: Language> Deref for SerializableRuleConfig<L> {
