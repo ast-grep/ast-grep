@@ -293,6 +293,10 @@ fn match_nodes_non_recursive<'tree, D: Doc + 'tree>(
 }
 
 pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: &Node<D>) -> bool {
+  // return true if goal and candidate are the same node
+  if goal.node_id() == candidate.node_id() {
+    return true;
+  }
   if goal.kind_id() != candidate.kind_id() {
     return false;
   }
