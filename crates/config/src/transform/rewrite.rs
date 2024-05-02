@@ -47,7 +47,7 @@ impl Rewrite {
       .iter()
       .filter_map(|id| rewriters.get(id)) // TODO: better handling
       .collect();
-    let edits = find_and_make_edits(nodes, &rules, ctx.env);
+    let edits = find_and_make_edits(nodes, &rules, ctx);
     let rewritten = if let Some(joiner) = &self.join_by {
       let mut ret = vec![];
       let mut edits = edits.into_iter();
@@ -80,30 +80,30 @@ type Bytes<D> = [<<D as Doc>::Source as Content>::Underlying];
 fn find_and_make_edits<'n, D: Doc>(
   nodes: Vec<Node<'n, D>>,
   rules: &[&RuleCore<D::Lang>],
-  env: &MetaVarEnv<'n, D>,
+  ctx: &Ctx<'_, 'n, D>,
 ) -> Vec<Edit<D::Source>> {
   nodes
     .into_iter()
-    .flat_map(|n| replace_one(n, rules, env))
+    .flat_map(|n| replace_one(n, rules, ctx))
     .collect()
 }
 
 fn replace_one<'n, D: Doc>(
   node: Node<'n, D>,
   rules: &[&RuleCore<D::Lang>],
-  env: &MetaVarEnv<'n, D>,
+  ctx: &Ctx<'_, 'n, D>,
 ) -> Vec<Edit<D::Source>> {
   let mut edits = vec![];
   for child in node.dfs() {
     for rule in rules {
-      let mut env = std::borrow::Cow::Borrowed(env);
+      let mut env = std::borrow::Cow::Borrowed(ctx.enclosing_env);
       // NOTE: we inherit meta_var_env from enclosing rule
       // but match env will NOT inherited recursively!
       // e.g. $B is matched in parent linter and it is inherited.
       // $C is matched in rewriter but is NOT inherited in recursive rewriter
       // this is to enable recursive rewriter to match sub nodes
       // in future, we can use the explict `expose` to control env inheritance
-      if let Some(n) = rule.match_node_with_env(child.clone(), &mut env) {
+      if let Some(n) = rule.do_match(child.clone(), &mut env, Some(ctx.enclosing_env)) {
         let nm = NodeMatch::new(n, env.into_owned());
         edits.push(nm.make_edit(rule, rule.fixer.as_ref().expect("TODO")));
         // stop at first fix, skip duplicate fix
@@ -155,11 +155,14 @@ mod test {
     let root = grep.root();
     let mut nm = root.find(pat).expect("should find");
     let before_vars: Vec<_> = nm.get_env().get_matched_variables().collect();
+    let env = nm.get_env_mut();
+    let enclosing = env.clone();
     let mut ctx = Ctx {
       lang: &TypeScript::Tsx,
       transforms: &Default::default(),
-      env: nm.get_env_mut(),
+      env,
       rewriters,
+      enclosing_env: &enclosing,
     };
     let after_vars: Vec<_> = ctx.env.get_matched_variables().collect();
     assert_eq!(
@@ -270,7 +273,6 @@ mod test {
   }
 
   #[test]
-  #[ignore = "TODO: fix the recursion bug"]
   fn test_recursive_rewriters() {
     let rewrite = Rewrite {
       source: "$A".into(),
@@ -319,11 +321,14 @@ fix: $D
     let grep = TypeScript::Tsx.ast_grep("[1, 2]");
     let root = grep.root();
     let mut nm = root.find("[$B, $C]").expect("should find");
+    let env = nm.get_env_mut();
+    let enclosing = env.clone();
     let mut ctx = Ctx {
       lang: &TypeScript::Tsx,
       transforms: &Default::default(),
-      env: nm.get_env_mut(),
+      env,
       rewriters,
+      enclosing_env: &enclosing,
     };
     let ret = rewrite.compute(&mut ctx);
     assert_eq!(ret, None);
@@ -347,11 +352,14 @@ fix: $D
     let grep = TypeScript::Tsx.ast_grep("[1, 2]");
     let root = grep.root();
     let mut nm = root.find("[$A, $C]").expect("should find");
+    let env = nm.get_env_mut();
+    let enclosing = env.clone();
     let mut ctx = Ctx {
       lang: &TypeScript::Tsx,
       transforms: &Default::default(),
-      env: nm.get_env_mut(),
+      env,
       rewriters,
+      enclosing_env: &enclosing,
     };
     let ret = rewrite.compute(&mut ctx);
     assert_eq!(ret, Some("1 == 2".into()));

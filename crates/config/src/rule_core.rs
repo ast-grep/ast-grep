@@ -205,6 +205,35 @@ impl<L: Language> RuleCore<L> {
     }
     ret
   }
+
+  pub(crate) fn do_match<'tree, D: Doc<Lang = L>>(
+    &self,
+    node: Node<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+    enclosing_env: Option<&MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
+    if let Some(kinds) = &self.kinds {
+      if !kinds.contains(node.kind_id().into()) {
+        return None;
+      }
+    }
+    let ret = self.rule.match_node_with_env(node, env)?;
+    if !env.to_mut().match_constraints(&self.constraints) {
+      return None;
+    }
+    if let Some(trans) = &self.transform {
+      let lang = ret.lang();
+      let rewriters = self.utils.get_rewriters();
+      let env = env.to_mut();
+      if let Some(enclosing) = enclosing_env {
+        apply_env_transform(trans, lang, env, rewriters, enclosing);
+      } else {
+        let enclosing = env.clone();
+        apply_env_transform(trans, lang, env, rewriters, &enclosing);
+      };
+    }
+    Some(ret)
+  }
 }
 impl<L: Language> Deref for RuleCore<L> {
   type Target = Rule<L>;
@@ -233,21 +262,7 @@ impl<L: Language> Matcher<L> for RuleCore<L> {
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    if let Some(kinds) = &self.kinds {
-      if !kinds.contains(node.kind_id().into()) {
-        return None;
-      }
-    }
-    let ret = self.rule.match_node_with_env(node, env)?;
-    if !env.to_mut().match_constraints(&self.constraints) {
-      return None;
-    }
-    if let Some(trans) = &self.transform {
-      let lang = ret.lang();
-      let rewriters = self.utils.get_rewriters();
-      apply_env_transform(trans, lang, env.to_mut(), rewriters);
-    }
-    Some(ret)
+    self.do_match(node, env, None)
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {

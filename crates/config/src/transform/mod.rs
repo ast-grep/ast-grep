@@ -174,19 +174,22 @@ struct Ctx<'b, 'c, D: Doc> {
   lang: &'b D::Lang,
   rewriters: GlobalRules<D::Lang>,
   env: &'b mut MetaVarEnv<'c, D>,
+  enclosing_env: &'b MetaVarEnv<'c, D>,
 }
 
-pub fn apply_env_transform<D: Doc>(
+pub fn apply_env_transform<'c, D: Doc>(
   transforms: &HashMap<String, Transformation>,
   lang: &D::Lang,
-  env: &mut MetaVarEnv<D>,
+  env: &mut MetaVarEnv<'c, D>,
   rewriters: GlobalRules<D::Lang>,
+  enclosing_env: &MetaVarEnv<'c, D>,
 ) {
   let mut ctx = Ctx {
     transforms,
     lang,
     env,
     rewriters,
+    enclosing_env,
   };
   for (key, tr) in transforms {
     tr.insert(key, &mut ctx);
@@ -210,6 +213,7 @@ mod test {
       transforms: &HashMap::new(),
       env: nm.get_env_mut(),
       rewriters: Default::default(),
+      enclosing_env: &Default::default(),
     };
     trans.compute(&mut ctx)
   }
@@ -296,6 +300,7 @@ mod test {
       &TypeScript::Tsx,
       nm.get_env_mut(),
       Default::default(),
+      &Default::default(),
     );
     nm.get_env().clone().into()
   }
