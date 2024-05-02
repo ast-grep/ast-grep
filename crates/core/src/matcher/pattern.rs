@@ -516,6 +516,12 @@ mod test {
   }
 
   #[test]
+  fn test_contextual_pattern_vars() {
+    let pattern = Pattern::contextual("<div ref={$A}/>", "jsx_attribute", Tsx).expect("correct");
+    assert_eq!(pattern.defined_vars(), ["A"].into_iter().collect());
+  }
+
+  #[test]
   fn test_gh_1087() {
     test_match("($P) => $F($P)", "(x) => bar(x)");
   }
