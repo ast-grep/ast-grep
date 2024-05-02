@@ -1,9 +1,9 @@
 use super::Ctx;
 use crate::rule_core::RuleCore;
 
-use ast_grep_core::meta_var::{MetaVarEnv, MetaVariable};
+use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::source::{Content, Edit};
-use ast_grep_core::{Doc, Language, Matcher, Node, NodeMatch};
+use ast_grep_core::{Doc, Language, Node, NodeMatch};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
