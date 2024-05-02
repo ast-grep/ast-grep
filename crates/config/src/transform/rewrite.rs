@@ -144,6 +144,7 @@ mod test {
   use crate::rule_core::SerializableRuleCore;
   use crate::test::TypeScript;
   use crate::GlobalRules;
+  use std::collections::HashSet;
 
   fn apply_transformation(
     rewrite: Rewrite,
@@ -176,11 +177,18 @@ mod test {
   }
 
   fn make_rewriter(pairs: &[(&str, &str)]) -> GlobalRules<TypeScript> {
+    make_rewriter_with_rewriter(pairs, Default::default())
+  }
+
+  fn make_rewriter_with_rewriter(
+    pairs: &[(&str, &str)],
+    vars: HashSet<&str>,
+  ) -> GlobalRules<TypeScript> {
     let rewriters = GlobalRules::default();
     for (key, ser) in pairs {
       let serialized: SerializableRuleCore = from_str(ser).unwrap();
       let env = DeserializeEnv::new(TypeScript::Tsx).with_rewriters(&rewriters);
-      let rule = serialized.get_rewriter(env, &Default::default()).unwrap();
+      let rule = serialized.get_rewriter(env, &vars).unwrap();
       rewriters.insert(key, rule).unwrap();
     }
     rewriters
@@ -320,17 +328,8 @@ fix: $D
     let rewriters = make_rewriter(&[("re", "{rule: {pattern: $B}, fix: '123'}")]);
     let grep = TypeScript::Tsx.ast_grep("[1, 2]");
     let root = grep.root();
-    let mut nm = root.find("[$B, $C]").expect("should find");
-    let env = nm.get_env_mut();
-    let enclosing = env.clone();
-    let mut ctx = Ctx {
-      lang: &TypeScript::Tsx,
-      transforms: &Default::default(),
-      env,
-      rewriters,
-      enclosing_env: &enclosing,
-    };
-    let ret = rewrite.compute(&mut ctx);
+    let nm = root.find("[$B, $C]").expect("should find");
+    let ret = comppute_rewriter(nm, rewrite, rewriters);
     assert_eq!(ret, None);
   }
 
@@ -341,17 +340,19 @@ fix: $D
       rewriters: str_vec!["re"],
       join_by: None,
     };
-    let rewriters = GlobalRules::default();
-    let serialized: SerializableRuleCore =
-      from_str("{rule: {pattern: $B}, fix: '$B == $C'}").unwrap();
-    let env = DeserializeEnv::new(TypeScript::Tsx).with_rewriters(&rewriters);
-    let mut vars = std::collections::HashSet::new();
+    let mut vars = HashSet::new();
     vars.insert("C");
-    let rule = serialized.get_rewriter(env, &vars).unwrap();
-    rewriters.insert("re", rule).unwrap();
-    let grep = TypeScript::Tsx.ast_grep("[1, 2]");
-    let root = grep.root();
-    let mut nm = root.find("[$A, $C]").expect("should find");
+    let rewriters =
+      make_rewriter_with_rewriter(&[("re", "{rule: {pattern: $B}, fix: '$B == $C'}")], vars);
+    let ret = apply_transformation(rewrite, "[1, 2]", "[$A, $C]", rewriters);
+    assert_eq!(ret, "1 == 2");
+  }
+
+  fn comppute_rewriter<D: Doc<Lang = TypeScript>>(
+    mut nm: NodeMatch<D>,
+    rewrite: Rewrite,
+    rewriters: GlobalRules<TypeScript>,
+  ) -> Option<String> {
     let env = nm.get_env_mut();
     let enclosing = env.clone();
     let mut ctx = Ctx {
@@ -361,7 +362,6 @@ fix: $D
       rewriters,
       enclosing_env: &enclosing,
     };
-    let ret = rewrite.compute(&mut ctx);
-    assert_eq!(ret, Some("1 == 2".into()));
+    rewrite.compute(&mut ctx)
   }
 }
