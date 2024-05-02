@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/cli-win32-ia32-msvc",
-  "version": "0.21.1",
+  "version": "0.21.2",
   "os": [
     "win32"
   ],
