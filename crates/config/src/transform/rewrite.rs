@@ -152,35 +152,18 @@ mod test {
     pat: &str,
     rewriters: GlobalRules<TypeScript>,
   ) -> String {
-    let grep = TypeScript::Tsx.ast_grep(src);
-    let root = grep.root();
-    let mut nm = root.find(pat).expect("should find");
-    let before_vars: Vec<_> = nm.get_env().get_matched_variables().collect();
-    let env = nm.get_env_mut();
-    let enclosing = env.clone();
-    let mut ctx = Ctx {
-      lang: &TypeScript::Tsx,
-      transforms: &Default::default(),
-      env,
-      rewriters,
-      enclosing_env: &enclosing,
-    };
-    let after_vars: Vec<_> = ctx.env.get_matched_variables().collect();
-    assert_eq!(
-      before_vars, after_vars,
-      "rewrite should not write back to env"
-    );
-    rewrite.compute(&mut ctx).expect("should have transforms")
+    compute_rewritten(src, pat, rewrite, rewriters).expect("should have transforms")
   }
+
   macro_rules! str_vec {
     ( $($a: expr),* ) => { vec![ $($a.to_string()),* ] };
   }
 
-  fn make_rewriter(pairs: &[(&str, &str)]) -> GlobalRules<TypeScript> {
-    make_rewriter_with_rewriter(pairs, Default::default())
+  fn make_rewriters(pairs: &[(&str, &str)]) -> GlobalRules<TypeScript> {
+    make_rewriters_with_rewriter(pairs, Default::default())
   }
 
-  fn make_rewriter_with_rewriter(
+  fn make_rewriters_with_rewriter(
     pairs: &[(&str, &str)],
     vars: HashSet<&str>,
   ) -> GlobalRules<TypeScript> {
@@ -201,7 +184,7 @@ mod test {
       rewriters: str_vec!["rewrite"],
       join_by: None,
     };
-    let rewriters = make_rewriter(&[("rewrite", "{rule: {kind: number}, fix: '810'}")]);
+    let rewriters = make_rewriters(&[("rewrite", "{rule: {kind: number}, fix: '810'}")]);
     let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", rewriters);
     assert_eq!(ret, "t(810, 810, 810)");
   }
@@ -213,7 +196,7 @@ mod test {
       rewriters: str_vec!["re1", "re2"],
       join_by: None,
     };
-    let rewriters = make_rewriter(&[
+    let rewriters = make_rewriters(&[
       ("re1", "{rule: {regex: '^1$'}, fix: '810'}"),
       ("re2", "{rule: {regex: '^2$'}, fix: '1919'}"),
     ]);
@@ -228,7 +211,7 @@ mod test {
       rewriters: str_vec!["re1"],
       join_by: None,
     };
-    let rewriters = make_rewriter(&[
+    let rewriters = make_rewriters(&[
       ("ignored", "{rule: {regex: '^2$'}, fix: '1919'}"),
       ("re1", "{rule: {kind: number}, fix: '810'}"),
     ]);
@@ -244,7 +227,7 @@ mod test {
       join_by: None,
     };
     // first match wins the rewrite
-    let rewriters = make_rewriter(&[
+    let rewriters = make_rewriters(&[
       ("re2", "{rule: {regex: '^2$'}, fix: '1919'}"),
       ("re1", "{rule: {kind: number}, fix: '810'}"),
     ]);
@@ -260,7 +243,7 @@ mod test {
       join_by: None,
     };
     // parent node wins fix, even if rule comes later
-    let rewriters = make_rewriter(&[
+    let rewriters = make_rewriters(&[
       ("re1", "{rule: {kind: number}, fix: '810'}"),
       ("re2", "{rule: {kind: array}, fix: '1919'}"),
     ]);
@@ -275,7 +258,7 @@ mod test {
       rewriters: str_vec!["re1"],
       join_by: Some(" + ".into()),
     };
-    let rewriters = make_rewriter(&[("re1", "{rule: {kind: number}, fix: '810'}")]);
+    let rewriters = make_rewriters(&[("re1", "{rule: {kind: number}, fix: '810'}")]);
     let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", rewriters);
     assert_eq!(ret, "810 + 810 + 810");
   }
@@ -296,7 +279,7 @@ transform:
       rewriters: [re1]
 fix: $D
     "#;
-    let rewriters = make_rewriter(&[("re1", rule)]);
+    let rewriters = make_rewriters(&[("re1", rule)]);
     let ret = apply_transformation(rewrite, "[1, [2, [3, [4]]]]", "$A", rewriters);
     assert_eq!(ret, "1, 2, 3, 4");
   }
@@ -308,7 +291,7 @@ fix: $D
       rewriters: str_vec!["re"],
       join_by: None,
     };
-    let rewriters = make_rewriter(&[("re", "{rule: {pattern: $C}, fix: '123'}")]);
+    let rewriters = make_rewriters(&[("re", "{rule: {pattern: $C}, fix: '123'}")]);
     let ret = apply_transformation(rewrite.clone(), "[1, 2]", "[$A, $B]", rewriters.clone());
     assert_eq!(ret, "123");
     let ret = apply_transformation(rewrite.clone(), "[1, 1]", "[$A, $C]", rewriters.clone());
@@ -325,11 +308,8 @@ fix: $D
       rewriters: str_vec!["re"],
       join_by: None,
     };
-    let rewriters = make_rewriter(&[("re", "{rule: {pattern: $B}, fix: '123'}")]);
-    let grep = TypeScript::Tsx.ast_grep("[1, 2]");
-    let root = grep.root();
-    let nm = root.find("[$B, $C]").expect("should find");
-    let ret = comppute_rewriter(nm, rewrite, rewriters);
+    let rewriters = make_rewriters(&[("re", "{rule: {pattern: $B}, fix: '123'}")]);
+    let ret = compute_rewritten("[1, 2]", "[$B, $C]", rewrite, rewriters);
     assert_eq!(ret, None);
   }
 
@@ -343,16 +323,21 @@ fix: $D
     let mut vars = HashSet::new();
     vars.insert("C");
     let rewriters =
-      make_rewriter_with_rewriter(&[("re", "{rule: {pattern: $B}, fix: '$B == $C'}")], vars);
+      make_rewriters_with_rewriter(&[("re", "{rule: {pattern: $B}, fix: '$B == $C'}")], vars);
     let ret = apply_transformation(rewrite, "[1, 2]", "[$A, $C]", rewriters);
     assert_eq!(ret, "1 == 2");
   }
 
-  fn comppute_rewriter<D: Doc<Lang = TypeScript>>(
-    mut nm: NodeMatch<D>,
+  fn compute_rewritten(
+    src: &str,
+    pat: &str,
     rewrite: Rewrite,
     rewriters: GlobalRules<TypeScript>,
   ) -> Option<String> {
+    let grep = TypeScript::Tsx.ast_grep(src);
+    let root = grep.root();
+    let mut nm = root.find(pat).expect("should find");
+    let before_vars: Vec<_> = nm.get_env().get_matched_variables().collect();
     let env = nm.get_env_mut();
     let enclosing = env.clone();
     let mut ctx = Ctx {
@@ -362,6 +347,11 @@ fix: $D
       rewriters,
       enclosing_env: &enclosing,
     };
+    let after_vars: Vec<_> = ctx.env.get_matched_variables().collect();
+    assert_eq!(
+      before_vars, after_vars,
+      "rewrite should not write back to env"
+    );
     rewrite.compute(&mut ctx)
   }
 }
