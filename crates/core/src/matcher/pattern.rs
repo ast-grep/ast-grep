@@ -514,4 +514,9 @@ mod test {
     let vars = defined_vars("var $A = $A");
     assert_eq!(vars, ["A"]);
   }
+
+  #[test]
+  fn test_gh_1087() {
+    test_match("($P) => $F($P)", "(x) => bar(x)");
+  }
 }

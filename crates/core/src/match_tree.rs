@@ -297,11 +297,13 @@ pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: &Node<D>) -> b
   if goal.node_id() == candidate.node_id() {
     return true;
   }
+  // gh issue #1087, we make pattern matching a little bit more permissive
+  // compare node text if at least one node is leaf
+  if goal.is_named_leaf() || candidate.is_named_leaf() {
+    return goal.text() == candidate.text();
+  }
   if goal.kind_id() != candidate.kind_id() {
     return false;
-  }
-  if goal.is_named_leaf() {
-    return goal.text() == candidate.text();
   }
   let goal_children = goal.children();
   let cand_children = candidate.children();
@@ -503,5 +505,10 @@ mod test {
       "import {A, B, C} from 'a'",
     );
     assert_eq!(end.expect("must match"), 25);
+  }
+
+  #[test]
+  fn test_gh_1087() {
+    test_match("($P) => $F($P)", "(x) => bar(x)");
   }
 }
