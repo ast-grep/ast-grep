@@ -21,7 +21,7 @@ use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 
 #[derive(Debug, Error)]
-pub enum RuleConfigError {
+pub enum RuleCoreError {
   #[error("Fail to parse yaml as RuleConfig")]
   Yaml(#[from] YamlError),
   #[error("Rule is not configured correctly.")]
@@ -38,7 +38,7 @@ pub enum RuleConfigError {
   UndefinedRewriter(String),
 }
 
-type RResult<T> = std::result::Result<T, RuleConfigError>;
+type RResult<T> = std::result::Result<T, RuleCoreError>;
 
 /// Used for global rules, rewriters, and pyo3/napi
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
@@ -67,7 +67,7 @@ impl SerializableRuleCore {
     if let Some(utils) = &self.utils {
       let env = env
         .register_local_utils(utils)
-        .map_err(RuleConfigError::Utils)?;
+        .map_err(RuleCoreError::Utils)?;
       Ok(env)
     } else {
       Ok(env)

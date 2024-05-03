@@ -1,8 +1,7 @@
 use super::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
 use crate::maybe::Maybe;
 use crate::rule::{self, Rule, RuleSerializeError, SerializableRule};
-use crate::rule_config::RuleConfigError;
-use crate::rule_core::SerializableRuleCore;
+use crate::rule_core::{RuleCoreError, SerializableRuleCore};
 
 use ast_grep_core::language::Language;
 
@@ -166,7 +165,7 @@ impl<L: Language> DeserializeEnv<L> {
   /// register global utils rule discovered in the config.
   pub fn parse_global_utils(
     utils: Vec<SerializableGlobalRule<L>>,
-  ) -> Result<GlobalRules<L>, RuleConfigError> {
+  ) -> Result<GlobalRules<L>, RuleCoreError> {
     let registration = GlobalRules::default();
     let utils = into_map(utils);
     let order = TopologicalSort::get_order(&utils).map_err(RuleSerializeError::from)?;

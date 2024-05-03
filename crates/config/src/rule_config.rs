@@ -3,7 +3,7 @@ use crate::GlobalRules;
 use crate::check_var::check_rewriters_in_transform;
 use crate::fixer::Fixer;
 use crate::rule::DeserializeEnv;
-pub use crate::rule_core::{RuleConfigError, RuleCore, SerializableRuleCore};
+use crate::rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
 use ast_grep_core::language::Language;
 use ast_grep_core::replacer::Replacer;
 use ast_grep_core::{NodeMatch, StrDoc};
@@ -73,7 +73,7 @@ impl<L: Language> SerializableRuleConfig<L> {
     String::from_utf8(bytes).expect("replacement must be valid utf-8")
   }
 
-  pub fn get_matcher(&self, globals: &GlobalRules<L>) -> Result<RuleCore<L>, RuleConfigError> {
+  pub fn get_matcher(&self, globals: &GlobalRules<L>) -> Result<RuleCore<L>, RuleCoreError> {
     // every RuleConfig has one rewriters, and the rewriter is shared between sub-rules
     // all RuleConfigs has one common globals
     // every sub-rule has one util
@@ -91,7 +91,7 @@ impl<L: Language> SerializableRuleConfig<L> {
     rule: &RuleCore<L>,
     globals: &GlobalRules<L>,
     rewriters: &GlobalRules<L>,
-  ) -> Result<(), RuleConfigError> {
+  ) -> Result<(), RuleCoreError> {
     let Some(ser) = &self.rewriters else {
       return Ok(());
     };
@@ -133,7 +133,7 @@ impl<L: Language> RuleConfig<L> {
   pub fn try_from(
     inner: SerializableRuleConfig<L>,
     globals: &GlobalRules<L>,
-  ) -> Result<Self, RuleConfigError> {
+  ) -> Result<Self, RuleCoreError> {
     let matcher = inner.get_matcher(globals)?;
     Ok(Self { inner, matcher })
   }
@@ -141,7 +141,7 @@ impl<L: Language> RuleConfig<L> {
   pub fn deserialize<'de>(
     deserializer: Deserializer<'de>,
     globals: &GlobalRules<L>,
-  ) -> Result<Self, RuleConfigError>
+  ) -> Result<Self, RuleCoreError>
   where
     L: Deserialize<'de>,
   {
@@ -152,7 +152,7 @@ impl<L: Language> RuleConfig<L> {
   pub fn get_message(&self, node: &NodeMatch<StrDoc<L>>) -> String {
     self.inner.get_message(node)
   }
-  pub fn get_fixer(&self) -> Result<Option<Fixer<L>>, RuleConfigError> {
+  pub fn get_fixer(&self) -> Result<Option<Fixer<L>>, RuleCoreError> {
     if let Some(fix) = &self.fix {
       let env = self.matcher.get_env(self.language.clone());
       let parsed = Fixer::parse(fix, &env, &self.transform)?;
@@ -495,7 +495,7 @@ rewriters:
     let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
     let err = RuleConfig::try_from(rule, &Default::default());
     match err {
-      Err(RuleConfigError::UndefinedRewriter(name)) => name,
+      Err(RuleCoreError::UndefinedRewriter(name)) => name,
       _ => panic!("unexpected parsing result"),
     }
   }

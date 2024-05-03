@@ -1,6 +1,6 @@
 use crate::fixer::Fixer;
 use crate::rule::Rule;
-use crate::rule_core::RuleConfigError;
+use crate::rule_core::RuleCoreError;
 use crate::transform::Transformation;
 use crate::{GlobalRules, RuleCore};
 
@@ -8,12 +8,12 @@ use ast_grep_core::language::Language;
 
 use std::collections::{HashMap, HashSet};
 
-type RResult<T> = std::result::Result<T, RuleConfigError>;
+type RResult<T> = std::result::Result<T, RuleCoreError>;
 
 pub fn check_rewriters_in_transform<L: Language>(
   rule: &RuleCore<L>,
   rewriters: &GlobalRules<L>,
-) -> Result<(), RuleConfigError> {
+) -> Result<(), RuleCoreError> {
   let rewriters = rewriters.read();
   if let Some(err) = check_one_rewriter_in_rule(rule, &rewriters) {
     return Err(err);
@@ -30,13 +30,13 @@ pub fn check_rewriters_in_transform<L: Language>(
 fn check_one_rewriter_in_rule<L: Language>(
   rule: &RuleCore<L>,
   rewriters: &HashMap<String, RuleCore<L>>,
-) -> Option<RuleConfigError> {
+) -> Option<RuleCoreError> {
   let transform = rule.transform.as_ref()?;
   let mut used_rewriters = transform
     .values()
     .flat_map(|trans| trans.used_rewriters().iter());
   let undefined_writers = used_rewriters.find(|r| !rewriters.contains_key(*r))?;
-  Some(RuleConfigError::UndefinedRewriter(
+  Some(RuleCoreError::UndefinedRewriter(
     undefined_writers.to_string(),
   ))
 }
@@ -82,7 +82,7 @@ fn check_var_in_constraints<'r, L: Language>(
   for var in constraints.keys() {
     let var: &str = var;
     if !vars.contains(var) {
-      return Err(RuleConfigError::UndefinedMetaVar(
+      return Err(RuleCoreError::UndefinedMetaVar(
         var.to_owned(),
         "constraints",
       ));
@@ -104,7 +104,7 @@ fn check_var_in_transform<'r>(
   for trans in transform.values() {
     let needed = trans.used_vars();
     if !vars.contains(needed) {
-      return Err(RuleConfigError::UndefinedMetaVar(
+      return Err(RuleCoreError::UndefinedMetaVar(
         needed.to_string(),
         "transform",
       ));
@@ -119,7 +119,7 @@ fn check_var_in_fix<L: Language>(vars: HashSet<&str>, fixer: &Option<Fixer<L>>) 
   };
   for var in fixer.used_vars() {
     if !vars.contains(&var) {
-      return Err(RuleConfigError::UndefinedMetaVar(var.to_string(), "fix"));
+      return Err(RuleCoreError::UndefinedMetaVar(var.to_string(), "fix"));
     }
   }
   Ok(())
@@ -157,7 +157,7 @@ transform:
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let ser_rule: SerializableRuleCore = from_str(src).expect("should deser");
     match ser_rule.get_matcher(env) {
-      Err(RuleConfigError::UndefinedMetaVar(name, section)) => (name, section),
+      Err(RuleCoreError::UndefinedMetaVar(name, section)) => (name, section),
       _ => panic!("should error"),
     }
   }
