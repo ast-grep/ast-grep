@@ -281,6 +281,29 @@ mod test {
   use crate::{from_str, GlobalRules};
   use ast_grep_core::matcher::{Pattern, RegexMatcher};
 
+  fn get_matcher(src: &str) -> RResult<RuleCore<TypeScript>> {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let rule: SerializableRuleCore = from_str(src).expect("should word");
+    rule.get_matcher(env)
+  }
+
+  #[test]
+  fn test_rule_error() {
+    let ret = get_matcher(r"rule: {kind: bbb}");
+    assert!(matches!(ret, Err(RuleCoreError::Rule(_))));
+  }
+
+  #[test]
+  fn test_utils_error() {
+    let ret = get_matcher(
+      r"
+rule: { kind: number }
+utils: { testa: {kind: bbb} }
+  ",
+    );
+    assert!(matches!(ret, Err(RuleCoreError::Utils(_))));
+  }
+
   #[test]
   fn test_rule_reg_with_utils() {
     let env = DeserializeEnv::new(TypeScript::Tsx);
