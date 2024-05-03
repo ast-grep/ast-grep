@@ -24,11 +24,11 @@ use std::ops::Deref;
 pub enum RuleCoreError {
   #[error("Fail to parse yaml as RuleConfig")]
   Yaml(#[from] YamlError),
-  #[error("Rule is not configured correctly.")]
+  #[error("`rule` is not configured correctly.")]
   Rule(#[from] RuleSerializeError),
-  #[error("Utility rule is not configured correctly.")]
+  #[error("`utils` is not configured correctly.")]
   Utils(#[source] RuleSerializeError),
-  #[error("fix pattern is invalid.")]
+  #[error("`fix` pattern is invalid.")]
   Fixer(#[from] FixerError),
   #[error("constraints is not configured correctly.")]
   Constraints(#[source] RuleSerializeError),
@@ -83,7 +83,10 @@ impl SerializableRuleCore {
       return Ok(constraints);
     };
     for (key, ser) in serde_cons {
-      constraints.insert(key.to_string(), env.deserialize_rule(ser.clone())?);
+      let constraint = env
+        .deserialize_rule(ser.clone())
+        .map_err(RuleCoreError::Constraints)?;
+      constraints.insert(key.to_string(), constraint);
     }
     Ok(constraints)
   }

@@ -4,12 +4,15 @@ use crate::check_var::check_rewriters_in_transform;
 use crate::fixer::Fixer;
 use crate::rule::DeserializeEnv;
 use crate::rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
+
 use ast_grep_core::language::Language;
 use ast_grep_core::replacer::Replacer;
 use ast_grep_core::{NodeMatch, StrDoc};
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer};
+use thiserror::Error;
 
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
@@ -28,6 +31,16 @@ pub enum Severity {
   Error,
   /// Turns off the rule.
   Off,
+}
+
+#[derive(Debug, Error)]
+pub enum RuleConfigError {
+  #[error("{0}")]
+  Core(#[from] RuleCoreError),
+  #[error("Rewriter rule {1} is not configured correctly.")]
+  Rewriter(#[source] RuleCoreError, String),
+  #[error("Undefined rewriter {0} used in transform.")]
+  UndefinedRewriter(String),
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
