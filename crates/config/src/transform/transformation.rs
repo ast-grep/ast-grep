@@ -32,16 +32,16 @@ fn get_text_from_env<D: Doc>(src: &str, ctx: &mut Ctx<D>) -> Option<String> {
 /// which counts character from the end of an array, moving backwards.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct Substring {
+pub struct Substring<T> {
   /// source meta variable to be transformed
-  source: String,
+  source: T,
   /// optional starting character index of the substring, defaults to 0.
   start_char: Option<i32>,
   /// optional ending character index of the substring, defaults to the end of the string.
   end_char: Option<i32>,
 }
 
-impl Substring {
+impl Substring<String> {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
     let chars: Vec<_> = text.chars().collect();
@@ -74,15 +74,15 @@ fn resolve_char(opt: &Option<i32>, dft: i32, len: i32) -> usize {
 /// Replaces a substring in the meta variable's text content with another string.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct Replace {
+pub struct Replace<T> {
   /// source meta variable to be transformed
-  source: String,
+  source: T,
   /// a regex to find substring to be replaced
   replace: String,
   /// the replacement string
   by: String,
 }
-impl Replace {
+impl Replace<String> {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
     let re = Regex::new(&self.replace).unwrap();
@@ -93,15 +93,15 @@ impl Replace {
 /// Converts the source meta variable's text content to a specified case format.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct Convert {
+pub struct Convert<T> {
   /// source meta variable to be transformed
-  source: String,
+  source: T,
   /// the target case format to convert the text content to
   to_case: StringCase,
   /// optional separators to specify how to separate word
   separated_by: Option<Vec<Separator>>,
 }
-impl Convert {
+impl Convert<String> {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
     Some(self.to_case.apply(&text, self.separated_by.as_deref()))
@@ -112,14 +112,14 @@ impl Convert {
 /// Available transformations are `substring`, `replace` and `convert`.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub enum Transformation {
-  Substring(Substring),
-  Replace(Replace),
-  Convert(Convert),
-  Rewrite(Rewrite),
+pub enum Transformation<T> {
+  Substring(Substring<T>),
+  Replace(Replace<T>),
+  Convert(Convert<T>),
+  Rewrite(Rewrite<T>),
 }
 
-impl Transformation {
+impl Transformation<String> {
   pub(super) fn insert<D: Doc>(&self, key: &str, ctx: &mut Ctx<D>) {
     // TODO: add this debug assertion back
     // debug_assert!(ctx.env.get_transformed(key).is_none());
@@ -178,7 +178,7 @@ mod test {
 
   type R = std::result::Result<(), ()>;
 
-  fn get_transformed(src: &str, pat: &str, trans: &Transformation) -> Option<String> {
+  fn get_transformed(src: &str, pat: &str, trans: &Transformation<String>) -> Option<String> {
     let grep = TypeScript::Tsx.ast_grep(src);
     let root = grep.root();
     let mut nm = root.find(pat).expect("should find");
@@ -192,7 +192,7 @@ mod test {
     trans.compute(&mut ctx)
   }
 
-  fn parse(trans: &str) -> Result<Transformation, ()> {
+  fn parse(trans: &str) -> Result<Transformation<String>, ()> {
     let deserializer = serde_yaml::Deserializer::from_str(trans);
     singleton_map_recursive::deserialize(deserializer).map_err(|_| ())
   }
@@ -265,7 +265,7 @@ mod test {
     assert!(parsed.is_err());
   }
 
-  fn transform_env(trans: HashMap<String, Transformation>) -> HashMap<String, String> {
+  fn transform_env(trans: HashMap<String, Transformation<String>>) -> HashMap<String, String> {
     let grep = TypeScript::Tsx.ast_grep("let a = 123");
     let root = grep.root();
     let mut nm = root.find("let a = $A").expect("should find");

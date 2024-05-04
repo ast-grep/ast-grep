@@ -7,7 +7,8 @@ use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::Doc;
 
 use std::collections::HashMap;
-pub use transformation::Transformation;
+use transformation::Transformation as Trans;
+pub type Transformation = Trans<String>;
 
 // two lifetime to represent env root lifetime and lang/trans lifetime
 struct Ctx<'b, 'c, D: Doc> {

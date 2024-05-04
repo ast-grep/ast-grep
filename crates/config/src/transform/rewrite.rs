@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct Rewrite {
-  pub(super) source: String,
+pub struct Rewrite<T> {
+  pub(super) source: T,
   pub(super) rewriters: Vec<String>,
   // do we need this?
   // sort_by: Option<String>,
@@ -31,7 +31,7 @@ fn get_nodes_from_env<'b, D: Doc>(var: &MetaVariable, ctx: &Ctx<'_, 'b, D>) -> V
   }
 }
 
-impl Rewrite {
+impl Rewrite<String> {
   pub(super) fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let source = ctx.lang.pre_process_pattern(&self.source);
     let var = ctx.lang.extract_meta_var(&source)?;
@@ -147,7 +147,7 @@ mod test {
   use std::collections::HashSet;
 
   fn apply_transformation(
-    rewrite: Rewrite,
+    rewrite: Rewrite<String>,
     src: &str,
     pat: &str,
     rewriters: GlobalRules<TypeScript>,
@@ -331,7 +331,7 @@ fix: $D
   fn compute_rewritten(
     src: &str,
     pat: &str,
-    rewrite: Rewrite,
+    rewrite: Rewrite<String>,
     rewriters: GlobalRules<TypeScript>,
   ) -> Option<String> {
     let grep = TypeScript::Tsx.ast_grep(src);
