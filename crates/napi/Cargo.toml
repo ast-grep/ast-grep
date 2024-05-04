@@ -22,7 +22,7 @@ tree-sitter.workspace = true
 tree-sitter-typescript="0.20.5"
 tree-sitter-html = "0.20.0"
 tree-sitter-javascript = "0.20.4"
-tree-sitter-css = "0.20.0"
+tree-sitter-css = "0.21.0"
 serde_json = "1.0.116"
 
 [features]
