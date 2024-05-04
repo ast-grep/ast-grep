@@ -3,7 +3,7 @@ use crate::fixer::{Fixer, FixerError, SerializableFixer};
 use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::Rule;
 use crate::rule::{RuleSerializeError, SerializableRule};
-use crate::transform::{apply_env_transform, Transformation};
+use crate::transform::{Transform, Transformation};
 use crate::DeserializeEnv;
 
 use ast_grep_core::language::Language;
@@ -101,7 +101,7 @@ impl SerializableRuleCore {
   fn get_matcher_from_env<L: Language>(&self, env: &DeserializeEnv<L>) -> RResult<RuleCore<L>> {
     let rule = env.deserialize_rule(self.rule.clone())?;
     let constraints = self.get_constraints(env)?;
-    let transform = self.transform.clone();
+    let transform = self.transform.as_ref().map(Transform::deserialize);
     let fixer = self.get_fixer(env)?;
     check_utils_defined(&rule, &constraints)?;
     Ok(
@@ -116,7 +116,7 @@ impl SerializableRuleCore {
   pub fn get_matcher<L: Language>(&self, env: DeserializeEnv<L>) -> RResult<RuleCore<L>> {
     let env = self.get_deserialize_env(env)?;
     let ret = self.get_matcher_from_env(&env)?;
-    check_vars(&ret.rule, &ret.constraints, &ret.transform, &ret.fixer)?;
+    check_vars(&ret.rule, &ret.constraints, &self.transform, &ret.fixer)?;
     Ok(ret)
   }
 
@@ -131,7 +131,7 @@ impl SerializableRuleCore {
     check_vars_in_rewriter(
       &ret.rule,
       &ret.constraints,
-      &ret.transform,
+      &self.transform,
       &ret.fixer,
       upper_vars,
     )?;
@@ -143,7 +143,7 @@ pub struct RuleCore<L: Language> {
   rule: Rule<L>,
   constraints: HashMap<String, Rule<L>>,
   kinds: Option<BitSet>,
-  pub(crate) transform: Option<HashMap<String, Transformation>>,
+  pub(crate) transform: Option<Transform>,
   pub fixer: Option<Fixer<L>>,
   // this is required to hold util rule reference
   utils: RuleRegistration<L>,
@@ -174,7 +174,7 @@ impl<L: Language> RuleCore<L> {
   }
 
   #[inline]
-  pub fn with_transform(self, transform: Option<HashMap<String, Transformation>>) -> Self {
+  pub fn with_transform(self, transform: Option<Transform>) -> Self {
     Self { transform, ..self }
   }
 
@@ -228,10 +228,10 @@ impl<L: Language> RuleCore<L> {
       let rewriters = self.utils.get_rewriters();
       let env = env.to_mut();
       if let Some(enclosing) = enclosing_env {
-        apply_env_transform(trans, lang, env, rewriters, enclosing);
+        trans.apply_transform(lang, env, rewriters, enclosing);
       } else {
         let enclosing = env.clone();
-        apply_env_transform(trans, lang, env, rewriters, &enclosing);
+        trans.apply_transform(lang, env, rewriters, &enclosing);
       };
     }
     Some(ret)

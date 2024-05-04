@@ -170,7 +170,7 @@ impl Transformation<String> {
 
 #[cfg(test)]
 mod test {
-  use super::super::apply_env_transform;
+  use super::super::Transform;
   use super::*;
   use crate::test::TypeScript;
   use serde_yaml::with::singleton_map_recursive;
@@ -269,8 +269,8 @@ mod test {
     let grep = TypeScript::Tsx.ast_grep("let a = 123");
     let root = grep.root();
     let mut nm = root.find("let a = $A").expect("should find");
-    apply_env_transform(
-      &trans,
+    let trans = Transform::deserialize(&trans);
+    trans.apply_transform(
       &TypeScript::Tsx,
       nm.get_env_mut(),
       Default::default(),

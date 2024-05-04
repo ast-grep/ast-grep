@@ -10,6 +10,44 @@ use std::collections::HashMap;
 use transformation::Transformation as Trans;
 pub type Transformation = Trans<String>;
 
+pub struct Transform {
+  transforms: HashMap<String, Transformation>,
+}
+
+impl Transform {
+  pub fn deserialize(map: &HashMap<String, Transformation>) -> Self {
+    let transforms = map.clone();
+    Self { transforms }
+  }
+
+  pub fn apply_transform<'c, D: Doc>(
+    &self,
+    lang: &D::Lang,
+    env: &mut MetaVarEnv<'c, D>,
+    rewriters: GlobalRules<D::Lang>,
+    enclosing_env: &MetaVarEnv<'c, D>,
+  ) {
+    let mut ctx = Ctx {
+      transforms: &self.transforms,
+      lang,
+      env,
+      rewriters,
+      enclosing_env,
+    };
+    for (key, tr) in &self.transforms {
+      tr.insert(key, &mut ctx);
+    }
+  }
+
+  pub(crate) fn keys(&self) -> impl Iterator<Item = &String> {
+    self.transforms.keys()
+  }
+
+  pub(crate) fn values(&self) -> impl Iterator<Item = &Transformation> {
+    self.transforms.values()
+  }
+}
+
 // two lifetime to represent env root lifetime and lang/trans lifetime
 struct Ctx<'b, 'c, D: Doc> {
   transforms: &'b HashMap<String, Transformation>,
@@ -17,23 +55,4 @@ struct Ctx<'b, 'c, D: Doc> {
   rewriters: GlobalRules<D::Lang>,
   env: &'b mut MetaVarEnv<'c, D>,
   enclosing_env: &'b MetaVarEnv<'c, D>,
-}
-
-pub fn apply_env_transform<'c, D: Doc>(
-  transforms: &HashMap<String, Transformation>,
-  lang: &D::Lang,
-  env: &mut MetaVarEnv<'c, D>,
-  rewriters: GlobalRules<D::Lang>,
-  enclosing_env: &MetaVarEnv<'c, D>,
-) {
-  let mut ctx = Ctx {
-    transforms,
-    lang,
-    env,
-    rewriters,
-    enclosing_env,
-  };
-  for (key, tr) in transforms {
-    tr.insert(key, &mut ctx);
-  }
 }
