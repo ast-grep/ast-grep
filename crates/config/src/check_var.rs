@@ -1,5 +1,6 @@
 use crate::fixer::Fixer;
 use crate::rule::Rule;
+use crate::rule_config::RuleConfigError;
 use crate::rule_core::RuleCoreError;
 use crate::transform::Transformation;
 use crate::{GlobalRules, RuleCore};
@@ -24,7 +25,7 @@ pub fn check_utils_defined<L: Language>(
 pub fn check_rewriters_in_transform<L: Language>(
   rule: &RuleCore<L>,
   rewriters: &GlobalRules<L>,
-) -> Result<(), RuleCoreError> {
+) -> Result<(), RuleConfigError> {
   let rewriters = rewriters.read();
   if let Some(err) = check_one_rewriter_in_rule(rule, &rewriters) {
     return Err(err);
@@ -41,13 +42,13 @@ pub fn check_rewriters_in_transform<L: Language>(
 fn check_one_rewriter_in_rule<L: Language>(
   rule: &RuleCore<L>,
   rewriters: &HashMap<String, RuleCore<L>>,
-) -> Option<RuleCoreError> {
+) -> Option<RuleConfigError> {
   let transform = rule.transform.as_ref()?;
   let mut used_rewriters = transform
     .values()
     .flat_map(|trans| trans.used_rewriters().iter());
   let undefined_writers = used_rewriters.find(|r| !rewriters.contains_key(*r))?;
-  Some(RuleCoreError::UndefinedRewriter(
+  Some(RuleConfigError::UndefinedRewriter(
     undefined_writers.to_string(),
   ))
 }

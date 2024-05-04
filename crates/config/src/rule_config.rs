@@ -11,6 +11,7 @@ use ast_grep_core::{NodeMatch, StrDoc};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_yaml::Error as YamlError;
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer};
 use thiserror::Error;
 
@@ -35,6 +36,8 @@ pub enum Severity {
 
 #[derive(Debug, Error)]
 pub enum RuleConfigError {
+  #[error("Fail to parse yaml as RuleConfig")]
+  Yaml(#[from] YamlError),
   #[error("{0}")]
   Core(#[from] RuleCoreError),
   #[error("Rewriter rule {1} is not configured correctly.")]
@@ -86,7 +89,7 @@ impl<L: Language> SerializableRuleConfig<L> {
     String::from_utf8(bytes).expect("replacement must be valid utf-8")
   }
 
-  pub fn get_matcher(&self, globals: &GlobalRules<L>) -> Result<RuleCore<L>, RuleCoreError> {
+  pub fn get_matcher(&self, globals: &GlobalRules<L>) -> Result<RuleCore<L>, RuleConfigError> {
     // every RuleConfig has one rewriters, and the rewriter is shared between sub-rules
     // all RuleConfigs has one common globals
     // every sub-rule has one util
@@ -104,7 +107,7 @@ impl<L: Language> SerializableRuleConfig<L> {
     rule: &RuleCore<L>,
     globals: &GlobalRules<L>,
     rewriters: &GlobalRules<L>,
-  ) -> Result<(), RuleCoreError> {
+  ) -> Result<(), RuleConfigError> {
     let Some(ser) = &self.rewriters else {
       return Ok(());
     };
@@ -146,7 +149,7 @@ impl<L: Language> RuleConfig<L> {
   pub fn try_from(
     inner: SerializableRuleConfig<L>,
     globals: &GlobalRules<L>,
-  ) -> Result<Self, RuleCoreError> {
+  ) -> Result<Self, RuleConfigError> {
     let matcher = inner.get_matcher(globals)?;
     Ok(Self { inner, matcher })
   }
@@ -154,7 +157,7 @@ impl<L: Language> RuleConfig<L> {
   pub fn deserialize<'de>(
     deserializer: Deserializer<'de>,
     globals: &GlobalRules<L>,
-  ) -> Result<Self, RuleCoreError>
+  ) -> Result<Self, RuleConfigError>
   where
     L: Deserialize<'de>,
   {
@@ -165,10 +168,10 @@ impl<L: Language> RuleConfig<L> {
   pub fn get_message(&self, node: &NodeMatch<StrDoc<L>>) -> String {
     self.inner.get_message(node)
   }
-  pub fn get_fixer(&self) -> Result<Option<Fixer<L>>, RuleCoreError> {
+  pub fn get_fixer(&self) -> Result<Option<Fixer<L>>, RuleConfigError> {
     if let Some(fix) = &self.fix {
       let env = self.matcher.get_env(self.language.clone());
-      let parsed = Fixer::parse(fix, &env, &self.transform)?;
+      let parsed = Fixer::parse(fix, &env, &self.transform).map_err(RuleCoreError::Fixer)?;
       Ok(Some(parsed))
     } else {
       Ok(None)
@@ -443,7 +446,7 @@ rewriters:
     )
     .expect("should parse");
     let ret = RuleConfig::try_from(rule, &Default::default());
-    assert!(matches!(ret, Err(RuleCoreError::Rule(_))));
+    assert!(matches!(ret, Err(RuleConfigError::Core(_))));
   }
 
   #[test]
@@ -506,7 +509,7 @@ rewriters:
     let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
     let err = RuleConfig::try_from(rule, &Default::default());
     match err {
-      Err(RuleCoreError::UndefinedRewriter(name)) => name,
+      Err(RuleConfigError::UndefinedRewriter(name)) => name,
       _ => panic!("unexpected parsing result"),
     }
   }

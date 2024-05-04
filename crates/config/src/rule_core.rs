@@ -34,8 +34,6 @@ pub enum RuleCoreError {
   Constraints(#[source] RuleSerializeError),
   #[error("Undefined meta var {0} used in {1}.")]
   UndefinedMetaVar(String, &'static str),
-  #[error("Undefined rewriter {0} used in transform.")]
-  UndefinedRewriter(String),
 }
 
 type RResult<T> = std::result::Result<T, RuleCoreError>;

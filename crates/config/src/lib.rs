@@ -19,7 +19,7 @@ pub use rule::referent_rule::GlobalRules;
 pub use rule::DeserializeEnv;
 pub use rule::{Rule, RuleSerializeError, SerializableRule};
 pub use rule_collection::RuleCollection;
-pub use rule_config::{RuleConfig, SerializableRuleConfig, Severity};
+pub use rule_config::{RuleConfig, RuleConfigError, SerializableRuleConfig, Severity};
 pub use rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
 pub use transform::Transformation;
 
@@ -31,7 +31,7 @@ pub fn from_str<'de, T: Deserialize<'de>>(s: &'de str) -> Result<T, YamlError> {
 pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(
   yamls: &'a str,
   registration: &GlobalRules<L>,
-) -> Result<Vec<RuleConfig<L>>, RuleCoreError> {
+) -> Result<Vec<RuleConfig<L>>, RuleConfigError> {
   let mut ret = vec![];
   for yaml in Deserializer::from_str(yamls) {
     let config = RuleConfig::deserialize(yaml, registration)?;
