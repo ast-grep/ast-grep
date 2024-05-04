@@ -35,7 +35,7 @@ You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-
 ```bash
 npm install --global @ast-grep/cli
 pip install ast-grep-cli
-cargo install ast-grep
+cargo install ast-grep --locked
 
 # install via homebrew, thank @henryhchchc
 brew install ast-grep
