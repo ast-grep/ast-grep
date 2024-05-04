@@ -32,7 +32,7 @@ ast-grep-dynamic.workspace = true
 ast-grep-language.workspace = true
 ast-grep-lsp.workspace = true
 
-ansi_term = "0.12"
+ansi_term = "0.12.1"
 anyhow.workspace = true
 atty = "0.2.14"
 clap = { version = "4.5.4", features = ["derive"] }
