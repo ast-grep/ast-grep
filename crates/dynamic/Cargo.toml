@@ -14,7 +14,7 @@ version.workspace = true
 ast-grep-core.workspace = true
 
 ignore.workspace = true
-libloading = "0.8"
+libloading = "0.8.3"
 serde.workspace = true
 thiserror.workspace = true
 tree-sitter-native = { version = "0.20.10", package = "tree-sitter" }
