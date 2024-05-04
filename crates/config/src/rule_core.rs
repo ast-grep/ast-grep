@@ -305,6 +305,13 @@ utils: { testa: {kind: bbb} }
   }
 
   #[test]
+  #[ignore = "TODO"]
+  fn test_undefined_utils_error() {
+    let ret = get_matcher(r"rule: { kind: number, matches: undefined-util }");
+    assert!(matches!(ret, Err(RuleCoreError::Utils(_))));
+  }
+
+  #[test]
   fn test_rule_reg_with_utils() {
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let ser_rule: SerializableRuleCore =

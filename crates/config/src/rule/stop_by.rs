@@ -82,7 +82,16 @@ impl<L: Language> StopBy<L> {
   pub fn defined_vars(&self) -> HashSet<&str> {
     match self {
       StopBy::Rule(rule) => rule.defined_vars(),
-      _ => HashSet::new(),
+      StopBy::End => HashSet::new(),
+      StopBy::Neighbor => HashSet::new(),
+    }
+  }
+
+  pub fn verify_util(&self) -> Result<(), RuleSerializeError> {
+    match self {
+      StopBy::Rule(rule) => rule.verify_util(),
+      StopBy::End => Ok(()),
+      StopBy::Neighbor => Ok(()),
     }
   }
 }

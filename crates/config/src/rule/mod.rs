@@ -210,6 +210,23 @@ impl<L: Language> Rule<L> {
       Rule::Matches(_r) => HashSet::new(),
     }
   }
+
+  /// check if util rules used are defined
+  pub fn verify_util(&self) -> Result<(), RuleSerializeError> {
+    match self {
+      Rule::Pattern(_) => Ok(()),
+      Rule::Kind(_) => Ok(()),
+      Rule::Regex(_) => Ok(()),
+      Rule::Has(c) => c.verify_util(),
+      Rule::Inside(p) => p.verify_util(),
+      Rule::Precedes(f) => f.verify_util(),
+      Rule::Follows(f) => f.verify_util(),
+      Rule::All(sub) => sub.inner().iter().try_for_each(|r| r.verify_util()),
+      Rule::Any(sub) => sub.inner().iter().try_for_each(|r| r.verify_util()),
+      Rule::Not(sub) => sub.inner().verify_util(),
+      Rule::Matches(r) => Ok(r.verify_util()?),
+    }
+  }
 }
 
 impl<L: Language> Matcher<L> for Rule<L> {

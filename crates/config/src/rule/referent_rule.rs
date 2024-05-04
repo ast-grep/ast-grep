@@ -109,6 +109,7 @@ impl<L: Language> RuleRegistration<L> {
     // TODO: we can skip check here because insertion order
     // is guaranteed in deserialize_env
     if rule.check_cyclic(id) {
+      debug_assert!(false, "cyclic rule should be reported in toposort");
       return Err(ReferentRuleError::CyclicRule);
     }
     Ok(())
@@ -156,8 +157,8 @@ impl<L: Language> RegistrationRef<L> {
 
 #[derive(Debug, Error)]
 pub enum ReferentRuleError {
-  #[error("Rule `{0}` is not found.")]
-  RuleNotFound(String),
+  #[error("Rule `{0}` is not defined.")]
+  UndefinedUtil(String),
   #[error("Duplicate rule id `{0}` is found.")]
   DuplicateRule(String),
   #[error("Rule has a cyclic dependency in its `matches` sub-rule.")]
@@ -198,6 +199,19 @@ impl<L: Language> ReferentRule<L> {
     let rules = registration.get_global();
     let rule = rules.get(&self.rule_id)?;
     Some(func(rule))
+  }
+
+  pub(super) fn verify_util(&self) -> Result<(), ReferentRuleError> {
+    let registration = self.reg_ref.unref();
+    let rules = registration.get_local();
+    if rules.contains_key(&self.rule_id) {
+      return Ok(());
+    }
+    let rules = registration.get_global();
+    if rules.contains_key(&self.rule_id) {
+      return Ok(());
+    }
+    Err(ReferentRuleError::UndefinedUtil(self.rule_id.clone()))
   }
 }
 

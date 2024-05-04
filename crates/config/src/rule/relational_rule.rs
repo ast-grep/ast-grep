@@ -56,6 +56,11 @@ impl<L: Language> Inside<L> {
       .copied()
       .collect()
   }
+
+  pub fn verify_util(&self) -> Result<(), RuleSerializeError> {
+    self.outer.verify_util()?;
+    self.stop_by.verify_util()
+  }
 }
 
 impl<L: Language> Matcher<L> for Inside<L> {
@@ -107,6 +112,11 @@ impl<L: Language> Has<L> {
       .union(&self.stop_by.defined_vars())
       .copied()
       .collect()
+  }
+
+  pub fn verify_util(&self) -> Result<(), RuleSerializeError> {
+    self.inner.verify_util()?;
+    self.stop_by.verify_util()
   }
 }
 
@@ -183,6 +193,11 @@ impl<L: Language> Precedes<L> {
       .copied()
       .collect()
   }
+
+  pub fn verify_util(&self) -> Result<(), RuleSerializeError> {
+    self.later.verify_util()?;
+    self.stop_by.verify_util()
+  }
 }
 impl<L: Language> Matcher<L> for Precedes<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
@@ -218,6 +233,11 @@ impl<L: Language> Follows<L> {
       .union(&self.stop_by.defined_vars())
       .copied()
       .collect()
+  }
+
+  pub fn verify_util(&self) -> Result<(), RuleSerializeError> {
+    self.former.verify_util()?;
+    self.stop_by.verify_util()
   }
 }
 impl<L: Language> Matcher<L> for Follows<L> {
