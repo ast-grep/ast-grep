@@ -93,4 +93,16 @@ mod test {
     let ret = Transform::deserialize(&trans, &env);
     assert!(matches!(ret, Err(TransformError::Cyclic)));
   }
+
+  #[test]
+  fn test_transform_use_matched() {
+    let mut trans = HashMap::new();
+    let trans_a = from_str("substring: {source: $C}").unwrap();
+    trans.insert("A".into(), trans_a);
+    let trans_b = from_str("substring: {source: $A}").unwrap();
+    trans.insert("B".into(), trans_b);
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ret = Transform::deserialize(&trans, &env);
+    assert!(ret.is_ok());
+  }
 }

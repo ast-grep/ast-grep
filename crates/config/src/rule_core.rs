@@ -323,6 +323,21 @@ utils: { testa: {kind: bbb} }
   }
 
   #[test]
+  fn test_cyclic_transform_error() {
+    let ret = get_matcher(
+      r"
+rule: { kind: number }
+transform:
+  A: {substring: {source: $B}}
+  B: {substring: {source: $A}}",
+    );
+    assert!(matches!(
+      ret,
+      Err(RuleCoreError::Transform(TransformError::Cyclic))
+    ));
+  }
+
+  #[test]
   fn test_rule_reg_with_utils() {
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let ser_rule: SerializableRuleCore =
