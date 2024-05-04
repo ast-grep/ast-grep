@@ -185,7 +185,6 @@ mod test {
     let mut nm = root.find(pat).expect("should find");
     let mut ctx = Ctx {
       lang: &TypeScript::Tsx,
-      transforms: &vec![],
       env: nm.get_env_mut(),
       rewriters: Default::default(),
       enclosing_env: &Default::default(),

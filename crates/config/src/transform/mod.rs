@@ -16,7 +16,7 @@ pub type Transformation = Trans<String>;
 
 #[derive(Debug, Error)]
 pub enum TransformError {
-  #[error("Transform has a cyclic dependency.")]
+  #[error("`transform` has a cyclic dependency.")]
   Cyclic,
   #[error("Transform var `{0}` has already defined.")]
   AlreadyDefined(String),
@@ -49,7 +49,6 @@ impl Transform {
     enclosing_env: &MetaVarEnv<'c, D>,
   ) {
     let mut ctx = Ctx {
-      transforms: &self.transforms,
       lang,
       env,
       rewriters,
@@ -71,9 +70,27 @@ impl Transform {
 
 // two lifetime to represent env root lifetime and lang/trans lifetime
 struct Ctx<'b, 'c, D: Doc> {
-  transforms: &'b Vec<(String, Transformation)>,
   lang: &'b D::Lang,
   rewriters: GlobalRules<D::Lang>,
   env: &'b mut MetaVarEnv<'c, D>,
   enclosing_env: &'b MetaVarEnv<'c, D>,
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::from_str;
+  use crate::test::TypeScript;
+
+  #[test]
+  fn test_cyclic_transform() {
+    let mut trans = HashMap::new();
+    let trans_a = from_str("substring: {source: $B}").unwrap();
+    trans.insert("A".into(), trans_a);
+    let trans_b = from_str("substring: {source: $A}").unwrap();
+    trans.insert("B".into(), trans_b);
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ret = Transform::deserialize(&trans, &env);
+    assert!(matches!(ret, Err(TransformError::Cyclic)));
+  }
 }

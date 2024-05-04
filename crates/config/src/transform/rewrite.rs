@@ -342,7 +342,6 @@ fix: $D
     let enclosing = env.clone();
     let mut ctx = Ctx {
       lang: &TypeScript::Tsx,
-      transforms: &Default::default(),
       env,
       rewriters,
       enclosing_env: &enclosing,
