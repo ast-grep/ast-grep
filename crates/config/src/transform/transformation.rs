@@ -1,6 +1,5 @@
 use super::rewrite::Rewrite;
 use super::{string_case, Ctx};
-use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::source::Content;
 use ast_grep_core::{Doc, Language};
 
@@ -13,15 +12,7 @@ use string_case::{Separator, StringCase};
 fn get_text_from_env<D: Doc>(src: &str, ctx: &mut Ctx<D>) -> Option<String> {
   let source = ctx.lang.pre_process_pattern(src);
   let var = ctx.lang.extract_meta_var(&source)?;
-  // TODO: this is for transform dependency resolution
-  // we can use topological sort to resolve this
-  if let MetaVariable::Capture(n, _) = &var {
-    // if let Some(tr) = ctx.transforms.get(n) {
-    //   if ctx.env.get_transformed(n).is_none() {
-    //     tr.insert(n, ctx);
-    //   }
-    // }
-  }
+  // TODO: check if topological sort has resolved transform dependency
   let bytes = ctx.env.get_var_bytes(&var)?;
   Some(<D::Source as Content>::encode_bytes(bytes).into_owned())
 }
