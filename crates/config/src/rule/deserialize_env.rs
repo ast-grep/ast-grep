@@ -2,6 +2,7 @@ use super::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
 use crate::maybe::Maybe;
 use crate::rule::{self, Rule, RuleSerializeError, SerializableRule};
 use crate::rule_core::{RuleCoreError, SerializableRuleCore};
+use crate::transform::Transformation;
 
 use ast_grep_core::language::Language;
 
@@ -62,17 +63,27 @@ impl<L: Language> DependentRule for (L, SerializableRuleCore) {
   }
 }
 
+impl DependentRule for Transformation {
+  fn visit_dependent_rules<'a>(
+    &'a self,
+    sorter: &mut TopologicalSort<'a, Self>,
+  ) -> OrderResult<()> {
+    let used_var = self.used_vars();
+    sorter.visit(used_var)
+  }
+}
+
 /// A struct to topological sort rules
 /// it is used to report cyclic dependency errors in rules/transformation
 struct TopologicalSort<'a, T: DependentRule> {
   maps: &'a HashMap<String, T>,
-  order: Vec<&'a String>,
+  order: Vec<&'a str>,
   // bool stands for if the rule has completed visit
-  seen: HashMap<&'a String, bool>,
+  seen: HashMap<&'a str, bool>,
 }
 
 impl<'a, T: DependentRule> TopologicalSort<'a, T> {
-  fn get_order(maps: &HashMap<String, T>) -> OrderResult<Vec<&String>> {
+  fn get_order(maps: &HashMap<String, T>) -> OrderResult<Vec<&str>> {
     let mut top_sort = TopologicalSort::new(maps);
     for rule_id in maps.keys() {
       top_sort.visit(rule_id)?;
@@ -88,7 +99,7 @@ impl<'a, T: DependentRule> TopologicalSort<'a, T> {
     }
   }
 
-  fn visit(&mut self, rule_id: &'a String) -> OrderResult<()> {
+  fn visit(&mut self, rule_id: &'a str) -> OrderResult<()> {
     if let Some(&completed) = self.seen.get(rule_id) {
       // if the rule has been seen but not completed
       // it means we have a cyclic dependency and report an error here
@@ -99,6 +110,7 @@ impl<'a, T: DependentRule> TopologicalSort<'a, T> {
       };
     }
     let Some(rule) = self.maps.get(rule_id) else {
+      // rule_id can be found elsewhere
       // if rule_id not found in global, it can be a local rule
       // if rule_id not found in local, it can be a global rule
       // TODO: add check here and return Err if rule not found
