@@ -63,26 +63,26 @@ impl<L: Language> DependentRule for (L, SerializableRuleCore) {
 }
 
 /// A struct to topological sort rules
-/// it is used to report cyclic dependency errors in rules
+/// it is used to report cyclic dependency errors in rules/transformation
 struct TopologicalSort<'a, T: DependentRule> {
-  utils: &'a HashMap<String, T>,
+  maps: &'a HashMap<String, T>,
   order: Vec<&'a String>,
   // bool stands for if the rule has completed visit
   seen: HashMap<&'a String, bool>,
 }
 
 impl<'a, T: DependentRule> TopologicalSort<'a, T> {
-  fn get_order(utils: &HashMap<String, T>) -> OrderResult<Vec<&String>> {
-    let mut top_sort = TopologicalSort::new(utils);
-    for rule_id in utils.keys() {
+  fn get_order(maps: &HashMap<String, T>) -> OrderResult<Vec<&String>> {
+    let mut top_sort = TopologicalSort::new(maps);
+    for rule_id in maps.keys() {
       top_sort.visit(rule_id)?;
     }
     Ok(top_sort.order)
   }
 
-  fn new(utils: &'a HashMap<String, T>) -> Self {
+  fn new(maps: &'a HashMap<String, T>) -> Self {
     Self {
-      utils,
+      maps,
       order: vec![],
       seen: HashMap::new(),
     }
@@ -98,7 +98,7 @@ impl<'a, T: DependentRule> TopologicalSort<'a, T> {
         Err(ReferentRuleError::CyclicRule)
       };
     }
-    let Some(rule) = self.utils.get(rule_id) else {
+    let Some(rule) = self.maps.get(rule_id) else {
       // if rule_id not found in global, it can be a local rule
       // if rule_id not found in local, it can be a global rule
       // TODO: add check here and return Err if rule not found

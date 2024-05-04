@@ -17,6 +17,8 @@ use string_case::{Separator, StringCase};
 fn get_text_from_env<D: Doc>(src: &str, ctx: &mut Ctx<D>) -> Option<String> {
   let source = ctx.lang.pre_process_pattern(src);
   let var = ctx.lang.extract_meta_var(&source)?;
+  // TODO: this is for transform dependency resolution
+  // we can use topological sort to resolve this
   if let MetaVariable::Capture(n, _) = &var {
     if let Some(tr) = ctx.transforms.get(n) {
       if ctx.env.get_transformed(n).is_none() {
@@ -123,6 +125,8 @@ pub enum Transformation {
 
 impl Transformation {
   fn insert<D: Doc>(&self, key: &str, ctx: &mut Ctx<D>) {
+    // TODO: add this debug assertion back
+    // debug_assert!(ctx.env.get_transformed(key).is_none());
     // avoid cyclic
     ctx.env.insert_transformation(key, vec![]);
     let opt = self.compute(ctx);
