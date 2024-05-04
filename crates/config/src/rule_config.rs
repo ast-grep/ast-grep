@@ -44,6 +44,8 @@ pub enum RuleConfigError {
   Rewriter(#[source] RuleCoreError, String),
   #[error("Undefined rewriter `{0}` used in transform.")]
   UndefinedRewriter(String),
+  #[error("Rewriter rule `{0}` should have `fix`.")]
+  NoFixInRewriter(String),
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
@@ -113,6 +115,9 @@ impl<L: Language> SerializableRuleConfig<L> {
     };
     let vars = rule.defined_vars();
     for val in ser {
+      if val.core.fix.is_none() {
+        return Err(RuleConfigError::NoFixInRewriter(val.id.clone()));
+      }
       self
         .register_one_rewriter(val, &vars, globals, rewriters)
         .map_err(|e| RuleConfigError::Rewriter(e, val.id.clone()))?;
@@ -460,6 +465,25 @@ rewriters:
     .expect("should parse");
     let ret = RuleConfig::try_from(rule, &Default::default());
     assert!(matches!(ret, Err(RuleConfigError::Core(_))));
+  }
+
+  #[test]
+  fn test_rewriter_should_have_fix() {
+    let rule: SerializableRuleConfig<TypeScript> = from_str(
+      r"
+id: test
+rule: {kind: number}
+language: Tsx
+rewriters:
+- id: wrong
+  rule: {matches: num}",
+    )
+    .expect("should parse");
+    let ret = RuleConfig::try_from(rule, &Default::default());
+    match ret {
+      Err(RuleConfigError::NoFixInRewriter(name)) => assert_eq!(name, "wrong"),
+      _ => panic!("unexpected error"),
+    }
   }
 
   #[test]
