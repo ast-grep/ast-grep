@@ -12,7 +12,7 @@ ast-grep-config.workspace = true
 ast-grep-language.workspace = true
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.5.1"
 
 [[bench]]
 name = "sg"
