@@ -27,7 +27,7 @@ tower-lsp = "0.20.0"
 
 [dev-dependencies]
 ast-grep-language.workspace = true
-tokio = { version = "1", features = [
+tokio = { version = "1.37.0", features = [
   "rt-multi-thread",
   "io-std",
   "io-util",
