@@ -30,9 +30,9 @@ pub enum RuleCoreError {
   Utils(#[source] RuleSerializeError),
   #[error("`fix` pattern is invalid.")]
   Fixer(#[from] FixerError),
-  #[error("constraints is not configured correctly.")]
+  #[error("`constraints` is not configured correctly.")]
   Constraints(#[source] RuleSerializeError),
-  #[error("Undefined meta var {0} used in {1}.")]
+  #[error("Undefined meta var `{0}` used in `{1}`.")]
   UndefinedMetaVar(String, &'static str),
 }
 

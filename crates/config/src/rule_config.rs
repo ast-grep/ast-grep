@@ -15,7 +15,7 @@ use serde_yaml::Error as YamlError;
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer};
 use thiserror::Error;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
 
 #[derive(Serialize, Deserialize, Clone, Default, JsonSchema)]
@@ -38,11 +38,11 @@ pub enum Severity {
 pub enum RuleConfigError {
   #[error("Fail to parse yaml as RuleConfig")]
   Yaml(#[from] YamlError),
-  #[error("{0}")]
+  #[error("Fail to parse yaml as Rule.")]
   Core(#[from] RuleCoreError),
-  #[error("Rewriter rule {1} is not configured correctly.")]
+  #[error("Rewriter rule `{1}` is not configured correctly.")]
   Rewriter(#[source] RuleCoreError, String),
-  #[error("Undefined rewriter {0} used in transform.")]
+  #[error("Undefined rewriter `{0}` used in transform.")]
   UndefinedRewriter(String),
 }
 
@@ -98,11 +98,11 @@ impl<L: Language> SerializableRuleConfig<L> {
       .with_globals(globals)
       .with_rewriters(&rewriters);
     let rule = self.core.get_matcher(env)?;
-    self.register_rewriter(&rule, globals, &rewriters)?;
+    self.register_rewriters(&rule, globals, &rewriters)?;
     Ok(rule)
   }
 
-  fn register_rewriter(
+  fn register_rewriters(
     &self,
     rule: &RuleCore<L>,
     globals: &GlobalRules<L>,
@@ -113,16 +113,29 @@ impl<L: Language> SerializableRuleConfig<L> {
     };
     let vars = rule.defined_vars();
     for val in ser {
-      // NB should inherit env from matcher to inherit utils
-      // TODO: optimize duplicate env creation/util registration
-      let env = DeserializeEnv::new(self.language.clone())
-        .with_globals(globals)
-        .with_rewriters(rewriters);
-      let env = self.get_deserialize_env(env)?;
-      let rewriter = val.core.get_rewriter(env, &vars)?;
-      rewriters.insert(&val.id, rewriter).expect("should work");
+      self
+        .register_one_rewriter(val, &vars, globals, rewriters)
+        .map_err(|e| RuleConfigError::Rewriter(e, val.id.clone()))?;
     }
     check_rewriters_in_transform(rule, rewriters)?;
+    Ok(())
+  }
+
+  fn register_one_rewriter(
+    &self,
+    val: &SerializableRewriter,
+    vars: &HashSet<&str>,
+    globals: &GlobalRules<L>,
+    rewriters: &GlobalRules<L>,
+  ) -> Result<(), RuleCoreError> {
+    // NB should inherit env from matcher to inherit utils
+    // TODO: optimize duplicate env creation/util registration
+    let env = DeserializeEnv::new(self.language.clone())
+      .with_globals(globals)
+      .with_rewriters(rewriters);
+    let env = self.get_deserialize_env(env)?;
+    let rewriter = val.core.get_rewriter(env, vars)?;
+    rewriters.insert(&val.id, rewriter).expect("should work");
     Ok(())
   }
 }
@@ -530,6 +543,26 @@ rewriters:
     ",
     );
     assert_eq!(undefined, "not-defined");
+  }
+  #[test]
+  fn test_wrong_rewriter() {
+    let rule: SerializableRuleConfig<TypeScript> = from_str(
+      r"
+id: test
+rule: {pattern: 'a = $A'}
+language: Tsx
+rewriters:
+- id: wrong
+  rule: {kind: '114'}
+  fix: '1919810'
+    ",
+    )
+    .expect("should parse");
+    let ret = RuleConfig::try_from(rule, &Default::default());
+    match ret {
+      Err(RuleConfigError::Rewriter(_, name)) => assert_eq!(name, "wrong"),
+      _ => panic!("unexpected error"),
+    }
   }
 
   #[test]
