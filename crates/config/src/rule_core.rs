@@ -3,7 +3,7 @@ use crate::fixer::{Fixer, FixerError, SerializableFixer};
 use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::Rule;
 use crate::rule::{RuleSerializeError, SerializableRule};
-use crate::transform::{Transform, Transformation};
+use crate::transform::{Transform, TransformError, Transformation};
 use crate::DeserializeEnv;
 
 use ast_grep_core::language::Language;
@@ -24,14 +24,16 @@ use std::ops::Deref;
 pub enum RuleCoreError {
   #[error("Fail to parse yaml as RuleConfig")]
   Yaml(#[from] YamlError),
-  #[error("`rule` is not configured correctly.")]
-  Rule(#[from] RuleSerializeError),
   #[error("`utils` is not configured correctly.")]
   Utils(#[source] RuleSerializeError),
-  #[error("`fix` pattern is invalid.")]
-  Fixer(#[from] FixerError),
+  #[error("`rule` is not configured correctly.")]
+  Rule(#[from] RuleSerializeError),
   #[error("`constraints` is not configured correctly.")]
   Constraints(#[source] RuleSerializeError),
+  #[error("`transform` is not configured correctly.")]
+  Transform(#[from] TransformError),
+  #[error("`fix` pattern is invalid.")]
+  Fixer(#[from] FixerError),
   #[error("Undefined meta var `{0}` used in `{1}`.")]
   UndefinedMetaVar(String, &'static str),
 }
@@ -101,7 +103,11 @@ impl SerializableRuleCore {
   fn get_matcher_from_env<L: Language>(&self, env: &DeserializeEnv<L>) -> RResult<RuleCore<L>> {
     let rule = env.deserialize_rule(self.rule.clone())?;
     let constraints = self.get_constraints(env)?;
-    let transform = self.transform.as_ref().map(Transform::deserialize);
+    let transform = self
+      .transform
+      .as_ref()
+      .map(|t| Transform::deserialize(t, env))
+      .transpose()?;
     let fixer = self.get_fixer(env)?;
     check_utils_defined(&rule, &constraints)?;
     Ok(

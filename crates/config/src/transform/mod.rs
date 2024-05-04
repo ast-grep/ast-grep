@@ -2,22 +2,43 @@ mod rewrite;
 mod string_case;
 mod transformation;
 
+use crate::DeserializeEnv;
 use crate::GlobalRules;
+
 use ast_grep_core::meta_var::MetaVarEnv;
-use ast_grep_core::Doc;
+use ast_grep_core::{Doc, Language};
 
 use std::collections::HashMap;
+use thiserror::Error;
+
 use transformation::Transformation as Trans;
 pub type Transformation = Trans<String>;
 
+#[derive(Debug, Error)]
+pub enum TransformError {
+  #[error("Transform has a cyclic dependency.")]
+  Cyclic,
+  #[error("Transform var `{0}` has already defined.")]
+  AlreadyDefined(String),
+}
+
 pub struct Transform {
-  transforms: HashMap<String, Transformation>,
+  transforms: Vec<(String, Transformation)>,
 }
 
 impl Transform {
-  pub fn deserialize(map: &HashMap<String, Transformation>) -> Self {
-    let transforms = map.clone();
-    Self { transforms }
+  pub fn deserialize<L: Language>(
+    map: &HashMap<String, Transformation>,
+    env: &DeserializeEnv<L>,
+  ) -> Result<Self, TransformError> {
+    let orders = env
+      .get_transform_order(map)
+      .map_err(|_| TransformError::Cyclic)?;
+    let transforms = orders
+      .into_iter()
+      .map(|key| (key.to_string(), map[key].clone()))
+      .collect();
+    Ok(Self { transforms })
   }
 
   pub fn apply_transform<'c, D: Doc>(
@@ -40,17 +61,17 @@ impl Transform {
   }
 
   pub(crate) fn keys(&self) -> impl Iterator<Item = &String> {
-    self.transforms.keys()
+    self.transforms.iter().map(|t| &t.0)
   }
 
   pub(crate) fn values(&self) -> impl Iterator<Item = &Transformation> {
-    self.transforms.values()
+    self.transforms.iter().map(|t| &t.1)
   }
 }
 
 // two lifetime to represent env root lifetime and lang/trans lifetime
 struct Ctx<'b, 'c, D: Doc> {
-  transforms: &'b HashMap<String, Transformation>,
+  transforms: &'b Vec<(String, Transformation)>,
   lang: &'b D::Lang,
   rewriters: GlobalRules<D::Lang>,
   env: &'b mut MetaVarEnv<'c, D>,

@@ -199,6 +199,13 @@ impl<L: Language> DeserializeEnv<L> {
     rule::deserialize_rule(serialized, self)
   }
 
+  pub(crate) fn get_transform_order<'a>(
+    &self,
+    trans: &'a HashMap<String, Transformation>,
+  ) -> OrderResult<Vec<&'a str>> {
+    TopologicalSort::get_order(trans)
+  }
+
   pub fn with_globals(self, globals: &GlobalRules<L>) -> Self {
     Self {
       registration: RuleRegistration::from_globals(globals),

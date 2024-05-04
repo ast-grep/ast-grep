@@ -16,11 +16,11 @@ fn get_text_from_env<D: Doc>(src: &str, ctx: &mut Ctx<D>) -> Option<String> {
   // TODO: this is for transform dependency resolution
   // we can use topological sort to resolve this
   if let MetaVariable::Capture(n, _) = &var {
-    if let Some(tr) = ctx.transforms.get(n) {
-      if ctx.env.get_transformed(n).is_none() {
-        tr.insert(n, ctx);
-      }
-    }
+    // if let Some(tr) = ctx.transforms.get(n) {
+    //   if ctx.env.get_transformed(n).is_none() {
+    //     tr.insert(n, ctx);
+    //   }
+    // }
   }
   let bytes = ctx.env.get_var_bytes(&var)?;
   Some(<D::Source as Content>::encode_bytes(bytes).into_owned())
@@ -173,6 +173,7 @@ mod test {
   use super::super::Transform;
   use super::*;
   use crate::test::TypeScript;
+  use crate::DeserializeEnv;
   use serde_yaml::with::singleton_map_recursive;
   use std::collections::HashMap;
 
@@ -184,7 +185,7 @@ mod test {
     let mut nm = root.find(pat).expect("should find");
     let mut ctx = Ctx {
       lang: &TypeScript::Tsx,
-      transforms: &HashMap::new(),
+      transforms: &vec![],
       env: nm.get_env_mut(),
       rewriters: Default::default(),
       enclosing_env: &Default::default(),
@@ -269,7 +270,8 @@ mod test {
     let grep = TypeScript::Tsx.ast_grep("let a = 123");
     let root = grep.root();
     let mut nm = root.find("let a = $A").expect("should find");
-    let trans = Transform::deserialize(&trans);
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let trans = Transform::deserialize(&trans, &env).expect("should deserialize");
     trans.apply_transform(
       &TypeScript::Tsx,
       nm.get_env_mut(),
