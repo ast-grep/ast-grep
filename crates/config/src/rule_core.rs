@@ -1,4 +1,4 @@
-use crate::check_var::{check_vars, check_vars_in_rewriter};
+use crate::check_var::{check_utils_defined, check_vars, check_vars_in_rewriter};
 use crate::fixer::{Fixer, FixerError, SerializableFixer};
 use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::Rule;
@@ -105,6 +105,7 @@ impl SerializableRuleCore {
     let constraints = self.get_constraints(env)?;
     let transform = self.transform.clone();
     let fixer = self.get_fixer(env)?;
+    check_utils_defined(&rule, &constraints)?;
     Ok(
       RuleCore::new(rule)
         .with_matchers(constraints)
@@ -276,7 +277,7 @@ impl<L: Language> Matcher<L> for RuleCore<L> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::rule::referent_rule::ReferentRule;
+  use crate::rule::referent_rule::{ReferentRule, ReferentRuleError};
   use crate::test::TypeScript;
   use crate::{from_str, GlobalRules};
   use ast_grep_core::matcher::{Pattern, RegexMatcher};
@@ -305,10 +306,16 @@ utils: { testa: {kind: bbb} }
   }
 
   #[test]
-  #[ignore = "TODO"]
   fn test_undefined_utils_error() {
     let ret = get_matcher(r"rule: { kind: number, matches: undefined-util }");
-    assert!(matches!(ret, Err(RuleCoreError::Utils(_))));
+    match ret {
+      Err(RuleCoreError::Rule(RuleSerializeError::MatchesReference(
+        ReferentRuleError::UndefinedUtil(name),
+      ))) => {
+        assert_eq!(name, "undefined-util");
+      }
+      _ => panic!("wrong error"),
+    }
   }
 
   #[test]

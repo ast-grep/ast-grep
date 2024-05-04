@@ -442,10 +442,8 @@ rewriters:
     ",
     )
     .expect("should parse");
-    let rule = RuleConfig::try_from(rule, &Default::default()).expect("work");
-    let grep = TypeScript::Tsx.ast_grep("a = 456");
-    let nm = grep.root().find(&rule.matcher);
-    assert!(nm.is_none());
+    let ret = RuleConfig::try_from(rule, &Default::default());
+    assert!(matches!(ret, Err(RuleCoreError::Rule(_))));
   }
 
   #[test]

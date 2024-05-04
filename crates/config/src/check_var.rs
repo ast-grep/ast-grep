@@ -10,6 +10,17 @@ use std::collections::{HashMap, HashSet};
 
 type RResult<T> = std::result::Result<T, RuleCoreError>;
 
+pub fn check_utils_defined<L: Language>(
+  rule: &Rule<L>,
+  constraints: &HashMap<String, Rule<L>>,
+) -> Result<(), RuleCoreError> {
+  rule.verify_util()?;
+  for constraint in constraints.values() {
+    constraint.verify_util()?;
+  }
+  Ok(())
+}
+
 pub fn check_rewriters_in_transform<L: Language>(
   rule: &RuleCore<L>,
   rewriters: &GlobalRules<L>,

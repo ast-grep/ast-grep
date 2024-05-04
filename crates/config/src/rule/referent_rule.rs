@@ -109,7 +109,6 @@ impl<L: Language> RuleRegistration<L> {
     // TODO: we can skip check here because insertion order
     // is guaranteed in deserialize_env
     if rule.check_cyclic(id) {
-      debug_assert!(false, "cyclic rule should be reported in toposort");
       return Err(ReferentRuleError::CyclicRule);
     }
     Ok(())
