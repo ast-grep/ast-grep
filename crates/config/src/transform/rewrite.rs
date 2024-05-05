@@ -351,7 +351,6 @@ fix: $D
     let env = nm.get_env_mut();
     let enclosing = env.clone();
     let mut ctx = Ctx {
-      lang: &TypeScript::Tsx,
       env,
       rewriters,
       enclosing_env: &enclosing,

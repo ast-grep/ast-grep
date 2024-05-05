@@ -230,14 +230,13 @@ impl<L: Language> RuleCore<L> {
       return None;
     }
     if let Some(trans) = &self.transform {
-      let lang = ret.lang();
       let rewriters = self.utils.get_rewriters();
       let env = env.to_mut();
       if let Some(enclosing) = enclosing_env {
-        trans.apply_transform(lang, env, rewriters, enclosing);
+        trans.apply_transform(env, rewriters, enclosing);
       } else {
         let enclosing = env.clone();
-        trans.apply_transform(lang, env, rewriters, &enclosing);
+        trans.apply_transform(env, rewriters, &enclosing);
       };
     }
     Some(ret)

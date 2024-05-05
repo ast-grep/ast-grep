@@ -44,13 +44,11 @@ impl Transform {
 
   pub fn apply_transform<'c, D: Doc>(
     &self,
-    lang: &D::Lang,
     env: &mut MetaVarEnv<'c, D>,
     rewriters: GlobalRules<D::Lang>,
     enclosing_env: &MetaVarEnv<'c, D>,
   ) {
     let mut ctx = Ctx {
-      lang,
       env,
       rewriters,
       enclosing_env,
@@ -71,7 +69,6 @@ impl Transform {
 
 // two lifetime to represent env root lifetime and lang/trans lifetime
 struct Ctx<'b, 'c, D: Doc> {
-  lang: &'b D::Lang,
   rewriters: GlobalRules<D::Lang>,
   env: &'b mut MetaVarEnv<'c, D>,
   enclosing_env: &'b MetaVarEnv<'c, D>,
