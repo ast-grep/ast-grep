@@ -10,11 +10,9 @@ use serde::{Deserialize, Serialize};
 
 use string_case::{Separator, StringCase};
 
-fn get_text_from_env<D: Doc>(src: &str, ctx: &mut Ctx<D>) -> Option<String> {
-  let source = ctx.lang.pre_process_pattern(src);
-  let var = ctx.lang.extract_meta_var(&source)?;
+fn get_text_from_env<D: Doc>(var: &MetaVariable, ctx: &mut Ctx<D>) -> Option<String> {
   // TODO: check if topological sort has resolved transform dependency
-  let bytes = ctx.env.get_var_bytes(&var)?;
+  let bytes = ctx.env.get_var_bytes(var)?;
   Some(<D::Source as Content>::encode_bytes(bytes).into_owned())
 }
 
@@ -33,7 +31,7 @@ pub struct Substring<T> {
   end_char: Option<i32>,
 }
 
-impl Substring<String> {
+impl Substring<MetaVariable> {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
     let chars: Vec<_> = text.chars().collect();
@@ -74,7 +72,7 @@ pub struct Replace<T> {
   /// the replacement string
   by: String,
 }
-impl Replace<String> {
+impl Replace<MetaVariable> {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
     let re = Regex::new(&self.replace).unwrap();
@@ -93,7 +91,7 @@ pub struct Convert<T> {
   /// optional separators to specify how to separate word
   separated_by: Option<Vec<Separator>>,
 }
-impl Convert<String> {
+impl Convert<MetaVariable> {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
     Some(self.to_case.apply(&text, self.separated_by.as_deref()))
@@ -135,13 +133,31 @@ impl Transformation<String> {
         to_case: c.to_case,
         separated_by: c.separated_by.clone(),
       }),
-      T::Rewrite(r) => T::Rewrite(Rewrite {
-        source: parse_meta_var(&r.source, lang)?,
-        rewriters: r.rewriters.clone(),
-        join_by: r.join_by.clone(),
-      }),
+      T::Rewrite(r) => T::Rewrite(r.parse(lang)?),
     })
   }
+
+  pub fn used_vars(&self) -> &str {
+    fn strip(s: &str) -> &str {
+      s.strip_prefix("$$$").unwrap_or_else(|| &s[1..])
+      // match s {
+      //   MetaVariable::Capture(s, _) => s,
+      //   MetaVariable::Dropped(_) => "",
+      //   MetaVariable::MultiCapture(s) => s,
+      //   MetaVariable::Multiple => "",
+      // }
+    }
+    use Transformation as T;
+    // NOTE: meta_var in transform always starts with `$`, for now
+    match self {
+      T::Replace(r) => strip(&r.source),
+      T::Substring(s) => strip(&s.source),
+      T::Convert(c) => strip(&c.source),
+      T::Rewrite(r) => strip(&r.source),
+    }
+  }
+}
+impl Transformation<MetaVariable> {
   pub(super) fn insert<D: Doc>(&self, key: &str, ctx: &mut Ctx<D>) {
     // TODO: add this debug assertion back
     // debug_assert!(ctx.env.get_transformed(key).is_none());
@@ -162,20 +178,6 @@ impl Transformation<String> {
       T::Substring(s) => s.compute(ctx),
       T::Convert(c) => c.compute(ctx),
       T::Rewrite(r) => r.compute(ctx),
-    }
-  }
-
-  pub fn used_vars(&self) -> &str {
-    fn strip(s: &str) -> &str {
-      s.strip_prefix("$$$").unwrap_or_else(|| &s[1..])
-    }
-    use Transformation as T;
-    // NOTE: meta_var in transform always starts with `$`, for now
-    match self {
-      T::Replace(r) => strip(&r.source),
-      T::Substring(s) => strip(&s.source),
-      T::Convert(c) => strip(&c.source),
-      T::Rewrite(r) => strip(&r.source),
     }
   }
 
@@ -211,7 +213,7 @@ mod test {
       rewriters: Default::default(),
       enclosing_env: &Default::default(),
     };
-    trans.compute(&mut ctx)
+    trans.parse(&TypeScript::Tsx)?.compute(&mut ctx)
   }
 
   fn parse(trans: &str) -> Result<Transformation<String>, ()> {

@@ -30,18 +30,28 @@ fn get_nodes_from_env<'b, D: Doc>(var: &MetaVariable, ctx: &Ctx<'_, 'b, D>) -> V
     _ => vec![],
   }
 }
-
 impl Rewrite<String> {
+  pub fn parse<L: Language>(&self, lang: &L) -> Option<Rewrite<MetaVariable>> {
+    let source = lang.pre_process_pattern(&self.source);
+    let source = lang.extract_meta_var(&source)?;
+    Some(Rewrite {
+      source,
+      rewriters: self.rewriters.clone(),
+      join_by: self.join_by.clone(),
+    })
+  }
+}
+
+impl Rewrite<MetaVariable> {
   pub(super) fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
-    let source = ctx.lang.pre_process_pattern(&self.source);
-    let var = ctx.lang.extract_meta_var(&source)?;
-    let nodes = get_nodes_from_env(&var, ctx);
+    let var = &self.source;
+    let nodes = get_nodes_from_env(var, ctx);
     if nodes.is_empty() {
       return None;
     }
     let rewriters = ctx.rewriters.read();
     let start = nodes[0].range().start;
-    let bytes = ctx.env.get_var_bytes(&var)?;
+    let bytes = ctx.env.get_var_bytes(var)?;
     let rules: Vec<_> = self
       .rewriters
       .iter()
@@ -351,6 +361,6 @@ fix: $D
       before_vars, after_vars,
       "rewrite should not write back to env"
     );
-    rewrite.compute(&mut ctx)
+    rewrite.parse(&TypeScript::Tsx)?.compute(&mut ctx)
   }
 }

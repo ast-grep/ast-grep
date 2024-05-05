@@ -6,6 +6,7 @@ use crate::DeserializeEnv;
 use crate::GlobalRules;
 
 use ast_grep_core::meta_var::MetaVarEnv;
+use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::{Doc, Language};
 
 use std::collections::HashMap;
@@ -23,7 +24,7 @@ pub enum TransformError {
 }
 
 pub struct Transform {
-  transforms: Vec<(String, Transformation)>,
+  transforms: Vec<(String, Trans<MetaVariable>)>,
 }
 
 impl Transform {
@@ -36,7 +37,7 @@ impl Transform {
       .map_err(|_| TransformError::Cyclic)?;
     let transforms = orders
       .into_iter()
-      .map(|key| (key.to_string(), map[key].clone()))
+      .map(|key| (key.to_string(), map[key].parse(&env.lang).expect("TODO")))
       .collect();
     Ok(Self { transforms })
   }
@@ -63,7 +64,7 @@ impl Transform {
     self.transforms.iter().map(|t| &t.0)
   }
 
-  pub(crate) fn values(&self) -> impl Iterator<Item = &Transformation> {
+  pub(crate) fn values(&self) -> impl Iterator<Item = &Trans<MetaVariable>> {
     self.transforms.iter().map(|t| &t.1)
   }
 }
