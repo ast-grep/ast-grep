@@ -14,7 +14,7 @@ pub struct Rewrite<T> {
   pub(super) rewriters: Vec<String>,
   // do we need this?
   // sort_by: Option<String>,
-  join_by: Option<String>,
+  pub(super) join_by: Option<String>,
 }
 
 fn get_nodes_from_env<'b, D: Doc>(var: &MetaVariable, ctx: &Ctx<'_, 'b, D>) -> Vec<Node<'b, D>> {

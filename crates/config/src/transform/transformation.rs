@@ -1,5 +1,6 @@
 use super::rewrite::Rewrite;
 use super::{string_case, Ctx};
+use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::source::Content;
 use ast_grep_core::{Doc, Language};
 
@@ -110,7 +111,37 @@ pub enum Transformation<T> {
   Rewrite(Rewrite<T>),
 }
 
+fn parse_meta_var<L: Language>(src: &str, lang: &L) -> Option<MetaVariable> {
+  let source = lang.pre_process_pattern(src);
+  lang.extract_meta_var(&source)
+}
+
 impl Transformation<String> {
+  pub fn parse<L: Language>(&self, lang: &L) -> Option<Transformation<MetaVariable>> {
+    use Transformation as T;
+    Some(match self {
+      T::Replace(r) => T::Replace(Replace {
+        source: parse_meta_var(&r.source, lang)?,
+        replace: r.replace.clone(),
+        by: r.by.clone(),
+      }),
+      T::Substring(s) => T::Substring(Substring {
+        source: parse_meta_var(&s.source, lang)?,
+        start_char: s.start_char,
+        end_char: s.end_char,
+      }),
+      T::Convert(c) => T::Convert(Convert {
+        source: parse_meta_var(&c.source, lang)?,
+        to_case: c.to_case,
+        separated_by: c.separated_by.clone(),
+      }),
+      T::Rewrite(r) => T::Rewrite(Rewrite {
+        source: parse_meta_var(&r.source, lang)?,
+        rewriters: r.rewriters.clone(),
+        join_by: r.join_by.clone(),
+      }),
+    })
+  }
   pub(super) fn insert<D: Doc>(&self, key: &str, ctx: &mut Ctx<D>) {
     // TODO: add this debug assertion back
     // debug_assert!(ctx.env.get_transformed(key).is_none());
