@@ -1,4 +1,5 @@
 use super::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
+use crate::check_var::CheckHint;
 use crate::maybe::Maybe;
 use crate::rule::{self, Rule, RuleSerializeError, SerializableRule};
 use crate::rule_core::{RuleCoreError, SerializableRuleCore};
@@ -179,7 +180,7 @@ impl<L: Language> DeserializeEnv<L> {
     for id in order {
       let (lang, core) = utils.get(id).expect("must exist");
       let env = DeserializeEnv::new(lang.clone()).with_globals(&registration);
-      let matcher = core.get_matcher(env)?;
+      let matcher = core.get_matcher_with_hint(env, CheckHint::Global)?;
       registration
         .insert(id, matcher)
         .map_err(RuleSerializeError::MatchesReference)?;

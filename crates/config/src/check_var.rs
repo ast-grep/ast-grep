@@ -17,6 +17,8 @@ pub enum CheckHint<'r> {
   Rewriter(&'r HashSet<&'r str>),
 }
 
+/// Different rule sections have different variable scopes/check procedure.
+/// so we need to check rules with different hints.
 pub fn check_rule_with_hint<'r, L: Language>(
   rule: &'r Rule<L>,
   constraints: &'r HashMap<String, Rule<L>>,
@@ -26,12 +28,14 @@ pub fn check_rule_with_hint<'r, L: Language>(
 ) -> RResult<()> {
   match hint {
     CheckHint::Global => {
+      // do not check utils defined here because global rules are not yet ready
       check_vars(rule, constraints, transform, fixer)?;
     }
     CheckHint::Normal => {
       check_utils_defined(rule, constraints)?;
       check_vars(rule, constraints, transform, fixer)?;
     }
+    // upper_vars is needed to check metavar defined in containing vars
     CheckHint::Rewriter(upper_vars) => {
       check_utils_defined(rule, constraints)?;
       check_vars_in_rewriter(rule, constraints, transform, fixer, upper_vars)?;
@@ -40,7 +44,7 @@ pub fn check_rule_with_hint<'r, L: Language>(
   Ok(())
 }
 
-pub fn check_vars_in_rewriter<'r, L: Language>(
+fn check_vars_in_rewriter<'r, L: Language>(
   rule: &'r Rule<L>,
   constraints: &'r HashMap<String, Rule<L>>,
   transform: &'r Option<HashMap<String, Transformation>>,
@@ -56,7 +60,7 @@ pub fn check_vars_in_rewriter<'r, L: Language>(
   Ok(())
 }
 
-pub fn check_utils_defined<L: Language>(
+fn check_utils_defined<L: Language>(
   rule: &Rule<L>,
   constraints: &HashMap<String, Rule<L>>,
 ) -> RResult<()> {
@@ -67,7 +71,7 @@ pub fn check_utils_defined<L: Language>(
   Ok(())
 }
 
-pub fn check_vars<'r, L: Language>(
+fn check_vars<'r, L: Language>(
   rule: &'r Rule<L>,
   constraints: &'r HashMap<String, Rule<L>>,
   transform: &'r Option<HashMap<String, Transformation>>,

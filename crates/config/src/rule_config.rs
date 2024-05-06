@@ -1,6 +1,6 @@
 use crate::GlobalRules;
 
-use crate::check_var::check_rewriters_in_transform;
+use crate::check_var::{check_rewriters_in_transform, CheckHint};
 use crate::fixer::Fixer;
 use crate::rule::DeserializeEnv;
 use crate::rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
@@ -139,7 +139,9 @@ impl<L: Language> SerializableRuleConfig<L> {
       .with_globals(globals)
       .with_rewriters(rewriters);
     let env = self.get_deserialize_env(env)?;
-    let rewriter = val.core.get_rewriter(env, vars)?;
+    let rewriter = val
+      .core
+      .get_matcher_with_hint(env, CheckHint::Rewriter(vars))?;
     rewriters.insert(&val.id, rewriter).expect("should work");
     Ok(())
   }

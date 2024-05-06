@@ -149,6 +149,7 @@ fn make_edit<D: Doc>(
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::check_var::CheckHint;
   use crate::from_str;
   use crate::rule::DeserializeEnv;
   use crate::rule_core::SerializableRuleCore;
@@ -181,7 +182,9 @@ mod test {
     for (key, ser) in pairs {
       let serialized: SerializableRuleCore = from_str(ser).unwrap();
       let env = DeserializeEnv::new(TypeScript::Tsx).with_rewriters(&rewriters);
-      let rule = serialized.get_rewriter(env, &vars).unwrap();
+      let rule = serialized
+        .get_matcher_with_hint(env, CheckHint::Rewriter(&vars))
+        .unwrap();
       rewriters.insert(key, rule).unwrap();
     }
     rewriters

@@ -138,15 +138,6 @@ impl SerializableRuleCore {
     )?;
     Ok(ret)
   }
-
-  /// this is needed for checking metavar defined in containing vars
-  pub(crate) fn get_rewriter<L: Language>(
-    &self,
-    env: DeserializeEnv<L>,
-    upper_vars: &HashSet<&str>,
-  ) -> RResult<RuleCore<L>> {
-    self.get_matcher_with_hint(env, CheckHint::Rewriter(upper_vars))
-  }
 }
 
 pub struct RuleCore<L: Language> {
