@@ -219,7 +219,7 @@ mod test {
     let mut nm = root.find(pat).expect("should find");
     let mut ctx = Ctx {
       env: nm.get_env_mut(),
-      rewriters: Default::default(),
+      rewriters: &Default::default(),
       enclosing_env: &Default::default(),
     };
     trans.parse(&TypeScript::Tsx).ok()?.compute(&mut ctx)
@@ -313,7 +313,7 @@ mod test {
     let mut nm = root.find("let a = $A").expect("should find");
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let trans = Transform::deserialize(&trans, &env).expect("should deserialize");
-    trans.apply_transform(nm.get_env_mut(), Default::default(), &Default::default());
+    trans.apply_transform(nm.get_env_mut(), &Default::default(), &Default::default());
     nm.get_env().clone().into()
   }
 

@@ -3,7 +3,7 @@ mod string_case;
 mod transformation;
 
 use crate::DeserializeEnv;
-use crate::GlobalRules;
+use crate::RuleCore;
 
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::meta_var::MetaVariable;
@@ -49,7 +49,7 @@ impl Transform {
   pub fn apply_transform<'c, D: Doc>(
     &self,
     env: &mut MetaVarEnv<'c, D>,
-    rewriters: GlobalRules<D::Lang>,
+    rewriters: &HashMap<String, RuleCore<D::Lang>>,
     enclosing_env: &MetaVarEnv<'c, D>,
   ) {
     let mut ctx = Ctx {
@@ -73,7 +73,7 @@ impl Transform {
 
 // two lifetime to represent env root lifetime and lang/trans lifetime
 struct Ctx<'b, 'c, D: Doc> {
-  rewriters: GlobalRules<D::Lang>,
+  rewriters: &'b HashMap<String, RuleCore<D::Lang>>,
   env: &'b mut MetaVarEnv<'c, D>,
   enclosing_env: &'b MetaVarEnv<'c, D>,
 }

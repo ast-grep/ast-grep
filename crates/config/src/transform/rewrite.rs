@@ -49,7 +49,7 @@ impl Rewrite<MetaVariable> {
     if nodes.is_empty() {
       return None;
     }
-    let rewriters = ctx.rewriters.read();
+    let rewriters = ctx.rewriters;
     let start = nodes[0].range().start;
     let bytes = ctx.env.get_var_bytes(var)?;
     let rules: Vec<_> = self
@@ -350,9 +350,10 @@ fix: $D
     let before_vars: Vec<_> = nm.get_env().get_matched_variables().collect();
     let env = nm.get_env_mut();
     let enclosing = env.clone();
+    let rewriters = rewriters.read();
     let mut ctx = Ctx {
       env,
-      rewriters,
+      rewriters: &rewriters,
       enclosing_env: &enclosing,
     };
     let after_vars: Vec<_> = ctx.env.get_matched_variables().collect();
