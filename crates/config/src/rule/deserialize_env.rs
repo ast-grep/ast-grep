@@ -30,7 +30,7 @@ fn into_map<L: Language>(
     .collect()
 }
 
-type OrderResult<T> = Result<T, ReferentRuleError>;
+type OrderResult<T> = Result<T, String>;
 
 /// A struct to store information to deserialize rules.
 pub struct DeserializeEnv<L: Language> {
@@ -106,7 +106,7 @@ impl<'a, T: DependentRule> TopologicalSort<'a, T> {
       return if completed {
         Ok(())
       } else {
-        Err(ReferentRuleError::CyclicRule(rule_id.to_string()))
+        Err(rule_id.to_string())
       };
     }
     let Some(rule) = self.maps.get(rule_id) else {
@@ -165,7 +165,9 @@ impl<L: Language> DeserializeEnv<L> {
     self,
     utils: &HashMap<String, SerializableRule>,
   ) -> Result<Self, RuleSerializeError> {
-    let order = TopologicalSort::get_order(utils)?;
+    let order = TopologicalSort::get_order(utils)
+      .map_err(ReferentRuleError::CyclicRule)
+      .map_err(RuleSerializeError::MatchesReference)?;
     for id in order {
       let rule = utils.get(id).expect("must exist");
       let rule = self.deserialize_rule(rule.clone())?;
@@ -180,7 +182,9 @@ impl<L: Language> DeserializeEnv<L> {
   ) -> Result<GlobalRules<L>, RuleCoreError> {
     let registration = GlobalRules::default();
     let utils = into_map(utils);
-    let order = TopologicalSort::get_order(&utils).map_err(RuleSerializeError::from)?;
+    let order = TopologicalSort::get_order(&utils)
+      .map_err(ReferentRuleError::CyclicRule)
+      .map_err(RuleSerializeError::from)?;
     for id in order {
       let (lang, core) = utils.get(id).expect("must exist");
       let env = DeserializeEnv::new(lang.clone()).with_globals(&registration);
@@ -203,10 +207,7 @@ impl<L: Language> DeserializeEnv<L> {
     &self,
     trans: &'a HashMap<String, Transformation>,
   ) -> Result<Vec<&'a str>, String> {
-    TopologicalSort::get_order(trans).map_err(|e| match e {
-      ReferentRuleError::CyclicRule(s) => s,
-      _ => todo!(),
-    })
+    TopologicalSort::get_order(trans)
   }
 
   pub fn with_globals(self, globals: &GlobalRules<L>) -> Self {
