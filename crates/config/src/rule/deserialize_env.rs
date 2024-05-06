@@ -106,7 +106,7 @@ impl<'a, T: DependentRule> TopologicalSort<'a, T> {
       return if completed {
         Ok(())
       } else {
-        Err(ReferentRuleError::CyclicRule)
+        Err(ReferentRuleError::CyclicRule(rule_id.to_string()))
       };
     }
     let Some(rule) = self.maps.get(rule_id) else {
@@ -202,8 +202,11 @@ impl<L: Language> DeserializeEnv<L> {
   pub(crate) fn get_transform_order<'a>(
     &self,
     trans: &'a HashMap<String, Transformation>,
-  ) -> OrderResult<Vec<&'a str>> {
-    TopologicalSort::get_order(trans)
+  ) -> Result<Vec<&'a str>, String> {
+    TopologicalSort::get_order(trans).map_err(|e| match e {
+      ReferentRuleError::CyclicRule(s) => s,
+      _ => todo!(),
+    })
   }
 
   pub fn with_globals(self, globals: &GlobalRules<L>) -> Self {

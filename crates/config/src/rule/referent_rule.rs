@@ -41,7 +41,7 @@ impl<L: Language> GlobalRules<L> {
     // TODO: we can skip check here because insertion order
     // is guaranteed in deserialize_env
     if rule.check_cyclic(id) {
-      return Err(ReferentRuleError::CyclicRule);
+      return Err(ReferentRuleError::CyclicRule(id.to_string()));
     }
     Ok(())
   }
@@ -109,7 +109,7 @@ impl<L: Language> RuleRegistration<L> {
     // TODO: we can skip check here because insertion order
     // is guaranteed in deserialize_env
     if rule.check_cyclic(id) {
-      return Err(ReferentRuleError::CyclicRule);
+      return Err(ReferentRuleError::CyclicRule(id.to_string()));
     }
     Ok(())
   }
@@ -160,8 +160,8 @@ pub enum ReferentRuleError {
   UndefinedUtil(String),
   #[error("Duplicate rule id `{0}` is found.")]
   DuplicateRule(String),
-  #[error("Rule has a cyclic dependency in its `matches` sub-rule.")]
-  CyclicRule,
+  #[error("Rule `{0}` has a cyclic dependency in its `matches` sub-rule.")]
+  CyclicRule(String),
 }
 
 pub struct ReferentRule<L: Language> {
@@ -257,7 +257,7 @@ mod test {
     let rule = ReferentRule::try_new("test".into(), &registration)?;
     let rule = Rule::Matches(rule);
     let error = registration.insert_local("test", rule);
-    assert!(matches!(error, Err(ReferentRuleError::CyclicRule)));
+    assert!(matches!(error, Err(ReferentRuleError::CyclicRule(_))));
     Ok(())
   }
 
@@ -267,7 +267,7 @@ mod test {
     let rule = ReferentRule::try_new("test".into(), &registration)?;
     let rule = Rule::All(o::All::new(std::iter::once(Rule::Matches(rule))));
     let error = registration.insert_local("test", rule);
-    assert!(matches!(error, Err(ReferentRuleError::CyclicRule)));
+    assert!(matches!(error, Err(ReferentRuleError::CyclicRule(_))));
     Ok(())
   }
 

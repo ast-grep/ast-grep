@@ -333,7 +333,7 @@ transform:
     );
     assert!(matches!(
       ret,
-      Err(RuleCoreError::Transform(TransformError::Cyclic))
+      Err(RuleCoreError::Transform(TransformError::Cyclic(_)))
     ));
   }
 

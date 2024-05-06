@@ -2,8 +2,7 @@ mod rewrite;
 mod string_case;
 mod transformation;
 
-use crate::DeserializeEnv;
-use crate::RuleCore;
+use crate::{DeserializeEnv, RuleCore};
 
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::meta_var::MetaVariable;
@@ -17,8 +16,8 @@ pub type Transformation = Trans<String>;
 
 #[derive(Debug, Error)]
 pub enum TransformError {
-  #[error("`transform` has a cyclic dependency.")]
-  Cyclic,
+  #[error("`{0}` has a cyclic dependency.")]
+  Cyclic(String),
   #[error("Transform var `{0}` has already defined.")]
   AlreadyDefined(String),
   #[error("source `{0}` should be $-prefixed.")]
@@ -36,7 +35,7 @@ impl Transform {
   ) -> Result<Self, TransformError> {
     let orders = env
       .get_transform_order(map)
-      .map_err(|_| TransformError::Cyclic)?;
+      .map_err(TransformError::Cyclic)?;
     let transforms: Result<_, _> = orders
       .into_iter()
       .map(|key| map[key].parse(&env.lang).map(|t| (key.to_string(), t)))
@@ -85,6 +84,18 @@ mod test {
   use crate::test::TypeScript;
 
   #[test]
+  fn test_single_cyclic_transform() {
+    let mut trans = HashMap::new();
+    let trans_a = from_str("substring: {source: $A}").unwrap();
+    trans.insert("A".into(), trans_a);
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    match Transform::deserialize(&trans, &env) {
+      Err(TransformError::Cyclic(a)) => assert_eq!(a, "A"),
+      _ => panic!("unexpected error"),
+    }
+  }
+
+  #[test]
   fn test_cyclic_transform() {
     let mut trans = HashMap::new();
     let trans_a = from_str("substring: {source: $B}").unwrap();
@@ -93,7 +104,7 @@ mod test {
     trans.insert("B".into(), trans_b);
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let ret = Transform::deserialize(&trans, &env);
-    assert!(matches!(ret, Err(TransformError::Cyclic)));
+    assert!(matches!(ret, Err(TransformError::Cyclic(_))));
   }
 
   #[test]
