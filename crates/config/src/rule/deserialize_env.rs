@@ -136,8 +136,8 @@ fn visit_dependent_rule_ids<'a, T: DependentRule>(
       visit_dependent_rule_ids(sub, sort)?;
     }
   }
-  if let Maybe::Present(_not) = &rule.not {
-    // TODO: check cyclic here
+  if let Maybe::Present(not) = &rule.not {
+    visit_dependent_rule_ids(not, sort)?;
   }
   Ok(())
 }
@@ -303,6 +303,25 @@ local-rule-c:
     )?;
     let ret = DeserializeEnv::new(TypeScript::Tsx).register_local_utils(&utils);
     assert!(ret.is_err());
+    Ok(())
+  }
+
+  #[test]
+  fn test_cyclic_not() -> Result<()> {
+    let utils = from_str(
+      "
+local-rule-a:
+  not: {matches: local-rule-b}
+local-rule-b:
+  matches: local-rule-a",
+    )?;
+    let ret = DeserializeEnv::new(TypeScript::Tsx).register_local_utils(&utils);
+    assert!(matches!(
+      ret,
+      Err(RuleSerializeError::MatchesReference(
+        ReferentRuleError::CyclicRule(_)
+      ))
+    ));
     Ok(())
   }
 }

@@ -272,6 +272,16 @@ mod test {
   }
 
   #[test]
+  fn test_cyclic_not() -> Result {
+    let registration = RuleRegistration::<TS>::default();
+    let rule = ReferentRule::try_new("test".into(), &registration)?;
+    let rule = Rule::Not(Box::new(o::Not::new(Rule::Matches(rule))));
+    let error = registration.insert_local("test", rule);
+    assert!(matches!(error, Err(ReferentRuleError::CyclicRule(_))));
+    Ok(())
+  }
+
+  #[test]
   fn test_success_rule() -> Result {
     let registration = RuleRegistration::<TS>::default();
     let rule = ReferentRule::try_new("test".into(), &registration)?;
