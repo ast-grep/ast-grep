@@ -46,9 +46,9 @@ scoop install main/ast-grep
 # install via MacPorts
 sudo port install ast-grep
 ```
-Or you can build ast-grep from source. You need install rustup, clone the repository and then
+Or you can build ast-grep from source. You need to install rustup, clone the repository and then
 ```bash
-cargo install --path ./crates/cli
+cargo install --path ./crates/cli --locked
 ```
 [Packages](https://repology.org/project/ast-grep/versions) are available on other platforms too.
 
@@ -101,6 +101,6 @@ ast-grep's pattern looks like ordinary code you would write every day (you could
 
 ast-grep's vision is to democratize abstract syntax tree magic and to liberate one from cumbersome AST programming!
 
-* If you are an open source library author, ast-grep can help your library users adopt breaking changes more easily.
+* If you are an open-source library author, ast-grep can help your library users adopt breaking changes more easily.
 * if you are a tech lead in your team, ast-grep can help you enforce code best practice tailored to your business need.
 * If you are a security researcher, ast-grep can help you write rules much faster.
