@@ -118,7 +118,7 @@
         "null"
       ],
       "additionalProperties": {
-        "$ref": "#/definitions/Transformation"
+        "$ref": "#/definitions/Transformation_for_String"
       }
     },
     "url": {
@@ -140,7 +140,7 @@
     }
   },
   "definitions": {
-    "Convert": {
+    "Convert_for_String": {
       "description": "Converts the source meta variable's text content to a specified case format.",
       "type": "object",
       "required": [
@@ -325,7 +325,7 @@
         }
       }
     },
-    "Replace": {
+    "Replace_for_String": {
       "description": "Replaces a substring in the meta variable's text content with another string.",
       "type": "object",
       "required": [
@@ -348,7 +348,7 @@
         }
       }
     },
-    "Rewrite": {
+    "Rewrite_for_String": {
       "type": "object",
       "required": [
         "rewriters",
@@ -460,7 +460,7 @@
             "null"
           ],
           "additionalProperties": {
-            "$ref": "#/definitions/Transformation"
+            "$ref": "#/definitions/Transformation_for_String"
           }
         },
         "utils": {
@@ -635,7 +635,7 @@
         "pascalCase"
       ]
     },
-    "Substring": {
+    "Substring_for_String": {
       "description": "Extracts a substring from the meta variable's text content.\n\nBoth `start_char` and `end_char` support negative indexing, which counts character from the end of an array, moving backwards.",
       "type": "object",
       "required": [
@@ -664,7 +664,7 @@
         }
       }
     },
-    "Transformation": {
+    "Transformation_for_String": {
       "description": "Represents a transformation that can be applied to a matched AST node. Available transformations are `substring`, `replace` and `convert`.",
       "oneOf": [
         {
@@ -674,7 +674,7 @@
           ],
           "properties": {
             "substring": {
-              "$ref": "#/definitions/Substring"
+              "$ref": "#/definitions/Substring_for_String"
             }
           },
           "additionalProperties": false
@@ -686,7 +686,7 @@
           ],
           "properties": {
             "replace": {
-              "$ref": "#/definitions/Replace"
+              "$ref": "#/definitions/Replace_for_String"
             }
           },
           "additionalProperties": false
@@ -698,7 +698,7 @@
           ],
           "properties": {
             "convert": {
-              "$ref": "#/definitions/Convert"
+              "$ref": "#/definitions/Convert_for_String"
             }
           },
           "additionalProperties": false
@@ -710,7 +710,7 @@
           ],
           "properties": {
             "rewrite": {
-              "$ref": "#/definitions/Rewrite"
+              "$ref": "#/definitions/Rewrite_for_String"
             }
           },
           "additionalProperties": false
