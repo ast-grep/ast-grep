@@ -11,48 +11,6 @@ use std::collections::{HashMap, HashSet};
 
 type RResult<T> = std::result::Result<T, RuleCoreError>;
 
-pub fn check_utils_defined<L: Language>(
-  rule: &Rule<L>,
-  constraints: &HashMap<String, Rule<L>>,
-) -> Result<(), RuleCoreError> {
-  rule.verify_util()?;
-  for constraint in constraints.values() {
-    constraint.verify_util()?;
-  }
-  Ok(())
-}
-
-pub fn check_rewriters_in_transform<L: Language>(
-  rule: &RuleCore<L>,
-  rewriters: &GlobalRules<L>,
-) -> Result<(), RuleConfigError> {
-  let rewriters = rewriters.read();
-  if let Some(err) = check_one_rewriter_in_rule(rule, &rewriters) {
-    return Err(err);
-  }
-  let error = rewriters
-    .values()
-    .find_map(|rewriter| check_one_rewriter_in_rule(rewriter, &rewriters));
-  if let Some(err) = error {
-    return Err(err);
-  }
-  Ok(())
-}
-
-fn check_one_rewriter_in_rule<L: Language>(
-  rule: &RuleCore<L>,
-  rewriters: &HashMap<String, RuleCore<L>>,
-) -> Option<RuleConfigError> {
-  let transform = rule.transform.as_ref()?;
-  let mut used_rewriters = transform
-    .values()
-    .flat_map(|trans| trans.used_rewriters().iter());
-  let undefined_writers = used_rewriters.find(|r| !rewriters.contains_key(*r))?;
-  Some(RuleConfigError::UndefinedRewriter(
-    undefined_writers.to_string(),
-  ))
-}
-
 pub fn check_vars_in_rewriter<'r, L: Language>(
   rule: &'r Rule<L>,
   constraints: &'r HashMap<String, Rule<L>>,
@@ -66,6 +24,17 @@ pub fn check_vars_in_rewriter<'r, L: Language>(
     vars.insert(v);
   }
   check_var_in_fix(vars, fixer)?;
+  Ok(())
+}
+
+pub fn check_utils_defined<L: Language>(
+  rule: &Rule<L>,
+  constraints: &HashMap<String, Rule<L>>,
+) -> RResult<()> {
+  rule.verify_util()?;
+  for constraint in constraints.values() {
+    constraint.verify_util()?;
+  }
   Ok(())
 }
 
@@ -140,6 +109,37 @@ fn check_var_in_fix<L: Language>(vars: HashSet<&str>, fixer: &Option<Fixer<L>>) 
     }
   }
   Ok(())
+}
+
+pub fn check_rewriters_in_transform<L: Language>(
+  rule: &RuleCore<L>,
+  rewriters: &GlobalRules<L>,
+) -> Result<(), RuleConfigError> {
+  let rewriters = rewriters.read();
+  if let Some(err) = check_one_rewriter_in_rule(rule, &rewriters) {
+    return Err(err);
+  }
+  let error = rewriters
+    .values()
+    .find_map(|rewriter| check_one_rewriter_in_rule(rewriter, &rewriters));
+  if let Some(err) = error {
+    return Err(err);
+  }
+  Ok(())
+}
+
+fn check_one_rewriter_in_rule<L: Language>(
+  rule: &RuleCore<L>,
+  rewriters: &HashMap<String, RuleCore<L>>,
+) -> Option<RuleConfigError> {
+  let transform = rule.transform.as_ref()?;
+  let mut used_rewriters = transform
+    .values()
+    .flat_map(|trans| trans.used_rewriters().iter());
+  let undefined_writers = used_rewriters.find(|r| !rewriters.contains_key(*r))?;
+  Some(RuleConfigError::UndefinedRewriter(
+    undefined_writers.to_string(),
+  ))
 }
 
 #[cfg(test)]
