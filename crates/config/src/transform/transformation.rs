@@ -231,6 +231,15 @@ mod test {
   }
 
   #[test]
+  fn test_transform_parse_error() {
+    let str_trans = parse(r#"substring: { source: WRONG }"#).expect("should work");
+    match str_trans.parse(&TypeScript::Tsx) {
+      Err(TransformError::MalformedVar(n)) => assert_eq!(n, "WRONG"),
+      _ => panic!("should be malformed var"),
+    }
+  }
+
+  #[test]
   fn test_simple_replace() -> R {
     let trans = parse(
       r#"
