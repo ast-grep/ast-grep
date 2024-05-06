@@ -1,4 +1,4 @@
-use crate::check_var::{check_utils_defined, check_vars, check_vars_in_rewriter};
+use crate::check_var::{check_rule_with_hint, CheckHint};
 use crate::fixer::{Fixer, FixerError, SerializableFixer};
 use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::Rule;
@@ -109,7 +109,6 @@ impl SerializableRuleCore {
       .map(|t| Transform::deserialize(t, env))
       .transpose()?;
     let fixer = self.get_fixer(env)?;
-    check_utils_defined(&rule, &constraints)?;
     Ok(
       RuleCore::new(rule)
         .with_matchers(constraints)
@@ -120,9 +119,23 @@ impl SerializableRuleCore {
   }
 
   pub fn get_matcher<L: Language>(&self, env: DeserializeEnv<L>) -> RResult<RuleCore<L>> {
+    self.get_matcher_with_hint(env, CheckHint::Normal)
+  }
+
+  pub(crate) fn get_matcher_with_hint<L: Language>(
+    &self,
+    env: DeserializeEnv<L>,
+    hint: CheckHint,
+  ) -> RResult<RuleCore<L>> {
     let env = self.get_deserialize_env(env)?;
     let ret = self.get_matcher_from_env(&env)?;
-    check_vars(&ret.rule, &ret.constraints, &self.transform, &ret.fixer)?;
+    check_rule_with_hint(
+      &ret.rule,
+      &ret.constraints,
+      &self.transform,
+      &ret.fixer,
+      hint,
+    )?;
     Ok(ret)
   }
 
@@ -132,16 +145,7 @@ impl SerializableRuleCore {
     env: DeserializeEnv<L>,
     upper_vars: &HashSet<&str>,
   ) -> RResult<RuleCore<L>> {
-    let env = self.get_deserialize_env(env)?;
-    let ret = self.get_matcher_from_env(&env)?;
-    check_vars_in_rewriter(
-      &ret.rule,
-      &ret.constraints,
-      &self.transform,
-      &ret.fixer,
-      upper_vars,
-    )?;
-    Ok(ret)
+    self.get_matcher_with_hint(env, CheckHint::Rewriter(upper_vars))
   }
 }
 

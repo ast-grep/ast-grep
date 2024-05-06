@@ -11,6 +11,35 @@ use std::collections::{HashMap, HashSet};
 
 type RResult<T> = std::result::Result<T, RuleCoreError>;
 
+pub enum CheckHint<'r> {
+  Global,
+  Normal,
+  Rewriter(&'r HashSet<&'r str>),
+}
+
+pub fn check_rule_with_hint<'r, L: Language>(
+  rule: &'r Rule<L>,
+  constraints: &'r HashMap<String, Rule<L>>,
+  transform: &'r Option<HashMap<String, Transformation>>,
+  fixer: &Option<Fixer<L>>,
+  hint: CheckHint<'r>,
+) -> RResult<()> {
+  match hint {
+    CheckHint::Global => {
+      check_vars(rule, constraints, transform, fixer)?;
+    }
+    CheckHint::Normal => {
+      check_utils_defined(rule, constraints)?;
+      check_vars(rule, constraints, transform, fixer)?;
+    }
+    CheckHint::Rewriter(upper_vars) => {
+      check_utils_defined(rule, constraints)?;
+      check_vars_in_rewriter(rule, constraints, transform, fixer, upper_vars)?;
+    }
+  }
+  Ok(())
+}
+
 pub fn check_vars_in_rewriter<'r, L: Language>(
   rule: &'r Rule<L>,
   constraints: &'r HashMap<String, Rule<L>>,
