@@ -41,33 +41,23 @@ pub struct DeserializeEnv<L: Language> {
 }
 
 trait DependentRule: Sized {
-  fn visit_dependent_rules<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>)
-    -> OrderResult<()>;
+  fn visit_dependency<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) -> OrderResult<()>;
 }
 
 impl DependentRule for SerializableRule {
-  fn visit_dependent_rules<'a>(
-    &'a self,
-    sorter: &mut TopologicalSort<'a, Self>,
-  ) -> OrderResult<()> {
+  fn visit_dependency<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) -> OrderResult<()> {
     visit_dependent_rule_ids(self, sorter)
   }
 }
 
 impl<L: Language> DependentRule for (L, SerializableRuleCore) {
-  fn visit_dependent_rules<'a>(
-    &'a self,
-    sorter: &mut TopologicalSort<'a, Self>,
-  ) -> OrderResult<()> {
+  fn visit_dependency<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) -> OrderResult<()> {
     visit_dependent_rule_ids(&self.1.rule, sorter)
   }
 }
 
 impl DependentRule for Transformation {
-  fn visit_dependent_rules<'a>(
-    &'a self,
-    sorter: &mut TopologicalSort<'a, Self>,
-  ) -> OrderResult<()> {
+  fn visit_dependency<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) -> OrderResult<()> {
     let used_var = self.used_vars();
     sorter.visit(used_var)
   }
@@ -85,8 +75,8 @@ struct TopologicalSort<'a, T: DependentRule> {
 impl<'a, T: DependentRule> TopologicalSort<'a, T> {
   fn get_order(maps: &HashMap<String, T>) -> OrderResult<Vec<&str>> {
     let mut top_sort = TopologicalSort::new(maps);
-    for rule_id in maps.keys() {
-      top_sort.visit(rule_id)?;
+    for key in maps.keys() {
+      top_sort.visit(key)?;
     }
     Ok(top_sort.order)
   }
@@ -99,29 +89,30 @@ impl<'a, T: DependentRule> TopologicalSort<'a, T> {
     }
   }
 
-  fn visit(&mut self, rule_id: &'a str) -> OrderResult<()> {
-    if let Some(&completed) = self.seen.get(rule_id) {
+  fn visit(&mut self, key: &'a str) -> OrderResult<()> {
+    if let Some(&completed) = self.seen.get(key) {
       // if the rule has been seen but not completed
       // it means we have a cyclic dependency and report an error here
       return if completed {
         Ok(())
       } else {
-        Err(rule_id.to_string())
+        Err(key.to_string())
       };
     }
-    let Some(rule) = self.maps.get(rule_id) else {
-      // rule_id can be found elsewhere
+    let Some(item) = self.maps.get(key) else {
+      // key can be found elsewhere
+      // e.g. if key is rule_id
       // if rule_id not found in global, it can be a local rule
       // if rule_id not found in local, it can be a global rule
       // TODO: add check here and return Err if rule not found
       return Ok(());
     };
     // mark the id as seen but not completed
-    self.seen.insert(rule_id, false);
-    rule.visit_dependent_rules(self)?;
+    self.seen.insert(key, false);
+    item.visit_dependency(self)?;
     // mark the id as seen and completed
-    self.seen.insert(rule_id, true);
-    self.order.push(rule_id);
+    self.seen.insert(key, true);
+    self.order.push(key);
     Ok(())
   }
 }
