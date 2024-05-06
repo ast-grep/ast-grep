@@ -55,7 +55,7 @@ impl Rewrite<MetaVariable> {
     let rules: Vec<_> = self
       .rewriters
       .iter()
-      .filter_map(|id| rewriters.get(id)) // TODO: better handling
+      .filter_map(|id| rewriters.get(id)) // NOTE: rewriter must be defined
       .collect();
     let edits = find_and_make_edits(nodes, &rules, ctx);
     let rewritten = if let Some(joiner) = &self.join_by {
@@ -115,7 +115,7 @@ fn replace_one<'n, D: Doc>(
       // in future, we can use the explict `expose` to control env inheritance
       if let Some(n) = rule.do_match(child.clone(), &mut env, Some(ctx.enclosing_env)) {
         let nm = NodeMatch::new(n, env.into_owned());
-        edits.push(nm.make_edit(rule, rule.fixer.as_ref().expect("TODO")));
+        edits.push(nm.make_edit(rule, rule.fixer.as_ref().expect("rewriter must have fix")));
         // stop at first fix, skip duplicate fix
         break;
       }
