@@ -21,6 +21,8 @@ pub enum TransformError {
   Cyclic,
   #[error("Transform var `{0}` has already defined.")]
   AlreadyDefined(String),
+  #[error("source `{0}` should be $-prefixed.")]
+  MalformedVar(String),
 }
 
 pub struct Transform {
@@ -35,11 +37,13 @@ impl Transform {
     let orders = env
       .get_transform_order(map)
       .map_err(|_| TransformError::Cyclic)?;
-    let transforms = orders
+    let transforms: Result<_, _> = orders
       .into_iter()
-      .map(|key| (key.to_string(), map[key].parse(&env.lang).expect("TODO")))
+      .map(|key| map[key].parse(&env.lang).map(|t| (key.to_string(), t)))
       .collect();
-    Ok(Self { transforms })
+    Ok(Self {
+      transforms: transforms?,
+    })
   }
 
   pub fn apply_transform<'c, D: Doc>(

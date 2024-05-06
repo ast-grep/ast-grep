@@ -1,4 +1,5 @@
 use super::Ctx;
+use super::{transformation::parse_meta_var, TransformError};
 use crate::rule_core::RuleCore;
 
 use ast_grep_core::meta_var::MetaVariable;
@@ -31,10 +32,9 @@ fn get_nodes_from_env<'b, D: Doc>(var: &MetaVariable, ctx: &Ctx<'_, 'b, D>) -> V
   }
 }
 impl Rewrite<String> {
-  pub fn parse<L: Language>(&self, lang: &L) -> Option<Rewrite<MetaVariable>> {
-    let source = lang.pre_process_pattern(&self.source);
-    let source = lang.extract_meta_var(&source)?;
-    Some(Rewrite {
+  pub fn parse<L: Language>(&self, lang: &L) -> Result<Rewrite<MetaVariable>, TransformError> {
+    let source = parse_meta_var(&self.source, lang)?;
+    Ok(Rewrite {
       source,
       rewriters: self.rewriters.clone(),
       join_by: self.join_by.clone(),
@@ -360,6 +360,6 @@ fix: $D
       before_vars, after_vars,
       "rewrite should not write back to env"
     );
-    rewrite.parse(&TypeScript::Tsx)?.compute(&mut ctx)
+    rewrite.parse(&TypeScript::Tsx).ok()?.compute(&mut ctx)
   }
 }

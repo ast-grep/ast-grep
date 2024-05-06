@@ -1,5 +1,5 @@
 use super::rewrite::Rewrite;
-use super::{string_case, Ctx};
+use super::{string_case, Ctx, TransformError};
 use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::source::Content;
 use ast_grep_core::{Doc, Language};
@@ -109,15 +109,25 @@ pub enum Transformation<T> {
   Rewrite(Rewrite<T>),
 }
 
-fn parse_meta_var<L: Language>(src: &str, lang: &L) -> Option<MetaVariable> {
+pub(crate) fn parse_meta_var<L: Language>(
+  src: &str,
+  lang: &L,
+) -> Result<MetaVariable, TransformError> {
   let source = lang.pre_process_pattern(src);
-  lang.extract_meta_var(&source)
+  if let Some(var) = lang.extract_meta_var(&source) {
+    Ok(var)
+  } else {
+    Err(TransformError::MalformedVar(src.to_string()))
+  }
 }
 
 impl Transformation<String> {
-  pub fn parse<L: Language>(&self, lang: &L) -> Option<Transformation<MetaVariable>> {
+  pub fn parse<L: Language>(
+    &self,
+    lang: &L,
+  ) -> Result<Transformation<MetaVariable>, TransformError> {
     use Transformation as T;
-    Some(match self {
+    Ok(match self {
       T::Replace(r) => T::Replace(Replace {
         source: parse_meta_var(&r.source, lang)?,
         replace: r.replace.clone(),
@@ -212,7 +222,7 @@ mod test {
       rewriters: Default::default(),
       enclosing_env: &Default::default(),
     };
-    trans.parse(&TypeScript::Tsx)?.compute(&mut ctx)
+    trans.parse(&TypeScript::Tsx).ok()?.compute(&mut ctx)
   }
 
   fn parse(trans: &str) -> Result<Transformation<String>, ()> {
