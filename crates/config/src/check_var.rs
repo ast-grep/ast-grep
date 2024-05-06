@@ -2,7 +2,7 @@ use crate::fixer::Fixer;
 use crate::rule::Rule;
 use crate::rule_config::RuleConfigError;
 use crate::rule_core::RuleCoreError;
-use crate::transform::Transformation;
+use crate::transform::{TransformError, Transformation};
 use crate::{GlobalRules, RuleCore};
 
 use ast_grep_core::language::Language;
@@ -111,7 +111,12 @@ fn check_var_in_transform<'r>(
     return Ok(vars);
   };
   for var in transform.keys() {
-    vars.insert(var);
+    // vars already has the transform value. Report error!
+    if !vars.insert(var) {
+      return Err(RuleCoreError::Transform(TransformError::AlreadyDefined(
+        var.to_string(),
+      )));
+    }
   }
   for trans in transform.values() {
     let needed = trans.used_vars();
@@ -170,7 +175,7 @@ transform:
     let ser_rule: SerializableRuleCore = from_str(src).expect("should deser");
     match ser_rule.get_matcher(env) {
       Err(RuleCoreError::UndefinedMetaVar(name, section)) => (name, section),
-      _ => panic!("should error"),
+      _ => panic!("unexpected error"),
     }
   }
 
@@ -244,5 +249,24 @@ utils:
     .expect("should deser");
     let matcher = ser_rule.get_matcher(env).expect("should parse");
     assert_eq!(matcher.defined_vars(), ["A", "B"].into_iter().collect());
+  }
+
+  #[test]
+  fn test_transform_already_defined() {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule: { pattern: $A = $B }
+transform:
+  B: { substring: { source: $A } }",
+    )
+    .expect("should deser");
+    let matcher = ser_rule.get_matcher(env);
+    match matcher {
+      Err(RuleCoreError::Transform(TransformError::AlreadyDefined(b))) => {
+        assert_eq!(b, "B");
+      }
+      _ => panic!("unexpected error"),
+    }
   }
 }

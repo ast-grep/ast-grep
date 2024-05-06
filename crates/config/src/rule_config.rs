@@ -616,7 +616,7 @@ id: test
 rule: {pattern: '$B = $A'}
 language: Tsx
 transform:
-  B: { rewrite: { rewriters: [re], source: $A } }
+  D: { rewrite: { rewriters: [re], source: $A } }
 rewriters:
 - id: re
   rule: {kind: number, pattern: $C}
