@@ -26,4 +26,4 @@ thiserror.workspace = true
 schemars.workspace = true
 
 [dev-dependencies]
-tree-sitter-typescript = "0.20.5"
+tree-sitter-typescript = "0.21.1"
