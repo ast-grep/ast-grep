@@ -38,7 +38,6 @@ patterns = match config.include.clone() {
 // it is fixed in https://github.com/tree-sitter/tree-sitter-rust/issues/218
 // but not released yet
 #[test]
-#[ignore]
 fn test_issue_1057() {
   // fix #1057
   test_match("foo(\"meaning\");", "fn t() { foo(\"meaning\");}");
