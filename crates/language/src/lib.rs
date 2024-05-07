@@ -134,6 +134,7 @@ impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
 impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
+impl_lang!(Haskell, language_haskell);
 impl_lang!(Php, language_php);
 impl_lang!(Scala, language_scala);
 impl_lang!(Tsx, language_tsx);
@@ -152,6 +153,7 @@ pub enum SupportLang {
   Dart,
   Go,
   Elixir,
+  Haskell,
   Html,
   Java,
   JavaScript,
@@ -172,7 +174,7 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Html, Java, JavaScript, Json, Kotlin, Lua, Php,
+      Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin, Lua, Php,
       Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript,
     ]
   }
@@ -225,6 +227,7 @@ const fn alias(lang: &SupportLang) -> &[&str] {
     Dart => &["dart"],
     Elixir => &["ex", "elixir"],
     Go => &["go", "golang"],
+    Haskell => &["hs", "haskell"],
     Html => &["html"],
     Java => &["java"],
     JavaScript => &["javascript", "js", "jsx"],
@@ -269,6 +272,7 @@ macro_rules! execute_lang_method {
       S::Dart => Dart.$method($($pname,)*),
       S::Elixir => Elixir.$method($($pname,)*),
       S::Go => Go.$method($($pname,)*),
+      S::Haskell => Haskell.$method($($pname,)*),
       S::Html => Html.$method($($pname,)*),
       S::Java => Java.$method($($pname,)*),
       S::JavaScript => JavaScript.$method($($pname,)*),
@@ -324,6 +328,7 @@ fn extensions(lang: &SupportLang) -> &[&str] {
     Dart => &["dart"],
     Elixir => &["ex", "exs"],
     Go => &["go"],
+    Haskell => &["hs"],
     Html => &["html", "htm", "xhtml"],
     Java => &["java"],
     JavaScript => &["cjs", "js", "mjs", "jsx"],
