@@ -198,7 +198,7 @@ dependencies = [
  "tree-sitter-go",
  "tree-sitter-html",
  "tree-sitter-java",
- "tree-sitter-javascript",
+ "tree-sitter-javascript-sg",
  "tree-sitter-json",
  "tree-sitter-kotlin-sg",
  "tree-sitter-lua",
@@ -239,7 +239,7 @@ dependencies = [
  "tree-sitter-css",
  "tree-sitter-facade-sg",
  "tree-sitter-html",
- "tree-sitter-javascript",
+ "tree-sitter-javascript-sg",
  "tree-sitter-typescript",
 ]
 
@@ -1980,10 +1980,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "tree-sitter-javascript"
-version = "0.21.0"
+name = "tree-sitter-javascript-sg"
+version = "0.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26eca1925fd9518f9439ea122e3f3395abb3fcfc4b0841ef94eeef934871ec59"
+checksum = "6bcc0db43c6e12fa3cc61f6341a36aba80ae95eeaf575a4292bad7a1960488f2"
 dependencies = [
  "cc",
  "tree-sitter",
