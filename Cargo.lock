@@ -200,7 +200,7 @@ dependencies = [
  "tree-sitter-java",
  "tree-sitter-javascript-sg",
  "tree-sitter-json",
- "tree-sitter-kotlin-sg",
+ "tree-sitter-kotlin",
  "tree-sitter-lua",
  "tree-sitter-php",
  "tree-sitter-python",
@@ -2000,10 +2000,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "tree-sitter-kotlin-sg"
-version = "0.3.7"
+name = "tree-sitter-kotlin"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "daa9971b5a899ddc4a96f2555aff07d7ab8c1e367017330aebe40799dfeaa4db"
+checksum = "c88dfbb22333118a5d5c5c10b19f93d115a6fa3c8a69dd0e6a260a64f9f5a79b"
 dependencies = [
  "cc",
  "tree-sitter",
