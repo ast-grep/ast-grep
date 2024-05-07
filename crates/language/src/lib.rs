@@ -13,6 +13,7 @@ mod csharp;
 mod css;
 mod elixir;
 mod go;
+mod haskell;
 mod html;
 mod json;
 mod kotlin;
