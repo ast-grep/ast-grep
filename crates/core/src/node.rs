@@ -379,10 +379,6 @@ impl<'r, D: Doc> Node<'r, D> {
   // NOTE: Need go to parent first, then move to current node by byte offset.
   // This is because tree_sitter cursor is scoped to the starting node.
   // See https://github.com/tree-sitter/tree-sitter/issues/567
-  // TODO: remove this target_arch dependent code branch
-  // TODO: we need to add goto_first_child_for_byte in web-tree-sitter
-  // https://github.com/tree-sitter/tree-sitter/discussions/2288
-  #[cfg(not(target_arch = "wasm32"))]
   pub fn next_all(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
     // if root is none, use self as fallback to return a type-stable Iterator
     let node = self.parent().unwrap_or_else(|| self.clone());
@@ -394,20 +390,6 @@ impl<'r, D: Doc> Node<'r, D> {
       } else {
         None
       }
-    })
-  }
-
-  // TODO: remove this target_arch dependent code branch
-  // TODO: we need to add goto_first_child_for_byte in web-tree-sitter
-  // https://github.com/tree-sitter/tree-sitter/discussions/2288
-  #[cfg(target_arch = "wasm32")]
-  pub fn next_all(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
-    let mut node = self.clone();
-    std::iter::from_fn(move || {
-      node.next().map(|n| {
-        node = n.clone();
-        n
-      })
     })
   }
 
