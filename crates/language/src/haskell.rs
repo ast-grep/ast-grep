@@ -15,10 +15,14 @@ fn test_non_match(query: &str, source: &str) {
 
 #[test]
 fn test_haskell_str() {
-  // TODO: Basic patterns do not work yet
-  // test_match("return $A", "return 3");
-  // test_match(r#""$A""#, r#""abc""#);
-  test_match("return", "return");
+  test_match("return $A", "return 3");
+  test_match(r#""abc""#, r#""abc""#);
+  test_match("$A $B", "f x");
+  test_match("$A ($B $C)", "f (x y)");
+  test_match("let $A = $B in $A + $A", "let x = 3 in x + x");
+  test_non_match("$A $B", "f");
+  test_non_match("$A + $A", "3 + 4");
+  test_non_match("$A ($B $C)", "f x y");
 }
 
 fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {

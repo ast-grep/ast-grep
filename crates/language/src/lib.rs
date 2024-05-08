@@ -110,6 +110,10 @@ impl_lang_expando!(Elixir, language_elixir, 'µ');
 // we can use any Unicode code point categorized as "Letter"
 // https://go.dev/ref/spec#letter
 impl_lang_expando!(Go, language_go, 'µ');
+// GHC supports Unicode syntax per
+// https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/unicode_syntax.html
+// and the tree-sitter-haskell grammar parses it too.
+impl_lang_expando!(Haskell, language_haskell, 'µ');
 // tree-sitter-html uses locale dependent iswalnum for tagName
 // https://github.com/tree-sitter/tree-sitter-html/blob/b5d9758e22b4d3d25704b72526670759a9e4d195/src/scanner.c#L194
 impl_lang_expando!(Html, language_html, 'z');
@@ -135,7 +139,6 @@ impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
 impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
-impl_lang!(Haskell, language_haskell);
 impl_lang!(Php, language_php);
 impl_lang!(Scala, language_scala);
 impl_lang!(Tsx, language_tsx);
