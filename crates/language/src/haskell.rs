@@ -27,11 +27,42 @@ fn test_haskell_str() {
 
 fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
   use crate::test::test_replace_lang;
-  test_replace_lang(src, pattern, replacer, Html)
+  test_replace_lang(src, pattern, replacer, Haskell)
 }
 
 #[test]
 fn test_haskell_replace() -> Result<(), TSParseError> {
-  // TODO: Test replacing
+  let ret = test_replace(
+    r#"
+fibonacci :: [Int]
+fibonacci =
+  1 : 1 : zipWith (+) fibonacci (tail fibonacci)
+"#,
+    r#"$F = $$$BODY"#,
+    r#"$F = undefined"#,
+  )?;
+  assert_eq!(
+    ret,
+    r#"
+fibonacci :: [Int]
+fibonacci = undefined
+"#
+  );
+
+  let ret = test_replace(
+    r#"
+flip :: (a -> b -> c) -> b -> a -> c
+flip f x y = f y x
+"#,
+    r#"$F :: $A -> $B"#,
+    r#"$F :: ($B) -> $A"#,
+  )?;
+  assert_eq!(
+    ret,
+    r#"
+flip :: (b -> a -> c) -> (a -> b -> c)
+flip f x y = f y x
+"#
+  );
   Ok(())
 }
