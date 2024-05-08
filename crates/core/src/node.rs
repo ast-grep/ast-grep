@@ -402,15 +402,17 @@ impl<'r, D: Doc> Node<'r, D> {
     })
   }
 
-  // TODO: use cursor to optimize clone.
-  // investigate why tree_sitter cursor cannot goto next_sibling
   pub fn prev_all(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
-    let mut node = self.clone();
+    // if root is none, use self as fallback to return a type-stable Iterator
+    let node = self.parent().unwrap_or_else(|| self.clone());
+    let mut cursor = node.inner.walk();
+    cursor.goto_first_child_for_byte(self.inner.start_byte());
     std::iter::from_fn(move || {
-      node.prev().map(|n| {
-        node = n.clone();
-        n
-      })
+      if cursor.goto_previous_sibling() {
+        Some(self.root.adopt(cursor.node()))
+      } else {
+        None
+      }
     })
   }
 
