@@ -178,8 +178,8 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin, Lua, Php,
-      Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript,
+      Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin,
+      Lua, Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript,
     ]
   }
 
