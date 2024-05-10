@@ -165,7 +165,7 @@ fn report_case_detail_impl<W: Write>(
     CaseStatus::Updated { source, .. } => {
       writeln!(
         output,
-        "[{update}] Rule {case_id}'s snapshot baselien has been updated."
+        "[{update}] Rule {case_id}'s snapshot baseline has been updated."
       )?;
       writeln!(output)?;
       indented_write(output, source)?;
