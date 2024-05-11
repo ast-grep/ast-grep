@@ -42,10 +42,10 @@
     semver "^7.3.5"
     tar "^6.1.11"
 
-"@napi-rs/cli@2.18.2":
-  version "2.18.2"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.18.2.tgz#0194d7e8f54528c1d5d733ee997ba34b746eae22"
-  integrity sha512-IXQji3IF5eStxTHe/PxDSRjPrFymYAQ5FbIvqurxzxyWR8nJql9mtvmCP8y2g8tSoW5xhaToLQW0+mO3lUZq4w==
+"@napi-rs/cli@2.18.3":
+  version "2.18.3"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.18.3.tgz#0f1c3cd7b757aa49cfbf52fc864d40881ee534c2"
+  integrity sha512-L0f4kP0dyG8W5Qtc7MtP73VvLLrOLyRcUEBzknIfu8Jk4Jfhrsx1ItMHgyalYqMSslWdY3ojEfAaU5sx1VyeQQ==
 
 "@nodelib/fs.scandir@2.1.5":
   version "2.1.5"
