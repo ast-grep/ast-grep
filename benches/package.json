@@ -18,7 +18,7 @@
     "@swc/core": "1.4.17",
     "benny": "3.7.1",
     "tree-sitter": "0.20.6",
-    "tree-sitter-typescript": "0.20.5",
+    "tree-sitter-typescript": "0.21.1",
     "typescript": "5.4.5"
   },
   "devDependencies": {
