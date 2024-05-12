@@ -64,7 +64,7 @@ jobs:
           target: ${{ matrix.target }}
           archive: app-$target
           # uncomment this for debug
-          ref: refs/tags/debug_release
+          # ref: refs/tags/debug_release
         env:
           # (required)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
