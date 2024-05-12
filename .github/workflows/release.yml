@@ -90,7 +90,7 @@ jobs:
           length=${#files[@]}
           for (( i=0; i<${length}; i++ ));
           do
-            unzip "artifacts/sg-${files[$i]}.zip" -d "npm/platforms/${target_dir[$i]}/"
+            unzip "artifacts/app-${files[$i]}.zip" -d "npm/platforms/${target_dir[$i]}/"
           done
           # windows
           files=(x86_64-pc-windows-msvc i686-pc-windows-msvc aarch64-pc-windows-msvc)
@@ -98,7 +98,7 @@ jobs:
           length=${#files[@]}
           for (( i=0; i<${length}; i++ ));
           do
-            unzip "artifacts/sg-${files[$i]}.zip" -d "npm/platforms/${target_dir[$i]}/"
+            unzip "artifacts/app-${files[$i]}.zip" -d "npm/platforms/${target_dir[$i]}/"
           done
       - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
         env:
