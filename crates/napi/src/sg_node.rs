@@ -6,6 +6,16 @@ use super::NapiConfig;
 use crate::doc::JsDoc;
 
 #[napi(object)]
+pub struct Edit {
+  /// The position of the edit
+  pub position: u32,
+  /// The length of the text to be deleted
+  pub deleted_length: u32,
+  /// The text to be inserted
+  pub inserted_text: String,
+}
+
+#[napi(object)]
 pub struct Pos {
   /// line number starting from 0
   pub line: u32,
@@ -291,6 +301,16 @@ impl SgNode {
   pub fn prev_all(&self, reference: Reference<SgNode>, env: Env) -> Result<Vec<SgNode>> {
     let inner = reference.inner.prev_all().map(NodeMatch::from);
     Self::from_iter_to_vec(&reference, env, inner)
+  }
+
+  #[napi]
+  pub fn commit_edits(
+    &self,
+    _reference: Reference<SgNode>,
+    _env: Env,
+    _edits: Vec<Edit>,
+  ) -> Result<String> {
+    todo!()
   }
 }
 
