@@ -3,7 +3,8 @@ use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
 use super::NapiConfig;
-use crate::doc::JsDoc;
+use crate::doc::{JsDoc, Wrapper};
+use ast_grep_core::source::Content;
 
 #[napi(object)]
 pub struct Edit {
@@ -302,15 +303,36 @@ impl SgNode {
     let inner = reference.inner.prev_all().map(NodeMatch::from);
     Self::from_iter_to_vec(&reference, env, inner)
   }
+}
+
+/// Edit API
+#[napi]
+impl SgNode {
+  #[napi]
+  pub fn replace(&self, text: String) -> Edit {
+    let byte_range = self.inner.range();
+    Edit {
+      position: byte_range.start as u32,
+      deleted_length: byte_range.len() as u32,
+      inserted_text: text,
+    }
+  }
 
   #[napi]
-  pub fn commit_edits(
-    &self,
-    _reference: Reference<SgNode>,
-    _env: Env,
-    _edits: Vec<Edit>,
-  ) -> Result<String> {
-    todo!()
+  pub fn commit_edits(&self, edits: Vec<Edit>) -> String {
+    let mut new_content = Vec::new();
+    let text = self.text();
+    let old_content = Wrapper::decode_str(&text);
+    let mut start = self.inner.range().start;
+    for diff in edits {
+      new_content.extend(&old_content[start..diff.position as usize]);
+      let bytes = Wrapper::decode_str(&diff.inserted_text);
+      new_content.extend(&*bytes);
+      start = (diff.position + diff.deleted_length) as usize;
+    }
+    // add trailing statements
+    new_content.extend(&old_content[start..]);
+    Wrapper::encode_bytes(&new_content).to_string()
   }
 }
 
