@@ -187,7 +187,7 @@ fn run_worker<W: PathWorker + ?Sized + 'static>(worker: Arc<W>) -> Result<()> {
 fn read_file(path: &Path) -> Option<String> {
   let file_content = read_to_string(path)
     .with_context(|| format!("Cannot read file {}", path.to_string_lossy()))
-    .map_err(|err| eprintln!("{err}"))
+    .map_err(|err| eprintln!("{err:#}"))
     .ok()?;
   // skip large files or empty file
   if file_too_large(&file_content) || file_content.is_empty() {
