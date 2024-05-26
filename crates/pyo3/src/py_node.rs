@@ -236,6 +236,37 @@ impl SgNode {
       .collect()
   }
 
+  /*---------- Edit  ----------*/
+  fn replace(&self, text: &str) -> Edit {
+    let byte_range = self.inner.range();
+    Edit {
+      position: byte_range.start,
+      deleted_length: byte_range.len(),
+      inserted_text: text.to_string(),
+    }
+  }
+
+  fn commit_edits(&self, mut edits: Vec<Edit>) -> String {
+    edits.sort_by_key(|edit| edit.position);
+    let mut new_content = String::new();
+    let old_content = self.text();
+    let offset = self.inner.range().start;
+    let mut start = 0;
+    for diff in edits {
+      let pos = diff.position - offset;
+      // skip overlapping edits
+      if start > pos {
+        continue;
+      }
+      new_content.push_str(&old_content[start..pos]);
+      new_content.push_str(&diff.inserted_text);
+      start = pos + diff.deleted_length;
+    }
+    // add trailing statements
+    new_content.push_str(&old_content[start..]);
+    new_content
+  }
+
   /*---------- Magic Method  ----------*/
   fn __hash__(&self) -> u64 {
     let mut s = DefaultHasher::new();
@@ -313,4 +344,15 @@ fn get_matcher_from_rule(
   let config = config_from_rule(rule)?;
   let matcher = config.get_matcher(env).context("cannot get matcher")?;
   Ok(matcher)
+}
+
+#[pyclass(frozen, get_all)]
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct Edit {
+  /// The position of the edit
+  pub position: usize,
+  /// The length of the text to be deleted
+  pub deleted_length: usize,
+  /// The text to be inserted
+  pub inserted_text: String,
 }
