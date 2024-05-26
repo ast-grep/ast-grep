@@ -39,3 +39,12 @@ def test_range():
     assert r1.end.index == 31
     assert r1 == r2
     assert hash(r1) == hash(r2)
+
+def test_unicode():
+    source = "ハロ = console.log(世界)".strip()
+    sg = SgRoot(source, "javascript")
+    root = sg.root()
+    node = root.find(pattern="console.log($A)")
+    assert node is not None
+    # it should be unicode char offset, but currently it's byte offset
+    assert node.range().start.index == 9
