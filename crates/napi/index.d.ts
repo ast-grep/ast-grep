@@ -26,6 +26,14 @@ export const enum FrontEndLanguage {
   Css = 3,
   TypeScript = 4
 }
+export interface Edit {
+  /** The position of the edit */
+  position: number
+  /** The length of the text to be deleted */
+  deletedLength: number
+  /** The text to be inserted */
+  insertedText: string
+}
 export interface Pos {
   /** line number starting from 0 */
   line: number
@@ -87,6 +95,8 @@ export class SgNode {
   nextAll(): Array<SgNode>
   prev(): SgNode | null
   prevAll(): Array<SgNode>
+  replace(text: string): Edit
+  commitEdits(edits: Array<Edit>): string
 }
 /** Represents the parsed tree of code. */
 export class SgRoot {

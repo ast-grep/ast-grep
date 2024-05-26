@@ -83,6 +83,28 @@ test('find with transformation', t => {
   t.deepEqual(match.getMatch('A')?.text(), '"Hello, 世界"')
 })
 
+
+test('test code fix', t => {
+  const sg = parse('a = console.log(123)')
+  const match = sg.root().find('console.log')!
+  const fix = match.replace('console.error')
+  t.deepEqual(fix.insertedText, 'console.error')
+  t.deepEqual(fix.position, 4)
+  t.deepEqual(fix.deletedLength, 11) // length of console.log
+  t.deepEqual(match.commitEdits([fix]), 'console.error')
+  const newCode = sg.root().commitEdits([fix])
+  t.deepEqual(newCode, 'a = console.error(123)')
+})
+
+test('test code with multiple fixes', t => {
+  // and also test unicode
+  const sg = parse('いいよ = log(123) + log(456)')
+  const matches = sg.root().findAll(js.kind('number'))
+  const fixes = matches.map(match => match.replace('114514'))
+  const newCode = sg.root().commitEdits(fixes)
+  t.deepEqual(newCode, 'いいよ = log(114514) + log(114514)')
+})
+
 test('findAll from native code', t => {
   const sg = parse('console.log(123); let a = console.log.bind(console);')
   const match = sg.root().findAll('console.log')

@@ -311,9 +311,10 @@ impl SgNode {
   #[napi]
   pub fn replace(&self, text: String) -> Edit {
     let byte_range = self.inner.range();
+    // the text is u16, need to convert to JS str length
     Edit {
-      position: byte_range.start as u32,
-      deleted_length: byte_range.len() as u32,
+      position: (byte_range.start / 2) as u32,
+      deleted_length: (byte_range.len() / 2) as u32,
       inserted_text: text,
     }
   }
@@ -323,12 +324,14 @@ impl SgNode {
     let mut new_content = Vec::new();
     let text = self.text();
     let old_content = Wrapper::decode_str(&text);
-    let mut start = self.inner.range().start;
+    let offset = self.inner.range().start / 2;
+    let mut start = 0;
     for diff in edits {
-      new_content.extend(&old_content[start..diff.position as usize]);
+      let pos = diff.position as usize - offset;
+      new_content.extend(&old_content[start..pos]);
       let bytes = Wrapper::decode_str(&diff.inserted_text);
       new_content.extend(&*bytes);
-      start = (diff.position + diff.deleted_length) as usize;
+      start = pos + diff.deleted_length as usize;
     }
     // add trailing statements
     new_content.extend(&old_content[start..]);
