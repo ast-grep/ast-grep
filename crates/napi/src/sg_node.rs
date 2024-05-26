@@ -320,7 +320,8 @@ impl SgNode {
   }
 
   #[napi]
-  pub fn commit_edits(&self, edits: Vec<Edit>) -> String {
+  pub fn commit_edits(&self, mut edits: Vec<Edit>) -> String {
+    edits.sort_by_key(|edit| edit.position);
     let mut new_content = Vec::new();
     let text = self.text();
     let old_content = Wrapper::decode_str(&text);
@@ -328,6 +329,10 @@ impl SgNode {
     let mut start = 0;
     for diff in edits {
       let pos = diff.position as usize - offset;
+      // skip overlapping edits
+      if start > pos {
+        continue;
+      }
       new_content.extend(&old_content[start..pos]);
       let bytes = Wrapper::decode_str(&diff.inserted_text);
       new_content.extend(&*bytes);

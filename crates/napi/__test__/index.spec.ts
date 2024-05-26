@@ -101,6 +101,8 @@ test('test code with multiple fixes', t => {
   const sg = parse('いいよ = log(123) + log(456)')
   const matches = sg.root().findAll(js.kind('number'))
   const fixes = matches.map(match => match.replace('114514'))
+  // make it in reverse order to test rust behavior
+  fixes.sort((a, b) => b.position - a.position)
   const newCode = sg.root().commitEdits(fixes)
   t.deepEqual(newCode, 'いいよ = log(114514) + log(114514)')
 })
