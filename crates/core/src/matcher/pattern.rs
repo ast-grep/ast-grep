@@ -313,6 +313,21 @@ mod test {
   }
 
   #[test]
+  #[ignore]
+  fn test_pattern_should_not_pollute_env() {
+    // gh issue #1164
+    let pattern = Pattern::str("const $A = 114", Tsx);
+    let cand = pattern_node("const a = 514");
+    let cand = cand.root().child(0).unwrap();
+    let map = MetaVarEnv::new();
+    let mut env = Cow::Borrowed(&map);
+    let nm = pattern.match_node_with_env(cand, &mut env);
+    assert!(nm.is_none());
+    assert!(env.get_match("A").is_none());
+    assert!(map.get_match("A").is_none());
+  }
+
+  #[test]
   fn test_match_non_atomic() {
     let env = match_env("const a = $VALUE", "const a = 5 + 3");
     assert_eq!(env["VALUE"], "5 + 3");
