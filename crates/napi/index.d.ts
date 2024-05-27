@@ -20,11 +20,29 @@ export interface NapiConfig {
   utils?: any
 }
 export const enum FrontEndLanguage {
-  Html = 0,
-  JavaScript = 1,
-  Tsx = 2,
-  Css = 3,
-  TypeScript = 4
+  Html = 'Html',
+  JavaScript = 'JavaScript',
+  Tsx = 'Tsx',
+  Css = 'Css',
+  TypeScript = 'TypeScript',
+  Bash = 'Bash',
+  C = 'C',
+  Cpp = 'Cpp',
+  CSharp = 'CSharp',
+  Dart = 'Dart',
+  Go = 'Go',
+  Elixir = 'Elixir',
+  Haskell = 'Haskell',
+  Java = 'Java',
+  Json = 'Json',
+  Kotlin = 'Kotlin',
+  Lua = 'Lua',
+  Php = 'Php',
+  Python = 'Python',
+  Ruby = 'Ruby',
+  Rust = 'Rust',
+  Scala = 'Scala',
+  Swift = 'Swift'
 }
 export interface Edit {
   /** The position of the edit */

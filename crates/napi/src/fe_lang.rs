@@ -1,4 +1,4 @@
-use ast_grep_core::language::{Language, TSLanguage};
+use ast_grep_language::SupportLang;
 use ignore::types::{Types, TypesBuilder};
 use ignore::{WalkBuilder, WalkParallel};
 use napi::anyhow::anyhow;
@@ -6,12 +6,11 @@ use napi::anyhow::Error;
 use napi::bindgen_prelude::Result;
 use napi_derive::napi;
 
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
 
-#[napi]
+#[napi(string_enum)]
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum FrontEndLanguage {
   Html,
@@ -19,14 +18,97 @@ pub enum FrontEndLanguage {
   Tsx,
   Css,
   TypeScript,
+  Bash,
+  C,
+  Cpp,
+  CSharp,
+  Dart,
+  Go,
+  Elixir,
+  Haskell,
+  Java,
+  Json,
+  Kotlin,
+  Lua,
+  Php,
+  Python,
+  Ruby,
+  Rust,
+  Scala,
+  Swift,
 }
 
-pub type LanguageGlobs = HashMap<FrontEndLanguage, Vec<String>>;
+impl Into<SupportLang> for FrontEndLanguage {
+  fn into(self) -> SupportLang {
+    use FrontEndLanguage as F;
+    use SupportLang as S;
+    match self {
+      F::Html => S::Html,
+      F::JavaScript => S::JavaScript,
+      F::Tsx => S::Tsx,
+      F::Css => S::Css,
+      F::TypeScript => S::TypeScript,
+      F::Bash => S::Bash,
+      F::C => S::C,
+      F::Cpp => S::Cpp,
+      F::CSharp => S::CSharp,
+      F::Dart => S::Dart,
+      F::Go => S::Go,
+      F::Elixir => S::Elixir,
+      F::Haskell => S::Haskell,
+      F::Java => S::Java,
+      F::Json => S::Json,
+      F::Kotlin => S::Kotlin,
+      F::Lua => S::Lua,
+      F::Php => S::Php,
+      F::Python => S::Python,
+      F::Ruby => S::Ruby,
+      F::Rust => S::Rust,
+      F::Scala => S::Scala,
+      F::Swift => S::Swift,
+    }
+  }
+}
+
+impl From<SupportLang> for FrontEndLanguage {
+  fn from(value: SupportLang) -> Self {
+    use FrontEndLanguage as F;
+    use SupportLang as S;
+    match value {
+      S::Html => F::Html,
+      S::JavaScript => F::JavaScript,
+      S::Tsx => F::Tsx,
+      S::Css => F::Css,
+      S::TypeScript => F::TypeScript,
+      S::Bash => F::Bash,
+      S::C => F::C,
+      S::Cpp => F::Cpp,
+      S::CSharp => F::CSharp,
+      S::Dart => F::Dart,
+      S::Go => F::Go,
+      S::Elixir => F::Elixir,
+      S::Haskell => F::Haskell,
+      S::Java => F::Java,
+      S::Json => F::Json,
+      S::Kotlin => F::Kotlin,
+      S::Lua => F::Lua,
+      S::Php => F::Php,
+      S::Python => F::Python,
+      S::Ruby => F::Ruby,
+      S::Rust => F::Rust,
+      S::Scala => F::Scala,
+      S::Swift => F::Swift,
+    }
+  }
+}
 
 impl FrontEndLanguage {
-  pub const fn all_langs() -> &'static [FrontEndLanguage] {
-    use FrontEndLanguage::*;
-    &[Html, JavaScript, Tsx, Css, TypeScript]
+  pub fn find_files(
+    &self,
+    paths: Vec<String>,
+    language_globs: Option<Vec<String>>,
+  ) -> Result<WalkParallel> {
+    find_files_with_lang(self, paths, language_globs)
   }
   pub fn lang_globs(map: HashMap<String, Vec<String>>) -> LanguageGlobs {
     let mut ret = HashMap::new();
@@ -37,89 +119,34 @@ impl FrontEndLanguage {
     }
     ret
   }
-
-  pub fn find_files(
-    &self,
-    paths: Vec<String>,
-    language_globs: Option<Vec<String>>,
-  ) -> Result<WalkParallel> {
-    find_files_with_lang(self, paths, language_globs)
-  }
 }
 
-impl Language for FrontEndLanguage {
-  fn get_ts_language(&self) -> TSLanguage {
-    use FrontEndLanguage::*;
-    match self {
-      Html => tree_sitter_html::language(),
-      JavaScript => tree_sitter_javascript::language(),
-      TypeScript => tree_sitter_typescript::language_typescript(),
-      Css => tree_sitter_css::language(),
-      Tsx => tree_sitter_typescript::language_tsx(),
-    }
-    .into()
-  }
-  fn expando_char(&self) -> char {
-    use FrontEndLanguage::*;
-    match self {
-      Css => '_',
-      _ => '$',
-    }
-  }
-  fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
-    use FrontEndLanguage::*;
-    match self {
-      Css => (),
-      _ => return Cow::Borrowed(query),
-    }
-    // use stack buffer to reduce allocation
-    let mut buf = [0; 4];
-    let expando = self.expando_char().encode_utf8(&mut buf);
-    // TODO: use more precise replacement
-    let replaced = query.replace(self.meta_var_char(), expando);
-    Cow::Owned(replaced)
-  }
-}
-
-const fn alias(lang: &FrontEndLanguage) -> &[&str] {
-  use FrontEndLanguage::*;
-  match lang {
-    Css => &["css"],
-    Html => &["html"],
-    JavaScript => &["javascript", "js", "jsx"],
-    TypeScript => &["ts", "typescript"],
-    Tsx => &["tsx"],
-  }
-}
+pub type LanguageGlobs = HashMap<FrontEndLanguage, Vec<String>>;
 
 impl FromStr for FrontEndLanguage {
   type Err = Error;
   fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-    for lang in Self::all_langs() {
-      for moniker in alias(lang) {
-        if s.eq_ignore_ascii_case(moniker) {
-          return Ok(*lang);
-        }
-      }
+    match SupportLang::from_str(s) {
+      Ok(l) => Ok(l.into()),
+      _ => Err(anyhow!(format!("{s} is not supported in napi"))),
     }
-    Err(anyhow!(format!("{s} is not supported in napi")))
   }
 }
 
 pub enum LangOption {
   /// Used when language is inferred from file path
   /// e.g. in parse_files
-  Inferred(Vec<(FrontEndLanguage, Types)>),
+  Inferred(Vec<(SupportLang, Types)>),
   /// Used when language is specified
   /// e.g. in frontend_lang.find_in_files
   Specified(FrontEndLanguage),
 }
 
 impl LangOption {
-  pub fn get_lang(&self, path: &Path) -> Option<FrontEndLanguage> {
+  pub fn get_lang(&self, path: &Path) -> Option<SupportLang> {
     use LangOption::*;
     match self {
-      Specified(lang) => Some(*lang),
+      Specified(lang) => Some((*lang).into()),
       Inferred(pairs) => pairs
         .iter()
         .find_map(|(lang, types)| types.matched(path, false).is_whitelist().then_some(*lang)),
@@ -128,29 +155,19 @@ impl LangOption {
   pub fn infer(language_globs: &LanguageGlobs) -> Self {
     let mut types = vec![];
     let empty = vec![];
-    for lang in FrontEndLanguage::all_langs() {
-      let (tpe, list) = file_patterns(lang);
+    for lang in SupportLang::all_langs() {
       let mut builder = TypesBuilder::new();
-      for pattern in list {
-        builder.add(tpe, pattern).expect("should build");
+      let tpe = lang.to_string();
+      let file_types = lang.file_types();
+      add_types(&mut builder, &file_types);
+      let fe_lang = FrontEndLanguage::from(*lang);
+      for pattern in language_globs.get(&fe_lang).unwrap_or(&empty) {
+        builder.add(&tpe, pattern).expect("should build");
       }
-      for pattern in language_globs.get(lang).unwrap_or(&empty) {
-        builder.add(tpe, pattern).expect("should build");
-      }
-      builder.select(tpe);
+      builder.select(&tpe);
       types.push((*lang, builder.build().unwrap()));
     }
     Self::Inferred(types)
-  }
-}
-
-const fn file_patterns(lang: &FrontEndLanguage) -> (&str, &[&str]) {
-  match lang {
-    FrontEndLanguage::TypeScript => ("myts", &["*.ts", "*.mts", "*.cts"]),
-    FrontEndLanguage::Tsx => ("mytsx", &["*.tsx", "*.mtsx", "*.ctsx"]),
-    FrontEndLanguage::Css => ("mycss", &["*.css", "*.scss"]),
-    FrontEndLanguage::Html => ("myhtml", &["*.html", "*.htm", "*.xhtml"]),
-    FrontEndLanguage::JavaScript => ("myjs", &["*.cjs", "*.js", "*.mjs", "*.jsx"]),
   }
 }
 
@@ -160,10 +177,12 @@ pub fn build_files(paths: Vec<String>, language_globs: &LanguageGlobs) -> Result
   }
   let mut types = TypesBuilder::new();
   let empty = vec![];
-  for lang in FrontEndLanguage::all_langs() {
-    let (type_name, default_types) = file_patterns(lang);
-    let custom = language_globs.get(lang).unwrap_or(&empty);
-    select_custom(&mut types, type_name, default_types, custom);
+  for lang in SupportLang::all_langs() {
+    let type_name = lang.to_string();
+    let l = FrontEndLanguage::from(*lang);
+    let custom = language_globs.get(&l).unwrap_or(&empty);
+    let default_types = lang.file_types();
+    select_custom(&mut types, &type_name, &default_types, custom);
   }
   let types = types.build().unwrap();
   let mut paths = paths.into_iter();
@@ -175,17 +194,22 @@ pub fn build_files(paths: Vec<String>, language_globs: &LanguageGlobs) -> Result
   Ok(walk)
 }
 
+fn add_types(builder: &mut TypesBuilder, types: &Types) {
+  for def in types.definitions() {
+    let name = def.name();
+    for glob in def.globs() {
+      builder.add(name, glob).expect(name);
+    }
+  }
+}
+
 fn select_custom<'b>(
   builder: &'b mut TypesBuilder,
   file_type: &str,
-  default_suffix_list: &[&str],
+  default_types: &Types,
   custom_suffix_list: &[String],
 ) -> &'b mut TypesBuilder {
-  for suffix in default_suffix_list {
-    builder
-      .add(file_type, suffix)
-      .expect("file pattern must compile");
-  }
+  add_types(builder, default_types);
   for suffix in custom_suffix_list {
     builder
       .add(file_type, suffix)
@@ -204,9 +228,11 @@ fn find_files_with_lang(
   }
 
   let mut types = TypesBuilder::new();
+  let sg_lang: SupportLang = (*lang).into();
+  let type_name = sg_lang.to_string();
   let custom_file_type = language_globs.unwrap_or_default();
-  let (type_name, default_types) = file_patterns(lang);
-  let types = select_custom(&mut types, type_name, default_types, &custom_file_type)
+  let default_types = sg_lang.file_types();
+  let types = select_custom(&mut types, &type_name, &default_types, &custom_file_type)
     .build()
     .unwrap();
   let mut paths = paths.into_iter();
@@ -241,11 +267,11 @@ mod test {
     let globs = lang_globs();
     let option = LangOption::infer(&globs);
     let lang = option.get_lang(Path::new("test.vue"));
-    assert_eq!(lang, Some(FrontEndLanguage::Html));
+    assert_eq!(lang, Some(SupportLang::Html));
     let lang = option.get_lang(Path::new("test.html"));
-    assert_eq!(lang, Some(FrontEndLanguage::Html));
+    assert_eq!(lang, Some(SupportLang::Html));
     let lang = option.get_lang(Path::new("test.js"));
-    assert_eq!(lang, Some(FrontEndLanguage::JavaScript));
+    assert_eq!(lang, Some(SupportLang::JavaScript));
     let lang = option.get_lang(Path::new("test.xss"));
     assert_eq!(lang, None);
   }

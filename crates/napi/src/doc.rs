@@ -3,6 +3,7 @@ use crate::FrontEndLanguage;
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
 use ast_grep_core::Language;
+use ast_grep_language::SupportLang;
 use napi::anyhow::Error;
 use napi::bindgen_prelude::Result as NapiResult;
 use napi_derive::napi;
@@ -28,8 +29,9 @@ pub struct NapiConfig {
 }
 
 impl NapiConfig {
-  pub fn parse_with(self, language: FrontEndLanguage) -> NapiResult<RuleCore<FrontEndLanguage>> {
+  pub fn parse_with(self, language: FrontEndLanguage) -> NapiResult<RuleCore<SupportLang>> {
     let lang = self.language.unwrap_or(language);
+    let lang: SupportLang = lang.into();
     let rule = SerializableRuleCore {
       rule: serde_json::from_value(self.rule)?,
       constraints: self.constraints.map(serde_json::from_value).transpose()?,
@@ -121,12 +123,12 @@ fn pos_for_byte_offset(input: &[u16], byte_offset: usize) -> Point {
 
 #[derive(Clone)]
 pub struct JsDoc {
-  lang: FrontEndLanguage,
+  lang: SupportLang,
   source: Wrapper,
 }
 
 impl JsDoc {
-  pub fn new(src: String, lang: FrontEndLanguage) -> Self {
+  pub fn new(src: String, lang: SupportLang) -> Self {
     let source = Wrapper {
       inner: src.encode_utf16().collect(),
     };
@@ -135,7 +137,7 @@ impl JsDoc {
 }
 
 impl Doc for JsDoc {
-  type Lang = FrontEndLanguage;
+  type Lang = SupportLang;
   type Source = Wrapper;
   fn parse(&self, old_tree: Option<&Tree>) -> std::result::Result<Tree, TSParseError> {
     let mut parser = Parser::new()?;
@@ -167,7 +169,7 @@ mod test {
   use ast_grep_core::AstGrep;
   #[test]
   fn test_js_doc() {
-    let doc = JsDoc::new("console.log(123)".into(), FrontEndLanguage::JavaScript);
+    let doc = JsDoc::new("console.log(123)".into(), SupportLang::JavaScript);
     let grep = AstGrep::doc(doc);
     assert_eq!(grep.root().text(), "console.log(123)");
     let node = grep.root().find("console");
@@ -176,10 +178,7 @@ mod test {
 
   #[test]
   fn test_js_doc_single_node_replace() {
-    let doc = JsDoc::new(
-      "console.log(1 + 2 + 3)".into(),
-      FrontEndLanguage::JavaScript,
-    );
+    let doc = JsDoc::new("console.log(1 + 2 + 3)".into(), SupportLang::JavaScript);
     let mut grep = AstGrep::doc(doc);
     let edit = grep
       .root()
@@ -191,10 +190,7 @@ mod test {
 
   #[test]
   fn test_js_doc_multiple_node_replace() {
-    let doc = JsDoc::new(
-      "console.log(1 + 2 + 3)".into(),
-      FrontEndLanguage::JavaScript,
-    );
+    let doc = JsDoc::new("console.log(1 + 2 + 3)".into(), SupportLang::JavaScript);
     let mut grep = AstGrep::doc(doc);
     let edit = grep
       .root()
