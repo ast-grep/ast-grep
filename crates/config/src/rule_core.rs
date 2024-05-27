@@ -131,6 +131,7 @@ impl SerializableRuleCore {
     let ret = self.get_matcher_from_env(&env)?;
     check_rule_with_hint(
       &ret.rule,
+      &ret.utils,
       &ret.constraints,
       &self.transform,
       &ret.fixer,

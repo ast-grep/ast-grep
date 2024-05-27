@@ -1,4 +1,5 @@
 use crate::fixer::Fixer;
+use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::Rule;
 use crate::rule_config::RuleConfigError;
 use crate::rule_core::RuleCoreError;
@@ -21,6 +22,7 @@ pub enum CheckHint<'r> {
 /// so we need to check rules with different hints.
 pub fn check_rule_with_hint<'r, L: Language>(
   rule: &'r Rule<L>,
+  utils: &'r RuleRegistration<L>,
   constraints: &'r HashMap<String, Rule<L>>,
   transform: &'r Option<HashMap<String, Transformation>>,
   fixer: &Option<Fixer<L>>,
@@ -29,16 +31,16 @@ pub fn check_rule_with_hint<'r, L: Language>(
   match hint {
     CheckHint::Global => {
       // do not check utils defined here because global rules are not yet ready
-      check_vars(rule, constraints, transform, fixer)?;
+      check_vars(rule, utils, constraints, transform, fixer)?;
     }
     CheckHint::Normal => {
       check_utils_defined(rule, constraints)?;
-      check_vars(rule, constraints, transform, fixer)?;
+      check_vars(rule, utils, constraints, transform, fixer)?;
     }
     // upper_vars is needed to check metavar defined in containing vars
     CheckHint::Rewriter(upper_vars) => {
       check_utils_defined(rule, constraints)?;
-      check_vars_in_rewriter(rule, constraints, transform, fixer, upper_vars)?;
+      check_vars_in_rewriter(rule, utils, constraints, transform, fixer, upper_vars)?;
     }
   }
   Ok(())
@@ -46,12 +48,14 @@ pub fn check_rule_with_hint<'r, L: Language>(
 
 fn check_vars_in_rewriter<'r, L: Language>(
   rule: &'r Rule<L>,
+  utils: &'r RuleRegistration<L>,
   constraints: &'r HashMap<String, Rule<L>>,
   transform: &'r Option<HashMap<String, Transformation>>,
   fixer: &Option<Fixer<L>>,
   upper_var: &HashSet<&str>,
 ) -> RResult<()> {
-  let vars = check_var_in_constraints(rule, constraints)?;
+  let vars = get_vars_from_rules(rule, utils);
+  let vars = check_var_in_constraints(vars, constraints)?;
   let mut vars = check_var_in_transform(vars, transform)?;
   for v in upper_var {
     vars.insert(v);
@@ -73,21 +77,33 @@ fn check_utils_defined<L: Language>(
 
 fn check_vars<'r, L: Language>(
   rule: &'r Rule<L>,
+  utils: &'r RuleRegistration<L>,
   constraints: &'r HashMap<String, Rule<L>>,
   transform: &'r Option<HashMap<String, Transformation>>,
   fixer: &Option<Fixer<L>>,
 ) -> RResult<()> {
-  let vars = check_var_in_constraints(rule, constraints)?;
+  let vars = get_vars_from_rules(rule, utils);
+  let vars = check_var_in_constraints(vars, constraints)?;
   let vars = check_var_in_transform(vars, transform)?;
   check_var_in_fix(vars, fixer)?;
   Ok(())
 }
 
-fn check_var_in_constraints<'r, L: Language>(
+fn get_vars_from_rules<'r, L: Language>(
   rule: &'r Rule<L>,
+  utils: &'r RuleRegistration<L>,
+) -> HashSet<&'r str> {
+  let mut vars = rule.defined_vars();
+  for var in utils.get_local_util_vars() {
+    vars.insert(var);
+  }
+  vars
+}
+
+fn check_var_in_constraints<'r, L: Language>(
+  mut vars: HashSet<&'r str>,
   constraints: &'r HashMap<String, Rule<L>>,
 ) -> RResult<HashSet<&'r str>> {
-  let mut vars = rule.defined_vars();
   for rule in constraints.values() {
     for var in rule.defined_vars() {
       vars.insert(var);
@@ -263,6 +279,21 @@ fix: $D
 rule: {matches: test}
 utils:
   test: { pattern: $B}",
+    )
+    .expect("should deser");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    assert_eq!(matcher.defined_vars(), ["B"].into_iter().collect());
+  }
+
+  #[test]
+  fn test_use_vars_in_utils() {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+utils:
+  test: { pattern: $B }
+rule: { matches: test }
+fix: $B = 123",
     )
     .expect("should deser");
     let matcher = ser_rule.get_matcher(env).expect("should parse");
