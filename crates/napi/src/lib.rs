@@ -8,6 +8,7 @@ use ast_grep_config::RuleCore;
 use ast_grep_core::language::Language;
 use ast_grep_core::pinned::{NodeData, PinnedNodeData};
 use ast_grep_core::{AstGrep, NodeMatch};
+use ast_grep_language::SupportLang;
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use napi::anyhow::{anyhow, Context, Result as Ret};
 use napi::bindgen_prelude::*;
@@ -32,7 +33,7 @@ macro_rules! impl_lang_mod {
         /// Parse a string to an ast-grep instance
         #[napi]
         pub fn parse(src: String) -> SgRoot {
-          let doc = JsDoc::new(src, $lang);
+          let doc = JsDoc::new(src, ($lang).into());
           SgRoot(AstGrep::doc(doc), "anonymous".into())
         }
 
@@ -50,7 +51,8 @@ macro_rules! impl_lang_mod {
         /// Get the `kind` number from its string name.
         #[napi]
         pub fn kind(kind_name: String) -> u16 {
-          $lang.get_ts_language().id_for_node_kind(&kind_name, /* named */ true)
+          let lang: SupportLang = $lang.into();
+          lang.get_ts_language().id_for_node_kind(&kind_name, /* named */ true)
         }
         /// Compile a string to ast-grep Pattern.
         #[napi]
@@ -98,7 +100,7 @@ impl Task for ParseAsync {
 
   fn compute(&mut self) -> Result<Self::Output> {
     let src = std::mem::take(&mut self.src);
-    let doc = JsDoc::new(src, self.lang);
+    let doc = JsDoc::new(src, self.lang.into());
     Ok(SgRoot(AstGrep::doc(doc), "anonymous".into()))
   }
   fn resolve(&mut self, _env: Env, output: Self::Output) -> Result<Self::JsValue> {
@@ -224,7 +226,7 @@ fn get_root(entry: ignore::DirEntry, lang_option: &LangOption) -> Ret<(AstGrep<J
 
 type FindInFiles = IterateFiles<(
   ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
-  RuleCore<FrontEndLanguage>,
+  RuleCore<SupportLang>,
 )>;
 
 pub struct PinnedNodes(
@@ -292,7 +294,7 @@ fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<Vec<SgNod
 fn call_sg_node(
   (tsfn, rule): &(
     ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
-    RuleCore<FrontEndLanguage>,
+    RuleCore<SupportLang>,
   ),
   entry: std::result::Result<ignore::DirEntry, ignore::Error>,
   lang_option: &LangOption,
