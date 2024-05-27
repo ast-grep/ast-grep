@@ -554,4 +554,23 @@ inside:
     let rule = deserialize_rule(rule, &env).expect("should deserialize");
     assert_eq!(rule.defined_vars(), ["A", "B"].into_iter().collect());
   }
+
+  #[test]
+  fn test_issue_1164() {
+    let src = r"
+    kind: statement_block
+    has:
+      pattern: this.$A = promise()
+      stopBy: end";
+    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let rule = deserialize_rule(rule, &env).expect("should deserialize");
+    let root = TypeScript::Tsx.ast_grep(
+      "if (a) {
+      this.a = b;
+      this.d = promise()
+    }",
+    );
+    assert!(root.root().find(rule).is_some());
+  }
 }

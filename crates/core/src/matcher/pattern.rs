@@ -221,7 +221,14 @@ impl<L: Language> Matcher<L> for Pattern<L> {
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    match_node_non_recursive(self, node, env)
+    // do not pollute the env if pattern does not match
+    let mut may_write = Cow::Borrowed(env.as_ref());
+    let node = match_node_non_recursive(self, node, &mut may_write)?;
+    if let Cow::Owned(map) = may_write {
+      // only change env when pattern matches
+      *env = Cow::Owned(map);
+    }
+    Some(node)
   }
 
   fn potential_kinds(&self) -> Option<bit_set::BitSet> {
@@ -313,7 +320,6 @@ mod test {
   }
 
   #[test]
-  #[ignore]
   fn test_pattern_should_not_pollute_env() {
     // gh issue #1164
     let pattern = Pattern::str("const $A = 114", Tsx);
