@@ -1,8 +1,8 @@
 #![cfg(not(feature = "napi-noop-in-unit-test"))]
 
 mod doc;
-mod fe_lang;
 mod find_files;
+mod napi_lang;
 mod sg_node;
 
 use ast_grep_core::language::Language;
@@ -12,8 +12,8 @@ use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
 use doc::{JsDoc, NapiConfig};
-use fe_lang::FrontEndLanguage;
 use find_files::{find_in_files_impl, FindConfig, FindInFiles, ParseAsync};
+use napi_lang::FrontEndLanguage;
 use sg_node::SgRoot;
 
 pub use find_files::parse_files;
