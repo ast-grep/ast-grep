@@ -51,6 +51,7 @@ impl<T: 'static + Send + Sync> Task for IterateFiles<T> {
   fn compute(&mut self) -> Result<Self::Output> {
     let tsfn = &self.tsfn;
     let file_count = AtomicU32::new(0);
+    // TODO: I believe the channel here is pure overhead. walker.run will block the thread.
     let (tx, rx) = channel();
     let producer = self.producer;
     let walker = std::mem::replace(&mut self.walk, WalkBuilder::new(".").build_parallel());
