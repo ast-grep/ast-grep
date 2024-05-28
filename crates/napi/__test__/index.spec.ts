@@ -1,8 +1,9 @@
 import test from 'ava'
 
-import { js, parseFiles, ts, tsx, html } from '../index'
+import { js, parseFiles, ts, tsx, html, parse as parseWithLang } from '../index'
 const { parse, kind } = js
 let parseMulti = countedPromise(parseFiles)
+
 
 test('find from native code', t => {
   const sg = parse('console.log(123)')
@@ -299,3 +300,7 @@ function countedPromise<F extends (t: any, cb: any) => Promise<number>>(func: F)
     return fileCount
   }
 }
+
+test('parse python', t => {
+
+})

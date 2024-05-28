@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 
 use crate::doc::{JsDoc, NapiConfig};
-use crate::fe_lang::{build_files, FrontEndLanguage, LangOption};
+use crate::napi_lang::{build_files, FrontEndLanguage, LangOption};
 use crate::sg_node::{SgNode, SgRoot};
 
 pub struct ParseAsync {
