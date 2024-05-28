@@ -126,10 +126,9 @@ pub type LanguageGlobs = HashMap<Lang, Vec<String>>;
 impl FromStr for Lang {
   type Err = Error;
   fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-    match SupportLang::from_str(s) {
-      Ok(l) => Ok(l.into()),
-      _ => Err(anyhow!(format!("{s} is not supported in napi"))),
-    }
+    SupportLang::from_str(s)
+      .map(|l| l.into())
+      .map_err(|_| anyhow!(format!("{s} is not supported in napi")))
   }
 }
 
