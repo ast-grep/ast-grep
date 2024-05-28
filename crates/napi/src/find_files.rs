@@ -13,12 +13,12 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::channel;
 
 use crate::doc::{JsDoc, NapiConfig};
-use crate::napi_lang::{build_files, FrontEndLanguage, LangOption};
+use crate::napi_lang::{build_files, Lang, LangOption};
 use crate::sg_node::{SgNode, SgRoot};
 
 pub struct ParseAsync {
   pub src: String,
-  pub lang: FrontEndLanguage,
+  pub lang: Lang,
 }
 
 impl Task for ParseAsync {
@@ -111,7 +111,7 @@ pub fn parse_files(
     Either::B(FileOption {
       paths,
       language_globs,
-    }) => (paths, FrontEndLanguage::lang_globs(language_globs)),
+    }) => (paths, Lang::lang_globs(language_globs)),
   };
   let walk = build_files(paths, &globs)?;
   Ok(AsyncTask::new(ParseFiles {
@@ -177,7 +177,7 @@ pub struct FindConfig {
 }
 
 pub fn find_in_files_impl(
-  lang: FrontEndLanguage,
+  lang: Lang,
   config: FindConfig,
   callback: JsFunction,
 ) -> Result<AsyncTask<FindInFiles>> {

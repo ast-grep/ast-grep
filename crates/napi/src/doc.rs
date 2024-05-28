@@ -1,4 +1,4 @@
-use crate::FrontEndLanguage;
+use crate::Lang;
 
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
@@ -21,7 +21,7 @@ pub struct NapiConfig {
   /// See https://ast-grep.github.io/guide/rule-config.html#constraints
   pub constraints: Option<serde_json::Value>,
   /// Available languages: html, css, js, jsx, ts, tsx
-  pub language: Option<FrontEndLanguage>,
+  pub language: Option<Lang>,
   /// https://ast-grep.github.io/reference/yaml.html#transform
   pub transform: Option<serde_json::Value>,
   /// https://ast-grep.github.io/guide/rule-config/utility-rule.html
@@ -29,7 +29,7 @@ pub struct NapiConfig {
 }
 
 impl NapiConfig {
-  pub fn parse_with(self, language: FrontEndLanguage) -> NapiResult<RuleCore<SupportLang>> {
+  pub fn parse_with(self, language: Lang) -> NapiResult<RuleCore<SupportLang>> {
     let lang = self.language.unwrap_or(language);
     let lang: SupportLang = lang.into();
     let rule = SerializableRuleCore {
