@@ -44,6 +44,23 @@ export const enum FrontEndLanguage {
   Scala = 'Scala',
   Swift = 'Swift'
 }
+export interface FileOption {
+  paths: Array<string>
+  languageGlobs: Record<string, Array<string>>
+}
+export function parseFiles(paths: Array<string> | FileOption, callback: (err: null | Error, result: SgRoot) => void): Promise<number>
+export interface FindConfig {
+  /** specify the file paths to recursively find files */
+  paths: Array<string>
+  /** a Rule object to find what nodes will match */
+  matcher: NapiConfig
+  /**
+   * An list of pattern globs to treat of certain files in the specified language.
+   * eg. ['*.vue', '*.svelte'] for html.findFiles, or ['*.ts'] for tsx.findFiles.
+   * It is slightly different from https://ast-grep.github.io/reference/sgconfig.html#languageglobs
+   */
+  languageGlobs?: Array<string>
+}
 export interface Edit {
   /** The position of the edit */
   position: number
@@ -66,23 +83,27 @@ export interface Range {
   /** ending position of the range */
   end: Pos
 }
-export interface FileOption {
-  paths: Array<string>
-  languageGlobs: Record<string, Array<string>>
-}
-export function parseFiles(paths: Array<string> | FileOption, callback: (err: null | Error, result: SgRoot) => void): Promise<number>
-export interface FindConfig {
-  /** specify the file paths to recursively find files */
-  paths: Array<string>
-  /** a Rule object to find what nodes will match */
-  matcher: NapiConfig
-  /**
-   * An list of pattern globs to treat of certain files in the specified language.
-   * eg. ['*.vue', '*.svelte'] for html.findFiles, or ['*.ts'] for tsx.findFiles.
-   * It is slightly different from https://ast-grep.github.io/reference/sgconfig.html#languageglobs
-   */
-  languageGlobs?: Array<string>
-}
+/** Parse a string to an ast-grep instance */
+export function parse(lang: FrontEndLanguage, src: string): SgRoot
+/**
+ * Parse a string to an ast-grep instance asynchronously in threads.
+ * It utilize multiple CPU cores when **concurrent processing sources**.
+ * However, spawning excessive many threads may backfire.
+ * Please refer to libuv doc, nodejs' underlying runtime
+ * for its default behavior and performance tuning tricks.
+ */
+export function parseAsync(lang: FrontEndLanguage, src: string): Promise<SgRoot>
+/** Get the `kind` number from its string name. */
+export function kind(lang: FrontEndLanguage, kindName: string): number
+/** Compile a string to ast-grep Pattern. */
+export function pattern(lang: FrontEndLanguage, pattern: string): NapiConfig
+/**
+ * Discover and parse multiple files in Rust.
+ * `lang` specifies the language.
+ * `config` specifies the file path and matcher.
+ * `callback` will receive matching nodes found in a file.
+ */
+export function findInFiles(lang: FrontEndLanguage, config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 export class SgNode {
   range(): Range
   isLeaf(): boolean
