@@ -1,6 +1,10 @@
 import test from 'ava'
 
-import { js, parseFiles, ts, tsx, html, parse as parseWithLang } from '../index'
+import {
+  js, ts, tsx, html, Lang,
+  parseFiles, parseAsync, findInFiles,
+  parse as parseWithLang,
+} from '../index'
 const { parse, kind } = js
 let parseMulti = countedPromise(parseFiles)
 
@@ -302,5 +306,34 @@ function countedPromise<F extends (t: any, cb: any) => Promise<number>>(func: F)
 }
 
 test('parse python', t => {
+  const sg = parseWithLang(Lang.Python, 'print("hello world")')
+  const node = sg.root().find('print')
+  t.deepEqual(node!.range(), {
+    start: { line: 0, column: 0, index: 0 },
+    end: { line: 0, column: 5, index: 5 },
+  })
+})
 
+test('parse python async', async t => {
+  const sg = await parseAsync(Lang.Python, 'print("hello world")')
+  const node = sg.root().find('print')
+  t.deepEqual(node!.range(), {
+    start: { line: 0, column: 0, index: 0 },
+    end: { line: 0, column: 5, index: 5 },
+  })
+})
+
+test('find rust', async t => {
+  let changed = false
+  const counted = countedPromise((t, cb) => findInFiles(Lang.Rust, t, cb))
+  const num = await counted({
+    paths: ['./'],
+    matcher: {
+      rule: {pattern: 'ast_grep_core'},
+    },
+  }, () => {
+    changed = true
+  })
+  t.assert(changed)
+  t.assert(num > 0)
 })
