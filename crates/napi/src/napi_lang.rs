@@ -12,7 +12,7 @@ use std::str::FromStr;
 
 #[napi(string_enum)]
 #[derive(PartialEq, Eq, Hash, Debug)]
-pub enum FrontEndLanguage {
+pub enum Lang {
   Html,
   JavaScript,
   Tsx,
@@ -38,9 +38,9 @@ pub enum FrontEndLanguage {
   Swift,
 }
 
-impl Into<SupportLang> for FrontEndLanguage {
+impl Into<SupportLang> for Lang {
   fn into(self) -> SupportLang {
-    use FrontEndLanguage as F;
+    use Lang as F;
     use SupportLang as S;
     match self {
       F::Html => S::Html,
@@ -70,9 +70,9 @@ impl Into<SupportLang> for FrontEndLanguage {
   }
 }
 
-impl From<SupportLang> for FrontEndLanguage {
+impl From<SupportLang> for Lang {
   fn from(value: SupportLang) -> Self {
-    use FrontEndLanguage as F;
+    use Lang as F;
     use SupportLang as S;
     match value {
       S::Html => F::Html,
@@ -102,7 +102,7 @@ impl From<SupportLang> for FrontEndLanguage {
   }
 }
 
-impl FrontEndLanguage {
+impl Lang {
   pub fn find_files(
     &self,
     paths: Vec<String>,
@@ -113,7 +113,7 @@ impl FrontEndLanguage {
   pub fn lang_globs(map: HashMap<String, Vec<String>>) -> LanguageGlobs {
     let mut ret = HashMap::new();
     for (name, patterns) in map {
-      if let Ok(lang) = FrontEndLanguage::from_str(&name) {
+      if let Ok(lang) = Lang::from_str(&name) {
         ret.insert(lang, patterns);
       }
     }
@@ -121,9 +121,9 @@ impl FrontEndLanguage {
   }
 }
 
-pub type LanguageGlobs = HashMap<FrontEndLanguage, Vec<String>>;
+pub type LanguageGlobs = HashMap<Lang, Vec<String>>;
 
-impl FromStr for FrontEndLanguage {
+impl FromStr for Lang {
   type Err = Error;
   fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
     match SupportLang::from_str(s) {
@@ -139,7 +139,7 @@ pub enum LangOption {
   Inferred(Vec<(SupportLang, Types)>),
   /// Used when language is specified
   /// e.g. in frontend_lang.find_in_files
-  Specified(FrontEndLanguage),
+  Specified(Lang),
 }
 
 impl LangOption {
@@ -160,7 +160,7 @@ impl LangOption {
       let tpe = lang.to_string();
       let file_types = lang.file_types();
       add_types(&mut builder, &file_types);
-      let fe_lang = FrontEndLanguage::from(*lang);
+      let fe_lang = Lang::from(*lang);
       for pattern in language_globs.get(&fe_lang).unwrap_or(&empty) {
         builder.add(&tpe, pattern).expect("should build");
       }
@@ -179,7 +179,7 @@ pub fn build_files(paths: Vec<String>, language_globs: &LanguageGlobs) -> Result
   let empty = vec![];
   for lang in SupportLang::all_langs() {
     let type_name = lang.to_string();
-    let l = FrontEndLanguage::from(*lang);
+    let l = Lang::from(*lang);
     let custom = language_globs.get(&l).unwrap_or(&empty);
     let default_types = lang.file_types();
     select_custom(&mut types, &type_name, &default_types, custom);
@@ -219,7 +219,7 @@ fn select_custom<'b>(
 }
 
 fn find_files_with_lang(
-  lang: &FrontEndLanguage,
+  lang: &Lang,
   paths: Vec<String>,
   language_globs: Option<Vec<String>>,
 ) -> Result<WalkParallel> {
@@ -248,18 +248,18 @@ fn find_files_with_lang(
 mod test {
   use super::*;
 
-  fn lang_globs() -> HashMap<FrontEndLanguage, Vec<String>> {
+  fn lang_globs() -> HashMap<Lang, Vec<String>> {
     let mut lang = HashMap::new();
     lang.insert("html".into(), vec!["*.vue".into()]);
-    FrontEndLanguage::lang_globs(lang)
+    Lang::lang_globs(lang)
   }
 
   #[test]
   fn test_lang_globs() {
     let globs = lang_globs();
-    assert!(globs.contains_key(&FrontEndLanguage::Html));
-    assert!(!globs.contains_key(&FrontEndLanguage::Tsx));
-    assert_eq!(globs[&FrontEndLanguage::Html], vec!["*.vue"]);
+    assert!(globs.contains_key(&Lang::Html));
+    assert!(!globs.contains_key(&Lang::Tsx));
+    assert_eq!(globs[&Lang::Html], vec!["*.vue"]);
   }
 
   #[test]
@@ -278,13 +278,13 @@ mod test {
 
   #[test]
   fn test_from_str() {
-    let lang = FrontEndLanguage::from_str("html");
-    assert_eq!(lang.unwrap(), FrontEndLanguage::Html);
-    let lang = FrontEndLanguage::from_str("Html");
-    assert_eq!(lang.unwrap(), FrontEndLanguage::Html);
-    let lang = FrontEndLanguage::from_str("htML");
-    assert_eq!(lang.unwrap(), FrontEndLanguage::Html);
-    let lang = FrontEndLanguage::from_str("ocaml");
+    let lang = Lang::from_str("html");
+    assert_eq!(lang.unwrap(), Lang::Html);
+    let lang = Lang::from_str("Html");
+    assert_eq!(lang.unwrap(), Lang::Html);
+    let lang = Lang::from_str("htML");
+    assert_eq!(lang.unwrap(), Lang::Html);
+    let lang = Lang::from_str("ocaml");
     assert!(lang.is_err());
   }
 }

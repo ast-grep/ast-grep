@@ -281,10 +281,10 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { FrontEndLanguage, parseFiles, SgNode, SgRoot, parse, parseAsync, kind, pattern, findInFiles, html, js, jsx, ts, tsx, css } = nativeBinding
+const { parseFiles, Lang, SgNode, SgRoot, parse, parseAsync, kind, pattern, findInFiles, html, js, jsx, ts, tsx, css } = nativeBinding
 
-module.exports.FrontEndLanguage = FrontEndLanguage
 module.exports.parseFiles = parseFiles
+module.exports.Lang = Lang
 module.exports.SgNode = SgNode
 module.exports.SgRoot = SgRoot
 module.exports.parse = parse

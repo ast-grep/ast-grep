@@ -13,7 +13,7 @@ use napi_derive::napi;
 
 use doc::{JsDoc, NapiConfig};
 use find_files::{find_in_files_impl, FindConfig, FindInFiles, ParseAsync};
-use napi_lang::FrontEndLanguage;
+use napi_lang::Lang;
 use sg_node::SgRoot;
 
 pub use find_files::parse_files;
@@ -23,7 +23,7 @@ macro_rules! impl_lang_mod {
       #[napi]
       pub mod $name {
         use super::*;
-        use super::FrontEndLanguage::*;
+        use super::Lang::*;
 
         /// Parse a string to an ast-grep instance
         #[napi]
@@ -79,7 +79,7 @@ impl_lang_mod!(css, Css);
 
 /// Parse a string to an ast-grep instance
 #[napi]
-pub fn parse(lang: FrontEndLanguage, src: String) -> SgRoot {
+pub fn parse(lang: Lang, src: String) -> SgRoot {
   let doc = JsDoc::new(src, lang.into());
   SgRoot(AstGrep::doc(doc), "anonymous".into())
 }
@@ -90,13 +90,13 @@ pub fn parse(lang: FrontEndLanguage, src: String) -> SgRoot {
 /// Please refer to libuv doc, nodejs' underlying runtime
 /// for its default behavior and performance tuning tricks.
 #[napi(ts_return_type = "Promise<SgRoot>")]
-pub fn parse_async(lang: FrontEndLanguage, src: String) -> AsyncTask<ParseAsync> {
+pub fn parse_async(lang: Lang, src: String) -> AsyncTask<ParseAsync> {
   AsyncTask::new(ParseAsync { src, lang })
 }
 
 /// Get the `kind` number from its string name.
 #[napi]
-pub fn kind(lang: FrontEndLanguage, kind_name: String) -> u16 {
+pub fn kind(lang: Lang, kind_name: String) -> u16 {
   let lang: SupportLang = lang.into();
   lang
     .get_ts_language()
@@ -105,7 +105,7 @@ pub fn kind(lang: FrontEndLanguage, kind_name: String) -> u16 {
 
 /// Compile a string to ast-grep Pattern.
 #[napi]
-pub fn pattern(lang: FrontEndLanguage, pattern: String) -> NapiConfig {
+pub fn pattern(lang: Lang, pattern: String) -> NapiConfig {
   NapiConfig {
     rule: serde_json::json!({
       "pattern": pattern,
@@ -122,11 +122,11 @@ pub fn pattern(lang: FrontEndLanguage, pattern: String) -> NapiConfig {
 /// `config` specifies the file path and matcher.
 /// `callback` will receive matching nodes found in a file.
 #[napi(
-  ts_args_type = "lang: FrontEndLanguage, config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void",
+  ts_args_type = "lang: Lang, config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void",
   ts_return_type = "Promise<number>"
 )]
 pub fn find_in_files(
-  lang: FrontEndLanguage,
+  lang: Lang,
   config: FindConfig,
   callback: JsFunction,
 ) -> Result<AsyncTask<FindInFiles>> {
