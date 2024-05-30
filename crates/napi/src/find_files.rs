@@ -10,7 +10,6 @@ use napi::{JsNumber, Task};
 use napi_derive::napi;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::mpsc::channel;
 
 use crate::doc::{JsDoc, NapiConfig};
 use crate::napi_lang::{build_files, Lang, LangOption};
@@ -51,34 +50,22 @@ impl<T: 'static + Send + Sync> Task for IterateFiles<T> {
   fn compute(&mut self) -> Result<Self::Output> {
     let tsfn = &self.tsfn;
     let file_count = AtomicU32::new(0);
-    // TODO: I believe the channel here is pure overhead. walker.run will block the thread.
-    let (tx, rx) = channel();
     let producer = self.producer;
     let walker = std::mem::replace(&mut self.walk, WalkBuilder::new(".").build_parallel());
     walker.run(|| {
-      let tx = tx.clone();
       let file_count = &file_count;
       let lang_option = &self.lang_option;
       Box::new(move |entry| match producer(tsfn, entry, lang_option) {
-        Ok(true) => {
-          // file is sent to JS thread, increment file count
-          if tx.send(()).is_ok() {
+        Ok(succeed) => {
+          if succeed {
+            // file is sent to JS thread, increment file count
             file_count.fetch_add(1, Ordering::AcqRel);
-            WalkState::Continue
-          } else {
-            WalkState::Quit
           }
+          WalkState::Continue
         }
-        Ok(false) => WalkState::Continue,
         Err(_) => WalkState::Skip,
       })
     });
-    // Drop the last sender to stop `rx` waiting for message.
-    // The program will not complete if we comment this out.
-    drop(tx);
-    while rx.recv().is_ok() {
-      // pass
-    }
     Ok(file_count.load(Ordering::Acquire))
   }
   fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
