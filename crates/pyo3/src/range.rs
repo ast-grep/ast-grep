@@ -1,3 +1,4 @@
+use crate::unicode_position::UnicodePosition;
 use ast_grep_core::{Doc, Node};
 use pyo3::prelude::*;
 use std::collections::hash_map::DefaultHasher;
@@ -11,8 +12,7 @@ pub struct Pos {
   line: usize,
   /// column number starting from 0
   column: usize,
-  // TODO: this should be char offset
-  /// byte offset of the position
+  /// char offset of the position
   index: usize,
 }
 
@@ -98,13 +98,15 @@ impl Range {
 }
 
 impl Range {
-  pub fn from<D: Doc>(node: &Node<D>) -> Self {
+  pub fn from<D: Doc>(node: &Node<D>, positioner: &UnicodePosition) -> Self {
     let byte_range = node.range();
     let start_pos = node.start_pos();
     let end_pos = node.end_pos();
+    let start = positioner.byte_to_char(byte_range.start);
+    let end = positioner.byte_to_char(byte_range.end);
     Range {
-      start: to_pos(start_pos, byte_range.start),
-      end: to_pos(end_pos, byte_range.end),
+      start: to_pos(start_pos, start),
+      end: to_pos(end_pos, end),
     }
   }
 }
