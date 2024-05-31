@@ -29,7 +29,11 @@ unsafe impl Send for SgNode {}
 impl SgNode {
   /*----------  Node Inspection ----------*/
   fn range(&self) -> Range {
-    Range::from(&self.inner)
+    Python::with_gil(|py| {
+      let root = self.root.bind(py);
+      let root = root.borrow();
+      Range::from(&self.inner, &root.position)
+    })
   }
 
   fn is_leaf(&self) -> bool {
@@ -349,7 +353,7 @@ fn get_matcher_from_rule(
 #[pyclass(frozen, get_all)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Edit {
-  /// The position of the edit
+  /// The byte position of the edit
   pub position: usize,
   /// The length of the text to be deleted
   pub deleted_length: usize,

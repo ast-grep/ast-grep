@@ -2,12 +2,15 @@
 #![cfg(feature = "python")]
 mod py_node;
 mod range;
+mod unicode_position;
 use py_node::SgNode;
 use range::{Pos, Range};
 
 use ast_grep_core::{AstGrep, Language, NodeMatch, StrDoc};
 use ast_grep_language::SupportLang;
 use pyo3::prelude::*;
+
+use unicode_position::UnicodePosition;
 
 /// A Python module implemented in Rust.
 #[pymodule]
@@ -23,17 +26,20 @@ fn ast_grep_py(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
 struct SgRoot {
   inner: AstGrep<StrDoc<SupportLang>>,
   filename: String,
+  pub(crate) position: UnicodePosition,
 }
 
 #[pymethods]
 impl SgRoot {
   #[new]
   fn new(src: &str, lang: &str) -> Self {
+    let position = UnicodePosition::new(src);
     let lang: SupportLang = lang.parse().unwrap();
     let inner = lang.ast_grep(src);
     Self {
       inner,
       filename: "anonymous".into(),
+      position,
     }
   }
 

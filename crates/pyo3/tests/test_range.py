@@ -46,5 +46,4 @@ def test_unicode():
     root = sg.root()
     node = root.find(pattern="console.log($A)")
     assert node is not None
-    # it should be unicode char offset, but currently it's byte offset
-    assert node.range().start.index == 9
+    assert node.range().start.index == 5
