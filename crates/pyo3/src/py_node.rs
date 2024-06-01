@@ -243,20 +243,39 @@ impl SgNode {
   /*---------- Edit  ----------*/
   fn replace(&self, text: &str) -> Edit {
     let byte_range = self.inner.range();
-    Edit {
-      position: byte_range.start,
-      deleted_length: byte_range.len(),
-      inserted_text: text.to_string(),
-    }
+    Python::with_gil(|py| {
+      let root = self.root.bind(py);
+      let root = root.borrow();
+      let position = root.position.byte_to_char(byte_range.start);
+      let end = root.position.byte_to_char(byte_range.end);
+      Edit {
+        position,
+        end_position: end,
+        inserted_text: text.to_string(),
+      }
+    })
   }
 
   fn commit_edits(&self, mut edits: Vec<Edit>) -> String {
     edits.sort_by_key(|edit| edit.position);
     let mut new_content = String::new();
     let old_content = self.text();
+    let converted: Vec<_> = Python::with_gil(move |py| {
+      let root = self.root.bind(py);
+      let root = root.borrow();
+      let conv = &root.position;
+      edits
+        .into_iter()
+        .map(|mut e| {
+          e.position = conv.char_to_byte(e.position);
+          e.end_position = conv.char_to_byte(e.end_position);
+          e
+        })
+        .collect()
+    });
     let offset = self.inner.range().start;
     let mut start = 0;
-    for diff in edits {
+    for diff in converted {
       let pos = diff.position - offset;
       // skip overlapping edits
       if start > pos {
@@ -264,7 +283,7 @@ impl SgNode {
       }
       new_content.push_str(&old_content[start..pos]);
       new_content.push_str(&diff.inserted_text);
-      start = pos + diff.deleted_length;
+      start = diff.end_position - offset;
     }
     // add trailing statements
     new_content.push_str(&old_content[start..]);
@@ -353,10 +372,10 @@ fn get_matcher_from_rule(
 #[pyclass(frozen, get_all)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Edit {
-  /// The byte position of the edit
+  /// The char position of the edit
   pub position: usize,
-  /// The length of the text to be deleted
-  pub deleted_length: usize,
+  /// The end char position to be deleted
+  pub end_position: usize,
   /// The text to be inserted
   pub inserted_text: String,
 }
