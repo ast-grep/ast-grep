@@ -31,3 +31,11 @@ def test_multiple_fix():
     edits = sorted(edits, key=lambda x: x.position, reverse=True)
     s = root.commit_edits(edits)
     assert s == "いいよ = log(114514) + log(114514)"
+
+def test_change_unicode():
+    sg = SgRoot('いいよ = log(こいよ)', "javascript")
+    root = sg.root()
+    nodes = root.find_all(kind="identifier")
+    edits = [node.replace('114514') for node in nodes]
+    s = root.commit_edits(edits)
+    assert s == "114514 = 114514(114514)"
