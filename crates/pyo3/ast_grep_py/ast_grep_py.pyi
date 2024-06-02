@@ -13,7 +13,7 @@ class Range:
 
 class Edit:
     position: int
-    end_position: int
+    deleted_length: int
     inserted_text: str
 
 class SgRoot:

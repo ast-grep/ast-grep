@@ -17,7 +17,7 @@ def test_one_fix():
     edit = node1.replace("let b = 456")
     r = node1.range()
     assert edit.position == r.start.index
-    assert edit.end_position == r.end.index
+    assert edit.deleted_length == r.end.index - edit.position
     s = node1.commit_edits([edit])
     assert s == "let b = 456"
     s = root.commit_edits([edit])

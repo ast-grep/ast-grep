@@ -250,7 +250,7 @@ impl SgNode {
       let end = root.position.byte_to_char(byte_range.end);
       Edit {
         position,
-        end_position: end,
+        deleted_length: end - position,
         inserted_text: text.to_string(),
       }
     })
@@ -267,8 +267,10 @@ impl SgNode {
       edits
         .into_iter()
         .map(|mut e| {
+          let char_offset = e.position + e.deleted_length;
+          let byte_offset = conv.char_to_byte(char_offset);
           e.position = conv.char_to_byte(e.position);
-          e.end_position = conv.char_to_byte(e.end_position);
+          e.deleted_length = byte_offset - e.position;
           e
         })
         .collect()
@@ -283,7 +285,7 @@ impl SgNode {
       }
       new_content.push_str(&old_content[start..pos]);
       new_content.push_str(&diff.inserted_text);
-      start = diff.end_position - offset;
+      start = pos + diff.deleted_length;
     }
     // add trailing statements
     new_content.push_str(&old_content[start..]);
@@ -374,8 +376,8 @@ fn get_matcher_from_rule(
 pub struct Edit {
   /// The char position of the edit
   pub position: usize,
-  /// The end char position to be deleted
-  pub end_position: usize,
+  /// The char length of the text to be deleted
+  pub deleted_length: usize,
   /// The text to be inserted
   pub inserted_text: String,
 }
