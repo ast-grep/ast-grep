@@ -112,6 +112,16 @@ test('test code with multiple fixes', t => {
   t.deepEqual(newCode, 'いいよ = log(114514) + log(114514)')
 })
 
+test('test code fix with user defined range', t => {
+  const sg = parse('いいよ = log(123)')
+  const match = sg.root().find(js.kind('number'))!
+  const edit = match.replace('514')
+  edit.position -= 1
+  edit.deletedLength += 2
+  const newCode = sg.root().commitEdits([edit])
+  t.deepEqual(newCode, 'いいよ = log514')
+})
+
 test('findAll from native code', t => {
   const sg = parse('console.log(123); let a = console.log.bind(console);')
   const match = sg.root().findAll('console.log')
