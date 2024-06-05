@@ -39,3 +39,14 @@ def test_change_unicode():
     edits = [node.replace('114514') for node in nodes]
     s = root.commit_edits(edits)
     assert s == "114514 = 114514(114514)"
+
+def test_modified_fix():
+    sg = SgRoot('いいよ = log(514)', "javascript")
+    root = sg.root()
+    node = root.find(kind="number")
+    assert node
+    edit = node.replace('こいよ')
+    edit.position -= 1
+    edit.deleted_length += 2
+    s = root.commit_edits([edit])
+    assert s == "いいよ = logこいよ"

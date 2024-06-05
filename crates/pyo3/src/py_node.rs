@@ -371,7 +371,7 @@ fn get_matcher_from_rule(
   Ok(matcher)
 }
 
-#[pyclass(frozen, get_all)]
+#[pyclass(get_all, set_all)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Edit {
   /// The char position of the edit
