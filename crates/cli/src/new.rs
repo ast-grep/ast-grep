@@ -224,8 +224,7 @@ fn create_new_project(arg: NewArg) -> Result<()> {
 
 fn default_rule(id: &str, lang: SgLang) -> String {
   format!(
-    r#"
-    # yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+    r#"# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
 
 id: {id}
 message: Add your rule message here....
