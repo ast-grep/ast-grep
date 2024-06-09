@@ -57,12 +57,8 @@ fn match_ellipsis<'t, D: Doc>(
   cand_children: impl Iterator<Item = Node<'t, D>>,
   skipped_anonymous: usize,
 ) -> Option<()> {
-  if let Some(name) = optional_name.as_ref() {
-    matched.extend(cand_children);
-    let skipped = matched.len().saturating_sub(skipped_anonymous);
-    drop(matched.drain(skipped..));
-    agg.match_ellipsis(name, matched)?;
-  }
+  matched.extend(cand_children);
+  agg.match_ellipsis(optional_name.as_deref(), matched, skipped_anonymous)?;
   Some(())
 }
 
@@ -93,7 +89,12 @@ impl<'t, D: Doc> Aggregator<'t, D> for ComputeEnd {
     self.0 = node.range().end;
     Some(())
   }
-  fn match_ellipsis(&mut self, _var: &str, nodes: Vec<Node<'t, D>>) -> Option<()> {
+  fn match_ellipsis(
+    &mut self,
+    _var: Option<&str>,
+    nodes: Vec<Node<'t, D>>,
+    _skipped: usize,
+  ) -> Option<()> {
     let n = nodes.last()?;
     self.0 = n.range().end;
     Some(())
@@ -104,27 +105,27 @@ pub fn match_end_non_recursive<D: Doc>(
   goal: &Pattern<D::Lang>,
   candidate: Node<D>,
 ) -> Option<usize> {
-  // let mut end = ComputeEnd(0);
-  // match_node_impl(goal, candidate, &mut end)?;
-  // Some(end.0)
-  use Pattern as P;
-  match goal {
-    P::MetaVar { .. } => Some(candidate.range().end),
-    P::Internal {
-      kind_id, children, ..
-    } if *kind_id == candidate.kind_id() => {
-      let cand_children = candidate.children();
-      match_multi_nodes_end_non_recursive(children, cand_children)
-    }
-    P::Terminal { text, kind_id, .. } if *kind_id == candidate.kind_id() => {
-      if *text == candidate.text() {
-        Some(candidate.range().end)
-      } else {
-        None
-      }
-    }
-    _ => None,
-  }
+  let mut end = ComputeEnd(0);
+  match_node_impl(goal, candidate, &mut end)?;
+  Some(end.0)
+  // use Pattern as P;
+  // match goal {
+  //   P::MetaVar { .. } => Some(candidate.range().end),
+  //   P::Internal {
+  //     kind_id, children, ..
+  //   } if *kind_id == candidate.kind_id() => {
+  //     let cand_children = candidate.children();
+  //     match_multi_nodes_end_non_recursive(children, cand_children)
+  //   }
+  //   P::Terminal { text, kind_id, .. } if *kind_id == candidate.kind_id() => {
+  //     if *text == candidate.text() {
+  //       Some(candidate.range().end)
+  //     } else {
+  //       None
+  //     }
+  //   }
+  //   _ => None,
+  // }
 }
 
 fn match_multi_nodes_end_non_recursive<'c, D: Doc + 'c>(
@@ -207,7 +208,12 @@ fn match_multi_nodes_end_non_recursive<'c, D: Doc + 'c>(
 trait Aggregator<'t, D: Doc> {
   fn match_terminal(&mut self, node: Node<'t, D>) -> Option<()>;
   fn match_meta_var(&mut self, var: &MetaVariable, node: Node<'t, D>) -> Option<()>;
-  fn match_ellipsis(&mut self, var: &str, nodes: Vec<Node<'t, D>>) -> Option<()>;
+  fn match_ellipsis(
+    &mut self,
+    var: Option<&str>,
+    nodes: Vec<Node<'t, D>>,
+    skipped_anonymous: usize,
+  ) -> Option<()>;
 }
 
 impl<'t, D: Doc> Aggregator<'t, D> for Cow<'_, MetaVarEnv<'t, D>> {
@@ -218,8 +224,18 @@ impl<'t, D: Doc> Aggregator<'t, D> for Cow<'_, MetaVarEnv<'t, D>> {
     match_leaf_meta_var(var, node, self)?;
     Some(())
   }
-  fn match_ellipsis(&mut self, var: &str, nodes: Vec<Node<'t, D>>) -> Option<()> {
-    self.to_mut().insert_multi(var, nodes)?;
+  fn match_ellipsis(
+    &mut self,
+    var: Option<&str>,
+    nodes: Vec<Node<'t, D>>,
+    skipped_anonymous: usize,
+  ) -> Option<()> {
+    if let Some(var) = var {
+      let mut matched = nodes;
+      let skipped = matched.len().saturating_sub(skipped_anonymous);
+      drop(matched.drain(skipped..));
+      self.to_mut().insert_multi(var, matched)?;
+    }
     Some(())
   }
 }
