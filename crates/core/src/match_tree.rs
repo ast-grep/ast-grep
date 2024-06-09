@@ -189,6 +189,20 @@ trait Aggregator<'t, D: Doc> {
   fn match_ellipsis(&mut self, var: &str, nodes: Vec<Node<'t, D>>) -> Option<()>;
 }
 
+impl<'t, D: Doc> Aggregator<'t, D> for Cow<'_, MetaVarEnv<'t, D>> {
+  fn match_terminal(&mut self, _: Node<'t, D>) -> Option<()> {
+    Some(())
+  }
+  fn match_meta_var(&mut self, var: &MetaVariable, node: Node<'t, D>) -> Option<()> {
+    match_leaf_meta_var(var, node, self)?;
+    Some(())
+  }
+  fn match_ellipsis(&mut self, var: &str, nodes: Vec<Node<'t, D>>) -> Option<()> {
+    self.to_mut().insert_multi(var, nodes)?;
+    Some(())
+  }
+}
+
 fn match_node_impl<'tree, D: Doc>(
   goal: &Pattern<D::Lang>,
   candidate: Node<'tree, D>,
@@ -199,8 +213,7 @@ fn match_node_impl<'tree, D: Doc>(
     // leaf = without named children
     P::Terminal { text, kind_id, .. } if *kind_id == candidate.kind_id() => {
       if *text == candidate.text() {
-        agg.match_terminal(candidate);
-        Some(())
+        agg.match_terminal(candidate)
       } else {
         None
       }
@@ -344,25 +357,27 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
   candidate: Node<'tree, D>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<Node<'tree, D>> {
-  use Pattern as P;
-  match goal {
-    // leaf = without named children
-    P::Terminal { text, kind_id, .. } if *kind_id == candidate.kind_id() => {
-      if *text == candidate.text() {
-        Some(candidate)
-      } else {
-        None
-      }
-    }
-    P::MetaVar { meta_var, .. } => match_leaf_meta_var(meta_var, candidate, env),
-    P::Internal {
-      kind_id, children, ..
-    } if *kind_id == candidate.kind_id() => {
-      let cand_children = candidate.children();
-      match_nodes_non_recursive(children, cand_children, env).map(|_| candidate)
-    }
-    _ => None,
-  }
+  match_node_impl(goal, candidate.clone(), env)?;
+  Some(candidate)
+  // use Pattern as P;
+  // match goal {
+  //   // leaf = without named children
+  //   P::Terminal { text, kind_id, .. } if *kind_id == candidate.kind_id() => {
+  //     if *text == candidate.text() {
+  //       Some(candidate)
+  //     } else {
+  //       None
+  //     }
+  //   }
+  //   P::MetaVar { meta_var, .. } => match_leaf_meta_var(meta_var, candidate, env),
+  //   P::Internal {
+  //     kind_id, children, ..
+  //   } if *kind_id == candidate.kind_id() => {
+  //     let cand_children = candidate.children();
+  //     match_nodes_non_recursive(children, cand_children, env).map(|_| candidate)
+  //   }
+  //   _ => None,
+  // }
 }
 
 fn match_nodes_non_recursive<'tree, D: Doc + 'tree>(
