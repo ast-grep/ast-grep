@@ -82,10 +82,31 @@ fn update_ellipsis_env<'t, D: Doc>(
   Some(())
 }
 
+struct ComputeEnd(usize);
+
+impl<'t, D: Doc> Aggregator<'t, D> for ComputeEnd {
+  fn match_terminal(&mut self, node: Node<'t, D>) -> Option<()> {
+    self.0 = node.range().end;
+    Some(())
+  }
+  fn match_meta_var(&mut self, _: &MetaVariable, node: Node<'t, D>) -> Option<()> {
+    self.0 = node.range().end;
+    Some(())
+  }
+  fn match_ellipsis(&mut self, _var: &str, nodes: Vec<Node<'t, D>>) -> Option<()> {
+    let n = nodes.last()?;
+    self.0 = n.range().end;
+    Some(())
+  }
+}
+
 pub fn match_end_non_recursive<D: Doc>(
   goal: &Pattern<D::Lang>,
   candidate: Node<D>,
 ) -> Option<usize> {
+  // let mut end = ComputeEnd(0);
+  // match_node_impl(goal, candidate, &mut end)?;
+  // Some(end.0)
   use Pattern as P;
   match goal {
     P::MetaVar { .. } => Some(candidate.range().end),
