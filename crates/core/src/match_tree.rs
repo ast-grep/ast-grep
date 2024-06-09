@@ -5,9 +5,9 @@ use std::borrow::Cow;
 
 fn match_leaf_meta_var<'tree, D: Doc>(
   mv: &MetaVariable,
-  candidate: Node<'tree, D>,
+  candidate: &Node<'tree, D>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
-) -> Option<Node<'tree, D>> {
+) -> Option<()> {
   use MetaVariable as MV;
   match mv {
     MV::Capture(name, named) => {
@@ -15,24 +15,24 @@ fn match_leaf_meta_var<'tree, D: Doc>(
         None
       } else {
         env.to_mut().insert(name, candidate.clone())?;
-        Some(candidate)
+        Some(())
       }
     }
     MV::Dropped(named) => {
       if *named && !candidate.is_named() {
         None
       } else {
-        Some(candidate)
+        Some(())
       }
     }
     // Ellipsis will be matched in parent level
     MV::Multiple => {
       debug_assert!(false, "Ellipsis should be matched in parent level");
-      Some(candidate)
+      Some(())
     }
     MV::MultiCapture(name) => {
       env.to_mut().insert(name, candidate.clone())?;
-      Some(candidate)
+      Some(())
     }
   }
 }
@@ -65,11 +65,11 @@ fn match_ellipsis<'t, D: Doc>(
 struct ComputeEnd(usize);
 
 impl<'t, D: Doc> Aggregator<'t, D> for ComputeEnd {
-  fn match_terminal(&mut self, node: Node<'t, D>) -> Option<()> {
+  fn match_terminal(&mut self, node: &Node<'t, D>) -> Option<()> {
     self.0 = node.range().end;
     Some(())
   }
-  fn match_meta_var(&mut self, _: &MetaVariable, node: Node<'t, D>) -> Option<()> {
+  fn match_meta_var(&mut self, _: &MetaVariable, node: &Node<'t, D>) -> Option<()> {
     self.0 = node.range().end;
     Some(())
   }
@@ -90,13 +90,13 @@ pub fn match_end_non_recursive<D: Doc>(
   candidate: Node<D>,
 ) -> Option<usize> {
   let mut end = ComputeEnd(0);
-  match_node_impl(goal, candidate, &mut end)?;
+  match_node_impl(goal, &candidate, &mut end)?;
   Some(end.0)
 }
 
 trait Aggregator<'t, D: Doc> {
-  fn match_terminal(&mut self, node: Node<'t, D>) -> Option<()>;
-  fn match_meta_var(&mut self, var: &MetaVariable, node: Node<'t, D>) -> Option<()>;
+  fn match_terminal(&mut self, node: &Node<'t, D>) -> Option<()>;
+  fn match_meta_var(&mut self, var: &MetaVariable, node: &Node<'t, D>) -> Option<()>;
   fn match_ellipsis(
     &mut self,
     var: Option<&str>,
@@ -106,12 +106,11 @@ trait Aggregator<'t, D: Doc> {
 }
 
 impl<'t, D: Doc> Aggregator<'t, D> for Cow<'_, MetaVarEnv<'t, D>> {
-  fn match_terminal(&mut self, _: Node<'t, D>) -> Option<()> {
+  fn match_terminal(&mut self, _: &Node<'t, D>) -> Option<()> {
     Some(())
   }
-  fn match_meta_var(&mut self, var: &MetaVariable, node: Node<'t, D>) -> Option<()> {
-    match_leaf_meta_var(var, node, self)?;
-    Some(())
+  fn match_meta_var(&mut self, var: &MetaVariable, node: &Node<'t, D>) -> Option<()> {
+    match_leaf_meta_var(var, node, self)
   }
   fn match_ellipsis(
     &mut self,
@@ -131,7 +130,7 @@ impl<'t, D: Doc> Aggregator<'t, D> for Cow<'_, MetaVarEnv<'t, D>> {
 
 fn match_node_impl<'tree, D: Doc>(
   goal: &Pattern<D::Lang>,
-  candidate: Node<'tree, D>,
+  candidate: &Node<'tree, D>,
   agg: &mut impl Aggregator<'tree, D>,
 ) -> Option<()> {
   use Pattern as P;
@@ -144,10 +143,7 @@ fn match_node_impl<'tree, D: Doc>(
         None
       }
     }
-    P::MetaVar { meta_var, .. } => {
-      // match_leaf_meta_var(meta_var, candidate, env)
-      agg.match_meta_var(meta_var, candidate)
-    }
+    P::MetaVar { meta_var, .. } => agg.match_meta_var(meta_var, candidate),
     P::Internal {
       kind_id, children, ..
     } if *kind_id == candidate.kind_id() => {
@@ -208,7 +204,7 @@ fn match_nodes_impl_recursive<'tree, D: Doc + 'tree>(
       loop {
         if match_node_impl(
           goal_children.peek().unwrap(),
-          cand_children.peek().unwrap().clone(),
+          cand_children.peek().unwrap(),
           agg,
         )
         .is_some()
@@ -233,7 +229,7 @@ fn match_nodes_impl_recursive<'tree, D: Doc + 'tree>(
         // if cand runs out, remaining goal is not matched
         return None;
       };
-      let matched = match_node_impl(goal_children.peek().unwrap(), cand.clone(), agg).is_some();
+      let matched = match_node_impl(goal_children.peek().unwrap(), cand, agg).is_some();
       // try match goal node with candidate node
       if matched {
         break;
@@ -261,7 +257,7 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
   candidate: Node<'tree, D>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<Node<'tree, D>> {
-  match_node_impl(goal, candidate.clone(), env)?;
+  match_node_impl(goal, &candidate, env)?;
   Some(candidate)
 }
 
