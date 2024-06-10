@@ -127,6 +127,7 @@ impl<L: Language> Matcher<L> for NthChild<L> {
 mod test {
   use super::*;
   use crate::test::TypeScript as TS;
+  use ast_grep_core::matcher::RegexMatcher;
 
   #[test]
   fn test_positional() {
@@ -152,19 +153,39 @@ mod test {
     assert!(position.is_matched(4));
   }
 
-  #[test]
-  fn test_find_index() {
-    let mut env = Cow::Owned(MetaVarEnv::new());
+  fn find_index(rule: Option<Rule<TS>>, reverse: bool) -> Option<usize> {
     let rule = NthChild {
       position: FunctionalPosition {
         step_size: 2,
         offset: -1,
       },
-      of_rule: None,
-      reverse: false,
+      of_rule: rule.map(Box::new),
+      reverse,
     };
+    let mut env = Cow::Owned(MetaVarEnv::new());
     let grep = TS::Tsx.ast_grep("[1,2,3,4]");
-    let node = grep.root().find("1").unwrap();
-    assert_eq!(rule.find_index(&node, &mut env), Some(0));
+    let node = grep.root().find("2").unwrap();
+    rule.find_index(&node, &mut env)
+  }
+
+  #[test]
+  fn test_find_index_simple() {
+    let i = find_index(None, false);
+    assert_eq!(i, Some(1));
+  }
+
+  #[test]
+  fn test_find_index_reverse() {
+    let i = find_index(None, true);
+    assert_eq!(i, Some(2));
+  }
+
+  #[test]
+  fn test_find_of_rule() {
+    let regex = RegexMatcher::try_new(r"2|3").unwrap();
+    let i = find_index(Some(Rule::Regex(regex.clone())), false);
+    assert_eq!(i, Some(0));
+    let i = find_index(Some(Rule::Regex(regex)), true);
+    assert_eq!(i, Some(1));
   }
 }
