@@ -1,10 +1,11 @@
-use super::{Rule, SerializableRule};
+use super::{Rule, RuleSerializeError, SerializableRule};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Doc, Matcher, Node};
 
 use std::borrow::Cow;
+use std::collections::HashSet;
 
 use bit_set::BitSet;
 use schemars::JsonSchema;
@@ -48,10 +49,20 @@ struct FunctionalPosition {
   offset: usize,
 }
 
-struct NthChild<L: Language> {
+pub struct NthChild<L: Language> {
   position: FunctionalPosition,
   of_rule: Option<Box<Rule<L>>>,
   reverse: bool,
+}
+
+impl<L: Language> NthChild<L> {
+  pub fn defined_vars(&self) -> HashSet<&str> {
+    todo!()
+  }
+
+  pub fn verify_util(&self) -> Result<(), RuleSerializeError> {
+    todo!()
+  }
 }
 
 impl<L: Language> Matcher<L> for NthChild<L> {

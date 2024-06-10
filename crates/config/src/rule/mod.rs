@@ -9,7 +9,7 @@ pub use relational_rule::Relation;
 pub use stop_by::StopBy;
 
 use crate::maybe::Maybe;
-use nth_child::SerializableNthChild;
+use nth_child::{NthChild, NthChildError, SerializableNthChild};
 use referent_rule::{ReferentRule, ReferentRuleError};
 use relational_rule::{Follows, Has, Inside, Precedes};
 
@@ -102,6 +102,7 @@ impl SerializableRule {
         pattern: self.pattern.into(),
         kind: self.kind.into(),
         regex: self.regex.into(),
+        nth_child: self.nth_child.into(),
       },
       relational: RelationalRule {
         inside: self.inside.into(),
@@ -123,6 +124,7 @@ pub struct AtomicRule {
   pub pattern: Option<PatternStyle>,
   pub kind: Option<String>,
   pub regex: Option<String>,
+  pub nth_child: Option<SerializableNthChild>,
 }
 
 /// A String pattern will match one single AST node according to pattern syntax.
@@ -158,6 +160,7 @@ pub enum Rule<L: Language> {
   Pattern(Pattern<L>),
   Kind(KindMatcher<L>),
   Regex(RegexMatcher<L>),
+  NthChild(NthChild<L>),
   // relational
   Inside(Box<Inside<L>>),
   Has(Box<Has<L>>),
@@ -172,7 +175,7 @@ pub enum Rule<L: Language> {
 impl<L: Language> Rule<L> {
   pub fn is_atomic(&self) -> bool {
     use Rule::*;
-    matches!(self, Pattern(_) | Kind(_) | Regex(_))
+    matches!(self, Pattern(_) | Kind(_) | Regex(_) | NthChild(_))
   }
   pub fn is_relational(&self) -> bool {
     use Rule::*;
@@ -203,6 +206,7 @@ impl<L: Language> Rule<L> {
       Rule::Pattern(p) => p.defined_vars(),
       Rule::Kind(_) => HashSet::new(),
       Rule::Regex(_) => HashSet::new(),
+      Rule::NthChild(n) => n.defined_vars(),
       Rule::Has(c) => c.defined_vars(),
       Rule::Inside(p) => p.defined_vars(),
       Rule::Precedes(f) => f.defined_vars(),
@@ -221,6 +225,7 @@ impl<L: Language> Rule<L> {
       Rule::Pattern(_) => Ok(()),
       Rule::Kind(_) => Ok(()),
       Rule::Regex(_) => Ok(()),
+      Rule::NthChild(n) => n.verify_util(),
       Rule::Has(c) => c.verify_util(),
       Rule::Inside(p) => p.verify_util(),
       Rule::Precedes(f) => f.verify_util(),
@@ -245,6 +250,7 @@ impl<L: Language> Matcher<L> for Rule<L> {
       Pattern(pattern) => pattern.match_node_with_env(node, env),
       Kind(kind) => kind.match_node_with_env(node, env),
       Regex(regex) => regex.match_node_with_env(node, env),
+      NthChild(nth_child) => nth_child.match_node_with_env(node, env),
       // relational
       Inside(parent) => match_and_add_label(&**parent, node, env),
       Has(child) => match_and_add_label(&**child, node, env),
@@ -265,6 +271,7 @@ impl<L: Language> Matcher<L> for Rule<L> {
       Pattern(pattern) => pattern.potential_kinds(),
       Kind(kind) => kind.potential_kinds(),
       Regex(regex) => regex.potential_kinds(),
+      NthChild(nth_child) => nth_child.potential_kinds(),
       // relational
       Inside(parent) => parent.potential_kinds(),
       Has(child) => child.potential_kinds(),
@@ -305,6 +312,8 @@ pub enum RuleSerializeError {
   InvalidKind(#[from] KindMatcherError),
   #[error("Rule contains invalid pattern matcher.")]
   InvalidPattern(#[from] PatternError),
+  #[error("Rule contains invalid nthChild.")]
+  NthChild(#[from] NthChildError),
   #[error("Rule contains invalid regex matcher.")]
   WrongRegex(#[from] RegexMatcherError),
   #[error("Rule contains invalid matches reference.")]
