@@ -79,10 +79,11 @@ impl<L: Language> NthChild<L> {
     let mut children: Vec<_> = if let Some(rule) = &self.of_rule {
       parent
         .children()
+        .filter(|n| n.is_named())
         .filter_map(|child| rule.match_node_with_env(child, env))
         .collect()
     } else {
-      parent.children().collect()
+      parent.children().filter(|n| n.is_named()).collect()
     };
     if self.reverse {
       children.reverse()
@@ -125,6 +126,7 @@ impl<L: Language> Matcher<L> for NthChild<L> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::test::TypeScript as TS;
 
   #[test]
   fn test_positional() {
@@ -148,5 +150,21 @@ mod test {
     assert!(position.is_matched(2));
     assert!(!position.is_matched(3));
     assert!(position.is_matched(4));
+  }
+
+  #[test]
+  fn test_find_index() {
+    let mut env = Cow::Owned(MetaVarEnv::new());
+    let rule = NthChild {
+      position: FunctionalPosition {
+        step_size: 2,
+        offset: -1,
+      },
+      of_rule: None,
+      reverse: false,
+    };
+    let grep = TS::Tsx.ast_grep("[1,2,3,4]");
+    let node = grep.root().find("1").unwrap();
+    assert_eq!(rule.find_index(&node, &mut env), Some(0));
   }
 }
