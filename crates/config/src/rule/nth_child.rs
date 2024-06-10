@@ -14,8 +14,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum NthChildError {
-  #[error("Invalid character encountered")]
-  IllegalCharacter,
+  #[error("Illegal character {0} encountered")]
+  IllegalCharacter(char),
   #[error("Invalid syntax")]
   InvalidSyntax,
   #[error("Invalid ofRule")]
@@ -32,43 +32,90 @@ pub enum NthChildSimple {
   Functional(String),
 }
 
+enum ParseState {
+  Initial,
+  N,
+  Sign(bool), // bool flag: has met n before?
+  Num(bool),  // bool flag: has met n before
+}
+
 fn parse_an_b(input: &str) -> Result<FunctionalPosition, NthChildError> {
+  use ParseState::*;
   let mut step_size = 0;
   let mut sign = 1;
   let mut num = 0;
-  let mut omitted = true;
+  let mut state = Initial;
   for c in input.chars() {
-    match c {
-      ' ' => continue, // ignore white space
-      'n' | 'N' => {
-        if omitted {
-          step_size = sign; // Default coefficient of 'n' is 1
-        } else {
-          step_size = sign * num;
+    // ignore all white spaces
+    if c.is_whitespace() {
+      continue;
+    }
+    match state {
+      Initial => match c {
+        '+' | '-' => {
+          state = Sign(false);
+          sign = if c == '+' { 1 } else { -1 };
         }
-        sign = 1;
-        num = 0;
-      }
-      '+' => {
-        sign = 1;
-        num = 0;
-      } // Skip the plus sign
-      '-' => {
-        sign = -1;
-        num = 0;
-      }
-      '0'..='9' => {
-        omitted = false;
-        let digit = (c as u8 - b'0') as i32;
-        num = num * 10 + digit;
-      }
-      _ => return Err(NthChildError::IllegalCharacter),
+        '0'..='9' => {
+          state = Num(false);
+          num = (c as u8 - b'0') as i32;
+        }
+        'n' | 'N' => {
+          state = N;
+          step_size = sign;
+        }
+        c => return Err(NthChildError::IllegalCharacter(c)),
+      },
+      Sign(has_n) => match c {
+        '+' | '-' => return Err(NthChildError::InvalidSyntax),
+        '0'..='9' => {
+          state = Num(has_n);
+          num = (c as u8 - b'0') as i32;
+        }
+        'n' | 'N' => {
+          if has_n {
+            return Err(NthChildError::InvalidSyntax);
+          }
+          state = N;
+          step_size = sign;
+        }
+        c => return Err(NthChildError::IllegalCharacter(c)),
+      },
+      Num(has_n) => match c {
+        '+' | '-' => return Err(NthChildError::InvalidSyntax),
+        '0'..='9' => {
+          num = num * 10 + (c as u8 - b'0') as i32;
+        }
+        'n' | 'N' => {
+          if has_n {
+            return Err(NthChildError::InvalidSyntax);
+          }
+          state = N;
+          step_size = sign * num;
+          num = 0;
+        }
+        c => return Err(NthChildError::IllegalCharacter(c)),
+      },
+      N => match c {
+        '+' | '-' => {
+          state = Sign(true);
+          sign = if c == '+' { 1 } else { -1 };
+          num = 0;
+        }
+        '0'..='9' => return Err(NthChildError::InvalidSyntax),
+        'n' | 'N' => return Err(NthChildError::InvalidSyntax),
+        c => return Err(NthChildError::IllegalCharacter(c)),
+      },
     }
   }
-  Ok(FunctionalPosition {
-    step_size,
-    offset: num * sign,
-  })
+  if matches!(state, Sign(_) | Initial) {
+    Err(NthChildError::InvalidSyntax)
+  } else {
+    Ok(FunctionalPosition {
+      step_size,
+      offset: num * sign,
+    })
+  }
 }
 
 impl NthChildSimple {
@@ -132,8 +179,8 @@ impl<L: Language> NthChild<L> {
     env: &DeserializeEnv<L>,
   ) -> Result<Self, NthChildError> {
     match rule {
-      SerializableNthChild::Simple(simple) => Ok(NthChild {
-        position: simple.try_parse()?,
+      SerializableNthChild::Simple(position) => Ok(NthChild {
+        position: position.try_parse()?,
         of_rule: None,
         reverse: false,
       }),
@@ -280,8 +327,8 @@ mod test {
   }
   fn test_parse(s: &str, step: i32, offset: i32) {
     let pos = parse(s);
-    assert_eq!(pos.step_size, step, "{s}");
-    assert_eq!(pos.offset, offset, "{s}");
+    assert_eq!(pos.step_size, step, "{s}: wrong step");
+    assert_eq!(pos.offset, offset, "{s}: wrong offset");
   }
 
   #[test]
@@ -298,5 +345,34 @@ mod test {
     test_parse("-2", 0, -2);
     test_parse("n", 1, 0);
     test_parse("-n", -1, 0);
+    test_parse("N", 1, 0);
+    test_parse("-N", -1, 0);
+    test_parse("123   n", 123, 0);
+  }
+
+  fn parse_error(s: &str, name: &str) {
+    let Err(err) = parse_an_b(s) else {
+      panic!("should parse error: {s}");
+    };
+    match err {
+      NthChildError::InvalidSyntax => assert_eq!(name, "syntax"),
+      NthChildError::IllegalCharacter(_) => assert_eq!(name, "character"),
+      NthChildError::InvalidRule(_) => assert_eq!(name, "rule"),
+    }
+  }
+
+  #[test]
+  fn test_error() {
+    parse_error("3a + b", "character");
+    parse_error("3 - n", "syntax");
+    parse_error("3 ++ n", "syntax");
+    parse_error("n++", "syntax");
+    parse_error("3 + 5", "syntax");
+    parse_error("3n +", "syntax");
+    parse_error("3n + n", "syntax");
+    parse_error("+ n + n", "syntax");
+    parse_error("+ n - n", "syntax");
+    parse_error("+", "syntax");
+    parse_error("-", "syntax");
   }
 }
