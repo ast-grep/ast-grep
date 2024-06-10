@@ -1,4 +1,4 @@
-use super::{deserialize_rule, DeserializeEnv, Rule, RuleSerializeError, SerializableRule};
+use super::{DeserializeEnv, Rule, RuleSerializeError, SerializableRule};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
@@ -97,34 +97,6 @@ pub enum SerializableNthChild {
   },
 }
 
-impl SerializableNthChild {
-  pub fn try_parse<L: Language>(
-    self,
-    env: &DeserializeEnv<L>,
-  ) -> Result<NthChild<L>, NthChildError> {
-    match self {
-      SerializableNthChild::Simple(simple) => Ok(NthChild {
-        position: simple.try_parse()?,
-        of_rule: None,
-        reverse: false,
-      }),
-      SerializableNthChild::Complex {
-        position,
-        of_rule,
-        reverse,
-      } => Ok(NthChild {
-        position: position.try_parse()?,
-        of_rule: of_rule
-          .map(|r| deserialize_rule(*r, env))
-          .transpose()
-          .map_err(Box::new)?
-          .map(Box::new),
-        reverse,
-      }),
-    }
-  }
-}
-
 /// Corresponds to the CSS syntax An+B
 /// See https://developer.mozilla.org/en-US/docs/Web/CSS/:nth-child#functional_notation
 struct FunctionalPosition {
@@ -153,6 +125,32 @@ pub struct NthChild<L: Language> {
 }
 
 impl<L: Language> NthChild<L> {
+  pub fn try_new(
+    rule: SerializableNthChild,
+    env: &DeserializeEnv<L>,
+  ) -> Result<Self, NthChildError> {
+    match rule {
+      SerializableNthChild::Simple(simple) => Ok(NthChild {
+        position: simple.try_parse()?,
+        of_rule: None,
+        reverse: false,
+      }),
+      SerializableNthChild::Complex {
+        position,
+        of_rule,
+        reverse,
+      } => Ok(NthChild {
+        position: position.try_parse()?,
+        of_rule: of_rule
+          .map(|r| env.deserialize_rule(*r))
+          .transpose()
+          .map_err(Box::new)?
+          .map(Box::new),
+        reverse,
+      }),
+    }
+  }
+
   fn find_index<'t, D: Doc<Lang = L>>(
     &self,
     node: &Node<'t, D>,

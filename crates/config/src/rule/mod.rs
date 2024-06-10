@@ -419,6 +419,9 @@ fn deserialze_atomic_rule<L: Language>(
   if let Some(regex) = atomic.regex {
     rules.push(R::Regex(RegexMatcher::try_new(&regex)?));
   }
+  if let Some(nth_child) = atomic.nth_child {
+    rules.push(R::NthChild(NthChild::try_new(nth_child, env)?));
+  }
   Ok(())
 }
 
