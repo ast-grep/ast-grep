@@ -50,12 +50,15 @@ struct FunctionalPosition {
 }
 
 impl FunctionalPosition {
-  fn is_matched(&self, index: i32) -> bool {
+  /// index is 0-based, but output is 1-based
+  fn is_matched(&self, index: usize) -> bool {
+    let index = (index + 1) as i32;
     let FunctionalPosition { step_size, offset } = self;
     if *step_size == 0 {
       index == *offset
     } else {
-      (index - offset) / step_size >= 0
+      let n = index - offset;
+      n / step_size >= 0 && n % step_size == 0
     }
   }
 }
@@ -112,9 +115,38 @@ impl<L: Language> Matcher<L> for NthChild<L> {
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     let index = self.find_index(&node, env)?;
-    self.position.is_matched(index as i32).then_some(node)
+    self.position.is_matched(index).then_some(node)
   }
   fn potential_kinds(&self) -> Option<BitSet> {
     None
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  #[test]
+  fn test_positional() {
+    let position = FunctionalPosition {
+      step_size: 0,
+      offset: 1,
+    };
+    assert!(position.is_matched(0));
+    assert!(!position.is_matched(1));
+    assert!(!position.is_matched(2));
+  }
+
+  #[test]
+  fn test_positional_an_b() {
+    let position = FunctionalPosition {
+      step_size: 2,
+      offset: -1,
+    };
+    assert!(position.is_matched(0));
+    assert!(!position.is_matched(1));
+    assert!(position.is_matched(2));
+    assert!(!position.is_matched(3));
+    assert!(position.is_matched(4));
   }
 }
