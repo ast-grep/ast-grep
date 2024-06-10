@@ -33,39 +33,41 @@ pub enum NthChildSimple {
 }
 
 fn parse_an_b(input: &str) -> Result<FunctionalPosition, NthChildError> {
-  let mut a = 0;
-  let mut b = 0;
-  let mut is_a = true;
-  for (index, char) in input.chars().enumerate() {
-    match char {
+  let mut step_size = 0;
+  let mut sign = 1;
+  let mut num = 0;
+  let mut omitted = true;
+  for c in input.chars() {
+    match c {
+      ' ' => continue, // ignore white space
       'n' | 'N' => {
-        if index == 0 {
-          a = 1; // Default coefficient of 'n' is 1
-        }
-        is_a = false;
-      }
-      '+' => continue, // Skip the plus sign
-      '-' => {
-        if is_a {
-          return Err(NthChildError::InvalidSyntax);
+        if omitted {
+          step_size = sign; // Default coefficient of 'n' is 1
         } else {
-          b = -b; // Negate B if '-' is found after 'n'
+          step_size = sign * num;
         }
+        sign = 1;
+        num = 0;
+      }
+      '+' => {
+        sign = 1;
+        num = 0;
+      } // Skip the plus sign
+      '-' => {
+        sign = -1;
+        num = 0;
       }
       '0'..='9' => {
-        let digit = char.to_digit(10).unwrap() as i32;
-        if is_a {
-          a = a * 10 + digit;
-        } else {
-          b = b * 10 + digit;
-        }
+        omitted = false;
+        let digit = (c as u8 - b'0') as i32;
+        num = num * 10 + digit;
       }
       _ => return Err(NthChildError::IllegalCharacter),
     }
   }
   Ok(FunctionalPosition {
-    step_size: a,
-    offset: b,
+    step_size,
+    offset: num * sign,
   })
 }
 
@@ -271,5 +273,30 @@ mod test {
     assert_eq!(i, Some(0));
     let i = find_index(Some(Rule::Regex(regex)), true);
     assert_eq!(i, Some(1));
+  }
+
+  fn parse(s: &str) -> FunctionalPosition {
+    parse_an_b(s).expect("should parse")
+  }
+  fn test_parse(s: &str, step: i32, offset: i32) {
+    let pos = parse(s);
+    assert_eq!(pos.step_size, step, "{s}");
+    assert_eq!(pos.offset, offset, "{s}");
+  }
+
+  #[test]
+  fn test_parse_selector() {
+    // https://www.w3.org/TR/css-syntax-3/#anb-microsyntax
+    test_parse("12n + 2", 12, 2);
+    test_parse("-12n + 21", -12, 21);
+    test_parse("-12n - 21", -12, -21);
+    test_parse("2n + 0", 2, 0);
+    test_parse("-1n + 6", -1, 6);
+    test_parse("-4n + 10", -4, 10);
+    test_parse("0n + 5", 0, 5);
+    test_parse("2", 0, 2);
+    test_parse("-2", 0, -2);
+    test_parse("n", 1, 0);
+    test_parse("-n", -1, 0);
   }
 }
