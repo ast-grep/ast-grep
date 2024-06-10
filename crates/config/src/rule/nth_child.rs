@@ -45,8 +45,14 @@ pub enum SerializableNthChild {
 /// Corresponds to the CSS syntax An+B
 /// See https://developer.mozilla.org/en-US/docs/Web/CSS/:nth-child#functional_notation
 struct FunctionalPosition {
-  step_size: usize,
-  offset: usize,
+  step_size: i32,
+  offset: i32,
+}
+
+impl FunctionalPosition {
+  fn is_matched(&self, index: i32) -> bool {
+    todo!()
+  }
 }
 
 pub struct NthChild<L: Language> {
@@ -56,12 +62,23 @@ pub struct NthChild<L: Language> {
 }
 
 impl<L: Language> NthChild<L> {
-  pub fn defined_vars(&self) -> HashSet<&str> {
+  fn find_index<D: Doc<Lang = L>>(&self, node: &Node<D>) -> Option<usize> {
     todo!()
+  }
+  pub fn defined_vars(&self) -> HashSet<&str> {
+    if let Some(rule) = &self.of_rule {
+      rule.defined_vars()
+    } else {
+      HashSet::new()
+    }
   }
 
   pub fn verify_util(&self) -> Result<(), RuleSerializeError> {
-    todo!()
+    if let Some(rule) = &self.of_rule {
+      rule.verify_util()
+    } else {
+      Ok(())
+    }
   }
 }
 
@@ -69,9 +86,14 @@ impl<L: Language> Matcher<L> for NthChild<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    env: &mut Cow<MetaVarEnv<'tree, D>>,
+    _env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    todo!()
+    let index = self.find_index(&node)?;
+    if self.position.is_matched(index as i32) {
+      Some(node)
+    } else {
+      None
+    }
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
