@@ -1,4 +1,5 @@
 mod deserialize_env;
+mod nth_child;
 pub mod referent_rule;
 mod relational_rule;
 mod stop_by;
@@ -8,6 +9,7 @@ pub use relational_rule::Relation;
 pub use stop_by::StopBy;
 
 use crate::maybe::Maybe;
+use nth_child::NthChild;
 use referent_rule::{ReferentRule, ReferentRuleError};
 use relational_rule::{Follows, Has, Inside, Precedes};
 
@@ -48,6 +50,10 @@ pub struct SerializableRule {
   /// A Rust regular expression to match the node's text. https://docs.rs/regex/latest/regex/#syntax
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub regex: Maybe<String>,
+  /// `nth_child` accepts number, string or object.
+  /// It specifies the position in nodes' sibling.
+  #[serde(default, skip_serializing_if = "Maybe::is_absent", rename = "nthChild")]
+  pub nth_child: Maybe<NthChild>,
   // relational
   /// `inside` accepts a relational rule object.
   /// the target node must appear inside of another node matching the `inside` sub-rule.
@@ -112,7 +118,6 @@ impl SerializableRule {
   }
 }
 
-#[derive(Serialize, Deserialize, Clone, Default, JsonSchema)]
 pub struct AtomicRule {
   pub pattern: Option<PatternStyle>,
   pub kind: Option<String>,
@@ -133,7 +138,6 @@ pub enum PatternStyle {
   },
 }
 
-#[derive(Serialize, Deserialize, Clone, Default, JsonSchema)]
 pub struct RelationalRule {
   pub inside: Option<Box<Relation>>,
   pub has: Option<Box<Relation>>,
@@ -141,7 +145,6 @@ pub struct RelationalRule {
   pub follows: Option<Box<Relation>>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct CompositeRule {
   pub all: Option<Vec<SerializableRule>>,
   pub any: Option<Vec<SerializableRule>>,
