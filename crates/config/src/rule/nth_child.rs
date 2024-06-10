@@ -1,4 +1,4 @@
-use super::{Rule, RuleSerializeError, SerializableRule};
+use super::{deserialize_rule, DeserializeEnv, Rule, RuleSerializeError, SerializableRule};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
@@ -12,9 +12,15 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-// TODO
 #[derive(Debug, Error)]
-pub enum NthChildError {}
+pub enum NthChildError {
+  #[error("Invalid character encountered")]
+  IllegalCharacter,
+  #[error("Invalid syntax")]
+  InvalidSyntax,
+  #[error("Invalid ofRule")]
+  InvalidRule(#[from] Box<RuleSerializeError>),
+}
 
 /// A string or number describing the indices of matching nodes in a list of siblings.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
@@ -24,6 +30,55 @@ pub enum NthChildSimple {
   Numeric(usize),
   /// Functional notation like CSS's An + B
   Functional(String),
+}
+
+fn parse_an_b(input: &str) -> Result<FunctionalPosition, NthChildError> {
+  let mut a = 0;
+  let mut b = 0;
+  let mut is_a = true;
+  for (index, char) in input.chars().enumerate() {
+    match char {
+      'n' | 'N' => {
+        if index == 0 {
+          a = 1; // Default coefficient of 'n' is 1
+        }
+        is_a = false;
+      }
+      '+' => continue, // Skip the plus sign
+      '-' => {
+        if is_a {
+          return Err(NthChildError::InvalidSyntax);
+        } else {
+          b = -b; // Negate B if '-' is found after 'n'
+        }
+      }
+      '0'..='9' => {
+        let digit = char.to_digit(10).unwrap() as i32;
+        if is_a {
+          a = a * 10 + digit;
+        } else {
+          b = b * 10 + digit;
+        }
+      }
+      _ => return Err(NthChildError::IllegalCharacter),
+    }
+  }
+  Ok(FunctionalPosition {
+    step_size: a,
+    offset: b,
+  })
+}
+
+impl NthChildSimple {
+  fn try_parse(&self) -> Result<FunctionalPosition, NthChildError> {
+    match self {
+      NthChildSimple::Numeric(n) => Ok(FunctionalPosition {
+        step_size: 0,
+        offset: *n as i32,
+      }),
+      NthChildSimple::Functional(s) => parse_an_b(s),
+    }
+  }
 }
 
 /// `nthChild` accepts either a number, a string or an object.
@@ -40,6 +95,34 @@ pub enum SerializableNthChild {
     #[serde(default)]
     reverse: bool,
   },
+}
+
+impl SerializableNthChild {
+  pub fn try_parse<L: Language>(
+    self,
+    env: &DeserializeEnv<L>,
+  ) -> Result<NthChild<L>, NthChildError> {
+    match self {
+      SerializableNthChild::Simple(simple) => Ok(NthChild {
+        position: simple.try_parse()?,
+        of_rule: None,
+        reverse: false,
+      }),
+      SerializableNthChild::Complex {
+        position,
+        of_rule,
+        reverse,
+      } => Ok(NthChild {
+        position: position.try_parse()?,
+        of_rule: of_rule
+          .map(|r| deserialize_rule(*r, env))
+          .transpose()
+          .map_err(Box::new)?
+          .map(Box::new),
+        reverse,
+      }),
+    }
+  }
 }
 
 /// Corresponds to the CSS syntax An+B
