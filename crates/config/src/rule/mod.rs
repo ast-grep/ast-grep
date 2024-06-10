@@ -9,7 +9,7 @@ pub use relational_rule::Relation;
 pub use stop_by::StopBy;
 
 use crate::maybe::Maybe;
-use nth_child::NthChild;
+use nth_child::SerializableNthChild;
 use referent_rule::{ReferentRule, ReferentRuleError};
 use relational_rule::{Follows, Has, Inside, Precedes};
 
@@ -51,9 +51,10 @@ pub struct SerializableRule {
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub regex: Maybe<String>,
   /// `nth_child` accepts number, string or object.
-  /// It specifies the position in nodes' sibling.
+  /// It specifies the position in nodes' sibling list.
   #[serde(default, skip_serializing_if = "Maybe::is_absent", rename = "nthChild")]
-  pub nth_child: Maybe<NthChild>,
+  pub nth_child: Maybe<SerializableNthChild>,
+
   // relational
   /// `inside` accepts a relational rule object.
   /// the target node must appear inside of another node matching the `inside` sub-rule.
