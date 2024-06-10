@@ -52,7 +52,7 @@ struct FunctionalPosition {
 impl FunctionalPosition {
   /// index is 0-based, but output is 1-based
   fn is_matched(&self, index: usize) -> bool {
-    let index = (index + 1) as i32;
+    let index = (index + 1) as i32; // Convert 0-based index to 1-based
     let FunctionalPosition { step_size, offset } = self;
     if *step_size == 0 {
       index == *offset
@@ -76,7 +76,9 @@ impl<L: Language> NthChild<L> {
     env: &mut Cow<MetaVarEnv<'t, D>>,
   ) -> Option<usize> {
     let parent = node.parent()?;
+    //  only consider named children
     let mut children: Vec<_> = if let Some(rule) = &self.of_rule {
+      // if of_rule is present, only consider children that match the rule
       parent
         .children()
         .filter(|n| n.is_named())
@@ -85,6 +87,7 @@ impl<L: Language> NthChild<L> {
     } else {
       parent.children().filter(|n| n.is_named()).collect()
     };
+    // count the index from the end if reverse is true
     if self.reverse {
       children.reverse()
     }
