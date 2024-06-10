@@ -51,7 +51,12 @@ struct FunctionalPosition {
 
 impl FunctionalPosition {
   fn is_matched(&self, index: i32) -> bool {
-    todo!()
+    let FunctionalPosition { step_size, offset } = self;
+    if *step_size == 0 {
+      index == *offset
+    } else {
+      (index - offset) / step_size >= 0
+    }
   }
 }
 
@@ -62,8 +67,26 @@ pub struct NthChild<L: Language> {
 }
 
 impl<L: Language> NthChild<L> {
-  fn find_index<D: Doc<Lang = L>>(&self, node: &Node<D>) -> Option<usize> {
-    todo!()
+  fn find_index<'t, D: Doc<Lang = L>>(
+    &self,
+    node: &Node<'t, D>,
+    env: &mut Cow<MetaVarEnv<'t, D>>,
+  ) -> Option<usize> {
+    let parent = node.parent()?;
+    let mut children: Vec<_> = if let Some(rule) = &self.of_rule {
+      parent
+        .children()
+        .filter_map(|child| rule.match_node_with_env(child, env))
+        .collect()
+    } else {
+      parent.children().collect()
+    };
+    if self.reverse {
+      children.reverse()
+    }
+    children
+      .iter()
+      .position(|child| child.node_id() == node.node_id())
   }
   pub fn defined_vars(&self) -> HashSet<&str> {
     if let Some(rule) = &self.of_rule {
@@ -86,16 +109,11 @@ impl<L: Language> Matcher<L> for NthChild<L> {
   fn match_node_with_env<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
-    _env: &mut Cow<MetaVarEnv<'tree, D>>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    let index = self.find_index(&node)?;
-    if self.position.is_matched(index as i32) {
-      Some(node)
-    } else {
-      None
-    }
+    let index = self.find_index(&node, env)?;
+    self.position.is_matched(index as i32).then_some(node)
   }
-
   fn potential_kinds(&self) -> Option<BitSet> {
     None
   }
