@@ -134,9 +134,11 @@ impl NthChildSimple {
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum SerializableNthChild {
+  /// Simple syntax
   Simple(NthChildSimple),
-  // TODO add comments
+  /// Object style syntax
   Complex {
+    /// nth-child syntax
     position: NthChildSimple,
     /// select the nth node that matches the rule, like CSS's of syntax
     of_rule: Option<Box<SerializableRule>>,
@@ -374,6 +376,7 @@ mod test {
     parse_error("n + 3n", "syntax");
     parse_error("+ n + n", "syntax");
     parse_error("+ n - n", "syntax");
+    parse_error("nN", "syntax");
     parse_error("+", "syntax");
     parse_error("-", "syntax");
     parse_error("a", "character");
@@ -399,5 +402,17 @@ mod test {
     assert_eq!(root.find(rule).expect("should find").text(), "1");
     let rule = deser(r"nthChild: { position: 2n + 2, of_rule: {regex: '2|3'} }");
     assert_eq!(root.find(rule).expect("should find").text(), "3");
+  }
+
+  #[test]
+  fn test_defined_vars() {
+    let rule = deser(r"nthChild: { position: 2, of_rule: {pattern: '$A'} }");
+    assert_eq!(rule.defined_vars(), vec!["A"].into_iter().collect());
+  }
+
+  #[test]
+  fn test_verify_util() {
+    let rule = deser(r"nthChild: { position: 2, of_rule: {pattern: '$A'} }");
+    assert!(rule.verify_util().is_ok());
   }
 }
