@@ -8,6 +8,7 @@ class Pattern(TypedDict):
     context: str
 
 class NthChild(TypedDict):
+    position: int | str
     ofRule: Rule
     nth: int
 
