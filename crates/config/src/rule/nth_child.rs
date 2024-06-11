@@ -259,6 +259,7 @@ impl<L: Language> Matcher<L> for NthChild<L> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::from_str;
   use crate::test::TypeScript as TS;
   use ast_grep_core::matcher::RegexMatcher;
 
@@ -370,9 +371,33 @@ mod test {
     parse_error("3 + 5", "syntax");
     parse_error("3n +", "syntax");
     parse_error("3n + n", "syntax");
+    parse_error("n + 3n", "syntax");
     parse_error("+ n + n", "syntax");
     parse_error("+ n - n", "syntax");
     parse_error("+", "syntax");
     parse_error("-", "syntax");
+    parse_error("a", "character");
+    parse_error("+a", "character");
+    parse_error("na", "character");
+  }
+
+  fn deser(src: &str) -> Rule<TS> {
+    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+    let env = DeserializeEnv::new(TS::Tsx);
+    env.deserialize_rule(rule).expect("should deserialize")
+  }
+
+  #[test]
+  fn test_serialize() {
+    let root = TS::Tsx.ast_grep("[1,2,3,4]");
+    let root = root.root();
+    let rule = deser(r"nthChild: 3");
+    assert_eq!(root.find(rule).expect("should find").text(), "3");
+    let rule = deser(r"nthChild: { position: 2n + 2 }");
+    assert_eq!(root.find(rule).expect("should find").text(), "2");
+    let rule = deser(r"nthChild: { position: 2n + 2, reverse: true }");
+    assert_eq!(root.find(rule).expect("should find").text(), "1");
+    let rule = deser(r"nthChild: { position: 2n + 2, of_rule: {regex: '2|3'} }");
+    assert_eq!(root.find(rule).expect("should find").text(), "3");
   }
 }
