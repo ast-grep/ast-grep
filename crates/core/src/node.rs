@@ -666,4 +666,14 @@ if (a) {
     assert!(node.child_by_field_id(id).is_some());
     assert!(node.child_by_field_id(id + 1).is_none());
   }
+
+  #[test]
+  fn test_remove() {
+    let root = Tsx.ast_grep("Some(Some(1)); Some(2);");
+    let root = root.root();
+    let node = root.find("Some(2);").expect("should exist");
+    let edit = node.remove();
+    assert_eq!(edit.position, 15);
+    assert_eq!(edit.deleted_length, 8);
+  }
 }
