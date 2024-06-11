@@ -7,11 +7,16 @@ class Pattern(TypedDict):
     selector: str
     context: str
 
+class NthChild(TypedDict):
+    ofRule: Rule
+    nth: int
+
 class RuleWithoutNot(TypedDict, total=False):
     # atomic rule
     pattern: str | Pattern
     kind: str
     regex: str
+    nthChild: int | str | NthChild
 
     # relational rule
     inside: "Relation" # pyright report error if forward reference here?
@@ -51,6 +56,7 @@ __all__ = [
     "Config",
     "Relation",
     "Pattern",
+    "NthChild",
     "SgNode",
     "SgRoot",
     "Pos",

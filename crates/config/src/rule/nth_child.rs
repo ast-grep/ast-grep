@@ -137,6 +137,7 @@ pub enum SerializableNthChild {
   /// Simple syntax
   Simple(NthChildSimple),
   /// Object style syntax
+  #[serde(rename_all = "camelCase")]
   Complex {
     /// nth-child syntax
     position: NthChildSimple,
@@ -400,19 +401,19 @@ mod test {
     assert_eq!(root.find(rule).expect("should find").text(), "2");
     let rule = deser(r"nthChild: { position: 2n + 2, reverse: true }");
     assert_eq!(root.find(rule).expect("should find").text(), "1");
-    let rule = deser(r"nthChild: { position: 2n + 2, of_rule: {regex: '2|3'} }");
+    let rule = deser(r"nthChild: { position: 2n + 2, ofRule: {regex: '2|3'} }");
     assert_eq!(root.find(rule).expect("should find").text(), "3");
   }
 
   #[test]
   fn test_defined_vars() {
-    let rule = deser(r"nthChild: { position: 2, of_rule: {pattern: '$A'} }");
+    let rule = deser(r"nthChild: { position: 2, ofRule: {pattern: '$A'} }");
     assert_eq!(rule.defined_vars(), vec!["A"].into_iter().collect());
   }
 
   #[test]
   fn test_verify_util() {
-    let rule = deser(r"nthChild: { position: 2, of_rule: {pattern: '$A'} }");
+    let rule = deser(r"nthChild: { position: 2, ofRule: {pattern: '$A'} }");
     assert!(rule.verify_util().is_ok());
   }
 }
