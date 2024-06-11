@@ -187,11 +187,29 @@
     "Maybe_Relation": {
       "$ref": "#/definitions/Relation"
     },
+    "Maybe_SerializableNthChild": {
+      "$ref": "#/definitions/SerializableNthChild"
+    },
     "Maybe_SerializableRule": {
       "$ref": "#/definitions/SerializableRule"
     },
     "Maybe_String": {
       "type": "string"
+    },
+    "NthChildSimple": {
+      "description": "A string or number describing the indices of matching nodes in a list of siblings.",
+      "anyOf": [
+        {
+          "description": "A number indicating the precise element index",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        },
+        {
+          "description": "Functional notation like CSS's An + B",
+          "type": "string"
+        }
+      ]
     },
     "PatternStyle": {
       "description": "A String pattern will match one single AST node according to pattern syntax. Or an object with field `context` and `selector`.",
@@ -288,6 +306,14 @@
           "allOf": [
             {
               "$ref": "#/definitions/Maybe_SerializableRule"
+            }
+          ]
+        },
+        "nthChild": {
+          "description": "`nth_child` accepts number, string or object. It specifies the position in nodes' sibling list.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Maybe_SerializableNthChild"
             }
           ]
         },
@@ -409,6 +435,52 @@
         },
         {
           "$ref": "#/definitions/SerializableFixConfig"
+        }
+      ]
+    },
+    "SerializableNthChild": {
+      "description": "`nthChild` accepts either a number, a string or an object.",
+      "anyOf": [
+        {
+          "description": "Simple syntax",
+          "allOf": [
+            {
+              "$ref": "#/definitions/NthChildSimple"
+            }
+          ]
+        },
+        {
+          "description": "Object style syntax",
+          "type": "object",
+          "required": [
+            "position"
+          ],
+          "properties": {
+            "ofRule": {
+              "description": "select the nth node that matches the rule, like CSS's of syntax",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/SerializableRule"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "position": {
+              "description": "nth-child syntax",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/NthChildSimple"
+                }
+              ]
+            },
+            "reverse": {
+              "description": "matches from the end instead like CSS's nth-last-child",
+              "default": false,
+              "type": "boolean"
+            }
+          }
         }
       ]
     },
@@ -539,6 +611,14 @@
           "allOf": [
             {
               "$ref": "#/definitions/Maybe_SerializableRule"
+            }
+          ]
+        },
+        "nthChild": {
+          "description": "`nth_child` accepts number, string or object. It specifies the position in nodes' sibling list.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Maybe_SerializableNthChild"
             }
           ]
         },
