@@ -350,7 +350,18 @@ rule:
 
   #[test]
   fn test_scan_with_inline_rules() {
-    let inline_rules = "{id: test, language: ts, rule: {pattern: console.log($A)}}".to_string();
+    let inline_rules = "{id: test, language: ts, rule: {pattern: readFileSync}}".to_string();
+    let arg = ScanArg {
+      inline_rules: Some(inline_rules),
+      ..default_scan_arg()
+    };
+    assert!(run_with_config(arg).is_ok());
+  }
+
+  #[test]
+  fn test_scan_with_inline_rules_diff() {
+    let inline_rules =
+      "{id: test, language: ts, rule: {pattern: readFileSync}, fix: 'nnn'}".to_string();
     let arg = ScanArg {
       inline_rules: Some(inline_rules),
       ..default_scan_arg()
