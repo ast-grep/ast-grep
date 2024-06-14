@@ -199,7 +199,7 @@ dependencies = [
  "tree-sitter-haskell",
  "tree-sitter-html",
  "tree-sitter-java",
- "tree-sitter-javascript-sg",
+ "tree-sitter-javascript",
  "tree-sitter-json",
  "tree-sitter-kotlin",
  "tree-sitter-lua",
@@ -967,7 +967,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c2a198fb6b0eada2a8df47933734e6d35d350665a33a3593d7164fa52c75c19"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.5",
 ]
 
 [[package]]
@@ -1985,6 +1985,16 @@ name = "tree-sitter-java"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33bc21adf831a773c075d9d00107ab43965e6a6ea7607b47fd9ec6f3db4b481b"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
+name = "tree-sitter-javascript"
+version = "0.21.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fced510d43e6627cd8e19adfd994ac9cfa3b1d71b0d522b41f74145de37feef"
 dependencies = [
  "cc",
  "tree-sitter",
