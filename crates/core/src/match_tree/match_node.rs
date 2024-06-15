@@ -44,25 +44,17 @@ fn match_nodes_impl_recursive<'tree, D: Doc + 'tree>(
       ControlFlow::Continue => continue,
       ControlFlow::Fallthrough => (),
     }
-    // skip if cand children is trivial
-    loop {
-      let Some(cand) = cand_children.peek() else {
-        // if cand runs out, remaining goal is not matched
-        return None;
-      };
-      let matched = match_node_impl(goal_children.peek().unwrap(), cand, agg).is_some();
-      // try match goal node with candidate node
-      if matched {
-        break;
-      } else if strictness.should_skip_matching_node(cand) {
-        // skip trivial node
-        // TODO: nade with field should not be skipped
-        cand_children.next();
-      } else {
-        // unmatched significant node
-        return None;
-      }
+    match match_single_node_while_skip_trivial(
+      &mut goal_children,
+      &mut cand_children,
+      agg,
+      strictness,
+    )? {
+      ControlFlow::Return => return Some(()),
+      ControlFlow::Continue => continue,
+      ControlFlow::Fallthrough => (),
     }
+    // skip if cand children is trivial
     goal_children.next();
     if goal_children.peek().is_none() {
       // all goal found, return
@@ -146,6 +138,32 @@ fn may_match_ellipsis_impl<'p, 't: 'p, D: Doc + 't>(
     }
     matched.push(cand_children.next().unwrap());
     cand_children.peek()?;
+  }
+}
+
+fn match_single_node_while_skip_trivial<'p, 't: 'p, D: Doc + 't>(
+  goal_children: &mut Peekable<impl Iterator<Item = &'p Pattern<D::Lang>>>,
+  cand_children: &mut Peekable<impl Iterator<Item = Node<'t, D>>>,
+  agg: &mut impl Aggregator<'t, D>,
+  strictness: &MatchStrictness,
+) -> Option<ControlFlow> {
+  loop {
+    let Some(cand) = cand_children.peek() else {
+      // if cand runs out, remaining goal is not matched
+      return None;
+    };
+    let matched = match_node_impl(goal_children.peek().unwrap(), cand, agg).is_some();
+    // try match goal node with candidate node
+    if matched {
+      return Some(ControlFlow::Fallthrough);
+    } else if strictness.should_skip_matching_node(cand) {
+      // skip trivial node
+      // TODO: nade with field should not be skipped
+      cand_children.next();
+    } else {
+      // unmatched significant node
+      return None;
+    }
   }
 }
 
