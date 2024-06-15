@@ -1,3 +1,4 @@
+mod strictness;
 use crate::meta_var::{MetaVarEnv, MetaVariable};
 use crate::{Doc, Language, Node, Pattern};
 
