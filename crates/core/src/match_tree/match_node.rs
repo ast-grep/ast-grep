@@ -39,65 +39,10 @@ fn match_nodes_impl_recursive<'tree, D: Doc + 'tree>(
   let mut cand_children = candidates.peekable();
   cand_children.peek()?;
   loop {
-    let curr_node = goal_children.peek().unwrap();
-    if let Ok(optional_name) = try_get_ellipsis_mode(curr_node) {
-      let mut matched = vec![];
-      goal_children.next();
-      // goal has all matched
-      if goal_children.peek().is_none() {
-        match_ellipsis(agg, &optional_name, matched, cand_children, 0)?;
-        return Some(());
-      }
-      // skip trivial nodes in goal after ellipsis
-      let mut skipped_anonymous = 0;
-      while goal_children.peek().unwrap().is_trivial() {
-        goal_children.next();
-        skipped_anonymous += 1;
-        if goal_children.peek().is_none() {
-          match_ellipsis(
-            agg,
-            &optional_name,
-            matched,
-            cand_children,
-            skipped_anonymous,
-          )?;
-          return Some(());
-        }
-      }
-      // if next node is a Ellipsis, consume one candidate node
-      if try_get_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
-        matched.push(cand_children.next().unwrap());
-        cand_children.peek()?;
-        match_ellipsis(
-          agg,
-          &optional_name,
-          matched,
-          std::iter::empty(),
-          skipped_anonymous,
-        )?;
-        continue;
-      }
-      loop {
-        if match_node_impl(
-          goal_children.peek().unwrap(),
-          cand_children.peek().unwrap(),
-          agg,
-        )
-        .is_some()
-        {
-          // found match non Ellipsis,
-          match_ellipsis(
-            agg,
-            &optional_name,
-            matched,
-            std::iter::empty(),
-            skipped_anonymous,
-          )?;
-          break;
-        }
-        matched.push(cand_children.next().unwrap());
-        cand_children.peek()?;
-      }
+    match may_match_ellipsis_impl(&mut goal_children, &mut cand_children, agg)? {
+      ControlFlow::Return => return Some(()),
+      ControlFlow::Continue => continue,
+      ControlFlow::Fallthrough => (),
     }
     // skip if cand children is trivial
     loop {
@@ -124,6 +69,82 @@ fn match_nodes_impl_recursive<'tree, D: Doc + 'tree>(
       return Some(());
     }
     cand_children.next();
+    cand_children.peek()?;
+  }
+}
+
+enum ControlFlow {
+  Continue,
+  Fallthrough,
+  Return,
+}
+
+use std::iter::Peekable;
+/// returns None means no match
+fn may_match_ellipsis_impl<'p, 't: 'p, D: Doc + 't>(
+  goal_children: &mut Peekable<impl Iterator<Item = &'p Pattern<D::Lang>>>,
+  cand_children: &mut Peekable<impl Iterator<Item = Node<'t, D>>>,
+  agg: &mut impl Aggregator<'t, D>,
+) -> Option<ControlFlow> {
+  let curr_node = goal_children.peek().unwrap();
+  let Ok(optional_name) = try_get_ellipsis_mode(curr_node) else {
+    return Some(ControlFlow::Fallthrough);
+  };
+  let mut matched = vec![];
+  goal_children.next();
+  // goal has all matched
+  if goal_children.peek().is_none() {
+    match_ellipsis(agg, &optional_name, matched, cand_children, 0)?;
+    return Some(ControlFlow::Return);
+  }
+  // skip trivial nodes in goal after ellipsis
+  let mut skipped_anonymous = 0;
+  while goal_children.peek().unwrap().is_trivial() {
+    goal_children.next();
+    skipped_anonymous += 1;
+    if goal_children.peek().is_none() {
+      match_ellipsis(
+        agg,
+        &optional_name,
+        matched,
+        cand_children,
+        skipped_anonymous,
+      )?;
+      return Some(ControlFlow::Return);
+    }
+  }
+  // if next node is a Ellipsis, consume one candidate node
+  if try_get_ellipsis_mode(goal_children.peek().unwrap()).is_ok() {
+    matched.push(cand_children.next().unwrap());
+    cand_children.peek()?;
+    match_ellipsis(
+      agg,
+      &optional_name,
+      matched,
+      std::iter::empty(),
+      skipped_anonymous,
+    )?;
+    return Some(ControlFlow::Continue);
+  }
+  loop {
+    if match_node_impl(
+      goal_children.peek().unwrap(),
+      cand_children.peek().unwrap(),
+      agg,
+    )
+    .is_some()
+    {
+      // found match non Ellipsis,
+      match_ellipsis(
+        agg,
+        &optional_name,
+        matched,
+        std::iter::empty(),
+        skipped_anonymous,
+      )?;
+      break Some(ControlFlow::Fallthrough);
+    }
+    matched.push(cand_children.next().unwrap());
     cand_children.peek()?;
   }
 }
