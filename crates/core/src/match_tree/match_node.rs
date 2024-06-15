@@ -1,3 +1,4 @@
+use super::strictness::MatchStrictness;
 use super::Aggregator;
 use crate::meta_var::MetaVariable;
 use crate::{Doc, Language, Node, Pattern};
@@ -22,7 +23,7 @@ pub(super) fn match_node_impl<'tree, D: Doc>(
       kind_id, children, ..
     } if *kind_id == candidate.kind_id() => {
       let cand_children = candidate.children();
-      match_nodes_impl_recursive(children, cand_children, agg)
+      match_nodes_impl_recursive(children, cand_children, agg, &MatchStrictness::Smart)
     }
     _ => None,
   }
@@ -32,6 +33,7 @@ fn match_nodes_impl_recursive<'tree, D: Doc + 'tree>(
   goals: &[Pattern<D::Lang>],
   candidates: impl Iterator<Item = Node<'tree, D>>,
   agg: &mut impl Aggregator<'tree, D>,
+  strictness: &MatchStrictness,
 ) -> Option<()> {
   let mut goal_children = goals.iter().peekable();
   let mut cand_children = candidates.peekable();
@@ -107,7 +109,7 @@ fn match_nodes_impl_recursive<'tree, D: Doc + 'tree>(
       // try match goal node with candidate node
       if matched {
         break;
-      } else if !cand.is_named() {
+      } else if strictness.should_skip_matching_node(cand) {
         // skip trivial node
         // TODO: nade with field should not be skipped
         cand_children.next();
