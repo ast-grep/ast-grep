@@ -1,5 +1,5 @@
 use crate::language::Language;
-use crate::match_tree::{extract_var_from_node, match_end_non_recursive, match_node_non_recursive};
+use crate::match_tree::{match_end_non_recursive, match_node_non_recursive};
 use crate::matcher::{KindMatcher, KindMatcherError, Matcher};
 use crate::meta_var::{MetaVarEnv, MetaVariable};
 use crate::source::TSParseError;
@@ -54,6 +54,11 @@ fn convert_node_to_pattern<D: Doc>(node: Node<D>, kind: Option<u16>) -> Pattern<
       lang: PhantomData,
     }
   }
+}
+
+fn extract_var_from_node<D: Doc>(goal: &Node<D>) -> Option<MetaVariable> {
+  let key = goal.text();
+  goal.lang().extract_meta_var(&key)
 }
 
 #[derive(Debug, Error)]
