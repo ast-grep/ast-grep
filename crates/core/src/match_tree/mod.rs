@@ -4,7 +4,7 @@ mod strictness;
 use match_node::match_node_impl;
 
 use crate::meta_var::{MetaVarEnv, MetaVariable};
-use crate::{Doc, Language, Node, Pattern};
+use crate::{Doc, Node, Pattern};
 
 use std::borrow::Cow;
 
@@ -138,11 +138,6 @@ pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: &Node<D>) -> b
   goal_children
     .zip(cand_children)
     .all(|(g, c)| does_node_match_exactly(&g, &c))
-}
-
-pub fn extract_var_from_node<D: Doc>(goal: &Node<D>) -> Option<MetaVariable> {
-  let key = goal.text();
-  goal.lang().extract_meta_var(&key)
 }
 
 #[cfg(test)]

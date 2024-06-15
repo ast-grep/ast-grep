@@ -1,4 +1,4 @@
-enum MatchAlgorithm {
+enum MatchStrictness {
   Cst,         // all nodes are matched
   Smart,       // all nodes except source trivial nodes are matched.
   Significant, // only significant nodes are matched
