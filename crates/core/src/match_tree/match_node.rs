@@ -1,15 +1,16 @@
 use super::strictness::MatchStrictness;
 use super::Aggregator;
+use crate::matcher::PatternNode;
 use crate::meta_var::MetaVariable;
-use crate::{Doc, Language, Node, Pattern};
+use crate::{Doc, Node};
 
 pub(super) fn match_node_impl<'tree, D: Doc>(
-  goal: &Pattern<D::Lang>,
+  goal: &PatternNode,
   candidate: &Node<'tree, D>,
   agg: &mut impl Aggregator<'tree, D>,
 ) -> Option<()> {
-  use Pattern as P;
-  match goal {
+  use PatternNode as P;
+  match &goal {
     // leaf = without named children
     P::Terminal { text, kind_id, .. } if *kind_id == candidate.kind_id() => {
       if *text == candidate.text() {
@@ -30,7 +31,7 @@ pub(super) fn match_node_impl<'tree, D: Doc>(
 }
 
 fn match_nodes_impl_recursive<'tree, D: Doc + 'tree>(
-  goals: &[Pattern<D::Lang>],
+  goals: &[PatternNode],
   candidates: impl Iterator<Item = Node<'tree, D>>,
   agg: &mut impl Aggregator<'tree, D>,
   strictness: &MatchStrictness,
@@ -74,7 +75,7 @@ enum ControlFlow {
 use std::iter::Peekable;
 /// returns None means no match
 fn may_match_ellipsis_impl<'p, 't: 'p, D: Doc + 't>(
-  goal_children: &mut Peekable<impl Iterator<Item = &'p Pattern<D::Lang>>>,
+  goal_children: &mut Peekable<impl Iterator<Item = &'p PatternNode>>,
   cand_children: &mut Peekable<impl Iterator<Item = Node<'t, D>>>,
   agg: &mut impl Aggregator<'t, D>,
 ) -> Option<ControlFlow> {
@@ -142,7 +143,7 @@ fn may_match_ellipsis_impl<'p, 't: 'p, D: Doc + 't>(
 }
 
 fn match_single_node_while_skip_trivial<'p, 't: 'p, D: Doc + 't>(
-  goal_children: &mut Peekable<impl Iterator<Item = &'p Pattern<D::Lang>>>,
+  goal_children: &mut Peekable<impl Iterator<Item = &'p PatternNode>>,
   cand_children: &mut Peekable<impl Iterator<Item = Node<'t, D>>>,
   agg: &mut impl Aggregator<'t, D>,
   strictness: &MatchStrictness,
@@ -169,8 +170,8 @@ fn match_single_node_while_skip_trivial<'p, 't: 'p, D: Doc + 't>(
 
 /// Returns Ok if ellipsis pattern is found. If the ellipsis is named, returns it name.
 /// If the ellipsis is unnamed, returns None. If it is not ellipsis node, returns Err.
-fn try_get_ellipsis_mode(node: &Pattern<impl Language>) -> Result<Option<String>, ()> {
-  let Pattern::MetaVar { meta_var, .. } = node else {
+fn try_get_ellipsis_mode(node: &PatternNode) -> Result<Option<String>, ()> {
+  let PatternNode::MetaVar { meta_var, .. } = node else {
     return Err(());
   };
   match meta_var {

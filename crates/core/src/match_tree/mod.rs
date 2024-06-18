@@ -47,7 +47,7 @@ pub fn match_end_non_recursive<D: Doc>(
   candidate: Node<D>,
 ) -> Option<usize> {
   let mut end = ComputeEnd(0);
-  match_node_impl(goal, &candidate, &mut end)?;
+  match_node_impl(&goal.node, &candidate, &mut end)?;
   Some(end.0)
 }
 
@@ -113,7 +113,7 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
   candidate: Node<'tree, D>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<Node<'tree, D>> {
-  match_node_impl(goal, &candidate, env)?;
+  match_node_impl(&goal.node, &candidate, env)?;
   Some(candidate)
 }
 

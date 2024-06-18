@@ -13,10 +13,16 @@ use std::collections::HashSet;
 use std::marker::PhantomData;
 
 #[derive(Clone)]
-pub enum Pattern<L: Language> {
+pub struct Pattern<L: Language> {
+  pub node: PatternNode,
+  root_kind: Option<u16>,
+  lang: PhantomData<L>,
+}
+
+#[derive(Clone)]
+pub enum PatternNode {
   MetaVar {
     meta_var: MetaVariable,
-    kind: Option<u16>,
   },
   /// Node without children.
   Terminal {
@@ -27,31 +33,67 @@ pub enum Pattern<L: Language> {
   /// Non-Terminal Syntax Nodes are called Internal
   Internal {
     kind_id: u16,
-    children: Vec<Pattern<L>>,
-    lang: PhantomData<L>,
+    children: Vec<PatternNode>,
   },
+}
+
+impl PatternNode {
+  // for skipping trivial nodes in goal after ellipsis
+  pub fn is_trivial(&self) -> bool {
+    match self {
+      PatternNode::Terminal { is_named, .. } => !*is_named,
+      _ => false,
+    }
+  }
+
+  pub fn fixed_string(&self) -> Cow<str> {
+    match &self {
+      PatternNode::Terminal { text, .. } => Cow::Borrowed(text),
+      PatternNode::MetaVar { .. } => Cow::Borrowed(""),
+      PatternNode::Internal { children, .. } => {
+        children
+          .iter()
+          .map(|n| n.fixed_string())
+          .fold(Cow::Borrowed(""), |longest, curr| {
+            if longest.len() >= curr.len() {
+              longest
+            } else {
+              curr
+            }
+          })
+      }
+    }
+  }
+}
+impl<'r, D: Doc> From<Node<'r, D>> for PatternNode {
+  fn from(node: Node<'r, D>) -> Self {
+    convert_node_to_pattern(node)
+  }
 }
 
 impl<'r, D: Doc> From<Node<'r, D>> for Pattern<D::Lang> {
   fn from(node: Node<'r, D>) -> Self {
-    convert_node_to_pattern(node, None)
+    Self {
+      node: convert_node_to_pattern(node),
+      root_kind: None,
+      lang: PhantomData,
+    }
   }
 }
 
-fn convert_node_to_pattern<D: Doc>(node: Node<D>, kind: Option<u16>) -> Pattern<D::Lang> {
+fn convert_node_to_pattern<D: Doc>(node: Node<D>) -> PatternNode {
   if let Some(meta_var) = extract_var_from_node(&node) {
-    Pattern::MetaVar { meta_var, kind }
+    PatternNode::MetaVar { meta_var }
   } else if node.is_leaf() {
-    Pattern::Terminal {
+    PatternNode::Terminal {
       text: node.text().to_string(),
       is_named: node.is_named(),
       kind_id: node.kind_id(),
     }
   } else {
-    Pattern::Internal {
+    PatternNode::Internal {
       kind_id: node.kind_id(),
-      children: node.children().map(Pattern::from).collect(),
-      lang: PhantomData,
+      children: node.children().map(PatternNode::from).collect(),
     }
   }
 }
@@ -93,51 +135,27 @@ impl<L: Language> Pattern<L> {
     Self::new(src, lang)
   }
 
-  pub fn fixed_string(&self) -> Cow<str> {
-    match self {
-      Self::Terminal { text, .. } => Cow::Borrowed(text),
-      Self::MetaVar { .. } => Cow::Borrowed(""),
-      Self::Internal { children, .. } => {
-        children
-          .iter()
-          .map(|n| n.fixed_string())
-          .fold(Cow::Borrowed(""), |longest, curr| {
-            if longest.len() >= curr.len() {
-              longest
-            } else {
-              curr
-            }
-          })
-      }
-    }
-  }
-
   pub fn has_error(&self) -> bool {
-    let kind = match self {
-      Pattern::Terminal { kind_id, .. } => *kind_id,
-      Pattern::Internal { kind_id, .. } => *kind_id,
-      Pattern::MetaVar {
-        kind: Some(kind_id),
-        ..
-      } => *kind_id,
-      Pattern::MetaVar { kind: None, .. } => return false,
+    let kind = match &self.node {
+      PatternNode::Terminal { kind_id, .. } => *kind_id,
+      PatternNode::Internal { kind_id, .. } => *kind_id,
+      PatternNode::MetaVar { .. } => match self.root_kind {
+        Some(k) => k,
+        None => return false,
+      },
     };
     KindMatcher::<L>::from_id(kind).is_error_matcher()
   }
 
-  // for skipping trivial nodes in goal after ellipsis
-  pub fn is_trivial(&self) -> bool {
-    match self {
-      Pattern::Terminal { is_named, .. } => !*is_named,
-      _ => false,
-    }
+  pub fn fixed_string(&self) -> Cow<str> {
+    self.node.fixed_string()
   }
 
   /// Get all defined variables in the pattern.
   /// Used for validating rules and report undefined variables.
   pub fn defined_vars(&self) -> HashSet<&str> {
     let mut vars = HashSet::new();
-    collect_vars(self, &mut vars);
+    collect_vars(&self.node, &mut vars);
     vars
   }
 }
@@ -152,17 +170,17 @@ fn meta_var_name(meta_var: &MetaVariable) -> Option<&str> {
   }
 }
 
-fn collect_vars<'p, L: Language>(p: &'p Pattern<L>, vars: &mut HashSet<&'p str>) {
+fn collect_vars<'p>(p: &'p PatternNode, vars: &mut HashSet<&'p str>) {
   match p {
-    Pattern::MetaVar { meta_var, .. } => {
+    PatternNode::MetaVar { meta_var, .. } => {
       if let Some(name) = meta_var_name(meta_var) {
         vars.insert(name);
       }
     }
-    Pattern::Terminal { .. } => {
+    PatternNode::Terminal { .. } => {
       // collect nothing for terminal nodes!
     }
-    Pattern::Internal { children, .. } => {
+    PatternNode::Internal { children, .. } => {
       for c in children {
         collect_vars(c, vars);
       }
@@ -200,10 +218,11 @@ impl<L: Language> Pattern<L> {
         selector: selector.into(),
       });
     };
-    Ok(convert_node_to_pattern(
-      node.get_node().clone(),
-      Some(node.kind_id()),
-    ))
+    Ok(Self {
+      root_kind: Some(node.kind_id()),
+      node: convert_node_to_pattern(node.get_node().clone()),
+      lang: PhantomData,
+    })
   }
   pub fn doc(doc: StrDoc<L>) -> Self {
     let root = Root::doc(doc);
@@ -237,11 +256,12 @@ impl<L: Language> Matcher<L> for Pattern<L> {
   }
 
   fn potential_kinds(&self) -> Option<bit_set::BitSet> {
-    let kind = match self {
-      Self::Terminal { kind_id, .. } => *kind_id,
-      Self::MetaVar { kind, .. } => (*kind)?,
-      Self::Internal { kind_id, .. } => *kind_id,
+    let kind = match self.node {
+      PatternNode::Terminal { kind_id, .. } => kind_id,
+      PatternNode::MetaVar { .. } => self.root_kind?,
+      PatternNode::Internal { kind_id, .. } => kind_id,
     };
+
     let mut kinds = BitSet::new();
     kinds.insert(kind.into());
     Some(kinds)
@@ -253,14 +273,19 @@ impl<L: Language> Matcher<L> for Pattern<L> {
     Some(end - start)
   }
 }
-
-impl<L: Language> std::fmt::Debug for Pattern<L> {
+impl std::fmt::Debug for PatternNode {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Self::MetaVar { meta_var, .. } => write!(f, "{:?}", meta_var),
       Self::Terminal { text, .. } => write!(f, "{}", text),
       Self::Internal { children, .. } => write!(f, "{:?}", children),
     }
+  }
+}
+
+impl<L: Language> std::fmt::Debug for Pattern<L> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{:?}", self.node)
   }
 }
 
