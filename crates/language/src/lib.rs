@@ -21,6 +21,7 @@ mod lua;
 mod parsers;
 mod php;
 mod python;
+// mod r;
 mod ruby;
 mod rust;
 mod scala;
@@ -123,6 +124,7 @@ impl_lang_expando!(Kotlin, language_kotlin, 'µ');
 // https://docs.python.org/3/reference/lexical_analysis.html#identifiers
 // see also [PEP 3131](https://peps.python.org/pep-3131/) for further details.
 impl_lang_expando!(Python, language_python, 'µ');
+impl_lang_expando!(R, language_r, 'λ');
 // https://github.com/tree-sitter/tree-sitter-ruby/blob/f257f3f57833d584050336921773738a3fd8ca22/grammar.js#L30C26-L30C78
 impl_lang_expando!(Ruby, language_ruby, 'µ');
 // we can use any char in unicode range [:XID_Start:]
@@ -166,6 +168,7 @@ pub enum SupportLang {
   Lua,
   Php,
   Python,
+  R,
   Ruby,
   Rust,
   Scala,
@@ -179,7 +182,7 @@ impl SupportLang {
     use SupportLang::*;
     &[
       Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin,
-      Lua, Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript,
+      Lua, Php, Python, R, Ruby, Rust, Scala, Swift, Tsx, TypeScript,
     ]
   }
 
@@ -240,6 +243,7 @@ const fn alias(lang: &SupportLang) -> &[&str] {
     Lua => &["lua"],
     Php => &["php-exp"],
     Python => &["py", "python"],
+    R => &["r", "R"],
     Ruby => &["rb", "ruby"],
     Rust => &["rs", "rust"],
     Scala => &["scala"],
@@ -285,6 +289,7 @@ macro_rules! execute_lang_method {
       S::Lua => Lua.$method($($pname,)*),
       S::Php => Php.$method($($pname,)*),
       S::Python => Python.$method($($pname,)*),
+      S::R => R.$method($($pname,)*),
       S::Ruby => Ruby.$method($($pname,)*),
       S::Rust => Rust.$method($($pname,)*),
       S::Scala => Scala.$method($($pname,)*),
@@ -341,6 +346,7 @@ fn extensions(lang: &SupportLang) -> &[&str] {
     Lua => &["lua"],
     Php => &["php"],
     Python => &["py", "py3", "pyi", "bzl"],
+    R => &["r", "R"],
     Ruby => &["rb", "rbw", "gemspec"],
     Rust => &["rs"],
     Scala => &["scala", "sc", "sbt"],
