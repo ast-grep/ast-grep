@@ -41,8 +41,8 @@ devDependencies:
     specifier: 20.14.2
     version: 20.14.2
   prettier:
-    specifier: 3.3.1
-    version: 3.3.1
+    specifier: 3.3.2
+    version: 3.3.2
   ts-node:
     specifier: 10.9.2
     version: 10.9.2(@swc/core@1.6.1)(@types/node@20.14.2)(typescript@5.4.5)
@@ -1060,8 +1060,8 @@ packages:
       tunnel-agent: 0.6.0
     dev: false
 
-  /prettier@3.3.1:
-    resolution: {integrity: sha512-7CAwy5dRsxs8PHXT3twixW9/OEll8MLE0VRPCJyl7CkS6VHGPSlsVaWTiASPTyGyYRyApxlaWTzwUxVNrhcwDg==}
+  /prettier@3.3.2:
+    resolution: {integrity: sha512-rAVeHYMcv8ATV5d508CFdn+8/pHPpXeIid1DdrPwXnaAdH7cqjVbpJaT5eq4yRAFU/lsbwYwSF/n5iNrdJHPQA==}
     engines: {node: '>=14'}
     hasBin: true
     dev: true
