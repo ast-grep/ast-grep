@@ -1,5 +1,5 @@
 use crate::language::Language;
-use crate::match_tree::{match_end_non_recursive, match_node_non_recursive};
+use crate::match_tree::{match_end_non_recursive, match_node_non_recursive, MatchStrictness};
 use crate::matcher::{KindMatcher, KindMatcherError, Matcher};
 use crate::meta_var::{MetaVarEnv, MetaVariable};
 use crate::source::TSParseError;
@@ -17,6 +17,7 @@ pub struct Pattern<L: Language> {
   pub node: PatternNode,
   root_kind: Option<u16>,
   lang: PhantomData<L>,
+  pub strictness: MatchStrictness,
 }
 
 #[derive(Clone)]
@@ -77,6 +78,7 @@ impl<'r, D: Doc> From<Node<'r, D>> for Pattern<D::Lang> {
       node: convert_node_to_pattern(node),
       root_kind: None,
       lang: PhantomData,
+      strictness: MatchStrictness::Smart,
     }
   }
 }
@@ -222,6 +224,7 @@ impl<L: Language> Pattern<L> {
       root_kind: Some(node.kind_id()),
       node: convert_node_to_pattern(node.get_node().clone()),
       lang: PhantomData,
+      strictness: MatchStrictness::Smart,
     })
   }
   pub fn doc(doc: StrDoc<L>) -> Self {

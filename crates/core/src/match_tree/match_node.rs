@@ -8,6 +8,7 @@ pub(super) fn match_node_impl<'tree, D: Doc>(
   goal: &PatternNode,
   candidate: &Node<'tree, D>,
   agg: &mut impl Aggregator<'tree, D>,
+  strictness: &MatchStrictness,
 ) -> Option<()> {
   use PatternNode as P;
   match &goal {
@@ -24,7 +25,7 @@ pub(super) fn match_node_impl<'tree, D: Doc>(
       kind_id, children, ..
     } if *kind_id == candidate.kind_id() => {
       let cand_children = candidate.children();
-      match_nodes_impl_recursive(children, cand_children, agg, &MatchStrictness::Smart)
+      match_nodes_impl_recursive(children, cand_children, agg, strictness)
     }
     _ => None,
   }
@@ -40,7 +41,7 @@ fn match_nodes_impl_recursive<'tree, D: Doc + 'tree>(
   let mut cand_children = candidates.peekable();
   cand_children.peek()?;
   loop {
-    match may_match_ellipsis_impl(&mut goal_children, &mut cand_children, agg)? {
+    match may_match_ellipsis_impl(&mut goal_children, &mut cand_children, agg, strictness)? {
       ControlFlow::Return => return Some(()),
       ControlFlow::Continue => continue,
       ControlFlow::Fallthrough => (),
@@ -78,6 +79,7 @@ fn may_match_ellipsis_impl<'p, 't: 'p, D: Doc + 't>(
   goal_children: &mut Peekable<impl Iterator<Item = &'p PatternNode>>,
   cand_children: &mut Peekable<impl Iterator<Item = Node<'t, D>>>,
   agg: &mut impl Aggregator<'t, D>,
+  strictness: &MatchStrictness,
 ) -> Option<ControlFlow> {
   let curr_node = goal_children.peek().unwrap();
   let Ok(optional_name) = try_get_ellipsis_mode(curr_node) else {
@@ -124,6 +126,7 @@ fn may_match_ellipsis_impl<'p, 't: 'p, D: Doc + 't>(
       goal_children.peek().unwrap(),
       cand_children.peek().unwrap(),
       agg,
+      strictness,
     )
     .is_some()
     {
@@ -153,7 +156,7 @@ fn match_single_node_while_skip_trivial<'p, 't: 'p, D: Doc + 't>(
       // if cand runs out, remaining goal is not matched
       return None;
     };
-    let matched = match_node_impl(goal_children.peek().unwrap(), cand, agg).is_some();
+    let matched = match_node_impl(goal_children.peek().unwrap(), cand, agg, strictness).is_some();
     // try match goal node with candidate node
     if matched {
       return Some(ControlFlow::Fallthrough);
