@@ -1,5 +1,6 @@
 use crate::{Doc, Node};
 
+#[derive(Clone)]
 pub enum MatchStrictness {
   Cst,       // all nodes are matched
   Smart,     // all nodes except source trivial nodes are matched.

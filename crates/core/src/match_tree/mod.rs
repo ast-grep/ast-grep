@@ -2,6 +2,7 @@ mod match_node;
 mod strictness;
 
 use match_node::match_node_impl;
+pub use strictness::MatchStrictness;
 
 use crate::meta_var::{MetaVarEnv, MetaVariable};
 use crate::{Doc, Node, Pattern};
@@ -47,7 +48,7 @@ pub fn match_end_non_recursive<D: Doc>(
   candidate: Node<D>,
 ) -> Option<usize> {
   let mut end = ComputeEnd(0);
-  match_node_impl(&goal.node, &candidate, &mut end)?;
+  match_node_impl(&goal.node, &candidate, &mut end, &goal.strictness)?;
   Some(end.0)
 }
 
@@ -113,7 +114,7 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
   candidate: Node<'tree, D>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<Node<'tree, D>> {
-  match_node_impl(&goal.node, &candidate, env)?;
+  match_node_impl(&goal.node, &candidate, env, &goal.strictness)?;
   Some(candidate)
 }
 
