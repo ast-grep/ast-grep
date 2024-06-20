@@ -21,7 +21,7 @@ mod lua;
 mod parsers;
 mod php;
 mod python;
-// mod r;
+mod r;
 mod ruby;
 mod rust;
 mod scala;

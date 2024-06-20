@@ -34,7 +34,7 @@ tree-sitter-kotlin = { version = "0.3.6", optional = true }
 tree-sitter-lua = { version = "0.1.0", optional = true }
 tree-sitter-php = { version = "0.22.4", optional = true }
 tree-sitter-python = { version = "0.21.0", optional = true }
-tree-sitter-r = { git = "https://github.com/r-lib/tree-sitter-r", optional = true }
+tree-sitter-r = { version = "1.0.1", optional = true }
 tree-sitter-ruby = { version = "0.21.0", optional = true }
 tree-sitter-rust = { version = "0.21.2", optional = true }
 tree-sitter-scala = { version = "0.21.0", optional = true }
