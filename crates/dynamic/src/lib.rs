@@ -265,7 +265,7 @@ mod test {
     "../../benches/fixtures/json-linux.so"
   }
 
-  #[cfg(target_os = "macos")]
+  #[cfg(any(target_os = "macos", target_os = "linux"))]
   #[test]
   fn test_load_parser() {
     let path = get_tree_sitter_path();
@@ -277,7 +277,7 @@ mod test {
     );
   }
 
-  #[cfg(target_os = "macos")]
+  #[cfg(any(target_os = "macos", target_os = "linux"))]
   #[test]
   fn test_register_lang() {
     let registration = Registration {
