@@ -1,4 +1,4 @@
-use super::strictness::MatchStrictness;
+use super::strictness::{MatchOneNode, MatchStrictness};
 use super::Aggregator;
 use crate::matcher::PatternNode;
 use crate::meta_var::MetaVariable;
@@ -9,25 +9,38 @@ pub(super) fn match_node_impl<'tree, D: Doc>(
   candidate: &Node<'tree, D>,
   agg: &mut impl Aggregator<'tree, D>,
   strictness: &MatchStrictness,
-) -> Option<()> {
+) -> MatchOneNode {
   use PatternNode as P;
   match &goal {
     // leaf = without named children
-    P::Terminal { text, kind_id, .. } if *kind_id == candidate.kind_id() => {
-      if *text == candidate.text() {
-        agg.match_terminal(candidate)
-      } else {
-        None
+    P::Terminal {
+      text,
+      kind_id,
+      is_named,
+    } => match strictness.match_terminal(*is_named, text, *kind_id, candidate) {
+      MatchOneNode::MatchedBoth => {
+        if agg.match_terminal(candidate).is_some() {
+          MatchOneNode::MatchedBoth
+        } else {
+          MatchOneNode::NoMatch
+        }
       }
-    }
-    P::MetaVar { meta_var, .. } => agg.match_meta_var(meta_var, candidate),
+      c => c,
+    },
+    P::MetaVar { meta_var, .. } => match agg.match_meta_var(meta_var, candidate) {
+      Some(()) => MatchOneNode::MatchedBoth,
+      None => MatchOneNode::NoMatch, // TODO: this may be wrong
+    },
     P::Internal {
       kind_id, children, ..
     } if *kind_id == candidate.kind_id() => {
       let cand_children = candidate.children();
-      match_nodes_impl_recursive(children, cand_children, agg, strictness)
+      match match_nodes_impl_recursive(children, cand_children, agg, strictness) {
+        Some(()) => MatchOneNode::MatchedBoth,
+        None => MatchOneNode::NoMatch,
+      }
     }
-    _ => None,
+    _ => MatchOneNode::NoMatch, // TODO
   }
 }
 
@@ -122,14 +135,15 @@ fn may_match_ellipsis_impl<'p, 't: 'p, D: Doc + 't>(
     return Some(ControlFlow::Continue);
   }
   loop {
-    if match_node_impl(
-      goal_children.peek().unwrap(),
-      cand_children.peek().unwrap(),
-      agg,
-      strictness,
-    )
-    .is_some()
-    {
+    if matches!(
+      match_node_impl(
+        goal_children.peek().unwrap(),
+        cand_children.peek().unwrap(),
+        agg,
+        strictness,
+      ),
+      MatchOneNode::MatchedBoth
+    ) {
       // found match non Ellipsis,
       match_ellipsis(
         agg,
@@ -156,17 +170,22 @@ fn match_single_node_while_skip_trivial<'p, 't: 'p, D: Doc + 't>(
       // if cand runs out, remaining goal is not matched
       return None;
     };
-    let matched = match_node_impl(goal_children.peek().unwrap(), cand, agg, strictness).is_some();
     // try match goal node with candidate node
-    if matched {
-      return Some(ControlFlow::Fallthrough);
-    } else if strictness.should_skip_matching_node(cand) {
+    match match_node_impl(goal_children.peek().unwrap(), cand, agg, strictness) {
+      MatchOneNode::MatchedBoth => return Some(ControlFlow::Fallthrough),
+      MatchOneNode::SkipGoal => {
+        goal_children.next();
+      }
+      MatchOneNode::SkipBoth => {
+        goal_children.next();
+        cand_children.next();
+      }
       // skip trivial node
-      // TODO: nade with field should not be skipped
-      cand_children.next();
-    } else {
+      MatchOneNode::SkipCandidate => {
+        cand_children.next();
+      }
       // unmatched significant node
-      return None;
+      MatchOneNode::NoMatch => return None,
     }
   }
 }
