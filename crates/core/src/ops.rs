@@ -87,11 +87,17 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
         return None;
       }
     }
-    self
+    let mut new_env = Cow::Borrowed(env.as_ref());
+    let all_satisfied = self
       .patterns
       .iter()
-      .all(|p| p.match_node_with_env(node.clone(), env).is_some())
-      .then_some(node)
+      .all(|p| p.match_node_with_env(node.clone(), &mut new_env).is_some());
+    if all_satisfied {
+      *env = Cow::Owned(new_env.into_owned());
+      Some(node)
+    } else {
+      None
+    }
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
@@ -572,5 +578,17 @@ mod test {
     let matches = code.root().find(matcher).expect("should found");
     assert!(matches.get_env().get_match("A").is_none());
     assert_eq!(matches.get_env().get_match("B").unwrap().text(), "123");
+  }
+
+  // gh #1225
+  #[test]
+  fn test_all_revert_env() {
+    let matcher = Op::all(["$A(123)".t(), "$B(456)".t()]);
+    let code = Root::str("foo(123)", Tsx);
+    let node = code.root().find("foo($C)").expect("should exist");
+    let node = node.get_node().clone();
+    let mut env = Cow::Owned(MetaVarEnv::new());
+    assert!(matcher.match_node_with_env(node, &mut env).is_none());
+    assert!(env.get_match("A").is_none());
   }
 }
