@@ -2,6 +2,7 @@ mod match_node;
 mod strictness;
 
 use match_node::match_node_impl;
+use strictness::MatchOneNode;
 pub use strictness::MatchStrictness;
 
 use crate::meta_var::{MetaVarEnv, MetaVariable};
@@ -48,8 +49,10 @@ pub fn match_end_non_recursive<D: Doc>(
   candidate: Node<D>,
 ) -> Option<usize> {
   let mut end = ComputeEnd(0);
-  match_node_impl(&goal.node, &candidate, &mut end, &goal.strictness)?;
-  Some(end.0)
+  match match_node_impl(&goal.node, &candidate, &mut end, &goal.strictness) {
+    MatchOneNode::MatchedBoth => Some(end.0),
+    _ => None,
+  }
 }
 
 fn match_leaf_meta_var<'tree, D: Doc>(
@@ -114,8 +117,10 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
   candidate: Node<'tree, D>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<Node<'tree, D>> {
-  match_node_impl(&goal.node, &candidate, env, &goal.strictness)?;
-  Some(candidate)
+  match match_node_impl(&goal.node, &candidate, env, &goal.strictness) {
+    MatchOneNode::MatchedBoth => Some(candidate),
+    _ => None,
+  }
 }
 
 pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: &Node<D>) -> bool {

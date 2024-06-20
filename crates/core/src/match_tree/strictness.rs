@@ -9,7 +9,52 @@ pub enum MatchStrictness {
   Signature, // ast-nodes excluding comments, without text
 }
 
+pub(crate) enum MatchOneNode {
+  MatchedBoth,
+  SkipBoth,
+  SkipGoal,
+  SkipCandidate,
+  NoMatch,
+}
+
 impl MatchStrictness {
+  pub(crate) fn match_terminal<D: Doc>(
+    &self,
+    is_named: bool,
+    text: &str,
+    kind: u16,
+    candidate: &Node<D>,
+  ) -> MatchOneNode {
+    use MatchStrictness as M;
+    let k = candidate.kind_id();
+    if k == kind && text == candidate.text() {
+      return MatchOneNode::MatchedBoth;
+    }
+    let (skip_goal, skip_candidate) = match self {
+      M::Cst => (false, false),
+      M::Smart => (false, !candidate.is_named()),
+      M::Ast => (!is_named, !candidate.is_named()),
+      M::Lenient => (
+        !is_named,
+        !candidate.is_named() || candidate.is_comment_like(),
+      ),
+      M::Signature => {
+        if k == kind {
+          return MatchOneNode::MatchedBoth;
+        }
+        (
+          !is_named,
+          !candidate.is_named() || candidate.is_comment_like(),
+        )
+      }
+    };
+    match (skip_goal, skip_candidate) {
+      (true, true) => MatchOneNode::SkipBoth,
+      (true, false) => MatchOneNode::SkipGoal,
+      (false, true) => MatchOneNode::SkipCandidate,
+      (false, false) => MatchOneNode::NoMatch,
+    }
+  }
   pub fn should_skip_matching_node<D: Doc>(&self, node: &Node<D>) -> bool {
     use MatchStrictness::*;
     match self {
