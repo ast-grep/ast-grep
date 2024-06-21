@@ -141,9 +141,6 @@ impl<'r, D: Doc> Node<'r, D> {
   pub fn is_error(&self) -> bool {
     self.inner.is_error()
   }
-  pub fn is_comment_like(&self) -> bool {
-    todo!()
-  }
   pub fn kind(&self) -> Cow<str> {
     self.inner.kind()
   }

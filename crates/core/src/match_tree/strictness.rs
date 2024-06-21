@@ -17,6 +17,14 @@ pub(crate) enum MatchOneNode {
   NoMatch,
 }
 
+fn skip_comment_or_unnamed(n: &Node<impl Doc>) -> bool {
+  if !n.is_named() {
+    return true;
+  }
+  let kind = n.kind();
+  kind.contains("comment")
+}
+
 impl MatchStrictness {
   pub(crate) fn match_terminal<D: Doc>(
     &self,
@@ -34,18 +42,12 @@ impl MatchStrictness {
       M::Cst => (false, false),
       M::Smart => (false, !candidate.is_named()),
       M::Ast => (!is_named, !candidate.is_named()),
-      M::Lenient => (
-        !is_named,
-        !candidate.is_named() || candidate.is_comment_like(),
-      ),
+      M::Lenient => (!is_named, skip_comment_or_unnamed(candidate)),
       M::Signature => {
         if k == kind {
           return MatchOneNode::MatchedBoth;
         }
-        (
-          !is_named,
-          !candidate.is_named() || candidate.is_comment_like(),
-        )
+        (!is_named, skip_comment_or_unnamed(candidate))
       }
     };
     match (skip_goal, skip_candidate) {
