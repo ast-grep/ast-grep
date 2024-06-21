@@ -122,6 +122,9 @@ jobs:
           architecture: ${{ matrix.platform.arch }}
       - name: "Build wheels"
         uses: PyO3/maturin-action@v1
+        env:
+          # https://github.com/rust-cross/cargo-xwin/issues/108
+          XWIN_VERSION: "16"
         with:
           target: ${{ matrix.platform.target }}
           args: --release --out dist
