@@ -589,4 +589,23 @@ inside:
     );
     assert!(root.root().find(rule).is_some());
   }
+
+  #[test]
+  fn test_issue_1225() {
+    let src = r"
+    kind: statement_block
+    has:
+      pattern: $A
+      regex: const";
+    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let rule = deserialize_rule(rule, &env).expect("should deserialize");
+    let root = TypeScript::Tsx.ast_grep(
+      "{
+        let x = 1;
+        const z = 9;
+      }",
+    );
+    assert!(root.root().find(rule).is_some());
+  }
 }
