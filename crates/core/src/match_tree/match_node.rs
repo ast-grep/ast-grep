@@ -175,10 +175,16 @@ fn match_single_node_while_skip_trivial<'p, 't: 'p, D: Doc + 't>(
       MatchOneNode::MatchedBoth => return Some(ControlFlow::Fallthrough),
       MatchOneNode::SkipGoal => {
         goal_children.next();
+        if goal_children.peek().is_none() {
+          return Some(ControlFlow::Fallthrough);
+        }
       }
       MatchOneNode::SkipBoth => {
-        goal_children.next();
         cand_children.next();
+        goal_children.next();
+        if goal_children.peek().is_none() {
+          return Some(ControlFlow::Fallthrough);
+        }
       }
       // skip trivial node
       MatchOneNode::SkipCandidate => {
@@ -213,4 +219,65 @@ fn match_ellipsis<'t, D: Doc>(
   matched.extend(cand_children);
   agg.match_ellipsis(optional_name.as_deref(), matched, skipped_anonymous)?;
   Some(())
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::language::Tsx;
+  use crate::matcher::KindMatcher;
+  use crate::{meta_var::MetaVarEnv, Matcher, Pattern, Root};
+  use std::borrow::Cow;
+  fn match_tree(p: &str, n: &str, strictness: MatchStrictness) -> MatchOneNode {
+    let pattern = Pattern::str(p, Tsx);
+    let kind = pattern.potential_kinds().expect("should have kind");
+    let kind = KindMatcher::from_id(kind.into_iter().next().expect("should have kind") as u16);
+    let n = Root::str(n, Tsx);
+    let n = n.root().find(kind).expect("should find");
+    let mut env = Cow::Owned(MetaVarEnv::new());
+    match_node_impl(&pattern.node, &n, &mut env, &strictness)
+  }
+  fn matched(p: &str, n: &str, strictness: MatchStrictness) {
+    let ret = match_tree(p, n, strictness);
+    assert!(
+      matches!(ret, MatchOneNode::MatchedBoth),
+      "expect match. pattern: `{p}`, node: `{n}`"
+    );
+  }
+  fn unmatched(p: &str, n: &str, strictness: MatchStrictness) {
+    let ret = match_tree(p, n, strictness);
+    assert!(
+      !matches!(ret, MatchOneNode::MatchedBoth),
+      "expect no match. pattern: `{p}`, node: `{n}`"
+    );
+  }
+  use MatchStrictness as M;
+
+  #[test]
+  fn test_ast_match() {
+    matched("import $A from 'lib'", "import A from \"lib\"", M::Ast);
+    unmatched("$A(bar)", "foo(/* A*/bar)", M::Ast);
+  }
+
+  #[test]
+  fn test_lenient_match() {
+    matched("import $A from 'lib'", "import A from \"lib\"", M::Lenient);
+    matched("$A(bar)", "foo(/* A*/bar)", M::Lenient);
+  }
+
+  #[test]
+  fn test_cst_match() {
+    unmatched("import $A from 'lib'", "import A from \"lib\"", M::Cst);
+    unmatched("$A(bar)", "foo(/* A*/bar)", M::Cst);
+  }
+
+  #[test]
+  fn test_signature_match() {
+    matched(
+      "import $A from 'lib'",
+      "import A from \"lib\"",
+      M::Signature,
+    );
+    matched("$A(bar)", "foo(/* A*/bar)", M::Signature);
+  }
 }
