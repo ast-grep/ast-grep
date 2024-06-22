@@ -21,6 +21,7 @@ mod match_tree;
 mod node;
 
 pub use language::Language;
+pub use match_tree::MatchStrictness;
 pub use matcher::{Matcher, NodeMatch, Pattern, PatternError};
 pub use node::Node;
 pub use source::{Doc, StrDoc};

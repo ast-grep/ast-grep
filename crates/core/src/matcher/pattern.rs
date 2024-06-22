@@ -209,6 +209,11 @@ impl<L: Language> Pattern<L> {
     Self::try_new(src, lang).unwrap()
   }
 
+  pub fn with_strictness(mut self, strictness: MatchStrictness) -> Self {
+    self.strictness = strictness;
+    self
+  }
+
   pub fn contextual(context: &str, selector: &str, lang: L) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(context);
     let root = Root::<StrDoc<L>>::try_new(&processed, lang.clone())?;

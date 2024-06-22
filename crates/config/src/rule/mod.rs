@@ -17,7 +17,7 @@ use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::ops as o;
-use ast_grep_core::{Doc, Matcher, Node, Pattern, PatternError};
+use ast_grep_core::{Doc, MatchStrictness, Matcher, Node, Pattern, PatternError};
 
 use bit_set::BitSet;
 use schemars::JsonSchema;
@@ -89,14 +89,14 @@ pub struct SerializableRule {
   pub matches: Maybe<String>,
 }
 
-pub struct Categorized {
+struct Categorized {
   pub atomic: AtomicRule,
   pub relational: RelationalRule,
   pub composite: CompositeRule,
 }
 
 impl SerializableRule {
-  pub fn categorized(self) -> Categorized {
+  fn categorized(self) -> Categorized {
     Categorized {
       atomic: AtomicRule {
         pattern: self.pattern.into(),
@@ -126,9 +126,51 @@ pub struct AtomicRule {
   pub regex: Option<String>,
   pub nth_child: Option<SerializableNthChild>,
 }
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum Strictness {
+  /// all nodes are matched
+  Cst,
+  /// all nodes except source trivial nodes are matched.
+  Smart,
+  /// only ast nodes are matched
+  Ast,
+  /// ast-nodes excluding comments are matched
+  Lenient,
+  /// ast-nodes excluding comments, without text
+  Signature,
+}
+
+impl From<MatchStrictness> for Strictness {
+  fn from(value: MatchStrictness) -> Self {
+    use MatchStrictness as M;
+    use Strictness as S;
+    match value {
+      M::Cst => S::Cst,
+      M::Smart => S::Smart,
+      M::Ast => S::Ast,
+      M::Lenient => S::Lenient,
+      M::Signature => S::Signature,
+    }
+  }
+}
+
+impl From<Strictness> for MatchStrictness {
+  fn from(value: Strictness) -> Self {
+    use MatchStrictness as M;
+    use Strictness as S;
+    match value {
+      S::Cst => M::Cst,
+      S::Smart => M::Smart,
+      S::Ast => M::Ast,
+      S::Lenient => M::Lenient,
+      S::Signature => M::Signature,
+    }
+  }
+}
 
 /// A String pattern will match one single AST node according to pattern syntax.
-/// Or an object with field `context` and `selector`.
+/// Or an object with field `context`, `selector` and optionally `strictness`.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(untagged)]
 pub enum PatternStyle {
@@ -137,7 +179,9 @@ pub enum PatternStyle {
     /// The surrounding code that helps to resolve any ambiguity in the syntax.
     context: String,
     /// The sub-syntax node kind that is the actual matcher of the pattern.
-    selector: String,
+    selector: Option<String>,
+    /// Strictness of the pattern. More strict pattern matches fewer nodes.
+    strictness: Option<Strictness>,
   },
 }
 
@@ -408,8 +452,22 @@ fn deserialze_atomic_rule<L: Language>(
   if let Some(pattern) = atomic.pattern {
     rules.push(match pattern {
       PatternStyle::Str(pat) => R::Pattern(Pattern::try_new(&pat, env.lang.clone())?),
-      PatternStyle::Contextual { context, selector } => {
-        R::Pattern(Pattern::contextual(&context, &selector, env.lang.clone())?)
+      PatternStyle::Contextual {
+        context,
+        selector,
+        strictness,
+      } => {
+        let pattern = if let Some(selector) = selector {
+          Pattern::contextual(&context, &selector, env.lang.clone())?
+        } else {
+          Pattern::try_new(&context, env.lang.clone())?
+        };
+        let pattern = if let Some(strictness) = strictness {
+          pattern.with_strictness(strictness.into())
+        } else {
+          pattern
+        };
+        R::Pattern(pattern)
       }
     });
   }
