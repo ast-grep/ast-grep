@@ -1,4 +1,5 @@
 use crate::{Doc, Node};
+use std::str::FromStr;
 
 #[derive(Clone)]
 pub enum MatchStrictness {
@@ -58,6 +59,7 @@ impl MatchStrictness {
     }
   }
 
+  // TODO: this is a method for working around trailing nodes after pattern is matched
   pub(crate) fn should_skip_trailing<D: Doc>(&self, candidate: &Node<D>) -> bool {
     use MatchStrictness as M;
     match self {
@@ -66,6 +68,20 @@ impl MatchStrictness {
       M::Ast => false,
       M::Lenient => skip_comment_or_unnamed(candidate),
       M::Signature => skip_comment_or_unnamed(candidate),
+    }
+  }
+}
+
+impl FromStr for MatchStrictness {
+  type Err = &'static str;
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    match s {
+      "cst" => Ok(MatchStrictness::Cst),
+      "smart" => Ok(MatchStrictness::Smart),
+      "ast" => Ok(MatchStrictness::Ast),
+      "lenient" => Ok(MatchStrictness::Lenient),
+      "signature" => Ok(MatchStrictness::Signature),
+      _ => Err("invalid strictness, valid options are: cst, smart, ast, lenient, signature"),
     }
   }
 }

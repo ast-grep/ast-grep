@@ -2,9 +2,9 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ast_grep_config::Fixer;
-use ast_grep_core::{Matcher, Pattern};
+use ast_grep_core::{MatchStrictness, Matcher, Pattern};
 use ast_grep_language::Language;
-use clap::Parser;
+use clap::{builder::PossibleValue, Parser, ValueEnum};
 use ignore::WalkParallel;
 
 use crate::config::register_custom_language;
@@ -35,6 +35,31 @@ fn lang_help() -> String {
 
 const LANG_HELP_LONG: &str = "The language of the pattern. For full language list, visit https://ast-grep.github.io/reference/languages.html";
 
+#[derive(Clone)]
+struct Strictness(MatchStrictness);
+impl ValueEnum for Strictness {
+  fn value_variants<'a>() -> &'a [Self] {
+    use MatchStrictness as M;
+    &[
+      Strictness(M::Cst),
+      Strictness(M::Smart),
+      Strictness(M::Ast),
+      Strictness(M::Lenient),
+      Strictness(M::Signature),
+    ]
+  }
+  fn to_possible_value(&self) -> Option<PossibleValue> {
+    use MatchStrictness as M;
+    Some(PossibleValue::new(match &self.0 {
+      M::Cst => "cst",
+      M::Smart => "smart",
+      M::Ast => "ast",
+      M::Lenient => "lenient",
+      M::Signature => "signature",
+    }))
+  }
+}
+
 #[derive(Parser)]
 pub struct RunArg {
   // search pattern related options
@@ -53,6 +78,10 @@ pub struct RunArg {
   /// Print query pattern's tree-sitter AST. Requires lang be set explicitly.
   #[clap(long, requires = "lang")]
   debug_query: bool,
+
+  /// The strictness of the pattern.
+  #[clap(long)]
+  strictness: Option<Strictness>,
 
   /// input related options
   #[clap(flatten)]
@@ -103,6 +132,17 @@ pub struct RunArg {
   /// It conflicts with both the -B/--before and -A/--after flags.
   #[clap(short = 'C', long, default_value = "0", value_name = "NUM")]
   context: u16,
+}
+
+impl RunArg {
+  fn build_pattern(&self, lang: SgLang) -> Result<Pattern<SgLang>> {
+    let pattern = Pattern::try_new(&self.pattern, lang).context(EC::ParsePattern)?;
+    if let Some(strictness) = &self.strictness {
+      Ok(pattern.with_strictness(strictness.0.clone()))
+    } else {
+      Ok(pattern)
+    }
+  }
 }
 
 // Every run will include Search or Replace
@@ -177,7 +217,7 @@ impl<P: Printer> PathWorker for RunWithInferredLang<P> {
 
   fn produce_item(&self, path: &Path) -> Option<Self::Item> {
     let lang = SgLang::from_path(path)?;
-    let matcher = Pattern::try_new(&self.arg.pattern, lang).ok()?;
+    let matcher = self.arg.build_pattern(lang).ok()?;
     let match_unit = filter_file_pattern(path, lang, matcher)?;
     Some((match_unit, lang))
   }
@@ -191,9 +231,8 @@ struct RunWithSpecificLang<Printer> {
 
 impl<Printer> RunWithSpecificLang<Printer> {
   fn new(arg: RunArg, printer: Printer) -> Result<Self> {
-    let pattern = &arg.pattern;
     let lang = arg.lang.ok_or(anyhow::anyhow!(EC::LanguageNotSpecified))?;
-    let pattern = Pattern::try_new(pattern, lang).context(EC::ParsePattern)?;
+    let pattern = arg.build_pattern(lang)?;
     Ok(Self {
       arg,
       printer,
@@ -291,6 +330,7 @@ mod test {
       lang: None,
       heading: Heading::Never,
       debug_query: false,
+      strictness: None,
       input: InputArgs {
         no_ignore: vec![],
         stdin: false,
