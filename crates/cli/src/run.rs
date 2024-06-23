@@ -50,13 +50,15 @@ impl ValueEnum for Strictness {
   }
   fn to_possible_value(&self) -> Option<PossibleValue> {
     use MatchStrictness as M;
-    Some(PossibleValue::new(match &self.0 {
-      M::Cst => "cst",
-      M::Smart => "smart",
-      M::Ast => "ast",
-      M::Lenient => "lenient",
-      M::Signature => "signature",
-    }))
+    Some(match &self.0 {
+      M::Cst => PossibleValue::new("cst").help("Match exact all node"),
+      M::Smart => PossibleValue::new("smart").help("Match all node except source trivial nodes"),
+      M::Ast => PossibleValue::new("ast").help("Match only ast nodes"),
+      M::Lenient => PossibleValue::new("lenient").help("Match ast node except comments"),
+      M::Signature => {
+        PossibleValue::new("signature").help("Match ast node except comments, without text")
+      }
+    })
   }
 }
 
