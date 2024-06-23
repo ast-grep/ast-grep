@@ -8,6 +8,7 @@ use clap::{builder::PossibleValue, Parser, ValueEnum};
 use ignore::WalkParallel;
 
 use crate::config::register_custom_language;
+use crate::debug::DebugFormat;
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
@@ -60,13 +61,6 @@ impl ValueEnum for Strictness {
       }
     })
   }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum DebugFormat {
-  Pattern,
-  Ast,
-  Cst,
 }
 
 #[derive(Parser)]
@@ -265,8 +259,8 @@ impl<P: Printer> Worker for RunWithSpecificLang<P> {
     printer.before_print()?;
     let arg = &self.arg;
     let lang = arg.lang.expect("must present");
-    if arg.debug_query.is_some() {
-      println!("Pattern TreeSitter {:?}", self.pattern);
+    if let Some(format) = arg.debug_query {
+      format.debug_query(&self.arg.pattern, lang);
     }
     let rewrite = if let Some(s) = &arg.rewrite {
       Some(Fixer::from_str(s, &lang).context(EC::ParsePattern)?)

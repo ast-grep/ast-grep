@@ -140,6 +140,7 @@ dependencies = [
  "similar",
  "tempfile",
  "tokio",
+ "tree-sitter-facade-sg",
 ]
 
 [[package]]

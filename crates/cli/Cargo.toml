@@ -31,6 +31,7 @@ ast-grep-config.workspace = true
 ast-grep-dynamic.workspace = true
 ast-grep-language.workspace = true
 ast-grep-lsp.workspace = true
+tree-sitter.workspace = true
 
 ansi_term = "0.12.1"
 anyhow.workspace = true
