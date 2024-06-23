@@ -212,7 +212,7 @@
       ]
     },
     "PatternStyle": {
-      "description": "A String pattern will match one single AST node according to pattern syntax. Or an object with field `context` and `selector`.",
+      "description": "A String pattern will match one single AST node according to pattern syntax. Or an object with field `context`, `selector` and optionally `strictness`.",
       "anyOf": [
         {
           "type": "string"
@@ -220,8 +220,7 @@
         {
           "type": "object",
           "required": [
-            "context",
-            "selector"
+            "context"
           ],
           "properties": {
             "context": {
@@ -230,7 +229,21 @@
             },
             "selector": {
               "description": "The sub-syntax node kind that is the actual matcher of the pattern.",
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "strictness": {
+              "description": "Strictness of the pattern. More strict pattern matches fewer nodes.",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Strictness"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           }
         }
@@ -698,6 +711,45 @@
           "type": "string",
           "enum": [
             "off"
+          ]
+        }
+      ]
+    },
+    "Strictness": {
+      "oneOf": [
+        {
+          "description": "all nodes are matched",
+          "type": "string",
+          "enum": [
+            "cst"
+          ]
+        },
+        {
+          "description": "all nodes except source trivial nodes are matched.",
+          "type": "string",
+          "enum": [
+            "smart"
+          ]
+        },
+        {
+          "description": "only ast nodes are matched",
+          "type": "string",
+          "enum": [
+            "ast"
+          ]
+        },
+        {
+          "description": "ast-nodes excluding comments are matched",
+          "type": "string",
+          "enum": [
+            "relaxed"
+          ]
+        },
+        {
+          "description": "ast-nodes excluding comments, without text",
+          "type": "string",
+          "enum": [
+            "signature"
           ]
         }
       ]
