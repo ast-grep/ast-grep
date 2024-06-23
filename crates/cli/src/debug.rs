@@ -15,9 +15,8 @@ impl DebugFormat {
   pub fn debug_query(&self, pattern: &str, lang: SgLang) {
     match self {
       DebugFormat::Pattern => {
-        if let Ok(pattern) = Pattern::try_new(pattern, lang) {
-          println!("Debug Pattern:\n{:?}", pattern);
-        }
+        let pattern = Pattern::try_new(pattern, lang).expect("pattern must be validated in run");
+        println!("Debug Pattern:\n{:?}", pattern);
       }
       DebugFormat::Sexp => {
         let root = lang.ast_grep(pattern);
