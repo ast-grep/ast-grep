@@ -54,12 +54,19 @@ impl ValueEnum for Strictness {
       M::Cst => PossibleValue::new("cst").help("Match exact all node"),
       M::Smart => PossibleValue::new("smart").help("Match all node except source trivial nodes"),
       M::Ast => PossibleValue::new("ast").help("Match only ast nodes"),
-      M::Relaxed => PossibleValue::new("lenient").help("Match ast node except comments"),
+      M::Relaxed => PossibleValue::new("relaxed").help("Match ast node except comments"),
       M::Signature => {
         PossibleValue::new("signature").help("Match ast node except comments, without text")
       }
     })
   }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum DebugFormat {
+  Pattern,
+  Ast,
+  Cst,
 }
 
 #[derive(Parser)]
@@ -78,8 +85,15 @@ pub struct RunArg {
   lang: Option<SgLang>,
 
   /// Print query pattern's tree-sitter AST. Requires lang be set explicitly.
-  #[clap(long, requires = "lang")]
-  debug_query: bool,
+  #[clap(
+      long,
+      requires = "lang",
+      value_name="format",
+      num_args(0..=1),
+      require_equals = true,
+      default_missing_value = "pattern"
+  )]
+  debug_query: Option<DebugFormat>,
 
   /// The strictness of the pattern.
   #[clap(long)]
@@ -251,7 +265,7 @@ impl<P: Printer> Worker for RunWithSpecificLang<P> {
     printer.before_print()?;
     let arg = &self.arg;
     let lang = arg.lang.expect("must present");
-    if arg.debug_query {
+    if arg.debug_query.is_some() {
       println!("Pattern TreeSitter {:?}", self.pattern);
     }
     let rewrite = if let Some(s) = &arg.rewrite {
@@ -331,7 +345,7 @@ mod test {
       rewrite: None,
       lang: None,
       heading: Heading::Never,
-      debug_query: false,
+      debug_query: None,
       strictness: None,
       input: InputArgs {
         no_ignore: vec![],
