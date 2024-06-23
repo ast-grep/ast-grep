@@ -166,6 +166,9 @@ mod test_cli {
     ok("run -p test --interactive dir");
     ok("run -p test -r Test dir");
     ok("run -p test -l rs --debug-query");
+    ok("run -p test -l rs --debug-query not");
+    ok("run -p test -l rs --debug-query=ast");
+    ok("run -p test -l rs --debug-query=cst");
     ok("run -p test -l rs --color always");
     ok("run -p test -l rs --heading always");
     ok("run -p test dir1 dir2 dir3"); // multiple paths
@@ -174,6 +177,8 @@ mod test_cli {
     ok("run -p test --json compact"); // argument after --json should not be parsed as JsonStyle
     ok("run -p test --json=pretty dir");
     ok("run -p test --json dir"); // arg after --json should not be parsed as JsonStyle
+    ok("run -p test --strictness ast");
+    ok("run -p test --strictness relaxed");
     error("run test");
     error("run --debug-query test"); // missing lang
     error("run -r Test dir");
@@ -181,6 +186,8 @@ mod test_cli {
     error("run -p test -l rs -c always"); // no color shortcut
     error("run -p test -U");
     error("run -p test --update-all");
+    error("run -p test --strictness not");
+    error("run -p test -l rs --debug-query=not");
   }
 
   #[test]
