@@ -94,8 +94,8 @@ test('test code fix', t => {
   const match = sg.root().find('console.log')!
   const fix = match.replace('console.error')
   t.deepEqual(fix.insertedText, 'console.error')
-  t.deepEqual(fix.position, 4)
-  t.deepEqual(fix.deletedLength, 11) // length of console.log
+  t.deepEqual(fix.startPos, 4)
+  t.deepEqual(fix.endPos, 15) // length of console.log
   t.deepEqual(match.commitEdits([fix]), 'console.error')
   const newCode = sg.root().commitEdits([fix])
   t.deepEqual(newCode, 'a = console.error(123)')
@@ -107,7 +107,7 @@ test('test code with multiple fixes', t => {
   const matches = sg.root().findAll(js.kind('number'))
   const fixes = matches.map(match => match.replace('114514'))
   // make it in reverse order to test rust behavior
-  fixes.sort((a, b) => b.position - a.position)
+  fixes.sort((a, b) => b.startPos - a.startPos)
   const newCode = sg.root().commitEdits(fixes)
   t.deepEqual(newCode, 'いいよ = log(114514) + log(114514)')
 })
@@ -116,8 +116,8 @@ test('test code fix with user defined range', t => {
   const sg = parse('いいよ = log(123)')
   const match = sg.root().find(js.kind('number'))!
   const edit = match.replace('514')
-  edit.position -= 1
-  edit.deletedLength += 2
+  edit.startPos -= 1
+  edit.endPos += 1
   const newCode = sg.root().commitEdits([edit])
   t.deepEqual(newCode, 'いいよ = log514')
 })

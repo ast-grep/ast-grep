@@ -62,10 +62,10 @@ export const enum Lang {
   Swift = 'Swift'
 }
 export interface Edit {
-  /** The position of the edit */
-  position: number
-  /** The length of the text to be deleted */
-  deletedLength: number
+  /** The start position of the edit */
+  startPos: number
+  /** The end position of the edit */
+  endPos: number
   /** The text to be inserted */
   insertedText: string
 }
