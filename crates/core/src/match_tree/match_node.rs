@@ -258,6 +258,8 @@ mod test {
   fn test_ast_match() {
     matched("import $A from 'lib'", "import A from \"lib\"", M::Ast);
     unmatched("$A(bar)", "foo(/* A*/bar)", M::Ast);
+    matched("$A(bar)", "foo(bar)", M::Ast);
+    unmatched("$A(bar)", "foo(bar, baz)", M::Ast);
   }
 
   #[test]
