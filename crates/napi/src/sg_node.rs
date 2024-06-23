@@ -8,10 +8,10 @@ use ast_grep_core::source::Content;
 
 #[napi(object)]
 pub struct Edit {
-  /// The position of the edit
-  pub position: u32,
-  /// The length of the text to be deleted
-  pub deleted_length: u32,
+  /// The start position of the edit
+  pub start_pos: u32,
+  /// The end position of the edit
+  pub end_pos: u32,
   /// The text to be inserted
   pub inserted_text: String,
 }
@@ -313,22 +313,22 @@ impl SgNode {
     let byte_range = self.inner.range();
     // the text is u16, need to convert to JS str length
     Edit {
-      position: (byte_range.start / 2) as u32,
-      deleted_length: (byte_range.len() / 2) as u32,
+      start_pos: (byte_range.start / 2) as u32,
+      end_pos: (byte_range.end / 2) as u32,
       inserted_text: text,
     }
   }
 
   #[napi]
   pub fn commit_edits(&self, mut edits: Vec<Edit>) -> String {
-    edits.sort_by_key(|edit| edit.position);
+    edits.sort_by_key(|edit| edit.start_pos);
     let mut new_content = Vec::new();
     let text = self.text();
     let old_content = Wrapper::decode_str(&text);
     let offset = self.inner.range().start / 2;
     let mut start = 0;
     for diff in edits {
-      let pos = diff.position as usize - offset;
+      let pos = diff.start_pos as usize - offset;
       // skip overlapping edits
       if start > pos {
         continue;
@@ -336,7 +336,7 @@ impl SgNode {
       new_content.extend(&old_content[start..pos]);
       let bytes = Wrapper::decode_str(&diff.inserted_text);
       new_content.extend(&*bytes);
-      start = pos + diff.deleted_length as usize;
+      start = diff.end_pos as usize - offset;
     }
     // add trailing statements
     new_content.extend(&old_content[start..]);
