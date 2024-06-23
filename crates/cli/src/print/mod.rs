@@ -105,6 +105,13 @@ pub enum ColorArg {
   Never,
 }
 
+impl ColorArg {
+  pub fn should_use_color(self) -> bool {
+    use colored_print::choose_color::should_use_color;
+    should_use_color(&self.into())
+  }
+}
+
 impl From<ColorArg> for ColorChoice {
   fn from(arg: ColorArg) -> ColorChoice {
     use ColorArg::*;

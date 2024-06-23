@@ -628,7 +628,7 @@ impl From<ColorChoice> for PrintStyles {
 }
 
 // copied from termcolor
-mod choose_color {
+pub(crate) mod choose_color {
   use super::ColorChoice;
   use std::env;
   /// Returns true if we should attempt to write colored output.

@@ -260,7 +260,7 @@ impl<P: Printer> Worker for RunWithSpecificLang<P> {
     let arg = &self.arg;
     let lang = arg.lang.expect("must present");
     if let Some(format) = arg.debug_query {
-      format.debug_query(&self.arg.pattern, lang);
+      format.debug_query(&self.arg.pattern, lang, self.arg.output.color);
     }
     let rewrite = if let Some(s) = &arg.rewrite {
       Some(Fixer::from_str(s, &lang).context(EC::ParsePattern)?)
