@@ -3,8 +3,11 @@ from __future__ import annotations
 from typing import List, TypedDict,  Literal, Dict, Union, Mapping
 from .ast_grep_py import SgNode, SgRoot, Pos, Range, Edit
 
+Strictness = Union[Literal["cst"], Literal["smart"], Literal["ast"], Literal["relaxed"], Literal["signature"]]
+
 class Pattern(TypedDict):
-    selector: str
+    selector: Optional[str]
+    strictness: Optional[Strictness]
     context: str
 
 class NthChild(TypedDict):

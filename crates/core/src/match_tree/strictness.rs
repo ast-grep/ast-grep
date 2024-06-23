@@ -6,7 +6,7 @@ pub enum MatchStrictness {
   Cst,       // all nodes are matched
   Smart,     // all nodes except source trivial nodes are matched.
   Ast,       // only ast nodes are matched
-  Lenient,   // ast-nodes excluding comments are matched
+  Relaxed,   // ast-nodes excluding comments are matched
   Signature, // ast-nodes excluding comments, without text
 }
 
@@ -43,7 +43,7 @@ impl MatchStrictness {
       M::Cst => (false, false),
       M::Smart => (false, !candidate.is_named()),
       M::Ast => (!is_named, !candidate.is_named()),
-      M::Lenient => (!is_named, skip_comment_or_unnamed(candidate)),
+      M::Relaxed => (!is_named, skip_comment_or_unnamed(candidate)),
       M::Signature => {
         if k == kind {
           return MatchOneNode::MatchedBoth;
@@ -66,7 +66,7 @@ impl MatchStrictness {
       M::Cst => false,
       M::Smart => true,
       M::Ast => false,
-      M::Lenient => skip_comment_or_unnamed(candidate),
+      M::Relaxed => skip_comment_or_unnamed(candidate),
       M::Signature => skip_comment_or_unnamed(candidate),
     }
   }
@@ -79,9 +79,9 @@ impl FromStr for MatchStrictness {
       "cst" => Ok(MatchStrictness::Cst),
       "smart" => Ok(MatchStrictness::Smart),
       "ast" => Ok(MatchStrictness::Ast),
-      "lenient" => Ok(MatchStrictness::Lenient),
+      "relaxed" => Ok(MatchStrictness::Relaxed),
       "signature" => Ok(MatchStrictness::Signature),
-      _ => Err("invalid strictness, valid options are: cst, smart, ast, lenient, signature"),
+      _ => Err("invalid strictness, valid options are: cst, smart, ast, relaxed, signature"),
     }
   }
 }

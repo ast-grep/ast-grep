@@ -263,9 +263,9 @@ mod test {
   }
 
   #[test]
-  fn test_lenient_match() {
-    matched("import $A from 'lib'", "import A from \"lib\"", M::Lenient);
-    matched("$A(bar)", "foo(/* A*/bar)", M::Lenient);
+  fn test_relaxed_match() {
+    matched("import $A from 'lib'", "import A from \"lib\"", M::Relaxed);
+    matched("$A(bar)", "foo(/* A*/bar)", M::Relaxed);
   }
 
   #[test]
