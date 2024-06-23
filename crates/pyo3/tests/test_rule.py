@@ -150,3 +150,9 @@ def test_pattern():
         selector="variable_declarator",
     ))
     assert node == node2
+
+def test_strictness():
+    node = root.find(pattern={
+        "context": "let b = 456",
+        "strictness": "signature",
+    })

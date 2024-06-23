@@ -136,7 +136,7 @@ pub enum Strictness {
   /// only ast nodes are matched
   Ast,
   /// ast-nodes excluding comments are matched
-  Lenient,
+  Relaxed,
   /// ast-nodes excluding comments, without text
   Signature,
 }
@@ -149,7 +149,7 @@ impl From<MatchStrictness> for Strictness {
       M::Cst => S::Cst,
       M::Smart => S::Smart,
       M::Ast => S::Ast,
-      M::Lenient => S::Lenient,
+      M::Relaxed => S::Relaxed,
       M::Signature => S::Signature,
     }
   }
@@ -163,7 +163,7 @@ impl From<Strictness> for MatchStrictness {
       S::Cst => M::Cst,
       S::Smart => M::Smart,
       S::Ast => M::Ast,
-      S::Lenient => M::Lenient,
+      S::Relaxed => M::Relaxed,
       S::Signature => M::Signature,
     }
   }

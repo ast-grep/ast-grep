@@ -44,7 +44,7 @@ impl ValueEnum for Strictness {
       Strictness(M::Cst),
       Strictness(M::Smart),
       Strictness(M::Ast),
-      Strictness(M::Lenient),
+      Strictness(M::Relaxed),
       Strictness(M::Signature),
     ]
   }
@@ -54,7 +54,7 @@ impl ValueEnum for Strictness {
       M::Cst => PossibleValue::new("cst").help("Match exact all node"),
       M::Smart => PossibleValue::new("smart").help("Match all node except source trivial nodes"),
       M::Ast => PossibleValue::new("ast").help("Match only ast nodes"),
-      M::Lenient => PossibleValue::new("lenient").help("Match ast node except comments"),
+      M::Relaxed => PossibleValue::new("lenient").help("Match ast node except comments"),
       M::Signature => {
         PossibleValue::new("signature").help("Match ast node except comments, without text")
       }
