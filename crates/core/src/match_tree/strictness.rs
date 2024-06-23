@@ -57,4 +57,15 @@ impl MatchStrictness {
       (false, false) => MatchOneNode::NoMatch,
     }
   }
+
+  pub(crate) fn should_skip_trailing<D: Doc>(&self, candidate: &Node<D>) -> bool {
+    use MatchStrictness as M;
+    match self {
+      M::Cst => false,
+      M::Smart => true,
+      M::Ast => false,
+      M::Lenient => skip_comment_or_unnamed(candidate),
+      M::Signature => skip_comment_or_unnamed(candidate),
+    }
+  }
 }

@@ -71,11 +71,12 @@ fn match_nodes_impl_recursive<'tree, D: Doc + 'tree>(
     }
     // skip if cand children is trivial
     goal_children.next();
-    if goal_children.peek().is_none() {
-      // all goal found, return
-      return Some(());
-    }
     cand_children.next();
+    if goal_children.peek().is_none() {
+      // all goal found
+      let has_trailing = cand_children.all(|n| strictness.should_skip_trailing(&n));
+      return has_trailing.then_some(());
+    }
     cand_children.peek()?;
   }
 }
