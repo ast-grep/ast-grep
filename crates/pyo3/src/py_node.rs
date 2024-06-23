@@ -246,18 +246,18 @@ impl SgNode {
     Python::with_gil(|py| {
       let root = self.root.bind(py);
       let root = root.borrow();
-      let position = root.position.byte_to_char(byte_range.start);
-      let end = root.position.byte_to_char(byte_range.end);
+      let start_pos = root.position.byte_to_char(byte_range.start);
+      let end_pos = root.position.byte_to_char(byte_range.end);
       Edit {
-        position,
-        deleted_length: end - position,
+        start_pos,
+        end_pos,
         inserted_text: text.to_string(),
       }
     })
   }
 
   fn commit_edits(&self, mut edits: Vec<Edit>) -> String {
-    edits.sort_by_key(|edit| edit.position);
+    edits.sort_by_key(|edit| edit.start_pos);
     let mut new_content = String::new();
     let old_content = self.text();
     let converted: Vec<_> = Python::with_gil(move |py| {
@@ -267,10 +267,8 @@ impl SgNode {
       edits
         .into_iter()
         .map(|mut e| {
-          let char_offset = e.position + e.deleted_length;
-          let byte_offset = conv.char_to_byte(char_offset);
-          e.position = conv.char_to_byte(e.position);
-          e.deleted_length = byte_offset - e.position;
+          e.start_pos = conv.char_to_byte(e.start_pos);
+          e.end_pos = conv.char_to_byte(e.end_pos);
           e
         })
         .collect()
@@ -278,14 +276,14 @@ impl SgNode {
     let offset = self.inner.range().start;
     let mut start = 0;
     for diff in converted {
-      let pos = diff.position - offset;
+      let pos = diff.start_pos - offset;
       // skip overlapping edits
       if start > pos {
         continue;
       }
       new_content.push_str(&old_content[start..pos]);
       new_content.push_str(&diff.inserted_text);
-      start = pos + diff.deleted_length;
+      start = diff.end_pos - offset;
     }
     // add trailing statements
     new_content.push_str(&old_content[start..]);
@@ -374,10 +372,10 @@ fn get_matcher_from_rule(
 #[pyclass(get_all, set_all)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Edit {
-  /// The char position of the edit
-  pub position: usize,
-  /// The char length of the text to be deleted
-  pub deleted_length: usize,
+  /// The start position of the edit in character
+  pub start_pos: usize,
+  /// The end position of the edit in character
+  pub end_pos: usize,
   /// The text to be inserted
   pub inserted_text: String,
 }
