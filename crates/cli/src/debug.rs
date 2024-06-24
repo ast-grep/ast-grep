@@ -8,9 +8,13 @@ use tree_sitter as ts;
 
 #[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum DebugFormat {
+  /// Print the query parsed in Pattern format
   Pattern,
+  /// Print the query in tree-sitter AST format, only named nodes are shown
   Ast,
+  /// Print the query in tree-sitter CST format, both named and unnamed nodes are shown
   Cst,
+  /// Print the query in S-expression format
   Sexp,
 }
 impl DebugFormat {
