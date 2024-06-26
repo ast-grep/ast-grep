@@ -93,9 +93,16 @@ fn convert_node_to_pattern<D: Doc>(node: Node<D>) -> PatternNode {
       kind_id: node.kind_id(),
     }
   } else {
+    let children = node.children().filter_map(|n| {
+      if n.get_ts_node().is_missing() {
+        None
+      } else {
+        Some(PatternNode::from(n))
+      }
+    });
     PatternNode::Internal {
       kind_id: node.kind_id(),
-      children: node.children().map(PatternNode::from).collect(),
+      children: children.collect(),
     }
   }
 }
