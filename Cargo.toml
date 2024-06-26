@@ -11,7 +11,7 @@ resolver = "2"
 lto = true
 
 [workspace.package]
-version = "0.24.0"
+version = "0.24.1"
 authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
 edition = "2021"
 license = "MIT"
@@ -22,11 +22,11 @@ rust-version = "1.67"
 readme = "README.md"
 
 [workspace.dependencies]
-ast-grep-core = { path = "crates/core", version = "0.24.0" }
-ast-grep-config = { path = "crates/config", version = "0.24.0" }
-ast-grep-dynamic = { path = "crates/dynamic", version = "0.24.0" }
-ast-grep-language = { path = "crates/language", version = "0.24.0" }
-ast-grep-lsp = { path = "crates/lsp", version = "0.24.0" }
+ast-grep-core = { path = "crates/core", version = "0.24.1" }
+ast-grep-config = { path = "crates/config", version = "0.24.1" }
+ast-grep-dynamic = { path = "crates/dynamic", version = "0.24.1" }
+ast-grep-language = { path = "crates/language", version = "0.24.1" }
+ast-grep-lsp = { path = "crates/lsp", version = "0.24.1" }
 
 bit-set = { version = "0.5.3" }
 ignore = { version = "0.4.22" }

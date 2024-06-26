@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/cli",
-  "version": "0.24.0",
+  "version": "0.24.1",
   "publishConfig": {
     "access": "public"
   },
@@ -29,13 +29,13 @@
     "postinstall": "node postinstall.js"
   },
   "optionalDependencies": {
-    "@ast-grep/cli-win32-arm64-msvc": "0.24.0",
-    "@ast-grep/cli-win32-ia32-msvc": "0.24.0",
-    "@ast-grep/cli-win32-x64-msvc": "0.24.0",
-    "@ast-grep/cli-darwin-arm64": "0.24.0",
-    "@ast-grep/cli-darwin-x64": "0.24.0",
-    "@ast-grep/cli-linux-arm64-gnu": "0.24.0",
-    "@ast-grep/cli-linux-x64-gnu": "0.24.0"
+    "@ast-grep/cli-win32-arm64-msvc": "0.24.1",
+    "@ast-grep/cli-win32-ia32-msvc": "0.24.1",
+    "@ast-grep/cli-win32-x64-msvc": "0.24.1",
+    "@ast-grep/cli-darwin-arm64": "0.24.1",
+    "@ast-grep/cli-darwin-x64": "0.24.1",
+    "@ast-grep/cli-linux-arm64-gnu": "0.24.1",
+    "@ast-grep/cli-linux-x64-gnu": "0.24.1"
   },
   "bin": {
     "sg": "sg",
