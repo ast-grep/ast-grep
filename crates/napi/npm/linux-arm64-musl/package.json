@@ -1,0 +1,34 @@
+{
+  "name": "@ast-grep/napi-linux-arm64-musl",
+  "version": "0.24.1",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "libc": [
+    "musl"
+  ],
+  "main": "ast-grep-napi.linux-arm64-musl.node",
+  "files": [
+    "ast-grep-napi.linux-arm64-musl.node"
+  ],
+  "description": "Search and Rewrite code at large scale using precise AST pattern",
+  "keywords": [
+    "ast",
+    "pattern",
+    "codemod",
+    "search",
+    "rewrite"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "repository": "https://github.com/ast-grep/ast-grep"
+}
