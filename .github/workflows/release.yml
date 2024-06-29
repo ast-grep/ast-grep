@@ -78,7 +78,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
       - name: Download artifacts
-        uses: robinraju/release-downloader@v1.10
+        uses: robinraju/release-downloader@v1.11
         with:
           latest: true
           fileName: "*.zip"
