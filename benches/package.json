@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@types/babel__core": "7.20.5",
-    "@types/node": "20.14.8",
+    "@types/node": "20.14.9",
     "prettier": "3.3.2",
     "ts-node": "10.9.2"
   }
