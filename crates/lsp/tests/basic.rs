@@ -4,6 +4,8 @@ use ast_grep_lsp::*;
 use serde_json::Value;
 use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt, DuplexStream};
 
+use std::path::Path;
+
 pub fn req(msg: &str) -> String {
   format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg)
 }
@@ -72,9 +74,11 @@ fix: |
   .unwrap()
   .pop()
   .unwrap();
+  let base = Path::new("./").to_path_buf();
   let rc: RuleCollection<SupportLang> = RuleCollection::try_new(vec![config]).unwrap();
   let rc_result: std::result::Result<_, String> = Ok(rc);
-  let (service, socket) = LspService::build(|client| Backend::new(client, rc_result)).finish();
+  let (service, socket) =
+    LspService::build(|client| Backend::new(client, base, rc_result)).finish();
   let (req_client, req_server) = duplex(1024);
   let (resp_server, resp_client) = duplex(1024);
 

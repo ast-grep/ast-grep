@@ -1,5 +1,4 @@
 use dashmap::DashMap;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
@@ -10,7 +9,7 @@ use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig};
 use ast_grep_core::{language::Language, AstGrep, Doc, Node, NodeMatch, StrDoc};
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub use tower_lsp::{LspService, Server};
 
@@ -25,6 +24,7 @@ struct VersionedAst<D: Doc> {
 pub struct Backend<L: LSPLang> {
   client: Client,
   map: DashMap<String, VersionedAst<StrDoc<L>>>,
+  base: PathBuf,
   rules: std::result::Result<RuleCollection<L>, String>,
 }
 
@@ -256,31 +256,38 @@ fn build_error_id_to_ranges(diagnostics: Vec<Diagnostic>) -> HashMap<String, Vec
 }
 
 impl<L: LSPLang> Backend<L> {
-  pub fn new(client: Client, rules: std::result::Result<RuleCollection<L>, String>) -> Self {
+  pub fn new(
+    client: Client,
+    base: PathBuf,
+    rules: std::result::Result<RuleCollection<L>, String>,
+  ) -> Self {
     Self {
       client,
       rules,
+      base,
       map: DashMap::new(),
     }
   }
+
+  fn get_rules(&self, uri: &Url) -> Option<Vec<&RuleConfig<L>>> {
+    let absolute_path = uri.to_file_path().ok()?;
+    // for_path needs relative path, see https://github.com/ast-grep/ast-grep/issues/1272
+    let base = Path::new("./");
+    let path = base.join(absolute_path.strip_prefix(&self.base).ok()?);
+    let rules = self.rules.as_ref().ok()?.for_path(&path);
+    Some(rules)
+  }
+
   fn get_diagnostics(
     &self,
     uri: &Url,
     versioned: &VersionedAst<StrDoc<L>>,
   ) -> Option<Vec<Diagnostic>> {
-    let mut diagnostics = vec![];
-    let path = uri.to_file_path().ok()?;
-
-    let rules = match &self.rules {
-      Ok(rules) => rules.for_path(&path),
-      Err(_) => {
-        return Some(diagnostics);
-      }
-    };
-
+    let rules = self.get_rules(uri)?;
     let scan = CombinedScan::new(rules);
     let hit_set = scan.all_kinds();
     let matches = scan.scan(&versioned.root, hit_set, false).matches;
+    let mut diagnostics = vec![];
     for (id, ms) in matches {
       let rule = scan.get_rule(id);
       let to_diagnostic = |m| convert_match_to_diagnostic(m, rule, uri);
@@ -455,7 +462,10 @@ impl<L: LSPLang> Backend<L> {
     }
   }
 
-  fn on_apply_all_fix_impl(&self, first: Value) -> std::result::Result<WorkspaceEdit, LspError> {
+  async fn on_apply_all_fix_impl(
+    &self,
+    first: Value,
+  ) -> std::result::Result<WorkspaceEdit, LspError> {
     let text_doc: TextDocumentItem =
       serde_json::from_value(first).map_err(LspError::JSONDecodeError)?;
     let uri = text_doc.uri;
@@ -492,7 +502,7 @@ impl<L: LSPLang> Backend<L> {
       )
       .await;
     let first = arguments.first()?.clone();
-    let workspace_edit = match self.on_apply_all_fix_impl(first) {
+    let workspace_edit = match self.on_apply_all_fix_impl(first).await {
       Ok(workspace_edit) => workspace_edit,
       Err(error) => {
         self.report_error(error).await;
