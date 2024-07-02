@@ -92,28 +92,30 @@ fn find_util_rules(
     return Ok(GlobalRules::default());
   };
   let mut utils = vec![];
-  // TODO: use WalkBuilder::add to avoid loop
+  let mut walker = WalkBuilder::new(&base_dir);
+
   for dir in util_dirs {
-    let dir_path = base_dir.join(dir);
-    let walker = WalkBuilder::new(&dir_path)
-      .types(config_file_type())
-      .build();
-    for dir in walker {
-      let config_file = dir.with_context(|| EC::WalkRuleDir(dir_path.clone()))?;
-      // file_type is None only if it is stdin, safe to unwrap here
-      if !config_file
-        .file_type()
-        .expect("file type should be available for non-stdin")
-        .is_file()
-      {
-        continue;
-      }
-      let path = config_file.path();
-      let file = read_to_string(path)?;
-      let new_configs = from_str(&file)?;
-      utils.push(new_configs);
-    }
+    walker.add(base_dir.join(dir));
   }
+  let walker = walker
+    .types(config_file_type())
+    .build();
+  for dir in walker {
+    let config_file = dir.with_context(|| EC::WalkRuleDir(dir_path.clone()))?;
+    // file_type is None only if it is stdin, safe to unwrap here
+    if !config_file
+      .file_type()
+      .expect("file type should be available for non-stdin")
+      .is_file()
+    {
+      continue;
+    }
+    let path = config_file.path();
+    let file = read_to_string(path)?;
+    let new_configs = from_str(&file)?;
+    utils.push(new_configs);
+  }
+
   let ret = DeserializeEnv::parse_global_utils(utils).context(EC::InvalidGlobalUtils)?;
   Ok(ret)
 }
