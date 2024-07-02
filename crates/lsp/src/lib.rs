@@ -28,11 +28,6 @@ pub struct Backend<L: LSPLang> {
   rules: std::result::Result<RuleCollection<L>, String>,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct MatchRequest {
-  pattern: String,
-}
-
 const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
   Some(CodeActionProviderCapability::Simple(true));
 
