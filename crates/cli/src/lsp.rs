@@ -25,9 +25,8 @@ async fn run_language_server_impl(arg: LspArg) -> Result<()> {
       .collect::<Vec<_>>()
       .join(". ")
   });
-  let (service, socket) = LspService::build(|client| Backend::new(client, config_result_std))
-    .custom_method("ast-grep/search", Backend::search)
-    .finish();
+  let (service, socket) =
+    LspService::build(|client| Backend::new(client, config_result_std)).finish();
   Server::new(stdin, stdout, socket).serve(service).await;
   Ok(())
 }
