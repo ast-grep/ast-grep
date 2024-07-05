@@ -84,21 +84,24 @@ pub fn register_custom_language(config_path: Option<PathBuf>) -> Result<()> {
   Ok(())
 }
 
+fn build_util_walker(base_dir: &Path, util_dirs: Option<Vec<PathBuf>>) -> Option<WalkBuilder> {
+  let mut util_dirs = util_dirs?.into_iter();
+  let first = util_dirs.next()?;
+  let mut walker = WalkBuilder::new(base_dir.join(first));
+  for dir in util_dirs {
+    walker.add(base_dir.join(dir));
+  }
+  Some(walker)
+}
+
 fn find_util_rules(
   base_dir: &Path,
   util_dirs: Option<Vec<PathBuf>>,
 ) -> Result<GlobalRules<SgLang>> {
-  let util_dirs = match util_dirs {
-    Some(dirs) if !dirs.is_empty() => dirs,
-    _ => return Ok(GlobalRules::default()),
+  let Some(mut walker) = build_util_walker(base_dir, util_dirs) else {
+    return Ok(GlobalRules::default());
   };
-
   let mut utils = vec![];
-  let mut walker = WalkBuilder::new(base_dir.join(util_dirs.first().unwrap()));
-
-  for dir in util_dirs[1..].iter() {
-    walker.add(base_dir.join(dir));
-  }
   let walker = walker.types(config_file_type()).build();
   for dir in walker {
     let dir_path = dir
