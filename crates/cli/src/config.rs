@@ -88,19 +88,24 @@ fn find_util_rules(
   base_dir: &Path,
   util_dirs: Option<Vec<PathBuf>>,
 ) -> Result<GlobalRules<SgLang>> {
-  let Some(util_dirs) = util_dirs else {
-    return Ok(GlobalRules::default());
+  let util_dirs = match util_dirs {
+    Some(dirs) if !dirs.is_empty() => dirs,
+    _ => return Ok(GlobalRules::default()),
   };
-  let mut utils = vec![];
-  let mut walker = WalkBuilder::new(&base_dir);
 
-  for dir in util_dirs {
+  let mut utils = vec![];
+  let mut walker = WalkBuilder::new(base_dir.join(util_dirs.first().unwrap()));
+
+  for dir in util_dirs[1..].iter() {
     walker.add(base_dir.join(dir));
   }
-  let walker = walker
-    .types(config_file_type())
-    .build();
+  let walker = walker.types(config_file_type()).build();
   for dir in walker {
+    let dir_path = dir
+      .as_ref()
+      .map(|entry| entry.path().to_path_buf())
+      .ok()
+      .unwrap();
     let config_file = dir.with_context(|| EC::WalkRuleDir(dir_path.clone()))?;
     // file_type is None only if it is stdin, safe to unwrap here
     if !config_file
