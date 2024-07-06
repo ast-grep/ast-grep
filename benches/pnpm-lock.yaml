@@ -27,8 +27,8 @@ dependencies:
     specifier: 0.20.6
     version: 0.20.6
   tree-sitter-typescript:
-    specifier: 0.21.1
-    version: 0.21.1(tree-sitter@0.20.6)
+    specifier: 0.21.2
+    version: 0.21.2(tree-sitter@0.20.6)
   typescript:
     specifier: 5.5.3
     version: 5.5.3
@@ -1200,8 +1200,8 @@ packages:
     resolution: {integrity: sha512-/OaKK0xYrs3DmxRYqL/yDc+FxFUVYhDlXMhRmv3z915w2HF1tnN1omB354j8VUGO/hbRzyD6Y3sA7v7GS/ceog==}
     engines: {node: '>=4'}
 
-  /tree-sitter-typescript@0.21.1(tree-sitter@0.20.6):
-    resolution: {integrity: sha512-emQMXz1CpVSkMUq1NEMrbJkUUdKyGrnIl++Mt4LjEeq7ttpOdotb4a2A6zSMs39ppVebFhpTlbSrAMDSEWEEjw==}
+  /tree-sitter-typescript@0.21.2(tree-sitter@0.20.6):
+    resolution: {integrity: sha512-/RyNK41ZpkA8PuPZimR6pGLvNR1p0ibRUJwwQn4qAjyyLEIQD/BNlwS3NSxWtGsAWZe9gZ44VK1mWx2+eQVldg==}
     requiresBuild: true
     peerDependencies:
       tree-sitter: ^0.21.0
