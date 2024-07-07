@@ -86,6 +86,25 @@ impl<D: Doc> Root<D> {
     debug_assert!(self.check_lineage(&node.inner));
     node.root = self;
   }
+
+  pub fn get_injections<F: Fn(&str) -> D::Lang>(&self, get_lang: F) -> Option<Root<D>> {
+    let root = self.inner.root_node();
+    let mut range = self.lang().extract_injections(root);
+    if range.is_empty() {
+      return None;
+    }
+    let (lang, ranges) = range.pop().expect("TODO");
+    let lang = get_lang(&lang);
+    let source = self.doc.get_source();
+    let mut parser = tree_sitter::Parser::new().expect("TODO");
+    parser.set_included_ranges(&ranges).expect("TODO");
+    parser.set_language(&lang.get_ts_language()).expect("TODO");
+    let tree = source.parse_tree_sitter(&mut parser, None).expect("TODO");
+    tree.map(|t| Self {
+      inner: t,
+      doc: self.doc.clone_with_lang(lang),
+    })
+  }
 }
 
 /// 'r represents root lifetime
