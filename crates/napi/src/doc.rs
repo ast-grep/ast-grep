@@ -161,6 +161,12 @@ impl Doc for JsDoc {
   fn from_str(src: &str, lang: Self::Lang) -> Self {
     JsDoc::new(src.into(), lang)
   }
+  fn clone_with_lang(&self, lang: Self::Lang) -> Self {
+    JsDoc {
+      source: self.source.clone(),
+      lang,
+    }
+  }
 }
 
 #[cfg(test)]

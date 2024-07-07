@@ -4,6 +4,7 @@ use crate::StrDoc;
 use std::borrow::Cow;
 use std::path::Path;
 pub use tree_sitter::Language as TSLanguage;
+use tree_sitter::{Node as TSNode, Range as TSRange};
 
 /// Trait to abstract ts-language usage in ast-grep, which includes:
 /// * which character is used for meta variable.
@@ -53,6 +54,15 @@ pub trait Language: Clone {
   /// At runtime we need to use expand_char
   fn extract_meta_var(&self, source: &str) -> Option<MetaVariable> {
     extract_meta_var(source, self.expando_char())
+  }
+
+  /// get injected language regions in the root document. e.g. get JavaScripts in HTML
+  /// it will return a list of tuples of (language, regions).
+  /// The first item is the embedded region language, e.g. javascript
+  /// The second item is a list of regions in tree_sitter.
+  /// also see https://tree-sitter.github.io/tree-sitter/using-parsers#multi-language-documents
+  fn extract_injections(&self, _root: TSNode) -> Vec<(String, Vec<TSRange>)> {
+    vec![]
   }
 }
 
