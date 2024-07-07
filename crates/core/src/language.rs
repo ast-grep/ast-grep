@@ -4,10 +4,10 @@ use crate::StrDoc;
 use std::borrow::Cow;
 use std::path::Path;
 pub use tree_sitter::Language as TSLanguage;
-use tree_sitter::{Node as TSNode, Range as TSRange};
+pub use tree_sitter::{Node as TSNode, Range as TSRange};
 
 pub struct InjectionExtractor {
-  pub injectable_languages: &'static [String],
+  pub injectable_languages: &'static [&'static str],
   pub extract_injections: fn(TSNode) -> Vec<(String, Vec<TSRange>)>,
 }
 
