@@ -26,6 +26,8 @@ mod rust;
 mod scala;
 mod swift;
 
+use html::Html;
+
 use ast_grep_core::language::TSLanguage;
 use ast_grep_core::meta_var::MetaVariable;
 use ignore::types::{Types, TypesBuilder};
@@ -114,9 +116,6 @@ impl_lang_expando!(Go, language_go, 'µ');
 // https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/unicode_syntax.html
 // and the tree-sitter-haskell grammar parses it too.
 impl_lang_expando!(Haskell, language_haskell, 'µ');
-// tree-sitter-html uses locale dependent iswalnum for tagName
-// https://github.com/tree-sitter/tree-sitter-html/blob/b5d9758e22b4d3d25704b72526670759a9e4d195/src/scanner.c#L194
-impl_lang_expando!(Html, language_html, 'z');
 // https://github.com/fwcd/tree-sitter-kotlin/pull/93
 impl_lang_expando!(Kotlin, language_kotlin, 'µ');
 // we can use any char in unicode range [:XID_Start:]
