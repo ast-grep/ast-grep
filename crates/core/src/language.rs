@@ -6,6 +6,11 @@ use std::path::Path;
 pub use tree_sitter::Language as TSLanguage;
 use tree_sitter::{Node as TSNode, Range as TSRange};
 
+pub struct InjectionExtractor {
+  pub injectable_languages: &'static [String],
+  pub extract_injections: fn(TSNode) -> Vec<(String, Vec<TSRange>)>,
+}
+
 /// Trait to abstract ts-language usage in ast-grep, which includes:
 /// * which character is used for meta variable.
 /// * if we need to use other char in meta var for parser at runtime
@@ -61,8 +66,8 @@ pub trait Language: Clone {
   /// The first item is the embedded region language, e.g. javascript
   /// The second item is a list of regions in tree_sitter.
   /// also see https://tree-sitter.github.io/tree-sitter/using-parsers#multi-language-documents
-  fn extract_injections(&self, _root: TSNode) -> Vec<(String, Vec<TSRange>)> {
-    vec![]
+  fn extract_injections(&self) -> Option<InjectionExtractor> {
+    None
   }
 }
 
