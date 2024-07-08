@@ -1,5 +1,6 @@
 use super::pre_process_pattern;
-use ast_grep_core::language::{InjectionExtractor, TSNode, TSRange};
+use ast_grep_core::language::TSRange;
+use ast_grep_core::{Doc, Node};
 
 // tree-sitter-html uses locale dependent iswalnum for tagName
 // https://github.com/tree-sitter/tree-sitter-html/blob/b5d9758e22b4d3d25704b72526670759a9e4d195/src/scanner.c#L194
@@ -15,17 +16,12 @@ impl ast_grep_core::language::Language for Html {
   fn pre_process_pattern<'q>(&self, query: &'q str) -> std::borrow::Cow<'q, str> {
     pre_process_pattern(self.expando_char(), query)
   }
-  fn extract_injections(&self) -> Option<InjectionExtractor> {
-    Some(InjectionExtractor {
-      injectable_languages: &["css", "javascript"],
-      extract_injections,
-    })
+  fn injectable_languages(&self) -> Option<&'static [&str]> {
+    Some(&["css", "javascript"])
   }
-}
-
-fn extract_injections(root: TSNode) -> Vec<(String, Vec<TSRange>)> {
-  // TODO!
-  vec![]
+  fn extract_injections<D: Doc>(&self, root: Node<D>) -> Vec<(String, Vec<TSRange>)> {
+    vec![]
+  }
 }
 
 #[cfg(test)]
