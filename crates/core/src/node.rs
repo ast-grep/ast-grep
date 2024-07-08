@@ -88,9 +88,8 @@ impl<D: Doc> Root<D> {
   }
 
   pub fn get_injections<F: Fn(&str) -> D::Lang>(&self, get_lang: F) -> Option<Vec<Root<D>>> {
-    let extractor = self.lang().extract_injections()?;
-    let root = self.inner.root_node();
-    let range = (extractor.extract_injections)(root);
+    let root = self.root();
+    let range = self.lang().extract_injections(root);
     if range.is_empty() {
       return None;
     }
