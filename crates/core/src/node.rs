@@ -87,7 +87,10 @@ impl<D: Doc> Root<D> {
     node.root = self;
   }
 
-  pub fn get_injections<F: Fn(&str) -> D::Lang>(&self, get_lang: F) -> Option<Vec<Root<D>>> {
+  pub fn get_injections<F: Fn(&str) -> Option<D::Lang>>(
+    &self,
+    get_lang: F,
+  ) -> Option<Vec<Root<D>>> {
     let root = self.root();
     let range = self.lang().extract_injections(root);
     if range.is_empty() {
@@ -96,7 +99,7 @@ impl<D: Doc> Root<D> {
     let roots = range
       .into_iter()
       .filter_map(|(lang, ranges)| {
-        let lang = get_lang(&lang);
+        let lang = get_lang(&lang)?;
         let source = self.doc.get_source();
         let mut parser = tree_sitter::Parser::new().expect("TODO");
         parser.set_included_ranges(&ranges).expect("TODO");

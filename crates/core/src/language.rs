@@ -55,7 +55,7 @@ pub trait Language: Clone {
     extract_meta_var(source, self.expando_char())
   }
 
-  fn injectable_languages(&self) -> Option<&'static [&str]> {
+  fn injectable_languages(&self) -> Option<&'static [&'static str]> {
     None
   }
 

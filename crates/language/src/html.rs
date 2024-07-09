@@ -16,7 +16,7 @@ impl ast_grep_core::language::Language for Html {
   fn pre_process_pattern<'q>(&self, query: &'q str) -> std::borrow::Cow<'q, str> {
     pre_process_pattern(self.expando_char(), query)
   }
-  fn injectable_languages(&self) -> Option<&'static [&str]> {
+  fn injectable_languages(&self) -> Option<&'static [&'static str]> {
     Some(&["css", "javascript"])
   }
   fn extract_injections<D: Doc<Lang = Self>>(&self, root: Node<D>) -> Vec<(String, Vec<TSRange>)> {
