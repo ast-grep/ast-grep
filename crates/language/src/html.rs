@@ -19,9 +19,13 @@ impl ast_grep_core::language::Language for Html {
   fn injectable_languages(&self) -> Option<&'static [&'static str]> {
     Some(&["css", "javascript"])
   }
-  fn extract_injections<D: Doc<Lang = Self>>(&self, root: Node<D>) -> Vec<(String, Vec<TSRange>)> {
+  fn extract_injections<D: Doc>(
+    &self,
+    root: Node<D>,
+    conv: impl Fn(Self) -> D::Lang,
+  ) -> Vec<(String, Vec<TSRange>)> {
     let mut scripts = vec![];
-    let matcher = KindMatcher::new("script_element", *self);
+    let matcher = KindMatcher::new("script_element", conv(*self));
     for script in root.find_all(matcher) {
       for child in script.children() {
         if child.kind() == "raw_text" {
@@ -30,7 +34,7 @@ impl ast_grep_core::language::Language for Html {
       }
     }
     let mut styles = vec![];
-    let matcher = KindMatcher::new("style_element", *self);
+    let matcher = KindMatcher::new("style_element", conv(*self));
     for style in root.find_all(matcher) {
       for child in style.children() {
         if child.kind() == "raw_text" {

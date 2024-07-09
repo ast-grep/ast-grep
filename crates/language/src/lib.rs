@@ -28,8 +28,9 @@ mod swift;
 
 use html::Html;
 
-use ast_grep_core::language::TSLanguage;
+use ast_grep_core::language::{TSLanguage, TSRange};
 use ast_grep_core::meta_var::MetaVariable;
+use ast_grep_core::{Doc, Node};
 use ignore::types::{Types, TypesBuilder};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::borrow::Cow;
@@ -313,6 +314,17 @@ impl Language for SupportLang {
   impl_lang_method!(expando_char, () => char);
   impl_lang_method!(extract_meta_var, (source: &str) => Option<MetaVariable>);
   impl_lang_method!(injectable_languages, () => Option<&'static [&'static str]>);
+
+  fn extract_injections<D: Doc>(
+    &self,
+    root: Node<D>,
+    conv: impl Fn(Self) -> D::Lang,
+  ) -> Vec<(String, Vec<TSRange>)> {
+    match self {
+      SupportLang::Html => Html.extract_injections(root, |_| conv(SupportLang::Html)),
+      _ => vec![],
+    }
+  }
 
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
     execute_lang_method! { self, pre_process_pattern, query }

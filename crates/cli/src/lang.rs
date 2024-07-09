@@ -2,7 +2,10 @@ mod custom_lang;
 mod lang_globs;
 
 use anyhow::Result;
-use ast_grep_core::language::TSLanguage;
+use ast_grep_core::{
+  language::{TSLanguage, TSRange},
+  Doc, Node,
+};
 use ast_grep_dynamic::DynamicLang;
 use ast_grep_language::{Language, SupportLang};
 use ignore::types::Types;
@@ -115,6 +118,11 @@ impl From<SupportLang> for SgLang {
     Self::Builtin(value)
   }
 }
+impl From<DynamicLang> for SgLang {
+  fn from(value: DynamicLang) -> Self {
+    Self::Custom(value)
+  }
+}
 
 use SgLang::*;
 impl Language for SgLang {
@@ -164,11 +172,15 @@ impl Language for SgLang {
     }
   }
 
-  fn extract_injections<D: ast_grep_core::Doc<Lang = Self>>(
+  fn extract_injections<D: Doc>(
     &self,
-    root: ast_grep_core::Node<D>,
-  ) -> Vec<(String, Vec<tree_sitter::Range>)> {
-    todo!("not")
+    root: Node<D>,
+    conv: impl Fn(Self) -> D::Lang,
+  ) -> Vec<(String, Vec<TSRange>)> {
+    match self {
+      Builtin(b) => b.extract_injections(root, |b| conv(Builtin(b))),
+      Custom(c) => c.extract_injections(root, |c| conv(Custom(c))),
+    }
   }
 }
 
