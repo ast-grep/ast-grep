@@ -64,7 +64,11 @@ pub trait Language: Clone {
   /// The first item is the embedded region language, e.g. javascript
   /// The second item is a list of regions in tree_sitter.
   /// also see https://tree-sitter.github.io/tree-sitter/using-parsers#multi-language-documents
-  fn extract_injections<D: Doc<Lang = Self>>(&self, _root: Node<D>) -> Vec<(String, Vec<TSRange>)> {
+  fn extract_injections<D: Doc>(
+    &self,
+    _root: Node<D>,
+    _conv: impl Fn(Self) -> D::Lang,
+  ) -> Vec<(String, Vec<TSRange>)> {
     vec![]
   }
 }

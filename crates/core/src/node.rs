@@ -92,7 +92,7 @@ impl<D: Doc> Root<D> {
     get_lang: F,
   ) -> Option<Vec<Root<D>>> {
     let root = self.root();
-    let range = self.lang().extract_injections(root);
+    let range = self.lang().extract_injections(root, |l| l);
     if range.is_empty() {
       return None;
     }
