@@ -53,6 +53,14 @@ impl SgLang {
     let customs = DynamicLang::all_langs().into_iter().map(Self::Custom);
     builtin.chain(customs).collect()
   }
+
+  pub fn injectable_sg_langs(&self) -> Option<impl Iterator<Item = Self>> {
+    let langs = self.injectable_languages()?;
+    // TODO: handle injected languages not found
+    // e.g vue can inject scss which is not supported by sg
+    let iter = langs.iter().filter_map(|s| SgLang::from_str(s).ok());
+    Some(iter)
+  }
 }
 
 impl Display for SgLang {
@@ -147,6 +155,20 @@ impl Language for SgLang {
       Builtin(b) => b.expando_char(),
       Custom(c) => c.expando_char(),
     }
+  }
+
+  fn injectable_languages(&self) -> Option<&'static [&'static str]> {
+    match self {
+      Builtin(b) => b.injectable_languages(),
+      Custom(c) => c.injectable_languages(),
+    }
+  }
+
+  fn extract_injections<D: ast_grep_core::Doc<Lang = Self>>(
+    &self,
+    root: ast_grep_core::Node<D>,
+  ) -> Vec<(String, Vec<tree_sitter::Range>)> {
+    todo!("not")
   }
 }
 
