@@ -1,5 +1,6 @@
 use super::pre_process_pattern;
 use ast_grep_core::language::{TSPoint, TSRange};
+use ast_grep_core::Language;
 use ast_grep_core::{matcher::KindMatcher, Doc, Node};
 use std::collections::HashMap;
 
@@ -7,7 +8,7 @@ use std::collections::HashMap;
 // https://github.com/tree-sitter/tree-sitter-html/blob/b5d9758e22b4d3d25704b72526670759a9e4d195/src/scanner.c#L194
 #[derive(Clone, Copy)]
 pub struct Html;
-impl ast_grep_core::language::Language for Html {
+impl Language for Html {
   fn get_ts_language(&self) -> ast_grep_core::language::TSLanguage {
     crate::parsers::language_html()
   }
@@ -112,5 +113,27 @@ mod test {
     )?;
     assert_eq!(ret, r#"<div class='bar'>foo</div>"#);
     Ok(())
+  }
+
+  fn extract(src: &str) -> HashMap<String, Vec<TSRange>> {
+    let root = Html.ast_grep(src);
+    Html.extract_injections(root.root())
+  }
+
+  #[test]
+  fn test_html_extraction() {
+    let map = extract("<script>a</script><style>.a{}</style>");
+    assert!(map.contains_key("css"));
+    assert!(map.contains_key("js"));
+    assert_eq!(map["css"].len(), 1);
+    assert_eq!(map["js"].len(), 1);
+  }
+
+  #[test]
+  fn test_explicit_lang() {
+    let map = extract("<script lang='ts'>a</script><script lang=ts>.a{}</script><style lang=scss></style><style lang=\"scss\"></style>");
+    assert!(map.contains_key("ts"));
+    assert_eq!(map["ts"].len(), 2);
+    assert_eq!(map["scss"].len(), 2);
   }
 }
