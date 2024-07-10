@@ -1,6 +1,7 @@
 use crate::meta_var::{extract_meta_var, MetaVariable};
 use crate::{AstGrep, Doc, Node, StrDoc};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::path::Path;
 pub use tree_sitter::Language as TSLanguage;
 pub use tree_sitter::{Point as TSPoint, Range as TSRange};
@@ -68,8 +69,8 @@ pub trait Language: Clone {
     &self,
     _root: Node<D>,
     _conv: impl Fn(Self) -> D::Lang,
-  ) -> Vec<(String, Vec<TSRange>)> {
-    vec![]
+  ) -> HashMap<String, Vec<TSRange>> {
+    HashMap::new()
   }
 }
 

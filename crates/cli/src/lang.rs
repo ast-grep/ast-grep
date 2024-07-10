@@ -176,7 +176,7 @@ impl Language for SgLang {
     &self,
     root: Node<D>,
     conv: impl Fn(Self) -> D::Lang,
-  ) -> Vec<(String, Vec<TSRange>)> {
+  ) -> HashMap<String, Vec<TSRange>> {
     match self {
       Builtin(b) => b.extract_injections(root, |b| conv(Builtin(b))),
       Custom(c) => c.extract_injections(root, |c| conv(Custom(c))),
