@@ -172,14 +172,10 @@ impl Language for SgLang {
     }
   }
 
-  fn extract_injections<D: Doc>(
-    &self,
-    root: Node<D>,
-    conv: impl Fn(Self) -> D::Lang,
-  ) -> HashMap<String, Vec<TSRange>> {
+  fn extract_injections<D: Doc>(&self, root: Node<D>) -> HashMap<String, Vec<TSRange>> {
     match self {
-      Builtin(b) => b.extract_injections(root, |b| conv(Builtin(b))),
-      Custom(c) => c.extract_injections(root, |c| conv(Custom(c))),
+      Builtin(b) => b.extract_injections(root),
+      Custom(c) => c.extract_injections(root),
     }
   }
 }

@@ -316,13 +316,9 @@ impl Language for SupportLang {
   impl_lang_method!(extract_meta_var, (source: &str) => Option<MetaVariable>);
   impl_lang_method!(injectable_languages, () => Option<&'static [&'static str]>);
 
-  fn extract_injections<D: Doc>(
-    &self,
-    root: Node<D>,
-    conv: impl Fn(Self) -> D::Lang,
-  ) -> HashMap<String, Vec<TSRange>> {
+  fn extract_injections<D: Doc>(&self, root: Node<D>) -> HashMap<String, Vec<TSRange>> {
     match self {
-      SupportLang::Html => Html.extract_injections(root, |_| conv(SupportLang::Html)),
+      SupportLang::Html => Html.extract_injections(root),
       _ => HashMap::new(),
     }
   }
