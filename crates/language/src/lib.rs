@@ -34,6 +34,7 @@ use ast_grep_core::{Doc, Node};
 use ignore::types::{Types, TypesBuilder};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::iter::repeat;
@@ -319,10 +320,10 @@ impl Language for SupportLang {
     &self,
     root: Node<D>,
     conv: impl Fn(Self) -> D::Lang,
-  ) -> Vec<(String, Vec<TSRange>)> {
+  ) -> HashMap<String, Vec<TSRange>> {
     match self {
       SupportLang::Html => Html.extract_injections(root, |_| conv(SupportLang::Html)),
-      _ => vec![],
+      _ => HashMap::new(),
     }
   }
 
