@@ -87,31 +87,25 @@ impl<D: Doc> Root<D> {
     node.root = self;
   }
 
-  pub fn get_injections<F: Fn(&str) -> Option<D::Lang>>(
-    &self,
-    get_lang: F,
-  ) -> Option<Vec<Root<D>>> {
+  pub fn get_injections<F: Fn(&str) -> Option<D::Lang>>(&self, get_lang: F) -> Vec<Root<D>> {
     let root = self.root();
     let range = self.lang().extract_injections(root);
-    if range.is_empty() {
-      return None;
-    }
     let roots = range
       .into_iter()
       .filter_map(|(lang, ranges)| {
         let lang = get_lang(&lang)?;
         let source = self.doc.get_source();
-        let mut parser = tree_sitter::Parser::new().expect("TODO");
-        parser.set_included_ranges(&ranges).expect("TODO");
-        parser.set_language(&lang.get_ts_language()).expect("TODO");
-        let tree = source.parse_tree_sitter(&mut parser, None).expect("TODO");
+        let mut parser = tree_sitter::Parser::new().ok()?;
+        parser.set_included_ranges(&ranges).ok()?;
+        parser.set_language(&lang.get_ts_language()).ok()?;
+        let tree = source.parse_tree_sitter(&mut parser, None).ok()?;
         tree.map(|t| Self {
           inner: t,
           doc: self.doc.clone_with_lang(lang),
         })
       })
       .collect();
-    Some(roots)
+    roots
   }
 }
 

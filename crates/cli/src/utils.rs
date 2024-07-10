@@ -240,7 +240,7 @@ pub fn filter_file_pattern_injection(
 ) -> Option<(MatchUnit<Pattern<SgLang>>, SgLang)> {
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(&file_content);
-  let injections = grep.inner.get_injections(|s| SgLang::from_str(s).ok())?;
+  let injections = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
   matchers.find_map(|(i_lang, matcher)| {
     let fixed = matcher.fixed_string();
     if !fixed.is_empty() && !file_content.contains(&*fixed) {
@@ -248,10 +248,10 @@ pub fn filter_file_pattern_injection(
     }
     let injection = injections.iter().find(|i| *i.lang() == i_lang)?;
     let has_match = injection.root().find(&matcher).is_some();
-    let injected = AstGrep {
-      inner: injection.clone(),
-    };
     has_match.then(|| {
+      let injected = AstGrep {
+        inner: injection.clone(),
+      };
       (
         MatchUnit {
           grep: injected,
