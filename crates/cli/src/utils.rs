@@ -435,3 +435,26 @@ impl NoIgnore {
     builder
   }
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use ast_grep_language::SupportLang;
+
+  #[test]
+  fn test_html_embedding() {
+    let root =
+      SgLang::Builtin(SupportLang::Html).ast_grep("<script lang=typescript>alert(123)</script>");
+    let docs = root.inner.get_injections(|s| SgLang::from_str(s).ok());
+    assert_eq!(docs.len(), 1);
+    let script = docs[0].root().child(0).expect("should exist");
+    assert_eq!(script.kind(), "expression_statement");
+  }
+
+  #[test]
+  fn test_html_embedding_lang_not_found() {
+    let root = SgLang::Builtin(SupportLang::Html).ast_grep("<script lang=xxx>alert(123)</script>");
+    let docs = root.inner.get_injections(|s| SgLang::from_str(s).ok());
+    assert_eq!(docs.len(), 0);
+  }
+}
