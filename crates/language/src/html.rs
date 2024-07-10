@@ -20,12 +20,8 @@ impl ast_grep_core::language::Language for Html {
   fn injectable_languages(&self) -> Option<&'static [&'static str]> {
     Some(&["css", "js", "ts", "tsx", "scss", "less", "stylus", "coffee"])
   }
-  fn extract_injections<D: Doc>(
-    &self,
-    root: Node<D>,
-    conv: impl Fn(Self) -> D::Lang,
-  ) -> HashMap<String, Vec<TSRange>> {
-    let lang = conv(*self);
+  fn extract_injections<D: Doc>(&self, root: Node<D>) -> HashMap<String, Vec<TSRange>> {
+    let lang = root.lang();
     let mut map = HashMap::new();
     let matcher = KindMatcher::new("script_element", lang.clone());
     for script in root.find_all(matcher) {
@@ -38,7 +34,7 @@ impl ast_grep_core::language::Language for Html {
           .push(node_to_range(&content));
       };
     }
-    let matcher = KindMatcher::new("style_element", lang);
+    let matcher = KindMatcher::new("style_element", lang.clone());
     for style in root.find_all(matcher) {
       let injected = find_lang(&style).unwrap_or_else(|| "css".into());
       let content = style.children().find(|c| c.kind() == "raw_text");
