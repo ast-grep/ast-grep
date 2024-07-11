@@ -34,7 +34,7 @@ impl SgLang {
       Builtin(b) => b.file_types(),
       Custom(c) => c.file_types(),
     };
-    lang_globs::merge_types(self, default_types)
+    lang_globs::merge_globs(self, default_types)
   }
 
   // register_globs must be called after register_custom_language
@@ -61,8 +61,22 @@ impl SgLang {
     let langs = self.injectable_languages()?;
     // TODO: handle injected languages not found
     // e.g vue can inject scss which is not supported by sg
+    // we should report an error here
     let iter = langs.iter().filter_map(|s| SgLang::from_str(s).ok());
     Some(iter)
+  }
+
+  pub fn augmented_file_type(&self) -> Types {
+    let self_type = self.file_types();
+    let injected_from = Self::all_langs().into_iter().filter_map(|lang| {
+      lang
+        .injectable_sg_langs()?
+        .any(|l| l == *self)
+        .then_some(lang)
+    });
+    let injected_types = injected_from.map(|lang| lang.file_types());
+    let all_types = std::iter::once(self_type).chain(injected_types);
+    lang_globs::merge_types(all_types)
   }
 }
 
