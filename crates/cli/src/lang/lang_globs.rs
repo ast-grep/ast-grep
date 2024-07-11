@@ -58,7 +58,21 @@ fn get_types(lang: &SgLang) -> Option<&Types> {
   None
 }
 
-pub fn merge_types(lang: &SgLang, type1: Types) -> Types {
+pub fn merge_types(types_vec: impl Iterator<Item = Types>) -> Types {
+  let mut builder = TypesBuilder::new();
+  for types in types_vec {
+    for def in types.definitions() {
+      let name = def.name();
+      for glob in def.globs() {
+        builder.add(name, glob).expect(name);
+      }
+      builder.select(name);
+    }
+  }
+  builder.build().expect("file types must be valid")
+}
+
+pub fn merge_globs(lang: &SgLang, type1: Types) -> Types {
   let Some(type2) = get_types(lang) else {
     return type1;
   };
@@ -130,7 +144,7 @@ html: ['*.vue', '*.svelte']";
   fn test_merge_types() {
     let lang: SgLang = SupportLang::Rust.into();
     let default_types = lang.file_types();
-    let rust_types = merge_types(&lang, default_types);
+    let rust_types = merge_globs(&lang, default_types);
     assert!(rust_types.matched("a.php", false).is_ignore());
     assert!(rust_types.matched("a.rs", false).is_whitelist());
   }
@@ -146,7 +160,7 @@ html: ['*.vue', '*.svelte']";
     }
     let lang: SgLang = SupportLang::Html.into();
     let default_types = lang.file_types();
-    let html_types = merge_types(&lang, default_types);
+    let html_types = merge_globs(&lang, default_types);
     assert!(html_types.matched("a.php", false).is_ignore());
     assert!(html_types.matched("a.html", false).is_whitelist());
     assert!(html_types.matched("a.vue", false).is_whitelist());

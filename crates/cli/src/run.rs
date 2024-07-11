@@ -300,7 +300,12 @@ impl<P: Printer> PathWorker for RunWithSpecificLang<P> {
     let arg = &self.arg;
     let pattern = self.pattern.clone();
     let lang = arg.lang.expect("must present");
-    filter_file_pattern(path, lang, pattern)
+    let path_lang = SgLang::from_path(path)?;
+    if path_lang == lang {
+      filter_file_pattern(path, lang, pattern)
+    } else {
+      filter_file_pattern_injection(path, path_lang, std::iter::once((lang, pattern))).map(|n| n.0)
+    }
   }
 }
 

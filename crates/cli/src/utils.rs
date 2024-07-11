@@ -314,7 +314,7 @@ impl InputArgs {
     NoIgnore::disregard(&self.no_ignore)
       .walk(&self.paths)
       .threads(threads)
-      .types(lang.file_types())
+      .types(lang.augmented_file_type())
       .build_parallel()
   }
 }
