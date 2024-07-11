@@ -68,14 +68,14 @@ impl SgLang {
 
   pub fn augmented_file_type(&self) -> Types {
     let self_type = self.file_types();
-    let injected_from = Self::all_langs().into_iter().filter_map(|lang| {
+    let injector = Self::all_langs().into_iter().filter_map(|lang| {
       lang
         .injectable_sg_langs()?
         .any(|l| l == *self)
         .then_some(lang)
     });
-    let injected_types = injected_from.map(|lang| lang.file_types());
-    let all_types = std::iter::once(self_type).chain(injected_types);
+    let injector_types = injector.map(|lang| lang.file_types());
+    let all_types = std::iter::once(self_type).chain(injector_types);
     lang_globs::merge_types(all_types)
   }
 }
