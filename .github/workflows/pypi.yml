@@ -51,7 +51,7 @@ jobs:
   #         path: dist
 
   macos-x86_64:
-    runs-on: macos-latest
+    runs-on: macos-latest-xlarge
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -83,7 +83,7 @@ jobs:
           path: dist
 
   macos-universal:
-    runs-on: macos-latest
+    runs-on: macos-latest-xlarge
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
