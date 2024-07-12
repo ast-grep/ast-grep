@@ -240,27 +240,36 @@ pub fn filter_file_pattern_injection(
 ) -> Option<(MatchUnit<Pattern<SgLang>>, SgLang)> {
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(&file_content);
-  let injections = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
-  matchers.find_map(|(i_lang, matcher)| {
+  let do_match = |ast_grep: AstGrep<_>, matcher: Pattern<SgLang>, lang: SgLang| {
     let fixed = matcher.fixed_string();
     if !fixed.is_empty() && !file_content.contains(&*fixed) {
       return None;
     }
-    let injection = injections.iter().find(|i| *i.lang() == i_lang)?;
-    let has_match = injection.root().find(&matcher).is_some();
+    let has_match = ast_grep.root().find(&matcher).is_some();
     has_match.then(|| {
-      let injected = AstGrep {
-        inner: injection.clone(),
-      };
       (
         MatchUnit {
-          grep: injected,
+          grep: ast_grep,
           path: path.to_path_buf(),
           matcher,
         },
-        i_lang,
+        lang,
       )
     })
+  };
+  // let (l, matcher) = matchers.next()?;
+  // debug_assert!(l == lang);
+  // let ret = do_match(grep.clone(), matcher, l);
+  // if ret.is_some() {
+  //   return ret;
+  // }
+  let injections = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
+  matchers.find_map(|(i_lang, matcher)| {
+    let injection = injections.iter().find(|i| *i.lang() == i_lang)?;
+    let injected = AstGrep {
+      inner: injection.clone(),
+    };
+    do_match(injected, matcher, i_lang)
   })
 }
 
