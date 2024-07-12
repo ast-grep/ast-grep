@@ -101,7 +101,7 @@ pub trait PathWorker: Worker {
   /// WalkParallel will determine what files will be processed.
   fn build_walk(&self) -> WalkParallel;
   /// Parse and find_match can be done in `produce_item`.
-  fn produce_item(&self, path: &Path) -> Option<Self::Item>;
+  fn produce_item(&self, path: &Path) -> impl Iterator<Item = Self::Item>;
 
   fn run_path(self) -> Result<()>
   where
@@ -169,16 +169,16 @@ fn run_worker<W: PathWorker + ?Sized + 'static>(worker: Arc<W>) -> Result<()> {
       let tx = tx.clone();
       let w = w.clone();
       Box::new(move |result| {
-        let producer = |path: PathBuf| w.produce_item(&path);
-        let maybe_result = filter_result(result).and_then(producer);
-        let result = match maybe_result {
-          Some(ret) => ret,
-          None => return WalkState::Continue,
+        let Some(p) = filter_result(result) else {
+          return WalkState::Continue;
         };
-        match tx.send(result) {
-          Ok(_) => WalkState::Continue,
-          Err(_) => WalkState::Quit,
+        for result in w.produce_item(&p) {
+          match tx.send(result) {
+            Ok(_) => continue,
+            Err(_) => return WalkState::Quit,
+          }
         }
+        WalkState::Continue
       })
     });
   });

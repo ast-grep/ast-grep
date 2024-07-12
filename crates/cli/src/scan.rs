@@ -165,19 +165,21 @@ impl<P: Printer> PathWorker for ScanWithConfig<P> {
   fn build_walk(&self) -> WalkParallel {
     self.arg.input.walk()
   }
-  fn produce_item(&self, path: &Path) -> Option<Self::Item> {
+  fn produce_item(&self, path: &Path) -> impl Iterator<Item = Self::Item> {
     let rules = self.configs.for_path(path);
     if rules.is_empty() {
-      return None;
+      return None.into_iter();
     }
     let lang = rules[0].language;
     let combined = CombinedScan::new(rules);
-    let unit = filter_file_interactive(path, lang, ast_grep_core::matcher::MatchAll)?;
+    let Some(unit) = filter_file_interactive(path, lang, ast_grep_core::matcher::MatchAll) else {
+      return None.into_iter();
+    };
     let hit_set = combined.find(&unit.grep);
     if !hit_set.is_empty() {
-      return Some((unit.path, unit.grep, hit_set));
+      return Some((unit.path, unit.grep, hit_set)).into_iter();
     }
-    None
+    None.into_iter()
   }
 }
 
