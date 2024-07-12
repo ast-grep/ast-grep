@@ -21,7 +21,6 @@ on:
   push:
     tags:
       - "[0-9]+.*"
-    branches: [py310-mac-arm]
   schedule:
     # run pypi every day 9 am
     - cron: '0 9 * * *'
@@ -30,69 +29,69 @@ permissions:
   contents: read
 
 jobs:
-  # linux:
-  #   runs-on: ubuntu-20.04
-  #   strategy:
-  #     matrix:
-  #       target:
-  #         - x86_64-unknown-linux-gnu
-  #         - aarch64-unknown-linux-gnu
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-python@v5
-  #       with:
-  #         python-version: ${{ env.PYTHON_VERSION }}
-  #         architecture: x64
-  #     - name: Build wheels
-  #       uses: PyO3/maturin-action@v1
-  #       env:
-  #         CFLAGS: "-std=c11"
-  #         CXXFLAGS: "-std=c++11"
-  #       with:
-  #         target: ${{ matrix.target }}
-  #         manylinux: auto
-  #         args: --release --out dist --find-interpreter
-  #         working-directory: crates/pyo3
-  #     - name: Test sdist
-  #       # GH action only has x86 runner
-  #       if: matrix.target == 'x86_64-unknown-linux-gnu'
-  #       run: |
-  #         pip install pytest
-  #         pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
-  #         pytest
-  #     - name: Upload wheels
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: wheels
-  #         path: crates/pyo3/dist
+  linux:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        env:
+          CFLAGS: "-std=c11"
+          CXXFLAGS: "-std=c++11"
+        with:
+          target: ${{ matrix.target }}
+          manylinux: auto
+          args: --release --out dist --find-interpreter
+          working-directory: crates/pyo3
+      - name: Test sdist
+        # GH action only has x86 runner
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          pip install pytest
+          pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
+          pytest
+      - name: Upload wheels
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: crates/pyo3/dist
 
-  # windows:
-  #   runs-on: windows-latest
-  #   strategy:
-  #     matrix:
-  #       target: [x64, x86]
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-python@v5
-  #       with:
-  #         python-version: ${{ env.PYTHON_VERSION }}
-  #         architecture: ${{ matrix.target }}
-  #     - name: Build wheels
-  #       uses: PyO3/maturin-action@v1
-  #       with:
-  #         target: ${{ matrix.target }}
-  #         args: --release --out dist --find-interpreter
-  #         working-directory: crates/pyo3
-  #     - name: Test sdist
-  #       run: |
-  #         pip install pytest
-  #         pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
-  #         pytest
-  #     - name: Upload wheels
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: wheels
-  #         path: crates/pyo3/dist
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        target: [x64, x86]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: ${{ matrix.target }}
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist --find-interpreter
+          working-directory: crates/pyo3
+      - name: Test sdist
+        run: |
+          pip install pytest
+          pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
+          pytest
+      - name: Upload wheels
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: crates/pyo3/dist
 
   macos:
     runs-on: macos-latest
@@ -130,39 +129,39 @@ jobs:
           name: wheels
           path: crates/pyo3/dist
 
-  # sdist:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Build sdist
-  #       uses: PyO3/maturin-action@v1
-  #       with:
-  #         command: sdist
-  #         args: --out dist
-  #         working-directory: crates/pyo3
-  #     - name: Upload sdist
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: wheels
-  #         path: crates/pyo3/dist
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+          working-directory: crates/pyo3
+      - name: Upload sdist
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: crates/pyo3/dist
 
-  # release:
-  #   name: Release
-  #   runs-on: ubuntu-latest
-  #   if: "startsWith(github.event.ref, 'refs/tags') || inputs.need_release"
-  #   permissions:
-  #     # For pypi trusted publishing
-  #     id-token: write
-  #   needs: [linux, windows, macos, sdist]
-  #   steps:
-  #     - uses: actions/download-artifact@v3
-  #       with:
-  #         name: wheels
-  #     - name: Publish to PyPI
-  #       uses: PyO3/maturin-action@v1
-  #       with:
-  #         command: upload
-  #         args: --skip-existing *
-  #         # note, release does not need working-directory
-  #         # because artifacts are stored under the root dir
-  #         # and it does not involve pyproject.toml
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    if: "startsWith(github.event.ref, 'refs/tags') || inputs.need_release"
+    permissions:
+      # For pypi trusted publishing
+      id-token: write
+    needs: [linux, windows, macos, sdist]
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: wheels
+      - name: Publish to PyPI
+        uses: PyO3/maturin-action@v1
+        with:
+          command: upload
+          args: --skip-existing *
+          # note, release does not need working-directory
+          # because artifacts are stored under the root dir
+          # and it does not involve pyproject.toml
