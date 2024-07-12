@@ -103,14 +103,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          # you have to list python version because macos-latest lack python
-          # https://github.com/actions/runner-images/issues/9770
-          # python-version: |
-          #   3.8
-          #   3.9
-          #   3.10
-          #   3.11
-          #   3.12
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         env:
@@ -121,7 +113,7 @@ jobs:
           args: --release --out dist --find-interpreter
           working-directory: crates/pyo3
       - name: Test sdist
-        if: matrix.target == 'x86_64'
+        if: matrix.target == 'aarch64'
         run: |
           pip install pytest
           pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
