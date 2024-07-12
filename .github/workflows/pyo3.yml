@@ -94,8 +94,7 @@ jobs:
           path: crates/pyo3/dist
 
   macos:
-    # use old macos due to https://github.com/actions/setup-python/issues/852
-    runs-on: macos-13
+    runs-on: macos-latest
     strategy:
       matrix:
         target: [x86_64, aarch64]
