@@ -27,28 +27,28 @@ env:
   RUSTUP_MAX_RETRIES: 10
 
 jobs:
-  sdist:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: "Build sdist"
-        uses: PyO3/maturin-action@v1
-        with:
-          command: sdist
-          args: --out dist
-      - name: "Test sdist"
-        run: |
-          rustup default $(cat rust-toolchain)
-          pip install dist/${{ env.PACKAGE_NAME }}-*.tar.gz --force-reinstall
-          sg --help
-      - name: "Upload sdist"
-        uses: actions/upload-artifact@v3
-        with:
-          name: wheels
-          path: dist
+  # sdist:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         python-version: ${{ env.PYTHON_VERSION }}
+  #     - name: "Build sdist"
+  #       uses: PyO3/maturin-action@v1
+  #       with:
+  #         command: sdist
+  #         args: --out dist
+  #     - name: "Test sdist"
+  #       run: |
+  #         rustup default $(cat rust-toolchain)
+  #         pip install dist/${{ env.PACKAGE_NAME }}-*.tar.gz --force-reinstall
+  #         sg --help
+  #     - name: "Upload sdist"
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         name: wheels
+  #         path: dist
 
   macos-x86_64:
     runs-on: macos
@@ -102,75 +102,75 @@ jobs:
           name: wheels
           path: dist
 
-  windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        platform:
-          - target: x86_64-pc-windows-msvc
-            arch: x64
-          - target: i686-pc-windows-msvc
-            arch: x86
-          - target: aarch64-pc-windows-msvc
-            arch: x64
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          architecture: ${{ matrix.platform.arch }}
-      - name: "Build wheels"
-        uses: PyO3/maturin-action@v1
-        env:
-          # https://github.com/rust-cross/cargo-xwin/issues/108
-          XWIN_VERSION: "16"
-        with:
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist
-      - name: "Test wheel"
-        if: ${{ !startsWith(matrix.platform.target, 'aarch64') }}
-        shell: bash
-        run: |
-          python -m pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
-          sg --help
-      - name: "Upload wheels"
-        uses: actions/upload-artifact@v3
-        with:
-          name: wheels
-          path: dist
+  # windows:
+  #   runs-on: windows-latest
+  #   strategy:
+  #     matrix:
+  #       platform:
+  #         - target: x86_64-pc-windows-msvc
+  #           arch: x64
+  #         - target: i686-pc-windows-msvc
+  #           arch: x86
+  #         - target: aarch64-pc-windows-msvc
+  #           arch: x64
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         python-version: ${{ env.PYTHON_VERSION }}
+  #         architecture: ${{ matrix.platform.arch }}
+  #     - name: "Build wheels"
+  #       uses: PyO3/maturin-action@v1
+  #       env:
+  #         # https://github.com/rust-cross/cargo-xwin/issues/108
+  #         XWIN_VERSION: "16"
+  #       with:
+  #         target: ${{ matrix.platform.target }}
+  #         args: --release --out dist
+  #     - name: "Test wheel"
+  #       if: ${{ !startsWith(matrix.platform.target, 'aarch64') }}
+  #       shell: bash
+  #       run: |
+  #         python -m pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
+  #         sg --help
+  #     - name: "Upload wheels"
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         name: wheels
+  #         path: dist
 
-  linux:
-    runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - aarch64-unknown-linux-gnu
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
-      - name: "Build wheels"
-        uses: PyO3/maturin-action@v1
-        env:
-          CFLAGS: "-std=c11"
-          CXXFLAGS: "-std=c++11"
-        with:
-          target: ${{ matrix.target }}
-          manylinux: auto
-          args: --release --out dist
-      - name: "Test wheel"
-        if: ${{ startsWith(matrix.target, 'x86_64') }}
-        run: |
-          pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
-          sg --help
-      - name: "Upload wheels"
-        uses: actions/upload-artifact@v3
-        with:
-          name: wheels
-          path: dist
+  # linux:
+  #   runs-on: ubuntu-20.04
+  #   strategy:
+  #     matrix:
+  #       target:
+  #         - x86_64-unknown-linux-gnu
+  #         - aarch64-unknown-linux-gnu
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         python-version: ${{ env.PYTHON_VERSION }}
+  #         architecture: x64
+  #     - name: "Build wheels"
+  #       uses: PyO3/maturin-action@v1
+  #       env:
+  #         CFLAGS: "-std=c11"
+  #         CXXFLAGS: "-std=c++11"
+  #       with:
+  #         target: ${{ matrix.target }}
+  #         manylinux: auto
+  #         args: --release --out dist
+  #     - name: "Test wheel"
+  #       if: ${{ startsWith(matrix.target, 'x86_64') }}
+  #       run: |
+  #         pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
+  #         sg --help
+  #     - name: "Upload wheels"
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         name: wheels
+  #         path: dist
 
   upload-release:
     name: Upload to PyPI
@@ -178,8 +178,8 @@ jobs:
     needs:
       - macos-universal
       - macos-x86_64
-      - windows
-      - linux
+      # - windows
+      # - linux
         # - linux-cross I would want to support linux-cross but it is too hard for me to compile c projects for tree-sitter-languages
     # If you don't set release flag, it's a dry run (no uploads).
     if: "startsWith(github.event.ref, 'refs/tags') || inputs.need_release"
