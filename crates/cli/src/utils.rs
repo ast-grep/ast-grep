@@ -101,7 +101,7 @@ pub trait PathWorker: Worker {
   /// WalkParallel will determine what files will be processed.
   fn build_walk(&self) -> WalkParallel;
   /// Parse and find_match can be done in `produce_item`.
-  fn produce_item(&self, path: &Path) -> impl Iterator<Item = Self::Item>;
+  fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>>;
 
   fn run_path(self) -> Result<()>
   where
@@ -172,7 +172,10 @@ fn run_worker<W: PathWorker + ?Sized + 'static>(worker: Arc<W>) -> Result<()> {
         let Some(p) = filter_result(result) else {
           return WalkState::Continue;
         };
-        for result in w.produce_item(&p) {
+        let Some(items) = w.produce_item(&p) else {
+          return WalkState::Continue;
+        };
+        for result in items {
           match tx.send(result) {
             Ok(_) => continue,
             Err(_) => return WalkState::Quit,
@@ -217,27 +220,9 @@ pub fn filter_file_interactive<M: Matcher<SgLang>>(
 pub fn filter_file_pattern(
   path: &Path,
   lang: SgLang,
-  matcher: Pattern<SgLang>,
-) -> Option<MatchUnit<Pattern<SgLang>>> {
-  let file_content = read_file(path)?;
-  let fixed = matcher.fixed_string();
-  if !fixed.is_empty() && !file_content.contains(&*fixed) {
-    return None;
-  }
-  let grep = lang.ast_grep(file_content);
-  let has_match = grep.root().find(&matcher).is_some();
-  has_match.then(|| MatchUnit {
-    grep,
-    path: path.to_path_buf(),
-    matcher,
-  })
-}
-
-pub fn filter_file_pattern_injection(
-  path: &Path,
-  lang: SgLang,
-  mut matchers: impl Iterator<Item = (SgLang, Pattern<SgLang>)>,
-) -> Option<(MatchUnit<Pattern<SgLang>>, SgLang)> {
+  root_matcher: Option<Pattern<SgLang>>,
+  matchers: impl Iterator<Item = (SgLang, Pattern<SgLang>)>,
+) -> Option<Vec<(MatchUnit<Pattern<SgLang>>, SgLang)>> {
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(&file_content);
   let do_match = |ast_grep: AstGrep<_>, matcher: Pattern<SgLang>, lang: SgLang| {
@@ -257,20 +242,21 @@ pub fn filter_file_pattern_injection(
       )
     })
   };
-  // let (l, matcher) = matchers.next()?;
-  // debug_assert!(l == lang);
-  // let ret = do_match(grep.clone(), matcher, l);
-  // if ret.is_some() {
-  //   return ret;
-  // }
+  let mut ret = vec![];
+  if let Some(matcher) = root_matcher {
+    ret.extend(do_match(grep.clone(), matcher, lang));
+  }
   let injections = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
-  matchers.find_map(|(i_lang, matcher)| {
-    let injection = injections.iter().find(|i| *i.lang() == i_lang)?;
+  for (i_lang, matcher) in matchers {
+    let Some(injection) = injections.iter().find(|i| *i.lang() == i_lang) else {
+      continue;
+    };
     let injected = AstGrep {
       inner: injection.clone(),
     };
-    do_match(injected, matcher, i_lang)
-  })
+    ret.extend(do_match(injected, matcher, i_lang));
+  }
+  Some(ret)
 }
 
 const MAX_FILE_SIZE: usize = 3_000_000;

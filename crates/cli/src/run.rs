@@ -12,9 +12,7 @@ use crate::debug::DebugFormat;
 use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
-use crate::utils::{
-  filter_file_pattern, filter_file_pattern_injection, InputArgs, MatchUnit, OutputArgs,
-};
+use crate::utils::{filter_file_pattern, InputArgs, MatchUnit, OutputArgs};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 // NOTE: have to register custom lang before clap read arg
@@ -227,22 +225,19 @@ impl<P: Printer> PathWorker for RunWithInferredLang<P> {
     self.arg.input.walk()
   }
 
-  fn produce_item(&self, path: &Path) -> impl Iterator<Item = Self::Item> {
-    let root_region = || {
-      let lang = SgLang::from_path(path)?;
-      let matcher = self.arg.build_pattern(lang).ok()?;
-      filter_file_pattern(path, lang, matcher).map(|unit| (unit, lang))
-    };
-    let option = || {
-      let lang = SgLang::from_path(path)?;
-      // match sub region
-      let matchers = lang.injectable_sg_langs()?.filter_map(|l| {
+  fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
+    let lang = SgLang::from_path(path)?;
+    let matcher = self.arg.build_pattern(lang).ok()?;
+    // match sub region
+    if let Some(sub_langs) = lang.injectable_sg_langs() {
+      let matchers = sub_langs.filter_map(|l| {
         let pattern = self.arg.build_pattern(l).ok()?;
         Some((l, pattern))
       });
-      filter_file_pattern_injection(path, lang, matchers)
-    };
-    root_region().into_iter().chain(option())
+      filter_file_pattern(path, lang, Some(matcher), matchers)
+    } else {
+      filter_file_pattern(path, lang, Some(matcher), std::iter::empty())
+    }
   }
 }
 
@@ -301,20 +296,17 @@ impl<P: Printer> PathWorker for RunWithSpecificLang<P> {
     let lang = self.arg.lang.expect("must present");
     self.arg.input.walk_lang(lang)
   }
-  fn produce_item(&self, path: &Path) -> impl Iterator<Item = Self::Item> {
+  fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
     let arg = &self.arg;
     let pattern = self.pattern.clone();
     let lang = arg.lang.expect("must present");
-    let option = || {
-      let path_lang = SgLang::from_path(path)?;
-      if path_lang == lang {
-        filter_file_pattern(path, lang, pattern)
-      } else {
-        filter_file_pattern_injection(path, path_lang, std::iter::once((lang, pattern)))
-          .map(|n| n.0)
-      }
+    let path_lang = SgLang::from_path(path)?;
+    let ret = if path_lang == lang {
+      filter_file_pattern(path, lang, Some(pattern), std::iter::empty())?
+    } else {
+      filter_file_pattern(path, path_lang, None, std::iter::once((lang, pattern)))?
     };
-    option().into_iter()
+    Some(ret.into_iter().map(|n| n.0).collect())
   }
 }
 
