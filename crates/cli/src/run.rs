@@ -384,6 +384,16 @@ mod test {
   }
 
   #[test]
+  fn test_run_with_strictness() {
+    let arg = RunArg {
+      pattern: "console.log".to_string(),
+      strictness: Some(Strictness(MatchStrictness::Ast)),
+      ..default_run_arg()
+    };
+    assert!(run_with_pattern(arg).is_ok())
+  }
+
+  #[test]
   fn test_run_with_specific_lang() {
     let arg = RunArg {
       pattern: "Some(result)".to_string(),
