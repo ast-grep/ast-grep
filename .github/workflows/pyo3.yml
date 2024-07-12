@@ -95,7 +95,7 @@ jobs:
   #         path: crates/pyo3/dist
 
   macos:
-    runs-on: macos-13
+    runs-on: macos-latest
     strategy:
       matrix:
         target: [x86_64, aarch64]
@@ -103,7 +103,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: |
+            3.8
+            3.9
+            3.10
+            3.11
+            3.12
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         env:
