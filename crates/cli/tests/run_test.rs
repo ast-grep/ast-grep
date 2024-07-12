@@ -31,3 +31,19 @@ fn test_simple_specific_lang() -> Result<()> {
     .stdout(contains("console.log(456)"));
   Ok(())
 }
+
+#[test]
+fn test_js_in_html() -> Result<()> {
+  let dir = create_test_files([
+    ("a.html", "<script>alert(1)</script>"),
+    ("b.js", "alert(456)"),
+  ])?;
+  Command::cargo_bin("sg")?
+    .current_dir(dir.path())
+    .args(["-p", "alert($A)", "-l", "js"])
+    .assert()
+    .success()
+    .stdout(contains("alert(1)"))
+    .stdout(contains("alert(456)"));
+  Ok(())
+}
