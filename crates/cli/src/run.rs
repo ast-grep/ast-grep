@@ -250,16 +250,23 @@ struct RunWithSpecificLang<Printer> {
   arg: RunArg,
   printer: Printer,
   pattern: Pattern<SgLang>,
+  rewrite: Option<Fixer<SgLang>>,
 }
 
 impl<Printer> RunWithSpecificLang<Printer> {
   fn new(arg: RunArg, printer: Printer) -> Result<Self> {
     let lang = arg.lang.ok_or(anyhow::anyhow!(EC::LanguageNotSpecified))?;
     let pattern = arg.build_pattern(lang)?;
+    let rewrite = if let Some(s) = &arg.rewrite {
+      Some(Fixer::from_str(s, &lang).context(EC::ParsePattern)?)
+    } else {
+      None
+    };
     Ok(Self {
       arg,
       printer,
       pattern,
+      rewrite,
     })
   }
 }
@@ -275,14 +282,9 @@ impl<P: Printer> Worker for RunWithSpecificLang<P> {
     if let Some(format) = arg.debug_query {
       format.debug_query(&self.arg.pattern, lang, self.arg.output.color);
     }
-    let rewrite = if let Some(s) = &arg.rewrite {
-      Some(Fixer::from_str(s, &lang).context(EC::ParsePattern)?)
-    } else {
-      None
-    };
     let mut has_matches = false;
     for match_unit in items {
-      match_one_file(printer, &match_unit, &rewrite)?;
+      match_one_file(printer, &match_unit, &self.rewrite)?;
       has_matches = true;
     }
     printer.after_print()?;
