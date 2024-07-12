@@ -9,6 +9,7 @@ on:
   push:
     tags:
       - "[0-9]+.*"
+    branches: [py310-mac-arm]
   schedule:
     # run pypi every day 9 am
     - cron: '0 9 * * *'
