@@ -2,6 +2,7 @@ use crate::lang::SgLang;
 use crate::print::{ColorArg, JsonStyle};
 
 use anyhow::{anyhow, Context, Result};
+use bit_set::BitSet;
 use clap::{Args, ValueEnum};
 use crossterm::{
   event::{self, Event, KeyCode},
@@ -11,8 +12,9 @@ use crossterm::{
 use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
 use serde::{Deserialize, Serialize};
 
+use ast_grep_config::{CombinedScan, RuleCollection};
 use ast_grep_core::Pattern;
-use ast_grep_core::{AstGrep, Matcher, StrDoc};
+use ast_grep_core::{Matcher, StrDoc};
 use ast_grep_language::Language;
 
 use std::fs::read_to_string;
@@ -21,6 +23,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{mpsc, Arc};
+
+type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
 
 fn read_char() -> Result<char> {
   loop {
@@ -202,19 +206,44 @@ fn read_file(path: &Path) -> Option<String> {
   }
 }
 
-pub fn filter_file_interactive<M: Matcher<SgLang>>(
+fn filter(
+  grep: &AstGrep,
   path: &Path,
   lang: SgLang,
-  matcher: M,
-) -> Option<MatchUnit<M>> {
+  configs: &RuleCollection<SgLang>,
+) -> Option<BitSet> {
+  let rules = configs.get_rule_from_lang(path, lang);
+  let combined = CombinedScan::new(rules);
+  let hit_set = combined.find(grep);
+  if hit_set.is_empty() {
+    None
+  } else {
+    Some(hit_set)
+  }
+}
+
+pub fn filter_file_interactive(
+  path: &Path,
+  configs: &RuleCollection<SgLang>,
+) -> Option<Vec<(PathBuf, AstGrep, BitSet)>> {
+  let lang = SgLang::from_path(path)?;
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(file_content);
-  let has_match = grep.root().find(&matcher).is_some();
-  has_match.then(|| MatchUnit {
-    grep,
-    path: path.to_path_buf(),
-    matcher,
-  })
+  let mut ret = vec![];
+  let root =
+    filter(&grep, path, lang, configs).map(|hit_set| (path.to_path_buf(), grep.clone(), hit_set));
+  ret.extend(root);
+  if let Some(injected) = lang.injectable_sg_langs() {
+    let docs = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
+    let inj = injected.filter_map(|l| {
+      let doc = docs.iter().find(|d| *d.lang() == l)?;
+      let grep = AstGrep { inner: doc.clone() };
+      let hit_set = filter(&grep, path, l, configs)?;
+      Some((path.to_path_buf(), grep, hit_set))
+    });
+    ret.extend(inj)
+  }
+  Some(ret)
 }
 
 pub fn filter_file_pattern(
@@ -225,7 +254,7 @@ pub fn filter_file_pattern(
 ) -> Option<Vec<(MatchUnit<Pattern<SgLang>>, SgLang)>> {
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(&file_content);
-  let do_match = |ast_grep: AstGrep<_>, matcher: Pattern<SgLang>, lang: SgLang| {
+  let do_match = |ast_grep: AstGrep, matcher: Pattern<SgLang>, lang: SgLang| {
     let fixed = matcher.fixed_string();
     if !fixed.is_empty() && !file_content.contains(&*fixed) {
       return None;
@@ -271,7 +300,7 @@ fn file_too_large(file_content: &str) -> bool {
 /// An analogy to compilation unit in C programming language.
 pub struct MatchUnit<M: Matcher<SgLang>> {
   pub path: PathBuf,
-  pub grep: AstGrep<StrDoc<SgLang>>,
+  pub grep: AstGrep,
   pub matcher: M,
 }
 

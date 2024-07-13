@@ -128,7 +128,7 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
     for (path, grep, hit_set) in items {
       let file_content = grep.source().to_string();
       let path = &path;
-      let rules = self.configs.for_path(path);
+      let rules = self.configs.get_rule_from_lang(path, *grep.lang());
       let combined = CombinedScan::new(rules);
       let interactive = self.arg.output.needs_interactive();
       // exclude_fix rule because we already have diff inspection before
@@ -166,18 +166,7 @@ impl<P: Printer> PathWorker for ScanWithConfig<P> {
     self.arg.input.walk()
   }
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
-    let rules = self.configs.for_path(path);
-    if rules.is_empty() {
-      return None;
-    }
-    let lang = rules[0].language;
-    let combined = CombinedScan::new(rules);
-    let unit = filter_file_interactive(path, lang, ast_grep_core::matcher::MatchAll)?;
-    let hit_set = combined.find(&unit.grep);
-    if !hit_set.is_empty() {
-      return Some(vec![(unit.path, unit.grep, hit_set)]);
-    }
-    None
+    filter_file_interactive(path, &self.configs)
   }
 }
 
