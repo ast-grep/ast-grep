@@ -119,3 +119,20 @@ fn test_sg_scan_py_empty_text() -> Result<()> {
     .stdout(contains("STDIN:6:1"));
   Ok(())
 }
+
+#[test]
+fn test_sg_scan_html() -> Result<()> {
+  let dir = create_test_files([
+    ("rule.yml", RULE1),
+    ("test.html", "<script lang=ts>Some(123)</script>"),
+  ])?;
+  Command::cargo_bin("sg")?
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml"])
+    .assert()
+    .success()
+    .stdout(contains("on-rule"))
+    .stdout(contains("script"))
+    .stdout(contains("rule-3").not());
+  Ok(())
+}
