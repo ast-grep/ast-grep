@@ -96,11 +96,8 @@ impl<L: Language + Eq> RuleCollection<L> {
     })
   }
 
-  pub fn for_path<P: AsRef<Path>>(&self, path: P) -> Vec<&RuleConfig<L>> {
+  pub fn get_rule_from_lang(&self, path: &Path, lang: L) -> Vec<&RuleConfig<L>> {
     let mut all_rules = vec![];
-    let Some(lang) = L::from_path(path.as_ref()) else {
-      return vec![];
-    };
     for rule in &self.tenured {
       if rule.lang == lang {
         all_rules = rule.rules.iter().collect();
@@ -108,13 +105,21 @@ impl<L: Language + Eq> RuleCollection<L> {
       }
     }
     all_rules.extend(self.contingent.iter().filter_map(|cont| {
-      if cont.rule.language == lang && cont.matches_path(path.as_ref()) {
+      if cont.rule.language == lang && cont.matches_path(path) {
         Some(&cont.rule)
       } else {
         None
       }
     }));
     all_rules
+  }
+
+  pub fn for_path<P: AsRef<Path>>(&self, path: P) -> Vec<&RuleConfig<L>> {
+    let path = path.as_ref();
+    let Some(lang) = L::from_path(path) else {
+      return vec![];
+    };
+    self.get_rule_from_lang(path, lang)
   }
 
   pub fn get_rule(&self, id: &str) -> Option<&RuleConfig<L>> {
