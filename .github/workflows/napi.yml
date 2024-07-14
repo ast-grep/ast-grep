@@ -183,6 +183,8 @@ jobs:
         with:
           path: crates/napi/artifacts
       - name: Move artifacts
+        run: ls artifacts/**
+      - name: Move artifacts
         run: yarn artifacts
       - name: List packages
         run: ls -R ./npm
