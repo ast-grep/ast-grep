@@ -273,7 +273,11 @@ impl<L: LSPLang> Backend<L> {
     let absolute_path = uri.to_file_path().ok()?;
     // for_path needs relative path, see https://github.com/ast-grep/ast-grep/issues/1272
     let base = Path::new("./");
-    let path = base.join(absolute_path.strip_prefix(&self.base).ok()?);
+    let path = if let Ok(p) = absolute_path.strip_prefix(&self.base) {
+      base.join(p)
+    } else {
+      absolute_path
+    };
     let rules = self.rules.as_ref().ok()?.for_path(&path);
     Some(rules)
   }
