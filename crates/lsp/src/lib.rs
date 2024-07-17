@@ -31,8 +31,6 @@ pub struct Backend<L: LSPLang> {
 const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
   Some(CodeActionProviderCapability::Simple(true));
 
-const SOURCE_FIX_ALL_AST_GREP: CodeActionKind = CodeActionKind::new("source.fixAll.ast-grep");
-
 pub const APPLY_ALL_FIXES: &str = "ast-grep.applyAllFixes";
 
 fn code_action_provider(
@@ -49,11 +47,7 @@ fn code_action_provider(
     return None;
   }
   Some(CodeActionProviderCapability::Options(CodeActionOptions {
-    code_action_kinds: Some(vec![
-      CodeActionKind::QUICKFIX,
-      CodeActionKind::SOURCE_FIX_ALL,
-      SOURCE_FIX_ALL_AST_GREP,
-    ]),
+    code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
     work_done_progress_options: Default::default(),
     resolve_provider: Some(true),
   }))
@@ -196,6 +190,13 @@ fn convert_match_to_diagnostic<L: Language>(
   rule: &RuleConfig<L>,
   uri: &Url,
 ) -> Diagnostic {
+  let rewrite_data = rule.matcher.fixer.as_ref().and_then(|fixer| {
+    let edit = node_match.replace_by(fixer);
+    let rewrite = String::from_utf8(edit.inserted_text).ok()?;
+    let mut map = HashMap::new();
+    map.insert("fixed", rewrite);
+    serde_json::to_value(map).ok()
+  });
   Diagnostic {
     range: convert_node_to_range(&node_match),
     code: Some(NumberOrString::String(rule.id.clone())),
@@ -211,7 +212,7 @@ fn convert_match_to_diagnostic<L: Language>(
     source: Some(String::from("ast-grep")),
     tags: None,
     related_information: collect_labels(&node_match, uri),
-    data: None,
+    data: rewrite_data,
   }
 }
 
@@ -372,13 +373,8 @@ impl<L: LSPLang> Backend<L> {
   {
     let uri = text_document.uri.as_str();
     let versioned = self.map.get(uri)?;
-    let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
-    let edits = changes.entry(text_document.uri.clone()).or_default();
-
-    let Ok(rules) = &self.rules else {
-      return None;
-    };
-
+    let mut edits = vec![];
+    let rules = self.rules.as_ref().ok()?;
     for config in rules.for_path(&path) {
       let ranges = match error_id_to_ranges.get(&config.id) {
         Some(ranges) => ranges,
@@ -404,34 +400,49 @@ impl<L: LSPLang> Backend<L> {
         edits.push(edit);
       }
     }
+    if edits.is_empty() {
+      return None;
+    }
+    let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+    changes.insert(text_document.uri, edits);
     Some(changes)
   }
-
-  async fn on_code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
-    let text_doc = params.text_document;
-    let path = text_doc.uri.to_file_path().ok()?;
-    let diagnostics = params.context.diagnostics;
-    let error_id_to_ranges = build_error_id_to_ranges(diagnostics);
-    let mut response = CodeActionResponse::new();
-    let changes = self.compute_all_fixes(text_doc, error_id_to_ranges, path);
-
-    let edit = Some(WorkspaceEdit {
-      changes,
-      document_changes: None,
-      change_annotations: None,
-    });
+  fn diagnostic_to_code_action(
+    &self,
+    text_doc: &TextDocumentIdentifier,
+    diagnostic: Diagnostic,
+  ) -> Option<CodeAction> {
+    let data = diagnostic.data?;
+    // TODO
+    let map: HashMap<String, String> = serde_json::from_value(data).ok()?;
+    let rewrite = map.get("fixed")?.to_string();
+    let mut changes = HashMap::new();
+    let text_edit = TextEdit::new(diagnostic.range, rewrite);
+    changes.insert(text_doc.uri.clone(), vec![text_edit]);
+    let edit = WorkspaceEdit::new(changes);
     let action = CodeAction {
-      title: "Fix with ast-grep".to_string(),
+      // TODO
+      title: format!("Fix `{:?}` with ast-grep", diagnostic.code),
       command: None,
       diagnostics: None,
-      edit,
+      edit: Some(edit),
       disabled: None,
       kind: Some(CodeActionKind::QUICKFIX),
       is_preferred: Some(true),
       data: None,
     };
+    Some(action)
+  }
 
-    response.push(CodeActionOrCommand::from(action));
+  async fn on_code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
+    let text_doc = params.text_document;
+    let response = params
+      .context
+      .diagnostics
+      .into_iter()
+      .filter_map(|d| self.diagnostic_to_code_action(&text_doc, d))
+      .map(CodeActionOrCommand::from)
+      .collect();
     Some(response)
   }
 
