@@ -10,12 +10,12 @@ use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
 pub struct RewriteData {
-  fixed: String,
+  pub fixed: String,
   // maybe we should have fixed range
 }
 
 impl RewriteData {
-  fn from_value(data: serde_json::Value) -> Option<Self> {
+  pub fn from_value(data: serde_json::Value) -> Option<Self> {
     serde_json::from_value(data).ok()
   }
 
@@ -56,7 +56,7 @@ pub fn diagnostic_to_code_action(
   Some(action)
 }
 
-pub fn convert_node_to_range<D: Doc>(node_match: &Node<D>) -> Range {
+fn convert_node_to_range<D: Doc>(node_match: &Node<D>) -> Range {
   let (start_row, start_col) = node_match.start_pos();
   let (end_row, end_col) = node_match.end_pos();
   Range {

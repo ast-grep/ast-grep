@@ -12,7 +12,7 @@ use ast_grep_core::{language::Language, AstGrep, Doc, StrDoc};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use utils::{convert_match_to_diagnostic, convert_node_to_range, diagnostic_to_code_action};
+use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, RewriteData};
 
 pub use tower_lsp::{LspService, Server};
 
@@ -165,19 +165,6 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
   }
 }
 
-fn build_error_id_to_ranges(diagnostics: Vec<Diagnostic>) -> HashMap<String, Vec<Range>> {
-  let mut error_id_to_ranges = HashMap::new();
-  for diagnostic in diagnostics {
-    let rule_id = match diagnostic.code {
-      Some(NumberOrString::String(rule)) => rule,
-      _ => continue,
-    };
-    let ranges = error_id_to_ranges.entry(rule_id).or_insert_with(Vec::new);
-    ranges.push(diagnostic.range);
-  }
-  error_id_to_ranges
-}
-
 impl<L: LSPLang> Backend<L> {
   pub fn new(
     client: Client,
@@ -287,45 +274,32 @@ impl<L: LSPLang> Backend<L> {
   fn compute_all_fixes(
     &self,
     text_document: TextDocumentIdentifier,
-    error_id_to_ranges: HashMap<String, Vec<Range>>,
-    path: PathBuf,
+    mut diagnostics: Vec<Diagnostic>,
   ) -> Option<HashMap<Url, Vec<TextEdit>>>
   where
     L: ast_grep_core::Language + std::cmp::Eq,
   {
-    let uri = text_document.uri.as_str();
-    let versioned = self.map.get(uri)?;
-    let mut edits = vec![];
-    let rules = self.rules.as_ref().ok()?;
-    for config in rules.for_path(&path) {
-      let ranges = match error_id_to_ranges.get(&config.id) {
-        Some(ranges) => ranges,
-        None => continue,
-      };
-      let matcher = &config.matcher;
-
-      for matched_node in versioned.root.root().find_all(&matcher) {
-        let range = convert_node_to_range(&matched_node);
-        if !ranges.contains(&range) {
-          continue;
+    diagnostics.sort_by_key(|d| (d.range.start, d.range.end));
+    let mut last = Position {
+      line: 0,
+      character: 0,
+    };
+    let edits: Vec<_> = diagnostics
+      .into_iter()
+      .filter_map(|d| {
+        if d.range.start < last {
+          return None;
         }
-        let fixer = match &config.matcher.fixer {
-          Some(fixer) => fixer,
-          None => continue,
-        };
-        let edit = matched_node.replace_by(fixer);
-        let edit = TextEdit {
-          range,
-          new_text: String::from_utf8(edit.inserted_text).unwrap(),
-        };
-
-        edits.push(edit);
-      }
-    }
+        let rewrite_data = RewriteData::from_value(d.data?)?;
+        let edit = TextEdit::new(d.range, rewrite_data.fixed);
+        last = d.range.end;
+        Some(edit)
+      })
+      .collect();
     if edits.is_empty() {
       return None;
     }
-    let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+    let mut changes = HashMap::new();
     changes.insert(text_document.uri, edits);
     Some(changes)
   }
@@ -380,7 +354,6 @@ impl<L: LSPLang> Backend<L> {
     let text_doc: TextDocumentItem =
       serde_json::from_value(first).map_err(LspError::JSONDecodeError)?;
     let uri = text_doc.uri;
-    let path = uri.to_file_path().map_err(|_| LspError::InvalidFileURI)?;
     let Some(lang) = Self::infer_lang_from_uri(&uri) else {
       return Err(LspError::UnsupportedFileType);
     };
@@ -392,10 +365,7 @@ impl<L: LSPLang> Backend<L> {
     let Some(diagnostics) = self.get_diagnostics(&uri, &versioned) else {
       return Err(LspError::NoActionableFix);
     };
-    let error_id_to_ranges = build_error_id_to_ranges(diagnostics);
-
-    let changes =
-      self.compute_all_fixes(TextDocumentIdentifier::new(uri), error_id_to_ranges, path);
+    let changes = self.compute_all_fixes(TextDocumentIdentifier::new(uri), diagnostics);
     let workspace_edit = WorkspaceEdit {
       changes,
       document_changes: None,
@@ -435,12 +405,6 @@ impl<L: LSPLang> Backend<L> {
           )
           .await;
       }
-      LspError::InvalidFileURI => {
-        self
-          .client
-          .log_message(MessageType::ERROR, "Invalid URI format")
-          .await;
-      }
       LspError::UnsupportedFileType => {
         self
           .client
@@ -459,7 +423,6 @@ impl<L: LSPLang> Backend<L> {
 
 enum LspError {
   JSONDecodeError(serde_json::Error),
-  InvalidFileURI,
   UnsupportedFileType,
   NoActionableFix,
 }
