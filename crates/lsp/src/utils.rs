@@ -1,3 +1,4 @@
+//! Provides utility to convert ast-grep data types to lsp data types
 use ast_grep_config::RuleConfig;
 use ast_grep_config::Severity;
 use ast_grep_core::{language::Language, Doc, Node, NodeMatch, StrDoc};
@@ -18,9 +19,11 @@ pub fn diagnostic_to_code_action(
   let text_edit = TextEdit::new(diagnostic.range, rewrite);
   changes.insert(text_doc.uri.clone(), vec![text_edit]);
   let edit = WorkspaceEdit::new(changes);
+  let NumberOrString::String(id) = diagnostic.code? else {
+    return None;
+  };
   let action = CodeAction {
-    // TODO
-    title: format!("Fix `{:?}` with ast-grep", diagnostic.code),
+    title: format!("Fix `{id}` with ast-grep"),
     command: None,
     diagnostics: None,
     edit: Some(edit),
