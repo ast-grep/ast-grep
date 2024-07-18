@@ -3,21 +3,42 @@ use ast_grep_config::RuleConfig;
 use ast_grep_config::Severity;
 use ast_grep_core::{language::Language, Doc, Node, NodeMatch, StrDoc};
 
+use serde::{Deserialize, Serialize};
 use tower_lsp::lsp_types::*;
 
 use std::collections::HashMap;
+
+#[derive(Serialize, Deserialize)]
+pub struct RewriteData {
+  fixed: String,
+  // maybe we should have fixed range
+}
+
+impl RewriteData {
+  fn from_value(data: serde_json::Value) -> Option<Self> {
+    serde_json::from_value(data).ok()
+  }
+
+  fn from_node_match<L: Language>(
+    node_match: &NodeMatch<StrDoc<L>>,
+    rule: &RuleConfig<L>,
+  ) -> Option<Self> {
+    let fixer = rule.matcher.fixer.as_ref()?;
+    let edit = node_match.replace_by(fixer);
+    let rewrite = String::from_utf8(edit.inserted_text).ok()?;
+    Some(Self { fixed: rewrite })
+  }
+}
 
 pub fn diagnostic_to_code_action(
   text_doc: &TextDocumentIdentifier,
   diagnostic: Diagnostic,
 ) -> Option<CodeAction> {
-  let data = diagnostic.data?;
-  // TODO
-  let map: HashMap<String, String> = serde_json::from_value(data).ok()?;
-  let rewrite = map.get("fixed")?.to_string();
+  let rewrite_data = RewriteData::from_value(diagnostic.data?)?;
   let mut changes = HashMap::new();
-  let text_edit = TextEdit::new(diagnostic.range, rewrite);
+  let text_edit = TextEdit::new(diagnostic.range, rewrite_data.fixed);
   changes.insert(text_doc.uri.clone(), vec![text_edit]);
+
   let edit = WorkspaceEdit::new(changes);
   let NumberOrString::String(id) = diagnostic.code? else {
     return None;
@@ -56,13 +77,8 @@ pub fn convert_match_to_diagnostic<L: Language>(
   uri: &Url,
 ) -> Diagnostic {
   // TODO
-  let rewrite_data = rule.matcher.fixer.as_ref().and_then(|fixer| {
-    let edit = node_match.replace_by(fixer);
-    let rewrite = String::from_utf8(edit.inserted_text).ok()?;
-    let mut map = HashMap::new();
-    map.insert("fixed", rewrite);
-    serde_json::to_value(map).ok()
-  });
+  let rewrite_data =
+    RewriteData::from_node_match(&node_match, rule).and_then(|r| serde_json::to_value(r).ok());
   Diagnostic {
     range: convert_node_to_range(&node_match),
     code: Some(NumberOrString::String(rule.id.clone())),
