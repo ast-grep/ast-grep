@@ -34,7 +34,9 @@ pub struct Backend<L: LSPLang> {
 const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
   Some(CodeActionProviderCapability::Simple(true));
 
-pub const APPLY_ALL_FIXES: &str = "ast-grep.applyAllFixes";
+const APPLY_ALL_FIXES: &str = "ast-grep.applyAllFixes";
+const QUICKFIX_AST_GREP: &str = "quickfix.ast-grep";
+const FIX_ALL_AST_GREP: &str = "source.fixAll.ast-grep";
 
 fn code_action_provider(
   client_capability: &ClientCapabilities,
@@ -50,7 +52,10 @@ fn code_action_provider(
     return None;
   }
   Some(CodeActionProviderCapability::Options(CodeActionOptions {
-    code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+    code_action_kinds: Some(vec![
+      CodeActionKind::new(QUICKFIX_AST_GREP),
+      CodeActionKind::new(FIX_ALL_AST_GREP),
+    ]),
     work_done_progress_options: Default::default(),
     resolve_provider: Some(true),
   }))
@@ -274,11 +279,18 @@ impl<L: LSPLang> Backend<L> {
   fn compute_all_fixes(
     &self,
     text_document: TextDocumentIdentifier,
-    mut diagnostics: Vec<Diagnostic>,
-  ) -> Option<HashMap<Url, Vec<TextEdit>>>
+  ) -> std::result::Result<HashMap<Url, Vec<TextEdit>>, LspError>
   where
     L: ast_grep_core::Language + std::cmp::Eq,
   {
+    let uri = text_document.uri;
+    let versioned = self
+      .map
+      .get(uri.as_str())
+      .ok_or(LspError::UnsupportedFileType)?;
+    let mut diagnostics = self
+      .get_diagnostics(&uri, &versioned)
+      .ok_or(LspError::NoActionableFix)?;
     diagnostics.sort_by_key(|d| (d.range.start, d.range.end));
     let mut last = Position {
       line: 0,
@@ -297,19 +309,56 @@ impl<L: LSPLang> Backend<L> {
       })
       .collect();
     if edits.is_empty() {
-      return None;
+      return Err(LspError::NoActionableFix);
     }
     let mut changes = HashMap::new();
-    changes.insert(text_document.uri, edits);
-    Some(changes)
+    changes.insert(uri, edits);
+    Ok(changes)
   }
 
   async fn on_code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
+    if let Some(kinds) = params.context.only.as_ref() {
+      if kinds.contains(&CodeActionKind::SOURCE_FIX_ALL) {
+        return self.fix_all_code_action(params.text_document);
+      }
+    }
+    self.quickfix_code_action(params)
+  }
+
+  fn fix_all_code_action(
+    &self,
+    text_document: TextDocumentIdentifier,
+  ) -> Option<CodeActionResponse> {
+    let fixed = self.compute_all_fixes(text_document).ok()?;
+    let edit = WorkspaceEdit::new(fixed);
+    let code_action = CodeAction {
+      title: "Fix by ast-grep".into(),
+      command: None,
+      diagnostics: None,
+      edit: Some(edit),
+      kind: Some(CodeActionKind::new(FIX_ALL_AST_GREP)),
+      is_preferred: None,
+      data: None,
+      disabled: None,
+    };
+    Some(vec![CodeActionOrCommand::CodeAction(code_action)])
+  }
+
+  fn quickfix_code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
+    if params.context.diagnostics.is_empty() {
+      return None;
+    }
     let text_doc = params.text_document;
     let response = params
       .context
       .diagnostics
       .into_iter()
+      .filter(|d| {
+        d.source
+          .as_ref()
+          .map(|s| s.contains("ast-grep"))
+          .unwrap_or(false)
+      })
       .filter_map(|d| diagnostic_to_code_action(&text_doc, d))
       .map(CodeActionOrCommand::from)
       .collect();
@@ -354,20 +403,10 @@ impl<L: LSPLang> Backend<L> {
     let text_doc: TextDocumentItem =
       serde_json::from_value(first).map_err(LspError::JSONDecodeError)?;
     let uri = text_doc.uri;
-    let Some(lang) = Self::infer_lang_from_uri(&uri) else {
-      return Err(LspError::UnsupportedFileType);
-    };
-
-    let version = text_doc.version;
-    let root = AstGrep::new(text_doc.text, lang);
-    let versioned = VersionedAst { version, root };
-
-    let Some(diagnostics) = self.get_diagnostics(&uri, &versioned) else {
-      return Err(LspError::NoActionableFix);
-    };
-    let changes = self.compute_all_fixes(TextDocumentIdentifier::new(uri), diagnostics);
+    // let version = text_doc.version;
+    let changes = self.compute_all_fixes(TextDocumentIdentifier::new(uri))?;
     let workspace_edit = WorkspaceEdit {
-      changes,
+      changes: Some(changes),
       document_changes: None,
       change_annotations: None,
     };
