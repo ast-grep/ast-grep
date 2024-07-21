@@ -1,4 +1,5 @@
 mod custom_lang;
+mod injection;
 mod lang_globs;
 
 use anyhow::Result;
