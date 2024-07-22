@@ -16,7 +16,7 @@ use std::str::FromStr;
 type LangIndex = u32;
 
 /// Represents a tree-sitter language loaded as dynamic lib.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct DynamicLang {
   index: LangIndex,
   // inline expando char since it is used frequently

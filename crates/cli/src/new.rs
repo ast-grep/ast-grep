@@ -212,8 +212,9 @@ fn create_new_project(arg: NewArg) -> Result<()> {
     rule_dirs: vec![rule_dirs],
     test_configs: test_dirs.map(|t| vec![t]),
     util_dirs: utils.map(|u| vec![u]),
-    custom_languages: None, // advanced feature, skip now
-    language_globs: None,   // advanced feature, skip now
+    custom_languages: None,      // advanced feature, skip now
+    language_globs: None,        // advanced feature, skip now
+    language_injections: vec![], // advanced feature
   };
   let config_path = arg.base_dir.join("sgconfig.yml");
   let f = File::create(config_path)?;

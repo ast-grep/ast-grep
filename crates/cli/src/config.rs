@@ -1,5 +1,5 @@
 use crate::error::ErrorContext as EC;
-use crate::lang::{CustomLang, LanguageGlobs, SgLang};
+use crate::lang::{CustomLang, LanguageGlobs, SerializableInjection, SgLang};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{
@@ -49,6 +49,9 @@ pub struct AstGrepConfig {
   /// additional file globs for languages
   #[serde(skip_serializing_if = "Option::is_none")]
   pub language_globs: Option<LanguageGlobs>,
+  /// injection config for embedded languages
+  #[serde(default, skip_serializing_if = "Vec::is_empty")]
+  pub language_injections: Vec<SerializableInjection>,
 }
 
 pub fn find_rules(
@@ -81,6 +84,7 @@ pub fn register_custom_language(config_path: Option<PathBuf>) -> Result<()> {
   if let Some(globs) = sg_config.language_globs {
     SgLang::register_globs(globs)?;
   }
+  SgLang::register_injections(sg_config.language_injections);
   Ok(())
 }
 

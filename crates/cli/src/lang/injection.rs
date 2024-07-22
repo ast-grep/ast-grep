@@ -1,6 +1,12 @@
 use super::SgLang;
-use ast_grep_config::SerializableRuleCore;
+use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
+use ast_grep_core::{
+  language::{TSPoint, TSRange},
+  Doc, Node, StrDoc,
+};
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
+use std::ptr::{addr_of, addr_of_mut};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(untagged)]
@@ -11,7 +17,7 @@ pub enum Injected {
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct LanguageInjection {
+pub struct SerializableInjection {
   #[serde(flatten)]
   core: SerializableRuleCore,
   /// The host language, e.g. html, contains other languages
@@ -20,6 +26,95 @@ pub struct LanguageInjection {
   /// It accepts either a string like js for single static language.
   /// or an array of string like [js, ts] for dynamic language detection.
   injected: Injected,
+}
+
+struct Injection {
+  host: SgLang,
+  rules: Vec<(RuleCore<SgLang>, Option<String>)>,
+  injectable: HashSet<SgLang>,
+}
+
+impl Injection {
+  fn new(lang: SgLang) -> Self {
+    Self {
+      host: lang,
+      rules: vec![],
+      injectable: Default::default(),
+    }
+  }
+}
+
+// fn injectable_languages(&self) -> Option<&'static [&'static str]>
+// fn extract_injections<D: Doc>(&self, root: Node<D>) -> HashMap<String, Vec<TSRange>> {
+// lang => embeddedlangs
+// lang => Vec<rules>
+pub unsafe fn register_injetables(injections: Vec<SerializableInjection>) {
+  let mut injectable = HashMap::new();
+  for injection in injections {
+    register_injetable(injection, &mut injectable);
+  }
+  *addr_of_mut!(LANG_INJECTIONS) = injectable.into_values().collect();
+}
+
+fn register_injetable(
+  injection: SerializableInjection,
+  injectable: &mut HashMap<SgLang, Injection>,
+) {
+  let env = DeserializeEnv::new(injection.host_language);
+  let rule = injection.core.get_matcher(env).expect("TODO");
+  let default_lang = match injection.injected {
+    Injected::Static(s) => Some(format!("{s}")),
+    Injected::Dynamic(_) => None,
+  };
+  let entry = injectable
+    .entry(injection.host_language)
+    .or_insert_with(|| Injection::new(injection.host_language));
+  match injection.injected {
+    Injected::Static(s) => {
+      entry.injectable.insert(s);
+    }
+    Injected::Dynamic(v) => entry.injectable.extend(v),
+  }
+  entry.rules.push((rule, default_lang));
+}
+
+static mut LANG_INJECTIONS: Vec<Injection> = vec![];
+
+fn extract_injections<D: Doc>(root: Node<D>) -> HashMap<String, Vec<TSRange>> {
+  let mut ret = HashMap::new();
+  // NB Only works in the CLI crate because we only has Node<SgLang>
+  let root: Node<StrDoc<SgLang>> = unsafe { std::mem::transmute(root) };
+  let injections = unsafe { &*addr_of!(LANG_INJECTIONS) };
+  let Some(rules) = injections.iter().find(|n| n.host == *root.lang()) else {
+    return ret;
+  };
+  for (rule, default_lang) in &rules.rules {
+    for m in root.find_all(rule) {
+      let env = m.get_env();
+      let Some(region) = env.get_match("CONTENT") else {
+        continue;
+      };
+      let Some(lang) = env
+        .get_match("LANG")
+        .map(|n| n.text().to_string())
+        .or_else(|| default_lang.clone())
+      else {
+        continue;
+      };
+      let range = node_to_range(region);
+      ret.entry(lang).or_insert_with(Vec::new).push(range);
+    }
+  }
+  ret
+}
+
+fn node_to_range<D: Doc>(node: &Node<D>) -> TSRange {
+  let r = node.range();
+  let start = node.start_pos();
+  let sp = TSPoint::new(start.0 as u32, start.1 as u32);
+  let end = node.end_pos();
+  let ep = TSPoint::new(end.0 as u32, end.1 as u32);
+  TSRange::new(r.start as u32, r.end as u32, &sp, &ep)
 }
 
 #[cfg(test)]
@@ -38,9 +133,9 @@ rule:
 injected: js";
   #[test]
   fn test_deserialize() {
-    let inj: LanguageInjection = from_str(STATIC).expect("should ok");
+    let inj: SerializableInjection = from_str(STATIC).expect("should ok");
     assert!(matches!(inj.injected, Injected::Static(_)));
-    let inj: LanguageInjection = from_str(DYNAMIC).expect("should ok");
+    let inj: SerializableInjection = from_str(DYNAMIC).expect("should ok");
     assert!(matches!(inj.injected, Injected::Dynamic(_)));
   }
 }

@@ -19,9 +19,10 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 pub use custom_lang::CustomLang;
+pub use injection::SerializableInjection;
 pub use lang_globs::LanguageGlobs;
 
-#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[serde(untagged)]
 pub enum SgLang {
   // inlined support lang expando char
@@ -48,6 +49,13 @@ impl SgLang {
   pub fn register_globs(langs: LanguageGlobs) -> Result<()> {
     unsafe {
       lang_globs::register(langs)?;
+    }
+    Ok(())
+  }
+
+  pub fn register_injections(injections: Vec<SerializableInjection>) -> Result<()> {
+    unsafe {
+      injection::register_injetables(injections);
     }
     Ok(())
   }
