@@ -2,7 +2,7 @@ use super::SgLang;
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
 use ast_grep_core::{
   language::{TSPoint, TSRange},
-  Doc, Node, StrDoc,
+  Doc, Language, Node, StrDoc,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -80,13 +80,21 @@ fn register_injetable(
 
 static mut LANG_INJECTIONS: Vec<Injection> = vec![];
 
-fn extract_injections<D: Doc>(root: Node<D>) -> HashMap<String, Vec<TSRange>> {
-  let mut ret = HashMap::new();
+pub fn extract_injections<D: Doc>(root: Node<D>) -> HashMap<String, Vec<TSRange>> {
   // NB Only works in the CLI crate because we only has Node<SgLang>
   let root: Node<StrDoc<SgLang>> = unsafe { std::mem::transmute(root) };
+  let mut ret = match root.lang() {
+    SgLang::Custom(c) => c.extract_injections(root.clone()),
+    SgLang::Builtin(b) => b.extract_injections(root.clone()),
+  };
+  extract_custom_inject(root, &mut ret);
+  ret
+}
+
+fn extract_custom_inject(root: Node<StrDoc<SgLang>>, ret: &mut HashMap<String, Vec<TSRange>>) {
   let injections = unsafe { &*addr_of!(LANG_INJECTIONS) };
   let Some(rules) = injections.iter().find(|n| n.host == *root.lang()) else {
-    return ret;
+    return;
   };
   for (rule, default_lang) in &rules.rules {
     for m in root.find_all(rule) {
@@ -102,10 +110,9 @@ fn extract_injections<D: Doc>(root: Node<D>) -> HashMap<String, Vec<TSRange>> {
         continue;
       };
       let range = node_to_range(region);
-      ret.entry(lang).or_insert_with(Vec::new).push(range);
+      ret.entry(lang).or_default().push(range);
     }
   }
-  ret
 }
 
 fn node_to_range<D: Doc>(node: &Node<D>) -> TSRange {

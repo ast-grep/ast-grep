@@ -196,10 +196,7 @@ impl Language for SgLang {
   }
 
   fn extract_injections<D: Doc>(&self, root: Node<D>) -> HashMap<String, Vec<TSRange>> {
-    match self {
-      Builtin(b) => b.extract_injections(root),
-      Custom(c) => c.extract_injections(root),
-    }
+    injection::extract_injections(root)
   }
 }
 

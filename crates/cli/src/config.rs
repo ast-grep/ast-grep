@@ -84,7 +84,7 @@ pub fn register_custom_language(config_path: Option<PathBuf>) -> Result<()> {
   if let Some(globs) = sg_config.language_globs {
     SgLang::register_globs(globs)?;
   }
-  SgLang::register_injections(sg_config.language_injections);
+  SgLang::register_injections(sg_config.language_injections)?;
   Ok(())
 }
 
