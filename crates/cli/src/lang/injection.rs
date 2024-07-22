@@ -44,15 +44,12 @@ impl Injection {
   }
 }
 
-// fn injectable_languages(&self) -> Option<&'static [&'static str]>
-// fn extract_injections<D: Doc>(&self, root: Node<D>) -> HashMap<String, Vec<TSRange>> {
-// lang => embeddedlangs
-// lang => Vec<rules>
 pub unsafe fn register_injetables(injections: Vec<SerializableInjection>) {
   let mut injectable = HashMap::new();
   for injection in injections {
     register_injetable(injection, &mut injectable);
   }
+  merge_default_injecatable(&mut injectable);
   *addr_of_mut!(LANG_INJECTIONS) = injectable.into_values().collect();
   let injects = unsafe { &*addr_of!(LANG_INJECTIONS) as &'static Vec<Injection> };
   *addr_of_mut!(INJECTABLE_LANGS) = injects
@@ -64,6 +61,21 @@ pub unsafe fn register_injetables(injections: Vec<SerializableInjection>) {
       )
     })
     .collect();
+}
+
+fn merge_default_injecatable(ret: &mut HashMap<SgLang, Injection>) {
+  for (lang, injection) in ret {
+    let langs = match lang {
+      SgLang::Builtin(b) => b.injectable_languages(),
+      SgLang::Custom(c) => c.injectable_languages(),
+    };
+    let Some(langs) = langs else {
+      continue;
+    };
+    injection
+      .injectable
+      .extend(langs.iter().map(|s| s.to_string()));
+  }
 }
 
 fn register_injetable(
@@ -94,7 +106,7 @@ static mut LANG_INJECTIONS: Vec<Injection> = vec![];
 static mut INJECTABLE_LANGS: Vec<(SgLang, Vec<&'static str>)> = vec![];
 
 pub fn injectable_languages(lang: SgLang) -> Option<&'static [&'static str]> {
-  // TODO: merge custom+builtin
+  // NB: custom injection and builtin injections are resolved in INJECTABLE_LANGS
   let injections =
     unsafe { &*addr_of!(INJECTABLE_LANGS) as &'static Vec<(SgLang, Vec<&'static str>)> };
   let Some(injection) = injections.iter().find(|i| i.0 == lang) else {
