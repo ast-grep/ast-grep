@@ -14,7 +14,7 @@ enum Task {
 
 fn get_task() -> Result<Task> {
   let message = "argument is missing. Example usage: \ncargo xtask 0.1.3\ncargo xtask schema";
-  let arg = args().skip(1).next().context(message)?;
+  let arg = args().nth(1).context(message)?;
   if arg == "schema" {
     Ok(Task::Schema)
   } else {
@@ -32,9 +32,9 @@ fn main() -> Result<()> {
 fn release_new_version(version: &str) -> Result<()> {
   check_git_status()?;
   schema::generate_schema()?;
-  bump_version(&version)?;
+  bump_version(version)?;
   update_and_commit_changelog()?;
-  commit_and_tag(&version)?;
+  commit_and_tag(version)?;
   Ok(())
 }
 
@@ -45,7 +45,7 @@ fn check_git_status() -> Result<()> {
     .stdout(Stdio::piped())
     .spawn()?
     .wait_with_output()?;
-  if git.stdout.len() > 0 {
+  if !git.stdout.is_empty() {
     bail!("The git working directory has uncommitted changes. Please commit or abandon them before release!")
   } else {
     Ok(())
@@ -53,10 +53,10 @@ fn check_git_status() -> Result<()> {
 }
 
 fn bump_version(version: &str) -> Result<()> {
-  update_npm(&version)?;
-  update_napi(&version)?;
-  update_python(&version)?;
-  update_crates(&version)?;
+  update_npm(version)?;
+  update_napi(version)?;
+  update_python(version)?;
+  update_crates(version)?;
   update_cargo_lock()?;
   Ok(())
 }
@@ -140,7 +140,7 @@ fn update_python(version: &str) -> Result<()> {
   // update pypi pyproject.toml and pyo3 bindings
   for path in ["pyproject.toml", "crates/pyo3/pyproject.toml"] {
     let pyproject = Path::new(path);
-    let mut toml: DocumentMut = read_to_string(&pyproject)?.parse()?;
+    let mut toml: DocumentMut = read_to_string(pyproject)?.parse()?;
     toml["project"]["version"] = to_toml(version);
     fs::write(pyproject, toml.to_string())?;
   }

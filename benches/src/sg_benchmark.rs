@@ -14,7 +14,7 @@ fn read_rule() -> RuleConfig<SupportLang> {
 }
 
 fn find_pattern<M: Matcher<SupportLang>>(sg: &AstGrep<StrDoc<SupportLang>>, pattern: &M) {
-  sg.root().find_all(pattern).for_each(|n| drop(n));
+  sg.root().find_all(pattern).for_each(drop);
 }
 
 fn get_sg(path: &str) -> AstGrep<StrDoc<SupportLang>> {
