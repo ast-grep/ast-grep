@@ -189,10 +189,7 @@ impl Language for SgLang {
   }
 
   fn injectable_languages(&self) -> Option<&'static [&'static str]> {
-    match self {
-      Builtin(b) => b.injectable_languages(),
-      Custom(c) => c.injectable_languages(),
-    }
+    injection::injectable_languages(*self)
   }
 
   fn extract_injections<D: Doc>(&self, root: Node<D>) -> HashMap<String, Vec<TSRange>> {

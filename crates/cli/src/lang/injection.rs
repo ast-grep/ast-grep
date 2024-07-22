@@ -31,7 +31,7 @@ pub struct SerializableInjection {
 struct Injection {
   host: SgLang,
   rules: Vec<(RuleCore<SgLang>, Option<String>)>,
-  injectable: HashSet<SgLang>,
+  injectable: HashSet<String>,
 }
 
 impl Injection {
@@ -54,6 +54,16 @@ pub unsafe fn register_injetables(injections: Vec<SerializableInjection>) {
     register_injetable(injection, &mut injectable);
   }
   *addr_of_mut!(LANG_INJECTIONS) = injectable.into_values().collect();
+  let injects = unsafe { &*addr_of!(LANG_INJECTIONS) as &'static Vec<Injection> };
+  *addr_of_mut!(INJECTABLE_LANGS) = injects
+    .iter()
+    .map(|inj| {
+      (
+        inj.host,
+        inj.injectable.iter().map(|s| s.as_str()).collect(),
+      )
+    })
+    .collect();
 }
 
 fn register_injetable(
@@ -71,14 +81,30 @@ fn register_injetable(
     .or_insert_with(|| Injection::new(injection.host_language));
   match injection.injected {
     Injected::Static(s) => {
-      entry.injectable.insert(s);
+      entry.injectable.insert(format!("{s}"));
     }
-    Injected::Dynamic(v) => entry.injectable.extend(v),
+    Injected::Dynamic(v) => entry
+      .injectable
+      .extend(v.into_iter().map(|s| s.to_string())),
   }
   entry.rules.push((rule, default_lang));
 }
 
 static mut LANG_INJECTIONS: Vec<Injection> = vec![];
+static mut INJECTABLE_LANGS: Vec<(SgLang, Vec<&'static str>)> = vec![];
+
+pub fn injectable_languages(lang: SgLang) -> Option<&'static [&'static str]> {
+  // TODO: merge custom+builtin
+  let injections =
+    unsafe { &*addr_of!(INJECTABLE_LANGS) as &'static Vec<(SgLang, Vec<&'static str>)> };
+  let Some(injection) = injections.iter().find(|i| i.0 == lang) else {
+    return match lang {
+      SgLang::Builtin(b) => b.injectable_languages(),
+      SgLang::Custom(c) => c.injectable_languages(),
+    };
+  };
+  Some(&injection.1)
+}
 
 pub fn extract_injections<D: Doc>(root: Node<D>) -> HashMap<String, Vec<TSRange>> {
   // NB Only works in the CLI crate because we only has Node<SgLang>
