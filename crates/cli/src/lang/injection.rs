@@ -1,14 +1,10 @@
 use super::SgLang;
-use crate::error::ErrorContext as EC;
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
 use ast_grep_core::{
   language::{TSPoint, TSRange},
   Doc, Language, Node, StrDoc,
 };
-
-use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-
 use std::collections::{HashMap, HashSet};
 use std::ptr::{addr_of, addr_of_mut};
 
@@ -48,10 +44,10 @@ impl Injection {
   }
 }
 
-pub unsafe fn register_injetables(injections: Vec<SerializableInjection>) -> Result<()> {
+pub unsafe fn register_injetables(injections: Vec<SerializableInjection>) {
   let mut injectable = HashMap::new();
   for injection in injections {
-    register_injetable(injection, &mut injectable)?;
+    register_injetable(injection, &mut injectable);
   }
   merge_default_injecatable(&mut injectable);
   *addr_of_mut!(LANG_INJECTIONS) = injectable.into_values().collect();
@@ -65,7 +61,6 @@ pub unsafe fn register_injetables(injections: Vec<SerializableInjection>) -> Res
       )
     })
     .collect();
-  Ok(())
 }
 
 fn merge_default_injecatable(ret: &mut HashMap<SgLang, Injection>) {
@@ -86,9 +81,9 @@ fn merge_default_injecatable(ret: &mut HashMap<SgLang, Injection>) {
 fn register_injetable(
   injection: SerializableInjection,
   injectable: &mut HashMap<SgLang, Injection>,
-) -> Result<()> {
+) {
   let env = DeserializeEnv::new(injection.host_language);
-  let rule = injection.core.get_matcher(env).context(EC::LangInjection)?;
+  let rule = injection.core.get_matcher(env).expect("TODO");
   let default_lang = match injection.injected {
     Injected::Static(s) => Some(format!("{s}")),
     Injected::Dynamic(_) => None,
@@ -105,7 +100,6 @@ fn register_injetable(
       .extend(v.into_iter().map(|s| s.to_string())),
   }
   entry.rules.push((rule, default_lang));
-  Ok(())
 }
 
 static mut LANG_INJECTIONS: Vec<Injection> = vec![];
@@ -188,21 +182,5 @@ injected: js";
     assert!(matches!(inj.injected, Injected::Static(_)));
     let inj: SerializableInjection = from_str(DYNAMIC).expect("should ok");
     assert!(matches!(inj.injected, Injected::Dynamic(_)));
-  }
-
-  const BAD: &str = "
-hostLanguage: HTML
-rule:
-  kind: not_exist
-injected: [js, ts, tsx]";
-
-  #[test]
-  fn test_bad_inject() {
-    let mut map = HashMap::new();
-    let inj: SerializableInjection = from_str(BAD).expect("should ok");
-    let ret = register_injetable(inj, &mut map);
-    assert!(ret.is_err());
-    let ec = ret.unwrap_err().downcast::<EC>().expect("should ok");
-    assert!(matches!(ec, EC::LangInjection));
   }
 }
