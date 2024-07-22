@@ -54,10 +54,7 @@ impl SgLang {
   }
 
   pub fn register_injections(injections: Vec<SerializableInjection>) -> Result<()> {
-    unsafe {
-      injection::register_injetables(injections);
-    }
-    Ok(())
+    unsafe { injection::register_injetables(injections) }
   }
 
   pub fn all_langs() -> Vec<Self> {
