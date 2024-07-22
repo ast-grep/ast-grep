@@ -40,7 +40,6 @@ jobs:
           args: --out dist
       - name: "Test sdist"
         run: |
-          rustup default $(cat rust-toolchain)
           pip install dist/${{ env.PACKAGE_NAME }}-*.tar.gz --force-reinstall
           sg --help
       - name: "Upload sdist"
@@ -181,7 +180,7 @@ jobs:
       - macos-x86_64
       - windows
       - linux
-        # - linux-cross I would want to support linux-cross but it is too hard for me to compile c projects for tree-sitter-languages
+      # - linux-cross I would want to support linux-cross but it is too hard for me to compile c projects for tree-sitter-languages
     # If you don't set release flag, it's a dry run (no uploads).
     if: "startsWith(github.event.ref, 'refs/tags') || inputs.need_release"
     environment:
