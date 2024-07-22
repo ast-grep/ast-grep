@@ -18,7 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules : true
+          submodules: true
       - name: Generate code coverage
         run: |
           cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
@@ -52,4 +52,4 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
       - name: Lint
-        run: cargo clippy --all-targets --all-features --release --locked -- -D clippy::all
+        run: cargo clippy --all-targets --all-features --workspace --release --locked -- -D clippy::all
