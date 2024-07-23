@@ -11,12 +11,15 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::{HashMap, HashSet};
 use std::ptr::{addr_of, addr_of_mut};
+use std::str::FromStr;
 
+// NB, you should not use SgLang in the (de_serialize interface
+// since Injected is used before lang registration in sgconfig.yml
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum Injected {
-  Static(SgLang),
-  Dynamic(Vec<SgLang>),
+  Static(String),
+  Dynamic(Vec<String>),
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -25,7 +28,7 @@ pub struct SerializableInjection {
   #[serde(flatten)]
   core: SerializableRuleCore,
   /// The host language, e.g. html, contains other languages
-  host_language: SgLang,
+  host_language: String,
   /// Injected language according to the rule
   /// It accepts either a string like js for single static language.
   /// or an array of string like [js, ts] for dynamic language detection.
@@ -87,22 +90,21 @@ fn register_injetable(
   injection: SerializableInjection,
   injectable: &mut HashMap<SgLang, Injection>,
 ) -> Result<()> {
-  let env = DeserializeEnv::new(injection.host_language);
+  let lang = SgLang::from_str(&injection.host_language)?;
+  let env = DeserializeEnv::new(lang);
   let rule = injection.core.get_matcher(env).context(EC::LangInjection)?;
-  let default_lang = match injection.injected {
-    Injected::Static(s) => Some(format!("{s}")),
+  let default_lang = match &injection.injected {
+    Injected::Static(s) => Some(s.clone()),
     Injected::Dynamic(_) => None,
   };
   let entry = injectable
-    .entry(injection.host_language)
-    .or_insert_with(|| Injection::new(injection.host_language));
+    .entry(lang)
+    .or_insert_with(|| Injection::new(lang));
   match injection.injected {
     Injected::Static(s) => {
-      entry.injectable.insert(format!("{s}"));
+      entry.injectable.insert(s);
     }
-    Injected::Dynamic(v) => entry
-      .injectable
-      .extend(v.into_iter().map(|s| s.to_string())),
+    Injected::Dynamic(v) => entry.injectable.extend(v),
   }
   entry.rules.push((rule, default_lang));
   Ok(())
@@ -228,7 +230,7 @@ injected: [js, ts, tsx]";
     let root = sg.root();
     extract_custom_inject(&injections, root, &mut ret);
     assert_eq!(ret.len(), 1);
-    assert_eq!(ret["Css"].len(), 1);
+    assert_eq!(ret["css"].len(), 1);
     assert!(!ret.contains_key("js"));
     ret.clear();
     let sg =
