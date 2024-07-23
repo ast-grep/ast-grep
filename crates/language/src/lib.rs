@@ -26,7 +26,7 @@ mod rust;
 mod scala;
 mod swift;
 
-use html::Html;
+pub use html::Html;
 
 use ast_grep_core::language::{TSLanguage, TSRange};
 use ast_grep_core::meta_var::MetaVariable;
