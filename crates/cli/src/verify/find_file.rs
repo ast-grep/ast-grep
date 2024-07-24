@@ -7,6 +7,7 @@ use ast_grep_config::from_str;
 use ast_grep_language::config_file_type;
 use ignore::WalkBuilder;
 use regex::Regex;
+use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer};
 
 use std::collections::HashMap;
 use std::fs::read_to_string;
@@ -99,14 +100,16 @@ pub fn read_test_files(
         eprintln!("Warning: found duplicate test case snapshot for `{id}`");
       }
     } else {
-      let test_case: TestCase =
-        from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
-      if regex_filter
-        .map(|r| r.is_match(&test_case.id))
-        .unwrap_or(true)
-      {
-        path_map.insert(test_case.id.clone(), test_path.join(snapshot_dirname));
-        test_cases.push(test_case);
+      for deser in Deserializer::from_str(&yaml) {
+        let test_case: TestCase =
+          deserialize(deser).with_context(|| EC::ParseTest(path.to_path_buf()))?;
+        if regex_filter
+          .map(|r| r.is_match(&test_case.id))
+          .unwrap_or(true)
+        {
+          path_map.insert(test_case.id.clone(), test_path.join(snapshot_dirname));
+          test_cases.push(test_case);
+        }
       }
     }
   }
