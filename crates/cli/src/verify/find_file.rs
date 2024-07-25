@@ -22,6 +22,26 @@ pub struct TestHarness {
   pub path_map: HashMap<String, PathBuf>,
 }
 
+impl TestHarness {
+  pub fn from_config(config_path: Option<PathBuf>, regex_filter: Option<&Regex>) -> Result<Self> {
+    find_tests(config_path, regex_filter)
+  }
+
+  pub fn from_dir(
+    test_dirname: &Path,
+    snapshot_dirname: Option<&Path>,
+    regex_filter: Option<&Regex>,
+  ) -> Result<Self> {
+    let mut builder = HarnessBuilder {
+      dest: TestHarness::default(),
+      base_dir: std::env::current_dir()?,
+      regex_filter,
+    };
+    builder.read_test_files(test_dirname, snapshot_dirname)?;
+    Ok(builder.dest)
+  }
+}
+
 struct HarnessBuilder<'a> {
   dest: TestHarness,
   base_dir: PathBuf,
@@ -33,7 +53,7 @@ impl<'a> HarnessBuilder<'a> {
     self.regex_filter.map(|r| r.is_match(id)).unwrap_or(true)
   }
 
-  pub fn read_test_files(
+  fn read_test_files(
     &mut self,
     test_dirname: &Path,
     snapshot_dirname: Option<&Path>,
@@ -86,21 +106,6 @@ pub fn find_tests(
   for test in test_configs {
     builder.read_test_files(&test.test_dir, test.snapshot_dir.as_deref())?;
   }
-  Ok(builder.dest)
-}
-
-pub fn read_test_files(
-  base_dir: &Path,
-  test_dirname: &Path,
-  snapshot_dirname: Option<&Path>,
-  regex_filter: Option<&Regex>,
-) -> Result<TestHarness> {
-  let mut builder = HarnessBuilder {
-    dest: TestHarness::default(),
-    base_dir: base_dir.to_path_buf(),
-    regex_filter,
-  };
-  builder.read_test_files(test_dirname, snapshot_dirname)?;
   Ok(builder.dest)
 }
 
