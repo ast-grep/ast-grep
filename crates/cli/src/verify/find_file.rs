@@ -146,3 +146,67 @@ fn deserialize_test_yaml(
   }
   Ok(())
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  const MULTI: &str = "
+id: test1
+valid: [a]
+invalid: [a]
+---
+id: test2
+valid: [a]
+invalid: [a]
+";
+
+  fn read_test(yaml: &str) -> TestHarness {
+    let mut builder = HarnessBuilder {
+      dest: TestHarness::default(),
+      base_dir: PathBuf::new(),
+      regex_filter: None,
+    };
+    let path = Path::new(".");
+    deserialize_test_yaml(path, yaml.to_string(), path, &mut builder).expect("should ok");
+    builder.dest
+  }
+  #[test]
+  fn test_read_test() {
+    let yaml = "{id: test, valid: ['a'], invalid: ['b']}";
+    let harness = read_test(yaml);
+    assert_eq!(harness.test_cases.len(), 1);
+    assert_eq!(harness.test_cases[0].id, "test");
+  }
+  #[test]
+  fn test_read_multi() {
+    let harness = read_test(MULTI);
+    assert_eq!(harness.test_cases.len(), 2);
+    assert_eq!(harness.test_cases[0].id, "test1");
+    assert_eq!(harness.test_cases[1].id, "test2");
+  }
+
+  const SNAPSHOTS: &str = "
+id: test-1
+snapshots:
+  alert(123):
+    labels:
+    - source: alert(123)
+      style: primary
+      start: 0
+      end: 10
+";
+
+  #[test]
+  fn test_read_snapshot() {
+    let mut builder = HarnessBuilder {
+      dest: TestHarness::default(),
+      base_dir: PathBuf::new(),
+      regex_filter: None,
+    };
+    let path = Path::new(".");
+    deserialize_snapshot_yaml(path, SNAPSHOTS.to_string(), &mut builder).expect("should ok");
+    assert!(builder.dest.snapshots["test-1"]
+      .snapshots
+      .contains_key("alert(123)"));
+  }
+}
