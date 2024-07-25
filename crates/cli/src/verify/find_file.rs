@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 
 const SNAPSHOT_DIR: &str = "__snapshots__";
 
+#[derive(Default)]
 pub struct TestHarness {
   pub test_cases: Vec<TestCase>,
   pub snapshots: SnapshotCollection,
@@ -64,9 +65,7 @@ pub fn read_test_files(
   snapshot_dirname: Option<&Path>,
   regex_filter: Option<&Regex>,
 ) -> Result<TestHarness> {
-  let mut test_cases = vec![];
-  let mut snapshots = HashMap::new();
-  let mut path_map = HashMap::new();
+  let mut harness = TestHarness::default();
   let test_path = base_dir.join(test_dirname);
   let snapshot_dirname = snapshot_dirname.unwrap_or_else(|| SNAPSHOT_DIR.as_ref());
   let snapshot_path = test_path.join(snapshot_dirname);
@@ -86,23 +85,19 @@ pub fn read_test_files(
     let path = config_file.path();
     let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
     if path.starts_with(&snapshot_path) {
-      deserialize_snapshot_yaml(path, yaml, regex_filter, &mut snapshots)?;
+      deserialize_snapshot_yaml(path, yaml, regex_filter, &mut harness.snapshots)?;
     } else {
       deserialize_test_yaml(
         path,
         yaml,
         regex_filter,
         &snapshot_path,
-        &mut test_cases,
-        &mut path_map,
+        &mut harness.test_cases,
+        &mut harness.path_map,
       )?;
     }
   }
-  Ok(TestHarness {
-    test_cases,
-    snapshots,
-    path_map,
-  })
+  Ok(harness)
 }
 
 fn deserialize_snapshot_yaml(
