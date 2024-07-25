@@ -86,31 +86,16 @@ pub fn read_test_files(
     let path = config_file.path();
     let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
     if path.starts_with(&snapshot_path) {
-      let snapshot: TestSnapshots =
-        from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
-      let included_in_filter = regex_filter
-        .map(|r| r.is_match(&snapshot.id))
-        .unwrap_or(true);
-      if !included_in_filter {
-        continue;
-      }
-      let id = snapshot.id.clone();
-      let existing = snapshots.insert(id.clone(), snapshot);
-      if existing.is_some() {
-        eprintln!("Warning: found duplicate test case snapshot for `{id}`");
-      }
+      deserialize_snapshot_yaml(path, yaml, regex_filter, &mut snapshots)?;
     } else {
-      for deser in Deserializer::from_str(&yaml) {
-        let test_case: TestCase =
-          deserialize(deser).with_context(|| EC::ParseTest(path.to_path_buf()))?;
-        if regex_filter
-          .map(|r| r.is_match(&test_case.id))
-          .unwrap_or(true)
-        {
-          path_map.insert(test_case.id.clone(), test_path.join(snapshot_dirname));
-          test_cases.push(test_case);
-        }
-      }
+      deserialize_test_yaml(
+        path,
+        yaml,
+        regex_filter,
+        &snapshot_path,
+        &mut test_cases,
+        &mut path_map,
+      )?;
     }
   }
   Ok(TestHarness {
@@ -118,4 +103,48 @@ pub fn read_test_files(
     snapshots,
     path_map,
   })
+}
+
+fn deserialize_snapshot_yaml(
+  path: &Path,
+  yaml: String,
+  regex_filter: Option<&Regex>,
+  snapshots: &mut HashMap<String, TestSnapshots>,
+) -> Result<()> {
+  let snapshot: TestSnapshots =
+    from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
+  let included_in_filter = regex_filter
+    .map(|r| r.is_match(&snapshot.id))
+    .unwrap_or(true);
+  if !included_in_filter {
+    return Ok(());
+  }
+  let id = snapshot.id.clone();
+  let existing = snapshots.insert(id.clone(), snapshot);
+  if existing.is_some() {
+    eprintln!("Warning: found duplicate test case snapshot for `{id}`");
+  }
+  Ok(())
+}
+
+fn deserialize_test_yaml(
+  path: &Path,
+  yaml: String,
+  regex_filter: Option<&Regex>,
+  snapshot_path: &Path,
+  test_cases: &mut Vec<TestCase>,
+  path_map: &mut HashMap<String, PathBuf>,
+) -> Result<()> {
+  for deser in Deserializer::from_str(&yaml) {
+    let test_case: TestCase =
+      deserialize(deser).with_context(|| EC::ParseTest(path.to_path_buf()))?;
+    if regex_filter
+      .map(|r| r.is_match(&test_case.id))
+      .unwrap_or(true)
+    {
+      path_map.insert(test_case.id.clone(), snapshot_path.to_path_buf());
+      test_cases.push(test_case);
+    }
+  }
+  Ok(())
 }
