@@ -24,11 +24,47 @@ pub struct TestHarness {
 
 struct HarnessBuilder<'a> {
   dest: TestHarness,
-  // base_dir: PathBuf,
+  base_dir: PathBuf,
   regex_filter: Option<&'a Regex>,
 }
 
-impl<'a> HarnessBuilder<'a> {}
+impl<'a> HarnessBuilder<'a> {
+  fn included_in_filter(&self, id: &str) -> bool {
+    self.regex_filter.map(|r| r.is_match(id)).unwrap_or(true)
+  }
+
+  pub fn read_test_files(
+    &mut self,
+    test_dirname: &Path,
+    snapshot_dirname: Option<&Path>,
+  ) -> Result<()> {
+    let test_path = self.base_dir.join(test_dirname);
+    let snapshot_dirname = snapshot_dirname.unwrap_or_else(|| SNAPSHOT_DIR.as_ref());
+    let snapshot_path = test_path.join(snapshot_dirname);
+    let walker = WalkBuilder::new(&test_path)
+      .types(config_file_type())
+      .build();
+    for dir in walker {
+      let config_file = dir.with_context(|| EC::WalkRuleDir(test_path.clone()))?;
+      // file_type is None only if it is stdin, safe to unwrap here
+      if !config_file
+        .file_type()
+        .expect("file type should be available for non-stdin")
+        .is_file()
+      {
+        continue;
+      }
+      let path = config_file.path();
+      let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
+      if path.starts_with(&snapshot_path) {
+        deserialize_snapshot_yaml(path, yaml, self)?;
+      } else {
+        deserialize_test_yaml(path, yaml, &snapshot_path, self)?;
+      }
+    }
+    Ok(())
+  }
+}
 
 pub fn find_tests(
   config_path: Option<PathBuf>,
@@ -42,29 +78,15 @@ pub fn find_tests(
     .parent()
     .expect("config file must have parent directory");
   let test_configs = sg_config.test_configs.unwrap_or_default();
-  let mut test_cases = vec![];
-  let mut snapshots = SnapshotCollection::new();
-  let mut path_map = HashMap::new();
+  let mut builder = HarnessBuilder {
+    base_dir: base_dir.to_path_buf(),
+    regex_filter,
+    dest: TestHarness::default(),
+  };
   for test in test_configs {
-    let TestHarness {
-      test_cases: new_cases,
-      snapshots: new_snapshots,
-      path_map: new_path_map,
-    } = read_test_files(
-      base_dir,
-      &test.test_dir,
-      test.snapshot_dir.as_deref(),
-      regex_filter,
-    )?;
-    path_map.extend(new_path_map);
-    test_cases.extend(new_cases);
-    snapshots.extend(new_snapshots);
+    builder.read_test_files(&test.test_dir, test.snapshot_dir.as_deref())?;
   }
-  Ok(TestHarness {
-    test_cases,
-    snapshots,
-    path_map,
-  })
+  Ok(builder.dest)
 }
 
 pub fn read_test_files(
@@ -75,32 +97,10 @@ pub fn read_test_files(
 ) -> Result<TestHarness> {
   let mut builder = HarnessBuilder {
     dest: TestHarness::default(),
+    base_dir: base_dir.to_path_buf(),
     regex_filter,
   };
-  let test_path = base_dir.join(test_dirname);
-  let snapshot_dirname = snapshot_dirname.unwrap_or_else(|| SNAPSHOT_DIR.as_ref());
-  let snapshot_path = test_path.join(snapshot_dirname);
-  let walker = WalkBuilder::new(&test_path)
-    .types(config_file_type())
-    .build();
-  for dir in walker {
-    let config_file = dir.with_context(|| EC::WalkRuleDir(test_path.clone()))?;
-    // file_type is None only if it is stdin, safe to unwrap here
-    if !config_file
-      .file_type()
-      .expect("file type should be available for non-stdin")
-      .is_file()
-    {
-      continue;
-    }
-    let path = config_file.path();
-    let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
-    if path.starts_with(&snapshot_path) {
-      deserialize_snapshot_yaml(path, yaml, &mut builder)?;
-    } else {
-      deserialize_test_yaml(path, yaml, &snapshot_path, &mut builder)?;
-    }
-  }
+  builder.read_test_files(test_dirname, snapshot_dirname)?;
   Ok(builder.dest)
 }
 
@@ -111,11 +111,7 @@ fn deserialize_snapshot_yaml(
 ) -> Result<()> {
   let snapshot: TestSnapshots =
     from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
-  let included_in_filter = builder
-    .regex_filter
-    .map(|r| r.is_match(&snapshot.id))
-    .unwrap_or(true);
-  if !included_in_filter {
+  if !builder.included_in_filter(&snapshot.id) {
     return Ok(());
   }
   let id = snapshot.id.clone();
@@ -135,11 +131,7 @@ fn deserialize_test_yaml(
   for deser in Deserializer::from_str(&yaml) {
     let test_case: TestCase =
       deserialize(deser).with_context(|| EC::ParseTest(path.to_path_buf()))?;
-    if builder
-      .regex_filter
-      .map(|r| r.is_match(&test_case.id))
-      .unwrap_or(true)
-    {
+    if builder.included_in_filter(&test_case.id) {
       let harness = &mut builder.dest;
       harness
         .path_map
