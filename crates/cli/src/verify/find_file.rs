@@ -22,6 +22,14 @@ pub struct TestHarness {
   pub path_map: HashMap<String, PathBuf>,
 }
 
+struct HarnessBuilder<'a> {
+  dest: TestHarness,
+  // base_dir: PathBuf,
+  regex_filter: Option<&'a Regex>,
+}
+
+impl<'a> HarnessBuilder<'a> {}
+
 pub fn find_tests(
   config_path: Option<PathBuf>,
   regex_filter: Option<&Regex>,
@@ -65,7 +73,10 @@ pub fn read_test_files(
   snapshot_dirname: Option<&Path>,
   regex_filter: Option<&Regex>,
 ) -> Result<TestHarness> {
-  let mut harness = TestHarness::default();
+  let mut builder = HarnessBuilder {
+    dest: TestHarness::default(),
+    regex_filter,
+  };
   let test_path = base_dir.join(test_dirname);
   let snapshot_dirname = snapshot_dirname.unwrap_or_else(|| SNAPSHOT_DIR.as_ref());
   let snapshot_path = test_path.join(snapshot_dirname);
@@ -85,37 +96,30 @@ pub fn read_test_files(
     let path = config_file.path();
     let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
     if path.starts_with(&snapshot_path) {
-      deserialize_snapshot_yaml(path, yaml, regex_filter, &mut harness.snapshots)?;
+      deserialize_snapshot_yaml(path, yaml, &mut builder)?;
     } else {
-      deserialize_test_yaml(
-        path,
-        yaml,
-        regex_filter,
-        &snapshot_path,
-        &mut harness.test_cases,
-        &mut harness.path_map,
-      )?;
+      deserialize_test_yaml(path, yaml, &snapshot_path, &mut builder)?;
     }
   }
-  Ok(harness)
+  Ok(builder.dest)
 }
 
 fn deserialize_snapshot_yaml(
   path: &Path,
   yaml: String,
-  regex_filter: Option<&Regex>,
-  snapshots: &mut HashMap<String, TestSnapshots>,
+  builder: &mut HarnessBuilder<'_>,
 ) -> Result<()> {
   let snapshot: TestSnapshots =
     from_str(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?;
-  let included_in_filter = regex_filter
+  let included_in_filter = builder
+    .regex_filter
     .map(|r| r.is_match(&snapshot.id))
     .unwrap_or(true);
   if !included_in_filter {
     return Ok(());
   }
   let id = snapshot.id.clone();
-  let existing = snapshots.insert(id.clone(), snapshot);
+  let existing = builder.dest.snapshots.insert(id.clone(), snapshot);
   if existing.is_some() {
     eprintln!("Warning: found duplicate test case snapshot for `{id}`");
   }
@@ -125,20 +129,22 @@ fn deserialize_snapshot_yaml(
 fn deserialize_test_yaml(
   path: &Path,
   yaml: String,
-  regex_filter: Option<&Regex>,
   snapshot_path: &Path,
-  test_cases: &mut Vec<TestCase>,
-  path_map: &mut HashMap<String, PathBuf>,
+  builder: &mut HarnessBuilder<'_>,
 ) -> Result<()> {
   for deser in Deserializer::from_str(&yaml) {
     let test_case: TestCase =
       deserialize(deser).with_context(|| EC::ParseTest(path.to_path_buf()))?;
-    if regex_filter
+    if builder
+      .regex_filter
       .map(|r| r.is_match(&test_case.id))
       .unwrap_or(true)
     {
-      path_map.insert(test_case.id.clone(), snapshot_path.to_path_buf());
-      test_cases.push(test_case);
+      let harness = &mut builder.dest;
+      harness
+        .path_map
+        .insert(test_case.id.clone(), snapshot_path.to_path_buf());
+      harness.test_cases.push(test_case);
     }
   }
   Ok(())
