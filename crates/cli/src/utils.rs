@@ -159,7 +159,15 @@ fn filter_result(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
       return None;
     }
   };
-  entry.file_type()?.is_file().then(|| entry.into_path())
+  if !entry.file_type()?.is_file() {
+    return None;
+  }
+  let path = entry.into_path();
+  // TODO: is it correct here? see https://github.com/ast-grep/ast-grep/issues/1343
+  match path.strip_prefix("./") {
+    Ok(p) => Some(p.to_path_buf()),
+    Err(_) => Some(path),
+  }
 }
 
 fn run_worker<W: PathWorker + ?Sized + 'static>(worker: Arc<W>) -> Result<()> {
