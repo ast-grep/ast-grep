@@ -175,11 +175,13 @@ fn suppressed<'r, D: Doc>(node: &Node<'r, D>) -> NodeSuppression<'r, D> {
       node = n;
       continue;
     };
+    // previous node on the same line
     if prev.start_pos().0 == node.start_pos().0 {
       let Some(n) = node.parent() else {
         return NoSuppression;
       };
       node = n;
+    // previous node on the previous line
     } else if prev.start_pos().0 + 1 == node.start_pos().0 {
       return parse_suppression(&prev.text());
     } else {

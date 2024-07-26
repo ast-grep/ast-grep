@@ -35,6 +35,7 @@ pub enum Lang {
   Ruby,
   Rust,
   Scala,
+  Sql,
   Swift,
 }
 
@@ -65,6 +66,7 @@ impl Into<SupportLang> for Lang {
       F::Ruby => S::Ruby,
       F::Rust => S::Rust,
       F::Scala => S::Scala,
+      F::Sql => S::Sql,
       F::Swift => S::Swift,
     }
   }
@@ -97,6 +99,7 @@ impl From<SupportLang> for Lang {
       S::Ruby => F::Ruby,
       S::Rust => F::Rust,
       S::Scala => F::Scala,
+      S::Sql => F::Sql,
       S::Swift => F::Swift,
     }
   }

@@ -68,6 +68,9 @@ mod parser_implementation {
   pub fn language_scala() -> TSLanguage {
     tree_sitter_scala::language().into()
   }
+  pub fn language_sql() -> TSLanguage {
+    tree_sitter_sql_bigquery::language().into()
+  }
   pub fn language_swift() -> TSLanguage {
     tree_sitter_swift::language().into()
   }
@@ -119,6 +122,7 @@ mod parser_implementation {
     language_ruby,
     language_rust,
     language_scala,
+    language_sql,
     language_swift,
     language_tsx,
     language_typescript,
