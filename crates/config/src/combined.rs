@@ -18,11 +18,36 @@ struct Suppression {
   line_num: usize,
 }
 
+enum MaySuppressed<'a> {
+  Yes(&'a mut Suppression),
+  No,
+}
+
+impl<'a> MaySuppressed<'a> {
+  fn is_suppressed(&mut self, rule_id: &str) -> bool {
+    let suppression = match self {
+      MaySuppressed::No => return false,
+      MaySuppressed::Yes(s) => s,
+    };
+    if let Some(set) = &mut suppression.suppressed {
+      if set.contains(rule_id) {
+        suppression.is_used = true;
+        true
+      } else {
+        false
+      }
+    } else {
+      suppression.is_used = true;
+      true
+    }
+  }
+}
+
 const IGNORE_TEXT: &str = "ast-grep-ignore";
 
 impl Suppression {
   fn detect<D: Doc>(node: &Node<D>) -> Option<Suppression> {
-    if !node.kind().contains("comment") || node.text().contains(IGNORE_TEXT) {
+    if !node.kind().contains("comment") || !node.text().contains(IGNORE_TEXT) {
       return None;
     }
     let line = node.start_pos().0;
@@ -42,6 +67,18 @@ impl Suppression {
 pub struct PreScan {
   hit_set: BitSet,
   suppressions: Vec<Suppression>,
+}
+
+impl PreScan {
+  fn check_suppression<D: Doc>(&mut self, node: &Node<D>) -> MaySuppressed {
+    let line = node.start_pos().0;
+    for suppression in &mut self.suppressions {
+      if suppression.line_num == line {
+        return MaySuppressed::Yes(suppression);
+      }
+    }
+    MaySuppressed::No
+  }
 }
 
 /// A struct to group all rules according to their potential kinds.
@@ -165,6 +202,54 @@ impl<'r, L: Language> CombinedScan<'r, L> {
           break;
         }
         if suppression.contains_rule(&rule.id) {
+          continue;
+        }
+        if rule.fix.is_none() || !separate_fix {
+          let matches = result.matches.entry(idx).or_default();
+          matches.push(ret);
+        } else {
+          result.diffs.push((idx, ret));
+        }
+      }
+    }
+    result
+  }
+
+  pub fn new_scan<'a, D>(
+    &self,
+    root: &'a AstGrep<D>,
+    mut pre: PreScan,
+    separate_fix: bool,
+  ) -> ScanResult<'a, D>
+  where
+    D: Doc<Lang = L>,
+  {
+    let mut result = ScanResult {
+      diffs: vec![],
+      matches: HashMap::new(),
+    };
+    for node in root.root().dfs() {
+      let kind = node.kind_id() as usize;
+      let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
+        continue;
+      };
+      let hit_set = pre.hit_set.clone();
+      let mut suppression = pre.check_suppression(&node);
+      for &idx in rule_idx {
+        if !hit_set.contains(idx) {
+          continue;
+        }
+        let rule = &self.rules[idx];
+        // if suppression.is_suppressed(&rule.id) {
+        //   continue;
+        // }
+        let Some(ret) = rule.matcher.match_node(node.clone()) else {
+          continue;
+        };
+        // if suppression.check_ignore_all() {
+        //   break;
+        // }
+        if suppression.is_suppressed(&rule.id) {
           continue;
         }
         if rule.fix.is_none() || !separate_fix {
@@ -312,8 +397,31 @@ language: Tsx",
     let rule = create_rule();
     let rules = vec![&rule];
     let scan = CombinedScan::new(rules);
-    let bits = scan.find(&root);
-    let scanned = scan.scan(&root, bits, false);
+    let pre = scan.new_find(&root);
+    assert_eq!(pre.suppressions.len(), 4);
+    let scanned = scan.new_scan(&root, pre, false);
+    let matches = &scanned.matches[&0];
+    assert_eq!(matches.len(), 2);
+    assert_eq!(matches[0].text(), "console.log('no ignore')");
+    assert_eq!(matches[1].text(), "console.log('ignore another')");
+  }
+
+  #[test]
+  fn test_ignore_node_same_line() {
+    let source = r#"
+    console.log('ignored all') // ast-grep-ignore
+    console.log('no ignore')
+    console.log('ignore one') // ast-grep-ignore: test
+    console.log('ignore another') // ast-grep-ignore: not-test
+    console.log('multiple ignore') // ast-grep-ignore: not-test, test
+    "#;
+    let root = TypeScript::Tsx.ast_grep(source);
+    let rule = create_rule();
+    let rules = vec![&rule];
+    let scan = CombinedScan::new(rules);
+    let pre = scan.new_find(&root);
+    assert_eq!(pre.suppressions.len(), 4);
+    let scanned = scan.new_scan(&root, pre, false);
     let matches = &scanned.matches[&0];
     assert_eq!(matches.len(), 2);
     assert_eq!(matches[0].text(), "console.log('no ignore')");
