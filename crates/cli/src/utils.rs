@@ -221,7 +221,7 @@ fn filter(
 ) -> Option<PreScan> {
   let rules = configs.get_rule_from_lang(path, lang);
   let combined = CombinedScan::new(rules);
-  let pre_scan = combined.new_find(grep);
+  let pre_scan = combined.find(grep);
   if pre_scan.hit_set.is_empty() {
     None
   } else {

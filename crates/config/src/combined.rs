@@ -117,7 +117,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     }
   }
 
-  pub fn new_find<D>(&self, root: &AstGrep<D>) -> PreScan
+  pub fn find<D>(&self, root: &AstGrep<D>) -> PreScan
   where
     D: Doc<Lang = L>,
   {
@@ -145,77 +145,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     }
   }
 
-  pub fn find<D>(&self, root: &AstGrep<D>) -> BitSet
-  where
-    D: Doc<Lang = L>,
-  {
-    let mut hit = BitSet::new();
-    for node in root.root().dfs() {
-      let kind = node.kind_id() as usize;
-      let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
-        continue;
-      };
-      for &idx in rule_idx {
-        if hit.contains(idx) {
-          continue;
-        }
-        let rule = &self.rules[idx];
-        if rule.matcher.match_node(node.clone()).is_some() {
-          hit.insert(idx);
-        }
-      }
-    }
-    hit
-  }
-
   pub fn scan<'a, D>(
-    &self,
-    root: &'a AstGrep<D>,
-    hit: BitSet,
-    separate_fix: bool,
-  ) -> ScanResult<'a, D>
-  where
-    D: Doc<Lang = L>,
-  {
-    let mut result = ScanResult {
-      diffs: vec![],
-      matches: HashMap::new(),
-    };
-    for node in root.root().dfs() {
-      let kind = node.kind_id() as usize;
-      let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
-        continue;
-      };
-      let mut suppression = NodeSuppression::new(node.clone());
-      for &idx in rule_idx {
-        if !hit.contains(idx) {
-          continue;
-        }
-        let rule = &self.rules[idx];
-        if suppression.contains_rule(&rule.id) {
-          continue;
-        }
-        let Some(ret) = rule.matcher.match_node(node.clone()) else {
-          continue;
-        };
-        if suppression.check_ignore_all() {
-          break;
-        }
-        if suppression.contains_rule(&rule.id) {
-          continue;
-        }
-        if rule.fix.is_none() || !separate_fix {
-          let matches = result.matches.entry(idx).or_default();
-          matches.push(ret);
-        } else {
-          result.diffs.push((idx, ret));
-        }
-      }
-    }
-    result
-  }
-
-  pub fn new_scan<'a, D>(
     &self,
     root: &'a AstGrep<D>,
     mut pre: PreScan,
@@ -272,70 +202,6 @@ impl<'r, L: Language> CombinedScan<'r, L> {
   }
 }
 
-enum NodeSuppression<'r, D: Doc> {
-  Unchecked(Node<'r, D>),
-  NoSuppression,
-  AllSuppressed,
-  Specific(HashSet<String>),
-}
-
-impl<'r, D: Doc> NodeSuppression<'r, D> {
-  fn new(node: Node<'r, D>) -> Self {
-    Self::Unchecked(node)
-  }
-  /// returns if a rule should be suppressed
-  /// the return value is always false before check_ignore_all is called
-  /// that is, we never ignore error before looking at its surrounding
-  /// so this method needs to be called twice
-  fn contains_rule(&self, id: &str) -> bool {
-    use NodeSuppression::*;
-    match self {
-      Unchecked(_) => false,
-      NoSuppression => false,
-      AllSuppressed => panic!("AllSuppression should never be called"),
-      Specific(set) => set.contains(id),
-    }
-  }
-  /// this method will lazily check suppression
-  /// contains_rule will only return truth after this
-  fn check_ignore_all(&mut self) -> bool {
-    use NodeSuppression::*;
-    *self = match self {
-      Unchecked(n) => suppressed(n),
-      AllSuppressed => panic!("impossible"),
-      _ => return false,
-    };
-    matches!(self, AllSuppressed)
-  }
-}
-
-// check if there is no ast-grep-ignore
-fn suppressed<'r, D: Doc>(node: &Node<'r, D>) -> NodeSuppression<'r, D> {
-  let mut node = node.clone();
-  use NodeSuppression::*;
-  loop {
-    let Some(prev) = node.prev() else {
-      let Some(n) = node.parent() else {
-        return NoSuppression;
-      };
-      node = n;
-      continue;
-    };
-    // previous node on the same line
-    if prev.start_pos().0 == node.start_pos().0 {
-      let Some(n) = node.parent() else {
-        return NoSuppression;
-      };
-      node = n;
-    // previous node on the previous line
-    } else if prev.start_pos().0 + 1 == node.start_pos().0 {
-      return parse_suppression(&prev.text());
-    } else {
-      return NoSuppression;
-    }
-  }
-}
-
 fn parse_suppression_set(text: &str) -> Option<HashSet<String>> {
   let (_, after) = text.trim().split_once("ast-grep-ignore")?;
   let after = after.trim();
@@ -345,21 +211,6 @@ fn parse_suppression_set(text: &str) -> Option<HashSet<String>> {
   let (_, rules) = after.split_once(':')?;
   let set = rules.split(',').map(|r| r.trim().to_string()).collect();
   Some(set)
-}
-
-fn parse_suppression<'r, D: Doc>(text: &str) -> NodeSuppression<'r, D> {
-  let Some((_, after)) = text.trim().split_once("ast-grep-ignore") else {
-    return NodeSuppression::NoSuppression;
-  };
-  let after = after.trim();
-  if after.is_empty() {
-    return NodeSuppression::AllSuppressed;
-  }
-  let Some((_, rules)) = after.split_once(':') else {
-    return NodeSuppression::AllSuppressed;
-  };
-  let set = rules.split(',').map(|r| r.trim().to_string()).collect();
-  NodeSuppression::Specific(set)
 }
 
 #[cfg(test)]
@@ -397,9 +248,9 @@ language: Tsx",
     let rule = create_rule();
     let rules = vec![&rule];
     let scan = CombinedScan::new(rules);
-    let pre = scan.new_find(&root);
+    let pre = scan.find(&root);
     assert_eq!(pre.suppressions.len(), 4);
-    let scanned = scan.new_scan(&root, pre, false);
+    let scanned = scan.scan(&root, pre, false);
     let matches = &scanned.matches[&0];
     assert_eq!(matches.len(), 2);
     assert_eq!(matches[0].text(), "console.log('no ignore')");
@@ -419,9 +270,9 @@ language: Tsx",
     let rule = create_rule();
     let rules = vec![&rule];
     let scan = CombinedScan::new(rules);
-    let pre = scan.new_find(&root);
+    let pre = scan.find(&root);
     assert_eq!(pre.suppressions.len(), 4);
-    let scanned = scan.new_scan(&root, pre, false);
+    let scanned = scan.scan(&root, pre, false);
     let matches = &scanned.matches[&0];
     assert_eq!(matches.len(), 2);
     assert_eq!(matches[0].text(), "console.log('no ignore')");

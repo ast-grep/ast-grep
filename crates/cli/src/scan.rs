@@ -133,7 +133,7 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       let combined = CombinedScan::new(rules);
       let interactive = self.arg.output.needs_interactive();
       // exclude_fix rule because we already have diff inspection before
-      let scanned = combined.new_scan(&grep, pre_scan, /* separate_fix*/ interactive);
+      let scanned = combined.scan(&grep, pre_scan, /* separate_fix*/ interactive);
       if interactive {
         let diffs = scanned
           .diffs
@@ -198,7 +198,7 @@ impl<P: Printer> Worker for ScanWithRule<P> {
     for (path, grep, pre_scan) in items {
       let file_content = grep.source().to_string();
       // do not exclude_fix rule in run_with_rule
-      let scanned = combined.new_scan(&grep, pre_scan, false);
+      let scanned = combined.scan(&grep, pre_scan, false);
       for (idx, matches) in scanned.matches {
         let rule = combined.get_rule(idx);
         if matches!(rule.severity, Severity::Error) {
@@ -222,7 +222,7 @@ impl<P: Printer> StdInWorker for ScanWithRule<P> {
     let lang = self.rules[0].language;
     let combined = CombinedScan::new(self.rules.iter().collect());
     let grep = lang.ast_grep(src);
-    let pre_scan = combined.new_find(&grep);
+    let pre_scan = combined.find(&grep);
     if !pre_scan.hit_set.is_empty() {
       Some((PathBuf::from("STDIN"), grep, pre_scan))
     } else {

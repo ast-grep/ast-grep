@@ -204,8 +204,8 @@ impl<L: LSPLang> Backend<L> {
   ) -> Option<Vec<Diagnostic>> {
     let rules = self.get_rules(uri)?;
     let scan = CombinedScan::new(rules);
-    let pre_scan = scan.new_find(&versioned.root);
-    let matches = scan.new_scan(&versioned.root, pre_scan, false).matches;
+    let pre_scan = scan.find(&versioned.root);
+    let matches = scan.scan(&versioned.root, pre_scan, false).matches;
     let mut diagnostics = vec![];
     for (id, ms) in matches {
       let rule = scan.get_rule(id);
