@@ -11,11 +11,42 @@ pub struct ScanResult<'r, D: Doc> {
   pub matches: HashMap<usize, Vec<NodeMatch<'r, D>>>,
 }
 
+struct Suppressions(HashMap<usize, Suppression>);
+impl Suppressions {
+  fn collect<D: Doc>(&mut self, node: &Node<D>) {
+    if !node.kind().contains("comment") || !node.text().contains(IGNORE_TEXT) {
+      return;
+    }
+    let line = node.start_pos().0;
+    let suppress_next_line = if let Some(prev) = node.prev() {
+      prev.start_pos().0 != line
+    } else {
+      true
+    };
+    let key = if suppress_next_line { line + 1 } else { line };
+    self.0.insert(
+      key,
+      Suppression {
+        is_used: false,
+        suppressed: parse_suppression_set(&node.text()),
+      },
+    );
+  }
+
+  fn check_suppression<D: Doc>(&mut self, node: &Node<D>) -> MaySuppressed {
+    let line = node.start_pos().0;
+    if let Some(sup) = self.0.get_mut(&line) {
+      MaySuppressed::Yes(sup)
+    } else {
+      MaySuppressed::No
+    }
+  }
+}
+
 struct Suppression {
   is_used: bool,
   /// None = suppress all
   suppressed: Option<HashSet<String>>,
-  line_num: usize,
 }
 
 enum MaySuppressed<'a> {
@@ -45,40 +76,9 @@ impl<'a> MaySuppressed<'a> {
 
 const IGNORE_TEXT: &str = "ast-grep-ignore";
 
-impl Suppression {
-  fn detect<D: Doc>(node: &Node<D>) -> Option<Suppression> {
-    if !node.kind().contains("comment") || !node.text().contains(IGNORE_TEXT) {
-      return None;
-    }
-    let line = node.start_pos().0;
-    let suppress_next_line = if let Some(prev) = node.prev() {
-      prev.start_pos().0 != line
-    } else {
-      true
-    };
-    Some(Suppression {
-      is_used: false,
-      suppressed: parse_suppression_set(&node.text()),
-      line_num: if suppress_next_line { line + 1 } else { line },
-    })
-  }
-}
-
 pub struct PreScan {
   pub hit_set: BitSet,
-  suppressions: Vec<Suppression>,
-}
-
-impl PreScan {
-  fn check_suppression<D: Doc>(&mut self, node: &Node<D>) -> MaySuppressed {
-    let line = node.start_pos().0;
-    for suppression in &mut self.suppressions {
-      if suppression.line_num == line {
-        return MaySuppressed::Yes(suppression);
-      }
-    }
-    MaySuppressed::No
-  }
+  suppressions: Suppressions,
 }
 
 /// A struct to group all rules according to their potential kinds.
@@ -122,9 +122,9 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     D: Doc<Lang = L>,
   {
     let mut hit = BitSet::new();
-    let mut suppressions = vec![];
+    let mut suppressions = Suppressions(HashMap::new());
     for node in root.root().dfs() {
-      suppressions.extend(Suppression::detect(&node));
+      suppressions.collect(&node);
       let kind = node.kind_id() as usize;
       let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
         continue;
@@ -148,7 +148,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
   pub fn scan<'a, D>(
     &self,
     root: &'a AstGrep<D>,
-    mut pre: PreScan,
+    pre: PreScan,
     separate_fix: bool,
   ) -> ScanResult<'a, D>
   where
@@ -158,27 +158,24 @@ impl<'r, L: Language> CombinedScan<'r, L> {
       diffs: vec![],
       matches: HashMap::new(),
     };
+    let PreScan {
+      hit_set,
+      mut suppressions,
+    } = pre;
     for node in root.root().dfs() {
       let kind = node.kind_id() as usize;
       let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
         continue;
       };
-      let hit_set = pre.hit_set.clone();
-      let mut suppression = pre.check_suppression(&node);
+      let mut suppression = suppressions.check_suppression(&node);
       for &idx in rule_idx {
         if !hit_set.contains(idx) {
           continue;
         }
         let rule = &self.rules[idx];
-        // if suppression.is_suppressed(&rule.id) {
-        //   continue;
-        // }
         let Some(ret) = rule.matcher.match_node(node.clone()) else {
           continue;
         };
-        // if suppression.check_ignore_all() {
-        //   break;
-        // }
         if suppression.is_suppressed(&rule.id) {
           continue;
         }
@@ -196,14 +193,10 @@ impl<'r, L: Language> CombinedScan<'r, L> {
   pub fn get_rule(&self, idx: usize) -> &RuleConfig<L> {
     self.rules[idx]
   }
-
-  pub fn all_kinds(&self) -> BitSet {
-    (0..self.kind_rule_mapping.len()).collect()
-  }
 }
 
 fn parse_suppression_set(text: &str) -> Option<HashSet<String>> {
-  let (_, after) = text.trim().split_once("ast-grep-ignore")?;
+  let (_, after) = text.trim().split_once(IGNORE_TEXT)?;
   let after = after.trim();
   if after.is_empty() {
     return None;
@@ -249,7 +242,7 @@ language: Tsx",
     let rules = vec![&rule];
     let scan = CombinedScan::new(rules);
     let pre = scan.find(&root);
-    assert_eq!(pre.suppressions.len(), 4);
+    assert_eq!(pre.suppressions.0.len(), 4);
     let scanned = scan.scan(&root, pre, false);
     let matches = &scanned.matches[&0];
     assert_eq!(matches.len(), 2);
@@ -271,7 +264,7 @@ language: Tsx",
     let rules = vec![&rule];
     let scan = CombinedScan::new(rules);
     let pre = scan.find(&root);
-    assert_eq!(pre.suppressions.len(), 4);
+    assert_eq!(pre.suppressions.0.len(), 4);
     let scanned = scan.scan(&root, pre, false);
     let matches = &scanned.matches[&0];
     assert_eq!(matches.len(), 2);
