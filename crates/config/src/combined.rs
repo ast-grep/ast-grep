@@ -11,6 +11,39 @@ pub struct ScanResult<'r, D: Doc> {
   pub matches: HashMap<usize, Vec<NodeMatch<'r, D>>>,
 }
 
+struct Suppression {
+  is_used: bool,
+  /// None = suppress all
+  suppressed: Option<HashSet<String>>,
+  line_num: usize,
+}
+
+const IGNORE_TEXT: &str = "ast-grep-ignore";
+
+impl Suppression {
+  fn detect<D: Doc>(node: &Node<D>) -> Option<Suppression> {
+    if !node.kind().contains("comment") || node.text().contains(IGNORE_TEXT) {
+      return None;
+    }
+    let line = node.start_pos().0;
+    let suppress_next_line = if let Some(prev) = node.prev() {
+      prev.start_pos().0 != line
+    } else {
+      true
+    };
+    Some(Suppression {
+      is_used: false,
+      suppressed: parse_suppression_set(&node.text()),
+      line_num: if suppress_next_line { line + 1 } else { line },
+    })
+  }
+}
+
+pub struct PreScan {
+  hit_set: BitSet,
+  suppressions: Vec<Suppression>,
+}
+
 /// A struct to group all rules according to their potential kinds.
 /// This can greatly reduce traversal times and skip unmatchable rules.
 /// Rules are referenced by their index in the rules vector.
@@ -44,6 +77,34 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     Self {
       rules,
       kind_rule_mapping: mapping,
+    }
+  }
+
+  pub fn new_find<D>(&self, root: &AstGrep<D>) -> PreScan
+  where
+    D: Doc<Lang = L>,
+  {
+    let mut hit = BitSet::new();
+    let mut suppressions = vec![];
+    for node in root.root().dfs() {
+      suppressions.extend(Suppression::detect(&node));
+      let kind = node.kind_id() as usize;
+      let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
+        continue;
+      };
+      for &idx in rule_idx {
+        if hit.contains(idx) {
+          continue;
+        }
+        let rule = &self.rules[idx];
+        if rule.matcher.match_node(node.clone()).is_some() {
+          hit.insert(idx);
+        }
+      }
+    }
+    PreScan {
+      hit_set: hit,
+      suppressions,
     }
   }
 
@@ -188,6 +249,17 @@ fn suppressed<'r, D: Doc>(node: &Node<'r, D>) -> NodeSuppression<'r, D> {
       return NoSuppression;
     }
   }
+}
+
+fn parse_suppression_set(text: &str) -> Option<HashSet<String>> {
+  let (_, after) = text.trim().split_once("ast-grep-ignore")?;
+  let after = after.trim();
+  if after.is_empty() {
+    return None;
+  }
+  let (_, rules) = after.split_once(':')?;
+  let set = rules.split(',').map(|r| r.trim().to_string()).collect();
+  Some(set)
 }
 
 fn parse_suppression<'r, D: Doc>(text: &str) -> NodeSuppression<'r, D> {
