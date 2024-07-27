@@ -65,7 +65,7 @@ impl Suppression {
 }
 
 pub struct PreScan {
-  hit_set: BitSet,
+  pub hit_set: BitSet,
   suppressions: Vec<Suppression>,
 }
 

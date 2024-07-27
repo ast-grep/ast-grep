@@ -2,7 +2,6 @@ use crate::lang::SgLang;
 use crate::print::{ColorArg, JsonStyle};
 
 use anyhow::{anyhow, Context, Result};
-use bit_set::BitSet;
 use clap::{Args, ValueEnum};
 use crossterm::{
   event::{self, Event, KeyCode},
@@ -12,7 +11,7 @@ use crossterm::{
 use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
 use serde::{Deserialize, Serialize};
 
-use ast_grep_config::{CombinedScan, RuleCollection};
+use ast_grep_config::{CombinedScan, PreScan, RuleCollection};
 use ast_grep_core::Pattern;
 use ast_grep_core::{Matcher, StrDoc};
 use ast_grep_language::Language;
@@ -219,35 +218,35 @@ fn filter(
   path: &Path,
   lang: SgLang,
   configs: &RuleCollection<SgLang>,
-) -> Option<BitSet> {
+) -> Option<PreScan> {
   let rules = configs.get_rule_from_lang(path, lang);
   let combined = CombinedScan::new(rules);
-  let hit_set = combined.find(grep);
-  if hit_set.is_empty() {
+  let pre_scan = combined.new_find(grep);
+  if pre_scan.hit_set.is_empty() {
     None
   } else {
-    Some(hit_set)
+    Some(pre_scan)
   }
 }
 
 pub fn filter_file_interactive(
   path: &Path,
   configs: &RuleCollection<SgLang>,
-) -> Option<Vec<(PathBuf, AstGrep, BitSet)>> {
+) -> Option<Vec<(PathBuf, AstGrep, PreScan)>> {
   let lang = SgLang::from_path(path)?;
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(file_content);
   let mut ret = vec![];
   let root =
-    filter(&grep, path, lang, configs).map(|hit_set| (path.to_path_buf(), grep.clone(), hit_set));
+    filter(&grep, path, lang, configs).map(|pre_scan| (path.to_path_buf(), grep.clone(), pre_scan));
   ret.extend(root);
   if let Some(injected) = lang.injectable_sg_langs() {
     let docs = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
     let inj = injected.filter_map(|l| {
       let doc = docs.iter().find(|d| *d.lang() == l)?;
       let grep = AstGrep { inner: doc.clone() };
-      let hit_set = filter(&grep, path, l, configs)?;
-      Some((path.to_path_buf(), grep, hit_set))
+      let pre_scan = filter(&grep, path, l, configs)?;
+      Some((path.to_path_buf(), grep, pre_scan))
     });
     ret.extend(inj)
   }

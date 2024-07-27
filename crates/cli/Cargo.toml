@@ -41,7 +41,6 @@ codespan-reporting = "0.11.1"
 crossterm = "0.27.0"
 ignore.workspace = true
 regex.workspace = true
-bit-set.workspace = true
 inquire = "0.7.5"
 num_cpus = "1.16.0"
 serde.workspace = true

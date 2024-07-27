@@ -1,9 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use ast_grep_config::{from_yaml_string, CombinedScan, RuleCollection, RuleConfig, Severity};
+use ast_grep_config::{
+  from_yaml_string, CombinedScan, PreScan, RuleCollection, RuleConfig, Severity,
+};
 use ast_grep_core::{NodeMatch, StrDoc};
-use bit_set::BitSet;
 use clap::Args;
 use ignore::WalkParallel;
 use regex::Regex;
@@ -121,18 +122,18 @@ impl<P: Printer> ScanWithConfig<P> {
   }
 }
 impl<P: Printer> Worker for ScanWithConfig<P> {
-  type Item = (PathBuf, AstGrep, BitSet);
+  type Item = (PathBuf, AstGrep, PreScan);
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print()?;
     let mut error_count = 0usize;
-    for (path, grep, hit_set) in items {
+    for (path, grep, pre_scan) in items {
       let file_content = grep.source().to_string();
       let path = &path;
       let rules = self.configs.get_rule_from_lang(path, *grep.lang());
       let combined = CombinedScan::new(rules);
       let interactive = self.arg.output.needs_interactive();
       // exclude_fix rule because we already have diff inspection before
-      let scanned = combined.scan(&grep, hit_set, /* separate_fix*/ interactive);
+      let scanned = combined.new_scan(&grep, pre_scan, /* separate_fix*/ interactive);
       if interactive {
         let diffs = scanned
           .diffs
@@ -189,15 +190,15 @@ impl<P: Printer> ScanWithRule<P> {
 }
 
 impl<P: Printer> Worker for ScanWithRule<P> {
-  type Item = (PathBuf, AstGrep, BitSet);
+  type Item = (PathBuf, AstGrep, PreScan);
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     self.printer.before_print()?;
     let mut error_count = 0usize;
     let combined = CombinedScan::new(self.rules.iter().collect());
-    for (path, grep, hit_set) in items {
+    for (path, grep, pre_scan) in items {
       let file_content = grep.source().to_string();
       // do not exclude_fix rule in run_with_rule
-      let scanned = combined.scan(&grep, hit_set, false);
+      let scanned = combined.new_scan(&grep, pre_scan, false);
       for (idx, matches) in scanned.matches {
         let rule = combined.get_rule(idx);
         if matches!(rule.severity, Severity::Error) {
@@ -221,9 +222,9 @@ impl<P: Printer> StdInWorker for ScanWithRule<P> {
     let lang = self.rules[0].language;
     let combined = CombinedScan::new(self.rules.iter().collect());
     let grep = lang.ast_grep(src);
-    let hit_set = combined.find(&grep);
-    if !hit_set.is_empty() {
-      Some((PathBuf::from("STDIN"), grep, hit_set))
+    let pre_scan = combined.new_find(&grep);
+    if !pre_scan.hit_set.is_empty() {
+      Some((PathBuf::from("STDIN"), grep, pre_scan))
     } else {
       None
     }
