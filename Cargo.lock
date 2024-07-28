@@ -2042,9 +2042,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-php"
-version = "0.22.7"
+version = "0.22.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91010beb390d81a5d720c2d2d87b113892ac38ce3ebc99270183973a066f72e4"
+checksum = "1be890bd043986cc26b69968698e508dbd40060805e482f226dc873a63a88d60"
 dependencies = [
  "cc",
  "tree-sitter",
