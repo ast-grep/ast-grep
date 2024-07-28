@@ -1066,9 +1066,9 @@ checksum = "e1c0f5d67ee408a4685b61f5ab7e58605c8ae3f2b4189f0127d804ff13d5560a"
 
 [[package]]
 name = "napi-derive"
-version = "2.16.9"
+version = "2.16.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87c3b5d4ab13e20a4bb9d3a1e2f3d4e77eee4a205d0f810abfd226b971dc6ce5"
+checksum = "b13934cae1f98599ae96d461d14ce3a9199215de1e9a9a201b64b118b3dfa329"
 dependencies = [
  "cfg-if",
  "convert_case",
@@ -1080,9 +1080,9 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "1.0.71"
+version = "1.0.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96de436a6ab93265beef838f8333c8345438f059df6081fe0ad0b8648ee0c524"
+checksum = "632d41c6057955f455824a7585ce19bc69b2c83472d16581e8f0175fcf4759b7"
 dependencies = [
  "convert_case",
  "once_cell",
