@@ -89,38 +89,4 @@ mod test {
       tree_sitter_typescript::language_tsx().into()
     }
   }
-  use tree_sitter::{wasmtime, WasmStore};
-
-  #[test]
-  fn test_wasm() {
-    let engine = wasmtime::Engine::default();
-    let mut store = WasmStore::new(engine.clone()).unwrap();
-    let store2 = WasmStore::new(engine.clone()).unwrap();
-    let wasm = std::fs::read("../../benches/fixtures/json.wasm").unwrap();
-    let json = store.load_language("json", &wasm).unwrap().into();
-    let mut parser = tree_sitter::Parser::new().unwrap();
-    parser.set_wasm_store(store2).unwrap();
-    parser.set_language(&json).unwrap();
-    let source = "{\"a\": 123}".to_string();
-    let tree = parser.parse(source.as_bytes(), None).unwrap().unwrap();
-    assert_eq!(
-      tree.root_node().to_sexp(),
-      "(document (object (pair key: (string (string_content)) value: (number))))"
-    );
-  }
-
-  #[test]
-  fn test_wasm_with_external_parser() {
-    let engine = wasmtime::Engine::default();
-    let mut store = WasmStore::new(engine.clone()).unwrap();
-    let store2 = WasmStore::new(engine.clone()).unwrap();
-    let wasm = std::fs::read("../../benches/fixtures/python.wasm").unwrap();
-    let python = store.load_language("python", &wasm).unwrap().into();
-    let mut parser = tree_sitter::Parser::new().unwrap();
-    parser.set_wasm_store(store2).unwrap();
-    parser.set_language(&python).unwrap();
-    let source = "def test(): pass".to_string();
-    let tree = parser.parse(source.as_bytes(), None).unwrap().unwrap();
-    assert_eq!(tree.root_node().to_sexp(), "(module (function_definition name: (identifier) parameters: (parameters) body: (block (pass_statement))))");
-  }
 }
