@@ -69,7 +69,7 @@ mod parser_implementation {
     tree_sitter_scala::language().into()
   }
   pub fn language_sql() -> TSLanguage {
-    tree_sitter_sql_bigquery::language().into()
+    tree_sitter_sequel::language().into()
   }
   pub fn language_swift() -> TSLanguage {
     tree_sitter_swift::language().into()

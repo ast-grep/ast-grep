@@ -208,7 +208,7 @@ dependencies = [
  "tree-sitter-ruby",
  "tree-sitter-rust",
  "tree-sitter-scala",
- "tree-sitter-sql-bigquery",
+ "tree-sitter-sequel",
  "tree-sitter-swift",
  "tree-sitter-typescript",
 ]
@@ -968,7 +968,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.5",
 ]
 
 [[package]]
@@ -2092,10 +2092,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "tree-sitter-sql-bigquery"
-version = "0.8.0"
+name = "tree-sitter-sequel"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03958a5b10ddcd25ed510cf95a9bbb36cad5837894f4b7743e6ce0e26875e463"
+checksum = "da19010218fca3d3261c83ede4c8ed661b6ab379db2a82a959c6c9e861e8848e"
 dependencies = [
  "cc",
  "tree-sitter",
