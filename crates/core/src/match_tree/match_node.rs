@@ -3,6 +3,7 @@ use super::Aggregator;
 use crate::matcher::PatternNode;
 use crate::meta_var::MetaVariable;
 use crate::{Doc, Node};
+use std::iter::Peekable;
 
 pub(super) fn match_node_impl<'tree, D: Doc>(
   goal: &PatternNode,
@@ -87,7 +88,6 @@ enum ControlFlow {
   Return,
 }
 
-use std::iter::Peekable;
 /// returns None means no match
 fn may_match_ellipsis_impl<'p, 't: 'p, D: Doc + 't>(
   goal_children: &mut Peekable<impl Iterator<Item = &'p PatternNode>>,
@@ -168,8 +168,11 @@ fn match_single_node_while_skip_trivial<'p, 't: 'p, D: Doc + 't>(
 ) -> Option<ControlFlow> {
   loop {
     let Some(cand) = cand_children.peek() else {
-      // if cand runs out, remaining goal is not matched
-      return None;
+      // if cand runs out, check remaining goal
+      // if goal is skippable, it is a match, else a non match
+      return strictness
+        .should_skip_goal(goal_children)
+        .then_some(ControlFlow::Fallthrough);
     };
     // try match goal node with candidate node
     match match_node_impl(goal_children.peek().unwrap(), cand, agg, strictness) {
@@ -260,6 +263,7 @@ mod test {
     unmatched("$A(bar)", "foo(/* A*/bar)", M::Ast);
     matched("$A(bar)", "foo(bar)", M::Ast);
     unmatched("$A(bar)", "foo(bar, baz)", M::Ast);
+    matched("print($A,)", "print(123)", M::Ast);
   }
 
   #[test]
@@ -272,6 +276,7 @@ mod test {
   fn test_cst_match() {
     unmatched("import $A from 'lib'", "import A from \"lib\"", M::Cst);
     unmatched("$A(bar)", "foo(/* A*/bar)", M::Cst);
+    unmatched("print($A,)", "print(123)", M::Cst);
   }
 
   #[test]

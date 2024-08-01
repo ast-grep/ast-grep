@@ -1,4 +1,7 @@
+use crate::matcher::PatternNode;
+use crate::meta_var::MetaVariable;
 use crate::{Doc, Node};
+use std::iter::Peekable;
 use std::str::FromStr;
 
 #[derive(Clone)]
@@ -69,6 +72,43 @@ impl MatchStrictness {
       M::Relaxed => skip_comment_or_unnamed(candidate),
       M::Signature => skip_comment_or_unnamed(candidate),
     }
+  }
+
+  pub(crate) fn should_skip_goal<'p>(
+    &self,
+    goal_children: &mut Peekable<impl Iterator<Item = &'p PatternNode>>,
+  ) -> bool {
+    use MatchStrictness as M;
+    while let Some(pattern) = goal_children.peek() {
+      let skipped = match self {
+        M::Cst => false,
+        M::Smart => match pattern {
+          PatternNode::MetaVar { meta_var } => match meta_var {
+            MetaVariable::Multiple => true,
+            MetaVariable::MultiCapture(_) => true,
+            MetaVariable::Dropped(_) => false,
+            MetaVariable::Capture(..) => false,
+          },
+          PatternNode::Terminal { .. } => false,
+          PatternNode::Internal { .. } => false,
+        },
+        M::Ast | M::Relaxed | M::Signature => match pattern {
+          PatternNode::MetaVar { meta_var } => match meta_var {
+            MetaVariable::Multiple => true,
+            MetaVariable::MultiCapture(_) => true,
+            MetaVariable::Dropped(named) => !named,
+            MetaVariable::Capture(_, named) => !named,
+          },
+          PatternNode::Terminal { is_named, .. } => !is_named,
+          PatternNode::Internal { .. } => false,
+        },
+      };
+      if !skipped {
+        return false;
+      }
+      goal_children.next();
+    }
+    true
   }
 }
 
