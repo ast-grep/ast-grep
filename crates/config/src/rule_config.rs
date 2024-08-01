@@ -86,11 +86,6 @@ pub struct SerializableRuleConfig<L: Language> {
 }
 
 impl<L: Language> SerializableRuleConfig<L> {
-  fn get_message(&self, node_match: &NodeMatch<StrDoc<L>>) -> String {
-    let bytes = self.message.generate_replacement(node_match);
-    String::from_utf8(bytes).expect("replacement must be valid utf-8")
-  }
-
   pub fn get_matcher(&self, globals: &GlobalRules<L>) -> Result<RuleCore<L>, RuleConfigError> {
     // every RuleConfig has one rewriters, and the rewriter is shared between sub-rules
     // all RuleConfigs has one common globals
@@ -186,7 +181,10 @@ impl<L: Language> RuleConfig<L> {
   }
 
   pub fn get_message(&self, node: &NodeMatch<StrDoc<L>>) -> String {
-    self.inner.get_message(node)
+    let env = self.matcher.get_env(self.language.clone());
+    let parsed = Fixer::with_transform(&self.message, &env, &self.transform).expect("should work");
+    let bytes = parsed.generate_replacement(node);
+    String::from_utf8(bytes).expect("replacement must be valid utf-8")
   }
   pub fn get_fixer(&self) -> Result<Option<Fixer<L>>, RuleConfigError> {
     if let Some(fix) = &self.fix {
@@ -242,6 +240,7 @@ mod test {
     let mut config = ts_rule_config(rule);
     config.id = "test".into();
     config.message = "Found $A".into();
+    let config = RuleConfig::try_from(config, &Default::default()).expect("should work");
     let grep = TypeScript::Tsx.ast_grep("class TestClass {}");
     let node_match = grep
       .root()
@@ -645,5 +644,22 @@ rewriters:
     let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
     let ret = RuleConfig::try_from(rule, &Default::default());
     assert!(ret.is_err());
+  }
+
+  #[test]
+  fn test_get_message_transform() {
+    let src = r"
+id: test-rule
+language: Tsx
+rule: { kind: string, pattern: $ARG }
+transform:
+  TEST: { replace: { replace: 'a', by: 'b', source: $ARG, } }
+message: $TEST
+    ";
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+    let rule = RuleConfig::try_from(rule, &Default::default()).expect("should work");
+    let grep = TypeScript::Tsx.ast_grep("a = '123'");
+    let nm = grep.root().find(&rule.matcher).unwrap();
+    assert_eq!(rule.get_message(&nm), "'123'");
   }
 }

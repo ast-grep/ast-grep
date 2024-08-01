@@ -90,23 +90,28 @@ impl<L: Language> Fixer<L> {
     env: &DeserializeEnv<L>,
     transform: &Option<HashMap<String, Transformation>>,
   ) -> Result<Self, FixerError> {
-    let fixer = match fixer {
-      SerializableFixer::Str(fix) => {
-        let template = if let Some(trans) = transform {
-          let keys: Vec<_> = trans.keys().cloned().collect();
-          TemplateFix::with_transform(fix, &env.lang, &keys)
-        } else {
-          TemplateFix::try_new(fix, &env.lang)?
-        };
-        Self {
-          template,
-          expand_end: None,
-          expand_start: None,
-        }
-      }
-      SerializableFixer::Config(cfg) => Self::do_parse(cfg, env)?,
+    match fixer {
+      SerializableFixer::Str(fix) => Self::with_transform(fix, env, transform),
+      SerializableFixer::Config(cfg) => Self::do_parse(cfg, env),
+    }
+  }
+
+  pub(crate) fn with_transform(
+    fix: &str,
+    env: &DeserializeEnv<L>,
+    transform: &Option<HashMap<String, Transformation>>,
+  ) -> Result<Self, FixerError> {
+    let template = if let Some(trans) = transform {
+      let keys: Vec<_> = trans.keys().cloned().collect();
+      TemplateFix::with_transform(fix, &env.lang, &keys)
+    } else {
+      TemplateFix::try_new(fix, &env.lang)?
     };
-    Ok(fixer)
+    Ok(Self {
+      template,
+      expand_end: None,
+      expand_start: None,
+    })
   }
 
   pub fn from_str(src: &str, lang: &L) -> Result<Self, FixerError> {
