@@ -264,6 +264,10 @@ mod test {
     matched("$A(bar)", "foo(bar)", M::Ast);
     unmatched("$A(bar)", "foo(bar, baz)", M::Ast);
     matched("print($A,)", "print(123)", M::Ast);
+    matched("print($$$A,b,$$$C)", "print(b)", M::Ast);
+    matched("print($$$A,b,$$$C)", "print(a, b)", M::Ast);
+    matched("print($$$A,b,$$$C)", "print(a, b, c)", M::Ast);
+    matched("print($$$A,b,$$$C)", "print(a, b, c,)", M::Ast);
   }
 
   #[test]
