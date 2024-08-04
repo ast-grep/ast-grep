@@ -70,6 +70,13 @@ pub struct RunArg {
   #[clap(short, long)]
   pattern: String,
 
+  /// AST kind to extract sub-part of pattern to match.
+  ///
+  /// selector defines the sub-syntax node kind that is the actual matcher of the pattern.
+  /// See https://ast-grep.github.io/guide/rule-config/atomic-rule.html#pattern-object.
+  #[clap(long, value_name = "KIND")]
+  selector: Option<String>,
+
   /// String to replace the matched AST node.
   #[clap(short, long, value_name = "FIX", required_if_eq("update_all", "true"))]
   rewrite: Option<String>,
@@ -146,7 +153,12 @@ pub struct RunArg {
 
 impl RunArg {
   fn build_pattern(&self, lang: SgLang) -> Result<Pattern<SgLang>> {
-    let pattern = Pattern::try_new(&self.pattern, lang).context(EC::ParsePattern)?;
+    let pattern = if let Some(sel) = &self.selector {
+      Pattern::contextual(&self.pattern, sel, lang)
+    } else {
+      Pattern::try_new(&self.pattern, lang)
+    }
+    .context(EC::ParsePattern)?;
     if let Some(strictness) = &self.strictness {
       Ok(pattern.with_strictness(strictness.0.clone()))
     } else {
@@ -352,6 +364,7 @@ mod test {
   fn default_run_arg() -> RunArg {
     RunArg {
       pattern: String::new(),
+      selector: None,
       rewrite: None,
       lang: None,
       heading: Heading::Never,

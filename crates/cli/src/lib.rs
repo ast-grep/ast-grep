@@ -180,6 +180,8 @@ mod test_cli {
     ok("run -p test --json dir"); // arg after --json should not be parsed as JsonStyle
     ok("run -p test --strictness ast");
     ok("run -p test --strictness relaxed");
+    ok("run -p test --selector identifier"); // pattern + selector
+    ok("run -p test --selector identifier -l js");
     error("run test");
     error("run --debug-query test"); // missing lang
     error("run -r Test dir");
@@ -189,6 +191,7 @@ mod test_cli {
     error("run -p test --update-all");
     error("run -p test --strictness not");
     error("run -p test -l rs --debug-query=not");
+    error("run -p test --selector");
   }
 
   #[test]
