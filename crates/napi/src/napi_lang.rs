@@ -39,11 +39,11 @@ pub enum Lang {
   Swift,
 }
 
-impl Into<SupportLang> for Lang {
-  fn into(self) -> SupportLang {
+impl From<Lang> for SupportLang {
+  fn from(val: Lang) -> Self {
     use Lang as F;
     use SupportLang as S;
-    match self {
+    match val {
       F::Html => S::Html,
       F::JavaScript => S::JavaScript,
       F::Tsx => S::Tsx,

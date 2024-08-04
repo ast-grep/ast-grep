@@ -51,69 +51,69 @@ use std::ops::Range;
 
   ## Extract Meta-var with de-indent
   1. Initial meta-var node B text:
-  The meta-var source indentation for `$B` is 4.
-  However, meta-var node does not have the first line indentation.
-  ```ignore
-  1
+      The meta-var source indentation for `$B` is 4.
+      However, meta-var node does not have the first line indentation.
+      ```ignore
+      1
+            + 2
+            + 3
+      ```
+  2. Deindent meta-var node B, except first line:
+      De-indenting all lines following the first line by 4 spaces gives us this relative code layout.
+
+      ```ignore
+      1
         + 2
         + 3
-  ```
-  2. Deindent meta-var node B, except first line:
-  De-indenting all lines following the first line by 4 spaces gives us this relative code layout.
-
-  ```ignore
-  1
-    + 2
-    + 3
-  ```
+      ```
 
   ## Insert meta-var into replacement with re-indent
 
   3. Re-indent by meta-var replacement indentation.
-  meta-var node $B occurs in replace with first line indentation of 2.
-  We need to re-indent the meta-var code before replacement, except the first line
-  ```ignore
-  1
-      + 2
-      + 3
-  ```
+      meta-var node $B occurs in replace with first line indentation of 2.
+      We need to re-indent the meta-var code before replacement, except the first line
+      ```ignore
+      1
+          + 2
+          + 3
+      ```
 
   4. Insert meta-var code in to replacement
-  ```ignore
-  c(
-    1
-      + 2
-      + 3
-  )
-  ```
+      ```ignore
+      c(
+        1
+          + 2
+          + 3
+      )
+      ```
 
   ## Insert replacement into source with re-indent
 
   5. Re-indent the replaced template code except first line
-  The whole matched node first line indentation is 2.
-  We need to reindent the replacement code by 2, except the first line.
-  ```ignore
-  c(
-      1
-        + 2
-        + 3
-    )
-  ```
+      The whole matched node first line indentation is 2.
+      We need to reindent the replacement code by 2, except the first line.
+      ```ignore
+      c(
+          1
+            + 2
+            + 3
+        )
+      ```
 
   6. Inserted replacement code to original tree
 
-  ```ignore
-  if (true) {
-    c(
-      1
-        + 2
-        + 3
-    )
-  }
-  ```
+      ```ignore
+      if (true) {
+        c(
+          1
+            + 2
+            + 3
+        )
+      }
+      ```
 
   The steps 3,4 and steps 5,6 are similar. We can define a `replace_with_indent` to it.
-  Following the same path, we can define a `extract_with_deindent` for steps 1,2.
+  Following the same path, we can define a `extract_with_deindent` for steps 1,2
 */
 
 /// We assume NEW_LINE, TAB, SPACE is only one code unit.
