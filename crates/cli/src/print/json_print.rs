@@ -57,6 +57,15 @@ struct MatchNode<'a> {
   range: Range,
 }
 
+/// a sub field of leading and trailing text count around match.
+/// plugin authors can use it to split `lines` into leading, matching and trailing
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CharCount {
+  leading: usize,
+  trailing: usize,
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct MatchJSON<'a> {
@@ -64,6 +73,7 @@ struct MatchJSON<'a> {
   range: Range,
   file: Cow<'a, str>,
   lines: String,
+  char_count: CharCount,
   #[serde(skip_serializing_if = "Option::is_none")]
   replacement: Option<Cow<'a, str>>,
   #[serde(skip_serializing_if = "Option::is_none")]
@@ -143,13 +153,17 @@ fn get_range(n: &Node<'_, SgLang>) -> Range {
 }
 
 impl<'a> MatchJSON<'a> {
-  fn new(nm: NodeMatch<'a, SgLang>, path: &'a str) -> Self {
-    let display = nm.display_context(0, 0);
+  fn new(nm: NodeMatch<'a, SgLang>, path: &'a str, context: (u16, u16)) -> Self {
+    let display = nm.display_context(context.0 as usize, context.1 as usize);
     let lines = format!("{}{}{}", display.leading, display.matched, display.trailing);
     MatchJSON {
       file: Cow::Borrowed(path),
       text: nm.text(),
       lines,
+      char_count: CharCount {
+        leading: display.leading.chars().count(),
+        trailing: display.trailing.chars().count(),
+      },
       language: *nm.lang(),
       replacement: None,
       replacement_offsets: None,
@@ -158,8 +172,8 @@ impl<'a> MatchJSON<'a> {
     }
   }
 
-  fn diff(diff: Diff<'a>, path: &'a str) -> Self {
-    let mut ret = Self::new(diff.node_match, path);
+  fn diff(diff: Diff<'a>, path: &'a str, context: (u16, u16)) -> Self {
+    let mut ret = Self::new(diff.node_match, path, context);
     ret.replacement = Some(diff.replacement);
     ret.replacement_offsets = Some(diff.range);
     ret
@@ -195,7 +209,7 @@ impl<'a> RuleMatchJSON<'a> {
   fn new(nm: NodeMatch<'a, SgLang>, path: &'a str, rule: &'a RuleConfig<SgLang>) -> Self {
     let message = rule.get_message(&nm);
     let labels = get_labels(&nm);
-    let matched = MatchJSON::new(nm, path);
+    let matched = MatchJSON::new(nm, path, (0, 0));
     Self {
       matched,
       rule_id: &rule.id,
@@ -209,7 +223,7 @@ impl<'a> RuleMatchJSON<'a> {
     let nm = &diff.node_match;
     let message = rule.get_message(nm);
     let labels = get_labels(nm);
-    let matched = MatchJSON::diff(diff, path);
+    let matched = MatchJSON::diff(diff, path, (0, 0));
     Self {
       matched,
       rule_id: &rule.id,
@@ -239,6 +253,7 @@ pub enum JsonStyle {
 pub struct JSONPrinter<W: Write + Send + Sync> {
   output: Mutex<W>,
   style: JsonStyle,
+  context: (u16, u16),
   // indicate if any matches happened
   matched: AtomicBool,
 }
@@ -254,8 +269,14 @@ impl<W: Write + Send + Sync> JSONPrinter<W> {
     Self {
       style,
       output: Mutex::new(output),
+      context: (0, 0),
       matched: AtomicBool::new(false),
     }
+  }
+
+  pub fn context(mut self, context: (u16, u16)) -> Self {
+    self.context = context;
+    self
   }
 
   fn print_docs<S: Serialize>(&self, mut docs: impl Iterator<Item = S>) -> Result<()> {
@@ -314,13 +335,13 @@ impl<W: Write + Send + Sync> Printer for JSONPrinter<W> {
 
   fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {
     let path = path.to_string_lossy();
-    let jsons = matches.map(|nm| MatchJSON::new(nm, &path));
+    let jsons = matches.map(|nm| MatchJSON::new(nm, &path, self.context));
     self.print_docs(jsons)
   }
 
   fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
     let path = path.to_string_lossy();
-    let jsons = diffs.map(|diff| MatchJSON::diff(diff, &path));
+    let jsons = diffs.map(|diff| MatchJSON::diff(diff, &path, self.context));
     self.print_docs(jsons)
   }
   fn print_rule_diffs(
