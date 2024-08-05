@@ -46,7 +46,7 @@ pub use ast_grep_core::Language;
 /// this macro implements bare-bone methods for a language
 macro_rules! impl_lang {
   ($lang: ident, $func: ident) => {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct $lang;
     impl Language for $lang {
       fn get_ts_language(&self) -> TSLanguage {
@@ -81,7 +81,7 @@ fn pre_process_pattern(expando: char, query: &str) -> std::borrow::Cow<str> {
 /// use this if your language does not accept $ as valid identifier char
 macro_rules! impl_lang_expando {
   ($lang: ident, $func: ident, $char: expr) => {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct $lang;
     impl ast_grep_core::language::Language for $lang {
       fn get_ts_language(&self) -> ast_grep_core::language::TSLanguage {
@@ -92,6 +92,56 @@ macro_rules! impl_lang_expando {
       }
       fn pre_process_pattern<'q>(&self, query: &'q str) -> std::borrow::Cow<'q, str> {
         pre_process_pattern(self.expando_char(), query)
+      }
+    }
+  };
+}
+
+/// Implements the `ALIAS` associated constant for the given lang, which is
+/// then used to define the `alias` const fn and a `Deserialize` impl.
+/// Also generates as convenience conversions between the lang types
+/// and `SupportedType`.
+macro_rules! impl_aliases {
+  ($($lang:ident => $as:expr),* $(,)?) => {
+    $(
+      impl $lang {
+        pub const ALIAS: &'static [&'static str] = $as;
+      }
+
+      impl fmt::Display for $lang {
+        fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+          write!(f, "{:?}", self)
+        }
+      }
+
+      impl<'de> Deserialize<'de> for $lang {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+          D: Deserializer<'de>,
+        {
+          let s = String::deserialize(deserializer)?;
+          let valid = $lang::ALIAS
+            .iter()
+            .any(|a| s.eq_ignore_ascii_case(a));
+          if valid {
+            Ok($lang)
+          } else {
+            let err = LanguageMismatchErr { input: s, expected: stringify!($lang) };
+            Err(de::Error::custom(err))
+          }
+        }
+      }
+
+      impl From<$lang> for SupportLang {
+        fn from(_: $lang) -> Self {
+          Self::$lang
+        }
+      }
+    )*
+
+    const fn alias(lang: SupportLang) -> &'static [&'static str] {
+      match lang {
+        $(SupportLang::$lang => $lang::ALIAS),*
       }
     }
   };
@@ -187,7 +237,7 @@ impl SupportLang {
   }
 
   pub fn file_types(&self) -> Types {
-    file_types(self)
+    file_types(*self)
   }
 }
 
@@ -223,44 +273,59 @@ impl<'de> Deserialize<'de> for SupportLang {
   }
 }
 
-const fn alias(lang: &SupportLang) -> &[&str] {
-  use SupportLang::*;
-  match lang {
-    Bash => &["bash-exp"],
-    C => &["c"],
-    Cpp => &["cc", "c++", "cpp", "cxx"],
-    CSharp => &["cs", "csharp"],
-    Css => &["css"],
-    Dart => &["dart"],
-    Elixir => &["ex", "elixir"],
-    Go => &["go", "golang"],
-    Haskell => &["hs", "haskell"],
-    Html => &["html"],
-    Java => &["java"],
-    JavaScript => &["javascript", "js", "jsx"],
-    Json => &["json"],
-    Kotlin => &["kotlin", "kt"],
-    Lua => &["lua"],
-    Php => &["php-exp"],
-    Python => &["py", "python"],
-    Ruby => &["rb", "ruby"],
-    Rust => &["rs", "rust"],
-    Scala => &["scala"],
-    Sql => &["sql"],
-    Swift => &["swift"],
-    TypeScript => &["ts", "typescript"],
-    Tsx => &["tsx"],
+#[derive(Debug)]
+struct LanguageMismatchErr<'a> {
+  input: String,
+  expected: &'a str,
+}
+
+impl<'a> Display for LanguageMismatchErr<'a> {
+  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    write!(
+      f,
+      "`{}` is not an accepted alias for {}",
+      self.input, self.expected
+    )
   }
+}
+
+impl<'a> std::error::Error for LanguageMismatchErr<'a> {}
+
+impl_aliases! {
+  Bash => &["bash-exp"],
+  C => &["c"],
+  Cpp => &["cc", "c++", "cpp", "cxx"],
+  CSharp => &["cs", "csharp"],
+  Css => &["css"],
+  Dart => &["dart"],
+  Elixir => &["ex", "elixir"],
+  Go => &["go", "golang"],
+  Haskell => &["hs", "haskell"],
+  Html => &["html"],
+  Java => &["java"],
+  JavaScript => &["javascript", "js", "jsx"],
+  Json => &["json"],
+  Kotlin => &["kotlin", "kt"],
+  Lua => &["lua"],
+  Php => &["php-exp"],
+  Python => &["py", "python"],
+  Ruby => &["rb", "ruby"],
+  Rust => &["rs", "rust"],
+  Scala => &["scala"],
+  Sql => &["sql"],
+  Swift => &["swift"],
+  TypeScript => &["ts", "typescript"],
+  Tsx => &["tsx"],
 }
 
 /// Implements the language names and aliases.
 impl FromStr for SupportLang {
   type Err = SupportLangErr;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    for lang in Self::all_langs() {
+    for &lang in Self::all_langs() {
       for moniker in alias(lang) {
         if s.eq_ignore_ascii_case(moniker) {
-          return Ok(*lang);
+          return Ok(lang);
         }
       }
     }
@@ -332,7 +397,7 @@ impl Language for SupportLang {
   }
 }
 
-fn extensions(lang: &SupportLang) -> &[&str] {
+fn extensions(lang: SupportLang) -> &'static [&'static str] {
   use SupportLang::*;
   match lang {
     Bash => &[
@@ -372,7 +437,7 @@ fn from_extension(path: &Path) -> Option<SupportLang> {
   SupportLang::all_langs()
     .iter()
     .copied()
-    .find(|l| extensions(l).contains(&ext))
+    .find(|&l| extensions(l).contains(&ext))
 }
 
 fn add_custom_file_type<'b>(
@@ -389,7 +454,7 @@ fn add_custom_file_type<'b>(
   builder.select(file_type)
 }
 
-fn file_types(lang: &SupportLang) -> Types {
+fn file_types(lang: SupportLang) -> Types {
   let mut builder = TypesBuilder::new();
   let exts = extensions(lang);
   let lang_name = lang.to_string();
@@ -427,6 +492,7 @@ mod test {
       cand.root().to_sexp(),
     );
   }
+
   pub fn test_replace_lang(
     src: &str,
     pattern: &str,
