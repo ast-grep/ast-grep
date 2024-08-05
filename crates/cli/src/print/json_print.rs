@@ -59,6 +59,7 @@ struct MatchNode<'a> {
 
 /// a sub field of leading and trailing text count around match.
 /// plugin authors can use it to split `lines` into leading, matching and trailing
+/// See ast-grep/ast-grep#1381
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CharCount {
