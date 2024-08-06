@@ -109,7 +109,7 @@ macro_rules! impl_aliases {
       }
 
       impl fmt::Display for $lang {
-        fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
           write!(f, "{:?}", self)
         }
       }

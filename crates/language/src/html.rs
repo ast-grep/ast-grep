@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 // tree-sitter-html uses locale dependent iswalnum for tagName
 // https://github.com/tree-sitter/tree-sitter-html/blob/b5d9758e22b4d3d25704b72526670759a9e4d195/src/scanner.c#L194
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Html;
 impl Language for Html {
   fn get_ts_language(&self) -> ast_grep_core::language::TSLanguage {
