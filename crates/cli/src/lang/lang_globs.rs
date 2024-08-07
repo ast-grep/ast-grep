@@ -15,6 +15,12 @@ pub type LanguageGlobs = HashMap<String, Vec<String>>;
 
 pub unsafe fn register(regs: LanguageGlobs) -> Result<()> {
   debug_assert!(LANG_GLOBS.is_empty());
+  let lang_globs = register_impl(regs)?;
+  _ = std::mem::replace(&mut *addr_of_mut!(LANG_GLOBS), lang_globs);
+  Ok(())
+}
+
+fn register_impl(regs: LanguageGlobs) -> Result<Vec<(SgLang, Types)>> {
   let mut lang_globs = vec![];
   for (lang, globs) in regs {
     let lang = SgLang::from_str(&lang).with_context(|| EC::UnrecognizableLanguage(lang))?;
@@ -24,8 +30,7 @@ pub unsafe fn register(regs: LanguageGlobs) -> Result<()> {
     let types = build_types(&lang_name, globs)?;
     lang_globs.push((lang, types));
   }
-  _ = std::mem::replace(&mut *addr_of_mut!(LANG_GLOBS), lang_globs);
-  Ok(())
+  Ok(lang_globs)
 }
 
 fn build_types(lang: &str, globs: Vec<String>) -> Result<Types> {
@@ -115,12 +120,8 @@ html: ['*.vue', '*.svelte']";
   #[test]
   fn test_register() -> Result<()> {
     let globs = get_globs();
-    unsafe {
-      // cleanup
-      std::mem::take(&mut *addr_of_mut!(LANG_GLOBS));
-      register(globs)?;
-      assert_eq!(LANG_GLOBS.len(), 2);
-    }
+    let lang_globs = register_impl(globs)?;
+    assert_eq!(lang_globs.len(), 2);
     Ok(())
   }
 
@@ -128,11 +129,7 @@ html: ['*.vue', '*.svelte']";
   fn test_invalid_language() {
     let mut globs = get_globs();
     globs.insert("php".into(), vec!["bestlang".into()]);
-    let ret = unsafe {
-      // cleanup
-      std::mem::take(&mut *addr_of_mut!(LANG_GLOBS));
-      register(globs)
-    };
+    let ret = register_impl(globs);
     let err = ret.expect_err("should wrong");
     assert!(matches!(
       err.downcast::<EC>(),
