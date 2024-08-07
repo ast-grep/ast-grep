@@ -100,10 +100,16 @@ pub fn convert_match_to_diagnostic<L: Language>(
 
 fn get_non_empty_message<L: Language>(rule: &RuleConfig<L>, nm: &NodeMatch<StrDoc<L>>) -> String {
   // Note: The LSP client in vscode won't show any diagnostics at all if it receives one with an empty message
-  if rule.message.is_empty() {
+  let msg = if rule.message.is_empty() {
     rule.id.to_string()
   } else {
     rule.get_message(nm)
+  };
+  // append note to message ast-grep/ast-grep-vscode#352
+  if let Some(note) = &rule.note {
+    format!("{msg}\n\n{note}")
+  } else {
+    msg
   }
 }
 
