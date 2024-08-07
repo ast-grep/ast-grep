@@ -32,12 +32,14 @@ use ast_grep_core::language::{TSLanguage, TSRange};
 use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::{Doc, Node};
 use ignore::types::{Types, TypesBuilder};
+use serde::de::Visitor;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::iter::repeat;
+use std::marker::PhantomData;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -119,16 +121,9 @@ macro_rules! impl_aliases {
         where
           D: Deserializer<'de>,
         {
-          let s = String::deserialize(deserializer)?;
-          let valid = $lang::ALIAS
-            .iter()
-            .any(|a| s.eq_ignore_ascii_case(a));
-          if valid {
-            Ok($lang)
-          } else {
-            let err = LanguageMismatchErr { input: s, expected: stringify!($lang) };
-            Err(de::Error::custom(err))
-          }
+          let vis = AliasVisitor { aliases: Self::ALIAS };
+          deserializer.deserialize_str(vis)?;
+          Ok($lang)
         }
       }
 
@@ -242,7 +237,7 @@ impl SupportLang {
 }
 
 impl fmt::Display for SupportLang {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "{:?}", self)
   }
 }
@@ -268,28 +263,63 @@ impl<'de> Deserialize<'de> for SupportLang {
   where
     D: Deserializer<'de>,
   {
-    let s = String::deserialize(deserializer)?;
-    FromStr::from_str(&s).map_err(de::Error::custom)
+    let vis = FromStrVisitor::new("a supported language");
+    deserializer.deserialize_str(vis)
   }
 }
 
 #[derive(Debug)]
-struct LanguageMismatchErr<'a> {
-  input: String,
-  expected: &'a str,
+struct FromStrVisitor<'a, T> {
+  expecting: &'a str,
+  _t: PhantomData<T>,
 }
 
-impl<'a> Display for LanguageMismatchErr<'a> {
-  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-    write!(
-      f,
-      "`{}` is not an accepted alias for {}",
-      self.input, self.expected
-    )
+impl<'a, T> FromStrVisitor<'a, T> {
+  pub fn new(expecting: &'a str) -> Self {
+    Self { expecting, _t: PhantomData }
   }
 }
 
-impl<'a> std::error::Error for LanguageMismatchErr<'a> {}
+impl<'a, 'de, T> Visitor<'de> for FromStrVisitor<'a, T>
+where
+  T: FromStr,
+  T::Err: Display,
+{
+  type Value = T;
+
+  fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    f.write_str(self.expecting)
+  }
+
+  fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+  where
+    E: de::Error,
+  {
+   v.parse().map_err(de::Error::custom)
+  }
+}
+struct AliasVisitor<'a> {
+  aliases: &'a [&'a str],
+}
+
+impl<'a, 'de> Visitor<'de> for AliasVisitor<'a> {
+  type Value = &'a str;
+
+  fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+      write!(f, "one of {:?}", self.aliases)
+  }
+
+  fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+  where
+    E: de::Error,
+  {
+    self.aliases
+        .iter()
+        .copied()
+        .find(|&a| v.eq_ignore_ascii_case(a))
+        .ok_or_else(|| de::Error::invalid_value(de::Unexpected::Str(v), &self))
+  }
+}
 
 impl_aliases! {
   Bash => &["bash-exp"],
