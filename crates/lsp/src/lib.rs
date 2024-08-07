@@ -226,6 +226,10 @@ impl<L: LSPLang> Backend<L> {
 
   async fn on_open(&self, params: DidOpenTextDocumentParams) -> Option<()> {
     let text_doc = params.text_document;
+    // skip files outside of workspace root #1382
+    if !text_doc.uri.to_file_path().ok()?.starts_with(&self.base) {
+      return None;
+    }
     let uri = text_doc.uri.as_str().to_owned();
     let text = text_doc.text;
     self
