@@ -311,7 +311,7 @@ impl<'de> Visitor<'de> for AliasVisitor {
 }
 
 impl_aliases! {
-  Bash => &["bash-exp"],
+  Bash => &["bash"],
   C => &["c"],
   Cpp => &["cc", "c++", "cpp", "cxx"],
   CSharp => &["cs", "csharp"],
@@ -326,7 +326,7 @@ impl_aliases! {
   Json => &["json"],
   Kotlin => &["kotlin", "kt"],
   Lua => &["lua"],
-  Php => &["php-exp"],
+  Php => &["php"],
   Python => &["py", "python"],
   Ruby => &["rb", "ruby"],
   Rust => &["rs", "rust"],

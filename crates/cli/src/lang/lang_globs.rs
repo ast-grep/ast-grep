@@ -128,7 +128,7 @@ html: ['*.vue', '*.svelte']";
   #[test]
   fn test_invalid_language() {
     let mut globs = get_globs();
-    globs.insert("php".into(), vec!["bestlang".into()]);
+    globs.insert("php-exp".into(), vec!["bestlang".into()]);
     let ret = register_impl(globs);
     let err = ret.expect_err("should wrong");
     assert!(matches!(
