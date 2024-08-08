@@ -286,12 +286,12 @@ impl<'de> Visitor<'de> for SupportLangVisitor {
     v.parse().map_err(de::Error::custom)
   }
 }
-struct AliasVisitor<'a> {
-  aliases: &'a [&'a str],
+struct AliasVisitor {
+  aliases: &'static [&'static str],
 }
 
-impl<'a, 'de> Visitor<'de> for AliasVisitor<'a> {
-  type Value = &'a str;
+impl<'de> Visitor<'de> for AliasVisitor {
+  type Value = &'static str;
 
   fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "one of {:?}", self.aliases)
