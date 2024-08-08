@@ -253,9 +253,11 @@ dependencies = [
  "anyhow",
  "ast-grep-config",
  "ast-grep-core",
+ "ast-grep-dynamic",
  "ast-grep-language",
  "pyo3",
  "pythonize",
+ "serde",
 ]
 
 [[package]]
