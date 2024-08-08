@@ -1,9 +1,9 @@
+use crate::py_lang::PyLang;
 use crate::range::Range;
 use crate::SgRoot;
 
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
 use ast_grep_core::{NodeMatch, StrDoc};
-use ast_grep_language::SupportLang;
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -16,7 +16,7 @@ use pythonize::depythonize_bound;
 
 #[pyclass(mapping)]
 pub struct SgNode {
-  pub inner: NodeMatch<'static, StrDoc<SupportLang>>,
+  pub inner: NodeMatch<'static, StrDoc<PyLang>>,
   // refcount SgRoot
   pub(crate) root: Py<SgRoot>,
 }
@@ -328,7 +328,7 @@ impl SgNode {
     &self,
     config: Option<Bound<PyDict>>,
     kwargs: Option<Bound<PyDict>>,
-  ) -> PyResult<RuleCore<SupportLang>> {
+  ) -> PyResult<RuleCore<PyLang>> {
     let lang = self.inner.lang();
     let config = if let Some(config) = config {
       config_from_dict(config)?
@@ -358,10 +358,7 @@ fn config_from_rule(dict: Bound<PyDict>) -> PyResult<SerializableRuleCore> {
   })
 }
 
-fn get_matcher_from_rule(
-  lang: &SupportLang,
-  dict: Option<Bound<PyDict>>,
-) -> PyResult<RuleCore<SupportLang>> {
+fn get_matcher_from_rule(lang: &PyLang, dict: Option<Bound<PyDict>>) -> PyResult<RuleCore<PyLang>> {
   let rule = dict.ok_or_else(|| PyErr::new::<PyValueError, _>("rule must not be empty"))?;
   let env = DeserializeEnv::new(*lang);
   let config = config_from_rule(rule)?;

@@ -1,5 +1,6 @@
 #![cfg(not(test))]
 #![cfg(feature = "python")]
+mod py_lang;
 mod py_node;
 mod range;
 mod unicode_position;
@@ -7,7 +8,7 @@ use py_node::{Edit, SgNode};
 use range::{Pos, Range};
 
 use ast_grep_core::{AstGrep, Language, NodeMatch, StrDoc};
-use ast_grep_language::SupportLang;
+use py_lang::PyLang;
 use pyo3::prelude::*;
 
 use unicode_position::UnicodePosition;
@@ -25,7 +26,7 @@ fn ast_grep_py(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
 
 #[pyclass]
 struct SgRoot {
-  inner: AstGrep<StrDoc<SupportLang>>,
+  inner: AstGrep<StrDoc<PyLang>>,
   filename: String,
   pub(crate) position: UnicodePosition,
 }
@@ -35,7 +36,7 @@ impl SgRoot {
   #[new]
   fn new(src: &str, lang: &str) -> Self {
     let position = UnicodePosition::new(src);
-    let lang: SupportLang = lang.parse().unwrap();
+    let lang: PyLang = lang.parse().unwrap();
     let inner = lang.ast_grep(src);
     Self {
       inner,
