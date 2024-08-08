@@ -263,35 +263,17 @@ impl<'de> Deserialize<'de> for SupportLang {
   where
     D: Deserializer<'de>,
   {
-    let vis = FromStrVisitor::new("a supported language");
-    deserializer.deserialize_str(vis)
+    deserializer.deserialize_str(SupportLangVisitor)
   }
 }
 
-#[derive(Debug)]
-struct FromStrVisitor<'a, T> {
-  expecting: &'a str,
-  _t: PhantomData<T>,
-}
+struct SupportLangVisitor;
 
-impl<'a, T> FromStrVisitor<'a, T> {
-  pub fn new(expecting: &'a str) -> Self {
-    Self {
-      expecting,
-      _t: PhantomData,
-    }
-  }
-}
-
-impl<'a, 'de, T> Visitor<'de> for FromStrVisitor<'a, T>
-where
-  T: FromStr,
-  T::Err: Display,
-{
-  type Value = T;
+impl<'de> Visitor<'de> for SupportLangVisitor {
+  type Value = SupportLang;
 
   fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    f.write_str(self.expecting)
+    f.write_str("SupportLang")
   }
 
   fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
