@@ -276,7 +276,10 @@ struct FromStrVisitor<'a, T> {
 
 impl<'a, T> FromStrVisitor<'a, T> {
   pub fn new(expecting: &'a str) -> Self {
-    Self { expecting, _t: PhantomData }
+    Self {
+      expecting,
+      _t: PhantomData,
+    }
   }
 }
 
@@ -295,7 +298,7 @@ where
   where
     E: de::Error,
   {
-   v.parse().map_err(de::Error::custom)
+    v.parse().map_err(de::Error::custom)
   }
 }
 struct AliasVisitor<'a> {
@@ -306,18 +309,19 @@ impl<'a, 'de> Visitor<'de> for AliasVisitor<'a> {
   type Value = &'a str;
 
   fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-      write!(f, "one of {:?}", self.aliases)
+    write!(f, "one of {:?}", self.aliases)
   }
 
   fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
   where
     E: de::Error,
   {
-    self.aliases
-        .iter()
-        .copied()
-        .find(|&a| v.eq_ignore_ascii_case(a))
-        .ok_or_else(|| de::Error::invalid_value(de::Unexpected::Str(v), &self))
+    self
+      .aliases
+      .iter()
+      .copied()
+      .find(|&a| v.eq_ignore_ascii_case(a))
+      .ok_or_else(|| de::Error::invalid_value(de::Unexpected::Str(v), &self))
   }
 }
 
