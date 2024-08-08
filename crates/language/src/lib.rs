@@ -39,7 +39,6 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::iter::repeat;
-use std::marker::PhantomData;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -101,39 +100,43 @@ macro_rules! impl_lang_expando {
 
 /// Implements the `ALIAS` associated constant for the given lang, which is
 /// then used to define the `alias` const fn and a `Deserialize` impl.
-/// Also generates as convenience conversions between the lang types
+macro_rules! impl_alias {
+  ($lang:ident => $as:expr) => {
+    impl $lang {
+      pub const ALIAS: &'static [&'static str] = $as;
+    }
+
+    impl fmt::Display for $lang {
+      fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+      }
+    }
+
+    impl<'de> Deserialize<'de> for $lang {
+      fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+      where
+        D: Deserializer<'de>,
+      {
+        let vis = AliasVisitor {
+          aliases: Self::ALIAS,
+        };
+        deserializer.deserialize_str(vis)?;
+        Ok($lang)
+      }
+    }
+
+    impl From<$lang> for SupportLang {
+      fn from(_: $lang) -> Self {
+        Self::$lang
+      }
+    }
+  };
+}
+/// Generates as convenience conversions between the lang types
 /// and `SupportedType`.
 macro_rules! impl_aliases {
   ($($lang:ident => $as:expr),* $(,)?) => {
-    $(
-      impl $lang {
-        pub const ALIAS: &'static [&'static str] = $as;
-      }
-
-      impl fmt::Display for $lang {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-          write!(f, "{:?}", self)
-        }
-      }
-
-      impl<'de> Deserialize<'de> for $lang {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-          D: Deserializer<'de>,
-        {
-          let vis = AliasVisitor { aliases: Self::ALIAS };
-          deserializer.deserialize_str(vis)?;
-          Ok($lang)
-        }
-      }
-
-      impl From<$lang> for SupportLang {
-        fn from(_: $lang) -> Self {
-          Self::$lang
-        }
-      }
-    )*
-
+    $(impl_alias!($lang => $as);)*
     const fn alias(lang: SupportLang) -> &'static [&'static str] {
       match lang {
         $(SupportLang::$lang => $lang::ALIAS),*
