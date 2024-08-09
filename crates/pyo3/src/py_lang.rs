@@ -20,7 +20,7 @@ pub struct CustomLang {
   language_symbol: Option<String>,
   meta_var_char: Option<char>,
   expando_char: Option<char>,
-  extensions: Vec<String>,
+  // extensions: Vec<String>,
 }
 
 #[pyfunction]
@@ -51,7 +51,8 @@ fn to_registration(name: String, custom_lang: CustomLang, base: &Path) -> Regist
     symbol: sym,
     meta_var_char: custom_lang.meta_var_char,
     expando_char: custom_lang.expando_char,
-    extensions: custom_lang.extensions,
+    // extensions: custom_lang.extensions,
+    extensions: vec![],
   }
 }
 
