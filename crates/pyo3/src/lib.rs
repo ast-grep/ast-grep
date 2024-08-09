@@ -4,6 +4,7 @@ mod py_lang;
 mod py_node;
 mod range;
 mod unicode_position;
+use py_lang::register_dynamic_language;
 use py_node::{Edit, SgNode};
 use range::{Pos, Range};
 
@@ -21,6 +22,7 @@ fn ast_grep_py(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
   m.add_class::<Range>()?;
   m.add_class::<Pos>()?;
   m.add_class::<Edit>()?;
+  m.add_function(wrap_pyfunction!(register_dynamic_language, m)?)?;
   Ok(())
 }
 
