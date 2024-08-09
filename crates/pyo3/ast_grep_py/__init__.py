@@ -55,6 +55,15 @@ class Config(TypedDict, total=False):
     utils: Dict[str, Rule]
     transform: Dict[str, Mapping]
 
+class CustomLang(TypedDict):
+  library_path: str
+  language_symbol: Optional[str]
+  meta_var_char: Optional[str]
+  expando_char: Optional[str]
+
+def register_dynamic_language(langs: Dict[str, any]):
+    pass
+
 __all__ = [
     "Rule",
     "Config",
@@ -66,4 +75,5 @@ __all__ = [
     "Pos",
     "Range",
     "Edit",
+    "register_dynamic_language",
 ]
