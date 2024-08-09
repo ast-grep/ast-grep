@@ -1,4 +1,4 @@
-from ast_grep_py import SgRoot, Range, Pos, register_dynamic_language
+from ast_grep_py import SgRoot, register_dynamic_language
 import platform
 
 source = """
