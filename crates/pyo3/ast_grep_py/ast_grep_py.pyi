@@ -1,6 +1,6 @@
 from typing import List, Optional, overload, Unpack
 
-from . import Rule, Config
+from . import Rule, Config, CustomLang
 
 class Pos:
     line: int
@@ -66,3 +66,5 @@ class SgNode:
     # Edit
     def replace(self, new_text: str) -> Edit: ...
     def commit_edits(self, edits: List[Edit]) -> str: ...
+
+def register_dynamic_language(langs: Dict[str, CustomLang]): ...

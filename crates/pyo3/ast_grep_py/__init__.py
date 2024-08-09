@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import List, TypedDict,  Literal, Dict, Union, Mapping
-from .ast_grep_py import SgNode, SgRoot, Pos, Range, Edit
+from .ast_grep_py import SgNode, SgRoot, Pos, Range, Edit, register_dynamic_language
 
 Strictness = Union[Literal["cst"], Literal["smart"], Literal["ast"], Literal["relaxed"], Literal["signature"]]
 
@@ -60,9 +60,6 @@ class CustomLang(TypedDict):
   language_symbol: Optional[str]
   meta_var_char: Optional[str]
   expando_char: Optional[str]
-
-def register_dynamic_language(langs: Dict[str, any]):
-    pass
 
 __all__ = [
     "Rule",
