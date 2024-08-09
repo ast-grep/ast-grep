@@ -1,4 +1,4 @@
-from typing import List, Optional, overload, Unpack
+from typing import List, Optional, overload, Unpack, Dict
 
 from . import Rule, Config, CustomLang
 
