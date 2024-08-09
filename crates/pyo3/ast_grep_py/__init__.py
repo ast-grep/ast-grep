@@ -55,7 +55,7 @@ class Config(TypedDict, total=False):
     utils: Dict[str, Rule]
     transform: Dict[str, Mapping]
 
-class CustomLang(TypedDict):
+class CustomLang(TypedDict, total=False):
   library_path: str
   language_symbol: Optional[str]
   meta_var_char: Optional[str]
