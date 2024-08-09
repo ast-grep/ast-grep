@@ -3,6 +3,10 @@ use ast_grep_dynamic::{DynamicLang, Registration};
 use ast_grep_language::{Language, SupportLang};
 use serde::{Deserialize, Serialize};
 
+use pyo3::prelude::*;
+use pyo3::types::PyDict;
+use pythonize::depythonize_bound;
+
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
@@ -19,15 +23,21 @@ pub struct CustomLang {
   extensions: Vec<String>,
 }
 
-impl CustomLang {
-  pub fn register(base: PathBuf, langs: HashMap<String, CustomLang>) {
-    let registrations = langs
-      .into_iter()
-      .map(|(name, custom)| to_registration(name, custom, &base))
-      .collect();
-    // TODO, add error handling
-    unsafe { DynamicLang::register(registrations).expect("TODO") }
-  }
+#[pyfunction]
+pub fn register_dynamic_language(dict: Bound<PyDict>) -> PyResult<()> {
+  let langs = depythonize_bound(dict.into_any())?;
+  let base = std::env::current_dir()?;
+  register(base, langs);
+  Ok(())
+}
+
+fn register(base: PathBuf, langs: HashMap<String, CustomLang>) {
+  let registrations = langs
+    .into_iter()
+    .map(|(name, custom)| to_registration(name, custom, &base))
+    .collect();
+  // TODO, add error handling
+  unsafe { DynamicLang::register(registrations).expect("TODO") }
 }
 
 fn to_registration(name: String, custom_lang: CustomLang, base: &Path) -> Registration {
