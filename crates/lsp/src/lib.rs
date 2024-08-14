@@ -224,11 +224,27 @@ impl<L: LSPLang> Backend<L> {
     Some(())
   }
 
+  async fn get_path_of_first_workspace(&self) -> Option<std::path::PathBuf> {
+    match self.client.workspace_folders().await {
+      Ok(Some(workspace_folders)) => workspace_folders
+        .first()
+        .and_then(|f| f.uri.to_file_path().ok()),
+      _ => None,
+    }
+  }
+
   async fn on_open(&self, params: DidOpenTextDocumentParams) -> Option<()> {
     let text_doc = params.text_document;
-    // skip files outside of workspace root #1382
-    if !text_doc.uri.to_file_path().ok()?.starts_with(&self.base) {
-      return None;
+    // skip files outside of workspace root #1382, #1402
+    if let Some(workspace_root) = self.get_path_of_first_workspace().await {
+      if !text_doc
+        .uri
+        .to_file_path()
+        .ok()?
+        .starts_with(workspace_root)
+      {
+        return None;
+      }
     }
     let uri = text_doc.uri.as_str().to_owned();
     let text = text_doc.text;
