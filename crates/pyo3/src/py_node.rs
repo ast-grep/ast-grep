@@ -12,7 +12,7 @@ use anyhow::Context;
 use pyo3::exceptions::{PyKeyError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use pythonize::depythonize_bound;
+use pythonize::depythonize;
 
 #[pyclass(mapping)]
 pub struct SgNode {
@@ -344,11 +344,11 @@ impl SgNode {
 }
 
 fn config_from_dict(dict: Bound<PyDict>) -> PyResult<SerializableRuleCore> {
-  Ok(depythonize_bound(dict.into_any())?)
+  Ok(depythonize(dict.as_any())?)
 }
 
 fn config_from_rule(dict: Bound<PyDict>) -> PyResult<SerializableRuleCore> {
-  let rule = depythonize_bound(dict.into_any())?;
+  let rule = depythonize(dict.as_any())?;
   Ok(SerializableRuleCore {
     rule,
     constraints: None,

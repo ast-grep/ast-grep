@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use pythonize::depythonize_bound;
+use pythonize::depythonize;
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -25,7 +25,7 @@ pub struct CustomLang {
 
 #[pyfunction]
 pub fn register_dynamic_language(dict: Bound<PyDict>) -> PyResult<()> {
-  let langs = depythonize_bound(dict.into_any())?;
+  let langs = depythonize(dict.as_any())?;
   let base = std::env::current_dir()?;
   register(base, langs);
   Ok(())
