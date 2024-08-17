@@ -236,6 +236,25 @@ test('find in files', async t => {
   })
 })
 
+// gh #1380
+test('find in files with meta var', async t => {
+  let findInFiles = countedPromise(ts.findInFiles)
+  await findInFiles({
+    paths: ['./'],
+    matcher: {
+      rule: {pattern: 'parse($V)'}
+    },
+  }, (err, n) => {
+    // ZZZ... sleep a while to mock expensive operation
+    let start = Date.now()
+    while (Date.now() - start < 1) continue
+    t.is(err, null)
+    t.assert(n.length > 0)
+    const metavarText = n[0].getMatch('V')?.text()
+    t.is(metavarText, "'console.log(123)'")
+  })
+})
+
 test('find in files with filename', async t => {
   let findInFiles = countedPromise(ts.findInFiles)
   await findInFiles({
