@@ -145,6 +145,19 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
       }
     }
   }
+
+  /// internal for readopt NodeMatch in pinned.rs
+  /// readopt node and env when sending them to other threads
+  pub(crate) fn visit_nodes<F>(&mut self, mut f: F) where F: FnMut(&mut Node<'_, D>) {
+    for n in self.single_matched.values_mut() {
+      f(n)
+    }
+    for ns in self.multi_matched.values_mut() {
+      for n in ns {
+        f(n)
+      }
+    }
+  }
 }
 
 fn get_var_bytes_impl<'t, C, D>(

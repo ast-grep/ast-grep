@@ -92,7 +92,11 @@ unsafe impl<D: Doc> NodeData<D> for NodeMatch<'static, D> {
   where
     F: FnMut(&mut Node<'_, D>),
   {
-    f(unsafe { self.get_node_mut() })
+    // update the matched Node
+    f(unsafe { self.get_node_mut() });
+    // update the meta variable captured
+    let mut env = self.get_env_mut();
+    env.visit_nodes(f);
   }
 }
 
@@ -106,7 +110,7 @@ unsafe impl<D: Doc> NodeData<D> for Vec<NodeMatch<'static, D>> {
     F: FnMut(&mut Node<'_, D>),
   {
     for n in self {
-      f(unsafe { n.get_node_mut() })
+      n.visit_nodes(&mut f)
     }
   }
 }
