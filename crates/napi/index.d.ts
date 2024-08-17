@@ -23,7 +23,7 @@ export interface FileOption {
   paths: Array<string>
   languageGlobs: Record<string, Array<string>>
 }
-export function parseFiles(paths: Array<string> | FileOption, callback: (err: null | Error, result: SgRoot) => void): Promise<number>
+export declare function parseFiles(paths: Array<string> | FileOption, callback: (err: null | Error, result: SgRoot) => void): Promise<number>
 export interface FindConfig {
   /** specify the file paths to recursively find files */
   paths: Array<string>
@@ -59,6 +59,7 @@ export const enum Lang {
   Ruby = 'Ruby',
   Rust = 'Rust',
   Scala = 'Scala',
+  Sql = 'Sql',
   Swift = 'Swift'
 }
 export interface Edit {
@@ -84,7 +85,7 @@ export interface Range {
   end: Pos
 }
 /** Parse a string to an ast-grep instance */
-export function parse(lang: Lang, src: string): SgRoot
+export declare function parse(lang: Lang, src: string): SgRoot
 /**
  * Parse a string to an ast-grep instance asynchronously in threads.
  * It utilize multiple CPU cores when **concurrent processing sources**.
@@ -92,19 +93,19 @@ export function parse(lang: Lang, src: string): SgRoot
  * Please refer to libuv doc, nodejs' underlying runtime
  * for its default behavior and performance tuning tricks.
  */
-export function parseAsync(lang: Lang, src: string): Promise<SgRoot>
+export declare function parseAsync(lang: Lang, src: string): Promise<SgRoot>
 /** Get the `kind` number from its string name. */
-export function kind(lang: Lang, kindName: string): number
+export declare function kind(lang: Lang, kindName: string): number
 /** Compile a string to ast-grep Pattern. */
-export function pattern(lang: Lang, pattern: string): NapiConfig
+export declare function pattern(lang: Lang, pattern: string): NapiConfig
 /**
  * Discover and parse multiple files in Rust.
  * `lang` specifies the language.
  * `config` specifies the file path and matcher.
  * `callback` will receive matching nodes found in a file.
  */
-export function findInFiles(lang: Lang, config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
-export class SgNode {
+export declare function findInFiles(lang: Lang, config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
+export declare class SgNode {
   range(): Range
   isLeaf(): boolean
   isNamed(): boolean
@@ -138,7 +139,7 @@ export class SgNode {
   commitEdits(edits: Array<Edit>): string
 }
 /** Represents the parsed tree of code. */
-export class SgRoot {
+export declare class SgRoot {
   /** Returns the root SgNode of the ast-grep instance. */
   root(): SgNode
   /**
@@ -147,7 +148,7 @@ export class SgRoot {
    */
   filename(): string
 }
-export namespace html {
+export declare namespace html {
   /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
   /**
@@ -169,7 +170,7 @@ export namespace html {
    */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
-export namespace js {
+export declare namespace js {
   /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
   /**
@@ -191,7 +192,7 @@ export namespace js {
    */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
-export namespace jsx {
+export declare namespace jsx {
   /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
   /**
@@ -213,7 +214,7 @@ export namespace jsx {
    */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
-export namespace ts {
+export declare namespace ts {
   /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
   /**
@@ -235,7 +236,7 @@ export namespace ts {
    */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
-export namespace tsx {
+export declare namespace tsx {
   /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
   /**
@@ -257,7 +258,7 @@ export namespace tsx {
    */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
-export namespace css {
+export declare namespace css {
   /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
   /**
