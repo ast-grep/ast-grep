@@ -209,7 +209,7 @@ impl<L: LSPLang> Backend<L> {
     let mut diagnostics = vec![];
     for (id, ms) in matches {
       let rule = scan.get_rule(id);
-      let to_diagnostic = |m| convert_match_to_diagnostic(m, rule, uri);
+      let to_diagnostic = |m| convert_match_to_diagnostic(m, rule);
       diagnostics.extend(ms.into_iter().map(to_diagnostic));
     }
     Some(diagnostics)

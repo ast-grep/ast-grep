@@ -74,7 +74,6 @@ fn convert_node_to_range<D: Doc>(node_match: &Node<D>) -> Range {
 pub fn convert_match_to_diagnostic<L: Language>(
   node_match: NodeMatch<StrDoc<L>>,
   rule: &RuleConfig<L>,
-  uri: &Url,
 ) -> Diagnostic {
   // TODO
   let rewrite_data =
@@ -93,7 +92,7 @@ pub fn convert_match_to_diagnostic<L: Language>(
     message: get_non_empty_message(rule, &node_match),
     source: Some(String::from("ast-grep")),
     tags: None,
-    related_information: collect_labels(&node_match, uri),
+    related_information: None,
     data: rewrite_data,
   }
 }
@@ -111,28 +110,6 @@ fn get_non_empty_message<L: Language>(rule: &RuleConfig<L>, nm: &NodeMatch<StrDo
   } else {
     msg
   }
-}
-
-fn collect_labels<L: Language>(
-  node_match: &NodeMatch<StrDoc<L>>,
-  uri: &Url,
-) -> Option<Vec<DiagnosticRelatedInformation>> {
-  let secondary_nodes = node_match.get_env().get_labels("secondary")?;
-  Some(
-    secondary_nodes
-      .iter()
-      .map(|n| {
-        let location = Location {
-          uri: uri.clone(),
-          range: convert_node_to_range(n),
-        };
-        DiagnosticRelatedInformation {
-          location,
-          message: String::new(),
-        }
-      })
-      .collect(),
-  )
 }
 
 fn url_to_code_description(url: &Option<String>) -> Option<CodeDescription> {
