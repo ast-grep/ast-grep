@@ -225,26 +225,30 @@ impl<L: LSPLang> Backend<L> {
   }
 
   async fn get_path_of_first_workspace(&self) -> Option<std::path::PathBuf> {
-    match self.client.workspace_folders().await {
-      Ok(Some(workspace_folders)) => workspace_folders
-        .first()
-        .and_then(|f| f.uri.to_file_path().ok()),
-      _ => None,
+    let folders = self.client.workspace_folders().await.ok()??;
+    let folder = folders.first()?;
+    folder.uri.to_file_path().ok()
+  }
+
+  // skip files outside of workspace root #1382, #1402
+  async fn should_skip_file_outside_workspace(&self, text_doc: &TextDocumentItem) -> Option<()> {
+    let workspace_root = self.get_path_of_first_workspace().await?;
+    let doc_file_path = text_doc.uri.to_file_path().ok()?;
+    if doc_file_path.starts_with(workspace_root) {
+      None
+    } else {
+      Some(())
     }
   }
 
   async fn on_open(&self, params: DidOpenTextDocumentParams) -> Option<()> {
     let text_doc = params.text_document;
-    // skip files outside of workspace root #1382, #1402
-    if let Some(workspace_root) = self.get_path_of_first_workspace().await {
-      if !text_doc
-        .uri
-        .to_file_path()
-        .ok()?
-        .starts_with(workspace_root)
-      {
-        return None;
-      }
+    if self
+      .should_skip_file_outside_workspace(&text_doc)
+      .await
+      .is_some()
+    {
+      return None;
     }
     let uri = text_doc.uri.as_str().to_owned();
     let text = text_doc.text;
@@ -266,6 +270,7 @@ impl<L: LSPLang> Backend<L> {
     self.map.insert(uri.to_owned(), versioned); // don't lock dashmap
     Some(())
   }
+
   async fn on_change(&self, params: DidChangeTextDocumentParams) -> Option<()> {
     let text_doc = params.text_document;
     let uri = text_doc.uri.as_str();
