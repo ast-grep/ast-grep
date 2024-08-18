@@ -95,7 +95,7 @@ unsafe impl<D: Doc> NodeData<D> for NodeMatch<'static, D> {
     // update the matched Node
     f(unsafe { self.get_node_mut() });
     // update the meta variable captured
-    let mut env = self.get_env_mut();
+    let env = self.get_env_mut();
     env.visit_nodes(f);
   }
 }
