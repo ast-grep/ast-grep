@@ -13,7 +13,7 @@
   "dependencies": {
     "@ast-grep/napi": "link:../crates/napi",
     "@babel/core": "7.25.2",
-    "@babel/plugin-syntax-typescript": "7.24.7",
+    "@babel/plugin-syntax-typescript": "7.25.4",
     "@oxidation-compiler/napi": "0.2.0",
     "@swc/core": "1.7.18",
     "benny": "3.7.1",

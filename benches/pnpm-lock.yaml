@@ -12,8 +12,8 @@ dependencies:
     specifier: 7.25.2
     version: 7.25.2
   '@babel/plugin-syntax-typescript':
-    specifier: 7.24.7
-    version: 7.24.7(@babel/core@7.25.2)
+    specifier: 7.25.4
+    version: 7.25.4(@babel/core@7.25.2)
   '@oxidation-compiler/napi':
     specifier: 0.2.0
     version: 0.2.0
@@ -168,8 +168,8 @@ packages:
       - supports-color
     dev: false
 
-  /@babel/helper-plugin-utils@7.24.7:
-    resolution: {integrity: sha512-Rq76wjt7yz9AAc1KnlRKNAi/dMSVWgDRx43FHoJEbcYU6xOWaE2dVPwcdTukJrjxS65GITyfbvEYHvkirZ6uEg==}
+  /@babel/helper-plugin-utils@7.24.8:
+    resolution: {integrity: sha512-FFWx5142D8h2Mgr/iPVGH5G7w6jDn4jUSpZTyDnQO0Yn7Ks2Kuz6Pci8H6MPCoUJegd/UZQ3tAvfLCxQSnWWwg==}
     engines: {node: '>=6.9.0'}
     dev: false
 
@@ -238,14 +238,14 @@ packages:
       '@babel/types': 7.25.2
     dev: false
 
-  /@babel/plugin-syntax-typescript@7.24.7(@babel/core@7.25.2):
-    resolution: {integrity: sha512-c/+fVeJBB0FeKsFvwytYiUD+LBvhHjGSI0g446PRGdSVGZLRNArBUno2PETbAly3tpiNAQR5XaZ+JslxkotsbA==}
+  /@babel/plugin-syntax-typescript@7.25.4(@babel/core@7.25.2):
+    resolution: {integrity: sha512-uMOCoHVU52BsSWxPOMVv5qKRdeSlPuImUCB2dlPuBSU+W2/ROE7/Zg8F2Kepbk+8yBa68LlRKxO+xgEVWorsDg==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
     dependencies:
       '@babel/core': 7.25.2
-      '@babel/helper-plugin-utils': 7.24.7
+      '@babel/helper-plugin-utils': 7.24.8
     dev: false
 
   /@babel/template@7.25.0:
