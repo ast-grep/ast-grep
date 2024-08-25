@@ -146,6 +146,27 @@ pub fn extract_with_deindent<C: Content>(content: &C, range: Range<usize>) -> De
   DeindentedExtract::MultiLine(extract_slice, indent)
 }
 
+fn deindent_slice<'a, C: Content>(
+  slice: &'a [C::Underlying],
+  content: &'a C,
+  start: usize,
+) -> DeindentedExtract<'a, C> {
+  if !slice.contains(&get_new_line::<C>()) {
+    return DeindentedExtract::SingleLine(slice);
+  }
+  let indent = get_indent_at_offset::<C>(content.get_range(0..start));
+  DeindentedExtract::MultiLine(slice, indent)
+}
+
+pub fn formatted_slice<'a, C: Content>(
+  slice: &'a [C::Underlying],
+  content: &'a C,
+  start: usize,
+) -> Cow<'a, [C::Underlying]> {
+  let deindent = deindent_slice(slice, content, start);
+  indent_lines(0, deindent)
+}
+
 pub fn indent_lines<C: Content>(
   indent: usize,
   extract: DeindentedExtract<C>,

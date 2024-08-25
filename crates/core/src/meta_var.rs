@@ -5,6 +5,8 @@ use crate::{Doc, Language, Node, StrDoc};
 use std::borrow::Cow;
 use std::collections::HashMap;
 
+use crate::replacer::formatted_slice;
+
 pub type MetaVariableID = String;
 
 type Underlying<D> = Vec<<<D as Doc>::Source as Content>::Underlying>;
@@ -44,8 +46,18 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     }
   }
 
-  pub fn insert_transformation(&mut self, name: &str, src: Underlying<D>) {
-    self.transformed_var.insert(name.to_string(), src);
+  pub fn insert_transformation(&mut self, var: &MetaVariable, name: &str, slice: Underlying<D>) {
+    let node = match var {
+      MetaVariable::Capture(v, _) => self.single_matched.get(v),
+      MetaVariable::MultiCapture(vs) => self.multi_matched.get(vs).and_then(|vs| vs.first()),
+      _ => None,
+    };
+    let deindented = if let Some(v) = node {
+      formatted_slice(&slice, v.root.doc.get_source(), v.range().start).to_vec()
+    } else {
+      slice
+    };
+    self.transformed_var.insert(name.to_string(), deindented);
   }
 
   pub fn get_match(&self, var: &str) -> Option<&'_ Node<'tree, D>> {

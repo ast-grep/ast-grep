@@ -4,6 +4,8 @@ use crate::source::Edit as E;
 use crate::{Doc, Node, Root};
 use std::ops::Range;
 
+pub(crate) use indent::formatted_slice;
+
 type Edit<D> = E<<D as Doc>::Source>;
 type Underlying<S> = Vec<<S as Content>::Underlying>;
 

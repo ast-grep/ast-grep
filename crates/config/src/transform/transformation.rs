@@ -109,6 +109,18 @@ pub enum Transformation<T> {
   Rewrite(Rewrite<T>),
 }
 
+impl<T> Transformation<T> {
+  fn source(&self) -> &T {
+    use Transformation as T;
+    match self {
+      T::Replace(r) => &r.source,
+      T::Substring(s) => &s.source,
+      T::Convert(c) => &c.source,
+      T::Rewrite(r) => &r.source,
+    }
+  }
+}
+
 pub(crate) fn parse_meta_var<L: Language>(
   src: &str,
   lang: &L,
@@ -148,38 +160,25 @@ impl Transformation<String> {
   }
 
   pub fn used_vars(&self) -> &str {
-    fn strip(s: &str) -> &str {
-      s.strip_prefix("$$$").unwrap_or_else(|| &s[1..])
-      // match s {
-      //   MetaVariable::Capture(s, _) => s,
-      //   MetaVariable::Dropped(_) => "",
-      //   MetaVariable::MultiCapture(s) => s,
-      //   MetaVariable::Multiple => "",
-      // }
-    }
-    use Transformation as T;
     // NOTE: meta_var in transform always starts with `$`, for now
-    match self {
-      T::Replace(r) => strip(&r.source),
-      T::Substring(s) => strip(&s.source),
-      T::Convert(c) => strip(&c.source),
-      T::Rewrite(r) => strip(&r.source),
-    }
+    let s = self.source();
+    s.strip_prefix("$$$").unwrap_or_else(|| &s[1..])
   }
 }
 impl Transformation<MetaVariable> {
   pub(super) fn insert<D: Doc>(&self, key: &str, ctx: &mut Ctx<D>) {
+    let src = self.source();
     // TODO: add this debug assertion back
     // debug_assert!(ctx.env.get_transformed(key).is_none());
     // avoid cyclic
-    ctx.env.insert_transformation(key, vec![]);
+    ctx.env.insert_transformation(src, key, vec![]);
     let opt = self.compute(ctx);
     let bytes = if let Some(s) = opt {
       <D::Source as Content>::decode_str(&s).to_vec()
     } else {
       vec![]
     };
-    ctx.env.insert_transformation(key, bytes);
+    ctx.env.insert_transformation(src, key, bytes);
   }
   fn compute<D: Doc>(&self, ctx: &mut Ctx<D>) -> Option<String> {
     use Transformation as T;
