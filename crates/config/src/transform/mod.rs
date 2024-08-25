@@ -118,4 +118,30 @@ mod test {
     let ret = Transform::deserialize(&trans, &env);
     assert!(ret.is_ok());
   }
+
+  #[test]
+  fn test_transform_indentation() {
+    let src = "
+if (true) {
+  let a = {
+    b: 123
+  }
+}
+";
+    let expected = "{
+  b: 123
+}";
+    let mut trans = HashMap::new();
+    let tr = from_str("{ substring: { source: $A } }").expect("should work");
+    trans.insert("TR".into(), tr);
+    let grep = TypeScript::Tsx.ast_grep(src);
+    let root = grep.root();
+    let mut nm = root.find("let a = $A").expect("should find");
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let trans = Transform::deserialize(&trans, &env).expect("should deserialize");
+    trans.apply_transform(nm.get_env_mut(), &Default::default(), &Default::default());
+    let actual = nm.get_env().get_transformed("TR").expect("should have TR");
+    let actual = std::str::from_utf8(actual).expect("should work");
+    assert_eq!(actual, expected);
+  }
 }

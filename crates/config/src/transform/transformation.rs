@@ -435,5 +435,25 @@ mod test {
     assert_eq!(actual, "camelcase_not");
     Ok(())
   }
+
+  #[test]
+  fn test_transform_indentation_with_insertion() -> R {
+    let src = "
+if (true) {
+  let a = {
+    b: 123
+  }
+}
+";
+    // note the indentation
+    let expected = "{
+    b: 123
+  }";
+    let tr = parse("{ substring: { source: $A } }")?;
+    let actual = get_transformed(src, "let a = $A", &tr).ok_or(())?;
+    assert_eq!(actual, expected);
+    Ok(())
+  }
+
   // TODO: add a symbolic test for Rewrite
 }
