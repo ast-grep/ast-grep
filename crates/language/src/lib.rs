@@ -25,6 +25,7 @@ mod ruby;
 mod rust;
 mod scala;
 mod swift;
+mod yaml;
 
 pub use html::Html;
 
@@ -193,6 +194,7 @@ impl_lang!(Php, language_php);
 impl_lang!(Scala, language_scala);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
+impl_lang!(Yaml, language_yaml);
 // See ripgrep for extensions
 // https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/src/default_types.rs
 
@@ -223,6 +225,7 @@ pub enum SupportLang {
   Swift,
   Tsx,
   TypeScript,
+  Yaml,
 }
 
 impl SupportLang {
@@ -230,7 +233,7 @@ impl SupportLang {
     use SupportLang::*;
     &[
       Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin,
-      Lua, Php, Python, Ruby, Rust, Scala, Sql, Swift, Tsx, TypeScript,
+      Lua, Php, Python, Ruby, Rust, Scala, Sql, Swift, Tsx, TypeScript, Yaml,
     ]
   }
 
@@ -335,6 +338,7 @@ impl_aliases! {
   Swift => &["swift"],
   TypeScript => &["ts", "typescript"],
   Tsx => &["tsx"],
+  Yaml => &["yaml", "yml"],
 }
 
 /// Implements the language names and aliases.
@@ -380,6 +384,7 @@ macro_rules! execute_lang_method {
       S::Swift => Swift.$method($($pname,)*),
       S::Tsx => Tsx.$method($($pname,)*),
       S::TypeScript => TypeScript.$method($($pname,)*),
+      S::Yaml => Yaml.$method($($pname,)*),
     }
   }
 }
@@ -445,6 +450,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Swift => &["swift"],
     TypeScript => &["ts", "cts", "mts"],
     Tsx => &["tsx"],
+    Yaml => &["yaml", "yml"],
   }
 }
 

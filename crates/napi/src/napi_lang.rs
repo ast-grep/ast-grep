@@ -37,6 +37,7 @@ pub enum Lang {
   Scala,
   Sql,
   Swift,
+  Yaml,
 }
 
 impl From<Lang> for SupportLang {
@@ -68,6 +69,7 @@ impl From<Lang> for SupportLang {
       F::Scala => S::Scala,
       F::Sql => S::Sql,
       F::Swift => S::Swift,
+      F::Yaml => S::Yaml,
     }
   }
 }
@@ -101,6 +103,7 @@ impl From<SupportLang> for Lang {
       S::Scala => F::Scala,
       S::Sql => F::Sql,
       S::Swift => F::Swift,
+      S::Yaml => F::Yaml,
     }
   }
 }

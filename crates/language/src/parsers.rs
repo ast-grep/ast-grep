@@ -80,6 +80,9 @@ mod parser_implementation {
   pub fn language_typescript() -> TSLanguage {
     tree_sitter_typescript::language_typescript().into()
   }
+  pub fn language_yaml() -> TSLanguage {
+    tree_sitter_yaml::language().into()
+  }
 }
 
 #[cfg(not(feature = "builtin-parser"))]
@@ -126,6 +129,7 @@ mod parser_implementation {
     language_swift,
     language_tsx,
     language_typescript,
+    language_yaml,
   );
 }
 
