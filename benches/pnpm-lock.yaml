@@ -27,8 +27,8 @@ dependencies:
     specifier: 0.20.6
     version: 0.20.6
   tree-sitter-typescript:
-    specifier: 0.21.2
-    version: 0.21.2(tree-sitter@0.20.6)
+    specifier: 0.23.0
+    version: 0.23.0(tree-sitter@0.20.6)
   typescript:
     specifier: 5.5.4
     version: 5.5.4
@@ -961,13 +961,13 @@ packages:
       semver: 7.5.4
     dev: false
 
-  /node-addon-api@8.0.0:
-    resolution: {integrity: sha512-ipO7rsHEBqa9STO5C5T10fj732ml+5kLN1cAG8/jdHd56ldQeGj3Q7+scUS+VHK/qy1zLEwC4wMK5+yM0btPvw==}
+  /node-addon-api@8.1.0:
+    resolution: {integrity: sha512-yBY+qqWSv3dWKGODD6OGE6GnTX7Q2r+4+DfpqxHSHh8x0B4EKP9+wVGLS6U/AM1vxSNNmUEuIV5EGhYwPpfOwQ==}
     engines: {node: ^18 || ^20 || >= 21}
     dev: false
 
-  /node-gyp-build@4.8.1:
-    resolution: {integrity: sha512-OSs33Z9yWr148JZcbZd5WiAXhh/n9z8TxQcdMhIOlpN9AhWpLfvVFO73+m77bBABQMaY9XSvIa+qk0jlI7Gcaw==}
+  /node-gyp-build@4.8.2:
+    resolution: {integrity: sha512-IRUxE4BVsHWXkV/SFOut4qTlagw2aM8T5/vnTsmrHJvVoKueJHRc/JaFND7QDDc61kLYUJ6qlZM3sqTSyx2dTw==}
     hasBin: true
     dev: false
 
@@ -1155,8 +1155,8 @@ packages:
     resolution: {integrity: sha512-/OaKK0xYrs3DmxRYqL/yDc+FxFUVYhDlXMhRmv3z915w2HF1tnN1omB354j8VUGO/hbRzyD6Y3sA7v7GS/ceog==}
     engines: {node: '>=4'}
 
-  /tree-sitter-typescript@0.21.2(tree-sitter@0.20.6):
-    resolution: {integrity: sha512-/RyNK41ZpkA8PuPZimR6pGLvNR1p0ibRUJwwQn4qAjyyLEIQD/BNlwS3NSxWtGsAWZe9gZ44VK1mWx2+eQVldg==}
+  /tree-sitter-typescript@0.23.0(tree-sitter@0.20.6):
+    resolution: {integrity: sha512-hRy5O9d+9ON4HxIWWxkI4zonrw2v/WNN1JoiGW5HkXfC9K2R3p53ugMvs6Vs4T7ASCwggsoQ75LNdgpExC/zgQ==}
     requiresBuild: true
     peerDependencies:
       tree-sitter: ^0.21.0
@@ -1165,8 +1165,8 @@ packages:
       tree_sitter:
         optional: true
     dependencies:
-      node-addon-api: 8.0.0
-      node-gyp-build: 4.8.1
+      node-addon-api: 8.1.0
+      node-gyp-build: 4.8.2
       tree-sitter: 0.20.6
     dev: false
 
