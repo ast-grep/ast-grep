@@ -7,7 +7,7 @@ use crate::rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::replacer::Replacer;
-use ast_grep_core::{NodeMatch, StrDoc};
+use ast_grep_core::{Matcher, NodeMatch, StrDoc};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -46,6 +46,8 @@ pub enum RuleConfigError {
   UndefinedRewriter(String),
   #[error("Rewriter rule `{0}` should have `fix`.")]
   NoFixInRewriter(String),
+  #[error("Rule must specify a set of AST kinds to match. Try adding `kind` rule.")]
+  MissingPotentialKinds,
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
@@ -166,6 +168,9 @@ impl<L: Language> RuleConfig<L> {
     globals: &GlobalRules<L>,
   ) -> Result<Self, RuleConfigError> {
     let matcher = inner.get_matcher(globals)?;
+    if matcher.potential_kinds().is_none() {
+      return Err(RuleConfigError::MissingPotentialKinds);
+    }
     Ok(Self { inner, matcher })
   }
 

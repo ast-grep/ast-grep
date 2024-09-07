@@ -178,7 +178,7 @@ message: test rule
 severity: info
 language: Tsx
 rule:
-  all: []
+  all: [kind: number]
 {files}"
       ),
       &globals,

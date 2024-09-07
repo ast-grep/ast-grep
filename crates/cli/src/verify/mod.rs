@@ -224,12 +224,12 @@ rule:
   }
   fn always_report_rule() -> RuleCollection<SgLang> {
     // empty all should mean always
-    let rule = get_rule_config("all: []");
+    let rule = get_rule_config("all: [kind: number]");
     RuleCollection::try_new(vec![rule]).expect("RuleCollection must be valid")
   }
   fn never_report_rule() -> RuleCollection<SgLang> {
     // empty any should mean never
-    let rule = get_rule_config("any: []");
+    let rule = get_rule_config("any: [kind: string]");
     RuleCollection::try_new(vec![rule]).expect("RuleCollection must be valid")
   }
 

@@ -97,11 +97,11 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     rules.sort_unstable_by_key(|r| (r.fix.is_some(), &r.id));
     let mut mapping = Vec::new();
     for (idx, rule) in rules.iter().enumerate() {
-      for kind in &rule
-        .matcher
-        .potential_kinds()
-        .unwrap_or_else(|| panic!("rule `{}` must have kind", &rule.id))
-      {
+      let Some(kinds) = rule.matcher.potential_kinds() else {
+        eprintln!("rule `{}` must have kind", &rule.id);
+        continue;
+      };
+      for kind in &kinds {
         // NOTE: common languages usually have about several hundred kinds
         // from 200+ ~ 500+, it is okay to waste about 500 * 24 Byte vec size = 12kB
         // see https://github.com/Wilfred/difftastic/tree/master/vendored_parsers
