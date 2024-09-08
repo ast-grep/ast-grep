@@ -108,12 +108,8 @@ fn find_util_rules(
   let mut utils = vec![];
   let walker = walker.types(config_file_type()).build();
   for dir in walker {
-    let Ok(entry) = dir.as_ref() else {
-      continue;
-    };
-    let dir_path = entry.path().to_path_buf();
-    let config_file = dir.with_context(|| EC::WalkRuleDir(dir_path))?;
-    // file_type is None only if it is stdin, safe to unwrap here
+    let config_file = dir.with_context(|| EC::WalkRuleDir(PathBuf::new()))?;
+    // file_type is None only if it is stdin, safe to panic here
     if !config_file
       .file_type()
       .expect("file type should be available for non-stdin")
@@ -145,7 +141,7 @@ fn read_directory_yaml(
       .build();
     for dir in walker {
       let config_file = dir.with_context(|| EC::WalkRuleDir(dir_path.clone()))?;
-      // file_type is None only if it is stdin, safe to unwrap here
+      // file_type is None only if it is stdin, safe to panic here
       if !config_file
         .file_type()
         .expect("file type should be available for non-stdin")
