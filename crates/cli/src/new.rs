@@ -46,6 +46,10 @@ impl NewArg {
     };
     let path = self.base_dir.join(dir);
     fs::create_dir_all(&path)?;
+    // create a .gitkeep file to keep the folder in git
+    // https://github.com/ast-grep/ast-grep/issues/1273
+    let gitkeep = path.join(".gitkeep");
+    File::create(gitkeep)?;
     Ok(path)
   }
 
