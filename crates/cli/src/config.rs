@@ -108,12 +108,11 @@ fn find_util_rules(
   let mut utils = vec![];
   let walker = walker.types(config_file_type()).build();
   for dir in walker {
-    let dir_path = dir
-      .as_ref()
-      .map(|entry| entry.path().to_path_buf())
-      .ok()
-      .unwrap();
-    let config_file = dir.with_context(|| EC::WalkRuleDir(dir_path.clone()))?;
+    let Ok(entry) = dir.as_ref() else {
+      continue;
+    };
+    let dir_path = entry.path().to_path_buf();
+    let config_file = dir.with_context(|| EC::WalkRuleDir(dir_path))?;
     // file_type is None only if it is stdin, safe to unwrap here
     if !config_file
       .file_type()
