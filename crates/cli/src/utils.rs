@@ -318,6 +318,15 @@ pub struct InputArgs {
   #[clap(value_parser, default_value = ".")]
   pub paths: Vec<PathBuf>,
 
+  /// Follow symbolic links.
+  ///
+  /// This flag instructs ast-grep to follow symbolic links while traversing
+  /// directories. This behavior is disabled by default. Note that ast-grep will
+  /// check for symbolic link loops and report errors if it finds one. ast-grep will
+  /// also report errors for broken links.
+  #[clap(long)]
+  pub follow: bool,
+
   /// Do not respect hidden file system or ignore files (.gitignore, .ignore, etc.).
   ///
   /// You can suppress multiple ignore files by passing `no-ignore` multiple times.
@@ -337,6 +346,7 @@ impl InputArgs {
     NoIgnore::disregard(&self.no_ignore)
       .walk(&self.paths)
       .threads(threads)
+      .follow_links(self.follow)
       .build_parallel()
   }
 
@@ -345,6 +355,7 @@ impl InputArgs {
     NoIgnore::disregard(&self.no_ignore)
       .walk(&self.paths)
       .threads(threads)
+      .follow_links(self.follow)
       .types(lang.augmented_file_type())
       .build_parallel()
   }

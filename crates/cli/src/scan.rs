@@ -309,6 +309,7 @@ rule:
         no_ignore: vec![],
         paths: vec![PathBuf::from(".")],
         stdin: false,
+        follow: false,
       },
       output: OutputArgs {
         interactive: false,

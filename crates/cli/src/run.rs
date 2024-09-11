@@ -373,6 +373,7 @@ mod test {
       input: InputArgs {
         no_ignore: vec![],
         stdin: false,
+        follow: false,
         paths: vec![PathBuf::from(".")],
       },
       output: OutputArgs {
