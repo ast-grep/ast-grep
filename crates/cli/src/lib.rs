@@ -182,6 +182,7 @@ mod test_cli {
     ok("run -p test --strictness relaxed");
     ok("run -p test --selector identifier"); // pattern + selector
     ok("run -p test --selector identifier -l js");
+    ok("run -p test --follow");
     error("run test");
     error("run --debug-query test"); // missing lang
     error("run -r Test dir");
@@ -206,6 +207,7 @@ mod test_cli {
     ok("scan -r test.yml --format github");
     ok("scan --format github");
     ok("scan --interactive");
+    ok("scan --follow");
     ok("scan -r test.yml -c test.yml --json dir"); // allow registering custom lang
     error("scan -i --json dir"); // conflict
     error("scan --report-style rich --json dir"); // conflict
