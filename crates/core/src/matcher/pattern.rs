@@ -260,6 +260,11 @@ impl<L: Language> Matcher<L> for Pattern<L> {
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
+    if let Some(k) = self.root_kind {
+      if node.kind_id() != k {
+        return None;
+      }
+    }
     // do not pollute the env if pattern does not match
     let mut may_write = Cow::Borrowed(env.as_ref());
     let node = match_node_non_recursive(self, node, &mut may_write)?;
@@ -523,8 +528,8 @@ mod test {
   fn test_bare_wildcard_in_context() {
     let pattern = Pattern::contextual("class A { $F }", "property_identifier", Tsx).expect("test");
     let cand = pattern_node("let b = 123");
-    // should it match?
-    assert!(pattern.find_node(cand.root()).is_some());
+    // it should not match
+    assert!(pattern.find_node(cand.root()).is_none());
   }
 
   #[test]
