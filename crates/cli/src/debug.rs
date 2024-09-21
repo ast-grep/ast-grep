@@ -182,7 +182,7 @@ fn dump_nodes(cursor: &mut ts::TreeCursor, target: &mut Vec<DumpNode>) {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_language::TypeScript;
+  use ast_grep_language::{TypeScript, C};
   const DUMPED: &str = r#"
 program (0,0)-(0,11)
   variable_declaration (0,0)-(0,11)
@@ -195,5 +195,22 @@ program (0,0)-(0,11)
     let root = lang.ast_grep("var a = 123");
     let dumped = dump_node(root.root().get_ts_node());
     assert_eq!(DUMPED.trim(), dumped.ast(false).trim());
+  }
+
+  const MISSING: &str = r#"
+translation_unit (0,0)-(0,9)
+  declaration (0,0)-(0,9)
+    type: primitive_type (0,0)-(0,3)
+    declarator: init_declarator (0,4)-(0,9)
+      declarator: identifier (0,4)-(0,5)
+      = (0,6)-(0,7)
+      value: number_literal (0,8)-(0,9)
+    MISSING ; (0,9)-(0,9)"#;
+  #[test]
+  fn test_missing_node() {
+    let lang = SgLang::Builtin(C.into());
+    let root = lang.ast_grep("int a = 1");
+    let dumped = dump_node(root.root().get_ts_node());
+    assert_eq!(MISSING.trim(), dumped.cst(false).trim());
   }
 }
