@@ -178,3 +178,22 @@ fn dump_nodes(cursor: &mut ts::TreeCursor, target: &mut Vec<DumpNode>) {
     }
   }
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use ast_grep_language::TypeScript;
+  const DUMPED: &str = r#"
+program (0,0)-(0,11)
+  variable_declaration (0,0)-(0,11)
+    variable_declarator (0,4)-(0,11)
+      name: identifier (0,4)-(0,5)
+      value: number (0,8)-(0,11)"#;
+  #[test]
+  fn test_dump_node() {
+    let lang = SgLang::Builtin(TypeScript.into());
+    let root = lang.ast_grep("var a = 123");
+    let dumped = dump_node(root.root().get_ts_node());
+    assert_eq!(DUMPED.trim(), dumped.ast(false).trim());
+  }
+}
