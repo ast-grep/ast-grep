@@ -526,4 +526,24 @@ mod test {
     let docs = root.inner.get_injections(|s| SgLang::from_str(s).ok());
     assert_eq!(docs.len(), 0);
   }
+
+  #[test]
+  fn test_build_globs() {
+    let input = InputArgs {
+      paths: vec![],
+      follow: true,
+      no_ignore: vec![IgnoreFile::Dot, IgnoreFile::Exclude],
+      stdin: false,
+      globs: vec!["*.rs".to_string(), "!*.toml".to_string()],
+    };
+    assert!(input.build_globs().is_ok());
+    let input = InputArgs {
+      paths: vec![],
+      follow: true,
+      no_ignore: vec![IgnoreFile::Dot, IgnoreFile::Exclude],
+      stdin: false,
+      globs: vec!["*.{rs".to_string()],
+    };
+    assert!(input.build_globs().is_err());
+  }
 }
