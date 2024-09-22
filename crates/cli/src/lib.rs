@@ -183,6 +183,9 @@ mod test_cli {
     ok("run -p test --selector identifier"); // pattern + selector
     ok("run -p test --selector identifier -l js");
     ok("run -p test --follow");
+    ok("run -p test --globs '*.js'");
+    ok("run -p test --globs '*.{js, ts}'");
+    ok("run -p test --globs '*.js' --globs '*.ts'");
     error("run test");
     error("run --debug-query test"); // missing lang
     error("run -r Test dir");
@@ -209,6 +212,9 @@ mod test_cli {
     ok("scan --interactive");
     ok("scan --follow");
     ok("scan -r test.yml -c test.yml --json dir"); // allow registering custom lang
+    ok("scan --globs '*.js'");
+    ok("scan --globs '*.{js, ts}'");
+    ok("scan --globs '*.js' --globs '*.ts'");
     error("scan -i --json dir"); // conflict
     error("scan --report-style rich --json dir"); // conflict
     error("scan -r test.yml --inline-rules '{}'"); // conflict
