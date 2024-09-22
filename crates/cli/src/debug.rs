@@ -25,9 +25,11 @@ impl DebugFormat {
         let lang = lang.get_ts_language();
         let mut ret = String::new();
         let fmt = DumpFmt::named(colored);
-        dump_pattern(&pattern.node, &lang, &fmt, 0, &mut ret)
-          .expect("unexpected error in writing string");
-        println!("Debug Pattern:\n{}", ret);
+        if dump_pattern(&pattern.node, &lang, &fmt, 0, &mut ret).is_ok() {
+          println!("Debug Pattern:\n{}", ret);
+        } else {
+          eprintln!("unexpected error in writing pattern string");
+        }
       }
       DebugFormat::Sexp => {
         let root = lang.ast_grep(src);
