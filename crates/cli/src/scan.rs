@@ -163,7 +163,7 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
 }
 
 impl<P: Printer> PathWorker for ScanWithConfig<P> {
-  fn build_walk(&self) -> WalkParallel {
+  fn build_walk(&self) -> Result<WalkParallel> {
     self.arg.input.walk()
   }
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
@@ -310,6 +310,7 @@ rule:
         paths: vec![PathBuf::from(".")],
         stdin: false,
         follow: false,
+        globs: vec![],
       },
       output: OutputArgs {
         interactive: false,

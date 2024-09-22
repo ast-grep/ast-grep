@@ -1,3 +1,4 @@
+use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{ColorArg, JsonStyle};
 
@@ -8,7 +9,10 @@ use crossterm::{
   execute,
   terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ignore::{DirEntry, WalkBuilder, WalkParallel, WalkState};
+use ignore::{
+  overrides::{Override, OverrideBuilder},
+  DirEntry, WalkBuilder, WalkParallel, WalkState,
+};
 use serde::{Deserialize, Serialize};
 
 use ast_grep_config::{CombinedScan, PreScan, RuleCollection};
@@ -102,7 +106,7 @@ pub trait Worker: Sync + Send {
 /// Finally, `produce_item` will send `Item` to the consumer thread.
 pub trait PathWorker: Worker {
   /// WalkParallel will determine what files will be processed.
-  fn build_walk(&self) -> WalkParallel;
+  fn build_walk(&self) -> Result<WalkParallel>;
   /// Parse and find_match can be done in `produce_item`.
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>>;
 
@@ -172,7 +176,7 @@ fn filter_result(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
 fn run_worker<W: PathWorker + ?Sized + 'static>(worker: Arc<W>) -> Result<()> {
   let (tx, rx) = mpsc::channel();
   let w = worker.clone();
-  let walker = worker.build_walk();
+  let walker = worker.build_walk()?;
   // walker run will block the thread
   std::thread::spawn(move || {
     let tx = tx;
@@ -338,16 +342,30 @@ pub struct InputArgs {
   /// Use this if you need to take code stream from standard input.
   #[clap(long)]
   pub stdin: bool,
+
+  /// Include or exclude file paths.
+  ///
+  /// Include or exclude files and directories for searching that match the
+  /// given glob. This always overrides any other ignore logic. Multiple glob
+  /// flags may be used. Globbing rules match .gitignore globs. Precede a
+  /// glob with a ! to exclude it. If multiple globs match a file or
+  /// directory, the glob given later in the command line takes precedence.
+  #[clap(long, action = clap::ArgAction::Append)]
+  pub globs: Vec<String>,
 }
 
 impl InputArgs {
-  pub fn walk(&self) -> WalkParallel {
+  pub fn walk(&self) -> Result<WalkParallel> {
     let threads = num_cpus::get().min(12);
-    NoIgnore::disregard(&self.no_ignore)
-      .walk(&self.paths)
-      .threads(threads)
-      .follow_links(self.follow)
-      .build_parallel()
+    let globs = self.build_globs().context(EC::BuildGlobs)?;
+    Ok(
+      NoIgnore::disregard(&self.no_ignore)
+        .walk(&self.paths)
+        .threads(threads)
+        .follow_links(self.follow)
+        .overrides(globs)
+        .build_parallel(),
+    )
   }
 
   pub fn walk_lang(&self, lang: SgLang) -> WalkParallel {
@@ -358,6 +376,15 @@ impl InputArgs {
       .follow_links(self.follow)
       .types(lang.augmented_file_type())
       .build_parallel()
+  }
+
+  fn build_globs(&self) -> Result<Override> {
+    let cwd = std::env::current_dir()?;
+    let mut builder = OverrideBuilder::new(cwd);
+    for glob in &self.globs {
+      builder.add(glob)?;
+    }
+    Ok(builder.build()?)
   }
 }
 

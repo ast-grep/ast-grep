@@ -31,6 +31,7 @@ pub enum ErrorContext {
   ParseTest(PathBuf),
   InvalidGlobalUtils,
   GlobPattern,
+  BuildGlobs,
   UnrecognizableLanguage(String),
   LangInjection,
   // Run
@@ -71,8 +72,9 @@ impl ErrorContext {
       NoTestDirConfigured | NoUtilDirConfigured => 4,
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 5,
       StdInIsNotInteractive => 6,
-      ParseTest(_) | ParseRule(_) | ParseConfiguration | GlobPattern | ParsePattern
-      | InvalidGlobalUtils | LangInjection => 8,
+      ParseTest(_) | ParseRule(_) | ParseConfiguration | ParsePattern | InvalidGlobalUtils
+      | LangInjection => 8,
+      GlobPattern | BuildGlobs => 9,
       CannotInferShell => 10,
       ProjectAlreadyExist | FileAlreadyExist(_) => 17,
       InsufficientCLIArgument(_) => 22,
@@ -147,6 +149,11 @@ impl ErrorMessage {
         "Cannot parse glob pattern in config",
         "The pattern in files/ignore is not a valid glob. Please refer to doc and fix the error.",
         CONFIG_GUIDE,
+      ),
+      BuildGlobs => Self::new(
+        "Cannot build glob from CLI flag",
+        "The patterns in --globs is invalid. Please refer to doc and fix the error.",
+        CLI_USAGE,
       ),
       LangInjection => Self::new(
         "Cannot parse languageInjections in config",

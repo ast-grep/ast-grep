@@ -233,7 +233,7 @@ impl<P: Printer> Worker for RunWithInferredLang<P> {
 }
 
 impl<P: Printer> PathWorker for RunWithInferredLang<P> {
-  fn build_walk(&self) -> WalkParallel {
+  fn build_walk(&self) -> Result<WalkParallel> {
     self.arg.input.walk()
   }
 
@@ -302,9 +302,9 @@ impl<P: Printer> Worker for RunWithSpecificLang<P> {
 }
 
 impl<P: Printer> PathWorker for RunWithSpecificLang<P> {
-  fn build_walk(&self) -> WalkParallel {
+  fn build_walk(&self) -> Result<WalkParallel> {
     let lang = self.arg.lang.expect("must present");
-    self.arg.input.walk_lang(lang)
+    Ok(self.arg.input.walk_lang(lang))
   }
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
     let arg = &self.arg;
@@ -373,6 +373,7 @@ mod test {
         stdin: false,
         follow: false,
         paths: vec![PathBuf::from(".")],
+        globs: vec![],
       },
       output: OutputArgs {
         color: ColorArg::Never,
