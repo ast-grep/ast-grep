@@ -264,6 +264,9 @@ impl<Printer> RunWithSpecificLang<Printer> {
   fn new(arg: RunArg, printer: Printer) -> Result<Self> {
     let lang = arg.lang.ok_or(anyhow::anyhow!(EC::LanguageNotSpecified))?;
     let pattern = arg.build_pattern(lang)?;
+    if let Some(format) = arg.debug_query {
+      format.debug_query(&arg.pattern, &pattern, lang, arg.output.color);
+    }
     let rewrite = if let Some(s) = &arg.rewrite {
       Some(Fixer::from_str(s, &lang).context(EC::ParsePattern)?)
     } else {
@@ -284,11 +287,6 @@ impl<P: Printer> Worker for RunWithSpecificLang<P> {
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     let printer = &self.printer;
     printer.before_print()?;
-    let arg = &self.arg;
-    let lang = arg.lang.expect("must present");
-    if let Some(format) = arg.debug_query {
-      format.debug_query(&self.arg.pattern, lang, self.arg.output.color);
-    }
     let mut has_matches = false;
     for match_unit in items {
       match_one_file(printer, &match_unit, &self.rewrite)?;

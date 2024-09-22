@@ -1,7 +1,7 @@
 use crate::lang::SgLang;
 use crate::print::ColorArg;
 use ansi_term::Style;
-use ast_grep_core::Pattern;
+use ast_grep_core::{language::TSLanguage, matcher::PatternNode, meta_var::MetaVariable, Pattern};
 use ast_grep_language::Language;
 use clap::ValueEnum;
 use tree_sitter as ts;
@@ -18,29 +18,78 @@ pub enum DebugFormat {
   Sexp,
 }
 impl DebugFormat {
-  pub fn debug_query(&self, pattern: &str, lang: SgLang, color: ColorArg) {
+  pub fn debug_query(&self, src: &str, pattern: &Pattern<SgLang>, lang: SgLang, color: ColorArg) {
     let colored = color.should_use_color();
     match self {
       DebugFormat::Pattern => {
-        let pattern = Pattern::try_new(pattern, lang).expect("pattern must be validated in run");
-        println!("Debug Pattern:\n{:?}", pattern);
+        let lang = lang.get_ts_language();
+        let mut ret = String::new();
+        let fmt = DumpFmt::named(colored);
+        dump_pattern(&pattern.node, &lang, &fmt, 0, &mut ret)
+          .expect("unexpected error in writing string");
+        println!("Debug Pattern:\n{}", ret);
       }
       DebugFormat::Sexp => {
-        let root = lang.ast_grep(pattern);
+        let root = lang.ast_grep(src);
         println!("Debug Sexp:\n{}", root.root().to_sexp());
       }
       DebugFormat::Ast => {
-        let root = lang.ast_grep(pattern);
+        let root = lang.ast_grep(src);
         let dumped = dump_node(root.root().get_ts_node());
         println!("Debug AST:\n{}", dumped.ast(colored));
       }
       DebugFormat::Cst => {
-        let root = lang.ast_grep(pattern);
+        let root = lang.ast_grep(src);
         let dumped = dump_node(root.root().get_ts_node());
         println!("Debug CST:\n{}", dumped.cst(colored));
       }
     }
   }
+}
+
+fn dump_pattern(
+  pattern: &PatternNode,
+  lang: &TSLanguage,
+  style: &DumpFmt,
+  indent: usize,
+  ret: &mut String,
+) -> FmtResult {
+  write!(ret, "{}", "  ".repeat(indent))?;
+  match pattern {
+    PatternNode::MetaVar { meta_var } => {
+      let meta_var = match meta_var {
+        MetaVariable::Capture(name, _) => format!("${name}"),
+        MetaVariable::MultiCapture(name) => format!("$$${name}"),
+        MetaVariable::Multiple => "$$$".to_string(),
+        MetaVariable::Dropped(_) => "$_".to_string(),
+      };
+      let meta_var = style.kind_style.paint(meta_var);
+      writeln!(ret, "{} {meta_var}", style.field_style.paint("MetaVar"))?;
+    }
+    PatternNode::Terminal {
+      text,
+      kind_id,
+      is_named,
+    } => {
+      let lang = lang.get_ts_language();
+      if *is_named {
+        let kind = lang.node_kind_for_id(*kind_id).unwrap();
+        let kind = style.kind_style.paint(format!("{kind}"));
+        writeln!(ret, "{kind} {text}")?;
+      } else {
+        writeln!(ret, "{text}")?;
+      }
+    }
+    PatternNode::Internal { kind_id, children } => {
+      let kind = lang.node_kind_for_id(*kind_id).unwrap();
+      let kind = style.kind_style.paint(kind);
+      writeln!(ret, "{kind}")?;
+      for child in children {
+        dump_pattern(child, lang, style, indent + 1, ret)?;
+      }
+    }
+  }
+  Ok(())
 }
 
 pub struct DumpNode {
@@ -77,7 +126,6 @@ impl DumpFmt {
   }
 }
 
-// TODO: add colorized output
 use std::fmt::{Result as FmtResult, Write};
 impl DumpNode {
   pub fn ast(&self, colored: bool) -> String {
