@@ -14,6 +14,7 @@
     "rewrite"
   ],
   "files": [
+    "manual.d.ts",
     "index.d.ts",
     "index.js"
   ],
