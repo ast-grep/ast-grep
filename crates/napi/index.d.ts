@@ -9,7 +9,7 @@
  */
 export interface NapiConfig {
   /** The rule object, see https://ast-grep.github.io/reference/rule.html */
-  rule: any
+  rule: import('./manual').Rule
   /** See https://ast-grep.github.io/guide/rule-config.html#constraints */
   constraints?: any
   /** Available languages: html, css, js, jsx, ts, tsx */
@@ -60,7 +60,8 @@ export const enum Lang {
   Rust = 'Rust',
   Scala = 'Scala',
   Sql = 'Sql',
-  Swift = 'Swift'
+  Swift = 'Swift',
+  Yaml = 'Yaml'
 }
 export interface Edit {
   /** The start position of the edit */

@@ -17,6 +17,7 @@ use std::ops::Range;
 #[napi(object)]
 pub struct NapiConfig {
   /// The rule object, see https://ast-grep.github.io/reference/rule.html
+  #[napi(ts_type = "import('./manual').Rule")]
   pub rule: serde_json::Value,
   /// See https://ast-grep.github.io/guide/rule-config.html#constraints
   pub constraints: Option<serde_json::Value>,
