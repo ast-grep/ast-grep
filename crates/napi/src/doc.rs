@@ -20,9 +20,11 @@ pub struct NapiConfig {
   #[napi(ts_type = "import('./manual').Rule")]
   pub rule: serde_json::Value,
   /// See https://ast-grep.github.io/guide/rule-config.html#constraints
+  #[napi(ts_type = "Record<string, import('./manual').Rule>")]
   pub constraints: Option<serde_json::Value>,
   /// Available languages: html, css, js, jsx, ts, tsx
   pub language: Option<Lang>,
+  /// transform is NOT useful in JavaScript. You can use JS code to directly transform the result.
   /// https://ast-grep.github.io/reference/yaml.html#transform
   pub transform: Option<serde_json::Value>,
   /// https://ast-grep.github.io/guide/rule-config/utility-rule.html

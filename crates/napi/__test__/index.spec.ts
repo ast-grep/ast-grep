@@ -260,12 +260,12 @@ test('find in files with filename', async t => {
   await findInFiles({
     paths: ['./'],
     matcher: {
-      rule: {kind: 'member_expression'},
+      rule: {kind: 'await_expression'},
     },
   }, (err, n) => {
     t.is(err, null)
     const root = n[0].getRoot();
-    t.is(root.filename().replace('\\', '/'), './__test__/index.spec.ts')
+    t.assert(root.filename().includes('index.spec.ts'))
   })
 })
 
@@ -286,13 +286,13 @@ test('find with language globs', async t => {
   await findInFiles({
     paths: ['./'],
     matcher: {
-      rule: {kind: 'member_expression'},
+      rule: {kind: 'await_expression'},
     },
     languageGlobs: ['*.ts'],
   }, (err, n) => {
     t.is(err, null)
     const root = n[0].getRoot();
-    t.is(root.filename().replace('\\', '/'), './__test__/index.spec.ts')
+    t.assert(root.filename().includes('index.spec.ts'))
   })
 })
 

@@ -11,10 +11,13 @@ export interface NapiConfig {
   /** The rule object, see https://ast-grep.github.io/reference/rule.html */
   rule: import('./manual').Rule
   /** See https://ast-grep.github.io/guide/rule-config.html#constraints */
-  constraints?: any
+  constraints?: Record<string, import('./manual').Rule>
   /** Available languages: html, css, js, jsx, ts, tsx */
   language?: Lang
-  /** https://ast-grep.github.io/reference/yaml.html#transform */
+  /**
+   * transform is NOT useful in JavaScript. You can use JS code to directly transform the result.
+   * https://ast-grep.github.io/reference/yaml.html#transform
+   */
   transform?: any
   /** https://ast-grep.github.io/guide/rule-config/utility-rule.html */
   utils?: any
