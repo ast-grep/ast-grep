@@ -169,7 +169,7 @@ pub struct NoIgnore {
 }
 
 impl NoIgnore {
-  pub fn disregard(ignores: &Vec<IgnoreFile>) -> Self {
+  pub fn disregard(ignores: &[IgnoreFile]) -> Self {
     let mut ret = NoIgnore::default();
     use IgnoreFile::*;
     for ignore in ignores {
