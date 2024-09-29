@@ -12,9 +12,11 @@ use crate::lang::SgLang;
 
 use anyhow::{Context, Result};
 use crossterm::{
+  cursor::MoveTo,
   event::{self, Event, KeyCode},
   execute,
   terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
+  terminal::{Clear, ClearType},
 };
 
 use ast_grep_config::{CombinedScan, PreScan, RuleCollection};
@@ -53,15 +55,17 @@ fn prompt_reply_stdout(prompt: &str) -> Result<char> {
   ret
 }
 
-// https://github.com/console-rs/console/blob/be1c2879536c90ffc2b54938b5964084f5fef67d/src/common_term.rs#L56
 // clear screen
-fn clear() {
-  print!("\r\x1b[2J\r\x1b[H");
+fn clear() -> Result<()> {
+  execute!(stdout(), Clear(ClearType::All), MoveTo(0, 0))?;
+  Ok(())
+  // https://github.com/console-rs/console/blob/be1c2879536c90ffc2b54938b5964084f5fef67d/src/common_term.rs#L56
+  // print!("\r\x1b[2J\r\x1b[H");
 }
 
 pub fn run_in_alternate_screen<T>(f: impl FnOnce() -> Result<T>) -> Result<T> {
   execute!(stdout(), EnterAlternateScreen)?;
-  clear();
+  clear()?;
   let ret = f();
   execute!(stdout(), LeaveAlternateScreen)?;
   ret
