@@ -181,7 +181,9 @@ pub fn filter_file_pattern(
 const MAX_FILE_SIZE: usize = 3_000_000;
 const MAX_LINE_COUNT: usize = 200_000;
 
+// skip files that are too large in size AND have too many lines
 fn file_too_large(file_content: &str) -> bool {
+  // the && operator is intentional here to include more files
   file_content.len() > MAX_FILE_SIZE && file_content.lines().count() > MAX_LINE_COUNT
 }
 
