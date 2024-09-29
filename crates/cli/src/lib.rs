@@ -1,7 +1,6 @@
 mod completions;
 mod config;
 mod debug;
-mod error;
 mod lang;
 mod lsp;
 mod new;
@@ -15,11 +14,11 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use completions::{run_shell_completion, CompletionsArg};
-use error::exit_with_error;
 use lsp::{run_language_server, LspArg};
 use new::{run_create_new, NewArg};
 use run::{register_custom_language_if_is_run, run_with_pattern, RunArg};
 use scan::{run_with_config, ScanArg};
+use utils::exit_with_error;
 use verify::{run_test_rule, TestArg};
 
 const LOGO: &str = r#"

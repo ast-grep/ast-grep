@@ -1,5 +1,5 @@
 use crate::config::{find_config_path_with_default, find_rules, register_custom_language};
-use crate::error::ErrorContext as EC;
+use crate::utils::ErrorContext as EC;
 use anyhow::{Context, Result};
 use ast_grep_lsp::{Backend, LspService, Server};
 use clap::Args;

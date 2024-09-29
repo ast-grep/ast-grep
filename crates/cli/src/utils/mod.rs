@@ -1,7 +1,9 @@
 mod args;
+mod error_context;
 mod worker;
 
 pub use args::{InputArgs, OutputArgs};
+pub use error_context::{exit_with_error, ErrorContext};
 pub use worker::{Items, PathWorker, StdInWorker, Worker};
 
 use crate::lang::SgLang;

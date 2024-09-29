@@ -1,5 +1,5 @@
-use crate::error::ErrorContext as EC;
 use crate::lang::{CustomLang, LanguageGlobs, SerializableInjection, SgLang};
+use crate::utils::ErrorContext as EC;
 
 use anyhow::{Context, Result};
 use ast_grep_config::{

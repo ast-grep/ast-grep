@@ -9,9 +9,9 @@ use ignore::WalkParallel;
 
 use crate::config::register_custom_language;
 use crate::debug::DebugFormat;
-use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
+use crate::utils::ErrorContext as EC;
 use crate::utils::{filter_file_pattern, InputArgs, MatchUnit, OutputArgs};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
