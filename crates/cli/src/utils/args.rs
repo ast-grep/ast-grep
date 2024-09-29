@@ -1,6 +1,6 @@
-use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{ColorArg, JsonStyle};
+use crate::utils::ErrorContext as EC;
 
 use anyhow::{Context, Result};
 use clap::{Args, ValueEnum};

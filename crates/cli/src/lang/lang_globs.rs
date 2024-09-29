@@ -5,7 +5,7 @@ use std::path::Path;
 use std::ptr::{addr_of, addr_of_mut};
 use std::str::FromStr;
 
-use crate::error::ErrorContext as EC;
+use crate::utils::ErrorContext as EC;
 use anyhow::{Context, Result};
 
 // both use vec since lang will be small

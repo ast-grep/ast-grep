@@ -1,5 +1,5 @@
 use super::SgLang;
-use crate::error::ErrorContext as EC;
+use crate::utils::ErrorContext as EC;
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
 use ast_grep_core::{
   language::{TSPoint, TSRange},

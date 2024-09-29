@@ -1,7 +1,7 @@
 use super::{Diff, Printer};
-use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::utils;
+use crate::utils::ErrorContext as EC;
 
 use anyhow::{Context, Result};
 use ast_grep_config::RuleConfig;

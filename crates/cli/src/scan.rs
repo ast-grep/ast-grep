@@ -10,12 +10,12 @@ use ignore::WalkParallel;
 use regex::Regex;
 
 use crate::config::{find_rules, read_rule_file, register_custom_language};
-use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
 use crate::print::{
   CloudPrinter, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, Printer,
   ReportStyle, SimpleFile,
 };
+use crate::utils::ErrorContext as EC;
 use crate::utils::{filter_file_interactive, InputArgs, OutputArgs};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 

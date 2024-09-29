@@ -5,8 +5,8 @@ mod snapshot;
 mod test_case;
 
 use crate::config::{find_rules, register_custom_language};
-use crate::error::ErrorContext;
 use crate::lang::SgLang;
+use crate::utils::ErrorContext;
 use anyhow::{anyhow, Result};
 use ast_grep_config::RuleCollection;
 use ast_grep_core::{Node as SgNode, StrDoc};

@@ -26,7 +26,7 @@ use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use clap_complete::{generate, Shell};
 
-use crate::error::ErrorContext as EC;
+use crate::utils::ErrorContext as EC;
 
 use std::env;
 use std::io;

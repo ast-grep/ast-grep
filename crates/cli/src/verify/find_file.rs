@@ -1,6 +1,6 @@
 use super::{SnapshotCollection, TestCase, TestSnapshots};
 use crate::config::{find_config_path_with_default, AstGrepConfig};
-use crate::error::ErrorContext as EC;
+use crate::utils::ErrorContext as EC;
 
 use anyhow::{Context, Result};
 use ast_grep_config::from_str;

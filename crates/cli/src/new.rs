@@ -2,8 +2,8 @@ use crate::config::{
   find_config_path_with_default, read_config_from_dir, register_custom_language, AstGrepConfig,
   TestConfig,
 };
-use crate::error::ErrorContext as EC;
 use crate::lang::SgLang;
+use crate::utils::ErrorContext as EC;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
