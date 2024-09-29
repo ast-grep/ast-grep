@@ -1,6 +1,5 @@
 mod completions;
 mod config;
-mod debug;
 mod lang;
 mod lsp;
 mod new;
