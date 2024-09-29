@@ -8,7 +8,7 @@ use std::sync::{mpsc, Arc};
 ///
 /// It follows multiple-producer-single-consumer pattern.
 /// ast-grep will produce items in one or more separate thread(s) and
-/// `consumer_items` in the main thread, blocking the function return.
+/// `consume_items` in the main thread, blocking the function return.
 /// Worker at the moment has two main flavors:
 /// * PathWorker: discovers files on the file system, based on ignore
 /// * StdInWorker: parse text content from standard input stream
