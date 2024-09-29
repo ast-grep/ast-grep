@@ -1,8 +1,10 @@
 mod args;
+mod debug_query;
 mod error_context;
 mod worker;
 
 pub use args::{InputArgs, OutputArgs};
+pub use debug_query::DebugFormat;
 pub use error_context::{exit_with_error, ErrorContext};
 pub use worker::{Items, PathWorker, StdInWorker, Worker};
 
