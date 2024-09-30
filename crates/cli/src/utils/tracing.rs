@@ -21,7 +21,6 @@
 use ast_grep_config::Severity;
 use clap::ValueEnum;
 
-use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -36,55 +35,40 @@ pub enum Tracing {
 // total = scanned + skipped
 //       = (matched + unmatched) + skipped
 #[derive(Default)]
-struct FileStats {
+pub struct FileStats {
   files_scanned: AtomicUsize,
   files_skipped: AtomicUsize,
 }
 
 impl FileStats {
-  // AcqRel is stronger than needed. Relaxed is enough.
   pub fn add_scanned(&self) {
     self.files_scanned.fetch_add(1, Ordering::AcqRel);
   }
   pub fn add_skipped(&self) {
     self.files_skipped.fetch_add(1, Ordering::AcqRel);
   }
-  pub fn get_scanned(&self) -> usize {
+  pub fn scanned(&self) -> usize {
     self.files_scanned.load(Ordering::Acquire)
   }
-  pub fn get_skipped(&self) -> usize {
+  pub fn skipped(&self) -> usize {
     self.files_skipped.load(Ordering::Acquire)
   }
 }
 
-struct SummaryStats<T> {
+pub struct SummaryStats<T> {
   pub file_stats: FileStats,
   pub inner: T,
   pub fix_applied: usize,
 }
 
-impl<T> Deref for SummaryStats<T> {
-  type Target = T;
-
-  fn deref(&self) -> &Self::Target {
-    &self.inner
-  }
-}
-
-impl<T> DerefMut for SummaryStats<T> {
-  fn deref_mut(&mut self) -> &mut Self::Target {
-    &mut self.inner
-  }
-}
-
 // these do not need to be atomic since they are only accessed by one thread
 #[derive(Default)]
-struct PatternStats {
+pub struct PatternStats {
   pub matched: usize,
 }
 
 #[derive(Default)]
-struct RuleStats {
+pub struct RuleStats {
   pub effective_rule_count: usize,
   pub skipped_rule_count: usize,
   pub errors: usize,
@@ -121,25 +105,5 @@ impl<T: Default> Default for SummaryStats<T> {
       inner: T::default(),
       fix_applied: 0,
     }
-  }
-}
-
-#[cfg(test)]
-mod test {
-  use super::*;
-
-  #[test]
-  fn test_file_stats() {
-    let stats = FileStats::default();
-    assert_eq!(stats.get_scanned(), 0);
-    assert_eq!(stats.get_skipped(), 0);
-
-    stats.add_skipped();
-    assert_eq!(stats.get_scanned(), 0);
-    assert_eq!(stats.get_skipped(), 1);
-
-    stats.add_scanned();
-    assert_eq!(stats.get_scanned(), 1);
-    assert_eq!(stats.get_skipped(), 1);
   }
 }

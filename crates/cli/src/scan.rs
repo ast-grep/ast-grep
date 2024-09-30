@@ -17,6 +17,7 @@ use crate::print::{
 };
 use crate::utils::ErrorContext as EC;
 use crate::utils::{filter_file_interactive, InputArgs, OutputArgs};
+use crate::utils::{FileStats, ScanStats};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
@@ -101,6 +102,7 @@ struct ScanWithConfig<Printer> {
   arg: ScanArg,
   printer: Printer,
   configs: RuleCollection<SgLang>,
+  stats: ScanStats,
 }
 impl<P: Printer> ScanWithConfig<P> {
   fn try_new(mut arg: ScanArg, printer: P) -> Result<Self> {
@@ -118,6 +120,7 @@ impl<P: Printer> ScanWithConfig<P> {
       arg,
       printer,
       configs,
+      stats: ScanStats::default(),
     })
   }
 }
@@ -163,6 +166,9 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
 }
 
 impl<P: Printer> PathWorker for ScanWithConfig<P> {
+  fn get_stats(&self) -> &FileStats {
+    &self.stats.file_stats
+  }
   fn build_walk(&self) -> Result<WalkParallel> {
     self.arg.input.walk()
   }
