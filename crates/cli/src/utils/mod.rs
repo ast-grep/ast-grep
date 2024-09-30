@@ -1,6 +1,7 @@
 mod args;
 mod debug_query;
 mod error_context;
+mod tracing;
 mod worker;
 
 pub use args::{InputArgs, OutputArgs};
