@@ -1,3 +1,5 @@
+use crate::utils::FileStats;
+
 use anyhow::{anyhow, Result};
 use ignore::{DirEntry, WalkParallel, WalkState};
 
@@ -30,6 +32,8 @@ pub trait Worker: Sync + Send {
 pub trait PathWorker: Worker {
   /// WalkParallel will determine what files will be processed.
   fn build_walk(&self) -> Result<WalkParallel>;
+  /// Record stats for the worker.
+  fn get_stats(&self) -> &FileStats;
   /// Parse and find_match can be done in `produce_item`.
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>>;
 
@@ -110,7 +114,10 @@ fn run_worker<W: PathWorker + ?Sized + 'static>(worker: Arc<W>) -> Result<()> {
         let Some(p) = filter_result(result) else {
           return WalkState::Continue;
         };
+        let stats = w.get_stats();
+        stats.add_scanned();
         let Some(items) = w.produce_item(&p) else {
+          stats.add_skipped();
           return WalkState::Continue;
         };
         for result in items {

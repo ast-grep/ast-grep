@@ -10,9 +10,9 @@ use ignore::WalkParallel;
 use crate::config::register_custom_language;
 use crate::lang::SgLang;
 use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
-use crate::utils::DebugFormat;
 use crate::utils::ErrorContext as EC;
 use crate::utils::{filter_file_pattern, InputArgs, MatchUnit, OutputArgs};
+use crate::utils::{DebugFormat, FileStats, RunStats};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 // NOTE: have to register custom lang before clap read arg
@@ -198,13 +198,19 @@ fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + 'static) -> Res
   } else if arg.lang.is_some() {
     RunWithSpecificLang::new(arg, printer)?.run_path()
   } else {
-    RunWithInferredLang { arg, printer }.run_path()
+    RunWithInferredLang {
+      arg,
+      printer,
+      stats: RunStats::default(),
+    }
+    .run_path()
   }
 }
 
 struct RunWithInferredLang<Printer> {
   arg: RunArg,
   printer: Printer,
+  stats: RunStats,
 }
 impl<P: Printer> Worker for RunWithInferredLang<P> {
   type Item = (MatchUnit<Pattern<SgLang>>, SgLang);
@@ -227,6 +233,9 @@ impl<P: Printer> Worker for RunWithInferredLang<P> {
         }
       }
     }
+    // TODO: print stats
+    // let file_stats = &self.stats.file_stats;
+    // eprintln!("Scanned: {}, Skipped: {}", file_stats.scanned(), file_stats.skipped());
     printer.after_print()?;
     Ok(())
   }
@@ -235,6 +244,9 @@ impl<P: Printer> Worker for RunWithInferredLang<P> {
 impl<P: Printer> PathWorker for RunWithInferredLang<P> {
   fn build_walk(&self) -> Result<WalkParallel> {
     self.arg.input.walk()
+  }
+  fn get_stats(&self) -> &FileStats {
+    &self.stats.file_stats
   }
 
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
@@ -258,6 +270,7 @@ struct RunWithSpecificLang<Printer> {
   printer: Printer,
   pattern: Pattern<SgLang>,
   rewrite: Option<Fixer<SgLang>>,
+  stats: RunStats,
 }
 
 impl<Printer> RunWithSpecificLang<Printer> {
@@ -277,6 +290,7 @@ impl<Printer> RunWithSpecificLang<Printer> {
       printer,
       pattern,
       rewrite,
+      stats: RunStats::default(),
     })
   }
 }
@@ -305,6 +319,9 @@ impl<P: Printer> PathWorker for RunWithSpecificLang<P> {
   fn build_walk(&self) -> Result<WalkParallel> {
     let lang = self.arg.lang.expect("must present");
     Ok(self.arg.input.walk_lang(lang))
+  }
+  fn get_stats(&self) -> &FileStats {
+    &self.stats.file_stats
   }
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
     let arg = &self.arg;
