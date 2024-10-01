@@ -138,6 +138,12 @@ impl<L: Language + Eq> RuleCollection<L> {
     None
   }
 
+  pub fn total_rule_count(&self) -> usize {
+    let mut ret = self.tenured.iter().map(|bucket| bucket.rules.len()).sum();
+    ret += self.contingent.len();
+    ret
+  }
+
   fn add_tenured_rule(tenured: &mut Vec<RuleBucket<L>>, rule: RuleConfig<L>) {
     let lang = rule.language.clone();
     for bucket in tenured.iter_mut() {
