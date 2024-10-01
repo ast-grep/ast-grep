@@ -18,7 +18,6 @@
 //!   * number of fix applied
 //! - Detail level: show how a rule runs on a file
 
-use ast_grep_config::Severity;
 use clap::ValueEnum;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -58,23 +57,12 @@ impl FileStats {
 pub struct SummaryStats<T> {
   pub file_stats: FileStats,
   pub inner: T,
-  pub fix_applied: usize,
-}
-
-// these do not need to be atomic since they are only accessed by one thread
-#[derive(Default)]
-pub struct PatternStats {
-  pub matched: usize,
 }
 
 #[derive(Default)]
 pub struct RuleStats {
   pub effective_rule_count: usize,
   pub skipped_rule_count: usize,
-  pub errors: usize,
-  pub warnings: usize,
-  pub infos: usize,
-  pub hints: usize,
 }
 
 impl RuleStats {
@@ -84,18 +72,9 @@ impl RuleStats {
   pub fn add_skipped_rule(&mut self) {
     self.skipped_rule_count += 1;
   }
-  pub fn count_match(&mut self, severity: Severity) {
-    match severity {
-      Severity::Error => self.errors += 1,
-      Severity::Warning => self.warnings += 1,
-      Severity::Info => self.infos += 1,
-      Severity::Hint => self.hints += 1,
-      Severity::Off => unreachable!("off rule should not have match"),
-    }
-  }
 }
 
-pub type RunStats = SummaryStats<PatternStats>;
+pub type RunStats = SummaryStats<()>;
 pub type ScanStats = SummaryStats<RuleStats>;
 
 impl<T: Default> Default for SummaryStats<T> {
@@ -103,7 +82,6 @@ impl<T: Default> Default for SummaryStats<T> {
     Self {
       file_stats: FileStats::default(),
       inner: T::default(),
-      fix_applied: 0,
     }
   }
 }
