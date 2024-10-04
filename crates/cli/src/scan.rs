@@ -17,7 +17,7 @@ use crate::print::{
 };
 use crate::utils::ErrorContext as EC;
 use crate::utils::{filter_file_interactive, InputArgs, OutputArgs};
-use crate::utils::{FileStats, ScanStats};
+use crate::utils::{FileStats, RuleStats, ScanStats};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
@@ -106,6 +106,7 @@ struct ScanWithConfig<Printer> {
 }
 impl<P: Printer> ScanWithConfig<P> {
   fn try_new(mut arg: ScanArg, printer: P) -> Result<Self> {
+    let mut rule_stats = RuleStats::default();
     let configs = if let Some(path) = &arg.rule {
       let rules = read_rule_file(path, None)?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
@@ -114,13 +115,18 @@ impl<P: Printer> ScanWithConfig<P> {
         .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
     } else {
-      find_rules(arg.config.take(), arg.filter.as_ref())?
+      let (configs, r_stats) = find_rules(arg.config.take(), arg.filter.as_ref())?;
+      rule_stats = r_stats;
+      configs
     };
     Ok(Self {
       arg,
       printer,
       configs,
-      stats: ScanStats::default(),
+      stats: ScanStats {
+        file_stats: FileStats::default(),
+        inner: rule_stats,
+      },
     })
   }
 }
@@ -157,6 +163,7 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       }
     }
     self.printer.after_print()?;
+    eprintln!("{:?}", self.stats);
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {

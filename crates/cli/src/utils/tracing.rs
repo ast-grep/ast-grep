@@ -33,7 +33,7 @@ pub enum Tracing {
 
 // total = scanned + skipped
 //       = (matched + unmatched) + skipped
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct FileStats {
   files_scanned: AtomicUsize,
   files_skipped: AtomicUsize,
@@ -54,24 +54,16 @@ impl FileStats {
   }
 }
 
+#[derive(Debug)]
 pub struct SummaryStats<T> {
   pub file_stats: FileStats,
   pub inner: T,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RuleStats {
   pub effective_rule_count: usize,
   pub skipped_rule_count: usize,
-}
-
-impl RuleStats {
-  pub fn add_effective_rule(&mut self) {
-    self.effective_rule_count += 1;
-  }
-  pub fn add_skipped_rule(&mut self) {
-    self.skipped_rule_count += 1;
-  }
 }
 
 pub type RunStats = SummaryStats<()>;

@@ -25,13 +25,15 @@ async fn run_language_server_impl(arg: LspArg) -> Result<()> {
   let stdout = tokio::io::stdout();
   let config_base = find_config_base(arg.config.clone())?;
   let config_result = find_rules(arg.config, None);
-  let config_result_std: std::result::Result<_, String> = config_result.map_err(|e| {
-    // convert anyhow::Error to String with chain of causes
-    e.chain()
-      .map(|e| e.to_string())
-      .collect::<Vec<_>>()
-      .join(". ")
-  });
+  let config_result_std: std::result::Result<_, String> = config_result
+    .map_err(|e| {
+      // convert anyhow::Error to String with chain of causes
+      e.chain()
+        .map(|e| e.to_string())
+        .collect::<Vec<_>>()
+        .join(". ")
+    })
+    .map(|r| r.0);
   let (service, socket) =
     LspService::build(|client| Backend::new(client, config_base, config_result_std)).finish();
   Server::new(stdin, stdout, socket).serve(service).await;
