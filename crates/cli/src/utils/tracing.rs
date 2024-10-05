@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-#[derive(Clone, Copy, ValueEnum, Serialize, Deserialize, Default)]
+#[derive(Clone, Copy, ValueEnum, Serialize, Deserialize, Default, PartialEq)]
 pub enum Tracing {
   /// Do not show any tracing information
   #[default]
@@ -79,14 +79,24 @@ pub struct SummaryStats<T> {
   pub inner: T,
 }
 impl SummaryStats<()> {
-  pub fn print(&self) -> String {
-    self.file_stats.print()
+  pub fn print(&self) -> Option<String> {
+    if self.level == Tracing::Nothing {
+      return None;
+    }
+    Some(self.file_stats.print())
   }
 }
 
 impl SummaryStats<RuleStats> {
-  pub fn print(&self) -> String {
-    format!("{}\n{}", self.file_stats.print(), self.inner.print(),)
+  pub fn print(&self) -> Option<String> {
+    if self.level == Tracing::Nothing {
+      return None;
+    }
+    Some(format!(
+      "{}\n{}",
+      self.file_stats.print(),
+      self.inner.print()
+    ))
   }
 }
 
