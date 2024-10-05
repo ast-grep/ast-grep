@@ -18,7 +18,8 @@ use serde::{Deserialize, Serialize};
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-#[derive(Clone, Copy, ValueEnum, Serialize, Deserialize, Default, PartialEq)]
+#[derive(Clone, Copy, ValueEnum, Serialize, Deserialize, Default, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
 pub enum Tracing {
   /// Do not show any tracing information
   #[default]
@@ -116,3 +117,56 @@ impl RuleStats {
 
 pub type RunStats = SummaryStats<()>;
 pub type ScanStats = SummaryStats<RuleStats>;
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  #[test]
+  fn test_tracing() {
+    let tracing = Tracing::Summary;
+    let run_stats = tracing.run_stats();
+    assert_eq!(run_stats.level, Tracing::Summary);
+    assert_eq!(
+      run_stats.file_stats.files_scanned.load(Ordering::Relaxed),
+      0
+    );
+    assert_eq!(
+      run_stats.file_stats.files_skipped.load(Ordering::Relaxed),
+      0
+    );
+    let printed = run_stats.print().expect("should have output");
+    assert_eq!(printed, "Files scanned: 0, Files skipped: 0");
+
+    let rule_stats = RuleStats {
+      effective_rule_count: 10,
+      skipped_rule_count: 2,
+    };
+    let scan_stats = tracing.scan_stats(rule_stats);
+    assert_eq!(scan_stats.level, Tracing::Summary);
+    assert_eq!(
+      scan_stats.file_stats.files_scanned.load(Ordering::Relaxed),
+      0
+    );
+    assert_eq!(
+      scan_stats.file_stats.files_skipped.load(Ordering::Relaxed),
+      0
+    );
+    assert_eq!(scan_stats.inner.effective_rule_count, 10);
+    assert_eq!(scan_stats.inner.skipped_rule_count, 2);
+    let printed = scan_stats.print().expect("should have output");
+    assert_eq!(
+      printed,
+      "Files scanned: 0, Files skipped: 0\nEffective rules: 10, Skipped rules: 2"
+    );
+  }
+
+  #[test]
+  fn test_tracing_nothing() {
+    let tracing = Tracing::Nothing;
+    let run_stats = tracing.run_stats();
+    assert_eq!(run_stats.level, Tracing::Nothing);
+    let printed = run_stats.print();
+    assert!(printed.is_none());
+  }
+}
