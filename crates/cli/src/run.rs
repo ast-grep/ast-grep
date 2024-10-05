@@ -237,6 +237,7 @@ impl<P: Printer> Worker for RunWithInferredLang<P> {
     // let file_stats = &self.stats.file_stats;
     // eprintln!("Scanned: {}, Skipped: {}", file_stats.scanned(), file_stats.skipped());
     printer.after_print()?;
+    eprintln!("{}", self.stats.print());
     Ok(())
   }
 }
@@ -307,6 +308,7 @@ impl<P: Printer> Worker for RunWithSpecificLang<P> {
       has_matches = true;
     }
     printer.after_print()?;
+    eprintln!("{}", self.stats.print());
     if !has_matches && self.pattern.has_error() {
       Err(anyhow::anyhow!(EC::PatternHasError))
     } else {

@@ -163,7 +163,7 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       }
     }
     self.printer.after_print()?;
-    eprintln!("{:?}", self.stats);
+    eprintln!("{}", self.stats.print());
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
