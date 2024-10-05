@@ -1,6 +1,7 @@
 use crate::lang::SgLang;
 use crate::print::{ColorArg, JsonStyle};
 use crate::utils::ErrorContext as EC;
+use crate::utils::Tracing;
 
 use anyhow::{Context, Result};
 use clap::{Args, ValueEnum};
@@ -127,6 +128,14 @@ pub struct OutputArgs {
   /// if the TERM environment variable is not set or set to 'dumb'.
   #[clap(long, default_value = "auto", value_name = "WHEN")]
   pub color: ColorArg,
+
+  /// Show tracing information for file/rule discovery and scanning.
+  ///
+  /// This flag helps user to inspect ast-grep's internal filtering of files and rules.
+  /// tracing will output how many and why files and rules are scanned and skipped.
+  /// tracing information outputs to stderr and does not affect the result of the search.
+  #[clap(long, default_value = "nothing", value_name = "LEVEL")]
+  pub tracing: Tracing,
 }
 
 impl OutputArgs {

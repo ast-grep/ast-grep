@@ -11,11 +11,6 @@
 //!   * number of rules applied
 //!   * rules skipped (dues to ignore/files)
 //!   * matches produced or errors/warnings/hints
-//!   * number of fix applied
-//! - Rule level: show how a rule scans files
-//!   * number of files applied
-//!   * matches produced or errors/warnings/hints
-//!   * number of fix applied
 //! - Detail level: show how a rule runs on a file
 
 use clap::ValueEnum;
@@ -23,17 +18,38 @@ use serde::{Deserialize, Serialize};
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-#[derive(Clone, Copy, ValueEnum)]
+#[derive(Clone, Copy, ValueEnum, Serialize, Deserialize, Default)]
 pub enum Tracing {
-  Summary,
+  /// Do not show any tracing information
+  #[default]
+  Nothing = 0,
+  /// Show summary about how many files are scanned and skipped
+  Summary = 1,
   // TODO: implement these levels
   // File,
   // Detail,
 }
 
+impl Tracing {
+  pub fn run_stats(&self) -> RunStats {
+    RunStats {
+      level: *self,
+      inner: (),
+      file_stats: Default::default(),
+    }
+  }
+  pub fn scan_stats(&self, rule_stats: RuleStats) -> ScanStats {
+    ScanStats {
+      level: *self,
+      inner: rule_stats,
+      file_stats: Default::default(),
+    }
+  }
+}
+
 // total = scanned + skipped
 //       = (matched + unmatched) + skipped
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct FileStats {
   files_scanned: AtomicUsize,
   files_skipped: AtomicUsize,
@@ -55,8 +71,9 @@ impl FileStats {
   }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct SummaryStats<T> {
+  pub level: Tracing,
   pub file_stats: FileStats,
   #[serde(flatten)]
   pub inner: T,
@@ -73,7 +90,7 @@ impl SummaryStats<RuleStats> {
   }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct RuleStats {
   pub effective_rule_count: usize,
   pub skipped_rule_count: usize,
@@ -89,12 +106,3 @@ impl RuleStats {
 
 pub type RunStats = SummaryStats<()>;
 pub type ScanStats = SummaryStats<RuleStats>;
-
-impl<T: Default> Default for SummaryStats<T> {
-  fn default() -> Self {
-    Self {
-      file_stats: FileStats::default(),
-      inner: T::default(),
-    }
-  }
-}
