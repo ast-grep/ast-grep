@@ -19,6 +19,7 @@
 //! - Detail level: show how a rule runs on a file
 
 use clap::ValueEnum;
+use serde::{Deserialize, Serialize};
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -27,13 +28,12 @@ pub enum Tracing {
   Summary,
   // TODO: implement these levels
   // File,
-  // Rule,
   // Detail,
 }
 
 // total = scanned + skipped
 //       = (matched + unmatched) + skipped
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct FileStats {
   files_scanned: AtomicUsize,
   files_skipped: AtomicUsize,
@@ -46,24 +46,45 @@ impl FileStats {
   pub fn add_skipped(&self) {
     self.files_skipped.fetch_add(1, Ordering::AcqRel);
   }
-  pub fn scanned(&self) -> usize {
-    self.files_scanned.load(Ordering::Acquire)
-  }
-  pub fn skipped(&self) -> usize {
-    self.files_skipped.load(Ordering::Acquire)
+  pub fn print(&self) -> String {
+    format!(
+      "Files scanned: {}, Files skipped: {}",
+      self.files_scanned.load(Ordering::Acquire),
+      self.files_skipped.load(Ordering::Acquire)
+    )
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SummaryStats<T> {
   pub file_stats: FileStats,
+  #[serde(flatten)]
   pub inner: T,
 }
+impl SummaryStats<()> {
+  pub fn print(&self) -> String {
+    self.file_stats.print()
+  }
+}
 
-#[derive(Default, Debug)]
+impl SummaryStats<RuleStats> {
+  pub fn print(&self) -> String {
+    format!("{}\n{}", self.file_stats.print(), self.inner.print(),)
+  }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct RuleStats {
   pub effective_rule_count: usize,
   pub skipped_rule_count: usize,
+}
+impl RuleStats {
+  pub fn print(&self) -> String {
+    format!(
+      "Effective rules: {}, Skipped rules: {}",
+      self.effective_rule_count, self.skipped_rule_count
+    )
+  }
 }
 
 pub type RunStats = SummaryStats<()>;
