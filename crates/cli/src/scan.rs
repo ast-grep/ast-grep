@@ -119,14 +119,12 @@ impl<P: Printer> ScanWithConfig<P> {
       rule_stats = r_stats;
       configs
     };
+    let stats = arg.output.tracing.scan_stats(rule_stats);
     Ok(Self {
       arg,
       printer,
       configs,
-      stats: ScanStats {
-        file_stats: FileStats::default(),
-        inner: rule_stats,
-      },
+      stats,
     })
   }
 }
@@ -330,6 +328,7 @@ rule:
         json: None,
         update_all: false,
         color: ColorArg::Never,
+        tracing: Default::default(),
       },
       format: None,
     }
