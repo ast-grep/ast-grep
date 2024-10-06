@@ -32,18 +32,18 @@ pub enum Tracing {
 }
 
 impl Tracing {
-  pub fn run_stats(&self) -> RunStats {
-    RunStats {
+  pub fn run_trace(&self) -> RunTrace {
+    RunTrace {
       level: *self,
       inner: (),
-      file_stats: Default::default(),
+      file_trace: Default::default(),
     }
   }
-  pub fn scan_stats(&self, rule_stats: RuleStats) -> ScanStats {
-    ScanStats {
+  pub fn scan_trace(&self, rule_stats: RuleTrace) -> ScanTrace {
+    ScanTrace {
       level: *self,
       inner: rule_stats,
-      file_stats: Default::default(),
+      file_trace: Default::default(),
     }
   }
 }
@@ -52,12 +52,12 @@ impl Tracing {
 //       = (matched + unmatched) + skipped
 #[derive(Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FileStats {
+pub struct FileTrace {
   files_scanned: AtomicUsize,
   files_skipped: AtomicUsize,
 }
 
-impl FileStats {
+impl FileTrace {
   pub fn add_scanned(&self) {
     self.files_scanned.fetch_add(1, Ordering::AcqRel);
   }
@@ -75,14 +75,14 @@ impl FileStats {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SummaryStats<T> {
+pub struct TraceInfo<T> {
   pub level: Tracing,
   #[serde(flatten)]
-  pub file_stats: FileStats,
+  pub file_trace: FileTrace,
   #[serde(flatten)]
   pub inner: T,
 }
-impl SummaryStats<()> {
+impl TraceInfo<()> {
   // TODO: support more format?
   pub fn print(&self, is_json: bool) -> Option<String> {
     if self.level == Tracing::Nothing {
@@ -90,12 +90,12 @@ impl SummaryStats<()> {
     } else if is_json {
       Some(serde_json::to_string(self).ok()?)
     } else {
-      Some(self.file_stats.print())
+      Some(self.file_trace.print())
     }
   }
 }
 
-impl SummaryStats<RuleStats> {
+impl TraceInfo<RuleTrace> {
   // TODO: support more format?
   pub fn print(&self, is_json: bool) -> Option<String> {
     if self.level == Tracing::Nothing {
@@ -105,7 +105,7 @@ impl SummaryStats<RuleStats> {
     } else {
       Some(format!(
         "{}\n{}",
-        self.file_stats.print(),
+        self.file_trace.print(),
         self.inner.print()
       ))
     }
@@ -114,11 +114,11 @@ impl SummaryStats<RuleStats> {
 
 #[derive(Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RuleStats {
+pub struct RuleTrace {
   pub effective_rule_count: usize,
   pub skipped_rule_count: usize,
 }
-impl RuleStats {
+impl RuleTrace {
   pub fn print(&self) -> String {
     format!(
       "Effective rules: {}, Skipped rules: {}",
@@ -127,8 +127,8 @@ impl RuleStats {
   }
 }
 
-pub type RunStats = SummaryStats<()>;
-pub type ScanStats = SummaryStats<RuleStats>;
+pub type RunTrace = TraceInfo<()>;
+pub type ScanTrace = TraceInfo<RuleTrace>;
 
 #[cfg(test)]
 mod test {
@@ -137,36 +137,36 @@ mod test {
   #[test]
   fn test_tracing() {
     let tracing = Tracing::Summary;
-    let run_stats = tracing.run_stats();
-    assert_eq!(run_stats.level, Tracing::Summary);
+    let run_trace = tracing.run_trace();
+    assert_eq!(run_trace.level, Tracing::Summary);
     assert_eq!(
-      run_stats.file_stats.files_scanned.load(Ordering::Relaxed),
+      run_trace.file_trace.files_scanned.load(Ordering::Relaxed),
       0
     );
     assert_eq!(
-      run_stats.file_stats.files_skipped.load(Ordering::Relaxed),
+      run_trace.file_trace.files_skipped.load(Ordering::Relaxed),
       0
     );
-    let printed = run_stats.print(false).expect("should have output");
+    let printed = run_trace.print(false).expect("should have output");
     assert_eq!(printed, "Files scanned: 0, Files skipped: 0");
 
-    let rule_stats = RuleStats {
+    let rule_stats = RuleTrace {
       effective_rule_count: 10,
       skipped_rule_count: 2,
     };
-    let scan_stats = tracing.scan_stats(rule_stats);
-    assert_eq!(scan_stats.level, Tracing::Summary);
+    let scan_trace = tracing.scan_trace(rule_stats);
+    assert_eq!(scan_trace.level, Tracing::Summary);
     assert_eq!(
-      scan_stats.file_stats.files_scanned.load(Ordering::Relaxed),
+      scan_trace.file_trace.files_scanned.load(Ordering::Relaxed),
       0
     );
     assert_eq!(
-      scan_stats.file_stats.files_skipped.load(Ordering::Relaxed),
+      scan_trace.file_trace.files_skipped.load(Ordering::Relaxed),
       0
     );
-    assert_eq!(scan_stats.inner.effective_rule_count, 10);
-    assert_eq!(scan_stats.inner.skipped_rule_count, 2);
-    let printed = scan_stats.print(false).expect("should have output");
+    assert_eq!(scan_trace.inner.effective_rule_count, 10);
+    assert_eq!(scan_trace.inner.skipped_rule_count, 2);
+    let printed = scan_trace.print(false).expect("should have output");
     assert_eq!(
       printed,
       "Files scanned: 0, Files skipped: 0\nEffective rules: 10, Skipped rules: 2"
@@ -176,9 +176,9 @@ mod test {
   #[test]
   fn test_tracing_nothing() {
     let tracing = Tracing::Nothing;
-    let run_stats = tracing.run_stats();
-    assert_eq!(run_stats.level, Tracing::Nothing);
-    let printed = run_stats.print(false);
+    let run_trace = tracing.run_trace();
+    assert_eq!(run_trace.level, Tracing::Nothing);
+    let printed = run_trace.print(false);
     assert!(printed.is_none());
   }
 }

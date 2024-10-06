@@ -1,5 +1,5 @@
 use crate::lang::{CustomLang, LanguageGlobs, SerializableInjection, SgLang};
-use crate::utils::{ErrorContext as EC, RuleStats};
+use crate::utils::{ErrorContext as EC, RuleTrace};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{
@@ -57,7 +57,7 @@ pub struct AstGrepConfig {
 pub fn find_rules(
   config_path: Option<PathBuf>,
   rule_filter: Option<&Regex>,
-) -> Result<(RuleCollection<SgLang>, RuleStats)> {
+) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
   let config_path =
     find_config_path_with_default(config_path, None).context(EC::ReadConfiguration)?;
   let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
@@ -132,7 +132,7 @@ fn read_directory_yaml(
   rule_dirs: Vec<PathBuf>,
   global_rules: GlobalRules<SgLang>,
   rule_filter: Option<&Regex>,
-) -> Result<(RuleCollection<SgLang>, RuleStats)> {
+) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
   let mut configs = vec![];
   for dir in rule_dirs {
     let dir_path = base_dir.join(dir);
@@ -163,11 +163,11 @@ fn read_directory_yaml(
   };
   let collection = RuleCollection::try_new(configs).context(EC::GlobPattern)?;
   let effective_rule_count = collection.total_rule_count();
-  let stats = RuleStats {
+  let trace = RuleTrace {
     effective_rule_count,
     skipped_rule_count: total_rule_count - effective_rule_count,
   };
-  Ok((collection, stats))
+  Ok((collection, trace))
 }
 
 fn filter_rule_by_regex(

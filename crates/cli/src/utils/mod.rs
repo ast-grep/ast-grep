@@ -7,7 +7,7 @@ mod worker;
 pub use args::{InputArgs, OutputArgs};
 pub use debug_query::DebugFormat;
 pub use error_context::{exit_with_error, ErrorContext};
-pub use tracing::{FileStats, RuleStats, RunStats, ScanStats, Tracing};
+pub use tracing::{FileTrace, RuleTrace, RunTrace, ScanTrace, Tracing};
 pub use worker::{Items, PathWorker, StdInWorker, Worker};
 
 use crate::lang::SgLang;

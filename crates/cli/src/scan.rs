@@ -17,7 +17,7 @@ use crate::print::{
 };
 use crate::utils::ErrorContext as EC;
 use crate::utils::{filter_file_interactive, InputArgs, OutputArgs};
-use crate::utils::{FileStats, RuleStats, ScanStats};
+use crate::utils::{FileTrace, RuleTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
@@ -102,11 +102,11 @@ struct ScanWithConfig<Printer> {
   arg: ScanArg,
   printer: Printer,
   configs: RuleCollection<SgLang>,
-  stats: ScanStats,
+  trace: ScanTrace,
 }
 impl<P: Printer> ScanWithConfig<P> {
   fn try_new(mut arg: ScanArg, printer: P) -> Result<Self> {
-    let mut rule_stats = RuleStats::default();
+    let mut rule_trace = RuleTrace::default();
     let configs = if let Some(path) = &arg.rule {
       let rules = read_rule_file(path, None)?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
@@ -116,15 +116,15 @@ impl<P: Printer> ScanWithConfig<P> {
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
     } else {
       let (configs, r_stats) = find_rules(arg.config.take(), arg.filter.as_ref())?;
-      rule_stats = r_stats;
+      rule_trace = r_stats;
       configs
     };
-    let stats = arg.output.tracing.scan_stats(rule_stats);
+    let trace = arg.output.tracing.scan_trace(rule_trace);
     Ok(Self {
       arg,
       printer,
       configs,
-      stats,
+      trace,
     })
   }
 }
@@ -161,8 +161,8 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       }
     }
     self.printer.after_print()?;
-    if let Some(stats) = self.stats.print(self.arg.output.json.is_some()) {
-      eprintln!("{}", stats);
+    if let Some(trace) = self.trace.print(self.arg.output.json.is_some()) {
+      eprintln!("{}", trace);
     }
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
@@ -173,8 +173,8 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
 }
 
 impl<P: Printer> PathWorker for ScanWithConfig<P> {
-  fn get_stats(&self) -> &FileStats {
-    &self.stats.file_stats
+  fn get_trace(&self) -> &FileTrace {
+    &self.trace.file_trace
   }
   fn build_walk(&self) -> Result<WalkParallel> {
     self.arg.input.walk()

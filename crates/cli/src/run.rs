@@ -12,7 +12,7 @@ use crate::lang::SgLang;
 use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
 use crate::utils::ErrorContext as EC;
 use crate::utils::{filter_file_pattern, InputArgs, MatchUnit, OutputArgs};
-use crate::utils::{DebugFormat, FileStats, RunStats};
+use crate::utils::{DebugFormat, FileTrace, RunTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 // NOTE: have to register custom lang before clap read arg
@@ -198,11 +198,11 @@ fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + 'static) -> Res
   } else if arg.lang.is_some() {
     RunWithSpecificLang::new(arg, printer)?.run_path()
   } else {
-    let stats = arg.output.tracing.run_stats();
+    let trace = arg.output.tracing.run_trace();
     RunWithInferredLang {
       arg,
       printer,
-      stats,
+      trace,
     }
     .run_path()
   }
@@ -211,7 +211,7 @@ fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + 'static) -> Res
 struct RunWithInferredLang<Printer> {
   arg: RunArg,
   printer: Printer,
-  stats: RunStats,
+  trace: RunTrace,
 }
 impl<P: Printer> Worker for RunWithInferredLang<P> {
   type Item = (MatchUnit<Pattern<SgLang>>, SgLang);
@@ -234,12 +234,10 @@ impl<P: Printer> Worker for RunWithInferredLang<P> {
         }
       }
     }
-    // TODO: print stats
-    // let file_stats = &self.stats.file_stats;
-    // eprintln!("Scanned: {}, Skipped: {}", file_stats.scanned(), file_stats.skipped());
     printer.after_print()?;
-    if let Some(stats) = self.stats.print(self.arg.output.json.is_some()) {
-      eprintln!("{}", stats);
+    // TODO: better handle output format
+    if let Some(trace) = self.trace.print(self.arg.output.json.is_some()) {
+      eprintln!("{}", trace);
     }
     Ok(())
   }
@@ -249,8 +247,8 @@ impl<P: Printer> PathWorker for RunWithInferredLang<P> {
   fn build_walk(&self) -> Result<WalkParallel> {
     self.arg.input.walk()
   }
-  fn get_stats(&self) -> &FileStats {
-    &self.stats.file_stats
+  fn get_trace(&self) -> &FileTrace {
+    &self.trace.file_trace
   }
 
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
@@ -274,7 +272,7 @@ struct RunWithSpecificLang<Printer> {
   printer: Printer,
   pattern: Pattern<SgLang>,
   rewrite: Option<Fixer<SgLang>>,
-  stats: RunStats,
+  stats: RunTrace,
 }
 
 impl<Printer> RunWithSpecificLang<Printer> {
@@ -289,7 +287,7 @@ impl<Printer> RunWithSpecificLang<Printer> {
     } else {
       None
     };
-    let stats = arg.output.tracing.run_stats();
+    let stats = arg.output.tracing.run_trace();
     Ok(Self {
       arg,
       printer,
@@ -328,8 +326,8 @@ impl<P: Printer> PathWorker for RunWithSpecificLang<P> {
     let lang = self.arg.lang.expect("must present");
     Ok(self.arg.input.walk_lang(lang))
   }
-  fn get_stats(&self) -> &FileStats {
-    &self.stats.file_stats
+  fn get_trace(&self) -> &FileTrace {
+    &self.stats.file_trace
   }
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
     let arg = &self.arg;
