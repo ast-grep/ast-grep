@@ -238,7 +238,7 @@ impl<P: Printer> Worker for RunWithInferredLang<P> {
     // let file_stats = &self.stats.file_stats;
     // eprintln!("Scanned: {}, Skipped: {}", file_stats.scanned(), file_stats.skipped());
     printer.after_print()?;
-    if let Some(stats) = self.stats.print() {
+    if let Some(stats) = self.stats.print(self.arg.output.json.is_some()) {
       eprintln!("{}", stats);
     }
     Ok(())
@@ -312,7 +312,7 @@ impl<P: Printer> Worker for RunWithSpecificLang<P> {
       has_matches = true;
     }
     printer.after_print()?;
-    if let Some(stats) = self.stats.print() {
+    if let Some(stats) = self.stats.print(self.arg.output.json.is_some()) {
       eprintln!("{}", stats);
     }
     if !has_matches && self.pattern.has_error() {
