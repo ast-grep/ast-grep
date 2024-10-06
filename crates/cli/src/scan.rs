@@ -161,7 +161,7 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       }
     }
     self.printer.after_print()?;
-    if let Some(stats) = self.stats.print() {
+    if let Some(stats) = self.stats.print(self.arg.output.json.is_some()) {
       eprintln!("{}", stats);
     }
     if error_count > 0 {
