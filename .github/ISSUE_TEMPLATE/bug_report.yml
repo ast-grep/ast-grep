@@ -1,0 +1,78 @@
+name: 'Bug report'
+title: '[bug]'
+labels: 'bug'
+assignees: ''
+description: 'Create a report to help us improve ast-grep'
+
+body:
+- type: markdown
+  attributes:
+    value: |
+      🔍 Please read [ast-grep FAQ](https://ast-grep.github.io/advanced/faq.html) before reporting a new bug as most bugs are very likely to be questions.
+
+      Please fill in each section completely. Thank you!
+
+- type: checkboxes
+  attributes:
+    label: Is there an existing Q&A for this?
+    description: Please read the FAQ for the bug you encountered.
+    options:
+    - label: I have read the existing FAQ
+      required: true
+
+- type: input
+  id: playground_link
+  attributes:
+    label: ⏯ Playground Link
+    description: |
+      A link to a ast-grep Playground "Share" link which shows this behavior.
+      This should have the same code as the code snippet below.
+      As a last resort, you can link to a repo, but these will be slower for us to investigate.
+    placeholder: 'Playground link with relevant code: https://ast-grep.github.io/playground.html'
+  validations:
+    required: true
+
+- type: textarea
+  id: code
+  attributes:
+    label: 💻 Code
+    description: |
+      Please post the relevant code sample here as well.
+
+      This code and the Playground code should be the same, do not use separate examples.
+
+      We can quickly address your report if:
+
+        - The code sample is short. Nearly all ast-grep issues can be demonstrated in 20-30 lines of code!
+        - Remove unnecessary code/configuration. The simpler the code, the faster we can help.
+        - The incorrectness of the behavior is readily apparent from reading the sample.
+
+      Reports are slower to investigate if:
+
+        - We have to pare too much extraneous code.
+        - We have to clone a large repo and validate that the problem isn't elsewhere.
+        - The sample is confusing or doesn't clearly demonstrate what's wrong.
+    value: |
+      ```
+      // Your code here
+      ```
+  validations:
+    required: false
+- type: textarea
+  id: actual_behavior
+  attributes:
+    label: 🙁 Actual behavior
+    description: 'What happened, and why it was wrong.'
+  validations:
+    required: true
+- type: textarea
+  id: expected_behavior
+  attributes:
+    label: 🙂 Expected behavior
+    description: What you expected to happen instead, and why
+  validations:
+    required: true
+- type: textarea
+  id: additional_info
+  attributes:
+    label: Additional information about the issue
