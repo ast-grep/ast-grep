@@ -7,13 +7,12 @@ body:
     attributes:
       value: |
         🔍 Please read [ast-grep FAQ](https://ast-grep.github.io/advanced/faq.html) before reporting a new bug as most bugs are very likely to be questions.
-
         Please fill in each section completely. Thank you!
 
   - type: checkboxes
     attributes:
-      label: Is there an existing Q&A for this?
-      description: Please read the FAQ for the bug you encountered.
+      label: Please read the FAQ for the bug you encountered.
+      description: https://ast-grep.github.io/advanced/faq.html
       options:
       - label: I have read the existing FAQ
         required: true
