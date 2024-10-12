@@ -1,6 +1,6 @@
 name: 'Bug report'
 title: '[bug]'
-labels: 'bug'
+labels: [bug]
 assignees: ''
 description: 'Create a report to help us improve ast-grep'
 

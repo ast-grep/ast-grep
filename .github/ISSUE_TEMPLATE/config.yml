@@ -2,6 +2,10 @@
 blank_issues_enabled: true
 contact_links:
   -
+    about: "Please check the FAQ before filing new issues"
+    name: "ast-grep FAQ"
+    url: "https://ast-grep.github.io/advanced/faq.html"
+  -
     about: "Please ask pattern/rule questions on StackOverflow."
     name: StackOverflow
     url: "https://stackoverflow.com/questions/tagged/ast-grep"
@@ -13,7 +17,3 @@ contact_links:
     about: "Alternatively, you can use the ast-grep Community Discord."
     name: Chat
     url: "https://discord.gg/4YZjf6htSQ"
-  -
-    about: "Please check the FAQ before filing new issues"
-    name: "ast-grep FAQ"
-    url: "https://ast-grep.github.io/advanced/faq.html"
