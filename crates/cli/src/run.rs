@@ -397,6 +397,7 @@ mod test {
         follow: false,
         paths: vec![PathBuf::from(".")],
         globs: vec![],
+        threads: 0,
       },
       output: OutputArgs {
         color: ColorArg::Never,

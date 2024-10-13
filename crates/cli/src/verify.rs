@@ -34,8 +34,10 @@ where
   R: Send,
   F: FnMut(&'a T) -> Option<R> + Send + Copy,
 {
-  let cpu_count = num_cpus::get().min(12);
-  let chunk_size = (cases.len() + cpu_count) / cpu_count;
+  let threads = std::thread::available_parallelism()
+    .map_or(1, |n| n.get())
+    .min(12);
+  let chunk_size = (cases.len() + threads) / threads;
   thread::scope(|s| {
     cases
       .chunks(chunk_size)

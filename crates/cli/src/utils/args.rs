@@ -50,11 +50,28 @@ pub struct InputArgs {
   /// directory, the glob given later in the command line takes precedence.
   #[clap(long, action = clap::ArgAction::Append)]
   pub globs: Vec<String>,
+
+  /// Set the approximate number of threads to use.
+  ///
+  /// This flag sets the approximate number of threads to use. A value of 0
+  /// (which is the default) causes ast-grep to choose the thread count using
+  /// heuristics.
+  #[clap(short = 'j', long, default_value = "0", value_name = "NUM")]
+  pub threads: usize,
 }
 
 impl InputArgs {
+  fn get_threads(&self) -> usize {
+    if self.threads == 0 {
+      std::thread::available_parallelism()
+        .map_or(1, |n| n.get())
+        .min(12)
+    } else {
+      self.threads
+    }
+  }
   pub fn walk(&self) -> Result<WalkParallel> {
-    let threads = num_cpus::get().min(12);
+    let threads = self.get_threads();
     let globs = self.build_globs().context(EC::BuildGlobs)?;
     Ok(
       NoIgnore::disregard(&self.no_ignore)
@@ -67,7 +84,7 @@ impl InputArgs {
   }
 
   pub fn walk_lang(&self, lang: SgLang) -> WalkParallel {
-    let threads = num_cpus::get().min(12);
+    let threads = self.get_threads();
     NoIgnore::disregard(&self.no_ignore)
       .walk(&self.paths)
       .threads(threads)
@@ -223,6 +240,7 @@ mod test {
       no_ignore: vec![IgnoreFile::Dot, IgnoreFile::Exclude],
       stdin: false,
       globs: vec!["*.rs".to_string(), "!*.toml".to_string()],
+      threads: 0,
     };
     assert!(input.build_globs().is_ok());
     let input = InputArgs {
@@ -231,6 +249,7 @@ mod test {
       no_ignore: vec![IgnoreFile::Dot, IgnoreFile::Exclude],
       stdin: false,
       globs: vec!["*.{rs".to_string()],
+      threads: 0,
     };
     assert!(input.build_globs().is_err());
   }

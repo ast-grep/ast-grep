@@ -324,6 +324,7 @@ rule:
         stdin: false,
         follow: false,
         globs: vec![],
+        threads: 0,
       },
       output: OutputArgs {
         interactive: false,

@@ -184,6 +184,8 @@ mod test_cli {
     ok("run -p test --globs '*.js'");
     ok("run -p test --globs '*.{js, ts}'");
     ok("run -p test --globs '*.js' --globs '*.ts'");
+    ok("run -p test -j 12");
+    ok("run -p test --threads 12");
     error("run test");
     error("run --debug-query test"); // missing lang
     error("run -r Test dir");
@@ -194,6 +196,7 @@ mod test_cli {
     error("run -p test --strictness not");
     error("run -p test -l rs --debug-query=not");
     error("run -p test --selector");
+    error("run -p test --threads");
   }
 
   #[test]
@@ -213,6 +216,8 @@ mod test_cli {
     ok("scan --globs '*.js'");
     ok("scan --globs '*.{js, ts}'");
     ok("scan --globs '*.js' --globs '*.ts'");
+    ok("scan -j 12");
+    ok("scan --threads 12");
     error("scan -i --json dir"); // conflict
     error("scan --report-style rich --json dir"); // conflict
     error("scan -r test.yml --inline-rules '{}'"); // conflict
@@ -221,6 +226,8 @@ mod test_cli {
     error("scan --format local");
     error("scan --json=dir"); // wrong json flag
     error("scan --json= not-pretty"); // wrong json flag
+    error("scan -j");
+    error("scan --threads");
   }
 
   #[test]
