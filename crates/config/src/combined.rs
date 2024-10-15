@@ -9,6 +9,7 @@ use std::collections::{HashMap, HashSet};
 pub struct ScanResult<'r, D: Doc> {
   pub diffs: Vec<(usize, NodeMatch<'r, D>)>,
   pub matches: HashMap<usize, Vec<NodeMatch<'r, D>>>,
+  pub unused_suppressions: Vec<NodeMatch<'r, D>>,
 }
 
 struct Suppressions(HashMap<usize, Suppression>);
@@ -27,10 +28,14 @@ impl Suppressions {
     self.0.insert(
       key,
       Suppression {
-        is_used: false,
         suppressed: parse_suppression_set(&node.text()),
+        node_id: node.node_id(),
       },
     );
+  }
+
+  fn suppression_ids(&self) -> HashSet<usize> {
+    self.0.values().map(|s| s.node_id).collect()
   }
 
   fn check_suppression<D: Doc>(&mut self, node: &Node<D>) -> MaySuppressed {
@@ -44,32 +49,30 @@ impl Suppressions {
 }
 
 struct Suppression {
-  is_used: bool,
   /// None = suppress all
   suppressed: Option<HashSet<String>>,
+  node_id: usize,
 }
 
 enum MaySuppressed<'a> {
-  Yes(&'a mut Suppression),
+  Yes(&'a Suppression),
   No,
 }
 
 impl<'a> MaySuppressed<'a> {
-  fn is_suppressed(&mut self, rule_id: &str) -> bool {
+  fn suppressed_id(&self, rule_id: &str) -> Option<usize> {
     let suppression = match self {
-      MaySuppressed::No => return false,
+      MaySuppressed::No => return None,
       MaySuppressed::Yes(s) => s,
     };
-    if let Some(set) = &mut suppression.suppressed {
+    if let Some(set) = &suppression.suppressed {
       if set.contains(rule_id) {
-        suppression.is_used = true;
-        true
+        Some(suppression.node_id)
       } else {
-        false
+        None
       }
     } else {
-      suppression.is_used = true;
-      true
+      Some(suppression.node_id)
     }
   }
 }
@@ -157,17 +160,23 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     let mut result = ScanResult {
       diffs: vec![],
       matches: HashMap::new(),
+      unused_suppressions: vec![],
     };
     let PreScan {
       hit_set,
       mut suppressions,
     } = pre;
+    let mut suppression_ids = suppressions.suppression_ids();
+    let mut suppression_nodes = HashMap::new();
     for node in root.root().dfs() {
+      if suppression_ids.contains(&node.node_id()) {
+        suppression_nodes.insert(node.node_id(), node.clone());
+      }
       let kind = node.kind_id() as usize;
       let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
         continue;
       };
-      let mut suppression = suppressions.check_suppression(&node);
+      let suppression = suppressions.check_suppression(&node);
       for &idx in rule_idx {
         if !hit_set.contains(idx) {
           continue;
@@ -176,7 +185,8 @@ impl<'r, L: Language> CombinedScan<'r, L> {
         let Some(ret) = rule.matcher.match_node(node.clone()) else {
           continue;
         };
-        if suppression.is_suppressed(&rule.id) {
+        if let Some(id) = suppression.suppressed_id(&rule.id) {
+          suppression_ids.remove(&id);
           continue;
         }
         if rule.fix.is_none() || !separate_fix {
@@ -187,6 +197,18 @@ impl<'r, L: Language> CombinedScan<'r, L> {
         }
       }
     }
+    result.unused_suppressions = suppression_nodes
+      .into_values()
+      .filter_map(|node| {
+        let node_id = node.node_id();
+        let unused = suppression_ids.contains(&node_id);
+        if unused {
+          Some(NodeMatch::from(node))
+        } else {
+          None
+        }
+      })
+      .collect();
     result
   }
 
@@ -270,5 +292,24 @@ language: Tsx",
     assert_eq!(matches.len(), 2);
     assert_eq!(matches[0].text(), "console.log('no ignore')");
     assert_eq!(matches[1].text(), "console.log('ignore another')");
+  }
+
+  #[test]
+  fn test_non_used_suppression() {
+    let source = r#"
+    console.log('no ignore')
+    console.debug('not used') // ast-grep-ignore: test
+    console.log('multiple ignore') // ast-grep-ignore: test
+    "#;
+    let root = TypeScript::Tsx.ast_grep(source);
+    let rule = create_rule();
+    let rules = vec![&rule];
+    let scan = CombinedScan::new(rules);
+    let pre = scan.find(&root);
+    assert_eq!(pre.suppressions.0.len(), 2);
+    let scanned = scan.scan(&root, pre, false);
+    let unused = &scanned.unused_suppressions;
+    assert_eq!(unused.len(), 1);
+    assert_eq!(unused[0].text(), "// ast-grep-ignore: test");
   }
 }
