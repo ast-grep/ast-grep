@@ -184,7 +184,7 @@ mod test_cli {
     ok("run -p test --globs '*.js'");
     ok("run -p test --globs '*.{js, ts}'");
     ok("run -p test --globs '*.js' --globs '*.ts'");
-    ok("run -p test -j 12");
+    ok("run -p fubuki -j8");
     ok("run -p test --threads 12");
     error("run test");
     error("run --debug-query test"); // missing lang
