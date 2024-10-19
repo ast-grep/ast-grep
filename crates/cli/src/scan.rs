@@ -2,7 +2,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{
-  from_yaml_string, CombinedScan, PreScan, RuleCollection, RuleConfig, Severity,
+  from_yaml_string, CombinedScan, PreScan, RuleCollection, RuleConfig, SerializableRule,
+  SerializableRuleConfig, SerializableRuleCore, Severity,
 };
 use ast_grep_core::{NodeMatch, StrDoc};
 use clap::Args;
@@ -159,6 +160,12 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
         }
         match_rule_on_file(path, matches, rule, &file_content, &self.printer)?;
       }
+      print_unused_suppressions(
+        path,
+        scanned.unused_suppressions,
+        &file_content,
+        &self.printer,
+      )?;
     }
     self.printer.after_print()?;
     if let Some(trace) = self.trace.print(self.arg.output.json.is_some()) {
@@ -170,6 +177,37 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       Ok(())
     }
   }
+}
+
+fn print_unused_suppressions(
+  path: &Path,
+  matches: Vec<NodeMatch<StrDoc<SgLang>>>,
+  file_content: &String,
+  printer: &impl Printer,
+) -> Result<()> {
+  let rule: SerializableRule = serde_json::from_str(r#"{"pattern": "a"}"#).unwrap();
+  let core = SerializableRuleCore {
+    rule,
+    constraints: None,
+    fix: None,
+    transform: None,
+    utils: None,
+  };
+  let config = SerializableRuleConfig::<SgLang> {
+    core,
+    id: "unused-suppression".to_string(),
+    files: None,
+    ignores: None,
+    language: "rust".parse().unwrap(),
+    message: "Unused '@ast-grep-ignore' directive.".into(),
+    metadata: None,
+    note: None,
+    rewriters: None,
+    severity: Severity::Warning,
+    url: None,
+  };
+  let rule_config = RuleConfig::try_from(config, &Default::default()).unwrap();
+  match_rule_on_file(path, matches, &rule_config, file_content, printer)
 }
 
 impl<P: Printer> PathWorker for ScanWithConfig<P> {
