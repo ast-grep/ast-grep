@@ -203,7 +203,7 @@ fn print_unused_suppressions(
     metadata: None,
     note: None,
     rewriters: None,
-    severity: Severity::Warning,
+    severity: Severity::Hint,
     url: None,
   };
   let rule_config = RuleConfig::try_from(config, &Default::default()).unwrap();
