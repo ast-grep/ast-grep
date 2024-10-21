@@ -17,25 +17,11 @@ use crate::print::{
   ReportStyle, SimpleFile,
 };
 use crate::utils::ErrorContext as EC;
-use crate::utils::{filter_file_interactive, InputArgs, OutputArgs};
+use crate::utils::{filter_file_interactive, InputArgs, OutputArgs, SeverityArg};
 use crate::utils::{FileTrace, RuleTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
-
-#[derive(Args, Debug)]
-struct SeverityArg {
-  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
-  pub error: Option<Vec<String>>,
-  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
-  pub warning: Option<Vec<String>>,
-  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
-  pub info: Option<Vec<String>>,
-  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
-  pub hint: Option<Vec<String>>,
-  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
-  pub off: Option<Vec<String>>,
-}
 
 #[derive(Args)]
 pub struct ScanArg {

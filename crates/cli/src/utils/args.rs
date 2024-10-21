@@ -228,6 +228,20 @@ impl NoIgnore {
   }
 }
 
+#[derive(Args, Debug)]
+pub struct SeverityArg {
+  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
+  pub error: Option<Vec<String>>,
+  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
+  pub warning: Option<Vec<String>>,
+  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
+  pub info: Option<Vec<String>>,
+  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
+  pub hint: Option<Vec<String>>,
+  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
+  pub off: Option<Vec<String>>,
+}
+
 #[cfg(test)]
 mod test {
   use super::*;

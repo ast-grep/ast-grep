@@ -1,10 +1,11 @@
 mod args;
 mod debug_query;
 mod error_context;
+mod rule_overwrite;
 mod tracing;
 mod worker;
 
-pub use args::{InputArgs, OutputArgs};
+pub use args::{InputArgs, OutputArgs, SeverityArg};
 pub use debug_query::DebugFormat;
 pub use error_context::{exit_with_error, ErrorContext};
 pub use tracing::{FileTrace, RuleTrace, RunTrace, ScanTrace, Tracing};
