@@ -37,6 +37,30 @@ impl RuleOverwrite {
       &mut by_rule_id,
       &mut default_severity,
     );
+    read_severity(
+      Severity::Warning,
+      &cli.warning,
+      &mut by_rule_id,
+      &mut default_severity,
+    );
+    read_severity(
+      Severity::Info,
+      &cli.info,
+      &mut by_rule_id,
+      &mut default_severity,
+    );
+    read_severity(
+      Severity::Hint,
+      &cli.hint,
+      &mut by_rule_id,
+      &mut default_severity,
+    );
+    read_severity(
+      Severity::Off,
+      &cli.off,
+      &mut by_rule_id,
+      &mut default_severity,
+    );
     Ok(Self {
       default_severity,
       by_rule_id,
