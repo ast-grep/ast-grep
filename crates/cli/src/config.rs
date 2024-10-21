@@ -54,19 +54,38 @@ pub struct AstGrepConfig {
   pub language_injections: Vec<SerializableInjection>,
 }
 
+pub struct ProjectConfig {
+  pub project_dir: PathBuf,
+  pub sg_config: AstGrepConfig,
+}
+
+impl ProjectConfig {
+  pub fn find(config_path: Option<PathBuf>) -> Result<Self> {
+    Self::find_by_base(config_path, None)
+  }
+  pub fn find_by_base(config_path: Option<PathBuf>, base: Option<&Path>) -> Result<Self> {
+    let config_path =
+      find_config_path_with_default(config_path, base).context(EC::ReadConfiguration)?;
+    let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
+    let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
+    let project_dir = config_path
+      .parent()
+      .expect("config file must have parent directory")
+      .to_path_buf();
+    Ok(ProjectConfig {
+      project_dir,
+      sg_config,
+    })
+  }
+}
+
 pub fn find_rules(
   config_path: Option<PathBuf>,
   rule_filter: Option<&Regex>,
 ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
-  let config_path =
-    find_config_path_with_default(config_path, None).context(EC::ReadConfiguration)?;
-  let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
-  let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
-  let base_dir = config_path
-    .parent()
-    .expect("config file must have parent directory");
-  let global_rules = find_util_rules(base_dir, sg_config.util_dirs)?;
-  read_directory_yaml(base_dir, sg_config.rule_dirs, global_rules, rule_filter)
+  let project_config = ProjectConfig::find(config_path)?;
+  let global_rules = find_util_rules(&project_config)?;
+  read_directory_yaml(&project_config, global_rules, rule_filter)
 }
 
 pub fn register_custom_language(config_path: Option<PathBuf>) -> Result<()> {
@@ -88,8 +107,8 @@ pub fn register_custom_language(config_path: Option<PathBuf>) -> Result<()> {
   Ok(())
 }
 
-fn build_util_walker(base_dir: &Path, util_dirs: Option<Vec<PathBuf>>) -> Option<WalkBuilder> {
-  let mut util_dirs = util_dirs?.into_iter();
+fn build_util_walker(base_dir: &Path, util_dirs: &Option<Vec<PathBuf>>) -> Option<WalkBuilder> {
+  let mut util_dirs = util_dirs.as_ref()?.iter();
   let first = util_dirs.next()?;
   let mut walker = WalkBuilder::new(base_dir.join(first));
   for dir in util_dirs {
@@ -98,11 +117,12 @@ fn build_util_walker(base_dir: &Path, util_dirs: Option<Vec<PathBuf>>) -> Option
   Some(walker)
 }
 
-fn find_util_rules(
-  base_dir: &Path,
-  util_dirs: Option<Vec<PathBuf>>,
-) -> Result<GlobalRules<SgLang>> {
-  let Some(mut walker) = build_util_walker(base_dir, util_dirs) else {
+fn find_util_rules(config: &ProjectConfig) -> Result<GlobalRules<SgLang>> {
+  let ProjectConfig {
+    project_dir,
+    sg_config,
+  } = config;
+  let Some(mut walker) = build_util_walker(project_dir, &sg_config.util_dirs) else {
     return Ok(GlobalRules::default());
   };
   let mut utils = vec![];
@@ -128,14 +148,17 @@ fn find_util_rules(
 }
 
 fn read_directory_yaml(
-  base_dir: &Path,
-  rule_dirs: Vec<PathBuf>,
+  config: &ProjectConfig,
   global_rules: GlobalRules<SgLang>,
   rule_filter: Option<&Regex>,
 ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
   let mut configs = vec![];
-  for dir in rule_dirs {
-    let dir_path = base_dir.join(dir);
+  let ProjectConfig {
+    project_dir,
+    sg_config,
+  } = config;
+  for dir in &sg_config.rule_dirs {
+    let dir_path = project_dir.join(dir);
     let walker = WalkBuilder::new(&dir_path)
       .types(config_file_type())
       .build();
