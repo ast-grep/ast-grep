@@ -121,14 +121,14 @@ pub struct OutputArgs {
   /// Output matches in structured JSON .
   ///
   /// If this flag is set, ast-grep will output matches in JSON format.
-  /// You can pass optional value to this flag by using `--json=<style>` syntax
+  /// You can pass optional value to this flag by using `--json=<STYLE>` syntax
   /// to further control how JSON object is formatted and printed. ast-grep will `pretty`-print JSON if no value is passed.
   /// Note, the json flag must use `=` to specify its value.
   /// It conflicts with interactive.
   #[clap(
       long,
       conflicts_with = "interactive",
-      value_name="style",
+      value_name="STYLE",
       num_args(0..=1),
       require_equals = true,
       default_missing_value = "pretty"

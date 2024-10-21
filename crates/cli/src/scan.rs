@@ -23,6 +23,20 @@ use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
 
+#[derive(Args, Debug)]
+struct SeverityArg {
+  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
+  pub error: Option<Vec<String>>,
+  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
+  pub warning: Option<Vec<String>>,
+  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
+  pub info: Option<Vec<String>>,
+  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
+  pub hint: Option<Vec<String>>,
+  #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
+  pub off: Option<Vec<String>>,
+}
+
 #[derive(Args)]
 pub struct ScanArg {
   /// Path to ast-grep root config, default is sgconfig.yml.
@@ -58,6 +72,10 @@ pub struct ScanArg {
 
   #[clap(long, default_value = "rich", conflicts_with = "json")]
   report_style: ReportStyle,
+
+  /// severity related options
+  #[clap(flatten)]
+  severity: SeverityArg,
 
   /// input related options
   #[clap(flatten)]
@@ -363,6 +381,13 @@ rule:
         follow: false,
         globs: vec![],
         threads: 0,
+      },
+      severity: SeverityArg {
+        error: None,
+        warning: None,
+        info: None,
+        hint: None,
+        off: None,
       },
       output: OutputArgs {
         interactive: false,
