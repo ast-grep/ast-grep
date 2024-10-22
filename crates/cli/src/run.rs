@@ -116,39 +116,6 @@ pub struct RunArg {
   /// and to disable heading when piping to another program or redirected to files.
   #[clap(long, default_value = "auto", value_name = "WHEN")]
   heading: Heading,
-
-  // context related options
-  /// Show NUM lines after each match.
-  ///
-  /// It conflicts with both the -C/--context flag.
-  #[clap(
-    short = 'A',
-    long,
-    default_value = "0",
-    conflicts_with = "context",
-    value_name = "NUM"
-  )]
-  after: u16,
-
-  /// Show NUM lines before each match.
-  ///
-  /// It conflicts with both the -C/--context flag.
-  #[clap(
-    short = 'B',
-    long,
-    default_value = "0",
-    conflicts_with = "context",
-    value_name = "NUM"
-  )]
-  before: u16,
-
-  /// Show NUM lines around each match.
-  ///
-  /// This is equivalent to providing both the
-  /// -B/--before and -A/--after flags with the same value.
-  /// It conflicts with both the -B/--before and -A/--after flags.
-  #[clap(short = 'C', long, default_value = "0", value_name = "NUM")]
-  context: u16,
 }
 
 impl RunArg {
@@ -170,10 +137,10 @@ impl RunArg {
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(arg: RunArg) -> Result<()> {
-  let context = if arg.context != 0 {
-    (arg.context, arg.context)
+  let context = if arg.output.context != 0 {
+    (arg.output.context, arg.output.context)
   } else {
-    (arg.before, arg.after)
+    (arg.output.before, arg.output.after)
   };
   if let Some(json) = arg.output.json {
     let printer = JSONPrinter::stdout(json).context(context);
@@ -405,10 +372,10 @@ mod test {
         json: None,
         update_all: false,
         tracing: Default::default(),
+        before: 0,
+        after: 0,
+        context: 0,
       },
-      before: 0,
-      after: 0,
-      context: 0,
     }
   }
 
