@@ -208,6 +208,12 @@ impl<L: Language> Deref for RuleConfig<L> {
   }
 }
 
+impl<L: Language> DerefMut for RuleConfig<L> {
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    &mut self.inner
+  }
+}
+
 #[cfg(test)]
 mod test {
   use super::*;

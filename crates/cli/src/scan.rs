@@ -17,6 +17,7 @@ use crate::print::{
   ReportStyle, SimpleFile,
 };
 use crate::utils::ErrorContext as EC;
+use crate::utils::RuleOverwrite;
 use crate::utils::{filter_file_interactive, InputArgs, OutputArgs, SeverityArg};
 use crate::utils::{FileTrace, RuleTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
@@ -120,7 +121,8 @@ impl<P: Printer> ScanWithConfig<P> {
         .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
     } else {
-      let (configs, r_stats) = find_rules(arg.config.take(), arg.filter.as_ref())?;
+      let overwrite = RuleOverwrite::new(&arg.severity, &arg.filter)?;
+      let (configs, r_stats) = find_rules(arg.config.take(), overwrite)?;
       rule_trace = r_stats;
       configs
     };
