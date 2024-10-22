@@ -1,14 +1,19 @@
 use super::SeverityArg;
+use crate::lang::SgLang;
+use crate::utils::ErrorContext as EC;
 
 use anyhow::Result;
-use ast_grep_config::{SerializableRuleConfig, Severity};
+use ast_grep_config::{RuleConfig, Severity};
 use ast_grep_core::Language;
+use regex::Regex;
 
 use std::collections::HashMap;
 
-struct RuleOverwrite {
+#[derive(Default)]
+pub struct RuleOverwrite {
   default_severity: Option<Severity>,
   by_rule_id: HashMap<String, Severity>,
+  rule_filter: Option<Regex>,
 }
 
 fn read_severity(
@@ -28,7 +33,7 @@ fn read_severity(
 }
 
 impl RuleOverwrite {
-  pub fn new(cli: SeverityArg) -> Result<Self> {
+  pub fn new(cli: &SeverityArg, filter: &Option<Regex>) -> Result<Self> {
     let mut default_severity = None;
     let mut by_rule_id = HashMap::new();
     read_severity(
@@ -64,10 +69,27 @@ impl RuleOverwrite {
     Ok(Self {
       default_severity,
       by_rule_id,
+      rule_filter: filter.clone(),
     })
   }
 
-  pub fn find(&self, id: &str) -> OverwriteResult {
+  pub fn process_configs(
+    &self,
+    configs: Vec<RuleConfig<SgLang>>,
+  ) -> Result<Vec<RuleConfig<SgLang>>> {
+    let mut configs = if let Some(filter) = &self.rule_filter {
+      filter_rule_by_regex(configs, filter)?
+    } else {
+      configs
+    };
+    for config in &mut configs {
+      let overwrite = self.find(&config.id);
+      overwrite.overwrite(config);
+    }
+    Ok(configs)
+  }
+
+  fn find(&self, id: &str) -> OverwriteResult {
     let severity = self
       .by_rule_id
       .get(id)
@@ -77,12 +99,28 @@ impl RuleOverwrite {
   }
 }
 
-pub struct OverwriteResult {
-  pub severity: Option<Severity>,
+fn filter_rule_by_regex(
+  configs: Vec<RuleConfig<SgLang>>,
+  filter: &Regex,
+) -> Result<Vec<RuleConfig<SgLang>>> {
+  let selected: Vec<_> = configs
+    .into_iter()
+    .filter(|c| filter.is_match(&c.id))
+    .collect();
+
+  if selected.is_empty() {
+    Err(anyhow::anyhow!(EC::RuleNotFound(filter.to_string())))
+  } else {
+    Ok(selected)
+  }
+}
+
+struct OverwriteResult {
+  severity: Option<Severity>,
 }
 
 impl OverwriteResult {
-  pub fn overwrite<L>(&self, rule: &mut SerializableRuleConfig<L>)
+  fn overwrite<L>(&self, rule: &mut RuleConfig<L>)
   where
     L: Language,
   {

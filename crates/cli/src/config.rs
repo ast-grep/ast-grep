@@ -1,5 +1,5 @@
 use crate::lang::{CustomLang, LanguageGlobs, SerializableInjection, SgLang};
-use crate::utils::{ErrorContext as EC, RuleTrace};
+use crate::utils::{ErrorContext as EC, RuleOverwrite, RuleTrace};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{
@@ -7,7 +7,6 @@ use ast_grep_config::{
 };
 use ast_grep_language::config_file_type;
 use ignore::WalkBuilder;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
@@ -84,11 +83,11 @@ impl ProjectConfig {
 
 pub fn find_rules(
   config_path: Option<PathBuf>,
-  rule_filter: Option<&Regex>,
+  rule_overwrite: RuleOverwrite,
 ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
   let project_config = ProjectConfig::by_config_path(config_path)?;
   let global_rules = find_util_rules(&project_config)?;
-  read_directory_yaml(&project_config, global_rules, rule_filter)
+  read_directory_yaml(&project_config, global_rules, rule_overwrite)
 }
 
 pub fn register_custom_language(config_path: Option<PathBuf>) -> Result<()> {
@@ -153,7 +152,7 @@ fn find_util_rules(config: &ProjectConfig) -> Result<GlobalRules<SgLang>> {
 fn read_directory_yaml(
   config: &ProjectConfig,
   global_rules: GlobalRules<SgLang>,
-  rule_filter: Option<&Regex>,
+  rule_overwrite: RuleOverwrite,
 ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
   let mut configs = vec![];
   let ProjectConfig {
@@ -182,11 +181,7 @@ fn read_directory_yaml(
   }
   let total_rule_count = configs.len();
 
-  let configs = if let Some(filter) = rule_filter {
-    filter_rule_by_regex(configs, filter)?
-  } else {
-    configs
-  };
+  let configs = rule_overwrite.process_configs(configs)?;
   let collection = RuleCollection::try_new(configs).context(EC::GlobPattern)?;
   let effective_rule_count = collection.total_rule_count();
   let trace = RuleTrace {
@@ -194,22 +189,6 @@ fn read_directory_yaml(
     skipped_rule_count: total_rule_count - effective_rule_count,
   };
   Ok((collection, trace))
-}
-
-fn filter_rule_by_regex(
-  configs: Vec<RuleConfig<SgLang>>,
-  filter: &Regex,
-) -> Result<Vec<RuleConfig<SgLang>>> {
-  let selected: Vec<_> = configs
-    .into_iter()
-    .filter(|c| filter.is_match(&c.id))
-    .collect();
-
-  if selected.is_empty() {
-    Err(anyhow::anyhow!(EC::RuleNotFound(filter.to_string())))
-  } else {
-    Ok(selected)
-  }
 }
 
 pub fn read_rule_file(

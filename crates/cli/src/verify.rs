@@ -57,7 +57,7 @@ where
 }
 
 fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<()> {
-  let collections = &find_rules(arg.config.clone(), None)?.0;
+  let collections = &find_rules(arg.config.clone(), Default::default())?.0;
   let TestHarness {
     test_cases,
     snapshots,

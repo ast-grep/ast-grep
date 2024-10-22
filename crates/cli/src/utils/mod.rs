@@ -8,6 +8,7 @@ mod worker;
 pub use args::{InputArgs, OutputArgs, SeverityArg};
 pub use debug_query::DebugFormat;
 pub use error_context::{exit_with_error, ErrorContext};
+pub use rule_overwrite::RuleOverwrite;
 pub use tracing::{FileTrace, RuleTrace, RunTrace, ScanTrace, Tracing};
 pub use worker::{Items, PathWorker, StdInWorker, Worker};
 
