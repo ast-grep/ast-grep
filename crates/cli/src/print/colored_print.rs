@@ -110,6 +110,8 @@ impl<W: WriteColor + Send + Sync> ColoredPrinter<W> {
 
   pub fn context(mut self, context: (u16, u16)) -> Self {
     self.context = context;
+    self.config.start_context_lines = context.0 as usize;
+    self.config.end_context_lines = context.1 as usize;
     self
   }
 
