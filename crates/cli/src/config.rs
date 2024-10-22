@@ -60,10 +60,13 @@ pub struct ProjectConfig {
 }
 
 impl ProjectConfig {
-  pub fn find(config_path: Option<PathBuf>) -> Result<Self> {
-    Self::find_by_base(config_path, None)
+  pub fn by_config_path(config_path: Option<PathBuf>) -> Result<Self> {
+    Self::find(config_path, None)
   }
-  pub fn find_by_base(config_path: Option<PathBuf>, base: Option<&Path>) -> Result<Self> {
+  pub fn by_project_dir(project_dir: &Path) -> Result<Self> {
+    Self::find(None, Some(project_dir))
+  }
+  pub fn find(config_path: Option<PathBuf>, base: Option<&Path>) -> Result<Self> {
     let config_path =
       find_config_path_with_default(config_path, base).context(EC::ReadConfiguration)?;
     let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
@@ -83,22 +86,22 @@ pub fn find_rules(
   config_path: Option<PathBuf>,
   rule_filter: Option<&Regex>,
 ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
-  let project_config = ProjectConfig::find(config_path)?;
+  let project_config = ProjectConfig::by_config_path(config_path)?;
   let global_rules = find_util_rules(&project_config)?;
   read_directory_yaml(&project_config, global_rules, rule_filter)
 }
 
 pub fn register_custom_language(config_path: Option<PathBuf>) -> Result<()> {
-  let Ok(mut path) = find_config_path_with_default(config_path, None) else {
-    return Ok(()); // do not report error if no sgconfig.yml is found
+  // do not report error if no sgconfig.yml is found
+  let Ok(project_config) = ProjectConfig::by_config_path(config_path) else {
+    return Ok(());
   };
-  let Ok(config_str) = read_to_string(&path) else {
-    return Ok(()); // suppress error when register custom lang
-  };
-  let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
-  path.pop();
+  let ProjectConfig {
+    project_dir,
+    sg_config,
+  } = project_config;
   if let Some(custom_langs) = sg_config.custom_languages {
-    SgLang::register_custom_language(path, custom_langs);
+    SgLang::register_custom_language(project_dir, custom_langs);
   }
   if let Some(globs) = sg_config.language_globs {
     SgLang::register_globs(globs)?;
@@ -223,17 +226,8 @@ pub fn read_rule_file(
 }
 
 /// Returns the base_directory where config is and config object.
-pub fn read_config_from_dir<P: AsRef<Path>>(path: P) -> Result<Option<(PathBuf, AstGrepConfig)>> {
-  let mut config_path =
-    find_config_path_with_default(None, Some(path.as_ref())).context(EC::ReadConfiguration)?;
-  if !config_path.is_file() {
-    return Ok(None);
-  }
-  let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
-  let sg_config = from_str(&config_str).context(EC::ParseConfiguration)?;
-  // remove sgconfig.yml from the path
-  config_path.pop(); // ./sg_config -> ./
-  Ok(Some((config_path, sg_config)))
+pub fn read_config_from_dir<P: AsRef<Path>>(path: P) -> Result<ProjectConfig> {
+  ProjectConfig::by_project_dir(path.as_ref())
 }
 
 const CONFIG_FILE: &str = "sgconfig.yml";

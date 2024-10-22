@@ -1,6 +1,6 @@
 use crate::config::{
   find_config_path_with_default, read_config_from_dir, register_custom_language, AstGrepConfig,
-  TestConfig,
+  ProjectConfig, TestConfig,
 };
 use crate::lang::SgLang;
 use crate::utils::ErrorContext as EC;
@@ -156,12 +156,9 @@ pub fn run_create_new(mut arg: NewArg) -> Result<()> {
   }
 }
 
-// base_dir, config
-type FoundConfig = (PathBuf, AstGrepConfig);
-
 fn run_create_entity(entity: Entity, arg: NewArg) -> Result<()> {
   // check if we are under a project dir
-  if let Some(found) = read_config_from_dir(&arg.base_dir)? {
+  if let Ok(found) = read_config_from_dir(&arg.base_dir) {
     return do_create_entity(entity, found, arg);
   }
   // check if we creating a project
@@ -173,11 +170,11 @@ fn run_create_entity(entity: Entity, arg: NewArg) -> Result<()> {
   }
 }
 
-fn do_create_entity(entity: Entity, found: FoundConfig, arg: NewArg) -> Result<()> {
+fn do_create_entity(entity: Entity, found: ProjectConfig, arg: NewArg) -> Result<()> {
   // ask user what destination to create if multiple dirs exist
   match entity {
     Entity::Rule => create_new_rule(found, arg),
-    Entity::Test => create_new_test(found.1.test_configs, arg.name),
+    Entity::Test => create_new_test(found.sg_config.test_configs, arg.name),
     Entity::Util => create_new_util(found, arg),
     Entity::Project => Err(anyhow::anyhow!(EC::ProjectAlreadyExist)),
   }
@@ -185,7 +182,7 @@ fn do_create_entity(entity: Entity, found: FoundConfig, arg: NewArg) -> Result<(
 
 fn ask_entity_type(arg: NewArg) -> Result<()> {
   // 1. check if we are under a sgconfig.yml
-  if let Some(found) = read_config_from_dir(&arg.base_dir)? {
+  if let Ok(found) = read_config_from_dir(&arg.base_dir) {
     // 2. ask users what to create if yes
     let entity = arg.ask_entity_type()?;
     do_create_entity(entity, found, arg)
@@ -242,16 +239,19 @@ rule:
   )
 }
 
-fn create_new_rule(found: FoundConfig, arg: NewArg) -> Result<()> {
-  let (base_dir, sg_config) = found;
+fn create_new_rule(found: ProjectConfig, arg: NewArg) -> Result<()> {
+  let ProjectConfig {
+    project_dir,
+    sg_config,
+  } = found;
   let name = arg.ask_name("rule")?;
   let rule_dir = if sg_config.rule_dirs.len() > 1 {
     let dirs = sg_config.rule_dirs.iter().map(|p| p.display()).collect();
     let display =
       inquire::Select::new("Which rule dir do you want to save your rule?", dirs).prompt()?;
-    base_dir.join(display.to_string())
+    project_dir.join(display.to_string())
   } else {
-    base_dir.join(&sg_config.rule_dirs[0])
+    project_dir.join(&sg_config.rule_dirs[0])
   };
   let path = rule_dir.join(format!("{name}.yml"));
   if path.exists() {
@@ -318,8 +318,11 @@ rule:
   )
 }
 
-fn create_new_util(found: FoundConfig, arg: NewArg) -> Result<()> {
-  let (base_dir, sg_config) = found;
+fn create_new_util(found: ProjectConfig, arg: NewArg) -> Result<()> {
+  let ProjectConfig {
+    project_dir,
+    sg_config,
+  } = found;
   let Some(utils) = sg_config.util_dirs else {
     return Err(anyhow::anyhow!(EC::NoUtilDirConfigured));
   };
@@ -330,9 +333,9 @@ fn create_new_util(found: FoundConfig, arg: NewArg) -> Result<()> {
     let dirs = utils.iter().map(|p| p.display()).collect();
     let display =
       inquire::Select::new("Which util dir do you want to save your rule?", dirs).prompt()?;
-    base_dir.join(display.to_string())
+    project_dir.join(display.to_string())
   } else {
-    base_dir.join(&utils[0])
+    project_dir.join(&utils[0])
   };
   let name = arg.ask_name("util")?;
   let path = util_dir.join(format!("{name}.yml"));
