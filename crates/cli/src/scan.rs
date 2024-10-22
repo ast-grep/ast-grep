@@ -74,6 +74,11 @@ pub struct ScanArg {
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
   register_custom_language(arg.config.clone())?;
+  let context = if arg.output.context != 0 {
+    (arg.output.context, arg.output.context)
+  } else {
+    (arg.output.before, arg.output.after)
+  };
   if let Some(_format) = &arg.format {
     let printer = CloudPrinter::stdout();
     return run_scan(arg, printer);
@@ -82,7 +87,9 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
     let printer = JSONPrinter::stdout(json);
     return run_scan(arg, printer);
   }
-  let printer = ColoredPrinter::stdout(arg.output.color).style(arg.report_style);
+  let printer = ColoredPrinter::stdout(arg.output.color)
+    .style(arg.report_style)
+    .context(context);
   let interactive = arg.output.needs_interactive();
   if interactive {
     let from_stdin = arg.input.stdin;
@@ -383,6 +390,9 @@ rule:
         update_all: false,
         color: ColorArg::Never,
         tracing: Default::default(),
+        before: 0,
+        after: 0,
+        context: 0,
       },
       format: None,
     }

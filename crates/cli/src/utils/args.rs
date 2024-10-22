@@ -153,6 +153,39 @@ pub struct OutputArgs {
   /// tracing information outputs to stderr and does not affect the result of the search.
   #[clap(long, default_value = "nothing", value_name = "LEVEL")]
   pub tracing: Tracing,
+
+  // context related options
+  /// Show NUM lines after each match.
+  ///
+  /// It conflicts with both the -C/--context flag.
+  #[clap(
+    short = 'A',
+    long,
+    default_value = "0",
+    conflicts_with = "context",
+    value_name = "NUM"
+  )]
+  pub after: u16,
+
+  /// Show NUM lines before each match.
+  ///
+  /// It conflicts with both the -C/--context flag.
+  #[clap(
+    short = 'B',
+    long,
+    default_value = "0",
+    conflicts_with = "context",
+    value_name = "NUM"
+  )]
+  pub before: u16,
+
+  /// Show NUM lines around each match.
+  ///
+  /// This is equivalent to providing both the
+  /// -B/--before and -A/--after flags with the same value.
+  /// It conflicts with both the -B/--before and -A/--after flags.
+  #[clap(short = 'C', long, default_value = "0", value_name = "NUM")]
+  pub context: u16,
 }
 
 impl OutputArgs {
