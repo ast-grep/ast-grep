@@ -218,6 +218,9 @@ mod test_cli {
     ok("scan --globs '*.js' --globs '*.ts'");
     ok("scan -j 12");
     ok("scan --threads 12");
+    ok("scan -A 12");
+    ok("scan --after 12");
+    ok("scan --context 1");
     error("scan -i --json dir"); // conflict
     error("scan --report-style rich --json dir"); // conflict
     error("scan -r test.yml --inline-rules '{}'"); // conflict

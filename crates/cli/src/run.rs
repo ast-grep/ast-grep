@@ -11,7 +11,7 @@ use crate::config::register_custom_language;
 use crate::lang::SgLang;
 use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
 use crate::utils::ErrorContext as EC;
-use crate::utils::{filter_file_pattern, InputArgs, MatchUnit, OutputArgs};
+use crate::utils::{filter_file_pattern, ContextArgs, InputArgs, MatchUnit, OutputArgs};
 use crate::utils::{DebugFormat, FileTrace, RunTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
@@ -108,6 +108,10 @@ pub struct RunArg {
   #[clap(flatten)]
   output: OutputArgs,
 
+  /// context related options
+  #[clap(flatten)]
+  context: ContextArgs,
+
   /// Controls whether to print the file name as heading.
   ///
   /// If heading is used, the file name will be printed as heading before all matches of that file.
@@ -137,11 +141,7 @@ impl RunArg {
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
 pub fn run_with_pattern(arg: RunArg) -> Result<()> {
-  let context = if arg.output.context != 0 {
-    (arg.output.context, arg.output.context)
-  } else {
-    (arg.output.before, arg.output.after)
-  };
+  let context = arg.context.get();
   if let Some(json) = arg.output.json {
     let printer = JSONPrinter::stdout(json).context(context);
     return run_pattern_with_printer(arg, printer);
@@ -372,6 +372,8 @@ mod test {
         json: None,
         update_all: false,
         tracing: Default::default(),
+      },
+      context: ContextArgs {
         before: 0,
         after: 0,
         context: 0,

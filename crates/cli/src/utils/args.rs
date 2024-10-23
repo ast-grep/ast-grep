@@ -153,8 +153,18 @@ pub struct OutputArgs {
   /// tracing information outputs to stderr and does not affect the result of the search.
   #[clap(long, default_value = "nothing", value_name = "LEVEL")]
   pub tracing: Tracing,
+}
 
-  // context related options
+impl OutputArgs {
+  // either explicit interactive or implicit update_all
+  pub fn needs_interactive(&self) -> bool {
+    self.interactive || self.update_all
+  }
+}
+
+/// context related options
+#[derive(Args)]
+pub struct ContextArgs {
   /// Show NUM lines after each match.
   ///
   /// It conflicts with both the -C/--context flag.
@@ -188,10 +198,13 @@ pub struct OutputArgs {
   pub context: u16,
 }
 
-impl OutputArgs {
-  // either explicit interactive or implicit update_all
-  pub fn needs_interactive(&self) -> bool {
-    self.interactive || self.update_all
+impl ContextArgs {
+  pub fn get(&self) -> (u16, u16) {
+    if self.context > 0 {
+      (self.context, self.context)
+    } else {
+      (self.before, self.after)
+    }
   }
 }
 

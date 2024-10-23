@@ -18,7 +18,7 @@ use crate::print::{
 };
 use crate::utils::ErrorContext as EC;
 use crate::utils::RuleOverwrite;
-use crate::utils::{filter_file_interactive, InputArgs, OutputArgs, SeverityArg};
+use crate::utils::{filter_file_interactive, ContextArgs, InputArgs, OutputArgs, SeverityArg};
 use crate::utils::{FileTrace, RuleTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
@@ -70,15 +70,14 @@ pub struct ScanArg {
   /// output related options
   #[clap(flatten)]
   output: OutputArgs,
+  /// context related options
+  #[clap(flatten)]
+  context: ContextArgs,
 }
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
   register_custom_language(arg.config.clone())?;
-  let context = if arg.output.context != 0 {
-    (arg.output.context, arg.output.context)
-  } else {
-    (arg.output.before, arg.output.after)
-  };
+  let context = arg.context.get();
   if let Some(_format) = &arg.format {
     let printer = CloudPrinter::stdout();
     return run_scan(arg, printer);
@@ -390,6 +389,8 @@ rule:
         update_all: false,
         color: ColorArg::Never,
         tracing: Default::default(),
+      },
+      context: ContextArgs {
         before: 0,
         after: 0,
         context: 0,
