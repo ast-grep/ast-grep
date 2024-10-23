@@ -276,14 +276,39 @@ impl NoIgnore {
 
 #[derive(Args, Debug)]
 pub struct SeverityArg {
+  /// Set rule severity to error
+  ///
+  /// This flag sets the specified RULE_ID's severity to error. You can specify multiple rules by using the flag multiple times,
+  /// e.g., `--error=RULE_1 --error=RULE_2`. If no RULE_ID is provided, all rules will be set to error, e.g., `--error`.
+  /// Note, this flag must use `=` to specify its value.
   #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
   pub error: Option<Vec<String>>,
+  /// Set rule severity to warning
+  ///
+  /// This flag sets the specified RULE_ID's severity to warning. You can specify multiple rules by using the flag multiple times.
+  /// If no RULE_ID is provided, all rules will be set to warning.
+  /// Note, this flag must use `=` to specify its value.
   #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
   pub warning: Option<Vec<String>>,
+  /// Set rule severity to info
+  ///
+  /// This flag sets the specified RULE_ID's severity to info. You can specify multiple rules by using the flag multiple times.
+  /// If no RULE_ID is provided, all rules will be set to info.
+  /// Note, this flag must use `=` to specify its value.
   #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
   pub info: Option<Vec<String>>,
+  /// Set rule severity to hint
+  ///
+  /// This flag sets the specified RULE_ID's severity to hint. You can specify multiple rules by using the flag multiple times.
+  /// If no RULE_ID is provided, all rules will be set to hint.
+  /// Note, this flag must use `=` to specify its value.
   #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
   pub hint: Option<Vec<String>>,
+  /// Turn off rule
+  ///
+  /// This flag turns off the specified RULE_ID. You can disable multiple rules by using the flag multiple times.
+  /// If no RULE_ID is provided, all rules will be turned off.
+  /// Note, this flag must use `=` to specify its value.
   #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
   pub off: Option<Vec<String>>,
 }
