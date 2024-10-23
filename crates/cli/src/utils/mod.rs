@@ -5,7 +5,7 @@ mod rule_overwrite;
 mod tracing;
 mod worker;
 
-pub use args::{ContextArgs, InputArgs, OutputArgs, SeverityArg};
+pub use args::{ContextArgs, InputArgs, OutputArgs, OverwriteArgs};
 pub use debug_query::DebugFormat;
 pub use error_context::{exit_with_error, ErrorContext};
 pub use rule_overwrite::RuleOverwrite;

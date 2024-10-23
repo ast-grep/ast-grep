@@ -1,4 +1,4 @@
-use super::SeverityArg;
+use super::OverwriteArgs;
 use crate::lang::SgLang;
 use crate::utils::ErrorContext as EC;
 
@@ -33,7 +33,7 @@ fn read_severity(
 }
 
 impl RuleOverwrite {
-  pub fn new(cli: &SeverityArg, filter: &Option<Regex>) -> Result<Self> {
+  pub fn new(cli: &OverwriteArgs) -> Result<Self> {
     let mut default_severity = None;
     let mut by_rule_id = HashMap::new();
     read_severity(
@@ -69,7 +69,7 @@ impl RuleOverwrite {
     Ok(Self {
       default_severity,
       by_rule_id,
-      rule_filter: filter.clone(),
+      rule_filter: cli.filter.clone(),
     })
   }
 

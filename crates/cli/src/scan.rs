@@ -8,7 +8,6 @@ use ast_grep_config::{
 use ast_grep_core::{NodeMatch, StrDoc};
 use clap::Args;
 use ignore::WalkParallel;
-use regex::Regex;
 
 use crate::config::{find_rules, read_rule_file, register_custom_language};
 use crate::lang::SgLang;
@@ -18,7 +17,7 @@ use crate::print::{
 };
 use crate::utils::ErrorContext as EC;
 use crate::utils::RuleOverwrite;
-use crate::utils::{filter_file_interactive, ContextArgs, InputArgs, OutputArgs, SeverityArg};
+use crate::utils::{filter_file_interactive, ContextArgs, InputArgs, OutputArgs, OverwriteArgs};
 use crate::utils::{FileTrace, RuleTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
@@ -44,13 +43,6 @@ pub struct ScanArg {
   #[clap(long, conflicts_with = "rule", value_name = "RULE_TEXT")]
   inline_rules: Option<String>,
 
-  /// Scan the codebase with rules with ids matching REGEX.
-  ///
-  /// This flags conflicts with --rule. It is useful to scan with a subset of rules from a large
-  /// set of rule definitions within a project.
-  #[clap(long, conflicts_with = "rule", value_name = "REGEX")]
-  filter: Option<Regex>,
-
   /// Output warning/error messages in GitHub Action format.
   ///
   /// Currently, only GitHub is supported.
@@ -62,7 +54,7 @@ pub struct ScanArg {
 
   /// severity related options
   #[clap(flatten)]
-  severity: SeverityArg,
+  overwrite: OverwriteArgs,
 
   /// input related options
   #[clap(flatten)]
@@ -127,7 +119,7 @@ impl<P: Printer> ScanWithConfig<P> {
         .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
     } else {
-      let overwrite = RuleOverwrite::new(&arg.severity, &arg.filter)?;
+      let overwrite = RuleOverwrite::new(&arg.overwrite)?;
       let (configs, r_stats) = find_rules(arg.config.take(), overwrite)?;
       rule_trace = r_stats;
       configs
@@ -364,7 +356,6 @@ rule:
   fn default_scan_arg() -> ScanArg {
     ScanArg {
       config: None,
-      filter: None,
       rule: None,
       inline_rules: None,
       report_style: ReportStyle::Rich,
@@ -376,7 +367,8 @@ rule:
         globs: vec![],
         threads: 0,
       },
-      severity: SeverityArg {
+      overwrite: OverwriteArgs {
+        filter: None,
         error: None,
         warning: None,
         info: None,

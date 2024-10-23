@@ -9,6 +9,7 @@ use ignore::{
   overrides::{Override, OverrideBuilder},
   WalkBuilder, WalkParallel,
 };
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use std::path::PathBuf;
@@ -275,7 +276,13 @@ impl NoIgnore {
 }
 
 #[derive(Args, Debug)]
-pub struct SeverityArg {
+pub struct OverwriteArgs {
+  /// Scan the codebase with rules with ids matching REGEX.
+  ///
+  /// This flags conflicts with --rule. It is useful to scan with a subset of rules from a large
+  /// set of rule definitions within a project.
+  #[clap(long, conflicts_with = "rule", value_name = "REGEX")]
+  pub filter: Option<Regex>,
   /// Set rule severity to error
   ///
   /// This flag sets the specified RULE_ID's severity to error. You can specify multiple rules by using the flag multiple times,
