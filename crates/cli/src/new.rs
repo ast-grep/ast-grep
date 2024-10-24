@@ -1,6 +1,5 @@
 use crate::config::{
-  find_config_path_with_default, read_config_from_dir, register_custom_language, AstGrepConfig,
-  ProjectConfig, TestConfig,
+  read_config_from_dir, register_custom_language, AstGrepConfig, ProjectConfig, TestConfig,
 };
 use crate::lang::SgLang;
 use crate::utils::ErrorContext as EC;
@@ -147,8 +146,8 @@ impl Display for Entity {
 }
 
 pub fn run_create_new(mut arg: NewArg) -> Result<()> {
-  let config_path = find_config_path_with_default(None, Some(arg.base_dir.as_path()))?;
-  register_custom_language(Some(config_path))?;
+  let config_path = ProjectConfig::by_project_dir(&arg.base_dir)?;
+  register_custom_language(config_path)?;
   if let Some(entity) = arg.entity.take() {
     run_create_entity(entity, arg)
   } else {

@@ -9,7 +9,7 @@ use ast_grep_core::{NodeMatch, StrDoc};
 use clap::Args;
 use ignore::WalkParallel;
 
-use crate::config::{find_rules, read_rule_file, register_custom_language};
+use crate::config::{find_rules, read_rule_file, register_custom_language, ProjectConfig};
 use crate::lang::SgLang;
 use crate::print::{
   CloudPrinter, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, Printer,
@@ -68,7 +68,8 @@ pub struct ScanArg {
 }
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
-  register_custom_language(arg.config.clone())?;
+  let project_config = ProjectConfig::by_config_path(arg.config.clone())?;
+  register_custom_language(project_config)?;
   let context = arg.context.get();
   if let Some(_format) = &arg.format {
     let printer = CloudPrinter::stdout();

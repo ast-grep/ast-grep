@@ -1,4 +1,4 @@
-use crate::config::{find_config_path_with_default, find_rules, register_custom_language};
+use crate::config::{find_rules, register_custom_language, ProjectConfig};
 use crate::utils::ErrorContext as EC;
 use anyhow::{Context, Result};
 use ast_grep_lsp::{Backend, LspService, Server};
@@ -12,18 +12,15 @@ pub struct LspArg {
   config: Option<PathBuf>,
 }
 
-fn find_config_base(config: Option<PathBuf>) -> Result<PathBuf> {
-  let mut config_path = find_config_path_with_default(config, None)?;
-  config_path.pop();
-  Ok(config_path)
-}
-
 async fn run_language_server_impl(arg: LspArg) -> Result<()> {
   // env_logger::init();
-  register_custom_language(arg.config.clone())?;
+  let project_config = ProjectConfig::by_config_path(arg.config.clone())?;
+  // TODO: move this error to client
+  let project_config = project_config.ok_or_else(|| anyhow::anyhow!(EC::ProjectNotExist))?;
+  let config_base = project_config.project_dir.clone();
+  register_custom_language(Some(project_config))?;
   let stdin = tokio::io::stdin();
   let stdout = tokio::io::stdout();
-  let config_base = find_config_base(arg.config.clone())?;
   let config_result = find_rules(arg.config, Default::default());
   let config_result_std: std::result::Result<_, String> = config_result
     .map_err(|e| {

@@ -4,7 +4,7 @@ mod reporter;
 mod snapshot;
 mod test_case;
 
-use crate::config::{find_rules, register_custom_language};
+use crate::config::{find_rules, register_custom_language, ProjectConfig};
 use crate::lang::SgLang;
 use crate::utils::ErrorContext;
 use anyhow::{anyhow, Result};
@@ -183,7 +183,8 @@ pub struct TestArg {
 }
 
 pub fn run_test_rule(arg: TestArg) -> Result<()> {
-  register_custom_language(arg.config.clone())?;
+  let project_config = ProjectConfig::by_config_path(arg.config.clone())?;
+  register_custom_language(project_config)?;
   if arg.interactive {
     let reporter = InteractiveReporter {
       output: std::io::stdout(),

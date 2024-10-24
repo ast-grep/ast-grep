@@ -97,9 +97,9 @@ pub fn find_rules(
   read_directory_yaml(&project_config, global_rules, rule_overwrite)
 }
 
-pub fn register_custom_language(config_path: Option<PathBuf>) -> Result<()> {
+pub fn register_custom_language(project_config: Option<ProjectConfig>) -> Result<()> {
   // do not report error if no sgconfig.yml is found
-  let Some(project_config) = ProjectConfig::by_config_path(config_path)? else {
+  let Some(project_config) = project_config else {
     return Ok(());
   };
   let ProjectConfig {
