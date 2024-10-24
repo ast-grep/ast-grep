@@ -4,7 +4,7 @@ mod reporter;
 mod snapshot;
 mod test_case;
 
-use crate::config::{find_rules, register_custom_language, ProjectConfig};
+use crate::config::{register_custom_language, ProjectConfig};
 use crate::lang::SgLang;
 use crate::utils::ErrorContext;
 use anyhow::{anyhow, Result};
@@ -57,7 +57,8 @@ where
 }
 
 fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<()> {
-  let collections = &find_rules(arg.config.clone(), Default::default())?.0;
+  let project_config = ProjectConfig::by_config_path_must(arg.config.clone())?;
+  let collections = &project_config.find_rules(Default::default())?.0;
   let TestHarness {
     test_cases,
     snapshots,

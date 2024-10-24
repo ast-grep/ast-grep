@@ -9,7 +9,7 @@ use ast_grep_core::{NodeMatch, StrDoc};
 use clap::Args;
 use ignore::WalkParallel;
 
-use crate::config::{find_rules, read_rule_file, register_custom_language, ProjectConfig};
+use crate::config::{read_rule_file, register_custom_language, ProjectConfig};
 use crate::lang::SgLang;
 use crate::print::{
   CloudPrinter, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, Printer,
@@ -110,7 +110,7 @@ struct ScanWithConfig<Printer> {
   trace: ScanTrace,
 }
 impl<P: Printer> ScanWithConfig<P> {
-  fn try_new(mut arg: ScanArg, printer: P) -> Result<Self> {
+  fn try_new(arg: ScanArg, printer: P) -> Result<Self> {
     let mut rule_trace = RuleTrace::default();
     let configs = if let Some(path) = &arg.rule {
       let rules = read_rule_file(path, None)?;
@@ -120,8 +120,9 @@ impl<P: Printer> ScanWithConfig<P> {
         .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
     } else {
+      let project_config = ProjectConfig::by_config_path_must(arg.config.clone())?;
       let overwrite = RuleOverwrite::new(&arg.overwrite)?;
-      let (configs, r_stats) = find_rules(arg.config.take(), overwrite)?;
+      let (configs, r_stats) = project_config.find_rules(overwrite)?;
       rule_trace = r_stats;
       configs
     };

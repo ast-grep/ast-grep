@@ -1,4 +1,4 @@
-use crate::config::{find_rules, register_custom_language, ProjectConfig};
+use crate::config::{register_custom_language, ProjectConfig};
 use crate::utils::ErrorContext as EC;
 use anyhow::{Context, Result};
 use ast_grep_lsp::{Backend, LspService, Server};
@@ -14,14 +14,12 @@ pub struct LspArg {
 
 async fn run_language_server_impl(arg: LspArg) -> Result<()> {
   // env_logger::init();
-  let project_config = ProjectConfig::by_config_path(arg.config.clone())?;
   // TODO: move this error to client
-  let project_config = project_config.ok_or_else(|| anyhow::anyhow!(EC::ProjectNotExist))?;
-  let config_base = project_config.project_dir.clone();
-  register_custom_language(Some(project_config))?;
+  let project_config = ProjectConfig::by_config_path_must(arg.config.clone())?;
+  register_custom_language(Some(project_config.clone()))?;
   let stdin = tokio::io::stdin();
   let stdout = tokio::io::stdout();
-  let config_result = find_rules(arg.config, Default::default());
+  let config_result = project_config.find_rules(Default::default());
   let config_result_std: std::result::Result<_, String> = config_result
     .map_err(|e| {
       // convert anyhow::Error to String with chain of causes
@@ -31,6 +29,7 @@ async fn run_language_server_impl(arg: LspArg) -> Result<()> {
         .join(". ")
     })
     .map(|r| r.0);
+  let config_base = project_config.project_dir;
   let (service, socket) =
     LspService::build(|client| Backend::new(client, config_base, config_result_std)).finish();
   Server::new(stdin, stdout, socket).serve(service).await;

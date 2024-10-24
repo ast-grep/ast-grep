@@ -1,5 +1,5 @@
 use super::{SnapshotCollection, TestCase, TestSnapshots};
-use crate::config::{find_config_path_with_default, AstGrepConfig};
+use crate::config::ProjectConfig;
 use crate::utils::ErrorContext as EC;
 
 use anyhow::{Context, Result};
@@ -90,16 +90,13 @@ pub fn find_tests(
   config_path: Option<PathBuf>,
   regex_filter: Option<&Regex>,
 ) -> Result<TestHarness> {
-  let config_path =
-    find_config_path_with_default(config_path, None).context(EC::ReadConfiguration)?;
-  let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
-  let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
-  let base_dir = config_path
-    .parent()
-    .expect("config file must have parent directory");
+  let ProjectConfig {
+    project_dir,
+    sg_config,
+  } = ProjectConfig::by_config_path_must(config_path)?;
   let test_configs = sg_config.test_configs.unwrap_or_default();
   let mut builder = HarnessBuilder {
-    base_dir: base_dir.to_path_buf(),
+    base_dir: project_dir,
     regex_filter,
     dest: TestHarness::default(),
   };

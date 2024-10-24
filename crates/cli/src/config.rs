@@ -53,20 +53,27 @@ pub struct AstGrepConfig {
   pub language_injections: Vec<SerializableInjection>,
 }
 
+#[derive(Clone)]
 pub struct ProjectConfig {
   pub project_dir: PathBuf,
   pub sg_config: AstGrepConfig,
 }
 
 impl ProjectConfig {
+  pub fn by_config_path_must(config_path: Option<PathBuf>) -> Result<Self> {
+    Self::discover_project(config_path, None)?.ok_or_else(|| anyhow::anyhow!(EC::ProjectNotExist))
+  }
   pub fn by_config_path(config_path: Option<PathBuf>) -> Result<Option<Self>> {
-    Self::find(config_path, None)
+    Self::discover_project(config_path, None)
   }
   pub fn by_project_dir(project_dir: &Path) -> Result<Option<Self>> {
-    Self::find(None, Some(project_dir))
+    Self::discover_project(None, Some(project_dir))
   }
   // return None if config file does not exist
-  pub fn find(config_path: Option<PathBuf>, base: Option<&Path>) -> Result<Option<Self>> {
+  pub fn discover_project(
+    config_path: Option<PathBuf>,
+    base: Option<&Path>,
+  ) -> Result<Option<Self>> {
     let config_path =
       find_config_path_with_default(config_path, base).context(EC::ReadConfiguration)?;
     // NOTE: if config file does not exist, return None
@@ -85,16 +92,14 @@ impl ProjectConfig {
       sg_config,
     }))
   }
-}
 
-pub fn find_rules(
-  config_path: Option<PathBuf>,
-  rule_overwrite: RuleOverwrite,
-) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
-  let project_config =
-    ProjectConfig::by_config_path(config_path)?.ok_or(anyhow::anyhow!(EC::ProjectNotExist))?;
-  let global_rules = find_util_rules(&project_config)?;
-  read_directory_yaml(&project_config, global_rules, rule_overwrite)
+  pub fn find_rules(
+    &self,
+    rule_overwrite: RuleOverwrite,
+  ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
+    let global_rules = find_util_rules(self)?;
+    read_directory_yaml(self, global_rules, rule_overwrite)
+  }
 }
 
 pub fn register_custom_language(project_config: Option<ProjectConfig>) -> Result<()> {
@@ -218,7 +223,7 @@ pub fn read_config_from_dir<P: AsRef<Path>>(path: P) -> Result<Option<ProjectCon
 
 const CONFIG_FILE: &str = "sgconfig.yml";
 
-pub fn find_config_path_with_default(
+fn find_config_path_with_default(
   config_path: Option<PathBuf>,
   base: Option<&Path>,
 ) -> Result<PathBuf> {
