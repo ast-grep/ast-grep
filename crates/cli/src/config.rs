@@ -59,25 +59,31 @@ pub struct ProjectConfig {
 }
 
 impl ProjectConfig {
-  pub fn by_config_path(config_path: Option<PathBuf>) -> Result<Self> {
+  pub fn by_config_path(config_path: Option<PathBuf>) -> Result<Option<Self>> {
     Self::find(config_path, None)
   }
-  pub fn by_project_dir(project_dir: &Path) -> Result<Self> {
+  pub fn by_project_dir(project_dir: &Path) -> Result<Option<Self>> {
     Self::find(None, Some(project_dir))
   }
-  pub fn find(config_path: Option<PathBuf>, base: Option<&Path>) -> Result<Self> {
+  // return None if config file does not exist
+  pub fn find(config_path: Option<PathBuf>, base: Option<&Path>) -> Result<Option<Self>> {
     let config_path =
       find_config_path_with_default(config_path, base).context(EC::ReadConfiguration)?;
+    // NOTE: if config file does not exist, return None
+    // this is not 100% correct because of racing condition
+    if !config_path.is_file() {
+      return Ok(None);
+    }
     let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
     let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
     let project_dir = config_path
       .parent()
       .expect("config file must have parent directory")
       .to_path_buf();
-    Ok(ProjectConfig {
+    Ok(Some(ProjectConfig {
       project_dir,
       sg_config,
-    })
+    }))
   }
 }
 
@@ -85,14 +91,15 @@ pub fn find_rules(
   config_path: Option<PathBuf>,
   rule_overwrite: RuleOverwrite,
 ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
-  let project_config = ProjectConfig::by_config_path(config_path)?;
+  let project_config =
+    ProjectConfig::by_config_path(config_path)?.ok_or(anyhow::anyhow!(EC::ProjectNotExist))?;
   let global_rules = find_util_rules(&project_config)?;
   read_directory_yaml(&project_config, global_rules, rule_overwrite)
 }
 
 pub fn register_custom_language(config_path: Option<PathBuf>) -> Result<()> {
   // do not report error if no sgconfig.yml is found
-  let Ok(project_config) = ProjectConfig::by_config_path(config_path) else {
+  let Some(project_config) = ProjectConfig::by_config_path(config_path)? else {
     return Ok(());
   };
   let ProjectConfig {
@@ -205,7 +212,7 @@ pub fn read_rule_file(
 }
 
 /// Returns the base_directory where config is and config object.
-pub fn read_config_from_dir<P: AsRef<Path>>(path: P) -> Result<ProjectConfig> {
+pub fn read_config_from_dir<P: AsRef<Path>>(path: P) -> Result<Option<ProjectConfig>> {
   ProjectConfig::by_project_dir(path.as_ref())
 }
 

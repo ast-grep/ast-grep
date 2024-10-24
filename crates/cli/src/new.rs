@@ -158,7 +158,7 @@ pub fn run_create_new(mut arg: NewArg) -> Result<()> {
 
 fn run_create_entity(entity: Entity, arg: NewArg) -> Result<()> {
   // check if we are under a project dir
-  if let Ok(found) = read_config_from_dir(&arg.base_dir) {
+  if let Some(found) = read_config_from_dir(&arg.base_dir)? {
     return do_create_entity(entity, found, arg);
   }
   // check if we creating a project
@@ -182,7 +182,7 @@ fn do_create_entity(entity: Entity, found: ProjectConfig, arg: NewArg) -> Result
 
 fn ask_entity_type(arg: NewArg) -> Result<()> {
   // 1. check if we are under a sgconfig.yml
-  if let Ok(found) = read_config_from_dir(&arg.base_dir) {
+  if let Some(found) = read_config_from_dir(&arg.base_dir)? {
     // 2. ask users what to create if yes
     let entity = arg.ask_entity_type()?;
     do_create_entity(entity, found, arg)
