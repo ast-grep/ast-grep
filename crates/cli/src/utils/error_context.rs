@@ -8,6 +8,7 @@ const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const PATTERN_GUIDE: Option<&str> = Some("/guide/pattern-syntax.html");
 const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
 const CONFIG_REFERENCE: Option<&str> = Some("/reference/sgconfig.html");
+const PROJECT_GUIDE: Option<&str> = Some("/guide/scan-project.html");
 const TOOL_OVERVIEW: Option<&str> = Some("/guide/tooling-overview.html#parse-code-from-stdin");
 const CLI_USAGE: Option<&str> = Some("/reference/cli.html");
 const TEST_GUIDE: Option<&str> = Some("/guide/test-rule.html");
@@ -233,12 +234,12 @@ impl ErrorMessage {
       ProjectAlreadyExist => Self::new(
         "ast-grep project already exists.",
         "You are already inside a sub-folder of an ast-grep project. Try finding sgconfig.yml in ancestor directory?",
-        CONFIG_GUIDE,
+        PROJECT_GUIDE,
       ),
       ProjectNotExist => Self::new(
-        "Fail to create the item because no project configuration is found.",
-        "You need to create an ast-grep project before creating rule. Try `sg new` to create one.",
-        CONFIG_GUIDE,
+        "No ast-grep project configuration is found.",
+        "You need to create an ast-grep project for this command. Try `sg new` to create one.",
+        PROJECT_GUIDE,
       ),
       FileAlreadyExist(path) => Self::new(
         format!("File `{}` already exists.", path.display()),
