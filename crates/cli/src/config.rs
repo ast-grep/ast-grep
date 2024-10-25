@@ -216,11 +216,6 @@ pub fn read_rule_file(
   parsed.with_context(|| EC::ParseRule(path.to_path_buf()))
 }
 
-/// Returns the base_directory where config is and config object.
-pub fn read_config_from_dir<P: AsRef<Path>>(path: P) -> Result<Option<ProjectConfig>> {
-  ProjectConfig::by_project_dir(path.as_ref())
-}
-
 const CONFIG_FILE: &str = "sgconfig.yml";
 
 fn find_config_path_with_default(
