@@ -31,7 +31,7 @@ pub struct NewArg {
   yes: bool,
 
   /// Path to ast-grep root config, default is sgconfig.yml.
-  #[clap(short, long, value_name = "CONFIG_FILE")]
+  #[clap(short, long, global = true, value_name = "CONFIG_FILE")]
   config: Option<PathBuf>,
 }
 

@@ -88,7 +88,6 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
   }
 
   let app = App::try_parse_from(args)?;
-  // TODO: add test for app parse
   match app.command {
     Commands::Run(arg) => run_with_pattern(arg),
     Commands::Scan(arg) => run_with_config(arg),
@@ -241,6 +240,17 @@ mod test_cli {
     ok("test -U");
     ok("test --update-all");
     error("test --update-all --skip-snapshot-tests");
+  }
+  #[test]
+  fn test_new() {
+    ok("new");
+    ok("new project");
+    ok("new -c sgconfig.yml rule");
+    ok("new rule -y");
+    ok("new test -y");
+    ok("new util -y");
+    ok("new rule -c sgconfig.yml");
+    error("new --base-dir");
   }
 
   #[test]
