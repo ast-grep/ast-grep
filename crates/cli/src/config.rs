@@ -66,14 +66,8 @@ impl ProjectConfig {
   pub fn by_config_path(config_path: Option<PathBuf>) -> Result<Option<Self>> {
     Self::discover_project(config_path, None)
   }
-  pub fn by_project_dir(project_dir: &Path) -> Result<Option<Self>> {
-    Self::discover_project(None, Some(project_dir))
-  }
   // return None if config file does not exist
-  pub fn discover_project(
-    config_path: Option<PathBuf>,
-    base: Option<&Path>,
-  ) -> Result<Option<Self>> {
+  fn discover_project(config_path: Option<PathBuf>, base: Option<&Path>) -> Result<Option<Self>> {
     let config_path =
       find_config_path_with_default(config_path, base).context(EC::ReadConfiguration)?;
     // NOTE: if config file does not exist, return None
