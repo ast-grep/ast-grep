@@ -23,8 +23,8 @@ pub struct TestHarness {
 }
 
 impl TestHarness {
-  pub fn from_config(config_path: Option<PathBuf>, regex_filter: Option<&Regex>) -> Result<Self> {
-    find_tests(config_path, regex_filter)
+  pub fn from_config(project_config: ProjectConfig, regex_filter: Option<&Regex>) -> Result<Self> {
+    find_tests(project_config, regex_filter)
   }
 
   pub fn from_dir(
@@ -87,13 +87,13 @@ impl<'a> HarnessBuilder<'a> {
 }
 
 pub fn find_tests(
-  config_path: Option<PathBuf>,
+  project_config: ProjectConfig,
   regex_filter: Option<&Regex>,
 ) -> Result<TestHarness> {
   let ProjectConfig {
-    project_dir,
     sg_config,
-  } = ProjectConfig::by_config_path_must(config_path)?;
+    project_dir,
+  } = project_config;
   let test_configs = sg_config.test_configs.unwrap_or_default();
   let mut builder = HarnessBuilder {
     base_dir: project_dir,

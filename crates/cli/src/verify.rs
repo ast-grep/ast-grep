@@ -4,7 +4,7 @@ mod reporter;
 mod snapshot;
 mod test_case;
 
-use crate::config::{register_custom_language, ProjectConfig};
+use crate::config::ProjectConfig;
 use crate::lang::SgLang;
 use crate::utils::ErrorContext;
 use anyhow::{anyhow, Result};
@@ -56,9 +56,12 @@ where
   })
 }
 
-fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<()> {
-  let project_config = ProjectConfig::by_config_path_must(arg.config.clone())?;
-  let collections = &project_config.find_rules(Default::default())?.0;
+fn run_test_rule_impl<R: Reporter + Send>(
+  arg: TestArg,
+  reporter: R,
+  project: ProjectConfig,
+) -> Result<()> {
+  let collections = &project.find_rules(Default::default())?.0;
   let TestHarness {
     test_cases,
     snapshots,
@@ -67,7 +70,7 @@ fn run_test_rule_impl<R: Reporter + Send>(arg: TestArg, reporter: R) -> Result<(
     let snapshot_dirname = arg.snapshot_dir.as_deref();
     TestHarness::from_dir(&test_dirname, snapshot_dirname, arg.filter.as_ref())?
   } else {
-    TestHarness::from_config(arg.config, arg.filter.as_ref())?
+    TestHarness::from_config(project, arg.filter.as_ref())?
   };
   let snapshots = (!arg.skip_snapshot_tests).then_some(snapshots);
   let reporter = &Arc::new(Mutex::new(reporter));
@@ -184,20 +187,20 @@ pub struct TestArg {
 }
 
 pub fn run_test_rule(arg: TestArg) -> Result<()> {
-  let project_config = ProjectConfig::by_config_path(arg.config.clone())?;
-  register_custom_language(project_config)?;
+  let project = ProjectConfig::setup(arg.config.clone())?
+    .ok_or_else(|| anyhow!(ErrorContext::ProjectNotExist))?;
   if arg.interactive {
     let reporter = InteractiveReporter {
       output: std::io::stdout(),
       should_accept_all: false,
     };
-    run_test_rule_impl(arg, reporter)
+    run_test_rule_impl(arg, reporter, project)
   } else {
     let reporter = DefaultReporter {
       output: std::io::stdout(),
       update_all: arg.update_all,
     };
-    run_test_rule_impl(arg, reporter)
+    run_test_rule_impl(arg, reporter, project)
   }
 }
 
@@ -302,13 +305,8 @@ rule:
     assert!(ret.is_none());
   }
 
-  use codespan_reporting::term::termcolor::Buffer;
   #[test]
   fn test_run_verify_error() {
-    let reporter = DefaultReporter {
-      output: Buffer::no_color(),
-      update_all: false,
-    };
     let arg = TestArg {
       config: None,
       interactive: false,
@@ -318,7 +316,7 @@ rule:
       update_all: false,
       filter: None,
     };
-    assert!(run_test_rule_impl(arg, reporter).is_err());
+    assert!(run_test_rule(arg).is_err());
   }
   const TRANSFORM_TEXT: &str = "
 transform:

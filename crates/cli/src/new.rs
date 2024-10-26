@@ -1,4 +1,4 @@
-use crate::config::{register_custom_language, AstGrepConfig, ProjectConfig, TestConfig};
+use crate::config::{AstGrepConfig, ProjectConfig, TestConfig};
 use crate::lang::SgLang;
 use crate::utils::ErrorContext as EC;
 
@@ -46,9 +46,6 @@ fn create_dir(project_dir: &Path, dir: &str) -> Result<PathBuf> {
 }
 
 impl NewArg {
-  fn find_project_config(&self) -> Result<Option<ProjectConfig>> {
-    ProjectConfig::by_config_path(self.config.clone())
-  }
   fn ask_dir(&self, prompt: &str, default: &str) -> Result<String> {
     let dir = if self.yes {
       default.to_owned()
@@ -152,18 +149,17 @@ impl Display for Entity {
 }
 
 pub fn run_create_new(mut arg: NewArg) -> Result<()> {
-  let project_config = arg.find_project_config()?;
-  register_custom_language(project_config)?;
+  let project_config = ProjectConfig::setup(arg.config.clone())?;
   if let Some(entity) = arg.entity.take() {
-    run_create_entity(entity, arg)
+    run_create_entity(entity, arg, project_config)
   } else {
-    ask_entity_type(arg)
+    ask_entity_type(arg, project_config)
   }
 }
 
-fn run_create_entity(entity: Entity, arg: NewArg) -> Result<()> {
+fn run_create_entity(entity: Entity, arg: NewArg, project: Option<ProjectConfig>) -> Result<()> {
   // check if we are under a project dir
-  if let Some(found) = arg.find_project_config()? {
+  if let Some(found) = project {
     return do_create_entity(entity, found, arg);
   }
   // check if we creating a project
@@ -185,9 +181,9 @@ fn do_create_entity(entity: Entity, found: ProjectConfig, arg: NewArg) -> Result
   }
 }
 
-fn ask_entity_type(arg: NewArg) -> Result<()> {
+fn ask_entity_type(arg: NewArg, project: Option<ProjectConfig>) -> Result<()> {
   // 1. check if we are under a sgconfig.yml
-  if let Some(found) = arg.find_project_config()? {
+  if let Some(found) = project {
     // 2. ask users what to create if yes
     let entity = arg.ask_entity_type()?;
     do_create_entity(entity, found, arg)

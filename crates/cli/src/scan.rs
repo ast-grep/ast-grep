@@ -9,7 +9,7 @@ use ast_grep_core::{NodeMatch, StrDoc};
 use clap::Args;
 use ignore::WalkParallel;
 
-use crate::config::{read_rule_file, register_custom_language, ProjectConfig};
+use crate::config::{read_rule_file, ProjectConfig};
 use crate::lang::SgLang;
 use crate::print::{
   CloudPrinter, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, Printer,
@@ -68,8 +68,6 @@ pub struct ScanArg {
 }
 
 pub fn run_with_config(arg: ScanArg) -> Result<()> {
-  let project_config = ProjectConfig::by_config_path(arg.config.clone())?;
-  register_custom_language(project_config)?;
   let context = arg.context.get();
   if let Some(_format) = &arg.format {
     let printer = CloudPrinter::stdout();
@@ -93,12 +91,13 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
 }
 
 fn run_scan<P: Printer + 'static>(arg: ScanArg, printer: P) -> Result<()> {
+  let project_config = ProjectConfig::setup(arg.config.clone())?;
   if arg.input.stdin {
     let worker = ScanWithRule::try_new(arg, printer)?;
     // TODO: report a soft error if rules have different languages
     worker.run_std_in()
   } else {
-    let worker = ScanWithConfig::try_new(arg, printer)?;
+    let worker = ScanWithConfig::try_new(arg, printer, project_config)?;
     worker.run_path()
   }
 }
@@ -110,7 +109,7 @@ struct ScanWithConfig<Printer> {
   trace: ScanTrace,
 }
 impl<P: Printer> ScanWithConfig<P> {
-  fn try_new(arg: ScanArg, printer: P) -> Result<Self> {
+  fn try_new(arg: ScanArg, printer: P, project: Option<ProjectConfig>) -> Result<Self> {
     let mut rule_trace = RuleTrace::default();
     let configs = if let Some(path) = &arg.rule {
       let rules = read_rule_file(path, None)?;
@@ -120,7 +119,7 @@ impl<P: Printer> ScanWithConfig<P> {
         .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
     } else {
-      let project_config = ProjectConfig::by_config_path_must(arg.config.clone())?;
+      let project_config = project.ok_or_else(|| anyhow::anyhow!(EC::ProjectNotExist))?;
       let overwrite = RuleOverwrite::new(&arg.overwrite)?;
       let (configs, r_stats) = project_config.find_rules(overwrite)?;
       rule_trace = r_stats;

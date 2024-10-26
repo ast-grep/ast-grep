@@ -16,10 +16,10 @@ pub struct CustomLang {
 }
 
 impl CustomLang {
-  pub fn register(base: PathBuf, langs: HashMap<String, CustomLang>) {
+  pub fn register(base: &Path, langs: HashMap<String, CustomLang>) {
     let registrations = langs
       .into_iter()
-      .map(|(name, custom)| to_registration(name, custom, &base))
+      .map(|(name, custom)| to_registration(name, custom, base))
       .collect();
     // TODO, add error handling
     unsafe { DynamicLang::register(registrations).expect("TODO") }

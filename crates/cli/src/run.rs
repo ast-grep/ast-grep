@@ -7,7 +7,7 @@ use ast_grep_language::Language;
 use clap::{builder::PossibleValue, Parser, ValueEnum};
 use ignore::WalkParallel;
 
-use crate::config::register_custom_language;
+use crate::config::ProjectConfig;
 use crate::lang::SgLang;
 use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
 use crate::utils::ErrorContext as EC;
@@ -22,7 +22,7 @@ pub fn register_custom_language_if_is_run(args: &[String]) -> Result<()> {
     return Ok(());
   };
   if arg.starts_with('-') || arg == "run" {
-    register_custom_language(None)?;
+    ProjectConfig::setup(None)?;
   }
   Ok(())
 }
