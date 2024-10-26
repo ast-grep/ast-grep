@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::str::FromStr;
 
 pub use custom_lang::CustomLang;
@@ -40,7 +40,7 @@ impl SgLang {
   }
 
   // register_globs must be called after register_custom_language
-  pub fn register_custom_language(base: PathBuf, langs: HashMap<String, CustomLang>) {
+  pub fn register_custom_language(base: &Path, langs: HashMap<String, CustomLang>) {
     CustomLang::register(base, langs)
   }
 

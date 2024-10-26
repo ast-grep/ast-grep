@@ -1,4 +1,4 @@
-use crate::config::{register_custom_language, ProjectConfig};
+use crate::config::ProjectConfig;
 use crate::utils::ErrorContext as EC;
 use anyhow::{Context, Result};
 use ast_grep_lsp::{Backend, LspService, Server};
@@ -15,8 +15,9 @@ pub struct LspArg {
 async fn run_language_server_impl(arg: LspArg) -> Result<()> {
   // env_logger::init();
   // TODO: move this error to client
-  let project_config = ProjectConfig::by_config_path_must(arg.config.clone())?;
-  register_custom_language(Some(project_config.clone()))?;
+  let Some(project_config) = ProjectConfig::setup(arg.config.clone())? else {
+    return Err(anyhow::anyhow!(EC::ProjectNotExist));
+  };
   let stdin = tokio::io::stdin();
   let stdout = tokio::io::stdout();
   let config_result = project_config.find_rules(Default::default());

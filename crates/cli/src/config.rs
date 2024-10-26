@@ -60,12 +60,6 @@ pub struct ProjectConfig {
 }
 
 impl ProjectConfig {
-  pub fn by_config_path_must(config_path: Option<PathBuf>) -> Result<Self> {
-    Self::discover_project(config_path, None)?.ok_or_else(|| anyhow::anyhow!(EC::ProjectNotExist))
-  }
-  pub fn by_config_path(config_path: Option<PathBuf>) -> Result<Option<Self>> {
-    Self::discover_project(config_path, None)
-  }
   // return None if config file does not exist
   fn discover_project(config_path: Option<PathBuf>, base: Option<&Path>) -> Result<Option<Self>> {
     let config_path =
@@ -94,17 +88,17 @@ impl ProjectConfig {
     let global_rules = find_util_rules(self)?;
     read_directory_yaml(self, global_rules, rule_overwrite)
   }
+  // do not report error if no sgconfig.yml is found
+  pub fn setup(config_path: Option<PathBuf>) -> Result<Option<Self>> {
+    let Some(config) = Self::discover_project(config_path, None)? else {
+      return Ok(None);
+    };
+    register_custom_language(&config.project_dir, config.sg_config.clone())?;
+    Ok(Some(config))
+  }
 }
 
-pub fn register_custom_language(project_config: Option<ProjectConfig>) -> Result<()> {
-  // do not report error if no sgconfig.yml is found
-  let Some(project_config) = project_config else {
-    return Ok(());
-  };
-  let ProjectConfig {
-    project_dir,
-    sg_config,
-  } = project_config;
+fn register_custom_language(project_dir: &Path, sg_config: AstGrepConfig) -> Result<()> {
   if let Some(custom_langs) = sg_config.custom_languages {
     SgLang::register_custom_language(project_dir, custom_langs);
   }
