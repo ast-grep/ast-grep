@@ -15,9 +15,7 @@ pub struct LspArg {
 async fn run_language_server_impl(arg: LspArg) -> Result<()> {
   // env_logger::init();
   // TODO: move this error to client
-  let Some(project_config) = ProjectConfig::setup(arg.config.clone())? else {
-    return Err(anyhow::anyhow!(EC::ProjectNotExist));
-  };
+  let project_config = ProjectConfig::setup(arg.config.clone())??;
   let stdin = tokio::io::stdin();
   let stdout = tokio::io::stdout();
   let config_result = project_config.find_rules(Default::default());

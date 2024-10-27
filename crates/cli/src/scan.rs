@@ -109,7 +109,7 @@ struct ScanWithConfig<Printer> {
   trace: ScanTrace,
 }
 impl<P: Printer> ScanWithConfig<P> {
-  fn try_new(arg: ScanArg, printer: P, project: Option<ProjectConfig>) -> Result<Self> {
+  fn try_new(arg: ScanArg, printer: P, project: Result<ProjectConfig>) -> Result<Self> {
     let mut rule_trace = RuleTrace::default();
     let configs = if let Some(path) = &arg.rule {
       let rules = read_rule_file(path, None)?;
@@ -119,7 +119,8 @@ impl<P: Printer> ScanWithConfig<P> {
         .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
     } else {
-      let project_config = project.ok_or_else(|| anyhow::anyhow!(EC::ProjectNotExist))?;
+      // NOTE: only query project here since -r does not need project
+      let project_config = project?;
       let overwrite = RuleOverwrite::new(&arg.overwrite)?;
       let (configs, r_stats) = project_config.find_rules(overwrite)?;
       rule_trace = r_stats;

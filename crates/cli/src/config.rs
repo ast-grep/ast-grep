@@ -90,9 +90,9 @@ impl ProjectConfig {
     read_directory_yaml(self, global_rules, rule_overwrite)
   }
   // do not report error if no sgconfig.yml is found
-  pub fn setup(config_path: Option<PathBuf>) -> Result<Option<Self>> {
+  pub fn setup(config_path: Option<PathBuf>) -> Result<Result<Self>> {
     let Some((project_dir, mut sg_config)) = Self::discover_project(config_path)? else {
-      return Ok(None);
+      return Ok(Err(anyhow::anyhow!(EC::ProjectNotExist)));
     };
     let config = ProjectConfig {
       project_dir,
@@ -102,7 +102,7 @@ impl ProjectConfig {
     };
     // sg_config will not use rule dirs and test configs anymore
     register_custom_language(&config.project_dir, sg_config)?;
-    Ok(Some(config))
+    Ok(Ok(config))
   }
 }
 
