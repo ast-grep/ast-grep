@@ -91,10 +91,11 @@ pub fn find_tests(
   regex_filter: Option<&Regex>,
 ) -> Result<TestHarness> {
   let ProjectConfig {
-    sg_config,
     project_dir,
+    test_configs,
+    ..
   } = project_config;
-  let test_configs = sg_config.test_configs.unwrap_or_default();
+  let test_configs = test_configs.unwrap_or_default();
   let mut builder = HarnessBuilder {
     base_dir: project_dir,
     regex_filter,

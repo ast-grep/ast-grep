@@ -175,7 +175,7 @@ fn do_create_entity(entity: Entity, found: ProjectConfig, arg: NewArg) -> Result
   // ask user what destination to create if multiple dirs exist
   match entity {
     Entity::Rule => create_new_rule(found, arg),
-    Entity::Test => create_new_test(found.sg_config.test_configs, arg.name),
+    Entity::Test => create_new_test(found.test_configs, arg.name),
     Entity::Util => create_new_util(found, arg),
     Entity::Project => Err(anyhow::anyhow!(EC::ProjectAlreadyExist)),
   }
@@ -247,16 +247,18 @@ rule:
 fn create_new_rule(found: ProjectConfig, arg: NewArg) -> Result<()> {
   let ProjectConfig {
     project_dir,
-    sg_config,
+    rule_dirs,
+    test_configs,
+    ..
   } = found;
   let name = arg.ask_name("rule")?;
-  let rule_dir = if sg_config.rule_dirs.len() > 1 {
-    let dirs = sg_config.rule_dirs.iter().map(|p| p.display()).collect();
+  let rule_dir = if rule_dirs.len() > 1 {
+    let dirs = rule_dirs.iter().map(|p| p.display()).collect();
     let display =
       inquire::Select::new("Which rule dir do you want to save your rule?", dirs).prompt()?;
     project_dir.join(display.to_string())
   } else {
-    project_dir.join(&sg_config.rule_dirs[0])
+    project_dir.join(&rule_dirs[0])
   };
   let path = rule_dir.join(format!("{name}.yml"));
   if path.exists() {
@@ -267,7 +269,7 @@ fn create_new_rule(found: ProjectConfig, arg: NewArg) -> Result<()> {
   println!("Created rules at {}", path.display());
   let need_test = arg.confirm("Do you also need to create a test for the rule?")?;
   if need_test {
-    create_new_test(sg_config.test_configs, Some(name))?;
+    create_new_test(test_configs, Some(name))?;
   }
   Ok(())
 }
@@ -326,9 +328,10 @@ rule:
 fn create_new_util(found: ProjectConfig, arg: NewArg) -> Result<()> {
   let ProjectConfig {
     project_dir,
-    sg_config,
+    util_dirs,
+    ..
   } = found;
-  let Some(utils) = sg_config.util_dirs else {
+  let Some(utils) = util_dirs else {
     return Err(anyhow::anyhow!(EC::NoUtilDirConfigured));
   };
   if utils.is_empty() {
