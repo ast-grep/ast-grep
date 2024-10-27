@@ -61,9 +61,8 @@ pub struct ProjectConfig {
 
 impl ProjectConfig {
   // return None if config file does not exist
-  fn discover_project(config_path: Option<PathBuf>, base: Option<&Path>) -> Result<Option<Self>> {
-    let config_path =
-      find_config_path_with_default(config_path, base).context(EC::ReadConfiguration)?;
+  fn discover_project(config_path: Option<PathBuf>) -> Result<Option<Self>> {
+    let config_path = find_config_path_with_default(config_path).context(EC::ReadConfiguration)?;
     // NOTE: if config file does not exist, return None
     // this is not 100% correct because of racing condition
     if !config_path.is_file() {
@@ -90,7 +89,7 @@ impl ProjectConfig {
   }
   // do not report error if no sgconfig.yml is found
   pub fn setup(config_path: Option<PathBuf>) -> Result<Option<Self>> {
-    let Some(config) = Self::discover_project(config_path, None)? else {
+    let Some(config) = Self::discover_project(config_path)? else {
       return Ok(None);
     };
     register_custom_language(&config.project_dir, config.sg_config.clone())?;
@@ -206,18 +205,11 @@ pub fn read_rule_file(
 
 const CONFIG_FILE: &str = "sgconfig.yml";
 
-fn find_config_path_with_default(
-  config_path: Option<PathBuf>,
-  base: Option<&Path>,
-) -> Result<PathBuf> {
+fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<PathBuf> {
   if let Some(config) = config_path {
     return Ok(config);
   }
-  let mut path = if let Some(base) = base {
-    base.to_path_buf()
-  } else {
-    std::env::current_dir()?
-  };
+  let mut path = std::env::current_dir()?;
   loop {
     let maybe_config = path.join(CONFIG_FILE);
     if maybe_config.exists() {
