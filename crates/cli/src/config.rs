@@ -56,12 +56,17 @@ pub struct AstGrepConfig {
 #[derive(Clone)]
 pub struct ProjectConfig {
   pub project_dir: PathBuf,
-  pub sg_config: AstGrepConfig,
+  /// YAML rule directories
+  pub rule_dirs: Vec<PathBuf>,
+  /// test configurations
+  pub test_configs: Option<Vec<TestConfig>>,
+  /// util rules directories
+  pub util_dirs: Option<Vec<PathBuf>>,
 }
 
 impl ProjectConfig {
   // return None if config file does not exist
-  fn discover_project(config_path: Option<PathBuf>) -> Result<Option<Self>> {
+  fn discover_project(config_path: Option<PathBuf>) -> Result<Option<(PathBuf, AstGrepConfig)>> {
     let config_path = find_config_path_with_default(config_path).context(EC::ReadConfiguration)?;
     // NOTE: if config file does not exist, return None
     // this is not 100% correct because of racing condition
@@ -74,10 +79,7 @@ impl ProjectConfig {
       .parent()
       .expect("config file must have parent directory")
       .to_path_buf();
-    Ok(Some(ProjectConfig {
-      project_dir,
-      sg_config,
-    }))
+    Ok(Some((project_dir, sg_config)))
   }
 
   pub fn find_rules(
@@ -89,10 +91,17 @@ impl ProjectConfig {
   }
   // do not report error if no sgconfig.yml is found
   pub fn setup(config_path: Option<PathBuf>) -> Result<Option<Self>> {
-    let Some(config) = Self::discover_project(config_path)? else {
+    let Some((project_dir, mut sg_config)) = Self::discover_project(config_path)? else {
       return Ok(None);
     };
-    register_custom_language(&config.project_dir, config.sg_config.clone())?;
+    let config = ProjectConfig {
+      project_dir,
+      rule_dirs: sg_config.rule_dirs.drain(..).collect(),
+      test_configs: sg_config.test_configs.take(),
+      util_dirs: sg_config.util_dirs.take(),
+    };
+    // sg_config will not use rule dirs and test configs anymore
+    register_custom_language(&config.project_dir, sg_config)?;
     Ok(Some(config))
   }
 }
@@ -121,9 +130,10 @@ fn build_util_walker(base_dir: &Path, util_dirs: &Option<Vec<PathBuf>>) -> Optio
 fn find_util_rules(config: &ProjectConfig) -> Result<GlobalRules<SgLang>> {
   let ProjectConfig {
     project_dir,
-    sg_config,
+    util_dirs,
+    ..
   } = config;
-  let Some(mut walker) = build_util_walker(project_dir, &sg_config.util_dirs) else {
+  let Some(mut walker) = build_util_walker(project_dir, util_dirs) else {
     return Ok(GlobalRules::default());
   };
   let mut utils = vec![];
@@ -156,9 +166,10 @@ fn read_directory_yaml(
   let mut configs = vec![];
   let ProjectConfig {
     project_dir,
-    sg_config,
+    rule_dirs,
+    ..
   } = config;
-  for dir in &sg_config.rule_dirs {
+  for dir in rule_dirs {
     let dir_path = project_dir.join(dir);
     let walker = WalkBuilder::new(&dir_path)
       .types(config_file_type())
