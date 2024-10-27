@@ -187,8 +187,7 @@ pub struct TestArg {
 }
 
 pub fn run_test_rule(arg: TestArg) -> Result<()> {
-  let project = ProjectConfig::setup(arg.config.clone())?
-    .ok_or_else(|| anyhow!(ErrorContext::ProjectNotExist))?;
+  let project = ProjectConfig::setup(arg.config.clone())??;
   if arg.interactive {
     let reporter = InteractiveReporter {
       output: std::io::stdout(),

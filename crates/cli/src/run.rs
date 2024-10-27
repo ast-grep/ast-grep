@@ -22,7 +22,7 @@ pub fn register_custom_language_if_is_run(args: &[String]) -> Result<()> {
     return Ok(());
   };
   if arg.starts_with('-') || arg == "run" {
-    ProjectConfig::setup(None)?;
+    _ = ProjectConfig::setup(None)?;
   }
   Ok(())
 }
