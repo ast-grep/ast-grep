@@ -29,10 +29,6 @@ pub struct NewArg {
   /// Please see the command description for the what arguments are required.
   #[arg(short, long, global = true)]
   yes: bool,
-
-  /// Path to ast-grep root config, default is sgconfig.yml.
-  #[clap(short, long, global = true, value_name = "CONFIG_FILE")]
-  config: Option<PathBuf>,
 }
 
 fn create_dir(project_dir: &Path, dir: &str) -> Result<PathBuf> {
@@ -148,12 +144,11 @@ impl Display for Entity {
   }
 }
 
-pub fn run_create_new(mut arg: NewArg) -> Result<()> {
-  let project_config = ProjectConfig::setup(arg.config.clone())?;
+pub fn run_create_new(mut arg: NewArg, project: Result<ProjectConfig>) -> Result<()> {
   if let Some(entity) = arg.entity.take() {
-    run_create_entity(entity, arg, project_config)
+    run_create_entity(entity, arg, project)
   } else {
-    ask_entity_type(arg, project_config)
+    ask_entity_type(arg, project)
   }
 }
 
@@ -369,7 +364,6 @@ mod test {
       name: None,
       lang: None,
       yes: true,
-      config: None,
     };
     create_new_project(arg, tempdir)?;
     assert!(tempdir.join("sgconfig.yml").exists());
@@ -377,27 +371,27 @@ mod test {
   }
 
   fn create_rule(temp: &Path) -> Result<()> {
+    let project = ProjectConfig::setup(Some(temp.join("sgconfig.yml")))?;
     let arg = NewArg {
       entity: Some(Entity::Rule),
       name: Some("test-rule".into()),
       lang: Some(SupportLang::Rust.into()),
       yes: true,
-      config: Some(temp.join("sgconfig.yml")),
     };
-    run_create_new(arg)?;
+    run_create_new(arg, project)?;
     assert!(temp.join("rules/test-rule.yml").exists());
     Ok(())
   }
 
   fn create_util(temp: &Path) -> Result<()> {
+    let project = ProjectConfig::setup(Some(temp.join("sgconfig.yml")))?;
     let arg = NewArg {
       entity: Some(Entity::Util),
       name: Some("test-utils".into()),
       lang: Some(SupportLang::Rust.into()),
       yes: true,
-      config: Some(temp.join("sgconfig.yml")),
     };
-    run_create_new(arg)?;
+    run_create_new(arg, project)?;
     assert!(temp.join("utils/test-utils.yml").exists());
     Ok(())
   }

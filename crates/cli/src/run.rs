@@ -7,25 +7,12 @@ use ast_grep_language::Language;
 use clap::{builder::PossibleValue, Parser, ValueEnum};
 use ignore::WalkParallel;
 
-use crate::config::ProjectConfig;
 use crate::lang::SgLang;
 use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
 use crate::utils::ErrorContext as EC;
 use crate::utils::{filter_file_pattern, ContextArgs, InputArgs, MatchUnit, OutputArgs};
 use crate::utils::{DebugFormat, FileTrace, RunTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
-
-// NOTE: have to register custom lang before clap read arg
-// RunArg has a field of SgLang
-pub fn register_custom_language_if_is_run(args: &[String]) -> Result<()> {
-  let Some(arg) = args.get(1) else {
-    return Ok(());
-  };
-  if arg.starts_with('-') || arg == "run" {
-    _ = ProjectConfig::setup(None)?;
-  }
-  Ok(())
-}
 
 fn lang_help() -> String {
   format!(

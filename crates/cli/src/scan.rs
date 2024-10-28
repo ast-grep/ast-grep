@@ -25,10 +25,6 @@ type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
 
 #[derive(Args)]
 pub struct ScanArg {
-  /// Path to ast-grep root config, default is sgconfig.yml.
-  #[clap(short, long, value_name = "CONFIG_FILE")]
-  config: Option<PathBuf>,
-
   /// Scan the codebase with the single rule located at the path RULE_FILE.
   ///
   /// It is useful to run single rule without project setup or sgconfig.yml.
@@ -67,15 +63,15 @@ pub struct ScanArg {
   context: ContextArgs,
 }
 
-pub fn run_with_config(arg: ScanArg) -> Result<()> {
+pub fn run_with_config(arg: ScanArg, project: Result<ProjectConfig>) -> Result<()> {
   let context = arg.context.get();
   if let Some(_format) = &arg.format {
     let printer = CloudPrinter::stdout();
-    return run_scan(arg, printer);
+    return run_scan(arg, printer, project);
   }
   if let Some(json) = arg.output.json {
     let printer = JSONPrinter::stdout(json);
-    return run_scan(arg, printer);
+    return run_scan(arg, printer, project);
   }
   let printer = ColoredPrinter::stdout(arg.output.color)
     .style(arg.report_style)
@@ -84,20 +80,23 @@ pub fn run_with_config(arg: ScanArg) -> Result<()> {
   if interactive {
     let from_stdin = arg.input.stdin;
     let printer = InteractivePrinter::new(printer, arg.output.update_all, from_stdin)?;
-    run_scan(arg, printer)
+    run_scan(arg, printer, project)
   } else {
-    run_scan(arg, printer)
+    run_scan(arg, printer, project)
   }
 }
 
-fn run_scan<P: Printer + 'static>(arg: ScanArg, printer: P) -> Result<()> {
-  let project_config = ProjectConfig::setup(arg.config.clone())?;
+fn run_scan<P: Printer + 'static>(
+  arg: ScanArg,
+  printer: P,
+  project: Result<ProjectConfig>,
+) -> Result<()> {
   if arg.input.stdin {
     let worker = ScanWithRule::try_new(arg, printer)?;
     // TODO: report a soft error if rules have different languages
     worker.run_std_in()
   } else {
-    let worker = ScanWithConfig::try_new(arg, printer, project_config)?;
+    let worker = ScanWithConfig::try_new(arg, printer, project)?;
     worker.run_path()
   }
 }
@@ -357,7 +356,6 @@ rule:
 
   fn default_scan_arg() -> ScanArg {
     ScanArg {
-      config: None,
       rule: None,
       inline_rules: None,
       report_style: ReportStyle::Rich,
@@ -404,11 +402,9 @@ rule:
       .write_all("fn test() { Some(123) }".as_bytes())
       .unwrap();
     file.sync_all().unwrap();
-    let arg = ScanArg {
-      config: Some(dir.path().join("sgconfig.yml")),
-      ..default_scan_arg()
-    };
-    assert!(run_with_config(arg).is_ok());
+    let project_config = ProjectConfig::setup(Some(dir.path().join("sgconfig.yml"))).unwrap();
+    let arg = default_scan_arg();
+    assert!(run_with_config(arg, project_config).is_ok());
   }
 
   #[test]
@@ -418,7 +414,7 @@ rule:
       inline_rules: Some(inline_rules),
       ..default_scan_arg()
     };
-    assert!(run_with_config(arg).is_ok());
+    assert!(run_with_config(arg, Err(anyhow::anyhow!("not found"))).is_ok());
   }
 
   #[test]
@@ -429,7 +425,7 @@ rule:
       inline_rules: Some(inline_rules),
       ..default_scan_arg()
     };
-    assert!(run_with_config(arg).is_ok());
+    assert!(run_with_config(arg, Err(anyhow::anyhow!("not found"))).is_ok());
   }
 
   // baseline test for coverage
@@ -440,7 +436,7 @@ rule:
       inline_rules: Some(inline_rules),
       ..default_scan_arg()
     };
-    let err = run_with_config(arg).expect_err("should error");
+    let err = run_with_config(arg, Err(anyhow::anyhow!("not found"))).expect_err("should error");
     assert!(err.is::<EC>());
     assert_eq!(err.to_string(), "Cannot parse rule INLINE_RULES");
   }
