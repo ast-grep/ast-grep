@@ -3,19 +3,14 @@ use crate::utils::ErrorContext as EC;
 use anyhow::{Context, Result};
 use ast_grep_lsp::{Backend, LspService, Server};
 use clap::Args;
-use std::path::PathBuf;
 
 #[derive(Args)]
-pub struct LspArg {
-  /// Path to ast-grep root config, default is sgconfig.yml.
-  #[clap(short, long, value_name = "CONFIG_FILE")]
-  config: Option<PathBuf>,
-}
+pub struct LspArg {}
 
-async fn run_language_server_impl(arg: LspArg) -> Result<()> {
+async fn run_language_server_impl(_arg: LspArg, project: Result<ProjectConfig>) -> Result<()> {
   // env_logger::init();
   // TODO: move this error to client
-  let project_config = ProjectConfig::setup(arg.config.clone())??;
+  let project_config = project?;
   let stdin = tokio::io::stdin();
   let stdout = tokio::io::stdout();
   let config_result = project_config.find_rules(Default::default());
@@ -35,12 +30,12 @@ async fn run_language_server_impl(arg: LspArg) -> Result<()> {
   Ok(())
 }
 
-pub fn run_language_server(arg: LspArg) -> Result<()> {
+pub fn run_language_server(arg: LspArg, project: Result<ProjectConfig>) -> Result<()> {
   tokio::runtime::Builder::new_multi_thread()
     .enable_all()
     .build()
     .context(EC::StartLanguageServer)?
-    .block_on(async { run_language_server_impl(arg).await })
+    .block_on(async { run_language_server_impl(arg, project).await })
 }
 
 #[cfg(test)]
@@ -50,7 +45,7 @@ mod test {
   #[test]
   #[ignore = "test lsp later"]
   fn test_lsp_start() {
-    let arg = LspArg { config: None };
-    assert!(run_language_server(arg).is_err())
+    let arg = LspArg {};
+    assert!(run_language_server(arg, Err(anyhow::anyhow!("error"))).is_err())
   }
 }

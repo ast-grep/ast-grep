@@ -160,9 +160,6 @@ fn verify_test_case_simple<'a>(
 
 #[derive(Args)]
 pub struct TestArg {
-  /// Path to the root ast-grep config YAML
-  #[clap(short, long)]
-  config: Option<PathBuf>,
   /// the directories to search test YAML files
   #[clap(short, long)]
   test_dir: Option<PathBuf>,
@@ -186,8 +183,8 @@ pub struct TestArg {
   filter: Option<Regex>,
 }
 
-pub fn run_test_rule(arg: TestArg) -> Result<()> {
-  let project = ProjectConfig::setup(arg.config.clone())??;
+pub fn run_test_rule(arg: TestArg, project: Result<ProjectConfig>) -> Result<()> {
+  let project = project?;
   if arg.interactive {
     let reporter = InteractiveReporter {
       output: std::io::stdout(),
@@ -307,7 +304,6 @@ rule:
   #[test]
   fn test_run_verify_error() {
     let arg = TestArg {
-      config: None,
       interactive: false,
       skip_snapshot_tests: true,
       snapshot_dir: None,
@@ -315,7 +311,7 @@ rule:
       update_all: false,
       filter: None,
     };
-    assert!(run_test_rule(arg).is_err());
+    assert!(run_test_rule(arg, Err(anyhow!("error"))).is_err());
   }
   const TRANSFORM_TEXT: &str = "
 transform:

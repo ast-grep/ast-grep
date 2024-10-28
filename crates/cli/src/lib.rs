@@ -11,11 +11,13 @@ mod verify;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
 use completions::{run_shell_completion, CompletionsArg};
+use config::ProjectConfig;
 use lsp::{run_language_server, LspArg};
 use new::{run_create_new, NewArg};
-use run::{register_custom_language_if_is_run, run_with_pattern, RunArg};
+use run::{run_with_pattern, RunArg};
 use scan::{run_with_config, ScanArg};
 use utils::exit_with_error;
 use verify::{run_test_rule, TestArg};
@@ -39,6 +41,9 @@ Search and Rewrite code at large scale using AST pattern.
 struct App {
   #[clap(subcommand)]
   command: Commands,
+  /// Path to ast-grep root config, default is sgconfig.yml.
+  #[clap(short, long, global = true, value_name = "CONFIG_FILE")]
+  config: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]
@@ -82,7 +87,19 @@ fn try_default_run(args: &[String]) -> Result<Option<RunArg>> {
 // this wrapper function is for testing
 pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
   let args: Vec<_> = args.collect();
-  register_custom_language_if_is_run(&args)?;
+  let mut config = None;
+  for i in 0..args.len() {
+    if args[i] != "-c" && args[i] != "--config" {
+      continue;
+    }
+    if i + 1 >= args.len() {
+      return Err(anyhow::anyhow!("missing config file after -c"));
+    }
+    let config_file = (&args[i + 1]).into();
+    config = Some(config_file);
+  }
+  let project = ProjectConfig::setup(config)?;
+  // register_custom_language_if_is_run(&args)?;
   if let Some(arg) = try_default_run(&args)? {
     return run_with_pattern(arg);
   }
@@ -90,10 +107,10 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
   let app = App::try_parse_from(args)?;
   match app.command {
     Commands::Run(arg) => run_with_pattern(arg),
-    Commands::Scan(arg) => run_with_config(arg),
-    Commands::Test(arg) => run_test_rule(arg),
-    Commands::New(arg) => run_create_new(arg),
-    Commands::Lsp(arg) => run_language_server(arg),
+    Commands::Scan(arg) => run_with_config(arg, project),
+    Commands::Test(arg) => run_test_rule(arg, project),
+    Commands::New(arg) => run_create_new(arg, project),
+    Commands::Lsp(arg) => run_language_server(arg, project),
     Commands::Completions(arg) => run_shell_completion::<App>(arg),
     Commands::Docs => todo!("todo, generate rule docs based on current config"),
   }
@@ -149,7 +166,7 @@ mod test_cli {
   fn test_no_arg_run() {
     let ret = main_with_args(["sg".to_owned()].into_iter());
     let err = ret.unwrap_err();
-    assert!(err.to_string().contains("sg <COMMAND>"));
+    assert!(err.to_string().contains("sg [OPTIONS] <COMMAND>"));
   }
   #[test]
   fn test_default_subcommand() {
@@ -185,11 +202,11 @@ mod test_cli {
     ok("run -p test --globs '*.js' --globs '*.ts'");
     ok("run -p fubuki -j8");
     ok("run -p test --threads 12");
+    ok("run -p test -l rs -c config.yml"); // global config arg
     error("run test");
     error("run --debug-query test"); // missing lang
     error("run -r Test dir");
     error("run -p test -i --json dir"); // conflict
-    error("run -p test -l rs -c always"); // no color shortcut
     error("run -p test -U");
     error("run -p test --update-all");
     error("run -p test --strictness not");
