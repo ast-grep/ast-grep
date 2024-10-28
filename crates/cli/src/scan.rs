@@ -145,6 +145,7 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       let rules = self.configs.get_rule_from_lang(path, *grep.lang());
       let combined = CombinedScan::new(rules);
       let interactive = self.arg.output.needs_interactive();
+      let limit = self.arg.input.max_count;
       // exclude_fix rule because we already have diff inspection before
       let scanned = combined.scan(&grep, pre_scan, /* separate_fix*/ interactive);
       if interactive {
@@ -156,14 +157,14 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
             (nm, rule)
           })
           .collect();
-        match_rule_diff_on_file(path, diffs, &self.printer)?;
+        match_rule_diff_on_file(path, diffs, &self.printer, limit)?;
       }
       for (idx, matches) in scanned.matches {
         let rule = combined.get_rule(idx);
         if matches!(rule.severity, Severity::Error) {
           error_count = error_count.saturating_add(matches.len());
         }
-        match_rule_on_file(path, matches, rule, &file_content, &self.printer)?;
+        match_rule_on_file(path, matches, rule, &file_content, &self.printer, limit)?;
       }
       print_unused_suppressions(
         path,
@@ -212,7 +213,7 @@ fn print_unused_suppressions(
     url: None,
   };
   let rule_config = RuleConfig::try_from(config, &Default::default()).unwrap();
-  match_rule_on_file(path, matches, &rule_config, file_content, printer)
+  match_rule_on_file(path, matches, &rule_config, file_content, printer, None)
 }
 
 impl<P: Printer> PathWorker for ScanWithConfig<P> {
@@ -260,7 +261,7 @@ impl<P: Printer> Worker for ScanWithRule<P> {
         if matches!(rule.severity, Severity::Error) {
           error_count = error_count.saturating_add(matches.len());
         }
-        match_rule_on_file(&path, matches, rule, &file_content, &self.printer)?;
+        match_rule_on_file(&path, matches, rule, &file_content, &self.printer, None)?;
       }
     }
     self.printer.after_print()?;
@@ -290,6 +291,7 @@ fn match_rule_diff_on_file(
   path: &Path,
   matches: Vec<(NodeMatch<StrDoc<SgLang>>, &RuleConfig<SgLang>)>,
   reporter: &impl Printer,
+  limit: Option<usize>,
 ) -> Result<()> {
   let diffs = matches
     .into_iter()
@@ -298,6 +300,7 @@ fn match_rule_diff_on_file(
       let diff = Diff::generate(m, &rule.matcher, fix);
       Some((diff, rule))
     })
+    .take(limit.unwrap_or(usize::MAX))
     .collect();
   reporter.print_rule_diffs(diffs, path)?;
   Ok(())
@@ -309,12 +312,14 @@ fn match_rule_on_file(
   rule: &RuleConfig<SgLang>,
   file_content: &String,
   reporter: &impl Printer,
+  limit: Option<usize>,
 ) -> Result<()> {
   let matches = matches.into_iter();
   let file = SimpleFile::new(path.to_string_lossy(), file_content);
   if let Some(fixer) = &rule.matcher.fixer {
     let diffs = matches
       .map(|m| (Diff::generate(m, &rule.matcher, fixer), rule))
+      .take(limit.unwrap_or(usize::MAX))
       .collect();
     reporter.print_rule_diffs(diffs, path)?;
   } else {
@@ -366,6 +371,7 @@ rule:
         follow: false,
         globs: vec![],
         threads: 0,
+        max_count: None,
       },
       overwrite: OverwriteArgs {
         filter: None,

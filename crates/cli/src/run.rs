@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::usize;
 
 use anyhow::{Context, Result};
 use ast_grep_config::Fixer;
@@ -173,6 +174,7 @@ impl<P: Printer> Worker for RunWithInferredLang<P> {
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     let rewrite = &self.arg.rewrite;
     let printer = &self.printer;
+    let limit = self.arg.input.max_count;
     printer.before_print()?;
     for (match_unit, lang) in items {
       let rewrite = rewrite
@@ -180,9 +182,9 @@ impl<P: Printer> Worker for RunWithInferredLang<P> {
         .map(|s| Fixer::from_str(s, &lang))
         .transpose();
       match rewrite {
-        Ok(r) => match_one_file(printer, &match_unit, &r)?,
+        Ok(r) => match_one_file(printer, &match_unit, &r, limit)?,
         Err(e) => {
-          match_one_file(printer, &match_unit, &None)?;
+          match_one_file(printer, &match_unit, &None, limit)?;
           eprintln!("⚠️  Rewriting was skipped because pattern fails to parse. Error detail:");
           eprintln!("╰▻ {e}");
         }
@@ -257,10 +259,11 @@ impl<P: Printer> Worker for RunWithSpecificLang<P> {
 
   fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
     let printer = &self.printer;
+    let limit = self.arg.input.max_count;
     printer.before_print()?;
     let mut has_matches = false;
     for match_unit in items {
-      match_one_file(printer, &match_unit, &self.rewrite)?;
+      match_one_file(printer, &match_unit, &self.rewrite, limit)?;
       has_matches = true;
     }
     printer.after_print()?;
@@ -314,6 +317,7 @@ fn match_one_file(
   printer: &impl Printer,
   match_unit: &MatchUnit<impl Matcher<SgLang>>,
   rewrite: &Option<Fixer<SgLang>>,
+  limit: Option<usize>,
 ) -> Result<()> {
   let MatchUnit {
     path,
@@ -321,7 +325,11 @@ fn match_one_file(
     matcher,
   } = match_unit;
 
-  let matches = grep.root().find_all(matcher);
+  let matches = grep
+    .root()
+    .find_all(matcher)
+    .take(limit.unwrap_or(usize::MAX));
+
   if let Some(rewrite) = rewrite {
     let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
     printer.print_diffs(diffs, path)
@@ -352,6 +360,7 @@ mod test {
         paths: vec![PathBuf::from(".")],
         globs: vec![],
         threads: 0,
+        max_count: None,
       },
       output: OutputArgs {
         color: ColorArg::Never,

@@ -59,6 +59,13 @@ pub struct InputArgs {
   /// heuristics.
   #[clap(short = 'j', long, default_value = "0", value_name = "NUM")]
   pub threads: usize,
+
+  /// Stop reading the file after NUM matches.
+  ///
+  /// This flag limits the number of matches considered by the tool, similar
+  /// to grep's -m/--max-count flag.
+  #[clap(short = 'm', long, value_name = "NUM")]
+  pub max_count: Option<usize>,
 }
 
 impl InputArgs {
@@ -333,6 +340,7 @@ mod test {
       stdin: false,
       globs: vec!["*.rs".to_string(), "!*.toml".to_string()],
       threads: 0,
+      max_count: None,
     };
     assert!(input.build_globs().is_ok());
     let input = InputArgs {
@@ -342,6 +350,7 @@ mod test {
       stdin: false,
       globs: vec!["*.{rs".to_string()],
       threads: 0,
+      max_count: None,
     };
     assert!(input.build_globs().is_err());
   }
