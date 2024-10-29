@@ -105,11 +105,14 @@ struct ScanWithConfig<Printer> {
   arg: ScanArg,
   printer: Printer,
   configs: RuleCollection<SgLang>,
+  unused_suppression_rule: RuleConfig<SgLang>,
   trace: ScanTrace,
 }
 impl<P: Printer> ScanWithConfig<P> {
   fn try_new(arg: ScanArg, printer: P, project: Result<ProjectConfig>) -> Result<Self> {
     let mut rule_trace = RuleTrace::default();
+    let overwrite = RuleOverwrite::new(&arg.overwrite)?;
+    let unused_suppression_rule = unused_supression_rule_config(&overwrite);
     let configs = if let Some(path) = &arg.rule {
       let rules = read_rule_file(path, None)?;
       RuleCollection::try_new(rules).context(EC::GlobPattern)?
@@ -120,7 +123,6 @@ impl<P: Printer> ScanWithConfig<P> {
     } else {
       // NOTE: only query project here since -r does not need project
       let project_config = project?;
-      let overwrite = RuleOverwrite::new(&arg.overwrite)?;
       let (configs, r_stats) = project_config.find_rules(overwrite)?;
       rule_trace = r_stats;
       configs
@@ -130,6 +132,7 @@ impl<P: Printer> ScanWithConfig<P> {
       arg,
       printer,
       configs,
+      unused_suppression_rule,
       trace,
     })
   }
@@ -168,6 +171,7 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       print_unused_suppressions(
         path,
         scanned.unused_suppressions,
+        &self.unused_suppression_rule,
         &file_content,
         &self.printer,
       )?;
@@ -184,12 +188,7 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
   }
 }
 
-fn print_unused_suppressions(
-  path: &Path,
-  matches: Vec<NodeMatch<StrDoc<SgLang>>>,
-  file_content: &String,
-  printer: &impl Printer,
-) -> Result<()> {
+fn unused_supression_rule_config(overwrite: &RuleOverwrite) -> RuleConfig<SgLang> {
   let rule: SerializableRule = serde_json::from_str(r#"{"pattern": "a"}"#).unwrap();
   let core = SerializableRuleCore {
     rule,
@@ -198,21 +197,34 @@ fn print_unused_suppressions(
     transform: None,
     utils: None,
   };
+  let severity = overwrite
+    .find("unused-suppression")
+    .severity
+    .unwrap_or(Severity::Hint);
   let config = SerializableRuleConfig::<SgLang> {
     core,
     id: "unused-suppression".to_string(),
+    severity,
     files: None,
     ignores: None,
     language: "rust".parse().unwrap(),
-    message: "Unused '@ast-grep-ignore' directive.".into(),
+    message: "Unused 'ast-grep-ignore' directive.".into(),
     metadata: None,
     note: None,
     rewriters: None,
-    severity: Severity::Hint,
     url: None,
   };
-  let rule_config = RuleConfig::try_from(config, &Default::default()).unwrap();
-  match_rule_on_file(path, matches, &rule_config, file_content, printer)
+  RuleConfig::try_from(config, &Default::default()).unwrap()
+}
+
+fn print_unused_suppressions(
+  path: &Path,
+  matches: Vec<NodeMatch<StrDoc<SgLang>>>,
+  rule_config: &RuleConfig<SgLang>,
+  file_content: &String,
+  printer: &impl Printer,
+) -> Result<()> {
+  match_rule_on_file(path, matches, rule_config, file_content, printer)
 }
 
 impl<P: Printer> PathWorker for ScanWithConfig<P> {
