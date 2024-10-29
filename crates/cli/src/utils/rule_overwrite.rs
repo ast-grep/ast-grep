@@ -89,7 +89,7 @@ impl RuleOverwrite {
     Ok(configs)
   }
 
-  fn find(&self, id: &str) -> OverwriteResult {
+  pub fn find(&self, id: &str) -> OverwriteResult {
     let severity = self
       .by_rule_id
       .get(id)
@@ -115,8 +115,8 @@ fn filter_rule_by_regex(
   }
 }
 
-struct OverwriteResult {
-  severity: Option<Severity>,
+pub struct OverwriteResult {
+  pub severity: Option<Severity>,
 }
 
 impl OverwriteResult {
