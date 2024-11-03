@@ -152,7 +152,7 @@ pub struct OutputArgs {
   /// This flag helps user to inspect ast-grep's internal filtering of files and rules.
   /// tracing will output how many and why files and rules are scanned and skipped.
   /// tracing information outputs to stderr and does not affect the result of the search.
-  #[clap(long, default_value = "nothing", value_name = "LEVEL")]
+  #[clap(long, default_value = "nothing", value_name = "GRANULARITY")]
   pub tracing: Tracing,
 }
 
