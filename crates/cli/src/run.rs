@@ -152,7 +152,7 @@ fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + 'static) -> Res
   } else if arg.lang.is_some() {
     RunWithSpecificLang::new(arg, printer)?.run_path()
   } else {
-    let trace = arg.output.tracing.run_trace();
+    let trace = arg.output.inspect.run_trace();
     RunWithInferredLang {
       arg,
       printer,
@@ -244,7 +244,7 @@ impl<Printer> RunWithSpecificLang<Printer> {
     } else {
       None
     };
-    let stats = arg.output.tracing.run_trace();
+    let stats = arg.output.inspect.run_trace();
     Ok(Self {
       arg,
       printer,
@@ -364,7 +364,7 @@ mod test {
         interactive: false,
         json: None,
         update_all: false,
-        tracing: Default::default(),
+        inspect: Default::default(),
       },
       context: ContextArgs {
         before: 0,

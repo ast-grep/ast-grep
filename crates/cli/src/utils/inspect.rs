@@ -21,7 +21,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Clone, Copy, ValueEnum, Serialize, Deserialize, Default, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
-pub enum Tracing {
+pub enum Granularity {
   /// Do not show any tracing information
   #[default]
   Nothing = 0,
@@ -32,7 +32,7 @@ pub enum Tracing {
   // Detail,
 }
 
-impl Tracing {
+impl Granularity {
   pub fn run_trace(&self) -> RunTrace {
     RunTrace {
       level: *self,
@@ -80,7 +80,7 @@ impl FileTrace {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TraceInfo<T> {
-  pub level: Tracing,
+  pub level: Granularity,
   #[serde(flatten)]
   pub file_trace: FileTrace,
   #[serde(flatten)]
@@ -91,16 +91,16 @@ impl TraceInfo<()> {
   // TODO: support more format?
   pub fn print(&self) -> Option<String> {
     match self.level {
-      Tracing::Nothing => None,
-      Tracing::Summary | Tracing::Entity => Some(self.file_trace.print()),
+      Granularity::Nothing => None,
+      Granularity::Summary | Granularity::Entity => Some(self.file_trace.print()),
     }
   }
 
   pub fn print_file(&self, path: &Path, lang: SgLang) -> Option<String> {
     match self.level {
-      Tracing::Nothing => None,
-      Tracing::Summary => None,
-      Tracing::Entity => Some(self.file_trace.print_file(path, lang)),
+      Granularity::Nothing => None,
+      Granularity::Summary => None,
+      Granularity::Entity => Some(self.file_trace.print_file(path, lang)),
     }
   }
 }
@@ -109,8 +109,8 @@ impl TraceInfo<RuleTrace> {
   // TODO: support more format?
   pub fn print(&self) -> Option<String> {
     match self.level {
-      Tracing::Nothing => None,
-      Tracing::Summary | Tracing::Entity => Some(format!(
+      Granularity::Nothing => None,
+      Granularity::Summary | Granularity::Entity => Some(format!(
         "{}\n{}",
         self.file_trace.print(),
         self.inner.print()
@@ -125,8 +125,8 @@ impl TraceInfo<RuleTrace> {
   ) -> Option<String> {
     let len = rules.len();
     match self.level {
-      Tracing::Nothing | Tracing::Summary => None,
-      Tracing::Entity => Some(format!(
+      Granularity::Nothing | Granularity::Summary => None,
+      Granularity::Entity => Some(format!(
         "{}, applied {len} rule(s)",
         self.file_trace.print_file(path, lang),
       )),
@@ -159,9 +159,9 @@ mod test {
 
   #[test]
   fn test_tracing() {
-    let tracing = Tracing::Summary;
+    let tracing = Granularity::Summary;
     let run_trace = tracing.run_trace();
-    assert_eq!(run_trace.level, Tracing::Summary);
+    assert_eq!(run_trace.level, Granularity::Summary);
     assert_eq!(
       run_trace.file_trace.files_scanned.load(Ordering::Relaxed),
       0
@@ -178,7 +178,7 @@ mod test {
       skipped_rule_count: 2,
     };
     let scan_trace = tracing.scan_trace(rule_stats);
-    assert_eq!(scan_trace.level, Tracing::Summary);
+    assert_eq!(scan_trace.level, Granularity::Summary);
     assert_eq!(
       scan_trace.file_trace.files_scanned.load(Ordering::Relaxed),
       0
@@ -198,9 +198,9 @@ mod test {
 
   #[test]
   fn test_tracing_nothing() {
-    let tracing = Tracing::Nothing;
+    let tracing = Granularity::Nothing;
     let run_trace = tracing.run_trace();
-    assert_eq!(run_trace.level, Tracing::Nothing);
+    assert_eq!(run_trace.level, Granularity::Nothing);
     let printed = run_trace.print();
     assert!(printed.is_none());
   }
