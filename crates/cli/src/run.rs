@@ -190,7 +190,7 @@ impl<P: Printer> Worker for RunWithInferredLang<P> {
     }
     printer.after_print()?;
     // TODO: better handle output format
-    if let Some(trace) = self.trace.print(self.arg.output.json.is_some()) {
+    if let Some(trace) = self.trace.print() {
       eprintln!("{}", trace);
     }
     Ok(())
@@ -267,7 +267,7 @@ impl<P: Printer> Worker for RunWithSpecificLang<P> {
       has_matches = true;
     }
     printer.after_print()?;
-    if let Some(stats) = self.stats.print(self.arg.output.json.is_some()) {
+    if let Some(stats) = self.stats.print() {
       eprintln!("{}", stats);
     }
     if !has_matches && self.pattern.has_error() {

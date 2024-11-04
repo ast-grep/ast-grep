@@ -177,7 +177,7 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       )?;
     }
     self.printer.after_print()?;
-    if let Some(trace) = self.trace.print(self.arg.output.json.is_some()) {
+    if let Some(trace) = self.trace.print() {
       eprintln!("{}", trace);
     }
     if error_count > 0 {
