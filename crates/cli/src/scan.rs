@@ -235,7 +235,7 @@ impl<P: Printer> PathWorker for ScanWithConfig<P> {
     self.arg.input.walk()
   }
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
-    filter_file_interactive(path, &self.configs)
+    filter_file_interactive(path, &self.configs, &self.trace)
   }
 }
 
