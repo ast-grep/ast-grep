@@ -127,7 +127,7 @@ impl<P: Printer> ScanWithConfig<P> {
       rule_trace = r_stats;
       configs
     };
-    let trace = arg.output.tracing.scan_trace(rule_trace);
+    let trace = arg.output.inspect.scan_trace(rule_trace);
     Ok(Self {
       arg,
       printer,
@@ -392,7 +392,7 @@ rule:
         json: None,
         update_all: false,
         color: ColorArg::Never,
-        tracing: Default::default(),
+        inspect: Default::default(),
       },
       context: ContextArgs {
         before: 0,
