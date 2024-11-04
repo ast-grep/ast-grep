@@ -4,18 +4,19 @@
 //!   * number of rules used in this scan and skipped rules (due to severity: off)
 //!   * number file scanned
 //!   * number file matched
-//!   * number of matches produced or errors/warnings/hints
-//!   * number of fix applied
-//! - File level: show how a file is scanned
+//! - Entity level: show how a file is scanned
 //!   * reasons if skipped (file too large, does not have fixed string in pattern, no matching rule, etc)
 //!   * number of rules applied
 //!   * rules skipped (dues to ignore/files)
-//!   * matches produced or errors/warnings/hints
 //! - Detail level: show how a rule runs on a file
+
+use crate::lang::SgLang;
+use ast_grep_config::RuleConfig;
 
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
+use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Clone, Copy, ValueEnum, Serialize, Deserialize, Default, PartialEq, Debug)]
@@ -26,8 +27,8 @@ pub enum Tracing {
   Nothing = 0,
   /// Show summary about how many files are scanned and skipped
   Summary = 1,
-  // TODO: implement these levels
-  // File,
+  /// Show per-file/per-rule tracing information
+  Entity = 2,
   // Detail,
 }
 
@@ -71,6 +72,9 @@ impl FileTrace {
       self.files_skipped.load(Ordering::Acquire)
     )
   }
+  pub fn print_file(&self, path: &Path, lang: SgLang) -> String {
+    format!("Parse {} with {lang}", path.display())
+  }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -85,12 +89,23 @@ pub struct TraceInfo<T> {
 impl TraceInfo<()> {
   // TODO: support more format?
   pub fn print(&self, is_json: bool) -> Option<String> {
-    if self.level == Tracing::Nothing {
-      None
-    } else if is_json {
-      Some(serde_json::to_string(self).ok()?)
-    } else {
-      Some(self.file_trace.print())
+    match self.level {
+      Tracing::Nothing => None,
+      Tracing::Summary | Tracing::Entity => {
+        if is_json {
+          Some(serde_json::to_string(self).ok()?)
+        } else {
+          Some(self.file_trace.print())
+        }
+      }
+    }
+  }
+
+  pub fn print_file(&self, path: &Path, lang: SgLang) -> Option<String> {
+    match self.level {
+      Tracing::Nothing => None,
+      Tracing::Summary => None,
+      Tracing::Entity => Some(self.file_trace.print_file(path, lang)),
     }
   }
 }
@@ -98,16 +113,34 @@ impl TraceInfo<()> {
 impl TraceInfo<RuleTrace> {
   // TODO: support more format?
   pub fn print(&self, is_json: bool) -> Option<String> {
-    if self.level == Tracing::Nothing {
-      None
-    } else if is_json {
-      Some(serde_json::to_string(self).ok()?)
-    } else {
-      Some(format!(
-        "{}\n{}",
-        self.file_trace.print(),
-        self.inner.print()
-      ))
+    match self.level {
+      Tracing::Nothing => None,
+      Tracing::Summary | Tracing::Entity => {
+        if is_json {
+          Some(serde_json::to_string(self).ok()?)
+        } else {
+          Some(format!(
+            "{}\n{}",
+            self.file_trace.print(),
+            self.inner.print()
+          ))
+        }
+      }
+    }
+  }
+  pub fn print_file(
+    &self,
+    path: &Path,
+    lang: SgLang,
+    rules: &[&RuleConfig<SgLang>],
+  ) -> Option<String> {
+    let len = rules.len();
+    match self.level {
+      Tracing::Nothing | Tracing::Summary => None,
+      Tracing::Entity => Some(format!(
+        "{}, applied {len} rule(s)",
+        self.file_trace.print_file(path, lang),
+      )),
     }
   }
 }
@@ -115,6 +148,7 @@ impl TraceInfo<RuleTrace> {
 #[derive(Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuleTrace {
+  #[serde(skip_serializing)]
   pub effective_rule_count: usize,
   pub skipped_rule_count: usize,
 }

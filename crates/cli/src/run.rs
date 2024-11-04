@@ -207,6 +207,9 @@ impl<P: Printer> PathWorker for RunWithInferredLang<P> {
 
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
     let lang = SgLang::from_path(path)?;
+    if let Some(n) = self.trace.print_file(path, lang) {
+      eprintln!("{}", n);
+    }
     let matcher = self.arg.build_pattern(lang).ok()?;
     // match sub region
     if let Some(sub_langs) = lang.injectable_sg_langs() {
@@ -288,6 +291,9 @@ impl<P: Printer> PathWorker for RunWithSpecificLang<P> {
     let pattern = self.pattern.clone();
     let lang = arg.lang.expect("must present");
     let path_lang = SgLang::from_path(path)?;
+    if let Some(trace) = self.stats.print_file(path, path_lang) {
+      eprintln!("{trace}");
+    }
     let ret = if path_lang == lang {
       filter_file_pattern(path, lang, Some(pattern), std::iter::empty())?
     } else {

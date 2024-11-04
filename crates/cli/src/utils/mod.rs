@@ -109,8 +109,12 @@ fn filter(
   path: &Path,
   lang: SgLang,
   configs: &RuleCollection<SgLang>,
+  rule_stats: &ScanTrace,
 ) -> Option<PreScan> {
   let rules = configs.get_rule_from_lang(path, lang);
+  if let Some(rule_stats) = rule_stats.print_file(path, lang, &rules) {
+    eprintln!("{}", rule_stats);
+  }
   let combined = CombinedScan::new(rules);
   let pre_scan = combined.find(grep);
   if pre_scan.hit_set.is_empty() {
@@ -123,20 +127,21 @@ fn filter(
 pub fn filter_file_interactive(
   path: &Path,
   configs: &RuleCollection<SgLang>,
+  trace: &ScanTrace,
 ) -> Option<Vec<(PathBuf, AstGrep, PreScan)>> {
   let lang = SgLang::from_path(path)?;
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(file_content);
   let mut ret = vec![];
-  let root =
-    filter(&grep, path, lang, configs).map(|pre_scan| (path.to_path_buf(), grep.clone(), pre_scan));
+  let root = filter(&grep, path, lang, configs, trace)
+    .map(|pre_scan| (path.to_path_buf(), grep.clone(), pre_scan));
   ret.extend(root);
   if let Some(injected) = lang.injectable_sg_langs() {
     let docs = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
     let inj = injected.filter_map(|l| {
       let doc = docs.iter().find(|d| *d.lang() == l)?;
       let grep = AstGrep { inner: doc.clone() };
-      let pre_scan = filter(&grep, path, l, configs)?;
+      let pre_scan = filter(&grep, path, l, configs, trace)?;
       Some((path.to_path_buf(), grep, pre_scan))
     });
     ret.extend(inj)
