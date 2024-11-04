@@ -86,18 +86,13 @@ pub struct TraceInfo<T> {
   #[serde(flatten)]
   pub inner: T,
 }
+
 impl TraceInfo<()> {
   // TODO: support more format?
-  pub fn print(&self, is_json: bool) -> Option<String> {
+  pub fn print(&self) -> Option<String> {
     match self.level {
       Tracing::Nothing => None,
-      Tracing::Summary | Tracing::Entity => {
-        if is_json {
-          Some(serde_json::to_string(self).ok()?)
-        } else {
-          Some(self.file_trace.print())
-        }
-      }
+      Tracing::Summary | Tracing::Entity => Some(self.file_trace.print()),
     }
   }
 
@@ -112,20 +107,14 @@ impl TraceInfo<()> {
 
 impl TraceInfo<RuleTrace> {
   // TODO: support more format?
-  pub fn print(&self, is_json: bool) -> Option<String> {
+  pub fn print(&self) -> Option<String> {
     match self.level {
       Tracing::Nothing => None,
-      Tracing::Summary | Tracing::Entity => {
-        if is_json {
-          Some(serde_json::to_string(self).ok()?)
-        } else {
-          Some(format!(
-            "{}\n{}",
-            self.file_trace.print(),
-            self.inner.print()
-          ))
-        }
-      }
+      Tracing::Summary | Tracing::Entity => Some(format!(
+        "{}\n{}",
+        self.file_trace.print(),
+        self.inner.print()
+      )),
     }
   }
   pub fn print_file(
@@ -181,7 +170,7 @@ mod test {
       run_trace.file_trace.files_skipped.load(Ordering::Relaxed),
       0
     );
-    let printed = run_trace.print(false).expect("should have output");
+    let printed = run_trace.print().expect("should have output");
     assert_eq!(printed, "Files scanned: 0, Files skipped: 0");
 
     let rule_stats = RuleTrace {
@@ -200,7 +189,7 @@ mod test {
     );
     assert_eq!(scan_trace.inner.effective_rule_count, 10);
     assert_eq!(scan_trace.inner.skipped_rule_count, 2);
-    let printed = scan_trace.print(false).expect("should have output");
+    let printed = scan_trace.print().expect("should have output");
     assert_eq!(
       printed,
       "Files scanned: 0, Files skipped: 0\nEffective rules: 10, Skipped rules: 2"
@@ -212,7 +201,7 @@ mod test {
     let tracing = Tracing::Nothing;
     let run_trace = tracing.run_trace();
     assert_eq!(run_trace.level, Tracing::Nothing);
-    let printed = run_trace.print(false);
+    let printed = run_trace.print();
     assert!(printed.is_none());
   }
 }
