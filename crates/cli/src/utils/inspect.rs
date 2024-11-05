@@ -14,13 +14,11 @@ use crate::lang::SgLang;
 use ast_grep_config::RuleConfig;
 
 use clap::ValueEnum;
-use serde::{Deserialize, Serialize};
 
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-#[derive(Clone, Copy, ValueEnum, Serialize, Deserialize, Default, PartialEq, Debug)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Copy, ValueEnum, Default, PartialEq, Debug)]
 pub enum Granularity {
   /// Do not show any tracing information
   #[default]
@@ -51,8 +49,7 @@ impl Granularity {
 
 // total = scanned + skipped
 //       = (matched + unmatched) + skipped
-#[derive(Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Default)]
 pub struct FileTrace {
   files_scanned: AtomicUsize,
   files_skipped: AtomicUsize,
@@ -77,13 +74,9 @@ impl FileTrace {
   }
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct TraceInfo<T> {
   pub level: Granularity,
-  #[serde(flatten)]
   pub file_trace: FileTrace,
-  #[serde(flatten)]
   pub inner: T,
 }
 
@@ -134,10 +127,8 @@ impl TraceInfo<RuleTrace> {
   }
 }
 
-#[derive(Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Default)]
 pub struct RuleTrace {
-  #[serde(skip_serializing)]
   pub effective_rule_count: usize,
   pub skipped_rule_count: usize,
 }
