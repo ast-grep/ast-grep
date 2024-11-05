@@ -10,6 +10,7 @@
    <img src="https://img.shields.io/github/stars/ast-grep/ast-grep?style=social" alt="Badge"/>
    <img src="https://img.shields.io/github/forks/ast-grep/ast-grep?style=social" alt="Badge"/>
    <img alt="GitHub Sponsors" src="https://img.shields.io/github/sponsors/HerringtonDarkholme?style=social">
+   <a href="https://gurubase.io/g/ast-grep"><img alt="Gurubase" src="https://img.shields.io/badge/Gurubase-Ask%20ast-grep%20Guru-006BFF"></a>
 </p>
 
 
