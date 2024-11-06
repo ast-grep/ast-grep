@@ -33,6 +33,6 @@ ignore = { version = "0.4.22" }
 regex = { version = "1.10.4" }
 serde = { version = "1.0.200", features = ["derive"] }
 tree-sitter = { version = "0.22.0", package = "tree-sitter-facade-sg" }
-thiserror = "1.0.59"
+thiserror = "2.0.0"
 schemars = "0.8.17"
 anyhow = "1.0.82"
