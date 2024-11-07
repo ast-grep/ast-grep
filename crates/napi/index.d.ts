@@ -39,7 +39,7 @@ export interface FindConfig {
    */
   languageGlobs?: Array<string>
 }
-export const enum Lang {
+export enum Lang {
   Html = 'Html',
   JavaScript = 'JavaScript',
   Tsx = 'Tsx',
