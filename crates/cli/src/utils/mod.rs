@@ -115,7 +115,7 @@ fn filter(
   rule_stats.print_file(path, lang, &rules).ok()?;
   let combined = CombinedScan::new(rules);
   let pre_scan = combined.find(grep);
-  if pre_scan.hit_set.is_empty() {
+  if pre_scan.is_empty() {
     None
   } else {
     Some(pre_scan)

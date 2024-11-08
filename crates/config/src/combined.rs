@@ -80,8 +80,14 @@ impl<'a> MaySuppressed<'a> {
 const IGNORE_TEXT: &str = "ast-grep-ignore";
 
 pub struct PreScan {
-  pub hit_set: BitSet,
+  hit_set: BitSet,
   suppressions: Suppressions,
+}
+
+impl PreScan {
+  pub fn is_empty(&self) -> bool {
+    self.hit_set.is_empty() && self.suppressions.0.is_empty()
+  }
 }
 
 /// A struct to group all rules according to their potential kinds.

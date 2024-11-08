@@ -296,7 +296,7 @@ impl<P: Printer> StdInWorker for ScanWithRule<P> {
     let combined = CombinedScan::new(self.rules.iter().collect());
     let grep = lang.ast_grep(src);
     let pre_scan = combined.find(&grep);
-    if !pre_scan.hit_set.is_empty() {
+    if !pre_scan.is_empty() {
       Some((PathBuf::from("STDIN"), grep, pre_scan))
     } else {
       None
