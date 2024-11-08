@@ -103,7 +103,9 @@ impl<W: Write + Sync> TraceInfo<(), W> {
       Granularity::Nothing => Ok(()),
       Granularity::Summary | Granularity::Entity => {
         let mut w = self.output.lock().expect("lock should not be poisoned");
-        self.file_trace.print(&mut *w)
+        self.file_trace.print(&mut *w)?;
+        writeln!(&mut *w)?;
+        Ok(())
       }
     }
   }
@@ -113,7 +115,9 @@ impl<W: Write + Sync> TraceInfo<(), W> {
       Granularity::Nothing | Granularity::Summary => Ok(()),
       Granularity::Entity => {
         let mut w = self.output.lock().expect("lock should not be poisoned");
-        self.file_trace.print_file(&mut *w, path, lang)
+        self.file_trace.print_file(&mut *w, path, lang)?;
+        writeln!(&mut *w)?;
+        Ok(())
       }
     }
   }
@@ -127,7 +131,7 @@ impl<W: Write> TraceInfo<RuleTrace, W> {
       Granularity::Summary | Granularity::Entity => {
         let mut w = self.output.lock().expect("lock should not be poisoned");
         self.file_trace.print(&mut *w)?;
-        write!(&mut *w, "\n{}", self.inner.print())?;
+        writeln!(&mut *w, "\n{}", self.inner.print())?;
         Ok(())
       }
     }
@@ -139,7 +143,7 @@ impl<W: Write> TraceInfo<RuleTrace, W> {
       Granularity::Entity => {
         let mut w = self.output.lock().expect("lock should not be poisoned");
         self.file_trace.print_file(&mut *w, path, lang)?;
-        write!(&mut *w, ", applied {len} rule(s)")?;
+        writeln!(&mut *w, ", applied {len} rule(s)")?;
         Ok(())
       }
     }
@@ -182,7 +186,7 @@ mod test {
       0
     );
     assert!(run_trace.print().is_ok());
-    assert_eq!(ret, "Files scanned: 0, Files skipped: 0");
+    assert_eq!(ret, "Files scanned: 0, Files skipped: 0\n");
 
     let mut ret = String::new();
     let rule_stats = RuleTrace {
@@ -204,7 +208,7 @@ mod test {
     assert!(scan_trace.print().is_ok());
     assert_eq!(
       ret,
-      "Files scanned: 0, Files skipped: 0\nEffective rules: 10, Skipped rules: 2"
+      "Files scanned: 0, Files skipped: 0\nEffective rules: 10, Skipped rules: 2\n"
     );
   }
 

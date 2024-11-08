@@ -47,3 +47,16 @@ fn test_js_in_html() -> Result<()> {
     .stdout(contains("alert(456)"));
   Ok(())
 }
+
+#[test]
+fn test_inspect() -> Result<()> {
+  let dir = create_test_files([("a.js", "alert(1)"), ("b.js", "alert(456)")])?;
+  Command::cargo_bin("sg")?
+    .current_dir(dir.path())
+    .args(["-p", "alert($A)", "-l", "js", "--inspect", "entity"])
+    .assert()
+    .success()
+    .stdout(contains("alert(1)"))
+    .stderr(contains("Files scanned: 2"));
+  Ok(())
+}
