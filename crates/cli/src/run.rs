@@ -189,10 +189,7 @@ impl<P: Printer> Worker for RunWithInferredLang<P> {
       }
     }
     printer.after_print()?;
-    // TODO: better handle output format
-    if let Some(trace) = self.trace.print() {
-      eprintln!("{}", trace);
-    }
+    self.trace.print()?;
     Ok(())
   }
 }
@@ -207,9 +204,7 @@ impl<P: Printer> PathWorker for RunWithInferredLang<P> {
 
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
     let lang = SgLang::from_path(path)?;
-    if let Some(n) = self.trace.print_file(path, lang) {
-      eprintln!("{}", n);
-    }
+    self.trace.print_file(path, lang).ok()?;
     let matcher = self.arg.build_pattern(lang).ok()?;
     // match sub region
     if let Some(sub_langs) = lang.injectable_sg_langs() {
@@ -267,9 +262,7 @@ impl<P: Printer> Worker for RunWithSpecificLang<P> {
       has_matches = true;
     }
     printer.after_print()?;
-    if let Some(stats) = self.stats.print() {
-      eprintln!("{}", stats);
-    }
+    self.stats.print()?;
     if !has_matches && self.pattern.has_error() {
       Err(anyhow::anyhow!(EC::PatternHasError))
     } else {
@@ -291,9 +284,7 @@ impl<P: Printer> PathWorker for RunWithSpecificLang<P> {
     let pattern = self.pattern.clone();
     let lang = arg.lang.expect("must present");
     let path_lang = SgLang::from_path(path)?;
-    if let Some(trace) = self.stats.print_file(path, path_lang) {
-      eprintln!("{trace}");
-    }
+    self.stats.print_file(path, path_lang).ok()?;
     let ret = if path_lang == lang {
       filter_file_pattern(path, lang, Some(pattern), std::iter::empty())?
     } else {
