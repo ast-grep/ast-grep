@@ -112,9 +112,7 @@ fn filter(
   rule_stats: &ScanTrace,
 ) -> Option<PreScan> {
   let rules = configs.get_rule_from_lang(path, lang);
-  if let Some(rule_stats) = rule_stats.print_file(path, lang, &rules) {
-    eprintln!("{}", rule_stats);
-  }
+  rule_stats.print_file(path, lang, &rules).ok()?;
   let combined = CombinedScan::new(rules);
   let pre_scan = combined.find(grep);
   if pre_scan.hit_set.is_empty() {

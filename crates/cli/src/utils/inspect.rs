@@ -13,10 +13,13 @@
 use crate::lang::SgLang;
 use ast_grep_config::RuleConfig;
 
+use anyhow::Result;
 use clap::ValueEnum;
 
+use std::io::{Stderr, Write};
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
 
 #[derive(Clone, Copy, ValueEnum, Default, PartialEq, Debug)]
 pub enum Granularity {
@@ -32,17 +35,26 @@ pub enum Granularity {
 
 impl Granularity {
   pub fn run_trace(&self) -> RunTrace {
-    RunTrace {
+    self.run_trace_impl(std::io::stderr())
+  }
+  fn run_trace_impl<W: Write>(&self, w: W) -> TraceInfo<(), W> {
+    TraceInfo {
       level: *self,
       inner: (),
       file_trace: Default::default(),
+      output: Mutex::new(w),
     }
   }
+
   pub fn scan_trace(&self, rule_stats: RuleTrace) -> ScanTrace {
-    ScanTrace {
+    self.scan_trace_impl(rule_stats, std::io::stderr())
+  }
+  fn scan_trace_impl<W: Write>(&self, rule_stats: RuleTrace, w: W) -> TraceInfo<RuleTrace, W> {
+    TraceInfo {
       level: *self,
       inner: rule_stats,
       file_trace: Default::default(),
+      output: Mutex::new(w),
     }
   }
 }
@@ -62,67 +74,74 @@ impl FileTrace {
   pub fn add_skipped(&self) {
     self.files_skipped.fetch_add(1, Ordering::AcqRel);
   }
-  pub fn print(&self) -> String {
-    format!(
+  pub fn print<W: Write>(&self, w: &mut W) -> Result<()> {
+    write!(
+      w,
       "Files scanned: {}, Files skipped: {}",
       self.files_scanned.load(Ordering::Acquire),
       self.files_skipped.load(Ordering::Acquire)
-    )
+    )?;
+    Ok(())
   }
-  pub fn print_file(&self, path: &Path, lang: SgLang) -> String {
-    format!("Parse {} with {lang}", path.display())
+  pub fn print_file<W: Write>(&self, w: &mut W, path: &Path, lang: SgLang) -> Result<()> {
+    write!(w, "Parse {} with {lang}", path.display())?;
+    Ok(())
   }
 }
 
-pub struct TraceInfo<T> {
+pub struct TraceInfo<T, W: Write> {
   pub level: Granularity,
   pub file_trace: FileTrace,
   pub inner: T,
+  output: Mutex<W>,
 }
 
-impl TraceInfo<()> {
+impl<W: Write + Sync> TraceInfo<(), W> {
   // TODO: support more format?
-  pub fn print(&self) -> Option<String> {
+  pub fn print(&self) -> Result<()> {
     match self.level {
-      Granularity::Nothing => None,
-      Granularity::Summary | Granularity::Entity => Some(self.file_trace.print()),
+      Granularity::Nothing => Ok(()),
+      Granularity::Summary | Granularity::Entity => {
+        let mut w = self.output.lock().expect("lock should not be poisoned");
+        self.file_trace.print(&mut *w)
+      }
     }
   }
 
-  pub fn print_file(&self, path: &Path, lang: SgLang) -> Option<String> {
+  pub fn print_file(&self, path: &Path, lang: SgLang) -> Result<()> {
     match self.level {
-      Granularity::Nothing => None,
-      Granularity::Summary => None,
-      Granularity::Entity => Some(self.file_trace.print_file(path, lang)),
+      Granularity::Nothing | Granularity::Summary => Ok(()),
+      Granularity::Entity => {
+        let mut w = self.output.lock().expect("lock should not be poisoned");
+        self.file_trace.print_file(&mut *w, path, lang)
+      }
     }
   }
 }
 
-impl TraceInfo<RuleTrace> {
+impl<W: Write> TraceInfo<RuleTrace, W> {
   // TODO: support more format?
-  pub fn print(&self) -> Option<String> {
+  pub fn print(&self) -> Result<()> {
     match self.level {
-      Granularity::Nothing => None,
-      Granularity::Summary | Granularity::Entity => Some(format!(
-        "{}\n{}",
-        self.file_trace.print(),
-        self.inner.print()
-      )),
+      Granularity::Nothing => Ok(()),
+      Granularity::Summary | Granularity::Entity => {
+        let mut w = self.output.lock().expect("lock should not be poisoned");
+        self.file_trace.print(&mut *w)?;
+        write!(&mut *w, "\n{}", self.inner.print())?;
+        Ok(())
+      }
     }
   }
-  pub fn print_file(
-    &self,
-    path: &Path,
-    lang: SgLang,
-    rules: &[&RuleConfig<SgLang>],
-  ) -> Option<String> {
+  pub fn print_file(&self, path: &Path, lang: SgLang, rules: &[&RuleConfig<SgLang>]) -> Result<()> {
     let len = rules.len();
     match self.level {
-      Granularity::Nothing | Granularity::Summary => None,
-      Granularity::Entity => Some(format!(
-        "{}, applied {len} rule(s)",
-        self.file_trace.print_file(path, lang),
-      )),
+      Granularity::Nothing | Granularity::Summary => Ok(()),
+      Granularity::Entity => {
+        let mut w = self.output.lock().expect("lock should not be poisoned");
+        self.file_trace.print_file(&mut *w, path, lang)?;
+        write!(&mut *w, ", applied {len} rule(s)")?;
+        Ok(())
+      }
     }
   }
 }
@@ -141,8 +160,8 @@ impl RuleTrace {
   }
 }
 
-pub type RunTrace = TraceInfo<()>;
-pub type ScanTrace = TraceInfo<RuleTrace>;
+pub type RunTrace = TraceInfo<(), Stderr>;
+pub type ScanTrace = TraceInfo<RuleTrace, Stderr>;
 
 #[cfg(test)]
 mod test {
@@ -151,7 +170,8 @@ mod test {
   #[test]
   fn test_tracing() {
     let tracing = Granularity::Summary;
-    let run_trace = tracing.run_trace();
+    let mut ret = String::new();
+    let run_trace = tracing.run_trace_impl(unsafe { ret.as_mut_vec() });
     assert_eq!(run_trace.level, Granularity::Summary);
     assert_eq!(
       run_trace.file_trace.files_scanned.load(Ordering::Relaxed),
@@ -161,14 +181,15 @@ mod test {
       run_trace.file_trace.files_skipped.load(Ordering::Relaxed),
       0
     );
-    let printed = run_trace.print().expect("should have output");
-    assert_eq!(printed, "Files scanned: 0, Files skipped: 0");
+    assert!(run_trace.print().is_ok());
+    assert_eq!(ret, "Files scanned: 0, Files skipped: 0");
 
+    let mut ret = String::new();
     let rule_stats = RuleTrace {
       effective_rule_count: 10,
       skipped_rule_count: 2,
     };
-    let scan_trace = tracing.scan_trace(rule_stats);
+    let scan_trace = tracing.scan_trace_impl(rule_stats, unsafe { ret.as_mut_vec() });
     assert_eq!(scan_trace.level, Granularity::Summary);
     assert_eq!(
       scan_trace.file_trace.files_scanned.load(Ordering::Relaxed),
@@ -180,9 +201,9 @@ mod test {
     );
     assert_eq!(scan_trace.inner.effective_rule_count, 10);
     assert_eq!(scan_trace.inner.skipped_rule_count, 2);
-    let printed = scan_trace.print().expect("should have output");
+    assert!(scan_trace.print().is_ok());
     assert_eq!(
-      printed,
+      ret,
       "Files scanned: 0, Files skipped: 0\nEffective rules: 10, Skipped rules: 2"
     );
   }
@@ -190,9 +211,10 @@ mod test {
   #[test]
   fn test_tracing_nothing() {
     let tracing = Granularity::Nothing;
-    let run_trace = tracing.run_trace();
+    let mut ret = String::new();
+    let run_trace = tracing.run_trace_impl(unsafe { ret.as_mut_vec() });
     assert_eq!(run_trace.level, Granularity::Nothing);
-    let printed = run_trace.print();
-    assert!(printed.is_none());
+    assert!(run_trace.print().is_ok());
+    assert!(ret.is_empty());
   }
 }

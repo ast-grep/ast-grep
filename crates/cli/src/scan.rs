@@ -177,9 +177,7 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       )?;
     }
     self.printer.after_print()?;
-    if let Some(trace) = self.trace.print() {
-      eprintln!("{}", trace);
-    }
+    self.trace.print()?;
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
