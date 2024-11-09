@@ -152,3 +152,27 @@ fn test_scan_unused_suppression() -> Result<()> {
     .stdout(contains("unused-suppression"));
   Ok(())
 }
+
+#[test]
+fn test_severity_override() -> Result<()> {
+  let dir = setup()?;
+  Command::cargo_bin("sg")?
+    .current_dir(dir.path())
+    .args(["scan", "--error"])
+    .assert()
+    .failure()
+    .stdout(contains("error"));
+  Command::cargo_bin("sg")?
+    .current_dir(dir.path())
+    .args(["scan", "--error=on-rule"])
+    .assert()
+    .failure()
+    .stdout(contains("error"));
+  Command::cargo_bin("sg")?
+    .current_dir(dir.path())
+    .args(["scan", "--error=not-exist"])
+    .assert()
+    .success()
+    .stdout(contains("warning"));
+  Ok(())
+}
