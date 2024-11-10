@@ -57,6 +57,6 @@ fn test_inspect() -> Result<()> {
     .assert()
     .success()
     .stdout(contains("alert(1)"))
-    .stderr(contains("Files scanned: 2"));
+    .stderr(contains("scannedFileCount=2"));
   Ok(())
 }
