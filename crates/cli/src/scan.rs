@@ -9,7 +9,7 @@ use ast_grep_core::{NodeMatch, StrDoc};
 use clap::Args;
 use ignore::WalkParallel;
 
-use crate::config::{read_rule_file, ProjectConfig};
+use crate::config::{read_rule_file, with_rule_stats, ProjectConfig};
 use crate::lang::SgLang;
 use crate::print::{
   CloudPrinter, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, Printer,
@@ -18,7 +18,7 @@ use crate::print::{
 use crate::utils::ErrorContext as EC;
 use crate::utils::RuleOverwrite;
 use crate::utils::{filter_file_interactive, ContextArgs, InputArgs, OutputArgs, OverwriteArgs};
-use crate::utils::{FileTrace, RuleTrace, ScanTrace};
+use crate::utils::{FileTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
@@ -110,22 +110,19 @@ struct ScanWithConfig<Printer> {
 }
 impl<P: Printer> ScanWithConfig<P> {
   fn try_new(arg: ScanArg, printer: P, project: Result<ProjectConfig>) -> Result<Self> {
-    let mut rule_trace = RuleTrace::default();
     let overwrite = RuleOverwrite::new(&arg.overwrite)?;
-    let unused_suppression_rule = unused_supression_rule_config(&overwrite);
-    let configs = if let Some(path) = &arg.rule {
+    let unused_suppression_rule = unused_suppression_rule_config(&overwrite);
+    let (configs, rule_trace) = if let Some(path) = &arg.rule {
       let rules = read_rule_file(path, None)?;
-      RuleCollection::try_new(rules).context(EC::GlobPattern)?
+      with_rule_stats(rules)?
     } else if let Some(text) = &arg.inline_rules {
       let rules = from_yaml_string(text, &Default::default())
         .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
-      RuleCollection::try_new(rules).context(EC::GlobPattern)?
+      with_rule_stats(rules)?
     } else {
       // NOTE: only query project here since -r does not need project
       let project_config = project?;
-      let (configs, r_stats) = project_config.find_rules(overwrite)?;
-      rule_trace = r_stats;
-      configs
+      project_config.find_rules(overwrite)?
     };
     let trace = arg.output.inspect.scan_trace(rule_trace);
     Ok(Self {
@@ -186,7 +183,7 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
   }
 }
 
-fn unused_supression_rule_config(overwrite: &RuleOverwrite) -> RuleConfig<SgLang> {
+fn unused_suppression_rule_config(overwrite: &RuleOverwrite) -> RuleConfig<SgLang> {
   let rule: SerializableRule = serde_json::from_str(r#"{"pattern": "a"}"#).unwrap();
   let core = SerializableRuleCore {
     rule,

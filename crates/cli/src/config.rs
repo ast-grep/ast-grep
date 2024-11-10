@@ -201,6 +201,19 @@ fn read_directory_yaml(
   Ok((collection, trace))
 }
 
+pub fn with_rule_stats(
+  configs: Vec<RuleConfig<SgLang>>,
+) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
+  let total_rule_count = configs.len();
+  let collection = RuleCollection::try_new(configs).context(EC::GlobPattern)?;
+  let effective_rule_count = collection.total_rule_count();
+  let trace = RuleTrace {
+    effective_rule_count,
+    skipped_rule_count: total_rule_count - effective_rule_count,
+  };
+  Ok((collection, trace))
+}
+
 pub fn read_rule_file(
   path: &Path,
   global_rules: Option<&GlobalRules<SgLang>>,
