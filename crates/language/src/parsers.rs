@@ -23,9 +23,6 @@ mod parser_implementation {
   pub fn language_css() -> TSLanguage {
     tree_sitter_css::language().into()
   }
-  pub fn language_dart() -> TSLanguage {
-    tree_sitter_dart::language().into()
-  }
   pub fn language_elixir() -> TSLanguage {
     tree_sitter_elixir::language().into()
   }
@@ -110,7 +107,6 @@ mod parser_implementation {
     language_cpp,
     language_c_sharp,
     language_css,
-    language_dart,
     language_elixir,
     language_go,
     language_haskell,

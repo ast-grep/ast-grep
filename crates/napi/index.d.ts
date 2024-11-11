@@ -49,7 +49,6 @@ export enum Lang {
   C = 'C',
   Cpp = 'Cpp',
   CSharp = 'CSharp',
-  Dart = 'Dart',
   Go = 'Go',
   Elixir = 'Elixir',
   Haskell = 'Haskell',
