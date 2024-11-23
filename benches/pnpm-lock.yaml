@@ -27,8 +27,8 @@ dependencies:
     specifier: 0.20.6
     version: 0.20.6
   tree-sitter-typescript:
-    specifier: 0.21.2
-    version: 0.21.2(tree-sitter@0.20.6)
+    specifier: 0.23.2
+    version: 0.23.2(tree-sitter@0.20.6)
   typescript:
     specifier: 5.7.2
     version: 5.7.2
@@ -917,13 +917,13 @@ packages:
       semver: 7.5.4
     dev: false
 
-  /node-addon-api@8.0.0:
-    resolution: {integrity: sha512-ipO7rsHEBqa9STO5C5T10fj732ml+5kLN1cAG8/jdHd56ldQeGj3Q7+scUS+VHK/qy1zLEwC4wMK5+yM0btPvw==}
+  /node-addon-api@8.2.2:
+    resolution: {integrity: sha512-9emqXAKhVoNrQ792nLI/wpzPpJ/bj/YXxW0CvAau1+RdGBcCRF1Dmz7719zgVsQNrzHl9Tzn3ImZ4qWFarWL0A==}
     engines: {node: ^18 || ^20 || >= 21}
     dev: false
 
-  /node-gyp-build@4.8.1:
-    resolution: {integrity: sha512-OSs33Z9yWr148JZcbZd5WiAXhh/n9z8TxQcdMhIOlpN9AhWpLfvVFO73+m77bBABQMaY9XSvIa+qk0jlI7Gcaw==}
+  /node-gyp-build@4.8.4:
+    resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
     hasBin: true
     dev: false
 
@@ -1105,19 +1105,33 @@ packages:
     engines: {node: '>=4'}
     dev: true
 
-  /tree-sitter-typescript@0.21.2(tree-sitter@0.20.6):
-    resolution: {integrity: sha512-/RyNK41ZpkA8PuPZimR6pGLvNR1p0ibRUJwwQn4qAjyyLEIQD/BNlwS3NSxWtGsAWZe9gZ44VK1mWx2+eQVldg==}
+  /tree-sitter-javascript@0.23.1(tree-sitter@0.20.6):
+    resolution: {integrity: sha512-/bnhbrTD9frUYHQTiYnPcxyHORIw157ERBa6dqzaKxvR/x3PC4Yzd+D1pZIMS6zNg2v3a8BZ0oK7jHqsQo9fWA==}
+    requiresBuild: true
+    peerDependencies:
+      tree-sitter: ^0.21.1
+    peerDependenciesMeta:
+      tree-sitter:
+        optional: true
+    dependencies:
+      node-addon-api: 8.2.2
+      node-gyp-build: 4.8.4
+      tree-sitter: 0.20.6
+    dev: false
+
+  /tree-sitter-typescript@0.23.2(tree-sitter@0.20.6):
+    resolution: {integrity: sha512-e04JUUKxTT53/x3Uq1zIL45DoYKVfHH4CZqwgZhPg5qYROl5nQjV+85ruFzFGZxu+QeFVbRTPDRnqL9UbU4VeA==}
     requiresBuild: true
     peerDependencies:
       tree-sitter: ^0.21.0
-      tree_sitter: '*'
     peerDependenciesMeta:
-      tree_sitter:
+      tree-sitter:
         optional: true
     dependencies:
-      node-addon-api: 8.0.0
-      node-gyp-build: 4.8.1
+      node-addon-api: 8.2.2
+      node-gyp-build: 4.8.4
       tree-sitter: 0.20.6
+      tree-sitter-javascript: 0.23.1(tree-sitter@0.20.6)
     dev: false
 
   /tree-sitter@0.20.6:
