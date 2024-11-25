@@ -11,7 +11,7 @@
 //! - Detail level: show how a rule runs on a file
 
 use crate::lang::SgLang;
-use ast_grep_config::RuleConfig;
+use ast_grep_config::{RuleCollection, RuleConfig};
 
 use anyhow::Result;
 use clap::ValueEnum;
@@ -180,6 +180,19 @@ impl<W: Write + Sync> TraceInfo<RuleTrace, W> {
       write!(w, "language={lang},appliedRuleCount={len}")?;
       Ok(())
     })?;
+    Ok(())
+  }
+
+  pub fn print_rules(&self, rules: &RuleCollection<SgLang>) -> Result<()> {
+    if self.level < Granularity::Entity {
+      return Ok(());
+    }
+    rules.for_each_rule(|rule| {
+      _ = self.print_entity("rule", &rule.id, |w| {
+        write!(w, "finalSeverity={:?}", rule.severity)?;
+        Ok(())
+      });
+    });
     Ok(())
   }
 }

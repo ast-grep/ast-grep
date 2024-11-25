@@ -125,6 +125,7 @@ impl<P: Printer> ScanWithConfig<P> {
       project_config.find_rules(overwrite)?
     };
     let trace = arg.output.inspect.scan_trace(rule_trace);
+    trace.print_rules(&configs)?;
     Ok(Self {
       arg,
       printer,

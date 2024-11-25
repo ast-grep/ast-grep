@@ -146,6 +146,17 @@ impl<L: Language + Eq> RuleCollection<L> {
     ret
   }
 
+  pub fn for_each_rule(&self, mut f: impl FnMut(&RuleConfig<L>)) {
+    for bucket in &self.tenured {
+      for rule in &bucket.rules {
+        f(rule);
+      }
+    }
+    for rule in &self.contingent {
+      f(&rule.rule);
+    }
+  }
+
   fn add_tenured_rule(tenured: &mut Vec<RuleBucket<L>>, rule: RuleConfig<L>) {
     let lang = rule.language.clone();
     for bucket in tenured.iter_mut() {

@@ -18,7 +18,7 @@ use thiserror::Error;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
 
-#[derive(Serialize, Deserialize, Clone, Default, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Default, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum Severity {
   #[default]
