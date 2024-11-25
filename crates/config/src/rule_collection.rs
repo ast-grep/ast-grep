@@ -119,7 +119,9 @@ impl<L: Language + Eq> RuleCollection<L> {
     let Some(lang) = L::from_path(path) else {
       return vec![];
     };
-    self.get_rule_from_lang(path, lang)
+    let mut ret = self.get_rule_from_lang(path, lang);
+    ret.sort_unstable_by_key(|r| &r.id);
+    ret
   }
 
   pub fn get_rule(&self, id: &str) -> Option<&RuleConfig<L>> {
