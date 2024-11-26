@@ -71,10 +71,23 @@ pub fn execute_main() -> Result<()> {
   }
 }
 
+fn is_command(arg: &str, command: &str) -> bool {
+  let arg = arg.split('=').next().unwrap_or(arg);
+  if arg.starts_with("--") {
+    let arg = arg.trim_start_matches("--");
+    arg == command
+  } else if arg.starts_with('-') {
+    let arg = arg.trim_start_matches('-');
+    arg == &command[..1]
+  } else {
+    false
+  }
+}
+
 fn try_default_run(args: &[String]) -> Result<Option<RunArg>> {
   // use `run` if there is at lease one pattern arg with no user provided command
   let should_use_default_run_command =
-    args.iter().skip(1).any(|p| p == "-p" || p == "--pattern") && args[1].starts_with('-');
+    args.iter().skip(1).any(|p| is_command(p, "pattern")) && args[1].starts_with('-');
   if should_use_default_run_command {
     // handle no subcommand
     let arg = RunArg::try_parse_from(args)?;
@@ -88,9 +101,17 @@ fn try_default_run(args: &[String]) -> Result<Option<RunArg>> {
 fn setup_project_is_possible(args: &[String]) -> Result<ProjectConfig> {
   let mut config = None;
   for i in 0..args.len() {
-    if args[i] != "-c" && args[i] != "--config" {
+    let arg = &args[i];
+    if !is_command(arg, "config") {
       continue;
     }
+    // handle --config=config.yml, see ast-grep/ast-grep#1617
+    if arg.contains('=') {
+      let config_file = arg.split('=').nth(1).unwrap().into();
+      config = Some(config_file);
+      break;
+    }
+    // handle -c config.yml, arg value should be next
     if i + 1 >= args.len() || args[i + 1].starts_with('-') {
       return Err(anyhow::anyhow!("missing config file after -c"));
     }
