@@ -2,7 +2,7 @@ name: PyO3
 
 env:
   PACKAGE_NAME: ast_grep_py # note: maturin package name only accepts underscore
-  PYTHON_VERSION: '3.9'
+  PYTHON_VERSION: '3.9 3.10 3.11 3.12 3.13'
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   CARGO_TERM_COLOR: always
@@ -50,7 +50,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           manylinux: auto
-          args: --release --out dist --find-interpreter
+          args: --release --out dist -i ${{env.PYTHON_VERSION}}
           working-directory: crates/pyo3
       - name: Test sdist
         # GH action only has x86 runner
@@ -80,7 +80,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out dist -i ${{env.PYTHON_VERSION}}
           working-directory: crates/pyo3
       - name: Test sdist
         run: |
