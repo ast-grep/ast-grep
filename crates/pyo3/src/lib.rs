@@ -8,12 +8,18 @@ use py_lang::register_dynamic_language;
 use py_node::{Edit, SgNode};
 use range::{Pos, Range};
 
+use ast_grep::main_with_args;
 use ast_grep_core::{AstGrep, Language, NodeMatch, StrDoc};
 use py_lang::PyLang;
 use pyo3::prelude::*;
 
 use unicode_position::UnicodePosition;
 
+#[pyfunction]
+fn run_with_args(args: Vec<String>) -> PyResult<()> {
+  let _ = main_with_args(args.into_iter());
+  Ok(())
+}
 /// A Python module implemented in Rust.
 #[pymodule]
 fn ast_grep_py(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
@@ -23,6 +29,7 @@ fn ast_grep_py(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
   m.add_class::<Pos>()?;
   m.add_class::<Edit>()?;
   m.add_function(wrap_pyfunction!(register_dynamic_language, m)?)?;
+  m.add_function(wrap_pyfunction!(run_with_args, m)?)?;
   Ok(())
 }
 

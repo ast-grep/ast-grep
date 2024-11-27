@@ -16,6 +16,7 @@ name = "ast_grep_py"
 crate-type = ["cdylib"]
 
 [dependencies]
+ast-grep.workspace = true
 ast-grep-core.workspace = true
 ast-grep-config.workspace = true
 ast-grep-language.workspace = true
