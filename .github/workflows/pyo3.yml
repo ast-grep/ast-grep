@@ -41,6 +41,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           # python-version: ${{ env.PYTHON_VERSION }}
+          python-version: '3.13'
           architecture: x64
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -75,6 +76,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           # python-version: ${{ env.PYTHON_VERSION }}
+          python-version: '3.13'
           architecture: ${{ matrix.target }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -101,7 +103,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        # with:
+        with:
+          python-version: '3.13'
         #   python-version: ${{ env.PYTHON_VERSION }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
