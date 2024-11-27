@@ -61,7 +61,7 @@ jobs:
           pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
           pytest
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: crates/pyo3/dist
@@ -90,7 +90,7 @@ jobs:
           pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
           pytest
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: crates/pyo3/dist
@@ -122,7 +122,7 @@ jobs:
           pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
           pytest
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: crates/pyo3/dist
@@ -138,7 +138,7 @@ jobs:
           args: --out dist
           working-directory: crates/pyo3
       - name: Upload sdist
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: crates/pyo3/dist
@@ -152,7 +152,7 @@ jobs:
       id-token: write
     needs: [linux, windows, macos, sdist]
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: wheels
       - name: Publish to PyPI
