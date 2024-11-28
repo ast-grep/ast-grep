@@ -65,13 +65,13 @@ jobs:
           name: wheels-${{ matrix.target }}
           path: crates/pyo3/dist
 
-  # windows:
-  #   runs-on: windows-latest
-  #   strategy:
-  #     matrix:
-  #       target: [x64, x86]
-  #   steps:
-  #     - uses: actions/checkout@v4
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        target: [x64, x86]
+    steps:
+      - uses: actions/checkout@v4
   #     - uses: actions/setup-python@v5
   #       with:
   #         # python-version: ${{ env.PYTHON_VERSION }}
