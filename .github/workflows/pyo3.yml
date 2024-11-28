@@ -9,9 +9,9 @@ env:
   RUSTUP_MAX_RETRIES: 10
 
 
-# defaults:
-#   run:
-#     working-directory: ./crates/pyo3
+defaults:
+  run:
+    working-directory: crates/pyo3
 on:
   workflow_dispatch:
     inputs:
