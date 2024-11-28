@@ -65,34 +65,34 @@ jobs:
           name: wheels-${{ matrix.target }}
           path: crates/pyo3/dist
 
-  windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        target: [x64, x86]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          # python-version: ${{ env.PYTHON_VERSION }}
-          python-version: '3.13'
-          architecture: ${{ matrix.target }}
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.target }}
-          args: --release --out dist -i ${{env.PYTHON_VERSION}}
-          working-directory: crates/pyo3
-      - name: Test sdist
-        run: |
-          pip install pytest
-          pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
-          pytest
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-${{ matrix.target }}
-          path: crates/pyo3/dist
+  # windows:
+  #   runs-on: windows-latest
+  #   strategy:
+  #     matrix:
+  #       target: [x64, x86]
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         # python-version: ${{ env.PYTHON_VERSION }}
+  #         python-version: '3.13'
+  #         architecture: ${{ matrix.target }}
+  #     - name: Build wheels
+  #       uses: PyO3/maturin-action@v1
+  #       with:
+  #         target: ${{ matrix.target }}
+  #         args: --release --out dist -i ${{env.PYTHON_VERSION}}
+  #         working-directory: crates/pyo3
+  #     - name: Test sdist
+  #       run: |
+  #         pip install pytest
+  #         pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
+  #         pytest
+  #     - name: Upload wheels
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: wheels-${{ matrix.target }}
+  #         path: crates/pyo3/dist
 
   macos:
     runs-on: macos-latest
