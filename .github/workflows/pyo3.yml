@@ -151,13 +151,13 @@ jobs:
       - uses: actions/download-artifact@v4
         # with:
         #   name: wheels
-      - name: List artifacts
+      -
         run: ls -l
-      - name: Publish to PyPI
-        uses: PyO3/maturin-action@v1
-        with:
-          command: upload
-          args: --skip-existing *
-          # note, release does not need working-directory
-          # because artifacts are stored under the root dir
-          # and it does not involve pyproject.toml
+      # - name: Publish to PyPI
+      #   uses: PyO3/maturin-action@v1
+      #   with:
+      #     command: upload
+      #     args: --skip-existing *
+      #     # note, release does not need working-directory
+      #     # because artifacts are stored under the root dir
+      #     # and it does not involve pyproject.toml
