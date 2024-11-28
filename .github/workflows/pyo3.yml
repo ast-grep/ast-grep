@@ -151,7 +151,7 @@ jobs:
       - uses: actions/download-artifact@v4
         # with:
         #   name: wheels
-      -
+      - name: List artifacts
         run: ls -l
       # - name: Publish to PyPI
       #   uses: PyO3/maturin-action@v1
