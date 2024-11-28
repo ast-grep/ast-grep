@@ -152,7 +152,9 @@ jobs:
         # with:
         #   name: wheels
       - name: List artifacts
-        run: ls -l
+        run: ls -l crates/pyo3/dist
+        with:
+          working-directory: .
       # - name: Publish to PyPI
       #   uses: PyO3/maturin-action@v1
       #   with:
