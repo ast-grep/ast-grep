@@ -47,7 +47,6 @@ jobs:
         uses: PyO3/maturin-action@v1
         env:
           CFLAGS: "-std=c11"
-          # CXXFLAGS: "-std=c++11"
         with:
           target: ${{ matrix.target }}
           manylinux: auto
@@ -61,9 +60,9 @@ jobs:
           pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
           pytest
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-${{ matrix.target }}
           path: crates/pyo3/dist
 
   windows:
@@ -90,9 +89,9 @@ jobs:
           pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
           pytest
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-${{ matrix.target }}
           path: crates/pyo3/dist
 
   macos:
@@ -108,9 +107,6 @@ jobs:
         #   python-version: ${{ env.PYTHON_VERSION }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
-        # env:
-        #   # old llvm does not support libc++ by default
-        #   CXXFLAGS: "-stdlib=libc++"
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
@@ -122,9 +118,9 @@ jobs:
           pip install --no-index --find-links=dist ${{env.PACKAGE_NAME}} --force-reinstall
           pytest
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-${{ matrix.target }}
           path: crates/pyo3/dist
 
   sdist:
@@ -138,7 +134,7 @@ jobs:
           args: --out dist
           working-directory: crates/pyo3
       - name: Upload sdist
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: crates/pyo3/dist
@@ -152,9 +148,11 @@ jobs:
       id-token: write
     needs: [linux, windows, macos, sdist]
     steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: wheels
+      - uses: actions/download-artifact@v4
+        # with:
+        #   name: wheels
+      - name: List artifacts
+        run: ls -l
       - name: Publish to PyPI
         uses: PyO3/maturin-action@v1
         with:
