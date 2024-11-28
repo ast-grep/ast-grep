@@ -47,7 +47,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         env:
           CFLAGS: "-std=c11"
-          CXXFLAGS: "-std=c++11"
+          # CXXFLAGS: "-std=c++11"
         with:
           target: ${{ matrix.target }}
           manylinux: auto
@@ -108,9 +108,9 @@ jobs:
         #   python-version: ${{ env.PYTHON_VERSION }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
-        env:
-          # old llvm does not support libc++ by default
-          CXXFLAGS: "-stdlib=libc++"
+        # env:
+        #   # old llvm does not support libc++ by default
+        #   CXXFLAGS: "-stdlib=libc++"
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
