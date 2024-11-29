@@ -219,6 +219,13 @@ test('show good error message for invalid arg', async t => {
   })
 })
 
+test('get node id', async t => {
+  const sg = parse('console.log(123)')
+  const nodeWithPattern = sg.root().find('console.log($$$)')
+  const nodeWithKind = sg.root().find(kind('call_expression'))
+  t.is(nodeWithPattern!.id(), nodeWithKind!.id())
+})
+
 test('find in files', async t => {
   let findInFiles = countedPromise(ts.findInFiles)
   await findInFiles({
