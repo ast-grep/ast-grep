@@ -162,6 +162,12 @@ impl SgNode {
     Self::from_iter_to_vec(&reference, env, children)
   }
 
+  /// Returns the node's id
+  #[napi]
+  pub fn id(&self) -> Result<u32> {
+    Ok(self.inner.node_id() as u32)
+  }
+
   #[napi]
   pub fn find(
     &self,

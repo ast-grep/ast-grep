@@ -127,6 +127,8 @@ export declare class SgNode {
   /** Returns the node's SgRoot */
   getRoot(): SgRoot
   children(): Array<SgNode>
+  /** Returns the node's id */
+  id(): number
   find(matcher: string | number | NapiConfig): SgNode | null
   findAll(matcher: string | number | NapiConfig): Array<SgNode>
   /** Finds the child node in the `field` */
