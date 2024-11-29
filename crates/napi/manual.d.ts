@@ -33,11 +33,25 @@ export interface NthChildObject {
  */
 export type NthChild = number | string | NthChildObject
 
+export interface Position {
+  /** 0-indexed row number. */
+  row: number
+  /** 0-indexed column number. */
+  column: number
+}
+
+export interface Range {
+  start: Position
+  end: Position
+}
+
 export interface Rule {
   /** A pattern string or a pattern object. */
   pattern?: PatternStyle
   /** The kind name of the node to match. You can look up code's kind names in playground. */
   kind?: string
+  /** The exact range of the node in the source code. */
+  range?: Range
   /** A Rust regular expression to match the node's text. https://docs.rs/regex/latest/regex/#syntax */
   regex?: string
   /**
