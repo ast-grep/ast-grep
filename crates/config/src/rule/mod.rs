@@ -1,10 +1,12 @@
 mod deserialize_env;
 mod nth_child;
+mod range;
 pub mod referent_rule;
 mod relational_rule;
 mod stop_by;
 
 pub use deserialize_env::DeserializeEnv;
+use range::SerializableRange;
 pub use relational_rule::Relation;
 pub use stop_by::StopBy;
 
@@ -14,7 +16,9 @@ use referent_rule::{ReferentRule, ReferentRuleError};
 use relational_rule::{Follows, Has, Inside, Precedes};
 
 use ast_grep_core::language::Language;
-use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
+use ast_grep_core::matcher::{
+  KindMatcher, KindMatcherError, RangeMatcher, RangeMatcherError, RegexMatcher, RegexMatcherError,
+};
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::ops as o;
 use ast_grep_core::{Doc, MatchStrictness, Matcher, Node, Pattern, PatternError};
@@ -54,6 +58,10 @@ pub struct SerializableRule {
   /// It specifies the position in nodes' sibling list.
   #[serde(default, skip_serializing_if = "Maybe::is_absent", rename = "nthChild")]
   pub nth_child: Maybe<SerializableNthChild>,
+  /// `range` accepts a range object.
+  /// the target node must exactly appear in the range.
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  pub range: Maybe<SerializableRange>,
 
   // relational
   /// `inside` accepts a relational rule object.
@@ -103,6 +111,7 @@ impl SerializableRule {
         kind: self.kind.into(),
         regex: self.regex.into(),
         nth_child: self.nth_child.into(),
+        range: self.range.into(),
       },
       relational: RelationalRule {
         inside: self.inside.into(),
@@ -125,6 +134,7 @@ pub struct AtomicRule {
   pub kind: Option<String>,
   pub regex: Option<String>,
   pub nth_child: Option<SerializableNthChild>,
+  pub range: Option<SerializableRange>,
 }
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -205,6 +215,7 @@ pub enum Rule<L: Language> {
   Kind(KindMatcher<L>),
   Regex(RegexMatcher<L>),
   NthChild(NthChild<L>),
+  Range(RangeMatcher<L>),
   // relational
   Inside(Box<Inside<L>>),
   Has(Box<Has<L>>),
@@ -251,6 +262,7 @@ impl<L: Language> Rule<L> {
       Rule::Kind(_) => HashSet::new(),
       Rule::Regex(_) => HashSet::new(),
       Rule::NthChild(n) => n.defined_vars(),
+      Rule::Range(_) => HashSet::new(),
       Rule::Has(c) => c.defined_vars(),
       Rule::Inside(p) => p.defined_vars(),
       Rule::Precedes(f) => f.defined_vars(),
@@ -270,6 +282,7 @@ impl<L: Language> Rule<L> {
       Rule::Kind(_) => Ok(()),
       Rule::Regex(_) => Ok(()),
       Rule::NthChild(n) => n.verify_util(),
+      Rule::Range(_) => Ok(()),
       Rule::Has(c) => c.verify_util(),
       Rule::Inside(p) => p.verify_util(),
       Rule::Precedes(f) => f.verify_util(),
@@ -295,6 +308,7 @@ impl<L: Language> Matcher<L> for Rule<L> {
       Kind(kind) => kind.match_node_with_env(node, env),
       Regex(regex) => regex.match_node_with_env(node, env),
       NthChild(nth_child) => nth_child.match_node_with_env(node, env),
+      Range(range) => range.match_node_with_env(node, env),
       // relational
       Inside(parent) => match_and_add_label(&**parent, node, env),
       Has(child) => match_and_add_label(&**child, node, env),
@@ -316,6 +330,7 @@ impl<L: Language> Matcher<L> for Rule<L> {
       Kind(kind) => kind.potential_kinds(),
       Regex(regex) => regex.potential_kinds(),
       NthChild(nth_child) => nth_child.potential_kinds(),
+      Range(range) => range.potential_kinds(),
       // relational
       Inside(parent) => parent.potential_kinds(),
       Has(child) => child.potential_kinds(),
@@ -362,6 +377,8 @@ pub enum RuleSerializeError {
   WrongRegex(#[from] RegexMatcherError),
   #[error("Rule contains invalid matches reference.")]
   MatchesReference(#[from] ReferentRuleError),
+  #[error("Rule contains invalid range matcher.")]
+  InvalidRange(#[from] RangeMatcherError),
   #[error("field is only supported in has/inside.")]
   FieldNotSupported,
   #[error("Relational rule contains invalid field {0}.")]
@@ -479,6 +496,14 @@ fn deserialze_atomic_rule<L: Language>(
   }
   if let Some(nth_child) = atomic.nth_child {
     rules.push(R::NthChild(NthChild::try_new(nth_child, env)?));
+  }
+  if let Some(range) = atomic.range {
+    rules.push(R::Range(RangeMatcher::try_new(
+      range.start.row,
+      range.start.column,
+      range.end.row,
+      range.end.column,
+    )?));
   }
   Ok(())
 }
