@@ -697,4 +697,23 @@ if (a) {
     assert_eq!(edit.position, 15);
     assert_eq!(edit.deleted_length, 8);
   }
+
+  #[test]
+  fn test_ascii_pos() {
+    let root = Tsx.ast_grep("a");
+    let root = root.root();
+    let node = root.find("$A").expect("should exist");
+    assert_eq!(node.start_pos(), (0, 0));
+    assert_eq!(node.end_pos(), (0, 1));
+  }
+
+  #[test]
+  #[ignore = "TODO: fix column to be unicode character"]
+  fn test_unicode_pos() {
+    let root = Tsx.ast_grep("🦀");
+    let root = root.root();
+    let node = root.find("$A").expect("should exist");
+    assert_eq!(node.start_pos(), (0, 0));
+    assert_eq!(node.end_pos(), (0, 1));
+  }
 }
