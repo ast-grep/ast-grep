@@ -1,5 +1,5 @@
 use super::pre_process_pattern;
-use ast_grep_core::language::{TSPoint, TSRange};
+use ast_grep_core::language::TSRange;
 use ast_grep_core::Language;
 use ast_grep_core::{matcher::KindMatcher, Doc, Node};
 use std::collections::HashMap;
@@ -68,9 +68,9 @@ fn find_lang<D: Doc>(node: &Node<D>) -> Option<String> {
 fn node_to_range<D: Doc>(node: &Node<D>) -> TSRange {
   let r = node.range();
   let start = node.start_pos();
-  let sp = TSPoint::new(start.0 as u32, start.1 as u32);
+  let sp = start.ts_point();
   let end = node.end_pos();
-  let ep = TSPoint::new(end.0 as u32, end.1 as u32);
+  let ep = end.ts_point();
   TSRange::new(r.start as u32, r.end as u32, &sp, &ep)
 }
 

@@ -57,16 +57,16 @@ pub fn diagnostic_to_code_action(
 }
 
 fn convert_node_to_range<D: Doc>(node_match: &Node<D>) -> Range {
-  let (start_row, start_col) = node_match.start_pos();
-  let (end_row, end_col) = node_match.end_pos();
+  let start = node_match.start_pos();
+  let end = node_match.end_pos();
   Range {
     start: Position {
-      line: start_row as u32,
-      character: start_col as u32,
+      line: start.row() as u32,
+      character: start.column(node_match) as u32,
     },
     end: Position {
-      line: end_row as u32,
-      character: end_col as u32,
+      line: end.row() as u32,
+      character: end.column(node_match) as u32,
     },
   }
 }

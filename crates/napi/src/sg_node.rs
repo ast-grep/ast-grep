@@ -1,4 +1,4 @@
-use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern};
+use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern, Position};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
@@ -26,14 +26,6 @@ pub struct Pos {
   pub index: u32,
 }
 
-fn to_pos(pos: (usize, usize), offset: usize) -> Pos {
-  Pos {
-    line: pos.0 as u32,
-    column: pos.1 as u32 / 2,
-    index: offset as u32 / 2,
-  }
-}
-
 #[napi(object)]
 pub struct Range {
   /// starting position of the range
@@ -47,6 +39,17 @@ pub struct SgNode {
   pub(super) inner: SharedReference<SgRoot, NodeMatch<'static, JsDoc>>,
 }
 
+impl SgNode {
+  fn to_pos(&self, pos: Position, offset: usize) -> Pos {
+    Pos {
+      line: pos.row() as u32,
+      // TODO: remove the division by 2 hack
+      column: pos.column(&self.inner) as u32 / 2,
+      index: offset as u32 / 2,
+    }
+  }
+}
+
 #[napi]
 impl SgNode {
   #[napi]
@@ -55,8 +58,8 @@ impl SgNode {
     let start_pos = self.inner.start_pos();
     let end_pos = self.inner.end_pos();
     Range {
-      start: to_pos(start_pos, byte_range.start),
-      end: to_pos(end_pos, byte_range.end),
+      start: self.to_pos(start_pos, byte_range.start),
+      end: self.to_pos(end_pos, byte_range.end),
     }
   }
 
