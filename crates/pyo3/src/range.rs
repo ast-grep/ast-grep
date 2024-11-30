@@ -1,5 +1,5 @@
 use crate::unicode_position::UnicodePosition;
-use ast_grep_core::{Doc, Node};
+use ast_grep_core::{Doc, Node, Position};
 use pyo3::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::{self, Debug, Display, Formatter};
@@ -50,10 +50,10 @@ impl Pos {
   }
 }
 
-fn to_pos(pos: (usize, usize), offset: usize) -> Pos {
+fn to_pos<D: Doc>(node: &Node<D>, pos: Position, offset: usize) -> Pos {
   Pos {
-    line: pos.0,
-    column: pos.1,
+    line: pos.row(),
+    column: pos.column(node),
     index: offset,
   }
 }
@@ -105,8 +105,8 @@ impl Range {
     let start = positioner.byte_to_char(byte_range.start);
     let end = positioner.byte_to_char(byte_range.end);
     Range {
-      start: to_pos(start_pos, start),
-      end: to_pos(end_pos, end),
+      start: to_pos(node, start_pos, start),
+      end: to_pos(node, end_pos, end),
     }
   }
 }

@@ -29,8 +29,11 @@ macro_rules! Diffs {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// Zero-based character position in a file.
 struct Position {
+  /// Zero-based line number
   line: usize,
+  /// Zero-based character column in a line
   column: usize,
 }
 
@@ -143,12 +146,12 @@ fn get_range(n: &Node<'_, SgLang>) -> Range {
   Range {
     byte_offset: n.range(),
     start: Position {
-      line: start_pos.0,
-      column: start_pos.1,
+      line: start_pos.row(),
+      column: start_pos.column(n),
     },
     end: Position {
-      line: end_pos.0,
-      column: end_pos.1,
+      line: end_pos.row(),
+      column: end_pos.column(n),
     },
   }
 }

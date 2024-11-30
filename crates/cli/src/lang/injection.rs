@@ -1,10 +1,7 @@
 use super::SgLang;
 use crate::utils::ErrorContext as EC;
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
-use ast_grep_core::{
-  language::{TSPoint, TSRange},
-  Doc, Language, Node, StrDoc,
-};
+use ast_grep_core::{language::TSRange, Doc, Language, Node, StrDoc};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -168,9 +165,9 @@ fn extract_custom_inject(
 fn node_to_range<D: Doc>(node: &Node<D>) -> TSRange {
   let r = node.range();
   let start = node.start_pos();
-  let sp = TSPoint::new(start.0 as u32, start.1 as u32);
+  let sp = start.ts_point();
   let end = node.end_pos();
-  let ep = TSPoint::new(end.0 as u32, end.1 as u32);
+  let ep = end.ts_point();
   TSRange::new(r.start as u32, r.end as u32, &sp, &ep)
 }
 

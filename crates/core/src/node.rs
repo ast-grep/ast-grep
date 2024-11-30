@@ -9,6 +9,38 @@ type Edit<D> = E<<D as Doc>::Source>;
 
 use std::borrow::Cow;
 
+/// Represents a position in the source code.
+/// The row and column are zero-based, character offsets.
+/// It is different from tree-sitter's position which is zero-based `byte` offsets.
+/// Note, accessing `column` is O(n) operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Position {
+  /// zero-based row offset. Text encoding does not matter.
+  row: usize,
+  /// zero-based BYTE offset instead of character offset
+  byte_column: usize,
+}
+
+impl Position {
+  fn new(row: u32, byte_column: u32) -> Self {
+    Self {
+      row: row as usize,
+      byte_column: byte_column as usize,
+    }
+  }
+  pub fn row(&self) -> usize {
+    self.row
+  }
+  /// TODO: return unicode character offset
+  pub fn column<D: Doc>(&self, _node: &Node<D>) -> usize {
+    self.byte_column
+  }
+  /// Convert to tree-sitter's Point
+  pub fn ts_point(&self) -> tree_sitter::Point {
+    tree_sitter::Point::new(self.row as u32, self.byte_column as u32)
+  }
+}
+
 /// Represents [`tree_sitter::Tree`] and owns source string
 /// Note: Root is generic against [`Language`](crate::language::Language)
 #[derive(Clone)]
@@ -184,15 +216,15 @@ impl<'r, D: Doc> Node<'r, D> {
   }
 
   /// Nodes' start position in terms of zero-based rows and columns.
-  pub fn start_pos(&self) -> (usize, usize) {
+  pub fn start_pos(&self) -> Position {
     let pos = self.inner.start_position();
-    (pos.row() as usize, pos.column() as usize)
+    Position::new(pos.row(), pos.column())
   }
 
   /// Nodes' end position in terms of rows and columns.
-  pub fn end_pos(&self) -> (usize, usize) {
+  pub fn end_pos(&self) -> Position {
     let pos = self.inner.end_position();
-    (pos.row() as usize, pos.column() as usize)
+    Position::new(pos.row(), pos.column())
   }
 
   pub fn text(&self) -> Cow<'r, str> {
@@ -252,7 +284,7 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
       matched: self.text(),
       leading: &source[leading..start],
       trailing: &source[end..trailing],
-      start_line: self.start_pos().0 - offset,
+      start_line: self.start_pos().row() - offset,
     }
   }
 
@@ -703,8 +735,10 @@ if (a) {
     let root = Tsx.ast_grep("a");
     let root = root.root();
     let node = root.find("$A").expect("should exist");
-    assert_eq!(node.start_pos(), (0, 0));
-    assert_eq!(node.end_pos(), (0, 1));
+    assert_eq!(node.start_pos().row(), 0);
+    assert_eq!(node.start_pos().column(&node), 0);
+    assert_eq!(node.end_pos().row(), 0);
+    assert_eq!(node.end_pos().column(&node), 1);
   }
 
   #[test]
@@ -713,7 +747,9 @@ if (a) {
     let root = Tsx.ast_grep("🦀");
     let root = root.root();
     let node = root.find("$A").expect("should exist");
-    assert_eq!(node.start_pos(), (0, 0));
-    assert_eq!(node.end_pos(), (0, 1));
+    assert_eq!(node.start_pos().row(), 0);
+    assert_eq!(node.start_pos().column(&node), 0);
+    assert_eq!(node.end_pos().row(), 0);
+    assert_eq!(node.end_pos().column(&node), 1);
   }
 }
