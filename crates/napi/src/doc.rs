@@ -107,6 +107,10 @@ impl Content for Wrapper {
     let s = String::from_utf16_lossy(bytes);
     Cow::Owned(s)
   }
+  fn get_char_column(&self, column: usize, _offset: usize) -> usize {
+    // utf-16 is 2 bytes per character, this is O(1) operation!
+    column / 2
+  }
 }
 
 fn pos_for_byte_offset(input: &[u16], byte_offset: usize) -> Point {

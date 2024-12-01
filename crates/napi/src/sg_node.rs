@@ -43,8 +43,7 @@ impl SgNode {
   fn to_pos(&self, pos: Position, offset: usize) -> Pos {
     Pos {
       line: pos.row() as u32,
-      // TODO: remove the division by 2 hack
-      column: pos.column(&self.inner) as u32 / 2,
+      column: pos.column(&self.inner) as u32,
       index: offset as u32 / 2,
     }
   }

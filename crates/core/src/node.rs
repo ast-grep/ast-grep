@@ -19,21 +19,25 @@ pub struct Position {
   row: usize,
   /// zero-based BYTE offset instead of character offset
   byte_column: usize,
+  /// byte offset of this position
+  byte_offset: usize,
 }
 
 impl Position {
-  fn new(row: u32, byte_column: u32) -> Self {
+  fn new(row: u32, byte_column: u32, byte_offset: u32) -> Self {
     Self {
       row: row as usize,
       byte_column: byte_column as usize,
+      byte_offset: byte_offset as usize,
     }
   }
   pub fn row(&self) -> usize {
     self.row
   }
   /// TODO: return unicode character offset
-  pub fn column<D: Doc>(&self, _node: &Node<D>) -> usize {
-    self.byte_column
+  pub fn column<D: Doc>(&self, node: &Node<D>) -> usize {
+    let source = node.root.doc.get_source();
+    source.get_char_column(self.byte_column, self.byte_offset)
   }
   /// Convert to tree-sitter's Point
   pub fn ts_point(&self) -> tree_sitter::Point {
@@ -218,13 +222,15 @@ impl<'r, D: Doc> Node<'r, D> {
   /// Nodes' start position in terms of zero-based rows and columns.
   pub fn start_pos(&self) -> Position {
     let pos = self.inner.start_position();
-    Position::new(pos.row(), pos.column())
+    let byte = self.inner.start_byte();
+    Position::new(pos.row(), pos.column(), byte)
   }
 
   /// Nodes' end position in terms of rows and columns.
   pub fn end_pos(&self) -> Position {
     let pos = self.inner.end_position();
-    Position::new(pos.row(), pos.column())
+    let byte = self.inner.end_byte();
+    Position::new(pos.row(), pos.column(), byte)
   }
 
   pub fn text(&self) -> Cow<'r, str> {
@@ -742,7 +748,6 @@ if (a) {
   }
 
   #[test]
-  #[ignore = "TODO: fix column to be unicode character"]
   fn test_unicode_pos() {
     let root = Tsx.ast_grep("🦀");
     let root = root.root();
@@ -751,5 +756,12 @@ if (a) {
     assert_eq!(node.start_pos().column(&node), 0);
     assert_eq!(node.end_pos().row(), 0);
     assert_eq!(node.end_pos().column(&node), 1);
+    let root = Tsx.ast_grep("\n  🦀🦀");
+    let root = root.root();
+    let node = root.find("$A").expect("should exist");
+    assert_eq!(node.start_pos().row(), 1);
+    assert_eq!(node.start_pos().column(&node), 2);
+    assert_eq!(node.end_pos().row(), 1);
+    assert_eq!(node.end_pos().column(&node), 4);
   }
 }
