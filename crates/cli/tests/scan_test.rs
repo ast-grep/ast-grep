@@ -54,6 +54,12 @@ fn test_sg_scan() -> Result<()> {
   let config = dir.path().join("sgconfig.yml");
   let ret = sg(&format!("sg scan -c {}", config.display()));
   assert!(ret.is_ok());
+  let ret = sg(&format!("sg scan -c={}", config.display()));
+  assert!(ret.is_ok());
+  let ret = sg(&format!("sg scan --config {}", config.display()));
+  assert!(ret.is_ok());
+  let ret = sg(&format!("sg scan --config={}", config.display()));
+  assert!(ret.is_ok());
   drop(dir);
   Ok(())
 }
