@@ -48,5 +48,4 @@ def test_unicode():
     assert node is not None
     assert node.range().start.index == 5
     assert node.range().start.line == 0
-    # TODO: Fix this, it should be 5 in character
-    # assert node.range().start.column == 5
+    assert node.range().start.column == 5

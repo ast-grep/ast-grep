@@ -146,6 +146,8 @@ pub trait Content: Sized {
   /// Used for string replacement. We need this for
   /// transformation.
   fn encode_bytes(bytes: &[Self::Underlying]) -> Cow<str>;
+  /// Get the character column at the given position
+  fn get_char_column(&self, column: usize, offset: usize) -> usize;
 }
 
 impl Content for String {
@@ -188,6 +190,25 @@ impl Content for String {
   }
   fn encode_bytes(bytes: &[Self::Underlying]) -> Cow<str> {
     String::from_utf8_lossy(bytes)
+  }
+
+  /// This is an O(n) operation. We assume the col will not be a
+  /// huge number in reality. This may be problematic for special
+  /// files like compressed js
+  fn get_char_column(&self, _col: usize, offset: usize) -> usize {
+    let src = self.as_bytes();
+    let mut col = 0;
+    // TODO: is it possible to use SIMD here???
+    for &b in src[..offset].iter().rev() {
+      if b == b'\n' {
+        break;
+      }
+      // https://en.wikipedia.org/wiki/UTF-8#Description
+      if b & 0b1100_0000 != 0b1000_0000 {
+        col += 1;
+      }
+    }
+    col
   }
 }
 
