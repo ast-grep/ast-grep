@@ -1,6 +1,8 @@
 use ast_grep_dynamic::{DynamicLang, Registration};
 use serde::{Deserialize, Serialize};
 
+use crate::utils::ErrorContext as EC;
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -16,13 +18,13 @@ pub struct CustomLang {
 }
 
 impl CustomLang {
-  pub fn register(base: &Path, langs: HashMap<String, CustomLang>) {
+  pub fn register(base: &Path, langs: HashMap<String, CustomLang>) -> Result<()> {
     let registrations = langs
       .into_iter()
       .map(|(name, custom)| to_registration(name, custom, base))
       .collect();
-    // TODO, add error handling
-    unsafe { DynamicLang::register(registrations).expect("TODO") }
+    let ret = unsafe { DynamicLang::register(registrations) };
+    ret.context(EC::CustomLanguage)
   }
 }
 

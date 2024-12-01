@@ -108,7 +108,7 @@ impl ProjectConfig {
 
 fn register_custom_language(project_dir: &Path, sg_config: AstGrepConfig) -> Result<()> {
   if let Some(custom_langs) = sg_config.custom_languages {
-    SgLang::register_custom_language(project_dir, custom_langs);
+    SgLang::register_custom_language(project_dir, custom_langs)?;
   }
   if let Some(globs) = sg_config.language_globs {
     SgLang::register_globs(globs)?;

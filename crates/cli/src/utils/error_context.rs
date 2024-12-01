@@ -16,6 +16,7 @@ const UTIL_GUIDE: Option<&str> = Some("/guide/rule-config/utility-rule.html");
 const EDITOR_INTEGRATION: Option<&str> = Some("/guide/editor-integration.html");
 const LANGUAGE_LIST: Option<&str> = Some("/reference/languages.html");
 const PLAYGROUND: Option<&str> = Some("/playground.html");
+const CUSTOM_LANG_GUIDE: Option<&str> = Some("/advanced/custom-language.html");
 const UTILITY_RULE: Option<&str> = Some("/guide/rule-config/utility-rule.html");
 
 /// AppError stands for ast-grep command line usage.
@@ -35,6 +36,7 @@ pub enum ErrorContext {
   BuildGlobs,
   UnrecognizableLanguage(String),
   LangInjection,
+  CustomLanguage,
   // Run
   ParsePattern,
   LanguageNotSpecified,
@@ -80,6 +82,7 @@ impl ErrorContext {
       ProjectAlreadyExist | FileAlreadyExist(_) => 17,
       InsufficientCLIArgument(_) => 22,
       UnrecognizableLanguage(_) => 33,
+      CustomLanguage => 79,
       OpenEditor | StartLanguageServer => 126,
       // soft error
       PatternHasError => 0,
@@ -160,6 +163,11 @@ impl ErrorMessage {
         "Cannot parse languageInjections in config",
         "The rule in languageInjections is not valid. Please refer to doc and fix the error.",
         CONFIG_GUIDE,
+      ),
+      CustomLanguage => Self::new(
+        "Cannot load custom language library",
+        "The custom language library is not found or cannot be loaded.",
+        CUSTOM_LANG_GUIDE,
       ),
       InvalidGlobalUtils => Self::new(
         "Error occurs when parsing global utility rules",

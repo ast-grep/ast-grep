@@ -40,7 +40,7 @@ impl SgLang {
   }
 
   // register_globs must be called after register_custom_language
-  pub fn register_custom_language(base: &Path, langs: HashMap<String, CustomLang>) {
+  pub fn register_custom_language(base: &Path, langs: HashMap<String, CustomLang>) -> Result<()> {
     CustomLang::register(base, langs)
   }
 
