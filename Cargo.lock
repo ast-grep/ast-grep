@@ -239,11 +239,7 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "serde_json",
- "tree-sitter-css",
  "tree-sitter-facade-sg",
- "tree-sitter-html",
- "tree-sitter-javascript-sg",
- "tree-sitter-typescript",
 ]
 
 [[package]]
@@ -2001,16 +1997,6 @@ name = "tree-sitter-javascript"
 version = "0.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8710a71bc6779e33811a8067bdda3ed08bed1733296ff915e44faf60f8c533d7"
-dependencies = [
- "cc",
- "tree-sitter",
-]
-
-[[package]]
-name = "tree-sitter-javascript-sg"
-version = "0.21.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bcc0db43c6e12fa3cc61f6341a36aba80ae95eeaf575a4292bad7a1960488f2"
 dependencies = [
  "cc",
  "tree-sitter",
