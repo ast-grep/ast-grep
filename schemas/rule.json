@@ -190,6 +190,9 @@
     "Maybe_SerializableNthChild": {
       "$ref": "#/definitions/SerializableNthChild"
     },
+    "Maybe_SerializableRange": {
+      "$ref": "#/definitions/SerializableRange"
+    },
     "Maybe_SerializableRule": {
       "$ref": "#/definitions/SerializableRule"
     },
@@ -346,6 +349,14 @@
             }
           ]
         },
+        "range": {
+          "description": "`range` accepts a range object. the target node must exactly appear in the range.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Maybe_SerializableRange"
+            }
+          ]
+        },
         "regex": {
           "description": "A Rust regular expression to match the node's text. https://docs.rs/regex/latest/regex/#syntax",
           "allOf": [
@@ -496,6 +507,54 @@
           }
         }
       ]
+    },
+    "SerializablePosition": {
+      "description": "Represents a zero-based character-wise position in a document",
+      "type": "object",
+      "required": [
+        "column",
+        "row"
+      ],
+      "properties": {
+        "column": {
+          "description": "0-based column number in the source code",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "row": {
+          "description": "0-based row number in the source code",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        }
+      }
+    },
+    "SerializableRange": {
+      "description": "Represents a position in source code using 0-based row and column numbers",
+      "type": "object",
+      "required": [
+        "end",
+        "start"
+      ],
+      "properties": {
+        "end": {
+          "description": "end position in the source code",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SerializablePosition"
+            }
+          ]
+        },
+        "start": {
+          "description": "start position in the source code",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SerializablePosition"
+            }
+          ]
+        }
+      }
     },
     "SerializableRewriter": {
       "description": "Used for global rules, rewriters, and pyo3/napi",
@@ -648,6 +707,14 @@
           "allOf": [
             {
               "$ref": "#/definitions/Maybe_Relation"
+            }
+          ]
+        },
+        "range": {
+          "description": "`range` accepts a range object. the target node must exactly appear in the range.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Maybe_SerializableRange"
             }
           ]
         },
