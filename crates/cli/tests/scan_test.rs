@@ -134,12 +134,13 @@ fn test_sg_scan_html() -> Result<()> {
   ])?;
   Command::cargo_bin("sg")?
     .current_dir(dir.path())
-    .args(["scan", "-r", "rule.yml"])
+    .args(["scan", "-r", "rule.yml", "--inspect=summary"])
     .assert()
     .success()
     .stdout(contains("on-rule"))
     .stdout(contains("script"))
-    .stdout(contains("rule-3").not());
+    .stdout(contains("rule-3").not())
+    .stderr(contains("scannedFileCount=1"));
   Ok(())
 }
 
