@@ -8,7 +8,6 @@
 mod kind;
 mod node_match;
 mod pattern;
-mod range;
 #[cfg(feature = "regex")]
 mod text;
 
@@ -22,7 +21,6 @@ use std::borrow::Cow;
 pub use kind::{KindMatcher, KindMatcherError};
 pub use node_match::NodeMatch;
 pub use pattern::{Pattern, PatternError, PatternNode};
-pub use range::{RangeMatcher, RangeMatcherError};
 #[cfg(feature = "regex")]
 pub use text::{RegexMatcher, RegexMatcherError};
 

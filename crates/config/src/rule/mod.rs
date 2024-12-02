@@ -6,19 +6,17 @@ mod relational_rule;
 mod stop_by;
 
 pub use deserialize_env::DeserializeEnv;
-use range::SerializableRange;
 pub use relational_rule::Relation;
 pub use stop_by::StopBy;
 
 use crate::maybe::Maybe;
 use nth_child::{NthChild, NthChildError, SerializableNthChild};
+use range::{RangeMatcher, RangeMatcherError, SerializableRange};
 use referent_rule::{ReferentRule, ReferentRuleError};
 use relational_rule::{Follows, Has, Inside, Precedes};
 
 use ast_grep_core::language::Language;
-use ast_grep_core::matcher::{
-  KindMatcher, KindMatcherError, RangeMatcher, RangeMatcherError, RegexMatcher, RegexMatcherError,
-};
+use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::ops as o;
 use ast_grep_core::{Doc, MatchStrictness, Matcher, Node, Pattern, PatternError};
@@ -230,7 +228,10 @@ pub enum Rule<L: Language> {
 impl<L: Language> Rule<L> {
   pub fn is_atomic(&self) -> bool {
     use Rule::*;
-    matches!(self, Pattern(_) | Kind(_) | Regex(_) | NthChild(_))
+    matches!(
+      self,
+      Pattern(_) | Kind(_) | Regex(_) | NthChild(_) | Range(_)
+    )
   }
   pub fn is_relational(&self) -> bool {
     use Rule::*;
@@ -498,12 +499,7 @@ fn deserialze_atomic_rule<L: Language>(
     rules.push(R::NthChild(NthChild::try_new(nth_child, env)?));
   }
   if let Some(range) = atomic.range {
-    rules.push(R::Range(RangeMatcher::try_new(
-      range.start.row,
-      range.start.column,
-      range.end.row,
-      range.end.column,
-    )?));
+    rules.push(R::Range(RangeMatcher::try_new(range.start, range.end)?));
   }
   Ok(())
 }
