@@ -84,6 +84,19 @@ impl InputArgs {
     )
   }
 
+  pub fn walk_langs(&self, langs: impl Iterator<Item = SgLang>) -> Result<WalkParallel> {
+    let types = SgLang::file_types_for_langs(langs);
+    let threads = self.get_threads();
+    Ok(
+      NoIgnore::disregard(&self.no_ignore)
+        .walk(&self.paths)
+        .threads(threads)
+        .follow_links(self.follow)
+        .types(types)
+        .build_parallel(),
+    )
+  }
+
   pub fn walk_lang(&self, lang: SgLang) -> WalkParallel {
     let threads = self.get_threads();
     NoIgnore::disregard(&self.no_ignore)
