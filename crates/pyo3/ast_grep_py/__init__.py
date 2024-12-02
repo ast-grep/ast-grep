@@ -15,12 +15,21 @@ class NthChild(TypedDict):
     ofRule: Rule
     nth: int
 
+class PosRule(TypedDict):
+    row: int
+    column: int
+
+class RangeRule(TypedDict):
+    start: PosRule
+    end: PosRule
+
 class RuleWithoutNot(TypedDict, total=False):
     # atomic rule
     pattern: str | Pattern
     kind: str
     regex: str
     nthChild: int | str | NthChild
+    range: RangeRule
 
     # relational rule
     inside: "Relation" # pyright report error if forward reference here?

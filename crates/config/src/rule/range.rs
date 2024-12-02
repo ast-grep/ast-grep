@@ -33,7 +33,7 @@ pub enum RangeMatcherError {
   /// Returned when the range is invalid. This can occur when:
   /// - start position is after end position
   /// - positions contain invalid row/column values
-  #[error("The supplied start position must be before the end position.")]
+  #[error("The start position must be before the end position.")]
   InvalidRange,
 }
 
@@ -116,7 +116,7 @@ mod test {
       SerializablePosition { row: 0, column: 10 },
       SerializablePosition { row: 0, column: 17 },
     );
-    assert!(pattern.find_node(cand.clone()).is_some(),);
+    assert!(pattern.find_node(cand).is_some());
   }
 
   #[test]
@@ -127,7 +127,7 @@ mod test {
       SerializablePosition { row: 0, column: 10 },
       SerializablePosition { row: 0, column: 15 },
     );
-    assert!(pattern.find_node(cand.clone()).is_none(),);
+    assert!(pattern.find_node(cand).is_none(),);
   }
 
   #[test]
@@ -139,7 +139,7 @@ mod test {
       SerializablePosition { row: 1, column: 1 },
       SerializablePosition { row: 5, column: 2 },
     );
-    assert!(pattern.find_node(cand.clone()).is_some(),);
+    assert!(pattern.find_node(cand).is_some());
   }
 
   #[test]
@@ -150,7 +150,7 @@ mod test {
       SerializablePosition { row: 0, column: 8 },
       SerializablePosition { row: 0, column: 11 },
     );
-    let node = pattern.find_node(cand.clone());
+    let node = pattern.find_node(cand);
     assert!(node.is_some());
     assert_eq!(node.expect("should exist").text(), "'🦄'");
   }
