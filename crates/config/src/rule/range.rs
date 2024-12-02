@@ -1,20 +1,22 @@
-use ast_grep_core::{meta_var::MetaVarEnv, Doc, Language, Node, Position};
+use ast_grep_core::{meta_var::MetaVarEnv, Doc, Language, Node};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Represents a position in a document
+/// Represents a zero-based character-wise position in a document
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializablePosition {
+  /// 0-based row number in the source code
   pub row: usize,
+  /// 0-based column number in the source code
   pub column: usize,
 }
 
 /// Represents a position in source code using 0-based row and column numbers
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableRange {
-  /// 0-based row number in the source code
+  /// start position in the source code
   pub start: SerializablePosition,
-  /// 0-based column number in the source code
+  /// end position in the source code
   pub end: SerializablePosition,
 }
 
@@ -33,14 +35,6 @@ pub enum RangeMatcherError {
   /// - positions contain invalid row/column values
   #[error("The supplied start position must be before the end position.")]
   InvalidRange,
-}
-
-impl SerializablePosition {
-  pub fn equals_node_pos<D: Doc>(&self, pos: &Position, node: &Node<D>) -> bool {
-    let row = pos.row();
-    let column = pos.column(node);
-    self.row == row && self.column == column
-  }
 }
 
 pub struct RangeMatcher<L: Language> {
@@ -82,13 +76,17 @@ impl<L: Language> Matcher<L> for RangeMatcher<L> {
     let node_start_pos = node.start_pos();
     let node_end_pos = node.end_pos();
 
-    if self.start.equals_node_pos(&node_start_pos, &node)
-      && self.end.equals_node_pos(&node_end_pos, &node)
-    {
-      Some(node)
-    } else {
-      None
+    // first check row since it is cheaper
+    if self.start.row != node_start_pos.row() || self.end.row != node_end_pos.row() {
+      return None;
     }
+    // then check column, this can be expensive for utf-8 encoded files
+    if self.start.column != node_start_pos.column(&node)
+      || self.end.column != node_end_pos.column(&node)
+    {
+      return None;
+    }
+    Some(node)
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
@@ -118,12 +116,7 @@ mod test {
       SerializablePosition { row: 0, column: 10 },
       SerializablePosition { row: 0, column: 17 },
     );
-    assert!(
-      pattern.find_node(cand.clone()).is_some(),
-      "goal: {}, candidate: {}",
-      "public_field_definition",
-      cand.to_sexp(),
-    );
+    assert!(pattern.find_node(cand.clone()).is_some(),);
   }
 
   #[test]
@@ -134,12 +127,7 @@ mod test {
       SerializablePosition { row: 0, column: 10 },
       SerializablePosition { row: 0, column: 15 },
     );
-    assert!(
-      pattern.find_node(cand.clone()).is_none(),
-      "goal: {}, candidate: {}",
-      "public_field_definition",
-      cand.to_sexp(),
-    );
+    assert!(pattern.find_node(cand.clone()).is_none(),);
   }
 
   #[test]
@@ -151,11 +139,19 @@ mod test {
       SerializablePosition { row: 1, column: 1 },
       SerializablePosition { row: 5, column: 2 },
     );
-    assert!(
-      pattern.find_node(cand.clone()).is_some(),
-      "goal: {}, candidate: {}",
-      "public_field_definition",
-      cand.to_sexp(),
+    assert!(pattern.find_node(cand.clone()).is_some(),);
+  }
+
+  #[test]
+  fn test_unicode_range() {
+    let cand = TS::Tsx.ast_grep("let a = '🦄'");
+    let cand = cand.root();
+    let pattern = RangeMatcher::new(
+      SerializablePosition { row: 0, column: 8 },
+      SerializablePosition { row: 0, column: 11 },
     );
+    let node = pattern.find_node(cand.clone());
+    assert!(node.is_some());
+    assert_eq!(node.expect("should exist").text(), "'🦄'");
   }
 }
