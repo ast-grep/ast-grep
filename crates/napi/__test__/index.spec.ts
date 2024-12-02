@@ -373,3 +373,17 @@ test('find rust', async t => {
   t.assert(changed)
   t.assert(num > 0)
 })
+
+test("find node by range", (t) => {
+  const sg = parse("const message = `This is a multiline message with unicode characters\nÜbergang\nدرود\n🙌\n`;")
+  const node = sg.root().find({
+    rule: {
+      range: {
+        start: { row: 0, column: 16 },
+        end: { row: 4, column: 1 },
+      }
+    }
+  })
+  const byKind = sg.root().find(js.kind("template_string"))
+  t.is(node!.id(), byKind!.id())
+})
