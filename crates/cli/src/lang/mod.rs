@@ -84,6 +84,11 @@ impl SgLang {
     let all_types = std::iter::once(self_type).chain(injector_types);
     lang_globs::merge_types(all_types)
   }
+
+  pub fn file_types_for_langs(langs: impl Iterator<Item = Self>) -> Types {
+    let types = langs.map(|lang| lang.augmented_file_type());
+    lang_globs::merge_types(types)
+  }
 }
 
 impl Display for SgLang {

@@ -21,6 +21,8 @@ use crate::utils::{filter_file_interactive, ContextArgs, InputArgs, OutputArgs, 
 use crate::utils::{FileTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
+use std::collections::HashSet;
+
 type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
 
 #[derive(Args)]
@@ -235,7 +237,11 @@ impl<P: Printer> PathWorker for ScanWithConfig<P> {
     &self.trace.file_trace
   }
   fn build_walk(&self) -> Result<WalkParallel> {
-    self.arg.input.walk()
+    let mut langs = HashSet::new();
+    self.configs.for_each_rule(|rule| {
+      langs.insert(rule.language);
+    });
+    self.arg.input.walk_langs(langs.into_iter())
   }
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
     filter_file_interactive(path, &self.configs, &self.trace)
