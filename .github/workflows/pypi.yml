@@ -43,7 +43,7 @@ jobs:
           pip install dist/${{ env.PACKAGE_NAME }}-*.tar.gz --force-reinstall
           sg --help
       - name: "Upload sdist"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: dist
@@ -71,9 +71,9 @@ jobs:
           pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
           sg --help
       - name: "Upload wheels"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-${{ matrix.target }}
           path: dist
 
   macos-universal:
@@ -97,9 +97,9 @@ jobs:
           pip install dist/${{ env.PACKAGE_NAME }}-*universal2.whl --force-reinstall
           sg --help
       - name: "Upload wheels"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-${{ matrix.target }}
           path: dist
 
   windows:
@@ -134,9 +134,9 @@ jobs:
           python -m pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
           sg --help
       - name: "Upload wheels"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-${{ matrix.target }}
           path: dist
 
   linux:
@@ -167,9 +167,9 @@ jobs:
           pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
           sg --help
       - name: "Upload wheels"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-${{ matrix.target }}
           path: dist
 
   upload-release:
@@ -189,9 +189,10 @@ jobs:
       # For pypi trusted publishing
       id-token: write
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
-          name: wheels
+          pattern: wheels*
+          merge-multiple: true
           path: wheels
       - name: Publish to PyPi
         uses: pypa/gh-action-pypi-publish@release/v1
