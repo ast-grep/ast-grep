@@ -112,7 +112,7 @@ pub struct CaseResult<'a> {
   pub cases: Vec<CaseStatus<'a>>,
 }
 
-impl<'a> CaseResult<'a> {
+impl CaseResult<'_> {
   /// Did all cases in the rule-test pass the test?
   pub fn passed(&self) -> bool {
     self.cases.iter().all(CaseStatus::is_pass)

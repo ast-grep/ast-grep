@@ -36,7 +36,7 @@ impl<'tree, D: Doc> NodeMatch<'tree, D> {
   }
 }
 
-impl<'tree, D: Doc> NodeMatch<'tree, D> {
+impl<D: Doc> NodeMatch<'_, D> {
   pub fn replace_by<R: Replacer<D>>(&self, replacer: R) -> Edit<D::Source> {
     let range = self.range();
     let position = range.start;

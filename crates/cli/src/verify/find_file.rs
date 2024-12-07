@@ -48,7 +48,7 @@ struct HarnessBuilder<'a> {
   regex_filter: Option<&'a Regex>,
 }
 
-impl<'a> HarnessBuilder<'a> {
+impl HarnessBuilder<'_> {
   fn included_in_filter(&self, id: &str) -> bool {
     self.regex_filter.map(|r| r.is_match(id)).unwrap_or(true)
   }

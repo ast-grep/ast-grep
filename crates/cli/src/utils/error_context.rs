@@ -310,7 +310,7 @@ struct ErrorFormat<'a> {
   inner: &'a Error,
 }
 
-impl<'a> fmt::Display for ErrorFormat<'a> {
+impl fmt::Display for ErrorFormat<'_> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let ErrorMessage {
       title,

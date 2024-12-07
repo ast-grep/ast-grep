@@ -211,7 +211,7 @@ where
   }
 }
 
-impl<'tree, D: Doc> Default for MetaVarEnv<'tree, D> {
+impl<D: Doc> Default for MetaVarEnv<'_, D> {
   fn default() -> Self {
     Self::new()
   }

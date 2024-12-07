@@ -59,7 +59,7 @@ enum MaySuppressed<'a> {
   No,
 }
 
-impl<'a> MaySuppressed<'a> {
+impl MaySuppressed<'_> {
   fn suppressed_id(&self, rule_id: &str) -> Option<usize> {
     let suppression = match self {
       MaySuppressed::No => return None,

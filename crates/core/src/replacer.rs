@@ -51,7 +51,7 @@ where
   }
 }
 
-impl<'a, D: Doc> Replacer<D> for Node<'a, D> {
+impl<D: Doc> Replacer<D> for Node<'_, D> {
   fn generate_replacement(&self, _nm: &NodeMatch<D>) -> Underlying<D::Source> {
     let range = self.range();
     self.root.doc.get_source().get_range(range).to_vec()

@@ -14,7 +14,9 @@ static mut LANG_GLOBS: Vec<(SgLang, Types)> = vec![];
 pub type LanguageGlobs = HashMap<String, Vec<String>>;
 
 pub unsafe fn register(regs: LanguageGlobs) -> Result<()> {
-  debug_assert!(LANG_GLOBS.is_empty());
+  debug_assert! {
+    (*addr_of!(LANG_GLOBS)).is_empty()
+  };
   let lang_globs = register_impl(regs)?;
   _ = std::mem::replace(&mut *addr_of_mut!(LANG_GLOBS), lang_globs);
   Ok(())
@@ -153,7 +155,7 @@ html: ['*.vue', '*.svelte']";
       // cleanup
       std::mem::take(&mut *addr_of_mut!(LANG_GLOBS));
       register(globs)?;
-      assert_eq!(LANG_GLOBS.len(), 2);
+      assert_eq!((*addr_of!(LANG_GLOBS)).len(), 2);
     }
     let lang: SgLang = SupportLang::Html.into();
     let default_types = lang.file_types();

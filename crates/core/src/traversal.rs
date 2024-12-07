@@ -236,7 +236,7 @@ impl<'tree, D: Doc> Iterator for Pre<'tree, D> {
     ret
   }
 }
-impl<'tree, D: Doc> FusedIterator for Pre<'tree, D> {}
+impl<D: Doc> FusedIterator for Pre<'_, D> {}
 
 impl<'t, D: Doc> Traversal<'t, D> for Pre<'t, D> {
   fn calibrate_for_match(&mut self, depth: Option<usize>) {
@@ -316,7 +316,7 @@ impl<'tree, D: Doc> Iterator for Post<'tree, D> {
   }
 }
 
-impl<'tree, D: Doc> FusedIterator for Post<'tree, D> {}
+impl<D: Doc> FusedIterator for Post<'_, D> {}
 
 impl<'t, D: Doc> Traversal<'t, D> for Post<'t, D> {
   fn calibrate_for_match(&mut self, depth: Option<usize>) {
@@ -386,7 +386,7 @@ impl<'tree, D: Doc> Iterator for Level<'tree, D> {
     Some(self.root.adopt(inner))
   }
 }
-impl<'tree, D: Doc> FusedIterator for Level<'tree, D> {}
+impl<D: Doc> FusedIterator for Level<'_, D> {}
 
 #[cfg(test)]
 mod test {

@@ -273,7 +273,7 @@ impl<'de> Deserialize<'de> for SupportLang {
 
 struct SupportLangVisitor;
 
-impl<'de> Visitor<'de> for SupportLangVisitor {
+impl Visitor<'_> for SupportLangVisitor {
   type Value = SupportLang;
 
   fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -291,7 +291,7 @@ struct AliasVisitor {
   aliases: &'static [&'static str],
 }
 
-impl<'de> Visitor<'de> for AliasVisitor {
+impl Visitor<'_> for AliasVisitor {
   type Value = &'static str;
 
   fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {

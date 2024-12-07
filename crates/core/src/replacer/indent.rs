@@ -1,8 +1,3 @@
-use crate::source::Content;
-use std::borrow::Cow;
-use std::cmp::Ordering;
-use std::ops::Range;
-
 /**
   This module is for indentation-sensitive replacement.
 
@@ -115,6 +110,10 @@ use std::ops::Range;
   The steps 3,4 and steps 5,6 are similar. We can define a `replace_with_indent` to it.
   Following the same path, we can define a `extract_with_deindent` for steps 1,2
 */
+use crate::source::Content;
+use std::borrow::Cow;
+use std::cmp::Ordering;
+use std::ops::Range;
 
 /// We assume NEW_LINE, TAB, SPACE is only one code unit.
 /// This is sufficiently true for utf8, utf16 and char.

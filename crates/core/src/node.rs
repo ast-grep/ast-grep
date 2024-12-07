@@ -175,7 +175,7 @@ impl<'tree, D: Doc> Iterator for NodeWalker<'tree, D> {
   }
 }
 
-impl<'tree, D: Doc> ExactSizeIterator for NodeWalker<'tree, D> {
+impl<D: Doc> ExactSizeIterator for NodeWalker<'_, D> {
   fn len(&self) -> usize {
     self.count
   }
@@ -302,7 +302,7 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
 /**
  * Corresponds to inside/has/precedes/follows
  */
-impl<'r, D: Doc> Node<'r, D> {
+impl<D: Doc> Node<'_, D> {
   pub fn matches<M: Matcher<D::Lang>>(&self, m: M) -> bool {
     m.match_node(self.clone()).is_some()
   }
@@ -516,7 +516,7 @@ impl<'r, D: Doc> Node<'r, D> {
 }
 
 /// Tree manipulation API
-impl<'r, D: Doc> Node<'r, D> {
+impl<D: Doc> Node<'_, D> {
   pub fn replace<M: Matcher<D::Lang>, R: Replacer<D>>(
     &self,
     matcher: M,
