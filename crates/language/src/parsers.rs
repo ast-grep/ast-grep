@@ -9,76 +9,76 @@ mod parser_implementation {
   use ast_grep_core::language::TSLanguage;
 
   pub fn language_bash() -> TSLanguage {
-    tree_sitter_bash::language().into()
+    tree_sitter_bash::LANGUAGE.into()
   }
   pub fn language_c() -> TSLanguage {
-    tree_sitter_c::language().into()
+    tree_sitter_c::LANGUAGE.into()
   }
   pub fn language_cpp() -> TSLanguage {
-    tree_sitter_cpp::language().into()
+    tree_sitter_cpp::LANGUAGE.into()
   }
   pub fn language_c_sharp() -> TSLanguage {
-    tree_sitter_c_sharp::language().into()
+    tree_sitter_c_sharp::LANGUAGE.into()
   }
   pub fn language_css() -> TSLanguage {
-    tree_sitter_css::language().into()
+    tree_sitter_css::LANGUAGE.into()
   }
   pub fn language_elixir() -> TSLanguage {
-    tree_sitter_elixir::language().into()
+    tree_sitter_elixir::LANGUAGE.into()
   }
   pub fn language_go() -> TSLanguage {
-    tree_sitter_go::language().into()
+    tree_sitter_go::LANGUAGE.into()
   }
   pub fn language_haskell() -> TSLanguage {
-    tree_sitter_haskell::language().into()
+    tree_sitter_haskell::LANGUAGE.into()
   }
   pub fn language_html() -> TSLanguage {
-    tree_sitter_html::language().into()
+    tree_sitter_html::LANGUAGE.into()
   }
   pub fn language_java() -> TSLanguage {
-    tree_sitter_java::language().into()
+    tree_sitter_java::LANGUAGE.into()
   }
   pub fn language_javascript() -> TSLanguage {
-    tree_sitter_javascript::language().into()
+    tree_sitter_javascript::LANGUAGE.into()
   }
   pub fn language_json() -> TSLanguage {
-    tree_sitter_json::language().into()
+    tree_sitter_json::LANGUAGE.into()
   }
   pub fn language_kotlin() -> TSLanguage {
-    tree_sitter_kotlin::language().into()
+    tree_sitter_kotlin::LANGUAGE.into()
   }
   pub fn language_lua() -> TSLanguage {
-    tree_sitter_lua::language().into()
+    tree_sitter_lua::LANGUAGE.into()
   }
   pub fn language_php() -> TSLanguage {
-    tree_sitter_php::language_php().into()
+    tree_sitter_php::LANGUAGE_PHP.into()
   }
   pub fn language_python() -> TSLanguage {
-    tree_sitter_python::language().into()
+    tree_sitter_python::LANGUAGE.into()
   }
   pub fn language_ruby() -> TSLanguage {
-    tree_sitter_ruby::language().into()
+    tree_sitter_ruby::LANGUAGE.into()
   }
   pub fn language_rust() -> TSLanguage {
-    tree_sitter_rust::language().into()
+    tree_sitter_rust::LANGUAGE.into()
   }
   pub fn language_scala() -> TSLanguage {
-    tree_sitter_scala::language().into()
+    tree_sitter_scala::LANGUAGE.into()
   }
   pub fn language_sql() -> TSLanguage {
-    tree_sitter_sequel::language().into()
+    tree_sitter_sequel::LANGUAGE.into()
   }
   pub fn language_swift() -> TSLanguage {
-    tree_sitter_swift::language().into()
+    tree_sitter_swift::LANGUAGE.into()
   }
   pub fn language_tsx() -> TSLanguage {
-    tree_sitter_typescript::language_tsx().into()
+    tree_sitter_typescript::LANGUAGE_TSX.into()
   }
   pub fn language_typescript() -> TSLanguage {
-    tree_sitter_typescript::language_typescript().into()
+    tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into()
   }
   pub fn language_yaml() -> TSLanguage {
-    tree_sitter_yaml::language().into()
+    tree_sitter_yaml::LANGUAGE.into()
   }
 }
 
