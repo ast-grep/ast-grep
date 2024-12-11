@@ -168,6 +168,17 @@ impl SgNode {
     })
   }
 
+  fn field_children(&self, name: &str) -> Vec<SgNode> {
+    self
+      .inner
+      .field_children(name)
+      .map(|inner| Self {
+        inner: inner.into(),
+        root: self.root.clone(),
+      })
+      .collect()
+  }
+
   fn parent(&self) -> Option<SgNode> {
     self.inner.parent().map(|inner| Self {
       inner: inner.into(),
