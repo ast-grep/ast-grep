@@ -44,6 +44,17 @@ def test_field():
     non = node.field("notexist")
     assert non is None
 
+def test_field_children():
+    source = 'const el = <div id="foo" className="bar" />'
+    sg = SgRoot(source, "tsx")
+    root = sg.root()
+    node = root.find(kind="jsx_self_closing_element")
+    assert node
+    attributes = node.field_children("attribute")
+    assert len(attributes) == 2
+    assert attributes[0].text() == 'id="foo"'
+    assert attributes[1].text() == 'className="bar"'
+
 def test_parent():
     node = root.find(kind="variable_declarator")
     assert node

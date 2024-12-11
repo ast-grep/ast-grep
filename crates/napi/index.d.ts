@@ -131,8 +131,10 @@ export declare class SgNode {
   id(): number
   find(matcher: string | number | NapiConfig): SgNode | null
   findAll(matcher: string | number | NapiConfig): Array<SgNode>
-  /** Finds the child node in the `field` */
+  /** Finds the first child node in the `field` */
   field(name: string): SgNode | null
+  /** Finds all the children nodes in the `field` */
+  fieldChildren(name: string): Array<SgNode>
   parent(): SgNode | null
   child(nth: number): SgNode | null
   ancestors(): Array<SgNode>

@@ -258,7 +258,7 @@ impl SgNode {
     Ok(ret)
   }
 
-  /// Finds the child node in the `field`
+  /// Finds the first child node in the `field`
   #[napi]
   pub fn field(
     &self,
@@ -268,6 +268,18 @@ impl SgNode {
   ) -> Result<Option<SgNode>> {
     let node = reference.inner.field(&name).map(NodeMatch::from);
     Self::transpose_option(reference, env, node)
+  }
+
+  /// Finds all the children nodes in the `field`
+  #[napi]
+  pub fn field_children(
+    &self,
+    reference: Reference<SgNode>,
+    env: Env,
+    name: String,
+  ) -> Result<Vec<SgNode>> {
+    let children = reference.inner.field_children(&name).map(NodeMatch::from);
+    Self::from_iter_to_vec(&reference, env, children)
   }
 
   #[napi]

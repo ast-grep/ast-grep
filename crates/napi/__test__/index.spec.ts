@@ -320,6 +320,14 @@ test('find with language globs can parse with correct language', async t => {
   })
 })
 
+test('fieldChildren returns all the fields of the given field', t => {
+  const sg = tsx.parse('const el = <div id="foo" className="bar" />')
+  const jsxElement = sg.root().find(tsx.kind('jsx_self_closing_element'))!
+  const fields = jsxElement.fieldChildren('attribute')
+  t.is(fields.length, 2)
+  t.is(fields[0].text(), 'id="foo"')
+  t.is(fields[1].text(), 'className="bar"')
+})
 
 function countedPromise<F extends (t: any, cb: any) => Promise<number>>(func: F) {
   type P = Parameters<F>
