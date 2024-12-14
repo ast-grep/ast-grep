@@ -153,14 +153,14 @@ def test_pattern():
 
 def test_range_rule():
     node = root.find(range={
-        "start": {"row": 0, "column": 9},
-        "end": {"row": 0, "column": 13},
+        "start": {"line": 0, "column": 9},
+        "end": {"line": 0, "column": 13},
     })
     assert node
     assert node.text() == "test"
     node = root.find(range={
-        "start": {"row": 0, "column": 9},
-        "end": {"row": 0, "column": 12},
+        "start": {"line": 0, "column": 9},
+        "end": {"line": 0, "column": 12},
     })
     assert not node
 

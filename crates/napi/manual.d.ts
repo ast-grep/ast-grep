@@ -34,8 +34,8 @@ export interface NthChildObject {
 export type NthChild = number | string | NthChildObject
 
 export interface Position {
-  /** 0-indexed row number. */
-  row: number
+  /** 0-indexed line number. */
+  line: number
   /** 0-indexed column number. */
   column: number
 }

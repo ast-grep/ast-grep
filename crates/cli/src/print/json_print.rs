@@ -146,11 +146,11 @@ fn get_range(n: &Node<'_, SgLang>) -> Range {
   Range {
     byte_offset: n.range(),
     start: Position {
-      line: start_pos.row(),
+      line: start_pos.line(),
       column: start_pos.column(n),
     },
     end: Position {
-      line: end_pos.row(),
+      line: end_pos.line(),
       column: end_pos.column(n),
     },
   }

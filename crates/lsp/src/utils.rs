@@ -61,11 +61,11 @@ fn convert_node_to_range<D: Doc>(node_match: &Node<D>) -> Range {
   let end = node_match.end_pos();
   Range {
     start: Position {
-      line: start.row() as u32,
+      line: start.line() as u32,
       character: start.column(node_match) as u32,
     },
     end: Position {
-      line: end.row() as u32,
+      line: end.line() as u32,
       character: end.column(node_match) as u32,
     },
   }

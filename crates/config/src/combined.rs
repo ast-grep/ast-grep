@@ -18,9 +18,9 @@ impl Suppressions {
     if !node.kind().contains("comment") || !node.text().contains(IGNORE_TEXT) {
       return;
     }
-    let line = node.start_pos().row();
+    let line = node.start_pos().line();
     let suppress_next_line = if let Some(prev) = node.prev() {
-      prev.start_pos().row() != line
+      prev.start_pos().line() != line
     } else {
       true
     };
@@ -39,7 +39,7 @@ impl Suppressions {
   }
 
   fn check_suppression<D: Doc>(&mut self, node: &Node<D>) -> MaySuppressed {
-    let line = node.start_pos().row();
+    let line = node.start_pos().line();
     if let Some(sup) = self.0.get_mut(&line) {
       MaySuppressed::Yes(sup)
     } else {

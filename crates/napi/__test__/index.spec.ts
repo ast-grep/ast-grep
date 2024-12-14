@@ -387,8 +387,8 @@ test("find node by range", (t) => {
   const node = sg.root().find({
     rule: {
       range: {
-        start: { row: 0, column: 16 },
-        end: { row: 4, column: 1 },
+        start: { line: 0, column: 16 },
+        end: { line: 4, column: 1 },
       }
     }
   })

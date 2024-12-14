@@ -82,7 +82,7 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     utils::run_in_alternate_screen(|| {
       let matches: Vec<_> = matches.collect();
       let first_match = match matches.first() {
-        Some(n) => n.start_pos().row(),
+        Some(n) => n.start_pos().line(),
         None => return Ok(()),
       };
       let file_path = PathBuf::from(file.name().to_string());
@@ -174,7 +174,7 @@ fn print_diff_and_prompt_action(
       'y' => Ok((true, false)),
       'a' => Ok((true, true)),
       'e' => {
-        let pos = diff.node_match.start_pos().row();
+        let pos = diff.node_match.start_pos().line();
         open_in_editor(path, pos)?;
         Ok((false, false))
       }
@@ -193,7 +193,7 @@ fn print_matches_and_confirm_next<'a>(
   let printer = &interactive.inner;
   let matches: Vec<_> = matches.collect();
   let first_match = match matches.first() {
-    Some(n) => n.start_pos().row(),
+    Some(n) => n.start_pos().line(),
     None => return Ok(()),
   };
   printer.print_matches(matches.into_iter(), path)?;

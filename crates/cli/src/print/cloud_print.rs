@@ -94,8 +94,8 @@ fn print_rule<'a, W: Write + Send + Sync>(
   let title = &rule.id;
   let name = path.display();
   for m in matches {
-    let line = m.start_pos().row() + 1;
-    let end_line = m.end_pos().row() + 1;
+    let line = m.start_pos().line() + 1;
+    let end_line = m.end_pos().line() + 1;
     let message = rule.get_message(&m);
     writeln!(
       &mut writer,

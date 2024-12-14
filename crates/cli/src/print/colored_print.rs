@@ -267,7 +267,7 @@ impl<'a> MatchMerger<'a> {
   fn new(nm: &NodeMatch<'a, SgLang>, (before, after): (u16, u16)) -> Self {
     let display = nm.display_context(before as usize, after as usize);
     let last_start_line = display.start_line + 1;
-    let last_end_line = nm.end_pos().row() + 1;
+    let last_end_line = nm.end_pos().line() + 1;
     let last_trailing = display.trailing;
     let last_end_offset = nm.range().end;
     Self {
@@ -296,7 +296,7 @@ impl<'a> MatchMerger<'a> {
   fn conclude_match(&mut self, nm: &NodeMatch<'a, SgLang>) {
     let display = self.display(nm);
     self.last_start_line = display.start_line + 1;
-    self.last_end_line = nm.end_pos().row() + 1;
+    self.last_end_line = nm.end_pos().line() + 1;
     self.last_trailing = display.trailing;
     self.last_end_offset = nm.range().end;
   }
