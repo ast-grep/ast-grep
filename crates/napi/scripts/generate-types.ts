@@ -159,4 +159,7 @@ async function main() {
   await updateIndexDts();
 }
 
-void main();
+main().catch((error) => {
+  console.error('Error in main:', error);
+  process.exit(1);
+});
