@@ -106,20 +106,12 @@ async function updateIndexDts() {
     'import type { FieldNames, FieldSgNode, NodeTypesMap } from "./types/node-types";';
   const importStatements = [nodeTypesImportStatement];
 
-  const exportStatements = Object.keys(languagesNodeTypesUrls)
-    .map((lang) => `export type { ${lang}NodeTypesMap } from "./types/${lang}-node-types";`)
-
   const updatedSource = root.commitEdits(
     [
       {
         startPos: 0,
         endPos: 0,
         insertedText: importStatements.join("\n") + "\n",
-      },
-      {
-        startPos: 0,
-        endPos: 0,
-        insertedText: exportStatements.join("\n") + "\n",
       },
       sgRootClassTypeParametersRemovalEdit,
       sgNodeClassTypeParametersRemovalEdit,
