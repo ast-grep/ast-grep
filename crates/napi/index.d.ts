@@ -185,7 +185,7 @@ export declare class SgRoot<M extends NodeTypesMap = NodeTypesMap> {
 }
 export declare namespace html {
   /** Parse a string to an ast-grep instance */
-  export function parse(src: string): SgRoot<HtmlNodeTypesMap>
+  export function parse(src: string): SgRoot
   /**
    * Parse a string to an ast-grep instance asynchronously in threads.
    * It utilize multiple CPU cores when **concurrent processing sources**.
@@ -193,7 +193,7 @@ export declare namespace html {
    * Please refer to libuv doc, nodejs' underlying runtime
    * for its default behavior and performance tuning tricks.
    */
-  export function parseAsync(src: string): Promise<SgRoot<HtmlNodeTypesMap>>
+  export function parseAsync(src: string): Promise<SgRoot>
   /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
   /** Compile a string to ast-grep Pattern. */
@@ -203,11 +203,11 @@ export declare namespace html {
    * `config` specifies the file path and matcher.
    * `callback` will receive matching nodes found in a file.
    */
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode<HtmlNodeTypesMap>[]) => void): Promise<number>
+  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export declare namespace js {
   /** Parse a string to an ast-grep instance */
-  export function parse(src: string): SgRoot<JavaScriptNodeTypesMap>
+  export function parse(src: string): SgRoot
   /**
    * Parse a string to an ast-grep instance asynchronously in threads.
    * It utilize multiple CPU cores when **concurrent processing sources**.
@@ -215,7 +215,7 @@ export declare namespace js {
    * Please refer to libuv doc, nodejs' underlying runtime
    * for its default behavior and performance tuning tricks.
    */
-  export function parseAsync(src: string): Promise<SgRoot<JavaScriptNodeTypesMap>>
+  export function parseAsync(src: string): Promise<SgRoot>
   /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
   /** Compile a string to ast-grep Pattern. */
@@ -225,11 +225,11 @@ export declare namespace js {
    * `config` specifies the file path and matcher.
    * `callback` will receive matching nodes found in a file.
    */
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode<JavaScriptNodeTypesMap>[]) => void): Promise<number>
+  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export declare namespace jsx {
   /** Parse a string to an ast-grep instance */
-  export function parse(src: string): SgRoot<JavaScriptNodeTypesMap>
+  export function parse(src: string): SgRoot
   /**
    * Parse a string to an ast-grep instance asynchronously in threads.
    * It utilize multiple CPU cores when **concurrent processing sources**.
@@ -237,7 +237,7 @@ export declare namespace jsx {
    * Please refer to libuv doc, nodejs' underlying runtime
    * for its default behavior and performance tuning tricks.
    */
-  export function parseAsync(src: string): Promise<SgRoot<JavaScriptNodeTypesMap>>
+  export function parseAsync(src: string): Promise<SgRoot>
   /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
   /** Compile a string to ast-grep Pattern. */
@@ -247,11 +247,11 @@ export declare namespace jsx {
    * `config` specifies the file path and matcher.
    * `callback` will receive matching nodes found in a file.
    */
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode<JavaScriptNodeTypesMap>[]) => void): Promise<number>
+  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export declare namespace ts {
   /** Parse a string to an ast-grep instance */
-  export function parse(src: string): SgRoot<TypeScriptNodeTypesMap>
+  export function parse(src: string): SgRoot
   /**
    * Parse a string to an ast-grep instance asynchronously in threads.
    * It utilize multiple CPU cores when **concurrent processing sources**.
@@ -259,7 +259,7 @@ export declare namespace ts {
    * Please refer to libuv doc, nodejs' underlying runtime
    * for its default behavior and performance tuning tricks.
    */
-  export function parseAsync(src: string): Promise<SgRoot<TypeScriptNodeTypesMap>>
+  export function parseAsync(src: string): Promise<SgRoot>
   /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
   /** Compile a string to ast-grep Pattern. */
@@ -269,11 +269,11 @@ export declare namespace ts {
    * `config` specifies the file path and matcher.
    * `callback` will receive matching nodes found in a file.
    */
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode<TypeScriptNodeTypesMap>[]) => void): Promise<number>
+  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export declare namespace tsx {
   /** Parse a string to an ast-grep instance */
-  export function parse(src: string): SgRoot<TsxNodeTypesMap>
+  export function parse(src: string): SgRoot
   /**
    * Parse a string to an ast-grep instance asynchronously in threads.
    * It utilize multiple CPU cores when **concurrent processing sources**.
@@ -281,7 +281,7 @@ export declare namespace tsx {
    * Please refer to libuv doc, nodejs' underlying runtime
    * for its default behavior and performance tuning tricks.
    */
-  export function parseAsync(src: string): Promise<SgRoot<TsxNodeTypesMap>>
+  export function parseAsync(src: string): Promise<SgRoot>
   /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
   /** Compile a string to ast-grep Pattern. */
@@ -291,11 +291,11 @@ export declare namespace tsx {
    * `config` specifies the file path and matcher.
    * `callback` will receive matching nodes found in a file.
    */
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode<TsxNodeTypesMap>[]) => void): Promise<number>
+  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export declare namespace css {
   /** Parse a string to an ast-grep instance */
-  export function parse(src: string): SgRoot<CssNodeTypesMap>
+  export function parse(src: string): SgRoot
   /**
    * Parse a string to an ast-grep instance asynchronously in threads.
    * It utilize multiple CPU cores when **concurrent processing sources**.
@@ -303,7 +303,7 @@ export declare namespace css {
    * Please refer to libuv doc, nodejs' underlying runtime
    * for its default behavior and performance tuning tricks.
    */
-  export function parseAsync(src: string): Promise<SgRoot<CssNodeTypesMap>>
+  export function parseAsync(src: string): Promise<SgRoot>
   /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
   /** Compile a string to ast-grep Pattern. */
@@ -313,5 +313,5 @@ export declare namespace css {
    * `config` specifies the file path and matcher.
    * `callback` will receive matching nodes found in a file.
    */
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode<CssNodeTypesMap>[]) => void): Promise<number>
+  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
