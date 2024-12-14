@@ -4,57 +4,13 @@ import path from "node:path";
 // because of it may not be available in the CI
 // so we are using the napi package from npm
 import { Lang, parseAsync } from "@ast-grep/napi";
-import { NodeTypeSchema } from "../types/node-types";
 import {
   createMatchClassDeclarationRule,
   createMatchClassMethodRule,
 } from "./rules";
-import {
-  languageNodeTypesTagVersionOverrides,
-  languagesCrateNames,
-  languagesNodeTypesUrls,
-} from "./constants";
-import toml from "smol-toml";
 
 const rootDir = path.resolve(__dirname, "..");
 const indexDtsPath = path.join(rootDir, "index.d.ts");
-
-async function generateLangNodeTypes() {
-  const languageCargoToml = await readFile(
-    path.resolve(rootDir, "../language/Cargo.toml"),
-    "utf8"
-  );
-
-  const parsedCargoToml = toml.parse(languageCargoToml) as {
-    dependencies: Record<string, { version: string }>;
-  };
-
-  for (const [lang, urlTemplate] of Object.entries(languagesNodeTypesUrls)) {
-    try {
-      const treeSitterCrateName = languagesCrateNames[lang as Lang];
-      const cargoVersion =
-        parsedCargoToml.dependencies[treeSitterCrateName].version;
-      const tag =
-        languageNodeTypesTagVersionOverrides[lang as Lang] ??
-        `v${cargoVersion}`;
-      const url = urlTemplate.replace("{{TAG}}", tag);
-      const nodeTypesResponse = await fetch(url);
-      const nodeTypes = (await nodeTypesResponse.json()) as NodeTypeSchema[];
-
-      const nodeTypeMap = Object.fromEntries(
-        nodeTypes.map((node) => [node.type, node])
-      );
-
-      await writeFile(
-        path.join(rootDir, "types", `${lang}-node-types.ts`),
-        `export type ${lang}NodeTypesMap = ${JSON.stringify(nodeTypeMap, null, 2)};`
-      );
-    } catch (e) {
-      console.error(`Error while generating node types for ${lang}:`, e);
-    }
-  }
-}
-
 async function updateIndexDts() {
   const indexDtsSource = await readFile(indexDtsPath, "utf8");
   const sgRoot = await parseAsync(Lang.TypeScript, indexDtsSource);
@@ -62,6 +18,7 @@ async function updateIndexDts() {
   const root = sgRoot.root();
 
   const sgRootClass = root.find({
+    // @ts-expect-error temporary error
     rule: createMatchClassDeclarationRule("SgRoot"),
   });
   const sgRootClassTypeParametersRemovalEdit = sgRootClass!
@@ -72,6 +29,7 @@ async function updateIndexDts() {
     .replace("SgRoot<M extends NodeTypesMap = NodeTypesMap>");
 
   const sgNodeClass = root.find({
+    // @ts-expect-error temporary error
     rule: createMatchClassDeclarationRule("SgNode"),
   });
 
@@ -85,12 +43,14 @@ async function updateIndexDts() {
 
   const isMethodEdit = sgNodeClass!
     .find({
+    // @ts-expect-error temporary error
       rule: createMatchClassMethodRule("is"),
     })!
     .replace(`is<K extends T>(kind: K): this is SgNode<M, K> & this`);
 
   const fieldMethodEdit = sgNodeClass!
     .find({
+      // @ts-expect-error temporary error
       rule: createMatchClassMethodRule("field"),
     })!
     .replace(
@@ -99,6 +59,7 @@ async function updateIndexDts() {
 
   const fieldChildrenMethodEdit = sgNodeClass!
     .find({
+      // @ts-expect-error temporary error
       rule: createMatchClassMethodRule("fieldChildren"),
     })!
     .replace(
@@ -129,12 +90,7 @@ async function updateIndexDts() {
   await writeFile(indexDtsPath, updatedSource);
 }
 
-async function main() {
-  await generateLangNodeTypes();
-  await updateIndexDts();
-}
-
-main().catch((error) => {
-  console.error('Error in main:', error);
+updateIndexDts().catch((error) => {
+  console.error("Error in updateIndexDts:", error);
   process.exit(1);
-});
+})
