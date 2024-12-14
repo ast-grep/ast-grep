@@ -2,6 +2,66 @@
 # yarn lockfile v1
 
 
+"@ast-grep/napi-darwin-arm64@0.31.0":
+  version "0.31.0"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-darwin-arm64/-/napi-darwin-arm64-0.31.0.tgz#259542174aea2f3ae93dbaf5c1187c40258d8515"
+  integrity sha512-AtH3DNLvbBNY2RlZnb/uGKz39sCWt0IaNK3nI+u5EDLOZyK/iML8aCisJNayYptPyw1WOeqHiK1oA8bX9unxHQ==
+
+"@ast-grep/napi-darwin-x64@0.31.0":
+  version "0.31.0"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-darwin-x64/-/napi-darwin-x64-0.31.0.tgz#58897fccc09145ad00353eaf3914ee4282b78bfd"
+  integrity sha512-/ie1FqdcOfS6Hj8MxMIa04B6nQDsynJbPe/uB5U/+aMca4G/SVWfm0+gX4JWrLQUFj1jeYmxw/JECuUHPB+UzA==
+
+"@ast-grep/napi-linux-arm64-gnu@0.31.0":
+  version "0.31.0"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-linux-arm64-gnu/-/napi-linux-arm64-gnu-0.31.0.tgz#dd3db8ea36f8c358de55b3a6ad4b77bf1e1a2bab"
+  integrity sha512-6SaJAFKvEKuMLGbb4Qd9GKCpg94DLbDuApXlOzxTQ3FccMSiPCa9iZhLr8Ik+v3Y2Y1PE+dUWRiWCF6HFobemg==
+
+"@ast-grep/napi-linux-arm64-musl@0.31.0":
+  version "0.31.0"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-linux-arm64-musl/-/napi-linux-arm64-musl-0.31.0.tgz#2129b1a0bb1268fe9c8501a8e68ac4020b6880cc"
+  integrity sha512-wFson8SHMsUFUlORv3ZVPdmik/t1eS9FSqRXH7I90yU46cNdwLIZ1kQ2Fat0zVfXvOKkKeED3KRInIRUAbmr3A==
+
+"@ast-grep/napi-linux-x64-gnu@0.31.0":
+  version "0.31.0"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-linux-x64-gnu/-/napi-linux-x64-gnu-0.31.0.tgz#d6ea7f5fc676f6957956d132c22c809e7cb67c8b"
+  integrity sha512-WYuOdjUNCs/n2bieFs5FAsn5KwkdJHHrVkTVI6jTMUHiPs34bc4/6/UD41LmPFPnsDsvCArCUqsFK42EezqXug==
+
+"@ast-grep/napi-linux-x64-musl@0.31.0":
+  version "0.31.0"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-linux-x64-musl/-/napi-linux-x64-musl-0.31.0.tgz#3d1245fd7f4e60b38959497ee2c821401e82c32c"
+  integrity sha512-mW5T+itnDgZggXLPfIjFtWJ0a9Z2CmVgpMDzJtqYNJew0b2iWK9oOUJRBkpQ4R3NGZKM1FB6MVXU750uJWijEQ==
+
+"@ast-grep/napi-win32-arm64-msvc@0.31.0":
+  version "0.31.0"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-win32-arm64-msvc/-/napi-win32-arm64-msvc-0.31.0.tgz#71e59d5b079effd5f4ccb12b8f6069e7195db97f"
+  integrity sha512-XvcwJFssJpSe0/Soe/2MXVH+1nvj2m06c54kIgtvnx/kBzQdJU8vJaXYLmcBraSuWhuEy5LC/JgHA9yOmG4aUw==
+
+"@ast-grep/napi-win32-ia32-msvc@0.31.0":
+  version "0.31.0"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-win32-ia32-msvc/-/napi-win32-ia32-msvc-0.31.0.tgz#5ca8dcf5765e6657e6aeb7ded4f4f65cb9226c17"
+  integrity sha512-o6wFNfMw/CzL9ibgvzqasX88EiPmHiffZOo3gc3u32K+tndJSszksW79k7s+kqlKuL8/ymGqU1OQYHuSA2znng==
+
+"@ast-grep/napi-win32-x64-msvc@0.31.0":
+  version "0.31.0"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-win32-x64-msvc/-/napi-win32-x64-msvc-0.31.0.tgz#5b08c017a7e3044cfecf291e092bca3f2e4cedfa"
+  integrity sha512-BFXU3ggeOn6qp/T+5Kdd3qDPt0xf9faOCfdkbSC/lUIBKIApsMQEjx0DNwbkaIW/IXTRkVicY84AEHCY15s9aw==
+
+"@ast-grep/napi@0.31.0":
+  version "0.31.0"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi/-/napi-0.31.0.tgz#ff61a4d1dd89b0f9c46ddc00104925c93e8fd181"
+  integrity sha512-DWxV3uPDNqjCm/4kuXEh2hewMrXyTf3WtckYtmRwi1cfHYfLxtnelhpoCFbFbaBI0kqnlhD/MYJijWEAIt+UOQ==
+  optionalDependencies:
+    "@ast-grep/napi-darwin-arm64" "0.31.0"
+    "@ast-grep/napi-darwin-x64" "0.31.0"
+    "@ast-grep/napi-linux-arm64-gnu" "0.31.0"
+    "@ast-grep/napi-linux-arm64-musl" "0.31.0"
+    "@ast-grep/napi-linux-x64-gnu" "0.31.0"
+    "@ast-grep/napi-linux-x64-musl" "0.31.0"
+    "@ast-grep/napi-win32-arm64-msvc" "0.31.0"
+    "@ast-grep/napi-win32-ia32-msvc" "0.31.0"
+    "@ast-grep/napi-win32-x64-msvc" "0.31.0"
+
 "@cspotcode/source-map-support@^0.8.0":
   version "0.8.1"
   resolved "https://registry.yarnpkg.com/@cspotcode/source-map-support/-/source-map-support-0.8.1.tgz#00629c35a688e05a88b1cda684fb9d5e73f000a1"
@@ -1173,7 +1233,7 @@ tr46@~0.0.3:
   resolved "https://registry.yarnpkg.com/tr46/-/tr46-0.0.3.tgz#8184fd347dac9cdc185992f3a6622e14b9d9ab6a"
   integrity sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==
 
-ts-node@^10.9.2:
+ts-node@10.9.2:
   version "10.9.2"
   resolved "https://registry.yarnpkg.com/ts-node/-/ts-node-10.9.2.tgz#70f021c9e185bccdca820e26dc413805c101c71f"
   integrity sha512-f0FFpIdcHgn8zcPSbf1dRevwt047YMnaiJM3u2w2RewrB+fob/zePZcrOyQoLMMO7aBIddLcQIEK5dYjkLnGrQ==

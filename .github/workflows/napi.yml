@@ -181,9 +181,8 @@ jobs:
           path: crates/napi/artifacts
       - name: Generate Types
         run: |-
-          ls -R .
-          cp artifacts/ast-grep-napi.linux-x64-gnu.node .
-          yarn generate-types
+          yarn typegen
+          ls -R ./types
       - name: Move artifacts
         run: yarn artifacts
       - name: List packages

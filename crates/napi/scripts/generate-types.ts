@@ -1,6 +1,9 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { Lang, parseAsync } from "../index";
+// NOTE: we are not using the compiled napi binding in workspace
+// because of it may not be available in the CI
+// so we are using the napi package from npm
+import { Lang, parseAsync } from "@ast-grep/napi";
 import { NodeTypeSchema } from "../types/node-types";
 import {
   createMatchClassDeclarationRule,
