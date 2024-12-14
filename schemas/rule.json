@@ -513,7 +513,7 @@
       "type": "object",
       "required": [
         "column",
-        "row"
+        "line"
       ],
       "properties": {
         "column": {
@@ -522,8 +522,8 @@
           "format": "uint",
           "minimum": 0.0
         },
-        "row": {
-          "description": "0-based row number in the source code",
+        "line": {
+          "description": "0-based line number in the source code",
           "type": "integer",
           "format": "uint",
           "minimum": 0.0
@@ -531,7 +531,7 @@
       }
     },
     "SerializableRange": {
-      "description": "Represents a position in source code using 0-based row and column numbers",
+      "description": "Represents a position in source code using 0-based line and column numbers",
       "type": "object",
       "required": [
         "end",
