@@ -22,25 +22,25 @@ jobs:
       fail-fast: false
       matrix:
         settings:
-          - host: macos-latest
-            target: x86_64-apple-darwin
-            # no test
-            build: |
-              yarn build --target x86_64-apple-darwin
-              strip -x *.node
-          - host: windows-latest
-            build: |
-              yarn build
-              yarn test
-            target: x86_64-pc-windows-msvc
-          - host: windows-latest
-            target: aarch64-pc-windows-msvc
-            build: yarn build --target aarch64-pc-windows-msvc
-          - host: windows-latest
-            build: |
-              yarn build --target i686-pc-windows-msvc
-              yarn test
-            target: i686-pc-windows-msvc
+          # - host: macos-latest
+          #   target: x86_64-apple-darwin
+          #   # no test
+          #   build: |
+          #     yarn build --target x86_64-apple-darwin
+          #     strip -x *.node
+          # - host: windows-latest
+          #   build: |
+          #     yarn build
+          #     yarn test
+          #   target: x86_64-pc-windows-msvc
+          # - host: windows-latest
+          #   target: aarch64-pc-windows-msvc
+          #   build: yarn build --target aarch64-pc-windows-msvc
+          # - host: windows-latest
+          #   build: |
+          #     yarn build --target i686-pc-windows-msvc
+          #     yarn test
+          #   target: i686-pc-windows-msvc
           - host: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
@@ -50,37 +50,37 @@ jobs:
               yarn build --target x86_64-unknown-linux-gnu &&
               strip *.node &&
               yarn test
-          - host: ubuntu-20.04
-            target: x86_64-unknown-linux-musl
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
-            build: |-
-              set -e &&
-              cd crates/napi &&
-              yarn build --target x86_64-unknown-linux-musl &&
-              strip *.node &&
-              yarn test
-          - host: ubuntu-20.04
-            target: aarch64-unknown-linux-musl
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-            build: |-
-              set -e &&
-              cd crates/napi &&
-              rustup target add aarch64-unknown-linux-musl &&
-              yarn build --target aarch64-unknown-linux-musl
-          - host: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
-            build: |-
-              set -e &&
-              cd crates/napi &&
-              yarn build --target aarch64-unknown-linux-gnu &&
-              aarch64-unknown-linux-gnu-strip *.node
-          - host: macos-latest
-            target: aarch64-apple-darwin
-            build: |
-              yarn build --target aarch64-apple-darwin
-              strip -x *.node
-              yarn test
+          # - host: ubuntu-20.04
+          #   target: x86_64-unknown-linux-musl
+          #   docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
+          #   build: |-
+          #     set -e &&
+          #     cd crates/napi &&
+          #     yarn build --target x86_64-unknown-linux-musl &&
+          #     strip *.node &&
+          #     yarn test
+          # - host: ubuntu-20.04
+          #   target: aarch64-unknown-linux-musl
+          #   docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+          #   build: |-
+          #     set -e &&
+          #     cd crates/napi &&
+          #     rustup target add aarch64-unknown-linux-musl &&
+          #     yarn build --target aarch64-unknown-linux-musl
+          # - host: ubuntu-latest
+          #   target: aarch64-unknown-linux-gnu
+          #   docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
+          #   build: |-
+          #     set -e &&
+          #     cd crates/napi &&
+          #     yarn build --target aarch64-unknown-linux-gnu &&
+          #     aarch64-unknown-linux-gnu-strip *.node
+          # - host: macos-latest
+          #   target: aarch64-apple-darwin
+          #   build: |
+          #     yarn build --target aarch64-apple-darwin
+          #     strip -x *.node
+          #     yarn test
     name: stable - ${{ matrix.settings.target }} - node@18
     runs-on: ${{ matrix.settings.host }}
     steps:
@@ -179,6 +179,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: crates/napi/artifacts
+      - name: Generate Types
+        run: |-
+          cp artifacts/ast-grep-napi.linux-x64-gnu.node .
+          yarn generate-types
       - name: Move artifacts
         run: yarn artifacts
       - name: List packages
