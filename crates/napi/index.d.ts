@@ -1,26 +1,4 @@
 import type { FieldNames, FieldSgNode, NodeTypesMap } from "./types/node-types";
-export type { JavaScriptNodeTypesMap } from "./types/JavaScript-node-types";
-export type { TypeScriptNodeTypesMap } from "./types/TypeScript-node-types";
-export type { TsxNodeTypesMap } from "./types/Tsx-node-types";
-export type { JavaNodeTypesMap } from "./types/Java-node-types";
-export type { PythonNodeTypesMap } from "./types/Python-node-types";
-export type { RustNodeTypesMap } from "./types/Rust-node-types";
-export type { CNodeTypesMap } from "./types/C-node-types";
-export type { CppNodeTypesMap } from "./types/Cpp-node-types";
-export type { GoNodeTypesMap } from "./types/Go-node-types";
-export type { HtmlNodeTypesMap } from "./types/Html-node-types";
-export type { CssNodeTypesMap } from "./types/Css-node-types";
-export type { JsonNodeTypesMap } from "./types/Json-node-types";
-export type { CSharpNodeTypesMap } from "./types/CSharp-node-types";
-export type { RubyNodeTypesMap } from "./types/Ruby-node-types";
-export type { PhpNodeTypesMap } from "./types/Php-node-types";
-export type { ElixirNodeTypesMap } from "./types/Elixir-node-types";
-export type { KotlinNodeTypesMap } from "./types/Kotlin-node-types";
-export type { HaskellNodeTypesMap } from "./types/Haskell-node-types";
-export type { ScalaNodeTypesMap } from "./types/Scala-node-types";
-export type { BashNodeTypesMap } from "./types/Bash-node-types";
-export type { YamlNodeTypesMap } from "./types/Yaml-node-types";
-export type { LuaNodeTypesMap } from "./types/Lua-node-types";
 /* tslint:disable */
 /* eslint-disable */
 
