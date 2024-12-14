@@ -1,14 +1,12 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { Edit, Lang, parseAsync } from "../index";
+import { Lang, parseAsync } from "../index";
 import { NodeTypeSchema } from "../types/node-types";
 import {
   createMatchClassDeclarationRule,
   createMatchClassMethodRule,
-  createMatchSgReturningFunctionSignatureRule,
 } from "./rules";
 import {
-  languageLibs,
   languageNodeTypesTagVersionOverrides,
   languagesCrateNames,
   languagesNodeTypesUrls,
@@ -104,23 +102,6 @@ async function updateIndexDts() {
       `fieldChildren<F extends FieldNames<M[T]>>(name: F): Exclude<FieldSgNode<M, T, F>, null>[]`
     );
 
-  const updateLibEdits: Edit[] = [];
-
-  for (const [ns, lang] of Object.entries(languageLibs)) {
-    const langNodeTypesMapNodes = root.findAll({
-      rule: createMatchSgReturningFunctionSignatureRule(ns),
-    })!;
-
-    for (const langNodeTypesMap of langNodeTypesMapNodes) {
-      const edit = langNodeTypesMap.replace(
-        langNodeTypesMap
-          ?.text()
-          .replace(/SgRoot|SgNode/g, (match) => `${match}<${lang}NodeTypesMap>`)
-      );
-      updateLibEdits.push(edit);
-    }
-  }
-
   const nodeTypesImportStatement =
     'import type { FieldNames, FieldSgNode, NodeTypesMap } from "./types/node-types";';
   const importStatements = [nodeTypesImportStatement];
@@ -147,7 +128,6 @@ async function updateIndexDts() {
       isMethodEdit,
       fieldMethodEdit,
       fieldChildrenMethodEdit,
-      ...updateLibEdits,
     ].filter((edit) => edit !== undefined)
   );
 

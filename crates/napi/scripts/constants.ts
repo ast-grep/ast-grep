@@ -82,12 +82,3 @@ export const languagesNodeTypesUrls = {
     "https://raw.githubusercontent.com/tjdevries/tree-sitter-lua/refs/heads/master/src/node-types.json",
   // Not available for SQL and Swift - They don't have node-types.json in their repo contents
 };
-
-export const languageLibs = {
-  js: Lang.JavaScript,
-  jsx: Lang.JavaScript,
-  ts: Lang.TypeScript,
-  tsx: Lang.Tsx,
-  css: Lang.Css,
-  html: Lang.Html,
-};
