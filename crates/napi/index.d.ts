@@ -16,12 +16,11 @@ import RubyNodeTypesMap from "./types/Ruby-node-types";
 import PhpNodeTypesMap from "./types/Php-node-types";
 import ElixirNodeTypesMap from "./types/Elixir-node-types";
 import KotlinNodeTypesMap from "./types/Kotlin-node-types";
-import SwiftNodeTypesMap from "./types/Swift-node-types";
 import HaskellNodeTypesMap from "./types/Haskell-node-types";
 import ScalaNodeTypesMap from "./types/Scala-node-types";
-import LuaNodeTypesMap from "./types/Lua-node-types";
 import BashNodeTypesMap from "./types/Bash-node-types";
 import YamlNodeTypesMap from "./types/Yaml-node-types";
+import LuaNodeTypesMap from "./types/Lua-node-types";
 export {
   JavaScriptNodeTypesMap,
   TypeScriptNodeTypesMap,
@@ -40,12 +39,11 @@ export {
   PhpNodeTypesMap,
   ElixirNodeTypesMap,
   KotlinNodeTypesMap,
-  SwiftNodeTypesMap,
   HaskellNodeTypesMap,
   ScalaNodeTypesMap,
-  LuaNodeTypesMap,
   BashNodeTypesMap,
-  YamlNodeTypesMap
+  YamlNodeTypesMap,
+  LuaNodeTypesMap
 };
 /* tslint:disable */
 /* eslint-disable */

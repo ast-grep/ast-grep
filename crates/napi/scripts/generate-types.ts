@@ -1,151 +1,67 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { Edit, kind, Lang, parseAsync } from "../index";
-import { Rule } from "../manual";
+import { Edit, Lang, parseAsync } from "../index";
 import { NodeTypeSchema } from "../types/node-types";
+import {
+  createMatchClassDeclarationRule,
+  createMatchClassMethodRule,
+  createMatchSgReturningFunctionSignatureRule,
+} from "./rules";
+import {
+  languageLibs,
+  languageNodeTypesTagVersionOverrides,
+  languagesCrateNames,
+  languagesNodeTypesUrls,
+} from "./constants";
+import toml from "smol-toml";
 
-const languagesNodeTypesUrls = {
-  [Lang.JavaScript]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-javascript/refs/heads/master/src/node-types.json",
-  [Lang.TypeScript]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-typescript/refs/heads/master/typescript/src/node-types.json",
-  [Lang.Tsx]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-typescript/refs/heads/master/tsx/src/node-types.json",
-  [Lang.Java]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-java/refs/heads/master/src/node-types.json",
-  [Lang.Python]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-python/refs/heads/master/src/node-types.json",
-  [Lang.Rust]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-rust/refs/heads/master/src/node-types.json",
-  [Lang.C]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-c/refs/heads/master/src/node-types.json",
-  [Lang.Cpp]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-cpp/refs/heads/master/src/node-types.json",
-  [Lang.Go]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-go/refs/heads/master/src/node-types.json",
-  [Lang.Html]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-html/refs/heads/master/src/node-types.json",
-  [Lang.Css]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-css/refs/heads/master/src/node-types.json",
-  [Lang.Json]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-json/refs/heads/master/src/node-types.json",
-  [Lang.CSharp]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-c-sharp/refs/heads/master/src/node-types.json",
-  [Lang.Ruby]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-ruby/refs/heads/master/src/node-types.json",
-  [Lang.Php]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-php/refs/heads/master/php/src/node-types.json",
-  [Lang.Elixir]:
-    "https://raw.githubusercontent.com/elixir-lang/tree-sitter-elixir/refs/heads/main/src/node-types.json",
-  [Lang.Kotlin]:
-    "https://raw.githubusercontent.com/fwcd/tree-sitter-kotlin/refs/heads/main/src/node-types.json",
-  [Lang.Swift]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-swift/refs/heads/master/src/node-types.json",
-  [Lang.Haskell]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-haskell/refs/heads/master/src/node-types.json",
-  [Lang.Scala]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-scala/refs/heads/master/src/node-types.json",
-  [Lang.Lua]:
-    "https://raw.githubusercontent.com/tjdevries/tree-sitter-lua/refs/heads/master/src/node-types.json",
-  [Lang.Bash]:
-    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-bash/refs/heads/master/src/node-types.json",
-  [Lang.Yaml]:
-    "https://raw.githubusercontent.com/ikatyang/tree-sitter-yaml/refs/heads/master/src/node-types.json",
-  // Not available for SQL
-};
-
-const dirname = new URL(".", import.meta.url).pathname;
+const rootDir = path.resolve(__dirname, "..");
+const indexDtsPath = path.join(rootDir, "index.d.ts");
 
 async function generateLangNodeTypes() {
-  for (const [lang, url] of Object.entries(languagesNodeTypesUrls)) {
-    const nodeTypesResponse = await fetch(url);
-    const nodeTypes = (await nodeTypesResponse.json()) as NodeTypeSchema[];
+  const languageCargoToml = await readFile(
+    path.resolve(rootDir, "../language/Cargo.toml"),
+    "utf8"
+  );
 
-    const nodeTypeMap = Object.fromEntries(
-      nodeTypes.map((node) => [node.type, node])
-    );
+  const parsedCargoToml = toml.parse(languageCargoToml) as {
+    dependencies: Record<string, { version: string }>;
+  };
 
-    await writeFile(
-      path.join(dirname, "..", "types", `${lang}-node-types.ts`),
-      `type ${lang}NodeTypesMap = ${JSON.stringify(nodeTypeMap, null, 2)};
+  for (const [lang, urlTemplate] of Object.entries(languagesNodeTypesUrls)) {
+    try {
+      const treeSitterCrateName = languagesCrateNames[lang as Lang];
+      const cargoVersion =
+        parsedCargoToml.dependencies[treeSitterCrateName].version;
+      const tag =
+        languageNodeTypesTagVersionOverrides[lang as Lang] ??
+        `v${cargoVersion}`;
+      const url = urlTemplate.replace("{{TAG}}", tag);
+      const nodeTypesResponse = await fetch(url);
+      const nodeTypes = (await nodeTypesResponse.json()) as NodeTypeSchema[];
+
+      const nodeTypeMap = Object.fromEntries(
+        nodeTypes.map((node) => [node.type, node])
+      );
+
+      await writeFile(
+        path.join(rootDir, "types", `${lang}-node-types.ts`),
+        `type ${lang}NodeTypesMap = ${JSON.stringify(nodeTypeMap, null, 2)};
 
 export default ${lang}NodeTypesMap;
 `
-    );
+      );
+    } catch (e) {
+      console.error(`Error while generating node types for ${lang}:`, e);
+    }
   }
 }
 
 async function updateIndexDts() {
-  const indexDtsPath = path.join(dirname, "..", "index.d.ts");
   const indexDtsSource = await readFile(indexDtsPath, "utf8");
   const sgRoot = await parseAsync(Lang.TypeScript, indexDtsSource);
 
   const root = sgRoot.root();
-
-  const createMatchClassMethodRule = (methodName: string): Rule => ({
-    kind: "method_signature",
-    has: {
-      field: "name",
-      regex: `^${methodName}$`,
-    },
-  });
-
-  const createMatchClassDeclarationRule = (className: string): Rule => ({
-    kind: "class_declaration",
-    inside: {
-      kind: "ambient_declaration",
-      inside: {
-        kind: "export_statement",
-      },
-    },
-    has: {
-      field: "name",
-      regex: `^${className}$`,
-    },
-  });
-
-  const createMatchSgReturningFunctionSignatureRule = (
-    namespace: string
-  ): Rule => ({
-    all: [
-      {
-        any: [
-          {
-            kind: "type_annotation",
-            regex: "SgNode",
-            inside: {
-              kind: "required_parameter",
-              inside: {
-                kind: "function_type",
-                stopBy: "end",
-              }
-            },
-          },
-          {
-            kind: "type_annotation",
-            regex: "SgRoot",
-            nthChild: {
-              position: 1,
-              reverse: true,
-            },
-            inside: {
-              kind: "function_signature",
-            },
-          },
-        ],
-      },
-      {
-        inside: {
-          kind: "internal_module",
-          stopBy: "end",
-          has: {
-            field: "name",
-            regex: `^${namespace}$`,
-          },
-        },
-      },
-    ],
-  });
 
   const sgRootClass = root.find({
     rule: createMatchClassDeclarationRule("SgRoot"),
@@ -191,18 +107,9 @@ async function updateIndexDts() {
       `fieldChildren<F extends FieldNames<M[T]>>(name: F): Exclude<FieldSgNode<M, T, F>, null>[]`
     );
 
-  const langLibs = {
-    js: Lang.JavaScript,
-    jsx: Lang.JavaScript,
-    ts: Lang.TypeScript,
-    tsx: Lang.Tsx,
-    css: Lang.Css,
-    html: Lang.Html,
-  };
-
   const updateLibEdits: Edit[] = [];
 
-  for (const [ns, lang] of Object.entries(langLibs)) {
+  for (const [ns, lang] of Object.entries(languageLibs)) {
     const langNodeTypesMapNodes = root.findAll({
       rule: createMatchSgReturningFunctionSignatureRule(ns),
     })!;
@@ -217,10 +124,10 @@ async function updateIndexDts() {
     }
   }
 
-  const typesImportStatement =
+  const nodeTypesImportStatement =
     'import type { FieldNames, FieldSgNode, NodeTypesMap } from "./types/node-types";';
+  const importStatements = [nodeTypesImportStatement];
 
-  const importStatements = [typesImportStatement];
   for (const lang of Object.keys(languagesNodeTypesUrls)) {
     importStatements.push(
       `import ${lang}NodeTypesMap from "./types/${lang}-node-types";`
