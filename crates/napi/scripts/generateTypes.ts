@@ -38,7 +38,7 @@ async function generateLangNodeTypes() {
       );
 
       await writeFile(
-        path.join(rootDir, "types", `${lang}-node-types.ts`),
+        path.join(rootDir, "types", `${lang}.d.ts`),
         `export type ${lang}NodeTypesMap = ${JSON.stringify(nodeTypeMap, null, 2)};`
       );
     } catch (e) {
