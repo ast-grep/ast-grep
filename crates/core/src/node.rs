@@ -10,13 +10,13 @@ type Edit<D> = E<<D as Doc>::Source>;
 use std::borrow::Cow;
 
 /// Represents a position in the source code.
-/// The row and column are zero-based, character offsets.
+/// The line and column are zero-based, character offsets.
 /// It is different from tree-sitter's position which is zero-based `byte` offsets.
 /// Note, accessing `column` is O(n) operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Position {
-  /// zero-based row offset. Text encoding does not matter.
-  row: usize,
+  /// zero-based line offset. Text encoding does not matter.
+  line: usize,
   /// zero-based BYTE offset instead of character offset
   byte_column: usize,
   /// byte offset of this position
@@ -24,15 +24,15 @@ pub struct Position {
 }
 
 impl Position {
-  fn new(row: u32, byte_column: u32, byte_offset: u32) -> Self {
+  fn new(line: u32, byte_column: u32, byte_offset: u32) -> Self {
     Self {
-      row: row as usize,
+      line: line as usize,
       byte_column: byte_column as usize,
       byte_offset: byte_offset as usize,
     }
   }
-  pub fn row(&self) -> usize {
-    self.row
+  pub fn line(&self) -> usize {
+    self.line
   }
   /// TODO: return unicode character offset
   pub fn column<D: Doc>(&self, node: &Node<D>) -> usize {
@@ -41,7 +41,7 @@ impl Position {
   }
   /// Convert to tree-sitter's Point
   pub fn ts_point(&self) -> tree_sitter::Point {
-    tree_sitter::Point::new(self.row as u32, self.byte_column as u32)
+    tree_sitter::Point::new(self.line as u32, self.byte_column as u32)
   }
 }
 
@@ -290,7 +290,7 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
       matched: self.text(),
       leading: &source[leading..start],
       trailing: &source[end..trailing],
-      start_line: self.start_pos().row() - offset,
+      start_line: self.start_pos().line() - offset,
     }
   }
 
@@ -741,9 +741,9 @@ if (a) {
     let root = Tsx.ast_grep("a");
     let root = root.root();
     let node = root.find("$A").expect("should exist");
-    assert_eq!(node.start_pos().row(), 0);
+    assert_eq!(node.start_pos().line(), 0);
     assert_eq!(node.start_pos().column(&node), 0);
-    assert_eq!(node.end_pos().row(), 0);
+    assert_eq!(node.end_pos().line(), 0);
     assert_eq!(node.end_pos().column(&node), 1);
   }
 
@@ -752,16 +752,16 @@ if (a) {
     let root = Tsx.ast_grep("🦀");
     let root = root.root();
     let node = root.find("$A").expect("should exist");
-    assert_eq!(node.start_pos().row(), 0);
+    assert_eq!(node.start_pos().line(), 0);
     assert_eq!(node.start_pos().column(&node), 0);
-    assert_eq!(node.end_pos().row(), 0);
+    assert_eq!(node.end_pos().line(), 0);
     assert_eq!(node.end_pos().column(&node), 1);
     let root = Tsx.ast_grep("\n  🦀🦀");
     let root = root.root();
     let node = root.find("$A").expect("should exist");
-    assert_eq!(node.start_pos().row(), 1);
+    assert_eq!(node.start_pos().line(), 1);
     assert_eq!(node.start_pos().column(&node), 2);
-    assert_eq!(node.end_pos().row(), 1);
+    assert_eq!(node.end_pos().line(), 1);
     assert_eq!(node.end_pos().column(&node), 4);
   }
 }

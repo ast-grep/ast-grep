@@ -16,7 +16,7 @@ class NthChild(TypedDict):
     nth: int
 
 class PosRule(TypedDict):
-    row: int
+    line: int
     column: int
 
 class RangeRule(TypedDict):

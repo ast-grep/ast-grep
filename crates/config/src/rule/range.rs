@@ -5,13 +5,13 @@ use serde::{Deserialize, Serialize};
 /// Represents a zero-based character-wise position in a document
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializablePosition {
-  /// 0-based row number in the source code
-  pub row: usize,
+  /// 0-based line number in the source code
+  pub line: usize,
   /// 0-based column number in the source code
   pub column: usize,
 }
 
-/// Represents a position in source code using 0-based row and column numbers
+/// Represents a position in source code using 0-based line and column numbers
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableRange {
   /// start position in the source code
@@ -32,7 +32,7 @@ use super::Matcher;
 pub enum RangeMatcherError {
   /// Returned when the range is invalid. This can occur when:
   /// - start position is after end position
-  /// - positions contain invalid row/column values
+  /// - positions contain invalid line/column values
   #[error("The start position must be before the end position.")]
   InvalidRange,
 }
@@ -56,8 +56,8 @@ impl<L: Language> RangeMatcher<L> {
     start_pos: SerializablePosition,
     end_pos: SerializablePosition,
   ) -> Result<RangeMatcher<L>, RangeMatcherError> {
-    if start_pos.row > end_pos.row
-      || (start_pos.row == end_pos.row && start_pos.column > end_pos.column)
+    if start_pos.line > end_pos.line
+      || (start_pos.line == end_pos.line && start_pos.column > end_pos.column)
     {
       return Err(RangeMatcherError::InvalidRange);
     }
@@ -76,8 +76,8 @@ impl<L: Language> Matcher<L> for RangeMatcher<L> {
     let node_start_pos = node.start_pos();
     let node_end_pos = node.end_pos();
 
-    // first check row since it is cheaper
-    if self.start.row != node_start_pos.row() || self.end.row != node_end_pos.row() {
+    // first check line since it is cheaper
+    if self.start.line != node_start_pos.line() || self.end.line != node_end_pos.line() {
       return None;
     }
     // then check column, this can be expensive for utf-8 encoded files
@@ -102,8 +102,11 @@ mod test {
   #[test]
   fn test_invalid_range() {
     let range = RangeMatcher::<TS>::try_new(
-      SerializablePosition { row: 0, column: 10 },
-      SerializablePosition { row: 0, column: 5 },
+      SerializablePosition {
+        line: 0,
+        column: 10,
+      },
+      SerializablePosition { line: 0, column: 5 },
     );
     assert!(range.is_err());
   }
@@ -113,8 +116,14 @@ mod test {
     let cand = TS::Tsx.ast_grep("class A { a = 123 }");
     let cand = cand.root();
     let pattern = RangeMatcher::new(
-      SerializablePosition { row: 0, column: 10 },
-      SerializablePosition { row: 0, column: 17 },
+      SerializablePosition {
+        line: 0,
+        column: 10,
+      },
+      SerializablePosition {
+        line: 0,
+        column: 17,
+      },
     );
     assert!(pattern.find_node(cand).is_some());
   }
@@ -124,8 +133,14 @@ mod test {
     let cand = TS::Tsx.ast_grep("class A { a = 123 }");
     let cand = cand.root();
     let pattern = RangeMatcher::new(
-      SerializablePosition { row: 0, column: 10 },
-      SerializablePosition { row: 0, column: 15 },
+      SerializablePosition {
+        line: 0,
+        column: 10,
+      },
+      SerializablePosition {
+        line: 0,
+        column: 15,
+      },
     );
     assert!(pattern.find_node(cand).is_none(),);
   }
@@ -136,8 +151,8 @@ mod test {
       .ast_grep("class A { \n b = () => { \n const c = 1 \n const d = 3 \n return c + d \n } }");
     let cand = cand.root();
     let pattern = RangeMatcher::new(
-      SerializablePosition { row: 1, column: 1 },
-      SerializablePosition { row: 5, column: 2 },
+      SerializablePosition { line: 1, column: 1 },
+      SerializablePosition { line: 5, column: 2 },
     );
     assert!(pattern.find_node(cand).is_some());
   }
@@ -147,8 +162,11 @@ mod test {
     let cand = TS::Tsx.ast_grep("let a = '🦄'");
     let cand = cand.root();
     let pattern = RangeMatcher::new(
-      SerializablePosition { row: 0, column: 8 },
-      SerializablePosition { row: 0, column: 11 },
+      SerializablePosition { line: 0, column: 8 },
+      SerializablePosition {
+        line: 0,
+        column: 11,
+      },
     );
     let node = pattern.find_node(cand);
     assert!(node.is_some());

@@ -54,7 +54,7 @@ def test_unicode_range_rule():
     source = "ハロ = console.log(世界)".strip()
     sg = SgRoot(source, "javascript")
     root = sg.root()
-    node = root.find(range={"start": {"row": 0, "column": 17}, "end": {"row": 0, "column": 19}})
+    node = root.find(range={"start": {"line": 0, "column": 17}, "end": {"line": 0, "column": 19}})
     assert node
     assert node.range().start.index == 17
     assert node.range().start.line == 0

@@ -42,7 +42,7 @@ pub struct SgNode {
 impl SgNode {
   fn to_pos(&self, pos: Position, offset: usize) -> Pos {
     Pos {
-      line: pos.row() as u32,
+      line: pos.line() as u32,
       column: pos.column(&self.inner) as u32,
       index: offset as u32 / 2,
     }

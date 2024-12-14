@@ -52,7 +52,7 @@ impl Pos {
 
 fn to_pos<D: Doc>(node: &Node<D>, pos: Position, offset: usize) -> Pos {
   Pos {
-    line: pos.row(),
+    line: pos.line(),
     column: pos.column(node),
     index: offset,
   }
