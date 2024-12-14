@@ -77,8 +77,7 @@ export const languagesNodeTypesUrls = {
     "https://raw.githubusercontent.com/tree-sitter/tree-sitter-bash/refs/tags/{{TAG}}/src/node-types.json",
   [Lang.Yaml]:
     "https://raw.githubusercontent.com/tree-sitter-grammars/tree-sitter-yaml/refs/tags/{{TAG}}/src/node-types.json",
-  // The Lua tree-sitter repo does not have tags
   [Lang.Lua]:
-    "https://raw.githubusercontent.com/tjdevries/tree-sitter-lua/refs/heads/master/src/node-types.json",
+    "https://raw.githubusercontent.com/tree-sitter-grammars/tree-sitter-lua/refs/tags/{{TAG}}/src/node-types.json",
   // Not available for SQL and Swift - They don't have node-types.json in their repo contents
 };
