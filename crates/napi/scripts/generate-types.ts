@@ -46,10 +46,7 @@ async function generateLangNodeTypes() {
 
       await writeFile(
         path.join(rootDir, "types", `${lang}-node-types.ts`),
-        `type ${lang}NodeTypesMap = ${JSON.stringify(nodeTypeMap, null, 2)};
-
-export default ${lang}NodeTypesMap;
-`
+        `export type ${lang}NodeTypesMap = ${JSON.stringify(nodeTypeMap, null, 2)};`
       );
     } catch (e) {
       console.error(`Error while generating node types for ${lang}:`, e);
@@ -128,14 +125,8 @@ async function updateIndexDts() {
     'import type { FieldNames, FieldSgNode, NodeTypesMap } from "./types/node-types";';
   const importStatements = [nodeTypesImportStatement];
 
-  for (const lang of Object.keys(languagesNodeTypesUrls)) {
-    importStatements.push(
-      `import ${lang}NodeTypesMap from "./types/${lang}-node-types";`
-    );
-  }
-  const exportStatement = `export {\n${Object.keys(languagesNodeTypesUrls)
-    .map((lang) => `  ${lang}NodeTypesMap`)
-    .join(",\n")}\n};`;
+  const exportStatements = Object.keys(languagesNodeTypesUrls)
+    .map((lang) => `export type { ${lang}NodeTypesMap } from "./types/${lang}-node-types";`)
 
   const updatedSource = root.commitEdits(
     [
@@ -147,7 +138,7 @@ async function updateIndexDts() {
       {
         startPos: 0,
         endPos: 0,
-        insertedText: exportStatement + "\n",
+        insertedText: exportStatements.join("\n") + "\n",
       },
       sgRootClassTypeParametersRemovalEdit,
       sgNodeClassTypeParametersRemovalEdit,

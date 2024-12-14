@@ -42,9 +42,9 @@
   },
   "scripts": {
     "artifacts": "napi artifacts",
-    "build": "napi build --no-const-enum --platform --release && yarn run typegen",
-    "build:debug": "napi build --no-const-enum --platform && yarn run typegen",
-    "prepublishOnly": "napi prepublish -t npm --skip-gh-release",
+    "build": "napi build --no-const-enum --platform --release",
+    "build:debug": "napi build --no-const-enum --platform && yarn typegen",
+    "prepublishOnly": "yarn typegen && napi prepublish -t npm --skip-gh-release",
     "test": "ava",
     "version": "napi version",
     "typegen": "ts-node scripts/generate-types.ts"
