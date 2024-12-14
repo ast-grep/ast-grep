@@ -1,6 +1,4 @@
 import type { FieldNames, FieldSgNode, NodeTypesMap } from "./types/node-types";
-import type { FieldNames, FieldSgNode, NodeTypesMap } from "./types/node-types";
-import type { FieldNames, FieldSgNode, NodeTypesMap } from "./types/node-types";
 /* tslint:disable */
 /* eslint-disable */
 

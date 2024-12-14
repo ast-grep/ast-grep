@@ -42,12 +42,13 @@
   },
   "scripts": {
     "artifacts": "napi artifacts",
-    "build": "napi build --no-const-enum --platform --release",
-    "build:debug": "napi build --no-const-enum --platform && yarn typegen",
+    "build": "napi build --no-const-enum --platform --release && yarn patchDts",
+    "build:debug": "napi build --no-const-enum --platform && yarn patchDts",
     "prepublishOnly": "yarn typegen && napi prepublish -t npm --skip-gh-release",
     "test": "ava",
     "version": "napi version",
-    "typegen": "ts-node scripts/generate-types.ts"
+    "patchDts": "ts-node scripts/updateIndexDts.ts",
+    "typegen": "ts-node scripts/generateTypes.ts"
   },
   "devDependencies": {
     "@ast-grep/napi": "0.31.0",
