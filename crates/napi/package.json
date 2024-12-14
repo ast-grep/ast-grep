@@ -16,7 +16,8 @@
   "files": [
     "manual.d.ts",
     "index.d.ts",
-    "index.js"
+    "index.js",
+    "types/*.ts"
   ],
   "napi": {
     "name": "ast-grep-napi",
@@ -41,17 +42,20 @@
   },
   "scripts": {
     "artifacts": "napi artifacts",
-    "build": "napi build --no-const-enum --platform --release",
+    "build": "napi build --no-const-enum --platform --release && yarn run typegen",
     "build:debug": "napi build --no-const-enum --platform",
     "prepublishOnly": "napi prepublish -t npm --skip-gh-release",
     "test": "ava",
-    "version": "napi version"
+    "version": "napi version",
+    "typegen": "tsx scripts/generate-types.ts"
   },
   "devDependencies": {
     "@napi-rs/cli": "2.18.4",
+    "@types/node": "^22.10.2",
     "ava": "6.2.0",
     "chalk": "5.3.0",
     "ts-node": "10.9.2",
+    "tsx": "^4.19.2",
     "typescript": "5.7.2"
   },
   "ava": {

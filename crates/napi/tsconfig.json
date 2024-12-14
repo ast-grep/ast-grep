@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "target": "ES2018",
+    "target": "ES2022",
     "strict": true,
     "moduleResolution": "node",
-    "module": "CommonJS",
+    "module": "ES2022",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "esModuleInterop": true,
