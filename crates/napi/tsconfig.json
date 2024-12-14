@@ -1,13 +1,16 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "ES2018",
     "strict": true,
     "moduleResolution": "node",
-    "module": "ES2022",
+    "module": "CommonJS",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true
+  },
+  "ts-node": {
+    "transpileOnly": true
   },
   "include": ["."],
   "exclude": ["node_modules"]

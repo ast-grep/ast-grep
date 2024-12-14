@@ -265,7 +265,7 @@ test('find in files with meta var', async t => {
 test('find in files with filename', async t => {
   let findInFiles = countedPromise(ts.findInFiles)
   await findInFiles({
-    paths: ['./'],
+    paths: ['./__test__/'],
     matcher: {
       rule: {kind: 'await_expression'},
     },
@@ -291,7 +291,7 @@ test('tsx should not find ts file', async t => {
 test('find with language globs', async t => {
   let findInFiles = countedPromise(tsx.findInFiles)
   await findInFiles({
-    paths: ['./'],
+    paths: ['./__test__/'],
     matcher: {
       rule: {kind: 'await_expression'},
     },
