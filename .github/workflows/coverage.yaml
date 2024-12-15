@@ -48,3 +48,16 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Lint
         run: cargo clippy --all-targets --all-features --workspace --release --locked -- -D clippy::all
+  napi:
+    name: NAPI Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+      - name: Lint NAPI
+        run: |-
+          cd crates/napi
+          yarn install
+          yarn lint
