@@ -1,6 +1,7 @@
 import { readFile, writeFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { Lang } from "../index";
+// gen type cannot be imported on CI due to un-generated napi binding
+import type { Lang } from "../index";
 import { NodeTypeSchema } from "../types/node-types";
 import {
   languageNodeTypesTagVersionOverrides,
@@ -32,24 +33,24 @@ async function generateLangNodeTypes() {
     dependencies: Record<string, { version: string }>;
   };
 
-  let langs = Object.entries(languagesNodeTypesUrls);
+  let langs = Object.entries(languagesNodeTypesUrls) as [Lang, string][];
   // if we are running in test mode, we only want to generate types for TypeScript
   // and only if the file does not exist
   if (testOnly) {
-    let existing = await fileExists(path.join(langDir, `${Lang.TypeScript}.d.ts`));
+    let existing = await fileExists(path.join(langDir, `TypeScript.d.ts`));
     if (existing) {
       return
     }
-    langs = langs.filter(([lang]) => lang === Lang.TypeScript);
+    langs = langs.filter(([lang]) => lang === 'TypeScript');
   }
 
   for (const [lang, urlTemplate] of langs) {
     try {
-      const treeSitterCrateName = languagesCrateNames[lang as Lang];
+      const treeSitterCrateName = languagesCrateNames[lang];
       const cargoVersion =
         parsedCargoToml.dependencies[treeSitterCrateName].version;
       const tag =
-        languageNodeTypesTagVersionOverrides[lang as Lang] ??
+        languageNodeTypesTagVersionOverrides[lang] ??
         `v${cargoVersion}`;
       const url = urlTemplate.replace("{{TAG}}", tag);
       const nodeTypesResponse = await fetch(url);
