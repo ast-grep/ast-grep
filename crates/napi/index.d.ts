@@ -1,51 +1,16 @@
-import type { Rule } from './types/rule'
 import {SgRoot, SgNode} from './types/sgnode'
+import {NapiConfig, FindConfig, FileOption} from './types/config'
 
 //-----Type Only Export!-----//
-// Just export Rule here and user can use Rule['pattern'] to get the type of pattern
+// Only Rule here. User can use Rule['pattern'], e.g., to get the type of subfield.
 export type { Rule } from './types/rule'
 export type { Pos, Edit, Range } from './types/sgnode'
+export type { NapiConfig, FindConfig, FileOption } from './types/config'
 
 //-----Runtime Value Export!-----//
 export { SgRoot, SgNode }
 // deprecated
 export * from './types/deprecated'
-
-/**
- * Rule configuration similar to YAML
- * See https://ast-grep.github.io/reference/yaml.html
- */
-export interface NapiConfig {
-  /** The rule object, see https://ast-grep.github.io/reference/rule.html */
-  rule: Rule
-  /** See https://ast-grep.github.io/guide/rule-config.html#constraints */
-  constraints?: Record<string, Rule>
-  /** Available languages: html, css, js, jsx, ts, tsx */
-  language?: Lang
-  /**
-   * transform is NOT useful in JavaScript. You can use JS code to directly transform the result.
-   * https://ast-grep.github.io/reference/yaml.html#transform
-   */
-  transform?: unknown
-  /** https://ast-grep.github.io/guide/rule-config/utility-rule.html */
-  utils?: Record<string, Rule>
-}
-export interface FileOption {
-  paths: Array<string>
-  languageGlobs: Record<string, Array<string>>
-}
-export interface FindConfig {
-  /** specify the file paths to recursively find files */
-  paths: Array<string>
-  /** a Rule object to find what nodes will match */
-  matcher: NapiConfig
-  /**
-   * An list of pattern globs to treat of certain files in the specified language.
-   * eg. ['*.vue', '*.svelte'] for html.findFiles, or ['*.ts'] for tsx.findFiles.
-   * It is slightly different from https://ast-grep.github.io/reference/sgconfig.html#languageglobs
-   */
-  languageGlobs?: Array<string>
-}
 
 export declare function parseFiles(
   paths: Array<string> | FileOption,
