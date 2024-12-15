@@ -19,38 +19,38 @@ use sg_node::SgRoot;
 pub use find_files::parse_files;
 
 macro_rules! impl_lang_mod {
-    ($name: ident, $lang: ident) =>  {
+  ($name: ident, $lang: ident) => {
+    #[napi]
+    pub mod $name {
+      use super::Lang::*;
+      use super::*;
+
       #[napi]
-      pub mod $name {
-        use super::*;
-        use super::Lang::*;
+      pub fn parse(src: String) -> SgRoot {
+        parse_with_lang($lang, src)
+      }
 
-        #[napi]
-        pub fn parse(src: String) -> SgRoot {
-          parse_with_lang($lang, src)
-        }
-
-        #[napi(ts_return_type = "Promise<SgRoot>")]
-        pub fn parse_async(src: String) -> AsyncTask<ParseAsync> {
-          parse_async_with_lang($lang, src)
-        }
-        #[napi]
-        pub fn kind(kind_name: String) -> u16 {
-          kind_with_lang($lang, kind_name)
-        }
-        #[napi]
-        pub fn pattern(pattern: String) -> NapiConfig {
-          pattern_with_lang($lang, pattern)
-        }
-        #[napi(
-          ts_args_type = "config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void",
-          ts_return_type = "Promise<number>"
-        )]
-        pub fn find_in_files(config: FindConfig, callback: JsFunction) -> Result<AsyncTask<FindInFiles>> {
-          find_in_files_impl($lang, config, callback)
-        }
+      #[napi]
+      pub fn parse_async(src: String) -> AsyncTask<ParseAsync> {
+        parse_async_with_lang($lang, src)
+      }
+      #[napi]
+      pub fn kind(kind_name: String) -> u16 {
+        kind_with_lang($lang, kind_name)
+      }
+      #[napi]
+      pub fn pattern(pattern: String) -> NapiConfig {
+        pattern_with_lang($lang, pattern)
+      }
+      #[napi]
+      pub fn find_in_files(
+        config: FindConfig,
+        callback: JsFunction,
+      ) -> Result<AsyncTask<FindInFiles>> {
+        find_in_files_impl($lang, config, callback)
       }
     }
+  };
 }
 
 // for name conflict in mod
@@ -77,7 +77,7 @@ pub fn parse(lang: Lang, src: String) -> SgRoot {
 /// However, spawning excessive many threads may backfire.
 /// Please refer to libuv doc, nodejs' underlying runtime
 /// for its default behavior and performance tuning tricks.
-#[napi(ts_return_type = "Promise<SgRoot>")]
+#[napi]
 pub fn parse_async(lang: Lang, src: String) -> AsyncTask<ParseAsync> {
   AsyncTask::new(ParseAsync { src, lang })
 }
@@ -109,10 +109,7 @@ pub fn pattern(lang: Lang, pattern: String) -> NapiConfig {
 /// `lang` specifies the language.
 /// `config` specifies the file path and matcher.
 /// `callback` will receive matching nodes found in a file.
-#[napi(
-  ts_args_type = "lang: Lang, config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void",
-  ts_return_type = "Promise<number>"
-)]
+#[napi]
 pub fn find_in_files(
   lang: Lang,
   config: FindConfig,

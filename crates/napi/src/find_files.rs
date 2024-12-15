@@ -86,10 +86,10 @@ pub struct FileOption {
   pub language_globs: HashMap<String, Vec<String>>,
 }
 
-#[napi(ts_return_type = "Promise<number>")]
+#[napi]
 pub fn parse_files(
   paths: Either<Vec<String>, FileOption>,
-  #[napi(ts_arg_type = "(err: null | Error, result: SgRoot) => void")] callback: JsFunction,
+  callback: JsFunction,
 ) -> Result<AsyncTask<ParseFiles>> {
   let tsfn: ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled> =
     callback.create_threadsafe_function(THREAD_FUNC_QUEUE_SIZE, |ctx| Ok(vec![ctx.value]))?;
