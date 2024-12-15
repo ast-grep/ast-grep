@@ -45,7 +45,7 @@
     "build": "napi build --no-const-enum --platform --release && yarn patchDts",
     "build:debug": "napi build --no-const-enum --platform && yarn patchDts",
     "prepublishOnly": "napi prepublish -t npm --skip-gh-release",
-    "test": "ava",
+    "test": "tsc --noEmit && ava",
     "version": "napi version",
     "patchDts": "ts-node scripts/updateIndexDts.ts",
     "typegen": "ts-node scripts/generateTypes.ts"
