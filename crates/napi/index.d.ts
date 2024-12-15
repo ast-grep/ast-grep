@@ -1,5 +1,6 @@
-import { SgRoot, SgNode } from './types/sgnode'
+import type { SgRoot, SgNode } from './types/sgnode'
 import type { NapiConfig, FindConfig, FileOption } from './types/config'
+import type { Lang } from './types/lang'
 
 //-----Type Only Export!-----//
 // Only Rule here. User can use Rule['pattern'], e.g., to get the type of subfield.
@@ -8,7 +9,8 @@ export type { Pos, Edit, Range } from './types/sgnode'
 export type { NapiConfig, FindConfig, FileOption } from './types/config'
 
 //-----Runtime Value Export!-----//
-export { SgRoot, SgNode }
+export { SgRoot, SgNode } from './types/sgnode'
+export { Lang } from './types/lang'
 // deprecated
 export * from './types/deprecated'
 
@@ -16,33 +18,6 @@ export declare function parseFiles(
   paths: Array<string> | FileOption,
   callback: (err: null | Error, result: SgRoot) => void,
 ): Promise<number>
-
-export enum Lang {
-  Html = 'Html',
-  JavaScript = 'JavaScript',
-  Tsx = 'Tsx',
-  Css = 'Css',
-  TypeScript = 'TypeScript',
-  Bash = 'Bash',
-  C = 'C',
-  Cpp = 'Cpp',
-  CSharp = 'CSharp',
-  Go = 'Go',
-  Elixir = 'Elixir',
-  Haskell = 'Haskell',
-  Java = 'Java',
-  Json = 'Json',
-  Kotlin = 'Kotlin',
-  Lua = 'Lua',
-  Php = 'Php',
-  Python = 'Python',
-  Ruby = 'Ruby',
-  Rust = 'Rust',
-  Scala = 'Scala',
-  Sql = 'Sql',
-  Swift = 'Swift',
-  Yaml = 'Yaml',
-}
 /** Parse a string to an ast-grep instance */
 export declare function parse(lang: Lang, src: string): SgRoot
 /**
