@@ -162,134 +162,44 @@ export declare class SgRoot<M extends NodeTypesMap = NodeTypesMap> {
   filename(): string
 }
 export declare namespace html {
-  /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
-  /**
-   * Parse a string to an ast-grep instance asynchronously in threads.
-   * It utilize multiple CPU cores when **concurrent processing sources**.
-   * However, spawning excessive many threads may backfire.
-   * Please refer to libuv doc, nodejs' underlying runtime
-   * for its default behavior and performance tuning tricks.
-   */
   export function parseAsync(src: string): Promise<SgRoot>
-  /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
-  /** Compile a string to ast-grep Pattern. */
   export function pattern(pattern: string): NapiConfig
-  /**
-   * Discover and parse multiple files in Rust.
-   * `config` specifies the file path and matcher.
-   * `callback` will receive matching nodes found in a file.
-   */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export declare namespace js {
-  /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
-  /**
-   * Parse a string to an ast-grep instance asynchronously in threads.
-   * It utilize multiple CPU cores when **concurrent processing sources**.
-   * However, spawning excessive many threads may backfire.
-   * Please refer to libuv doc, nodejs' underlying runtime
-   * for its default behavior and performance tuning tricks.
-   */
   export function parseAsync(src: string): Promise<SgRoot>
-  /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
-  /** Compile a string to ast-grep Pattern. */
   export function pattern(pattern: string): NapiConfig
-  /**
-   * Discover and parse multiple files in Rust.
-   * `config` specifies the file path and matcher.
-   * `callback` will receive matching nodes found in a file.
-   */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export declare namespace jsx {
-  /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
-  /**
-   * Parse a string to an ast-grep instance asynchronously in threads.
-   * It utilize multiple CPU cores when **concurrent processing sources**.
-   * However, spawning excessive many threads may backfire.
-   * Please refer to libuv doc, nodejs' underlying runtime
-   * for its default behavior and performance tuning tricks.
-   */
   export function parseAsync(src: string): Promise<SgRoot>
-  /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
-  /** Compile a string to ast-grep Pattern. */
   export function pattern(pattern: string): NapiConfig
-  /**
-   * Discover and parse multiple files in Rust.
-   * `config` specifies the file path and matcher.
-   * `callback` will receive matching nodes found in a file.
-   */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export declare namespace ts {
-  /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
-  /**
-   * Parse a string to an ast-grep instance asynchronously in threads.
-   * It utilize multiple CPU cores when **concurrent processing sources**.
-   * However, spawning excessive many threads may backfire.
-   * Please refer to libuv doc, nodejs' underlying runtime
-   * for its default behavior and performance tuning tricks.
-   */
   export function parseAsync(src: string): Promise<SgRoot>
-  /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
-  /** Compile a string to ast-grep Pattern. */
   export function pattern(pattern: string): NapiConfig
-  /**
-   * Discover and parse multiple files in Rust.
-   * `config` specifies the file path and matcher.
-   * `callback` will receive matching nodes found in a file.
-   */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export declare namespace tsx {
-  /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
-  /**
-   * Parse a string to an ast-grep instance asynchronously in threads.
-   * It utilize multiple CPU cores when **concurrent processing sources**.
-   * However, spawning excessive many threads may backfire.
-   * Please refer to libuv doc, nodejs' underlying runtime
-   * for its default behavior and performance tuning tricks.
-   */
   export function parseAsync(src: string): Promise<SgRoot>
-  /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
-  /** Compile a string to ast-grep Pattern. */
   export function pattern(pattern: string): NapiConfig
-  /**
-   * Discover and parse multiple files in Rust.
-   * `config` specifies the file path and matcher.
-   * `callback` will receive matching nodes found in a file.
-   */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
 export declare namespace css {
-  /** Parse a string to an ast-grep instance */
   export function parse(src: string): SgRoot
-  /**
-   * Parse a string to an ast-grep instance asynchronously in threads.
-   * It utilize multiple CPU cores when **concurrent processing sources**.
-   * However, spawning excessive many threads may backfire.
-   * Please refer to libuv doc, nodejs' underlying runtime
-   * for its default behavior and performance tuning tricks.
-   */
   export function parseAsync(src: string): Promise<SgRoot>
-  /** Get the `kind` number from its string name. */
   export function kind(kindName: string): number
-  /** Compile a string to ast-grep Pattern. */
   export function pattern(pattern: string): NapiConfig
-  /**
-   * Discover and parse multiple files in Rust.
-   * `config` specifies the file path and matcher.
-   * `callback` will receive matching nodes found in a file.
-   */
   export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }

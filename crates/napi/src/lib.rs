@@ -25,35 +25,23 @@ macro_rules! impl_lang_mod {
         use super::*;
         use super::Lang::*;
 
-        /// Parse a string to an ast-grep instance
         #[napi]
         pub fn parse(src: String) -> SgRoot {
           parse_with_lang($lang, src)
         }
 
-        /// Parse a string to an ast-grep instance asynchronously in threads.
-        /// It utilize multiple CPU cores when **concurrent processing sources**.
-        /// However, spawning excessive many threads may backfire.
-        /// Please refer to libuv doc, nodejs' underlying runtime
-        /// for its default behavior and performance tuning tricks.
         #[napi(ts_return_type = "Promise<SgRoot>")]
         pub fn parse_async(src: String) -> AsyncTask<ParseAsync> {
           parse_async_with_lang($lang, src)
         }
-        /// Get the `kind` number from its string name.
         #[napi]
         pub fn kind(kind_name: String) -> u16 {
           kind_with_lang($lang, kind_name)
         }
-        /// Compile a string to ast-grep Pattern.
         #[napi]
         pub fn pattern(pattern: String) -> NapiConfig {
           pattern_with_lang($lang, pattern)
         }
-
-        /// Discover and parse multiple files in Rust.
-        /// `config` specifies the file path and matcher.
-        /// `callback` will receive matching nodes found in a file.
         #[napi(
           ts_args_type = "config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void",
           ts_return_type = "Promise<number>"
