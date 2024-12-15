@@ -1,4 +1,4 @@
-import { SgRoot, SgNode, NapiConfig, FindConfig } from '../index'
+import type { SgRoot, SgNode, NapiConfig, FindConfig } from '../index'
 
 /**
  * @deprecated language specific objects are deprecated

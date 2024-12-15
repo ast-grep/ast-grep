@@ -2,7 +2,7 @@ import { readFile, writeFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 // gen type cannot be imported on CI due to un-generated napi binding
 import type { Lang } from '../index'
-import { NodeTypeSchema } from '../types/node-types'
+import type { NodeTypeSchema } from '../types/node-types'
 import {
   languageNodeTypesTagVersionOverrides,
   languagesCrateNames,
@@ -37,7 +37,7 @@ async function generateLangNodeTypes() {
   // if we are running in test mode, we only want to generate types for TypeScript
   // and only if the file does not exist
   if (testOnly) {
-    let existing = await fileExists(path.join(langDir, `TypeScript.d.ts`))
+    const existing = await fileExists(path.join(langDir, `TypeScript.d.ts`))
     if (existing) {
       return
     }

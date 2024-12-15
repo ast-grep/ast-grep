@@ -12,7 +12,7 @@ import {
   parse as parseWithLang,
 } from '../index'
 const { parse, kind } = js
-let parseMulti = countedPromise(parseFiles)
+const parseMulti = countedPromise(parseFiles)
 
 test('find from native code', t => {
   const sg = parse('console.log(123)')
@@ -50,8 +50,8 @@ test('find multiple nodes', t => {
     end: { line: 0, column: 10, index: 10 },
   })
   const matchedVar = match!.getMultipleMatches('B')
-  let start = matchedVar[0].range().start
-  let end = matchedVar[matchedVar.length - 1].range().end
+  const start = matchedVar[0].range().start
+  const end = matchedVar[matchedVar.length - 1].range().end
   t.deepEqual(start, { line: 0, column: 2, index: 2 })
   t.deepEqual(end, { line: 0, column: 9, index: 9 })
 })
@@ -182,9 +182,9 @@ test('test find files', async t => {
 
 test('test file count', async t => {
   let i = 0
-  let fileCount = await parseMulti(['./'], (err, _) => {
+  const fileCount = await parseMulti(['./'], (err, _) => {
     // ZZZ... sleep a while to mock expensive operation
-    let start = Date.now()
+    const start = Date.now()
     while (Date.now() - start < 1) continue
     t.is(err, null)
     i++
@@ -195,7 +195,7 @@ test('test file count', async t => {
 test('test languageGlobs', async t => {
   let i = 0
   let foundVue = false
-  let fileCount = await parseMulti(
+  const fileCount = await parseMulti(
     {
       paths: ['./'],
       languageGlobs: {
@@ -238,7 +238,7 @@ test('get node id', async t => {
 })
 
 test('find in files', async t => {
-  let findInFiles = countedPromise(ts.findInFiles)
+  const findInFiles = countedPromise(ts.findInFiles)
   await findInFiles(
     {
       paths: ['./'],
@@ -248,7 +248,7 @@ test('find in files', async t => {
     },
     (err, n) => {
       // ZZZ... sleep a while to mock expensive operation
-      let start = Date.now()
+      const start = Date.now()
       while (Date.now() - start < 1) continue
       t.is(err, null)
       t.assert(n.length > 0)
@@ -259,7 +259,7 @@ test('find in files', async t => {
 
 // gh #1380
 test('find in files with meta var', async t => {
-  let findInFiles = countedPromise(ts.findInFiles)
+  const findInFiles = countedPromise(ts.findInFiles)
   await findInFiles(
     {
       paths: ['./'],
@@ -269,7 +269,7 @@ test('find in files with meta var', async t => {
     },
     (err, n) => {
       // ZZZ... sleep a while to mock expensive operation
-      let start = Date.now()
+      const start = Date.now()
       while (Date.now() - start < 1) continue
       t.is(err, null)
       t.assert(n.length > 0)
@@ -280,7 +280,7 @@ test('find in files with meta var', async t => {
 })
 
 test('find in files with filename', async t => {
-  let findInFiles = countedPromise(ts.findInFiles)
+  const findInFiles = countedPromise(ts.findInFiles)
   await findInFiles(
     {
       paths: ['./__test__/'],
@@ -312,7 +312,7 @@ test('tsx should not find ts file', async t => {
 })
 
 test('find with language globs', async t => {
-  let findInFiles = countedPromise(tsx.findInFiles)
+  const findInFiles = countedPromise(tsx.findInFiles)
   await findInFiles(
     {
       paths: ['./__test__/'],
@@ -330,7 +330,7 @@ test('find with language globs', async t => {
 })
 
 test('find with language globs can parse with correct language', async t => {
-  let findInFiles = countedPromise(html.findInFiles)
+  const findInFiles = countedPromise(html.findInFiles)
   await findInFiles(
     {
       paths: ['./'],
@@ -367,7 +367,7 @@ function countedPromise<F extends (t: any, cb: any) => Promise<number>>(
     let fileCount: number | undefined = undefined
     let resolve = () => {} // will be called after all files are processed
     function wrapped(...args: any[]) {
-      let ret = cb(...args)
+      const ret = cb(...args)
       if (++i === fileCount) resolve()
       return ret
     }
