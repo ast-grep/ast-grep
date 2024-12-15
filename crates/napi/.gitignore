@@ -1,0 +1,2 @@
+# I cannot disable napi-derive's typedef
+ignore.d.ts
