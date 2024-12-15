@@ -1,0 +1,7 @@
+id: named-in-children
+language: TypeScript
+rule:
+  pattern: 'named: false'
+  inside:
+    stopBy: end
+    kind: object

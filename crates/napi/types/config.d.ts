@@ -1,5 +1,5 @@
 import type { Rule } from './rule'
-import type { Lang } from '../index'
+import type { Lang } from './lang'
 
 /**
  * Rule configuration similar to YAML
