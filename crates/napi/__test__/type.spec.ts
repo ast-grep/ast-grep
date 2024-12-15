@@ -52,4 +52,16 @@ test('test type assertion', t => {
   t.assert(kind === '+')
   // @ts-expect-error: we should not report unnamed nodes like +-*/
   t.assert(kind !== 'invalid')
+
+})
+
+test('subtype alias', t => {
+  const sg = parse(Lang.TypeScript, 'export function a() {}') as SgRoot<TypeScriptTypes>
+  const root = sg.root()
+  const exp = root.find('export function a() {}') as SgNode<TypeScriptTypes, 'export_statement'>
+  const kind = exp.field('declaration')!.kind()
+  t.assert(
+    // @ts-expect-error: kind is wrong at type level
+    kind === 'function_declaration',
+  )
 })
