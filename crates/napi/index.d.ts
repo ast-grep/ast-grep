@@ -1,4 +1,5 @@
 import type { FieldNames, FieldSgNode, NodeTypesMap } from "./types/node-types";
+export * from './types/deprecated'
 /**
  * Rule configuration similar to YAML
  * See https://ast-grep.github.io/reference/yaml.html
@@ -155,46 +156,4 @@ export declare class SgRoot<M extends NodeTypesMap = NodeTypesMap> {
    * Returns `"anonymous"` if the instance is created by `lang.parse(source)`.
    */
   filename(): string
-}
-export declare namespace html {
-  export function parse(src: string): SgRoot
-  export function parseAsync(src: string): Promise<SgRoot>
-  export function kind(kindName: string): number
-  export function pattern(pattern: string): NapiConfig
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
-}
-export declare namespace js {
-  export function parse(src: string): SgRoot
-  export function parseAsync(src: string): Promise<SgRoot>
-  export function kind(kindName: string): number
-  export function pattern(pattern: string): NapiConfig
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
-}
-export declare namespace jsx {
-  export function parse(src: string): SgRoot
-  export function parseAsync(src: string): Promise<SgRoot>
-  export function kind(kindName: string): number
-  export function pattern(pattern: string): NapiConfig
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
-}
-export declare namespace ts {
-  export function parse(src: string): SgRoot
-  export function parseAsync(src: string): Promise<SgRoot>
-  export function kind(kindName: string): number
-  export function pattern(pattern: string): NapiConfig
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
-}
-export declare namespace tsx {
-  export function parse(src: string): SgRoot
-  export function parseAsync(src: string): Promise<SgRoot>
-  export function kind(kindName: string): number
-  export function pattern(pattern: string): NapiConfig
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
-}
-export declare namespace css {
-  export function parse(src: string): SgRoot
-  export function parseAsync(src: string): Promise<SgRoot>
-  export function kind(kindName: string): number
-  export function pattern(pattern: string): NapiConfig
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 }
