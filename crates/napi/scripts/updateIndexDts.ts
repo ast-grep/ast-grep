@@ -43,20 +43,20 @@ async function updateIndexDts() {
     .find({
       rule: createMatchClassMethodRule('is'),
     })!
-    .replace(`is<K extends T>(kind: K): this is SgNode<M, K> & this`)
+    .replace('is<K extends T>(kind: K): this is SgNode<M, K> & this')
 
   const fieldMethodEdit = sgNodeClass!
     .find({
       rule: createMatchClassMethodRule('field'),
     })!
-    .replace(`field<F extends FieldNames<M[T]>>(name: F): FieldSgNode<M, T, F>`)
+    .replace('field<F extends FieldNames<M[T]>>(name: F): FieldSgNode<M, T, F>')
 
   const fieldChildrenMethodEdit = sgNodeClass!
     .find({
       rule: createMatchClassMethodRule('fieldChildren'),
     })!
     .replace(
-      `fieldChildren<F extends FieldNames<M[T]>>(name: F): Exclude<FieldSgNode<M, T, F>, null>[]`,
+      'fieldChildren<F extends FieldNames<M[T]>>(name: F): Exclude<FieldSgNode<M, T, F>, null>[]',
     )
 
   const nodeTypesImportStatement =
