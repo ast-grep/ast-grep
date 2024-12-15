@@ -111,7 +111,7 @@ export declare function pattern(lang: Lang, pattern: string): NapiConfig
 export declare function findInFiles(lang: Lang, config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
 export declare class SgNode<
   M extends NodeTypesMap = NodeTypesMap,
-  T extends keyof M = keyof M
+  T extends string = keyof M
 > {
   range(): Range
   isLeaf(): boolean
