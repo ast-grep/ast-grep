@@ -1,6 +1,6 @@
 import test from 'ava'
 
-import TypeScriptTypes from '../types/TypeScript'
+import TypeScriptTypes from '../lang/TypeScript'
 import { Lang, parse, SgNode, SgRoot } from '../index'
 
 test('test no type annotation', t => {
