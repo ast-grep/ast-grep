@@ -2,17 +2,18 @@
   "compilerOptions": {
     "target": "ES2018",
     "strict": true,
+    /* smol toml insist it only supports Node>20 */
+    "lib": ["ES2022.error"],
     "moduleResolution": "node",
     "module": "CommonJS",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
     "allowSyntheticDefaultImports": true
   },
   "ts-node": {
     "transpileOnly": true
   },
   "include": ["."],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "ignore.d.ts"]
 }

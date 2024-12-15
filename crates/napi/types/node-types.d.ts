@@ -1,4 +1,4 @@
-import type { SgNode } from '..'
+import type { SgNode } from './sgnode'
 
 export type NodeTypeSchema<
   ParentType extends string = string,
@@ -23,7 +23,9 @@ export type NodeTypeSchema<
   }
 }
 
-export type NodeTypesMap = Record<string, NodeTypeSchema>
+export interface NodeTypesMap {
+  [key: string]: NodeTypeSchema
+}
 
 export type FieldNames<N extends NodeTypeSchema> = N['fields'] extends Record<
   string,

@@ -1,4 +1,4 @@
-import type { Rule } from '../manual'
+import type { Rule } from '../types/rule'
 
 export const createMatchClassMethodRule = (methodName: string): Rule => ({
   kind: 'method_signature',
