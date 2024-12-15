@@ -9,11 +9,11 @@
 export default {
   data() {
     return {
-      greeting: "Hello",
-      message: "Welcome to Vue SFC!",
-    };
+      greeting: 'Hello',
+      message: 'Welcome to Vue SFC!',
+    }
   },
-};
+}
 </script>
 
 <style>

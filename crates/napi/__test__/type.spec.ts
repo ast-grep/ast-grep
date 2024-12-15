@@ -25,7 +25,6 @@ test('test no type annotation', t => {
   t.is(sum.field('operator')!.kind(), '+')
 })
 
-
 test('test type assertion', t => {
   const sg = parse(Lang.TypeScript, 'a + b: number') as SgRoot<TypeScriptTypes>
   // test root
@@ -34,7 +33,10 @@ test('test type assertion', t => {
   // @ts-expect-error
   t.is(root.field('body'), null)
   // test child
-  const child = root.child(0) as SgNode<TypeScriptTypes, 'expression_statement' | (string & {})>
+  const child = root.child(0) as SgNode<
+    TypeScriptTypes,
+    'expression_statement' | (string & {})
+  >
   t.assert(child !== null)
   const childKind = child!.kind()
   t.assert(childKind === 'expression_statement')
