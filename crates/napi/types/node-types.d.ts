@@ -1,26 +1,28 @@
-import type { SgNode } from './sgnode'
+/**
+ * Reference
+ * https://tree-sitter.github.io/tree-sitter/using-parsers#static-node-types
+ * Rust CLI Impl
+ * https://github.com/tree-sitter/tree-sitter/blob/f279d10aa2aca37c0004d84b2261685739f3cab8/cli/generate/src/node_types.rs#L35-L47
+ */
 
-export type NodeTypeSchema<
-  ParentType extends string = string,
-  FieldTypes extends string = string,
-  ChildTypes extends string = string,
-> = {
-  type: ParentType
+export interface NodeBasicInfo {
+  type: string
   named: boolean
+}
+
+export interface NodeFieldInfo {
+  multiple: boolean
+  required: boolean
+  types: readonly NodeBasicInfo[]
+}
+
+export interface NodeTypeSchema extends NodeBasicInfo {
   root?: boolean
-  subtypes?: NodeTypeSchema<ParentType, FieldTypes, ChildTypes>[]
   fields?: {
-    [key: string]: {
-      multiple: boolean
-      required: boolean
-      types: ReadonlyArray<{ type: FieldTypes; named: boolean }>
-    }
+    [fieldName: string]: NodeFieldInfo
   }
-  children?: {
-    multiple: boolean
-    required: boolean
-    types: ReadonlyArray<{ type: ChildTypes; named: boolean }>
-  }
+  children?: NodeFieldInfo
+  subtypes?: readonly NodeBasicInfo[]
 }
 
 export interface NodeTypesMap {
