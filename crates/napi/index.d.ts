@@ -1,23 +1,30 @@
 import type { FieldNames, FieldSgNode, NodeTypesMap } from './types/node-types'
+import type { Rule } from './types/rule'
+
+// deprecated
 export * from './types/deprecated'
+
+// Just export Rule here and user can use Rule['pattern'] to get the type of pattern
+export type { Rule } from './types/rule'
+
 /**
  * Rule configuration similar to YAML
  * See https://ast-grep.github.io/reference/yaml.html
  */
 export interface NapiConfig {
   /** The rule object, see https://ast-grep.github.io/reference/rule.html */
-  rule: import('./manual').Rule
+  rule: Rule
   /** See https://ast-grep.github.io/guide/rule-config.html#constraints */
-  constraints?: Record<string, import('./manual').Rule>
+  constraints?: Record<string, Rule>
   /** Available languages: html, css, js, jsx, ts, tsx */
   language?: Lang
   /**
    * transform is NOT useful in JavaScript. You can use JS code to directly transform the result.
    * https://ast-grep.github.io/reference/yaml.html#transform
    */
-  transform?: Record<string, unknown>
+  transform?: unknown
   /** https://ast-grep.github.io/guide/rule-config/utility-rule.html */
-  utils?: Record<string, unknown>
+  utils?: Record<string, Rule>
 }
 export interface FileOption {
   paths: Array<string>
