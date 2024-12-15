@@ -44,7 +44,7 @@
     "artifacts": "napi artifacts",
     "build": "napi build --no-const-enum --platform --release && yarn patchDts",
     "build:debug": "napi build --no-const-enum --platform && yarn patchDts",
-    "prepublishOnly": "yarn typegen && napi prepublish -t npm --skip-gh-release",
+    "prepublishOnly": "napi prepublish -t npm --skip-gh-release",
     "test": "ava",
     "version": "napi version",
     "patchDts": "ts-node scripts/updateIndexDts.ts",
