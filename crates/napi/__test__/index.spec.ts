@@ -185,8 +185,7 @@ test('test file count', async t => {
   const fileCount = await parseMulti(['./'], (err, _) => {
     // ZZZ... sleep a while to mock expensive operation
     const start = Date.now()
-    while (Date.now() - start < 1) {
-    }
+    while (Date.now() - start < 1) {}
     t.is(err, null)
     i++
   })
@@ -376,7 +375,9 @@ function countedPromise<F extends (t: any, cb: any) => Promise<number>>(
     fileCount = await func(t, wrapped as P[1])
     // all files are not processed, wait the resolve function to be called
     if (fileCount > i) {
-      await new Promise<void>(r => { resolve = r })
+      await new Promise<void>(r => {
+        resolve = r
+      })
     }
     return fileCount
   }

@@ -26,7 +26,7 @@ export interface Range {
 
 export declare class SgNode<
   M extends NodeTypesMap = NodeTypesMap,
-  T extends string = (keyof M) & string,
+  T extends string = keyof M & string,
 > {
   range(): Range
   isLeaf(): boolean

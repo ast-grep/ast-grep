@@ -1,5 +1,5 @@
-import {SgRoot, SgNode} from './types/sgnode'
-import {NapiConfig, FindConfig, FileOption} from './types/config'
+import { SgRoot, SgNode } from './types/sgnode'
+import type { NapiConfig, FindConfig, FileOption } from './types/config'
 
 //-----Type Only Export!-----//
 // Only Rule here. User can use Rule['pattern'], e.g., to get the type of subfield.
