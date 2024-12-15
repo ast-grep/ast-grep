@@ -3,7 +3,7 @@ import path from "node:path";
 // NOTE: we are not using the compiled napi binding in workspace
 // because of it may not be available in the CI
 // so we are using the napi package from npm
-import { Lang, parseAsync } from "@ast-grep/napi";
+import { Lang, parseAsync } from "../index";
 import {
   createMatchClassDeclarationRule,
   createMatchClassMethodRule,
@@ -18,7 +18,6 @@ async function updateIndexDts() {
   const root = sgRoot.root();
 
   const sgRootClass = root.find({
-    // @ts-expect-error temporary error
     rule: createMatchClassDeclarationRule("SgRoot"),
   });
   const sgRootClassTypeParametersRemovalEdit = sgRootClass!
@@ -29,7 +28,6 @@ async function updateIndexDts() {
     .replace("SgRoot<M extends NodeTypesMap = NodeTypesMap>");
 
   const sgNodeClass = root.find({
-    // @ts-expect-error temporary error
     rule: createMatchClassDeclarationRule("SgNode"),
   });
 
@@ -43,14 +41,12 @@ async function updateIndexDts() {
 
   const isMethodEdit = sgNodeClass!
     .find({
-    // @ts-expect-error temporary error
       rule: createMatchClassMethodRule("is"),
     })!
     .replace(`is<K extends T>(kind: K): this is SgNode<M, K> & this`);
 
   const fieldMethodEdit = sgNodeClass!
     .find({
-      // @ts-expect-error temporary error
       rule: createMatchClassMethodRule("field"),
     })!
     .replace(
@@ -59,7 +55,6 @@ async function updateIndexDts() {
 
   const fieldChildrenMethodEdit = sgNodeClass!
     .find({
-      // @ts-expect-error temporary error
       rule: createMatchClassMethodRule("fieldChildren"),
     })!
     .replace(
