@@ -75,7 +75,7 @@ impl SgNode {
     self.inner.is_named_leaf()
   }
   /// Returns the string name of the node kind
-  #[napi(ts_return_type = "T")]
+  #[napi]
   pub fn kind(&self) -> String {
     self.inner.kind().to_string()
   }
@@ -163,7 +163,7 @@ impl SgNode {
     let root = self.inner.clone_owner(env)?;
     Ok(root)
   }
-  #[napi(ts_return_type = "Array<SgNode<M>>")]
+  #[napi]
   pub fn children(&self, reference: Reference<SgNode>, env: Env) -> Result<Vec<SgNode>> {
     let children = reference.inner.children().map(NodeMatch::from);
     Self::from_iter_to_vec(&reference, env, children)
@@ -175,7 +175,7 @@ impl SgNode {
     Ok(self.inner.node_id() as u32)
   }
 
-  #[napi(ts_return_type = "SgNode<M> | null")]
+  #[napi]
   pub fn find(
     &self,
     reference: Reference<SgNode>,
@@ -214,7 +214,7 @@ impl SgNode {
     }
   }
 
-  #[napi(ts_return_type = "Array<SgNode<M>>")]
+  #[napi]
   pub fn find_all(
     &self,
     reference: Reference<SgNode>,
@@ -293,7 +293,7 @@ impl SgNode {
     Self::transpose_option(reference, env, node)
   }
 
-  #[napi(ts_return_type = "SgNode<M> | null")]
+  #[napi]
   pub fn child(&self, reference: Reference<SgNode>, env: Env, nth: u32) -> Result<Option<SgNode>> {
     let inner = reference.inner.child(nth as usize).map(NodeMatch::from);
     Self::transpose_option(reference, env, inner)
@@ -376,7 +376,7 @@ pub struct SgRoot(pub(super) AstGrep<JsDoc>, pub(super) String);
 #[napi]
 impl SgRoot {
   /// Returns the root SgNode of the ast-grep instance.
-  #[napi(ts_return_type = "SgNode<M>")]
+  #[napi]
   pub fn root(&self, root_ref: Reference<SgRoot>, env: Env) -> Result<SgNode> {
     let inner = root_ref.share_with(env, |root| Ok(root.0.root().into()))?;
     Ok(SgNode { inner })
