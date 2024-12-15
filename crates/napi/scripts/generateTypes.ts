@@ -37,7 +37,7 @@ async function generateLangNodeTypes() {
   // if we are running in test mode, we only want to generate types for TypeScript
   // and only if the file does not exist
   if (testOnly) {
-    const existing = await fileExists(path.join(langDir, `TypeScript.d.ts`))
+    const existing = await fileExists(path.join(langDir, 'TypeScript.d.ts'))
     if (existing) {
       return
     }

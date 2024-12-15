@@ -185,7 +185,8 @@ test('test file count', async t => {
   const fileCount = await parseMulti(['./'], (err, _) => {
     // ZZZ... sleep a while to mock expensive operation
     const start = Date.now()
-    while (Date.now() - start < 1) continue
+    while (Date.now() - start < 1) {
+    }
     t.is(err, null)
     i++
   })
@@ -249,7 +250,7 @@ test('find in files', async t => {
     (err, n) => {
       // ZZZ... sleep a while to mock expensive operation
       const start = Date.now()
-      while (Date.now() - start < 1) continue
+      while (Date.now() - start < 1) {}
       t.is(err, null)
       t.assert(n.length > 0)
       t.assert(n[0].text().includes('.'))
@@ -270,7 +271,7 @@ test('find in files with meta var', async t => {
     (err, n) => {
       // ZZZ... sleep a while to mock expensive operation
       const start = Date.now()
-      while (Date.now() - start < 1) continue
+      while (Date.now() - start < 1) {}
       t.is(err, null)
       t.assert(n.length > 0)
       const metavarText = n[0].getMatch('V')?.text()
@@ -358,6 +359,7 @@ test('fieldChildren returns all the fields of the given field', t => {
   t.is(fields[1].text(), 'className="bar"')
 })
 
+// biome-ignore lint/suspicious/noExplicitAny: do not complain any
 function countedPromise<F extends (t: any, cb: any) => Promise<number>>(
   func: F,
 ) {
@@ -366,7 +368,7 @@ function countedPromise<F extends (t: any, cb: any) => Promise<number>>(
     let i = 0
     let fileCount: number | undefined = undefined
     let resolve = () => {} // will be called after all files are processed
-    function wrapped(...args: any[]) {
+    function wrapped(...args: unknown[]) {
       const ret = cb(...args)
       if (++i === fileCount) resolve()
       return ret
@@ -374,7 +376,7 @@ function countedPromise<F extends (t: any, cb: any) => Promise<number>>(
     fileCount = await func(t, wrapped as P[1])
     // all files are not processed, wait the resolve function to be called
     if (fileCount > i) {
-      await new Promise<void>(r => (resolve = r))
+      await new Promise<void>(r => { resolve = r })
     }
     return fileCount
   }

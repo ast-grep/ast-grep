@@ -1,5 +1,10 @@
 {
   "$schema": "https://biomejs.dev/schemas/1.5.3/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "organizeImports": {
     "enabled": true
   },
@@ -34,6 +39,6 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "ignore": ["out", ".vscode-test", "index.js"]
+    "ignore": ["index.js"]
   }
 }

@@ -27,7 +27,7 @@ export type NodeTypesMap = Record<string, NodeTypeSchema>
 
 export type FieldNames<N extends NodeTypeSchema> = N['fields'] extends Record<
   string,
-  any
+  unknown
 >
   ? keyof N['fields']
   : string

@@ -15,9 +15,9 @@ export interface NapiConfig {
    * transform is NOT useful in JavaScript. You can use JS code to directly transform the result.
    * https://ast-grep.github.io/reference/yaml.html#transform
    */
-  transform?: any
+  transform?: Record<string, unknown>
   /** https://ast-grep.github.io/guide/rule-config/utility-rule.html */
-  utils?: any
+  utils?: Record<string, unknown>
 }
 export interface FileOption {
   paths: Array<string>
