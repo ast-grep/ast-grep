@@ -36,7 +36,7 @@ async function updateIndexDts() {
     ?.replace("");
   const sgNodeClassNameEdit = sgNodeClass!.field("name")!.replace(`SgNode<
   M extends NodeTypesMap = NodeTypesMap,
-  T extends keyof M = keyof M
+  T extends string = keyof M
 >`);
 
   const isMethodEdit = sgNodeClass!
