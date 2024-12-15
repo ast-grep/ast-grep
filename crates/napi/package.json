@@ -52,7 +52,6 @@
     "typegen": "ts-node scripts/generateTypes.ts"
   },
   "devDependencies": {
-    "@ast-grep/napi": "0.31.0",
     "@napi-rs/cli": "2.18.4",
     "@types/node": "^22.10.2",
     "ava": "6.2.0",
