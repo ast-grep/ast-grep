@@ -17,7 +17,8 @@
     "manual.d.ts",
     "index.d.ts",
     "index.js",
-    "types/*.ts"
+    "types/*.ts",
+    "lang/*.ts"
   ],
   "napi": {
     "name": "ast-grep-napi",
