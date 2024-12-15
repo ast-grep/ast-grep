@@ -6,20 +6,8 @@
   "main": "index.js",
   "repository": "https://github.com/ast-grep/ast-grep",
   "license": "MIT",
-  "keywords": [
-    "ast",
-    "pattern",
-    "codemod",
-    "search",
-    "rewrite"
-  ],
-  "files": [
-    "manual.d.ts",
-    "index.d.ts",
-    "index.js",
-    "types/*.ts",
-    "lang/*.ts"
-  ],
+  "keywords": ["ast", "pattern", "codemod", "search", "rewrite"],
+  "files": ["manual.d.ts", "index.d.ts", "index.js", "types/*.ts", "lang/*.ts"],
   "napi": {
     "name": "ast-grep-napi",
     "triples": {
@@ -54,6 +42,7 @@
   },
   "devDependencies": {
     "@ast-grep/napi": "0.31.1",
+    "@biomejs/biome": "1.9.4",
     "@napi-rs/cli": "2.18.4",
     "@types/node": "^22.10.2",
     "ava": "6.2.0",
@@ -63,12 +52,8 @@
     "typescript": "5.7.2"
   },
   "ava": {
-    "require": [
-      "ts-node/register"
-    ],
-    "extensions": [
-      "ts"
-    ],
+    "require": ["ts-node/register"],
+    "extensions": ["ts"],
     "timeout": "2m",
     "workerThreads": false,
     "environmentVariables": {

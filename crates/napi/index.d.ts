@@ -1,4 +1,4 @@
-import type { FieldNames, FieldSgNode, NodeTypesMap } from "./types/node-types";
+import type { FieldNames, FieldSgNode, NodeTypesMap } from './types/node-types'
 export * from './types/deprecated'
 /**
  * Rule configuration similar to YAML
@@ -23,7 +23,10 @@ export interface FileOption {
   paths: Array<string>
   languageGlobs: Record<string, Array<string>>
 }
-export declare function parseFiles(paths: Array<string> | FileOption, callback: (err: null | Error, result: SgRoot) => void): Promise<number>
+export declare function parseFiles(
+  paths: Array<string> | FileOption,
+  callback: (err: null | Error, result: SgRoot) => void,
+): Promise<number>
 export interface FindConfig {
   /** specify the file paths to recursively find files */
   paths: Array<string>
@@ -60,7 +63,7 @@ export enum Lang {
   Scala = 'Scala',
   Sql = 'Sql',
   Swift = 'Swift',
-  Yaml = 'Yaml'
+  Yaml = 'Yaml',
 }
 export interface Edit {
   /** The start position of the edit */
@@ -104,10 +107,14 @@ export declare function pattern(lang: Lang, pattern: string): NapiConfig
  * `config` specifies the file path and matcher.
  * `callback` will receive matching nodes found in a file.
  */
-export declare function findInFiles(lang: Lang, config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
+export declare function findInFiles(
+  lang: Lang,
+  config: FindConfig,
+  callback: (err: null | Error, result: SgNode[]) => void,
+): Promise<number>
 export declare class SgNode<
   M extends NodeTypesMap = NodeTypesMap,
-  T extends string = keyof M
+  T extends string = keyof M,
 > {
   range(): Range
   isLeaf(): boolean
@@ -136,7 +143,9 @@ export declare class SgNode<
   /** Finds the first child node in the `field` */
   field<F extends FieldNames<M[T]>>(name: F): FieldSgNode<M, T, F>
   /** Finds all the children nodes in the `field` */
-  fieldChildren<F extends FieldNames<M[T]>>(name: F): Exclude<FieldSgNode<M, T, F>, null>[]
+  fieldChildren<F extends FieldNames<M[T]>>(
+    name: F,
+  ): Exclude<FieldSgNode<M, T, F>, null>[]
   parent(): SgNode | null
   child(nth: number): SgNode<M> | null
   ancestors(): Array<SgNode>

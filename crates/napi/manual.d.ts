@@ -1,5 +1,4 @@
-export type Strictness =
-  | 'cst' | 'smart' | 'ast' | 'relaxed' | 'signature'
+export type Strictness = 'cst' | 'smart' | 'ast' | 'relaxed' | 'signature'
 
 export interface PatternObject {
   context: string

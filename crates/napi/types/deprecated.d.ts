@@ -14,7 +14,10 @@ export declare namespace html {
   /** @deprecated use `pattern(Lang.Html, p)` instead */
   export function pattern(pattern: string): NapiConfig
   /** @deprecated use `findInFiles(Lang.Html, config, callback)` instead */
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
+  export function findInFiles(
+    config: FindConfig,
+    callback: (err: null | Error, result: SgNode[]) => void,
+  ): Promise<number>
 }
 /**
  * @deprecated language specific objects are deprecated
@@ -30,7 +33,10 @@ export declare namespace js {
   /** @deprecated use `pattern(Lang.JavaScript, p)` instead */
   export function pattern(pattern: string): NapiConfig
   /** @deprecated use `findInFiles(Lang.JavaScript, config, callback)` instead */
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
+  export function findInFiles(
+    config: FindConfig,
+    callback: (err: null | Error, result: SgNode[]) => void,
+  ): Promise<number>
 }
 /**
  * @deprecated language specific objects are deprecated
@@ -46,7 +52,10 @@ export declare namespace jsx {
   /** @deprecated use `pattern(Lang.JavaScript, p)` instead */
   export function pattern(pattern: string): NapiConfig
   /** @deprecated use `findInFiles(Lang.JavaScript, config, callback)` instead */
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
+  export function findInFiles(
+    config: FindConfig,
+    callback: (err: null | Error, result: SgNode[]) => void,
+  ): Promise<number>
 }
 /**
  * @deprecated language specific objects are deprecated
@@ -62,7 +71,10 @@ export declare namespace ts {
   /** @deprecated use `pattern(Lang.TypeScript, p)` instead */
   export function pattern(pattern: string): NapiConfig
   /** @deprecated use `findInFiles(Lang.TypeScript, config, callback)` instead */
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
+  export function findInFiles(
+    config: FindConfig,
+    callback: (err: null | Error, result: SgNode[]) => void,
+  ): Promise<number>
 }
 /**
  * @deprecated language specific objects are deprecated
@@ -78,7 +90,10 @@ export declare namespace tsx {
   /** @deprecated use `pattern(Lang.Tsx, p)` instead */
   export function pattern(pattern: string): NapiConfig
   /** @deprecated use `findInFiles(Lang.Tsx, config, callback)` instead */
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
+  export function findInFiles(
+    config: FindConfig,
+    callback: (err: null | Error, result: SgNode[]) => void,
+  ): Promise<number>
 }
 /**
  * @deprecated language specific objects are deprecated
@@ -94,5 +109,8 @@ export declare namespace css {
   /** @deprecated use `pattern(Lang.Css, p)` instead */
   export function pattern(pattern: string): NapiConfig
   /** @deprecated use `findInFiles(Lang.Css, config, callback)` instead */
-  export function findInFiles(config: FindConfig, callback: (err: null | Error, result: SgNode[]) => void): Promise<number>
+  export function findInFiles(
+    config: FindConfig,
+    callback: (err: null | Error, result: SgNode[]) => void,
+  ): Promise<number>
 }

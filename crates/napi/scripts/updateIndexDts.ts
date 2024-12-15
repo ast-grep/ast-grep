@@ -1,76 +1,74 @@
-import { readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { readFile, writeFile } from 'node:fs/promises'
+import path from 'node:path'
 // NOTE: we are not using the compiled napi binding in workspace
 // because of it may not be available in the CI
 // so we are using the napi package from npm
-import { Lang, parseAsync } from "../index";
+import { Lang, parseAsync } from '../index'
 import {
   createMatchClassDeclarationRule,
   createMatchClassMethodRule,
-} from "./rules";
+} from './rules'
 
-const rootDir = path.resolve(__dirname, "..");
-const indexDtsPath = path.join(rootDir, "index.d.ts");
+const rootDir = path.resolve(__dirname, '..')
+const indexDtsPath = path.join(rootDir, 'index.d.ts')
 async function updateIndexDts() {
-  const indexDtsSource = await readFile(indexDtsPath, "utf8");
-  const sgRoot = await parseAsync(Lang.TypeScript, indexDtsSource);
+  const indexDtsSource = await readFile(indexDtsPath, 'utf8')
+  const sgRoot = await parseAsync(Lang.TypeScript, indexDtsSource)
 
-  const root = sgRoot.root();
+  const root = sgRoot.root()
 
   const sgRootClass = root.find({
-    rule: createMatchClassDeclarationRule("SgRoot"),
-  });
+    rule: createMatchClassDeclarationRule('SgRoot'),
+  })
   const sgRootClassTypeParametersRemovalEdit = sgRootClass!
-    .field("type_parameters")
-    ?.replace("");
+    .field('type_parameters')
+    ?.replace('')
   const sgRootNameEdit = sgRootClass!
-    .field("name")!
-    .replace("SgRoot<M extends NodeTypesMap = NodeTypesMap>");
+    .field('name')!
+    .replace('SgRoot<M extends NodeTypesMap = NodeTypesMap>')
 
   const sgNodeClass = root.find({
-    rule: createMatchClassDeclarationRule("SgNode"),
-  });
+    rule: createMatchClassDeclarationRule('SgNode'),
+  })
 
   const sgNodeClassTypeParametersRemovalEdit = sgNodeClass!
-    .field("type_parameters")
-    ?.replace("");
-  const sgNodeClassNameEdit = sgNodeClass!.field("name")!.replace(`SgNode<
+    .field('type_parameters')
+    ?.replace('')
+  const sgNodeClassNameEdit = sgNodeClass!.field('name')!.replace(`SgNode<
   M extends NodeTypesMap = NodeTypesMap,
   T extends string = keyof M
->`);
+>`)
 
   const isMethodEdit = sgNodeClass!
     .find({
-      rule: createMatchClassMethodRule("is"),
+      rule: createMatchClassMethodRule('is'),
     })!
-    .replace(`is<K extends T>(kind: K): this is SgNode<M, K> & this`);
+    .replace(`is<K extends T>(kind: K): this is SgNode<M, K> & this`)
 
   const fieldMethodEdit = sgNodeClass!
     .find({
-      rule: createMatchClassMethodRule("field"),
+      rule: createMatchClassMethodRule('field'),
     })!
-    .replace(
-      `field<F extends FieldNames<M[T]>>(name: F): FieldSgNode<M, T, F>`
-    );
+    .replace(`field<F extends FieldNames<M[T]>>(name: F): FieldSgNode<M, T, F>`)
 
   const fieldChildrenMethodEdit = sgNodeClass!
     .find({
-      rule: createMatchClassMethodRule("fieldChildren"),
+      rule: createMatchClassMethodRule('fieldChildren'),
     })!
     .replace(
-      `fieldChildren<F extends FieldNames<M[T]>>(name: F): Exclude<FieldSgNode<M, T, F>, null>[]`
-    );
+      `fieldChildren<F extends FieldNames<M[T]>>(name: F): Exclude<FieldSgNode<M, T, F>, null>[]`,
+    )
 
   const nodeTypesImportStatement =
-    'import type { FieldNames, FieldSgNode, NodeTypesMap } from "./types/node-types";';
-  const importStatements = [nodeTypesImportStatement];
+    'import type { FieldNames, FieldSgNode, NodeTypesMap } from "./types/node-types";'
+  const importStatements = [nodeTypesImportStatement]
 
   const updatedSource = root.commitEdits(
     [
       {
         startPos: 0,
         endPos: 0,
-        insertedText: importStatements.join("\n") + "\n",
+        insertedText: importStatements.join('\n') + '\n',
       },
       sgRootClassTypeParametersRemovalEdit,
       sgNodeClassTypeParametersRemovalEdit,
@@ -79,13 +77,13 @@ async function updateIndexDts() {
       isMethodEdit,
       fieldMethodEdit,
       fieldChildrenMethodEdit,
-    ].filter((edit) => edit !== undefined)
-  );
+    ].filter(edit => edit !== undefined),
+  )
 
-  await writeFile(indexDtsPath, updatedSource);
+  await writeFile(indexDtsPath, updatedSource)
 }
 
-updateIndexDts().catch((error) => {
-  console.error("Error in updateIndexDts:", error);
-  process.exit(1);
+updateIndexDts().catch(error => {
+  console.error('Error in updateIndexDts:', error)
+  process.exit(1)
 })
