@@ -42,7 +42,8 @@
   },
   "scripts": {
     "artifacts": "napi artifacts",
-    "build": "napi build --no-const-enum --platform --release && yarn patchDts",
+    "build": "napi build --no-const-enum --platform --release",
+    "postbuild": "yarn patchDts",
     "build:debug": "napi build --no-const-enum --platform && yarn patchDts",
     "prepublishOnly": "napi prepublish -t npm --skip-gh-release",
     "test": "tsc --noEmit && ava",
