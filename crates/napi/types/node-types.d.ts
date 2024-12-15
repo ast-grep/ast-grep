@@ -47,18 +47,9 @@ export type FieldTypeMeta<
       types: [{ type: string }]
     }
 
-type GetSafeFieldType<
+export type GetSafeFieldType<
   Map extends NodeTypesMap,
   K extends keyof Map,
   F extends FieldNames<Map[K]>,
   M extends FieldTypeMeta<Map[K], F> = FieldTypeMeta<Map[K], F>,
 > = M['types'][number]['type']
-
-export type FieldSgNode<
-  Map extends NodeTypesMap,
-  K extends keyof Map,
-  F extends FieldNames<Map[K]>,
-  M extends FieldTypeMeta<Map[K], F> = FieldTypeMeta<Map[K], F>,
-> = M['required'] extends true
-  ? SgNode<Map, GetSafeFieldType<Map, K, F>>
-  : SgNode<Map, GetSafeFieldType<Map, K, F>> | null
