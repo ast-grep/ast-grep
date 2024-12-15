@@ -1,4 +1,4 @@
-import { SgNode } from '..'
+import type { SgNode } from '..'
 
 export type NodeTypeSchema<
   ParentType extends string = string,
