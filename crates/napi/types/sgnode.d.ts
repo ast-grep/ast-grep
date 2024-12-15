@@ -1,5 +1,5 @@
 import type { FieldNames, FieldSgNode, NodeTypesMap } from './node-types'
-import type { NapiConfig } from '../index'
+import type { NapiConfig } from './config'
 
 export interface Edit {
   /** The start position of the edit */
