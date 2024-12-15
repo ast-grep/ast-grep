@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { Lang } from "../index";
 import { NodeTypeSchema } from "../types/node-types";
@@ -10,8 +10,19 @@ import {
 import toml from "smol-toml";
 
 const rootDir = path.resolve(__dirname, "..");
+const langDir = path.join(rootDir, "lang")
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await stat(filePath);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 
 async function generateLangNodeTypes() {
+  const testOnly = process.argv.slice(2)[0];
   const languageCargoToml = await readFile(
     path.resolve(rootDir, "../language/Cargo.toml"),
     "utf8"
@@ -21,7 +32,18 @@ async function generateLangNodeTypes() {
     dependencies: Record<string, { version: string }>;
   };
 
-  for (const [lang, urlTemplate] of Object.entries(languagesNodeTypesUrls)) {
+  let langs = Object.entries(languagesNodeTypesUrls);
+  // if we are running in test mode, we only want to generate types for TypeScript
+  // and only if the file does not exist
+  if (testOnly) {
+    let existing = await fileExists(path.join(langDir, `${Lang.TypeScript}.d.ts`));
+    if (existing) {
+      return
+    }
+    langs = langs.filter(([lang]) => lang === Lang.TypeScript);
+  }
+
+  for (const [lang, urlTemplate] of langs) {
     try {
       const treeSitterCrateName = languagesCrateNames[lang as Lang];
       const cargoVersion =
@@ -42,7 +64,7 @@ async function generateLangNodeTypes() {
         `type ${lang}Types = ${JSON.stringify(nodeTypeMap, null, 2)};` + '\n' +
         `export default ${lang}Types;`;
       await writeFile(
-        path.join(rootDir, "lang", `${lang}.d.ts`),
+        path.join(langDir, `${lang}.d.ts`),
         fileContent,
       );
     } catch (e) {
