@@ -38,6 +38,7 @@
     "test": "tsc --noEmit && ava",
     "version": "napi version",
     "patchDts": "ts-node scripts/updateIndexDts.ts",
+    "lint": "biome lint --fix && biome format --write",
     "typegen": "ts-node scripts/generateTypes.ts"
   },
   "devDependencies": {
