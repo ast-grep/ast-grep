@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2018",
     "strict": true,
-    /* smol toml insist it only supports Node>20 */
+    /* smol toml insists it only supports Node>20 */
     "lib": ["ES2022.error"],
     "moduleResolution": "node",
     "module": "CommonJS",
