@@ -62,7 +62,6 @@ test('test type assertion', t => {
   t.assert(kind === '+')
   t.assert(kind !== 'invalid')
 
-
   // test type refinement
   const a = root.find('a')!
   t.assert(a.is('identifier'))
@@ -122,9 +121,10 @@ test('subtype alias', async t => {
     TypeScriptTypes,
     'export_statement'
   >
-  const kind = exp.field('declaration')!.kind()
-  t.assert(
-    // @ts-expect-error: kind is wrong at type level
-    kind === 'function_declaration',
-  )
+  const declaration = exp.field('declaration')!
+  const kind = declaration.kind()
+  t.assert(kind === 'function_declaration')
+  t.assert(declaration.kind() !== 'class_declaration')
+  // @ts-expect-error: kind refined
+  t.assert(declaration.kind() !== 'identifier')
 })

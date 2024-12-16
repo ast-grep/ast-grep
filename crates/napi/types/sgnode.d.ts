@@ -94,10 +94,10 @@ export declare class SgRoot<M extends NodeTypesMap = NodeTypesMap> {
 }
 
 type FieldSgNode<
-  Map extends NodeTypesMap,
-  K extends NodeKinds<Map>,
-  F extends FieldNames<Map[K]>,
-  M extends NodeFieldInfo = ExtractField<Map[K], F>,
-> = M extends { required: true }
-  ? SgNode<Map, TypesInField<M>>
-  : SgNode<Map, TypesInField<M>> | null
+  M extends NodeTypesMap,
+  K extends NodeKinds<M>,
+  F extends FieldNames<M[K]>,
+  I extends NodeFieldInfo = ExtractField<M[K], F>,
+> = I extends { required: true }
+  ? SgNode<M, TypesInField<M, I>>
+  : SgNode<M, TypesInField<M, I>> | null
