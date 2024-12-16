@@ -58,11 +58,13 @@ export declare class SgNode<
   /** Returns the node's id */
   id(): number
   find<K extends NodeKinds<M>>(
-    matcher: string | number | NapiConfig,
+    matcher: string | number | NapiConfig<M>,
   ): SgNode<M, K> | null
   findAll<K extends NodeKinds<M>>(
-    matcher: string | number | NapiConfig,
+    matcher: string | number | NapiConfig<M>,
   ): Array<SgNode<M, K>>
+  find(matcher: string | number | NapiConfig<M>): SgNode<M> | null
+  findAll(matcher: string | number | NapiConfig<M>): Array<SgNode<M>>
   /** Finds the first child node in the `field` */
   field<F extends FieldNames<M[T]>>(name: F): FieldSgNode<M, T, F>
   /** Finds all the children nodes in the `field` */

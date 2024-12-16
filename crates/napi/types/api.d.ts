@@ -26,7 +26,10 @@ export declare function parseAsync<M extends NodeTypesMap>(
 /** Get the `kind` number from its string name. */
 export declare function kind(lang: Lang, kindName: string): number
 /** Compile a string to ast-grep Pattern. */
-export declare function pattern(lang: Lang, pattern: string): NapiConfig
+export declare function pattern<M extends NodeTypesMap>(
+  lang: Lang,
+  pattern: string,
+): NapiConfig<M>
 /**
  * Discover and parse multiple files in Rust.
  * `lang` specifies the language.
@@ -35,6 +38,6 @@ export declare function pattern(lang: Lang, pattern: string): NapiConfig
  */
 export declare function findInFiles<M extends NodeTypesMap>(
   lang: Lang,
-  config: FindConfig,
+  config: FindConfig<M>,
   callback: (err: null | Error, result: SgNode<M>[]) => void,
 ): Promise<number>
