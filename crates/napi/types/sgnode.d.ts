@@ -49,8 +49,8 @@ export declare class SgNode<
   has(m: string): boolean
   precedes(m: string): boolean
   follows(m: string): boolean
-  getMatch(m: string): SgNode | null
-  getMultipleMatches(m: string): Array<SgNode>
+  getMatch(m: string): SgNode<M> | null
+  getMultipleMatches(m: string): Array<SgNode<M>>
   getTransformed(m: string): string | null
   /** Returns the node's SgRoot */
   getRoot(): SgRoot
@@ -65,13 +65,13 @@ export declare class SgNode<
   fieldChildren<F extends FieldNames<M[T]>>(
     name: F,
   ): NonNullable<FieldSgNode<M, T, F>>[]
-  parent(): SgNode | null
+  parent(): SgNode<M> | null
   child(nth: number): SgNode<M> | null
-  ancestors(): Array<SgNode>
-  next(): SgNode | null
-  nextAll(): Array<SgNode>
-  prev(): SgNode | null
-  prevAll(): Array<SgNode>
+  ancestors(): Array<SgNode<M>>
+  next(): SgNode<M> | null
+  nextAll(): Array<SgNode<M>>
+  prev(): SgNode<M> | null
+  prevAll(): Array<SgNode<M>>
   replace(text: string): Edit
   commitEdits(edits: Array<Edit>): string
 }

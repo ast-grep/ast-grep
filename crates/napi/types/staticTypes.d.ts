@@ -50,4 +50,4 @@ export type ExtractField<
 export type TypesInField<M extends NodeFieldInfo> = M['types'][number]['type']
 
 // TODO: this is wrong, we should resolve subtypes
-export type NodeKinds<M extends NodeTypesMap> = (keyof M & string) | (string & {})
+export type NodeKinds<M extends NodeTypesMap = NodeTypesMap> = (keyof M & string) | (string & {})
