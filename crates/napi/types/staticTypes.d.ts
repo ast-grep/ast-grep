@@ -71,6 +71,11 @@ type ResolveType<M extends NodeTypesMap, K> = K extends keyof M
  */
 export type NamedKinds<M extends NodeTypesMap> = ResolveType<M, keyof M>
 
+/**
+ * See open-ended unions / string literal completion in TypeScript
+ * https://github.com/microsoft/TypeScript/issues/26277
+ * https://github.com/microsoft/TypeScript/issues/33471
+ */
 type LowPriorityKey = string & {}
 
 /**
