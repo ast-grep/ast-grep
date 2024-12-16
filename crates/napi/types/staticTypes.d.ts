@@ -25,24 +25,29 @@ export interface NodeType extends NodeBasicInfo {
   subtypes?: readonly NodeBasicInfo[]
 }
 
+/**
+ * A map of key to NodeType.
+ * Note, the key is not necessary node's kind.
+ * it can be a rule representing a category of syntax nodes
+ * (e.g. “expression”, “type”, “declaration”).
+ * See reference above for more details.
+ */
 export interface NodeTypesMap {
   [key: string]: NodeType
 }
 
-export type FieldNames<N extends NodeType> =
-  N extends { fields: infer F } ? keyof F : string
+export type FieldNames<N extends NodeType> = N extends { fields: infer F }
+  ? keyof F
+  : string
 
-export type FieldTypeMeta<
+export type ExtractField<
   N extends NodeType,
   F extends FieldNames<N>,
 > = N['fields'] extends Record<F, NodeFieldInfo>
   ? N['fields'][F]
   : NodeFieldInfo
 
-export type GetSafeFieldType<
-  M extends FieldTypeMeta<Map[K], F> = FieldTypeMeta<Map[K], F>,
-> = M['types'][number]['type']
+export type TypesInField<M extends NodeFieldInfo> = M['types'][number]['type']
 
 // TODO: this is wrong, we should resolve subtypes
-export type NodeKinds<M extends NodeTypesMap>
-  = keyof M & string
+export type NodeKinds<M extends NodeTypesMap> = keyof M & string

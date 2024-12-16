@@ -1,4 +1,11 @@
-import type { FieldNames, GetSafeFieldType, NodeTypesMap, FieldTypeMeta, NodeKinds } from './staticTypes'
+import type {
+  FieldNames,
+  TypesInField,
+  NodeTypesMap,
+  ExtractField,
+  NodeKinds,
+  NodeFieldInfo,
+} from './staticTypes'
 import type { NapiConfig } from './config'
 
 export interface Edit {
@@ -26,7 +33,7 @@ export interface Range {
 
 export declare class SgNode<
   M extends NodeTypesMap = NodeTypesMap,
-  T extends string = keyof M & string,
+  T extends NodeKinds<M> = NodeKinds<M>,
 > {
   range(): Range
   isLeaf(): boolean
@@ -83,7 +90,7 @@ type FieldSgNode<
   Map extends NodeTypesMap,
   K extends NodeKinds<Map>,
   F extends FieldNames<Map[K]>,
-  M = FieldTypeMeta<Map[K], F>,
+  M extends NodeFieldInfo = ExtractField<Map[K], F>,
 > = M extends { required: true }
-  ? SgNode<Map, GetSafeFieldType<Map, K, F>>
-  : SgNode<Map, GetSafeFieldType<Map, K, F>> | null
+  ? SgNode<Map, TypesInField<M>>
+  : SgNode<Map, TypesInField<M>> | null
