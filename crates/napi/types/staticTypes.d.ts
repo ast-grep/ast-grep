@@ -29,33 +29,20 @@ export interface NodeTypesMap {
   [key: string]: NodeType
 }
 
-export type FieldNames<N extends NodeType> = N['fields'] extends Record<
-  string,
-  unknown
->
-  ? keyof N['fields']
-  : string
+export type FieldNames<N extends NodeType> =
+  N extends { fields: infer F } ? keyof F : string
 
 export type FieldTypeMeta<
-  Map extends NodeType,
-  F extends FieldNames<Map>,
-> = Map['fields'] extends Record<
-  string,
-  { types: ReadonlyArray<{ type: string }> }
->
-  ? Map['fields'][F]
-  : {
-      required: false
-      types: [{ type: string }]
-    }
+  N extends NodeType,
+  F extends FieldNames<N>,
+> = N['fields'] extends Record<F, NodeFieldInfo>
+  ? N['fields'][F]
+  : NodeFieldInfo
 
 export type GetSafeFieldType<
-  Map extends NodeTypesMap,
-  K extends NodeKinds<Map>,
-  F extends FieldNames<Map[K]>,
   M extends FieldTypeMeta<Map[K], F> = FieldTypeMeta<Map[K], F>,
 > = M['types'][number]['type']
 
 // TODO: this is wrong, we should resolve subtypes
 export type NodeKinds<M extends NodeTypesMap>
-  = Extract<keyof M, string>
+  = keyof M & string

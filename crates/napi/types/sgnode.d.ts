@@ -57,7 +57,7 @@ export declare class SgNode<
   /** Finds all the children nodes in the `field` */
   fieldChildren<F extends FieldNames<M[T]>>(
     name: F,
-  ): Exclude<FieldSgNode<M, T, F>, null>[]
+  ): NonNullable<FieldSgNode<M, T, F>>[]
   parent(): SgNode | null
   child(nth: number): SgNode<M> | null
   ancestors(): Array<SgNode>
@@ -83,7 +83,7 @@ type FieldSgNode<
   Map extends NodeTypesMap,
   K extends NodeKinds<Map>,
   F extends FieldNames<Map[K]>,
-  M extends FieldTypeMeta<Map[K], F> = FieldTypeMeta<Map[K], F>,
-> = M['required'] extends true
+  M = FieldTypeMeta<Map[K], F>,
+> = M extends { required: true }
   ? SgNode<Map, GetSafeFieldType<Map, K, F>>
   : SgNode<Map, GetSafeFieldType<Map, K, F>> | null
