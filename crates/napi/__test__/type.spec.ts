@@ -62,6 +62,7 @@ test('test type assertion', t => {
   t.assert(kind === '+')
   t.assert(kind !== 'invalid')
 
+
   // test type refinement
   const a = root.find('a')!
   t.assert(a.is('identifier'))
