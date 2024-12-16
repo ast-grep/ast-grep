@@ -1,13 +1,17 @@
 import type { SgNode, SgRoot } from './sgnode'
 import type { NapiConfig, FindConfig, FileOption } from './config'
 import type { Lang } from './lang'
+import type { NodeTypesMap } from './staticTypes'
 
-export declare function parseFiles(
+export declare function parseFiles<M extends NodeTypesMap>(
   paths: Array<string> | FileOption,
-  callback: (err: null | Error, result: SgRoot) => void,
+  callback: (err: null | Error, result: SgRoot<M>) => void,
 ): Promise<number>
 /** Parse a string to an ast-grep instance */
-export declare function parse(lang: Lang, src: string): SgRoot
+export declare function parse<M extends NodeTypesMap>(
+  lang: Lang,
+  src: string,
+): SgRoot<M>
 /**
  * Parse a string to an ast-grep instance asynchronously in threads.
  * It utilize multiple CPU cores when **concurrent processing sources**.
@@ -15,7 +19,10 @@ export declare function parse(lang: Lang, src: string): SgRoot
  * Please refer to libuv doc, nodejs' underlying runtime
  * for its default behavior and performance tuning tricks.
  */
-export declare function parseAsync(lang: Lang, src: string): Promise<SgRoot>
+export declare function parseAsync<M extends NodeTypesMap>(
+  lang: Lang,
+  src: string,
+): Promise<SgRoot<M>>
 /** Get the `kind` number from its string name. */
 export declare function kind(lang: Lang, kindName: string): number
 /** Compile a string to ast-grep Pattern. */
@@ -26,8 +33,8 @@ export declare function pattern(lang: Lang, pattern: string): NapiConfig
  * `config` specifies the file path and matcher.
  * `callback` will receive matching nodes found in a file.
  */
-export declare function findInFiles(
+export declare function findInFiles<M extends NodeTypesMap>(
   lang: Lang,
   config: FindConfig,
-  callback: (err: null | Error, result: SgNode[]) => void,
+  callback: (err: null | Error, result: SgNode<M>[]) => void,
 ): Promise<number>
