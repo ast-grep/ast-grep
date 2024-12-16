@@ -51,7 +51,11 @@ export type FieldTypeMeta<
 
 export type GetSafeFieldType<
   Map extends NodeTypesMap,
-  K extends keyof Map,
+  K extends NodeKinds<Map>,
   F extends FieldNames<Map[K]>,
   M extends FieldTypeMeta<Map[K], F> = FieldTypeMeta<Map[K], F>,
 > = M['types'][number]['type']
+
+// TODO: this is wrong, we should resolve subtypes
+export type NodeKinds<M extends NodeTypesMap>
+  = Extract<keyof M, string>
