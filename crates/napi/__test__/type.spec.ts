@@ -23,6 +23,16 @@ test('test no type annotation', t => {
   })!
   t.is(sum.kind(), 'binary_expression')
   t.is(sum.field('operator')!.kind(), '+')
+
+  // test type refinement
+  const a = root.find('a')!
+  t.assert(a.is('identifier'))
+  if (a.is('identifier')) {
+    t.assert(a.kind() === 'identifier')
+    // @ts-expect-error: should refine kind
+    t.assert(a.kind() !== 'invalid')
+    t.is(a.field('type_annotation'), null)
+  }
 })
 
 test('test type assertion', t => {
@@ -52,6 +62,17 @@ test('test type assertion', t => {
   t.assert(kind === '+')
   // @ts-expect-error: we should not report unnamed nodes like +-*/
   t.assert(kind !== 'invalid')
+
+  // test type refinement
+  const a = root.find('a')!
+  t.assert(a.is('identifier'))
+  if (a.is('identifier')) {
+    t.assert(a.kind() === 'identifier')
+    // @ts-expect-error: should refine kind
+    t.assert(a.kind() !== 'invalid')
+    // @ts-expect-error: should reject field
+    t.is(a.field('type_annotation'), null)
+  }
 })
 
 test('subtype alias', t => {
