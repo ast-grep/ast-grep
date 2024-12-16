@@ -1,7 +1,7 @@
 import type { SgNode, SgRoot } from './sgnode'
 import type { NapiConfig, FindConfig, FileOption } from './config'
 import type { Lang } from './lang'
-import type { NodeTypesMap } from './staticTypes'
+import type { NamedKinds, NodeTypesMap } from './staticTypes'
 
 export declare function parseFiles<M extends NodeTypesMap>(
   paths: Array<string> | FileOption,
@@ -24,7 +24,7 @@ export declare function parseAsync<M extends NodeTypesMap>(
   src: string,
 ): Promise<SgRoot<M>>
 /** Get the `kind` number from its string name. */
-export declare function kind(lang: Lang, kindName: string): number
+export declare function kind<M extends NodeTypesMap>(lang: Lang, kindName: NamedKinds<M>): number
 /** Compile a string to ast-grep Pattern. */
 export declare function pattern<M extends NodeTypesMap>(
   lang: Lang,

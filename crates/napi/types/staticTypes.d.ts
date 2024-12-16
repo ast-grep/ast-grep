@@ -55,20 +55,36 @@ export type TypesInField<
   I extends NodeFieldInfo,
 > = NoNever<ResolveType<M, I['types'][number]['type']>>
 
-// resolve subtypes alias
-// e.g. like `expression` => `binary_expression` | `unary_expression` | ...
+/**
+ * resolve subtypes alias. see tree-sitter's reference
+ * e.g. like `expression` => `binary_expression` | `unary_expression` | ...
+ */
 type ResolveType<M extends NodeTypesMap, K> = K extends keyof M
   ? M[K] extends { subtypes: infer S extends NodeBasicInfo[] }
     ? ResolveType<M, S[number]['type']>
     : K
   : K
 
+/**
+ * All named nodes' kinds that are usable in ast-grep rule
+ * NOTE: SgNode can return kind not in this list
+ */
+export type NamedKinds<M extends NodeTypesMap> = ResolveType<M, keyof M>
+
 type LowPriorityKey = string & {}
 
+/**
+ * A union of all named node kinds and a low priority key
+ * tree-sitter Kinds also include unnamed nodes which is not usable in rule
+ * NOTE: SgNode can return a string type if it is not a named node
+ */
 export type NodeKinds<M extends NodeTypesMap = NodeTypesMap> =
-  | ResolveType<M, keyof M>
+  | NamedKinds<M>
   | LowPriorityKey
 
+/**
+ * The root node kind of the tree.
+ */
 export type RootKind<M extends NodeTypesMap> = NoNever<
   Extract<M[keyof M], { root: true }>['type'],
   NodeKinds<M>
