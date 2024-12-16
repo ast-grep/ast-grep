@@ -22,6 +22,34 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
+function filterOutUnNamedNode(node: NodeType): NodeType | null {
+  if (!node.named) {
+    return null
+  }
+  if (node.fields) {
+    for (const field of Object.keys(node.fields)) {
+      node.fields[field].types = node.fields[field].types.filter(n => n.named)
+    }
+  }
+  if (node.children) {
+    node.children.types = node.children.types.filter(n => n.named)
+  }
+  if (node.subtypes) {
+    node.subtypes = node.subtypes.filter(n => n.named)
+  }
+  return node
+}
+
+function processNodeTypes(nodeTypes: NodeType[]): Record<string, NodeType> {
+  const filteredNodeTypes = nodeTypes
+    .map(filterOutUnNamedNode)
+    .filter(node => !!node)
+  const nodeTypeMap = Object.fromEntries(
+    filteredNodeTypes.map(node => [node.type, node]),
+  )
+  return nodeTypeMap
+}
+
 async function generateLangNodeTypes() {
   const testOnly = process.argv.slice(2)[0]
   const languageCargoToml = await readFile(
@@ -54,10 +82,7 @@ async function generateLangNodeTypes() {
       const url = urlTemplate.replace('{{TAG}}', tag)
       const nodeTypesResponse = await fetch(url)
       const nodeTypes = (await nodeTypesResponse.json()) as NodeType[]
-
-      const nodeTypeMap = Object.fromEntries(
-        nodeTypes.map(node => [node.type, node]),
-      )
+      const nodeTypeMap = processNodeTypes(nodeTypes)
 
       const fileContent =
         `// Auto-generated from tree-sitter ${lang} ${tag}` +
