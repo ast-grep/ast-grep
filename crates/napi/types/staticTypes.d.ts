@@ -13,7 +13,7 @@ export interface NodeBasicInfo {
 export interface NodeFieldInfo {
   multiple: boolean
   required: boolean
-  types: readonly NodeBasicInfo[]
+  types: NodeBasicInfo[]
 }
 
 export interface NodeType extends NodeBasicInfo {
@@ -22,7 +22,7 @@ export interface NodeType extends NodeBasicInfo {
     [fieldName: string]: NodeFieldInfo
   }
   children?: NodeFieldInfo
-  subtypes?: readonly NodeBasicInfo[]
+  subtypes?: NodeBasicInfo[]
 }
 
 /**
@@ -50,11 +50,19 @@ export type ExtractField<
 // in case of empty types array, return string as fallback
 type NoNever<T> = [T] extends [never] ? string : T
 
-export type TypesInField<M extends NodeFieldInfo> = NoNever<
-  M['types'][number]['type']
+export type TypesInField<I extends NodeFieldInfo> = NoNever<
+  I['types'][number]['type']
 >
 
-// TODO: this is wrong, we should resolve subtypes
+type ResolveType<M extends NodeTypesMap, K> =
+  K extends keyof M
+    ? M[K] extends { subtypes: infer S extends NodeBasicInfo[] }
+      ? ResolveType<M, S[number]['type']>
+      : K
+    : K
+
+type LowPriorityKey = string & {}
+
 export type NodeKinds<M extends NodeTypesMap = NodeTypesMap> =
-  | (keyof M & string)
-  | (string & {})
+  | ResolveType<M, keyof M>
+  | LowPriorityKey
