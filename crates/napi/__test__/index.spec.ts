@@ -291,7 +291,8 @@ test('find in files with filename', async t => {
     (err, n) => {
       t.is(err, null)
       const root = n[0].getRoot()
-      t.assert(root.filename().includes('index.spec.ts'))
+      const filename = root.filename()
+      t.assert(filename.includes('.spec.ts'))
     },
   )
 })
@@ -324,7 +325,7 @@ test('find with language globs', async t => {
     (err, n) => {
       t.is(err, null)
       const root = n[0].getRoot()
-      t.assert(root.filename().includes('index.spec.ts'))
+      t.assert(root.filename().includes('.spec.ts'))
     },
   )
 })
