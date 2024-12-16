@@ -1,10 +1,10 @@
-import type { NodeTypesMap, NodeKinds } from './staticTypes'
+import type { NodeTypesMap, NamedKinds } from './staticTypes'
 
 export type Strictness = 'cst' | 'smart' | 'ast' | 'relaxed' | 'signature'
 
 export interface PatternObject<M extends NodeTypesMap = NodeTypesMap> {
   context: string
-  selector?: NodeKinds<M>
+  selector?: NamedKinds<M> // only named node types
   strictness?: Strictness
 }
 
@@ -56,7 +56,7 @@ export interface Rule<M extends NodeTypesMap = NodeTypesMap> {
   /** A pattern string or a pattern object. */
   pattern?: PatternStyle<M>
   /** The kind name of the node to match. You can look up code's kind names in playground. */
-  kind?: NodeKinds<M>
+  kind?: NamedKinds<M>
   /** The exact range of the node in the source code. */
   range?: Range
   /** A Rust regular expression to match the node's text. https://docs.rs/regex/latest/regex/#syntax */
