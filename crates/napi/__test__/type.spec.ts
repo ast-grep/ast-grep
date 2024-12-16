@@ -33,6 +33,14 @@ test('test no type annotation', t => {
     t.assert(a.kind() !== 'invalid')
     t.is(a.field('type_annotation'), null)
   }
+
+  // test rule kind
+  const notFound = root.find({
+    rule: {
+      kind: 'notFound', // ok for no type
+    },
+  })
+  t.falsy(notFound)
 })
 
 test('test type assertion', t => {
@@ -72,6 +80,14 @@ test('test type assertion', t => {
     // @ts-expect-error: should reject field
     t.is(a.field('type_annotation'), null)
   }
+  // test rule kind
+  const notFound = root.find({
+    rule: {
+      // @ts-expect-error: not found kind
+      kind: 'notFound',
+    },
+  })
+  t.falsy(notFound)
 })
 
 test('test type argument style', t => {
@@ -109,6 +125,15 @@ test('test type argument style', t => {
     // @ts-expect-error: should reject field
     t.is(a.field('type_annotation'), null)
   }
+
+  // test rule kind
+  const notFound = root.find({
+    rule: {
+      // @ts-expect-error: not found kind
+      kind: 'notFound',
+    },
+  })
+  t.falsy(notFound)
 })
 
 test('subtype alias', async t => {
@@ -125,6 +150,16 @@ test('subtype alias', async t => {
   const kind = declaration.kind()
   t.assert(kind === 'function_declaration')
   t.assert(declaration.kind() !== 'class_declaration')
+  // @ts-expect-error: no type alias
+  t.assert(declaration.kind() !== 'declaration')
   // @ts-expect-error: kind refined
   t.assert(declaration.kind() !== 'identifier')
+  // test rule kind
+  const notFound = root.find({
+    rule: {
+      // @ts-expect-error: type alias should not be used
+      kind: 'primary_expression',
+    },
+  })
+  t.falsy(notFound)
 })
