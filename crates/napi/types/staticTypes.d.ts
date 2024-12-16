@@ -48,12 +48,14 @@ export type ExtractField<
   : NodeFieldInfo
 
 // in case of empty types array, return string as fallback
-type NoNever<T> = [T] extends [never] ? string : T
+type NoNever<T, Fallback = string> = [T] extends [never] ? Fallback : T
 
 export type TypesInField<I extends NodeFieldInfo> = NoNever<
   I['types'][number]['type']
 >
 
+// resolve subtypes alias
+// e.g. like `expression` => `binary_expression` | `unary_expression` | ...
 type ResolveType<M extends NodeTypesMap, K> =
   K extends keyof M
     ? M[K] extends { subtypes: infer S extends NodeBasicInfo[] }
@@ -66,3 +68,9 @@ type LowPriorityKey = string & {}
 export type NodeKinds<M extends NodeTypesMap = NodeTypesMap> =
   | ResolveType<M, keyof M>
   | LowPriorityKey
+
+export type RootKind<M extends NodeTypesMap> =
+  NoNever<
+    Extract<M[keyof M], { root: true }>['type'],
+    NodeKinds<M>
+  >

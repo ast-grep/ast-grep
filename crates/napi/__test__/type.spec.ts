@@ -78,7 +78,7 @@ test('test type assertion', t => {
 test('test type argument style', t => {
   const sg = parse<TypeScriptTypes>(Lang.TypeScript, 'a + b')
   // test root
-  const root = sg.root() as SgNode<TypeScriptTypes, 'program'>
+  const root = sg.root()
   t.is(root.kind(), 'program')
   // @ts-expect-error
   t.is(root.field('body'), null)

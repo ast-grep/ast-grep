@@ -5,6 +5,7 @@ import type {
   ExtractField,
   NodeKinds,
   NodeFieldInfo,
+  RootKind,
 } from './staticTypes'
 import type { NapiConfig } from './config'
 
@@ -84,7 +85,7 @@ export declare class SgNode<
 /** Represents the parsed tree of code. */
 export declare class SgRoot<M extends NodeTypesMap = NodeTypesMap> {
   /** Returns the root SgNode of the ast-grep instance. */
-  root(): SgNode<M>
+  root<K extends NodeKinds<M> = RootKind<M>>(): SgNode<M, K>
   /**
    * Returns the path of the file if it is discovered by ast-grep's `findInFiles`.
    * Returns `"anonymous"` if the instance is created by `lang.parse(source)`.
