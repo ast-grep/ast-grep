@@ -1,4 +1,4 @@
-import type { FieldNames, GetSafeFieldType, NodeTypesMap, FieldTypeMeta } from './node-types'
+import type { FieldNames, GetSafeFieldType, NodeTypesMap, FieldTypeMeta } from './staticTypes'
 import type { NapiConfig } from './config'
 
 export interface Edit {

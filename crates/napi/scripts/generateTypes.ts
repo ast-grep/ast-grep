@@ -2,7 +2,7 @@ import { readFile, writeFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 // gen type cannot be imported on CI due to un-generated napi binding
 import type { Lang } from '../index'
-import type { NodeTypeSchema } from '../types/node-types'
+import type { NodeType } from '../types/staticTypes'
 import {
   languageNodeTypesTagVersionOverrides,
   languagesCrateNames,
@@ -53,7 +53,7 @@ async function generateLangNodeTypes() {
         languageNodeTypesTagVersionOverrides[lang] ?? `v${cargoVersion}`
       const url = urlTemplate.replace('{{TAG}}', tag)
       const nodeTypesResponse = await fetch(url)
-      const nodeTypes = (await nodeTypesResponse.json()) as NodeTypeSchema[]
+      const nodeTypes = (await nodeTypesResponse.json()) as NodeType[]
 
       const nodeTypeMap = Object.fromEntries(
         nodeTypes.map(node => [node.type, node]),

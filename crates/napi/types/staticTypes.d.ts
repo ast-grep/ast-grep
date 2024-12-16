@@ -16,7 +16,7 @@ export interface NodeFieldInfo {
   types: readonly NodeBasicInfo[]
 }
 
-export interface NodeTypeSchema extends NodeBasicInfo {
+export interface NodeType extends NodeBasicInfo {
   root?: boolean
   fields?: {
     [fieldName: string]: NodeFieldInfo
@@ -26,10 +26,10 @@ export interface NodeTypeSchema extends NodeBasicInfo {
 }
 
 export interface NodeTypesMap {
-  [key: string]: NodeTypeSchema
+  [key: string]: NodeType
 }
 
-export type FieldNames<N extends NodeTypeSchema> = N['fields'] extends Record<
+export type FieldNames<N extends NodeType> = N['fields'] extends Record<
   string,
   unknown
 >
@@ -37,7 +37,7 @@ export type FieldNames<N extends NodeTypeSchema> = N['fields'] extends Record<
   : string
 
 export type FieldTypeMeta<
-  Map extends NodeTypeSchema,
+  Map extends NodeType,
   F extends FieldNames<Map>,
 > = Map['fields'] extends Record<
   string,
