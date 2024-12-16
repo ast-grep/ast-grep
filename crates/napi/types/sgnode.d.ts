@@ -42,7 +42,7 @@ export declare class SgNode<
   /** Returns the string name of the node kind */
   kind(): T
   /** Check if the node is the same kind as the given `kind` string */
-  is<K extends T>(kind: K): this is SgNode<M, K> & this
+  is<K extends T>(kind: K): this is SgNode<M, K>
   text(): string
   matches(m: string): boolean
   inside(m: string): boolean
