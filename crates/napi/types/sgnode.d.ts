@@ -1,4 +1,4 @@
-import type { FieldNames, GetSafeFieldType, NodeTypesMap, FieldTypeMeta } from './staticTypes'
+import type { FieldNames, GetSafeFieldType, NodeTypesMap, FieldTypeMeta, NodeKinds } from './staticTypes'
 import type { NapiConfig } from './config'
 
 export interface Edit {
@@ -81,7 +81,7 @@ export declare class SgRoot<M extends NodeTypesMap = NodeTypesMap> {
 
 type FieldSgNode<
   Map extends NodeTypesMap,
-  K extends keyof Map,
+  K extends NodeKinds<Map>,
   F extends FieldNames<Map[K]>,
   M extends FieldTypeMeta<Map[K], F> = FieldTypeMeta<Map[K], F>,
 > = M['required'] extends true
