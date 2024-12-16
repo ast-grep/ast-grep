@@ -161,7 +161,7 @@ test('subtype alias', async t => {
   const wrong = root.find({
     rule: {
       // @ts-expect-error: reject alias type
-      kind: 'primary_expression',
+      kind: 'declaration',
     },
   })
   t.falsy(wrong)
