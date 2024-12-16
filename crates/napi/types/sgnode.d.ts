@@ -49,28 +49,32 @@ export declare class SgNode<
   has(m: string): boolean
   precedes(m: string): boolean
   follows(m: string): boolean
-  getMatch(m: string): SgNode<M> | null
+  getMatch<K extends NodeKinds<M>>(m: string): SgNode<M, K> | null
   getMultipleMatches(m: string): Array<SgNode<M>>
   getTransformed(m: string): string | null
   /** Returns the node's SgRoot */
-  getRoot(): SgRoot
+  getRoot(): SgRoot<M>
   children(): Array<SgNode<M>>
   /** Returns the node's id */
   id(): number
-  find(matcher: string | number | NapiConfig): SgNode<M> | null
-  findAll(matcher: string | number | NapiConfig): Array<SgNode<M>>
+  find<K extends NodeKinds<M>>(
+    matcher: string | number | NapiConfig,
+  ): SgNode<M, K> | null
+  findAll<K extends NodeKinds<M>>(
+    matcher: string | number | NapiConfig,
+  ): Array<SgNode<M, K>>
   /** Finds the first child node in the `field` */
   field<F extends FieldNames<M[T]>>(name: F): FieldSgNode<M, T, F>
   /** Finds all the children nodes in the `field` */
   fieldChildren<F extends FieldNames<M[T]>>(
     name: F,
   ): NonNullable<FieldSgNode<M, T, F>>[]
-  parent(): SgNode<M> | null
-  child(nth: number): SgNode<M> | null
+  parent<K extends NodeKinds<M>>(): SgNode<M, K> | null
+  child<K extends NodeKinds<M>>(nth: number): SgNode<M, K> | null
   ancestors(): Array<SgNode<M>>
-  next(): SgNode<M> | null
+  next<K extends NodeKinds<M>>(): SgNode<M, K> | null
   nextAll(): Array<SgNode<M>>
-  prev(): SgNode<M> | null
+  prev<K extends NodeKinds<M>>(): SgNode<M, K> | null
   prevAll(): Array<SgNode<M>>
   replace(text: string): Edit
   commitEdits(edits: Array<Edit>): string
