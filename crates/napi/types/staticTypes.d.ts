@@ -47,7 +47,12 @@ export type ExtractField<
   ? N['fields'][F]
   : NodeFieldInfo
 
-export type TypesInField<M extends NodeFieldInfo> = M['types'][number]['type']
+// in case of empty types array, return string as fallback
+type NoNever<T> = [T] extends [never] ? string : T
+
+export type TypesInField<M extends NodeFieldInfo> = NoNever<
+  M['types'][number]['type']
+>
 
 // TODO: this is wrong, we should resolve subtypes
 export type NodeKinds<M extends NodeTypesMap = NodeTypesMap> =

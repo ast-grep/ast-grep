@@ -60,7 +60,6 @@ test('test type assertion', t => {
   t.is(sum.kind(), 'binary_expression')
   const kind = sum.field('operator').kind()
   t.assert(kind === '+')
-  // @ts-expect-error: we should not report unnamed nodes like +-*/
   t.assert(kind !== 'invalid')
 
   // test type refinement
@@ -98,7 +97,6 @@ test('test type argument style', t => {
   t.is(sum.kind(), 'binary_expression')
   const kind = sum.field('operator').kind()
   t.assert(kind === '+')
-  // @ts-expect-error: we should not report unnamed nodes like +-*/
   t.assert(kind !== 'invalid')
 
   // test type refinement
