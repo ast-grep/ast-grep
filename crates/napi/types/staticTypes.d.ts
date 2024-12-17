@@ -55,10 +55,12 @@ export type TypesInField<M extends TypesMap, I extends NodeFieldInfo> = NoNever<
   Kinds<M>
 >
 
-export type NamedChildKinds<M extends TypesMap, T extends Kinds<M>> =
-  M[T] extends { children: infer C extends NodeFieldInfo }
-    ? TypesInField<M, C>
-    : NamedKinds<M>
+export type NamedChildKinds<
+  M extends TypesMap,
+  T extends Kinds<M>,
+> = M[T] extends { children: infer C extends NodeFieldInfo }
+  ? TypesInField<M, C>
+  : NamedKinds<M>
 export type ChildKinds<M extends TypesMap, T extends Kinds<M>> =
   | NamedChildKinds<M, T>
   | LowPriorityKey

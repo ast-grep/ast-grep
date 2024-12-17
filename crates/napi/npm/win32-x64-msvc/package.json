@@ -1,24 +1,12 @@
 {
   "name": "@ast-grep/napi-win32-x64-msvc",
   "version": "0.32.1",
-  "os": [
-    "win32"
-  ],
-  "cpu": [
-    "x64"
-  ],
+  "os": ["win32"],
+  "cpu": ["x64"],
   "main": "ast-grep-napi.win32-x64-msvc.node",
-  "files": [
-    "ast-grep-napi.win32-x64-msvc.node"
-  ],
+  "files": ["ast-grep-napi.win32-x64-msvc.node"],
   "description": "Search and Rewrite code at large scale using precise AST pattern",
-  "keywords": [
-    "ast",
-    "pattern",
-    "codemod",
-    "search",
-    "rewrite"
-  ],
+  "keywords": ["ast", "pattern", "codemod", "search", "rewrite"],
   "license": "MIT",
   "engines": {
     "node": ">= 10"

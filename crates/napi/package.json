@@ -6,19 +6,8 @@
   "main": "index.js",
   "repository": "https://github.com/ast-grep/ast-grep",
   "license": "MIT",
-  "keywords": [
-    "ast",
-    "pattern",
-    "codemod",
-    "search",
-    "rewrite"
-  ],
-  "files": [
-    "index.d.ts",
-    "index.js",
-    "types/*.ts",
-    "lang/*.ts"
-  ],
+  "keywords": ["ast", "pattern", "codemod", "search", "rewrite"],
+  "files": ["index.d.ts", "index.js", "types/*.ts", "lang/*.ts"],
   "napi": {
     "name": "ast-grep-napi",
     "triples": {
@@ -63,12 +52,8 @@
     "typescript": "5.7.2"
   },
   "ava": {
-    "require": [
-      "ts-node/register"
-    ],
-    "extensions": [
-      "ts"
-    ],
+    "require": ["ts-node/register"],
+    "extensions": ["ts"],
     "timeout": "2m",
     "workerThreads": false,
     "environmentVariables": {

@@ -9,7 +9,6 @@ import type {
   NamedKinds,
   ChildKinds,
   NamedChildKinds,
-  LowPriorityKey,
 } from './staticTypes'
 import type { NapiConfig } from './config'
 
