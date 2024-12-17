@@ -154,6 +154,7 @@ test('subtype alias', async t => {
   const declaration = exp.field('declaration')!
   const kind = declaration.kind()
 
+  // test exhaustive switch
   switch (declaration.kindToRefine) {
     case 'enum_declaration': {
       declaration.field('name')
