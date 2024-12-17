@@ -48,11 +48,20 @@ export type ExtractField<
   : NodeFieldInfo
 
 // in case of empty types array, return string as fallback
-type NoNever<T, Fallback = string> = [T] extends [never] ? Fallback : T
+type NoNever<T, Fallback> = [T] extends [never] ? Fallback : T
 
 export type TypesInField<M extends TypesMap, I extends NodeFieldInfo> = NoNever<
-  ResolveType<M, I['types'][number]['type']>
+  ResolveType<M, I['types'][number]['type']>,
+  Kinds<M>
 >
+
+export type NamedChildKinds<M extends TypesMap, T extends Kinds<M>> =
+  M[T] extends { children: infer C extends NodeFieldInfo }
+    ? TypesInField<M, C>
+    : NamedKinds<M>
+export type ChildKinds<M extends TypesMap, T extends Kinds<M>> =
+  | NamedChildKinds<M, T>
+  | LowPriorityKey
 
 /**
  * resolve subtypes alias. see tree-sitter's reference

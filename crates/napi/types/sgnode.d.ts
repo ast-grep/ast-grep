@@ -7,6 +7,8 @@ import type {
   NodeFieldInfo,
   RootKind,
   NamedKinds,
+  ChildKinds,
+  NamedChildKinds,
 } from './staticTypes'
 import type { NapiConfig } from './config'
 
@@ -71,7 +73,8 @@ export declare class SgNode<
     name: F,
   ): Exclude<FieldNode<M, T, F>, null>[]
   parent: NodeMethod<M>
-  child<K extends Kinds<M>>(nth: number): RefineNode<M, K> | null
+  child(nth: number): SgNode<M, ChildKinds<M, T>> | null
+  child<K extends NamedChildKinds<M, T>>(nth: number): RefineNode<M, K> | null
   ancestors(): Array<SgNode<M>>
   next: NodeMethod<M>
   nextAll(): Array<SgNode<M>>
@@ -91,9 +94,9 @@ export declare class SgRoot<M extends TypesMap = TypesMap> {
   filename(): string
 }
 
-interface NodeMethod<M extends TypesMap, Args extends unknown[] = [], T = NamedKinds<M>> {
+interface NodeMethod<M extends TypesMap, Args extends unknown[] = []> {
   (...args: Args): SgNode<M> | null
-  <K extends T>(...args: Args): RefineNode<M, K> | null
+  <K extends NamedKinds<M>>(...args: Args): RefineNode<M, K> | null
 }
 
 /**
