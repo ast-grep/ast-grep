@@ -127,6 +127,8 @@ test('test type argument style', t => {
     // @ts-expect-error: should reject field
     t.is(a.field('type_annotation'), null)
   }
+  // okay to use any annotation
+  t.is(a.field('type_annotation'), null)
 
   // test rule kind
   t.throws(() => {
@@ -151,6 +153,34 @@ test('subtype alias', async t => {
   >
   const declaration = exp.field('declaration')!
   const kind = declaration.kind()
+
+  switch (declaration.kindToRefine) {
+    case 'enum_declaration': {
+      declaration.field('name')
+      // @ts-expect-error: report
+      declaration.field('decorator')
+      break
+    }
+    case 'abstract_class_declaration':
+    case 'generator_function_declaration':
+    case 'ambient_declaration':
+    case 'class_declaration':
+    case 'function_declaration':
+    case 'function_signature':
+    case 'import_alias':
+    case 'interface_declaration':
+    case 'internal_module':
+    case 'lexical_declaration':
+    case 'module':
+    case 'type_alias_declaration':
+    case 'variable_declaration':
+      break
+    default: {
+      declaration satisfies never
+      t.fail('should not be here')
+    }
+  }
+
   t.assert(kind === 'function_declaration')
   t.assert(declaration.kind() !== 'class_declaration')
   // @ts-expect-error: no type alias
