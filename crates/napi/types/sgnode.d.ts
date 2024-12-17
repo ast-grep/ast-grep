@@ -100,11 +100,21 @@ type RefineNode<M extends NodeTypesMap, K> =
   string extends K ? SgNode<M> :
     K extends NodeKinds<M> ? SgNode<M, K> : never
 
+/**
+ * return the SgNode of the field in the node.
+ */
+// F extends string is used to prevent noisy TS hover info
 type FieldNode<
   M extends NodeTypesMap,
   K extends NodeKinds<M>,
   F extends FieldNames<M[K]>,
-  I extends NodeFieldInfo = ExtractField<M[K], F>,
+> = F extends string
+  ? FieldNodeImpl<M, ExtractField<M[K], F>> : never
+
+
+type FieldNodeImpl<
+  M extends NodeTypesMap,
+  I extends NodeFieldInfo,
 > = I extends { required: true }
   ? RefineNode<M, TypesInField<M, I>>
   : RefineNode<M, TypesInField<M, I>> | null
