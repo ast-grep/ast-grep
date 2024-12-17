@@ -15,6 +15,9 @@ test('test no type annotation', t => {
   const childKind = child!.kind()
   t.assert(childKind === 'expression_statement')
   t.assert(childKind !== ',')
+  // test parent method
+  const parent = child!.parent()
+  t.assert(parent === root)
   // test find
   const sum = root.find({
     rule: {
@@ -60,6 +63,9 @@ test('test type assertion', t => {
   const childKind = child!.kind()
   t.assert(childKind === 'expression_statement')
   t.assert(childKind !== ',')
+  // test parent method
+  const parent = child!.parent()
+  t.assert(parent === root)
   // test find
   const sum = root.find({
     rule: {
@@ -106,6 +112,15 @@ test('test type argument style', t => {
   t.is(childKind, 'expression_statement')
   // @ts-expect-error
   t.assert(childKind !== ',')
+  // test parent method
+  const parent = child!.parent<'program'>()
+  t.assert(parent === root)
+  // @ts-expect-error should reject wrong kind
+  const parent2 = child!.parent<'eskdf'>()
+  t.assert(parent2 === root)
+  const parent3 = child!.parent<'expression_statement'>()
+  // @ts-expect-error parent3 should take new kind
+  t.assert(parent3 === root)
   // test find
   const sum = root.find<'binary_expression'>({
     rule: {

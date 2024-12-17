@@ -6,6 +6,7 @@ import type {
   Kinds,
   NodeFieldInfo,
   RootKind,
+  NamedKinds,
 } from './staticTypes'
 import type { NapiConfig } from './config'
 
@@ -51,7 +52,7 @@ export declare class SgNode<
   has(m: string): boolean
   precedes(m: string): boolean
   follows(m: string): boolean
-  getMatch<K extends Kinds<M>>(m: string): RefineNode<M, K> | null
+  getMatch: NodeMethod<M, [mv: string]>
   getMultipleMatches(m: string): Array<SgNode<M>>
   getTransformed(m: string): string | null
   /** Returns the node's SgRoot */
@@ -59,9 +60,7 @@ export declare class SgNode<
   children(): Array<SgNode<M>>
   /** Returns the node's id */
   id(): number
-  find<K extends Kinds<M>>(
-    matcher: string | number | NapiConfig<M>,
-  ): RefineNode<M, K> | null
+  find: NodeMethod<M, [matcher: string | number | NapiConfig<M>]>
   findAll<K extends Kinds<M>>(
     matcher: string | number | NapiConfig<M>,
   ): Array<RefineNode<M, K>>
@@ -71,12 +70,12 @@ export declare class SgNode<
   fieldChildren<F extends FieldNames<M[T]>>(
     name: F,
   ): Exclude<FieldNode<M, T, F>, null>[]
-  parent<K extends Kinds<M>>(): RefineNode<M, K> | null
+  parent: NodeMethod<M>
   child<K extends Kinds<M>>(nth: number): RefineNode<M, K> | null
   ancestors(): Array<SgNode<M>>
-  next<K extends Kinds<M>>(): RefineNode<M, K> | null
+  next: NodeMethod<M>
   nextAll(): Array<SgNode<M>>
-  prev<K extends Kinds<M>>(): RefineNode<M, K> | null
+  prev: NodeMethod<M>
   prevAll(): Array<SgNode<M>>
   replace(text: string): Edit
   commitEdits(edits: Array<Edit>): string
@@ -90,6 +89,11 @@ export declare class SgRoot<M extends TypesMap = TypesMap> {
    * Returns `"anonymous"` if the instance is created by `lang.parse(source)`.
    */
   filename(): string
+}
+
+interface NodeMethod<M extends TypesMap, Args extends unknown[] = [], T = NamedKinds<M>> {
+  (...args: Args): SgNode<M> | null
+  <K extends T>(...args: Args): RefineNode<M, K> | null
 }
 
 /**
