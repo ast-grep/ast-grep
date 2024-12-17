@@ -79,6 +79,10 @@ impl SgNode {
   pub fn kind(&self) -> String {
     self.inner.kind().to_string()
   }
+  #[napi(getter)]
+  pub fn kind_to_refine(&self) -> String {
+    self.inner.kind().to_string()
+  }
   /// Check if the node is the same kind as the given `kind` string
   #[napi]
   pub fn is(&self, kind: String) -> bool {
