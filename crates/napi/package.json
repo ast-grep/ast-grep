@@ -7,7 +7,7 @@
   "repository": "https://github.com/ast-grep/ast-grep",
   "license": "MIT",
   "keywords": ["ast", "pattern", "codemod", "search", "rewrite"],
-  "files": ["manual.d.ts", "index.d.ts", "index.js", "types/*.ts", "lang/*.ts"],
+  "files": ["index.d.ts", "index.js", "types/*.ts", "lang/*.ts"],
   "napi": {
     "name": "ast-grep-napi",
     "triples": {
