@@ -1,9 +1,9 @@
 import type {
   FieldNames,
   TypesInField,
-  NodeTypesMap,
+  TypesMap,
   ExtractField,
-  NodeKinds,
+  Kinds,
   NodeFieldInfo,
   RootKind,
 } from './staticTypes'
@@ -33,8 +33,8 @@ export interface Range {
 }
 
 export declare class SgNode<
-  M extends NodeTypesMap = NodeTypesMap,
-  out T extends NodeKinds<M> = NodeKinds<M>,
+  M extends TypesMap = TypesMap,
+  out T extends Kinds<M> = Kinds<M>,
 > {
   range(): Range
   isLeaf(): boolean
@@ -44,14 +44,14 @@ export declare class SgNode<
   kind(): T
   readonly kindToRefine: T
   /** Check if the node is the same kind as the given `kind` string */
-  is<K extends NodeKinds<M>>(kind: K): this is SgNode<M, K>
+  is<K extends Kinds<M>>(kind: K): this is SgNode<M, K>
   text(): string
   matches(m: string): boolean
   inside(m: string): boolean
   has(m: string): boolean
   precedes(m: string): boolean
   follows(m: string): boolean
-  getMatch<K extends NodeKinds<M>>(m: string): RefineNode<M, K> | null
+  getMatch<K extends Kinds<M>>(m: string): RefineNode<M, K> | null
   getMultipleMatches(m: string): Array<SgNode<M>>
   getTransformed(m: string): string | null
   /** Returns the node's SgRoot */
@@ -59,10 +59,10 @@ export declare class SgNode<
   children(): Array<SgNode<M>>
   /** Returns the node's id */
   id(): number
-  find<K extends NodeKinds<M>>(
+  find<K extends Kinds<M>>(
     matcher: string | number | NapiConfig<M>,
   ): RefineNode<M, K> | null
-  findAll<K extends NodeKinds<M>>(
+  findAll<K extends Kinds<M>>(
     matcher: string | number | NapiConfig<M>,
   ): Array<RefineNode<M, K>>
   /** Finds the first child node in the `field` */
@@ -71,18 +71,18 @@ export declare class SgNode<
   fieldChildren<F extends FieldNames<M[T]>>(
     name: F,
   ): Exclude<FieldNode<M, T, F>, null>[]
-  parent<K extends NodeKinds<M>>(): RefineNode<M, K> | null
-  child<K extends NodeKinds<M>>(nth: number): RefineNode<M, K> | null
+  parent<K extends Kinds<M>>(): RefineNode<M, K> | null
+  child<K extends Kinds<M>>(nth: number): RefineNode<M, K> | null
   ancestors(): Array<SgNode<M>>
-  next<K extends NodeKinds<M>>(): RefineNode<M, K> | null
+  next<K extends Kinds<M>>(): RefineNode<M, K> | null
   nextAll(): Array<SgNode<M>>
-  prev<K extends NodeKinds<M>>(): RefineNode<M, K> | null
+  prev<K extends Kinds<M>>(): RefineNode<M, K> | null
   prevAll(): Array<SgNode<M>>
   replace(text: string): Edit
   commitEdits(edits: Array<Edit>): string
 }
 /** Represents the parsed tree of code. */
-export declare class SgRoot<M extends NodeTypesMap = NodeTypesMap> {
+export declare class SgRoot<M extends TypesMap = TypesMap> {
   /** Returns the root SgNode of the ast-grep instance. */
   root(): SgNode<M, RootKind<M>>
   /**
@@ -96,25 +96,24 @@ export declare class SgRoot<M extends NodeTypesMap = NodeTypesMap> {
  * if K contains string, return general SgNode. Otherwise,
  * if K is a literal union, return a union of SgNode of each kind.
  */
-type RefineNode<M extends NodeTypesMap, K> =
-  string extends K ? SgNode<M> :
-    K extends NodeKinds<M> ? SgNode<M, K> : never
+type RefineNode<M extends TypesMap, K> = string extends K
+  ? SgNode<M>
+  : K extends Kinds<M>
+    ? SgNode<M, K>
+    : never
 
 /**
  * return the SgNode of the field in the node.
  */
 // F extends string is used to prevent noisy TS hover info
 type FieldNode<
-  M extends NodeTypesMap,
-  K extends NodeKinds<M>,
+  M extends TypesMap,
+  K extends Kinds<M>,
   F extends FieldNames<M[K]>,
-> = F extends string
-  ? FieldNodeImpl<M, ExtractField<M[K], F>> : never
+> = F extends string ? FieldNodeImpl<M, ExtractField<M[K], F>> : never
 
-
-type FieldNodeImpl<
-  M extends NodeTypesMap,
-  I extends NodeFieldInfo,
-> = I extends { required: true }
+type FieldNodeImpl<M extends TypesMap, I extends NodeFieldInfo> = I extends {
+  required: true
+}
   ? RefineNode<M, TypesInField<M, I>>
   : RefineNode<M, TypesInField<M, I>> | null

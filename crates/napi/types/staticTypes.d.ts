@@ -32,7 +32,7 @@ export interface NodeType extends NodeBasicInfo {
  * (e.g. “expression”, “type”, “declaration”).
  * See reference above for more details.
  */
-export interface NodeTypesMap {
+export interface TypesMap {
   [key: string]: NodeType
 }
 
@@ -50,16 +50,15 @@ export type ExtractField<
 // in case of empty types array, return string as fallback
 type NoNever<T, Fallback = string> = [T] extends [never] ? Fallback : T
 
-export type TypesInField<
-  M extends NodeTypesMap,
-  I extends NodeFieldInfo,
-> = NoNever<ResolveType<M, I['types'][number]['type']>>
+export type TypesInField<M extends TypesMap, I extends NodeFieldInfo> = NoNever<
+  ResolveType<M, I['types'][number]['type']>
+>
 
 /**
  * resolve subtypes alias. see tree-sitter's reference
  * e.g. like `expression` => `binary_expression` | `unary_expression` | ...
  */
-type ResolveType<M extends NodeTypesMap, K> = K extends keyof M
+type ResolveType<M extends TypesMap, K> = K extends keyof M
   ? M[K] extends { subtypes: infer S extends NodeBasicInfo[] }
     ? ResolveType<M, S[number]['type']>
     : K
@@ -69,7 +68,7 @@ type ResolveType<M extends NodeTypesMap, K> = K extends keyof M
  * All named nodes' kinds that are usable in ast-grep rule
  * NOTE: SgNode can return kind not in this list
  */
-export type NamedKinds<M extends NodeTypesMap> = ResolveType<M, keyof M>
+export type NamedKinds<M extends TypesMap> = ResolveType<M, keyof M>
 
 /**
  * See open-ended unions / string literal completion in TypeScript
@@ -83,14 +82,14 @@ type LowPriorityKey = string & {}
  * tree-sitter Kinds also include unnamed nodes which is not usable in rule
  * NOTE: SgNode can return a string type if it is not a named node
  */
-export type NodeKinds<M extends NodeTypesMap = NodeTypesMap> =
+export type Kinds<M extends TypesMap = TypesMap> =
   | NamedKinds<M>
   | LowPriorityKey
 
 /**
  * The root node kind of the tree.
  */
-export type RootKind<M extends NodeTypesMap> = NoNever<
+export type RootKind<M extends TypesMap> = NoNever<
   Extract<M[keyof M], { root: true }>['type'],
-  NodeKinds<M>
+  Kinds<M>
 >
