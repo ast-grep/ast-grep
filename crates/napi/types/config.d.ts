@@ -1,12 +1,12 @@
 import type { Rule } from './rule'
 import type { Lang } from './lang'
-import type { NodeTypesMap } from './staticTypes'
+import type { TypesMap } from './staticTypes'
 
 /**
  * Rule configuration similar to YAML
  * See https://ast-grep.github.io/reference/yaml.html
  */
-export interface NapiConfig<M extends NodeTypesMap = NodeTypesMap> {
+export interface NapiConfig<M extends TypesMap = TypesMap> {
   /** The rule object, see https://ast-grep.github.io/reference/rule.html */
   rule: Rule<M>
   /** See https://ast-grep.github.io/guide/rule-config.html#constraints */
@@ -25,7 +25,7 @@ export interface FileOption {
   paths: Array<string>
   languageGlobs: Record<string, Array<string>>
 }
-export interface FindConfig<M extends NodeTypesMap = NodeTypesMap> {
+export interface FindConfig<M extends TypesMap = TypesMap> {
   /** specify the file paths to recursively find files */
   paths: Array<string>
   /** a Rule object to find what nodes will match */

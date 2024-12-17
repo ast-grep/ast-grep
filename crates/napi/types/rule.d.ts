@@ -1,19 +1,18 @@
-import type { NodeTypesMap, NamedKinds } from './staticTypes'
+import type { TypesMap, NamedKinds } from './staticTypes'
 
 export type Strictness = 'cst' | 'smart' | 'ast' | 'relaxed' | 'signature'
 
-export interface PatternObject<M extends NodeTypesMap = NodeTypesMap> {
+export interface PatternObject<M extends TypesMap = TypesMap> {
   context: string
   selector?: NamedKinds<M> // only named node types
   strictness?: Strictness
 }
 
-export type PatternStyle<M extends NodeTypesMap = NodeTypesMap> =
+export type PatternStyle<M extends TypesMap = TypesMap> =
   | string
   | PatternObject<M>
 
-export interface Relation<M extends NodeTypesMap = NodeTypesMap>
-  extends Rule<M> {
+export interface Relation<M extends TypesMap = TypesMap> extends Rule<M> {
   /**
    * Specify how relational rule will stop relative to the target node.
    */
@@ -22,7 +21,7 @@ export interface Relation<M extends NodeTypesMap = NodeTypesMap>
   field?: string
 }
 
-export interface NthChildObject<M extends NodeTypesMap = NodeTypesMap> {
+export interface NthChildObject<M extends TypesMap = TypesMap> {
   /** The position in nodes' sibling list. It can be a number of An+B string */
   position: string | number
   ofRule?: Rule<M>
@@ -35,7 +34,7 @@ export interface NthChildObject<M extends NodeTypesMap = NodeTypesMap> {
  * * string: An + B style string like CSS nth-child selector.
  * * object: An object with `position` and `ofRule` fields.
  */
-export type NthChild<M extends NodeTypesMap = NodeTypesMap> =
+export type NthChild<M extends TypesMap = TypesMap> =
   | number
   | string
   | NthChildObject<M>
@@ -52,7 +51,7 @@ export interface Range {
   end: Position
 }
 
-export interface Rule<M extends NodeTypesMap = NodeTypesMap> {
+export interface Rule<M extends TypesMap = TypesMap> {
   /** A pattern string or a pattern object. */
   pattern?: PatternStyle<M>
   /** The kind name of the node to match. You can look up code's kind names in playground. */
