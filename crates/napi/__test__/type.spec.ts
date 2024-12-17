@@ -2,6 +2,7 @@ import test from 'ava'
 
 import type TypeScriptTypes from '../lang/TypeScript'
 import { Lang, parse, parseAsync, type SgNode, type SgRoot } from '../index'
+import { assert } from 'node:console'
 
 test('test no type annotation', t => {
   const sg = parse(Lang.TypeScript, 'a + b')
@@ -164,10 +165,7 @@ test('subtype alias', async t => {
     'export function a() {}',
   )
   const root = sg.root()
-  const exp = root.find('export function a() {}') as SgNode<
-    TypeScriptTypes,
-    'export_statement'
-  >
+  const exp = root.find<'export_statement'>('export function a() {}')!
   const declaration = exp.field('declaration')!
   const kind = declaration.kind()
 
@@ -198,6 +196,10 @@ test('subtype alias', async t => {
       t.fail('should not be here')
     }
   }
+
+  // test child kind
+  const child = exp.child(0)!
+  t.false(child.is('new_expression'))
 
   t.assert(kind === 'function_declaration')
   t.assert(declaration.kind() !== 'class_declaration')

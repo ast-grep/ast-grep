@@ -9,6 +9,7 @@ import type {
   NamedKinds,
   ChildKinds,
   NamedChildKinds,
+  LowPriorityKey,
 } from './staticTypes'
 import type { NapiConfig } from './config'
 
@@ -39,29 +40,32 @@ export declare class SgNode<
   M extends TypesMap = TypesMap,
   out T extends Kinds<M> = Kinds<M>,
 > {
+  /** Returns the node's id */
+  id(): number
   range(): Range
   isLeaf(): boolean
   isNamed(): boolean
   isNamedLeaf(): boolean
-  /** Returns the string name of the node kind */
-  kind(): T
-  readonly kindToRefine: T
-  /** Check if the node is the same kind as the given `kind` string */
-  is<K extends Kinds<M>>(kind: K): this is SgNode<M, K>
   text(): string
   matches(m: string): boolean
   inside(m: string): boolean
   has(m: string): boolean
   precedes(m: string): boolean
   follows(m: string): boolean
+  /** Returns the string name of the node kind */
+  kind(): T
+  readonly kindToRefine: T
+  /** Check if the node is the same kind as the given `kind` string */
+  is<K extends T>(kind: K): this is SgNode<M, K>
+  // we need this override to allow string literal union
+  is(kind: string): boolean
+
   getMatch: NodeMethod<M, [mv: string]>
   getMultipleMatches(m: string): Array<SgNode<M>>
   getTransformed(m: string): string | null
   /** Returns the node's SgRoot */
   getRoot(): SgRoot<M>
   children(): Array<SgNode<M>>
-  /** Returns the node's id */
-  id(): number
   find: NodeMethod<M, [matcher: string | number | NapiConfig<M>]>
   findAll<K extends Kinds<M>>(
     matcher: string | number | NapiConfig<M>,
