@@ -2,7 +2,6 @@ import test from 'ava'
 
 import type TypeScriptTypes from '../lang/TypeScript'
 import { Lang, parse, parseAsync, type SgNode, type SgRoot } from '../index'
-import { assert } from 'node:console'
 
 test('test no type annotation', t => {
   const sg = parse(Lang.TypeScript, 'a + b')
