@@ -1,12 +1,24 @@
 {
   "name": "@ast-grep/napi-darwin-arm64",
-  "version": "0.32.1",
-  "os": ["darwin"],
-  "cpu": ["arm64"],
+  "version": "0.32.2",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
   "main": "ast-grep-napi.darwin-arm64.node",
-  "files": ["ast-grep-napi.darwin-arm64.node"],
+  "files": [
+    "ast-grep-napi.darwin-arm64.node"
+  ],
   "description": "Search and Rewrite code at large scale using precise AST pattern",
-  "keywords": ["ast", "pattern", "codemod", "search", "rewrite"],
+  "keywords": [
+    "ast",
+    "pattern",
+    "codemod",
+    "search",
+    "rewrite"
+  ],
   "license": "MIT",
   "engines": {
     "node": ">= 10"

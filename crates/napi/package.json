@@ -1,13 +1,24 @@
 {
   "name": "@ast-grep/napi",
-  "version": "0.32.1",
+  "version": "0.32.2",
   "description": "Search and Rewrite code at large scale using precise AST pattern",
   "homepage": "https://ast-grep.github.io",
   "main": "index.js",
   "repository": "https://github.com/ast-grep/ast-grep",
   "license": "MIT",
-  "keywords": ["ast", "pattern", "codemod", "search", "rewrite"],
-  "files": ["index.d.ts", "index.js", "types/*.ts", "lang/*.ts"],
+  "keywords": [
+    "ast",
+    "pattern",
+    "codemod",
+    "search",
+    "rewrite"
+  ],
+  "files": [
+    "index.d.ts",
+    "index.js",
+    "types/*.ts",
+    "lang/*.ts"
+  ],
   "napi": {
     "name": "ast-grep-napi",
     "triples": {
@@ -52,8 +63,12 @@
     "typescript": "5.7.2"
   },
   "ava": {
-    "require": ["ts-node/register"],
-    "extensions": ["ts"],
+    "require": [
+      "ts-node/register"
+    ],
+    "extensions": [
+      "ts"
+    ],
     "timeout": "2m",
     "workerThreads": false,
     "environmentVariables": {
