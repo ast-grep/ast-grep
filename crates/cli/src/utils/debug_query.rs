@@ -24,7 +24,7 @@ impl DebugFormat {
         let mut ret = String::new();
         let fmt = DumpFmt::named(colored);
         if dump_pattern(&pattern.node, &lang, &fmt, 0, &mut ret).is_ok() {
-          println!("Debug Pattern:\n{}", ret);
+          eprintln!("Debug Pattern:\n{}", ret);
         } else {
           eprintln!("unexpected error in writing pattern string");
         }
@@ -42,15 +42,15 @@ impl DebugFormat {
         debug_assert!(false, "debug_tree cannot be called with Pattern")
       }
       DebugFormat::Sexp => {
-        println!("Debug Sexp:\n{}", root.root().to_sexp());
+        eprintln!("Debug Sexp:\n{}", root.root().to_sexp());
       }
       DebugFormat::Ast => {
         let dumped = dump_node(root.root().get_ts_node());
-        println!("Debug AST:\n{}", dumped.ast(colored));
+        eprintln!("Debug AST:\n{}", dumped.ast(colored));
       }
       DebugFormat::Cst => {
         let dumped = dump_node(root.root().get_ts_node());
-        println!("Debug CST:\n{}", dumped.cst(colored));
+        eprintln!("Debug CST:\n{}", dumped.cst(colored));
       }
     }
   }

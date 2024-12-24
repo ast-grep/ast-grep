@@ -60,3 +60,24 @@ fn test_inspect() -> Result<()> {
     .stderr(contains("scannedFileCount=2"));
   Ok(())
 }
+
+#[test]
+fn test_debug_query() -> Result<()> {
+  // should not print pattern if invalid
+  Command::cargo_bin("sg")?
+    .args(["-p", "foo;bar;", "-l", "js", "--debug-query"])
+    .assert()
+    .failure()
+    .stderr(contains("Debug Pattern").not())
+    .stderr(contains("Cannot parse query as a valid pattern"));
+
+  // should  print debug tree even for invalid pattern
+  Command::cargo_bin("sg")?
+    .args(["-p", "foo;bar;", "-l", "js", "--debug-query=ast"])
+    .assert()
+    .failure()
+    .stderr(contains("Debug AST"))
+    .stderr(contains("Cannot parse query as a valid pattern"));
+
+  Ok(())
+}
