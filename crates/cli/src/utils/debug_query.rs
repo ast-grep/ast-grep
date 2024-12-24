@@ -1,5 +1,4 @@
 use crate::lang::SgLang;
-use crate::print::ColorArg;
 use ansi_term::Style;
 use ast_grep_core::{language::TSLanguage, matcher::PatternNode, meta_var::MetaVariable, Pattern};
 use ast_grep_language::Language;
@@ -18,8 +17,7 @@ pub enum DebugFormat {
   Sexp,
 }
 impl DebugFormat {
-  pub fn debug_query(&self, src: &str, pattern: &Pattern<SgLang>, lang: SgLang, color: ColorArg) {
-    let colored = color.should_use_color();
+  pub fn debug_pattern(&self, pattern: &Pattern<SgLang>, lang: SgLang, colored: bool) {
     match self {
       DebugFormat::Pattern => {
         let lang = lang.get_ts_language();
@@ -31,17 +29,26 @@ impl DebugFormat {
           eprintln!("unexpected error in writing pattern string");
         }
       }
+      DebugFormat::Sexp | DebugFormat::Ast | DebugFormat::Cst => {
+        debug_assert!(false, "debug_pattern can only be called with pattern")
+      }
+    }
+  }
+
+  pub fn debug_tree(&self, src: &str, lang: SgLang, colored: bool) {
+    let root = lang.ast_grep(src);
+    match self {
+      DebugFormat::Pattern => {
+        debug_assert!(false, "debug_tree cannot be called with Pattern")
+      }
       DebugFormat::Sexp => {
-        let root = lang.ast_grep(src);
         println!("Debug Sexp:\n{}", root.root().to_sexp());
       }
       DebugFormat::Ast => {
-        let root = lang.ast_grep(src);
         let dumped = dump_node(root.root().get_ts_node());
         println!("Debug AST:\n{}", dumped.ast(colored));
       }
       DebugFormat::Cst => {
-        let root = lang.ast_grep(src);
         let dumped = dump_node(root.root().get_ts_node());
         println!("Debug CST:\n{}", dumped.cst(colored));
       }

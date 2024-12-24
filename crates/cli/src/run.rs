@@ -123,6 +123,19 @@ impl RunArg {
       Ok(pattern)
     }
   }
+
+  // do not unwrap pattern here, we should allow non-pattern to be debugged as tree
+  fn debug_pattern_if_needed(&self, pattern_ret: &Result<Pattern<SgLang>>, lang: SgLang) {
+    let Some(debug_query) = &self.debug_query else {
+      return;
+    };
+    let colored = self.output.color.should_use_color();
+    if !matches!(debug_query, DebugFormat::Pattern) {
+      debug_query.debug_tree(&self.pattern, lang, colored);
+    } else if let Ok(pattern) = pattern_ret {
+      debug_query.debug_pattern(pattern, lang, colored);
+    }
+  }
 }
 
 // Every run will include Search or Replace
@@ -230,10 +243,9 @@ struct RunWithSpecificLang<Printer> {
 impl<Printer> RunWithSpecificLang<Printer> {
   fn new(arg: RunArg, printer: Printer) -> Result<Self> {
     let lang = arg.lang.ok_or(anyhow::anyhow!(EC::LanguageNotSpecified))?;
-    let pattern = arg.build_pattern(lang)?;
-    if let Some(format) = arg.debug_query {
-      format.debug_query(&arg.pattern, &pattern, lang, arg.output.color);
-    }
+    // do not unwrap result here
+    let pattern_ret = arg.build_pattern(lang);
+    arg.debug_pattern_if_needed(&pattern_ret, lang);
     let rewrite = if let Some(s) = &arg.rewrite {
       Some(Fixer::from_str(s, &lang).context(EC::ParsePattern)?)
     } else {
@@ -243,7 +255,7 @@ impl<Printer> RunWithSpecificLang<Printer> {
     Ok(Self {
       arg,
       printer,
-      pattern,
+      pattern: pattern_ret?,
       rewrite,
       stats,
     })
