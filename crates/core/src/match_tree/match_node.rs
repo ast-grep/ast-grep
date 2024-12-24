@@ -95,7 +95,11 @@ fn may_match_ellipsis_impl<'p, 't: 'p, D: Doc + 't>(
   agg: &mut impl Aggregator<'t, D>,
   strictness: &MatchStrictness,
 ) -> Option<ControlFlow> {
-  let curr_node = goal_children.peek().unwrap();
+  let Some(curr_node) = goal_children.peek() else {
+    // in rare case, an internal node's children is empty
+    // see https://github.com/ast-grep/ast-grep/issues/1688
+    return Some(ControlFlow::Return);
+  };
   let Ok(optional_name) = try_get_ellipsis_mode(curr_node) else {
     return Some(ControlFlow::Fallthrough);
   };
