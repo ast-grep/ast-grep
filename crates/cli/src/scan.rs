@@ -151,18 +151,10 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       // exclude_fix rule because we already have diff inspection before
       let scanned = combined.scan(&grep, pre_scan, /* separate_fix*/ interactive);
       if interactive {
-        let diffs = scanned
-          .diffs
-          .into_iter()
-          .map(|(idx, nm)| {
-            let rule = combined.get_rule(idx);
-            (nm, rule)
-          })
-          .collect();
+        let diffs = scanned.diffs;
         match_rule_diff_on_file(path, diffs, &self.printer)?;
       }
-      for (idx, matches) in scanned.matches {
-        let rule = combined.get_rule(idx);
+      for (rule, matches) in scanned.matches {
         if matches!(rule.severity, Severity::Error) {
           error_count = error_count.saturating_add(matches.len());
         }
@@ -187,7 +179,7 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
 }
 
 fn unused_suppression_rule_config(overwrite: &RuleOverwrite) -> RuleConfig<SgLang> {
-  let rule: SerializableRule = serde_json::from_str(r#"{"pattern": "a"}"#).unwrap();
+  let rule: SerializableRule = serde_json::from_str(r#"{"any": []}"#).unwrap();
   let core = SerializableRuleCore {
     rule,
     constraints: None,
@@ -276,8 +268,7 @@ impl<P: Printer> Worker for ScanWithRule<P> {
       let file_content = grep.source().to_string();
       // do not exclude_fix rule in run_with_rule
       let scanned = combined.scan(&grep, pre_scan, false);
-      for (idx, matches) in scanned.matches {
-        let rule = combined.get_rule(idx);
+      for (rule, matches) in scanned.matches {
         if matches!(rule.severity, Severity::Error) {
           error_count = error_count.saturating_add(matches.len());
         }
@@ -309,12 +300,12 @@ impl<P: Printer> StdInWorker for ScanWithRule<P> {
 }
 fn match_rule_diff_on_file(
   path: &Path,
-  matches: Vec<(NodeMatch<StrDoc<SgLang>>, &RuleConfig<SgLang>)>,
+  matches: Vec<(&RuleConfig<SgLang>, NodeMatch<StrDoc<SgLang>>)>,
   reporter: &impl Printer,
 ) -> Result<()> {
   let diffs = matches
     .into_iter()
-    .filter_map(|(m, rule)| {
+    .filter_map(|(rule, m)| {
       let fix = rule.matcher.fixer.as_ref()?;
       let diff = Diff::generate(m, &rule.matcher, fix);
       Some((diff, rule))

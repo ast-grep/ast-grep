@@ -6,10 +6,39 @@ use ast_grep_core::{AstGrep, Doc, Matcher, Node, NodeMatch};
 use bit_set::BitSet;
 use std::collections::{HashMap, HashSet};
 
-pub struct ScanResult<'r, D: Doc> {
-  pub diffs: Vec<(usize, NodeMatch<'r, D>)>,
-  pub matches: HashMap<usize, Vec<NodeMatch<'r, D>>>,
-  pub unused_suppressions: Vec<NodeMatch<'r, D>>,
+pub struct ScanResult<'t, 'r, D: Doc, L: Language> {
+  pub diffs: Vec<(&'r RuleConfig<L>, NodeMatch<'t, D>)>,
+  pub matches: Vec<(&'r RuleConfig<L>, Vec<NodeMatch<'t, D>>)>,
+  pub unused_suppressions: Vec<NodeMatch<'t, D>>,
+}
+
+/// store the index to the rule and the matched node
+/// it will be converted to ScanResult by resolving the rule
+struct ScanResultInner<'t, D: Doc> {
+  diffs: Vec<(usize, NodeMatch<'t, D>)>,
+  matches: HashMap<usize, Vec<NodeMatch<'t, D>>>,
+  unused_suppressions: Vec<NodeMatch<'t, D>>,
+}
+
+impl<'t, D: Doc> ScanResultInner<'t, D> {
+  pub fn into_result<'r, L: Language>(
+    self,
+    combined: &CombinedScan<'r, L>,
+  ) -> ScanResult<'t, 'r, D, L> {
+    ScanResult {
+      diffs: self
+        .diffs
+        .into_iter()
+        .map(|(idx, nm)| (combined.get_rule(idx), nm))
+        .collect(),
+      matches: self
+        .matches
+        .into_iter()
+        .map(|(idx, nms)| (combined.get_rule(idx), nms))
+        .collect(),
+      unused_suppressions: self.unused_suppressions,
+    }
+  }
 }
 
 struct Suppressions(HashMap<usize, Suppression>);
@@ -159,11 +188,11 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     root: &'a AstGrep<D>,
     pre: PreScan,
     separate_fix: bool,
-  ) -> ScanResult<'a, D>
+  ) -> ScanResult<'a, '_, D, L>
   where
     D: Doc<Lang = L>,
   {
-    let mut result = ScanResult {
+    let mut result = ScanResultInner {
       diffs: vec![],
       matches: HashMap::new(),
       unused_suppressions: vec![],
@@ -215,10 +244,10 @@ impl<'r, L: Language> CombinedScan<'r, L> {
         }
       })
       .collect();
-    result
+    result.into_result(self)
   }
 
-  pub fn get_rule(&self, idx: usize) -> &RuleConfig<L> {
+  pub fn get_rule(&self, idx: usize) -> &'r RuleConfig<L> {
     self.rules[idx]
   }
 }
@@ -272,10 +301,10 @@ language: Tsx",
     let pre = scan.find(&root);
     assert_eq!(pre.suppressions.0.len(), 4);
     let scanned = scan.scan(&root, pre, false);
-    let matches = &scanned.matches[&0];
-    assert_eq!(matches.len(), 2);
-    assert_eq!(matches[0].text(), "console.log('no ignore')");
-    assert_eq!(matches[1].text(), "console.log('ignore another')");
+    let matches = &scanned.matches[0];
+    assert_eq!(matches.1.len(), 2);
+    assert_eq!(matches.1[0].text(), "console.log('no ignore')");
+    assert_eq!(matches.1[1].text(), "console.log('ignore another')");
   }
 
   #[test]
@@ -294,10 +323,10 @@ language: Tsx",
     let pre = scan.find(&root);
     assert_eq!(pre.suppressions.0.len(), 4);
     let scanned = scan.scan(&root, pre, false);
-    let matches = &scanned.matches[&0];
-    assert_eq!(matches.len(), 2);
-    assert_eq!(matches[0].text(), "console.log('no ignore')");
-    assert_eq!(matches[1].text(), "console.log('ignore another')");
+    let matches = &scanned.matches[0];
+    assert_eq!(matches.1.len(), 2);
+    assert_eq!(matches.1[0].text(), "console.log('no ignore')");
+    assert_eq!(matches.1[1].text(), "console.log('ignore another')");
   }
 
   #[test]
