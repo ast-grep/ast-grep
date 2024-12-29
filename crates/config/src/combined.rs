@@ -1,4 +1,4 @@
-use crate::RuleConfig;
+use crate::{RuleConfig, SerializableRule, SerializableRuleConfig, SerializableRuleCore, Severity};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Doc, Matcher, Node, NodeMatch};
@@ -167,6 +167,9 @@ impl<'r, L: Language> CombinedScan<'r, L> {
   }
 
   pub fn set_unused_suppression_rule(&mut self, rule: &'r RuleConfig<L>) {
+    if matches!(rule.severity, Severity::Off) {
+      return;
+    }
     self.unused_suppression_rule = Some(rule);
   }
 
@@ -264,6 +267,31 @@ impl<'r, L: Language> CombinedScan<'r, L> {
 
   pub fn get_rule(&self, idx: usize) -> &'r RuleConfig<L> {
     self.rules[idx]
+  }
+
+  pub fn unused_config(severity: Severity, lang: L) -> RuleConfig<L> {
+    let rule: SerializableRule = crate::from_str(r#"{"any": []}"#).unwrap();
+    let core = SerializableRuleCore {
+      rule,
+      constraints: None,
+      fix: crate::from_str(r#"''"#).unwrap(),
+      transform: None,
+      utils: None,
+    };
+    let config = SerializableRuleConfig {
+      core,
+      id: "unused-suppression".to_string(),
+      severity,
+      files: None,
+      ignores: None,
+      language: lang,
+      message: "Unused 'ast-grep-ignore' directive.".into(),
+      metadata: None,
+      note: None,
+      rewriters: None,
+      url: None,
+    };
+    RuleConfig::try_from(config, &Default::default()).unwrap()
   }
 }
 

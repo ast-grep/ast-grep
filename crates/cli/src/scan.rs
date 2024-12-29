@@ -2,10 +2,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{
-  from_yaml_string, CombinedScan, PreScan, RuleCollection, RuleConfig, SerializableRule,
-  SerializableRuleConfig, SerializableRuleCore, Severity,
+  from_yaml_string, CombinedScan, PreScan, RuleCollection, RuleConfig, Severity,
 };
 use ast_grep_core::{NodeMatch, StrDoc};
+use ast_grep_language::SupportLang;
 use clap::Args;
 use ignore::WalkParallel;
 
@@ -173,32 +173,11 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
 }
 
 fn unused_suppression_rule_config(overwrite: &RuleOverwrite) -> RuleConfig<SgLang> {
-  let rule: SerializableRule = serde_json::from_str(r#"{"any": []}"#).unwrap();
-  let core = SerializableRuleCore {
-    rule,
-    constraints: None,
-    fix: serde_json::from_str(r#""""#).unwrap(),
-    transform: None,
-    utils: None,
-  };
   let severity = overwrite
     .find("unused-suppression")
     .severity
     .unwrap_or(Severity::Hint);
-  let config = SerializableRuleConfig::<SgLang> {
-    core,
-    id: "unused-suppression".to_string(),
-    severity,
-    files: None,
-    ignores: None,
-    language: "rust".parse().unwrap(),
-    message: "Unused 'ast-grep-ignore' directive.".into(),
-    metadata: None,
-    note: None,
-    rewriters: None,
-    url: None,
-  };
-  RuleConfig::try_from(config, &Default::default()).unwrap()
+  CombinedScan::unused_config(severity, SupportLang::Rust.into())
 }
 
 impl<P: Printer> PathWorker for ScanWithConfig<P> {
