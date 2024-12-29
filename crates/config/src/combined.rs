@@ -24,19 +24,32 @@ impl<'t, D: Doc> ScanResultInner<'t, D> {
   pub fn into_result<'r, L: Language>(
     self,
     combined: &CombinedScan<'r, L>,
+    separate_fix: bool,
   ) -> ScanResult<'t, 'r, D, L> {
+    let mut diffs: Vec<_> = self
+      .diffs
+      .into_iter()
+      .map(|(idx, nm)| (combined.get_rule(idx), nm))
+      .collect();
+    let mut matches: Vec<_> = self
+      .matches
+      .into_iter()
+      .map(|(idx, nms)| (combined.get_rule(idx), nms))
+      .collect();
+    if let Some(rule) = combined.unused_suppression_rule {
+      if separate_fix {
+        diffs.extend(self.unused_suppressions.into_iter().map(|nm| (rule, nm)));
+        diffs.sort_unstable_by_key(|(_, nm)| nm.range().start);
+      } else {
+        let mut supprs = self.unused_suppressions;
+        supprs.sort_unstable_by_key(|nm| nm.range().start);
+        matches.push((rule, supprs));
+      }
+    }
     ScanResult {
-      diffs: self
-        .diffs
-        .into_iter()
-        .map(|(idx, nm)| (combined.get_rule(idx), nm))
-        .collect(),
-      matches: self
-        .matches
-        .into_iter()
-        .map(|(idx, nms)| (combined.get_rule(idx), nms))
-        .collect(),
-      unused_suppressions: self.unused_suppressions,
+      diffs,
+      matches,
+      unused_suppressions: vec![],
     }
   }
 }
@@ -126,6 +139,8 @@ pub struct CombinedScan<'r, L: Language> {
   rules: Vec<&'r RuleConfig<L>>,
   /// a vec of vec, mapping from kind to a list of rule index
   kind_rule_mapping: Vec<Vec<usize>>,
+  /// a rule for unused_suppressions
+  unused_suppression_rule: Option<&'r RuleConfig<L>>,
 }
 
 impl<'r, L: Language> CombinedScan<'r, L> {
@@ -152,7 +167,12 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     Self {
       rules,
       kind_rule_mapping: mapping,
+      unused_suppression_rule: None,
     }
+  }
+
+  pub fn set_unused_suppression_rule(&mut self, rule: &'r RuleConfig<L>) {
+    self.unused_suppression_rule = Some(rule);
   }
 
   pub fn find<D>(&self, root: &AstGrep<D>) -> PreScan
@@ -244,7 +264,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
         }
       })
       .collect();
-    result.into_result(self)
+    result.into_result(self, separate_fix)
   }
 
   pub fn get_rule(&self, idx: usize) -> &'r RuleConfig<L> {
