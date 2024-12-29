@@ -6,7 +6,7 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
-use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig};
+use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig, Severity};
 use ast_grep_core::{language::Language, AstGrep, Doc, StrDoc};
 
 use std::collections::HashMap;
@@ -201,7 +201,13 @@ impl<L: LSPLang> Backend<L> {
     versioned: &VersionedAst<StrDoc<L>>,
   ) -> Option<Vec<Diagnostic>> {
     let rules = self.get_rules(uri)?;
-    let scan = CombinedScan::new(rules);
+    if rules.is_empty() {
+      return None;
+    }
+    let unused_suppression_rule =
+      CombinedScan::unused_config(Severity::Hint, rules[0].language.clone());
+    let mut scan = CombinedScan::new(rules);
+    scan.set_unused_suppression_rule(&unused_suppression_rule);
     let pre_scan = scan.find(&versioned.root);
     let matches = scan.scan(&versioned.root, pre_scan, false).matches;
     let mut diagnostics = vec![];
