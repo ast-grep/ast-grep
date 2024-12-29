@@ -146,7 +146,8 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       let file_content = grep.source().to_string();
       let path = &path;
       let rules = self.configs.get_rule_from_lang(path, *grep.lang());
-      let combined = CombinedScan::new(rules);
+      let mut combined = CombinedScan::new(rules);
+      combined.set_unused_suppression_rule(&self.unused_suppression_rule);
       let interactive = self.arg.output.needs_interactive();
       // exclude_fix rule because we already have diff inspection before
       let scanned = combined.scan(&grep, pre_scan, /* separate_fix*/ interactive);
@@ -183,7 +184,7 @@ fn unused_suppression_rule_config(overwrite: &RuleOverwrite) -> RuleConfig<SgLan
   let core = SerializableRuleCore {
     rule,
     constraints: None,
-    fix: None,
+    fix: serde_json::from_str(r#""""#).unwrap(),
     transform: None,
     utils: None,
   };
