@@ -359,12 +359,14 @@ language: Tsx",
     let root = TypeScript::Tsx.ast_grep(source);
     let rule = create_rule();
     let rules = vec![&rule];
-    let scan = CombinedScan::new(rules);
+    let mut scan = CombinedScan::new(rules);
+    scan.set_unused_suppression_rule(&rule);
     let pre = scan.find(&root);
     assert_eq!(pre.suppressions.0.len(), 2);
     let scanned = scan.scan(&root, pre, false);
-    let unused = &scanned.unused_suppressions;
-    assert_eq!(unused.len(), 1);
-    assert_eq!(unused[0].text(), "// ast-grep-ignore: test");
+    assert_eq!(scanned.matches.len(), 2);
+    let unused = &scanned.matches[1];
+    assert_eq!(unused.1.len(), 1);
+    assert_eq!(unused.1[0].text(), "// ast-grep-ignore: test");
   }
 }
