@@ -161,6 +161,21 @@ fn test_scan_unused_suppression() -> Result<()> {
 }
 
 #[test]
+fn test_scan_unused_suppression_off() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/rule.yml", RULE1),
+    ("test.ts", "None(123) // ast-grep-ignore"),
+  ])?;
+  Command::cargo_bin("sg")?
+    .current_dir(dir.path())
+    .args(["scan", "--off"])
+    .assert()
+    .success();
+  Ok(())
+}
+
+#[test]
 fn test_severity_override() -> Result<()> {
   let dir = setup()?;
   Command::cargo_bin("sg")?
