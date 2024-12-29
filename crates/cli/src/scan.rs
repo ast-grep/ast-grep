@@ -161,13 +161,6 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
         }
         match_rule_on_file(path, matches, rule, &file_content, &self.printer)?;
       }
-      error_count += print_unused_suppressions(
-        path,
-        scanned.unused_suppressions,
-        &self.unused_suppression_rule,
-        &file_content,
-        &self.printer,
-      )?;
     }
     self.printer.after_print()?;
     self.trace.print()?;
@@ -206,23 +199,6 @@ fn unused_suppression_rule_config(overwrite: &RuleOverwrite) -> RuleConfig<SgLan
     url: None,
   };
   RuleConfig::try_from(config, &Default::default()).unwrap()
-}
-
-fn print_unused_suppressions(
-  path: &Path,
-  matches: Vec<NodeMatch<StrDoc<SgLang>>>,
-  rule_config: &RuleConfig<SgLang>,
-  file_content: &String,
-  printer: &impl Printer,
-) -> Result<usize> {
-  let count = match rule_config.severity {
-    Severity::Error => matches.len(),
-    // skip printing turned-off rule
-    Severity::Off => return Ok(0),
-    _ => 0,
-  };
-  match_rule_on_file(path, matches, rule_config, file_content, printer)?;
-  Ok(count)
 }
 
 impl<P: Printer> PathWorker for ScanWithConfig<P> {

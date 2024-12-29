@@ -9,7 +9,6 @@ use std::collections::{HashMap, HashSet};
 pub struct ScanResult<'t, 'r, D: Doc, L: Language> {
   pub diffs: Vec<(&'r RuleConfig<L>, NodeMatch<'t, D>)>,
   pub matches: Vec<(&'r RuleConfig<L>, Vec<NodeMatch<'t, D>>)>,
-  pub unused_suppressions: Vec<NodeMatch<'t, D>>,
 }
 
 /// store the index to the rule and the matched node
@@ -46,11 +45,7 @@ impl<'t, D: Doc> ScanResultInner<'t, D> {
         matches.push((rule, supprs));
       }
     }
-    ScanResult {
-      diffs,
-      matches,
-      unused_suppressions: vec![],
-    }
+    ScanResult { diffs, matches }
   }
 }
 
