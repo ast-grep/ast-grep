@@ -1,3 +1,4 @@
+use crate::print::Printer;
 use crate::utils::FileTrace;
 
 use anyhow::{anyhow, Result};
@@ -20,7 +21,7 @@ pub trait Worker: Sync + Send {
   type Item: Send + 'static;
   /// `consume_items` will run in a separate single thread.
   /// printing matches or error reporting can happen here.
-  fn consume_items(&self, items: Items<Self::Item>) -> Result<()>;
+  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, printer: P) -> Result<()>;
 }
 
 /// A trait to abstract how ast-grep discovers, parses and processes files.
@@ -37,21 +38,21 @@ pub trait PathWorker: Worker {
   /// Parse and find_match can be done in `produce_item`.
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>>;
 
-  fn run_path(self) -> Result<()>
+  fn run_path<P: Printer>(self, printer: P) -> Result<()>
   where
     Self: Sized + 'static,
   {
-    run_worker(Arc::new(self))
+    run_worker(Arc::new(self), printer)
   }
 }
 
 pub trait StdInWorker: Worker {
   fn parse_stdin(&self, src: String) -> Option<Self::Item>;
 
-  fn run_std_in(&self) -> Result<()> {
+  fn run_std_in<P: Printer>(&self, printer: P) -> Result<()> {
     let source = std::io::read_to_string(std::io::stdin())?;
     if let Some(item) = self.parse_stdin(source) {
-      self.consume_items(Items::once(item)?)
+      self.consume_items(Items::once(item)?, printer)
     } else {
       Ok(())
     }
@@ -100,7 +101,10 @@ fn filter_result(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
   }
 }
 
-fn run_worker<W: PathWorker + ?Sized + 'static>(worker: Arc<W>) -> Result<()> {
+fn run_worker<W: PathWorker + ?Sized + 'static, P: Printer>(
+  worker: Arc<W>,
+  printer: P,
+) -> Result<()> {
   let (tx, rx) = mpsc::channel();
   let w = worker.clone();
   let walker = worker.build_walk()?;
@@ -130,5 +134,5 @@ fn run_worker<W: PathWorker + ?Sized + 'static>(worker: Arc<W>) -> Result<()> {
       })
     });
   });
-  worker.consume_items(Items(rx))
+  worker.consume_items(Items(rx), printer)
 }

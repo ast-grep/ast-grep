@@ -94,24 +94,23 @@ fn run_scan<P: Printer + 'static>(
   project: Result<ProjectConfig>,
 ) -> Result<()> {
   if arg.input.stdin {
-    let worker = ScanWithRule::try_new(arg, printer)?;
+    let worker = ScanWithRule::try_new(arg)?;
     // TODO: report a soft error if rules have different languages
-    worker.run_std_in()
+    worker.run_std_in(printer)
   } else {
-    let worker = ScanWithConfig::try_new(arg, printer, project)?;
-    worker.run_path()
+    let worker = ScanWithConfig::try_new(arg, project)?;
+    worker.run_path(printer)
   }
 }
 
-struct ScanWithConfig<Printer> {
+struct ScanWithConfig {
   arg: ScanArg,
-  printer: Printer,
   configs: RuleCollection<SgLang>,
   unused_suppression_rule: RuleConfig<SgLang>,
   trace: ScanTrace,
 }
-impl<P: Printer> ScanWithConfig<P> {
-  fn try_new(arg: ScanArg, printer: P, project: Result<ProjectConfig>) -> Result<Self> {
+impl ScanWithConfig {
+  fn try_new(arg: ScanArg, project: Result<ProjectConfig>) -> Result<Self> {
     let overwrite = RuleOverwrite::new(&arg.overwrite)?;
     let unused_suppression_rule = unused_suppression_rule_config(&overwrite);
     let (configs, rule_trace) = if let Some(path) = &arg.rule {
@@ -130,17 +129,16 @@ impl<P: Printer> ScanWithConfig<P> {
     trace.print_rules(&configs)?;
     Ok(Self {
       arg,
-      printer,
       configs,
       unused_suppression_rule,
       trace,
     })
   }
 }
-impl<P: Printer> Worker for ScanWithConfig<P> {
+impl Worker for ScanWithConfig {
   type Item = (PathBuf, AstGrep, PreScan);
-  fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
-    self.printer.before_print()?;
+  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, printer: P) -> Result<()> {
+    printer.before_print()?;
     let mut error_count = 0usize;
     for (path, grep, pre_scan) in items {
       let file_content = grep.source().to_string();
@@ -153,16 +151,16 @@ impl<P: Printer> Worker for ScanWithConfig<P> {
       let scanned = combined.scan(&grep, pre_scan, /* separate_fix*/ interactive);
       if interactive {
         let diffs = scanned.diffs;
-        match_rule_diff_on_file(path, diffs, &self.printer)?;
+        match_rule_diff_on_file(path, diffs, &printer)?;
       }
       for (rule, matches) in scanned.matches {
         if matches!(rule.severity, Severity::Error) {
           error_count = error_count.saturating_add(matches.len());
         }
-        match_rule_on_file(path, matches, rule, &file_content, &self.printer)?;
+        match_rule_on_file(path, matches, rule, &file_content, &printer)?;
       }
     }
-    self.printer.after_print()?;
+    printer.after_print()?;
     self.trace.print()?;
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
@@ -180,7 +178,7 @@ fn unused_suppression_rule_config(overwrite: &RuleOverwrite) -> RuleConfig<SgLan
   CombinedScan::unused_config(severity, SupportLang::Rust.into())
 }
 
-impl<P: Printer> PathWorker for ScanWithConfig<P> {
+impl PathWorker for ScanWithConfig {
   fn get_trace(&self) -> &FileTrace {
     &self.trace.file_trace
   }
@@ -196,12 +194,11 @@ impl<P: Printer> PathWorker for ScanWithConfig<P> {
   }
 }
 
-struct ScanWithRule<Printer> {
-  printer: Printer,
+struct ScanWithRule {
   rules: Vec<RuleConfig<SgLang>>,
 }
-impl<P: Printer> ScanWithRule<P> {
-  fn try_new(arg: ScanArg, printer: P) -> Result<Self> {
+impl ScanWithRule {
+  fn try_new(arg: ScanArg) -> Result<Self> {
     let rules = if let Some(path) = &arg.rule {
       read_rule_file(path, None)?
     } else if let Some(text) = &arg.inline_rules {
@@ -210,14 +207,14 @@ impl<P: Printer> ScanWithRule<P> {
     } else {
       return Err(anyhow::anyhow!(EC::RuleNotSpecified));
     };
-    Ok(Self { printer, rules })
+    Ok(Self { rules })
   }
 }
 
-impl<P: Printer> Worker for ScanWithRule<P> {
+impl Worker for ScanWithRule {
   type Item = (PathBuf, AstGrep, PreScan);
-  fn consume_items(&self, items: Items<Self::Item>) -> Result<()> {
-    self.printer.before_print()?;
+  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, printer: P) -> Result<()> {
+    printer.before_print()?;
     let mut error_count = 0usize;
     let combined = CombinedScan::new(self.rules.iter().collect());
     for (path, grep, pre_scan) in items {
@@ -228,10 +225,10 @@ impl<P: Printer> Worker for ScanWithRule<P> {
         if matches!(rule.severity, Severity::Error) {
           error_count = error_count.saturating_add(matches.len());
         }
-        match_rule_on_file(&path, matches, rule, &file_content, &self.printer)?;
+        match_rule_on_file(&path, matches, rule, &file_content, &printer)?;
       }
     }
-    self.printer.after_print()?;
+    printer.after_print()?;
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
@@ -240,7 +237,7 @@ impl<P: Printer> Worker for ScanWithRule<P> {
   }
 }
 
-impl<P: Printer> StdInWorker for ScanWithRule<P> {
+impl StdInWorker for ScanWithRule {
   fn parse_stdin(&self, src: String) -> Option<Self::Item> {
     use ast_grep_core::Language;
     let lang = self.rules[0].language;
