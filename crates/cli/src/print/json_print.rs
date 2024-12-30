@@ -17,7 +17,6 @@ use std::borrow::Cow;
 use std::io::{Stdout, Write};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.
 macro_rules! Matches {
@@ -255,7 +254,7 @@ pub enum JsonStyle {
 }
 
 pub struct JSONPrinter<W: Write> {
-  output: Mutex<W>,
+  output: W,
   style: JsonStyle,
   context: (u16, u16),
   // indicate if any matches happened
@@ -272,7 +271,7 @@ impl<W: Write> JSONPrinter<W> {
     // no match happened yet
     Self {
       style,
-      output: Mutex::new(output),
+      output,
       context: (0, 0),
       matched: AtomicBool::new(false),
     }
@@ -283,41 +282,41 @@ impl<W: Write> JSONPrinter<W> {
     self
   }
 
-  fn print_docs<S: Serialize>(&self, mut docs: impl Iterator<Item = S>) -> Result<()> {
+  fn print_docs<S: Serialize>(&mut self, mut docs: impl Iterator<Item = S>) -> Result<()> {
     let Some(doc) = docs.next() else {
       return Ok(());
     };
-    let mut lock = self.output.lock().expect("should work");
+    let output = &mut self.output;
     let matched = self.matched.swap(true, Ordering::AcqRel);
     match self.style {
       JsonStyle::Pretty => {
         if matched {
-          writeln!(&mut lock, ",")?;
+          writeln!(output, ",")?;
         } else {
-          writeln!(&mut lock)?;
+          writeln!(output)?;
         }
-        serde_json::to_writer_pretty(&mut *lock, &doc)?;
+        serde_json::to_writer_pretty(&mut *output, &doc)?;
         for doc in docs {
-          writeln!(&mut lock, ",")?;
-          serde_json::to_writer_pretty(&mut *lock, &doc)?;
+          writeln!(output, ",")?;
+          serde_json::to_writer_pretty(&mut *output, &doc)?;
         }
       }
       JsonStyle::Stream => {
-        serde_json::to_writer(&mut *lock, &doc)?;
-        writeln!(&mut lock)?;
+        serde_json::to_writer(&mut *output, &doc)?;
+        writeln!(output)?;
         for doc in docs {
-          serde_json::to_writer(&mut *lock, &doc)?;
-          writeln!(&mut lock)?;
+          serde_json::to_writer(&mut *output, &doc)?;
+          writeln!(output)?;
         }
       }
       JsonStyle::Compact => {
         if matched {
-          write!(&mut lock, ",")?;
+          write!(output, ",")?;
         }
-        serde_json::to_writer(&mut *lock, &doc)?;
+        serde_json::to_writer(&mut *output, &doc)?;
         for doc in docs {
-          write!(&mut lock, ",")?;
-          serde_json::to_writer(&mut *lock, &doc)?;
+          write!(output, ",")?;
+          serde_json::to_writer(&mut *output, &doc)?;
         }
       }
     }
@@ -339,13 +338,15 @@ impl<W: Write> Printer for JSONPrinter<W> {
 
   fn print_matches<'a>(&mut self, matches: Matches!('a), path: &Path) -> Result<()> {
     let path = path.to_string_lossy();
-    let jsons = matches.map(|nm| MatchJSON::new(nm, &path, self.context));
+    let context = self.context;
+    let jsons = matches.map(|nm| MatchJSON::new(nm, &path, context));
     self.print_docs(jsons)
   }
 
   fn print_diffs<'a>(&mut self, diffs: Diffs!('a), path: &Path) -> Result<()> {
     let path = path.to_string_lossy();
-    let jsons = diffs.map(|diff| MatchJSON::diff(diff, &path, self.context));
+    let context = self.context;
+    let jsons = diffs.map(|diff| MatchJSON::diff(diff, &path, context));
     self.print_docs(jsons)
   }
   fn print_rule_diffs(
@@ -364,8 +365,7 @@ impl<W: Write> Printer for JSONPrinter<W> {
     if self.style == JsonStyle::Stream {
       return Ok(());
     }
-    let mut lock = self.output.lock().expect("should work");
-    write!(&mut lock, "[")?;
+    write!(self.output, "[")?;
     Ok(())
   }
 
@@ -373,12 +373,12 @@ impl<W: Write> Printer for JSONPrinter<W> {
     if self.style == JsonStyle::Stream {
       return Ok(());
     }
-    let mut lock = self.output.lock().expect("should work");
+    let lock = &mut self.output;
     let matched = self.matched.load(Ordering::Acquire);
     if matched && self.style == JsonStyle::Pretty {
-      writeln!(&mut lock)?;
+      writeln!(lock)?;
     }
-    writeln!(&mut lock, "]")?;
+    writeln!(lock, "]")?;
     Ok(())
   }
 }
@@ -404,8 +404,8 @@ mod test {
     JSONPrinter::new(Test(String::new()), style)
   }
   fn get_text(printer: &JSONPrinter<Test>) -> String {
-    let lock = printer.output.lock().unwrap();
-    lock.0.to_string()
+    let output = &printer.output;
+    output.0.to_string()
   }
 
   #[test]
