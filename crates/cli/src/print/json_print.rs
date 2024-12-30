@@ -16,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::io::{Stdout, Write};
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 // add this macro because neither trait_alias nor type_alias_impl is supported.
 macro_rules! Matches {
@@ -258,7 +257,7 @@ pub struct JSONPrinter<W: Write> {
   style: JsonStyle,
   context: (u16, u16),
   // indicate if any matches happened
-  matched: AtomicBool,
+  matched: bool,
 }
 impl JSONPrinter<Stdout> {
   pub fn stdout(style: JsonStyle) -> Self {
@@ -273,7 +272,7 @@ impl<W: Write> JSONPrinter<W> {
       style,
       output,
       context: (0, 0),
-      matched: AtomicBool::new(false),
+      matched: false,
     }
   }
 
@@ -287,7 +286,8 @@ impl<W: Write> JSONPrinter<W> {
       return Ok(());
     };
     let output = &mut self.output;
-    let matched = self.matched.swap(true, Ordering::AcqRel);
+    let matched = self.matched;
+    self.matched = true;
     match self.style {
       JsonStyle::Pretty => {
         if matched {
@@ -373,12 +373,11 @@ impl<W: Write> Printer for JSONPrinter<W> {
     if self.style == JsonStyle::Stream {
       return Ok(());
     }
-    let lock = &mut self.output;
-    let matched = self.matched.load(Ordering::Acquire);
-    if matched && self.style == JsonStyle::Pretty {
-      writeln!(lock)?;
+    let output = &mut self.output;
+    if self.matched && self.style == JsonStyle::Pretty {
+      writeln!(output)?;
     }
-    writeln!(lock, "]")?;
+    writeln!(output, "]")?;
     Ok(())
   }
 }
