@@ -48,7 +48,7 @@ impl CloudPrinter<Stdout> {
 
 impl<W: Write> Printer for CloudPrinter<W> {
   fn print_rule<'a>(
-    &self,
+    &mut self,
     matches: Matches!('a),
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
@@ -57,16 +57,16 @@ impl<W: Write> Printer for CloudPrinter<W> {
     print_rule(self, matches, &path, rule)
   }
 
-  fn print_matches<'a>(&self, _m: Matches!('a), _p: &Path) -> Result<()> {
+  fn print_matches<'a>(&mut self, _m: Matches!('a), _p: &Path) -> Result<()> {
     unreachable!()
   }
 
-  fn print_diffs<'a>(&self, _d: Diffs!('a), _p: &Path) -> Result<()> {
+  fn print_diffs<'a>(&mut self, _d: Diffs!('a), _p: &Path) -> Result<()> {
     unreachable!()
   }
 
   fn print_rule_diffs(
-    &self,
+    &mut self,
     diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<()> {
@@ -142,7 +142,7 @@ language: TypeScript
 
   fn test_output(src: &str, rule_str: &str, expect: &str) {
     let src = src.to_owned();
-    let printer = make_test_printer();
+    let mut printer = make_test_printer();
     let grep = SgLang::from(SupportLang::Tsx).ast_grep(&src);
     let rule = make_rule(rule_str);
     let matches = grep.root().find_all(&rule.matcher);

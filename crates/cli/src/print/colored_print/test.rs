@@ -46,7 +46,7 @@ const MATCHES_CASES: &[Case] = &[
 fn test_print_matches() {
   for &(source, pattern, note) in MATCHES_CASES {
     // heading is required for CI
-    let printer = make_test_printer().heading(Heading::Always);
+    let mut printer = make_test_printer().heading(Heading::Always);
     let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
     let matches = grep.root().find_all(pattern);
     printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
@@ -66,7 +66,7 @@ fn test_print_matches() {
 #[test]
 fn test_print_matches_without_heading() {
   for &(source, pattern, note) in MATCHES_CASES {
-    let printer = make_test_printer().heading(Heading::Never);
+    let mut printer = make_test_printer().heading(Heading::Never);
     let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
     let matches = grep.root().find_all(pattern);
     printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
@@ -86,7 +86,7 @@ fn test_print_matches_without_heading() {
 fn test_print_rules() {
   let globals = GlobalRules::default();
   for &(source, pattern, note) in MATCHES_CASES {
-    let printer = make_test_printer()
+    let mut printer = make_test_printer()
       .heading(Heading::Never)
       .style(ReportStyle::Short);
     let grep = SgLang::from(SupportLang::TypeScript).ast_grep(source);
@@ -153,7 +153,7 @@ const DIFF_CASES: &[DiffCase] = &[
 fn test_print_diffs() {
   for &(source, pattern, rewrite, note) in DIFF_CASES {
     // heading is required for CI
-    let printer = make_test_printer().heading(Heading::Always);
+    let mut printer = make_test_printer().heading(Heading::Always);
     let lang = SgLang::from(SupportLang::Tsx);
     let fixer = Fixer::from_str(rewrite, &lang).expect("should work");
     let grep = lang.ast_grep(source);
@@ -170,7 +170,7 @@ fn test_overlap_print_impl(heading: Heading) {
     // empty
     Some(2)
   ";
-  let printer = make_test_printer().heading(heading).context((1, 1));
+  let mut printer = make_test_printer().heading(heading).context((1, 1));
   let lang = SgLang::from(SupportLang::Tsx);
   let grep = lang.ast_grep(src);
   let matches = grep.root().find_all("Some($A)");
@@ -195,7 +195,7 @@ fn test_non_overlap_print_impl(heading: Heading) {
     // empty
     Some(2)
   ";
-  let printer = make_test_printer().heading(heading);
+  let mut printer = make_test_printer().heading(heading);
   let lang = SgLang::from(SupportLang::Tsx);
   let grep = lang.ast_grep(src);
   let matches = grep.root().find_all("Some($A)");
@@ -217,7 +217,7 @@ fn test_non_overlap_print() {
 fn test_print_rule_diffs() {
   let globals = GlobalRules::default();
   for &(source, pattern, rewrite, note) in DIFF_CASES {
-    let printer = make_test_printer()
+    let mut printer = make_test_printer()
       .heading(Heading::Never)
       .style(ReportStyle::Short);
     let grep = SgLang::from(SupportLang::TypeScript).ast_grep(source);
@@ -264,7 +264,7 @@ fn test_before_after() {
   ";
   for b in 0..3 {
     for a in 0..3 {
-      let printer = make_test_printer().context((b, a));
+      let mut printer = make_test_printer().context((b, a));
       let lang = SgLang::from(SupportLang::Tsx);
       let grep = lang.ast_grep(src);
       let matches = grep.root().find_all("Some($A)");

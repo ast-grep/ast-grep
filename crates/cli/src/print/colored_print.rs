@@ -130,7 +130,7 @@ impl<W: WriteColor> ColoredPrinter<W> {
 
 impl<W: WriteColor> Printer for ColoredPrinter<W> {
   fn print_rule<'a>(
-    &self,
+    &mut self,
     matches: Matches!('a),
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
@@ -163,7 +163,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     Ok(())
   }
 
-  fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {
+  fn print_matches<'a>(&mut self, matches: Matches!('a), path: &Path) -> Result<()> {
     if self.heading.should_print() {
       print_matches_with_heading(matches, path, self)
     } else {
@@ -171,13 +171,13 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     }
   }
 
-  fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
+  fn print_diffs<'a>(&mut self, diffs: Diffs!('a), path: &Path) -> Result<()> {
     let writer = &mut *self.writer.lock().expect("should success");
     let context = self.diff_context();
     print_diffs(diffs, path, &self.styles, writer, context)
   }
   fn print_rule_diffs(
-    &self,
+    &mut self,
     diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<()> {

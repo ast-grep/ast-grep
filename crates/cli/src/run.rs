@@ -177,9 +177,9 @@ struct RunWithInferredLang {
 impl Worker for RunWithInferredLang {
   type Item = (MatchUnit<Pattern<SgLang>>, SgLang);
 
-  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, printer: P) -> Result<()> {
+  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, mut printer: P) -> Result<()> {
     let rewrite = &self.arg.rewrite;
-    let printer = &printer;
+    let printer = &mut printer;
     printer.before_print()?;
     for (match_unit, lang) in items {
       let rewrite = rewrite
@@ -257,11 +257,11 @@ impl RunWithSpecificLang {
 impl Worker for RunWithSpecificLang {
   type Item = MatchUnit<Pattern<SgLang>>;
 
-  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, printer: P) -> Result<()> {
+  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, mut printer: P) -> Result<()> {
     printer.before_print()?;
     let mut has_matches = false;
     for match_unit in items {
-      match_one_file(&printer, &match_unit, &self.rewrite)?;
+      match_one_file(&mut printer, &match_unit, &self.rewrite)?;
       has_matches = true;
     }
     printer.after_print()?;
@@ -311,7 +311,7 @@ impl StdInWorker for RunWithSpecificLang {
 }
 
 fn match_one_file(
-  printer: &impl Printer,
+  printer: &mut impl Printer,
   match_unit: &MatchUnit<impl Matcher<SgLang>>,
   rewrite: &Option<Fixer<SgLang>>,
 ) -> Result<()> {

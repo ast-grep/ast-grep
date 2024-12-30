@@ -327,7 +327,7 @@ impl<W: Write> JSONPrinter<W> {
 
 impl<W: Write> Printer for JSONPrinter<W> {
   fn print_rule<'a>(
-    &self,
+    &mut self,
     matches: Matches!('a),
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
@@ -337,19 +337,19 @@ impl<W: Write> Printer for JSONPrinter<W> {
     self.print_docs(jsons)
   }
 
-  fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {
+  fn print_matches<'a>(&mut self, matches: Matches!('a), path: &Path) -> Result<()> {
     let path = path.to_string_lossy();
     let jsons = matches.map(|nm| MatchJSON::new(nm, &path, self.context));
     self.print_docs(jsons)
   }
 
-  fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
+  fn print_diffs<'a>(&mut self, diffs: Diffs!('a), path: &Path) -> Result<()> {
     let path = path.to_string_lossy();
     let jsons = diffs.map(|diff| MatchJSON::diff(diff, &path, self.context));
     self.print_docs(jsons)
   }
   fn print_rule_diffs(
-    &self,
+    &mut self,
     diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<()> {
@@ -360,7 +360,7 @@ impl<W: Write> Printer for JSONPrinter<W> {
     self.print_docs(jsons)
   }
 
-  fn before_print(&self) -> Result<()> {
+  fn before_print(&mut self) -> Result<()> {
     if self.style == JsonStyle::Stream {
       return Ok(());
     }
@@ -369,7 +369,7 @@ impl<W: Write> Printer for JSONPrinter<W> {
     Ok(())
   }
 
-  fn after_print(&self) -> Result<()> {
+  fn after_print(&mut self) -> Result<()> {
     if self.style == JsonStyle::Stream {
       return Ok(());
     }
@@ -411,7 +411,7 @@ mod test {
   #[test]
   fn test_empty_printer() {
     for style in [JsonStyle::Pretty, JsonStyle::Compact] {
-      let printer = make_test_printer(style);
+      let mut printer = make_test_printer(style);
       printer.before_print().unwrap();
       printer
         .print_matches(std::iter::empty(), "test.tsx".as_ref())
@@ -450,7 +450,7 @@ mod test {
   fn test_invariant() {
     for &(source, pattern, _, note) in MATCHES_CASES {
       // heading is required for CI
-      let printer = make_test_printer(JsonStyle::Pretty);
+      let mut printer = make_test_printer(JsonStyle::Pretty);
       let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
       let matches = grep.root().find_all(pattern);
       printer.before_print().unwrap();
@@ -466,7 +466,7 @@ mod test {
   fn test_replace_json() {
     for &(source, pattern, replace, note) in MATCHES_CASES {
       // heading is required for CI
-      let printer = make_test_printer(JsonStyle::Compact);
+      let mut printer = make_test_printer(JsonStyle::Compact);
       let lang = SgLang::from(SupportLang::Tsx);
       let grep = lang.ast_grep(source);
       let matches = grep.root().find_all(pattern);
@@ -510,7 +510,7 @@ rule:
         continue;
       }
       let source = source.to_string();
-      let printer = make_test_printer(JsonStyle::Pretty);
+      let mut printer = make_test_printer(JsonStyle::Pretty);
       let grep = SgLang::from(SupportLang::Tsx).ast_grep(&source);
       let rule = make_rule(pattern);
       let matches = grep.root().find_all(&rule.matcher);
@@ -527,7 +527,7 @@ rule:
 
   #[test]
   fn test_single_matched_json() {
-    let printer = make_test_printer(JsonStyle::Pretty);
+    let mut printer = make_test_printer(JsonStyle::Pretty);
     let lang = SgLang::from(SupportLang::Tsx);
     let grep = lang.ast_grep("console.log(123)");
     let matches = grep.root().find_all("console.log($A)");
@@ -546,7 +546,7 @@ rule:
 
   #[test]
   fn test_multi_matched_json() {
-    let printer = make_test_printer(JsonStyle::Compact);
+    let mut printer = make_test_printer(JsonStyle::Compact);
     let lang = SgLang::from(SupportLang::Tsx);
     let grep = lang.ast_grep("console.log(1, 2, 3)");
     let matches = grep.root().find_all("console.log($$$A)");
@@ -564,7 +564,7 @@ rule:
   #[test]
   fn test_streaming() {
     for &(source, pattern, _, note) in MATCHES_CASES {
-      let printer = make_test_printer(JsonStyle::Stream);
+      let mut printer = make_test_printer(JsonStyle::Stream);
       let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
       let matches = grep.root().find_all(pattern);
       printer.before_print().unwrap();
@@ -592,7 +592,7 @@ transform:
 ";
   #[test]
   fn test_transform() {
-    let printer = make_test_printer(JsonStyle::Compact);
+    let mut printer = make_test_printer(JsonStyle::Compact);
     let rule = get_rule_config(&format!("pattern: console.log($A)\n{}", TRANSFORM_TEXT));
     let grep = SgLang::from(SupportLang::TypeScript).ast_grep("console.log(123)");
     let matches = grep.root().find_all(&rule.matcher);

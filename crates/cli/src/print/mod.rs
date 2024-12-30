@@ -32,26 +32,26 @@ macro_rules! Diffs {
 
 pub trait Printer {
   fn print_rule<'a>(
-    &self,
+    &mut self,
     matches: Matches!('a),
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
   ) -> Result<()>;
-  fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()>;
-  fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()>;
+  fn print_matches<'a>(&mut self, matches: Matches!('a), path: &Path) -> Result<()>;
+  fn print_diffs<'a>(&mut self, diffs: Diffs!('a), path: &Path) -> Result<()>;
   fn print_rule_diffs(
-    &self,
+    &mut self,
     diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<()>;
   /// Run before all printing. One CLI will run this exactly once.
   #[inline]
-  fn before_print(&self) -> Result<()> {
+  fn before_print(&mut self) -> Result<()> {
     Ok(())
   }
   /// Run after all printing. One CLI will run this exactly once.
   #[inline]
-  fn after_print(&self) -> Result<()> {
+  fn after_print(&mut self) -> Result<()> {
     Ok(())
   }
 }

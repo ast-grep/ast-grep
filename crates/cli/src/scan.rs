@@ -137,7 +137,7 @@ impl ScanWithConfig {
 }
 impl Worker for ScanWithConfig {
   type Item = (PathBuf, AstGrep, PreScan);
-  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, printer: P) -> Result<()> {
+  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, mut printer: P) -> Result<()> {
     printer.before_print()?;
     let mut error_count = 0usize;
     for (path, grep, pre_scan) in items {
@@ -151,13 +151,13 @@ impl Worker for ScanWithConfig {
       let scanned = combined.scan(&grep, pre_scan, /* separate_fix*/ interactive);
       if interactive {
         let diffs = scanned.diffs;
-        match_rule_diff_on_file(path, diffs, &printer)?;
+        match_rule_diff_on_file(path, diffs, &mut printer)?;
       }
       for (rule, matches) in scanned.matches {
         if matches!(rule.severity, Severity::Error) {
           error_count = error_count.saturating_add(matches.len());
         }
-        match_rule_on_file(path, matches, rule, &file_content, &printer)?;
+        match_rule_on_file(path, matches, rule, &file_content, &mut printer)?;
       }
     }
     printer.after_print()?;
@@ -213,7 +213,7 @@ impl ScanWithRule {
 
 impl Worker for ScanWithRule {
   type Item = (PathBuf, AstGrep, PreScan);
-  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, printer: P) -> Result<()> {
+  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, mut printer: P) -> Result<()> {
     printer.before_print()?;
     let mut error_count = 0usize;
     let combined = CombinedScan::new(self.rules.iter().collect());
@@ -225,7 +225,7 @@ impl Worker for ScanWithRule {
         if matches!(rule.severity, Severity::Error) {
           error_count = error_count.saturating_add(matches.len());
         }
-        match_rule_on_file(&path, matches, rule, &file_content, &printer)?;
+        match_rule_on_file(&path, matches, rule, &file_content, &mut printer)?;
       }
     }
     printer.after_print()?;
@@ -254,7 +254,7 @@ impl StdInWorker for ScanWithRule {
 fn match_rule_diff_on_file(
   path: &Path,
   matches: Vec<(&RuleConfig<SgLang>, NodeMatch<StrDoc<SgLang>>)>,
-  reporter: &impl Printer,
+  reporter: &mut impl Printer,
 ) -> Result<()> {
   let diffs = matches
     .into_iter()
@@ -273,7 +273,7 @@ fn match_rule_on_file(
   matches: Vec<NodeMatch<StrDoc<SgLang>>>,
   rule: &RuleConfig<SgLang>,
   file_content: &String,
-  reporter: &impl Printer,
+  reporter: &mut impl Printer,
 ) -> Result<()> {
   let matches = matches.into_iter();
   let file = SimpleFile::new(path.to_string_lossy(), file_content);

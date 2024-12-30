@@ -74,7 +74,7 @@ impl<P: Printer> InteractivePrinter<P> {
 
 impl<P: Printer> Printer for InteractivePrinter<P> {
   fn print_rule<'a>(
-    &self,
+    &mut self,
     matches: Matches!('a),
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
@@ -99,11 +99,11 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     })
   }
 
-  fn print_matches<'a>(&self, matches: Matches!('a), path: &Path) -> Result<()> {
+  fn print_matches<'a>(&mut self, matches: Matches!('a), path: &Path) -> Result<()> {
     utils::run_in_alternate_screen(|| print_matches_and_confirm_next(self, matches, path))
   }
 
-  fn print_diffs<'a>(&self, diffs: Diffs!('a), path: &Path) -> Result<()> {
+  fn print_diffs<'a>(&mut self, diffs: Diffs!('a), path: &Path) -> Result<()> {
     let path = path.to_path_buf();
     let (confirmed, all) =
       print_diffs_interactive(self, &path, diffs.map(|d| (d, None)).collect())?;
@@ -114,7 +114,7 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     Ok(())
   }
   fn print_rule_diffs(
-    &self,
+    &mut self,
     diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<()> {
@@ -133,7 +133,7 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
 }
 
 fn print_diffs_interactive<'a>(
-  interactive: &InteractivePrinter<impl Printer>,
+  interactive: &mut InteractivePrinter<impl Printer>,
   path: &Path,
   diffs: Vec<(Diff<'a>, Option<&RuleConfig<SgLang>>)>,
 ) -> Result<(Vec<Diff<'a>>, bool)> {
@@ -159,12 +159,12 @@ fn print_diffs_interactive<'a>(
 }
 /// returns if accept_current and accept_all
 fn print_diff_and_prompt_action(
-  interactive: &InteractivePrinter<impl Printer>,
+  interactive: &mut InteractivePrinter<impl Printer>,
   path: &Path,
   (diff, rule): (Diff, Option<&RuleConfig<SgLang>>),
 ) -> Result<(bool, bool)> {
-  let printer = &interactive.inner;
   utils::run_in_alternate_screen(|| {
+    let printer = &mut interactive.inner;
     if let Some(rule) = rule {
       printer.print_rule_diffs(vec![(diff.clone(), rule)], path)?;
     } else {
@@ -186,11 +186,11 @@ fn print_diff_and_prompt_action(
 }
 
 fn print_matches_and_confirm_next<'a>(
-  interactive: &InteractivePrinter<impl Printer>,
+  interactive: &mut InteractivePrinter<impl Printer>,
   matches: Matches!('a),
   path: &Path,
 ) -> Result<()> {
-  let printer = &interactive.inner;
+  let printer = &mut interactive.inner;
   let matches: Vec<_> = matches.collect();
   let first_match = match matches.first() {
     Some(n) => n.start_pos().line(),
