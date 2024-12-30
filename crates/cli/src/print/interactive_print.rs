@@ -8,8 +8,6 @@ use ast_grep_config::RuleConfig;
 use ast_grep_core::{NodeMatch as SgNodeMatch, StrDoc};
 use codespan_reporting::files::SimpleFile;
 
-use std::sync::atomic::{AtomicBool, Ordering};
-
 type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
 
 use std::borrow::Cow;
@@ -24,7 +22,7 @@ macro_rules! Diffs {
 }
 
 pub struct InteractivePrinter<P: Printer> {
-  accept_all: AtomicBool,
+  accept_all: bool,
   from_stdin: bool,
   inner: P,
 }
@@ -35,7 +33,7 @@ impl<P: Printer> InteractivePrinter<P> {
       Err(anyhow::anyhow!(EC::StdInIsNotInteractive))
     } else {
       Ok(Self {
-        accept_all: AtomicBool::new(accept_all),
+        accept_all,
         from_stdin,
         inner,
       })
@@ -43,7 +41,7 @@ impl<P: Printer> InteractivePrinter<P> {
   }
 
   fn prompt_edit(&self) -> char {
-    if self.accept_all.load(Ordering::SeqCst) {
+    if self.accept_all {
       return 'a';
     }
     const EDIT_PROMPT: &str = "Accept change? (Yes[y], No[n], Accept All[a], Quit[q], Edit[e])";
@@ -51,7 +49,7 @@ impl<P: Printer> InteractivePrinter<P> {
   }
 
   fn prompt_view(&self) -> char {
-    if self.accept_all.load(Ordering::SeqCst) {
+    if self.accept_all {
       return '\n';
     }
     const VIEW_PROMPT: &str = "Next[enter], Quit[q], Edit[e]";
@@ -109,7 +107,8 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
       print_diffs_interactive(self, &path, diffs.map(|d| (d, None)).collect())?;
     self.rewrite_action(confirmed, &path)?;
     if all {
-      self.accept_all.store(true, Ordering::SeqCst);
+      self.accept_all = true;
+      // self.accept_all.store(true, Ordering::SeqCst);
     }
     Ok(())
   }
@@ -126,7 +125,8 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     )?;
     self.rewrite_action(confirmed, &path)?;
     if all {
-      self.accept_all.store(true, Ordering::SeqCst);
+      self.accept_all = true;
+      // self.accept_all.store(true, Ordering::SeqCst);
     }
     Ok(())
   }
@@ -138,7 +138,7 @@ fn print_diffs_interactive<'a>(
   diffs: Vec<(Diff<'a>, Option<&RuleConfig<SgLang>>)>,
 ) -> Result<(Vec<Diff<'a>>, bool)> {
   let mut confirmed = vec![];
-  let mut all = interactive.accept_all.load(Ordering::SeqCst);
+  let mut all = interactive.accept_all;
   let mut end = 0;
   for (diff, rule) in diffs {
     if diff.range.start < end {
