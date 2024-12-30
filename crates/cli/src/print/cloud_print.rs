@@ -7,7 +7,6 @@ use anyhow::Result;
 use ast_grep_core::{NodeMatch as SgNodeMatch, StrDoc};
 use codespan_reporting::files::SimpleFile;
 use std::io::{Stdout, Write};
-use std::sync::Mutex;
 
 type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
 
@@ -29,14 +28,12 @@ pub enum Platform {
 }
 
 pub struct CloudPrinter<W: Write> {
-  writer: Mutex<W>,
+  writer: W,
 }
 
 impl<W: Write> CloudPrinter<W> {
-  pub fn new(w: W) -> Self {
-    Self {
-      writer: Mutex::new(w),
-    }
+  pub fn new(writer: W) -> Self {
+    Self { writer }
   }
 }
 
@@ -78,12 +75,12 @@ impl<W: Write> Printer for CloudPrinter<W> {
 }
 
 fn print_rule<'a, W: Write>(
-  p: &CloudPrinter<W>,
+  p: &mut CloudPrinter<W>,
   matches: Matches!('a),
   path: &Path,
   rule: &RuleConfig<SgLang>,
 ) -> Result<()> {
-  let mut writer = p.writer.lock().expect("should work");
+  let writer = &mut p.writer;
   let level = match rule.severity {
     Severity::Error => "error",
     Severity::Warning => "warning",
@@ -98,7 +95,7 @@ fn print_rule<'a, W: Write>(
     let end_line = m.end_pos().line() + 1;
     let message = rule.get_message(&m);
     writeln!(
-      &mut writer,
+      writer,
       "::{level} file={name},line={line},endLine={end_line},title={title}::{message}"
     )?;
   }
@@ -115,8 +112,8 @@ mod test {
   fn make_test_printer() -> CloudPrinter<Buffer> {
     CloudPrinter::new(Buffer::no_color())
   }
-  fn get_text(printer: &CloudPrinter<Buffer>) -> String {
-    let buffer = printer.writer.lock().expect("should work");
+  fn get_text(printer: &mut CloudPrinter<Buffer>) -> String {
+    let buffer = &mut printer.writer;
     let bytes = buffer.as_slice();
     std::str::from_utf8(bytes)
       .expect("buffer should be valid utf8")
@@ -148,7 +145,7 @@ language: TypeScript
     let matches = grep.root().find_all(&rule.matcher);
     let file = SimpleFile::new(Cow::Borrowed("test.tsx"), &src);
     printer.print_rule(matches, file, &rule).unwrap();
-    let actual = get_text(&printer);
+    let actual = get_text(&mut printer);
     assert_eq!(actual, expect);
   }
 
