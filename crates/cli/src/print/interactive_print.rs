@@ -24,6 +24,7 @@ macro_rules! Diffs {
 pub struct InteractivePrinter<P: Printer> {
   accept_all: bool,
   from_stdin: bool,
+  committed_cnt: usize,
   inner: P,
 }
 
@@ -36,6 +37,7 @@ impl<P: Printer> InteractivePrinter<P> {
         accept_all,
         from_stdin,
         inner,
+        committed_cnt: 0,
       })
     }
   }
@@ -130,6 +132,13 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     }
     Ok(())
   }
+
+  fn after_print(&mut self) -> Result<()> {
+    if self.committed_cnt > 0 {
+      println!("Applied {} changes", self.committed_cnt);
+    }
+    self.inner.after_print()
+  }
 }
 
 fn print_diffs_interactive<'a>(
@@ -153,6 +162,7 @@ fn print_diffs_interactive<'a>(
     if confirm {
       end = diff.range.end;
       confirmed.push(diff);
+      interactive.committed_cnt = interactive.committed_cnt.saturating_add(1);
     }
   }
   Ok((confirmed, all))
