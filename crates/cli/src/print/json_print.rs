@@ -254,7 +254,7 @@ pub enum JsonStyle {
   Compact,
 }
 
-pub struct JSONPrinter<W: Write + Send + Sync> {
+pub struct JSONPrinter<W: Write> {
   output: Mutex<W>,
   style: JsonStyle,
   context: (u16, u16),
@@ -267,7 +267,7 @@ impl JSONPrinter<Stdout> {
   }
 }
 
-impl<W: Write + Send + Sync> JSONPrinter<W> {
+impl<W: Write> JSONPrinter<W> {
   pub fn new(output: W, style: JsonStyle) -> Self {
     // no match happened yet
     Self {
@@ -325,7 +325,7 @@ impl<W: Write + Send + Sync> JSONPrinter<W> {
   }
 }
 
-impl<W: Write + Send + Sync> Printer for JSONPrinter<W> {
+impl<W: Write> Printer for JSONPrinter<W> {
   fn print_rule<'a>(
     &self,
     matches: Matches!('a),
