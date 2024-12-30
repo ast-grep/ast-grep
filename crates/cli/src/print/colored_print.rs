@@ -16,7 +16,6 @@ use std::borrow::Cow;
 use std::fmt::Display;
 use std::io::Write;
 use std::path::Path;
-use std::sync::Mutex;
 
 mod test;
 
@@ -63,7 +62,7 @@ impl Heading {
 }
 
 pub struct ColoredPrinter<W: WriteColor> {
-  writer: Mutex<W>,
+  writer: W,
   config: term::Config,
   styles: PrintStyles,
   heading: Heading,
@@ -79,7 +78,7 @@ impl ColoredPrinter<StandardStream> {
 impl<W: WriteColor> ColoredPrinter<W> {
   pub fn new(writer: W) -> Self {
     Self {
-      writer: Mutex::new(writer),
+      writer,
       styles: PrintStyles::from(ColorChoice::Auto),
       config: term::Config::default(),
       heading: Heading::Auto,
@@ -136,7 +135,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
     let config = &self.config;
-    let mut writer = self.writer.lock().expect("should not fail");
+    let writer = &mut self.writer;
     let severity = match rule.severity {
       Severity::Error => diagnostic::Severity::Error,
       Severity::Warning => diagnostic::Severity::Warning,
@@ -172,8 +171,8 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
   }
 
   fn print_diffs<'a>(&mut self, diffs: Diffs!('a), path: &Path) -> Result<()> {
-    let writer = &mut *self.writer.lock().expect("should success");
     let context = self.diff_context();
+    let writer = &mut self.writer;
     print_diffs(diffs, path, &self.styles, writer, context)
   }
   fn print_rule_diffs(
@@ -181,8 +180,8 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<()> {
-    let writer = &mut *self.writer.lock().expect("should success");
     let context = self.diff_context();
+    let writer = &mut self.writer;
     let mut start = 0;
     print_prelude(path, &self.styles, writer)?;
     for (diff, rule) in diffs {
@@ -325,10 +324,11 @@ impl<'a> MatchMerger<'a> {
 fn print_matches_with_heading<'a, W: WriteColor>(
   mut matches: Matches!('a),
   path: &Path,
-  printer: &ColoredPrinter<W>,
+  printer: &mut ColoredPrinter<W>,
 ) -> Result<()> {
   let styles = &printer.styles;
-  let writer = &mut *printer.writer.lock().expect("cannot get printer lock");
+  let context_span = printer.context_span();
+  let writer = &mut printer.writer;
   print_prelude(path, styles, writer)?;
   let Some(first_match) = matches.next() else {
     return Ok(());
@@ -360,7 +360,7 @@ fn print_matches_with_heading<'a, W: WriteColor>(
     write!(writer, "{line_num:>width$}│")?; // initial line num
     print_highlight(ret.lines(), width, &mut num, writer, styles)?;
     writeln!(writer)?; // end match new line
-    if printer.context_span() > 0 {
+    if context_span > 0 {
       writeln!(writer, "{:╴>width$}┤", "")?; // make separation
     }
     merger.conclude_match(&nm);
@@ -382,10 +382,11 @@ fn print_matches_with_heading<'a, W: WriteColor>(
 fn print_matches_with_prefix<'a, W: WriteColor>(
   mut matches: Matches!('a),
   path: &Path,
-  printer: &ColoredPrinter<W>,
+  printer: &mut ColoredPrinter<W>,
 ) -> Result<()> {
   let styles = &printer.styles;
-  let writer = &mut *printer.writer.lock().expect("cannot get printer lock");
+  let context_span = printer.context_span();
+  let writer = &mut printer.writer;
   let path = path.display();
   let Some(first_match) = matches.next() else {
     return Ok(());
@@ -412,7 +413,7 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
       let num = merger.last_start_line + n;
       writeln!(writer, "{path}:{num}:{line}")?;
     }
-    if printer.context_span() > 0 {
+    if context_span > 0 {
       writeln!(writer, "--")?; // make separation
     }
     merger.conclude_match(&nm);

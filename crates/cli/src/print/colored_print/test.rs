@@ -11,7 +11,7 @@ fn make_test_printer() -> ColoredPrinter<Buffer> {
   ColoredPrinter::new(Buffer::no_color()).color(ColorChoice::Never)
 }
 fn get_text(printer: &ColoredPrinter<Buffer>) -> String {
-  let buffer = printer.writer.lock().expect("should work");
+  let buffer = &printer.writer;
   let bytes = buffer.as_slice();
   std::str::from_utf8(bytes)
     .expect("buffer should be valid utf8")
