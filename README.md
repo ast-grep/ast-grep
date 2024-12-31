@@ -46,6 +46,9 @@ scoop install main/ast-grep
 
 # install via MacPorts
 sudo port install ast-grep
+
+# try ast-grep in nix-shell
+nix-shell -p ast-grep
 ```
 Or you can build ast-grep from source. You need to install rustup, clone the repository and then
 ```bash
