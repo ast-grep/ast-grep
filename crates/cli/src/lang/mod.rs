@@ -1,8 +1,9 @@
-mod custom_lang;
 mod injection;
 mod lang_globs;
 
-use anyhow::Result;
+use crate::utils::ErrorContext as EC;
+
+use anyhow::{Context, Result};
 use ast_grep_core::{
   language::{TSLanguage, TSRange},
   Doc, Node,
@@ -18,7 +19,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::path::Path;
 use std::str::FromStr;
 
-pub use custom_lang::CustomLang;
+pub use ast_grep_dynamic::CustomLang;
 pub use injection::SerializableInjection;
 pub use lang_globs::LanguageGlobs;
 
@@ -41,7 +42,7 @@ impl SgLang {
 
   // register_globs must be called after register_custom_language
   pub fn register_custom_language(base: &Path, langs: HashMap<String, CustomLang>) -> Result<()> {
-    CustomLang::register(base, langs)
+    CustomLang::register(base, langs).context(EC::CustomLanguage)
   }
 
   // TODO: add tests

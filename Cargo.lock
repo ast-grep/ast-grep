@@ -177,6 +177,7 @@ dependencies = [
  "ignore",
  "libloading",
  "serde",
+ "serde_yaml",
  "thiserror",
  "tree-sitter",
 ]

@@ -44,7 +44,7 @@ regex.workspace = true
 inquire = "0.7.5"
 serde.workspace = true
 serde_json = "1.0.116"
-serde_yaml = "0.9.33"
+serde_yaml.workspace = true
 similar = { version = "2.5.0", features = ["inline"] }
 tokio = { version = "1.37.0", features = ["rt-multi-thread", "io-std"] }
 clap_complete = "4.5.2"

@@ -13,6 +13,10 @@ use std::path::{Path, PathBuf};
 use std::ptr::{addr_of, addr_of_mut};
 use std::str::FromStr;
 
+mod custom_lang;
+
+pub use custom_lang::CustomLang;
+
 type LangIndex = u32;
 
 /// Represents a tree-sitter language loaded as dynamic lib.
