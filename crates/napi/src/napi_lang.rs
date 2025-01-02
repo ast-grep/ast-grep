@@ -1,3 +1,6 @@
+use ast_grep_core::language::TSLanguage;
+use ast_grep_core::Language;
+use ast_grep_dynamic::{CustomLang, DynamicLang};
 use ast_grep_language::SupportLang;
 use ignore::types::{Types, TypesBuilder};
 use ignore::{WalkBuilder, WalkParallel};
@@ -6,6 +9,7 @@ use napi::anyhow::Error;
 use napi::bindgen_prelude::Result;
 use napi_derive::napi;
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
@@ -122,6 +126,65 @@ impl Lang {
     }
     ret
   }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub enum NapiLang {
+  // inlined support lang expando char
+  Builtin(SupportLang),
+  Custom(DynamicLang),
+}
+
+impl FromStr for NapiLang {
+  type Err = Error;
+  fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+    if let Ok(b) = SupportLang::from_str(s) {
+      Ok(NapiLang::Builtin(b))
+    } else if let Ok(c) = DynamicLang::from_str(s) {
+      Ok(NapiLang::Custom(c))
+    } else {
+      Err(anyhow!(format!("{s} is not supported in napi")))
+    }
+  }
+}
+
+use NapiLang::*;
+impl Language for NapiLang {
+  fn get_ts_language(&self) -> TSLanguage {
+    match self {
+      Builtin(b) => b.get_ts_language(),
+      Custom(c) => c.get_ts_language(),
+    }
+  }
+
+  fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
+    match self {
+      Builtin(b) => b.pre_process_pattern(query),
+      Custom(c) => c.pre_process_pattern(query),
+    }
+  }
+
+  #[inline]
+  fn meta_var_char(&self) -> char {
+    match self {
+      Builtin(b) => b.meta_var_char(),
+      Custom(c) => c.meta_var_char(),
+    }
+  }
+
+  #[inline]
+  fn expando_char(&self) -> char {
+    match self {
+      Builtin(b) => b.expando_char(),
+      Custom(c) => c.expando_char(),
+    }
+  }
+}
+
+pub fn register_dynamic_language(langs: HashMap<String, CustomLang>) -> Result<()> {
+  let base = std::env::current_dir()?;
+  CustomLang::register(&base, langs).expect("TODO");
+  Ok(())
 }
 
 pub type LanguageGlobs = HashMap<Lang, Vec<String>>;

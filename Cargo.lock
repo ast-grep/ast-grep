@@ -234,6 +234,7 @@ version = "0.32.3"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
+ "ast-grep-dynamic",
  "ast-grep-language",
  "ignore",
  "napi",
