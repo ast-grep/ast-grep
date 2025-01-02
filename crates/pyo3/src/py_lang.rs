@@ -1,5 +1,6 @@
+use anyhow::Context;
 use ast_grep_core::language::TSLanguage;
-use ast_grep_dynamic::{DynamicLang, Registration};
+use ast_grep_dynamic::{CustomLang, DynamicLang};
 use ast_grep_language::{Language, SupportLang};
 use serde::{Deserialize, Serialize};
 
@@ -10,50 +11,44 @@ use pythonize::depythonize;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::str::FromStr;
 
+// we need this because of different casing in python
+// in Python, every field is in snake_case
+// but in napi/YAML, every field is in camelCase
 #[derive(Serialize, Deserialize, Clone)]
-pub struct CustomLang {
+pub struct CustomPyLang {
   library_path: PathBuf,
   /// the dylib symbol to load ts-language, default is `tree_sitter_{name}`
   language_symbol: Option<String>,
   meta_var_char: Option<char>,
   expando_char: Option<char>,
-  // extensions: Vec<String>,
+  extensions: Vec<String>,
+}
+
+impl From<CustomPyLang> for CustomLang {
+  fn from(c: CustomPyLang) -> Self {
+    CustomLang {
+      library_path: c.library_path,
+      language_symbol: c.language_symbol,
+      meta_var_char: c.meta_var_char,
+      expando_char: c.expando_char,
+      extensions: c.extensions,
+    }
+  }
 }
 
 #[pyfunction]
 pub fn register_dynamic_language(dict: Bound<PyDict>) -> PyResult<()> {
-  let langs = depythonize(dict.as_any())?;
-  let base = std::env::current_dir()?;
-  register(base, langs);
-  Ok(())
-}
-
-fn register(base: PathBuf, langs: HashMap<String, CustomLang>) {
-  let registrations = langs
+  let langs: HashMap<String, CustomPyLang> = depythonize(dict.as_any())?;
+  let langs = langs
     .into_iter()
-    .map(|(name, custom)| to_registration(name, custom, &base))
+    .map(|(name, custom)| (name, CustomLang::from(custom)))
     .collect();
-  // TODO, add error handling
-  unsafe { DynamicLang::register(registrations).expect("TODO") }
-}
-
-fn to_registration(name: String, custom_lang: CustomLang, base: &Path) -> Registration {
-  let path = base.join(custom_lang.library_path);
-  let sym = custom_lang
-    .language_symbol
-    .unwrap_or_else(|| format!("tree_sitter_{name}"));
-  Registration {
-    lang_name: name,
-    lib_path: path,
-    symbol: sym,
-    meta_var_char: custom_lang.meta_var_char,
-    expando_char: custom_lang.expando_char,
-    // extensions: custom_lang.extensions,
-    extensions: vec![],
-  }
+  let base = std::env::current_dir()?;
+  CustomLang::register(&base, langs).context("registering dynamic language failed")?;
+  Ok(())
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]

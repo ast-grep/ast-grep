@@ -18,6 +18,7 @@ def register_lang():
         "myjson": {
             "library_path": "../../benches/fixtures/json-mac.so",
             "language_symbol": "tree_sitter_json",
+            "extensions": ["myjson"],
         }
     })
 

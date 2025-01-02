@@ -7,12 +7,12 @@ use std::path::{Path, PathBuf};
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomLang {
-  library_path: PathBuf,
+  pub library_path: PathBuf,
   /// the dylib symbol to load ts-language, default is `tree_sitter_{name}`
-  language_symbol: Option<String>,
-  meta_var_char: Option<char>,
-  expando_char: Option<char>,
-  extensions: Vec<String>,
+  pub language_symbol: Option<String>,
+  pub meta_var_char: Option<char>,
+  pub expando_char: Option<char>,
+  pub extensions: Vec<String>,
 }
 
 impl CustomLang {
