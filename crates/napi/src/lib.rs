@@ -13,7 +13,7 @@ use napi_derive::napi;
 
 use doc::{JsDoc, NapiConfig};
 use find_files::{find_in_files_impl, FindConfig, FindInFiles, ParseAsync};
-use napi_lang::Lang;
+use napi_lang::NapiLang;
 use sg_node::SgRoot;
 
 pub use find_files::parse_files;
@@ -22,7 +22,6 @@ macro_rules! impl_lang_mod {
   ($name: ident, $lang: ident) => {
     #[napi]
     pub mod $name {
-      use super::Lang::*;
       use super::*;
 
       #[napi]
@@ -35,8 +34,8 @@ macro_rules! impl_lang_mod {
         parse_async_with_lang(SupportLang::$lang.to_string(), src)
       }
       #[napi]
-      pub fn kind(kind_name: String) -> u16 {
-        kind_with_lang($lang, kind_name)
+      pub fn kind(kind_name: String) -> Result<u16> {
+        kind_with_lang(SupportLang::$lang.to_string(), kind_name)
       }
       #[napi]
       pub fn pattern(pattern: String) -> NapiConfig {
@@ -84,11 +83,12 @@ pub fn parse_async(lang: String, src: String) -> AsyncTask<ParseAsync> {
 
 /// Get the `kind` number from its string name.
 #[napi]
-pub fn kind(lang: Lang, kind_name: String) -> u16 {
-  let lang: SupportLang = lang.into();
-  lang
+pub fn kind(lang: String, kind_name: String) -> Result<u16> {
+  let lang: NapiLang = lang.parse()?;
+  let kind = lang
     .get_ts_language()
-    .id_for_node_kind(&kind_name, /* named */ true)
+    .id_for_node_kind(&kind_name, /* named */ true);
+  Ok(kind)
 }
 
 /// Compile a string to ast-grep Pattern.
