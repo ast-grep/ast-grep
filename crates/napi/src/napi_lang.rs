@@ -44,72 +44,6 @@ pub enum Lang {
   Yaml,
 }
 
-impl From<Lang> for SupportLang {
-  fn from(val: Lang) -> Self {
-    use Lang as F;
-    use SupportLang as S;
-    match val {
-      F::Html => S::Html,
-      F::JavaScript => S::JavaScript,
-      F::Tsx => S::Tsx,
-      F::Css => S::Css,
-      F::TypeScript => S::TypeScript,
-      F::Bash => S::Bash,
-      F::C => S::C,
-      F::Cpp => S::Cpp,
-      F::CSharp => S::CSharp,
-      F::Go => S::Go,
-      F::Elixir => S::Elixir,
-      F::Haskell => S::Haskell,
-      F::Java => S::Java,
-      F::Json => S::Json,
-      F::Kotlin => S::Kotlin,
-      F::Lua => S::Lua,
-      F::Php => S::Php,
-      F::Python => S::Python,
-      F::Ruby => S::Ruby,
-      F::Rust => S::Rust,
-      F::Scala => S::Scala,
-      F::Sql => S::Sql,
-      F::Swift => S::Swift,
-      F::Yaml => S::Yaml,
-    }
-  }
-}
-
-impl From<SupportLang> for Lang {
-  fn from(value: SupportLang) -> Self {
-    use Lang as F;
-    use SupportLang as S;
-    match value {
-      S::Html => F::Html,
-      S::JavaScript => F::JavaScript,
-      S::Tsx => F::Tsx,
-      S::Css => F::Css,
-      S::TypeScript => F::TypeScript,
-      S::Bash => F::Bash,
-      S::C => F::C,
-      S::Cpp => F::Cpp,
-      S::CSharp => F::CSharp,
-      S::Go => F::Go,
-      S::Elixir => F::Elixir,
-      S::Haskell => F::Haskell,
-      S::Java => F::Java,
-      S::Json => F::Json,
-      S::Kotlin => F::Kotlin,
-      S::Lua => F::Lua,
-      S::Php => F::Php,
-      S::Python => F::Python,
-      S::Ruby => F::Ruby,
-      S::Rust => F::Rust,
-      S::Scala => F::Scala,
-      S::Sql => F::Sql,
-      S::Swift => F::Swift,
-      S::Yaml => F::Yaml,
-    }
-  }
-}
-
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum NapiLang {
   // inlined support lang expando char
@@ -226,15 +160,6 @@ pub fn register_dynamic_language(langs: HashMap<String, CustomLang>) -> Result<(
 }
 
 pub type LanguageGlobs = HashMap<NapiLang, Vec<String>>;
-
-impl FromStr for Lang {
-  type Err = Error;
-  fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-    SupportLang::from_str(s)
-      .map(|l| l.into())
-      .map_err(|_| anyhow!(format!("{s} is not supported in napi")))
-  }
-}
 
 pub enum LangOption {
   /// Used when language is inferred from file path
@@ -378,13 +303,13 @@ mod test {
 
   #[test]
   fn test_from_str() {
-    let lang = Lang::from_str("html");
-    assert_eq!(lang.unwrap(), Lang::Html);
-    let lang = Lang::from_str("Html");
-    assert_eq!(lang.unwrap(), Lang::Html);
-    let lang = Lang::from_str("htML");
-    assert_eq!(lang.unwrap(), Lang::Html);
-    let lang = Lang::from_str("ocaml");
+    let lang = NapiLang::from_str("html");
+    assert_eq!(lang.unwrap(), SupportLang::Html.into());
+    let lang = NapiLang::from_str("Html");
+    assert_eq!(lang.unwrap(), SupportLang::Html.into());
+    let lang = NapiLang::from_str("htML");
+    assert_eq!(lang.unwrap(), SupportLang::Html.into());
+    let lang = NapiLang::from_str("ocaml");
     assert!(lang.is_err());
   }
 }
