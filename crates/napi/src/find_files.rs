@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::doc::{JsDoc, NapiConfig};
-use crate::napi_lang::{build_files, Lang, LangOption, NapiLang};
+use crate::napi_lang::{build_files, LangOption, NapiLang};
 use crate::sg_node::{SgNode, SgRoot};
 
 pub struct ParseAsync {
@@ -98,7 +98,7 @@ pub fn parse_files(
     Either::B(FileOption {
       paths,
       language_globs,
-    }) => (paths, Lang::lang_globs(language_globs)),
+    }) => (paths, NapiLang::lang_globs(language_globs)),
   };
   let walk = build_files(paths, &globs)?;
   Ok(AsyncTask::new(ParseFiles {

@@ -110,18 +110,6 @@ impl From<SupportLang> for Lang {
   }
 }
 
-impl Lang {
-  pub fn lang_globs(map: HashMap<String, Vec<String>>) -> LanguageGlobs {
-    let mut ret = HashMap::new();
-    for (name, patterns) in map {
-      if let Ok(lang) = NapiLang::from_str(&name) {
-        ret.insert(lang, patterns);
-      }
-    }
-    ret
-  }
-}
-
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum NapiLang {
   // inlined support lang expando char
@@ -363,7 +351,7 @@ mod test {
   fn lang_globs() -> LanguageGlobs {
     let mut lang = HashMap::new();
     lang.insert("html".into(), vec!["*.vue".into()]);
-    Lang::lang_globs(lang)
+    NapiLang::lang_globs(lang)
   }
 
   #[test]
