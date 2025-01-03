@@ -164,7 +164,7 @@ pub struct FindConfig {
 }
 
 pub fn find_in_files_impl(
-  lang: String,
+  lang: NapiLang,
   config: FindConfig,
   callback: JsFunction,
 ) -> Result<AsyncTask<FindInFiles>> {
@@ -176,13 +176,12 @@ pub fn find_in_files_impl(
     matcher,
     language_globs,
   } = config;
-  let napi_lang: NapiLang = lang.parse()?;
   let rule = matcher.parse_with(lang)?;
-  let walk = napi_lang.find_files(paths, language_globs)?;
+  let walk = lang.find_files(paths, language_globs)?;
   Ok(AsyncTask::new(FindInFiles {
     walk,
     tsfn: (tsfn, rule),
-    lang_option: LangOption::Specified(napi_lang),
+    lang_option: LangOption::Specified(lang),
     producer: call_sg_node,
   }))
 }

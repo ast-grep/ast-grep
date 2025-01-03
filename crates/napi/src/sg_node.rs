@@ -197,7 +197,7 @@ impl SgNode {
         reference.inner.find(pattern)
       }
       Either3::C(config) => {
-        let pattern = config.parse_with(lang.to_string())?;
+        let pattern = config.parse_with(lang)?;
         reference.inner.find(pattern)
       }
     };
@@ -237,7 +237,7 @@ impl SgNode {
         reference.inner.find_all(pattern).collect()
       }
       Either3::C(config) => {
-        let pattern = config.parse_with(lang.to_string())?;
+        let pattern = config.parse_with(lang)?;
         reference.inner.find_all(pattern).collect()
       }
     };
