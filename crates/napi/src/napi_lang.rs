@@ -11,6 +11,7 @@ use napi_derive::napi;
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt::{Debug, Display, Formatter};
 use std::path::Path;
 use std::str::FromStr;
 
@@ -110,17 +111,10 @@ impl From<SupportLang> for Lang {
 }
 
 impl Lang {
-  pub fn find_files(
-    &self,
-    paths: Vec<String>,
-    language_globs: Option<Vec<String>>,
-  ) -> Result<WalkParallel> {
-    find_files_with_lang(self, paths, language_globs)
-  }
   pub fn lang_globs(map: HashMap<String, Vec<String>>) -> LanguageGlobs {
     let mut ret = HashMap::new();
     for (name, patterns) in map {
-      if let Ok(lang) = Lang::from_str(&name) {
+      if let Ok(lang) = NapiLang::from_str(&name) {
         ret.insert(lang, patterns);
       }
     }
@@ -135,6 +129,56 @@ pub enum NapiLang {
   Custom(DynamicLang),
 }
 
+impl NapiLang {
+  fn all_langs() -> Vec<Self> {
+    let builtin = SupportLang::all_langs().iter().copied().map(Self::Builtin);
+    let customs = DynamicLang::all_langs().into_iter().map(Self::Custom);
+    builtin.chain(customs).collect()
+  }
+
+  fn file_types(&self) -> Types {
+    match self {
+      Builtin(b) => b.file_types(),
+      Custom(c) => c.file_types(),
+    }
+  }
+
+  pub fn find_files(
+    &self,
+    paths: Vec<String>,
+    language_globs: Option<Vec<String>>,
+  ) -> Result<WalkParallel> {
+    find_files_with_lang(self, paths, language_globs)
+  }
+  pub fn lang_globs(map: HashMap<String, Vec<String>>) -> LanguageGlobs {
+    let mut ret = HashMap::new();
+    for (name, patterns) in map {
+      if let Ok(lang) = NapiLang::from_str(&name) {
+        ret.insert(lang, patterns);
+      }
+    }
+    ret
+  }
+}
+
+impl Display for NapiLang {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    match self {
+      Builtin(b) => write!(f, "{}", b),
+      Custom(c) => write!(f, "{}", c.name()),
+    }
+  }
+}
+
+impl Debug for NapiLang {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    match self {
+      Builtin(b) => write!(f, "{:?}", b),
+      Custom(c) => write!(f, "{:?}", c.name()),
+    }
+  }
+}
+
 impl FromStr for NapiLang {
   type Err = Error;
   fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
@@ -145,6 +189,12 @@ impl FromStr for NapiLang {
     } else {
       Err(anyhow!(format!("{s} is not supported in napi")))
     }
+  }
+}
+
+impl From<SupportLang> for NapiLang {
+  fn from(val: SupportLang) -> Self {
+    NapiLang::Builtin(val)
   }
 }
 
@@ -187,7 +237,7 @@ pub fn register_dynamic_language(langs: HashMap<String, CustomLang>) -> Result<(
   Ok(())
 }
 
-pub type LanguageGlobs = HashMap<Lang, Vec<String>>;
+pub type LanguageGlobs = HashMap<NapiLang, Vec<String>>;
 
 impl FromStr for Lang {
   type Err = Error;
@@ -201,17 +251,17 @@ impl FromStr for Lang {
 pub enum LangOption {
   /// Used when language is inferred from file path
   /// e.g. in parse_files
-  Inferred(Vec<(SupportLang, Types)>),
+  Inferred(Vec<(NapiLang, Types)>),
   /// Used when language is specified
   /// e.g. in frontend_lang.find_in_files
-  Specified(Lang),
+  Specified(NapiLang),
 }
 
 impl LangOption {
-  pub fn get_lang(&self, path: &Path) -> Option<SupportLang> {
+  pub fn get_lang(&self, path: &Path) -> Option<NapiLang> {
     use LangOption::*;
     match self {
-      Specified(lang) => Some((*lang).into()),
+      Specified(lang) => Some(*lang),
       Inferred(pairs) => pairs
         .iter()
         .find_map(|(lang, types)| types.matched(path, false).is_whitelist().then_some(*lang)),
@@ -220,17 +270,16 @@ impl LangOption {
   pub fn infer(language_globs: &LanguageGlobs) -> Self {
     let mut types = vec![];
     let empty = vec![];
-    for lang in SupportLang::all_langs() {
+    for lang in NapiLang::all_langs() {
       let mut builder = TypesBuilder::new();
       let tpe = lang.to_string();
       let file_types = lang.file_types();
       add_types(&mut builder, &file_types);
-      let fe_lang = Lang::from(*lang);
-      for pattern in language_globs.get(&fe_lang).unwrap_or(&empty) {
+      for pattern in language_globs.get(&lang).unwrap_or(&empty) {
         builder.add(&tpe, pattern).expect("should build");
       }
       builder.select(&tpe);
-      types.push((*lang, builder.build().unwrap()));
+      types.push((lang, builder.build().unwrap()));
     }
     Self::Inferred(types)
   }
@@ -242,10 +291,9 @@ pub fn build_files(paths: Vec<String>, language_globs: &LanguageGlobs) -> Result
   }
   let mut types = TypesBuilder::new();
   let empty = vec![];
-  for lang in SupportLang::all_langs() {
+  for lang in NapiLang::all_langs() {
     let type_name = lang.to_string();
-    let l = Lang::from(*lang);
-    let custom = language_globs.get(&l).unwrap_or(&empty);
+    let custom = language_globs.get(&lang).unwrap_or(&empty);
     let default_types = lang.file_types();
     select_custom(&mut types, &type_name, &default_types, custom);
   }
@@ -284,7 +332,7 @@ fn select_custom<'b>(
 }
 
 fn find_files_with_lang(
-  lang: &Lang,
+  lang: &NapiLang,
   paths: Vec<String>,
   language_globs: Option<Vec<String>>,
 ) -> Result<WalkParallel> {
@@ -293,10 +341,9 @@ fn find_files_with_lang(
   }
 
   let mut types = TypesBuilder::new();
-  let sg_lang: SupportLang = (*lang).into();
-  let type_name = sg_lang.to_string();
+  let type_name = lang.to_string();
   let custom_file_type = language_globs.unwrap_or_default();
-  let default_types = sg_lang.file_types();
+  let default_types = lang.file_types();
   let types = select_custom(&mut types, &type_name, &default_types, &custom_file_type)
     .build()
     .unwrap();
@@ -313,7 +360,7 @@ fn find_files_with_lang(
 mod test {
   use super::*;
 
-  fn lang_globs() -> HashMap<Lang, Vec<String>> {
+  fn lang_globs() -> LanguageGlobs {
     let mut lang = HashMap::new();
     lang.insert("html".into(), vec!["*.vue".into()]);
     Lang::lang_globs(lang)
@@ -322,9 +369,9 @@ mod test {
   #[test]
   fn test_lang_globs() {
     let globs = lang_globs();
-    assert!(globs.contains_key(&Lang::Html));
-    assert!(!globs.contains_key(&Lang::Tsx));
-    assert_eq!(globs[&Lang::Html], vec!["*.vue"]);
+    assert!(globs.contains_key(&SupportLang::Html.into()));
+    assert!(!globs.contains_key(&SupportLang::Tsx.into()));
+    assert_eq!(globs[&NapiLang::Builtin(SupportLang::Html)], vec!["*.vue"]);
   }
 
   #[test]
@@ -332,11 +379,11 @@ mod test {
     let globs = lang_globs();
     let option = LangOption::infer(&globs);
     let lang = option.get_lang(Path::new("test.vue"));
-    assert_eq!(lang, Some(SupportLang::Html));
+    assert_eq!(lang, Some(SupportLang::Html.into()));
     let lang = option.get_lang(Path::new("test.html"));
-    assert_eq!(lang, Some(SupportLang::Html));
+    assert_eq!(lang, Some(SupportLang::Html.into()));
     let lang = option.get_lang(Path::new("test.js"));
-    assert_eq!(lang, Some(SupportLang::JavaScript));
+    assert_eq!(lang, Some(SupportLang::JavaScript.into()));
     let lang = option.get_lang(Path::new("test.xss"));
     assert_eq!(lang, None);
   }

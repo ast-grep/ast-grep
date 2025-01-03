@@ -1,7 +1,6 @@
 use ast_grep_config::RuleCore;
 use ast_grep_core::pinned::{NodeData, PinnedNodeData};
 use ast_grep_core::{AstGrep, NodeMatch};
-use ast_grep_language::SupportLang;
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use napi::anyhow::{anyhow, Context, Result as Ret};
 use napi::bindgen_prelude::*;
@@ -12,12 +11,12 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::doc::{JsDoc, NapiConfig};
-use crate::napi_lang::{build_files, Lang, LangOption};
+use crate::napi_lang::{build_files, Lang, LangOption, NapiLang};
 use crate::sg_node::{SgNode, SgRoot};
 
 pub struct ParseAsync {
   pub src: String,
-  pub lang: Lang,
+  pub lang: String,
 }
 
 impl Task for ParseAsync {
@@ -26,7 +25,8 @@ impl Task for ParseAsync {
 
   fn compute(&mut self) -> Result<Self::Output> {
     let src = std::mem::take(&mut self.src);
-    let doc = JsDoc::new(src, self.lang.into());
+    let lang = self.lang.parse()?;
+    let doc = JsDoc::new(src, lang);
     Ok(SgRoot(AstGrep::doc(doc), "anonymous".into()))
   }
   fn resolve(&mut self, _env: Env, output: Self::Output) -> Result<Self::JsValue> {
@@ -141,7 +141,7 @@ fn get_root(entry: ignore::DirEntry, lang_option: &LangOption) -> Ret<(AstGrep<J
 
 pub type FindInFiles = IterateFiles<(
   ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
-  RuleCore<SupportLang>,
+  RuleCore<NapiLang>,
 )>;
 
 pub struct PinnedNodes(
@@ -164,7 +164,7 @@ pub struct FindConfig {
 }
 
 pub fn find_in_files_impl(
-  lang: Lang,
+  lang: String,
   config: FindConfig,
   callback: JsFunction,
 ) -> Result<AsyncTask<FindInFiles>> {
@@ -176,12 +176,13 @@ pub fn find_in_files_impl(
     matcher,
     language_globs,
   } = config;
+  let napi_lang: NapiLang = lang.parse()?;
   let rule = matcher.parse_with(lang)?;
-  let walk = lang.find_files(paths, language_globs)?;
+  let walk = napi_lang.find_files(paths, language_globs)?;
   Ok(AsyncTask::new(FindInFiles {
     walk,
     tsfn: (tsfn, rule),
-    lang_option: LangOption::Specified(lang),
+    lang_option: LangOption::Specified(napi_lang),
     producer: call_sg_node,
   }))
 }
@@ -209,7 +210,7 @@ fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<Vec<SgNod
 fn call_sg_node(
   (tsfn, rule): &(
     ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
-    RuleCore<SupportLang>,
+    RuleCore<NapiLang>,
   ),
   entry: std::result::Result<ignore::DirEntry, ignore::Error>,
   lang_option: &LangOption,

@@ -1,9 +1,8 @@
-use crate::Lang;
+use crate::napi_lang::NapiLang;
 
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
 use ast_grep_core::Language;
-use ast_grep_language::SupportLang;
 use napi::anyhow::Error;
 use napi::bindgen_prelude::Result as NapiResult;
 use napi_derive::napi;
@@ -21,7 +20,7 @@ pub struct NapiConfig {
   /// See https://ast-grep.github.io/guide/rule-config.html#constraints
   pub constraints: Option<serde_json::Value>,
   /// Available languages: html, css, js, jsx, ts, tsx
-  pub language: Option<Lang>,
+  pub language: Option<String>,
   /// transform is NOT useful in JavaScript. You can use JS code to directly transform the result.
   /// https://ast-grep.github.io/reference/yaml.html#transform
   pub transform: Option<serde_json::Value>,
@@ -30,9 +29,9 @@ pub struct NapiConfig {
 }
 
 impl NapiConfig {
-  pub fn parse_with(self, language: Lang) -> NapiResult<RuleCore<SupportLang>> {
+  pub fn parse_with(self, language: String) -> NapiResult<RuleCore<NapiLang>> {
     let lang = self.language.unwrap_or(language);
-    let lang: SupportLang = lang.into();
+    let lang: NapiLang = lang.parse()?;
     let rule = SerializableRuleCore {
       rule: serde_json::from_value(self.rule)?,
       constraints: self.constraints.map(serde_json::from_value).transpose()?,
@@ -128,12 +127,12 @@ fn pos_for_byte_offset(input: &[u16], byte_offset: usize) -> Point {
 
 #[derive(Clone)]
 pub struct JsDoc {
-  lang: SupportLang,
+  lang: NapiLang,
   source: Wrapper,
 }
 
 impl JsDoc {
-  pub fn new(src: String, lang: SupportLang) -> Self {
+  pub fn new(src: String, lang: NapiLang) -> Self {
     let source = Wrapper {
       inner: src.encode_utf16().collect(),
     };
@@ -142,7 +141,7 @@ impl JsDoc {
 }
 
 impl Doc for JsDoc {
-  type Lang = SupportLang;
+  type Lang = NapiLang;
   type Source = Wrapper;
   fn parse(&self, old_tree: Option<&Tree>) -> std::result::Result<Tree, TSParseError> {
     let mut parser = Parser::new()?;
@@ -178,9 +177,10 @@ impl Doc for JsDoc {
 mod test {
   use super::*;
   use ast_grep_core::AstGrep;
+  use ast_grep_language::SupportLang;
   #[test]
   fn test_js_doc() {
-    let doc = JsDoc::new("console.log(123)".into(), SupportLang::JavaScript);
+    let doc = JsDoc::new("console.log(123)".into(), SupportLang::JavaScript.into());
     let grep = AstGrep::doc(doc);
     assert_eq!(grep.root().text(), "console.log(123)");
     let node = grep.root().find("console");
@@ -189,7 +189,10 @@ mod test {
 
   #[test]
   fn test_js_doc_single_node_replace() {
-    let doc = JsDoc::new("console.log(1 + 2 + 3)".into(), SupportLang::JavaScript);
+    let doc = JsDoc::new(
+      "console.log(1 + 2 + 3)".into(),
+      SupportLang::JavaScript.into(),
+    );
     let mut grep = AstGrep::doc(doc);
     let edit = grep
       .root()
@@ -201,7 +204,10 @@ mod test {
 
   #[test]
   fn test_js_doc_multiple_node_replace() {
-    let doc = JsDoc::new("console.log(1 + 2 + 3)".into(), SupportLang::JavaScript);
+    let doc = JsDoc::new(
+      "console.log(1 + 2 + 3)".into(),
+      SupportLang::JavaScript.into(),
+    );
     let mut grep = AstGrep::doc(doc);
     let edit = grep
       .root()

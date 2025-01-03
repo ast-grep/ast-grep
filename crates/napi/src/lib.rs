@@ -27,12 +27,12 @@ macro_rules! impl_lang_mod {
 
       #[napi]
       pub fn parse(src: String) -> SgRoot {
-        parse_with_lang($lang, src)
+        parse_with_lang(SupportLang::$lang.to_string(), src).expect("parse failed")
       }
 
       #[napi]
       pub fn parse_async(src: String) -> AsyncTask<ParseAsync> {
-        parse_async_with_lang($lang, src)
+        parse_async_with_lang(SupportLang::$lang.to_string(), src)
       }
       #[napi]
       pub fn kind(kind_name: String) -> u16 {
@@ -40,14 +40,14 @@ macro_rules! impl_lang_mod {
       }
       #[napi]
       pub fn pattern(pattern: String) -> NapiConfig {
-        pattern_with_lang($lang, pattern)
+        pattern_with_lang(SupportLang::$lang.to_string(), pattern)
       }
       #[napi]
       pub fn find_in_files(
         config: FindConfig,
         callback: JsFunction,
       ) -> Result<AsyncTask<FindInFiles>> {
-        find_in_files_impl($lang, config, callback)
+        find_in_files_impl(SupportLang::$lang.to_string(), config, callback)
       }
     }
   };
@@ -67,9 +67,9 @@ impl_lang_mod!(css, Css);
 
 /// Parse a string to an ast-grep instance
 #[napi]
-pub fn parse(lang: Lang, src: String) -> SgRoot {
-  let doc = JsDoc::new(src, lang.into());
-  SgRoot(AstGrep::doc(doc), "anonymous".into())
+pub fn parse(lang: String, src: String) -> Result<SgRoot> {
+  let doc = JsDoc::new(src, lang.parse()?);
+  Ok(SgRoot(AstGrep::doc(doc), "anonymous".into()))
 }
 
 /// Parse a string to an ast-grep instance asynchronously in threads.
@@ -78,7 +78,7 @@ pub fn parse(lang: Lang, src: String) -> SgRoot {
 /// Please refer to libuv doc, nodejs' underlying runtime
 /// for its default behavior and performance tuning tricks.
 #[napi]
-pub fn parse_async(lang: Lang, src: String) -> AsyncTask<ParseAsync> {
+pub fn parse_async(lang: String, src: String) -> AsyncTask<ParseAsync> {
   AsyncTask::new(ParseAsync { src, lang })
 }
 
@@ -93,7 +93,7 @@ pub fn kind(lang: Lang, kind_name: String) -> u16 {
 
 /// Compile a string to ast-grep Pattern.
 #[napi]
-pub fn pattern(lang: Lang, pattern: String) -> NapiConfig {
+pub fn pattern(lang: String, pattern: String) -> NapiConfig {
   NapiConfig {
     rule: serde_json::json!({
       "pattern": pattern,
@@ -111,7 +111,7 @@ pub fn pattern(lang: Lang, pattern: String) -> NapiConfig {
 /// `callback` will receive matching nodes found in a file.
 #[napi]
 pub fn find_in_files(
-  lang: Lang,
+  lang: String,
   config: FindConfig,
   callback: JsFunction,
 ) -> Result<AsyncTask<FindInFiles>> {
