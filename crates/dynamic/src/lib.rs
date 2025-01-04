@@ -260,18 +260,25 @@ impl Language for DynamicLang {
 mod test {
   use super::*;
 
-  #[cfg(target_os = "macos")]
+  // currently we only have json parser for these platforms
+  // apple silicon macos and linux x86_64
   fn get_tree_sitter_path() -> &'static str {
-    "../../benches/fixtures/json-mac.so"
-  }
-  #[cfg(target_os = "linux")]
-  fn get_tree_sitter_path() -> &'static str {
-    "../../benches/fixtures/json-linux.so"
+    if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+      "../../benches/fixtures/json-mac.so"
+    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+      "../../benches/fixtures/json-linux.so"
+    } else {
+      ""
+    }
   }
 
   #[test]
   fn test_load_parser() {
     let path = get_tree_sitter_path();
+    // skip unsupported platform
+    if path.is_empty() {
+      return;
+    }
     let (_lib, lang) = unsafe { load_ts_language(path.into(), "tree_sitter_json".into()).unwrap() };
     let sg = lang.ast_grep("{\"a\": 123}");
     assert_eq!(
@@ -282,11 +289,16 @@ mod test {
 
   #[test]
   fn test_register_lang() {
+    let path = get_tree_sitter_path();
+    // skip unsupported platform
+    if path.is_empty() {
+      return;
+    }
     let registration = Registration {
       lang_name: "json".to_string(),
       expando_char: Some('_'),
       extensions: vec!["json".into()],
-      lib_path: PathBuf::from(get_tree_sitter_path()),
+      lib_path: PathBuf::from(path),
       meta_var_char: None,
       symbol: "tree_sitter_json".into(),
     };
