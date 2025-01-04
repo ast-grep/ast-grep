@@ -24,3 +24,7 @@ export enum Lang {
   Swift = 'Swift',
   Yaml = 'Yaml',
 }
+
+type CustomLang = string & {}
+
+export type NapiLang = Lang | CustomLang

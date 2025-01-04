@@ -1,5 +1,5 @@
 import type { Rule } from './rule'
-import type { Lang } from './lang'
+import type { NapiLang } from './lang'
 import type { TypesMap } from './staticTypes'
 
 /**
@@ -11,8 +11,8 @@ export interface NapiConfig<M extends TypesMap = TypesMap> {
   rule: Rule<M>
   /** See https://ast-grep.github.io/guide/rule-config.html#constraints */
   constraints?: Record<string, Rule<M>>
-  /** Available languages: html, css, js, jsx, ts, tsx */
-  language?: Lang
+  /** Builtin Language or custom language */
+  language?: NapiLang
   /**
    * transform is NOT useful in JavaScript. You can use JS code to directly transform the result.
    * https://ast-grep.github.io/reference/yaml.html#transform

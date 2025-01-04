@@ -23,7 +23,6 @@ test('test load custom lang', t => {
     t.pass('This test is not available on this platform')
     return
   }
-  // @ts-expect-error TODO: change type
   const sg = parse('myjson', '{"test": 123}')
   const root = sg.root()
   const node = root.find("123")!

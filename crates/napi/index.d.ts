@@ -6,7 +6,6 @@ export type { DynamicLangRegistrations } from './types/registerDynamicLang'
 export type { Rule } from './types/rule'
 
 //-----Runtime Value Export!-----//
-export { registerDynamicLanguage } from './types/registerDynamicLang'
 export { SgRoot, SgNode } from './types/sgnode'
 export { Lang } from './types/lang'
 export {
@@ -17,5 +16,6 @@ export {
   pattern,
   findInFiles,
 } from './types/api'
+export { registerDynamicLanguage } from './types/registerDynamicLang'
 // deprecated
 export * from './types/deprecated'

@@ -1,6 +1,6 @@
 import type { SgNode, SgRoot } from './sgnode'
 import type { NapiConfig, FindConfig, FileOption } from './config'
-import type { Lang } from './lang'
+import type { NapiLang } from './lang'
 import type { NamedKinds, TypesMap } from './staticTypes'
 
 export declare function parseFiles<M extends TypesMap>(
@@ -9,7 +9,7 @@ export declare function parseFiles<M extends TypesMap>(
 ): Promise<number>
 /** Parse a string to an ast-grep instance */
 export declare function parse<M extends TypesMap>(
-  lang: Lang,
+  lang: NapiLang,
   src: string,
 ): SgRoot<M>
 /**
@@ -20,17 +20,17 @@ export declare function parse<M extends TypesMap>(
  * for its default behavior and performance tuning tricks.
  */
 export declare function parseAsync<M extends TypesMap>(
-  lang: Lang,
+  lang: NapiLang,
   src: string,
 ): Promise<SgRoot<M>>
 /** Get the `kind` number from its string name. */
 export declare function kind<M extends TypesMap>(
-  lang: Lang,
+  lang: NapiLang,
   kindName: NamedKinds<M>,
 ): number
 /** Compile a string to ast-grep Pattern. */
 export declare function pattern<M extends TypesMap>(
-  lang: Lang,
+  lang: NapiLang,
   pattern: string,
 ): NapiConfig<M>
 /**
@@ -40,7 +40,7 @@ export declare function pattern<M extends TypesMap>(
  * `callback` will receive matching nodes found in a file.
  */
 export declare function findInFiles<M extends TypesMap>(
-  lang: Lang,
+  lang: NapiLang,
   config: FindConfig<M>,
   callback: (err: null | Error, result: SgNode<M>[]) => void,
 ): Promise<number>
