@@ -8,6 +8,9 @@ import {
 const { platform, arch } = process
 
 const isAppleSilicon = platform === 'darwin' && arch === 'arm64'
+const isX64Linux = platform === 'linux' && arch === 'x64'
+const canTestDynamicLang = isAppleSilicon || isX64Linux
+
 if (isAppleSilicon) {
   registerDynamicLanguage({
     myjson: {
@@ -16,10 +19,18 @@ if (isAppleSilicon) {
       extensions: ["myjson"],
     }
   })
+} else if (isX64Linux) {
+  registerDynamicLanguage({
+    myjson: {
+      libraryPath: "../../benches/fixtures/json-linux.so",
+      languageSymbol: "tree_sitter_json",
+      extensions: ["myjson"],
+    }
+  })
 }
 
 test('test load custom lang', t => {
-  if (!isAppleSilicon) {
+  if (!canTestDynamicLang) {
     t.pass('This test is not available on this platform')
     return
   }
