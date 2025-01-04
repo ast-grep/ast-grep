@@ -30,7 +30,7 @@ macro_rules! impl_lang_mod {
       }
 
       #[napi]
-      pub fn parse_async(src: String) -> AsyncTask<ParseAsync> {
+      pub fn parse_async(src: String) -> Result<AsyncTask<ParseAsync>> {
         parse_async_with_lang(SupportLang::$lang.to_string(), src)
       }
       #[napi]
@@ -77,8 +77,9 @@ pub fn parse(lang: String, src: String) -> Result<SgRoot> {
 /// Please refer to libuv doc, nodejs' underlying runtime
 /// for its default behavior and performance tuning tricks.
 #[napi]
-pub fn parse_async(lang: String, src: String) -> AsyncTask<ParseAsync> {
-  AsyncTask::new(ParseAsync { src, lang })
+pub fn parse_async(lang: String, src: String) -> Result<AsyncTask<ParseAsync>> {
+  let lang = lang.parse()?;
+  Ok(AsyncTask::new(ParseAsync { src, lang }))
 }
 
 /// Get the `kind` number from its string name.

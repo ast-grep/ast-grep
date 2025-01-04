@@ -16,7 +16,7 @@ use crate::sg_node::{SgNode, SgRoot};
 
 pub struct ParseAsync {
   pub src: String,
-  pub lang: String,
+  pub lang: NapiLang,
 }
 
 impl Task for ParseAsync {
@@ -25,8 +25,7 @@ impl Task for ParseAsync {
 
   fn compute(&mut self) -> Result<Self::Output> {
     let src = std::mem::take(&mut self.src);
-    let lang = self.lang.parse()?;
-    let doc = JsDoc::new(src, lang);
+    let doc = JsDoc::new(src, self.lang);
     Ok(SgRoot(AstGrep::doc(doc), "anonymous".into()))
   }
   fn resolve(&mut self, _env: Env, output: Self::Output) -> Result<Self::JsValue> {
