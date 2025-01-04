@@ -17,3 +17,6 @@ export {
 } from './types/api'
 // deprecated
 export * from './types/deprecated'
+
+// TODO
+export declare function registerDynamicLanguage(langs: any): void

@@ -310,7 +310,7 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { parseFiles, Lang, SgNode, SgRoot, parse, parseAsync, kind, pattern, findInFiles, html, js, jsx, ts, tsx, css } = nativeBinding
+const { parseFiles, Lang, SgNode, SgRoot, parse, parseAsync, kind, pattern, findInFiles, registerDynamicLanguage, html, js, jsx, ts, tsx, css } = nativeBinding
 
 module.exports.parseFiles = parseFiles
 module.exports.Lang = Lang
@@ -321,6 +321,7 @@ module.exports.parseAsync = parseAsync
 module.exports.kind = kind
 module.exports.pattern = pattern
 module.exports.findInFiles = findInFiles
+module.exports.registerDynamicLanguage = registerDynamicLanguage
 module.exports.html = html
 module.exports.js = js
 module.exports.jsx = jsx

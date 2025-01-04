@@ -5,11 +5,11 @@ mod find_files;
 mod napi_lang;
 mod sg_node;
 
-use ast_grep_core::language::Language;
-use ast_grep_core::AstGrep;
+use ast_grep_core::{AstGrep, Language};
 use ast_grep_language::SupportLang;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
+use napi_lang::register_dynamic_language as register_dynamic_language_impl;
 
 use doc::{JsDoc, NapiConfig};
 use find_files::{find_in_files_impl, FindConfig, FindInFiles, ParseAsync};
@@ -118,4 +118,12 @@ pub fn find_in_files(
 ) -> Result<AsyncTask<FindInFiles>> {
   let lang: NapiLang = lang.parse()?;
   find_in_files_impl(lang, config, callback)
+}
+
+/// Register a dynamic language to ast-grep.
+/// `langs` is a Map of language name to its CustomLanguage registration.
+#[napi]
+pub fn register_dynamic_language(langs: serde_json::Value) -> Result<()> {
+  let langs = serde_json::from_value(langs)?;
+  register_dynamic_language_impl(langs)
 }
