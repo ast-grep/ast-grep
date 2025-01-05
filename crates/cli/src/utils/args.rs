@@ -288,6 +288,7 @@ impl NoIgnore {
   }
 }
 
+/// CLI args to overwrite rule configuration
 #[derive(Args, Debug)]
 pub struct OverwriteArgs {
   /// Scan the codebase with rules with ids matching REGEX.
@@ -331,6 +332,13 @@ pub struct OverwriteArgs {
   /// Note, this flag must use `=` to specify its value.
   #[clap(long, action = clap::ArgAction::Append, value_name = "RULE_ID", num_args(0..), require_equals = true)]
   pub off: Option<Vec<String>>,
+}
+
+impl OverwriteArgs {
+  /// Returns true if none rule is turned off on CLI nor filtered out
+  pub fn include_all_rules(&self) -> bool {
+    self.filter.is_none() && self.off.is_none()
+  }
 }
 
 #[cfg(test)]

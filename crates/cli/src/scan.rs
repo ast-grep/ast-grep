@@ -65,6 +65,13 @@ pub struct ScanArg {
   context: ContextArgs,
 }
 
+impl ScanArg {
+  // whether the scan includes all rules available in the project
+  fn include_all_rules(&self) -> bool {
+    self.overwrite.include_all_rules() && self.rule.is_none() && self.inline_rules.is_none()
+  }
+}
+
 pub fn run_with_config(arg: ScanArg, project: Result<ProjectConfig>) -> Result<()> {
   let context = arg.context.get();
   if let Some(_format) = &arg.format {
@@ -112,7 +119,7 @@ struct ScanWithConfig {
 impl ScanWithConfig {
   fn try_new(arg: ScanArg, project: Result<ProjectConfig>) -> Result<Self> {
     let overwrite = RuleOverwrite::new(&arg.overwrite)?;
-    let unused_suppression_rule = unused_suppression_rule_config(&overwrite);
+    let unused_suppression_rule = unused_suppression_rule_config(&arg, &overwrite);
     let (configs, rule_trace) = if let Some(path) = &arg.rule {
       let rules = read_rule_file(path, None)?;
       with_rule_stats(rules)?
@@ -170,11 +177,22 @@ impl Worker for ScanWithConfig {
   }
 }
 
-fn unused_suppression_rule_config(overwrite: &RuleOverwrite) -> RuleConfig<SgLang> {
+// we should only suggest unused suppression if scan includes all rules
+// otherwise, keep silent about unused suppressions because they may used by other rules
+// this is a "smart" heuristic but user always can override it
+fn default_unused_suppression_rule_severity(arg: &ScanArg) -> Severity {
+  if arg.include_all_rules() {
+    Severity::Hint
+  } else {
+    Severity::Off
+  }
+}
+
+fn unused_suppression_rule_config(arg: &ScanArg, overwrite: &RuleOverwrite) -> RuleConfig<SgLang> {
   let severity = overwrite
     .find("unused-suppression")
     .severity
-    .unwrap_or(Severity::Hint);
+    .unwrap_or_else(|| default_unused_suppression_rule_severity(arg));
   CombinedScan::unused_config(severity, SupportLang::Rust.into())
 }
 

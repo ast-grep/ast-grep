@@ -161,6 +161,40 @@ fn test_scan_unused_suppression() -> Result<()> {
 }
 
 #[test]
+fn test_unused_suppression_only_in_scan() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/rule.yml", RULE1),
+    ("test.ts", "None(123) // ast-grep-ignore"),
+  ])?;
+  Command::cargo_bin("sg")?
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rules/rule.yml"])
+    .assert()
+    .success()
+    .stdout(contains("unused-suppression").not());
+  Command::cargo_bin("sg")?
+    .current_dir(dir.path())
+    .args(["scan", "--filter", "on-rule"])
+    .assert()
+    .success()
+    .stdout(contains("unused-suppression").not());
+  Command::cargo_bin("sg")?
+    .current_dir(dir.path())
+    .args(["scan", "--off", "on-rule"])
+    .assert()
+    .success()
+    .stdout(contains("unused-suppression").not());
+  Command::cargo_bin("sg")?
+    .current_dir(dir.path())
+    .args(["scan", "--inline-rules", RULE1])
+    .assert()
+    .success()
+    .stdout(contains("unused-suppression").not());
+  Ok(())
+}
+
+#[test]
 fn test_scan_unused_suppression_off() -> Result<()> {
   let dir = create_test_files([
     ("sgconfig.yml", CONFIG),
