@@ -47,6 +47,13 @@ source venv/bin/activate
 pip install maturin[patchelf]
 ```
 
+### MacOS: Install `patchelf` and `maturin`
+
+```shell
+brew install patchelf
+pip install maturin
+```
+
 ### Build bindings
 
 ```shell
