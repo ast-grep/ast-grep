@@ -46,11 +46,11 @@ export declare class SgNode<
   isNamed(): boolean
   isNamedLeaf(): boolean
   text(): string
-  matches(m: string): boolean
-  inside(m: string): boolean
-  has(m: string): boolean
-  precedes(m: string): boolean
-  follows(m: string): boolean
+  matches(m: string | number | NapiConfig<M>): boolean
+  inside(m: string | number | NapiConfig<M>): boolean
+  has(m: string | number | NapiConfig<M>): boolean
+  precedes(m: string | number | NapiConfig<M>): boolean
+  follows(m: string | number | NapiConfig<M>): boolean
   /** Returns the string name of the node kind */
   kind(): T
   readonly kindToRefine: T

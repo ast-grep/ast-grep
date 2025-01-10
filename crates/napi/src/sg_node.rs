@@ -1,4 +1,4 @@
-use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern, Position};
+use ast_grep_core::{matcher::KindMatcher, AstGrep, Matcher, NodeMatch, Pattern, Position};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
@@ -97,28 +97,65 @@ impl SgNode {
 #[napi]
 impl SgNode {
   #[napi]
-  pub fn matches(&self, m: String) -> bool {
-    self.inner.matches(&*m)
+  pub fn matches(&self, m: Either3<String, u16, NapiConfig>) -> Result<bool> {
+    let lang = *self.inner.lang();
+    match m {
+      Either3::A(pattern) => Ok(self.inner.matches(Pattern::new(&pattern, lang))),
+      Either3::B(kind) => Ok(self.inner.matches(KindMatcher::from_id(kind))),
+      Either3::C(config) => {
+        let pattern = config.parse_with(lang)?;
+        Ok(self.inner.matches(pattern))
+      }
+    }
   }
 
   #[napi]
-  pub fn inside(&self, m: String) -> bool {
-    self.inner.inside(&*m)
+  pub fn inside(&self, m: Either3<String, u16, NapiConfig>) -> Result<bool> {
+    let lang = *self.inner.lang();
+    match m {
+      Either3::A(pattern) => Ok(self.inner.inside(Pattern::new(&pattern, lang))),
+      Either3::B(kind) => Ok(self.inner.inside(KindMatcher::from_id(kind))),
+      Either3::C(config) => {
+        let pattern = config.parse_with(lang)?;
+        Ok(self.inner.inside(pattern))
+      }
+    }
   }
 
   #[napi]
-  pub fn has(&self, m: String) -> bool {
-    self.inner.has(&*m)
+  pub fn has(&self, m: Either3<String, u16, NapiConfig>) -> Result<bool> {
+    let lang = *self.inner.lang();
+    match m {
+      Either3::A(pattern) => Ok(self.inner.has(Pattern::new(&pattern, lang))),
+      Either3::B(kind) => Ok(self.inner.has(KindMatcher::from_id(kind))),
+      Either3::C(config) => {
+        let pattern = config.parse_with(lang)?;
+        Ok(self.inner.has(pattern))
+      }
+    }
   }
 
   #[napi]
-  pub fn precedes(&self, m: String) -> bool {
-    self.inner.precedes(&*m)
+  pub fn precedes(&self, m: Either3<String, u16, NapiConfig>) -> Result<bool> {
+    let lang = *self.inner.lang();
+    match m {
+      Either3::A(pattern) => Ok(self.inner.precedes(Pattern::new(&pattern, lang))),
+      Either3::B(kind) => Ok(self.inner.precedes(KindMatcher::from_id(kind))),
+      Either3::C(config) => {
+        let pattern = config.parse_with(lang)?;
+        Ok(self.inner.precedes(pattern))
+      }
+    }
   }
 
   #[napi]
-  pub fn follows(&self, m: String) -> bool {
-    self.inner.follows(&*m)
+  pub fn follows(&self, m: Either3<String, u16, NapiConfig>) -> bool {
+    let lang = *self.inner.lang();
+    match m {
+      Either3::A(pattern) => self.inner.follows(Pattern::new(&pattern, lang)),
+      Either3::B(kind) => self.inner.follows(KindMatcher::from_id(kind)),
+      Either3::C(config) => self.inner.follows(config.parse_with(lang).unwrap()),
+    }
   }
 
   #[napi]
