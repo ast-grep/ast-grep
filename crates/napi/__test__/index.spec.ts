@@ -435,3 +435,52 @@ test('find node by range', t => {
   const byKind = sg.root().find(js.kind('template_string'))
   t.is(node!.id(), byKind!.id())
 })
+
+test('check if a node matches a rule using pattern', t => {
+  const sg = parse('console.log(123)')
+  const match = sg.root().find({ rule: { kind: 'call_expression' } })
+  t.assert(match!.matches('console.log($$$)'))
+  t.assert(!match!.matches('console.log'))
+})
+
+test('check if a node matches a rule using config', t => {
+  const sg = parse('console.log(123)')
+  const match = sg.root().find('console.log($$$)')
+  t.assert(match!.matches({ rule: { kind: 'call_expression' } }))
+  t.assert(!match!.matches({ rule: { kind: 'identifier' } }))
+})
+
+test('check if a node follows another using pattern', t => {
+  const sg = parse('const a = 1; const b = 2;')
+  const match = sg.root().find('const a = 1')
+  t.assert(match!.follows('const b = 2') === false)
+  t.assert(sg.root().find('const b = 2')!.follows('const a = 1'))
+})
+
+test('check if a node follows another using config', t => {
+  const sg = parse('const a = 1; const b = 2;')
+  const match = sg.root().find('const a = 1')
+  t.assert(match!.follows({ rule: { pattern: 'const b = 2' }}) === false) 
+  t.assert(sg.root().find('const b = 2')!.follows({ rule: { pattern: 'const a = 1' }}))
+})
+
+test('check if a node precedes another using pattern', t => {
+  const sg = parse('const a = 1; const b = 2;')
+  const match = sg.root().find('const a = 1')
+  t.assert(match!.precedes('const b = 2'))
+  t.assert(sg.root().find('const b = 2')!.precedes('const a = 1') === false)
+})
+
+test('check if a node is inside another using pattern', t => {
+  const sg = parse('if (true) { const x = 1; }')
+  const match = sg.root().find('const x = 1')
+  t.assert(match!.inside('if (true) { $$$ }'))
+  t.assert(!match!.inside('function() { $$$ }'))
+})
+
+test('check if a node has another using pattern', t => {
+  const sg = parse('if (true) { const x = 1; }')
+  const match = sg.root().find('if (true) { $$$ }')
+  t.assert(match!.has('const x = 1'))
+  t.assert(!match!.has('const y = 2'))
+})
