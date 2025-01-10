@@ -30,8 +30,8 @@ dependencies:
     specifier: 0.21.2
     version: 0.21.2(tree-sitter@0.22.1)
   typescript:
-    specifier: 5.7.2
-    version: 5.7.2
+    specifier: 5.7.3
+    version: 5.7.3
 
 devDependencies:
   '@types/babel__core':
@@ -45,7 +45,7 @@ devDependencies:
     version: 3.4.2
   ts-node:
     specifier: 10.9.2
-    version: 10.9.2(@swc/core@1.10.4)(@types/node@22.10.2)(typescript@5.7.2)
+    version: 10.9.2(@swc/core@1.10.4)(@types/node@22.10.2)(typescript@5.7.3)
 
 packages:
 
@@ -926,7 +926,7 @@ packages:
       node-gyp-build: 4.8.4
     dev: false
 
-  /ts-node@10.9.2(@swc/core@1.10.4)(@types/node@22.10.2)(typescript@5.7.2):
+  /ts-node@10.9.2(@swc/core@1.10.4)(@types/node@22.10.2)(typescript@5.7.3):
     resolution: {integrity: sha512-f0FFpIdcHgn8zcPSbf1dRevwt047YMnaiJM3u2w2RewrB+fob/zePZcrOyQoLMMO7aBIddLcQIEK5dYjkLnGrQ==}
     hasBin: true
     peerDependencies:
@@ -953,7 +953,7 @@ packages:
       create-require: 1.1.1
       diff: 4.0.2
       make-error: 1.3.6
-      typescript: 5.7.2
+      typescript: 5.7.3
       v8-compile-cache-lib: 3.0.1
       yn: 3.1.1
     dev: true
@@ -963,8 +963,8 @@ packages:
     engines: {node: '>=10'}
     dev: false
 
-  /typescript@5.7.2:
-    resolution: {integrity: sha512-i5t66RHxDvVN40HfDd1PsEThGNnlMCMT3jMUuoh9/0TaqWevNontacunWyN02LA9/fIbEWlcHZcgTKb9QoaLfg==}
+  /typescript@5.7.3:
+    resolution: {integrity: sha512-84MVSjMEHP+FQRPy3pX9sTVV/INIex71s9TL2Gm5FG/WG1SqXeKyZ0k7/blY/4FdOzI12CBy1vGc4og/eus0fw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
