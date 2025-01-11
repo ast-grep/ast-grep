@@ -24,11 +24,11 @@ dependencies:
     specifier: 3.7.1
     version: 3.7.1
   tree-sitter:
-    specifier: 0.22.1
-    version: 0.22.1
+    specifier: 0.22.4
+    version: 0.22.4
   tree-sitter-typescript:
     specifier: 0.21.2
-    version: 0.21.2(tree-sitter@0.22.1)
+    version: 0.21.2(tree-sitter@0.22.4)
   typescript:
     specifier: 5.7.3
     version: 5.7.3
@@ -903,7 +903,7 @@ packages:
     engines: {node: '>=4'}
     dev: true
 
-  /tree-sitter-typescript@0.21.2(tree-sitter@0.22.1):
+  /tree-sitter-typescript@0.21.2(tree-sitter@0.22.4):
     resolution: {integrity: sha512-/RyNK41ZpkA8PuPZimR6pGLvNR1p0ibRUJwwQn4qAjyyLEIQD/BNlwS3NSxWtGsAWZe9gZ44VK1mWx2+eQVldg==}
     requiresBuild: true
     peerDependencies:
@@ -915,11 +915,11 @@ packages:
     dependencies:
       node-addon-api: 8.0.0
       node-gyp-build: 4.8.1
-      tree-sitter: 0.22.1
+      tree-sitter: 0.22.4
     dev: false
 
-  /tree-sitter@0.22.1:
-    resolution: {integrity: sha512-gRO+jk2ljxZlIn20QRskIvpLCMtzuLl5T0BY6L9uvPYD17uUrxlxWkvYCiVqED2q2q7CVtY52Uex4WcYo2FEXw==}
+  /tree-sitter@0.22.4:
+    resolution: {integrity: sha512-usbHZP9/oxNsUY65MQUsduGRqDHQOou1cagUSwjhoSYAmSahjQDAVsh9s+SlZkn8X8+O1FULRGwHu7AFP3kjzg==}
     requiresBuild: true
     dependencies:
       node-addon-api: 8.3.0
