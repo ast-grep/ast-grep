@@ -1,4 +1,4 @@
-use ast_grep_core::{matcher::KindMatcher, AstGrep, Matcher, NodeMatch, Pattern, Position};
+use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern, Position};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
