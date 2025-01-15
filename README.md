@@ -31,12 +31,13 @@ Try the [online playground](https://ast-grep.github.io/playground.html) for a ta
 See more screenshots on the [website](https://ast-grep.github.io/).
 
 ## Installation
-You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), [pip](https://pypi.org/), [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html), [homebrew](https://brew.sh/), [scoop](https://scoop.sh/) or [MacPorts](https://www.macports.org)!
+You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), [pip](https://pypi.org/), [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html),  [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), [homebrew](https://brew.sh/), [scoop](https://scoop.sh/) or [MacPorts](https://www.macports.org)!
 
 ```bash
 npm install --global @ast-grep/cli
 pip install ast-grep-cli
 cargo install ast-grep --locked
+cargo binstall ast-grep
 
 # install via homebrew, thank @henryhchchc
 brew install ast-grep
