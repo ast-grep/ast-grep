@@ -53,3 +53,9 @@ clap_complete = "4.5.2"
 assert_cmd = "2.0.14"
 predicates = "3.1.0"
 tempfile = "3.10.1"
+
+# Support cargo bininstall, https://github.com/ast-grep/ast-grep/issues/1742
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/app-{ target }{ archive-suffix }"
+bin-dir = "app-{ target }/{ bin }{ binary-ext }"
+disabled-strategies = ["quick-install"]
