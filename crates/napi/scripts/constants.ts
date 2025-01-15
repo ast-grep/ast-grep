@@ -31,7 +31,6 @@ export const languagesCrateNames: Record<Lang, string> = {
   [Lang.Lua]: 'tree-sitter-lua',
   [Lang.Bash]: 'tree-sitter-bash',
   [Lang.Yaml]: 'tree-sitter-yaml',
-  [Lang.Sql]: 'tree-sitter-sql',
 }
 
 export const languagesNodeTypesUrls = {
@@ -79,5 +78,5 @@ export const languagesNodeTypesUrls = {
     'https://raw.githubusercontent.com/tree-sitter-grammars/tree-sitter-yaml/refs/tags/{{TAG}}/src/node-types.json',
   [Lang.Lua]:
     'https://raw.githubusercontent.com/tree-sitter-grammars/tree-sitter-lua/refs/tags/{{TAG}}/src/node-types.json',
-  // Not available for SQL and Swift - They don't have node-types.json in their repo contents
+  // Not available for Swift - They don't have node-types.json in their repo contents
 }

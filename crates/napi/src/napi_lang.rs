@@ -39,7 +39,6 @@ pub enum Lang {
   Ruby,
   Rust,
   Scala,
-  Sql,
   Swift,
   Yaml,
 }

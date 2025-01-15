@@ -178,7 +178,6 @@ impl_lang_expando!(Ruby, language_ruby, 'µ');
 // we can use any char in unicode range [:XID_Start:]
 // https://doc.rust-lang.org/reference/identifiers.html
 impl_lang_expando!(Rust, language_rust, 'µ');
-impl_lang_expando!(Sql, language_sql, '_');
 //https://docs.swift.org/swift-book/documentation/the-swift-programming-language/lexicalstructure/#Identifiers
 impl_lang_expando!(Swift, language_swift, 'µ');
 
@@ -219,7 +218,6 @@ pub enum SupportLang {
   Ruby,
   Rust,
   Scala,
-  Sql,
   Swift,
   Tsx,
   TypeScript,
@@ -231,7 +229,7 @@ impl SupportLang {
     use SupportLang::*;
     &[
       Bash, C, Cpp, CSharp, Css, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin, Lua,
-      Php, Python, Ruby, Rust, Scala, Sql, Swift, Tsx, TypeScript, Yaml,
+      Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml,
     ]
   }
 
@@ -331,7 +329,6 @@ impl_aliases! {
   Ruby => &["rb", "ruby"],
   Rust => &["rs", "rust"],
   Scala => &["scala"],
-  Sql => &["sql"],
   Swift => &["swift"],
   TypeScript => &["ts", "typescript"],
   Tsx => &["tsx"],
@@ -376,7 +373,6 @@ macro_rules! execute_lang_method {
       S::Ruby => Ruby.$method($($pname,)*),
       S::Rust => Rust.$method($($pname,)*),
       S::Scala => Scala.$method($($pname,)*),
-      S::Sql => Sql.$method($($pname,)*),
       S::Swift => Swift.$method($($pname,)*),
       S::Tsx => Tsx.$method($($pname,)*),
       S::TypeScript => TypeScript.$method($($pname,)*),
@@ -441,7 +437,6 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Ruby => &["rb", "rbw", "gemspec"],
     Rust => &["rs"],
     Scala => &["scala", "sc", "sbt"],
-    Sql => &["sql", "pgsql"],
     Swift => &["swift"],
     TypeScript => &["ts", "cts", "mts"],
     Tsx => &["tsx"],

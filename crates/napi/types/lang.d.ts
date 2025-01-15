@@ -20,7 +20,6 @@ export enum Lang {
   Ruby = 'Ruby',
   Rust = 'Rust',
   Scala = 'Scala',
-  Sql = 'Sql',
   Swift = 'Swift',
   Yaml = 'Yaml',
 }
