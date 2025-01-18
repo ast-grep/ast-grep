@@ -1,3 +1,5 @@
+export type LanguageNodeTypes = Record<never, never>
+
 export enum Lang {
   Html = 'Html',
   JavaScript = 'JavaScript',

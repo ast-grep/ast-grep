@@ -10,8 +10,12 @@ import {
 } from './constants'
 import toml from 'smol-toml'
 
-const rootDir = path.resolve(__dirname, '..')
-const langDir = path.join(rootDir, 'lang')
+const root = path.resolve(__dirname, '..')
+const dirs = {
+  root,
+  types: path.join(root, 'types'),
+  lang: path.join(root, 'lang'),
+}
 
 async function fileExists(filePath: string): Promise<boolean> {
   try {
@@ -53,7 +57,7 @@ function processNodeTypes(nodeTypes: NodeType[]): Record<string, NodeType> {
 async function generateLangNodeTypes() {
   const testOnly = process.argv.slice(2)[0]
   const languageCargoToml = await readFile(
-    path.resolve(rootDir, '../language/Cargo.toml'),
+    path.resolve(dirs.root, '../language/Cargo.toml'),
     'utf8',
   )
 
@@ -65,7 +69,7 @@ async function generateLangNodeTypes() {
   // if we are running in test mode, we only want to generate types for TypeScript
   // and only if the file does not exist
   if (testOnly) {
-    const existing = await fileExists(path.join(langDir, 'TypeScript.d.ts'))
+    const existing = await fileExists(path.join(dirs.lang, 'TypeScript.d.ts'))
     if (existing) {
       return
     }
@@ -90,11 +94,32 @@ async function generateLangNodeTypes() {
         `type ${lang}Types = ${JSON.stringify(nodeTypeMap, null, 2)};` +
         '\n' +
         `export default ${lang}Types;`
-      await writeFile(path.join(langDir, `${lang}.d.ts`), fileContent)
+      await writeFile(path.join(dirs.lang, `${lang}.d.ts`), fileContent)
     } catch (e) {
       console.error(`Error while generating node types for ${lang}`)
       throw e
     }
+  }
+
+  try {
+    const existingTypesSource = await readFile(
+      path.join(dirs.types, 'lang.d.ts'),
+      'utf8',
+    )
+
+    const stringifiedMappedType = langs
+      .map(lang => `[Lang.${lang[0]}]: import("../lang/${lang[0]}").default`)
+      .join('\n  ')
+
+    const newSource = existingTypesSource.replace(
+      /export type LanguageNodeTypes = .+/,
+      `export type LanguageNodeTypes = {\n  ${stringifiedMappedType}\n}`,
+    )
+
+    await writeFile(path.join(dirs.types, 'lang.d.ts'), newSource)
+  } catch (e) {
+    console.error('Error while generating mapper type in lang.d.ts')
+    throw e
   }
 }
 
