@@ -46,6 +46,7 @@
     "build:debug": "napi build --no-const-enum --dts ignore.d.ts --platform",
     "prepublishOnly": "napi prepublish -t npm --skip-gh-release",
     "pretest": "ts-node scripts/generateTypes.ts --test-only",
+    "posttest": "ts-node scripts/cleanup.ts",
     "test": "tsc --noEmit && ava",
     "version": "napi version",
     "lint": "biome lint --fix && biome format --write",

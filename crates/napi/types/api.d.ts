@@ -1,6 +1,6 @@
 import type { SgNode, SgRoot } from './sgnode'
 import type { NapiConfig, FindConfig, FileOption } from './config'
-import type { NapiLang, LanguageNodeTypes } from './lang'
+import type { NapiLang, LanguageNodeTypes, CustomLang } from './lang'
 import type { NamedKinds, TypesMap } from './staticTypes'
 
 export declare function parseFiles<M extends TypesMap>(
@@ -8,7 +8,10 @@ export declare function parseFiles<M extends TypesMap>(
   callback: (err: null | Error, result: SgRoot<M>) => void,
 ): Promise<number>
 /** Parse a string to an ast-grep instance */
-export declare function parse<M extends TypesMap, L extends NapiLang>(
+export declare function parse<
+  M extends TypesMap,
+  L extends NapiLang = CustomLang,
+>(
   lang: L,
   src: string,
 ): SgRoot<L extends keyof LanguageNodeTypes ? LanguageNodeTypes[L] : M>
@@ -19,19 +22,28 @@ export declare function parse<M extends TypesMap, L extends NapiLang>(
  * Please refer to libuv doc, nodejs' underlying runtime
  * for its default behavior and performance tuning tricks.
  */
-export declare function parseAsync<M extends TypesMap, L extends NapiLang>(
+export declare function parseAsync<
+  M extends TypesMap,
+  L extends NapiLang = CustomLang,
+>(
   lang: L,
   src: string,
 ): Promise<SgRoot<L extends keyof LanguageNodeTypes ? LanguageNodeTypes[L] : M>>
 /** Get the `kind` number from its string name. */
-export declare function kind<M extends TypesMap, L extends NapiLang>(
+export declare function kind<
+  M extends TypesMap,
+  L extends NapiLang = CustomLang,
+>(
   lang: L,
   kindName: NamedKinds<
     L extends keyof LanguageNodeTypes ? LanguageNodeTypes[L] : M
   >,
 ): number
 /** Compile a string to ast-grep Pattern. */
-export declare function pattern<M extends TypesMap, L extends NapiLang>(
+export declare function pattern<
+  M extends TypesMap,
+  L extends NapiLang = CustomLang,
+>(
   lang: L,
   pattern: string,
 ): Promise<
@@ -43,7 +55,10 @@ export declare function pattern<M extends TypesMap, L extends NapiLang>(
  * `config` specifies the file path and matcher.
  * `callback` will receive matching nodes found in a file.
  */
-export declare function findInFiles<M extends TypesMap, L extends NapiLang>(
+export declare function findInFiles<
+  M extends TypesMap,
+  L extends NapiLang = CustomLang,
+>(
   lang: L,
   config: FindConfig<
     L extends keyof LanguageNodeTypes ? LanguageNodeTypes[L] : M

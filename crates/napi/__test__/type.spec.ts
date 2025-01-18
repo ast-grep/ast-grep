@@ -4,7 +4,7 @@ import type TypeScriptTypes from '../lang/TypeScript'
 import { Lang, parse, parseAsync, type SgNode, type SgRoot } from '../index'
 
 test('test no type annotation', t => {
-  const sg = parse(Lang.TypeScript, 'a + b')
+  const sg = parse('TypeScript', 'a + b')
   // test root kind and field
   const root = sg.root()
   t.is(root.kind(), 'program')
@@ -146,6 +146,53 @@ test('test type argument style', t => {
   }
   // okay to use any annotation
   t.is(a.field('type_annotation'), null)
+
+  // test rule kind
+  t.throws(() => {
+    root.find({
+      rule: {
+        // @ts-expect-error: reject kind
+        kind: 'notFound',
+      },
+    })
+  })
+})
+
+test('test infer lang node types', t => {
+  const sg = parse(Lang.TypeScript, 'a + b')
+  // test root kind and field
+  const root = sg.root()
+  t.is(root.kind(), 'program')
+  // @ts-expect-error
+  t.is(root.field('body'), null)
+  // test child
+  const child = root.child(0)
+  t.assert(child !== null)
+  const childKind = child!.kind()
+  t.assert(childKind === 'expression_statement')
+  t.assert(childKind !== ',')
+  // test parent method
+  const parent = child!.parent()
+  t.assert(parent!.kind() === root.kind())
+  // test find
+  const sum = root.find({
+    rule: {
+      kind: 'binary_expression',
+    },
+  })!
+  t.is(sum.kind(), 'binary_expression')
+  t.is(sum.field('operator')!.kind(), '+')
+
+  // test type refinement
+  const a = root.find('a')!
+  t.assert(a.is('identifier'))
+  if (a.is('identifier')) {
+    t.assert(a.kind() === 'identifier')
+    // @ts-expect-error: should refine kind
+    t.assert(a.kind() !== 'invalid')
+    // @ts-expect-error: should reject field
+    t.is(a.field('type_annotation'), null)
+  }
 
   // test rule kind
   t.throws(() => {
