@@ -187,6 +187,7 @@ mod tests {
 
   #[test]
   #[should_panic]
+  #[cfg(debug_assertions)]
   fn test_unmatching_id() {
     let rule_config = get_rule_config("pattern: let x = $A");
     let test_case = TestCase {
