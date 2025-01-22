@@ -9,7 +9,7 @@ use predicates::str::contains;
 #[test]
 fn test_simple_infer_lang() -> Result<()> {
   let dir = create_test_files([("a.ts", "console.log(123)"), ("b.rs", "console.log(456)")])?;
-  Command::cargo_bin("sg")?
+  Command::cargo_bin("ast-grep")?
     .current_dir(dir.path())
     .args(["-p", "console.log($A)"])
     .assert()
@@ -22,7 +22,7 @@ fn test_simple_infer_lang() -> Result<()> {
 #[test]
 fn test_simple_specific_lang() -> Result<()> {
   let dir = create_test_files([("a.ts", "console.log(123)"), ("b.rs", "console.log(456)")])?;
-  Command::cargo_bin("sg")?
+  Command::cargo_bin("ast-grep")?
     .current_dir(dir.path())
     .args(["-p", "console.log($A)", "-l", "rs"])
     .assert()
@@ -38,7 +38,7 @@ fn test_js_in_html() -> Result<()> {
     ("a.html", "<script>alert(1)</script>"),
     ("b.js", "alert(456)"),
   ])?;
-  Command::cargo_bin("sg")?
+  Command::cargo_bin("ast-grep")?
     .current_dir(dir.path())
     .args(["-p", "alert($A)", "-l", "js"])
     .assert()
@@ -51,7 +51,7 @@ fn test_js_in_html() -> Result<()> {
 #[test]
 fn test_inspect() -> Result<()> {
   let dir = create_test_files([("a.js", "alert(1)"), ("b.js", "alert(456)")])?;
-  Command::cargo_bin("sg")?
+  Command::cargo_bin("ast-grep")?
     .current_dir(dir.path())
     .args(["-p", "alert($A)", "-l", "js", "--inspect", "entity"])
     .assert()
@@ -64,7 +64,7 @@ fn test_inspect() -> Result<()> {
 #[test]
 fn test_debug_query() -> Result<()> {
   // should not print pattern if invalid
-  Command::cargo_bin("sg")?
+  Command::cargo_bin("ast-grep")?
     .args(["-p", "foo;bar;", "-l", "js", "--debug-query"])
     .assert()
     .failure()
@@ -72,7 +72,7 @@ fn test_debug_query() -> Result<()> {
     .stderr(contains("Cannot parse query as a valid pattern"));
 
   // should  print debug tree even for invalid pattern
-  Command::cargo_bin("sg")?
+  Command::cargo_bin("ast-grep")?
     .args(["-p", "foo;bar;", "-l", "js", "--debug-query=ast"])
     .assert()
     .failure()

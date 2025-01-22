@@ -57,7 +57,7 @@ fn test_sg_test() -> Result<()> {
   let dir = setup()?;
   let config = dir.path().join("sgconfig.yml");
   let ret = sg(&format!(
-    "sg test -c {} --skip-snapshot-tests",
+    "ast-grep test -c {} --skip-snapshot-tests",
     config.display()
   ));
   assert!(ret.is_ok());
@@ -81,7 +81,7 @@ fn test_sg_test_error() -> Result<()> {
   let dir = setup_error()?;
   let config = dir.path().join("sgconfig.yml");
   let ret = sg(&format!(
-    "sg test -c {} --skip-snapshot-tests",
+    "ast-grep test -c {} --skip-snapshot-tests",
     config.display()
   ));
   assert!(ret.is_err());
@@ -95,12 +95,12 @@ fn test_sg_test_filter() -> Result<()> {
   let dir = setup_error()?;
   let config = dir.path().join("sgconfig.yml");
   let ret = sg(&format!(
-    "sg test -c {} --skip-snapshot-tests -f error-rule",
+    "ast-grep test -c {} --skip-snapshot-tests -f error-rule",
     config.display()
   ));
   assert!(ret.is_ok());
   let ret = sg(&format!(
-    "sg test -c {} --skip-snapshot-tests -f test-rule",
+    "ast-grep test -c {} --skip-snapshot-tests -f test-rule",
     config.display()
   ));
   assert!(ret.is_err());
