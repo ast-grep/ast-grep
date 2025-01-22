@@ -19,13 +19,13 @@
 ast-grep(sg) is a CLI tool for code structural search, lint, and rewriting.
 
 ## Introduction
-ast-grep is an AST-based tool to search code by pattern code. Think of it as your old-friend `grep`, but matching AST nodes instead of text.
+ast-grep is an [abstract syntax tree](https://dev.to/balapriya/abstract-syntax-tree-ast-explained-in-plain-english-1h38) based tool to search code by pattern code. Think of it as your old-friend [`grep`](https://en.wikipedia.org/wiki/Grep#:~:text=grep%20is%20a%20command%2Dline,which%20has%20the%20same%20effect.), but matching AST nodes instead of text.
 You can write patterns as if you are writing ordinary code. It will match all code that has the same syntactical structure.
-You can use `$` sign + upper case letters as wildcard, e.g. `$MATCH`, to match any single AST node. Think of it as REGEX dot `.`, except it is not textual.
+You can use `$` sign + upper case letters as a [wildcard](https://en.wikipedia.org/wiki/Wildcard_character), e.g. `$MATCH`, to match any single AST node. Think of it as [regular expression dot](https://regexone.com/lesson/wildcards_dot) `.`, except it is not textual.
 
 Try the [online playground](https://ast-grep.github.io/playground.html) for a taste!
 
-## Demo
+## Screenshot
 ![demo](https://ast-grep.github.io/image/search-replace.png)
 
 See more screenshots on the [website](https://ast-grep.github.io/).
@@ -36,11 +36,16 @@ You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-
 ```bash
 npm install --global @ast-grep/cli
 pip install ast-grep-cli
+brew install ast-grep
+```
+
+
+<details>
+<summary>Click for more installation methods</summary>
+
+```bash
 cargo install ast-grep --locked
 cargo binstall ast-grep
-
-# install via homebrew, thank @henryhchchc
-brew install ast-grep
 
 # install via scoop, thank @brian6932
 scoop install main/ast-grep
@@ -51,11 +56,14 @@ sudo port install ast-grep
 # try ast-grep in nix-shell
 nix-shell -p ast-grep
 ```
+</details>
+
 Or you can build ast-grep from source. You need to install rustup, clone the repository and then
 ```bash
 cargo install --path ./crates/cli --locked
 ```
 [Packages](https://repology.org/project/ast-grep/versions) are available on other platforms too.
+
 
 ## Command line usage example
 
