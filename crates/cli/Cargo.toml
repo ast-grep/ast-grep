@@ -3,7 +3,7 @@ name = "ast-grep"
 description = "Search and Rewrite code at large scale using precise AST pattern"
 keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
 categories = ["command-line-utilities", "development-tools", "parsing"]
-default-run = "sg"
+default-run = "ast-grep"
 # use relative path because maturin does not recognize
 readme = "../../README.md"
 license-file = "../../LICENSE"
@@ -18,11 +18,11 @@ repository.workspace = true
 rust-version.workspace = true
 
 [[bin]]
-name = "sg"
+name = "ast-grep"
 path = "src/main.rs"
 
 [[bin]]
-name = "ast-grep"
+name = "sg"
 path = "src/bin/ast-grep.rs"
 
 [dependencies]
