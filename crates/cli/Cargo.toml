@@ -23,7 +23,7 @@ path = "src/main.rs"
 
 [[bin]]
 name = "sg"
-path = "src/bin/ast-grep.rs"
+path = "src/bin/alias.rs"
 
 [dependencies]
 ast-grep-core.workspace = true
