@@ -89,7 +89,9 @@ impl ProjectConfig {
     let global_rules = find_util_rules(self)?;
     read_directory_yaml(self, global_rules, rule_overwrite)
   }
-  // do not report error if no sgconfig.yml is found
+  /// returns a Result of Result.
+  /// The inner Result is for configuration not found, or ProjectNotExist
+  /// The outer Result is for definitely wrong config.
   pub fn setup(config_path: Option<PathBuf>) -> Result<Result<Self>> {
     let Some((project_dir, mut sg_config)) = Self::discover_project(config_path)? else {
       return Ok(Err(anyhow::anyhow!(EC::ProjectNotExist)));

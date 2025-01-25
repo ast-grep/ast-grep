@@ -98,7 +98,7 @@ fn try_default_run(args: &[String]) -> Result<Option<RunArg>> {
 }
 
 /// finding project and setup custom language configuration
-fn setup_project_is_possible(args: &[String]) -> Result<ProjectConfig> {
+fn setup_project_is_possible(args: &[String]) -> Result<Result<ProjectConfig>> {
   let mut config = None;
   for i in 0..args.len() {
     let arg = &args[i];
@@ -118,13 +118,13 @@ fn setup_project_is_possible(args: &[String]) -> Result<ProjectConfig> {
     let config_file = (&args[i + 1]).into();
     config = Some(config_file);
   }
-  ProjectConfig::setup(config)?
+  ProjectConfig::setup(config)
 }
 
 // this wrapper function is for testing
 pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
   let args: Vec<_> = args.collect();
-  let project = setup_project_is_possible(&args);
+  let project = setup_project_is_possible(&args)?;
   // register_custom_language_if_is_run(&args)?;
   if let Some(arg) = try_default_run(&args)? {
     return run_with_pattern(arg);

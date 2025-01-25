@@ -81,3 +81,15 @@ fn test_debug_query() -> Result<()> {
 
   Ok(())
 }
+
+#[test]
+fn test_invalid_sg_config() -> Result<()> {
+  let dir = create_test_files([("invalid.yml", "invalid")])?;
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["-p", "alert($A)", "-c", "invalid.yml"])
+    .assert()
+    .failure()
+    .stderr(contains("Cannot parse configuration"));
+  Ok(())
+}
