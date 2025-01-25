@@ -206,7 +206,7 @@ impl PathWorker for RunWithInferredLang {
     self.arg.input.walk()
   }
   fn get_trace(&self) -> &FileTrace {
-    &self.trace.file_trace
+    &self.trace.inner
   }
 
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
@@ -279,7 +279,7 @@ impl PathWorker for RunWithSpecificLang {
     Ok(self.arg.input.walk_lang(lang))
   }
   fn get_trace(&self) -> &FileTrace {
-    &self.stats.file_trace
+    &self.stats.inner
   }
   fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
     let arg = &self.arg;
