@@ -3,6 +3,7 @@ import test from 'ava'
 import {
   registerDynamicLanguage,
   parse,
+  findInFiles,
 } from '../index'
 
 const { platform, arch } = process
@@ -41,4 +42,21 @@ test('test load custom lang', t => {
   t.is(node.kind(), 'number')
   const no = root.find("456")
   t.falsy(no)
+})
+
+test('discover file', async t => {
+  await findInFiles('json', {
+    paths: ['../'],
+    matcher: {
+      rule: {
+        kind: 'string'
+      }
+    }
+  }, (error, nodes) => {
+    t.falsy(error)
+    t.truthy(nodes)
+    t.is(nodes[0].kind(), 'string')
+    const file = nodes[0].getRoot().filename()
+    t.assert(file.endsWith('.json'))
+  })
 })
