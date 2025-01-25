@@ -4,7 +4,6 @@ import path from 'node:path'
 import type { Lang } from '../index'
 import type { NodeType } from '../types/staticTypes'
 import {
-  languageNodeTypesTagVersionOverrides,
   languagesCrateNames,
   languagesNodeTypesUrls,
 } from './constants'
@@ -77,8 +76,7 @@ async function generateLangNodeTypes() {
       const treeSitterCrateName = languagesCrateNames[lang]
       const cargoVersion =
         parsedCargoToml.dependencies[treeSitterCrateName].version
-      const tag =
-        languageNodeTypesTagVersionOverrides[lang] ?? `v${cargoVersion}`
+      const tag = `v${cargoVersion}`
       const url = urlTemplate.replace('{{TAG}}', tag)
       const nodeTypesResponse = await fetch(url)
       const nodeTypes = (await nodeTypesResponse.json()) as NodeType[]
