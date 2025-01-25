@@ -64,4 +64,10 @@ builtin-parser = [
   "tree-sitter-typescript",
   "tree-sitter-yaml",
 ]
+napi-lang = [
+  "tree-sitter-css",
+  "tree-sitter-html",
+  "tree-sitter-javascript",
+  "tree-sitter-typescript",
+]
 default = ["builtin-parser"]

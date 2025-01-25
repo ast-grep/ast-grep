@@ -26,6 +26,19 @@ macro_rules! into_lang {
   };
 }
 
+#[cfg(any(feature = "builtin-parser", feature = "napi-lang"))]
+macro_rules! into_napi_lang {
+  ($lang: path) => {
+    $lang.into()
+  };
+}
+#[cfg(not(any(feature = "builtin-parser", feature = "napi-lang")))]
+macro_rules! into_napi_lang {
+  ($lang: path) => {
+    $lang.into()
+  };
+}
+
 use ast_grep_core::language::TSLanguage;
 
 pub fn language_bash() -> TSLanguage {
@@ -41,7 +54,7 @@ pub fn language_c_sharp() -> TSLanguage {
   into_lang!(tree_sitter_c_sharp)
 }
 pub fn language_css() -> TSLanguage {
-  into_lang!(tree_sitter_css)
+  into_napi_lang!(tree_sitter_css::LANGUAGE)
 }
 pub fn language_elixir() -> TSLanguage {
   into_lang!(tree_sitter_elixir)
@@ -53,13 +66,13 @@ pub fn language_haskell() -> TSLanguage {
   into_lang!(tree_sitter_haskell)
 }
 pub fn language_html() -> TSLanguage {
-  into_lang!(tree_sitter_html)
+  into_napi_lang!(tree_sitter_html::LANGUAGE)
 }
 pub fn language_java() -> TSLanguage {
   into_lang!(tree_sitter_java)
 }
 pub fn language_javascript() -> TSLanguage {
-  into_lang!(tree_sitter_javascript)
+  into_napi_lang!(tree_sitter_javascript::LANGUAGE)
 }
 pub fn language_json() -> TSLanguage {
   into_lang!(tree_sitter_json)
@@ -89,10 +102,10 @@ pub fn language_swift() -> TSLanguage {
   into_lang!(tree_sitter_swift)
 }
 pub fn language_tsx() -> TSLanguage {
-  into_lang!(tree_sitter_typescript, LANGUAGE_TSX)
+  into_napi_lang!(tree_sitter_typescript::LANGUAGE_TSX)
 }
 pub fn language_typescript() -> TSLanguage {
-  into_lang!(tree_sitter_typescript, LANGUAGE_TYPESCRIPT)
+  into_napi_lang!(tree_sitter_typescript::LANGUAGE_TYPESCRIPT)
 }
 pub fn language_yaml() -> TSLanguage {
   into_lang!(tree_sitter_yaml)
