@@ -160,12 +160,12 @@ pub fn run_with_pattern(arg: RunArg) -> Result<()> {
 }
 
 fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + 'static) -> Result<()> {
+  let trace = arg.output.inspect.run_trace();
   if arg.input.stdin {
-    RunWithSpecificLang::new(arg)?.run_std_in(printer)
+    RunWithSpecificLang::new(arg, trace)?.run_std_in(printer)
   } else if arg.lang.is_some() {
-    RunWithSpecificLang::new(arg)?.run_path(printer)
+    RunWithSpecificLang::new(arg, trace)?.run_path(printer)
   } else {
-    let trace = arg.output.inspect.run_trace();
     RunWithInferredLang { arg, trace }.run_path(printer)
   }
 }
@@ -234,7 +234,7 @@ struct RunWithSpecificLang {
 }
 
 impl RunWithSpecificLang {
-  fn new(arg: RunArg) -> Result<Self> {
+  fn new(arg: RunArg, stats: RunTrace) -> Result<Self> {
     let lang = arg.lang.ok_or(anyhow::anyhow!(EC::LanguageNotSpecified))?;
     // do not unwrap result here
     let pattern_ret = arg.build_pattern(lang);
@@ -244,7 +244,6 @@ impl RunWithSpecificLang {
     } else {
       None
     };
-    let stats = arg.output.inspect.run_trace();
     Ok(Self {
       arg,
       pattern: pattern_ret?,
