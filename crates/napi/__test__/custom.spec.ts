@@ -13,18 +13,18 @@ const canTestDynamicLang = isAppleSilicon || isX64Linux
 
 if (isAppleSilicon) {
   registerDynamicLanguage({
-    myjson: {
+    json: {
       libraryPath: "../../benches/fixtures/json-mac.so",
       languageSymbol: "tree_sitter_json",
-      extensions: ["myjson"],
+      extensions: ["json"],
     }
   })
 } else if (isX64Linux) {
   registerDynamicLanguage({
-    myjson: {
+    json: {
       libraryPath: "../../benches/fixtures/json-linux.so",
       languageSymbol: "tree_sitter_json",
-      extensions: ["myjson"],
+      extensions: ["json"],
     }
   })
 }
@@ -34,7 +34,7 @@ test('test load custom lang', t => {
     t.pass('This test is not available on this platform')
     return
   }
-  const sg = parse('myjson', '{"test": 123}')
+  const sg = parse('json', '{"test": 123}')
   const root = sg.root()
   const node = root.find("123")!
   t.truthy(node)
