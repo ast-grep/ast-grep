@@ -48,11 +48,10 @@ impl Granularity {
   pub fn run_trace(&self) -> RunTrace {
     self.run_trace_impl(std::io::stderr())
   }
-  fn run_trace_impl<W: Write>(&self, w: W) -> TraceInfo<(), W> {
+  fn run_trace_impl<W: Write>(&self, w: W) -> TraceInfo<FileTrace, W> {
     TraceInfo {
       level: *self,
-      inner: (),
-      file_trace: Default::default(),
+      inner: Default::default(),
       output: Mutex::new(w),
     }
   }
@@ -64,7 +63,6 @@ impl Granularity {
     TraceInfo {
       level: *self,
       inner: rule_stats,
-      file_trace: Default::default(),
       output: Mutex::new(w),
     }
   }
@@ -89,7 +87,6 @@ impl FileTrace {
 
 pub struct TraceInfo<T, W: Write> {
   pub level: Granularity,
-  pub file_trace: FileTrace,
   pub inner: T,
   output: Mutex<W>,
 }
@@ -132,21 +129,21 @@ impl<T, W: Write + Sync> TraceInfo<T, W> {
       kv_write(w)
     })
   }
+}
+
+impl<W: Write + Sync> TraceInfo<FileTrace, W> {
+  pub fn print(&self) -> Result<()> {
+    self.print_files()
+  }
 
   fn print_files(&self) -> Result<()> {
     self.print_summary("file", |w| {
-      let scanned = self.file_trace.files_scanned.load(Ordering::Acquire);
-      let skipped = self.file_trace.files_skipped.load(Ordering::Acquire);
+      let scanned = self.inner.files_scanned.load(Ordering::Acquire);
+      let skipped = self.inner.files_skipped.load(Ordering::Acquire);
       write!(w, "scannedFileCount={scanned},skippedFileCount={skipped}")?;
       Ok(())
     })?;
     Ok(())
-  }
-}
-
-impl<W: Write + Sync> TraceInfo<(), W> {
-  pub fn print(&self) -> Result<()> {
-    self.print_files()
   }
 
   pub fn print_file(&self, path: &Path, lang: SgLang) -> Result<()> {
@@ -170,6 +167,15 @@ impl<W: Write + Sync> TraceInfo<RuleTrace, W> {
         w,
         "effectiveRuleCount={effective},skippedRuleCount={skipped}"
       )?;
+      Ok(())
+    })?;
+    Ok(())
+  }
+  fn print_files(&self) -> Result<()> {
+    self.print_summary("file", |w| {
+      let scanned = self.inner.file_trace.files_scanned.load(Ordering::Acquire);
+      let skipped = self.inner.file_trace.files_skipped.load(Ordering::Acquire);
+      write!(w, "scannedFileCount={scanned},skippedFileCount={skipped}")?;
       Ok(())
     })?;
     Ok(())
@@ -199,11 +205,12 @@ impl<W: Write + Sync> TraceInfo<RuleTrace, W> {
 
 #[derive(Default)]
 pub struct RuleTrace {
+  pub file_trace: FileTrace,
   pub effective_rule_count: usize,
   pub skipped_rule_count: usize,
 }
 
-pub type RunTrace = TraceInfo<(), Stderr>;
+pub type RunTrace = TraceInfo<FileTrace, Stderr>;
 pub type ScanTrace = TraceInfo<RuleTrace, Stderr>;
 
 #[cfg(test)]
@@ -216,14 +223,8 @@ mod test {
     let mut ret = String::new();
     let run_trace = tracing.run_trace_impl(unsafe { ret.as_mut_vec() });
     assert_eq!(run_trace.level, Granularity::Summary);
-    assert_eq!(
-      run_trace.file_trace.files_scanned.load(Ordering::Relaxed),
-      0
-    );
-    assert_eq!(
-      run_trace.file_trace.files_skipped.load(Ordering::Relaxed),
-      0
-    );
+    assert_eq!(run_trace.inner.files_scanned.load(Ordering::Relaxed), 0);
+    assert_eq!(run_trace.inner.files_skipped.load(Ordering::Relaxed), 0);
     assert!(run_trace.print().is_ok());
     assert_eq!(
       ret,
@@ -234,15 +235,24 @@ mod test {
     let rule_stats = RuleTrace {
       effective_rule_count: 10,
       skipped_rule_count: 2,
+      file_trace: Default::default(),
     };
     let scan_trace = tracing.scan_trace_impl(rule_stats, unsafe { ret.as_mut_vec() });
     assert_eq!(scan_trace.level, Granularity::Summary);
     assert_eq!(
-      scan_trace.file_trace.files_scanned.load(Ordering::Relaxed),
+      scan_trace
+        .inner
+        .file_trace
+        .files_scanned
+        .load(Ordering::Relaxed),
       0
     );
     assert_eq!(
-      scan_trace.file_trace.files_skipped.load(Ordering::Relaxed),
+      scan_trace
+        .inner
+        .file_trace
+        .files_skipped
+        .load(Ordering::Relaxed),
       0
     );
     assert_eq!(scan_trace.inner.effective_rule_count, 10);

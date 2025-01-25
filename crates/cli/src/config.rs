@@ -196,6 +196,7 @@ fn read_directory_yaml(
   let collection = RuleCollection::try_new(configs).context(EC::GlobPattern)?;
   let effective_rule_count = collection.total_rule_count();
   let trace = RuleTrace {
+    file_trace: Default::default(),
     effective_rule_count,
     skipped_rule_count: total_rule_count - effective_rule_count,
   };
@@ -209,6 +210,7 @@ pub fn with_rule_stats(
   let collection = RuleCollection::try_new(configs).context(EC::GlobPattern)?;
   let effective_rule_count = collection.total_rule_count();
   let trace = RuleTrace {
+    file_trace: Default::default(),
     effective_rule_count,
     skipped_rule_count: total_rule_count - effective_rule_count,
   };

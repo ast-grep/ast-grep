@@ -198,7 +198,7 @@ fn unused_suppression_rule_config(arg: &ScanArg, overwrite: &RuleOverwrite) -> R
 
 impl PathWorker for ScanWithConfig {
   fn get_trace(&self) -> &FileTrace {
-    &self.trace.file_trace
+    &self.trace.inner.file_trace
   }
   fn build_walk(&self) -> Result<WalkParallel> {
     let mut langs = HashSet::new();
