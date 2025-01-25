@@ -13,7 +13,7 @@ edition.workspace = true
 [dependencies]
 ast-grep-core.workspace = true
 ast-grep-config.workspace = true
-ast-grep-language.workspace = true
+ast-grep-language = { path = "../language", features = ["napi-lang"], default-features = false }
 ast-grep-dynamic.workspace = true
 
 napi = { version = "2.16.4", features = ["serde-json", "napi4", "error_anyhow"] }
