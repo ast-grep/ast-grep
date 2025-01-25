@@ -23,24 +23,6 @@ pub enum Lang {
   Tsx,
   Css,
   TypeScript,
-  Bash,
-  C,
-  Cpp,
-  CSharp,
-  Go,
-  Elixir,
-  Haskell,
-  Java,
-  Json,
-  Kotlin,
-  Lua,
-  Php,
-  Python,
-  Ruby,
-  Rust,
-  Scala,
-  Swift,
-  Yaml,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
@@ -52,7 +34,11 @@ pub enum NapiLang {
 
 impl NapiLang {
   fn all_langs() -> Vec<Self> {
-    let builtin = SupportLang::all_langs().iter().copied().map(Self::Builtin);
+    use SupportLang as S;
+    let builtin = [S::Html, S::JavaScript, S::Tsx, S::Css, S::TypeScript]
+      .iter()
+      .copied()
+      .map(Self::Builtin);
     let customs = DynamicLang::all_langs().into_iter().map(Self::Custom);
     builtin.chain(customs).collect()
   }
@@ -103,9 +89,15 @@ impl Debug for NapiLang {
 impl FromStr for NapiLang {
   type Err = Error;
   fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-    if let Ok(b) = SupportLang::from_str(s) {
-      Ok(NapiLang::Builtin(b))
-    } else if let Ok(c) = DynamicLang::from_str(s) {
+    use SupportLang as S;
+    // only support frontend languages to reduce binary size
+    if let Ok(b) = S::from_str(s) {
+      if matches!(b, S::Css | S::Html | S::JavaScript | S::Tsx | S::TypeScript) {
+        return Ok(NapiLang::Builtin(b));
+      }
+    }
+
+    if let Ok(c) = DynamicLang::from_str(s) {
       Ok(NapiLang::Custom(c))
     } else {
       Err(anyhow!(format!("{s} is not supported in napi")))
