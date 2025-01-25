@@ -35,7 +35,9 @@ macro_rules! into_napi_lang {
 #[cfg(not(any(feature = "builtin-parser", feature = "napi-lang")))]
 macro_rules! into_napi_lang {
   ($lang: path) => {
-    $lang.into()
+    unimplemented!(
+      "tree-sitter parser is not implemented when feature flag [builtin-parser] is off."
+    )
   };
 }
 

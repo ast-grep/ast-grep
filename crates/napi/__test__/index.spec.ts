@@ -5,14 +5,10 @@ import {
   ts,
   tsx,
   html,
-  Lang,
-  parseFiles,
-  parseAsync,
-  findInFiles,
-  parse as parseWithLang,
+  // parseFiles,
 } from '../index'
 const { parse, kind } = js
-const parseMulti = countedPromise(parseFiles)
+// const parseMulti = countedPromise(parseFiles)
 
 test('find from native code', t => {
   const sg = parse('console.log(123)')
@@ -172,47 +168,47 @@ test('find by config', t => {
   })
 })
 
-test('test find files', async t => {
-  await parseMulti(['./__test__/index.spec.ts'], (err, tree) => {
-    t.is(err, null)
-    t.is(tree.filename(), './__test__/index.spec.ts')
-    t.assert(tree.root() !== null)
-  })
-})
+// test('test find files', async t => {
+//   await parseMulti(['./__test__/index.spec.ts'], (err, tree) => {
+//     t.is(err, null)
+//     t.is(tree.filename(), './__test__/index.spec.ts')
+//     t.assert(tree.root() !== null)
+//   })
+// })
 
-test('test file count', async t => {
-  let i = 0
-  const fileCount = await parseMulti(['./'], (err, _) => {
-    // ZZZ... sleep a while to mock expensive operation
-    const start = Date.now()
-    while (Date.now() - start < 1) {}
-    t.is(err, null)
-    i++
-  })
-  t.is(i, fileCount)
-})
+// test('test file count', async t => {
+//   let i = 0
+//   const fileCount = await parseMulti(['./'], (err, _) => {
+//     // ZZZ... sleep a while to mock expensive operation
+//     const start = Date.now()
+//     while (Date.now() - start < 1) {}
+//     t.is(err, null)
+//     i++
+//   })
+//   t.is(i, fileCount)
+// })
 
-test('test languageGlobs', async t => {
-  let i = 0
-  let foundVue = false
-  const fileCount = await parseMulti(
-    {
-      paths: ['./'],
-      languageGlobs: {
-        html: ['*.vue'],
-      },
-    },
-    (err, root) => {
-      t.is(err, null)
-      if (root.filename().endsWith('.vue')) {
-        foundVue = true
-      }
-      i++
-    },
-  )
-  t.is(i, fileCount)
-  t.true(foundVue)
-})
+// test('test languageGlobs', async t => {
+//   let i = 0
+//   let foundVue = false
+//   const fileCount = await parseMulti(
+//     {
+//       paths: ['./'],
+//       languageGlobs: {
+//         html: ['*.vue'],
+//       },
+//     },
+//     (err, root) => {
+//       t.is(err, null)
+//       if (root.filename().endsWith('.vue')) {
+//         foundVue = true
+//       }
+//       i++
+//     },
+//   )
+//   t.is(i, fileCount)
+//   t.true(foundVue)
+// })
 
 test('show good error message for invalid arg', async t => {
   const sg = parse('console.log(123)')
@@ -384,42 +380,6 @@ function countedPromise<F extends (t: any, cb: any) => Promise<number>>(
   }
 }
 
-test('parse python', t => {
-  const sg = parseWithLang(Lang.Python, 'print("hello world")')
-  const node = sg.root().find('print')
-  t.deepEqual(node!.range(), {
-    start: { line: 0, column: 0, index: 0 },
-    end: { line: 0, column: 5, index: 5 },
-  })
-})
-
-test('parse python async', async t => {
-  const sg = await parseAsync(Lang.Python, 'print("hello world")')
-  const node = sg.root().find('print')
-  t.deepEqual(node!.range(), {
-    start: { line: 0, column: 0, index: 0 },
-    end: { line: 0, column: 5, index: 5 },
-  })
-})
-
-test('find rust', async t => {
-  let changed = false
-  const counted = countedPromise((t, cb) => findInFiles(Lang.Rust, t, cb))
-  const num = await counted(
-    {
-      paths: ['./'],
-      matcher: {
-        rule: { pattern: 'ast_grep_core' },
-      },
-    },
-    () => {
-      changed = true
-    },
-  )
-  t.assert(changed)
-  t.assert(num > 0)
-})
-
 test('find node by range', t => {
   const sg = parse(
     'const message = `This is a multiline message with unicode characters\nÜbergang\nدرود\n🙌\n`;',
@@ -460,7 +420,7 @@ test('check if a node follows another using pattern', t => {
 test('check if a node follows another using config', t => {
   const sg = parse('const a = 1; const b = 2;')
   const match = sg.root().find('const a = 1')
-  t.assert(match!.follows({ rule: { pattern: 'const b = 2' }}) === false) 
+  t.assert(match!.follows({ rule: { pattern: 'const b = 2' }}) === false)
   t.assert(sg.root().find('const b = 2')!.follows({ rule: { pattern: 'const a = 1' }}))
 })
 
