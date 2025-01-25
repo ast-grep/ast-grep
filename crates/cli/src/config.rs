@@ -67,12 +67,11 @@ pub struct ProjectConfig {
 impl ProjectConfig {
   // return None if config file does not exist
   fn discover_project(config_path: Option<PathBuf>) -> Result<Option<(PathBuf, AstGrepConfig)>> {
-    let config_path = find_config_path_with_default(config_path).context(EC::ReadConfiguration)?;
+    let config_path = find_config_path_with_default(config_path).context(EC::ProjectNotExist)?;
     // NOTE: if config file does not exist, return None
-    // this is not 100% correct because of racing condition
-    if !config_path.is_file() {
+    let Some(config_path) = config_path else {
       return Ok(None);
-    }
+    };
     let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
     let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
     let project_dir = config_path
@@ -231,20 +230,21 @@ pub fn read_rule_file(
 
 const CONFIG_FILE: &str = "sgconfig.yml";
 
-fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<PathBuf> {
-  if let Some(config) = config_path {
-    return Ok(config);
+/// return None if config file does not exist
+fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<Option<PathBuf>> {
+  if config_path.is_some() {
+    return Ok(config_path);
   }
   let mut path = std::env::current_dir()?;
   loop {
     let maybe_config = path.join(CONFIG_FILE);
     if maybe_config.exists() {
-      break Ok(maybe_config);
+      break Ok(Some(maybe_config));
     }
     if let Some(parent) = path.parent() {
       path = parent.to_path_buf();
     } else {
-      break Ok(PathBuf::from(CONFIG_FILE));
+      break Ok(None);
     }
   }
 }

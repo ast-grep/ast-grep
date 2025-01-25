@@ -93,3 +93,15 @@ fn test_invalid_sg_config() -> Result<()> {
     .stderr(contains("Cannot parse configuration"));
   Ok(())
 }
+
+#[test]
+fn test_unfound_sg_config() -> Result<()> {
+  let dir = create_test_files([])?;
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["-p", "alert($A)", "-c", "not-found.yml"])
+    .assert()
+    .failure()
+    .stderr(contains("Cannot read configuration"));
+  Ok(())
+}
