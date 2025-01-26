@@ -129,21 +129,20 @@ impl<T, W: Write + Sync> TraceInfo<T, W> {
       kv_write(w)
     })
   }
+
+  fn print_files(&self, trace: &FileTrace) -> Result<()> {
+    self.print_summary("file", |w| {
+      let scanned = trace.files_scanned.load(Ordering::Acquire);
+      let skipped = trace.files_skipped.load(Ordering::Acquire);
+      write!(w, "scannedFileCount={scanned},skippedFileCount={skipped}")?;
+      Ok(())
+    })
+  }
 }
 
 impl<W: Write + Sync> TraceInfo<FileTrace, W> {
   pub fn print(&self) -> Result<()> {
-    self.print_files()
-  }
-
-  fn print_files(&self) -> Result<()> {
-    self.print_summary("file", |w| {
-      let scanned = self.inner.files_scanned.load(Ordering::Acquire);
-      let skipped = self.inner.files_skipped.load(Ordering::Acquire);
-      write!(w, "scannedFileCount={scanned},skippedFileCount={skipped}")?;
-      Ok(())
-    })?;
-    Ok(())
+    self.print_files(&self.inner)
   }
 
   pub fn print_file(&self, path: &Path, lang: SgLang) -> Result<()> {
@@ -157,7 +156,7 @@ impl<W: Write + Sync> TraceInfo<FileTrace, W> {
 impl<W: Write + Sync> TraceInfo<RuleTrace, W> {
   // TODO: support more format?
   pub fn print(&self) -> Result<()> {
-    self.print_files()?;
+    self.print_files(&self.inner.file_trace)?;
     self.print_summary("rule", |w| {
       let (effective, skipped) = (
         self.inner.effective_rule_count,
@@ -171,15 +170,7 @@ impl<W: Write + Sync> TraceInfo<RuleTrace, W> {
     })?;
     Ok(())
   }
-  fn print_files(&self) -> Result<()> {
-    self.print_summary("file", |w| {
-      let scanned = self.inner.file_trace.files_scanned.load(Ordering::Acquire);
-      let skipped = self.inner.file_trace.files_skipped.load(Ordering::Acquire);
-      write!(w, "scannedFileCount={scanned},skippedFileCount={skipped}")?;
-      Ok(())
-    })?;
-    Ok(())
-  }
+
   pub fn print_file(&self, path: &Path, lang: SgLang, rules: &[&RuleConfig<SgLang>]) -> Result<()> {
     self.print_entity("file", path.display(), |w| {
       let len = rules.len();
