@@ -9,6 +9,8 @@ repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
 edition.workspace = true
+# do not publish this crate since it is only used for napi
+publish = false
 
 [dependencies]
 ast-grep-core.workspace = true
