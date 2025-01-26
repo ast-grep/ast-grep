@@ -7,6 +7,7 @@ use ast_grep_language::Language;
 use clap::{builder::PossibleValue, Parser, ValueEnum};
 use ignore::WalkParallel;
 
+use crate::config::ProjectConfig;
 use crate::lang::SgLang;
 use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
 use crate::utils::ErrorContext as EC;
@@ -140,7 +141,9 @@ impl RunArg {
 
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
-pub fn run_with_pattern(arg: RunArg) -> Result<()> {
+pub fn run_with_pattern(arg: RunArg, project: Result<ProjectConfig>) -> Result<()> {
+  let proj = arg.output.inspect.project_trace();
+  proj.print_project(&project)?;
   let context = arg.context.get();
   if let Some(json) = arg.output.json {
     let printer = JSONPrinter::stdout(json).context(context);
@@ -373,7 +376,8 @@ mod test {
       pattern: "console.log".to_string(),
       ..default_run_arg()
     };
-    assert!(run_with_pattern(arg).is_ok())
+    let proj = Err(anyhow::anyhow!("no project"));
+    assert!(run_with_pattern(arg, proj).is_ok())
   }
 
   #[test]
@@ -383,7 +387,8 @@ mod test {
       strictness: Some(Strictness(MatchStrictness::Ast)),
       ..default_run_arg()
     };
-    assert!(run_with_pattern(arg).is_ok())
+    let proj = Err(anyhow::anyhow!("no project"));
+    assert!(run_with_pattern(arg, proj).is_ok())
   }
 
   #[test]
@@ -393,6 +398,7 @@ mod test {
       lang: Some(SupportLang::Rust.into()),
       ..default_run_arg()
     };
-    assert!(run_with_pattern(arg).is_ok())
+    let proj = Err(anyhow::anyhow!("no project"));
+    assert!(run_with_pattern(arg, proj).is_ok())
   }
 }
