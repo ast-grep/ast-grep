@@ -45,6 +45,10 @@ test('test load custom lang', t => {
 })
 
 test('discover file', async t => {
+  if (!canTestDynamicLang) {
+    t.pass('This test is not available on this platform')
+    return
+  }
   await findInFiles('json', {
     paths: ['../'],
     matcher: {
