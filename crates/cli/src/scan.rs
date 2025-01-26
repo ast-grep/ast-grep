@@ -73,6 +73,8 @@ impl ScanArg {
 }
 
 pub fn run_with_config(arg: ScanArg, project: Result<ProjectConfig>) -> Result<()> {
+  let project_trace = arg.output.inspect.project_trace();
+  project_trace.print_project(&project)?;
   let context = arg.context.get();
   if let Some(_format) = &arg.format {
     let printer = CloudPrinter::stdout();

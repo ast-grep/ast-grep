@@ -10,6 +10,7 @@
 //!   * rules skipped (dues to ignore/files)
 //! - Detail level: show how a rule runs on a file
 
+use crate::config::ProjectConfig;
 use crate::lang::SgLang;
 use ast_grep_config::{RuleCollection, RuleConfig};
 
@@ -45,6 +46,17 @@ impl fmt::Debug for Granularity {
 }
 
 impl Granularity {
+  pub fn project_trace(&self) -> ProjectTrace {
+    self.project_trace_impl(std::io::stderr())
+  }
+  fn project_trace_impl<W: Write>(&self, w: W) -> TraceInfo<(), W> {
+    TraceInfo {
+      level: *self,
+      inner: (),
+      output: Mutex::new(w),
+    }
+  }
+
   pub fn run_trace(&self) -> RunTrace {
     self.run_trace_impl(std::io::stderr())
   }
@@ -140,6 +152,20 @@ impl<T, W: Write + Sync> TraceInfo<T, W> {
   }
 }
 
+impl<W: Write + Sync> TraceInfo<(), W> {
+  pub fn print_project(&self, project: &Result<ProjectConfig>) -> Result<()> {
+    self.print_summary("project", |w| {
+      if let Ok(project) = project {
+        let dir = project.project_dir.display();
+        write!(w, "isProject=true,projectDir={}", dir)?;
+      } else {
+        write!(w, "isProject=false")?;
+      }
+      Ok(())
+    })
+  }
+}
+
 impl<W: Write + Sync> TraceInfo<FileTrace, W> {
   pub fn print(&self) -> Result<()> {
     self.print_files(&self.inner)
@@ -201,6 +227,7 @@ pub struct RuleTrace {
   pub skipped_rule_count: usize,
 }
 
+pub type ProjectTrace = TraceInfo<(), Stderr>;
 pub type RunTrace = TraceInfo<FileTrace, Stderr>;
 pub type ScanTrace = TraceInfo<RuleTrace, Stderr>;
 

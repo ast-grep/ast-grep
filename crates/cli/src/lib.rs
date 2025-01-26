@@ -127,12 +127,12 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
   let project = setup_project_is_possible(&args)?;
   // register_custom_language_if_is_run(&args)?;
   if let Some(arg) = try_default_run(&args)? {
-    return run_with_pattern(arg);
+    return run_with_pattern(arg, project);
   }
 
   let app = App::try_parse_from(args)?;
   match app.command {
-    Commands::Run(arg) => run_with_pattern(arg),
+    Commands::Run(arg) => run_with_pattern(arg, project),
     Commands::Scan(arg) => run_with_config(arg, project),
     Commands::Test(arg) => run_test_rule(arg, project),
     Commands::New(arg) => run_create_new(arg, project),
