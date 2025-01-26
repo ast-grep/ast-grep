@@ -105,3 +105,33 @@ fn test_unfound_sg_config() -> Result<()> {
     .stderr(contains("Cannot read configuration"));
   Ok(())
 }
+
+#[test]
+fn test_trace_default_project() -> Result<()> {
+  let dir = create_test_files([("sgconfig.yml", "ruleDirs: []")])?;
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["-p", "alert($A)", "--inspect=summary"])
+    .assert()
+    .success()
+    .stderr(contains("isProject=true,projectDir"));
+  Ok(())
+}
+
+#[test]
+fn test_trace_project() -> Result<()> {
+  let dir = create_test_files([("not.yml", "ruleDirs: []")])?;
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["-p", "alert($A)", "--inspect=summary"])
+    .assert()
+    .success()
+    .stderr(contains("isProject=false"));
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["run", "-c=not.yml", "-p", "alert($A)", "--inspect=summary"])
+    .assert()
+    .success()
+    .stderr(contains("isProject=true,projectDir"));
+  Ok(())
+}
