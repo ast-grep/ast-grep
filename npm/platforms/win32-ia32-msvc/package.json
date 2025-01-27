@@ -8,7 +8,7 @@
     "ia32"
   ],
   "files": [
-    "sg.exe"
+    "ast-grep.exe"
   ],
   "description": "Search and Rewrite code at large scale using precise AST pattern",
   "keywords": [

@@ -11,7 +11,7 @@
     "glibc"
   ],
   "files": [
-    "sg"
+    "ast-grep"
   ],
   "description": "Search and Rewrite code at large scale using precise AST pattern",
   "keywords": [
