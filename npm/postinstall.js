@@ -15,8 +15,8 @@ if (process.platform === 'linux') {
   parts.push('msvc');
 }
 
-let binary = process.platform === 'win32' ? 'sg.exe' : 'sg';
-let alternative = process.platform === 'win32' ? 'ast-grep.exe' : 'ast-grep';
+let binary = process.platform === 'win32' ? 'ast-grep.exe' : 'ast-grep';
+let alternative = process.platform === 'win32' ? 'sg.exe' : 'sg';
 
 let pkgPath;
 try {
@@ -44,5 +44,6 @@ try {
 if (process.platform === 'win32') {
   try {
     fs.unlinkSync(path.join(__dirname, 'sg'));
+    fs.unlinkSync(path.join(__dirname, 'ast-grep'));
   } catch (err) {}
 }
