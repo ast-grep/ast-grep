@@ -57,5 +57,6 @@ tempfile = "3.10.1"
 # Support cargo bininstall, https://github.com/ast-grep/ast-grep/issues/1742
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/{ version }/app-{ target }{ archive-suffix }"
-bin-dir = "app-{ target }/{ bin }{ binary-ext }"
+pkg-fmt = "zip"
+bin-dir = "{ bin }{ binary-ext }"
 disabled-strategies = ["quick-install"]
