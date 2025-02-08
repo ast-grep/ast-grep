@@ -59,21 +59,25 @@ impl<L: Language> KindMatcher<L> {
     self.kind == TS_BUILTIN_SYM_END
   }
 
-  /// Whether the kind will match parsing error occurred in the source code.
-  /// for example, we can use `kind: ERROR` in YAML to find invalid syntax in source.
-  /// the name `is_error` implies the matcher itself is error.
-  /// But here the matcher itself is valid and it is what it matches is error.
-  pub fn is_error_matcher(&self) -> bool {
-    self.kind == TS_BUILTIN_SYM_ERROR
-  }
-
   /// Construct a matcher that only matches ERROR
   pub fn error_matcher() -> Self {
     Self::from_id(TS_BUILTIN_SYM_ERROR)
   }
+}
 
+pub mod kind_utils {
+  use super::*;
+
+  /// Whether the kind will match parsing error occurred in the source code.
+  /// for example, we can use `kind: ERROR` in YAML to find invalid syntax in source.
+  /// the name `is_error` implies the matcher itself is error.
+  /// But here the matcher itself is valid and it is what it matches is error.
   pub fn is_error_kind(kind: KindId) -> bool {
     kind == TS_BUILTIN_SYM_ERROR
+  }
+
+  pub fn are_kinds_matching(goal: KindId, candidate: KindId) -> bool {
+    goal == candidate || is_error_kind(goal)
   }
 }
 

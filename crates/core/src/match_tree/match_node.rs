@@ -1,6 +1,6 @@
 use super::strictness::{MatchOneNode, MatchStrictness};
 use super::Aggregator;
-use crate::matcher::{KindMatcher, PatternNode};
+use crate::matcher::{kind_utils, PatternNode};
 use crate::meta_var::MetaVariable;
 use crate::{Doc, Node};
 use std::iter::Peekable;
@@ -34,7 +34,7 @@ pub(super) fn match_node_impl<'tree, D: Doc>(
     },
     P::Internal {
       kind_id, children, ..
-    } if *kind_id == candidate.kind_id() || KindMatcher::<D::Lang>::is_error_kind(*kind_id) => {
+    } if kind_utils::are_kinds_matching(*kind_id, candidate.kind_id()) => {
       let cand_children = candidate.children();
       match match_nodes_impl_recursive(children, cand_children, agg, strictness) {
         Some(()) => MatchOneNode::MatchedBoth,

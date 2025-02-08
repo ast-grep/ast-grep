@@ -1,4 +1,4 @@
-use crate::matcher::{KindMatcher, PatternNode};
+use crate::matcher::{kind_utils, PatternNode};
 use crate::meta_var::MetaVariable;
 use crate::{Doc, Node};
 use std::iter::Peekable;
@@ -34,12 +34,12 @@ impl MatchStrictness {
     &self,
     is_named: bool,
     text: &str,
-    kind: u16,
+    goal_kind: u16,
     candidate: &Node<D>,
   ) -> MatchOneNode {
     use MatchStrictness as M;
-    let k = candidate.kind_id();
-    let is_kind_matched = k == kind || KindMatcher::<D::Lang>::is_error_kind(k);
+    let cand_kind = candidate.kind_id();
+    let is_kind_matched = kind_utils::are_kinds_matching(goal_kind, cand_kind);
     // work around ast-grep/ast-grep#1419 and tree-sitter/tree-sitter-typescript#306
     // tree-sitter-typescript has wrong span of unnamed node so text would not match
     // just compare kind for unnamed node
@@ -52,7 +52,7 @@ impl MatchStrictness {
       M::Ast => (!is_named, !candidate.is_named()),
       M::Relaxed => (!is_named, skip_comment_or_unnamed(candidate)),
       M::Signature => {
-        if k == kind {
+        if is_kind_matched {
           return MatchOneNode::MatchedBoth;
         }
         (!is_named, skip_comment_or_unnamed(candidate))

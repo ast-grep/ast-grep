@@ -1,6 +1,6 @@
 use crate::language::Language;
 use crate::match_tree::{match_end_non_recursive, match_node_non_recursive, MatchStrictness};
-use crate::matcher::{KindMatcher, KindMatcherError, Matcher};
+use crate::matcher::{kind_utils, KindMatcher, KindMatcherError, Matcher};
 use crate::meta_var::{MetaVarEnv, MetaVariable};
 use crate::source::TSParseError;
 use crate::{Doc, Node, Root, StrDoc};
@@ -153,7 +153,7 @@ impl<L: Language> Pattern<L> {
         None => return false,
       },
     };
-    KindMatcher::<L>::is_error_kind(kind)
+    kind_utils::is_error_kind(kind)
   }
 
   pub fn fixed_string(&self) -> Cow<str> {
@@ -280,7 +280,7 @@ impl<L: Language> Matcher<L> for Pattern<L> {
       PatternNode::Terminal { kind_id, .. } => kind_id,
       PatternNode::MetaVar { .. } => self.root_kind?,
       PatternNode::Internal { kind_id, .. } => {
-        if KindMatcher::<L>::is_error_kind(kind_id) {
+        if kind_utils::is_error_kind(kind_id) {
           // error can match any kind
           return None;
         }
