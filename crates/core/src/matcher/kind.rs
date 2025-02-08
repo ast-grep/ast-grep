@@ -71,6 +71,10 @@ impl<L: Language> KindMatcher<L> {
   pub fn error_matcher() -> Self {
     Self::from_id(TS_BUILTIN_SYM_ERROR)
   }
+
+  pub fn is_error_kind(kind: KindId) -> bool {
+    kind == TS_BUILTIN_SYM_ERROR
+  }
 }
 
 impl<L: Language> Matcher<L> for KindMatcher<L> {

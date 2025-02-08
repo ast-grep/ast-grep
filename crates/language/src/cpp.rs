@@ -22,7 +22,7 @@ fn test_cpp_pattern() {
   );
   test_match("if ($A)", "if (a | b) abc;");
   // see https://github.com/ast-grep/ast-grep/issues/1791
-  // test_match("struct $A: $B", "struct A: B {}");
+  test_match("struct $A: $B", "struct A: B {}");
 }
 
 fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {

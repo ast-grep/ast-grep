@@ -153,7 +153,7 @@ impl<L: Language> Pattern<L> {
         None => return false,
       },
     };
-    KindMatcher::<L>::from_id(kind).is_error_matcher()
+    KindMatcher::<L>::is_error_kind(kind)
   }
 
   pub fn fixed_string(&self) -> Cow<str> {
@@ -279,7 +279,13 @@ impl<L: Language> Matcher<L> for Pattern<L> {
     let kind = match self.node {
       PatternNode::Terminal { kind_id, .. } => kind_id,
       PatternNode::MetaVar { .. } => self.root_kind?,
-      PatternNode::Internal { kind_id, .. } => kind_id,
+      PatternNode::Internal { kind_id, .. } => {
+        if KindMatcher::<L>::is_error_kind(kind_id) {
+          // error can match any kind
+          return None;
+        }
+        kind_id
+      }
     };
 
     let mut kinds = BitSet::new();
