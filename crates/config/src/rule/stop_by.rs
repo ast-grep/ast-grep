@@ -13,13 +13,19 @@ use std::fmt;
 
 // NB StopBy's JsonSchema is changed in xtask/schema.rs
 // revise schema is easier than manually implementation
-#[derive(Serialize, Clone, Default, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Default, JsonSchema)]
 pub enum SerializableStopBy {
   #[default]
   Neighbor,
   End,
   Rule(SerializableRule),
+}
+
+impl SerializableStopBy {
+  /// String key used for serializing the Neighbor variant
+  const NEIGHBOR_KEY: &str = "neighbor";
+  /// String key used for serializing the End variant
+  const END_KEY: &str = "end";
 }
 
 struct StopByVisitor;
@@ -34,10 +40,12 @@ impl<'de> Visitor<'de> for StopByVisitor {
     E: de::Error,
   {
     match value {
-      "neighbor" => Ok(SerializableStopBy::Neighbor),
-      "end" => Ok(SerializableStopBy::End),
+      SerializableStopBy::NEIGHBOR_KEY => Ok(SerializableStopBy::Neighbor),
+      SerializableStopBy::END_KEY => Ok(SerializableStopBy::End),
       v => Err(de::Error::custom(format!(
-        "unknown variant `{v}`, expected `neighbor`, `end` or a rule object",
+        "unknown variant `{v}`, expected `{}`, `{}` or a rule object",
+        SerializableStopBy::NEIGHBOR_KEY,
+        SerializableStopBy::END_KEY,
       ))),
     }
   }
@@ -57,6 +65,19 @@ impl<'de> Deserialize<'de> for SerializableStopBy {
     D: Deserializer<'de>,
   {
     deserializer.deserialize_any(StopByVisitor)
+  }
+}
+
+impl Serialize for SerializableStopBy {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    match self {
+      SerializableStopBy::Neighbor => serializer.serialize_str(SerializableStopBy::NEIGHBOR_KEY),
+      SerializableStopBy::End => serializer.serialize_str(SerializableStopBy::END_KEY),
+      SerializableStopBy::Rule(rule) => rule.serialize(serializer),
+    }
   }
 }
 
