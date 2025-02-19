@@ -218,11 +218,11 @@ impl PathWorker for RunWithInferredLang {
     let matcher = self.arg.build_pattern(lang).ok()?;
     // match sub region
     if let Some(sub_langs) = lang.injectable_sg_langs() {
-      let matchers = sub_langs.filter_map(|l| {
+      let sub_matchers = sub_langs.filter_map(|l| {
         let pattern = self.arg.build_pattern(l).ok()?;
         Some((l, pattern))
       });
-      filter_file_pattern(path, lang, Some(matcher), matchers)
+      filter_file_pattern(path, lang, Some(matcher), sub_matchers)
     } else {
       filter_file_pattern(path, lang, Some(matcher), std::iter::empty())
     }

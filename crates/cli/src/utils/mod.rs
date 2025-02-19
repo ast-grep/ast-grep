@@ -147,11 +147,13 @@ pub fn filter_file_interactive(
   Some(ret)
 }
 
+// sub_matchers are the injected languages
+// e.g. js/css in html
 pub fn filter_file_pattern(
   path: &Path,
   lang: SgLang,
   root_matcher: Option<Pattern<SgLang>>,
-  matchers: impl Iterator<Item = (SgLang, Pattern<SgLang>)>,
+  sub_matchers: impl Iterator<Item = (SgLang, Pattern<SgLang>)>,
 ) -> Option<Vec<(MatchUnit<Pattern<SgLang>>, SgLang)>> {
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(&file_content);
@@ -177,7 +179,7 @@ pub fn filter_file_pattern(
     ret.extend(do_match(grep.clone(), matcher, lang));
   }
   let injections = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
-  for (i_lang, matcher) in matchers {
+  for (i_lang, matcher) in sub_matchers {
     let Some(injection) = injections.iter().find(|i| *i.lang() == i_lang) else {
       continue;
     };
