@@ -226,23 +226,6 @@ pub enum Rule<L: Language> {
   Matches(ReferentRule<L>),
 }
 impl<L: Language> Rule<L> {
-  pub fn is_atomic(&self) -> bool {
-    use Rule::*;
-    matches!(
-      self,
-      Pattern(_) | Kind(_) | Regex(_) | NthChild(_) | Range(_)
-    )
-  }
-  pub fn is_relational(&self) -> bool {
-    use Rule::*;
-    matches!(self, Inside(_) | Has(_) | Precedes(_) | Follows(_))
-  }
-
-  pub fn is_composite(&self) -> bool {
-    use Rule::*;
-    matches!(self, All(_) | Any(_) | Not(_) | Matches(_))
-  }
-
   /// Check if it has a cyclic referent rule with the id.
   pub(crate) fn check_cyclic(&self, id: &str) -> bool {
     match self {
@@ -250,10 +233,7 @@ impl<L: Language> Rule<L> {
       Rule::Any(any) => any.inner().iter().any(|r| r.check_cyclic(id)),
       Rule::Not(not) => not.inner().check_cyclic(id),
       Rule::Matches(m) => m.rule_id == id,
-      rule => {
-        debug_assert!(!rule.is_composite());
-        false
-      }
+      _ => false,
     }
   }
 
@@ -612,7 +592,6 @@ kind: class_declaration
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let rule = deserialize_rule(rule, &env).expect("should deserialize");
-    assert!(rule.is_composite());
     let root = TypeScript::Tsx.ast_grep("class A {}");
     assert!(root.root().find(rule).is_some());
   }
@@ -627,14 +606,7 @@ inside:
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let rule = deserialize_rule(rule, &env).expect("should deserialize");
-    assert!(rule.is_composite());
-    let Rule::All(rules) = rule else {
-      panic!("should parsed as all");
-    };
-    // relational_rule should be the last
-    let rules = rules.inner();
-    assert!(rules[0].is_atomic());
-    assert!(rules[1].is_relational());
+    assert!(matches!(rule, Rule::All(_)));
   }
 
   #[test]
