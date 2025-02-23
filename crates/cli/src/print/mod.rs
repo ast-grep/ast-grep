@@ -20,28 +20,20 @@ pub use colored_print::{print_diff, ColoredPrinter, Heading, PrintStyles, Report
 pub use interactive_print::InteractivePrinter;
 pub use json_print::{JSONPrinter, JsonStyle};
 
-type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
-
-// add this macro because neither trait_alias nor type_alias_impl is supported.
-macro_rules! Matches {
-  ($lt: lifetime) => { impl Iterator<Item = NodeMatch<$lt, SgLang>> };
-}
-macro_rules! Diffs {
-  ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
-}
+type NodeMatch<'a> = SgNodeMatch<'a, StrDoc<SgLang>>;
 
 pub trait Printer {
-  fn print_rule<'a>(
+  fn print_rule(
     &mut self,
-    matches: Matches!('a),
+    matches: Vec<NodeMatch>,
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
   ) -> Result<()>;
-  fn print_matches<'a>(&mut self, matches: Matches!('a), path: &Path) -> Result<()>;
-  fn print_diffs<'a>(&mut self, diffs: Diffs!('a), path: &Path) -> Result<()>;
+  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<()>;
+  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<()>;
   fn print_rule_diffs(
     &mut self,
-    diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
+    diffs: Vec<(Diff, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<()>;
   /// Run before all printing. One CLI will run this exactly once.
@@ -59,7 +51,7 @@ pub trait Printer {
 #[derive(Clone)]
 pub struct Diff<'n> {
   /// the matched node
-  pub node_match: NodeMatch<'n, SgLang>,
+  pub node_match: NodeMatch<'n>,
   /// string content for the replacement
   pub replacement: Cow<'n, str>,
   pub range: std::ops::Range<usize>,
@@ -67,7 +59,7 @@ pub struct Diff<'n> {
 
 impl<'n> Diff<'n> {
   pub fn generate(
-    node_match: NodeMatch<'n, SgLang>,
+    node_match: NodeMatch<'n>,
     matcher: &impl Matcher<SgLang>,
     rewrite: &Fixer<SgLang>,
   ) -> Self {

@@ -295,10 +295,10 @@ fn match_rule_on_file(
   file_content: &String,
   reporter: &mut impl Printer,
 ) -> Result<()> {
-  let matches = matches.into_iter();
   let file = SimpleFile::new(path.to_string_lossy(), file_content);
   if let Some(fixer) = &rule.matcher.fixer {
     let diffs = matches
+      .into_iter()
       .map(|m| (Diff::generate(m, &rule.matcher, fixer), rule))
       .collect();
     reporter.print_rule_diffs(diffs, path)?;

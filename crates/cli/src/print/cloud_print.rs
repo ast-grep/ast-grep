@@ -1,25 +1,14 @@
-use super::{Diff, Printer};
+use super::{Diff, NodeMatch, Printer};
 use crate::lang::SgLang;
 use ast_grep_config::{RuleConfig, Severity};
 use clap::ValueEnum;
 
 use anyhow::Result;
-use ast_grep_core::{NodeMatch as SgNodeMatch, StrDoc};
 use codespan_reporting::files::SimpleFile;
 use std::io::{Stdout, Write};
 
-type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
-
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
-
-// add this macro because neither trait_alias nor type_alias_impl is supported.
-macro_rules! Matches {
-  ($lt: lifetime) => { impl Iterator<Item = NodeMatch<$lt, SgLang>> };
-}
-macro_rules! Diffs {
-  ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
-}
 
 #[derive(PartialEq, Eq, Clone, ValueEnum)]
 #[clap(rename_all = "lower")]
@@ -44,9 +33,9 @@ impl CloudPrinter<Stdout> {
 }
 
 impl<W: Write> Printer for CloudPrinter<W> {
-  fn print_rule<'a>(
+  fn print_rule(
     &mut self,
-    matches: Matches!('a),
+    matches: Vec<NodeMatch>,
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
@@ -54,11 +43,11 @@ impl<W: Write> Printer for CloudPrinter<W> {
     print_rule(self, matches, &path, rule)
   }
 
-  fn print_matches<'a>(&mut self, _m: Matches!('a), _p: &Path) -> Result<()> {
+  fn print_matches(&mut self, _m: Vec<NodeMatch>, _p: &Path) -> Result<()> {
     unreachable!()
   }
 
-  fn print_diffs<'a>(&mut self, _d: Diffs!('a), _p: &Path) -> Result<()> {
+  fn print_diffs(&mut self, _d: Vec<Diff>, _p: &Path) -> Result<()> {
     unreachable!()
   }
 
@@ -68,15 +57,15 @@ impl<W: Write> Printer for CloudPrinter<W> {
     path: &Path,
   ) -> Result<()> {
     for (diff, rule) in diffs {
-      print_rule(self, std::iter::once(diff.node_match), path, rule)?;
+      print_rule(self, vec![diff.node_match], path, rule)?;
     }
     Ok(())
   }
 }
 
-fn print_rule<'a, W: Write>(
+fn print_rule<W: Write>(
   p: &mut CloudPrinter<W>,
-  matches: Matches!('a),
+  matches: Vec<NodeMatch>,
   path: &Path,
   rule: &RuleConfig<SgLang>,
 ) -> Result<()> {
@@ -142,7 +131,7 @@ language: TypeScript
     let mut printer = make_test_printer();
     let grep = SgLang::from(SupportLang::Tsx).ast_grep(&src);
     let rule = make_rule(rule_str);
-    let matches = grep.root().find_all(&rule.matcher);
+    let matches = grep.root().find_all(&rule.matcher).collect();
     let file = SimpleFile::new(Cow::Borrowed("test.tsx"), &src);
     printer.print_rule(matches, file, &rule).unwrap();
     let actual = get_text(&mut printer);
