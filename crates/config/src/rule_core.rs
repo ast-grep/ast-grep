@@ -112,7 +112,7 @@ impl SerializableRuleCore {
     Ok(
       RuleCore::new(rule)
         .with_matchers(constraints)
-        .with_utils(env.registration.clone())
+        .with_registration(env.registration.clone())
         .with_transform(transform)
         .with_fixer(fixer),
     )
@@ -131,7 +131,7 @@ impl SerializableRuleCore {
     let ret = self.get_matcher_from_env(&env)?;
     check_rule_with_hint(
       &ret.rule,
-      &ret.utils,
+      &ret.registration,
       &ret.constraints,
       &self.transform,
       &ret.fixer,
@@ -148,7 +148,7 @@ pub struct RuleCore<L: Language> {
   pub(crate) transform: Option<Transform>,
   pub fixer: Option<Fixer<L>>,
   // this is required to hold util rule reference
-  utils: RuleRegistration<L>,
+  registration: RuleRegistration<L>,
 }
 
 impl<L: Language> RuleCore<L> {
@@ -171,8 +171,11 @@ impl<L: Language> RuleCore<L> {
   }
 
   #[inline]
-  pub fn with_utils(self, utils: RuleRegistration<L>) -> Self {
-    Self { utils, ..self }
+  pub fn with_registration(self, registration: RuleRegistration<L>) -> Self {
+    Self {
+      registration,
+      ..self
+    }
   }
 
   #[inline]
@@ -188,13 +191,13 @@ impl<L: Language> RuleCore<L> {
   pub fn get_env(&self, lang: L) -> DeserializeEnv<L> {
     DeserializeEnv {
       lang,
-      registration: self.utils.clone(),
+      registration: self.registration.clone(),
     }
   }
 
   pub fn defined_vars(&self) -> HashSet<&str> {
     let mut ret = self.rule.defined_vars();
-    for v in self.utils.get_local_util_vars() {
+    for v in self.registration.get_local_util_vars() {
       ret.insert(v);
     }
     for constraint in self.constraints.values() {
@@ -226,7 +229,7 @@ impl<L: Language> RuleCore<L> {
       return None;
     }
     if let Some(trans) = &self.transform {
-      let rewriters = self.utils.get_rewriters();
+      let rewriters = self.registration.get_rewriters();
       let rewriters = rewriters.read();
       let env = env.to_mut();
       if let Some(enclosing) = enclosing_env {
@@ -255,7 +258,7 @@ impl<L: Language> Default for RuleCore<L> {
       kinds: None,
       transform: None,
       fixer: None,
-      utils: RuleRegistration::default(),
+      registration: RuleRegistration::default(),
     }
   }
 }
