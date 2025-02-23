@@ -28,8 +28,6 @@ pub struct SerializableFixConfig {
   expand_end: Maybe<Relation>,
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   expand_start: Maybe<Relation>,
-  // TODO: add these
-  // prepend: String,
 }
 
 #[derive(Debug, Error)]
