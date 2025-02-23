@@ -326,9 +326,9 @@ fn match_one_file(
   let matches = grep.root().find_all(matcher);
   if let Some(rewrite) = rewrite {
     let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
-    printer.print_diffs(diffs, path)
+    printer.print_diffs(diffs.collect(), path)
   } else {
-    printer.print_matches(matches, path)
+    printer.print_matches(matches.collect(), path)
   }
 }
 

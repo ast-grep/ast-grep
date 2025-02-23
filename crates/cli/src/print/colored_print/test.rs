@@ -48,7 +48,7 @@ fn test_print_matches() {
     // heading is required for CI
     let mut printer = make_test_printer().heading(Heading::Always);
     let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
-    let matches = grep.root().find_all(pattern);
+    let matches = grep.root().find_all(pattern).collect();
     printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
     let expected = source
       .lines()
@@ -68,7 +68,7 @@ fn test_print_matches_without_heading() {
   for &(source, pattern, note) in MATCHES_CASES {
     let mut printer = make_test_printer().heading(Heading::Never);
     let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
-    let matches = grep.root().find_all(pattern);
+    let matches = grep.root().find_all(pattern).collect();
     printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
     // append heading to expected
     let output = source
@@ -108,7 +108,7 @@ rule:
     .pop()
     .unwrap();
     let matcher = rule.get_matcher(&globals).expect("should parse");
-    let matches = grep.root().find_all(&matcher);
+    let matches = grep.root().find_all(&matcher).collect();
     printer.print_rule(matches, file, &rule).expect("test only");
     let text = get_text(&printer);
     assert!(text.contains("test.tsx"), "{note}");
@@ -158,7 +158,9 @@ fn test_print_diffs() {
     let fixer = Fixer::from_str(rewrite, &lang).expect("should work");
     let grep = lang.ast_grep(source);
     let matches = grep.root().find_all(pattern);
-    let diffs = matches.map(|n| Diff::generate(n, &pattern, &fixer));
+    let diffs = matches
+      .map(|n| Diff::generate(n, &pattern, &fixer))
+      .collect();
     printer.print_diffs(diffs, "test.tsx".as_ref()).unwrap();
     assert!(get_text(&printer).contains(rewrite), "{note}");
   }
@@ -173,7 +175,7 @@ fn test_overlap_print_impl(heading: Heading) {
   let mut printer = make_test_printer().heading(heading).context((1, 1));
   let lang = SgLang::from(SupportLang::Tsx);
   let grep = lang.ast_grep(src);
-  let matches = grep.root().find_all("Some($A)");
+  let matches = grep.root().find_all("Some($A)").collect();
   printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
   let text = get_text(&printer);
   // Overlapped match should only print once.
@@ -198,7 +200,7 @@ fn test_non_overlap_print_impl(heading: Heading) {
   let mut printer = make_test_printer().heading(heading);
   let lang = SgLang::from(SupportLang::Tsx);
   let grep = lang.ast_grep(src);
-  let matches = grep.root().find_all("Some($A)");
+  let matches = grep.root().find_all("Some($A)").collect();
   printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
   let text = get_text(&printer);
   assert_eq!(text.matches("Some(1)").count(), 1);
@@ -267,7 +269,7 @@ fn test_before_after() {
       let mut printer = make_test_printer().context((b, a));
       let lang = SgLang::from(SupportLang::Tsx);
       let grep = lang.ast_grep(src);
-      let matches = grep.root().find_all("Some($A)");
+      let matches = grep.root().find_all("Some($A)").collect();
       printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
       let text = get_text(&printer);
       // Overlapped match should only print once.

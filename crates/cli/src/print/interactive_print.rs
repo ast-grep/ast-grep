@@ -1,25 +1,14 @@
-use super::{Diff, Printer};
+use super::{Diff, NodeMatch, Printer};
 use crate::lang::SgLang;
 use crate::utils;
 use crate::utils::ErrorContext as EC;
 
 use anyhow::{Context, Result};
 use ast_grep_config::RuleConfig;
-use ast_grep_core::{NodeMatch as SgNodeMatch, StrDoc};
 use codespan_reporting::files::SimpleFile;
-
-type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
 
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
-
-// add this macro because neither trait_alias nor type_alias_impl is supported.
-macro_rules! Matches {
-  ($lt: lifetime) => { impl Iterator<Item = NodeMatch<$lt, SgLang>> };
-}
-macro_rules! Diffs {
-  ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
-}
 
 pub struct InteractivePrinter<P: Printer> {
   accept_all: bool,
@@ -73,20 +62,19 @@ impl<P: Printer> InteractivePrinter<P> {
 }
 
 impl<P: Printer> Printer for InteractivePrinter<P> {
-  fn print_rule<'a>(
+  fn print_rule(
     &mut self,
-    matches: Matches!('a),
+    matches: Vec<NodeMatch>,
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
     utils::run_in_alternate_screen(|| {
-      let matches: Vec<_> = matches.collect();
       let first_match = match matches.first() {
         Some(n) => n.start_pos().line(),
         None => return Ok(()),
       };
       let file_path = PathBuf::from(file.name().to_string());
-      self.inner.print_rule(matches.into_iter(), file, rule)?;
+      self.inner.print_rule(matches, file, rule)?;
       let resp = self.prompt_view();
       if resp == 'q' {
         Err(anyhow::anyhow!("Exit interactive editing"))
@@ -99,14 +87,14 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
     })
   }
 
-  fn print_matches<'a>(&mut self, matches: Matches!('a), path: &Path) -> Result<()> {
+  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<()> {
     utils::run_in_alternate_screen(|| print_matches_and_confirm_next(self, matches, path))
   }
 
-  fn print_diffs<'a>(&mut self, diffs: Diffs!('a), path: &Path) -> Result<()> {
+  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<()> {
     let path = path.to_path_buf();
-    let (confirmed, all) =
-      print_diffs_interactive(self, &path, diffs.map(|d| (d, None)).collect())?;
+    let diffs = diffs.into_iter().map(|d| (d, None)).collect();
+    let (confirmed, all) = print_diffs_interactive(self, &path, diffs)?;
     self.rewrite_action(confirmed, &path)?;
     if all {
       self.accept_all = true;
@@ -178,7 +166,7 @@ fn print_diff_and_prompt_action(
     if let Some(rule) = rule {
       printer.print_rule_diffs(vec![(diff.clone(), rule)], path)?;
     } else {
-      printer.print_diffs(std::iter::once(diff.clone()), path)?;
+      printer.print_diffs(vec![diff.clone()], path)?;
     }
     match interactive.prompt_edit() {
       'y' => Ok((true, false)),
@@ -195,18 +183,17 @@ fn print_diff_and_prompt_action(
   })
 }
 
-fn print_matches_and_confirm_next<'a>(
+fn print_matches_and_confirm_next(
   interactive: &mut InteractivePrinter<impl Printer>,
-  matches: Matches!('a),
+  matches: Vec<NodeMatch>,
   path: &Path,
 ) -> Result<()> {
   let printer = &mut interactive.inner;
-  let matches: Vec<_> = matches.collect();
   let first_match = match matches.first() {
     Some(n) => n.start_pos().line(),
     None => return Ok(()),
   };
-  printer.print_matches(matches.into_iter(), path)?;
+  printer.print_matches(matches, path)?;
   let resp = interactive.prompt_view();
   if resp == 'q' {
     Err(anyhow::anyhow!("Exit interactive editing"))

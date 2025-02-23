@@ -1,4 +1,4 @@
-use super::{Diff, Printer};
+use super::{Diff, NodeMatch, Printer};
 use crate::lang::SgLang;
 use ast_grep_config::{RuleConfig, Severity};
 use ast_grep_core::DisplayContext;
@@ -18,17 +18,6 @@ use std::io::Write;
 use std::path::Path;
 
 mod test;
-
-use ast_grep_core::{NodeMatch as SgNodeMatch, StrDoc};
-type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
-
-// add this macro because neither trait_alias nor type_alias_impl is supported.
-macro_rules! Matches {
-  ($lt: lifetime) => { impl Iterator<Item = NodeMatch<$lt, SgLang>> };
-}
-macro_rules! Diffs {
-  ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
-}
 
 #[derive(Clone, Copy, ValueEnum)]
 pub enum ReportStyle {
@@ -128,9 +117,9 @@ impl<W: WriteColor> ColoredPrinter<W> {
 }
 
 impl<W: WriteColor> Printer for ColoredPrinter<W> {
-  fn print_rule<'a>(
+  fn print_rule(
     &mut self,
-    matches: Matches!('a),
+    matches: Vec<NodeMatch>,
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
@@ -162,7 +151,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     Ok(())
   }
 
-  fn print_matches<'a>(&mut self, matches: Matches!('a), path: &Path) -> Result<()> {
+  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<()> {
     if self.heading.should_print() {
       print_matches_with_heading(matches, path, self)
     } else {
@@ -170,7 +159,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     }
   }
 
-  fn print_diffs<'a>(&mut self, diffs: Diffs!('a), path: &Path) -> Result<()> {
+  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<()> {
     let context = self.diff_context();
     let writer = &mut self.writer;
     print_diffs(diffs, path, &self.styles, writer, context)
@@ -211,7 +200,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
 
 fn print_rule_title<W: WriteColor>(
   rule: &RuleConfig<SgLang>,
-  nm: &NodeMatch<SgLang>,
+  nm: &NodeMatch,
   style: &RuleStyle,
   writer: &mut W,
 ) -> Result<()> {
@@ -263,7 +252,7 @@ struct MatchMerger<'a> {
 }
 
 impl<'a> MatchMerger<'a> {
-  fn new(nm: &NodeMatch<'a, SgLang>, (before, after): (u16, u16)) -> Self {
+  fn new(nm: &NodeMatch<'a>, (before, after): (u16, u16)) -> Self {
     let display = nm.display_context(before as usize, after as usize);
     let last_start_line = display.start_line + 1;
     let last_end_line = nm.end_pos().line() + 1;
@@ -279,7 +268,7 @@ impl<'a> MatchMerger<'a> {
   }
 
   // merge non-overlapping matches but start/end on the same line
-  fn merge_adjacent(&mut self, nm: &NodeMatch<'a, SgLang>) -> Option<usize> {
+  fn merge_adjacent(&mut self, nm: &NodeMatch<'a>) -> Option<usize> {
     let display = self.display(nm);
     let start_line = display.start_line;
     if start_line <= self.last_end_line + self.context.1 as usize {
@@ -292,7 +281,7 @@ impl<'a> MatchMerger<'a> {
     }
   }
 
-  fn conclude_match(&mut self, nm: &NodeMatch<'a, SgLang>) {
+  fn conclude_match(&mut self, nm: &NodeMatch<'a>) {
     let display = self.display(nm);
     self.last_start_line = display.start_line + 1;
     self.last_end_line = nm.end_pos().line() + 1;
@@ -301,7 +290,7 @@ impl<'a> MatchMerger<'a> {
   }
 
   #[inline]
-  fn check_overlapping(&self, nm: &NodeMatch<'a, SgLang>) -> bool {
+  fn check_overlapping(&self, nm: &NodeMatch<'a>) -> bool {
     let range = nm.range();
 
     // merge overlapping matches.
@@ -315,17 +304,18 @@ impl<'a> MatchMerger<'a> {
     }
   }
 
-  fn display(&self, nm: &NodeMatch<'a, SgLang>) -> DisplayContext<'a> {
+  fn display(&self, nm: &NodeMatch<'a>) -> DisplayContext<'a> {
     let (before, after) = self.context;
     nm.display_context(before as usize, after as usize)
   }
 }
 
-fn print_matches_with_heading<'a, W: WriteColor>(
-  mut matches: Matches!('a),
+fn print_matches_with_heading<W: WriteColor>(
+  matches: Vec<NodeMatch>,
   path: &Path,
   printer: &mut ColoredPrinter<W>,
 ) -> Result<()> {
+  let mut matches = matches.into_iter();
   let styles = &printer.styles;
   let context_span = printer.context_span();
   let writer = &mut printer.writer;
@@ -379,11 +369,12 @@ fn print_matches_with_heading<'a, W: WriteColor>(
   Ok(())
 }
 
-fn print_matches_with_prefix<'a, W: WriteColor>(
-  mut matches: Matches!('a),
+fn print_matches_with_prefix<W: WriteColor>(
+  matches: Vec<NodeMatch>,
   path: &Path,
   printer: &mut ColoredPrinter<W>,
 ) -> Result<()> {
+  let mut matches = matches.into_iter();
   let styles = &printer.styles;
   let context_span = printer.context_span();
   let writer = &mut printer.writer;
@@ -428,13 +419,14 @@ fn print_matches_with_prefix<'a, W: WriteColor>(
   Ok(())
 }
 
-fn print_diffs<'a, W: WriteColor>(
-  mut diffs: Diffs!('a),
+fn print_diffs<W: WriteColor>(
+  diffs: Vec<Diff>,
   path: &Path,
   styles: &PrintStyles,
   writer: &mut W,
   context: usize,
 ) -> Result<()> {
+  let mut diffs = diffs.into_iter();
   print_prelude(path, styles, writer)?;
   let Some(first_diff) = diffs.next() else {
     return Ok(());

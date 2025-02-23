@@ -1,13 +1,12 @@
 use crate::lang::SgLang;
 use ast_grep_config::{RuleConfig, Severity};
-use ast_grep_core::{meta_var::MetaVariable, Node as SgNode, NodeMatch as SgNodeMatch, StrDoc};
+use ast_grep_core::{meta_var::MetaVariable, Node as SgNode, StrDoc};
 
-type NodeMatch<'a, L> = SgNodeMatch<'a, StrDoc<L>>;
 type Node<'a, L> = SgNode<'a, StrDoc<L>>;
 
 use std::collections::HashMap;
 
-use super::{Diff, Printer};
+use super::{Diff, NodeMatch, Printer};
 use anyhow::Result;
 use clap::ValueEnum;
 use codespan_reporting::files::SimpleFile;
@@ -16,14 +15,6 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::io::{Stdout, Write};
 use std::path::Path;
-
-// add this macro because neither trait_alias nor type_alias_impl is supported.
-macro_rules! Matches {
-  ($lt: lifetime) => { impl Iterator<Item = NodeMatch<$lt, SgLang>> };
-}
-macro_rules! Diffs {
-  ($lt: lifetime) => { impl Iterator<Item = Diff<$lt>> };
-}
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -92,7 +83,7 @@ struct MetaVariables<'a> {
   multi: HashMap<String, Vec<MatchNode<'a>>>,
   transformed: HashMap<String, String>,
 }
-fn from_env<'a>(nm: &NodeMatch<'a, SgLang>) -> Option<MetaVariables<'a>> {
+fn from_env<'a>(nm: &NodeMatch<'a>) -> Option<MetaVariables<'a>> {
   let env = nm.get_env();
   let mut vars = env.get_matched_variables().peekable();
   vars.peek()?;
@@ -155,7 +146,7 @@ fn get_range(n: &Node<'_, SgLang>) -> Range {
 }
 
 impl<'a> MatchJSON<'a> {
-  fn new(nm: NodeMatch<'a, SgLang>, path: &'a str, context: (u16, u16)) -> Self {
+  fn new(nm: NodeMatch<'a>, path: &'a str, context: (u16, u16)) -> Self {
     let display = nm.display_context(context.0 as usize, context.1 as usize);
     let lines = format!("{}{}{}", display.leading, display.matched, display.trailing);
     MatchJSON {
@@ -181,7 +172,7 @@ impl<'a> MatchJSON<'a> {
     ret
   }
 }
-fn get_labels<'a>(nm: &NodeMatch<'a, SgLang>) -> Option<Vec<MatchNode<'a>>> {
+fn get_labels<'a>(nm: &NodeMatch<'a>) -> Option<Vec<MatchNode<'a>>> {
   let env = nm.get_env();
   let labels = env.get_labels("secondary")?;
   Some(
@@ -208,7 +199,7 @@ struct RuleMatchJSON<'a> {
   labels: Option<Vec<MatchNode<'a>>>,
 }
 impl<'a> RuleMatchJSON<'a> {
-  fn new(nm: NodeMatch<'a, SgLang>, path: &'a str, rule: &'a RuleConfig<SgLang>) -> Self {
+  fn new(nm: NodeMatch<'a>, path: &'a str, rule: &'a RuleConfig<SgLang>) -> Self {
     let message = rule.get_message(&nm);
     let labels = get_labels(&nm);
     let matched = MatchJSON::new(nm, path, (0, 0));
@@ -325,33 +316,39 @@ impl<W: Write> JSONPrinter<W> {
 }
 
 impl<W: Write> Printer for JSONPrinter<W> {
-  fn print_rule<'a>(
+  fn print_rule(
     &mut self,
-    matches: Matches!('a),
+    matches: Vec<NodeMatch>,
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
   ) -> Result<()> {
     let path = file.name();
-    let jsons = matches.map(|nm| RuleMatchJSON::new(nm, path, rule));
+    let jsons = matches
+      .into_iter()
+      .map(|nm| RuleMatchJSON::new(nm, path, rule));
     self.print_docs(jsons)
   }
 
-  fn print_matches<'a>(&mut self, matches: Matches!('a), path: &Path) -> Result<()> {
+  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<()> {
     let path = path.to_string_lossy();
     let context = self.context;
-    let jsons = matches.map(|nm| MatchJSON::new(nm, &path, context));
+    let jsons = matches
+      .into_iter()
+      .map(|nm| MatchJSON::new(nm, &path, context));
     self.print_docs(jsons)
   }
 
-  fn print_diffs<'a>(&mut self, diffs: Diffs!('a), path: &Path) -> Result<()> {
+  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<()> {
     let path = path.to_string_lossy();
     let context = self.context;
-    let jsons = diffs.map(|diff| MatchJSON::diff(diff, &path, context));
+    let jsons = diffs
+      .into_iter()
+      .map(|diff| MatchJSON::diff(diff, &path, context));
     self.print_docs(jsons)
   }
   fn print_rule_diffs(
     &mut self,
-    diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
+    diffs: Vec<(Diff, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<()> {
     let path = path.to_string_lossy();
@@ -412,9 +409,7 @@ mod test {
     for style in [JsonStyle::Pretty, JsonStyle::Compact] {
       let mut printer = make_test_printer(style);
       printer.before_print().unwrap();
-      printer
-        .print_matches(std::iter::empty(), "test.tsx".as_ref())
-        .unwrap();
+      printer.print_matches(vec![], "test.tsx".as_ref()).unwrap();
       printer.after_print().unwrap();
       assert_eq!(get_text(&printer), "[]\n");
     }
@@ -451,7 +446,7 @@ mod test {
       // heading is required for CI
       let mut printer = make_test_printer(JsonStyle::Pretty);
       let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
-      let matches = grep.root().find_all(pattern);
+      let matches = grep.root().find_all(pattern).collect();
       printer.before_print().unwrap();
       printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
       printer.after_print().unwrap();
@@ -470,7 +465,9 @@ mod test {
       let grep = lang.ast_grep(source);
       let matches = grep.root().find_all(pattern);
       let fixer = Fixer::from_str(replace, &lang).expect("should work");
-      let diffs = matches.map(|m| Diff::generate(m, &pattern, &fixer));
+      let diffs = matches
+        .map(|m| Diff::generate(m, &pattern, &fixer))
+        .collect();
       printer.before_print().unwrap();
       printer.print_diffs(diffs, "test.tsx".as_ref()).unwrap();
       printer.after_print().unwrap();
@@ -512,7 +509,7 @@ rule:
       let mut printer = make_test_printer(JsonStyle::Pretty);
       let grep = SgLang::from(SupportLang::Tsx).ast_grep(&source);
       let rule = make_rule(pattern);
-      let matches = grep.root().find_all(&rule.matcher);
+      let matches = grep.root().find_all(&rule.matcher).collect();
       printer.before_print().unwrap();
       let file = SimpleFile::new(Cow::Borrowed("test.ts"), &source);
       printer.print_rule(matches, file, &rule).unwrap();
@@ -529,7 +526,7 @@ rule:
     let mut printer = make_test_printer(JsonStyle::Pretty);
     let lang = SgLang::from(SupportLang::Tsx);
     let grep = lang.ast_grep("console.log(123)");
-    let matches = grep.root().find_all("console.log($A)");
+    let matches = grep.root().find_all("console.log($A)").collect();
     printer.before_print().unwrap();
     printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
     printer.after_print().unwrap();
@@ -548,7 +545,7 @@ rule:
     let mut printer = make_test_printer(JsonStyle::Compact);
     let lang = SgLang::from(SupportLang::Tsx);
     let grep = lang.ast_grep("console.log(1, 2, 3)");
-    let matches = grep.root().find_all("console.log($$$A)");
+    let matches = grep.root().find_all("console.log($$$A)").collect();
     printer.before_print().unwrap();
     printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
     printer.after_print().unwrap();
@@ -565,7 +562,7 @@ rule:
     for &(source, pattern, _, note) in MATCHES_CASES {
       let mut printer = make_test_printer(JsonStyle::Stream);
       let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
-      let matches = grep.root().find_all(pattern);
+      let matches = grep.root().find_all(pattern).collect();
       printer.before_print().unwrap();
       printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
       printer.after_print().unwrap();
@@ -594,7 +591,7 @@ transform:
     let mut printer = make_test_printer(JsonStyle::Compact);
     let rule = get_rule_config(&format!("pattern: console.log($A)\n{}", TRANSFORM_TEXT));
     let grep = SgLang::from(SupportLang::TypeScript).ast_grep("console.log(123)");
-    let matches = grep.root().find_all(&rule.matcher);
+    let matches = grep.root().find_all(&rule.matcher).collect();
     printer.before_print().unwrap();
     printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
     printer.after_print().unwrap();
