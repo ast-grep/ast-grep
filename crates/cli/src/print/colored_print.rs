@@ -174,7 +174,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     let context = self.diff_context();
     let writer = &mut self.writer;
     let mut start = 0;
-    print_prelude(path, &self.styles, writer)?;
+    self.styles.print_prelude(path, writer)?;
     for (diff, rule) in diffs {
       let range = &diff.range;
       // skip overlapping diff
@@ -223,29 +223,6 @@ fn print_rule_title<W: WriteColor>(
   Ok(())
 }
 
-#[cfg(not(target_os = "windows"))]
-fn adjust_dir_separator(p: &Path) -> Cow<str> {
-  p.to_string_lossy()
-}
-
-// change \ to / on windows
-#[cfg(target_os = "windows")]
-fn adjust_dir_separator(p: &Path) -> String {
-  const VERBATIM_PREFIX: &str = r#"\\?\"#;
-  let p = p.display().to_string();
-  if p.starts_with(VERBATIM_PREFIX) {
-    p[VERBATIM_PREFIX.len()..].to_string()
-  } else {
-    p
-  }
-}
-
-fn print_prelude(path: &Path, styles: &PrintStyles, writer: &mut impl Write) -> Result<()> {
-  let filepath = adjust_dir_separator(path);
-  writeln!(writer, "{}", styles.file_path.paint(filepath))?;
-  Ok(())
-}
-
 fn print_matches_with_heading<W: WriteColor>(
   matches: Vec<NodeMatch>,
   path: &Path,
@@ -255,7 +232,7 @@ fn print_matches_with_heading<W: WriteColor>(
   let styles = &printer.styles;
   let context_span = printer.context_span();
   let writer = &mut printer.writer;
-  print_prelude(path, styles, writer)?;
+  styles.print_prelude(path, writer)?;
   let Some(first_match) = matches.next() else {
     return Ok(());
   };
@@ -363,7 +340,7 @@ fn print_diffs<W: WriteColor>(
   context: usize,
 ) -> Result<()> {
   let mut diffs = diffs.into_iter();
-  print_prelude(path, styles, writer)?;
+  styles.print_prelude(path, writer)?;
   let Some(first_diff) = diffs.next() else {
     return Ok(());
   };

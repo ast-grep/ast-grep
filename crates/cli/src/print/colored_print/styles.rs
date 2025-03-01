@@ -2,7 +2,11 @@
 use super::{ColorChoice, DiffStyles};
 use ansi_term::{Color, Style};
 use anyhow::Result;
+
+use std::borrow::Cow;
 use std::env;
+use std::io::Write;
+use std::path::Path;
 
 // warn[rule-id]: rule message here.
 // |------------|------------------|
@@ -70,7 +74,31 @@ impl PrintStyles {
     }
     Ok(())
   }
+
+  pub fn print_prelude(&self, path: &Path, writer: &mut impl Write) -> Result<()> {
+    let file_path = adjust_dir_separator(path);
+    writeln!(writer, "{}", self.file_path.paint(file_path))?;
+    Ok(())
+  }
 }
+
+#[cfg(not(target_os = "windows"))]
+fn adjust_dir_separator(p: &Path) -> Cow<str> {
+  p.to_string_lossy()
+}
+
+// change \ to / on windows
+#[cfg(target_os = "windows")]
+fn adjust_dir_separator(p: &Path) -> String {
+  const VERBATIM_PREFIX: &str = r#"\\?\"#;
+  let p = p.display().to_string();
+  if p.starts_with(VERBATIM_PREFIX) {
+    p[VERBATIM_PREFIX.len()..].to_string()
+  } else {
+    p
+  }
+}
+
 impl From<ColorChoice> for PrintStyles {
   fn from(color: ColorChoice) -> Self {
     if should_use_color(&color) {
