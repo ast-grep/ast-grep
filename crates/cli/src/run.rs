@@ -66,7 +66,7 @@ pub struct RunArg {
   selector: Option<String>,
 
   /// String to replace the matched AST node.
-  #[clap(short, long, value_name = "FIX", required_if_eq("update_all", "true"))]
+  #[clap(short, long, value_name = "FIX")]
   rewrite: Option<String>,
 
   /// The language of the pattern query.
@@ -359,7 +359,7 @@ mod test {
         color: ColorArg::Never,
         interactive: false,
         json: None,
-        update_all: false,
+        update_all: 0,
         inspect: Default::default(),
       },
       context: ContextArgs {

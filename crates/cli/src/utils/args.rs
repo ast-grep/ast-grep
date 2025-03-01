@@ -129,8 +129,15 @@ pub struct OutputArgs {
   pub interactive: bool,
 
   /// Apply all rewrite without confirmation if true.
-  #[clap(short = 'U', long)]
-  pub update_all: bool,
+  #[clap(
+    short = 'U',
+    long,
+    num_args(0..=1),
+    require_equals = true,
+    default_missing_value = "1",
+    default_value = "0"
+  )]
+  pub update_all: u8,
 
   /// Output matches in structured JSON .
   ///
@@ -172,7 +179,7 @@ pub struct OutputArgs {
 impl OutputArgs {
   // either explicit interactive or implicit update_all
   pub fn needs_interactive(&self) -> bool {
-    self.interactive || self.update_all
+    self.interactive || self.update_all > 0
   }
 }
 

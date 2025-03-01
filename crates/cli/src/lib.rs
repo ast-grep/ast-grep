@@ -233,8 +233,6 @@ mod test_cli {
     error("run --debug-query test"); // missing lang
     error("run -r Test dir");
     error("run -p test -i --json dir"); // conflict
-    error("run -p test -U");
-    error("run -p test --update-all");
     error("run -p test --strictness not");
     error("run -p test -l rs --debug-query=not");
     error("run -p test --selector");
