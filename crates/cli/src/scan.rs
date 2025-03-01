@@ -363,7 +363,7 @@ rule:
       output: OutputArgs {
         interactive: false,
         json: None,
-        update_all: 0,
+        update_all: false,
         color: ColorArg::Never,
         inspect: Default::default(),
       },
