@@ -1,5 +1,5 @@
-use crate::print::{print_diff, ColorChoice, PrintStyles};
-use crate::utils::{prompt, run_in_alternate_screen};
+use crate::print::{print_diff, ColorArg};
+use crate::utils::{prompt, run_in_alternate_screen, DiffStyles};
 
 use ansi_term::{Color, Style};
 use anyhow::Result;
@@ -159,7 +159,7 @@ fn report_case_detail_impl<W: Write>(
   let wrong = Style::new().underline().paint("Wrong");
   let error = Style::new().underline().paint("Error");
   let update = Style::new().underline().paint("Updated");
-  let styles = PrintStyles::from(ColorChoice::Auto);
+  let styles = DiffStyles::from(ColorArg::Auto);
   match result {
     CaseStatus::Validated | CaseStatus::Reported => (),
     CaseStatus::Updated { source, .. } => {

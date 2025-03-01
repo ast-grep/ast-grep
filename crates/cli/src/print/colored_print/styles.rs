@@ -1,5 +1,5 @@
 // copied from termcolor
-use super::ColorChoice;
+use super::{ColorChoice, DiffStyles};
 use ansi_term::{Color, Style};
 use anyhow::Result;
 use std::env;
@@ -19,46 +19,36 @@ pub struct RuleStyle {
   pub note: Style,
 }
 
+impl RuleStyle {
+  fn colored() -> Self {
+    Self {
+      error: Color::Red.bold(),
+      warning: Color::Yellow.bold(),
+      info: Style::new().bold(),
+      hint: Style::new().dimmed().bold(),
+      note: Style::new().italic(),
+      message: Style::new().bold(),
+    }
+  }
+}
+
 // TODO: use termcolor instead
 #[derive(Default)]
 pub struct PrintStyles {
   // print match color
   pub file_path: Style,
   pub matched: Style,
-  pub line_num: Style,
-  // diff insert style
-  pub insert: Style,
-  pub insert_emphasis: Style,
-  // diff deletion style
-  pub delete: Style,
-  pub delete_emphasis: Style,
   pub rule: RuleStyle,
+  pub diff: DiffStyles,
 }
 
 impl PrintStyles {
   fn colored() -> Self {
-    static THISTLE1: Color = Color::Fixed(225);
-    static SEA_GREEN: Color = Color::Fixed(158);
-    static RED: Color = Color::Fixed(161);
-    static GREEN: Color = Color::Fixed(35);
-    let insert = Style::new().fg(GREEN);
-    let delete = Style::new().fg(RED);
     Self {
       file_path: Color::Cyan.italic(),
       matched: Color::Red.bold(),
-      line_num: Style::new().dimmed(),
-      insert,
-      insert_emphasis: insert.on(SEA_GREEN).bold(),
-      delete,
-      delete_emphasis: delete.on(THISTLE1).bold(),
-      rule: RuleStyle {
-        error: Color::Red.bold(),
-        warning: Color::Yellow.bold(),
-        info: Style::new().bold(),
-        hint: Style::new().dimmed().bold(),
-        note: Style::new().italic(),
-        message: Style::new().bold(),
-      },
+      diff: DiffStyles::colored(),
+      rule: RuleStyle::colored(),
     }
   }
   fn no_color() -> Self {

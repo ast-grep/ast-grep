@@ -1,5 +1,6 @@
 use super::{Diff, NodeMatch, Printer};
 use crate::lang::SgLang;
+use crate::utils::DiffStyles;
 use ansi_term::{Color, Style};
 use anyhow::Result;
 use ast_grep_config::{RuleConfig, Severity};
@@ -20,8 +21,8 @@ mod styles;
 mod test;
 
 use match_merger::MatchMerger;
-use styles::RuleStyle;
-pub use styles::{should_use_color, PrintStyles};
+pub use styles::should_use_color;
+use styles::{PrintStyles, RuleStyle};
 
 #[derive(Clone, Copy, ValueEnum)]
 pub enum ReportStyle {
@@ -192,7 +193,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
         diff.replacement,
         &source[start..],
       );
-      print_diff(source, &new_str, &self.styles, writer, context)?;
+      print_diff(source, &new_str, &self.styles.diff, writer, context)?;
       if let Some(note) = &rule.note {
         writeln!(writer, "{}", self.styles.rule.note.paint("Note:"))?;
         writeln!(writer, "{note}")?;
@@ -281,7 +282,7 @@ fn print_matches_with_heading<W: WriteColor>(
     let lines = ret.lines().count();
     let mut num = merger.last_start_line;
     let width = (lines + num).checked_ilog10().unwrap_or(0) as usize + 1;
-    let line_num = styles.line_num.paint(format!("{num}"));
+    let line_num = styles.diff.line_num.paint(format!("{num}"));
     write!(writer, "{line_num:>width$}│")?; // initial line num
     print_highlight(ret.lines(), width, &mut num, writer, styles)?;
     writeln!(writer)?; // end match new line
@@ -296,7 +297,7 @@ fn print_matches_with_heading<W: WriteColor>(
   let lines = ret.lines().count();
   let mut num = merger.last_start_line;
   let width = (lines + num).checked_ilog10().unwrap_or(0) as usize + 1;
-  let line_num = styles.line_num.paint(format!("{num}"));
+  let line_num = styles.diff.line_num.paint(format!("{num}"));
   write!(writer, "{line_num:>width$}│")?; // initial line num
   print_highlight(ret.lines(), width, &mut num, writer, styles)?;
   writeln!(writer)?; // end match new line
@@ -381,7 +382,7 @@ fn print_diffs<W: WriteColor>(
     start = range.end;
   }
   new_str.push_str(&source[start..]);
-  print_diff(source, &new_str, styles, writer, context)?;
+  print_diff(source, &new_str, &styles.diff, writer, context)?;
   Ok(())
 }
 
@@ -398,7 +399,7 @@ fn print_highlight<'a, W: Write>(
   for line in lines {
     writeln!(writer)?;
     *num += 1;
-    let line_num = styles.line_num.paint(format!("{num}"));
+    let line_num = styles.diff.line_num.paint(format!("{num}"));
     write!(writer, "{line_num:>width$}│{line}")?;
   }
   Ok(())
@@ -429,7 +430,7 @@ fn compute_header(group: &[DiffOp]) -> String {
 pub fn print_diff(
   old: &str,
   new: &str,
-  styles: &PrintStyles,
+  styles: &DiffStyles,
   writer: &mut impl Write,
   context: usize,
 ) -> Result<()> {
