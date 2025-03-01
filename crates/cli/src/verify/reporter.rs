@@ -1,4 +1,4 @@
-use crate::print::{print_diff, ColorArg};
+use crate::print::ColorArg;
 use crate::utils::{prompt, run_in_alternate_screen, DiffStyles};
 
 use ansi_term::{Color, Style};
@@ -184,7 +184,7 @@ fn report_case_detail_impl<W: Write>(
         let actual_str = to_string(&actual)?;
         let expected_str = to_string(&expected)?;
         writeln!(output, "{}", Style::new().italic().paint("Diff:"))?;
-        print_diff(&expected_str, &actual_str, &styles, output, 3)?;
+        styles.print_diff(&expected_str, &actual_str, output, 3)?;
       } else {
         writeln!(output, "[{wrong}] No {case_id} baseline found.")?;
         // TODO: add to print_styles

@@ -15,8 +15,8 @@ use std::path::Path;
 
 pub use cloud_print::{CloudPrinter, Platform};
 pub use codespan_reporting::files::SimpleFile;
-pub use codespan_reporting::term::termcolor::ColorChoice;
-pub use colored_print::{print_diff, ColoredPrinter, Heading, ReportStyle};
+use codespan_reporting::term::termcolor::ColorChoice;
+pub use colored_print::{ColoredPrinter, Heading, ReportStyle};
 pub use interactive_print::InteractivePrinter;
 pub use json_print::{JSONPrinter, JsonStyle};
 
