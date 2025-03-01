@@ -256,13 +256,8 @@ fn print_matches_with_heading<W: WriteColor>(
       continue;
     }
     ret.push_str(merger.last_trailing);
-    let lines = ret.lines().count();
-    let mut num = merger.last_start_line;
-    let width = (lines + num).checked_ilog10().unwrap_or(0) as usize + 1;
-    let line_num = styles.diff.line_num.paint(format!("{num}"));
-    write!(writer, "{line_num:>width$}│")?; // initial line num
-    print_highlight(ret.lines(), width, &mut num, writer, styles)?;
-    writeln!(writer)?; // end match new line
+    let num = merger.last_start_line;
+    let width = print_highlight(&ret, num, writer, styles)?;
     if context_span > 0 {
       writeln!(writer, "{:╴>width$}┤", "")?; // make separation
     }
@@ -271,13 +266,8 @@ fn print_matches_with_heading<W: WriteColor>(
     styles.push_matched_to_ret(&mut ret, &display.matched)?;
   }
   ret.push_str(merger.last_trailing);
-  let lines = ret.lines().count();
-  let mut num = merger.last_start_line;
-  let width = (lines + num).checked_ilog10().unwrap_or(0) as usize + 1;
-  let line_num = styles.diff.line_num.paint(format!("{num}"));
-  write!(writer, "{line_num:>width$}│")?; // initial line num
-  print_highlight(ret.lines(), width, &mut num, writer, styles)?;
-  writeln!(writer)?; // end match new line
+  let num = merger.last_start_line;
+  print_highlight(&ret, num, writer, styles)?;
   writeln!(writer)?; // end
   Ok(())
 }
@@ -363,21 +353,27 @@ fn print_diffs<W: WriteColor>(
   Ok(())
 }
 
-fn print_highlight<'a, W: Write>(
-  mut lines: impl Iterator<Item = &'a str>,
-  width: usize,
-  num: &mut usize,
+fn print_highlight<W: Write>(
+  ret: &str,
+  mut line_num: usize,
   writer: &mut W,
   styles: &PrintStyles,
-) -> Result<()> {
+) -> Result<usize> {
+  let added = ret.lines().count();
+  // compute width for line number
+  let width = (added + line_num).checked_ilog10().unwrap_or(0) as usize + 1;
+  let ln_text = styles.diff.line_num.paint(format!("{line_num}"));
+  let mut lines = ret.lines();
+  write!(writer, "{ln_text:>width$}│")?; // initial line num
   if let Some(line) = lines.next() {
     write!(writer, "{line}")?;
   }
   for line in lines {
     writeln!(writer)?;
-    *num += 1;
-    let line_num = styles.diff.line_num.paint(format!("{num}"));
-    write!(writer, "{line_num:>width$}│{line}")?;
+    line_num += 1;
+    let ln_text = styles.diff.line_num.paint(format!("{line_num}"));
+    write!(writer, "{ln_text:>width$}│{line}")?;
   }
-  Ok(())
+  writeln!(writer)?; // end match new line
+  Ok(width)
 }
