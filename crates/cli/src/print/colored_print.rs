@@ -360,19 +360,21 @@ fn print_highlight<W: Write>(
   styles: &PrintStyles,
 ) -> Result<usize> {
   let added = ret.lines().count();
-  // compute width for line number
+  // compute width for line number. log10(num) = the digit count of num - 1
   let width = (added + line_num).checked_ilog10().unwrap_or(0) as usize + 1;
-  let ln_text = styles.diff.line_num.paint(format!("{line_num}"));
+  // note the width modifier must be applied before coloring the line number
+  // otherwise the color code will be counted in the width
+  let ln_text = styles.diff.line_num.paint(format!("{line_num:<width$}"));
   let mut lines = ret.lines();
-  write!(writer, "{ln_text:>width$}│")?; // initial line num
+  write!(writer, "{ln_text}│")?; // initial line num
   if let Some(line) = lines.next() {
     write!(writer, "{line}")?;
   }
   for line in lines {
     writeln!(writer)?;
     line_num += 1;
-    let ln_text = styles.diff.line_num.paint(format!("{line_num}"));
-    write!(writer, "{ln_text:>width$}│{line}")?;
+    let ln_text = styles.diff.line_num.paint(format!("{line_num:<width$}"));
+    write!(writer, "{ln_text}│{line}")?;
   }
   writeln!(writer)?; // end match new line
   Ok(width)
