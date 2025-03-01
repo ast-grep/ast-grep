@@ -1,10 +1,8 @@
 use super::{Diff, NodeMatch, Printer};
 use crate::lang::SgLang;
-use ast_grep_config::{RuleConfig, Severity};
-use ast_grep_core::DisplayContext;
-
 use ansi_term::{Color, Style};
 use anyhow::Result;
+use ast_grep_config::{RuleConfig, Severity};
 use clap::ValueEnum;
 use codespan_reporting::diagnostic::{self, Diagnostic, Label};
 use codespan_reporting::files::SimpleFile;
@@ -17,7 +15,13 @@ use std::fmt::Display;
 use std::io::Write;
 use std::path::Path;
 
+mod match_merger;
+mod styles;
 mod test;
+
+use match_merger::MatchMerger;
+use styles::RuleStyle;
+pub use styles::{should_use_color, PrintStyles};
 
 #[derive(Clone, Copy, ValueEnum)]
 pub enum ReportStyle {
@@ -239,75 +243,6 @@ fn print_prelude(path: &Path, styles: &PrintStyles, writer: &mut impl Write) -> 
   let filepath = adjust_dir_separator(path);
   writeln!(writer, "{}", styles.file_path.paint(filepath))?;
   Ok(())
-}
-
-// merging overlapping/adjacent matches
-// adjacent matches: matches that starts or ends on the same line
-struct MatchMerger<'a> {
-  last_start_line: usize,
-  last_end_line: usize,
-  last_trailing: &'a str,
-  last_end_offset: usize,
-  context: (u16, u16),
-}
-
-impl<'a> MatchMerger<'a> {
-  fn new(nm: &NodeMatch<'a>, (before, after): (u16, u16)) -> Self {
-    let display = nm.display_context(before as usize, after as usize);
-    let last_start_line = display.start_line + 1;
-    let last_end_line = nm.end_pos().line() + 1;
-    let last_trailing = display.trailing;
-    let last_end_offset = nm.range().end;
-    Self {
-      last_start_line,
-      last_end_line,
-      last_end_offset,
-      last_trailing,
-      context: (before, after),
-    }
-  }
-
-  // merge non-overlapping matches but start/end on the same line
-  fn merge_adjacent(&mut self, nm: &NodeMatch<'a>) -> Option<usize> {
-    let display = self.display(nm);
-    let start_line = display.start_line;
-    if start_line <= self.last_end_line + self.context.1 as usize {
-      let last_end_offset = self.last_end_offset;
-      self.last_end_offset = nm.range().end;
-      self.last_trailing = display.trailing;
-      Some(last_end_offset)
-    } else {
-      None
-    }
-  }
-
-  fn conclude_match(&mut self, nm: &NodeMatch<'a>) {
-    let display = self.display(nm);
-    self.last_start_line = display.start_line + 1;
-    self.last_end_line = nm.end_pos().line() + 1;
-    self.last_trailing = display.trailing;
-    self.last_end_offset = nm.range().end;
-  }
-
-  #[inline]
-  fn check_overlapping(&self, nm: &NodeMatch<'a>) -> bool {
-    let range = nm.range();
-
-    // merge overlapping matches.
-    // N.B. range.start == last_end_offset does not mean overlapping
-    if range.start < self.last_end_offset {
-      // guaranteed by pre-order
-      debug_assert!(range.end <= self.last_end_offset);
-      true
-    } else {
-      false
-    }
-  }
-
-  fn display(&self, nm: &NodeMatch<'a>) -> DisplayContext<'a> {
-    let (before, after) = self.context;
-    nm.display_context(before as usize, after as usize)
-  }
 }
 
 fn print_matches_with_heading<W: WriteColor>(
@@ -533,131 +468,4 @@ pub fn print_diff(
     }
   }
   Ok(())
-}
-
-// warn[rule-id]: rule message here.
-// |------------|------------------|
-//    header            message
-#[derive(Default)]
-struct RuleStyle {
-  // header style
-  error: Style,
-  warning: Style,
-  info: Style,
-  hint: Style,
-  // message style
-  message: Style,
-  note: Style,
-}
-
-// TODO: use termcolor instead
-#[derive(Default)]
-pub struct PrintStyles {
-  // print match color
-  file_path: Style,
-  matched: Style,
-  line_num: Style,
-  // diff insert style
-  insert: Style,
-  insert_emphasis: Style,
-  // diff deletion style
-  delete: Style,
-  delete_emphasis: Style,
-  rule: RuleStyle,
-}
-
-impl PrintStyles {
-  fn colored() -> Self {
-    static THISTLE1: Color = Color::Fixed(225);
-    static SEA_GREEN: Color = Color::Fixed(158);
-    static RED: Color = Color::Fixed(161);
-    static GREEN: Color = Color::Fixed(35);
-    let insert = Style::new().fg(GREEN);
-    let delete = Style::new().fg(RED);
-    Self {
-      file_path: Color::Cyan.italic(),
-      matched: Color::Red.bold(),
-      line_num: Style::new().dimmed(),
-      insert,
-      insert_emphasis: insert.on(SEA_GREEN).bold(),
-      delete,
-      delete_emphasis: delete.on(THISTLE1).bold(),
-      rule: RuleStyle {
-        error: Color::Red.bold(),
-        warning: Color::Yellow.bold(),
-        info: Style::new().bold(),
-        hint: Style::new().dimmed().bold(),
-        note: Style::new().italic(),
-        message: Style::new().bold(),
-      },
-    }
-  }
-  fn no_color() -> Self {
-    Self::default()
-  }
-
-  fn push_matched_to_ret(&self, ret: &mut String, matched: &str) -> Result<()> {
-    use std::fmt::Write;
-    // TODO: use intersperse
-    let mut lines = matched.lines();
-    if let Some(line) = lines.next() {
-      write!(ret, "{}", self.matched.paint(line))?;
-    } else {
-      return Ok(());
-    }
-    for line in lines {
-      ret.push('\n');
-      write!(ret, "{}", self.matched.paint(line))?;
-    }
-    Ok(())
-  }
-}
-impl From<ColorChoice> for PrintStyles {
-  fn from(color: ColorChoice) -> Self {
-    if choose_color::should_use_color(&color) {
-      Self::colored()
-    } else {
-      Self::no_color()
-    }
-  }
-}
-
-// copied from termcolor
-pub(crate) mod choose_color {
-  use super::ColorChoice;
-  use std::env;
-  /// Returns true if we should attempt to write colored output.
-  pub fn should_use_color(color: &ColorChoice) -> bool {
-    match *color {
-      // TODO: we should check if ansi is supported on windows console
-      ColorChoice::Always => true,
-      ColorChoice::AlwaysAnsi => true,
-      ColorChoice::Never => false,
-      // NOTE tty check is added
-      ColorChoice::Auto => atty::is(atty::Stream::Stdout) && env_allows_color(),
-    }
-  }
-
-  fn env_allows_color() -> bool {
-    match env::var_os("TERM") {
-      // On Windows, if TERM isn't set, then we should not automatically
-      // assume that colors aren't allowed. This is unlike Unix environments
-      None => {
-        if !cfg!(windows) {
-          return false;
-        }
-      }
-      Some(k) => {
-        if k == "dumb" {
-          return false;
-        }
-      }
-    }
-    // If TERM != dumb, then the only way we don't allow colors at this
-    // point is if NO_COLOR is set.
-    if env::var_os("NO_COLOR").is_some() {
-      return false;
-    }
-    true
-  }
 }
