@@ -355,27 +355,19 @@ fn print_diffs<W: WriteColor>(
 
 fn print_highlight<W: Write>(
   ret: &str,
-  mut line_num: usize,
+  start_line: usize,
   writer: &mut W,
   styles: &PrintStyles,
 ) -> Result<usize> {
   let added = ret.lines().count();
   // compute width for line number. log10(num) = the digit count of num - 1
-  let width = (added + line_num).checked_ilog10().unwrap_or(0) as usize + 1;
-  // note the width modifier must be applied before coloring the line number
-  // otherwise the color code will be counted in the width
-  let ln_text = styles.diff.line_num.paint(format!("{line_num:<width$}"));
-  let mut lines = ret.lines();
-  write!(writer, "{ln_text}│")?; // initial line num
-  if let Some(line) = lines.next() {
-    write!(writer, "{line}")?;
+  let width = (added + start_line).checked_ilog10().unwrap_or(0) as usize + 1;
+  for (offset, line) in ret.lines().enumerate() {
+    // note the width modifier must be applied before coloring the line_num
+    let line_num = format!("{:<width$}", start_line + offset);
+    // otherwise the color ascii code will be counted in the width
+    let ln_text = styles.diff.line_num.paint(line_num);
+    writeln!(writer, "{ln_text}│{line}")?;
   }
-  for line in lines {
-    writeln!(writer)?;
-    line_num += 1;
-    let ln_text = styles.diff.line_num.paint(format!("{line_num:<width$}"));
-    write!(writer, "{ln_text}│{line}")?;
-  }
-  writeln!(writer)?; // end match new line
   Ok(width)
 }
