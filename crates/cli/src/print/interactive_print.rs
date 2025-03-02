@@ -8,6 +8,7 @@ use ast_grep_config::RuleConfig;
 use codespan_reporting::files::SimpleFile;
 
 use std::borrow::Cow;
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 
 pub struct InteractivePrinter<P: Printer> {
@@ -47,8 +48,8 @@ impl<P: Printer> InteractivePrinter<P> {
     utils::prompt(VIEW_PROMPT, "qe", Some('\n')).expect("cannot fail")
   }
 
-  fn rewrite_action(&self, diffs: Vec<Diff<'_>>, path: &PathBuf) -> Result<()> {
-    if diffs.is_empty() {
+  fn rewrite_action(&self, diffs: Diffs<()>, path: &PathBuf) -> Result<()> {
+    if diffs.contents.is_empty() {
       return Ok(());
     }
     let new_content = apply_rewrite(diffs);
@@ -58,6 +59,36 @@ impl<P: Printer> InteractivePrinter<P> {
     } else {
       std::fs::write(path, new_content).with_context(|| EC::WriteFile(path.clone()))
     }
+  }
+
+  fn process_highlights(&mut self, highlights: Highlights<P::Processed>) -> Result<()> {
+    let Highlights {
+      path,
+      first_line,
+      inner,
+    } = highlights;
+    utils::run_in_alternate_screen(|| {
+      self.inner.process(inner)?;
+      let resp = self.prompt_view();
+      if resp == 'q' {
+        Err(anyhow::anyhow!("Exit interactive editing"))
+      } else if resp == 'e' {
+        open_in_editor(&path, first_line)?;
+        Ok(())
+      } else {
+        Ok(())
+      }
+    })
+  }
+
+  fn process_diffs(&mut self, diffs: Diffs<P::Processed>) -> Result<()> {
+    let path = PathBuf::from("TODO");
+    let (confirmed, all) = print_diffs_interactive(self, diffs)?;
+    self.rewrite_action(confirmed, &path)?;
+    if all {
+      self.accept_all = true;
+    }
+    Ok(())
   }
 }
 
@@ -72,36 +103,11 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
   }
 
   fn process(&mut self, processed: Self::Processed) -> Result<()> {
-    let Some(processed) = processed else {
-      return Ok(());
-    };
-    if processed.is_diff {
-      let path = PathBuf::from("TODO");
-      let (confirmed, all) = print_diffs_interactive(self, &path, vec![processed])?;
-      self.rewrite_action(confirmed, &path)?;
-      if all {
-        self.accept_all = true;
-      }
-      Ok(())
-    } else {
-      let InteractivePayload {
-        first_line,
-        path,
-        inner,
-        ..
-      } = processed;
-      utils::run_in_alternate_screen(|| {
-        self.inner.process(inner)?;
-        let resp = self.prompt_view();
-        if resp == 'q' {
-          Err(anyhow::anyhow!("Exit interactive editing"))
-        } else if resp == 'e' {
-          open_in_editor(&path, first_line)?;
-          Ok(())
-        } else {
-          Ok(())
-        }
-      })
+    use InteractivePayload as IP;
+    match processed {
+      IP::Nothing => Ok(()),
+      IP::Highlights(h) => self.process_highlights(h),
+      IP::Diffs(d) => self.process_diffs(d),
     }
   }
 
@@ -113,18 +119,38 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
   }
 }
 
-pub struct InteractivePayload<I> {
+pub struct InteractiveDiff<D> {
+  /// string content for the replacement
+  replacement: String,
+  range: Range<usize>,
   first_line: usize,
+  display: D,
+}
+
+pub struct Highlights<D> {
   path: PathBuf,
-  inner: I,
-  is_diff: bool,
+  first_line: usize,
+  inner: D,
+}
+
+pub struct Diffs<D> {
+  path: PathBuf,
+  // TODO: this clone is slow
+  old_source: String,
+  contents: Vec<InteractiveDiff<D>>,
+}
+
+pub enum InteractivePayload<D> {
+  Nothing,
+  Highlights(Highlights<D>),
+  Diffs(Diffs<D>),
 }
 
 pub struct InteractiveProcessor<P: Printer> {
   inner: P::Processor,
 }
 
-pub type Payload<P> = Option<InteractivePayload<<P as Printer>::Processed>>;
+pub type Payload<P> = InteractivePayload<<P as Printer>::Processed>;
 
 impl<P: Printer> PrintProcessor<Payload<P>> for InteractiveProcessor<P> {
   fn print_rule(
@@ -134,31 +160,31 @@ impl<P: Printer> PrintProcessor<Payload<P>> for InteractiveProcessor<P> {
     rule: &RuleConfig<SgLang>,
   ) -> Result<Payload<P>> {
     let Some(first_match) = matches.first() else {
-      return Ok(None);
+      return Ok(InteractivePayload::Nothing);
     };
     let first_line = first_match.start_pos().line();
     let path = PathBuf::from(file.name().to_string());
     let inner = self.inner.print_rule(matches, file, rule)?;
-    Ok(Some(InteractivePayload {
+    let highlights = Highlights {
       inner,
-      is_diff: false,
       first_line,
       path,
-    }))
+    };
+    Ok(InteractivePayload::Highlights(highlights))
   }
 
   fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<Payload<P>> {
     let Some(first_match) = matches.first() else {
-      return Ok(None);
+      return Ok(InteractivePayload::Nothing);
     };
     let first_line = first_match.start_pos().line();
     let inner = self.inner.print_matches(matches, path)?;
-    Ok(Some(InteractivePayload {
-      first_line,
+    let highlights = Highlights {
       inner,
-      is_diff: false,
+      first_line,
       path: path.to_path_buf(),
-    }))
+    };
+    Ok(InteractivePayload::Highlights(highlights))
   }
 
   fn print_diffs(&mut self, _diffs: Vec<Diff>, _path: &Path) -> Result<Payload<P>> {
@@ -175,42 +201,51 @@ impl<P: Printer> PrintProcessor<Payload<P>> for InteractiveProcessor<P> {
   }
 }
 
-fn print_diffs_interactive<'a, P: Printer>(
+fn print_diffs_interactive<P: Printer>(
   interactive: &mut InteractivePrinter<P>,
-  path: &Path,
-  processed_list: Vec<InteractivePayload<P::Processed>>,
-) -> Result<(Vec<Diff<'a>>, bool)> {
-  // let mut confirmed = vec![];
-  let confirmed = vec![];
+  diffs: Diffs<P::Processed>,
+) -> Result<(Diffs<()>, bool)> {
+  let mut confirmed = vec![];
   let mut all = interactive.accept_all;
-  // let mut end = 0;
-  for processed in processed_list {
-    // TODO: add end test
-    // if diff.range.start < end {
-    //   continue;
-    // }
+  let mut end = 0;
+  let path = diffs.path;
+  for diff in diffs.contents {
+    if diff.range.start < end {
+      continue;
+    }
+    let to_confirm = InteractiveDiff {
+      first_line: diff.first_line,
+      range: diff.range.clone(),
+      replacement: diff.replacement.clone(),
+      display: (),
+    };
     let confirm = all || {
-      let (accept_curr, accept_all) = print_diff_and_prompt_action(interactive, path, processed)?;
+      let (accept_curr, accept_all) = print_diff_and_prompt_action(interactive, &path, diff)?;
       all = accept_all;
       accept_curr
     };
     if confirm {
-      // end = diff.range.end;
-      // confirmed.push(diff);
+      end = to_confirm.range.end;
+      confirmed.push(to_confirm);
       interactive.committed_cnt = interactive.committed_cnt.saturating_add(1);
     }
   }
-  Ok((confirmed, all))
+  let diffs = Diffs {
+    path,
+    old_source: diffs.old_source,
+    contents: confirmed,
+  };
+  Ok((diffs, all))
 }
 /// returns if accept_current and accept_all
 fn print_diff_and_prompt_action<P: Printer>(
   interactive: &mut InteractivePrinter<P>,
   path: &Path,
-  processed: InteractivePayload<P::Processed>,
+  processed: InteractiveDiff<P::Processed>,
 ) -> Result<(bool, bool)> {
   utils::run_in_alternate_screen(|| {
     let printer = &mut interactive.inner;
-    printer.process(processed.inner)?;
+    printer.process(processed.display)?;
     match interactive.prompt_edit() {
       'y' => Ok((true, false)),
       'a' => Ok((true, true)),
@@ -226,14 +261,11 @@ fn print_diff_and_prompt_action<P: Printer>(
   })
 }
 
-fn apply_rewrite(diffs: Vec<Diff>) -> String {
+fn apply_rewrite(diffs: Diffs<()>) -> String {
   let mut new_content = String::new();
-  let Some(first) = diffs.first() else {
-    return new_content;
-  };
-  let old_content = first.get_root_text();
+  let old_content = diffs.old_source;
   let mut start = 0;
-  for diff in diffs {
+  for diff in diffs.contents {
     let range = diff.range;
     new_content.push_str(&old_content[start..range.start]);
     new_content.push_str(&diff.replacement);
@@ -287,17 +319,31 @@ language: TypeScript
     .unwrap()
   }
 
-  fn make_diffs<'a>(
-    grep: &'a AstGrep<StrDoc<SgLang>>,
+  fn make_diffs(
+    grep: &AstGrep<StrDoc<SgLang>>,
     matcher: impl Matcher<SgLang>,
     fixer: &Fixer<SgLang>,
-  ) -> Vec<Diff<'a>> {
+  ) -> Diffs<()> {
     let root = grep.root();
-    Visitor::new(&matcher)
+    let old_source = root.root().get_text().to_string();
+    let contents = Visitor::new(&matcher)
       .reentrant(false)
       .visit(root)
-      .map(|nm| Diff::generate(nm, &matcher, fixer))
-      .collect()
+      .map(|nm| {
+        let diff = Diff::generate(nm, &matcher, fixer);
+        InteractiveDiff {
+          first_line: 0,
+          range: diff.range,
+          replacement: diff.replacement,
+          display: (),
+        }
+      })
+      .collect();
+    Diffs {
+      old_source,
+      path: PathBuf::new(),
+      contents,
+    }
   }
 
   #[test]
