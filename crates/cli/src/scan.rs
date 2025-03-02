@@ -13,7 +13,7 @@ use crate::config::{read_rule_file, with_rule_stats, ProjectConfig};
 use crate::lang::SgLang;
 use crate::print::{
   CloudPrinter, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, Printer,
-  ReportStyle, SimpleFile,
+  ReportStyle, SimpleFile, PrintProcessor,
 };
 use crate::utils::ErrorContext as EC;
 use crate::utils::RuleOverwrite;
@@ -276,6 +276,7 @@ fn match_rule_diff_on_file(
   matches: Vec<(&RuleConfig<SgLang>, NodeMatch<StrDoc<SgLang>>)>,
   reporter: &mut impl Printer,
 ) -> Result<()> {
+  let mut processor = reporter.get_processor();
   let diffs = matches
     .into_iter()
     .filter_map(|(rule, m)| {
@@ -284,7 +285,8 @@ fn match_rule_diff_on_file(
       Some((diff, rule))
     })
     .collect();
-  reporter.print_rule_diffs(diffs, path)?;
+  let processed = processor.print_rule_diffs(diffs, path)?;
+  reporter.process(processed)?;
   Ok(())
 }
 
@@ -295,16 +297,18 @@ fn match_rule_on_file(
   file_content: &String,
   reporter: &mut impl Printer,
 ) -> Result<()> {
+  let mut processor = reporter.get_processor();
   let file = SimpleFile::new(path.to_string_lossy(), file_content);
-  if let Some(fixer) = &rule.matcher.fixer {
+  let processed = if let Some(fixer) = &rule.matcher.fixer {
     let diffs = matches
       .into_iter()
       .map(|m| (Diff::generate(m, &rule.matcher, fixer), rule))
       .collect();
-    reporter.print_rule_diffs(diffs, path)?;
+    processor.print_rule_diffs(diffs, path)?
   } else {
-    reporter.print_rule(matches, file, rule)?;
-  }
+    processor.print_rule(matches, file, rule)?
+  };
+  reporter.process(processed)?;
   Ok(())
 }
 
