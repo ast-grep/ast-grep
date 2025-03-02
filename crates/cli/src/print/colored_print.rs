@@ -1,4 +1,4 @@
-use super::{Diff, NodeMatch, Printer, PrintProcessor};
+use super::{Diff, NodeMatch, PrintProcessor, Printer};
 use crate::lang::SgLang;
 use crate::utils::DiffStyles;
 use anyhow::Result;
@@ -6,12 +6,12 @@ use ast_grep_config::{RuleConfig, Severity};
 use clap::ValueEnum;
 use codespan_reporting::diagnostic::{self, Diagnostic, Label};
 use codespan_reporting::files::SimpleFile;
-use codespan_reporting::term::termcolor::{ColorChoice, StandardStream, WriteColor, Buffer};
+use codespan_reporting::term::termcolor::{Buffer, ColorChoice, StandardStream, WriteColor};
 use codespan_reporting::term::{self, DisplayStyle};
 
 use std::borrow::Cow;
-use std::path::Path;
 use std::io::Write;
+use std::path::Path;
 
 mod match_merger;
 mod styles;
@@ -98,12 +98,20 @@ impl<W: WriteColor> ColoredPrinter<W> {
     self.config.end_context_lines = context.1 as usize;
     self
   }
-
 }
 
 impl<W: WriteColor> Printer for ColoredPrinter<W> {
   type Processed = Buffer;
   type Processor = ColoredProcessor;
+
+  fn get_processor(&self) -> Self::Processor {
+    ColoredProcessor {
+      config: self.config.clone(),
+      styles: self.styles.clone(),
+      heading: self.heading,
+      context: self.context,
+    }
+  }
 
   fn process(&mut self, buffer: Buffer) -> Result<()> {
     self.writer.write_all(buffer.as_slice())?;
@@ -131,7 +139,6 @@ pub struct ColoredProcessor {
 }
 
 impl ColoredProcessor {
-
   fn context_span(&self) -> usize {
     (self.context.0 + self.context.1) as usize
   }
