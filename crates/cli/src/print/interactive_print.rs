@@ -1,4 +1,4 @@
-use super::{Diff, NodeMatch, Printer, PrintProcessor};
+use super::{Diff, NodeMatch, PrintProcessor, Printer};
 use crate::lang::SgLang;
 use crate::utils;
 use crate::utils::ErrorContext as EC;
@@ -61,9 +61,8 @@ impl<P: Printer> InteractivePrinter<P> {
   }
 }
 
-impl<P: Printer> Printer for InteractivePrinter<P>
-where InteractiveProcessor<P>: PrintProcessor<P::Processed> {
-  type Processed = Option<InteractivePayload<P::Processed>>;
+impl<P: Printer> Printer for InteractivePrinter<P> {
+  type Processed = Payload<P>;
   type Processor = InteractiveProcessor<P>;
 
   fn get_processor(&self) -> Self::Processor {
@@ -74,7 +73,7 @@ where InteractiveProcessor<P>: PrintProcessor<P::Processed> {
 
   fn process(&mut self, processed: Self::Processed) -> Result<()> {
     let Some(processed) = processed else {
-      return Ok(())
+      return Ok(());
     };
     if processed.is_diff {
       let path = PathBuf::from("TODO");
@@ -85,7 +84,7 @@ where InteractiveProcessor<P>: PrintProcessor<P::Processed> {
       }
       Ok(())
     } else {
-      let  InteractivePayload {
+      let InteractivePayload {
         first_line,
         path,
         inner,
@@ -114,18 +113,18 @@ where InteractiveProcessor<P>: PrintProcessor<P::Processed> {
   }
 }
 
-struct InteractivePayload<I> {
+pub struct InteractivePayload<I> {
   first_line: usize,
   path: PathBuf,
   inner: I,
   is_diff: bool,
 }
 
-struct InteractiveProcessor<P: Printer> {
+pub struct InteractiveProcessor<P: Printer> {
   inner: P::Processor,
 }
 
-type Payload<P: Printer> = Option<InteractivePayload<P::Processed>>;
+pub type Payload<P> = Option<InteractivePayload<<P as Printer>::Processed>>;
 
 impl<P: Printer> PrintProcessor<Payload<P>> for InteractiveProcessor<P> {
   fn print_rule(
@@ -135,7 +134,7 @@ impl<P: Printer> PrintProcessor<Payload<P>> for InteractiveProcessor<P> {
     rule: &RuleConfig<SgLang>,
   ) -> Result<Payload<P>> {
     let Some(first_match) = matches.first() else {
-      return Ok(None)
+      return Ok(None);
     };
     let first_line = first_match.start_pos().line();
     let path = PathBuf::from(file.name().to_string());
@@ -150,7 +149,7 @@ impl<P: Printer> PrintProcessor<Payload<P>> for InteractiveProcessor<P> {
 
   fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<Payload<P>> {
     let Some(first_match) = matches.first() else {
-      return Ok(None)
+      return Ok(None);
     };
     let first_line = first_match.start_pos().line();
     let inner = self.inner.print_matches(matches, path)?;
@@ -191,8 +190,7 @@ fn print_diffs_interactive<'a, P: Printer>(
     //   continue;
     // }
     let confirm = all || {
-      let (accept_curr, accept_all) =
-        print_diff_and_prompt_action(interactive, path, processed)?;
+      let (accept_curr, accept_all) = print_diff_and_prompt_action(interactive, path, processed)?;
       all = accept_all;
       accept_curr
     };
