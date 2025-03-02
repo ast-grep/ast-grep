@@ -82,8 +82,8 @@ impl<P: Printer> InteractivePrinter<P> {
   }
 
   fn process_diffs(&mut self, diffs: Diffs<P::Processed>) -> Result<()> {
-    let path = PathBuf::from("TODO");
-    let (confirmed, all) = print_diffs_interactive(self, diffs)?;
+    let path = diffs.path.clone();
+    let (confirmed, all) = process_diffs_interactive(self, diffs)?;
     self.rewrite_action(confirmed, &path)?;
     if all {
       self.accept_all = true;
@@ -125,6 +125,17 @@ pub struct InteractiveDiff<D> {
   range: Range<usize>,
   first_line: usize,
   display: D,
+}
+
+impl<D> InteractiveDiff<D> {
+  fn new(diff: Diff, display: D) -> Self {
+    Self {
+      first_line: diff.node_match.start_pos().line(),
+      replacement: diff.replacement,
+      range: diff.range,
+      display,
+    }
+  }
 }
 
 pub struct Highlights<D> {
@@ -187,21 +198,50 @@ impl<P: Printer> PrintProcessor<Payload<P>> for InteractiveProcessor<P> {
     Ok(InteractivePayload::Highlights(highlights))
   }
 
-  fn print_diffs(&mut self, _diffs: Vec<Diff>, _path: &Path) -> Result<Payload<P>> {
-    // printer.print_diffs(vec![diff.clone()], path)?;
-    todo!()
+  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<Payload<P>> {
+    let old_source = get_old_source(diffs.first());
+    let mut contents = Vec::with_capacity(diffs.len());
+    for diff in diffs {
+      let display = self.inner.print_diffs(vec![diff.clone()], path)?;
+      let content = InteractiveDiff::new(diff, display);
+      contents.push(content);
+    }
+    Ok(InteractivePayload::Diffs(Diffs {
+      path: path.to_path_buf(),
+      old_source,
+      contents,
+    }))
   }
   fn print_rule_diffs(
     &mut self,
-    _diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
-    _path: &Path,
+    diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
+    path: &Path,
   ) -> Result<Payload<P>> {
-    // printer.print_rule_diffs(vec![(diff.clone(), rule)], path)?;
-    todo!()
+    let old_source = get_old_source(diffs.first().map(|d| &d.0));
+    let mut contents = Vec::with_capacity(diffs.len());
+    for (diff, rule) in diffs {
+      let display = self
+        .inner
+        .print_rule_diffs(vec![(diff.clone(), rule)], path)?;
+      let content = InteractiveDiff::new(diff, display);
+      contents.push(content);
+    }
+    Ok(InteractivePayload::Diffs(Diffs {
+      path: path.to_path_buf(),
+      old_source,
+      contents,
+    }))
   }
 }
 
-fn print_diffs_interactive<P: Printer>(
+fn get_old_source(diff: Option<&Diff>) -> String {
+  let Some(node) = diff else {
+    return String::new();
+  };
+  node.get_root_text().to_string()
+}
+
+fn process_diffs_interactive<P: Printer>(
   interactive: &mut InteractivePrinter<P>,
   diffs: Diffs<P::Processed>,
 ) -> Result<(Diffs<()>, bool)> {
