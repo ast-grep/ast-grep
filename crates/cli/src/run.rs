@@ -9,7 +9,7 @@ use ignore::WalkParallel;
 
 use crate::config::ProjectConfig;
 use crate::lang::SgLang;
-use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer};
+use crate::print::{ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, Printer, PrintProcessor};
 use crate::utils::ErrorContext as EC;
 use crate::utils::{filter_file_pattern, ContextArgs, InputArgs, MatchUnit, OutputArgs};
 use crate::utils::{DebugFormat, FileTrace, RunTrace};
@@ -324,12 +324,14 @@ fn match_one_file(
   } = match_unit;
 
   let matches = grep.root().find_all(matcher);
-  if let Some(rewrite) = rewrite {
+  let mut processor = printer.get_processor();
+  let processed = if let Some(rewrite) = rewrite {
     let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
-    printer.print_diffs(diffs.collect(), path)
+    processor.print_diffs(diffs.collect(), path)?
   } else {
-    printer.print_matches(matches.collect(), path)
-  }
+    processor.print_matches(matches.collect(), path)?
+  };
+  printer.process(processed)
 }
 
 #[cfg(test)]

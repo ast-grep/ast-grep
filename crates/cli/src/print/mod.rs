@@ -22,20 +22,30 @@ pub use json_print::{JSONPrinter, JsonStyle};
 
 type NodeMatch<'a> = SgNodeMatch<'a, StrDoc<SgLang>>;
 
-pub trait Printer {
+pub trait PrintProcessor<Output> {
   fn print_rule(
     &mut self,
     matches: Vec<NodeMatch>,
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
-  ) -> Result<()>;
-  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<()>;
-  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<()>;
+  ) -> Result<Output>;
+  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<Output>;
+  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<Output>;
   fn print_rule_diffs(
     &mut self,
     diffs: Vec<(Diff, &RuleConfig<SgLang>)>,
     path: &Path,
-  ) -> Result<()>;
+  ) -> Result<Output>;
+}
+
+pub trait Printer {
+  type Processed;
+  type Processor: PrintProcessor<Self::Processed>;
+
+  fn get_processor(&self) -> Self::Processor;
+  /// Runs processed output from processor. This runs multiple times.
+  fn process(&mut self, processor: Self::Processed) -> Result<()>;
+
   /// Run before all printing. One CLI will run this exactly once.
   #[inline]
   fn before_print(&mut self) -> Result<()> {
