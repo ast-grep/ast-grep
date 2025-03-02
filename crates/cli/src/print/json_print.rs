@@ -6,7 +6,7 @@ type Node<'a, L> = SgNode<'a, StrDoc<L>>;
 
 use std::collections::HashMap;
 
-use super::{Diff, NodeMatch, Printer};
+use super::{Diff, NodeMatch, PrintProcessor, Printer};
 use anyhow::Result;
 use clap::ValueEnum;
 use codespan_reporting::files::SimpleFile;
@@ -271,91 +271,39 @@ impl<W: Write> JSONPrinter<W> {
     self.context = context;
     self
   }
-
-  fn print_docs<S: Serialize>(&mut self, mut docs: impl Iterator<Item = S>) -> Result<()> {
-    let Some(doc) = docs.next() else {
-      return Ok(());
-    };
-    let output = &mut self.output;
-    let matched = self.matched;
-    self.matched = true;
-    match self.style {
-      JsonStyle::Pretty => {
-        if matched {
-          writeln!(output, ",")?;
-        } else {
-          writeln!(output)?;
-        }
-        serde_json::to_writer_pretty(&mut *output, &doc)?;
-        for doc in docs {
-          writeln!(output, ",")?;
-          serde_json::to_writer_pretty(&mut *output, &doc)?;
-        }
-      }
-      JsonStyle::Stream => {
-        serde_json::to_writer(&mut *output, &doc)?;
-        writeln!(output)?;
-        for doc in docs {
-          serde_json::to_writer(&mut *output, &doc)?;
-          writeln!(output)?;
-        }
-      }
-      JsonStyle::Compact => {
-        if matched {
-          write!(output, ",")?;
-        }
-        serde_json::to_writer(&mut *output, &doc)?;
-        for doc in docs {
-          write!(output, ",")?;
-          serde_json::to_writer(&mut *output, &doc)?;
-        }
-      }
-    }
-    Ok(())
-  }
 }
 
 impl<W: Write> Printer for JSONPrinter<W> {
-  fn print_rule(
-    &mut self,
-    matches: Vec<NodeMatch>,
-    file: SimpleFile<Cow<str>, &String>,
-    rule: &RuleConfig<SgLang>,
-  ) -> Result<()> {
-    let path = file.name();
-    let jsons = matches
-      .into_iter()
-      .map(|nm| RuleMatchJSON::new(nm, path, rule));
-    self.print_docs(jsons)
-  }
+  type Processed = Buffer;
+  type Processor = JSONProcessor;
 
-  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<()> {
-    let path = path.to_string_lossy();
-    let context = self.context;
-    let jsons = matches
-      .into_iter()
-      .map(|nm| MatchJSON::new(nm, &path, context));
-    self.print_docs(jsons)
+  fn get_processor(&self) -> JSONProcessor {
+    JSONProcessor {
+      style: self.style,
+      context: self.context,
+    }
   }
-
-  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<()> {
-    let path = path.to_string_lossy();
-    let context = self.context;
-    let jsons = diffs
-      .into_iter()
-      .map(|diff| MatchJSON::diff(diff, &path, context));
-    self.print_docs(jsons)
-  }
-  fn print_rule_diffs(
-    &mut self,
-    diffs: Vec<(Diff, &RuleConfig<SgLang>)>,
-    path: &Path,
-  ) -> Result<()> {
-    let path = path.to_string_lossy();
-    let jsons = diffs
-      .into_iter()
-      .map(|(diff, rule)| RuleMatchJSON::diff(diff, &path, rule));
-    self.print_docs(jsons)
+  fn process(&mut self, processed: Buffer) -> Result<()> {
+    if processed.is_empty() {
+      return Ok(());
+    }
+    let output = &mut self.output;
+    let matched = self.matched;
+    self.matched = true;
+    // print separator if there was a match before
+    if matched {
+      let separator = match self.style {
+        JsonStyle::Pretty => ",\n",
+        JsonStyle::Stream => "\n",
+        JsonStyle::Compact => ",",
+      };
+      write!(output, "{separator}")?;
+    } else if self.style == JsonStyle::Pretty {
+      // print newline for the first match in pretty style
+      writeln!(output)?;
+    }
+    output.write_all(&processed)?;
+    Ok(())
   }
 
   fn before_print(&mut self) -> Result<()> {
@@ -376,6 +324,91 @@ impl<W: Write> Printer for JSONPrinter<W> {
     }
     writeln!(output, "]")?;
     Ok(())
+  }
+}
+
+struct JSONProcessor {
+  style: JsonStyle,
+  context: (u16, u16),
+}
+
+impl JSONProcessor {
+  fn print_docs<S: Serialize>(&mut self, mut docs: impl Iterator<Item = S>) -> Result<Buffer> {
+    let mut ret = Vec::new();
+    let Some(doc) = docs.next() else {
+      return Ok(ret);
+    };
+    let output = &mut ret;
+    match self.style {
+      JsonStyle::Pretty => {
+        serde_json::to_writer_pretty(&mut *output, &doc)?;
+        for doc in docs {
+          writeln!(&mut *output, ",")?;
+          serde_json::to_writer_pretty(&mut *output, &doc)?;
+        }
+      }
+      JsonStyle::Stream => {
+        serde_json::to_writer(&mut *output, &doc)?;
+        for doc in docs {
+          writeln!(&mut *output)?;
+          serde_json::to_writer(&mut *output, &doc)?;
+        }
+      }
+      JsonStyle::Compact => {
+        serde_json::to_writer(&mut *output, &doc)?;
+        for doc in docs {
+          write!(output, ",")?;
+          serde_json::to_writer(&mut *output, &doc)?;
+        }
+      }
+    }
+    Ok(ret)
+  }
+}
+
+type Buffer = Vec<u8>;
+
+impl PrintProcessor<Buffer> for JSONProcessor {
+  fn print_rule(
+    &mut self,
+    matches: Vec<NodeMatch>,
+    file: SimpleFile<Cow<str>, &String>,
+    rule: &RuleConfig<SgLang>,
+  ) -> Result<Buffer> {
+    let path = file.name();
+    let jsons = matches
+      .into_iter()
+      .map(|nm| RuleMatchJSON::new(nm, path, rule));
+    self.print_docs(jsons)
+  }
+
+  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<Buffer> {
+    let path = path.to_string_lossy();
+    let context = self.context;
+    let jsons = matches
+      .into_iter()
+      .map(|nm| MatchJSON::new(nm, &path, context));
+    self.print_docs(jsons)
+  }
+
+  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<Buffer> {
+    let path = path.to_string_lossy();
+    let context = self.context;
+    let jsons = diffs
+      .into_iter()
+      .map(|diff| MatchJSON::diff(diff, &path, context));
+    self.print_docs(jsons)
+  }
+  fn print_rule_diffs(
+    &mut self,
+    diffs: Vec<(Diff, &RuleConfig<SgLang>)>,
+    path: &Path,
+  ) -> Result<Buffer> {
+    let path = path.to_string_lossy();
+    let jsons = diffs
+      .into_iter()
+      .map(|(diff, rule)| RuleMatchJSON::diff(diff, &path, rule));
+    self.print_docs(jsons)
   }
 }
 
@@ -409,7 +442,11 @@ mod test {
     for style in [JsonStyle::Pretty, JsonStyle::Compact] {
       let mut printer = make_test_printer(style);
       printer.before_print().unwrap();
-      printer.print_matches(vec![], "test.tsx".as_ref()).unwrap();
+      let buffer = printer
+        .get_processor()
+        .print_matches(vec![], "test.tsx".as_ref())
+        .unwrap();
+      printer.process(buffer).unwrap();
       printer.after_print().unwrap();
       assert_eq!(get_text(&printer), "[]\n");
     }
@@ -448,7 +485,11 @@ mod test {
       let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
       let matches = grep.root().find_all(pattern).collect();
       printer.before_print().unwrap();
-      printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+      let buffer = printer
+        .get_processor()
+        .print_matches(matches, "test.tsx".as_ref())
+        .unwrap();
+      printer.process(buffer).unwrap();
       printer.after_print().unwrap();
       let json_str = get_text(&printer);
       let json: Vec<MatchJSON> = serde_json::from_str(&json_str).unwrap();
@@ -469,7 +510,11 @@ mod test {
         .map(|m| Diff::generate(m, &pattern, &fixer))
         .collect();
       printer.before_print().unwrap();
-      printer.print_diffs(diffs, "test.tsx".as_ref()).unwrap();
+      let buffer = printer
+        .get_processor()
+        .print_diffs(diffs, "test.tsx".as_ref())
+        .unwrap();
+      printer.process(buffer).unwrap();
       printer.after_print().unwrap();
       let json_str = get_text(&printer);
       let json: Vec<MatchJSON> = serde_json::from_str(&json_str).unwrap();
@@ -512,7 +557,11 @@ rule:
       let matches = grep.root().find_all(&rule.matcher).collect();
       printer.before_print().unwrap();
       let file = SimpleFile::new(Cow::Borrowed("test.ts"), &source);
-      printer.print_rule(matches, file, &rule).unwrap();
+      let buffer = printer
+        .get_processor()
+        .print_rule(matches, file, &rule)
+        .unwrap();
+      printer.process(buffer).unwrap();
       printer.after_print().unwrap();
       let json_str = get_text(&printer);
       let json: Vec<RuleMatchJSON> = serde_json::from_str(&json_str).unwrap();
@@ -528,7 +577,11 @@ rule:
     let grep = lang.ast_grep("console.log(123)");
     let matches = grep.root().find_all("console.log($A)").collect();
     printer.before_print().unwrap();
-    printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+    let buffer = printer
+      .get_processor()
+      .print_matches(matches, "test.tsx".as_ref())
+      .unwrap();
+    printer.process(buffer).unwrap();
     printer.after_print().unwrap();
     let json_str = get_text(&printer);
     let json: Vec<MatchJSON> = serde_json::from_str(&json_str).unwrap();
@@ -547,7 +600,11 @@ rule:
     let grep = lang.ast_grep("console.log(1, 2, 3)");
     let matches = grep.root().find_all("console.log($$$A)").collect();
     printer.before_print().unwrap();
-    printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+    let buffer = printer
+      .get_processor()
+      .print_matches(matches, "test.tsx".as_ref())
+      .unwrap();
+    printer.process(buffer).unwrap();
     printer.after_print().unwrap();
     let json_str = get_text(&printer);
     let json: Vec<MatchJSON> = serde_json::from_str(&json_str).unwrap();
@@ -564,7 +621,11 @@ rule:
       let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
       let matches = grep.root().find_all(pattern).collect();
       printer.before_print().unwrap();
-      printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+      let buffer = printer
+        .get_processor()
+        .print_matches(matches, "test.tsx".as_ref())
+        .unwrap();
+      printer.process(buffer).unwrap();
       printer.after_print().unwrap();
       let json_str = get_text(&printer);
       let jsons: Vec<&str> = json_str.lines().collect();
@@ -593,7 +654,11 @@ transform:
     let grep = SgLang::from(SupportLang::TypeScript).ast_grep("console.log(123)");
     let matches = grep.root().find_all(&rule.matcher).collect();
     printer.before_print().unwrap();
-    printer.print_matches(matches, "test.tsx".as_ref()).unwrap();
+    let buffer = printer
+      .get_processor()
+      .print_matches(matches, "test.tsx".as_ref())
+      .unwrap();
+    printer.process(buffer).unwrap();
     printer.after_print().unwrap();
     let json_str = get_text(&printer);
     let json: Vec<MatchJSON> = serde_json::from_str(&json_str).unwrap();
