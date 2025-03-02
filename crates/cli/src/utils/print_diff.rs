@@ -9,7 +9,7 @@ use std::io::Write;
 
 // TODO: use termcolor instead
 /// Print diff styles for colored output
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DiffStyles {
   pub line_num: Style,
   // diff insert style

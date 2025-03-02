@@ -12,8 +12,8 @@ use ignore::WalkParallel;
 use crate::config::{read_rule_file, with_rule_stats, ProjectConfig};
 use crate::lang::SgLang;
 use crate::print::{
-  CloudPrinter, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, Printer,
-  ReportStyle, SimpleFile, PrintProcessor,
+  CloudPrinter, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, PrintProcessor,
+  Printer, ReportStyle, SimpleFile,
 };
 use crate::utils::ErrorContext as EC;
 use crate::utils::RuleOverwrite;

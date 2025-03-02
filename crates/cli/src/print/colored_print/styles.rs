@@ -11,7 +11,7 @@ use std::path::Path;
 // warn[rule-id]: rule message here.
 // |------------|------------------|
 //    header            message
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RuleStyle {
   // header style
   pub error: Style,
@@ -37,7 +37,7 @@ impl RuleStyle {
 }
 
 // TODO: use termcolor instead
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PrintStyles {
   // print match color
   pub file_path: Style,
