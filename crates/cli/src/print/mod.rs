@@ -44,7 +44,7 @@ pub trait Printer {
 
   fn get_processor(&self) -> Self::Processor;
   /// Runs processed output from processor. This runs multiple times.
-  fn process(&mut self, processor: Self::Processed) -> Result<()>;
+  fn process(&mut self, processed: Self::Processed) -> Result<()>;
 
   /// Run before all printing. One CLI will run this exactly once.
   #[inline]
@@ -63,7 +63,7 @@ pub struct Diff<'n> {
   /// the matched node
   pub node_match: NodeMatch<'n>,
   /// string content for the replacement
-  pub replacement: Cow<'n, str>,
+  pub replacement: String,
   pub range: std::ops::Range<usize>,
 }
 
@@ -75,7 +75,6 @@ impl<'n> Diff<'n> {
   ) -> Self {
     let edit = node_match.make_edit(matcher, rewrite);
     let replacement = String::from_utf8(edit.inserted_text).unwrap();
-    let replacement = Cow::Owned(replacement);
     Self {
       node_match,
       replacement,

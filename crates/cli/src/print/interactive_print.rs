@@ -1,4 +1,4 @@
-use super::{Diff, NodeMatch, Printer};
+use super::{Diff, NodeMatch, Printer, PrintProcessor};
 use crate::lang::SgLang;
 use crate::utils;
 use crate::utils::ErrorContext as EC;
@@ -61,64 +61,49 @@ impl<P: Printer> InteractivePrinter<P> {
   }
 }
 
-impl<P: Printer> Printer for InteractivePrinter<P> {
-  fn print_rule(
-    &mut self,
-    matches: Vec<NodeMatch>,
-    file: SimpleFile<Cow<str>, &String>,
-    rule: &RuleConfig<SgLang>,
-  ) -> Result<()> {
-    utils::run_in_alternate_screen(|| {
-      let first_match = match matches.first() {
-        Some(n) => n.start_pos().line(),
-        None => return Ok(()),
-      };
-      let file_path = PathBuf::from(file.name().to_string());
-      self.inner.print_rule(matches, file, rule)?;
-      let resp = self.prompt_view();
-      if resp == 'q' {
-        Err(anyhow::anyhow!("Exit interactive editing"))
-      } else if resp == 'e' {
-        open_in_editor(&file_path, first_match)?;
-        Ok(())
-      } else {
-        Ok(())
+impl<P: Printer> Printer for InteractivePrinter<P>
+where InteractiveProcessor<P>: PrintProcessor<P::Processed> {
+  type Processed = Option<InteractivePayload<P::Processed>>;
+  type Processor = InteractiveProcessor<P>;
+
+  fn get_processor(&self) -> Self::Processor {
+    InteractiveProcessor {
+      inner: self.inner.get_processor(),
+    }
+  }
+
+  fn process(&mut self, processed: Self::Processed) -> Result<()> {
+    let Some(processed) = processed else {
+      return Ok(())
+    };
+    if processed.is_diff {
+      let path = PathBuf::from("TODO");
+      let (confirmed, all) = print_diffs_interactive(self, &path, vec![processed])?;
+      self.rewrite_action(confirmed, &path)?;
+      if all {
+        self.accept_all = true;
       }
-    })
-  }
-
-  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<()> {
-    utils::run_in_alternate_screen(|| print_matches_and_confirm_next(self, matches, path))
-  }
-
-  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<()> {
-    let path = path.to_path_buf();
-    let diffs = diffs.into_iter().map(|d| (d, None)).collect();
-    let (confirmed, all) = print_diffs_interactive(self, &path, diffs)?;
-    self.rewrite_action(confirmed, &path)?;
-    if all {
-      self.accept_all = true;
-      // self.accept_all.store(true, Ordering::SeqCst);
+      Ok(())
+    } else {
+      let  InteractivePayload {
+        first_line,
+        path,
+        inner,
+        ..
+      } = processed;
+      utils::run_in_alternate_screen(|| {
+        self.inner.process(inner)?;
+        let resp = self.prompt_view();
+        if resp == 'q' {
+          Err(anyhow::anyhow!("Exit interactive editing"))
+        } else if resp == 'e' {
+          open_in_editor(&path, first_line)?;
+          Ok(())
+        } else {
+          Ok(())
+        }
+      })
     }
-    Ok(())
-  }
-  fn print_rule_diffs(
-    &mut self,
-    diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
-    path: &Path,
-  ) -> Result<()> {
-    let path = path.to_path_buf();
-    let (confirmed, all) = print_diffs_interactive(
-      self,
-      &path,
-      diffs.into_iter().map(|(d, r)| (d, Some(r))).collect(),
-    )?;
-    self.rewrite_action(confirmed, &path)?;
-    if all {
-      self.accept_all = true;
-      // self.accept_all.store(true, Ordering::SeqCst);
-    }
-    Ok(())
   }
 
   fn after_print(&mut self) -> Result<()> {
@@ -129,50 +114,110 @@ impl<P: Printer> Printer for InteractivePrinter<P> {
   }
 }
 
-fn print_diffs_interactive<'a>(
-  interactive: &mut InteractivePrinter<impl Printer>,
+struct InteractivePayload<I> {
+  first_line: usize,
+  path: PathBuf,
+  inner: I,
+  is_diff: bool,
+}
+
+struct InteractiveProcessor<P: Printer> {
+  inner: P::Processor,
+}
+
+type Payload<P: Printer> = Option<InteractivePayload<P::Processed>>;
+
+impl<P: Printer> PrintProcessor<Payload<P>> for InteractiveProcessor<P> {
+  fn print_rule(
+    &mut self,
+    matches: Vec<NodeMatch>,
+    file: SimpleFile<Cow<str>, &String>,
+    rule: &RuleConfig<SgLang>,
+  ) -> Result<Payload<P>> {
+    let Some(first_match) = matches.first() else {
+      return Ok(None)
+    };
+    let first_line = first_match.start_pos().line();
+    let path = PathBuf::from(file.name().to_string());
+    let inner = self.inner.print_rule(matches, file, rule)?;
+    Ok(Some(InteractivePayload {
+      inner,
+      is_diff: false,
+      first_line,
+      path,
+    }))
+  }
+
+  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<Payload<P>> {
+    let Some(first_match) = matches.first() else {
+      return Ok(None)
+    };
+    let first_line = first_match.start_pos().line();
+    let inner = self.inner.print_matches(matches, path)?;
+    Ok(Some(InteractivePayload {
+      first_line,
+      inner,
+      is_diff: false,
+      path: path.to_path_buf(),
+    }))
+  }
+
+  fn print_diffs(&mut self, _diffs: Vec<Diff>, _path: &Path) -> Result<Payload<P>> {
+    // printer.print_diffs(vec![diff.clone()], path)?;
+    todo!()
+  }
+  fn print_rule_diffs(
+    &mut self,
+    _diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
+    _path: &Path,
+  ) -> Result<Payload<P>> {
+    // printer.print_rule_diffs(vec![(diff.clone(), rule)], path)?;
+    todo!()
+  }
+}
+
+fn print_diffs_interactive<'a, P: Printer>(
+  interactive: &mut InteractivePrinter<P>,
   path: &Path,
-  diffs: Vec<(Diff<'a>, Option<&RuleConfig<SgLang>>)>,
+  processed_list: Vec<InteractivePayload<P::Processed>>,
 ) -> Result<(Vec<Diff<'a>>, bool)> {
-  let mut confirmed = vec![];
+  // let mut confirmed = vec![];
+  let confirmed = vec![];
   let mut all = interactive.accept_all;
-  let mut end = 0;
-  for (diff, rule) in diffs {
-    if diff.range.start < end {
-      continue;
-    }
+  // let mut end = 0;
+  for processed in processed_list {
+    // TODO: add end test
+    // if diff.range.start < end {
+    //   continue;
+    // }
     let confirm = all || {
       let (accept_curr, accept_all) =
-        print_diff_and_prompt_action(interactive, path, (diff.clone(), rule))?;
+        print_diff_and_prompt_action(interactive, path, processed)?;
       all = accept_all;
       accept_curr
     };
     if confirm {
-      end = diff.range.end;
-      confirmed.push(diff);
+      // end = diff.range.end;
+      // confirmed.push(diff);
       interactive.committed_cnt = interactive.committed_cnt.saturating_add(1);
     }
   }
   Ok((confirmed, all))
 }
 /// returns if accept_current and accept_all
-fn print_diff_and_prompt_action(
-  interactive: &mut InteractivePrinter<impl Printer>,
+fn print_diff_and_prompt_action<P: Printer>(
+  interactive: &mut InteractivePrinter<P>,
   path: &Path,
-  (diff, rule): (Diff, Option<&RuleConfig<SgLang>>),
+  processed: InteractivePayload<P::Processed>,
 ) -> Result<(bool, bool)> {
   utils::run_in_alternate_screen(|| {
     let printer = &mut interactive.inner;
-    if let Some(rule) = rule {
-      printer.print_rule_diffs(vec![(diff.clone(), rule)], path)?;
-    } else {
-      printer.print_diffs(vec![diff.clone()], path)?;
-    }
+    printer.process(processed.inner)?;
     match interactive.prompt_edit() {
       'y' => Ok((true, false)),
       'a' => Ok((true, true)),
       'e' => {
-        let pos = diff.node_match.start_pos().line();
+        let pos = processed.first_line;
         open_in_editor(path, pos)?;
         Ok((false, false))
       }
@@ -181,28 +226,6 @@ fn print_diff_and_prompt_action(
       _ => Ok((false, false)),
     }
   })
-}
-
-fn print_matches_and_confirm_next(
-  interactive: &mut InteractivePrinter<impl Printer>,
-  matches: Vec<NodeMatch>,
-  path: &Path,
-) -> Result<()> {
-  let printer = &mut interactive.inner;
-  let first_match = match matches.first() {
-    Some(n) => n.start_pos().line(),
-    None => return Ok(()),
-  };
-  printer.print_matches(matches, path)?;
-  let resp = interactive.prompt_view();
-  if resp == 'q' {
-    Err(anyhow::anyhow!("Exit interactive editing"))
-  } else if resp == 'e' {
-    open_in_editor(path, first_match)?;
-    Ok(())
-  } else {
-    Ok(())
-  }
 }
 
 fn apply_rewrite(diffs: Vec<Diff>) -> String {
