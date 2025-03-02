@@ -80,6 +80,25 @@ impl PrintStyles {
     writeln!(writer, "{}", self.file_path.paint(file_path))?;
     Ok(())
   }
+
+  pub fn print_highlight<W: Write>(
+    &self,
+    ret: &str,
+    start_line: usize,
+    writer: &mut W,
+  ) -> Result<usize> {
+    let max_line_num = ret.lines().count() + start_line;
+    // compute width for line number. log10(num) = the digit count of num - 1
+    let width = max_line_num.checked_ilog10().unwrap_or(0) as usize + 1;
+    for (offset, line) in ret.lines().enumerate() {
+      // note the width modifier must be applied before coloring the line_num
+      let line_num = format!("{:<width$}", start_line + offset);
+      // otherwise the color ascii code will be counted in the width
+      let ln_text = self.diff.line_num.paint(line_num);
+      writeln!(writer, "{ln_text}│{line}")?;
+    }
+    Ok(width)
+  }
 }
 
 #[cfg(not(target_os = "windows"))]

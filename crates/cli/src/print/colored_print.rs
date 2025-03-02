@@ -10,7 +10,6 @@ use codespan_reporting::term::termcolor::{ColorChoice, StandardStream, WriteColo
 use codespan_reporting::term::{self, DisplayStyle};
 
 use std::borrow::Cow;
-use std::io::Write;
 use std::path::Path;
 
 mod match_merger;
@@ -257,7 +256,7 @@ fn print_matches_with_heading<W: WriteColor>(
     }
     ret.push_str(merger.last_trailing);
     let num = merger.last_start_line;
-    let width = print_highlight(&ret, num, writer, styles)?;
+    let width = styles.print_highlight(&ret, num, writer)?;
     if context_span > 0 {
       writeln!(writer, "{:╴>width$}┤", "")?; // make separation
     }
@@ -267,7 +266,7 @@ fn print_matches_with_heading<W: WriteColor>(
   }
   ret.push_str(merger.last_trailing);
   let num = merger.last_start_line;
-  print_highlight(&ret, num, writer, styles)?;
+  styles.print_highlight(&ret, num, writer)?;
   writeln!(writer)?; // end
   Ok(())
 }
@@ -351,23 +350,4 @@ fn print_diffs<W: WriteColor>(
   new_str.push_str(&source[start..]);
   styles.diff.print_diff(source, &new_str, writer, context)?;
   Ok(())
-}
-
-fn print_highlight<W: Write>(
-  ret: &str,
-  start_line: usize,
-  writer: &mut W,
-  styles: &PrintStyles,
-) -> Result<usize> {
-  let added = ret.lines().count();
-  // compute width for line number. log10(num) = the digit count of num - 1
-  let width = (added + start_line).checked_ilog10().unwrap_or(0) as usize + 1;
-  for (offset, line) in ret.lines().enumerate() {
-    // note the width modifier must be applied before coloring the line_num
-    let line_num = format!("{:<width$}", start_line + offset);
-    // otherwise the color ascii code will be counted in the width
-    let ln_text = styles.diff.line_num.paint(line_num);
-    writeln!(writer, "{ln_text}│{line}")?;
-  }
-  Ok(width)
 }
