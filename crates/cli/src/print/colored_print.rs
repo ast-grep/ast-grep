@@ -106,6 +106,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
 
   fn get_processor(&self) -> Self::Processor {
     ColoredProcessor {
+      color: self.writer.supports_color(),
       config: self.config.clone(),
       styles: self.styles.clone(),
       heading: self.heading,
@@ -126,12 +127,16 @@ impl ColoredPrinter<StandardStream> {
   }
 }
 
-// TODO: use correct coloring
-fn creat_buffer() -> Buffer {
-  Buffer::no_color()
+fn create_buffer(color: bool) -> Buffer {
+  if color {
+    Buffer::ansi()
+  } else {
+    Buffer::no_color()
+  }
 }
 
 pub struct ColoredProcessor {
+  color: bool,
   config: term::Config,
   styles: PrintStyles,
   heading: Heading,
@@ -160,8 +165,7 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
     rule: &RuleConfig<SgLang>,
   ) -> Result<Buffer> {
     let config = &self.config;
-    // TODO: use correct coloring
-    let mut buffer = creat_buffer();
+    let mut buffer = create_buffer(self.color);
     let writer = &mut buffer;
     let severity = match rule.severity {
       Severity::Error => diagnostic::Severity::Error,
@@ -199,7 +203,7 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
 
   fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<Buffer> {
     let context = self.diff_context();
-    let mut buffer = creat_buffer();
+    let mut buffer = create_buffer(self.color);
     let writer = &mut buffer;
     print_diffs(diffs, path, &self.styles, writer, context)?;
     Ok(buffer)
@@ -210,7 +214,7 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
     path: &Path,
   ) -> Result<Buffer> {
     let context = self.diff_context();
-    let mut buffer = creat_buffer();
+    let mut buffer = create_buffer(self.color);
     let writer = &mut buffer;
     let mut start = 0;
     self.styles.print_prelude(path, writer)?;
@@ -270,7 +274,7 @@ fn print_matches_with_heading(
   let mut matches = matches.into_iter();
   let styles = &printer.styles;
   let context_span = printer.context_span();
-  let mut buffer = creat_buffer();
+  let mut buffer = create_buffer(printer.color);
   let writer = &mut buffer;
   styles.print_prelude(path, writer)?;
   let Some(first_match) = matches.next() else {
@@ -320,7 +324,7 @@ fn print_matches_with_prefix(
   let mut matches = matches.into_iter();
   let styles = &printer.styles;
   let context_span = printer.context_span();
-  let mut buffer = creat_buffer();
+  let mut buffer = create_buffer(printer.color);
   let writer = &mut buffer;
   let path = path.display();
   let Some(first_match) = matches.next() else {
