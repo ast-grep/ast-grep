@@ -68,7 +68,7 @@ struct MatchJSON<'a> {
   lines: String,
   char_count: CharCount,
   #[serde(skip_serializing_if = "Option::is_none")]
-  replacement: Option<Cow<'a, str>>,
+  replacement: Option<String>,
   #[serde(skip_serializing_if = "Option::is_none")]
   replacement_offsets: Option<std::ops::Range<usize>>,
   language: SgLang,
@@ -327,7 +327,7 @@ impl<W: Write> Printer for JSONPrinter<W> {
   }
 }
 
-struct JSONProcessor {
+pub struct JSONProcessor {
   style: JsonStyle,
   context: (u16, u16),
 }

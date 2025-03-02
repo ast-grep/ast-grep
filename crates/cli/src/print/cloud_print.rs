@@ -1,4 +1,4 @@
-use super::{Diff, NodeMatch, Printer};
+use super::{Diff, NodeMatch, PrintProcessor, Printer};
 use crate::lang::SgLang;
 use ast_grep_config::{RuleConfig, Severity};
 use clap::ValueEnum;
@@ -31,45 +31,64 @@ impl CloudPrinter<Stdout> {
     Self::new(std::io::stdout())
   }
 }
-
 impl<W: Write> Printer for CloudPrinter<W> {
+  type Processed = Vec<u8>;
+  type Processor = CloudProcessor;
+
+  fn get_processor(&self) -> Self::Processor {
+    CloudProcessor
+  }
+
+  fn process(&mut self, processed: Self::Processed) -> Result<()> {
+    self.writer.write_all(&processed)?;
+    Ok(())
+  }
+}
+
+pub struct CloudProcessor;
+
+impl PrintProcessor<Vec<u8>> for CloudProcessor {
   fn print_rule(
     &mut self,
     matches: Vec<NodeMatch>,
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
-  ) -> Result<()> {
+  ) -> Result<Vec<u8>> {
+    let mut ret = vec![];
     let path = PathBuf::from(file.name().to_string());
-    print_rule(self, matches, &path, rule)
+    for m in matches {
+      print_rule(&mut ret, m, &path, rule)?;
+    }
+    Ok(ret)
   }
 
-  fn print_matches(&mut self, _m: Vec<NodeMatch>, _p: &Path) -> Result<()> {
-    unreachable!()
+  fn print_matches(&mut self, _m: Vec<NodeMatch>, _p: &Path) -> Result<Vec<u8>> {
+    unreachable!("cloud printer does not support pattern search")
   }
 
-  fn print_diffs(&mut self, _d: Vec<Diff>, _p: &Path) -> Result<()> {
-    unreachable!()
+  fn print_diffs(&mut self, _d: Vec<Diff>, _p: &Path) -> Result<Vec<u8>> {
+    unreachable!("cloud printer does not support pattern rewrite")
   }
 
   fn print_rule_diffs(
     &mut self,
     diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
-  ) -> Result<()> {
+  ) -> Result<Vec<u8>> {
+    let mut ret = vec![];
     for (diff, rule) in diffs {
-      print_rule(self, vec![diff.node_match], path, rule)?;
+      print_rule(&mut ret, diff.node_match, path, rule)?;
     }
-    Ok(())
+    Ok(ret)
   }
 }
 
 fn print_rule<W: Write>(
-  p: &mut CloudPrinter<W>,
-  matches: Vec<NodeMatch>,
+  writer: &mut W,
+  m: NodeMatch,
   path: &Path,
   rule: &RuleConfig<SgLang>,
 ) -> Result<()> {
-  let writer = &mut p.writer;
   let level = match rule.severity {
     Severity::Error => "error",
     Severity::Warning => "warning",
@@ -79,15 +98,13 @@ fn print_rule<W: Write>(
   };
   let title = &rule.id;
   let name = path.display();
-  for m in matches {
-    let line = m.start_pos().line() + 1;
-    let end_line = m.end_pos().line() + 1;
-    let message = rule.get_message(&m);
-    writeln!(
-      writer,
-      "::{level} file={name},line={line},endLine={end_line},title={title}::{message}"
-    )?;
-  }
+  let line = m.start_pos().line() + 1;
+  let end_line = m.end_pos().line() + 1;
+  let message = rule.get_message(&m);
+  writeln!(
+    writer,
+    "::{level} file={name},line={line},endLine={end_line},title={title}::{message}"
+  )?;
   Ok(())
 }
 
@@ -133,7 +150,11 @@ language: TypeScript
     let rule = make_rule(rule_str);
     let matches = grep.root().find_all(&rule.matcher).collect();
     let file = SimpleFile::new(Cow::Borrowed("test.tsx"), &src);
-    printer.print_rule(matches, file, &rule).unwrap();
+    let buffer = printer
+      .get_processor()
+      .print_rule(matches, file, &rule)
+      .unwrap();
+    printer.process(buffer).expect("should work");
     let actual = get_text(&mut printer);
     assert_eq!(actual, expect);
   }
