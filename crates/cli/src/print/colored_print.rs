@@ -1,4 +1,4 @@
-use super::{Diff, NodeMatch, Printer};
+use super::{Diff, NodeMatch, Printer, PrintProcessor};
 use crate::lang::SgLang;
 use crate::utils::DiffStyles;
 use anyhow::Result;
@@ -6,11 +6,12 @@ use ast_grep_config::{RuleConfig, Severity};
 use clap::ValueEnum;
 use codespan_reporting::diagnostic::{self, Diagnostic, Label};
 use codespan_reporting::files::SimpleFile;
-use codespan_reporting::term::termcolor::{ColorChoice, StandardStream, WriteColor};
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream, WriteColor, Buffer};
 use codespan_reporting::term::{self, DisplayStyle};
 
 use std::borrow::Cow;
 use std::path::Path;
+use std::io::Write;
 
 mod match_merger;
 mod styles;
@@ -58,12 +59,6 @@ pub struct ColoredPrinter<W: WriteColor> {
   heading: Heading,
   context: (u16, u16),
 }
-impl ColoredPrinter<StandardStream> {
-  pub fn stdout<C: Into<ColorChoice>>(color: C) -> Self {
-    let color = color.into();
-    ColoredPrinter::new(StandardStream::stdout(color)).color(color)
-  }
-}
 
 impl<W: WriteColor> ColoredPrinter<W> {
   pub fn new(writer: W) -> Self {
@@ -104,6 +99,39 @@ impl<W: WriteColor> ColoredPrinter<W> {
     self
   }
 
+}
+
+impl<W: WriteColor> Printer for ColoredPrinter<W> {
+  type Processed = Buffer;
+  type Processor = ColoredProcessor;
+
+  fn process(&mut self, buffer: Buffer) -> Result<()> {
+    self.writer.write_all(buffer.as_slice())?;
+    Ok(())
+  }
+}
+
+impl ColoredPrinter<StandardStream> {
+  pub fn stdout<C: Into<ColorChoice>>(color: C) -> Self {
+    let color = color.into();
+    ColoredPrinter::new(StandardStream::stdout(color)).color(color)
+  }
+}
+
+// TODO: use correct coloring
+fn creat_buffer() -> Buffer {
+  Buffer::no_color()
+}
+
+pub struct ColoredProcessor {
+  config: term::Config,
+  styles: PrintStyles,
+  heading: Heading,
+  context: (u16, u16),
+}
+
+impl ColoredProcessor {
+
   fn context_span(&self) -> usize {
     (self.context.0 + self.context.1) as usize
   }
@@ -117,15 +145,17 @@ impl<W: WriteColor> ColoredPrinter<W> {
   }
 }
 
-impl<W: WriteColor> Printer for ColoredPrinter<W> {
+impl PrintProcessor<Buffer> for ColoredProcessor {
   fn print_rule(
     &mut self,
     matches: Vec<NodeMatch>,
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
-  ) -> Result<()> {
+  ) -> Result<Buffer> {
     let config = &self.config;
-    let writer = &mut self.writer;
+    // TODO: use correct coloring
+    let mut buffer = creat_buffer();
+    let writer = &mut buffer;
     let severity = match rule.severity {
       Severity::Error => diagnostic::Severity::Error,
       Severity::Warning => diagnostic::Severity::Warning,
@@ -149,10 +179,10 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
         .with_labels(labels);
       term::emit(&mut *writer, config, &file, &diagnostic)?;
     }
-    Ok(())
+    Ok(buffer)
   }
 
-  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<()> {
+  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<Buffer> {
     if self.heading.should_print() {
       print_matches_with_heading(matches, path, self)
     } else {
@@ -160,18 +190,21 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
     }
   }
 
-  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<()> {
+  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<Buffer> {
     let context = self.diff_context();
-    let writer = &mut self.writer;
-    print_diffs(diffs, path, &self.styles, writer, context)
+    let mut buffer = creat_buffer();
+    let writer = &mut buffer;
+    print_diffs(diffs, path, &self.styles, writer, context)?;
+    Ok(buffer)
   }
   fn print_rule_diffs(
     &mut self,
     diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
-  ) -> Result<()> {
+  ) -> Result<Buffer> {
     let context = self.diff_context();
-    let writer = &mut self.writer;
+    let mut buffer = creat_buffer();
+    let writer = &mut buffer;
     let mut start = 0;
     self.styles.print_prelude(path, writer)?;
     for (diff, rule) in diffs {
@@ -198,7 +231,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
         writeln!(writer, "{note}")?;
       }
     }
-    Ok(())
+    Ok(buffer)
   }
 }
 
@@ -222,18 +255,19 @@ fn print_rule_title<W: WriteColor>(
   Ok(())
 }
 
-fn print_matches_with_heading<W: WriteColor>(
+fn print_matches_with_heading(
   matches: Vec<NodeMatch>,
   path: &Path,
-  printer: &mut ColoredPrinter<W>,
-) -> Result<()> {
+  printer: &mut ColoredProcessor,
+) -> Result<Buffer> {
   let mut matches = matches.into_iter();
   let styles = &printer.styles;
   let context_span = printer.context_span();
-  let writer = &mut printer.writer;
+  let mut buffer = creat_buffer();
+  let writer = &mut buffer;
   styles.print_prelude(path, writer)?;
   let Some(first_match) = matches.next() else {
-    return Ok(());
+    return Ok(buffer);
   };
   let source = first_match.root().get_text();
 
@@ -268,21 +302,22 @@ fn print_matches_with_heading<W: WriteColor>(
   let num = merger.last_start_line;
   styles.print_highlight(&ret, num, writer)?;
   writeln!(writer)?; // end
-  Ok(())
+  Ok(buffer)
 }
 
-fn print_matches_with_prefix<W: WriteColor>(
+fn print_matches_with_prefix(
   matches: Vec<NodeMatch>,
   path: &Path,
-  printer: &mut ColoredPrinter<W>,
-) -> Result<()> {
+  printer: &mut ColoredProcessor,
+) -> Result<Buffer> {
   let mut matches = matches.into_iter();
   let styles = &printer.styles;
   let context_span = printer.context_span();
-  let writer = &mut printer.writer;
+  let mut buffer = creat_buffer();
+  let writer = &mut buffer;
   let path = path.display();
   let Some(first_match) = matches.next() else {
-    return Ok(());
+    return Ok(buffer);
   };
   let source = first_match.root().get_text();
 
@@ -318,7 +353,7 @@ fn print_matches_with_prefix<W: WriteColor>(
     let num = merger.last_start_line + n;
     writeln!(writer, "{path}:{num}:{line}")?;
   }
-  Ok(())
+  Ok(buffer)
 }
 
 fn print_diffs<W: WriteColor>(
