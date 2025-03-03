@@ -16,12 +16,9 @@ use std::sync::{mpsc, Arc};
 /// * PathWorker: discovers files on the file system, based on ignore
 /// * StdInWorker: parse text content from standard input stream
 pub trait Worker: Sync + Send {
-  /// The item to send between producer/consumer threads.
-  /// It is usually parsed tree-sitter Root with optional data.
-  type Item: Send + 'static;
   /// `consume_items` will run in a separate single thread.
   /// printing matches or error reporting can happen here.
-  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, printer: P) -> Result<()>;
+  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, printer: P) -> Result<()>;
 }
 
 /// A trait to abstract how ast-grep discovers, parses and processes files.
@@ -36,7 +33,7 @@ pub trait PathWorker: Worker {
   /// Record trace for the worker.
   fn get_trace(&self) -> &FileTrace;
   /// Parse and find_match can be done in `produce_item`.
-  fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>>;
+  fn produce_item<P: Printer>(&self, path: &Path, processor: &P::Processor) -> Option<Vec<P::Processed>>;
 
   fn run_path<P: Printer>(self, printer: P) -> Result<()>
   where
@@ -47,11 +44,12 @@ pub trait PathWorker: Worker {
 }
 
 pub trait StdInWorker: Worker {
-  fn parse_stdin(&self, src: String) -> Option<Self::Item>;
+  fn parse_stdin<P: Printer>(&self, src: String, processor: &P::Processor) -> Option<P::Processed>;
 
   fn run_std_in<P: Printer>(&self, printer: P) -> Result<()> {
     let source = std::io::read_to_string(std::io::stdin())?;
-    if let Some(item) = self.parse_stdin(source) {
+    let processor = printer.get_processor();
+    if let Some(item) = self.parse_stdin::<P>(source, &processor) {
       self.consume_items(Items::once(item)?, printer)
     } else {
       Ok(())
@@ -108,19 +106,22 @@ fn run_worker<W: PathWorker + ?Sized + 'static, P: Printer>(
   let (tx, rx) = mpsc::channel();
   let w = worker.clone();
   let walker = worker.build_walk()?;
+  let processor = printer.get_processor();
   // walker run will block the thread
   std::thread::spawn(move || {
     let tx = tx;
+    let processor = processor;
     walker.run(|| {
       let tx = tx.clone();
       let w = w.clone();
+      let processor = &processor;
       Box::new(move |result| {
         let Some(p) = filter_result(result) else {
           return WalkState::Continue;
         };
         let stats = w.get_trace();
         stats.add_scanned();
-        let Some(items) = w.produce_item(&p) else {
+        let Some(items) = w.produce_item::<P>(&p, processor) else {
           stats.add_skipped();
           return WalkState::Continue;
         };

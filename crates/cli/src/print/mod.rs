@@ -41,7 +41,8 @@ pub trait PrintProcessor<Output>: Send + Sync + 'static {
 }
 
 pub trait Printer {
-  type Processed: Send;
+  // processed item must be sent to printer thread
+  type Processed: Send + 'static;
   type Processor: PrintProcessor<Self::Processed>;
 
   fn get_processor(&self) -> Self::Processor;
