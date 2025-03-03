@@ -92,7 +92,11 @@ impl<P: Printer> InteractivePrinter<P> {
   }
 }
 
-impl<P: Printer> Printer for InteractivePrinter<P> {
+impl<P> Printer for InteractivePrinter<P>
+where
+  P: Printer + 'static,
+  P::Processor: Send + 'static,
+{
   type Processed = Payload<P>;
   type Processor = InteractiveProcessor<P>;
 
@@ -163,7 +167,10 @@ pub struct InteractiveProcessor<P: Printer> {
 
 pub type Payload<P> = InteractivePayload<<P as Printer>::Processed>;
 
-impl<P: Printer> PrintProcessor<Payload<P>> for InteractiveProcessor<P> {
+impl<P> PrintProcessor<Payload<P>> for InteractiveProcessor<P>
+where
+  P: Printer + 'static,
+{
   fn print_rule(
     &mut self,
     matches: Vec<NodeMatch>,
