@@ -24,7 +24,7 @@ type NodeMatch<'a> = SgNodeMatch<'a, StrDoc<SgLang>>;
 
 /// A trait to process nodeMatches to diff/match output
 /// it must be Send + 'static to be shared in worker thread
-pub trait PrintProcessor<Output>: Send + 'static {
+pub trait PrintProcessor<Output>: Send + Sync + 'static {
   fn print_rule(
     &self,
     matches: Vec<NodeMatch>,
@@ -41,7 +41,7 @@ pub trait PrintProcessor<Output>: Send + 'static {
 }
 
 pub trait Printer {
-  type Processed;
+  type Processed: Send;
   type Processor: PrintProcessor<Self::Processed>;
 
   fn get_processor(&self) -> Self::Processor;
