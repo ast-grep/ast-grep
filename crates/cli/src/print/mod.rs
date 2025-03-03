@@ -26,15 +26,15 @@ type NodeMatch<'a> = SgNodeMatch<'a, StrDoc<SgLang>>;
 /// it must be Send + 'static to be shared in worker thread
 pub trait PrintProcessor<Output>: Send + 'static {
   fn print_rule(
-    &mut self,
+    &self,
     matches: Vec<NodeMatch>,
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
   ) -> Result<Output>;
-  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<Output>;
-  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<Output>;
+  fn print_matches(&self, matches: Vec<NodeMatch>, path: &Path) -> Result<Output>;
+  fn print_diffs(&self, diffs: Vec<Diff>, path: &Path) -> Result<Output>;
   fn print_rule_diffs(
-    &mut self,
+    &self,
     diffs: Vec<(Diff, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<Output>;

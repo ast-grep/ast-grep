@@ -276,7 +276,7 @@ fn match_rule_diff_on_file(
   matches: Vec<(&RuleConfig<SgLang>, NodeMatch<StrDoc<SgLang>>)>,
   reporter: &mut impl Printer,
 ) -> Result<()> {
-  let mut processor = reporter.get_processor();
+  let processor = reporter.get_processor();
   let diffs = matches
     .into_iter()
     .filter_map(|(rule, m)| {
@@ -297,7 +297,7 @@ fn match_rule_on_file(
   file_content: &String,
   reporter: &mut impl Printer,
 ) -> Result<()> {
-  let mut processor = reporter.get_processor();
+  let processor = reporter.get_processor();
   let file = SimpleFile::new(path.to_string_lossy(), file_content);
   let processed = if let Some(fixer) = &rule.matcher.fixer {
     let diffs = matches
