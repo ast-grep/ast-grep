@@ -326,7 +326,7 @@ fn match_one_file(
   } = match_unit;
 
   let matches = grep.root().find_all(matcher);
-  let mut processor = printer.get_processor();
+  let processor = printer.get_processor();
   let processed = if let Some(rewrite) = rewrite {
     let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
     processor.print_diffs(diffs.collect(), path)?

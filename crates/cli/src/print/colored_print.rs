@@ -159,7 +159,7 @@ impl ColoredProcessor {
 
 impl PrintProcessor<Buffer> for ColoredProcessor {
   fn print_rule(
-    &mut self,
+    &self,
     matches: Vec<NodeMatch>,
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
@@ -193,7 +193,7 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
     Ok(buffer)
   }
 
-  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<Buffer> {
+  fn print_matches(&self, matches: Vec<NodeMatch>, path: &Path) -> Result<Buffer> {
     if self.heading.should_print() {
       print_matches_with_heading(matches, path, self)
     } else {
@@ -201,7 +201,7 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
     }
   }
 
-  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<Buffer> {
+  fn print_diffs(&self, diffs: Vec<Diff>, path: &Path) -> Result<Buffer> {
     let context = self.diff_context();
     let mut buffer = create_buffer(self.color);
     let writer = &mut buffer;
@@ -209,7 +209,7 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
     Ok(buffer)
   }
   fn print_rule_diffs(
-    &mut self,
+    &self,
     diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<Buffer> {
@@ -269,7 +269,7 @@ fn print_rule_title<W: WriteColor>(
 fn print_matches_with_heading(
   matches: Vec<NodeMatch>,
   path: &Path,
-  printer: &mut ColoredProcessor,
+  printer: &ColoredProcessor,
 ) -> Result<Buffer> {
   let mut matches = matches.into_iter();
   let styles = &printer.styles;
@@ -319,7 +319,7 @@ fn print_matches_with_heading(
 fn print_matches_with_prefix(
   matches: Vec<NodeMatch>,
   path: &Path,
-  printer: &mut ColoredProcessor,
+  printer: &ColoredProcessor,
 ) -> Result<Buffer> {
   let mut matches = matches.into_iter();
   let styles = &printer.styles;

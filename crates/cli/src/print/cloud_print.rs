@@ -49,7 +49,7 @@ pub struct CloudProcessor;
 
 impl PrintProcessor<Vec<u8>> for CloudProcessor {
   fn print_rule(
-    &mut self,
+    &self,
     matches: Vec<NodeMatch>,
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
@@ -62,16 +62,16 @@ impl PrintProcessor<Vec<u8>> for CloudProcessor {
     Ok(ret)
   }
 
-  fn print_matches(&mut self, _m: Vec<NodeMatch>, _p: &Path) -> Result<Vec<u8>> {
+  fn print_matches(&self, _m: Vec<NodeMatch>, _p: &Path) -> Result<Vec<u8>> {
     unreachable!("cloud printer does not support pattern search")
   }
 
-  fn print_diffs(&mut self, _d: Vec<Diff>, _p: &Path) -> Result<Vec<u8>> {
+  fn print_diffs(&self, _d: Vec<Diff>, _p: &Path) -> Result<Vec<u8>> {
     unreachable!("cloud printer does not support pattern rewrite")
   }
 
   fn print_rule_diffs(
-    &mut self,
+    &self,
     diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<Vec<u8>> {
