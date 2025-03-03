@@ -22,7 +22,9 @@ pub use json_print::{JSONPrinter, JsonStyle};
 
 type NodeMatch<'a> = SgNodeMatch<'a, StrDoc<SgLang>>;
 
-pub trait PrintProcessor<Output> {
+/// A trait to process nodeMatches to diff/match output
+/// it must be Send + 'static to be shared in worker thread
+pub trait PrintProcessor<Output>: Send + 'static {
   fn print_rule(
     &mut self,
     matches: Vec<NodeMatch>,
