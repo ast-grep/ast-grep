@@ -333,7 +333,7 @@ pub struct JSONProcessor {
 }
 
 impl JSONProcessor {
-  fn print_docs<S: Serialize>(&mut self, mut docs: impl Iterator<Item = S>) -> Result<Buffer> {
+  fn print_docs<S: Serialize>(&self, mut docs: impl Iterator<Item = S>) -> Result<Buffer> {
     let mut ret = Vec::new();
     let Some(doc) = docs.next() else {
       return Ok(ret);
@@ -370,7 +370,7 @@ type Buffer = Vec<u8>;
 
 impl PrintProcessor<Buffer> for JSONProcessor {
   fn print_rule(
-    &mut self,
+    &self,
     matches: Vec<NodeMatch>,
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
@@ -382,7 +382,7 @@ impl PrintProcessor<Buffer> for JSONProcessor {
     self.print_docs(jsons)
   }
 
-  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<Buffer> {
+  fn print_matches(&self, matches: Vec<NodeMatch>, path: &Path) -> Result<Buffer> {
     let path = path.to_string_lossy();
     let context = self.context;
     let jsons = matches
@@ -391,7 +391,7 @@ impl PrintProcessor<Buffer> for JSONProcessor {
     self.print_docs(jsons)
   }
 
-  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<Buffer> {
+  fn print_diffs(&self, diffs: Vec<Diff>, path: &Path) -> Result<Buffer> {
     let path = path.to_string_lossy();
     let context = self.context;
     let jsons = diffs
@@ -400,7 +400,7 @@ impl PrintProcessor<Buffer> for JSONProcessor {
     self.print_docs(jsons)
   }
   fn print_rule_diffs(
-    &mut self,
+    &self,
     diffs: Vec<(Diff, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<Buffer> {

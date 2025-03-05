@@ -22,24 +22,27 @@ pub use json_print::{JSONPrinter, JsonStyle};
 
 type NodeMatch<'a> = SgNodeMatch<'a, StrDoc<SgLang>>;
 
-pub trait PrintProcessor<Output> {
+/// A trait to process nodeMatches to diff/match output
+/// it must be Send + 'static to be shared in worker thread
+pub trait PrintProcessor<Output>: Send + Sync + 'static {
   fn print_rule(
-    &mut self,
+    &self,
     matches: Vec<NodeMatch>,
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
   ) -> Result<Output>;
-  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<Output>;
-  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<Output>;
+  fn print_matches(&self, matches: Vec<NodeMatch>, path: &Path) -> Result<Output>;
+  fn print_diffs(&self, diffs: Vec<Diff>, path: &Path) -> Result<Output>;
   fn print_rule_diffs(
-    &mut self,
+    &self,
     diffs: Vec<(Diff, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<Output>;
 }
 
 pub trait Printer {
-  type Processed;
+  // processed item must be sent to printer thread
+  type Processed: Send + 'static;
   type Processor: PrintProcessor<Self::Processed>;
 
   fn get_processor(&self) -> Self::Processor;

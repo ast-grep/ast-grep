@@ -92,7 +92,11 @@ impl<P: Printer> InteractivePrinter<P> {
   }
 }
 
-impl<P: Printer> Printer for InteractivePrinter<P> {
+impl<P> Printer for InteractivePrinter<P>
+where
+  P: Printer + 'static,
+  P::Processor: Send + 'static,
+{
   type Processed = Payload<P>;
   type Processor = InteractiveProcessor<P>;
 
@@ -163,9 +167,12 @@ pub struct InteractiveProcessor<P: Printer> {
 
 pub type Payload<P> = InteractivePayload<<P as Printer>::Processed>;
 
-impl<P: Printer> PrintProcessor<Payload<P>> for InteractiveProcessor<P> {
+impl<P> PrintProcessor<Payload<P>> for InteractiveProcessor<P>
+where
+  P: Printer + 'static,
+{
   fn print_rule(
-    &mut self,
+    &self,
     matches: Vec<NodeMatch>,
     file: SimpleFile<Cow<str>, &String>,
     rule: &RuleConfig<SgLang>,
@@ -184,7 +191,7 @@ impl<P: Printer> PrintProcessor<Payload<P>> for InteractiveProcessor<P> {
     Ok(InteractivePayload::Highlights(highlights))
   }
 
-  fn print_matches(&mut self, matches: Vec<NodeMatch>, path: &Path) -> Result<Payload<P>> {
+  fn print_matches(&self, matches: Vec<NodeMatch>, path: &Path) -> Result<Payload<P>> {
     let Some(first_match) = matches.first() else {
       return Ok(InteractivePayload::Nothing);
     };
@@ -198,7 +205,7 @@ impl<P: Printer> PrintProcessor<Payload<P>> for InteractiveProcessor<P> {
     Ok(InteractivePayload::Highlights(highlights))
   }
 
-  fn print_diffs(&mut self, diffs: Vec<Diff>, path: &Path) -> Result<Payload<P>> {
+  fn print_diffs(&self, diffs: Vec<Diff>, path: &Path) -> Result<Payload<P>> {
     let old_source = get_old_source(diffs.first());
     let mut contents = Vec::with_capacity(diffs.len());
     for diff in diffs {
@@ -213,7 +220,7 @@ impl<P: Printer> PrintProcessor<Payload<P>> for InteractiveProcessor<P> {
     }))
   }
   fn print_rule_diffs(
-    &mut self,
+    &self,
     diffs: Vec<(Diff<'_>, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<Payload<P>> {
