@@ -359,28 +359,6 @@ fn match_one_file<P: Printer>(
   }
 }
 
-// fn match_one_file(
-//   printer: &mut impl Printer,
-//   match_unit: &MatchUnit<impl Matcher<SgLang>>,
-//   rewrite: &Option<Fixer<SgLang>>,
-// ) -> Result<()> {
-//   let MatchUnit {
-//     path,
-//     grep,
-//     matcher,
-//   } = match_unit;
-
-//   let matches = grep.root().find_all(matcher);
-//   let processor = printer.get_processor();
-//   let processed = if let Some(rewrite) = rewrite {
-//     let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
-//     processor.print_diffs(diffs.collect(), path)?
-//   } else {
-//     processor.print_matches(matches.collect(), path)?
-//   };
-//   printer.process(processed)
-// }
-
 #[cfg(test)]
 mod test {
   use super::*;
