@@ -33,7 +33,11 @@ pub trait PathWorker: Worker {
   /// Record trace for the worker.
   fn get_trace(&self) -> &FileTrace;
   /// Parse and find_match can be done in `produce_item`.
-  fn produce_item<P: Printer>(&self, path: &Path, processor: &P::Processor) -> Option<Vec<P::Processed>>;
+  fn produce_item<P: Printer>(
+    &self,
+    path: &Path,
+    processor: &P::Processor,
+  ) -> Option<Vec<P::Processed>>;
 
   fn run_path<P: Printer>(self, printer: P) -> Result<()>
   where
