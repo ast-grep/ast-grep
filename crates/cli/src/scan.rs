@@ -21,8 +21,6 @@ use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 use std::collections::HashSet;
 
-type AstGrep = ast_grep_core::AstGrep<StrDoc<SgLang>>;
-
 #[derive(Args)]
 pub struct ScanArg {
   /// Scan the codebase with the single rule located at the path RULE_FILE.
@@ -101,7 +99,7 @@ fn run_scan<P: Printer + 'static>(
   project: Result<ProjectConfig>,
 ) -> Result<()> {
   if arg.input.stdin {
-    let worker = ScanWithRule::try_new(arg)?;
+    let worker = ScanStdin::try_new(arg)?;
     // TODO: report a soft error if rules have different languages
     worker.run_std_in(printer)
   } else {
@@ -225,10 +223,10 @@ impl PathWorker for ScanWithConfig {
   }
 }
 
-struct ScanWithRule {
+struct ScanStdin {
   rules: Vec<RuleConfig<SgLang>>,
 }
-impl ScanWithRule {
+impl ScanStdin {
   fn try_new(arg: ScanArg) -> Result<Self> {
     let rules = if let Some(path) = &arg.rule {
       read_rule_file(path, None)?
@@ -242,26 +240,15 @@ impl ScanWithRule {
   }
 }
 
-impl Worker for ScanWithRule {
+impl Worker for ScanStdin {
   fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<()> {
     printer.before_print()?;
+    // TODO: add error count
     // let mut error_count = 0usize;
     let error_count = 0usize;
     for item in items {
       printer.process(item)?;
     }
-    // let combined = CombinedScan::new(self.rules.iter().collect());
-    // for (path, grep, pre_scan) in items {
-    //   let file_content = grep.source().to_string();
-    //   // do not exclude_fix rule in run_with_rule
-    //   let scanned = combined.scan(&grep, pre_scan, false);
-    //   for (rule, matches) in scanned.matches {
-    //     if matches!(rule.severity, Severity::Error) {
-    //       error_count = error_count.saturating_add(matches.len());
-    //     }
-    //     match_rule_on_file(&path, matches, rule, &file_content, &mut printer)?;
-    //   }
-    // }
     printer.after_print()?;
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
@@ -271,39 +258,32 @@ impl Worker for ScanWithRule {
   }
 }
 
-impl StdInWorker for ScanWithRule {
-  fn parse_stdin<P: Printer>(
-    &self,
-    _src: String,
-    _processor: &P::Processor,
-  ) -> Option<P::Processed> {
-    todo!()
-    // use ast_grep_core::Language;
-    // let lang = self.rules[0].language;
-    // let combined = CombinedScan::new(self.rules.iter().collect());
-    // let grep = lang.ast_grep(src);
-    // let pre_scan = combined.find(&grep);
-    // if pre_scan.is_empty() {
-    //   return None
-    // }
-    // let file_content = grep.source().to_string();
-    // // do not exclude_fix rule in run_with_rule
-    // let scanned = combined.scan(&grep, pre_scan, false);
-    // let mut error_count = 0usize;
-    // let mut ret = vec![];
-    // if interactive {
-    //   let diffs = scanned.diffs;
-    //   let processed = match_rule_diff_on_file(path, diffs, processor).expect("TODO");
-    //   ret.push(processed);
-    // }
-    // for (rule, matches) in scanned.matches {
-    //   if matches!(rule.severity, Severity::Error) {
-    //     error_count = error_count.saturating_add(matches.len());
-    //   }
-    //   let processed = match_rule_on_file(&path, matches, rule, &file_content, processor).expect("TODO");
-    //   ret.push(processed);
-    // }
-    // Some(ret)
+impl StdInWorker for ScanStdin {
+  fn parse_stdin<P: Printer>(&self, src: String, processor: &P::Processor) -> Option<P::Processed> {
+    use ast_grep_core::Language;
+    let lang = self.rules[0].language;
+    let combined = CombinedScan::new(self.rules.iter().collect());
+    let grep = lang.ast_grep(src);
+    let pre_scan = combined.find(&grep);
+    if pre_scan.is_empty() {
+      return None;
+    }
+    let file_content = grep.source().to_string();
+    // do not separate_fix rule in stdin mode
+    let scanned = combined.scan(&grep, pre_scan, false);
+    let mut error_count = 0usize;
+    let mut ret = vec![];
+    let path = Path::new("STDIN");
+    for (rule, matches) in scanned.matches {
+      if matches!(rule.severity, Severity::Error) {
+        error_count = error_count.saturating_add(matches.len());
+      }
+      let processed =
+        match_rule_on_file(path, matches, rule, &file_content, processor).expect("TODO");
+      ret.push(processed);
+    }
+    // TODO: currently only one rule is printed in stdin mode
+    Some(ret.pop().expect("TODO"))
   }
 }
 fn match_rule_diff_on_file<T>(
