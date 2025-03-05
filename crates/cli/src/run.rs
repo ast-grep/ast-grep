@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use ast_grep_config::Fixer;
@@ -180,25 +180,11 @@ struct RunWithInferredLang {
   trace: RunTrace,
 }
 impl Worker for RunWithInferredLang {
-  type Item = (MatchUnit<Pattern<SgLang>>, SgLang);
-
-  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, mut printer: P) -> Result<()> {
-    let rewrite = &self.arg.rewrite;
+  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<()> {
     let printer = &mut printer;
     printer.before_print()?;
-    for (match_unit, lang) in items {
-      let rewrite = rewrite
-        .as_ref()
-        .map(|s| Fixer::from_str(s, &lang))
-        .transpose();
-      match rewrite {
-        Ok(r) => match_one_file(printer, &match_unit, &r)?,
-        Err(e) => {
-          match_one_file(printer, &match_unit, &None)?;
-          eprintln!("⚠️  Rewriting was skipped because pattern fails to parse. Error detail:");
-          eprintln!("╰▻ {e}");
-        }
-      }
+    for item in items {
+      printer.process(item)?;
     }
     printer.after_print()?;
     self.trace.print()?;
@@ -214,20 +200,46 @@ impl PathWorker for RunWithInferredLang {
     &self.trace.inner
   }
 
-  fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
+  fn produce_item<P: Printer>(
+    &self,
+    path: &Path,
+    processor: &P::Processor,
+  ) -> Option<Vec<P::Processed>> {
     let lang = SgLang::from_path(path)?;
     self.trace.print_file(path, lang).ok()?;
     let matcher = self.arg.build_pattern(lang).ok()?;
     // match sub region
-    if let Some(sub_langs) = lang.injectable_sg_langs() {
+    let items = if let Some(sub_langs) = lang.injectable_sg_langs() {
       let sub_matchers = sub_langs.filter_map(|l| {
         let pattern = self.arg.build_pattern(l).ok()?;
         Some((l, pattern))
       });
-      filter_file_pattern(path, lang, Some(matcher), sub_matchers)
+      filter_file_pattern(path, lang, Some(matcher), sub_matchers)?
     } else {
-      filter_file_pattern(path, lang, Some(matcher), std::iter::empty())
-    }
+      filter_file_pattern(path, lang, Some(matcher), std::iter::empty())?
+    };
+    Some(
+      items
+        .into_iter()
+        .map(|n| {
+          let (unit, lang) = n;
+          let rewrite = self
+            .arg
+            .rewrite
+            .as_ref()
+            .map(|s| Fixer::from_str(s, &lang))
+            .transpose();
+          match rewrite {
+            Ok(r) => match_one_file::<P>(processor, &unit, &r).expect("TODO"),
+            Err(e) => {
+              eprintln!("⚠️  Rewriting was skipped because pattern fails to parse. Error detail:");
+              eprintln!("╰▻ {e}");
+              match_one_file::<P>(processor, &unit, &None).expect("TODO")
+            }
+          }
+        })
+        .collect(),
+    )
   }
 }
 
@@ -259,13 +271,11 @@ impl RunWithSpecificLang {
 }
 
 impl Worker for RunWithSpecificLang {
-  type Item = MatchUnit<Pattern<SgLang>>;
-
-  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, mut printer: P) -> Result<()> {
+  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<()> {
     printer.before_print()?;
     let mut has_matches = false;
-    for match_unit in items {
-      match_one_file(&mut printer, &match_unit, &self.rewrite)?;
+    for item in items {
+      printer.process(item)?;
       has_matches = true;
     }
     printer.after_print()?;
@@ -286,39 +296,54 @@ impl PathWorker for RunWithSpecificLang {
   fn get_trace(&self) -> &FileTrace {
     &self.stats.inner
   }
-  fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
+  fn produce_item<P: Printer>(
+    &self,
+    path: &Path,
+    processor: &P::Processor,
+  ) -> Option<Vec<P::Processed>> {
     let arg = &self.arg;
     let pattern = self.pattern.clone();
     let lang = arg.lang.expect("must present");
     let path_lang = SgLang::from_path(path)?;
     self.stats.print_file(path, path_lang).ok()?;
-    let ret = if path_lang == lang {
+    let filtered = if path_lang == lang {
       filter_file_pattern(path, lang, Some(pattern), std::iter::empty())?
     } else {
       filter_file_pattern(path, path_lang, None, std::iter::once((lang, pattern)))?
     };
-    Some(ret.into_iter().map(|n| n.0).collect())
+    let ret = filtered
+      .into_iter()
+      .map(|(match_unit, _)| {
+        match_one_file::<P>(processor, &match_unit, &self.rewrite).expect("TODO")
+      })
+      .collect();
+    Some(ret)
   }
 }
 
 impl StdInWorker for RunWithSpecificLang {
-  fn parse_stdin(&self, src: String) -> Option<Self::Item> {
+  fn parse_stdin<P: Printer>(&self, src: String, processor: &P::Processor) -> Option<P::Processed> {
     let lang = self.arg.lang.expect("must present");
     let grep = lang.ast_grep(src);
-    let has_match = grep.root().find(&self.pattern).is_some();
-    has_match.then(|| MatchUnit {
-      path: PathBuf::from("STDIN"),
-      matcher: self.pattern.clone(),
-      grep,
-    })
+    let matches = grep.root().find_all(&self.pattern);
+    let rewrite = &self.rewrite;
+    let path = Path::new("stdin");
+    let processed = if let Some(rewrite) = rewrite {
+      let diffs = matches.map(|m| Diff::generate(m, &self.pattern, rewrite));
+      processor.print_diffs(diffs.collect(), path).expect("TODO")
+    } else {
+      processor
+        .print_matches(matches.collect(), path)
+        .expect("TODO")
+    };
+    Some(processed)
   }
 }
-
-fn match_one_file(
-  printer: &mut impl Printer,
+fn match_one_file<P: Printer>(
+  processor: &P::Processor,
   match_unit: &MatchUnit<impl Matcher<SgLang>>,
   rewrite: &Option<Fixer<SgLang>>,
-) -> Result<()> {
+) -> Result<P::Processed> {
   let MatchUnit {
     path,
     grep,
@@ -326,21 +351,42 @@ fn match_one_file(
   } = match_unit;
 
   let matches = grep.root().find_all(matcher);
-  let processor = printer.get_processor();
-  let processed = if let Some(rewrite) = rewrite {
+  if let Some(rewrite) = rewrite {
     let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
-    processor.print_diffs(diffs.collect(), path)?
+    processor.print_diffs(diffs.collect(), path)
   } else {
-    processor.print_matches(matches.collect(), path)?
-  };
-  printer.process(processed)
+    processor.print_matches(matches.collect(), path)
+  }
 }
+
+// fn match_one_file(
+//   printer: &mut impl Printer,
+//   match_unit: &MatchUnit<impl Matcher<SgLang>>,
+//   rewrite: &Option<Fixer<SgLang>>,
+// ) -> Result<()> {
+//   let MatchUnit {
+//     path,
+//     grep,
+//     matcher,
+//   } = match_unit;
+
+//   let matches = grep.root().find_all(matcher);
+//   let processor = printer.get_processor();
+//   let processed = if let Some(rewrite) = rewrite {
+//     let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
+//     processor.print_diffs(diffs.collect(), path)?
+//   } else {
+//     processor.print_matches(matches.collect(), path)?
+//   };
+//   printer.process(processed)
+// }
 
 #[cfg(test)]
 mod test {
   use super::*;
   use crate::print::ColorArg;
   use ast_grep_language::SupportLang;
+  use std::path::PathBuf;
 
   fn default_run_arg() -> RunArg {
     RunArg {

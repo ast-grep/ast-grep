@@ -1,9 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use ast_grep_config::{
-  from_yaml_string, CombinedScan, PreScan, RuleCollection, RuleConfig, Severity,
-};
+use ast_grep_config::{from_yaml_string, CombinedScan, RuleCollection, RuleConfig, Severity};
 use ast_grep_core::{NodeMatch, StrDoc};
 use ast_grep_language::SupportLang;
 use clap::Args;
@@ -145,29 +143,12 @@ impl ScanWithConfig {
   }
 }
 impl Worker for ScanWithConfig {
-  type Item = (PathBuf, AstGrep, PreScan);
-  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, mut printer: P) -> Result<()> {
+  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<()> {
     printer.before_print()?;
-    let mut error_count = 0usize;
-    for (path, grep, pre_scan) in items {
-      let file_content = grep.source().to_string();
-      let path = &path;
-      let rules = self.configs.get_rule_from_lang(path, *grep.lang());
-      let mut combined = CombinedScan::new(rules);
-      combined.set_unused_suppression_rule(&self.unused_suppression_rule);
-      let interactive = self.arg.output.needs_interactive();
-      // exclude_fix rule because we already have diff inspection before
-      let scanned = combined.scan(&grep, pre_scan, /* separate_fix*/ interactive);
-      if interactive {
-        let diffs = scanned.diffs;
-        match_rule_diff_on_file(path, diffs, &mut printer)?;
-      }
-      for (rule, matches) in scanned.matches {
-        if matches!(rule.severity, Severity::Error) {
-          error_count = error_count.saturating_add(matches.len());
-        }
-        match_rule_on_file(path, matches, rule, &file_content, &mut printer)?;
-      }
+    // let mut error_count = 0usize;
+    let error_count = 0usize;
+    for item in items {
+      printer.process(item)?;
     }
     printer.after_print()?;
     self.trace.print()?;
@@ -209,8 +190,38 @@ impl PathWorker for ScanWithConfig {
     });
     self.arg.input.walk_langs(langs.into_iter())
   }
-  fn produce_item(&self, path: &Path) -> Option<Vec<Self::Item>> {
-    filter_file_interactive(path, &self.configs, &self.trace)
+  fn produce_item<P: Printer>(
+    &self,
+    path: &Path,
+    processor: &P::Processor,
+  ) -> Option<Vec<P::Processed>> {
+    let items = filter_file_interactive(path, &self.configs, &self.trace)?;
+    let mut error_count = 0usize;
+    let mut ret = vec![];
+    for (path, grep, pre_scan) in items {
+      let file_content = grep.source().to_string();
+      let path = &path;
+      let rules = self.configs.get_rule_from_lang(path, *grep.lang());
+      let mut combined = CombinedScan::new(rules);
+      combined.set_unused_suppression_rule(&self.unused_suppression_rule);
+      let interactive = self.arg.output.needs_interactive();
+      // exclude_fix rule because we already have diff inspection before
+      let scanned = combined.scan(&grep, pre_scan, /* separate_fix*/ interactive);
+      if interactive {
+        let diffs = scanned.diffs;
+        let processed = match_rule_diff_on_file(path, diffs, processor).expect("TODO");
+        ret.push(processed);
+      }
+      for (rule, matches) in scanned.matches {
+        if matches!(rule.severity, Severity::Error) {
+          error_count = error_count.saturating_add(matches.len());
+        }
+        let processed =
+          match_rule_on_file(path, matches, rule, &file_content, processor).expect("TODO");
+        ret.push(processed);
+      }
+    }
+    Some(ret)
   }
 }
 
@@ -232,22 +243,25 @@ impl ScanWithRule {
 }
 
 impl Worker for ScanWithRule {
-  type Item = (PathBuf, AstGrep, PreScan);
-  fn consume_items<P: Printer>(&self, items: Items<Self::Item>, mut printer: P) -> Result<()> {
+  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<()> {
     printer.before_print()?;
-    let mut error_count = 0usize;
-    let combined = CombinedScan::new(self.rules.iter().collect());
-    for (path, grep, pre_scan) in items {
-      let file_content = grep.source().to_string();
-      // do not exclude_fix rule in run_with_rule
-      let scanned = combined.scan(&grep, pre_scan, false);
-      for (rule, matches) in scanned.matches {
-        if matches!(rule.severity, Severity::Error) {
-          error_count = error_count.saturating_add(matches.len());
-        }
-        match_rule_on_file(&path, matches, rule, &file_content, &mut printer)?;
-      }
+    // let mut error_count = 0usize;
+    let error_count = 0usize;
+    for item in items {
+      printer.process(item)?;
     }
+    // let combined = CombinedScan::new(self.rules.iter().collect());
+    // for (path, grep, pre_scan) in items {
+    //   let file_content = grep.source().to_string();
+    //   // do not exclude_fix rule in run_with_rule
+    //   let scanned = combined.scan(&grep, pre_scan, false);
+    //   for (rule, matches) in scanned.matches {
+    //     if matches!(rule.severity, Severity::Error) {
+    //       error_count = error_count.saturating_add(matches.len());
+    //     }
+    //     match_rule_on_file(&path, matches, rule, &file_content, &mut printer)?;
+    //   }
+    // }
     printer.after_print()?;
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
@@ -258,25 +272,45 @@ impl Worker for ScanWithRule {
 }
 
 impl StdInWorker for ScanWithRule {
-  fn parse_stdin(&self, src: String) -> Option<Self::Item> {
-    use ast_grep_core::Language;
-    let lang = self.rules[0].language;
-    let combined = CombinedScan::new(self.rules.iter().collect());
-    let grep = lang.ast_grep(src);
-    let pre_scan = combined.find(&grep);
-    if !pre_scan.is_empty() {
-      Some((PathBuf::from("STDIN"), grep, pre_scan))
-    } else {
-      None
-    }
+  fn parse_stdin<P: Printer>(
+    &self,
+    _src: String,
+    _processor: &P::Processor,
+  ) -> Option<P::Processed> {
+    todo!()
+    // use ast_grep_core::Language;
+    // let lang = self.rules[0].language;
+    // let combined = CombinedScan::new(self.rules.iter().collect());
+    // let grep = lang.ast_grep(src);
+    // let pre_scan = combined.find(&grep);
+    // if pre_scan.is_empty() {
+    //   return None
+    // }
+    // let file_content = grep.source().to_string();
+    // // do not exclude_fix rule in run_with_rule
+    // let scanned = combined.scan(&grep, pre_scan, false);
+    // let mut error_count = 0usize;
+    // let mut ret = vec![];
+    // if interactive {
+    //   let diffs = scanned.diffs;
+    //   let processed = match_rule_diff_on_file(path, diffs, processor).expect("TODO");
+    //   ret.push(processed);
+    // }
+    // for (rule, matches) in scanned.matches {
+    //   if matches!(rule.severity, Severity::Error) {
+    //     error_count = error_count.saturating_add(matches.len());
+    //   }
+    //   let processed = match_rule_on_file(&path, matches, rule, &file_content, processor).expect("TODO");
+    //   ret.push(processed);
+    // }
+    // Some(ret)
   }
 }
-fn match_rule_diff_on_file(
+fn match_rule_diff_on_file<T>(
   path: &Path,
   matches: Vec<(&RuleConfig<SgLang>, NodeMatch<StrDoc<SgLang>>)>,
-  reporter: &mut impl Printer,
-) -> Result<()> {
-  let processor = reporter.get_processor();
+  processor: &impl PrintProcessor<T>,
+) -> Result<T> {
   let diffs = matches
     .into_iter()
     .filter_map(|(rule, m)| {
@@ -286,18 +320,16 @@ fn match_rule_diff_on_file(
     })
     .collect();
   let processed = processor.print_rule_diffs(diffs, path)?;
-  reporter.process(processed)?;
-  Ok(())
+  Ok(processed)
 }
 
-fn match_rule_on_file(
+fn match_rule_on_file<T>(
   path: &Path,
   matches: Vec<NodeMatch<StrDoc<SgLang>>>,
   rule: &RuleConfig<SgLang>,
   file_content: &String,
-  reporter: &mut impl Printer,
-) -> Result<()> {
-  let processor = reporter.get_processor();
+  processor: &impl PrintProcessor<T>,
+) -> Result<T> {
   let file = SimpleFile::new(path.to_string_lossy(), file_content);
   let processed = if let Some(fixer) = &rule.matcher.fixer {
     let diffs = matches
@@ -308,8 +340,7 @@ fn match_rule_on_file(
   } else {
     processor.print_rule(matches, file, rule)?
   };
-  reporter.process(processed)?;
-  Ok(())
+  Ok(processed)
 }
 
 #[cfg(test)]
