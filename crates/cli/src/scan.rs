@@ -20,6 +20,7 @@ use crate::utils::{FileTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 use std::collections::HashSet;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Args)]
 pub struct ScanArg {
@@ -113,6 +114,8 @@ struct ScanWithConfig {
   configs: RuleCollection<SgLang>,
   unused_suppression_rule: RuleConfig<SgLang>,
   trace: ScanTrace,
+  // TODO: remove this
+  error_count: AtomicUsize,
 }
 impl ScanWithConfig {
   fn try_new(arg: ScanArg, project: Result<ProjectConfig>) -> Result<Self> {
@@ -137,19 +140,19 @@ impl ScanWithConfig {
       configs,
       unused_suppression_rule,
       trace,
+      error_count: AtomicUsize::new(0),
     })
   }
 }
 impl Worker for ScanWithConfig {
   fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<()> {
     printer.before_print()?;
-    // let mut error_count = 0usize;
-    let error_count = 0usize;
     for item in items {
       printer.process(item)?;
     }
     printer.after_print()?;
     self.trace.print()?;
+    let error_count = self.error_count.load(Ordering::Acquire);
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
@@ -219,12 +222,15 @@ impl PathWorker for ScanWithConfig {
         ret.push(processed);
       }
     }
+    self.error_count.fetch_add(error_count, Ordering::AcqRel);
     Some(ret)
   }
 }
 
 struct ScanStdin {
   rules: Vec<RuleConfig<SgLang>>,
+  // TODO: remove this
+  error_count: AtomicUsize,
 }
 impl ScanStdin {
   fn try_new(arg: ScanArg) -> Result<Self> {
@@ -236,20 +242,21 @@ impl ScanStdin {
     } else {
       return Err(anyhow::anyhow!(EC::RuleNotSpecified));
     };
-    Ok(Self { rules })
+    Ok(Self {
+      rules,
+      error_count: AtomicUsize::new(0),
+    })
   }
 }
 
 impl Worker for ScanStdin {
   fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<()> {
     printer.before_print()?;
-    // TODO: add error count
-    // let mut error_count = 0usize;
-    let error_count = 0usize;
     for item in items {
       printer.process(item)?;
     }
     printer.after_print()?;
+    let error_count = self.error_count.load(Ordering::Acquire);
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
