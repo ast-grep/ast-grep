@@ -38,14 +38,14 @@ devDependencies:
     specifier: 7.20.5
     version: 7.20.5
   '@types/node':
-    specifier: 22.13.8
-    version: 22.13.8
+    specifier: 22.13.9
+    version: 22.13.9
   prettier:
     specifier: 3.5.2
     version: 3.5.2
   ts-node:
     specifier: 10.9.2
-    version: 10.9.2(@swc/core@1.11.7)(@types/node@22.13.8)(typescript@5.8.2)
+    version: 10.9.2(@swc/core@1.11.7)(@types/node@22.13.9)(typescript@5.8.2)
 
 packages:
 
@@ -536,8 +536,8 @@ packages:
       '@babel/types': 7.26.7
     dev: true
 
-  /@types/node@22.13.8:
-    resolution: {integrity: sha512-G3EfaZS+iOGYWLLRCEAXdWK9my08oHNZ+FHluRiggIYJPOXzhOiDgpVCUHaUvyIC5/fj7C/p637jdzC666AOKQ==}
+  /@types/node@22.13.9:
+    resolution: {integrity: sha512-acBjXdRJ3A6Pb3tqnw9HZmyR3Fiol3aGxRCK1x3d+6CDAMjl7I649wpSd+yNURCjbOUGu9tqtLKnTGxmK6CyGw==}
     dependencies:
       undici-types: 6.20.0
     dev: true
@@ -913,7 +913,7 @@ packages:
       node-gyp-build: 4.8.4
     dev: false
 
-  /ts-node@10.9.2(@swc/core@1.11.7)(@types/node@22.13.8)(typescript@5.8.2):
+  /ts-node@10.9.2(@swc/core@1.11.7)(@types/node@22.13.9)(typescript@5.8.2):
     resolution: {integrity: sha512-f0FFpIdcHgn8zcPSbf1dRevwt047YMnaiJM3u2w2RewrB+fob/zePZcrOyQoLMMO7aBIddLcQIEK5dYjkLnGrQ==}
     hasBin: true
     peerDependencies:
@@ -933,7 +933,7 @@ packages:
       '@tsconfig/node12': 1.0.11
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
-      '@types/node': 22.13.8
+      '@types/node': 22.13.9
       acorn: 8.10.0
       acorn-walk: 8.2.0
       arg: 4.1.3
