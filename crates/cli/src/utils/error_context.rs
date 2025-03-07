@@ -1,6 +1,7 @@
 use ansi_term::{Color, Style};
 use anyhow::{Error, Result};
 
+use crossterm::tty::IsTty;
 use std::fmt;
 use std::path::PathBuf;
 
@@ -310,6 +311,27 @@ struct ErrorFormat<'a> {
   inner: &'a Error,
 }
 
+#[derive(Default)]
+struct ErrorStyle {
+  message: Style,
+  error: Style,
+  warning: Style,
+  help: Style,
+  reference: Style,
+}
+
+impl ErrorStyle {
+  fn colored() -> Self {
+    Self {
+      message: Style::new().bold(),
+      error: Style::new().fg(Color::Red),
+      warning: Style::new().fg(Color::Yellow),
+      help: Style::new().fg(Color::Blue),
+      reference: Style::new().bold().dimmed(),
+    }
+  }
+}
+
 impl fmt::Display for ErrorFormat<'_> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let ErrorMessage {
@@ -317,19 +339,25 @@ impl fmt::Display for ErrorFormat<'_> {
       description,
       link,
     } = ErrorMessage::from_context(self.context);
-    let (notice_style, notice, sign) = if self.context.is_soft_error() {
-      (Color::Yellow, "Warning:", "⚠")
+    let needs_color = std::io::stderr().is_tty();
+    let style = if needs_color {
+      ErrorStyle::colored()
     } else {
-      (Color::Red, "Error:", "✖")
+      ErrorStyle::default()
     };
-    let bold = Style::new().bold();
-    let message = bold.paint(title);
+    let (notice_style, notice, sign) = if self.context.is_soft_error() {
+      (style.warning, "Warning:", "⚠")
+    } else {
+      (style.error, "Error:", "✖")
+    };
+    let message = style.message.paint(title);
     writeln!(f, "{} {message}", notice_style.paint(notice))?;
-    let help = Color::Blue.paint("Help:");
+    let help = style.help.paint("Help:");
     writeln!(f, "{help} {description}")?;
     if let Some(url) = link {
-      let reference = Style::new().bold().dimmed().paint("See also:");
-      let link = ansi_link(format!("{DOC_SITE_HOST}{url}"));
+      let reference = style.reference.paint("See also:");
+      let link = format!("{DOC_SITE_HOST}{url}");
+      let link = if needs_color { ansi_link(link) } else { link };
       writeln!(f, "{reference} {link}")?;
     }
 
