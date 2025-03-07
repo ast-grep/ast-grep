@@ -87,12 +87,14 @@ impl InputArgs {
   pub fn walk_langs(&self, langs: impl Iterator<Item = SgLang>) -> Result<WalkParallel> {
     let types = SgLang::file_types_for_langs(langs);
     let threads = self.get_threads();
+    let globs = self.build_globs().context(EC::BuildGlobs)?;
     Ok(
       NoIgnore::disregard(&self.no_ignore)
         .walk(&self.paths)
         .threads(threads)
         .follow_links(self.follow)
         .types(types)
+        .overrides(globs)
         .build_parallel(),
     )
   }
