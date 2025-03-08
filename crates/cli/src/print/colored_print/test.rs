@@ -49,7 +49,7 @@ fn test_print_matches() {
     let mut printer = make_test_printer().heading(Heading::Always);
     let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
     let matches = grep.root().find_all(pattern).collect();
-    let mut processor = printer.get_processor();
+    let processor = printer.get_processor();
     let buffer = processor
       .print_matches(matches, "test.tsx".as_ref())
       .unwrap();
@@ -73,7 +73,7 @@ fn test_print_matches_without_heading() {
     let mut printer = make_test_printer().heading(Heading::Never);
     let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
     let matches = grep.root().find_all(pattern).collect();
-    let mut processor = printer.get_processor();
+    let processor = printer.get_processor();
     let buffer = processor
       .print_matches(matches, "test.tsx".as_ref())
       .unwrap();
@@ -117,7 +117,7 @@ rule:
     .unwrap();
     let matcher = rule.get_matcher(&globals).expect("should parse");
     let matches = grep.root().find_all(&matcher).collect();
-    let mut processor = printer.get_processor();
+    let processor = printer.get_processor();
     let buffer = processor
       .print_rule(matches, file, &rule)
       .expect("test only");
