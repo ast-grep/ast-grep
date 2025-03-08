@@ -60,9 +60,8 @@ pub trait StdInWorker: Worker {
     let source = std::io::read_to_string(std::io::stdin())?;
     let processor = printer.get_processor();
     let path = Path::new("STDIN");
-    if let Some(mut items) = self.produce_item::<P>(source, path, &processor) {
-      let item = items.pop().expect("TODO: add more items");
-      self.consume_items(Items::once(item)?, printer)
+    if let Some(items) = self.produce_item::<P>(source, path, &processor) {
+      self.consume_items(Items::once(items)?, printer)
     } else {
       Ok(())
     }
@@ -81,13 +80,15 @@ impl<T> Iterator for Items<T> {
   }
 }
 impl<T> Items<T> {
-  fn once(t: T) -> Result<Self> {
+  fn once(items: Vec<T>) -> Result<Self> {
     let (tx, rx) = mpsc::channel();
-    // use write to avoid send/sync trait bound
-    match tx.send(t) {
-      Ok(_) => (),
-      Err(e) => return Err(anyhow!(e.to_string())),
-    };
+    for item in items {
+      // use write to avoid send/sync trait bound
+      match tx.send(item) {
+        Ok(_) => (),
+        Err(e) => return Err(anyhow!(e.to_string())),
+      };
+    }
     Ok(Items(rx))
   }
 }
