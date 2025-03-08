@@ -266,10 +266,9 @@ impl Worker for ScanStdin {
 }
 
 impl StdInWorker for ScanStdin {
-  fn produce_item<P: Printer>(
+  fn parse_stdin<P: Printer>(
     &self,
     src: String,
-    path: &Path,
     processor: &P::Processor,
   ) -> Option<Vec<P::Processed>> {
     use ast_grep_core::Language;
@@ -280,6 +279,7 @@ impl StdInWorker for ScanStdin {
     if pre_scan.is_empty() {
       return None;
     }
+    let path = Path::new("STDIN");
     let file_content = grep.source().to_string();
     // do not separate_fix rule in stdin mode
     let scanned = combined.scan(&grep, pre_scan, false);
@@ -293,6 +293,7 @@ impl StdInWorker for ScanStdin {
         match_rule_on_file(path, matches, rule, &file_content, processor).expect("TODO");
       ret.push(processed);
     }
+    self.error_count.fetch_add(error_count, Ordering::AcqRel);
     Some(ret)
   }
 }

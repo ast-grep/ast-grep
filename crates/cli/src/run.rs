@@ -322,16 +322,16 @@ impl PathWorker for RunWithSpecificLang {
 }
 
 impl StdInWorker for RunWithSpecificLang {
-  fn produce_item<P: Printer>(
+  fn parse_stdin<P: Printer>(
     &self,
     src: String,
-    path: &Path,
     processor: &P::Processor,
   ) -> Option<Vec<P::Processed>> {
     let lang = self.arg.lang.expect("must present");
     let grep = lang.ast_grep(src);
     let matches = grep.root().find_all(&self.pattern);
     let rewrite = &self.rewrite;
+    let path = Path::new("STDIN");
     let processed = if let Some(rewrite) = rewrite {
       let diffs = matches.map(|m| Diff::generate(m, &self.pattern, rewrite));
       processor.print_diffs(diffs.collect(), path).expect("TODO")
