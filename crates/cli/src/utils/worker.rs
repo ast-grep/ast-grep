@@ -48,12 +48,20 @@ pub trait PathWorker: Worker {
 }
 
 pub trait StdInWorker: Worker {
-  fn parse_stdin<P: Printer>(&self, src: String, processor: &P::Processor) -> Option<P::Processed>;
+  /// Parse and find_match can be done in `produce_item`.
+  fn produce_item<P: Printer>(
+    &self,
+    src: String,
+    path: &Path,
+    processor: &P::Processor,
+  ) -> Option<Vec<P::Processed>>;
 
   fn run_std_in<P: Printer>(&self, printer: P) -> Result<()> {
     let source = std::io::read_to_string(std::io::stdin())?;
     let processor = printer.get_processor();
-    if let Some(item) = self.parse_stdin::<P>(source, &processor) {
+    let path = Path::new("STDIN");
+    if let Some(mut items) = self.produce_item::<P>(source, path, &processor) {
+      let item = items.pop().expect("TODO: add more items");
       self.consume_items(Items::once(item)?, printer)
     } else {
       Ok(())

@@ -266,7 +266,12 @@ impl Worker for ScanStdin {
 }
 
 impl StdInWorker for ScanStdin {
-  fn parse_stdin<P: Printer>(&self, src: String, processor: &P::Processor) -> Option<P::Processed> {
+  fn produce_item<P: Printer>(
+    &self,
+    src: String,
+    path: &Path,
+    processor: &P::Processor,
+  ) -> Option<Vec<P::Processed>> {
     use ast_grep_core::Language;
     let lang = self.rules[0].language;
     let combined = CombinedScan::new(self.rules.iter().collect());
@@ -280,7 +285,6 @@ impl StdInWorker for ScanStdin {
     let scanned = combined.scan(&grep, pre_scan, false);
     let mut error_count = 0usize;
     let mut ret = vec![];
-    let path = Path::new("STDIN");
     for (rule, matches) in scanned.matches {
       if matches!(rule.severity, Severity::Error) {
         error_count = error_count.saturating_add(matches.len());
@@ -289,8 +293,7 @@ impl StdInWorker for ScanStdin {
         match_rule_on_file(path, matches, rule, &file_content, processor).expect("TODO");
       ret.push(processed);
     }
-    // TODO: currently only one rule is printed in stdin mode
-    Some(ret.pop().expect("TODO"))
+    Some(ret)
   }
 }
 fn match_rule_diff_on_file<T>(
