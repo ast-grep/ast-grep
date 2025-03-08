@@ -70,9 +70,11 @@ fn match_nodes_impl_recursive<'tree, D: Doc + 'tree>(
       ControlFlow::Continue => continue,
       ControlFlow::Fallthrough => (),
     }
-    // skip if cand children is trivial
-    goal_children.next();
-    cand_children.next();
+    let consumed_goal = goal_children.next();
+    // if goal runs out, do not proceed cand nodes
+    if consumed_goal.is_some() {
+      cand_children.next();
+    }
     if goal_children.peek().is_none() {
       // all goal found
       let has_trailing = cand_children.all(|n| strictness.should_skip_trailing(&n));
@@ -278,6 +280,22 @@ mod test {
   fn test_relaxed_match() {
     matched("import $A from 'lib'", "import A from \"lib\"", M::Relaxed);
     matched("$A(bar)", "foo(/* A*/bar)", M::Relaxed);
+    // fix https://github.com/ast-grep/ast-grep/issues/1848
+    matched(
+      "import { foo } from 'bar'",
+      "import { foo, } from 'bar'",
+      M::Relaxed,
+    );
+    unmatched(
+      "import { foo } from 'bar'",
+      "import { foo, bar, baz } from 'bar'",
+      M::Relaxed,
+    );
+    unmatched(
+      "import { foo } from 'bar'",
+      "import { foo, bar } from 'bar'",
+      M::Relaxed,
+    );
   }
 
   #[test]
