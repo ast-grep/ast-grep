@@ -9,12 +9,13 @@ use ast_grep_core::language::Language;
 use ast_grep_core::replacer::Replacer;
 use ast_grep_core::{Matcher, NodeMatch, StrDoc};
 
-use schemars::JsonSchema;
+use schemars::{gen::SchemaGenerator, schema::Schema, JsonSchema};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Error as YamlError;
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer};
 use thiserror::Error;
 
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
 
@@ -84,7 +85,34 @@ pub struct SerializableRuleConfig<L: Language> {
   /// Documentation link to this rule
   pub url: Option<String>,
   /// Extra information for the rule
-  pub metadata: Option<HashMap<String, String>>,
+  pub metadata: Option<Metadata>,
+}
+
+/// A trivial wrapper around a HashMap to work around
+/// the limitation of `serde_yaml::Value` not implementing `JsonSchema`.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Metadata(HashMap<String, serde_yaml::Value>);
+
+impl JsonSchema for Metadata {
+  fn schema_name() -> String {
+    "Metadata".to_string()
+  }
+  fn schema_id() -> Cow<'static, str> {
+    Cow::Borrowed("Metadata")
+  }
+  fn json_schema(_gen: &mut SchemaGenerator) -> Schema {
+    use schemars::schema::{InstanceType, ObjectValidation, SchemaObject};
+    let subschema = Schema::Bool(true);
+    SchemaObject {
+      instance_type: Some(InstanceType::Object.into()),
+      object: Some(Box::new(ObjectValidation {
+        additional_properties: Some(Box::new(subschema)),
+        ..Default::default()
+      })),
+      ..Default::default()
+    }
+    .into()
+  }
 }
 
 impl<L: Language> SerializableRuleConfig<L> {
@@ -672,5 +700,21 @@ message: $TEST
     let grep = TypeScript::Tsx.ast_grep("a = '123'");
     let nm = grep.root().find(&rule.matcher).unwrap();
     assert_eq!(rule.get_message(&nm), "'123'");
+  }
+
+  #[test]
+  fn test_complex_metadata() {
+    let src = r"
+id: test-rule
+language: Tsx
+rule: { kind: string }
+metadata:
+  test: [1, 2, 3]
+  ";
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+    let rule = RuleConfig::try_from(rule, &Default::default()).expect("should work");
+    let grep = TypeScript::Tsx.ast_grep("a = '123'");
+    let nm = grep.root().find(&rule.matcher);
+    assert!(nm.is_some());
   }
 }
