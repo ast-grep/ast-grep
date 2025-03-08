@@ -69,13 +69,14 @@
     },
     "metadata": {
       "description": "Extra information for the rule",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": {
-        "type": "string"
-      }
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Metadata"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "note": {
       "description": "Additional notes to elaborate the message and provide potential fix to the issue.",
@@ -198,6 +199,10 @@
     },
     "Maybe_String": {
       "type": "string"
+    },
+    "Metadata": {
+      "type": "object",
+      "additionalProperties": true
     },
     "NthChildSimple": {
       "description": "A string or number describing the indices of matching nodes in a list of siblings.",
