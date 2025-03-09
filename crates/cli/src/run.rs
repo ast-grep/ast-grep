@@ -233,7 +233,7 @@ impl PathWorker for RunWithInferredLang {
           eprintln!("╰▻ {e}");
           None
         });
-      let Some(processed) = match_one_file::<P>(processor, &unit, &rewrite)? else {
+      let Some(processed) = match_one_file(processor, &unit, &rewrite)? else {
         continue;
       };
       ret.push(processed);
@@ -314,7 +314,7 @@ impl PathWorker for RunWithSpecificLang {
     };
     let mut ret = Vec::with_capacity(filtered.len());
     for unit in filtered {
-      let Some(processed) = match_one_file::<P>(processor, &unit, &self.rewrite)? else {
+      let Some(processed) = match_one_file(processor, &unit, &self.rewrite)? else {
         continue;
       };
       ret.push(processed);
@@ -348,11 +348,11 @@ impl StdInWorker for RunWithSpecificLang {
     Ok(vec![processed])
   }
 }
-fn match_one_file<P: Printer>(
-  processor: &P::Processor,
+fn match_one_file<T, P: PrintProcessor<T>>(
+  processor: &P,
   match_unit: &MatchUnit<impl Matcher<SgLang>>,
   rewrite: &Option<Fixer<SgLang>>,
-) -> Result<Option<P::Processed>> {
+) -> Result<Option<T>> {
   let MatchUnit {
     path,
     grep,
