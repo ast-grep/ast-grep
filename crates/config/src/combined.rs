@@ -3,7 +3,6 @@ use crate::{RuleConfig, SerializableRule, SerializableRuleConfig, SerializableRu
 use ast_grep_core::language::Language;
 use ast_grep_core::{AstGrep, Doc, Matcher, Node, NodeMatch};
 
-use bit_set::BitSet;
 use std::collections::{HashMap, HashSet};
 
 pub struct ScanResult<'t, 'r, D: Doc, L: Language> {
@@ -117,13 +116,12 @@ impl MaySuppressed<'_> {
 const IGNORE_TEXT: &str = "ast-grep-ignore";
 
 pub struct PreScan {
-  hit_set: BitSet,
   suppressions: Suppressions,
 }
 
 impl PreScan {
   pub fn is_empty(&self) -> bool {
-    self.hit_set.is_empty() && self.suppressions.0.is_empty()
+    false
   }
 }
 
@@ -177,28 +175,11 @@ impl<'r, L: Language> CombinedScan<'r, L> {
   where
     D: Doc<Lang = L>,
   {
-    let mut hit = BitSet::new();
     let mut suppressions = Suppressions(HashMap::new());
     for node in root.root().dfs() {
       suppressions.collect(&node);
-      let kind = node.kind_id() as usize;
-      let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
-        continue;
-      };
-      for &idx in rule_idx {
-        if hit.contains(idx) {
-          continue;
-        }
-        let rule = &self.rules[idx];
-        if rule.matcher.match_node(node.clone()).is_some() {
-          hit.insert(idx);
-        }
-      }
     }
-    PreScan {
-      hit_set: hit,
-      suppressions,
-    }
+    PreScan { suppressions }
   }
 
   pub fn scan<'a, D>(
@@ -215,10 +196,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
       matches: HashMap::new(),
       unused_suppressions: vec![],
     };
-    let PreScan {
-      hit_set,
-      mut suppressions,
-    } = pre;
+    let PreScan { mut suppressions } = pre;
     let mut suppression_ids = suppressions.suppression_ids();
     let mut suppression_nodes = HashMap::new();
     for node in root.root().dfs() {
@@ -231,9 +209,6 @@ impl<'r, L: Language> CombinedScan<'r, L> {
       };
       let suppression = suppressions.check_suppression(&node);
       for &idx in rule_idx {
-        if !hit_set.contains(idx) {
-          continue;
-        }
         let rule = &self.rules[idx];
         let Some(ret) = rule.matcher.match_node(node.clone()) else {
           continue;
