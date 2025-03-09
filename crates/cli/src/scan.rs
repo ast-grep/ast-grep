@@ -15,7 +15,7 @@ use crate::print::{
 };
 use crate::utils::ErrorContext as EC;
 use crate::utils::RuleOverwrite;
-use crate::utils::{filter_file_interactive, ContextArgs, InputArgs, OutputArgs, OverwriteArgs};
+use crate::utils::{filter_file_rule, ContextArgs, InputArgs, OutputArgs, OverwriteArgs};
 use crate::utils::{FileTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
@@ -196,12 +196,11 @@ impl PathWorker for ScanWithConfig {
     path: &Path,
     processor: &P::Processor,
   ) -> Result<Vec<P::Processed>> {
-    let items = filter_file_interactive(path, &self.configs, &self.trace)?;
+    let items = filter_file_rule(path, &self.configs, &self.trace)?;
     let mut error_count = 0usize;
     let mut ret = vec![];
-    for (path, grep) in items {
+    for grep in items {
       let file_content = grep.source().to_string();
-      let path = &path;
       let rules = self.configs.get_rule_from_lang(path, *grep.lang());
       let mut combined = CombinedScan::new(rules);
       combined.set_unused_suppression_rule(&self.unused_suppression_rule);

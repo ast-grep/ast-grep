@@ -116,25 +116,25 @@ fn collect_file_stats(
   Ok(())
 }
 
-pub fn filter_file_interactive(
+pub fn filter_file_rule(
   path: &Path,
   configs: &RuleCollection<SgLang>,
   trace: &ScanTrace,
-) -> Result<Vec<(PathBuf, AstGrep)>> {
+) -> Result<Vec<AstGrep>> {
   let Some(lang) = SgLang::from_path(path) else {
     return Ok(vec![]);
   };
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(file_content);
   collect_file_stats(path, lang, configs, trace)?;
-  let mut ret = vec![(path.to_path_buf(), grep.clone())];
+  let mut ret = vec![grep.clone()];
   if let Some(injected) = lang.injectable_sg_langs() {
     let docs = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
     let inj = injected.filter_map(|l| {
       let doc = docs.iter().find(|d| *d.lang() == l)?;
       let grep = AstGrep { inner: doc.clone() };
       collect_file_stats(path, l, configs, trace).ok()?;
-      Some((path.to_path_buf(), grep))
+      Some(grep)
     });
     ret.extend(inj)
   }
