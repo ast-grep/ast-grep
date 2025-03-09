@@ -211,15 +211,15 @@ impl PathWorker for RunWithInferredLang {
     self.trace.print_file(path, lang)?;
     let matcher = self.arg.build_pattern(lang)?;
     // match sub region
-    let items = if let Some(sub_langs) = lang.injectable_sg_langs() {
-      let sub_matchers = sub_langs.filter_map(|l| {
-        let pattern = self.arg.build_pattern(l).ok()?;
-        Some((l, pattern))
-      });
-      filter_file_pattern(path, lang, Some(matcher), sub_matchers)?
-    } else {
-      filter_file_pattern(path, lang, Some(matcher), std::iter::empty())?
-    };
+    let sub_langs = lang.injectable_sg_langs().into_iter().flatten();
+    let sub_matchers = sub_langs
+      .filter_map(|l| {
+        let maybe_pattern = self.arg.build_pattern(l);
+        maybe_pattern.ok().map(|pattern| (l, pattern))
+      })
+      .collect::<Vec<_>>();
+
+    let items = filter_file_pattern(path, lang, Some(&matcher), &sub_matchers)?;
     let mut ret = Vec::with_capacity(items.len());
     let rewrite_str = self.arg.rewrite.as_ref();
 
@@ -301,17 +301,18 @@ impl PathWorker for RunWithSpecificLang {
     processor: &P::Processor,
   ) -> Result<Vec<P::Processed>> {
     let arg = &self.arg;
-    let pattern = self.pattern.clone();
+    let pattern = &self.pattern;
     let lang = arg.lang.expect("must present");
     let Some(path_lang) = SgLang::from_path(path) else {
       return Ok(vec![]);
     };
     self.stats.print_file(path, path_lang)?;
-    let filtered = if path_lang == lang {
-      filter_file_pattern(path, lang, Some(pattern), std::iter::empty())?
+    let (root_matcher, sub_matchers) = if path_lang == lang {
+      (Some(pattern), vec![])
     } else {
-      filter_file_pattern(path, path_lang, None, std::iter::once((lang, pattern)))?
+      (None, vec![(lang, pattern.clone())])
     };
+    let filtered = filter_file_pattern(path, path_lang, root_matcher, &sub_matchers)?;
     let mut ret = Vec::with_capacity(filtered.len());
     for unit in filtered {
       let Some(processed) = match_one_file(processor, &unit, &self.rewrite)? else {

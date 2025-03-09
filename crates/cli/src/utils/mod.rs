@@ -144,15 +144,15 @@ pub fn filter_file_rule(
 
 // sub_matchers are the injected languages
 // e.g. js/css in html
-pub fn filter_file_pattern(
+pub fn filter_file_pattern<'a>(
   path: &Path,
   lang: SgLang,
-  root_matcher: Option<Pattern<SgLang>>,
-  sub_matchers: impl Iterator<Item = (SgLang, Pattern<SgLang>)>,
-) -> Result<SmallVec<[MatchUnit<Pattern<SgLang>>; 1]>> {
+  root_matcher: Option<&'a Pattern<SgLang>>,
+  sub_matchers: &'a [(SgLang, Pattern<SgLang>)],
+) -> Result<SmallVec<[MatchUnit<&'a Pattern<SgLang>>; 1]>> {
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(&file_content);
-  let do_match = |ast_grep: AstGrep, matcher: Pattern<SgLang>| {
+  let do_match = |ast_grep: AstGrep, matcher: &'a Pattern<SgLang>| {
     let fixed = matcher.fixed_string();
     if !fixed.is_empty() && !file_content.contains(&*fixed) {
       return None;
@@ -168,11 +168,9 @@ pub fn filter_file_pattern(
     ret.extend(do_match(grep.clone(), matcher));
   }
   let injections = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
-  let sub_units = sub_matchers.filter_map(|(i_lang, matcher)| {
-    let injection = injections.iter().find(|i| *i.lang() == i_lang)?;
-    let injected = AstGrep {
-      inner: injection.clone(),
-    };
+  let sub_units = injections.into_iter().filter_map(|inner| {
+    let (_, matcher) = sub_matchers.iter().find(|i| *inner.lang() == i.0)?;
+    let injected = AstGrep { inner };
     do_match(injected, matcher)
   });
   ret.extend(sub_units);
