@@ -189,8 +189,8 @@ impl From<ts::Point> for Pos {
   #[inline]
   fn from(pt: ts::Point) -> Self {
     Pos {
-      row: pt.row(),
-      column: pt.column(),
+      row: pt.row as u32,
+      column: pt.column as u32,
     }
   }
 }

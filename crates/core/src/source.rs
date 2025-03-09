@@ -16,17 +16,17 @@ use std::borrow::Cow;
 use std::ops::Range;
 use thiserror::Error;
 use tree_sitter::{
-  InputEdit, Language as TsLang, LanguageError, Node, Parser, ParserError, Point, Tree,
+  InputEdit, Language as TsLang, LanguageError, Node, Parser, Point, Tree,
 };
 
 #[inline]
 fn parse_lang(
-  parse_fn: impl Fn(&mut Parser) -> Result<Option<Tree>, ParserError>,
+  parse_fn: impl Fn(&mut Parser) -> Option<Tree>,
   ts_lang: TsLang,
 ) -> Result<Tree, TSParseError> {
-  let mut parser = Parser::new()?;
-  parser.set_language(&ts_lang)?;
-  if let Some(tree) = parse_fn(&mut parser)? {
+  let mut parser = Parser::new();
+  parser.set_language(&ts_lang).map_err(TSParseError::Language)?;
+  if let Some(tree) = parse_fn(&mut parser) {
     Ok(tree)
   } else {
     Err(TSParseError::TreeUnavailable)
@@ -65,7 +65,7 @@ pub fn perform_edit<S: Content>(tree: &mut Tree, input: &mut S, edit: &Edit<S>) 
 #[derive(Debug, Error)]
 pub enum TSParseError {
   #[error("web-tree-sitter parser is not available")]
-  Parse(#[from] ParserError),
+  Parse(String),
   #[error("incompatible `Language` is assigned to a `Parser`.")]
   Language(#[from] LanguageError),
   /// A general error when tree sitter fails to parse in time. It can be caused by
@@ -136,7 +136,7 @@ pub trait Content: Sized {
     &self,
     parser: &mut Parser,
     tree: Option<&Tree>,
-  ) -> Result<Option<Tree>, ParserError>;
+  ) -> Option<Tree>;
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying];
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit;
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str>;
@@ -156,16 +156,18 @@ impl Content for String {
     &self,
     parser: &mut Parser,
     tree: Option<&Tree>,
-  ) -> Result<Option<Tree>, ParserError> {
+  ) -> Option<Tree> {
     parser.parse(self.as_bytes(), tree)
   }
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying] {
     &self.as_bytes()[range]
   }
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str> {
-    node
-      .utf8_text(self.as_bytes())
-      .expect("invalid source text encoding")
+    Cow::Borrowed(
+      node
+        .utf8_text(self.as_bytes())
+        .expect("invalid source text encoding")
+    )
   }
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit {
     let start_byte = edit.position;
@@ -176,14 +178,14 @@ impl Content for String {
     let old_end_position = position_for_offset(input, old_end_byte);
     input.splice(start_byte..old_end_byte, edit.inserted_text.clone());
     let new_end_position = position_for_offset(input, new_end_byte);
-    InputEdit::new(
-      start_byte as u32,
-      old_end_byte as u32,
-      new_end_byte as u32,
-      &start_position,
-      &old_end_position,
-      &new_end_position,
-    )
+    InputEdit {
+      start_byte,
+      old_end_byte,
+      new_end_byte,
+      start_position,
+      old_end_position,
+      new_end_position,
+    }
   }
   fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
     Cow::Borrowed(src.as_bytes())
@@ -218,7 +220,7 @@ mod test {
   use crate::language::{Language, Tsx};
 
   fn parse(src: &str) -> Result<Tree, TSParseError> {
-    parse_lang(|p| p.parse(src, None), Tsx.get_ts_language())
+    parse_lang(|p| p.parse(src.as_bytes(), None), Tsx.get_ts_language())
   }
 
   #[test]
@@ -226,8 +228,10 @@ mod test {
     let tree = parse("var a = 1234")?;
     let root_node = tree.root_node();
     assert_eq!(root_node.kind(), "program");
-    assert_eq!(root_node.start_position().column(), 0);
-    assert_eq!(root_node.end_position().column(), 12);
+    assert_eq!(root_node.start_position().row, 0);
+    assert_eq!(root_node.start_position().column, 0);
+    assert_eq!(root_node.end_position().row, 0);
+    assert_eq!(root_node.end_position().column, 12);
     assert_eq!(
       root_node.to_sexp(),
       "(program (variable_declaration (variable_declarator name: (identifier) value: (number))))"
@@ -259,9 +263,11 @@ mod test {
   fn test_row_col() -> Result<(), TSParseError> {
     let tree = parse("😄")?;
     let root = tree.root_node();
-    assert_eq!(root.start_position(), Point::new(0, 0));
+    assert_eq!(root.start_position().row, 0);
+    assert_eq!(root.start_position().column, 0);
     // NOTE: Point in tree-sitter is counted in bytes instead of char
-    assert_eq!(root.end_position(), Point::new(0, 4));
+    assert_eq!(root.end_position().row, 0);
+    assert_eq!(root.end_position().column, 4);
     Ok(())
   }
 
@@ -278,7 +284,7 @@ mod test {
         inserted_text: " * b".into(),
       },
     );
-    let tree2 = parse_lang(|p| p.parse(&src, Some(&tree)), Tsx.get_ts_language())?;
+    let tree2 = parse_lang(|p| p.parse(src.as_bytes(), Some(&tree)), Tsx.get_ts_language())?;
     assert_eq!(
       tree.root_node().to_sexp(),
       "(program (expression_statement (binary_expression left: (identifier) right: (identifier))))"
