@@ -115,9 +115,7 @@ impl MaySuppressed<'_> {
 
 const IGNORE_TEXT: &str = "ast-grep-ignore";
 
-pub struct PreScan {
-  suppressions: Suppressions,
-}
+pub struct PreScan {}
 
 impl PreScan {
   pub fn is_empty(&self) -> bool {
@@ -171,21 +169,17 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     self.unused_suppression_rule = Some(rule);
   }
 
-  pub fn find<D>(&self, root: &AstGrep<D>) -> PreScan
+  pub fn find<D>(&self, _root: &AstGrep<D>) -> PreScan
   where
     D: Doc<Lang = L>,
   {
-    let mut suppressions = Suppressions(HashMap::new());
-    for node in root.root().dfs() {
-      suppressions.collect(&node);
-    }
-    PreScan { suppressions }
+    PreScan {}
   }
 
   pub fn scan<'a, D>(
     &self,
     root: &'a AstGrep<D>,
-    pre: PreScan,
+    _pre: PreScan,
     separate_fix: bool,
   ) -> ScanResult<'a, '_, D, L>
   where
@@ -196,7 +190,10 @@ impl<'r, L: Language> CombinedScan<'r, L> {
       matches: HashMap::new(),
       unused_suppressions: vec![],
     };
-    let PreScan { mut suppressions } = pre;
+    let mut suppressions = Suppressions(HashMap::new());
+    for node in root.root().dfs() {
+      suppressions.collect(&node);
+    }
     let mut suppression_ids = suppressions.suppression_ids();
     let mut suppression_nodes = HashMap::new();
     for node in root.root().dfs() {
@@ -317,7 +314,6 @@ language: Tsx",
     let rules = vec![&rule];
     let scan = CombinedScan::new(rules);
     let pre = scan.find(&root);
-    assert_eq!(pre.suppressions.0.len(), 4);
     let scanned = scan.scan(&root, pre, false);
     let matches = &scanned.matches[0];
     assert_eq!(matches.1.len(), 2);
@@ -339,7 +335,6 @@ language: Tsx",
     let rules = vec![&rule];
     let scan = CombinedScan::new(rules);
     let pre = scan.find(&root);
-    assert_eq!(pre.suppressions.0.len(), 4);
     let scanned = scan.scan(&root, pre, false);
     let matches = &scanned.matches[0];
     assert_eq!(matches.1.len(), 2);
@@ -360,7 +355,6 @@ language: Tsx",
     let mut scan = CombinedScan::new(rules);
     scan.set_unused_suppression_rule(&rule);
     let pre = scan.find(&root);
-    assert_eq!(pre.suppressions.0.len(), 2);
     let scanned = scan.scan(&root, pre, false);
     assert_eq!(scanned.matches.len(), 2);
     let unused = &scanned.matches[1];
