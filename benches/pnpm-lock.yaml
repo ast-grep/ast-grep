@@ -41,8 +41,8 @@ devDependencies:
     specifier: 22.13.10
     version: 22.13.10
   prettier:
-    specifier: 3.5.2
-    version: 3.5.2
+    specifier: 3.5.3
+    version: 3.5.3
   ts-node:
     specifier: 10.9.2
     version: 10.9.2(@swc/core@1.11.8)(@types/node@22.13.10)(typescript@5.8.2)
@@ -837,8 +837,8 @@ packages:
     resolution: {integrity: sha512-fnWVljUchTro6RiCFvCXBbNhJc2NijN7oIQxbwsyL0buWJPG85v81ehlHI9fXrJsMNgTofEoWIQeClKpgxFLrg==}
     dev: false
 
-  /prettier@3.5.2:
-    resolution: {integrity: sha512-lc6npv5PH7hVqozBR7lkBNOGXV9vMwROAPlumdBkX0wTbbzPu/U1hk5yL8p2pt4Xoc+2mkT8t/sow2YrV/M5qg==}
+  /prettier@3.5.3:
+    resolution: {integrity: sha512-QQtaxnoDJeAkDvDKWCLiwIXkTgRhwYDEQCghU9Z6q03iyek/rxRh/2lC3HB7P8sWT2xC/y5JDctPLBIGzHKbhw==}
     engines: {node: '>=14'}
     hasBin: true
     dev: true
