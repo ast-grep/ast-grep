@@ -168,15 +168,14 @@ pub fn filter_file_pattern(
     ret.extend(do_match(grep.clone(), matcher));
   }
   let injections = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
-  for (i_lang, matcher) in sub_matchers {
-    let Some(injection) = injections.iter().find(|i| *i.lang() == i_lang) else {
-      continue;
-    };
+  let sub_units = sub_matchers.filter_map(|(i_lang, matcher)| {
+    let injection = injections.iter().find(|i| *i.lang() == i_lang)?;
     let injected = AstGrep {
       inner: injection.clone(),
     };
-    ret.extend(do_match(injected, matcher));
-  }
+    do_match(injected, matcher)
+  });
+  ret.extend(sub_units);
   Ok(ret)
 }
 
