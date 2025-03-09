@@ -210,15 +210,14 @@ impl PathWorker for ScanWithConfig {
       let scanned = combined.scan(&grep, pre_scan, /* separate_fix*/ interactive);
       if interactive {
         let diffs = scanned.diffs;
-        let processed = match_rule_diff_on_file(path, diffs, processor).expect("TODO");
+        let processed = match_rule_diff_on_file(path, diffs, processor)?;
         ret.push(processed);
       }
       for (rule, matches) in scanned.matches {
         if matches!(rule.severity, Severity::Error) {
           error_count = error_count.saturating_add(matches.len());
         }
-        let processed =
-          match_rule_on_file(path, matches, rule, &file_content, processor).expect("TODO");
+        let processed = match_rule_on_file(path, matches, rule, &file_content, processor)?;
         ret.push(processed);
       }
     }
@@ -289,8 +288,7 @@ impl StdInWorker for ScanStdin {
       if matches!(rule.severity, Severity::Error) {
         error_count = error_count.saturating_add(matches.len());
       }
-      let processed =
-        match_rule_on_file(path, matches, rule, &file_content, processor).expect("TODO");
+      let processed = match_rule_on_file(path, matches, rule, &file_content, processor)?;
       ret.push(processed);
     }
     self.error_count.fetch_add(error_count, Ordering::AcqRel);

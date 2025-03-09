@@ -220,28 +220,22 @@ impl PathWorker for RunWithInferredLang {
     } else {
       filter_file_pattern(path, lang, Some(matcher), std::iter::empty())?
     };
-    Ok(
-      items
-        .into_iter()
-        .map(|n| {
-          let (unit, lang) = n;
-          let rewrite = self
-            .arg
-            .rewrite
-            .as_ref()
-            .map(|s| Fixer::from_str(s, &lang))
-            .transpose();
-          match rewrite {
-            Ok(r) => match_one_file::<P>(processor, &unit, &r).expect("TODO"),
-            Err(e) => {
-              eprintln!("⚠️  Rewriting was skipped because pattern fails to parse. Error detail:");
-              eprintln!("╰▻ {e}");
-              match_one_file::<P>(processor, &unit, &None).expect("TODO")
-            }
-          }
-        })
-        .collect(),
-    )
+    let mut ret = Vec::with_capacity(items.len());
+    let rewrite_str = self.arg.rewrite.as_ref();
+
+    for (unit, lang) in items {
+      let rewrite = rewrite_str
+        .map(|s| Fixer::from_str(s, &lang))
+        .transpose()
+        .unwrap_or_else(|e| {
+          eprintln!("⚠️  Rewriting was skipped because pattern fails to parse. Error detail:");
+          eprintln!("╰▻ {e}");
+          None
+        });
+      let processed = match_one_file::<P>(processor, &unit, &rewrite)?;
+      ret.push(processed);
+    }
+    Ok(ret)
   }
 }
 
@@ -315,12 +309,11 @@ impl PathWorker for RunWithSpecificLang {
     } else {
       filter_file_pattern(path, path_lang, None, std::iter::once((lang, pattern)))?
     };
-    let ret = filtered
-      .into_iter()
-      .map(|(match_unit, _)| {
-        match_one_file::<P>(processor, &match_unit, &self.rewrite).expect("TODO")
-      })
-      .collect();
+    let mut ret = Vec::with_capacity(filtered.len());
+    for (unit, _) in filtered {
+      let processed = match_one_file::<P>(processor, &unit, &self.rewrite)?;
+      ret.push(processed);
+    }
     Ok(ret)
   }
 }
@@ -338,11 +331,9 @@ impl StdInWorker for RunWithSpecificLang {
     let path = Path::new("STDIN");
     let processed = if let Some(rewrite) = rewrite {
       let diffs = matches.map(|m| Diff::generate(m, &self.pattern, rewrite));
-      processor.print_diffs(diffs.collect(), path).expect("TODO")
+      processor.print_diffs(diffs.collect(), path)?
     } else {
-      processor
-        .print_matches(matches.collect(), path)
-        .expect("TODO")
+      processor.print_matches(matches.collect(), path)?
     };
     Ok(vec![processed])
   }
