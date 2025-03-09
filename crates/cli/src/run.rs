@@ -331,19 +331,17 @@ impl StdInWorker for RunWithSpecificLang {
   ) -> Result<Vec<P::Processed>> {
     let lang = self.arg.lang.expect("must present");
     let grep = lang.ast_grep(src);
-    let matches: Vec<_> = grep.root().find_all(&self.pattern).collect();
-    let rewrite = &self.rewrite;
-    let path = Path::new("STDIN");
-    if matches.is_empty() {
+    let mut matches = grep.root().find_all(&self.pattern).peekable();
+    if matches.peek().is_none() {
       return Ok(vec![]);
     }
+    let rewrite = &self.rewrite;
+    let path = Path::new("STDIN");
     let processed = if let Some(rewrite) = rewrite {
-      let diffs = matches
-        .into_iter()
-        .map(|m| Diff::generate(m, &self.pattern, rewrite));
+      let diffs = matches.map(|m| Diff::generate(m, &self.pattern, rewrite));
       processor.print_diffs(diffs.collect(), path)?
     } else {
-      processor.print_matches(matches, path)?
+      processor.print_matches(matches.collect(), path)?
     };
     Ok(vec![processed])
   }
@@ -359,17 +357,15 @@ fn match_one_file<T, P: PrintProcessor<T>>(
     matcher,
   } = match_unit;
 
-  let matches: Vec<_> = grep.root().find_all(matcher).collect();
-  if matches.is_empty() {
+  let mut matches = grep.root().find_all(matcher).peekable();
+  if matches.peek().is_none() {
     return Ok(None);
   }
   let ret = if let Some(rewrite) = rewrite {
-    let diffs = matches
-      .into_iter()
-      .map(|m| Diff::generate(m, matcher, rewrite));
+    let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
     processor.print_diffs(diffs.collect(), path)?
   } else {
-    processor.print_matches(matches, path)?
+    processor.print_matches(matches.collect(), path)?
   };
   Ok(Some(ret))
 }
