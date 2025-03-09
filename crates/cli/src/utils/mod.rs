@@ -16,7 +16,7 @@ pub use worker::{Items, PathWorker, StdInWorker, Worker};
 
 use crate::lang::SgLang;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use crossterm::{
   cursor::MoveTo,
   event::{self, Event, KeyCode},
@@ -92,17 +92,16 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
   }
 }
 
-fn read_file(path: &Path) -> Option<String> {
-  let file_content = read_to_string(path)
-    .with_context(|| format!("Cannot read file {}", path.to_string_lossy()))
-    .map_err(|err| eprintln!("{err:#}"))
-    .ok()?;
+fn read_file(path: &Path) -> Result<String> {
+  let file_content =
+    read_to_string(path).with_context(|| format!("Cannot read file {}", path.to_string_lossy()))?;
   // skip large files or empty file
-  if file_too_large(&file_content) || file_content.is_empty() {
-    // TODO add output
-    None
+  if file_too_large(&file_content) {
+    Err(anyhow!("File is too large"))
+  } else if file_content.is_empty() {
+    Err(anyhow!("File is empty"))
   } else {
-    Some(file_content)
+    Ok(file_content)
   }
 }
 
@@ -128,8 +127,10 @@ pub fn filter_file_interactive(
   path: &Path,
   configs: &RuleCollection<SgLang>,
   trace: &ScanTrace,
-) -> Option<Vec<(PathBuf, AstGrep, PreScan)>> {
-  let lang = SgLang::from_path(path)?;
+) -> Result<Vec<(PathBuf, AstGrep, PreScan)>> {
+  let Some(lang) = SgLang::from_path(path) else {
+    return Ok(vec![]);
+  };
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(file_content);
   let mut ret = vec![];
@@ -146,7 +147,7 @@ pub fn filter_file_interactive(
     });
     ret.extend(inj)
   }
-  Some(ret)
+  Ok(ret)
 }
 
 // sub_matchers are the injected languages
@@ -156,7 +157,7 @@ pub fn filter_file_pattern(
   lang: SgLang,
   root_matcher: Option<Pattern<SgLang>>,
   sub_matchers: impl Iterator<Item = (SgLang, Pattern<SgLang>)>,
-) -> Option<Vec<(MatchUnit<Pattern<SgLang>>, SgLang)>> {
+) -> Result<Vec<(MatchUnit<Pattern<SgLang>>, SgLang)>> {
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(&file_content);
   let do_match = |ast_grep: AstGrep, matcher: Pattern<SgLang>, lang: SgLang| {
@@ -190,7 +191,7 @@ pub fn filter_file_pattern(
     };
     ret.extend(do_match(injected, matcher, i_lang));
   }
-  Some(ret)
+  Ok(ret)
 }
 
 const MAX_FILE_SIZE: usize = 3_000_000;

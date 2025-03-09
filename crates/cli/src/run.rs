@@ -204,10 +204,12 @@ impl PathWorker for RunWithInferredLang {
     &self,
     path: &Path,
     processor: &P::Processor,
-  ) -> Option<Vec<P::Processed>> {
-    let lang = SgLang::from_path(path)?;
-    self.trace.print_file(path, lang).ok()?;
-    let matcher = self.arg.build_pattern(lang).ok()?;
+  ) -> Result<Vec<P::Processed>> {
+    let Some(lang) = SgLang::from_path(path) else {
+      return Ok(vec![]);
+    };
+    self.trace.print_file(path, lang)?;
+    let matcher = self.arg.build_pattern(lang)?;
     // match sub region
     let items = if let Some(sub_langs) = lang.injectable_sg_langs() {
       let sub_matchers = sub_langs.filter_map(|l| {
@@ -218,7 +220,7 @@ impl PathWorker for RunWithInferredLang {
     } else {
       filter_file_pattern(path, lang, Some(matcher), std::iter::empty())?
     };
-    Some(
+    Ok(
       items
         .into_iter()
         .map(|n| {
@@ -300,12 +302,14 @@ impl PathWorker for RunWithSpecificLang {
     &self,
     path: &Path,
     processor: &P::Processor,
-  ) -> Option<Vec<P::Processed>> {
+  ) -> Result<Vec<P::Processed>> {
     let arg = &self.arg;
     let pattern = self.pattern.clone();
     let lang = arg.lang.expect("must present");
-    let path_lang = SgLang::from_path(path)?;
-    self.stats.print_file(path, path_lang).ok()?;
+    let Some(path_lang) = SgLang::from_path(path) else {
+      return Ok(vec![]);
+    };
+    self.stats.print_file(path, path_lang)?;
     let filtered = if path_lang == lang {
       filter_file_pattern(path, lang, Some(pattern), std::iter::empty())?
     } else {
@@ -317,7 +321,7 @@ impl PathWorker for RunWithSpecificLang {
         match_one_file::<P>(processor, &match_unit, &self.rewrite).expect("TODO")
       })
       .collect();
-    Some(ret)
+    Ok(ret)
   }
 }
 
@@ -326,7 +330,7 @@ impl StdInWorker for RunWithSpecificLang {
     &self,
     src: String,
     processor: &P::Processor,
-  ) -> Option<Vec<P::Processed>> {
+  ) -> Result<Vec<P::Processed>> {
     let lang = self.arg.lang.expect("must present");
     let grep = lang.ast_grep(src);
     let matches = grep.root().find_all(&self.pattern);
@@ -340,7 +344,7 @@ impl StdInWorker for RunWithSpecificLang {
         .print_matches(matches.collect(), path)
         .expect("TODO")
     };
-    Some(vec![processed])
+    Ok(vec![processed])
   }
 }
 fn match_one_file<P: Printer>(

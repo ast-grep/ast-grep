@@ -195,7 +195,7 @@ impl PathWorker for ScanWithConfig {
     &self,
     path: &Path,
     processor: &P::Processor,
-  ) -> Option<Vec<P::Processed>> {
+  ) -> Result<Vec<P::Processed>> {
     let items = filter_file_interactive(path, &self.configs, &self.trace)?;
     let mut error_count = 0usize;
     let mut ret = vec![];
@@ -223,7 +223,7 @@ impl PathWorker for ScanWithConfig {
       }
     }
     self.error_count.fetch_add(error_count, Ordering::AcqRel);
-    Some(ret)
+    Ok(ret)
   }
 }
 
@@ -270,14 +270,14 @@ impl StdInWorker for ScanStdin {
     &self,
     src: String,
     processor: &P::Processor,
-  ) -> Option<Vec<P::Processed>> {
+  ) -> Result<Vec<P::Processed>> {
     use ast_grep_core::Language;
     let lang = self.rules[0].language;
     let combined = CombinedScan::new(self.rules.iter().collect());
     let grep = lang.ast_grep(src);
     let pre_scan = combined.find(&grep);
     if pre_scan.is_empty() {
-      return None;
+      return Ok(vec![]);
     }
     let path = Path::new("STDIN");
     let file_content = grep.source().to_string();
@@ -294,7 +294,7 @@ impl StdInWorker for ScanStdin {
       ret.push(processed);
     }
     self.error_count.fetch_add(error_count, Ordering::AcqRel);
-    Some(ret)
+    Ok(ret)
   }
 }
 fn match_rule_diff_on_file<T>(

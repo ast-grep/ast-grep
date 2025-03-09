@@ -37,7 +37,7 @@ pub trait PathWorker: Worker {
     &self,
     path: &Path,
     processor: &P::Processor,
-  ) -> Option<Vec<P::Processed>>;
+  ) -> Result<Vec<P::Processed>>;
 
   fn run_path<P: Printer>(self, printer: P) -> Result<()>
   where
@@ -52,12 +52,12 @@ pub trait StdInWorker: Worker {
     &self,
     src: String,
     processor: &P::Processor,
-  ) -> Option<Vec<P::Processed>>;
+  ) -> Result<Vec<P::Processed>>;
 
   fn run_std_in<P: Printer>(&self, printer: P) -> Result<()> {
     let source = std::io::read_to_string(std::io::stdin())?;
     let processor = printer.get_processor();
-    if let Some(items) = self.parse_stdin::<P>(source, &processor) {
+    if let Ok(items) = self.parse_stdin::<P>(source, &processor) {
       self.consume_items(Items::once(items)?, printer)
     } else {
       Ok(())
@@ -131,7 +131,7 @@ fn run_worker<W: PathWorker + ?Sized + 'static, P: Printer>(
         };
         let stats = w.get_trace();
         stats.add_scanned();
-        let Some(items) = w.produce_item::<P>(&p, processor) else {
+        let Ok(items) = w.produce_item::<P>(&p, processor) else {
           stats.add_skipped();
           return WalkState::Continue;
         };
