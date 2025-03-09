@@ -148,29 +148,24 @@ pub fn filter_file_pattern(
   lang: SgLang,
   root_matcher: Option<Pattern<SgLang>>,
   sub_matchers: impl Iterator<Item = (SgLang, Pattern<SgLang>)>,
-) -> Result<Vec<(MatchUnit<Pattern<SgLang>>, SgLang)>> {
+) -> Result<Vec<MatchUnit<Pattern<SgLang>>>> {
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(&file_content);
-  let do_match = |ast_grep: AstGrep, matcher: Pattern<SgLang>, lang: SgLang| {
+  let do_match = |ast_grep: AstGrep, matcher: Pattern<SgLang>| {
     let fixed = matcher.fixed_string();
     if !fixed.is_empty() && !file_content.contains(&*fixed) {
       return None;
     }
     let has_match = ast_grep.root().find(&matcher).is_some();
-    has_match.then(|| {
-      (
-        MatchUnit {
-          grep: ast_grep,
-          path: path.to_path_buf(),
-          matcher,
-        },
-        lang,
-      )
+    has_match.then(|| MatchUnit {
+      grep: ast_grep,
+      path: path.to_path_buf(),
+      matcher,
     })
   };
   let mut ret = vec![];
   if let Some(matcher) = root_matcher {
-    ret.extend(do_match(grep.clone(), matcher, lang));
+    ret.extend(do_match(grep.clone(), matcher));
   }
   let injections = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
   for (i_lang, matcher) in sub_matchers {
@@ -180,7 +175,7 @@ pub fn filter_file_pattern(
     let injected = AstGrep {
       inner: injection.clone(),
     };
-    ret.extend(do_match(injected, matcher, i_lang));
+    ret.extend(do_match(injected, matcher));
   }
   Ok(ret)
 }

@@ -223,9 +223,10 @@ impl PathWorker for RunWithInferredLang {
     let mut ret = Vec::with_capacity(items.len());
     let rewrite_str = self.arg.rewrite.as_ref();
 
-    for (unit, lang) in items {
+    for unit in items {
+      let i_lang = unit.grep.lang();
       let rewrite = rewrite_str
-        .map(|s| Fixer::from_str(s, &lang))
+        .map(|s| Fixer::from_str(s, i_lang))
         .transpose()
         .unwrap_or_else(|e| {
           eprintln!("⚠️  Rewriting was skipped because pattern fails to parse. Error detail:");
@@ -310,7 +311,7 @@ impl PathWorker for RunWithSpecificLang {
       filter_file_pattern(path, path_lang, None, std::iter::once((lang, pattern)))?
     };
     let mut ret = Vec::with_capacity(filtered.len());
-    for (unit, _) in filtered {
+    for unit in filtered {
       let processed = match_one_file::<P>(processor, &unit, &self.rewrite)?;
       ret.push(processed);
     }
