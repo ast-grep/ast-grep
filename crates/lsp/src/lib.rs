@@ -208,8 +208,7 @@ impl<L: LSPLang> Backend<L> {
       CombinedScan::unused_config(Severity::Hint, rules[0].language.clone());
     let mut scan = CombinedScan::new(rules);
     scan.set_unused_suppression_rule(&unused_suppression_rule);
-    let pre_scan = scan.find(&versioned.root);
-    let matches = scan.scan(&versioned.root, pre_scan, false).matches;
+    let matches = scan.scan(&versioned.root, false).matches;
     let mut diagnostics = vec![];
     for (rule, ms) in matches {
       let to_diagnostic = |m| convert_match_to_diagnostic(m, rule);

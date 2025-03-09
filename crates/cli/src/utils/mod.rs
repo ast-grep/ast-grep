@@ -25,7 +25,7 @@ use crossterm::{
   terminal::{Clear, ClearType},
 };
 
-use ast_grep_config::{CombinedScan, PreScan, RuleCollection};
+use ast_grep_config::RuleCollection;
 use ast_grep_core::Pattern;
 use ast_grep_core::{Matcher, StrDoc};
 use ast_grep_language::Language;
@@ -105,45 +105,36 @@ fn read_file(path: &Path) -> Result<String> {
   }
 }
 
-fn filter(
-  grep: &AstGrep,
+fn collect_file_stats(
   path: &Path,
   lang: SgLang,
   configs: &RuleCollection<SgLang>,
   rule_stats: &ScanTrace,
-) -> Option<PreScan> {
+) -> Result<()> {
   let rules = configs.get_rule_from_lang(path, lang);
-  rule_stats.print_file(path, lang, &rules).ok()?;
-  let combined = CombinedScan::new(rules);
-  let pre_scan = combined.find(grep);
-  if pre_scan.is_empty() {
-    None
-  } else {
-    Some(pre_scan)
-  }
+  rule_stats.print_file(path, lang, &rules)?;
+  Ok(())
 }
 
 pub fn filter_file_interactive(
   path: &Path,
   configs: &RuleCollection<SgLang>,
   trace: &ScanTrace,
-) -> Result<Vec<(PathBuf, AstGrep, PreScan)>> {
+) -> Result<Vec<(PathBuf, AstGrep)>> {
   let Some(lang) = SgLang::from_path(path) else {
     return Ok(vec![]);
   };
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(file_content);
-  let mut ret = vec![];
-  let root = filter(&grep, path, lang, configs, trace)
-    .map(|pre_scan| (path.to_path_buf(), grep.clone(), pre_scan));
-  ret.extend(root);
+  collect_file_stats(path, lang, configs, trace)?;
+  let mut ret = vec![(path.to_path_buf(), grep.clone())];
   if let Some(injected) = lang.injectable_sg_langs() {
     let docs = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
     let inj = injected.filter_map(|l| {
       let doc = docs.iter().find(|d| *d.lang() == l)?;
       let grep = AstGrep { inner: doc.clone() };
-      let pre_scan = filter(&grep, path, l, configs, trace)?;
-      Some((path.to_path_buf(), grep, pre_scan))
+      collect_file_stats(path, l, configs, trace).ok()?;
+      Some((path.to_path_buf(), grep))
     });
     ret.extend(inj)
   }

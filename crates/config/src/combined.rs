@@ -115,14 +115,6 @@ impl MaySuppressed<'_> {
 
 const IGNORE_TEXT: &str = "ast-grep-ignore";
 
-pub struct PreScan {}
-
-impl PreScan {
-  pub fn is_empty(&self) -> bool {
-    false
-  }
-}
-
 /// A struct to group all rules according to their potential kinds.
 /// This can greatly reduce traversal times and skip unmatchable rules.
 /// Rules are referenced by their index in the rules vector.
@@ -169,19 +161,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     self.unused_suppression_rule = Some(rule);
   }
 
-  pub fn find<D>(&self, _root: &AstGrep<D>) -> PreScan
-  where
-    D: Doc<Lang = L>,
-  {
-    PreScan {}
-  }
-
-  pub fn scan<'a, D>(
-    &self,
-    root: &'a AstGrep<D>,
-    _pre: PreScan,
-    separate_fix: bool,
-  ) -> ScanResult<'a, '_, D, L>
+  pub fn scan<'a, D>(&self, root: &'a AstGrep<D>, separate_fix: bool) -> ScanResult<'a, '_, D, L>
   where
     D: Doc<Lang = L>,
   {
@@ -313,8 +293,7 @@ language: Tsx",
     let rule = create_rule();
     let rules = vec![&rule];
     let scan = CombinedScan::new(rules);
-    let pre = scan.find(&root);
-    let scanned = scan.scan(&root, pre, false);
+    let scanned = scan.scan(&root, false);
     let matches = &scanned.matches[0];
     assert_eq!(matches.1.len(), 2);
     assert_eq!(matches.1[0].text(), "console.log('no ignore')");
@@ -334,8 +313,7 @@ language: Tsx",
     let rule = create_rule();
     let rules = vec![&rule];
     let scan = CombinedScan::new(rules);
-    let pre = scan.find(&root);
-    let scanned = scan.scan(&root, pre, false);
+    let scanned = scan.scan(&root, false);
     let matches = &scanned.matches[0];
     assert_eq!(matches.1.len(), 2);
     assert_eq!(matches.1[0].text(), "console.log('no ignore')");
@@ -354,8 +332,7 @@ language: Tsx",
     let rules = vec![&rule];
     let mut scan = CombinedScan::new(rules);
     scan.set_unused_suppression_rule(&rule);
-    let pre = scan.find(&root);
-    let scanned = scan.scan(&root, pre, false);
+    let scanned = scan.scan(&root, false);
     assert_eq!(scanned.matches.len(), 2);
     let unused = &scanned.matches[1];
     assert_eq!(unused.1.len(), 1);

@@ -199,7 +199,7 @@ impl PathWorker for ScanWithConfig {
     let items = filter_file_interactive(path, &self.configs, &self.trace)?;
     let mut error_count = 0usize;
     let mut ret = vec![];
-    for (path, grep, pre_scan) in items {
+    for (path, grep) in items {
       let file_content = grep.source().to_string();
       let path = &path;
       let rules = self.configs.get_rule_from_lang(path, *grep.lang());
@@ -207,7 +207,7 @@ impl PathWorker for ScanWithConfig {
       combined.set_unused_suppression_rule(&self.unused_suppression_rule);
       let interactive = self.arg.output.needs_interactive();
       // exclude_fix rule because we already have diff inspection before
-      let scanned = combined.scan(&grep, pre_scan, /* separate_fix*/ interactive);
+      let scanned = combined.scan(&grep, /* separate_fix*/ interactive);
       if interactive {
         let diffs = scanned.diffs;
         let processed = match_rule_diff_on_file(path, diffs, processor)?;
@@ -274,14 +274,10 @@ impl StdInWorker for ScanStdin {
     let lang = self.rules[0].language;
     let combined = CombinedScan::new(self.rules.iter().collect());
     let grep = lang.ast_grep(src);
-    let pre_scan = combined.find(&grep);
-    if pre_scan.is_empty() {
-      return Ok(vec![]);
-    }
     let path = Path::new("STDIN");
     let file_content = grep.source().to_string();
     // do not separate_fix rule in stdin mode
-    let scanned = combined.scan(&grep, pre_scan, false);
+    let scanned = combined.scan(&grep, false);
     let mut error_count = 0usize;
     let mut ret = vec![];
     for (rule, matches) in scanned.matches {
