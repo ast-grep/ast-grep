@@ -156,8 +156,7 @@ pub fn filter_file_pattern(
     if !fixed.is_empty() && !file_content.contains(&*fixed) {
       return None;
     }
-    let has_match = ast_grep.root().find(&matcher).is_some();
-    has_match.then(|| MatchUnit {
+    Some(MatchUnit {
       grep: ast_grep,
       path: path.to_path_buf(),
       matcher,

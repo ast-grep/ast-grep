@@ -233,7 +233,9 @@ impl PathWorker for RunWithInferredLang {
           eprintln!("╰▻ {e}");
           None
         });
-      let processed = match_one_file::<P>(processor, &unit, &rewrite)?;
+      let Some(processed) = match_one_file::<P>(processor, &unit, &rewrite)? else {
+        continue;
+      };
       ret.push(processed);
     }
     Ok(ret)
@@ -312,7 +314,9 @@ impl PathWorker for RunWithSpecificLang {
     };
     let mut ret = Vec::with_capacity(filtered.len());
     for unit in filtered {
-      let processed = match_one_file::<P>(processor, &unit, &self.rewrite)?;
+      let Some(processed) = match_one_file::<P>(processor, &unit, &self.rewrite)? else {
+        continue;
+      };
       ret.push(processed);
     }
     Ok(ret)
@@ -327,14 +331,19 @@ impl StdInWorker for RunWithSpecificLang {
   ) -> Result<Vec<P::Processed>> {
     let lang = self.arg.lang.expect("must present");
     let grep = lang.ast_grep(src);
-    let matches = grep.root().find_all(&self.pattern);
+    let matches: Vec<_> = grep.root().find_all(&self.pattern).collect();
     let rewrite = &self.rewrite;
     let path = Path::new("STDIN");
+    if matches.is_empty() {
+      return Ok(vec![]);
+    }
     let processed = if let Some(rewrite) = rewrite {
-      let diffs = matches.map(|m| Diff::generate(m, &self.pattern, rewrite));
+      let diffs = matches
+        .into_iter()
+        .map(|m| Diff::generate(m, &self.pattern, rewrite));
       processor.print_diffs(diffs.collect(), path)?
     } else {
-      processor.print_matches(matches.collect(), path)?
+      processor.print_matches(matches, path)?
     };
     Ok(vec![processed])
   }
@@ -343,20 +352,26 @@ fn match_one_file<P: Printer>(
   processor: &P::Processor,
   match_unit: &MatchUnit<impl Matcher<SgLang>>,
   rewrite: &Option<Fixer<SgLang>>,
-) -> Result<P::Processed> {
+) -> Result<Option<P::Processed>> {
   let MatchUnit {
     path,
     grep,
     matcher,
   } = match_unit;
 
-  let matches = grep.root().find_all(matcher);
-  if let Some(rewrite) = rewrite {
-    let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
-    processor.print_diffs(diffs.collect(), path)
-  } else {
-    processor.print_matches(matches.collect(), path)
+  let matches: Vec<_> = grep.root().find_all(matcher).collect();
+  if matches.is_empty() {
+    return Ok(None);
   }
+  let ret = if let Some(rewrite) = rewrite {
+    let diffs = matches
+      .into_iter()
+      .map(|m| Diff::generate(m, matcher, rewrite));
+    processor.print_diffs(diffs.collect(), path)?
+  } else {
+    processor.print_matches(matches, path)?
+  };
+  Ok(Some(ret))
 }
 
 #[cfg(test)]
