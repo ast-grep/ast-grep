@@ -137,6 +137,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "similar",
+ "smallvec",
  "tempfile",
  "tokio",
  "tree-sitter-facade-sg",

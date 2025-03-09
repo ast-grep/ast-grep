@@ -24,6 +24,7 @@ use crossterm::{
   terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
   terminal::{Clear, ClearType},
 };
+use smallvec::{smallvec, SmallVec};
 
 use ast_grep_config::RuleCollection;
 use ast_grep_core::Pattern;
@@ -120,14 +121,14 @@ pub fn filter_file_rule(
   path: &Path,
   configs: &RuleCollection<SgLang>,
   trace: &ScanTrace,
-) -> Result<Vec<AstGrep>> {
+) -> Result<SmallVec<[AstGrep; 1]>> {
   let Some(lang) = SgLang::from_path(path) else {
-    return Ok(vec![]);
+    return Ok(smallvec![]);
   };
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(file_content);
   collect_file_stats(path, lang, configs, trace)?;
-  let mut ret = vec![grep.clone()];
+  let mut ret = smallvec![grep.clone()];
   if let Some(injected) = lang.injectable_sg_langs() {
     let docs = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
     let inj = injected.filter_map(|l| {
@@ -148,7 +149,7 @@ pub fn filter_file_pattern(
   lang: SgLang,
   root_matcher: Option<Pattern<SgLang>>,
   sub_matchers: impl Iterator<Item = (SgLang, Pattern<SgLang>)>,
-) -> Result<Vec<MatchUnit<Pattern<SgLang>>>> {
+) -> Result<SmallVec<[MatchUnit<Pattern<SgLang>>; 1]>> {
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(&file_content);
   let do_match = |ast_grep: AstGrep, matcher: Pattern<SgLang>| {
@@ -162,7 +163,7 @@ pub fn filter_file_pattern(
       matcher,
     })
   };
-  let mut ret = vec![];
+  let mut ret = smallvec![];
   if let Some(matcher) = root_matcher {
     ret.extend(do_match(grep.clone(), matcher));
   }
