@@ -5,7 +5,7 @@ use ignore::types::{Types, TypesBuilder};
 use libloading::{Error as LibError, Library, Symbol};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tree_sitter_native::{Language as NativeTS, LANGUAGE_VERSION, MIN_COMPATIBLE_LANGUAGE_VERSION};
+use tree_sitter::{Language as NativeTS, LANGUAGE_VERSION, MIN_COMPATIBLE_LANGUAGE_VERSION};
 
 use std::borrow::Cow;
 use std::fs::canonicalize;

@@ -1,9 +1,5 @@
 [workspace]
-members = [
-  "crates/*",
-  "xtask",
-  "benches"
-]
+members = ["crates/*", "xtask", "benches"]
 default-members = ["crates/*"]
 resolver = "2"
 
@@ -12,7 +8,9 @@ lto = true
 
 [workspace.package]
 version = "0.36.0"
-authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
+authors = [
+  "Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>",
+]
 edition = "2021"
 license = "MIT"
 documentation = "https://ast-grep.github.io/guide/introduction.html"
@@ -33,8 +31,8 @@ ignore = { version = "0.4.22" }
 regex = { version = "1.10.4" }
 serde = { version = "1.0.200", features = ["derive"] }
 serde_yaml = "0.9.33"
-# tree-sitter = { version = "0.24.5", package = "tree-sitter-facade-sg" }
-tree-sitter = { version = "0.24.4" }
+tree-sitter = { version = "0.24.7" }
+
 
 thiserror = "2.0.0"
 schemars = "0.8.17"
