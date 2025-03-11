@@ -290,7 +290,7 @@ impl Worker for RunWithSpecificLang {
 impl PathWorker for RunWithSpecificLang {
   fn build_walk(&self) -> Result<WalkParallel> {
     let lang = self.arg.lang.expect("must present");
-    Ok(self.arg.input.walk_lang(lang))
+    self.arg.input.walk_lang(lang)
   }
   fn get_trace(&self) -> &FileTrace {
     &self.stats.inner

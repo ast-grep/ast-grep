@@ -71,43 +71,6 @@ impl InputArgs {
       self.threads
     }
   }
-  pub fn walk(&self) -> Result<WalkParallel> {
-    let threads = self.get_threads();
-    let globs = self.build_globs().context(EC::BuildGlobs)?;
-    Ok(
-      NoIgnore::disregard(&self.no_ignore)
-        .walk(&self.paths)
-        .threads(threads)
-        .follow_links(self.follow)
-        .overrides(globs)
-        .build_parallel(),
-    )
-  }
-
-  pub fn walk_langs(&self, langs: impl Iterator<Item = SgLang>) -> Result<WalkParallel> {
-    let types = SgLang::file_types_for_langs(langs);
-    let threads = self.get_threads();
-    let globs = self.build_globs().context(EC::BuildGlobs)?;
-    Ok(
-      NoIgnore::disregard(&self.no_ignore)
-        .walk(&self.paths)
-        .threads(threads)
-        .follow_links(self.follow)
-        .types(types)
-        .overrides(globs)
-        .build_parallel(),
-    )
-  }
-
-  pub fn walk_lang(&self, lang: SgLang) -> WalkParallel {
-    let threads = self.get_threads();
-    NoIgnore::disregard(&self.no_ignore)
-      .walk(&self.paths)
-      .threads(threads)
-      .follow_links(self.follow)
-      .types(lang.augmented_file_type())
-      .build_parallel()
-  }
 
   fn build_globs(&self) -> Result<Override> {
     let cwd = std::env::current_dir()?;
@@ -116,6 +79,35 @@ impl InputArgs {
       builder.add(glob)?;
     }
     Ok(builder.build()?)
+  }
+
+  // using `overrides` before `types` is okay
+  // because ignore builder's method is a simple setter
+  fn walk_basic(&self) -> Result<WalkBuilder> {
+    let threads = self.get_threads();
+    let globs = self.build_globs().context(EC::BuildGlobs)?;
+    let mut walk_builder = NoIgnore::disregard(&self.no_ignore).walk(&self.paths);
+    walk_builder
+      .threads(threads)
+      .follow_links(self.follow)
+      .overrides(globs);
+    Ok(walk_builder)
+  }
+
+  pub fn walk(&self) -> Result<WalkParallel> {
+    Ok(self.walk_basic()?.build_parallel())
+  }
+
+  pub fn walk_langs(&self, langs: impl Iterator<Item = SgLang>) -> Result<WalkParallel> {
+    let types = SgLang::file_types_for_langs(langs);
+    let mut builder = self.walk_basic()?;
+    Ok(builder.types(types).build_parallel())
+  }
+
+  pub fn walk_lang(&self, lang: SgLang) -> Result<WalkParallel> {
+    let types = lang.augmented_file_type();
+    let mut builder = self.walk_basic()?;
+    Ok(builder.types(types).build_parallel())
   }
 }
 
