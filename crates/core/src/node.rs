@@ -41,7 +41,7 @@ impl Position {
   }
   /// Convert to tree-sitter's Point
   pub fn ts_point(&self) -> tree_sitter::Point {
-    tree_sitter::Point::new(self.line as u32, self.byte_column as u32)
+    tree_sitter::Point::new(self.line, self.byte_column)
   }
 }
 
@@ -131,12 +131,12 @@ impl<D: Doc> Root<D> {
       .filter_map(|(lang, ranges)| {
         let lang = get_lang(&lang)?;
         let source = self.doc.get_source();
-        let mut parser = tree_sitter::Parser::new().ok()?;
+        let mut parser = tree_sitter::Parser::new();
         parser.set_included_ranges(&ranges).ok()?;
         parser.set_language(&lang.get_ts_language()).ok()?;
-        let tree = source.parse_tree_sitter(&mut parser, None).ok()?;
-        tree.map(|t| Self {
-          inner: t,
+        let tree = source.parse_tree_sitter(&mut parser, None)?;
+        Some(Self {
+          inner: tree,
           doc: self.doc.clone_with_lang(lang),
         })
       })
@@ -199,7 +199,7 @@ impl<'r, D: Doc> Node<'r, D> {
     self.inner.is_error()
   }
   pub fn kind(&self) -> Cow<str> {
-    self.inner.kind()
+    Cow::Borrowed(self.inner.kind())
   }
   pub fn kind_id(&self) -> KindId {
     self.inner.kind_id()
@@ -223,14 +223,14 @@ impl<'r, D: Doc> Node<'r, D> {
   pub fn start_pos(&self) -> Position {
     let pos = self.inner.start_position();
     let byte = self.inner.start_byte();
-    Position::new(pos.row(), pos.column(), byte)
+    Position::new(pos.row as u32, pos.column as u32, byte as u32)
   }
 
   /// Nodes' end position in terms of rows and columns.
   pub fn end_pos(&self) -> Position {
     let pos = self.inner.end_position();
     let byte = self.inner.end_byte();
-    Position::new(pos.row(), pos.column(), byte)
+    Position::new(pos.row as u32, pos.column as u32, byte as u32)
   }
 
   pub fn text(&self) -> Cow<'r, str> {
@@ -240,7 +240,7 @@ impl<'r, D: Doc> Node<'r, D> {
 
   /// Node's tree structure dumped in Lisp like S-expression
   pub fn to_sexp(&self) -> Cow<'_, str> {
-    self.inner.to_sexp()
+    Cow::Owned(self.inner.to_sexp())
   }
 
   pub fn lang(&self) -> &'r D::Lang {
@@ -359,7 +359,7 @@ impl<'r, D: Doc> Node<'r, D> {
   #[must_use]
   pub fn child(&self, nth: usize) -> Option<Self> {
     // TODO: support usize
-    let inner = self.inner.child(nth as u32)?;
+    let inner = self.inner.child(nth)?;
     Some(Node {
       inner,
       root: self.root,
@@ -387,16 +387,21 @@ impl<'r, D: Doc> Node<'r, D> {
       .root
       .lang()
       .get_ts_language()
-      .field_id_for_name(name)
-      .unwrap_or(0);
+      .field_id_for_name(name);
     let root = self.root;
     let mut cursor = self.inner.walk();
     cursor.goto_first_child();
     let mut done = false;
+    
     std::iter::from_fn(move || {
+      if field_id.is_none() {
+        done = true;
+        return None;
+      }
       if done {
         return None;
       }
+      let field_id = field_id.unwrap();
       while cursor.field_id() != Some(field_id) {
         if !cursor.goto_next_sibling() {
           return None;
@@ -722,8 +727,8 @@ if (a) {
     let root = root.root();
     let node = root.find("class $C {}").expect("should exist");
     let id = Tsx.get_ts_language().field_id_for_name("name").unwrap();
-    assert!(node.child_by_field_id(id).is_some());
-    assert!(node.child_by_field_id(id + 1).is_none());
+    assert!(node.child_by_field_id(id.get()).is_some());
+    assert!(node.child_by_field_id(id.get().saturating_add(1)).is_none());
   }
 
   #[test]

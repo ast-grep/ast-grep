@@ -6,7 +6,7 @@ use ast_grep_core::Language;
 use napi::anyhow::Error;
 use napi::bindgen_prelude::Result as NapiResult;
 use napi_derive::napi;
-use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
+use tree_sitter::{InputEdit, Node, Parser, Point, Tree};
 
 use std::borrow::Cow;
 use std::ops::Range;
@@ -59,7 +59,7 @@ impl Content for Wrapper {
     &self,
     parser: &mut Parser,
     tree: Option<&Tree>,
-  ) -> std::result::Result<Option<Tree>, ParserError> {
+  ) -> Option<Tree> {
     parser.parse_utf16(self.inner.as_slice(), tree)
   }
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying] {
@@ -77,14 +77,14 @@ impl Content for Wrapper {
     let old_end_position = pos_for_byte_offset(input, old_end_byte);
     input.splice(start_byte / 2..old_end_byte / 2, edit.inserted_text.clone());
     let new_end_position = pos_for_byte_offset(input, new_end_byte);
-    InputEdit::new(
-      start_byte as u32,
-      old_end_byte as u32,
-      new_end_byte as u32,
-      &start_position,
-      &old_end_position,
-      &new_end_position,
-    )
+    InputEdit {
+      start_byte,
+      old_end_byte,
+      new_end_byte,
+      start_position,
+      old_end_position,
+      new_end_position,
+    }
   }
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str> {
     let slice = self.inner.as_slice();
@@ -142,13 +142,12 @@ impl Doc for JsDoc {
   type Lang = NapiLang;
   type Source = Wrapper;
   fn parse(&self, old_tree: Option<&Tree>) -> std::result::Result<Tree, TSParseError> {
-    let mut parser = Parser::new()?;
+    let mut parser = Parser::new();
     let ts_lang = self.lang.get_ts_language();
     parser.set_language(&ts_lang)?;
-    if let Some(tree) = self.source.parse_tree_sitter(&mut parser, old_tree)? {
-      Ok(tree)
-    } else {
-      Err(TSParseError::TreeUnavailable)
+    match self.source.parse_tree_sitter(&mut parser, old_tree) {
+      Some(tree) => Ok(tree),
+      None => Err(TSParseError::TreeUnavailable),
     }
   }
   fn get_lang(&self) -> &Self::Lang {

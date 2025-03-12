@@ -41,6 +41,25 @@ macro_rules! into_napi_lang {
   };
 }
 
+#[cfg(all(not(feature = "builtin-parser"), feature = "wasm-lang"))]
+macro_rules! into_wasm_lang {
+  ($lang: ident, $field: ident) => {
+    $lang::$field.into()
+  };
+  ($lang: ident) => {
+    into_lang!($lang, LANGUAGE)
+  };
+}
+#[cfg(not(feature = "wasm-lang"))]
+#[allow(unused_macros)]
+macro_rules! into_wasm_lang {
+  ($lang: path) => {
+    unimplemented!(
+      "WebAssembly tree-sitter parser is not implemented when feature flag [wasm-lang] is off."
+    )
+  };
+}
+
 use ast_grep_core::language::TSLanguage;
 
 pub fn language_bash() -> TSLanguage {
@@ -52,6 +71,11 @@ pub fn language_c() -> TSLanguage {
 pub fn language_cpp() -> TSLanguage {
   into_lang!(tree_sitter_cpp)
 }
+#[cfg(all(not(feature = "builtin-parser"), feature = "wasm-lang"))]
+pub fn language_c_sharp() -> TSLanguage {
+  into_wasm_lang!(tree_sitter_c_sharp)
+}
+#[cfg(not(feature = "wasm-lang"))]
 pub fn language_c_sharp() -> TSLanguage {
   into_lang!(tree_sitter_c_sharp)
 }
@@ -103,9 +127,20 @@ pub fn language_scala() -> TSLanguage {
 pub fn language_swift() -> TSLanguage {
   into_lang!(tree_sitter_swift)
 }
+
+#[cfg(all(not(feature = "builtin-parser"), feature = "wasm-lang"))]
+pub fn language_tsx() -> TSLanguage {
+  into_wasm_lang!(tree_sitter_typescript, LANGUAGE_TSX)
+}
+#[cfg(not(feature = "wasm-lang"))]
 pub fn language_tsx() -> TSLanguage {
   into_napi_lang!(tree_sitter_typescript::LANGUAGE_TSX)
 }
+#[cfg(all(not(feature = "builtin-parser"), feature = "wasm-lang"))]
+pub fn language_typescript() -> TSLanguage {
+  into_wasm_lang!(tree_sitter_typescript, LANGUAGE_TYPESCRIPT)
+}
+#[cfg(not(feature = "wasm-lang"))]
 pub fn language_typescript() -> TSLanguage {
   into_napi_lang!(tree_sitter_typescript::LANGUAGE_TYPESCRIPT)
 }
