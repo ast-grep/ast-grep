@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-use std::sync::{Mutex, OnceLock};
 use std::{
   alloc::{self, Layout},
   ffi::{c_char, c_int, c_void},
@@ -13,10 +11,6 @@ use wasm_bindgen::prelude::*;
 #[no_mangle]
 pub unsafe extern "C" fn abort() {
   panic!("Aborted from C");
-}
-
-macro_rules! console_log {
-    ($($t:tt)*) => (unsafe { log(&format_args!($($t)*).to_string()) })
 }
 
 #[wasm_bindgen]
@@ -201,8 +195,8 @@ pub unsafe extern "C" fn vsnprintf(
 }
 
 #[no_mangle]
-pub extern "C" fn clock_gettime(ptr: usize, new_size: usize) {
-  panic!("asdasd");
+pub extern "C" fn clock_gettime(_ptr: usize, _new_size: usize) {
+  panic!("clock_gettime is not supported");
 }
 
 // int snprintf( char* restrict buffer, size_t bufsz, const char* restrict format, ... );

@@ -51,6 +51,7 @@ macro_rules! into_wasm_lang {
   };
 }
 #[cfg(not(feature = "wasm-lang"))]
+#[allow(unused_macros)]
 macro_rules! into_wasm_lang {
   ($lang: path) => {
     unimplemented!(
@@ -135,6 +136,11 @@ pub fn language_tsx() -> TSLanguage {
 pub fn language_tsx() -> TSLanguage {
   into_napi_lang!(tree_sitter_typescript::LANGUAGE_TSX)
 }
+#[cfg(all(not(feature = "builtin-parser"), feature = "wasm-lang"))]
+pub fn language_typescript() -> TSLanguage {
+  into_wasm_lang!(tree_sitter_typescript, LANGUAGE_TYPESCRIPT)
+}
+#[cfg(not(feature = "wasm-lang"))]
 pub fn language_typescript() -> TSLanguage {
   into_napi_lang!(tree_sitter_typescript::LANGUAGE_TYPESCRIPT)
 }
