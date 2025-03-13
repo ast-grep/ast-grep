@@ -70,4 +70,34 @@ napi-lang = [
   "tree-sitter-javascript",
   "tree-sitter-typescript",
 ]
+wasm-lang = [
+  "tree-sitter-css",
+  "tree-sitter-html",
+  "tree-sitter-javascript",
+  "tree-sitter-typescript",
+]
+wasm-exhaustive-lang = [
+  "tree-sitter-bash",
+  "tree-sitter-c",
+  "tree-sitter-cpp",
+  "tree-sitter-c-sharp",
+  "tree-sitter-css",
+  "tree-sitter-elixir",
+  "tree-sitter-go",
+  "tree-sitter-haskell",
+  "tree-sitter-html",
+  "tree-sitter-java",
+  "tree-sitter-javascript",
+  "tree-sitter-json",
+  "tree-sitter-kotlin",
+  "tree-sitter-lua",
+  "tree-sitter-php",
+  "tree-sitter-python",
+  "tree-sitter-ruby",
+  "tree-sitter-rust",
+  "tree-sitter-scala",
+  "tree-sitter-swift",
+  "tree-sitter-typescript",
+  "tree-sitter-yaml",
+]
 default = ["builtin-parser"]
