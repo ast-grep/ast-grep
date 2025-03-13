@@ -24,11 +24,11 @@ pub struct Position {
 }
 
 impl Position {
-  fn new(line: u32, byte_column: u32, byte_offset: u32) -> Self {
+  fn new(line: usize, byte_column: usize, byte_offset: usize) -> Self {
     Self {
-      line: line as usize,
-      byte_column: byte_column as usize,
-      byte_offset: byte_offset as usize,
+      line,
+      byte_column,
+      byte_offset,
     }
   }
   pub fn line(&self) -> usize {
@@ -223,14 +223,14 @@ impl<'r, D: Doc> Node<'r, D> {
   pub fn start_pos(&self) -> Position {
     let pos = self.inner.start_position();
     let byte = self.inner.start_byte();
-    Position::new(pos.row as u32, pos.column as u32, byte as u32)
+    Position::new(pos.row, pos.column, byte)
   }
 
   /// Nodes' end position in terms of rows and columns.
   pub fn end_pos(&self) -> Position {
     let pos = self.inner.end_position();
     let byte = self.inner.end_byte();
-    Position::new(pos.row as u32, pos.column as u32, byte as u32)
+    Position::new(pos.row, pos.column, byte)
   }
 
   pub fn text(&self) -> Cow<'r, str> {
@@ -387,18 +387,14 @@ impl<'r, D: Doc> Node<'r, D> {
     let root = self.root;
     let mut cursor = self.inner.walk();
     cursor.goto_first_child();
-    let mut done = false;
+    // if field_id is not found, iteration is done
+    let mut done = field_id.is_none();
 
     std::iter::from_fn(move || {
-      if field_id.is_none() {
-        done = true;
-        return None;
-      }
       if done {
         return None;
       }
-      let field_id = field_id.unwrap();
-      while cursor.field_id() != Some(field_id) {
+      while cursor.field_id() != field_id {
         if !cursor.goto_next_sibling() {
           return None;
         }

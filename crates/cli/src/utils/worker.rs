@@ -69,6 +69,7 @@ pub struct Items<T>(mpsc::Receiver<T>);
 impl<T> Iterator for Items<T> {
   type Item = T;
   fn next(&mut self) -> Option<Self::Item> {
+    // TODO: add error reporting here
     self.0.recv().ok()
   }
 }
