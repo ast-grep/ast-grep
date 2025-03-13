@@ -387,18 +387,14 @@ impl<'r, D: Doc> Node<'r, D> {
     let root = self.root;
     let mut cursor = self.inner.walk();
     cursor.goto_first_child();
-    let mut done = false;
+    // if field_id is not found, iteration is done
+    let mut done = field_id.is_none();
 
     std::iter::from_fn(move || {
-      if field_id.is_none() {
-        done = true;
-        return None;
-      }
       if done {
         return None;
       }
-      let field_id = field_id.unwrap();
-      while cursor.field_id() != Some(field_id) {
+      while cursor.field_id() != field_id {
         if !cursor.goto_next_sibling() {
           return None;
         }
