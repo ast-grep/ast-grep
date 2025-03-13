@@ -56,7 +56,7 @@ pub struct Wrapper {
 impl Content for Wrapper {
   type Underlying = u16;
   fn parse_tree_sitter(&self, parser: &mut Parser, tree: Option<&Tree>) -> Option<Tree> {
-    parser.parse_utf16(self.inner.as_slice(), tree)
+    parser.parse_utf16_le(self.inner.as_slice(), tree)
   }
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying] {
     // the range is in byte offset, but our underlying is u16

@@ -24,16 +24,30 @@ pub enum KindMatcherError {
 
 #[derive(Clone)]
 pub struct KindMatcher<L: Language> {
-  kind: KindId,
+  subtypes: BitSet,
   lang: PhantomData<L>,
 }
 
 impl<L: Language> KindMatcher<L> {
   pub fn new(node_kind: &str, lang: L) -> Self {
-    Self {
-      kind: lang
+    let mut subtypes = BitSet::new();
+    let kind_id = lang
+      .get_ts_language()
+      .id_for_node_kind(node_kind, /*named*/ true);
+    if lang.get_ts_language().node_kind_is_supertype(kind_id) {
+      lang
         .get_ts_language()
-        .id_for_node_kind(node_kind, /*named*/ true),
+        .subtypes_for_supertype(kind_id)
+        .iter()
+        .for_each(|subtype| {
+          subtypes.insert((*subtype).into());
+        });
+    } else {
+      subtypes.insert(kind_id.into());
+    }
+
+    Self {
+      subtypes,
       lang: PhantomData,
     }
   }
@@ -48,15 +62,17 @@ impl<L: Language> KindMatcher<L> {
   }
 
   pub fn from_id(kind: KindId) -> Self {
+    let mut subtypes = BitSet::new();
+    subtypes.insert(kind.into());
     Self {
-      kind,
+      subtypes,
       lang: PhantomData,
     }
   }
 
   /// Whether the kind matcher contains undefined tree-sitter kind.
   pub fn is_invalid(&self) -> bool {
-    self.kind == TS_BUILTIN_SYM_END
+    self.subtypes.contains(TS_BUILTIN_SYM_END.into())
   }
 
   /// Construct a matcher that only matches ERROR
@@ -87,7 +103,7 @@ impl<L: Language> Matcher<L> for KindMatcher<L> {
     node: Node<'tree, D>,
     _env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    if node.kind_id() == self.kind {
+    if self.subtypes.contains(node.kind_id().into()) {
       Some(node)
     } else {
       None
@@ -95,9 +111,7 @@ impl<L: Language> Matcher<L> for KindMatcher<L> {
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
-    let mut set = BitSet::new();
-    set.insert(self.kind.into());
-    Some(set)
+    Some(self.subtypes.clone())
   }
 }
 
@@ -134,6 +148,20 @@ mod test {
       pattern.find_node(cand.clone()).is_none(),
       "goal: {}, candidate: {}",
       kind,
+      cand.to_sexp(),
+    );
+  }
+
+  #[test]
+  fn test_supertype_match() {
+    let supertype_kind = "declaration";
+    let cand = pattern_node("class A { a = 123 }");
+    let cand = cand.root();
+    let pattern = KindMatcher::new(supertype_kind, Tsx);
+    assert!(
+      pattern.find_node(cand.clone()).is_some(),
+      "goal: {}, candidate: {}",
+      supertype_kind,
       cand.to_sexp(),
     );
   }
