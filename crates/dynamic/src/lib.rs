@@ -132,7 +132,7 @@ unsafe fn load_ts_language(
   } else {
     // ATTENTION: dragon ahead
     // must hold valid reference to NativeTS
-    Ok((lib, lang.into()))
+    Ok((lib, lang))
   }
 }
 
