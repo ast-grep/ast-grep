@@ -156,7 +156,7 @@ dependencies = [
  "serde",
  "serde_yaml",
  "thiserror",
- "tree-sitter-typescript 0.21.2",
+ "tree-sitter-typescript",
 ]
 
 [[package]]
@@ -167,7 +167,7 @@ dependencies = [
  "regex",
  "thiserror",
  "tree-sitter",
- "tree-sitter-typescript 0.21.2",
+ "tree-sitter-typescript",
 ]
 
 [[package]]
@@ -210,7 +210,7 @@ dependencies = [
  "tree-sitter-rust",
  "tree-sitter-scala",
  "tree-sitter-swift",
- "tree-sitter-typescript 0.23.2",
+ "tree-sitter-typescript",
  "tree-sitter-yaml",
 ]
 
@@ -2135,16 +2135,6 @@ checksum = "bdc72ea9c62a6d188c9f7d64109a9b14b09231852b87229c68c44e8738b9e6b9"
 dependencies = [
  "cc",
  "tree-sitter-language",
-]
-
-[[package]]
-name = "tree-sitter-typescript"
-version = "0.21.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecb35d98a688378e56c18c9c159824fd16f730ccbea19aacf4f206e5d5438ed9"
-dependencies = [
- "cc",
- "tree-sitter",
 ]
 
 [[package]]
