@@ -175,8 +175,8 @@ impl DumpNode {
 }
 
 pub struct Pos {
-  row: u32,
-  column: u32,
+  row: usize,
+  column: usize,
 }
 
 impl std::fmt::Debug for Pos {
@@ -189,8 +189,8 @@ impl From<ts::Point> for Pos {
   #[inline]
   fn from(pt: ts::Point) -> Self {
     Pos {
-      row: pt.row as u32,
-      column: pt.column as u32,
+      row: pt.row,
+      column: pt.column,
     }
   }
 }
