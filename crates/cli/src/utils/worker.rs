@@ -69,11 +69,8 @@ pub struct Items<T>(mpsc::Receiver<T>);
 impl<T> Iterator for Items<T> {
   type Item = T;
   fn next(&mut self) -> Option<Self::Item> {
-    if let Ok(match_result) = self.0.recv() {
-      Some(match_result)
-    } else {
-      None
-    }
+    // TODO: add error reporting here
+    self.0.recv().ok()
   }
 }
 impl<T> Items<T> {
