@@ -7,7 +7,7 @@ macro_rules! into_lang {
   };
 }
 
-pub mod parsers_builtin {
+pub mod parsers {
   use ast_grep_core::language::TSLanguage;
 
   pub fn language_bash() -> TSLanguage {

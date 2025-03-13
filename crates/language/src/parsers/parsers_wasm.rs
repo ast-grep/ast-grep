@@ -17,7 +17,7 @@ macro_rules! into_unimplemented_lang {
 }
 
 #[allow(dead_code)]
-pub mod parsers_wasm {
+pub mod parsers {
   use ast_grep_core::language::TSLanguage;
 
   pub fn language_bash() -> TSLanguage {
