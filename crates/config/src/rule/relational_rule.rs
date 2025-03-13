@@ -29,7 +29,7 @@ fn field_name_to_id<L: Language>(
   };
   let ts_lang = env.lang.get_ts_language();
   match ts_lang.field_id_for_name(&field) {
-    Some(id) => Ok(Some(id)),
+    Some(id) => Ok(Some(id.into())),
     None => Err(RuleSerializeError::InvalidField(field)),
   }
 }
@@ -621,7 +621,10 @@ mod test {
     let inside = Inside {
       stop_by: StopBy::End,
       outer: Rule::Kind(KindMatcher::new("for_statement", TS::Tsx)),
-      field: TS::Tsx.get_ts_language().field_id_for_name("condition"),
+      field: TS::Tsx
+        .get_ts_language()
+        .field_id_for_name("condition")
+        .map(|id| id.into()),
     };
     let rule = make_rule("a = 1", Rule::Inside(Box::new(inside)));
     test_found(&["for (;a = 1;) {}"], &rule);
@@ -633,7 +636,10 @@ mod test {
     let has = Has {
       stop_by: StopBy::End,
       inner: Rule::Pattern(Pattern::new("a = 1", TS::Tsx)),
-      field: TS::Tsx.get_ts_language().field_id_for_name("condition"),
+      field: TS::Tsx
+        .get_ts_language()
+        .field_id_for_name("condition")
+        .map(|id| id.into()),
     };
     let rule = o::All::new(vec![
       Rule::Kind(KindMatcher::new("for_statement", TS::Tsx)),
@@ -674,13 +680,19 @@ mod test {
     let inside = Inside {
       stop_by: StopBy::Rule(Rule::Pattern(Pattern::new("var $C", TS::Tsx))),
       outer: Rule::Pattern(Pattern::new("var a = $A", TS::Tsx)),
-      field: TS::Tsx.get_ts_language().field_id_for_name("condition"),
+      field: TS::Tsx
+        .get_ts_language()
+        .field_id_for_name("condition")
+        .map(|id| id.into()),
     };
     assert_eq!(inside.defined_vars(), ["A", "C"].into_iter().collect());
     let has = Has {
       stop_by: StopBy::Rule(Rule::Kind(KindMatcher::new("for_statement", TS::Tsx))),
       inner: Rule::Pattern(Pattern::new("var a = $A", TS::Tsx)),
-      field: TS::Tsx.get_ts_language().field_id_for_name("condition"),
+      field: TS::Tsx
+        .get_ts_language()
+        .field_id_for_name("condition")
+        .map(|id| id.into()),
     };
     assert_eq!(has.defined_vars(), ["A"].into_iter().collect());
   }
