@@ -1,3 +1,4 @@
+#![cfg(target_arch = "wasm32")]
 pub mod wasm_libc;
 
 use ast_grep_config::{CombinedScan, RuleConfig};
