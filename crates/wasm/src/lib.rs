@@ -1,4 +1,3 @@
-#![feature(c_variadic)]
 #![cfg(target_arch = "wasm32")]
 pub mod wasm_libc;
 
