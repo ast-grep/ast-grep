@@ -134,6 +134,10 @@ unsafe fn store_layout(buf: *mut u8, layout: Layout, offset_to_data: usize) -> *
   *(buf as *mut Layout) = layout;
   buf.add(offset_to_data) as *mut c_void
 }
+#[no_mangle]
+pub unsafe extern "C" fn abort() {
+  log("abort");
+}
 
 /* -------------------------------- string.h -------------------------------- */
 
@@ -393,10 +397,10 @@ pub unsafe extern "C" fn isdigit(c: c_int) -> bool {
 
 /* --------------------------------- stdio.h -------------------------------- */
 
-// #[no_mangle]
-// pub unsafe extern "C" fn fprintf(_file: *mut c_void, _format: *const c_void, _args: ...) -> c_int {
-//   panic!("fprintf is not supported");
-// }
+#[no_mangle]
+pub unsafe extern "C" fn fprintf(_file: *mut c_void, _format: *const c_void, _args: ...) -> c_int {
+  panic!("fprintf is not supported");
+}
 
 /// Writes a string to a stream.
 ///
@@ -453,15 +457,15 @@ pub unsafe extern "C" fn fwrite(
   panic!("fwrite is not supported");
 }
 
-// #[no_mangle]
-// pub unsafe extern "C" fn vsnprintf(
-//   _buf: *mut c_char,
-//   _size: usize,
-//   _format: *const c_char,
-//   _args: ...
-// ) -> c_int {
-//   panic!("vsnprintf is not supported");
-// }
+#[no_mangle]
+pub unsafe extern "C" fn vsnprintf(
+  _buf: *mut c_char,
+  _size: usize,
+  _format: *const c_char,
+  _args: ...
+) -> c_int {
+  panic!("vsnprintf is not supported");
+}
 
 /// Called when an assertion fails.
 ///
