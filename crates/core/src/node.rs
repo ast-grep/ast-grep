@@ -41,7 +41,7 @@ impl Position {
   }
   /// Convert to tree-sitter's Point
   pub fn ts_point(&self) -> tree_sitter::Point {
-    tree_sitter::Point::new(self.line, self.byte_column)
+    tree_sitter::Point::new(self.line as u32, self.byte_column as u32)
   }
 }
 
@@ -109,7 +109,7 @@ impl<D: Doc> Root<D> {
   }
 
   fn check_lineage(&self, inner: &tree_sitter::Node<'_>) -> bool {
-    let mut node = *inner;
+    let mut node = inner.clone();
     while let Some(n) = node.parent() {
       node = n;
     }
@@ -131,12 +131,12 @@ impl<D: Doc> Root<D> {
       .filter_map(|(lang, ranges)| {
         let lang = get_lang(&lang)?;
         let source = self.doc.get_source();
-        let mut parser = tree_sitter::Parser::new();
+        let mut parser = tree_sitter::Parser::new().ok()?;
         parser.set_included_ranges(&ranges).ok()?;
         parser.set_language(&lang.get_ts_language()).ok()?;
-        let tree = source.parse_tree_sitter(&mut parser, None)?;
-        Some(Self {
-          inner: tree,
+        let tree = source.parse_tree_sitter(&mut parser, None).ok()?;
+        tree.map(|t| Self {
+          inner: t,
           doc: self.doc.clone_with_lang(lang),
         })
       })
@@ -199,7 +199,7 @@ impl<'r, D: Doc> Node<'r, D> {
     self.inner.is_error()
   }
   pub fn kind(&self) -> Cow<str> {
-    Cow::Borrowed(self.inner.kind())
+    self.inner.kind()
   }
   pub fn kind_id(&self) -> KindId {
     self.inner.kind_id()
@@ -211,26 +211,26 @@ impl<'r, D: Doc> Node<'r, D> {
 
   /// the underlying tree-sitter Node
   pub fn get_ts_node(&self) -> tree_sitter::Node<'r> {
-    self.inner
+    self.inner.clone()
   }
 
   /// byte offsets of start and end.
   pub fn range(&self) -> std::ops::Range<usize> {
-    self.inner.start_byte()..self.inner.end_byte()
+    (self.inner.start_byte() as usize)..(self.inner.end_byte() as usize)
   }
 
   /// Nodes' start position in terms of zero-based rows and columns.
   pub fn start_pos(&self) -> Position {
     let pos = self.inner.start_position();
-    let byte = self.inner.start_byte();
-    Position::new(pos.row, pos.column, byte)
+    let byte = self.inner.start_byte() as usize;
+    Position::new(pos.row() as usize, pos.column() as usize, byte)
   }
 
   /// Nodes' end position in terms of rows and columns.
   pub fn end_pos(&self) -> Position {
     let pos = self.inner.end_position();
-    let byte = self.inner.end_byte();
-    Position::new(pos.row, pos.column, byte)
+    let byte = self.inner.end_byte() as usize;
+    Position::new(pos.row() as usize, pos.column() as usize, byte)
   }
 
   pub fn text(&self) -> Cow<'r, str> {
@@ -240,7 +240,7 @@ impl<'r, D: Doc> Node<'r, D> {
 
   /// Node's tree structure dumped in Lisp like S-expression
   pub fn to_sexp(&self) -> Cow<'_, str> {
-    Cow::Owned(self.inner.to_sexp())
+    self.inner.to_sexp()
   }
 
   pub fn lang(&self) -> &'r D::Lang {
@@ -254,8 +254,8 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
   pub fn display_context(&self, before: usize, after: usize) -> DisplayContext<'r> {
     let source = self.root.doc.get_source().as_str();
     let bytes = source.as_bytes();
-    let start = self.inner.start_byte();
-    let end = self.inner.end_byte();
+    let start = self.inner.start_byte() as usize;
+    let end = self.inner.end_byte() as usize;
     let (mut leading, mut trailing) = (start, end);
     let mut lines_before = before + 1;
     while leading > 0 {
@@ -352,14 +352,14 @@ impl<'r, D: Doc> Node<'r, D> {
     NodeWalker {
       cursor,
       root: self.root,
-      count: self.inner.child_count(),
+      count: self.inner.child_count() as usize,
     }
   }
 
   #[must_use]
   pub fn child(&self, nth: usize) -> Option<Self> {
     // TODO: support usize
-    let inner = self.inner.child(nth)?;
+    let inner = self.inner.child(nth as u32)?;
     Some(Node {
       inner,
       root: self.root,
@@ -413,9 +413,9 @@ impl<'r, D: Doc> Node<'r, D> {
   pub fn ancestors(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
     let mut parent = self.inner.parent();
     std::iter::from_fn(move || {
-      let inner = parent?;
+      let inner = parent.clone()?;
       let ret = Some(Node {
-        inner,
+        inner: inner.clone(),
         root: self.root,
       });
       parent = inner.parent();
@@ -719,8 +719,8 @@ if (a) {
     let root = root.root();
     let node = root.find("class $C {}").expect("should exist");
     let id = Tsx.get_ts_language().field_id_for_name("name").unwrap();
-    assert!(node.child_by_field_id(id.get()).is_some());
-    assert!(node.child_by_field_id(id.get().saturating_add(1)).is_none());
+    assert!(node.child_by_field_id(id).is_some());
+    assert!(node.child_by_field_id(id + 1).is_none());
   }
 
   #[test]

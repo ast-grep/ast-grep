@@ -168,12 +168,7 @@ fn node_to_range<D: Doc>(node: &Node<D>) -> TSRange {
   let sp = start.ts_point();
   let end = node.end_pos();
   let ep = end.ts_point();
-  TSRange {
-    start_byte: r.start,
-    end_byte: r.end,
-    start_point: sp,
-    end_point: ep,
-  }
+  TSRange::new(r.start as u32, r.end as u32, &sp, &ep)
 }
 
 #[cfg(test)]

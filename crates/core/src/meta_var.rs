@@ -202,8 +202,8 @@ where
         // NOTE: start_byte is not always index range of source's slice.
         // e.g. start_byte is still byte_offset in utf_16 (napi). start_byte
         // so we need to call source's get_range method
-        let start = nodes[0].inner.start_byte();
-        let end = nodes[nodes.len() - 1].inner.end_byte();
+        let start = nodes[0].inner.start_byte() as usize;
+        let end = nodes[nodes.len() - 1].inner.end_byte() as usize;
         Some(nodes[0].root.doc.get_source().get_range(start..end))
       }
     }

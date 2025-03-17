@@ -366,7 +366,7 @@ pub struct Level<'tree, D: Doc> {
 impl<'tree, D: Doc> Level<'tree, D> {
   pub fn new(node: &Node<'tree, D>) -> Self {
     let mut deque = VecDeque::new();
-    deque.push_back(node.inner);
+    deque.push_back(node.inner.clone());
     let cursor = node.inner.walk();
     Self {
       deque,

@@ -21,8 +21,8 @@ fn collect_edits<D: Doc>(root: &Root<D>, env: &MetaVarEnv<D>, lang: &D::Lang) ->
       let position = node.inner.start_byte();
       let length = node.inner.end_byte() - position;
       edits.push(Edit::<D> {
-        position,
-        deleted_length: length,
+        position: position as usize,
+        deleted_length: length as usize,
         inserted_text: text,
       });
     } else if let Some(first_child) = node.child(0) {
