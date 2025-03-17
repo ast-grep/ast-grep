@@ -373,6 +373,7 @@ impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, Or<L, M, N>> {
 mod test {
   use super::*;
   use crate::language::Tsx;
+  use crate::matcher::MatcherExt;
   use crate::Root;
 
   fn test_find(matcher: &impl Matcher<Tsx>, code: &str) {

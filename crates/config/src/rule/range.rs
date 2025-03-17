@@ -98,6 +98,7 @@ impl<L: Language> Matcher<L> for RangeMatcher<L> {
 mod test {
   use super::*;
   use crate::test::TypeScript as TS;
+  use ast_grep_core::matcher::MatcherExt;
 
   #[test]
   fn test_invalid_range() {

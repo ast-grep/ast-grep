@@ -18,7 +18,7 @@
 //! It is recommended to use traversal instead of tree recursion to avoid stack overflow and memory overhead.
 //! Level order is also included for completeness and should be used sparingly.
 
-use crate::matcher::Matcher;
+use crate::matcher::{Matcher, MatcherExt};
 use crate::{Doc, Node, NodeMatch, Root};
 
 use tree_sitter as ts;

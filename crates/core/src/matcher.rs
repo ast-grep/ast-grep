@@ -48,7 +48,12 @@ pub trait Matcher<L: Language> {
   fn get_match_len<D: Doc<Lang = L>>(&self, _node: Node<D>) -> Option<usize> {
     None
   }
+}
 
+/// MatcherExt provides additional utility methods for `Matcher`.
+/// It is implemented for all types that implement `Matcher`.
+/// N.B. This trait is not intended to be implemented by users.
+pub trait MatcherExt<L: Language>: Matcher<L> {
   fn match_node<'tree, D: Doc<Lang = L>>(
     &self,
     node: Node<'tree, D>,
@@ -70,6 +75,13 @@ pub trait Matcher<L: Language> {
     }
     None
   }
+}
+
+impl<L, T> MatcherExt<L> for T
+where
+  L: Language,
+  T: Matcher<L>,
+{
 }
 
 impl<L: Language> Matcher<L> for str {
@@ -103,20 +115,6 @@ where
 
   fn potential_kinds(&self) -> Option<BitSet> {
     (**self).potential_kinds()
-  }
-
-  fn match_node<'tree, D: Doc<Lang = L>>(
-    &self,
-    node: Node<'tree, D>,
-  ) -> Option<NodeMatch<'tree, D>> {
-    (**self).match_node(node)
-  }
-
-  fn find_node<'tree, D: Doc<Lang = L>>(
-    &self,
-    node: Node<'tree, D>,
-  ) -> Option<NodeMatch<'tree, D>> {
-    (**self).find_node(node)
   }
 
   fn get_match_len<D: Doc<Lang = L>>(&self, node: Node<D>) -> Option<usize> {

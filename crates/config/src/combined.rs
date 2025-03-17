@@ -1,7 +1,8 @@
 use crate::{RuleConfig, SerializableRule, SerializableRuleConfig, SerializableRuleCore, Severity};
 
 use ast_grep_core::language::Language;
-use ast_grep_core::{AstGrep, Doc, Matcher, Node, NodeMatch};
+use ast_grep_core::matcher::{Matcher, MatcherExt};
+use ast_grep_core::{AstGrep, Doc, Node, NodeMatch};
 
 use std::collections::{HashMap, HashSet};
 

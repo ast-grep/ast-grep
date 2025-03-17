@@ -487,7 +487,7 @@ pub fn config_file_type() -> Types {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_core::{source::TSParseError, Matcher, Pattern};
+  use ast_grep_core::{matcher::MatcherExt, source::TSParseError, Pattern};
 
   pub fn test_match_lang(query: &str, source: &str, lang: impl Language) {
     let cand = lang.ast_grep(source);

@@ -319,6 +319,7 @@ impl<L: Language> std::fmt::Debug for Pattern<L> {
 mod test {
   use super::*;
   use crate::language::Tsx;
+  use crate::matcher::MatcherExt;
   use std::collections::HashMap;
 
   fn pattern_node(s: &str) -> Root<StrDoc<Tsx>> {

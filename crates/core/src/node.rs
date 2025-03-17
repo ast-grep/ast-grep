@@ -1,5 +1,5 @@
 use crate::language::Language;
-use crate::matcher::{FindAllNodes, Matcher, NodeMatch};
+use crate::matcher::{FindAllNodes, Matcher, MatcherExt, NodeMatch};
 use crate::replacer::Replacer;
 use crate::source::{perform_edit, Content, Edit as E, TSParseError};
 use crate::traversal::{Pre, Visitor};
