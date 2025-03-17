@@ -56,6 +56,10 @@ impl<L: Language, P: Matcher<L>> All<L, P> {
     }
   }
 
+  pub fn optimize(&mut self) {
+    self.kinds = Self::compute_kinds(&self.patterns);
+  }
+
   fn compute_kinds(patterns: &[P]) -> Option<BitSet> {
     let mut set: Option<BitSet> = None;
     for pattern in patterns {
@@ -121,6 +125,9 @@ impl<L: Language, P: Matcher<L>> Any<L, P> {
       kinds,
       lang: PhantomData,
     }
+  }
+  pub fn optimize(&mut self) {
+    self.kinds = Self::compute_kinds(&self.patterns)
   }
 
   fn compute_kinds(patterns: &[P]) -> Option<BitSet> {
