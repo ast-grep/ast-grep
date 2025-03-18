@@ -48,10 +48,9 @@ pub struct All<L: Language, P: Matcher<L>> {
 impl<L: Language, P: Matcher<L>> All<L, P> {
   pub fn new<PS: IntoIterator<Item = P>>(patterns: PS) -> Self {
     let patterns: Box<[P]> = patterns.into_iter().collect();
-    let kinds = Self::compute_kinds(&patterns);
     Self {
       patterns,
-      kinds,
+      kinds: None,
       lang: PhantomData,
     }
   }
@@ -122,10 +121,9 @@ pub struct Any<L, P> {
 impl<L: Language, P: Matcher<L>> Any<L, P> {
   pub fn new<PS: IntoIterator<Item = P>>(patterns: PS) -> Self {
     let patterns: Box<[P]> = patterns.into_iter().collect();
-    let kinds = Self::compute_kinds(&patterns);
     Self {
       patterns,
-      kinds,
+      kinds: None,
       lang: PhantomData,
     }
   }
@@ -545,36 +543,46 @@ mod test {
   #[test]
   fn test_all_kinds() {
     // intersect None kinds
-    let matcher = Op::all(["let a = $_".t(), "$A".t()]);
+    let mut matcher = Op::all(["let a = $_".t(), "$A".t()]);
+    matcher.optimize();
     assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
-    let matcher = Op::all(["$A".t(), "let a = $_".t()]);
+    let mut matcher = Op::all(["$A".t(), "let a = $_".t()]);
+    matcher.optimize();
     assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
     // intersect Same kinds
-    let matcher = Op::all(["let a = $_".t(), "let b = 123".t()]);
+    let mut matcher = Op::all(["let a = $_".t(), "let b = 123".t()]);
+    matcher.optimize();
     assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
     // intersect different kinds
-    let matcher = Op::all(["let a = 1".t(), "console.log(1)".t()]);
+    let mut matcher = Op::all(["let a = 1".t(), "console.log(1)".t()]);
+    matcher.optimize();
     assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(0));
     // two None kinds
-    let matcher = Op::all(["$A".t(), "$B".t()]);
+    let mut matcher = Op::all(["$A".t(), "$B".t()]);
+    matcher.optimize();
     assert_eq!(matcher.potential_kinds(), None);
   }
 
   #[test]
   fn test_any_kinds() {
     // union None kinds
-    let matcher = Op::any(["let a = $_".t(), "$A".t()]);
+    let mut matcher = Op::any(["let a = $_".t(), "$A".t()]);
+    matcher.optimize();
     assert_eq!(matcher.potential_kinds(), None);
-    let matcher = Op::any(["$A".t(), "let a = $_".t()]);
+    let mut matcher = Op::any(["$A".t(), "let a = $_".t()]);
+    matcher.optimize();
     assert_eq!(matcher.potential_kinds(), None);
     // union Same kinds
-    let matcher = Op::any(["let a = $_".t(), "let b = 123".t()]);
+    let mut matcher = Op::any(["let a = $_".t(), "let b = 123".t()]);
+    matcher.optimize();
     assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
     // union different kinds
-    let matcher = Op::any(["let a = 1".t(), "console.log(1)".t()]);
+    let mut matcher = Op::any(["let a = 1".t(), "console.log(1)".t()]);
+    matcher.optimize();
     assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(2));
     // two None kinds
-    let matcher = Op::any(["$A".t(), "$B".t()]);
+    let mut matcher = Op::any(["$A".t(), "$B".t()]);
+    matcher.optimize();
     assert_eq!(matcher.potential_kinds(), None);
   }
 
