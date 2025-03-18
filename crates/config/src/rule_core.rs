@@ -119,9 +119,7 @@ impl SerializableRuleCore {
   }
 
   pub fn get_matcher<L: Language>(&self, env: DeserializeEnv<L>) -> RResult<RuleCore<L>> {
-    let mut ret = self.get_matcher_with_hint(env, CheckHint::Normal)?;
-    ret.optimize();
-    Ok(ret)
+    self.get_matcher_with_hint(env, CheckHint::Normal)
   }
 
   pub(crate) fn get_matcher_with_hint<L: Language>(
@@ -130,7 +128,7 @@ impl SerializableRuleCore {
     hint: CheckHint,
   ) -> RResult<RuleCore<L>> {
     let env = self.get_deserialize_env(env)?;
-    let ret = self.get_matcher_from_env(&env)?;
+    let mut ret = self.get_matcher_from_env(&env)?;
     check_rule_with_hint(
       &ret.rule,
       &ret.registration,
@@ -139,6 +137,7 @@ impl SerializableRuleCore {
       &ret.fixer,
       hint,
     )?;
+    ret.optimize();
     Ok(ret)
   }
 }
