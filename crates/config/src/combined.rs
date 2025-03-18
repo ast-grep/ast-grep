@@ -39,7 +39,8 @@ impl<'t, D: Doc> ScanResultInner<'t, D> {
       if separate_fix {
         diffs.extend(self.unused_suppressions.into_iter().map(|nm| (rule, nm)));
         diffs.sort_unstable_by_key(|(_, nm)| nm.range().start);
-      } else {
+      } else if !self.unused_suppressions.is_empty() {
+        // do not push empty suppression to matches
         let mut supprs = self.unused_suppressions;
         supprs.sort_unstable_by_key(|nm| nm.range().start);
         matches.push((rule, supprs));
