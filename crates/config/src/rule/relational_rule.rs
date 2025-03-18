@@ -89,6 +89,11 @@ impl<L: Language> Matcher<L> for Inside<L> {
       self.stop_by.find(parent, ancestors, finder)
     }
   }
+
+  fn optimize(&mut self) {
+    self.outer.optimize();
+    self.stop_by.optimize();
+  }
 }
 
 pub struct Has<L: Language> {
@@ -168,6 +173,10 @@ impl<L: Language> Matcher<L> for Has<L> {
       }
     }
   }
+  fn optimize(&mut self) {
+    self.inner.optimize();
+    self.stop_by.optimize();
+  }
 }
 
 pub struct Precedes<L: Language> {
@@ -210,6 +219,10 @@ impl<L: Language> Matcher<L> for Precedes<L> {
     let finder = |n| self.later.match_node_with_env(n, env);
     self.stop_by.find(next, next_all, finder)
   }
+
+  fn optimize(&mut self) {
+    self.later.optimize();
+  }
 }
 
 pub struct Follows<L: Language> {
@@ -250,6 +263,9 @@ impl<L: Language> Matcher<L> for Follows<L> {
     let prev_all = || node.prev_all();
     let finder = |n| self.former.match_node_with_env(n, env);
     self.stop_by.find(prev, prev_all, finder)
+  }
+  fn optimize(&mut self) {
+    self.former.optimize();
   }
 }
 

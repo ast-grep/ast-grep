@@ -324,6 +324,28 @@ impl<L: Language> Matcher<L> for Rule<L> {
       Matches(rule) => rule.potential_kinds(),
     }
   }
+
+  fn optimize(&mut self) {
+    use Rule::*;
+    match self {
+      // atomic
+      Pattern(pattern) => pattern.optimize(),
+      Kind(kind) => kind.optimize(),
+      Regex(regex) => regex.optimize(),
+      NthChild(nth_child) => nth_child.optimize(),
+      Range(range) => range.optimize(),
+      // relational
+      Inside(parent) => parent.optimize(),
+      Has(child) => child.optimize(),
+      Precedes(latter) => latter.optimize(),
+      Follows(former) => former.optimize(),
+      // composite
+      All(all) => all.optimize(),
+      Any(any) => any.optimize(),
+      Not(not) => not.optimize(),
+      Matches(rule) => rule.optimize(),
+    }
+  }
 }
 
 /// Rule matches nothing by default.

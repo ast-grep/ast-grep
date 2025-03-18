@@ -124,6 +124,15 @@ impl<L: Language> Fixer<L> {
   pub(crate) fn used_vars(&self) -> HashSet<&str> {
     self.template.used_vars()
   }
+
+  pub(crate) fn optimize(&mut self) {
+    if let Some(start) = &mut self.expand_start {
+      start.matches.optimize();
+    }
+    if let Some(end) = &mut self.expand_end {
+      end.matches.optimize();
+    }
+  }
 }
 
 impl<D, L, C> Replacer<D> for Fixer<L>

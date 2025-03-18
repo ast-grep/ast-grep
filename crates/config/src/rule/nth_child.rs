@@ -255,7 +255,13 @@ impl<L: Language> Matcher<L> for NthChild<L> {
     self.position.is_matched(index).then_some(node)
   }
   fn potential_kinds(&self) -> Option<BitSet> {
-    None
+    let rule = self.of_rule.as_ref()?;
+    rule.potential_kinds()
+  }
+  fn optimize(&mut self) {
+    if let Some(rule) = &mut self.of_rule {
+      rule.optimize();
+    }
   }
 }
 

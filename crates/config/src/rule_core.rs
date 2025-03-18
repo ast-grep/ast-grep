@@ -119,7 +119,9 @@ impl SerializableRuleCore {
   }
 
   pub fn get_matcher<L: Language>(&self, env: DeserializeEnv<L>) -> RResult<RuleCore<L>> {
-    self.get_matcher_with_hint(env, CheckHint::Normal)
+    let mut ret = self.get_matcher_with_hint(env, CheckHint::Normal)?;
+    ret.optimize();
+    Ok(ret)
   }
 
   pub(crate) fn get_matcher_with_hint<L: Language>(
@@ -274,6 +276,16 @@ impl<L: Language> Matcher<L> for RuleCore<L> {
 
   fn potential_kinds(&self) -> Option<BitSet> {
     self.rule.potential_kinds()
+  }
+
+  fn optimize(&mut self) {
+    self.rule.optimize();
+    for rule in self.constraints.values_mut() {
+      rule.optimize();
+    }
+    if let Some(fixer) = &mut self.fixer {
+      fixer.optimize();
+    }
   }
 }
 
