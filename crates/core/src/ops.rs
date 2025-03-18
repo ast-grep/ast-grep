@@ -56,10 +56,6 @@ impl<L: Language, P: Matcher<L>> All<L, P> {
     }
   }
 
-  pub fn optimize(&mut self) {
-    self.kinds = Self::compute_kinds(&self.patterns);
-  }
-
   fn compute_kinds(patterns: &[P]) -> Option<BitSet> {
     let mut set: Option<BitSet> = None;
     for pattern in patterns {
@@ -107,6 +103,13 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
   fn potential_kinds(&self) -> Option<BitSet> {
     self.kinds.clone()
   }
+
+  fn optimize(&mut self) {
+    for pattern in &mut self.patterns {
+      pattern.optimize();
+    }
+    self.kinds = Self::compute_kinds(&self.patterns)
+  }
 }
 
 // Box<[P]> for immutability and potential_kinds cache correctness
@@ -125,9 +128,6 @@ impl<L: Language, P: Matcher<L>> Any<L, P> {
       kinds,
       lang: PhantomData,
     }
-  }
-  pub fn optimize(&mut self) {
-    self.kinds = Self::compute_kinds(&self.patterns)
   }
 
   fn compute_kinds(patterns: &[P]) -> Option<BitSet> {
@@ -170,6 +170,13 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
 
   fn potential_kinds(&self) -> Option<BitSet> {
     self.kinds.clone()
+  }
+
+  fn optimize(&mut self) {
+    for pattern in &mut self.patterns {
+      pattern.optimize();
+    }
+    self.kinds = Self::compute_kinds(&self.patterns)
   }
 }
 
@@ -241,6 +248,10 @@ where
       .not
       .match_node_with_env(node.clone(), env)
       .xor(Some(node))
+  }
+
+  fn optimize(&mut self) {
+    self.not.optimize();
   }
 }
 
