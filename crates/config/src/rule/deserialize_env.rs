@@ -5,7 +5,7 @@ use crate::rule::{self, Rule, RuleSerializeError, SerializableRule};
 use crate::rule_core::{RuleCoreError, SerializableRuleCore};
 use crate::transform::Transformation;
 
-use ast_grep_core::language::Language;
+use ast_grep_core::{language::Language, matcher::Matcher};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -192,7 +192,9 @@ impl<L: Language> DeserializeEnv<L> {
     &self,
     serialized: SerializableRule,
   ) -> Result<Rule<L>, RuleSerializeError> {
-    rule::deserialize_rule(serialized, self)
+    let mut ret = rule::deserialize_rule(serialized, self)?;
+    ret.optimize();
+    Ok(ret)
   }
 
   pub(crate) fn get_transform_order<'a>(
