@@ -217,7 +217,7 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
     let mut buffer = create_buffer(self.color);
     let writer = &mut buffer;
     let mut start = 0;
-    self.styles.print_prelude(path, writer)?;
+    let display_style = &self.config.display_style;
     for (diff, rule) in diffs {
       let range = &diff.range;
       // skip overlapping diff
@@ -225,21 +225,37 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
         continue;
       }
       start = range.end;
+      if matches!(display_style, DisplayStyle::Rich) {
+        self.styles.print_prelude(path, writer)?;
+      } else {
+        let pos = diff.node_match.start_pos();
+        write!(
+          writer,
+          "{}:{}:{}: ",
+          path.display(),
+          pos.line() + 1,
+          pos.column(&diff.node_match) + 1
+        )?;
+      }
       print_rule_title(rule, &diff.node_match, &self.styles.rule, writer)?;
-      let source = diff.get_root_text();
-      let new_str = format!(
-        "{}{}{}",
-        &source[..range.start],
-        diff.replacement,
-        &source[start..],
-      );
-      self
-        .styles
-        .diff
-        .print_diff(source, &new_str, writer, context)?;
-      if let Some(note) = &rule.note {
-        writeln!(writer, "{}", self.styles.rule.note.paint("Note:"))?;
-        writeln!(writer, "{note}")?;
+      if matches!(display_style, DisplayStyle::Rich) {
+        let source = diff.get_root_text();
+        let new_str = format!(
+          "{}{}{}",
+          &source[..range.start],
+          diff.replacement,
+          &source[start..],
+        );
+        self
+          .styles
+          .diff
+          .print_diff(source, &new_str, writer, context)?;
+      }
+      if matches!(display_style, DisplayStyle::Medium | DisplayStyle::Rich) {
+        if let Some(note) = &rule.note {
+          writeln!(writer, "{}", self.styles.rule.note.paint("Note:"))?;
+          writeln!(writer, "{note}")?;
+        }
       }
     }
     Ok(buffer)
