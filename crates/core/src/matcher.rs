@@ -48,11 +48,6 @@ pub trait Matcher<L: Language> {
   fn get_match_len<D: Doc<Lang = L>>(&self, _node: Node<D>) -> Option<usize> {
     None
   }
-
-  /// optimize the matcher to reduce the number of nodes to be checked.
-  fn optimize(&mut self) {
-    // do nothing by default
-  }
 }
 
 /// MatcherExt provides additional utility methods for `Matcher`.

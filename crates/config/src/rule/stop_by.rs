@@ -2,7 +2,7 @@ use super::deserialize_env::DeserializeEnv;
 use crate::rule::{Rule, RuleSerializeError, SerializableRule};
 
 use ast_grep_core::language::Language;
-use ast_grep_core::{Doc, Matcher, Node};
+use ast_grep_core::{Doc, Node};
 
 use schemars::JsonSchema;
 use serde::de::{self, Deserializer, MapAccess, Visitor};
@@ -114,11 +114,6 @@ impl<L: Language> StopBy<L> {
       StopBy::Rule(rule) => rule.verify_util(),
       StopBy::End => Ok(()),
       StopBy::Neighbor => Ok(()),
-    }
-  }
-  pub fn optimize(&mut self) {
-    if let StopBy::Rule(rule) = self {
-      rule.optimize();
     }
   }
 }

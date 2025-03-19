@@ -48,9 +48,10 @@ pub struct All<L: Language, P: Matcher<L>> {
 impl<L: Language, P: Matcher<L>> All<L, P> {
   pub fn new<PS: IntoIterator<Item = P>>(patterns: PS) -> Self {
     let patterns: Box<[P]> = patterns.into_iter().collect();
+    let kinds = Self::compute_kinds(&patterns);
     Self {
       patterns,
-      kinds: None,
+      kinds,
       lang: PhantomData,
     }
   }
@@ -102,13 +103,6 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
   fn potential_kinds(&self) -> Option<BitSet> {
     self.kinds.clone()
   }
-
-  fn optimize(&mut self) {
-    for pattern in &mut self.patterns {
-      pattern.optimize();
-    }
-    self.kinds = Self::compute_kinds(&self.patterns)
-  }
 }
 
 // Box<[P]> for immutability and potential_kinds cache correctness
@@ -121,9 +115,10 @@ pub struct Any<L, P> {
 impl<L: Language, P: Matcher<L>> Any<L, P> {
   pub fn new<PS: IntoIterator<Item = P>>(patterns: PS) -> Self {
     let patterns: Box<[P]> = patterns.into_iter().collect();
+    let kinds = Self::compute_kinds(&patterns);
     Self {
       patterns,
-      kinds: None,
+      kinds,
       lang: PhantomData,
     }
   }
@@ -168,13 +163,6 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
 
   fn potential_kinds(&self) -> Option<BitSet> {
     self.kinds.clone()
-  }
-
-  fn optimize(&mut self) {
-    for pattern in &mut self.patterns {
-      pattern.optimize();
-    }
-    self.kinds = Self::compute_kinds(&self.patterns)
   }
 }
 
@@ -246,10 +234,6 @@ where
       .not
       .match_node_with_env(node.clone(), env)
       .xor(Some(node))
-  }
-
-  fn optimize(&mut self) {
-    self.not.optimize();
   }
 }
 
@@ -543,46 +527,36 @@ mod test {
   #[test]
   fn test_all_kinds() {
     // intersect None kinds
-    let mut matcher = Op::all(["let a = $_".t(), "$A".t()]);
-    matcher.optimize();
+    let matcher = Op::all(["let a = $_".t(), "$A".t()]);
     assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
-    let mut matcher = Op::all(["$A".t(), "let a = $_".t()]);
-    matcher.optimize();
+    let matcher = Op::all(["$A".t(), "let a = $_".t()]);
     assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
     // intersect Same kinds
-    let mut matcher = Op::all(["let a = $_".t(), "let b = 123".t()]);
-    matcher.optimize();
+    let matcher = Op::all(["let a = $_".t(), "let b = 123".t()]);
     assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
     // intersect different kinds
-    let mut matcher = Op::all(["let a = 1".t(), "console.log(1)".t()]);
-    matcher.optimize();
+    let matcher = Op::all(["let a = 1".t(), "console.log(1)".t()]);
     assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(0));
     // two None kinds
-    let mut matcher = Op::all(["$A".t(), "$B".t()]);
-    matcher.optimize();
+    let matcher = Op::all(["$A".t(), "$B".t()]);
     assert_eq!(matcher.potential_kinds(), None);
   }
 
   #[test]
   fn test_any_kinds() {
     // union None kinds
-    let mut matcher = Op::any(["let a = $_".t(), "$A".t()]);
-    matcher.optimize();
+    let matcher = Op::any(["let a = $_".t(), "$A".t()]);
     assert_eq!(matcher.potential_kinds(), None);
-    let mut matcher = Op::any(["$A".t(), "let a = $_".t()]);
-    matcher.optimize();
+    let matcher = Op::any(["$A".t(), "let a = $_".t()]);
     assert_eq!(matcher.potential_kinds(), None);
     // union Same kinds
-    let mut matcher = Op::any(["let a = $_".t(), "let b = 123".t()]);
-    matcher.optimize();
+    let matcher = Op::any(["let a = $_".t(), "let b = 123".t()]);
     assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
     // union different kinds
-    let mut matcher = Op::any(["let a = 1".t(), "console.log(1)".t()]);
-    matcher.optimize();
+    let matcher = Op::any(["let a = 1".t(), "console.log(1)".t()]);
     assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(2));
     // two None kinds
-    let mut matcher = Op::any(["$A".t(), "$B".t()]);
-    matcher.optimize();
+    let matcher = Op::any(["$A".t(), "$B".t()]);
     assert_eq!(matcher.potential_kinds(), None);
   }
 

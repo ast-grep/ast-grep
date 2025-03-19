@@ -258,11 +258,6 @@ impl<L: Language> Matcher<L> for NthChild<L> {
     let rule = self.of_rule.as_ref()?;
     rule.potential_kinds()
   }
-  fn optimize(&mut self) {
-    if let Some(rule) = &mut self.of_rule {
-      rule.optimize();
-    }
-  }
 }
 
 #[cfg(test)]

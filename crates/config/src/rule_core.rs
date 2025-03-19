@@ -128,7 +128,7 @@ impl SerializableRuleCore {
     hint: CheckHint,
   ) -> RResult<RuleCore<L>> {
     let env = self.get_deserialize_env(env)?;
-    let mut ret = self.get_matcher_from_env(&env)?;
+    let ret = self.get_matcher_from_env(&env)?;
     check_rule_with_hint(
       &ret.rule,
       &ret.registration,
@@ -137,7 +137,6 @@ impl SerializableRuleCore {
       &ret.fixer,
       hint,
     )?;
-    ret.optimize();
     Ok(ret)
   }
 }
@@ -275,16 +274,6 @@ impl<L: Language> Matcher<L> for RuleCore<L> {
 
   fn potential_kinds(&self) -> Option<BitSet> {
     self.rule.potential_kinds()
-  }
-
-  fn optimize(&mut self) {
-    self.rule.optimize();
-    for rule in self.constraints.values_mut() {
-      rule.optimize();
-    }
-    if let Some(fixer) = &mut self.fixer {
-      fixer.optimize();
-    }
   }
 }
 
