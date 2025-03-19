@@ -239,17 +239,13 @@ fn test_non_overlap_print() {
   test_non_overlap_print_impl(Heading::Auto);
 }
 
-#[test]
-fn test_print_rule_diffs() {
+fn get_printed_text(mut printer: ColoredPrinter<Buffer>, diff_case: &DiffCase) -> String {
+  let (source, pattern, rewrite, _) = diff_case;
   let globals = GlobalRules::default();
-  for &(source, pattern, rewrite, note) in DIFF_CASES {
-    let mut printer = make_test_printer()
-      .heading(Heading::Never)
-      .style(ReportStyle::Rich);
-    let grep = SgLang::from(SupportLang::TypeScript).ast_grep(source);
-    let rule = from_yaml_string(
-      &format!(
-        r"
+  let grep = SgLang::from(SupportLang::TypeScript).ast_grep(source);
+  let rule = from_yaml_string(
+    &format!(
+      r"
 id: test-id
 message: test rule
 severity: info
@@ -257,25 +253,49 @@ language: TypeScript
 rule:
   pattern: {pattern}
 fix: '{rewrite}'"
-      ),
-      &globals,
-    )
-    .expect("should parse")
-    .pop()
-    .unwrap();
-    let matcher = rule.get_matcher(&globals).expect("should parse");
-    let fixer = matcher.fixer.as_ref().expect("should have fixer");
-    let matches = grep.root().find_all(&matcher);
-    let diffs = matches.map(|n| (Diff::generate(n, &pattern, fixer), &rule));
-    let buffer = printer
-      .get_processor()
-      .print_rule_diffs(diffs.collect(), Path::new("test.tsx"))
-      .expect("test only");
-    printer.process(buffer).expect("test only");
-    let text = get_text(&printer);
+    ),
+    &globals,
+  )
+  .expect("should parse")
+  .pop()
+  .unwrap();
+  let matcher = rule.get_matcher(&globals).expect("should parse");
+  let fixer = matcher.fixer.as_ref().expect("should have fixer");
+  let matches = grep.root().find_all(&matcher);
+  let diffs = matches.map(|n| (Diff::generate(n, &pattern, fixer), &rule));
+  let buffer = printer
+    .get_processor()
+    .print_rule_diffs(diffs.collect(), Path::new("test.tsx"))
+    .expect("test only");
+  printer.process(buffer).expect("test only");
+  get_text(&printer)
+}
+
+#[test]
+fn test_print_rule_diffs() {
+  for diff_case in DIFF_CASES {
+    let printer = make_test_printer()
+      .heading(Heading::Never)
+      .style(ReportStyle::Rich);
+    let text = get_printed_text(printer, diff_case);
+    let (_, _, rewrite, note) = diff_case;
     assert!(text.contains("test.tsx"), "{note}");
     assert!(text.contains("note[test-id]"), "{note}");
     assert!(text.contains(rewrite), "{note}");
+  }
+}
+
+#[test]
+fn test_print_rule_diffs_short() {
+  for diff_case in DIFF_CASES {
+    let printer = make_test_printer()
+      .heading(Heading::Never)
+      .style(ReportStyle::Short);
+    let text = get_printed_text(printer, diff_case);
+    let (_, _, rewrite, note) = diff_case;
+    assert!(text.contains("test.tsx:"), "{note}");
+    assert!(text.contains("note[test-id]"), "{note}");
+    assert!(rewrite.is_empty() || !text.contains(rewrite), "{note}");
   }
 }
 
