@@ -245,7 +245,7 @@ fn test_print_rule_diffs() {
   for &(source, pattern, rewrite, note) in DIFF_CASES {
     let mut printer = make_test_printer()
       .heading(Heading::Never)
-      .style(ReportStyle::Short);
+      .style(ReportStyle::Rich);
     let grep = SgLang::from(SupportLang::TypeScript).ast_grep(source);
     let rule = from_yaml_string(
       &format!(
