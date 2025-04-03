@@ -9,6 +9,7 @@ edition.workspace = true
 [dependencies]
 ast-grep-core.workspace = true
 ast-grep-config.workspace = true
+ast-grep-language.workspace = true
 
 anyhow.workspace = true
 serde_json = { version = "1.0.116", features = ["preserve_order"] }
