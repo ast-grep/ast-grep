@@ -60,10 +60,8 @@ pub struct SerializableRuleCore {
 }
 
 impl SerializableRuleCore {
-  pub(crate) fn get_deserialize_env<L: Language>(
-    &self,
-    env: DeserializeEnv<L>,
-  ) -> RResult<DeserializeEnv<L>> {
+  /// This function assumes env's local is empty.
+  fn get_deserialize_env<L: Language>(&self, env: DeserializeEnv<L>) -> RResult<DeserializeEnv<L>> {
     if let Some(utils) = &self.utils {
       let env = env.with_utils(utils).map_err(RuleCoreError::Utils)?;
       Ok(env)

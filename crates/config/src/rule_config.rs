@@ -124,25 +124,21 @@ impl<L: Language> SerializableRuleConfig<L> {
     let env = DeserializeEnv::new(self.language.clone())
       .with_globals(globals)
       .with_rewriters(&rewriters);
-    let rule = self.core.get_matcher(env)?;
-    self.register_rewriters(&rule, globals, &rewriters)?;
+    let rule = self.core.get_matcher(env.clone())?;
+    self.register_rewriters(&rule, env, &rewriters)?;
     Ok(rule)
   }
 
   fn register_rewriters(
     &self,
     rule: &RuleCore<L>,
-    globals: &GlobalRules<L>,
+    env: DeserializeEnv<L>,
     rewriters: &GlobalRules<L>,
   ) -> Result<(), RuleConfigError> {
     let Some(ser) = &self.rewriters else {
       return Ok(());
     };
     let vars = rule.defined_vars();
-    let env = DeserializeEnv::new(self.language.clone())
-      .with_globals(globals)
-      .with_rewriters(rewriters);
-    let env = self.get_deserialize_env(env)?;
     for val in ser {
       if val.core.fix.is_none() {
         return Err(RuleConfigError::NoFixInRewriter(val.id.clone()));
