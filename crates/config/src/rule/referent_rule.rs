@@ -20,9 +20,6 @@ impl<R> Clone for Registration<R> {
 }
 
 impl<R> Registration<R> {
-  fn read(&self) -> &HashMap<String, R> {
-    &self.0
-  }
   #[allow(clippy::mut_from_ref)]
   fn write(&self) -> &mut HashMap<String, R> {
     // SAFETY: `write` will only be called during initialization and
@@ -68,7 +65,7 @@ pub struct RuleRegistration<L: Language> {
 // these are shit code
 impl<L: Language> RuleRegistration<L> {
   pub fn get_rewriters(&self) -> &HashMap<String, RuleCore<L>> {
-    self.rewriters.read()
+    &self.rewriters.0
   }
 
   pub fn from_globals(global: &GlobalRules<L>) -> Self {
@@ -76,14 +73,6 @@ impl<L: Language> RuleRegistration<L> {
       local: Default::default(),
       global: global.clone(),
       rewriters: Default::default(),
-    }
-  }
-
-  pub fn with_rewriters(&self, rewriters: &GlobalRules<L>) -> Self {
-    Self {
-      local: self.local.clone(),
-      global: self.global.clone(),
-      rewriters: rewriters.clone(),
     }
   }
 
@@ -112,12 +101,10 @@ impl<L: Language> RuleRegistration<L> {
     self.rewriters.insert(id, rewriter).expect("should work");
   }
 
-  pub(crate) fn get_local_util_vars<'a>(&'a self) -> HashSet<&'a str> {
+  pub(crate) fn get_local_util_vars(&self) -> HashSet<&str> {
     let mut ret = HashSet::new();
-    let utils = self.local.read();
+    let utils = &self.local.0;
     for rule in utils.values() {
-      // SAFETY: self will retain the reg_ref and guarantee &Rule is valid
-      let rule = unsafe { &*(rule as *const Rule<L>) as &'a Rule<L> };
       for v in rule.defined_vars() {
         ret.insert(v);
       }

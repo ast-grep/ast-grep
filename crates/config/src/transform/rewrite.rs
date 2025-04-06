@@ -171,10 +171,10 @@ mod test {
   }
 
   fn make_rewriters(pairs: &[(&str, &str)]) -> RuleRegistration<TypeScript> {
-    make_rewriters_with_rewriter(pairs, Default::default())
+    make_rewriter_reg(pairs, Default::default())
   }
 
-  fn make_rewriters_with_rewriter(
+  fn make_rewriter_reg(
     pairs: &[(&str, &str)],
     vars: HashSet<&str>,
   ) -> RuleRegistration<TypeScript> {
@@ -334,8 +334,7 @@ fix: $D
     };
     let mut vars = HashSet::new();
     vars.insert("C");
-    let reg =
-      make_rewriters_with_rewriter(&[("re", "{rule: {pattern: $B}, fix: '$B == $C'}")], vars);
+    let reg = make_rewriter_reg(&[("re", "{rule: {pattern: $B}, fix: '$B == $C'}")], vars);
     let ret = apply_transformation(rewrite, "[1, 2]", "[$A, $C]", reg);
     assert_eq!(ret, "1 == 2");
   }
