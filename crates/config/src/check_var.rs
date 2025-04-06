@@ -165,12 +165,12 @@ pub fn check_rewriters_in_transform<L: Language>(
   rewriters: &GlobalRules<L>,
 ) -> Result<(), RuleConfigError> {
   let rewriters = rewriters.read();
-  if let Some(err) = check_one_rewriter_in_rule(rule, &rewriters) {
+  if let Some(err) = check_one_rewriter_in_rule(rule, rewriters) {
     return Err(err);
   }
   let error = rewriters
     .values()
-    .find_map(|rewriter| check_one_rewriter_in_rule(rewriter, &rewriters));
+    .find_map(|rewriter| check_one_rewriter_in_rule(rewriter, rewriters));
   if let Some(err) = error {
     return Err(err);
   }

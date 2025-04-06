@@ -356,7 +356,7 @@ fix: $D
     let rewriters = rewriters.read();
     let mut ctx = Ctx {
       env,
-      rewriters: &rewriters,
+      rewriters,
       enclosing_env: &enclosing,
     };
     let after_vars: Vec<_> = ctx.env.get_matched_variables().collect();

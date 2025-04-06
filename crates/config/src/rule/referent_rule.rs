@@ -9,9 +9,9 @@ use thiserror::Error;
 
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak};
+use std::sync::{Arc, Weak};
 
-pub struct Registration<R>(Arc<RwLock<HashMap<String, R>>>);
+pub struct Registration<R>(Arc<HashMap<String, R>>);
 
 impl<R> Clone for Registration<R> {
   fn clone(&self) -> Self {
@@ -21,18 +21,21 @@ impl<R> Clone for Registration<R> {
 
 impl<R> Registration<R> {
   // TODO: this is sooo wrong
-  pub(crate) fn read(&self) -> RwLockReadGuard<HashMap<String, R>> {
-    self.0.read().unwrap()
+  pub(crate) fn read(&self) -> &HashMap<String, R> {
+    &self.0
   }
-  fn write(&self) -> RwLockWriteGuard<HashMap<String, R>> {
-    self.0.write().unwrap()
+  #[allow(clippy::mut_from_ref)]
+  fn write(&self) -> &mut HashMap<String, R> {
+    // SAFETY: `write` will only be called during initialization and
+    // it only insert new item to the hashmap. It is safe to cast the raw ptr.
+    unsafe { &mut *(Arc::as_ptr(&self.0) as *mut HashMap<String, R>) }
   }
 }
 pub type GlobalRules<L> = Registration<RuleCore<L>>;
 
 impl<L: Language> GlobalRules<L> {
   pub fn insert(&self, id: &str, rule: RuleCore<L>) -> Result<(), ReferentRuleError> {
-    let mut map = self.write();
+    let map = self.write();
     if map.contains_key(id) {
       return Err(ReferentRuleError::DuplicateRule(id.into()));
     }
@@ -65,11 +68,11 @@ pub struct RuleRegistration<L: Language> {
 
 // these are shit code
 impl<L: Language> RuleRegistration<L> {
-  fn get_local(&self) -> RwLockReadGuard<HashMap<String, Rule<L>>> {
+  fn get_local(&self) -> &HashMap<String, Rule<L>> {
     self.local.read()
   }
 
-  fn get_global(&self) -> RwLockReadGuard<HashMap<String, RuleCore<L>>> {
+  fn get_global(&self) -> &HashMap<String, RuleCore<L>> {
     self.global.read()
   }
 
@@ -100,7 +103,7 @@ impl<L: Language> RuleRegistration<L> {
   }
 
   pub fn insert_local(&self, id: &str, rule: Rule<L>) -> Result<(), ReferentRuleError> {
-    let mut map = self.local.write();
+    let map = self.local.write();
     if map.contains_key(id) {
       return Err(ReferentRuleError::DuplicateRule(id.into()));
     }
@@ -138,8 +141,8 @@ impl<L: Language> Default for RuleRegistration<L> {
 }
 
 pub struct RegistrationRef<L: Language> {
-  local: Weak<RwLock<HashMap<String, Rule<L>>>>,
-  global: Weak<RwLock<HashMap<String, RuleCore<L>>>>,
+  local: Weak<HashMap<String, Rule<L>>>,
+  global: Weak<HashMap<String, RuleCore<L>>>,
 }
 // these are shit code
 impl<L: Language> RegistrationRef<L> {
