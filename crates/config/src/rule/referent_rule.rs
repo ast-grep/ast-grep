@@ -20,7 +20,7 @@ impl<R> Clone for Registration<R> {
 }
 
 impl<R> Registration<R> {
-  pub(crate) fn read(&self) -> &HashMap<String, R> {
+  fn read(&self) -> &HashMap<String, R> {
     &self.0
   }
   #[allow(clippy::mut_from_ref)]

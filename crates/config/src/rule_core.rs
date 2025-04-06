@@ -275,9 +275,9 @@ impl<L: Language> Matcher<L> for RuleCore<L> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::from_str;
   use crate::rule::referent_rule::{ReferentRule, ReferentRuleError};
   use crate::test::TypeScript;
-  use crate::{from_str, GlobalRules};
   use ast_grep_core::matcher::{Pattern, RegexMatcher};
 
   fn get_matcher(src: &str) -> RResult<RuleCore<TypeScript>> {
@@ -395,22 +395,21 @@ transform:
     assert_eq!(matched, "2");
   }
 
-  fn get_rewriters() -> GlobalRules<TypeScript> {
+  fn get_rewriters() -> (&'static str, RuleCore<TypeScript>) {
     // NOTE: initialize a DeserializeEnv here is not 100% correct
     // it does not inherit global rules or local rules
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let ret = GlobalRules::default();
     let rewriter: SerializableRuleCore =
       from_str("{rule: {kind: number, pattern: $REWRITE}, fix: yjsnp}").expect("should parse");
     let rewriter = rewriter.get_matcher(env).expect("should work");
-    ret.insert("re", rewriter).expect("should work");
-    ret
+    ("re", rewriter)
   }
 
   #[test]
   fn test_rewriter_writing_to_env() {
-    let rewriters = get_rewriters();
-    let env = DeserializeEnv::new(TypeScript::Tsx).with_rewriters(&rewriters);
+    let (id, rewriter) = get_rewriters();
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    env.registration.insert_rewriter(id, rewriter);
     let ser_rule: SerializableRuleCore = from_str(
       r"
 rule: {pattern: $A = $B}
