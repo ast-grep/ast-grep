@@ -20,7 +20,6 @@ impl<R> Clone for Registration<R> {
 }
 
 impl<R> Registration<R> {
-  // TODO: this is sooo wrong
   pub(crate) fn read(&self) -> &HashMap<String, R> {
     &self.0
   }
@@ -68,14 +67,6 @@ pub struct RuleRegistration<L: Language> {
 
 // these are shit code
 impl<L: Language> RuleRegistration<L> {
-  fn get_local(&self) -> &HashMap<String, Rule<L>> {
-    self.local.read()
-  }
-
-  fn get_global(&self) -> &HashMap<String, RuleCore<L>> {
-    self.global.read()
-  }
-
   pub fn get_rewriters(&self) -> GlobalRules<L> {
     self.rewriters.clone()
   }
@@ -96,7 +87,7 @@ impl<L: Language> RuleRegistration<L> {
     }
   }
 
-  pub fn get_ref(&self) -> RegistrationRef<L> {
+  fn get_ref(&self) -> RegistrationRef<L> {
     let local = Arc::downgrade(&self.local.0);
     let global = Arc::downgrade(&self.global.0);
     RegistrationRef { local, global }
@@ -119,7 +110,7 @@ impl<L: Language> RuleRegistration<L> {
 
   pub(crate) fn get_local_util_vars<'a>(&'a self) -> HashSet<&'a str> {
     let mut ret = HashSet::new();
-    let utils = self.get_local();
+    let utils = self.local.read();
     for rule in utils.values() {
       // SAFETY: self will retain the reg_ref and guarantee &Rule is valid
       let rule = unsafe { &*(rule as *const Rule<L>) as &'a Rule<L> };
@@ -140,20 +131,24 @@ impl<L: Language> Default for RuleRegistration<L> {
   }
 }
 
-pub struct RegistrationRef<L: Language> {
+/// RegistrationRef must use Weak pointer to avoid
+/// cyclic reference in RuleRegistration
+struct RegistrationRef<L: Language> {
   local: Weak<HashMap<String, Rule<L>>>,
   global: Weak<HashMap<String, RuleCore<L>>>,
 }
-// these are shit code
 impl<L: Language> RegistrationRef<L> {
-  pub fn unref(&self) -> RuleRegistration<L> {
-    let local = Registration(self.local.upgrade().unwrap());
-    let global = Registration(self.global.upgrade().unwrap());
-    RuleRegistration {
-      local,
-      global,
-      rewriters: Default::default(),
-    }
+  fn get_local(&self) -> Arc<HashMap<String, Rule<L>>> {
+    self
+      .local
+      .upgrade()
+      .expect("Rule Registration must be kept alive")
+  }
+  fn get_global(&self) -> Arc<HashMap<String, RuleCore<L>>> {
+    self
+      .global
+      .upgrade()
+      .expect("Rule Registration must be kept alive")
   }
 }
 
@@ -187,8 +182,7 @@ impl<L: Language> ReferentRule<L> {
   where
     F: FnOnce(&Rule<L>) -> T,
   {
-    let registration = self.reg_ref.unref();
-    let rules = registration.get_local();
+    let rules = self.reg_ref.get_local();
     let rule = rules.get(&self.rule_id)?;
     Some(func(rule))
   }
@@ -197,19 +191,17 @@ impl<L: Language> ReferentRule<L> {
   where
     F: FnOnce(&RuleCore<L>) -> T,
   {
-    let registration = self.reg_ref.unref();
-    let rules = registration.get_global();
+    let rules = self.reg_ref.get_global();
     let rule = rules.get(&self.rule_id)?;
     Some(func(rule))
   }
 
   pub(super) fn verify_util(&self) -> Result<(), ReferentRuleError> {
-    let registration = self.reg_ref.unref();
-    let rules = registration.get_local();
+    let rules = self.reg_ref.get_local();
     if rules.contains_key(&self.rule_id) {
       return Ok(());
     }
-    let rules = registration.get_global();
+    let rules = self.reg_ref.get_global();
     if rules.contains_key(&self.rule_id) {
       return Ok(());
     }
