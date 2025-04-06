@@ -67,8 +67,8 @@ pub struct RuleRegistration<L: Language> {
 
 // these are shit code
 impl<L: Language> RuleRegistration<L> {
-  pub fn get_rewriters(&self) -> GlobalRules<L> {
-    self.rewriters.clone()
+  pub fn get_rewriters(&self) -> &HashMap<String, RuleCore<L>> {
+    self.rewriters.read()
   }
 
   pub fn from_globals(global: &GlobalRules<L>) -> Self {
