@@ -34,6 +34,7 @@ fn into_map<L: Language>(
 type OrderResult<T> = Result<T, String>;
 
 /// A struct to store information to deserialize rules.
+#[derive(Clone)]
 pub struct DeserializeEnv<L: Language> {
   /// registration for global utility rules and local utility rules.
   pub(crate) registration: RuleRegistration<L>,

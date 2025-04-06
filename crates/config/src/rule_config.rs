@@ -16,7 +16,7 @@ use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer};
 use thiserror::Error;
 
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Serialize, Deserialize, Clone, Default, JsonSchema, Debug)]
@@ -139,35 +139,21 @@ impl<L: Language> SerializableRuleConfig<L> {
       return Ok(());
     };
     let vars = rule.defined_vars();
-    for val in ser {
-      if val.core.fix.is_none() {
-        return Err(RuleConfigError::NoFixInRewriter(val.id.clone()));
-      }
-      self
-        .register_one_rewriter(val, &vars, globals, rewriters)
-        .map_err(|e| RuleConfigError::Rewriter(e, val.id.clone()))?;
-    }
-    check_rewriters_in_transform(rule, rewriters)?;
-    Ok(())
-  }
-
-  fn register_one_rewriter(
-    &self,
-    val: &SerializableRewriter,
-    vars: &HashSet<&str>,
-    globals: &GlobalRules<L>,
-    rewriters: &GlobalRules<L>,
-  ) -> Result<(), RuleCoreError> {
-    // NB should inherit env from matcher to inherit utils
-    // TODO: optimize duplicate env creation/util registration
     let env = DeserializeEnv::new(self.language.clone())
       .with_globals(globals)
       .with_rewriters(rewriters);
     let env = self.get_deserialize_env(env)?;
-    let rewriter = val
-      .core
-      .get_matcher_with_hint(env, CheckHint::Rewriter(vars))?;
-    rewriters.insert(&val.id, rewriter).expect("should work");
+    for val in ser {
+      if val.core.fix.is_none() {
+        return Err(RuleConfigError::NoFixInRewriter(val.id.clone()));
+      }
+      let rewriter = val
+        .core
+        .get_matcher_with_hint(env.clone(), CheckHint::Rewriter(&vars))
+        .map_err(|e| RuleConfigError::Rewriter(e, val.id.clone()))?;
+      rewriters.insert(&val.id, rewriter).expect("should work");
+    }
+    check_rewriters_in_transform(rule, rewriters)?;
     Ok(())
   }
 }
