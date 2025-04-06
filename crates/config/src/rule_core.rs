@@ -65,9 +65,7 @@ impl SerializableRuleCore {
     env: DeserializeEnv<L>,
   ) -> RResult<DeserializeEnv<L>> {
     if let Some(utils) = &self.utils {
-      let env = env
-        .register_local_utils(utils)
-        .map_err(RuleCoreError::Utils)?;
+      let env = env.with_utils(utils).map_err(RuleCoreError::Utils)?;
       Ok(env)
     } else {
       Ok(env)

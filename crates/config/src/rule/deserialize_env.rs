@@ -153,7 +153,7 @@ impl<L: Language> DeserializeEnv<L> {
   /// register utils rule in the DeserializeEnv for later usage.
   /// N.B. This function will manage the util registration order
   /// by their dependency. `potential_kinds` need ordered insertion.
-  pub fn register_local_utils(
+  pub fn with_utils(
     self,
     utils: &HashMap<String, SerializableRule>,
   ) -> Result<Self, RuleSerializeError> {
@@ -234,7 +234,7 @@ member-name:
   kind: identifier
 ",
     )?;
-    let env = DeserializeEnv::new(TypeScript::Tsx).register_local_utils(&utils)?;
+    let env = DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils)?;
     assert_eq!(utils.keys().count(), 2);
     let rule = from_str("matches: accessor-name").unwrap();
     Ok((
@@ -271,7 +271,7 @@ local-rule:
 ",
     )?;
     // should not panic
-    DeserializeEnv::new(TypeScript::Tsx).register_local_utils(&utils)?;
+    DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils)?;
     Ok(())
   }
 
@@ -283,7 +283,7 @@ local-rule:
   matches: local-rule
 ",
     )?;
-    let ret = DeserializeEnv::new(TypeScript::Tsx).register_local_utils(&utils);
+    let ret = DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils);
     assert!(ret.is_err());
     Ok(())
   }
@@ -302,7 +302,7 @@ local-rule-c:
     - matches: local-rule-a
 ",
     )?;
-    let ret = DeserializeEnv::new(TypeScript::Tsx).register_local_utils(&utils);
+    let ret = DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils);
     assert!(ret.is_err());
     Ok(())
   }
@@ -316,7 +316,7 @@ local-rule-a:
 local-rule-b:
   matches: local-rule-a",
     )?;
-    let ret = DeserializeEnv::new(TypeScript::Tsx).register_local_utils(&utils);
+    let ret = DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils);
     assert!(matches!(
       ret,
       Err(RuleSerializeError::MatchesReference(

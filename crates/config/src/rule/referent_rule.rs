@@ -102,7 +102,7 @@ impl<L: Language> RuleRegistration<L> {
     RegistrationRef { local, global }
   }
 
-  pub fn insert_local(&self, id: &str, rule: Rule<L>) -> Result<(), ReferentRuleError> {
+  pub(crate) fn insert_local(&self, id: &str, rule: Rule<L>) -> Result<(), ReferentRuleError> {
     let map = self.local.write();
     if map.contains_key(id) {
       return Err(ReferentRuleError::DuplicateRule(id.into()));
