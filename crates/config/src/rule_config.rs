@@ -120,12 +120,9 @@ impl<L: Language> SerializableRuleConfig<L> {
     // every RuleConfig has one rewriters, and the rewriter is shared between sub-rules
     // all RuleConfigs has one common globals
     // every sub-rule has one util
-    let rewriters = GlobalRules::default();
-    let env = DeserializeEnv::new(self.language.clone())
-      .with_globals(globals)
-      .with_rewriters(&rewriters);
+    let env = DeserializeEnv::new(self.language.clone()).with_globals(globals);
     let rule = self.core.get_matcher(env.clone())?;
-    self.register_rewriters(&rule, env, &rewriters)?;
+    self.register_rewriters(&rule, env)?;
     Ok(rule)
   }
 
@@ -133,11 +130,11 @@ impl<L: Language> SerializableRuleConfig<L> {
     &self,
     rule: &RuleCore<L>,
     env: DeserializeEnv<L>,
-    rewriters: &GlobalRules<L>,
   ) -> Result<(), RuleConfigError> {
     let Some(ser) = &self.rewriters else {
       return Ok(());
     };
+    let reg = &env.registration;
     let vars = rule.defined_vars();
     for val in ser {
       if val.core.fix.is_none() {
@@ -147,9 +144,9 @@ impl<L: Language> SerializableRuleConfig<L> {
         .core
         .get_matcher_with_hint(env.clone(), CheckHint::Rewriter(&vars))
         .map_err(|e| RuleConfigError::Rewriter(e, val.id.clone()))?;
-      rewriters.insert(&val.id, rewriter).expect("should work");
+      reg.insert_rewriter(&val.id, rewriter);
     }
-    check_rewriters_in_transform(rule, rewriters)?;
+    check_rewriters_in_transform(rule, reg.get_rewriters())?;
     Ok(())
   }
 }

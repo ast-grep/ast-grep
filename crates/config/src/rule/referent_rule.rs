@@ -108,6 +108,10 @@ impl<L: Language> RuleRegistration<L> {
     Ok(())
   }
 
+  pub(crate) fn insert_rewriter(&self, id: &str, rewriter: RuleCore<L>) {
+    self.rewriters.insert(id, rewriter).expect("should work");
+  }
+
   pub(crate) fn get_local_util_vars<'a>(&'a self) -> HashSet<&'a str> {
     let mut ret = HashSet::new();
     let utils = self.local.read();

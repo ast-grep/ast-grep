@@ -4,7 +4,7 @@ use crate::rule::Rule;
 use crate::rule_config::RuleConfigError;
 use crate::rule_core::RuleCoreError;
 use crate::transform::{TransformError, Transformation};
-use crate::{GlobalRules, RuleCore};
+use crate::RuleCore;
 
 use ast_grep_core::language::Language;
 
@@ -162,9 +162,8 @@ fn check_var_in_fix<L: Language>(vars: HashSet<&str>, fixer: &Option<Fixer<L>>) 
 
 pub fn check_rewriters_in_transform<L: Language>(
   rule: &RuleCore<L>,
-  rewriters: &GlobalRules<L>,
+  rewriters: &HashMap<String, RuleCore<L>>,
 ) -> Result<(), RuleConfigError> {
-  let rewriters = rewriters.read();
   if let Some(err) = check_one_rewriter_in_rule(rule, rewriters) {
     return Err(err);
   }
