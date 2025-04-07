@@ -19,7 +19,7 @@
     "benny": "3.7.1",
     "tree-sitter": "0.22.4",
     "tree-sitter-typescript": "0.21.2",
-    "typescript": "5.8.2"
+    "typescript": "5.8.3"
   },
   "devDependencies": {
     "@types/babel__core": "7.20.5",
