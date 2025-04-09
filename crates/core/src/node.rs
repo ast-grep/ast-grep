@@ -408,19 +408,25 @@ impl<'r, D: Doc> Node<'r, D> {
   }
 
   /// Returns all ancestors nodes of `self`.
-  /// Note: each invocation of the returned iterator is O(n)
   /// Using cursor is overkill here because adjust cursor is too expensive.
   pub fn ancestors(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
-    let mut parent = self.inner.parent();
+    let mut ancestor = Some(self.root.root().inner);
+    let self_id = self.inner.id();
     std::iter::from_fn(move || {
-      let inner = parent.clone()?;
-      let ret = Some(Node {
-        inner: inner.clone(),
+      let inner = ancestor.take()?;
+      if inner.id() == self_id {
+        return None;
+      }
+      ancestor = inner.child_with_descendant(self.inner.clone());
+      Some(Node {
+        inner,
         root: self.root,
-      });
-      parent = inner.parent();
-      ret
+      })
     })
+    // We must iterate up the tree to preserve backwards compatibility
+    .collect::<Vec<_>>()
+    .into_iter()
+    .rev()
   }
   #[must_use]
   pub fn next(&self) -> Option<Self> {
