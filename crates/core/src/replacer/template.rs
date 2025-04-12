@@ -65,7 +65,7 @@ fn create_template(tmpl: &str, mv_char: char, transforms: &[String]) -> Template
     {
       fragments.push(tmpl[len..len + offset + i].to_string());
       // NB we have to count ident of the full string
-      let indent = get_indent_at_offset::<String>(tmpl[..len + offset + i].as_bytes());
+      let indent = get_indent_at_offset::<String>(&tmpl.as_bytes()[..len + offset + i]);
       vars.push((meta_var, indent));
       len += skipped + offset + i;
       offset = 0;
