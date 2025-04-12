@@ -232,3 +232,39 @@ fn test_severity_override() -> Result<()> {
     .stdout(contains("warning"));
   Ok(())
 }
+
+const PY_RULE: &str = r"
+id: transform-indent
+language: python
+rule: { pattern: 'class $CN(): $A' }
+transform:
+  AR:
+    substring: { source: $A }
+fix: |-
+  class $CN():
+      $AR
+";
+
+const PY_FILE: &str = r"
+if something:
+    class B():
+        def replace(self):
+        print(self1)
+";
+
+#[test]
+fn test_transform_indent() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/rule.yml", PY_RULE),
+    ("test.py", PY_FILE),
+  ])?;
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["scan"])
+    .assert()
+    .success()
+    .stdout(contains("print").not())
+    .stdout(contains("transform-indent"));
+  Ok(())
+}
