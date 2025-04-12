@@ -203,7 +203,7 @@ where
   let new_line = get_new_line::<C>();
   for line in lines {
     ret.push(new_line.clone());
-    ret.extend(leading.iter().cloned());
+    ret.extend(leading.clone());
     ret.extend(line.iter().cloned());
   }
   ret

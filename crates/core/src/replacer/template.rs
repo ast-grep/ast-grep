@@ -119,8 +119,11 @@ where
 {
   let (source, range) = match var {
     MetaVarExtract::Transformed(name) => {
+      // transformed source does not have range, directly return bytes
       let source = env.get_transformed(name)?;
-      return Some(Cow::Borrowed(source));
+      let de_intended = DeindentedExtract::MultiLine(source, 0);
+      let bytes = indent_lines::<D::Source>(*indent, de_intended);
+      return Some(bytes);
     }
     MetaVarExtract::Single(name) => {
       let replaced = env.get_match(name)?;
@@ -158,7 +161,7 @@ mod test {
 
   use super::*;
   use crate::language::{Language, Tsx};
-  use crate::meta_var::MetaVarEnv;
+  use crate::meta_var::{MetaVarEnv, MetaVariable};
   use crate::Pattern;
   use std::collections::HashMap;
 
@@ -341,6 +344,22 @@ if (true) {
       &[("A", "x"), ("B", "[\n  1\n]")],
       "x = [\n  1\n]",
     );
+  }
+
+  #[test]
+  fn test_replace_rewriter() {
+    let tf = TemplateFix::with_transform("if (a)\n  $A", &Tsx, &["A".to_string()]);
+    let mut env = MetaVarEnv::new();
+    env.insert_transformation(
+      &MetaVariable::Multiple,
+      "A",
+      "if (b)\n  foo".bytes().collect(),
+    );
+    let dummy = Tsx.ast_grep("dummy");
+    let node_match = NodeMatch::new(dummy.root(), env.clone());
+    let bytes = tf.generate_replacement(&node_match);
+    let ret = String::from_utf8(bytes).expect("replacement must be valid utf-8");
+    assert_eq!("if (a)\n  if (b)\n    foo", ret);
   }
 
   #[test]
