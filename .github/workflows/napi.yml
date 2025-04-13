@@ -43,7 +43,6 @@ jobs:
             target: i686-pc-windows-msvc
           - host: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
-            # docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |-
               set -e &&
               yarn build --target x86_64-unknown-linux-gnu &&
@@ -73,7 +72,7 @@ jobs:
               set -e &&
               cd crates/napi &&
               # https://github.com/neovim/neovim/discussions/32340
-              export CFLAGS="-std=c11 -D_BSD_SOURCE"
+              export CFLAGS="-std=gnu11 -D_BSD_SOURCE"
               yarn build --target aarch64-unknown-linux-gnu &&
               aarch64-unknown-linux-gnu-strip *.node
           - host: macos-latest
