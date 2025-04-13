@@ -45,14 +45,11 @@ jobs:
           architecture: x64
       - name: Build wheels
         uses: PyO3/maturin-action@v1
-        env:
-          # I have no idea why, but neovim told me to add -D_BSD_SOURCE flag
-          # https://github.com/neovim/neovim/discussions/32340
-          # https://github.com/tree-sitter/tree-sitter/issues/4271#issuecomment-2708087139
-          CFLAGS: "-std=c11 -D_BSD_SOURCE"
         with:
           target: ${{ matrix.target }}
-          manylinux: auto
+          # manylinux by default uses old linux so tree-sitter does not compile
+          # https://github.com/woodruffw/zizmor/pull/603
+          manylinux: "2_28"
           args: --release --out dist -i ${{env.PYTHON_VERSION}}
           working-directory: crates/pyo3
       - name: Test sdist
