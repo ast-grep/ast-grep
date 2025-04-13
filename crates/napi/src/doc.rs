@@ -60,7 +60,7 @@ impl Content for Wrapper {
     parser: &mut Parser,
     tree: Option<&Tree>,
   ) -> std::result::Result<Option<Tree>, ParserError> {
-    parser.parse_utf16(self.inner.as_slice(), tree)
+    parser.parse_utf16_le(self.inner.as_slice(), tree)
   }
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying] {
     // the range is in byte offset, but our underlying is u16
