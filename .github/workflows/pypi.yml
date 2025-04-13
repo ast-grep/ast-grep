@@ -159,7 +159,9 @@ jobs:
           CXXFLAGS: "-std=c++11"
         with:
           target: ${{ matrix.target }}
-          manylinux: auto
+          # manylinux by default uses old linux so tree-sitter does not compile
+          # https://github.com/woodruffw/zizmor/pull/603
+          manylinux: "2_28"
           args: --release --out dist
       - name: "Test wheel"
         if: ${{ startsWith(matrix.target, 'x86_64') }}
