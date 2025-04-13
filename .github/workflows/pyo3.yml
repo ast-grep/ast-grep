@@ -46,7 +46,10 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         env:
-          CFLAGS: "-std=c11"
+          # I have no idea why, but neovim told me to add -D_BSD_SOURCE flag
+          # https://github.com/neovim/neovim/discussions/32340
+          # https://github.com/tree-sitter/tree-sitter/issues/4271#issuecomment-2708087139
+          CFLAGS: "-std=c11 -D_BSD_SOURCE"
         with:
           target: ${{ matrix.target }}
           manylinux: auto
