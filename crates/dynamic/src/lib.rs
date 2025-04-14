@@ -126,7 +126,7 @@ unsafe fn load_ts_language(
     .get(name.as_bytes())
     .map_err(DynamicLangError::ReadSymbol)?;
   let lang = func();
-  let version = lang.version();
+  let version = lang.abi_version();
   if !(MIN_COMPATIBLE_LANGUAGE_VERSION..=LANGUAGE_VERSION).contains(&version) {
     Err(DynamicLangError::IncompatibleVersion(version))
   } else {
