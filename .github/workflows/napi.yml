@@ -67,18 +67,13 @@ jobs:
               yarn build --target aarch64-unknown-linux-musl
           - host: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            docker: ghcr.io/messense/manylinux_2_28-cross:aarch64
+            docker: ghcr.io/ast-grep/ast-grep/napi-aarch64-linux-gnu:latest
+            # tree-sitter does not build using its official docker image
+            # we have to roll our own and source the rustup
             build: |-
-              curl -fsSL https://deb.nodesource.com/setup_20.x -o nodesource_setup.sh &&
-              sudo -E bash nodesource_setup.sh &&
-              apt-get install nodejs -y &&
-              curl https://sh.rustup.rs -sSf | sh -s -- -y &&
-              . "$HOME/.cargo/env" &&
-              rustup target add aarch64-unknown-linux-gnu &&
               set -e &&
+              . "$HOME/.cargo/env" &&
               cd crates/napi &&
-              npm install yarn -g &&
-              # https://github.com/neovim/neovim/discussions/32340
               yarn build --target aarch64-unknown-linux-gnu &&
               aarch64-unknown-linux-gnu-strip *.node
           - host: macos-latest
