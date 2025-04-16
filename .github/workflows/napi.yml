@@ -41,14 +41,14 @@ jobs:
               yarn build --target i686-pc-windows-msvc
               yarn test
             target: i686-pc-windows-msvc
-          - host: ubuntu-20.04
+          - host: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             build: |-
               set -e &&
               yarn build --target x86_64-unknown-linux-gnu &&
               strip *.node &&
               yarn test
-          - host: ubuntu-20.04
+          - host: ubuntu-22.04
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
             build: |-
@@ -57,7 +57,7 @@ jobs:
               yarn build --target x86_64-unknown-linux-musl &&
               strip *.node &&
               yarn test
-          - host: ubuntu-20.04
+          - host: ubuntu-22.04
             target: aarch64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |-
@@ -155,7 +155,7 @@ jobs:
           if-no-files-found: error
   publish:
     name: Publish
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs:
       - build
     steps:
@@ -171,7 +171,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .yarn/cache
-          key: npm-cache-ubuntu-20.04-publish
+          key: npm-cache-ubuntu-22.04-publish
           restore-keys: |
             npm-cache-
       - name: Install dependencies

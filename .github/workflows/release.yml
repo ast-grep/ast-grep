@@ -13,7 +13,7 @@ jobs:
   push_crates_io:
     # If you don't set an input tag, it's a dry run (no uploads).
     if: "startsWith(github.event.ref, 'refs/tags')"
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: katyo/publish-crates@v2
@@ -24,7 +24,7 @@ jobs:
   create-release:
     # If you don't set an input tag, it's a dry run (no uploads).
     if: "startsWith(github.event.ref, 'refs/tags')"
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: taiki-e/create-gh-release-action@v1
@@ -47,9 +47,9 @@ jobs:
           - target: x86_64-apple-darwin
             os: macos-latest
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu-20.04
+            os: ubuntu-22.04
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu-20.04
+            os: ubuntu-22.04
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -69,7 +69,7 @@ jobs:
           # (required)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   release-npm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     name: Release npm cli
     needs:
       - upload-assets
@@ -115,7 +115,7 @@ jobs:
           echo "Publishing @ast-grep/cli...";
           npm publish
   changelog:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: "✏️ Generate release changelog"
         uses: heinrichreimer/action-github-changelog-generator@v2.4
