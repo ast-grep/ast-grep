@@ -43,6 +43,7 @@ pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(
 mod test {
 
   use super::*;
+  use ast_grep_core::language::CoreLanguage;
   use ast_grep_core::language::TSLanguage;
   use std::path::Path;
 
@@ -50,6 +51,7 @@ mod test {
   pub enum TypeScript {
     Tsx,
   }
+  impl CoreLanguage for TypeScript {}
   impl Language for TypeScript {
     fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
       Some(TypeScript::Tsx)

@@ -1,7 +1,7 @@
 use ast_grep_core::language::TSLanguage;
 use ast_grep_core::Language;
 use ast_grep_dynamic::{CustomLang, DynamicLang};
-use ast_grep_language::SupportLang;
+use ast_grep_language::{CoreLanguage, SupportLang};
 use ignore::types::{Types, TypesBuilder};
 use ignore::{WalkBuilder, WalkParallel};
 use napi::anyhow::anyhow;
@@ -112,14 +112,7 @@ impl From<SupportLang> for NapiLang {
 }
 
 use NapiLang::*;
-impl Language for NapiLang {
-  fn get_ts_language(&self) -> TSLanguage {
-    match self {
-      Builtin(b) => b.get_ts_language(),
-      Custom(c) => c.get_ts_language(),
-    }
-  }
-
+impl CoreLanguage for NapiLang {
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
     match self {
       Builtin(b) => b.pre_process_pattern(query),
@@ -140,6 +133,14 @@ impl Language for NapiLang {
     match self {
       Builtin(b) => b.expando_char(),
       Custom(c) => c.expando_char(),
+    }
+  }
+}
+impl Language for NapiLang {
+  fn get_ts_language(&self) -> TSLanguage {
+    match self {
+      Builtin(b) => b.get_ts_language(),
+      Custom(c) => c.get_ts_language(),
     }
   }
 }

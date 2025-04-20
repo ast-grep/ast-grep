@@ -10,20 +10,7 @@ pub use tree_sitter::{Point as TSPoint, Range as TSRange};
 /// * which character is used for meta variable.
 /// * if we need to use other char in meta var for parser at runtime
 /// * pre process the Pattern code.
-pub trait Language: Clone {
-  /// Return the file language from path. Return None if the file type is not supported.
-  fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
-    // TODO: throw panic here if not implemented properly?
-    None
-  }
-
-  /// Create an [`AstGrep`] instance for the language
-  fn ast_grep<S: AsRef<str>>(&self, source: S) -> AstGrep<StrDoc<Self>> {
-    AstGrep::new(source, self.clone())
-  }
-
-  /// tree sitter language to parse the source
-  fn get_ts_language(&self) -> TSLanguage;
+pub trait CoreLanguage: Clone {
   /// ignore trivial tokens in language matching
   fn skippable_kind_ids(&self) -> &'static [u16] {
     &[]
@@ -55,6 +42,23 @@ pub trait Language: Clone {
   fn extract_meta_var(&self, source: &str) -> Option<MetaVariable> {
     extract_meta_var(source, self.expando_char())
   }
+}
+
+/// tree-sitter specific language trait
+pub trait Language: CoreLanguage {
+  /// Return the file language from path. Return None if the file type is not supported.
+  fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
+    // TODO: throw panic here if not implemented properly?
+    None
+  }
+
+  /// Create an [`AstGrep`] instance for the language
+  fn ast_grep<S: AsRef<str>>(&self, source: S) -> AstGrep<StrDoc<Self>> {
+    AstGrep::new(source, self.clone())
+  }
+
+  /// tree sitter language to parse the source
+  fn get_ts_language(&self) -> TSLanguage;
 
   fn injectable_languages(&self) -> Option<&'static [&'static str]> {
     None
@@ -70,6 +74,7 @@ pub trait Language: Clone {
   }
 }
 
+impl CoreLanguage for TSLanguage {}
 impl Language for TSLanguage {
   fn get_ts_language(&self) -> TSLanguage {
     self.clone()
@@ -84,6 +89,7 @@ mod test {
   use super::*;
   #[derive(Clone)]
   pub struct Tsx;
+  impl CoreLanguage for Tsx {}
   impl Language for Tsx {
     fn get_ts_language(&self) -> TSLanguage {
       tree_sitter_typescript::LANGUAGE_TSX.into()

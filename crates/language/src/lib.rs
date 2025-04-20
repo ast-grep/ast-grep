@@ -43,13 +43,14 @@ use std::iter::repeat;
 use std::path::Path;
 use std::str::FromStr;
 
-pub use ast_grep_core::Language;
+pub use ast_grep_core::{language::CoreLanguage, Language};
 
 /// this macro implements bare-bone methods for a language
 macro_rules! impl_lang {
   ($lang: ident, $func: ident) => {
     #[derive(Clone, Copy, Debug)]
     pub struct $lang;
+    impl CoreLanguage for $lang {}
     impl Language for $lang {
       fn get_ts_language(&self) -> TSLanguage {
         parsers::$func().into()
@@ -85,15 +86,17 @@ macro_rules! impl_lang_expando {
   ($lang: ident, $func: ident, $char: expr) => {
     #[derive(Clone, Copy, Debug)]
     pub struct $lang;
-    impl ast_grep_core::language::Language for $lang {
-      fn get_ts_language(&self) -> ast_grep_core::language::TSLanguage {
-        $crate::parsers::$func().into()
-      }
+    impl CoreLanguage for $lang {
       fn expando_char(&self) -> char {
         $char
       }
       fn pre_process_pattern<'q>(&self, query: &'q str) -> std::borrow::Cow<'q, str> {
         pre_process_pattern(self.expando_char(), query)
+      }
+    }
+    impl ast_grep_core::language::Language for $lang {
+      fn get_ts_language(&self) -> ast_grep_core::language::TSLanguage {
+        $crate::parsers::$func().into()
       }
     }
   };
@@ -390,27 +393,26 @@ macro_rules! impl_lang_method {
     }
   };
 }
+impl CoreLanguage for SupportLang {
+  impl_lang_method!(meta_var_char, () => char);
+  impl_lang_method!(expando_char, () => char);
+  impl_lang_method!(extract_meta_var, (source: &str) => Option<MetaVariable>);
+  fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
+    execute_lang_method! { self, pre_process_pattern, query }
+  }
+}
 
 impl Language for SupportLang {
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     from_extension(path.as_ref())
   }
-
   impl_lang_method!(get_ts_language, () => TSLanguage);
-  impl_lang_method!(meta_var_char, () => char);
-  impl_lang_method!(expando_char, () => char);
-  impl_lang_method!(extract_meta_var, (source: &str) => Option<MetaVariable>);
   impl_lang_method!(injectable_languages, () => Option<&'static [&'static str]>);
-
   fn extract_injections<D: Doc>(&self, root: Node<D>) -> HashMap<String, Vec<TSRange>> {
     match self {
       SupportLang::Html => Html.extract_injections(root),
       _ => HashMap::new(),
     }
-  }
-
-  fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
-    execute_lang_method! { self, pre_process_pattern, query }
   }
 }
 
