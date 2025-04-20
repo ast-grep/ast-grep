@@ -1,4 +1,4 @@
-use ast_grep_core::language::TSLanguage;
+use ast_grep_core::language::{CoreLanguage, TSLanguage};
 use ast_grep_core::Language;
 
 use ignore::types::{Types, TypesBuilder};
@@ -202,30 +202,7 @@ impl DynamicLang {
     unsafe { &*addr_of!(DYNAMIC_LANG) }
   }
 }
-
-impl Language for DynamicLang {
-  /// tree sitter language to parse the source
-  fn get_ts_language(&self) -> TSLanguage {
-    self.inner().lang.clone()
-  }
-
-  fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
-    let ext = path.as_ref().extension()?.to_str()?;
-    let mapping = unsafe { &*addr_of!(LANG_INDEX) };
-    let langs = Self::langs();
-    mapping.iter().find_map(|(p, idx)| {
-      if p == ext {
-        let index = *idx;
-        Some(Self {
-          index,
-          expando: langs[*idx as usize].expando_char,
-        })
-      } else {
-        None
-      }
-    })
-  }
-
+impl CoreLanguage for DynamicLang {
   /// normalize pattern code before matching
   /// e.g. remove expression_statement, or prefer parsing {} to object over block
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
@@ -253,6 +230,30 @@ impl Language for DynamicLang {
   #[inline]
   fn expando_char(&self) -> char {
     self.expando
+  }
+}
+
+impl Language for DynamicLang {
+  fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
+    let ext = path.as_ref().extension()?.to_str()?;
+    let mapping = unsafe { &*addr_of!(LANG_INDEX) };
+    let langs = Self::langs();
+    mapping.iter().find_map(|(p, idx)| {
+      if p == ext {
+        let index = *idx;
+        Some(Self {
+          index,
+          expando: langs[*idx as usize].expando_char,
+        })
+      } else {
+        None
+      }
+    })
+  }
+
+  /// tree sitter language to parse the source
+  fn get_ts_language(&self) -> TSLanguage {
+    self.inner().lang.clone()
   }
 }
 

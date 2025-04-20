@@ -1,6 +1,6 @@
 use super::indent::{extract_with_deindent, get_indent_at_offset, indent_lines, DeindentedExtract};
 use super::{split_first_meta_var, MetaVarExtract, Replacer, Underlying};
-use crate::language::Language;
+use crate::language::CoreLanguage;
 use crate::matcher::NodeMatch;
 use crate::meta_var::MetaVarEnv;
 use crate::source::{Content, Doc};
@@ -20,11 +20,11 @@ pub enum TemplateFix {
 pub enum TemplateFixError {}
 
 impl TemplateFix {
-  pub fn try_new<L: Language>(template: &str, lang: &L) -> Result<Self, TemplateFixError> {
+  pub fn try_new<L: CoreLanguage>(template: &str, lang: &L) -> Result<Self, TemplateFixError> {
     Ok(create_template(template, lang.meta_var_char(), &[]))
   }
 
-  pub fn with_transform<L: Language>(tpl: &str, lang: &L, trans: &[String]) -> Self {
+  pub fn with_transform<L: CoreLanguage>(tpl: &str, lang: &L, trans: &[String]) -> Self {
     create_template(tpl, lang.meta_var_char(), trans)
   }
 

@@ -1,6 +1,7 @@
 use anyhow::{bail, Context, Result};
 use ast_grep_config::SerializableRuleConfig;
-use ast_grep_core::{language::TSLanguage, Language};
+use ast_grep_core::language::{CoreLanguage, TSLanguage};
+use ast_grep_core::Language;
 use ast_grep_language::{
   Bash, CSharp, Cpp, Css, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin, Lua, Php,
   Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml, C,
@@ -209,6 +210,7 @@ impl JsonSchema for PlaceholderLang {
   }
 }
 
+impl CoreLanguage for PlaceholderLang {}
 impl Language for PlaceholderLang {
   fn get_ts_language(&self) -> TSLanguage {
     unreachable!("PlaceholderLang is only for json schema")

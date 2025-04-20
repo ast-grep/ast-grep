@@ -1,5 +1,5 @@
 use super::{Edit, Underlying};
-use crate::language::Language;
+use crate::language::CoreLanguage;
 use crate::matcher::NodeMatch;
 use crate::meta_var::MetaVarEnv;
 use crate::source::Content;

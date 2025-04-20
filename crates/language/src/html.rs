@@ -1,5 +1,5 @@
 use super::pre_process_pattern;
-use ast_grep_core::language::TSRange;
+use ast_grep_core::language::{CoreLanguage, TSRange};
 use ast_grep_core::Language;
 use ast_grep_core::{matcher::KindMatcher, Doc, Node};
 use std::collections::HashMap;
@@ -8,15 +8,17 @@ use std::collections::HashMap;
 // https://github.com/tree-sitter/tree-sitter-html/blob/b5d9758e22b4d3d25704b72526670759a9e4d195/src/scanner.c#L194
 #[derive(Clone, Copy, Debug)]
 pub struct Html;
-impl Language for Html {
-  fn get_ts_language(&self) -> ast_grep_core::language::TSLanguage {
-    crate::parsers::language_html()
-  }
+impl CoreLanguage for Html {
   fn expando_char(&self) -> char {
     'z'
   }
   fn pre_process_pattern<'q>(&self, query: &'q str) -> std::borrow::Cow<'q, str> {
     pre_process_pattern(self.expando_char(), query)
+  }
+}
+impl Language for Html {
+  fn get_ts_language(&self) -> ast_grep_core::language::TSLanguage {
+    crate::parsers::language_html()
   }
   fn injectable_languages(&self) -> Option<&'static [&'static str]> {
     Some(&["css", "js", "ts", "tsx", "scss", "less", "stylus", "coffee"])
