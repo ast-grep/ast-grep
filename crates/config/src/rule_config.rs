@@ -116,7 +116,7 @@ impl JsonSchema for Metadata {
 }
 
 impl<L: Language> SerializableRuleConfig<L> {
-  pub fn get_matcher(&self, globals: &GlobalRules<L>) -> Result<RuleCore<L>, RuleConfigError> {
+  pub fn get_matcher(&self, globals: &GlobalRules) -> Result<RuleCore, RuleConfigError> {
     // every RuleConfig has one rewriters, and the rewriter is shared between sub-rules
     // all RuleConfigs has one common globals
     // every sub-rule has one util
@@ -128,7 +128,7 @@ impl<L: Language> SerializableRuleConfig<L> {
 
   fn register_rewriters(
     &self,
-    rule: &RuleCore<L>,
+    rule: &RuleCore,
     env: DeserializeEnv<L>,
   ) -> Result<(), RuleConfigError> {
     let Some(ser) = &self.rewriters else {
@@ -166,13 +166,13 @@ impl<L: Language> DerefMut for SerializableRuleConfig<L> {
 
 pub struct RuleConfig<L: Language> {
   inner: SerializableRuleConfig<L>,
-  pub matcher: RuleCore<L>,
+  pub matcher: RuleCore,
 }
 
 impl<L: Language> RuleConfig<L> {
   pub fn try_from(
     inner: SerializableRuleConfig<L>,
-    globals: &GlobalRules<L>,
+    globals: &GlobalRules,
   ) -> Result<Self, RuleConfigError> {
     let matcher = inner.get_matcher(globals)?;
     if matcher.potential_kinds().is_none() {
@@ -183,7 +183,7 @@ impl<L: Language> RuleConfig<L> {
 
   pub fn deserialize<'de>(
     deserializer: Deserializer<'de>,
-    globals: &GlobalRules<L>,
+    globals: &GlobalRules,
   ) -> Result<Self, RuleConfigError>
   where
     L: Deserialize<'de>,
@@ -198,7 +198,7 @@ impl<L: Language> RuleConfig<L> {
     let bytes = parsed.generate_replacement(node);
     String::from_utf8(bytes).expect("replacement must be valid utf-8")
   }
-  pub fn get_fixer(&self) -> Result<Option<Fixer<L>>, RuleConfigError> {
+  pub fn get_fixer(&self) -> Result<Option<Fixer>, RuleConfigError> {
     if let Some(fix) = &self.fix {
       let env = self.matcher.get_env(self.language.clone());
       let parsed = Fixer::parse(fix, &env, &self.transform).map_err(RuleCoreError::Fixer)?;

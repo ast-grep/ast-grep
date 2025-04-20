@@ -13,7 +13,7 @@ mod text;
 
 use crate::meta_var::MetaVarEnv;
 use crate::traversal::Pre;
-use crate::{Doc, Language, Node};
+use crate::{Doc, Node};
 
 use bit_set::BitSet;
 use std::borrow::Cow;
@@ -27,11 +27,11 @@ pub use text::{RegexMatcher, RegexMatcherError};
 /// `Matcher` defines whether a tree-sitter node matches certain pattern,
 /// and update the matched meta-variable values in `MetaVarEnv`.
 /// N.B. At least one positive term is required for matching
-pub trait Matcher<L: Language> {
+pub trait Matcher {
   /// Returns the node why the input is matched or None if not matched.
   /// The return value is usually input node itself, but it can be different node.
   /// For example `Has` matcher can return the child or descendant node.
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     _node: Node<'tree, D>,
     _env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -45,7 +45,7 @@ pub trait Matcher<L: Language> {
 
   /// get_match_len will skip trailing anonymous child node to exclude punctuation.
   // This is not included in NodeMatch since it is only used in replace
-  fn get_match_len<D: Doc<Lang = L>>(&self, _node: Node<D>) -> Option<usize> {
+  fn get_match_len<D: Doc>(&self, _node: Node<D>) -> Option<usize> {
     None
   }
 }
@@ -53,21 +53,15 @@ pub trait Matcher<L: Language> {
 /// MatcherExt provides additional utility methods for `Matcher`.
 /// It is implemented for all types that implement `Matcher`.
 /// N.B. This trait is not intended to be implemented by users.
-pub trait MatcherExt<L: Language>: Matcher<L> {
-  fn match_node<'tree, D: Doc<Lang = L>>(
-    &self,
-    node: Node<'tree, D>,
-  ) -> Option<NodeMatch<'tree, D>> {
+pub trait MatcherExt: Matcher {
+  fn match_node<'tree, D: Doc>(&self, node: Node<'tree, D>) -> Option<NodeMatch<'tree, D>> {
     // in future we might need to customize initial MetaVarEnv
     let mut env = Cow::Owned(MetaVarEnv::new());
     let node = self.match_node_with_env(node, &mut env)?;
     Some(NodeMatch::new(node, env.into_owned()))
   }
 
-  fn find_node<'tree, D: Doc<Lang = L>>(
-    &self,
-    node: Node<'tree, D>,
-  ) -> Option<NodeMatch<'tree, D>> {
+  fn find_node<'tree, D: Doc>(&self, node: Node<'tree, D>) -> Option<NodeMatch<'tree, D>> {
     for n in node.dfs() {
       if let Some(ret) = self.match_node(n.clone()) {
         return Some(ret);
@@ -77,15 +71,10 @@ pub trait MatcherExt<L: Language>: Matcher<L> {
   }
 }
 
-impl<L, T> MatcherExt<L> for T
-where
-  L: Language,
-  T: Matcher<L>,
-{
-}
+impl<T> MatcherExt for T where T: Matcher {}
 
-impl<L: Language> Matcher<L> for str {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+impl Matcher for str {
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -94,18 +83,17 @@ impl<L: Language> Matcher<L> for str {
     pattern.match_node_with_env(node, env)
   }
 
-  fn get_match_len<D: Doc<Lang = L>>(&self, node: Node<D>) -> Option<usize> {
+  fn get_match_len<D: Doc>(&self, node: Node<D>) -> Option<usize> {
     let pattern = Pattern::str(self, node.lang().clone());
     pattern.get_match_len(node)
   }
 }
 
-impl<L, T> Matcher<L> for &T
+impl<T> Matcher for &T
 where
-  L: Language,
-  T: Matcher<L> + ?Sized,
+  T: Matcher + ?Sized,
 {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -117,19 +105,19 @@ where
     (**self).potential_kinds()
   }
 
-  fn get_match_len<D: Doc<Lang = L>>(&self, node: Node<D>) -> Option<usize> {
+  fn get_match_len<D: Doc>(&self, node: Node<D>) -> Option<usize> {
     (**self).get_match_len(node)
   }
 }
 
-pub struct FindAllNodes<'tree, D: Doc, M: Matcher<D::Lang>> {
+pub struct FindAllNodes<'tree, D: Doc, M: Matcher> {
   // using dfs is not universally correct, say, when we want replace nested matches
   // e.g. for pattern Some($A) with replacement $A, Some(Some(1)) will cause panic
   dfs: Pre<'tree, D>,
   matcher: M,
 }
 
-impl<'tree, D: Doc, M: Matcher<D::Lang>> FindAllNodes<'tree, D, M> {
+impl<'tree, D: Doc, M: Matcher> FindAllNodes<'tree, D, M> {
   pub fn new(matcher: M, node: Node<'tree, D>) -> Self {
     Self {
       dfs: node.dfs(),
@@ -138,7 +126,7 @@ impl<'tree, D: Doc, M: Matcher<D::Lang>> FindAllNodes<'tree, D, M> {
   }
 }
 
-impl<'tree, D: Doc, M: Matcher<D::Lang>> Iterator for FindAllNodes<'tree, D, M> {
+impl<'tree, D: Doc, M: Matcher> Iterator for FindAllNodes<'tree, D, M> {
   type Item = NodeMatch<'tree, D>;
   fn next(&mut self) -> Option<Self::Item> {
     let kinds = self.matcher.potential_kinds();
@@ -157,8 +145,8 @@ impl<'tree, D: Doc, M: Matcher<D::Lang>> Iterator for FindAllNodes<'tree, D, M> 
 }
 
 pub struct MatchAll;
-impl<L: Language> Matcher<L> for MatchAll {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+impl Matcher for MatchAll {
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     _env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -173,8 +161,8 @@ impl<L: Language> Matcher<L> for MatchAll {
 }
 
 pub struct MatchNone;
-impl<L: Language> Matcher<L> for MatchNone {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+impl Matcher for MatchNone {
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     _node: Node<'tree, D>,
     _env: &mut Cow<MetaVarEnv<'tree, D>>,

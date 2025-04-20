@@ -13,7 +13,7 @@ fn read_rule() -> RuleConfig<SupportLang> {
   rules.pop().unwrap()
 }
 
-fn find_pattern<M: Matcher<SupportLang>>(sg: &AstGrep<StrDoc<SupportLang>>, pattern: &M) {
+fn find_pattern<M: Matcher>(sg: &AstGrep<StrDoc<SupportLang>>, pattern: &M) {
   sg.root().find_all(pattern).for_each(drop);
 }
 

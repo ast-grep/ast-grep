@@ -10,13 +10,11 @@ use thiserror::Error;
 
 use std::borrow::Cow;
 use std::collections::HashSet;
-use std::marker::PhantomData;
 
 #[derive(Clone)]
-pub struct Pattern<L: Language> {
+pub struct Pattern {
   pub node: PatternNode,
   root_kind: Option<u16>,
-  lang: PhantomData<L>,
   pub strictness: MatchStrictness,
 }
 
@@ -72,12 +70,11 @@ impl<'r, D: Doc> From<Node<'r, D>> for PatternNode {
   }
 }
 
-impl<'r, D: Doc> From<Node<'r, D>> for Pattern<D::Lang> {
+impl<'r, D: Doc> From<Node<'r, D>> for Pattern {
   fn from(node: Node<'r, D>) -> Self {
     Self {
       node: convert_node_to_pattern(node),
       root_kind: None,
-      lang: PhantomData,
       strictness: MatchStrictness::Smart,
     }
   }
@@ -139,11 +136,7 @@ fn is_single_node(n: &tree_sitter::Node) -> bool {
     _ => false,
   }
 }
-impl<L: Language> Pattern<L> {
-  pub fn str(src: &str, lang: L) -> Self {
-    Self::new(src, lang)
-  }
-
+impl Pattern {
   pub fn has_error(&self) -> bool {
     let kind = match &self.node {
       PatternNode::Terminal { kind_id, .. } => *kind_id,
@@ -197,8 +190,12 @@ fn collect_vars<'p>(p: &'p PatternNode, vars: &mut HashSet<&'p str>) {
   }
 }
 
-impl<L: Language> Pattern<L> {
-  pub fn try_new(src: &str, lang: L) -> Result<Self, PatternError> {
+impl Pattern {
+  pub fn str<L: Language>(src: &str, lang: L) -> Self {
+    Self::new(src, lang)
+  }
+
+  pub fn try_new<L: Language>(src: &str, lang: L) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(src);
     let root = Root::<StrDoc<L>>::try_new(&processed, lang)?;
     let goal = root.root();
@@ -212,7 +209,7 @@ impl<L: Language> Pattern<L> {
     Ok(Self::from(node))
   }
 
-  pub fn new(src: &str, lang: L) -> Self {
+  pub fn new<L: Language>(src: &str, lang: L) -> Self {
     Self::try_new(src, lang).unwrap()
   }
 
@@ -221,7 +218,11 @@ impl<L: Language> Pattern<L> {
     self
   }
 
-  pub fn contextual(context: &str, selector: &str, lang: L) -> Result<Self, PatternError> {
+  pub fn contextual<L: Language>(
+    context: &str,
+    selector: &str,
+    lang: L,
+  ) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(context);
     let root = Root::<StrDoc<L>>::try_new(&processed, lang.clone())?;
     let goal = root.root();
@@ -235,11 +236,10 @@ impl<L: Language> Pattern<L> {
     Ok(Self {
       root_kind: Some(node.kind_id()),
       node: convert_node_to_pattern(node.get_node().clone()),
-      lang: PhantomData,
       strictness: MatchStrictness::Smart,
     })
   }
-  pub fn doc(doc: StrDoc<L>) -> Self {
+  pub fn doc<L: Language>(doc: StrDoc<L>) -> Self {
     let root = Root::doc(doc);
     Self::from(root.root())
   }
@@ -254,8 +254,8 @@ impl<L: Language> Pattern<L> {
   }
 }
 
-impl<L: Language> Matcher<L> for Pattern<L> {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+impl Matcher for Pattern {
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -293,7 +293,7 @@ impl<L: Language> Matcher<L> for Pattern<L> {
     Some(kinds)
   }
 
-  fn get_match_len<D: Doc<Lang = L>>(&self, node: Node<D>) -> Option<usize> {
+  fn get_match_len<D: Doc>(&self, node: Node<D>) -> Option<usize> {
     let start = node.range().start;
     let end = match_end_non_recursive(self, node)?;
     Some(end - start)
@@ -309,7 +309,7 @@ impl std::fmt::Debug for PatternNode {
   }
 }
 
-impl<L: Language> std::fmt::Debug for Pattern<L> {
+impl std::fmt::Debug for Pattern {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(f, "{:?}", self.node)
   }
@@ -512,7 +512,7 @@ mod test {
   #[test]
   #[ignore]
   fn test_pattern_size() {
-    assert_eq!(std::mem::size_of::<Pattern<Tsx>>(), 40);
+    assert_eq!(std::mem::size_of::<Pattern>(), 40);
   }
 
   #[test]

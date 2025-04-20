@@ -19,7 +19,7 @@ pub use template::{TemplateFix, TemplateFixError};
 /// Replace meta variable in the replacer string
 pub trait Replacer<D: Doc> {
   fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source>;
-  fn get_replaced_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher<D::Lang>) -> Range<usize> {
+  fn get_replaced_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher) -> Range<usize> {
     let range = nm.range();
     if let Some(len) = matcher.get_match_len(nm.get_node().clone()) {
       range.start..range.start + len

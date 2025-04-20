@@ -30,7 +30,7 @@ pub fn from_str<'de, T: Deserialize<'de>>(s: &'de str) -> Result<T, YamlError> {
 
 pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(
   yamls: &'a str,
-  registration: &GlobalRules<L>,
+  registration: &GlobalRules,
 ) -> Result<Vec<RuleConfig<L>>, RuleConfigError> {
   let mut ret = vec![];
   for yaml in Deserializer::from_str(yamls) {

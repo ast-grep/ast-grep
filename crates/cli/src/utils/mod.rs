@@ -147,12 +147,12 @@ pub fn filter_file_rule(
 pub fn filter_file_pattern<'a>(
   path: &Path,
   lang: SgLang,
-  root_matcher: Option<&'a Pattern<SgLang>>,
-  sub_matchers: &'a [(SgLang, Pattern<SgLang>)],
-) -> Result<SmallVec<[MatchUnit<&'a Pattern<SgLang>>; 1]>> {
+  root_matcher: Option<&'a Pattern>,
+  sub_matchers: &'a [(SgLang, Pattern)],
+) -> Result<SmallVec<[MatchUnit<&'a Pattern>; 1]>> {
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(&file_content);
-  let do_match = |ast_grep: AstGrep, matcher: &'a Pattern<SgLang>| {
+  let do_match = |ast_grep: AstGrep, matcher: &'a Pattern| {
     let fixed = matcher.fixed_string();
     if !fixed.is_empty() && !file_content.contains(&*fixed) {
       return None;
@@ -189,7 +189,7 @@ fn file_too_large(file_content: &str) -> bool {
 /// A single atomic unit where matches happen.
 /// It contains the file path, sg instance and matcher.
 /// An analogy to compilation unit in C programming language.
-pub struct MatchUnit<M: Matcher<SgLang>> {
+pub struct MatchUnit<M: Matcher> {
   pub path: PathBuf,
   pub grep: AstGrep,
   pub matcher: M,

@@ -37,7 +37,7 @@ type OrderResult<T> = Result<T, String>;
 #[derive(Clone)]
 pub struct DeserializeEnv<L: Language> {
   /// registration for global utility rules and local utility rules.
-  pub(crate) registration: RuleRegistration<L>,
+  pub(crate) registration: RuleRegistration,
   /// current rules' language
   pub(crate) lang: L,
 }
@@ -172,7 +172,7 @@ impl<L: Language> DeserializeEnv<L> {
   /// register global utils rule discovered in the config.
   pub fn parse_global_utils(
     utils: Vec<SerializableGlobalRule<L>>,
-  ) -> Result<GlobalRules<L>, RuleCoreError> {
+  ) -> Result<GlobalRules, RuleCoreError> {
     let registration = GlobalRules::default();
     let utils = into_map(utils);
     let order = TopologicalSort::get_order(&utils)
@@ -189,10 +189,7 @@ impl<L: Language> DeserializeEnv<L> {
     Ok(registration)
   }
 
-  pub fn deserialize_rule(
-    &self,
-    serialized: SerializableRule,
-  ) -> Result<Rule<L>, RuleSerializeError> {
+  pub fn deserialize_rule(&self, serialized: SerializableRule) -> Result<Rule, RuleSerializeError> {
     rule::deserialize_rule(serialized, self)
   }
 
@@ -203,7 +200,7 @@ impl<L: Language> DeserializeEnv<L> {
     TopologicalSort::get_order(trans)
   }
 
-  pub fn with_globals(self, globals: &GlobalRules<L>) -> Self {
+  pub fn with_globals(self, globals: &GlobalRules) -> Self {
     Self {
       registration: RuleRegistration::from_globals(globals),
       lang: self.lang,
@@ -219,7 +216,7 @@ mod test {
   use anyhow::Result;
   use ast_grep_core::Matcher;
 
-  fn get_dependent_utils() -> Result<(Rule<TypeScript>, DeserializeEnv<TypeScript>)> {
+  fn get_dependent_utils() -> Result<(Rule, DeserializeEnv<TypeScript>)> {
     let utils = from_str(
       "
 accessor-name:

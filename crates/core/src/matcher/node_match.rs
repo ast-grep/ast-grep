@@ -52,7 +52,7 @@ impl<D: Doc> NodeMatch<'_, D> {
   #[doc(hidden)]
   pub fn make_edit<M, R>(&self, matcher: &M, replacer: &R) -> Edit<D::Source>
   where
-    M: Matcher<D::Lang>,
+    M: Matcher,
     R: Replacer<D>,
   {
     let range = replacer.get_replaced_range(self, matcher);

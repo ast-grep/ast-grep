@@ -74,7 +74,7 @@ where
 {
   pub fn visit<D: Doc>(self, node: Node<D>) -> Visit<'_, D, A::Traversal<'_, D>, M>
   where
-    M: Matcher<D::Lang>,
+    M: Matcher,
   {
     let traversal = A::traverse(node);
     Visit {
@@ -98,7 +98,7 @@ impl<'t, D, T, M> Visit<'t, D, T, M>
 where
   D: Doc + 't,
   T: Traversal<'t, D>,
-  M: Matcher<D::Lang>,
+  M: Matcher,
 {
   #[inline]
   fn mark_match(&mut self, depth: Option<usize>) {
@@ -112,7 +112,7 @@ impl<'t, D, T, M> Iterator for Visit<'t, D, T, M>
 where
   D: Doc + 't,
   T: Traversal<'t, D>,
-  M: Matcher<D::Lang>,
+  M: Matcher,
 {
   type Item = NodeMatch<'t, D>;
   fn next(&mut self) -> Option<Self::Item> {

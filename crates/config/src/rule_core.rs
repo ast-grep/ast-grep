@@ -73,7 +73,7 @@ impl SerializableRuleCore {
   fn get_constraints<L: Language>(
     &self,
     env: &DeserializeEnv<L>,
-  ) -> RResult<HashMap<String, Rule<L>>> {
+  ) -> RResult<HashMap<String, Rule>> {
     let mut constraints = HashMap::new();
     let Some(serde_cons) = &self.constraints else {
       return Ok(constraints);
@@ -87,7 +87,7 @@ impl SerializableRuleCore {
     Ok(constraints)
   }
 
-  fn get_fixer<L: Language>(&self, env: &DeserializeEnv<L>) -> RResult<Option<Fixer<L>>> {
+  fn get_fixer<L: Language>(&self, env: &DeserializeEnv<L>) -> RResult<Option<Fixer>> {
     if let Some(fix) = &self.fix {
       let parsed = Fixer::parse(fix, env, &self.transform)?;
       Ok(Some(parsed))
@@ -96,7 +96,7 @@ impl SerializableRuleCore {
     }
   }
 
-  fn get_matcher_from_env<L: Language>(&self, env: &DeserializeEnv<L>) -> RResult<RuleCore<L>> {
+  fn get_matcher_from_env<L: Language>(&self, env: &DeserializeEnv<L>) -> RResult<RuleCore> {
     let rule = env.deserialize_rule(self.rule.clone())?;
     let constraints = self.get_constraints(env)?;
     let transform = self
@@ -114,7 +114,7 @@ impl SerializableRuleCore {
     )
   }
 
-  pub fn get_matcher<L: Language>(&self, env: DeserializeEnv<L>) -> RResult<RuleCore<L>> {
+  pub fn get_matcher<L: Language>(&self, env: DeserializeEnv<L>) -> RResult<RuleCore> {
     self.get_matcher_with_hint(env, CheckHint::Normal)
   }
 
@@ -122,7 +122,7 @@ impl SerializableRuleCore {
     &self,
     env: DeserializeEnv<L>,
     hint: CheckHint,
-  ) -> RResult<RuleCore<L>> {
+  ) -> RResult<RuleCore> {
     let env = self.get_deserialize_env(env)?;
     let ret = self.get_matcher_from_env(&env)?;
     check_rule_with_hint(
@@ -137,19 +137,19 @@ impl SerializableRuleCore {
   }
 }
 
-pub struct RuleCore<L: Language> {
-  rule: Rule<L>,
-  constraints: HashMap<String, Rule<L>>,
+pub struct RuleCore {
+  rule: Rule,
+  constraints: HashMap<String, Rule>,
   kinds: Option<BitSet>,
   pub(crate) transform: Option<Transform>,
-  pub fixer: Option<Fixer<L>>,
+  pub fixer: Option<Fixer>,
   // this is required to hold util rule reference
-  registration: RuleRegistration<L>,
+  registration: RuleRegistration,
 }
 
-impl<L: Language> RuleCore<L> {
+impl RuleCore {
   #[inline]
-  pub fn new(rule: Rule<L>) -> Self {
+  pub fn new(rule: Rule) -> Self {
     let kinds = rule.potential_kinds();
     Self {
       rule,
@@ -159,7 +159,7 @@ impl<L: Language> RuleCore<L> {
   }
 
   #[inline]
-  pub fn with_matchers(self, constraints: HashMap<String, Rule<L>>) -> Self {
+  pub fn with_matchers(self, constraints: HashMap<String, Rule>) -> Self {
     Self {
       constraints,
       ..self
@@ -167,7 +167,7 @@ impl<L: Language> RuleCore<L> {
   }
 
   #[inline]
-  pub fn with_registration(self, registration: RuleRegistration<L>) -> Self {
+  pub fn with_registration(self, registration: RuleRegistration) -> Self {
     Self {
       registration,
       ..self
@@ -180,11 +180,11 @@ impl<L: Language> RuleCore<L> {
   }
 
   #[inline]
-  pub fn with_fixer(self, fixer: Option<Fixer<L>>) -> Self {
+  pub fn with_fixer(self, fixer: Option<Fixer>) -> Self {
     Self { fixer, ..self }
   }
 
-  pub fn get_env(&self, lang: L) -> DeserializeEnv<L> {
+  pub fn get_env<L: Language>(&self, lang: L) -> DeserializeEnv<L> {
     DeserializeEnv {
       lang,
       registration: self.registration.clone(),
@@ -209,7 +209,7 @@ impl<L: Language> RuleCore<L> {
     ret
   }
 
-  pub(crate) fn do_match<'tree, D: Doc<Lang = L>>(
+  pub(crate) fn do_match<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -237,14 +237,14 @@ impl<L: Language> RuleCore<L> {
     Some(ret)
   }
 }
-impl<L: Language> Deref for RuleCore<L> {
-  type Target = Rule<L>;
+impl Deref for RuleCore {
+  type Target = Rule;
   fn deref(&self) -> &Self::Target {
     &self.rule
   }
 }
 
-impl<L: Language> Default for RuleCore<L> {
+impl Default for RuleCore {
   #[inline]
   fn default() -> Self {
     Self {
@@ -258,8 +258,8 @@ impl<L: Language> Default for RuleCore<L> {
   }
 }
 
-impl<L: Language> Matcher<L> for RuleCore<L> {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+impl Matcher for RuleCore {
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -280,7 +280,7 @@ mod test {
   use crate::test::TypeScript;
   use ast_grep_core::matcher::{Pattern, RegexMatcher};
 
-  fn get_matcher(src: &str) -> RResult<RuleCore<TypeScript>> {
+  fn get_matcher(src: &str) -> RResult<RuleCore> {
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let rule: SerializableRuleCore = from_str(src).expect("should word");
     rule.get_matcher(env)
@@ -395,7 +395,7 @@ transform:
     assert_eq!(matched, "2");
   }
 
-  fn get_rewriters() -> (&'static str, RuleCore<TypeScript>) {
+  fn get_rewriters() -> (&'static str, RuleCore) {
     // NOTE: initialize a DeserializeEnv here is not 100% correct
     // it does not inherit global rules or local rules
     let env = DeserializeEnv::new(TypeScript::Tsx);

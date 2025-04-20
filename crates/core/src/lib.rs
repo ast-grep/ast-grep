@@ -49,7 +49,7 @@ impl<D: Doc> AstGrep<D> {
     Ok(self)
   }
 
-  pub fn replace<M: Matcher<D::Lang>, R: Replacer<D>>(
+  pub fn replace<M: Matcher, R: Replacer<D>>(
     &mut self,
     pattern: M,
     replacer: R,

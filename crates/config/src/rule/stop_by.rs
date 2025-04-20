@@ -82,14 +82,14 @@ impl Serialize for SerializableStopBy {
   }
 }
 
-pub enum StopBy<L: Language> {
+pub enum StopBy {
   Neighbor,
   End,
-  Rule(Rule<L>),
+  Rule(Rule),
 }
 
-impl<L: Language> StopBy<L> {
-  pub(crate) fn try_from(
+impl StopBy {
+  pub(crate) fn try_from<L: Language>(
     relation: SerializableStopBy,
     env: &DeserializeEnv<L>,
   ) -> Result<Self, RuleSerializeError> {
@@ -118,7 +118,7 @@ impl<L: Language> StopBy<L> {
   }
 }
 
-impl<L: Language> StopBy<L> {
+impl StopBy {
   // TODO: document this monster method
   pub(crate) fn find<'t, O, M, I, F, D>(
     &self,
@@ -127,7 +127,7 @@ impl<L: Language> StopBy<L> {
     mut finder: F,
   ) -> Option<Node<'t, D>>
   where
-    D: Doc<Lang = L> + 't,
+    D: Doc + 't,
     I: Iterator<Item = Node<'t, D>>,
     O: FnOnce() -> Option<Node<'t, D>>,
     M: FnOnce() -> I,
@@ -147,7 +147,7 @@ impl<L: Language> StopBy<L> {
   }
 }
 
-fn inclusive_until<D: Doc>(rule: &Rule<D::Lang>) -> impl FnMut(&Node<D>) -> bool + '_ {
+fn inclusive_until<D: Doc>(rule: &Rule) -> impl FnMut(&Node<D>) -> bool + '_ {
   let mut matched = false;
   move |n| {
     if matched {
@@ -209,7 +209,7 @@ inside:
     assert!(err.to_string().contains("variant"));
   }
 
-  fn parse_stop_by(src: &str) -> StopBy<TypeScript> {
+  fn parse_stop_by(src: &str) -> StopBy {
     let stop_by = to_stop_by(src).expect("cannot parse stopBy");
     StopBy::try_from(stop_by, &DeserializeEnv::new(TypeScript::Tsx)).expect("cannot convert")
   }

@@ -17,7 +17,7 @@ pub enum DebugFormat {
   Sexp,
 }
 impl DebugFormat {
-  pub fn debug_pattern(&self, pattern: &Pattern<SgLang>, lang: SgLang, colored: bool) {
+  pub fn debug_pattern(&self, pattern: &Pattern, lang: SgLang, colored: bool) {
     match self {
       DebugFormat::Pattern => {
         let lang = lang.get_ts_language();

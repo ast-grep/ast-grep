@@ -339,7 +339,7 @@ impl SgNode {
     &self,
     config: Option<Bound<PyDict>>,
     kwargs: Option<Bound<PyDict>>,
-  ) -> PyResult<RuleCore<PyLang>> {
+  ) -> PyResult<RuleCore> {
     let lang = self.inner.lang();
     let config = if let Some(config) = config {
       config_from_dict(config)?
@@ -369,7 +369,7 @@ fn config_from_rule(dict: Bound<PyDict>) -> PyResult<SerializableRuleCore> {
   })
 }
 
-fn get_matcher_from_rule(lang: &PyLang, dict: Option<Bound<PyDict>>) -> PyResult<RuleCore<PyLang>> {
+fn get_matcher_from_rule(lang: &PyLang, dict: Option<Bound<PyDict>>) -> PyResult<RuleCore> {
   let rule = dict.ok_or_else(|| PyErr::new::<PyValueError, _>("rule must not be empty"))?;
   let env = DeserializeEnv::new(*lang);
   let config = config_from_rule(rule)?;

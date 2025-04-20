@@ -1,22 +1,20 @@
 use crate::matcher::{MatchAll, MatchNone, Matcher};
 use crate::meta_var::MetaVarEnv;
-use crate::{Doc, Language, Node};
+use crate::{Doc, Node};
 use bit_set::BitSet;
 use std::borrow::Cow;
-use std::marker::PhantomData;
 
-pub struct And<L: Language, P1: Matcher<L>, P2: Matcher<L>> {
+pub struct And<P1: Matcher, P2: Matcher> {
   pattern1: P1,
   pattern2: P2,
-  lang: PhantomData<L>,
 }
 
-impl<L: Language, P1, P2> Matcher<L> for And<L, P1, P2>
+impl<P1, P2> Matcher for And<P1, P2>
 where
-  P1: Matcher<L>,
-  P2: Matcher<L>,
+  P1: Matcher,
+  P2: Matcher,
 {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -39,21 +37,16 @@ where
 
 // we pre-compute and cache potential_kinds. So patterns should not be mutated.
 // Box<[P]> is used here for immutability so that kinds will never be invalidated.
-pub struct All<L: Language, P: Matcher<L>> {
+pub struct All<P: Matcher> {
   patterns: Box<[P]>,
   kinds: Option<BitSet>,
-  lang: PhantomData<L>,
 }
 
-impl<L: Language, P: Matcher<L>> All<L, P> {
+impl<P: Matcher> All<P> {
   pub fn new<PS: IntoIterator<Item = P>>(patterns: PS) -> Self {
     let patterns: Box<[P]> = patterns.into_iter().collect();
     let kinds = Self::compute_kinds(&patterns);
-    Self {
-      patterns,
-      kinds,
-      lang: PhantomData,
-    }
+    Self { patterns, kinds }
   }
 
   fn compute_kinds(patterns: &[P]) -> Option<BitSet> {
@@ -76,8 +69,8 @@ impl<L: Language, P: Matcher<L>> All<L, P> {
   }
 }
 
-impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+impl<P: Matcher> Matcher for All<P> {
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -106,21 +99,16 @@ impl<L: Language, P: Matcher<L>> Matcher<L> for All<L, P> {
 }
 
 // Box<[P]> for immutability and potential_kinds cache correctness
-pub struct Any<L, P> {
+pub struct Any<P> {
   patterns: Box<[P]>,
   kinds: Option<BitSet>,
-  lang: PhantomData<L>,
 }
 
-impl<L: Language, P: Matcher<L>> Any<L, P> {
+impl<P: Matcher> Any<P> {
   pub fn new<PS: IntoIterator<Item = P>>(patterns: PS) -> Self {
     let patterns: Box<[P]> = patterns.into_iter().collect();
     let kinds = Self::compute_kinds(&patterns);
-    Self {
-      patterns,
-      kinds,
-      lang: PhantomData,
-    }
+    Self { patterns, kinds }
   }
 
   fn compute_kinds(patterns: &[P]) -> Option<BitSet> {
@@ -137,8 +125,8 @@ impl<L: Language, P: Matcher<L>> Any<L, P> {
   }
 }
 
-impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+impl<M: Matcher> Matcher for Any<M> {
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -166,19 +154,17 @@ impl<L: Language, M: Matcher<L>> Matcher<L> for Any<L, M> {
   }
 }
 
-pub struct Or<L: Language, P1: Matcher<L>, P2: Matcher<L>> {
+pub struct Or<P1: Matcher, P2: Matcher> {
   pattern1: P1,
   pattern2: P2,
-  lang: PhantomData<L>,
 }
 
-impl<L, P1, P2> Matcher<L> for Or<L, P1, P2>
+impl<P1, P2> Matcher for Or<P1, P2>
 where
-  L: Language,
-  P1: Matcher<L>,
-  P2: Matcher<L>,
+  P1: Matcher,
+  P2: Matcher,
 {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -203,29 +189,24 @@ where
   }
 }
 
-pub struct Not<L: Language, M: Matcher<L>> {
+pub struct Not<M: Matcher> {
   not: M,
-  lang: PhantomData<L>,
 }
 
-impl<L: Language, M: Matcher<L>> Not<L, M> {
+impl<M: Matcher> Not<M> {
   pub fn new(not: M) -> Self {
-    Self {
-      not,
-      lang: PhantomData,
-    }
+    Self { not }
   }
 
   pub fn inner(&self) -> &M {
     &self.not
   }
 }
-impl<L, P> Matcher<L> for Not<L, P>
+impl<P> Matcher for Not<P>
 where
-  L: Language,
-  P: Matcher<L>,
+  P: Matcher,
 {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -238,17 +219,15 @@ where
 }
 
 #[derive(Clone)]
-pub struct Op<L: Language, M: Matcher<L>> {
+pub struct Op<M: Matcher> {
   inner: M,
-  lang: PhantomData<L>,
 }
 
-impl<L, M> Matcher<L> for Op<L, M>
+impl<M> Matcher for Op<M>
 where
-  L: Language,
-  M: Matcher<L>,
+  M: Matcher,
 {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -267,7 +246,7 @@ pub struct Predicate<F> {
   func: F,
 }
 
-impl<L, F> Matcher<L> for Predicate<F>
+impl<L, F> Matcher for Predicate<F>
 where
   L: Language,
   F: for<'tree> Fn(&Node<'tree, StrDoc<L>>) -> bool,
@@ -294,77 +273,63 @@ impl<L: Language> Op<L, MatchNone> {
 }
 */
 
-impl<L: Language, M: Matcher<L>> Op<L, M> {
-  pub fn not(pattern: M) -> Not<L, M> {
-    Not {
-      not: pattern,
-      lang: PhantomData,
-    }
+impl<M: Matcher> Op<M> {
+  pub fn not(pattern: M) -> Not<M> {
+    Not { not: pattern }
   }
 }
 
-impl<L: Language, M: Matcher<L>> Op<L, M> {
-  pub fn every(pattern: M) -> Op<L, And<L, M, MatchAll>> {
+impl<M: Matcher> Op<M> {
+  pub fn every(pattern: M) -> Op<And<M, MatchAll>> {
     Op {
       inner: And {
         pattern1: pattern,
         pattern2: MatchAll,
-        lang: PhantomData,
       },
-      lang: PhantomData,
     }
   }
-  pub fn either(pattern: M) -> Op<L, Or<L, M, MatchNone>> {
+  pub fn either(pattern: M) -> Op<Or<M, MatchNone>> {
     Op {
       inner: Or {
         pattern1: pattern,
         pattern2: MatchNone,
-        lang: PhantomData,
       },
-      lang: PhantomData,
     }
   }
 
-  pub fn all<MS: IntoIterator<Item = M>>(patterns: MS) -> All<L, M> {
+  pub fn all<MS: IntoIterator<Item = M>>(patterns: MS) -> All<M> {
     All::new(patterns)
   }
 
-  pub fn any<MS: IntoIterator<Item = M>>(patterns: MS) -> Any<L, M> {
+  pub fn any<MS: IntoIterator<Item = M>>(patterns: MS) -> Any<M> {
     Any::new(patterns)
   }
 
-  pub fn new(matcher: M) -> Op<L, M> {
-    Self {
-      inner: matcher,
-      lang: PhantomData,
-    }
+  pub fn new(matcher: M) -> Op<M> {
+    Self { inner: matcher }
   }
 }
 
-type NestedAnd<L, M, N, O> = And<L, And<L, M, N>, O>;
-impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, And<L, M, N>> {
-  pub fn and<O: Matcher<L>>(self, other: O) -> Op<L, NestedAnd<L, M, N, O>> {
+type NestedAnd<M, N, O> = And<And<M, N>, O>;
+impl<M: Matcher, N: Matcher> Op<And<M, N>> {
+  pub fn and<O: Matcher>(self, other: O) -> Op<NestedAnd<M, N, O>> {
     Op {
       inner: And {
         pattern1: self.inner,
         pattern2: other,
-        lang: PhantomData,
       },
-      lang: PhantomData,
     }
   }
 }
 
-type NestedOr<L, M, N, O> = Or<L, Or<L, M, N>, O>;
-impl<L: Language, M: Matcher<L>, N: Matcher<L>> Op<L, Or<L, M, N>> {
-  pub fn or<O: Matcher<L>>(self, other: O) -> Op<L, NestedOr<L, M, N, O>> {
+type NestedOr<M, N, O> = Or<Or<M, N>, O>;
+impl<M: Matcher, N: Matcher> Op<Or<M, N>> {
+  pub fn or<O: Matcher>(self, other: O) -> Op<NestedOr<M, N, O>> {
     Op {
       inner: Or {
         pattern1: self.inner,
         pattern2: other,
-        lang: PhantomData,
       },
-      lang: PhantomData,
     }
   }
 }
@@ -376,15 +341,15 @@ mod test {
   use crate::matcher::MatcherExt;
   use crate::Root;
 
-  fn test_find(matcher: &impl Matcher<Tsx>, code: &str) {
+  fn test_find(matcher: &impl Matcher, code: &str) {
     let node = Root::str(code, Tsx);
     assert!(matcher.find_node(node.root()).is_some());
   }
-  fn test_not_find(matcher: &impl Matcher<Tsx>, code: &str) {
+  fn test_not_find(matcher: &impl Matcher, code: &str) {
     let node = Root::str(code, Tsx);
     assert!(matcher.find_node(node.root()).is_none());
   }
-  fn find_all(matcher: impl Matcher<Tsx>, code: &str) -> Vec<String> {
+  fn find_all(matcher: impl Matcher, code: &str) -> Vec<String> {
     let node = Root::str(code, Tsx);
     node
       .root()
@@ -398,7 +363,6 @@ mod test {
     let matcher = Or {
       pattern1: "let a = 1",
       pattern2: "const b = 2",
-      lang: PhantomData,
     };
     test_find(&matcher, "let a = 1");
     test_find(&matcher, "const b = 2");
@@ -410,10 +374,7 @@ mod test {
 
   #[test]
   fn test_not() {
-    let matcher = Not {
-      not: "let a = 1",
-      lang: PhantomData,
-    };
+    let matcher = Not { not: "let a = 1" };
     test_find(&matcher, "const b = 2");
   }
 
@@ -421,11 +382,7 @@ mod test {
   fn test_and() {
     let matcher = And {
       pattern1: "let a = $_",
-      pattern2: Not {
-        not: "let a = 123",
-        lang: PhantomData,
-      },
-      lang: PhantomData,
+      pattern2: Not { not: "let a = 123" },
     };
     test_find(&matcher, "let a = 233");
     test_find(&matcher, "let a = 456");
@@ -480,10 +437,10 @@ mod test {
   */
   use crate::Pattern;
   trait TsxMatcher {
-    fn t(self) -> Pattern<Tsx>;
+    fn t(self) -> Pattern;
   }
   impl TsxMatcher for &str {
-    fn t(self) -> Pattern<Tsx> {
+    fn t(self) -> Pattern {
       Pattern::new(self, Tsx)
     }
   }

@@ -1,6 +1,5 @@
 use crate::{Rule, RuleCore};
 
-use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Doc, Matcher, Node};
 
@@ -27,10 +26,10 @@ impl<R> Registration<R> {
     unsafe { &mut *(Arc::as_ptr(&self.0) as *mut HashMap<String, R>) }
   }
 }
-pub type GlobalRules<L> = Registration<RuleCore<L>>;
+pub type GlobalRules = Registration<RuleCore>;
 
-impl<L: Language> GlobalRules<L> {
-  pub fn insert(&self, id: &str, rule: RuleCore<L>) -> Result<(), ReferentRuleError> {
+impl GlobalRules {
+  pub fn insert(&self, id: &str, rule: RuleCore) -> Result<(), ReferentRuleError> {
     let map = self.write();
     if map.contains_key(id) {
       return Err(ReferentRuleError::DuplicateRule(id.into()));
@@ -52,23 +51,23 @@ impl<R> Default for Registration<R> {
   }
 }
 
-#[derive(Clone)]
-pub struct RuleRegistration<L: Language> {
+#[derive(Clone, Default)]
+pub struct RuleRegistration {
   /// utility rule to every RuleCore, every sub-rule has its own local utility
-  local: Registration<Rule<L>>,
+  local: Registration<Rule>,
   /// global rules are shared by all RuleConfigs. It is a singleton.
-  global: Registration<RuleCore<L>>,
+  global: Registration<RuleCore>,
   /// Every RuleConfig has its own rewriters. But sub-rules share parent's rewriters.
-  rewriters: Registration<RuleCore<L>>,
+  rewriters: Registration<RuleCore>,
 }
 
 // these are shit code
-impl<L: Language> RuleRegistration<L> {
-  pub fn get_rewriters(&self) -> &HashMap<String, RuleCore<L>> {
+impl RuleRegistration {
+  pub fn get_rewriters(&self) -> &HashMap<String, RuleCore> {
     &self.rewriters.0
   }
 
-  pub fn from_globals(global: &GlobalRules<L>) -> Self {
+  pub fn from_globals(global: &GlobalRules) -> Self {
     Self {
       local: Default::default(),
       global: global.clone(),
@@ -76,13 +75,13 @@ impl<L: Language> RuleRegistration<L> {
     }
   }
 
-  fn get_ref(&self) -> RegistrationRef<L> {
+  fn get_ref(&self) -> RegistrationRef {
     let local = Arc::downgrade(&self.local.0);
     let global = Arc::downgrade(&self.global.0);
     RegistrationRef { local, global }
   }
 
-  pub(crate) fn insert_local(&self, id: &str, rule: Rule<L>) -> Result<(), ReferentRuleError> {
+  pub(crate) fn insert_local(&self, id: &str, rule: Rule) -> Result<(), ReferentRuleError> {
     let map = self.local.write();
     if map.contains_key(id) {
       return Err(ReferentRuleError::DuplicateRule(id.into()));
@@ -97,7 +96,7 @@ impl<L: Language> RuleRegistration<L> {
     Ok(())
   }
 
-  pub(crate) fn insert_rewriter(&self, id: &str, rewriter: RuleCore<L>) {
+  pub(crate) fn insert_rewriter(&self, id: &str, rewriter: RuleCore) {
     self.rewriters.insert(id, rewriter).expect("should work");
   }
 
@@ -112,30 +111,21 @@ impl<L: Language> RuleRegistration<L> {
     ret
   }
 }
-impl<L: Language> Default for RuleRegistration<L> {
-  fn default() -> Self {
-    Self {
-      local: Default::default(),
-      global: Default::default(),
-      rewriters: Default::default(),
-    }
-  }
-}
 
 /// RegistrationRef must use Weak pointer to avoid
 /// cyclic reference in RuleRegistration
-struct RegistrationRef<L: Language> {
-  local: Weak<HashMap<String, Rule<L>>>,
-  global: Weak<HashMap<String, RuleCore<L>>>,
+struct RegistrationRef {
+  local: Weak<HashMap<String, Rule>>,
+  global: Weak<HashMap<String, RuleCore>>,
 }
-impl<L: Language> RegistrationRef<L> {
-  fn get_local(&self) -> Arc<HashMap<String, Rule<L>>> {
+impl RegistrationRef {
+  fn get_local(&self) -> Arc<HashMap<String, Rule>> {
     self
       .local
       .upgrade()
       .expect("Rule Registration must be kept alive")
   }
-  fn get_global(&self) -> Arc<HashMap<String, RuleCore<L>>> {
+  fn get_global(&self) -> Arc<HashMap<String, RuleCore>> {
     self
       .global
       .upgrade()
@@ -153,15 +143,15 @@ pub enum ReferentRuleError {
   CyclicRule(String),
 }
 
-pub struct ReferentRule<L: Language> {
+pub struct ReferentRule {
   pub(crate) rule_id: String,
-  reg_ref: RegistrationRef<L>,
+  reg_ref: RegistrationRef,
 }
 
-impl<L: Language> ReferentRule<L> {
+impl ReferentRule {
   pub fn try_new(
     rule_id: String,
-    registration: &RuleRegistration<L>,
+    registration: &RuleRegistration,
   ) -> Result<Self, ReferentRuleError> {
     Ok(Self {
       reg_ref: registration.get_ref(),
@@ -171,7 +161,7 @@ impl<L: Language> ReferentRule<L> {
 
   fn eval_local<F, T>(&self, func: F) -> Option<T>
   where
-    F: FnOnce(&Rule<L>) -> T,
+    F: FnOnce(&Rule) -> T,
   {
     let rules = self.reg_ref.get_local();
     let rule = rules.get(&self.rule_id)?;
@@ -180,7 +170,7 @@ impl<L: Language> ReferentRule<L> {
 
   fn eval_global<F, T>(&self, func: F) -> Option<T>
   where
-    F: FnOnce(&RuleCore<L>) -> T,
+    F: FnOnce(&RuleCore) -> T,
   {
     let rules = self.reg_ref.get_global();
     let rule = rules.get(&self.rule_id)?;
@@ -200,8 +190,8 @@ impl<L: Language> ReferentRule<L> {
   }
 }
 
-impl<L: Language> Matcher<L> for ReferentRule<L> {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+impl Matcher for ReferentRule {
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -239,7 +229,7 @@ mod test {
 
   #[test]
   fn test_cyclic_error() -> Result {
-    let registration = RuleRegistration::<TS>::default();
+    let registration = RuleRegistration::default();
     let rule = ReferentRule::try_new("test".into(), &registration)?;
     let rule = Rule::Matches(rule);
     let error = registration.insert_local("test", rule);
@@ -249,7 +239,7 @@ mod test {
 
   #[test]
   fn test_cyclic_all() -> Result {
-    let registration = RuleRegistration::<TS>::default();
+    let registration = RuleRegistration::default();
     let rule = ReferentRule::try_new("test".into(), &registration)?;
     let rule = Rule::All(o::All::new(std::iter::once(Rule::Matches(rule))));
     let error = registration.insert_local("test", rule);
@@ -259,7 +249,7 @@ mod test {
 
   #[test]
   fn test_cyclic_not() -> Result {
-    let registration = RuleRegistration::<TS>::default();
+    let registration = RuleRegistration::default();
     let rule = ReferentRule::try_new("test".into(), &registration)?;
     let rule = Rule::Not(Box::new(o::Not::new(Rule::Matches(rule))));
     let error = registration.insert_local("test", rule);
@@ -269,7 +259,7 @@ mod test {
 
   #[test]
   fn test_success_rule() -> Result {
-    let registration = RuleRegistration::<TS>::default();
+    let registration = RuleRegistration::default();
     let rule = ReferentRule::try_new("test".into(), &registration)?;
     let pattern = Rule::Pattern(Pattern::new("some", TS::Tsx));
     let ret = registration.insert_local("test", pattern);
