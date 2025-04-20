@@ -109,7 +109,7 @@ impl<'tree, D: Doc> MetaVarEnv<'tree, D> {
     single.chain(multi).chain(transformed)
   }
 
-  pub fn match_constraints<M: Matcher<D::Lang>>(
+  pub fn match_constraints<M: Matcher>(
     &mut self,
     var_matchers: &HashMap<MetaVariableID, M>,
   ) -> bool {

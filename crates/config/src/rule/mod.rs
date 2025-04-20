@@ -207,25 +207,25 @@ pub struct CompositeRule {
   pub matches: Option<String>,
 }
 
-pub enum Rule<L: Language> {
+pub enum Rule {
   // atomic
-  Pattern(Pattern<L>),
-  Kind(KindMatcher<L>),
-  Regex(RegexMatcher<L>),
-  NthChild(NthChild<L>),
-  Range(RangeMatcher<L>),
+  Pattern(Pattern),
+  Kind(KindMatcher),
+  Regex(RegexMatcher),
+  NthChild(NthChild),
+  Range(RangeMatcher),
   // relational
-  Inside(Box<Inside<L>>),
-  Has(Box<Has<L>>),
-  Precedes(Box<Precedes<L>>),
-  Follows(Box<Follows<L>>),
+  Inside(Box<Inside>),
+  Has(Box<Has>),
+  Precedes(Box<Precedes>),
+  Follows(Box<Follows>),
   // composite
-  All(o::All<L, Rule<L>>),
-  Any(o::Any<L, Rule<L>>),
-  Not(Box<o::Not<L, Rule<L>>>),
-  Matches(ReferentRule<L>),
+  All(o::All<Rule>),
+  Any(o::Any<Rule>),
+  Not(Box<o::Not<Rule>>),
+  Matches(ReferentRule),
 }
-impl<L: Language> Rule<L> {
+impl Rule {
   /// Check if it has a cyclic referent rule with the id.
   pub(crate) fn check_cyclic(&self, id: &str) -> bool {
     match self {
@@ -276,8 +276,8 @@ impl<L: Language> Rule<L> {
   }
 }
 
-impl<L: Language> Matcher<L> for Rule<L> {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+impl Matcher for Rule {
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -328,13 +328,13 @@ impl<L: Language> Matcher<L> for Rule<L> {
 
 /// Rule matches nothing by default.
 /// In Math jargon, Rule is vacuously false.
-impl<L: Language> Default for Rule<L> {
+impl Default for Rule {
   fn default() -> Self {
     Self::Any(o::Any::new(std::iter::empty()))
   }
 }
 
-fn match_and_add_label<'tree, D: Doc, M: Matcher<D::Lang>>(
+fn match_and_add_label<'tree, D: Doc, M: Matcher>(
   inner: &M,
   node: Node<'tree, D>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -370,7 +370,7 @@ pub enum RuleSerializeError {
 pub fn deserialize_rule<L: Language>(
   serialized: SerializableRule,
   env: &DeserializeEnv<L>,
-) -> Result<Rule<L>, RuleSerializeError> {
+) -> Result<Rule, RuleSerializeError> {
   let mut rules = Vec::with_capacity(1);
   use Rule as R;
   let categorized = serialized.categorized();
@@ -391,7 +391,7 @@ pub fn deserialize_rule<L: Language>(
 
 fn deserialze_composite_rule<L: Language>(
   composite: CompositeRule,
-  rules: &mut Vec<Rule<L>>,
+  rules: &mut Vec<Rule>,
   env: &DeserializeEnv<L>,
 ) -> Result<(), RuleSerializeError> {
   use Rule as R;
@@ -421,7 +421,7 @@ fn deserialze_composite_rule<L: Language>(
 
 fn deserialize_relational_rule<L: Language>(
   relational: RelationalRule,
-  rules: &mut Vec<Rule<L>>,
+  rules: &mut Vec<Rule>,
   env: &DeserializeEnv<L>,
 ) -> Result<(), RuleSerializeError> {
   use Rule as R;
@@ -443,7 +443,7 @@ fn deserialize_relational_rule<L: Language>(
 
 fn deserialze_atomic_rule<L: Language>(
   atomic: AtomicRule,
-  rules: &mut Vec<Rule<L>>,
+  rules: &mut Vec<Rule>,
   env: &DeserializeEnv<L>,
 ) -> Result<(), RuleSerializeError> {
   use Rule as R;

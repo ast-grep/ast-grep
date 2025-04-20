@@ -29,7 +29,7 @@ pub struct NapiConfig {
 }
 
 impl NapiConfig {
-  pub fn parse_with(self, lang: NapiLang) -> NapiResult<RuleCore<NapiLang>> {
+  pub fn parse_with(self, lang: NapiLang) -> NapiResult<RuleCore> {
     let rule = SerializableRuleCore {
       rule: serde_json::from_value(self.rule)?,
       constraints: self.constraints.map(serde_json::from_value).transpose()?,

@@ -89,7 +89,7 @@ impl Rewrite<MetaVariable> {
 type Bytes<D> = [<<D as Doc>::Source as Content>::Underlying];
 fn find_and_make_edits<'n, D: Doc>(
   nodes: Vec<Node<'n, D>>,
-  rules: &[&RuleCore<D::Lang>],
+  rules: &[&RuleCore],
   ctx: &Ctx<'_, 'n, D>,
 ) -> Vec<Edit<D::Source>> {
   nodes
@@ -100,7 +100,7 @@ fn find_and_make_edits<'n, D: Doc>(
 
 fn replace_one<'n, D: Doc>(
   node: Node<'n, D>,
-  rules: &[&RuleCore<D::Lang>],
+  rules: &[&RuleCore],
   ctx: &Ctx<'_, 'n, D>,
 ) -> Vec<Edit<D::Source>> {
   let mut edits = vec![];
@@ -161,7 +161,7 @@ mod test {
     rewrite: Rewrite<String>,
     src: &str,
     pat: &str,
-    rewriters: RuleRegistration<TypeScript>,
+    rewriters: RuleRegistration,
   ) -> String {
     compute_rewritten(src, pat, rewrite, rewriters).expect("should have transforms")
   }
@@ -170,14 +170,11 @@ mod test {
     ( $($a: expr),* ) => { vec![ $($a.to_string()),* ] };
   }
 
-  fn make_rewriters(pairs: &[(&str, &str)]) -> RuleRegistration<TypeScript> {
+  fn make_rewriters(pairs: &[(&str, &str)]) -> RuleRegistration {
     make_rewriter_reg(pairs, Default::default())
   }
 
-  fn make_rewriter_reg(
-    pairs: &[(&str, &str)],
-    vars: HashSet<&str>,
-  ) -> RuleRegistration<TypeScript> {
+  fn make_rewriter_reg(pairs: &[(&str, &str)], vars: HashSet<&str>) -> RuleRegistration {
     let env = DeserializeEnv::new(TypeScript::Tsx);
     for (key, ser) in pairs {
       let serialized: SerializableRuleCore = from_str(ser).unwrap();
@@ -343,7 +340,7 @@ fix: $D
     src: &str,
     pat: &str,
     rewrite: Rewrite<String>,
-    reg: RuleRegistration<TypeScript>,
+    reg: RuleRegistration,
   ) -> Option<String> {
     let grep = TypeScript::Tsx.ast_grep(src);
     let root = grep.root();

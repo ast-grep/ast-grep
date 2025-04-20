@@ -44,10 +44,7 @@ impl<'t, D: Doc> Aggregator<'t, D> for ComputeEnd {
   }
 }
 
-pub fn match_end_non_recursive<D: Doc>(
-  goal: &Pattern<D::Lang>,
-  candidate: Node<D>,
-) -> Option<usize> {
+pub fn match_end_non_recursive<D: Doc>(goal: &Pattern, candidate: Node<D>) -> Option<usize> {
   let mut end = ComputeEnd(0);
   match match_node_impl(&goal.node, &candidate, &mut end, &goal.strictness) {
     MatchOneNode::MatchedBoth => Some(end.0),
@@ -113,7 +110,7 @@ impl<'t, D: Doc> Aggregator<'t, D> for Cow<'_, MetaVarEnv<'t, D>> {
 }
 
 pub fn match_node_non_recursive<'tree, D: Doc>(
-  goal: &Pattern<D::Lang>,
+  goal: &Pattern,
   candidate: Node<'tree, D>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<Node<'tree, D>> {
@@ -154,7 +151,7 @@ mod test {
   use std::collections::HashMap;
 
   fn find_node_recursive<'tree>(
-    goal: &Pattern<Tsx>,
+    goal: &Pattern,
     node: Node<'tree, StrDoc<Tsx>>,
     env: &mut Cow<MetaVarEnv<'tree, StrDoc<Tsx>>>,
   ) -> Option<Node<'tree, StrDoc<Tsx>>> {
@@ -300,7 +297,7 @@ mod test {
     test_non_match("class A { get b() {}}", "class A { b() {}}");
   }
 
-  fn find_end_recursive(goal: &Pattern<Tsx>, node: Node<StrDoc<Tsx>>) -> Option<usize> {
+  fn find_end_recursive(goal: &Pattern, node: Node<StrDoc<Tsx>>) -> Option<usize> {
     match_end_non_recursive(goal, node.clone()).or_else(|| {
       node
         .children()

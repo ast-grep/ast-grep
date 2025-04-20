@@ -6,8 +6,6 @@ use crate::rule_core::RuleCoreError;
 use crate::transform::{TransformError, Transformation};
 use crate::RuleCore;
 
-use ast_grep_core::language::Language;
-
 use std::collections::{HashMap, HashSet};
 
 type RResult<T> = std::result::Result<T, RuleCoreError>;
@@ -20,12 +18,12 @@ pub enum CheckHint<'r> {
 
 /// Different rule sections have different variable scopes/check procedure.
 /// so we need to check rules with different hints.
-pub fn check_rule_with_hint<'r, L: Language>(
-  rule: &'r Rule<L>,
-  utils: &'r RuleRegistration<L>,
-  constraints: &'r HashMap<String, Rule<L>>,
+pub fn check_rule_with_hint<'r>(
+  rule: &'r Rule,
+  utils: &'r RuleRegistration,
+  constraints: &'r HashMap<String, Rule>,
   transform: &'r Option<HashMap<String, Transformation>>,
-  fixer: &Option<Fixer<L>>,
+  fixer: &Option<Fixer>,
   hint: CheckHint<'r>,
 ) -> RResult<()> {
   match hint {
@@ -46,12 +44,12 @@ pub fn check_rule_with_hint<'r, L: Language>(
   Ok(())
 }
 
-fn check_vars_in_rewriter<'r, L: Language>(
-  rule: &'r Rule<L>,
-  utils: &'r RuleRegistration<L>,
-  constraints: &'r HashMap<String, Rule<L>>,
+fn check_vars_in_rewriter<'r>(
+  rule: &'r Rule,
+  utils: &'r RuleRegistration,
+  constraints: &'r HashMap<String, Rule>,
   transform: &'r Option<HashMap<String, Transformation>>,
-  fixer: &Option<Fixer<L>>,
+  fixer: &Option<Fixer>,
   upper_var: &HashSet<&str>,
 ) -> RResult<()> {
   let vars = get_vars_from_rules(rule, utils);
@@ -64,10 +62,7 @@ fn check_vars_in_rewriter<'r, L: Language>(
   Ok(())
 }
 
-fn check_utils_defined<L: Language>(
-  rule: &Rule<L>,
-  constraints: &HashMap<String, Rule<L>>,
-) -> RResult<()> {
+fn check_utils_defined(rule: &Rule, constraints: &HashMap<String, Rule>) -> RResult<()> {
   rule.verify_util()?;
   for constraint in constraints.values() {
     constraint.verify_util()?;
@@ -75,12 +70,12 @@ fn check_utils_defined<L: Language>(
   Ok(())
 }
 
-fn check_vars<'r, L: Language>(
-  rule: &'r Rule<L>,
-  utils: &'r RuleRegistration<L>,
-  constraints: &'r HashMap<String, Rule<L>>,
+fn check_vars<'r>(
+  rule: &'r Rule,
+  utils: &'r RuleRegistration,
+  constraints: &'r HashMap<String, Rule>,
   transform: &'r Option<HashMap<String, Transformation>>,
-  fixer: &Option<Fixer<L>>,
+  fixer: &Option<Fixer>,
 ) -> RResult<()> {
   let vars = get_vars_from_rules(rule, utils);
   let vars = check_var_in_constraints(vars, constraints)?;
@@ -89,10 +84,7 @@ fn check_vars<'r, L: Language>(
   Ok(())
 }
 
-fn get_vars_from_rules<'r, L: Language>(
-  rule: &'r Rule<L>,
-  utils: &'r RuleRegistration<L>,
-) -> HashSet<&'r str> {
+fn get_vars_from_rules<'r>(rule: &'r Rule, utils: &'r RuleRegistration) -> HashSet<&'r str> {
   let mut vars = rule.defined_vars();
   for var in utils.get_local_util_vars() {
     vars.insert(var);
@@ -100,9 +92,9 @@ fn get_vars_from_rules<'r, L: Language>(
   vars
 }
 
-fn check_var_in_constraints<'r, L: Language>(
+fn check_var_in_constraints<'r>(
   mut vars: HashSet<&'r str>,
-  constraints: &'r HashMap<String, Rule<L>>,
+  constraints: &'r HashMap<String, Rule>,
 ) -> RResult<HashSet<&'r str>> {
   for rule in constraints.values() {
     for var in rule.defined_vars() {
@@ -148,7 +140,7 @@ fn check_var_in_transform<'r>(
   Ok(vars)
 }
 
-fn check_var_in_fix<L: Language>(vars: HashSet<&str>, fixer: &Option<Fixer<L>>) -> RResult<()> {
+fn check_var_in_fix(vars: HashSet<&str>, fixer: &Option<Fixer>) -> RResult<()> {
   let Some(fixer) = fixer else {
     return Ok(());
   };
@@ -160,9 +152,9 @@ fn check_var_in_fix<L: Language>(vars: HashSet<&str>, fixer: &Option<Fixer<L>>) 
   Ok(())
 }
 
-pub fn check_rewriters_in_transform<L: Language>(
-  rule: &RuleCore<L>,
-  rewriters: &HashMap<String, RuleCore<L>>,
+pub fn check_rewriters_in_transform(
+  rule: &RuleCore,
+  rewriters: &HashMap<String, RuleCore>,
 ) -> Result<(), RuleConfigError> {
   if let Some(err) = check_one_rewriter_in_rule(rule, rewriters) {
     return Err(err);
@@ -176,9 +168,9 @@ pub fn check_rewriters_in_transform<L: Language>(
   Ok(())
 }
 
-fn check_one_rewriter_in_rule<L: Language>(
-  rule: &RuleCore<L>,
-  rewriters: &HashMap<String, RuleCore<L>>,
+fn check_one_rewriter_in_rule(
+  rule: &RuleCore,
+  rewriters: &HashMap<String, RuleCore>,
 ) -> Option<RuleConfigError> {
   let transform = rule.transform.as_ref()?;
   let mut used_rewriters = transform

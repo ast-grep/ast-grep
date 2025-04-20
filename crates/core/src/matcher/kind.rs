@@ -5,7 +5,6 @@ use crate::node::KindId;
 use crate::{Doc, Language, Node};
 
 use std::borrow::Cow;
-use std::marker::PhantomData;
 
 use bit_set::BitSet;
 use thiserror::Error;
@@ -23,22 +22,20 @@ pub enum KindMatcherError {
 }
 
 #[derive(Clone)]
-pub struct KindMatcher<L: Language> {
+pub struct KindMatcher {
   kind: KindId,
-  lang: PhantomData<L>,
 }
 
-impl<L: Language> KindMatcher<L> {
-  pub fn new(node_kind: &str, lang: L) -> Self {
+impl KindMatcher {
+  pub fn new<L: Language>(node_kind: &str, lang: L) -> Self {
     Self {
       kind: lang
         .get_ts_language()
         .id_for_node_kind(node_kind, /*named*/ true),
-      lang: PhantomData,
     }
   }
 
-  pub fn try_new(node_kind: &str, lang: L) -> Result<Self, KindMatcherError> {
+  pub fn try_new<L: Language>(node_kind: &str, lang: L) -> Result<Self, KindMatcherError> {
     let s = Self::new(node_kind, lang);
     if s.is_invalid() {
       Err(KindMatcherError::InvalidKindName(node_kind.into()))
@@ -48,10 +45,7 @@ impl<L: Language> KindMatcher<L> {
   }
 
   pub fn from_id(kind: KindId) -> Self {
-    Self {
-      kind,
-      lang: PhantomData,
-    }
+    Self { kind }
   }
 
   /// Whether the kind matcher contains undefined tree-sitter kind.
@@ -81,8 +75,8 @@ pub mod kind_utils {
   }
 }
 
-impl<L: Language> Matcher<L> for KindMatcher<L> {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+impl Matcher for KindMatcher {
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     _env: &mut Cow<MetaVarEnv<'tree, D>>,

@@ -38,13 +38,13 @@ pub enum FixerError {
   WrongExpansion(#[from] RuleSerializeError),
 }
 
-struct Expansion<L: Language> {
-  matches: Rule<L>,
-  stop_by: StopBy<L>,
+struct Expansion {
+  matches: Rule,
+  stop_by: StopBy,
 }
 
-impl<L: Language> Expansion<L> {
-  fn parse(
+impl Expansion {
+  fn parse<L: Language>(
     relation: &Maybe<Relation>,
     env: &DeserializeEnv<L>,
   ) -> Result<Option<Self>, FixerError> {
@@ -58,14 +58,14 @@ impl<L: Language> Expansion<L> {
   }
 }
 
-pub struct Fixer<L: Language> {
+pub struct Fixer {
   template: TemplateFix,
-  expand_start: Option<Expansion<L>>,
-  expand_end: Option<Expansion<L>>,
+  expand_start: Option<Expansion>,
+  expand_end: Option<Expansion>,
 }
 
-impl<L: Language> Fixer<L> {
-  fn do_parse(
+impl Fixer {
+  fn do_parse<L: Language>(
     serialized: &SerializableFixConfig,
     env: &DeserializeEnv<L>,
   ) -> Result<Self, FixerError> {
@@ -83,7 +83,7 @@ impl<L: Language> Fixer<L> {
     })
   }
 
-  pub fn parse(
+  pub fn parse<L: Language>(
     fixer: &SerializableFixer,
     env: &DeserializeEnv<L>,
     transform: &Option<HashMap<String, Transformation>>,
@@ -94,7 +94,7 @@ impl<L: Language> Fixer<L> {
     }
   }
 
-  pub(crate) fn with_transform(
+  pub(crate) fn with_transform<L: Language>(
     fix: &str,
     env: &DeserializeEnv<L>,
     transform: &Option<HashMap<String, Transformation>>,
@@ -112,7 +112,7 @@ impl<L: Language> Fixer<L> {
     })
   }
 
-  pub fn from_str(src: &str, lang: &L) -> Result<Self, FixerError> {
+  pub fn from_str<L: Language>(src: &str, lang: &L) -> Result<Self, FixerError> {
     let template = TemplateFix::try_new(src, lang)?;
     Ok(Self {
       template,
@@ -126,17 +126,16 @@ impl<L: Language> Fixer<L> {
   }
 }
 
-impl<D, L, C> Replacer<D> for Fixer<L>
+impl<D, C> Replacer<D> for Fixer
 where
-  D: Doc<Source = C, Lang = L>,
-  L: Language,
+  D: Doc<Source = C>,
   C: Content,
 {
   fn generate_replacement(&self, nm: &ast_grep_core::NodeMatch<D>) -> Vec<C::Underlying> {
     // simple forwarding to template
     self.template.generate_replacement(nm)
   }
-  fn get_replaced_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher<L>) -> Range<usize> {
+  fn get_replaced_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher) -> Range<usize> {
     let range = nm.range();
     if self.expand_start.is_none() && self.expand_end.is_none() {
       return if let Some(len) = matcher.get_match_len(nm.get_node().clone()) {
@@ -151,7 +150,7 @@ where
   }
 }
 
-fn expand_start<D: Doc>(expansion: Option<&Expansion<D::Lang>>, nm: &NodeMatch<D>) -> usize {
+fn expand_start<D: Doc>(expansion: Option<&Expansion>, nm: &NodeMatch<D>) -> usize {
   let node = nm.get_node();
   let mut env = std::borrow::Cow::Borrowed(nm.get_env());
   let Some(start) = expansion else {
@@ -167,7 +166,7 @@ fn expand_start<D: Doc>(expansion: Option<&Expansion<D::Lang>>, nm: &NodeMatch<D
     .unwrap_or_else(|| nm.range().start)
 }
 
-fn expand_end<D: Doc>(expansion: Option<&Expansion<D::Lang>>, nm: &NodeMatch<D>) -> usize {
+fn expand_end<D: Doc>(expansion: Option<&Expansion>, nm: &NodeMatch<D>) -> usize {
   let node = nm.get_node();
   let mut env = std::borrow::Cow::Borrowed(nm.get_env());
   let Some(end) = expansion else {

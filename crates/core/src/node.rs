@@ -303,23 +303,23 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
  * Corresponds to inside/has/precedes/follows
  */
 impl<D: Doc> Node<'_, D> {
-  pub fn matches<M: Matcher<D::Lang>>(&self, m: M) -> bool {
+  pub fn matches<M: Matcher>(&self, m: M) -> bool {
     m.match_node(self.clone()).is_some()
   }
 
-  pub fn inside<M: Matcher<D::Lang>>(&self, m: M) -> bool {
+  pub fn inside<M: Matcher>(&self, m: M) -> bool {
     self.ancestors().find_map(|n| m.match_node(n)).is_some()
   }
 
-  pub fn has<M: Matcher<D::Lang>>(&self, m: M) -> bool {
+  pub fn has<M: Matcher>(&self, m: M) -> bool {
     self.dfs().skip(1).find_map(|n| m.match_node(n)).is_some()
   }
 
-  pub fn precedes<M: Matcher<D::Lang>>(&self, m: M) -> bool {
+  pub fn precedes<M: Matcher>(&self, m: M) -> bool {
     self.next_all().find_map(|n| m.match_node(n)).is_some()
   }
 
-  pub fn follows<M: Matcher<D::Lang>>(&self, m: M) -> bool {
+  pub fn follows<M: Matcher>(&self, m: M) -> bool {
     self.prev_all().find_map(|n| m.match_node(n)).is_some()
   }
 }
@@ -509,32 +509,24 @@ impl<'r, D: Doc> Node<'r, D> {
   }
 
   #[must_use]
-  pub fn find<M: Matcher<D::Lang>>(&self, pat: M) -> Option<NodeMatch<'r, D>> {
+  pub fn find<M: Matcher>(&self, pat: M) -> Option<NodeMatch<'r, D>> {
     pat.find_node(self.clone())
   }
 
-  pub fn find_all<M: Matcher<D::Lang>>(&self, pat: M) -> impl Iterator<Item = NodeMatch<'r, D>> {
+  pub fn find_all<M: Matcher>(&self, pat: M) -> impl Iterator<Item = NodeMatch<'r, D>> {
     FindAllNodes::new(pat, self.clone())
   }
 }
 
 /// Tree manipulation API
 impl<D: Doc> Node<'_, D> {
-  pub fn replace<M: Matcher<D::Lang>, R: Replacer<D>>(
-    &self,
-    matcher: M,
-    replacer: R,
-  ) -> Option<Edit<D>> {
+  pub fn replace<M: Matcher, R: Replacer<D>>(&self, matcher: M, replacer: R) -> Option<Edit<D>> {
     let matched = matcher.find_node(self.clone())?;
     let edit = matched.make_edit(&matcher, &replacer);
     Some(edit)
   }
 
-  pub fn replace_all<M: Matcher<D::Lang>, R: Replacer<D>>(
-    &self,
-    matcher: M,
-    replacer: R,
-  ) -> Vec<Edit<D>> {
+  pub fn replace_all<M: Matcher, R: Replacer<D>>(&self, matcher: M, replacer: R) -> Vec<Edit<D>> {
     // TODO: support nested matches like Some(Some(1)) with pattern Some($A)
     Visitor::new(&matcher)
       .reentrant(false)

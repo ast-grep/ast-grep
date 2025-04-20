@@ -128,7 +128,7 @@ fn build_util_walker(base_dir: &Path, util_dirs: &Option<Vec<PathBuf>>) -> Optio
   Some(walker)
 }
 
-fn find_util_rules(config: &ProjectConfig) -> Result<GlobalRules<SgLang>> {
+fn find_util_rules(config: &ProjectConfig) -> Result<GlobalRules> {
   let ProjectConfig {
     project_dir,
     util_dirs,
@@ -155,13 +155,13 @@ fn find_util_rules(config: &ProjectConfig) -> Result<GlobalRules<SgLang>> {
     utils.push(new_configs);
   }
 
-  let ret = DeserializeEnv::parse_global_utils(utils).context(EC::InvalidGlobalUtils)?;
+  let ret = DeserializeEnv::<SgLang>::parse_global_utils(utils).context(EC::InvalidGlobalUtils)?;
   Ok(ret)
 }
 
 fn read_directory_yaml(
   config: &ProjectConfig,
-  global_rules: GlobalRules<SgLang>,
+  global_rules: GlobalRules,
   rule_overwrite: RuleOverwrite,
 ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
   let mut configs = vec![];
@@ -219,7 +219,7 @@ pub fn with_rule_stats(
 
 pub fn read_rule_file(
   path: &Path,
-  global_rules: Option<&GlobalRules<SgLang>>,
+  global_rules: Option<&GlobalRules>,
 ) -> Result<Vec<RuleConfig<SgLang>>> {
   let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
   let parsed = if let Some(globals) = global_rules {

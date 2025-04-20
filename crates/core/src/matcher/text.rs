@@ -1,13 +1,12 @@
 use super::Matcher;
 use crate::meta_var::MetaVarEnv;
-use crate::{Doc, Language, Node};
+use crate::{Doc, Node};
 
 use bit_set::BitSet;
 use regex::{Error as RegexError, Regex};
 use thiserror::Error;
 
 use std::borrow::Cow;
-use std::marker::PhantomData;
 
 #[derive(Debug, Error)]
 pub enum RegexMatcherError {
@@ -16,22 +15,20 @@ pub enum RegexMatcherError {
 }
 
 #[derive(Clone)]
-pub struct RegexMatcher<L: Language> {
+pub struct RegexMatcher {
   regex: Regex,
-  lang: PhantomData<L>,
 }
 
-impl<L: Language> RegexMatcher<L> {
+impl RegexMatcher {
   pub fn try_new(text: &str) -> Result<Self, RegexMatcherError> {
     Ok(RegexMatcher {
       regex: Regex::new(text)?,
-      lang: PhantomData,
     })
   }
 }
 
-impl<L: Language> Matcher<L> for RegexMatcher<L> {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+impl Matcher for RegexMatcher {
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     _env: &mut Cow<MetaVarEnv<'tree, D>>,

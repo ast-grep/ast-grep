@@ -140,7 +140,7 @@ fn get_root(entry: ignore::DirEntry, lang_option: &LangOption) -> Ret<(AstGrep<J
 
 pub type FindInFiles = IterateFiles<(
   ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
-  RuleCore<NapiLang>,
+  RuleCore,
 )>;
 
 pub struct PinnedNodes(
@@ -208,7 +208,7 @@ fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<Vec<SgNod
 fn call_sg_node(
   (tsfn, rule): &(
     ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
-    RuleCore<NapiLang>,
+    RuleCore,
   ),
   entry: std::result::Result<ignore::DirEntry, ignore::Error>,
   lang_option: &LangOption,

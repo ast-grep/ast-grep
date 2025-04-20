@@ -1,4 +1,4 @@
-use ast_grep_core::{meta_var::MetaVarEnv, Doc, Language, Node};
+use ast_grep_core::{meta_var::MetaVarEnv, Doc, Node};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -20,7 +20,7 @@ pub struct SerializableRange {
   pub end: SerializablePosition,
 }
 
-use std::{borrow::Cow, marker::PhantomData};
+use std::borrow::Cow;
 
 use bit_set::BitSet;
 use thiserror::Error;
@@ -37,25 +37,23 @@ pub enum RangeMatcherError {
   InvalidRange,
 }
 
-pub struct RangeMatcher<L: Language> {
+pub struct RangeMatcher {
   start: SerializablePosition,
   end: SerializablePosition,
-  lang: PhantomData<L>,
 }
 
-impl<L: Language> RangeMatcher<L> {
+impl RangeMatcher {
   pub fn new(start_pos: SerializablePosition, end_pos: SerializablePosition) -> Self {
     Self {
       start: start_pos,
       end: end_pos,
-      lang: PhantomData,
     }
   }
 
   pub fn try_new(
     start_pos: SerializablePosition,
     end_pos: SerializablePosition,
-  ) -> Result<RangeMatcher<L>, RangeMatcherError> {
+  ) -> Result<RangeMatcher, RangeMatcherError> {
     if start_pos.line > end_pos.line
       || (start_pos.line == end_pos.line && start_pos.column > end_pos.column)
     {
@@ -67,8 +65,8 @@ impl<L: Language> RangeMatcher<L> {
   }
 }
 
-impl<L: Language> Matcher<L> for RangeMatcher<L> {
-  fn match_node_with_env<'tree, D: Doc<Lang = L>>(
+impl Matcher for RangeMatcher {
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     _env: &mut Cow<MetaVarEnv<'tree, D>>,
@@ -99,10 +97,11 @@ mod test {
   use super::*;
   use crate::test::TypeScript as TS;
   use ast_grep_core::matcher::MatcherExt;
+  use ast_grep_core::Language;
 
   #[test]
   fn test_invalid_range() {
-    let range = RangeMatcher::<TS>::try_new(
+    let range = RangeMatcher::try_new(
       SerializablePosition {
         line: 0,
         column: 10,

@@ -34,7 +34,7 @@ pub struct SerializableInjection {
 
 struct Injection {
   host: SgLang,
-  rules: Vec<(RuleCore<SgLang>, Option<String>)>,
+  rules: Vec<(RuleCore, Option<String>)>,
   injectable: HashSet<String>,
 }
 

@@ -48,7 +48,7 @@ impl Transform {
   pub fn apply_transform<'c, D: Doc>(
     &self,
     env: &mut MetaVarEnv<'c, D>,
-    rewriters: &HashMap<String, RuleCore<D::Lang>>,
+    rewriters: &HashMap<String, RuleCore>,
     enclosing_env: &MetaVarEnv<'c, D>,
   ) {
     let mut ctx = Ctx {
@@ -72,7 +72,7 @@ impl Transform {
 
 // two lifetime to represent env root lifetime and lang/trans lifetime
 struct Ctx<'b, 'c, D: Doc> {
-  rewriters: &'b HashMap<String, RuleCore<D::Lang>>,
+  rewriters: &'b HashMap<String, RuleCore>,
   env: &'b mut MetaVarEnv<'c, D>,
   enclosing_env: &'b MetaVarEnv<'c, D>,
 }
