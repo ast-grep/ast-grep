@@ -3,8 +3,8 @@ let path = require('path');
 
 let parts = [process.platform, process.arch];
 if (process.platform === 'linux') {
-  const {MUSL, family} = require('detect-libc');
-  if (family === MUSL) {
+  const {MUSL, familySync} = require('detect-libc');
+  if (familySync() === MUSL) {
     parts.push('musl');
   } else if (process.arch === 'arm') {
     parts.push('gnueabihf');
