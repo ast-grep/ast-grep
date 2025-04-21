@@ -6,6 +6,7 @@ use strictness::MatchOneNode;
 pub use strictness::MatchStrictness;
 
 use crate::meta_var::{MetaVarEnv, MetaVariable};
+use crate::node::SgNode;
 use crate::{Doc, Node, Pattern};
 
 use std::borrow::Cow;
@@ -120,7 +121,7 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
   }
 }
 
-pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: &Node<D>) -> bool {
+pub fn does_node_match_exactly<'r, N: SgNode<'r>>(goal: &N, candidate: &N) -> bool {
   // return true if goal and candidate are the same node
   if goal.node_id() == candidate.node_id() {
     return true;
