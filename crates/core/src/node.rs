@@ -145,6 +145,42 @@ impl<D: Doc> Root<D> {
   }
 }
 
+pub trait SgNode<'r> {
+  fn children(&self) -> impl ExactSizeIterator<Item = Self>;
+  fn is_named(&self) -> bool;
+  /// N.B. it is different from is_named && is_leaf
+  /// if a node has no named children.
+  fn is_named_leaf(&self) -> bool;
+  fn kind(&self) -> Cow<str>;
+  fn kind_id(&self) -> KindId;
+  fn node_id(&self) -> usize;
+  fn text(&self) -> Cow<'r, str>;
+}
+
+impl<'r, D: Doc> SgNode<'r> for Node<'r, D> {
+  fn node_id(&self) -> usize {
+    self.node_id()
+  }
+  fn is_named(&self) -> bool {
+    self.is_named()
+  }
+  fn is_named_leaf(&self) -> bool {
+    self.is_named_leaf()
+  }
+  fn text(&self) -> Cow<'r, str> {
+    self.text()
+  }
+  fn kind(&self) -> Cow<str> {
+    self.kind()
+  }
+  fn kind_id(&self) -> KindId {
+    self.kind_id()
+  }
+  fn children(&self) -> impl ExactSizeIterator<Item = Self> {
+    self.children()
+  }
+}
+
 /// 'r represents root lifetime
 #[derive(Clone)]
 pub struct Node<'r, D: Doc> {

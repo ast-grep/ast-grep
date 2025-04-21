@@ -1,6 +1,6 @@
 use crate::matcher::{kind_utils, PatternNode};
 use crate::meta_var::MetaVariable;
-use crate::{Doc, Node};
+use crate::node::SgNode;
 use std::iter::Peekable;
 use std::str::FromStr;
 
@@ -21,7 +21,7 @@ pub(crate) enum MatchOneNode {
   NoMatch,
 }
 
-fn skip_comment_or_unnamed(n: &Node<impl Doc>) -> bool {
+fn skip_comment_or_unnamed<'r>(n: &impl SgNode<'r>) -> bool {
   if !n.is_named() {
     return true;
   }
@@ -30,12 +30,12 @@ fn skip_comment_or_unnamed(n: &Node<impl Doc>) -> bool {
 }
 
 impl MatchStrictness {
-  pub(crate) fn match_terminal<D: Doc>(
+  pub(crate) fn match_terminal<'r>(
     &self,
     is_named: bool,
     text: &str,
     goal_kind: u16,
-    candidate: &Node<D>,
+    candidate: &impl SgNode<'r>,
   ) -> MatchOneNode {
     use MatchStrictness as M;
     let cand_kind = candidate.kind_id();
@@ -67,7 +67,7 @@ impl MatchStrictness {
   }
 
   // TODO: this is a method for working around trailing nodes after pattern is matched
-  pub(crate) fn should_skip_trailing<D: Doc>(&self, candidate: &Node<D>) -> bool {
+  pub(crate) fn should_skip_trailing<'r, N: SgNode<'r>>(&self, candidate: &N) -> bool {
     use MatchStrictness as M;
     match self {
       M::Cst => false,
