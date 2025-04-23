@@ -3,8 +3,8 @@ use ast_grep_config::SerializableRuleConfig;
 use ast_grep_core::language::{CoreLanguage, TSLanguage};
 use ast_grep_core::Language;
 use ast_grep_language::{
-  Bash, CSharp, Cpp, Css, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin, Lua, Php,
-  Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml, C,
+  Alias, Bash, CSharp, Cpp, Css, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin, Lua,
+  Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml, C,
 };
 use schemars::{
   gen::SchemaGenerator,
@@ -54,7 +54,7 @@ fn generate_lang_schemas() -> Result<()> {
   generate_lang_schema(Yaml, "yaml")
 }
 
-fn generate_lang_schema<T: Language>(lang: T, name: &str) -> Result<()> {
+fn generate_lang_schema<T: Language + Alias>(lang: T, name: &str) -> Result<()> {
   let mut schema = schema_for!(SerializableRuleConfig<PlaceholderLang>);
   tweak_schema(&mut schema)?;
   add_lang_info_to_schema(&mut schema, lang, name)?;
@@ -80,7 +80,7 @@ fn tweak_schema(schema: &mut RootSchema) -> Result<()> {
   Ok(())
 }
 
-fn add_lang_info_to_schema<T: Language>(
+fn add_lang_info_to_schema<T: Language + Alias>(
   schema: &mut RootSchema,
   lang: T,
   name: &str,
@@ -117,6 +117,21 @@ fn add_lang_info_to_schema<T: Language>(
     bail!("kind's type is not object!")
   };
   kind.enum_values = Some(named_nodes);
+  let Schema::Object(language) = definitions
+    .get_mut("Language")
+    .context("must have Language")?
+  else {
+    bail!("Language's type is not an object!")
+  };
+  language.enum_values = Some(
+    T::ALIAS
+      .iter()
+      .map(|alias| serde_json::Value::String(alias.to_string()))
+      .chain(std::iter::once(serde_json::Value::String(format!(
+        "{lang}"
+      ))))
+      .collect(),
+  );
   Ok(())
 }
 

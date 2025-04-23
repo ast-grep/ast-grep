@@ -174,7 +174,12 @@
       }
     },
     "Language": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "hs",
+        "haskell",
+        "Haskell"
+      ]
     },
     "Maybe_Array_of_SerializableRule": {
       "type": "array",

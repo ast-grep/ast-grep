@@ -102,12 +102,16 @@ macro_rules! impl_lang_expando {
   };
 }
 
+pub trait Alias: Display {
+  const ALIAS: &'static [&'static str];
+}
+
 /// Implements the `ALIAS` associated constant for the given lang, which is
 /// then used to define the `alias` const fn and a `Deserialize` impl.
 macro_rules! impl_alias {
   ($lang:ident => $as:expr) => {
-    impl $lang {
-      pub const ALIAS: &'static [&'static str] = $as;
+    impl Alias for $lang {
+      const ALIAS: &'static [&'static str] = $as;
     }
 
     impl fmt::Display for $lang {

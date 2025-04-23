@@ -174,7 +174,11 @@
       }
     },
     "Language": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "java",
+        "Java"
+      ]
     },
     "Maybe_Array_of_SerializableRule": {
       "type": "array",

@@ -174,7 +174,13 @@
       }
     },
     "Language": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "javascript",
+        "js",
+        "jsx",
+        "JavaScript"
+      ]
     },
     "Maybe_Array_of_SerializableRule": {
       "type": "array",

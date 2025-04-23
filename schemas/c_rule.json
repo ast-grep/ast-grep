@@ -174,7 +174,11 @@
       }
     },
     "Language": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "c",
+        "C"
+      ]
     },
     "Maybe_Array_of_SerializableRule": {
       "type": "array",

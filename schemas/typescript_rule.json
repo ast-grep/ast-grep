@@ -174,7 +174,12 @@
       }
     },
     "Language": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "ts",
+        "typescript",
+        "TypeScript"
+      ]
     },
     "Maybe_Array_of_SerializableRule": {
       "type": "array",
