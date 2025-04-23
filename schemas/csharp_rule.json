@@ -174,7 +174,12 @@
       }
     },
     "Language": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "cs",
+        "csharp",
+        "CSharp"
+      ]
     },
     "Maybe_Array_of_SerializableRule": {
       "type": "array",

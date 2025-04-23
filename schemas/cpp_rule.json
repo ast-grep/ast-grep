@@ -174,7 +174,14 @@
       }
     },
     "Language": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "cc",
+        "c++",
+        "cpp",
+        "cxx",
+        "Cpp"
+      ]
     },
     "Maybe_Array_of_SerializableRule": {
       "type": "array",
