@@ -95,8 +95,6 @@ struct Inner {
   name: String,
   meta_var_char: char,
   expando_char: char,
-  // NOTE: need to hold a reference of lib to avoid cleanup
-  _lib: Library,
 }
 
 #[derive(Debug, Error)]
@@ -111,28 +109,26 @@ pub enum DynamicLangError {
   GetLibPath(#[from] std::io::Error),
 }
 
-/// # Safety: we must keep lib in memory after load it.
-/// libloading will do cleanup if `Library` is dropped which makes any lib symbol null pointer.
-/// This is not desirable for our case.
-unsafe fn load_ts_language(
-  path: PathBuf,
-  name: String,
-) -> Result<(Library, TSLanguage), DynamicLangError> {
+unsafe fn load_ts_language(path: PathBuf, name: String) -> Result<TSLanguage, DynamicLangError> {
   let abs_path = canonicalize(path)?;
   let lib = Library::new(abs_path.as_os_str()).map_err(DynamicLangError::OpenLib)?;
-  // NOTE: func is a symbol with lifetime bound to `lib`.
-  // If we drop lib in the scope, func will be a dangling pointer.
-  let func: Symbol<unsafe extern "C" fn() -> NativeTS> = lib
-    .get(name.as_bytes())
-    .map_err(DynamicLangError::ReadSymbol)?;
-  let lang = func();
+  let lang = {
+    // NOTE: func is a symbol with lifetime bound to `lib`.
+    // If we drop lib in the scope, func will be a dangling pointer.
+    let func: Symbol<unsafe extern "C" fn() -> NativeTS> = lib
+      .get(name.as_bytes())
+      .map_err(DynamicLangError::ReadSymbol)?;
+    func()
+  };
+  // libloading will do cleanup if `Library` is dropped which makes any lib symbol null pointer.
+  // This is not desirable for our case. `forget()` ensures that lib is valid for the whole
+  // lifetime of the program.
+  std::mem::forget(lib);
   let version = lang.abi_version();
   if !(MIN_COMPATIBLE_LANGUAGE_VERSION..=LANGUAGE_VERSION).contains(&version) {
     Err(DynamicLangError::IncompatibleVersion(version))
   } else {
-    // ATTENTION: dragon ahead
-    // must hold valid reference to NativeTS
-    Ok((lib, lang.into()))
+    Ok(lang.into())
   }
 }
 
@@ -175,8 +171,7 @@ impl DynamicLang {
     langs: &mut Vec<Inner>,
     mapping: &mut Vec<(String, LangIndex)>,
   ) -> Result<(), DynamicLangError> {
-    // lib must be retained!!
-    let (_lib, lang) = unsafe { load_ts_language(reg.lib_path, reg.symbol)? };
+    let lang = unsafe { load_ts_language(reg.lib_path, reg.symbol)? };
     let meta_var_char = reg.meta_var_char.unwrap_or('$');
     let expando_char = reg.expando_char.unwrap_or(meta_var_char);
     let inner = Inner {
@@ -184,7 +179,6 @@ impl DynamicLang {
       lang,
       meta_var_char,
       expando_char,
-      _lib,
     };
     langs.push(inner);
     let idx = langs.len() as LangIndex - 1;
@@ -279,7 +273,7 @@ mod test {
     if path.is_empty() {
       return;
     }
-    let (_lib, lang) = unsafe { load_ts_language(path.into(), "tree_sitter_json".into()).unwrap() };
+    let lang = unsafe { load_ts_language(path.into(), "tree_sitter_json".into()).unwrap() };
     let sg = lang.ast_grep("{\"a\": 123}");
     assert_eq!(
       sg.root().to_sexp(),
