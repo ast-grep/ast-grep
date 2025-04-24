@@ -145,7 +145,7 @@ impl<D: Doc> Root<D> {
   }
 }
 
-pub trait SgNode<'r> {
+pub trait SgNode<'r>: Clone {
   fn children(&self) -> impl ExactSizeIterator<Item = Self>;
   fn is_named(&self) -> bool;
   /// N.B. it is different from is_named && is_leaf
