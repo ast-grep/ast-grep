@@ -1,7 +1,8 @@
 use super::Matcher;
-use crate::meta_var::MetaVarEnv;
+use crate::meta_var::SgMetaVarEnv;
+use crate::node::SgNode;
 use crate::replacer::Replacer;
-use crate::source::Edit;
+use crate::source::{Content, Edit};
 use crate::{Doc, Node};
 
 use std::borrow::Borrow;
@@ -11,27 +12,29 @@ use std::ops::Deref;
 /// It derefs to the Node so you can use it as a Node.
 /// To access the underlying MetaVarEnv, call `get_env` method.
 #[derive(Clone)]
-pub struct NodeMatch<'tree, D: Doc>(Node<'tree, D>, MetaVarEnv<'tree, D>);
+pub struct SgNodeMatch<'t, N: SgNode<'t>, C>(N, SgMetaVarEnv<'t, N, C>);
+pub type NodeMatch<'t, D> =
+  SgNodeMatch<'t, Node<'t, D>, Vec<<<D as Doc>::Source as Content>::Underlying>>;
 
-impl<'tree, D: Doc> NodeMatch<'tree, D> {
-  pub fn new(node: Node<'tree, D>, env: MetaVarEnv<'tree, D>) -> Self {
+impl<'tree, N: SgNode<'tree>, C> SgNodeMatch<'tree, N, C> {
+  pub fn new(node: N, env: SgMetaVarEnv<'tree, N, C>) -> Self {
     Self(node, env)
   }
 
-  pub fn get_node(&self) -> &Node<'tree, D> {
+  pub fn get_node(&self) -> &N {
     &self.0
   }
 
   /// Returns the populated MetaVarEnv for this match.
-  pub fn get_env(&self) -> &MetaVarEnv<'tree, D> {
+  pub fn get_env(&self) -> &SgMetaVarEnv<'tree, N, C> {
     &self.1
   }
-  pub fn get_env_mut(&mut self) -> &mut MetaVarEnv<'tree, D> {
+  pub fn get_env_mut(&mut self) -> &mut SgMetaVarEnv<'tree, N, C> {
     &mut self.1
   }
   /// # Safety
   /// should only called for readopting nodes
-  pub(crate) unsafe fn get_node_mut(&mut self) -> &mut Node<'tree, D> {
+  pub(crate) unsafe fn get_node_mut(&mut self) -> &mut N {
     &mut self.0
   }
 }
@@ -65,9 +68,9 @@ impl<D: Doc> NodeMatch<'_, D> {
   }
 }
 
-impl<'tree, D: Doc> From<Node<'tree, D>> for NodeMatch<'tree, D> {
-  fn from(node: Node<'tree, D>) -> Self {
-    Self(node, MetaVarEnv::new())
+impl<'tree, N: SgNode<'tree>, C> From<N> for SgNodeMatch<'tree, N, C> {
+  fn from(node: N) -> Self {
+    Self(node, SgMetaVarEnv::new())
   }
 }
 
@@ -79,8 +82,8 @@ impl<'tree, D: Doc> From<NodeMatch<'tree, D>> for Node<'tree, D> {
 }
 
 /// NodeMatch is an immutable view to Node
-impl<'tree, D: Doc> Deref for NodeMatch<'tree, D> {
-  type Target = Node<'tree, D>;
+impl<'tree, N: SgNode<'tree>, C> Deref for SgNodeMatch<'tree, N, C> {
+  type Target = N;
   fn deref(&self) -> &Self::Target {
     &self.0
   }

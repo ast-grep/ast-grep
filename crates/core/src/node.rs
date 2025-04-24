@@ -146,6 +146,7 @@ impl<D: Doc> Root<D> {
 }
 
 pub trait SgNode<'r>: Clone {
+  type Doc: Doc;
   fn children(&self) -> impl ExactSizeIterator<Item = Self>;
   fn is_named(&self) -> bool;
   /// N.B. it is different from is_named && is_leaf
@@ -158,6 +159,7 @@ pub trait SgNode<'r>: Clone {
 }
 
 impl<'r, D: Doc> SgNode<'r> for Node<'r, D> {
+  type Doc = D;
   fn node_id(&self) -> usize {
     self.node_id()
   }
