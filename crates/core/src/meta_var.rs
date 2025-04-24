@@ -11,7 +11,7 @@ use crate::replacer::formatted_slice;
 pub type MetaVariableID = String;
 
 pub type MetaVarEnv<'t, D> = SgMetaVarEnv<'t, Node<'t, D>, Underlying<D>>;
-type Underlying<D> = Vec<<<D as Doc>::Source as Content>::Underlying>;
+pub type Underlying<D> = Vec<<<D as Doc>::Source as Content>::Underlying>;
 
 // why we need one more content? https://github.com/ast-grep/ast-grep/issues/1951
 /// a dictionary that stores metavariable instantiation
