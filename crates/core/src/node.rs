@@ -152,10 +152,16 @@ pub trait SgNode<'r>: Clone {
   /// N.B. it is different from is_named && is_leaf
   /// if a node has no named children.
   fn is_named_leaf(&self) -> bool;
+  fn is_leaf(&self) -> bool;
   fn kind(&self) -> Cow<str>;
   fn kind_id(&self) -> KindId;
   fn node_id(&self) -> usize;
   fn text(&self) -> Cow<'r, str>;
+  fn lang(&self) -> &<Self::Doc as Doc>::Lang;
+  // missing node is a tree-sitter specific concept
+  fn is_missing_node(&self) -> bool {
+    false
+  }
 }
 
 impl<'r, D: Doc> SgNode<'r> for Node<'r, D> {
@@ -169,6 +175,9 @@ impl<'r, D: Doc> SgNode<'r> for Node<'r, D> {
   fn is_named_leaf(&self) -> bool {
     self.is_named_leaf()
   }
+  fn is_leaf(&self) -> bool {
+    self.is_leaf()
+  }
   fn text(&self) -> Cow<'r, str> {
     self.text()
   }
@@ -180,6 +189,12 @@ impl<'r, D: Doc> SgNode<'r> for Node<'r, D> {
   }
   fn children(&self) -> impl ExactSizeIterator<Item = Self> {
     self.children()
+  }
+  fn lang(&self) -> &<Self::Doc as Doc>::Lang {
+    self.lang()
+  }
+  fn is_missing_node(&self) -> bool {
+    self.get_ts_node().is_missing()
   }
 }
 

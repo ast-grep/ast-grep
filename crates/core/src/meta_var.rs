@@ -17,7 +17,7 @@ pub type Underlying<D> = Vec<<<D as Doc>::Source as Content>::Underlying>;
 /// a dictionary that stores metavariable instantiation
 /// const a = 123 matched with const a = $A will produce env: $A => 123
 #[derive(Clone)]
-pub struct SgMetaVarEnv<'tree, N: SgNode<'tree>, C> {
+pub struct SgMetaVarEnv<'tree, N: SgNode<'tree>, C = Underlying<<N as SgNode<'tree>>::Doc>> {
   single_matched: HashMap<MetaVariableID, N>,
   multi_matched: HashMap<MetaVariableID, Vec<N>>,
   transformed_var: HashMap<MetaVariableID, C>,
