@@ -20,7 +20,7 @@ use bit_set::BitSet;
 use std::borrow::Cow;
 
 pub use kind::{kind_utils, KindMatcher, KindMatcherError};
-pub use node_match::NodeMatch;
+pub use node_match::{NodeMatch, SgNodeMatch};
 pub use pattern::{Pattern, PatternError, PatternNode};
 #[cfg(feature = "regex")]
 pub use text::{RegexMatcher, RegexMatcherError};

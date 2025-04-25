@@ -1,9 +1,9 @@
 use super::indent::{extract_with_deindent, get_indent_at_offset, indent_lines, DeindentedExtract};
 use super::{split_first_meta_var, MetaVarExtract, Replacer, Underlying};
 use crate::language::CoreLanguage;
-use crate::matcher::NodeMatch;
-use crate::meta_var::MetaVarEnv;
+use crate::meta_var::SgMetaVarEnv;
 use crate::source::{Content, Doc};
+use crate::{SgNode, SgNodeMatch};
 
 use thiserror::Error;
 
@@ -38,8 +38,11 @@ impl TemplateFix {
 }
 
 impl<D: Doc> Replacer<D> for TemplateFix {
-  fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
-    let leading = nm.root.doc.get_source().get_range(0..nm.range().start);
+  fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
+    &self,
+    nm: &SgNodeMatch<'t, N>,
+  ) -> Underlying<D::Source> {
+    let leading = nm.get_doc().get_source().get_range(0..nm.range().start);
     let indent = get_indent_at_offset::<D::Source>(leading);
     let bytes = replace_fixer(self, nm.get_env());
     let replaced = DeindentedExtract::MultiLine(&bytes, 0);
@@ -85,37 +88,38 @@ fn create_template(tmpl: &str, mv_char: char, transforms: &[String]) -> Template
   }
 }
 
-fn replace_fixer<D: Doc>(
+fn replace_fixer<'t, N: SgNode<'t>>(
   fixer: &TemplateFix,
-  env: &MetaVarEnv<D>,
-) -> Vec<<D::Source as Content>::Underlying> {
+  env: &SgMetaVarEnv<'t, N>,
+) -> Vec<<<N::Doc as Doc>::Source as Content>::Underlying> {
   let template = match fixer {
-    TemplateFix::Textual(n) => return D::Source::decode_str(n).to_vec(),
+    TemplateFix::Textual(n) => return <N::Doc as Doc>::Source::decode_str(n).to_vec(),
     TemplateFix::WithMetaVar(t) => t,
   };
   let mut ret = vec![];
   let mut frags = template.fragments.iter();
   let vars = template.vars.iter();
   if let Some(frag) = frags.next() {
-    ret.extend_from_slice(&D::Source::decode_str(frag));
+    ret.extend_from_slice(&<N::Doc as Doc>::Source::decode_str(frag));
   }
   for ((var, indent), frag) in vars.zip(frags) {
     if let Some(bytes) = maybe_get_var(env, var, indent) {
       ret.extend_from_slice(&bytes);
     }
-    ret.extend_from_slice(&D::Source::decode_str(frag));
+    ret.extend_from_slice(&<N::Doc as Doc>::Source::decode_str(frag));
   }
   ret
 }
 
-fn maybe_get_var<'e, C, D>(
-  env: &'e MetaVarEnv<D>,
+fn maybe_get_var<'e, 't, C, D, N>(
+  env: &'e SgMetaVarEnv<'t, N>,
   var: &MetaVarExtract,
   indent: &usize,
 ) -> Option<Cow<'e, [C::Underlying]>>
 where
   C: Content + 'e,
   D: Doc<Source = C>,
+  N: SgNode<'t, Doc = D>,
 {
   let (source, range) = match var {
     MetaVarExtract::Transformed(name) => {
@@ -127,7 +131,7 @@ where
     }
     MetaVarExtract::Single(name) => {
       let replaced = env.get_match(name)?;
-      let source = replaced.root.doc.get_source();
+      let source = replaced.get_doc().get_source();
       let range = replaced.range();
       (source, range)
     }
@@ -139,9 +143,9 @@ where
       // NOTE: start_byte is not always index range of source's slice.
       // e.g. start_byte is still byte_offset in utf_16 (napi). start_byte
       // so we need to call source's get_range method
-      let start = nodes[0].inner.start_byte() as usize;
-      let end = nodes[nodes.len() - 1].inner.end_byte() as usize;
-      let source = nodes[0].root.doc.get_source();
+      let start = nodes[0].range().start;
+      let end = nodes[nodes.len() - 1].range().end;
+      let source = nodes[0].get_doc().get_source();
       (source, start..end)
     }
   };
@@ -151,7 +155,10 @@ where
 }
 
 // replace meta_var in template string, e.g. "Hello $NAME" -> "Hello World"
-pub fn gen_replacement<D: Doc>(template: &str, nm: &NodeMatch<D>) -> Underlying<D::Source> {
+pub fn gen_replacement<'t, N: SgNode<'t>>(
+  template: &str,
+  nm: &SgNodeMatch<'t, N>,
+) -> Underlying<<N::Doc as Doc>::Source> {
   let fixer = create_template(template, nm.lang().meta_var_char(), &[]);
   fixer.generate_replacement(nm)
 }
@@ -161,6 +168,7 @@ mod test {
 
   use super::*;
   use crate::language::{Language, Tsx};
+  use crate::matcher::NodeMatch;
   use crate::meta_var::{MetaVarEnv, MetaVariable};
   use crate::Pattern;
   use std::collections::HashMap;

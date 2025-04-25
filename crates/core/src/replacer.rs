@@ -1,12 +1,12 @@
 use crate::matcher::{Matcher, NodeMatch};
 use crate::meta_var::{is_valid_meta_var_char, MetaVariableID};
-use crate::source::Edit as E;
-use crate::{Doc, Node, Root};
+use crate::{Doc, Node, SgNode, SgNodeMatch};
 use std::ops::Range;
 
 pub(crate) use indent::formatted_slice;
 
-type Edit<D> = E<<D as Doc>::Source>;
+// use crate::source::Edit as E;
+// type Edit<D> = E<<D as Doc>::Source>;
 type Underlying<S> = Vec<<S as Content>::Underlying>;
 
 mod indent;
@@ -18,7 +18,10 @@ pub use template::{TemplateFix, TemplateFixError};
 
 /// Replace meta variable in the replacer string
 pub trait Replacer<D: Doc> {
-  fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source>;
+  fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
+    &self,
+    nm: &SgNodeMatch<'t, N>,
+  ) -> Underlying<D::Source>;
   fn get_replaced_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher) -> Range<usize> {
     let range = nm.range();
     if let Some(len) = matcher.get_match_len(nm.get_node().clone()) {
@@ -30,29 +33,38 @@ pub trait Replacer<D: Doc> {
 }
 
 impl<D: Doc> Replacer<D> for str {
-  fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
+  fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
+    &self,
+    nm: &SgNodeMatch<'t, N>,
+  ) -> Underlying<D::Source> {
     template::gen_replacement(self, nm)
   }
 }
 
-impl<D: Doc> Replacer<D> for Root<D> {
-  fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
-    structural::gen_replacement(self, nm)
-  }
-}
+// impl<D: Doc> Replacer<D> for Root<D> {
+//   fn generate_replacement<'t, N: SgNode<'t, Doc=D>>(&self, nm: &SgNodeMatch<'t, N>) -> Underlying<D::Source> {
+//     structural::gen_replacement(self, nm)
+//   }
+// }
 
 impl<D, T> Replacer<D> for &T
 where
   D: Doc,
   T: Replacer<D> + ?Sized,
 {
-  fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D::Source> {
+  fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
+    &self,
+    nm: &SgNodeMatch<'t, N>,
+  ) -> Underlying<D::Source> {
     (**self).generate_replacement(nm)
   }
 }
 
 impl<D: Doc> Replacer<D> for Node<'_, D> {
-  fn generate_replacement(&self, _nm: &NodeMatch<D>) -> Underlying<D::Source> {
+  fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
+    &self,
+    _nm: &SgNodeMatch<'t, N>,
+  ) -> Underlying<D::Source> {
     let range = self.range();
     self.root.doc.get_source().get_range(range).to_vec()
   }
