@@ -147,7 +147,7 @@ impl<D: Doc> Root<D> {
 
 pub trait SgNode<'r>: Clone {
   type Doc: Doc;
-  fn get_doc(&self) -> &Self::Doc;
+  fn get_doc(&self) -> &'r Self::Doc;
   fn parent(&self) -> Option<Self>;
   fn ancestors(&self) -> impl Iterator<Item = Self>;
   fn dfs(&self) -> impl Iterator<Item = Self>;
@@ -179,7 +179,7 @@ pub trait SgNode<'r>: Clone {
 
 impl<'r, D: Doc> SgNode<'r> for Node<'r, D> {
   type Doc = D;
-  fn get_doc(&self) -> &Self::Doc {
+  fn get_doc(&self) -> &'r Self::Doc {
     &self.root.doc
   }
   fn node_id(&self) -> usize {

@@ -140,33 +140,38 @@ impl<'t, N: SgNode<'t>> SgMetaVarEnv<'t, N> {
     }
     true
   }
-}
 
-impl<D: Doc> MetaVarEnv<'_, D> {
-  pub fn insert_transformation(&mut self, var: &MetaVariable, name: &str, slice: Underlying<D>) {
+  pub fn insert_transformation(
+    &mut self,
+    var: &MetaVariable,
+    name: &str,
+    slice: Underlying<N::Doc>,
+  ) {
     let node = match var {
       MetaVariable::Capture(v, _) => self.single_matched.get(v),
       MetaVariable::MultiCapture(vs) => self.multi_matched.get(vs).and_then(|vs| vs.first()),
       _ => None,
     };
     let deindented = if let Some(v) = node {
-      formatted_slice(&slice, v.root.doc.get_source(), v.range().start).to_vec()
+      formatted_slice(&slice, v.get_doc().get_source(), v.range().start).to_vec()
     } else {
       slice
     };
     self.transformed_var.insert(name.to_string(), deindented);
   }
 
-  pub fn get_transformed(&self, var: &str) -> Option<&Underlying<D>> {
+  pub fn get_transformed(&self, var: &str) -> Option<&Underlying<N::Doc>> {
     self.transformed_var.get(var)
   }
-  pub fn get_var_bytes<'s>(
+  pub fn get_var_bytes<'s: 't>(
     &'s self,
     var: &MetaVariable,
-  ) -> Option<&'s [<D::Source as Content>::Underlying]> {
+  ) -> Option<&'s [<<N::Doc as Doc>::Source as Content>::Underlying]> {
     get_var_bytes_impl(self, var)
   }
+}
 
+impl<D: Doc> MetaVarEnv<'_, D> {
   /// internal for readopt NodeMatch in pinned.rs
   /// readopt node and env when sending them to other threads
   pub(crate) fn visit_nodes<F>(&mut self, mut f: F)
@@ -184,18 +189,19 @@ impl<D: Doc> MetaVarEnv<'_, D> {
   }
 }
 
-fn get_var_bytes_impl<'t, C, D>(
-  env: &'t MetaVarEnv<'t, D>,
+fn get_var_bytes_impl<'t, C, D, N>(
+  env: &'t SgMetaVarEnv<'t, N>,
   var: &MetaVariable,
 ) -> Option<&'t [C::Underlying]>
 where
-  D: Doc<Source = C>,
+  N: SgNode<'t, Doc = D>,
+  D: Doc<Source = C> + 't,
   C: Content + 't,
 {
   match var {
     MetaVariable::Capture(n, _) => {
       if let Some(node) = env.get_match(n) {
-        let bytes = node.root.doc.get_source().get_range(node.range());
+        let bytes = node.get_doc().get_source().get_range(node.range());
         Some(bytes)
       } else if let Some(bytes) = env.get_transformed(n) {
         Some(bytes)
@@ -211,9 +217,9 @@ where
         // NOTE: start_byte is not always index range of source's slice.
         // e.g. start_byte is still byte_offset in utf_16 (napi). start_byte
         // so we need to call source's get_range method
-        let start = nodes[0].inner.start_byte() as usize;
-        let end = nodes[nodes.len() - 1].inner.end_byte() as usize;
-        Some(nodes[0].root.doc.get_source().get_range(start..end))
+        let start = nodes[0].range().start;
+        let end = nodes[nodes.len() - 1].range().end;
+        Some(nodes[0].get_doc().get_source().get_range(start..end))
       }
     }
     _ => None,
