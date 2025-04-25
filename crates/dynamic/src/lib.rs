@@ -231,6 +231,11 @@ impl CoreLanguage for DynamicLang {
   fn expando_char(&self) -> char {
     self.expando
   }
+
+  fn kind_to_id(&self, kind: &str) -> u16 {
+    let lang = self.get_ts_language();
+    lang.id_for_node_kind(kind, true)
+  }
 }
 
 impl Language for DynamicLang {

@@ -1,8 +1,8 @@
 use super::Matcher;
 
+use crate::language::CoreLanguage;
 use crate::meta_var::SgMetaVarEnv;
 use crate::node::{KindId, SgNode};
-use crate::Language;
 
 use std::borrow::Cow;
 
@@ -27,15 +27,13 @@ pub struct KindMatcher {
 }
 
 impl KindMatcher {
-  pub fn new<L: Language>(node_kind: &str, lang: L) -> Self {
+  pub fn new<L: CoreLanguage>(node_kind: &str, lang: L) -> Self {
     Self {
-      kind: lang
-        .get_ts_language()
-        .id_for_node_kind(node_kind, /*named*/ true),
+      kind: lang.kind_to_id(node_kind),
     }
   }
 
-  pub fn try_new<L: Language>(node_kind: &str, lang: L) -> Result<Self, KindMatcherError> {
+  pub fn try_new<L: CoreLanguage>(node_kind: &str, lang: L) -> Result<Self, KindMatcherError> {
     let s = Self::new(node_kind, lang);
     if s.is_invalid() {
       Err(KindMatcherError::InvalidKindName(node_kind.into()))

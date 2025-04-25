@@ -15,6 +15,9 @@ impl CoreLanguage for Html {
   fn pre_process_pattern<'q>(&self, query: &'q str) -> std::borrow::Cow<'q, str> {
     pre_process_pattern(self.expando_char(), query)
   }
+  fn kind_to_id(&self, kind: &str) -> u16 {
+    self.get_ts_language().id_for_node_kind(kind, true)
+  }
 }
 impl Language for Html {
   fn get_ts_language(&self) -> ast_grep_core::language::TSLanguage {

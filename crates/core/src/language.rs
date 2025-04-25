@@ -11,11 +11,6 @@ pub use tree_sitter::{Point as TSPoint, Range as TSRange};
 /// * if we need to use other char in meta var for parser at runtime
 /// * pre process the Pattern code.
 pub trait CoreLanguage: Clone + 'static {
-  /// ignore trivial tokens in language matching
-  fn skippable_kind_ids(&self) -> &'static [u16] {
-    &[]
-  }
-
   /// normalize pattern code before matching
   /// e.g. remove expression_statement, or prefer parsing {} to object over block
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
@@ -42,6 +37,8 @@ pub trait CoreLanguage: Clone + 'static {
   fn extract_meta_var(&self, source: &str) -> Option<MetaVariable> {
     extract_meta_var(source, self.expando_char())
   }
+
+  fn kind_to_id(&self, kind: &str) -> u16;
 }
 
 /// tree-sitter specific language trait
@@ -74,7 +71,11 @@ pub trait Language: CoreLanguage {
   }
 }
 
-impl CoreLanguage for TSLanguage {}
+impl CoreLanguage for TSLanguage {
+  fn kind_to_id(&self, kind: &str) -> u16 {
+    self.id_for_node_kind(kind, /* named */ true)
+  }
+}
 impl Language for TSLanguage {
   fn get_ts_language(&self) -> TSLanguage {
     self.clone()
@@ -89,7 +90,12 @@ mod test {
   use super::*;
   #[derive(Clone)]
   pub struct Tsx;
-  impl CoreLanguage for Tsx {}
+  impl CoreLanguage for Tsx {
+    fn kind_to_id(&self, kind: &str) -> u16 {
+      let ts_lang: TSLanguage = tree_sitter_typescript::LANGUAGE_TSX.into();
+      ts_lang.id_for_node_kind(kind, /* named */ true)
+    }
+  }
   impl Language for Tsx {
     fn get_ts_language(&self) -> TSLanguage {
       tree_sitter_typescript::LANGUAGE_TSX.into()
