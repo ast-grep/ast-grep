@@ -50,7 +50,13 @@ macro_rules! impl_lang {
   ($lang: ident, $func: ident) => {
     #[derive(Clone, Copy, Debug)]
     pub struct $lang;
-    impl CoreLanguage for $lang {}
+    impl CoreLanguage for $lang {
+      fn kind_to_id(&self, kind: &str) -> u16 {
+        self
+          .get_ts_language()
+          .id_for_node_kind(kind, /*named*/ true)
+      }
+    }
     impl Language for $lang {
       fn get_ts_language(&self) -> TSLanguage {
         parsers::$func().into()
@@ -87,6 +93,11 @@ macro_rules! impl_lang_expando {
     #[derive(Clone, Copy, Debug)]
     pub struct $lang;
     impl CoreLanguage for $lang {
+      fn kind_to_id(&self, kind: &str) -> u16 {
+        self
+          .get_ts_language()
+          .id_for_node_kind(kind, /*named*/ true)
+      }
       fn expando_char(&self) -> char {
         $char
       }
@@ -398,6 +409,7 @@ macro_rules! impl_lang_method {
   };
 }
 impl CoreLanguage for SupportLang {
+  impl_lang_method!(kind_to_id, (kind: &str) => u16);
   impl_lang_method!(meta_var_char, () => char);
   impl_lang_method!(expando_char, () => char);
   impl_lang_method!(extract_meta_var, (source: &str) => Option<MetaVariable>);

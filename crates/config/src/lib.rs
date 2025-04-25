@@ -51,7 +51,15 @@ mod test {
   pub enum TypeScript {
     Tsx,
   }
-  impl CoreLanguage for TypeScript {}
+  impl CoreLanguage for TypeScript {
+    fn kind_to_id(&self, kind: &str) -> u16 {
+      match self {
+        TypeScript::Tsx => {
+          TSLanguage::from(tree_sitter_typescript::LANGUAGE_TSX).id_for_node_kind(kind, true)
+        }
+      }
+    }
+  }
   impl Language for TypeScript {
     fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
       Some(TypeScript::Tsx)

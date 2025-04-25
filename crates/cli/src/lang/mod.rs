@@ -174,6 +174,13 @@ impl CoreLanguage for SgLang {
       Custom(c) => c.expando_char(),
     }
   }
+
+  fn kind_to_id(&self, kind: &str) -> u16 {
+    match self {
+      Builtin(b) => b.kind_to_id(kind),
+      Custom(c) => c.kind_to_id(kind),
+    }
+  }
 }
 impl Language for SgLang {
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {

@@ -110,6 +110,13 @@ impl CoreLanguage for PyLang {
       Custom(c) => c.expando_char(),
     }
   }
+
+  fn kind_to_id(&self, kind: &str) -> u16 {
+    match self {
+      Builtin(b) => b.kind_to_id(kind),
+      Custom(c) => c.kind_to_id(kind),
+    }
+  }
 }
 impl Language for PyLang {
   fn get_ts_language(&self) -> TSLanguage {
