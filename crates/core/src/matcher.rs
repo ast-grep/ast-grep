@@ -11,7 +11,7 @@ mod pattern;
 #[cfg(feature = "regex")]
 mod text;
 
-use crate::meta_var::{MetaVarEnv, SgMetaVarEnv};
+use crate::meta_var::SgMetaVarEnv;
 use crate::node::SgNode;
 use crate::traversal::Pre;
 use crate::{Doc, Node};
@@ -55,14 +55,14 @@ pub trait Matcher {
 /// It is implemented for all types that implement `Matcher`.
 /// N.B. This trait is not intended to be implemented by users.
 pub trait MatcherExt: Matcher {
-  fn match_node<'tree, D: Doc>(&self, node: Node<'tree, D>) -> Option<NodeMatch<'tree, D>> {
+  fn match_node<'tree, N: SgNode<'tree>>(&self, node: N) -> Option<SgNodeMatch<'tree, N>> {
     // in future we might need to customize initial MetaVarEnv
-    let mut env = Cow::Owned(MetaVarEnv::new());
+    let mut env = Cow::Owned(SgMetaVarEnv::new());
     let node = self.match_node_with_env(node, &mut env)?;
-    Some(NodeMatch::new(node, env.into_owned()))
+    Some(SgNodeMatch::new(node, env.into_owned()))
   }
 
-  fn find_node<'tree, D: Doc>(&self, node: Node<'tree, D>) -> Option<NodeMatch<'tree, D>> {
+  fn find_node<'tree, N: SgNode<'tree>>(&self, node: N) -> Option<SgNodeMatch<'tree, N>> {
     for n in node.dfs() {
       if let Some(ret) = self.match_node(n.clone()) {
         return Some(ret);
