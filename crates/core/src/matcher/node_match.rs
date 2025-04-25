@@ -1,24 +1,24 @@
 use super::Matcher;
-use crate::meta_var::SgMetaVarEnv;
+use crate::meta_var::{SgMetaVarEnv, Underlying};
 use crate::node::SgNode;
 use crate::replacer::Replacer;
-use crate::source::{Content, Edit};
+use crate::source::Edit as E;
 use crate::{Doc, Node};
 
 use std::borrow::Borrow;
 use std::ops::Deref;
 
+type Edit<D> = E<<D as Doc>::Source>;
+
 /// Represents the matched node with populated MetaVarEnv.
 /// It derefs to the Node so you can use it as a Node.
 /// To access the underlying MetaVarEnv, call `get_env` method.
 #[derive(Clone)]
-pub struct SgNodeMatch<
-  't,
-  N: SgNode<'t>,
-  C = Vec<<<<N as SgNode<'t>>::Doc as Doc>::Source as Content>::Underlying>,
->(N, SgMetaVarEnv<'t, N, C>);
-pub type NodeMatch<'t, D> =
-  SgNodeMatch<'t, Node<'t, D>, Vec<<<D as Doc>::Source as Content>::Underlying>>;
+pub struct SgNodeMatch<'t, N: SgNode<'t>, C = Underlying<<N as SgNode<'t>>::Doc>>(
+  N,
+  SgMetaVarEnv<'t, N, C>,
+);
+pub type NodeMatch<'t, D> = SgNodeMatch<'t, Node<'t, D>, Underlying<D>>;
 
 impl<'tree, N: SgNode<'tree>, C> SgNodeMatch<'tree, N, C> {
   pub fn new(node: N, env: SgMetaVarEnv<'tree, N, C>) -> Self {
@@ -44,12 +44,12 @@ impl<'tree, N: SgNode<'tree>, C> SgNodeMatch<'tree, N, C> {
 }
 
 impl<'r, N: SgNode<'r>> SgNodeMatch<'r, N> {
-  pub fn replace_by<R: Replacer<N::Doc>>(&self, replacer: R) -> Edit<<N::Doc as Doc>::Source> {
+  pub fn replace_by<R: Replacer<N::Doc>>(&self, replacer: R) -> Edit<N::Doc> {
     let range = self.range();
     let position = range.start;
     let deleted_length = range.len();
     let inserted_text = replacer.generate_replacement(self);
-    Edit {
+    Edit::<N::Doc> {
       position,
       deleted_length,
       inserted_text,
@@ -57,14 +57,14 @@ impl<'r, N: SgNode<'r>> SgNodeMatch<'r, N> {
   }
 
   #[doc(hidden)]
-  pub fn make_edit<M, R>(&self, matcher: &M, replacer: &R) -> Edit<<N::Doc as Doc>::Source>
+  pub fn make_edit<M, R>(&self, matcher: &M, replacer: &R) -> Edit<N::Doc>
   where
     M: Matcher,
     R: Replacer<N::Doc>,
   {
     let range = replacer.get_replaced_range(self, matcher);
     let inserted_text = replacer.generate_replacement(self);
-    Edit {
+    Edit::<N::Doc> {
       position: range.start,
       deleted_length: range.len(),
       inserted_text,

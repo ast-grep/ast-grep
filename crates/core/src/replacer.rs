@@ -1,5 +1,5 @@
 use crate::matcher::Matcher;
-use crate::meta_var::{is_valid_meta_var_char, MetaVariableID};
+use crate::meta_var::{is_valid_meta_var_char, MetaVariableID, Underlying};
 use crate::{Doc, Node, SgNode, SgNodeMatch};
 use std::ops::Range;
 
@@ -7,7 +7,6 @@ pub(crate) use indent::formatted_slice;
 
 // use crate::source::Edit as E;
 // type Edit<D> = E<<D as Doc>::Source>;
-type Underlying<S> = Vec<<S as Content>::Underlying>;
 
 mod indent;
 mod structural;
@@ -21,7 +20,7 @@ pub trait Replacer<D: Doc> {
   fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
     &self,
     nm: &SgNodeMatch<'t, N>,
-  ) -> Underlying<D::Source>;
+  ) -> Underlying<D>;
   fn get_replaced_range<'t, N: SgNode<'t, Doc = D>>(
     &self,
     nm: &SgNodeMatch<'t, N>,
@@ -40,7 +39,7 @@ impl<D: Doc> Replacer<D> for str {
   fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
     &self,
     nm: &SgNodeMatch<'t, N>,
-  ) -> Underlying<D::Source> {
+  ) -> Underlying<D> {
     template::gen_replacement(self, nm)
   }
 }
@@ -59,7 +58,7 @@ where
   fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
     &self,
     nm: &SgNodeMatch<'t, N>,
-  ) -> Underlying<D::Source> {
+  ) -> Underlying<D> {
     (**self).generate_replacement(nm)
   }
 }
@@ -68,7 +67,7 @@ impl<D: Doc> Replacer<D> for Node<'_, D> {
   fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
     &self,
     _nm: &SgNodeMatch<'t, N>,
-  ) -> Underlying<D::Source> {
+  ) -> Underlying<D> {
     let range = self.range();
     self.root.doc.get_source().get_range(range).to_vec()
   }

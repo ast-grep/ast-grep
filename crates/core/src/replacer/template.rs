@@ -1,7 +1,7 @@
 use super::indent::{extract_with_deindent, get_indent_at_offset, indent_lines, DeindentedExtract};
-use super::{split_first_meta_var, MetaVarExtract, Replacer, Underlying};
+use super::{split_first_meta_var, MetaVarExtract, Replacer};
 use crate::language::CoreLanguage;
-use crate::meta_var::SgMetaVarEnv;
+use crate::meta_var::{SgMetaVarEnv, Underlying};
 use crate::source::{Content, Doc};
 use crate::{SgNode, SgNodeMatch};
 
@@ -41,7 +41,7 @@ impl<D: Doc> Replacer<D> for TemplateFix {
   fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
     &self,
     nm: &SgNodeMatch<'t, N>,
-  ) -> Underlying<D::Source> {
+  ) -> Underlying<D> {
     let leading = nm.get_doc().get_source().get_range(0..nm.range().start);
     let indent = get_indent_at_offset::<D::Source>(leading);
     let bytes = replace_fixer(self, nm.get_env());
@@ -91,7 +91,7 @@ fn create_template(tmpl: &str, mv_char: char, transforms: &[String]) -> Template
 fn replace_fixer<'t, N: SgNode<'t>>(
   fixer: &TemplateFix,
   env: &SgMetaVarEnv<'t, N>,
-) -> Vec<<<N::Doc as Doc>::Source as Content>::Underlying> {
+) -> Underlying<N::Doc> {
   let template = match fixer {
     TemplateFix::Textual(n) => return <N::Doc as Doc>::Source::decode_str(n).to_vec(),
     TemplateFix::WithMetaVar(t) => t,
@@ -158,7 +158,7 @@ where
 pub fn gen_replacement<'t, N: SgNode<'t>>(
   template: &str,
   nm: &SgNodeMatch<'t, N>,
-) -> Underlying<<N::Doc as Doc>::Source> {
+) -> Underlying<N::Doc> {
   let fixer = create_template(template, nm.lang().meta_var_char(), &[]);
   fixer.generate_replacement(nm)
 }
