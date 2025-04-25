@@ -518,9 +518,6 @@ mod test {
     lang: impl Language,
   ) -> Result<String, TSParseError> {
     let mut source = lang.ast_grep(src);
-    // TODO: we should have still have pattern as replacer
-    let replacer = lang.pre_process_pattern(replacer);
-    let replacer = lang.ast_grep(replacer).inner;
     assert!(source.replace(pattern, replacer)?);
     Ok(source.generate())
   }

@@ -12,7 +12,11 @@ use std::ops::Deref;
 /// It derefs to the Node so you can use it as a Node.
 /// To access the underlying MetaVarEnv, call `get_env` method.
 #[derive(Clone)]
-pub struct SgNodeMatch<'t, N: SgNode<'t>, C>(N, SgMetaVarEnv<'t, N, C>);
+pub struct SgNodeMatch<
+  't,
+  N: SgNode<'t>,
+  C = Vec<<<<N as SgNode<'t>>::Doc as Doc>::Source as Content>::Underlying>,
+>(N, SgMetaVarEnv<'t, N, C>);
 pub type NodeMatch<'t, D> =
   SgNodeMatch<'t, Node<'t, D>, Vec<<<D as Doc>::Source as Content>::Underlying>>;
 

@@ -3,7 +3,7 @@ use crate::rule::{Relation, Rule, RuleSerializeError, StopBy};
 use crate::transform::Transformation;
 use crate::DeserializeEnv;
 use ast_grep_core::replacer::{Content, Replacer, TemplateFix, TemplateFixError};
-use ast_grep_core::{Doc, Language, Matcher, NodeMatch};
+use ast_grep_core::{Doc, Language, Matcher, NodeMatch, SgNode, SgNodeMatch};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -131,7 +131,10 @@ where
   D: Doc<Source = C>,
   C: Content,
 {
-  fn generate_replacement(&self, nm: &ast_grep_core::NodeMatch<D>) -> Vec<C::Underlying> {
+  fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
+    &self,
+    nm: &SgNodeMatch<'t, N>,
+  ) -> Vec<C::Underlying> {
     // simple forwarding to template
     self.template.generate_replacement(nm)
   }
