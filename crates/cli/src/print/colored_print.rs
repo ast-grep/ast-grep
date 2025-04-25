@@ -234,7 +234,7 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
           "{}:{}:{}: ",
           path.display(),
           pos.line() + 1,
-          pos.column(&diff.node_match) + 1
+          pos.column(&*diff.node_match) + 1
         )?;
       }
       print_rule_title(rule, &diff.node_match, &self.styles.rule, writer)?;

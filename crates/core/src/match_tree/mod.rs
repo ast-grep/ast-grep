@@ -5,40 +5,35 @@ use match_node::match_node_impl;
 use strictness::MatchOneNode;
 pub use strictness::MatchStrictness;
 
-use crate::meta_var::{MetaVarEnv, MetaVariable};
+use crate::meta_var::{MetaVariable, SgMetaVarEnv};
 use crate::node::SgNode;
 use crate::{Doc, Node, Pattern};
 
 use std::borrow::Cow;
 
-trait Aggregator<'t, D: Doc> {
-  fn match_terminal(&mut self, node: &Node<'t, D>) -> Option<()>;
-  fn match_meta_var(&mut self, var: &MetaVariable, node: &Node<'t, D>) -> Option<()>;
+trait Aggregator<'t, N: SgNode<'t>> {
+  fn match_terminal(&mut self, node: &N) -> Option<()>;
+  fn match_meta_var(&mut self, var: &MetaVariable, node: &N) -> Option<()>;
   fn match_ellipsis(
     &mut self,
     var: Option<&str>,
-    nodes: Vec<Node<'t, D>>,
+    nodes: Vec<N>,
     skipped_anonymous: usize,
   ) -> Option<()>;
 }
 
 struct ComputeEnd(usize);
 
-impl<'t, D: Doc> Aggregator<'t, D> for ComputeEnd {
-  fn match_terminal(&mut self, node: &Node<'t, D>) -> Option<()> {
+impl<'t, N: SgNode<'t>> Aggregator<'t, N> for ComputeEnd {
+  fn match_terminal(&mut self, node: &N) -> Option<()> {
     self.0 = node.range().end;
     Some(())
   }
-  fn match_meta_var(&mut self, _: &MetaVariable, node: &Node<'t, D>) -> Option<()> {
+  fn match_meta_var(&mut self, _: &MetaVariable, node: &N) -> Option<()> {
     self.0 = node.range().end;
     Some(())
   }
-  fn match_ellipsis(
-    &mut self,
-    _var: Option<&str>,
-    nodes: Vec<Node<'t, D>>,
-    _skipped: usize,
-  ) -> Option<()> {
+  fn match_ellipsis(&mut self, _var: Option<&str>, nodes: Vec<N>, _skipped: usize) -> Option<()> {
     let n = nodes.last()?;
     self.0 = n.range().end;
     Some(())
@@ -53,10 +48,10 @@ pub fn match_end_non_recursive<D: Doc>(goal: &Pattern, candidate: Node<D>) -> Op
   }
 }
 
-fn match_leaf_meta_var<'tree, D: Doc>(
+fn match_leaf_meta_var<'tree, N: SgNode<'tree>>(
   mv: &MetaVariable,
-  candidate: &Node<'tree, D>,
-  env: &mut Cow<MetaVarEnv<'tree, D>>,
+  candidate: &N,
+  env: &mut Cow<SgMetaVarEnv<'tree, N>>,
 ) -> Option<()> {
   use MetaVariable as MV;
   match mv {
@@ -87,17 +82,17 @@ fn match_leaf_meta_var<'tree, D: Doc>(
   }
 }
 
-impl<'t, D: Doc> Aggregator<'t, D> for Cow<'_, MetaVarEnv<'t, D>> {
-  fn match_terminal(&mut self, _: &Node<'t, D>) -> Option<()> {
+impl<'t, N: SgNode<'t>> Aggregator<'t, N> for Cow<'_, SgMetaVarEnv<'t, N>> {
+  fn match_terminal(&mut self, _: &N) -> Option<()> {
     Some(())
   }
-  fn match_meta_var(&mut self, var: &MetaVariable, node: &Node<'t, D>) -> Option<()> {
+  fn match_meta_var(&mut self, var: &MetaVariable, node: &N) -> Option<()> {
     match_leaf_meta_var(var, node, self)
   }
   fn match_ellipsis(
     &mut self,
     var: Option<&str>,
-    nodes: Vec<Node<'t, D>>,
+    nodes: Vec<N>,
     skipped_anonymous: usize,
   ) -> Option<()> {
     if let Some(var) = var {
@@ -110,11 +105,11 @@ impl<'t, D: Doc> Aggregator<'t, D> for Cow<'_, MetaVarEnv<'t, D>> {
   }
 }
 
-pub fn match_node_non_recursive<'tree, D: Doc>(
+pub fn match_node_non_recursive<'tree, N: SgNode<'tree>>(
   goal: &Pattern,
-  candidate: Node<'tree, D>,
-  env: &mut Cow<MetaVarEnv<'tree, D>>,
-) -> Option<Node<'tree, D>> {
+  candidate: N,
+  env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+) -> Option<N> {
   match match_node_impl(&goal.node, &candidate, env, &goal.strictness) {
     MatchOneNode::MatchedBoth => Some(candidate),
     _ => None,
@@ -148,6 +143,7 @@ pub fn does_node_match_exactly<'r, N: SgNode<'r>>(goal: &N, candidate: &N) -> bo
 mod test {
   use super::*;
   use crate::language::Tsx;
+  use crate::meta_var::MetaVarEnv;
   use crate::{Root, StrDoc};
   use std::collections::HashMap;
 

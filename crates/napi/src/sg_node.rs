@@ -43,7 +43,7 @@ impl SgNode {
   fn to_pos(&self, pos: Position, offset: usize) -> Pos {
     Pos {
       line: pos.line() as u32,
-      column: pos.column(&self.inner) as u32,
+      column: pos.column(self.inner.get_node()) as u32,
       index: offset as u32 / 2,
     }
   }

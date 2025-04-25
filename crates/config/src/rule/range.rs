@@ -1,4 +1,4 @@
-use ast_grep_core::{meta_var::MetaVarEnv, Doc, Node};
+use ast_grep_core::{meta_var::SgMetaVarEnv, SgNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -66,11 +66,11 @@ impl RangeMatcher {
 }
 
 impl Matcher for RangeMatcher {
-  fn match_node_with_env<'tree, D: Doc>(
+  fn match_node_with_env<'tree, N: SgNode<'tree>>(
     &self,
-    node: Node<'tree, D>,
-    _env: &mut Cow<MetaVarEnv<'tree, D>>,
-  ) -> Option<Node<'tree, D>> {
+    node: N,
+    _env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+  ) -> Option<N> {
     let node_start_pos = node.start_pos();
     let node_end_pos = node.end_pos();
 

@@ -122,6 +122,25 @@ impl<'t, N: SgNode<'t>, C> SgMetaVarEnv<'t, N, C> {
     }
   }
 }
+impl<'t, N: SgNode<'t>> SgMetaVarEnv<'t, N> {
+  pub fn match_constraints<M: Matcher>(
+    &mut self,
+    var_matchers: &HashMap<MetaVariableID, M>,
+  ) -> bool {
+    let mut env = Cow::Borrowed(self);
+    for (var_id, candidate) in &self.single_matched {
+      if let Some(m) = var_matchers.get(var_id) {
+        if m.match_node_with_env(candidate.clone(), &mut env).is_none() {
+          return false;
+        }
+      }
+    }
+    if let Cow::Owned(env) = env {
+      *self = env;
+    }
+    true
+  }
+}
 
 impl<D: Doc> MetaVarEnv<'_, D> {
   pub fn insert_transformation(&mut self, var: &MetaVariable, name: &str, slice: Underlying<D>) {
@@ -146,24 +165,6 @@ impl<D: Doc> MetaVarEnv<'_, D> {
     var: &MetaVariable,
   ) -> Option<&'s [<D::Source as Content>::Underlying]> {
     get_var_bytes_impl(self, var)
-  }
-
-  pub fn match_constraints<M: Matcher>(
-    &mut self,
-    var_matchers: &HashMap<MetaVariableID, M>,
-  ) -> bool {
-    let mut env = Cow::Borrowed(self);
-    for (var_id, candidate) in &self.single_matched {
-      if let Some(m) = var_matchers.get(var_id) {
-        if m.match_node_with_env(candidate.clone(), &mut env).is_none() {
-          return false;
-        }
-      }
-    }
-    if let Cow::Owned(env) = env {
-      *self = env;
-    }
-    true
   }
 
   /// internal for readopt NodeMatch in pinned.rs

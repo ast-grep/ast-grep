@@ -1,8 +1,8 @@
 use super::Matcher;
 
-use crate::meta_var::MetaVarEnv;
-use crate::node::KindId;
-use crate::{Doc, Language, Node};
+use crate::meta_var::SgMetaVarEnv;
+use crate::node::{KindId, SgNode};
+use crate::Language;
 
 use std::borrow::Cow;
 
@@ -76,11 +76,11 @@ pub mod kind_utils {
 }
 
 impl Matcher for KindMatcher {
-  fn match_node_with_env<'tree, D: Doc>(
+  fn match_node_with_env<'tree, N: SgNode<'tree>>(
     &self,
-    node: Node<'tree, D>,
-    _env: &mut Cow<MetaVarEnv<'tree, D>>,
-  ) -> Option<Node<'tree, D>> {
+    node: N,
+    _env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+  ) -> Option<N> {
     if node.kind_id() == self.kind {
       Some(node)
     } else {
