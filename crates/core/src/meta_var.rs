@@ -163,7 +163,7 @@ impl<'t, N: SgNode<'t>> SgMetaVarEnv<'t, N> {
   pub fn get_transformed(&self, var: &str) -> Option<&Underlying<N::Doc>> {
     self.transformed_var.get(var)
   }
-  pub fn get_var_bytes<'s: 't>(
+  pub fn get_var_bytes<'s>(
     &'s self,
     var: &MetaVariable,
   ) -> Option<&'s [<<N::Doc as Doc>::Source as Content>::Underlying]> {
@@ -189,10 +189,10 @@ impl<D: Doc> MetaVarEnv<'_, D> {
   }
 }
 
-fn get_var_bytes_impl<'t, C, D, N>(
-  env: &'t SgMetaVarEnv<'t, N>,
+fn get_var_bytes_impl<'e, 't, C, D, N>(
+  env: &'e SgMetaVarEnv<'t, N>,
   var: &MetaVariable,
-) -> Option<&'t [C::Underlying]>
+) -> Option<&'e [C::Underlying]>
 where
   N: SgNode<'t, Doc = D>,
   D: Doc<Source = C> + 't,

@@ -43,8 +43,8 @@ impl<'tree, N: SgNode<'tree>, C> SgNodeMatch<'tree, N, C> {
   }
 }
 
-impl<D: Doc> NodeMatch<'_, D> {
-  pub fn replace_by<R: Replacer<D>>(&self, replacer: R) -> Edit<D::Source> {
+impl<'r, N: SgNode<'r>> SgNodeMatch<'r, N> {
+  pub fn replace_by<R: Replacer<N::Doc>>(&self, replacer: R) -> Edit<<N::Doc as Doc>::Source> {
     let range = self.range();
     let position = range.start;
     let deleted_length = range.len();
@@ -57,10 +57,10 @@ impl<D: Doc> NodeMatch<'_, D> {
   }
 
   #[doc(hidden)]
-  pub fn make_edit<M, R>(&self, matcher: &M, replacer: &R) -> Edit<D::Source>
+  pub fn make_edit<M, R>(&self, matcher: &M, replacer: &R) -> Edit<<N::Doc as Doc>::Source>
   where
     M: Matcher,
-    R: Replacer<D>,
+    R: Replacer<N::Doc>,
   {
     let range = replacer.get_replaced_range(self, matcher);
     let inserted_text = replacer.generate_replacement(self);

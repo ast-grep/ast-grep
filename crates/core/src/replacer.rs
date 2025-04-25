@@ -1,4 +1,4 @@
-use crate::matcher::{Matcher, NodeMatch};
+use crate::matcher::Matcher;
 use crate::meta_var::{is_valid_meta_var_char, MetaVariableID};
 use crate::{Doc, Node, SgNode, SgNodeMatch};
 use std::ops::Range;
@@ -22,7 +22,11 @@ pub trait Replacer<D: Doc> {
     &self,
     nm: &SgNodeMatch<'t, N>,
   ) -> Underlying<D::Source>;
-  fn get_replaced_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher) -> Range<usize> {
+  fn get_replaced_range<'t, N: SgNode<'t, Doc = D>>(
+    &self,
+    nm: &SgNodeMatch<'t, N>,
+    matcher: impl Matcher,
+  ) -> Range<usize> {
     let range = nm.range();
     if let Some(len) = matcher.get_match_len(nm.get_node().clone()) {
       range.start..range.start + len
