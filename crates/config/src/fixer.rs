@@ -3,7 +3,7 @@ use crate::rule::{Relation, Rule, RuleSerializeError, StopBy};
 use crate::transform::Transformation;
 use crate::DeserializeEnv;
 use ast_grep_core::replacer::{Content, Replacer, TemplateFix, TemplateFixError};
-use ast_grep_core::{Doc, Language, Matcher, NodeMatch, SgNode, SgNodeMatch};
+use ast_grep_core::{Doc, Language, Matcher, SgNode, SgNodeMatch};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -138,7 +138,11 @@ where
     // simple forwarding to template
     self.template.generate_replacement(nm)
   }
-  fn get_replaced_range(&self, nm: &NodeMatch<D>, matcher: impl Matcher) -> Range<usize> {
+  fn get_replaced_range<'t, N: SgNode<'t, Doc = D>>(
+    &self,
+    nm: &SgNodeMatch<'t, N>,
+    matcher: impl Matcher,
+  ) -> Range<usize> {
     let range = nm.range();
     if self.expand_start.is_none() && self.expand_end.is_none() {
       return if let Some(len) = matcher.get_match_len(nm.get_node().clone()) {
@@ -153,7 +157,10 @@ where
   }
 }
 
-fn expand_start<D: Doc>(expansion: Option<&Expansion>, nm: &NodeMatch<D>) -> usize {
+fn expand_start<'t, N: SgNode<'t>>(
+  expansion: Option<&Expansion>,
+  nm: &SgNodeMatch<'t, N>,
+) -> usize {
   let node = nm.get_node();
   let mut env = std::borrow::Cow::Borrowed(nm.get_env());
   let Some(start) = expansion else {
@@ -169,7 +176,7 @@ fn expand_start<D: Doc>(expansion: Option<&Expansion>, nm: &NodeMatch<D>) -> usi
     .unwrap_or_else(|| nm.range().start)
 }
 
-fn expand_end<D: Doc>(expansion: Option<&Expansion>, nm: &NodeMatch<D>) -> usize {
+fn expand_end<'t, N: SgNode<'t>>(expansion: Option<&Expansion>, nm: &SgNodeMatch<'t, N>) -> usize {
   let node = nm.get_node();
   let mut env = std::borrow::Cow::Borrowed(nm.get_env());
   let Some(end) = expansion else {

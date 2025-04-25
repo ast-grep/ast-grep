@@ -294,7 +294,7 @@ impl Matcher for Pattern {
     Some(kinds)
   }
 
-  fn get_match_len<D: Doc>(&self, node: Node<D>) -> Option<usize> {
+  fn get_match_len<'tree, N: SgNode<'tree>>(&self, node: N) -> Option<usize> {
     let start = node.range().start;
     let end = match_end_non_recursive(self, node)?;
     Some(end - start)

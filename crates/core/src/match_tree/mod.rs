@@ -7,7 +7,7 @@ pub use strictness::MatchStrictness;
 
 use crate::meta_var::{MetaVariable, SgMetaVarEnv};
 use crate::node::SgNode;
-use crate::{Doc, Node, Pattern};
+use crate::Pattern;
 
 use std::borrow::Cow;
 
@@ -40,7 +40,7 @@ impl<'t, N: SgNode<'t>> Aggregator<'t, N> for ComputeEnd {
   }
 }
 
-pub fn match_end_non_recursive<D: Doc>(goal: &Pattern, candidate: Node<D>) -> Option<usize> {
+pub fn match_end_non_recursive<'t, N: SgNode<'t>>(goal: &Pattern, candidate: N) -> Option<usize> {
   let mut end = ComputeEnd(0);
   match match_node_impl(&goal.node, &candidate, &mut end, &goal.strictness) {
     MatchOneNode::MatchedBoth => Some(end.0),
@@ -144,6 +144,7 @@ mod test {
   use super::*;
   use crate::language::Tsx;
   use crate::meta_var::MetaVarEnv;
+  use crate::Node;
   use crate::{Root, StrDoc};
   use std::collections::HashMap;
 

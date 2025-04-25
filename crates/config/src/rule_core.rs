@@ -228,12 +228,10 @@ impl RuleCore {
       let rewriters = self.registration.get_rewriters();
       let env = env.to_mut();
       if let Some(enclosing) = enclosing_env {
-        todo!()
-        // trans.apply_transform(env, rewriters, enclosing);
+        trans.apply_transform(env, rewriters, enclosing);
       } else {
         let enclosing = env.clone();
-        todo!()
-        // trans.apply_transform(env, rewriters, &enclosing);
+        trans.apply_transform(env, rewriters, &enclosing);
       };
     }
     Some(ret)
