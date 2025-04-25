@@ -1,7 +1,7 @@
 use crate::{Rule, RuleCore};
 
-use ast_grep_core::meta_var::MetaVarEnv;
-use ast_grep_core::{Doc, Matcher, Node};
+use ast_grep_core::meta_var::SgMetaVarEnv;
+use ast_grep_core::{Matcher, SgNode};
 
 use bit_set::BitSet;
 use thiserror::Error;
@@ -191,11 +191,11 @@ impl ReferentRule {
 }
 
 impl Matcher for ReferentRule {
-  fn match_node_with_env<'tree, D: Doc>(
+  fn match_node_with_env<'tree, N: SgNode<'tree>>(
     &self,
-    node: Node<'tree, D>,
-    env: &mut Cow<MetaVarEnv<'tree, D>>,
-  ) -> Option<Node<'tree, D>> {
+    node: N,
+    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+  ) -> Option<N> {
     self
       .eval_local(|r| r.match_node_with_env(node.clone(), env))
       .or_else(|| self.eval_global(|r| r.match_node_with_env(node, env)))

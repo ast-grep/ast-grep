@@ -2,13 +2,13 @@ use super::strictness::{MatchOneNode, MatchStrictness};
 use super::Aggregator;
 use crate::matcher::{kind_utils, PatternNode};
 use crate::meta_var::MetaVariable;
-use crate::{Doc, Node};
+use crate::node::SgNode;
 use std::iter::Peekable;
 
-pub(super) fn match_node_impl<'tree, D: Doc>(
+pub(super) fn match_node_impl<'tree, N: SgNode<'tree>>(
   goal: &PatternNode,
-  candidate: &Node<'tree, D>,
-  agg: &mut impl Aggregator<'tree, D>,
+  candidate: &N,
+  agg: &mut impl Aggregator<'tree, N>,
   strictness: &MatchStrictness,
 ) -> MatchOneNode {
   use PatternNode as P;
@@ -45,10 +45,10 @@ pub(super) fn match_node_impl<'tree, D: Doc>(
   }
 }
 
-fn match_nodes_impl_recursive<'tree, D: Doc + 'tree>(
+fn match_nodes_impl_recursive<'tree, N: SgNode<'tree>>(
   goals: &[PatternNode],
-  candidates: impl Iterator<Item = Node<'tree, D>>,
-  agg: &mut impl Aggregator<'tree, D>,
+  candidates: impl Iterator<Item = N>,
+  agg: &mut impl Aggregator<'tree, N>,
   strictness: &MatchStrictness,
 ) -> Option<()> {
   let mut goal_children = goals.iter().peekable();
@@ -91,10 +91,10 @@ enum ControlFlow {
 }
 
 /// returns None means no match
-fn may_match_ellipsis_impl<'p, 't: 'p, D: Doc + 't>(
+fn may_match_ellipsis_impl<'p, 't: 'p, N: SgNode<'t>>(
   goal_children: &mut Peekable<impl Iterator<Item = &'p PatternNode>>,
-  cand_children: &mut Peekable<impl Iterator<Item = Node<'t, D>>>,
-  agg: &mut impl Aggregator<'t, D>,
+  cand_children: &mut Peekable<impl Iterator<Item = N>>,
+  agg: &mut impl Aggregator<'t, N>,
   strictness: &MatchStrictness,
 ) -> Option<ControlFlow> {
   let Some(curr_node) = goal_children.peek() else {
@@ -166,10 +166,10 @@ fn may_match_ellipsis_impl<'p, 't: 'p, D: Doc + 't>(
   }
 }
 
-fn match_single_node_while_skip_trivial<'p, 't: 'p, D: Doc + 't>(
+fn match_single_node_while_skip_trivial<'p, 't: 'p, N: SgNode<'t>>(
   goal_children: &mut Peekable<impl Iterator<Item = &'p PatternNode>>,
-  cand_children: &mut Peekable<impl Iterator<Item = Node<'t, D>>>,
-  agg: &mut impl Aggregator<'t, D>,
+  cand_children: &mut Peekable<impl Iterator<Item = N>>,
+  agg: &mut impl Aggregator<'t, N>,
   strictness: &MatchStrictness,
 ) -> Option<ControlFlow> {
   loop {
@@ -219,11 +219,11 @@ fn try_get_ellipsis_mode(node: &PatternNode) -> Result<Option<String>, ()> {
   }
 }
 
-fn match_ellipsis<'t, D: Doc>(
-  agg: &mut impl Aggregator<'t, D>,
+fn match_ellipsis<'t, N: SgNode<'t>>(
+  agg: &mut impl Aggregator<'t, N>,
   optional_name: &Option<String>,
-  mut matched: Vec<Node<'t, D>>,
-  cand_children: impl Iterator<Item = Node<'t, D>>,
+  mut matched: Vec<N>,
+  cand_children: impl Iterator<Item = N>,
   skipped_anonymous: usize,
 ) -> Option<()> {
   matched.extend(cand_children);
@@ -245,7 +245,7 @@ mod test {
     let n = Root::str(n, Tsx);
     let n = n.root().find(kind).expect("should find");
     let mut env = Cow::Owned(MetaVarEnv::new());
-    match_node_impl(&pattern.node, &n, &mut env, &strictness)
+    match_node_impl(&pattern.node, &*n, &mut env, &strictness)
   }
   fn matched(p: &str, n: &str, strictness: MatchStrictness) {
     let ret = match_tree(p, n, strictness);

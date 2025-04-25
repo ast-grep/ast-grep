@@ -7,8 +7,8 @@ use crate::transform::{Transform, TransformError, Transformation};
 use crate::DeserializeEnv;
 
 use ast_grep_core::language::Language;
-use ast_grep_core::meta_var::MetaVarEnv;
-use ast_grep_core::{Doc, Matcher, Node};
+use ast_grep_core::meta_var::SgMetaVarEnv;
+use ast_grep_core::{Matcher, SgNode};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Error as YamlError;
 
@@ -209,12 +209,12 @@ impl RuleCore {
     ret
   }
 
-  pub(crate) fn do_match<'tree, D: Doc>(
+  pub(crate) fn do_match<'tree, N: SgNode<'tree>>(
     &self,
-    node: Node<'tree, D>,
-    env: &mut Cow<MetaVarEnv<'tree, D>>,
-    enclosing_env: Option<&MetaVarEnv<'tree, D>>,
-  ) -> Option<Node<'tree, D>> {
+    node: N,
+    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+    enclosing_env: Option<&SgMetaVarEnv<'tree, N>>,
+  ) -> Option<N> {
     if let Some(kinds) = &self.kinds {
       if !kinds.contains(node.kind_id().into()) {
         return None;
@@ -228,10 +228,12 @@ impl RuleCore {
       let rewriters = self.registration.get_rewriters();
       let env = env.to_mut();
       if let Some(enclosing) = enclosing_env {
-        trans.apply_transform(env, rewriters, enclosing);
+        todo!()
+        // trans.apply_transform(env, rewriters, enclosing);
       } else {
         let enclosing = env.clone();
-        trans.apply_transform(env, rewriters, &enclosing);
+        todo!()
+        // trans.apply_transform(env, rewriters, &enclosing);
       };
     }
     Some(ret)
@@ -259,11 +261,11 @@ impl Default for RuleCore {
 }
 
 impl Matcher for RuleCore {
-  fn match_node_with_env<'tree, D: Doc>(
+  fn match_node_with_env<'tree, N: SgNode<'tree>>(
     &self,
-    node: Node<'tree, D>,
-    env: &mut Cow<MetaVarEnv<'tree, D>>,
-  ) -> Option<Node<'tree, D>> {
+    node: N,
+    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+  ) -> Option<N> {
     self.do_match(node, env, None)
   }
 

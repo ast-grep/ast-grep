@@ -1,8 +1,8 @@
 use super::{DeserializeEnv, Rule, RuleSerializeError, SerializableRule};
 
 use ast_grep_core::language::Language;
-use ast_grep_core::meta_var::MetaVarEnv;
-use ast_grep_core::{Doc, Matcher, Node};
+use ast_grep_core::meta_var::SgMetaVarEnv;
+use ast_grep_core::{Matcher, SgNode};
 
 use std::borrow::Cow;
 use std::collections::HashSet;
@@ -203,10 +203,10 @@ impl NthChild {
     }
   }
 
-  fn find_index<'t, D: Doc>(
+  fn find_index<'t, N: SgNode<'t>>(
     &self,
-    node: &Node<'t, D>,
-    env: &mut Cow<MetaVarEnv<'t, D>>,
+    node: &N,
+    env: &mut Cow<SgMetaVarEnv<'t, N>>,
   ) -> Option<usize> {
     let parent = node.parent()?;
     //  only consider named children
@@ -246,11 +246,11 @@ impl NthChild {
 }
 
 impl Matcher for NthChild {
-  fn match_node_with_env<'tree, D: Doc>(
+  fn match_node_with_env<'tree, N: SgNode<'tree>>(
     &self,
-    node: Node<'tree, D>,
-    env: &mut Cow<MetaVarEnv<'tree, D>>,
-  ) -> Option<Node<'tree, D>> {
+    node: N,
+    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+  ) -> Option<N> {
     let index = self.find_index(&node, env)?;
     self.position.is_matched(index).then_some(node)
   }
@@ -266,6 +266,7 @@ mod test {
   use crate::from_str;
   use crate::test::TypeScript as TS;
   use ast_grep_core::matcher::RegexMatcher;
+  use ast_grep_core::meta_var::MetaVarEnv;
 
   #[test]
   fn test_positional() {
@@ -303,7 +304,7 @@ mod test {
     let mut env = Cow::Owned(MetaVarEnv::new());
     let grep = TS::Tsx.ast_grep("[1,2,3,4]");
     let node = grep.root().find("2").unwrap();
-    rule.find_index(&node, &mut env)
+    rule.find_index(&*node, &mut env)
   }
 
   #[test]

@@ -1,7 +1,7 @@
 use crate::language::{CoreLanguage, Language};
 use crate::match_tree::{match_end_non_recursive, match_node_non_recursive, MatchStrictness};
 use crate::matcher::{kind_utils, KindMatcher, KindMatcherError, Matcher};
-use crate::meta_var::{MetaVarEnv, MetaVariable};
+use crate::meta_var::{MetaVariable, SgMetaVarEnv};
 use crate::node::SgNode;
 use crate::source::TSParseError;
 use crate::{Doc, Node, Root, StrDoc};
@@ -256,11 +256,11 @@ impl Pattern {
 }
 
 impl Matcher for Pattern {
-  fn match_node_with_env<'tree, D: Doc>(
+  fn match_node_with_env<'tree, N: SgNode<'tree>>(
     &self,
-    node: Node<'tree, D>,
-    env: &mut Cow<MetaVarEnv<'tree, D>>,
-  ) -> Option<Node<'tree, D>> {
+    node: N,
+    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+  ) -> Option<N> {
     if let Some(k) = self.root_kind {
       if node.kind_id() != k {
         return None;
@@ -321,6 +321,7 @@ mod test {
   use super::*;
   use crate::language::Tsx;
   use crate::matcher::MatcherExt;
+  use crate::meta_var::MetaVarEnv;
   use std::collections::HashMap;
 
   fn pattern_node(s: &str) -> Root<StrDoc<Tsx>> {

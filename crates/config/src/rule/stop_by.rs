@@ -2,7 +2,7 @@ use super::deserialize_env::DeserializeEnv;
 use crate::rule::{Rule, RuleSerializeError, SerializableRule};
 
 use ast_grep_core::language::Language;
-use ast_grep_core::{Doc, Node};
+use ast_grep_core::SgNode;
 
 use schemars::JsonSchema;
 use serde::de::{self, Deserializer, MapAccess, Visitor};
@@ -120,18 +120,13 @@ impl StopBy {
 
 impl StopBy {
   // TODO: document this monster method
-  pub(crate) fn find<'t, O, M, I, F, D>(
-    &self,
-    once: O,
-    multi: M,
-    mut finder: F,
-  ) -> Option<Node<'t, D>>
+  pub(crate) fn find<'t, O, M, I, F, N>(&self, once: O, multi: M, mut finder: F) -> Option<N>
   where
-    D: Doc + 't,
-    I: Iterator<Item = Node<'t, D>>,
-    O: FnOnce() -> Option<Node<'t, D>>,
+    N: SgNode<'t>,
+    I: Iterator<Item = N>,
+    O: FnOnce() -> Option<N>,
     M: FnOnce() -> I,
-    F: FnMut(Node<'t, D>) -> Option<Node<'t, D>>,
+    F: FnMut(N) -> Option<N>,
   {
     match self {
       StopBy::Neighbor => finder(once()?),
@@ -147,7 +142,7 @@ impl StopBy {
   }
 }
 
-fn inclusive_until<D: Doc>(rule: &Rule) -> impl FnMut(&Node<D>) -> bool + '_ {
+fn inclusive_until<'t, N: SgNode<'t>>(rule: &Rule) -> impl FnMut(&N) -> bool + '_ {
   let mut matched = false;
   move |n| {
     if matched {

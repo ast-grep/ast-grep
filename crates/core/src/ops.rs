@@ -1,6 +1,6 @@
 use crate::matcher::{MatchAll, MatchNone, Matcher};
-use crate::meta_var::MetaVarEnv;
-use crate::{Doc, Node};
+use crate::meta_var::SgMetaVarEnv;
+use crate::node::SgNode;
 use bit_set::BitSet;
 use std::borrow::Cow;
 
@@ -14,11 +14,11 @@ where
   P1: Matcher,
   P2: Matcher,
 {
-  fn match_node_with_env<'tree, D: Doc>(
+  fn match_node_with_env<'tree, N: SgNode<'tree>>(
     &self,
-    node: Node<'tree, D>,
-    env: &mut Cow<MetaVarEnv<'tree, D>>,
-  ) -> Option<Node<'tree, D>> {
+    node: N,
+    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+  ) -> Option<N> {
     let node = self.pattern1.match_node_with_env(node, env)?;
     self.pattern2.match_node_with_env(node, env)
   }
@@ -70,11 +70,11 @@ impl<P: Matcher> All<P> {
 }
 
 impl<P: Matcher> Matcher for All<P> {
-  fn match_node_with_env<'tree, D: Doc>(
+  fn match_node_with_env<'tree, N: SgNode<'tree>>(
     &self,
-    node: Node<'tree, D>,
-    env: &mut Cow<MetaVarEnv<'tree, D>>,
-  ) -> Option<Node<'tree, D>> {
+    node: N,
+    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+  ) -> Option<N> {
     if let Some(kinds) = &self.kinds {
       if !kinds.contains(node.kind_id().into()) {
         return None;
@@ -126,11 +126,11 @@ impl<P: Matcher> Any<P> {
 }
 
 impl<M: Matcher> Matcher for Any<M> {
-  fn match_node_with_env<'tree, D: Doc>(
+  fn match_node_with_env<'tree, N: SgNode<'tree>>(
     &self,
-    node: Node<'tree, D>,
-    env: &mut Cow<MetaVarEnv<'tree, D>>,
-  ) -> Option<Node<'tree, D>> {
+    node: N,
+    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+  ) -> Option<N> {
     if let Some(kinds) = &self.kinds {
       if !kinds.contains(node.kind_id().into()) {
         return None;
@@ -164,11 +164,11 @@ where
   P1: Matcher,
   P2: Matcher,
 {
-  fn match_node_with_env<'tree, D: Doc>(
+  fn match_node_with_env<'tree, N: SgNode<'tree>>(
     &self,
-    node: Node<'tree, D>,
-    env: &mut Cow<MetaVarEnv<'tree, D>>,
-  ) -> Option<Node<'tree, D>> {
+    node: N,
+    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+  ) -> Option<N> {
     let mut new_env = Cow::Borrowed(env.as_ref());
     if let Some(ret) = self
       .pattern1
@@ -206,11 +206,11 @@ impl<P> Matcher for Not<P>
 where
   P: Matcher,
 {
-  fn match_node_with_env<'tree, D: Doc>(
+  fn match_node_with_env<'tree, N: SgNode<'tree>>(
     &self,
-    node: Node<'tree, D>,
-    env: &mut Cow<MetaVarEnv<'tree, D>>,
-  ) -> Option<Node<'tree, D>> {
+    node: N,
+    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+  ) -> Option<N> {
     self
       .not
       .match_node_with_env(node.clone(), env)
@@ -227,13 +227,12 @@ impl<M> Matcher for Op<M>
 where
   M: Matcher,
 {
-  fn match_node_with_env<'tree, D: Doc>(
+  fn match_node_with_env<'tree, N: SgNode<'tree>>(
     &self,
-    node: Node<'tree, D>,
-    env: &mut Cow<MetaVarEnv<'tree, D>>,
-  ) -> Option<Node<'tree, D>> {
-    let ret = self.inner.match_node_with_env(node, env);
-    ret
+    node: N,
+    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+  ) -> Option<N> {
+    self.inner.match_node_with_env(node, env)
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
@@ -339,6 +338,7 @@ mod test {
   use super::*;
   use crate::language::Tsx;
   use crate::matcher::MatcherExt;
+  use crate::meta_var::MetaVarEnv;
   use crate::Root;
 
   fn test_find(matcher: &impl Matcher, code: &str) {

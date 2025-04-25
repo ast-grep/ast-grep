@@ -35,8 +35,8 @@ impl Position {
     self.line
   }
   /// TODO: return unicode character offset
-  pub fn column<D: Doc>(&self, node: &Node<D>) -> usize {
-    let source = node.root.doc.get_source();
+  pub fn column<'t, N: SgNode<'t>>(&self, node: &N) -> usize {
+    let source = node.get_doc().get_source();
     source.get_char_column(self.byte_column, self.byte_offset)
   }
   /// Convert to tree-sitter's Point
@@ -147,7 +147,16 @@ impl<D: Doc> Root<D> {
 
 pub trait SgNode<'r>: Clone {
   type Doc: Doc;
+  fn get_doc(&self) -> &Self::Doc;
+  fn parent(&self) -> Option<Self>;
+  fn ancestors(&self) -> impl Iterator<Item = Self>;
+  fn dfs(&self) -> impl Iterator<Item = Self>;
   fn children(&self) -> impl ExactSizeIterator<Item = Self>;
+  fn child_by_field_id(&self, field_id: u16) -> Option<Self>;
+  fn next(&self) -> Option<Self>;
+  fn prev(&self) -> Option<Self>;
+  fn next_all(&self) -> impl Iterator<Item = Self>;
+  fn prev_all(&self) -> impl Iterator<Item = Self>;
   fn is_named(&self) -> bool;
   /// N.B. it is different from is_named && is_leaf
   /// if a node has no named children.
@@ -158,14 +167,21 @@ pub trait SgNode<'r>: Clone {
   fn node_id(&self) -> usize;
   fn text(&self) -> Cow<'r, str>;
   fn lang(&self) -> &<Self::Doc as Doc>::Lang;
+  fn range(&self) -> std::ops::Range<usize>;
+  fn start_pos(&self) -> Position;
+  fn end_pos(&self) -> Position;
   // missing node is a tree-sitter specific concept
   fn is_missing_node(&self) -> bool {
     false
   }
+  fn matches<M: Matcher>(&self, m: M) -> bool;
 }
 
 impl<'r, D: Doc> SgNode<'r> for Node<'r, D> {
   type Doc = D;
+  fn get_doc(&self) -> &Self::Doc {
+    &self.root.doc
+  }
   fn node_id(&self) -> usize {
     self.node_id()
   }
@@ -187,14 +203,50 @@ impl<'r, D: Doc> SgNode<'r> for Node<'r, D> {
   fn kind_id(&self) -> KindId {
     self.kind_id()
   }
+  fn parent(&self) -> Option<Self> {
+    self.parent()
+  }
+  fn ancestors(&self) -> impl Iterator<Item = Self> {
+    self.ancestors()
+  }
+  fn dfs(&self) -> impl Iterator<Item = Self> {
+    self.dfs()
+  }
   fn children(&self) -> impl ExactSizeIterator<Item = Self> {
     self.children()
+  }
+  fn child_by_field_id(&self, field_id: u16) -> Option<Self> {
+    self.child_by_field_id(field_id)
+  }
+  fn next(&self) -> Option<Self> {
+    self.next()
+  }
+  fn prev(&self) -> Option<Self> {
+    self.prev()
+  }
+  fn next_all(&self) -> impl Iterator<Item = Self> {
+    self.next_all()
+  }
+  fn prev_all(&self) -> impl Iterator<Item = Self> {
+    self.prev_all()
   }
   fn lang(&self) -> &<Self::Doc as Doc>::Lang {
     self.lang()
   }
+  fn range(&self) -> std::ops::Range<usize> {
+    self.range()
+  }
+  fn start_pos(&self) -> Position {
+    self.start_pos()
+  }
+  fn end_pos(&self) -> Position {
+    self.end_pos()
+  }
   fn is_missing_node(&self) -> bool {
     self.get_ts_node().is_missing()
+  }
+  fn matches<M: Matcher>(&self, m: M) -> bool {
+    self.matches(m)
   }
 }
 
@@ -790,9 +842,9 @@ if (a) {
     let root = root.root();
     let node = root.find("$A").expect("should exist");
     assert_eq!(node.start_pos().line(), 0);
-    assert_eq!(node.start_pos().column(&node), 0);
+    assert_eq!(node.start_pos().column(&*node), 0);
     assert_eq!(node.end_pos().line(), 0);
-    assert_eq!(node.end_pos().column(&node), 1);
+    assert_eq!(node.end_pos().column(&*node), 1);
   }
 
   #[test]
@@ -801,15 +853,15 @@ if (a) {
     let root = root.root();
     let node = root.find("$A").expect("should exist");
     assert_eq!(node.start_pos().line(), 0);
-    assert_eq!(node.start_pos().column(&node), 0);
+    assert_eq!(node.start_pos().column(&*node), 0);
     assert_eq!(node.end_pos().line(), 0);
-    assert_eq!(node.end_pos().column(&node), 1);
+    assert_eq!(node.end_pos().column(&*node), 1);
     let root = Tsx.ast_grep("\n  🦀🦀");
     let root = root.root();
     let node = root.find("$A").expect("should exist");
     assert_eq!(node.start_pos().line(), 1);
-    assert_eq!(node.start_pos().column(&node), 2);
+    assert_eq!(node.start_pos().column(&*node), 2);
     assert_eq!(node.end_pos().line(), 1);
-    assert_eq!(node.end_pos().column(&node), 4);
+    assert_eq!(node.end_pos().column(&*node), 4);
   }
 }
