@@ -10,7 +10,7 @@ pub use tree_sitter::{Point as TSPoint, Range as TSRange};
 /// * which character is used for meta variable.
 /// * if we need to use other char in meta var for parser at runtime
 /// * pre process the Pattern code.
-pub trait CoreLanguage: Clone {
+pub trait CoreLanguage: Clone + 'static {
   /// ignore trivial tokens in language matching
   fn skippable_kind_ids(&self) -> &'static [u16] {
     &[]

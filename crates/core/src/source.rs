@@ -77,7 +77,7 @@ pub enum TSParseError {
   TreeUnavailable,
 }
 
-pub trait Doc: Clone {
+pub trait Doc: Clone + 'static {
   type Source: Content;
   type Lang: Language;
   fn get_lang(&self) -> &Self::Lang;
