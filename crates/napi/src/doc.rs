@@ -149,7 +149,6 @@ impl JsDoc {
 impl Doc for JsDoc {
   type Lang = NapiLang;
   type Source = Wrapper;
-  type Node<'r> = ast_grep_core::Node<'r, Self>;
   fn parse(&self, old_tree: Option<&Tree>) -> std::result::Result<Tree, TSParseError> {
     let mut parser = Parser::new()?;
     let ts_lang = self.lang.get_ts_language();
@@ -166,12 +165,14 @@ impl Doc for JsDoc {
   fn get_source(&self) -> &Self::Source {
     &self.source
   }
-  fn do_edit(&mut self, edit: &Edit<Self::Source>) -> Tree {
+  fn do_edit(&mut self, edit: &Edit<Self::Source>) {
     let source = &mut self.source;
     let input_edit = source.accept_edit(edit);
     self.tree.edit(&input_edit);
     self.tree = self.parse(Some(&self.tree)).expect("TODO!");
-    self.tree.clone()
+  }
+  fn root_node(&self) -> Node<'_> {
+    self.tree.root_node()
   }
 }
 

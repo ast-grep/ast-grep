@@ -11,7 +11,7 @@
 //! It has a `Source` associated type bounded by `Content` that represents the source code of the document,
 //! and a `Lang` associated type that represents the language of the document.
 
-use crate::{language::Language, SgNode};
+use crate::language::Language;
 use std::borrow::Cow;
 use std::ops::Range;
 use thiserror::Error;
@@ -80,18 +80,18 @@ pub enum TSParseError {
 pub trait Doc: Clone + 'static {
   type Source: Content;
   type Lang: Language;
-  type Node<'r>: SgNode<'r>;
   fn get_lang(&self) -> &Self::Lang;
   fn get_source(&self) -> &Self::Source;
   fn parse(&self, old_tree: Option<&Tree>) -> Result<Tree, TSParseError>;
-  fn do_edit(&mut self, edit: &Edit<Self::Source>) -> Tree;
+  fn do_edit(&mut self, edit: &Edit<Self::Source>);
+  fn root_node(&self) -> Node<'_>;
 }
 
 #[derive(Clone)]
 pub struct StrDoc<L: Language> {
   pub src: String,
   pub lang: L,
-  tree: Tree,
+  pub tree: Tree,
 }
 
 impl<L: Language> StrDoc<L> {
@@ -115,7 +115,6 @@ impl<L: Language> StrDoc<L> {
 impl<L: Language> Doc for StrDoc<L> {
   type Source = String;
   type Lang = L;
-  type Node<'r> = crate::Node<'r, Self>;
   fn get_lang(&self) -> &Self::Lang {
     &self.lang
   }
@@ -127,12 +126,13 @@ impl<L: Language> Doc for StrDoc<L> {
     let lang = self.get_lang().get_ts_language();
     parse_lang(|p| source.parse_tree_sitter(p, old_tree), lang)
   }
-  // TODO: remove Tree
-  fn do_edit(&mut self, edit: &Edit<Self::Source>) -> Tree {
+  fn do_edit(&mut self, edit: &Edit<Self::Source>) {
     let source = &mut self.src;
     perform_edit(&mut self.tree, source, edit);
     self.tree = self.parse(Some(&self.tree)).expect("TODO!");
-    self.tree.clone()
+  }
+  fn root_node(&self) -> Node<'_> {
+    self.tree.root_node()
   }
 }
 

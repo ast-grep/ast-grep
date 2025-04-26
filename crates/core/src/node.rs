@@ -49,7 +49,6 @@ impl Position {
 /// Note: Root is generic against [`Language`](crate::language::Language)
 #[derive(Clone)]
 pub struct Root<D: Doc> {
-  pub(crate) inner: tree_sitter::Tree,
   pub(crate) doc: D,
 }
 
@@ -59,8 +58,7 @@ impl<L: Language> Root<StrDoc<L>> {
   }
   pub fn try_new(src: &str, lang: L) -> Result<Self, TSParseError> {
     let doc = StrDoc::from_str(src, lang);
-    let inner = doc.parse(None)?;
-    Ok(Self { inner, doc })
+    Ok(Self { doc })
   }
   pub fn str(src: &str, lang: L) -> Self {
     Self::try_new(src, lang).expect("should parse")
@@ -82,8 +80,11 @@ impl<L: Language> Root<StrDoc<L>> {
         parser.set_language(&lang.get_ts_language()).ok()?;
         let tree = source.parse_tree_sitter(&mut parser, None).ok()?;
         tree.map(|t| Self {
-          inner: t,
-          doc: self.doc.clone_with_lang(lang),
+          doc: StrDoc {
+            src: self.doc.src.clone(),
+            lang,
+            tree: t,
+          },
         })
       })
       .collect();
@@ -93,8 +94,7 @@ impl<L: Language> Root<StrDoc<L>> {
 
 impl<D: Doc> Root<D> {
   pub fn try_doc(doc: D) -> Result<Self, TSParseError> {
-    let inner = doc.parse(None)?;
-    Ok(Self { inner, doc })
+    Ok(Self { doc })
   }
 
   pub fn doc(doc: D) -> Self {
@@ -107,14 +107,14 @@ impl<D: Doc> Root<D> {
   /// The root node represents the entire source
   pub fn root(&self) -> Node<D> {
     Node {
-      inner: self.inner.root_node(),
+      inner: self.doc.root_node(),
       root: self,
     }
   }
 
   // extract non generic implementation to reduce code size
   pub fn do_edit(&mut self, edit: Edit<D>) -> Result<(), TSParseError> {
-    self.inner = self.doc.do_edit(&edit);
+    self.doc.do_edit(&edit);
     Ok(())
   }
 
@@ -130,7 +130,7 @@ impl<D: Doc> Root<D> {
     while let Some(n) = node.parent() {
       node = n;
     }
-    node == self.inner.root_node()
+    node == self.doc.root_node()
   }
 
   /// P.S. I am your father.
