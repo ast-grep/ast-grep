@@ -68,6 +68,27 @@ impl<L: Language> Root<StrDoc<L>> {
   pub fn get_text(&self) -> &str {
     &self.doc.src
   }
+
+  pub fn get_injections<F: Fn(&str) -> Option<L>>(&self, get_lang: F) -> Vec<Self> {
+    let root = self.root();
+    let range = self.lang().extract_injections(root);
+    let roots = range
+      .into_iter()
+      .filter_map(|(lang, ranges)| {
+        let lang = get_lang(&lang)?;
+        let source = self.doc.get_source();
+        let mut parser = tree_sitter::Parser::new().ok()?;
+        parser.set_included_ranges(&ranges).ok()?;
+        parser.set_language(&lang.get_ts_language()).ok()?;
+        let tree = source.parse_tree_sitter(&mut parser, None).ok()?;
+        tree.map(|t| Self {
+          inner: t,
+          doc: self.doc.clone_with_lang(lang),
+        })
+      })
+      .collect();
+    roots
+  }
 }
 
 impl<D: Doc> Root<D> {
@@ -117,27 +138,6 @@ impl<D: Doc> Root<D> {
   pub unsafe fn readopt<'a: 'b, 'b>(&'a self, node: &mut Node<'b, D>) {
     debug_assert!(self.check_lineage(&node.inner));
     node.root = self;
-  }
-
-  pub fn get_injections<F: Fn(&str) -> Option<D::Lang>>(&self, get_lang: F) -> Vec<Root<D>> {
-    let root = self.root();
-    let range = self.lang().extract_injections(root);
-    let roots = range
-      .into_iter()
-      .filter_map(|(lang, ranges)| {
-        let lang = get_lang(&lang)?;
-        let source = self.doc.get_source();
-        let mut parser = tree_sitter::Parser::new().ok()?;
-        parser.set_included_ranges(&ranges).ok()?;
-        parser.set_language(&lang.get_ts_language()).ok()?;
-        let tree = source.parse_tree_sitter(&mut parser, None).ok()?;
-        tree.map(|t| Self {
-          inner: t,
-          doc: self.doc.clone_with_lang(lang),
-        })
-      })
-      .collect();
-    roots
   }
 }
 

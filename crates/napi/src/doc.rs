@@ -166,14 +166,6 @@ impl Doc for JsDoc {
   fn get_source(&self) -> &Self::Source {
     &self.source
   }
-  fn clone_with_lang(&self, lang: Self::Lang) -> Self {
-    JsDoc {
-      source: self.source.clone(),
-      lang,
-      // TODO: this is not correct
-      tree: self.tree.clone(),
-    }
-  }
   fn do_edit(&mut self, edit: &Edit<Self::Source>) -> Tree {
     let source = &mut self.source;
     let input_edit = source.accept_edit(edit);
