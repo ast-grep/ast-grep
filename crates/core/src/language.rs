@@ -39,6 +39,7 @@ pub trait CoreLanguage: Clone + 'static {
   }
 
   fn kind_to_id(&self, kind: &str) -> u16;
+  fn field_to_id(&self, field: &str) -> Option<u16>;
 }
 
 /// tree-sitter specific language trait
@@ -75,6 +76,9 @@ impl CoreLanguage for TSLanguage {
   fn kind_to_id(&self, kind: &str) -> u16 {
     self.id_for_node_kind(kind, /* named */ true)
   }
+  fn field_to_id(&self, field: &str) -> Option<u16> {
+    self.field_id_for_name(field)
+  }
 }
 impl Language for TSLanguage {
   fn get_ts_language(&self) -> TSLanguage {
@@ -94,6 +98,9 @@ mod test {
     fn kind_to_id(&self, kind: &str) -> u16 {
       let ts_lang: TSLanguage = tree_sitter_typescript::LANGUAGE_TSX.into();
       ts_lang.id_for_node_kind(kind, /* named */ true)
+    }
+    fn field_to_id(&self, field: &str) -> Option<u16> {
+      self.get_ts_language().field_id_for_name(field)
     }
   }
   impl Language for Tsx {

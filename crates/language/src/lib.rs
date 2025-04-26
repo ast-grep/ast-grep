@@ -56,6 +56,9 @@ macro_rules! impl_lang {
           .get_ts_language()
           .id_for_node_kind(kind, /*named*/ true)
       }
+      fn field_to_id(&self, field: &str) -> Option<u16> {
+        self.get_ts_language().field_id_for_name(field)
+      }
     }
     impl Language for $lang {
       fn get_ts_language(&self) -> TSLanguage {
@@ -97,6 +100,9 @@ macro_rules! impl_lang_expando {
         self
           .get_ts_language()
           .id_for_node_kind(kind, /*named*/ true)
+      }
+      fn field_to_id(&self, field: &str) -> Option<u16> {
+        self.get_ts_language().field_id_for_name(field)
       }
       fn expando_char(&self) -> char {
         $char
@@ -410,6 +416,7 @@ macro_rules! impl_lang_method {
 }
 impl CoreLanguage for SupportLang {
   impl_lang_method!(kind_to_id, (kind: &str) => u16);
+  impl_lang_method!(field_to_id, (field: &str) => Option<u16>);
   impl_lang_method!(meta_var_char, () => char);
   impl_lang_method!(expando_char, () => char);
   impl_lang_method!(extract_meta_var, (source: &str) => Option<MetaVariable>);

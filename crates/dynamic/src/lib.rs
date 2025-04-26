@@ -233,8 +233,12 @@ impl CoreLanguage for DynamicLang {
   }
 
   fn kind_to_id(&self, kind: &str) -> u16 {
-    let lang = self.get_ts_language();
-    lang.id_for_node_kind(kind, true)
+    let inner = self.inner();
+    inner.lang.id_for_node_kind(kind, true)
+  }
+  fn field_to_id(&self, field: &str) -> Option<u16> {
+    let inner = self.inner();
+    inner.lang.field_id_for_name(field)
   }
 }
 

@@ -16,7 +16,10 @@ impl CoreLanguage for Html {
     pre_process_pattern(self.expando_char(), query)
   }
   fn kind_to_id(&self, kind: &str) -> u16 {
-    self.get_ts_language().id_for_node_kind(kind, true)
+    crate::parsers::language_html().id_for_node_kind(kind, true)
+  }
+  fn field_to_id(&self, field: &str) -> Option<u16> {
+    crate::parsers::language_html().field_id_for_name(field)
   }
 }
 impl Language for Html {
