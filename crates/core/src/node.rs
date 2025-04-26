@@ -1,7 +1,7 @@
 use crate::language::Language;
 use crate::matcher::{FindAllNodes, Matcher, MatcherExt, NodeMatch};
 use crate::replacer::Replacer;
-use crate::source::{perform_edit, Content, Edit as E, TSParseError};
+use crate::source::{Content, Edit as E, TSParseError};
 use crate::traversal::{Pre, Visitor};
 use crate::{Doc, StrDoc};
 
@@ -94,10 +94,7 @@ impl<D: Doc> Root<D> {
 
   // extract non generic implementation to reduce code size
   pub fn do_edit(&mut self, edit: Edit<D>) -> Result<(), TSParseError> {
-    let source = self.doc.get_source_mut();
-    let input_edit = perform_edit(&mut self.inner, source, &edit);
-    self.inner.edit(&input_edit);
-    self.inner = self.doc.parse(Some(&self.inner))?;
+    self.doc.do_edit(&edit);
     Ok(())
   }
 

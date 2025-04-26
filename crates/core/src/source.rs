@@ -11,7 +11,7 @@
 //! It has a `Source` associated type bounded by `Content` that represents the source code of the document,
 //! and a `Lang` associated type that represents the language of the document.
 
-use crate::language::Language;
+use crate::{language::Language, SgNode};
 use std::borrow::Cow;
 use std::ops::Range;
 use thiserror::Error;
@@ -80,11 +80,13 @@ pub enum TSParseError {
 pub trait Doc: Clone + 'static {
   type Source: Content;
   type Lang: Language;
+  type Node<'r>: SgNode<'r>;
   fn get_lang(&self) -> &Self::Lang;
   fn get_source(&self) -> &Self::Source;
   fn get_source_mut(&mut self) -> &mut Self::Source;
   fn parse(&self, old_tree: Option<&Tree>) -> Result<Tree, TSParseError>;
   fn clone_with_lang(&self, lang: Self::Lang) -> Self;
+  fn do_edit(&mut self, edit: &Edit<Self::Source>);
   /// TODO: are we paying too much to support str as Pattern/Replacer??
   /// this method converts string to Doc, so that we can support using
   /// string as replacer/searcher. Natively.
@@ -95,13 +97,17 @@ pub trait Doc: Clone + 'static {
 pub struct StrDoc<L: Language> {
   pub src: String,
   pub lang: L,
+  tree: Tree,
 }
 
 impl<L: Language> StrDoc<L> {
   pub fn new(src: &str, lang: L) -> Self {
+    let src = src.to_string();
+    let tree = parse_lang(|p| src.parse_tree_sitter(p, None), lang.get_ts_language());
     Self {
-      src: src.into(),
+      src,
       lang,
+      tree: tree.expect("TODO!"),
     }
   }
 }
@@ -109,6 +115,7 @@ impl<L: Language> StrDoc<L> {
 impl<L: Language> Doc for StrDoc<L> {
   type Source = String;
   type Lang = L;
+  type Node<'r> = crate::Node<'r, Self>;
   fn get_lang(&self) -> &Self::Lang {
     &self.lang
   }
@@ -122,12 +129,18 @@ impl<L: Language> Doc for StrDoc<L> {
     Self::new(src, lang)
   }
   fn clone_with_lang(&self, lang: Self::Lang) -> Self {
-    Self::new(&self.src, lang)
+    todo!("should handle multiple languages");
+    // Self::new(&self.src, lang)
   }
   fn parse(&self, old_tree: Option<&Tree>) -> Result<Tree, TSParseError> {
     let source = self.get_source();
     let lang = self.get_lang().get_ts_language();
     parse_lang(|p| source.parse_tree_sitter(p, old_tree), lang)
+  }
+  fn do_edit(&mut self, edit: &Edit<Self::Source>) {
+    let source = &mut self.src;
+    perform_edit(&mut self.tree, source, edit);
+    self.tree = self.parse(Some(&self.tree)).expect("TODO!");
   }
 }
 

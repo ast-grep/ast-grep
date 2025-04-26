@@ -127,6 +127,7 @@ fn pos_for_byte_offset(input: &[u16], byte_offset: usize) -> Point {
 pub struct JsDoc {
   lang: NapiLang,
   source: Wrapper,
+  tree: tree_sitter::Tree,
 }
 
 impl JsDoc {
@@ -134,13 +135,21 @@ impl JsDoc {
     let source = Wrapper {
       inner: src.encode_utf16().collect(),
     };
-    Self { source, lang }
+    let mut parser = Parser::new().expect("TODO!");
+    let ts_lang = lang.get_ts_language();
+    parser.set_language(&ts_lang).expect("TODO!");
+    let tree = source
+      .parse_tree_sitter(&mut parser, None)
+      .expect("TODO!")
+      .expect("TODO!");
+    Self { source, lang, tree }
   }
 }
 
 impl Doc for JsDoc {
   type Lang = NapiLang;
   type Source = Wrapper;
+  type Node<'r> = ast_grep_core::Node<'r, Self>;
   fn parse(&self, old_tree: Option<&Tree>) -> std::result::Result<Tree, TSParseError> {
     let mut parser = Parser::new()?;
     let ts_lang = self.lang.get_ts_language();
@@ -163,11 +172,18 @@ impl Doc for JsDoc {
   fn from_str(src: &str, lang: Self::Lang) -> Self {
     JsDoc::new(src.into(), lang)
   }
-  fn clone_with_lang(&self, lang: Self::Lang) -> Self {
-    JsDoc {
-      source: self.source.clone(),
-      lang,
-    }
+  fn clone_with_lang(&self, _lang: Self::Lang) -> Self {
+    todo!("should handle multiple languages");
+    // JsDoc {
+    //   source: self.source.clone(),
+    //   lang,
+    // }
+  }
+  fn do_edit(&mut self, edit: &Edit<Self::Source>) {
+    let source = &mut self.source;
+    let input_edit = source.accept_edit(edit);
+    self.tree.edit(&input_edit);
+    self.tree = self.parse(Some(&self.tree)).expect("TODO!");
   }
 }
 
