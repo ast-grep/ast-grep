@@ -1,5 +1,5 @@
 use crate::language::Language;
-use crate::matcher::{FindAllNodes, Matcher, MatcherExt, NodeMatch};
+use crate::matcher::{Matcher, MatcherExt, NodeMatch};
 use crate::replacer::Replacer;
 use crate::source::{Content, Edit as E, TSParseError};
 use crate::traversal::{Pre, Visitor};
@@ -615,7 +615,15 @@ impl<'r, D: Doc> Node<'r, D> {
   }
 
   pub fn find_all<M: Matcher>(&self, pat: M) -> impl Iterator<Item = NodeMatch<'r, D>> {
-    FindAllNodes::new(pat, self.clone())
+    let kinds = pat.potential_kinds();
+    self.dfs().filter_map(move |cand| {
+      if let Some(k) = &kinds {
+        if !k.contains(cand.kind_id().into()) {
+          return None;
+        }
+      }
+      pat.match_node(cand)
+    })
   }
 }
 
