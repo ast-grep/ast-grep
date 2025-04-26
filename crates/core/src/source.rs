@@ -84,7 +84,6 @@ pub trait Doc: Clone + 'static {
   fn get_lang(&self) -> &Self::Lang;
   fn get_source(&self) -> &Self::Source;
   fn parse(&self, old_tree: Option<&Tree>) -> Result<Tree, TSParseError>;
-  fn clone_with_lang(&self, lang: Self::Lang) -> Self;
   fn do_edit(&mut self, edit: &Edit<Self::Source>) -> Tree;
 }
 
@@ -108,6 +107,9 @@ impl<L: Language> StrDoc<L> {
   pub fn from_str(src: &str, lang: L) -> Self {
     Self::new(src, lang)
   }
+  pub fn clone_with_lang(&self, lang: L) -> Self {
+    Self::new(&self.src, lang)
+  }
 }
 
 impl<L: Language> Doc for StrDoc<L> {
@@ -119,9 +121,6 @@ impl<L: Language> Doc for StrDoc<L> {
   }
   fn get_source(&self) -> &Self::Source {
     &self.src
-  }
-  fn clone_with_lang(&self, lang: Self::Lang) -> Self {
-    Self::new(&self.src, lang)
   }
   fn parse(&self, old_tree: Option<&Tree>) -> Result<Tree, TSParseError> {
     let source = self.get_source();
