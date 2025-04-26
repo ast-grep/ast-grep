@@ -222,16 +222,15 @@ injected: [js, ts, tsx]";
     assert_eq!(map.len(), 1);
     let injections: Vec<_> = map.into_values().collect();
     let mut ret = HashMap::new();
-    let sg =
-      SgLang::from(SupportLang::JavaScript).ast_grep("const a = styled`.btn { margin: 0; }`");
+    let lang = SgLang::from(SupportLang::JavaScript);
+    let sg = lang.ast_grep("const a = styled`.btn { margin: 0; }`");
     let root = sg.root();
     extract_custom_inject(&injections, root, &mut ret);
     assert_eq!(ret.len(), 1);
     assert_eq!(ret["css"].len(), 1);
     assert!(!ret.contains_key("js"));
     ret.clear();
-    let sg =
-      SgLang::from(SupportLang::JavaScript).ast_grep("const a = styled.css`.btn { margin: 0; }`");
+    let sg = lang.ast_grep("const a = styled.css`.btn { margin: 0; }`");
     let root = sg.root();
     extract_custom_inject(&injections, root, &mut ret);
     assert_eq!(ret.len(), 1);
