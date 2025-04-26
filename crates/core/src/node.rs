@@ -54,6 +54,14 @@ pub struct Root<D: Doc> {
 }
 
 impl<L: Language> Root<StrDoc<L>> {
+  pub fn new(src: &str, lang: L) -> Self {
+    Self::try_new(src, lang).expect("should parse")
+  }
+  pub fn try_new(src: &str, lang: L) -> Result<Self, TSParseError> {
+    let doc = StrDoc::from_str(src, lang);
+    let inner = doc.parse(None)?;
+    Ok(Self { inner, doc })
+  }
   pub fn str(src: &str, lang: L) -> Self {
     Self::try_new(src, lang).expect("should parse")
   }
@@ -63,15 +71,6 @@ impl<L: Language> Root<StrDoc<L>> {
 }
 
 impl<D: Doc> Root<D> {
-  pub fn try_new(src: &str, lang: D::Lang) -> Result<Self, TSParseError> {
-    let doc = D::from_str(src, lang);
-    let inner = doc.parse(None)?;
-    Ok(Self { inner, doc })
-  }
-
-  pub fn new(src: &str, lang: D::Lang) -> Self {
-    Self::try_new(src, lang).expect("should parse")
-  }
   pub fn try_doc(doc: D) -> Result<Self, TSParseError> {
     let inner = doc.parse(None)?;
     Ok(Self { inner, doc })
