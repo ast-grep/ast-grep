@@ -93,7 +93,7 @@ impl<D: Doc> Root<D> {
 
   // extract non generic implementation to reduce code size
   pub fn do_edit(&mut self, edit: Edit<D>) -> Result<(), TSParseError> {
-    self.doc.do_edit(&edit);
+    self.inner = self.doc.do_edit(&edit);
     Ok(())
   }
 
