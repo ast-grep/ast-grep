@@ -225,7 +225,14 @@ impl JsonSchema for PlaceholderLang {
   }
 }
 
-impl CoreLanguage for PlaceholderLang {}
+impl CoreLanguage for PlaceholderLang {
+  fn kind_to_id(&self, _kind: &str) -> u16 {
+    unreachable!("PlaceholderLang is only for json schema")
+  }
+  fn field_to_id(&self, _field: &str) -> Option<u16> {
+    unreachable!("PlaceholderLang is only for json schema")
+  }
+}
 impl Language for PlaceholderLang {
   fn get_ts_language(&self) -> TSLanguage {
     unreachable!("PlaceholderLang is only for json schema")
