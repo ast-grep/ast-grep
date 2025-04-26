@@ -83,7 +83,6 @@ pub trait Doc: Clone + 'static {
   type Node<'r>: SgNode<'r>;
   fn get_lang(&self) -> &Self::Lang;
   fn get_source(&self) -> &Self::Source;
-  fn get_source_mut(&mut self) -> &mut Self::Source;
   fn parse(&self, old_tree: Option<&Tree>) -> Result<Tree, TSParseError>;
   fn clone_with_lang(&self, lang: Self::Lang) -> Self;
   fn do_edit(&mut self, edit: &Edit<Self::Source>);
@@ -121,9 +120,6 @@ impl<L: Language> Doc for StrDoc<L> {
   }
   fn get_source(&self) -> &Self::Source {
     &self.src
-  }
-  fn get_source_mut(&mut self) -> &mut Self::Source {
-    &mut self.src
   }
   fn from_str(src: &str, lang: L) -> Self {
     Self::new(src, lang)
