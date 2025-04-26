@@ -166,9 +166,6 @@ impl Doc for JsDoc {
   fn get_source(&self) -> &Self::Source {
     &self.source
   }
-  fn from_str(src: &str, lang: Self::Lang) -> Self {
-    JsDoc::new(src.into(), lang)
-  }
   fn clone_with_lang(&self, _lang: Self::Lang) -> Self {
     todo!("should handle multiple languages");
     // JsDoc {
