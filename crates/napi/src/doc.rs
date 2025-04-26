@@ -166,9 +166,6 @@ impl Doc for JsDoc {
   fn get_source(&self) -> &Self::Source {
     &self.source
   }
-  fn get_source_mut(&mut self) -> &mut Self::Source {
-    &mut self.source
-  }
   fn from_str(src: &str, lang: Self::Lang) -> Self {
     JsDoc::new(src.into(), lang)
   }
