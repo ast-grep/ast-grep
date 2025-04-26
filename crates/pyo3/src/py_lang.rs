@@ -117,6 +117,12 @@ impl CoreLanguage for PyLang {
       Custom(c) => c.kind_to_id(kind),
     }
   }
+  fn field_to_id(&self, field: &str) -> Option<u16> {
+    match self {
+      Builtin(b) => b.field_to_id(field),
+      Custom(c) => c.field_to_id(field),
+    }
+  }
 }
 impl Language for PyLang {
   fn get_ts_language(&self) -> TSLanguage {

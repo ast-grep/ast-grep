@@ -181,6 +181,12 @@ impl CoreLanguage for SgLang {
       Custom(c) => c.kind_to_id(kind),
     }
   }
+  fn field_to_id(&self, field: &str) -> Option<u16> {
+    match self {
+      Builtin(b) => b.field_to_id(field),
+      Custom(c) => c.field_to_id(field),
+    }
+  }
 }
 impl Language for SgLang {
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {

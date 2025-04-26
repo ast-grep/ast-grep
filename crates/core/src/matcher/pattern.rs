@@ -443,10 +443,7 @@ mod test {
   }
 
   fn get_kind(kind_str: &str) -> usize {
-    Tsx
-      .get_ts_language()
-      .id_for_node_kind(kind_str, true)
-      .into()
+    Tsx.kind_to_id(kind_str).into()
   }
 
   #[test]

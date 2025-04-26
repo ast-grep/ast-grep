@@ -53,11 +53,10 @@ mod test {
   }
   impl CoreLanguage for TypeScript {
     fn kind_to_id(&self, kind: &str) -> u16 {
-      match self {
-        TypeScript::Tsx => {
-          TSLanguage::from(tree_sitter_typescript::LANGUAGE_TSX).id_for_node_kind(kind, true)
-        }
-      }
+      TSLanguage::from(tree_sitter_typescript::LANGUAGE_TSX).id_for_node_kind(kind, true)
+    }
+    fn field_to_id(&self, field: &str) -> Option<u16> {
+      TSLanguage::from(tree_sitter_typescript::LANGUAGE_TSX).field_id_for_name(field)
     }
   }
   impl Language for TypeScript {

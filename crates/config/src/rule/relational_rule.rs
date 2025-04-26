@@ -27,8 +27,7 @@ fn field_name_to_id<L: Language>(
   let Some(field) = field else {
     return Ok(None);
   };
-  let ts_lang = env.lang.get_ts_language();
-  match ts_lang.field_id_for_name(&field) {
+  match env.lang.field_to_id(&field) {
     Some(id) => Ok(Some(id)),
     None => Err(RuleSerializeError::InvalidField(field)),
   }
