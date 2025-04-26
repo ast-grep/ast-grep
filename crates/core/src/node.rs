@@ -1,4 +1,4 @@
-use crate::language::Language;
+use crate::language::{CoreLanguage, Language};
 use crate::matcher::{Matcher, MatcherExt, NodeMatch};
 use crate::replacer::Replacer;
 use crate::source::{Content, Edit as E, TSParseError};
@@ -484,7 +484,7 @@ impl<'r, D: Doc> Node<'r, D> {
   }
 
   pub fn field_children(&self, name: &str) -> impl Iterator<Item = Node<'r, D>> {
-    let field_id = self.root.lang().get_ts_language().field_id_for_name(name);
+    let field_id = self.root.lang().field_to_id(name);
     let root = self.root;
     let mut cursor = self.inner.walk();
     cursor.goto_first_child();

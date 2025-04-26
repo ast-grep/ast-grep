@@ -423,12 +423,12 @@ impl CoreLanguage for SupportLang {
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
     execute_lang_method! { self, pre_process_pattern, query }
   }
-}
-
-impl Language for SupportLang {
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     from_extension(path.as_ref())
   }
+}
+
+impl Language for SupportLang {
   impl_lang_method!(get_ts_language, () => TSLanguage);
   impl_lang_method!(injectable_languages, () => Option<&'static [&'static str]>);
   fn extract_injections<D: Doc>(&self, root: Node<D>) -> HashMap<String, Vec<TSRange>> {

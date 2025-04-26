@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use ast_grep_config::Fixer;
 use ast_grep_core::{MatchStrictness, Matcher, Pattern};
-use ast_grep_language::Language;
+use ast_grep_language::{CoreLanguage, Language};
 use clap::{builder::PossibleValue, Parser, ValueEnum};
 use ignore::WalkParallel;
 

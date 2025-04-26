@@ -144,11 +144,7 @@ impl JsDoc {
       .expect("TODO!");
     Self { source, lang, tree }
   }
-}
 
-impl Doc for JsDoc {
-  type Lang = NapiLang;
-  type Source = Wrapper;
   fn parse(&self, old_tree: Option<&Tree>) -> std::result::Result<Tree, TSParseError> {
     let mut parser = Parser::new()?;
     let ts_lang = self.lang.get_ts_language();
@@ -159,6 +155,11 @@ impl Doc for JsDoc {
       Err(TSParseError::TreeUnavailable)
     }
   }
+}
+
+impl Doc for JsDoc {
+  type Lang = NapiLang;
+  type Source = Wrapper;
   fn get_lang(&self) -> &Self::Lang {
     &self.lang
   }

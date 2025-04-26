@@ -187,8 +187,6 @@ impl CoreLanguage for SgLang {
       Custom(c) => c.field_to_id(field),
     }
   }
-}
-impl Language for SgLang {
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     // respect user overriding like languageGlobs and custom lang
     // TODO: test this preference
@@ -197,7 +195,9 @@ impl Language for SgLang {
       .or_else(|| DynamicLang::from_path(path).map(Custom))
       .or_else(|| SupportLang::from_path(path).map(Builtin))
   }
+}
 
+impl Language for SgLang {
   fn get_ts_language(&self) -> TSLanguage {
     match self {
       Builtin(b) => b.get_ts_language(),
