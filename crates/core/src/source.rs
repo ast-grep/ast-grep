@@ -83,11 +83,7 @@ pub trait Doc: Clone + 'static {
   fn get_lang(&self) -> &Self::Lang;
   fn get_source(&self) -> &Self::Source;
   fn get_source_mut(&mut self) -> &mut Self::Source;
-  fn parse(&self, old_tree: Option<&Tree>) -> Result<Tree, TSParseError> {
-    let source = self.get_source();
-    let lang = self.get_lang().get_ts_language();
-    parse_lang(|p| source.parse_tree_sitter(p, old_tree), lang)
-  }
+  fn parse(&self, old_tree: Option<&Tree>) -> Result<Tree, TSParseError>;
   fn clone_with_lang(&self, lang: Self::Lang) -> Self;
   /// TODO: are we paying too much to support str as Pattern/Replacer??
   /// this method converts string to Doc, so that we can support using
@@ -127,6 +123,11 @@ impl<L: Language> Doc for StrDoc<L> {
   }
   fn clone_with_lang(&self, lang: Self::Lang) -> Self {
     Self::new(&self.src, lang)
+  }
+  fn parse(&self, old_tree: Option<&Tree>) -> Result<Tree, TSParseError> {
+    let source = self.get_source();
+    let lang = self.get_lang().get_ts_language();
+    parse_lang(|p| source.parse_tree_sitter(p, old_tree), lang)
   }
 }
 

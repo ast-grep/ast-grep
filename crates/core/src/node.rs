@@ -678,7 +678,7 @@ impl<D: Doc> Node<'_, D> {
 
 #[cfg(test)]
 mod test {
-  use crate::language::{Language, Tsx};
+  use crate::language::{CoreLanguage, Language, Tsx};
   #[test]
   fn test_is_leaf() {
     let root = Tsx.ast_grep("let a = 123");
@@ -821,7 +821,7 @@ if (a) {
     let root = Tsx.ast_grep("class A{}");
     let root = root.root();
     let node = root.find("class $C {}").expect("should exist");
-    let id = Tsx.get_ts_language().field_id_for_name("name").unwrap();
+    let id = Tsx.field_to_id("name").unwrap();
     assert!(node.child_by_field_id(id).is_some());
     assert!(node.child_by_field_id(id + 1).is_none());
   }

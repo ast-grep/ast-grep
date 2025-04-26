@@ -268,6 +268,7 @@ impl Matcher for Follows {
 mod test {
   use super::*;
   use crate::test::TypeScript as TS;
+  use ast_grep_core::language::CoreLanguage;
   use ast_grep_core::matcher::KindMatcher;
   use ast_grep_core::ops as o;
   use ast_grep_core::Pattern;
@@ -632,7 +633,7 @@ mod test {
     let inside = Inside {
       stop_by: StopBy::End,
       outer: Rule::Kind(KindMatcher::new("for_statement", TS::Tsx)),
-      field: TS::Tsx.get_ts_language().field_id_for_name("condition"),
+      field: TS::Tsx.field_to_id("condition"),
     };
     let rule = make_rule("a = 1", Rule::Inside(Box::new(inside)));
     test_found(&["for (;a = 1;) {}"], &rule);
@@ -644,7 +645,7 @@ mod test {
     let has = Has {
       stop_by: StopBy::End,
       inner: Rule::Pattern(Pattern::new("a = 1", TS::Tsx)),
-      field: TS::Tsx.get_ts_language().field_id_for_name("condition"),
+      field: TS::Tsx.field_to_id("condition"),
     };
     let rule = o::All::new(vec![
       Rule::Kind(KindMatcher::new("for_statement", TS::Tsx)),
@@ -685,13 +686,13 @@ mod test {
     let inside = Inside {
       stop_by: StopBy::Rule(Rule::Pattern(Pattern::new("var $C", TS::Tsx))),
       outer: Rule::Pattern(Pattern::new("var a = $A", TS::Tsx)),
-      field: TS::Tsx.get_ts_language().field_id_for_name("condition"),
+      field: TS::Tsx.field_to_id("condition"),
     };
     assert_eq!(inside.defined_vars(), ["A", "C"].into_iter().collect());
     let has = Has {
       stop_by: StopBy::Rule(Rule::Kind(KindMatcher::new("for_statement", TS::Tsx))),
       inner: Rule::Pattern(Pattern::new("var a = $A", TS::Tsx)),
-      field: TS::Tsx.get_ts_language().field_id_for_name("condition"),
+      field: TS::Tsx.field_to_id("condition"),
     };
     assert_eq!(has.defined_vars(), ["A"].into_iter().collect());
   }
