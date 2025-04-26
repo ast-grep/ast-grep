@@ -13,8 +13,6 @@ mod text;
 
 use crate::meta_var::SgMetaVarEnv;
 use crate::node::SgNode;
-use crate::traversal::Pre;
-use crate::{Doc, Node};
 
 use bit_set::BitSet;
 use std::borrow::Cow;
@@ -108,40 +106,6 @@ where
 
   fn get_match_len<'tree, N: SgNode<'tree>>(&self, node: N) -> Option<usize> {
     (**self).get_match_len(node)
-  }
-}
-
-pub struct FindAllNodes<'tree, D: Doc, M: Matcher> {
-  // using dfs is not universally correct, say, when we want replace nested matches
-  // e.g. for pattern Some($A) with replacement $A, Some(Some(1)) will cause panic
-  dfs: Pre<'tree, D>,
-  matcher: M,
-}
-
-impl<'tree, D: Doc, M: Matcher> FindAllNodes<'tree, D, M> {
-  pub fn new(matcher: M, node: Node<'tree, D>) -> Self {
-    Self {
-      dfs: node.dfs(),
-      matcher,
-    }
-  }
-}
-
-impl<'tree, D: Doc, M: Matcher> Iterator for FindAllNodes<'tree, D, M> {
-  type Item = NodeMatch<'tree, D>;
-  fn next(&mut self) -> Option<Self::Item> {
-    let kinds = self.matcher.potential_kinds();
-    for cand in self.dfs.by_ref() {
-      if let Some(k) = &kinds {
-        if !k.contains(cand.kind_id().into()) {
-          continue;
-        }
-      }
-      if let Some(matched) = self.matcher.match_node(cand) {
-        return Some(matched);
-      }
-    }
-    None
   }
 }
 

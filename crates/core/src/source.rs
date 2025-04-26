@@ -121,8 +121,7 @@ impl<L: Language> Doc for StrDoc<L> {
     &self.src
   }
   fn clone_with_lang(&self, lang: Self::Lang) -> Self {
-    todo!("should handle multiple languages");
-    // Self::new(&self.src, lang)
+    Self::new(&self.src, lang)
   }
   fn parse(&self, old_tree: Option<&Tree>) -> Result<Tree, TSParseError> {
     let source = self.get_source();
