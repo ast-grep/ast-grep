@@ -174,11 +174,12 @@ impl Doc for JsDoc {
       tree: self.tree.clone(),
     }
   }
-  fn do_edit(&mut self, edit: &Edit<Self::Source>) {
+  fn do_edit(&mut self, edit: &Edit<Self::Source>) -> Tree {
     let source = &mut self.source;
     let input_edit = source.accept_edit(edit);
     self.tree.edit(&input_edit);
     self.tree = self.parse(Some(&self.tree)).expect("TODO!");
+    self.tree.clone()
   }
 }
 
