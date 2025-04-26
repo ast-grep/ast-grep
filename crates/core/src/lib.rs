@@ -82,13 +82,6 @@ impl<L: Language> AstGrep<StrDoc<L>> {
     }
   }
 
-  /*
-  pub fn customized<C: Content>(content: C, lang: L) -> Result<Self, TSParseError> {
-    Ok(Self {
-      inner: Root::customized(content, lang)?,
-    })
-  }
-  */
   pub fn source(&self) -> &str {
     self.inner.doc.get_source().as_str()
   }

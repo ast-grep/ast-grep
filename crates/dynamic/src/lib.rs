@@ -240,9 +240,7 @@ impl CoreLanguage for DynamicLang {
     let inner = self.inner();
     inner.lang.field_id_for_name(field)
   }
-}
 
-impl Language for DynamicLang {
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     let ext = path.as_ref().extension()?.to_str()?;
     let mapping = unsafe { &*addr_of!(LANG_INDEX) };
@@ -259,7 +257,9 @@ impl Language for DynamicLang {
       }
     })
   }
+}
 
+impl Language for DynamicLang {
   /// tree sitter language to parse the source
   fn get_ts_language(&self) -> TSLanguage {
     self.inner().lang.clone()

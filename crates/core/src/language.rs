@@ -37,6 +37,11 @@ pub trait CoreLanguage: Clone + 'static {
   fn extract_meta_var(&self, source: &str) -> Option<MetaVariable> {
     extract_meta_var(source, self.expando_char())
   }
+  /// Return the file language from path. Return None if the file type is not supported.
+  fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
+    // TODO: throw panic here if not implemented properly?
+    None
+  }
 
   fn kind_to_id(&self, kind: &str) -> u16;
   fn field_to_id(&self, field: &str) -> Option<u16>;
@@ -44,12 +49,6 @@ pub trait CoreLanguage: Clone + 'static {
 
 /// tree-sitter specific language trait
 pub trait Language: CoreLanguage {
-  /// Return the file language from path. Return None if the file type is not supported.
-  fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
-    // TODO: throw panic here if not implemented properly?
-    None
-  }
-
   /// Create an [`AstGrep`] instance for the language
   fn ast_grep<S: AsRef<str>>(&self, source: S) -> AstGrep<StrDoc<Self>> {
     AstGrep::new(source, self.clone())

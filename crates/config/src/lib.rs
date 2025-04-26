@@ -58,11 +58,11 @@ mod test {
     fn field_to_id(&self, field: &str) -> Option<u16> {
       TSLanguage::from(tree_sitter_typescript::LANGUAGE_TSX).field_id_for_name(field)
     }
-  }
-  impl Language for TypeScript {
     fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
       Some(TypeScript::Tsx)
     }
+  }
+  impl Language for TypeScript {
     fn get_ts_language(&self) -> TSLanguage {
       tree_sitter_typescript::LANGUAGE_TSX.into()
     }

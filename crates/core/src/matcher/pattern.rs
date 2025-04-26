@@ -225,7 +225,7 @@ impl Pattern {
     lang: L,
   ) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(context);
-    let root = Root::<StrDoc<L>>::try_new(&processed, lang.clone())?;
+    let root = Root::try_new(&processed, lang.clone())?;
     let goal = root.root();
     let kind_matcher = KindMatcher::try_new(selector, lang)?;
     let Some(node) = goal.find(&kind_matcher) else {
