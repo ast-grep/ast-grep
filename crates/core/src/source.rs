@@ -78,6 +78,8 @@ pub enum TSParseError {
   TreeUnavailable,
 }
 
+/// NOTE: Some method names are the same as tree-sitter's methods.
+/// Fully Qualified Syntax may needed https://stackoverflow.com/a/44445976/2198656
 pub trait SgNode<'r>: Clone {
   fn parent(&self) -> Option<Self>;
   fn ancestors(&self, root: Self) -> impl Iterator<Item = Self>;
@@ -134,7 +136,7 @@ impl ExactSizeIterator for NodeWalker<'_> {
 
 impl<'r> SgNode<'r> for Node<'r> {
   fn parent(&self) -> Option<Self> {
-    self.parent()
+    Node::parent(self)
   }
   fn ancestors(&self, root: Self) -> impl Iterator<Item = Self> {
     let mut ancestor = Some(root);
@@ -157,17 +159,18 @@ impl<'r> SgNode<'r> for Node<'r> {
   }
   fn child(&self, nth: usize) -> Option<Self> {
     // TODO remove cast after migrating to tree-sitter
-    self.child(nth as u32)
+    Node::child(self, nth as u32)
   }
   fn children(&self) -> impl ExactSizeIterator<Item = Self> {
-    let cursor = self.walk();
+    let mut cursor = self.walk();
+    cursor.goto_first_child();
     NodeWalker {
       cursor,
       count: self.child_count() as usize,
     }
   }
   fn child_by_field_id(&self, field_id: u16) -> Option<Self> {
-    self.child_by_field_id(field_id)
+    Node::child_by_field_id(self, field_id)
   }
   fn next(&self) -> Option<Self> {
     self.next_sibling()
@@ -202,7 +205,7 @@ impl<'r> SgNode<'r> for Node<'r> {
     })
   }
   fn is_named(&self) -> bool {
-    self.is_named()
+    Node::is_named(self)
   }
   /// N.B. it is different from is_named && is_leaf
   /// if a node has no named children.
@@ -213,10 +216,10 @@ impl<'r> SgNode<'r> for Node<'r> {
     self.child_count() == 0
   }
   fn kind(&self) -> Cow<str> {
-    self.kind()
+    Node::kind(self)
   }
   fn kind_id(&self) -> KindId {
-    self.kind_id()
+    Node::kind_id(self)
   }
   fn node_id(&self) -> usize {
     self.id()
@@ -236,10 +239,10 @@ impl<'r> SgNode<'r> for Node<'r> {
   }
   // missing node is a tree-sitter specific concept
   fn is_missing(&self) -> bool {
-    self.is_missing()
+    Node::is_missing(self)
   }
   fn is_error(&self) -> bool {
-    self.is_error()
+    Node::is_error(self)
   }
 
   fn field(&self, name: &str) -> Option<Self> {

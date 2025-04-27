@@ -31,7 +31,7 @@ pub use html::Html;
 
 use ast_grep_core::language::{TSLanguage, TSRange};
 use ast_grep_core::meta_var::MetaVariable;
-use ast_grep_core::{Doc, Node};
+use ast_grep_core::{Node, StrDoc};
 use ignore::types::{Types, TypesBuilder};
 use serde::de::Visitor;
 use serde::{de, Deserialize, Deserializer, Serialize};
@@ -431,7 +431,10 @@ impl CoreLanguage for SupportLang {
 impl Language for SupportLang {
   impl_lang_method!(get_ts_language, () => TSLanguage);
   impl_lang_method!(injectable_languages, () => Option<&'static [&'static str]>);
-  fn extract_injections<D: Doc>(&self, root: Node<D>) -> HashMap<String, Vec<TSRange>> {
+  fn extract_injections<L: Language>(
+    &self,
+    root: Node<StrDoc<L>>,
+  ) -> HashMap<String, Vec<TSRange>> {
     match self {
       SupportLang::Html => Html.extract_injections(root),
       _ => HashMap::new(),

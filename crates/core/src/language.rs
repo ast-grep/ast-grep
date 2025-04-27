@@ -1,5 +1,5 @@
 use crate::meta_var::{extract_meta_var, MetaVariable};
-use crate::{AstGrep, Doc, Node, StrDoc};
+use crate::{AstGrep, Node, StrDoc};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
@@ -66,7 +66,10 @@ pub trait Language: CoreLanguage {
   /// The first item is the embedded region language, e.g. javascript
   /// The second item is a list of regions in tree_sitter.
   /// also see https://tree-sitter.github.io/tree-sitter/using-parsers#multi-language-documents
-  fn extract_injections<D: Doc>(&self, _root: Node<D>) -> HashMap<String, Vec<TSRange>> {
+  fn extract_injections<L: Language>(
+    &self,
+    _root: Node<StrDoc<L>>,
+  ) -> HashMap<String, Vec<TSRange>> {
     HashMap::new()
   }
 }
