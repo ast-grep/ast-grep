@@ -54,7 +54,9 @@ impl<D: Doc> AstGrep<D> {
     pattern: M,
     replacer: R,
   ) -> Result<bool, TSParseError> {
-    if let Some(edit) = self.root().replace(pattern, replacer) {
+    let root = self.root();
+    if let Some(edit) = root.replace(pattern, replacer) {
+      drop(root); // rust cannot auto drop root if D is not specified
       self.edit(edit)?;
       Ok(true)
     } else {

@@ -82,7 +82,8 @@ pub trait SgNode<'r>: Clone {
   fn parent(&self) -> Option<Self>;
   fn ancestors(&self, root: Self) -> impl Iterator<Item = Self>;
   fn dfs(&self) -> impl Iterator<Item = Self>;
-  fn children(&self) -> impl Iterator<Item = Self>;
+  fn child(&self, nth: usize) -> Option<Self>;
+  fn children(&self) -> impl ExactSizeIterator<Item = Self>;
   fn child_by_field_id(&self, field_id: u16) -> Option<Self>;
   fn next(&self) -> Option<Self>;
   fn prev(&self) -> Option<Self>;
@@ -100,7 +101,35 @@ pub trait SgNode<'r>: Clone {
   fn start_pos(&self) -> Position;
   fn end_pos(&self) -> Position;
   // missing node is a tree-sitter specific concept
-  fn is_missing_node(&self) -> bool;
+  fn is_missing(&self) -> bool;
+  fn is_error(&self) -> bool;
+
+  fn field(&self, name: &str) -> Option<Self>;
+  fn field_children(&self, field_id: Option<u16>) -> impl Iterator<Item = Self>;
+}
+
+struct NodeWalker<'tree> {
+  cursor: tree_sitter::TreeCursor<'tree>,
+  count: usize,
+}
+
+impl<'tree> Iterator for NodeWalker<'tree> {
+  type Item = Node<'tree>;
+  fn next(&mut self) -> Option<Self::Item> {
+    if self.count == 0 {
+      return None;
+    }
+    let ret = Some(self.cursor.node());
+    self.cursor.goto_next_sibling();
+    self.count -= 1;
+    ret
+  }
+}
+
+impl ExactSizeIterator for NodeWalker<'_> {
+  fn len(&self) -> usize {
+    self.count
+  }
 }
 
 impl<'r> SgNode<'r> for Node<'r> {
@@ -126,19 +155,16 @@ impl<'r> SgNode<'r> for Node<'r> {
   fn dfs(&self) -> impl Iterator<Item = Self> {
     TsPre::new(self)
   }
-  fn children(&self) -> impl Iterator<Item = Self> {
-    let mut cursor = self.walk();
-    let mut count = self.child_count();
-    cursor.goto_first_child();
-    std::iter::from_fn(move || {
-      if count == 0 {
-        return None;
-      }
-      let ret = Some(cursor.node());
-      cursor.goto_next_sibling();
-      count -= 1;
-      ret
-    })
+  fn child(&self, nth: usize) -> Option<Self> {
+    // TODO remove cast after migrating to tree-sitter
+    self.child(nth as u32)
+  }
+  fn children(&self) -> impl ExactSizeIterator<Item = Self> {
+    let cursor = self.walk();
+    NodeWalker {
+      cursor,
+      count: self.child_count() as usize,
+    }
   }
   fn child_by_field_id(&self, field_id: u16) -> Option<Self> {
     self.child_by_field_id(field_id)
@@ -209,8 +235,37 @@ impl<'r> SgNode<'r> for Node<'r> {
     Position::new(pos.row() as usize, pos.column() as usize, byte)
   }
   // missing node is a tree-sitter specific concept
-  fn is_missing_node(&self) -> bool {
+  fn is_missing(&self) -> bool {
     self.is_missing()
+  }
+  fn is_error(&self) -> bool {
+    self.is_error()
+  }
+
+  fn field(&self, name: &str) -> Option<Self> {
+    self.child_by_field_name(name)
+  }
+  fn field_children(&self, field_id: Option<u16>) -> impl Iterator<Item = Self> {
+    let mut cursor = self.walk();
+    cursor.goto_first_child();
+    // if field_id is not found, iteration is done
+    let mut done = field_id.is_none();
+
+    std::iter::from_fn(move || {
+      if done {
+        return None;
+      }
+      while cursor.field_id() != field_id {
+        if !cursor.goto_next_sibling() {
+          return None;
+        }
+      }
+      let ret = cursor.node();
+      if !cursor.goto_next_sibling() {
+        done = true;
+      }
+      Some(ret)
+    })
   }
 }
 
@@ -221,7 +276,8 @@ pub trait Doc: Clone + 'static {
   fn get_lang(&self) -> &Self::Lang;
   fn get_source(&self) -> &Self::Source;
   fn do_edit(&mut self, edit: &Edit<Self::Source>);
-  fn root_node(&self) -> Node<'_>;
+  fn root_node(&self) -> Self::Node<'_>;
+  fn get_node_text<'a>(&'a self, node: &Self::Node<'a>) -> Cow<'a, str>;
 }
 
 #[derive(Clone)]
@@ -269,6 +325,11 @@ impl<L: Language> Doc for StrDoc<L> {
   fn root_node(&self) -> Node<'_> {
     self.tree.root_node()
   }
+  fn get_node_text<'a>(&'a self, node: &Self::Node<'a>) -> Cow<'a, str> {
+    node
+      .utf8_text(self.src.as_bytes())
+      .expect("invalid source text encoding")
+  }
 }
 
 pub trait Content: Sized {
@@ -280,7 +341,6 @@ pub trait Content: Sized {
   ) -> Result<Option<Tree>, ParserError>;
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying];
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit;
-  fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str>;
   /// Used for string replacement. We need this for
   /// indentation and deindentation.
   fn decode_str(src: &str) -> Cow<[Self::Underlying]>;
@@ -302,11 +362,6 @@ impl Content for String {
   }
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying] {
     &self.as_bytes()[range]
-  }
-  fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str> {
-    node
-      .utf8_text(self.as_bytes())
-      .expect("invalid source text encoding")
   }
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit {
     let start_byte = edit.position;

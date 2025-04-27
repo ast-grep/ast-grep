@@ -11,7 +11,6 @@ pub type MetaVariableID = String;
 
 pub type Underlying<D> = Vec<<<D as Doc>::Source as Content>::Underlying>;
 
-// why we need one more content? https://github.com/ast-grep/ast-grep/issues/1951
 /// a dictionary that stores metavariable instantiation
 /// const a = 123 matched with const a = $A will produce env: $A => 123
 #[derive(Clone)]
@@ -68,7 +67,7 @@ impl<'t, D: Doc> MetaVarEnv<'t, D> {
     self.multi_matched.get(label)
   }
 
-  pub fn get_matched_variables(&self) -> impl Iterator<Item = MetaVariable> + '_ {
+  pub fn get_matched_variables(&self) -> impl Iterator<Item = MetaVariable> + use<'_, 't, D> {
     let single = self
       .single_matched
       .keys()
