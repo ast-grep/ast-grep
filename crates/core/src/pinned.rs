@@ -48,7 +48,7 @@ impl<D: Doc + 'static, T> PinnedNodeData<D, T>
 where
   T: NodeData<D>,
 {
-  pub fn get_data(&mut self) -> &T::Data<'_> {
+  pub fn get_data(&mut self) -> &T::Data {
     let pin = unsafe { &*(&self.pin as *const Root<D>) as &'static Root<D> };
     self.data.visit_nodes(|n| unsafe { pin.readopt(n) });
     self.data.get_data()
@@ -61,18 +61,16 @@ where
 /// # Safety
 /// TODO: explain unsafe trait
 pub unsafe trait NodeData<D> {
-  type Data<'a>
-  where
-    Self: 'a;
-  fn get_data(&self) -> &Self::Data<'_>;
+  type Data;
+  fn get_data(&self) -> &Self::Data;
   fn visit_nodes<F>(&mut self, f: F)
   where
     F: FnMut(&mut Node<'_, D>);
 }
 
 unsafe impl<D: Doc> NodeData<D> for Node<'static, D> {
-  type Data<'a> = Node<'a, D>;
-  fn get_data(&self) -> &Self::Data<'_> {
+  type Data = Node<'static, D>;
+  fn get_data(&self) -> &Self::Data {
     self
   }
   fn visit_nodes<F>(&mut self, mut f: F)
@@ -84,8 +82,8 @@ unsafe impl<D: Doc> NodeData<D> for Node<'static, D> {
 }
 
 unsafe impl<D: Doc> NodeData<D> for NodeMatch<'static, D> {
-  type Data<'a> = NodeMatch<'a, D>;
-  fn get_data(&self) -> &Self::Data<'_> {
+  type Data = NodeMatch<'static, D>;
+  fn get_data(&self) -> &Self::Data {
     self
   }
   fn visit_nodes<F>(&mut self, mut f: F)
@@ -101,8 +99,8 @@ unsafe impl<D: Doc> NodeData<D> for NodeMatch<'static, D> {
 }
 
 unsafe impl<D: Doc> NodeData<D> for Vec<NodeMatch<'static, D>> {
-  type Data<'a> = Vec<NodeMatch<'a, D>>;
-  fn get_data(&self) -> &Self::Data<'_> {
+  type Data = Vec<NodeMatch<'static, D>>;
+  fn get_data(&self) -> &Self::Data {
     self
   }
   fn visit_nodes<F>(&mut self, mut f: F)

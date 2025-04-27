@@ -1,8 +1,8 @@
 use crate::language::{CoreLanguage, Language};
 use crate::matcher::{Matcher, MatcherExt, NodeMatch};
 use crate::replacer::Replacer;
-use crate::source::{Content, Edit as E, TSParseError};
-use crate::traversal::{Pre, Visitor};
+use crate::source::{Content, Edit as E, SgNode, TSParseError};
+use crate::traversal::Visitor;
 use crate::{Doc, StrDoc};
 
 type Edit<D> = E<<D as Doc>::Source>;
@@ -120,17 +120,17 @@ impl<D: Doc> Root<D> {
 
   /// Adopt the tree_sitter as the descendant of the root and return the wrapped sg Node.
   /// It assumes `inner` is the under the root and will panic at dev build if wrong node is used.
-  pub fn adopt<'r>(&'r self, inner: tree_sitter::Node<'r>) -> Node<'r, D> {
+  pub fn adopt<'r>(&'r self, inner: D::Node<'r>) -> Node<'r, D> {
     debug_assert!(self.check_lineage(&inner));
     Node { inner, root: self }
   }
 
-  fn check_lineage(&self, inner: &tree_sitter::Node<'_>) -> bool {
+  fn check_lineage(&self, inner: &D::Node<'_>) -> bool {
     let mut node = inner.clone();
     while let Some(n) = node.parent() {
       node = n;
     }
-    node == self.doc.root_node()
+    node.node_id() == self.doc.root_node().node_id()
   }
 
   /// P.S. I am your father.
@@ -141,41 +141,14 @@ impl<D: Doc> Root<D> {
   }
 }
 
+// why we need one more content? https://github.com/ast-grep/ast-grep/issues/1951
 /// 'r represents root lifetime
 #[derive(Clone)]
 pub struct Node<'r, D: Doc> {
-  pub(crate) inner: tree_sitter::Node<'r>,
+  pub(crate) inner: D::Node<'r>,
   pub(crate) root: &'r Root<D>,
 }
 pub type KindId = u16;
-
-struct NodeWalker<'tree, D: Doc> {
-  cursor: tree_sitter::TreeCursor<'tree>,
-  root: &'tree Root<D>,
-  count: usize,
-}
-
-impl<'tree, D: Doc> Iterator for NodeWalker<'tree, D> {
-  type Item = Node<'tree, D>;
-  fn next(&mut self) -> Option<Self::Item> {
-    if self.count == 0 {
-      return None;
-    }
-    let ret = Some(Node {
-      inner: self.cursor.node(),
-      root: self.root,
-    });
-    self.cursor.goto_next_sibling();
-    self.count -= 1;
-    ret
-  }
-}
-
-impl<D: Doc> ExactSizeIterator for NodeWalker<'_, D> {
-  fn len(&self) -> usize {
-    self.count
-  }
-}
 
 /// APIs for Node inspection
 impl<'r, D: Doc> Node<'r, D> {
@@ -183,16 +156,16 @@ impl<'r, D: Doc> Node<'r, D> {
     &self.root.doc
   }
   pub fn node_id(&self) -> usize {
-    self.inner.id()
+    self.inner.node_id()
   }
   pub fn is_leaf(&self) -> bool {
-    self.inner.child_count() == 0
+    self.inner.is_leaf()
   }
   /// if has no named children.
   /// N.B. it is different from is_named && is_leaf
   // see https://github.com/ast-grep/ast-grep/issues/276
   pub fn is_named_leaf(&self) -> bool {
-    self.inner.named_child_count() == 0
+    self.inner.is_named_leaf()
   }
   pub fn is_error(&self) -> bool {
     self.inner.is_error()
@@ -207,42 +180,27 @@ impl<'r, D: Doc> Node<'r, D> {
   pub fn is_named(&self) -> bool {
     self.inner.is_named()
   }
-  pub fn is_missing_node(&self) -> bool {
-    self.get_ts_node().is_missing()
-  }
-
-  /// the underlying tree-sitter Node
-  pub fn get_ts_node(&self) -> tree_sitter::Node<'r> {
-    self.inner.clone()
+  pub fn is_missing(&self) -> bool {
+    self.inner.is_missing()
   }
 
   /// byte offsets of start and end.
   pub fn range(&self) -> std::ops::Range<usize> {
-    (self.inner.start_byte() as usize)..(self.inner.end_byte() as usize)
+    self.inner.range()
   }
 
   /// Nodes' start position in terms of zero-based rows and columns.
   pub fn start_pos(&self) -> Position {
-    let pos = self.inner.start_position();
-    let byte = self.inner.start_byte() as usize;
-    Position::new(pos.row() as usize, pos.column() as usize, byte)
+    self.inner.start_pos()
   }
 
   /// Nodes' end position in terms of rows and columns.
   pub fn end_pos(&self) -> Position {
-    let pos = self.inner.end_position();
-    let byte = self.inner.end_byte() as usize;
-    Position::new(pos.row() as usize, pos.column() as usize, byte)
+    self.inner.end_pos()
   }
 
   pub fn text(&self) -> Cow<'r, str> {
-    let source = self.root.doc.get_source();
-    source.get_text(&self.inner)
-  }
-
-  /// Node's tree structure dumped in Lisp like S-expression
-  pub fn to_sexp(&self) -> Cow<'_, str> {
-    self.inner.to_sexp()
+    self.root.doc.get_node_text(&self.inner)
   }
 
   pub fn lang(&self) -> &'r D::Lang {
@@ -299,6 +257,29 @@ impl<'r, L: Language> Node<'r, StrDoc<L>> {
   pub fn root(&self) -> &'r Root<StrDoc<L>> {
     self.root
   }
+
+  /// the underlying tree-sitter Node
+  pub fn get_ts_node(&self) -> tree_sitter::Node<'r> {
+    self.inner.clone()
+  }
+
+  /// Node's tree structure dumped in Lisp like S-expression
+  pub fn to_sexp(&self) -> Cow<'_, str> {
+    self.inner.to_sexp()
+  }
+
+  pub fn replace_all<M: Matcher, R: Replacer<StrDoc<L>>>(
+    &self,
+    matcher: M,
+    replacer: R,
+  ) -> Vec<Edit<StrDoc<L>>> {
+    // TODO: support nested matches like Some(Some(1)) with pattern Some($A)
+    Visitor::new(&matcher)
+      .reentrant(false)
+      .visit(self.clone())
+      .map(|matched| matched.make_edit(&matcher, &replacer))
+      .collect()
+  }
 }
 
 /**
@@ -348,20 +329,16 @@ impl<'r, D: Doc> Node<'r, D> {
     })
   }
 
-  pub fn children<'s>(&'s self) -> impl ExactSizeIterator<Item = Node<'r, D>> + 's {
-    let mut cursor = self.inner.walk();
-    cursor.goto_first_child();
-    NodeWalker {
-      cursor,
+  pub fn children(&self) -> impl ExactSizeIterator<Item = Node<'r, D>> + '_ {
+    self.inner.children().map(|inner| Node {
+      inner,
       root: self.root,
-      count: self.inner.child_count() as usize,
-    }
+    })
   }
 
   #[must_use]
   pub fn child(&self, nth: usize) -> Option<Self> {
-    // TODO: support usize
-    let inner = self.inner.child(nth as u32)?;
+    let inner = self.inner.child(nth)?;
     Some(Node {
       inner,
       root: self.root,
@@ -369,7 +346,7 @@ impl<'r, D: Doc> Node<'r, D> {
   }
 
   pub fn field(&self, name: &str) -> Option<Self> {
-    let inner = self.inner.child_by_field_name(name)?;
+    let inner = self.inner.field(name)?;
     Some(Node {
       inner,
       root: self.root,
@@ -384,55 +361,26 @@ impl<'r, D: Doc> Node<'r, D> {
     })
   }
 
-  pub fn field_children(&self, name: &str) -> impl Iterator<Item = Node<'r, D>> {
-    let field_id = self.root.lang().field_to_id(name);
-    let root = self.root;
-    let mut cursor = self.inner.walk();
-    cursor.goto_first_child();
-    // if field_id is not found, iteration is done
-    let mut done = field_id.is_none();
-
-    std::iter::from_fn(move || {
-      if done {
-        return None;
-      }
-      while cursor.field_id() != field_id {
-        if !cursor.goto_next_sibling() {
-          return None;
-        }
-      }
-      let inner = cursor.node();
-      if !cursor.goto_next_sibling() {
-        done = true;
-      }
-      Some(Node { inner, root })
+  pub fn field_children(&self, name: &str) -> impl Iterator<Item = Node<'r, D>> + '_ {
+    let field_id = self.lang().field_to_id(name);
+    self.inner.field_children(field_id).map(|inner| Node {
+      inner,
+      root: self.root,
     })
   }
 
   /// Returns all ancestors nodes of `self`.
   /// Using cursor is overkill here because adjust cursor is too expensive.
   pub fn ancestors(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
-    let mut ancestor = Some(self.root.root().inner);
-    let self_id = self.inner.id();
-    std::iter::from_fn(move || {
-      let inner = ancestor.take()?;
-      if inner.id() == self_id {
-        return None;
-      }
-      ancestor = inner.child_with_descendant(self.inner.clone());
-      Some(Node {
-        inner,
-        root: self.root,
-      })
+    let root = self.root.doc.root_node();
+    self.inner.ancestors(root).map(|inner| Node {
+      inner,
+      root: self.root,
     })
-    // We must iterate up the tree to preserve backwards compatibility
-    .collect::<Vec<_>>()
-    .into_iter()
-    .rev()
   }
   #[must_use]
   pub fn next(&self) -> Option<Self> {
-    let inner = self.inner.next_sibling()?;
+    let inner = self.inner.next()?;
     Some(Node {
       inner,
       root: self.root,
@@ -443,71 +391,34 @@ impl<'r, D: Doc> Node<'r, D> {
   // NOTE: Need go to parent first, then move to current node by byte offset.
   // This is because tree_sitter cursor is scoped to the starting node.
   // See https://github.com/tree-sitter/tree-sitter/issues/567
-  #[cfg(not(target_arch = "wasm32"))]
   pub fn next_all(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
-    // if root is none, use self as fallback to return a type-stable Iterator
-    let node = self.parent().unwrap_or_else(|| self.clone());
-    let mut cursor = node.inner.walk();
-    cursor.goto_first_child_for_byte(self.inner.start_byte());
-    std::iter::from_fn(move || {
-      if cursor.goto_next_sibling() {
-        Some(self.root.adopt(cursor.node()))
-      } else {
-        None
-      }
-    })
-  }
-
-  // wasm32 has wrong goto_first_child_for_byte
-  #[cfg(target_arch = "wasm32")]
-  pub fn next_all(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
-    let mut node = self.clone();
-    std::iter::from_fn(move || {
-      node.next().map(|n| {
-        node = n.clone();
-        n
-      })
+    self.inner.next_all().map(|inner| Node {
+      inner,
+      root: self.root,
     })
   }
 
   #[must_use]
   pub fn prev(&self) -> Option<Node<'r, D>> {
-    let inner = self.inner.prev_sibling()?;
+    let inner = self.inner.prev()?;
     Some(Node {
       inner,
       root: self.root,
     })
   }
 
-  #[cfg(not(target_arch = "wasm32"))]
   pub fn prev_all(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
-    // if root is none, use self as fallback to return a type-stable Iterator
-    let node = self.parent().unwrap_or_else(|| self.clone());
-    let mut cursor = node.inner.walk();
-    cursor.goto_first_child_for_byte(self.inner.start_byte());
-    std::iter::from_fn(move || {
-      if cursor.goto_previous_sibling() {
-        Some(self.root.adopt(cursor.node()))
-      } else {
-        None
-      }
+    self.inner.prev_all().map(|inner| Node {
+      inner,
+      root: self.root,
     })
   }
 
-  // wasm32 has wrong goto_first_child_for_byte
-  #[cfg(target_arch = "wasm32")]
-  pub fn prev_all(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
-    let mut node = self.clone();
-    std::iter::from_fn(move || {
-      node.prev().map(|n| {
-        node = n.clone();
-        n
-      })
+  pub fn dfs<'s>(&'s self) -> impl Iterator<Item = Node<'r, D>> + 's {
+    self.inner.dfs().map(|inner| Node {
+      inner,
+      root: self.root,
     })
-  }
-
-  pub fn dfs<'s>(&'s self) -> Pre<'r, D> {
-    Pre::new(self)
   }
 
   #[must_use]
@@ -515,7 +426,10 @@ impl<'r, D: Doc> Node<'r, D> {
     pat.find_node(self.clone())
   }
 
-  pub fn find_all<M: Matcher>(&self, pat: M) -> impl Iterator<Item = NodeMatch<'r, D>> {
+  pub fn find_all<'s, M: Matcher + 's>(
+    &'s self,
+    pat: M,
+  ) -> impl Iterator<Item = NodeMatch<'r, D>> + 's {
     let kinds = pat.potential_kinds();
     self.dfs().filter_map(move |cand| {
       if let Some(k) = &kinds {
@@ -534,15 +448,6 @@ impl<D: Doc> Node<'_, D> {
     let matched = matcher.find_node(self.clone())?;
     let edit = matched.make_edit(&matcher, &replacer);
     Some(edit)
-  }
-
-  pub fn replace_all<M: Matcher, R: Replacer<D>>(&self, matcher: M, replacer: R) -> Vec<Edit<D>> {
-    // TODO: support nested matches like Some(Some(1)) with pattern Some($A)
-    Visitor::new(&matcher)
-      .reentrant(false)
-      .visit(self.clone())
-      .map(|matched| matched.make_edit(&matcher, &replacer))
-      .collect()
   }
 
   pub fn after(&self) -> Edit<D> {

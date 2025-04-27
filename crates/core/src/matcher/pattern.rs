@@ -2,7 +2,7 @@ use crate::language::{CoreLanguage, Language};
 use crate::match_tree::{match_end_non_recursive, match_node_non_recursive, MatchStrictness};
 use crate::matcher::{kind_utils, KindMatcher, KindMatcherError, Matcher};
 use crate::meta_var::{MetaVarEnv, MetaVariable};
-use crate::source::TSParseError;
+use crate::source::{SgNode, TSParseError};
 use crate::{Doc, Node, Root, StrDoc};
 
 use bit_set::BitSet;
@@ -91,7 +91,7 @@ fn convert_node_to_pattern<D: Doc>(node: Node<'_, D>) -> PatternNode {
     }
   } else {
     let children = node.children().filter_map(|n| {
-      if n.is_missing_node() {
+      if n.is_missing() {
         None
       } else {
         Some(PatternNode::from(n))
@@ -124,8 +124,8 @@ pub enum PatternError {
 }
 
 #[inline]
-fn is_single_node(n: &tree_sitter::Node) -> bool {
-  match n.child_count() {
+fn is_single_node<'r, N: SgNode<'r>>(n: &N) -> bool {
+  match n.children().len() {
     1 => true,
     2 => {
       let c = n.child(1).expect("second child must exist");
