@@ -1,7 +1,6 @@
 #![cfg(test)]
 use super::*;
 use crate::test::{test_match_lang, test_replace_lang};
-use ast_grep_core::source::TSParseError;
 
 fn test_match(s1: &str, s2: &str) {
   test_match_lang(s1, s2, Rust)
@@ -67,13 +66,13 @@ fn test_rust_spread_syntax() {
   );
 }
 
-fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
+fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
   test_replace_lang(src, pattern, replacer, Rust)
 }
 
 #[test]
-fn test_rust_replace() -> Result<(), TSParseError> {
-  let ret = test_replace("fn test() { Some(123) }", "Some($A)", "Ok($A)")?;
+fn test_rust_replace() {
+  let ret = test_replace("fn test() { Some(123) }", "Some($A)", "Ok($A)");
   assert_eq!(ret, "fn test() { Ok(123) }");
   let ret = test_replace(
     r#"
@@ -86,7 +85,6 @@ patterns = match config.include.clone() {
   None => $C,
 }",
     "$A.unwrap_or($C)",
-  )?;
+  );
   assert_eq!(ret, "\npatterns = config.include.clone().unwrap_or(123)");
-  Ok(())
 }

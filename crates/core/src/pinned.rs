@@ -121,7 +121,7 @@ mod test {
   use crate::StrDoc;
 
   fn return_from_func() -> PinnedNodeData<StrDoc<Tsx>, Node<'static, StrDoc<Tsx>>> {
-    let root = Root::new("let a = 123", Tsx);
+    let root = Root::str("let a = 123", Tsx);
     PinnedNodeData::new(root, |r| r.root().child(0).unwrap().child(1).unwrap())
   }
 
@@ -140,7 +140,7 @@ mod test {
   }
 
   fn return_vec() -> PinnedNodeData<StrDoc<Tsx>, Vec<NodeMatch<'static, StrDoc<Tsx>>>> {
-    let root = Root::new("let a = 123", Tsx);
+    let root = Root::str("let a = 123", Tsx);
     PinnedNodeData::new(root, |r| {
       r.root()
         .child(0)

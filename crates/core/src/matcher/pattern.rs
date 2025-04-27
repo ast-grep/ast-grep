@@ -320,7 +320,7 @@ mod test {
   use std::collections::HashMap;
 
   fn pattern_node(s: &str) -> Root<StrDoc<Tsx>> {
-    Root::new(s, Tsx)
+    Root::str(s, Tsx)
   }
 
   fn test_match(s1: &str, s2: &str) {

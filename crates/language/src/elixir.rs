@@ -1,5 +1,4 @@
 #![cfg(test)]
-use ast_grep_core::source::TSParseError;
 
 use super::*;
 
@@ -39,57 +38,55 @@ fn test_elixir_pattern() {
   );
 }
 
-fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
+fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
   use crate::test::test_replace_lang;
   test_replace_lang(src, pattern, replacer, Elixir)
 }
 
 #[test]
-fn test_elixir_replace() -> Result<(), TSParseError> {
+fn test_elixir_replace() {
   let ret = test_replace(
     "Stream.map([1, 2, 3], fn x -> x * 2 end)",
     "Stream.map($$$ARGS)",
     "Enum.map($$$ARGS)",
-  )?;
+  );
   assert_eq!(ret, "Enum.map([1, 2, 3], fn x -> x * 2 end)");
 
   let ret = test_replace(
     ":budgie = hd([:budgie, :cat, :dog])",
     "$FIRST = hd($LIST)",
     "[$FIRST | _] = $LIST",
-  )?;
+  );
   assert_eq!(ret, "[:budgie | _] = [:budgie, :cat, :dog]");
 
   let ret = test_replace(
     "opts[:hostname] || \"localhost\"",
     "opts[$KEY] || $DEFAULT",
     "Keyword.get(opts, $KEY, $DEFAULT)",
-  )?;
+  );
   assert_eq!(ret, "Keyword.get(opts, :hostname, \"localhost\")");
 
   let ret = test_replace(
     "Module.function(:a, :b)",
     "Module.function($ARG1, $ARG2)",
     "Module.function($ARG2, $ARG1)",
-  )?;
+  );
   assert_eq!(ret, "Module.function(:b, :a)");
 
   let ret = test_replace(
     "Greeter.greet(:hello, \"human\")",
     "Greeter.greet($ARG1, $ARG2)",
     "Greeter.greet($ARG1, name: $ARG2)",
-  )?;
+  );
   assert_eq!(ret, "Greeter.greet(:hello, name: \"human\")");
 
   let ret = test_replace(
     "for x <- [\"budgie\", \"cat\", \"dog\"], do: String.to_atom(x)",
     "for $I <- $LIST, do: $MODULE.$FUNCTION($I)",
     "Enum.map($LIST, fn $I -> $MODULE.$FUNCTION($I) end)",
-  )?;
+  );
   assert_eq!(
     ret,
     "Enum.map([\"budgie\", \"cat\", \"dog\"], fn x -> String.to_atom(x) end)"
   );
-
-  Ok(())
 }

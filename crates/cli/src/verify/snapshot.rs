@@ -1,5 +1,5 @@
 use crate::lang::SgLang;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use ast_grep_config::RuleConfig;
 use ast_grep_core::{Language, NodeMatch, StrDoc};
 
@@ -94,7 +94,7 @@ impl TestSnapshot {
         labels,
       }));
     };
-    let changed = sg.replace(rule, fix)?;
+    let changed = sg.replace(rule, fix).map_err(|e| anyhow!(e))?;
     debug_assert!(changed);
     Ok(Some(Self {
       fixed: Some(sg.source().to_string()),

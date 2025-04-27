@@ -1,6 +1,4 @@
 #![cfg(test)]
-use ast_grep_core::source::TSParseError;
-
 use super::*;
 
 fn test_match(query: &str, source: &str) {
@@ -34,7 +32,7 @@ fn test_yaml_pattern() {
   test_non_match("foo: $BAR", "bar: bar");
 }
 
-fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
+fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
   use crate::test::test_replace_lang;
   test_replace_lang(src, pattern, replacer, Yaml)
 }
@@ -53,8 +51,7 @@ list:
 "#;
 
 #[test]
-fn test_yaml_replace() -> Result<(), TSParseError> {
-  let ret = test_replace(SOURCE, "$KEY: value", "value: $KEY")?;
+fn test_yaml_replace() {
+  let ret = test_replace(SOURCE, "$KEY: value", "value: $KEY");
   assert_eq!(ret, EXPECTED);
-  Ok(())
 }

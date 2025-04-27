@@ -1,6 +1,4 @@
 #![cfg(test)]
-use ast_grep_core::source::TSParseError;
-
 use super::*;
 
 fn test_match(query: &str, source: &str) {
@@ -71,13 +69,13 @@ match points:
   );
 }
 
-fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
+fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
   use crate::test::test_replace_lang;
   test_replace_lang(src, pattern, replacer, Python)
 }
 
 #[test]
-fn test_python_replace() -> Result<(), TSParseError> {
+fn test_python_replace() {
   let ret = test_replace(
     r#"
 if flag:
@@ -91,7 +89,7 @@ else:
   $VAR = $NEG
 "#,
     "$VAR = $POS if $FLAG else $NEG",
-  )?;
+  );
   assert_eq!(ret, "\na = value_pos if flag else value_neg");
 
   let ret = test_replace(
@@ -114,7 +112,7 @@ finally:
     r#"
 with open($B, $C) as $A:
   $D = $A.open()"#,
-  )?;
+  );
   assert_eq!(
     ret,
     r#"
@@ -122,5 +120,4 @@ with open($B, $C) as $A:
 with open(file_path, "r") as f:
   file_content = f.open()"#
   );
-  Ok(())
 }

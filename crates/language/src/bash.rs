@@ -1,5 +1,4 @@
 #![cfg(test)]
-use ast_grep_core::source::TSParseError;
 
 use super::*;
 
@@ -13,7 +12,7 @@ fn test_non_match(query: &str, source: &str) {
   test_non_match_lang(query, source, Bash);
 }
 
-fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
+fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
   use crate::test::test_replace_lang;
   test_replace_lang(src, pattern, replacer, Bash)
 }
@@ -34,9 +33,8 @@ fn test_bash_pattern_no_match() {
 }
 
 #[test]
-fn test_bash_replace() -> Result<(), TSParseError> {
+fn test_bash_replace() {
   // TODO: change the replacer to log $A
-  let ret = test_replace("echo 123", "echo $A", "log 123")?;
+  let ret = test_replace("echo 123", "echo $A", "log 123");
   assert_eq!(ret, "log 123");
-  Ok(())
 }

@@ -1,6 +1,4 @@
 #![cfg(test)]
-use ast_grep_core::source::TSParseError;
-
 use super::*;
 
 fn test_match(query: &str, source: &str) {
@@ -33,7 +31,7 @@ fn test_swift_pattern() {
   test_non_match("foo($$$) { $E in $F }", "foo(1, 2, 3)");
 }
 
-fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
+fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
   use crate::test::test_replace_lang;
   test_replace_lang(src, pattern, replacer, Swift)
 }
@@ -50,13 +48,12 @@ foo(b: B, a: A, c: C) { s in
 }"#;
 
 #[test]
-fn test_swift_replace() -> Result<(), TSParseError> {
+fn test_swift_replace() {
   let ret = test_replace(
     SOURCE,
     "foo(a: $A, b: $B, c: $C) { $E in $$$F }",
     "foo(b: $B, a: $A, c: $C) { $E in
   $$$F}",
-  )?;
+  );
   assert_eq!(ret, EXPECTED);
-  Ok(())
 }
