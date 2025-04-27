@@ -79,9 +79,11 @@ fn find_lang<D: Doc>(node: &Node<D>) -> Option<String> {
 fn node_to_range<D: Doc>(node: &Node<D>) -> TSRange {
   let r = node.range();
   let start = node.start_pos();
-  let sp = start.ts_point();
+  let sp = start.byte_point();
+  let sp = tree_sitter::Point::new(sp.0, sp.1);
   let end = node.end_pos();
-  let ep = end.ts_point();
+  let ep = end.byte_point();
+  let ep = tree_sitter::Point::new(ep.0, ep.1);
   TSRange::new(r.start as u32, r.end as u32, &sp, &ep)
 }
 

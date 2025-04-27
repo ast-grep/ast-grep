@@ -39,9 +39,8 @@ impl Position {
     let source = node.get_doc().get_source();
     source.get_char_column(self.byte_column, self.byte_offset)
   }
-  /// Convert to tree-sitter's Point
-  pub fn ts_point(&self) -> tree_sitter::Point {
-    tree_sitter::Point::new(self.line as u32, self.byte_column as u32)
+  pub fn byte_point(&self) -> (u32, u32) {
+    (self.line as u32, self.byte_column as u32)
   }
 }
 

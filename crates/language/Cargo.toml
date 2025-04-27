@@ -15,6 +15,7 @@ ast-grep-core.workspace = true
 
 ignore.workspace = true
 serde.workspace = true
+tree-sitter.workspace = true
 
 tree-sitter-bash = { version = "0.23.0", optional = true }
 tree-sitter-c = { version = "0.23.0", optional = true }
