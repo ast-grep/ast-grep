@@ -11,7 +11,8 @@
 //! It has a `Source` associated type bounded by `Content` that represents the source code of the document,
 //! and a `Lang` associated type that represents the language of the document.
 
-use crate::language::Language;
+use crate::traversal::TsPre;
+use crate::{language::Language, node::KindId, Position};
 use std::borrow::Cow;
 use std::ops::Range;
 use thiserror::Error;
@@ -77,9 +78,146 @@ pub enum TSParseError {
   TreeUnavailable,
 }
 
+pub trait SgNode<'r>: Clone {
+  fn parent(&self) -> Option<Self>;
+  fn ancestors(&self, root: Self) -> impl Iterator<Item = Self>;
+  fn dfs(&self) -> impl Iterator<Item = Self>;
+  fn children(&self) -> impl Iterator<Item = Self>;
+  fn child_by_field_id(&self, field_id: u16) -> Option<Self>;
+  fn next(&self) -> Option<Self>;
+  fn prev(&self) -> Option<Self>;
+  fn next_all(&self) -> impl Iterator<Item = Self>;
+  fn prev_all(&self) -> impl Iterator<Item = Self>;
+  fn is_named(&self) -> bool;
+  /// N.B. it is different from is_named && is_leaf
+  /// if a node has no named children.
+  fn is_named_leaf(&self) -> bool;
+  fn is_leaf(&self) -> bool;
+  fn kind(&self) -> Cow<str>;
+  fn kind_id(&self) -> KindId;
+  fn node_id(&self) -> usize;
+  fn range(&self) -> std::ops::Range<usize>;
+  fn start_pos(&self) -> Position;
+  fn end_pos(&self) -> Position;
+  // missing node is a tree-sitter specific concept
+  fn is_missing_node(&self) -> bool;
+}
+
+impl<'r> SgNode<'r> for Node<'r> {
+  fn parent(&self) -> Option<Self> {
+    self.parent()
+  }
+  fn ancestors(&self, root: Self) -> impl Iterator<Item = Self> {
+    let mut ancestor = Some(root);
+    let self_id = self.id();
+    std::iter::from_fn(move || {
+      let inner = ancestor.take()?;
+      if inner.id() == self_id {
+        return None;
+      }
+      ancestor = inner.child_with_descendant(self.clone());
+      Some(inner)
+    })
+    // We must iterate up the tree to preserve backwards compatibility
+    .collect::<Vec<_>>()
+    .into_iter()
+    .rev()
+  }
+  fn dfs(&self) -> impl Iterator<Item = Self> {
+    TsPre::new(self)
+  }
+  fn children(&self) -> impl Iterator<Item = Self> {
+    let mut cursor = self.walk();
+    let mut count = self.child_count();
+    cursor.goto_first_child();
+    std::iter::from_fn(move || {
+      if count == 0 {
+        return None;
+      }
+      let ret = Some(cursor.node());
+      cursor.goto_next_sibling();
+      count -= 1;
+      ret
+    })
+  }
+  fn child_by_field_id(&self, field_id: u16) -> Option<Self> {
+    self.child_by_field_id(field_id)
+  }
+  fn next(&self) -> Option<Self> {
+    self.next_sibling()
+  }
+  fn prev(&self) -> Option<Self> {
+    self.prev_sibling()
+  }
+  fn next_all(&self) -> impl Iterator<Item = Self> {
+    // if root is none, use self as fallback to return a type-stable Iterator
+    let node = self.parent().unwrap_or_else(|| self.clone());
+    let mut cursor = node.walk();
+    cursor.goto_first_child_for_byte(self.start_byte());
+    std::iter::from_fn(move || {
+      if cursor.goto_next_sibling() {
+        Some(cursor.node())
+      } else {
+        None
+      }
+    })
+  }
+  fn prev_all(&self) -> impl Iterator<Item = Self> {
+    // if root is none, use self as fallback to return a type-stable Iterator
+    let node = self.parent().unwrap_or_else(|| self.clone());
+    let mut cursor = node.walk();
+    cursor.goto_first_child_for_byte(self.start_byte());
+    std::iter::from_fn(move || {
+      if cursor.goto_previous_sibling() {
+        Some(cursor.node())
+      } else {
+        None
+      }
+    })
+  }
+  fn is_named(&self) -> bool {
+    self.is_named()
+  }
+  /// N.B. it is different from is_named && is_leaf
+  /// if a node has no named children.
+  fn is_named_leaf(&self) -> bool {
+    self.named_child_count() == 0
+  }
+  fn is_leaf(&self) -> bool {
+    self.child_count() == 0
+  }
+  fn kind(&self) -> Cow<str> {
+    self.kind()
+  }
+  fn kind_id(&self) -> KindId {
+    self.kind_id()
+  }
+  fn node_id(&self) -> usize {
+    self.id()
+  }
+  fn range(&self) -> std::ops::Range<usize> {
+    (self.start_byte() as usize)..(self.end_byte() as usize)
+  }
+  fn start_pos(&self) -> Position {
+    let pos = self.start_position();
+    let byte = self.start_byte() as usize;
+    Position::new(pos.row() as usize, pos.column() as usize, byte)
+  }
+  fn end_pos(&self) -> Position {
+    let pos = self.end_position();
+    let byte = self.end_byte() as usize;
+    Position::new(pos.row() as usize, pos.column() as usize, byte)
+  }
+  // missing node is a tree-sitter specific concept
+  fn is_missing_node(&self) -> bool {
+    self.is_missing()
+  }
+}
+
 pub trait Doc: Clone + 'static {
   type Source: Content;
   type Lang: Language;
+  type Node<'r>: SgNode<'r>;
   fn get_lang(&self) -> &Self::Lang;
   fn get_source(&self) -> &Self::Source;
   fn do_edit(&mut self, edit: &Edit<Self::Source>);
@@ -106,9 +244,6 @@ impl<L: Language> StrDoc<L> {
   pub fn from_str(src: &str, lang: L) -> Self {
     Self::new(src, lang)
   }
-  pub fn clone_with_lang(&self, lang: L) -> Self {
-    Self::new(&self.src, lang)
-  }
   fn parse(&self, old_tree: Option<&Tree>) -> Result<Tree, TSParseError> {
     let source = self.get_source();
     let lang = self.get_lang().get_ts_language();
@@ -119,6 +254,7 @@ impl<L: Language> StrDoc<L> {
 impl<L: Language> Doc for StrDoc<L> {
   type Source = String;
   type Lang = L;
+  type Node<'r> = Node<'r>;
   fn get_lang(&self) -> &Self::Lang {
     &self.lang
   }

@@ -23,7 +23,7 @@ mod node;
 pub use language::Language;
 pub use match_tree::MatchStrictness;
 pub use matcher::{Matcher, NodeMatch, Pattern, PatternError};
-pub use node::{Node, Position, SgNode};
+pub use node::{Node, Position};
 pub use source::{Doc, StrDoc};
 
 #[doc(hidden)]

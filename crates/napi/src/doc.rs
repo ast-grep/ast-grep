@@ -160,6 +160,7 @@ impl JsDoc {
 impl Doc for JsDoc {
   type Lang = NapiLang;
   type Source = Wrapper;
+  type Node<'r> = Node<'r>;
   fn get_lang(&self) -> &Self::Lang {
     &self.lang
   }
