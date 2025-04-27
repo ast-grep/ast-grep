@@ -2,7 +2,7 @@ use crate::{RuleConfig, SerializableRule, SerializableRuleConfig, SerializableRu
 
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{Matcher, MatcherExt};
-use ast_grep_core::{AstGrep, Doc, NodeMatch, SgNode};
+use ast_grep_core::{AstGrep, Doc, Node, NodeMatch};
 
 use std::collections::{HashMap, HashSet};
 
@@ -52,7 +52,7 @@ impl<'t, D: Doc> ScanResultInner<'t, D> {
 
 struct Suppressions(HashMap<usize, Suppression>);
 impl Suppressions {
-  fn collect<'t, N: SgNode<'t>>(&mut self, node: &N) {
+  fn collect<D: Doc>(&mut self, node: &Node<'_, D>) {
     if !node.kind().contains("comment") || !node.text().contains(IGNORE_TEXT) {
       return;
     }
@@ -76,7 +76,7 @@ impl Suppressions {
     self.0.values().map(|s| s.node_id).collect()
   }
 
-  fn check_suppression<'t, N: SgNode<'t>>(&mut self, node: &N) -> MaySuppressed {
+  fn check_suppression<D: Doc>(&mut self, node: &Node<'_, D>) -> MaySuppressed {
     let line = node.start_pos().line();
     if let Some(sup) = self.0.get_mut(&line) {
       MaySuppressed::Yes(sup)

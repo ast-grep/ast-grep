@@ -3,7 +3,7 @@ use super::{split_first_meta_var, MetaVarExtract, Replacer};
 use crate::language::CoreLanguage;
 use crate::meta_var::{MetaVarEnv, Underlying};
 use crate::source::{Content, Doc};
-use crate::{NodeMatch, SgNode};
+use crate::NodeMatch;
 
 use thiserror::Error;
 

@@ -2,7 +2,6 @@ use crate::language::{CoreLanguage, Language};
 use crate::match_tree::{match_end_non_recursive, match_node_non_recursive, MatchStrictness};
 use crate::matcher::{kind_utils, KindMatcher, KindMatcherError, Matcher};
 use crate::meta_var::{MetaVarEnv, MetaVariable};
-use crate::node::SgNode;
 use crate::source::TSParseError;
 use crate::{Doc, Node, Root, StrDoc};
 
@@ -65,14 +64,14 @@ impl PatternNode {
     }
   }
 }
-impl<'r, N: SgNode<'r>> From<N> for PatternNode {
-  fn from(node: N) -> Self {
+impl<'r, D: Doc> From<Node<'r, D>> for PatternNode {
+  fn from(node: Node<'r, D>) -> Self {
     convert_node_to_pattern(node)
   }
 }
 
-impl<'r, N: SgNode<'r>> From<N> for Pattern {
-  fn from(node: N) -> Self {
+impl<'r, D: Doc> From<Node<'r, D>> for Pattern {
+  fn from(node: Node<'r, D>) -> Self {
     Self {
       node: convert_node_to_pattern(node),
       root_kind: None,
@@ -81,7 +80,7 @@ impl<'r, N: SgNode<'r>> From<N> for Pattern {
   }
 }
 
-fn convert_node_to_pattern<'r, N: SgNode<'r>>(node: N) -> PatternNode {
+fn convert_node_to_pattern<D: Doc>(node: Node<'_, D>) -> PatternNode {
   if let Some(meta_var) = extract_var_from_node(&node) {
     PatternNode::MetaVar { meta_var }
   } else if node.is_leaf() {
@@ -105,7 +104,7 @@ fn convert_node_to_pattern<'r, N: SgNode<'r>>(node: N) -> PatternNode {
   }
 }
 
-fn extract_var_from_node<'r, N: SgNode<'r>>(goal: &N) -> Option<MetaVariable> {
+fn extract_var_from_node<D: Doc>(goal: &Node<'_, D>) -> Option<MetaVariable> {
   let key = goal.text();
   goal.lang().extract_meta_var(&key)
 }
