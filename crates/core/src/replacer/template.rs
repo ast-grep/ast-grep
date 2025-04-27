@@ -1,9 +1,9 @@
 use super::indent::{extract_with_deindent, get_indent_at_offset, indent_lines, DeindentedExtract};
 use super::{split_first_meta_var, MetaVarExtract, Replacer};
 use crate::language::CoreLanguage;
-use crate::meta_var::{SgMetaVarEnv, Underlying};
+use crate::meta_var::{MetaVarEnv, Underlying};
 use crate::source::{Content, Doc};
-use crate::{SgNode, SgNodeMatch};
+use crate::{NodeMatch, SgNode};
 
 use thiserror::Error;
 
@@ -38,10 +38,7 @@ impl TemplateFix {
 }
 
 impl<D: Doc> Replacer<D> for TemplateFix {
-  fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
-    &self,
-    nm: &SgNodeMatch<'t, N>,
-  ) -> Underlying<D> {
+  fn generate_replacement(&self, nm: &NodeMatch<'_, D>) -> Underlying<D> {
     let leading = nm.get_doc().get_source().get_range(0..nm.range().start);
     let indent = get_indent_at_offset::<D::Source>(leading);
     let bytes = replace_fixer(self, nm.get_env());
@@ -88,38 +85,34 @@ fn create_template(tmpl: &str, mv_char: char, transforms: &[String]) -> Template
   }
 }
 
-fn replace_fixer<'t, N: SgNode<'t>>(
-  fixer: &TemplateFix,
-  env: &SgMetaVarEnv<'t, N>,
-) -> Underlying<N::Doc> {
+fn replace_fixer<D: Doc>(fixer: &TemplateFix, env: &MetaVarEnv<'_, D>) -> Underlying<D> {
   let template = match fixer {
-    TemplateFix::Textual(n) => return <N::Doc as Doc>::Source::decode_str(n).to_vec(),
+    TemplateFix::Textual(n) => return D::Source::decode_str(n).to_vec(),
     TemplateFix::WithMetaVar(t) => t,
   };
   let mut ret = vec![];
   let mut frags = template.fragments.iter();
   let vars = template.vars.iter();
   if let Some(frag) = frags.next() {
-    ret.extend_from_slice(&<N::Doc as Doc>::Source::decode_str(frag));
+    ret.extend_from_slice(&D::Source::decode_str(frag));
   }
   for ((var, indent), frag) in vars.zip(frags) {
     if let Some(bytes) = maybe_get_var(env, var, indent) {
       ret.extend_from_slice(&bytes);
     }
-    ret.extend_from_slice(&<N::Doc as Doc>::Source::decode_str(frag));
+    ret.extend_from_slice(&D::Source::decode_str(frag));
   }
   ret
 }
 
-fn maybe_get_var<'e, 't, C, D, N>(
-  env: &'e SgMetaVarEnv<'t, N>,
+fn maybe_get_var<'e, 't, C, D>(
+  env: &'e MetaVarEnv<'t, D>,
   var: &MetaVarExtract,
   indent: &usize,
 ) -> Option<Cow<'e, [C::Underlying]>>
 where
   C: Content + 'e,
   D: Doc<Source = C>,
-  N: SgNode<'t, Doc = D>,
 {
   let (source, range) = match var {
     MetaVarExtract::Transformed(name) => {
@@ -155,10 +148,7 @@ where
 }
 
 // replace meta_var in template string, e.g. "Hello $NAME" -> "Hello World"
-pub fn gen_replacement<'t, N: SgNode<'t>>(
-  template: &str,
-  nm: &SgNodeMatch<'t, N>,
-) -> Underlying<N::Doc> {
+pub fn gen_replacement<D: Doc>(template: &str, nm: &NodeMatch<'_, D>) -> Underlying<D> {
   let fixer = create_template(template, nm.lang().meta_var_char(), &[]);
   fixer.generate_replacement(nm)
 }

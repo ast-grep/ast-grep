@@ -11,14 +11,14 @@ mod pattern;
 #[cfg(feature = "regex")]
 mod text;
 
-use crate::meta_var::SgMetaVarEnv;
-use crate::node::SgNode;
+use crate::Doc;
+use crate::{meta_var::MetaVarEnv, Node};
 
 use bit_set::BitSet;
 use std::borrow::Cow;
 
 pub use kind::{kind_utils, KindMatcher, KindMatcherError};
-pub use node_match::{NodeMatch, SgNodeMatch};
+pub use node_match::NodeMatch;
 pub use pattern::{Pattern, PatternError, PatternNode};
 #[cfg(feature = "regex")]
 pub use text::{RegexMatcher, RegexMatcherError};
@@ -30,11 +30,11 @@ pub trait Matcher {
   /// Returns the node why the input is matched or None if not matched.
   /// The return value is usually input node itself, but it can be different node.
   /// For example `Has` matcher can return the child or descendant node.
-  fn match_node_with_env<'tree, N: SgNode<'tree>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
-    _node: N,
-    _env: &mut Cow<SgMetaVarEnv<'tree, N>>,
-  ) -> Option<N>;
+    _node: Node<'tree, D>,
+    _env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>>;
 
   /// Returns a bitset for all possible target node kind ids.
   /// Returns None if the matcher needs to try against all node kind.
@@ -44,7 +44,7 @@ pub trait Matcher {
 
   /// get_match_len will skip trailing anonymous child node to exclude punctuation.
   // This is not included in NodeMatch since it is only used in replace
-  fn get_match_len<'tree, N: SgNode<'tree>>(&self, _node: N) -> Option<usize> {
+  fn get_match_len<D: Doc>(&self, _node: Node<'_, D>) -> Option<usize> {
     None
   }
 }
@@ -53,14 +53,14 @@ pub trait Matcher {
 /// It is implemented for all types that implement `Matcher`.
 /// N.B. This trait is not intended to be implemented by users.
 pub trait MatcherExt: Matcher {
-  fn match_node<'tree, N: SgNode<'tree>>(&self, node: N) -> Option<SgNodeMatch<'tree, N>> {
+  fn match_node<'tree, D: Doc>(&self, node: Node<'tree, D>) -> Option<NodeMatch<'tree, D>> {
     // in future we might need to customize initial MetaVarEnv
-    let mut env = Cow::Owned(SgMetaVarEnv::new());
+    let mut env = Cow::Owned(MetaVarEnv::new());
     let node = self.match_node_with_env(node, &mut env)?;
-    Some(SgNodeMatch::new(node, env.into_owned()))
+    Some(NodeMatch::new(node, env.into_owned()))
   }
 
-  fn find_node<'tree, N: SgNode<'tree>>(&self, node: N) -> Option<SgNodeMatch<'tree, N>> {
+  fn find_node<'tree, D: Doc>(&self, node: Node<'tree, D>) -> Option<NodeMatch<'tree, D>> {
     for n in node.dfs() {
       if let Some(ret) = self.match_node(n.clone()) {
         return Some(ret);
@@ -73,16 +73,16 @@ pub trait MatcherExt: Matcher {
 impl<T> MatcherExt for T where T: Matcher {}
 
 impl Matcher for str {
-  fn match_node_with_env<'tree, N: SgNode<'tree>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
-    node: N,
-    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
-  ) -> Option<N> {
+    node: Node<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
     let pattern = Pattern::new(self, node.lang().clone());
     pattern.match_node_with_env(node, env)
   }
 
-  fn get_match_len<'tree, N: SgNode<'tree>>(&self, node: N) -> Option<usize> {
+  fn get_match_len<D: Doc>(&self, node: Node<'_, D>) -> Option<usize> {
     let pattern = Pattern::new(self, node.lang().clone());
     pattern.get_match_len(node)
   }
@@ -92,11 +92,11 @@ impl<T> Matcher for &T
 where
   T: Matcher + ?Sized,
 {
-  fn match_node_with_env<'tree, N: SgNode<'tree>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
-    node: N,
-    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
-  ) -> Option<N> {
+    node: Node<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
     (**self).match_node_with_env(node, env)
   }
 
@@ -104,18 +104,18 @@ where
     (**self).potential_kinds()
   }
 
-  fn get_match_len<'tree, N: SgNode<'tree>>(&self, node: N) -> Option<usize> {
+  fn get_match_len<D: Doc>(&self, node: Node<'_, D>) -> Option<usize> {
     (**self).get_match_len(node)
   }
 }
 
 pub struct MatchAll;
 impl Matcher for MatchAll {
-  fn match_node_with_env<'tree, N: SgNode<'tree>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
-    node: N,
-    _env: &mut Cow<SgMetaVarEnv<'tree, N>>,
-  ) -> Option<N> {
+    node: Node<'tree, D>,
+    _env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
     Some(node)
   }
 
@@ -127,11 +127,11 @@ impl Matcher for MatchAll {
 
 pub struct MatchNone;
 impl Matcher for MatchNone {
-  fn match_node_with_env<'tree, N: SgNode<'tree>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
-    _node: N,
-    _env: &mut Cow<SgMetaVarEnv<'tree, N>>,
-  ) -> Option<N> {
+    _node: Node<'tree, D>,
+    _env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
     None
   }
 

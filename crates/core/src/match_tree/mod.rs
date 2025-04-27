@@ -5,42 +5,46 @@ use match_node::match_node_impl;
 use strictness::MatchOneNode;
 pub use strictness::MatchStrictness;
 
-use crate::meta_var::{MetaVariable, SgMetaVarEnv};
-use crate::node::SgNode;
-use crate::Pattern;
+use crate::meta_var::{MetaVarEnv, MetaVariable};
+use crate::{Doc, Node, Pattern};
 
 use std::borrow::Cow;
 
-trait Aggregator<'t, N: SgNode<'t>> {
-  fn match_terminal(&mut self, node: &N) -> Option<()>;
-  fn match_meta_var(&mut self, var: &MetaVariable, node: &N) -> Option<()>;
+trait Aggregator<'t, D: Doc> {
+  fn match_terminal(&mut self, node: &Node<'t, D>) -> Option<()>;
+  fn match_meta_var(&mut self, var: &MetaVariable, node: &Node<'t, D>) -> Option<()>;
   fn match_ellipsis(
     &mut self,
     var: Option<&str>,
-    nodes: Vec<N>,
+    nodes: Vec<Node<'t, D>>,
     skipped_anonymous: usize,
   ) -> Option<()>;
 }
 
 struct ComputeEnd(usize);
 
-impl<'t, N: SgNode<'t>> Aggregator<'t, N> for ComputeEnd {
-  fn match_terminal(&mut self, node: &N) -> Option<()> {
+impl<'t, D: Doc> Aggregator<'t, D> for ComputeEnd {
+  fn match_terminal(&mut self, node: &Node<'t, D>) -> Option<()> {
     self.0 = node.range().end;
     Some(())
   }
-  fn match_meta_var(&mut self, _: &MetaVariable, node: &N) -> Option<()> {
+  fn match_meta_var(&mut self, _: &MetaVariable, node: &Node<'t, D>) -> Option<()> {
     self.0 = node.range().end;
     Some(())
   }
-  fn match_ellipsis(&mut self, _var: Option<&str>, nodes: Vec<N>, _skipped: usize) -> Option<()> {
+  fn match_ellipsis(
+    &mut self,
+    _var: Option<&str>,
+    nodes: Vec<Node<'t, D>>,
+    _skipped: usize,
+  ) -> Option<()> {
     let n = nodes.last()?;
     self.0 = n.range().end;
     Some(())
   }
 }
 
-pub fn match_end_non_recursive<'t, N: SgNode<'t>>(goal: &Pattern, candidate: N) -> Option<usize> {
+pub fn match_end_non_recursive(goal: &Pattern, candidate: Node<impl Doc>) -> Option<usize> {
   let mut end = ComputeEnd(0);
   match match_node_impl(&goal.node, &candidate, &mut end, &goal.strictness) {
     MatchOneNode::MatchedBoth => Some(end.0),
@@ -48,10 +52,10 @@ pub fn match_end_non_recursive<'t, N: SgNode<'t>>(goal: &Pattern, candidate: N) 
   }
 }
 
-fn match_leaf_meta_var<'tree, N: SgNode<'tree>>(
+fn match_leaf_meta_var<'tree, D: Doc>(
   mv: &MetaVariable,
-  candidate: &N,
-  env: &mut Cow<SgMetaVarEnv<'tree, N>>,
+  candidate: &Node<'tree, D>,
+  env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<()> {
   use MetaVariable as MV;
   match mv {
@@ -82,17 +86,17 @@ fn match_leaf_meta_var<'tree, N: SgNode<'tree>>(
   }
 }
 
-impl<'t, N: SgNode<'t>> Aggregator<'t, N> for Cow<'_, SgMetaVarEnv<'t, N>> {
-  fn match_terminal(&mut self, _: &N) -> Option<()> {
+impl<'t, D: Doc> Aggregator<'t, D> for Cow<'_, MetaVarEnv<'t, D>> {
+  fn match_terminal(&mut self, _: &Node<'t, D>) -> Option<()> {
     Some(())
   }
-  fn match_meta_var(&mut self, var: &MetaVariable, node: &N) -> Option<()> {
+  fn match_meta_var(&mut self, var: &MetaVariable, node: &Node<'t, D>) -> Option<()> {
     match_leaf_meta_var(var, node, self)
   }
   fn match_ellipsis(
     &mut self,
     var: Option<&str>,
-    nodes: Vec<N>,
+    nodes: Vec<Node<'t, D>>,
     skipped_anonymous: usize,
   ) -> Option<()> {
     if let Some(var) = var {
@@ -105,18 +109,18 @@ impl<'t, N: SgNode<'t>> Aggregator<'t, N> for Cow<'_, SgMetaVarEnv<'t, N>> {
   }
 }
 
-pub fn match_node_non_recursive<'tree, N: SgNode<'tree>>(
+pub fn match_node_non_recursive<'tree, D: Doc>(
   goal: &Pattern,
-  candidate: N,
-  env: &mut Cow<SgMetaVarEnv<'tree, N>>,
-) -> Option<N> {
+  candidate: Node<'tree, D>,
+  env: &mut Cow<MetaVarEnv<'tree, D>>,
+) -> Option<Node<'tree, D>> {
   match match_node_impl(&goal.node, &candidate, env, &goal.strictness) {
     MatchOneNode::MatchedBoth => Some(candidate),
     _ => None,
   }
 }
 
-pub fn does_node_match_exactly<'r, N: SgNode<'r>>(goal: &N, candidate: &N) -> bool {
+pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: &Node<D>) -> bool {
   // return true if goal and candidate are the same node
   if goal.node_id() == candidate.node_id() {
     return true;

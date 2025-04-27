@@ -1,6 +1,5 @@
 use super::Matcher;
-use crate::meta_var::{SgMetaVarEnv, Underlying};
-use crate::node::SgNode;
+use crate::meta_var::MetaVarEnv;
 use crate::replacer::Replacer;
 use crate::source::Edit as E;
 use crate::{Doc, Node};
@@ -14,42 +13,38 @@ type Edit<D> = E<<D as Doc>::Source>;
 /// It derefs to the Node so you can use it as a Node.
 /// To access the underlying MetaVarEnv, call `get_env` method.
 #[derive(Clone)]
-pub struct SgNodeMatch<'t, N: SgNode<'t>, C = Underlying<<N as SgNode<'t>>::Doc>>(
-  N,
-  SgMetaVarEnv<'t, N, C>,
-);
-pub type NodeMatch<'t, D> = SgNodeMatch<'t, Node<'t, D>, Underlying<D>>;
+pub struct NodeMatch<'t, D: Doc>(Node<'t, D>, MetaVarEnv<'t, D>);
 
-impl<'tree, N: SgNode<'tree>, C> SgNodeMatch<'tree, N, C> {
-  pub fn new(node: N, env: SgMetaVarEnv<'tree, N, C>) -> Self {
+impl<'tree, D: Doc> NodeMatch<'tree, D> {
+  pub fn new(node: Node<'tree, D>, env: MetaVarEnv<'tree, D>) -> Self {
     Self(node, env)
   }
 
-  pub fn get_node(&self) -> &N {
+  pub fn get_node(&self) -> &Node<'tree, D> {
     &self.0
   }
 
   /// Returns the populated MetaVarEnv for this match.
-  pub fn get_env(&self) -> &SgMetaVarEnv<'tree, N, C> {
+  pub fn get_env(&self) -> &MetaVarEnv<'tree, D> {
     &self.1
   }
-  pub fn get_env_mut(&mut self) -> &mut SgMetaVarEnv<'tree, N, C> {
+  pub fn get_env_mut(&mut self) -> &mut MetaVarEnv<'tree, D> {
     &mut self.1
   }
   /// # Safety
   /// should only called for readopting nodes
-  pub(crate) unsafe fn get_node_mut(&mut self) -> &mut N {
+  pub(crate) unsafe fn get_node_mut(&mut self) -> &mut Node<'tree, D> {
     &mut self.0
   }
 }
 
-impl<'r, N: SgNode<'r>> SgNodeMatch<'r, N> {
-  pub fn replace_by<R: Replacer<N::Doc>>(&self, replacer: R) -> Edit<N::Doc> {
+impl<D: Doc> NodeMatch<'_, D> {
+  pub fn replace_by<R: Replacer<D>>(&self, replacer: R) -> Edit<D> {
     let range = self.range();
     let position = range.start;
     let deleted_length = range.len();
     let inserted_text = replacer.generate_replacement(self);
-    Edit::<N::Doc> {
+    Edit::<D> {
       position,
       deleted_length,
       inserted_text,
@@ -57,14 +52,14 @@ impl<'r, N: SgNode<'r>> SgNodeMatch<'r, N> {
   }
 
   #[doc(hidden)]
-  pub fn make_edit<M, R>(&self, matcher: &M, replacer: &R) -> Edit<N::Doc>
+  pub fn make_edit<M, R>(&self, matcher: &M, replacer: &R) -> Edit<D>
   where
     M: Matcher,
-    R: Replacer<N::Doc>,
+    R: Replacer<D>,
   {
     let range = replacer.get_replaced_range(self, matcher);
     let inserted_text = replacer.generate_replacement(self);
-    Edit::<N::Doc> {
+    Edit::<D> {
       position: range.start,
       deleted_length: range.len(),
       inserted_text,
@@ -72,9 +67,9 @@ impl<'r, N: SgNode<'r>> SgNodeMatch<'r, N> {
   }
 }
 
-impl<'tree, N: SgNode<'tree>, C> From<N> for SgNodeMatch<'tree, N, C> {
-  fn from(node: N) -> Self {
-    Self(node, SgMetaVarEnv::new())
+impl<'tree, D: Doc> From<Node<'tree, D>> for NodeMatch<'tree, D> {
+  fn from(node: Node<'tree, D>) -> Self {
+    Self(node, MetaVarEnv::new())
   }
 }
 
@@ -86,8 +81,8 @@ impl<'tree, D: Doc> From<NodeMatch<'tree, D>> for Node<'tree, D> {
 }
 
 /// NodeMatch is an immutable view to Node
-impl<'tree, N: SgNode<'tree>, C> Deref for SgNodeMatch<'tree, N, C> {
-  type Target = N;
+impl<'tree, D: Doc> Deref for NodeMatch<'tree, D> {
+  type Target = Node<'tree, D>;
   fn deref(&self) -> &Self::Target {
     &self.0
   }

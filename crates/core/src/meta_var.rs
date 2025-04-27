@@ -10,31 +10,28 @@ use crate::replacer::formatted_slice;
 
 pub type MetaVariableID = String;
 
-pub type MetaVarEnv<'t, D> = SgMetaVarEnv<'t, Node<'t, D>, Underlying<D>>;
 pub type Underlying<D> = Vec<<<D as Doc>::Source as Content>::Underlying>;
 
 // why we need one more content? https://github.com/ast-grep/ast-grep/issues/1951
 /// a dictionary that stores metavariable instantiation
 /// const a = 123 matched with const a = $A will produce env: $A => 123
 #[derive(Clone)]
-pub struct SgMetaVarEnv<'tree, N: SgNode<'tree>, C = Underlying<<N as SgNode<'tree>>::Doc>> {
-  single_matched: HashMap<MetaVariableID, N>,
-  multi_matched: HashMap<MetaVariableID, Vec<N>>,
-  transformed_var: HashMap<MetaVariableID, C>,
-  _marker: std::marker::PhantomData<&'tree ()>,
+pub struct MetaVarEnv<'tree, D: Doc> {
+  single_matched: HashMap<MetaVariableID, Node<'tree, D>>,
+  multi_matched: HashMap<MetaVariableID, Vec<Node<'tree, D>>>,
+  transformed_var: HashMap<MetaVariableID, Underlying<D>>,
 }
 
-impl<'t, N: SgNode<'t>, C> SgMetaVarEnv<'t, N, C> {
+impl<'t, D: Doc> MetaVarEnv<'t, D> {
   pub fn new() -> Self {
     Self {
       single_matched: HashMap::new(),
       multi_matched: HashMap::new(),
       transformed_var: HashMap::new(),
-      _marker: std::marker::PhantomData,
     }
   }
 
-  pub fn insert(&mut self, id: &str, ret: N) -> Option<&mut Self> {
+  pub fn insert(&mut self, id: &str, ret: Node<'t, D>) -> Option<&mut Self> {
     if self.match_variable(id, &ret) {
       self.single_matched.insert(id.to_string(), ret);
       Some(self)
@@ -43,7 +40,7 @@ impl<'t, N: SgNode<'t>, C> SgMetaVarEnv<'t, N, C> {
     }
   }
 
-  pub fn insert_multi(&mut self, id: &str, ret: Vec<N>) -> Option<&mut Self> {
+  pub fn insert_multi(&mut self, id: &str, ret: Vec<Node<'t, D>>) -> Option<&mut Self> {
     if self.match_multi_var(id, &ret) {
       self.multi_matched.insert(id.to_string(), ret);
       Some(self)
@@ -52,15 +49,15 @@ impl<'t, N: SgNode<'t>, C> SgMetaVarEnv<'t, N, C> {
     }
   }
 
-  pub fn get_match(&self, var: &str) -> Option<&'_ N> {
+  pub fn get_match(&self, var: &str) -> Option<&'_ Node<'t, D>> {
     self.single_matched.get(var)
   }
 
-  pub fn get_multiple_matches(&self, var: &str) -> Vec<N> {
+  pub fn get_multiple_matches(&self, var: &str) -> Vec<Node<'t, D>> {
     self.multi_matched.get(var).cloned().unwrap_or_default()
   }
 
-  pub fn add_label(&mut self, label: &str, node: N) {
+  pub fn add_label(&mut self, label: &str, node: Node<'t, D>) {
     self
       .multi_matched
       .entry(label.into())
@@ -68,7 +65,7 @@ impl<'t, N: SgNode<'t>, C> SgMetaVarEnv<'t, N, C> {
       .push(node);
   }
 
-  pub fn get_labels(&self, label: &str) -> Option<&Vec<N>> {
+  pub fn get_labels(&self, label: &str) -> Option<&Vec<Node<'t, D>>> {
     self.multi_matched.get(label)
   }
 
@@ -91,13 +88,13 @@ impl<'t, N: SgNode<'t>, C> SgMetaVarEnv<'t, N, C> {
     single.chain(multi).chain(transformed)
   }
 
-  fn match_variable(&self, id: &str, candidate: &N) -> bool {
+  fn match_variable(&self, id: &str, candidate: &Node<'t, D>) -> bool {
     if let Some(m) = self.single_matched.get(id) {
       return does_node_match_exactly(m, candidate);
     }
     true
   }
-  fn match_multi_var(&self, id: &str, cands: &[N]) -> bool {
+  fn match_multi_var(&self, id: &str, cands: &[Node<'t, D>]) -> bool {
     let Some(nodes) = self.multi_matched.get(id) else {
       return true;
     };
@@ -121,8 +118,7 @@ impl<'t, N: SgNode<'t>, C> SgMetaVarEnv<'t, N, C> {
       }
     }
   }
-}
-impl<'t, N: SgNode<'t>> SgMetaVarEnv<'t, N> {
+
   pub fn match_constraints<M: Matcher>(
     &mut self,
     var_matchers: &HashMap<MetaVariableID, M>,
@@ -141,12 +137,7 @@ impl<'t, N: SgNode<'t>> SgMetaVarEnv<'t, N> {
     true
   }
 
-  pub fn insert_transformation(
-    &mut self,
-    var: &MetaVariable,
-    name: &str,
-    slice: Underlying<N::Doc>,
-  ) {
+  pub fn insert_transformation(&mut self, var: &MetaVariable, name: &str, slice: Underlying<D>) {
     let node = match var {
       MetaVariable::Capture(v, _) => self.single_matched.get(v),
       MetaVariable::MultiCapture(vs) => self.multi_matched.get(vs).and_then(|vs| vs.first()),
@@ -160,13 +151,13 @@ impl<'t, N: SgNode<'t>> SgMetaVarEnv<'t, N> {
     self.transformed_var.insert(name.to_string(), deindented);
   }
 
-  pub fn get_transformed(&self, var: &str) -> Option<&Underlying<N::Doc>> {
+  pub fn get_transformed(&self, var: &str) -> Option<&Underlying<D>> {
     self.transformed_var.get(var)
   }
   pub fn get_var_bytes<'s>(
     &'s self,
     var: &MetaVariable,
-  ) -> Option<&'s [<<N::Doc as Doc>::Source as Content>::Underlying]> {
+  ) -> Option<&'s [<D::Source as Content>::Underlying]> {
     get_var_bytes_impl(self, var)
   }
 }
@@ -189,12 +180,11 @@ impl<D: Doc> MetaVarEnv<'_, D> {
   }
 }
 
-fn get_var_bytes_impl<'e, 't, C, D, N>(
-  env: &'e SgMetaVarEnv<'t, N>,
+fn get_var_bytes_impl<'e, 't, C, D>(
+  env: &'e MetaVarEnv<'t, D>,
   var: &MetaVariable,
 ) -> Option<&'e [C::Underlying]>
 where
-  N: SgNode<'t, Doc = D>,
   D: Doc<Source = C> + 't,
   C: Content + 't,
 {

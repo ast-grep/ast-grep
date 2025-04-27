@@ -1,6 +1,6 @@
 use crate::matcher::Matcher;
 use crate::meta_var::{is_valid_meta_var_char, MetaVariableID, Underlying};
-use crate::{Doc, Node, SgNode, SgNodeMatch};
+use crate::{Doc, Node, NodeMatch};
 use std::ops::Range;
 
 pub(crate) use indent::formatted_slice;
@@ -17,15 +17,8 @@ pub use template::{TemplateFix, TemplateFixError};
 
 /// Replace meta variable in the replacer string
 pub trait Replacer<D: Doc> {
-  fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
-    &self,
-    nm: &SgNodeMatch<'t, N>,
-  ) -> Underlying<D>;
-  fn get_replaced_range<'t, N: SgNode<'t, Doc = D>>(
-    &self,
-    nm: &SgNodeMatch<'t, N>,
-    matcher: impl Matcher,
-  ) -> Range<usize> {
+  fn generate_replacement(&self, nm: &NodeMatch<'_, D>) -> Underlying<D>;
+  fn get_replaced_range(&self, nm: &NodeMatch<'_, D>, matcher: impl Matcher) -> Range<usize> {
     let range = nm.range();
     if let Some(len) = matcher.get_match_len(nm.get_node().clone()) {
       range.start..range.start + len
@@ -36,10 +29,7 @@ pub trait Replacer<D: Doc> {
 }
 
 impl<D: Doc> Replacer<D> for str {
-  fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
-    &self,
-    nm: &SgNodeMatch<'t, N>,
-  ) -> Underlying<D> {
+  fn generate_replacement(&self, nm: &NodeMatch<'_, D>) -> Underlying<D> {
     template::gen_replacement(self, nm)
   }
 }
@@ -55,19 +45,13 @@ where
   D: Doc,
   T: Replacer<D> + ?Sized,
 {
-  fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
-    &self,
-    nm: &SgNodeMatch<'t, N>,
-  ) -> Underlying<D> {
+  fn generate_replacement(&self, nm: &NodeMatch<D>) -> Underlying<D> {
     (**self).generate_replacement(nm)
   }
 }
 
 impl<D: Doc> Replacer<D> for Node<'_, D> {
-  fn generate_replacement<'t, N: SgNode<'t, Doc = D>>(
-    &self,
-    _nm: &SgNodeMatch<'t, N>,
-  ) -> Underlying<D> {
+  fn generate_replacement(&self, _nm: &NodeMatch<'_, D>) -> Underlying<D> {
     let range = self.range();
     self.root.doc.get_source().get_range(range).to_vec()
   }

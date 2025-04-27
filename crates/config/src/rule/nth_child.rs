@@ -1,8 +1,8 @@
 use super::{DeserializeEnv, Rule, RuleSerializeError, SerializableRule};
 
 use ast_grep_core::language::Language;
-use ast_grep_core::meta_var::SgMetaVarEnv;
-use ast_grep_core::{Matcher, SgNode};
+use ast_grep_core::meta_var::MetaVarEnv;
+use ast_grep_core::{Doc, Matcher, Node};
 
 use std::borrow::Cow;
 use std::collections::HashSet;
@@ -203,10 +203,10 @@ impl NthChild {
     }
   }
 
-  fn find_index<'t, N: SgNode<'t>>(
+  fn find_index<'t, D: Doc>(
     &self,
-    node: &N,
-    env: &mut Cow<SgMetaVarEnv<'t, N>>,
+    node: &Node<'t, D>,
+    env: &mut Cow<MetaVarEnv<'t, D>>,
   ) -> Option<usize> {
     let parent = node.parent()?;
     //  only consider named children
@@ -246,11 +246,11 @@ impl NthChild {
 }
 
 impl Matcher for NthChild {
-  fn match_node_with_env<'tree, N: SgNode<'tree>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
-    node: N,
-    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
-  ) -> Option<N> {
+    node: Node<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
     let index = self.find_index(&node, env)?;
     self.position.is_matched(index).then_some(node)
   }
