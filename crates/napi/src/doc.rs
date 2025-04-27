@@ -3,7 +3,7 @@ use crate::napi_lang::NapiLang;
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
 use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
 use ast_grep_core::Language;
-use napi::anyhow::Error;
+use napi::anyhow::{anyhow, Error};
 use napi::bindgen_prelude::Result as NapiResult;
 use napi_derive::napi;
 use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
@@ -124,7 +124,7 @@ pub struct JsDoc {
 }
 
 impl JsDoc {
-  pub fn new(src: String, lang: NapiLang) -> Self {
+  pub fn try_new(src: String, lang: NapiLang) -> napi::anyhow::Result<Self> {
     let source = Wrapper {
       inner: src.encode_utf16().collect(),
     };
@@ -132,10 +132,9 @@ impl JsDoc {
     let ts_lang = lang.get_ts_language();
     parser.set_language(&ts_lang).expect("TODO!");
     let tree = source
-      .parse_tree_sitter(&mut parser, None)
-      .expect("TODO!")
-      .expect("TODO!");
-    Self { source, lang, tree }
+      .parse_tree_sitter(&mut parser, None)?
+      .ok_or(anyhow!("Tree unavailable"))?;
+    Ok(Self { source, lang, tree })
   }
 
   fn parse(&self, old_tree: Option<&Tree>) -> std::result::Result<Tree, TSParseError> {
@@ -183,9 +182,12 @@ mod test {
   use super::*;
   use ast_grep_core::AstGrep;
   use ast_grep_language::SupportLang;
+  fn make_doc(src: &str) -> JsDoc {
+    JsDoc::try_new(src.to_string(), SupportLang::JavaScript.into()).expect("should work")
+  }
   #[test]
   fn test_js_doc() {
-    let doc = JsDoc::new("console.log(123)".into(), SupportLang::JavaScript.into());
+    let doc = make_doc("console.log(123)");
     let grep = AstGrep::doc(doc);
     assert_eq!(grep.root().text(), "console.log(123)");
     let node = grep.root().find("console");
@@ -194,10 +196,7 @@ mod test {
 
   #[test]
   fn test_js_doc_single_node_replace() {
-    let doc = JsDoc::new(
-      "console.log(1 + 2 + 3)".into(),
-      SupportLang::JavaScript.into(),
-    );
+    let doc = make_doc("console.log(1 + 2 + 3)");
     let mut grep = AstGrep::doc(doc);
     let edit = grep
       .root()
@@ -209,10 +208,7 @@ mod test {
 
   #[test]
   fn test_js_doc_multiple_node_replace() {
-    let doc = JsDoc::new(
-      "console.log(1 + 2 + 3)".into(),
-      SupportLang::JavaScript.into(),
-    );
+    let doc = make_doc("console.log(1 + 2 + 3)");
     let mut grep = AstGrep::doc(doc);
     let edit = grep
       .root()

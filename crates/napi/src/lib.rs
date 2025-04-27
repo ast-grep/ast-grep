@@ -67,7 +67,7 @@ impl_lang_mod!(css, Css);
 /// Parse a string to an ast-grep instance
 #[napi]
 pub fn parse(lang: String, src: String) -> Result<SgRoot> {
-  let doc = JsDoc::new(src, lang.parse()?);
+  let doc = JsDoc::try_new(src, lang.parse()?)?;
   Ok(SgRoot(AstGrep::doc(doc), "anonymous".into()))
 }
 
