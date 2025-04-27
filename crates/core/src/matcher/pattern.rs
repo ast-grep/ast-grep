@@ -193,7 +193,7 @@ fn collect_vars<'p>(p: &'p PatternNode, vars: &mut HashSet<&'p str>) {
 impl Pattern {
   pub fn try_new<L: Language>(src: &str, lang: L) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(src);
-    let root = Root::<StrDoc<L>>::try_new(&processed, lang)?;
+    let root = Root::try_new(&processed, lang)?;
     let goal = root.root();
     if goal.inner.child_count() == 0 {
       return Err(PatternError::NoContent(src.into()));

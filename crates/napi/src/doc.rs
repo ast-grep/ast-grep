@@ -128,9 +128,9 @@ impl JsDoc {
     let source = Wrapper {
       inner: src.encode_utf16().collect(),
     };
-    let mut parser = Parser::new().expect("TODO!");
+    let mut parser = Parser::new()?;
     let ts_lang = lang.get_ts_language();
-    parser.set_language(&ts_lang).expect("TODO!");
+    parser.set_language(&ts_lang)?;
     let tree = source
       .parse_tree_sitter(&mut parser, None)?
       .ok_or(anyhow!("Tree unavailable"))?;
