@@ -165,21 +165,19 @@ pub trait Traversal<'t, D: Doc + 't>: Iterator<Item = Node<'t, D>> {
 }
 
 /// Represents a pre-order traversal
-pub struct Pre<'tree, D: Doc> {
+pub struct TsPre<'tree> {
   cursor: ts::TreeCursor<'tree>,
-  root: &'tree Root<D>,
   // record the starting node, if we return back to starting point
   // we should terminate the dfs.
   start_id: Option<usize>,
   current_depth: usize,
 }
 
-impl<'tree, D: Doc> Pre<'tree, D> {
-  pub fn new(node: &Node<'tree, D>) -> Self {
+impl<'tree> TsPre<'tree> {
+  pub fn new(node: &ts::Node<'tree>) -> Self {
     Self {
-      cursor: node.inner.walk(),
-      root: node.root,
-      start_id: Some(node.inner.id()),
+      cursor: node.walk(),
+      start_id: Some(node.id()),
       current_depth: 0,
     }
   }
@@ -214,8 +212,8 @@ impl<'tree, D: Doc> Pre<'tree, D> {
 }
 
 /// Amortized time complexity is O(NlgN), depending on branching factor.
-impl<'tree, D: Doc> Iterator for Pre<'tree, D> {
-  type Item = Node<'tree, D>;
+impl<'tree> Iterator for TsPre<'tree> {
+  type Item = ts::Node<'tree>;
   // 1. Yield the node itself
   // 2. Try visit the child node until no child available
   // 3. Try visit next sibling after going back to parent
@@ -225,7 +223,7 @@ impl<'tree, D: Doc> Iterator for Pre<'tree, D> {
     let start = self.start_id?;
     let cursor = &mut self.cursor;
     let inner = cursor.node(); // get current node
-    let ret = Some(self.root.adopt(inner));
+    let ret = Some(inner);
     // try going to children first
     if self.step_down() {
       return ret;
@@ -236,7 +234,30 @@ impl<'tree, D: Doc> Iterator for Pre<'tree, D> {
     ret
   }
 }
+
+pub struct Pre<'tree, D: Doc> {
+  root: &'tree Root<D>,
+  inner: TsPre<'tree>,
+}
+impl<'tree, D: Doc> Iterator for Pre<'tree, D> {
+  type Item = Node<'tree, D>;
+  fn next(&mut self) -> Option<Self::Item> {
+    let inner = self.inner.next()?;
+    Some(self.root.adopt(inner))
+  }
+}
+
 impl<D: Doc> FusedIterator for Pre<'_, D> {}
+
+impl<'t, D: Doc> Pre<'t, D> {
+  pub fn new(node: &Node<'t, D>) -> Self {
+    let inner = TsPre::new(&node.inner);
+    Self {
+      root: node.root,
+      inner,
+    }
+  }
+}
 
 impl<'t, D: Doc> Traversal<'t, D> for Pre<'t, D> {
   fn calibrate_for_match(&mut self, depth: Option<usize>) {
@@ -245,20 +266,20 @@ impl<'t, D: Doc> Traversal<'t, D> for Pre<'t, D> {
       return;
     };
     // if already entering sibling or traced up, ignore
-    if self.current_depth <= depth {
+    if self.inner.current_depth <= depth {
       return;
     }
-    debug_assert!(self.current_depth > depth);
-    if let Some(start) = self.start_id {
+    debug_assert!(self.inner.current_depth > depth);
+    if let Some(start) = self.inner.start_id {
       // revert the step down
-      self.cursor.goto_parent();
-      self.trace_up(start);
+      self.inner.cursor.goto_parent();
+      self.inner.trace_up(start);
     }
   }
 
   #[inline]
   fn get_current_depth(&self) -> usize {
-    self.current_depth
+    self.inner.current_depth
   }
 }
 

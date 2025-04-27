@@ -24,7 +24,7 @@ pub struct Position {
 }
 
 impl Position {
-  fn new(line: usize, byte_column: usize, byte_offset: usize) -> Self {
+  pub(crate) fn new(line: usize, byte_column: usize, byte_offset: usize) -> Self {
     Self {
       line,
       byte_column,
@@ -138,107 +138,6 @@ impl<D: Doc> Root<D> {
   pub unsafe fn readopt<'a: 'b, 'b>(&'a self, node: &mut Node<'b, D>) {
     debug_assert!(self.check_lineage(&node.inner));
     node.root = self;
-  }
-}
-
-pub trait SgNode<'r>: Clone {
-  type Doc: Doc;
-  fn parent(&self) -> Option<Self>;
-  fn ancestors(&self) -> impl Iterator<Item = Self>;
-  fn dfs(&self) -> impl Iterator<Item = Self>;
-  fn children(&self) -> impl ExactSizeIterator<Item = Self>;
-  fn child_by_field_id(&self, field_id: u16) -> Option<Self>;
-  fn next(&self) -> Option<Self>;
-  fn prev(&self) -> Option<Self>;
-  fn next_all(&self) -> impl Iterator<Item = Self>;
-  fn prev_all(&self) -> impl Iterator<Item = Self>;
-  fn is_named(&self) -> bool;
-  /// N.B. it is different from is_named && is_leaf
-  /// if a node has no named children.
-  fn is_named_leaf(&self) -> bool;
-  fn is_leaf(&self) -> bool;
-  fn kind(&self) -> Cow<str>;
-  fn kind_id(&self) -> KindId;
-  fn node_id(&self) -> usize;
-  fn text(&self) -> Cow<'r, str>;
-  fn lang(&self) -> &<Self::Doc as Doc>::Lang;
-  fn range(&self) -> std::ops::Range<usize>;
-  fn start_pos(&self) -> Position;
-  fn end_pos(&self) -> Position;
-  // missing node is a tree-sitter specific concept
-  fn is_missing_node(&self) -> bool {
-    false
-  }
-  fn matches<M: Matcher>(&self, m: M) -> bool;
-}
-
-impl<'r, D: Doc> SgNode<'r> for Node<'r, D> {
-  type Doc = D;
-  fn node_id(&self) -> usize {
-    self.node_id()
-  }
-  fn is_named(&self) -> bool {
-    self.is_named()
-  }
-  fn is_named_leaf(&self) -> bool {
-    self.is_named_leaf()
-  }
-  fn is_leaf(&self) -> bool {
-    self.is_leaf()
-  }
-  fn text(&self) -> Cow<'r, str> {
-    self.text()
-  }
-  fn kind(&self) -> Cow<str> {
-    self.kind()
-  }
-  fn kind_id(&self) -> KindId {
-    self.kind_id()
-  }
-  fn parent(&self) -> Option<Self> {
-    self.parent()
-  }
-  fn ancestors(&self) -> impl Iterator<Item = Self> {
-    self.ancestors()
-  }
-  fn dfs(&self) -> impl Iterator<Item = Self> {
-    self.dfs()
-  }
-  fn children(&self) -> impl ExactSizeIterator<Item = Self> {
-    self.children()
-  }
-  fn child_by_field_id(&self, field_id: u16) -> Option<Self> {
-    self.child_by_field_id(field_id)
-  }
-  fn next(&self) -> Option<Self> {
-    self.next()
-  }
-  fn prev(&self) -> Option<Self> {
-    self.prev()
-  }
-  fn next_all(&self) -> impl Iterator<Item = Self> {
-    self.next_all()
-  }
-  fn prev_all(&self) -> impl Iterator<Item = Self> {
-    self.prev_all()
-  }
-  fn lang(&self) -> &<Self::Doc as Doc>::Lang {
-    self.lang()
-  }
-  fn range(&self) -> std::ops::Range<usize> {
-    self.range()
-  }
-  fn start_pos(&self) -> Position {
-    self.start_pos()
-  }
-  fn end_pos(&self) -> Position {
-    self.end_pos()
-  }
-  fn is_missing_node(&self) -> bool {
-    self.get_ts_node().is_missing()
-  }
-  fn matches<M: Matcher>(&self, m: M) -> bool {
-    self.matches(m)
   }
 }
 
