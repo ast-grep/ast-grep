@@ -197,6 +197,7 @@ dependencies = [
  "tree-sitter-cpp",
  "tree-sitter-css",
  "tree-sitter-elixir",
+ "tree-sitter-facade-sg",
  "tree-sitter-go",
  "tree-sitter-haskell",
  "tree-sitter-html",
