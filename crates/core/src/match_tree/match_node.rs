@@ -239,7 +239,7 @@ mod test {
   use crate::{meta_var::MetaVarEnv, Matcher, Pattern, Root};
   use std::borrow::Cow;
   fn match_tree(p: &str, n: &str, strictness: MatchStrictness) -> MatchOneNode {
-    let pattern = Pattern::str(p, Tsx);
+    let pattern = Pattern::new(p, Tsx);
     let kind = pattern.potential_kinds().expect("should have kind");
     let kind = KindMatcher::from_id(kind.into_iter().next().expect("should have kind") as u16);
     let n = Root::str(n, Tsx);

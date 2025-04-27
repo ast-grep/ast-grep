@@ -192,10 +192,6 @@ fn collect_vars<'p>(p: &'p PatternNode, vars: &mut HashSet<&'p str>) {
 }
 
 impl Pattern {
-  pub fn str<L: Language>(src: &str, lang: L) -> Self {
-    Self::new(src, lang)
-  }
-
   pub fn try_new<L: Language>(src: &str, lang: L) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(src);
     let root = Root::<StrDoc<L>>::try_new(&processed, lang)?;
@@ -329,7 +325,7 @@ mod test {
   }
 
   fn test_match(s1: &str, s2: &str) {
-    let pattern = Pattern::str(s1, Tsx);
+    let pattern = Pattern::new(s1, Tsx);
     let cand = pattern_node(s2);
     let cand = cand.root();
     assert!(
@@ -340,7 +336,7 @@ mod test {
     );
   }
   fn test_non_match(s1: &str, s2: &str) {
-    let pattern = Pattern::str(s1, Tsx);
+    let pattern = Pattern::new(s1, Tsx);
     let cand = pattern_node(s2);
     let cand = cand.root();
     assert!(
@@ -365,7 +361,7 @@ mod test {
   }
 
   fn match_env(goal_str: &str, cand: &str) -> HashMap<String, String> {
-    let pattern = Pattern::str(goal_str, Tsx);
+    let pattern = Pattern::new(goal_str, Tsx);
     let cand = pattern_node(cand);
     let cand = cand.root();
     let nm = pattern.find_node(cand).unwrap();
@@ -381,7 +377,7 @@ mod test {
   #[test]
   fn test_pattern_should_not_pollute_env() {
     // gh issue #1164
-    let pattern = Pattern::str("const $A = 114", Tsx);
+    let pattern = Pattern::new("const $A = 114", Tsx);
     let cand = pattern_node("const a = 514");
     let cand = cand.root().child(0).unwrap();
     let map = MetaVarEnv::new();
@@ -448,7 +444,7 @@ mod test {
 
   #[test]
   fn test_pattern_potential_kinds() {
-    let pattern = Pattern::str("const a = 1", Tsx);
+    let pattern = Pattern::new("const a = 1", Tsx);
     let kind = get_kind("lexical_declaration");
     let kinds = pattern.potential_kinds().expect("should have kinds");
     assert_eq!(kinds.len(), 1);
@@ -457,7 +453,7 @@ mod test {
 
   #[test]
   fn test_pattern_with_non_root_meta_var() {
-    let pattern = Pattern::str("const $A = $B", Tsx);
+    let pattern = Pattern::new("const $A = $B", Tsx);
     let kind = get_kind("lexical_declaration");
     let kinds = pattern.potential_kinds().expect("should have kinds");
     assert_eq!(kinds.len(), 1);
@@ -466,7 +462,7 @@ mod test {
 
   #[test]
   fn test_bare_wildcard() {
-    let pattern = Pattern::str("$A", Tsx);
+    let pattern = Pattern::new("$A", Tsx);
     // wildcard should match anything, so kinds should be None
     assert!(pattern.potential_kinds().is_none());
   }
@@ -493,7 +489,7 @@ mod test {
   #[test]
   #[ignore]
   fn test_multi_node_pattern() {
-    let pattern = Pattern::str("a;b;c;", Tsx);
+    let pattern = Pattern::new("a;b;c;", Tsx);
     let kinds = pattern.potential_kinds().expect("should have kinds");
     assert_eq!(kinds.len(), 1);
     test_match("a;b;c", "a;b;c;");
@@ -526,7 +522,7 @@ mod test {
   fn test_error_kind() {
     let ret = Pattern::contextual("a", "property_identifier", Tsx);
     assert!(ret.is_err());
-    let ret = Pattern::str("123+", Tsx);
+    let ret = Pattern::new("123+", Tsx);
     assert!(ret.has_error());
   }
 
@@ -556,7 +552,7 @@ mod test {
 
   #[test]
   fn test_debug_pattern() {
-    let pattern = Pattern::str("var $A = 1", Tsx);
+    let pattern = Pattern::new("var $A = 1", Tsx);
     assert_eq!(
       format!("{pattern:?}"),
       "[var, [Capture(\"A\", true), =, 1]]"
@@ -564,7 +560,7 @@ mod test {
   }
 
   fn defined_vars(s: &str) -> Vec<String> {
-    let pattern = Pattern::str(s, Tsx);
+    let pattern = Pattern::new(s, Tsx);
     let mut vars: Vec<_> = pattern
       .defined_vars()
       .into_iter()

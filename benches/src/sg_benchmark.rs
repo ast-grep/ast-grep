@@ -27,7 +27,7 @@ fn get_sg(path: &str) -> AstGrep<StrDoc<SupportLang>> {
 
 fn find_all_bench(c: &mut Criterion) {
   let lang = SupportLang::TypeScript;
-  let pattern = Pattern::str(black_box("$A && $A()"), lang);
+  let pattern = Pattern::new(black_box("$A && $A()"), lang);
   let checker_sg = get_sg("fixtures/checker.ts.fixture");
   let tsc_sg = get_sg("fixtures/tsc.ts.fixture");
   let ref_sg = get_sg("fixtures/ref.ts.fixture");
@@ -53,7 +53,7 @@ fn rule_bench(c: &mut Criterion) {
 fn build_pattern_bench(c: &mut Criterion) {
   let lang = SupportLang::TypeScript;
   c.bench_function("Build Normal Pattern", |b| {
-    b.iter(|| Pattern::str(black_box("function $FUNC($$$ARGS) { $$$BODY }"), lang))
+    b.iter(|| Pattern::new(black_box("function $FUNC($$$ARGS) { $$$BODY }"), lang))
   });
 }
 
