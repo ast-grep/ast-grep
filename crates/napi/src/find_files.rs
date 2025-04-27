@@ -25,7 +25,7 @@ impl Task for ParseAsync {
 
   fn compute(&mut self) -> Result<Self::Output> {
     let src = std::mem::take(&mut self.src);
-    let doc = JsDoc::new(src, self.lang);
+    let doc = JsDoc::try_new(src, self.lang)?;
     Ok(SgRoot(AstGrep::doc(doc), "anonymous".into()))
   }
   fn resolve(&mut self, _env: Env, output: Self::Output) -> Result<Self::JsValue> {
@@ -134,7 +134,7 @@ fn get_root(entry: ignore::DirEntry, lang_option: &LangOption) -> Ret<(AstGrep<J
   let lang = lang_option
     .get_lang(&path)
     .context(anyhow!("file not recognized"))?;
-  let doc = JsDoc::new(file_content, lang);
+  let doc = JsDoc::try_new(file_content, lang)?;
   Ok((AstGrep::doc(doc), path.to_string_lossy().into()))
 }
 
