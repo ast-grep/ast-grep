@@ -35,7 +35,7 @@ impl Position {
     self.line
   }
   /// TODO: return unicode character offset
-  pub fn column<'t, N: SgNode<'t>>(&self, node: &N) -> usize {
+  pub fn column<D: Doc>(&self, node: &Node<'_, D>) -> usize {
     let source = node.get_doc().get_source();
     source.get_char_column(self.byte_column, self.byte_offset)
   }
@@ -143,7 +143,6 @@ impl<D: Doc> Root<D> {
 
 pub trait SgNode<'r>: Clone {
   type Doc: Doc;
-  fn get_doc(&self) -> &'r Self::Doc;
   fn parent(&self) -> Option<Self>;
   fn ancestors(&self) -> impl Iterator<Item = Self>;
   fn dfs(&self) -> impl Iterator<Item = Self>;
@@ -175,9 +174,6 @@ pub trait SgNode<'r>: Clone {
 
 impl<'r, D: Doc> SgNode<'r> for Node<'r, D> {
   type Doc = D;
-  fn get_doc(&self) -> &'r Self::Doc {
-    &self.root.doc
-  }
   fn node_id(&self) -> usize {
     self.node_id()
   }
@@ -284,6 +280,9 @@ impl<D: Doc> ExactSizeIterator for NodeWalker<'_, D> {
 
 /// APIs for Node inspection
 impl<'r, D: Doc> Node<'r, D> {
+  pub fn get_doc(&self) -> &'r D {
+    &self.root.doc
+  }
   pub fn node_id(&self) -> usize {
     self.inner.id()
   }
@@ -308,6 +307,9 @@ impl<'r, D: Doc> Node<'r, D> {
 
   pub fn is_named(&self) -> bool {
     self.inner.is_named()
+  }
+  pub fn is_missing_node(&self) -> bool {
+    self.get_ts_node().is_missing()
   }
 
   /// the underlying tree-sitter Node

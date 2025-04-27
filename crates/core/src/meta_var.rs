@@ -1,6 +1,5 @@
 use crate::match_tree::does_node_match_exactly;
 use crate::matcher::Matcher;
-use crate::node::SgNode;
 use crate::source::Content;
 use crate::{Doc, Language, Node, StrDoc};
 use std::borrow::Cow;
