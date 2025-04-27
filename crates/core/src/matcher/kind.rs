@@ -102,7 +102,7 @@ mod test {
   use crate::{Root, StrDoc};
 
   fn pattern_node(s: &str) -> Root<StrDoc<Tsx>> {
-    Root::new(s, Tsx)
+    Root::str(s, Tsx)
   }
   #[test]
   fn test_kind_match() {

@@ -1,6 +1,4 @@
 #![cfg(test)]
-use ast_grep_core::source::TSParseError;
-
 use super::*;
 
 fn test_match(query: &str, source: &str) {
@@ -28,14 +26,13 @@ fn test_json_pattern() {
   test_match(r#"{ $$$ }"#, r#"{"abc": 123}"#);
 }
 
-fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
+fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
   use crate::test::test_replace_lang;
   test_replace_lang(src, pattern, replacer, Json)
 }
 
 #[test]
-fn test_json_replace() -> Result<(), TSParseError> {
-  let ret = test_replace(r#"{ "a": 123 }"#, r#"123"#, r#"456"#)?;
+fn test_json_replace() {
+  let ret = test_replace(r#"{ "a": 123 }"#, r#"123"#, r#"456"#);
   assert_eq!(ret, r#"{ "a": 456 }"#);
-  Ok(())
 }

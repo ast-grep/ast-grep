@@ -160,11 +160,12 @@ impl Doc for JsDoc {
   fn get_source(&self) -> &Self::Source {
     &self.source
   }
-  fn do_edit(&mut self, edit: &Edit<Self::Source>) {
+  fn do_edit(&mut self, edit: &Edit<Self::Source>) -> Result<(), String> {
     let source = &mut self.source;
     let input_edit = source.accept_edit(edit);
     self.tree.edit(&input_edit);
-    self.tree = self.parse(Some(&self.tree)).expect("TODO!");
+    self.tree = self.parse(Some(&self.tree)).map_err(|e| e.to_string())?;
+    Ok(())
   }
   fn root_node(&self) -> Node<'_> {
     self.tree.root_node()

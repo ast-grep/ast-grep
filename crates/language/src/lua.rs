@@ -1,5 +1,4 @@
 #![cfg(test)]
-use ast_grep_core::source::TSParseError;
 
 use super::*;
 
@@ -15,13 +14,13 @@ fn test_lua_pattern() {
   test_match("a = io.$METHOD($S)", "a = io.read('*number')");
 }
 
-fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
+fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
   use crate::test::test_replace_lang;
   test_replace_lang(src, pattern, replacer, Lua)
 }
 
 #[test]
-fn test_lua_replace() -> Result<(), TSParseError> {
+fn test_lua_replace() {
   let ret = test_replace(
     r#"function fact (n)
       if n == 0 then
@@ -32,7 +31,6 @@ fn test_lua_replace() -> Result<(), TSParseError> {
     end"#,
     "function $FUNC($ARG) $$$ end",
     "$FUNC = function ($ARG) return 1 end",
-  )?;
+  );
   assert_eq!(ret, "fact = function (n) return 1 end");
-  Ok(())
 }

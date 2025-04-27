@@ -1,5 +1,4 @@
 #![cfg(test)]
-use ast_grep_core::source::TSParseError;
 
 use super::*;
 
@@ -16,14 +15,13 @@ fn test_c_sharp_pattern() {
   test_match("ThrowHelper.$_", target);
 }
 
-fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
+fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
   use crate::test::test_replace_lang;
   test_replace_lang(src, pattern, replacer, CSharp)
 }
 
 #[test]
-fn test_c_sharp_replace() -> Result<(), TSParseError> {
-  let ret = test_replace("int @int = 0;", "int $A = 0", "bool @bool = true")?;
+fn test_c_sharp_replace() {
+  let ret = test_replace("int @int = 0;", "int $A = 0", "bool @bool = true");
   assert_eq!(ret, "bool @bool = true;");
-  Ok(())
 }

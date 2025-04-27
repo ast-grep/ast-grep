@@ -3,8 +3,6 @@
 //! Scala does not need special processing and can be a stub lang.
 //! But this file is created for testing Scala2 and Scala3.
 
-use ast_grep_core::source::TSParseError;
-
 use super::*;
 
 fn test_match(query: &str, source: &str) {
@@ -38,18 +36,17 @@ fn test_scala_pattern() {
   test_non_match("type $A = Int", "type Foo = String");
 }
 
-fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
+fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
   use crate::test::test_replace_lang;
   test_replace_lang(src, pattern, replacer, Scala)
 }
 
 #[test]
-fn test_scala_replace() -> Result<(), TSParseError> {
+fn test_scala_replace() {
   let ret = test_replace(
     "foo.filter(_ == bar)",
     "$A.filter(_ == $B)",
     "$A.filter(_ == baz)",
-  )?;
+  );
   assert_eq!(ret, "foo.filter(_ == baz)");
-  Ok(())
 }

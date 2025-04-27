@@ -278,7 +278,7 @@ pub trait Doc: Clone + 'static {
   type Node<'r>: SgNode<'r>;
   fn get_lang(&self) -> &Self::Lang;
   fn get_source(&self) -> &Self::Source;
-  fn do_edit(&mut self, edit: &Edit<Self::Source>);
+  fn do_edit(&mut self, edit: &Edit<Self::Source>) -> Result<(), String>;
   fn root_node(&self) -> Self::Node<'_>;
   fn get_node_text<'a>(&'a self, node: &Self::Node<'a>) -> Cow<'a, str>;
 }
@@ -291,17 +291,13 @@ pub struct StrDoc<L: Language> {
 }
 
 impl<L: Language> StrDoc<L> {
-  pub fn new(src: &str, lang: L) -> Self {
+  pub fn try_new(src: &str, lang: L) -> Result<Self, TSParseError> {
     let src = src.to_string();
-    let tree = parse_lang(|p| src.parse_tree_sitter(p, None), lang.get_ts_language());
-    Self {
-      src,
-      lang,
-      tree: tree.expect("TODO!"),
-    }
+    let tree = parse_lang(|p| src.parse_tree_sitter(p, None), lang.get_ts_language())?;
+    Ok(Self { src, lang, tree })
   }
-  pub fn from_str(src: &str, lang: L) -> Self {
-    Self::new(src, lang)
+  pub fn new(src: &str, lang: L) -> Self {
+    Self::try_new(src, lang).expect("Parser tree error")
   }
   fn parse(&self, old_tree: Option<&Tree>) -> Result<Tree, TSParseError> {
     let source = self.get_source();
@@ -320,10 +316,11 @@ impl<L: Language> Doc for StrDoc<L> {
   fn get_source(&self) -> &Self::Source {
     &self.src
   }
-  fn do_edit(&mut self, edit: &Edit<Self::Source>) {
+  fn do_edit(&mut self, edit: &Edit<Self::Source>) -> Result<(), String> {
     let source = &mut self.src;
     perform_edit(&mut self.tree, source, edit);
-    self.tree = self.parse(Some(&self.tree)).expect("TODO!");
+    self.tree = self.parse(Some(&self.tree)).map_err(|e| e.to_string())?;
+    Ok(())
   }
   fn root_node(&self) -> Node<'_> {
     self.tree.root_node()

@@ -32,7 +32,7 @@ pub use node::DisplayContext;
 use replacer::Replacer;
 
 use node::Root;
-use source::{Edit, TSParseError};
+use source::Edit;
 
 #[derive(Clone)]
 pub struct AstGrep<D: Doc> {
@@ -44,7 +44,7 @@ impl<D: Doc> AstGrep<D> {
     self.inner.root()
   }
 
-  pub fn edit(&mut self, edit: Edit<D::Source>) -> Result<&mut Self, TSParseError> {
+  pub fn edit(&mut self, edit: Edit<D::Source>) -> Result<&mut Self, String> {
     self.inner.do_edit(edit)?;
     Ok(self)
   }
@@ -53,7 +53,7 @@ impl<D: Doc> AstGrep<D> {
     &mut self,
     pattern: M,
     replacer: R,
-  ) -> Result<bool, TSParseError> {
+  ) -> Result<bool, String> {
     let root = self.root();
     if let Some(edit) = root.replace(pattern, replacer) {
       drop(root); // rust cannot auto drop root if D is not specified
@@ -80,7 +80,7 @@ impl<D: Doc> AstGrep<D> {
 impl<L: Language> AstGrep<StrDoc<L>> {
   pub fn new<S: AsRef<str>>(src: S, lang: L) -> Self {
     Self {
-      inner: Root::new(src.as_ref(), lang),
+      inner: Root::str(src.as_ref(), lang),
     }
   }
 
@@ -99,7 +99,7 @@ mod test {
   use language::Tsx;
   use ops::Op;
 
-  pub type Result = std::result::Result<(), TSParseError>;
+  pub type Result = std::result::Result<(), String>;
 
   #[test]
   fn test_replace() -> Result {

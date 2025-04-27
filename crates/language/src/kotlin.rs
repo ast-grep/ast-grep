@@ -1,6 +1,4 @@
 #![cfg(test)]
-use ast_grep_core::source::TSParseError;
-
 use super::*;
 
 fn test_match(query: &str, source: &str) {
@@ -33,13 +31,13 @@ fun plus(a: Int, b: Int): Int {
   );
 }
 
-fn test_replace(src: &str, pattern: &str, replacer: &str) -> Result<String, TSParseError> {
+fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
   use crate::test::test_replace_lang;
   test_replace_lang(src, pattern, replacer, Go)
 }
 
 #[test]
-fn test_kotlin_replace() -> Result<(), TSParseError> {
+fn test_kotlin_replace() {
   let ret = test_replace(
     r#"
 fun plus(a: Int, b: Int): Int {
@@ -47,11 +45,10 @@ fun plus(a: Int, b: Int): Int {
 }"#,
     r#"fun $F($$$): $R { $$$BODY }"#,
     r#"fun $F() { $$$BODY }"#,
-  )?;
+  );
   assert_eq!(
     ret,
     r#"
 fun plus() { return a + b }"#
   );
-  Ok(())
 }

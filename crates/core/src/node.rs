@@ -52,15 +52,12 @@ pub struct Root<D: Doc> {
 }
 
 impl<L: Language> Root<StrDoc<L>> {
-  pub fn new(src: &str, lang: L) -> Self {
+  pub fn str(src: &str, lang: L) -> Self {
     Self::try_new(src, lang).expect("should parse")
   }
   pub fn try_new(src: &str, lang: L) -> Result<Self, TSParseError> {
-    let doc = StrDoc::from_str(src, lang);
+    let doc = StrDoc::try_new(src, lang)?;
     Ok(Self { doc })
-  }
-  pub fn str(src: &str, lang: L) -> Self {
-    Self::try_new(src, lang).expect("should parse")
   }
   pub fn get_text(&self) -> &str {
     &self.doc.src
@@ -112,8 +109,8 @@ impl<D: Doc> Root<D> {
   }
 
   // extract non generic implementation to reduce code size
-  pub fn do_edit(&mut self, edit: Edit<D>) -> Result<(), TSParseError> {
-    self.doc.do_edit(&edit);
+  pub fn do_edit(&mut self, edit: Edit<D>) -> Result<(), String> {
+    self.doc.do_edit(&edit)?;
     Ok(())
   }
 

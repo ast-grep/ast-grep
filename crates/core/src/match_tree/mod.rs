@@ -166,7 +166,7 @@ mod test {
 
   fn test_match(s1: &str, s2: &str) -> HashMap<String, String> {
     let goal = Pattern::new(s1, Tsx);
-    let cand = Root::new(s2, Tsx);
+    let cand = Root::str(s2, Tsx);
     let cand = cand.root();
     let mut env = Cow::Owned(MetaVarEnv::new());
     let ret = find_node_recursive(&goal, cand.clone(), &mut env);
@@ -180,7 +180,7 @@ mod test {
 
   fn test_non_match(s1: &str, s2: &str) {
     let goal = Pattern::new(s1, Tsx);
-    let cand = Root::new(s2, Tsx);
+    let cand = Root::str(s2, Tsx);
     let cand = cand.root();
     let mut env = Cow::Owned(MetaVarEnv::new());
     let ret = find_node_recursive(&goal, cand, &mut env);
@@ -309,7 +309,7 @@ mod test {
 
   fn test_end(s1: &str, s2: &str) -> Option<usize> {
     let goal = Pattern::new(s1, Tsx);
-    let cand = Root::new(s2, Tsx);
+    let cand = Root::str(s2, Tsx);
     let cand = cand.root();
     find_end_recursive(&goal, cand.clone())
   }
