@@ -4,7 +4,7 @@ use crate::rule_core::RuleCore;
 
 use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::source::{Content, Edit};
-use ast_grep_core::{Doc, Language, SgNode, SgNodeMatch};
+use ast_grep_core::{Doc, Language, Node, NodeMatch};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +18,7 @@ pub struct Rewrite<T> {
   pub(super) join_by: Option<String>,
 }
 
-fn get_nodes_from_env<'b, N: SgNode<'b>>(var: &MetaVariable, ctx: &Ctx<'_, 'b, N>) -> Vec<N> {
+fn get_nodes_from_env<'b, D: Doc>(var: &MetaVariable, ctx: &Ctx<'_, 'b, D>) -> Vec<Node<'b, D>> {
   match var {
     MetaVariable::MultiCapture(n) => ctx.env.get_multiple_matches(n),
     MetaVariable::Capture(m, _) => {
@@ -43,7 +43,7 @@ impl Rewrite<String> {
 }
 
 impl Rewrite<MetaVariable> {
-  pub(super) fn compute<'r, N: SgNode<'r>>(&self, ctx: &mut Ctx<'_, 'r, N>) -> Option<String> {
+  pub(super) fn compute<D: Doc>(&self, ctx: &mut Ctx<'_, '_, D>) -> Option<String> {
     let var = &self.source;
     let nodes = get_nodes_from_env(var, ctx);
     if nodes.is_empty() {
@@ -64,7 +64,7 @@ impl Rewrite<MetaVariable> {
       if let Some(first) = edits.next() {
         let mut pos = first.position - start + first.deleted_length;
         ret.extend(first.inserted_text);
-        let joiner = <N::Doc as Doc>::Source::decode_str(joiner);
+        let joiner = D::Source::decode_str(joiner);
         for edit in edits {
           let p = edit.position - start;
           // skip overlapping edits
@@ -80,29 +80,29 @@ impl Rewrite<MetaVariable> {
         ret
       }
     } else {
-      make_edit::<N::Doc>(bytes, edits, start)
+      make_edit::<D>(bytes, edits, start)
     };
-    Some(<N::Doc as Doc>::Source::encode_bytes(&rewritten).to_string())
+    Some(D::Source::encode_bytes(&rewritten).to_string())
   }
 }
 
 type Bytes<D> = [<<D as Doc>::Source as Content>::Underlying];
-fn find_and_make_edits<'n, N: SgNode<'n>>(
-  nodes: Vec<N>,
+fn find_and_make_edits<'n, D: Doc>(
+  nodes: Vec<Node<'n, D>>,
   rules: &[&RuleCore],
-  ctx: &Ctx<'_, 'n, N>,
-) -> Vec<Edit<<N::Doc as Doc>::Source>> {
+  ctx: &Ctx<'_, 'n, D>,
+) -> Vec<Edit<D::Source>> {
   nodes
     .into_iter()
     .flat_map(|n| replace_one(n, rules, ctx))
     .collect()
 }
 
-fn replace_one<'n, N: SgNode<'n>>(
-  node: N,
+fn replace_one<'n, D: Doc>(
+  node: Node<'n, D>,
   rules: &[&RuleCore],
-  ctx: &Ctx<'_, 'n, N>,
-) -> Vec<Edit<<N::Doc as Doc>::Source>> {
+  ctx: &Ctx<'_, 'n, D>,
+) -> Vec<Edit<D::Source>> {
   let mut edits = vec![];
   for child in node.dfs() {
     for rule in rules {
@@ -114,7 +114,7 @@ fn replace_one<'n, N: SgNode<'n>>(
       // this is to enable recursive rewriter to match sub nodes
       // in future, we can use the explict `expose` to control env inheritance
       if let Some(n) = rule.do_match(child.clone(), &mut env, Some(ctx.enclosing_env)) {
-        let nm = SgNodeMatch::new(n, env.into_owned());
+        let nm = NodeMatch::new(n, env.into_owned());
         edits.push(nm.make_edit(rule, rule.fixer.as_ref().expect("rewriter must have fix")));
         // stop at first fix, skip duplicate fix
         break;

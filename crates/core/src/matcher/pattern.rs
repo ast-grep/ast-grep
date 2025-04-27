@@ -1,7 +1,7 @@
 use crate::language::{CoreLanguage, Language};
 use crate::match_tree::{match_end_non_recursive, match_node_non_recursive, MatchStrictness};
 use crate::matcher::{kind_utils, KindMatcher, KindMatcherError, Matcher};
-use crate::meta_var::{MetaVariable, SgMetaVarEnv};
+use crate::meta_var::{MetaVarEnv, MetaVariable};
 use crate::node::SgNode;
 use crate::source::TSParseError;
 use crate::{Doc, Node, Root, StrDoc};
@@ -252,11 +252,11 @@ impl Pattern {
 }
 
 impl Matcher for Pattern {
-  fn match_node_with_env<'tree, N: SgNode<'tree>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
-    node: N,
-    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
-  ) -> Option<N> {
+    node: Node<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
     if let Some(k) = self.root_kind {
       if node.kind_id() != k {
         return None;
@@ -290,7 +290,7 @@ impl Matcher for Pattern {
     Some(kinds)
   }
 
-  fn get_match_len<'tree, N: SgNode<'tree>>(&self, node: N) -> Option<usize> {
+  fn get_match_len<D: Doc>(&self, node: Node<'_, D>) -> Option<usize> {
     let start = node.range().start;
     let end = match_end_non_recursive(self, node)?;
     Some(end - start)

@@ -2,8 +2,8 @@ use super::deserialize_env::DeserializeEnv;
 use super::stop_by::{SerializableStopBy, StopBy};
 use crate::rule::{Rule, RuleSerializeError, SerializableRule};
 use ast_grep_core::language::Language;
-use ast_grep_core::meta_var::SgMetaVarEnv;
-use ast_grep_core::{Matcher, SgNode};
+use ast_grep_core::meta_var::MetaVarEnv;
+use ast_grep_core::{Doc, Matcher, Node};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -66,16 +66,16 @@ impl Inside {
 }
 
 impl Matcher for Inside {
-  fn match_node_with_env<'tree, N: SgNode<'tree>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
-    node: N,
-    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
-  ) -> Option<N> {
+    node: Node<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
     let parent = || node.parent();
     let ancestors = || node.ancestors();
     if let Some(field) = self.field {
       let mut last_id = node.node_id();
-      let finder = move |nd: N| {
+      let finder = move |nd: Node<'tree, D>| {
         let expect_id = last_id;
         last_id = nd.node_id();
         let n = nd.child_by_field_id(field)?;
@@ -126,11 +126,11 @@ impl Has {
 }
 
 impl Matcher for Has {
-  fn match_node_with_env<'tree, N: SgNode<'tree>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
-    node: N,
-    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
-  ) -> Option<N> {
+    node: Node<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
     if let Some(field) = self.field {
       let nd = node.child_by_field_id(field)?;
       return match &self.stop_by {
@@ -208,11 +208,11 @@ impl Precedes {
   }
 }
 impl Matcher for Precedes {
-  fn match_node_with_env<'tree, N: SgNode<'tree>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
-    node: N,
-    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
-  ) -> Option<N> {
+    node: Node<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
     let next = || node.next();
     let next_all = || node.next_all();
     let finder = |n| self.later.match_node_with_env(n, env);
@@ -252,11 +252,11 @@ impl Follows {
   }
 }
 impl Matcher for Follows {
-  fn match_node_with_env<'tree, N: SgNode<'tree>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
-    node: N,
-    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
-  ) -> Option<N> {
+    node: Node<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
     let prev = || node.prev();
     let prev_all = || node.prev_all();
     let finder = |n| self.former.match_node_with_env(n, env);

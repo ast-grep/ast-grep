@@ -2,7 +2,7 @@ use super::rewrite::Rewrite;
 use super::{string_case, Ctx, TransformError};
 use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::source::Content;
-use ast_grep_core::{Doc, Language, SgNode};
+use ast_grep_core::{Doc, Language};
 
 use regex::Regex;
 use schemars::JsonSchema;
@@ -10,13 +10,10 @@ use serde::{Deserialize, Serialize};
 
 use string_case::{Separator, StringCase};
 
-fn get_text_from_env<'r, N: SgNode<'r>>(
-  var: &MetaVariable,
-  ctx: &mut Ctx<'_, 'r, N>,
-) -> Option<String> {
+fn get_text_from_env<D: Doc>(var: &MetaVariable, ctx: &mut Ctx<'_, '_, D>) -> Option<String> {
   // TODO: check if topological sort has resolved transform dependency
   let bytes = ctx.env.get_var_bytes(var)?;
-  Some(<<N::Doc as Doc>::Source as Content>::encode_bytes(bytes).into_owned())
+  Some(<D::Source as Content>::encode_bytes(bytes).into_owned())
 }
 
 /// Extracts a substring from the meta variable's text content.
@@ -35,7 +32,7 @@ pub struct Substring<T> {
 }
 
 impl Substring<MetaVariable> {
-  fn compute<'r, N: SgNode<'r>>(&self, ctx: &mut Ctx<'_, 'r, N>) -> Option<String> {
+  fn compute<D: Doc>(&self, ctx: &mut Ctx<'_, '_, D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
     let chars: Vec<_> = text.chars().collect();
     let len = chars.len() as i32;
@@ -76,7 +73,7 @@ pub struct Replace<T> {
   by: String,
 }
 impl Replace<MetaVariable> {
-  fn compute<'r, N: SgNode<'r>>(&self, ctx: &mut Ctx<'_, 'r, N>) -> Option<String> {
+  fn compute<D: Doc>(&self, ctx: &mut Ctx<'_, '_, D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
     let re = Regex::new(&self.replace).unwrap();
     Some(re.replace_all(&text, &self.by).into_owned())
@@ -95,7 +92,7 @@ pub struct Convert<T> {
   separated_by: Option<Vec<Separator>>,
 }
 impl Convert<MetaVariable> {
-  fn compute<'r, N: SgNode<'r>>(&self, ctx: &mut Ctx<'_, 'r, N>) -> Option<String> {
+  fn compute<D: Doc>(&self, ctx: &mut Ctx<'_, '_, D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
     Some(self.to_case.apply(&text, self.separated_by.as_deref()))
   }
@@ -169,7 +166,7 @@ impl Transformation<String> {
   }
 }
 impl Transformation<MetaVariable> {
-  pub(super) fn insert<'r, N: SgNode<'r>>(&self, key: &str, ctx: &mut Ctx<'_, 'r, N>) {
+  pub(super) fn insert<D: Doc>(&self, key: &str, ctx: &mut Ctx<'_, '_, D>) {
     let src = self.source();
     // TODO: add this debug assertion back
     // debug_assert!(ctx.env.get_transformed(key).is_none());
@@ -177,13 +174,13 @@ impl Transformation<MetaVariable> {
     ctx.env.insert_transformation(src, key, vec![]);
     let opt = self.compute(ctx);
     let bytes = if let Some(s) = opt {
-      <<N::Doc as Doc>::Source as Content>::decode_str(&s).to_vec()
+      <D::Source as Content>::decode_str(&s).to_vec()
     } else {
       vec![]
     };
     ctx.env.insert_transformation(src, key, bytes);
   }
-  fn compute<'r, N: SgNode<'r>>(&self, ctx: &mut Ctx<'_, 'r, N>) -> Option<String> {
+  fn compute<D: Doc>(&self, ctx: &mut Ctx<'_, '_, D>) -> Option<String> {
     use Transformation as T;
     match self {
       T::Replace(r) => r.compute(ctx),

@@ -17,8 +17,8 @@ use relational_rule::{Follows, Has, Inside, Precedes};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
-use ast_grep_core::meta_var::SgMetaVarEnv;
-use ast_grep_core::{ops as o, SgNode};
+use ast_grep_core::meta_var::MetaVarEnv;
+use ast_grep_core::{ops as o, Doc, Node};
 use ast_grep_core::{MatchStrictness, Matcher, Pattern, PatternError};
 
 use bit_set::BitSet;
@@ -277,11 +277,11 @@ impl Rule {
 }
 
 impl Matcher for Rule {
-  fn match_node_with_env<'tree, N: SgNode<'tree>>(
+  fn match_node_with_env<'tree, D: Doc>(
     &self,
-    node: N,
-    env: &mut Cow<SgMetaVarEnv<'tree, N>>,
-  ) -> Option<N> {
+    node: Node<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
     use Rule::*;
     match self {
       // atomic
@@ -334,11 +334,11 @@ impl Default for Rule {
   }
 }
 
-fn match_and_add_label<'tree, N: SgNode<'tree>, M: Matcher>(
+fn match_and_add_label<'tree, D: Doc, M: Matcher>(
   inner: &M,
-  node: N,
-  env: &mut Cow<SgMetaVarEnv<'tree, N>>,
-) -> Option<N> {
+  node: Node<'tree, D>,
+  env: &mut Cow<MetaVarEnv<'tree, D>>,
+) -> Option<Node<'tree, D>> {
   let matched = inner.match_node_with_env(node, env)?;
   env.to_mut().add_label("secondary", matched.clone());
   Some(matched)
