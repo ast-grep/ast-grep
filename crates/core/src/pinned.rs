@@ -60,7 +60,7 @@ where
 
 /// # Safety
 /// TODO: explain unsafe trait
-pub unsafe trait NodeData<D> {
+pub unsafe trait NodeData<D: Doc> {
   type Data;
   fn get_data(&self) -> &Self::Data;
   fn visit_nodes<F>(&mut self, f: F)

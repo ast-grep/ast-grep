@@ -89,12 +89,8 @@ impl<L: Language> Root<StrDoc<L>> {
 }
 
 impl<D: Doc> Root<D> {
-  pub fn try_doc(doc: D) -> Result<Self, TSParseError> {
-    Ok(Self { doc })
-  }
-
   pub fn doc(doc: D) -> Self {
-    Self::try_doc(doc).expect("Parse doc error")
+    Self { doc }
   }
 
   pub fn lang(&self) -> &D::Lang {
@@ -204,7 +200,7 @@ impl<'r, D: Doc> Node<'r, D> {
   }
 }
 
-// TODO: figure out how to do this
+/// these methods are only for `StrDoc`
 impl<'r, L: Language> Node<'r, StrDoc<L>> {
   #[doc(hidden)]
   pub fn display_context(&self, before: usize, after: usize) -> DisplayContext<'r> {

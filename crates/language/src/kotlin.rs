@@ -33,7 +33,7 @@ fun plus(a: Int, b: Int): Int {
 
 fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
   use crate::test::test_replace_lang;
-  test_replace_lang(src, pattern, replacer, Go)
+  test_replace_lang(src, pattern, replacer, Kotlin)
 }
 
 #[test]
