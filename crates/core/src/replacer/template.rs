@@ -188,7 +188,7 @@ if (true) {
   $B
 )";
     let mut src = Tsx.ast_grep(src);
-    let pattern = Pattern::str(pattern, Tsx);
+    let pattern = Pattern::new(pattern, Tsx);
     let success = src.replace(pattern, template).expect("should replace");
     assert!(success);
     let expect = r"if (true) {

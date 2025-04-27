@@ -17,7 +17,7 @@ fn test_ruby_pattern() {
 // https://github.com/ast-grep/ast-grep/issues/713
 #[test]
 fn test_ruby_tree_sitter_panic() {
-  let pattern = Pattern::str("Foo::barbaz", Ruby);
+  let pattern = Pattern::new("Foo::barbaz", Ruby);
   assert_eq!(pattern.fixed_string(), "barbaz");
 }
 

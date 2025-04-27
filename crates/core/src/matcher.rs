@@ -78,12 +78,12 @@ impl Matcher for str {
     node: N,
     env: &mut Cow<SgMetaVarEnv<'tree, N>>,
   ) -> Option<N> {
-    let pattern = Pattern::str(self, node.lang().clone());
+    let pattern = Pattern::new(self, node.lang().clone());
     pattern.match_node_with_env(node, env)
   }
 
   fn get_match_len<'tree, N: SgNode<'tree>>(&self, node: N) -> Option<usize> {
-    let pattern = Pattern::str(self, node.lang().clone());
+    let pattern = Pattern::new(self, node.lang().clone());
     pattern.get_match_len(node)
   }
 }
