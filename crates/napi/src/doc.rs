@@ -86,13 +86,6 @@ impl Content for Wrapper {
       &new_end_position,
     )
   }
-  fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str> {
-    let slice = self.inner.as_slice();
-    let start = node.start_byte() as usize / 2;
-    let end = node.end_byte() as usize / 2;
-    String::from_utf16_lossy(&slice[start..end]).into()
-  }
-
   fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
     let v: Vec<_> = src.encode_utf16().collect();
     Cow::Owned(v)
@@ -175,6 +168,12 @@ impl Doc for JsDoc {
   }
   fn root_node(&self) -> Node<'_> {
     self.tree.root_node()
+  }
+  fn get_node_text<'a>(&'a self, node: &Node) -> Cow<'a, str> {
+    let slice = self.source.inner.as_slice();
+    let start = node.start_byte() as usize / 2;
+    let end = node.end_byte() as usize / 2;
+    String::from_utf16_lossy(&slice[start..end]).into()
   }
 }
 

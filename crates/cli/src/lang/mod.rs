@@ -6,7 +6,7 @@ use crate::utils::ErrorContext as EC;
 use anyhow::{Context, Result};
 use ast_grep_core::{
   language::{TSLanguage, TSRange},
-  Doc, Node,
+  Node, StrDoc,
 };
 use ast_grep_dynamic::DynamicLang;
 use ast_grep_language::{CoreLanguage, Language, SupportLang};
@@ -209,7 +209,10 @@ impl Language for SgLang {
     injection::injectable_languages(*self)
   }
 
-  fn extract_injections<D: Doc>(&self, root: Node<D>) -> HashMap<String, Vec<TSRange>> {
+  fn extract_injections<L: Language>(
+    &self,
+    root: Node<StrDoc<L>>,
+  ) -> HashMap<String, Vec<TSRange>> {
     injection::extract_injections(root)
   }
 }

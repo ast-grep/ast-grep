@@ -172,7 +172,8 @@ fn test_print_diffs() {
     let lang = SgLang::from(SupportLang::Tsx);
     let fixer = Fixer::from_str(rewrite, &lang).expect("should work");
     let grep = lang.ast_grep(source);
-    let matches = grep.root().find_all(pattern);
+    let root = grep.root();
+    let matches = root.find_all(pattern);
     let diffs = matches
       .map(|n| Diff::generate(n, &pattern, &fixer))
       .collect();
@@ -264,7 +265,8 @@ fix: '{rewrite}'"
   .unwrap();
   let matcher = rule.get_matcher(&globals).expect("should parse");
   let fixer = matcher.fixer.as_ref().expect("should have fixer");
-  let matches = grep.root().find_all(&matcher);
+  let root = grep.root();
+  let matches = root.find_all(&matcher);
   let diffs = matches.map(|n| (Diff::generate(n, &pattern, fixer), &rule));
   let buffer = printer
     .get_processor()

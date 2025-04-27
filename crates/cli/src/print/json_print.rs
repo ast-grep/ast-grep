@@ -61,10 +61,10 @@ struct CharCount {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct MatchJSON<'a> {
+struct MatchJSON<'a, 'b> {
   text: Cow<'a, str>,
   range: Range,
-  file: Cow<'a, str>,
+  file: Cow<'b, str>,
   lines: String,
   char_count: CharCount,
   #[serde(skip_serializing_if = "Option::is_none")]
@@ -145,8 +145,8 @@ fn get_range(n: &Node<'_, SgLang>) -> Range {
   }
 }
 
-impl<'a> MatchJSON<'a> {
-  fn new(nm: NodeMatch<'a>, path: &'a str, context: (u16, u16)) -> Self {
+impl<'a, 'b> MatchJSON<'a, 'b> {
+  fn new(nm: NodeMatch<'a>, path: &'b str, context: (u16, u16)) -> Self {
     let display = nm.display_context(context.0 as usize, context.1 as usize);
     let lines = format!("{}{}{}", display.leading, display.matched, display.trailing);
     MatchJSON {
@@ -165,7 +165,7 @@ impl<'a> MatchJSON<'a> {
     }
   }
 
-  fn diff(diff: Diff<'a>, path: &'a str, context: (u16, u16)) -> Self {
+  fn diff(diff: Diff<'a>, path: &'b str, context: (u16, u16)) -> Self {
     let mut ret = Self::new(diff.node_match, path, context);
     ret.replacement = Some(diff.replacement);
     ret.replacement_offsets = Some(diff.range);
@@ -188,18 +188,18 @@ fn get_labels<'a>(nm: &NodeMatch<'a>) -> Option<Vec<MatchNode<'a>>> {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct RuleMatchJSON<'a> {
+struct RuleMatchJSON<'a, 'b> {
   #[serde(flatten)]
-  matched: MatchJSON<'a>,
-  rule_id: &'a str,
+  matched: MatchJSON<'a, 'b>,
+  rule_id: &'b str,
   severity: Severity,
   note: Option<String>,
   message: String,
   #[serde(skip_serializing_if = "Option::is_none")]
   labels: Option<Vec<MatchNode<'a>>>,
 }
-impl<'a> RuleMatchJSON<'a> {
-  fn new(nm: NodeMatch<'a>, path: &'a str, rule: &'a RuleConfig<SgLang>) -> Self {
+impl<'a, 'b> RuleMatchJSON<'a, 'b> {
+  fn new(nm: NodeMatch<'a>, path: &'b str, rule: &'b RuleConfig<SgLang>) -> Self {
     let message = rule.get_message(&nm);
     let labels = get_labels(&nm);
     let matched = MatchJSON::new(nm, path, (0, 0));
@@ -212,7 +212,7 @@ impl<'a> RuleMatchJSON<'a> {
       labels,
     }
   }
-  fn diff(diff: Diff<'a>, path: &'a str, rule: &'a RuleConfig<SgLang>) -> Self {
+  fn diff(diff: Diff<'a>, path: &'b str, rule: &'b RuleConfig<SgLang>) -> Self {
     let nm = &diff.node_match;
     let message = rule.get_message(nm);
     let labels = get_labels(nm);
@@ -504,7 +504,8 @@ mod test {
       let mut printer = make_test_printer(JsonStyle::Compact);
       let lang = SgLang::from(SupportLang::Tsx);
       let grep = lang.ast_grep(source);
-      let matches = grep.root().find_all(pattern);
+      let root = grep.root();
+      let matches = root.find_all(pattern);
       let fixer = Fixer::from_str(replace, &lang).expect("should work");
       let diffs = matches
         .map(|m| Diff::generate(m, &pattern, &fixer))

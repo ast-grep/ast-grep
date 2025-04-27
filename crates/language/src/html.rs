@@ -1,7 +1,7 @@
 use super::pre_process_pattern;
 use ast_grep_core::language::{CoreLanguage, TSRange};
-use ast_grep_core::Language;
 use ast_grep_core::{matcher::KindMatcher, Doc, Node};
+use ast_grep_core::{Language, StrDoc};
 use std::collections::HashMap;
 
 // tree-sitter-html uses locale dependent iswalnum for tagName
@@ -29,7 +29,10 @@ impl Language for Html {
   fn injectable_languages(&self) -> Option<&'static [&'static str]> {
     Some(&["css", "js", "ts", "tsx", "scss", "less", "stylus", "coffee"])
   }
-  fn extract_injections<D: Doc>(&self, root: Node<D>) -> HashMap<String, Vec<TSRange>> {
+  fn extract_injections<L: Language>(
+    &self,
+    root: Node<StrDoc<L>>,
+  ) -> HashMap<String, Vec<TSRange>> {
     let lang = root.lang();
     let mut map = HashMap::new();
     let matcher = KindMatcher::new("script_element", lang.clone());
