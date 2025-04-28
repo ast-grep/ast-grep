@@ -1,7 +1,7 @@
 use crate::match_tree::does_node_match_exactly;
 use crate::matcher::Matcher;
 use crate::source::Content;
-use crate::{Doc, LanguageExt, Node, StrDoc};
+use crate::{Doc, Node};
 use std::borrow::Cow;
 use std::collections::HashMap;
 
@@ -280,17 +280,14 @@ pub(crate) fn is_valid_meta_var_char(c: char) -> bool {
   is_valid_first_char(c) || c.is_ascii_digit()
 }
 
-impl<'tree, L: LanguageExt> From<MetaVarEnv<'tree, StrDoc<L>>> for HashMap<String, String> {
-  fn from(env: MetaVarEnv<'tree, StrDoc<L>>) -> Self {
+impl<'tree, D: Doc> From<MetaVarEnv<'tree, D>> for HashMap<String, String> {
+  fn from(env: MetaVarEnv<'tree, D>) -> Self {
     let mut ret = HashMap::new();
     for (id, node) in env.single_matched {
       ret.insert(id, node.text().into());
     }
     for (id, bytes) in env.transformed_var {
-      ret.insert(
-        id,
-        String::from_utf8(bytes).expect("invalid transform variable"),
-      );
+      ret.insert(id, <D::Source as Content>::encode_bytes(&bytes).to_string());
     }
     for (id, nodes) in env.multi_matched {
       let s: Vec<_> = nodes.iter().map(|n| n.text()).collect();

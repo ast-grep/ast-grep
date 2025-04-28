@@ -54,7 +54,7 @@ fn generate_lang_schemas() -> Result<()> {
   generate_lang_schema(Yaml, "yaml")
 }
 
-fn generate_lang_schema<T: Language + Alias>(lang: T, name: &str) -> Result<()> {
+fn generate_lang_schema<T: LanguageExt + Alias>(lang: T, name: &str) -> Result<()> {
   let mut schema = schema_for!(SerializableRuleConfig<PlaceholderLang>);
   tweak_schema(&mut schema)?;
   add_lang_info_to_schema(&mut schema, lang, name)?;
@@ -80,7 +80,7 @@ fn tweak_schema(schema: &mut RootSchema) -> Result<()> {
   Ok(())
 }
 
-fn add_lang_info_to_schema<T: Language + Alias>(
+fn add_lang_info_to_schema<T: LanguageExt + Alias>(
   schema: &mut RootSchema,
   lang: T,
   name: &str,
@@ -232,7 +232,7 @@ impl Language for PlaceholderLang {
   fn field_to_id(&self, _field: &str) -> Option<u16> {
     unreachable!("PlaceholderLang is only for json schema")
   }
-  fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
+  fn build_pattern(&self, _b: &PatternBuilder) -> Result<Pattern, PatternError> {
     unreachable!("PlaceholderLang is only for json schema")
   }
 }
