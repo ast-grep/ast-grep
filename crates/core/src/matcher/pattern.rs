@@ -2,7 +2,7 @@ use crate::language::Language;
 use crate::match_tree::{match_end_non_recursive, match_node_non_recursive, MatchStrictness};
 use crate::matcher::{kind_utils, KindMatcher, KindMatcherError, Matcher};
 use crate::meta_var::{MetaVarEnv, MetaVariable};
-use crate::source::{Content, SgNode};
+use crate::source::SgNode;
 use crate::{Doc, Node, Root};
 
 use bit_set::BitSet;
@@ -40,14 +40,10 @@ impl PatternBuilder<'_> {
   fn single<D: Doc>(&self, root: &Root<D>) -> Result<Pattern, PatternError> {
     let goal = root.root();
     if goal.children().len() == 0 {
-      return Err(PatternError::NoContent(
-        root.doc.get_source().get_full_string(),
-      ));
+      return Err(PatternError::NoContent(self.src.to_string()));
     }
     if !is_single_node(&goal.inner) {
-      return Err(PatternError::MultipleNode(
-        root.doc.get_source().get_full_string(),
-      ));
+      return Err(PatternError::MultipleNode(self.src.to_string()));
     }
     let node = Pattern::single_matcher(root);
     Ok(Pattern::from(node))
