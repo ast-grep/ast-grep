@@ -1,8 +1,8 @@
 use crate::matcher::PatternBuilder;
 use crate::meta_var::{extract_meta_var, MetaVariable};
-use crate::{AstGrep, Node, Pattern, PatternError, StrDoc};
+use crate::StrDoc;
+use crate::{Pattern, PatternError};
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::path::Path;
 pub use tree_sitter::Language as TSLanguage;
 pub use tree_sitter::{Point as TSPoint, Range as TSRange};
@@ -49,33 +49,6 @@ pub trait Language: Clone + 'static {
   fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError>;
 }
 
-/// tree-sitter specific language trait
-pub trait LanguageExt: Language {
-  /// Create an [`AstGrep`] instance for the language
-  fn ast_grep<S: AsRef<str>>(&self, source: S) -> AstGrep<StrDoc<Self>> {
-    AstGrep::new(source, self.clone())
-  }
-
-  /// tree sitter language to parse the source
-  fn get_ts_language(&self) -> TSLanguage;
-
-  fn injectable_languages(&self) -> Option<&'static [&'static str]> {
-    None
-  }
-
-  /// get injected language regions in the root document. e.g. get JavaScripts in HTML
-  /// it will return a list of tuples of (language, regions).
-  /// The first item is the embedded region language, e.g. javascript
-  /// The second item is a list of regions in tree_sitter.
-  /// also see https://tree-sitter.github.io/tree-sitter/using-parsers#multi-language-documents
-  fn extract_injections<L: LanguageExt>(
-    &self,
-    _root: Node<StrDoc<L>>,
-  ) -> HashMap<String, Vec<TSRange>> {
-    HashMap::new()
-  }
-}
-
 impl Language for TSLanguage {
   fn kind_to_id(&self, kind: &str) -> u16 {
     self.id_for_node_kind(kind, /* named */ true)
@@ -87,11 +60,6 @@ impl Language for TSLanguage {
     builder.build(|src| StrDoc::try_new(src, self.clone()))
   }
 }
-impl LanguageExt for TSLanguage {
-  fn get_ts_language(&self) -> TSLanguage {
-    self.clone()
-  }
-}
 
 #[cfg(test)]
 pub use test::*;
@@ -99,6 +67,8 @@ pub use test::*;
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::tree_sitter::LanguageExt;
+
   #[derive(Clone)]
   pub struct Tsx;
   impl Language for Tsx {

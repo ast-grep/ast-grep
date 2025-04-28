@@ -1,7 +1,7 @@
 use anyhow::Context;
-use ast_grep_core::language::{LanguageExt, TSLanguage};
+use ast_grep_core::language::TSLanguage;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
-use ast_grep_core::StrDoc;
+use ast_grep_core::{LanguageExt, StrDoc};
 use ast_grep_dynamic::{CustomLang, DynamicLang};
 use ast_grep_language::{Language, SupportLang};
 use serde::{Deserialize, Serialize};
