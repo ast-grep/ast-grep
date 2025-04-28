@@ -4,6 +4,7 @@ mod lang_globs;
 use crate::utils::ErrorContext as EC;
 
 use anyhow::{Context, Result};
+use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::{
   language::{TSLanguage, TSRange},
   Node, StrDoc,
@@ -194,6 +195,9 @@ impl CoreLanguage for SgLang {
     lang_globs::from_path(path)
       .or_else(|| DynamicLang::from_path(path).map(Custom))
       .or_else(|| SupportLang::from_path(path).map(Builtin))
+  }
+  fn build_pattern(&self, builder: &PatternBuilder) -> std::result::Result<Pattern, PatternError> {
+    builder.build(|src| StrDoc::try_new(src, *self))
   }
 }
 

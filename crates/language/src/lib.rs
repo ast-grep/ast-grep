@@ -27,6 +27,7 @@ mod scala;
 mod swift;
 mod yaml;
 
+use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 pub use html::Html;
 
 use ast_grep_core::language::{TSLanguage, TSRange};
@@ -58,6 +59,9 @@ macro_rules! impl_lang {
       }
       fn field_to_id(&self, field: &str) -> Option<u16> {
         self.get_ts_language().field_id_for_name(field)
+      }
+      fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
+        builder.build(|src| StrDoc::try_new(src, self.clone()))
       }
     }
     impl Language for $lang {
@@ -109,6 +113,9 @@ macro_rules! impl_lang_expando {
       }
       fn pre_process_pattern<'q>(&self, query: &'q str) -> std::borrow::Cow<'q, str> {
         pre_process_pattern(self.expando_char(), query)
+      }
+      fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
+        builder.build(|src| StrDoc::try_new(src, self.clone()))
       }
     }
     impl ast_grep_core::language::Language for $lang {
@@ -420,6 +427,7 @@ impl CoreLanguage for SupportLang {
   impl_lang_method!(meta_var_char, () => char);
   impl_lang_method!(expando_char, () => char);
   impl_lang_method!(extract_meta_var, (source: &str) => Option<MetaVariable>);
+  impl_lang_method!(build_pattern, (builder: &PatternBuilder) => Result<Pattern, PatternError>);
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
     execute_lang_method! { self, pre_process_pattern, query }
   }

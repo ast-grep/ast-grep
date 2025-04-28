@@ -1,5 +1,6 @@
+use crate::matcher::PatternBuilder;
 use crate::meta_var::{extract_meta_var, MetaVariable};
-use crate::{AstGrep, Node, StrDoc};
+use crate::{AstGrep, Node, Pattern, PatternError, StrDoc};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
@@ -45,6 +46,7 @@ pub trait CoreLanguage: Clone + 'static {
 
   fn kind_to_id(&self, kind: &str) -> u16;
   fn field_to_id(&self, field: &str) -> Option<u16>;
+  fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError>;
 }
 
 /// tree-sitter specific language trait
@@ -81,6 +83,9 @@ impl CoreLanguage for TSLanguage {
   fn field_to_id(&self, field: &str) -> Option<u16> {
     self.field_id_for_name(field)
   }
+  fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
+    builder.build(|src| StrDoc::try_new(src, self.clone()))
+  }
 }
 impl Language for TSLanguage {
   fn get_ts_language(&self) -> TSLanguage {
@@ -103,6 +108,9 @@ mod test {
     }
     fn field_to_id(&self, field: &str) -> Option<u16> {
       self.get_ts_language().field_id_for_name(field)
+    }
+    fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
+      builder.build(|src| StrDoc::try_new(src, self.clone()))
     }
   }
   impl Language for Tsx {

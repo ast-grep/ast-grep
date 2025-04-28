@@ -1,4 +1,5 @@
 use ast_grep_core::language::TSLanguage;
+use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::Language;
 use ast_grep_dynamic::{CustomLang, DynamicLang};
 use ast_grep_language::{CoreLanguage, SupportLang};
@@ -112,6 +113,8 @@ impl From<SupportLang> for NapiLang {
 }
 
 use NapiLang::*;
+
+use crate::doc::JsDoc;
 impl CoreLanguage for NapiLang {
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
     match self {
@@ -147,6 +150,9 @@ impl CoreLanguage for NapiLang {
       Builtin(b) => b.field_to_id(field),
       Custom(c) => c.field_to_id(field),
     }
+  }
+  fn build_pattern(&self, builder: &PatternBuilder) -> std::result::Result<Pattern, PatternError> {
+    builder.build(|src| JsDoc::try_new(src.to_string(), *self).map_err(|e| e.to_string()))
   }
 }
 impl Language for NapiLang {

@@ -1,6 +1,7 @@
 use ast_grep_core::language::{CoreLanguage, TSLanguage};
-use ast_grep_core::Language;
+use ast_grep_core::{Language, StrDoc};
 
+use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ignore::types::{Types, TypesBuilder};
 use libloading::{Error as LibError, Library, Symbol};
 use serde::{Deserialize, Serialize};
@@ -255,6 +256,12 @@ impl CoreLanguage for DynamicLang {
       } else {
         None
       }
+    })
+  }
+  fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
+    builder.build(|src| {
+      let doc = StrDoc::try_new(src, *self)?;
+      Ok(doc)
     })
   }
 }
