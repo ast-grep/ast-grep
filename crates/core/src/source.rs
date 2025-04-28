@@ -55,8 +55,65 @@ fn position_for_offset(input: &[u8], offset: usize) -> Point {
   Point::new(row, col)
 }
 
+fn position_to_byte_offset(input: &[u8], point: Point) -> Option<usize> {
+  let (row, col) = (point.row() as usize, point.column() as usize);
+  let bytes = input;
+  let mut byte_pos = 0;
+  let mut current_row = 0;
+
+  while current_row < row {
+    if byte_pos >= bytes.len() {
+      return None;
+    }
+    match bytes[byte_pos] {
+      b'\n' => {
+        current_row += 1;
+        byte_pos += 1;
+      }
+      b'\r' => {
+        if byte_pos + 1 < bytes.len() && bytes[byte_pos + 1] == b'\n' {
+          current_row += 1;
+          byte_pos += 2;
+        } else {
+          // Treat lone \r as a newline too (very rare)
+          current_row += 1;
+          byte_pos += 1;
+        }
+      }
+      _ => {
+        byte_pos += 1;
+      }
+    }
+  }
+
+  // Now `byte_pos` is at the start of the correct line
+  let mut current_col = 0;
+  for char in &bytes[byte_pos..] {
+    if current_col == col || *char == b'\n' || *char == b'\r' {
+      break;
+    }
+    if char & 0b1100_0000 != 0b1000_0000 {
+      current_col += 1;
+    }
+    byte_pos += 1;
+  }
+
+  Some(byte_pos)
+}
+
 pub fn perform_edit<S: Content>(tree: &mut Tree, input: &mut S, edit: &Edit<S>) -> InputEdit {
   let edit = input.accept_edit(edit);
+  tree.edit(&edit);
+  edit
+}
+
+pub fn perform_position_edit<S: Content>(
+  tree: &mut Tree,
+  input: &mut S,
+  range: Range<Point>,
+  new_text: Vec<<S as Content>::Underlying>,
+) -> InputEdit {
+  let edit = input.accept_position_edit(range, new_text);
   tree.edit(&edit);
   edit
 }
@@ -139,6 +196,11 @@ pub trait Content: Sized {
   ) -> Result<Option<Tree>, ParserError>;
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying];
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit;
+  fn accept_position_edit(
+    &mut self,
+    range: Range<Point>,
+    new_text: Vec<Self::Underlying>,
+  ) -> InputEdit;
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str>;
   /// Used for string replacement. We need this for
   /// indentation and deindentation.
@@ -184,6 +246,20 @@ impl Content for String {
       &old_end_position,
       &new_end_position,
     )
+  }
+  fn accept_position_edit(
+    &mut self,
+    range: Range<Point>,
+    inserted_text: Vec<Self::Underlying>,
+  ) -> InputEdit {
+    let position = position_to_byte_offset(self.as_bytes(), range.start).unwrap();
+    let deleted_length = position_to_byte_offset(self.as_bytes(), range.end).unwrap() - position;
+    let edit: Edit<Self> = Edit {
+      position,
+      deleted_length,
+      inserted_text,
+    };
+    self.accept_edit(&edit)
   }
   fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
     Cow::Borrowed(src.as_bytes())

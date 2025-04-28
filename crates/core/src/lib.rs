@@ -20,6 +20,8 @@ pub mod pinned;
 mod match_tree;
 mod node;
 
+use std::ops::Range;
+
 pub use language::Language;
 pub use match_tree::MatchStrictness;
 pub use matcher::{Matcher, NodeMatch, Pattern, PatternError, SgNodeMatch};
@@ -32,7 +34,8 @@ pub use node::DisplayContext;
 use replacer::Replacer;
 
 use node::Root;
-use source::{Edit, TSParseError};
+use source::{Content, Edit, TSParseError};
+use tree_sitter::Point;
 
 #[derive(Clone)]
 pub struct AstGrep<D: Doc> {
@@ -46,6 +49,15 @@ impl<D: Doc> AstGrep<D> {
 
   pub fn edit(&mut self, edit: Edit<D::Source>) -> Result<&mut Self, TSParseError> {
     self.inner.do_edit(edit)?;
+    Ok(self)
+  }
+
+  pub fn point_edit(
+    &mut self,
+    range: Range<Point>,
+    new_text: Vec<<<D as Doc>::Source as Content>::Underlying>,
+  ) -> Result<&mut Self, TSParseError> {
+    self.inner.do_point_edit(range, new_text)?;
     Ok(self)
   }
 
@@ -156,6 +168,15 @@ mod test {
     ast_grep.replace("return foo($A, $B)", "return bar($A, $B)")?;
     let source = ast_grep.generate();
     assert_eq!(source, "return bar(1, 2) /*haha*/;"); // semicolon
+    Ok(())
+  }
+
+  #[test]
+  fn test_position_replace_trivia_with_skipped() -> Result {
+    let mut ast_grep = Tsx.ast_grep("return foo(1, 2,) /*haha*/;");
+    ast_grep.point_edit(Point::new(0, 0)..Point::new(0, 6), "break".into())?;
+    let source = ast_grep.generate();
+    assert_eq!(source, "break foo(1, 2) /*haha*/;"); // semicolon
     Ok(())
   }
 }

@@ -48,6 +48,41 @@ impl NapiConfig {
   }
 }
 
+fn position_to_byte_offset(input: &[u16], point: Point) -> Option<usize> {
+  let (row, col) = (point.row() as usize, point.column() as usize);
+  let bytes = input;
+  let mut byte_pos = 0;
+  let mut current_row = 0;
+  let carriage_return: u16 = 0x000D; // '\r'
+  let line_feed: u16 = 0x000A; // '\n'
+
+  while current_row < row {
+    if byte_pos >= bytes.len() {
+      return None;
+    }
+    if bytes[byte_pos] == line_feed {
+      current_row += 1;
+      byte_pos += 2;
+    } else if bytes[byte_pos] == carriage_return {
+      if byte_pos + 1 < bytes.len() && bytes[byte_pos + 1] == line_feed {
+        current_row += 1;
+        byte_pos += 4;
+      } else {
+        // Treat lone \r as a newline too (very rare)
+        current_row += 1;
+        byte_pos += 2;
+      }
+    } else {
+      byte_pos += 2;
+    }
+  }
+
+  // Now `byte_pos` is at the start of the correct line
+  byte_pos += col * 2;
+
+  Some(byte_pos)
+}
+
 #[derive(Clone)]
 pub struct Wrapper {
   inner: Vec<u16>,
@@ -85,6 +120,20 @@ impl Content for Wrapper {
       &old_end_position,
       &new_end_position,
     )
+  }
+  fn accept_position_edit(
+    &mut self,
+    range: Range<Point>,
+    inserted_text: Vec<Self::Underlying>,
+  ) -> InputEdit {
+    let position = position_to_byte_offset(&self.inner, range.start).unwrap();
+    let deleted_length = position_to_byte_offset(&self.inner, range.end).unwrap() - position;
+    let edit: Edit<Self> = Edit {
+      position,
+      deleted_length,
+      inserted_text,
+    };
+    self.accept_edit(&edit)
   }
   fn get_text<'a>(&'a self, node: &Node) -> Cow<'a, str> {
     let slice = self.inner.as_slice();
@@ -198,6 +247,22 @@ mod test {
       .expect("should exist");
     grep.edit(edit).expect("should work");
     assert_eq!(grep.root().text(), "log(1 + 2 + 3)");
+  }
+
+  #[test]
+  fn test_js_doc_single_node_point_replace() {
+    let doc = JsDoc::new(
+      "console.log(1 + 2 + 3)".into(),
+      SupportLang::JavaScript.into(),
+    );
+    let mut grep = AstGrep::doc(doc);
+    grep
+      .point_edit(
+        Point::new(0, 8)..Point::new(0, 11),
+        "error".encode_utf16().collect(),
+      )
+      .expect("should work");
+    assert_eq!(grep.root().text(), "console.error(1 + 2 + 3)");
   }
 
   #[test]

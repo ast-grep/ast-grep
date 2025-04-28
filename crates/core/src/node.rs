@@ -1,13 +1,16 @@
+use tree_sitter::Point;
+
 use crate::language::Language;
 use crate::matcher::{FindAllNodes, Matcher, MatcherExt, NodeMatch};
 use crate::replacer::Replacer;
-use crate::source::{perform_edit, Content, Edit as E, TSParseError};
+use crate::source::{perform_edit, perform_position_edit, Content, Edit as E, TSParseError};
 use crate::traversal::{Pre, Visitor};
 use crate::{Doc, StrDoc};
 
 type Edit<D> = E<<D as Doc>::Source>;
 
 use std::borrow::Cow;
+use std::ops::Range;
 
 /// Represents a position in the source code.
 /// The line and column are zero-based, character offsets.
@@ -96,6 +99,19 @@ impl<D: Doc> Root<D> {
   pub fn do_edit(&mut self, edit: Edit<D>) -> Result<(), TSParseError> {
     let source = self.doc.get_source_mut();
     let input_edit = perform_edit(&mut self.inner, source, &edit);
+    self.inner.edit(&input_edit);
+    self.inner = self.doc.parse(Some(&self.inner))?;
+    Ok(())
+  }
+
+  /// Perform an edit using points ((row, col) positions), and insertion text.
+  pub fn do_point_edit(
+    &mut self,
+    range: Range<Point>,
+    new_text: Vec<<<D as Doc>::Source as Content>::Underlying>,
+  ) -> Result<(), TSParseError> {
+    let source = self.doc.get_source_mut();
+    let input_edit = perform_position_edit(&mut self.inner, source, range, new_text);
     self.inner.edit(&input_edit);
     self.inner = self.doc.parse(Some(&self.inner))?;
     Ok(())
