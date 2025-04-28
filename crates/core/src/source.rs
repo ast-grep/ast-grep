@@ -352,8 +352,6 @@ pub trait Content: Sized {
   fn encode_bytes(bytes: &[Self::Underlying]) -> Cow<str>;
   /// Get the character column at the given position
   fn get_char_column(&self, column: usize, offset: usize) -> usize;
-  /// get full string
-  fn get_full_string(&self) -> String;
 }
 
 impl Content for String {
@@ -410,9 +408,6 @@ impl Content for String {
       }
     }
     col
-  }
-  fn get_full_string(&self) -> String {
-    self.clone()
   }
 }
 
