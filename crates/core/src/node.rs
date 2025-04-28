@@ -198,6 +198,15 @@ impl<'r, D: Doc> Node<'r, D> {
   pub fn lang(&self) -> &'r D::Lang {
     self.root.lang()
   }
+
+  /// the underlying tree-sitter Node
+  pub fn get_inner_node(&self) -> D::Node<'r> {
+    self.inner.clone()
+  }
+
+  pub fn root(&self) -> &'r Root<D> {
+    self.root
+  }
 }
 
 /// these methods are only for `StrDoc`
@@ -244,20 +253,6 @@ impl<'r, L: LanguageExt> Node<'r, StrDoc<L>> {
       trailing: &source[end..trailing],
       start_line: self.start_pos().line() - offset,
     }
-  }
-
-  pub fn root(&self) -> &'r Root<StrDoc<L>> {
-    self.root
-  }
-
-  /// the underlying tree-sitter Node
-  pub fn get_ts_node(&self) -> tree_sitter::Node<'r> {
-    self.inner.clone()
-  }
-
-  /// Node's tree structure dumped in Lisp like S-expression
-  pub fn to_sexp(&self) -> Cow<'_, str> {
-    self.inner.to_sexp()
   }
 
   pub fn replace_all<M: Matcher, R: Replacer<StrDoc<L>>>(

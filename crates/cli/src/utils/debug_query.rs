@@ -42,14 +42,14 @@ impl DebugFormat {
         debug_assert!(false, "debug_tree cannot be called with Pattern")
       }
       DebugFormat::Sexp => {
-        eprintln!("Debug Sexp:\n{}", root.root().to_sexp());
+        eprintln!("Debug Sexp:\n{}", root.root().get_inner_node().to_sexp());
       }
       DebugFormat::Ast => {
-        let dumped = dump_node(root.root().get_ts_node());
+        let dumped = dump_node(root.root().get_inner_node());
         eprintln!("Debug AST:\n{}", dumped.ast(colored));
       }
       DebugFormat::Cst => {
-        let dumped = dump_node(root.root().get_ts_node());
+        let dumped = dump_node(root.root().get_inner_node());
         eprintln!("Debug CST:\n{}", dumped.cst(colored));
       }
     }
@@ -249,7 +249,7 @@ program (0,0)-(0,11)
   fn test_dump_node() {
     let lang = SgLang::Builtin(TypeScript.into());
     let root = lang.ast_grep("var a = 123");
-    let dumped = dump_node(root.root().get_ts_node());
+    let dumped = dump_node(root.root().get_inner_node());
     assert_eq!(DUMPED.trim(), dumped.ast(false).trim());
   }
 
@@ -266,7 +266,7 @@ translation_unit (0,0)-(0,9)
   fn test_missing_node() {
     let lang = SgLang::Builtin(C.into());
     let root = lang.ast_grep("int a = 1");
-    let dumped = dump_node(root.root().get_ts_node());
+    let dumped = dump_node(root.root().get_inner_node());
     assert_eq!(MISSING.trim(), dumped.cst(false).trim());
   }
 }
