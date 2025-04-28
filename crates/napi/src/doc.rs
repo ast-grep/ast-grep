@@ -99,6 +99,9 @@ impl Content for Wrapper {
     // utf-16 is 2 bytes per character, this is O(1) operation!
     column / 2
   }
+  fn get_full_string(&self) -> String {
+    String::from_utf16_lossy(self.inner.as_slice())
+  }
 }
 
 fn pos_for_byte_offset(input: &[u16], byte_offset: usize) -> Point {
