@@ -1,5 +1,5 @@
 use ast_grep_config::{from_yaml_string, RuleConfig};
-use ast_grep_core::{AstGrep, Language, Matcher, Pattern, StrDoc};
+use ast_grep_core::{AstGrep, LanguageExt, Matcher, Pattern, StrDoc};
 use ast_grep_language::SupportLang;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::env::current_dir;
