@@ -1,7 +1,7 @@
 use super::SgLang;
 use crate::utils::ErrorContext as EC;
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
-use ast_grep_core::{language::TSRange, Doc, Language, Node, StrDoc};
+use ast_grep_core::{language::TSRange, Doc, LanguageExt, Node, StrDoc};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -123,7 +123,7 @@ pub fn injectable_languages(lang: SgLang) -> Option<&'static [&'static str]> {
   Some(&injection.1)
 }
 
-pub fn extract_injections<L: Language>(root: Node<StrDoc<L>>) -> HashMap<String, Vec<TSRange>> {
+pub fn extract_injections<L: LanguageExt>(root: Node<StrDoc<L>>) -> HashMap<String, Vec<TSRange>> {
   // NB Only works in the CLI crate because we only has Node<SgLang>
   let root: Node<StrDoc<SgLang>> = unsafe { std::mem::transmute(root) };
   let mut ret = match root.lang() {

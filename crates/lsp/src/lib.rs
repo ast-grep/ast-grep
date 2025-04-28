@@ -7,7 +7,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
 use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig, Severity};
-use ast_grep_core::{language::Language, AstGrep, Doc, StrDoc};
+use ast_grep_core::{AstGrep, Doc, LanguageExt, StrDoc};
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -16,8 +16,8 @@ use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, RewriteData}
 
 pub use tower_lsp::{LspService, Server};
 
-pub trait LSPLang: Language + Eq + Send + Sync + 'static {}
-impl<T> LSPLang for T where T: Language + Eq + Send + Sync + 'static {}
+pub trait LSPLang: LanguageExt + Eq + Send + Sync + 'static {}
+impl<T> LSPLang for T where T: LanguageExt + Eq + Send + Sync + 'static {}
 
 struct VersionedAst<D: Doc> {
   version: i32,

@@ -416,7 +416,7 @@ impl PrintProcessor<Buffer> for JSONProcessor {
 mod test {
   use super::*;
   use ast_grep_config::{from_yaml_string, Fixer, GlobalRules};
-  use ast_grep_language::{Language, SupportLang};
+  use ast_grep_language::{LanguageExt, SupportLang};
 
   struct Test(String);
   impl Write for Test {

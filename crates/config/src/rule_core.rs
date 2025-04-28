@@ -279,6 +279,7 @@ mod test {
   use crate::rule::referent_rule::{ReferentRule, ReferentRuleError};
   use crate::test::TypeScript;
   use ast_grep_core::matcher::{Pattern, RegexMatcher};
+  use ast_grep_core::LanguageExt;
 
   fn get_matcher(src: &str) -> RResult<RuleCore> {
     let env = DeserializeEnv::new(TypeScript::Tsx);

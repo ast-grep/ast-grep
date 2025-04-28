@@ -1,5 +1,5 @@
-use ast_grep_core::language::{CoreLanguage, TSLanguage};
-use ast_grep_core::{Language, StrDoc};
+use ast_grep_core::language::{Language, TSLanguage};
+use ast_grep_core::{LanguageExt, StrDoc};
 
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ignore::types::{Types, TypesBuilder};
@@ -203,7 +203,7 @@ impl DynamicLang {
     unsafe { &*addr_of!(DYNAMIC_LANG) }
   }
 }
-impl CoreLanguage for DynamicLang {
+impl Language for DynamicLang {
   /// normalize pattern code before matching
   /// e.g. remove expression_statement, or prefer parsing {} to object over block
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
@@ -266,7 +266,7 @@ impl CoreLanguage for DynamicLang {
   }
 }
 
-impl Language for DynamicLang {
+impl LanguageExt for DynamicLang {
   /// tree sitter language to parse the source
   fn get_ts_language(&self) -> TSLanguage {
     self.inner().lang.clone()

@@ -269,7 +269,7 @@ impl StdInWorker for ScanStdin {
     src: String,
     processor: &P::Processor,
   ) -> Result<Vec<P::Processed>> {
-    use ast_grep_core::Language;
+    use ast_grep_core::LanguageExt;
     let lang = self.rules[0].language;
     let combined = CombinedScan::new(self.rules.iter().collect());
     let grep = lang.ast_grep(src);

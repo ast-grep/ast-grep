@@ -1,4 +1,4 @@
-use crate::language::{CoreLanguage, Language};
+use crate::language::Language;
 use crate::match_tree::{match_end_non_recursive, match_node_non_recursive, MatchStrictness};
 use crate::matcher::{kind_utils, KindMatcher, KindMatcherError, Matcher};
 use crate::meta_var::{MetaVarEnv, MetaVariable};

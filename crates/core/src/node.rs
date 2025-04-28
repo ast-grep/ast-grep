@@ -1,4 +1,4 @@
-use crate::language::{CoreLanguage, Language};
+use crate::language::{Language, LanguageExt};
 use crate::matcher::{Matcher, MatcherExt, NodeMatch};
 use crate::replacer::Replacer;
 use crate::source::{Content, Edit as E, SgNode};
@@ -51,7 +51,7 @@ pub struct Root<D: Doc> {
   pub(crate) doc: D,
 }
 
-impl<L: Language> Root<StrDoc<L>> {
+impl<L: LanguageExt> Root<StrDoc<L>> {
   pub fn str(src: &str, lang: L) -> Self {
     Self::try_new(src, lang).expect("should parse")
   }
@@ -201,7 +201,7 @@ impl<'r, D: Doc> Node<'r, D> {
 }
 
 /// these methods are only for `StrDoc`
-impl<'r, L: Language> Node<'r, StrDoc<L>> {
+impl<'r, L: LanguageExt> Node<'r, StrDoc<L>> {
   #[doc(hidden)]
   pub fn display_context(&self, before: usize, after: usize) -> DisplayContext<'r> {
     let source = self.root.doc.get_source().as_str();
@@ -480,7 +480,7 @@ impl<D: Doc> Node<'_, D> {
 
 #[cfg(test)]
 mod test {
-  use crate::language::{CoreLanguage, Language, Tsx};
+  use crate::language::{Language, LanguageExt, Tsx};
   #[test]
   fn test_is_leaf() {
     let root = Tsx.ast_grep("let a = 123");

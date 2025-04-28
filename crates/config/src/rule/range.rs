@@ -97,7 +97,7 @@ mod test {
   use super::*;
   use crate::test::TypeScript as TS;
   use ast_grep_core::matcher::MatcherExt;
-  use ast_grep_core::Language;
+  use ast_grep_core::LanguageExt;
 
   #[test]
   fn test_invalid_range() {

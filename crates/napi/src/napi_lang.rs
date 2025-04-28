@@ -1,8 +1,8 @@
 use ast_grep_core::language::TSLanguage;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
-use ast_grep_core::Language;
+use ast_grep_core::LanguageExt;
 use ast_grep_dynamic::{CustomLang, DynamicLang};
-use ast_grep_language::{CoreLanguage, SupportLang};
+use ast_grep_language::{Language, SupportLang};
 use ignore::types::{Types, TypesBuilder};
 use ignore::{WalkBuilder, WalkParallel};
 use napi::anyhow::anyhow;
@@ -115,7 +115,7 @@ impl From<SupportLang> for NapiLang {
 use NapiLang::*;
 
 use crate::doc::JsDoc;
-impl CoreLanguage for NapiLang {
+impl Language for NapiLang {
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
     match self {
       Builtin(b) => b.pre_process_pattern(query),
@@ -155,7 +155,8 @@ impl CoreLanguage for NapiLang {
     builder.build(|src| JsDoc::try_new(src.to_string(), *self).map_err(|e| e.to_string()))
   }
 }
-impl Language for NapiLang {
+
+impl LanguageExt for NapiLang {
   fn get_ts_language(&self) -> TSLanguage {
     match self {
       Builtin(b) => b.get_ts_language(),

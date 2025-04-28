@@ -20,7 +20,7 @@ pub mod pinned;
 mod match_tree;
 mod node;
 
-pub use language::Language;
+pub use language::{Language, LanguageExt};
 pub use match_tree::MatchStrictness;
 pub use matcher::{Matcher, NodeMatch, Pattern, PatternError};
 pub use node::{Node, Position};
@@ -77,7 +77,7 @@ impl<D: Doc> AstGrep<D> {
   }
 }
 
-impl<L: Language> AstGrep<StrDoc<L>> {
+impl<L: LanguageExt> AstGrep<StrDoc<L>> {
   pub fn new<S: AsRef<str>>(src: S, lang: L) -> Self {
     Self {
       inner: Root::str(src.as_ref(), lang),

@@ -11,7 +11,7 @@ pub use tree_sitter::{Point as TSPoint, Range as TSRange};
 /// * which character is used for meta variable.
 /// * if we need to use other char in meta var for parser at runtime
 /// * pre process the Pattern code.
-pub trait CoreLanguage: Clone + 'static {
+pub trait Language: Clone + 'static {
   /// normalize pattern code before matching
   /// e.g. remove expression_statement, or prefer parsing {} to object over block
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
@@ -50,7 +50,7 @@ pub trait CoreLanguage: Clone + 'static {
 }
 
 /// tree-sitter specific language trait
-pub trait Language: CoreLanguage {
+pub trait LanguageExt: Language {
   /// Create an [`AstGrep`] instance for the language
   fn ast_grep<S: AsRef<str>>(&self, source: S) -> AstGrep<StrDoc<Self>> {
     AstGrep::new(source, self.clone())
@@ -68,7 +68,7 @@ pub trait Language: CoreLanguage {
   /// The first item is the embedded region language, e.g. javascript
   /// The second item is a list of regions in tree_sitter.
   /// also see https://tree-sitter.github.io/tree-sitter/using-parsers#multi-language-documents
-  fn extract_injections<L: Language>(
+  fn extract_injections<L: LanguageExt>(
     &self,
     _root: Node<StrDoc<L>>,
   ) -> HashMap<String, Vec<TSRange>> {
@@ -76,7 +76,7 @@ pub trait Language: CoreLanguage {
   }
 }
 
-impl CoreLanguage for TSLanguage {
+impl Language for TSLanguage {
   fn kind_to_id(&self, kind: &str) -> u16 {
     self.id_for_node_kind(kind, /* named */ true)
   }
@@ -87,7 +87,7 @@ impl CoreLanguage for TSLanguage {
     builder.build(|src| StrDoc::try_new(src, self.clone()))
   }
 }
-impl Language for TSLanguage {
+impl LanguageExt for TSLanguage {
   fn get_ts_language(&self) -> TSLanguage {
     self.clone()
   }
@@ -101,7 +101,7 @@ mod test {
   use super::*;
   #[derive(Clone)]
   pub struct Tsx;
-  impl CoreLanguage for Tsx {
+  impl Language for Tsx {
     fn kind_to_id(&self, kind: &str) -> u16 {
       let ts_lang: TSLanguage = tree_sitter_typescript::LANGUAGE_TSX.into();
       ts_lang.id_for_node_kind(kind, /* named */ true)
@@ -113,7 +113,7 @@ mod test {
       builder.build(|src| StrDoc::try_new(src, self.clone()))
     }
   }
-  impl Language for Tsx {
+  impl LanguageExt for Tsx {
     fn get_ts_language(&self) -> TSLanguage {
       tree_sitter_typescript::LANGUAGE_TSX.into()
     }

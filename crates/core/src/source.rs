@@ -11,6 +11,7 @@
 //! It has a `Source` associated type bounded by `Content` that represents the source code of the document,
 //! and a `Lang` associated type that represents the language of the document.
 
+use crate::language::LanguageExt;
 use crate::traversal::TsPre;
 use crate::{language::Language, node::KindId, Position};
 use std::borrow::Cow;
@@ -284,13 +285,13 @@ pub trait Doc: Clone + 'static {
 }
 
 #[derive(Clone)]
-pub struct StrDoc<L: Language> {
+pub struct StrDoc<L: LanguageExt> {
   pub src: String,
   pub lang: L,
   pub tree: Tree,
 }
 
-impl<L: Language> StrDoc<L> {
+impl<L: LanguageExt> StrDoc<L> {
   pub fn try_new(src: &str, lang: L) -> Result<Self, String> {
     let src = src.to_string();
     let ts_lang = lang.get_ts_language();
@@ -308,7 +309,7 @@ impl<L: Language> StrDoc<L> {
   }
 }
 
-impl<L: Language> Doc for StrDoc<L> {
+impl<L: LanguageExt> Doc for StrDoc<L> {
   type Source = String;
   type Lang = L;
   type Node<'r> = Node<'r>;
@@ -418,7 +419,7 @@ impl Content for String {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::language::{Language, Tsx};
+  use crate::language::Tsx;
 
   fn parse(src: &str) -> Result<Tree, TSParseError> {
     parse_lang(|p| p.parse(src, None), Tsx.get_ts_language())

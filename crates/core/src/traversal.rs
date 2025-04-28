@@ -19,7 +19,7 @@
 //! Level order is also included for completeness and should be used sparingly.
 
 use crate::matcher::{Matcher, MatcherExt};
-use crate::{Doc, Language, Node, NodeMatch, Root, StrDoc};
+use crate::{Doc, LanguageExt, Node, NodeMatch, Root, StrDoc};
 
 use tree_sitter as ts;
 
@@ -71,7 +71,7 @@ impl<M, A> Visitor<M, A>
 where
   A: Algorithm,
 {
-  pub fn visit<L: Language>(
+  pub fn visit<L: LanguageExt>(
     self,
     node: Node<StrDoc<L>>,
   ) -> Visit<'_, StrDoc<L>, A::Traversal<'_, L>, M>
@@ -133,21 +133,21 @@ where
 }
 
 pub trait Algorithm {
-  type Traversal<'t, L: Language>: Traversal<'t, StrDoc<L>>;
-  fn traverse<L: Language>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L>;
+  type Traversal<'t, L: LanguageExt>: Traversal<'t, StrDoc<L>>;
+  fn traverse<L: LanguageExt>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L>;
 }
 
 pub struct PreOrder;
 impl Algorithm for PreOrder {
-  type Traversal<'t, L: Language> = Pre<'t, L>;
-  fn traverse<L: Language>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L> {
+  type Traversal<'t, L: LanguageExt> = Pre<'t, L>;
+  fn traverse<L: LanguageExt>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L> {
     Pre::new(&node)
   }
 }
 pub struct PostOrder;
 impl Algorithm for PostOrder {
-  type Traversal<'t, L: Language> = Post<'t, L>;
-  fn traverse<L: Language>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L> {
+  type Traversal<'t, L: LanguageExt> = Post<'t, L>;
+  fn traverse<L: LanguageExt>(node: Node<StrDoc<L>>) -> Self::Traversal<'_, L> {
     Post::new(&node)
   }
 }
@@ -237,11 +237,11 @@ impl<'tree> Iterator for TsPre<'tree> {
   }
 }
 
-pub struct Pre<'tree, L: Language> {
+pub struct Pre<'tree, L: LanguageExt> {
   root: &'tree Root<StrDoc<L>>,
   inner: TsPre<'tree>,
 }
-impl<'tree, L: Language> Iterator for Pre<'tree, L> {
+impl<'tree, L: LanguageExt> Iterator for Pre<'tree, L> {
   type Item = Node<'tree, StrDoc<L>>;
   fn next(&mut self) -> Option<Self::Item> {
     let inner = self.inner.next()?;
@@ -249,7 +249,7 @@ impl<'tree, L: Language> Iterator for Pre<'tree, L> {
   }
 }
 
-impl<'t, L: Language> Pre<'t, L> {
+impl<'t, L: LanguageExt> Pre<'t, L> {
   pub fn new(node: &Node<'t, StrDoc<L>>) -> Self {
     let inner = TsPre::new(&node.inner);
     Self {
@@ -259,7 +259,7 @@ impl<'t, L: Language> Pre<'t, L> {
   }
 }
 
-impl<'t, L: Language> Traversal<'t, StrDoc<L>> for Pre<'t, L> {
+impl<'t, L: LanguageExt> Traversal<'t, StrDoc<L>> for Pre<'t, L> {
   fn calibrate_for_match(&mut self, depth: Option<usize>) {
     // not entering the node, ignore
     let Some(depth) = depth else {
@@ -284,7 +284,7 @@ impl<'t, L: Language> Traversal<'t, StrDoc<L>> for Pre<'t, L> {
 }
 
 /// Represents a post-order traversal
-pub struct Post<'tree, L: Language> {
+pub struct Post<'tree, L: LanguageExt> {
   cursor: ts::TreeCursor<'tree>,
   root: &'tree Root<StrDoc<L>>,
   start_id: Option<usize>,
@@ -293,7 +293,7 @@ pub struct Post<'tree, L: Language> {
 }
 
 /// Amortized time complexity is O(NlgN), depending on branching factor.
-impl<'tree, L: Language> Post<'tree, L> {
+impl<'tree, L: LanguageExt> Post<'tree, L> {
   pub fn new(node: &Node<'tree, StrDoc<L>>) -> Self {
     let mut ret = Self {
       cursor: node.inner.walk(),
@@ -317,7 +317,7 @@ impl<'tree, L: Language> Post<'tree, L> {
 }
 
 /// Amortized time complexity is O(NlgN), depending on branching factor.
-impl<'tree, L: Language> Iterator for Post<'tree, L> {
+impl<'tree, L: LanguageExt> Iterator for Post<'tree, L> {
   type Item = Node<'tree, StrDoc<L>>;
   fn next(&mut self) -> Option<Self::Item> {
     // start_id will always be Some until the dfs terminates
@@ -337,7 +337,7 @@ impl<'tree, L: Language> Iterator for Post<'tree, L> {
   }
 }
 
-impl<'t, L: Language> Traversal<'t, StrDoc<L>> for Post<'t, L> {
+impl<'t, L: LanguageExt> Traversal<'t, StrDoc<L>> for Post<'t, L> {
   fn calibrate_for_match(&mut self, depth: Option<usize>) {
     if let Some(depth) = depth {
       // Later matches' depth should always be greater than former matches.
@@ -376,13 +376,13 @@ impl<'t, L: Language> Traversal<'t, StrDoc<L>> for Post<'t, L> {
 /// It is implemented with [`VecDeque`] since quadratic backtracking is too time consuming.
 /// Though level-order is not used as frequently as other DFS traversals,
 /// traversing a big AST with level-order should be done with caution since it might increase the memory usage.
-pub struct Level<'tree, L: Language> {
+pub struct Level<'tree, L: LanguageExt> {
   deque: VecDeque<ts::Node<'tree>>,
   cursor: ts::TreeCursor<'tree>,
   root: &'tree Root<StrDoc<L>>,
 }
 
-impl<'tree, L: Language> Level<'tree, L> {
+impl<'tree, L: LanguageExt> Level<'tree, L> {
   pub fn new(node: &Node<'tree, StrDoc<L>>) -> Self {
     let mut deque = VecDeque::new();
     deque.push_back(node.inner.clone());
@@ -396,7 +396,7 @@ impl<'tree, L: Language> Level<'tree, L> {
 }
 
 /// Time complexity is O(N). Space complexity is O(N)
-impl<'tree, L: Language> Iterator for Level<'tree, L> {
+impl<'tree, L: LanguageExt> Iterator for Level<'tree, L> {
   type Item = Node<'tree, StrDoc<L>>;
   fn next(&mut self) -> Option<Self::Item> {
     let inner = self.deque.pop_front()?;
@@ -409,7 +409,7 @@ impl<'tree, L: Language> Iterator for Level<'tree, L> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::language::{Language, Tsx};
+  use crate::language::Tsx;
   use crate::StrDoc;
   use std::ops::Range;
 
