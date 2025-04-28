@@ -2,7 +2,7 @@ use crate::language::{CoreLanguage, Language};
 use crate::match_tree::{match_end_non_recursive, match_node_non_recursive, MatchStrictness};
 use crate::matcher::{kind_utils, KindMatcher, KindMatcherError, Matcher};
 use crate::meta_var::{MetaVarEnv, MetaVariable};
-use crate::source::{SgNode, TSParseError};
+use crate::source::{Content, SgNode, TSParseError};
 use crate::{Doc, Node, Root, StrDoc};
 
 use bit_set::BitSet;
@@ -193,16 +193,8 @@ fn collect_vars<'p>(p: &'p PatternNode, vars: &mut HashSet<&'p str>) {
 impl Pattern {
   pub fn try_new<L: Language>(src: &str, lang: L) -> Result<Self, PatternError> {
     let processed = lang.pre_process_pattern(src);
-    let root = Root::try_new(&processed, lang)?;
-    let goal = root.root();
-    if goal.inner.child_count() == 0 {
-      return Err(PatternError::NoContent(src.into()));
-    }
-    if !is_single_node(&goal.inner) {
-      return Err(PatternError::MultipleNode(src.into()));
-    }
-    let node = Self::single_matcher(&root);
-    Ok(Self::from(node))
+    let doc = StrDoc::try_new(&processed, lang)?;
+    Self::doc(doc)
   }
 
   pub fn new<L: Language>(src: &str, lang: L) -> Self {
@@ -235,9 +227,18 @@ impl Pattern {
       strictness: MatchStrictness::Smart,
     })
   }
-  pub fn doc<L: Language>(doc: StrDoc<L>) -> Self {
+  pub fn doc<D: Doc>(doc: D) -> Result<Self, PatternError> {
     let root = Root::doc(doc);
-    Self::from(root.root())
+    let goal = root.root();
+    let err = || root.doc.get_source().get_full_string();
+    if goal.children().len() == 0 {
+      return Err(PatternError::NoContent(err()));
+    }
+    if !is_single_node(&goal.inner) {
+      return Err(PatternError::MultipleNode(err()));
+    }
+    let node = Self::single_matcher(&root);
+    Ok(Self::from(node))
   }
   fn single_matcher<D: Doc>(root: &Root<D>) -> Node<D> {
     // debug_assert!(matches!(self.style, PatternStyle::Single));
@@ -512,7 +513,7 @@ mod test {
   #[test]
   fn test_doc_pattern() {
     let doc = StrDoc::new("let a = 123", Tsx);
-    let pattern = Pattern::doc(doc);
+    let pattern = Pattern::doc(doc).expect("should parse");
     let kinds = pattern.potential_kinds().expect("should have kinds");
     assert_eq!(kinds.len(), 1);
   }
