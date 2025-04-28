@@ -531,7 +531,7 @@ mod test {
     assert!(
       pattern.find_node(cand.root()).is_some(),
       "goal: {pattern:?}, candidate: {}",
-      cand.root().to_sexp(),
+      cand.root().get_inner_node().to_sexp(),
     );
   }
 
@@ -541,7 +541,7 @@ mod test {
     assert!(
       pattern.find_node(cand.root()).is_none(),
       "goal: {pattern:?}, candidate: {}",
-      cand.root().to_sexp(),
+      cand.root().get_inner_node().to_sexp(),
     );
   }
 

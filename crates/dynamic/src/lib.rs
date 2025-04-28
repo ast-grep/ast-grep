@@ -299,7 +299,7 @@ mod test {
     let (_lib, lang) = unsafe { load_ts_language(path.into(), "tree_sitter_json".into()).unwrap() };
     let sg = lang.ast_grep("{\"a\": 123}");
     assert_eq!(
-      sg.root().to_sexp(),
+      sg.root().get_inner_node().to_sexp(),
       "(document (object (pair key: (string (string_content)) value: (number))))"
     );
   }

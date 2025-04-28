@@ -114,7 +114,7 @@ mod test {
       pattern.find_node(cand.clone()).is_some(),
       "goal: {}, candidate: {}",
       kind,
-      cand.to_sexp(),
+      cand.get_inner_node().to_sexp(),
     );
   }
 
@@ -128,7 +128,7 @@ mod test {
       pattern.find_node(cand.clone()).is_none(),
       "goal: {}, candidate: {}",
       kind,
-      cand.to_sexp(),
+      cand.get_inner_node().to_sexp(),
     );
   }
 

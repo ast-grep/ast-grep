@@ -173,7 +173,7 @@ mod test {
     assert!(
       ret.is_some(),
       "goal: {goal:?}, candidate: {}",
-      cand.to_sexp(),
+      cand.get_inner_node().to_sexp(),
     );
     HashMap::from(env.into_owned())
   }
