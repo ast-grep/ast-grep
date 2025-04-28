@@ -214,6 +214,7 @@ mod test {
   use crate::test::TypeScript;
   use crate::{from_str, Rule};
   use anyhow::Result;
+  use ast_grep_core::LanguageExt;
   use ast_grep_core::Matcher;
 
   fn get_dependent_utils() -> Result<(Rule, DeserializeEnv<TypeScript>)> {

@@ -10,7 +10,7 @@ use ast_grep_core::{
   Node, StrDoc,
 };
 use ast_grep_dynamic::DynamicLang;
-use ast_grep_language::{CoreLanguage, Language, SupportLang};
+use ast_grep_language::{Language, LanguageExt, SupportLang};
 use ignore::types::Types;
 use serde::{Deserialize, Serialize};
 
@@ -152,7 +152,7 @@ impl From<DynamicLang> for SgLang {
 }
 
 use SgLang::*;
-impl CoreLanguage for SgLang {
+impl Language for SgLang {
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
     match self {
       Builtin(b) => b.pre_process_pattern(query),
@@ -201,7 +201,7 @@ impl CoreLanguage for SgLang {
   }
 }
 
-impl Language for SgLang {
+impl LanguageExt for SgLang {
   fn get_ts_language(&self) -> TSLanguage {
     match self {
       Builtin(b) => b.get_ts_language(),
@@ -213,7 +213,7 @@ impl Language for SgLang {
     injection::injectable_languages(*self)
   }
 
-  fn extract_injections<L: Language>(
+  fn extract_injections<L: LanguageExt>(
     &self,
     root: Node<StrDoc<L>>,
   ) -> HashMap<String, Vec<TSRange>> {

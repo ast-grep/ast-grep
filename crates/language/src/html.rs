@@ -1,15 +1,15 @@
 use super::pre_process_pattern;
-use ast_grep_core::language::{CoreLanguage, TSRange};
+use ast_grep_core::language::TSRange;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::{matcher::KindMatcher, Doc, Node};
-use ast_grep_core::{Language, StrDoc};
+use ast_grep_core::{Language, LanguageExt, StrDoc};
 use std::collections::HashMap;
 
 // tree-sitter-html uses locale dependent iswalnum for tagName
 // https://github.com/tree-sitter/tree-sitter-html/blob/b5d9758e22b4d3d25704b72526670759a9e4d195/src/scanner.c#L194
 #[derive(Clone, Copy, Debug)]
 pub struct Html;
-impl CoreLanguage for Html {
+impl Language for Html {
   fn expando_char(&self) -> char {
     'z'
   }
@@ -26,14 +26,14 @@ impl CoreLanguage for Html {
     builder.build(|src| StrDoc::try_new(src, *self))
   }
 }
-impl Language for Html {
+impl LanguageExt for Html {
   fn get_ts_language(&self) -> ast_grep_core::language::TSLanguage {
     crate::parsers::language_html()
   }
   fn injectable_languages(&self) -> Option<&'static [&'static str]> {
     Some(&["css", "js", "ts", "tsx", "scss", "less", "stylus", "coffee"])
   }
-  fn extract_injections<L: Language>(
+  fn extract_injections<L: LanguageExt>(
     &self,
     root: Node<StrDoc<L>>,
   ) -> HashMap<String, Vec<TSRange>> {

@@ -7,7 +7,7 @@ for general review.
 */
 use super::{snapshot::TestSnapshot, SgLang, TestSnapshots};
 use ast_grep_config::RuleConfig;
-use ast_grep_language::Language;
+use ast_grep_language::LanguageExt;
 
 /// [CaseStatus] categorize whether and how ast-grep
 /// reports error for either valid or invalid code.

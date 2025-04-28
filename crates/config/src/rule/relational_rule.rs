@@ -268,10 +268,10 @@ impl Matcher for Follows {
 mod test {
   use super::*;
   use crate::test::TypeScript as TS;
-  use ast_grep_core::language::CoreLanguage;
   use ast_grep_core::matcher::KindMatcher;
   use ast_grep_core::ops as o;
   use ast_grep_core::Pattern;
+  use ast_grep_core::{Language, LanguageExt};
 
   fn find_rule<M: Matcher>(src: &str, matcher: M) -> Option<String> {
     let grep = TS::Tsx.ast_grep(src);

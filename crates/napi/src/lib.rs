@@ -86,9 +86,7 @@ pub fn parse_async(lang: String, src: String) -> Result<AsyncTask<ParseAsync>> {
 #[napi]
 pub fn kind(lang: String, kind_name: String) -> Result<u16> {
   let lang: NapiLang = lang.parse()?;
-  let kind = lang
-    .get_ts_language()
-    .id_for_node_kind(&kind_name, /* named */ true);
+  let kind = lang.kind_to_id(&kind_name);
   Ok(kind)
 }
 

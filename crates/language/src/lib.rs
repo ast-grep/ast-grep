@@ -44,14 +44,14 @@ use std::iter::repeat;
 use std::path::Path;
 use std::str::FromStr;
 
-pub use ast_grep_core::{language::CoreLanguage, Language};
+pub use ast_grep_core::{language::Language, LanguageExt};
 
 /// this macro implements bare-bone methods for a language
 macro_rules! impl_lang {
   ($lang: ident, $func: ident) => {
     #[derive(Clone, Copy, Debug)]
     pub struct $lang;
-    impl CoreLanguage for $lang {
+    impl Language for $lang {
       fn kind_to_id(&self, kind: &str) -> u16 {
         self
           .get_ts_language()
@@ -64,7 +64,7 @@ macro_rules! impl_lang {
         builder.build(|src| StrDoc::try_new(src, self.clone()))
       }
     }
-    impl Language for $lang {
+    impl LanguageExt for $lang {
       fn get_ts_language(&self) -> TSLanguage {
         parsers::$func().into()
       }
@@ -99,7 +99,7 @@ macro_rules! impl_lang_expando {
   ($lang: ident, $func: ident, $char: expr) => {
     #[derive(Clone, Copy, Debug)]
     pub struct $lang;
-    impl CoreLanguage for $lang {
+    impl Language for $lang {
       fn kind_to_id(&self, kind: &str) -> u16 {
         self
           .get_ts_language()
@@ -118,7 +118,7 @@ macro_rules! impl_lang_expando {
         builder.build(|src| StrDoc::try_new(src, self.clone()))
       }
     }
-    impl ast_grep_core::language::Language for $lang {
+    impl LanguageExt for $lang {
       fn get_ts_language(&self) -> ast_grep_core::language::TSLanguage {
         $crate::parsers::$func().into()
       }
@@ -421,7 +421,7 @@ macro_rules! impl_lang_method {
     }
   };
 }
-impl CoreLanguage for SupportLang {
+impl Language for SupportLang {
   impl_lang_method!(kind_to_id, (kind: &str) => u16);
   impl_lang_method!(field_to_id, (field: &str) => Option<u16>);
   impl_lang_method!(meta_var_char, () => char);
@@ -436,10 +436,10 @@ impl CoreLanguage for SupportLang {
   }
 }
 
-impl Language for SupportLang {
+impl LanguageExt for SupportLang {
   impl_lang_method!(get_ts_language, () => TSLanguage);
   impl_lang_method!(injectable_languages, () => Option<&'static [&'static str]>);
-  fn extract_injections<L: Language>(
+  fn extract_injections<L: LanguageExt>(
     &self,
     root: Node<StrDoc<L>>,
   ) -> HashMap<String, Vec<TSRange>> {
@@ -525,7 +525,7 @@ mod test {
   use super::*;
   use ast_grep_core::{matcher::MatcherExt, Pattern};
 
-  pub fn test_match_lang(query: &str, source: &str, lang: impl Language) {
+  pub fn test_match_lang(query: &str, source: &str, lang: impl LanguageExt) {
     let cand = lang.ast_grep(source);
     let pattern = Pattern::new(query, lang);
     assert!(
@@ -535,7 +535,7 @@ mod test {
     );
   }
 
-  pub fn test_non_match_lang(query: &str, source: &str, lang: impl Language) {
+  pub fn test_non_match_lang(query: &str, source: &str, lang: impl LanguageExt) {
     let cand = lang.ast_grep(source);
     let pattern = Pattern::new(query, lang);
     assert!(
@@ -549,7 +549,7 @@ mod test {
     src: &str,
     pattern: &str,
     replacer: &str,
-    lang: impl Language,
+    lang: impl LanguageExt,
   ) -> String {
     let mut source = lang.ast_grep(src);
     assert!(source

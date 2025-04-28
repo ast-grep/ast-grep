@@ -112,7 +112,7 @@ fn print_rule<W: Write>(
 mod test {
   use super::*;
   use ast_grep_config::{from_yaml_string, GlobalRules};
-  use ast_grep_language::{Language, SupportLang};
+  use ast_grep_language::{LanguageExt, SupportLang};
   use codespan_reporting::term::termcolor::Buffer;
 
   fn make_test_printer() -> CloudPrinter<Buffer> {

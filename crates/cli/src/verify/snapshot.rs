@@ -1,7 +1,7 @@
 use crate::lang::SgLang;
 use anyhow::{anyhow, Result};
 use ast_grep_config::RuleConfig;
-use ast_grep_core::{Language, NodeMatch, StrDoc};
+use ast_grep_core::{LanguageExt, NodeMatch, StrDoc};
 
 use super::{CaseResult, Node};
 use serde::{Deserialize, Serialize, Serializer};

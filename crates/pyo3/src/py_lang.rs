@@ -1,5 +1,5 @@
 use anyhow::Context;
-use ast_grep_core::language::{CoreLanguage, TSLanguage};
+use ast_grep_core::language::{LanguageExt, TSLanguage};
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::StrDoc;
 use ast_grep_dynamic::{CustomLang, DynamicLang};
@@ -89,7 +89,7 @@ impl FromStr for PyLang {
 }
 
 use PyLang::*;
-impl CoreLanguage for PyLang {
+impl Language for PyLang {
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
     match self {
       Builtin(b) => b.pre_process_pattern(query),
@@ -129,7 +129,7 @@ impl CoreLanguage for PyLang {
     builder.build(|src| StrDoc::try_new(src, *self))
   }
 }
-impl Language for PyLang {
+impl LanguageExt for PyLang {
   fn get_ts_language(&self) -> TSLanguage {
     match self {
       Builtin(b) => b.get_ts_language(),

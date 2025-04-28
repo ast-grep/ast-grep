@@ -267,6 +267,7 @@ mod test {
   use crate::test::TypeScript as TS;
   use ast_grep_core::matcher::RegexMatcher;
   use ast_grep_core::meta_var::MetaVarEnv;
+  use ast_grep_core::LanguageExt;
 
   #[test]
   fn test_positional() {

@@ -489,6 +489,7 @@ mod test {
   use super::*;
   use crate::from_str;
   use crate::test::TypeScript;
+  use ast_grep_core::LanguageExt;
   use PatternStyle::*;
 
   #[test]

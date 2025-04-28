@@ -1,7 +1,7 @@
 //! Provides utility to convert ast-grep data types to lsp data types
 use ast_grep_config::RuleConfig;
 use ast_grep_config::Severity;
-use ast_grep_core::{language::Language, Doc, Node, NodeMatch, StrDoc};
+use ast_grep_core::{Doc, LanguageExt, Node, NodeMatch, StrDoc};
 
 use serde::{Deserialize, Serialize};
 use tower_lsp::lsp_types::*;
@@ -19,7 +19,7 @@ impl RewriteData {
     serde_json::from_value(data).ok()
   }
 
-  fn from_node_match<L: Language>(
+  fn from_node_match<L: LanguageExt>(
     node_match: &NodeMatch<StrDoc<L>>,
     rule: &RuleConfig<L>,
   ) -> Option<Self> {
@@ -71,7 +71,7 @@ fn convert_node_to_range<D: Doc>(node_match: &Node<D>) -> Range {
   }
 }
 
-pub fn convert_match_to_diagnostic<L: Language>(
+pub fn convert_match_to_diagnostic<L: LanguageExt>(
   node_match: NodeMatch<StrDoc<L>>,
   rule: &RuleConfig<L>,
 ) -> Diagnostic {
@@ -97,7 +97,10 @@ pub fn convert_match_to_diagnostic<L: Language>(
   }
 }
 
-fn get_non_empty_message<L: Language>(rule: &RuleConfig<L>, nm: &NodeMatch<StrDoc<L>>) -> String {
+fn get_non_empty_message<L: LanguageExt>(
+  rule: &RuleConfig<L>,
+  nm: &NodeMatch<StrDoc<L>>,
+) -> String {
   // Note: The LSP client in vscode won't show any diagnostics at all if it receives one with an empty message
   let msg = if rule.message.is_empty() {
     rule.id.to_string()
