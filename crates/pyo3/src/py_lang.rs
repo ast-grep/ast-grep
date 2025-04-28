@@ -1,5 +1,7 @@
 use anyhow::Context;
 use ast_grep_core::language::{CoreLanguage, TSLanguage};
+use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
+use ast_grep_core::StrDoc;
 use ast_grep_dynamic::{CustomLang, DynamicLang};
 use ast_grep_language::{Language, SupportLang};
 use serde::{Deserialize, Serialize};
@@ -122,6 +124,9 @@ impl CoreLanguage for PyLang {
       Builtin(b) => b.field_to_id(field),
       Custom(c) => c.field_to_id(field),
     }
+  }
+  fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
+    builder.build(|src| StrDoc::try_new(src, *self))
   }
 }
 impl Language for PyLang {

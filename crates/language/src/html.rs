@@ -1,5 +1,6 @@
 use super::pre_process_pattern;
 use ast_grep_core::language::{CoreLanguage, TSRange};
+use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::{matcher::KindMatcher, Doc, Node};
 use ast_grep_core::{Language, StrDoc};
 use std::collections::HashMap;
@@ -20,6 +21,9 @@ impl CoreLanguage for Html {
   }
   fn field_to_id(&self, field: &str) -> Option<u16> {
     crate::parsers::language_html().field_id_for_name(field)
+  }
+  fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
+    builder.build(|src| StrDoc::try_new(src, *self))
   }
 }
 impl Language for Html {

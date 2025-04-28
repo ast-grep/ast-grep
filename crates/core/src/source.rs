@@ -291,9 +291,11 @@ pub struct StrDoc<L: Language> {
 }
 
 impl<L: Language> StrDoc<L> {
-  pub fn try_new(src: &str, lang: L) -> Result<Self, TSParseError> {
+  pub fn try_new(src: &str, lang: L) -> Result<Self, String> {
     let src = src.to_string();
-    let tree = parse_lang(|p| src.parse_tree_sitter(p, None), lang.get_ts_language())?;
+    let ts_lang = lang.get_ts_language();
+    let tree =
+      parse_lang(|p| src.parse_tree_sitter(p, None), ts_lang).map_err(|e| e.to_string())?;
     Ok(Self { src, lang, tree })
   }
   pub fn new(src: &str, lang: L) -> Self {

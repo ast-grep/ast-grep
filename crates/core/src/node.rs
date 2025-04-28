@@ -1,7 +1,7 @@
 use crate::language::{CoreLanguage, Language};
 use crate::matcher::{Matcher, MatcherExt, NodeMatch};
 use crate::replacer::Replacer;
-use crate::source::{Content, Edit as E, SgNode, TSParseError};
+use crate::source::{Content, Edit as E, SgNode};
 use crate::traversal::Visitor;
 use crate::{Doc, StrDoc};
 
@@ -55,7 +55,7 @@ impl<L: Language> Root<StrDoc<L>> {
   pub fn str(src: &str, lang: L) -> Self {
     Self::try_new(src, lang).expect("should parse")
   }
-  pub fn try_new(src: &str, lang: L) -> Result<Self, TSParseError> {
+  pub fn try_new(src: &str, lang: L) -> Result<Self, String> {
     let doc = StrDoc::try_new(src, lang)?;
     Ok(Self { doc })
   }

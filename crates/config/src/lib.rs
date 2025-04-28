@@ -41,10 +41,11 @@ pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(
 }
 #[cfg(test)]
 mod test {
-
   use super::*;
   use ast_grep_core::language::CoreLanguage;
   use ast_grep_core::language::TSLanguage;
+  use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
+  use ast_grep_core::StrDoc;
   use std::path::Path;
 
   #[derive(Clone, Deserialize, PartialEq, Eq)]
@@ -60,6 +61,9 @@ mod test {
     }
     fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
       Some(TypeScript::Tsx)
+    }
+    fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
+      builder.build(|src| StrDoc::try_new(src, self.clone()))
     }
   }
   impl Language for TypeScript {
