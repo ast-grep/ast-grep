@@ -3,7 +3,7 @@ use crate::match_tree::{match_end_non_recursive, match_node_non_recursive, Match
 use crate::matcher::{kind_utils, KindMatcher, KindMatcherError, Matcher};
 use crate::meta_var::{MetaVarEnv, MetaVariable};
 use crate::source::{Content, SgNode};
-use crate::{Doc, Node, Root, StrDoc};
+use crate::{Doc, Node, Root};
 
 use bit_set::BitSet;
 use thiserror::Error;
@@ -249,7 +249,7 @@ impl Pattern {
       selector: None,
       src: processed,
     };
-    builder.build(|src| StrDoc::try_new(src, lang).map_err(|e| e.to_string()))
+    lang.build_pattern(&builder)
   }
 
   pub fn new<L: Language>(src: &str, lang: L) -> Self {
@@ -271,7 +271,7 @@ impl Pattern {
       selector: Some(selector),
       src: processed,
     };
-    builder.build(|src| StrDoc::try_new(src, lang).map_err(|e| e.to_string()))
+    lang.build_pattern(&builder)
   }
   fn single_matcher<D: Doc>(root: &Root<D>) -> Node<D> {
     // debug_assert!(matches!(self.style, PatternStyle::Single));
@@ -351,6 +351,7 @@ mod test {
   use crate::language::Tsx;
   use crate::matcher::MatcherExt;
   use crate::meta_var::MetaVarEnv;
+  use crate::StrDoc;
   use std::collections::HashMap;
 
   fn pattern_node(s: &str) -> Root<StrDoc<Tsx>> {
