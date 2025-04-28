@@ -1,9 +1,9 @@
-use crate::language::{Language, LanguageExt};
 use crate::matcher::{Matcher, MatcherExt, NodeMatch};
 use crate::replacer::Replacer;
 use crate::source::{Content, Edit as E, SgNode};
 use crate::traversal::Visitor;
 use crate::{Doc, StrDoc};
+use crate::{Language, LanguageExt};
 
 type Edit<D> = E<<D as Doc>::Source>;
 
@@ -480,7 +480,8 @@ impl<D: Doc> Node<'_, D> {
 
 #[cfg(test)]
 mod test {
-  use crate::language::{Language, LanguageExt, Tsx};
+  use crate::language::Tsx;
+  use crate::{Language, LanguageExt};
   #[test]
   fn test_is_leaf() {
     let root = Tsx.ast_grep("let a = 123");

@@ -16,15 +16,17 @@ pub mod traversal;
 
 #[doc(hidden)]
 pub mod pinned;
+pub mod tree_sitter;
 
 mod match_tree;
 mod node;
 
-pub use language::{Language, LanguageExt};
+pub use language::Language;
 pub use match_tree::MatchStrictness;
 pub use matcher::{Matcher, NodeMatch, Pattern, PatternError};
 pub use node::{Node, Position};
-pub use source::{Doc, StrDoc};
+pub use source::Doc;
+pub use tree_sitter::{LanguageExt, StrDoc};
 
 #[doc(hidden)]
 pub use node::DisplayContext;

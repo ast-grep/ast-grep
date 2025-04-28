@@ -157,9 +157,10 @@ pub fn gen_replacement<D: Doc>(template: &str, nm: &NodeMatch<'_, D>) -> Underly
 mod test {
 
   use super::*;
-  use crate::language::{LanguageExt, Tsx};
+  use crate::language::Tsx;
   use crate::matcher::NodeMatch;
   use crate::meta_var::{MetaVarEnv, MetaVariable};
+  use crate::LanguageExt;
   use crate::Pattern;
   use std::collections::HashMap;
 

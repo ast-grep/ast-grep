@@ -1,7 +1,8 @@
 use crate::napi_lang::NapiLang;
 
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
-use ast_grep_core::source::{Content, Doc, Edit, TSParseError};
+use ast_grep_core::source::{Content, Doc, Edit};
+use ast_grep_core::tree_sitter::TSParseError;
 use ast_grep_core::LanguageExt;
 use napi::anyhow::{anyhow, Error};
 use napi::bindgen_prelude::Result as NapiResult;

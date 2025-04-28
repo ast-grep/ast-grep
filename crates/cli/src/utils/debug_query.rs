@@ -80,7 +80,6 @@ fn dump_pattern(
       kind_id,
       is_named,
     } => {
-      let lang = lang.get_ts_language();
       if *is_named {
         let kind = lang.node_kind_for_id(*kind_id).unwrap();
         let kind = style.kind_style.paint(format!("{kind}"));
