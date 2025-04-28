@@ -1,12 +1,12 @@
 use crate::matcher::Matcher;
 use crate::meta_var::{is_valid_meta_var_char, MetaVariableID, Underlying};
-use crate::{Doc, Node, NodeMatch};
+use crate::{Doc, Node, NodeMatch, Root};
 use std::ops::Range;
 
 pub(crate) use indent::formatted_slice;
 
-// use crate::source::Edit as E;
-// type Edit<D> = E<<D as Doc>::Source>;
+use crate::source::Edit as E;
+type Edit<D> = E<<D as Doc>::Source>;
 
 mod indent;
 mod structural;
@@ -34,11 +34,11 @@ impl<D: Doc> Replacer<D> for str {
   }
 }
 
-// impl<D: Doc> Replacer<D> for Root<D> {
-//   fn generate_replacement<'t, N: SgNode<'t, Doc=D>>(&self, nm: &SgNodeMatch<'t, N>) -> Underlying<D::Source> {
-//     structural::gen_replacement(self, nm)
-//   }
-// }
+impl<D: Doc> Replacer<D> for Root<D> {
+  fn generate_replacement(&self, nm: &NodeMatch<'_, D>) -> Underlying<D> {
+    structural::gen_replacement(self, nm)
+  }
+}
 
 impl<D, T> Replacer<D> for &T
 where
