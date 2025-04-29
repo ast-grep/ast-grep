@@ -14,7 +14,7 @@
 use crate::{language::Language, node::KindId, Position};
 use std::borrow::Cow;
 use std::ops::Range;
-use tree_sitter::{InputEdit, Parser, ParserError, Point, Tree};
+use tree_sitter::{InputEdit, Point};
 
 // https://github.com/tree-sitter/tree-sitter/blob/e4e5ffe517ca2c668689b24cb17c51b8c6db0790/cli/src/parse.rs
 #[derive(Debug)]
@@ -83,11 +83,6 @@ pub trait Doc: Clone + 'static {
 
 pub trait Content: Sized {
   type Underlying: Clone + PartialEq;
-  fn parse_tree_sitter(
-    &self,
-    parser: &mut Parser,
-    tree: Option<&Tree>,
-  ) -> Result<Option<Tree>, ParserError>;
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying];
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit;
   /// Used for string replacement. We need this for
@@ -102,13 +97,6 @@ pub trait Content: Sized {
 
 impl Content for String {
   type Underlying = u8;
-  fn parse_tree_sitter(
-    &self,
-    parser: &mut Parser,
-    tree: Option<&Tree>,
-  ) -> Result<Option<Tree>, ParserError> {
-    parser.parse(self.as_bytes(), tree)
-  }
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying] {
     &self.as_bytes()[range]
   }
