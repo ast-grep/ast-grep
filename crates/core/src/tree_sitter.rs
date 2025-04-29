@@ -51,8 +51,7 @@ impl<L: LanguageExt> StrDoc<L> {
   pub fn try_new(src: &str, lang: L) -> Result<Self, String> {
     let src = src.to_string();
     let ts_lang = lang.get_ts_language();
-    let tree =
-      parse_lang(|p| src.parse_tree_sitter(p, None), ts_lang).map_err(|e| e.to_string())?;
+    let tree = parse_lang(|p| p.parse(src.as_bytes(), None), ts_lang).map_err(|e| e.to_string())?;
     Ok(Self { src, lang, tree })
   }
   pub fn new(src: &str, lang: L) -> Self {
@@ -61,7 +60,7 @@ impl<L: LanguageExt> StrDoc<L> {
   fn parse(&self, old_tree: Option<&Tree>) -> Result<Tree, TSParseError> {
     let source = self.get_source();
     let lang = self.get_lang().get_ts_language();
-    parse_lang(|p| source.parse_tree_sitter(p, old_tree), lang)
+    parse_lang(|p| p.parse(source.as_bytes(), old_tree), lang)
   }
 }
 

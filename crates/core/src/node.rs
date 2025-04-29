@@ -74,7 +74,7 @@ impl<L: LanguageExt> Root<StrDoc<L>> {
         let mut parser = tree_sitter::Parser::new().ok()?;
         parser.set_included_ranges(&ranges).ok()?;
         parser.set_language(&lang.get_ts_language()).ok()?;
-        let tree = source.parse_tree_sitter(&mut parser, None).ok()?;
+        let tree = parser.parse(source, None).ok()?;
         tree.map(|t| Self {
           doc: StrDoc {
             src: self.doc.src.clone(),

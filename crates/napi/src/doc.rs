@@ -4,10 +4,10 @@ use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
 use ast_grep_core::source::{Content, Doc, Edit};
 use ast_grep_core::tree_sitter::TSParseError;
 use ast_grep_core::LanguageExt;
-use napi::anyhow::{anyhow, Error};
+use napi::anyhow::Error;
 use napi::bindgen_prelude::Result as NapiResult;
 use napi_derive::napi;
-use tree_sitter::{InputEdit, Node, Parser, ParserError, Point, Tree};
+use tree_sitter::{InputEdit, Node, Parser, Point, Tree};
 
 use std::borrow::Cow;
 use std::ops::Range;
@@ -56,13 +56,6 @@ pub struct Wrapper {
 
 impl Content for Wrapper {
   type Underlying = u16;
-  fn parse_tree_sitter(
-    &self,
-    parser: &mut Parser,
-    tree: Option<&Tree>,
-  ) -> std::result::Result<Option<Tree>, ParserError> {
-    parser.parse_utf16_le(self.inner.as_slice(), tree)
-  }
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying] {
     // the range is in byte offset, but our underlying is u16
     let start = range.start / 2;
@@ -124,29 +117,28 @@ pub struct JsDoc {
   tree: tree_sitter::Tree,
 }
 
+fn parse(
+  source: &Wrapper,
+  lang: &NapiLang,
+  old_tree: Option<&Tree>,
+) -> std::result::Result<Tree, TSParseError> {
+  let mut parser = Parser::new()?;
+  let ts_lang = lang.get_ts_language();
+  parser.set_language(&ts_lang)?;
+  if let Some(tree) = parser.parse_utf16_le(source.inner.as_slice(), old_tree)? {
+    Ok(tree)
+  } else {
+    Err(TSParseError::TreeUnavailable)
+  }
+}
+
 impl JsDoc {
   pub fn try_new(src: String, lang: NapiLang) -> napi::anyhow::Result<Self> {
     let source = Wrapper {
       inner: src.encode_utf16().collect(),
     };
-    let mut parser = Parser::new()?;
-    let ts_lang = lang.get_ts_language();
-    parser.set_language(&ts_lang)?;
-    let tree = source
-      .parse_tree_sitter(&mut parser, None)?
-      .ok_or(anyhow!("Tree unavailable"))?;
+    let tree = parse(&source, &lang, None)?;
     Ok(Self { source, lang, tree })
-  }
-
-  fn parse(&self, old_tree: Option<&Tree>) -> std::result::Result<Tree, TSParseError> {
-    let mut parser = Parser::new()?;
-    let ts_lang = self.lang.get_ts_language();
-    parser.set_language(&ts_lang)?;
-    if let Some(tree) = self.source.parse_tree_sitter(&mut parser, old_tree)? {
-      Ok(tree)
-    } else {
-      Err(TSParseError::TreeUnavailable)
-    }
   }
 }
 
@@ -164,7 +156,7 @@ impl Doc for JsDoc {
     let source = &mut self.source;
     let input_edit = source.accept_edit(edit);
     self.tree.edit(&input_edit);
-    self.tree = self.parse(Some(&self.tree)).map_err(|e| e.to_string())?;
+    self.tree = parse(&source, &self.lang, Some(&self.tree)).map_err(|e| e.to_string())?;
     Ok(())
   }
   fn root_node(&self) -> Node<'_> {
