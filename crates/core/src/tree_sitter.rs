@@ -6,8 +6,8 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use thiserror::Error;
 use tree_sitter::{
-  InputEdit, Language as TSLanguage, LanguageError, Node, Parser, ParserError, Range as TSRange,
-  Tree,
+  InputEdit, Language as TSLanguage, LanguageError, Node, Parser, ParserError, Point,
+  Range as TSRange, Tree,
 };
 
 /// Represents tree-sitter related error
@@ -252,7 +252,7 @@ impl<'r> SgNode<'r> for Node<'r> {
   }
 }
 
-pub fn perform_edit<S: Content>(tree: &mut Tree, input: &mut S, edit: &Edit<S>) -> InputEdit {
+pub fn perform_edit<S: ContentExt>(tree: &mut Tree, input: &mut S, edit: &Edit<S>) -> InputEdit {
   let edit = input.accept_edit(edit);
   tree.edit(&edit);
   edit
@@ -288,6 +288,44 @@ pub trait LanguageExt: Language {
 impl LanguageExt for TSLanguage {
   fn get_ts_language(&self) -> TSLanguage {
     self.clone()
+  }
+}
+
+fn position_for_offset(input: &[u8], offset: usize) -> Point {
+  debug_assert!(offset <= input.len());
+  let (mut row, mut col) = (0, 0);
+  for c in &input[0..offset] {
+    if *c as char == '\n' {
+      row += 1;
+      col = 0;
+    } else {
+      col += 1;
+    }
+  }
+  Point::new(row, col)
+}
+
+pub trait ContentExt: Content {
+  fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit;
+}
+impl ContentExt for String {
+  fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit {
+    let start_byte = edit.position;
+    let old_end_byte = edit.position + edit.deleted_length;
+    let new_end_byte = edit.position + edit.inserted_text.len();
+    let input = unsafe { self.as_mut_vec() };
+    let start_position = position_for_offset(input, start_byte);
+    let old_end_position = position_for_offset(input, old_end_byte);
+    input.splice(start_byte..old_end_byte, edit.inserted_text.clone());
+    let new_end_position = position_for_offset(input, new_end_byte);
+    InputEdit::new(
+      start_byte as u32,
+      old_end_byte as u32,
+      new_end_byte as u32,
+      &start_position,
+      &old_end_position,
+      &new_end_position,
+    )
   }
 }
 

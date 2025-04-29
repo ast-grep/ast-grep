@@ -2,6 +2,7 @@ use crate::napi_lang::NapiLang;
 
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
 use ast_grep_core::source::{Content, Doc, Edit};
+use ast_grep_core::tree_sitter::ContentExt;
 use ast_grep_core::tree_sitter::TSParseError;
 use ast_grep_core::LanguageExt;
 use napi::anyhow::Error;
@@ -62,6 +63,22 @@ impl Content for Wrapper {
     let end = range.end / 2;
     &self.inner.as_slice()[start..end]
   }
+  fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
+    let v: Vec<_> = src.encode_utf16().collect();
+    Cow::Owned(v)
+  }
+
+  fn encode_bytes(bytes: &[Self::Underlying]) -> Cow<str> {
+    let s = String::from_utf16_lossy(bytes);
+    Cow::Owned(s)
+  }
+  fn get_char_column(&self, column: usize, _offset: usize) -> usize {
+    // utf-16 is 2 bytes per character, this is O(1) operation!
+    column / 2
+  }
+}
+
+impl ContentExt for Wrapper {
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit {
     let start_byte = edit.position;
     let old_end_byte = edit.position + edit.deleted_length;
@@ -79,19 +96,6 @@ impl Content for Wrapper {
       &old_end_position,
       &new_end_position,
     )
-  }
-  fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
-    let v: Vec<_> = src.encode_utf16().collect();
-    Cow::Owned(v)
-  }
-
-  fn encode_bytes(bytes: &[Self::Underlying]) -> Cow<str> {
-    let s = String::from_utf16_lossy(bytes);
-    Cow::Owned(s)
-  }
-  fn get_char_column(&self, column: usize, _offset: usize) -> usize {
-    // utf-16 is 2 bytes per character, this is O(1) operation!
-    column / 2
   }
 }
 
