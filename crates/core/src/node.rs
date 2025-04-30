@@ -51,43 +51,6 @@ pub struct Root<D: Doc> {
   pub(crate) doc: D,
 }
 
-impl<L: LanguageExt> Root<StrDoc<L>> {
-  pub fn str(src: &str, lang: L) -> Self {
-    Self::try_new(src, lang).expect("should parse")
-  }
-  pub fn try_new(src: &str, lang: L) -> Result<Self, String> {
-    let doc = StrDoc::try_new(src, lang)?;
-    Ok(Self { doc })
-  }
-  pub fn get_text(&self) -> &str {
-    &self.doc.src
-  }
-
-  pub fn get_injections<F: Fn(&str) -> Option<L>>(&self, get_lang: F) -> Vec<Self> {
-    let root = self.root();
-    let range = self.lang().extract_injections(root);
-    let roots = range
-      .into_iter()
-      .filter_map(|(lang, ranges)| {
-        let lang = get_lang(&lang)?;
-        let source = self.doc.get_source();
-        let mut parser = tree_sitter::Parser::new().ok()?;
-        parser.set_included_ranges(&ranges).ok()?;
-        parser.set_language(&lang.get_ts_language()).ok()?;
-        let tree = parser.parse(source, None).ok()?;
-        tree.map(|t| Self {
-          doc: StrDoc {
-            src: self.doc.src.clone(),
-            lang,
-            tree: t,
-          },
-        })
-      })
-      .collect();
-    roots
-  }
-}
-
 impl<D: Doc> Root<D> {
   pub fn doc(doc: D) -> Self {
     Self { doc }
