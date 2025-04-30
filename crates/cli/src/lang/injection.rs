@@ -1,7 +1,7 @@
 use super::SgLang;
 use crate::utils::ErrorContext as EC;
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
-use ast_grep_core::{language::TSRange, Doc, LanguageExt, Node, StrDoc};
+use ast_grep_core::{tree_sitter::TSRange, Doc, LanguageExt, Node, StrDoc};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};

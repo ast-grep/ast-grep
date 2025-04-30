@@ -1,6 +1,8 @@
 use crate::lang::SgLang;
 use ansi_term::Style;
-use ast_grep_core::{language::TSLanguage, matcher::PatternNode, meta_var::MetaVariable, Pattern};
+use ast_grep_core::{
+  matcher::PatternNode, meta_var::MetaVariable, tree_sitter::TSLanguage, Pattern,
+};
 use ast_grep_language::LanguageExt;
 use clap::ValueEnum;
 use tree_sitter as ts;

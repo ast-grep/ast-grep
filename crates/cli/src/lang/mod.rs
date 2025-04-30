@@ -6,7 +6,7 @@ use crate::utils::ErrorContext as EC;
 use anyhow::{Context, Result};
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::{
-  language::{TSLanguage, TSRange},
+  tree_sitter::{TSLanguage, TSRange},
   Node, StrDoc,
 };
 use ast_grep_dynamic::DynamicLang;
