@@ -12,8 +12,8 @@
   "license": "ISC",
   "dependencies": {
     "@ast-grep/napi": "link:../crates/napi",
-    "@babel/core": "7.26.10",
-    "@babel/plugin-syntax-typescript": "7.25.9",
+    "@babel/core": "7.27.1",
+    "@babel/plugin-syntax-typescript": "7.27.1",
     "@oxidation-compiler/napi": "0.2.0",
     "@swc/core": "1.11.21",
     "benny": "3.7.1",
