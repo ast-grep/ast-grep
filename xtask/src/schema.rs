@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use ast_grep_config::SerializableRuleConfig;
-use ast_grep_core::language::TSLanguage;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
+use ast_grep_core::tree_sitter::TSLanguage;
 use ast_grep_core::{Language, LanguageExt};
 use ast_grep_language::{
   Alias, Bash, CSharp, Cpp, Css, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin, Lua,
