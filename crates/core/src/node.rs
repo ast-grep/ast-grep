@@ -1,9 +1,8 @@
 use crate::matcher::{Matcher, MatcherExt, NodeMatch};
 use crate::replacer::Replacer;
 use crate::source::{Content, Edit as E, SgNode};
-use crate::traversal::Visitor;
-use crate::{Doc, StrDoc};
-use crate::{Language, LanguageExt};
+use crate::Doc;
+use crate::Language;
 
 type Edit<D> = E<<D as Doc>::Source>;
 
@@ -172,66 +171,6 @@ impl<'r, D: Doc> Node<'r, D> {
   }
 }
 
-/// these methods are only for `StrDoc`
-impl<'r, L: LanguageExt> Node<'r, StrDoc<L>> {
-  #[doc(hidden)]
-  pub fn display_context(&self, before: usize, after: usize) -> DisplayContext<'r> {
-    let source = self.root.doc.get_source().as_str();
-    let bytes = source.as_bytes();
-    let start = self.inner.start_byte() as usize;
-    let end = self.inner.end_byte() as usize;
-    let (mut leading, mut trailing) = (start, end);
-    let mut lines_before = before + 1;
-    while leading > 0 {
-      if bytes[leading - 1] == b'\n' {
-        lines_before -= 1;
-        if lines_before == 0 {
-          break;
-        }
-      }
-      leading -= 1;
-    }
-    let mut lines_after = after + 1;
-    // tree-sitter will append line ending to source so trailing can be out of bound
-    trailing = trailing.min(bytes.len());
-    while trailing < bytes.len() {
-      if bytes[trailing] == b'\n' {
-        lines_after -= 1;
-        if lines_after == 0 {
-          break;
-        }
-      }
-      trailing += 1;
-    }
-    // lines_before means we matched all context, offset is `before` itself
-    let offset = if lines_before == 0 {
-      before
-    } else {
-      // otherwise, there are fewer than `before` line in src, compute the actual line
-      before + 1 - lines_before
-    };
-    DisplayContext {
-      matched: self.text(),
-      leading: &source[leading..start],
-      trailing: &source[end..trailing],
-      start_line: self.start_pos().line() - offset,
-    }
-  }
-
-  pub fn replace_all<M: Matcher, R: Replacer<StrDoc<L>>>(
-    &self,
-    matcher: M,
-    replacer: R,
-  ) -> Vec<Edit<StrDoc<L>>> {
-    // TODO: support nested matches like Some(Some(1)) with pattern Some($A)
-    Visitor::new(&matcher)
-      .reentrant(false)
-      .visit(self.clone())
-      .map(|matched| matched.make_edit(&matcher, &replacer))
-      .collect()
-  }
-}
-
 /**
  * Corresponds to inside/has/precedes/follows
  */
@@ -255,17 +194,6 @@ impl<D: Doc> Node<'_, D> {
   pub fn follows<M: Matcher>(&self, m: M) -> bool {
     self.prev_all().find_map(|n| m.match_node(n)).is_some()
   }
-}
-
-pub struct DisplayContext<'r> {
-  /// content for the matched node
-  pub matched: Cow<'r, str>,
-  /// content before the matched node
-  pub leading: &'r str,
-  /// content after the matched node
-  pub trailing: &'r str,
-  /// zero-based start line of the context
-  pub start_line: usize,
 }
 
 /// tree traversal API

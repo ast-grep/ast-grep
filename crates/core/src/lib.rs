@@ -29,7 +29,7 @@ pub use source::Doc;
 pub use tree_sitter::{LanguageExt, StrDoc};
 
 #[doc(hidden)]
-pub use node::DisplayContext;
+pub use tree_sitter::DisplayContext;
 
 use replacer::Replacer;
 
