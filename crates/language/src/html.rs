@@ -1,6 +1,6 @@
 use super::pre_process_pattern;
-use ast_grep_core::language::TSRange;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
+use ast_grep_core::tree_sitter::{TSLanguage, TSRange};
 use ast_grep_core::{matcher::KindMatcher, Doc, Node};
 use ast_grep_core::{Language, LanguageExt, StrDoc};
 use std::collections::HashMap;
@@ -27,7 +27,7 @@ impl Language for Html {
   }
 }
 impl LanguageExt for Html {
-  fn get_ts_language(&self) -> ast_grep_core::language::TSLanguage {
+  fn get_ts_language(&self) -> TSLanguage {
     crate::parsers::language_html()
   }
   fn injectable_languages(&self) -> Option<&'static [&'static str]> {

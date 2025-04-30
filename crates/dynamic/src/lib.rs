@@ -1,5 +1,5 @@
-use ast_grep_core::language::{Language, TSLanguage};
-use ast_grep_core::{LanguageExt, StrDoc};
+use ast_grep_core::tree_sitter::TSLanguage;
+use ast_grep_core::{Language, LanguageExt, StrDoc};
 
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ignore::types::{Types, TypesBuilder};
@@ -289,6 +289,27 @@ mod test {
     }
   }
 
+  #[derive(Clone)]
+  struct TSLangWrapper(TSLanguage);
+
+  impl Language for TSLangWrapper {
+    fn kind_to_id(&self, kind: &str) -> u16 {
+      self.0.id_for_node_kind(kind, /* named */ true)
+    }
+    fn field_to_id(&self, field: &str) -> Option<u16> {
+      self.0.field_id_for_name(field)
+    }
+    fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
+      builder.build(|src| StrDoc::try_new(src, self.clone()))
+    }
+  }
+
+  impl LanguageExt for TSLangWrapper {
+    fn get_ts_language(&self) -> TSLanguage {
+      self.0.clone()
+    }
+  }
+
   #[test]
   fn test_load_parser() {
     let path = get_tree_sitter_path();
@@ -297,6 +318,7 @@ mod test {
       return;
     }
     let (_lib, lang) = unsafe { load_ts_language(path.into(), "tree_sitter_json".into()).unwrap() };
+    let lang = TSLangWrapper(lang);
     let sg = lang.ast_grep("{\"a\": 123}");
     assert_eq!(
       sg.root().get_inner_node().to_sexp(),

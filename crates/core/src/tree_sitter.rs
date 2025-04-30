@@ -5,10 +5,9 @@ use crate::{node::KindId, Language, Position};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use thiserror::Error;
-use tree_sitter::{
-  InputEdit, Language as TSLanguage, LanguageError, Node, Parser, ParserError, Point,
-  Range as TSRange, Tree,
-};
+pub use tree_sitter::Language as TSLanguage;
+use tree_sitter::{InputEdit, LanguageError, Node, Parser, ParserError, Point, Tree};
+pub use tree_sitter::{Point as TSPoint, Range as TSRange};
 
 /// Represents tree-sitter related error
 #[derive(Debug, Error)]
@@ -282,12 +281,6 @@ pub trait LanguageExt: Language {
     _root: crate::Node<StrDoc<L>>,
   ) -> HashMap<String, Vec<TSRange>> {
     HashMap::new()
-  }
-}
-
-impl LanguageExt for TSLanguage {
-  fn get_ts_language(&self) -> TSLanguage {
-    self.clone()
   }
 }
 

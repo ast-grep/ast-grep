@@ -30,8 +30,8 @@ mod yaml;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 pub use html::Html;
 
-use ast_grep_core::language::{TSLanguage, TSRange};
 use ast_grep_core::meta_var::MetaVariable;
+use ast_grep_core::tree_sitter::{TSLanguage, TSRange};
 use ast_grep_core::{Node, StrDoc};
 use ignore::types::{Types, TypesBuilder};
 use serde::de::Visitor;
@@ -119,7 +119,7 @@ macro_rules! impl_lang_expando {
       }
     }
     impl LanguageExt for $lang {
-      fn get_ts_language(&self) -> ast_grep_core::language::TSLanguage {
+      fn get_ts_language(&self) -> TSLanguage {
         $crate::parsers::$func().into()
       }
     }

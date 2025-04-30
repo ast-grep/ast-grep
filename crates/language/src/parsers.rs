@@ -41,7 +41,7 @@ macro_rules! into_napi_lang {
   };
 }
 
-use ast_grep_core::language::TSLanguage;
+use ast_grep_core::tree_sitter::TSLanguage;
 
 pub fn language_bash() -> TSLanguage {
   into_lang!(tree_sitter_bash)

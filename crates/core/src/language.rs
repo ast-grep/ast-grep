@@ -1,11 +1,8 @@
 use crate::matcher::PatternBuilder;
 use crate::meta_var::{extract_meta_var, MetaVariable};
-use crate::StrDoc;
 use crate::{Pattern, PatternError};
 use std::borrow::Cow;
 use std::path::Path;
-pub use tree_sitter::Language as TSLanguage;
-pub use tree_sitter::{Point as TSPoint, Range as TSRange};
 
 /// Trait to abstract ts-language usage in ast-grep, which includes:
 /// * which character is used for meta variable.
@@ -49,25 +46,13 @@ pub trait Language: Clone + 'static {
   fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError>;
 }
 
-impl Language for TSLanguage {
-  fn kind_to_id(&self, kind: &str) -> u16 {
-    self.id_for_node_kind(kind, /* named */ true)
-  }
-  fn field_to_id(&self, field: &str) -> Option<u16> {
-    self.field_id_for_name(field)
-  }
-  fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
-    builder.build(|src| StrDoc::try_new(src, self.clone()))
-  }
-}
-
 #[cfg(test)]
 pub use test::*;
 
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::tree_sitter::LanguageExt;
+  use crate::tree_sitter::{LanguageExt, StrDoc, TSLanguage};
 
   #[derive(Clone)]
   pub struct Tsx;
