@@ -130,10 +130,10 @@ pub fn filter_file_rule(
   collect_file_stats(path, lang, configs, trace)?;
   let mut ret = smallvec![grep.clone()];
   if let Some(injected) = lang.injectable_sg_langs() {
-    let docs = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
+    let sub_roots = grep.get_injections(|s| SgLang::from_str(s).ok());
     let inj = injected.filter_map(|l| {
-      let doc = docs.iter().find(|d| *d.lang() == l)?;
-      let grep = AstGrep { inner: doc.clone() };
+      let root = sub_roots.iter().find(|d| *d.lang() == l)?;
+      let grep = root.clone();
       collect_file_stats(path, l, configs, trace).ok()?;
       Some(grep)
     });
@@ -167,10 +167,10 @@ pub fn filter_file_pattern<'a>(
   if let Some(matcher) = root_matcher {
     ret.extend(do_match(grep.clone(), matcher));
   }
-  let injections = grep.inner.get_injections(|s| SgLang::from_str(s).ok());
+  let injections = grep.get_injections(|s| SgLang::from_str(s).ok());
   let sub_units = injections.into_iter().filter_map(|inner| {
     let (_, matcher) = sub_matchers.iter().find(|i| *inner.lang() == i.0)?;
-    let injected = AstGrep { inner };
+    let injected = inner;
     do_match(injected, matcher)
   });
   ret.extend(sub_units);
@@ -204,7 +204,7 @@ mod test {
   fn test_html_embedding() {
     let root =
       SgLang::Builtin(SupportLang::Html).ast_grep("<script lang=typescript>alert(123)</script>");
-    let docs = root.inner.get_injections(|s| SgLang::from_str(s).ok());
+    let docs = root.get_injections(|s| SgLang::from_str(s).ok());
     assert_eq!(docs.len(), 1);
     let script = docs[0].root().child(0).expect("should exist");
     assert_eq!(script.kind(), "expression_statement");
@@ -213,7 +213,7 @@ mod test {
   #[test]
   fn test_html_embedding_lang_not_found() {
     let root = SgLang::Builtin(SupportLang::Html).ast_grep("<script lang=xxx>alert(123)</script>");
-    let docs = root.inner.get_injections(|s| SgLang::from_str(s).ok());
+    let docs = root.get_injections(|s| SgLang::from_str(s).ok());
     assert_eq!(docs.len(), 0);
   }
 }

@@ -188,14 +188,14 @@ pub fn find_in_files_impl(
 // TODO: optimize
 fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<Vec<SgNode>>> {
   let (root, nodes) = pinned.0.into_raw();
-  let sg_root = SgRoot(AstGrep { inner: root }, pinned.1);
+  let sg_root = SgRoot(root, pinned.1);
   let reference = SgRoot::into_reference(sg_root, env)?;
   let mut v = vec![];
   for mut node in nodes {
     let root_ref = reference.clone(env)?;
     let sg_node = SgNode {
       inner: root_ref.share_with(env, |root| {
-        let r = &root.0.inner;
+        let r = &root.0;
         node.visit_nodes(|n| unsafe { r.readopt(n) });
         Ok(node)
       })?,
@@ -222,7 +222,7 @@ fn call_sg_node(
     return Ok(false);
   }
   let (root, path) = get_root(entry, lang_option)?;
-  let mut pinned = PinnedNodeData::new(root.inner, |r| r.root().find_all(rule).collect());
+  let mut pinned = PinnedNodeData::new(root, |r| r.root().find_all(rule).collect());
   let hits: &Vec<_> = pinned.get_data();
   if hits.is_empty() {
     return Ok(false);

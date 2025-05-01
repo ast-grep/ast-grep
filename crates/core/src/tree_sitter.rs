@@ -300,6 +300,20 @@ fn position_for_offset(input: &[u8], offset: usize) -> Point {
   Point::new(row, col)
 }
 
+impl<L: LanguageExt> AstGrep<StrDoc<L>> {
+  pub fn new<S: AsRef<str>>(src: S, lang: L) -> Self {
+    Root::str(src.as_ref(), lang)
+  }
+
+  pub fn source(&self) -> &str {
+    self.doc.get_source().as_str()
+  }
+
+  pub fn generate(self) -> String {
+    self.doc.src
+  }
+}
+
 pub trait ContentExt: Content {
   fn accept_edit(&mut self, edit: &Edit<Self>) -> InputEdit;
 }
