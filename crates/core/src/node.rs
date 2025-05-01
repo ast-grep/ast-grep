@@ -67,9 +67,24 @@ impl<D: Doc> Root<D> {
   }
 
   // extract non generic implementation to reduce code size
-  pub fn do_edit(&mut self, edit: Edit<D>) -> Result<(), String> {
+  pub fn edit(&mut self, edit: Edit<D>) -> Result<&mut Self, String> {
     self.doc.do_edit(&edit)?;
-    Ok(())
+    Ok(self)
+  }
+
+  pub fn replace<M: Matcher, R: Replacer<D>>(
+    &mut self,
+    pattern: M,
+    replacer: R,
+  ) -> Result<bool, String> {
+    let root = self.root();
+    if let Some(edit) = root.replace(pattern, replacer) {
+      drop(root); // rust cannot auto drop root if D is not specified
+      self.edit(edit)?;
+      Ok(true)
+    } else {
+      Ok(false)
+    }
   }
 
   /// Adopt the tree_sitter as the descendant of the root and return the wrapped sg Node.

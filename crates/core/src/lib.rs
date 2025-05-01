@@ -31,69 +31,9 @@ pub use tree_sitter::{LanguageExt, StrDoc};
 #[doc(hidden)]
 pub use tree_sitter::DisplayContext;
 
-use replacer::Replacer;
-
 use node::Root;
-use source::Edit;
 
-#[derive(Clone)]
-pub struct AstGrep<D: Doc> {
-  #[doc(hidden)]
-  pub inner: Root<D>,
-}
-impl<D: Doc> AstGrep<D> {
-  pub fn root(&self) -> Node<D> {
-    self.inner.root()
-  }
-
-  pub fn edit(&mut self, edit: Edit<D::Source>) -> Result<&mut Self, String> {
-    self.inner.do_edit(edit)?;
-    Ok(self)
-  }
-
-  pub fn replace<M: Matcher, R: Replacer<D>>(
-    &mut self,
-    pattern: M,
-    replacer: R,
-  ) -> Result<bool, String> {
-    let root = self.root();
-    if let Some(edit) = root.replace(pattern, replacer) {
-      drop(root); // rust cannot auto drop root if D is not specified
-      self.edit(edit)?;
-      Ok(true)
-    } else {
-      Ok(false)
-    }
-  }
-
-  pub fn lang(&self) -> &D::Lang {
-    self.inner.lang()
-  }
-
-  /// Use this method to avoid expensive string encoding overhead
-  /// TODO: add more documents on what is happening
-  pub fn doc(d: D) -> Self {
-    Self {
-      inner: Root::doc(d),
-    }
-  }
-}
-
-impl<L: LanguageExt> AstGrep<StrDoc<L>> {
-  pub fn new<S: AsRef<str>>(src: S, lang: L) -> Self {
-    Self {
-      inner: Root::str(src.as_ref(), lang),
-    }
-  }
-
-  pub fn source(&self) -> &str {
-    self.inner.doc.get_source().as_str()
-  }
-
-  pub fn generate(self) -> String {
-    self.inner.doc.src
-  }
-}
+pub type AstGrep<D> = Root<D>;
 
 #[cfg(test)]
 mod test {
