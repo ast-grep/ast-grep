@@ -99,7 +99,7 @@ impl<'tree, D: Doc> Borrow<Node<'tree, D>> for NodeMatch<'tree, D> {
 mod test {
   use super::*;
   use crate::language::Tsx;
-  use crate::{LanguageExt, StrDoc};
+  use crate::tree_sitter::{LanguageExt, StrDoc};
 
   fn use_node<L: LanguageExt>(n: &Node<StrDoc<L>>) -> String {
     n.text().to_string()

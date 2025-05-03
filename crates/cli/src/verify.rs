@@ -9,7 +9,7 @@ use crate::lang::SgLang;
 use crate::utils::ErrorContext;
 use anyhow::{anyhow, Result};
 use ast_grep_config::RuleCollection;
-use ast_grep_core::{Node as SgNode, StrDoc};
+use ast_grep_core::{tree_sitter::StrDoc, Node as SgNode};
 use clap::Args;
 use regex::Regex;
 use serde_yaml::to_string;

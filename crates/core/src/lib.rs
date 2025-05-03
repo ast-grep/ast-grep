@@ -12,11 +12,10 @@ pub mod meta_var;
 pub mod ops;
 pub mod replacer;
 pub mod source;
-pub mod traversal;
+pub mod tree_sitter;
 
 #[doc(hidden)]
 pub mod pinned;
-pub mod tree_sitter;
 
 mod match_tree;
 mod node;
@@ -26,10 +25,6 @@ pub use match_tree::MatchStrictness;
 pub use matcher::{Matcher, NodeMatch, Pattern, PatternError};
 pub use node::{Node, Position};
 pub use source::Doc;
-pub use tree_sitter::{LanguageExt, StrDoc};
-
-#[doc(hidden)]
-pub use tree_sitter::DisplayContext;
 
 use node::Root;
 
@@ -38,6 +33,7 @@ pub type AstGrep<D> = Root<D>;
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::tree_sitter::LanguageExt;
   use language::Tsx;
   use ops::Op;
 

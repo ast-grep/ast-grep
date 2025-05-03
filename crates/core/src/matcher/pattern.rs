@@ -347,7 +347,7 @@ mod test {
   use crate::language::Tsx;
   use crate::matcher::MatcherExt;
   use crate::meta_var::MetaVarEnv;
-  use crate::StrDoc;
+  use crate::tree_sitter::StrDoc;
   use std::collections::HashMap;
 
   fn pattern_node(s: &str) -> Root<StrDoc<Tsx>> {

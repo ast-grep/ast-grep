@@ -7,7 +7,8 @@ use crate::rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::replacer::Replacer;
-use ast_grep_core::{LanguageExt, Matcher, NodeMatch, StrDoc};
+use ast_grep_core::tree_sitter::{LanguageExt, StrDoc};
+use ast_grep_core::{Matcher, NodeMatch};
 
 use schemars::{gen::SchemaGenerator, schema::Schema, JsonSchema};
 use serde::{Deserialize, Serialize};

@@ -3,7 +3,7 @@ use crate::range::Range;
 use crate::SgRoot;
 
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
-use ast_grep_core::{NodeMatch, StrDoc};
+use ast_grep_core::{tree_sitter::StrDoc, NodeMatch};
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};

@@ -302,7 +302,7 @@ impl<'tree, D: Doc> From<MetaVarEnv<'tree, D>> for HashMap<String, String> {
 mod test {
   use super::*;
   use crate::language::Tsx;
-  use crate::LanguageExt;
+  use crate::tree_sitter::LanguageExt;
   use crate::Pattern;
 
   fn extract_var(s: &str) -> Option<MetaVariable> {

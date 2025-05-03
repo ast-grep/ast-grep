@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{from_yaml_string, CombinedScan, RuleCollection, RuleConfig, Severity};
-use ast_grep_core::{NodeMatch, StrDoc};
+use ast_grep_core::{tree_sitter::StrDoc, NodeMatch};
 use ast_grep_language::SupportLang;
 use clap::Args;
 use ignore::WalkParallel;
@@ -269,7 +269,7 @@ impl StdInWorker for ScanStdin {
     src: String,
     processor: &P::Processor,
   ) -> Result<Vec<P::Processed>> {
-    use ast_grep_core::LanguageExt;
+    use ast_grep_core::tree_sitter::LanguageExt;
     let lang = self.rules[0].language;
     let combined = CombinedScan::new(self.rules.iter().collect());
     let grep = lang.ast_grep(src);

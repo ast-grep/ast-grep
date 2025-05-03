@@ -43,9 +43,8 @@ pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(
 mod test {
   use super::*;
   use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
-  use ast_grep_core::tree_sitter::TSLanguage;
-  use ast_grep_core::StrDoc;
-  use ast_grep_core::{Language, LanguageExt};
+  use ast_grep_core::tree_sitter::{LanguageExt, StrDoc, TSLanguage};
+  use ast_grep_core::Language;
   use std::path::Path;
 
   #[derive(Clone, Deserialize, PartialEq, Eq)]

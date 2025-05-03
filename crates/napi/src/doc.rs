@@ -2,9 +2,7 @@ use crate::napi_lang::NapiLang;
 
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
 use ast_grep_core::source::{Content, Doc, Edit};
-use ast_grep_core::tree_sitter::ContentExt;
-use ast_grep_core::tree_sitter::TSParseError;
-use ast_grep_core::LanguageExt;
+use ast_grep_core::tree_sitter::{ContentExt, LanguageExt, TSParseError};
 use napi::anyhow::Error;
 use napi::bindgen_prelude::Result as NapiResult;
 use napi_derive::napi;
@@ -160,7 +158,7 @@ impl Doc for JsDoc {
     let source = &mut self.source;
     let input_edit = source.accept_edit(edit);
     self.tree.edit(&input_edit);
-    self.tree = parse(&source, &self.lang, Some(&self.tree)).map_err(|e| e.to_string())?;
+    self.tree = parse(source, &self.lang, Some(&self.tree)).map_err(|e| e.to_string())?;
     Ok(())
   }
   fn root_node(&self) -> Node<'_> {

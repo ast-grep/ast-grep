@@ -7,7 +7,10 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
 use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig, Severity};
-use ast_grep_core::{AstGrep, Doc, LanguageExt, StrDoc};
+use ast_grep_core::{
+  tree_sitter::{LanguageExt, StrDoc},
+  AstGrep, Doc,
+};
 
 use std::collections::HashMap;
 use std::path::PathBuf;

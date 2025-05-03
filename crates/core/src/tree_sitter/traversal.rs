@@ -18,8 +18,10 @@
 //! It is recommended to use traversal instead of tree recursion to avoid stack overflow and memory overhead.
 //! Level order is also included for completeness and should be used sparingly.
 
+use super::StrDoc;
 use crate::matcher::{Matcher, MatcherExt};
-use crate::{Doc, LanguageExt, Node, NodeMatch, Root, StrDoc};
+use crate::tree_sitter::LanguageExt;
+use crate::{Doc, Node, NodeMatch, Root};
 
 use tree_sitter as ts;
 
@@ -410,7 +412,6 @@ impl<'tree, L: LanguageExt> Iterator for Level<'tree, L> {
 mod test {
   use super::*;
   use crate::language::Tsx;
-  use crate::StrDoc;
   use std::ops::Range;
 
   // recursive pre order as baseline

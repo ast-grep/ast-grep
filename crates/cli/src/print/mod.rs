@@ -5,7 +5,7 @@ mod json_print;
 
 use crate::lang::SgLang;
 use ast_grep_config::{Fixer, RuleConfig};
-use ast_grep_core::{Matcher, NodeMatch as SgNodeMatch, StrDoc};
+use ast_grep_core::{tree_sitter::StrDoc, Matcher, NodeMatch as SgNodeMatch};
 
 use anyhow::Result;
 use clap::ValueEnum;

@@ -1,12 +1,14 @@
+mod traversal;
+
 use crate::node::Root;
 use crate::replacer::Replacer;
 use crate::source::{Content, Doc, Edit, SgNode};
-use crate::traversal::{TsPre, Visitor};
 use crate::{node::KindId, Language, Position};
 use crate::{AstGrep, Matcher};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use thiserror::Error;
+pub use traversal::{TsPre, Visitor};
 pub use tree_sitter::Language as TSLanguage;
 use tree_sitter::{InputEdit, LanguageError, Node, Parser, ParserError, Point, Tree};
 pub use tree_sitter::{Point as TSPoint, Range as TSRange};
