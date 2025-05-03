@@ -217,7 +217,7 @@ impl LanguageExt for SgLang {
     &self,
     root: Node<StrDoc<L>>,
   ) -> HashMap<String, Vec<TSRange>> {
-    injection::extract_injections(root)
+    injection::extract_injections(self, root)
   }
 }
 
