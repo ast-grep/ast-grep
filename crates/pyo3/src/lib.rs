@@ -8,7 +8,10 @@ use py_lang::register_dynamic_language;
 use py_node::{Edit, SgNode};
 use range::{Pos, Range};
 
-use ast_grep_core::{AstGrep, LanguageExt, NodeMatch, StrDoc};
+use ast_grep_core::{
+  tree_sitter::{LanguageExt, StrDoc},
+  AstGrep, NodeMatch,
+};
 use py_lang::PyLang;
 use pyo3::prelude::*;
 

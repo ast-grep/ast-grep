@@ -28,7 +28,7 @@ use smallvec::{smallvec, SmallVec};
 
 use ast_grep_config::RuleCollection;
 use ast_grep_core::Pattern;
-use ast_grep_core::{Matcher, StrDoc};
+use ast_grep_core::{tree_sitter::StrDoc, Matcher};
 use ast_grep_language::{Language, LanguageExt};
 
 use std::fs::read_to_string;

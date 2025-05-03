@@ -160,7 +160,7 @@ mod test {
   use crate::language::Tsx;
   use crate::matcher::NodeMatch;
   use crate::meta_var::{MetaVarEnv, MetaVariable};
-  use crate::LanguageExt;
+  use crate::tree_sitter::LanguageExt;
   use crate::Pattern;
   use std::collections::HashMap;
 

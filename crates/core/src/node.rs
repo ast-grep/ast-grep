@@ -381,8 +381,8 @@ impl<D: Doc> Node<'_, D> {
 
 #[cfg(test)]
 mod test {
-  use crate::language::Tsx;
-  use crate::{Language, LanguageExt};
+  use crate::language::{Language, Tsx};
+  use crate::tree_sitter::LanguageExt;
   #[test]
   fn test_is_leaf() {
     let root = Tsx.ast_grep("let a = 123");

@@ -266,7 +266,7 @@ mod test {
   use crate::from_str;
   use crate::test::TypeScript;
   use crate::SerializableRuleConfig;
-  use ast_grep_core::LanguageExt;
+  use ast_grep_core::tree_sitter::LanguageExt;
 
   fn create_rule() -> RuleConfig<TypeScript> {
     let rule: SerializableRuleConfig<TypeScript> = from_str(

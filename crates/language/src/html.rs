@@ -1,8 +1,8 @@
 use super::pre_process_pattern;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
-use ast_grep_core::tree_sitter::{TSLanguage, TSRange};
+use ast_grep_core::tree_sitter::{LanguageExt, StrDoc, TSLanguage, TSRange};
+use ast_grep_core::Language;
 use ast_grep_core::{matcher::KindMatcher, Doc, Node};
-use ast_grep_core::{Language, LanguageExt, StrDoc};
 use std::collections::HashMap;
 
 // tree-sitter-html uses locale dependent iswalnum for tagName

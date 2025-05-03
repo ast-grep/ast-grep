@@ -344,8 +344,8 @@ fn open_in_editor(path: &Path, start_line: usize) -> Result<()> {
 mod test {
   use super::*;
   use ast_grep_config::{from_yaml_string, Fixer, GlobalRules};
-  use ast_grep_core::traversal::Visitor;
-  use ast_grep_core::{AstGrep, Matcher, StrDoc};
+  use ast_grep_core::tree_sitter::{StrDoc, Visitor};
+  use ast_grep_core::{AstGrep, Matcher};
   use ast_grep_language::SupportLang;
 
   fn make_rule(rule: &str) -> RuleConfig<SgLang> {

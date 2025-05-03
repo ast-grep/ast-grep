@@ -99,7 +99,7 @@ mod test {
   use super::*;
   use crate::language::Tsx;
   use crate::matcher::MatcherExt;
-  use crate::{Root, StrDoc};
+  use crate::{tree_sitter::StrDoc, Root};
 
   fn pattern_node(s: &str) -> Root<StrDoc<Tsx>> {
     Root::str(s, Tsx)

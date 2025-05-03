@@ -1,6 +1,6 @@
 use crate::lang::SgLang;
 use ast_grep_config::{RuleConfig, Severity};
-use ast_grep_core::{meta_var::MetaVariable, Node as SgNode, StrDoc};
+use ast_grep_core::{meta_var::MetaVariable, tree_sitter::StrDoc, Node as SgNode};
 
 type Node<'a, L> = SgNode<'a, StrDoc<L>>;
 

@@ -118,7 +118,7 @@ mod test {
   use super::*;
   use crate::language::Tsx;
   use crate::node::Root;
-  use crate::StrDoc;
+  use crate::tree_sitter::StrDoc;
 
   fn return_from_func() -> PinnedNodeData<StrDoc<Tsx>, Node<'static, StrDoc<Tsx>>> {
     let root = Root::str("let a = 123", Tsx);

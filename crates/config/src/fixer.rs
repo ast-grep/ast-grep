@@ -188,7 +188,7 @@ mod test {
   use crate::from_str;
   use crate::maybe::Maybe;
   use crate::test::TypeScript;
-  use ast_grep_core::LanguageExt;
+  use ast_grep_core::tree_sitter::LanguageExt;
 
   #[test]
   fn test_parse() {

@@ -31,8 +31,8 @@ use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 pub use html::Html;
 
 use ast_grep_core::meta_var::MetaVariable;
-use ast_grep_core::tree_sitter::{TSLanguage, TSRange};
-use ast_grep_core::{Node, StrDoc};
+use ast_grep_core::tree_sitter::{StrDoc, TSLanguage, TSRange};
+use ast_grep_core::Node;
 use ignore::types::{Types, TypesBuilder};
 use serde::de::Visitor;
 use serde::{de, Deserialize, Deserializer, Serialize};
@@ -44,7 +44,8 @@ use std::iter::repeat;
 use std::path::Path;
 use std::str::FromStr;
 
-pub use ast_grep_core::{language::Language, LanguageExt};
+pub use ast_grep_core::language::Language;
+pub use ast_grep_core::tree_sitter::LanguageExt;
 
 /// this macro implements bare-bone methods for a language
 macro_rules! impl_lang {

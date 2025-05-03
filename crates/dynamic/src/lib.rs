@@ -1,5 +1,5 @@
-use ast_grep_core::tree_sitter::TSLanguage;
-use ast_grep_core::{Language, LanguageExt, StrDoc};
+use ast_grep_core::tree_sitter::{LanguageExt, StrDoc, TSLanguage};
+use ast_grep_core::Language;
 
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ignore::types::{Types, TypesBuilder};

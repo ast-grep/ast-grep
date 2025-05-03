@@ -148,8 +148,8 @@ mod test {
   use super::*;
   use crate::language::Tsx;
   use crate::meta_var::MetaVarEnv;
-  use crate::Node;
-  use crate::{Root, StrDoc};
+  use crate::tree_sitter::StrDoc;
+  use crate::{Node, Root};
   use std::collections::HashMap;
 
   fn find_node_recursive<'tree>(

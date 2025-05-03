@@ -1,5 +1,5 @@
 use super::NodeMatch;
-use ast_grep_core::DisplayContext;
+use ast_grep_core::tree_sitter::DisplayContext;
 
 /// merging overlapping/adjacent matches
 /// adjacent matches: matches that starts or ends on the same line

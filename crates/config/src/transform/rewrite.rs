@@ -342,7 +342,7 @@ fix: $D
     rewrite: Rewrite<String>,
     reg: RuleRegistration,
   ) -> Option<String> {
-    use ast_grep_core::LanguageExt;
+    use ast_grep_core::tree_sitter::LanguageExt;
     let grep = TypeScript::Tsx.ast_grep(src);
     let root = grep.root();
     let mut nm = root.find(pat).expect("should find");
