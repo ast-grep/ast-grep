@@ -123,24 +123,26 @@ pub fn injectable_languages(lang: SgLang) -> Option<&'static [&'static str]> {
   Some(&injection.1)
 }
 
-pub fn extract_injections<L: LanguageExt>(root: Node<StrDoc<L>>) -> HashMap<String, Vec<TSRange>> {
-  // NB Only works in the CLI crate because we only has Node<SgLang>
-  let root: Node<StrDoc<SgLang>> = unsafe { std::mem::transmute(root) };
-  let mut ret = match root.lang() {
+pub fn extract_injections<L: LanguageExt>(
+  lang: &SgLang,
+  root: Node<StrDoc<L>>,
+) -> HashMap<String, Vec<TSRange>> {
+  let mut ret = match lang {
     SgLang::Custom(c) => c.extract_injections(root.clone()),
     SgLang::Builtin(b) => b.extract_injections(root.clone()),
   };
   let injections = unsafe { &*addr_of!(LANG_INJECTIONS) };
-  extract_custom_inject(injections, root, &mut ret);
+  extract_custom_inject(lang, injections, root, &mut ret);
   ret
 }
 
-fn extract_custom_inject(
+fn extract_custom_inject<L: LanguageExt>(
+  lang: &SgLang,
   injections: &[Injection],
-  root: Node<StrDoc<SgLang>>,
+  root: Node<StrDoc<L>>,
   ret: &mut HashMap<String, Vec<TSRange>>,
 ) {
-  let Some(rules) = injections.iter().find(|n| n.host == *root.lang()) else {
+  let Some(rules) = injections.iter().find(|n| n.host == *lang) else {
     return;
   };
   for (rule, default_lang) in &rules.rules {
@@ -227,14 +229,14 @@ injected: [js, ts, tsx]";
     let lang = SgLang::from(SupportLang::JavaScript);
     let sg = lang.ast_grep("const a = styled`.btn { margin: 0; }`");
     let root = sg.root();
-    extract_custom_inject(&injections, root, &mut ret);
+    extract_custom_inject(&lang, &injections, root, &mut ret);
     assert_eq!(ret.len(), 1);
     assert_eq!(ret["css"].len(), 1);
     assert!(!ret.contains_key("js"));
     ret.clear();
     let sg = lang.ast_grep("const a = styled.css`.btn { margin: 0; }`");
     let root = sg.root();
-    extract_custom_inject(&injections, root, &mut ret);
+    extract_custom_inject(&lang, &injections, root, &mut ret);
     assert_eq!(ret.len(), 1);
     assert_eq!(ret["css"].len(), 1);
     assert!(!ret.contains_key("js"));
