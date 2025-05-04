@@ -19,8 +19,13 @@ where
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    let node = self.pattern1.match_node_with_env(node, env)?;
-    self.pattern2.match_node_with_env(node, env)
+    // keep the original env intact until both arms match
+    let mut new_env = Cow::Borrowed(env.as_ref());
+    let node = self.pattern1.match_node_with_env(node, &mut new_env)?;
+    let ret = self.pattern2.match_node_with_env(node, &mut new_env)?;
+    // both succeed – commit the combined env
+    *env = Cow::Owned(new_env.into_owned());
+    Some(ret)
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
