@@ -27,32 +27,101 @@ pub struct Edit<S: Content> {
 /// Fully Qualified Syntax may needed https://stackoverflow.com/a/44445976/2198656
 pub trait SgNode<'r>: Clone {
   fn parent(&self) -> Option<Self>;
-  fn ancestors(&self, root: Self) -> impl Iterator<Item = Self>;
-  fn dfs(&self) -> impl Iterator<Item = Self>;
-  fn child(&self, nth: usize) -> Option<Self>;
   fn children(&self) -> impl ExactSizeIterator<Item = Self>;
-  fn child_by_field_id(&self, field_id: u16) -> Option<Self>;
-  fn next(&self) -> Option<Self>;
-  fn prev(&self) -> Option<Self>;
-  fn next_all(&self) -> impl Iterator<Item = Self>;
-  fn prev_all(&self) -> impl Iterator<Item = Self>;
-  fn is_named(&self) -> bool;
-  /// N.B. it is different from is_named && is_leaf
-  /// if a node has no named children.
-  fn is_named_leaf(&self) -> bool;
-  fn is_leaf(&self) -> bool;
   fn kind(&self) -> Cow<str>;
   fn kind_id(&self) -> KindId;
   fn node_id(&self) -> usize;
   fn range(&self) -> std::ops::Range<usize>;
   fn start_pos(&self) -> Position;
   fn end_pos(&self) -> Position;
+
+  // default implentation
+  fn ancestors(&self, _root: Self) -> impl Iterator<Item = Self> {
+    let mut ancestors = vec![];
+    let mut current = self.clone();
+    while let Some(parent) = current.parent() {
+      ancestors.push(parent.clone());
+      current = parent;
+    }
+    ancestors.reverse();
+    ancestors.into_iter()
+  }
+  fn dfs(&self) -> impl Iterator<Item = Self> {
+    let mut stack = vec![self.clone()];
+    std::iter::from_fn(move || {
+      if let Some(node) = stack.pop() {
+        let children: Vec<_> = node.children().collect();
+        stack.extend(children.into_iter().rev());
+        Some(node)
+      } else {
+        None
+      }
+    })
+  }
+  fn child(&self, nth: usize) -> Option<Self> {
+    self.children().nth(nth)
+  }
+  fn next(&self) -> Option<Self> {
+    let parent = self.parent()?;
+    let mut children = parent.children();
+    while let Some(child) = children.next() {
+      if child.node_id() == self.node_id() {
+        return children.next();
+      }
+    }
+    None
+  }
+  fn prev(&self) -> Option<Self> {
+    let parent = self.parent()?;
+    let mut children = parent.children();
+    let mut prev = None;
+    for child in children {
+      if child.node_id() == self.node_id() {
+        return prev;
+      }
+      prev = Some(child);
+    }
+    None
+  }
+  fn next_all(&self) -> impl Iterator<Item = Self> {
+    let mut next = self.next();
+    std::iter::from_fn(move || {
+      let n = next.clone()?;
+      next = n.next();
+      Some(n)
+    })
+  }
+  fn prev_all(&self) -> impl Iterator<Item = Self> {
+    let mut prev = self.prev();
+    std::iter::from_fn(move || {
+      let n = prev.clone()?;
+      prev = n.prev();
+      Some(n)
+    })
+  }
+  fn is_named(&self) -> bool {
+    true
+  }
+  /// N.B. it is different from is_named && is_leaf
+  /// if a node has no named children.
+  fn is_named_leaf(&self) -> bool {
+    self.is_leaf()
+  }
+  fn is_leaf(&self) -> bool {
+    self.children().count() == 0
+  }
+
   // missing node is a tree-sitter specific concept
-  fn is_missing(&self) -> bool;
-  fn is_error(&self) -> bool;
+  fn is_missing(&self) -> bool {
+    false
+  }
+  fn is_error(&self) -> bool {
+    false
+  }
 
   fn field(&self, name: &str) -> Option<Self>;
   fn field_children(&self, field_id: Option<u16>) -> impl Iterator<Item = Self>;
+  fn child_by_field_id(&self, field_id: u16) -> Option<Self>;
 }
 
 pub trait Doc: Clone + 'static {
