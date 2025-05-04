@@ -294,7 +294,7 @@ impl<W: Write> Printer for JSONPrinter<W> {
     if matched {
       let separator = match self.style {
         JsonStyle::Pretty => ",\n",
-        JsonStyle::Stream => "\n",
+        JsonStyle::Stream => "",
         JsonStyle::Compact => ",",
       };
       write!(output, "{separator}")?;
@@ -348,10 +348,10 @@ impl JSONProcessor {
         }
       }
       JsonStyle::Stream => {
-        serde_json::to_writer(&mut *output, &doc)?;
-        for doc in docs {
-          writeln!(&mut *output)?;
+        // Stream mode requires a newline after each object
+        for doc in std::iter::once(doc).chain(docs) {
           serde_json::to_writer(&mut *output, &doc)?;
+          writeln!(&mut *output)?;
         }
       }
       JsonStyle::Compact => {
