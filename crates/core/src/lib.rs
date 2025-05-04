@@ -12,6 +12,7 @@ pub mod meta_var;
 pub mod ops;
 pub mod replacer;
 pub mod source;
+#[cfg(feature = "tree-sitter")]
 pub mod tree_sitter;
 
 #[doc(hidden)]

@@ -23,7 +23,7 @@ pub struct Position {
 }
 
 impl Position {
-  pub(crate) fn new(line: usize, byte_column: usize, byte_offset: usize) -> Self {
+  pub fn new(line: usize, byte_column: usize, byte_offset: usize) -> Self {
     Self {
       line,
       byte_column,

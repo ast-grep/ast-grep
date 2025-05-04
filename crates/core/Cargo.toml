@@ -15,12 +15,12 @@ version.workspace = true
 
 [dependencies]
 bit-set.workspace = true
-regex = { workspace = true, optional = true }
+regex.workspace = true
 thiserror.workspace = true
-tree-sitter.workspace = true
+tree-sitter = { workspace = true, optional = true }
 
 [features]
-default = ["regex"]
+default = ["tree-sitter"]
 
 [dev-dependencies]
 tree-sitter-typescript = "0.23.2"
