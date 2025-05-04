@@ -1,4 +1,4 @@
-mod traversal;
+pub mod traversal;
 
 use crate::node::Root;
 use crate::replacer::Replacer;
