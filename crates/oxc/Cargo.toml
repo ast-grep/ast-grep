@@ -1,0 +1,18 @@
+[package]
+name = "ast-grep-oxc"
+description = "OXC bindings for ast-grep"
+keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
+
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+ast-grep-core = { workspace = true, no-default-features = true }
+oxc_allocator = "0.68.1"
+oxc_parser = "0.68.1"
+oxc_semantic = "0.68.1"
+oxc_span = "0.68.1"
