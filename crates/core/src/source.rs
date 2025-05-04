@@ -73,7 +73,7 @@ pub trait SgNode<'r>: Clone {
   }
   fn prev(&self) -> Option<Self> {
     let parent = self.parent()?;
-    let mut children = parent.children();
+    let children = parent.children();
     let mut prev = None;
     for child in children {
       if child.node_id() == self.node_id() {

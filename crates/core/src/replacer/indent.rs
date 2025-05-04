@@ -1,4 +1,4 @@
-#![warn(clippy::doc_overindented_list_items)]
+#![allow(clippy::doc_overindented_list_items)]
 /**
   This module is for indentation-sensitive replacement.
 
