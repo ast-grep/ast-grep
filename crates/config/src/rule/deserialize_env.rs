@@ -213,9 +213,10 @@ mod test {
   use super::*;
   use crate::test::TypeScript;
   use crate::{from_str, Rule};
-  use anyhow::Result;
   use ast_grep_core::tree_sitter::LanguageExt;
   use ast_grep_core::Matcher;
+
+  type Result<T> = std::result::Result<T, RuleSerializeError>;
 
   fn get_dependent_utils() -> Result<(Rule, DeserializeEnv<TypeScript>)> {
     let utils = from_str(
@@ -226,7 +227,8 @@ accessor-name:
 member-name:
   kind: identifier
 ",
-    )?;
+    )
+    .expect("failed to parse utils");
     let env = DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils)?;
     assert_eq!(utils.keys().count(), 2);
     let rule = from_str("matches: accessor-name").unwrap();
@@ -262,7 +264,8 @@ member-name:
 local-rule:
   matches: global-rule
 ",
-    )?;
+    )
+    .expect("failed to parse utils");
     // should not panic
     DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils)?;
     Ok(())
@@ -275,7 +278,8 @@ local-rule:
 local-rule:
   matches: local-rule
 ",
-    )?;
+    )
+    .expect("failed to parse utils");
     let ret = DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils);
     assert!(ret.is_err());
     Ok(())
@@ -294,7 +298,8 @@ local-rule-c:
   any:
     - matches: local-rule-a
 ",
-    )?;
+    )
+    .expect("failed to parse utils");
     let ret = DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils);
     assert!(ret.is_err());
     Ok(())
@@ -308,7 +313,8 @@ local-rule-a:
   not: {matches: local-rule-b}
 local-rule-b:
   matches: local-rule-a",
-    )?;
+    )
+    .expect("failed to parse utils");
     let ret = DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils);
     assert!(matches!(
       ret,
