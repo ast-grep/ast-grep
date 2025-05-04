@@ -11,15 +11,16 @@ rust-version.workspace = true
 version.workspace = true
 
 [features]
-default = ["regex"]
+default = ["tree-sitter"]
+tree-sitter = ["ast-grep-core/tree-sitter"]
 
 [dependencies]
-ast-grep-core.workspace = true
+ast-grep-core = { workspace = true, no-default-features = true }
 
 anyhow.workspace = true
 bit-set.workspace = true
 globset = "0.4.14"
-regex = { workspace = true, optional = true }
+regex.workspace = true
 serde.workspace = true
 serde_yaml = "0.9.33"
 thiserror.workspace = true

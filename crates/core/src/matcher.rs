@@ -8,7 +8,6 @@
 mod kind;
 mod node_match;
 mod pattern;
-#[cfg(feature = "regex")]
 mod text;
 
 use crate::Doc;
@@ -20,7 +19,6 @@ use std::borrow::Cow;
 pub use kind::{kind_utils, KindMatcher, KindMatcherError};
 pub use node_match::NodeMatch;
 pub use pattern::{Pattern, PatternBuilder, PatternError, PatternNode};
-#[cfg(feature = "regex")]
 pub use text::{RegexMatcher, RegexMatcherError};
 
 /// `Matcher` defines whether a tree-sitter node matches certain pattern,
