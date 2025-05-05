@@ -257,7 +257,6 @@ version = "0.37.0"
 dependencies = [
  "ast-grep-core",
  "oxc_allocator",
- "oxc_ast",
  "oxc_index",
  "oxc_parser",
  "oxc_semantic",
