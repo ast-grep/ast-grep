@@ -15,7 +15,7 @@
     "@babel/core": "7.27.1",
     "@babel/plugin-syntax-typescript": "7.27.1",
     "@oxidation-compiler/napi": "0.2.0",
-    "@swc/core": "1.11.21",
+    "@swc/core": "1.11.24",
     "benny": "3.7.1",
     "tree-sitter": "0.22.4",
     "tree-sitter-typescript": "0.21.2",
