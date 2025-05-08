@@ -119,9 +119,18 @@ pub trait SgNode<'r>: Clone {
     false
   }
 
-  fn field(&self, name: &str) -> Option<Self>;
-  fn field_children(&self, field_id: Option<u16>) -> impl Iterator<Item = Self>;
-  fn child_by_field_id(&self, field_id: u16) -> Option<Self>;
+  #[allow(unused_variables)]
+  fn field(&self, name: &str) -> Option<Self> {
+    None
+  }
+  #[allow(unused_variables)]
+  fn field_children(&self, field_id: Option<u16>) -> impl Iterator<Item = Self> {
+    std::iter::empty()
+  }
+  #[allow(unused_variables)]
+  fn child_by_field_id(&self, field_id: u16) -> Option<Self> {
+    None
+  }
 }
 
 pub trait Doc: Clone + 'static {
