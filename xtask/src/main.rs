@@ -106,12 +106,32 @@ fn update_napi(version: &str) -> Result<()> {
   Ok(())
 }
 
+fn edit_root_toml<P: AsRef<Path>>(path: P, version: &str) -> Result<()> {
+  let mut toml: DocumentMut = read_to_string(&path)?.parse()?;
+  toml["workspace"]["package"]["version"] = to_toml(version);
+  let deps = toml["workspace"]["dependencies"]
+    .as_table_mut()
+    .context("dep should be table")?;
+  for (key, value) in deps.iter_mut() {
+    if !key.starts_with("ast-grep-") {
+      continue;
+    }
+    if value.is_str() {
+      *value = to_toml(version);
+      continue;
+    }
+    if let Some(inline) = value.as_inline_table_mut() {
+      inline["version"] = version.into();
+    }
+  }
+  fs::write(path, toml.to_string())?;
+  Ok(())
+}
+
 fn update_crates(version: &str) -> Result<()> {
   // update root toml
-  let root_path = Path::new("Cargo.toml");
-  let mut toml: DocumentMut = read_to_string(root_path)?.parse()?;
-  toml["workspace"]["package"]["version"] = to_toml(version);
-  fs::write(root_path, toml.to_string())?;
+  let root_toml = Path::new("Cargo.toml");
+  edit_root_toml(root_toml, version)?;
   // no need to update crates or benches
   Ok(())
 }
