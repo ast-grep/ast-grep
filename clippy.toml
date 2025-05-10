@@ -1,0 +1,1 @@
+ignore-interior-mutability = ["fluent_uri::Uri"]

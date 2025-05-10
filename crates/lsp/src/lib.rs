@@ -2,9 +2,10 @@ mod utils;
 
 use dashmap::DashMap;
 use serde_json::Value;
-use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer};
+use tower_lsp_server::jsonrpc::Result;
+use tower_lsp_server::lsp_types::*;
+use tower_lsp_server::UriExt;
+use tower_lsp_server::{Client, LanguageServer};
 
 use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig, Severity};
 use ast_grep_core::{
@@ -17,7 +18,7 @@ use std::path::PathBuf;
 
 use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, RewriteData};
 
-pub use tower_lsp::{LspService, Server};
+pub use tower_lsp_server::{LspService, Server};
 
 pub trait LSPLang: LanguageExt + Eq + Send + Sync + 'static {}
 impl<T> LSPLang for T where T: LanguageExt + Eq + Send + Sync + 'static {}
@@ -64,7 +65,6 @@ fn code_action_provider(
   }))
 }
 
-#[tower_lsp::async_trait]
 impl<L: LSPLang> LanguageServer for Backend<L> {
   async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
     Ok(InitializeResult {
@@ -187,8 +187,8 @@ impl<L: LSPLang> Backend<L> {
     }
   }
 
-  fn get_rules(&self, uri: &Url) -> Option<Vec<&RuleConfig<L>>> {
-    let absolute_path = uri.to_file_path().ok()?;
+  fn get_rules(&self, uri: &Uri) -> Option<Vec<&RuleConfig<L>>> {
+    let absolute_path = uri.to_file_path()?;
     let path = if let Ok(p) = absolute_path.strip_prefix(&self.base) {
       p
     } else {
@@ -200,7 +200,7 @@ impl<L: LSPLang> Backend<L> {
 
   fn get_diagnostics(
     &self,
-    uri: &Url,
+    uri: &Uri,
     versioned: &VersionedAst<StrDoc<L>>,
   ) -> Option<Vec<Diagnostic>> {
     let rules = self.get_rules(uri)?;
@@ -220,7 +220,7 @@ impl<L: LSPLang> Backend<L> {
     Some(diagnostics)
   }
 
-  async fn publish_diagnostics(&self, uri: Url, versioned: &VersionedAst<StrDoc<L>>) -> Option<()> {
+  async fn publish_diagnostics(&self, uri: Uri, versioned: &VersionedAst<StrDoc<L>>) -> Option<()> {
     let diagnostics = self.get_diagnostics(&uri, versioned).unwrap_or_default();
     self
       .client
@@ -232,13 +232,13 @@ impl<L: LSPLang> Backend<L> {
   async fn get_path_of_first_workspace(&self) -> Option<std::path::PathBuf> {
     let folders = self.client.workspace_folders().await.ok()??;
     let folder = folders.first()?;
-    folder.uri.to_file_path().ok()
+    folder.uri.to_file_path().map(PathBuf::from)
   }
 
   // skip files outside of workspace root #1382, #1402
   async fn should_skip_file_outside_workspace(&self, text_doc: &TextDocumentItem) -> Option<()> {
     let workspace_root = self.get_path_of_first_workspace().await?;
-    let doc_file_path = text_doc.uri.to_file_path().ok()?;
+    let doc_file_path = text_doc.uri.to_file_path()?;
     if doc_file_path.starts_with(workspace_root) {
       None
     } else {
@@ -309,7 +309,7 @@ impl<L: LSPLang> Backend<L> {
   fn compute_all_fixes(
     &self,
     text_document: TextDocumentIdentifier,
-  ) -> std::result::Result<HashMap<Url, Vec<TextEdit>>, LspError>
+  ) -> std::result::Result<HashMap<Uri, Vec<TextEdit>>, LspError>
   where
     L: ast_grep_core::Language + std::cmp::Eq,
   {
@@ -396,8 +396,8 @@ impl<L: LSPLang> Backend<L> {
   }
 
   // TODO: support other urls besides file_scheme
-  fn infer_lang_from_uri(uri: &Url) -> Option<L> {
-    let path = uri.to_file_path().ok()?;
+  fn infer_lang_from_uri(uri: &Uri) -> Option<L> {
+    let path = uri.to_file_path()?;
     L::from_path(path)
   }
 

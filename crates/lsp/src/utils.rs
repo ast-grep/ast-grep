@@ -5,9 +5,10 @@ use ast_grep_core::tree_sitter::{LanguageExt, StrDoc};
 use ast_grep_core::{Doc, Node, NodeMatch};
 
 use serde::{Deserialize, Serialize};
-use tower_lsp::lsp_types::*;
+use tower_lsp_server::lsp_types::*;
 
 use std::collections::HashMap;
+use std::str::FromStr;
 
 #[derive(Serialize, Deserialize)]
 pub struct RewriteData {
@@ -117,6 +118,6 @@ fn get_non_empty_message<L: LanguageExt>(
 }
 
 fn url_to_code_description(url: &Option<String>) -> Option<CodeDescription> {
-  let href = Url::parse(url.as_ref()?).ok()?;
+  let href = Uri::from_str(url.as_ref()?).ok()?;
   Some(CodeDescription { href })
 }
