@@ -15,7 +15,7 @@ default = ["tree-sitter"]
 tree-sitter = ["ast-grep-core/tree-sitter"]
 
 [dependencies]
-ast-grep-core = { path = "../core", default-features = false }
+ast-grep-core = { path = "../core", default-features = false, version = "0.38.0" }
 
 bit-set.workspace = true
 globset = "0.4.14"
