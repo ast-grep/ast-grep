@@ -7,8 +7,8 @@ use crate::rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::replacer::Replacer;
-use ast_grep_core::tree_sitter::{LanguageExt, StrDoc};
-use ast_grep_core::{Matcher, NodeMatch};
+use ast_grep_core::source::Content;
+use ast_grep_core::{Doc, Matcher, NodeMatch};
 
 use schemars::{gen::SchemaGenerator, schema::Schema, JsonSchema};
 use serde::{Deserialize, Serialize};
@@ -193,14 +193,14 @@ impl<L: Language> RuleConfig<L> {
     Self::try_from(inner, globals)
   }
 
-  pub fn get_message(&self, node: &NodeMatch<StrDoc<L>>) -> String
+  pub fn get_message<D>(&self, node: &NodeMatch<D>) -> String
   where
-    L: LanguageExt,
+    D: Doc,
   {
     let env = self.matcher.get_env(self.language.clone());
     let parsed = Fixer::with_transform(&self.message, &env, &self.transform).expect("should work");
     let bytes = parsed.generate_replacement(node);
-    String::from_utf8(bytes).expect("replacement must be valid utf-8")
+    <D::Source as Content>::encode_bytes(&bytes).to_string()
   }
   pub fn get_fixer(&self) -> Result<Option<Fixer>, RuleConfigError> {
     if let Some(fix) = &self.fix {
@@ -231,6 +231,7 @@ mod test {
   use crate::from_str;
   use crate::rule::SerializableRule;
   use crate::test::TypeScript;
+  use ast_grep_core::tree_sitter::LanguageExt;
 
   fn ts_rule_config(rule: SerializableRule) -> SerializableRuleConfig<TypeScript> {
     let core = SerializableRuleCore {
