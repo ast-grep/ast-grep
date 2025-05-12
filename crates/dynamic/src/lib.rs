@@ -281,9 +281,9 @@ mod test {
   // apple silicon macos and linux x86_64
   fn get_tree_sitter_path() -> &'static str {
     if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-      "../../benches/fixtures/json-mac.so"
+      "../../fixtures/json-mac.so"
     } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
-      "../../benches/fixtures/json-linux.so"
+      "../../fixtures/json-linux.so"
     } else {
       ""
     }

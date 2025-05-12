@@ -1,8 +1,7 @@
 [workspace]
 members = [
   "crates/*",
-  "xtask",
-  "benches"
+  "xtask"
 ]
 default-members = ["crates/*"]
 resolver = "2"
