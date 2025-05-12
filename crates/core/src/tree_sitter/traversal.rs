@@ -387,7 +387,7 @@ pub struct Level<'tree, L: LanguageExt> {
 impl<'tree, L: LanguageExt> Level<'tree, L> {
   pub fn new(node: &Node<'tree, StrDoc<L>>) -> Self {
     let mut deque = VecDeque::new();
-    deque.push_back(node.inner.clone());
+    deque.push_back(node.inner);
     let cursor = node.inner.walk();
     Self {
       deque,

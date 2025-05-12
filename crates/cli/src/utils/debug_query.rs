@@ -84,7 +84,7 @@ fn dump_pattern(
     } => {
       if *is_named {
         let kind = lang.node_kind_for_id(*kind_id).unwrap();
-        let kind = style.kind_style.paint(format!("{kind}"));
+        let kind = style.kind_style.paint(kind);
         writeln!(ret, "{kind} {text}")?;
       } else {
         writeln!(ret, "{text}")?;
@@ -190,8 +190,8 @@ impl From<ts::Point> for Pos {
   #[inline]
   fn from(pt: ts::Point) -> Self {
     Pos {
-      row: pt.row() as usize,
-      column: pt.column() as usize,
+      row: pt.row,
+      column: pt.column,
     }
   }
 }

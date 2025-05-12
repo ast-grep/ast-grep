@@ -62,7 +62,10 @@ mod test {
       ts_lang.id_for_node_kind(kind, /* named */ true)
     }
     fn field_to_id(&self, field: &str) -> Option<u16> {
-      self.get_ts_language().field_id_for_name(field)
+      self
+        .get_ts_language()
+        .field_id_for_name(field)
+        .map(|f| f.get())
     }
     fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
       builder.build(|src| StrDoc::try_new(src, self.clone()))

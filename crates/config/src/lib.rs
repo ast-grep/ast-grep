@@ -56,7 +56,9 @@ mod test {
       TSLanguage::from(tree_sitter_typescript::LANGUAGE_TSX).id_for_node_kind(kind, true)
     }
     fn field_to_id(&self, field: &str) -> Option<u16> {
-      TSLanguage::from(tree_sitter_typescript::LANGUAGE_TSX).field_id_for_name(field)
+      TSLanguage::from(tree_sitter_typescript::LANGUAGE_TSX)
+        .field_id_for_name(field)
+        .map(|f| f.get())
     }
     fn from_path<P: AsRef<Path>>(_path: P) -> Option<Self> {
       Some(TypeScript::Tsx)

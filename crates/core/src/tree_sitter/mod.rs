@@ -7,17 +7,16 @@ use crate::{node::KindId, Language, Position};
 use crate::{AstGrep, Matcher};
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::num::NonZero;
 use thiserror::Error;
 pub use traversal::{TsPre, Visitor};
 pub use tree_sitter::Language as TSLanguage;
-use tree_sitter::{InputEdit, LanguageError, Node, Parser, ParserError, Point, Tree};
+use tree_sitter::{InputEdit, LanguageError, Node, Parser, Point, Tree};
 pub use tree_sitter::{Point as TSPoint, Range as TSRange};
 
 /// Represents tree-sitter related error
 #[derive(Debug, Error)]
 pub enum TSParseError {
-  #[error("web-tree-sitter parser is not available")]
-  Parse(#[from] ParserError),
   #[error("incompatible `Language` is assigned to a `Parser`.")]
   Language(#[from] LanguageError),
   /// A general error when tree sitter fails to parse in time. It can be caused by
@@ -31,12 +30,12 @@ pub enum TSParseError {
 
 #[inline]
 fn parse_lang(
-  parse_fn: impl Fn(&mut Parser) -> Result<Option<Tree>, ParserError>,
+  parse_fn: impl Fn(&mut Parser) -> Option<Tree>,
   ts_lang: TSLanguage,
 ) -> Result<Tree, TSParseError> {
-  let mut parser = Parser::new()?;
+  let mut parser = Parser::new();
   parser.set_language(&ts_lang)?;
-  if let Some(tree) = parse_fn(&mut parser)? {
+  if let Some(tree) = parse_fn(&mut parser) {
     Ok(tree)
   } else {
     Err(TSParseError::TreeUnavailable)
@@ -87,9 +86,11 @@ impl<L: LanguageExt> Doc for StrDoc<L> {
     self.tree.root_node()
   }
   fn get_node_text<'a>(&'a self, node: &Self::Node<'a>) -> Cow<'a, str> {
-    node
-      .utf8_text(self.src.as_bytes())
-      .expect("invalid source text encoding")
+    Cow::Borrowed(
+      node
+        .utf8_text(self.src.as_bytes())
+        .expect("invalid source text encoding"),
+    )
   }
 }
 
@@ -129,7 +130,7 @@ impl<'r> SgNode<'r> for Node<'r> {
       if inner.id() == self_id {
         return None;
       }
-      ancestor = inner.child_with_descendant(self.clone());
+      ancestor = inner.child_with_descendant(*self);
       Some(inner)
     })
     // We must iterate up the tree to preserve backwards compatibility
@@ -142,14 +143,14 @@ impl<'r> SgNode<'r> for Node<'r> {
   }
   fn child(&self, nth: usize) -> Option<Self> {
     // TODO remove cast after migrating to tree-sitter
-    Node::child(self, nth as u32)
+    Node::child(self, nth)
   }
   fn children(&self) -> impl ExactSizeIterator<Item = Self> {
     let mut cursor = self.walk();
     cursor.goto_first_child();
     NodeWalker {
       cursor,
-      count: self.child_count() as usize,
+      count: self.child_count(),
     }
   }
   fn child_by_field_id(&self, field_id: u16) -> Option<Self> {
@@ -163,7 +164,7 @@ impl<'r> SgNode<'r> for Node<'r> {
   }
   fn next_all(&self) -> impl Iterator<Item = Self> {
     // if root is none, use self as fallback to return a type-stable Iterator
-    let node = self.parent().unwrap_or_else(|| self.clone());
+    let node = self.parent().unwrap_or(*self);
     let mut cursor = node.walk();
     cursor.goto_first_child_for_byte(self.start_byte());
     std::iter::from_fn(move || {
@@ -176,7 +177,7 @@ impl<'r> SgNode<'r> for Node<'r> {
   }
   fn prev_all(&self) -> impl Iterator<Item = Self> {
     // if root is none, use self as fallback to return a type-stable Iterator
-    let node = self.parent().unwrap_or_else(|| self.clone());
+    let node = self.parent().unwrap_or(*self);
     let mut cursor = node.walk();
     cursor.goto_first_child_for_byte(self.start_byte());
     std::iter::from_fn(move || {
@@ -199,7 +200,7 @@ impl<'r> SgNode<'r> for Node<'r> {
     self.child_count() == 0
   }
   fn kind(&self) -> Cow<str> {
-    Node::kind(self)
+    Cow::Borrowed(Node::kind(self))
   }
   fn kind_id(&self) -> KindId {
     Node::kind_id(self)
@@ -208,17 +209,17 @@ impl<'r> SgNode<'r> for Node<'r> {
     self.id()
   }
   fn range(&self) -> std::ops::Range<usize> {
-    (self.start_byte() as usize)..(self.end_byte() as usize)
+    self.start_byte()..self.end_byte()
   }
   fn start_pos(&self) -> Position {
     let pos = self.start_position();
-    let byte = self.start_byte() as usize;
-    Position::new(pos.row() as usize, pos.column() as usize, byte)
+    let byte = self.start_byte();
+    Position::new(pos.row, pos.column, byte)
   }
   fn end_pos(&self) -> Position {
     let pos = self.end_position();
-    let byte = self.end_byte() as usize;
-    Position::new(pos.row() as usize, pos.column() as usize, byte)
+    let byte = self.end_byte();
+    Position::new(pos.row, pos.column, byte)
   }
   // missing node is a tree-sitter specific concept
   fn is_missing(&self) -> bool {
@@ -232,6 +233,7 @@ impl<'r> SgNode<'r> for Node<'r> {
     self.child_by_field_name(name)
   }
   fn field_children(&self, field_id: Option<u16>) -> impl Iterator<Item = Self> {
+    let field_id = field_id.and_then(NonZero::new);
     let mut cursor = self.walk();
     cursor.goto_first_child();
     // if field_id is not found, iteration is done
@@ -329,14 +331,14 @@ impl ContentExt for String {
     let old_end_position = position_for_offset(input, old_end_byte);
     input.splice(start_byte..old_end_byte, edit.inserted_text.clone());
     let new_end_position = position_for_offset(input, new_end_byte);
-    InputEdit::new(
-      start_byte as u32,
-      old_end_byte as u32,
-      new_end_byte as u32,
-      &start_position,
-      &old_end_position,
-      &new_end_position,
-    )
+    InputEdit {
+      start_byte,
+      old_end_byte,
+      new_end_byte,
+      start_position,
+      old_end_position,
+      new_end_position,
+    }
   }
 }
 
@@ -360,15 +362,15 @@ impl<L: LanguageExt> Root<StrDoc<L>> {
       .filter_map(|(lang, ranges)| {
         let lang = get_lang(&lang)?;
         let source = self.doc.get_source();
-        let mut parser = tree_sitter::Parser::new().ok()?;
+        let mut parser = Parser::new();
         parser.set_included_ranges(&ranges).ok()?;
         parser.set_language(&lang.get_ts_language()).ok()?;
-        let tree = parser.parse(source, None).ok()?;
-        tree.map(|t| Self {
+        let tree = parser.parse(source, None)?;
+        Some(Self {
           doc: StrDoc {
             src: self.doc.src.clone(),
             lang,
-            tree: t,
+            tree,
           },
         })
       })
@@ -394,8 +396,8 @@ impl<'r, L: LanguageExt> crate::Node<'r, StrDoc<L>> {
   pub fn display_context(&self, before: usize, after: usize) -> DisplayContext<'r> {
     let source = self.root.doc.get_source().as_str();
     let bytes = source.as_bytes();
-    let start = self.inner.start_byte() as usize;
-    let end = self.inner.end_byte() as usize;
+    let start = self.inner.start_byte();
+    let end = self.inner.end_byte();
     let (mut leading, mut trailing) = (start, end);
     let mut lines_before = before + 1;
     while leading > 0 {
@@ -463,8 +465,8 @@ mod test {
     let tree = parse("var a = 1234")?;
     let root_node = tree.root_node();
     assert_eq!(root_node.kind(), "program");
-    assert_eq!(root_node.start_position().column(), 0);
-    assert_eq!(root_node.end_position().column(), 12);
+    assert_eq!(root_node.start_position().column, 0);
+    assert_eq!(root_node.end_position().column, 12);
     assert_eq!(
       root_node.to_sexp(),
       "(program (variable_declaration (variable_declarator name: (identifier) value: (number))))"

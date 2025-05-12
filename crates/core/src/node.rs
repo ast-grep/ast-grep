@@ -38,8 +38,8 @@ impl Position {
     let source = node.get_doc().get_source();
     source.get_char_column(self.byte_column, self.byte_offset)
   }
-  pub fn byte_point(&self) -> (u32, u32) {
-    (self.line as u32, self.byte_column as u32)
+  pub fn byte_point(&self) -> (usize, usize) {
+    (self.line, self.byte_column)
   }
 }
 

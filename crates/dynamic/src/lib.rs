@@ -6,7 +6,7 @@ use ignore::types::{Types, TypesBuilder};
 use libloading::{Error as LibError, Library, Symbol};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tree_sitter_native::{Language as NativeTS, LANGUAGE_VERSION, MIN_COMPATIBLE_LANGUAGE_VERSION};
+use tree_sitter::{Language as NativeTS, LANGUAGE_VERSION, MIN_COMPATIBLE_LANGUAGE_VERSION};
 
 use std::borrow::Cow;
 use std::fs::canonicalize;
@@ -133,7 +133,7 @@ unsafe fn load_ts_language(
   } else {
     // ATTENTION: dragon ahead
     // must hold valid reference to NativeTS
-    Ok((lib, lang.into()))
+    Ok((lib, lang))
   }
 }
 
@@ -239,7 +239,7 @@ impl Language for DynamicLang {
   }
   fn field_to_id(&self, field: &str) -> Option<u16> {
     let inner = self.inner();
-    inner.lang.field_id_for_name(field)
+    inner.lang.field_id_for_name(field).map(|f| f.get())
   }
 
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
@@ -297,7 +297,7 @@ mod test {
       self.0.id_for_node_kind(kind, /* named */ true)
     }
     fn field_to_id(&self, field: &str) -> Option<u16> {
-      self.0.field_id_for_name(field)
+      self.0.field_id_for_name(field).map(|f| f.get())
     }
     fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
       builder.build(|src| StrDoc::try_new(src, self.clone()))

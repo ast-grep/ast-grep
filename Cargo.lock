@@ -141,7 +141,7 @@ dependencies = [
  "smallvec",
  "tempfile",
  "tokio",
- "tree-sitter-facade-sg",
+ "tree-sitter",
 ]
 
 [[package]]
@@ -166,7 +166,7 @@ dependencies = [
  "bit-set",
  "regex",
  "thiserror",
- "tree-sitter-facade-sg",
+ "tree-sitter",
  "tree-sitter-typescript",
 ]
 
@@ -190,13 +190,13 @@ dependencies = [
  "ast-grep-core",
  "ignore",
  "serde",
+ "tree-sitter",
  "tree-sitter-bash",
  "tree-sitter-c",
  "tree-sitter-c-sharp",
  "tree-sitter-cpp",
  "tree-sitter-css",
  "tree-sitter-elixir",
- "tree-sitter-facade-sg",
  "tree-sitter-go",
  "tree-sitter-haskell",
  "tree-sitter-html",
@@ -242,7 +242,7 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "serde_json",
- "tree-sitter-facade-sg",
+ "tree-sitter",
 ]
 
 [[package]]
@@ -996,7 +996,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a793df0d7afeac54f95b471d3af7f0d4fb975699f972341a4b76988d49cdf0c"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -1880,9 +1880,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter"
-version = "0.25.3"
+version = "0.25.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9ac5ea5e7f2f1700842ec071401010b9c59bf735295f6e9fa079c3dc035b167"
+checksum = "69aff09fea9a41fb061ae6b206cb87cac1b8db07df31be3ba271fbc26760f213"
 dependencies = [
  "cc",
  "regex",
@@ -1950,20 +1950,6 @@ checksum = "e45d444647b4fd53d8fd32474c1b8bedc1baa22669ce3a78d083e365fa9a2d3f"
 dependencies = [
  "cc",
  "tree-sitter-language",
-]
-
-[[package]]
-name = "tree-sitter-facade-sg"
-version = "0.25.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b456912926c4079fb0e6d26e4282a588f93857fbb4d79e29c5eb1244b7100d55"
-dependencies = [
- "js-sys",
- "tree-sitter",
- "tree-sitter-language",
- "wasm-bindgen",
- "web-sys",
- "web-tree-sitter-sg",
 ]
 
 [[package]]
@@ -2235,19 +2221,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wasm-bindgen-futures"
-version = "0.4.50"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "555d470ec0bc3bb57890405e5d4322cc9ea83cebb085523ced7be4144dac1e61"
-dependencies = [
- "cfg-if",
- "js-sys",
- "once_cell",
- "wasm-bindgen",
- "web-sys",
-]
-
-[[package]]
 name = "wasm-bindgen-macro"
 version = "0.2.100"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2290,17 +2263,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "web-tree-sitter-sg"
-version = "0.25.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c769bd29dd6612783fffb7090d29ed8b390672fb9e968b9e76bbc07bf78600c"
-dependencies = [
- "js-sys",
- "wasm-bindgen",
- "wasm-bindgen-futures",
-]
-
-[[package]]
 name = "winapi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2322,7 +2284,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
