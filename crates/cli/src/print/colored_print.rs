@@ -161,7 +161,7 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
   fn print_rule(
     &self,
     matches: Vec<NodeMatch>,
-    file: SimpleFile<Cow<str>, &String>,
+    file: SimpleFile<Cow<str>, &str>,
     rule: &RuleConfig<SgLang>,
   ) -> Result<Buffer> {
     let config = &self.config;

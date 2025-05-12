@@ -372,7 +372,7 @@ impl PrintProcessor<Buffer> for JSONProcessor {
   fn print_rule(
     &self,
     matches: Vec<NodeMatch>,
-    file: SimpleFile<Cow<str>, &String>,
+    file: SimpleFile<Cow<str>, &str>,
     rule: &RuleConfig<SgLang>,
   ) -> Result<Buffer> {
     let path = file.name();
@@ -551,13 +551,12 @@ rule:
       if source.contains("import") {
         continue;
       }
-      let source = source.to_string();
       let mut printer = make_test_printer(JsonStyle::Pretty);
-      let grep = SgLang::from(SupportLang::Tsx).ast_grep(&source);
+      let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
       let rule = make_rule(pattern);
       let matches = grep.root().find_all(&rule.matcher).collect();
       printer.before_print().unwrap();
-      let file = SimpleFile::new(Cow::Borrowed("test.ts"), &source);
+      let file = SimpleFile::new(Cow::Borrowed("test.ts"), source);
       let buffer = printer
         .get_processor()
         .print_rule(matches, file, &rule)

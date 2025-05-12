@@ -174,7 +174,7 @@ where
   fn print_rule(
     &self,
     matches: Vec<NodeMatch>,
-    file: SimpleFile<Cow<str>, &String>,
+    file: SimpleFile<Cow<str>, &str>,
     rule: &RuleConfig<SgLang>,
   ) -> Result<Payload<P>> {
     let Some(first_match) = matches.first() else {

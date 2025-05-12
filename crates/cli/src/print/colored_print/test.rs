@@ -101,8 +101,7 @@ fn test_print_rules() {
       .heading(Heading::Never)
       .style(ReportStyle::Short);
     let grep = lang.ast_grep(source);
-    let source = source.to_string();
-    let file = SimpleFile::new(Cow::Borrowed("test.tsx"), &source);
+    let file = SimpleFile::new(Cow::Borrowed("test.tsx"), source);
     let rule = from_yaml_string(
       &format!(
         r"

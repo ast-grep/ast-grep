@@ -51,7 +51,7 @@ impl PrintProcessor<Vec<u8>> for CloudProcessor {
   fn print_rule(
     &self,
     matches: Vec<NodeMatch>,
-    file: SimpleFile<Cow<str>, &String>,
+    file: SimpleFile<Cow<str>, &str>,
     rule: &RuleConfig<SgLang>,
   ) -> Result<Vec<u8>> {
     let mut ret = vec![];
@@ -144,12 +144,11 @@ language: TypeScript
   }
 
   fn test_output(src: &str, rule_str: &str, expect: &str) {
-    let src = src.to_owned();
     let mut printer = make_test_printer();
-    let grep = SgLang::from(SupportLang::Tsx).ast_grep(&src);
+    let grep = SgLang::from(SupportLang::Tsx).ast_grep(src);
     let rule = make_rule(rule_str);
     let matches = grep.root().find_all(&rule.matcher).collect();
-    let file = SimpleFile::new(Cow::Borrowed("test.tsx"), &src);
+    let file = SimpleFile::new(Cow::Borrowed("test.tsx"), src);
     let buffer = printer
       .get_processor()
       .print_rule(matches, file, &rule)

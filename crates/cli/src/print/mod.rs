@@ -28,7 +28,7 @@ pub trait PrintProcessor<Output>: Send + Sync + 'static {
   fn print_rule(
     &self,
     matches: Vec<NodeMatch>,
-    file: SimpleFile<Cow<str>, &String>,
+    file: SimpleFile<Cow<str>, &str>,
     rule: &RuleConfig<SgLang>,
   ) -> Result<Output>;
   fn print_matches(&self, matches: Vec<NodeMatch>, path: &Path) -> Result<Output>;
