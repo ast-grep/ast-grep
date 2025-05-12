@@ -181,8 +181,10 @@ fn simplify_stop_by(schema: &mut RootSchema) -> Result<()> {
 
 fn get_named_nodes(lang: &TSLanguage) -> Vec<Value> {
   let enum_values = BTreeSet::from_iter((0..lang.node_kind_count()).filter_map(|id| {
-    if lang.node_kind_is_named(id) {
-      lang.node_kind_for_id(id).map(|kind| kind.to_string())
+    if lang.node_kind_is_named(id as u16) {
+      lang
+        .node_kind_for_id(id as u16)
+        .map(|kind| kind.to_string())
     } else {
       None
     }
@@ -197,7 +199,8 @@ fn get_named_nodes(lang: &TSLanguage) -> Vec<Value> {
 fn get_fields(lang: &TSLanguage) -> Vec<Value> {
   let enum_values = BTreeSet::from_iter(
     // Field IDs start from 1 in tree-sitter.
-    (1..lang.field_count()).filter_map(|id| lang.field_name_for_id(id).map(|s| s.to_string())),
+    (1..lang.field_count())
+      .filter_map(|id| lang.field_name_for_id(id as u16).map(|s| s.to_string())),
   );
 
   enum_values
