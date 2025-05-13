@@ -15,7 +15,7 @@ const canTestDynamicLang = isAppleSilicon || isX64Linux
 if (isAppleSilicon) {
   registerDynamicLanguage({
     json: {
-      libraryPath: "../../benches/fixtures/json-mac.so",
+      libraryPath: "../../fixtures/json-mac.so",
       languageSymbol: "tree_sitter_json",
       extensions: ["json"],
     }
@@ -23,7 +23,7 @@ if (isAppleSilicon) {
 } else if (isX64Linux) {
   registerDynamicLanguage({
     json: {
-      libraryPath: "../../benches/fixtures/json-linux.so",
+      libraryPath: "../../fixtures/json-linux.so",
       languageSymbol: "tree_sitter_json",
       extensions: ["json"],
     }
