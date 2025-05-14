@@ -59,6 +59,20 @@ pub struct SerializableRewriter {
   /// Unique, descriptive identifier, e.g., no-unused-variable
   pub id: String,
 }
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum LabelStyle {
+  /// Labels that describe the primary cause of a diagnostic.
+  Primary,
+  /// Labels that provide additional context for a diagnostic.
+  Secondary,
+}
+
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
+pub struct LabelConfig {
+  pub style: LabelStyle,
+  pub message: Option<String>,
+}
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableRuleConfig<L: Language> {
@@ -79,6 +93,9 @@ pub struct SerializableRuleConfig<L: Language> {
   /// One of: hint, info, warning, or error
   #[serde(default)]
   pub severity: Severity,
+  /// Custom label dictionary to configure reporting. Key is the meta-variable name and
+  /// value is the label message and label style.
+  pub labels: Option<HashMap<String, LabelConfig>>,
   /// Glob patterns to specify that the rule only applies to matching files
   pub files: Option<Vec<String>>,
   /// Glob patterns that exclude rules from applying to files
@@ -249,6 +266,7 @@ mod test {
       message: "".into(),
       note: None,
       severity: Severity::Hint,
+      labels: None,
       files: None,
       ignores: None,
       url: None,

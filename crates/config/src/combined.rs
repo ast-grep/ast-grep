@@ -244,6 +244,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
       note: None,
       rewriters: None,
       url: None,
+      labels: None,
     };
     RuleConfig::try_from(config, &Default::default()).unwrap()
   }
