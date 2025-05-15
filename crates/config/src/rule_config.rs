@@ -2,6 +2,7 @@ use crate::GlobalRules;
 
 use crate::check_var::{check_rewriters_in_transform, CheckHint};
 use crate::fixer::Fixer;
+use crate::label::{get_default_labels, get_labels_from_config, Label, LabelConfig};
 use crate::rule::DeserializeEnv;
 use crate::rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
 
@@ -58,20 +59,6 @@ pub struct SerializableRewriter {
   pub core: SerializableRuleCore,
   /// Unique, descriptive identifier, e.g., no-unused-variable
   pub id: String,
-}
-#[derive(Serialize, Deserialize, Clone, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub enum LabelStyle {
-  /// Labels that describe the primary cause of a diagnostic.
-  Primary,
-  /// Labels that provide additional context for a diagnostic.
-  Secondary,
-}
-
-#[derive(Serialize, Deserialize, Clone, JsonSchema)]
-pub struct LabelConfig {
-  pub style: LabelStyle,
-  pub message: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
@@ -226,6 +213,13 @@ impl<L: Language> RuleConfig<L> {
       Ok(Some(parsed))
     } else {
       Ok(None)
+    }
+  }
+  pub fn get_labels(&self, node: &NodeMatch<impl Doc>) -> Vec<Label> {
+    if let Some(labels_config) = &self.labels {
+      get_labels_from_config(labels_config, node)
+    } else {
+      get_default_labels(node)
     }
   }
 }

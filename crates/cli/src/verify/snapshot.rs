@@ -1,6 +1,6 @@
 use crate::lang::SgLang;
 use anyhow::{anyhow, Result};
-use ast_grep_config::RuleConfig;
+use ast_grep_config::{LabelStyle, RuleConfig};
 use ast_grep_core::{
   tree_sitter::{LanguageExt, StrDoc},
   NodeMatch,
@@ -104,13 +104,6 @@ impl TestSnapshot {
       labels,
     }))
   }
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub enum LabelStyle {
-  Primary,
-  Secondary,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]

@@ -37,13 +37,6 @@ struct Range {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct LabelJSON<'a> {
-  text: &'a str,
-  range: Range,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct MatchNode<'a> {
   text: Cow<'a, str>,
   range: Range,

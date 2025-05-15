@@ -157,6 +157,18 @@ impl ColoredProcessor {
   }
 }
 
+fn sg_label_to_code_span_label(label: ast_grep_config::Label) -> Label<()> {
+  let ret = match label.style {
+    ast_grep_config::LabelStyle::Primary => Label::primary((), label.range),
+    ast_grep_config::LabelStyle::Secondary => Label::secondary((), label.range),
+  };
+  if let Some(message) = label.message {
+    ret.with_message(message)
+  } else {
+    ret
+  }
+}
+
 impl PrintProcessor<Buffer> for ColoredProcessor {
   fn print_rule(
     &self,
@@ -175,14 +187,11 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
       Severity::Off => unreachable!("turned-off rule should not have match."),
     };
     for m in matches {
-      let range = m.range();
-      let mut labels = vec![Label::primary((), range)];
-      if let Some(secondary_nodes) = m.get_env().get_labels("secondary") {
-        labels.extend(secondary_nodes.iter().map(|n| {
-          let range = n.range();
-          Label::secondary((), range)
-        }));
-      }
+      let labels = rule
+        .get_labels(&m)
+        .into_iter()
+        .map(sg_label_to_code_span_label)
+        .collect();
       let diagnostic = Diagnostic::new(severity)
         .with_code(&rule.id)
         .with_message(rule.get_message(&m))

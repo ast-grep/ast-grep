@@ -1,6 +1,7 @@
 mod check_var;
 mod combined;
 mod fixer;
+mod label;
 mod maybe;
 mod rule;
 mod rule_collection;
@@ -15,6 +16,7 @@ use ast_grep_core::language::Language;
 
 pub use combined::CombinedScan;
 pub use fixer::Fixer;
+pub use label::{Label, LabelStyle};
 pub use rule::referent_rule::GlobalRules;
 pub use rule::DeserializeEnv;
 pub use rule::{Rule, RuleSerializeError, SerializableRule};
