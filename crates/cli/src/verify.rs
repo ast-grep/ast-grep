@@ -9,7 +9,6 @@ use crate::lang::SgLang;
 use crate::utils::ErrorContext;
 use anyhow::{anyhow, Result};
 use ast_grep_config::RuleCollection;
-use ast_grep_core::{tree_sitter::StrDoc, Node as SgNode};
 use clap::Args;
 use regex::Regex;
 use serde_yaml::to_string;
@@ -25,8 +24,6 @@ use find_file::TestHarness;
 use reporter::{DefaultReporter, InteractiveReporter, Reporter};
 use snapshot::{SnapshotAction, SnapshotCollection, TestSnapshots};
 use test_case::TestCase;
-
-type Node<'a, L> = SgNode<'a, StrDoc<L>>;
 
 fn parallel_collect<'a, T, R, F>(cases: &'a [T], filter_mapper: F) -> Vec<R>
 where

@@ -1,12 +1,12 @@
 use crate::lang::SgLang;
 use anyhow::{anyhow, Result};
-use ast_grep_config::{LabelStyle, RuleConfig};
+use ast_grep_config::{Label, LabelStyle, RuleConfig};
 use ast_grep_core::{
   tree_sitter::{LanguageExt, StrDoc},
-  NodeMatch,
+  Doc,
 };
 
-use super::{CaseResult, Node};
+use super::CaseResult;
 use serde::{Deserialize, Serialize, Serializer};
 
 use std::collections::{BTreeMap, HashMap};
@@ -75,7 +75,7 @@ pub struct TestSnapshots {
 pub struct TestSnapshot {
   #[serde(skip_serializing_if = "Option::is_none")]
   pub fixed: Option<String>,
-  pub labels: Vec<Label>,
+  pub labels: Vec<LabelSnapshot>,
 }
 
 impl TestSnapshot {
@@ -90,7 +90,11 @@ impl TestSnapshot {
     let Some(matched) = sg.root().find(rule) else {
       return Ok(None);
     };
-    let labels = Label::from_matched(matched);
+    let labels = rule_config
+      .get_labels(&matched)
+      .into_iter()
+      .map(LabelSnapshot::from)
+      .collect();
     let Some(fix) = &rule_config.matcher.fixer else {
       return Ok(Some(Self {
         fixed: None,
@@ -108,45 +112,25 @@ impl TestSnapshot {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct Label {
-  // TODO: change visibility
-  pub source: String,
+pub struct LabelSnapshot {
+  pub(super) source: String,
   #[serde(skip_serializing_if = "Option::is_none")]
   message: Option<String>,
   style: LabelStyle,
   start: usize,
   end: usize,
 }
-
-impl Label {
-  fn primary(n: &Node<SgLang>) -> Self {
-    let range = n.range();
+impl<'r, 't> From<Label<'r, 't, StrDoc<SgLang>>> for LabelSnapshot {
+  fn from(label: Label<'r, 't, StrDoc<SgLang>>) -> Self {
+    let range = label.range();
+    let source = label.start_node.get_doc().get_source();
     Self {
-      source: n.text().to_string(),
-      message: None,
-      style: LabelStyle::Primary,
+      source: source[range.clone()].to_string(),
+      message: label.message.map(ToString::to_string),
+      style: label.style,
       start: range.start,
       end: range.end,
     }
-  }
-
-  fn secondary(n: &Node<SgLang>) -> Self {
-    let range = n.range();
-    Self {
-      source: n.text().to_string(),
-      message: None,
-      style: LabelStyle::Secondary,
-      start: range.start,
-      end: range.end,
-    }
-  }
-
-  fn from_matched(n: NodeMatch<StrDoc<SgLang>>) -> Vec<Self> {
-    let mut ret = vec![Self::primary(&n)];
-    if let Some(secondary) = n.get_env().get_labels("secondary") {
-      ret.extend(secondary.iter().map(Self::secondary));
-    }
-    ret
   }
 }
 
@@ -172,7 +156,7 @@ mod tests {
       result,
       Some(TestSnapshot {
         fixed: None,
-        labels: vec![Label {
+        labels: vec![LabelSnapshot {
           source: "let x = 42;".into(),
           message: None,
           style: LabelStyle::Primary,
@@ -204,14 +188,14 @@ mod tests {
       Some(TestSnapshot {
         fixed: None,
         labels: vec![
-          Label {
+          LabelSnapshot {
             source: "let x = 42;".into(),
             message: None,
             style: LabelStyle::Primary,
             start: 18,
             end: 29,
           },
-          Label {
+          LabelSnapshot {
             source: "{ let x = 42; }".into(),
             message: None,
             style: LabelStyle::Secondary,
