@@ -214,7 +214,7 @@ impl<L: LSPLang> Backend<L> {
     let matches = scan.scan(&versioned.root, false).matches;
     let mut diagnostics = vec![];
     for (rule, ms) in matches {
-      let to_diagnostic = |m| convert_match_to_diagnostic(m, rule);
+      let to_diagnostic = |m| convert_match_to_diagnostic(uri, m, rule);
       diagnostics.extend(ms.into_iter().map(to_diagnostic));
     }
     Some(diagnostics)
