@@ -3,6 +3,7 @@ use crate::lang::SgLang;
 use crate::utils::DiffStyles;
 use anyhow::Result;
 use ast_grep_config::{RuleConfig, Severity};
+use ast_grep_core::Doc;
 use clap::ValueEnum;
 use codespan_reporting::diagnostic::{self, Diagnostic, Label};
 use codespan_reporting::files::SimpleFile;
@@ -157,10 +158,10 @@ impl ColoredProcessor {
   }
 }
 
-fn sg_label_to_code_span_label(label: ast_grep_config::Label) -> Label<()> {
+fn sg_label_to_code_span_label(label: ast_grep_config::Label<impl Doc>) -> Label<()> {
   let ret = match label.style {
-    ast_grep_config::LabelStyle::Primary => Label::primary((), label.range),
-    ast_grep_config::LabelStyle::Secondary => Label::secondary((), label.range),
+    ast_grep_config::LabelStyle::Primary => Label::primary((), label.range()),
+    ast_grep_config::LabelStyle::Secondary => Label::secondary((), label.range()),
   };
   if let Some(message) = label.message {
     ret.with_message(message)

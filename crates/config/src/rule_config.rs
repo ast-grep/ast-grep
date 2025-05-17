@@ -215,7 +215,7 @@ impl<L: Language> RuleConfig<L> {
       Ok(None)
     }
   }
-  pub fn get_labels(&self, node: &NodeMatch<impl Doc>) -> Vec<Label> {
+  pub fn get_labels<'t, D: Doc>(&self, node: &NodeMatch<'t, D>) -> Vec<Label<'_, 't, D>> {
     if let Some(labels_config) = &self.labels {
       get_labels_from_config(labels_config, node)
     } else {

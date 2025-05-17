@@ -1,8 +1,9 @@
 use crate::lang::SgLang;
-use ast_grep_config::{RuleConfig, Severity};
+use ast_grep_config::{LabelStyle, RuleConfig, Severity};
+use ast_grep_core::Doc;
 use ast_grep_core::{meta_var::MetaVariable, tree_sitter::StrDoc, Node as SgNode};
 
-type Node<'a, L> = SgNode<'a, StrDoc<L>>;
+type Node<'t, L> = SgNode<'t, StrDoc<L>>;
 
 use std::collections::HashMap;
 
@@ -37,9 +38,18 @@ struct Range {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct MatchNode<'a> {
-  text: Cow<'a, str>,
+struct MatchNode<'t> {
+  text: Cow<'t, str>,
   range: Range,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MatchLabel<'t, 'r> {
+  text: Cow<'t, str>,
+  range: Range,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  message: Option<&'r str>,
+  style: LabelStyle,
 }
 
 /// a sub field of leading and trailing text count around match.
@@ -54,8 +64,8 @@ struct CharCount {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct MatchJSON<'a, 'b> {
-  text: Cow<'a, str>,
+struct MatchJSON<'t, 'b> {
+  text: Cow<'t, str>,
   range: Range,
   file: Cow<'b, str>,
   lines: String,
@@ -66,17 +76,17 @@ struct MatchJSON<'a, 'b> {
   replacement_offsets: Option<std::ops::Range<usize>>,
   language: SgLang,
   #[serde(skip_serializing_if = "Option::is_none")]
-  meta_variables: Option<MetaVariables<'a>>,
+  meta_variables: Option<MetaVariables<'t>>,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct MetaVariables<'a> {
-  single: HashMap<String, MatchNode<'a>>,
-  multi: HashMap<String, Vec<MatchNode<'a>>>,
+struct MetaVariables<'t> {
+  single: HashMap<String, MatchNode<'t>>,
+  multi: HashMap<String, Vec<MatchNode<'t>>>,
   transformed: HashMap<String, String>,
 }
-fn from_env<'a>(nm: &NodeMatch<'a>) -> Option<MetaVariables<'a>> {
+fn from_env<'t>(nm: &NodeMatch<'t>) -> Option<MetaVariables<'t>> {
   let env = nm.get_env();
   let mut vars = env.get_matched_variables().peekable();
   vars.peek()?;
@@ -138,8 +148,8 @@ fn get_range(n: &Node<'_, SgLang>) -> Range {
   }
 }
 
-impl<'a, 'b> MatchJSON<'a, 'b> {
-  fn new(nm: NodeMatch<'a>, path: &'b str, context: (u16, u16)) -> Self {
+impl<'t, 'b> MatchJSON<'t, 'b> {
+  fn new(nm: NodeMatch<'t>, path: &'b str, context: (u16, u16)) -> Self {
     let display = nm.display_context(context.0 as usize, context.1 as usize);
     let lines = format!("{}{}{}", display.leading, display.matched, display.trailing);
     MatchJSON {
@@ -158,43 +168,61 @@ impl<'a, 'b> MatchJSON<'a, 'b> {
     }
   }
 
-  fn diff(diff: Diff<'a>, path: &'b str, context: (u16, u16)) -> Self {
+  fn diff(diff: Diff<'t>, path: &'b str, context: (u16, u16)) -> Self {
     let mut ret = Self::new(diff.node_match, path, context);
     ret.replacement = Some(diff.replacement);
     ret.replacement_offsets = Some(diff.range);
     ret
   }
 }
-fn get_labels<'a>(nm: &NodeMatch<'a>) -> Option<Vec<MatchNode<'a>>> {
-  let env = nm.get_env();
-  let labels = env.get_labels("secondary")?;
-  Some(
-    labels
-      .iter()
-      .map(|l| MatchNode {
-        text: l.text(),
-        range: get_range(l),
-      })
-      .collect(),
-  )
+fn get_labels<'b, 't>(rule: &'b RuleConfig<SgLang>, nm: &NodeMatch<'t>) -> Vec<MatchLabel<'t, 'b>> {
+  rule
+    .get_labels(nm)
+    .into_iter()
+    .map(|label| {
+      let start_pos = label.start_node.start_pos();
+      let end_pos = label.end_node.end_pos();
+      let byte_offset = label.range();
+      let range = Range {
+        byte_offset: byte_offset.clone(),
+        start: Position {
+          line: start_pos.line(),
+          // TODO:using pos.column with non-matching node is Okay now
+          // because it only uses the source of the root doc
+          column: start_pos.column(nm),
+        },
+        end: Position {
+          line: end_pos.line(),
+          column: end_pos.column(nm),
+        },
+      };
+      let source = nm.get_doc().get_source();
+      MatchLabel {
+        text: Cow::Borrowed(&source[byte_offset]),
+        range,
+        message: label.message,
+        style: label.style,
+      }
+    })
+    .collect()
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct RuleMatchJSON<'a, 'b> {
+struct RuleMatchJSON<'t, 'b> {
   #[serde(flatten)]
-  matched: MatchJSON<'a, 'b>,
+  matched: MatchJSON<'t, 'b>,
   rule_id: &'b str,
   severity: Severity,
   note: Option<String>,
   message: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  labels: Option<Vec<MatchNode<'a>>>,
+  #[serde(skip_serializing_if = "Vec::is_empty")]
+  labels: Vec<MatchLabel<'t, 'b>>,
 }
-impl<'a, 'b> RuleMatchJSON<'a, 'b> {
-  fn new(nm: NodeMatch<'a>, path: &'b str, rule: &'b RuleConfig<SgLang>) -> Self {
+impl<'t, 'b> RuleMatchJSON<'t, 'b> {
+  fn new(nm: NodeMatch<'t>, path: &'b str, rule: &'b RuleConfig<SgLang>) -> Self {
     let message = rule.get_message(&nm);
-    let labels = get_labels(&nm);
+    let labels = get_labels(rule, &nm);
     let matched = MatchJSON::new(nm, path, (0, 0));
     Self {
       matched,
@@ -205,10 +233,10 @@ impl<'a, 'b> RuleMatchJSON<'a, 'b> {
       labels,
     }
   }
-  fn diff(diff: Diff<'a>, path: &'b str, rule: &'b RuleConfig<SgLang>) -> Self {
+  fn diff(diff: Diff<'t>, path: &'b str, rule: &'b RuleConfig<SgLang>) -> Self {
     let nm = &diff.node_match;
     let message = rule.get_message(nm);
-    let labels = get_labels(nm);
+    let labels = get_labels(rule, nm);
     let matched = MatchJSON::diff(diff, path, (0, 0));
     Self {
       matched,
@@ -446,7 +474,7 @@ mod test {
   }
 
   // source, pattern, replace, debug note
-  type Case<'a> = (&'a str, &'a str, &'a str, &'a str);
+  type Case<'t> = (&'t str, &'t str, &'t str, &'t str);
 
   const MATCHES_CASES: &[Case] = &[
     ("let a = 123", "a", "b", "Simple match"),
