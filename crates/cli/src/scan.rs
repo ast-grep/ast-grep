@@ -47,6 +47,9 @@ pub struct ScanArg {
   #[clap(long, default_value = "rich", conflicts_with = "json")]
   report_style: ReportStyle,
 
+  #[clap(long, requires = "json")]
+  include_metadata: bool,
+
   /// severity related options
   #[clap(flatten)]
   overwrite: OverwriteArgs,
@@ -78,7 +81,7 @@ pub fn run_with_config(arg: ScanArg, project: Result<ProjectConfig>) -> Result<(
     return run_scan(arg, printer, project);
   }
   if let Some(json) = arg.output.json {
-    let printer = JSONPrinter::stdout(json);
+    let printer = JSONPrinter::stdout(json).include_metadata(arg.include_metadata);
     return run_scan(arg, printer, project);
   }
   let printer = ColoredPrinter::stdout(arg.output.color)
@@ -363,6 +366,7 @@ rule:
       rule: None,
       inline_rules: None,
       report_style: ReportStyle::Rich,
+      include_metadata: false,
       input: InputArgs {
         no_ignore: vec![],
         paths: vec![PathBuf::from(".")],

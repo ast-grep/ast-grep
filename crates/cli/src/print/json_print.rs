@@ -1,5 +1,5 @@
 use crate::lang::SgLang;
-use ast_grep_config::{LabelStyle, RuleConfig, Severity};
+use ast_grep_config::{LabelStyle, Metadata, RuleConfig, Severity};
 use ast_grep_core::Doc;
 use ast_grep_core::{meta_var::MetaVariable, tree_sitter::StrDoc, Node as SgNode};
 
@@ -218,12 +218,19 @@ struct RuleMatchJSON<'t, 'b> {
   message: String,
   #[serde(skip_serializing_if = "Vec::is_empty")]
   labels: Vec<MatchLabel<'t, 'b>>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  metadata: Option<Cow<'b, Metadata>>,
 }
 impl<'t, 'b> RuleMatchJSON<'t, 'b> {
-  fn new(nm: NodeMatch<'t>, path: &'b str, rule: &'b RuleConfig<SgLang>) -> Self {
+  fn new(nm: NodeMatch<'t>, path: &'b str, rule: &'b RuleConfig<SgLang>, metadata: bool) -> Self {
     let message = rule.get_message(&nm);
     let labels = get_labels(rule, &nm);
     let matched = MatchJSON::new(nm, path, (0, 0));
+    let metadata = if metadata {
+      rule.metadata.as_ref().map(Cow::Borrowed)
+    } else {
+      None
+    };
     Self {
       matched,
       rule_id: &rule.id,
@@ -231,13 +238,19 @@ impl<'t, 'b> RuleMatchJSON<'t, 'b> {
       note: rule.note.clone(),
       message,
       labels,
+      metadata,
     }
   }
-  fn diff(diff: Diff<'t>, path: &'b str, rule: &'b RuleConfig<SgLang>) -> Self {
+  fn diff(diff: Diff<'t>, path: &'b str, rule: &'b RuleConfig<SgLang>, metadata: bool) -> Self {
     let nm = &diff.node_match;
     let message = rule.get_message(nm);
     let labels = get_labels(rule, nm);
     let matched = MatchJSON::diff(diff, path, (0, 0));
+    let metadata = if metadata {
+      rule.metadata.as_ref().map(Cow::Borrowed)
+    } else {
+      None
+    };
     Self {
       matched,
       rule_id: &rule.id,
@@ -245,6 +258,7 @@ impl<'t, 'b> RuleMatchJSON<'t, 'b> {
       note: rule.note.clone(),
       message,
       labels,
+      metadata,
     }
   }
 }
@@ -268,6 +282,7 @@ pub struct JSONPrinter<W: Write> {
   output: W,
   style: JsonStyle,
   context: (u16, u16),
+  include_metadata: bool,
   // indicate if any matches happened
   matched: bool,
 }
@@ -283,6 +298,7 @@ impl<W: Write> JSONPrinter<W> {
     Self {
       style,
       output,
+      include_metadata: false,
       context: (0, 0),
       matched: false,
     }
@@ -290,6 +306,11 @@ impl<W: Write> JSONPrinter<W> {
 
   pub fn context(mut self, context: (u16, u16)) -> Self {
     self.context = context;
+    self
+  }
+
+  pub fn include_metadata(mut self, include: bool) -> Self {
+    self.include_metadata = include;
     self
   }
 }
@@ -302,6 +323,7 @@ impl<W: Write> Printer for JSONPrinter<W> {
     JSONProcessor {
       style: self.style,
       context: self.context,
+      include_metadata: self.include_metadata,
     }
   }
   fn process(&mut self, processed: Buffer) -> Result<()> {
@@ -350,6 +372,7 @@ impl<W: Write> Printer for JSONPrinter<W> {
 
 pub struct JSONProcessor {
   style: JsonStyle,
+  include_metadata: bool,
   context: (u16, u16),
 }
 
@@ -399,7 +422,7 @@ impl PrintProcessor<Buffer> for JSONProcessor {
     let path = file.name();
     let jsons = matches
       .into_iter()
-      .map(|nm| RuleMatchJSON::new(nm, path, rule));
+      .map(|nm| RuleMatchJSON::new(nm, path, rule, self.include_metadata));
     self.print_docs(jsons)
   }
 
@@ -428,7 +451,7 @@ impl PrintProcessor<Buffer> for JSONProcessor {
     let path = path.to_string_lossy();
     let jsons = diffs
       .into_iter()
-      .map(|(diff, rule)| RuleMatchJSON::diff(diff, &path, rule));
+      .map(|(diff, rule)| RuleMatchJSON::diff(diff, &path, rule, self.include_metadata));
     self.print_docs(jsons)
   }
 }
@@ -714,5 +737,31 @@ labels:
     assert_eq!(labels[0].message.unwrap(), "var label");
     assert_eq!(labels[0].style, LabelStyle::Primary);
     assert_eq!(labels[0].text, "123");
+  }
+
+  const META_TEXT: &str = "
+metadata:
+  A: test-meta
+";
+  #[test]
+  fn test_metadata() {
+    for included in [true, false] {
+      let mut printer = make_test_printer(JsonStyle::Compact).include_metadata(included);
+      let rule = get_rule_config(&format!("pattern: console.log($A)\n{}", META_TEXT));
+      let grep = SgLang::from(SupportLang::TypeScript).ast_grep("console.log(123)");
+      let matches = grep.root().find_all(&rule.matcher).collect();
+      printer.before_print().unwrap();
+      let file = SimpleFile::new(Cow::Borrowed("test.ts"), "console.log(123)");
+      let buffer = printer
+        .get_processor()
+        .print_rule(matches, file, &rule)
+        .unwrap();
+      printer.process(buffer).unwrap();
+      printer.after_print().unwrap();
+      let json_str = get_text(&printer);
+      let json: Vec<RuleMatchJSON> = serde_json::from_str(&json_str).unwrap();
+      let metadata = &json[0].metadata;
+      assert_eq!(metadata.is_some(), included);
+    }
   }
 }
