@@ -68,16 +68,23 @@ impl Fixer {
   fn do_parse<L: Language>(
     serialized: &SerializableFixConfig,
     env: &DeserializeEnv<L>,
+    transform: &Option<HashMap<String, Transformation>>,
   ) -> Result<Self, FixerError> {
     let SerializableFixConfig {
-      template,
+      template: fix,
       expand_end,
       expand_start,
     } = serialized;
     let expand_start = Expansion::parse(expand_start, env)?;
     let expand_end = Expansion::parse(expand_end, env)?;
+    let template = if let Some(trans) = transform {
+      let keys: Vec<_> = trans.keys().cloned().collect();
+      TemplateFix::with_transform(fix, &env.lang, &keys)
+    } else {
+      TemplateFix::try_new(fix, &env.lang)?
+    };
     Ok(Self {
-      template: TemplateFix::try_new(template, &env.lang)?,
+      template,
       expand_start,
       expand_end,
     })
@@ -90,7 +97,7 @@ impl Fixer {
   ) -> Result<Self, FixerError> {
     match fixer {
       SerializableFixer::Str(fix) => Self::with_transform(fix, env, transform),
-      SerializableFixer::Config(cfg) => Self::do_parse(cfg, env),
+      SerializableFixer::Config(cfg) => Self::do_parse(cfg, env, transform),
     }
   }
 
