@@ -47,6 +47,9 @@ pub struct ScanArg {
   #[clap(long, default_value = "rich", conflicts_with = "json")]
   report_style: ReportStyle,
 
+  /// Include rule metadata in the json output.
+  ///
+  /// This flags requires --json output. Default is false.
   #[clap(long, requires = "json")]
   include_metadata: bool,
 
