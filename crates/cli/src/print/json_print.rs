@@ -687,4 +687,32 @@ transform:
     assert_eq!(metas.single["A"].text, "123");
     assert_eq!(metas.transformed["B"], "2");
   }
+
+  const LABEL_TEXT: &str = "
+labels:
+  A:
+    style: primary
+    message: var label
+";
+  #[test]
+  fn test_label() {
+    let mut printer = make_test_printer(JsonStyle::Compact);
+    let rule = get_rule_config(&format!("pattern: console.log($A)\n{}", LABEL_TEXT));
+    let grep = SgLang::from(SupportLang::TypeScript).ast_grep("console.log(123)");
+    let matches = grep.root().find_all(&rule.matcher).collect();
+    printer.before_print().unwrap();
+    let file = SimpleFile::new(Cow::Borrowed("test.ts"), "console.log(123)");
+    let buffer = printer
+      .get_processor()
+      .print_rule(matches, file, &rule)
+      .unwrap();
+    printer.process(buffer).unwrap();
+    printer.after_print().unwrap();
+    let json_str = get_text(&printer);
+    let json: Vec<RuleMatchJSON> = serde_json::from_str(&json_str).unwrap();
+    let labels = &json[0].labels;
+    assert_eq!(labels[0].message.unwrap(), "var label");
+    assert_eq!(labels[0].style, LabelStyle::Primary);
+    assert_eq!(labels[0].text, "123");
+  }
 }
