@@ -268,3 +268,35 @@ fn test_transform_indent() -> Result<()> {
     .stdout(contains("transform-indent"));
   Ok(())
 }
+
+const LABEL_RULE: &str = r"
+id: label-test
+language: TypeScript
+rule: { all: [pattern: Some($A), pattern: $B] }
+labels:
+  A:
+    style: primary
+    message: primary-label
+  B:
+    style: secondary
+    message: secondary-label
+";
+
+#[test]
+fn test_label() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/rule.yml", LABEL_RULE),
+    ("test.ts", "Some(123) + None"),
+  ])?;
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["scan"])
+    .assert()
+    .success()
+    .stdout(contains("primary-label"))
+    .stdout(contains("secondary-label"))
+    .stdout(contains(" -----^^^-")) // a label range test
+    .stdout(contains(" -----^^^--").not());
+  Ok(())
+}
