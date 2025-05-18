@@ -49,6 +49,8 @@ pub enum RuleConfigError {
   UndefinedRewriter(String),
   #[error("Rewriter rule `{0}` should have `fix`.")]
   NoFixInRewriter(String),
+  #[error("Label meta-variable `{0}` must be defined in `rule` or `constraints`.")]
+  LabelVariable(String),
   #[error("Rule must specify a set of AST kinds to match. Try adding `kind` rule.")]
   MissingPotentialKinds,
 }
@@ -128,7 +130,22 @@ impl<L: Language> SerializableRuleConfig<L> {
     let env = DeserializeEnv::new(self.language.clone()).with_globals(globals);
     let rule = self.core.get_matcher(env.clone())?;
     self.register_rewriters(&rule, env)?;
+    self.check_labels(&rule)?;
     Ok(rule)
+  }
+
+  fn check_labels(&self, rule: &RuleCore) -> Result<(), RuleConfigError> {
+    let Some(labels) = &self.labels else {
+      return Ok(());
+    };
+    // labels var must be vars with node, transform var cannot be used
+    let vars = rule.defined_node_vars();
+    for var in labels.keys() {
+      if !vars.contains(var.as_str()) {
+        return Err(RuleConfigError::LabelVariable(var.clone()));
+      }
+    }
+    Ok(())
   }
 
   fn register_rewriters(
@@ -712,5 +729,29 @@ metadata:
     let grep = TypeScript::Tsx.ast_grep("a = '123'");
     let nm = grep.root().find(&rule.matcher);
     assert!(nm.is_some());
+  }
+
+  #[test]
+  fn test_label() {
+    let src = r"
+id: test-rule
+language: Tsx
+rule: { pattern: Some($A) }
+labels:
+  A: { style: primary, message: 'var label' }
+  ";
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+    let ret = RuleConfig::try_from(rule, &Default::default());
+    assert!(ret.is_ok());
+    let src = r"
+id: test-rule
+language: Tsx
+rule: { pattern: Some($A) }
+labels:
+  B: { style: primary, message: 'var label' }
+  ";
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+    let ret = RuleConfig::try_from(rule, &Default::default());
+    assert!(matches!(ret, Err(RuleConfigError::LabelVariable(_))));
   }
 }

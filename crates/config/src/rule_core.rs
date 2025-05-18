@@ -190,8 +190,9 @@ impl RuleCore {
       registration: self.registration.clone(),
     }
   }
-
-  pub fn defined_vars(&self) -> HashSet<&str> {
+  /// Get the meta variables that have real ast node matches
+  /// that is, meta vars defined in the rules and constraints
+  pub(crate) fn defined_node_vars(&self) -> HashSet<&str> {
     let mut ret = self.rule.defined_vars();
     for v in self.registration.get_local_util_vars() {
       ret.insert(v);
@@ -201,6 +202,11 @@ impl RuleCore {
         ret.insert(var);
       }
     }
+    ret
+  }
+
+  pub fn defined_vars(&self) -> HashSet<&str> {
+    let mut ret = self.defined_node_vars();
     if let Some(trans) = &self.transform {
       for key in trans.keys() {
         ret.insert(key);
