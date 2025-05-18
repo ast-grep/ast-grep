@@ -87,3 +87,70 @@ pub fn get_default_labels<'t, D: Doc>(n: &NodeMatch<'t, D>) -> Vec<Label<'static
   }
   ret
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test::TypeScript;
+  use ast_grep_core::matcher::Pattern;
+  use ast_grep_core::tree_sitter::LanguageExt;
+  use ast_grep_core::tree_sitter::StrDoc;
+
+  #[test]
+  fn test_label_primary_secondary() {
+    let doc = TypeScript::Tsx.ast_grep("let a = 1;");
+    let root = doc.root();
+    let label = Label::primary(&root);
+    assert_eq!(label.style, LabelStyle::Primary);
+    assert_eq!(label.range(), root.range());
+    let label2 = Label::<'_, '_, StrDoc<TypeScript>>::secondary(&root);
+    assert_eq!(label2.style, LabelStyle::Secondary);
+  }
+
+  #[test]
+  fn test_get_labels_from_config_single() {
+    let doc = TypeScript::Tsx.ast_grep("let foo = 42;");
+    let pattern = Pattern::try_new("let $A = $B;", TypeScript::Tsx).unwrap();
+    let m = doc.root().find(pattern).unwrap();
+    let mut config = std::collections::HashMap::new();
+    config.insert(
+      "A".to_string(),
+      LabelConfig {
+        style: LabelStyle::Primary,
+        message: Some("var label".to_string()),
+      },
+    );
+    let labels = get_labels_from_config(&config, &m);
+    assert_eq!(labels.len(), 1);
+    assert_eq!(labels[0].style, LabelStyle::Primary);
+    assert_eq!(labels[0].message, Some("var label"));
+  }
+
+  #[test]
+  fn test_get_labels_from_config_multiple() {
+    let doc = TypeScript::Tsx.ast_grep("let foo = 42, bar = 99;");
+    let pattern = Pattern::try_new("let $A = $B, $C = $D;", TypeScript::Tsx).unwrap();
+    let m = doc.root().find(pattern).unwrap();
+    let mut config = std::collections::HashMap::new();
+    config.insert(
+      "A".to_string(),
+      LabelConfig {
+        style: LabelStyle::Secondary,
+        message: None,
+      },
+    );
+    let labels = get_labels_from_config(&config, &m);
+    assert_eq!(labels.len(), 1);
+    assert_eq!(labels[0].style, LabelStyle::Secondary);
+  }
+
+  #[test]
+  fn test_get_default_labels() {
+    let doc = TypeScript::Tsx.ast_grep("let foo = 42;");
+    let pattern = Pattern::try_new("let $A = $B;", TypeScript::Tsx).unwrap();
+    let m = doc.root().find(pattern).unwrap();
+    let labels = get_default_labels(&m);
+    assert!(!labels.is_empty());
+    assert_eq!(labels[0].style, LabelStyle::Primary);
+  }
+}
