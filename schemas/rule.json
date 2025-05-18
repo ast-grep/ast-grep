@@ -54,6 +54,16 @@
         "type": "string"
       }
     },
+    "labels": {
+      "description": "Custom label dictionary to configure reporting. Key is the meta-variable name and value is the label message and label style.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/definitions/LabelConfig"
+      }
+    },
     "language": {
       "description": "Specify the language to parse and the file extension to include in matching.",
       "allOf": [
@@ -172,6 +182,41 @@
           ]
         }
       }
+    },
+    "LabelConfig": {
+      "type": "object",
+      "required": [
+        "style"
+      ],
+      "properties": {
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "style": {
+          "$ref": "#/definitions/LabelStyle"
+        }
+      }
+    },
+    "LabelStyle": {
+      "oneOf": [
+        {
+          "description": "Labels that describe the primary cause of a diagnostic.",
+          "type": "string",
+          "enum": [
+            "primary"
+          ]
+        },
+        {
+          "description": "Labels that provide additional context for a diagnostic.",
+          "type": "string",
+          "enum": [
+            "secondary"
+          ]
+        }
+      ]
     },
     "Language": {
       "type": "string"
