@@ -2,65 +2,65 @@
 # yarn lockfile v1
 
 
-"@ast-grep/napi-darwin-arm64@0.38.1":
-  version "0.38.1"
-  resolved "https://registry.yarnpkg.com/@ast-grep/napi-darwin-arm64/-/napi-darwin-arm64-0.38.1.tgz#5c19fe2e6ffd5ea334f711297d249a0d37bf00c8"
-  integrity sha512-1YG5PgqfcDleO/5AFsbEDjkOYGLyth2oWpAUhz/JE7mzPdax586O/oBcISPDP2jV7QUGIV5TJ8J8Feft/No1gg==
+"@ast-grep/napi-darwin-arm64@0.38.2":
+  version "0.38.2"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-darwin-arm64/-/napi-darwin-arm64-0.38.2.tgz#3f5e7efbd30e1b8e67f9237c8ad60be07cfb8cc6"
+  integrity sha512-M9AQ6qFOX9bir5SYanZlcUB6jWFVGth+YUVKf8KijtBk+rmOBqaWpFlYMa09MFSFSpTzZhGV+2wGZn4pgbD7hA==
 
-"@ast-grep/napi-darwin-x64@0.38.1":
-  version "0.38.1"
-  resolved "https://registry.yarnpkg.com/@ast-grep/napi-darwin-x64/-/napi-darwin-x64-0.38.1.tgz#e6336d8e82e14d960d20e683b93aaacc5950d20e"
-  integrity sha512-2ubMVa8BZaqmwsPTDpScIWTorQfXug8XIBI+1TsbUgpVQFTQREZ5U0s7M3uOJ/bQqxx+14easGX4Z/IyH6heuA==
+"@ast-grep/napi-darwin-x64@0.38.2":
+  version "0.38.2"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-darwin-x64/-/napi-darwin-x64-0.38.2.tgz#9cc5124312cdb6dc168feb8aa31a7859a78d3e11"
+  integrity sha512-pkt/qOBYq0iFLbkeSzF/xvZW19EZsqkaDZ9+BWtGrbfWquSXHuCAsmLFhLLMPT84SPvr0uySqiVHYtx1Ku8qxg==
 
-"@ast-grep/napi-linux-arm64-gnu@0.38.1":
-  version "0.38.1"
-  resolved "https://registry.yarnpkg.com/@ast-grep/napi-linux-arm64-gnu/-/napi-linux-arm64-gnu-0.38.1.tgz#9ede1a3094c569cf4e746e4d757ce624bbc802b9"
-  integrity sha512-fUr02gEA4mweG7xfHch66/LlAyyOwiGHczUlfST9g84vThMGY/YEqjgiMwuUlynglvYzW/Cr9Wd1zEapvnW6zA==
+"@ast-grep/napi-linux-arm64-gnu@0.38.2":
+  version "0.38.2"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-linux-arm64-gnu/-/napi-linux-arm64-gnu-0.38.2.tgz#b6f8849b1d68f98f15aa8beb5cbd952f214e15d4"
+  integrity sha512-SjlWXtwcpYZmfAT3lkChEo9ojnsZjqDyhJPsRtbhKMS6NxIcCjS0aSpRMn6tU7ZQ7YKqgjOMGcExKcny4lIhSA==
 
-"@ast-grep/napi-linux-arm64-musl@0.38.1":
-  version "0.38.1"
-  resolved "https://registry.yarnpkg.com/@ast-grep/napi-linux-arm64-musl/-/napi-linux-arm64-musl-0.38.1.tgz#7101c234a352b9e7cbe4e905d2f23a7cddfa25dd"
-  integrity sha512-Cm0BbMcHPqg2IrUL2Rn1WdLcFzi8L2iqm62+hKs6334ht7OgFezt3YhoLgzP75bstNNlGT9NJuSk1m6/Fxa0HA==
+"@ast-grep/napi-linux-arm64-musl@0.38.2":
+  version "0.38.2"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-linux-arm64-musl/-/napi-linux-arm64-musl-0.38.2.tgz#6e4a024093d1f5a6219a6dc3437fa8164ea5b23c"
+  integrity sha512-qjvHCl5v+gTMRqL8lLuJ/aWYcyGZYV2kL8leHMUgOdfiLZSHYHBuQkoL3L+NLyltHLy5m+oAgAGiuIbJY92Jpg==
 
-"@ast-grep/napi-linux-x64-gnu@0.38.1":
-  version "0.38.1"
-  resolved "https://registry.yarnpkg.com/@ast-grep/napi-linux-x64-gnu/-/napi-linux-x64-gnu-0.38.1.tgz#9fea37c8eaefe30be70e11fc7b63519acb839020"
-  integrity sha512-EThfZGW8OekPIS1rHJj6MpU9d14YZQazp24bb7QWcyyfo4lbe9etexLuF7ujbGF/rMovhi2TRbF/Tn0HvuJBpg==
+"@ast-grep/napi-linux-x64-gnu@0.38.2":
+  version "0.38.2"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-linux-x64-gnu/-/napi-linux-x64-gnu-0.38.2.tgz#65c863fd2cb87cefcab668ac223904acccfa95e6"
+  integrity sha512-7H6lEqIDkUZ4qg7qYFsbyUL4XfKNqXDultcuY27se1V/Bhle42LwUoGjfRXiTGq1A8hF2qTb1dfAGGXM5OONog==
 
-"@ast-grep/napi-linux-x64-musl@0.38.1":
-  version "0.38.1"
-  resolved "https://registry.yarnpkg.com/@ast-grep/napi-linux-x64-musl/-/napi-linux-x64-musl-0.38.1.tgz#0c721f90fe3cf2fdf9a991930c7762e1d7bac912"
-  integrity sha512-PnI1RRP9yn+yyGUjxCXzgiUktEDH/gUyfV3tEFZEjqWzTZFUd7TdkC7hB6HlIHFrJ2ykXWUBMwXRR3k/2XDaMw==
+"@ast-grep/napi-linux-x64-musl@0.38.2":
+  version "0.38.2"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-linux-x64-musl/-/napi-linux-x64-musl-0.38.2.tgz#0c5b8ca85e21c87d22c36d90ff112eb4a510f5f3"
+  integrity sha512-3ZnVz3EIa2YnnqwlrUweEim8VL6KUJb1QEL/cyoo8SM3tHYEAQb9+UHC9h2RJMccE2pPhu1ca6I0z77rixsTSA==
 
-"@ast-grep/napi-win32-arm64-msvc@0.38.1":
-  version "0.38.1"
-  resolved "https://registry.yarnpkg.com/@ast-grep/napi-win32-arm64-msvc/-/napi-win32-arm64-msvc-0.38.1.tgz#9c42a399c45078237a76ddc17bb09174edfb0bef"
-  integrity sha512-Q6xEk2KTjZIYuDi3sIgHYF87i6uhly6g5kJC7G2loW1Io9GApHKqpLBuDdTSApwzwbwQgfyeLDPdHvwu5P1y5A==
+"@ast-grep/napi-win32-arm64-msvc@0.38.2":
+  version "0.38.2"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-win32-arm64-msvc/-/napi-win32-arm64-msvc-0.38.2.tgz#9baf08124dd66e1737d5cbdf22a25f7ea29e7651"
+  integrity sha512-f31+hWbsNxU4injSexeLxVdRvldmN4y6bF5owwZWfXtvENkuCDolsQosZM/2cnh5N4IRLO+QiXZhx/nYLP93Zw==
 
-"@ast-grep/napi-win32-ia32-msvc@0.38.1":
-  version "0.38.1"
-  resolved "https://registry.yarnpkg.com/@ast-grep/napi-win32-ia32-msvc/-/napi-win32-ia32-msvc-0.38.1.tgz#f69a3984f991bf1fcfc465b725d31c0857fccc71"
-  integrity sha512-k2GnuAv30+XATjgEUZNb2gtWU7g7H4CvsSwaZLgvlpsKfMTIXf9julksh8M5WkU5F4WIx40wEUQeDALoKO/Ltw==
+"@ast-grep/napi-win32-ia32-msvc@0.38.2":
+  version "0.38.2"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-win32-ia32-msvc/-/napi-win32-ia32-msvc-0.38.2.tgz#0906de0642fa07bc1d81989cb3b952861cd2e598"
+  integrity sha512-QWbO2N+xZSTsVmd83EJVDKjc2A74jCJTatIbBwLXmjvDD2Z23hdGmv0KITeKZnNbHBc5F5wilSLOqS+CauaKTA==
 
-"@ast-grep/napi-win32-x64-msvc@0.38.1":
-  version "0.38.1"
-  resolved "https://registry.yarnpkg.com/@ast-grep/napi-win32-x64-msvc/-/napi-win32-x64-msvc-0.38.1.tgz#7a526fc642a267519954e7cdba03885f37207ca1"
-  integrity sha512-bbV/GNY4QCEahpo5MvRXkUg7m1wDamfQzaS2f0ncUr7ZW2ML6RC0qR7yQy3eLCvpdZl3cXUBnGydEsMe3hTnvw==
+"@ast-grep/napi-win32-x64-msvc@0.38.2":
+  version "0.38.2"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi-win32-x64-msvc/-/napi-win32-x64-msvc-0.38.2.tgz#c9fa0527e569be9acad4117af59e4a530e9cde2e"
+  integrity sha512-Od+3JdbcLqp9Vd4X3VjtMeKoF5ju/+ukW4bd9mfc0qQbI75m//V+DBhwaqeh7AgFb9NG3LGn9LYpyGeeZ9dk4g==
 
-"@ast-grep/napi@0.38.1":
-  version "0.38.1"
-  resolved "https://registry.yarnpkg.com/@ast-grep/napi/-/napi-0.38.1.tgz#4ee0facdb4d47c4ab0edda7bc061d94bc7b8c38a"
-  integrity sha512-7OxLNxyugFYRMNksdyQXo806BDHA+SClHmGD7H5IJXeiRS4ICEV5NAYiLxr1NAOOKVwwFk0yFQj0YZ2BkH8joA==
+"@ast-grep/napi@0.38.2":
+  version "0.38.2"
+  resolved "https://registry.yarnpkg.com/@ast-grep/napi/-/napi-0.38.2.tgz#069ed2a9d0def9003f3b08f6aeeb456698216b45"
+  integrity sha512-OwfFJC/w0drmHJBNvrH57Hm2VkLohB1Mv0e3a3fPMD17vJS5gSnURhuXKsYWIuKGc4ggDdcRu1DGXpO3DZfHbg==
   optionalDependencies:
-    "@ast-grep/napi-darwin-arm64" "0.38.1"
-    "@ast-grep/napi-darwin-x64" "0.38.1"
-    "@ast-grep/napi-linux-arm64-gnu" "0.38.1"
-    "@ast-grep/napi-linux-arm64-musl" "0.38.1"
-    "@ast-grep/napi-linux-x64-gnu" "0.38.1"
-    "@ast-grep/napi-linux-x64-musl" "0.38.1"
-    "@ast-grep/napi-win32-arm64-msvc" "0.38.1"
-    "@ast-grep/napi-win32-ia32-msvc" "0.38.1"
-    "@ast-grep/napi-win32-x64-msvc" "0.38.1"
+    "@ast-grep/napi-darwin-arm64" "0.38.2"
+    "@ast-grep/napi-darwin-x64" "0.38.2"
+    "@ast-grep/napi-linux-arm64-gnu" "0.38.2"
+    "@ast-grep/napi-linux-arm64-musl" "0.38.2"
+    "@ast-grep/napi-linux-x64-gnu" "0.38.2"
+    "@ast-grep/napi-linux-x64-musl" "0.38.2"
+    "@ast-grep/napi-win32-arm64-msvc" "0.38.2"
+    "@ast-grep/napi-win32-ia32-msvc" "0.38.2"
+    "@ast-grep/napi-win32-x64-msvc" "0.38.2"
 
 "@biomejs/biome@1.9.4":
   version "1.9.4"
