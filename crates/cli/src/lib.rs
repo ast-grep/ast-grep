@@ -254,6 +254,7 @@ mod test_cli {
     ok("scan --format github");
     ok("scan --interactive");
     ok("scan --follow");
+    ok("scan --json --include-metadata");
     ok("scan -r test.yml -c test.yml --json dir"); // allow registering custom lang
     ok("scan --globs '*.js'");
     ok("scan --globs '*.{js, ts}'");
@@ -272,6 +273,7 @@ mod test_cli {
     error("scan --json=dir"); // wrong json flag
     error("scan --json= not-pretty"); // wrong json flag
     error("scan -j");
+    error("scan --include-metadata"); // requires json
     error("scan --threads");
   }
 
