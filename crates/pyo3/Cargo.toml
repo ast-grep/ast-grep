@@ -23,7 +23,7 @@ ast-grep-language.workspace = true
 ast-grep-dynamic.workspace = true
 anyhow.workspace = true
 pyo3 = { version = "0.25.0", optional = true, features = ["anyhow", "py-clone"] }
-pythonize = { version = "0.24.0", optional = true }
+pythonize = { version = "0.25.0", optional = true }
 serde.workspace = true
 
 # uncomment default features when developing pyo3
