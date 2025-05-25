@@ -102,16 +102,16 @@ impl Convert<MetaVariable> {
 /// Available transformations are `substring`, `replace` and `convert`.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub enum Transformation<T> {
+pub enum Trans<T> {
   Substring(Substring<T>),
   Replace(Replace<T>),
   Convert(Convert<T>),
   Rewrite(Rewrite<T>),
 }
 
-impl<T> Transformation<T> {
+impl<T> Trans<T> {
   fn source(&self) -> &T {
-    use Transformation as T;
+    use Trans as T;
     match self {
       T::Replace(r) => &r.source,
       T::Substring(s) => &s.source,
@@ -133,12 +133,9 @@ pub(crate) fn parse_meta_var<L: Language>(
   }
 }
 
-impl Transformation<String> {
-  pub fn parse<L: Language>(
-    &self,
-    lang: &L,
-  ) -> Result<Transformation<MetaVariable>, TransformError> {
-    use Transformation as T;
+impl Trans<String> {
+  pub fn parse<L: Language>(&self, lang: &L) -> Result<Trans<MetaVariable>, TransformError> {
+    use Trans as T;
     Ok(match self {
       T::Replace(r) => T::Replace(Replace {
         source: parse_meta_var(&r.source, lang)?,
@@ -165,7 +162,7 @@ impl Transformation<String> {
     s.strip_prefix("$$$").unwrap_or_else(|| &s[1..])
   }
 }
-impl Transformation<MetaVariable> {
+impl Trans<MetaVariable> {
   pub(super) fn insert<D: Doc>(&self, key: &str, ctx: &mut Ctx<'_, '_, D>) {
     let src = self.source();
     // TODO: add this debug assertion back
@@ -181,7 +178,7 @@ impl Transformation<MetaVariable> {
     ctx.env.insert_transformation(src, key, bytes);
   }
   fn compute<D: Doc>(&self, ctx: &mut Ctx<'_, '_, D>) -> Option<String> {
-    use Transformation as T;
+    use Trans as T;
     match self {
       T::Replace(r) => r.compute(ctx),
       T::Substring(s) => s.compute(ctx),
@@ -191,7 +188,7 @@ impl Transformation<MetaVariable> {
   }
 
   pub fn used_rewriters(&self) -> &[String] {
-    use Transformation as T;
+    use Trans as T;
     match self {
       T::Replace(_) => &[],
       T::Substring(_) => &[],
@@ -206,14 +203,14 @@ mod test {
   use super::super::Transform;
   use super::*;
   use crate::test::TypeScript;
-  use crate::DeserializeEnv;
+  use crate::{DeserializeEnv, Transformation};
   use ast_grep_core::tree_sitter::LanguageExt;
   use serde_yaml::with::singleton_map_recursive;
   use std::collections::HashMap;
 
   type R = std::result::Result<(), ()>;
 
-  fn get_transformed(src: &str, pat: &str, trans: &Transformation<String>) -> Option<String> {
+  fn get_transformed(src: &str, pat: &str, trans: &Trans<String>) -> Option<String> {
     let grep = TypeScript::Tsx.ast_grep(src);
     let root = grep.root();
     let mut nm = root.find(pat).expect("should find");
@@ -225,7 +222,7 @@ mod test {
     trans.parse(&TypeScript::Tsx).ok()?.compute(&mut ctx)
   }
 
-  fn parse(trans: &str) -> Result<Transformation<String>, ()> {
+  fn parse(trans: &str) -> Result<Trans<String>, ()> {
     let deserializer = serde_yaml::Deserializer::from_str(trans);
     singleton_map_recursive::deserialize(deserializer).map_err(|_| ())
   }
@@ -307,9 +304,13 @@ mod test {
     assert!(parsed.is_err());
   }
 
-  fn transform_env(trans: HashMap<String, Transformation<String>>) -> HashMap<String, String> {
+  fn transform_env(trans: HashMap<String, Trans<String>>) -> HashMap<String, String> {
     let grep = TypeScript::Tsx.ast_grep("let a = 123");
     let root = grep.root();
+    let trans = trans
+      .into_iter()
+      .map(|(k, v)| (k, Transformation::Object(v)))
+      .collect();
     let mut nm = root.find("let a = $A").expect("should find");
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let trans = Transform::deserialize(&trans, &env).expect("should deserialize");

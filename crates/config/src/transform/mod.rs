@@ -1,3 +1,4 @@
+mod parser;
 mod rewrite;
 mod string_case;
 mod transformation;
@@ -9,11 +10,36 @@ use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::Doc;
 use ast_grep_core::Language;
 
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
 
-use transformation::Transformation as Trans;
-pub type Transformation = Trans<String>;
+use transformation::Trans;
+
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(untagged)]
+pub enum Transformation {
+  Simplied(String),
+  Object(Trans<String>),
+}
+
+impl Transformation {
+  pub fn parse<L: Language>(&self, lang: &L) -> Result<Trans<MetaVariable>, TransformError> {
+    match self {
+      Transformation::Simplied(_) => {
+        todo!("parse simplified transformation")
+      }
+      Transformation::Object(t) => t.parse(lang),
+    }
+  }
+  pub fn used_vars(&self) -> &str {
+    match self {
+      Transformation::Simplied(_) => todo!("parse simplified transformation"),
+      Transformation::Object(t) => t.used_vars(),
+    }
+  }
+}
 
 #[derive(Debug, Error)]
 pub enum TransformError {
