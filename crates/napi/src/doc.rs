@@ -166,8 +166,8 @@ impl Doc for JsDoc {
   }
   fn get_node_text<'a>(&'a self, node: &Node) -> Cow<'a, str> {
     let slice = self.source.inner.as_slice();
-    let start = node.start_byte() as usize / 2;
-    let end = node.end_byte() as usize / 2;
+    let start = node.start_byte() / 2;
+    let end = node.end_byte() / 2;
     String::from_utf16_lossy(&slice[start..end]).into()
   }
 }

@@ -24,11 +24,11 @@ fn get_text_from_env<D: Doc>(var: &MetaVariable, ctx: &mut Ctx<'_, '_, D>) -> Op
 #[serde(rename_all = "camelCase")]
 pub struct Substring<T> {
   /// source meta variable to be transformed
-  source: T,
+  pub source: T,
   /// optional starting character index of the substring, defaults to 0.
-  start_char: Option<i32>,
+  pub start_char: Option<i32>,
   /// optional ending character index of the substring, defaults to the end of the string.
-  end_char: Option<i32>,
+  pub end_char: Option<i32>,
 }
 
 impl Substring<MetaVariable> {
@@ -66,11 +66,11 @@ fn resolve_char(opt: &Option<i32>, dft: i32, len: i32) -> usize {
 #[serde(rename_all = "camelCase")]
 pub struct Replace<T> {
   /// source meta variable to be transformed
-  source: T,
+  pub source: T,
   /// a regex to find substring to be replaced
-  replace: String,
+  pub replace: String,
   /// the replacement string
-  by: String,
+  pub by: String,
 }
 impl Replace<MetaVariable> {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<'_, '_, D>) -> Option<String> {
@@ -85,12 +85,13 @@ impl Replace<MetaVariable> {
 #[serde(rename_all = "camelCase")]
 pub struct Convert<T> {
   /// source meta variable to be transformed
-  source: T,
+  pub source: T,
   /// the target case format to convert the text content to
-  to_case: StringCase,
+  pub to_case: StringCase,
   /// optional separators to specify how to separate word
-  separated_by: Option<Vec<Separator>>,
+  pub separated_by: Option<Vec<Separator>>,
 }
+
 impl Convert<MetaVariable> {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<'_, '_, D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;

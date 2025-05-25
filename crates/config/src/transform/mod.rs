@@ -10,6 +10,7 @@ use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::Doc;
 use ast_grep_core::Language;
 
+use parse::ParseTransError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -27,8 +28,9 @@ pub enum Transformation {
 impl Transformation {
   pub fn parse<L: Language>(&self, lang: &L) -> Result<Trans<MetaVariable>, TransformError> {
     match self {
-      Transformation::Simplied(_) => {
-        todo!("parse simplified transformation")
+      Transformation::Simplied(s) => {
+        let t: Trans<String> = s.parse()?;
+        t.parse(lang)
       }
       Transformation::Object(t) => t.parse(lang),
     }
@@ -43,8 +45,8 @@ impl Transformation {
 
 #[derive(Debug, Error)]
 pub enum TransformError {
-  #[error("Cannot parse `{0}`.")]
-  Parse(String),
+  #[error("Cannot parse transform string.")]
+  Parse(#[from] ParseTransError),
   #[error("`{0}` has a cyclic dependency.")]
   Cyclic(String),
   #[error("Transform var `{0}` has already defined.")]
