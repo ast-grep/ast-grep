@@ -157,7 +157,6 @@ impl Trans<String> {
   }
 
   pub fn used_vars(&self) -> &str {
-    // NOTE: meta_var in transform always starts with `$`, for now
     let s = self.source();
     s.strip_prefix("$$$").unwrap_or_else(|| &s[1..])
   }

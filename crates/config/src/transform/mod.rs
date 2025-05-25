@@ -1,7 +1,7 @@
-mod parser;
+mod parse;
 mod rewrite;
 mod string_case;
-mod transformation;
+mod trans;
 
 use crate::{DeserializeEnv, RuleCore};
 
@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
 
-use transformation::Trans;
+use trans::Trans;
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(untagged)]
@@ -43,6 +43,8 @@ impl Transformation {
 
 #[derive(Debug, Error)]
 pub enum TransformError {
+  #[error("Cannot parse `{0}`.")]
+  Parse(String),
   #[error("`{0}` has a cyclic dependency.")]
   Cyclic(String),
   #[error("Transform var `{0}` has already defined.")]

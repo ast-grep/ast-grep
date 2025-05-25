@@ -1,5 +1,5 @@
 use super::Ctx;
-use super::{transformation::parse_meta_var, TransformError};
+use super::{trans::parse_meta_var, TransformError};
 use crate::rule_core::RuleCore;
 
 use ast_grep_core::meta_var::MetaVariable;
