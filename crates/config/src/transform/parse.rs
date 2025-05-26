@@ -189,6 +189,21 @@ mod test {
       }
     }
   }
+
+  #[test]
+  fn test_valid_transform() {
+    let cases = [
+      "convert($A, toCase=camelCase, separatedBy=[])",
+      "replace($A, replace= ^.+, by =  '[')",
+      "substring(   $A, startChar=1)",
+      "substring(  $A,)",
+      "rewrite($A, rewriters=[rule1, rule2])",
+    ];
+    for case in cases {
+      Trans::from_str(case).expect("should parse convert");
+    }
+  }
+
   #[test]
   fn test_parse_convert() {
     let convert = Trans::from_str(CONVERT_CASE).expect("should parse convert");
@@ -198,5 +213,41 @@ mod test {
     assert_eq!(convert.source, "$A");
     assert_eq!(convert.separated_by.map(|v| v.len()), Some(2));
     assert!(matches!(convert.to_case, StringCase::CamelCase));
+  }
+
+  #[test]
+  fn test_parse_replace() {
+    let replace = Trans::from_str(REPLACE_CASE).expect("should parse replace");
+    let Trans::Replace(replace) = replace else {
+      panic!("Expected Replace transformation");
+    };
+    assert_eq!(replace.source, "$A");
+    assert_eq!(replace.replace, "^.+");
+    assert_eq!(replace.by, ", ");
+  }
+
+  #[test]
+  fn test_parse_substring() {
+    let substring = Trans::from_str(SUBSTRING_CASE).expect("should parse substring");
+    let Trans::Substring(substring) = substring else {
+      panic!("Expected Substring transformation");
+    };
+    assert_eq!(substring.source, "$A");
+    assert_eq!(substring.start_char, Some(1));
+    assert_eq!(substring.end_char, Some(2));
+  }
+
+  #[test]
+  fn test_parse_rewrite() {
+    let rewrite = Trans::from_str(REWRITE_CASE).expect("should parse rewrite");
+    let Trans::Rewrite(rewrite) = rewrite else {
+      panic!("Expected Rewrite transformation");
+    };
+    assert_eq!(rewrite.source, "$A");
+    assert_eq!(
+      rewrite.rewriters,
+      vec!["rule1".to_owned(), "rule2".to_owned()]
+    );
+    assert_eq!(rewrite.join_by, Some(",,,,".into()));
   }
 }
