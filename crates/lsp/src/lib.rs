@@ -23,7 +23,7 @@ pub use tower_lsp_server::{LspService, Server};
 pub trait LSPLang: LanguageExt + Eq + Send + Sync + 'static {}
 impl<T> LSPLang for T where T: LanguageExt + Eq + Send + Sync + 'static {}
 
-type Notes = BTreeMap<(usize, usize, usize, usize), String>;
+type Notes = BTreeMap<(u32, u32, u32, u32), String>;
 
 struct VersionedAst<D: Doc> {
   version: i32,
@@ -182,41 +182,17 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       .client
       .log_message(MessageType::LOG, "Get Hover Notes")
       .await;
-    let uri = params.text_document_position_params.text_document.uri;
-    let Some(ast) = self.map.get(uri.as_str()) else {
-      return Ok(None);
-    };
-    let position = params.text_document_position_params.position;
-    let line = position.line as usize;
-    let column = position.character as usize;
-    let query = (line, column, line, column);
-    // TODO: next_back is not precise, it can return a note that is larger
-    let Some((pos, markdown)) = ast.notes.range(..=query).next_back() else {
-      return Ok(None);
-    };
-    // out of range check
-    if pos.0 > line || pos.2 < line {
-      return Ok(None);
-    }
-    if pos.0 == line && pos.1 > column || pos.2 == line && pos.3 < column {
-      return Ok(None);
-    }
-    Ok(Some(Hover {
-      contents: HoverContents::Markup(MarkupContent {
-        kind: MarkupKind::Markdown,
-        value: markdown.clone(),
-      }),
-      range: Some(Range {
-        start: Position {
-          line: pos.0 as u32,
-          character: pos.1 as u32,
-        },
-        end: Position {
-          line: pos.2 as u32,
-          character: pos.3 as u32,
-        },
-      }),
-    }))
+    Ok(self.do_hover(params.text_document_position_params))
+  }
+}
+
+fn pos_tuple_to_range((line, character, end_line, end_character): (u32, u32, u32, u32)) -> Range {
+  Range {
+    start: Position { line, character },
+    end: Position {
+      line: end_line,
+      character: end_character,
+    },
   }
 }
 
@@ -250,6 +226,32 @@ impl<L: LSPLang> Backend<L> {
     Some(rules)
   }
 
+  fn do_hover(&self, pos_params: TextDocumentPositionParams) -> Option<Hover> {
+    let uri = pos_params.text_document.uri;
+    let Position {
+      line,
+      character: column,
+    } = pos_params.position;
+    let ast = self.map.get(uri.as_str())?;
+    let query = (line, column, line, column);
+    // TODO: next_back is not precise, it can return a note that is larger
+    let (pos, markdown) = ast.notes.range(..=query).next_back()?;
+    // out of range check
+    if pos.0 > line || pos.2 < line {
+      return None;
+    }
+    if pos.0 == line && pos.1 > column || pos.2 == line && pos.3 < column {
+      return None;
+    }
+    Some(Hover {
+      contents: HoverContents::Markup(MarkupContent {
+        kind: MarkupKind::Markdown,
+        value: markdown.clone(),
+      }),
+      range: Some(pos_tuple_to_range(*pos)),
+    })
+  }
+
   fn get_diagnostics(
     &self,
     uri: &Uri,
@@ -272,7 +274,12 @@ impl<L: LSPLang> Backend<L> {
           let start = m.start_pos();
           let end = m.end_pos();
           notes.insert(
-            (start.line(), start.column(m), end.line(), end.column(m)),
+            (
+              start.line() as u32,
+              start.column(m) as u32,
+              end.line() as u32,
+              end.column(m) as u32,
+            ),
             note.clone(),
           );
         }
