@@ -47,14 +47,32 @@ fn decompose_str(input: &str) -> Result<DecomposedTransString, ParseTransError> 
   let (func, rest) = input.split_once('(').ok_or_else(error)?;
   let func = func.trim();
   let rest = rest.trim_end_matches(')');
-  let mut rest = rest.split(',');
-  let source = rest.next().ok_or_else(error)?.trim();
-  let mut args = Vec::new();
-  for arg_pair in rest {
-    let (key, value) = arg_pair.split_once('=').ok_or_else(error)?;
-    args.push((key.trim(), value.trim()));
-  }
+  let (source, rest) = rest.split_once(',').ok_or_else(error)?;
+  let source = source.trim();
+  let args = decompose_args(rest.trim()).ok_or_else(error)?;
   Ok(DecomposedTransString { func, source, args })
+}
+
+fn decompose_args(mut rest: &str) -> Option<Vec<(&str, &str)>> {
+  let mut args = Vec::new();
+  while !rest.is_empty() {
+    let (key, next) = rest.split_once('=')?;
+    let next = next.trim_start();
+    let end_index = if next.starts_with(['\'', '"', '[']) {
+      let end_char = match next.as_bytes()[0] {
+        b'[' => ']',
+        b => b as char,
+      };
+      next[1..].find(end_char)? + 1
+    } else {
+      next.find(',').unwrap_or(next.len()) - 1
+    };
+    let (val, next) = next.split_at(end_index + 1);
+    // value should not be trimmed
+    args.push((key.trim(), val));
+    rest = next.trim_start().trim_start_matches(',').trim();
+  }
+  Some(args)
 }
 
 fn to_convert(decomposed: DecomposedTransString) -> Result<Convert<String>, ParseTransError> {
@@ -93,8 +111,8 @@ fn to_replace(decomposed: DecomposedTransString) -> Result<Replace<String>, Pars
   let by = by.ok_or(ParseTransError::RequiredArg("by"))?;
   Ok(Replace {
     source: decomposed.source.to_string(),
-    replace: replace.to_string(),
-    by: by.to_string(),
+    replace: serde_yaml::from_str(replace)?,
+    by: serde_yaml::from_str(by)?,
   })
 }
 fn to_substring(decomposed: DecomposedTransString) -> Result<Substring<String>, ParseTransError> {
@@ -132,6 +150,53 @@ fn to_rewrite(decomposed: DecomposedTransString) -> Result<Rewrite<String>, Pars
   Ok(Rewrite {
     source: decomposed.source.to_string(),
     rewriters,
-    join_by: join_by.map(ToString::to_string),
+    join_by: join_by.map(yaml_from_str).transpose()?,
   })
+}
+
+#[cfg(test)]
+mod test {
+  use crate::transform::string_case::StringCase;
+
+  use super::*;
+
+  #[test]
+  fn test_decompose_str() {
+    let input = "substring($A, startChar=1, endChar=2)";
+    let decomposed = decompose_str(input).expect("should parse");
+    assert_eq!(decomposed.func, "substring");
+    assert_eq!(decomposed.source, "$A");
+    assert_eq!(decomposed.args.len(), 2);
+    assert_eq!(decomposed.args[0], ("startChar", "1"));
+    assert_eq!(decomposed.args[1], ("endChar", "2"));
+  }
+  const SUBSTRING_CASE: &str = "substring($A, startChar=1, endChar=2)";
+  const REPLACE_CASE: &str = "replace($A, replace= ^.+, by=', ')";
+  const CONVERT_CASE: &str = "convert($A, toCase=camelCase, separatedBy=[underscore, dash])";
+  const REWRITE_CASE: &str = "rewrite($A, rewriters=[rule1, rule2], joinBy = ',,,,')";
+
+  #[test]
+  fn test_decompose_cases() {
+    let cases = [SUBSTRING_CASE, REPLACE_CASE, CONVERT_CASE, REWRITE_CASE];
+    for case in cases {
+      let decomposed = decompose_str(case).expect("should parse");
+      match decomposed.func {
+        "convert" => assert_eq!(decomposed.args.len(), 2),
+        "replace" => assert_eq!(decomposed.args.len(), 2),
+        "substring" => assert_eq!(decomposed.args.len(), 2),
+        "rewrite" => assert_eq!(decomposed.args.len(), 2),
+        _ => panic!("Unexpected function: {}", decomposed.func),
+      }
+    }
+  }
+  #[test]
+  fn test_parse_convert() {
+    let convert = Trans::from_str(CONVERT_CASE).expect("should parse convert");
+    let Trans::Convert(convert) = convert else {
+      panic!("Expected Convert transformation");
+    };
+    assert_eq!(convert.source, "$A");
+    assert_eq!(convert.separated_by.map(|v| v.len()), Some(2));
+    assert!(matches!(convert.to_case, StringCase::CamelCase));
+  }
 }
