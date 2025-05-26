@@ -113,6 +113,9 @@ mod test {
   use ast_grep_core::tree_sitter::LanguageExt;
 
   #[test]
+  fn test_transform_str() {}
+
+  #[test]
   fn test_single_cyclic_transform() {
     let mut trans = HashMap::new();
     let trans_a = from_str("substring: {source: $A}").unwrap();

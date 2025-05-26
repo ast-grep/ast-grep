@@ -716,6 +716,23 @@ message: $TEST
   }
 
   #[test]
+  fn test_get_message_transform_string() {
+    let src = r"
+id: test-rule
+language: Tsx
+rule: { kind: string, pattern: $ARG }
+transform:
+  TEST: replace($ARG, replace=a, by=b)
+message: $TEST
+    ";
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+    let rule = RuleConfig::try_from(rule, &Default::default()).expect("should work");
+    let grep = TypeScript::Tsx.ast_grep("a = '123'");
+    let nm = grep.root().find(&rule.matcher).unwrap();
+    assert_eq!(rule.get_message(&nm), "'123'");
+  }
+
+  #[test]
   fn test_complex_metadata() {
     let src = r"
 id: test-rule
