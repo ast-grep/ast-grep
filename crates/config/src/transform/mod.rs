@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
 
-use trans::Trans;
+pub use trans::Trans;
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(untagged)]
@@ -33,12 +33,6 @@ impl Transformation {
         t.parse(lang)
       }
       Transformation::Object(t) => t.parse(lang),
-    }
-  }
-  pub fn used_vars(&self) -> &str {
-    match self {
-      Transformation::Simplied(_) => todo!("parse simplified transformation"),
-      Transformation::Object(t) => t.used_vars(),
     }
   }
 }
@@ -64,16 +58,19 @@ impl Transform {
     map: &HashMap<String, Transformation>,
     env: &DeserializeEnv<L>,
   ) -> Result<Self, TransformError> {
-    let orders = env
-      .get_transform_order(map)
-      .map_err(TransformError::Cyclic)?;
-    let transforms: Result<_, _> = orders
-      .into_iter()
-      .map(|key| map[key].parse(&env.lang).map(|t| (key.to_string(), t)))
+    let map: Result<_, _> = map
+      .iter()
+      .map(|(key, val)| val.parse(&env.lang).map(|t| (key.to_string(), t)))
       .collect();
-    Ok(Self {
-      transforms: transforms?,
-    })
+    let map = map?;
+    let order = env
+      .get_transform_order(&map)
+      .map_err(TransformError::Cyclic)?;
+    let transforms = order
+      .iter()
+      .map(|&key| (key.to_string(), map[key].clone()))
+      .collect();
+    Ok(Self { transforms })
   }
 
   pub fn apply_transform<'c, D: Doc>(

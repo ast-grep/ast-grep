@@ -3,7 +3,8 @@ use crate::check_var::CheckHint;
 use crate::maybe::Maybe;
 use crate::rule::{self, Rule, RuleSerializeError, SerializableRule};
 use crate::rule_core::{RuleCoreError, SerializableRuleCore};
-use crate::transform::Transformation;
+use crate::transform::Trans;
+use ast_grep_core::meta_var::MetaVariable;
 
 use ast_grep_core::language::Language;
 
@@ -58,7 +59,7 @@ impl<L: Language> DependentRule for (L, SerializableRuleCore) {
   }
 }
 
-impl DependentRule for Transformation {
+impl DependentRule for Trans<MetaVariable> {
   fn visit_dependency<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) -> OrderResult<()> {
     let used_var = self.used_vars();
     sorter.visit(used_var)
@@ -195,7 +196,7 @@ impl<L: Language> DeserializeEnv<L> {
 
   pub(crate) fn get_transform_order<'a>(
     &self,
-    trans: &'a HashMap<String, Transformation>,
+    trans: &'a HashMap<String, Trans<MetaVariable>>,
   ) -> Result<Vec<&'a str>, String> {
     TopologicalSort::get_order(trans)
   }

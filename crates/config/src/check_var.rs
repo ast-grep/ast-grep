@@ -3,7 +3,7 @@ use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::Rule;
 use crate::rule_config::RuleConfigError;
 use crate::rule_core::RuleCoreError;
-use crate::transform::{TransformError, Transformation};
+use crate::transform::{Transform, TransformError};
 use crate::RuleCore;
 
 use std::collections::{HashMap, HashSet};
@@ -22,7 +22,7 @@ pub fn check_rule_with_hint<'r>(
   rule: &'r Rule,
   utils: &'r RuleRegistration,
   constraints: &'r HashMap<String, Rule>,
-  transform: &'r Option<HashMap<String, Transformation>>,
+  transform: &'r Option<Transform>,
   fixer: &Option<Fixer>,
   hint: CheckHint<'r>,
 ) -> RResult<()> {
@@ -48,7 +48,7 @@ fn check_vars_in_rewriter<'r>(
   rule: &'r Rule,
   utils: &'r RuleRegistration,
   constraints: &'r HashMap<String, Rule>,
-  transform: &'r Option<HashMap<String, Transformation>>,
+  transform: &'r Option<Transform>,
   fixer: &Option<Fixer>,
   upper_var: &HashSet<&str>,
 ) -> RResult<()> {
@@ -74,7 +74,7 @@ fn check_vars<'r>(
   rule: &'r Rule,
   utils: &'r RuleRegistration,
   constraints: &'r HashMap<String, Rule>,
-  transform: &'r Option<HashMap<String, Transformation>>,
+  transform: &'r Option<Transform>,
   fixer: &Option<Fixer>,
 ) -> RResult<()> {
   let vars = get_vars_from_rules(rule, utils);
@@ -115,7 +115,7 @@ fn check_var_in_constraints<'r>(
 
 fn check_var_in_transform<'r>(
   mut vars: HashSet<&'r str>,
-  transform: &'r Option<HashMap<String, Transformation>>,
+  transform: &'r Option<Transform>,
 ) -> RResult<HashSet<&'r str>> {
   let Some(transform) = transform else {
     return Ok(vars);

@@ -129,7 +129,7 @@ impl SerializableRuleCore {
       &ret.rule,
       &ret.registration,
       &ret.constraints,
-      &self.transform,
+      &ret.transform,
       &ret.fixer,
       hint,
     )?;

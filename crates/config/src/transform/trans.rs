@@ -156,11 +156,6 @@ impl Trans<String> {
       T::Rewrite(r) => T::Rewrite(r.parse(lang)?),
     })
   }
-
-  pub fn used_vars(&self) -> &str {
-    let s = self.source();
-    s.strip_prefix("$$$").unwrap_or_else(|| &s[1..])
-  }
 }
 impl Trans<MetaVariable> {
   pub(super) fn insert<D: Doc>(&self, key: &str, ctx: &mut Ctx<'_, '_, D>) {
@@ -194,6 +189,15 @@ impl Trans<MetaVariable> {
       T::Substring(_) => &[],
       T::Convert(_) => &[],
       T::Rewrite(r) => &r.rewriters,
+    }
+  }
+  pub fn used_vars(&self) -> &str {
+    let s = self.source();
+    use MetaVariable as MV;
+    match s {
+      MV::Capture(v, _) => v,
+      MV::MultiCapture(v) => v,
+      MV::Dropped(_) | MV::Multiple => panic!("transform var must be named"),
     }
   }
 }
