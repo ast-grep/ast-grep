@@ -32,7 +32,8 @@ pub struct Backend<L: LSPLang> {
   client: Client,
   map: DashMap<String, VersionedAst<StrDoc<L>>>,
   base: PathBuf,
-  rules: std::result::Result<RuleCollection<L>, String>,
+  rules: RuleCollection<L>,
+  errors: Option<String>,
 }
 
 const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
@@ -93,7 +94,7 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       .await;
 
     // Report errors loading config once, upon initialization
-    if let Err(error) = &self.rules {
+    if let Some(error) = &self.errors {
       // popup message
       self
         .client
@@ -179,11 +180,16 @@ impl<L: LSPLang> Backend<L> {
     base: PathBuf,
     rules: std::result::Result<RuleCollection<L>, String>,
   ) -> Self {
+    let (rules, errors) = match rules {
+      Ok(r) => (r, None),
+      Err(e) => (RuleCollection::default(), Some(e)),
+    };
     Self {
       client,
       rules,
       base,
       map: DashMap::new(),
+      errors,
     }
   }
 
@@ -194,7 +200,7 @@ impl<L: LSPLang> Backend<L> {
     } else {
       &absolute_path
     };
-    let rules = self.rules.as_ref().ok()?.for_path(path);
+    let rules = self.rules.for_path(path);
     Some(rules)
   }
 
