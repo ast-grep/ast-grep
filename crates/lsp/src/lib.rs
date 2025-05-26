@@ -15,6 +15,7 @@ use ast_grep_core::{
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, RewriteData};
 
@@ -23,7 +24,7 @@ pub use tower_lsp_server::{LspService, Server};
 pub trait LSPLang: LanguageExt + Eq + Send + Sync + 'static {}
 impl<T> LSPLang for T where T: LanguageExt + Eq + Send + Sync + 'static {}
 
-type Notes = BTreeMap<(u32, u32, u32, u32), String>;
+type Notes = BTreeMap<(u32, u32, u32, u32), Arc<String>>;
 
 struct VersionedAst<D: Doc> {
   version: i32,
@@ -37,6 +38,8 @@ pub struct Backend<L: LSPLang> {
   base: PathBuf,
   rules: RuleCollection<L>,
   errors: Option<String>,
+  // interner for rule ids to note, to avoid duplication
+  interner: DashMap<String, Arc<String>>,
 }
 
 const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
@@ -212,6 +215,7 @@ impl<L: LSPLang> Backend<L> {
       base,
       map: DashMap::new(),
       errors,
+      interner: DashMap::new(),
     }
   }
 
@@ -246,7 +250,7 @@ impl<L: LSPLang> Backend<L> {
     Some(Hover {
       contents: HoverContents::Markup(MarkupContent {
         kind: MarkupKind::Markdown,
-        value: markdown.clone(),
+        value: markdown.to_string(),
       }),
       range: Some(pos_tuple_to_range(*pos)),
     })
@@ -256,7 +260,7 @@ impl<L: LSPLang> Backend<L> {
     &self,
     uri: &Uri,
     versioned: &VersionedAst<StrDoc<L>>,
-  ) -> Option<(Vec<Diagnostic>, Notes)> {
+  ) -> Option<Vec<Diagnostic>> {
     let rules = self.get_rules(uri)?;
     if rules.is_empty() {
       return None;
@@ -267,27 +271,32 @@ impl<L: LSPLang> Backend<L> {
     scan.set_unused_suppression_rule(&unused_suppression_rule);
     let matches = scan.scan(&versioned.root, false).matches;
     let mut diagnostics = vec![];
-    let mut notes = BTreeMap::new();
     for (rule, ms) in matches {
-      if let Some(note) = &rule.note {
-        for m in &ms {
-          let start = m.start_pos();
-          let end = m.end_pos();
-          notes.insert(
-            (
-              start.line() as u32,
-              start.column(m) as u32,
-              end.line() as u32,
-              end.column(m) as u32,
-            ),
-            note.clone(),
-          );
-        }
-      }
       let to_diagnostic = |m| convert_match_to_diagnostic(uri, m, rule);
       diagnostics.extend(ms.into_iter().map(to_diagnostic));
     }
-    Some((diagnostics, notes))
+    Some(diagnostics)
+  }
+
+  fn build_notes(&self, diagnostics: &[Diagnostic]) -> Notes {
+    let mut notes = BTreeMap::new();
+    for diagnostic in diagnostics {
+      let Some(NumberOrString::String(id)) = &diagnostic.code else {
+        continue;
+      };
+      let Some(note) = self.rules.get_rule(id).and_then(|r| r.note.clone()) else {
+        continue;
+      };
+      let start = diagnostic.range.start;
+      let end = diagnostic.range.end;
+      let atom = self
+        .interner
+        .entry(id.clone())
+        .or_insert_with(|| Arc::new(note.clone()))
+        .clone();
+      notes.insert((start.line, start.character, end.line, end.character), atom);
+    }
+    notes
   }
 
   async fn publish_diagnostics(
@@ -295,8 +304,8 @@ impl<L: LSPLang> Backend<L> {
     uri: Uri,
     versioned: &mut VersionedAst<StrDoc<L>>,
   ) -> Option<()> {
-    let (diagnostics, notes) = self.get_diagnostics(&uri, versioned).unwrap_or_default();
-    versioned.notes = notes;
+    let diagnostics = self.get_diagnostics(&uri, versioned).unwrap_or_default();
+    versioned.notes = self.build_notes(&diagnostics);
     self
       .client
       .publish_diagnostics(uri, diagnostics, Some(versioned.version))
@@ -399,8 +408,7 @@ impl<L: LSPLang> Backend<L> {
       .ok_or(LspError::UnsupportedFileType)?;
     let mut diagnostics = self
       .get_diagnostics(&uri, &versioned)
-      .ok_or(LspError::NoActionableFix)?
-      .0;
+      .ok_or(LspError::NoActionableFix)?;
     diagnostics.sort_by_key(|d| (d.range.start, d.range.end));
     let mut last = Position {
       line: 0,
