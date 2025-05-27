@@ -176,6 +176,7 @@ dependencies = [
  "libloading",
  "serde",
  "serde_yaml",
+ "target-triple",
  "thiserror 2.0.12",
  "tree-sitter",
 ]
@@ -1620,6 +1621,12 @@ name = "target-lexicon"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e502f78cdbb8ba4718f566c418c52bc729126ffd16baee5baa718cf25dd5a69a"
+
+[[package]]
+name = "target-triple"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ac9aa371f599d22256307c24a9d748c041e548cbf599f35d890f9d365361790"
 
 [[package]]
 name = "tempfile"

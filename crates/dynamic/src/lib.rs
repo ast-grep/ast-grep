@@ -16,7 +16,7 @@ use std::str::FromStr;
 
 mod custom_lang;
 
-pub use custom_lang::CustomLang;
+pub use custom_lang::{CustomLang, LibraryPath};
 
 type LangIndex = u32;
 
@@ -102,6 +102,8 @@ struct Inner {
 
 #[derive(Debug, Error)]
 pub enum DynamicLangError {
+  #[error("Target dynamic lib `{0}` is not configure")]
+  NotConfigured(&'static str),
   #[error("cannot load lib")]
   OpenLib(#[source] LibError),
   #[error("cannot read symbol")]

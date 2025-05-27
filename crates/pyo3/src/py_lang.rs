@@ -1,7 +1,7 @@
 use anyhow::Context;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::tree_sitter::{LanguageExt, StrDoc, TSLanguage};
-use ast_grep_dynamic::{CustomLang, DynamicLang};
+use ast_grep_dynamic::{CustomLang, DynamicLang, LibraryPath};
 use ast_grep_language::{Language, SupportLang};
 use serde::{Deserialize, Serialize};
 
@@ -20,7 +20,7 @@ use std::str::FromStr;
 // but in napi/YAML, every field is in camelCase
 #[derive(Serialize, Deserialize, Clone)]
 pub struct CustomPyLang {
-  library_path: PathBuf,
+  library_path: LibraryPath,
   /// the dylib symbol to load ts-language, default is `tree_sitter_{name}`
   language_symbol: Option<String>,
   meta_var_char: Option<char>,
