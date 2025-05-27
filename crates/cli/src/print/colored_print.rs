@@ -14,10 +14,12 @@ use std::borrow::Cow;
 use std::io::Write;
 use std::path::Path;
 
+mod markdown;
 mod match_merger;
 mod styles;
 mod test;
 
+use markdown::Markdown;
 use match_merger::MatchMerger;
 pub use styles::should_use_color;
 use styles::{PrintStyles, RuleStyle};
@@ -106,12 +108,15 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
   type Processor = ColoredProcessor;
 
   fn get_processor(&self) -> Self::Processor {
+    let color = self.writer.supports_color();
+    let markdown = Markdown::new(color);
     ColoredProcessor {
-      color: self.writer.supports_color(),
+      color,
       config: self.config.clone(),
       styles: self.styles.clone(),
       heading: self.heading,
       context: self.context,
+      markdown,
     }
   }
 
@@ -141,6 +146,7 @@ pub struct ColoredProcessor {
   config: term::Config,
   styles: PrintStyles,
   heading: Heading,
+  markdown: Markdown,
   context: (u16, u16),
 }
 
@@ -187,6 +193,7 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
       Severity::Hint => diagnostic::Severity::Help,
       Severity::Off => unreachable!("turned-off rule should not have match."),
     };
+    let notes = self.markdown.render_note(rule);
     for m in matches {
       let labels = rule
         .get_labels(&m)
@@ -196,7 +203,7 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
       let diagnostic = Diagnostic::new(severity)
         .with_code(&rule.id)
         .with_message(rule.get_message(&m))
-        .with_notes(rule.note.iter().cloned().collect())
+        .with_notes(notes.clone().into_iter().collect())
         .with_labels(labels);
       term::emit(&mut *writer, config, &file, &diagnostic)?;
     }

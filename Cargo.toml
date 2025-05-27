@@ -36,3 +36,4 @@ tree-sitter = { version = "0.25.4" }
 thiserror = "2.0.0"
 schemars = "0.8.17"
 anyhow = "1.0.82"
+dashmap = "6.0.0"
