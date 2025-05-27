@@ -12,7 +12,6 @@ use pythonize::depythonize;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
-use std::path::PathBuf;
 use std::str::FromStr;
 
 // we need this because of different casing in python
