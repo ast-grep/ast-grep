@@ -74,6 +74,8 @@ pub fn run_in_alternate_screen<T>(f: impl FnOnce() -> Result<T>) -> Result<T> {
   execute!(stdout(), EnterAlternateScreen)?;
   clear()?;
   let ret = f();
+  // it is possible f panics and leaves the terminal in alternate screen mode
+  // this may not be worth handling, see #1499
   execute!(stdout(), LeaveAlternateScreen)?;
   ret
 }
