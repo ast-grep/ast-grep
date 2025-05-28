@@ -129,7 +129,7 @@
         "null"
       ],
       "additionalProperties": {
-        "$ref": "#/definitions/Transformation_for_String"
+        "$ref": "#/definitions/Transformation"
       }
     },
     "url": {
@@ -825,7 +825,7 @@
             "null"
           ],
           "additionalProperties": {
-            "$ref": "#/definitions/Transformation_for_String"
+            "$ref": "#/definitions/Transformation"
           }
         },
         "utils": {
@@ -1211,7 +1211,7 @@
         }
       }
     },
-    "Transformation_for_String": {
+    "Trans_for_String": {
       "description": "Represents a transformation that can be applied to a matched AST node. Available transformations are `substring`, `replace` and `convert`.",
       "oneOf": [
         {
@@ -1261,6 +1261,16 @@
             }
           },
           "additionalProperties": false
+        }
+      ]
+    },
+    "Transformation": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/Trans_for_String"
         }
       ]
     }
