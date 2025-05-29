@@ -33,6 +33,17 @@ fn read_severity(
 }
 
 impl RuleOverwrite {
+  pub fn new_for_verify(filter: Option<&Regex>, include_off: bool) -> Self {
+    Self {
+      default_severity: if include_off {
+        Some(Severity::Hint)
+      } else {
+        None
+      },
+      by_rule_id: HashMap::new(),
+      rule_filter: filter.cloned(),
+    }
+  }
   pub fn new(cli: &OverwriteArgs) -> Result<Self> {
     let mut default_severity = None;
     let mut by_rule_id = HashMap::new();

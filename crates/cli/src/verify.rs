@@ -6,7 +6,7 @@ mod test_case;
 
 use crate::config::ProjectConfig;
 use crate::lang::SgLang;
-use crate::utils::ErrorContext;
+use crate::utils::{ErrorContext, RuleOverwrite};
 use anyhow::{anyhow, Result};
 use ast_grep_config::RuleCollection;
 use clap::Args;
@@ -58,16 +58,18 @@ fn run_test_rule_impl<R: Reporter + Send>(
   reporter: R,
   project: ProjectConfig,
 ) -> Result<()> {
-  let collections = &project.find_rules(Default::default())?.0;
+  let filter = arg.filter.as_ref();
+  let overwrite = RuleOverwrite::new_for_verify(filter, arg.include_off);
+  let collections = &project.find_rules(overwrite)?.0;
   let TestHarness {
     test_cases,
     snapshots,
     path_map,
   } = if let Some(test_dirname) = arg.test_dir {
     let snapshot_dirname = arg.snapshot_dir.as_deref();
-    TestHarness::from_dir(&test_dirname, snapshot_dirname, arg.filter.as_ref())?
+    TestHarness::from_dir(&test_dirname, snapshot_dirname, filter)?
   } else {
-    TestHarness::from_config(project, arg.filter.as_ref())?
+    TestHarness::from_config(project, filter)?
   };
   let snapshots = (!arg.skip_snapshot_tests).then_some(snapshots);
   let reporter = &Arc::new(Mutex::new(reporter));
@@ -178,6 +180,12 @@ pub struct TestArg {
   /// Only run rule test cases that matches REGEX.
   #[clap(short, long, value_name = "REGEX")]
   filter: Option<Regex>,
+  /// Include `severity:off` rules in test
+  ///
+  /// ast-grep will not run rules with `severity: off` by default.
+  /// This option will include those rules in the test.
+  #[clap(long)]
+  include_off: bool,
 }
 
 pub fn run_test_rule(arg: TestArg, project: Result<ProjectConfig>) -> Result<()> {
@@ -307,6 +315,7 @@ rule:
       test_dir: None,
       update_all: false,
       filter: None,
+      include_off: false,
     };
     assert!(run_test_rule(arg, Err(anyhow!("error"))).is_err());
   }

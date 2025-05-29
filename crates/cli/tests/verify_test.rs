@@ -19,6 +19,14 @@ language: TypeScript
 rule:
   pattern: Some($A)
 ";
+const OFF_RULE: &str = "
+id: test-rule
+message: test rule
+severity: off
+language: TypeScript
+rule:
+  pattern: Some($A)
+";
 
 const TEST: &str = "
 id: test-rule
@@ -98,9 +106,32 @@ fn test_sg_test_filter() -> Result<()> {
     "ast-grep test -c {} --skip-snapshot-tests -f error-rule",
     config.display()
   ));
-  assert!(ret.is_ok());
+  assert!(ret.is_err());
   let ret = sg(&format!(
     "ast-grep test -c {} --skip-snapshot-tests -f test-rule",
+    config.display()
+  ));
+  assert!(ret.is_err());
+  drop(dir);
+  Ok(())
+}
+
+#[test]
+fn test_sg_test_off_rule() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/test-rule.yml", OFF_RULE),
+    ("rule-tests/test-rule-test.yml", WRONG_TEST),
+    ("test.ts", "Some(123)"),
+  ])?;
+  let config = dir.path().join("sgconfig.yml");
+  let ret = sg(&format!(
+    "ast-grep test -c {} --skip-snapshot-tests",
+    config.display()
+  ));
+  assert!(ret.is_ok());
+  let ret = sg(&format!(
+    "ast-grep test -c {} --skip-snapshot-tests --include-off",
     config.display()
   ));
   assert!(ret.is_err());
