@@ -19,7 +19,7 @@ pub enum SerializableStopBy {
   #[default]
   Neighbor,
   End,
-  Rule(SerializableRule),
+  Rule(Box<SerializableRule>),
 }
 
 impl SerializableStopBy {
@@ -97,7 +97,7 @@ impl StopBy {
     Ok(match relation {
       S::Neighbor => StopBy::Neighbor,
       S::End => StopBy::End,
-      S::Rule(r) => StopBy::Rule(env.deserialize_rule(r)?),
+      S::Rule(r) => StopBy::Rule(env.deserialize_rule(*r)?),
     })
   }
 
