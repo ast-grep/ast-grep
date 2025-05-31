@@ -50,35 +50,99 @@ impl<'t, D: Doc> ScanResultInner<'t, D> {
   }
 }
 
-struct Suppressions(HashMap<usize, Suppression>);
+enum SuppressKind {
+  /// suppress the whole file
+  File,
+  /// suppress specific line
+  Line(usize),
+}
+
+fn get_suppression_kind(node: &Node<'_, impl Doc>) -> Option<SuppressKind> {
+  if !node.kind().contains("comment") || !node.text().contains(IGNORE_TEXT) {
+    return None;
+  }
+  let line = node.start_pos().line();
+  let suppress_next_line = if let Some(prev) = node.prev() {
+    prev.start_pos().line() != line
+  } else {
+    true
+  };
+  // if the first line is suppressed and the next line is empyt,
+  // we suppress the whole file see gh #1541
+  if line == 0
+    && suppress_next_line
+    && node
+      .next()
+      .map(|next| next.start_pos().line() >= 2)
+      .unwrap_or(true)
+  {
+    return Some(SuppressKind::File);
+  }
+  let key = if suppress_next_line { line + 1 } else { line };
+  Some(SuppressKind::Line(key))
+}
+
+struct Suppressions {
+  file: Option<Suppression>,
+  /// line number which may be suppressed
+  lines: HashMap<usize, Suppression>,
+}
+
 impl Suppressions {
-  fn collect<D: Doc>(&mut self, node: &Node<'_, D>) {
-    if !node.kind().contains("comment") || !node.text().contains(IGNORE_TEXT) {
-      return;
-    }
-    let line = node.start_pos().line();
-    let suppress_next_line = if let Some(prev) = node.prev() {
-      prev.start_pos().line() != line
-    } else {
-      true
+  fn new<D: Doc>(root: &AstGrep<D>) -> (Self, HashMap<usize, Node<'_, D>>) {
+    let mut suppressions = Self {
+      file: None,
+      lines: HashMap::new(),
     };
-    let key = if suppress_next_line { line + 1 } else { line };
-    self.0.insert(
-      key,
-      Suppression {
-        suppressed: parse_suppression_set(&node.text()),
-        node_id: node.node_id(),
-      },
-    );
+    let mut suppression_nodes = HashMap::new();
+    for node in root.root().dfs() {
+      suppressions.collect(&node, &mut suppression_nodes);
+    }
+    (suppressions, suppression_nodes)
+  }
+  /// collect all suppression nodes from the root node
+  /// and returns if the whole file need to be suppressed
+  /// see #1541
+  fn collect<'r, D: Doc>(
+    &mut self,
+    node: &Node<'r, D>,
+    suppression_nodes: &mut HashMap<usize, Node<'r, D>>,
+  ) {
+    let Some(sup) = get_suppression_kind(node) else {
+      return;
+    };
+    let suppressed = Suppression {
+      suppressed: parse_suppression_set(&node.text()),
+      node_id: node.node_id(),
+    };
+    suppression_nodes.insert(node.node_id(), node.clone());
+    match sup {
+      SuppressKind::File => {
+        self.file = Some(suppressed);
+      }
+      SuppressKind::Line(key) => {
+        self.lines.insert(
+          key,
+          Suppression {
+            suppressed: parse_suppression_set(&node.text()),
+            node_id: node.node_id(),
+          },
+        );
+      }
+    }
   }
 
-  fn suppression_ids(&self) -> HashSet<usize> {
-    self.0.values().map(|s| s.node_id).collect()
+  fn file_suppression(&self) -> MaySuppressed {
+    if let Some(sup) = &self.file {
+      MaySuppressed::Yes(sup)
+    } else {
+      MaySuppressed::No
+    }
   }
 
-  fn check_suppression<D: Doc>(&mut self, node: &Node<'_, D>) -> MaySuppressed {
+  fn line_suppression<D: Doc>(&self, node: &Node<'_, D>) -> MaySuppressed {
     let line = node.start_pos().line();
-    if let Some(sup) = self.0.get_mut(&line) {
+    if let Some(sup) = self.lines.get(&line) {
       MaySuppressed::Yes(sup)
     } else {
       MaySuppressed::No
@@ -172,28 +236,25 @@ impl<'r, L: Language> CombinedScan<'r, L> {
       matches: HashMap::new(),
       unused_suppressions: vec![],
     };
-    let mut suppressions = Suppressions(HashMap::new());
+    let (suppressions, mut suppression_nodes) = Suppressions::new(root);
+    let file_sup = suppressions.file_suppression();
     for node in root.root().dfs() {
-      suppressions.collect(&node);
-    }
-    let mut suppression_ids = suppressions.suppression_ids();
-    let mut suppression_nodes = HashMap::new();
-    for node in root.root().dfs() {
-      if suppression_ids.contains(&node.node_id()) {
-        suppression_nodes.insert(node.node_id(), node.clone());
-      }
       let kind = node.kind_id() as usize;
       let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
         continue;
       };
-      let suppression = suppressions.check_suppression(&node);
+      let line_sup = suppressions.line_suppression(&node);
       for &idx in rule_idx {
         let rule = &self.rules[idx];
         let Some(ret) = rule.matcher.match_node(node.clone()) else {
           continue;
         };
-        if let Some(id) = suppression.suppressed_id(&rule.id) {
-          suppression_ids.remove(&id);
+        if let Some(id) = file_sup.suppressed_id(&rule.id) {
+          suppression_nodes.remove(&id);
+          continue;
+        }
+        if let Some(id) = line_sup.suppressed_id(&rule.id) {
+          suppression_nodes.remove(&id);
           continue;
         }
         if rule.fix.is_none() || !separate_fix {
@@ -206,15 +267,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     }
     result.unused_suppressions = suppression_nodes
       .into_values()
-      .filter_map(|node| {
-        let node_id = node.node_id();
-        let unused = suppression_ids.contains(&node_id);
-        if unused {
-          Some(NodeMatch::from(node))
-        } else {
-          None
-        }
-      })
+      .map(NodeMatch::from)
       .collect();
     result.into_result(self, separate_fix)
   }
