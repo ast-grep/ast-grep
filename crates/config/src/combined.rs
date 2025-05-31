@@ -89,7 +89,7 @@ struct Suppressions {
 }
 
 impl Suppressions {
-  fn new<D: Doc>(root: &AstGrep<D>) -> (Self, HashMap<usize, Node<'_, D>>) {
+  fn collect_all<D: Doc>(root: &AstGrep<D>) -> (Self, HashMap<usize, Node<'_, D>>) {
     let mut suppressions = Self {
       file: None,
       lines: HashMap::new(),
@@ -236,7 +236,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
       matches: HashMap::new(),
       unused_suppressions: vec![],
     };
-    let (suppressions, mut suppression_nodes) = Suppressions::new(root);
+    let (suppressions, mut suppression_nodes) = Suppressions::collect_all(root);
     let file_sup = suppressions.file_suppression();
     for node in root.root().dfs() {
       let kind = node.kind_id() as usize;
@@ -320,7 +320,7 @@ mod test {
   use crate::from_str;
   use crate::test::TypeScript;
   use crate::SerializableRuleConfig;
-  use ast_grep_core::tree_sitter::LanguageExt;
+  use ast_grep_core::tree_sitter::{LanguageExt, StrDoc};
 
   fn create_rule() -> RuleConfig<TypeScript> {
     let rule: SerializableRuleConfig<TypeScript> = from_str(
@@ -331,6 +331,23 @@ language: Tsx",
     )
     .expect("parse");
     RuleConfig::try_from(rule, &Default::default()).expect("work")
+  }
+
+  fn test_scan<F>(source: &str, test_fn: F)
+  where
+    F: Fn(
+      Vec<(
+        &'_ RuleConfig<TypeScript>,
+        Vec<NodeMatch<'_, StrDoc<TypeScript>>>,
+      )>,
+    ),
+  {
+    let root = TypeScript::Tsx.ast_grep(source);
+    let rule = create_rule();
+    let rules = vec![&rule];
+    let scan = CombinedScan::new(rules);
+    let scanned = scan.scan(&root, false);
+    test_fn(scanned.matches);
   }
 
   #[test]
@@ -346,15 +363,12 @@ language: Tsx",
     // ast-grep-ignore: not-test, test
     console.log('multiple ignore')
     "#;
-    let root = TypeScript::Tsx.ast_grep(source);
-    let rule = create_rule();
-    let rules = vec![&rule];
-    let scan = CombinedScan::new(rules);
-    let scanned = scan.scan(&root, false);
-    let matches = &scanned.matches[0];
-    assert_eq!(matches.1.len(), 2);
-    assert_eq!(matches.1[0].text(), "console.log('no ignore')");
-    assert_eq!(matches.1[1].text(), "console.log('ignore another')");
+    test_scan(source, |scanned| {
+      let matches = &scanned[0];
+      assert_eq!(matches.1.len(), 2);
+      assert_eq!(matches.1[0].text(), "console.log('no ignore')");
+      assert_eq!(matches.1[1].text(), "console.log('ignore another')");
+    });
   }
 
   #[test]
@@ -366,15 +380,32 @@ language: Tsx",
     console.log('ignore another') // ast-grep-ignore: not-test
     console.log('multiple ignore') // ast-grep-ignore: not-test, test
     "#;
+    test_scan(source, |scanned| {
+      let matches = &scanned[0];
+      assert_eq!(matches.1.len(), 2);
+      assert_eq!(matches.1[0].text(), "console.log('no ignore')");
+      assert_eq!(matches.1[1].text(), "console.log('ignore another')");
+    });
+  }
+
+  fn test_scan_unused<F>(source: &str, test_fn: F)
+  where
+    F: Fn(
+      Vec<(
+        &'_ RuleConfig<TypeScript>,
+        Vec<NodeMatch<'_, StrDoc<TypeScript>>>,
+      )>,
+    ),
+  {
     let root = TypeScript::Tsx.ast_grep(source);
     let rule = create_rule();
     let rules = vec![&rule];
-    let scan = CombinedScan::new(rules);
+    let mut scan = CombinedScan::new(rules);
+    let mut unused = create_rule();
+    unused.id = "unused-suppression".to_string();
+    scan.set_unused_suppression_rule(&unused);
     let scanned = scan.scan(&root, false);
-    let matches = &scanned.matches[0];
-    assert_eq!(matches.1.len(), 2);
-    assert_eq!(matches.1[0].text(), "console.log('no ignore')");
-    assert_eq!(matches.1[1].text(), "console.log('ignore another')");
+    test_fn(scanned.matches);
   }
 
   #[test]
@@ -384,15 +415,35 @@ language: Tsx",
     console.debug('not used') // ast-grep-ignore: test
     console.log('multiple ignore') // ast-grep-ignore: test
     "#;
-    let root = TypeScript::Tsx.ast_grep(source);
-    let rule = create_rule();
-    let rules = vec![&rule];
-    let mut scan = CombinedScan::new(rules);
-    scan.set_unused_suppression_rule(&rule);
-    let scanned = scan.scan(&root, false);
-    assert_eq!(scanned.matches.len(), 2);
-    let unused = &scanned.matches[1];
-    assert_eq!(unused.1.len(), 1);
-    assert_eq!(unused.1[0].text(), "// ast-grep-ignore: test");
+    test_scan_unused(source, |scanned| {
+      assert_eq!(scanned.len(), 2);
+      let unused = &scanned[1];
+      assert_eq!(unused.1.len(), 1);
+      assert_eq!(unused.1[0].text(), "// ast-grep-ignore: test");
+    });
+  }
+
+  #[test]
+  fn test_file_suppression() {
+    let source = r#"// ast-grep-ignore
+
+    console.log('ignored')
+    console.debug('report') // ast-grep-ignore: test
+    console.log('report') // ast-grep-ignore: test
+    "#;
+    test_scan_unused(source, |scanned| {
+      assert_eq!(scanned.len(), 1);
+      let unused = &scanned[0];
+      assert_eq!(unused.1.len(), 2);
+    });
+    let source = r#"// ast-grep-ignore
+    console.debug('above is not file sup')
+    console.log('not ignored')
+    "#;
+    test_scan_unused(source, |scanned| {
+      assert_eq!(scanned.len(), 2);
+      assert_eq!(scanned[0].0.id, "test");
+      assert_eq!(scanned[1].0.id, "unused-suppression");
+    });
   }
 }
