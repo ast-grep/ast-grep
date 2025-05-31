@@ -17,7 +17,7 @@ use std::ops::Range;
 #[serde(untagged)]
 pub enum SerializableFixer {
   Str(String),
-  Config(SerializableFixConfig),
+  Config(Box<SerializableFixConfig>),
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
@@ -227,7 +227,7 @@ mod test {
       expand_start: Maybe::Absent,
       template: "abcd".to_string(),
     };
-    let config = SerializableFixer::Config(config);
+    let config = SerializableFixer::Config(Box::new(config));
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let ret = Fixer::parse(&config, &env, &Some(Default::default()))?;
     assert!(ret.expand_start.is_none());
@@ -255,7 +255,7 @@ mod test {
       expand_start: Maybe::Absent,
       template: "var $A = 456".to_string(),
     };
-    let config = SerializableFixer::Config(config);
+    let config = SerializableFixer::Config(Box::new(config));
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let fixer = Fixer::parse(&config, &env, &Some(Default::default()))?;
     let grep = TypeScript::Tsx.ast_grep("let a = 123");
@@ -274,7 +274,7 @@ mod test {
       expand_start: Maybe::Absent,
       template: "c: 456".to_string(),
     };
-    let config = SerializableFixer::Config(config);
+    let config = SerializableFixer::Config(Box::new(config));
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let fixer = Fixer::parse(&config, &env, &Some(Default::default()))?;
     let grep = TypeScript::Tsx.ast_grep("var a = { b: 123, }");
