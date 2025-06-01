@@ -1,4 +1,4 @@
-use super::{Diff, NodeMatch, PrintProcessor, Printer};
+use super::{ColoredPrinter, Diff, NodeMatch, PrintProcessor, Printer};
 use crate::lang::SgLang;
 use crate::utils;
 use crate::utils::ErrorContext as EC;
@@ -6,20 +6,23 @@ use crate::utils::ErrorContext as EC;
 use anyhow::{Context, Result};
 use ast_grep_config::RuleConfig;
 use codespan_reporting::files::SimpleFile;
+use codespan_reporting::term::termcolor::{Buffer, StandardStream};
 
 use std::borrow::Cow;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 
-pub struct InteractivePrinter<P: Printer> {
+type InnerPrinter = ColoredPrinter<StandardStream>;
+
+pub struct InteractivePrinter {
   accept_all: bool,
   from_stdin: bool,
   committed_cnt: usize,
-  inner: P,
+  inner: InnerPrinter,
 }
 
-impl<P: Printer> InteractivePrinter<P> {
-  pub fn new(inner: P, accept_all: bool, from_stdin: bool) -> Result<Self> {
+impl InteractivePrinter {
+  pub fn new(inner: InnerPrinter, accept_all: bool, from_stdin: bool) -> Result<Self> {
     if from_stdin && !accept_all {
       Err(anyhow::anyhow!(EC::StdInIsNotInteractive))
     } else {
@@ -61,7 +64,7 @@ impl<P: Printer> InteractivePrinter<P> {
     }
   }
 
-  fn process_highlights(&mut self, highlights: Highlights<P::Processed>) -> Result<()> {
+  fn process_highlights(&mut self, highlights: Highlights<Buffer>) -> Result<()> {
     let Highlights {
       path,
       first_line,
@@ -81,7 +84,7 @@ impl<P: Printer> InteractivePrinter<P> {
     })
   }
 
-  fn process_diffs(&mut self, diffs: Diffs<P::Processed>) -> Result<()> {
+  fn process_diffs(&mut self, diffs: Diffs<Buffer>) -> Result<()> {
     let path = diffs.path.clone();
     let (confirmed, all) = process_diffs_interactive(self, diffs)?;
     self.rewrite_action(confirmed, &path)?;
@@ -92,13 +95,9 @@ impl<P: Printer> InteractivePrinter<P> {
   }
 }
 
-impl<P> Printer for InteractivePrinter<P>
-where
-  P: Printer + 'static,
-  P::Processor: Send + 'static,
-{
-  type Processed = Payload<P>;
-  type Processor = InteractiveProcessor<P>;
+impl Printer for InteractivePrinter {
+  type Processed = Payload<InnerPrinter>;
+  type Processor = InteractiveProcessor<InnerPrinter>;
 
   fn get_processor(&self) -> Self::Processor {
     InteractiveProcessor {
@@ -248,9 +247,9 @@ fn get_old_source(diff: Option<&Diff>) -> String {
   node.get_root_text().to_string()
 }
 
-fn process_diffs_interactive<P: Printer>(
-  interactive: &mut InteractivePrinter<P>,
-  diffs: Diffs<P::Processed>,
+fn process_diffs_interactive(
+  interactive: &mut InteractivePrinter,
+  diffs: Diffs<Buffer>,
 ) -> Result<(Diffs<()>, bool)> {
   let mut confirmed = vec![];
   let mut all = interactive.accept_all;
@@ -285,10 +284,10 @@ fn process_diffs_interactive<P: Printer>(
   Ok((diffs, all))
 }
 /// returns if accept_current and accept_all
-fn print_diff_and_prompt_action<P: Printer>(
-  interactive: &mut InteractivePrinter<P>,
+fn print_diff_and_prompt_action(
+  interactive: &mut InteractivePrinter,
   path: &Path,
-  processed: InteractiveDiff<P::Processed>,
+  processed: InteractiveDiff<Buffer>,
 ) -> Result<(bool, bool)> {
   utils::run_in_alternate_screen(|| {
     let printer = &mut interactive.inner;
