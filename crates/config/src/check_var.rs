@@ -1,4 +1,4 @@
-use crate::fixer::Fixer;
+use crate::fixer::{Fixer, FixerError};
 use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::Rule;
 use crate::rule_config::RuleConfigError;
@@ -37,6 +37,9 @@ pub fn check_rule_with_hint<'r>(
     }
     // upper_vars is needed to check metavar defined in containing vars
     CheckHint::Rewriter(upper_vars) => {
+      if fixer.is_empty() {
+        return Err(RuleCoreError::Fixer(FixerError::InvalidRewriter));
+      }
       check_utils_defined(rule, constraints)?;
       check_vars_in_rewriter(rule, utils, constraints, transform, fixer, upper_vars)?;
     }
