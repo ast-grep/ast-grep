@@ -269,7 +269,8 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
           .print_diff(source, &new_str, writer, context)?;
       }
       if matches!(display_style, DisplayStyle::Medium | DisplayStyle::Rich) {
-        if let Some(note) = &rule.note {
+        let notes = self.markdown.render_note(rule);
+        if let Some(note) = notes {
           writeln!(writer, "{}", self.styles.rule.note.paint("Note:"))?;
           writeln!(writer, "{note}")?;
         }
