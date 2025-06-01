@@ -27,7 +27,7 @@ impl RewriteData {
     node_match: &NodeMatch<StrDoc<L>>,
     rule: &RuleConfig<L>,
   ) -> Option<Self> {
-    let fixer = rule.matcher.fixer.as_ref()?;
+    let fixer = rule.matcher.fixer.first()?;
     let edit = node_match.replace_by(fixer);
     let rewrite = String::from_utf8(edit.inserted_text).ok()?;
     Some(Self { fixed: rewrite })

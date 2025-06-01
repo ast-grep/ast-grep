@@ -223,13 +223,13 @@ impl<L: Language> RuleConfig<L> {
     let bytes = parsed.generate_replacement(node);
     <D::Source as Content>::encode_bytes(&bytes).to_string()
   }
-  pub fn get_fixer(&self) -> Result<Option<Fixer>, RuleConfigError> {
+  pub fn get_fixer(&self) -> Result<Vec<Fixer>, RuleConfigError> {
     if let Some(fix) = &self.fix {
       let env = self.matcher.get_env(self.language.clone());
       let parsed = Fixer::parse(fix, &env, &self.transform).map_err(RuleCoreError::Fixer)?;
-      Ok(Some(parsed))
+      Ok(parsed)
     } else {
-      Ok(None)
+      Ok(vec![])
     }
   }
   pub fn get_labels<'t, D: Doc>(&self, node: &NodeMatch<'t, D>) -> Vec<Label<'_, 't, D>> {
@@ -433,7 +433,7 @@ test-rule:
     let mut config = get_matches_config();
     config.fix = Some(from_str("string!!").unwrap());
     let rule = RuleConfig::try_from(config, &globals).unwrap();
-    let fixer = rule.get_fixer().unwrap().unwrap();
+    let fixer = rule.get_fixer().unwrap().remove(0);
     let grep = TypeScript::Tsx.ast_grep("some(123)");
     let nm = grep.root().find(&rule.matcher).unwrap();
     let replacement = fixer.generate_replacement(&nm);

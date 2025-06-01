@@ -95,7 +95,7 @@ impl TestSnapshot {
       .into_iter()
       .map(LabelSnapshot::from)
       .collect();
-    let Some(fix) = &rule_config.matcher.fixer else {
+    let Some(fix) = rule_config.matcher.fixer.first() else {
       return Ok(Some(Self {
         fixed: None,
         labels,

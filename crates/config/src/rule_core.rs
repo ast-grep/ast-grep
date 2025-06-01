@@ -87,12 +87,12 @@ impl SerializableRuleCore {
     Ok(constraints)
   }
 
-  fn get_fixer<L: Language>(&self, env: &DeserializeEnv<L>) -> RResult<Option<Fixer>> {
+  fn get_fixer<L: Language>(&self, env: &DeserializeEnv<L>) -> RResult<Vec<Fixer>> {
     if let Some(fix) = &self.fix {
       let parsed = Fixer::parse(fix, env, &self.transform)?;
-      Ok(Some(parsed))
+      Ok(parsed)
     } else {
-      Ok(None)
+      Ok(vec![])
     }
   }
 
@@ -142,7 +142,7 @@ pub struct RuleCore {
   constraints: HashMap<String, Rule>,
   kinds: Option<BitSet>,
   pub(crate) transform: Option<Transform>,
-  pub fixer: Option<Fixer>,
+  pub fixer: Vec<Fixer>,
   // this is required to hold util rule reference
   registration: RuleRegistration,
 }
@@ -180,7 +180,7 @@ impl RuleCore {
   }
 
   #[inline]
-  pub fn with_fixer(self, fixer: Option<Fixer>) -> Self {
+  pub fn with_fixer(self, fixer: Vec<Fixer>) -> Self {
     Self { fixer, ..self }
   }
 
@@ -258,7 +258,7 @@ impl Default for RuleCore {
       constraints: HashMap::default(),
       kinds: None,
       transform: None,
-      fixer: None,
+      fixer: vec![],
       registration: RuleRegistration::default(),
     }
   }
