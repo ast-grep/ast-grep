@@ -18,6 +18,7 @@ use std::ops::Range;
 pub enum SerializableFixer {
   Str(String),
   Config(Box<SerializableFixConfig>),
+  List(Vec<SerializableFixConfig>),
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
@@ -28,6 +29,8 @@ pub struct SerializableFixConfig {
   expand_end: Maybe<Relation>,
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   expand_start: Maybe<Relation>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  title: Option<String>,
 }
 
 #[derive(Debug, Error)]
@@ -62,6 +65,7 @@ pub struct Fixer {
   template: TemplateFix,
   expand_start: Option<Expansion>,
   expand_end: Option<Expansion>,
+  title: Option<String>,
 }
 
 impl Fixer {
@@ -74,6 +78,7 @@ impl Fixer {
       template: fix,
       expand_end,
       expand_start,
+      title,
     } = serialized;
     let expand_start = Expansion::parse(expand_start, env)?;
     let expand_end = Expansion::parse(expand_end, env)?;
@@ -87,6 +92,7 @@ impl Fixer {
       template,
       expand_start,
       expand_end,
+      title: title.clone(),
     })
   }
 
@@ -98,6 +104,7 @@ impl Fixer {
     match fixer {
       SerializableFixer::Str(fix) => Self::with_transform(fix, env, transform),
       SerializableFixer::Config(cfg) => Self::do_parse(cfg, env, transform),
+      _ => todo!("List of fixers is not supported yet"),
     }
   }
 
@@ -116,6 +123,7 @@ impl Fixer {
       template,
       expand_end: None,
       expand_start: None,
+      title: None,
     })
   }
 
@@ -125,7 +133,12 @@ impl Fixer {
       template,
       expand_start: None,
       expand_end: None,
+      title: None,
     })
+  }
+
+  pub fn title(&self) -> Option<&str> {
+    self.title.as_deref()
   }
 
   pub(crate) fn used_vars(&self) -> HashSet<&str> {
@@ -226,6 +239,7 @@ mod test {
       expand_end: Maybe::Present(relation),
       expand_start: Maybe::Absent,
       template: "abcd".to_string(),
+      title: None,
     };
     let config = SerializableFixer::Config(Box::new(config));
     let env = DeserializeEnv::new(TypeScript::Tsx);
@@ -254,6 +268,7 @@ mod test {
       expand_end: Maybe::Present(expand_end),
       expand_start: Maybe::Absent,
       template: "var $A = 456".to_string(),
+      title: None,
     };
     let config = SerializableFixer::Config(Box::new(config));
     let env = DeserializeEnv::new(TypeScript::Tsx);
@@ -273,6 +288,7 @@ mod test {
       expand_end: Maybe::Present(expand_end),
       expand_start: Maybe::Absent,
       template: "c: 456".to_string(),
+      title: None,
     };
     let config = SerializableFixer::Config(Box::new(config));
     let env = DeserializeEnv::new(TypeScript::Tsx);
