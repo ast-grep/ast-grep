@@ -100,12 +100,18 @@ impl Fixer {
     fixer: &SerializableFixer,
     env: &DeserializeEnv<L>,
     transform: &Option<HashMap<String, Transformation>>,
-  ) -> Result<Self, FixerError> {
-    match fixer {
+  ) -> Result<Vec<Self>, FixerError> {
+    let ret = match fixer {
       SerializableFixer::Str(fix) => Self::with_transform(fix, env, transform),
       SerializableFixer::Config(cfg) => Self::do_parse(cfg, env, transform),
-      _ => todo!("List of fixers is not supported yet"),
-    }
+      SerializableFixer::List(list) => {
+        return list
+          .iter()
+          .map(|cfg| Self::do_parse(cfg, env, transform))
+          .collect()
+      }
+    };
+    Ok(vec![ret?])
   }
 
   pub(crate) fn with_transform<L: Language>(
@@ -216,6 +222,13 @@ mod test {
     assert!(matches!(fixer, SerializableFixer::Str(_)));
   }
 
+  fn parse(config: SerializableFixConfig) -> Result<Fixer, FixerError> {
+    let config = SerializableFixer::Config(Box::new(config));
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let fixer = Fixer::parse(&config, &env, &Some(Default::default()))?.remove(0);
+    Ok(fixer)
+  }
+
   #[test]
   fn test_deserialize_object() -> Result<(), serde_yaml::Error> {
     let src = "{template: 'abc', expandEnd: {regex: ',', stopBy: neighbor}}";
@@ -241,9 +254,7 @@ mod test {
       template: "abcd".to_string(),
       title: None,
     };
-    let config = SerializableFixer::Config(Box::new(config));
-    let env = DeserializeEnv::new(TypeScript::Tsx);
-    let ret = Fixer::parse(&config, &env, &Some(Default::default()))?;
+    let ret = parse(config)?;
     assert!(ret.expand_start.is_none());
     assert!(ret.expand_end.is_some());
     assert!(matches!(ret.template, TemplateFix::Textual(_)));
@@ -254,7 +265,7 @@ mod test {
   fn test_parse_str() -> Result<(), FixerError> {
     let config = SerializableFixer::Str("abcd".to_string());
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let ret = Fixer::parse(&config, &env, &Some(Default::default()))?;
+    let ret = Fixer::parse(&config, &env, &None)?.remove(0);
     assert!(ret.expand_end.is_none());
     assert!(ret.expand_start.is_none());
     assert!(matches!(ret.template, TemplateFix::Textual(_)));
@@ -270,9 +281,7 @@ mod test {
       template: "var $A = 456".to_string(),
       title: None,
     };
-    let config = SerializableFixer::Config(Box::new(config));
-    let env = DeserializeEnv::new(TypeScript::Tsx);
-    let fixer = Fixer::parse(&config, &env, &Some(Default::default()))?;
+    let fixer = parse(config)?;
     let grep = TypeScript::Tsx.ast_grep("let a = 123");
     let node = grep.root().find("let $A = 123").expect("should found");
     let edit = fixer.generate_replacement(&node);
@@ -290,9 +299,7 @@ mod test {
       template: "c: 456".to_string(),
       title: None,
     };
-    let config = SerializableFixer::Config(Box::new(config));
-    let env = DeserializeEnv::new(TypeScript::Tsx);
-    let fixer = Fixer::parse(&config, &env, &Some(Default::default()))?;
+    let fixer = parse(config)?;
     let grep = TypeScript::Tsx.ast_grep("var a = { b: 123, }");
     let matcher = KindMatcher::new("pair", TypeScript::Tsx);
     let node = grep.root().find(&matcher).expect("should found");

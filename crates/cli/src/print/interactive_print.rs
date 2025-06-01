@@ -402,7 +402,7 @@ rule:
 fix: ($B, lifecycle.update(['$A']))",
     );
     let mut matcher = config.matcher;
-    let fixer = matcher.fixer.take().unwrap();
+    let fixer = matcher.fixer.remove(0);
     let diffs = make_diffs(&root, matcher, &fixer);
     let ret = apply_rewrite(diffs);
     assert_eq!(ret, "let a = () => (c++, lifecycle.update(['c']))");

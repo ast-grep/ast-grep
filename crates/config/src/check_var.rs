@@ -23,7 +23,7 @@ pub fn check_rule_with_hint<'r>(
   utils: &'r RuleRegistration,
   constraints: &'r HashMap<String, Rule>,
   transform: &'r Option<Transform>,
-  fixer: &Option<Fixer>,
+  fixer: &Vec<Fixer>,
   hint: CheckHint<'r>,
 ) -> RResult<()> {
   match hint {
@@ -49,7 +49,7 @@ fn check_vars_in_rewriter<'r>(
   utils: &'r RuleRegistration,
   constraints: &'r HashMap<String, Rule>,
   transform: &'r Option<Transform>,
-  fixer: &Option<Fixer>,
+  fixer: &Vec<Fixer>,
   upper_var: &HashSet<&str>,
 ) -> RResult<()> {
   let vars = get_vars_from_rules(rule, utils);
@@ -75,7 +75,7 @@ fn check_vars<'r>(
   utils: &'r RuleRegistration,
   constraints: &'r HashMap<String, Rule>,
   transform: &'r Option<Transform>,
-  fixer: &Option<Fixer>,
+  fixer: &Vec<Fixer>,
 ) -> RResult<()> {
   let vars = get_vars_from_rules(rule, utils);
   let vars = check_var_in_constraints(vars, constraints)?;
@@ -140,13 +140,12 @@ fn check_var_in_transform<'r>(
   Ok(vars)
 }
 
-fn check_var_in_fix(vars: HashSet<&str>, fixer: &Option<Fixer>) -> RResult<()> {
-  let Some(fixer) = fixer else {
-    return Ok(());
-  };
-  for var in fixer.used_vars() {
-    if !vars.contains(&var) {
-      return Err(RuleCoreError::UndefinedMetaVar(var.to_string(), "fix"));
+fn check_var_in_fix(vars: HashSet<&str>, fixers: &Vec<Fixer>) -> RResult<()> {
+  for fixer in fixers {
+    for var in fixer.used_vars() {
+      if !vars.contains(&var) {
+        return Err(RuleCoreError::UndefinedMetaVar(var.to_string(), "fix"));
+      }
     }
   }
   Ok(())
