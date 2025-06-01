@@ -13,8 +13,14 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 #[derive(Serialize, Deserialize)]
-pub struct RewriteData {
+pub struct OneFix {
+  pub title: Option<String>,
   pub fixed: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RewriteData {
+  pub fixers: Vec<OneFix>,
   // maybe we should have fixed range
 }
 
@@ -27,37 +33,58 @@ impl RewriteData {
     node_match: &NodeMatch<StrDoc<L>>,
     rule: &RuleConfig<L>,
   ) -> Option<Self> {
-    let fixer = rule.matcher.fixer.first()?;
-    let edit = node_match.replace_by(fixer);
-    let rewrite = String::from_utf8(edit.inserted_text).ok()?;
-    Some(Self { fixed: rewrite })
+    let fixers = rule
+      .matcher
+      .fixer
+      .iter()
+      .filter_map(|fixer| {
+        let edit = node_match.make_edit(&rule.matcher, fixer);
+        let range = node_match.range();
+        // skip if the edit does not match the range
+        // TODO: implement expanding range
+        if edit.position != range.start || edit.deleted_length != range.len() {
+          return None;
+        }
+        let rewrite = String::from_utf8(edit.inserted_text).ok()?;
+        Some(OneFix {
+          title: fixer.title().map(ToString::to_string),
+          fixed: rewrite,
+        })
+      })
+      .collect();
+    Some(Self { fixers })
   }
 }
 
 pub fn diagnostic_to_code_action(
   text_doc: &TextDocumentIdentifier,
   diagnostic: Diagnostic,
-) -> Option<CodeAction> {
+) -> Option<Vec<CodeAction>> {
   let rewrite_data = RewriteData::from_value(diagnostic.data?)?;
-  let mut changes = HashMap::new();
-  let text_edit = TextEdit::new(diagnostic.range, rewrite_data.fixed);
-  changes.insert(text_doc.uri.clone(), vec![text_edit]);
+  let actions = rewrite_data.fixers.into_iter().filter_map(|fixer| {
+    let mut changes = HashMap::new();
+    let text_edit = TextEdit::new(diagnostic.range, fixer.fixed);
+    changes.insert(text_doc.uri.clone(), vec![text_edit]);
 
-  let edit = WorkspaceEdit::new(changes);
-  let NumberOrString::String(id) = diagnostic.code? else {
-    return None;
-  };
-  let action = CodeAction {
-    title: format!("Fix `{id}` with ast-grep"),
-    command: None,
-    diagnostics: None,
-    edit: Some(edit),
-    disabled: None,
-    kind: Some(CodeActionKind::QUICKFIX),
-    is_preferred: Some(true),
-    data: None,
-  };
-  Some(action)
+    let edit = WorkspaceEdit::new(changes);
+    let NumberOrString::String(id) = diagnostic.code.as_ref()? else {
+      return None;
+    };
+    let title = fixer
+      .title
+      .unwrap_or_else(|| format!("Fix `{}` with ast-grep", id));
+    Some(CodeAction {
+      title,
+      command: None,
+      diagnostics: None,
+      edit: Some(edit),
+      disabled: None,
+      kind: Some(CodeActionKind::QUICKFIX),
+      is_preferred: Some(true),
+      data: None,
+    })
+  });
+  Some(actions.collect())
 }
 
 fn convert_nodes_to_range<D: Doc>(start_node: &Node<D>, end_node: &Node<D>) -> Range {

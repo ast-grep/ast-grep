@@ -421,7 +421,8 @@ impl<L: LSPLang> Backend<L> {
           return None;
         }
         let rewrite_data = RewriteData::from_value(d.data?)?;
-        let edit = TextEdit::new(d.range, rewrite_data.fixed);
+        let fixed = rewrite_data.fixers.first()?.fixed.to_string();
+        let edit = TextEdit::new(d.range, fixed);
         last = d.range.end;
         Some(edit)
       })
@@ -478,6 +479,7 @@ impl<L: LSPLang> Backend<L> {
           .unwrap_or(false)
       })
       .filter_map(|d| diagnostic_to_code_action(&text_doc, d))
+      .flatten()
       .map(CodeActionOrCommand::from)
       .collect();
     Some(response)

@@ -39,6 +39,10 @@ pub enum FixerError {
   InvalidTemplate(#[from] TemplateFixError),
   #[error("Fixer expansion contains invalid rule.")]
   WrongExpansion(#[from] RuleSerializeError),
+  #[error("Rewriter must have exactly one fixer.")]
+  InvalidRewriter,
+  #[error("Fixer in list must have title.")]
+  MissingTitle,
 }
 
 struct Expansion {
@@ -105,13 +109,26 @@ impl Fixer {
       SerializableFixer::Str(fix) => Self::with_transform(fix, env, transform),
       SerializableFixer::Config(cfg) => Self::do_parse(cfg, env, transform),
       SerializableFixer::List(list) => {
-        return list
-          .iter()
-          .map(|cfg| Self::do_parse(cfg, env, transform))
-          .collect()
+        return Self::parse_list(list, env, transform);
       }
     };
     Ok(vec![ret?])
+  }
+
+  fn parse_list<L: Language>(
+    list: &[SerializableFixConfig],
+    env: &DeserializeEnv<L>,
+    transform: &Option<HashMap<String, Transformation>>,
+  ) -> Result<Vec<Self>, FixerError> {
+    list
+      .iter()
+      .map(|cfg| {
+        if cfg.title.is_none() {
+          return Err(FixerError::MissingTitle);
+        }
+        Self::do_parse(cfg, env, transform)
+      })
+      .collect()
   }
 
   pub(crate) fn with_transform<L: Language>(
@@ -308,6 +325,29 @@ mod test {
     assert_eq!(text, "c: 456");
     assert_eq!(edit.position, 10);
     assert_eq!(edit.deleted_length, 7);
+    Ok(())
+  }
+
+  #[test]
+  fn test_fixer_list() -> Result<(), FixerError> {
+    let config: SerializableFixer = from_str(
+      r"
+- { template: 'abc', title: 'fixer 1'}
+- { template: 'def', title: 'fixer 2'}",
+    )
+    .expect("should parse");
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let fixers = Fixer::parse(&config, &env, &Some(Default::default()))?;
+    assert_eq!(fixers.len(), 2);
+    let config: SerializableFixer = from_str(
+      r"
+- { template: 'abc', title: 'fixer 1'}
+- { template: 'def'}",
+    )
+    .expect("should parse");
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ret = Fixer::parse(&config, &env, &Some(Default::default()));
+    assert!(ret.is_err());
     Ok(())
   }
 }
