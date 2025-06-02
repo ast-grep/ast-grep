@@ -572,6 +572,12 @@
         },
         "template": {
           "type": "string"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     },
@@ -583,6 +589,12 @@
         },
         {
           "$ref": "#/definitions/SerializableFixConfig"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SerializableFixConfig"
+          }
         }
       ]
     },

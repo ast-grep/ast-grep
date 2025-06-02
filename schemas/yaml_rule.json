@@ -395,6 +395,7 @@
             "tag_directive",
             "tag_handle",
             "tag_prefix",
+            "timestamp_scalar",
             "yaml_directive",
             "yaml_version"
           ],
@@ -543,6 +544,12 @@
         },
         "template": {
           "type": "string"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     },
@@ -554,6 +561,12 @@
         },
         {
           "$ref": "#/definitions/SerializableFixConfig"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SerializableFixConfig"
+          }
         }
       ]
     },
@@ -793,6 +806,7 @@
             "tag_directive",
             "tag_handle",
             "tag_prefix",
+            "timestamp_scalar",
             "yaml_directive",
             "yaml_version"
           ],
