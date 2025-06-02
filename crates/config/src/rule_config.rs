@@ -78,6 +78,7 @@ pub struct SerializableRuleConfig<L: Language> {
   #[serde(default)]
   pub message: String,
   /// Additional notes to elaborate the message and provide potential fix to the issue.
+  /// `notes` can contain markdown syntax, but it cannot reference meta-variables.
   pub note: Option<String>,
   /// One of: hint, info, warning, or error
   #[serde(default)]
