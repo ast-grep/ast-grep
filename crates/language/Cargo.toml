@@ -17,7 +17,7 @@ ignore.workspace = true
 serde.workspace = true
 tree-sitter.workspace = true
 
-tree-sitter-bash = { version = "0.23.0", optional = true }
+tree-sitter-bash = { version = "0.25.0", optional = true }
 tree-sitter-c = { version = "0.24.0", optional = true }
 tree-sitter-cpp = { version = "0.23.0", optional = true }
 tree-sitter-c-sharp = { version = "0.23.0", optional = true }
