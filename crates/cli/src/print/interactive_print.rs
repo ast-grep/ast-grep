@@ -86,12 +86,13 @@ impl InteractivePrinter {
 
   fn process_diffs(&mut self, diffs: Diffs<Buffer>) -> Result<()> {
     let path = diffs.path.clone();
-    let (confirmed, all) = process_diffs_interactive(self, diffs)?;
+    let (confirmed, quit) = process_diffs_interactive(self, diffs)?;
     self.rewrite_action(confirmed, &path)?;
-    if all {
-      self.accept_all = true;
+    if quit {
+      Err(anyhow::anyhow!("Exit interactive editing"))
+    } else {
+      Ok(())
     }
-    Ok(())
   }
 }
 
@@ -262,25 +263,28 @@ fn process_diffs_interactive(
   diffs: Diffs<Buffer>,
 ) -> Result<(Diffs<()>, bool)> {
   let mut confirmed = vec![];
-  let mut all = interactive.accept_all;
   let mut end = 0;
+  let mut quit = false;
   let path = diffs.path;
   for diff in diffs.contents {
     if diff.range.start < end {
       continue;
     }
-    let to_confirm = if all {
+    let to_confirm = if interactive.accept_all {
       diff.split().0
     } else {
       use InteractionChoice as IC;
       match print_diff_and_prompt_action(interactive, &path, diff)? {
         IC::Yes(c) => c,
-        IC::No => continue,
         IC::All(c) => {
-          all = true;
+          interactive.accept_all = true;
           c
         }
-        IC::Quit => break,
+        IC::No => continue,
+        IC::Quit => {
+          quit = true;
+          break;
+        }
       }
     };
     end = to_confirm.range.end;
@@ -292,7 +296,7 @@ fn process_diffs_interactive(
     old_source: diffs.old_source,
     contents: confirmed,
   };
-  Ok((diffs, all))
+  Ok((diffs, quit))
 }
 
 enum InteractionChoice {
