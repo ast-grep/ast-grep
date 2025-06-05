@@ -3,12 +3,15 @@ use ast_grep_language::SupportLang;
 use ast_grep_lsp::*;
 use serde_json::Value;
 use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt, DuplexStream};
+use tower_lsp_server::lsp_types::*;
+use std::str::FromStr;
 
 use std::path::Path;
 
 pub fn req(msg: &str) -> String {
   format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg)
 }
+
 
 // parse json rpc format
 pub fn parse_jsonrpc(input: &mut &str) -> Option<Value> {
@@ -58,6 +61,7 @@ fn req_resp_should_work() {
 pub struct LspClient {
   req_client: DuplexStream,
   resp_client: DuplexStream,
+  next_id: i32,
 }
 
 impl LspClient {
@@ -94,109 +98,105 @@ fix: |
     LspClient {
       req_client,
       resp_client,
+      next_id: 1,
     }
   }
-  pub async fn initialize(&mut self) -> Vec<u8> {
-    let initialize = r#"{
-        "jsonrpc":"2.0",
-        "id": 1,
-        "method": "initialize",
-        "params": {
-          "capabilities": {
-            "textDocumentSync": 1
-          }
-        }
-      }"#;
+
+  async fn send_request<T: serde::Serialize>(&mut self, method: &str, params: T) -> Vec<u8> {
+    let id = self.next_id;
+    self.next_id += 1;
+    
+    let request = serde_json::json!({
+      "jsonrpc": "2.0",
+      "id": id,
+      "method": method,
+      "params": params
+    });
+    let request = req(&serde_json::to_string(&request).unwrap());
     let mut buf = vec![0; 1024];
 
     self.req_client
-      .write_all(req(initialize).as_bytes())
+      .write_all(request.as_bytes())
       .await
       .unwrap();
     let _ = self.resp_client.read(&mut buf).await.unwrap();
 
     buf
+  }
+
+  pub async fn initialize(&mut self) -> Vec<u8> {
+    let params = InitializeParams {
+      capabilities: ClientCapabilities {
+        text_document: Some(TextDocumentClientCapabilities {
+          synchronization: Some(TextDocumentSyncClientCapabilities::default()),
+          ..Default::default()
+        }),
+        ..Default::default()
+      },
+      workspace_folders: Some(vec![]),
+      ..Default::default()
+    };
+    
+    self.send_request("initialize", params).await
   }
 
   pub async fn request_code_action(&mut self) -> Vec<u8> {
-    let code_action_request = r#"{
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "textDocument/codeAction",
-        "params": {
-          "range": {
-            "end": {
-              "character": 10,
-              "line": 1
+    let params = CodeActionParams {
+      text_document: TextDocumentIdentifier {
+        uri: Uri::from_str("file:///Users/codes/ast-grep-vscode/test.tsx").unwrap(),
+      },
+      range: Range {
+        start: Position {
+          line: 1,
+          character: 10,
+        },
+        end: Position {
+          line: 1,
+          character: 10,
+        },
+      },
+      context: CodeActionContext {
+        diagnostics: vec![Diagnostic {
+          range: Range {
+            start: Position {
+              line: 0,
+              character: 0,
             },
-            "start": {
-              "character": 10,
-              "line": 1
-            }
+            end: Position {
+              line: 0,
+              character: 16,
+            },
           },
-          "textDocument": {
-            "uri": "file:///Users/codes/ast-grep-vscode/test.tsx"
-          },
-          "context": {
-            "diagnostics": [
-              {
-                "range": {
-                  "start": {
-                    "line": 0,
-                    "character": 0
-                  },
-                  "end": {
-                    "line": 0,
-                    "character": 16
-                  }
-                },
-                "code": "no-console-rule",
-                "source": "ast-grep",
-                "message": "No console.log"
-              }
-            ],
-            "only": ["source.fixAll"]
-          }
-        }
-        }"#;
+          code: Some(NumberOrString::String("no-console-rule".to_string())),
+          source: Some("ast-grep".to_string()),
+          message: "No console.log".to_string(),
+          ..Default::default()
+        }],
+        only: Some(vec![CodeActionKind::SOURCE_FIX_ALL]),
+        ..Default::default()
+      },
+      work_done_progress_params: WorkDoneProgressParams::default(),
+      partial_result_params: PartialResultParams::default(),
+    };
 
-    let mut buf = vec![0; 1024];
-    self.req_client
-      .write_all(req(code_action_request).as_bytes())
-      .await
-      .unwrap();
-    let _ = self.resp_client.read(&mut buf).await.unwrap();
-
-    buf
+    self.send_request("textDocument/codeAction", params).await
   }
 
   pub async fn request_execute_command(&mut self) -> Vec<u8> {
-    let execute_command_request: &str = r#"
-    {
-      "jsonrpc": "2.0",
-      "id": 1,
-      "method": "workspace/executeCommand",
-      "params": {
-        "command": "ast-grep.applyAllFixes",
-        "arguments": [
-          {
-            "text": "class AstGrepTest {\n  test() {\n    console.log('Hello, world!')\n  }\n}\n\nclass AnotherCase {\n  get test2() {\n    return 123\n  }\n}\n\nconst NoProblemHere = {\n  test() {\n    if (Math.random() > 3) {\n      throw new Error('This is not an error')\n    }\n  },\n}\n",
-            "uri": "file:///Users/codes/ast-grep-vscode/fixture/test.ts",
-            "version": 1,
-            "languageId": "typescript"
-          }
-        ]
-      }
-    }
-    "#;
-    let mut buf = vec![0; 1024];
-    self.req_client
-      .write_all(req(execute_command_request).as_bytes())
-      .await
-      .unwrap();
-    let _ = self.resp_client.read(&mut buf).await.unwrap();
+    let text_doc_item = TextDocumentItem {
+      uri: Uri::from_str("file:///Users/codes/ast-grep-vscode/fixture/test.ts").unwrap(),
+      language_id: "typescript".to_string(),
+      version: 1,
+      text: "class AstGrepTest {\n  test() {\n    console.log('Hello, world!')\n  }\n}\n\nclass AnotherCase {\n  get test2() {\n    return 123\n  }\n}\n\nconst NoProblemHere = {\n  test() {\n    if (Math.random() > 3) {\n      throw new Error('This is not an error')\n    }\n  },\n}\n".to_string(),
+    };
+    
+    let params = ExecuteCommandParams {
+      command: "ast-grep.applyAllFixes".to_string(),
+      arguments: vec![serde_json::to_value(text_doc_item).unwrap()],
+      work_done_progress_params: WorkDoneProgressParams::default(),
+    };
 
-    buf
+    self.send_request("workspace/executeCommand", params).await
   }
 }
 
