@@ -55,10 +55,16 @@ fn req_resp_should_work() {
   )
 }
 
-pub fn create_lsp() -> (DuplexStream, DuplexStream) {
-  let globals = GlobalRules::default();
-  let config: RuleConfig<SupportLang> = from_yaml_string(
-    r"
+pub struct LspClient {
+  req_client: DuplexStream,
+  resp_client: DuplexStream,
+}
+
+impl LspClient {
+  pub fn new() -> Self {
+    let globals = GlobalRules::default();
+    let config: RuleConfig<SupportLang> = from_yaml_string(
+      r"
 id: no-console-rule
 message: No console.log
 severity: warning
@@ -69,143 +75,137 @@ note: no console.log
 fix: |
   alert($$$A)
 ",
-    &globals,
-  )
-  .unwrap()
-  .pop()
-  .unwrap();
-  let base = Path::new("./").to_path_buf();
-  let rc: RuleCollection<SupportLang> = RuleCollection::try_new(vec![config]).unwrap();
-  let rc_result: std::result::Result<_, String> = Ok(rc);
-  let (service, socket) =
-    LspService::build(|client| Backend::new(client, base, rc_result)).finish();
-  let (req_client, req_server) = duplex(1024);
-  let (resp_server, resp_client) = duplex(1024);
-
-  // start server as concurrent task
-  tokio::spawn(Server::new(req_server, resp_server, socket).serve(service));
-
-  (req_client, resp_client)
-}
-
-pub async fn initialize_lsp(
-  req_client: &mut DuplexStream,
-  resp_client: &mut DuplexStream,
-) -> Vec<u8> {
-  let initialize = r#"{
-      "jsonrpc":"2.0",
-      "id": 1,
-      "method": "initialize",
-      "params": {
-        "capabilities": {
-          "textDocumentSync": 1
-        }
-      }
-    }"#;
-  let mut buf = vec![0; 1024];
-
-  req_client
-    .write_all(req(initialize).as_bytes())
-    .await
+      &globals,
+    )
+    .unwrap()
+    .pop()
     .unwrap();
-  let _ = resp_client.read(&mut buf).await.unwrap();
+    let base = Path::new("./").to_path_buf();
+    let rc: RuleCollection<SupportLang> = RuleCollection::try_new(vec![config]).unwrap();
+    let rc_result: std::result::Result<_, String> = Ok(rc);
+    let (service, socket) =
+      LspService::build(|client| Backend::new(client, base, rc_result)).finish();
+    let (req_client, req_server) = duplex(1024);
+    let (resp_server, resp_client) = duplex(1024);
 
-  buf
-}
+    // start server as concurrent task
+    tokio::spawn(Server::new(req_server, resp_server, socket).serve(service));
 
-pub async fn request_code_action_to_lsp(
-  req_client: &mut DuplexStream,
-  resp_client: &mut DuplexStream,
-) -> Vec<u8> {
-  let code_action_request = r#"{
-      "jsonrpc": "2.0",
-      "id": 1,
-      "method": "textDocument/codeAction",
-      "params": {
-        "range": {
-          "end": {
-            "character": 10,
-            "line": 1
-          },
-          "start": {
-            "character": 10,
-            "line": 1
-          }
-        },
-        "textDocument": {
-          "uri": "file:///Users/codes/ast-grep-vscode/test.tsx"
-        },
-        "context": {
-          "diagnostics": [
-            {
-              "range": {
-                "start": {
-                  "line": 0,
-                  "character": 0
-                },
-                "end": {
-                  "line": 0,
-                  "character": 16
-                }
-              },
-              "code": "no-console-rule",
-              "source": "ast-grep",
-              "message": "No console.log"
-            }
-          ],
-          "only": ["source.fixAll"]
-        }
-      }
-      }"#;
-
-  let mut buf = vec![0; 1024];
-  req_client
-    .write_all(req(code_action_request).as_bytes())
-    .await
-    .unwrap();
-  let _ = resp_client.read(&mut buf).await.unwrap();
-
-  buf
-}
-
-pub async fn request_execute_command_to_lsp(
-  req_client: &mut DuplexStream,
-  resp_client: &mut DuplexStream,
-) -> Vec<u8> {
-  let execute_command_request: &str = r#"
-  {
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "workspace/executeCommand",
-    "params": {
-      "command": "ast-grep.applyAllFixes",
-      "arguments": [
-        {
-          "text": "class AstGrepTest {\n  test() {\n    console.log('Hello, world!')\n  }\n}\n\nclass AnotherCase {\n  get test2() {\n    return 123\n  }\n}\n\nconst NoProblemHere = {\n  test() {\n    if (Math.random() > 3) {\n      throw new Error('This is not an error')\n    }\n  },\n}\n",
-          "uri": "file:///Users/codes/ast-grep-vscode/fixture/test.ts",
-          "version": 1,
-          "languageId": "typescript"
-        }
-      ]
+    LspClient {
+      req_client,
+      resp_client,
     }
   }
-  "#;
-  let mut buf = vec![0; 1024];
-  req_client
-    .write_all(req(execute_command_request).as_bytes())
-    .await
-    .unwrap();
-  let _ = resp_client.read(&mut buf).await.unwrap();
+  pub async fn initialize(&mut self) -> Vec<u8> {
+    let initialize = r#"{
+        "jsonrpc":"2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "capabilities": {
+            "textDocumentSync": 1
+          }
+        }
+      }"#;
+    let mut buf = vec![0; 1024];
 
-  buf
+    self.req_client
+      .write_all(req(initialize).as_bytes())
+      .await
+      .unwrap();
+    let _ = self.resp_client.read(&mut buf).await.unwrap();
+
+    buf
+  }
+
+  pub async fn request_code_action(&mut self) -> Vec<u8> {
+    let code_action_request = r#"{
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "textDocument/codeAction",
+        "params": {
+          "range": {
+            "end": {
+              "character": 10,
+              "line": 1
+            },
+            "start": {
+              "character": 10,
+              "line": 1
+            }
+          },
+          "textDocument": {
+            "uri": "file:///Users/codes/ast-grep-vscode/test.tsx"
+          },
+          "context": {
+            "diagnostics": [
+              {
+                "range": {
+                  "start": {
+                    "line": 0,
+                    "character": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "character": 16
+                  }
+                },
+                "code": "no-console-rule",
+                "source": "ast-grep",
+                "message": "No console.log"
+              }
+            ],
+            "only": ["source.fixAll"]
+          }
+        }
+        }"#;
+
+    let mut buf = vec![0; 1024];
+    self.req_client
+      .write_all(req(code_action_request).as_bytes())
+      .await
+      .unwrap();
+    let _ = self.resp_client.read(&mut buf).await.unwrap();
+
+    buf
+  }
+
+  pub async fn request_execute_command(&mut self) -> Vec<u8> {
+    let execute_command_request: &str = r#"
+    {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "workspace/executeCommand",
+      "params": {
+        "command": "ast-grep.applyAllFixes",
+        "arguments": [
+          {
+            "text": "class AstGrepTest {\n  test() {\n    console.log('Hello, world!')\n  }\n}\n\nclass AnotherCase {\n  get test2() {\n    return 123\n  }\n}\n\nconst NoProblemHere = {\n  test() {\n    if (Math.random() > 3) {\n      throw new Error('This is not an error')\n    }\n  },\n}\n",
+            "uri": "file:///Users/codes/ast-grep-vscode/fixture/test.ts",
+            "version": 1,
+            "languageId": "typescript"
+          }
+        ]
+      }
+    }
+    "#;
+    let mut buf = vec![0; 1024];
+    self.req_client
+      .write_all(req(execute_command_request).as_bytes())
+      .await
+      .unwrap();
+    let _ = self.resp_client.read(&mut buf).await.unwrap();
+
+    buf
+  }
 }
 
 #[test]
 fn test_basic() {
   tokio::runtime::Runtime::new().unwrap().block_on(async {
-    let (mut req_client, mut resp_client) = create_lsp();
+    let mut lsp_client = LspClient::new();
 
-    let buf = initialize_lsp(&mut req_client, &mut resp_client).await;
+    let buf = lsp_client.initialize().await;
 
     assert!(!resp(&buf).is_empty());
   });
@@ -215,11 +215,11 @@ fn test_basic() {
 #[ignore = "fixAll conflicts with quickfix"]
 fn test_code_action() {
   tokio::runtime::Runtime::new().unwrap().block_on(async {
-    let (mut req_client, mut resp_client) = create_lsp();
+    let mut lsp_client = LspClient::new();
 
-    initialize_lsp(&mut req_client, &mut resp_client).await;
+    lsp_client.initialize().await;
 
-    let buf = request_code_action_to_lsp(&mut req_client, &mut resp_client).await;
+    let buf = lsp_client.request_code_action().await;
     // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"Running CodeAction source.fixAll","type":3}}
     let resp_list = resp(&buf);
 
@@ -238,11 +238,11 @@ fn test_code_action() {
 #[test]
 fn test_execute_apply_all_fixes() {
   tokio::runtime::Runtime::new().unwrap().block_on(async {
-    let (mut req_client, mut resp_client) = create_lsp();
+    let mut lsp_client = LspClient::new();
 
-    initialize_lsp(&mut req_client, &mut resp_client).await;
+    lsp_client.initialize().await;
 
-    let buf = request_execute_command_to_lsp(&mut req_client, &mut resp_client).await;
+    let buf = lsp_client.request_execute_command().await;
 
     // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"Running ExecuteCommand ast-grep.applyAllFixes","type":3}}
     let resp_list = resp(&buf);
