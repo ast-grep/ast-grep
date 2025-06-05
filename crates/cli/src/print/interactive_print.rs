@@ -139,6 +139,16 @@ impl<D> InteractiveDiff<D> {
       display,
     }
   }
+
+  fn split(self) -> (InteractiveDiff<()>, D) {
+    let pure = InteractiveDiff {
+      first_line: self.first_line,
+      range: self.range,
+      replacement: self.replacement,
+      display: (),
+    };
+    (pure, self.display)
+  }
 }
 
 pub struct Highlights<D> {
@@ -259,22 +269,23 @@ fn process_diffs_interactive(
     if diff.range.start < end {
       continue;
     }
-    let to_confirm = InteractiveDiff {
-      first_line: diff.first_line,
-      range: diff.range.clone(),
-      replacement: diff.replacement.clone(),
-      display: (),
+    let to_confirm = if all {
+      diff.split().0
+    } else {
+      use InteractionChoice as IC;
+      match print_diff_and_prompt_action(interactive, &path, diff)? {
+        IC::Yes(c) => c,
+        IC::No => continue,
+        IC::All(c) => {
+          all = true;
+          c
+        }
+        IC::Quit => break,
+      }
     };
-    let confirm = all || {
-      let (accept_curr, accept_all) = print_diff_and_prompt_action(interactive, &path, diff)?;
-      all = accept_all;
-      accept_curr
-    };
-    if confirm {
-      end = to_confirm.range.end;
-      confirmed.push(to_confirm);
-      interactive.committed_cnt = interactive.committed_cnt.saturating_add(1);
-    }
+    end = to_confirm.range.end;
+    confirmed.push(to_confirm);
+    interactive.committed_cnt = interactive.committed_cnt.saturating_add(1);
   }
   let diffs = Diffs {
     path,
@@ -283,27 +294,37 @@ fn process_diffs_interactive(
   };
   Ok((diffs, all))
 }
+
+enum InteractionChoice {
+  Yes(InteractiveDiff<()>),
+  All(InteractiveDiff<()>),
+  No,
+  Quit,
+}
+
 /// returns if accept_current and accept_all
 fn print_diff_and_prompt_action(
   interactive: &mut InteractivePrinter,
   path: &Path,
   processed: InteractiveDiff<Buffer>,
-) -> Result<(bool, bool)> {
+) -> Result<InteractionChoice> {
   utils::run_in_alternate_screen(|| {
     let printer = &mut interactive.inner;
-    printer.process(processed.display)?;
-    match interactive.prompt_edit() {
-      'y' => Ok((true, false)),
-      'a' => Ok((true, true)),
+    let (confirmed, display) = processed.split();
+    printer.process(display)?;
+    let ret = match interactive.prompt_edit() {
+      'y' => InteractionChoice::Yes(confirmed),
+      'a' => InteractionChoice::All(confirmed),
       'e' => {
-        let pos = processed.first_line;
+        let pos = confirmed.first_line;
         open_in_editor(path, pos)?;
-        Ok((false, false))
+        InteractionChoice::No
       }
-      'q' => Err(anyhow::anyhow!("Exit interactive editing")),
-      'n' => Ok((false, false)),
-      _ => Ok((false, false)),
-    }
+      'q' => InteractionChoice::Quit,
+      'n' => InteractionChoice::No,
+      _ => return Err(anyhow::anyhow!("Unexpected choice")),
+    };
+    Ok(ret)
   })
 }
 
