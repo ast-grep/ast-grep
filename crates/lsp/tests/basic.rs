@@ -258,7 +258,7 @@ fn test_execute_apply_all_fixes() {
       )
       .await;
 
-    let result = lsp_client.request_execute_command(test_uri, test_content.to_string()).await,
+    let result = lsp_client.request_execute_command(test_uri, test_content.to_string()).await;
 
     // The executeCommand should return None (or we timed out)
     assert!(result.is_none());
