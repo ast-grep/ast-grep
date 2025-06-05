@@ -62,11 +62,11 @@ pub fn try_parse_request(message: &Value) -> Option<JsonRpcRequest> {
   if !is_request(message) {
     return None;
   }
-  
+
   let id = message.get("id")?.as_i64()?;
   let method = message.get("method")?.as_str()?.to_string();
   let params = message.get("params").cloned().unwrap_or(Value::Null);
-  
+
   Some(JsonRpcRequest { id, method, params })
 }
 
@@ -74,11 +74,11 @@ pub fn try_parse_response(message: &Value) -> Option<JsonRpcResponse> {
   if !is_response(message) {
     return None;
   }
-  
+
   let id = message.get("id")?.as_i64()?;
   let result = message.get("result").cloned();
   let error = message.get("error").cloned();
-  
+
   Some(JsonRpcResponse { id, result, error })
 }
 
@@ -86,9 +86,9 @@ pub fn try_parse_notification(message: &Value) -> Option<JsonRpcNotification> {
   if !is_notification(message) {
     return None;
   }
-  
+
   let method = message.get("method")?.as_str()?.to_string();
   let params = message.get("params").cloned().unwrap_or(Value::Null);
-  
+
   Some(JsonRpcNotification { method, params })
 }

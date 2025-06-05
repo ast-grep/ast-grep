@@ -146,11 +146,12 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       .await;
   }
   async fn did_open(&self, params: DidOpenTextDocumentParams) {
-    self
-      .client
-      .log_message(MessageType::INFO, "file opened!")
-      .await;
-    self.on_open(params).await;
+    eprintln!(
+      "SERVER: did_open called for: {:?}",
+      params.text_document.uri
+    );
+    let result = self.on_open(params).await;
+    eprintln!("SERVER: did_open completed, result: {:?}", result.is_some());
   }
 
   async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -314,15 +315,31 @@ impl<L: LSPLang> Backend<L> {
   }
 
   async fn get_path_of_first_workspace(&self) -> Option<std::path::PathBuf> {
-    let folders = self.client.workspace_folders().await.ok()??;
+    eprintln!("SERVER: get_path_of_first_workspace calling workspace_folders()");
+    let result = self.client.workspace_folders().await;
+    eprintln!("SERVER: workspace_folders() result: {:?}", result);
+    let folders = result.ok()??;
+    eprintln!(
+      "SERVER: get_path_of_first_workspace got folders: {:?}",
+      folders
+    );
     let folder = folders.first()?;
-    folder.uri.to_file_path().map(PathBuf::from)
+    let path = folder.uri.to_file_path().map(PathBuf::from)?;
+    eprintln!(
+      "SERVER: get_path_of_first_workspace first workspace path: {:?}",
+      path
+    );
+    Some(path)
   }
 
   // skip files outside of workspace root #1382, #1402
   async fn should_skip_file_outside_workspace(&self, text_doc: &TextDocumentItem) -> Option<()> {
     let workspace_root = self.get_path_of_first_workspace().await?;
     let doc_file_path = text_doc.uri.to_file_path()?;
+    eprintln!(
+      "SERVER: workspace check: root={:?}, file={:?}",
+      workspace_root, doc_file_path
+    );
     if doc_file_path.starts_with(workspace_root) {
       None
     } else {
@@ -332,13 +349,17 @@ impl<L: LSPLang> Backend<L> {
 
   async fn on_open(&self, params: DidOpenTextDocumentParams) -> Option<()> {
     let text_doc = params.text_document;
+    eprintln!("SERVER: on_open processing {:?}", text_doc.uri);
+
     if self
       .should_skip_file_outside_workspace(&text_doc)
       .await
       .is_some()
     {
+      eprintln!("SERVER: on_open file skipped - outside workspace");
       return None;
     }
+    eprintln!("SERVER: on_open file passed workspace check");
     let uri = text_doc.uri.as_str().to_owned();
     let text = text_doc.text;
     self
@@ -402,13 +423,17 @@ impl<L: LSPLang> Backend<L> {
     L: ast_grep_core::Language + std::cmp::Eq,
   {
     let uri = text_document.uri;
-    let versioned = self
-      .map
-      .get(uri.as_str())
-      .ok_or(LspError::UnsupportedFileType)?;
-    let mut diagnostics = self
-      .get_diagnostics(&uri, &versioned)
-      .ok_or(LspError::NoActionableFix)?;
+    eprintln!("SERVER: compute_all_fixes for URI: {:?}", uri);
+    let versioned = self.map.get(uri.as_str()).ok_or_else(|| {
+      eprintln!("SERVER: File not found in server map: {:?}", uri);
+      LspError::UnsupportedFileType
+    })?;
+    eprintln!("SERVER: Found file in map, version: {}", versioned.version);
+    let mut diagnostics = self.get_diagnostics(&uri, &versioned).ok_or_else(|| {
+      eprintln!("SERVER: No diagnostics found for file: {:?}", uri);
+      LspError::NoActionableFix
+    })?;
+    eprintln!("DEBUG: Found {} diagnostics", diagnostics.len());
     diagnostics.sort_by_key(|d| (d.range.start, d.range.end));
     let mut last = Position {
       line: 0,
@@ -542,14 +567,47 @@ impl<L: LSPLang> Backend<L> {
       )
       .await;
     let first = arguments.first()?.clone();
+    self
+      .client
+      .log_message(
+        MessageType::INFO,
+        format!(
+          "DEBUG: Calling on_apply_all_fix_impl with argument: {:?}",
+          first
+        ),
+      )
+      .await;
     let workspace_edit = match self.on_apply_all_fix_impl(first).await {
-      Ok(workspace_edit) => workspace_edit,
+      Ok(workspace_edit) => {
+        self
+          .client
+          .log_message(
+            MessageType::INFO,
+            format!("DEBUG: Successfully created workspace edit, calling apply_edit"),
+          )
+          .await;
+        workspace_edit
+      }
       Err(error) => {
+        self
+          .client
+          .log_message(
+            MessageType::ERROR,
+            format!(
+              "DEBUG: on_apply_all_fix_impl failed with error: {:?}",
+              error
+            ),
+          )
+          .await;
         self.report_error(error).await;
         return None;
       }
     };
     self.client.apply_edit(workspace_edit).await.ok()?;
+    self
+      .client
+      .log_message(MessageType::INFO, format!("DEBUG: apply_edit completed"))
+      .await;
     None
   }
 
@@ -580,6 +638,7 @@ impl<L: LSPLang> Backend<L> {
   }
 }
 
+#[derive(Debug)]
 enum LspError {
   JSONDecodeError(serde_json::Error),
   UnsupportedFileType,
