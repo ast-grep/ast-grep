@@ -18,6 +18,7 @@ pub struct DiffStyles {
   // diff deletion style
   pub delete: Style,
   pub delete_emphasis: Style,
+  pub hunk_header: Style,
 }
 
 impl DiffStyles {
@@ -28,12 +29,14 @@ impl DiffStyles {
     static GREEN: Color = Color::Fixed(35);
     let insert = Style::new().fg(GREEN);
     let delete = Style::new().fg(RED);
+    let hunk_header = Style::new().fg(Color::Blue);
     Self {
       line_num: Style::new().dimmed(),
       insert,
       insert_emphasis: insert.on(SEA_GREEN).bold(),
       delete,
       delete_emphasis: delete.on(THISTLE1).bold(),
+      hunk_header,
     }
   }
   fn no_color() -> Self {
@@ -96,7 +99,7 @@ fn print_diff(
     let old_width = op.old_range().end.checked_ilog10().unwrap_or(0) as usize + 1;
     let new_width = op.new_range().end.checked_ilog10().unwrap_or(0) as usize + 1;
     let header = compute_header(&group);
-    writeln!(writer, "{}", Color::Blue.paint(header))?;
+    writeln!(writer, "{}", styles.hunk_header.paint(header))?;
     for op in group {
       for change in diff.iter_inline_changes(&op) {
         let (sign, s, em, line_num) = match change.tag() {

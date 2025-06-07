@@ -338,11 +338,12 @@ fn print_diff_and_prompt_action(
     }
     let mut index = 0;
     let len = to_confirm.len();
+    let titles: Vec<_> = to_confirm.iter().map(|d| d.title.as_deref()).collect();
     let ret = loop {
       let confirmed = to_confirm[index].clone();
       let display = display[index].clone();
       interactive.inner.process(display)?;
-      print_diff_title(&to_confirm, index);
+      print_diff_title(&titles, index);
       break match interactive.prompt_edit() {
         '\t' => {
           index = (index + 1) % len;
@@ -365,14 +366,14 @@ fn print_diff_and_prompt_action(
   })
 }
 
-fn print_diff_title(diffs: &[InteractiveDiff<()>], index: usize) {
+fn print_diff_title(diffs: &[Option<&str>], index: usize) {
   use ansi_term::{Color, Style};
   if diffs.len() <= 1 {
     return;
   }
   println!("{}", Style::new().italic().paint("Switch fix by [tab]"));
-  for (i, diff) in diffs.iter().enumerate() {
-    let title = diff.title.as_deref().unwrap_or("No title");
+  for (i, title) in diffs.iter().enumerate() {
+    let title = title.unwrap_or("No title");
     if i == index {
       let arrow = Color::Blue.paint("⇥");
       let title = Style::new().bold().underline().paint(title);
