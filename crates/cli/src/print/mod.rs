@@ -65,6 +65,7 @@ pub trait Printer {
 pub struct AdditionalFix {
   pub replacement: String,
   pub range: std::ops::Range<usize>,
+  pub title: Option<String>,
 }
 
 #[derive(Clone)]
@@ -74,6 +75,7 @@ pub struct Diff<'n> {
   /// string content for the replacement
   pub replacement: String,
   pub range: std::ops::Range<usize>,
+  pub title: Option<String>,
   pub additional_fixes: Option<Box<[AdditionalFix]>>,
 }
 
@@ -86,6 +88,7 @@ impl<'n> Diff<'n> {
       replacement,
       range: edit.position..edit.position + edit.deleted_length,
       additional_fixes: None,
+      title: rewrite.title().map(|t| t.to_string()),
     }
   }
 
@@ -108,6 +111,7 @@ impl<'n> Diff<'n> {
         AdditionalFix {
           replacement: String::from_utf8(edit.inserted_text).unwrap(),
           range: edit.position..edit.position + edit.deleted_length,
+          title: f.title().map(|t| t.to_string()),
         }
       })
       .collect::<Vec<_>>()
@@ -125,6 +129,7 @@ impl<'n> Diff<'n> {
       replacement: f.replacement,
       range: f.range,
       additional_fixes: None,
+      title: f.title,
     }));
     ret
   }

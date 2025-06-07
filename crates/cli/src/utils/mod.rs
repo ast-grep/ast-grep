@@ -43,6 +43,7 @@ fn read_char() -> Result<char> {
   loop {
     if let Event::Key(evt) = event::read()? {
       match evt.code {
+        KeyCode::Tab => break Ok('\t'),
         KeyCode::Enter => break Ok('\n'),
         KeyCode::Char(c) => break Ok(c),
         _ => (),
