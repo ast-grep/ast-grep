@@ -62,12 +62,19 @@ pub trait Printer {
 }
 
 #[derive(Clone)]
+pub struct AdditionalFix {
+  pub replacement: String,
+  pub range: std::ops::Range<usize>,
+}
+
+#[derive(Clone)]
 pub struct Diff<'n> {
   /// the matched node
   pub node_match: NodeMatch<'n>,
   /// string content for the replacement
   pub replacement: String,
   pub range: std::ops::Range<usize>,
+  pub additional_fixes: Option<Box<[AdditionalFix]>>,
 }
 
 impl<'n> Diff<'n> {
@@ -78,7 +85,48 @@ impl<'n> Diff<'n> {
       node_match,
       replacement,
       range: edit.position..edit.position + edit.deleted_length,
+      additional_fixes: None,
     }
+  }
+
+  pub fn mulitple(
+    node_match: NodeMatch<'n>,
+    matcher: &impl Matcher,
+    fixers: &[Fixer],
+  ) -> Option<Self> {
+    let fixer = fixers.first()?;
+    let mut ret = Self::generate(node_match.clone(), matcher, fixer);
+    // no additional fixes
+    if fixers.len() == 1 {
+      return Some(ret);
+    }
+    let additional = fixers
+      .iter()
+      .skip(1)
+      .map(|f| {
+        let edit = node_match.make_edit(matcher, f);
+        AdditionalFix {
+          replacement: String::from_utf8(edit.inserted_text).unwrap(),
+          range: edit.position..edit.position + edit.deleted_length,
+        }
+      })
+      .collect::<Vec<_>>()
+      .into_boxed_slice();
+    ret.additional_fixes = Some(additional);
+    Some(ret)
+  }
+
+  pub fn into_list(mut self) -> Vec<Self> {
+    let node_match = self.node_match.clone();
+    let additional_fixes = self.additional_fixes.take();
+    let mut ret = vec![self];
+    ret.extend(additional_fixes.into_iter().flatten().map(|f| Self {
+      node_match: node_match.clone(),
+      replacement: f.replacement,
+      range: f.range,
+      additional_fixes: None,
+    }));
+    ret
   }
 
   /// Returns the root doc source code
