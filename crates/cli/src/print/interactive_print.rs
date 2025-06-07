@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use ast_grep_config::RuleConfig;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::termcolor::{Buffer, StandardStream};
+use smallvec::{smallvec, SmallVec};
 
 use std::borrow::Cow;
 use std::ops::Range;
@@ -163,7 +164,7 @@ pub struct Diffs<D> {
   path: PathBuf,
   // TODO: this clone is slow
   old_source: String,
-  contents: Vec<Vec<InteractiveDiff<D>>>,
+  contents: Vec<SmallVec<[InteractiveDiff<D>; 1]>>,
 }
 
 pub enum InteractivePayload<D> {
@@ -222,7 +223,7 @@ where
     for diff in diffs {
       let display = self.inner.print_diffs(vec![diff.clone()], path)?;
       let content = InteractiveDiff::new(diff, display);
-      contents.push(vec![content]);
+      contents.push(smallvec![content]);
     }
     Ok(InteractivePayload::Diffs(Diffs {
       path: path.to_path_buf(),
@@ -239,7 +240,7 @@ where
     let mut contents = Vec::with_capacity(diffs.len());
     for (diff_list, rule) in diffs {
       let diffs = diff_list.into_list();
-      let content: Result<Vec<_>> = diffs
+      let content: Result<_> = diffs
         .into_iter()
         .map(|diff| {
           let display = self
@@ -300,7 +301,7 @@ fn process_diffs_interactive(
       }
     };
     end = to_confirm.range.end;
-    confirmed.push(vec![to_confirm]);
+    confirmed.push(smallvec![to_confirm]);
     interactive.committed_cnt = interactive.committed_cnt.saturating_add(1);
   }
   let diffs = Diffs {
@@ -427,7 +428,7 @@ language: TypeScript
       .visit(root)
       .map(|nm| {
         let diff = Diff::generate(nm, &matcher, fixer);
-        vec![InteractiveDiff {
+        smallvec![InteractiveDiff {
           first_line: 0,
           range: diff.range,
           replacement: diff.replacement,
