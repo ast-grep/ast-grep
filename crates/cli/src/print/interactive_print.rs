@@ -40,8 +40,8 @@ impl InteractivePrinter {
     if self.accept_all {
       return 'a';
     }
-    const EDIT_PROMPT: &str = "Accept change? (Yes[y], No[n], Accept All[a], Quit[q], Edit[e])";
-    utils::prompt(EDIT_PROMPT, "ynaqe ", Some('n')).expect("Error happened during prompt")
+    const EDIT_PROMPT: &str = "Accept? [y]es/[↵], [n]o, [a]ll, [q]uit, [e]dit";
+    utils::prompt(EDIT_PROMPT, "ynaqe\t", Some('y')).expect("Error happened during prompt")
   }
 
   fn prompt_view(&self) -> char {
@@ -130,6 +130,7 @@ pub struct InteractiveDiff<D> {
   replacement: String,
   range: Range<usize>,
   first_line: usize,
+  title: Option<String>,
   display: D,
 }
 
@@ -139,6 +140,7 @@ impl<D> InteractiveDiff<D> {
       first_line: diff.node_match.start_pos().line(),
       replacement: diff.replacement,
       range: diff.range,
+      title: diff.title,
       display,
     }
   }
@@ -148,6 +150,7 @@ impl<D> InteractiveDiff<D> {
       first_line: self.first_line,
       range: self.range,
       replacement: self.replacement,
+      title: self.title,
       display: (),
     };
     (pure, self.display)
@@ -326,21 +329,22 @@ fn print_diff_and_prompt_action(
   processed: Vec<InteractiveDiff<Buffer>>,
 ) -> Result<InteractionChoice> {
   utils::run_in_alternate_screen(|| {
-    let mut confirmed = Vec::with_capacity(processed.len());
+    let mut to_confirm = Vec::with_capacity(processed.len());
     let mut display = Vec::with_capacity(processed.len());
     for diff in processed {
       let (c, d) = diff.split();
-      confirmed.push(c);
+      to_confirm.push(c);
       display.push(d);
     }
     let mut index = 0;
-    let len = confirmed.len();
+    let len = to_confirm.len();
     let ret = loop {
-      let confirmed = confirmed[index].clone();
+      let confirmed = to_confirm[index].clone();
       let display = display[index].clone();
       interactive.inner.process(display)?;
+      print_diff_title(&to_confirm, index);
       break match interactive.prompt_edit() {
-        ' ' => {
+        '\t' => {
           index = (index + 1) % len;
           clear()?;
           continue;
@@ -359,6 +363,25 @@ fn print_diff_and_prompt_action(
     };
     Ok(ret)
   })
+}
+
+fn print_diff_title(diffs: &[InteractiveDiff<()>], index: usize) {
+  use ansi_term::{Color, Style};
+  if diffs.len() <= 1 {
+    return;
+  }
+  println!("{}", Style::new().italic().paint("Switch fix by [tab]"));
+  for (i, diff) in diffs.iter().enumerate() {
+    let title = diff.title.as_deref().unwrap_or("No title");
+    if i == index {
+      let arrow = Color::Blue.paint("⇥");
+      let title = Style::new().bold().underline().paint(title);
+      println!("{arrow} {title}");
+    } else {
+      println!("  {title}");
+    }
+  }
+  println!()
 }
 
 fn apply_rewrite(diffs: Diffs<()>) -> String {
@@ -432,6 +455,7 @@ language: TypeScript
           first_line: 0,
           range: diff.range,
           replacement: diff.replacement,
+          title: diff.title,
           display: (),
         }]
       })
