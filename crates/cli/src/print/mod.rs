@@ -92,7 +92,7 @@ impl<'n> Diff<'n> {
     }
   }
 
-  pub fn mulitple(
+  pub fn multiple(
     node_match: NodeMatch<'n>,
     matcher: &impl Matcher,
     fixers: &[Fixer],

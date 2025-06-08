@@ -305,7 +305,7 @@ fn match_rule_diff_on_file<T>(
     .into_iter()
     .filter_map(|(rule, m)| {
       let fixers = &rule.matcher.fixer;
-      let diff = Diff::mulitple(m, &rule.matcher, fixers)?;
+      let diff = Diff::multiple(m, &rule.matcher, fixers)?;
       Some((diff, rule))
     })
     .collect();
