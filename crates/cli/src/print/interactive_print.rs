@@ -343,7 +343,7 @@ fn print_diff_and_prompt_action(
       let confirmed = to_confirm[index].clone();
       let display = display[index].clone();
       interactive.inner.process(display)?;
-      print_diff_title(&titles, index);
+      interactive.inner.print_diff_title(&titles, index)?;
       break match interactive.prompt_edit() {
         '\t' => {
           index = (index + 1) % len;
@@ -364,25 +364,6 @@ fn print_diff_and_prompt_action(
     };
     Ok(ret)
   })
-}
-
-fn print_diff_title(diffs: &[Option<&str>], index: usize) {
-  use ansi_term::{Color, Style};
-  if diffs.len() <= 1 {
-    return;
-  }
-  println!("{}", Style::new().italic().paint("Switch fix by [tab]"));
-  for (i, title) in diffs.iter().enumerate() {
-    let title = title.unwrap_or("No title");
-    if i == index {
-      let arrow = Color::Blue.paint("⇥");
-      let title = Style::new().bold().underline().paint(title);
-      println!("{arrow} {title}");
-    } else {
-      println!("  {title}");
-    }
-  }
-  println!()
 }
 
 fn apply_rewrite(diffs: Diffs<()>) -> String {

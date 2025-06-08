@@ -19,6 +19,7 @@ pub struct DiffStyles {
   pub delete: Style,
   pub delete_emphasis: Style,
   pub hunk_header: Style,
+  pub select_fix: Style,
 }
 
 impl DiffStyles {
@@ -30,6 +31,7 @@ impl DiffStyles {
     let insert = Style::new().fg(GREEN);
     let delete = Style::new().fg(RED);
     let hunk_header = Style::new().fg(Color::Blue);
+    let select_fix = Style::new().underline().bold();
     Self {
       line_num: Style::new().dimmed(),
       insert,
@@ -37,6 +39,7 @@ impl DiffStyles {
       delete,
       delete_emphasis: delete.on(THISTLE1).bold(),
       hunk_header,
+      select_fix,
     }
   }
   fn no_color() -> Self {
