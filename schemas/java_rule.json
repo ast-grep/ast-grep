@@ -89,7 +89,7 @@
       ]
     },
     "note": {
-      "description": "Additional notes to elaborate the message and provide potential fix to the issue.",
+      "description": "Additional notes to elaborate the message and provide potential fix to the issue. `notes` can contain markdown syntax, but it cannot reference meta-variables.",
       "type": [
         "string",
         "null"
