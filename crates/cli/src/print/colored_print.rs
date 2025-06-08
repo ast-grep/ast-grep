@@ -131,6 +131,29 @@ impl ColoredPrinter<StandardStream> {
     let color = color.into();
     ColoredPrinter::new(StandardStream::stdout(color)).color(color)
   }
+
+  /// Print the title of fixes
+  pub fn print_diff_title(&mut self, diffs: &[Option<&str>], index: usize) -> Result<()> {
+    if diffs.len() <= 1 {
+      return Ok(());
+    }
+    let note_style = self.styles.rule.note;
+    let hunk_style = self.styles.diff.hunk_header;
+    let select_style = self.styles.diff.select_fix;
+    writeln!(self.writer, "{}", note_style.paint("Switch fix by [tab]:"))?;
+    for (i, title) in diffs.iter().enumerate() {
+      let title = title.unwrap_or("No title");
+      if i == index {
+        let arrow = hunk_style.paint("⇥");
+        let title = select_style.paint(title);
+        writeln!(self.writer, "{arrow} {title}")?;
+      } else {
+        writeln!(self.writer, "  {title}")?;
+      }
+    }
+    writeln!(self.writer)?;
+    Ok(())
+  }
 }
 
 fn create_buffer(color: bool) -> Buffer {
