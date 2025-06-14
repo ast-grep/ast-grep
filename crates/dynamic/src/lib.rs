@@ -87,7 +87,7 @@ impl FromStr for DynamicLang {
         });
       }
     }
-    Err(format!("unknow language `{name}`."))
+    Err(format!("unknown language `{name}`."))
   }
 }
 
