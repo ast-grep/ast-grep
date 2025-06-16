@@ -124,13 +124,14 @@ fn setup_project_is_possible(args: &[String]) -> Result<Result<ProjectConfig>> {
 // this wrapper function is for testing
 pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
   let args: Vec<_> = args.collect();
-  let project = setup_project_is_possible(&args)?;
-  // register_custom_language_if_is_run(&args)?;
+  // do not unwrap project before cmd parsing
+  // sg help does not need a valid sgconfig.yml
+  let project = setup_project_is_possible(&args);
   if let Some(arg) = try_default_run(&args)? {
-    return run_with_pattern(arg, project);
+    return run_with_pattern(arg, project?);
   }
-
   let app = App::try_parse_from(args)?;
+  let project = project?; // unwrap here to report invalid project
   match app.command {
     Commands::Run(arg) => run_with_pattern(arg, project),
     Commands::Scan(arg) => run_with_config(arg, project),
