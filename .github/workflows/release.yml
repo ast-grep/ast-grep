@@ -50,6 +50,8 @@ jobs:
             os: ubuntu-22.04
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-22.04
+          - target: s390x-unknown-linux-gnu
+            os: ubuntu-22.04
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -85,8 +87,8 @@ jobs:
           out-file-path: artifacts
       - name: Unzip packages
         run: |
-          files=(aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu)
-          target_dir=(darwin-arm64 darwin-x64 linux-x64-gnu linux-arm64-gnu)
+          files=(aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu s390x-unknown-linux-gnu)
+          target_dir=(darwin-arm64 darwin-x64 linux-x64-gnu linux-arm64-gnu linux-s390x-gnu)
           length=${#files[@]}
           for (( i=0; i<${length}; i++ ));
           do

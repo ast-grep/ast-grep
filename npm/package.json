@@ -35,7 +35,8 @@
     "@ast-grep/cli-darwin-arm64": "0.38.5",
     "@ast-grep/cli-darwin-x64": "0.38.5",
     "@ast-grep/cli-linux-arm64-gnu": "0.38.5",
-    "@ast-grep/cli-linux-x64-gnu": "0.38.5"
+    "@ast-grep/cli-linux-x64-gnu": "0.38.5",
+    "@ast-grep/cli-linux-s390x-gnu": "0.38.5"
   },
   "bin": {
     "sg": "sg",

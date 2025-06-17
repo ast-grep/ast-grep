@@ -16,3 +16,6 @@ rustflags = ["-C", "target-feature=-crt-static"]
 
 [alias]
 xtask = "run --manifest-path ./xtask/Cargo.toml --"
+
+[target.s390x-unknown-linux-gnu]
+linker = "s390x-linux-gnu-gcc"

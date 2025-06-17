@@ -1,0 +1,33 @@
+{
+  "name": "@ast-grep/cli-linux-s390x-gnu",
+  "version": "0.38.5",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "s390x"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "files": [
+    "ast-grep"
+  ],
+  "description": "Search and Rewrite code at large scale using precise AST pattern",
+  "keywords": [
+    "ast",
+    "pattern",
+    "codemod",
+    "search",
+    "rewrite"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "repository": "https://github.com/ast-grep/ast-grep"
+}
