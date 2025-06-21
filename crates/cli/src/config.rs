@@ -35,6 +35,7 @@ impl From<PathBuf> for TestConfig {
 #[serde(rename_all = "camelCase")]
 pub struct AstGrepConfig {
   /// YAML rule directories
+  #[serde(default, skip_serializing_if = "Vec::is_empty")]
   pub rule_dirs: Vec<PathBuf>,
   /// test configurations
   #[serde(skip_serializing_if = "Option::is_none")]
