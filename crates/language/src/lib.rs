@@ -20,6 +20,7 @@ mod kotlin;
 mod lua;
 mod parsers;
 mod php;
+mod pug;
 mod python;
 mod ruby;
 mod rust;
@@ -228,6 +229,7 @@ impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
 impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
+impl_lang!(Pug, language_pug);
 impl_lang!(Scala, language_scala);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
@@ -253,6 +255,7 @@ pub enum SupportLang {
   Kotlin,
   Lua,
   Php,
+  Pug,
   Python,
   Ruby,
   Rust,
@@ -268,7 +271,7 @@ impl SupportLang {
     use SupportLang::*;
     &[
       Bash, C, Cpp, CSharp, Css, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin, Lua,
-      Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml,
+      Php, Pug, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml,
     ]
   }
 
@@ -364,6 +367,7 @@ impl_aliases! {
   Kotlin => &["kotlin", "kt"],
   Lua => &["lua"],
   Php => &["php"],
+  Pug => &["pug"],
   Python => &["py", "python"],
   Ruby => &["rb", "ruby"],
   Rust => &["rs", "rust"],
@@ -408,6 +412,7 @@ macro_rules! execute_lang_method {
       S::Kotlin => Kotlin.$method($($pname,)*),
       S::Lua => Lua.$method($($pname,)*),
       S::Php => Php.$method($($pname,)*),
+      S::Pug => Pug.$method($($pname,)*),
       S::Python => Python.$method($($pname,)*),
       S::Ruby => Ruby.$method($($pname,)*),
       S::Rust => Rust.$method($($pname,)*),
@@ -477,6 +482,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Kotlin => &["kt", "ktm", "kts"],
     Lua => &["lua"],
     Php => &["php"],
+    Pug => &["pug"],
     Python => &["py", "py3", "pyi", "bzl"],
     Ruby => &["rb", "rbw", "gemspec"],
     Rust => &["rs"],

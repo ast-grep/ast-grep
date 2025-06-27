@@ -138,7 +138,7 @@ dependencies = [
  "termimad",
  "terminal-light",
  "tokio",
- "tree-sitter",
+ "tree-sitter 0.25.4",
 ]
 
 [[package]]
@@ -163,7 +163,7 @@ dependencies = [
  "bit-set",
  "regex",
  "thiserror 2.0.12",
- "tree-sitter",
+ "tree-sitter 0.25.4",
  "tree-sitter-typescript",
 ]
 
@@ -178,7 +178,7 @@ dependencies = [
  "serde_yaml",
  "target-triple",
  "thiserror 2.0.12",
- "tree-sitter",
+ "tree-sitter 0.25.4",
 ]
 
 [[package]]
@@ -188,7 +188,7 @@ dependencies = [
  "ast-grep-core",
  "ignore",
  "serde",
- "tree-sitter",
+ "tree-sitter 0.25.4",
  "tree-sitter-bash",
  "tree-sitter-c",
  "tree-sitter-c-sharp",
@@ -204,6 +204,7 @@ dependencies = [
  "tree-sitter-kotlin-sg",
  "tree-sitter-lua",
  "tree-sitter-php",
+ "tree-sitter-pug",
  "tree-sitter-python",
  "tree-sitter-ruby",
  "tree-sitter-rust",
@@ -240,7 +241,7 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "serde_json",
- "tree-sitter",
+ "tree-sitter 0.25.4",
 ]
 
 [[package]]
@@ -663,7 +664,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "976dd42dc7e85965fe702eb8164f21f450704bdde31faefd6471dba214cb594e"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -946,7 +947,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -1380,7 +1381,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1617,7 +1618,7 @@ dependencies = [
  "getrandom",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1840,6 +1841,16 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d18dcb776d3affaba6db04d11d645946d34a69b3172e588af96ce9fecd20faac"
+dependencies = [
+ "cc",
+ "regex",
+]
+
+[[package]]
+name = "tree-sitter"
 version = "0.25.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69aff09fea9a41fb061ae6b206cb87cac1b8db07df31be3ba271fbc26760f213"
@@ -2006,6 +2017,16 @@ checksum = "f066e94e9272cfe4f1dcb07a1c50c66097eca648f2d7233d299c8ae9ed8c130c"
 dependencies = [
  "cc",
  "tree-sitter-language",
+]
+
+[[package]]
+name = "tree-sitter-pug"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9da8c842d9a7e7011352a356e28e7d1b7dd2107ffc0577cdcbfb93446c666f1"
+dependencies = [
+ "cc",
+ "tree-sitter 0.17.1",
 ]
 
 [[package]]
@@ -2176,7 +2197,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

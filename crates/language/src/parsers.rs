@@ -88,6 +88,9 @@ pub fn language_lua() -> TSLanguage {
 pub fn language_php() -> TSLanguage {
   into_lang!(tree_sitter_php, LANGUAGE_PHP_ONLY)
 }
+pub fn language_pug() -> TSLanguage {
+  into_lang!(tree_sitter_pug)
+}
 pub fn language_python() -> TSLanguage {
   into_lang!(tree_sitter_python)
 }
