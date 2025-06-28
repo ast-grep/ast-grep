@@ -53,7 +53,7 @@
   },
   "devDependencies": {
     "@ast-grep/napi": "0.38.6",
-    "@biomejs/biome": "1.9.4",
+    "@biomejs/biome": "2.0.6",
     "@napi-rs/cli": "2.18.4",
     "@types/node": "^22.10.2",
     "ava": "6.4.0",
