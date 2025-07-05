@@ -48,14 +48,14 @@
     "pretest": "ts-node scripts/generateTypes.ts --test-only",
     "test": "tsc --noEmit && ava",
     "version": "napi version",
-    "lint": "biome lint --fix && biome format --write",
+    "lint": "oxlint",
     "typegen": "ts-node scripts/generateTypes.ts"
   },
   "devDependencies": {
     "@ast-grep/napi": "0.38.6",
-    "@biomejs/biome": "1.9.4",
     "@napi-rs/cli": "2.18.4",
     "@types/node": "^22.10.2",
+    "oxlint": "1.5.0",
     "ava": "6.4.0",
     "chalk": "5.4.1",
     "smol-toml": "^1.3.1",

@@ -16,7 +16,7 @@ async function fileExists(filePath: string): Promise<boolean> {
   try {
     await stat(filePath)
     return true
-  } catch (e) {
+  } catch (_e) { // oxlint-disable-line eslint/no-unused-vars
     return false
   }
 }
