@@ -83,10 +83,7 @@ fn compute_header(group: &[DiffOp]) -> String {
   let (old_len, new_len) = group.iter().fold((0, 0), |(o, n), op| {
     (o + op.old_range().len(), n + op.new_range().len())
   });
-  format!(
-    "@@ -{},{} +{},{} @@",
-    old_start, old_len, new_start, new_len
-  )
+  format!("@@ -{old_start},{old_len} +{new_start},{new_len} @@")
 }
 
 fn print_diff(

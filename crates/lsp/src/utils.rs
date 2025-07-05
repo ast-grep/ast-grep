@@ -72,7 +72,7 @@ pub fn diagnostic_to_code_action(
     };
     let title = fixer
       .title
-      .unwrap_or_else(|| format!("Fix `{}` with ast-grep", id));
+      .unwrap_or_else(|| format!("Fix `{id}` with ast-grep"));
     Some(CodeAction {
       title,
       command: None,

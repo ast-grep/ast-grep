@@ -279,7 +279,7 @@ impl SupportLang {
 
 impl fmt::Display for SupportLang {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "{:?}", self)
+    write!(f, "{self:?}")
   }
 }
 
@@ -292,7 +292,7 @@ impl Display for SupportLangErr {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
     use SupportLangErr::*;
     match self {
-      LanguageNotSupported(lang) => write!(f, "{} is not supported!", lang),
+      LanguageNotSupported(lang) => write!(f, "{lang} is not supported!"),
     }
   }
 }

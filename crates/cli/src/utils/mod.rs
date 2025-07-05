@@ -55,7 +55,7 @@ fn read_char() -> Result<char> {
 /// Prompts for user input on STDOUT
 fn prompt_reply_stdout(prompt: &str) -> Result<char> {
   let mut stdout = std::io::stdout();
-  write!(stdout, "{}", prompt)?;
+  write!(stdout, "{prompt}")?;
   stdout.flush()?;
   terminal::enable_raw_mode()?;
   let ret = read_char();

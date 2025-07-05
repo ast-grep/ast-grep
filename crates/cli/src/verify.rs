@@ -331,8 +331,7 @@ fix: 'log($B)'";
   fn test_verify_transform() {
     let globals = GlobalRules::default();
     let inner = from_str(&get_rule_text(&format!(
-      "pattern: console.log($A)\n{}",
-      TRANSFORM_TEXT
+      "pattern: console.log($A)\n{TRANSFORM_TEXT}"
     )))
     .unwrap();
     let rule = RuleConfig::try_from(inner, &globals).unwrap();

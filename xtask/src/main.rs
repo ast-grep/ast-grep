@@ -158,7 +158,7 @@ fn update_cargo_lock() -> Result<()> {
 fn commit_and_tag(version: &str) -> Result<()> {
   // NB: napi needs line break to decide npm tag
   // https://github.com/ast-grep/ast-grep/blob/998691d36b477766be92f1ede3c0bc153d0cca42/.github/workflows/napi.yml#L164
-  let message = format!("{}\nbump version", version);
+  let message = format!("{version}\nbump version");
   let commit = Command::new("git")
     .arg("commit")
     .arg("-am")

@@ -96,7 +96,7 @@ impl SgLang {
 impl Display for SgLang {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
     match self {
-      Builtin(b) => write!(f, "{}", b),
+      Builtin(b) => write!(f, "{b}"),
       Custom(c) => write!(f, "{}", c.name()),
     }
   }
@@ -105,7 +105,7 @@ impl Display for SgLang {
 impl Debug for SgLang {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
     match self {
-      Builtin(b) => write!(f, "{:?}", b),
+      Builtin(b) => write!(f, "{b:?}"),
       Custom(c) => write!(f, "{:?}", c.name()),
     }
   }
@@ -120,7 +120,7 @@ impl Display for SgLangErr {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
     use SgLangErr::*;
     match self {
-      LanguageNotSupported(lang) => write!(f, "{} is not supported!", lang),
+      LanguageNotSupported(lang) => write!(f, "{lang} is not supported!"),
     }
   }
 }

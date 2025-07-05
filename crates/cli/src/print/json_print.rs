@@ -694,7 +694,7 @@ transform:
   #[test]
   fn test_transform() {
     let mut printer = make_test_printer(JsonStyle::Compact);
-    let rule = get_rule_config(&format!("pattern: console.log($A)\n{}", TRANSFORM_TEXT));
+    let rule = get_rule_config(&format!("pattern: console.log($A)\n{TRANSFORM_TEXT}"));
     let grep = SgLang::from(SupportLang::TypeScript).ast_grep("console.log(123)");
     let matches = grep.root().find_all(&rule.matcher).collect();
     printer.before_print().unwrap();
@@ -720,7 +720,7 @@ labels:
   #[test]
   fn test_label() {
     let mut printer = make_test_printer(JsonStyle::Compact);
-    let rule = get_rule_config(&format!("pattern: console.log($A)\n{}", LABEL_TEXT));
+    let rule = get_rule_config(&format!("pattern: console.log($A)\n{LABEL_TEXT}"));
     let grep = SgLang::from(SupportLang::TypeScript).ast_grep("console.log(123)");
     let matches = grep.root().find_all(&rule.matcher).collect();
     printer.before_print().unwrap();
@@ -747,7 +747,7 @@ metadata:
   fn test_metadata() {
     for included in [true, false] {
       let mut printer = make_test_printer(JsonStyle::Compact).include_metadata(included);
-      let rule = get_rule_config(&format!("pattern: console.log($A)\n{}", META_TEXT));
+      let rule = get_rule_config(&format!("pattern: console.log($A)\n{META_TEXT}"));
       let grep = SgLang::from(SupportLang::TypeScript).ast_grep("console.log(123)");
       let matches = grep.root().find_all(&rule.matcher).collect();
       printer.before_print().unwrap();

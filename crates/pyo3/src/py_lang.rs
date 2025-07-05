@@ -66,7 +66,7 @@ impl Display for PyLangErr {
   fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
     use PyLangErr::*;
     match self {
-      LanguageNotSupported(lang) => write!(f, "{} is not supported!", lang),
+      LanguageNotSupported(lang) => write!(f, "{lang} is not supported!"),
     }
   }
 }

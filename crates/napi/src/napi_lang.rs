@@ -71,7 +71,7 @@ impl NapiLang {
 impl Display for NapiLang {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
     match self {
-      Builtin(b) => write!(f, "{}", b),
+      Builtin(b) => write!(f, "{b}"),
       Custom(c) => write!(f, "{}", c.name()),
     }
   }
@@ -80,7 +80,7 @@ impl Display for NapiLang {
 impl Debug for NapiLang {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
     match self {
-      Builtin(b) => write!(f, "{:?}", b),
+      Builtin(b) => write!(f, "{b:?}"),
       Custom(c) => write!(f, "{:?}", c.name()),
     }
   }
