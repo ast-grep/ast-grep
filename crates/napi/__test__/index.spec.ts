@@ -355,7 +355,7 @@ test('fieldChildren returns all the fields of the given field', t => {
   t.is(fields[1].text(), 'className="bar"')
 })
 
-// biome-ignore lint/suspicious/noExplicitAny: do not complain any
+// oxlint-disable-next-line typescript/no-explicit-any
 function countedPromise<F extends (t: any, cb: any) => Promise<number>>(
   func: F,
 ) {

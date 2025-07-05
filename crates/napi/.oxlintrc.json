@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "oxc": {
+      "no-rest-spread-properties": "off"
+    },
+    "typescript": {
+      "no-non-null-assertion": "off",
+      "no-explicit-any": "off"
+    },
+    "eslint": {
+      "no-param-reassign": "off"
+    },
+    "jsx-a11y": {
+      "alt-text": "off"
+    }
+  },
+  "ignore": [
+    "index.js"
+  ]
+} 
