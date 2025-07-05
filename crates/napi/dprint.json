@@ -1,0 +1,23 @@
+{
+  "incremental": true,
+  "typescript": {
+    "semiColons": "asi",
+    "arrowFunction.useParentheses": "preferNone",
+    "quoteStyle": "preferSingle",
+    "indentWidth": 2,
+    "useTabs": false
+  },
+  "json": {
+    "indentWidth": 2,
+    "useTabs": false
+  },
+  "excludes": [
+    "index.js",
+    "node_modules",
+    "**/*.min.js"
+  ],
+  "plugins": [
+    "https://plugins.dprint.dev/typescript-0.93.0.wasm",
+    "https://plugins.dprint.dev/json-0.19.3.wasm"
+  ]
+}

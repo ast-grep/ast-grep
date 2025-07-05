@@ -15,8 +15,6 @@ export const languagesNodeTypesUrls = {
     'https://raw.githubusercontent.com/tree-sitter/tree-sitter-typescript/refs/tags/{{TAG}}/typescript/src/node-types.json',
   [Lang.Tsx]:
     'https://raw.githubusercontent.com/tree-sitter/tree-sitter-typescript/refs/tags/{{TAG}}/tsx/src/node-types.json',
-  [Lang.Html]:
-    'https://raw.githubusercontent.com/tree-sitter/tree-sitter-html/refs/tags/{{TAG}}/src/node-types.json',
-  [Lang.Css]:
-    'https://raw.githubusercontent.com/tree-sitter/tree-sitter-css/refs/tags/{{TAG}}/src/node-types.json',
+  [Lang.Html]: 'https://raw.githubusercontent.com/tree-sitter/tree-sitter-html/refs/tags/{{TAG}}/src/node-types.json',
+  [Lang.Css]: 'https://raw.githubusercontent.com/tree-sitter/tree-sitter-css/refs/tags/{{TAG}}/src/node-types.json',
 }

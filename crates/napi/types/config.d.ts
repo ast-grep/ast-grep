@@ -1,5 +1,5 @@
-import type { Rule } from './rule'
 import type { NapiLang } from './lang'
+import type { Rule } from './rule'
 import type { TypesMap } from './staticTypes'
 
 /**

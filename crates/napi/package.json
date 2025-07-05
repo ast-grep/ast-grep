@@ -48,7 +48,9 @@
     "pretest": "ts-node scripts/generateTypes.ts --test-only",
     "test": "tsc --noEmit && ava",
     "version": "napi version",
-    "lint": "oxlint",
+    "lint": "oxlint && dprint check",
+    "format": "dprint fmt",
+    "format:check": "dprint check",
     "typegen": "ts-node scripts/generateTypes.ts"
   },
   "devDependencies": {
@@ -58,6 +60,7 @@
     "oxlint": "1.5.0",
     "ava": "6.4.0",
     "chalk": "5.4.1",
+    "dprint": "0.50.1",
     "smol-toml": "^1.3.1",
     "ts-node": "10.9.2",
     "typescript": "5.8.3"
