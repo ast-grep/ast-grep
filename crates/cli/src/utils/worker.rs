@@ -91,7 +91,7 @@ fn filter_result(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
   let entry = match result {
     Ok(entry) => entry,
     Err(err) => {
-      eprintln!("ERROR: {}", err);
+      eprintln!("ERROR: {err}");
       return None;
     }
   };

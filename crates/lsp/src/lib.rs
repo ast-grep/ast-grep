@@ -105,18 +105,12 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       // popup message
       self
         .client
-        .show_message(
-          MessageType::ERROR,
-          format!("Failed to load rules: {}", error),
-        )
+        .show_message(MessageType::ERROR, format!("Failed to load rules: {error}"))
         .await;
       // log message
       self
         .client
-        .log_message(
-          MessageType::ERROR,
-          format!("Failed to load rules: {}", error),
-        )
+        .log_message(MessageType::ERROR, format!("Failed to load rules: {error}"))
         .await;
     }
   }
@@ -506,10 +500,7 @@ impl<L: LSPLang> Backend<L> {
       _ => {
         self
           .client
-          .log_message(
-            MessageType::LOG,
-            format!("Unrecognized command: {}", command),
-          )
+          .log_message(MessageType::LOG, format!("Unrecognized command: {command}"))
           .await;
         None
       }
@@ -538,7 +529,7 @@ impl<L: LSPLang> Backend<L> {
       .client
       .log_message(
         MessageType::INFO,
-        format!("Running ExecuteCommand {}", command),
+        format!("Running ExecuteCommand {command}"),
       )
       .await;
     let first = arguments.first()?.clone();
@@ -560,7 +551,7 @@ impl<L: LSPLang> Backend<L> {
           .client
           .log_message(
             MessageType::ERROR,
-            format!("JSON deserialization error: {}", e),
+            format!("JSON deserialization error: {e}"),
           )
           .await;
       }

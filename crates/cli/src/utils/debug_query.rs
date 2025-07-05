@@ -26,7 +26,7 @@ impl DebugFormat {
         let mut ret = String::new();
         let fmt = DumpFmt::named(colored);
         if dump_pattern(&pattern.node, &lang, &fmt, 0, &mut ret).is_ok() {
-          eprintln!("Debug Pattern:\n{}", ret);
+          eprintln!("Debug Pattern:\n{ret}");
         } else {
           eprintln!("unexpected error in writing pattern string");
         }
@@ -164,7 +164,7 @@ impl DumpNode {
     write!(result, "{indent}")?;
     if let Some(field) = &self.field {
       let field = fmt.field_style.paint(field);
-      write!(result, "{}: ", field)?;
+      write!(result, "{field}: ")?;
     }
     write!(result, "{}", fmt.kind_style.paint(&self.kind))?;
     writeln!(result, " ({:?})-({:?})", self.start, self.end)?;

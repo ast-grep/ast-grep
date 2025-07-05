@@ -43,7 +43,7 @@ impl Pos {
     self == other
   }
   fn __repr__(&self) -> String {
-    format!("{:?}", self)
+    format!("{self:?}")
   }
   fn __str__(&self) -> String {
     self.to_string()
@@ -90,7 +90,7 @@ impl Range {
     s.finish()
   }
   fn __repr__(&self) -> String {
-    format!("{:?}", self)
+    format!("{self:?}")
   }
   fn __str__(&self) -> String {
     self.to_string()

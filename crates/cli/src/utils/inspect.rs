@@ -157,7 +157,7 @@ impl<W: Write + Sync> TraceInfo<(), W> {
     self.print_summary("project", |w| {
       if let Ok(project) = project {
         let dir = project.project_dir.display();
-        write!(w, "isProject=true,projectDir={}", dir)?;
+        write!(w, "isProject=true,projectDir={dir}")?;
       } else {
         write!(w, "isProject=false")?;
       }

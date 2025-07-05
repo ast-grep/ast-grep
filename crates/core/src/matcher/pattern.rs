@@ -328,9 +328,9 @@ impl Matcher for Pattern {
 impl std::fmt::Debug for PatternNode {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::MetaVar { meta_var, .. } => write!(f, "{:?}", meta_var),
-      Self::Terminal { text, .. } => write!(f, "{}", text),
-      Self::Internal { children, .. } => write!(f, "{:?}", children),
+      Self::MetaVar { meta_var, .. } => write!(f, "{meta_var:?}"),
+      Self::Terminal { text, .. } => write!(f, "{text}"),
+      Self::Internal { children, .. } => write!(f, "{children:?}"),
     }
   }
 }

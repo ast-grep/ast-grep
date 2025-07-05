@@ -319,7 +319,7 @@ impl SgNode {
     let chars: Vec<_> = self.text().chars().take(10).collect();
     let src = if chars.len() > 9 {
       let s: String = chars.into_iter().take(5).collect();
-      format!("{}...", s)
+      format!("{s}...")
     } else {
       chars.into_iter().collect()
     };
