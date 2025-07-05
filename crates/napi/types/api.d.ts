@@ -1,6 +1,6 @@
-import type { SgNode, SgRoot } from './sgnode'
-import type { NapiConfig, FindConfig, FileOption } from './config'
+import type { FileOption, FindConfig, NapiConfig } from './config'
 import type { NapiLang } from './lang'
+import type { SgNode, SgRoot } from './sgnode'
 import type { NamedKinds, TypesMap } from './staticTypes'
 
 export declare function parseFiles<M extends TypesMap>(

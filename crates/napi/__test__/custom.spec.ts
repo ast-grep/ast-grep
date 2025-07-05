@@ -1,10 +1,6 @@
 import test from 'ava'
 
-import {
-  registerDynamicLanguage,
-  parse,
-  findInFiles,
-} from '../index'
+import { findInFiles, parse, registerDynamicLanguage } from '../index'
 
 const { platform, arch } = process
 
@@ -15,18 +11,18 @@ const canTestDynamicLang = isAppleSilicon || isX64Linux
 if (isAppleSilicon) {
   registerDynamicLanguage({
     json: {
-      libraryPath: "../../fixtures/json-mac.so",
-      languageSymbol: "tree_sitter_json",
-      extensions: ["json"],
-    }
+      libraryPath: '../../fixtures/json-mac.so',
+      languageSymbol: 'tree_sitter_json',
+      extensions: ['json'],
+    },
   })
 } else if (isX64Linux) {
   registerDynamicLanguage({
     json: {
-      libraryPath: "../../fixtures/json-linux.so",
-      languageSymbol: "tree_sitter_json",
-      extensions: ["json"],
-    }
+      libraryPath: '../../fixtures/json-linux.so',
+      languageSymbol: 'tree_sitter_json',
+      extensions: ['json'],
+    },
   })
 }
 
@@ -37,10 +33,10 @@ test('test load custom lang', t => {
   }
   const sg = parse('json', '{"test": 123}')
   const root = sg.root()
-  const node = root.find("123")!
+  const node = root.find('123')!
   t.truthy(node)
   t.is(node.kind(), 'number')
-  const no = root.find("456")
+  const no = root.find('456')
   t.falsy(no)
 })
 
@@ -53,9 +49,9 @@ test('discover file', async t => {
     paths: ['../'],
     matcher: {
       rule: {
-        kind: 'string'
-      }
-    }
+        kind: 'string',
+      },
+    },
   }, (error, nodes) => {
     t.falsy(error)
     t.truthy(nodes)

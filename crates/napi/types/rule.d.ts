@@ -1,4 +1,4 @@
-import type { TypesMap, NamedKinds } from './staticTypes'
+import type { NamedKinds, TypesMap } from './staticTypes'
 
 export type Strictness = 'cst' | 'smart' | 'ast' | 'relaxed' | 'signature'
 

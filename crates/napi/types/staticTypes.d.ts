@@ -36,15 +36,13 @@ export interface TypesMap {
   [key: string]: NodeType
 }
 
-export type FieldNames<N extends NodeType> = N extends { fields: infer F }
-  ? keyof F
+export type FieldNames<N extends NodeType> = N extends { fields: infer F } ? keyof F
   : string
 
 export type ExtractField<
   N extends NodeType,
   F extends FieldNames<N>,
-> = N['fields'] extends Record<F, NodeFieldInfo>
-  ? N['fields'][F]
+> = N['fields'] extends Record<F, NodeFieldInfo> ? N['fields'][F]
   : NodeFieldInfo
 
 // in case of empty types array, return string as fallback
@@ -58,8 +56,7 @@ export type TypesInField<M extends TypesMap, I extends NodeFieldInfo> = NoNever<
 export type NamedChildKinds<
   M extends TypesMap,
   T extends Kinds<M>,
-> = M[T] extends { children: infer C extends NodeFieldInfo }
-  ? TypesInField<M, C>
+> = M[T] extends { children: infer C extends NodeFieldInfo } ? TypesInField<M, C>
   : NamedKinds<M>
 export type ChildKinds<M extends TypesMap, T extends Kinds<M>> =
   | NamedChildKinds<M, T>
@@ -70,9 +67,8 @@ export type ChildKinds<M extends TypesMap, T extends Kinds<M>> =
  * e.g. like `expression` => `binary_expression` | `unary_expression` | ...
  */
 type ResolveType<M extends TypesMap, K> = K extends keyof M
-  ? M[K] extends { subtypes: infer S extends NodeBasicInfo[] }
-    ? ResolveType<M, S[number]['type']>
-    : K
+  ? M[K] extends { subtypes: infer S extends NodeBasicInfo[] } ? ResolveType<M, S[number]['type']>
+  : K
   : K
 
 /**

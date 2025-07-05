@@ -1,13 +1,10 @@
-import { readFile, writeFile, stat } from 'node:fs/promises'
+import { readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 // gen type cannot be imported on CI due to un-generated napi binding
+import toml from 'smol-toml'
 import type { Lang } from '../index'
 import type { NodeType } from '../types/staticTypes'
-import {
-  languagesCrateNames,
-  languagesNodeTypesUrls,
-} from './constants'
-import toml from 'smol-toml'
+import { languagesCrateNames, languagesNodeTypesUrls } from './constants'
 
 const rootDir = path.resolve(__dirname, '..')
 const langDir = path.join(rootDir, 'lang')
@@ -74,20 +71,18 @@ async function generateLangNodeTypes() {
   for (const [lang, urlTemplate] of langs) {
     try {
       const treeSitterCrateName = languagesCrateNames[lang]
-      const cargoVersion =
-        parsedCargoToml.dependencies[treeSitterCrateName].version
+      const cargoVersion = parsedCargoToml.dependencies[treeSitterCrateName].version
       const tag = `v${cargoVersion}`
       const url = urlTemplate.replace('{{TAG}}', tag)
       const nodeTypesResponse = await fetch(url)
       const nodeTypes = (await nodeTypesResponse.json()) as NodeType[]
       const nodeTypeMap = processNodeTypes(nodeTypes)
 
-      const fileContent =
-        `// Auto-generated from tree-sitter ${lang} ${tag}` +
-        '\n' +
-        `type ${lang}Types = ${JSON.stringify(nodeTypeMap, null, 2)};` +
-        '\n' +
-        `export default ${lang}Types;`
+      const fileContent = `// Auto-generated from tree-sitter ${lang} ${tag}`
+        + '\n'
+        + `type ${lang}Types = ${JSON.stringify(nodeTypeMap, null, 2)};`
+        + '\n'
+        + `export default ${lang}Types;`
       await writeFile(path.join(langDir, `${lang}.d.ts`), fileContent)
     } catch (e) {
       console.error(`Error while generating node types for ${lang}`)

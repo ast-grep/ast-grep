@@ -1,16 +1,16 @@
+import type { NapiConfig } from './config'
 import type {
-  FieldNames,
-  TypesInField,
-  TypesMap,
+  ChildKinds,
   ExtractField,
+  FieldNames,
   Kinds,
+  NamedChildKinds,
+  NamedKinds,
   NodeFieldInfo,
   RootKind,
-  NamedKinds,
-  ChildKinds,
-  NamedChildKinds,
+  TypesInField,
+  TypesMap,
 } from './staticTypes'
-import type { NapiConfig } from './config'
 
 export interface Edit {
   /** The start position of the edit */
@@ -106,11 +106,9 @@ interface NodeMethod<M extends TypesMap, Args extends unknown[] = []> {
  * if K contains string, return general SgNode. Otherwise,
  * if K is a literal union, return a union of SgNode of each kind.
  */
-type RefineNode<M extends TypesMap, K> = string extends K
-  ? SgNode<M>
-  : K extends Kinds<M>
-    ? SgNode<M, K>
-    : never
+type RefineNode<M extends TypesMap, K> = string extends K ? SgNode<M>
+  : K extends Kinds<M> ? SgNode<M, K>
+  : never
 
 /**
  * return the SgNode of the field in the node.
@@ -124,6 +122,5 @@ type FieldNode<
 
 type FieldNodeImpl<M extends TypesMap, I extends NodeFieldInfo> = I extends {
   required: true
-}
-  ? RefineNode<M, TypesInField<M, I>>
+} ? RefineNode<M, TypesInField<M, I>>
   : RefineNode<M, TypesInField<M, I>> | null
