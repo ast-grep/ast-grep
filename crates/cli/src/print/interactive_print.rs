@@ -118,7 +118,7 @@ impl Printer for InteractivePrinter {
 
   fn after_print(&mut self) -> Result<()> {
     if self.committed_cnt > 0 {
-      println!("Applied {} changes", self.committed_cnt);
+      eprintln!("Applied {} changes", self.committed_cnt);
     }
     self.inner.after_print()
   }
