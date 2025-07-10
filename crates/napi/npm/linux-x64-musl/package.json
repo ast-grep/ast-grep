@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/napi-linux-x64-musl",
-  "version": "0.38.6",
+  "version": "0.38.7",
   "os": [
     "linux"
   ],
