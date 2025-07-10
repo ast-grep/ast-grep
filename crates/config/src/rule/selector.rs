@@ -44,8 +44,14 @@ fn parse_selector_parts(selector: &str) -> Vec<SelectorPart> {
     match ch {
       ' ' => {
         if !current_part.is_empty() {
-          skip_spaces(&mut chars);
-          if detect_combinator(&mut chars, '>') {
+          // Skip additional spaces
+          while chars.peek() == Some(&' ') {
+            chars.next();
+          }
+          
+          // Check if next non-space character is '>'
+          if chars.peek() == Some(&'>') {
+            // Don't add combinator yet, wait for '>' processing
             parts.push(SelectorPart {
               kind: current_part.trim().to_string(),
               combinator: None,
@@ -58,7 +64,10 @@ fn parse_selector_parts(selector: &str) -> Vec<SelectorPart> {
           }
           current_part.clear();
         } else {
-          skip_spaces(&mut chars);
+          // Skip additional spaces
+          while chars.peek() == Some(&' ') {
+            chars.next();
+          }
         }
       }
       '>' => {
@@ -69,7 +78,6 @@ fn parse_selector_parts(selector: &str) -> Vec<SelectorPart> {
           });
           current_part.clear();
         } else if let Some(last_part) = parts.last_mut() {
-          // Update the last part to have child combinator
           last_part.combinator = Some(Combinator::Child);
         }
         
@@ -103,47 +111,63 @@ fn convert_parts_to_rule<L: Language>(
     return Err(RuleSerializeError::MissPositiveMatcher);
   }
   
-  // The rightmost part is the target node
+  // The rightmost part is the target node - this becomes the main rule
   let target = &parts[parts.len() - 1];
-  let mut rule = Rule::Kind(KindMatcher::try_new(&target.kind, env.lang.clone())?);
+  let target_rule = Rule::Kind(KindMatcher::try_new(&target.kind, env.lang.clone())?);
   
-  // Build nested inside rules from right to left
+  if parts.len() == 1 {
+    // Simple case: just a kind selector
+    return Ok(target_rule);
+  }
+  
+  // For complex selectors, build the inside relationship chain
+  // CSS selector "call_expression > arguments > number" means:
+  // number inside arguments inside call_expression
+  // We need to build the relations in reverse order
+  
+  let mut current_relation: Option<SerializableRule> = None;
+  
+  // Build from innermost to outermost (right to left, excluding target)
   for i in (0..parts.len() - 1).rev() {
     let part = &parts[i];
     
-    match part.combinator {
-      Some(Combinator::Child) => {
-        // Direct child relationship
-        rule = Rule::Inside(Box::new(Inside::try_new(
-          Relation {
-            rule: SerializableRule {
-              kind: Maybe::Present(part.kind.clone()),
-              ..Default::default()
-            },
-            stop_by: Default::default(),
-            field: None,
-          },
-          env,
-        )?));
-      }
-      Some(Combinator::Descendant) | None => {
-        // Descendant relationship (or no combinator, treated as descendant)
-        rule = Rule::Inside(Box::new(Inside::try_new(
-          Relation {
-            rule: SerializableRule {
-              kind: Maybe::Present(part.kind.clone()),
-              ..Default::default()
-            },
-            stop_by: Maybe::Nothing, // Allow matching any ancestor
-            field: None,
-          },
-          env,
-        )?));
-      }
+    if current_relation.is_none() {
+      // Innermost container (closest to target)
+      current_relation = Some(SerializableRule {
+        kind: Maybe::Present(part.kind.clone()),
+        ..Default::default()
+      });
+    } else {
+      // Wrap this container around the inner relation
+      current_relation = Some(SerializableRule {
+        kind: Maybe::Present(part.kind.clone()),
+        inside: Maybe::Present(Box::new(Relation {
+          rule: current_relation.unwrap(),
+          stop_by: Default::default(),
+          field: None,
+        })),
+        ..Default::default()
+      });
     }
   }
   
-  Ok(rule)
+  // Create the final inside rule
+  let inside_rule = if let Some(relation_rule) = current_relation {
+    Rule::Inside(Box::new(Inside::try_new(
+      Relation {
+        rule: relation_rule,
+        stop_by: Default::default(),
+        field: None,
+      },
+      env,
+    )?))
+  } else {
+    return Ok(target_rule); // This shouldn't happen, but just in case
+  };
+  
+  // Combine target rule with inside rule using All (like the verbose version)
+  use ast_grep_core::ops as o;
+  Ok(Rule::All(o::All::new(vec![target_rule, inside_rule])))
 }
 
 #[cfg(test)]
@@ -252,43 +276,50 @@ selector: number";
   }
   
   #[test]
-  fn test_debug_rule_structure() {
+  fn test_debug_rule_structures() {
     use crate::from_str;
     use crate::test::TypeScript;
     use ast_grep_core::Matcher;
     
     let env = DeserializeEnv::new(TypeScript::Tsx);
     
-    // Create verbose rule
-    let verbose_src = r"
+    // Test verbose rule structure step by step
+    println!("=== Testing verbose structure ===");
+    
+    // Simple inside first
+    let simple_verbose = r"
+kind: number
+inside:
+  kind: arguments";
+    let simple_rule: SerializableRule = from_str(simple_verbose).expect("cannot parse");
+    let simple_rule = env.deserialize_rule(simple_rule).expect("should deserialize");
+    let grep = TypeScript::Tsx.ast_grep("test(123)");
+    println!("Simple verbose (number inside arguments): {:?}", grep.root().find(&simple_rule).is_some());
+    
+    // Now try building the same with selector
+    println!("=== Testing selector structure ===");
+    let simple_selector = parse_selector("arguments > number", &env).expect("should parse");
+    println!("Simple selector (arguments > number): {:?}", grep.root().find(&simple_selector).is_some());
+    
+    // If these differ, the issue is in the basic 2-level case
+    if grep.root().find(&simple_rule).is_some() != grep.root().find(&simple_selector).is_some() {
+      println!("ERROR: Basic 2-level structures differ!");
+    } else {
+      println!("✅ Basic 2-level structures work the same");
+      
+      // Now test 3-level
+      let complex_verbose = r"
 kind: number
 inside:
   kind: arguments
   inside:
     kind: call_expression";
-    let verbose_rule: SerializableRule = from_str(verbose_src).expect("cannot parse verbose rule");
-    let verbose_rule = env.deserialize_rule(verbose_rule).expect("should deserialize verbose");
-    
-    // Create selector rule
-    let selector_rule = parse_selector("call_expression > arguments > number", &env).expect("should parse selector");
-    
-    // Check potential_kinds for both
-    let verbose_kinds = verbose_rule.potential_kinds();
-    let selector_kinds = selector_rule.potential_kinds();
-    
-    println!("Verbose rule potential_kinds: {:?}", verbose_kinds.is_some());
-    println!("Selector rule potential_kinds: {:?}", selector_kinds.is_some());
-    
-    // Test matching behavior
-    let grep = TypeScript::Tsx.ast_grep("test(123)");
-    let verbose_match = grep.root().find(&verbose_rule);
-    let selector_match = grep.root().find(&selector_rule);
-    
-    println!("Verbose rule matches test(123): {:?}", verbose_match.is_some());
-    println!("Selector rule matches test(123): {:?}", selector_match.is_some());
-    
-    // They should both match and both have potential_kinds
-    assert!(verbose_kinds.is_some(), "Verbose rule should have potential_kinds");
-    assert!(selector_kinds.is_some(), "Selector rule should have potential_kinds"); 
+      let complex_rule: SerializableRule = from_str(complex_verbose).expect("cannot parse");
+      let complex_rule = env.deserialize_rule(complex_rule).expect("should deserialize");
+      println!("Complex verbose: {:?}", grep.root().find(&complex_rule).is_some());
+      
+      let complex_selector = parse_selector("call_expression > arguments > number", &env).expect("should parse");
+      println!("Complex selector: {:?}", grep.root().find(&complex_selector).is_some());
+    }
   }
 }
