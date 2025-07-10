@@ -122,19 +122,36 @@ fn convert_parts_to_rule<L: Language>(
   for i in (0..parts.len() - 1).rev() {
     let part = &parts[i];
     
-    // For now, we treat both > and space as direct child relationships
-    // This is a simplification - a full implementation would handle descendant vs child differently
-    rule = Rule::Inside(Box::new(Inside::try_new(
-      Relation {
-        rule: SerializableRule {
-          kind: Maybe::Present(part.kind.clone()),
-          ..Default::default()
-        },
-        stop_by: Default::default(),
-        field: None,
-      },
-      env,
-    )?));
+    match part.combinator {
+      Some(Combinator::Child) => {
+        // Direct child relationship
+        rule = Rule::Inside(Box::new(Inside::try_new(
+          Relation {
+            rule: SerializableRule {
+              kind: Maybe::Present(part.kind.clone()),
+              ..Default::default()
+            },
+            stop_by: Default::default(),
+            field: None,
+          },
+          env,
+        )?));
+      }
+      Some(Combinator::Descendant) | None => {
+        // Descendant relationship (or no combinator, treated as descendant)
+        rule = Rule::Inside(Box::new(Inside::try_new(
+          Relation {
+            rule: SerializableRule {
+              kind: Maybe::Present(part.kind.clone()),
+              ..Default::default()
+            },
+            stop_by: Maybe::Nothing, // Allow matching any ancestor
+            field: None,
+          },
+          env,
+        )?));
+      }
+    }
   }
   
   Ok(rule)
