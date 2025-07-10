@@ -91,6 +91,13 @@ impl Matcher for Inside {
       self.stop_by.find(parent, ancestors, finder)
     }
   }
+  
+  fn potential_kinds(&self) -> Option<bit_set::BitSet> {
+    // The Inside matcher should return None because it needs to check all nodes
+    // to see if they are inside the specified container.
+    // However, for CSS selector usage, we need to delegate to the inner rule.
+    None
+  }
 }
 
 pub struct Has {
