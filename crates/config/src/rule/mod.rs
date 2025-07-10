@@ -3,6 +3,7 @@ mod nth_child;
 mod range;
 pub mod referent_rule;
 mod relational_rule;
+mod selector;
 mod stop_by;
 
 pub use deserialize_env::DeserializeEnv;
@@ -93,6 +94,9 @@ pub struct SerializableRule {
   /// A utility rule id and matches a node if the utility rule matches.
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   pub matches: Maybe<String>,
+  /// CSS selector-style rule for matching AST nodes, e.g., "call_expression > arguments > number"
+  #[serde(default, skip_serializing_if = "Maybe::is_absent")]
+  pub selector: Maybe<String>,
 }
 
 struct Categorized {
@@ -122,6 +126,7 @@ impl SerializableRule {
         any: self.any.into(),
         not: self.not.into(),
         matches: self.matches.into(),
+        selector: self.selector.into(),
       },
     }
   }
@@ -205,6 +210,7 @@ pub struct CompositeRule {
   pub any: Option<Vec<SerializableRule>>,
   pub not: Option<Box<SerializableRule>>,
   pub matches: Option<String>,
+  pub selector: Option<String>,
 }
 
 pub enum Rule {
@@ -224,6 +230,7 @@ pub enum Rule {
   Any(o::Any<Rule>),
   Not(Box<o::Not<Rule>>),
   Matches(ReferentRule),
+  Selector(Box<Rule>),  // A CSS selector converted to a rule
 }
 impl Rule {
   /// Check if it has a cyclic referent rule with the id.
@@ -233,6 +240,7 @@ impl Rule {
       Rule::Any(any) => any.inner().iter().any(|r| r.check_cyclic(id)),
       Rule::Not(not) => not.inner().check_cyclic(id),
       Rule::Matches(m) => m.rule_id == id,
+      Rule::Selector(s) => s.check_cyclic(id),
       _ => false,
     }
   }
@@ -253,6 +261,7 @@ impl Rule {
       Rule::Not(sub) => sub.inner().defined_vars(),
       // TODO: this is not correct, we are collecting util vars else where
       Rule::Matches(_r) => HashSet::new(),
+      Rule::Selector(s) => s.defined_vars(),
     }
   }
 
@@ -272,6 +281,7 @@ impl Rule {
       Rule::Any(sub) => sub.inner().iter().try_for_each(|r| r.verify_util()),
       Rule::Not(sub) => sub.inner().verify_util(),
       Rule::Matches(r) => Ok(r.verify_util()?),
+      Rule::Selector(s) => s.verify_util(),
     }
   }
 }
@@ -300,6 +310,7 @@ impl Matcher for Rule {
       Any(any) => any.match_node_with_env(node, env),
       Not(not) => not.match_node_with_env(node, env),
       Matches(rule) => rule.match_node_with_env(node, env),
+      Selector(selector) => selector.match_node_with_env(node, env),
     }
   }
 
@@ -322,6 +333,7 @@ impl Matcher for Rule {
       Any(any) => any.potential_kinds(),
       Not(not) => not.potential_kinds(),
       Matches(rule) => rule.potential_kinds(),
+      Selector(selector) => selector.potential_kinds(),
     }
   }
 }
@@ -415,6 +427,10 @@ fn deserialze_composite_rule<L: Language>(
   if let Some(id) = composite.matches {
     let matches = ReferentRule::try_new(id, &env.registration)?;
     rules.push(R::Matches(matches));
+  }
+  if let Some(selector) = composite.selector {
+    let selector_rule = selector::parse_selector(&selector, env)?;
+    rules.push(R::Selector(Box::new(selector_rule)));
   }
   Ok(())
 }
@@ -659,5 +675,30 @@ inside:
       }",
     );
     assert!(root.root().find(rule).is_some());
+  }
+  
+  #[test]
+  fn test_selector_simple() {
+    let src = r"
+selector: number";
+    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let rule = deserialize_rule(rule, &env).expect("should deserialize");
+    let root = TypeScript::Tsx.ast_grep("123");
+    assert!(root.root().find(&rule).is_some());
+  }
+  
+  #[test]
+  fn test_selector_complex() {
+    let src = r"
+selector: call_expression > arguments > number";
+    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let rule = deserialize_rule(rule, &env).expect("should deserialize");
+    let root = TypeScript::Tsx.ast_grep("test(123)");
+    assert!(root.root().find(&rule).is_some());
+    
+    let root = TypeScript::Tsx.ast_grep("123");
+    assert!(root.root().find(&rule).is_none());
   }
 }
