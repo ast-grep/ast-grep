@@ -44,32 +44,21 @@ fn parse_selector_parts(selector: &str) -> Vec<SelectorPart> {
     match ch {
       ' ' => {
         if !current_part.is_empty() {
-          // Skip additional spaces
-          while chars.peek() == Some(&' ') {
-            chars.next();
-          }
-          
-          // Check if next non-space character is '>'
-          if chars.peek() == Some(&'>') {
-            // Don't add combinator yet, wait for '>' processing
+          skip_spaces(&mut chars);
+          if detect_combinator(&mut chars, '>') {
             parts.push(SelectorPart {
               kind: current_part.trim().to_string(),
               combinator: None,
             });
-            current_part.clear();
           } else {
-            // This is a descendant combinator
             parts.push(SelectorPart {
               kind: current_part.trim().to_string(),
               combinator: Some(Combinator::Descendant),
             });
-            current_part.clear();
           }
+          current_part.clear();
         } else {
-          // Skip additional spaces
-          while chars.peek() == Some(&' ') {
-            chars.next();
-          }
+          skip_spaces(&mut chars);
         }
       }
       '>' => {
