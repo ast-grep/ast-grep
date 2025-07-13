@@ -186,8 +186,8 @@ macro_rules! impl_aliases {
 
 /* Customized Language with expando_char / pre_process_pattern */
 // https://en.cppreference.com/w/cpp/language/identifiers
-impl_lang_expando!(C, language_c, 'µ');
-impl_lang_expando!(Cpp, language_cpp, 'µ');
+impl_lang_expando!(C, language_c, '𐀀');
+impl_lang_expando!(Cpp, language_cpp, '𐀀');
 // https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/lexical-structure#643-identifiers
 // all letter number is accepted
 // https://www.compart.com/en/unicode/category/Nl
