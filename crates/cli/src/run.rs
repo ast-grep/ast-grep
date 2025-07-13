@@ -37,6 +37,7 @@ impl ValueEnum for Strictness {
       Strictness(M::Ast),
       Strictness(M::Relaxed),
       Strictness(M::Signature),
+      Strictness(M::Template),
     ]
   }
   fn to_possible_value(&self) -> Option<PossibleValue> {
@@ -48,6 +49,9 @@ impl ValueEnum for Strictness {
       M::Relaxed => PossibleValue::new("relaxed").help("Match ast node except comments"),
       M::Signature => {
         PossibleValue::new("signature").help("Match ast node except comments, without text")
+      }
+      M::Template => {
+        PossibleValue::new("template").help("Match with exact structural context")
       }
     })
   }

@@ -12,6 +12,7 @@ pub enum MatchStrictness {
   Ast,       // only ast nodes are matched
   Relaxed,   // ast-nodes excluding comments are matched
   Signature, // ast-nodes excluding comments, without text
+  Template,  // template matching with exact structural context
 }
 
 pub(crate) enum MatchOneNode {
@@ -58,6 +59,12 @@ impl MatchStrictness {
         }
         (!is_named, skip_comment_or_unnamed(candidate))
       }
+      M::Template => {
+        // Template mode: strict about exact structural matching
+        // Allow skipping of unnamed nodes in goals, but be more selective about candidates
+        // This balances exact structural matching with practical usability
+        (!is_named, !candidate.is_named())
+      }
     };
     match (skip_goal, skip_candidate) {
       (true, true) => MatchOneNode::SkipBoth,
@@ -76,6 +83,7 @@ impl MatchStrictness {
       M::Ast => false,
       M::Relaxed => skip_comment_or_unnamed(candidate),
       M::Signature => skip_comment_or_unnamed(candidate),
+      M::Template => false, // Template mode: strict about trailing nodes
     }
   }
 
@@ -107,6 +115,16 @@ impl MatchStrictness {
           PatternNode::Terminal { is_named, .. } => !is_named,
           PatternNode::Internal { .. } => false,
         },
+        M::Template => match pattern {
+          PatternNode::MetaVar { meta_var } => match meta_var {
+            MetaVariable::Multiple => true,
+            MetaVariable::MultiCapture(_) => true,
+            MetaVariable::Dropped(named) => !named,
+            MetaVariable::Capture(_, named) => !named,
+          },
+          PatternNode::Terminal { is_named, .. } => !is_named,
+          PatternNode::Internal { .. } => false,
+        },
       };
       if !skipped {
         return false;
@@ -126,7 +144,8 @@ impl FromStr for MatchStrictness {
       "ast" => Ok(MatchStrictness::Ast),
       "relaxed" => Ok(MatchStrictness::Relaxed),
       "signature" => Ok(MatchStrictness::Signature),
-      _ => Err("invalid strictness, valid options are: cst, smart, ast, relaxed, signature"),
+      "template" => Ok(MatchStrictness::Template),
+      _ => Err("invalid strictness, valid options are: cst, smart, ast, relaxed, signature, template"),
     }
   }
 }

@@ -314,4 +314,18 @@ mod test {
     );
     matched("$A(bar)", "foo(/* A*/bar)", M::Signature);
   }
+
+  #[test]
+  fn test_template_match() {
+    matched("import $A from 'lib'", "import A from \"lib\"", M::Template);
+    // Template should be stricter than relaxed for structural matching  
+    unmatched("$A(bar)", "foo(/* A*/bar)", M::Template);
+    matched("$A(bar)", "foo(bar)", M::Template);
+    // Template should be strict about exact structural context
+    unmatched("$A(bar)", "foo(bar, baz)", M::Template);
+    
+    // Test for assignment patterns
+    matched("$A = $B", "a = b", M::Template);
+    matched("$A = $B", "obj.a = b", M::Template);
+  }
 }
