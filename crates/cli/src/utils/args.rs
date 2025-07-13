@@ -126,7 +126,7 @@ pub struct OutputArgs {
   #[clap(short = 'U', long)]
   pub update_all: bool,
 
-  /// Output matches in structured JSON .
+  /// Output matches in structured JSON.
   ///
   /// If this flag is set, ast-grep will output matches in JSON format.
   /// You can pass optional value to this flag by using `--json=<STYLE>` syntax
