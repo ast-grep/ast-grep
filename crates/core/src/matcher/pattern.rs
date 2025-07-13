@@ -624,4 +624,14 @@ mod test {
   fn test_gh_1087() {
     test_match("($P) => $F($P)", "(x) => bar(x)");
   }
+
+  #[test]
+  fn test_template_pattern_have_no_kinds() {
+    let pattern = Pattern::new("$A = $B", Tsx).with_strictness(MatchStrictness::Template);
+    assert!(pattern.potential_kinds().is_none());
+    let pattern = Pattern::contextual("{a: b}", "pair", Tsx)
+      .expect("should create template pattern")
+      .with_strictness(MatchStrictness::Template);
+    assert!(pattern.potential_kinds().is_none());
+  }
 }
