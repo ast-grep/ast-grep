@@ -186,8 +186,6 @@ macro_rules! impl_aliases {
 
 /* Customized Language with expando_char / pre_process_pattern */
 // https://en.cppreference.com/w/cpp/language/identifiers
-// Due to some issues in the tree-sitter parser, it is not possible to use
-// unicode literals in identifiers for C/C++ parsers
 impl_lang_expando!(C, language_c, 'µ');
 impl_lang_expando!(Cpp, language_cpp, 'µ');
 // https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/lexical-structure#643-identifiers
