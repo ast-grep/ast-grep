@@ -34,14 +34,18 @@ pub(super) fn match_node_impl<'tree, D: Doc>(
     },
     P::Internal {
       kind_id, children, ..
-    } if kind_utils::are_kinds_matching(*kind_id, candidate.kind_id()) => {
+    } => {
+      let kind_matched = strictness.should_skip_kind()
+        || kind_utils::are_kinds_matching(*kind_id, candidate.kind_id());
+      if !kind_matched {
+        return MatchOneNode::NoMatch;
+      }
       let cand_children = candidate.children();
       match match_nodes_impl_recursive(children, cand_children, agg, strictness) {
         Some(()) => MatchOneNode::MatchedBoth,
         None => MatchOneNode::NoMatch,
       }
     }
-    _ => MatchOneNode::NoMatch, // TODO
   }
 }
 
@@ -313,5 +317,10 @@ mod test {
       M::Signature,
     );
     matched("$A(bar)", "foo(/* A*/bar)", M::Signature);
+  }
+
+  #[test]
+  fn test_template_match() {
+    matched("$A = $B", "a = 123", M::Template);
   }
 }

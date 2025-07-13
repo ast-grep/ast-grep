@@ -302,6 +302,10 @@ impl Matcher for Pattern {
   }
 
   fn potential_kinds(&self) -> Option<bit_set::BitSet> {
+    // if strictness is Template, we can match any kind
+    if matches!(self.strictness, MatchStrictness::Template) {
+      return None;
+    }
     let kind = match self.node {
       PatternNode::Terminal { kind_id, .. } => kind_id,
       PatternNode::MetaVar { .. } => self.root_kind?,

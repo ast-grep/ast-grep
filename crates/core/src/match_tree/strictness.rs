@@ -12,6 +12,7 @@ pub enum MatchStrictness {
   Ast,       // only ast nodes are matched
   Relaxed,   // ast-nodes excluding comments are matched
   Signature, // ast-nodes excluding comments, without text
+  Template,  // similar to smart, but node kinds are ignored, only text is matched.
 }
 
 pub(crate) enum MatchOneNode {
@@ -31,6 +32,17 @@ fn skip_comment_or_unnamed(n: &Node<impl Doc>) -> bool {
 }
 
 impl MatchStrictness {
+  pub(crate) fn should_skip_kind(&self) -> bool {
+    use MatchStrictness as M;
+    match self {
+      M::Template => true,
+      M::Cst => false,
+      M::Smart => false,
+      M::Ast => false,
+      M::Relaxed => false,
+      M::Signature => false,
+    }
+  }
   pub(crate) fn match_terminal(
     &self,
     is_named: bool,
@@ -58,6 +70,13 @@ impl MatchStrictness {
         }
         (!is_named, skip_comment_or_unnamed(candidate))
       }
+      M::Template => {
+        if text == candidate.text() {
+          return MatchOneNode::MatchedBoth;
+        } else {
+          (false, !candidate.is_named())
+        }
+      }
     };
     match (skip_goal, skip_candidate) {
       (true, true) => MatchOneNode::SkipBoth,
@@ -76,6 +95,7 @@ impl MatchStrictness {
       M::Ast => false,
       M::Relaxed => skip_comment_or_unnamed(candidate),
       M::Signature => skip_comment_or_unnamed(candidate),
+      M::Template => true,
     }
   }
 
@@ -87,7 +107,7 @@ impl MatchStrictness {
     while let Some(pattern) = goal_children.peek() {
       let skipped = match self {
         M::Cst => false,
-        M::Smart => match pattern {
+        M::Smart | M::Template => match pattern {
           PatternNode::MetaVar { meta_var } => match meta_var {
             MetaVariable::Multiple => true,
             MetaVariable::MultiCapture(_) => true,
@@ -126,7 +146,32 @@ impl FromStr for MatchStrictness {
       "ast" => Ok(MatchStrictness::Ast),
       "relaxed" => Ok(MatchStrictness::Relaxed),
       "signature" => Ok(MatchStrictness::Signature),
+      "template" => Ok(MatchStrictness::Template),
       _ => Err("invalid strictness, valid options are: cst, smart, ast, relaxed, signature"),
     }
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::language::Tsx;
+  use crate::{Pattern, Root};
+
+  fn template_pattern(p: &str, n: &str) -> bool {
+    let mut pattern = Pattern::new(p, Tsx);
+    pattern.strictness = MatchStrictness::Template;
+    let root = Root::str(n, Tsx);
+    let node = root.root();
+    node.find(pattern).is_some()
+  }
+
+  #[test]
+  fn test_template_pattern() {
+    assert!(template_pattern("$A = $B", "a = b"));
+    assert!(template_pattern("$A = $B", "var a = b"));
+    assert!(template_pattern("$A = $B", "let a = b"));
+    assert!(template_pattern("$A = $B", "const a = b"));
+    assert!(template_pattern("$A = $B", "class A { a = b }"));
   }
 }

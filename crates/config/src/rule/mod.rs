@@ -147,6 +147,8 @@ pub enum Strictness {
   Relaxed,
   /// ast-nodes excluding comments, without text
   Signature,
+  /// similar to smart, but node kinds are ignored, only text is matched.
+  Template,
 }
 
 impl From<MatchStrictness> for Strictness {
@@ -159,6 +161,7 @@ impl From<MatchStrictness> for Strictness {
       M::Ast => S::Ast,
       M::Relaxed => S::Relaxed,
       M::Signature => S::Signature,
+      M::Template => S::Template,
     }
   }
 }
@@ -173,6 +176,7 @@ impl From<Strictness> for MatchStrictness {
       S::Ast => M::Ast,
       S::Relaxed => M::Relaxed,
       S::Signature => M::Signature,
+      S::Template => M::Template,
     }
   }
 }
