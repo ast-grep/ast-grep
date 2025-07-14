@@ -1,7 +1,7 @@
 use crate::lang::SgLang;
 use ansi_term::Style;
 use ast_grep_core::{
-  matcher::PatternNode, meta_var::MetaVariable, tree_sitter::TSLanguage, Pattern,
+  matcher::PatternNode, meta_var::MetaVariable, tree_sitter::TSLanguage, MatchStrictness, Pattern,
 };
 use ast_grep_language::LanguageExt;
 use clap::ValueEnum;
@@ -25,7 +25,7 @@ impl DebugFormat {
         let lang = lang.get_ts_language();
         let mut ret = String::new();
         let fmt = DumpFmt::named(colored);
-        if dump_pattern(&pattern.node, &lang, &fmt, 0, &mut ret).is_ok() {
+        if dump_pattern(&pattern.node, &pattern.strictness, &lang, &fmt, 0, &mut ret).is_ok() {
           eprintln!("Debug Pattern:\n{ret}");
         } else {
           eprintln!("unexpected error in writing pattern string");
@@ -60,12 +60,13 @@ impl DebugFormat {
 
 fn dump_pattern(
   pattern: &PatternNode,
+  strictness: &MatchStrictness,
   lang: &TSLanguage,
   style: &DumpFmt,
   indent: usize,
   ret: &mut String,
 ) -> FmtResult {
-  write!(ret, "{}", "  ".repeat(indent))?;
+  let indent_str = "  ".repeat(indent);
   match pattern {
     PatternNode::MetaVar { meta_var } => {
       let meta_var = match meta_var {
@@ -75,27 +76,52 @@ fn dump_pattern(
         MetaVariable::Dropped(_) => "$_".to_string(),
       };
       let meta_var = style.kind_style.paint(meta_var);
-      writeln!(ret, "{} {meta_var}", style.field_style.paint("MetaVar"))?;
+      writeln!(
+        ret,
+        "{indent_str}{} {meta_var}",
+        style.field_style.paint("MetaVar")
+      )?;
     }
     PatternNode::Terminal {
       text,
       kind_id,
       is_named,
     } => {
-      if *is_named {
-        let kind = lang.node_kind_for_id(*kind_id).unwrap();
-        let kind = style.kind_style.paint(kind);
-        writeln!(ret, "{kind} {text}")?;
-      } else {
-        writeln!(ret, "{text}")?;
+      if !*is_named {
+        if matches!(
+          strictness,
+          MatchStrictness::Cst | MatchStrictness::Smart | MatchStrictness::Template
+        ) {
+          writeln!(ret, "{indent_str}{text}")?;
+        }
+        return Ok(());
       }
+      let kind = if matches!(strictness, MatchStrictness::Template) {
+        text
+      } else {
+        lang.node_kind_for_id(*kind_id).unwrap()
+      };
+      let kind = style.kind_style.paint(kind);
+      let text = if matches!(
+        strictness,
+        MatchStrictness::Signature | MatchStrictness::Template
+      ) {
+        ""
+      } else {
+        text
+      };
+      writeln!(ret, "{indent_str}{kind} {text}")?;
     }
     PatternNode::Internal { kind_id, children } => {
-      let kind = lang.node_kind_for_id(*kind_id).unwrap();
-      let kind = style.kind_style.paint(kind);
-      writeln!(ret, "{kind}")?;
+      if matches!(strictness, MatchStrictness::Template) {
+        writeln!(ret, "{indent_str}(node)")?;
+      } else {
+        let kind = lang.node_kind_for_id(*kind_id).unwrap();
+        let kind = style.kind_style.paint(kind);
+        writeln!(ret, "{indent_str}{kind}")?;
+      };
       for child in children {
-        dump_pattern(child, lang, style, indent + 1, ret)?;
+        dump_pattern(child, strictness, lang, style, indent + 1, ret)?;
       }
     }
   }
