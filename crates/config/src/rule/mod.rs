@@ -3,6 +3,7 @@ mod nth_child;
 mod range;
 pub mod referent_rule;
 mod relational_rule;
+mod selector;
 mod stop_by;
 
 pub use deserialize_env::DeserializeEnv;
