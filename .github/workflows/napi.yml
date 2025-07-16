@@ -82,7 +82,7 @@ jobs:
               yarn build --target aarch64-apple-darwin
               strip -x *.node
               yarn test
-    name: stable - ${{ matrix.settings.target }} - node@18
+    name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v4
@@ -90,7 +90,7 @@ jobs:
         uses: actions/setup-node@v4
         if: ${{ !matrix.settings.docker }}
         with:
-          node-version: 18
+          node-version: 20
           check-latest: true
           cache: yarn
           cache-dependency-path: ./crates/napi/yarn.lock
@@ -116,7 +116,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .yarn/cache
-          key: npm-cache-build-${{ matrix.settings.target }}-node@18
+          key: npm-cache-build-${{ matrix.settings.target }}-node@20
       - name: Setup toolchain
         run: ${{ matrix.settings.setup }}
         if: ${{ matrix.settings.setup }}
@@ -131,7 +131,7 @@ jobs:
         uses: actions/setup-node@v4
         if: matrix.settings.target == 'i686-pc-windows-msvc'
         with:
-          node-version: 18
+          node-version: 20
           check-latest: true
           cache: yarn
           architecture: x86
@@ -163,7 +163,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           check-latest: true
           cache: yarn
           cache-dependency-path: ./crates/napi/yarn.lock
