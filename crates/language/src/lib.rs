@@ -24,6 +24,7 @@ mod python;
 mod ruby;
 mod rust;
 mod scala;
+mod solidity;
 mod swift;
 mod yaml;
 
@@ -227,6 +228,7 @@ impl_lang!(JavaScript, language_javascript);
 impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
 impl_lang!(Scala, language_scala);
+impl_lang!(Solidity, language_solidity);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
 impl_lang!(Yaml, language_yaml);
@@ -255,6 +257,7 @@ pub enum SupportLang {
   Ruby,
   Rust,
   Scala,
+  Solidity,
   Swift,
   Tsx,
   TypeScript,
@@ -266,7 +269,7 @@ impl SupportLang {
     use SupportLang::*;
     &[
       Bash, C, Cpp, CSharp, Css, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin, Lua,
-      Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml,
+      Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript, Yaml,
     ]
   }
 
@@ -366,6 +369,7 @@ impl_aliases! {
   Ruby => &["rb", "ruby"],
   Rust => &["rs", "rust"],
   Scala => &["scala"],
+  Solidity => &["sol", "solidity"],
   Swift => &["swift"],
   TypeScript => &["ts", "typescript"],
   Tsx => &["tsx"],
@@ -410,6 +414,7 @@ macro_rules! execute_lang_method {
       S::Ruby => Ruby.$method($($pname,)*),
       S::Rust => Rust.$method($($pname,)*),
       S::Scala => Scala.$method($($pname,)*),
+      S::Solidity => Solidity.$method($($pname,)*),
       S::Swift => Swift.$method($($pname,)*),
       S::Tsx => Tsx.$method($($pname,)*),
       S::TypeScript => TypeScript.$method($($pname,)*),
@@ -479,6 +484,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Ruby => &["rb", "rbw", "gemspec"],
     Rust => &["rs"],
     Scala => &["scala", "sc", "sbt"],
+    Solidity => &["sol"],
     Swift => &["swift"],
     TypeScript => &["ts", "cts", "mts"],
     Tsx => &["tsx"],

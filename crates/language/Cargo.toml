@@ -18,16 +18,16 @@ serde.workspace = true
 tree-sitter.workspace = true
 
 tree-sitter-bash = { version = "0.25.0", optional = true }
-tree-sitter-c = { version = "0.24.0", optional = true }
 tree-sitter-cpp = { version = "0.23.0", optional = true }
 tree-sitter-c-sharp = { version = "0.23.0", optional = true }
 tree-sitter-css = { version = "0.23.2", optional = true }
+tree-sitter-c = { version = "0.24.0", optional = true }
 tree-sitter-elixir = { version = "0.3.0", optional = true }
 tree-sitter-go = { version = "0.23.0", optional = true }
 tree-sitter-haskell = { version = "0.23.0", optional = true }
 tree-sitter-html = { version = "0.23.0", optional = true }
-tree-sitter-java = { version = "0.23.0", optional = true }
 tree-sitter-javascript = { version = "0.23.0", optional = true }
+tree-sitter-java = { version = "0.23.0", optional = true }
 tree-sitter-json = { version = "0.23.0", optional = true }
 tree-sitter-kotlin = { version = "0.4.0", optional = true, package = "tree-sitter-kotlin-sg" }
 tree-sitter-lua = { version = "0.2.0", optional = true }
@@ -36,39 +36,41 @@ tree-sitter-python = { version = "0.23.0", optional = true }
 tree-sitter-ruby = { version = "0.23.0", optional = true }
 tree-sitter-rust = { version = "0.24.0", optional = true }
 tree-sitter-scala = { version = "0.24.0", optional = true }
+tree-sitter-solidity = { version = "1.2.11", optional = true }
 tree-sitter-swift = { version = "0.7.0", optional = true }
 tree-sitter-typescript = { version = "0.23.2", optional = true }
 tree-sitter-yaml = { version = "0.7.0", optional = true }
 
 [features]
 builtin-parser = [
-  "tree-sitter-bash",
-  "tree-sitter-c",
-  "tree-sitter-cpp",
-  "tree-sitter-c-sharp",
-  "tree-sitter-css",
-  "tree-sitter-elixir",
-  "tree-sitter-go",
-  "tree-sitter-haskell",
-  "tree-sitter-html",
-  "tree-sitter-java",
-  "tree-sitter-javascript",
-  "tree-sitter-json",
-  "tree-sitter-kotlin",
-  "tree-sitter-lua",
-  "tree-sitter-php",
-  "tree-sitter-python",
-  "tree-sitter-ruby",
-  "tree-sitter-rust",
-  "tree-sitter-scala",
-  "tree-sitter-swift",
-  "tree-sitter-typescript",
-  "tree-sitter-yaml",
+    "tree-sitter-bash",
+    "tree-sitter-c",
+    "tree-sitter-cpp",
+    "tree-sitter-c-sharp",
+    "tree-sitter-css",
+    "tree-sitter-elixir",
+    "tree-sitter-go",
+    "tree-sitter-haskell",
+    "tree-sitter-html",
+    "tree-sitter-java",
+    "tree-sitter-javascript",
+    "tree-sitter-json",
+    "tree-sitter-kotlin",
+    "tree-sitter-lua",
+    "tree-sitter-php",
+    "tree-sitter-python",
+    "tree-sitter-ruby",
+    "tree-sitter-rust",
+    "tree-sitter-scala",
+    "tree-sitter-solidity",
+    "tree-sitter-swift",
+    "tree-sitter-typescript",
+    "tree-sitter-yaml",
 ]
 napi-lang = [
-  "tree-sitter-css",
-  "tree-sitter-html",
-  "tree-sitter-javascript",
-  "tree-sitter-typescript",
+    "tree-sitter-css",
+    "tree-sitter-html",
+    "tree-sitter-javascript",
+    "tree-sitter-typescript",
 ]
 default = ["builtin-parser"]
