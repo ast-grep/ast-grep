@@ -100,6 +100,9 @@ pub fn language_rust() -> TSLanguage {
 pub fn language_scala() -> TSLanguage {
   into_lang!(tree_sitter_scala)
 }
+pub fn language_solidity() -> TSLanguage {
+  into_lang!(tree_sitter_solidity)
+}
 pub fn language_swift() -> TSLanguage {
   into_lang!(tree_sitter_swift)
 }

@@ -120,6 +120,7 @@ struct ScanWithConfig {
   configs: RuleCollection<SgLang>,
   unused_suppression_rule: RuleConfig<SgLang>,
   trace: ScanTrace,
+  proj_dir: PathBuf,
   // TODO: remove this
   error_count: AtomicUsize,
 }
@@ -127,8 +128,10 @@ impl ScanWithConfig {
   fn try_new(arg: ScanArg, project: Result<ProjectConfig>) -> Result<Self> {
     let overwrite = RuleOverwrite::new(&arg.overwrite)?;
     let unused_suppression_rule = unused_suppression_rule_config(&arg, &overwrite);
+    let mut proj_dir = PathBuf::from(".");
     let (configs, rule_trace) = if let Some(path) = &arg.rule {
       let rules = read_rule_file(path, None)?;
+      proj_dir = path.parent().unwrap_or(Path::new(".")).to_path_buf();
       with_rule_stats(rules)?
     } else if let Some(text) = &arg.inline_rules {
       let rules = from_yaml_string(text, &Default::default())
@@ -137,15 +140,20 @@ impl ScanWithConfig {
     } else {
       // NOTE: only query project here since -r does not need project
       let project_config = project?;
+      proj_dir = project_config.project_dir.clone();
       project_config.find_rules(overwrite)?
     };
     let trace = arg.output.inspect.scan_trace(rule_trace);
     trace.print_rules(&configs)?;
+    let absolute_proj_dir = proj_dir
+      .canonicalize()
+      .or_else(|_| std::env::current_dir())?;
     Ok(Self {
       arg,
       configs,
       unused_suppression_rule,
       trace,
+      proj_dir: absolute_proj_dir,
       error_count: AtomicUsize::new(0),
     })
   }
@@ -207,7 +215,12 @@ impl PathWorker for ScanWithConfig {
     let mut ret = vec![];
     for grep in items {
       let file_content = grep.source();
-      let rules = self.configs.get_rule_from_lang(path, *grep.lang());
+      // use path relative to project director
+      let abs_path = path.canonicalize()?;
+      let normalized_path = abs_path.strip_prefix(&self.proj_dir).unwrap_or(path);
+      let rules = self
+        .configs
+        .get_rule_from_lang(normalized_path, *grep.lang());
       let mut combined = CombinedScan::new(rules);
       combined.set_unused_suppression_rule(&self.unused_suppression_rule);
       let interactive = self.arg.output.needs_interactive();
