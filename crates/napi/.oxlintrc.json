@@ -1,8 +1,5 @@
 {
   "rules": {
-    "oxc": {
-      "no-rest-spread-properties": "off"
-    },
     "typescript": {
       "no-non-null-assertion": "off",
       "no-explicit-any": "off"
