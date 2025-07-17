@@ -300,3 +300,42 @@ fn test_label() -> Result<()> {
     .stdout(contains(" -----^^^--").not());
   Ok(())
 }
+const FILE_RULE: &str = "
+id: file-rule
+message: test rule
+language: TypeScript
+rule: { pattern: Some($A) }
+files: [ test/*.ts ]
+";
+
+#[test]
+fn test_file() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/rule.yml", FILE_RULE),
+    ("test/hit.ts", "Some(123)"),
+    ("not.ts", "Some(456)"),
+  ])?;
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path().join("test"))
+    .args(["scan"])
+    .assert()
+    .success()
+    .stdout(contains("hit.ts"))
+    .stdout(contains("not.ts").not());
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path().join("test"))
+    .args(["scan", "-c", "../sgconfig.yml"])
+    .assert()
+    .success()
+    .stdout(contains("hit.ts"))
+    .stdout(contains("not.ts").not());
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["scan", "-c", "sgconfig.yml"])
+    .assert()
+    .success()
+    .stdout(contains("hit.ts"))
+    .stdout(contains("not.ts").not());
+  Ok(())
+}
