@@ -18,6 +18,7 @@ mod html;
 mod json;
 mod kotlin;
 mod lua;
+mod nix;
 mod parsers;
 mod php;
 mod python;
@@ -206,6 +207,8 @@ impl_lang_expando!(Go, language_go, 'µ');
 impl_lang_expando!(Haskell, language_haskell, 'µ');
 // https://github.com/fwcd/tree-sitter-kotlin/pull/93
 impl_lang_expando!(Kotlin, language_kotlin, 'µ');
+// Nix uses $ for string interpolation (e.g., "${pkgs.hello}")
+impl_lang_expando!(Nix, language_nix, '_');
 // PHP accepts unicode to be used as some name not var name though
 impl_lang_expando!(Php, language_php, 'µ');
 // we can use any char in unicode range [:XID_Start:]
@@ -252,6 +255,7 @@ pub enum SupportLang {
   Json,
   Kotlin,
   Lua,
+  Nix,
   Php,
   Python,
   Ruby,
@@ -269,7 +273,7 @@ impl SupportLang {
     use SupportLang::*;
     &[
       Bash, C, Cpp, CSharp, Css, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin, Lua,
-      Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript, Yaml,
+      Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript, Yaml,
     ]
   }
 
@@ -364,6 +368,7 @@ impl_aliases! {
   Json => &["json"],
   Kotlin => &["kotlin", "kt"],
   Lua => &["lua"],
+  Nix => &["nix"],
   Php => &["php"],
   Python => &["py", "python"],
   Ruby => &["rb", "ruby"],
@@ -409,6 +414,7 @@ macro_rules! execute_lang_method {
       S::Json => Json.$method($($pname,)*),
       S::Kotlin => Kotlin.$method($($pname,)*),
       S::Lua => Lua.$method($($pname,)*),
+      S::Nix => Nix.$method($($pname,)*),
       S::Php => Php.$method($($pname,)*),
       S::Python => Python.$method($($pname,)*),
       S::Ruby => Ruby.$method($($pname,)*),
@@ -479,6 +485,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Json => &["json"],
     Kotlin => &["kt", "ktm", "kts"],
     Lua => &["lua"],
+    Nix => &["nix"],
     Php => &["php"],
     Python => &["py", "py3", "pyi", "bzl"],
     Ruby => &["rb", "rbw", "gemspec"],

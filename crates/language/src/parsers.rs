@@ -85,6 +85,9 @@ pub fn language_kotlin() -> TSLanguage {
 pub fn language_lua() -> TSLanguage {
   into_lang!(tree_sitter_lua)
 }
+pub fn language_nix() -> TSLanguage {
+  into_lang!(tree_sitter_nix)
+}
 pub fn language_php() -> TSLanguage {
   into_lang!(tree_sitter_php, LANGUAGE_PHP_ONLY)
 }
