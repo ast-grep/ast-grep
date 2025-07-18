@@ -44,7 +44,7 @@ macro_rules! impl_lang_mod {
       #[napi]
       pub fn find_in_files(
         config: FindConfig,
-        callback: JsFunction,
+        callback: Function,
       ) -> Result<AsyncTask<FindInFiles>> {
         find_in_files_impl(SupportLang::$lang.into(), config, callback)
       }
@@ -112,7 +112,7 @@ pub fn pattern(lang: String, pattern: String) -> NapiConfig {
 pub fn find_in_files(
   lang: String,
   config: FindConfig,
-  callback: JsFunction,
+  callback: Function,
 ) -> Result<AsyncTask<FindInFiles>> {
   let lang: NapiLang = lang.parse()?;
   find_in_files_impl(lang, config, callback)

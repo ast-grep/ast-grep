@@ -17,7 +17,7 @@ license = "MIT"
 documentation = "https://ast-grep.github.io/guide/introduction.html"
 homepage = "https://ast-grep.github.io/"
 repository = "https://github.com/ast-grep/ast-grep"
-rust-version = "1.70"
+rust-version = "1.77"
 readme = "README.md"
 
 [workspace.dependencies]
