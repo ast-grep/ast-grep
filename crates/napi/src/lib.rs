@@ -12,7 +12,7 @@ use napi_derive::napi;
 use napi_lang::register_dynamic_language as register_dynamic_language_impl;
 
 use doc::{JsDoc, NapiConfig};
-use find_files::{find_in_files_impl, FindConfig, FindInFiles, ParseAsync};
+use find_files::{find_in_files_impl, FindConfig, ParseAsync};
 use napi_lang::NapiLang;
 use sg_node::SgRoot;
 
@@ -45,7 +45,7 @@ macro_rules! impl_lang_mod {
       pub fn find_in_files(
         config: FindConfig,
         callback: Function,
-      ) -> Result<AsyncTask<FindInFiles>> {
+      ) -> Result<()> {
         find_in_files_impl(SupportLang::$lang.into(), config, callback)
       }
     }
@@ -113,7 +113,7 @@ pub fn find_in_files(
   lang: String,
   config: FindConfig,
   callback: Function,
-) -> Result<AsyncTask<FindInFiles>> {
+) -> Result<()> {
   let lang: NapiLang = lang.parse()?;
   find_in_files_impl(lang, config, callback)
 }
