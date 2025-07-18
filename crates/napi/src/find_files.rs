@@ -4,8 +4,8 @@ use ast_grep_core::{AstGrep, NodeMatch};
 use ignore::{WalkBuilder, WalkParallel, WalkState};
 use napi::anyhow::{anyhow, Context, Result as Ret};
 use napi::bindgen_prelude::*;
-use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
-use napi::{JsNumber, Task};
+use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
+use napi::Task;
 use napi_derive::napi;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -44,7 +44,7 @@ pub struct IterateFiles<D> {
 
 impl<T: 'static + Send + Sync> Task for IterateFiles<T> {
   type Output = u32;
-  type JsValue = JsNumber;
+  type JsValue = u32;
 
   fn compute(&mut self) -> Result<Self::Output> {
     let tsfn = &self.tsfn;
@@ -67,17 +67,17 @@ impl<T: 'static + Send + Sync> Task for IterateFiles<T> {
     });
     Ok(file_count.load(Ordering::Acquire))
   }
-  fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
-    env.create_uint32(output)
+  fn resolve(&mut self, _env: Env, output: Self::Output) -> Result<Self::JsValue> {
+    Ok(output)
   }
 }
 
 // See https://github.com/ast-grep/ast-grep/issues/206
 // NodeJS has a 1000 file limitation on sync iteration count.
 // https://github.com/nodejs/node/blob/8ba54e50496a6a5c21d93133df60a9f7cb6c46ce/src/node_api.cc#L336
-const THREAD_FUNC_QUEUE_SIZE: usize = 1000;
+// const THREAD_FUNC_QUEUE_SIZE: usize = 1000;
 
-type ParseFiles = IterateFiles<ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled>>;
+type ParseFiles = IterateFiles<ThreadsafeFunction<SgRoot, ()>>;
 
 #[napi(object)]
 pub struct FileOption {
@@ -88,10 +88,12 @@ pub struct FileOption {
 #[napi]
 pub fn parse_files(
   paths: Either<Vec<String>, FileOption>,
-  callback: JsFunction,
+  callback: Function<SgRoot, ()>,
 ) -> Result<AsyncTask<ParseFiles>> {
-  let tsfn: ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled> =
-    callback.create_threadsafe_function(THREAD_FUNC_QUEUE_SIZE, |ctx| Ok(vec![ctx.value]))?;
+  let tsfn = callback
+    .build_threadsafe_function()
+    .callee_handled()
+    .build()?;
   let (paths, globs) = match paths {
     Either::A(v) => (v, HashMap::new()),
     Either::B(FileOption {
@@ -110,7 +112,7 @@ pub fn parse_files(
 
 // returns if the entry is a file and sent to JavaScript queue
 fn call_sg_root(
-  tsfn: &ThreadsafeFunction<SgRoot, ErrorStrategy::CalleeHandled>,
+  tsfn: &ThreadsafeFunction<SgRoot, ()>,
   entry: std::result::Result<ignore::DirEntry, ignore::Error>,
   lang_option: &LangOption,
 ) -> Ret<bool> {
@@ -138,10 +140,7 @@ fn get_root(entry: ignore::DirEntry, lang_option: &LangOption) -> Ret<(AstGrep<J
   Ok((AstGrep::doc(doc), path.to_string_lossy().into()))
 }
 
-pub type FindInFiles = IterateFiles<(
-  ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
-  RuleCore,
-)>;
+pub type FindInFiles = IterateFiles<(ThreadsafeFunction<PinnedNodes, (), Vec<SgNode>>, RuleCore)>;
 
 pub struct PinnedNodes(
   PinnedNodeData<JsDoc, Vec<NodeMatch<'static, JsDoc>>>,
@@ -165,11 +164,12 @@ pub struct FindConfig {
 pub fn find_in_files_impl(
   lang: NapiLang,
   config: FindConfig,
-  callback: JsFunction,
+  callback: Function<Vec<SgNode>, ()>,
 ) -> Result<AsyncTask<FindInFiles>> {
-  let tsfn = callback.create_threadsafe_function(THREAD_FUNC_QUEUE_SIZE, |ctx| {
-    from_pinned_data(ctx.value, ctx.env)
-  })?;
+  let tsfn = callback
+    .build_threadsafe_function()
+    .callee_handled()
+    .build_callback(|ctx| from_pinned_data(ctx.value, ctx.env))?;
   let FindConfig {
     paths,
     matcher,
@@ -186,7 +186,7 @@ pub fn find_in_files_impl(
 }
 
 // TODO: optimize
-fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<Vec<SgNode>>> {
+fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<SgNode>> {
   let (root, nodes) = pinned.0.into_raw();
   let sg_root = SgRoot(root, pinned.1);
   let reference = SgRoot::into_reference(sg_root, env)?;
@@ -202,14 +202,11 @@ fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<Vec<SgNod
     };
     v.push(sg_node);
   }
-  Ok(vec![v])
+  Ok(v)
 }
 
 fn call_sg_node(
-  (tsfn, rule): &(
-    ThreadsafeFunction<PinnedNodes, ErrorStrategy::CalleeHandled>,
-    RuleCore,
-  ),
+  (tsfn, rule): &(ThreadsafeFunction<PinnedNodes, (), Vec<SgNode>>, RuleCore),
   entry: std::result::Result<ignore::DirEntry, ignore::Error>,
   lang_option: &LangOption,
 ) -> Ret<bool> {

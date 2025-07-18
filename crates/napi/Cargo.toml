@@ -18,8 +18,8 @@ ast-grep-config.workspace = true
 ast-grep-language = { path = "../language", features = ["napi-lang"], default-features = false }
 ast-grep-dynamic.workspace = true
 
-napi = { version = "2.16.17", features = ["serde-json", "napi4", "error_anyhow"] }
-napi-derive = "2.16.13"
+napi = { version = "3.0.0", features = ["serde-json", "napi4", "error_anyhow"] }
+napi-derive = "3.0.0"
 
 ignore.workspace = true
 tree-sitter.workspace = true
@@ -34,4 +34,4 @@ napi-noop-in-unit-test = ["napi-derive/noop"]
 crate-type = ["cdylib"]
 
 [build-dependencies]
-napi-build = "2.1.3"
+napi-build = "3.0.0-beta.0"

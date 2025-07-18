@@ -20,18 +20,18 @@
     "lang/*.ts"
   ],
   "napi": {
-    "name": "ast-grep-napi",
-    "triples": {
-      "defaults": true,
-      "additional": [
-        "i686-pc-windows-msvc",
-        "aarch64-apple-darwin",
-        "aarch64-pc-windows-msvc",
-        "aarch64-unknown-linux-gnu",
-        "aarch64-unknown-linux-musl",
-        "x64-unknown-linux-musl"
-      ]
-    }
+    "binaryName": "ast-grep-napi",
+    "targets": [
+      "x86_64-unknown-linux-gnu",
+      "x86_64-pc-windows-msvc",
+      "x86_64-apple-darwin",
+      "i686-pc-windows-msvc",
+      "aarch64-apple-darwin",
+      "aarch64-pc-windows-msvc",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-unknown-linux-musl",
+      "x64-unknown-linux-musl"
+    ]
   },
   "engines": {
     "node": ">= 10"
@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "@ast-grep/napi": "0.38.6",
-    "@napi-rs/cli": "2.18.4",
+    "@napi-rs/cli": "3.0.0",
     "@types/node": "^22.10.2",
     "oxlint": "1.7.0",
     "ava": "6.4.1",
