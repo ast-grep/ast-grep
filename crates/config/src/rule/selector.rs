@@ -273,7 +273,9 @@ impl<'a, L: Language> Input<'a, L> {
   }
 
   fn peek(&mut self) -> Result<&Option<Token<'a>>, SelectorError> {
-    debug_assert!(self.lookahead.is_none(), "Lookahead should be empty");
+    if self.lookahead.is_some() {
+      return Ok(&self.lookahead);
+    }
     let next_token = self.do_next()?;
     self.lookahead = next_token;
     Ok(&self.lookahead)
@@ -282,8 +284,11 @@ impl<'a, L: Language> Input<'a, L> {
 
 #[cfg(test)]
 mod test {
+  use std::num;
+
   use super::*;
   use crate::test::TypeScript as TS;
+  use ast_grep_core::tree_sitter::LanguageExt;
 
   fn input_to_tokens(input: &str) -> Result<Vec<Token>, SelectorError> {
     let mut input = Input::new(input, TS::Tsx);
@@ -359,6 +364,22 @@ mod test {
       Some(Token::Identifier("thisisaverylongidentifier"))
     );
     assert_eq!(input.next()?, None);
+    Ok(())
+  }
+
+  #[test]
+  fn test_parse_selector() -> Result<(), SelectorError> {
+    let selector = "call_expression > identifier";
+    let rule = parse_selector(selector, TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("test(123)");
+    let ident = root.root().find(&rule).expect("Should find identifier");
+    assert_eq!(ident.kind(), "identifier");
+    assert_eq!(ident.text(), "test");
+    let rule = parse_selector("call_expression > number", TS::Tsx)?;
+    assert!(root.root().find(&rule).is_none());
+    let rule = parse_selector("call_expression number", TS::Tsx)?;
+    let number = root.root().find(&rule).expect("Should find number");
+    assert_eq!(number.text(), "123");
     Ok(())
   }
 }
