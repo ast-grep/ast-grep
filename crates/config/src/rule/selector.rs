@@ -70,16 +70,18 @@ enum SelectorError {
 
 struct Input<'a> {
   source: &'a str,
+  lookahead: Option<Token<'a>>,
 }
 
 impl<'a> Input<'a> {
   fn new(source: &'a str) -> Self {
     Self {
       source: source.trim(),
+      lookahead: None,
     }
   }
 
-  fn next(&mut self) -> Result<Option<Token<'a>>, SelectorError> {
+  fn do_next(&mut self) -> Result<Option<Token<'a>>, SelectorError> {
     if self.source.is_empty() {
       return Ok(None);
     }
@@ -104,6 +106,21 @@ impl<'a> Input<'a> {
     };
     self.source = self.source[step..].trim_start();
     Ok(Some(next_token))
+  }
+
+  fn next(&mut self) -> Result<Option<Token<'a>>, SelectorError> {
+    if let Some(token) = self.lookahead.take() {
+      Ok(Some(token))
+    } else {
+      self.do_next()
+    }
+  }
+
+  fn peek(&mut self) -> Result<&Option<Token<'a>>, SelectorError> {
+    debug_assert!(self.lookahead.is_none(), "Lookahead should be empty");
+    let next_token = self.do_next()?;
+    self.lookahead = next_token;
+    Ok(&self.lookahead)
   }
 }
 
