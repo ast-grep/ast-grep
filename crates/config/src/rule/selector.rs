@@ -39,7 +39,10 @@ use super::{
   relational_rule::{Follows, Inside},
   Rule,
 };
-use ast_grep_core::{matcher::KindMatcher, ops, Language};
+use ast_grep_core::{
+  matcher::{KindMatcher, KindMatcherError},
+  ops, Language,
+};
 use thiserror::Error;
 
 // Inspired by CSS Selector, see
@@ -165,8 +168,11 @@ fn try_parse_type_selector<'a, L: Language>(
   let Some(Token::Identifier(ident)) = input.peek()? else {
     return Ok(None);
   };
+  let ident = *ident;
+  let lang = input.language.clone();
   input.next()?;
-  todo!()
+  let matcher = KindMatcher::try_new(ident, lang)?;
+  Ok(Some(Rule::Kind(matcher)))
 }
 
 /// <subclass-selector> = <class-selector> | <pseudo-class-selector>
@@ -189,6 +195,8 @@ enum SelectorError {
   UnexpectedToken,
   #[error("Missing Selector")]
   MissingSelector,
+  #[error("Invalid Kind")]
+  InvalidKind(#[from] KindMatcherError),
 }
 
 struct Input<'a, L: Language> {
