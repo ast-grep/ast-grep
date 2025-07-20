@@ -39,7 +39,7 @@ use super::{
   relational_rule::{Follows, Inside},
   Rule,
 };
-use ast_grep_core::{matcher::KindMatcher, ops};
+use ast_grep_core::{matcher::KindMatcher, ops, Language};
 use thiserror::Error;
 
 // Inspired by CSS Selector, see
@@ -62,8 +62,8 @@ enum Token<'a> {
   Comma,
 }
 
-fn parse_selector(source: &str) -> Result<Rule, SelectorError> {
-  let mut input = Input::new(source);
+fn parse_selector<L: Language>(source: &str, lang: L) -> Result<Rule, SelectorError> {
+  let mut input = Input::new(source, lang);
   let ret = try_parse_selector(&mut input)?;
   if !input.is_empty() {
     return Err(SelectorError::UnexpectedToken);
@@ -71,7 +71,8 @@ fn parse_selector(source: &str) -> Result<Rule, SelectorError> {
   Ok(ret)
 }
 
-fn try_parse_selector<'a>(input: &mut Input<'a>) -> Result<Rule, SelectorError> {
+/// <selector-list> = <complex-selector>#
+fn try_parse_selector<'a, L: Language>(input: &mut Input<'a, L>) -> Result<Rule, SelectorError> {
   let mut rules = vec![];
   while !input.is_empty() {
     let complex_selector = parse_complex_selector(input)?;
@@ -85,7 +86,10 @@ fn try_parse_selector<'a>(input: &mut Input<'a>) -> Result<Rule, SelectorError> 
   Ok(Rule::Any(ops::Any::new(rules)))
 }
 
-fn parse_complex_selector<'a>(input: &mut Input<'a>) -> Result<Rule, SelectorError> {
+/// <complex-selector> = <compound-selector> [ <combinator> <compound-selector> ]*
+fn parse_complex_selector<'a, L: Language>(
+  input: &mut Input<'a, L>,
+) -> Result<Rule, SelectorError> {
   let mut rule = parse_compound_selector(input)?;
   loop {
     let Some(combinator) = try_parse_combinator(input)? else {
@@ -126,7 +130,10 @@ fn parse_complex_selector<'a>(input: &mut Input<'a>) -> Result<Rule, SelectorErr
   Ok(rule)
 }
 
-fn try_parse_combinator<'a>(input: &mut Input<'a>) -> Result<Option<char>, SelectorError> {
+/// <combinator> = '>' | '+' | '~' | ' '
+fn try_parse_combinator<'a, L: Language>(
+  input: &mut Input<'a, L>,
+) -> Result<Option<char>, SelectorError> {
   let Some(Token::Combinator(c)) = input.peek()? else {
     return Ok(None);
   };
@@ -135,8 +142,10 @@ fn try_parse_combinator<'a>(input: &mut Input<'a>) -> Result<Option<char>, Selec
   Ok(Some(c))
 }
 
-// <compound-selector> = [ <type-selector>? <subclass-selector>* ]!
-fn parse_compound_selector<'a>(input: &mut Input<'a>) -> Result<Rule, SelectorError> {
+/// <compound-selector> = [ <type-selector>? <subclass-selector>* ]!
+fn parse_compound_selector<'a, L: Language>(
+  input: &mut Input<'a, L>,
+) -> Result<Rule, SelectorError> {
   let mut rules = vec![];
   if let Some(rule) = try_parse_type_selector(input)? {
     rules.push(rule);
@@ -150,7 +159,9 @@ fn parse_compound_selector<'a>(input: &mut Input<'a>) -> Result<Rule, SelectorEr
   Ok(Rule::All(ops::All::new(rules)))
 }
 
-fn try_parse_type_selector<'a>(input: &mut Input<'a>) -> Result<Option<Rule>, SelectorError> {
+fn try_parse_type_selector<'a, L: Language>(
+  input: &mut Input<'a, L>,
+) -> Result<Option<Rule>, SelectorError> {
   let Some(Token::Identifier(ident)) = input.peek()? else {
     return Ok(None);
   };
@@ -158,7 +169,10 @@ fn try_parse_type_selector<'a>(input: &mut Input<'a>) -> Result<Option<Rule>, Se
   todo!()
 }
 
-fn try_parse_subclass_selector<'a>(input: &mut Input<'a>) -> Result<Option<Rule>, SelectorError> {
+/// <subclass-selector> = <class-selector> | <pseudo-class-selector>
+fn try_parse_subclass_selector<'a, L: Language>(
+  input: &mut Input<'a, L>,
+) -> Result<Option<Rule>, SelectorError> {
   if let Some(Token::ClassDot) = input.peek()? {
     todo!()
   } else if let Some(Token::PseudoColon) = input.peek()? {
@@ -177,16 +191,18 @@ enum SelectorError {
   MissingSelector,
 }
 
-struct Input<'a> {
+struct Input<'a, L: Language> {
   source: &'a str,
   lookahead: Option<Token<'a>>,
+  language: L,
 }
 
-impl<'a> Input<'a> {
-  fn new(source: &'a str) -> Self {
+impl<'a, L: Language> Input<'a, L> {
+  fn new(source: &'a str, language: L) -> Self {
     Self {
       source: source.trim(),
       lookahead: None,
+      language,
     }
   }
 
@@ -259,9 +275,10 @@ impl<'a> Input<'a> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::test::TypeScript as TS;
 
   fn input_to_tokens(input: &str) -> Result<Vec<Token>, SelectorError> {
-    let mut input = Input::new(input);
+    let mut input = Input::new(input, TS::Tsx);
     let mut tokens = Vec::new();
     while let Some(token) = input.next()? {
       tokens.push(token);
@@ -295,7 +312,7 @@ mod test {
 
   #[test]
   fn test_illegal_character() {
-    let mut input = Input::new("call_expression $ statement");
+    let mut input = Input::new("call_expression $ statement", TS::Tsx);
 
     assert_eq!(
       input.next().unwrap(),
@@ -311,16 +328,16 @@ mod test {
   #[test]
   fn test_edge_cases() -> Result<(), SelectorError> {
     // Empty string
-    let mut input = Input::new("");
+    let mut input = Input::new("", TS::Tsx);
     assert_eq!(input.next()?, None);
 
     // Leading and trailing whitespaces
-    let mut input = Input::new("   call_expression   ");
+    let mut input = Input::new("   call_expression   ", TS::Tsx);
     assert_eq!(input.next()?, Some(Token::Identifier("call_expression")));
     assert_eq!(input.next()?, None);
 
     // Mixed valid and invalid characters
-    let mut input = Input::new("call_expression$statement");
+    let mut input = Input::new("call_expression$statement", TS::Tsx);
     assert_eq!(input.next()?, Some(Token::Identifier("call_expression")));
     assert!(matches!(
       input.next(),
@@ -328,7 +345,7 @@ mod test {
     ));
 
     // Long sequence of identifiers
-    let mut input = Input::new("thisisaverylongidentifier");
+    let mut input = Input::new("thisisaverylongidentifier", TS::Tsx);
     assert_eq!(
       input.next()?,
       Some(Token::Identifier("thisisaverylongidentifier"))
