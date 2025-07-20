@@ -39,7 +39,7 @@ use super::{
   relational_rule::{Follows, Inside},
   Rule,
 };
-use ast_grep_core::ops;
+use ast_grep_core::{matcher::KindMatcher, ops};
 use thiserror::Error;
 
 // Inspired by CSS Selector, see
@@ -135,8 +135,36 @@ fn try_parse_combinator<'a>(input: &mut Input<'a>) -> Result<Option<char>, Selec
   Ok(Some(c))
 }
 
+// <compound-selector> = [ <type-selector>? <subclass-selector>* ]!
 fn parse_compound_selector<'a>(input: &mut Input<'a>) -> Result<Rule, SelectorError> {
+  let mut rules = vec![];
+  if let Some(rule) = try_parse_type_selector(input)? {
+    rules.push(rule);
+  }
+  while let Some(subclass_rule) = try_parse_subclass_selector(input)? {
+    rules.push(subclass_rule);
+  }
+  if rules.is_empty() {
+    return Err(SelectorError::MissingSelector);
+  }
+  Ok(Rule::All(ops::All::new(rules)))
+}
+
+fn try_parse_type_selector<'a>(input: &mut Input<'a>) -> Result<Option<Rule>, SelectorError> {
+  let Some(Token::Identifier(ident)) = input.peek()? else {
+    return Ok(None);
+  };
+  input.next()?;
   todo!()
+}
+
+fn try_parse_subclass_selector<'a>(input: &mut Input<'a>) -> Result<Option<Rule>, SelectorError> {
+  if let Some(Token::ClassDot) = input.peek()? {
+    todo!()
+  } else if let Some(Token::PseudoColon) = input.peek()? {
+    todo!()
+  }
+  Ok(None)
 }
 
 #[derive(Debug, Error)]
@@ -145,6 +173,8 @@ enum SelectorError {
   IllegalCharacter(char),
   #[error("Unexpected token")]
   UnexpectedToken,
+  #[error("Missing Selector")]
+  MissingSelector,
 }
 
 struct Input<'a> {
