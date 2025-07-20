@@ -36,6 +36,7 @@
 <pseudo-class-selector> = ':' <ident-token> [ '(' <selector-list> ')' ]?
 */
 use super::Rule;
+use ast_grep_core::ops::Any;
 use thiserror::Error;
 
 // Inspired by CSS Selector, see
@@ -44,7 +45,7 @@ use thiserror::Error;
 #[derive(Debug, Clone, PartialEq)]
 enum Token<'a> {
   Identifier(&'a str),
-  /// + ~ >
+  /// + ~ > or space ` `
   Combinator(char),
   /// .
   ClassDot,
@@ -58,7 +59,47 @@ enum Token<'a> {
   Comma,
 }
 
-pub fn parse_selector(source: &str) -> Rule {
+fn parse_selector(source: &str) -> Result<Rule, SelectorError> {
+  let mut input = Input::new(source);
+  let ret = try_parse_selector(&mut input)?;
+  if !input.is_empty() {
+    return Err(SelectorError::UnexpectedToken);
+  }
+  Ok(ret)
+}
+
+fn try_parse_selector<'a>(input: &mut Input<'a>) -> Result<Rule, SelectorError> {
+  let mut rules = vec![];
+  while !input.is_empty() {
+    let complex_selector = parse_complex_selector(input)?;
+    rules.push(complex_selector);
+    if let Some(Token::Comma) = input.peek()? {
+      input.next()?; // consume the comma
+    } else if !input.is_empty() {
+      break;
+    }
+  }
+  Ok(Rule::Any(Any::new(rules)))
+}
+
+fn parse_complex_selector<'a>(input: &mut Input<'a>) -> Result<Rule, SelectorError> {
+  let mut rule = parse_compound_selector(input)?;
+  loop {
+    let combinator = try_parse_combinator(input)?;
+  }
+  Ok(rule)
+}
+
+fn try_parse_combinator<'a>(input: &mut Input<'a>) -> Result<Option<char>, SelectorError> {
+  let Some(Token::Combinator(c)) = input.peek()? else {
+    return Ok(None);
+  };
+  let c = *c;
+  input.next()?; // consume the combinator
+  Ok(Some(c))
+}
+
+fn parse_compound_selector<'a>(input: &mut Input<'a>) -> Result<Rule, SelectorError> {
   todo!()
 }
 
@@ -66,6 +107,8 @@ pub fn parse_selector(source: &str) -> Rule {
 enum SelectorError {
   #[error("Illegal character {0} encountered")]
   IllegalCharacter(char),
+  #[error("Unexpected token")]
+  UnexpectedToken,
 }
 
 struct Input<'a> {
@@ -81,30 +124,53 @@ impl<'a> Input<'a> {
     }
   }
 
+  fn is_empty(&self) -> bool {
+    self.source.is_empty() && self.lookahead.is_none()
+  }
+
+  fn consume_whitespace(&mut self) {
+    self.source = self.source.trim_start();
+  }
+
   fn do_next(&mut self) -> Result<Option<Token<'a>>, SelectorError> {
     if self.source.is_empty() {
       return Ok(None);
     }
-    let (next_token, step) = match self.source.as_bytes()[0] as char {
-      c @ ('+' | '~' | '>') => (Token::Combinator(c), 1),
-      '.' => (Token::ClassDot, 1),
-      ':' => (Token::PseudoColon, 1),
-      '(' => (Token::LeftParen, 1),
-      ')' => (Token::RightParen, 1),
-      ',' => (Token::Comma, 1),
+    let (next_token, step, need_trim) = match self.source.as_bytes()[0] as char {
+      ' ' => {
+        let len = self
+          .source
+          .find(|c: char| !c.is_whitespace())
+          .unwrap_or(self.source.len());
+        let next_char = self.source.as_bytes()[len] as char;
+        if matches!(next_char, '+' | '~' | '>') {
+          self.consume_whitespace();
+          return self.do_next(); // skip whitespace
+        }
+        (Token::Combinator(' '), len, true)
+      }
+      c @ ('+' | '~' | '>') => (Token::Combinator(c), 1, true),
+      '.' => (Token::ClassDot, 1, false),
+      ':' => (Token::PseudoColon, 1, false),
+      '(' => (Token::LeftParen, 1, true),
+      ')' => (Token::RightParen, 1, false),
+      ',' => (Token::Comma, 1, true),
       'a'..='z' | 'A'..='Z' | '_' | '-' => {
         let len = self
           .source
           .find(|c| !matches!(c, 'a'..='z' | 'A'..='Z' | '_' | '-'))
           .unwrap_or(self.source.len());
         let ident = &self.source[..len];
-        (Token::Identifier(ident), len)
+        (Token::Identifier(ident), len, false)
       }
       c => {
         return Err(SelectorError::IllegalCharacter(c));
       }
     };
-    self.source = self.source[step..].trim_start();
+    self.source = &self.source[step..];
+    if need_trim {
+      self.consume_whitespace();
+    }
     Ok(Some(next_token))
   }
 
@@ -140,21 +206,24 @@ mod test {
   #[test]
   fn test_valid_tokens() -> Result<(), SelectorError> {
     let tokens = input_to_tokens("call_expression + statement > .body :has, identifier")?;
-    assert_eq!(
-      tokens,
-      vec![
-        Token::Identifier("call_expression"),
-        Token::Combinator('+'),
-        Token::Identifier("statement"),
-        Token::Combinator('>'),
-        Token::ClassDot,
-        Token::Identifier("body"),
-        Token::PseudoColon,
-        Token::Identifier("has"),
-        Token::Comma,
-        Token::Identifier("identifier"),
-      ]
-    );
+    let expected = vec![
+      Token::Identifier("call_expression"),
+      Token::Combinator('+'),
+      Token::Identifier("statement"),
+      Token::Combinator('>'),
+      Token::ClassDot,
+      Token::Identifier("body"),
+      Token::Combinator(' '),
+      Token::PseudoColon,
+      Token::Identifier("has"),
+      Token::Comma,
+      Token::Identifier("identifier"),
+    ];
+    assert_eq!(tokens, expected);
+    // Test with extra whitespace
+    let tokens =
+      input_to_tokens("  call_expression   +   statement  >   .body    :has,    identifier  ")?;
+    assert_eq!(tokens, expected);
     Ok(())
   }
 
@@ -166,6 +235,7 @@ mod test {
       input.next().unwrap(),
       Some(Token::Identifier("call_expression"))
     );
+    assert_eq!(input.next().unwrap(), Some(Token::Combinator(' ')));
     assert!(matches!(
       input.next(),
       Err(SelectorError::IllegalCharacter('$'))
