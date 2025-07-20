@@ -21,11 +21,11 @@
 
 <selector-list> = <complex-selector>#
 
-<complex-selector> = <compound-selector> [ <combinator>? <compound-selector> ]*
+<complex-selector> = <compound-selector> [ <combinator> <compound-selector> ]*
 
 <compound-selector> = [ <type-selector>? <subclass-selector>* ]!
 
-<combinator> = '>' | '+' | '~'
+<combinator> = '>' | '+' | '~' | ' '
 
 <type-selector> = <ident-token>
 
@@ -35,8 +35,11 @@
 
 <pseudo-class-selector> = ':' <ident-token> [ '(' <selector-list> ')' ]?
 */
-use super::Rule;
-use ast_grep_core::ops::Any;
+use super::{
+  relational_rule::{Follows, Inside},
+  Rule,
+};
+use ast_grep_core::ops;
 use thiserror::Error;
 
 // Inspired by CSS Selector, see
@@ -79,13 +82,46 @@ fn try_parse_selector<'a>(input: &mut Input<'a>) -> Result<Rule, SelectorError> 
       break;
     }
   }
-  Ok(Rule::Any(Any::new(rules)))
+  Ok(Rule::Any(ops::Any::new(rules)))
 }
 
 fn parse_complex_selector<'a>(input: &mut Input<'a>) -> Result<Rule, SelectorError> {
   let mut rule = parse_compound_selector(input)?;
   loop {
-    let combinator = try_parse_combinator(input)?;
+    let Some(combinator) = try_parse_combinator(input)? else {
+      break; // no more combinators
+    };
+    let next_rule = parse_compound_selector(input)?;
+    match combinator {
+      '>' => {
+        rule = Rule::All(ops::All::new([
+          next_rule,
+          Rule::Inside(Box::new(Inside::rule(rule))),
+        ]));
+      }
+      '+' => {
+        rule = Rule::All(ops::All::new([
+          next_rule,
+          Rule::Follows(Box::new(Follows::rule(rule))),
+        ]));
+      }
+      '~' => {
+        rule = Rule::All(ops::All::new([
+          next_rule,
+          Rule::Follows(Box::new(Follows::rule_descent(rule))),
+        ]));
+      }
+      ' ' => {
+        // space combinator means any descendant
+        rule = Rule::All(ops::All::new([
+          next_rule,
+          Rule::Inside(Box::new(Inside::rule_descent(rule))),
+        ]));
+      }
+      _ => {
+        return Err(SelectorError::IllegalCharacter(combinator));
+      }
+    }
   }
   Ok(rule)
 }

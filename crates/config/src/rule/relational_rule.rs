@@ -39,6 +39,20 @@ pub struct Inside {
   stop_by: StopBy,
 }
 impl Inside {
+  pub(crate) fn rule(rule: Rule) -> Self {
+    Self {
+      outer: rule,
+      field: None,
+      stop_by: StopBy::Neighbor,
+    }
+  }
+  pub(crate) fn rule_descent(rule: Rule) -> Self {
+    Self {
+      outer: rule,
+      field: None,
+      stop_by: StopBy::End,
+    }
+  }
   pub fn try_new<L: Language>(
     relation: Relation,
     env: &DeserializeEnv<L>,
@@ -225,6 +239,18 @@ pub struct Follows {
   stop_by: StopBy,
 }
 impl Follows {
+  pub(crate) fn rule(rule: Rule) -> Self {
+    Self {
+      former: rule,
+      stop_by: StopBy::Neighbor,
+    }
+  }
+  pub(crate) fn rule_descent(rule: Rule) -> Self {
+    Self {
+      former: rule,
+      stop_by: StopBy::End,
+    }
+  }
   pub fn try_new<L: Language>(
     relation: Relation,
     env: &DeserializeEnv<L>,
