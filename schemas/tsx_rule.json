@@ -1300,6 +1300,13 @@
           "enum": [
             "signature"
           ]
+        },
+        {
+          "description": "similar to smart, but node kinds are ignored, only text is matched.",
+          "type": "string",
+          "enum": [
+            "template"
+          ]
         }
       ]
     },
