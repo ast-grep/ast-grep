@@ -65,7 +65,7 @@ enum Token<'a> {
   Comma,
 }
 
-fn parse_selector<L: Language>(source: &str, lang: L) -> Result<Rule, SelectorError> {
+pub fn parse_selector<L: Language>(source: &str, lang: L) -> Result<Rule, SelectorError> {
   let mut input = Input::new(source, lang);
   let ret = try_parse_selector(&mut input)?;
   if !input.is_empty() {
@@ -188,7 +188,7 @@ fn try_parse_subclass_selector<'a, L: Language>(
 }
 
 #[derive(Debug, Error)]
-enum SelectorError {
+pub enum SelectorError {
   #[error("Illegal character {0} encountered")]
   IllegalCharacter(char),
   #[error("Unexpected token")]

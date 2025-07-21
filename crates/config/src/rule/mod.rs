@@ -8,6 +8,7 @@ mod stop_by;
 
 pub use deserialize_env::DeserializeEnv;
 pub use relational_rule::Relation;
+use selector::{parse_selector, SelectorError};
 pub use stop_by::StopBy;
 
 use crate::maybe::Maybe;
@@ -17,7 +18,7 @@ use referent_rule::{ReferentRule, ReferentRuleError};
 use relational_rule::{Follows, Has, Inside, Precedes};
 
 use ast_grep_core::language::Language;
-use ast_grep_core::matcher::{KindMatcher, KindMatcherError, RegexMatcher, RegexMatcherError};
+use ast_grep_core::matcher::{KindMatcher, RegexMatcher, RegexMatcherError};
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{ops as o, Doc, Node};
 use ast_grep_core::{MatchStrictness, Matcher, Pattern, PatternError};
@@ -354,7 +355,7 @@ pub enum RuleSerializeError {
   #[error("Rule must have one positive matcher.")]
   MissPositiveMatcher,
   #[error("Rule contains invalid kind matcher.")]
-  InvalidKind(#[from] KindMatcherError),
+  InvalidKind(#[from] SelectorError),
   #[error("Rule contains invalid pattern matcher.")]
   InvalidPattern(#[from] PatternError),
   #[error("Rule contains invalid nthChild.")]
@@ -475,7 +476,8 @@ fn deserialze_atomic_rule<L: Language>(
     });
   }
   if let Some(kind) = atomic.kind {
-    rules.push(R::Kind(KindMatcher::try_new(&kind, env.lang.clone())?));
+    let rule = parse_selector(&kind, env.lang.clone())?;
+    rules.push(rule);
   }
   if let Some(regex) = atomic.regex {
     rules.push(R::Regex(RegexMatcher::try_new(&regex)?));
