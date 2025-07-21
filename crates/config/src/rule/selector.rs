@@ -232,8 +232,8 @@ impl<'a, L: Language> Input<'a, L> {
           .source
           .find(|c: char| !c.is_whitespace())
           .unwrap_or(self.source.len());
-        let next_char = self.source.as_bytes()[len] as char;
-        if matches!(next_char, '+' | '~' | '>') {
+        if self.source.len() > len && matches!(self.source.as_bytes()[len] as char, '+' | '~' | '>')
+        {
           self.consume_whitespace();
           return self.do_next(); // skip whitespace
         }
