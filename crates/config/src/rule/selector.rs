@@ -180,9 +180,9 @@ fn try_parse_subclass_selector<'a, L: Language>(
   input: &mut Input<'a, L>,
 ) -> Result<Option<Rule>, SelectorError> {
   if let Some(Token::ClassDot) = input.peek()? {
-    todo!()
+    return Err(SelectorError::Unsupported("class-selector"));
   } else if let Some(Token::PseudoColon) = input.peek()? {
-    todo!()
+    return Err(SelectorError::Unsupported("pseudo-class-selector"));
   }
   Ok(None)
 }
@@ -197,6 +197,8 @@ pub enum SelectorError {
   MissingSelector,
   #[error("Invalid Kind")]
   InvalidKind(#[from] KindMatcherError),
+  #[error("{0} is not supported yet")]
+  Unsupported(&'static str),
 }
 
 struct Input<'a, L: Language> {
@@ -284,8 +286,6 @@ impl<'a, L: Language> Input<'a, L> {
 
 #[cfg(test)]
 mod test {
-  use std::num;
-
   use super::*;
   use crate::test::TypeScript as TS;
   use ast_grep_core::tree_sitter::LanguageExt;

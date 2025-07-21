@@ -44,7 +44,7 @@
     "artifacts": "napi artifacts",
     "build": "napi build --no-const-enum --dts ignore.d.ts --platform --release",
     "build:debug": "napi build --no-const-enum --dts ignore.d.ts --platform",
-    "prepublishOnly": "napi prepublish -t npm --skip-gh-release",
+    "prepublishOnly": "napi prepublish -t npm --gh-release false",
     "pretest": "ts-node scripts/generateTypes.ts --test-only",
     "test": "tsc --noEmit && ava",
     "version": "napi version",
