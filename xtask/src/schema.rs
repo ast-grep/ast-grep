@@ -7,11 +7,7 @@ use ast_grep_language::{
   Alias, Bash, CSharp, Cpp, Css, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin, Lua,
   Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml, C,
 };
-use schemars::{
-  gen::SchemaGenerator,
-  schema::{InstanceType, RootSchema, Schema, SchemaObject},
-  schema_for, JsonSchema,
-};
+use schemars::{json_schema, schema_for, JsonSchema, Schema, SchemaGenerator};
 use serde_json::{to_writer_pretty, Value};
 
 use std::borrow::Cow;
@@ -65,117 +61,118 @@ fn generate_lang_schema<T: LanguageExt + Alias>(lang: T, name: &str) -> Result<(
   to_writer_pretty(&mut file, &schema).context("cannot print JSON schema")
 }
 
-fn tweak_schema(schema: &mut RootSchema) -> Result<()> {
+fn tweak_schema(schema: &mut Schema) -> Result<()> {
   // better schema name
-  schema.schema.metadata().title = Some("ast-grep rule".to_string());
-  // stopby's rule does not need to be nested
-  simplify_stop_by(schema)?;
-  // using rule/relation will be too noisy
-  let description = remove_recursive_rule_relation_description(schema)?;
-  // set description to rule
-  let props = &mut schema.schema.object().properties;
-  let Schema::Object(rule) = props.get_mut("rule").context("must have rule")? else {
-    bail!("rule's type is not object!");
-  };
-  rule.metadata().description = description;
+  // schema.schema.metadata().title = Some("ast-grep rule".to_string());
+  // // stopby's rule does not need to be nested
+  // simplify_stop_by(schema)?;
+  // // using rule/relation will be too noisy
+  // let description = remove_recursive_rule_relation_description(schema)?;
+  // // set description to rule
+  // let props = &mut schema.schema.object().properties;
+  // let Schema::Object(rule) = props.get_mut("rule").context("must have rule")? else {
+  //   bail!("rule's type is not object!");
+  // };
+  // rule.metadata().description = description;
   Ok(())
 }
 
 fn add_lang_info_to_schema<T: LanguageExt + Alias>(
-  schema: &mut RootSchema,
+  schema: &mut Schema,
   lang: T,
   name: &str,
 ) -> Result<()> {
-  schema.schema.metadata().title = Some(format!("ast-grep rule for {name}"));
-  let definitions = &mut schema.definitions;
-  let Schema::Object(relation) = definitions
-    .get_mut("Relation")
-    .context("must have relation")?
-  else {
-    bail!("Relation's type is not object!");
-  };
-  let relation_props = &mut relation.object().properties;
-  let Schema::Object(field) = relation_props.get_mut("field").context("must have field")? else {
-    bail!("field's type is not object!")
-  };
-  field.enum_values = Some(get_fields(&lang.get_ts_language()));
-  let Schema::Object(kind) = relation_props.get_mut("kind").context("must have kind")? else {
-    bail!("kind's type is not object!")
-  };
-  let named_nodes = get_named_nodes(&lang.get_ts_language());
-  kind.enum_values = Some(named_nodes.clone());
-  let Schema::Object(serializable_rule) = definitions
-    .get_mut("SerializableRule")
-    .context("must have SerializableRule")?
-  else {
-    bail!("SerializableRule's type is not object!");
-  };
-  let serializable_rule_props = &mut serializable_rule.object().properties;
-  let Schema::Object(kind) = serializable_rule_props
-    .get_mut("kind")
-    .context("must have kind")?
-  else {
-    bail!("kind's type is not object!")
-  };
-  kind.enum_values = Some(named_nodes);
-  let Schema::Object(language) = definitions
-    .get_mut("Language")
-    .context("must have Language")?
-  else {
-    bail!("Language's type is not an object!")
-  };
-  language.enum_values = Some(
-    T::ALIAS
-      .iter()
-      .map(|alias| serde_json::Value::String(alias.to_string()))
-      .chain(std::iter::once(serde_json::Value::String(format!(
-        "{lang}"
-      ))))
-      .collect(),
-  );
+  // schema.schema.metadata().title = Some(format!("ast-grep rule for {name}"));
+  // let definitions = &mut schema.definitions;
+  // let Schema::Object(relation) = definitions
+  //   .get_mut("Relation")
+  //   .context("must have relation")?
+  // else {
+  //   bail!("Relation's type is not object!");
+  // };
+  // let relation_props = &mut relation.object().properties;
+  // let Schema::Object(field) = relation_props.get_mut("field").context("must have field")? else {
+  //   bail!("field's type is not object!")
+  // };
+  // field.enum_values = Some(get_fields(&lang.get_ts_language()));
+  // let Schema::Object(kind) = relation_props.get_mut("kind").context("must have kind")? else {
+  //   bail!("kind's type is not object!")
+  // };
+  // let named_nodes = get_named_nodes(&lang.get_ts_language());
+  // kind.enum_values = Some(named_nodes.clone());
+  // let Schema::Object(serializable_rule) = definitions
+  //   .get_mut("SerializableRule")
+  //   .context("must have SerializableRule")?
+  // else {
+  //   bail!("SerializableRule's type is not object!");
+  // };
+  // let serializable_rule_props = &mut serializable_rule.object().properties;
+  // let Schema::Object(kind) = serializable_rule_props
+  //   .get_mut("kind")
+  //   .context("must have kind")?
+  // else {
+  //   bail!("kind's type is not object!")
+  // };
+  // kind.enum_values = Some(named_nodes);
+  // let Schema::Object(language) = definitions
+  //   .get_mut("Language")
+  //   .context("must have Language")?
+  // else {
+  //   bail!("Language's type is not an object!")
+  // };
+  // language.enum_values = Some(
+  //   T::ALIAS
+  //     .iter()
+  //     .map(|alias| serde_json::Value::String(alias.to_string()))
+  //     .chain(std::iter::once(serde_json::Value::String(format!(
+  //       "{lang}"
+  //     ))))
+  //     .collect(),
+  // );
   Ok(())
 }
 
-fn remove_recursive_rule_relation_description(schema: &mut RootSchema) -> Result<Option<String>> {
-  let definitions = &mut schema.definitions;
-  let Schema::Object(relation) = definitions
-    .get_mut("Relation")
-    .context("must have relation")?
-  else {
-    bail!("Relation's type is not object!");
-  };
-  relation.metadata().description = None;
-  let Schema::Object(rule) = definitions
-    .get_mut("SerializableRule")
-    .context("must have rule")?
-  else {
-    bail!("SerializableRule's type is not object!");
-  };
-  Ok(rule.metadata().description.take())
+fn remove_recursive_rule_relation_description(schema: &mut Schema) -> Result<Option<String>> {
+  // let definitions = &mut schema.definitions;
+  // let Schema::Object(relation) = definitions
+  //   .get_mut("Relation")
+  //   .context("must have relation")?
+  // else {
+  //   bail!("Relation's type is not object!");
+  // };
+  // relation.metadata().description = None;
+  // let Schema::Object(rule) = definitions
+  //   .get_mut("SerializableRule")
+  //   .context("must have rule")?
+  // else {
+  //   bail!("SerializableRule's type is not object!");
+  // };
+  // Ok(rule.metadata().description.take())
+  Ok(None)
 }
 
-fn simplify_stop_by(schema: &mut RootSchema) -> Result<()> {
-  let definitions = &mut schema.definitions;
-  let Schema::Object(stop_by) = definitions
-    .get_mut("SerializableStopBy")
-    .context("must have stopby")?
-  else {
-    bail!("StopBy's type is not object!");
-  };
-  let one_ofs = stop_by
-    .subschemas()
-    .one_of
-    .as_mut()
-    .context("should have one_of")?;
-  let Schema::Object(rule) = &mut one_ofs[1] else {
-    bail!("type is not object!");
-  };
-  let rule = rule
-    .object()
-    .properties
-    .remove("rule")
-    .context("should have rule")?;
-  one_ofs[1] = rule;
+fn simplify_stop_by(schema: &mut Schema) -> Result<()> {
+  // let definitions = &mut schema.definitions;
+  // let Schema::Object(stop_by) = definitions
+  //   .get_mut("SerializableStopBy")
+  //   .context("must have stopby")?
+  // else {
+  //   bail!("StopBy's type is not object!");
+  // };
+  // let one_ofs = stop_by
+  //   .subschemas()
+  //   .one_of
+  //   .as_mut()
+  //   .context("should have one_of")?;
+  // let Schema::Object(rule) = &mut one_ofs[1] else {
+  //   bail!("type is not object!");
+  // };
+  // let rule = rule
+  //   .object()
+  //   .properties
+  //   .remove("rule")
+  //   .context("should have rule")?;
+  // one_ofs[1] = rule;
   Ok(())
 }
 
@@ -213,19 +210,18 @@ fn get_fields(lang: &TSLanguage) -> Vec<Value> {
 struct PlaceholderLang;
 // reference: https://github.com/GREsau/schemars/blob/9415fcb57b85f12e07afeb1dd16184bab0e26a84/schemars/src/json_schema_impls/primitives.rs#L8
 impl JsonSchema for PlaceholderLang {
-  fn schema_id() -> std::borrow::Cow<'static, str> {
+  fn schema_id() -> Cow<'static, str> {
     Cow::Borrowed("Language")
   }
-  fn schema_name() -> String {
-    String::from("Language")
+  fn schema_name() -> Cow<'static, str> {
+    Cow::Borrowed("Language")
   }
   fn json_schema(_gen: &mut SchemaGenerator) -> Schema {
-    SchemaObject {
-      instance_type: Some(InstanceType::String.into()),
-      format: None,
-      ..Default::default()
-    }
-    .into()
+    json_schema!({
+      "type": "string",
+      "description": "Placeholder for language, used in JSON schema only.",
+      "example": "typescript"
+    })
   }
 }
 
