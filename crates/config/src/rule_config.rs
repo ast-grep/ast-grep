@@ -11,7 +11,7 @@ use ast_grep_core::replacer::Replacer;
 use ast_grep_core::source::Content;
 use ast_grep_core::{Doc, Matcher, NodeMatch};
 
-use schemars::{gen::SchemaGenerator, schema::Schema, JsonSchema};
+use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Error as YamlError;
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer};
@@ -102,24 +102,18 @@ pub struct SerializableRuleConfig<L: Language> {
 pub struct Metadata(HashMap<String, serde_yaml::Value>);
 
 impl JsonSchema for Metadata {
-  fn schema_name() -> String {
-    "Metadata".to_string()
+  fn schema_name() -> Cow<'static, str> {
+    Cow::Borrowed("Metadata")
   }
   fn schema_id() -> Cow<'static, str> {
     Cow::Borrowed("Metadata")
   }
   fn json_schema(_gen: &mut SchemaGenerator) -> Schema {
-    use schemars::schema::{InstanceType, ObjectValidation, SchemaObject};
-    let subschema = Schema::Bool(true);
-    SchemaObject {
-      instance_type: Some(InstanceType::Object.into()),
-      object: Some(Box::new(ObjectValidation {
-        additional_properties: Some(Box::new(subschema)),
-        ..Default::default()
-      })),
-      ..Default::default()
-    }
-    .into()
+    json_schema!({
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Additional metadata for the rule, can be used to store extra information."
+    })
   }
 }
 
