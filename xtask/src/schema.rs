@@ -80,53 +80,66 @@ fn add_lang_info_to_schema<T: LanguageExt + Alias>(
   lang: T,
   name: &str,
 ) -> Result<()> {
-  // schema.schema.metadata().title = Some(format!("ast-grep rule for {name}"));
-  // let definitions = &mut schema.definitions;
-  // let Schema::Object(relation) = definitions
-  //   .get_mut("Relation")
-  //   .context("must have relation")?
-  // else {
-  //   bail!("Relation's type is not object!");
-  // };
-  // let relation_props = &mut relation.object().properties;
-  // let Schema::Object(field) = relation_props.get_mut("field").context("must have field")? else {
-  //   bail!("field's type is not object!")
-  // };
-  // field.enum_values = Some(get_fields(&lang.get_ts_language()));
-  // let Schema::Object(kind) = relation_props.get_mut("kind").context("must have kind")? else {
-  //   bail!("kind's type is not object!")
-  // };
-  // let named_nodes = get_named_nodes(&lang.get_ts_language());
-  // kind.enum_values = Some(named_nodes.clone());
-  // let Schema::Object(serializable_rule) = definitions
-  //   .get_mut("SerializableRule")
-  //   .context("must have SerializableRule")?
-  // else {
-  //   bail!("SerializableRule's type is not object!");
-  // };
-  // let serializable_rule_props = &mut serializable_rule.object().properties;
-  // let Schema::Object(kind) = serializable_rule_props
-  //   .get_mut("kind")
-  //   .context("must have kind")?
-  // else {
-  //   bail!("kind's type is not object!")
-  // };
-  // kind.enum_values = Some(named_nodes);
-  // let Schema::Object(language) = definitions
-  //   .get_mut("Language")
-  //   .context("must have Language")?
-  // else {
-  //   bail!("Language's type is not an object!")
-  // };
-  // language.enum_values = Some(
-  //   T::ALIAS
-  //     .iter()
-  //     .map(|alias| serde_json::Value::String(alias.to_string()))
-  //     .chain(std::iter::once(serde_json::Value::String(format!(
-  //       "{lang}"
-  //     ))))
-  //     .collect(),
-  // );
+  // change rule title
+  let title = schema.get_mut("title").context("must have title")?;
+  *title = Value::String(format!("ast-grep rule for {name}"));
+
+  let definitions = schema.get_mut("$defs").context("must have definitions")?;
+
+  // insert field to relation
+  let relation = definitions
+    .get_mut("Relation")
+    .context("must have relation")?;
+  let relation_props = relation
+    .get_mut("properties")
+    .context("must have properties")?;
+  let field = relation_props
+    .get_mut("field")
+    .context("must have field")?
+    .as_object_mut()
+    .context("field must be an object")?;
+  field.insert(
+    "enum".to_string(),
+    Value::Array(get_fields(&lang.get_ts_language())),
+  );
+
+  // insert kind to relation and rule
+  insert_kind(relation_props, &lang)?;
+  let rule = definitions
+    .get_mut("SerializableRule")
+    .context("must have SerializableRule")?;
+  let rule_props = rule.get_mut("properties").context("must have properties")?;
+  insert_kind(rule_props, &lang)?;
+
+  // insert language
+  let language = definitions
+    .get_mut("Language")
+    .context("must have Language")?
+    .as_object_mut()
+    .context("Language must be an object")?;
+  language.insert(
+    "enum".to_string(),
+    Value::Array(
+      T::ALIAS
+        .iter()
+        .map(|alias| serde_json::Value::String(alias.to_string()))
+        .chain(std::iter::once(serde_json::Value::String(format!(
+          "{name}"
+        ))))
+        .collect(),
+    ),
+  );
+  Ok(())
+}
+
+fn insert_kind<L: LanguageExt>(schema: &mut Value, lang: &L) -> Result<()> {
+  let named_nodes = get_named_nodes(&lang.get_ts_language());
+  let kind = schema
+    .get_mut("kind")
+    .context("must have kind")?
+    .as_object_mut()
+    .context("kind must be an object")?;
+  kind.insert("enum".to_string(), Value::Array(named_nodes));
   Ok(())
 }
 
