@@ -12,6 +12,9 @@ use std::collections::HashSet;
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
+#[schemars(
+  description = "A relational rule object, which is a Rule object with two additional fields stopBy and field."
+)]
 pub struct Relation {
   #[serde(flatten)]
   pub rule: SerializableRule,
