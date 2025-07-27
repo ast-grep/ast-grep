@@ -62,8 +62,6 @@ fn generate_lang_schema<T: LanguageExt + Alias>(lang: T, name: &str) -> Result<(
 }
 
 fn tweak_schema(schema: &mut Schema) -> Result<()> {
-  // better schema name
-  // schema.schema.metadata().title = Some("ast-grep rule".to_string());
   // // stopby's rule does not need to be nested
   // simplify_stop_by(schema)?;
   // // using rule/relation will be too noisy

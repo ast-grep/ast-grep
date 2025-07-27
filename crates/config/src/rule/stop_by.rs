@@ -4,22 +4,43 @@ use crate::rule::{Rule, RuleSerializeError, SerializableRule};
 use ast_grep_core::language::Language;
 use ast_grep_core::{Doc, Node};
 
-use schemars::JsonSchema;
+use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
 use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
 
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt;
 
 // NB StopBy's JsonSchema is changed in xtask/schema.rs
 // revise schema is easier than manually implementation
-#[derive(Clone, Default, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Default)]
 pub enum SerializableStopBy {
   #[default]
   Neighbor,
   End,
   Rule(Box<SerializableRule>),
+}
+
+impl JsonSchema for SerializableStopBy {
+  fn schema_name() -> Cow<'static, str> {
+    Cow::Borrowed("SerializableStopBy")
+  }
+
+  fn json_schema(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({
+      "description": "Control how the relational rule search should stop",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [SerializableStopBy::NEIGHBOR_KEY, SerializableStopBy::END_KEY],
+        },
+        {
+          "$ref": "#defs/SerializableRule"
+        }
+      ],
+    })
+  }
 }
 
 impl SerializableStopBy {
