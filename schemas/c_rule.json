@@ -1,14 +1,13 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ast-grep rule for c",
   "description": "Used for global rules, rewriters, and pyo3/napi",
   "type": "object",
-  "required": [
-    "id",
-    "language",
-    "rule"
-  ],
   "properties": {
+    "rule": {
+      "description": "A rule object to find matching AST nodes",
+      "$ref": "#/$defs/SerializableRule"
+    },
     "constraints": {
       "description": "Additional meta variables pattern to filter matching",
       "type": [
@@ -16,7 +15,83 @@
         "null"
       ],
       "additionalProperties": {
-        "$ref": "#/definitions/SerializableRule"
+        "$ref": "#/$defs/SerializableRule"
+      }
+    },
+    "utils": {
+      "description": "Utility rules that can be used in `matches`",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/SerializableRule"
+      }
+    },
+    "transform": {
+      "description": "A dictionary for metavariable manipulation. Dict key is the new variable name.\nDict value is a [transformation] that specifies how meta var is processed.\nSee [transformation doc](https://ast-grep.github.io/reference/yaml/transformation.html).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/Transformation"
+      }
+    },
+    "fix": {
+      "description": "A pattern string or a FixConfig object to auto fix the issue.\nIt can reference metavariables appeared in rule.\nSee details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SerializableFixer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "id": {
+      "description": "Unique, descriptive identifier, e.g., no-unused-variable",
+      "type": "string"
+    },
+    "language": {
+      "description": "Specify the language to parse and the file extension to include in matching.",
+      "$ref": "#/$defs/Language"
+    },
+    "rewriters": {
+      "description": "Rewrite rules for `rewrite` transformation",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/SerializableRewriter"
+      }
+    },
+    "message": {
+      "description": "Main message highlighting why this rule fired. It should be single line and concise,\nbut specific enough to be understood without additional context.",
+      "type": "string",
+      "default": ""
+    },
+    "note": {
+      "description": "Additional notes to elaborate the message and provide potential fix to the issue.\n`notes` can contain markdown syntax, but it cannot reference meta-variables.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "severity": {
+      "description": "One of: hint, info, warning, or error",
+      "$ref": "#/$defs/Severity",
+      "default": "hint"
+    },
+    "labels": {
+      "description": "Custom label dictionary to configure reporting. Key is the meta-variable name and\nvalue is the label message and label style.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/LabelConfig"
       }
     },
     "files": {
@@ -29,21 +104,6 @@
         "type": "string"
       }
     },
-    "fix": {
-      "description": "A pattern string or a FixConfig object to auto fix the issue. It can reference metavariables appeared in rule. See details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/SerializableFixer"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "id": {
-      "description": "Unique, descriptive identifier, e.g., no-unused-variable",
-      "type": "string"
-    },
     "ignores": {
       "description": "Glob patterns that exclude rules from applying to files",
       "type": [
@@ -54,84 +114,6 @@
         "type": "string"
       }
     },
-    "labels": {
-      "description": "Custom label dictionary to configure reporting. Key is the meta-variable name and value is the label message and label style.",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": {
-        "$ref": "#/definitions/LabelConfig"
-      }
-    },
-    "language": {
-      "description": "Specify the language to parse and the file extension to include in matching.",
-      "allOf": [
-        {
-          "$ref": "#/definitions/Language"
-        }
-      ]
-    },
-    "message": {
-      "description": "Main message highlighting why this rule fired. It should be single line and concise, but specific enough to be understood without additional context.",
-      "default": "",
-      "type": "string"
-    },
-    "metadata": {
-      "description": "Extra information for the rule",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/Metadata"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "note": {
-      "description": "Additional notes to elaborate the message and provide potential fix to the issue. `notes` can contain markdown syntax, but it cannot reference meta-variables.",
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "rewriters": {
-      "description": "Rewrite rules for `rewrite` transformation",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/definitions/SerializableRewriter"
-      }
-    },
-    "rule": {
-      "description": "A rule object to find matching AST nodes. We have three categories of rules in ast-grep.\n\n* Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.\n\n* Relational: filter matched target according to their position relative to other nodes.\n\n* Composite: use logic operation all/any/not to compose the above rules to larger rules.\n\nEvery rule has it's unique name so we can combine several rules in one object.",
-      "allOf": [
-        {
-          "$ref": "#/definitions/SerializableRule"
-        }
-      ]
-    },
-    "severity": {
-      "description": "One of: hint, info, warning, or error",
-      "default": "hint",
-      "allOf": [
-        {
-          "$ref": "#/definitions/Severity"
-        }
-      ]
-    },
-    "transform": {
-      "description": "A dictionary for metavariable manipulation. Dict key is the new variable name. Dict value is a [transformation] that specifies how meta var is processed. See [transformation doc](https://ast-grep.github.io/reference/yaml/transformation.html).",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": {
-        "$ref": "#/definitions/Transformation"
-      }
-    },
     "url": {
       "description": "Documentation link to this rule",
       "type": [
@@ -139,146 +121,224 @@
         "null"
       ]
     },
-    "utils": {
-      "description": "Utility rules that can be used in `matches`",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": {
-        "$ref": "#/definitions/SerializableRule"
-      }
-    }
-  },
-  "definitions": {
-    "Convert_for_String": {
-      "description": "Converts the source meta variable's text content to a specified case format.",
-      "type": "object",
-      "required": [
-        "source",
-        "toCase"
-      ],
-      "properties": {
-        "separatedBy": {
-          "description": "optional separators to specify how to separate word",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/definitions/Separator"
-          }
-        },
-        "source": {
-          "description": "source meta variable to be transformed",
-          "type": "string"
-        },
-        "toCase": {
-          "description": "the target case format to convert the text content to",
-          "allOf": [
-            {
-              "$ref": "#/definitions/StringCase"
-            }
-          ]
-        }
-      }
-    },
-    "LabelConfig": {
-      "type": "object",
-      "required": [
-        "style"
-      ],
-      "properties": {
-        "message": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "style": {
-          "$ref": "#/definitions/LabelStyle"
-        }
-      }
-    },
-    "LabelStyle": {
-      "oneOf": [
-        {
-          "description": "Labels that describe the primary cause of a diagnostic.",
-          "type": "string",
-          "enum": [
-            "primary"
-          ]
-        },
-        {
-          "description": "Labels that provide additional context for a diagnostic.",
-          "type": "string",
-          "enum": [
-            "secondary"
-          ]
-        }
-      ]
-    },
-    "Language": {
-      "type": "string",
-      "enum": [
-        "c",
-        "C"
-      ]
-    },
-    "Maybe_Array_of_SerializableRule": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/SerializableRule"
-      }
-    },
-    "Maybe_PatternStyle": {
-      "$ref": "#/definitions/PatternStyle"
-    },
-    "Maybe_Relation": {
-      "$ref": "#/definitions/Relation"
-    },
-    "Maybe_SerializableNthChild": {
-      "$ref": "#/definitions/SerializableNthChild"
-    },
-    "Maybe_SerializableRange": {
-      "$ref": "#/definitions/SerializableRange"
-    },
-    "Maybe_SerializableRule": {
-      "$ref": "#/definitions/SerializableRule"
-    },
-    "Maybe_String": {
-      "type": "string"
-    },
-    "Metadata": {
-      "type": "object",
-      "additionalProperties": true
-    },
-    "NthChildSimple": {
-      "description": "A string or number describing the indices of matching nodes in a list of siblings.",
+    "metadata": {
+      "description": "Extra information for the rule",
       "anyOf": [
         {
-          "description": "A number indicating the precise element index",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0.0
+          "$ref": "#/$defs/Metadata"
         },
         {
-          "description": "Functional notation like CSS's An + B",
-          "type": "string"
+          "type": "null"
         }
       ]
+    }
+  },
+  "required": [
+    "rule",
+    "id",
+    "language"
+  ],
+  "$defs": {
+    "SerializableRule": {
+      "description": "A rule object to find matching AST nodes. We have three categories of rules in ast-grep.\n\n* Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.\n\n* Relational: filter matched target according to their position relative to other nodes.\n\n* Composite: use logic operation all/any/not to compose the above rules to larger rules.\n\nEvery rule has it's unique name so we can combine several rules in one object.",
+      "type": "object",
+      "properties": {
+        "pattern": {
+          "description": "A pattern string or a pattern object.",
+          "$ref": "#/$defs/PatternStyle"
+        },
+        "kind": {
+          "description": "The kind name of the node to match. You can look up code's kind names in playground.",
+          "type": "string",
+          "enum": [
+            "abstract_array_declarator",
+            "abstract_function_declarator",
+            "abstract_parenthesized_declarator",
+            "abstract_pointer_declarator",
+            "alignas_qualifier",
+            "alignof_expression",
+            "argument_list",
+            "array_declarator",
+            "assignment_expression",
+            "attribute",
+            "attribute_declaration",
+            "attribute_specifier",
+            "attributed_declarator",
+            "attributed_statement",
+            "binary_expression",
+            "bitfield_clause",
+            "break_statement",
+            "call_expression",
+            "case_statement",
+            "cast_expression",
+            "char_literal",
+            "character",
+            "comma_expression",
+            "comment",
+            "compound_literal_expression",
+            "compound_statement",
+            "concatenated_string",
+            "conditional_expression",
+            "continue_statement",
+            "declaration",
+            "declaration_list",
+            "do_statement",
+            "else_clause",
+            "enum_specifier",
+            "enumerator",
+            "enumerator_list",
+            "escape_sequence",
+            "expression_statement",
+            "extension_expression",
+            "false",
+            "field_declaration",
+            "field_declaration_list",
+            "field_designator",
+            "field_expression",
+            "field_identifier",
+            "for_statement",
+            "function_declarator",
+            "function_definition",
+            "generic_expression",
+            "gnu_asm_clobber_list",
+            "gnu_asm_expression",
+            "gnu_asm_goto_list",
+            "gnu_asm_input_operand",
+            "gnu_asm_input_operand_list",
+            "gnu_asm_output_operand",
+            "gnu_asm_output_operand_list",
+            "gnu_asm_qualifier",
+            "goto_statement",
+            "identifier",
+            "if_statement",
+            "init_declarator",
+            "initializer_list",
+            "initializer_pair",
+            "labeled_statement",
+            "linkage_specification",
+            "macro_type_specifier",
+            "ms_based_modifier",
+            "ms_call_modifier",
+            "ms_declspec_modifier",
+            "ms_pointer_modifier",
+            "ms_restrict_modifier",
+            "ms_signed_ptr_modifier",
+            "ms_unaligned_ptr_modifier",
+            "ms_unsigned_ptr_modifier",
+            "null",
+            "number_literal",
+            "offsetof_expression",
+            "parameter_declaration",
+            "parameter_list",
+            "parenthesized_declarator",
+            "parenthesized_expression",
+            "pointer_declarator",
+            "pointer_expression",
+            "preproc_arg",
+            "preproc_call",
+            "preproc_def",
+            "preproc_defined",
+            "preproc_directive",
+            "preproc_elif",
+            "preproc_elifdef",
+            "preproc_else",
+            "preproc_function_def",
+            "preproc_if",
+            "preproc_ifdef",
+            "preproc_include",
+            "preproc_params",
+            "primitive_type",
+            "return_statement",
+            "seh_except_clause",
+            "seh_finally_clause",
+            "seh_leave_statement",
+            "seh_try_statement",
+            "sized_type_specifier",
+            "sizeof_expression",
+            "statement_identifier",
+            "storage_class_specifier",
+            "string_content",
+            "string_literal",
+            "struct_specifier",
+            "subscript_designator",
+            "subscript_expression",
+            "subscript_range_designator",
+            "switch_statement",
+            "system_lib_string",
+            "translation_unit",
+            "true",
+            "type_definition",
+            "type_descriptor",
+            "type_identifier",
+            "type_qualifier",
+            "unary_expression",
+            "union_specifier",
+            "update_expression",
+            "variadic_parameter",
+            "while_statement"
+          ]
+        },
+        "regex": {
+          "description": "A Rust regular expression to match the node's text. https://docs.rs/regex/latest/regex/#syntax",
+          "type": "string"
+        },
+        "nthChild": {
+          "description": "`nth_child` accepts number, string or object.\nIt specifies the position in nodes' sibling list.",
+          "$ref": "#/$defs/SerializableNthChild"
+        },
+        "range": {
+          "description": "`range` accepts a range object.\nthe target node must exactly appear in the range.",
+          "$ref": "#/$defs/SerializableRange"
+        },
+        "inside": {
+          "description": "`inside` accepts a relational rule object.\nthe target node must appear inside of another node matching the `inside` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "has": {
+          "description": "`has` accepts a relational rule object.\nthe target node must has a descendant node matching the `has` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "precedes": {
+          "description": "`precedes` accepts a relational rule object.\nthe target node must appear before another node matching the `precedes` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "follows": {
+          "description": "`follows` accepts a relational rule object.\nthe target node must appear after another node matching the `follows` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "all": {
+          "description": "A list of sub rules and matches a node if all of sub rules match.\nThe meta variables of the matched node contain all variables from the sub-rules.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SerializableRule"
+          }
+        },
+        "any": {
+          "description": "A list of sub rules and matches a node if any of sub rules match.\nThe meta variables of the matched node only contain those of the matched sub-rule.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SerializableRule"
+          }
+        },
+        "not": {
+          "description": "A single sub-rule and matches a node if the sub rule does not match.",
+          "$ref": "#/$defs/SerializableRule"
+        },
+        "matches": {
+          "description": "A utility rule id and matches a node if the utility rule matches.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
     },
     "PatternStyle": {
-      "description": "A String pattern will match one single AST node according to pattern syntax. Or an object with field `context`, `selector` and optionally `strictness`.",
+      "description": "A String pattern will match one single AST node according to pattern syntax.\nOr an object with field `context`, `selector` and optionally `strictness`.",
       "anyOf": [
         {
           "type": "string"
         },
         {
           "type": "object",
-          "required": [
-            "context"
-          ],
           "properties": {
             "context": {
               "description": "The surrounding code that helps to resolve any ambiguity in the syntax.",
@@ -295,35 +355,339 @@
               "description": "Strictness of the pattern. More strict pattern matches fewer nodes.",
               "anyOf": [
                 {
-                  "$ref": "#/definitions/Strictness"
+                  "$ref": "#/$defs/Strictness"
                 },
                 {
                   "type": "null"
                 }
               ]
             }
-          }
+          },
+          "required": [
+            "context"
+          ]
         }
       ]
     },
-    "Relation": {
+    "Strictness": {
+      "oneOf": [
+        {
+          "description": "all nodes are matched",
+          "type": "string",
+          "const": "cst"
+        },
+        {
+          "description": "all nodes except source trivial nodes are matched.",
+          "type": "string",
+          "const": "smart"
+        },
+        {
+          "description": "only ast nodes are matched",
+          "type": "string",
+          "const": "ast"
+        },
+        {
+          "description": "ast-nodes excluding comments are matched",
+          "type": "string",
+          "const": "relaxed"
+        },
+        {
+          "description": "ast-nodes excluding comments, without text",
+          "type": "string",
+          "const": "signature"
+        },
+        {
+          "description": "similar to smart, but node kinds are ignored, only text is matched.",
+          "type": "string",
+          "const": "template"
+        }
+      ]
+    },
+    "SerializableNthChild": {
+      "description": "`nthChild` accepts either a number, a string or an object.",
+      "anyOf": [
+        {
+          "description": "Simple syntax",
+          "$ref": "#/$defs/NthChildSimple"
+        },
+        {
+          "description": "Object style syntax",
+          "type": "object",
+          "properties": {
+            "position": {
+              "description": "nth-child syntax",
+              "$ref": "#/$defs/NthChildSimple"
+            },
+            "ofRule": {
+              "description": "select the nth node that matches the rule, like CSS's of syntax",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SerializableRule"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "reverse": {
+              "description": "matches from the end instead like CSS's nth-last-child",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "position"
+          ]
+        }
+      ]
+    },
+    "NthChildSimple": {
+      "description": "A string or number describing the indices of matching nodes in a list of siblings.",
+      "anyOf": [
+        {
+          "description": "A number indicating the precise element index",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        {
+          "description": "Functional notation like CSS's An + B",
+          "type": "string"
+        }
+      ]
+    },
+    "SerializableRange": {
+      "description": "Represents a position in source code using 0-based line and column numbers",
       "type": "object",
       "properties": {
-        "all": {
-          "description": "A list of sub rules and matches a node if all of sub rules match. The meta variables of the matched node contain all variables from the sub-rules.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_Array_of_SerializableRule"
-            }
+        "start": {
+          "description": "start position in the source code",
+          "$ref": "#/$defs/SerializablePosition"
+        },
+        "end": {
+          "description": "end position in the source code",
+          "$ref": "#/$defs/SerializablePosition"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ]
+    },
+    "SerializablePosition": {
+      "description": "Represents a zero-based character-wise position in a document",
+      "type": "object",
+      "properties": {
+        "line": {
+          "description": "0-based line number in the source code",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "column": {
+          "description": "0-based column number in the source code",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "line",
+        "column"
+      ]
+    },
+    "Relation": {
+      "description": "A relational rule object, which is a Rule object with two additional fields stopBy and field.",
+      "type": "object",
+      "properties": {
+        "pattern": {
+          "description": "A pattern string or a pattern object.",
+          "$ref": "#/$defs/PatternStyle"
+        },
+        "kind": {
+          "description": "The kind name of the node to match. You can look up code's kind names in playground.",
+          "type": "string",
+          "enum": [
+            "abstract_array_declarator",
+            "abstract_function_declarator",
+            "abstract_parenthesized_declarator",
+            "abstract_pointer_declarator",
+            "alignas_qualifier",
+            "alignof_expression",
+            "argument_list",
+            "array_declarator",
+            "assignment_expression",
+            "attribute",
+            "attribute_declaration",
+            "attribute_specifier",
+            "attributed_declarator",
+            "attributed_statement",
+            "binary_expression",
+            "bitfield_clause",
+            "break_statement",
+            "call_expression",
+            "case_statement",
+            "cast_expression",
+            "char_literal",
+            "character",
+            "comma_expression",
+            "comment",
+            "compound_literal_expression",
+            "compound_statement",
+            "concatenated_string",
+            "conditional_expression",
+            "continue_statement",
+            "declaration",
+            "declaration_list",
+            "do_statement",
+            "else_clause",
+            "enum_specifier",
+            "enumerator",
+            "enumerator_list",
+            "escape_sequence",
+            "expression_statement",
+            "extension_expression",
+            "false",
+            "field_declaration",
+            "field_declaration_list",
+            "field_designator",
+            "field_expression",
+            "field_identifier",
+            "for_statement",
+            "function_declarator",
+            "function_definition",
+            "generic_expression",
+            "gnu_asm_clobber_list",
+            "gnu_asm_expression",
+            "gnu_asm_goto_list",
+            "gnu_asm_input_operand",
+            "gnu_asm_input_operand_list",
+            "gnu_asm_output_operand",
+            "gnu_asm_output_operand_list",
+            "gnu_asm_qualifier",
+            "goto_statement",
+            "identifier",
+            "if_statement",
+            "init_declarator",
+            "initializer_list",
+            "initializer_pair",
+            "labeled_statement",
+            "linkage_specification",
+            "macro_type_specifier",
+            "ms_based_modifier",
+            "ms_call_modifier",
+            "ms_declspec_modifier",
+            "ms_pointer_modifier",
+            "ms_restrict_modifier",
+            "ms_signed_ptr_modifier",
+            "ms_unaligned_ptr_modifier",
+            "ms_unsigned_ptr_modifier",
+            "null",
+            "number_literal",
+            "offsetof_expression",
+            "parameter_declaration",
+            "parameter_list",
+            "parenthesized_declarator",
+            "parenthesized_expression",
+            "pointer_declarator",
+            "pointer_expression",
+            "preproc_arg",
+            "preproc_call",
+            "preproc_def",
+            "preproc_defined",
+            "preproc_directive",
+            "preproc_elif",
+            "preproc_elifdef",
+            "preproc_else",
+            "preproc_function_def",
+            "preproc_if",
+            "preproc_ifdef",
+            "preproc_include",
+            "preproc_params",
+            "primitive_type",
+            "return_statement",
+            "seh_except_clause",
+            "seh_finally_clause",
+            "seh_leave_statement",
+            "seh_try_statement",
+            "sized_type_specifier",
+            "sizeof_expression",
+            "statement_identifier",
+            "storage_class_specifier",
+            "string_content",
+            "string_literal",
+            "struct_specifier",
+            "subscript_designator",
+            "subscript_expression",
+            "subscript_range_designator",
+            "switch_statement",
+            "system_lib_string",
+            "translation_unit",
+            "true",
+            "type_definition",
+            "type_descriptor",
+            "type_identifier",
+            "type_qualifier",
+            "unary_expression",
+            "union_specifier",
+            "update_expression",
+            "variadic_parameter",
+            "while_statement"
           ]
         },
+        "regex": {
+          "description": "A Rust regular expression to match the node's text. https://docs.rs/regex/latest/regex/#syntax",
+          "type": "string"
+        },
+        "nthChild": {
+          "description": "`nth_child` accepts number, string or object.\nIt specifies the position in nodes' sibling list.",
+          "$ref": "#/$defs/SerializableNthChild"
+        },
+        "range": {
+          "description": "`range` accepts a range object.\nthe target node must exactly appear in the range.",
+          "$ref": "#/$defs/SerializableRange"
+        },
+        "inside": {
+          "description": "`inside` accepts a relational rule object.\nthe target node must appear inside of another node matching the `inside` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "has": {
+          "description": "`has` accepts a relational rule object.\nthe target node must has a descendant node matching the `has` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "precedes": {
+          "description": "`precedes` accepts a relational rule object.\nthe target node must appear before another node matching the `precedes` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "follows": {
+          "description": "`follows` accepts a relational rule object.\nthe target node must appear after another node matching the `follows` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "all": {
+          "description": "A list of sub rules and matches a node if all of sub rules match.\nThe meta variables of the matched node contain all variables from the sub-rules.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SerializableRule"
+          }
+        },
         "any": {
-          "description": "A list of sub rules and matches a node if any of sub rules match. The meta variables of the matched node only contain those of the matched sub-rule.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_Array_of_SerializableRule"
-            }
-          ]
+          "description": "A list of sub rules and matches a node if any of sub rules match.\nThe meta variables of the matched node only contain those of the matched sub-rule.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SerializableRule"
+          }
+        },
+        "not": {
+          "description": "A single sub-rule and matches a node if the sub rule does not match.",
+          "$ref": "#/$defs/SerializableRule"
+        },
+        "matches": {
+          "description": "A utility rule id and matches a node if the utility rule matches.",
+          "type": "string"
+        },
+        "stopBy": {
+          "$ref": "#/$defs/SerializableStopBy",
+          "default": "neighbor"
         },
         "field": {
           "type": [
@@ -370,726 +734,11 @@
             "underlying_type",
             "update"
           ]
-        },
-        "follows": {
-          "description": "`follows` accepts a relational rule object. the target node must appear after another node matching the `follows` sub-rule.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_Relation"
-            }
-          ]
-        },
-        "has": {
-          "description": "`has` accepts a relational rule object. the target node must has a descendant node matching the `has` sub-rule.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_Relation"
-            }
-          ]
-        },
-        "inside": {
-          "description": "`inside` accepts a relational rule object. the target node must appear inside of another node matching the `inside` sub-rule.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_Relation"
-            }
-          ]
-        },
-        "kind": {
-          "description": "The kind name of the node to match. You can look up code's kind names in playground.",
-          "enum": [
-            "abstract_array_declarator",
-            "abstract_function_declarator",
-            "abstract_parenthesized_declarator",
-            "abstract_pointer_declarator",
-            "alignas_qualifier",
-            "alignof_expression",
-            "argument_list",
-            "array_declarator",
-            "assignment_expression",
-            "attribute",
-            "attribute_declaration",
-            "attribute_specifier",
-            "attributed_declarator",
-            "attributed_statement",
-            "binary_expression",
-            "bitfield_clause",
-            "break_statement",
-            "call_expression",
-            "case_statement",
-            "cast_expression",
-            "char_literal",
-            "character",
-            "comma_expression",
-            "comment",
-            "compound_literal_expression",
-            "compound_statement",
-            "concatenated_string",
-            "conditional_expression",
-            "continue_statement",
-            "declaration",
-            "declaration_list",
-            "do_statement",
-            "else_clause",
-            "enum_specifier",
-            "enumerator",
-            "enumerator_list",
-            "escape_sequence",
-            "expression_statement",
-            "extension_expression",
-            "false",
-            "field_declaration",
-            "field_declaration_list",
-            "field_designator",
-            "field_expression",
-            "field_identifier",
-            "for_statement",
-            "function_declarator",
-            "function_definition",
-            "generic_expression",
-            "gnu_asm_clobber_list",
-            "gnu_asm_expression",
-            "gnu_asm_goto_list",
-            "gnu_asm_input_operand",
-            "gnu_asm_input_operand_list",
-            "gnu_asm_output_operand",
-            "gnu_asm_output_operand_list",
-            "gnu_asm_qualifier",
-            "goto_statement",
-            "identifier",
-            "if_statement",
-            "init_declarator",
-            "initializer_list",
-            "initializer_pair",
-            "labeled_statement",
-            "linkage_specification",
-            "macro_type_specifier",
-            "ms_based_modifier",
-            "ms_call_modifier",
-            "ms_declspec_modifier",
-            "ms_pointer_modifier",
-            "ms_restrict_modifier",
-            "ms_signed_ptr_modifier",
-            "ms_unaligned_ptr_modifier",
-            "ms_unsigned_ptr_modifier",
-            "null",
-            "number_literal",
-            "offsetof_expression",
-            "parameter_declaration",
-            "parameter_list",
-            "parenthesized_declarator",
-            "parenthesized_expression",
-            "pointer_declarator",
-            "pointer_expression",
-            "preproc_arg",
-            "preproc_call",
-            "preproc_def",
-            "preproc_defined",
-            "preproc_directive",
-            "preproc_elif",
-            "preproc_elifdef",
-            "preproc_else",
-            "preproc_function_def",
-            "preproc_if",
-            "preproc_ifdef",
-            "preproc_include",
-            "preproc_params",
-            "primitive_type",
-            "return_statement",
-            "seh_except_clause",
-            "seh_finally_clause",
-            "seh_leave_statement",
-            "seh_try_statement",
-            "sized_type_specifier",
-            "sizeof_expression",
-            "statement_identifier",
-            "storage_class_specifier",
-            "string_content",
-            "string_literal",
-            "struct_specifier",
-            "subscript_designator",
-            "subscript_expression",
-            "subscript_range_designator",
-            "switch_statement",
-            "system_lib_string",
-            "translation_unit",
-            "true",
-            "type_definition",
-            "type_descriptor",
-            "type_identifier",
-            "type_qualifier",
-            "unary_expression",
-            "union_specifier",
-            "update_expression",
-            "variadic_parameter",
-            "while_statement"
-          ],
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_String"
-            }
-          ]
-        },
-        "matches": {
-          "description": "A utility rule id and matches a node if the utility rule matches.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_String"
-            }
-          ]
-        },
-        "not": {
-          "description": "A single sub-rule and matches a node if the sub rule does not match.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_SerializableRule"
-            }
-          ]
-        },
-        "nthChild": {
-          "description": "`nth_child` accepts number, string or object. It specifies the position in nodes' sibling list.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_SerializableNthChild"
-            }
-          ]
-        },
-        "pattern": {
-          "description": "A pattern string or a pattern object.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_PatternStyle"
-            }
-          ]
-        },
-        "precedes": {
-          "description": "`precedes` accepts a relational rule object. the target node must appear before another node matching the `precedes` sub-rule.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_Relation"
-            }
-          ]
-        },
-        "range": {
-          "description": "`range` accepts a range object. the target node must exactly appear in the range.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_SerializableRange"
-            }
-          ]
-        },
-        "regex": {
-          "description": "A Rust regular expression to match the node's text. https://docs.rs/regex/latest/regex/#syntax",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_String"
-            }
-          ]
-        },
-        "stopBy": {
-          "default": "neighbor",
-          "allOf": [
-            {
-              "$ref": "#/definitions/SerializableStopBy"
-            }
-          ]
         }
       }
-    },
-    "Replace_for_String": {
-      "description": "Replaces a substring in the meta variable's text content with another string.",
-      "type": "object",
-      "required": [
-        "by",
-        "replace",
-        "source"
-      ],
-      "properties": {
-        "by": {
-          "description": "the replacement string",
-          "type": "string"
-        },
-        "replace": {
-          "description": "a regex to find substring to be replaced",
-          "type": "string"
-        },
-        "source": {
-          "description": "source meta variable to be transformed",
-          "type": "string"
-        }
-      }
-    },
-    "Rewrite_for_String": {
-      "type": "object",
-      "required": [
-        "rewriters",
-        "source"
-      ],
-      "properties": {
-        "joinBy": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "rewriters": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "source": {
-          "type": "string"
-        }
-      }
-    },
-    "Separator": {
-      "description": "Separator to split string. e.g. `user_accountName` -> `user`, `accountName` It will be rejoin according to `StringCase`.",
-      "type": "string",
-      "enum": [
-        "caseChange",
-        "dash",
-        "dot",
-        "slash",
-        "space",
-        "underscore"
-      ]
-    },
-    "SerializableFixConfig": {
-      "type": "object",
-      "required": [
-        "template"
-      ],
-      "properties": {
-        "expandEnd": {
-          "$ref": "#/definitions/Maybe_Relation"
-        },
-        "expandStart": {
-          "$ref": "#/definitions/Maybe_Relation"
-        },
-        "template": {
-          "type": "string"
-        },
-        "title": {
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      }
-    },
-    "SerializableFixer": {
-      "description": "A pattern string or fix object to auto fix the issue. It can reference metavariables appeared in rule.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "$ref": "#/definitions/SerializableFixConfig"
-        },
-        {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/SerializableFixConfig"
-          }
-        }
-      ]
-    },
-    "SerializableNthChild": {
-      "description": "`nthChild` accepts either a number, a string or an object.",
-      "anyOf": [
-        {
-          "description": "Simple syntax",
-          "allOf": [
-            {
-              "$ref": "#/definitions/NthChildSimple"
-            }
-          ]
-        },
-        {
-          "description": "Object style syntax",
-          "type": "object",
-          "required": [
-            "position"
-          ],
-          "properties": {
-            "ofRule": {
-              "description": "select the nth node that matches the rule, like CSS's of syntax",
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/SerializableRule"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "position": {
-              "description": "nth-child syntax",
-              "allOf": [
-                {
-                  "$ref": "#/definitions/NthChildSimple"
-                }
-              ]
-            },
-            "reverse": {
-              "description": "matches from the end instead like CSS's nth-last-child",
-              "default": false,
-              "type": "boolean"
-            }
-          }
-        }
-      ]
-    },
-    "SerializablePosition": {
-      "description": "Represents a zero-based character-wise position in a document",
-      "type": "object",
-      "required": [
-        "column",
-        "line"
-      ],
-      "properties": {
-        "column": {
-          "description": "0-based column number in the source code",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0.0
-        },
-        "line": {
-          "description": "0-based line number in the source code",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0.0
-        }
-      }
-    },
-    "SerializableRange": {
-      "description": "Represents a position in source code using 0-based line and column numbers",
-      "type": "object",
-      "required": [
-        "end",
-        "start"
-      ],
-      "properties": {
-        "end": {
-          "description": "end position in the source code",
-          "allOf": [
-            {
-              "$ref": "#/definitions/SerializablePosition"
-            }
-          ]
-        },
-        "start": {
-          "description": "start position in the source code",
-          "allOf": [
-            {
-              "$ref": "#/definitions/SerializablePosition"
-            }
-          ]
-        }
-      }
-    },
-    "SerializableRewriter": {
-      "description": "Used for global rules, rewriters, and pyo3/napi",
-      "type": "object",
-      "required": [
-        "id",
-        "rule"
-      ],
-      "properties": {
-        "constraints": {
-          "description": "Additional meta variables pattern to filter matching",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/definitions/SerializableRule"
-          }
-        },
-        "fix": {
-          "description": "A pattern string or a FixConfig object to auto fix the issue. It can reference metavariables appeared in rule. See details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/SerializableFixer"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "id": {
-          "description": "Unique, descriptive identifier, e.g., no-unused-variable",
-          "type": "string"
-        },
-        "rule": {
-          "description": "A rule object to find matching AST nodes",
-          "allOf": [
-            {
-              "$ref": "#/definitions/SerializableRule"
-            }
-          ]
-        },
-        "transform": {
-          "description": "A dictionary for metavariable manipulation. Dict key is the new variable name. Dict value is a [transformation] that specifies how meta var is processed. See [transformation doc](https://ast-grep.github.io/reference/yaml/transformation.html).",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/definitions/Transformation"
-          }
-        },
-        "utils": {
-          "description": "Utility rules that can be used in `matches`",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/definitions/SerializableRule"
-          }
-        }
-      }
-    },
-    "SerializableRule": {
-      "type": "object",
-      "properties": {
-        "all": {
-          "description": "A list of sub rules and matches a node if all of sub rules match. The meta variables of the matched node contain all variables from the sub-rules.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_Array_of_SerializableRule"
-            }
-          ]
-        },
-        "any": {
-          "description": "A list of sub rules and matches a node if any of sub rules match. The meta variables of the matched node only contain those of the matched sub-rule.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_Array_of_SerializableRule"
-            }
-          ]
-        },
-        "follows": {
-          "description": "`follows` accepts a relational rule object. the target node must appear after another node matching the `follows` sub-rule.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_Relation"
-            }
-          ]
-        },
-        "has": {
-          "description": "`has` accepts a relational rule object. the target node must has a descendant node matching the `has` sub-rule.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_Relation"
-            }
-          ]
-        },
-        "inside": {
-          "description": "`inside` accepts a relational rule object. the target node must appear inside of another node matching the `inside` sub-rule.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_Relation"
-            }
-          ]
-        },
-        "kind": {
-          "description": "The kind name of the node to match. You can look up code's kind names in playground.",
-          "enum": [
-            "abstract_array_declarator",
-            "abstract_function_declarator",
-            "abstract_parenthesized_declarator",
-            "abstract_pointer_declarator",
-            "alignas_qualifier",
-            "alignof_expression",
-            "argument_list",
-            "array_declarator",
-            "assignment_expression",
-            "attribute",
-            "attribute_declaration",
-            "attribute_specifier",
-            "attributed_declarator",
-            "attributed_statement",
-            "binary_expression",
-            "bitfield_clause",
-            "break_statement",
-            "call_expression",
-            "case_statement",
-            "cast_expression",
-            "char_literal",
-            "character",
-            "comma_expression",
-            "comment",
-            "compound_literal_expression",
-            "compound_statement",
-            "concatenated_string",
-            "conditional_expression",
-            "continue_statement",
-            "declaration",
-            "declaration_list",
-            "do_statement",
-            "else_clause",
-            "enum_specifier",
-            "enumerator",
-            "enumerator_list",
-            "escape_sequence",
-            "expression_statement",
-            "extension_expression",
-            "false",
-            "field_declaration",
-            "field_declaration_list",
-            "field_designator",
-            "field_expression",
-            "field_identifier",
-            "for_statement",
-            "function_declarator",
-            "function_definition",
-            "generic_expression",
-            "gnu_asm_clobber_list",
-            "gnu_asm_expression",
-            "gnu_asm_goto_list",
-            "gnu_asm_input_operand",
-            "gnu_asm_input_operand_list",
-            "gnu_asm_output_operand",
-            "gnu_asm_output_operand_list",
-            "gnu_asm_qualifier",
-            "goto_statement",
-            "identifier",
-            "if_statement",
-            "init_declarator",
-            "initializer_list",
-            "initializer_pair",
-            "labeled_statement",
-            "linkage_specification",
-            "macro_type_specifier",
-            "ms_based_modifier",
-            "ms_call_modifier",
-            "ms_declspec_modifier",
-            "ms_pointer_modifier",
-            "ms_restrict_modifier",
-            "ms_signed_ptr_modifier",
-            "ms_unaligned_ptr_modifier",
-            "ms_unsigned_ptr_modifier",
-            "null",
-            "number_literal",
-            "offsetof_expression",
-            "parameter_declaration",
-            "parameter_list",
-            "parenthesized_declarator",
-            "parenthesized_expression",
-            "pointer_declarator",
-            "pointer_expression",
-            "preproc_arg",
-            "preproc_call",
-            "preproc_def",
-            "preproc_defined",
-            "preproc_directive",
-            "preproc_elif",
-            "preproc_elifdef",
-            "preproc_else",
-            "preproc_function_def",
-            "preproc_if",
-            "preproc_ifdef",
-            "preproc_include",
-            "preproc_params",
-            "primitive_type",
-            "return_statement",
-            "seh_except_clause",
-            "seh_finally_clause",
-            "seh_leave_statement",
-            "seh_try_statement",
-            "sized_type_specifier",
-            "sizeof_expression",
-            "statement_identifier",
-            "storage_class_specifier",
-            "string_content",
-            "string_literal",
-            "struct_specifier",
-            "subscript_designator",
-            "subscript_expression",
-            "subscript_range_designator",
-            "switch_statement",
-            "system_lib_string",
-            "translation_unit",
-            "true",
-            "type_definition",
-            "type_descriptor",
-            "type_identifier",
-            "type_qualifier",
-            "unary_expression",
-            "union_specifier",
-            "update_expression",
-            "variadic_parameter",
-            "while_statement"
-          ],
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_String"
-            }
-          ]
-        },
-        "matches": {
-          "description": "A utility rule id and matches a node if the utility rule matches.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_String"
-            }
-          ]
-        },
-        "not": {
-          "description": "A single sub-rule and matches a node if the sub rule does not match.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_SerializableRule"
-            }
-          ]
-        },
-        "nthChild": {
-          "description": "`nth_child` accepts number, string or object. It specifies the position in nodes' sibling list.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_SerializableNthChild"
-            }
-          ]
-        },
-        "pattern": {
-          "description": "A pattern string or a pattern object.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_PatternStyle"
-            }
-          ]
-        },
-        "precedes": {
-          "description": "`precedes` accepts a relational rule object. the target node must appear before another node matching the `precedes` sub-rule.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_Relation"
-            }
-          ]
-        },
-        "range": {
-          "description": "`range` accepts a range object. the target node must exactly appear in the range.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_SerializableRange"
-            }
-          ]
-        },
-        "regex": {
-          "description": "A Rust regular expression to match the node's text. https://docs.rs/regex/latest/regex/#syntax",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Maybe_String"
-            }
-          ]
-        }
-      },
-      "additionalProperties": false
     },
     "SerializableStopBy": {
+      "description": "Control how the relational rule search should stop",
       "oneOf": [
         {
           "type": "string",
@@ -1099,93 +748,151 @@
           ]
         },
         {
-          "$ref": "#/definitions/SerializableRule"
+          "$ref": "#/$defs/SerializableRule"
         }
       ]
     },
-    "Severity": {
-      "oneOf": [
+    "Transformation": {
+      "anyOf": [
         {
-          "description": "A kind reminder for code with potential improvement.",
-          "type": "string",
-          "enum": [
-            "hint"
-          ]
+          "type": "string"
         },
         {
-          "description": "A suggestion that code can be improved or optimized.",
-          "type": "string",
-          "enum": [
-            "info"
-          ]
-        },
-        {
-          "description": "A warning that code might produce bugs or does not follow best practice.",
-          "type": "string",
-          "enum": [
-            "warning"
-          ]
-        },
-        {
-          "description": "An error that code produces bugs or has logic errors.",
-          "type": "string",
-          "enum": [
-            "error"
-          ]
-        },
-        {
-          "description": "Turns off the rule.",
-          "type": "string",
-          "enum": [
-            "off"
-          ]
+          "$ref": "#/$defs/Trans"
         }
       ]
     },
-    "Strictness": {
+    "Trans": {
+      "description": "Represents a transformation that can be applied to a matched AST node.\nAvailable transformations are `substring`, `replace` and `convert`.",
       "oneOf": [
         {
-          "description": "all nodes are matched",
-          "type": "string",
-          "enum": [
-            "cst"
-          ]
+          "type": "object",
+          "properties": {
+            "substring": {
+              "$ref": "#/$defs/Substring"
+            }
+          },
+          "required": [
+            "substring"
+          ],
+          "additionalProperties": false
         },
         {
-          "description": "all nodes except source trivial nodes are matched.",
-          "type": "string",
-          "enum": [
-            "smart"
-          ]
+          "type": "object",
+          "properties": {
+            "replace": {
+              "$ref": "#/$defs/Replace"
+            }
+          },
+          "required": [
+            "replace"
+          ],
+          "additionalProperties": false
         },
         {
-          "description": "only ast nodes are matched",
-          "type": "string",
-          "enum": [
-            "ast"
-          ]
+          "type": "object",
+          "properties": {
+            "convert": {
+              "$ref": "#/$defs/Convert"
+            }
+          },
+          "required": [
+            "convert"
+          ],
+          "additionalProperties": false
         },
         {
-          "description": "ast-nodes excluding comments are matched",
-          "type": "string",
-          "enum": [
-            "relaxed"
-          ]
-        },
-        {
-          "description": "ast-nodes excluding comments, without text",
-          "type": "string",
-          "enum": [
-            "signature"
-          ]
-        },
-        {
-          "description": "similar to smart, but node kinds are ignored, only text is matched.",
-          "type": "string",
-          "enum": [
-            "template"
-          ]
+          "type": "object",
+          "properties": {
+            "rewrite": {
+              "$ref": "#/$defs/Rewrite"
+            }
+          },
+          "required": [
+            "rewrite"
+          ],
+          "additionalProperties": false
         }
+      ]
+    },
+    "Substring": {
+      "description": "Extracts a substring from the meta variable's text content.\n\nBoth `start_char` and `end_char` support negative indexing,\nwhich counts character from the end of an array, moving backwards.",
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "source meta variable to be transformed",
+          "type": "string"
+        },
+        "startChar": {
+          "description": "optional starting character index of the substring, defaults to 0.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "endChar": {
+          "description": "optional ending character index of the substring, defaults to the end of the string.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        }
+      },
+      "required": [
+        "source"
+      ]
+    },
+    "Replace": {
+      "description": "Replaces a substring in the meta variable's text content with another string.",
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "source meta variable to be transformed",
+          "type": "string"
+        },
+        "replace": {
+          "description": "a regex to find substring to be replaced",
+          "type": "string"
+        },
+        "by": {
+          "description": "the replacement string",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "replace",
+        "by"
+      ]
+    },
+    "Convert": {
+      "description": "Converts the source meta variable's text content to a specified case format.",
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "source meta variable to be transformed",
+          "type": "string"
+        },
+        "toCase": {
+          "description": "the target case format to convert the text content to",
+          "$ref": "#/$defs/StringCase"
+        },
+        "separatedBy": {
+          "description": "optional separators to specify how to separate word",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/Separator"
+          }
+        }
+      },
+      "required": [
+        "source",
+        "toCase"
       ]
     },
     "StringCase": {
@@ -1201,97 +908,214 @@
         "pascalCase"
       ]
     },
-    "Substring_for_String": {
-      "description": "Extracts a substring from the meta variable's text content.\n\nBoth `start_char` and `end_char` support negative indexing, which counts character from the end of an array, moving backwards.",
-      "type": "object",
-      "required": [
-        "source"
-      ],
-      "properties": {
-        "endChar": {
-          "description": "optional ending character index of the substring, defaults to the end of the string.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "int32"
-        },
-        "source": {
-          "description": "source meta variable to be transformed",
-          "type": "string"
-        },
-        "startChar": {
-          "description": "optional starting character index of the substring, defaults to 0.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "int32"
-        }
-      }
-    },
-    "Trans_for_String": {
-      "description": "Represents a transformation that can be applied to a matched AST node. Available transformations are `substring`, `replace` and `convert`.",
-      "oneOf": [
-        {
-          "type": "object",
-          "required": [
-            "substring"
-          ],
-          "properties": {
-            "substring": {
-              "$ref": "#/definitions/Substring_for_String"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "replace"
-          ],
-          "properties": {
-            "replace": {
-              "$ref": "#/definitions/Replace_for_String"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "convert"
-          ],
-          "properties": {
-            "convert": {
-              "$ref": "#/definitions/Convert_for_String"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "rewrite"
-          ],
-          "properties": {
-            "rewrite": {
-              "$ref": "#/definitions/Rewrite_for_String"
-            }
-          },
-          "additionalProperties": false
-        }
+    "Separator": {
+      "description": "Separator to split string. e.g. `user_accountName` -> `user`, `accountName`\nIt will be rejoin according to `StringCase`.",
+      "type": "string",
+      "enum": [
+        "caseChange",
+        "dash",
+        "dot",
+        "slash",
+        "space",
+        "underscore"
       ]
     },
-    "Transformation": {
+    "Rewrite": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "rewriters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "joinBy": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "source",
+        "rewriters"
+      ]
+    },
+    "SerializableFixer": {
+      "description": "A pattern string or fix object to auto fix the issue.\nIt can reference metavariables appeared in rule.",
       "anyOf": [
         {
           "type": "string"
         },
         {
-          "$ref": "#/definitions/Trans_for_String"
+          "$ref": "#/$defs/SerializableFixConfig"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SerializableFixConfig"
+          }
         }
       ]
+    },
+    "SerializableFixConfig": {
+      "type": "object",
+      "properties": {
+        "template": {
+          "type": "string"
+        },
+        "expandEnd": {
+          "$ref": "#/$defs/Relation"
+        },
+        "expandStart": {
+          "$ref": "#/$defs/Relation"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "template"
+      ]
+    },
+    "Language": {
+      "description": "Placeholder for language, used in JSON schema only.",
+      "type": "string",
+      "example": "typescript",
+      "enum": [
+        "c",
+        "c"
+      ]
+    },
+    "SerializableRewriter": {
+      "description": "Used for global rules, rewriters, and pyo3/napi",
+      "type": "object",
+      "properties": {
+        "rule": {
+          "description": "A rule object to find matching AST nodes",
+          "$ref": "#/$defs/SerializableRule"
+        },
+        "constraints": {
+          "description": "Additional meta variables pattern to filter matching",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/SerializableRule"
+          }
+        },
+        "utils": {
+          "description": "Utility rules that can be used in `matches`",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/SerializableRule"
+          }
+        },
+        "transform": {
+          "description": "A dictionary for metavariable manipulation. Dict key is the new variable name.\nDict value is a [transformation] that specifies how meta var is processed.\nSee [transformation doc](https://ast-grep.github.io/reference/yaml/transformation.html).",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/Transformation"
+          }
+        },
+        "fix": {
+          "description": "A pattern string or a FixConfig object to auto fix the issue.\nIt can reference metavariables appeared in rule.\nSee details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SerializableFixer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "description": "Unique, descriptive identifier, e.g., no-unused-variable",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule",
+        "id"
+      ]
+    },
+    "Severity": {
+      "oneOf": [
+        {
+          "description": "A kind reminder for code with potential improvement.",
+          "type": "string",
+          "const": "hint"
+        },
+        {
+          "description": "A suggestion that code can be improved or optimized.",
+          "type": "string",
+          "const": "info"
+        },
+        {
+          "description": "A warning that code might produce bugs or does not follow best practice.",
+          "type": "string",
+          "const": "warning"
+        },
+        {
+          "description": "An error that code produces bugs or has logic errors.",
+          "type": "string",
+          "const": "error"
+        },
+        {
+          "description": "Turns off the rule.",
+          "type": "string",
+          "const": "off"
+        }
+      ]
+    },
+    "LabelConfig": {
+      "type": "object",
+      "properties": {
+        "style": {
+          "$ref": "#/$defs/LabelStyle"
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "style"
+      ]
+    },
+    "LabelStyle": {
+      "oneOf": [
+        {
+          "description": "Labels that describe the primary cause of a diagnostic.",
+          "type": "string",
+          "const": "primary"
+        },
+        {
+          "description": "Labels that provide additional context for a diagnostic.",
+          "type": "string",
+          "const": "secondary"
+        }
+      ]
+    },
+    "Metadata": {
+      "description": "Additional metadata for the rule, can be used to store extra information.",
+      "type": "object",
+      "additionalProperties": true
     }
   }
 }
