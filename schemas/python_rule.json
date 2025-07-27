@@ -982,7 +982,7 @@
       "enum": [
         "py",
         "python",
-        "python"
+        "Python"
       ]
     },
     "SerializableRewriter": {

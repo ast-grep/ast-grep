@@ -739,7 +739,7 @@
       "example": "typescript",
       "enum": [
         "html",
-        "html"
+        "Html"
       ]
     },
     "SerializableRewriter": {

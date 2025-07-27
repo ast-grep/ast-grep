@@ -1134,7 +1134,7 @@
       "enum": [
         "hs",
         "haskell",
-        "haskell"
+        "Haskell"
       ]
     },
     "SerializableRewriter": {

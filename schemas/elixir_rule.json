@@ -801,7 +801,7 @@
       "enum": [
         "ex",
         "elixir",
-        "elixir"
+        "Elixir"
       ]
     },
     "SerializableRewriter": {

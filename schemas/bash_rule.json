@@ -838,7 +838,7 @@
       "example": "typescript",
       "enum": [
         "bash",
-        "bash"
+        "Bash"
       ]
     },
     "SerializableRewriter": {

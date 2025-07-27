@@ -1002,7 +1002,7 @@
       "enum": [
         "rb",
         "ruby",
-        "ruby"
+        "Ruby"
       ]
     },
     "SerializableRewriter": {

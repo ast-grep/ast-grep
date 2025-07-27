@@ -727,7 +727,7 @@
       "example": "typescript",
       "enum": [
         "json",
-        "json"
+        "Json"
       ]
     },
     "SerializableRewriter": {

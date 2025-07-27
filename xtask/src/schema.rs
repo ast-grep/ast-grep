@@ -107,7 +107,7 @@ fn add_lang_info_to_schema<T: LanguageExt + Alias>(
       T::ALIAS
         .iter()
         .map(|alias| Value::String(alias.to_string()))
-        .chain(std::iter::once(Value::String(name.to_string())))
+        .chain(std::iter::once(Value::String(lang.to_string())))
         .collect(),
     ),
   );

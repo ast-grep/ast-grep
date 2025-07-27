@@ -1021,7 +1021,7 @@
       "example": "typescript",
       "enum": [
         "scala",
-        "scala"
+        "Scala"
       ]
     },
     "SerializableRewriter": {

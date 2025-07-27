@@ -1025,7 +1025,7 @@
       "example": "typescript",
       "enum": [
         "java",
-        "java"
+        "Java"
       ]
     },
     "SerializableRewriter": {
