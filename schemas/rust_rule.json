@@ -1059,7 +1059,7 @@
       "enum": [
         "rs",
         "rust",
-        "rust"
+        "Rust"
       ]
     },
     "SerializableRewriter": {

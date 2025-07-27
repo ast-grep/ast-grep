@@ -1111,7 +1111,7 @@
       "example": "typescript",
       "enum": [
         "swift",
-        "swift"
+        "Swift"
       ]
     },
     "SerializableRewriter": {

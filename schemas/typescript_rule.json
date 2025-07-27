@@ -1096,7 +1096,7 @@
       "enum": [
         "ts",
         "typescript",
-        "typescript"
+        "TypeScript"
       ]
     },
     "SerializableRewriter": {

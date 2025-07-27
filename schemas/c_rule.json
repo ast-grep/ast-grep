@@ -990,7 +990,7 @@
       "example": "typescript",
       "enum": [
         "c",
-        "c"
+        "C"
       ]
     },
     "SerializableRewriter": {

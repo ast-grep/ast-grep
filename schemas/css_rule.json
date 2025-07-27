@@ -825,7 +825,7 @@
       "example": "typescript",
       "enum": [
         "css",
-        "css"
+        "Css"
       ]
     },
     "SerializableRewriter": {

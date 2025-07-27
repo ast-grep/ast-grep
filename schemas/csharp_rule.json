@@ -1148,7 +1148,7 @@
       "enum": [
         "cs",
         "csharp",
-        "csharp"
+        "CSharp"
       ]
     },
     "SerializableRewriter": {

@@ -949,7 +949,7 @@
       "enum": [
         "go",
         "golang",
-        "go"
+        "Go"
       ]
     },
     "SerializableRewriter": {

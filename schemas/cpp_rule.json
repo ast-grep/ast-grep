@@ -1166,7 +1166,7 @@
         "c++",
         "cpp",
         "cxx",
-        "cpp"
+        "Cpp"
       ]
     },
     "SerializableRewriter": {

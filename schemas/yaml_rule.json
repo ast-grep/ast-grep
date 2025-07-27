@@ -776,7 +776,7 @@
       "enum": [
         "yaml",
         "yml",
-        "yaml"
+        "Yaml"
       ]
     },
     "SerializableRewriter": {

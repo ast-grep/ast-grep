@@ -1038,7 +1038,7 @@
       "example": "typescript",
       "enum": [
         "php",
-        "php"
+        "Php"
       ]
     },
     "SerializableRewriter": {
