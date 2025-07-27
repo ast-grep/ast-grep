@@ -106,10 +106,8 @@ fn add_lang_info_to_schema<T: LanguageExt + Alias>(
     Value::Array(
       T::ALIAS
         .iter()
-        .map(|alias| serde_json::Value::String(alias.to_string()))
-        .chain(std::iter::once(serde_json::Value::String(format!(
-          "{name}"
-        ))))
+        .map(|alias| Value::String(alias.to_string()))
+        .chain(std::iter::once(Value::String(name.to_string())))
         .collect(),
     ),
   );
