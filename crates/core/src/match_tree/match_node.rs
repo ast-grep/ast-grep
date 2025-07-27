@@ -28,10 +28,15 @@ pub(super) fn match_node_impl<'tree, D: Doc>(
       }
       c => c,
     },
-    P::MetaVar { meta_var, .. } => match agg.match_meta_var(meta_var, candidate) {
-      Some(()) => MatchOneNode::MatchedBoth,
-      None => MatchOneNode::NoMatch, // TODO: this may be wrong
-    },
+    P::MetaVar { meta_var, .. } => {
+      if strictness.should_skip_cand_for_metavar(candidate) {
+        return MatchOneNode::SkipCandidate;
+      }
+      match agg.match_meta_var(meta_var, candidate) {
+        Some(()) => MatchOneNode::MatchedBoth,
+        None => MatchOneNode::NoMatch, // TODO: this may be wrong
+      }
+    }
     P::Internal {
       kind_id, children, ..
     } => {

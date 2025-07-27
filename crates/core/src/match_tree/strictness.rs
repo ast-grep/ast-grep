@@ -23,12 +23,15 @@ pub(crate) enum MatchOneNode {
   NoMatch,
 }
 
+fn skip_comment(n: &Node<impl Doc>) -> bool {
+  n.kind().contains("comment")
+}
+
 fn skip_comment_or_unnamed(n: &Node<impl Doc>) -> bool {
   if !n.is_named() {
     return true;
   }
-  let kind = n.kind();
-  kind.contains("comment")
+  skip_comment(n)
 }
 
 impl MatchStrictness {
@@ -86,6 +89,14 @@ impl MatchStrictness {
     }
   }
 
+  pub(crate) fn should_skip_cand_for_metavar<D: Doc>(&self, candidate: &Node<D>) -> bool {
+    use MatchStrictness as M;
+    match self {
+      M::Cst | M::Ast | M::Smart => false,
+      M::Relaxed | M::Signature | M::Template => skip_comment(candidate),
+    }
+  }
+
   // TODO: this is a method for working around trailing nodes after pattern is matched
   pub(crate) fn should_skip_trailing<D: Doc>(&self, candidate: &Node<D>) -> bool {
     use MatchStrictness as M;
@@ -95,7 +106,7 @@ impl MatchStrictness {
       M::Ast => false,
       M::Relaxed => skip_comment_or_unnamed(candidate),
       M::Signature => skip_comment_or_unnamed(candidate),
-      M::Template => true,
+      M::Template => skip_comment(candidate),
     }
   }
 
@@ -158,12 +169,16 @@ mod test {
   use crate::language::Tsx;
   use crate::{Pattern, Root};
 
-  fn template_pattern(p: &str, n: &str) -> bool {
+  fn test_match(p: &str, n: &str, strictness: MatchStrictness) -> bool {
     let mut pattern = Pattern::new(p, Tsx);
-    pattern.strictness = MatchStrictness::Template;
+    pattern.strictness = strictness;
     let root = Root::str(n, Tsx);
     let node = root.root();
     node.find(pattern).is_some()
+  }
+
+  fn template_pattern(p: &str, n: &str) -> bool {
+    test_match(p, n, MatchStrictness::Template)
   }
 
   #[test]
@@ -173,5 +188,29 @@ mod test {
     assert!(template_pattern("$A = $B", "let a = b"));
     assert!(template_pattern("$A = $B", "const a = b"));
     assert!(template_pattern("$A = $B", "class A { a = b }"));
+  }
+
+  fn relaxed_pattern(p: &str, n: &str) -> bool {
+    test_match(p, n, MatchStrictness::Relaxed)
+  }
+
+  #[test]
+  fn test_ignore_comment() {
+    assert!(relaxed_pattern("$A($B)", "foo(bar /* .. */)"));
+    assert!(relaxed_pattern(
+      "$A($B)",
+      "
+      foo(
+        bar, // ..
+      )"
+    ));
+    assert!(relaxed_pattern("$A($B)", "foo(/* .. */ bar)"));
+    assert!(relaxed_pattern(
+      "$A($B)",
+      "
+      foo( // ..
+        bar
+      )"
+    ));
   }
 }
