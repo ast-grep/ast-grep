@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use ast_grep_config::SerializableRuleConfig;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::tree_sitter::{LanguageExt, TSLanguage};
@@ -14,8 +14,7 @@ use std::borrow::Cow;
 use std::{collections::BTreeSet, fs::File};
 
 pub fn generate_schema() -> Result<()> {
-  let mut schema = schema_for!(SerializableRuleConfig<PlaceholderLang>);
-  tweak_schema(&mut schema)?;
+  let schema = schema_for!(SerializableRuleConfig<PlaceholderLang>);
   generate_lang_schemas()?;
   // use manifest to locate schema. "schemas/rule.json" only works when cwd is root dir
   // however, pwd is set to manifest dir, xtask in this case, during cargo test
@@ -53,26 +52,11 @@ fn generate_lang_schemas() -> Result<()> {
 
 fn generate_lang_schema<T: LanguageExt + Alias>(lang: T, name: &str) -> Result<()> {
   let mut schema = schema_for!(SerializableRuleConfig<PlaceholderLang>);
-  tweak_schema(&mut schema)?;
   add_lang_info_to_schema(&mut schema, lang, name)?;
   let xtask_path = std::env::var("CARGO_MANIFEST_DIR")?;
   let rule_path = std::fs::canonicalize(format!("{xtask_path}/../schemas/{name}_rule.json"))?;
   let mut file = File::create(rule_path)?;
   to_writer_pretty(&mut file, &schema).context("cannot print JSON schema")
-}
-
-fn tweak_schema(schema: &mut Schema) -> Result<()> {
-  // // stopby's rule does not need to be nested
-  // simplify_stop_by(schema)?;
-  // // using rule/relation will be too noisy
-  // let description = remove_recursive_rule_relation_description(schema)?;
-  // // set description to rule
-  // let props = &mut schema.schema.object().properties;
-  // let Schema::Object(rule) = props.get_mut("rule").context("must have rule")? else {
-  //   bail!("rule's type is not object!");
-  // };
-  // rule.metadata().description = description;
-  Ok(())
 }
 
 fn add_lang_info_to_schema<T: LanguageExt + Alias>(
@@ -140,50 +124,6 @@ fn insert_kind<L: LanguageExt>(schema: &mut Value, lang: &L) -> Result<()> {
     .as_object_mut()
     .context("kind must be an object")?;
   kind.insert("enum".to_string(), Value::Array(named_nodes));
-  Ok(())
-}
-
-fn remove_recursive_rule_relation_description(schema: &mut Schema) -> Result<Option<String>> {
-  // let definitions = &mut schema.definitions;
-  // let Schema::Object(relation) = definitions
-  //   .get_mut("Relation")
-  //   .context("must have relation")?
-  // else {
-  //   bail!("Relation's type is not object!");
-  // };
-  // relation.metadata().description = None;
-  // let Schema::Object(rule) = definitions
-  //   .get_mut("SerializableRule")
-  //   .context("must have rule")?
-  // else {
-  //   bail!("SerializableRule's type is not object!");
-  // };
-  // Ok(rule.metadata().description.take())
-  Ok(None)
-}
-
-fn simplify_stop_by(schema: &mut Schema) -> Result<()> {
-  // let definitions = &mut schema.definitions;
-  // let Schema::Object(stop_by) = definitions
-  //   .get_mut("SerializableStopBy")
-  //   .context("must have stopby")?
-  // else {
-  //   bail!("StopBy's type is not object!");
-  // };
-  // let one_ofs = stop_by
-  //   .subschemas()
-  //   .one_of
-  //   .as_mut()
-  //   .context("should have one_of")?;
-  // let Schema::Object(rule) = &mut one_ofs[1] else {
-  //   bail!("type is not object!");
-  // };
-  // let rule = rule
-  //   .object()
-  //   .properties
-  //   .remove("rule")
-  //   .context("should have rule")?;
-  // one_ofs[1] = rule;
   Ok(())
 }
 
