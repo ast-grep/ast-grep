@@ -64,6 +64,7 @@ pub struct SerializableRewriter {
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
+#[schemars(title = "ast-grep rule")]
 pub struct SerializableRuleConfig<L: Language> {
   #[serde(flatten)]
   pub core: SerializableRuleCore,
