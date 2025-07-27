@@ -80,6 +80,10 @@ impl<T: JsonSchema> JsonSchema for Maybe<T> {
     gen.subschema_for::<T>()
   }
 
+  fn inline_schema() -> bool {
+    true
+  }
+
   fn _schemars_private_non_optional_json_schema(gen: &mut SchemaGenerator) -> Schema {
     T::_schemars_private_non_optional_json_schema(gen)
   }
