@@ -36,7 +36,7 @@ impl JsonSchema for SerializableStopBy {
           "enum": [SerializableStopBy::NEIGHBOR_KEY, SerializableStopBy::END_KEY],
         },
         {
-          "$ref": "#defs/SerializableRule"
+          "$ref": "#/$defs/SerializableRule"
         }
       ],
     })
