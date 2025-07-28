@@ -69,7 +69,7 @@ cargo install --path ./crates/cli --locked
 
 ast-grep has following form.
 ```
-sg --pattern 'var code = $PATTERN' --rewrite 'let code = new $PATTERN' --lang ts
+ast-grep --pattern 'var code = $PATTERN' --rewrite 'let code = new $PATTERN' --lang ts
 ```
 
 ### Example
@@ -77,12 +77,12 @@ sg --pattern 'var code = $PATTERN' --rewrite 'let code = new $PATTERN' --lang ts
 * [Rewrite code in null coalescing operator](https://twitter.com/Hchan_mgn/status/1547061516993699841?s=20&t=ldDoj4U2nq-FRKQkU5GWXA)
 
 ```bash
-sg -p '$A && $A()' -l ts -r '$A?.()'
+ast-grep -p '$A && $A()' -l ts -r '$A?.()'
 ```
 
 * [Rewrite](https://twitter.com/Hchan_mgn/status/1561802312846278657) [Zodios](https://github.com/ecyrbe/zodios#migrate-to-v8)
 ```bash
-sg -p 'new Zodios($URL,  $CONF as const,)' -l ts -r 'new Zodios($URL, $CONF)' -i
+ast-grep -p 'new Zodios($URL,  $CONF as const,)' -l ts -r 'new Zodios($URL, $CONF)' -i
 ```
 
 * [Implement eslint rule using YAML.](https://twitter.com/Hchan_mgn/status/1560108625460355073)
