@@ -41,6 +41,7 @@ tree-sitter-solidity = { version = "1.2.11", optional = true }
 tree-sitter-swift = { version = "0.7.0", optional = true }
 tree-sitter-typescript = { version = "0.23.2", optional = true }
 tree-sitter-yaml = { version = "0.7.0", optional = true }
+tree-sitter-hcl = { version = "1.1.0", optional = true }
 
 [features]
 builtin-parser = [
@@ -52,6 +53,7 @@ builtin-parser = [
   "tree-sitter-elixir",
   "tree-sitter-go",
   "tree-sitter-haskell",
+  "tree-sitter-hcl",
   "tree-sitter-html",
   "tree-sitter-java",
   "tree-sitter-javascript",
@@ -76,3 +78,4 @@ napi-lang = [
   "tree-sitter-typescript",
 ]
 default = ["builtin-parser"]
+tree-sitter-hcl = ["dep:tree-sitter-hcl"]
