@@ -14,6 +14,7 @@ mod css;
 mod elixir;
 mod go;
 mod haskell;
+mod hcl;
 mod html;
 mod json;
 mod kotlin;
@@ -205,6 +206,8 @@ impl_lang_expando!(Go, language_go, 'µ');
 // https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/unicode_syntax.html
 // and the tree-sitter-haskell grammar parses it too.
 impl_lang_expando!(Haskell, language_haskell, 'µ');
+// https://developer.hashicorp.com/terraform/language/syntax/configuration#identifiers
+impl_lang_expando!(Hcl, language_hcl, 'µ');
 // https://github.com/fwcd/tree-sitter-kotlin/pull/93
 impl_lang_expando!(Kotlin, language_kotlin, 'µ');
 // Nix uses $ for string interpolation (e.g., "${pkgs.hello}")
@@ -249,6 +252,7 @@ pub enum SupportLang {
   Go,
   Elixir,
   Haskell,
+  Hcl,
   Html,
   Java,
   JavaScript,
@@ -272,7 +276,7 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      Bash, C, Cpp, CSharp, Css, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin, Lua,
+      Bash, C, Cpp, CSharp, Css, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json, Kotlin, Lua,
       Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript, Yaml,
     ]
   }
@@ -362,6 +366,7 @@ impl_aliases! {
   Elixir => &["ex", "elixir"],
   Go => &["go", "golang"],
   Haskell => &["hs", "haskell"],
+  Hcl => &["hcl"],
   Html => &["html"],
   Java => &["java"],
   JavaScript => &["javascript", "js", "jsx"],
@@ -408,6 +413,7 @@ macro_rules! execute_lang_method {
       S::Elixir => Elixir.$method($($pname,)*),
       S::Go => Go.$method($($pname,)*),
       S::Haskell => Haskell.$method($($pname,)*),
+      S::Hcl => Hcl.$method($($pname,)*),
       S::Html => Html.$method($($pname,)*),
       S::Java => Java.$method($($pname,)*),
       S::JavaScript => JavaScript.$method($($pname,)*),
@@ -479,6 +485,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Elixir => &["ex", "exs"],
     Go => &["go"],
     Haskell => &["hs"],
+    Hcl => &["hcl"],
     Html => &["html", "htm", "xhtml"],
     Java => &["java"],
     JavaScript => &["cjs", "js", "mjs", "jsx"],
