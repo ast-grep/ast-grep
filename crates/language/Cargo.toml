@@ -78,4 +78,3 @@ napi-lang = [
   "tree-sitter-typescript",
 ]
 default = ["builtin-parser"]
-tree-sitter-hcl = ["dep:tree-sitter-hcl"]
