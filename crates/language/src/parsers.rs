@@ -67,6 +67,9 @@ pub fn language_go() -> TSLanguage {
 pub fn language_haskell() -> TSLanguage {
   into_lang!(tree_sitter_haskell)
 }
+pub fn language_hcl() -> TSLanguage {
+  into_lang!(tree_sitter_hcl)
+}
 pub fn language_html() -> TSLanguage {
   into_napi_lang!(tree_sitter_html::LANGUAGE)
 }
