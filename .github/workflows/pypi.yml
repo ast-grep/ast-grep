@@ -193,7 +193,7 @@ jobs:
     steps:
       - name: "Install uv"
         uses: astral-sh/setup-uv@v6
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           pattern: wheels*
           merge-multiple: true
