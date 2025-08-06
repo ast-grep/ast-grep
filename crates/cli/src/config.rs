@@ -89,17 +89,7 @@ impl ProjectConfig {
     let global_rules = find_util_rules(self)?;
     read_directory_yaml(self, global_rules, rule_overwrite)
   }
-  
-  /// Create a rule finding closure that can be used by LSP or other consumers
-  /// This allows decoupling the rule finding logic from the specific consumers
-  pub fn make_rule_finder(self) -> impl Fn() -> anyhow::Result<RuleCollection<SgLang>> + Send + Sync + 'static
-  {
-    move || {
-      let (collection, _trace) = self.find_rules(RuleOverwrite::default())?;
-      Ok(collection)
-    }
-  }
-  
+
   /// returns a Result of Result.
   /// The inner Result is for configuration not found, or ProjectNotExist
   /// The outer Result is for definitely wrong config.
@@ -171,7 +161,6 @@ fn find_util_rules(config: &ProjectConfig) -> Result<GlobalRules> {
   Ok(ret)
 }
 
-
 fn read_directory_yaml(
   config: &ProjectConfig,
   global_rules: GlobalRules,
@@ -216,8 +205,6 @@ fn read_directory_yaml(
   Ok((collection, trace))
 }
 
-
-
 pub fn with_rule_stats(
   configs: Vec<RuleConfig<SgLang>>,
 ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
@@ -244,8 +231,6 @@ pub fn read_rule_file(
   };
   parsed.with_context(|| EC::ParseRule(path.to_path_buf()))
 }
-
-
 
 const CONFIG_FILE: &str = "sgconfig.yml";
 

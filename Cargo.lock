@@ -225,10 +225,8 @@ dependencies = [
  "ast-grep-core",
  "ast-grep-language",
  "dashmap",
- "ignore",
  "serde",
  "serde_json",
- "serde_yaml",
  "tokio",
  "tower-lsp-server",
 ]

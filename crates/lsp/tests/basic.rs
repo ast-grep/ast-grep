@@ -57,7 +57,7 @@ fn req_resp_should_work() {
 
 pub fn create_lsp() -> (DuplexStream, DuplexStream) {
   let base = Path::new("./").to_path_buf();
-  
+
   // Create a rule finder closure that builds the rule collection from scratch
   let rule_finder = move || {
     let globals = GlobalRules::default();
@@ -81,7 +81,7 @@ fix: |
     let rc: RuleCollection<SupportLang> = RuleCollection::try_new(vec![config]).unwrap();
     Ok(rc)
   };
-  
+
   let (service, socket) =
     LspService::build(|client| Backend::new(client, base, rule_finder)).finish();
   let (req_client, req_server) = duplex(1024);
@@ -291,17 +291,17 @@ async fn test_file_watcher_registration() {
   let mut buf = vec![0; 4096];
   let len = resp_client.read(&mut buf).await.unwrap();
   let response = String::from_utf8_lossy(&buf[..len]);
-  
-  // Should contain initialization response  
+
+  // Should contain initialization response
   assert!(response.contains("result") || response.contains("initialize"));
-  
+
   // Send initialized notification
   let initialized = r#"{
       "jsonrpc":"2.0",
       "method": "initialized",
       "params": {}
     }"#;
-  
+
   req_client
     .write_all(req(initialized).as_bytes())
     .await
@@ -311,16 +311,20 @@ async fn test_file_watcher_registration() {
   let mut buf = vec![0; 4096];
   let len = resp_client.read(&mut buf).await.unwrap();
   let response = String::from_utf8_lossy(&buf[..len]);
-  
+
   // Should contain capability registration for file watching
-  assert!(response.contains("client/registerCapability") || response.contains("workspace/didChangeWatchedFiles") || response.contains("window/logMessage"));
+  assert!(
+    response.contains("client/registerCapability")
+      || response.contains("workspace/didChangeWatchedFiles")
+      || response.contains("window/logMessage")
+  );
 }
 
 #[tokio::test]
 async fn test_did_change_watched_files() {
   let (mut req_client, mut resp_client) = create_lsp();
   initialize_lsp(&mut req_client, &mut resp_client).await;
-  
+
   // Send didChangeWatchedFiles notification
   let change_notification = r#"{
       "jsonrpc":"2.0",
@@ -334,7 +338,7 @@ async fn test_did_change_watched_files() {
         ]
       }
     }"#;
-  
+
   req_client
     .write_all(req(change_notification).as_bytes())
     .await
@@ -346,7 +350,10 @@ async fn test_did_change_watched_files() {
   let mut buf = vec![0; 4096];
   let len = resp_client.read(&mut buf).await.unwrap();
   let response = String::from_utf8_lossy(&buf[..len]);
-  
+
   // Should contain log messages about configuration changes
-  assert!(response.contains("Configuration files changed") || response.contains("watched files have changed"));
+  assert!(
+    response.contains("Configuration files changed")
+      || response.contains("watched files have changed")
+  );
 }
