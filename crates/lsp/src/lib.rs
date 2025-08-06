@@ -22,8 +22,10 @@ use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, RewriteData}
 
 pub use tower_lsp_server::{LspService, Server};
 
-pub trait LSPLang: LanguageExt + Eq + Send + Sync + 'static {}
-impl<T> LSPLang for T where T: LanguageExt + Eq + Send + Sync + 'static {}
+use serde::Deserialize;
+
+pub trait LSPLang: LanguageExt + Eq + Send + Sync + for<'a> Deserialize<'a> + 'static {}
+impl<T> LSPLang for T where T: LanguageExt + Eq + Send + Sync + for<'a> Deserialize<'a> + 'static {}
 
 type Notes = BTreeMap<(u32, u32, u32, u32), Arc<String>>;
 
@@ -650,14 +652,45 @@ impl<L: LSPLang> Backend<L> {
 
   /// Reload rules from configuration and republish diagnostics for all open files
   async fn reload_rules(&self) -> anyhow::Result<()> {
-    // For now, this is a minimal implementation that just clears errors
-    // and republishes diagnostics. In a complete implementation, we would
-    // actually reload rules from the file system.
+    self
+      .client
+      .log_message(MessageType::INFO, "Starting rule reload...")
+      .await;
+
+    // Try to reload rules from the file system
+    let result = self.load_rules_from_filesystem().await;
     
-    // Clear any previous errors
-    {
-      let mut errors = self.errors.write().map_err(|e| anyhow::anyhow!("Lock error: {e}"))?;
-      *errors = None;
+    match result {
+      Ok(new_rules) => {
+        // Update the rules
+        {
+          let mut rules = self.rules.write().map_err(|e| anyhow::anyhow!("Lock error: {e}"))?;
+          *rules = new_rules;
+        }
+        
+        // Clear any previous errors
+        {
+          let mut errors = self.errors.write().map_err(|e| anyhow::anyhow!("Lock error: {e}"))?;
+          *errors = None;
+        }
+
+        self
+          .client
+          .log_message(MessageType::INFO, "Rules reloaded successfully from filesystem")
+          .await;
+      }
+      Err(e) => {
+        // Store the error
+        {
+          let mut errors = self.errors.write().map_err(|e| anyhow::anyhow!("Lock error: {e}"))?;
+          *errors = Some(e.to_string());
+        }
+
+        self
+          .client
+          .log_message(MessageType::ERROR, format!("Failed to reload rules: {e}"))
+          .await;
+      }
     }
 
     // Clear the interner since rule IDs might have changed
@@ -667,6 +700,64 @@ impl<L: LSPLang> Backend<L> {
     self.republish_all_diagnostics().await;
 
     Ok(())
+  }
+
+  /// Load rules from the filesystem - simplified version of CLI config loading
+  async fn load_rules_from_filesystem(&self) -> anyhow::Result<RuleCollection<L>> {
+    use ast_grep_config::{from_yaml_string, GlobalRules};
+    use ast_grep_language::config_file_type;
+    use ignore::WalkBuilder;
+    use std::fs::read_to_string;
+
+    // Look for sgconfig.yml in the base directory
+    let config_path = self.base.join("sgconfig.yml");
+    
+    let rule_dirs = if config_path.exists() {
+      let config_content = read_to_string(&config_path)?;
+      let config: serde_yaml::Value = serde_yaml::from_str(&config_content)?;
+      
+      if let Some(rule_dirs) = config.get("ruleDirs").and_then(|v| v.as_sequence()) {
+        rule_dirs
+          .iter()
+          .filter_map(|v| v.as_str())
+          .map(|s| self.base.join(s))
+          .collect::<Vec<_>>()
+      } else {
+        vec![self.base.join("rules")] // Default rules directory
+      }
+    } else {
+      vec![self.base.join("rules")] // Default rules directory
+    };
+
+    // Read all rule files
+    let mut configs = Vec::new();
+    let global_rules = GlobalRules::default(); // Simplified - no util rules for now
+    
+    for rule_dir in rule_dirs {
+      if !rule_dir.exists() {
+        continue;
+      }
+      
+      let walker = WalkBuilder::new(&rule_dir)
+        .types(config_file_type())
+        .build();
+      
+      for entry in walker {
+        let entry = entry?;
+        if !entry.file_type().unwrap().is_file() {
+          continue;
+        }
+        
+        let path = entry.path();
+        let yaml = read_to_string(path)?;
+        let parsed = from_yaml_string(&yaml, &global_rules)?;
+        configs.extend(parsed);
+      }
+    }
+
+    // Create the rule collection
+    let collection = RuleCollection::try_new(configs)?;
+    Ok(collection)
   }
 
   /// Republish diagnostics for all currently open files
