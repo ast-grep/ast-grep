@@ -89,6 +89,21 @@ impl ProjectConfig {
     let global_rules = find_util_rules(self)?;
     read_directory_yaml(self, global_rules, rule_overwrite)
   }
+  
+  /// Create a rule finding closure that can be used by LSP or other consumers
+  /// This allows decoupling the rule finding logic from the specific consumers
+  pub fn make_rule_finder<L>(self) -> impl Fn() -> anyhow::Result<RuleCollection<L>> + Send + Sync + 'static
+  where
+    L: ast_grep_core::Language + serde::de::DeserializeOwned + Clone + std::cmp::Eq + Send + Sync + 'static,
+  {
+    move || {
+      let global_rules = find_util_rules_generic::<L>(&self.project_dir, &self.util_dirs)?;
+      let configs = read_directory_yaml_generic::<L>(&self.project_dir, &self.rule_dirs, global_rules)?;
+      let collection = RuleCollection::try_new(configs).context(EC::GlobPattern)?;
+      Ok(collection)
+    }
+  }
+  
   /// returns a Result of Result.
   /// The inner Result is for configuration not found, or ProjectNotExist
   /// The outer Result is for definitely wrong config.
@@ -160,6 +175,39 @@ fn find_util_rules(config: &ProjectConfig) -> Result<GlobalRules> {
   Ok(ret)
 }
 
+/// Generic version of find_util_rules that works with any language type
+fn find_util_rules_generic<L>(
+  project_dir: &Path,
+  util_dirs: &Option<Vec<PathBuf>>,
+) -> Result<GlobalRules>
+where
+  L: ast_grep_core::Language + serde::de::DeserializeOwned + Clone + std::cmp::Eq + Send + Sync + 'static,
+{
+  let Some(mut walker) = build_util_walker(project_dir, util_dirs) else {
+    return Ok(GlobalRules::default());
+  };
+  let mut utils = vec![];
+  let walker = walker.types(config_file_type()).build();
+  for dir in walker {
+    let config_file = dir.with_context(|| EC::WalkRuleDir(PathBuf::new()))?;
+    // file_type is None only if it is stdin, safe to panic here
+    if !config_file
+      .file_type()
+      .expect("file type should be available for non-stdin")
+      .is_file()
+    {
+      continue;
+    }
+    let path = config_file.path();
+    let file = read_to_string(path)?;
+    let new_configs = from_str(&file)?;
+    utils.push(new_configs);
+  }
+
+  let ret = DeserializeEnv::<L>::parse_global_utils(utils).context(EC::InvalidGlobalUtils)?;
+  Ok(ret)
+}
+
 fn read_directory_yaml(
   config: &ProjectConfig,
   global_rules: GlobalRules,
@@ -204,6 +252,39 @@ fn read_directory_yaml(
   Ok((collection, trace))
 }
 
+/// Generic version of read_directory_yaml that works with any language type
+fn read_directory_yaml_generic<L>(
+  project_dir: &Path,
+  rule_dirs: &[PathBuf],
+  global_rules: GlobalRules,
+) -> Result<Vec<RuleConfig<L>>>
+where
+  L: ast_grep_core::Language + serde::de::DeserializeOwned + Clone + std::cmp::Eq + Send + Sync + 'static,
+{
+  let mut configs = vec![];
+  for dir in rule_dirs {
+    let dir_path = project_dir.join(dir);
+    let walker = WalkBuilder::new(&dir_path)
+      .types(config_file_type())
+      .build();
+    for dir in walker {
+      let config_file = dir.with_context(|| EC::WalkRuleDir(dir_path.clone()))?;
+      // file_type is None only if it is stdin, safe to panic here
+      if !config_file
+        .file_type()
+        .expect("file type should be available for non-stdin")
+        .is_file()
+      {
+        continue;
+      }
+      let path = config_file.path();
+      let new_configs = read_rule_file_generic::<L>(path, Some(&global_rules))?;
+      configs.extend(new_configs);
+    }
+  }
+  Ok(configs)
+}
+
 pub fn with_rule_stats(
   configs: Vec<RuleConfig<SgLang>>,
 ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
@@ -222,6 +303,23 @@ pub fn read_rule_file(
   path: &Path,
   global_rules: Option<&GlobalRules>,
 ) -> Result<Vec<RuleConfig<SgLang>>> {
+  let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
+  let parsed = if let Some(globals) = global_rules {
+    from_yaml_string(&yaml, globals)
+  } else {
+    from_yaml_string(&yaml, &Default::default())
+  };
+  parsed.with_context(|| EC::ParseRule(path.to_path_buf()))
+}
+
+/// Generic version of read_rule_file that works with any language type
+pub fn read_rule_file_generic<L>(
+  path: &Path,
+  global_rules: Option<&GlobalRules>,
+) -> Result<Vec<RuleConfig<L>>>
+where
+  L: ast_grep_core::Language + serde::de::DeserializeOwned + Clone + std::cmp::Eq + Send + Sync + 'static,
+{
   let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
   let parsed = if let Some(globals) = global_rules {
     from_yaml_string(&yaml, globals)

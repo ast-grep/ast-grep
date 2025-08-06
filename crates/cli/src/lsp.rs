@@ -13,19 +13,14 @@ async fn run_language_server_impl(_arg: LspArg, project: Result<ProjectConfig>) 
   let project_config = project?;
   let stdin = tokio::io::stdin();
   let stdout = tokio::io::stdout();
-  let config_result = project_config.find_rules(Default::default());
-  let config_result_std: std::result::Result<_, String> = config_result
-    .map_err(|e| {
-      // convert anyhow::Error to String with chain of causes
-      e.chain()
-        .map(|e| e.to_string())
-        .collect::<Vec<_>>()
-        .join(". ")
-    })
-    .map(|r| r.0);
-  let config_base = project_config.project_dir;
+  
+  let config_base = project_config.project_dir.clone();
+  
+  // Create a rule finder closure that uses the CLI logic
+  let rule_finder = project_config.make_rule_finder::<crate::lang::SgLang>();
+  
   let (service, socket) =
-    LspService::build(|client| Backend::new(client, config_base, config_result_std)).finish();
+    LspService::build(|client| Backend::new(client, config_base, rule_finder)).finish();
   Server::new(stdin, stdout, socket).serve(service).await;
   Ok(())
 }

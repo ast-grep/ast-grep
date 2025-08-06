@@ -43,6 +43,8 @@ pub struct Backend<L: LSPLang> {
   errors: Arc<RwLock<Option<String>>>,
   // interner for rule ids to note, to avoid duplication
   interner: DashMap<String, Arc<String>>,
+  // rule finding closure to reload rules
+  rule_finder: Box<dyn Fn() -> anyhow::Result<RuleCollection<L>> + Send + Sync>,
 }
 
 const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
@@ -247,14 +249,17 @@ fn pos_tuple_to_range((line, character, end_line, end_character): (u32, u32, u32
 }
 
 impl<L: LSPLang> Backend<L> {
-  pub fn new(
+  pub fn new<F>(
     client: Client,
     base: PathBuf,
-    rules: std::result::Result<RuleCollection<L>, String>,
-  ) -> Self {
-    let (rules, errors) = match rules {
+    rule_finder: F,
+  ) -> Self
+  where
+    F: Fn() -> anyhow::Result<RuleCollection<L>> + Send + Sync + 'static,
+  {
+    let (rules, errors) = match rule_finder() {
       Ok(r) => (r, None),
-      Err(e) => (RuleCollection::default(), Some(e)),
+      Err(e) => (RuleCollection::default(), Some(e.to_string())),
     };
     Self {
       client,
@@ -263,6 +268,7 @@ impl<L: LSPLang> Backend<L> {
       map: DashMap::new(),
       errors: Arc::new(RwLock::new(errors)),
       interner: DashMap::new(),
+      rule_finder: Box::new(rule_finder),
     }
   }
 
@@ -657,8 +663,8 @@ impl<L: LSPLang> Backend<L> {
       .log_message(MessageType::INFO, "Starting rule reload...")
       .await;
 
-    // Try to reload rules from the file system
-    let result = self.load_rules_from_filesystem().await;
+    // Use the rule finder closure to reload rules
+    let result = (self.rule_finder)();
     
     match result {
       Ok(new_rules) => {
@@ -676,7 +682,7 @@ impl<L: LSPLang> Backend<L> {
 
         self
           .client
-          .log_message(MessageType::INFO, "Rules reloaded successfully from filesystem")
+          .log_message(MessageType::INFO, "Rules reloaded successfully using CLI logic")
           .await;
       }
       Err(e) => {
@@ -700,64 +706,6 @@ impl<L: LSPLang> Backend<L> {
     self.republish_all_diagnostics().await;
 
     Ok(())
-  }
-
-  /// Load rules from the filesystem - simplified version of CLI config loading
-  async fn load_rules_from_filesystem(&self) -> anyhow::Result<RuleCollection<L>> {
-    use ast_grep_config::{from_yaml_string, GlobalRules};
-    use ast_grep_language::config_file_type;
-    use ignore::WalkBuilder;
-    use std::fs::read_to_string;
-
-    // Look for sgconfig.yml in the base directory
-    let config_path = self.base.join("sgconfig.yml");
-    
-    let rule_dirs = if config_path.exists() {
-      let config_content = read_to_string(&config_path)?;
-      let config: serde_yaml::Value = serde_yaml::from_str(&config_content)?;
-      
-      if let Some(rule_dirs) = config.get("ruleDirs").and_then(|v| v.as_sequence()) {
-        rule_dirs
-          .iter()
-          .filter_map(|v| v.as_str())
-          .map(|s| self.base.join(s))
-          .collect::<Vec<_>>()
-      } else {
-        vec![self.base.join("rules")] // Default rules directory
-      }
-    } else {
-      vec![self.base.join("rules")] // Default rules directory
-    };
-
-    // Read all rule files
-    let mut configs = Vec::new();
-    let global_rules = GlobalRules::default(); // Simplified - no util rules for now
-    
-    for rule_dir in rule_dirs {
-      if !rule_dir.exists() {
-        continue;
-      }
-      
-      let walker = WalkBuilder::new(&rule_dir)
-        .types(config_file_type())
-        .build();
-      
-      for entry in walker {
-        let entry = entry?;
-        if !entry.file_type().unwrap().is_file() {
-          continue;
-        }
-        
-        let path = entry.path();
-        let yaml = read_to_string(path)?;
-        let parsed = from_yaml_string(&yaml, &global_rules)?;
-        configs.extend(parsed);
-      }
-    }
-
-    // Create the rule collection
-    let collection = RuleCollection::try_new(configs)?;
-    Ok(collection)
   }
 
   /// Republish diagnostics for all currently open files
