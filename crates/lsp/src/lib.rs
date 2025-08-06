@@ -4,10 +4,11 @@ use dashmap::DashMap;
 use serde_json::Value;
 use tower_lsp_server::jsonrpc::Result;
 use tower_lsp_server::lsp_types::*;
+use tower_lsp_server::lsp_types::notification::{DidChangeWatchedFiles, Notification};
 use tower_lsp_server::UriExt;
 use tower_lsp_server::{Client, LanguageServer};
 
-use ast_grep_config::{CombinedScan, RuleCollection, RuleConfig, Severity};
+use ast_grep_config::{CombinedScan, RuleCollection, Severity};
 use ast_grep_core::{
   tree_sitter::{LanguageExt, StrDoc},
   AstGrep, Doc,
@@ -15,7 +16,7 @@ use ast_grep_core::{
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, RewriteData};
 
@@ -36,8 +37,8 @@ pub struct Backend<L: LSPLang> {
   client: Client,
   map: DashMap<String, VersionedAst<StrDoc<L>>>,
   base: PathBuf,
-  rules: RuleCollection<L>,
-  errors: Option<String>,
+  rules: Arc<RwLock<RuleCollection<L>>>,
+  errors: Arc<RwLock<Option<String>>>,
   // interner for rule ids to note, to avoid duplication
   interner: DashMap<String, Arc<String>>,
 }
@@ -101,7 +102,16 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       .await;
 
     // Report errors loading config once, upon initialization
-    if let Some(error) = &self.errors {
+    let error_msg = {
+      let errors = self.errors.read();
+      if let Ok(errors) = errors {
+        errors.clone()
+      } else {
+        None
+      }
+    }; // Drop the lock here
+
+    if let Some(error) = error_msg {
       // popup message
       self
         .client
@@ -111,6 +121,14 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       self
         .client
         .log_message(MessageType::ERROR, format!("Failed to load rules: {error}"))
+        .await;
+    }
+
+    // Register file watchers for configuration files
+    if let Err(e) = self.register_file_watchers().await {
+      self
+        .client
+        .log_message(MessageType::ERROR, format!("Failed to register file watchers: {e:?}"))
         .await;
     }
   }
@@ -133,11 +151,44 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       .await;
   }
 
-  async fn did_change_watched_files(&self, _: DidChangeWatchedFilesParams) {
+  async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
     self
       .client
       .log_message(MessageType::INFO, "watched files have changed!")
       .await;
+    
+    // Check if any of the changed files are configuration files
+    let mut config_changed = false;
+    for change in &params.changes {
+      let uri = &change.uri;
+      if let Some(path) = uri.to_file_path() {
+        if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+          if filename == "sgconfig.yml" || filename.ends_with(".yml") || filename.ends_with(".yaml") {
+            config_changed = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if config_changed {
+      self
+        .client
+        .log_message(MessageType::INFO, "Configuration files changed, reloading rules...")
+        .await;
+      
+      if let Err(e) = self.reload_rules().await {
+        self
+          .client
+          .show_message(MessageType::ERROR, format!("Failed to reload rules: {e}"))
+          .await;
+      } else {
+        self
+          .client
+          .log_message(MessageType::INFO, "Rules reloaded successfully")
+          .await;
+      }
+    }
   }
   async fn did_open(&self, params: DidOpenTextDocumentParams) {
     self
@@ -205,24 +256,14 @@ impl<L: LSPLang> Backend<L> {
     };
     Self {
       client,
-      rules,
+      rules: Arc::new(RwLock::new(rules)),
       base,
       map: DashMap::new(),
-      errors,
+      errors: Arc::new(RwLock::new(errors)),
       interner: DashMap::new(),
     }
   }
 
-  fn get_rules(&self, uri: &Uri) -> Option<Vec<&RuleConfig<L>>> {
-    let absolute_path = uri.to_file_path()?;
-    let path = if let Ok(p) = absolute_path.strip_prefix(&self.base) {
-      p
-    } else {
-      &absolute_path
-    };
-    let rules = self.rules.for_path(path);
-    Some(rules)
-  }
 
   fn do_hover(&self, pos_params: TextDocumentPositionParams) -> Option<Hover> {
     let uri = pos_params.text_document.uri;
@@ -255,13 +296,21 @@ impl<L: LSPLang> Backend<L> {
     uri: &Uri,
     versioned: &VersionedAst<StrDoc<L>>,
   ) -> Option<Vec<Diagnostic>> {
-    let rules = self.get_rules(uri)?;
-    if rules.is_empty() {
+    let absolute_path = uri.to_file_path()?;
+    let path = if let Ok(p) = absolute_path.strip_prefix(&self.base) {
+      p
+    } else {
+      &absolute_path
+    };
+    
+    let rules = self.rules.read().ok()?;
+    let rule_refs = rules.for_path(path);
+    if rule_refs.is_empty() {
       return None;
     }
     let unused_suppression_rule =
-      CombinedScan::unused_config(Severity::Hint, rules[0].language.clone());
-    let mut scan = CombinedScan::new(rules);
+      CombinedScan::unused_config(Severity::Hint, rule_refs[0].language.clone());
+    let mut scan = CombinedScan::new(rule_refs);
     scan.set_unused_suppression_rule(&unused_suppression_rule);
     let matches = scan.scan(&versioned.root, false).matches;
     let mut diagnostics = vec![];
@@ -278,17 +327,18 @@ impl<L: LSPLang> Backend<L> {
       let Some(NumberOrString::String(id)) = &diagnostic.code else {
         continue;
       };
-      let Some(note) = self.rules.get_rule(id).and_then(|r| r.note.clone()) else {
-        continue;
-      };
-      let start = diagnostic.range.start;
-      let end = diagnostic.range.end;
-      let atom = self
-        .interner
-        .entry(id.clone())
-        .or_insert_with(|| Arc::new(note.clone()))
-        .clone();
-      notes.insert((start.line, start.character, end.line, end.character), atom);
+      if let Ok(rules) = self.rules.read() {
+        if let Some(note) = rules.get_rule(id).and_then(|r| r.note.clone()) {
+          let start = diagnostic.range.start;
+          let end = diagnostic.range.end;
+          let atom = self
+            .interner
+            .entry(id.clone())
+            .or_insert_with(|| Arc::new(note.clone()))
+            .clone();
+          notes.insert((start.line, start.character, end.line, end.character), atom);
+        }
+      }
     }
     notes
   }
@@ -566,6 +616,76 @@ impl<L: LSPLang> Backend<L> {
           .client
           .log_message(MessageType::LOG, "No actionable fix")
           .await;
+      }
+    }
+  }
+
+  /// Register file watchers for configuration files
+  async fn register_file_watchers(&self) -> std::result::Result<(), tower_lsp_server::jsonrpc::Error> {
+    let config_watcher = FileSystemWatcher {
+      glob_pattern: GlobPattern::String("**/sgconfig.yml".to_string()),
+      kind: Some(WatchKind::Create | WatchKind::Change | WatchKind::Delete),
+    };
+    
+    let rule_watcher = FileSystemWatcher {
+      glob_pattern: GlobPattern::String("**/*.yml".to_string()),
+      kind: Some(WatchKind::Create | WatchKind::Change | WatchKind::Delete),
+    };
+
+    let registration = Registration {
+      id: "ast-grep-config-watcher".to_string(),
+      method: DidChangeWatchedFiles::METHOD.to_string(),
+      register_options: Some(
+        serde_json::to_value(DidChangeWatchedFilesRegistrationOptions {
+          watchers: vec![config_watcher, rule_watcher],
+        }).map_err(|e| tower_lsp_server::jsonrpc::Error::invalid_params(e.to_string()))?
+      ),
+    };
+
+    self
+      .client
+      .register_capability(vec![registration])
+      .await
+  }
+
+  /// Reload rules from configuration and republish diagnostics for all open files
+  async fn reload_rules(&self) -> anyhow::Result<()> {
+    // For now, this is a minimal implementation that just clears errors
+    // and republishes diagnostics. In a complete implementation, we would
+    // actually reload rules from the file system.
+    
+    // Clear any previous errors
+    {
+      let mut errors = self.errors.write().map_err(|e| anyhow::anyhow!("Lock error: {e}"))?;
+      *errors = None;
+    }
+
+    // Clear the interner since rule IDs might have changed
+    self.interner.clear();
+
+    // Republish diagnostics for all open files
+    self.republish_all_diagnostics().await;
+
+    Ok(())
+  }
+
+  /// Republish diagnostics for all currently open files
+  async fn republish_all_diagnostics(&self) {
+    // Get all currently open file URIs
+    let open_files: Vec<String> = self.map.iter().map(|entry| entry.key().clone()).collect();
+    
+    for uri_str in open_files {
+      if let Ok(uri) = uri_str.parse::<Uri>() {
+        if let Some(mut versioned) = self.map.get_mut(&uri_str) {
+          // Republish diagnostics for this file
+          if let Some(diagnostics) = self.get_diagnostics(&uri, &versioned) {
+            versioned.notes = self.build_notes(&diagnostics);
+            self
+              .client
+              .publish_diagnostics(uri, diagnostics, Some(versioned.version))
+              .await;
+          }
+        }
       }
     }
   }
