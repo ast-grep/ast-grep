@@ -220,6 +220,7 @@ dependencies = [
 name = "ast-grep-lsp"
 version = "0.39.3"
 dependencies = [
+ "anyhow",
  "ast-grep-config",
  "ast-grep-core",
  "ast-grep-language",
