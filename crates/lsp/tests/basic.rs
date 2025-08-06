@@ -56,9 +56,13 @@ fn req_resp_should_work() {
 }
 
 pub fn create_lsp() -> (DuplexStream, DuplexStream) {
-  let globals = GlobalRules::default();
-  let config: RuleConfig<SupportLang> = from_yaml_string(
-    r"
+  let base = Path::new("./").to_path_buf();
+  
+  // Create a rule finder closure that builds the rule collection from scratch
+  let rule_finder = move || {
+    let globals = GlobalRules::default();
+    let config: RuleConfig<SupportLang> = from_yaml_string(
+      r"
 id: no-console-rule
 message: No console.log
 severity: warning
@@ -69,16 +73,17 @@ note: no console.log
 fix: |
   alert($$$A)
 ",
-    &globals,
-  )
-  .unwrap()
-  .pop()
-  .unwrap();
-  let base = Path::new("./").to_path_buf();
-  let rc: RuleCollection<SupportLang> = RuleCollection::try_new(vec![config]).unwrap();
-  let rc_result: std::result::Result<_, String> = Ok(rc);
+      &globals,
+    )
+    .unwrap()
+    .pop()
+    .unwrap();
+    let rc: RuleCollection<SupportLang> = RuleCollection::try_new(vec![config]).unwrap();
+    Ok(rc)
+  };
+  
   let (service, socket) =
-    LspService::build(|client| Backend::new(client, base, rc_result)).finish();
+    LspService::build(|client| Backend::new(client, base, rule_finder)).finish();
   let (req_client, req_server) = duplex(1024);
   let (resp_server, resp_client) = duplex(1024);
 
