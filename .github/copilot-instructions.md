@@ -7,7 +7,7 @@ ast-grep is a CLI tool for structural search, lint, and code rewriting using abs
 ## Working Effectively
 
 ### Essential Setup and Build Commands
-Run these commands in the repository root (`/home/runner/work/ast-grep/ast-grep`) in order:
+Run these commands in the repository root (the top-level directory of your local clone, e.g. `<repo-root>`) in order:
 
 - Check Rust toolchain: `rustc --version && cargo --version`
 - Quick validation: `cargo check` - takes 2m 40s, validates dependencies and compilation
@@ -77,7 +77,7 @@ Run these commands in the repository root (`/home/runner/work/ast-grep/ast-grep`
        pattern: var $VAR = $VALUE
      fix: let $VAR = $VALUE
    EOF
-   /home/runner/work/ast-grep/ast-grep/target/release/ast-grep scan src/
+   ./target/release/ast-grep scan src/
    ```
 
 4. **LSP server startup test:**
