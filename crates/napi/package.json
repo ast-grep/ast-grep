@@ -57,7 +57,7 @@
     "@ast-grep/napi": "0.39.1",
     "@napi-rs/cli": "3.0.4",
     "@types/node": "^22.10.2",
-    "oxlint": "1.8.0",
+    "oxlint": "1.10.0",
     "ava": "6.4.1",
     "chalk": "5.5.0",
     "dprint": "0.50.1",
