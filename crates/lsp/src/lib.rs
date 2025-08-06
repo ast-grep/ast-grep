@@ -22,10 +22,10 @@ use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, RewriteData}
 
 pub use tower_lsp_server::{LspService, Server};
 
-use serde::Deserialize;
 
-pub trait LSPLang: LanguageExt + Eq + Send + Sync + for<'a> Deserialize<'a> + 'static {}
-impl<T> LSPLang for T where T: LanguageExt + Eq + Send + Sync + for<'a> Deserialize<'a> + 'static {}
+
+pub trait LSPLang: LanguageExt + Eq + Send + Sync + 'static {}
+impl<T> LSPLang for T where T: LanguageExt + Eq + Send + Sync + 'static {}
 
 type Notes = BTreeMap<(u32, u32, u32, u32), Arc<String>>;
 
