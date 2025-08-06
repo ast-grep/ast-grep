@@ -17,7 +17,7 @@ async fn run_language_server_impl(_arg: LspArg, project: Result<ProjectConfig>) 
   let config_base = project_config.project_dir.clone();
   
   // Create a rule finder closure that uses the CLI logic
-  let rule_finder = project_config.make_rule_finder::<crate::lang::SgLang>();
+  let rule_finder = project_config.make_rule_finder();
   
   let (service, socket) =
     LspService::build(|client| Backend::new(client, config_base, rule_finder)).finish();
