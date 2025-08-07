@@ -38,7 +38,6 @@ pub struct Backend<L: LSPLang> {
   map: DashMap<String, VersionedAst<StrDoc<L>>>,
   base: PathBuf,
   rules: Arc<RwLock<RuleCollection<L>>>,
-  errors: Arc<RwLock<Option<String>>>,
   // interner for rule ids to note, to avoid duplication
   interner: DashMap<String, Arc<String>>,
   // rule finding closure to reload rules
@@ -102,27 +101,10 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       .client
       .log_message(MessageType::INFO, "server initialized!")
       .await;
-
-    // Report errors loading config once, upon initialization
-    let error_msg = {
-      let errors = self.errors.read();
-      if let Ok(errors) = errors {
-        errors.clone()
-      } else {
-        None
-      }
-    }; // Drop the lock here
-
-    if let Some(error) = error_msg {
-      // popup message
+    if let Err(e) = self.reload_rules().await {
       self
         .client
-        .show_message(MessageType::ERROR, format!("Failed to load rules: {error}"))
-        .await;
-      // log message
-      self
-        .client
-        .log_message(MessageType::ERROR, format!("Failed to load rules: {error}"))
+        .show_message(MessageType::ERROR, format!("Failed to load rules: {e}"))
         .await;
     }
 
@@ -157,11 +139,6 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
   }
 
   async fn did_change_watched_files(&self, _params: DidChangeWatchedFilesParams) {
-    self
-      .client
-      .log_message(MessageType::INFO, "watched files have changed!")
-      .await;
-
     // File watcher already ensures only yml files are watched, so just reload
     self
       .client
@@ -242,16 +219,11 @@ impl<L: LSPLang> Backend<L> {
   where
     F: Fn() -> anyhow::Result<RuleCollection<L>> + Send + Sync + 'static,
   {
-    let (rules, errors) = match rule_finder() {
-      Ok(r) => (r, None),
-      Err(e) => (RuleCollection::default(), Some(e.to_string())),
-    };
     Self {
       client,
-      rules: Arc::new(RwLock::new(rules)),
+      rules: Arc::new(RwLock::new(RuleCollection::default())),
       base,
       map: DashMap::new(),
-      errors: Arc::new(RwLock::new(errors)),
       interner: DashMap::new(),
       rule_finder: Box::new(rule_finder),
     }
@@ -624,21 +596,15 @@ impl<L: LSPLang> Backend<L> {
     &self,
   ) -> std::result::Result<(), tower_lsp_server::jsonrpc::Error> {
     let yml_watcher = FileSystemWatcher {
-      glob_pattern: GlobPattern::String("**/*.yml".to_string()),
+      glob_pattern: GlobPattern::String("**/*.{yml,yaml}".to_string()),
       kind: Some(WatchKind::Create | WatchKind::Change | WatchKind::Delete),
     };
-
-    let yaml_watcher = FileSystemWatcher {
-      glob_pattern: GlobPattern::String("**/*.yaml".to_string()),
-      kind: Some(WatchKind::Create | WatchKind::Change | WatchKind::Delete),
-    };
-
     let registration = Registration {
       id: "ast-grep-config-watcher".to_string(),
       method: DidChangeWatchedFiles::METHOD.to_string(),
       register_options: Some(
         serde_json::to_value(DidChangeWatchedFilesRegistrationOptions {
-          watchers: vec![yml_watcher, yaml_watcher],
+          watchers: vec![yml_watcher],
         })
         .map_err(|e| tower_lsp_server::jsonrpc::Error::invalid_params(e.to_string()))?,
       ),
@@ -654,10 +620,7 @@ impl<L: LSPLang> Backend<L> {
       .log_message(MessageType::INFO, "Starting rule reload...")
       .await;
 
-    // Use the rule finder closure to reload rules
-    let result = (self.rule_finder)();
-
-    match result {
+    match (self.rule_finder)() {
       Ok(new_rules) => {
         // Update the rules
         {
@@ -668,15 +631,6 @@ impl<L: LSPLang> Backend<L> {
           *rules = new_rules;
         }
 
-        // Clear any previous errors
-        {
-          let mut errors = self
-            .errors
-            .write()
-            .map_err(|e| anyhow::anyhow!("Lock error: {e}"))?;
-          *errors = None;
-        }
-
         self
           .client
           .log_message(
@@ -685,19 +639,16 @@ impl<L: LSPLang> Backend<L> {
           )
           .await;
       }
-      Err(e) => {
-        // Store the error
-        {
-          let mut errors = self
-            .errors
-            .write()
-            .map_err(|e| anyhow::anyhow!("Lock error: {e}"))?;
-          *errors = Some(e.to_string());
-        }
-
+      Err(error) => {
+        // popup message
         self
           .client
-          .log_message(MessageType::ERROR, format!("Failed to reload rules: {e}"))
+          .show_message(MessageType::ERROR, format!("Failed to load rules: {error}"))
+          .await;
+        // log message
+        self
+          .client
+          .log_message(MessageType::ERROR, format!("Failed to load rules: {error}"))
           .await;
       }
     }
@@ -714,23 +665,20 @@ impl<L: LSPLang> Backend<L> {
   /// Republish diagnostics for all currently open files
   async fn republish_all_diagnostics(&self) {
     // Get all currently open file URIs
-    let open_files: Vec<String> = self.map.iter().map(|entry| entry.key().clone()).collect();
-
-    for uri_str in open_files {
+    for mut entry in self.map.iter_mut() {
+      let (uri_str, versioned) = entry.pair_mut();
       let Ok(uri) = uri_str.parse::<Uri>() else {
         continue;
       };
-      let Some(mut versioned) = self.map.get_mut(&uri_str) else {
+      // Republish diagnostics for this file
+      let Some(diagnostics) = self.get_diagnostics(&uri, versioned) else {
         continue;
       };
-      // Republish diagnostics for this file
-      if let Some(diagnostics) = self.get_diagnostics(&uri, &versioned) {
-        versioned.notes = self.build_notes(&diagnostics);
-        self
-          .client
-          .publish_diagnostics(uri, diagnostics, Some(versioned.version))
-          .await;
-      }
+      versioned.notes = self.build_notes(&diagnostics);
+      self
+        .client
+        .publish_diagnostics(uri, diagnostics, Some(versioned.version))
+        .await;
     }
   }
 }

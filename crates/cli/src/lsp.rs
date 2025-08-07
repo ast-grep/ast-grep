@@ -1,25 +1,11 @@
 use crate::config::ProjectConfig;
-use crate::lang::SgLang;
 use crate::utils::{ErrorContext as EC, RuleOverwrite};
 use anyhow::{Context, Result};
-use ast_grep_config::RuleCollection;
 use ast_grep_lsp::{Backend, LspService, Server};
 use clap::Args;
 
 #[derive(Args)]
 pub struct LspArg {}
-
-/// Create a rule finding closure that can be used by LSP or other consumers
-/// This allows decoupling the rule finding logic from the specific consumers
-pub fn make_rule_finder(
-  project_config: ProjectConfig,
-) -> impl Fn() -> anyhow::Result<RuleCollection<SgLang>> + Send + Sync + 'static 
-{
-  move || {
-    let (collection, _trace) = project_config.find_rules(RuleOverwrite::default())?;
-    Ok(collection)
-  }
-}
 
 async fn run_language_server_impl(_arg: LspArg, project: Result<ProjectConfig>) -> Result<()> {
   // env_logger::init();
@@ -31,7 +17,10 @@ async fn run_language_server_impl(_arg: LspArg, project: Result<ProjectConfig>) 
   let config_base = project_config.project_dir.clone();
 
   // Create a rule finder closure that uses the CLI logic
-  let rule_finder = make_rule_finder(project_config);
+  let rule_finder = move || {
+    let (collection, _trace) = project_config.find_rules(RuleOverwrite::default())?;
+    Ok(collection)
+  };
 
   let (service, socket) =
     LspService::build(|client| Backend::new(client, config_base, rule_finder)).finish();
