@@ -982,7 +982,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -1085,9 +1085,9 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "3.2.0"
+version = "3.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96671d5c84cee3ae4cab96386b9f953b22569ece9677b9fdd1492550a165eca5"
+checksum = "ef68062665fc682e32a4f4c492e0f18c1a11bfdc63628a5e16ae9f1f7a9d660a"
 dependencies = [
  "anyhow",
  "bitflags 2.9.0",
