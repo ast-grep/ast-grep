@@ -117,6 +117,19 @@ impl CaseResult<'_> {
   pub fn passed(&self) -> bool {
     self.cases.iter().all(CaseStatus::is_pass)
   }
+
+  /// Checks if all failing cases in this result are snapshot mismatches.
+  /// This method exists to determine the appropriate error message to show users
+  /// when test failures occur - snapshot mismatches suggest the rule is working
+  /// but snapshots need updating, while other failures indicate rule problems.
+  pub fn is_snapshot_mismatch_only_failure(&self) -> bool {
+    let failing_cases: Vec<_> = self.cases.iter().filter(|c| !c.is_pass()).collect();
+    if failing_cases.is_empty() {
+      return false; // No failures, so this method doesn't apply
+    }
+    failing_cases.iter().all(|c| matches!(c, CaseStatus::Wrong { .. }))
+  }
+
   pub fn changed_snapshots(&self) -> TestSnapshots {
     let snapshots = self
       .cases
@@ -151,5 +164,54 @@ mod test {
     assert_eq!(primary.source, "let a = 1");
     let ret = CaseStatus::verify_snapshot(&rule, "function () { let a = 1 }", Some(&actual));
     assert!(matches!(ret, CaseStatus::Reported));
+  }
+
+  #[test]
+  fn test_is_snapshot_mismatch_only_failure() {
+    // Test case with only snapshot mismatches
+    let snapshot_only_result = CaseResult {
+      id: "test",
+      cases: vec![
+        CaseStatus::Wrong {
+          source: "test",
+          actual: TestSnapshot { fixed: None, labels: vec![] },
+          expected: None,
+        },
+        CaseStatus::Wrong {
+          source: "test2",
+          actual: TestSnapshot { fixed: None, labels: vec![] },
+          expected: None,
+        },
+      ],
+    };
+    assert!(snapshot_only_result.is_snapshot_mismatch_only_failure());
+
+    // Test case with mixed failures
+    let mixed_result = CaseResult {
+      id: "test",
+      cases: vec![
+        CaseStatus::Wrong {
+          source: "test",
+          actual: TestSnapshot { fixed: None, labels: vec![] },
+          expected: None,
+        },
+        CaseStatus::Missing("test2"),
+      ],
+    };
+    assert!(!mixed_result.is_snapshot_mismatch_only_failure());
+
+    // Test case with all passing
+    let passing_result = CaseResult {
+      id: "test",
+      cases: vec![CaseStatus::Validated, CaseStatus::Reported],
+    };
+    assert!(!passing_result.is_snapshot_mismatch_only_failure());
+
+    // Test case with non-snapshot failures only
+    let non_snapshot_result = CaseResult {
+      id: "test",
+      cases: vec![CaseStatus::Missing("test"), CaseStatus::Noisy("test2")],
+    };
+    assert!(!non_snapshot_result.is_snapshot_mismatch_only_failure());
   }
 }

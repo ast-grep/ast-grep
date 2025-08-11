@@ -6,7 +6,7 @@ mod test_case;
 
 use crate::config::ProjectConfig;
 use crate::lang::SgLang;
-use crate::utils::{ErrorContext, RuleOverwrite};
+use crate::utils::RuleOverwrite;
 use anyhow::{anyhow, Result};
 use ast_grep_config::RuleCollection;
 use clap::Args;
@@ -93,14 +93,15 @@ fn run_test_rule_impl<R: Reporter + Send>(
   let action = reporter.collect_snapshot_action();
   apply_snapshot_action(action, &results, snapshots, path_map)?;
   reporter.report_summaries(&results)?;
-  let (passed, error_context) = reporter.after_report(&results)?;
-  if passed {
-    if let ErrorContext::TestFail(message) = error_context {
-      writeln!(reporter.get_output(), "{message}",)?;
+  let test_result = reporter.after_report(&results)?;
+  match test_result {
+    reporter::TestResult::Success { message, .. } => {
+      writeln!(reporter.get_output(), "{message}")?;
+      Ok(())
     }
-    Ok(())
-  } else {
-    Err(anyhow!(error_context))
+    reporter::TestResult::Failure { error_context, .. } => {
+      Err(anyhow!(error_context))
+    }
   }
 }
 
