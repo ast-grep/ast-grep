@@ -93,12 +93,14 @@ fn run_test_rule_impl<R: Reporter + Send>(
   let action = reporter.collect_snapshot_action();
   apply_snapshot_action(action, &results, snapshots, path_map)?;
   reporter.report_summaries(&results)?;
-  let (passed, message) = reporter.after_report(&results)?;
+  let (passed, error_context) = reporter.after_report(&results)?;
   if passed {
-    writeln!(reporter.get_output(), "{message}",)?;
+    if let ErrorContext::TestFail(message) = error_context {
+      writeln!(reporter.get_output(), "{message}",)?;
+    }
     Ok(())
   } else {
-    Err(anyhow!(ErrorContext::TestFail(message)))
+    Err(anyhow!(error_context))
   }
 }
 

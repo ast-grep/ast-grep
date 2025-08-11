@@ -54,6 +54,7 @@ pub enum ErrorContext {
   WriteFile(PathBuf),
   // Test
   TestFail(String),
+  TestFailSnapshotMismatch(String),
   // New
   ProjectAlreadyExist,
   ProjectNotExist,
@@ -73,6 +74,7 @@ impl ErrorContext {
       DiagnosticError(_) => 1,
       ProjectNotExist | LanguageNotSpecified | RuleNotSpecified | RuleNotFound(_) => 2,
       TestFail(_) => 3,
+      TestFailSnapshotMismatch(_) => 3,
       NoTestDirConfigured | NoUtilDirConfigured => 4,
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 5,
       StdInIsNotInteractive => 6,
@@ -239,6 +241,11 @@ impl ErrorMessage {
         message,
         "You can use ast-grep playground to debug your rules and test cases.",
         PLAYGROUND,
+      ),
+      TestFailSnapshotMismatch(message) => Self::new(
+        message,
+        "It looks like your rule is working correctly but the snapshot test needs to be updated. You can run the test with `--update-all` to update all snapshots, or use `--interactive` to selectively update snapshots.",
+        TEST_GUIDE,
       ),
       ProjectAlreadyExist => Self::new(
         "ast-grep project already exists.",

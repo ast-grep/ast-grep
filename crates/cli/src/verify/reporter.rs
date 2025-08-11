@@ -1,5 +1,5 @@
 use crate::print::ColorArg;
-use crate::utils::{prompt, run_in_alternate_screen, DiffStyles};
+use crate::utils::{prompt, run_in_alternate_screen, DiffStyles, ErrorContext};
 
 use ansi_term::{Color, Style};
 use anyhow::Result;
@@ -17,22 +17,44 @@ pub(super) trait Reporter {
     report_case_number(self.get_output(), test_cases)
   }
   /// A hook function runs after tests completed.
-  fn after_report(&mut self, results: &[CaseResult]) -> Result<(bool, String)> {
+  fn after_report(&mut self, results: &[CaseResult]) -> Result<(bool, ErrorContext)> {
     let mut passed = 0;
     let mut failed = 0;
+    let mut wrong_count = 0;
+    let mut total_failing_cases = 0;
+
     for result in results {
       if result.passed() {
         passed += 1;
       } else {
         failed += 1;
+        for status in &result.cases {
+          if !status.is_pass() {
+            total_failing_cases += 1;
+            if matches!(status, CaseStatus::Wrong { .. }) {
+              wrong_count += 1;
+            }
+          }
+        }
       }
     }
+
     let message = format!("{passed} passed; {failed} failed;");
     if failed > 0 {
-      Ok((false, format!("test failed. {message}")))
+      let error_context = if wrong_count > 0 && wrong_count == total_failing_cases {
+        // All failures are snapshot mismatches
+        ErrorContext::TestFailSnapshotMismatch(format!("test failed. {message}"))
+      } else {
+        // Mixed failures or non-snapshot failures
+        ErrorContext::TestFail(format!("test failed. {message}"))
+      };
+      Ok((false, error_context))
     } else {
       let result = Color::Green.paint("ok");
-      Ok((true, format!("test result: {result}. {message}")))
+      Ok((
+        true,
+        ErrorContext::TestFail(format!("test result: {result}. {message}")),
+      ))
     }
   }
 
@@ -309,6 +331,7 @@ impl<O: Write> InteractiveReporter<O> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::utils::ErrorContext;
   use crate::verify::snapshot::TestSnapshot;
   use crate::verify::test::TEST_RULE;
 
@@ -390,6 +413,92 @@ mod test {
     assert!(!s.contains("Wrong"));
     assert!(s.contains(MOCK));
     assert!(s.contains(TEST_RULE));
+    Ok(())
+  }
+
+  #[test]
+  fn test_after_report_snapshot_mismatch_only() -> Result<()> {
+    let output = vec![];
+    let mut reporter = DefaultReporter {
+      output,
+      update_all: false,
+    };
+
+    let results = vec![CaseResult {
+      id: TEST_RULE,
+      cases: vec![
+        CaseStatus::Wrong {
+          source: MOCK,
+          actual: TestSnapshot {
+            fixed: None,
+            labels: vec![],
+          },
+          expected: None,
+        },
+        CaseStatus::Wrong {
+          source: MOCK,
+          actual: TestSnapshot {
+            fixed: None,
+            labels: vec![],
+          },
+          expected: None,
+        },
+      ],
+    }];
+
+    let (passed, error_context) = reporter.after_report(&results)?;
+    assert!(!passed);
+    assert!(matches!(
+      error_context,
+      ErrorContext::TestFailSnapshotMismatch(_)
+    ));
+    Ok(())
+  }
+
+  #[test]
+  fn test_after_report_mixed_failures() -> Result<()> {
+    let output = vec![];
+    let mut reporter = DefaultReporter {
+      output,
+      update_all: false,
+    };
+
+    let results = vec![CaseResult {
+      id: TEST_RULE,
+      cases: vec![
+        CaseStatus::Wrong {
+          source: MOCK,
+          actual: TestSnapshot {
+            fixed: None,
+            labels: vec![],
+          },
+          expected: None,
+        },
+        CaseStatus::Missing(MOCK), // Non-snapshot failure
+      ],
+    }];
+
+    let (passed, error_context) = reporter.after_report(&results)?;
+    assert!(!passed);
+    assert!(matches!(error_context, ErrorContext::TestFail(_)));
+    Ok(())
+  }
+
+  #[test]
+  fn test_after_report_success() -> Result<()> {
+    let output = vec![];
+    let mut reporter = DefaultReporter {
+      output,
+      update_all: false,
+    };
+
+    let results = vec![CaseResult {
+      id: TEST_RULE,
+      cases: vec![CaseStatus::Validated, CaseStatus::Reported],
+    }];
+
+    let (passed, _error_context) = reporter.after_report(&results)?;
+    assert!(passed);
     Ok(())
   }
 }
