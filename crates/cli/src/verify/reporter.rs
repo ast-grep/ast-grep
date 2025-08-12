@@ -13,9 +13,11 @@ use super::{CaseResult, CaseStatus, SnapshotAction, TestCase};
 #[derive(Debug)]
 pub enum TestResult {
   /// All tests passed successfully
-  Success { passed: usize, message: String },
-  /// Some tests failed
-  Failure { passed: usize, failed: usize, error_context: ErrorContext },
+  Success { message: String },
+  /// Some tests failed due to rule errors
+  RuleFail { error_context: ErrorContext },
+  /// Some tests failed due to snapshot mismatches only
+  MismatchSnapshotOnly { error_context: ErrorContext },
 }
 
 pub(super) trait Reporter {
@@ -46,20 +48,16 @@ pub(super) trait Reporter {
         .filter(|r| !r.passed())
         .all(|r| r.is_snapshot_mismatch_only_failure());
 
-      let error_context = if all_snapshot_mismatches {
-        ErrorContext::TestSnapshotMismatch(format!("test failed. {message}"))
+      if all_snapshot_mismatches {
+        let error_context = ErrorContext::TestSnapshotMismatch(format!("test failed. {message}"));
+        Ok(TestResult::MismatchSnapshotOnly { error_context })
       } else {
-        ErrorContext::TestFail(format!("test failed. {message}"))
-      };
-      Ok(TestResult::Failure {
-        passed,
-        failed,
-        error_context,
-      })
+        let error_context = ErrorContext::TestFail(format!("test failed. {message}"));
+        Ok(TestResult::RuleFail { error_context })
+      }
     } else {
       let result = Color::Green.paint("ok");
       Ok(TestResult::Success {
-        passed,
         message: format!("test result: {result}. {message}"),
       })
     }
@@ -456,9 +454,8 @@ mod test {
     let test_result = reporter.after_report(&results)?;
     assert!(matches!(
       test_result,
-      TestResult::Failure {
+      TestResult::MismatchSnapshotOnly {
         error_context: ErrorContext::TestSnapshotMismatch(_),
-        ..
       }
     ));
     Ok(())
@@ -490,9 +487,8 @@ mod test {
     let test_result = reporter.after_report(&results)?;
     assert!(matches!(
       test_result,
-      TestResult::Failure {
+      TestResult::RuleFail {
         error_context: ErrorContext::TestFail(_),
-        ..
       }
     ));
     Ok(())

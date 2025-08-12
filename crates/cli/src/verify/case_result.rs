@@ -123,11 +123,16 @@ impl CaseResult<'_> {
   /// when test failures occur - snapshot mismatches suggest the rule is working
   /// but snapshots need updating, while other failures indicate rule problems.
   pub fn is_snapshot_mismatch_only_failure(&self) -> bool {
-    let failing_cases: Vec<_> = self.cases.iter().filter(|c| !c.is_pass()).collect();
-    if failing_cases.is_empty() {
-      return false; // No failures, so this method doesn't apply
+    let mut has_failures = false;
+    for case in &self.cases {
+      if !case.is_pass() {
+        has_failures = true;
+        if !matches!(case, CaseStatus::Wrong { .. }) {
+          return false; // Found a non-snapshot failure
+        }
+      }
     }
-    failing_cases.iter().all(|c| matches!(c, CaseStatus::Wrong { .. }))
+    has_failures // Only return true if there are failures and all are snapshots
   }
 
   pub fn changed_snapshots(&self) -> TestSnapshots {
@@ -174,12 +179,18 @@ mod test {
       cases: vec![
         CaseStatus::Wrong {
           source: "test",
-          actual: TestSnapshot { fixed: None, labels: vec![] },
+          actual: TestSnapshot {
+            fixed: None,
+            labels: vec![],
+          },
           expected: None,
         },
         CaseStatus::Wrong {
           source: "test2",
-          actual: TestSnapshot { fixed: None, labels: vec![] },
+          actual: TestSnapshot {
+            fixed: None,
+            labels: vec![],
+          },
           expected: None,
         },
       ],
@@ -192,7 +203,10 @@ mod test {
       cases: vec![
         CaseStatus::Wrong {
           source: "test",
-          actual: TestSnapshot { fixed: None, labels: vec![] },
+          actual: TestSnapshot {
+            fixed: None,
+            labels: vec![],
+          },
           expected: None,
         },
         CaseStatus::Missing("test2"),

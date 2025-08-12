@@ -95,13 +95,12 @@ fn run_test_rule_impl<R: Reporter + Send>(
   reporter.report_summaries(&results)?;
   let test_result = reporter.after_report(&results)?;
   match test_result {
-    reporter::TestResult::Success { message, .. } => {
+    reporter::TestResult::Success { message } => {
       writeln!(reporter.get_output(), "{message}")?;
       Ok(())
     }
-    reporter::TestResult::Failure { error_context, .. } => {
-      Err(anyhow!(error_context))
-    }
+    reporter::TestResult::RuleFail { error_context }
+    | reporter::TestResult::MismatchSnapshotOnly { error_context } => Err(anyhow!(error_context)),
   }
 }
 

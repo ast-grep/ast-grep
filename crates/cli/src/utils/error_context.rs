@@ -243,7 +243,7 @@ impl ErrorMessage {
       ),
       TestSnapshotMismatch(message) => Self::new(
         message,
-        "Run with `--update-all` to update all snapshots, or `--interactive` to update selectively.",
+        "Test failed due to mismatching snapshots. Run with `--update-all` to update all snapshots, or `--interactive` to update selectively.",
         TEST_GUIDE,
       ),
       ProjectAlreadyExist => Self::new(
