@@ -6,7 +6,7 @@ mod test_case;
 
 use crate::config::ProjectConfig;
 use crate::lang::SgLang;
-use crate::utils::RuleOverwrite;
+use crate::utils::{ErrorContext, RuleOverwrite};
 use anyhow::{anyhow, Result};
 use ast_grep_config::RuleCollection;
 use clap::Args;
@@ -99,8 +99,14 @@ fn run_test_rule_impl<R: Reporter + Send>(
       writeln!(reporter.get_output(), "{message}")?;
       Ok(())
     }
-    reporter::TestResult::RuleFail { error_context }
-    | reporter::TestResult::MismatchSnapshotOnly { error_context } => Err(anyhow!(error_context)),
+    reporter::TestResult::RuleFail { message } => {
+      let error_context = ErrorContext::TestFail(message);
+      Err(anyhow!(error_context))
+    }
+    reporter::TestResult::MismatchSnapshotOnly { message } => {
+      let error_context = ErrorContext::TestSnapshotMismatch(message);
+      Err(anyhow!(error_context))
+    }
   }
 }
 

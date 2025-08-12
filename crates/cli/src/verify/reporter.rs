@@ -1,5 +1,5 @@
 use crate::print::ColorArg;
-use crate::utils::{prompt, run_in_alternate_screen, DiffStyles, ErrorContext};
+use crate::utils::{prompt, run_in_alternate_screen, DiffStyles};
 
 use ansi_term::{Color, Style};
 use anyhow::Result;
@@ -15,9 +15,9 @@ pub enum TestResult {
   /// All tests passed successfully
   Success { message: String },
   /// Some tests failed due to rule errors
-  RuleFail { error_context: ErrorContext },
+  RuleFail { message: String },
   /// Some tests failed due to snapshot mismatches only
-  MismatchSnapshotOnly { error_context: ErrorContext },
+  MismatchSnapshotOnly { message: String },
 }
 
 pub(super) trait Reporter {
@@ -49,11 +49,9 @@ pub(super) trait Reporter {
         .all(|r| r.is_snapshot_mismatch_only_failure());
 
       if all_snapshot_mismatches {
-        let error_context = ErrorContext::TestSnapshotMismatch(format!("test failed. {message}"));
-        Ok(TestResult::MismatchSnapshotOnly { error_context })
+        Ok(TestResult::MismatchSnapshotOnly { message: format!("test failed. {message}") })
       } else {
-        let error_context = ErrorContext::TestFail(format!("test failed. {message}"));
-        Ok(TestResult::RuleFail { error_context })
+        Ok(TestResult::RuleFail { message: format!("test failed. {message}") })
       }
     } else {
       let result = Color::Green.paint("ok");
@@ -336,7 +334,6 @@ impl<O: Write> InteractiveReporter<O> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::utils::ErrorContext;
   use crate::verify::snapshot::TestSnapshot;
   use crate::verify::test::TEST_RULE;
 
@@ -454,9 +451,7 @@ mod test {
     let test_result = reporter.after_report(&results)?;
     assert!(matches!(
       test_result,
-      TestResult::MismatchSnapshotOnly {
-        error_context: ErrorContext::TestSnapshotMismatch(_),
-      }
+      TestResult::MismatchSnapshotOnly { message: _ }
     ));
     Ok(())
   }
@@ -487,9 +482,7 @@ mod test {
     let test_result = reporter.after_report(&results)?;
     assert!(matches!(
       test_result,
-      TestResult::RuleFail {
-        error_context: ErrorContext::TestFail(_),
-      }
+      TestResult::RuleFail { message: _ }
     ));
     Ok(())
   }
