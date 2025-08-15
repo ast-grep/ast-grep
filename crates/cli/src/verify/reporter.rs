@@ -49,9 +49,13 @@ pub(super) trait Reporter {
         .all(|r| r.is_snapshot_mismatch_only_failure());
 
       if all_snapshot_mismatches {
-        Ok(TestResult::MismatchSnapshotOnly { message: format!("test failed. {message}") })
+        Ok(TestResult::MismatchSnapshotOnly {
+          message: format!("test failed. {message}"),
+        })
       } else {
-        Ok(TestResult::RuleFail { message: format!("test failed. {message}") })
+        Ok(TestResult::RuleFail {
+          message: format!("test failed. {message}"),
+        })
       }
     } else {
       let result = Color::Green.paint("ok");
@@ -480,10 +484,7 @@ mod test {
     }];
 
     let test_result = reporter.after_report(&results)?;
-    assert!(matches!(
-      test_result,
-      TestResult::RuleFail { message: _ }
-    ));
+    assert!(matches!(test_result, TestResult::RuleFail { message: _ }));
     Ok(())
   }
 
