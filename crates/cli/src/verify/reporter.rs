@@ -9,6 +9,17 @@ use std::io::Write;
 
 use super::{CaseResult, CaseStatus, SnapshotAction, TestCase};
 
+/// Represents the result of running tests
+#[derive(Debug)]
+pub enum TestResult {
+  /// All tests passed successfully
+  Success { message: String },
+  /// Some tests failed due to rule errors
+  RuleFail { message: String },
+  /// Some tests failed due to snapshot mismatches only
+  MismatchSnapshotOnly { message: String },
+}
+
 pub(super) trait Reporter {
   type Output: Write;
   fn get_output(&mut self) -> &mut Self::Output;
@@ -17,9 +28,10 @@ pub(super) trait Reporter {
     report_case_number(self.get_output(), test_cases)
   }
   /// A hook function runs after tests completed.
-  fn after_report(&mut self, results: &[CaseResult]) -> Result<(bool, String)> {
+  fn after_report(&mut self, results: &[CaseResult]) -> Result<TestResult> {
     let mut passed = 0;
     let mut failed = 0;
+
     for result in results {
       if result.passed() {
         passed += 1;
@@ -27,12 +39,25 @@ pub(super) trait Reporter {
         failed += 1;
       }
     }
+
     let message = format!("{passed} passed; {failed} failed;");
     if failed > 0 {
-      Ok((false, format!("test failed. {message}")))
+      // Check if all failing tests are snapshot mismatches only
+      let all_snapshot_mismatches = results
+        .iter()
+        .filter(|r| !r.passed())
+        .all(|r| r.is_snapshot_mismatch_only_failure());
+
+      if all_snapshot_mismatches {
+        Ok(TestResult::MismatchSnapshotOnly { message: format!("test failed. {message}") })
+      } else {
+        Ok(TestResult::RuleFail { message: format!("test failed. {message}") })
+      }
     } else {
       let result = Color::Green.paint("ok");
-      Ok((true, format!("test result: {result}. {message}")))
+      Ok(TestResult::Success {
+        message: format!("test result: {result}. {message}"),
+      })
     }
   }
 
@@ -390,6 +415,93 @@ mod test {
     assert!(!s.contains("Wrong"));
     assert!(s.contains(MOCK));
     assert!(s.contains(TEST_RULE));
+    Ok(())
+  }
+
+  #[test]
+  fn test_after_report_snapshot_mismatch_only() -> Result<()> {
+    let output = vec![];
+    let mut reporter = DefaultReporter {
+      output,
+      update_all: false,
+    };
+
+    let results = vec![CaseResult {
+      id: TEST_RULE,
+      cases: vec![
+        CaseStatus::Wrong {
+          source: MOCK,
+          actual: TestSnapshot {
+            fixed: None,
+            labels: vec![],
+          },
+          expected: None,
+        },
+        CaseStatus::Wrong {
+          source: MOCK,
+          actual: TestSnapshot {
+            fixed: None,
+            labels: vec![],
+          },
+          expected: None,
+        },
+      ],
+    }];
+
+    let test_result = reporter.after_report(&results)?;
+    assert!(matches!(
+      test_result,
+      TestResult::MismatchSnapshotOnly { message: _ }
+    ));
+    Ok(())
+  }
+
+  #[test]
+  fn test_after_report_mixed_failures() -> Result<()> {
+    let output = vec![];
+    let mut reporter = DefaultReporter {
+      output,
+      update_all: false,
+    };
+
+    let results = vec![CaseResult {
+      id: TEST_RULE,
+      cases: vec![
+        CaseStatus::Wrong {
+          source: MOCK,
+          actual: TestSnapshot {
+            fixed: None,
+            labels: vec![],
+          },
+          expected: None,
+        },
+        CaseStatus::Missing(MOCK), // Non-snapshot failure
+      ],
+    }];
+
+    let test_result = reporter.after_report(&results)?;
+    assert!(matches!(
+      test_result,
+      TestResult::RuleFail { message: _ }
+    ));
+    Ok(())
+  }
+
+  #[test]
+  fn test_after_report_success() -> Result<()> {
+    let output = vec![];
+    let mut reporter = DefaultReporter {
+      output,
+      update_all: false,
+    };
+
+    let results = vec![CaseResult {
+      id: TEST_RULE,
+      cases: vec![CaseStatus::Validated, CaseStatus::Reported],
+    }];
+
+    let test_result = reporter.after_report(&results)?;
+    assert!(matches!(test_result, TestResult::Success { .. }));
     Ok(())
   }
 }
