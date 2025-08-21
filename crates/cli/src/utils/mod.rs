@@ -19,7 +19,7 @@ use crate::lang::SgLang;
 use anyhow::{anyhow, Context, Result};
 use crossterm::{
   cursor::MoveTo,
-  event::{self, Event, KeyCode},
+  event::{self, Event, KeyCode, KeyModifiers},
   execute,
   terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
   terminal::{Clear, ClearType},
@@ -45,6 +45,7 @@ fn read_char() -> Result<char> {
       match evt.code {
         KeyCode::Tab => break Ok('\t'),
         KeyCode::Enter => break Ok('\n'),
+        KeyCode::Char('c') if evt.modifiers.contains(KeyModifiers::CONTROL) => break Ok('q'),
         KeyCode::Char(c) => break Ok(c),
         _ => (),
       }
