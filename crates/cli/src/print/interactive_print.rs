@@ -75,7 +75,7 @@ impl InteractivePrinter {
       self.inner.process(inner)?;
       let resp = self.prompt_view();
       if resp == 'q' {
-        Err(anyhow::anyhow!("Exit interactive editing"))
+        Err(anyhow::anyhow!(EC::ExitInteractiveEditing))
       } else if resp == 'e' {
         open_in_editor(&path, first_line)?;
         Ok(())
@@ -90,7 +90,7 @@ impl InteractivePrinter {
     let (confirmed, quit) = process_diffs_interactive(self, diffs)?;
     self.rewrite_action(confirmed, &path)?;
     if quit {
-      Err(anyhow::anyhow!("Exit interactive editing"))
+      Err(anyhow::anyhow!(EC::ExitInteractiveEditing))
     } else {
       Ok(())
     }

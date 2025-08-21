@@ -64,6 +64,8 @@ pub enum ErrorContext {
   InsufficientCLIArgument(&'static str),
   // Completions
   CannotInferShell,
+  // Interactive
+  ExitInteractiveEditing,
 }
 
 impl ErrorContext {
@@ -87,7 +89,7 @@ impl ErrorContext {
       CustomLanguage => 79,
       OpenEditor | StartLanguageServer => 126,
       // soft error
-      PatternHasError => 0,
+      PatternHasError | ExitInteractiveEditing => 0,
     }
   }
 
@@ -281,6 +283,11 @@ impl ErrorMessage {
         "Either specify shell flavor by `sg completions [SHELL]` or set correct `SHELL` environment.",
         CLI_USAGE,
       ),
+      ExitInteractiveEditing => Self::new(
+        "User exited interactive editing.",
+        "This is normal when pressing 'q' to quit interactive mode.",
+        None,
+      ),
     }
   }
 }
@@ -432,5 +439,23 @@ mod test {
       !display.contains("Caused by"),
       "Should not contain error chain"
     );
+  }
+
+  #[test]
+  fn test_exit_interactive_editing_is_soft_error() {
+    let error = anyhow::anyhow!(ErrorContext::ExitInteractiveEditing);
+    let error_fmt = ErrorFormat {
+      context: &ErrorContext::ExitInteractiveEditing,
+      inner: &error,
+    };
+    let display = format!("{error_fmt}");
+    assert_eq!(display.lines().count(), 2);
+    assert!(display.contains("User exited interactive editing."));
+    assert!(display.contains("Warning"));
+    assert!(!display.contains("Error"));
+
+    // Check that it's considered a soft error with exit code 0
+    assert_eq!(ErrorContext::ExitInteractiveEditing.exit_code(), 0);
+    assert!(ErrorContext::ExitInteractiveEditing.is_soft_error());
   }
 }
