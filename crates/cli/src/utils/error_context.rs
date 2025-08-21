@@ -284,8 +284,8 @@ impl ErrorMessage {
         CLI_USAGE,
       ),
       ExitInteractiveEditing => Self::new(
-        "User exited interactive editing.",
-        "This is normal when pressing 'q' to quit interactive mode.",
+        "Interactive editing exited.",
+        "Your accepted edit has been saved.",
         None,
       ),
     }
