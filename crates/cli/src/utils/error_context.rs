@@ -450,7 +450,7 @@ mod test {
     };
     let display = format!("{error_fmt}");
     assert_eq!(display.lines().count(), 2);
-    assert!(display.contains("User exited interactive editing."));
+    assert!(display.contains("Interactive editing exited."));
     assert!(display.contains("Warning"));
     assert!(!display.contains("Error"));
 
