@@ -32,7 +32,7 @@ tree-sitter-json = { version = "0.23.0", optional = true }
 tree-sitter-kotlin = { version = "0.4.0", optional = true, package = "tree-sitter-kotlin-sg" }
 tree-sitter-lua = { version = "0.2.0", optional = true }
 tree-sitter-nix = { version = "0.3.0", optional = true }
-tree-sitter-php = { version = "0.23.11", optional = true }
+tree-sitter-php = { version = "0.24.0", optional = true }
 tree-sitter-python = { version = "0.23.0", optional = true }
 tree-sitter-ruby = { version = "0.23.0", optional = true }
 tree-sitter-rust = { version = "0.24.0", optional = true }
