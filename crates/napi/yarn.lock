@@ -318,10 +318,10 @@
     semver "^7.5.3"
     tar "^7.4.0"
 
-"@napi-rs/cli@3.1.2":
-  version "3.1.2"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-3.1.2.tgz#03a5d982ae62e0076c03e7862721fc4ca51001be"
-  integrity sha512-i0HT3Ja83Bzy+OtLd2eG7MI6E83+z/iwwzrdCjJ3ZiSpT3uE/xpVrLuZPd3MT5dJ9LAxCPN+P0tAPF32pRErUg==
+"@napi-rs/cli@3.1.5":
+  version "3.1.5"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-3.1.5.tgz#6c3c297b3b0e7b1ad08393f124e438e8c930dae7"
+  integrity sha512-Wn6ZPw27qJiEWglGjkaAa70AHuLtyPya6FvjINYJ5U20uvbRhoB0Ta2+bFTAFfUb9R+wvuFvog9JQdy65OmFAQ==
   dependencies:
     "@inquirer/prompts" "^7.4.0"
     "@napi-rs/cross-toolchain" "^1.0.0"
@@ -331,9 +331,9 @@
     colorette "^2.0.20"
     debug "^4.4.0"
     emnapi "^1.4.0"
+    es-toolkit "^1.39.8"
     find-up "^7.0.0"
     js-yaml "^4.1.0"
-    lodash-es "^4.17.21"
     semver "^7.7.1"
     typanion "^3.14.0"
 
@@ -1302,6 +1302,11 @@ emoji-regex@^9.2.2:
   resolved "https://registry.yarnpkg.com/emoji-regex/-/emoji-regex-9.2.2.tgz#840c8803b0d8047f4ff0cf963176b32d4ef3ed72"
   integrity sha512-L18DaJsXSUk2+42pv8mLs5jJT2hqFkFE4j21wOmgbUqsZ2hL72NsUU785g9RXgo3s0ZNgVl42TiHp3ZtOv/Vyg==
 
+es-toolkit@^1.39.8:
+  version "1.39.10"
+  resolved "https://registry.yarnpkg.com/es-toolkit/-/es-toolkit-1.39.10.tgz#513407af73e79f9940e7ec7650f2e6dceeaf1d81"
+  integrity sha512-E0iGnTtbDhkeczB0T+mxmoVlT4YNweEKBLq7oaU4p11mecdsZpNWOglI4895Vh4usbQ+LsJiuLuI2L0Vdmfm2w==
+
 escalade@^3.1.1:
   version "3.1.1"
   resolved "https://registry.yarnpkg.com/escalade/-/escalade-3.1.1.tgz#d8cfdc7000965c5a0174b4a82eaa5c0552742e40"
@@ -1583,11 +1588,6 @@ locate-path@^7.2.0:
   integrity sha512-gvVijfZvn7R+2qyPX8mAuKcFGDf6Nc61GdvGafQsHL0sBIxfKzA+usWn4GFC/bk+QdwPUD4kWFJLhElipq+0VA==
   dependencies:
     p-locate "^6.0.0"
-
-lodash-es@^4.17.21:
-  version "4.17.21"
-  resolved "https://registry.yarnpkg.com/lodash-es/-/lodash-es-4.17.21.tgz#43e626c46e6591b7750beb2b50117390c609e3ee"
-  integrity sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==
 
 lodash@^4.17.15:
   version "4.17.21"
