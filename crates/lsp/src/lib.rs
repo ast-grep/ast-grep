@@ -521,10 +521,13 @@ impl<L: LSPLang> Backend<L> {
     let text_doc = params.text_document;
 
     // If publish diagnostics do not support data, use cached fixes
+    let mut _guard_opt = None;
     let fixes_cache = if self.code_action_data_supported.load(std::sync::atomic::Ordering::Relaxed) {
       None
     } else {
-      Some(&self.map.get(text_doc.uri.as_str()).unwrap().fixes)
+      let guard = self.map.get(text_doc.uri.as_str())?;
+      _guard_opt = Some(guard);
+      Some(&_guard_opt.as_ref().unwrap().fixes)
     };
 
     let response = params
