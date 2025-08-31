@@ -31,6 +31,7 @@ struct VersionedAst<D: Doc> {
   version: i32,
   root: AstGrep<D>,
   notes: Notes,
+  fixes: HashMap<(Range, String), RewriteData>,
 }
 
 pub struct Backend<L: LSPLang> {
@@ -42,6 +43,7 @@ pub struct Backend<L: LSPLang> {
   interner: DashMap<String, Arc<String>>,
   // rule finding closure to reload rules
   rule_finder: Box<dyn Fn() -> anyhow::Result<RuleCollection<L>> + Send + Sync>,
+  code_action_data_supported: std::sync::atomic::AtomicBool,
 }
 
 const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
@@ -76,6 +78,8 @@ fn code_action_provider(
 
 impl<L: LSPLang> LanguageServer for Backend<L> {
   async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+    let supported = Self::extract_code_action_data_supported(&params);
+    self.code_action_data_supported.store(supported, std::sync::atomic::Ordering::Relaxed);
     Ok(InitializeResult {
       server_info: Some(ServerInfo {
         name: "ast-grep language server".to_string(),
@@ -216,18 +220,28 @@ fn pos_tuple_to_range((line, character, end_line, end_character): (u32, u32, u32
 
 impl<L: LSPLang> Backend<L> {
   pub fn new<F>(client: Client, base: PathBuf, rule_finder: F) -> Self
-  where
-    F: Fn() -> anyhow::Result<RuleCollection<L>> + Send + Sync + 'static,
-  {
-    Self {
-      client,
-      rules: Arc::new(RwLock::new(RuleCollection::default())),
-      base,
-      map: DashMap::new(),
-      interner: DashMap::new(),
-      rule_finder: Box::new(rule_finder),
+    where
+      F: Fn() -> anyhow::Result<RuleCollection<L>> + Send + Sync + 'static,
+    {
+      Self {
+        client,
+        rules: Arc::new(RwLock::new(RuleCollection::default())),
+        base,
+        map: DashMap::new(),
+        interner: DashMap::new(),
+        rule_finder: Box::new(rule_finder),
+        code_action_data_supported: std::sync::atomic::AtomicBool::new(false),
+      }
     }
-  }
+
+    fn extract_code_action_data_supported(params: &InitializeParams) -> bool {
+      params.capabilities
+        .text_document
+        .as_ref()
+        .and_then(|td| td.publish_diagnostics.as_ref())
+        .and_then(|pd| pd.data_support)
+        .unwrap_or(false)
+    }
 
   /// Convert URI to a path relative to base directory
   fn uri_to_relative_path(&self, uri: &Uri) -> Option<PathBuf> {
@@ -314,6 +328,22 @@ impl<L: LSPLang> Backend<L> {
     notes
   }
 
+  fn build_fixes(&self, diagnostics: &[Diagnostic]) -> HashMap<(Range, String), RewriteData> {
+    let mut fixes = HashMap::new();
+    for diagnostic in diagnostics {
+      // Only cache fixes if code action data is not supported
+      if diagnostic.data.is_none() {
+        continue;
+      }
+      if let (Some(data), Some(NumberOrString::String(id))) = (diagnostic.data.as_ref(), diagnostic.code.as_ref()) {
+        if let Some(rewrite_data) = RewriteData::from_value(data.clone()) {
+          fixes.insert((diagnostic.range, id.clone()), rewrite_data);
+        }
+      }
+    }
+    fixes
+  }
+
   async fn publish_diagnostics(
     &self,
     uri: Uri,
@@ -321,6 +351,10 @@ impl<L: LSPLang> Backend<L> {
   ) -> Option<()> {
     let diagnostics = self.get_diagnostics(&uri, versioned).unwrap_or_default();
     versioned.notes = self.build_notes(&diagnostics);
+    // Only save fixes if code action data is not supported
+    if !self.code_action_data_supported.load(std::sync::atomic::Ordering::Relaxed) {
+      versioned.fixes = self.build_fixes(&diagnostics);
+    }
     self
       .client
       .publish_diagnostics(uri, diagnostics, Some(versioned.version))
@@ -366,6 +400,7 @@ impl<L: LSPLang> Backend<L> {
       version: text_doc.version,
       root,
       notes: BTreeMap::new(),
+      fixes: HashMap::new(),
     };
     self
       .client
@@ -395,6 +430,7 @@ impl<L: LSPLang> Backend<L> {
       version: text_doc.version,
       root,
       notes: BTreeMap::new(),
+      fixes: HashMap::new(),
     };
     self
       .client
@@ -483,6 +519,14 @@ impl<L: LSPLang> Backend<L> {
       return None;
     }
     let text_doc = params.text_document;
+
+    // If publish diagnostics do not support data, use cached fixes
+    let fixes_cache = if self.code_action_data_supported.load(std::sync::atomic::Ordering::Relaxed) {
+      None
+    } else {
+      Some(&self.map.get(text_doc.uri.as_str()).unwrap().fixes)
+    };
+
     let response = params
       .context
       .diagnostics
@@ -493,11 +537,11 @@ impl<L: LSPLang> Backend<L> {
           .map(|s| s.contains("ast-grep"))
           .unwrap_or(false)
       })
-      .filter_map(|d| diagnostic_to_code_action(&text_doc, d))
+      .filter_map(|d| diagnostic_to_code_action(&text_doc, d, fixes_cache ) )
       .flatten()
       .map(CodeActionOrCommand::from)
       .collect();
-    Some(response)
+  Some(response)
   }
 
   // TODO: support other urls besides file_scheme

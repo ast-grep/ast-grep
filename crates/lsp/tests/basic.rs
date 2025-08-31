@@ -2,9 +2,13 @@ use ast_grep_config::{from_yaml_string, GlobalRules, RuleCollection, RuleConfig}
 use ast_grep_language::SupportLang;
 use ast_grep_lsp::*;
 use serde_json::Value;
-use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt, DuplexStream};
-
+use tokio::io::{duplex, split, AsyncReadExt, AsyncWriteExt, DuplexStream};
+use futures::{SinkExt, StreamExt};
+use std::io;
 use std::path::Path;
+use tokio_util::bytes::{BufMut, BytesMut};
+use tokio_util::codec::{Decoder, Encoder, Framed};
+
 
 pub fn req(msg: &str) -> String {
   format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg)
@@ -357,3 +361,303 @@ async fn test_did_change_watched_files() {
       || response.contains("watched files have changed")
   );
 }
+
+
+// Helper: send_did_open_framed
+pub async fn send_did_open_framed(
+  framed: &mut Framed<DuplexStream, LspCodec>,
+  uri: &str,
+  language_id: &str,
+  text: &str,
+) {
+  let did_open = serde_json::json!({
+    "jsonrpc": "2.0",
+    "method": "textDocument/didOpen",
+    "params": {
+      "textDocument": {
+        "uri": uri,
+        "languageId": language_id,
+        "version": 1,
+        "text": text
+      }
+    }
+  });
+  framed.send(did_open).await.unwrap();
+}
+
+pub async fn wait_for_diagnostics(
+  sender: &mut Framed<DuplexStream, LspCodec>,
+) -> Option<serde_json::Value> {
+  // Wait for diagnostics
+  let mut diagnostics: Option<serde_json::Value> = None;
+  for _ in 0..20 {
+    match tokio::time::timeout(std::time::Duration::from_secs(2), sender.next()).await {
+      Ok(Some(Ok(msg))) => {
+        if msg.get("method") == Some(&serde_json::json!("textDocument/publishDiagnostics")) {
+          diagnostics = Some(msg["params"]["diagnostics"].clone());
+          break;
+        } else if msg.get("method") == Some(&serde_json::json!("workspace/workspaceFolders")) {
+          // Respond with empty workspaceFolders
+          let response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": msg["id"].clone(),
+            "result": [{
+              "uri": "file:///Users/codes/ast-grep-vscode",
+              "name": "ast-grep-vscode"
+            }]
+          });
+          sender.send(response).await.unwrap();
+        }
+      }
+      _ => {}
+    }
+  }
+
+  return diagnostics;
+}
+
+pub async fn request_code_action(
+  sender: &mut Framed<DuplexStream, LspCodec>,
+  file_uri: &str,
+  diagnostic: &serde_json::Value,
+) -> Option<serde_json::Value> {
+  let code_action_request = serde_json::json!({
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "textDocument/codeAction",
+    "params": {
+      "range": diagnostic["range"].clone(),
+      "textDocument": { "uri": file_uri },
+      "context": {
+        "diagnostics": [diagnostic.clone()]
+      }
+    }
+  });
+  sender.send(code_action_request).await.unwrap();
+  for _ in 0..20 {
+    match tokio::time::timeout(std::time::Duration::from_secs(2), sender.next()).await {
+      Ok(Some(Ok(msg))) => {
+        if msg.get("id") == Some(&serde_json::json!(1)) {
+          return Some(msg);
+        }
+      }
+      _ => {}
+    }
+  }
+  None
+}
+
+#[tokio::test]
+async fn test_code_action_data_support_enabled() {
+  let mut client = create_lsp_framed();
+  // Initialize with data_support enabled
+  let initialize = serde_json::json!({
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "initialize",
+      "params": {
+          "capabilities": {
+              "textDocument": {
+                  "publishDiagnostics": {
+                      "dataSupport": true
+                  }
+              }
+          }
+      }
+  });
+  client.send(initialize).await.unwrap();
+  // Wait for initialize response
+  for _ in 0..10 {
+    if let Some(Ok(msg)) = client.next().await {
+      if msg.get("id") == Some(&serde_json::json!(1)) {
+        // Send 'initialized' notification after receiving 'initialize' response
+        let initialized = serde_json::json!({
+          "jsonrpc": "2.0",
+          "method": "initialized",
+          "params": {}
+        });
+        client.send(initialized).await.unwrap();
+        break;
+      }
+    }
+  }
+  // Send file content to server
+  let file_uri = "file:///Users/codes/ast-grep-vscode/test.ts";
+  let file_content = "console.log('Hello, world!')\n";
+  send_did_open_framed(&mut client, file_uri, "typescript", file_content).await;
+  tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+  let diagnostics = wait_for_diagnostics(&mut client).await;
+
+  let diagnostics = diagnostics.expect("No diagnostics received");
+  let diagnostic = diagnostics
+    .as_array()
+    .cloned()
+    .and_then(|arr| arr.get(0).cloned())
+    .unwrap();
+
+  let code_action = request_code_action(&mut client, file_uri, &diagnostic).await;
+
+  // Request code action using diagnostics from server
+  let code_action = code_action.expect("No code action response");
+  assert!(
+    code_action["result"].as_array().unwrap().iter().len() > 0,
+    "No code actions returned"
+  );
+}
+
+#[tokio::test]
+async fn test_code_action_data_support_disabled() {
+  let mut client = create_lsp_framed();
+  // Initialize with data_support disabled
+  let initialize = serde_json::json!({
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "initialize",
+      "params": {
+          "capabilities": {
+          }
+      }
+  });
+  client.send(initialize).await.unwrap();
+  // Wait for initialize response
+  for _ in 0..10 {
+    if let Some(Ok(msg)) = client.next().await {
+      if msg.get("id") == Some(&serde_json::json!(1)) {
+        // Send 'initialized' notification after receiving 'initialize' response
+        let initialized = serde_json::json!({
+          "jsonrpc": "2.0",
+          "method": "initialized",
+          "params": {}
+        });
+        client.send(initialized).await.unwrap();
+        break;
+      }
+    }
+  }
+  // Send file content to server
+  let file_uri = "file:///Users/codes/ast-grep-vscode/test.ts";
+  let file_content = "console.log('Hello, world!')\n";
+  send_did_open_framed(&mut client, file_uri, "typescript", file_content).await;
+  tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+  let diagnostics = wait_for_diagnostics(&mut client).await;
+
+  let diagnostics = diagnostics.expect("No diagnostics received");
+
+  let mut diagnostic = diagnostics
+    .as_array()
+    .cloned()
+    .and_then(|arr| arr.get(0).cloned())
+    .unwrap();
+
+  // Remove 'data' field to simulate client without dataSupport
+  diagnostic.as_object_mut().unwrap().remove("data");
+  let code_action = request_code_action(&mut client, file_uri, &diagnostic).await;
+
+  let code_action = code_action.expect("No code action response");
+  assert!(
+    code_action["result"].as_array().unwrap().iter().len() > 0,
+    "No code actions returned"
+  );
+}
+
+// Custom LSP Codec for Content-Length framed JSON-RPC
+#[derive(Default)]
+pub struct LspCodec;
+
+impl Decoder for LspCodec {
+  type Item = serde_json::Value;
+  type Error = io::Error;
+
+  fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+    let src_str =
+      std::str::from_utf8(&src[..]).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    let header = "Content-Length: ";
+    let header_pos = src_str.find(header);
+    if let Some(pos) = header_pos {
+      let rest = &src_str[pos + header.len()..];
+      let crlf = rest.find("\r\n\r\n");
+      if let Some(crlf_pos) = crlf {
+        let len_str = &rest[..crlf_pos];
+        let content_len: usize = len_str
+          .trim()
+          .parse()
+          .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let body_start = pos + header.len() + crlf_pos + 4;
+        if src.len() >= body_start + content_len {
+          let json_bytes = &src[body_start..body_start + content_len];
+          let value = serde_json::from_slice(json_bytes)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+          // Remove processed bytes manually
+          let _ = src.split_to(body_start + content_len);
+          return Ok(Some(value));
+        }
+      }
+    }
+    Ok(None)
+  }
+}
+
+impl Encoder<serde_json::Value> for LspCodec {
+  type Error = io::Error;
+
+  fn encode(&mut self, item: serde_json::Value, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    let json =
+      serde_json::to_string(&item).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    let header = format!("Content-Length: {}\r\n\r\n", json.len());
+    dst.put(header.as_bytes());
+    dst.put(json.as_bytes());
+    Ok(())
+  }
+}
+
+pub fn create_lsp_framed() -> Framed<DuplexStream, LspCodec> {
+  let base = Path::new("./").to_path_buf();
+  let rule_finder = move || {
+    let globals = GlobalRules::default();
+    let config: RuleConfig<SupportLang> = from_yaml_string(
+      r"
+id: no-console-rule
+message: No console.log
+severity: warning
+language: TypeScript
+rule:
+  pattern: console.log($$$A)
+note: no console.log
+fix: |
+  alert($$$A)
+",
+      &globals,
+    )
+    .unwrap()
+    .pop()
+    .unwrap();
+    let rc: RuleCollection<SupportLang> = RuleCollection::try_new(vec![config]).unwrap();
+    Ok(rc)
+  };
+  let (service, socket) =
+    LspService::build(|client| Backend::new(client, base, rule_finder)).finish();
+  let (client_write, server_read) = duplex(16384);
+  //let (server_write, client_read) = duplex(16384);
+  let (r, w) = split(server_read);
+  tokio::spawn(Server::new(r, w, socket).serve(service));
+
+  Framed::new(client_write, LspCodec::default())
+}
+
+#[test]
+pub fn test_framed_codec() {
+  let mut codec = LspCodec::default();
+  let mut buf = BytesMut::new();
+  let msg = serde_json::json!({
+    "jsonrpc": "2.0",
+    "method": "testMethod",
+    "params": {
+      "key": "value"
+    }
+  });
+  codec.encode(msg.clone(), &mut buf).unwrap();
+  let decoded = codec.decode(&mut buf).unwrap().unwrap();
+  assert_eq!(decoded, msg);
+} 

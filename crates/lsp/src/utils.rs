@@ -12,13 +12,13 @@ use tower_lsp_server::lsp_types::*;
 use std::collections::HashMap;
 use std::str::FromStr;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct OneFix {
   pub title: Option<String>,
   pub fixed: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct RewriteData {
   pub fixers: Vec<OneFix>,
   // maybe we should have fixed range
@@ -56,11 +56,23 @@ impl RewriteData {
   }
 }
 
+// Accepts an optional fixes cache for fallback
 pub fn diagnostic_to_code_action(
   text_doc: &TextDocumentIdentifier,
   diagnostic: Diagnostic,
+  fixes_cache: Option<&HashMap<(Range, String), RewriteData>>
 ) -> Option<Vec<CodeAction>> {
-  let rewrite_data = RewriteData::from_value(diagnostic.data?)?;
+  let rewrite_data = if let Some(data) = diagnostic.data {
+    RewriteData::from_value(data)
+  } else {
+    // Fallback: look up cached fixes for this location and code
+    let code = diagnostic.code.as_ref().and_then(|c| match c {
+      NumberOrString::String(s) => Some(s.clone()),
+      NumberOrString::Number(n) => Some(n.to_string()),
+    });
+    fixes_cache.and_then(|cache| code.and_then(|c| cache.get(&(diagnostic.range, c)).cloned()))
+  }?;
+
   let actions = rewrite_data.fixers.into_iter().filter_map(|fixer| {
     let mut changes = HashMap::new();
     let text_edit = TextEdit::new(diagnostic.range, fixer.fixed);
