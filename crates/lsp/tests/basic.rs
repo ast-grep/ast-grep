@@ -1,14 +1,13 @@
 use ast_grep_config::{from_yaml_string, GlobalRules, RuleCollection, RuleConfig};
 use ast_grep_language::SupportLang;
 use ast_grep_lsp::*;
-use serde_json::Value;
-use tokio::io::{duplex, split, AsyncReadExt, AsyncWriteExt, DuplexStream};
 use futures::{SinkExt, StreamExt};
+use serde_json::Value;
 use std::io;
 use std::path::Path;
+use tokio::io::{duplex, split, AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio_util::bytes::{BufMut, BytesMut};
 use tokio_util::codec::{Decoder, Encoder, Framed};
-
 
 pub fn req(msg: &str) -> String {
   format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg)
@@ -362,7 +361,6 @@ async fn test_did_change_watched_files() {
   );
 }
 
-
 // Helper: send_did_open_framed
 pub async fn send_did_open_framed(
   framed: &mut Framed<DuplexStream, LspCodec>,
@@ -447,9 +445,79 @@ pub async fn request_code_action(
   None
 }
 
+fn apply_all_code_actions(text: &str, code_actions: &Value) -> String {
+  // As offsets are based on the original text, we need to track changes
+  let mut lines: Vec<String> = text.lines().map(|s| s.to_string()).collect();
+  let mut all_edits = Vec::new();
+  // Collect all edits from all code actions
+  if let Some(actions) = code_actions.as_array() {
+    for action in actions {
+      if let Some(edit) = action["edit"].as_object() {
+        if let Some(changes) = edit.get("changes").and_then(|c| c.as_object()) {
+          for (_uri, edits) in changes {
+            if let Some(edits) = edits.as_array() {
+              for edit in edits {
+                if let (Some(range), Some(new_text)) = (
+                  edit.get("range"),
+                  edit.get("newText").and_then(|t| t.as_str()),
+                ) {
+                  if let (Some(start), Some(end)) = (range.get("start"), range.get("end")) {
+                    if let (Some(start_line), Some(start_char), Some(end_line), Some(end_char)) = (
+                      start.get("line").and_then(|l| l.as_u64()),
+                      start.get("character").and_then(|c| c.as_u64()),
+                      end.get("line").and_then(|l| l.as_u64()),
+                      end.get("character").and_then(|c| c.as_u64()),
+                    ) {
+                      all_edits.push((
+                        start_line as usize,
+                        start_char as usize,
+                        end_line as usize,
+                        end_char as usize,
+                        new_text.to_string(),
+                      ));
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Sort the edits in reverse order to avoid offset issues
+  all_edits.sort_by(|a, b| {
+    if a.0 != b.0 {
+      b.0.cmp(&a.0)
+    } else {
+      b.1.cmp(&a.1)
+    }
+  });
+
+  // Apply edits
+  for (start_line, start_char, _end_line, end_char, new_text) in all_edits {
+    let line = &lines[start_line];
+    let prefix = &line[..start_char];
+    let suffix = &line[end_char..];
+    lines[start_line] = format!("{}{}{}", prefix, new_text, suffix);
+  }
+
+  // Join lines back into a single string
+  lines.join("\n")
+}
+
 #[tokio::test]
-async fn test_code_action_data_support_enabled() {
-  let mut client = create_lsp_framed();
+async fn test_single_line_code_edit() {
+  let yamls = r"
+id: no-console-rule
+language: TypeScript
+rule:
+  pattern: console.log($$$A)
+fix: |
+  alert($$$A)
+";
+  let mut client = create_lsp_framed(yamls);
   // Initialize with data_support enabled
   let initialize = serde_json::json!({
       "jsonrpc": "2.0",
@@ -504,18 +572,45 @@ async fn test_code_action_data_support_enabled() {
     code_action["result"].as_array().unwrap().iter().len() > 0,
     "No code actions returned"
   );
+
+  // Apply the first code action and verify the text change
+  //let code_action = &code_action["result"].as_array().unwrap()[0];
+  let fixed_text = apply_all_code_actions(file_content, &code_action["result"]);
+  assert_eq!(fixed_text, "alert('Hello, world!')\n");
 }
 
 #[tokio::test]
-async fn test_code_action_data_support_disabled() {
-  let mut client = create_lsp_framed();
-  // Initialize with data_support disabled
+async fn test_overlap_line_code_edit() {
+  let yamls = r"
+id: use-alert
+language: TypeScript
+message: Use alert instead of console.log
+rule:
+  pattern: console.log($$$A)
+fix: |
+  alert($$$A)
+---
+id: use-window-alert
+language: TypeScript
+message: Use window.alert instead of console.log
+rule:
+  pattern: console.log($$$A)
+fix: |
+  window.alert($$$A)
+";
+  let mut client = create_lsp_framed(yamls);
+  // Initialize with data_support enabled
   let initialize = serde_json::json!({
       "jsonrpc": "2.0",
       "id": 1,
       "method": "initialize",
       "params": {
           "capabilities": {
+              "textDocument": {
+                  "publishDiagnostics": {
+                      "dataSupport": true
+                  }
+              }
           }
       }
   });
@@ -545,21 +640,40 @@ async fn test_code_action_data_support_disabled() {
 
   let diagnostics = diagnostics.expect("No diagnostics received");
 
-  let mut diagnostic = diagnostics
-    .as_array()
-    .cloned()
-    .and_then(|arr| arr.get(0).cloned())
-    .unwrap();
-
-  // Remove 'data' field to simulate client without dataSupport
-  diagnostic.as_object_mut().unwrap().remove("data");
-  let code_action = request_code_action(&mut client, file_uri, &diagnostic).await;
-
-  let code_action = code_action.expect("No code action response");
-  assert!(
-    code_action["result"].as_array().unwrap().iter().len() > 0,
-    "No code actions returned"
+  assert_eq!(
+    diagnostics.as_array().unwrap().len(),
+    2,
+    "Expected 2 diagnostics"
   );
+
+  for diagnostic in diagnostics.as_array().unwrap() {
+    let code_action = request_code_action(&mut client, file_uri, diagnostic).await;
+    let code_action = code_action.expect("No code action response");
+    assert_eq!(
+      code_action["result"].as_array().iter().len(),
+      1,
+      "Expected 1 code action per diagnostic"
+    );
+    if diagnostic["code"] == "use-alert" {
+      assert_eq!(
+        code_action["result"][0]["title"],
+        "Fix `use-alert` with ast-grep"
+      );
+
+      let fixed_text = apply_all_code_actions(file_content, &code_action["result"]);
+      assert_eq!(fixed_text, "alert('Hello, world!')\n");
+    } else if diagnostic["code"] == "use-window-alert" {
+      assert_eq!(
+        code_action["result"][0]["title"],
+        "Fix `use-window-alert` with ast-grep"
+      );
+
+      let fixed_text = apply_all_code_actions(file_content, &code_action["result"]);
+      assert_eq!(fixed_text, "window.alert('Hello, world!')\n");
+    } else {
+      panic!("Unexpected diagnostic code");
+    }
+  }
 }
 
 // Custom LSP Codec for Content-Length framed JSON-RPC
@@ -612,28 +726,12 @@ impl Encoder<serde_json::Value> for LspCodec {
   }
 }
 
-pub fn create_lsp_framed() -> Framed<DuplexStream, LspCodec> {
+pub fn create_lsp_framed(yamls: &'static str) -> Framed<DuplexStream, LspCodec> {
   let base = Path::new("./").to_path_buf();
   let rule_finder = move || {
     let globals = GlobalRules::default();
-    let config: RuleConfig<SupportLang> = from_yaml_string(
-      r"
-id: no-console-rule
-message: No console.log
-severity: warning
-language: TypeScript
-rule:
-  pattern: console.log($$$A)
-note: no console.log
-fix: |
-  alert($$$A)
-",
-      &globals,
-    )
-    .unwrap()
-    .pop()
-    .unwrap();
-    let rc: RuleCollection<SupportLang> = RuleCollection::try_new(vec![config]).unwrap();
+    let configs = from_yaml_string(yamls, &globals).unwrap();
+    let rc: RuleCollection<SupportLang> = RuleCollection::try_new(configs).unwrap();
     Ok(rc)
   };
   let (service, socket) =
@@ -660,4 +758,4 @@ pub fn test_framed_codec() {
   codec.encode(msg.clone(), &mut buf).unwrap();
   let decoded = codec.decode(&mut buf).unwrap().unwrap();
   assert_eq!(decoded, msg);
-} 
+}

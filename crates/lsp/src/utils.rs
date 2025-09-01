@@ -6,30 +6,26 @@ use ast_grep_config::Severity;
 use ast_grep_core::tree_sitter::{LanguageExt, StrDoc};
 use ast_grep_core::{Doc, Node, NodeMatch};
 
-use serde::{Deserialize, Serialize};
 use tower_lsp_server::lsp_types::*;
 
 use std::collections::HashMap;
 use std::str::FromStr;
 
-#[derive(Serialize, Deserialize, Clone)]
+type Fixes = HashMap<(Range, String), RewriteData>;
+
+#[derive(Clone)]
 pub struct OneFix {
   pub title: Option<String>,
   pub fixed: String,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
 pub struct RewriteData {
   pub fixers: Vec<OneFix>,
   // maybe we should have fixed range
 }
 
 impl RewriteData {
-  pub fn from_value(data: serde_json::Value) -> Option<Self> {
-    serde_json::from_value(data).ok()
-  }
-
-  fn from_node_match<L: LanguageExt>(
+  pub fn from_node_match<L: LanguageExt>(
     node_match: &NodeMatch<StrDoc<L>>,
     rule: &RuleConfig<L>,
   ) -> Option<Self> {
@@ -60,32 +56,24 @@ impl RewriteData {
 pub fn diagnostic_to_code_action(
   text_doc: &TextDocumentIdentifier,
   diagnostic: Diagnostic,
-  fixes_cache: Option<&HashMap<(Range, String), RewriteData>>
+  fixes_cache: &Fixes,
 ) -> Option<Vec<CodeAction>> {
-  let rewrite_data = if let Some(data) = diagnostic.data {
-    RewriteData::from_value(data)
-  } else {
-    // Fallback: look up cached fixes for this location and code
-    let code = diagnostic.code.as_ref().and_then(|c| match c {
-      NumberOrString::String(s) => Some(s.clone()),
-      NumberOrString::Number(n) => Some(n.to_string()),
-    });
-    fixes_cache.and_then(|cache| code.and_then(|c| cache.get(&(diagnostic.range, c)).cloned()))
-  }?;
+  let NumberOrString::String(id) = diagnostic.code.as_ref()? else {
+    return None;
+  };
 
-  let actions = rewrite_data.fixers.into_iter().filter_map(|fixer| {
+  let rewrite_data = fixes_cache.get(&(diagnostic.range, id.clone()))?;
+
+  let actions = rewrite_data.fixers.clone().into_iter().map(|fixer| {
     let mut changes = HashMap::new();
     let text_edit = TextEdit::new(diagnostic.range, fixer.fixed);
     changes.insert(text_doc.uri.clone(), vec![text_edit]);
 
     let edit = WorkspaceEdit::new(changes);
-    let NumberOrString::String(id) = diagnostic.code.as_ref()? else {
-      return None;
-    };
     let title = fixer
       .title
       .unwrap_or_else(|| format!("Fix `{id}` with ast-grep"));
-    Some(CodeAction {
+    CodeAction {
       title,
       command: None,
       diagnostics: None,
@@ -94,7 +82,7 @@ pub fn diagnostic_to_code_action(
       kind: Some(CodeActionKind::QUICKFIX),
       is_preferred: Some(true),
       data: None,
-    })
+    }
   });
   Some(actions.collect())
 }
@@ -174,12 +162,10 @@ fn get_node_range_and_related_info<L: LanguageExt>(
 
 pub fn convert_match_to_diagnostic<L: LanguageExt>(
   uri: &Uri,
-  node_match: NodeMatch<StrDoc<L>>,
+  node_match: &NodeMatch<StrDoc<L>>,
   rule: &RuleConfig<L>,
 ) -> Diagnostic {
-  let rewrite_data =
-    RewriteData::from_node_match(&node_match, rule).and_then(|r| serde_json::to_value(r).ok());
-  let (range, related_information) = get_node_range_and_related_info(uri, &node_match, rule);
+  let (range, related_information) = get_node_range_and_related_info(uri, node_match, rule);
   Diagnostic {
     range,
     code: Some(NumberOrString::String(rule.id.clone())),
@@ -191,11 +177,11 @@ pub fn convert_match_to_diagnostic<L: LanguageExt>(
       Severity::Hint => DiagnosticSeverity::HINT,
       Severity::Off => unreachable!("turned-off rule should not have match"),
     }),
-    message: get_non_empty_message(rule, &node_match),
+    message: get_non_empty_message(rule, node_match),
     source: Some(String::from("ast-grep")),
     tags: None,
     related_information,
-    data: rewrite_data,
+    data: None,
   }
 }
 
