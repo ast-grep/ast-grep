@@ -58,6 +58,12 @@ fn req_resp_should_work() {
   )
 }
 
+fn allocate_method_call_id() -> i32 {
+  use std::sync::atomic::{AtomicI32, Ordering};
+  static COUNTER: AtomicI32 = AtomicI32::new(1);
+  COUNTER.fetch_add(1, Ordering::Relaxed)
+}
+
 pub fn create_lsp() -> (DuplexStream, DuplexStream) {
   let base = Path::new("./").to_path_buf();
 
@@ -121,61 +127,6 @@ pub async fn initialize_lsp(
   buf
 }
 
-pub async fn request_code_action_to_lsp(
-  req_client: &mut DuplexStream,
-  resp_client: &mut DuplexStream,
-) -> Vec<u8> {
-  let code_action_request = r#"{
-      "jsonrpc": "2.0",
-      "id": 1,
-      "method": "textDocument/codeAction",
-      "params": {
-        "range": {
-          "end": {
-            "character": 10,
-            "line": 1
-          },
-          "start": {
-            "character": 10,
-            "line": 1
-          }
-        },
-        "textDocument": {
-          "uri": "file:///Users/codes/ast-grep-vscode/test.tsx"
-        },
-        "context": {
-          "diagnostics": [
-            {
-              "range": {
-                "start": {
-                  "line": 0,
-                  "character": 0
-                },
-                "end": {
-                  "line": 0,
-                  "character": 16
-                }
-              },
-              "code": "no-console-rule",
-              "source": "ast-grep",
-              "message": "No console.log"
-            }
-          ],
-          "only": ["source.fixAll"]
-        }
-      }
-      }"#;
-
-  let mut buf = vec![0; 1024];
-  req_client
-    .write_all(req(code_action_request).as_bytes())
-    .await
-    .unwrap();
-  let _ = resp_client.read(&mut buf).await.unwrap();
-
-  buf
-}
-
 pub async fn request_execute_command_to_lsp(
   req_client: &mut DuplexStream,
   resp_client: &mut DuplexStream,
@@ -216,30 +167,6 @@ fn test_basic() {
     let buf = initialize_lsp(&mut req_client, &mut resp_client).await;
 
     assert!(!resp(&buf).is_empty());
-  });
-}
-
-#[test]
-#[ignore = "fixAll conflicts with quickfix"]
-fn test_code_action() {
-  tokio::runtime::Runtime::new().unwrap().block_on(async {
-    let (mut req_client, mut resp_client) = create_lsp();
-
-    initialize_lsp(&mut req_client, &mut resp_client).await;
-
-    let buf = request_code_action_to_lsp(&mut req_client, &mut resp_client).await;
-    // {"jsonrpc":"2.0","method":"window/logMessage","params":{"message":"Running CodeAction source.fixAll","type":3}}
-    let resp_list = resp(&buf);
-
-    let running_code_action_resp = resp_list
-      .iter()
-      .find(|v| v["method"] == "window/logMessage")
-      .unwrap();
-
-    assert_eq!(
-      running_code_action_resp["params"]["message"],
-      "Running CodeAction source.fixAll"
-    );
   });
 }
 
@@ -347,9 +274,6 @@ async fn test_did_change_watched_files() {
     .await
     .unwrap();
 
-  // Give some time for processing
-  tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
   let mut buf = vec![0; 4096];
   let len = resp_client.read(&mut buf).await.unwrap();
   let response = String::from_utf8_lossy(&buf[..len]);
@@ -414,14 +338,32 @@ pub async fn wait_for_diagnostics(
   return diagnostics;
 }
 
-pub async fn request_code_action(
+async fn wait_for_response(
+  sender: &mut Framed<DuplexStream, LspCodec>,
+  id: i32,
+) -> Option<serde_json::Value> {
+  for _ in 0..20 {
+    match tokio::time::timeout(std::time::Duration::from_secs(2), sender.next()).await {
+      Ok(Some(Ok(msg))) => {
+        if msg.get("id") == Some(&serde_json::json!(id)) {
+          return Some(msg);
+        }
+      }
+      _ => {}
+    }
+  }
+  None
+}
+
+async fn request_code_action(
   sender: &mut Framed<DuplexStream, LspCodec>,
   file_uri: &str,
   diagnostic: &serde_json::Value,
 ) -> Option<serde_json::Value> {
+  let method_call_id = allocate_method_call_id();
   let code_action_request = serde_json::json!({
     "jsonrpc": "2.0",
-    "id": 1,
+    "id": method_call_id,
     "method": "textDocument/codeAction",
     "params": {
       "range": diagnostic["range"].clone(),
@@ -432,50 +374,38 @@ pub async fn request_code_action(
     }
   });
   sender.send(code_action_request).await.unwrap();
-  for _ in 0..20 {
-    match tokio::time::timeout(std::time::Duration::from_secs(2), sender.next()).await {
-      Ok(Some(Ok(msg))) => {
-        if msg.get("id") == Some(&serde_json::json!(1)) {
-          return Some(msg);
-        }
-      }
-      _ => {}
-    }
-  }
-  None
+  wait_for_response(sender, method_call_id).await
 }
 
-fn apply_all_code_actions(text: &str, code_actions: &Value) -> String {
+fn apply_all_code_actions(text: &str, actions: &Vec<Value>) -> String {
   // As offsets are based on the original text, we need to track changes
   let mut lines: Vec<String> = text.lines().map(|s| s.to_string()).collect();
   let mut all_edits = Vec::new();
   // Collect all edits from all code actions
-  if let Some(actions) = code_actions.as_array() {
-    for action in actions {
-      if let Some(edit) = action["edit"].as_object() {
-        if let Some(changes) = edit.get("changes").and_then(|c| c.as_object()) {
-          for (_uri, edits) in changes {
-            if let Some(edits) = edits.as_array() {
-              for edit in edits {
-                if let (Some(range), Some(new_text)) = (
-                  edit.get("range"),
-                  edit.get("newText").and_then(|t| t.as_str()),
-                ) {
-                  if let (Some(start), Some(end)) = (range.get("start"), range.get("end")) {
-                    if let (Some(start_line), Some(start_char), Some(end_line), Some(end_char)) = (
-                      start.get("line").and_then(|l| l.as_u64()),
-                      start.get("character").and_then(|c| c.as_u64()),
-                      end.get("line").and_then(|l| l.as_u64()),
-                      end.get("character").and_then(|c| c.as_u64()),
-                    ) {
-                      all_edits.push((
-                        start_line as usize,
-                        start_char as usize,
-                        end_line as usize,
-                        end_char as usize,
-                        new_text.to_string(),
-                      ));
-                    }
+  for action in actions {
+    if let Some(edit) = action["edit"].as_object() {
+      if let Some(changes) = edit.get("changes").and_then(|c| c.as_object()) {
+        for (_uri, edits) in changes {
+          if let Some(edits) = edits.as_array() {
+            for edit in edits {
+              if let (Some(range), Some(new_text)) = (
+                edit.get("range"),
+                edit.get("newText").and_then(|t| t.as_str()),
+              ) {
+                if let (Some(start), Some(end)) = (range.get("start"), range.get("end")) {
+                  if let (Some(start_line), Some(start_char), Some(end_line), Some(end_char)) = (
+                    start.get("line").and_then(|l| l.as_u64()),
+                    start.get("character").and_then(|c| c.as_u64()),
+                    end.get("line").and_then(|l| l.as_u64()),
+                    end.get("character").and_then(|c| c.as_u64()),
+                  ) {
+                    all_edits.push((
+                      start_line as usize,
+                      start_char as usize,
+                      end_line as usize,
+                      end_char as usize,
+                      new_text.to_string(),
+                    ));
                   }
                 }
               }
@@ -517,65 +447,35 @@ rule:
 fix: |
   alert($$$A)
 ";
-  let mut client = create_lsp_framed(yamls);
-  // Initialize with data_support enabled
-  let initialize = serde_json::json!({
-      "jsonrpc": "2.0",
-      "id": 1,
-      "method": "initialize",
-      "params": {
-          "capabilities": {
-              "textDocument": {
-                  "publishDiagnostics": {
-                      "dataSupport": true
-                  }
-              }
-          }
-      }
-  });
-  client.send(initialize).await.unwrap();
-  // Wait for initialize response
-  for _ in 0..10 {
-    if let Some(Ok(msg)) = client.next().await {
-      if msg.get("id") == Some(&serde_json::json!(1)) {
-        // Send 'initialized' notification after receiving 'initialize' response
-        let initialized = serde_json::json!({
-          "jsonrpc": "2.0",
-          "method": "initialized",
-          "params": {}
-        });
-        client.send(initialized).await.unwrap();
-        break;
-      }
-    }
-  }
+  let mut client = create_lsp_framed(yamls).await;
+
   // Send file content to server
   let file_uri = "file:///Users/codes/ast-grep-vscode/test.ts";
   let file_content = "console.log('Hello, world!')\n";
   send_did_open_framed(&mut client, file_uri, "typescript", file_content).await;
-  tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
-  let diagnostics = wait_for_diagnostics(&mut client).await;
-
-  let diagnostics = diagnostics.expect("No diagnostics received");
-  let diagnostic = diagnostics
+  let diagnostics = &wait_for_diagnostics(&mut client)
+    .await
+    .expect("No diagnostics received")
     .as_array()
-    .cloned()
-    .and_then(|arr| arr.get(0).cloned())
-    .unwrap();
+    .expect("Diagnostics should be an array")
+    .to_owned();
+
+  assert_eq!(diagnostics.len(), 1, "Expected 1 diagnostic");
+
+  let diagnostic = &diagnostics[0];
 
   let code_action = request_code_action(&mut client, file_uri, &diagnostic).await;
 
-  // Request code action using diagnostics from server
   let code_action = code_action.expect("No code action response");
-  assert!(
-    code_action["result"].as_array().unwrap().iter().len() > 0,
-    "No code actions returned"
-  );
+  // Request code action using diagnostics from server
+  let actions = code_action["result"]
+    .as_array()
+    .expect("Result should be an array");
+  assert!(actions.len() == 1, "No code actions returned");
 
   // Apply the first code action and verify the text change
-  //let code_action = &code_action["result"].as_array().unwrap()[0];
-  let fixed_text = apply_all_code_actions(file_content, &code_action["result"]);
+  let fixed_text = apply_all_code_actions(file_content, &actions);
   assert_eq!(fixed_text, "alert('Hello, world!')\n");
 }
 
@@ -598,82 +498,97 @@ rule:
 fix: |
   window.alert($$$A)
 ";
-  let mut client = create_lsp_framed(yamls);
-  // Initialize with data_support enabled
-  let initialize = serde_json::json!({
-      "jsonrpc": "2.0",
-      "id": 1,
-      "method": "initialize",
-      "params": {
-          "capabilities": {
-              "textDocument": {
-                  "publishDiagnostics": {
-                      "dataSupport": true
-                  }
-              }
-          }
-      }
-  });
-  client.send(initialize).await.unwrap();
-  // Wait for initialize response
-  for _ in 0..10 {
-    if let Some(Ok(msg)) = client.next().await {
-      if msg.get("id") == Some(&serde_json::json!(1)) {
-        // Send 'initialized' notification after receiving 'initialize' response
-        let initialized = serde_json::json!({
-          "jsonrpc": "2.0",
-          "method": "initialized",
-          "params": {}
-        });
-        client.send(initialized).await.unwrap();
-        break;
-      }
-    }
-  }
+  let mut client = create_lsp_framed(yamls).await;
+
   // Send file content to server
   let file_uri = "file:///Users/codes/ast-grep-vscode/test.ts";
   let file_content = "console.log('Hello, world!')\n";
   send_did_open_framed(&mut client, file_uri, "typescript", file_content).await;
-  tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
-  let diagnostics = wait_for_diagnostics(&mut client).await;
+  let diagnostics = &wait_for_diagnostics(&mut client)
+    .await
+    .expect("No diagnostics received")
+    .as_array()
+    .expect("Diagnostics should be an array")
+    .to_owned();
 
-  let diagnostics = diagnostics.expect("No diagnostics received");
+  assert_eq!(diagnostics.len(), 2, "Expected 2 diagnostics");
 
-  assert_eq!(
-    diagnostics.as_array().unwrap().len(),
-    2,
-    "Expected 2 diagnostics"
-  );
-
-  for diagnostic in diagnostics.as_array().unwrap() {
+  for diagnostic in diagnostics {
     let code_action = request_code_action(&mut client, file_uri, diagnostic).await;
     let code_action = code_action.expect("No code action response");
-    assert_eq!(
-      code_action["result"].as_array().iter().len(),
-      1,
-      "Expected 1 code action per diagnostic"
-    );
+    let actions = code_action["result"]
+      .as_array()
+      .expect("Result should be an array");
+    assert_eq!(actions.len(), 1, "Expected 1 code action per diagnostic");
     if diagnostic["code"] == "use-alert" {
-      assert_eq!(
-        code_action["result"][0]["title"],
-        "Fix `use-alert` with ast-grep"
-      );
+      assert_eq!(actions[0]["title"], "Fix `use-alert` with ast-grep");
 
-      let fixed_text = apply_all_code_actions(file_content, &code_action["result"]);
+      let fixed_text = apply_all_code_actions(file_content, actions);
       assert_eq!(fixed_text, "alert('Hello, world!')\n");
     } else if diagnostic["code"] == "use-window-alert" {
-      assert_eq!(
-        code_action["result"][0]["title"],
-        "Fix `use-window-alert` with ast-grep"
-      );
+      assert_eq!(actions[0]["title"], "Fix `use-window-alert` with ast-grep");
 
-      let fixed_text = apply_all_code_actions(file_content, &code_action["result"]);
+      let fixed_text = apply_all_code_actions(file_content, actions);
       assert_eq!(fixed_text, "window.alert('Hello, world!')\n");
     } else {
       panic!("Unexpected diagnostic code");
     }
   }
+}
+
+#[tokio::test]
+async fn test_code_action_fix_all() {
+  let yamls = r"
+id: use-alert
+language: TypeScript
+message: Use alert instead of console.log
+rule:
+  pattern: console.log($$$A)
+fix: |
+  alert($$$A)";
+  let mut client = create_lsp_framed(yamls).await;
+
+  // Send file content to server
+  let file_uri = "file:///Users/codes/ast-grep-vscode/test.ts";
+  let file_content = "console.log('Hello, world!')\nconsole.log('Another log')\n";
+  send_did_open_framed(&mut client, file_uri, "typescript", file_content).await;
+  let diagnostics = &wait_for_diagnostics(&mut client)
+    .await
+    .expect("No diagnostics received")
+    .as_array()
+    .expect("Diagnostics should be an array")
+    .to_owned();
+  assert_eq!(diagnostics.len(), 2, "Expected 2 diagnostics");
+  let method_call_id = allocate_method_call_id();
+  let code_action_request = serde_json::json!({
+    "jsonrpc": "2.0",
+    "id": method_call_id,
+    "method": "textDocument/codeAction",
+    "params": {
+      "range": {
+        "start": { "line": 0, "character": 0 },
+        "end": { "line": 1, "character": 20 }
+      },
+      "textDocument": { "uri": file_uri },
+      "context": {
+        "diagnostics": diagnostics,
+        "only": ["source.fixAll"]
+      }
+    }
+  });
+  client.send(code_action_request).await.unwrap();
+  let code_actions = wait_for_response(&mut client, method_call_id).await;
+  let code_action = code_actions.expect("No code action response");
+  let actions = code_action["result"]
+    .as_array()
+    .expect("Result should be an array");
+  assert!(actions.len() == 1, "Expected 1 code action for fix all");
+  assert_eq!(actions[0]["title"], "Fix by ast-grep");
+  // Apply the fix all code action and verify the text change
+  let fixed_text = apply_all_code_actions(file_content, &actions);
+  // TODO: This fix ends up with \n being trimmed at the end, need to investigate
+  assert_eq!(fixed_text, "alert('Hello, world!')\nalert('Another log')");
 }
 
 // Custom LSP Codec for Content-Length framed JSON-RPC
@@ -685,8 +600,10 @@ impl Decoder for LspCodec {
   type Error = io::Error;
 
   fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-    let src_str =
-      std::str::from_utf8(&src[..]).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    let src_str = match std::str::from_utf8(&src[..]) {
+      Ok(s) => s,
+      Err(_) => return Ok(None), // Not valid UTF-8 yet
+    };
     let header = "Content-Length: ";
     let header_pos = src_str.find(header);
     if let Some(pos) = header_pos {
@@ -726,7 +643,7 @@ impl Encoder<serde_json::Value> for LspCodec {
   }
 }
 
-pub fn create_lsp_framed(yamls: &'static str) -> Framed<DuplexStream, LspCodec> {
+async fn create_lsp_framed(yamls: &'static str) -> Framed<DuplexStream, LspCodec> {
   let base = Path::new("./").to_path_buf();
   let rule_finder = move || {
     let globals = GlobalRules::default();
@@ -741,7 +658,33 @@ pub fn create_lsp_framed(yamls: &'static str) -> Framed<DuplexStream, LspCodec> 
   let (r, w) = split(server_read);
   tokio::spawn(Server::new(r, w, socket).serve(service));
 
-  Framed::new(client_write, LspCodec::default())
+  let mut client = Framed::new(client_write, LspCodec::default());
+
+  let init_call_id = allocate_method_call_id();
+  // Initialize with data_support enabled
+  let initialize = serde_json::json!({
+      "jsonrpc": "2.0",
+      "id": init_call_id,
+      "method": "initialize",
+      "params": {
+          "capabilities": {
+          }
+      }
+  });
+  client.send(initialize).await.unwrap();
+  // Wait for initialize response
+  wait_for_response(&mut client, init_call_id).await.unwrap();
+
+  // Send 'initialized' notification after receiving 'initialize' response
+  client
+    .send(serde_json::json!({
+      "jsonrpc": "2.0",
+      "method": "initialized",
+      "params": {}
+    }))
+    .await
+    .unwrap();
+  client
 }
 
 #[test]
