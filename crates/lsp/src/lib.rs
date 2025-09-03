@@ -336,7 +336,11 @@ impl<L: LSPLang> Backend<L> {
 
   // skip files outside of workspace root #1382, #1402
   async fn should_skip_file_outside_workspace(&self, text_doc: &TextDocumentItem) -> Option<()> {
-    let workspace_root = self.get_path_of_first_workspace().await?;
+    // fallback to base if no workspace provided by client #2211
+    let workspace_root = self
+      .get_path_of_first_workspace()
+      .await
+      .unwrap_or_else(|| self.base.clone());
     let doc_file_path = text_doc.uri.to_file_path()?;
     if doc_file_path.starts_with(workspace_root) {
       None
