@@ -61,6 +61,7 @@ enum Commands {
   /// Generate shell completion script.
   Completions(CompletionsArg),
   /// Generate rule docs for current configuration. (Not Implemented Yet)
+  #[cfg(debug_assertions)]
   Docs,
 }
 
@@ -139,6 +140,7 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
     Commands::New(arg) => run_create_new(arg, project),
     Commands::Lsp(arg) => run_language_server(arg, project),
     Commands::Completions(arg) => run_shell_completion::<App>(arg),
+    #[cfg(debug_assertions)]
     Commands::Docs => todo!("todo, generate rule docs based on current config"),
   }
 }
