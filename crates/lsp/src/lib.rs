@@ -19,7 +19,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
-use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, RewriteData};
+use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, Fixes, RewriteData};
 
 pub use tower_lsp_server::{LspService, Server};
 
@@ -27,7 +27,6 @@ pub trait LSPLang: LanguageExt + Eq + Send + Sync + 'static {}
 impl<T> LSPLang for T where T: LanguageExt + Eq + Send + Sync + 'static {}
 
 type Notes = BTreeMap<(u32, u32, u32, u32), Arc<String>>;
-type Fixes = HashMap<(Range, String), RewriteData>;
 
 struct VersionedAst<D: Doc> {
   version: i32,
@@ -393,7 +392,8 @@ impl<L: LSPLang> Backend<L> {
   async fn on_change(&self, params: DidChangeTextDocumentParams) -> Option<()> {
     let text_doc = params.text_document;
     let uri = text_doc.uri.as_str();
-    let text = &params.content_changes[0].text;
+    let change = &params.content_changes.first()?;
+    let text = &change.text;
     self
       .client
       .log_message(MessageType::LOG, "Parsing changed doc.")
@@ -440,15 +440,20 @@ impl<L: LSPLang> Backend<L> {
       .get_diagnostics(&uri, &versioned)
       .ok_or(LspError::NoActionableFix)?;
 
-    let mut fixes = Vec::from_iter(fixes.iter());
-    fixes.sort_by_key(|((range, _id), _rewrite_data)| (range.start, range.end));
+    let mut entries: Vec<_> = fixes.iter().collect();
+    entries.sort_by(|((range_a, _), _), ((range_b, _), _)| {
+      range_a
+        .start
+        .cmp(&range_b.start)
+        .then(range_a.end.cmp(&range_b.end))
+    });
 
     let mut last = Position {
       line: 0,
       character: 0,
     };
-    let edits: Vec<TextEdit> = fixes
-      .iter()
+    let edits: Vec<TextEdit> = entries
+      .into_iter()
       .filter_map(|((range, _id), rewrite_data)| {
         if range.start < last {
           return None;
@@ -692,8 +697,9 @@ impl<L: LSPLang> Backend<L> {
         continue;
       };
       // Republish diagnostics for this file
-      let Some((diagnostics, fixes)) = self.get_diagnostics(&uri, versioned) else {
-        continue;
+      let (diagnostics, fixes) = match self.get_diagnostics(&uri, versioned) {
+        Some((d, f)) => (d, f),
+        None => (Vec::new(), HashMap::new()),
       };
       versioned.notes = self.build_notes(&diagnostics);
       versioned.fixes = fixes;

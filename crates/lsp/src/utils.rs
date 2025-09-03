@@ -11,7 +11,7 @@ use tower_lsp_server::lsp_types::*;
 use std::collections::HashMap;
 use std::str::FromStr;
 
-type Fixes = HashMap<(Range, String), RewriteData>;
+pub type Fixes = HashMap<(Range, String), RewriteData>;
 
 #[derive(Clone)]
 pub struct OneFix {
@@ -29,7 +29,7 @@ impl RewriteData {
     node_match: &NodeMatch<StrDoc<L>>,
     rule: &RuleConfig<L>,
   ) -> Option<Self> {
-    let fixers = rule
+    let fixers: Vec<_> = rule
       .matcher
       .fixer
       .iter()
@@ -48,7 +48,11 @@ impl RewriteData {
         })
       })
       .collect();
-    Some(Self { fixers })
+    if fixers.is_empty() {
+      None
+    } else {
+      Some(Self { fixers })
+    }
   }
 }
 
@@ -64,26 +68,31 @@ pub fn diagnostic_to_code_action(
 
   let rewrite_data = fixes_cache.get(&(diagnostic.range, id.clone()))?;
 
-  let actions = rewrite_data.fixers.clone().into_iter().map(|fixer| {
-    let mut changes = HashMap::new();
-    let text_edit = TextEdit::new(diagnostic.range, fixer.fixed);
-    changes.insert(text_doc.uri.clone(), vec![text_edit]);
+  let actions = rewrite_data
+    .fixers
+    .clone()
+    .into_iter()
+    .enumerate()
+    .map(|(i, fixer)| {
+      let mut changes = HashMap::new();
+      let text_edit = TextEdit::new(diagnostic.range, fixer.fixed);
+      changes.insert(text_doc.uri.clone(), vec![text_edit]);
 
-    let edit = WorkspaceEdit::new(changes);
-    let title = fixer
-      .title
-      .unwrap_or_else(|| format!("Fix `{id}` with ast-grep"));
-    CodeAction {
-      title,
-      command: None,
-      diagnostics: None,
-      edit: Some(edit),
-      disabled: None,
-      kind: Some(CodeActionKind::QUICKFIX),
-      is_preferred: Some(true),
-      data: None,
-    }
-  });
+      let edit = WorkspaceEdit::new(changes);
+      let title = fixer
+        .title
+        .unwrap_or_else(|| format!("Fix `{id}` with ast-grep"));
+      CodeAction {
+        title,
+        command: None,
+        diagnostics: None,
+        edit: Some(edit),
+        disabled: None,
+        kind: Some(CodeActionKind::QUICKFIX),
+        is_preferred: Some(i == 0), // mark the first fix as preferred
+        data: None,
+      }
+    });
   Some(actions.collect())
 }
 
