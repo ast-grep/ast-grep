@@ -6,34 +6,30 @@ use ast_grep_config::Severity;
 use ast_grep_core::tree_sitter::{LanguageExt, StrDoc};
 use ast_grep_core::{Doc, Node, NodeMatch};
 
-use serde::{Deserialize, Serialize};
 use tower_lsp_server::lsp_types::*;
 
 use std::collections::HashMap;
 use std::str::FromStr;
 
-#[derive(Serialize, Deserialize)]
+pub type Fixes = HashMap<(Range, String), RewriteData>;
+
+#[derive(Clone)]
 pub struct OneFix {
   pub title: Option<String>,
   pub fixed: String,
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct RewriteData {
   pub fixers: Vec<OneFix>,
   // maybe we should have fixed range
 }
 
 impl RewriteData {
-  pub fn from_value(data: serde_json::Value) -> Option<Self> {
-    serde_json::from_value(data).ok()
-  }
-
-  fn from_node_match<L: LanguageExt>(
+  pub fn from_node_match<L: LanguageExt>(
     node_match: &NodeMatch<StrDoc<L>>,
     rule: &RuleConfig<L>,
   ) -> Option<Self> {
-    let fixers = rule
+    let fixers: Vec<_> = rule
       .matcher
       .fixer
       .iter()
@@ -52,38 +48,51 @@ impl RewriteData {
         })
       })
       .collect();
-    Some(Self { fixers })
+    if fixers.is_empty() {
+      None
+    } else {
+      Some(Self { fixers })
+    }
   }
 }
 
+// Accepts an optional fixes cache for fallback
 pub fn diagnostic_to_code_action(
   text_doc: &TextDocumentIdentifier,
   diagnostic: Diagnostic,
+  fixes_cache: &Fixes,
 ) -> Option<Vec<CodeAction>> {
-  let rewrite_data = RewriteData::from_value(diagnostic.data?)?;
-  let actions = rewrite_data.fixers.into_iter().filter_map(|fixer| {
-    let mut changes = HashMap::new();
-    let text_edit = TextEdit::new(diagnostic.range, fixer.fixed);
-    changes.insert(text_doc.uri.clone(), vec![text_edit]);
+  let NumberOrString::String(id) = diagnostic.code.as_ref()? else {
+    return None;
+  };
 
-    let edit = WorkspaceEdit::new(changes);
-    let NumberOrString::String(id) = diagnostic.code.as_ref()? else {
-      return None;
-    };
-    let title = fixer
-      .title
-      .unwrap_or_else(|| format!("Fix `{id}` with ast-grep"));
-    Some(CodeAction {
-      title,
-      command: None,
-      diagnostics: None,
-      edit: Some(edit),
-      disabled: None,
-      kind: Some(CodeActionKind::QUICKFIX),
-      is_preferred: Some(true),
-      data: None,
-    })
-  });
+  let rewrite_data = fixes_cache.get(&(diagnostic.range, id.clone()))?;
+
+  let actions = rewrite_data
+    .fixers
+    .clone()
+    .into_iter()
+    .enumerate()
+    .map(|(i, fixer)| {
+      let mut changes = HashMap::new();
+      let text_edit = TextEdit::new(diagnostic.range, fixer.fixed);
+      changes.insert(text_doc.uri.clone(), vec![text_edit]);
+
+      let edit = WorkspaceEdit::new(changes);
+      let title = fixer
+        .title
+        .unwrap_or_else(|| format!("Fix `{id}` with ast-grep"));
+      CodeAction {
+        title,
+        command: None,
+        diagnostics: None,
+        edit: Some(edit),
+        disabled: None,
+        kind: Some(CodeActionKind::QUICKFIX),
+        is_preferred: Some(i == 0), // mark the first fix as preferred
+        data: None,
+      }
+    });
   Some(actions.collect())
 }
 
@@ -162,12 +171,10 @@ fn get_node_range_and_related_info<L: LanguageExt>(
 
 pub fn convert_match_to_diagnostic<L: LanguageExt>(
   uri: &Uri,
-  node_match: NodeMatch<StrDoc<L>>,
+  node_match: &NodeMatch<StrDoc<L>>,
   rule: &RuleConfig<L>,
 ) -> Diagnostic {
-  let rewrite_data =
-    RewriteData::from_node_match(&node_match, rule).and_then(|r| serde_json::to_value(r).ok());
-  let (range, related_information) = get_node_range_and_related_info(uri, &node_match, rule);
+  let (range, related_information) = get_node_range_and_related_info(uri, node_match, rule);
   Diagnostic {
     range,
     code: Some(NumberOrString::String(rule.id.clone())),
@@ -179,11 +186,11 @@ pub fn convert_match_to_diagnostic<L: LanguageExt>(
       Severity::Hint => DiagnosticSeverity::HINT,
       Severity::Off => unreachable!("turned-off rule should not have match"),
     }),
-    message: get_non_empty_message(rule, &node_match),
+    message: get_non_empty_message(rule, node_match),
     source: Some(String::from("ast-grep")),
     tags: None,
     related_information,
-    data: rewrite_data,
+    data: None,
   }
 }
 

@@ -1,5 +1,6 @@
 mod utils;
 
+use ast_grep_core::NodeMatch;
 use dashmap::DashMap;
 use serde_json::Value;
 use tower_lsp_server::jsonrpc::Result;
@@ -18,7 +19,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
-use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, RewriteData};
+use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, Fixes, RewriteData};
 
 pub use tower_lsp_server::{LspService, Server};
 
@@ -31,6 +32,7 @@ struct VersionedAst<D: Doc> {
   version: i32,
   root: AstGrep<D>,
   notes: Notes,
+  fixes: Fixes,
 }
 
 pub struct Backend<L: LSPLang> {
@@ -269,7 +271,7 @@ impl<L: LSPLang> Backend<L> {
     &self,
     uri: &Uri,
     versioned: &VersionedAst<StrDoc<L>>,
-  ) -> Option<Vec<Diagnostic>> {
+  ) -> Option<(Vec<Diagnostic>, Fixes)> {
     let path = self.uri_to_relative_path(uri)?;
 
     let rules = self.rules.read().ok()?;
@@ -283,11 +285,19 @@ impl<L: LSPLang> Backend<L> {
     scan.set_unused_suppression_rule(&unused_suppression_rule);
     let matches = scan.scan(&versioned.root, false).matches;
     let mut diagnostics = vec![];
+    let mut fixes = Fixes::new();
     for (rule, ms) in matches {
-      let to_diagnostic = |m| convert_match_to_diagnostic(uri, m, rule);
+      let to_diagnostic = |m: NodeMatch<StrDoc<L>>| {
+        let diagnostic = convert_match_to_diagnostic(uri, &m, rule);
+        let rewrite_data = RewriteData::from_node_match(&m, rule);
+        if let Some(r) = rewrite_data {
+          fixes.insert((diagnostic.range, rule.id.clone()), r);
+        }
+        diagnostic
+      };
       diagnostics.extend(ms.into_iter().map(to_diagnostic));
     }
-    Some(diagnostics)
+    Some((diagnostics, fixes))
   }
 
   fn build_notes(&self, diagnostics: &[Diagnostic]) -> Notes {
@@ -319,8 +329,10 @@ impl<L: LSPLang> Backend<L> {
     uri: Uri,
     versioned: &mut VersionedAst<StrDoc<L>>,
   ) -> Option<()> {
-    let diagnostics = self.get_diagnostics(&uri, versioned).unwrap_or_default();
+    let (diagnostics, fixes) = self.get_diagnostics(&uri, versioned).unwrap_or_default();
     versioned.notes = self.build_notes(&diagnostics);
+    versioned.fixes = fixes;
+
     self
       .client
       .publish_diagnostics(uri, diagnostics, Some(versioned.version))
@@ -370,6 +382,7 @@ impl<L: LSPLang> Backend<L> {
       version: text_doc.version,
       root,
       notes: BTreeMap::new(),
+      fixes: Fixes::new(),
     };
     self
       .client
@@ -383,7 +396,8 @@ impl<L: LSPLang> Backend<L> {
   async fn on_change(&self, params: DidChangeTextDocumentParams) -> Option<()> {
     let text_doc = params.text_document;
     let uri = text_doc.uri.as_str();
-    let text = &params.content_changes[0].text;
+    let change = &params.content_changes.first()?;
+    let text = &change.text;
     self
       .client
       .log_message(MessageType::LOG, "Parsing changed doc.")
@@ -399,6 +413,7 @@ impl<L: LSPLang> Backend<L> {
       version: text_doc.version,
       root,
       notes: BTreeMap::new(),
+      fixes: Fixes::new(),
     };
     self
       .client
@@ -425,24 +440,31 @@ impl<L: LSPLang> Backend<L> {
       .map
       .get(uri.as_str())
       .ok_or(LspError::UnsupportedFileType)?;
-    let mut diagnostics = self
+    let (_diagnostics, fixes) = self
       .get_diagnostics(&uri, &versioned)
       .ok_or(LspError::NoActionableFix)?;
-    diagnostics.sort_by_key(|d| (d.range.start, d.range.end));
+
+    let mut entries: Vec<_> = fixes.iter().collect();
+    entries.sort_by(|((range_a, _), _), ((range_b, _), _)| {
+      range_a
+        .start
+        .cmp(&range_b.start)
+        .then(range_a.end.cmp(&range_b.end))
+    });
+
     let mut last = Position {
       line: 0,
       character: 0,
     };
-    let edits: Vec<_> = diagnostics
+    let edits: Vec<TextEdit> = entries
       .into_iter()
-      .filter_map(|d| {
-        if d.range.start < last {
+      .filter_map(|((range, _id), rewrite_data)| {
+        if range.start < last {
           return None;
         }
-        let rewrite_data = RewriteData::from_value(d.data?)?;
         let fixed = rewrite_data.fixers.first()?.fixed.to_string();
-        let edit = TextEdit::new(d.range, fixed);
-        last = d.range.end;
+        let edit = TextEdit::new(*range, fixed);
+        last = range.end;
         Some(edit)
       })
       .collect();
@@ -487,6 +509,10 @@ impl<L: LSPLang> Backend<L> {
       return None;
     }
     let text_doc = params.text_document;
+
+    let document = self.map.get(text_doc.uri.as_str())?;
+    let fixes_cache = &document.fixes;
+
     let response = params
       .context
       .diagnostics
@@ -497,7 +523,7 @@ impl<L: LSPLang> Backend<L> {
           .map(|s| s.contains("ast-grep"))
           .unwrap_or(false)
       })
-      .filter_map(|d| diagnostic_to_code_action(&text_doc, d))
+      .filter_map(|d| diagnostic_to_code_action(&text_doc, d, fixes_cache))
       .flatten()
       .map(CodeActionOrCommand::from)
       .collect();
@@ -675,10 +701,12 @@ impl<L: LSPLang> Backend<L> {
         continue;
       };
       // Republish diagnostics for this file
-      let Some(diagnostics) = self.get_diagnostics(&uri, versioned) else {
-        continue;
+      let (diagnostics, fixes) = match self.get_diagnostics(&uri, versioned) {
+        Some((d, f)) => (d, f),
+        None => (Vec::new(), HashMap::new()),
       };
       versioned.notes = self.build_notes(&diagnostics);
+      versioned.fixes = fixes;
       self
         .client
         .publish_diagnostics(uri, diagnostics, Some(versioned.version))
