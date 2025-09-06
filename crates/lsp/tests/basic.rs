@@ -313,29 +313,28 @@ pub async fn wait_for_diagnostics(
   // Wait for diagnostics
   let mut diagnostics: Option<serde_json::Value> = None;
   for _ in 0..20 {
-    match tokio::time::timeout(std::time::Duration::from_secs(2), sender.next()).await {
-      Ok(Some(Ok(msg))) => {
-        if msg.get("method") == Some(&serde_json::json!("textDocument/publishDiagnostics")) {
-          diagnostics = Some(msg["params"]["diagnostics"].clone());
-          break;
-        } else if msg.get("method") == Some(&serde_json::json!("workspace/workspaceFolders")) {
-          // Respond with empty workspaceFolders
-          let response = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": msg["id"].clone(),
-            "result": [{
-              "uri": "file:///Users/codes/ast-grep-vscode",
-              "name": "ast-grep-vscode"
-            }]
-          });
-          sender.send(response).await.unwrap();
-        }
+    if let Ok(Some(Ok(msg))) =
+      tokio::time::timeout(std::time::Duration::from_secs(2), sender.next()).await
+    {
+      if msg.get("method") == Some(&serde_json::json!("textDocument/publishDiagnostics")) {
+        diagnostics = Some(msg["params"]["diagnostics"].clone());
+        break;
+      } else if msg.get("method") == Some(&serde_json::json!("workspace/workspaceFolders")) {
+        // Respond with empty workspaceFolders
+        let response = serde_json::json!({
+          "jsonrpc": "2.0",
+          "id": msg["id"].clone(),
+          "result": [{
+            "uri": "file:///Users/codes/ast-grep-vscode",
+            "name": "ast-grep-vscode"
+          }]
+        });
+        sender.send(response).await.unwrap();
       }
-      _ => {}
     }
   }
 
-  return diagnostics;
+  diagnostics
 }
 
 async fn wait_for_response(
@@ -343,13 +342,12 @@ async fn wait_for_response(
   id: i32,
 ) -> Option<serde_json::Value> {
   for _ in 0..20 {
-    match tokio::time::timeout(std::time::Duration::from_secs(2), sender.next()).await {
-      Ok(Some(Ok(msg))) => {
-        if msg.get("id") == Some(&serde_json::json!(id)) {
-          return Some(msg);
-        }
+    if let Ok(Some(Ok(msg))) =
+      tokio::time::timeout(std::time::Duration::from_secs(2), sender.next()).await
+    {
+      if msg.get("id") == Some(&serde_json::json!(id)) {
+        return Some(msg);
       }
-      _ => {}
     }
   }
   None
@@ -465,7 +463,7 @@ fix: |
 
   let diagnostic = &diagnostics[0];
 
-  let code_action = request_code_action(&mut client, file_uri, &diagnostic).await;
+  let code_action = request_code_action(&mut client, file_uri, diagnostic).await;
 
   let code_action = code_action.expect("No code action response");
   // Request code action using diagnostics from server
@@ -475,7 +473,7 @@ fix: |
   assert!(actions.len() == 1, "No code actions returned");
 
   // Apply the first code action and verify the text change
-  let fixed_text = apply_all_code_actions(file_content, &actions);
+  let fixed_text = apply_all_code_actions(file_content, actions);
   assert_eq!(fixed_text, "alert('Hello, world!')\n");
 }
 
@@ -586,7 +584,7 @@ fix: |
   assert!(actions.len() == 1, "Expected 1 code action for fix all");
   assert_eq!(actions[0]["title"], "Fix by ast-grep");
   // Apply the fix all code action and verify the text change
-  let fixed_text = apply_all_code_actions(file_content, &actions);
+  let fixed_text = apply_all_code_actions(file_content, actions);
   // TODO: This fix ends up with \n being trimmed at the end, need to investigate
   assert_eq!(fixed_text, "alert('Hello, world!')\nalert('Another log')");
 }
@@ -658,7 +656,7 @@ async fn create_lsp_framed(yamls: &'static str) -> Framed<DuplexStream, LspCodec
   let (r, w) = split(server_read);
   tokio::spawn(Server::new(r, w, socket).serve(service));
 
-  let mut client = Framed::new(client_write, LspCodec::default());
+  let mut client = Framed::new(client_write, LspCodec);
 
   let init_call_id = allocate_method_call_id();
   // Initialize with data_support enabled
@@ -689,7 +687,7 @@ async fn create_lsp_framed(yamls: &'static str) -> Framed<DuplexStream, LspCodec
 
 #[test]
 pub fn test_framed_codec() {
-  let mut codec = LspCodec::default();
+  let mut codec = LspCodec;
   let mut buf = BytesMut::new();
   let msg = serde_json::json!({
     "jsonrpc": "2.0",
