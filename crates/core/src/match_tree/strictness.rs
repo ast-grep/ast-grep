@@ -46,6 +46,15 @@ impl MatchStrictness {
       M::Signature => false,
     }
   }
+
+  fn should_skip_comment(&self) -> bool {
+    use MatchStrictness as M;
+    match self {
+      M::Cst | M::Smart | M::Ast => false,
+      M::Relaxed | M::Signature | M::Template => true,
+    }
+  }
+
   pub(crate) fn match_terminal(
     &self,
     is_named: bool,
@@ -62,16 +71,19 @@ impl MatchStrictness {
     if is_kind_matched && (!is_named || text == candidate.text()) {
       return MatchOneNode::MatchedBoth;
     }
+    if self.should_skip_comment() && skip_comment(candidate) {
+      return MatchOneNode::SkipCandidate;
+    }
     let (skip_goal, skip_candidate) = match self {
       M::Cst => (false, false),
       M::Smart => (false, !candidate.is_named()),
       M::Ast => (!is_named, !candidate.is_named()),
-      M::Relaxed => (!is_named, skip_comment_or_unnamed(candidate)),
+      M::Relaxed => (!is_named, !candidate.is_named()),
       M::Signature => {
         if is_kind_matched {
           return MatchOneNode::MatchedBoth;
         }
-        (!is_named, skip_comment_or_unnamed(candidate))
+        (!is_named, !candidate.is_named())
       }
       M::Template => {
         if text == candidate.text() {

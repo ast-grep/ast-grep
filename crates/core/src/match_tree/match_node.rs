@@ -295,6 +295,7 @@ mod test {
       "import { foo, } from 'bar'",
       M::Relaxed,
     );
+    matched("foo($A, $B)", "foo(1/*test*/, 2/*test*/)", M::Relaxed);
     unmatched(
       "import { foo } from 'bar'",
       "import { foo, bar, baz } from 'bar'",
