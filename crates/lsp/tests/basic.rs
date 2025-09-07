@@ -79,7 +79,7 @@ language: TypeScript
 rule:
   pattern: console.log($$$A)
 note: no console.log
-fix: |
+fix: |-
   alert($$$A)
 ",
       &globals,
@@ -426,8 +426,12 @@ fn apply_all_code_actions(text: &str, actions: &Vec<Value>) -> String {
     }
   });
 
-  // Apply edits
-  for (start_line, start_char, _end_line, end_char, new_text) in all_edits {
+  // Apply edits (support same-line and cross-line)
+  for (start_line, start_char, end_line, end_char, new_text) in all_edits {
+    assert!(
+      start_line == end_line,
+      "Multi-line edits are not supported in this test"
+    );
     let line = &lines[start_line];
     let prefix = &line[..start_char];
     let suffix = &line[end_char..];
@@ -445,7 +449,7 @@ id: no-console-rule
 language: TypeScript
 rule:
   pattern: console.log($$$A)
-fix: |
+fix: |-
   alert($$$A)
 ";
   let mut client = create_lsp_framed(yamls).await;
@@ -477,7 +481,7 @@ fix: |
 
   // Apply the first code action and verify the text change
   let fixed_text = apply_all_code_actions(file_content, actions);
-  assert_eq!(fixed_text, "alert('Hello, world!')\n");
+  assert_eq!(fixed_text, "alert('Hello, world!')");
 }
 
 #[tokio::test]
@@ -488,7 +492,7 @@ language: TypeScript
 message: Use alert instead of console.log
 rule:
   pattern: console.log($$$A)
-fix: |
+fix: |-
   alert($$$A)
 ---
 id: use-window-alert
@@ -496,7 +500,7 @@ language: TypeScript
 message: Use window.alert instead of console.log
 rule:
   pattern: console.log($$$A)
-fix: |
+fix: |-
   window.alert($$$A)
 ";
   let mut client = create_lsp_framed(yamls).await;
@@ -526,12 +530,12 @@ fix: |
       assert_eq!(actions[0]["title"], "Fix `use-alert` with ast-grep");
 
       let fixed_text = apply_all_code_actions(file_content, actions);
-      assert_eq!(fixed_text, "alert('Hello, world!')\n");
+      assert_eq!(fixed_text, "alert('Hello, world!')");
     } else if diagnostic["code"] == "use-window-alert" {
       assert_eq!(actions[0]["title"], "Fix `use-window-alert` with ast-grep");
 
       let fixed_text = apply_all_code_actions(file_content, actions);
-      assert_eq!(fixed_text, "window.alert('Hello, world!')\n");
+      assert_eq!(fixed_text, "window.alert('Hello, world!')");
     } else {
       panic!("Unexpected diagnostic code");
     }
@@ -546,7 +550,7 @@ language: TypeScript
 message: Use alert instead of console.log
 rule:
   pattern: console.log($$$A)
-fix: |
+fix: |-
   alert($$$A)";
   let mut client = create_lsp_framed(yamls).await;
 
