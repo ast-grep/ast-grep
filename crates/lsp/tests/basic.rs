@@ -8,6 +8,7 @@ use std::path::Path;
 use tokio::io::{duplex, split, AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio_util::bytes::{BufMut, BytesMut};
 use tokio_util::codec::{Decoder, Encoder, Framed};
+use tower_lsp_server::lsp_types::CodeAction;
 
 pub fn req(msg: &str) -> String {
   format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg)
@@ -375,58 +376,34 @@ async fn request_code_action(
   wait_for_response(sender, method_call_id).await
 }
 
-fn apply_all_code_actions(text: &str, actions: &Vec<Value>) -> String {
+fn apply_all_code_actions(text: &str, actions: &[Value]) -> String {
   // As offsets are based on the original text, we need to track changes
   let mut lines: Vec<String> = text.lines().map(|s| s.to_string()).collect();
-  let mut all_edits = Vec::new();
   // Collect all edits from all code actions
-  for action in actions {
-    let Some(edit) = action["edit"].as_object() else {
-      continue;
-    };
-    let Some(changes) = edit.get("changes").and_then(|c| c.as_object()) else {
-      continue;
-    };
-    for (_uri, edits) in changes {
-      let Some(edits) = edits.as_array() else {
-        continue;
-      };
-      for edit in edits {
-        if let (Some(range), Some(new_text)) = (
-          edit.get("range"),
-          edit.get("newText").and_then(|t| t.as_str()),
-        ) {
-          if let (Some(start), Some(end)) = (range.get("start"), range.get("end")) {
-            if let (Some(start_line), Some(start_char), Some(end_line), Some(end_char)) = (
-              start.get("line").and_then(|l| l.as_u64()),
-              start.get("character").and_then(|c| c.as_u64()),
-              end.get("line").and_then(|l| l.as_u64()),
-              end.get("character").and_then(|c| c.as_u64()),
-            ) {
-              all_edits.push((
-                start_line as usize,
-                start_char as usize,
-                end_line as usize,
-                end_char as usize,
-                new_text.to_string(),
-              ));
-            }
-          }
-        }
-      }
-    }
-  }
+  let mut all_edits = actions
+    .iter()
+    .filter_map(|action| {
+      let action: CodeAction = serde_json::from_value(action.clone()).ok()?;
+      action.edit?.changes
+    })
+    .flat_map(|changes| changes.into_values())
+    .flatten()
+    .map(|edit| {
+      let range = edit.range;
+      (
+        range.start.line as usize,
+        range.start.character as usize,
+        range.end.line as usize,
+        range.end.character as usize,
+        edit.new_text,
+      )
+    })
+    .collect::<Vec<_>>();
 
   // Sort the edits in reverse order to avoid offset issues
-  all_edits.sort_by(|a, b| {
-    if a.0 != b.0 {
-      b.0.cmp(&a.0)
-    } else {
-      b.1.cmp(&a.1)
-    }
-  });
-
-  // Apply edits (support same-line and cross-line)
+  all_edits.sort();
+  all_edits.reverse();
+  // Apply edits in reverse order
   for (start_line, start_char, end_line, end_char, new_text) in all_edits {
     assert!(
       start_line == end_line,
