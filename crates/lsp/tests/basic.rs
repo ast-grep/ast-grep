@@ -381,32 +381,35 @@ fn apply_all_code_actions(text: &str, actions: &Vec<Value>) -> String {
   let mut all_edits = Vec::new();
   // Collect all edits from all code actions
   for action in actions {
-    if let Some(edit) = action["edit"].as_object() {
-      if let Some(changes) = edit.get("changes").and_then(|c| c.as_object()) {
-        for (_uri, edits) in changes {
-          if let Some(edits) = edits.as_array() {
-            for edit in edits {
-              if let (Some(range), Some(new_text)) = (
-                edit.get("range"),
-                edit.get("newText").and_then(|t| t.as_str()),
-              ) {
-                if let (Some(start), Some(end)) = (range.get("start"), range.get("end")) {
-                  if let (Some(start_line), Some(start_char), Some(end_line), Some(end_char)) = (
-                    start.get("line").and_then(|l| l.as_u64()),
-                    start.get("character").and_then(|c| c.as_u64()),
-                    end.get("line").and_then(|l| l.as_u64()),
-                    end.get("character").and_then(|c| c.as_u64()),
-                  ) {
-                    all_edits.push((
-                      start_line as usize,
-                      start_char as usize,
-                      end_line as usize,
-                      end_char as usize,
-                      new_text.to_string(),
-                    ));
-                  }
-                }
-              }
+    let Some(edit) = action["edit"].as_object() else {
+      continue;
+    };
+    let Some(changes) = edit.get("changes").and_then(|c| c.as_object()) else {
+      continue;
+    };
+    for (_uri, edits) in changes {
+      let Some(edits) = edits.as_array() else {
+        continue;
+      };
+      for edit in edits {
+        if let (Some(range), Some(new_text)) = (
+          edit.get("range"),
+          edit.get("newText").and_then(|t| t.as_str()),
+        ) {
+          if let (Some(start), Some(end)) = (range.get("start"), range.get("end")) {
+            if let (Some(start_line), Some(start_char), Some(end_line), Some(end_char)) = (
+              start.get("line").and_then(|l| l.as_u64()),
+              start.get("character").and_then(|c| c.as_u64()),
+              end.get("line").and_then(|l| l.as_u64()),
+              end.get("character").and_then(|c| c.as_u64()),
+            ) {
+              all_edits.push((
+                start_line as usize,
+                start_char as usize,
+                end_line as usize,
+                end_char as usize,
+                new_text.to_string(),
+              ));
             }
           }
         }
@@ -428,7 +431,7 @@ fn apply_all_code_actions(text: &str, actions: &Vec<Value>) -> String {
     let line = &lines[start_line];
     let prefix = &line[..start_char];
     let suffix = &line[end_char..];
-    lines[start_line] = format!("{}{}{}", prefix, new_text, suffix);
+    lines[start_line] = format!("{prefix}{new_text}{suffix}");
   }
 
   // Join lines back into a single string
