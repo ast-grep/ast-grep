@@ -93,7 +93,7 @@ impl PatternNode {
     }
   }
 
-  pub fn fixed_string(&self) -> Cow<str> {
+  pub fn fixed_string(&self) -> Cow<'_, str> {
     match &self {
       PatternNode::Terminal { text, .. } => Cow::Borrowed(text),
       PatternNode::MetaVar { .. } => Cow::Borrowed(""),
@@ -197,7 +197,7 @@ impl Pattern {
     kind_utils::is_error_kind(kind)
   }
 
-  pub fn fixed_string(&self) -> Cow<str> {
+  pub fn fixed_string(&self) -> Cow<'_, str> {
     self.node.fixed_string()
   }
 
@@ -269,7 +269,7 @@ impl Pattern {
     };
     lang.build_pattern(&builder)
   }
-  fn single_matcher<D: Doc>(root: &Root<D>) -> Node<D> {
+  fn single_matcher<D: Doc>(root: &Root<D>) -> Node<'_, D> {
     // debug_assert!(matches!(self.style, PatternStyle::Single));
     let node = root.root();
     let mut inner = node.inner;

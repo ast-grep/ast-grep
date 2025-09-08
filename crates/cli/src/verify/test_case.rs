@@ -22,16 +22,16 @@ pub struct TestCase {
 }
 
 impl TestCase {
-  pub fn verify_rule(&self, rule_config: &RuleConfig<SgLang>) -> CaseResult {
+  pub fn verify_rule(&self, rule_config: &RuleConfig<SgLang>) -> CaseResult<'_> {
     debug_assert_eq!(self.id, rule_config.id);
     verify_test_case(self, rule_config)
   }
 
   pub fn verify_with_snapshot(
-    &self,
+    &'_ self,
     rule_config: &RuleConfig<SgLang>,
     snapshots: Option<&TestSnapshots>,
-  ) -> CaseResult {
+  ) -> CaseResult<'_> {
     debug_assert_eq!(self.id, rule_config.id);
     verify_test_case_with_snapshots(self, rule_config, snapshots)
   }

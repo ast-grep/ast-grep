@@ -61,12 +61,12 @@ impl Content for Wrapper {
     let end = range.end / 2;
     &self.inner.as_slice()[start..end]
   }
-  fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
+  fn decode_str(src: &str) -> Cow<'_, [Self::Underlying]> {
     let v: Vec<_> = src.encode_utf16().collect();
     Cow::Owned(v)
   }
 
-  fn encode_bytes(bytes: &[Self::Underlying]) -> Cow<str> {
+  fn encode_bytes(bytes: &[Self::Underlying]) -> Cow<'_, str> {
     let s = String::from_utf16_lossy(bytes);
     Cow::Owned(s)
   }

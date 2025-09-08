@@ -41,7 +41,7 @@ struct DecomposedTransString<'a> {
   args: Vec<(&'a str, &'a str)>,
 }
 
-fn decompose_str(input: &str) -> Result<DecomposedTransString, ParseTransError> {
+fn decompose_str(input: &str) -> Result<DecomposedTransString<'_>, ParseTransError> {
   let error = || ParseTransError::Syntax(input.to_string());
   let input = input.trim();
   let (func, rest) = input.split_once('(').ok_or_else(error)?;

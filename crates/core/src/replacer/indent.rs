@@ -136,7 +136,10 @@ pub enum DeindentedExtract<'a, C: Content> {
 }
 
 /// Returns DeindentedExtract for later de-indent/re-indent.
-pub fn extract_with_deindent<C: Content>(content: &C, range: Range<usize>) -> DeindentedExtract<C> {
+pub fn extract_with_deindent<C: Content>(
+  content: &C,
+  range: Range<usize>,
+) -> DeindentedExtract<'_, C> {
   let extract_slice = content.get_range(range.clone());
   // no need to compute indentation for single line
   if !extract_slice.contains(&get_new_line::<C>()) {

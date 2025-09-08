@@ -60,7 +60,7 @@ impl<D: Doc> Root<D> {
     self.doc.get_lang()
   }
   /// The root node represents the entire source
-  pub fn root(&self) -> Node<D> {
+  pub fn root(&self) -> Node<'_, D> {
     Node {
       inner: self.doc.root_node(),
       root: self,
@@ -140,7 +140,7 @@ impl<'r, D: Doc> Node<'r, D> {
   pub fn is_error(&self) -> bool {
     self.inner.is_error()
   }
-  pub fn kind(&self) -> Cow<str> {
+  pub fn kind(&self) -> Cow<'_, str> {
     self.inner.kind()
   }
   pub fn kind_id(&self) -> KindId {

@@ -199,7 +199,7 @@ impl<'r> SgNode<'r> for Node<'r> {
   fn is_leaf(&self) -> bool {
     self.child_count() == 0
   }
-  fn kind(&self) -> Cow<str> {
+  fn kind(&self) -> Cow<'_, str> {
     Cow::Borrowed(Node::kind(self))
   }
   fn kind_id(&self) -> KindId {
