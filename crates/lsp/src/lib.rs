@@ -44,6 +44,8 @@ pub struct Backend<L: LSPLang> {
   interner: DashMap<String, Arc<String>>,
   // rule finding closure to reload rules
   rule_finder: Box<dyn Fn() -> anyhow::Result<RuleCollection<L>> + Send + Sync>,
+  // store client capabilities to check support
+  capabilities: Arc<RwLock<ClientCapabilities>>,
 }
 
 const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
@@ -78,6 +80,10 @@ fn code_action_provider(
 
 impl<L: LSPLang> LanguageServer for Backend<L> {
   async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+    let code_action_provider = code_action_provider(&params.capabilities);
+    if let Ok(mut cap) = self.capabilities.write() {
+      *cap = params.capabilities;
+    }
     Ok(InitializeResult {
       server_info: Some(ServerInfo {
         name: "ast-grep language server".to_string(),
@@ -86,8 +92,7 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       capabilities: ServerCapabilities {
         // TODO: change this to incremental
         text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
-        code_action_provider: code_action_provider(&params.capabilities)
-          .or(FALLBACK_CODE_ACTION_PROVIDER),
+        code_action_provider: code_action_provider.or(FALLBACK_CODE_ACTION_PROVIDER),
         execute_command_provider: Some(ExecuteCommandOptions {
           commands: vec![APPLY_ALL_FIXES.to_string()],
           work_done_progress_options: Default::default(),
@@ -228,6 +233,7 @@ impl<L: LSPLang> Backend<L> {
       map: DashMap::new(),
       interner: DashMap::new(),
       rule_finder: Box::new(rule_finder),
+      capabilities: Arc::new(RwLock::new(ClientCapabilities::default())),
     }
   }
 
@@ -341,6 +347,18 @@ impl<L: LSPLang> Backend<L> {
   }
 
   async fn get_path_of_first_workspace(&self) -> Option<std::path::PathBuf> {
+    // need drop the lock before await
+    let client_support_workspace = {
+      let cap = self.capabilities.read().ok()?;
+      cap
+        .workspace
+        .as_ref()
+        .and_then(|w| w.workspace_folders)
+        .unwrap_or(false)
+    };
+    if !client_support_workspace {
+      return None;
+    }
     let folders = self.client.workspace_folders().await.ok()??;
     let folder = folders.first()?;
     folder.uri.to_file_path().map(PathBuf::from)

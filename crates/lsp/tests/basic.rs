@@ -205,6 +205,7 @@ async fn test_file_watcher_registration() {
       "params": {
         "capabilities": {
           "workspace": {
+            "workspaceFolders": true,
             "didChangeWatchedFiles": {
               "dynamicRegistration": true
             }
@@ -650,6 +651,12 @@ async fn create_lsp_framed(yamls: &'static str) -> Framed<DuplexStream, LspCodec
       "method": "initialize",
       "params": {
           "capabilities": {
+            "workspace": {
+              "workspaceFolders": true,
+              "didChangeWatchedFiles": {
+                "dynamicRegistration": true
+              }
+            }
           }
       }
   });
