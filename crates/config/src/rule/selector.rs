@@ -290,7 +290,7 @@ mod test {
   use crate::test::TypeScript as TS;
   use ast_grep_core::tree_sitter::LanguageExt;
 
-  fn input_to_tokens(input: &str) -> Result<Vec<Token>, SelectorError> {
+  fn input_to_tokens(input: &str) -> Result<Vec<Token<'_>>, SelectorError> {
     let mut input = Input::new(input, TS::Tsx);
     let mut tokens = Vec::new();
     while let Some(token) = input.next()? {

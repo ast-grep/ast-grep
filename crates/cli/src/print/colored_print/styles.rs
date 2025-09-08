@@ -102,7 +102,7 @@ impl PrintStyles {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn adjust_dir_separator(p: &Path) -> Cow<str> {
+fn adjust_dir_separator(p: &Path) -> Cow<'_, str> {
   p.to_string_lossy()
 }
 

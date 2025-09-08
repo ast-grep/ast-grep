@@ -28,7 +28,7 @@ pub struct Edit<S: Content> {
 pub trait SgNode<'r>: Clone {
   fn parent(&self) -> Option<Self>;
   fn children(&self) -> impl ExactSizeIterator<Item = Self>;
-  fn kind(&self) -> Cow<str>;
+  fn kind(&self) -> Cow<'_, str>;
   fn kind_id(&self) -> KindId;
   fn node_id(&self) -> usize;
   fn range(&self) -> std::ops::Range<usize>;
@@ -140,10 +140,10 @@ pub trait Content: Sized {
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying];
   /// Used for string replacement. We need this for
   /// indentation and deindentation.
-  fn decode_str(src: &str) -> Cow<[Self::Underlying]>;
+  fn decode_str(src: &str) -> Cow<'_, [Self::Underlying]>;
   /// Used for string replacement. We need this for
   /// transformation.
-  fn encode_bytes(bytes: &[Self::Underlying]) -> Cow<str>;
+  fn encode_bytes(bytes: &[Self::Underlying]) -> Cow<'_, str>;
   /// Get the character column at the given position
   fn get_char_column(&self, column: usize, offset: usize) -> usize;
 }
@@ -153,10 +153,10 @@ impl Content for String {
   fn get_range(&self, range: Range<usize>) -> &[Self::Underlying] {
     &self.as_bytes()[range]
   }
-  fn decode_str(src: &str) -> Cow<[Self::Underlying]> {
+  fn decode_str(src: &str) -> Cow<'_, [Self::Underlying]> {
     Cow::Borrowed(src.as_bytes())
   }
-  fn encode_bytes(bytes: &[Self::Underlying]) -> Cow<str> {
+  fn encode_bytes(bytes: &[Self::Underlying]) -> Cow<'_, str> {
     String::from_utf8_lossy(bytes)
   }
 

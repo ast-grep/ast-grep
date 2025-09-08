@@ -138,7 +138,7 @@ impl Suppressions {
     }
   }
 
-  fn file_suppression(&self) -> MaySuppressed {
+  fn file_suppression(&self) -> MaySuppressed<'_> {
     if let Some(sup) = &self.file {
       MaySuppressed::Yes(sup)
     } else {
@@ -146,7 +146,7 @@ impl Suppressions {
     }
   }
 
-  fn line_suppression<D: Doc>(&self, node: &Node<'_, D>) -> MaySuppressed {
+  fn line_suppression<D: Doc>(&self, node: &Node<'_, D>) -> MaySuppressed<'_> {
     let line = node.start_pos().line();
     if let Some(sup) = self.lines.get(&line) {
       MaySuppressed::Yes(sup)

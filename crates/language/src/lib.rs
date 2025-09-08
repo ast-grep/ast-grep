@@ -79,7 +79,7 @@ macro_rules! impl_lang {
   };
 }
 
-fn pre_process_pattern(expando: char, query: &str) -> std::borrow::Cow<str> {
+fn pre_process_pattern(expando: char, query: &str) -> std::borrow::Cow<'_, str> {
   let mut ret = Vec::with_capacity(query.len());
   let mut dollar_count = 0;
   for c in query.chars() {
