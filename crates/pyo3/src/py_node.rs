@@ -29,7 +29,7 @@ unsafe impl Send for SgNode {}
 impl SgNode {
   /*----------  Node Inspection ----------*/
   fn range(&self) -> Range {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
       let root = self.root.bind(py);
       let root = root.borrow();
       Range::from(&self.inner, &root.position)
@@ -254,7 +254,7 @@ impl SgNode {
   /*---------- Edit  ----------*/
   fn replace(&self, text: &str) -> Edit {
     let byte_range = self.inner.range();
-    Python::with_gil(|py| {
+    Python::attach(|py| {
       let root = self.root.bind(py);
       let root = root.borrow();
       let start_pos = root.position.byte_to_char(byte_range.start);
@@ -271,7 +271,7 @@ impl SgNode {
     edits.sort_by_key(|edit| edit.start_pos);
     let mut new_content = String::new();
     let old_content = self.text();
-    let converted: Vec<_> = Python::with_gil(move |py| {
+    let converted: Vec<_> = Python::attach(move |py| {
       let root = self.root.bind(py);
       let root = root.borrow();
       let conv = &root.position;
