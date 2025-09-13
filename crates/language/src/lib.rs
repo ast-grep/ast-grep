@@ -6,6 +6,17 @@
 //! You need use `impl_lang_expando!` macro and a standalone file for testing.
 //! Otherwise, you can define it as a stub language using `impl_lang!`.
 //! To see the full list of languages, visit `<https://ast-grep.github.io/reference/languages.html>`
+//!
+//! ```
+//! use ast_grep_language::{LanguageExt, SupportLang};
+//!
+//! let lang: SupportLang = "rs".parse().unwrap();
+//! let src = "fn foo() {}";
+//! let root = lang.ast_grep(src);
+//! let found = root.root().find_all("fn $FNAME() {}").next().unwrap();
+//! assert_eq!(found.start_pos().line(), 0);
+//! assert_eq!(found.text(), "fn foo() {}");
+//! ```
 
 mod bash;
 mod cpp;
