@@ -23,7 +23,7 @@
     "postinstall.js"
   ],
   "dependencies": {
-    "detect-libc": "2.0.4"
+    "detect-libc": "2.1.0"
   },
   "scripts": {
     "postinstall": "node postinstall.js"
