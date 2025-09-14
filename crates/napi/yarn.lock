@@ -69,50 +69,50 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@dprint/darwin-arm64@0.50.1":
-  version "0.50.1"
-  resolved "https://registry.yarnpkg.com/@dprint/darwin-arm64/-/darwin-arm64-0.50.1.tgz#08781d68a66a50293af230e63f3d677a8bb66c34"
-  integrity sha512-NNKf3dxXn567pd/hpCVLHLbC0dI7s3YvQnUEwjRTOAQVMp6O7/ME+Tg1RPGsDP1IB+Y2fIYSM4qmG02zQrqjAQ==
+"@dprint/darwin-arm64@0.50.2":
+  version "0.50.2"
+  resolved "https://registry.yarnpkg.com/@dprint/darwin-arm64/-/darwin-arm64-0.50.2.tgz#f918c114683864f84025dd453eac2f6905870499"
+  integrity sha512-4d08INZlTxbPW9LK9W8+93viN543/qA2Kxn4azVnPW/xCb2Im03UqJBz8mMm3nJZdtNnK3uTVG3ib1VW+XJisw==
 
-"@dprint/darwin-x64@0.50.1":
-  version "0.50.1"
-  resolved "https://registry.yarnpkg.com/@dprint/darwin-x64/-/darwin-x64-0.50.1.tgz#31892cfcd0c6d15df238e211faa6c50e2ee57cc6"
-  integrity sha512-PcY75U3UC/0CLOxWzE0zZJZ2PxzUM5AX2baYL1ovgDGCfqO1H0hINiyxfx/8ncGgPojWBkLs+zrcFiGnXx7BQg==
+"@dprint/darwin-x64@0.50.2":
+  version "0.50.2"
+  resolved "https://registry.yarnpkg.com/@dprint/darwin-x64/-/darwin-x64-0.50.2.tgz#bd1e53edb4ae6b7b883811245a59feaa37b2a48b"
+  integrity sha512-ZXWPBwdLojhdBATq+bKwJvB7D8bIzrD6eR/Xuq9UYE7evQazUiR069d9NPF0iVuzTo6wNf9ub9SXI7qDl11EGA==
 
-"@dprint/linux-arm64-glibc@0.50.1":
-  version "0.50.1"
-  resolved "https://registry.yarnpkg.com/@dprint/linux-arm64-glibc/-/linux-arm64-glibc-0.50.1.tgz#d8b41f1752b789a1bb3089c6cd2373f1150257b8"
-  integrity sha512-q0TOGy9FsoSKsEQ4sIMKyFweF5M8rW1S5OfwJDNRR2TU2riWByU9TKYIZUzg53iuwYKRypr/kJ5kdbl516afRQ==
+"@dprint/linux-arm64-glibc@0.50.2":
+  version "0.50.2"
+  resolved "https://registry.yarnpkg.com/@dprint/linux-arm64-glibc/-/linux-arm64-glibc-0.50.2.tgz#3d7425c567dbf113c0fa728703ead27d55416331"
+  integrity sha512-marxQzRw8atXAnaawwZHeeUaaAVewrGTlFKKcDASGyjPBhc23J5fHPUPremm8xCbgYZyTlokzrV8/1rDRWhJcw==
 
-"@dprint/linux-arm64-musl@0.50.1":
-  version "0.50.1"
-  resolved "https://registry.yarnpkg.com/@dprint/linux-arm64-musl/-/linux-arm64-musl-0.50.1.tgz#092b508281c07bfde9514e0b79044a97e482fdab"
-  integrity sha512-XRtxN2cA9rc06WFzzVPDIZYGGLmUXqpVf3F0XhhHV77ikQLJZ5reF4xBOQ+0HjJ/zy8W/HzuGDAHedWyCrRf9g==
+"@dprint/linux-arm64-musl@0.50.2":
+  version "0.50.2"
+  resolved "https://registry.yarnpkg.com/@dprint/linux-arm64-musl/-/linux-arm64-musl-0.50.2.tgz#1c8e4a9385f581d769450151c66ed7493ed63d68"
+  integrity sha512-oGDq44ydzo0ZkJk6RHcUzUN5sOMT5HC6WA8kHXI6tkAsLUkaLO2DzZFfW4aAYZUn+hYNpQfQD8iGew0sjkyLyg==
 
-"@dprint/linux-riscv64-glibc@0.50.1":
-  version "0.50.1"
-  resolved "https://registry.yarnpkg.com/@dprint/linux-riscv64-glibc/-/linux-riscv64-glibc-0.50.1.tgz#b3e09e1abc6b9bdb30f6791e15f1d98b4a2da0bb"
-  integrity sha512-vAk/eYhSjA3LJ/yuYgxkHamiK8+m6YdqVBO/Ka+i16VxyjQyOdcMKBkrLCIqSxgyXd6b8raf9wM59HJbaIpoOg==
+"@dprint/linux-riscv64-glibc@0.50.2":
+  version "0.50.2"
+  resolved "https://registry.yarnpkg.com/@dprint/linux-riscv64-glibc/-/linux-riscv64-glibc-0.50.2.tgz#27fc9519affd0ab3b0bdd14936755b8f0a28c359"
+  integrity sha512-QMmZoZYWsXezDcC03fBOwPfxhTpPEyHqutcgJ0oauN9QcSXGji9NSZITMmtLz2Ki3T1MIvdaLd1goGzNSvNqTQ==
 
-"@dprint/linux-x64-glibc@0.50.1":
-  version "0.50.1"
-  resolved "https://registry.yarnpkg.com/@dprint/linux-x64-glibc/-/linux-x64-glibc-0.50.1.tgz#e8720ba7eddf8d4dca94f02609fa2a207a79f769"
-  integrity sha512-EpW5KLekaq4hXmKBWWtfBgZ244S4C+vFmMOd1YaGi8+f0hmPTJzVWLdIgpO2ZwfPQ5iycaVI/JS514PQmXPOvg==
+"@dprint/linux-x64-glibc@0.50.2":
+  version "0.50.2"
+  resolved "https://registry.yarnpkg.com/@dprint/linux-x64-glibc/-/linux-x64-glibc-0.50.2.tgz#310b3715c31bc9f1cbecb9e5220ce0896f6c8dbb"
+  integrity sha512-KMeHEzb4teQJChTgq8HuQzc+reRNDnarOTGTQovAZ9WNjOtKLViftsKWW5HsnRHtP5nUIPE9rF1QLjJ/gUsqvw==
 
-"@dprint/linux-x64-musl@0.50.1":
-  version "0.50.1"
-  resolved "https://registry.yarnpkg.com/@dprint/linux-x64-musl/-/linux-x64-musl-0.50.1.tgz#f61ad894dbe502a3faff27961006767169a27cc7"
-  integrity sha512-assISBbaKKL8LkjrIy/5tpE157MVW6HbyIKAjTtg3tPNM3lDn1oH3twuGtK9WBsN/VoEP3QMZVauolcUJT/VOg==
+"@dprint/linux-x64-musl@0.50.2":
+  version "0.50.2"
+  resolved "https://registry.yarnpkg.com/@dprint/linux-x64-musl/-/linux-x64-musl-0.50.2.tgz#be684215f2ea99c96826dc16763bed50ccba281a"
+  integrity sha512-qM37T7H69g5coBTfE7SsA+KZZaRBky6gaUhPgAYxW+fOsoVtZSVkXtfTtQauHTpqqOEtbxfCtum70Hz1fr1teg==
 
-"@dprint/win32-arm64@0.50.1":
-  version "0.50.1"
-  resolved "https://registry.yarnpkg.com/@dprint/win32-arm64/-/win32-arm64-0.50.1.tgz#3859cb4714c6433160555d2f842423b1a659bc98"
-  integrity sha512-ZeaRMQYoFjrsO3lvI1SqzDWDGH1GGXWmNSeXvcFuAf2OgYQJWMBlLotCKiHNJ3uyYneoyhTg2tv9QkApNkZV4Q==
+"@dprint/win32-arm64@0.50.2":
+  version "0.50.2"
+  resolved "https://registry.yarnpkg.com/@dprint/win32-arm64/-/win32-arm64-0.50.2.tgz#e6fc0c8cf4edba33b7936981c89c90ef864cbfaf"
+  integrity sha512-kuGVHGoxLwssVDsodefUIYQRoO2fQncurH/xKgXiZwMPOSzFcgUzYJQiyqmJEp+PENhO9VT1hXUHZtlyCAWBUQ==
 
-"@dprint/win32-x64@0.50.1":
-  version "0.50.1"
-  resolved "https://registry.yarnpkg.com/@dprint/win32-x64/-/win32-x64-0.50.1.tgz#2569663f691d4e94b6047299fc9045d43433b771"
-  integrity sha512-pMm8l/hRZ9zYylKw/yCaYkSV3btYB9UyMDbWqyxNthkQ1gckWrk17VTI6WjwwQuHD4Iaz5JgAYLS36hlUzWkxA==
+"@dprint/win32-x64@0.50.2":
+  version "0.50.2"
+  resolved "https://registry.yarnpkg.com/@dprint/win32-x64/-/win32-x64-0.50.2.tgz#237b7f63f6ec2cb70cdc57a434bf29e7eb85496f"
+  integrity sha512-N3l9k31c3IMfVXqL0L6ygIhJFvCIrfQ+Z5Jph6RnCcBO6oDYWeYhAv/qBk1vLsF2y/e79TKsR1tvaEwnrQ03XA==
 
 "@emnapi/core@^1.4.5":
   version "1.4.5"
@@ -1257,20 +1257,20 @@ diff@^4.0.1:
   resolved "https://registry.yarnpkg.com/diff/-/diff-4.0.2.tgz#60f3aecb89d5fae520c11aa19efc2bb982aade7d"
   integrity sha512-58lmxKSA4BNyLz+HHMUzlOEpg09FV+ev6ZMe3vJihgdxzgcwZ8VoEEPmALCZG9LmqfVoNMMKpttIYTVG6uDY7A==
 
-dprint@0.50.1:
-  version "0.50.1"
-  resolved "https://registry.yarnpkg.com/dprint/-/dprint-0.50.1.tgz#32eac1ee7447f027b17c6fcc0d67f9b700cfeac5"
-  integrity sha512-s+kUyQp2rGpwsM3vVmXySOY3v1NjYyRpKfQZdP4rfNTz6zQuICSO6nqIXNm3YdK1MwNFR/EXSFMuE1YPuulhow==
+dprint@0.50.2:
+  version "0.50.2"
+  resolved "https://registry.yarnpkg.com/dprint/-/dprint-0.50.2.tgz#76de6b957d5f0a4359c8ac9e5bb3656721dfa266"
+  integrity sha512-+0Fzg+17jsMMUouK00/Fara5YtGOuE76EAJINHB8VpkXHd0n00rMXtw/03qorOgz23eo8Y0UpYvNZBJJo3aNtw==
   optionalDependencies:
-    "@dprint/darwin-arm64" "0.50.1"
-    "@dprint/darwin-x64" "0.50.1"
-    "@dprint/linux-arm64-glibc" "0.50.1"
-    "@dprint/linux-arm64-musl" "0.50.1"
-    "@dprint/linux-riscv64-glibc" "0.50.1"
-    "@dprint/linux-x64-glibc" "0.50.1"
-    "@dprint/linux-x64-musl" "0.50.1"
-    "@dprint/win32-arm64" "0.50.1"
-    "@dprint/win32-x64" "0.50.1"
+    "@dprint/darwin-arm64" "0.50.2"
+    "@dprint/darwin-x64" "0.50.2"
+    "@dprint/linux-arm64-glibc" "0.50.2"
+    "@dprint/linux-arm64-musl" "0.50.2"
+    "@dprint/linux-riscv64-glibc" "0.50.2"
+    "@dprint/linux-x64-glibc" "0.50.2"
+    "@dprint/linux-x64-musl" "0.50.2"
+    "@dprint/win32-arm64" "0.50.2"
+    "@dprint/win32-x64" "0.50.2"
 
 eastasianwidth@^0.2.0:
   version "0.2.0"
