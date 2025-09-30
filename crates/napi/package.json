@@ -63,7 +63,7 @@
     "dprint": "0.50.2",
     "smol-toml": "^1.3.1",
     "ts-node": "10.9.2",
-    "typescript": "5.9.2"
+    "typescript": "5.9.3"
   },
   "ava": {
     "require": [
