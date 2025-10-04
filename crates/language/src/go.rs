@@ -45,15 +45,15 @@ func intSeq() {
       i++
   }()
 }"#,
-    r#"defer func() {
-$$$BODY }()"#,
-    r#"func b() { $$$BODY }"#,
+    r#"defer func() { $$$BODY }()"#,
+    r#"func b() { $$$BODY}"#,
   );
   assert_eq!(
     ret,
     r#"
 func intSeq() {
-  func b() { i++ }
+  func b() { i++
+  }
 }"#
   );
 }
