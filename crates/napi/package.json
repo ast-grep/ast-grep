@@ -54,7 +54,7 @@
     "typegen": "ts-node scripts/generateTypes.ts"
   },
   "devDependencies": {
-    "@ast-grep/napi": "0.39.5",
+    "@ast-grep/napi": "0.39.6",
     "@napi-rs/cli": "3.3.0",
     "@types/node": "^22.10.2",
     "oxlint": "1.20.0",
