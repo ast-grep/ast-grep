@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/cli-darwin-arm64",
-  "version": "0.39.5",
+  "version": "0.39.6",
   "os": [
     "darwin"
   ],
