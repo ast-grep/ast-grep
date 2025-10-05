@@ -42,7 +42,7 @@ jobs:
         with:
           # python-version: ${{ env.PYTHON_VERSION }}
           python-version: '3.13'
-          architecture: x64
+          architecture: ${{ matrix.platform.target == 'x86' && 'x86' || 'x64' }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
