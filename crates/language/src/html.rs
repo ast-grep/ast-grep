@@ -1,9 +1,9 @@
 use super::pre_process_pattern;
+use ahash::HashMap;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::tree_sitter::{LanguageExt, StrDoc, TSLanguage, TSRange};
 use ast_grep_core::Language;
 use ast_grep_core::{matcher::KindMatcher, Doc, Node};
-use std::collections::HashMap;
 
 // tree-sitter-html uses locale dependent iswalnum for tagName
 // https://github.com/tree-sitter/tree-sitter-html/blob/b5d9758e22b4d3d25704b72526670759a9e4d195/src/scanner.c#L194

@@ -15,6 +15,7 @@ default = ["tree-sitter"]
 tree-sitter = ["ast-grep-core/tree-sitter"]
 
 [dependencies]
+ahash.workspace = true
 ast-grep-core.workspace = true
 
 bit-set.workspace = true

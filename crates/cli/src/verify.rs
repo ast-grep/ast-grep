@@ -13,7 +13,7 @@ use clap::Args;
 use regex::Regex;
 use serde_yaml::to_string;
 
-use std::collections::HashMap;
+use ahash::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};

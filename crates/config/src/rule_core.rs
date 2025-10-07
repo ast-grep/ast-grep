@@ -17,8 +17,10 @@ use schemars::JsonSchema;
 use thiserror::Error;
 
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::ops::Deref;
+
+use ahash::{HashMap, HashMapExt};
 
 #[derive(Debug, Error)]
 pub enum RuleCoreError {

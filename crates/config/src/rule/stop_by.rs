@@ -8,8 +8,8 @@ use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
 use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
 
+use ahash::HashSet;
 use std::borrow::Cow;
-use std::collections::HashSet;
 use std::fmt;
 
 // NB StopBy's JsonSchema is changed in xtask/schema.rs

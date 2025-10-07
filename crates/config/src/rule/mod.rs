@@ -23,11 +23,11 @@ use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{ops as o, Doc, Node};
 use ast_grep_core::{MatchStrictness, Matcher, Pattern, PatternError};
 
+use ahash::HashSet;
 use bit_set::BitSet;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::collections::HashSet;
 use thiserror::Error;
 
 /// A rule object to find matching AST nodes. We have three categories of rules in ast-grep.

@@ -1,7 +1,9 @@
 use ast_grep_core::{Doc, Node, NodeMatch};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, ops::Range};
+use std::ops::Range;
+
+use ahash::{HashMap, HashMapExt};
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema, PartialEq, Eq, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -112,7 +114,7 @@ mod tests {
     let doc = TypeScript::Tsx.ast_grep("let foo = 42;");
     let pattern = Pattern::try_new("let $A = $B;", TypeScript::Tsx).unwrap();
     let m = doc.root().find(pattern).unwrap();
-    let mut config = std::collections::HashMap::new();
+    let mut config = HashMap::new();
     config.insert(
       "A".to_string(),
       LabelConfig {
@@ -131,7 +133,7 @@ mod tests {
     let doc = TypeScript::Tsx.ast_grep("let foo = 42, bar = 99;");
     let pattern = Pattern::try_new("let $A = $B, $C = $D;", TypeScript::Tsx).unwrap();
     let m = doc.root().find(pattern).unwrap();
-    let mut config = std::collections::HashMap::new();
+    let mut config = HashMap::new();
     config.insert(
       "A".to_string(),
       LabelConfig {

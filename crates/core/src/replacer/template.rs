@@ -7,8 +7,8 @@ use crate::NodeMatch;
 
 use thiserror::Error;
 
+use ahash::{HashSet, HashSetExt};
 use std::borrow::Cow;
-use std::collections::HashSet;
 
 pub enum TemplateFix {
   // no meta_var, pure text
@@ -162,7 +162,7 @@ mod test {
   use crate::meta_var::{MetaVarEnv, MetaVariable};
   use crate::tree_sitter::LanguageExt;
   use crate::Pattern;
-  use std::collections::HashMap;
+  use ahash::HashMap;
 
   #[test]
   fn test_example() {

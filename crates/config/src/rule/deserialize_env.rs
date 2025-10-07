@@ -11,7 +11,7 @@ use ast_grep_core::language::Language;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashMap;
+use ahash::HashMap;
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableGlobalRule<L: Language> {

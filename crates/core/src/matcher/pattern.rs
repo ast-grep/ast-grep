@@ -8,8 +8,8 @@ use crate::{Doc, Node, Root};
 use bit_set::BitSet;
 use thiserror::Error;
 
+use ahash::HashSet;
 use std::borrow::Cow;
-use std::collections::HashSet;
 
 #[derive(Clone)]
 pub struct Pattern {
@@ -352,7 +352,7 @@ mod test {
   use crate::matcher::MatcherExt;
   use crate::meta_var::MetaVarEnv;
   use crate::tree_sitter::StrDoc;
-  use std::collections::HashMap;
+  use ahash::HashMap;
 
   fn pattern_node(s: &str) -> Root<StrDoc<Tsx>> {
     Root::str(s, Tsx)

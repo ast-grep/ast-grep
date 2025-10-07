@@ -1,3 +1,4 @@
+use ahash::HashMap;
 use ast_grep_config::RuleCore;
 use ast_grep_core::pinned::{NodeData, PinnedNodeData};
 use ast_grep_core::{AstGrep, NodeMatch};
@@ -7,7 +8,6 @@ use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi::Task;
 use napi_derive::napi;
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::doc::{JsDoc, NapiConfig};

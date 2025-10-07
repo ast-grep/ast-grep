@@ -44,6 +44,7 @@ mod yaml;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 pub use html::Html;
 
+use ahash::HashMap;
 use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::tree_sitter::{StrDoc, TSLanguage, TSRange};
 use ast_grep_core::Node;
@@ -51,7 +52,6 @@ use ignore::types::{Types, TypesBuilder};
 use serde::de::Visitor;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::iter::repeat;

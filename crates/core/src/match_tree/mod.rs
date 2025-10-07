@@ -150,7 +150,7 @@ mod test {
   use crate::meta_var::MetaVarEnv;
   use crate::tree_sitter::StrDoc;
   use crate::{Node, Root};
-  use std::collections::HashMap;
+  use ahash::HashMap;
 
   fn find_node_recursive<'tree>(
     goal: &Pattern,

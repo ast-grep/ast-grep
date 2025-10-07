@@ -14,8 +14,8 @@ use ast_grep_language::{Language, LanguageExt, SupportLang};
 use ignore::types::Types;
 use serde::{Deserialize, Serialize};
 
+use ahash::HashMap;
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::path::Path;
 use std::str::FromStr;

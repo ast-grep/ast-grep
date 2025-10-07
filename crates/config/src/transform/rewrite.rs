@@ -155,7 +155,7 @@ mod test {
   use crate::rule::DeserializeEnv;
   use crate::rule_core::SerializableRuleCore;
   use crate::test::TypeScript;
-  use std::collections::HashSet;
+  use ahash::HashSet;
 
   fn apply_transformation(
     rewrite: Rewrite<String>,

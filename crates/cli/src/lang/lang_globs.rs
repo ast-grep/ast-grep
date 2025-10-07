@@ -1,6 +1,6 @@
 use super::SgLang;
+use ahash::HashMap;
 use ignore::types::{Types, TypesBuilder};
-use std::collections::HashMap;
 use std::path::Path;
 use std::ptr::{addr_of, addr_of_mut};
 use std::str::FromStr;

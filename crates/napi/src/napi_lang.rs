@@ -9,8 +9,8 @@ use napi::anyhow::Error;
 use napi::bindgen_prelude::Result;
 use napi_derive::napi;
 
+use ahash::HashMap;
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::path::Path;
 use std::str::FromStr;

@@ -8,7 +8,7 @@ use ast_grep_core::{Doc, Node, NodeMatch};
 
 use tower_lsp_server::lsp_types::*;
 
-use std::collections::HashMap;
+use ahash::HashMap;
 use std::str::FromStr;
 
 pub type Fixes = HashMap<(Range, String), RewriteData>;

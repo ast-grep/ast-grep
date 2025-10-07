@@ -4,7 +4,9 @@ use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{Matcher, MatcherExt};
 use ast_grep_core::{AstGrep, Doc, Node, NodeMatch};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
+
+use ahash::{HashMap, HashMapExt};
 
 pub struct ScanResult<'t, 'r, D: Doc, L: Language> {
   pub diffs: Vec<(&'r RuleConfig<L>, NodeMatch<'t, D>)>,

@@ -7,7 +7,7 @@ use ast_grep_config::{RuleConfig, Severity};
 use ast_grep_core::Language;
 use regex::Regex;
 
-use std::collections::HashMap;
+use ahash::HashMap;
 
 #[derive(Default)]
 pub struct RuleOverwrite {

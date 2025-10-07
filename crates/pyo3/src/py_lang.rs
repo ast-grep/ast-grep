@@ -9,8 +9,8 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pythonize::depythonize;
 
+use ahash::HashMap;
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 

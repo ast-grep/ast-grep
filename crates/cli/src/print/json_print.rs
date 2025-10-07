@@ -5,7 +5,7 @@ use ast_grep_core::{meta_var::MetaVariable, tree_sitter::StrDoc, Node as SgNode}
 
 type Node<'t, L> = SgNode<'t, StrDoc<L>>;
 
-use std::collections::HashMap;
+use ahash::HashMap;
 
 use super::{Diff, NodeMatch, PrintProcessor, Printer};
 use anyhow::Result;

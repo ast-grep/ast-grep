@@ -9,7 +9,7 @@ use ignore::WalkBuilder;
 use regex::Regex;
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer};
 
-use std::collections::HashMap;
+use ahash::HashMap;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 

@@ -6,7 +6,9 @@ use crate::rule_core::RuleCoreError;
 use crate::transform::{Transform, TransformError};
 use crate::RuleCore;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
+
+use ahash::{HashMap, HashMapExt};
 
 type RResult<T> = std::result::Result<T, RuleCoreError>;
 

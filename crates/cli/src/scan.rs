@@ -19,7 +19,7 @@ use crate::utils::{filter_file_rule, ContextArgs, InputArgs, OutputArgs, Overwri
 use crate::utils::{FileTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
-use std::collections::HashSet;
+use ahash::HashSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Args)]

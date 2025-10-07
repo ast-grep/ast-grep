@@ -21,6 +21,7 @@ ast-grep-dynamic.workspace = true
 napi = { version = "3.0.0", features = ["serde-json", "napi4", "error_anyhow"] }
 napi-derive = "3.0.0"
 
+ahash.workspace = true
 ignore.workspace = true
 tree-sitter.workspace = true
 serde_json = "1.0.116"

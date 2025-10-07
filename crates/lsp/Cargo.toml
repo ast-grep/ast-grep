@@ -19,6 +19,7 @@ rust-version.workspace = true
 [dependencies]
 ast-grep-core.workspace = true
 ast-grep-config.workspace = true
+ahash.workspace = true
 serde.workspace = true
 dashmap.workspace = true
 

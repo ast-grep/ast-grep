@@ -8,8 +8,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::ops::Range;
+
+use ahash::{HashMap, HashMapExt};
 
 /// A pattern string or fix object to auto fix the issue.
 /// It can reference metavariables appeared in rule.

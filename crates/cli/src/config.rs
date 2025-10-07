@@ -9,7 +9,7 @@ use ast_grep_language::config_file_type;
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashMap;
+use ahash::HashMap;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 

@@ -1,7 +1,7 @@
 use crate::{DynamicLang, DynamicLangError, Registration};
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashMap;
+use ahash::HashMap;
 use std::path::{Path, PathBuf};
 
 #[derive(Serialize, Deserialize, Clone)]

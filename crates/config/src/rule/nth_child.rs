@@ -4,8 +4,8 @@ use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Doc, Matcher, Node};
 
+use ahash::HashSet;
 use std::borrow::Cow;
-use std::collections::HashSet;
 
 use bit_set::BitSet;
 use schemars::JsonSchema;

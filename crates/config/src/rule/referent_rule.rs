@@ -7,8 +7,10 @@ use bit_set::BitSet;
 use thiserror::Error;
 
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::{Arc, Weak};
+
+use ahash::{HashMap, HashMapExt};
 
 pub struct Registration<R>(Arc<HashMap<String, R>>);
 

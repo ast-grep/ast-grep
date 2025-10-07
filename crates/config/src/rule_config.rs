@@ -17,8 +17,8 @@ use serde_yaml::Error as YamlError;
 use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer};
 use thiserror::Error;
 
+use ahash::HashMap;
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Serialize, Deserialize, Clone, Default, JsonSchema, Debug)]

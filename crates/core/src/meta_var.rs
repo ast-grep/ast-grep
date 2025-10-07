@@ -2,8 +2,8 @@ use crate::match_tree::does_node_match_exactly;
 use crate::matcher::Matcher;
 use crate::source::Content;
 use crate::{Doc, Node};
+use ahash::{HashMap, HashMapExt};
 use std::borrow::Cow;
-use std::collections::HashMap;
 
 use crate::replacer::formatted_slice;
 

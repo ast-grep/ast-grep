@@ -11,6 +11,7 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
+ahash.workspace = true
 ast-grep-core = { workspace = true, features = ["tree-sitter"] }
 
 ignore.workspace = true

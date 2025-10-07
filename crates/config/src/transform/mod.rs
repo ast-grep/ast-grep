@@ -10,10 +10,10 @@ use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::Doc;
 use ast_grep_core::Language;
 
+use ahash::HashMap;
 use parse::ParseTransError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use thiserror::Error;
 
 pub use trans::Trans;
