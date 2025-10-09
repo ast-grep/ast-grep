@@ -2,7 +2,7 @@ name: PyO3
 
 env:
   PACKAGE_NAME: ast_grep_py # note: maturin package name only accepts underscore
-  PYTHON_VERSION: '3.9 3.10 3.11 3.12 3.13 3.14'
+  PYTHON_VERSION: '3.9 3.10 3.11 3.12 3.13'
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   CARGO_TERM_COLOR: always
