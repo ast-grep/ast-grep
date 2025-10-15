@@ -36,7 +36,7 @@ ansi_term = "0.12.1"
 anyhow.workspace = true
 atty = "0.2.14"
 clap = { version = "4.5.4", features = ["derive"] }
-codespan-reporting = "0.12.0"
+codespan-reporting = "0.13.0"
 crossterm = "0.29.0"
 ignore.workspace = true
 regex.workspace = true
