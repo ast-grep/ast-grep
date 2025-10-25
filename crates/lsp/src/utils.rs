@@ -17,6 +17,7 @@ pub type Fixes = HashMap<(Range, String), RewriteData>;
 pub struct OneFix {
   pub title: Option<String>,
   pub fixed: String,
+  pub range: Option<Range>,
 }
 
 pub struct RewriteData {
@@ -36,15 +37,20 @@ impl RewriteData {
       .filter_map(|fixer| {
         let edit = node_match.make_edit(&rule.matcher, fixer);
         let range = node_match.range();
-        // skip if the edit does not match the range
-        // TODO: implement expanding range
-        if edit.position != range.start || edit.deleted_length != range.len() {
-          return None;
-        }
+        // when edit range is not the same as node range, process expand_start/expand_end
+        let range = if edit.position != range.start || edit.deleted_length != range.len() {
+          Some(Range {
+            start: expand_start_position(node_match, edit.position),
+            end: expand_end_position(node_match, edit.position + edit.deleted_length),
+          })
+        } else {
+          None
+        };
         let rewrite = String::from_utf8(edit.inserted_text).ok()?;
         Some(OneFix {
           title: fixer.title().map(ToString::to_string),
           fixed: rewrite,
+          range,
         })
       })
       .collect();
@@ -53,6 +59,44 @@ impl RewriteData {
     } else {
       Some(Self { fixers })
     }
+  }
+}
+
+fn expand_start_position<L: LanguageExt>(
+  node_match: &NodeMatch<StrDoc<L>>,
+  offset: usize,
+) -> Position {
+  let mut start = node_match.start_pos();
+  if node_match.range().start > offset {
+    for prev in node_match.prev_all() {
+      if prev.range().start <= offset {
+        start = prev.start_pos();
+        break;
+      }
+    }
+  }
+  Position {
+    line: start.line() as u32,
+    character: start.column(node_match) as u32,
+  }
+}
+
+fn expand_end_position<L: LanguageExt>(
+  node_match: &NodeMatch<StrDoc<L>>,
+  offset: usize,
+) -> Position {
+  let mut end = node_match.end_pos();
+  if node_match.range().end < offset {
+    for next in node_match.next_all() {
+      if next.range().end >= offset {
+        end = next.end_pos();
+        break;
+      }
+    }
+  }
+  Position {
+    line: end.line() as u32,
+    character: end.column(node_match) as u32,
   }
 }
 
@@ -75,7 +119,8 @@ pub fn diagnostic_to_code_action(
     .enumerate()
     .map(|(i, fixer)| {
       let mut changes = HashMap::new();
-      let text_edit = TextEdit::new(diagnostic.range, fixer.fixed);
+      let range = fixer.range.unwrap_or(diagnostic.range);
+      let text_edit = TextEdit::new(range, fixer.fixed);
       changes.insert(text_doc.uri.clone(), vec![text_edit]);
 
       let edit = WorkspaceEdit::new(changes);
