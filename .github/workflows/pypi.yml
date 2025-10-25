@@ -43,7 +43,7 @@ jobs:
           pip install dist/${{ env.PACKAGE_NAME }}-*.tar.gz --force-reinstall
           sg --help
       - name: "Upload sdist"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: wheels
           path: dist
@@ -71,7 +71,7 @@ jobs:
           pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
           sg --help
       - name: "Upload wheels"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: wheels-macos-x86_64
           path: dist
@@ -97,7 +97,7 @@ jobs:
           pip install dist/${{ env.PACKAGE_NAME }}-*universal2.whl --force-reinstall
           sg --help
       - name: "Upload wheels"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: wheels-aarch64-apple-darwin
           path: dist
@@ -134,7 +134,7 @@ jobs:
           python -m pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
           sg --help
       - name: "Upload wheels"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: wheels-${{ matrix.platform.target }}
           path: dist
@@ -169,7 +169,7 @@ jobs:
           pip install dist/${{ env.PACKAGE_NAME }}-*.whl --force-reinstall
           sg --help
       - name: "Upload wheels"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: wheels-${{ matrix.target }}
           path: dist
@@ -193,7 +193,7 @@ jobs:
     steps:
       - name: "Install uv"
         uses: astral-sh/setup-uv@v7
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v6
         with:
           pattern: wheels*
           merge-multiple: true
