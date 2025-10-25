@@ -50,7 +50,7 @@ jobs:
 
   macos-x86_64:
     # use old macos due to https://github.com/actions/setup-python/issues/852
-    runs-on: macos-13
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -78,7 +78,7 @@ jobs:
 
   macos-universal:
     # use old macos due to https://github.com/actions/setup-python/issues/852
-    runs-on: macos-13
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
