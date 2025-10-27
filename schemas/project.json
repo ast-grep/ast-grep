@@ -112,7 +112,13 @@
           "description": "Defines the ast-grep rule to identify the injected language region within the host language documents."
         },
         "injected": {
-          "type": ["string", "array"],
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          ],
           "description": "The injected language name"
         }
       },
