@@ -228,7 +228,7 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
         .with_message(rule.get_message(&m))
         .with_notes(notes.clone().into_iter().collect())
         .with_labels(labels);
-      term::emit(&mut *writer, config, &file, &diagnostic)?;
+      term::emit_to_write_style(&mut *writer, config, &file, &diagnostic)?;
     }
     Ok(buffer)
   }
