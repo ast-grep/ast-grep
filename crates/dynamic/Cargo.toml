@@ -18,7 +18,7 @@ libloading = "0.8.3"
 serde.workspace = true
 thiserror.workspace = true
 tree-sitter.workspace = true
-target-triple = "0.1.4"
+target-triple = "1.0.0"
 
 [dev-dependencies]
 serde_yaml.workspace = true
