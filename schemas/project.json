@@ -79,6 +79,15 @@
       "properties": {
         "libraryPath": {
           "type": ["string", "object"],
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          ],
           "description": "The path to the tree-sitter dynamic library of the language."
         },
         "extensions": {
