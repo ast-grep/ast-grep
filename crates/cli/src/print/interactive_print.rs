@@ -71,18 +71,23 @@ impl InteractivePrinter {
       first_line,
       inner,
     } = highlights;
-    utils::run_in_alternate_screen(|| {
+    if self.from_stdin {
+      utils::run_in_alternate_screen(|| {
+        self.inner.process(inner)?;
+        let resp = self.prompt_view();
+        if resp == 'q' {
+          Err(anyhow::anyhow!(EC::ExitInteractiveEditing))
+        } else if resp == 'e' {
+          open_in_editor(&path, first_line)?;
+          Ok(())
+        } else {
+          Ok(())
+        }
+      })
+    } else {
       self.inner.process(inner)?;
-      let resp = self.prompt_view();
-      if resp == 'q' {
-        Err(anyhow::anyhow!(EC::ExitInteractiveEditing))
-      } else if resp == 'e' {
-        open_in_editor(&path, first_line)?;
-        Ok(())
-      } else {
-        Ok(())
-      }
-    })
+      Ok(())
+    }
   }
 
   fn process_diffs(&mut self, diffs: Diffs<Buffer>) -> Result<()> {
