@@ -283,28 +283,24 @@ fn process_diffs_interactive(
   let mut quit = false;
   let path = diffs.path;
   for diff in diffs.contents {
-    let mut diff_list: Vec<_> = diff
+    let diff_list: Vec<_> = diff
       .into_iter()
       .filter(|diff| diff.range.start >= end)
       .collect();
     if diff_list.is_empty() {
       continue;
     }
-    let to_confirm = if interactive.accept_all {
-      diff_list.remove(0).split().0
-    } else {
-      use InteractionChoice as IC;
-      match print_diff_and_prompt_action(interactive, &path, diff_list)? {
-        IC::Yes(c) => c,
-        IC::All(c) => {
-          interactive.accept_all = true;
-          c
-        }
-        IC::No => continue,
-        IC::Quit => {
-          quit = true;
-          break;
-        }
+    use InteractionChoice as IC;
+    let to_confirm = match print_diff_and_prompt_action(interactive, &path, diff_list)? {
+      IC::Yes(c) => c,
+      IC::All(c) => {
+        interactive.accept_all = true;
+        c
+      }
+      IC::No => continue,
+      IC::Quit => {
+        quit = true;
+        break;
       }
     };
     end = to_confirm.range.end;
@@ -330,8 +326,13 @@ enum InteractionChoice {
 fn print_diff_and_prompt_action(
   interactive: &mut InteractivePrinter,
   path: &Path,
-  processed: Vec<InteractiveDiff<Buffer>>,
+  mut processed: Vec<InteractiveDiff<Buffer>>,
 ) -> Result<InteractionChoice> {
+  // default to first diff when accept_all
+  if interactive.accept_all {
+    let confirmed = processed.remove(0).split().0;
+    return Ok(InteractionChoice::Yes(confirmed));
+  }
   utils::run_in_alternate_screen(|| {
     let mut to_confirm = Vec::with_capacity(processed.len());
     let mut display = Vec::with_capacity(processed.len());
