@@ -2,7 +2,7 @@ name: PyO3
 
 env:
   PACKAGE_NAME: ast_grep_py # note: maturin package name only accepts underscore
-  PYTHON_VERSION: '3.10 3.11 3.12 3.13'
+  PYTHON_VERSION: '3.10 3.11 3.12 3.13 3.14'
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   CARGO_TERM_COLOR: always
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           # python-version: ${{ env.PYTHON_VERSION }}
-          python-version: '3.13'
+          python-version: '3.14'
           architecture: x64
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -75,7 +75,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           # python-version: ${{ env.PYTHON_VERSION }}
-          python-version: '3.13'
+          python-version: '3.14'
           architecture: ${{ matrix.target }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -103,7 +103,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.14'
         #   python-version: ${{ env.PYTHON_VERSION }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
