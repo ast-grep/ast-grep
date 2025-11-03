@@ -19,7 +19,7 @@ concurrency:
 
 env:
   PACKAGE_NAME: ast_grep_cli # note: maturin package name only accepts underscore
-  PYTHON_VERSION: "3.9" # to build abi3 wheels
+  PYTHON_VERSION: "3.10" # to build abi3 wheels
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   CARGO_TERM_COLOR: always
