@@ -1015,9 +1015,9 @@ checksum = "68064c4cf827376751236ee6785e0e38a6461f83a7a7f227c89f6256f3e96cc2"
 
 [[package]]
 name = "napi-derive"
-version = "3.3.0"
+version = "3.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78665d6bdf10e9a4e6b38123efb0f66962e6197c1aea2f07cff3f159a374696d"
+checksum = "a303a2da765035457769527833eaae09e29263edd8493d8040a0ec8f0dd29de1"
 dependencies = [
  "convert_case 0.8.0",
  "ctor",
