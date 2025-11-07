@@ -14,7 +14,7 @@ version.workspace = true
 ast-grep-core = { workspace = true, features = ["tree-sitter"] }
 
 ignore.workspace = true
-libloading = "0.8.3"
+libloading = "0.9.0"
 serde.workspace = true
 thiserror.workspace = true
 tree-sitter.workspace = true
