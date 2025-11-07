@@ -1,4 +1,7 @@
-use ast_grep_core::{matcher::KindMatcher, AstGrep, NodeMatch, Pattern, Position};
+use ast_grep_core::{
+  matcher::{KindMatcher, PatternError},
+  AstGrep, NodeMatch, Pattern, Position,
+};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
@@ -100,7 +103,11 @@ impl SgNode {
   pub fn matches(&self, m: Either3<String, u16, NapiConfig>) -> Result<bool> {
     let lang = *self.inner.lang();
     match m {
-      Either3::A(pattern) => Ok(self.inner.matches(Pattern::new(&pattern, lang))),
+      Either3::A(pattern) => Ok(
+        self
+          .inner
+          .matches(Pattern::try_new(&pattern, lang).map_err(pattern_error_to_napi_error)?),
+      ),
       Either3::B(kind) => Ok(self.inner.matches(KindMatcher::from_id(kind))),
       Either3::C(config) => {
         let pattern = config.parse_with(lang)?;
@@ -113,7 +120,11 @@ impl SgNode {
   pub fn inside(&self, m: Either3<String, u16, NapiConfig>) -> Result<bool> {
     let lang = *self.inner.lang();
     match m {
-      Either3::A(pattern) => Ok(self.inner.inside(Pattern::new(&pattern, lang))),
+      Either3::A(pattern) => Ok(
+        self
+          .inner
+          .inside(Pattern::try_new(&pattern, lang).map_err(pattern_error_to_napi_error)?),
+      ),
       Either3::B(kind) => Ok(self.inner.inside(KindMatcher::from_id(kind))),
       Either3::C(config) => {
         let pattern = config.parse_with(lang)?;
@@ -126,7 +137,11 @@ impl SgNode {
   pub fn has(&self, m: Either3<String, u16, NapiConfig>) -> Result<bool> {
     let lang = *self.inner.lang();
     match m {
-      Either3::A(pattern) => Ok(self.inner.has(Pattern::new(&pattern, lang))),
+      Either3::A(pattern) => Ok(
+        self
+          .inner
+          .has(Pattern::try_new(&pattern, lang).map_err(pattern_error_to_napi_error)?),
+      ),
       Either3::B(kind) => Ok(self.inner.has(KindMatcher::from_id(kind))),
       Either3::C(config) => {
         let pattern = config.parse_with(lang)?;
@@ -139,7 +154,11 @@ impl SgNode {
   pub fn precedes(&self, m: Either3<String, u16, NapiConfig>) -> Result<bool> {
     let lang = *self.inner.lang();
     match m {
-      Either3::A(pattern) => Ok(self.inner.precedes(Pattern::new(&pattern, lang))),
+      Either3::A(pattern) => Ok(
+        self
+          .inner
+          .precedes(Pattern::try_new(&pattern, lang).map_err(pattern_error_to_napi_error)?),
+      ),
       Either3::B(kind) => Ok(self.inner.precedes(KindMatcher::from_id(kind))),
       Either3::C(config) => {
         let pattern = config.parse_with(lang)?;
@@ -149,13 +168,15 @@ impl SgNode {
   }
 
   #[napi]
-  pub fn follows(&self, m: Either3<String, u16, NapiConfig>) -> bool {
+  pub fn follows(&self, m: Either3<String, u16, NapiConfig>) -> Result<bool> {
     let lang = *self.inner.lang();
-    match m {
-      Either3::A(pattern) => self.inner.follows(Pattern::new(&pattern, lang)),
+    Ok(match m {
+      Either3::A(pattern) => self
+        .inner
+        .follows(Pattern::try_new(&pattern, lang).map_err(pattern_error_to_napi_error)?),
       Either3::B(kind) => self.inner.follows(KindMatcher::from_id(kind)),
       Either3::C(config) => self.inner.follows(config.parse_with(lang).unwrap()),
-    }
+    })
   }
 
   #[napi]
@@ -226,7 +247,7 @@ impl SgNode {
     let lang = *reference.inner.lang();
     let node_match = match matcher {
       Either3::A(pattern) => {
-        let pattern = Pattern::new(&pattern, lang);
+        let pattern = Pattern::try_new(&pattern, lang).map_err(pattern_error_to_napi_error)?;
         reference.inner.find(pattern)
       }
       Either3::B(kind) => {
@@ -266,7 +287,7 @@ impl SgNode {
     let lang = *reference.inner.lang();
     let all_matches: Vec<_> = match matcher {
       Either3::A(pattern) => {
-        let pattern = Pattern::new(&pattern, lang);
+        let pattern = Pattern::try_new(&pattern, lang).map_err(pattern_error_to_napi_error)?;
         reference.inner.find_all(pattern).collect()
       }
       Either3::B(kind) => {
@@ -428,4 +449,8 @@ impl SgRoot {
   pub fn filename(&self) -> Result<String> {
     Ok(self.1.clone())
   }
+}
+
+fn pattern_error_to_napi_error(e: PatternError) -> napi::Error {
+  napi::Error::new(napi::Status::InvalidArg, e.to_string())
 }
