@@ -339,3 +339,14 @@ fn test_file() -> Result<()> {
     .stdout(contains("not.ts").not());
   Ok(())
 }
+
+#[test]
+fn test_yaml_sgconfig_extension() -> Result<()> {
+  let dir = create_test_files([("sgconfig.yaml", CONFIG), ("rules/rule.yml", FILE_RULE)])?;
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["scan"])
+    .assert()
+    .success();
+  Ok(())
+}
