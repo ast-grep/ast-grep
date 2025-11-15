@@ -26,7 +26,7 @@ pub enum CloudOutput {
 pub struct CloudPrinter<W: Write> {
   writer: W,
   platform: Platform,
-  sarif_runs: Vec<sarif::Run>,
+  sarif_results: Vec<sarif::Result>,
 }
 
 impl<W: Write> CloudPrinter<W> {
@@ -34,7 +34,7 @@ impl<W: Write> CloudPrinter<W> {
     Self {
       writer,
       platform,
-      sarif_runs: vec![],
+      sarif_results: vec![],
     }
   }
 }
@@ -61,7 +61,7 @@ impl<W: Write> Printer for CloudPrinter<W> {
         self.writer.write_all(&bytes)?;
       }
       CloudOutput::Sarif(results) => {
-        self.add_sarif_results(results);
+        self.sarif_results.extend(results);
       }
     }
     Ok(())
@@ -69,37 +69,18 @@ impl<W: Write> Printer for CloudPrinter<W> {
 
   fn after_print(&mut self) -> Result<()> {
     if self.platform == Platform::Sarif {
+      let tool_component = sarif::ToolComponent::builder().name("ast-grep").build();
+      let tool = sarif::Tool::builder().driver(tool_component).build();
+      let mut run = sarif::Run::builder().tool(tool).build();
+      run.results = Some(self.sarif_results.clone());
       let sarif_log = sarif::Sarif::builder()
         .version(serde_json::json!(env!("CARGO_PKG_VERSION")))
-        .runs(self.sarif_runs.clone())
+        .runs(vec![run])
         .build();
       let json = serde_json::to_string_pretty(&sarif_log)?;
       writeln!(self.writer, "{}", json)?;
     }
     Ok(())
-  }
-}
-
-impl<W: Write> CloudPrinter<W> {
-  fn add_sarif_results(&mut self, results: Vec<sarif::Result>) {
-    if results.is_empty() {
-      return;
-    }
-    // Merge results into the first run or create a new one
-    if self.sarif_runs.is_empty() {
-      let tool_component = sarif::ToolComponent::builder().name("ast-grep").build();
-      let tool = sarif::Tool::builder().driver(tool_component).build();
-      let mut run = sarif::Run::builder().tool(tool).build();
-      run.results = Some(results);
-      self.sarif_runs.push(run);
-    } else {
-      let run = &mut self.sarif_runs[0];
-      if let Some(existing_results) = &mut run.results {
-        existing_results.extend(results);
-      } else {
-        run.results = Some(results);
-      }
-    }
   }
 }
 
