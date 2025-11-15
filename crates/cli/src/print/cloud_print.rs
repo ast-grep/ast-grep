@@ -108,7 +108,7 @@ impl PrintProcessor<CloudOutput> for CloudProcessor {
         let path = file.name();
         let results = matches
           .into_iter()
-          .map(|nm| create_sarif_result(&nm, path, rule, None))
+          .map(|nm| create_sarif_result(&nm, path, rule))
           .collect();
         Ok(CloudOutput::Sarif(results))
       }
@@ -141,7 +141,8 @@ impl PrintProcessor<CloudOutput> for CloudProcessor {
         let results = diffs
           .into_iter()
           .map(|(diff, rule)| {
-            create_sarif_result(&diff.node_match, &path, rule, Some(diff.replacement))
+            let ret = create_sarif_result(&diff.node_match, &path, rule);
+            attach_sarif_fix(ret, &path, diff)
           })
           .collect();
         Ok(CloudOutput::Sarif(results))
@@ -189,7 +190,6 @@ fn create_sarif_result(
   node_match: &NodeMatch,
   path: &str,
   rule: &RuleConfig<SgLang>,
-  replacement: Option<String>,
 ) -> sarif::Result {
   let message = rule.get_message(node_match);
 
@@ -212,6 +212,7 @@ fn create_sarif_result(
     )
     .build();
 
+  // TODO: path is not URI, this impl should handle path to uri
   let physical_location = sarif::PhysicalLocation::builder()
     .artifact_location(
       sarif::ArtifactLocation::builder()
@@ -232,47 +233,57 @@ fn create_sarif_result(
   result.rule_id = Some(rule.id.clone());
   result.level = Some(severity_to_sarif_level(&rule.severity));
   result.locations = Some(vec![location]);
+  result
+}
 
+fn attach_sarif_fix(mut result: sarif::Result, path: &str, diff: Diff<'_>) -> sarif::Result {
+  let range = diff.range;
   // Add fix information if replacement is available
-  if let Some(replacement_text) = replacement {
-    let deleted_region = sarif::Region::builder()
-      .start_line((start_pos.line() + 1) as i64)
-      .start_column((start_pos.column(node_match) + 1) as i64)
-      .end_line((end_pos.line() + 1) as i64)
-      .end_column((end_pos.column(node_match) + 1) as i64)
-      .byte_offset(range.start as i64)
-      .byte_length((range.end - range.start) as i64)
-      .build();
+  let mut deleted_region = sarif::Region::builder()
+    .byte_offset(range.start as i64)
+    .byte_length((range.end - range.start) as i64)
+    .build();
 
-    let replacement = sarif::Replacement {
-      deleted_region,
-      inserted_content: Some(
-        sarif::ArtifactContent::builder()
-          .text(replacement_text)
-          .build(),
-      ),
-      properties: None,
-    };
-
-    let artifact_change = sarif::ArtifactChange {
-      artifact_location: sarif::ArtifactLocation::builder()
-        .uri(path.to_string())
-        .build(),
-      replacements: vec![replacement],
-      properties: None,
-    };
-
-    result.fixes = Some(vec![sarif::Fix {
-      description: Some(
-        sarif::Message::builder()
-          .text("Apply suggested fix".to_string())
-          .build(),
-      ),
-      artifact_changes: vec![artifact_change],
-      properties: None,
-    }]);
+  // only add line/column info if the diff range matches node range
+  // because diff range can be larger than node range when expandStart/expandEnd is used
+  // TODO: support line/column for expanded range
+  let node_match = diff.node_match;
+  if range == node_match.range() {
+    let start_pos = node_match.start_pos();
+    let end_pos = node_match.end_pos();
+    deleted_region.start_line = Some(start_pos.line() as i64 + 1);
+    deleted_region.start_column = Some(start_pos.column(&node_match) as i64 + 1);
+    deleted_region.end_line = Some(end_pos.line() as i64 + 1);
+    deleted_region.end_column = Some(end_pos.column(&node_match) as i64 + 1);
   }
 
+  let replacement = sarif::Replacement {
+    deleted_region,
+    inserted_content: Some(
+      sarif::ArtifactContent::builder()
+        .text(diff.replacement)
+        .build(),
+    ),
+    properties: None,
+  };
+
+  let artifact_change = sarif::ArtifactChange {
+    artifact_location: sarif::ArtifactLocation::builder()
+      .uri(path.to_string())
+      .build(),
+    replacements: vec![replacement],
+    properties: None,
+  };
+
+  result.fixes = Some(vec![sarif::Fix {
+    description: Some(
+      sarif::Message::builder()
+        .text("Apply suggested fix".to_string())
+        .build(),
+    ),
+    artifact_changes: vec![artifact_change],
+    properties: None,
+  }]);
   result
 }
 
