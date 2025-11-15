@@ -38,9 +38,9 @@ pub struct ScanArg {
   #[clap(long, conflicts_with = "rule", value_name = "RULE_TEXT")]
   inline_rules: Option<String>,
 
-  /// Output warning/error messages in GitHub Action format.
+  /// Output warning/error messages in different formats.
   ///
-  /// Currently, only GitHub is supported.
+  /// Supported formats: GitHub Action, SARIF (Static Analysis Results Interchange Format).
   #[clap(long, conflicts_with = "json", conflicts_with = "interactive")]
   format: Option<Platform>,
 
@@ -79,8 +79,8 @@ pub fn run_with_config(arg: ScanArg, project: Result<ProjectConfig>) -> Result<(
   let project_trace = arg.output.inspect.project_trace();
   project_trace.print_project(&project)?;
   let context = arg.context.get();
-  if let Some(_format) = &arg.format {
-    let printer = CloudPrinter::stdout();
+  if let Some(format) = &arg.format {
+    let printer = CloudPrinter::stdout(format.clone());
     return run_scan(arg, printer, project);
   }
   if let Some(json) = arg.output.json {
