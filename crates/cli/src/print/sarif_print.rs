@@ -42,18 +42,12 @@ impl<W: Write> Printer for SarifPrinter<W> {
     if processed.results.is_empty() {
       return Ok(());
     }
-    
+
     // Merge results into the first run or create a new one
     if self.runs.is_empty() {
-      let tool_component = sarif::ToolComponent::builder()
-        .name("ast-grep")
-        .build();
-      let tool = sarif::Tool::builder()
-        .driver(tool_component)
-        .build();
-      let mut run = sarif::Run::builder()
-        .tool(tool)
-        .build();
+      let tool_component = sarif::ToolComponent::builder().name("ast-grep").build();
+      let tool = sarif::Tool::builder().driver(tool_component).build();
+      let mut run = sarif::Run::builder().tool(tool).build();
       run.results = Some(processed.results);
       self.runs.push(run);
     } else {
@@ -105,16 +99,12 @@ impl PrintProcessor<SarifResult> for SarifProcessor {
 
   fn print_matches(&self, _matches: Vec<NodeMatch>, _path: &Path) -> Result<SarifResult> {
     // SARIF is designed for rule-based analysis, not pattern matching
-    Ok(SarifResult {
-      results: vec![],
-    })
+    Ok(SarifResult { results: vec![] })
   }
 
   fn print_diffs(&self, _diffs: Vec<Diff>, _path: &Path) -> Result<SarifResult> {
     // SARIF doesn't directly support diffs without rules
-    Ok(SarifResult {
-      results: vec![],
-    })
+    Ok(SarifResult { results: vec![] })
   }
 
   fn print_rule_diffs(
@@ -125,7 +115,9 @@ impl PrintProcessor<SarifResult> for SarifProcessor {
     let path = path.to_string_lossy();
     let results = diffs
       .into_iter()
-      .map(|(diff, rule)| create_sarif_result(&diff.node_match, &path, rule, Some(diff.replacement)))
+      .map(|(diff, rule)| {
+        create_sarif_result(&diff.node_match, &path, rule, Some(diff.replacement))
+      })
       .collect();
     Ok(SarifResult { results })
   }
@@ -148,11 +140,11 @@ fn create_sarif_result(
   replacement: Option<String>,
 ) -> sarif::Result {
   let message = rule.get_message(node_match);
-  
+
   // Create the location
   let start_pos = node_match.start_pos();
   let end_pos = node_match.end_pos();
-  
+
   let region = sarif::Region::builder()
     .start_line((start_pos.line() + 1) as i64)
     .start_column((start_pos.column(node_match) + 1) as i64)
@@ -160,32 +152,34 @@ fn create_sarif_result(
     .end_column((end_pos.column(node_match) + 1) as i64)
     .byte_offset(node_match.range().start as i64)
     .byte_length((node_match.range().end - node_match.range().start) as i64)
-    .snippet(sarif::ArtifactContent::builder()
-      .text(node_match.text().to_string())
-      .build())
+    .snippet(
+      sarif::ArtifactContent::builder()
+        .text(node_match.text().to_string())
+        .build(),
+    )
     .build();
-  
+
   let physical_location = sarif::PhysicalLocation::builder()
-    .artifact_location(sarif::ArtifactLocation::builder()
-      .uri(path.to_string())
-      .build())
+    .artifact_location(
+      sarif::ArtifactLocation::builder()
+        .uri(path.to_string())
+        .build(),
+    )
     .region(region)
     .build();
-  
+
   let location = sarif::Location::builder()
     .physical_location(physical_location)
     .build();
-  
+
   let mut result = sarif::Result::builder()
-    .message(sarif::Message::builder()
-      .text(message.clone())
-      .build())
+    .message(sarif::Message::builder().text(message.clone()).build())
     .build();
-  
+
   result.rule_id = Some(rule.id.clone());
   result.level = Some(severity_to_sarif_level(&rule.severity));
   result.locations = Some(vec![location]);
-  
+
   // Add fix information if replacement is available
   if let Some(replacement_text) = replacement {
     let deleted_region = sarif::Region::builder()
@@ -196,15 +190,17 @@ fn create_sarif_result(
       .byte_offset(node_match.range().start as i64)
       .byte_length((node_match.range().end - node_match.range().start) as i64)
       .build();
-    
+
     let replacement = sarif::Replacement {
       deleted_region,
-      inserted_content: Some(sarif::ArtifactContent::builder()
-        .text(replacement_text)
-        .build()),
+      inserted_content: Some(
+        sarif::ArtifactContent::builder()
+          .text(replacement_text)
+          .build(),
+      ),
       properties: None,
     };
-    
+
     let artifact_change = sarif::ArtifactChange {
       artifact_location: sarif::ArtifactLocation::builder()
         .uri(path.to_string())
@@ -212,16 +208,18 @@ fn create_sarif_result(
       replacements: vec![replacement],
       properties: None,
     };
-    
+
     result.fixes = Some(vec![sarif::Fix {
-      description: Some(sarif::Message::builder()
-        .text("Apply suggested fix".to_string())
-        .build()),
+      description: Some(
+        sarif::Message::builder()
+          .text("Apply suggested fix".to_string())
+          .build(),
+      ),
       artifact_changes: vec![artifact_change],
       properties: None,
     }]);
   }
-  
+
   result
 }
 
@@ -287,12 +285,12 @@ rule:
     printer.process(buffer).unwrap();
     printer.after_print().unwrap();
     let json_str = get_text(&printer);
-    
+
     // Verify it's valid JSON
     let sarif_log: sarif::Sarif = serde_json::from_str(&json_str).expect("should be valid SARIF");
     assert_eq!(sarif_log.version, serde_json::json!("2.1.0"));
     assert_eq!(sarif_log.runs.len(), 1);
-    
+
     let run = &sarif_log.runs[0];
     let results = run.results.as_ref().unwrap();
     assert_eq!(results.len(), 1);
