@@ -232,7 +232,8 @@ pub fn read_rule_file(
   parsed.with_context(|| EC::ParseRule(path.to_path_buf()))
 }
 
-const CONFIG_FILE: &str = "sgconfig";
+const CONFIG_FILE_YML: &str = "sgconfig.yml";
+const CONFIG_FILE_YAML: &str = "sgconfig.yaml";
 
 /// return None if config file does not exist
 fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<Option<PathBuf>> {
@@ -241,8 +242,8 @@ fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<Option<
   }
   let mut path = std::env::current_dir()?;
   loop {
-    let yml = path.join(format!("{CONFIG_FILE}.yml"));
-    let yaml = path.join(format!("{CONFIG_FILE}.yaml"));
+    let yml = path.join(CONFIG_FILE_YML);
+    let yaml = path.join(CONFIG_FILE_YAML);
     if yml.exists() {
       break Ok(Some(yml));
     } else if yaml.exists() {
