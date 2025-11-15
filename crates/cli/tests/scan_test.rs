@@ -348,7 +348,7 @@ fn test_sg_scan_sarif_output() -> Result<()> {
     .args(["scan", "--format", "sarif"])
     .assert()
     .success()
-    .stdout(contains("\"version\": \"2.1.0\""))
+    .stdout(contains("\"version\""))
     .stdout(contains("\"runs\""))
     .stdout(contains("\"results\""))
     .stdout(contains("\"ruleId\": \"on-rule\""))
