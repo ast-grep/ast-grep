@@ -61,24 +61,7 @@ impl<W: Write> Printer for CloudPrinter<W> {
         self.writer.write_all(&bytes)?;
       }
       CloudOutput::Sarif(results) => {
-        if results.is_empty() {
-          return Ok(());
-        }
-        // Merge results into the first run or create a new one
-        if self.sarif_runs.is_empty() {
-          let tool_component = sarif::ToolComponent::builder().name("ast-grep").build();
-          let tool = sarif::Tool::builder().driver(tool_component).build();
-          let mut run = sarif::Run::builder().tool(tool).build();
-          run.results = Some(results);
-          self.sarif_runs.push(run);
-        } else {
-          let run = &mut self.sarif_runs[0];
-          if let Some(existing_results) = &mut run.results {
-            existing_results.extend(results);
-          } else {
-            run.results = Some(results);
-          }
-        }
+        self.add_sarif_results(results);
       }
     }
     Ok(())
@@ -87,13 +70,36 @@ impl<W: Write> Printer for CloudPrinter<W> {
   fn after_print(&mut self) -> Result<()> {
     if self.platform == Platform::Sarif {
       let sarif_log = sarif::Sarif::builder()
-        .version(serde_json::json!("2.1.0"))
+        .version(serde_json::json!(env!("CARGO_PKG_VERSION")))
         .runs(self.sarif_runs.clone())
         .build();
       let json = serde_json::to_string_pretty(&sarif_log)?;
       writeln!(self.writer, "{}", json)?;
     }
     Ok(())
+  }
+}
+
+impl<W: Write> CloudPrinter<W> {
+  fn add_sarif_results(&mut self, results: Vec<sarif::Result>) {
+    if results.is_empty() {
+      return;
+    }
+    // Merge results into the first run or create a new one
+    if self.sarif_runs.is_empty() {
+      let tool_component = sarif::ToolComponent::builder().name("ast-grep").build();
+      let tool = sarif::Tool::builder().driver(tool_component).build();
+      let mut run = sarif::Run::builder().tool(tool).build();
+      run.results = Some(results);
+      self.sarif_runs.push(run);
+    } else {
+      let run = &mut self.sarif_runs[0];
+      if let Some(existing_results) = &mut run.results {
+        existing_results.extend(results);
+      } else {
+        run.results = Some(results);
+      }
+    }
   }
 }
 
@@ -209,14 +215,15 @@ fn create_sarif_result(
   // Create the location
   let start_pos = node_match.start_pos();
   let end_pos = node_match.end_pos();
+  let range = node_match.range();
 
   let region = sarif::Region::builder()
     .start_line((start_pos.line() + 1) as i64)
     .start_column((start_pos.column(node_match) + 1) as i64)
     .end_line((end_pos.line() + 1) as i64)
     .end_column((end_pos.column(node_match) + 1) as i64)
-    .byte_offset(node_match.range().start as i64)
-    .byte_length((node_match.range().end - node_match.range().start) as i64)
+    .byte_offset(range.start as i64)
+    .byte_length((range.end - range.start) as i64)
     .snippet(
       sarif::ArtifactContent::builder()
         .text(node_match.text().to_string())
@@ -252,8 +259,8 @@ fn create_sarif_result(
       .start_column((start_pos.column(node_match) + 1) as i64)
       .end_line((end_pos.line() + 1) as i64)
       .end_column((end_pos.column(node_match) + 1) as i64)
-      .byte_offset(node_match.range().start as i64)
-      .byte_length((node_match.range().end - node_match.range().start) as i64)
+      .byte_offset(range.start as i64)
+      .byte_length((range.end - range.start) as i64)
       .build();
 
     let replacement = sarif::Replacement {
@@ -421,7 +428,10 @@ severity: error
 
     // Verify it's valid JSON
     let sarif_log: sarif::Sarif = serde_json::from_str(&json_str).expect("should be valid SARIF");
-    assert_eq!(sarif_log.version, serde_json::json!("2.1.0"));
+    assert_eq!(
+      sarif_log.version,
+      serde_json::json!(env!("CARGO_PKG_VERSION"))
+    );
     assert_eq!(sarif_log.runs.len(), 1);
 
     let run = &sarif_log.runs[0];
