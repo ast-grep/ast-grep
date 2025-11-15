@@ -341,6 +341,17 @@ fn test_file() -> Result<()> {
 }
 
 #[test]
+fn test_yaml_sgconfig_extension() -> Result<()> {
+  let dir = create_test_files([("sgconfig.yaml", CONFIG), ("rules/rule.yml", FILE_RULE)])?;
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["scan"])
+    .assert()
+    .success();
+  Ok(())
+}
+
+#[test]
 fn test_sg_scan_sarif_output() -> Result<()> {
   let dir = setup()?;
   Command::cargo_bin("ast-grep")?
@@ -356,7 +367,6 @@ fn test_sg_scan_sarif_output() -> Result<()> {
       // Verify it's valid JSON
       from_slice::<Value>(output.as_bytes()).is_ok()
     }));
-  drop(dir);
   Ok(())
 }
 
@@ -384,6 +394,5 @@ fix: let $VAR = $VAL
     .stdout(predicate::function(|output: &str| {
       from_slice::<Value>(output.as_bytes()).is_ok()
     }));
-  drop(dir);
   Ok(())
 }
