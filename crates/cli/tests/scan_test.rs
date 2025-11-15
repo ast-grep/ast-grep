@@ -339,3 +339,51 @@ fn test_file() -> Result<()> {
     .stdout(contains("not.ts").not());
   Ok(())
 }
+
+#[test]
+fn test_sg_scan_sarif_output() -> Result<()> {
+  let dir = setup()?;
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["scan", "--format", "sarif"])
+    .assert()
+    .success()
+    .stdout(contains("\"version\": \"2.1.0\""))
+    .stdout(contains("\"runs\""))
+    .stdout(contains("\"results\""))
+    .stdout(contains("\"ruleId\": \"on-rule\""))
+    .stdout(predicate::function(|output: &str| {
+      // Verify it's valid JSON
+      from_slice::<Value>(output.as_bytes()).is_ok()
+    }));
+  drop(dir);
+  Ok(())
+}
+
+#[test]
+fn test_sg_scan_sarif_with_fixes() -> Result<()> {
+  let rule = "
+id: use-let
+message: Use let instead of var
+severity: error
+language: JavaScript
+rule:
+  pattern: var $VAR = $VAL
+fix: let $VAR = $VAL
+";
+  let dir = create_test_files([("rule.yml", rule), ("test.js", "var x = 123;")])?;
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml", "--format", "sarif"])
+    .assert()
+    .stdout(contains("\"fixes\""))
+    .stdout(contains("\"artifactChanges\""))
+    .stdout(contains("\"replacements\""))
+    .stdout(contains("\"deletedRegion\""))
+    .stdout(contains("\"insertedContent\""))
+    .stdout(predicate::function(|output: &str| {
+      from_slice::<Value>(output.as_bytes()).is_ok()
+    }));
+  drop(dir);
+  Ok(())
+}
