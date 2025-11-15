@@ -11,7 +11,7 @@ use crate::config::{read_rule_file, with_rule_stats, ProjectConfig};
 use crate::lang::SgLang;
 use crate::print::{
   CloudPrinter, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, PrintProcessor,
-  Printer, ReportStyle, SimpleFile,
+  Printer, ReportStyle, SarifPrinter, SimpleFile,
 };
 use crate::utils::ErrorContext as EC;
 use crate::utils::RuleOverwrite;
@@ -79,9 +79,17 @@ pub fn run_with_config(arg: ScanArg, project: Result<ProjectConfig>) -> Result<(
   let project_trace = arg.output.inspect.project_trace();
   project_trace.print_project(&project)?;
   let context = arg.context.get();
-  if let Some(_format) = &arg.format {
-    let printer = CloudPrinter::stdout();
-    return run_scan(arg, printer, project);
+  if let Some(format) = &arg.format {
+    match format {
+      Platform::GitHub => {
+        let printer = CloudPrinter::stdout();
+        return run_scan(arg, printer, project);
+      }
+      Platform::Sarif => {
+        let printer = SarifPrinter::stdout();
+        return run_scan(arg, printer, project);
+      }
+    }
   }
   if let Some(json) = arg.output.json {
     let printer = JSONPrinter::stdout(json).include_metadata(arg.include_metadata);

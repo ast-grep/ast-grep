@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 #[clap(rename_all = "lower")]
 pub enum Platform {
   GitHub,
+  Sarif,
 }
 
 pub struct CloudPrinter<W: Write> {
