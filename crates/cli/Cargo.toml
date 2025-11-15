@@ -47,6 +47,7 @@ inquire = "0.9.0"
 serde.workspace = true
 serde_json = "1.0.116"
 serde_yaml.workspace = true
+serde-sarif = "0.8.0"
 similar = { version = "2.5.0", features = ["inline"] }
 smallvec = "1.13.2"
 tokio = { version = "1.37.0", features = ["rt-multi-thread", "io-std"] }
