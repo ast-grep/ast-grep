@@ -2,7 +2,6 @@ mod cloud_print;
 mod colored_print;
 mod interactive_print;
 mod json_print;
-mod sarif_print;
 
 use crate::lang::SgLang;
 use ast_grep_config::{Fixer, RuleConfig};
@@ -20,7 +19,6 @@ use codespan_reporting::term::termcolor::ColorChoice;
 pub use colored_print::{ColoredPrinter, Heading, ReportStyle};
 pub use interactive_print::InteractivePrinter;
 pub use json_print::{JSONPrinter, JsonStyle};
-pub use sarif_print::SarifPrinter;
 
 type NodeMatch<'a> = SgNodeMatch<'a, StrDoc<SgLang>>;
 
