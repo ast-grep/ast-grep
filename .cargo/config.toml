@@ -14,5 +14,11 @@ rustflags = [
 linker = "aarch64-linux-musl-gcc"
 rustflags = ["-C", "target-feature=-crt-static"]
 
+[target.'cfg(target_os = "windows")']
+rustflags = [
+  "--cfg",
+  "windows_slim_errors" # Reduce the size of `windows::core::Error` from 16 bytes to 4 bytes
+]
+
 [alias]
 xtask = "run --manifest-path ./xtask/Cargo.toml --"
