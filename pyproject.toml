@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "ast-grep-cli"
-version = "0.39.9"
+version = "0.40.0"
 description = "Structural Search and Rewrite code at large scale using precise AST pattern."
 authors = [{ name = "Herrington Darkholme", email = "2883231+HerringtonDarkholme@users.noreply.github.com" }]
 maintainers = [{ name = "Herrington Darkholme", email = "2883231+HerringtonDarkholme@users.noreply.github.com" }]

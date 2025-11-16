@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/napi-darwin-arm64",
-  "version": "0.39.9",
+  "version": "0.40.0",
   "os": [
     "darwin"
   ],

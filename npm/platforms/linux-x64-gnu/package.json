@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/cli-linux-x64-gnu",
-  "version": "0.39.9",
+  "version": "0.40.0",
   "os": [
     "linux"
   ],
