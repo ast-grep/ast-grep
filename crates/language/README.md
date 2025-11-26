@@ -14,22 +14,6 @@ Add this to your `Cargo.toml`:
 ast-grep-language = "0.40"
 ```
 
-### From Git Repository
-
-To use the latest version from the `reduce-size` branch with optional language features:
-
-```toml
-[dependencies]
-ast-grep-language = { git = "https://github.com/fengmk2/ast-grep.git", branch = "reduce-size" }
-```
-
-With selective languages:
-
-```toml
-[dependencies]
-ast-grep-language = { git = "https://github.com/fengmk2/ast-grep.git", branch = "reduce-size", default-features = false, features = ["lang-typescript", "lang-rust"] }
-```
-
 ## Features
 
 By default, all language parsers are included. You can selectively enable only the languages you need to reduce binary size.
