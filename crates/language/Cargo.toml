@@ -44,37 +44,68 @@ tree-sitter-yaml = { version = "0.7.0", optional = true }
 tree-sitter-hcl = { version = "1.1.0", optional = true }
 
 [features]
+# Individual language features - enable specific languages
+lang-bash = ["tree-sitter-bash"]
+lang-c = ["tree-sitter-c"]
+lang-cpp = ["tree-sitter-cpp"]
+lang-csharp = ["tree-sitter-c-sharp"]
+lang-css = ["tree-sitter-css"]
+lang-elixir = ["tree-sitter-elixir"]
+lang-go = ["tree-sitter-go"]
+lang-haskell = ["tree-sitter-haskell"]
+lang-hcl = ["tree-sitter-hcl"]
+lang-html = ["tree-sitter-html"]
+lang-java = ["tree-sitter-java"]
+lang-javascript = ["tree-sitter-javascript"]
+lang-json = ["tree-sitter-json"]
+lang-kotlin = ["tree-sitter-kotlin"]
+lang-lua = ["tree-sitter-lua"]
+lang-nix = ["tree-sitter-nix"]
+lang-php = ["tree-sitter-php"]
+lang-python = ["tree-sitter-python"]
+lang-ruby = ["tree-sitter-ruby"]
+lang-rust = ["tree-sitter-rust"]
+lang-scala = ["tree-sitter-scala"]
+lang-solidity = ["tree-sitter-solidity"]
+lang-swift = ["tree-sitter-swift"]
+lang-typescript = ["tree-sitter-typescript"]
+lang-yaml = ["tree-sitter-yaml"]
+
+# Meta feature that enables all built-in languages
 builtin-parser = [
-  "tree-sitter-bash",
-  "tree-sitter-c",
-  "tree-sitter-cpp",
-  "tree-sitter-c-sharp",
-  "tree-sitter-css",
-  "tree-sitter-elixir",
-  "tree-sitter-go",
-  "tree-sitter-haskell",
-  "tree-sitter-hcl",
-  "tree-sitter-html",
-  "tree-sitter-java",
-  "tree-sitter-javascript",
-  "tree-sitter-json",
-  "tree-sitter-kotlin",
-  "tree-sitter-lua",
-  "tree-sitter-nix",
-  "tree-sitter-php",
-  "tree-sitter-python",
-  "tree-sitter-ruby",
-  "tree-sitter-rust",
-  "tree-sitter-scala",
-  "tree-sitter-solidity",
-  "tree-sitter-swift",
-  "tree-sitter-typescript",
-  "tree-sitter-yaml",
+  "lang-bash",
+  "lang-c",
+  "lang-cpp",
+  "lang-csharp",
+  "lang-css",
+  "lang-elixir",
+  "lang-go",
+  "lang-haskell",
+  "lang-hcl",
+  "lang-html",
+  "lang-java",
+  "lang-javascript",
+  "lang-json",
+  "lang-kotlin",
+  "lang-lua",
+  "lang-nix",
+  "lang-php",
+  "lang-python",
+  "lang-ruby",
+  "lang-rust",
+  "lang-scala",
+  "lang-solidity",
+  "lang-swift",
+  "lang-typescript",
+  "lang-yaml",
 ]
+
+# NAPI language subset for Node.js bindings
 napi-lang = [
-  "tree-sitter-css",
-  "tree-sitter-html",
-  "tree-sitter-javascript",
-  "tree-sitter-typescript",
+  "lang-css",
+  "lang-html",
+  "lang-javascript",
+  "lang-typescript",
 ]
+
 default = ["builtin-parser"]

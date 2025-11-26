@@ -1,123 +1,68 @@
 //! This mod maintains a list of tree-sitter parsers crate.
-//! When feature flag `builtin-parser` is on, this mod will import all dependent crates.
-//! However, tree-sitter bs cannot be compiled by wasm-pack.
-//! In this case, we can use a blank implementation by turning feature flag off.
-//! And use other implementation.
-
-#[cfg(feature = "builtin-parser")]
-macro_rules! into_lang {
-  ($lang: ident, $field: ident) => {
-    $lang::$field.into()
-  };
-  ($lang: ident) => {
-    into_lang!($lang, LANGUAGE)
-  };
-}
-
-#[cfg(not(feature = "builtin-parser"))]
-macro_rules! into_lang {
-  ($lang: ident, $field: ident) => {
-    unimplemented!(
-      "tree-sitter parser is not implemented when feature flag [builtin-parser] is off."
-    )
-  };
-  ($lang: ident) => {
-    into_lang!($lang, LANGUAGE)
-  };
-}
-
-#[cfg(any(feature = "builtin-parser", feature = "napi-lang"))]
-macro_rules! into_napi_lang {
-  ($lang: path) => {
-    $lang.into()
-  };
-}
-#[cfg(not(any(feature = "builtin-parser", feature = "napi-lang")))]
-macro_rules! into_napi_lang {
-  ($lang: path) => {
-    unimplemented!(
-      "tree-sitter parser is not implemented when feature flag [builtin-parser] is off."
-    )
-  };
-}
+//! Each language parser is gated behind its own feature flag.
+//! When a language feature is enabled, the corresponding tree-sitter parser is imported.
+//! When a language feature is disabled, the function returns unimplemented!().
 
 use ast_grep_core::tree_sitter::TSLanguage;
 
-pub fn language_bash() -> TSLanguage {
-  into_lang!(tree_sitter_bash)
+macro_rules! define_lang_parser {
+  ($func:ident, $feature:literal, $lang:ident) => {
+    #[cfg(feature = $feature)]
+    #[allow(dead_code)]
+    pub fn $func() -> TSLanguage {
+      $lang::LANGUAGE.into()
+    }
+    #[cfg(not(feature = $feature))]
+    #[allow(dead_code)]
+    pub fn $func() -> TSLanguage {
+      unimplemented!(
+        "tree-sitter parser for {} is not available. Enable the '{}' feature to use it.",
+        stringify!($func),
+        $feature
+      )
+    }
+  };
+  ($func:ident, $feature:literal, $lang:ident, $field:ident) => {
+    #[cfg(feature = $feature)]
+    #[allow(dead_code)]
+    pub fn $func() -> TSLanguage {
+      $lang::$field.into()
+    }
+    #[cfg(not(feature = $feature))]
+    #[allow(dead_code)]
+    pub fn $func() -> TSLanguage {
+      unimplemented!(
+        "tree-sitter parser for {} is not available. Enable the '{}' feature to use it.",
+        stringify!($func),
+        $feature
+      )
+    }
+  };
 }
-pub fn language_c() -> TSLanguage {
-  into_lang!(tree_sitter_c)
-}
-pub fn language_cpp() -> TSLanguage {
-  into_lang!(tree_sitter_cpp)
-}
-pub fn language_c_sharp() -> TSLanguage {
-  into_lang!(tree_sitter_c_sharp)
-}
-pub fn language_css() -> TSLanguage {
-  into_napi_lang!(tree_sitter_css::LANGUAGE)
-}
-pub fn language_elixir() -> TSLanguage {
-  into_lang!(tree_sitter_elixir)
-}
-pub fn language_go() -> TSLanguage {
-  into_lang!(tree_sitter_go)
-}
-pub fn language_haskell() -> TSLanguage {
-  into_lang!(tree_sitter_haskell)
-}
-pub fn language_hcl() -> TSLanguage {
-  into_lang!(tree_sitter_hcl)
-}
-pub fn language_html() -> TSLanguage {
-  into_napi_lang!(tree_sitter_html::LANGUAGE)
-}
-pub fn language_java() -> TSLanguage {
-  into_lang!(tree_sitter_java)
-}
-pub fn language_javascript() -> TSLanguage {
-  into_napi_lang!(tree_sitter_javascript::LANGUAGE)
-}
-pub fn language_json() -> TSLanguage {
-  into_lang!(tree_sitter_json)
-}
-pub fn language_kotlin() -> TSLanguage {
-  into_lang!(tree_sitter_kotlin)
-}
-pub fn language_lua() -> TSLanguage {
-  into_lang!(tree_sitter_lua)
-}
-pub fn language_nix() -> TSLanguage {
-  into_lang!(tree_sitter_nix)
-}
-pub fn language_php() -> TSLanguage {
-  into_lang!(tree_sitter_php, LANGUAGE_PHP_ONLY)
-}
-pub fn language_python() -> TSLanguage {
-  into_lang!(tree_sitter_python)
-}
-pub fn language_ruby() -> TSLanguage {
-  into_lang!(tree_sitter_ruby)
-}
-pub fn language_rust() -> TSLanguage {
-  into_lang!(tree_sitter_rust)
-}
-pub fn language_scala() -> TSLanguage {
-  into_lang!(tree_sitter_scala)
-}
-pub fn language_solidity() -> TSLanguage {
-  into_lang!(tree_sitter_solidity)
-}
-pub fn language_swift() -> TSLanguage {
-  into_lang!(tree_sitter_swift)
-}
-pub fn language_tsx() -> TSLanguage {
-  into_napi_lang!(tree_sitter_typescript::LANGUAGE_TSX)
-}
-pub fn language_typescript() -> TSLanguage {
-  into_napi_lang!(tree_sitter_typescript::LANGUAGE_TYPESCRIPT)
-}
-pub fn language_yaml() -> TSLanguage {
-  into_lang!(tree_sitter_yaml)
-}
+
+define_lang_parser!(language_bash, "lang-bash", tree_sitter_bash);
+define_lang_parser!(language_c, "lang-c", tree_sitter_c);
+define_lang_parser!(language_cpp, "lang-cpp", tree_sitter_cpp);
+define_lang_parser!(language_c_sharp, "lang-csharp", tree_sitter_c_sharp);
+define_lang_parser!(language_css, "lang-css", tree_sitter_css);
+define_lang_parser!(language_elixir, "lang-elixir", tree_sitter_elixir);
+define_lang_parser!(language_go, "lang-go", tree_sitter_go);
+define_lang_parser!(language_haskell, "lang-haskell", tree_sitter_haskell);
+define_lang_parser!(language_hcl, "lang-hcl", tree_sitter_hcl);
+define_lang_parser!(language_html, "lang-html", tree_sitter_html);
+define_lang_parser!(language_java, "lang-java", tree_sitter_java);
+define_lang_parser!(language_javascript, "lang-javascript", tree_sitter_javascript);
+define_lang_parser!(language_json, "lang-json", tree_sitter_json);
+define_lang_parser!(language_kotlin, "lang-kotlin", tree_sitter_kotlin);
+define_lang_parser!(language_lua, "lang-lua", tree_sitter_lua);
+define_lang_parser!(language_nix, "lang-nix", tree_sitter_nix);
+define_lang_parser!(language_php, "lang-php", tree_sitter_php, LANGUAGE_PHP_ONLY);
+define_lang_parser!(language_python, "lang-python", tree_sitter_python);
+define_lang_parser!(language_ruby, "lang-ruby", tree_sitter_ruby);
+define_lang_parser!(language_rust, "lang-rust", tree_sitter_rust);
+define_lang_parser!(language_scala, "lang-scala", tree_sitter_scala);
+define_lang_parser!(language_solidity, "lang-solidity", tree_sitter_solidity);
+define_lang_parser!(language_swift, "lang-swift", tree_sitter_swift);
+define_lang_parser!(language_tsx, "lang-typescript", tree_sitter_typescript, LANGUAGE_TSX);
+define_lang_parser!(language_typescript, "lang-typescript", tree_sitter_typescript, LANGUAGE_TYPESCRIPT);
+define_lang_parser!(language_yaml, "lang-yaml", tree_sitter_yaml);

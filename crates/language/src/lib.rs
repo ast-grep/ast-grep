@@ -18,30 +18,52 @@
 //! assert_eq!(found.text(), "fn foo() {}");
 //! ```
 
+#[cfg(feature = "lang-bash")]
 mod bash;
+#[cfg(feature = "lang-cpp")]
 mod cpp;
+#[cfg(feature = "lang-csharp")]
 mod csharp;
+#[cfg(feature = "lang-css")]
 mod css;
+#[cfg(feature = "lang-elixir")]
 mod elixir;
+#[cfg(feature = "lang-go")]
 mod go;
+#[cfg(feature = "lang-haskell")]
 mod haskell;
+#[cfg(feature = "lang-hcl")]
 mod hcl;
+#[cfg(feature = "lang-html")]
 mod html;
+#[cfg(feature = "lang-json")]
 mod json;
+#[cfg(feature = "lang-kotlin")]
 mod kotlin;
+#[cfg(feature = "lang-lua")]
 mod lua;
+#[cfg(feature = "lang-nix")]
 mod nix;
 mod parsers;
+#[cfg(feature = "lang-php")]
 mod php;
+#[cfg(feature = "lang-python")]
 mod python;
+#[cfg(feature = "lang-ruby")]
 mod ruby;
+#[cfg(feature = "lang-rust")]
 mod rust;
+#[cfg(feature = "lang-scala")]
 mod scala;
+#[cfg(feature = "lang-solidity")]
 mod solidity;
+#[cfg(feature = "lang-swift")]
 mod swift;
+#[cfg(feature = "lang-yaml")]
 mod yaml;
 
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
+#[cfg(feature = "lang-html")]
 pub use html::Html;
 
 use ast_grep_core::meta_var::MetaVariable;
@@ -62,6 +84,7 @@ pub use ast_grep_core::language::Language;
 pub use ast_grep_core::tree_sitter::LanguageExt;
 
 /// this macro implements bare-bone methods for a language
+#[allow(unused_macros)]
 macro_rules! impl_lang {
   ($lang: ident, $func: ident) => {
     #[derive(Clone, Copy, Debug)]
@@ -90,6 +113,7 @@ macro_rules! impl_lang {
   };
 }
 
+#[allow(dead_code)]
 fn pre_process_pattern(expando: char, query: &str) -> std::borrow::Cow<'_, str> {
   let mut ret = Vec::with_capacity(query.len());
   let mut dollar_count = 0;
@@ -113,6 +137,7 @@ fn pre_process_pattern(expando: char, query: &str) -> std::borrow::Cow<'_, str> 
 
 /// this macro will implement expando_char and pre_process_pattern
 /// use this if your language does not accept $ as valid identifier char
+#[allow(unused_macros)]
 macro_rules! impl_lang_expando {
   ($lang: ident, $func: ident, $char: expr) => {
     #[derive(Clone, Copy, Debug)]
@@ -153,6 +178,7 @@ pub trait Alias: Display {
 
 /// Implements the `ALIAS` associated constant for the given lang, which is
 /// then used to define the `alias` const fn and a `Deserialize` impl.
+#[allow(unused_macros)]
 macro_rules! impl_alias {
   ($lang:ident => $as:expr) => {
     impl Alias for $lang {
@@ -185,110 +211,200 @@ macro_rules! impl_alias {
     }
   };
 }
-/// Generates as convenience conversions between the lang types
-/// and `SupportedType`.
-macro_rules! impl_aliases {
-  ($($lang:ident => $as:expr),* $(,)?) => {
-    $(impl_alias!($lang => $as);)*
-    const fn alias(lang: SupportLang) -> &'static [&'static str] {
-      match lang {
-        $(SupportLang::$lang => $lang::ALIAS),*
-      }
-    }
-  };
-}
-
 /* Customized Language with expando_char / pre_process_pattern */
 // https://en.cppreference.com/w/cpp/language/identifiers
+#[cfg(feature = "lang-c")]
 impl_lang_expando!(C, language_c, '𐀀');
+#[cfg(feature = "lang-cpp")]
 impl_lang_expando!(Cpp, language_cpp, '𐀀');
 // https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/lexical-structure#643-identifiers
 // all letter number is accepted
 // https://www.compart.com/en/unicode/category/Nl
+#[cfg(feature = "lang-csharp")]
 impl_lang_expando!(CSharp, language_c_sharp, 'µ');
 // https://www.w3.org/TR/CSS21/grammar.html#scanner
+#[cfg(feature = "lang-css")]
 impl_lang_expando!(Css, language_css, '_');
 // https://github.com/elixir-lang/tree-sitter-elixir/blob/a2861e88a730287a60c11ea9299c033c7d076e30/grammar.js#L245
+#[cfg(feature = "lang-elixir")]
 impl_lang_expando!(Elixir, language_elixir, 'µ');
 // we can use any Unicode code point categorized as "Letter"
 // https://go.dev/ref/spec#letter
+#[cfg(feature = "lang-go")]
 impl_lang_expando!(Go, language_go, 'µ');
 // GHC supports Unicode syntax per
 // https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/unicode_syntax.html
 // and the tree-sitter-haskell grammar parses it too.
+#[cfg(feature = "lang-haskell")]
 impl_lang_expando!(Haskell, language_haskell, 'µ');
 // https://developer.hashicorp.com/terraform/language/syntax/configuration#identifiers
+#[cfg(feature = "lang-hcl")]
 impl_lang_expando!(Hcl, language_hcl, 'µ');
 // https://github.com/fwcd/tree-sitter-kotlin/pull/93
+#[cfg(feature = "lang-kotlin")]
 impl_lang_expando!(Kotlin, language_kotlin, 'µ');
 // Nix uses $ for string interpolation (e.g., "${pkgs.hello}")
+#[cfg(feature = "lang-nix")]
 impl_lang_expando!(Nix, language_nix, '_');
 // PHP accepts unicode to be used as some name not var name though
+#[cfg(feature = "lang-php")]
 impl_lang_expando!(Php, language_php, 'µ');
 // we can use any char in unicode range [:XID_Start:]
 // https://docs.python.org/3/reference/lexical_analysis.html#identifiers
 // see also [PEP 3131](https://peps.python.org/pep-3131/) for further details.
+#[cfg(feature = "lang-python")]
 impl_lang_expando!(Python, language_python, 'µ');
 // https://github.com/tree-sitter/tree-sitter-ruby/blob/f257f3f57833d584050336921773738a3fd8ca22/grammar.js#L30C26-L30C78
+#[cfg(feature = "lang-ruby")]
 impl_lang_expando!(Ruby, language_ruby, 'µ');
 // we can use any char in unicode range [:XID_Start:]
 // https://doc.rust-lang.org/reference/identifiers.html
+#[cfg(feature = "lang-rust")]
 impl_lang_expando!(Rust, language_rust, 'µ');
 //https://docs.swift.org/swift-book/documentation/the-swift-programming-language/lexicalstructure/#Identifiers
+#[cfg(feature = "lang-swift")]
 impl_lang_expando!(Swift, language_swift, 'µ');
 
 // Stub Language without preprocessing
 // Language Name, tree-sitter-name, alias, extension
+#[cfg(feature = "lang-bash")]
 impl_lang!(Bash, language_bash);
+#[cfg(feature = "lang-java")]
 impl_lang!(Java, language_java);
+#[cfg(feature = "lang-javascript")]
 impl_lang!(JavaScript, language_javascript);
+#[cfg(feature = "lang-json")]
 impl_lang!(Json, language_json);
+#[cfg(feature = "lang-lua")]
 impl_lang!(Lua, language_lua);
+#[cfg(feature = "lang-scala")]
 impl_lang!(Scala, language_scala);
+#[cfg(feature = "lang-solidity")]
 impl_lang!(Solidity, language_solidity);
+#[cfg(feature = "lang-typescript")]
 impl_lang!(Tsx, language_tsx);
+#[cfg(feature = "lang-typescript")]
 impl_lang!(TypeScript, language_typescript);
+#[cfg(feature = "lang-yaml")]
 impl_lang!(Yaml, language_yaml);
 // See ripgrep for extensions
 // https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/src/default_types.rs
 
 /// Represents all built-in languages.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
+#[non_exhaustive]
 pub enum SupportLang {
+  #[cfg(feature = "lang-bash")]
   Bash,
+  #[cfg(feature = "lang-c")]
   C,
+  #[cfg(feature = "lang-cpp")]
   Cpp,
+  #[cfg(feature = "lang-csharp")]
   CSharp,
+  #[cfg(feature = "lang-css")]
   Css,
+  #[cfg(feature = "lang-go")]
   Go,
+  #[cfg(feature = "lang-elixir")]
   Elixir,
+  #[cfg(feature = "lang-haskell")]
   Haskell,
+  #[cfg(feature = "lang-hcl")]
   Hcl,
+  #[cfg(feature = "lang-html")]
   Html,
+  #[cfg(feature = "lang-java")]
   Java,
+  #[cfg(feature = "lang-javascript")]
   JavaScript,
+  #[cfg(feature = "lang-json")]
   Json,
+  #[cfg(feature = "lang-kotlin")]
   Kotlin,
+  #[cfg(feature = "lang-lua")]
   Lua,
+  #[cfg(feature = "lang-nix")]
   Nix,
+  #[cfg(feature = "lang-php")]
   Php,
+  #[cfg(feature = "lang-python")]
   Python,
+  #[cfg(feature = "lang-ruby")]
   Ruby,
+  #[cfg(feature = "lang-rust")]
   Rust,
+  #[cfg(feature = "lang-scala")]
   Scala,
+  #[cfg(feature = "lang-solidity")]
   Solidity,
+  #[cfg(feature = "lang-swift")]
   Swift,
+  #[cfg(feature = "lang-typescript")]
   Tsx,
+  #[cfg(feature = "lang-typescript")]
   TypeScript,
+  #[cfg(feature = "lang-yaml")]
   Yaml,
 }
 
 impl SupportLang {
-  pub const fn all_langs() -> &'static [SupportLang] {
+  pub fn all_langs() -> &'static [SupportLang] {
+    #[allow(unused)]
     use SupportLang::*;
     &[
-      Bash, C, Cpp, CSharp, Css, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json, Kotlin,
-      Lua, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript, Yaml,
+      #[cfg(feature = "lang-bash")]
+      Bash,
+      #[cfg(feature = "lang-c")]
+      C,
+      #[cfg(feature = "lang-cpp")]
+      Cpp,
+      #[cfg(feature = "lang-csharp")]
+      CSharp,
+      #[cfg(feature = "lang-css")]
+      Css,
+      #[cfg(feature = "lang-elixir")]
+      Elixir,
+      #[cfg(feature = "lang-go")]
+      Go,
+      #[cfg(feature = "lang-haskell")]
+      Haskell,
+      #[cfg(feature = "lang-hcl")]
+      Hcl,
+      #[cfg(feature = "lang-html")]
+      Html,
+      #[cfg(feature = "lang-java")]
+      Java,
+      #[cfg(feature = "lang-javascript")]
+      JavaScript,
+      #[cfg(feature = "lang-json")]
+      Json,
+      #[cfg(feature = "lang-kotlin")]
+      Kotlin,
+      #[cfg(feature = "lang-lua")]
+      Lua,
+      #[cfg(feature = "lang-nix")]
+      Nix,
+      #[cfg(feature = "lang-php")]
+      Php,
+      #[cfg(feature = "lang-python")]
+      Python,
+      #[cfg(feature = "lang-ruby")]
+      Ruby,
+      #[cfg(feature = "lang-rust")]
+      Rust,
+      #[cfg(feature = "lang-scala")]
+      Scala,
+      #[cfg(feature = "lang-solidity")]
+      Solidity,
+      #[cfg(feature = "lang-swift")]
+      Swift,
+      #[cfg(feature = "lang-typescript")]
+      Tsx,
+      #[cfg(feature = "lang-typescript")]
+      TypeScript,
+      #[cfg(feature = "lang-yaml")]
+      Yaml,
     ]
   }
 
@@ -368,33 +484,116 @@ impl Visitor<'_> for AliasVisitor {
   }
 }
 
-impl_aliases! {
-  Bash => &["bash"],
-  C => &["c"],
-  Cpp => &["cc", "c++", "cpp", "cxx"],
-  CSharp => &["cs", "csharp"],
-  Css => &["css"],
-  Elixir => &["ex", "elixir"],
-  Go => &["go", "golang"],
-  Haskell => &["hs", "haskell"],
-  Hcl => &["hcl"],
-  Html => &["html"],
-  Java => &["java"],
-  JavaScript => &["javascript", "js", "jsx"],
-  Json => &["json"],
-  Kotlin => &["kotlin", "kt"],
-  Lua => &["lua"],
-  Nix => &["nix"],
-  Php => &["php"],
-  Python => &["py", "python"],
-  Ruby => &["rb", "ruby"],
-  Rust => &["rs", "rust"],
-  Scala => &["scala"],
-  Solidity => &["sol", "solidity"],
-  Swift => &["swift"],
-  TypeScript => &["ts", "typescript"],
-  Tsx => &["tsx"],
-  Yaml => &["yaml", "yml"],
+#[cfg(feature = "lang-bash")]
+impl_alias!(Bash => &["bash"]);
+#[cfg(feature = "lang-c")]
+impl_alias!(C => &["c"]);
+#[cfg(feature = "lang-cpp")]
+impl_alias!(Cpp => &["cc", "c++", "cpp", "cxx"]);
+#[cfg(feature = "lang-csharp")]
+impl_alias!(CSharp => &["cs", "csharp"]);
+#[cfg(feature = "lang-css")]
+impl_alias!(Css => &["css"]);
+#[cfg(feature = "lang-elixir")]
+impl_alias!(Elixir => &["ex", "elixir"]);
+#[cfg(feature = "lang-go")]
+impl_alias!(Go => &["go", "golang"]);
+#[cfg(feature = "lang-haskell")]
+impl_alias!(Haskell => &["hs", "haskell"]);
+#[cfg(feature = "lang-hcl")]
+impl_alias!(Hcl => &["hcl"]);
+#[cfg(feature = "lang-html")]
+impl_alias!(Html => &["html"]);
+#[cfg(feature = "lang-java")]
+impl_alias!(Java => &["java"]);
+#[cfg(feature = "lang-javascript")]
+impl_alias!(JavaScript => &["javascript", "js", "jsx"]);
+#[cfg(feature = "lang-json")]
+impl_alias!(Json => &["json"]);
+#[cfg(feature = "lang-kotlin")]
+impl_alias!(Kotlin => &["kotlin", "kt"]);
+#[cfg(feature = "lang-lua")]
+impl_alias!(Lua => &["lua"]);
+#[cfg(feature = "lang-nix")]
+impl_alias!(Nix => &["nix"]);
+#[cfg(feature = "lang-php")]
+impl_alias!(Php => &["php"]);
+#[cfg(feature = "lang-python")]
+impl_alias!(Python => &["py", "python"]);
+#[cfg(feature = "lang-ruby")]
+impl_alias!(Ruby => &["rb", "ruby"]);
+#[cfg(feature = "lang-rust")]
+impl_alias!(Rust => &["rs", "rust"]);
+#[cfg(feature = "lang-scala")]
+impl_alias!(Scala => &["scala"]);
+#[cfg(feature = "lang-solidity")]
+impl_alias!(Solidity => &["sol", "solidity"]);
+#[cfg(feature = "lang-swift")]
+impl_alias!(Swift => &["swift"]);
+#[cfg(feature = "lang-typescript")]
+impl_alias!(TypeScript => &["ts", "typescript"]);
+#[cfg(feature = "lang-typescript")]
+impl_alias!(Tsx => &["tsx"]);
+#[cfg(feature = "lang-yaml")]
+impl_alias!(Yaml => &["yaml", "yml"]);
+
+fn alias(lang: SupportLang) -> &'static [&'static str] {
+  match lang {
+    #[cfg(feature = "lang-bash")]
+    SupportLang::Bash => <Bash as Alias>::ALIAS,
+    #[cfg(feature = "lang-c")]
+    SupportLang::C => <C as Alias>::ALIAS,
+    #[cfg(feature = "lang-cpp")]
+    SupportLang::Cpp => <Cpp as Alias>::ALIAS,
+    #[cfg(feature = "lang-csharp")]
+    SupportLang::CSharp => <CSharp as Alias>::ALIAS,
+    #[cfg(feature = "lang-css")]
+    SupportLang::Css => <Css as Alias>::ALIAS,
+    #[cfg(feature = "lang-elixir")]
+    SupportLang::Elixir => <Elixir as Alias>::ALIAS,
+    #[cfg(feature = "lang-go")]
+    SupportLang::Go => <Go as Alias>::ALIAS,
+    #[cfg(feature = "lang-haskell")]
+    SupportLang::Haskell => <Haskell as Alias>::ALIAS,
+    #[cfg(feature = "lang-hcl")]
+    SupportLang::Hcl => <Hcl as Alias>::ALIAS,
+    #[cfg(feature = "lang-html")]
+    SupportLang::Html => <Html as Alias>::ALIAS,
+    #[cfg(feature = "lang-java")]
+    SupportLang::Java => <Java as Alias>::ALIAS,
+    #[cfg(feature = "lang-javascript")]
+    SupportLang::JavaScript => <JavaScript as Alias>::ALIAS,
+    #[cfg(feature = "lang-json")]
+    SupportLang::Json => <Json as Alias>::ALIAS,
+    #[cfg(feature = "lang-kotlin")]
+    SupportLang::Kotlin => <Kotlin as Alias>::ALIAS,
+    #[cfg(feature = "lang-lua")]
+    SupportLang::Lua => <Lua as Alias>::ALIAS,
+    #[cfg(feature = "lang-nix")]
+    SupportLang::Nix => <Nix as Alias>::ALIAS,
+    #[cfg(feature = "lang-php")]
+    SupportLang::Php => <Php as Alias>::ALIAS,
+    #[cfg(feature = "lang-python")]
+    SupportLang::Python => <Python as Alias>::ALIAS,
+    #[cfg(feature = "lang-ruby")]
+    SupportLang::Ruby => <Ruby as Alias>::ALIAS,
+    #[cfg(feature = "lang-rust")]
+    SupportLang::Rust => <Rust as Alias>::ALIAS,
+    #[cfg(feature = "lang-scala")]
+    SupportLang::Scala => <Scala as Alias>::ALIAS,
+    #[cfg(feature = "lang-solidity")]
+    SupportLang::Solidity => <Solidity as Alias>::ALIAS,
+    #[cfg(feature = "lang-swift")]
+    SupportLang::Swift => <Swift as Alias>::ALIAS,
+    #[cfg(feature = "lang-typescript")]
+    SupportLang::Tsx => <Tsx as Alias>::ALIAS,
+    #[cfg(feature = "lang-typescript")]
+    SupportLang::TypeScript => <TypeScript as Alias>::ALIAS,
+    #[cfg(feature = "lang-yaml")]
+    SupportLang::Yaml => <Yaml as Alias>::ALIAS,
+    #[allow(unreachable_patterns)]
+    _ => unreachable!("No language features enabled"),
+  }
 }
 
 /// Implements the language names and aliases.
@@ -414,34 +613,65 @@ impl FromStr for SupportLang {
 
 macro_rules! execute_lang_method {
   ($me: path, $method: ident, $($pname:tt),*) => {
+    #[allow(unused)]
     use SupportLang as S;
     match $me {
+      #[cfg(feature = "lang-bash")]
       S::Bash => Bash.$method($($pname,)*),
+      #[cfg(feature = "lang-c")]
       S::C => C.$method($($pname,)*),
+      #[cfg(feature = "lang-cpp")]
       S::Cpp => Cpp.$method($($pname,)*),
+      #[cfg(feature = "lang-csharp")]
       S::CSharp => CSharp.$method($($pname,)*),
+      #[cfg(feature = "lang-css")]
       S::Css => Css.$method($($pname,)*),
+      #[cfg(feature = "lang-elixir")]
       S::Elixir => Elixir.$method($($pname,)*),
+      #[cfg(feature = "lang-go")]
       S::Go => Go.$method($($pname,)*),
+      #[cfg(feature = "lang-haskell")]
       S::Haskell => Haskell.$method($($pname,)*),
+      #[cfg(feature = "lang-hcl")]
       S::Hcl => Hcl.$method($($pname,)*),
+      #[cfg(feature = "lang-html")]
       S::Html => Html.$method($($pname,)*),
+      #[cfg(feature = "lang-java")]
       S::Java => Java.$method($($pname,)*),
+      #[cfg(feature = "lang-javascript")]
       S::JavaScript => JavaScript.$method($($pname,)*),
+      #[cfg(feature = "lang-json")]
       S::Json => Json.$method($($pname,)*),
+      #[cfg(feature = "lang-kotlin")]
       S::Kotlin => Kotlin.$method($($pname,)*),
+      #[cfg(feature = "lang-lua")]
       S::Lua => Lua.$method($($pname,)*),
+      #[cfg(feature = "lang-nix")]
       S::Nix => Nix.$method($($pname,)*),
+      #[cfg(feature = "lang-php")]
       S::Php => Php.$method($($pname,)*),
+      #[cfg(feature = "lang-python")]
       S::Python => Python.$method($($pname,)*),
+      #[cfg(feature = "lang-ruby")]
       S::Ruby => Ruby.$method($($pname,)*),
+      #[cfg(feature = "lang-rust")]
       S::Rust => Rust.$method($($pname,)*),
+      #[cfg(feature = "lang-scala")]
       S::Scala => Scala.$method($($pname,)*),
+      #[cfg(feature = "lang-solidity")]
       S::Solidity => Solidity.$method($($pname,)*),
+      #[cfg(feature = "lang-swift")]
       S::Swift => Swift.$method($($pname,)*),
+      #[cfg(feature = "lang-typescript")]
       S::Tsx => Tsx.$method($($pname,)*),
+      #[cfg(feature = "lang-typescript")]
       S::TypeScript => TypeScript.$method($($pname,)*),
+      #[cfg(feature = "lang-yaml")]
       S::Yaml => Yaml.$method($($pname,)*),
+      // Catch-all for when no languages are enabled - this should never be reached
+      // as SupportLang would have no variants, but needed for pattern matching completeness
+      #[allow(unreachable_patterns)]
+      _ => unreachable!("No language features enabled"),
     }
   }
 }
@@ -474,9 +704,10 @@ impl LanguageExt for SupportLang {
   impl_lang_method!(injectable_languages, () => Option<&'static [&'static str]>);
   fn extract_injections<L: LanguageExt>(
     &self,
-    root: Node<StrDoc<L>>,
+    #[allow(unused_variables)] root: Node<StrDoc<L>>,
   ) -> HashMap<String, Vec<TSRange>> {
     match self {
+      #[cfg(feature = "lang-html")]
       SupportLang::Html => Html.extract_injections(root),
       _ => HashMap::new(),
     }
@@ -484,36 +715,65 @@ impl LanguageExt for SupportLang {
 }
 
 fn extensions(lang: SupportLang) -> &'static [&'static str] {
+  #[allow(unused)]
   use SupportLang::*;
   match lang {
+    #[cfg(feature = "lang-bash")]
     Bash => &[
       "bash", "bats", "cgi", "command", "env", "fcgi", "ksh", "sh", "tmux", "tool", "zsh",
     ],
+    #[cfg(feature = "lang-c")]
     C => &["c", "h"],
+    #[cfg(feature = "lang-cpp")]
     Cpp => &["cc", "hpp", "cpp", "c++", "hh", "cxx", "cu", "ino"],
+    #[cfg(feature = "lang-csharp")]
     CSharp => &["cs"],
+    #[cfg(feature = "lang-css")]
     Css => &["css", "scss"],
+    #[cfg(feature = "lang-elixir")]
     Elixir => &["ex", "exs"],
+    #[cfg(feature = "lang-go")]
     Go => &["go"],
+    #[cfg(feature = "lang-haskell")]
     Haskell => &["hs"],
+    #[cfg(feature = "lang-hcl")]
     Hcl => &["hcl"],
+    #[cfg(feature = "lang-html")]
     Html => &["html", "htm", "xhtml"],
+    #[cfg(feature = "lang-java")]
     Java => &["java"],
+    #[cfg(feature = "lang-javascript")]
     JavaScript => &["cjs", "js", "mjs", "jsx"],
+    #[cfg(feature = "lang-json")]
     Json => &["json"],
+    #[cfg(feature = "lang-kotlin")]
     Kotlin => &["kt", "ktm", "kts"],
+    #[cfg(feature = "lang-lua")]
     Lua => &["lua"],
+    #[cfg(feature = "lang-nix")]
     Nix => &["nix"],
+    #[cfg(feature = "lang-php")]
     Php => &["php"],
+    #[cfg(feature = "lang-python")]
     Python => &["py", "py3", "pyi", "bzl"],
+    #[cfg(feature = "lang-ruby")]
     Ruby => &["rb", "rbw", "gemspec"],
+    #[cfg(feature = "lang-rust")]
     Rust => &["rs"],
+    #[cfg(feature = "lang-scala")]
     Scala => &["scala", "sc", "sbt"],
+    #[cfg(feature = "lang-solidity")]
     Solidity => &["sol"],
+    #[cfg(feature = "lang-swift")]
     Swift => &["swift"],
+    #[cfg(feature = "lang-typescript")]
     TypeScript => &["ts", "cts", "mts"],
+    #[cfg(feature = "lang-typescript")]
     Tsx => &["tsx"],
+    #[cfg(feature = "lang-yaml")]
     Yaml => &["yaml", "yml"],
+    #[allow(unreachable_patterns)]
+    _ => unreachable!("No language features enabled"),
   }
 }
 
