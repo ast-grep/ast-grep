@@ -1,123 +1,110 @@
 //! This mod maintains a list of tree-sitter parsers crate.
-//! When feature flag `builtin-parser` is on, this mod will import all dependent crates.
+//! When feature flag is on, this mod will import all dependent crates.
 //! However, tree-sitter bs cannot be compiled by wasm-pack.
 //! In this case, we can use a blank implementation by turning feature flag off.
 //! And use other implementation.
 
-#[cfg(feature = "builtin-parser")]
-macro_rules! into_lang {
-  ($lang: ident, $field: ident) => {
-    $lang::$field.into()
-  };
-  ($lang: ident) => {
-    into_lang!($lang, LANGUAGE)
-  };
-}
-
-#[cfg(not(feature = "builtin-parser"))]
-macro_rules! into_lang {
-  ($lang: ident, $field: ident) => {
-    unimplemented!(
-      "tree-sitter parser is not implemented when feature flag [builtin-parser] is off."
-    )
-  };
-  ($lang: ident) => {
-    into_lang!($lang, LANGUAGE)
-  };
-}
-
-#[cfg(any(feature = "builtin-parser", feature = "napi-lang"))]
-macro_rules! into_napi_lang {
-  ($lang: path) => {
-    $lang.into()
-  };
-}
-#[cfg(not(any(feature = "builtin-parser", feature = "napi-lang")))]
-macro_rules! into_napi_lang {
-  ($lang: path) => {
-    unimplemented!(
-      "tree-sitter parser is not implemented when feature flag [builtin-parser] is off."
-    )
+macro_rules! conditional_lang {
+  ($lang: ident, $flag: literal, $field: ident) => {{
+    #[cfg(feature=$flag)]
+    {
+      $lang::$field.into()
+    }
+    #[cfg(not(feature=$flag))]
+    {
+      unimplemented!("tree-sitter parser is not implemented when feature flag is off.")
+    }
+  }};
+  ($lang: ident, $flag: literal) => {
+    conditional_lang!($lang, $flag, LANGUAGE)
   };
 }
 
 use ast_grep_core::tree_sitter::TSLanguage;
 
 pub fn language_bash() -> TSLanguage {
-  into_lang!(tree_sitter_bash)
+  conditional_lang!(tree_sitter_bash, "tree-sitter-bash")
 }
 pub fn language_c() -> TSLanguage {
-  into_lang!(tree_sitter_c)
+  conditional_lang!(tree_sitter_c, "tree-sitter-c")
 }
 pub fn language_cpp() -> TSLanguage {
-  into_lang!(tree_sitter_cpp)
+  conditional_lang!(tree_sitter_cpp, "tree-sitter-cpp")
 }
 pub fn language_c_sharp() -> TSLanguage {
-  into_lang!(tree_sitter_c_sharp)
+  conditional_lang!(tree_sitter_c_sharp, "tree-sitter-c-sharp")
 }
 pub fn language_css() -> TSLanguage {
-  into_napi_lang!(tree_sitter_css::LANGUAGE)
+  conditional_lang!(tree_sitter_css, "tree-sitter-css")
 }
 pub fn language_elixir() -> TSLanguage {
-  into_lang!(tree_sitter_elixir)
+  conditional_lang!(tree_sitter_elixir, "tree-sitter-elixir")
 }
 pub fn language_go() -> TSLanguage {
-  into_lang!(tree_sitter_go)
+  conditional_lang!(tree_sitter_go, "tree-sitter-go")
 }
 pub fn language_haskell() -> TSLanguage {
-  into_lang!(tree_sitter_haskell)
+  conditional_lang!(tree_sitter_haskell, "tree-sitter-haskell")
 }
 pub fn language_hcl() -> TSLanguage {
-  into_lang!(tree_sitter_hcl)
+  conditional_lang!(tree_sitter_hcl, "tree-sitter-hcl")
 }
 pub fn language_html() -> TSLanguage {
-  into_napi_lang!(tree_sitter_html::LANGUAGE)
+  conditional_lang!(tree_sitter_html, "tree-sitter-html")
 }
 pub fn language_java() -> TSLanguage {
-  into_lang!(tree_sitter_java)
+  conditional_lang!(tree_sitter_java, "tree-sitter-java")
 }
 pub fn language_javascript() -> TSLanguage {
-  into_napi_lang!(tree_sitter_javascript::LANGUAGE)
+  conditional_lang!(tree_sitter_javascript, "tree-sitter-javascript")
 }
 pub fn language_json() -> TSLanguage {
-  into_lang!(tree_sitter_json)
+  conditional_lang!(tree_sitter_json, "tree-sitter-json")
 }
 pub fn language_kotlin() -> TSLanguage {
-  into_lang!(tree_sitter_kotlin)
+  conditional_lang!(tree_sitter_kotlin, "tree-sitter-kotlin")
 }
 pub fn language_lua() -> TSLanguage {
-  into_lang!(tree_sitter_lua)
+  conditional_lang!(tree_sitter_lua, "tree-sitter-lua")
 }
 pub fn language_nix() -> TSLanguage {
-  into_lang!(tree_sitter_nix)
+  conditional_lang!(tree_sitter_nix, "tree-sitter-nix")
 }
 pub fn language_php() -> TSLanguage {
-  into_lang!(tree_sitter_php, LANGUAGE_PHP_ONLY)
+  conditional_lang!(tree_sitter_php, "tree-sitter-php", LANGUAGE_PHP_ONLY)
 }
 pub fn language_python() -> TSLanguage {
-  into_lang!(tree_sitter_python)
+  conditional_lang!(tree_sitter_python, "tree-sitter-python")
 }
 pub fn language_ruby() -> TSLanguage {
-  into_lang!(tree_sitter_ruby)
+  conditional_lang!(tree_sitter_ruby, "tree-sitter-ruby")
 }
 pub fn language_rust() -> TSLanguage {
-  into_lang!(tree_sitter_rust)
+  conditional_lang!(tree_sitter_rust, "tree-sitter-rust")
 }
 pub fn language_scala() -> TSLanguage {
-  into_lang!(tree_sitter_scala)
+  conditional_lang!(tree_sitter_scala, "tree-sitter-scala")
 }
 pub fn language_solidity() -> TSLanguage {
-  into_lang!(tree_sitter_solidity)
+  conditional_lang!(tree_sitter_solidity, "tree-sitter-solidity")
 }
 pub fn language_swift() -> TSLanguage {
-  into_lang!(tree_sitter_swift)
+  conditional_lang!(tree_sitter_swift, "tree-sitter-swift")
 }
 pub fn language_tsx() -> TSLanguage {
-  into_napi_lang!(tree_sitter_typescript::LANGUAGE_TSX)
+  conditional_lang!(
+    tree_sitter_typescript,
+    "tree-sitter-typescript",
+    LANGUAGE_TSX
+  )
 }
 pub fn language_typescript() -> TSLanguage {
-  into_napi_lang!(tree_sitter_typescript::LANGUAGE_TYPESCRIPT)
+  conditional_lang!(
+    tree_sitter_typescript,
+    "tree-sitter-typescript",
+    LANGUAGE_TYPESCRIPT
+  )
 }
 pub fn language_yaml() -> TSLanguage {
-  into_lang!(tree_sitter_yaml)
+  conditional_lang!(tree_sitter_yaml, "tree-sitter-yaml")
 }
