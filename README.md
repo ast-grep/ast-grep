@@ -7,9 +7,9 @@
    <a href="https://app.codecov.io/gh/ast-grep/ast-grep"><img src="https://codecov.io/gh/ast-grep/ast-grep/branch/main/graph/badge.svg?token=37VX8H2EWV"/></a>
    <a href="https://discord.gg/4YZjf6htSQ" target="_blank"><img alt="Discord" src="https://img.shields.io/discord/1107749847722889217?label=Discord"></a>
    <a href="https://repology.org/project/ast-grep/versions" target="_blank"><img alt="Repology" src="https://repology.org/badge/tiny-repos/ast-grep.svg"></a>
-   <a href="https://github.com/ast-grep/ast-grep/stargazers"><img src="https://img.shields.io/github/stars/ast-grep/ast-grep?style=social" alt="Badge"/>
-   <a href="https://github.com/ast-grep/ast-grep/network/members"><img src="https://img.shields.io/github/forks/ast-grep/ast-grep?style=social" alt="Badge"/>
-   <a href="https://github.com/sponsors/HerringtonDarkholme"><img alt="GitHub Sponsors" src="https://img.shields.io/github/sponsors/HerringtonDarkholme?style=social">
+   <a href="https://github.com/ast-grep/ast-grep/stargazers"><img src="https://img.shields.io/github/stars/ast-grep/ast-grep?style=social" alt="Badge"></a>   
+   <a href="https://github.com/ast-grep/ast-grep/network/members"><img src="https://img.shields.io/github/forks/ast-grep/ast-grep?style=social" alt="Badge"></a>
+   <a href="https://github.com/sponsors/HerringtonDarkholme"><img alt="GitHub Sponsors" src="https://img.shields.io/github/sponsors/HerringtonDarkholme?style=social"></a>
    <a href="https://gurubase.io/g/ast-grep"><img alt="Gurubase" src="https://img.shields.io/badge/Gurubase-Ask%20ast--grep%20Guru-006BFF"></a>
 </p>
 
