@@ -12,7 +12,7 @@ pub enum MatchStrictness {
   Ast,       // only ast nodes are matched
   Relaxed,   // ast-nodes excluding comments are matched
   Signature, // ast-nodes excluding comments, without text
-  Template,  // similar to smart, but node kinds are ignored, only text is matched.
+  Template,  // similar to relaxed, but node kinds are ignored, only text is matched.
 }
 
 pub(crate) enum MatchOneNode {
