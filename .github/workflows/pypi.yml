@@ -55,13 +55,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
       # https://github.com/actions/runner-images/issues/658#issuecomment-611921753
       - name: "Build wheels - x86_64"
         uses: PyO3/maturin-action@v1
-        env:
-          # old llvm does not support libc++ by default
-          CXXFLAGS: "-stdlib=libc++"
         with:
           target: x86_64
           args: --release --out dist
@@ -82,12 +78,8 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
       - name: "Build wheels - universal2"
         uses: PyO3/maturin-action@v1
-        env:
-          # instruct old llvm to support libc++
-          CXXFLAGS: "-stdlib=libc++"
         with:
           args: --release --target universal2-apple-darwin --out dist
       - name: "Test wheel - universal2"
