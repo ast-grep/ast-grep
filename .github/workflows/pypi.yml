@@ -49,12 +49,13 @@ jobs:
           path: dist
 
   macos-x86_64:
-    runs-on: macos-latest
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
       # https://github.com/actions/runner-images/issues/658#issuecomment-611921753
       - name: "Build wheels - x86_64"
         uses: PyO3/maturin-action@v1
