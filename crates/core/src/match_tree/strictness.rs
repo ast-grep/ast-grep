@@ -115,7 +115,7 @@ impl MatchStrictness {
     match self {
       M::Cst => false,
       M::Smart => true,
-      M::Ast => false,
+      M::Ast => !candidate.is_named(),
       M::Relaxed => skip_comment_or_unnamed(candidate),
       M::Signature => skip_comment_or_unnamed(candidate),
       M::Template => skip_comment(candidate),
@@ -224,5 +224,10 @@ mod test {
         bar
       )"
     ));
+  }
+
+  #[test]
+  fn test_ast_trailing_comma() {
+    assert!(test_match("foo(bar)", "foo(bar,)", MatchStrictness::Ast));
   }
 }
