@@ -250,7 +250,7 @@ impl<'a, L: Language> Input<'a, L> {
       'a'..='z' | 'A'..='Z' | '_' | '-' => {
         let len = self
           .source
-          .find(|c| !matches!(c, 'a'..='z' | 'A'..='Z' | '_' | '-'))
+          .find(|c| !matches!(c, 'a'..='z' | 'A'..='Z' | '_' | '-' | '0'..='9'))
           .unwrap_or(self.source.len());
         let ident = &self.source[..len];
         (Token::Identifier(ident), len, false)
@@ -380,6 +380,15 @@ mod test {
     let rule = parse_selector("call_expression number", TS::Tsx)?;
     let number = root.root().find(&rule).expect("Should find number");
     assert_eq!(number.text(), "123");
+    Ok(())
+  }
+
+  // see issue #2387
+  #[test]
+  fn test_identifier_with_number() -> Result<(), SelectorError> {
+    let tokens = input_to_tokens("atx_h1_marker")?;
+    let expected = vec![Token::Identifier("atx_h1_marker")];
+    assert_eq!(tokens, expected);
     Ok(())
   }
 }

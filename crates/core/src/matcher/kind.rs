@@ -35,6 +35,7 @@ impl KindMatcher {
   }
 
   pub fn try_new<L: Language>(node_kind: &str, lang: L) -> Result<Self, KindMatcherError> {
+    println!("KindMatcher created with kind id: {}", node_kind);
     let s = Self::new(node_kind, lang);
     if s.is_invalid() {
       Err(KindMatcherError::InvalidKindName(node_kind.into()))
