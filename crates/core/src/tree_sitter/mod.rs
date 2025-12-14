@@ -142,8 +142,7 @@ impl<'r> SgNode<'r> for Node<'r> {
     TsPre::new(self)
   }
   fn child(&self, nth: usize) -> Option<Self> {
-    // TODO remove cast after migrating to tree-sitter
-    Node::child(self, nth)
+    Node::child(self, nth as u32)
   }
   fn children(&self) -> impl ExactSizeIterator<Item = Self> {
     let mut cursor = self.walk();
