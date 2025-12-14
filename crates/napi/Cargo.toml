@@ -18,8 +18,8 @@ ast-grep-config.workspace = true
 ast-grep-language = { path = "../language", features = ["napi-lang"], default-features = false }
 ast-grep-dynamic.workspace = true
 
-napi = { version = "3.0.0", features = ["serde-json", "napi4", "error_anyhow"] }
-napi-derive = "3.0.0"
+napi = { version = "3.7.0", features = ["serde-json", "napi4", "error_anyhow"] }
+napi-derive = "3.4.0"
 
 ignore.workspace = true
 tree-sitter.workspace = true
