@@ -9,6 +9,7 @@ use inquire::validator::ValueRequiredValidator;
 use std::fmt::Display;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 
 #[derive(Parser)]
 pub struct NewArg {
@@ -144,7 +145,7 @@ impl Display for Entity {
   }
 }
 
-pub fn run_create_new(mut arg: NewArg, project: Result<ProjectConfig>) -> Result<()> {
+pub fn run_create_new(mut arg: NewArg, project: Result<ProjectConfig>) -> Result<ExitCode> {
   if let Some(entity) = arg.entity.take() {
     run_create_entity(entity, arg, project)
   } else {
@@ -152,7 +153,11 @@ pub fn run_create_new(mut arg: NewArg, project: Result<ProjectConfig>) -> Result
   }
 }
 
-fn run_create_entity(entity: Entity, arg: NewArg, project: Result<ProjectConfig>) -> Result<()> {
+fn run_create_entity(
+  entity: Entity,
+  arg: NewArg,
+  project: Result<ProjectConfig>,
+) -> Result<ExitCode> {
   // check if we are under a project dir
   if let Ok(found) = project {
     return do_create_entity(entity, found, arg);
@@ -166,7 +171,7 @@ fn run_create_entity(entity: Entity, arg: NewArg, project: Result<ProjectConfig>
   }
 }
 
-fn do_create_entity(entity: Entity, found: ProjectConfig, arg: NewArg) -> Result<()> {
+fn do_create_entity(entity: Entity, found: ProjectConfig, arg: NewArg) -> Result<ExitCode> {
   // ask user what destination to create if multiple dirs exist
   match entity {
     Entity::Rule => create_new_rule(found, arg),
@@ -176,7 +181,7 @@ fn do_create_entity(entity: Entity, found: ProjectConfig, arg: NewArg) -> Result
   }
 }
 
-fn ask_entity_type(arg: NewArg, project: Result<ProjectConfig>) -> Result<()> {
+fn ask_entity_type(arg: NewArg, project: Result<ProjectConfig>) -> Result<ExitCode> {
   // 1. check if we are under a sgconfig.yml
   if let Ok(found) = project {
     // 2. ask users what to create if yes
@@ -190,7 +195,7 @@ fn ask_entity_type(arg: NewArg, project: Result<ProjectConfig>) -> Result<()> {
   }
 }
 
-fn create_new_project(arg: NewArg, project_dir: &Path) -> Result<()> {
+fn create_new_project(arg: NewArg, project_dir: &Path) -> Result<ExitCode> {
   println!("Creating a new ast-grep project...");
   let ask_dir_and_create = |prompt: &str, default: &str| -> Result<PathBuf> {
     let dir = arg.ask_dir(prompt, default)?;
@@ -221,7 +226,7 @@ fn create_new_project(arg: NewArg, project_dir: &Path) -> Result<()> {
   let f = File::create(config_path)?;
   serde_yaml::to_writer(f, &root_config)?;
   println!("Your new ast-grep project has been created!");
-  Ok(())
+  Ok(ExitCode::SUCCESS)
 }
 
 fn default_rule(id: &str, lang: SgLang) -> String {
@@ -239,7 +244,7 @@ rule:
   )
 }
 
-fn create_new_rule(found: ProjectConfig, arg: NewArg) -> Result<()> {
+fn create_new_rule(found: ProjectConfig, arg: NewArg) -> Result<ExitCode> {
   let ProjectConfig {
     project_dir,
     rule_dirs,
@@ -266,7 +271,7 @@ fn create_new_rule(found: ProjectConfig, arg: NewArg) -> Result<()> {
   if need_test {
     create_new_test(test_configs, Some(name))?;
   }
-  Ok(())
+  Ok(ExitCode::SUCCESS)
 }
 
 fn default_test(id: &str) -> String {
@@ -280,7 +285,10 @@ invalid:
   )
 }
 
-fn create_new_test(test_configs: Option<Vec<TestConfig>>, name: Option<String>) -> Result<()> {
+fn create_new_test(
+  test_configs: Option<Vec<TestConfig>>,
+  name: Option<String>,
+) -> Result<ExitCode> {
   let Some(tests) = test_configs else {
     return Err(anyhow::anyhow!(EC::NoTestDirConfigured));
   };
@@ -307,7 +315,7 @@ fn create_new_test(test_configs: Option<Vec<TestConfig>>, name: Option<String>) 
   }
   fs::write(&path, default_test(&name))?;
   println!("Created test at {}", path.display());
-  Ok(())
+  Ok(ExitCode::SUCCESS)
 }
 
 fn default_util(id: &str, lang: SgLang) -> String {
@@ -320,7 +328,7 @@ rule:
   )
 }
 
-fn create_new_util(found: ProjectConfig, arg: NewArg) -> Result<()> {
+fn create_new_util(found: ProjectConfig, arg: NewArg) -> Result<ExitCode> {
   let ProjectConfig {
     project_dir,
     util_dirs,
@@ -348,7 +356,7 @@ fn create_new_util(found: ProjectConfig, arg: NewArg) -> Result<()> {
   let lang = arg.choose_language()?;
   fs::write(&path, default_util(&name, lang))?;
   println!("Created util at {}", path.display());
-  Ok(())
+  Ok(ExitCode::SUCCESS)
 }
 
 #[cfg(test)]

@@ -1,5 +1,7 @@
 mod common;
 
+use std::process::ExitCode;
+
 use anyhow::Result;
 use assert_cmd::Command;
 use ast_grep::main_with_args;
@@ -43,7 +45,7 @@ fn setup() -> Result<TempDir> {
   Ok(dir)
 }
 
-fn sg(s: &str) -> Result<()> {
+fn sg(s: &str) -> Result<ExitCode> {
   let args = s.split(' ').map(String::from);
   main_with_args(args)
 }
@@ -394,5 +396,17 @@ fix: let $VAR = $VAL
     .stdout(predicate::function(|output: &str| {
       from_slice::<Value>(output.as_bytes()).is_ok()
     }));
+  Ok(())
+}
+
+#[test]
+fn test_status_code_success_with_no_match() -> Result<()> {
+  let dir = create_test_files([("rule.yml", RULE1)])?;
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml"])
+    .assert()
+    .stdout(predicate::str::is_empty())
+    .success();
   Ok(())
 }

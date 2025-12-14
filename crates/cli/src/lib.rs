@@ -11,7 +11,7 @@ mod verify;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
+use std::{path::PathBuf, process::ExitCode};
 
 use completions::{run_shell_completion, CompletionsArg};
 use config::ProjectConfig;
@@ -65,7 +65,7 @@ enum Commands {
   Docs,
 }
 
-pub fn execute_main() -> Result<()> {
+pub fn execute_main() -> Result<ExitCode> {
   match main_with_args(std::env::args()) {
     Err(error) => exit_with_error(error),
     ok => ok,
@@ -123,7 +123,7 @@ fn setup_project_is_possible(args: &[String]) -> Result<Result<ProjectConfig>> {
 }
 
 // this wrapper function is for testing
-pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
+pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
   let args: Vec<_> = args.collect();
   // do not unwrap project before cmd parsing
   // sg help does not need a valid sgconfig.yml
@@ -138,7 +138,7 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
     Commands::Scan(arg) => run_with_config(arg, project),
     Commands::Test(arg) => run_test_rule(arg, project),
     Commands::New(arg) => run_create_new(arg, project),
-    Commands::Lsp(arg) => run_language_server(arg, project),
+    Commands::Lsp(arg) => run_language_server(arg, project).map(|_| ExitCode::SUCCESS),
     Commands::Completions(arg) => run_shell_completion::<App>(arg),
     #[cfg(debug_assertions)]
     Commands::Docs => todo!("todo, generate rule docs based on current config"),

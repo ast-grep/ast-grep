@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::process::ExitCode;
 
 use anyhow::{Context, Result};
 use ast_grep_config::Fixer;
@@ -146,7 +147,7 @@ impl RunArg {
 
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
-pub fn run_with_pattern(arg: RunArg, project: Result<ProjectConfig>) -> Result<()> {
+pub fn run_with_pattern(arg: RunArg, project: Result<ProjectConfig>) -> Result<ExitCode> {
   let proj = arg.output.inspect.project_trace();
   proj.print_project(&project)?;
   let context = arg.context.get();
@@ -167,7 +168,7 @@ pub fn run_with_pattern(arg: RunArg, project: Result<ProjectConfig>) -> Result<(
   }
 }
 
-fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + 'static) -> Result<()> {
+fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + 'static) -> Result<ExitCode> {
   let trace = arg.output.inspect.run_trace();
   if arg.input.stdin {
     RunWithSpecificLang::new(arg, trace)?.run_std_in(printer)
@@ -183,15 +184,21 @@ struct RunWithInferredLang {
   trace: RunTrace,
 }
 impl Worker for RunWithInferredLang {
-  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<()> {
+  fn consume_items<P: Printer>(
+    &self,
+    items: Items<P::Processed>,
+    mut printer: P,
+  ) -> Result<ExitCode> {
     let printer = &mut printer;
+    let mut has_matches = false;
     printer.before_print()?;
     for item in items {
       printer.process(item)?;
+      has_matches = true
     }
     printer.after_print()?;
     self.trace.print()?;
-    Ok(())
+    Ok(ExitCode::from(if has_matches { 0 } else { 1 }))
   }
 }
 
@@ -273,7 +280,11 @@ impl RunWithSpecificLang {
 }
 
 impl Worker for RunWithSpecificLang {
-  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<()> {
+  fn consume_items<P: Printer>(
+    &self,
+    items: Items<P::Processed>,
+    mut printer: P,
+  ) -> Result<ExitCode> {
     printer.before_print()?;
     let mut has_matches = false;
     for item in items {
@@ -285,7 +296,7 @@ impl Worker for RunWithSpecificLang {
     if !has_matches && self.pattern.has_error() {
       Err(anyhow::anyhow!(EC::PatternHasError))
     } else {
-      Ok(())
+      Ok(ExitCode::from(if has_matches { 0 } else { 1 }))
     }
   }
 }
