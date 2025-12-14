@@ -75,6 +75,18 @@ fn test_inspect() -> Result<()> {
 }
 
 #[test]
+fn test_status_code_fail_with_no_match() -> Result<()> {
+  let dir = create_test_files([("a.js", "alert(1)")])?;
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["-p", "no-match"])
+    .assert()
+    .failure()
+    .stdout(predicate::str::is_empty());
+  Ok(())
+}
+
+#[test]
 fn test_debug_query() -> Result<()> {
   // should not print pattern if invalid
   Command::cargo_bin("ast-grep")?

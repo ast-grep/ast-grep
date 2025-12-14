@@ -398,3 +398,15 @@ fix: let $VAR = $VAL
     }));
   Ok(())
 }
+
+#[test]
+fn test_status_code_success_with_no_match() -> Result<()> {
+  let dir = create_test_files([("rule.yml", RULE1)])?;
+  Command::cargo_bin("ast-grep")?
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml"])
+    .assert()
+    .stdout(predicate::str::is_empty())
+    .success();
+  Ok(())
+}
