@@ -186,7 +186,7 @@ impl From<Strictness> for MatchStrictness {
 /// A String pattern will match one single AST node according to pattern syntax.
 /// Or an object with field `context`, `selector` and optionally `strictness`.
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
-#[serde(untagged)]
+#[serde(untagged, deny_unknown_fields)]
 pub enum PatternStyle {
   Str(String),
   Contextual {
@@ -513,6 +513,15 @@ pattern:
 ";
     let rule: SerializableRule = from_str(src).expect("cannot parse rule");
     assert!(matches!(rule.pattern, Maybe::Present(Contextual { .. }),));
+
+    // test #2390
+    let src = r"
+pattern:
+  context: class $C { set $B() {} }
+  selector: method_definition
+";
+    let rule: Result<PatternStyle, _> = from_str(src);
+    assert!(rule.is_err());
   }
 
   #[test]
