@@ -114,7 +114,7 @@ fn test_trace_default_project() -> Result<()> {
     .current_dir(dir.path())
     .args(["-p", "alert($A)", "--inspect=summary"])
     .assert()
-    .success()
+    .failure()
     .stderr(contains("isProject=true,projectDir"));
   Ok(())
 }
@@ -126,13 +126,13 @@ fn test_trace_project() -> Result<()> {
     .current_dir(dir.path())
     .args(["-p", "alert($A)", "--inspect=summary"])
     .assert()
-    .success()
+    .failure()
     .stderr(contains("isProject=false"));
   Command::cargo_bin("ast-grep")?
     .current_dir(dir.path())
     .args(["run", "-c=not.yml", "-p", "alert($A)", "--inspect=summary"])
     .assert()
-    .success()
+    .failure()
     .stderr(contains("isProject=true,projectDir"));
   Ok(())
 }

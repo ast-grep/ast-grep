@@ -129,12 +129,14 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<()> {
   // sg help does not need a valid sgconfig.yml
   let project = setup_project_is_possible(&args);
   if let Some(arg) = try_default_run(&args)? {
-    return run_with_pattern(arg, project?);
+    std::process::exit(if run_with_pattern(arg, project?)? { 0 } else { 1 })
   }
   let app = App::try_parse_from(args)?;
   let project = project?; // unwrap here to report invalid project
   match app.command {
-    Commands::Run(arg) => run_with_pattern(arg, project),
+    Commands::Run(arg) => {
+      std::process::exit(if run_with_pattern(arg, project)? { 0 } else { 1 })
+    },
     Commands::Scan(arg) => run_with_config(arg, project),
     Commands::Test(arg) => run_test_rule(arg, project),
     Commands::New(arg) => run_create_new(arg, project),

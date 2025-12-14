@@ -108,10 +108,10 @@ fn run_scan<P: Printer + 'static>(
   if arg.input.stdin {
     let worker = ScanStdin::try_new(arg)?;
     // TODO: report a soft error if rules have different languages
-    worker.run_std_in(printer)
+    worker.run_std_in(printer).and(Ok(()))
   } else {
     let worker = ScanWithConfig::try_new(arg, project)?;
-    worker.run_path(printer)
+    worker.run_path(printer).and(Ok(()))
   }
 }
 
@@ -159,7 +159,7 @@ impl ScanWithConfig {
   }
 }
 impl Worker for ScanWithConfig {
-  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<()> {
+  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<bool> {
     printer.before_print()?;
     for item in items {
       printer.process(item)?;
@@ -170,7 +170,7 @@ impl Worker for ScanWithConfig {
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
-      Ok(())
+      Ok(false)
     }
   }
 }
@@ -267,7 +267,7 @@ impl ScanStdin {
 }
 
 impl Worker for ScanStdin {
-  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<()> {
+  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<bool> {
     printer.before_print()?;
     for item in items {
       printer.process(item)?;
@@ -277,7 +277,7 @@ impl Worker for ScanStdin {
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
-      Ok(())
+      Ok(false)
     }
   }
 }

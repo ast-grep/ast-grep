@@ -146,7 +146,7 @@ impl RunArg {
 
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
-pub fn run_with_pattern(arg: RunArg, project: Result<ProjectConfig>) -> Result<()> {
+pub fn run_with_pattern(arg: RunArg, project: Result<ProjectConfig>) -> Result<bool> {
   let proj = arg.output.inspect.project_trace();
   proj.print_project(&project)?;
   let context = arg.context.get();
@@ -167,7 +167,7 @@ pub fn run_with_pattern(arg: RunArg, project: Result<ProjectConfig>) -> Result<(
   }
 }
 
-fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + 'static) -> Result<()> {
+fn run_pattern_with_printer(arg: RunArg, printer: impl Printer + 'static) -> Result<bool> {
   let trace = arg.output.inspect.run_trace();
   if arg.input.stdin {
     RunWithSpecificLang::new(arg, trace)?.run_std_in(printer)
@@ -183,15 +183,17 @@ struct RunWithInferredLang {
   trace: RunTrace,
 }
 impl Worker for RunWithInferredLang {
-  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<()> {
+  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<bool> {
     let printer = &mut printer;
+    let mut has_matches = false;
     printer.before_print()?;
     for item in items {
       printer.process(item)?;
+      has_matches = true
     }
     printer.after_print()?;
     self.trace.print()?;
-    Ok(())
+    Ok(has_matches)
   }
 }
 
@@ -273,7 +275,7 @@ impl RunWithSpecificLang {
 }
 
 impl Worker for RunWithSpecificLang {
-  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<()> {
+  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<bool> {
     printer.before_print()?;
     let mut has_matches = false;
     for item in items {
@@ -285,7 +287,7 @@ impl Worker for RunWithSpecificLang {
     if !has_matches && self.pattern.has_error() {
       Err(anyhow::anyhow!(EC::PatternHasError))
     } else {
-      Ok(())
+      Ok(has_matches)
     }
   }
 }
