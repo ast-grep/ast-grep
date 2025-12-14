@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 
 use anyhow::{Context, Result};
 use ast_grep_config::{from_yaml_string, CombinedScan, RuleCollection, RuleConfig, Severity};
@@ -75,7 +76,7 @@ impl ScanArg {
   }
 }
 
-pub fn run_with_config(arg: ScanArg, project: Result<ProjectConfig>) -> Result<()> {
+pub fn run_with_config(arg: ScanArg, project: Result<ProjectConfig>) -> Result<ExitCode> {
   let project_trace = arg.output.inspect.project_trace();
   project_trace.print_project(&project)?;
   let context = arg.context.get();
@@ -104,14 +105,14 @@ fn run_scan<P: Printer + 'static>(
   arg: ScanArg,
   printer: P,
   project: Result<ProjectConfig>,
-) -> Result<()> {
+) -> Result<ExitCode> {
   if arg.input.stdin {
     let worker = ScanStdin::try_new(arg)?;
     // TODO: report a soft error if rules have different languages
-    worker.run_std_in(printer).and(Ok(()))
+    worker.run_std_in(printer)
   } else {
     let worker = ScanWithConfig::try_new(arg, project)?;
-    worker.run_path(printer).and(Ok(()))
+    worker.run_path(printer).and(Ok(ExitCode::SUCCESS))
   }
 }
 
@@ -159,7 +160,11 @@ impl ScanWithConfig {
   }
 }
 impl Worker for ScanWithConfig {
-  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<bool> {
+  fn consume_items<P: Printer>(
+    &self,
+    items: Items<P::Processed>,
+    mut printer: P,
+  ) -> Result<ExitCode> {
     printer.before_print()?;
     for item in items {
       printer.process(item)?;
@@ -170,7 +175,7 @@ impl Worker for ScanWithConfig {
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
-      Ok(false)
+      Ok(ExitCode::FAILURE)
     }
   }
 }
@@ -267,7 +272,11 @@ impl ScanStdin {
 }
 
 impl Worker for ScanStdin {
-  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, mut printer: P) -> Result<bool> {
+  fn consume_items<P: Printer>(
+    &self,
+    items: Items<P::Processed>,
+    mut printer: P,
+  ) -> Result<ExitCode> {
     printer.before_print()?;
     for item in items {
       printer.process(item)?;
@@ -277,7 +286,7 @@ impl Worker for ScanStdin {
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
-      Ok(false)
+      Ok(ExitCode::FAILURE)
     }
   }
 }

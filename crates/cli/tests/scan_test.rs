@@ -1,5 +1,7 @@
 mod common;
 
+use std::process::ExitCode;
+
 use anyhow::Result;
 use assert_cmd::Command;
 use ast_grep::main_with_args;
@@ -43,7 +45,7 @@ fn setup() -> Result<TempDir> {
   Ok(dir)
 }
 
-fn sg(s: &str) -> Result<()> {
+fn sg(s: &str) -> Result<ExitCode> {
   let args = s.split(' ').map(String::from);
   main_with_args(args)
 }

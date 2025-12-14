@@ -31,6 +31,7 @@ use crate::utils::ErrorContext as EC;
 use std::env;
 use std::io;
 use std::path::Path;
+use std::process::ExitCode;
 
 #[derive(Parser)]
 pub struct CompletionsArg {
@@ -40,14 +41,14 @@ pub struct CompletionsArg {
   shell: Option<Shell>,
 }
 
-pub fn run_shell_completion<C: CommandFactory>(arg: CompletionsArg) -> Result<()> {
+pub fn run_shell_completion<C: CommandFactory>(arg: CompletionsArg) -> Result<ExitCode> {
   run_shell_completion_impl::<C, _>(arg, &mut io::stdout())
 }
 
 fn run_shell_completion_impl<C: CommandFactory, W: io::Write>(
   arg: CompletionsArg,
   output: &mut W,
-) -> Result<()> {
+) -> Result<ExitCode> {
   let Some(shell) = arg.shell.or_else(Shell::from_env) else {
     return Err(anyhow::anyhow!(EC::CannotInferShell));
   };
@@ -57,7 +58,7 @@ fn run_shell_completion_impl<C: CommandFactory, W: io::Write>(
     None => cmd.get_name().to_string(),
   };
   generate(shell, &mut cmd, cmd_name, output);
-  Ok(())
+  Ok(ExitCode::SUCCESS)
 }
 
 // https://github.com/clap-rs/clap/blob/063b1536289f72369bcd59d61449d355aa3a1d6b/clap_builder/src/builder/command.rs#L781

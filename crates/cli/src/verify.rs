@@ -16,6 +16,7 @@ use serde_yaml::to_string;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
+use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -57,7 +58,7 @@ fn run_test_rule_impl<R: Reporter + Send>(
   arg: TestArg,
   reporter: R,
   project: ProjectConfig,
-) -> Result<()> {
+) -> Result<ExitCode> {
   let filter = arg.filter.as_ref();
   let overwrite = RuleOverwrite::new_for_verify(filter, arg.include_off);
   let collections = &project.find_rules(overwrite)?.0;
@@ -97,7 +98,7 @@ fn run_test_rule_impl<R: Reporter + Send>(
   match test_result {
     reporter::TestResult::Success { message } => {
       writeln!(reporter.get_output(), "{message}")?;
-      Ok(())
+      Ok(ExitCode::SUCCESS)
     }
     reporter::TestResult::RuleFail { message } => {
       let error_context = ErrorContext::TestFail(message);
@@ -196,7 +197,7 @@ pub struct TestArg {
   include_off: bool,
 }
 
-pub fn run_test_rule(arg: TestArg, project: Result<ProjectConfig>) -> Result<()> {
+pub fn run_test_rule(arg: TestArg, project: Result<ProjectConfig>) -> Result<ExitCode> {
   let project = project?;
   if arg.interactive {
     let reporter = InteractiveReporter {

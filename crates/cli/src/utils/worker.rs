@@ -5,6 +5,7 @@ use anyhow::{anyhow, Result};
 use ignore::{DirEntry, WalkParallel, WalkState};
 
 use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 use std::sync::{mpsc, Arc};
 
 /// A trait to abstract how ast-grep discovers work Items.
@@ -18,7 +19,7 @@ use std::sync::{mpsc, Arc};
 pub trait Worker: Sync + Send {
   /// `consume_items` will run in a separate single thread.
   /// printing matches or error reporting can happen here.
-  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, printer: P) -> Result<bool>;
+  fn consume_items<P: Printer>(&self, items: Items<P::Processed>, printer: P) -> Result<ExitCode>;
 }
 
 /// A trait to abstract how ast-grep discovers, parses and processes files.
@@ -39,7 +40,7 @@ pub trait PathWorker: Worker {
     processor: &P::Processor,
   ) -> Result<Vec<P::Processed>>;
 
-  fn run_path<P: Printer>(self, printer: P) -> Result<bool>
+  fn run_path<P: Printer>(self, printer: P) -> Result<ExitCode>
   where
     Self: Sized + 'static,
   {
@@ -54,13 +55,13 @@ pub trait StdInWorker: Worker {
     processor: &P::Processor,
   ) -> Result<Vec<P::Processed>>;
 
-  fn run_std_in<P: Printer>(&self, printer: P) -> Result<bool> {
+  fn run_std_in<P: Printer>(&self, printer: P) -> Result<ExitCode> {
     let source = std::io::read_to_string(std::io::stdin())?;
     let processor = printer.get_processor();
     if let Ok(items) = self.parse_stdin::<P>(source, &processor) {
       self.consume_items(Items::once(items)?, printer)
     } else {
-      Ok(false)
+      Ok(ExitCode::FAILURE)
     }
   }
 }
@@ -109,7 +110,7 @@ fn filter_result(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
 fn run_worker<W: PathWorker + ?Sized + 'static, P: Printer>(
   worker: Arc<W>,
   printer: P,
-) -> Result<bool> {
+) -> Result<ExitCode> {
   let (tx, rx) = mpsc::channel();
   let w = worker.clone();
   let walker = worker.build_walk()?;

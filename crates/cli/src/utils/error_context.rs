@@ -4,6 +4,7 @@ use anyhow::{Error, Result};
 use crossterm::tty::IsTty;
 use std::fmt;
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const PATTERN_GUIDE: Option<&str> = Some("/guide/pattern-syntax.html");
@@ -292,7 +293,7 @@ impl ErrorMessage {
   }
 }
 
-pub fn exit_with_error(error: Error) -> Result<()> {
+pub fn exit_with_error(error: Error) -> Result<ExitCode> {
   if let Some(e) = error.downcast_ref::<clap::Error>() {
     e.exit()
   }
