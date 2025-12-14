@@ -373,6 +373,7 @@
               ]
             }
           },
+          "additionalProperties": false,
           "required": [
             "context"
           ]

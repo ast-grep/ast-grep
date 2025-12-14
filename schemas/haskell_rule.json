@@ -412,6 +412,7 @@
               ]
             }
           },
+          "additionalProperties": false,
           "required": [
             "context"
           ]

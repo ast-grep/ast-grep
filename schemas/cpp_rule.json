@@ -444,6 +444,7 @@
               ]
             }
           },
+          "additionalProperties": false,
           "required": [
             "context"
           ]

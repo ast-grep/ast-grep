@@ -236,6 +236,7 @@
               ]
             }
           },
+          "additionalProperties": false,
           "required": [
             "context"
           ]

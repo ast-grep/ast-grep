@@ -283,6 +283,7 @@
               ]
             }
           },
+          "additionalProperties": false,
           "required": [
             "context"
           ]

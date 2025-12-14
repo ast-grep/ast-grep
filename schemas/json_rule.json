@@ -250,6 +250,7 @@
               ]
             }
           },
+          "additionalProperties": false,
           "required": [
             "context"
           ]

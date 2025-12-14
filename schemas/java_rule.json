@@ -380,6 +380,7 @@
               ]
             }
           },
+          "additionalProperties": false,
           "required": [
             "context"
           ]

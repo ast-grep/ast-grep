@@ -257,6 +257,7 @@
               ]
             }
           },
+          "additionalProperties": false,
           "required": [
             "context"
           ]

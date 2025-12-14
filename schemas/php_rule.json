@@ -393,6 +393,7 @@
               ]
             }
           },
+          "additionalProperties": false,
           "required": [
             "context"
           ]

@@ -345,6 +345,7 @@
               ]
             }
           },
+          "additionalProperties": false,
           "required": [
             "context"
           ]
