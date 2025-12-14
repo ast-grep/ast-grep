@@ -112,7 +112,7 @@ fn run_scan<P: Printer + 'static>(
     worker.run_std_in(printer)
   } else {
     let worker = ScanWithConfig::try_new(arg, project)?;
-    worker.run_path(printer).and(Ok(ExitCode::SUCCESS))
+    worker.run_path(printer)
   }
 }
 
@@ -175,7 +175,7 @@ impl Worker for ScanWithConfig {
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
-      Ok(ExitCode::FAILURE)
+      Ok(ExitCode::SUCCESS)
     }
   }
 }
