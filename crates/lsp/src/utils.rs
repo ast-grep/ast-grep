@@ -6,7 +6,7 @@ use ast_grep_config::Severity;
 use ast_grep_core::tree_sitter::{LanguageExt, StrDoc};
 use ast_grep_core::{Doc, Node, NodeMatch};
 
-use tower_lsp_server::lsp_types::*;
+use tower_lsp_server::ls_types::*;
 
 use std::collections::HashMap;
 use std::str::FromStr;

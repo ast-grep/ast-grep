@@ -4,9 +4,8 @@ use ast_grep_core::NodeMatch;
 use dashmap::DashMap;
 use serde_json::Value;
 use tower_lsp_server::jsonrpc::Result;
-use tower_lsp_server::lsp_types::notification::{DidChangeWatchedFiles, Notification};
-use tower_lsp_server::lsp_types::*;
-use tower_lsp_server::UriExt;
+use tower_lsp_server::ls_types::notification::{DidChangeWatchedFiles, Notification};
+use tower_lsp_server::ls_types::*;
 use tower_lsp_server::{Client, LanguageServer};
 
 use ast_grep_config::{CombinedScan, RuleCollection, Severity};

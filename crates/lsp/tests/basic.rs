@@ -8,7 +8,7 @@ use std::path::Path;
 use tokio::io::{duplex, split, AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio_util::bytes::{BufMut, BytesMut};
 use tokio_util::codec::{Decoder, Encoder, Framed};
-use tower_lsp_server::lsp_types::CodeAction;
+use tower_lsp_server::ls_types::CodeAction;
 
 pub fn req(msg: &str) -> String {
   format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg)
