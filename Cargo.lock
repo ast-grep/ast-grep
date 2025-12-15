@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep"
-version = "0.40.2"
+version = "0.40.3"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -138,7 +138,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-config"
-version = "0.40.2"
+version = "0.40.3"
 dependencies = [
  "ast-grep-core",
  "bit-set",
@@ -153,7 +153,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-core"
-version = "0.40.2"
+version = "0.40.3"
 dependencies = [
  "bit-set",
  "regex",
@@ -164,7 +164,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-dynamic"
-version = "0.40.2"
+version = "0.40.3"
 dependencies = [
  "ast-grep-core",
  "ignore",
@@ -178,7 +178,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-language"
-version = "0.40.2"
+version = "0.40.3"
 dependencies = [
  "ast-grep-core",
  "ignore",
@@ -213,7 +213,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-lsp"
-version = "0.40.2"
+version = "0.40.3"
 dependencies = [
  "anyhow",
  "ast-grep-config",
@@ -231,7 +231,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-napi"
-version = "0.40.2"
+version = "0.40.3"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
@@ -247,7 +247,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-py"
-version = "0.40.2"
+version = "0.40.3"
 dependencies = [
  "anyhow",
  "ast-grep-config",
