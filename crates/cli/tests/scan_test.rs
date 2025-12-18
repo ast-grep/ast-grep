@@ -3,7 +3,7 @@ mod common;
 use std::process::ExitCode;
 
 use anyhow::Result;
-use assert_cmd::Command;
+use assert_cmd::{cargo_bin, Command};
 use ast_grep::main_with_args;
 use common::create_test_files;
 use predicates::prelude::*;
@@ -69,7 +69,7 @@ fn test_sg_scan() -> Result<()> {
 #[test]
 fn test_sg_rule_off() -> Result<()> {
   let dir = setup()?;
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan"])
     .assert()
@@ -83,7 +83,7 @@ fn test_sg_rule_off() -> Result<()> {
 #[test]
 fn test_sg_scan_inline_rules() -> Result<()> {
   let inline_rules = "{id: test, language: ts, rule: {pattern: console.log($A)}}";
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .args(["scan", "--stdin", "--inline-rules", inline_rules, "--json"])
     .write_stdin("console.log(123)")
     .assert()
@@ -105,7 +105,7 @@ rule: { pattern: None }
 #[test]
 fn test_sg_scan_multiple_rules_in_one_file() -> Result<()> {
   let dir = create_test_files([("rule.yml", MULTI_RULES), ("test.ts", "Some(123) + None")])?;
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan", "-r", "rule.yml"])
     .assert()
@@ -120,7 +120,7 @@ fn test_sg_scan_multiple_rules_in_one_file() -> Result<()> {
 #[test]
 fn test_sg_scan_py_empty_text() -> Result<()> {
   let inline_rules = "{id: test, language: py, rule: {pattern: None}}";
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .args(["scan", "--stdin", "--inline-rules", inline_rules])
     .write_stdin("\n\n\n\n\nNone")
     .assert()
@@ -134,7 +134,7 @@ fn test_sg_scan_html() -> Result<()> {
     ("rule.yml", RULE1),
     ("test.html", "<script lang=ts>Some(123)</script>"),
   ])?;
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan", "-r", "rule.yml", "--inspect=summary"])
     .assert()
@@ -153,7 +153,7 @@ fn test_scan_unused_suppression() -> Result<()> {
     ("rules/rule.yml", RULE1),
     ("test.ts", "None(123) // ast-grep-ignore"),
   ])?;
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan"])
     .assert()
@@ -169,25 +169,25 @@ fn test_unused_suppression_only_in_scan() -> Result<()> {
     ("rules/rule.yml", RULE1),
     ("test.ts", "None(123) // ast-grep-ignore"),
   ])?;
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan", "-r", "rules/rule.yml"])
     .assert()
     .success()
     .stdout(contains("unused-suppression").not());
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan", "--filter", "on-rule"])
     .assert()
     .success()
     .stdout(contains("unused-suppression").not());
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan", "--off", "on-rule"])
     .assert()
     .success()
     .stdout(contains("unused-suppression").not());
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan", "--inline-rules", RULE1])
     .assert()
@@ -203,7 +203,7 @@ fn test_scan_unused_suppression_off() -> Result<()> {
     ("rules/rule.yml", RULE1),
     ("test.ts", "None(123) // ast-grep-ignore"),
   ])?;
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan", "--off"])
     .assert()
@@ -214,19 +214,19 @@ fn test_scan_unused_suppression_off() -> Result<()> {
 #[test]
 fn test_severity_override() -> Result<()> {
   let dir = setup()?;
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan", "--error"])
     .assert()
     .failure()
     .stdout(contains("error"));
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan", "--error=on-rule"])
     .assert()
     .failure()
     .stdout(contains("error"));
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan", "--error=not-exist"])
     .assert()
@@ -261,7 +261,7 @@ fn test_transform_indent() -> Result<()> {
     ("rules/rule.yml", PY_RULE),
     ("test.py", PY_FILE),
   ])?;
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan"])
     .assert()
@@ -291,7 +291,7 @@ fn test_label() -> Result<()> {
     ("rules/rule.yml", LABEL_RULE),
     ("test.ts", "Some(123) + None"),
   ])?;
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan"])
     .assert()
@@ -318,21 +318,21 @@ fn test_file() -> Result<()> {
     ("test/hit.ts", "Some(123)"),
     ("not.ts", "Some(456)"),
   ])?;
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path().join("test"))
     .args(["scan"])
     .assert()
     .success()
     .stdout(contains("hit.ts"))
     .stdout(contains("not.ts").not());
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path().join("test"))
     .args(["scan", "-c", "../sgconfig.yml"])
     .assert()
     .success()
     .stdout(contains("hit.ts"))
     .stdout(contains("not.ts").not());
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan", "-c", "sgconfig.yml"])
     .assert()
@@ -345,7 +345,7 @@ fn test_file() -> Result<()> {
 #[test]
 fn test_yaml_sgconfig_extension() -> Result<()> {
   let dir = create_test_files([("sgconfig.yaml", CONFIG), ("rules/rule.yml", FILE_RULE)])?;
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan"])
     .assert()
@@ -356,7 +356,7 @@ fn test_yaml_sgconfig_extension() -> Result<()> {
 #[test]
 fn test_sg_scan_sarif_output() -> Result<()> {
   let dir = setup()?;
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan", "--format", "sarif"])
     .assert()
@@ -384,7 +384,7 @@ rule:
 fix: let $VAR = $VAL
 ";
   let dir = create_test_files([("rule.yml", rule), ("test.js", "var x = 123;")])?;
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan", "-r", "rule.yml", "--format", "sarif"])
     .assert()
@@ -402,7 +402,7 @@ fix: let $VAR = $VAL
 #[test]
 fn test_status_code_success_with_no_match() -> Result<()> {
   let dir = create_test_files([("rule.yml", RULE1)])?;
-  Command::cargo_bin("ast-grep")?
+  Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["scan", "-r", "rule.yml"])
     .assert()
