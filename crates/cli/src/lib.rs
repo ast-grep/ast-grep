@@ -231,6 +231,7 @@ mod test_cli {
     ok("run -p test --globs '*.js' --globs '*.ts'");
     ok("run -p fubuki -j8");
     ok("run -p test --threads 12");
+    ok("run -p test --files-with-matches");
     ok("run -p test -l rs -c config.yml"); // global config arg
     error("run test");
     error("run --debug-query test"); // missing lang
@@ -242,6 +243,8 @@ mod test_cli {
     error("run -p test -l rs --debug-query=not");
     error("run -p test --selector");
     error("run -p test --threads");
+    error("run -p test --files-with-matches -r test -U");
+    error("run -p test --files-with-matches --json");
   }
 
   #[test]
@@ -278,6 +281,8 @@ mod test_cli {
     error("scan -j");
     error("scan --include-metadata"); // requires json
     error("scan --threads");
+    error("scan --files-with-matches -U");
+    error("scan --files-with-matches --json");
   }
 
   #[test]

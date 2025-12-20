@@ -11,7 +11,8 @@ use ignore::WalkParallel;
 use crate::config::ProjectConfig;
 use crate::lang::SgLang;
 use crate::print::{
-  ColoredPrinter, Diff, Heading, InteractivePrinter, JSONPrinter, PrintProcessor, Printer,
+  ColoredPrinter, Diff, FileNamePrinter, Heading, InteractivePrinter, JSONPrinter, PrintProcessor,
+  Printer,
 };
 use crate::utils::ErrorContext as EC;
 use crate::utils::{filter_file_pattern, ContextArgs, InputArgs, MatchUnit, OutputArgs};
@@ -151,6 +152,10 @@ pub fn run_with_pattern(arg: RunArg, project: Result<ProjectConfig>) -> Result<E
   let proj = arg.output.inspect.project_trace();
   proj.print_project(&project)?;
   let context = arg.context.get();
+  if arg.output.files_with_matches {
+    let printer = FileNamePrinter::stdout(arg.output.color);
+    return run_pattern_with_printer(arg, printer);
+  }
   if let Some(json) = arg.output.json {
     let printer = JSONPrinter::stdout(json).context(context);
     return run_pattern_with_printer(arg, printer);
@@ -415,6 +420,7 @@ mod test {
         color: ColorArg::Never,
         interactive: false,
         json: None,
+        files_with_matches: false,
         update_all: false,
         inspect: Default::default(),
       },

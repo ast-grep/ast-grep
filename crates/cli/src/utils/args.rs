@@ -126,6 +126,15 @@ pub struct OutputArgs {
   #[clap(short = 'U', long)]
   pub update_all: bool,
 
+  /// Print only the paths with at least one match and suppress match contents.
+  ///
+  /// It conflicts with both the --interactive, --json and --update-all flags.
+  #[clap(
+      long,
+      conflicts_with_all = ["interactive", "json", "update_all"],
+  )]
+  pub files_with_matches: bool,
+
   /// Output matches in structured JSON.
   ///
   /// If this flag is set, ast-grep will output matches in JSON format.

@@ -11,8 +11,8 @@ use ignore::WalkParallel;
 use crate::config::{read_rule_file, with_rule_stats, ProjectConfig};
 use crate::lang::SgLang;
 use crate::print::{
-  CloudPrinter, ColoredPrinter, Diff, InteractivePrinter, JSONPrinter, Platform, PrintProcessor,
-  Printer, ReportStyle, SimpleFile,
+  CloudPrinter, ColoredPrinter, Diff, FileNamePrinter, InteractivePrinter, JSONPrinter, Platform,
+  PrintProcessor, Printer, ReportStyle, SimpleFile,
 };
 use crate::utils::ErrorContext as EC;
 use crate::utils::RuleOverwrite;
@@ -80,6 +80,10 @@ pub fn run_with_config(arg: ScanArg, project: Result<ProjectConfig>) -> Result<E
   let project_trace = arg.output.inspect.project_trace();
   project_trace.print_project(&project)?;
   let context = arg.context.get();
+  if arg.output.files_with_matches {
+    let printer = FileNamePrinter::stdout(arg.output.color);
+    return run_scan(arg, printer, project);
+  }
   if let Some(format) = &arg.format {
     let printer = CloudPrinter::stdout(format.clone());
     return run_scan(arg, printer, project);
@@ -411,6 +415,7 @@ rule:
       output: OutputArgs {
         interactive: false,
         json: None,
+        files_with_matches: false,
         update_all: false,
         color: ColorArg::Never,
         inspect: Default::default(),

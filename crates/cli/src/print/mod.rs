@@ -1,5 +1,6 @@
 mod cloud_print;
 mod colored_print;
+mod file_name_printer;
 mod interactive_print;
 mod json_print;
 
@@ -16,7 +17,9 @@ use std::path::Path;
 pub use cloud_print::{CloudPrinter, Platform};
 pub use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::termcolor::ColorChoice;
+use colored_print::PrintStyles;
 pub use colored_print::{ColoredPrinter, Heading, ReportStyle};
+pub use file_name_printer::FileNamePrinter;
 pub use interactive_print::InteractivePrinter;
 pub use json_print::{JSONPrinter, JsonStyle};
 
