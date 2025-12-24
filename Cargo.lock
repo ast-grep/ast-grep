@@ -1046,9 +1046,9 @@ checksum = "d376940fd5b723c6893cd1ee3f33abbfd86acb1cd1ec079f3ab04a2a3bc4d3b1"
 
 [[package]]
 name = "napi-derive"
-version = "3.4.0"
+version = "3.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47cffa09ea668c4cc5d7b1198780882e28780ed1804a903b80680725426223d9"
+checksum = "6e9161f3ef917aa415ee0bf123656ccee609db7752582b213d59d9e69f37586a"
 dependencies = [
  "convert_case 0.10.0",
  "ctor",
@@ -1060,9 +1060,9 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "4.0.0"
+version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e186227ec22f4675267a176d98dffecb27e6cc88926cbb7efb5427268565c0f"
+checksum = "724788c8ae2e79ba98905ced435d414c01e1444c91bf43abab455d62eb565b1c"
 dependencies = [
  "convert_case 0.10.0",
  "proc-macro2",
