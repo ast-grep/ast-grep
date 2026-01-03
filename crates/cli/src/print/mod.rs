@@ -41,6 +41,7 @@ pub trait PrintProcessor<Output>: Send + Sync + 'static {
     diffs: Vec<(Diff, &RuleConfig<SgLang>)>,
     path: &Path,
   ) -> Result<Output>;
+  fn report(&self, path: &Path, errs: usize) -> Result<Output>;
 }
 
 pub trait Printer {

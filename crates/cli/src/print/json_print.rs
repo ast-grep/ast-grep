@@ -443,6 +443,10 @@ impl PrintProcessor<Buffer> for JSONProcessor {
       .map(|diff| MatchJSON::diff(diff, &path, context));
     self.print_docs(jsons)
   }
+  fn report(&self, _path: &Path, _errs: usize) -> Result<Buffer> {
+    unreachable!("not impl")
+  }
+
   fn print_rule_diffs(
     &self,
     diffs: Vec<(Diff, &RuleConfig<SgLang>)>,

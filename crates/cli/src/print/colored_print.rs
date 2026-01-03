@@ -240,6 +240,11 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
       print_matches_with_prefix(matches, path, self)
     }
   }
+  fn report(&self, path: &Path, errs: usize) -> Result<Buffer> {
+    let mut buffer = create_buffer(false);
+    writeln!(buffer, "{} : {errs} error(s)", path.to_string_lossy())?;
+    Ok(buffer)
+  }
 
   fn print_diffs(&self, diffs: Vec<Diff>, path: &Path) -> Result<Buffer> {
     let context = self.diff_context();

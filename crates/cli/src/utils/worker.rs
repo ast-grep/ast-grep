@@ -88,23 +88,34 @@ impl<T> Items<T> {
   }
 }
 
-fn filter_result(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
-  let entry = match result {
-    Ok(entry) => entry,
-    Err(err) => {
-      eprintln!("ERROR: {err}");
-      return None;
-    }
-  };
-  if !entry.file_type()?.is_file() {
+fn filter_result(entry: DirEntry,  stdin_path: & mut bool) -> Option<PathBuf> {
+  let file = entry.file_type()?.is_file();
+  let path = entry.into_path();
+  *stdin_path = path.as_os_str() == "/dev/stdin";
+  if !file {
     return None;
   }
-  let path = entry.into_path();
   // TODO: is it correct here? see https://github.com/ast-grep/ast-grep/issues/1343
   match path.strip_prefix("./") {
     Ok(p) => Some(p.to_path_buf()),
-    Err(_) => Some(path),
+    Err(_) => Some(path)
   }
+}
+
+fn scan_one<W: PathWorker + ?Sized + 'static, P: Printer>(tx: mpsc::Sender<<P as Printer>::Processed>, w: Arc<W>, processor: &<P as Printer>::Processor, p: PathBuf) -> WalkState {
+    let stats = w.get_trace();
+    stats.add_scanned();
+    let Ok(items) = w.produce_item::<P>(&p, processor) else {
+      stats.add_skipped();
+      return WalkState::Continue;
+    };
+    for result in items {
+      match tx.send(result) {
+        Ok(_) => continue,
+        Err(_) => return WalkState::Quit,
+      }
+    }
+    return WalkState::Continue;
 }
 
 fn run_worker<W: PathWorker + ?Sized + 'static, P: Printer>(
@@ -124,22 +135,30 @@ fn run_worker<W: PathWorker + ?Sized + 'static, P: Printer>(
       let w = w.clone();
       let processor = &processor;
       Box::new(move |result| {
-        let Some(p) = filter_result(result) else {
-          return WalkState::Continue;
+        let entry = match result {
+          Ok(entry) => entry,
+          Err(err) => {
+            eprintln!("ERROR: {err}");
+            return WalkState::Continue;
+          }
         };
-        let stats = w.get_trace();
-        stats.add_scanned();
-        let Ok(items) = w.produce_item::<P>(&p, processor) else {
-          stats.add_skipped();
-          return WalkState::Continue;
-        };
-        for result in items {
-          match tx.send(result) {
-            Ok(_) => continue,
-            Err(_) => return WalkState::Quit,
+        let mut stdin_path: bool = false;
+        if let Some(p) = filter_result(entry, &mut stdin_path) {
+          return scan_one::<W, P>(tx.clone(), w.clone(), processor, p);
+        } else if stdin_path {
+          loop {
+            let mut line = String::new();
+            let path = match std::io::stdin().read_line(&mut line) {
+              Ok(_) => line.trim_end(),
+              Err(_) => break,
+            };
+            match path.is_empty() {
+              true => return WalkState::Continue,
+              false => scan_one::<W, P>(tx.clone(), w.clone(), processor, PathBuf::from(path)),
+            };
           }
         }
-        WalkState::Continue
+        return WalkState::Continue;
       })
     });
   });

@@ -249,6 +249,8 @@ impl PathWorker for ScanWithConfig {
       }
     }
     self.error_count.fetch_add(error_count, Ordering::AcqRel);
+    let fin = processor.report(path, error_count)?;
+    ret.push(fin);
     Ok(ret)
   }
 }

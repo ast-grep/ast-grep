@@ -114,6 +114,9 @@ impl PrintProcessor<CloudOutput> for CloudProcessor {
       }
     }
   }
+  fn report(&self, _path: &Path, _errs: usize) -> Result<CloudOutput> {
+    unreachable!("not impl")
+  }
 
   fn print_matches(&self, _m: Vec<NodeMatch>, _p: &Path) -> Result<CloudOutput> {
     unreachable!("cloud printer does not support pattern search")

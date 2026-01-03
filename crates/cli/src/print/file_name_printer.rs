@@ -87,6 +87,9 @@ impl PrintProcessor<Buffer> for FileNameProcessor {
     let path = Path::new(file.name().as_ref());
     self.print_path(path)
   }
+  fn report(&self, path: &Path, _errs: usize) -> Result<Buffer> {
+    self.print_path(path)
+  }
 
   fn print_matches(&self, _matches: Vec<NodeMatch>, path: &Path) -> Result<Buffer> {
     self.print_path(path)

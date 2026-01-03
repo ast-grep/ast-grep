@@ -223,6 +223,9 @@ where
     };
     Ok(InteractivePayload::Highlights(highlights))
   }
+  fn report(&self, _path: &Path, _errs: usize) -> Result<Payload<P>> {
+    unreachable!("not impl")
+  }
 
   fn print_diffs(&self, diffs: Vec<Diff>, path: &Path) -> Result<Payload<P>> {
     let old_source = get_old_source(diffs.first());
