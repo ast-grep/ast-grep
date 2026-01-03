@@ -91,8 +91,8 @@ impl<T> Items<T> {
 fn filter_result(entry: DirEntry,  stdin_path: & mut bool) -> Option<PathBuf> {
   let file = entry.file_type()?.is_file();
   let path = entry.into_path();
-  *stdin_path = path.as_os_str() == "/dev/stdin";
-  if !file {
+  *stdin_path = path.as_os_str() == "sgconfig.yml" || path.as_os_str() == "/dev/stdin";
+  if !file || *stdin_path {
     return None;
   }
   // TODO: is it correct here? see https://github.com/ast-grep/ast-grep/issues/1343
