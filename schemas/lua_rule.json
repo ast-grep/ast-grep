@@ -553,6 +553,7 @@
             "method",
             "name",
             "operand",
+            "operator",
             "parameters",
             "right",
             "start",
