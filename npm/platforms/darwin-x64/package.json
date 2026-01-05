@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/cli-darwin-x64",
-  "version": "0.40.3",
+  "version": "0.40.4",
   "os": [
     "darwin"
   ],
