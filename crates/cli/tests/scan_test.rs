@@ -351,7 +351,7 @@ rule: { pattern: Some($A) }
 ";
 
 #[test]
-fn test_max_diagnostics() -> Result<()> {
+fn test_max_diagnostics_shown() -> Result<()> {
   // Create 4 files, each with one match
   let dir = create_test_files([
     ("sgconfig.yml", CONFIG),
@@ -361,10 +361,10 @@ fn test_max_diagnostics() -> Result<()> {
     ("c.ts", "Some(3)"),
     ("d.ts", "Some(4)"),
   ])?;
-  // With --max-diagnostics=2, should only output 2 matches
+  // With --max-diagnostics-shown=2, should only output 2 matches
   let output = Command::new(cargo_bin!())
     .current_dir(dir.path())
-    .args(["scan", "--json", "--max-diagnostics=2"])
+    .args(["scan", "--json", "--max-diagnostics-shown=2"])
     .assert()
     .success()
     .get_output()
@@ -377,17 +377,17 @@ fn test_max_diagnostics() -> Result<()> {
 }
 
 #[test]
-fn test_max_diagnostics_single_file() -> Result<()> {
+fn test_max_diagnostics_shown_single_file() -> Result<()> {
   // Single file with 4 matches
   let dir = create_test_files([
     ("sgconfig.yml", CONFIG),
     ("rules/rule.yml", MAX_DIAG_RULE),
     ("test.ts", "Some(1); Some(2); Some(3); Some(4)"),
   ])?;
-  // With --max-diagnostics=2, should only output 2 matches
+  // With --max-diagnostics-shown=2, should only output 2 matches
   let output = Command::new(cargo_bin!())
     .current_dir(dir.path())
-    .args(["scan", "--json", "--max-diagnostics=2"])
+    .args(["scan", "--json", "--max-diagnostics-shown=2"])
     .assert()
     .success()
     .get_output()
@@ -404,8 +404,8 @@ fn test_max_diagnostics_single_file() -> Result<()> {
 }
 
 #[test]
-fn test_max_diagnostics_stdin() -> Result<()> {
-  // Test --max-diagnostics with stdin input
+fn test_max_diagnostics_shown_stdin() -> Result<()> {
+  // Test --max-diagnostics-shown with stdin input
   let input = "Some(1); Some(2); Some(3); Some(4)";
   // Note: stdin mode returns exit code 1 when there are matches but no errors
   let output = Command::new(cargo_bin!())
@@ -415,7 +415,7 @@ fn test_max_diagnostics_stdin() -> Result<()> {
       "--json",
       "--inline-rules",
       MAX_DIAG_RULE,
-      "--max-diagnostics=2",
+      "--max-diagnostics-shown=2",
     ])
     .write_stdin(input)
     .assert()

@@ -41,7 +41,7 @@ pub trait PathWorker: Worker {
   ) -> Result<Vec<P::Processed>>;
 
   /// Returns true if the worker should stop processing files.
-  /// Used to implement early termination (e.g., --max-diagnostics).
+  /// Used to implement early termination (e.g., --max-diagnostics-shown).
   fn should_stop(&self) -> bool {
     false
   }

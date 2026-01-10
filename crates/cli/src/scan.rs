@@ -68,13 +68,11 @@ pub struct ScanArg {
   #[clap(flatten)]
   context: ContextArgs,
 
-  /// Stop scanning after this number of diagnostics are found.
+  /// Show at most NUM diagnostics and stop scanning once the limit is reached.
   ///
-  /// When the number of diagnostics reaches this threshold, ast-grep will
-  /// stop scanning additional files. At most NUM diagnostics will be output.
   /// This is useful for CI pipelines where you want to fail fast.
   #[clap(long, conflicts_with = "interactive", value_name = "NUM")]
-  max_diagnostics: Option<usize>,
+  max_diagnostics_shown: Option<usize>,
 }
 
 impl ScanArg {
@@ -137,7 +135,7 @@ struct ScanWithConfig {
   // TODO: remove this
   error_count: AtomicUsize,
   diagnostic_count: AtomicUsize,
-  max_diagnostics: Option<usize>,
+  max_diagnostics_shown: Option<usize>,
 }
 impl ScanWithConfig {
   fn try_new(arg: ScanArg, project: Result<ProjectConfig>) -> Result<Self> {
@@ -163,7 +161,7 @@ impl ScanWithConfig {
     let absolute_proj_dir = proj_dir
       .canonicalize()
       .or_else(|_| std::env::current_dir())?;
-    let max_diagnostics = arg.max_diagnostics;
+    let max_diagnostics_shown = arg.max_diagnostics_shown;
     Ok(Self {
       arg,
       configs,
@@ -172,7 +170,7 @@ impl ScanWithConfig {
       proj_dir: absolute_proj_dir,
       error_count: AtomicUsize::new(0),
       diagnostic_count: AtomicUsize::new(0),
-      max_diagnostics,
+      max_diagnostics_shown,
     })
   }
 }
@@ -255,7 +253,7 @@ impl PathWorker for ScanWithConfig {
       }
       for (rule, matches) in scanned.matches {
         // Atomically reserve slots for matches, truncating if needed
-        let matches: Vec<_> = if let Some(max) = self.max_diagnostics {
+        let matches: Vec<_> = if let Some(max) = self.max_diagnostics_shown {
           let wanted = matches.len();
           // Atomically claim as many slots as we can (up to wanted)
           let claimed = self
@@ -297,7 +295,7 @@ impl PathWorker for ScanWithConfig {
   }
 
   fn should_stop(&self) -> bool {
-    match self.max_diagnostics {
+    match self.max_diagnostics_shown {
       Some(max) => self.diagnostic_count.load(Ordering::Relaxed) >= max,
       None => false,
     }
@@ -308,7 +306,7 @@ struct ScanStdin {
   rules: Vec<RuleConfig<SgLang>>,
   // TODO: remove this
   error_count: AtomicUsize,
-  max_diagnostics: Option<usize>,
+  max_diagnostics_shown: Option<usize>,
 }
 impl ScanStdin {
   fn try_new(arg: ScanArg) -> Result<Self> {
@@ -323,7 +321,7 @@ impl ScanStdin {
     Ok(Self {
       rules,
       error_count: AtomicUsize::new(0),
-      max_diagnostics: arg.max_diagnostics,
+      max_diagnostics_shown: arg.max_diagnostics_shown,
     })
   }
 }
@@ -366,8 +364,8 @@ impl StdInWorker for ScanStdin {
     let mut diagnostic_count = 0usize;
     let mut ret = vec![];
     for (rule, matches) in scanned.matches {
-      // Truncate matches if max_diagnostics is set
-      let matches: Vec<_> = if let Some(max) = self.max_diagnostics {
+      // Truncate matches if max_diagnostics_shown is set
+      let matches: Vec<_> = if let Some(max) = self.max_diagnostics_shown {
         let remaining = max.saturating_sub(diagnostic_count);
         if remaining == 0 {
           break;
@@ -495,7 +493,7 @@ rule:
         context: 0,
       },
       format: None,
-      max_diagnostics: None,
+      max_diagnostics_shown: None,
     }
   }
 
