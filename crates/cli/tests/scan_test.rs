@@ -404,6 +404,36 @@ fn test_max_diagnostics_single_file() -> Result<()> {
 }
 
 #[test]
+fn test_max_diagnostics_stdin() -> Result<()> {
+  // Test --max-diagnostics with stdin input
+  let input = "Some(1); Some(2); Some(3); Some(4)";
+  // Note: stdin mode returns exit code 1 when there are matches but no errors
+  let output = Command::new(cargo_bin!())
+    .args([
+      "scan",
+      "--stdin",
+      "--json",
+      "--inline-rules",
+      MAX_DIAG_RULE,
+      "--max-diagnostics=2",
+    ])
+    .write_stdin(input)
+    .assert()
+    .failure()
+    .get_output()
+    .stdout
+    .clone();
+  let json: Value = from_slice(&output)?;
+  let matches = json.as_array().expect("should be array");
+  assert_eq!(
+    matches.len(),
+    2,
+    "should output exactly 2 matches from stdin"
+  );
+  Ok(())
+}
+
+#[test]
 fn test_yaml_sgconfig_extension() -> Result<()> {
   let dir = create_test_files([("sgconfig.yaml", CONFIG), ("rules/rule.yml", FILE_RULE)])?;
   Command::new(cargo_bin!())
