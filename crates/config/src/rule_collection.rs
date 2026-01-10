@@ -1,6 +1,6 @@
-use crate::{RuleConfig, Severity};
+use crate::{rule_config::RuleFileGlob, RuleConfig, Severity};
 use ast_grep_core::language::Language;
-use globset::{Glob, GlobSet, GlobSetBuilder};
+use globset::{Glob, GlobBuilder, GlobSet, GlobSetBuilder};
 use std::path::Path;
 
 /// RuleBucket stores rules of the same language id.
@@ -28,10 +28,19 @@ struct ContingentRule<L: Language> {
   ignore_globs: Option<GlobSet>,
 }
 
-fn build_glob_set(paths: &Vec<String>) -> Result<GlobSet, globset::Error> {
+fn build_glob_set(configs: &Vec<RuleFileGlob>) -> Result<GlobSet, globset::Error> {
   let mut builder = GlobSetBuilder::new();
-  for path in paths {
-    builder.add(Glob::new(path)?);
+  for config in configs {
+    let glob = match config {
+      RuleFileGlob::Config {
+        glob: glob_str,
+        case_insensitive,
+      } => GlobBuilder::new(glob_str)
+        .case_insensitive(*case_insensitive)
+        .build()?,
+      RuleFileGlob::Glob(p) => Glob::new(p)?,
+    };
+    builder.add(glob);
   }
   builder.build()
 }
@@ -281,5 +290,96 @@ files:
   #[ignore]
   fn test_rules_for_path() {
     todo!()
+  }
+
+  #[test]
+  fn test_build_glob_set_simple() {
+    let configs = vec![
+      RuleFileGlob::Glob("*.ts".to_string()),
+      RuleFileGlob::Glob("src/**/*.rs".to_string()),
+    ];
+    let glob_set = build_glob_set(&configs).expect("should build glob set");
+    assert!(glob_set.is_match("test.ts"));
+    assert!(glob_set.is_match("src/main.rs"));
+    assert!(glob_set.is_match("src/sub/lib.rs"));
+    assert!(!glob_set.is_match("test.js"));
+  }
+
+  #[test]
+  fn test_build_glob_set_case_insensitive() {
+    let configs = vec![
+      RuleFileGlob::Config {
+        glob: "*.ts".to_string(),
+        case_insensitive: true,
+      },
+      RuleFileGlob::Config {
+        glob: "README.md".to_string(),
+        case_insensitive: true,
+      },
+    ];
+    let glob_set = build_glob_set(&configs).expect("should build glob set");
+
+    // Case insensitive matching for *.ts
+    assert!(glob_set.is_match("test.ts"));
+    assert!(glob_set.is_match("test.TS"));
+    assert!(glob_set.is_match("test.Ts"));
+
+    // Case insensitive matching for README.md
+    assert!(glob_set.is_match("README.md"));
+    assert!(glob_set.is_match("readme.md"));
+    assert!(glob_set.is_match("ReadMe.MD"));
+
+    assert!(!glob_set.is_match("test.js"));
+  }
+
+  #[test]
+  fn test_build_glob_set_case_sensitive() {
+    let configs = vec![
+      RuleFileGlob::Config {
+        glob: "*.ts".to_string(),
+        case_insensitive: false,
+      },
+      RuleFileGlob::Glob("README.md".to_string()),
+    ];
+    let glob_set = build_glob_set(&configs).expect("should build glob set");
+
+    // Case sensitive matching for *.ts
+    assert!(glob_set.is_match("test.ts"));
+    assert!(!glob_set.is_match("test.TS"));
+    assert!(!glob_set.is_match("test.Ts"));
+
+    // Case sensitive matching for README.md (default behavior)
+    assert!(glob_set.is_match("README.md"));
+    assert!(!glob_set.is_match("readme.md"));
+    assert!(!glob_set.is_match("ReadMe.MD"));
+  }
+
+  #[test]
+  fn test_build_glob_set_mixed() {
+    let configs = vec![
+      RuleFileGlob::Glob("*.rs".to_string()),
+      RuleFileGlob::Config {
+        glob: "*.ts".to_string(),
+        case_insensitive: true,
+      },
+      RuleFileGlob::Config {
+        glob: "Makefile".to_string(),
+        case_insensitive: false,
+      },
+    ];
+    let glob_set = build_glob_set(&configs).expect("should build glob set");
+
+    // Case sensitive Rust files
+    assert!(glob_set.is_match("main.rs"));
+    assert!(!glob_set.is_match("main.RS"));
+
+    // Case insensitive TypeScript files
+    assert!(glob_set.is_match("app.ts"));
+    assert!(glob_set.is_match("app.TS"));
+
+    // Case sensitive Makefile
+    assert!(glob_set.is_match("Makefile"));
+    assert!(!glob_set.is_match("makefile"));
+    assert!(!glob_set.is_match("MAKEFILE"));
   }
 }

@@ -88,13 +88,27 @@ pub struct SerializableRuleConfig<L: Language> {
   /// value is the label message and label style.
   pub labels: Option<HashMap<String, LabelConfig>>,
   /// Glob patterns to specify that the rule only applies to matching files
-  pub files: Option<Vec<String>>,
+  pub files: Option<Vec<RuleFileGlob>>,
   /// Glob patterns that exclude rules from applying to files
-  pub ignores: Option<Vec<String>>,
+  pub ignores: Option<Vec<RuleFileGlob>>,
   /// Documentation link to this rule
   pub url: Option<String>,
   /// Extra information for the rule
   pub metadata: Option<Metadata>,
+}
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(untagged)]
+pub enum RuleFileGlob {
+  /// A glob pattern string
+  Glob(String),
+  #[serde(rename_all = "camelCase")]
+  Config {
+    /// A glob pattern string
+    glob: String,
+    /// Whether the glob matching is case insensitive
+    #[serde(default)]
+    case_insensitive: bool,
+  },
 }
 
 /// A trivial wrapper around a HashMap to work around
@@ -766,5 +780,119 @@ labels:
     let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
     let ret = RuleConfig::try_from(rule, &Default::default());
     assert!(matches!(ret, Err(RuleConfigError::LabelVariable(_))));
+  }
+
+  #[test]
+  fn test_file_glob_simple_string() {
+    let src = r"
+id: test-rule
+language: Tsx
+rule: { kind: string }
+files:
+  - '*.ts'
+  - 'src/**/*.tsx'
+  ";
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+    assert!(rule.files.is_some());
+    let files = rule.files.as_ref().unwrap();
+    assert_eq!(files.len(), 2);
+    assert!(matches!(files[0], RuleFileGlob::Glob(_)));
+    assert!(matches!(files[1], RuleFileGlob::Glob(_)));
+  }
+
+  #[test]
+  fn test_file_glob_case_insensitive() {
+    let src = r"
+id: test-rule
+language: Tsx
+rule: { kind: string }
+files:
+  - glob: '*.ts'
+    caseInsensitive: true
+  - glob: 'README.md'
+    caseInsensitive: true
+  ";
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+    assert!(rule.files.is_some());
+    let files = rule.files.as_ref().unwrap();
+    assert_eq!(files.len(), 2);
+    match &files[0] {
+      RuleFileGlob::Config {
+        glob,
+        case_insensitive,
+      } => {
+        assert_eq!(glob, "*.ts");
+        assert!(case_insensitive);
+      }
+      _ => panic!("Expected Config variant"),
+    }
+    match &files[1] {
+      RuleFileGlob::Config {
+        glob,
+        case_insensitive,
+      } => {
+        assert_eq!(glob, "README.md");
+        assert!(case_insensitive);
+      }
+      _ => panic!("Expected Config variant"),
+    }
+  }
+
+  #[test]
+  fn test_file_glob_case_sensitive() {
+    let src = r"
+id: test-rule
+language: Tsx
+rule: { kind: string }
+files:
+  - glob: '*.ts'
+    caseInsensitive: false
+  ";
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+    assert!(rule.files.is_some());
+    let files = rule.files.as_ref().unwrap();
+    assert_eq!(files.len(), 1);
+    match &files[0] {
+      RuleFileGlob::Config {
+        glob,
+        case_insensitive,
+      } => {
+        assert_eq!(glob, "*.ts");
+        assert!(!case_insensitive);
+      }
+      _ => panic!("Expected Config variant"),
+    }
+  }
+
+  #[test]
+  fn test_file_glob_mixed_formats() {
+    let src = r"
+id: test-rule
+language: Tsx
+rule: { kind: string }
+files:
+  - '*.ts'
+  - glob: 'README.md'
+    caseInsensitive: true
+  - 'src/**/*.tsx'
+ignores:
+  - 'test/**'
+  - glob: 'BUILD'
+    caseInsensitive: true
+  ";
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+
+    assert!(rule.files.is_some());
+    let files = rule.files.as_ref().unwrap();
+    assert_eq!(files.len(), 3);
+    assert!(matches!(files[0], RuleFileGlob::Glob(_)));
+    assert!(matches!(files[1], RuleFileGlob::Config { .. }));
+    assert!(matches!(files[2], RuleFileGlob::Glob(_)));
+
+    assert!(rule.ignores.is_some());
+    let ignores = rule.ignores.as_ref().unwrap();
+    assert_eq!(ignores.len(), 2);
+    assert!(matches!(ignores[0], RuleFileGlob::Glob(_)));
+    assert!(matches!(ignores[1], RuleFileGlob::Config { .. }));
   }
 }
