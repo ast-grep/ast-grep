@@ -61,7 +61,8 @@ pub trait StdInWorker: Worker {
     if let Ok(items) = self.parse_stdin::<P>(source, &processor) {
       self.consume_items(Items::once(items)?, printer)
     } else {
-      Ok(ExitCode::FAILURE)
+      // return exit code 2 on parse error
+      Ok(ExitCode::from(2))
     }
   }
 }

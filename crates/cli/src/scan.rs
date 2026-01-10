@@ -290,7 +290,7 @@ impl Worker for ScanStdin {
     if error_count > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
-      Ok(ExitCode::FAILURE)
+      Ok(ExitCode::SUCCESS)
     }
   }
 }
