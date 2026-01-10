@@ -40,6 +40,12 @@ pub trait PathWorker: Worker {
     processor: &P::Processor,
   ) -> Result<Vec<P::Processed>>;
 
+  /// Returns true if the worker should stop processing files.
+  /// Used to implement early termination (e.g., --max-diagnostics).
+  fn should_stop(&self) -> bool {
+    false
+  }
+
   fn run_path<P: Printer>(self, printer: P) -> Result<ExitCode>
   where
     Self: Sized + 'static,
@@ -139,6 +145,9 @@ fn run_worker<W: PathWorker + ?Sized + 'static, P: Printer>(
             Ok(_) => continue,
             Err(_) => return WalkState::Quit,
           }
+        }
+        if w.should_stop() {
+          return WalkState::Quit;
         }
         WalkState::Continue
       })
