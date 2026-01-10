@@ -308,6 +308,7 @@ struct ScanStdin {
   rules: Vec<RuleConfig<SgLang>>,
   // TODO: remove this
   error_count: AtomicUsize,
+  max_diagnostics: Option<usize>,
 }
 impl ScanStdin {
   fn try_new(arg: ScanArg) -> Result<Self> {
@@ -322,6 +323,7 @@ impl ScanStdin {
     Ok(Self {
       rules,
       error_count: AtomicUsize::new(0),
+      max_diagnostics: arg.max_diagnostics,
     })
   }
 }
@@ -361,10 +363,26 @@ impl StdInWorker for ScanStdin {
     // do not separate_fix rule in stdin mode
     let scanned = combined.scan(&grep, false);
     let mut error_count = 0usize;
+    let mut diagnostic_count = 0usize;
     let mut ret = vec![];
     for (rule, matches) in scanned.matches {
+      // Truncate matches if max_diagnostics is set
+      let matches: Vec<_> = if let Some(max) = self.max_diagnostics {
+        let remaining = max.saturating_sub(diagnostic_count);
+        if remaining == 0 {
+          break;
+        }
+        matches.into_iter().take(remaining).collect()
+      } else {
+        matches
+      };
+      if matches.is_empty() {
+        continue;
+      }
+      let match_count = matches.len();
+      diagnostic_count += match_count;
       if matches!(rule.severity, Severity::Error) {
-        error_count = error_count.saturating_add(matches.len());
+        error_count = error_count.saturating_add(match_count);
       }
       let processed = match_rule_on_file(path, matches, rule, file_content, processor)?;
       ret.push(processed);
