@@ -75,11 +75,12 @@ impl ErrorContext {
     // reference: https://mariadb.com/kb/en/operating-system-error-codes/
     match self {
       DiagnosticError(_) => 1,
-      ProjectNotExist | LanguageNotSpecified | RuleNotSpecified | RuleNotFound(_) => 2,
-      TestFail(_) | TestSnapshotMismatch(_) => 3,
-      NoTestDirConfigured | NoUtilDirConfigured => 4,
-      ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 5,
-      StdInIsNotInteractive => 6,
+      // skip 2 to avoid conflict with clap error code or unexpected error
+      ProjectNotExist | LanguageNotSpecified | RuleNotSpecified | RuleNotFound(_) => 3,
+      TestFail(_) | TestSnapshotMismatch(_) => 4,
+      NoTestDirConfigured | NoUtilDirConfigured => 5,
+      ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 6,
+      StdInIsNotInteractive => 7,
       ParseTest(_) | ParseRule(_) | ParseConfiguration | ParsePattern | InvalidGlobalUtils
       | LangInjection => 8,
       GlobPattern | BuildGlobs => 9,
