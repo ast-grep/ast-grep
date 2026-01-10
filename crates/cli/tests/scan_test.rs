@@ -342,6 +342,67 @@ fn test_file() -> Result<()> {
   Ok(())
 }
 
+const MAX_DIAG_RULE: &str = "
+id: max-diag-rule
+message: test rule
+severity: warning
+language: TypeScript
+rule: { pattern: Some($A) }
+";
+
+#[test]
+fn test_max_diagnostics() -> Result<()> {
+  // Create 4 files, each with one match
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/rule.yml", MAX_DIAG_RULE),
+    ("a.ts", "Some(1)"),
+    ("b.ts", "Some(2)"),
+    ("c.ts", "Some(3)"),
+    ("d.ts", "Some(4)"),
+  ])?;
+  // With --max-diagnostics=2, should only output 2 matches
+  let output = Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "--json", "--max-diagnostics=2"])
+    .assert()
+    .success()
+    .get_output()
+    .stdout
+    .clone();
+  let json: Value = from_slice(&output)?;
+  let matches = json.as_array().expect("should be array");
+  assert_eq!(matches.len(), 2, "should output exactly 2 matches");
+  Ok(())
+}
+
+#[test]
+fn test_max_diagnostics_single_file() -> Result<()> {
+  // Single file with 4 matches
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/rule.yml", MAX_DIAG_RULE),
+    ("test.ts", "Some(1); Some(2); Some(3); Some(4)"),
+  ])?;
+  // With --max-diagnostics=2, should only output 2 matches
+  let output = Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "--json", "--max-diagnostics=2"])
+    .assert()
+    .success()
+    .get_output()
+    .stdout
+    .clone();
+  let json: Value = from_slice(&output)?;
+  let matches = json.as_array().expect("should be array");
+  assert_eq!(
+    matches.len(),
+    2,
+    "should output exactly 2 matches from single file"
+  );
+  Ok(())
+}
+
 #[test]
 fn test_yaml_sgconfig_extension() -> Result<()> {
   let dir = create_test_files([("sgconfig.yaml", CONFIG), ("rules/rule.yml", FILE_RULE)])?;
