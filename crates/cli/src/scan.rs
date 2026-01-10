@@ -67,6 +67,14 @@ pub struct ScanArg {
   /// context related options
   #[clap(flatten)]
   context: ContextArgs,
+
+  /// Stop scanning after this number of diagnostics are found.
+  ///
+  /// When the number of diagnostics reaches this threshold, ast-grep will
+  /// stop scanning additional files. At most NUM diagnostics will be output.
+  /// This is useful for CI pipelines where you want to fail fast.
+  #[clap(long, conflicts_with = "interactive", value_name = "NUM")]
+  max_diagnostics: Option<usize>,
 }
 
 impl ScanArg {
@@ -128,6 +136,8 @@ struct ScanWithConfig {
   proj_dir: PathBuf,
   // TODO: remove this
   error_count: AtomicUsize,
+  diagnostic_count: AtomicUsize,
+  max_diagnostics: Option<usize>,
 }
 impl ScanWithConfig {
   fn try_new(arg: ScanArg, project: Result<ProjectConfig>) -> Result<Self> {
@@ -153,6 +163,7 @@ impl ScanWithConfig {
     let absolute_proj_dir = proj_dir
       .canonicalize()
       .or_else(|_| std::env::current_dir())?;
+    let max_diagnostics = arg.max_diagnostics;
     Ok(Self {
       arg,
       configs,
@@ -160,6 +171,8 @@ impl ScanWithConfig {
       trace,
       proj_dir: absolute_proj_dir,
       error_count: AtomicUsize::new(0),
+      diagnostic_count: AtomicUsize::new(0),
+      max_diagnostics,
     })
   }
 }
@@ -241,15 +254,41 @@ impl PathWorker for ScanWithConfig {
         ret.push(processed);
       }
       for (rule, matches) in scanned.matches {
-        if matches!(rule.severity, Severity::Error) {
-          error_count = error_count.saturating_add(matches.len());
+        // Truncate matches if we're approaching max_diagnostics
+        let matches: Vec<_> = if let Some(max) = self.max_diagnostics {
+          let current = self.diagnostic_count.load(Ordering::Relaxed);
+          if current >= max {
+            break;
+          }
+          let remaining = max - current;
+          matches.into_iter().take(remaining).collect()
+        } else {
+          matches
+        };
+        if matches.is_empty() {
+          continue;
         }
+        let match_count = matches.len();
+        if matches!(rule.severity, Severity::Error) {
+          error_count = error_count.saturating_add(match_count);
+        }
+        // Update diagnostic count immediately so other workers see it
+        self
+          .diagnostic_count
+          .fetch_add(match_count, Ordering::AcqRel);
         let processed = match_rule_on_file(path, matches, rule, file_content, processor)?;
         ret.push(processed);
       }
     }
     self.error_count.fetch_add(error_count, Ordering::AcqRel);
     Ok(ret)
+  }
+
+  fn should_stop(&self) -> bool {
+    match self.max_diagnostics {
+      Some(max) => self.diagnostic_count.load(Ordering::Relaxed) >= max,
+      None => false,
+    }
   }
 }
 
@@ -426,6 +465,7 @@ rule:
         context: 0,
       },
       format: None,
+      max_diagnostics: None,
     }
   }
 
