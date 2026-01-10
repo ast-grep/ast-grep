@@ -254,14 +254,30 @@ impl PathWorker for ScanWithConfig {
         ret.push(processed);
       }
       for (rule, matches) in scanned.matches {
-        // Truncate matches if we're approaching max_diagnostics
+        // Atomically reserve slots for matches, truncating if needed
         let matches: Vec<_> = if let Some(max) = self.max_diagnostics {
-          let current = self.diagnostic_count.load(Ordering::Relaxed);
-          if current >= max {
+          let wanted = matches.len();
+          // Atomically claim as many slots as we can (up to wanted)
+          let claimed = self
+            .diagnostic_count
+            .fetch_update(Ordering::AcqRel, Ordering::Relaxed, |current| {
+              if current >= max {
+                None // Already at limit, claim nothing
+              } else {
+                let available = max - current;
+                let to_claim = wanted.min(available);
+                Some(current + to_claim)
+              }
+            })
+            .map(|old| {
+              let available = max - old;
+              wanted.min(available)
+            })
+            .unwrap_or(0);
+          if claimed == 0 {
             break;
           }
-          let remaining = max - current;
-          matches.into_iter().take(remaining).collect()
+          matches.into_iter().take(claimed).collect()
         } else {
           matches
         };
@@ -272,10 +288,6 @@ impl PathWorker for ScanWithConfig {
         if matches!(rule.severity, Severity::Error) {
           error_count = error_count.saturating_add(match_count);
         }
-        // Update diagnostic count immediately so other workers see it
-        self
-          .diagnostic_count
-          .fetch_add(match_count, Ordering::AcqRel);
         let processed = match_rule_on_file(path, matches, rule, file_content, processor)?;
         ret.push(processed);
       }
