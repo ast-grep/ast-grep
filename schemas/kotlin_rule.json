@@ -101,7 +101,7 @@
         "null"
       ],
       "items": {
-        "type": "string"
+        "$ref": "#/$defs/RuleFileGlob"
       }
     },
     "ignores": {
@@ -111,7 +111,7 @@
         "null"
       ],
       "items": {
-        "type": "string"
+        "$ref": "#/$defs/RuleFileGlob"
       }
     },
     "url": {
@@ -1095,6 +1095,31 @@
           "description": "Labels that provide additional context for a diagnostic.",
           "type": "string",
           "const": "secondary"
+        }
+      ]
+    },
+    "RuleFileGlob": {
+      "anyOf": [
+        {
+          "description": "A glob pattern string",
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "glob": {
+              "description": "A glob pattern string",
+              "type": "string"
+            },
+            "caseInsensitive": {
+              "description": "Whether the glob matching is case insensitive",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "glob"
+          ]
         }
       ]
     },
