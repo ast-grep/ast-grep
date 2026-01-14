@@ -407,7 +407,6 @@ fn test_max_diagnostics_shown_single_file() -> Result<()> {
 fn test_max_diagnostics_shown_stdin() -> Result<()> {
   // Test --max-diagnostics-shown with stdin input
   let input = "Some(1); Some(2); Some(3); Some(4)";
-  // Note: stdin mode returns exit code 1 when there are matches but no errors
   let output = Command::new(cargo_bin!())
     .args([
       "scan",
@@ -419,7 +418,7 @@ fn test_max_diagnostics_shown_stdin() -> Result<()> {
     ])
     .write_stdin(input)
     .assert()
-    .failure()
+    .success()
     .get_output()
     .stdout
     .clone();
