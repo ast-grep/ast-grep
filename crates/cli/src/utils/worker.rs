@@ -6,6 +6,7 @@ use ignore::{DirEntry, WalkParallel, WalkState};
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{mpsc, Arc};
 
 /// A trait to abstract how ast-grep discovers work Items.
@@ -154,4 +155,169 @@ fn run_worker<W: PathWorker + ?Sized + 'static, P: Printer>(
     });
   });
   worker.consume_items(Items(rx), printer)
+}
+
+pub struct MaxItemCounter(AtomicUsize);
+
+impl MaxItemCounter {
+  /// The baseline is to pack two usize (max and curr item)
+  /// into one atomic usize without underflowing
+  pub const BASELINE: usize = 2usize << 20;
+
+  pub fn new(max: u16) -> Self {
+    Self(AtomicUsize::new(max as usize + Self::BASELINE))
+  }
+
+  /// returning the actual reserved count
+  pub fn claim(&self, count: usize) -> usize {
+    let count = count.min(Self::BASELINE);
+    let prev = self.0.fetch_sub(count, Ordering::AcqRel);
+    prev.saturating_sub(Self::BASELINE).min(count)
+  }
+
+  pub fn reached_max(&self) -> bool {
+    self.0.load(Ordering::Acquire) <= Self::BASELINE
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_max_item_counter_initialization() {
+    let counter = MaxItemCounter::new(100);
+    assert_eq!(
+      counter.0.load(Ordering::Acquire),
+      100 + MaxItemCounter::BASELINE
+    );
+    assert!(!counter.reached_max());
+  }
+
+  #[test]
+  fn test_max_item_counter_claim_within_limit() {
+    let counter = MaxItemCounter::new(10);
+
+    // Claim 5 items, should get all 5
+    let claimed = counter.claim(5);
+    assert_eq!(claimed, 5);
+    assert!(!counter.reached_max());
+
+    // Claim 3 more, should get all 3
+    let claimed = counter.claim(3);
+    assert_eq!(claimed, 3);
+    assert!(!counter.reached_max());
+  }
+
+  #[test]
+  fn test_max_item_counter_claim_exceeds_limit() {
+    let counter = MaxItemCounter::new(5);
+
+    // Claim 3 items
+    let claimed = counter.claim(3);
+    assert_eq!(claimed, 3);
+
+    // Try to claim 5 more, but only 2 remain
+    let claimed = counter.claim(5);
+    assert_eq!(claimed, 2);
+    assert!(counter.reached_max());
+  }
+
+  #[test]
+  fn test_max_item_counter_reached_max() {
+    let counter = MaxItemCounter::new(3);
+
+    assert!(!counter.reached_max());
+
+    counter.claim(2);
+    assert!(!counter.reached_max());
+
+    counter.claim(1);
+    assert!(counter.reached_max());
+
+    // Additional claims should return 0
+    let claimed = counter.claim(1);
+    assert_eq!(claimed, 0);
+    assert!(counter.reached_max());
+  }
+
+  #[test]
+  fn test_max_item_counter_claim_zero() {
+    let counter = MaxItemCounter::new(10);
+
+    let claimed = counter.claim(0);
+    assert_eq!(claimed, 0);
+    assert!(!counter.reached_max());
+  }
+
+  #[test]
+  fn test_max_item_counter_claim_more_than_baseline() {
+    let counter = MaxItemCounter::new(10);
+
+    // Try to claim more than BASELINE, should be clamped
+    let huge_count = MaxItemCounter::BASELINE + 1000;
+    let claimed = counter.claim(huge_count);
+
+    // Should only claim up to the max (10)
+    assert_eq!(claimed, 10);
+    assert!(counter.reached_max());
+  }
+
+  #[test]
+  fn test_max_item_counter_multiple_small_claims() {
+    let counter = MaxItemCounter::new(10);
+
+    for _ in 0..10 {
+      let claimed = counter.claim(1);
+      assert_eq!(claimed, 1);
+    }
+
+    assert!(counter.reached_max());
+
+    // Next claim should return 0
+    let claimed = counter.claim(1);
+    assert_eq!(claimed, 0);
+  }
+
+  #[test]
+  fn test_max_item_counter_zero_max() {
+    let counter = MaxItemCounter::new(0);
+
+    assert!(counter.reached_max());
+
+    let claimed = counter.claim(1);
+    assert_eq!(claimed, 0);
+  }
+
+  #[test]
+  fn test_max_item_counter_partial_claim() {
+    let counter = MaxItemCounter::new(7);
+
+    // Claim 10, but only 7 available
+    let claimed = counter.claim(10);
+    assert_eq!(claimed, 7);
+    assert!(counter.reached_max());
+  }
+
+  #[test]
+  fn test_max_item_counter_concurrent_claims() {
+    use std::thread;
+
+    let counter = Arc::new(MaxItemCounter::new(100));
+    let mut handles = vec![];
+
+    // Spawn 10 threads, each claiming 15 items
+    for _ in 0..10 {
+      let counter_clone = Arc::clone(&counter);
+      let handle = thread::spawn(move || counter_clone.claim(15));
+      handles.push(handle);
+    }
+
+    // Collect all claimed amounts
+    let total_claimed: usize = handles.into_iter().map(|h| h.join().unwrap()).sum();
+
+    // Total claimed should equal the max (100)
+    assert_eq!(total_claimed, 100);
+    assert!(counter.reached_max());
+  }
 }

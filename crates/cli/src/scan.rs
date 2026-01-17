@@ -14,9 +14,9 @@ use crate::print::{
   CloudPrinter, ColoredPrinter, Diff, FileNamePrinter, InteractivePrinter, JSONPrinter, Platform,
   PrintProcessor, Printer, ReportStyle, SimpleFile,
 };
-use crate::utils::ErrorContext as EC;
 use crate::utils::RuleOverwrite;
 use crate::utils::{filter_file_rule, ContextArgs, InputArgs, OutputArgs, OverwriteArgs};
+use crate::utils::{ErrorContext as EC, MaxItemCounter};
 use crate::utils::{FileTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
@@ -72,7 +72,7 @@ pub struct ScanArg {
   ///
   /// This is useful for CI pipelines where you want to fail fast.
   #[clap(long, conflicts_with = "interactive", value_name = "NUM")]
-  max_diagnostics_shown: Option<usize>,
+  max_diagnostics_shown: Option<u16>,
 }
 
 impl ScanArg {
@@ -134,8 +134,7 @@ struct ScanWithConfig {
   proj_dir: PathBuf,
   // TODO: remove this
   error_count: AtomicUsize,
-  diagnostic_count: AtomicUsize,
-  max_diagnostics_shown: Option<usize>,
+  max_item_counter: Option<MaxItemCounter>,
 }
 impl ScanWithConfig {
   fn try_new(arg: ScanArg, project: Result<ProjectConfig>) -> Result<Self> {
@@ -161,7 +160,7 @@ impl ScanWithConfig {
     let absolute_proj_dir = proj_dir
       .canonicalize()
       .or_else(|_| std::env::current_dir())?;
-    let max_diagnostics_shown = arg.max_diagnostics_shown;
+    let max_item_counter = arg.max_diagnostics_shown.map(MaxItemCounter::new);
     Ok(Self {
       arg,
       configs,
@@ -169,8 +168,7 @@ impl ScanWithConfig {
       trace,
       proj_dir: absolute_proj_dir,
       error_count: AtomicUsize::new(0),
-      diagnostic_count: AtomicUsize::new(0),
-      max_diagnostics_shown,
+      max_item_counter,
     })
   }
 }
@@ -253,25 +251,10 @@ impl PathWorker for ScanWithConfig {
       }
       for (rule, matches) in scanned.matches {
         // Atomically reserve slots for matches, truncating if needed
-        let matches: Vec<_> = if let Some(max) = self.max_diagnostics_shown {
+        let matches: Vec<_> = if let Some(counter) = &self.max_item_counter {
           let wanted = matches.len();
           // Atomically claim as many slots as we can (up to wanted)
-          let claimed = self
-            .diagnostic_count
-            .fetch_update(Ordering::AcqRel, Ordering::Relaxed, |current| {
-              if current >= max {
-                None // Already at limit, claim nothing
-              } else {
-                let available = max - current;
-                let to_claim = wanted.min(available);
-                Some(current + to_claim)
-              }
-            })
-            .map(|old| {
-              let available = max - old;
-              wanted.min(available)
-            })
-            .unwrap_or(0);
+          let claimed = counter.claim(wanted);
           if claimed == 0 {
             break;
           }
@@ -295,8 +278,8 @@ impl PathWorker for ScanWithConfig {
   }
 
   fn should_stop(&self) -> bool {
-    match self.max_diagnostics_shown {
-      Some(max) => self.diagnostic_count.load(Ordering::Relaxed) >= max,
+    match &self.max_item_counter {
+      Some(max) => max.reached_max(),
       None => false,
     }
   }
@@ -321,7 +304,7 @@ impl ScanStdin {
     Ok(Self {
       rules,
       error_count: AtomicUsize::new(0),
-      max_diagnostics_shown: arg.max_diagnostics_shown,
+      max_diagnostics_shown: arg.max_diagnostics_shown.map(usize::from),
     })
   }
 }

@@ -12,7 +12,7 @@ pub use error_context::{exit_with_error, ErrorContext};
 pub use inspect::{FileTrace, Granularity, RuleTrace, RunTrace, ScanTrace};
 pub use print_diff::DiffStyles;
 pub use rule_overwrite::RuleOverwrite;
-pub use worker::{Items, PathWorker, StdInWorker, Worker};
+pub use worker::{Items, MaxItemCounter, PathWorker, StdInWorker, Worker};
 
 use crate::lang::SgLang;
 
