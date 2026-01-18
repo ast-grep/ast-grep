@@ -147,7 +147,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_yaml",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tree-sitter-typescript",
 ]
 
@@ -157,7 +157,7 @@ version = "0.40.5"
 dependencies = [
  "bit-set",
  "regex",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tree-sitter",
  "tree-sitter-typescript",
 ]
@@ -172,7 +172,7 @@ dependencies = [
  "serde",
  "serde_yaml",
  "target-triple",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "tree-sitter",
 ]
 
@@ -1484,7 +1484,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "syn 2.0.110",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "typed-builder",
 ]
 
@@ -1713,7 +1713,7 @@ dependencies = [
  "lazy-regex",
  "minimad",
  "serde",
- "thiserror 2.0.17",
+ "thiserror 2.0.18",
  "unicode-width 0.1.14",
 ]
 
@@ -1746,11 +1746,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.17"
+version = "2.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f63587ca0f12b72a0600bcba1d40081f830876000bb46dd2337a3051618f4fc8"
+checksum = "4288b5bcbc7920c07a1149a35cf9590a2aa808e0bc1eafaade0b80947865fbc4"
 dependencies = [
- "thiserror-impl 2.0.17",
+ "thiserror-impl 2.0.18",
 ]
 
 [[package]]
@@ -1766,9 +1766,9 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.17"
+version = "2.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ff15c8ecd7de3849db632e14d18d2571fa09dfc5ed93479bc4485c7a517c913"
+checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
 dependencies = [
  "proc-macro2",
  "quote",
