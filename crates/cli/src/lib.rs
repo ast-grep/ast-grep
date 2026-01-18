@@ -270,9 +270,9 @@ mod test_cli {
     ok("scan -A 12");
     ok("scan --after 12");
     ok("scan --context 1");
-    ok("scan --max-diagnostics-shown=10");
-    ok("scan --max-diagnostics-shown 5");
-    error("scan --max-diagnostics-shown=10 --interactive"); // conflict
+    ok("scan --max-results=10");
+    ok("scan --max-results 5");
+    error("scan --max-results=10 --interactive"); // conflict
     error("scan -i --json dir"); // conflict
     error("scan --report-style rich --json dir"); // conflict
     error("scan -r test.yml --inline-rules '{}'"); // conflict

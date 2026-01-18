@@ -68,11 +68,11 @@ pub struct ScanArg {
   #[clap(flatten)]
   context: ContextArgs,
 
-  /// Show at most NUM diagnostics and stop scanning once the limit is reached.
+  /// Show at most NUM results and stop running once the limit is reached.
   ///
-  /// This is useful for CI pipelines where you want to fail fast.
+  /// Useful for big codebase to fail scan/search fast.
   #[clap(long, conflicts_with = "interactive", value_name = "NUM")]
-  max_diagnostics_shown: Option<u16>,
+  max_results: Option<u16>,
 }
 
 impl ScanArg {
@@ -160,7 +160,7 @@ impl ScanWithConfig {
     let absolute_proj_dir = proj_dir
       .canonicalize()
       .or_else(|_| std::env::current_dir())?;
-    let max_item_counter = arg.max_diagnostics_shown.map(MaxItemCounter::new);
+    let max_item_counter = arg.max_results.map(MaxItemCounter::new);
     Ok(Self {
       arg,
       configs,
@@ -304,7 +304,7 @@ impl ScanStdin {
     Ok(Self {
       rules,
       error_count: AtomicUsize::new(0),
-      max_diagnostics_shown: arg.max_diagnostics_shown.map(usize::from),
+      max_diagnostics_shown: arg.max_results.map(usize::from),
     })
   }
 }
@@ -476,7 +476,7 @@ rule:
         context: 0,
       },
       format: None,
-      max_diagnostics_shown: None,
+      max_results: None,
     }
   }
 

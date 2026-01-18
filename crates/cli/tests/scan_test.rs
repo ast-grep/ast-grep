@@ -343,7 +343,7 @@ fn test_file() -> Result<()> {
 }
 
 const MAX_DIAG_RULE: &str = "
-id: max-diag-rule
+id: max-result-rule
 message: test rule
 severity: warning
 language: TypeScript
@@ -361,10 +361,10 @@ fn test_max_diagnostics_shown() -> Result<()> {
     ("c.ts", "Some(3)"),
     ("d.ts", "Some(4)"),
   ])?;
-  // With --max-diagnostics-shown=2, should only output 2 matches
+  // With --max-results=2, should only output 2 matches
   let output = Command::new(cargo_bin!())
     .current_dir(dir.path())
-    .args(["scan", "--json", "--max-diagnostics-shown=2"])
+    .args(["scan", "--json", "--max-results=2"])
     .assert()
     .success()
     .get_output()
@@ -384,10 +384,10 @@ fn test_max_diagnostics_shown_single_file() -> Result<()> {
     ("rules/rule.yml", MAX_DIAG_RULE),
     ("test.ts", "Some(1); Some(2); Some(3); Some(4)"),
   ])?;
-  // With --max-diagnostics-shown=2, should only output 2 matches
+  // With --max-results=2, should only output 2 matches
   let output = Command::new(cargo_bin!())
     .current_dir(dir.path())
-    .args(["scan", "--json", "--max-diagnostics-shown=2"])
+    .args(["scan", "--json", "--max-results=2"])
     .assert()
     .success()
     .get_output()
@@ -405,7 +405,7 @@ fn test_max_diagnostics_shown_single_file() -> Result<()> {
 
 #[test]
 fn test_max_diagnostics_shown_stdin() -> Result<()> {
-  // Test --max-diagnostics-shown with stdin input
+  // Test --max-results with stdin input
   let input = "Some(1); Some(2); Some(3); Some(4)";
   let output = Command::new(cargo_bin!())
     .args([
@@ -414,7 +414,7 @@ fn test_max_diagnostics_shown_stdin() -> Result<()> {
       "--json",
       "--inline-rules",
       MAX_DIAG_RULE,
-      "--max-diagnostics-shown=2",
+      "--max-results=2",
     ])
     .write_stdin(input)
     .assert()
