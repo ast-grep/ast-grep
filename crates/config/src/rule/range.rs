@@ -8,7 +8,7 @@ pub struct SerializablePosition {
   /// 0-based line number in the source code
   pub line: usize,
   /// 0-based column number in the source code
-  pub column: usize,
+  pub column: Option<usize>,
 }
 
 /// Represents a position in source code using 0-based line and column numbers
@@ -79,10 +79,15 @@ impl Matcher for RangeMatcher {
       return None;
     }
     // then check column, this can be expensive for utf-8 encoded files
-    if self.start.column != node_start_pos.column(&node)
-      || self.end.column != node_end_pos.column(&node)
-    {
-      return None;
+    if let Some(start_col) = self.start.column {
+      if start_col != node_start_pos.column(&node) {
+        return None;
+      }
+    }
+    if let Some(end_col) = self.end.column {
+      if end_col != node_end_pos.column(&node) {
+        return None;
+      }
     }
     Some(node)
   }
@@ -104,9 +109,12 @@ mod test {
     let range = RangeMatcher::try_new(
       SerializablePosition {
         line: 0,
-        column: 10,
+        column: Some(10),
       },
-      SerializablePosition { line: 0, column: 5 },
+      SerializablePosition {
+        line: 0,
+        column: Some(5),
+      },
     );
     assert!(range.is_err());
   }
@@ -118,11 +126,11 @@ mod test {
     let pattern = RangeMatcher::new(
       SerializablePosition {
         line: 0,
-        column: 10,
+        column: Some(10),
       },
       SerializablePosition {
         line: 0,
-        column: 17,
+        column: Some(17),
       },
     );
     assert!(pattern.find_node(cand).is_some());
@@ -135,11 +143,11 @@ mod test {
     let pattern = RangeMatcher::new(
       SerializablePosition {
         line: 0,
-        column: 10,
+        column: Some(10),
       },
       SerializablePosition {
         line: 0,
-        column: 15,
+        column: Some(15),
       },
     );
     assert!(pattern.find_node(cand).is_none(),);
@@ -151,8 +159,14 @@ mod test {
       .ast_grep("class A { \n b = () => { \n const c = 1 \n const d = 3 \n return c + d \n } }");
     let cand = cand.root();
     let pattern = RangeMatcher::new(
-      SerializablePosition { line: 1, column: 1 },
-      SerializablePosition { line: 5, column: 2 },
+      SerializablePosition {
+        line: 1,
+        column: Some(1),
+      },
+      SerializablePosition {
+        line: 5,
+        column: Some(2),
+      },
     );
     assert!(pattern.find_node(cand).is_some());
   }
@@ -162,14 +176,101 @@ mod test {
     let cand = TS::Tsx.ast_grep("let a = '🦄'");
     let cand = cand.root();
     let pattern = RangeMatcher::new(
-      SerializablePosition { line: 0, column: 8 },
       SerializablePosition {
         line: 0,
-        column: 11,
+        column: Some(8),
+      },
+      SerializablePosition {
+        line: 0,
+        column: Some(11),
       },
     );
     let node = pattern.find_node(cand);
     assert!(node.is_some());
     assert_eq!(node.expect("should exist").text(), "'🦄'");
+  }
+
+  #[test]
+  fn test_range_with_none_start_column() {
+    let cand = TS::Tsx.ast_grep("class A { a = 123 }");
+    let cand = cand.root();
+    let pattern = RangeMatcher::new(
+      SerializablePosition {
+        line: 0,
+        column: None,
+      },
+      SerializablePosition {
+        line: 0,
+        column: Some(17),
+      },
+    );
+    // Should match because start column is not checked
+    assert!(pattern.find_node(cand).is_some());
+  }
+
+  #[test]
+  fn test_range_with_none_end_column() {
+    let cand = TS::Tsx.ast_grep("class A { a = 123 }");
+    let cand = cand.root();
+    let pattern = RangeMatcher::new(
+      SerializablePosition {
+        line: 0,
+        column: Some(10),
+      },
+      SerializablePosition {
+        line: 0,
+        column: None,
+      },
+    );
+    // Should match because end column is not checked
+    assert!(pattern.find_node(cand.clone()).is_some());
+
+    let pattern = RangeMatcher::new(
+      SerializablePosition {
+        line: 0,
+        column: None,
+      },
+      SerializablePosition {
+        line: 0,
+        column: None,
+      },
+    );
+    // Should match only by line numbers
+    assert!(pattern.find_node(cand).is_some());
+  }
+
+  #[test]
+  fn test_range_with_none_columns_multiline() {
+    let cand = TS::Tsx
+      .ast_grep("class A { \n b = () => { \n const c = 1 \n const d = 3 \n return c + d \n } }");
+    let cand = cand.root();
+    let pattern = RangeMatcher::new(
+      SerializablePosition {
+        line: 1,
+        column: None,
+      },
+      SerializablePosition {
+        line: 5,
+        column: None,
+      },
+    );
+    // Should match by line numbers only
+    assert!(pattern.find_node(cand).is_some());
+  }
+
+  #[test]
+  fn test_try_new_invalid_range_with_none_columns() {
+    // Even with None columns, invalid line range should fail
+    let range = RangeMatcher::try_new(
+      SerializablePosition {
+        line: 5,
+        column: None,
+      },
+      SerializablePosition {
+        line: 3,
+        column: None,
+      },
+    );
+    assert!(range.is_err());
   }
 }
