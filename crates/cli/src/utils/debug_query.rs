@@ -266,7 +266,8 @@ fn dump_nodes(cursor: &mut ts::TreeCursor, target: &mut Vec<DumpNode>) {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_language::{TypeScript, C};
+  use ast_grep_language::{JavaScript, TypeScript, C};
+
   const DUMPED: &str = r#"
 program (0,0)-(0,11)
   variable_declaration (0,0)-(0,11)
@@ -296,5 +297,115 @@ translation_unit (0,0)-(0,9)
     let root = lang.ast_grep("int a = 1");
     let dumped = dump_node(root.root().get_inner_node());
     assert_eq!(MISSING.trim(), dumped.cst(false).trim());
+  }
+
+  #[test]
+  fn test_dump_pattern_simple_metavar() {
+    let lang = SgLang::Builtin(JavaScript.into());
+    let pattern = Pattern::new("$VAR", lang);
+    let ts_lang = lang.get_ts_language();
+    let fmt = DumpFmt::named(false);
+    let mut result = String::new();
+
+    dump_pattern(
+      &pattern.node,
+      &pattern.strictness,
+      &ts_lang,
+      &fmt,
+      0,
+      &mut result,
+    )
+    .expect("dump_pattern should succeed");
+
+    let expected = "MetaVar $VAR";
+    assert_eq!(result.trim(), expected.trim());
+  }
+
+  #[test]
+  fn test_dump_pattern_with_metavars() {
+    let lang = SgLang::Builtin(JavaScript.into());
+    let pattern = Pattern::new("let $VAR = $VALUE", lang);
+    let ts_lang = lang.get_ts_language();
+    let fmt = DumpFmt::named(false);
+    let mut result = String::new();
+
+    dump_pattern(
+      &pattern.node,
+      &pattern.strictness,
+      &ts_lang,
+      &fmt,
+      0,
+      &mut result,
+    )
+    .expect("dump_pattern should succeed");
+
+    let expected = r#"lexical_declaration
+  let
+  variable_declarator
+    MetaVar $VAR
+    =
+    MetaVar $VALUE"#;
+    assert_eq!(result.trim(), expected.trim());
+  }
+
+  #[test]
+  fn test_dump_pattern_multi_capture() {
+    let lang = SgLang::Builtin(JavaScript.into());
+    let pattern = Pattern::new("function foo($$$ARGS) {}", lang);
+    let ts_lang = lang.get_ts_language();
+    let fmt = DumpFmt::named(false);
+    let mut result = String::new();
+
+    dump_pattern(
+      &pattern.node,
+      &pattern.strictness,
+      &ts_lang,
+      &fmt,
+      0,
+      &mut result,
+    )
+    .expect("dump_pattern should succeed");
+
+    let expected = r#"function_declaration
+  function
+  identifier foo
+  formal_parameters
+    (
+    MetaVar $$$ARGS
+    )
+  statement_block
+    {
+    }"#;
+    assert_eq!(result.trim(), expected.trim());
+  }
+
+  #[test]
+  fn test_dump_pattern_nested_nodes() {
+    let lang = SgLang::Builtin(JavaScript.into());
+    let pattern = Pattern::new("console.log($MSG)", lang);
+    let ts_lang = lang.get_ts_language();
+    let fmt = DumpFmt::named(false);
+    let mut result = String::new();
+
+    dump_pattern(
+      &pattern.node,
+      &pattern.strictness,
+      &ts_lang,
+      &fmt,
+      0,
+      &mut result,
+    )
+    .expect("dump_pattern should succeed");
+
+    let expected = r#"call_expression
+  member_expression
+    identifier console
+    .
+    property_identifier log
+  arguments
+    (
+    MetaVar $MSG
+    )"#;
+    assert_eq!(result.trim(), expected.trim());
   }
 }
