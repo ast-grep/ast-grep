@@ -25,7 +25,9 @@ impl DebugFormat {
         let lang = lang.get_ts_language();
         let mut ret = String::new();
         let fmt = DumpFmt::named(colored);
-        if dump_pattern(&pattern.node, &pattern.strictness, &lang, &fmt, 0, &mut ret).is_ok() {
+        let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &lang)
+          .expect("pattern must have root node");
+        if dump_pattern(&pattern_node, &fmt, 0, &mut ret).is_ok() {
           eprintln!("Debug Pattern:\n{ret}");
         } else {
           eprintln!("unexpected error in writing pattern string");
@@ -58,15 +60,18 @@ impl DebugFormat {
   }
 }
 
-fn dump_pattern(
+struct DumpPattern {
+  is_meta_var: bool,
+  kind: Option<String>,
+  text: Option<String>,
+  children: Vec<DumpPattern>,
+}
+
+fn dump_pattern_impl(
   pattern: &PatternNode,
   strictness: &MatchStrictness,
   lang: &TSLanguage,
-  style: &DumpFmt,
-  indent: usize,
-  ret: &mut String,
-) -> FmtResult {
-  let indent_str = "  ".repeat(indent);
+) -> Option<DumpPattern> {
   match pattern {
     PatternNode::MetaVar { meta_var } => {
       let meta_var = match meta_var {
@@ -75,12 +80,12 @@ fn dump_pattern(
         MetaVariable::Multiple => "$$$".to_string(),
         MetaVariable::Dropped(_) => "$_".to_string(),
       };
-      let meta_var = style.kind_style.paint(meta_var);
-      writeln!(
-        ret,
-        "{indent_str}{} {meta_var}",
-        style.field_style.paint("MetaVar")
-      )?;
+      Some(DumpPattern {
+        is_meta_var: true,
+        kind: Some("MetaVar".to_string()),
+        text: Some(meta_var),
+        children: vec![],
+      })
     }
     PatternNode::Terminal {
       text,
@@ -92,16 +97,20 @@ fn dump_pattern(
           strictness,
           MatchStrictness::Cst | MatchStrictness::Smart | MatchStrictness::Template
         ) {
-          writeln!(ret, "{indent_str}{text}")?;
+          return Some(DumpPattern {
+            is_meta_var: false,
+            kind: None,
+            text: Some(text.to_string()),
+            children: vec![],
+          });
         }
-        return Ok(());
+        return None;
       }
       let kind = if matches!(strictness, MatchStrictness::Template) {
         text
       } else {
         lang.node_kind_for_id(*kind_id).unwrap()
       };
-      let kind = style.kind_style.paint(kind);
       let text = if matches!(
         strictness,
         MatchStrictness::Signature | MatchStrictness::Template
@@ -110,20 +119,64 @@ fn dump_pattern(
       } else {
         text
       };
-      writeln!(ret, "{indent_str}{kind} {text}")?;
+      Some(DumpPattern {
+        is_meta_var: false,
+        kind: Some(kind.to_string()),
+        text: Some(text.to_string()),
+        children: vec![],
+      })
     }
     PatternNode::Internal { kind_id, children } => {
-      if matches!(strictness, MatchStrictness::Template) {
-        writeln!(ret, "{indent_str}(node)")?;
+      let kind = if matches!(strictness, MatchStrictness::Template) {
+        "(node)".to_string()
       } else {
-        let kind = lang.node_kind_for_id(*kind_id).unwrap();
-        let kind = style.kind_style.paint(kind);
-        writeln!(ret, "{indent_str}{kind}")?;
+        lang
+          .node_kind_for_id(*kind_id)
+          .unwrap_or("UNKNOWN")
+          .to_string()
       };
-      for child in children {
-        dump_pattern(child, strictness, lang, style, indent + 1, ret)?;
-      }
+      let children = children
+        .iter()
+        .filter_map(|n| dump_pattern_impl(n, strictness, lang))
+        .collect();
+      Some(DumpPattern {
+        is_meta_var: false,
+        kind: Some(kind),
+        text: None,
+        children,
+      })
     }
+  }
+}
+
+fn dump_pattern(
+  pattern: &DumpPattern,
+  style: &DumpFmt,
+  indent: usize,
+  ret: &mut String,
+) -> FmtResult {
+  let indent_str = "  ".repeat(indent);
+  let empty = String::new();
+  if pattern.is_meta_var {
+    let kind = style.field_style.paint("MetaVar");
+    let text = style
+      .kind_style
+      .paint(pattern.text.as_ref().unwrap_or(&empty));
+    writeln!(ret, "{indent_str}{kind} {text}")?;
+  } else if let Some(kind) = &pattern.kind {
+    let kind = style.kind_style.paint(kind);
+    let text = pattern.text.as_ref().unwrap_or(&empty);
+    if text.is_empty() {
+      writeln!(ret, "{indent_str}{kind}")?;
+    } else {
+      writeln!(ret, "{indent_str}{kind} {text}")?;
+    }
+  } else {
+    let text = pattern.text.as_ref().unwrap_or(&empty);
+    writeln!(ret, "{indent_str}{text}")?;
+  }
+  for child in &pattern.children {
+    dump_pattern(child, style, indent + 1, ret)?
   }
   Ok(())
 }
@@ -307,15 +360,9 @@ translation_unit (0,0)-(0,9)
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    dump_pattern(
-      &pattern.node,
-      &pattern.strictness,
-      &ts_lang,
-      &fmt,
-      0,
-      &mut result,
-    )
-    .expect("dump_pattern should succeed");
+    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &ts_lang)
+      .expect("pattern must have root node");
+    dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
     let expected = "MetaVar $VAR";
     assert_eq!(result.trim(), expected.trim());
@@ -329,15 +376,9 @@ translation_unit (0,0)-(0,9)
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    dump_pattern(
-      &pattern.node,
-      &pattern.strictness,
-      &ts_lang,
-      &fmt,
-      0,
-      &mut result,
-    )
-    .expect("dump_pattern should succeed");
+    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &ts_lang)
+      .expect("pattern must have root node");
+    dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
     let expected = r#"lexical_declaration
   let
@@ -356,15 +397,9 @@ translation_unit (0,0)-(0,9)
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    dump_pattern(
-      &pattern.node,
-      &pattern.strictness,
-      &ts_lang,
-      &fmt,
-      0,
-      &mut result,
-    )
-    .expect("dump_pattern should succeed");
+    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &ts_lang)
+      .expect("pattern must have root node");
+    dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
     let expected = r#"function_declaration
   function
@@ -387,15 +422,9 @@ translation_unit (0,0)-(0,9)
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    dump_pattern(
-      &pattern.node,
-      &pattern.strictness,
-      &ts_lang,
-      &fmt,
-      0,
-      &mut result,
-    )
-    .expect("dump_pattern should succeed");
+    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &ts_lang)
+      .expect("pattern must have root node");
+    dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
     let expected = r#"call_expression
   member_expression
