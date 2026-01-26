@@ -16,17 +16,21 @@ pub enum DebugFormat {
   /// Print the query in S-expression format
   Sexp,
 }
+
+fn get_mapping(lang: SgLang) -> impl Fn(u16) -> Option<String> {
+  let ts_lang = lang.get_ts_language();
+  move |kind_id: u16| ts_lang.node_kind_for_id(kind_id).map(|k| k.to_string())
+}
+
 impl DebugFormat {
   pub fn debug_pattern(&self, pattern: &Pattern, lang: SgLang, colored: bool) {
     match self {
       DebugFormat::Pattern => {
-        let lang = lang.get_ts_language();
         let mut ret = String::new();
         let fmt = DumpFmt::named(colored);
-        let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, |s| {
-          lang.node_kind_for_id(s).map(|k| k.to_string())
-        })
-        .expect("pattern must have root node");
+        let pattern_node =
+          dump_pattern_impl(&pattern.node, &pattern.strictness, &get_mapping(lang))
+            .expect("pattern must have root node");
         if dump_pattern(&pattern_node, &fmt, 0, &mut ret).is_ok() {
           eprintln!("Debug Pattern:\n{ret}");
         } else {
@@ -70,7 +74,7 @@ struct DumpPattern {
 fn dump_pattern_impl(
   pattern: &PatternNode,
   strictness: &MatchStrictness,
-  to_kind_str: impl Fn(u16) -> Option<String>,
+  to_kind_str: &impl Fn(u16) -> Option<String>,
 ) -> Option<DumpPattern> {
   match pattern {
     PatternNode::MetaVar { meta_var } => {
@@ -136,7 +140,7 @@ fn dump_pattern_impl(
       };
       let children = children
         .iter()
-        .filter_map(|n| dump_pattern_impl(n, strictness, &to_kind_str))
+        .filter_map(|n| dump_pattern_impl(n, strictness, to_kind_str))
         .collect();
       Some(DumpPattern {
         is_meta_var: false,
@@ -355,14 +359,11 @@ translation_unit (0,0)-(0,9)
   fn test_dump_pattern_simple_metavar() {
     let lang = SgLang::Builtin(JavaScript.into());
     let pattern = Pattern::new("$VAR", lang);
-    let ts_lang = lang.get_ts_language();
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, |n| {
-      ts_lang.node_kind_for_id(n).map(|s| s.to_string())
-    })
-    .expect("pattern must have root node");
+    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &get_mapping(lang))
+      .expect("pattern must have root node");
     dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
     let expected = "MetaVar $VAR";
@@ -373,14 +374,11 @@ translation_unit (0,0)-(0,9)
   fn test_dump_pattern_with_metavars() {
     let lang = SgLang::Builtin(JavaScript.into());
     let pattern = Pattern::new("let $VAR = $VALUE", lang);
-    let ts_lang = lang.get_ts_language();
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, |n| {
-      ts_lang.node_kind_for_id(n).map(|s| s.to_string())
-    })
-    .expect("pattern must have root node");
+    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &get_mapping(lang))
+      .expect("pattern must have root node");
     dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
     let expected = r#"lexical_declaration
@@ -396,14 +394,11 @@ translation_unit (0,0)-(0,9)
   fn test_dump_pattern_multi_capture() {
     let lang = SgLang::Builtin(JavaScript.into());
     let pattern = Pattern::new("function foo($$$ARGS) {}", lang);
-    let ts_lang = lang.get_ts_language();
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, |n| {
-      ts_lang.node_kind_for_id(n).map(|s| s.to_string())
-    })
-    .expect("pattern must have root node");
+    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &get_mapping(lang))
+      .expect("pattern must have root node");
     dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
     let expected = r#"function_declaration
@@ -423,14 +418,11 @@ translation_unit (0,0)-(0,9)
   fn test_dump_pattern_nested_nodes() {
     let lang = SgLang::Builtin(JavaScript.into());
     let pattern = Pattern::new("console.log($MSG)", lang);
-    let ts_lang = lang.get_ts_language();
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, |n| {
-      ts_lang.node_kind_for_id(n).map(|s| s.to_string())
-    })
-    .expect("pattern must have root node");
+    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &get_mapping(lang))
+      .expect("pattern must have root node");
     dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
     let expected = r#"call_expression
