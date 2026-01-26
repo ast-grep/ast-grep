@@ -1,8 +1,6 @@
 use crate::lang::SgLang;
 use ansi_term::Style;
-use ast_grep_core::{
-  matcher::PatternNode, meta_var::MetaVariable, tree_sitter::TSLanguage, MatchStrictness, Pattern,
-};
+use ast_grep_core::{matcher::PatternNode, meta_var::MetaVariable, MatchStrictness, Pattern};
 use ast_grep_language::LanguageExt;
 use clap::ValueEnum;
 use tree_sitter as ts;
@@ -25,8 +23,10 @@ impl DebugFormat {
         let lang = lang.get_ts_language();
         let mut ret = String::new();
         let fmt = DumpFmt::named(colored);
-        let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &lang)
-          .expect("pattern must have root node");
+        let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, |s| {
+          lang.node_kind_for_id(s).map(|k| k.to_string())
+        })
+        .expect("pattern must have root node");
         if dump_pattern(&pattern_node, &fmt, 0, &mut ret).is_ok() {
           eprintln!("Debug Pattern:\n{ret}");
         } else {
@@ -70,7 +70,7 @@ struct DumpPattern {
 fn dump_pattern_impl(
   pattern: &PatternNode,
   strictness: &MatchStrictness,
-  lang: &TSLanguage,
+  to_kind_str: impl Fn(u16) -> Option<String>,
 ) -> Option<DumpPattern> {
   match pattern {
     PatternNode::MetaVar { meta_var } => {
@@ -107,9 +107,9 @@ fn dump_pattern_impl(
         return None;
       }
       let kind = if matches!(strictness, MatchStrictness::Template) {
-        text
+        text.to_string()
       } else {
-        lang.node_kind_for_id(*kind_id).unwrap()
+        to_kind_str(*kind_id).unwrap_or("UNKNOWN".to_string())
       };
       let text = if matches!(
         strictness,
@@ -130,14 +130,13 @@ fn dump_pattern_impl(
       let kind = if matches!(strictness, MatchStrictness::Template) {
         "(node)".to_string()
       } else {
-        lang
-          .node_kind_for_id(*kind_id)
-          .unwrap_or("UNKNOWN")
+        to_kind_str(*kind_id)
+          .unwrap_or_else(|| "UNKNOWN".to_string())
           .to_string()
       };
       let children = children
         .iter()
-        .filter_map(|n| dump_pattern_impl(n, strictness, lang))
+        .filter_map(|n| dump_pattern_impl(n, strictness, &to_kind_str))
         .collect();
       Some(DumpPattern {
         is_meta_var: false,
@@ -360,8 +359,10 @@ translation_unit (0,0)-(0,9)
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &ts_lang)
-      .expect("pattern must have root node");
+    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, |n| {
+      ts_lang.node_kind_for_id(n).map(|s| s.to_string())
+    })
+    .expect("pattern must have root node");
     dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
     let expected = "MetaVar $VAR";
@@ -376,8 +377,10 @@ translation_unit (0,0)-(0,9)
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &ts_lang)
-      .expect("pattern must have root node");
+    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, |n| {
+      ts_lang.node_kind_for_id(n).map(|s| s.to_string())
+    })
+    .expect("pattern must have root node");
     dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
     let expected = r#"lexical_declaration
@@ -397,8 +400,10 @@ translation_unit (0,0)-(0,9)
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &ts_lang)
-      .expect("pattern must have root node");
+    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, |n| {
+      ts_lang.node_kind_for_id(n).map(|s| s.to_string())
+    })
+    .expect("pattern must have root node");
     dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
     let expected = r#"function_declaration
@@ -422,8 +427,10 @@ translation_unit (0,0)-(0,9)
     let fmt = DumpFmt::named(false);
     let mut result = String::new();
 
-    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, &ts_lang)
-      .expect("pattern must have root node");
+    let pattern_node = dump_pattern_impl(&pattern.node, &pattern.strictness, |n| {
+      ts_lang.node_kind_for_id(n).map(|s| s.to_string())
+    })
+    .expect("pattern must have root node");
     dump_pattern(&pattern_node, &fmt, 0, &mut result).expect("dump_pattern should succeed");
 
     let expected = r#"call_expression
