@@ -28,9 +28,12 @@ impl DebugFormat {
       DebugFormat::Pattern => {
         let mut ret = String::new();
         let fmt = DumpFmt::named(colored);
-        let pattern_node =
+        let Some(pattern_node) =
           dump_pattern_impl(&pattern.node, &pattern.strictness, &get_mapping(lang))
-            .expect("pattern must have root node");
+        else {
+          eprintln!("Pattern has no root node");
+          return;
+        };
         if dump_pattern(&pattern_node, &fmt, 0, &mut ret).is_ok() {
           eprintln!("Debug Pattern:\n{ret}");
         } else {
