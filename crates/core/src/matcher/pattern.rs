@@ -66,6 +66,89 @@ impl PatternBuilder<'_> {
   }
 }
 
+pub struct DumpPattern<'p> {
+  pub is_meta_var: bool,
+  pub kind: Option<Cow<'static, str>>,
+  pub text: Cow<'p, str>,
+  pub children: Vec<DumpPattern<'p>>,
+}
+
+fn dump_pattern_impl<'p>(
+  pattern: &'p PatternNode,
+  strictness: &MatchStrictness,
+  to_kind_str: &impl Fn(u16) -> Option<Cow<'static, str>>,
+) -> Option<DumpPattern<'p>> {
+  match pattern {
+    PatternNode::MetaVar { meta_var } => {
+      let meta_var = match meta_var {
+        MetaVariable::Capture(name, _) => format!("${name}"),
+        MetaVariable::MultiCapture(name) => format!("$$${name}"),
+        MetaVariable::Multiple => "$$$".to_string(),
+        MetaVariable::Dropped(_) => "$_".to_string(),
+      };
+      Some(DumpPattern {
+        is_meta_var: true,
+        kind: Some("MetaVar".into()),
+        text: meta_var.into(),
+        children: vec![],
+      })
+    }
+    PatternNode::Terminal {
+      text,
+      kind_id,
+      is_named,
+    } => {
+      if !*is_named {
+        if matches!(
+          strictness,
+          MatchStrictness::Cst | MatchStrictness::Smart | MatchStrictness::Template
+        ) {
+          return Some(DumpPattern {
+            is_meta_var: false,
+            kind: None,
+            text: text.into(),
+            children: vec![],
+          });
+        }
+        return None;
+      }
+      let kind = if matches!(strictness, MatchStrictness::Template) {
+        None
+      } else {
+        Some(to_kind_str(*kind_id).unwrap_or("UNKNOWN".into()))
+      };
+      let text = if matches!(strictness, MatchStrictness::Signature) {
+        ""
+      } else {
+        text
+      };
+      Some(DumpPattern {
+        is_meta_var: false,
+        kind,
+        text: text.into(),
+        children: vec![],
+      })
+    }
+    PatternNode::Internal { kind_id, children } => {
+      let kind = if matches!(strictness, MatchStrictness::Template) {
+        Cow::Borrowed("(node)")
+      } else {
+        to_kind_str(*kind_id).unwrap_or_else(|| "UNKNOWN".into())
+      };
+      let children = children
+        .iter()
+        .filter_map(|n| dump_pattern_impl(n, strictness, to_kind_str))
+        .collect();
+      Some(DumpPattern {
+        is_meta_var: false,
+        kind: Some(kind),
+        text: Cow::Borrowed(""),
+        children,
+      })
+    }
+  }
+}
+
 #[derive(Clone)]
 pub enum PatternNode {
   MetaVar {
@@ -185,6 +268,12 @@ fn is_single_node<'r, N: SgNode<'r>>(n: &N) -> bool {
   }
 }
 impl Pattern {
+  pub fn dump(
+    &self,
+    kind_id_to_name: &impl Fn(u16) -> Option<Cow<'static, str>>,
+  ) -> Option<DumpPattern<'_>> {
+    dump_pattern_impl(&self.node, &self.strictness, kind_id_to_name)
+  }
   pub fn has_error(&self) -> bool {
     let kind = match &self.node {
       PatternNode::Terminal { kind_id, .. } => *kind_id,

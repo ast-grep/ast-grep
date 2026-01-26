@@ -18,7 +18,7 @@ use std::borrow::Cow;
 
 pub use kind::{kind_utils, KindMatcher, KindMatcherError};
 pub use node_match::NodeMatch;
-pub use pattern::{Pattern, PatternBuilder, PatternError, PatternNode};
+pub use pattern::{DumpPattern, Pattern, PatternBuilder, PatternError, PatternNode};
 pub use text::{RegexMatcher, RegexMatcherError};
 
 /// `Matcher` defines whether a tree-sitter node matches certain pattern,
