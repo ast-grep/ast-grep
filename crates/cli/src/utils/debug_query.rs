@@ -17,9 +17,9 @@ pub enum DebugFormat {
   Sexp,
 }
 
-fn get_mapping(lang: SgLang) -> impl Fn(u16) -> Option<String> {
+fn get_mapping(lang: SgLang) -> impl Fn(u16) -> Option<Cow<'static, str>> {
   let ts_lang = lang.get_ts_language();
-  move |kind_id: u16| ts_lang.node_kind_for_id(kind_id).map(|k| k.to_string())
+  move |kind_id: u16| ts_lang.node_kind_for_id(kind_id).map(Cow::Borrowed)
 }
 
 impl DebugFormat {
@@ -74,7 +74,7 @@ struct DumpPattern {
 fn dump_pattern_impl(
   pattern: &PatternNode,
   strictness: &MatchStrictness,
-  to_kind_str: &impl Fn(u16) -> Option<String>,
+  to_kind_str: &impl Fn(u16) -> Option<Cow<'static, str>>,
 ) -> Option<DumpPattern> {
   match pattern {
     PatternNode::MetaVar { meta_var } => {
@@ -111,9 +111,9 @@ fn dump_pattern_impl(
         return None;
       }
       let kind = if matches!(strictness, MatchStrictness::Template) {
-        text.to_string()
+        text.into()
       } else {
-        to_kind_str(*kind_id).unwrap_or("UNKNOWN".to_string())
+        to_kind_str(*kind_id).unwrap_or("UNKNOWN".into())
       };
       let text = if matches!(
         strictness,
@@ -135,7 +135,7 @@ fn dump_pattern_impl(
         "(node)".to_string()
       } else {
         to_kind_str(*kind_id)
-          .unwrap_or_else(|| "UNKNOWN".to_string())
+          .unwrap_or_else(|| "UNKNOWN".into())
           .to_string()
       };
       let children = children
@@ -218,7 +218,10 @@ impl DumpFmt {
   }
 }
 
-use std::fmt::{Result as FmtResult, Write};
+use std::{
+  borrow::Cow,
+  fmt::{Result as FmtResult, Write},
+};
 impl DumpNode {
   pub fn ast(&self, colored: bool) -> String {
     let mut result = String::new();
