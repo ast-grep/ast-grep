@@ -67,7 +67,7 @@ impl DebugFormat {
 struct DumpPattern {
   is_meta_var: bool,
   kind: Option<Cow<'static, str>>,
-  text: Option<String>,
+  text: String,
   children: Vec<DumpPattern>,
 }
 
@@ -87,7 +87,7 @@ fn dump_pattern_impl(
       Some(DumpPattern {
         is_meta_var: true,
         kind: Some("MetaVar".into()),
-        text: Some(meta_var),
+        text: meta_var,
         children: vec![],
       })
     }
@@ -104,7 +104,7 @@ fn dump_pattern_impl(
           return Some(DumpPattern {
             is_meta_var: false,
             kind: None,
-            text: Some(text.to_string()),
+            text: text.to_string(),
             children: vec![],
           });
         }
@@ -123,7 +123,7 @@ fn dump_pattern_impl(
       Some(DumpPattern {
         is_meta_var: false,
         kind,
-        text: Some(text.to_string()),
+        text: text.to_string(),
         children: vec![],
       })
     }
@@ -140,7 +140,7 @@ fn dump_pattern_impl(
       Some(DumpPattern {
         is_meta_var: false,
         kind: Some(kind),
-        text: None,
+        text: String::new(),
         children,
       })
     }
@@ -154,24 +154,20 @@ fn dump_pattern(
   ret: &mut String,
 ) -> FmtResult {
   let indent_str = "  ".repeat(indent);
-  let empty = String::new();
   if pattern.is_meta_var {
     let kind = style.field_style.paint("MetaVar");
-    let text = style
-      .kind_style
-      .paint(pattern.text.as_ref().unwrap_or(&empty));
+    let text = style.kind_style.paint(&pattern.text);
     writeln!(ret, "{indent_str}{kind} {text}")?;
   } else if let Some(kind) = &pattern.kind {
     let kind = style.kind_style.paint(kind.as_ref());
-    let text = pattern.text.as_ref().unwrap_or(&empty);
+    let text = &pattern.text;
     if text.is_empty() {
       writeln!(ret, "{indent_str}{kind}")?;
     } else {
       writeln!(ret, "{indent_str}{kind} {text}")?;
     }
   } else {
-    let text = pattern.text.as_ref().unwrap_or(&empty);
-    writeln!(ret, "{indent_str}{text}")?;
+    writeln!(ret, "{indent_str}{}", &pattern.text)?;
   }
   for child in &pattern.children {
     dump_pattern(child, style, indent + 1, ret)?
