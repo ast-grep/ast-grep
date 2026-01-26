@@ -64,18 +64,18 @@ impl DebugFormat {
   }
 }
 
-struct DumpPattern {
+struct DumpPattern<'p> {
   is_meta_var: bool,
   kind: Option<Cow<'static, str>>,
-  text: String,
-  children: Vec<DumpPattern>,
+  text: Cow<'p, str>,
+  children: Vec<DumpPattern<'p>>,
 }
 
-fn dump_pattern_impl(
-  pattern: &PatternNode,
+fn dump_pattern_impl<'p>(
+  pattern: &'p PatternNode,
   strictness: &MatchStrictness,
   to_kind_str: &impl Fn(u16) -> Option<Cow<'static, str>>,
-) -> Option<DumpPattern> {
+) -> Option<DumpPattern<'p>> {
   match pattern {
     PatternNode::MetaVar { meta_var } => {
       let meta_var = match meta_var {
@@ -87,7 +87,7 @@ fn dump_pattern_impl(
       Some(DumpPattern {
         is_meta_var: true,
         kind: Some("MetaVar".into()),
-        text: meta_var,
+        text: meta_var.into(),
         children: vec![],
       })
     }
@@ -104,7 +104,7 @@ fn dump_pattern_impl(
           return Some(DumpPattern {
             is_meta_var: false,
             kind: None,
-            text: text.to_string(),
+            text: text.into(),
             children: vec![],
           });
         }
@@ -123,7 +123,7 @@ fn dump_pattern_impl(
       Some(DumpPattern {
         is_meta_var: false,
         kind,
-        text: text.to_string(),
+        text: text.into(),
         children: vec![],
       })
     }
@@ -140,7 +140,7 @@ fn dump_pattern_impl(
       Some(DumpPattern {
         is_meta_var: false,
         kind: Some(kind),
-        text: String::new(),
+        text: Cow::Borrowed(""),
         children,
       })
     }
@@ -156,7 +156,7 @@ fn dump_pattern(
   let indent_str = "  ".repeat(indent);
   if pattern.is_meta_var {
     let kind = style.field_style.paint("MetaVar");
-    let text = style.kind_style.paint(&pattern.text);
+    let text = style.kind_style.paint(&*pattern.text);
     writeln!(ret, "{indent_str}{kind} {text}")?;
   } else if let Some(kind) = &pattern.kind {
     let kind = style.kind_style.paint(kind.as_ref());
