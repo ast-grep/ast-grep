@@ -66,7 +66,7 @@ impl DebugFormat {
 
 struct DumpPattern {
   is_meta_var: bool,
-  kind: Option<String>,
+  kind: Option<Cow<'static, str>>,
   text: Option<String>,
   children: Vec<DumpPattern>,
 }
@@ -86,7 +86,7 @@ fn dump_pattern_impl(
       };
       Some(DumpPattern {
         is_meta_var: true,
-        kind: Some("MetaVar".to_string()),
+        kind: Some("MetaVar".into()),
         text: Some(meta_var),
         children: vec![],
       })
@@ -111,32 +111,27 @@ fn dump_pattern_impl(
         return None;
       }
       let kind = if matches!(strictness, MatchStrictness::Template) {
-        text.into()
+        None
       } else {
-        to_kind_str(*kind_id).unwrap_or("UNKNOWN".into())
+        Some(to_kind_str(*kind_id).unwrap_or("UNKNOWN".into()))
       };
-      let text = if matches!(
-        strictness,
-        MatchStrictness::Signature | MatchStrictness::Template
-      ) {
+      let text = if matches!(strictness, MatchStrictness::Signature) {
         ""
       } else {
         text
       };
       Some(DumpPattern {
         is_meta_var: false,
-        kind: Some(kind.to_string()),
+        kind,
         text: Some(text.to_string()),
         children: vec![],
       })
     }
     PatternNode::Internal { kind_id, children } => {
       let kind = if matches!(strictness, MatchStrictness::Template) {
-        "(node)".to_string()
+        Cow::Borrowed("(node)")
       } else {
-        to_kind_str(*kind_id)
-          .unwrap_or_else(|| "UNKNOWN".into())
-          .to_string()
+        to_kind_str(*kind_id).unwrap_or_else(|| "UNKNOWN".into())
       };
       let children = children
         .iter()
@@ -167,7 +162,7 @@ fn dump_pattern(
       .paint(pattern.text.as_ref().unwrap_or(&empty));
     writeln!(ret, "{indent_str}{kind} {text}")?;
   } else if let Some(kind) = &pattern.kind {
-    let kind = style.kind_style.paint(kind);
+    let kind = style.kind_style.paint(kind.as_ref());
     let text = pattern.text.as_ref().unwrap_or(&empty);
     if text.is_empty() {
       writeln!(ret, "{indent_str}{kind}")?;
