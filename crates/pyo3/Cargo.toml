@@ -22,7 +22,7 @@ ast-grep-config.workspace = true
 ast-grep-language.workspace = true
 ast-grep-dynamic.workspace = true
 anyhow.workspace = true
-pyo3 = { version = "0.27.0", optional = true, features = ["anyhow", "py-clone"] }
+pyo3 = { version = "0.28.0", optional = true, features = ["anyhow", "py-clone"] }
 pythonize = { version = "0.27.0", optional = true }
 serde.workspace = true
 
