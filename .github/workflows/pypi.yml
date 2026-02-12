@@ -34,7 +34,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: "Build sdist"
-        uses: PyO3/maturin-action@v1.49.4
+        uses: PyO3/maturin-action@v1.50.0
         with:
           command: sdist
           args: --out dist
