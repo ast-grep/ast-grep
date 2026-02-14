@@ -1,0 +1,2109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ast-grep rule for systemverilog",
+  "description": "Used for global rules, rewriters, and pyo3/napi",
+  "type": "object",
+  "properties": {
+    "rule": {
+      "description": "A rule object to find matching AST nodes",
+      "$ref": "#/$defs/SerializableRule"
+    },
+    "constraints": {
+      "description": "Additional meta variables pattern to filter matching",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/SerializableRule"
+      }
+    },
+    "utils": {
+      "description": "Utility rules that can be used in `matches`",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/SerializableRule"
+      }
+    },
+    "transform": {
+      "description": "A dictionary for metavariable manipulation. Dict key is the new variable name.\nDict value is a [transformation] that specifies how meta var is processed.\nSee [transformation doc](https://ast-grep.github.io/reference/yaml/transformation.html).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/Transformation"
+      }
+    },
+    "fix": {
+      "description": "A pattern string or a FixConfig object to auto fix the issue.\nIt can reference metavariables appeared in rule.\nSee details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SerializableFixer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "id": {
+      "description": "Unique, descriptive identifier, e.g., no-unused-variable",
+      "type": "string"
+    },
+    "language": {
+      "description": "Specify the language to parse and the file extension to include in matching.",
+      "$ref": "#/$defs/Language"
+    },
+    "rewriters": {
+      "description": "Rewrite rules for `rewrite` transformation",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/SerializableRewriter"
+      }
+    },
+    "message": {
+      "description": "Main message highlighting why this rule fired. It should be single line and concise,\nbut specific enough to be understood without additional context.",
+      "type": "string",
+      "default": ""
+    },
+    "note": {
+      "description": "Additional notes to elaborate the message and provide potential fix to the issue.\n`notes` can contain markdown syntax, but it cannot reference meta-variables.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "severity": {
+      "description": "One of: hint, info, warning, or error",
+      "$ref": "#/$defs/Severity",
+      "default": "hint"
+    },
+    "labels": {
+      "description": "Custom label dictionary to configure reporting. Key is the meta-variable name and\nvalue is the label message and label style.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/LabelConfig"
+      }
+    },
+    "files": {
+      "description": "Glob patterns to specify that the rule only applies to matching files",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/RuleFileGlob"
+      }
+    },
+    "ignores": {
+      "description": "Glob patterns that exclude rules from applying to files",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/RuleFileGlob"
+      }
+    },
+    "url": {
+      "description": "Documentation link to this rule",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "metadata": {
+      "description": "Extra information for the rule",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Metadata"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "rule",
+    "id",
+    "language"
+  ],
+  "$defs": {
+    "SerializableRule": {
+      "description": "A rule object to find matching AST nodes. We have three categories of rules in ast-grep.\n\n* Atomic: the most basic rule to match AST. We have two variants: Pattern and Kind.\n\n* Relational: filter matched target according to their position relative to other nodes.\n\n* Composite: use logic operation all/any/not to compose the above rules to larger rules.\n\nEvery rule has it's unique name so we can combine several rules in one object.",
+      "type": "object",
+      "properties": {
+        "pattern": {
+          "description": "A pattern string or a pattern object.",
+          "$ref": "#/$defs/PatternStyle"
+        },
+        "kind": {
+          "description": "The kind name of the node to match. You can look up code's kind names in playground.",
+          "type": "string",
+          "enum": [
+            "$fullskew_timing_check",
+            "$hold_timing_check",
+            "$nochange_timing_check",
+            "$period_timing_check",
+            "$recovery_timing_check",
+            "$recrem_timing_check",
+            "$removal_timing_check",
+            "$setup_timing_check",
+            "$setuphold_timing_check",
+            "$skew_timing_check",
+            "$timeskew_timing_check",
+            "$width_timing_check",
+            "action_block",
+            "actual_argument",
+            "always_construct",
+            "always_keyword",
+            "anonymous_program",
+            "anonymous_program_item",
+            "ansi_port_declaration",
+            "array_manipulation_call",
+            "array_method_name",
+            "array_or_queue_method_call",
+            "array_or_queue_method_name",
+            "array_range_expression",
+            "assert_property_statement",
+            "assertion_variable_declaration",
+            "assignment_operator",
+            "assignment_pattern",
+            "assignment_pattern_expression",
+            "assignment_pattern_key",
+            "assignment_pattern_net_lvalue",
+            "assignment_pattern_variable_lvalue",
+            "associative_array_method_call",
+            "associative_array_method_name",
+            "associative_dimension",
+            "assume_property_statement",
+            "attr_spec",
+            "attribute_instance",
+            "binary_base",
+            "binary_number",
+            "binary_value",
+            "bind_directive",
+            "bind_target_instance",
+            "bind_target_instance_list",
+            "bind_target_scope",
+            "bins_expression",
+            "bins_keyword",
+            "bins_or_empty",
+            "bins_or_options",
+            "bins_selection",
+            "bins_selection_or_option",
+            "bit_select",
+            "block_comment",
+            "block_event_expression",
+            "block_item_declaration",
+            "blocking_assignment",
+            "c_identifier",
+            "case_expression",
+            "case_generate_construct",
+            "case_generate_item",
+            "case_inside_item",
+            "case_item",
+            "case_item_expression",
+            "case_keyword",
+            "case_pattern_item",
+            "case_statement",
+            "cast",
+            "casting_type",
+            "cell_clause",
+            "celldefine_compiler_directive",
+            "charge_strength",
+            "checker_declaration",
+            "checker_instantiation",
+            "checker_item",
+            "checker_port_direction",
+            "checker_port_item",
+            "checker_port_list",
+            "class_constructor_arg",
+            "class_constructor_arg_list",
+            "class_constructor_declaration",
+            "class_constructor_prototype",
+            "class_declaration",
+            "class_item",
+            "class_item_qualifier",
+            "class_method",
+            "class_new",
+            "class_property",
+            "class_qualifier",
+            "class_scope",
+            "class_type",
+            "clocking_decl_assign",
+            "clocking_declaration",
+            "clocking_direction",
+            "clocking_drive",
+            "clocking_event",
+            "clocking_item",
+            "clocking_skew",
+            "clockvar",
+            "clockvar_expression",
+            "cmos_switch_instance",
+            "cmos_switchtype",
+            "combinational_body",
+            "combinational_entry",
+            "concatenation",
+            "concurrent_assertion_item",
+            "cond_pattern",
+            "cond_predicate",
+            "conditional_compilation_directive",
+            "conditional_expression",
+            "conditional_generate_construct",
+            "conditional_statement",
+            "config_declaration",
+            "config_rule_statement",
+            "consecutive_repetition",
+            "constant_bit_select",
+            "constant_cast",
+            "constant_concatenation",
+            "constant_expression",
+            "constant_function_call",
+            "constant_indexed_range",
+            "constant_mintypmax_expression",
+            "constant_multiple_concatenation",
+            "constant_param_expression",
+            "constant_primary",
+            "constant_range",
+            "constant_select",
+            "constraint_block",
+            "constraint_block_item",
+            "constraint_declaration",
+            "constraint_expression",
+            "constraint_primary",
+            "constraint_prototype",
+            "constraint_prototype_qualifier",
+            "constraint_set",
+            "continuous_assign",
+            "controlled_reference_event",
+            "controlled_timing_check_event",
+            "cover_cross",
+            "cover_point",
+            "cover_property_statement",
+            "cover_sequence_statement",
+            "coverage_event",
+            "coverage_option",
+            "coverage_spec_or_option",
+            "covergroup_declaration",
+            "covergroup_range_list",
+            "covergroup_value_range",
+            "cross_body",
+            "cross_body_item",
+            "cycle_delay",
+            "cycle_delay_const_range_expression",
+            "cycle_delay_range",
+            "data_declaration",
+            "data_event",
+            "data_source_expression",
+            "data_type",
+            "data_type_or_implicit",
+            "data_type_or_void",
+            "decimal_base",
+            "decimal_number",
+            "default_clause",
+            "default_nettype_compiler_directive",
+            "default_nettype_value",
+            "default_skew",
+            "default_text",
+            "deferred_immediate_assert_statement",
+            "deferred_immediate_assertion_item",
+            "deferred_immediate_assume_statement",
+            "deferred_immediate_cover_statement",
+            "defparam_assignment",
+            "delay2",
+            "delay3",
+            "delay_control",
+            "delay_or_event_control",
+            "delay_value",
+            "delayed_data",
+            "delayed_reference",
+            "design_statement",
+            "disable_statement",
+            "dist_item",
+            "dist_list",
+            "dist_weight",
+            "dpi_function_import_property",
+            "dpi_function_proto",
+            "dpi_import_export",
+            "dpi_spec_string",
+            "dpi_task_import_property",
+            "dpi_task_proto",
+            "drive_strength",
+            "dynamic_array_new",
+            "dynamic_override_specifiers",
+            "edge_control_specifier",
+            "edge_descriptor",
+            "edge_identifier",
+            "edge_indicator",
+            "edge_input_list",
+            "edge_sensitive_path_declaration",
+            "edge_symbol",
+            "empty_unpacked_array_concatenation",
+            "enable_gate_instance",
+            "enable_gatetype",
+            "enable_terminal",
+            "end_edge_offset",
+            "endcelldefine_compiler_directive",
+            "endkeywords_directive",
+            "enum_base_type",
+            "enum_method_call",
+            "enum_method_name",
+            "enum_name_declaration",
+            "enum_or_associative_array_method_call",
+            "enum_or_associative_array_method_name",
+            "error_limit_value",
+            "escaped_identifier",
+            "event_based_flag",
+            "event_control",
+            "event_expression",
+            "event_trigger",
+            "expect_property_statement",
+            "expression",
+            "expression_or_dist",
+            "extern_constraint_declaration",
+            "extern_tf_declaration",
+            "file_or_line_compiler_directive",
+            "file_path_spec",
+            "final_construct",
+            "final_specifier",
+            "finish_number",
+            "fixed_point_number",
+            "for_initialization",
+            "for_step",
+            "for_variable_declaration",
+            "formal_argument",
+            "full_edge_sensitive_path_description",
+            "full_path_description",
+            "function_body_declaration",
+            "function_declaration",
+            "function_prototype",
+            "function_statement",
+            "function_statement_or_null",
+            "function_subroutine_call",
+            "gate_instantiation",
+            "generate_block",
+            "generate_region",
+            "genvar_declaration",
+            "genvar_initialization",
+            "genvar_iteration",
+            "goto_repetition",
+            "hex_base",
+            "hex_number",
+            "hex_value",
+            "hierarchical_identifier",
+            "hierarchical_instance",
+            "identifier_list",
+            "if_generate_construct",
+            "ifdef_condition",
+            "ifdef_macro_expression",
+            "implicit_class_handle",
+            "implicit_data_type",
+            "import_export",
+            "inc_or_dec_expression",
+            "inc_or_dec_operator",
+            "include_compiler_directive",
+            "include_statement",
+            "indexed_range",
+            "init_val",
+            "initial_construct",
+            "initial_or_extends_specifier",
+            "inout_declaration",
+            "inout_terminal",
+            "input_declaration",
+            "input_terminal",
+            "inside_expression",
+            "inst_clause",
+            "inst_name",
+            "integer_atom_type",
+            "integer_vector_type",
+            "integral_number",
+            "interface_ansi_header",
+            "interface_class_declaration",
+            "interface_class_item",
+            "interface_class_method",
+            "interface_class_type",
+            "interface_declaration",
+            "interface_instantiation",
+            "interface_item",
+            "interface_nonansi_header",
+            "interface_port_declaration",
+            "interface_port_header",
+            "join_keyword",
+            "jump_statement",
+            "keywords_directive",
+            "let_declaration",
+            "let_formal_type",
+            "let_port_item",
+            "let_port_list",
+            "level",
+            "level_input_list",
+            "level_symbol",
+            "liblist_clause",
+            "library_declaration",
+            "lifetime",
+            "line_compiler_directive",
+            "list_of_actual_arguments",
+            "list_of_arguments",
+            "list_of_checker_port_connections",
+            "list_of_clocking_decl_assign",
+            "list_of_cross_items",
+            "list_of_defparam_assignments",
+            "list_of_formal_arguments",
+            "list_of_genvar_identifiers",
+            "list_of_interface_identifiers",
+            "list_of_net_assignments",
+            "list_of_net_decl_assignments",
+            "list_of_param_assignments",
+            "list_of_parameter_value_assignments",
+            "list_of_path_delay_expressions",
+            "list_of_path_inputs",
+            "list_of_path_outputs",
+            "list_of_port_connections",
+            "list_of_port_declarations",
+            "list_of_port_identifiers",
+            "list_of_ports",
+            "list_of_specparam_assignments",
+            "list_of_tf_variable_identifiers",
+            "list_of_type_assignments",
+            "list_of_udp_port_identifiers",
+            "list_of_variable_assignments",
+            "list_of_variable_decl_assignments",
+            "list_of_variable_identifiers",
+            "list_of_variable_port_identifiers",
+            "local_parameter_declaration",
+            "loop_generate_construct",
+            "loop_statement",
+            "loop_variables",
+            "macro_text",
+            "method_call",
+            "method_call_body",
+            "method_qualifier",
+            "mintypmax_expression",
+            "modport_clocking_declaration",
+            "modport_declaration",
+            "modport_item",
+            "modport_ports_declaration",
+            "modport_simple_port",
+            "modport_simple_ports_declaration",
+            "modport_tf_ports_declaration",
+            "module_ansi_header",
+            "module_declaration",
+            "module_instantiation",
+            "module_item",
+            "module_keyword",
+            "module_nonansi_header",
+            "module_path_concatenation",
+            "module_path_conditional_expression",
+            "module_path_expression",
+            "module_path_mintypmax_expression",
+            "module_path_multiple_concatenation",
+            "module_path_primary",
+            "mos_switch_instance",
+            "mos_switchtype",
+            "multiple_concatenation",
+            "n_input_gate_instance",
+            "n_input_gatetype",
+            "n_output_gate_instance",
+            "n_output_gatetype",
+            "name_of_instance",
+            "named_checker_port_connection",
+            "named_parameter_assignment",
+            "named_port_connection",
+            "ncontrol_terminal",
+            "net_alias",
+            "net_assignment",
+            "net_decl_assignment",
+            "net_declaration",
+            "net_lvalue",
+            "net_port_header",
+            "net_port_type",
+            "net_type",
+            "nettype_declaration",
+            "new_method_call",
+            "next_state",
+            "non_consecutive_repetition",
+            "non_integer_type",
+            "nonblocking_assignment",
+            "nonrange_select",
+            "nonrange_variable_lvalue",
+            "notifier",
+            "octal_base",
+            "octal_number",
+            "octal_value",
+            "one_line_comment",
+            "operator_assignment",
+            "ordered_checker_port_connection",
+            "ordered_parameter_assignment",
+            "ordered_port_connection",
+            "output_declaration",
+            "output_symbol",
+            "output_terminal",
+            "package_declaration",
+            "package_export_declaration",
+            "package_import_declaration",
+            "package_import_item",
+            "package_item",
+            "package_scope",
+            "packed_dimension",
+            "par_block",
+            "parallel_edge_sensitive_path_description",
+            "parallel_path_description",
+            "param_assignment",
+            "param_expression",
+            "parameter_declaration",
+            "parameter_override",
+            "parameter_port_declaration",
+            "parameter_port_list",
+            "parameter_value_assignment",
+            "pass_en_switchtype",
+            "pass_enable_switch_instance",
+            "pass_switch_instance",
+            "pass_switchtype",
+            "path_declaration",
+            "path_delay_expression",
+            "path_delay_value",
+            "pattern",
+            "pcontrol_terminal",
+            "polarity_operator",
+            "port",
+            "port_declaration",
+            "port_direction",
+            "pragma",
+            "pragma_expression",
+            "pragma_keyword",
+            "pragma_name",
+            "pragma_value",
+            "primary",
+            "primary_literal",
+            "procedural_continuous_assignment",
+            "procedural_timing_control_statement",
+            "program_ansi_header",
+            "program_declaration",
+            "program_instantiation",
+            "program_item",
+            "program_nonansi_header",
+            "property_case_item",
+            "property_declaration",
+            "property_expr",
+            "property_formal_type",
+            "property_instance",
+            "property_list_of_arguments",
+            "property_lvar_port_direction",
+            "property_port_item",
+            "property_port_list",
+            "property_spec",
+            "pull_gate_instance",
+            "pulldown_strength",
+            "pullup_strength",
+            "pulse_control_specparam",
+            "pulsestyle_declaration",
+            "queue_dimension",
+            "queue_method_call",
+            "queue_method_name",
+            "quoted_string",
+            "quoted_string_item",
+            "randcase_item",
+            "randcase_statement",
+            "random_qualifier",
+            "randomize_call",
+            "randsequence_statement",
+            "range_expression",
+            "range_list",
+            "real_number",
+            "ref_declaration",
+            "reference_event",
+            "reject_limit_value",
+            "remain_active_flag",
+            "repeat_range",
+            "resetall_compiler_directive",
+            "restrict_property_statement",
+            "rs_case",
+            "rs_case_item",
+            "rs_code_block",
+            "rs_if_else",
+            "rs_prod",
+            "rs_production",
+            "rs_production_item",
+            "rs_production_list",
+            "rs_repeat",
+            "rs_rule",
+            "rs_weight_specification",
+            "scalar_constant",
+            "scalar_timing_check_condition",
+            "select",
+            "select_condition",
+            "select_expression",
+            "seq_block",
+            "sequence_abbrev",
+            "sequence_declaration",
+            "sequence_expr",
+            "sequence_formal_type",
+            "sequence_instance",
+            "sequence_list_of_arguments",
+            "sequence_lvar_port_direction",
+            "sequence_port_item",
+            "sequence_port_list",
+            "sequential_body",
+            "sequential_entry",
+            "severity_system_task",
+            "showcancelled_declaration",
+            "simple_identifier",
+            "simple_immediate_assert_statement",
+            "simple_immediate_assume_statement",
+            "simple_immediate_cover_statement",
+            "simple_path_declaration",
+            "simulation_control_task",
+            "slice_size",
+            "solve_before_list",
+            "source_file",
+            "specify_block",
+            "specify_input_terminal_descriptor",
+            "specify_item",
+            "specify_output_terminal_descriptor",
+            "specparam_assignment",
+            "specparam_declaration",
+            "start_edge_offset",
+            "state_dependent_path_declaration",
+            "statement",
+            "statement_item",
+            "statement_or_null",
+            "stream_concatenation",
+            "stream_expression",
+            "stream_operator",
+            "streaming_concatenation",
+            "strength0",
+            "strength1",
+            "string_escape_seq",
+            "string_literal",
+            "string_method_call",
+            "string_method_name",
+            "struct_union",
+            "struct_union_member",
+            "subroutine_call",
+            "subroutine_call_statement",
+            "system_lib_string",
+            "system_tf_call",
+            "system_tf_identifier",
+            "system_timing_check",
+            "tagged_union_expression",
+            "task_body_declaration",
+            "task_declaration",
+            "task_prototype",
+            "text_macro_definition",
+            "text_macro_name",
+            "text_macro_usage",
+            "tf_call",
+            "tf_item_declaration",
+            "tf_port_declaration",
+            "tf_port_direction",
+            "tf_port_item",
+            "tf_port_list",
+            "threshold",
+            "time_literal",
+            "time_unit",
+            "timecheck_condition",
+            "timescale_compiler_directive",
+            "timestamp_condition",
+            "timeunits_declaration",
+            "timing_check_condition",
+            "timing_check_event",
+            "timing_check_event_control",
+            "timing_check_limit",
+            "trans_item",
+            "trans_list",
+            "trans_range_list",
+            "trans_set",
+            "triple_quoted_string",
+            "triple_quoted_string_item",
+            "type_assignment",
+            "type_declaration",
+            "type_parameter_declaration",
+            "type_reference",
+            "udp_ansi_declaration",
+            "udp_declaration",
+            "udp_declaration_port_list",
+            "udp_initial_statement",
+            "udp_input_declaration",
+            "udp_instance",
+            "udp_instantiation",
+            "udp_nonansi_declaration",
+            "udp_output_declaration",
+            "udp_port_declaration",
+            "udp_port_list",
+            "udp_reg_declaration",
+            "unary_module_path_operator",
+            "unary_operator",
+            "unbased_unsized_literal",
+            "unconnected_drive_compiler_directive",
+            "undefine_compiler_directive",
+            "undefineall_compiler_directive",
+            "unique_priority",
+            "uniqueness_constraint",
+            "unpacked_dimension",
+            "unsigned_number",
+            "unsized_dimension",
+            "use_clause",
+            "value_range",
+            "variable_assignment",
+            "variable_decl_assignment",
+            "variable_identifier_list",
+            "variable_lvalue",
+            "variable_port_header",
+            "variable_port_type",
+            "version_specifier",
+            "wait_statement",
+            "x_digit",
+            "z_digit"
+          ]
+        },
+        "regex": {
+          "description": "A Rust regular expression to match the node's text. https://docs.rs/regex/latest/regex/#syntax",
+          "type": "string"
+        },
+        "nthChild": {
+          "description": "`nth_child` accepts number, string or object.\nIt specifies the position in nodes' sibling list.",
+          "$ref": "#/$defs/SerializableNthChild"
+        },
+        "range": {
+          "description": "`range` accepts a range object.\nthe target node must exactly appear in the range.",
+          "$ref": "#/$defs/SerializableRange"
+        },
+        "inside": {
+          "description": "`inside` accepts a relational rule object.\nthe target node must appear inside of another node matching the `inside` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "has": {
+          "description": "`has` accepts a relational rule object.\nthe target node must has a descendant node matching the `has` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "precedes": {
+          "description": "`precedes` accepts a relational rule object.\nthe target node must appear before another node matching the `precedes` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "follows": {
+          "description": "`follows` accepts a relational rule object.\nthe target node must appear after another node matching the `follows` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "all": {
+          "description": "A list of sub rules and matches a node if all of sub rules match.\nThe meta variables of the matched node contain all variables from the sub-rules.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SerializableRule"
+          }
+        },
+        "any": {
+          "description": "A list of sub rules and matches a node if any of sub rules match.\nThe meta variables of the matched node only contain those of the matched sub-rule.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SerializableRule"
+          }
+        },
+        "not": {
+          "description": "A single sub-rule and matches a node if the sub rule does not match.",
+          "$ref": "#/$defs/SerializableRule"
+        },
+        "matches": {
+          "description": "A utility rule id and matches a node if the utility rule matches.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PatternStyle": {
+      "description": "A String pattern will match one single AST node according to pattern syntax.\nOr an object with field `context`, `selector` and optionally `strictness`.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "context": {
+              "description": "The surrounding code that helps to resolve any ambiguity in the syntax.",
+              "type": "string"
+            },
+            "selector": {
+              "description": "The sub-syntax node kind that is the actual matcher of the pattern.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "strictness": {
+              "description": "Strictness of the pattern. More strict pattern matches fewer nodes.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Strictness"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "context"
+          ]
+        }
+      ]
+    },
+    "Strictness": {
+      "oneOf": [
+        {
+          "description": "all nodes are matched",
+          "type": "string",
+          "const": "cst"
+        },
+        {
+          "description": "all nodes except source trivial nodes are matched.",
+          "type": "string",
+          "const": "smart"
+        },
+        {
+          "description": "only ast nodes are matched",
+          "type": "string",
+          "const": "ast"
+        },
+        {
+          "description": "ast-nodes excluding comments are matched",
+          "type": "string",
+          "const": "relaxed"
+        },
+        {
+          "description": "ast-nodes excluding comments, without text",
+          "type": "string",
+          "const": "signature"
+        },
+        {
+          "description": "similar to smart, but node kinds are ignored, only text is matched.",
+          "type": "string",
+          "const": "template"
+        }
+      ]
+    },
+    "SerializableNthChild": {
+      "description": "`nthChild` accepts either a number, a string or an object.",
+      "anyOf": [
+        {
+          "description": "Simple syntax",
+          "$ref": "#/$defs/NthChildSimple"
+        },
+        {
+          "description": "Object style syntax",
+          "type": "object",
+          "properties": {
+            "position": {
+              "description": "nth-child syntax",
+              "$ref": "#/$defs/NthChildSimple"
+            },
+            "ofRule": {
+              "description": "select the nth node that matches the rule, like CSS's of syntax",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SerializableRule"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "reverse": {
+              "description": "matches from the end instead like CSS's nth-last-child",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "position"
+          ]
+        }
+      ]
+    },
+    "NthChildSimple": {
+      "description": "A string or number describing the indices of matching nodes in a list of siblings.",
+      "anyOf": [
+        {
+          "description": "A number indicating the precise element index",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        {
+          "description": "Functional notation like CSS's An + B",
+          "type": "string"
+        }
+      ]
+    },
+    "SerializableRange": {
+      "description": "Represents a position in source code using 0-based line and column numbers",
+      "type": "object",
+      "properties": {
+        "start": {
+          "description": "start position in the source code",
+          "$ref": "#/$defs/SerializablePosition"
+        },
+        "end": {
+          "description": "end position in the source code",
+          "$ref": "#/$defs/SerializablePosition"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ]
+    },
+    "SerializablePosition": {
+      "description": "Represents a zero-based character-wise position in a document",
+      "type": "object",
+      "properties": {
+        "line": {
+          "description": "0-based line number in the source code",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "column": {
+          "description": "0-based column number in the source code",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "line"
+      ]
+    },
+    "Relation": {
+      "description": "A relational rule object, which is a Rule object with two additional fields stopBy and field.",
+      "type": "object",
+      "properties": {
+        "pattern": {
+          "description": "A pattern string or a pattern object.",
+          "$ref": "#/$defs/PatternStyle"
+        },
+        "kind": {
+          "description": "The kind name of the node to match. You can look up code's kind names in playground.",
+          "type": "string",
+          "enum": [
+            "$fullskew_timing_check",
+            "$hold_timing_check",
+            "$nochange_timing_check",
+            "$period_timing_check",
+            "$recovery_timing_check",
+            "$recrem_timing_check",
+            "$removal_timing_check",
+            "$setup_timing_check",
+            "$setuphold_timing_check",
+            "$skew_timing_check",
+            "$timeskew_timing_check",
+            "$width_timing_check",
+            "action_block",
+            "actual_argument",
+            "always_construct",
+            "always_keyword",
+            "anonymous_program",
+            "anonymous_program_item",
+            "ansi_port_declaration",
+            "array_manipulation_call",
+            "array_method_name",
+            "array_or_queue_method_call",
+            "array_or_queue_method_name",
+            "array_range_expression",
+            "assert_property_statement",
+            "assertion_variable_declaration",
+            "assignment_operator",
+            "assignment_pattern",
+            "assignment_pattern_expression",
+            "assignment_pattern_key",
+            "assignment_pattern_net_lvalue",
+            "assignment_pattern_variable_lvalue",
+            "associative_array_method_call",
+            "associative_array_method_name",
+            "associative_dimension",
+            "assume_property_statement",
+            "attr_spec",
+            "attribute_instance",
+            "binary_base",
+            "binary_number",
+            "binary_value",
+            "bind_directive",
+            "bind_target_instance",
+            "bind_target_instance_list",
+            "bind_target_scope",
+            "bins_expression",
+            "bins_keyword",
+            "bins_or_empty",
+            "bins_or_options",
+            "bins_selection",
+            "bins_selection_or_option",
+            "bit_select",
+            "block_comment",
+            "block_event_expression",
+            "block_item_declaration",
+            "blocking_assignment",
+            "c_identifier",
+            "case_expression",
+            "case_generate_construct",
+            "case_generate_item",
+            "case_inside_item",
+            "case_item",
+            "case_item_expression",
+            "case_keyword",
+            "case_pattern_item",
+            "case_statement",
+            "cast",
+            "casting_type",
+            "cell_clause",
+            "celldefine_compiler_directive",
+            "charge_strength",
+            "checker_declaration",
+            "checker_instantiation",
+            "checker_item",
+            "checker_port_direction",
+            "checker_port_item",
+            "checker_port_list",
+            "class_constructor_arg",
+            "class_constructor_arg_list",
+            "class_constructor_declaration",
+            "class_constructor_prototype",
+            "class_declaration",
+            "class_item",
+            "class_item_qualifier",
+            "class_method",
+            "class_new",
+            "class_property",
+            "class_qualifier",
+            "class_scope",
+            "class_type",
+            "clocking_decl_assign",
+            "clocking_declaration",
+            "clocking_direction",
+            "clocking_drive",
+            "clocking_event",
+            "clocking_item",
+            "clocking_skew",
+            "clockvar",
+            "clockvar_expression",
+            "cmos_switch_instance",
+            "cmos_switchtype",
+            "combinational_body",
+            "combinational_entry",
+            "concatenation",
+            "concurrent_assertion_item",
+            "cond_pattern",
+            "cond_predicate",
+            "conditional_compilation_directive",
+            "conditional_expression",
+            "conditional_generate_construct",
+            "conditional_statement",
+            "config_declaration",
+            "config_rule_statement",
+            "consecutive_repetition",
+            "constant_bit_select",
+            "constant_cast",
+            "constant_concatenation",
+            "constant_expression",
+            "constant_function_call",
+            "constant_indexed_range",
+            "constant_mintypmax_expression",
+            "constant_multiple_concatenation",
+            "constant_param_expression",
+            "constant_primary",
+            "constant_range",
+            "constant_select",
+            "constraint_block",
+            "constraint_block_item",
+            "constraint_declaration",
+            "constraint_expression",
+            "constraint_primary",
+            "constraint_prototype",
+            "constraint_prototype_qualifier",
+            "constraint_set",
+            "continuous_assign",
+            "controlled_reference_event",
+            "controlled_timing_check_event",
+            "cover_cross",
+            "cover_point",
+            "cover_property_statement",
+            "cover_sequence_statement",
+            "coverage_event",
+            "coverage_option",
+            "coverage_spec_or_option",
+            "covergroup_declaration",
+            "covergroup_range_list",
+            "covergroup_value_range",
+            "cross_body",
+            "cross_body_item",
+            "cycle_delay",
+            "cycle_delay_const_range_expression",
+            "cycle_delay_range",
+            "data_declaration",
+            "data_event",
+            "data_source_expression",
+            "data_type",
+            "data_type_or_implicit",
+            "data_type_or_void",
+            "decimal_base",
+            "decimal_number",
+            "default_clause",
+            "default_nettype_compiler_directive",
+            "default_nettype_value",
+            "default_skew",
+            "default_text",
+            "deferred_immediate_assert_statement",
+            "deferred_immediate_assertion_item",
+            "deferred_immediate_assume_statement",
+            "deferred_immediate_cover_statement",
+            "defparam_assignment",
+            "delay2",
+            "delay3",
+            "delay_control",
+            "delay_or_event_control",
+            "delay_value",
+            "delayed_data",
+            "delayed_reference",
+            "design_statement",
+            "disable_statement",
+            "dist_item",
+            "dist_list",
+            "dist_weight",
+            "dpi_function_import_property",
+            "dpi_function_proto",
+            "dpi_import_export",
+            "dpi_spec_string",
+            "dpi_task_import_property",
+            "dpi_task_proto",
+            "drive_strength",
+            "dynamic_array_new",
+            "dynamic_override_specifiers",
+            "edge_control_specifier",
+            "edge_descriptor",
+            "edge_identifier",
+            "edge_indicator",
+            "edge_input_list",
+            "edge_sensitive_path_declaration",
+            "edge_symbol",
+            "empty_unpacked_array_concatenation",
+            "enable_gate_instance",
+            "enable_gatetype",
+            "enable_terminal",
+            "end_edge_offset",
+            "endcelldefine_compiler_directive",
+            "endkeywords_directive",
+            "enum_base_type",
+            "enum_method_call",
+            "enum_method_name",
+            "enum_name_declaration",
+            "enum_or_associative_array_method_call",
+            "enum_or_associative_array_method_name",
+            "error_limit_value",
+            "escaped_identifier",
+            "event_based_flag",
+            "event_control",
+            "event_expression",
+            "event_trigger",
+            "expect_property_statement",
+            "expression",
+            "expression_or_dist",
+            "extern_constraint_declaration",
+            "extern_tf_declaration",
+            "file_or_line_compiler_directive",
+            "file_path_spec",
+            "final_construct",
+            "final_specifier",
+            "finish_number",
+            "fixed_point_number",
+            "for_initialization",
+            "for_step",
+            "for_variable_declaration",
+            "formal_argument",
+            "full_edge_sensitive_path_description",
+            "full_path_description",
+            "function_body_declaration",
+            "function_declaration",
+            "function_prototype",
+            "function_statement",
+            "function_statement_or_null",
+            "function_subroutine_call",
+            "gate_instantiation",
+            "generate_block",
+            "generate_region",
+            "genvar_declaration",
+            "genvar_initialization",
+            "genvar_iteration",
+            "goto_repetition",
+            "hex_base",
+            "hex_number",
+            "hex_value",
+            "hierarchical_identifier",
+            "hierarchical_instance",
+            "identifier_list",
+            "if_generate_construct",
+            "ifdef_condition",
+            "ifdef_macro_expression",
+            "implicit_class_handle",
+            "implicit_data_type",
+            "import_export",
+            "inc_or_dec_expression",
+            "inc_or_dec_operator",
+            "include_compiler_directive",
+            "include_statement",
+            "indexed_range",
+            "init_val",
+            "initial_construct",
+            "initial_or_extends_specifier",
+            "inout_declaration",
+            "inout_terminal",
+            "input_declaration",
+            "input_terminal",
+            "inside_expression",
+            "inst_clause",
+            "inst_name",
+            "integer_atom_type",
+            "integer_vector_type",
+            "integral_number",
+            "interface_ansi_header",
+            "interface_class_declaration",
+            "interface_class_item",
+            "interface_class_method",
+            "interface_class_type",
+            "interface_declaration",
+            "interface_instantiation",
+            "interface_item",
+            "interface_nonansi_header",
+            "interface_port_declaration",
+            "interface_port_header",
+            "join_keyword",
+            "jump_statement",
+            "keywords_directive",
+            "let_declaration",
+            "let_formal_type",
+            "let_port_item",
+            "let_port_list",
+            "level",
+            "level_input_list",
+            "level_symbol",
+            "liblist_clause",
+            "library_declaration",
+            "lifetime",
+            "line_compiler_directive",
+            "list_of_actual_arguments",
+            "list_of_arguments",
+            "list_of_checker_port_connections",
+            "list_of_clocking_decl_assign",
+            "list_of_cross_items",
+            "list_of_defparam_assignments",
+            "list_of_formal_arguments",
+            "list_of_genvar_identifiers",
+            "list_of_interface_identifiers",
+            "list_of_net_assignments",
+            "list_of_net_decl_assignments",
+            "list_of_param_assignments",
+            "list_of_parameter_value_assignments",
+            "list_of_path_delay_expressions",
+            "list_of_path_inputs",
+            "list_of_path_outputs",
+            "list_of_port_connections",
+            "list_of_port_declarations",
+            "list_of_port_identifiers",
+            "list_of_ports",
+            "list_of_specparam_assignments",
+            "list_of_tf_variable_identifiers",
+            "list_of_type_assignments",
+            "list_of_udp_port_identifiers",
+            "list_of_variable_assignments",
+            "list_of_variable_decl_assignments",
+            "list_of_variable_identifiers",
+            "list_of_variable_port_identifiers",
+            "local_parameter_declaration",
+            "loop_generate_construct",
+            "loop_statement",
+            "loop_variables",
+            "macro_text",
+            "method_call",
+            "method_call_body",
+            "method_qualifier",
+            "mintypmax_expression",
+            "modport_clocking_declaration",
+            "modport_declaration",
+            "modport_item",
+            "modport_ports_declaration",
+            "modport_simple_port",
+            "modport_simple_ports_declaration",
+            "modport_tf_ports_declaration",
+            "module_ansi_header",
+            "module_declaration",
+            "module_instantiation",
+            "module_item",
+            "module_keyword",
+            "module_nonansi_header",
+            "module_path_concatenation",
+            "module_path_conditional_expression",
+            "module_path_expression",
+            "module_path_mintypmax_expression",
+            "module_path_multiple_concatenation",
+            "module_path_primary",
+            "mos_switch_instance",
+            "mos_switchtype",
+            "multiple_concatenation",
+            "n_input_gate_instance",
+            "n_input_gatetype",
+            "n_output_gate_instance",
+            "n_output_gatetype",
+            "name_of_instance",
+            "named_checker_port_connection",
+            "named_parameter_assignment",
+            "named_port_connection",
+            "ncontrol_terminal",
+            "net_alias",
+            "net_assignment",
+            "net_decl_assignment",
+            "net_declaration",
+            "net_lvalue",
+            "net_port_header",
+            "net_port_type",
+            "net_type",
+            "nettype_declaration",
+            "new_method_call",
+            "next_state",
+            "non_consecutive_repetition",
+            "non_integer_type",
+            "nonblocking_assignment",
+            "nonrange_select",
+            "nonrange_variable_lvalue",
+            "notifier",
+            "octal_base",
+            "octal_number",
+            "octal_value",
+            "one_line_comment",
+            "operator_assignment",
+            "ordered_checker_port_connection",
+            "ordered_parameter_assignment",
+            "ordered_port_connection",
+            "output_declaration",
+            "output_symbol",
+            "output_terminal",
+            "package_declaration",
+            "package_export_declaration",
+            "package_import_declaration",
+            "package_import_item",
+            "package_item",
+            "package_scope",
+            "packed_dimension",
+            "par_block",
+            "parallel_edge_sensitive_path_description",
+            "parallel_path_description",
+            "param_assignment",
+            "param_expression",
+            "parameter_declaration",
+            "parameter_override",
+            "parameter_port_declaration",
+            "parameter_port_list",
+            "parameter_value_assignment",
+            "pass_en_switchtype",
+            "pass_enable_switch_instance",
+            "pass_switch_instance",
+            "pass_switchtype",
+            "path_declaration",
+            "path_delay_expression",
+            "path_delay_value",
+            "pattern",
+            "pcontrol_terminal",
+            "polarity_operator",
+            "port",
+            "port_declaration",
+            "port_direction",
+            "pragma",
+            "pragma_expression",
+            "pragma_keyword",
+            "pragma_name",
+            "pragma_value",
+            "primary",
+            "primary_literal",
+            "procedural_continuous_assignment",
+            "procedural_timing_control_statement",
+            "program_ansi_header",
+            "program_declaration",
+            "program_instantiation",
+            "program_item",
+            "program_nonansi_header",
+            "property_case_item",
+            "property_declaration",
+            "property_expr",
+            "property_formal_type",
+            "property_instance",
+            "property_list_of_arguments",
+            "property_lvar_port_direction",
+            "property_port_item",
+            "property_port_list",
+            "property_spec",
+            "pull_gate_instance",
+            "pulldown_strength",
+            "pullup_strength",
+            "pulse_control_specparam",
+            "pulsestyle_declaration",
+            "queue_dimension",
+            "queue_method_call",
+            "queue_method_name",
+            "quoted_string",
+            "quoted_string_item",
+            "randcase_item",
+            "randcase_statement",
+            "random_qualifier",
+            "randomize_call",
+            "randsequence_statement",
+            "range_expression",
+            "range_list",
+            "real_number",
+            "ref_declaration",
+            "reference_event",
+            "reject_limit_value",
+            "remain_active_flag",
+            "repeat_range",
+            "resetall_compiler_directive",
+            "restrict_property_statement",
+            "rs_case",
+            "rs_case_item",
+            "rs_code_block",
+            "rs_if_else",
+            "rs_prod",
+            "rs_production",
+            "rs_production_item",
+            "rs_production_list",
+            "rs_repeat",
+            "rs_rule",
+            "rs_weight_specification",
+            "scalar_constant",
+            "scalar_timing_check_condition",
+            "select",
+            "select_condition",
+            "select_expression",
+            "seq_block",
+            "sequence_abbrev",
+            "sequence_declaration",
+            "sequence_expr",
+            "sequence_formal_type",
+            "sequence_instance",
+            "sequence_list_of_arguments",
+            "sequence_lvar_port_direction",
+            "sequence_port_item",
+            "sequence_port_list",
+            "sequential_body",
+            "sequential_entry",
+            "severity_system_task",
+            "showcancelled_declaration",
+            "simple_identifier",
+            "simple_immediate_assert_statement",
+            "simple_immediate_assume_statement",
+            "simple_immediate_cover_statement",
+            "simple_path_declaration",
+            "simulation_control_task",
+            "slice_size",
+            "solve_before_list",
+            "source_file",
+            "specify_block",
+            "specify_input_terminal_descriptor",
+            "specify_item",
+            "specify_output_terminal_descriptor",
+            "specparam_assignment",
+            "specparam_declaration",
+            "start_edge_offset",
+            "state_dependent_path_declaration",
+            "statement",
+            "statement_item",
+            "statement_or_null",
+            "stream_concatenation",
+            "stream_expression",
+            "stream_operator",
+            "streaming_concatenation",
+            "strength0",
+            "strength1",
+            "string_escape_seq",
+            "string_literal",
+            "string_method_call",
+            "string_method_name",
+            "struct_union",
+            "struct_union_member",
+            "subroutine_call",
+            "subroutine_call_statement",
+            "system_lib_string",
+            "system_tf_call",
+            "system_tf_identifier",
+            "system_timing_check",
+            "tagged_union_expression",
+            "task_body_declaration",
+            "task_declaration",
+            "task_prototype",
+            "text_macro_definition",
+            "text_macro_name",
+            "text_macro_usage",
+            "tf_call",
+            "tf_item_declaration",
+            "tf_port_declaration",
+            "tf_port_direction",
+            "tf_port_item",
+            "tf_port_list",
+            "threshold",
+            "time_literal",
+            "time_unit",
+            "timecheck_condition",
+            "timescale_compiler_directive",
+            "timestamp_condition",
+            "timeunits_declaration",
+            "timing_check_condition",
+            "timing_check_event",
+            "timing_check_event_control",
+            "timing_check_limit",
+            "trans_item",
+            "trans_list",
+            "trans_range_list",
+            "trans_set",
+            "triple_quoted_string",
+            "triple_quoted_string_item",
+            "type_assignment",
+            "type_declaration",
+            "type_parameter_declaration",
+            "type_reference",
+            "udp_ansi_declaration",
+            "udp_declaration",
+            "udp_declaration_port_list",
+            "udp_initial_statement",
+            "udp_input_declaration",
+            "udp_instance",
+            "udp_instantiation",
+            "udp_nonansi_declaration",
+            "udp_output_declaration",
+            "udp_port_declaration",
+            "udp_port_list",
+            "udp_reg_declaration",
+            "unary_module_path_operator",
+            "unary_operator",
+            "unbased_unsized_literal",
+            "unconnected_drive_compiler_directive",
+            "undefine_compiler_directive",
+            "undefineall_compiler_directive",
+            "unique_priority",
+            "uniqueness_constraint",
+            "unpacked_dimension",
+            "unsigned_number",
+            "unsized_dimension",
+            "use_clause",
+            "value_range",
+            "variable_assignment",
+            "variable_decl_assignment",
+            "variable_identifier_list",
+            "variable_lvalue",
+            "variable_port_header",
+            "variable_port_type",
+            "version_specifier",
+            "wait_statement",
+            "x_digit",
+            "z_digit"
+          ]
+        },
+        "regex": {
+          "description": "A Rust regular expression to match the node's text. https://docs.rs/regex/latest/regex/#syntax",
+          "type": "string"
+        },
+        "nthChild": {
+          "description": "`nth_child` accepts number, string or object.\nIt specifies the position in nodes' sibling list.",
+          "$ref": "#/$defs/SerializableNthChild"
+        },
+        "range": {
+          "description": "`range` accepts a range object.\nthe target node must exactly appear in the range.",
+          "$ref": "#/$defs/SerializableRange"
+        },
+        "inside": {
+          "description": "`inside` accepts a relational rule object.\nthe target node must appear inside of another node matching the `inside` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "has": {
+          "description": "`has` accepts a relational rule object.\nthe target node must has a descendant node matching the `has` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "precedes": {
+          "description": "`precedes` accepts a relational rule object.\nthe target node must appear before another node matching the `precedes` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "follows": {
+          "description": "`follows` accepts a relational rule object.\nthe target node must appear after another node matching the `follows` sub-rule.",
+          "$ref": "#/$defs/Relation"
+        },
+        "all": {
+          "description": "A list of sub rules and matches a node if all of sub rules match.\nThe meta variables of the matched node contain all variables from the sub-rules.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SerializableRule"
+          }
+        },
+        "any": {
+          "description": "A list of sub rules and matches a node if any of sub rules match.\nThe meta variables of the matched node only contain those of the matched sub-rule.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SerializableRule"
+          }
+        },
+        "not": {
+          "description": "A single sub-rule and matches a node if the sub rule does not match.",
+          "$ref": "#/$defs/SerializableRule"
+        },
+        "matches": {
+          "description": "A utility rule id and matches a node if the utility rule matches.",
+          "type": "string"
+        },
+        "stopBy": {
+          "$ref": "#/$defs/SerializableStopBy",
+          "default": "neighbor"
+        },
+        "field": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "argument",
+            "arguments",
+            "base",
+            "block_name",
+            "c_name",
+            "connection",
+            "formal_port",
+            "instance_name",
+            "instance_type",
+            "interface_name",
+            "left",
+            "modport_name",
+            "name",
+            "operator",
+            "parent",
+            "port_name",
+            "right",
+            "size",
+            "type_name"
+          ]
+        }
+      }
+    },
+    "SerializableStopBy": {
+      "description": "Control how the relational rule search should stop",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "neighbor",
+            "end"
+          ]
+        },
+        {
+          "$ref": "#/$defs/SerializableRule"
+        }
+      ]
+    },
+    "Transformation": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/Trans"
+        }
+      ]
+    },
+    "Trans": {
+      "description": "Represents a transformation that can be applied to a matched AST node.\nAvailable transformations are `substring`, `replace` and `convert`.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "substring": {
+              "$ref": "#/$defs/Substring"
+            }
+          },
+          "required": [
+            "substring"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "replace": {
+              "$ref": "#/$defs/Replace"
+            }
+          },
+          "required": [
+            "replace"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "convert": {
+              "$ref": "#/$defs/Convert"
+            }
+          },
+          "required": [
+            "convert"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "rewrite": {
+              "$ref": "#/$defs/Rewrite"
+            }
+          },
+          "required": [
+            "rewrite"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Substring": {
+      "description": "Extracts a substring from the meta variable's text content.\n\nBoth `start_char` and `end_char` support negative indexing,\nwhich counts character from the end of an array, moving backwards.",
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "source meta variable to be transformed",
+          "type": "string"
+        },
+        "startChar": {
+          "description": "optional starting character index of the substring, defaults to 0.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "endChar": {
+          "description": "optional ending character index of the substring, defaults to the end of the string.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        }
+      },
+      "required": [
+        "source"
+      ]
+    },
+    "Replace": {
+      "description": "Replaces a substring in the meta variable's text content with another string.",
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "source meta variable to be transformed",
+          "type": "string"
+        },
+        "replace": {
+          "description": "a regex to find substring to be replaced",
+          "type": "string"
+        },
+        "by": {
+          "description": "the replacement string",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "replace",
+        "by"
+      ]
+    },
+    "Convert": {
+      "description": "Converts the source meta variable's text content to a specified case format.",
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "source meta variable to be transformed",
+          "type": "string"
+        },
+        "toCase": {
+          "description": "the target case format to convert the text content to",
+          "$ref": "#/$defs/StringCase"
+        },
+        "separatedBy": {
+          "description": "optional separators to specify how to separate word",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/Separator"
+          }
+        }
+      },
+      "required": [
+        "source",
+        "toCase"
+      ]
+    },
+    "StringCase": {
+      "description": "An enumeration representing different cases for strings.",
+      "type": "string",
+      "enum": [
+        "lowerCase",
+        "upperCase",
+        "capitalize",
+        "camelCase",
+        "snakeCase",
+        "kebabCase",
+        "pascalCase"
+      ]
+    },
+    "Separator": {
+      "description": "Separator to split string. e.g. `user_accountName` -> `user`, `accountName`\nIt will be rejoin according to `StringCase`.",
+      "type": "string",
+      "enum": [
+        "caseChange",
+        "dash",
+        "dot",
+        "slash",
+        "space",
+        "underscore"
+      ]
+    },
+    "Rewrite": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "rewriters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "joinBy": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "source",
+        "rewriters"
+      ]
+    },
+    "SerializableFixer": {
+      "description": "A pattern string or fix object to auto fix the issue.\nIt can reference metavariables appeared in rule.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/SerializableFixConfig"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SerializableFixConfig"
+          }
+        }
+      ]
+    },
+    "SerializableFixConfig": {
+      "type": "object",
+      "properties": {
+        "template": {
+          "type": "string"
+        },
+        "expandEnd": {
+          "$ref": "#/$defs/Relation"
+        },
+        "expandStart": {
+          "$ref": "#/$defs/Relation"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "template"
+      ]
+    },
+    "Language": {
+      "description": "Placeholder for language, used in JSON schema only.",
+      "type": "string",
+      "example": "typescript",
+      "enum": [
+        "sv",
+        "systemverilog",
+        "SystemVerilog"
+      ]
+    },
+    "SerializableRewriter": {
+      "description": "Used for global rules, rewriters, and pyo3/napi",
+      "type": "object",
+      "properties": {
+        "rule": {
+          "description": "A rule object to find matching AST nodes",
+          "$ref": "#/$defs/SerializableRule"
+        },
+        "constraints": {
+          "description": "Additional meta variables pattern to filter matching",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/SerializableRule"
+          }
+        },
+        "utils": {
+          "description": "Utility rules that can be used in `matches`",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/SerializableRule"
+          }
+        },
+        "transform": {
+          "description": "A dictionary for metavariable manipulation. Dict key is the new variable name.\nDict value is a [transformation] that specifies how meta var is processed.\nSee [transformation doc](https://ast-grep.github.io/reference/yaml/transformation.html).",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/Transformation"
+          }
+        },
+        "fix": {
+          "description": "A pattern string or a FixConfig object to auto fix the issue.\nIt can reference metavariables appeared in rule.\nSee details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SerializableFixer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "description": "Unique, descriptive identifier, e.g., no-unused-variable",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule",
+        "id"
+      ]
+    },
+    "Severity": {
+      "oneOf": [
+        {
+          "description": "A kind reminder for code with potential improvement.",
+          "type": "string",
+          "const": "hint"
+        },
+        {
+          "description": "A suggestion that code can be improved or optimized.",
+          "type": "string",
+          "const": "info"
+        },
+        {
+          "description": "A warning that code might produce bugs or does not follow best practice.",
+          "type": "string",
+          "const": "warning"
+        },
+        {
+          "description": "An error that code produces bugs or has logic errors.",
+          "type": "string",
+          "const": "error"
+        },
+        {
+          "description": "Turns off the rule.",
+          "type": "string",
+          "const": "off"
+        }
+      ]
+    },
+    "LabelConfig": {
+      "type": "object",
+      "properties": {
+        "style": {
+          "$ref": "#/$defs/LabelStyle"
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "style"
+      ]
+    },
+    "LabelStyle": {
+      "oneOf": [
+        {
+          "description": "Labels that describe the primary cause of a diagnostic.",
+          "type": "string",
+          "const": "primary"
+        },
+        {
+          "description": "Labels that provide additional context for a diagnostic.",
+          "type": "string",
+          "const": "secondary"
+        }
+      ]
+    },
+    "RuleFileGlob": {
+      "anyOf": [
+        {
+          "description": "A glob pattern string",
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "glob": {
+              "description": "A glob pattern string",
+              "type": "string"
+            },
+            "caseInsensitive": {
+              "description": "Whether the glob matching is case insensitive",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "glob"
+          ]
+        }
+      ]
+    },
+    "Metadata": {
+      "description": "Additional metadata for the rule, can be used to store extra information.",
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

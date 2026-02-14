@@ -342,6 +342,55 @@ fn test_file() -> Result<()> {
   Ok(())
 }
 
+const SV_RULE: &str = "
+id: sv-display
+message: systemverilog rule
+language: systemverilog
+rule:
+  pattern: $display($A);
+";
+
+#[test]
+fn test_sg_scan_systemverilog() -> Result<()> {
+  let dir = create_test_files([
+    ("rule.yml", SV_RULE),
+    (
+      "test.sv",
+      "module m; initial begin $display(data); end endmodule",
+    ),
+    ("test.ts", "console.log(123)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml"])
+    .assert()
+    .success()
+    .stdout(contains("sv-display"))
+    .stdout(contains("$display(data)"))
+    .stdout(contains("console.log(123)").not());
+  Ok(())
+}
+
+#[test]
+fn test_sg_scan_systemverilog_json() -> Result<()> {
+  let dir = create_test_files([
+    ("rule.yml", SV_RULE),
+    (
+      "test.sv",
+      "module m; initial begin $display(data); end endmodule",
+    ),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml", "--json"])
+    .assert()
+    .success()
+    .stdout(contains("\"ruleId\": \"sv-display\""))
+    .stdout(contains("\"text\": \"$display(data);\""))
+    .stdout(predicate::function(|n| from_slice::<Value>(n).is_ok()));
+  Ok(())
+}
+
 const MAX_DIAG_RULE: &str = "
 id: max-result-rule
 message: test rule
@@ -457,6 +506,29 @@ fn test_sg_scan_sarif_output() -> Result<()> {
     .stdout(contains("\"ruleId\": \"on-rule\""))
     .stdout(predicate::function(|output: &str| {
       // Verify it's valid JSON
+      from_slice::<Value>(output.as_bytes()).is_ok()
+    }));
+  Ok(())
+}
+
+#[test]
+fn test_sg_scan_systemverilog_sarif_output() -> Result<()> {
+  let dir = create_test_files([
+    ("rule.yml", SV_RULE),
+    (
+      "test.sv",
+      "module m; initial begin $display(data); end endmodule",
+    ),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml", "--format", "sarif"])
+    .assert()
+    .success()
+    .stdout(contains("\"ruleId\": \"sv-display\""))
+    .stdout(contains("\"uri\": \"test.sv\""))
+    .stdout(contains("\"text\": \"$display(data);\""))
+    .stdout(predicate::function(|output: &str| {
       from_slice::<Value>(output.as_bytes()).is_ok()
     }));
   Ok(())

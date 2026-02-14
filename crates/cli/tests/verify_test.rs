@@ -140,3 +140,36 @@ fn test_sg_test_off_rule() -> Result<()> {
   drop(dir);
   Ok(())
 }
+
+const SV_RULE: &str = "
+id: sv-rule
+message: sv test rule
+severity: warning
+language: systemverilog
+rule:
+  pattern: $display($A);
+";
+
+const SV_TEST: &str = "
+id: sv-rule
+valid:
+- $monitor(data);
+invalid:
+- $display(data);
+";
+
+#[test]
+fn test_sg_test_systemverilog() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/sv-rule.yml", SV_RULE),
+    ("rule-tests/sv-rule-test.yml", SV_TEST),
+  ])?;
+  let config = dir.path().join("sgconfig.yml");
+  let ret = sg(&format!(
+    "ast-grep test -c {} --skip-snapshot-tests",
+    config.display()
+  ));
+  assert!(ret.is_ok());
+  Ok(())
+}

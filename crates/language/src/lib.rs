@@ -39,6 +39,7 @@ mod rust;
 mod scala;
 mod solidity;
 mod swift;
+mod systemverilog;
 mod yaml;
 
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
@@ -246,6 +247,7 @@ impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
 impl_lang!(Scala, language_scala);
 impl_lang!(Solidity, language_solidity);
+impl_lang_expando!(SystemVerilog, language_systemverilog, '_');
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
 impl_lang!(Yaml, language_yaml);
@@ -277,6 +279,7 @@ pub enum SupportLang {
   Rust,
   Scala,
   Solidity,
+  SystemVerilog,
   Swift,
   Tsx,
   TypeScript,
@@ -287,8 +290,33 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      Bash, C, Cpp, CSharp, Css, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json, Kotlin,
-      Lua, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript, Yaml,
+      Bash,
+      C,
+      Cpp,
+      CSharp,
+      Css,
+      Elixir,
+      Go,
+      Haskell,
+      Hcl,
+      Html,
+      Java,
+      JavaScript,
+      Json,
+      Kotlin,
+      Lua,
+      Nix,
+      Php,
+      Python,
+      Ruby,
+      Rust,
+      Scala,
+      Solidity,
+      SystemVerilog,
+      Swift,
+      Tsx,
+      TypeScript,
+      Yaml,
     ]
   }
 
@@ -391,6 +419,7 @@ impl_aliases! {
   Rust => &["rs", "rust"],
   Scala => &["scala"],
   Solidity => &["sol", "solidity"],
+  SystemVerilog => &["sv", "systemverilog"],
   Swift => &["swift"],
   TypeScript => &["ts", "typescript"],
   Tsx => &["tsx"],
@@ -438,6 +467,7 @@ macro_rules! execute_lang_method {
       S::Rust => Rust.$method($($pname,)*),
       S::Scala => Scala.$method($($pname,)*),
       S::Solidity => Solidity.$method($($pname,)*),
+      S::SystemVerilog => SystemVerilog.$method($($pname,)*),
       S::Swift => Swift.$method($($pname,)*),
       S::Tsx => Tsx.$method($($pname,)*),
       S::TypeScript => TypeScript.$method($($pname,)*),
@@ -510,6 +540,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Rust => &["rs"],
     Scala => &["scala", "sc", "sbt"],
     Solidity => &["sol"],
+    SystemVerilog => &["sv", "svh"],
     Swift => &["swift"],
     TypeScript => &["ts", "cts", "mts"],
     Tsx => &["tsx"],
@@ -605,6 +636,22 @@ mod test {
   fn test_guess_by_extension() {
     let path = Path::new("foo.rs");
     assert_eq!(from_extension(path), Some(SupportLang::Rust));
+    let path = Path::new("foo.sv");
+    assert_eq!(from_extension(path), Some(SupportLang::SystemVerilog));
+    let path = Path::new("foo.svh");
+    assert_eq!(from_extension(path), Some(SupportLang::SystemVerilog));
+  }
+
+  #[test]
+  fn test_systemverilog_alias() {
+    assert_eq!(
+      "sv".parse::<SupportLang>().ok(),
+      Some(SupportLang::SystemVerilog)
+    );
+    assert_eq!(
+      "systemverilog".parse::<SupportLang>().ok(),
+      Some(SupportLang::SystemVerilog)
+    );
   }
 
   // TODO: add test for file_types

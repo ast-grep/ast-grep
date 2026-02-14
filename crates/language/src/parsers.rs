@@ -88,6 +88,9 @@ pub fn language_scala() -> TSLanguage {
 pub fn language_solidity() -> TSLanguage {
   conditional_lang!(tree_sitter_solidity, "tree-sitter-solidity")
 }
+pub fn language_systemverilog() -> TSLanguage {
+  conditional_lang!(tree_sitter_systemverilog, "tree-sitter-systemverilog")
+}
 pub fn language_swift() -> TSLanguage {
   conditional_lang!(tree_sitter_swift, "tree-sitter-swift")
 }

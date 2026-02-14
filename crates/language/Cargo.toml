@@ -38,6 +38,7 @@ tree-sitter-ruby = { version = "0.23.0", optional = true }
 tree-sitter-rust = { version = "0.24.0", optional = true }
 tree-sitter-scala = { version = "0.24.0", optional = true }
 tree-sitter-solidity = { version = "1.2.11", optional = true }
+tree-sitter-systemverilog = { version = "0.3.1", optional = true }
 tree-sitter-swift = { version = "0.7.0", optional = true }
 tree-sitter-typescript = { version = "0.23.2", optional = true }
 tree-sitter-yaml = { version = "0.7.0", optional = true }
@@ -67,6 +68,7 @@ builtin-parser = [
   "tree-sitter-rust",
   "tree-sitter-scala",
   "tree-sitter-solidity",
+  "tree-sitter-systemverilog",
   "tree-sitter-swift",
   "tree-sitter-typescript",
   "tree-sitter-yaml",

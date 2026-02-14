@@ -1,0 +1,89 @@
+#![cfg(test)]
+use super::*;
+
+fn test_match(query: &str, source: &str) {
+  use crate::test::test_match_lang;
+  test_match_lang(query, source, SystemVerilog);
+}
+
+fn test_non_match(query: &str, source: &str) {
+  use crate::test::test_non_match_lang;
+  test_non_match_lang(query, source, SystemVerilog);
+}
+
+#[test]
+fn test_systemverilog_pattern() {
+  test_match(
+    "module $M; $$$BODY endmodule",
+    r#"
+module m;
+  logic a, b;
+  assign a = b;
+endmodule
+"#,
+  );
+  test_match("assign $L = $R;", "assign a = b;");
+  test_match(
+    "always_comb begin $$$BODY end",
+    "always_comb begin a = b; end",
+  );
+  test_match(
+    "class $C; $$$MEMBERS endclass",
+    "class Packet; rand bit [7:0] data; endclass",
+  );
+  test_match("$display($MSG);", "$display(data);");
+  test_non_match("$display($MSG);", "$monitor(data);");
+  test_non_match(
+    "module n; $$$BODY endmodule",
+    "module m; assign a = b; endmodule",
+  );
+}
+
+#[test]
+fn test_systemverilog_advanced_pattern() {
+  test_match(
+    "always_ff @($EVT) begin $$$BODY end",
+    "always_ff @(posedge clk) begin a <= b; end",
+  );
+  test_match(
+    "function void $F(); $$$BODY endfunction",
+    "function void clear(); a = 0; endfunction",
+  );
+}
+
+#[test]
+fn test_systemverilog_preprocess() {
+  assert_eq!(
+    SystemVerilog.pre_process_pattern("assign $L = $R;"),
+    "assign _L = _R;"
+  );
+  assert_eq!(
+    SystemVerilog.pre_process_pattern("$display($MSG);"),
+    "$display(_MSG);"
+  );
+  assert_eq!(
+    SystemVerilog.pre_process_pattern("module $M; $$$BODY endmodule"),
+    "module _M; ___BODY endmodule"
+  );
+}
+
+fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
+  use crate::test::test_replace_lang;
+  test_replace_lang(src, pattern, replacer, SystemVerilog)
+}
+
+#[test]
+fn test_systemverilog_replace() {
+  let module_ret = test_replace(
+    "module m; endmodule",
+    "module $M; $$$BODY endmodule",
+    "module top; endmodule",
+  );
+  assert_eq!(module_ret, "module top; endmodule");
+
+  let assign_ret = test_replace("assign a = b;", "assign $L = $R;", "assign $L = c;");
+  assert_eq!(assign_ret, "assign a = c;");
+
+  let display_ret = test_replace("$display(data);", "$display($MSG);", "$monitor($MSG);");
+  assert_eq!(display_ret, "$monitor(data);");
+}

@@ -148,3 +148,35 @@ fn test_trace_project() -> Result<()> {
     .stderr(contains("isProject=true,projectDir"));
   Ok(())
 }
+
+#[test]
+fn test_systemverilog_infer_lang() -> Result<()> {
+  let dir = create_test_files([
+    (
+      "a.sv",
+      "module m; initial begin $display(data); end endmodule",
+    ),
+    ("b.js", "console.log(123)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["-p", "$display($A);"])
+    .assert()
+    .success()
+    .stdout(contains("$display(data)"))
+    .stdout(contains("console.log(123)").not());
+  Ok(())
+}
+
+#[test]
+fn test_systemverilog_svh_extension() -> Result<()> {
+  let dir = create_test_files([("a.svh", "module h; assign a = b; endmodule")])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["-p", "module $M; $$$BODY endmodule", "-l", "systemverilog"])
+    .assert()
+    .success()
+    .stdout(contains("module h;"))
+    .stdout(contains("assign a = b;"));
+  Ok(())
+}
