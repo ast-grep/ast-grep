@@ -180,3 +180,27 @@ fn test_systemverilog_svh_extension() -> Result<()> {
     .stdout(contains("assign a = b;"));
   Ok(())
 }
+
+#[test]
+fn test_systemverilog_v_and_vh_infer_lang() -> Result<()> {
+  let dir = create_test_files([
+    (
+      "a.v",
+      "module va; initial begin $display(v_data); end endmodule",
+    ),
+    (
+      "b.vh",
+      "module vh; initial begin $display(vh_data); end endmodule",
+    ),
+    ("c.js", "console.log(123)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["-p", "$display($A);"])
+    .assert()
+    .success()
+    .stdout(contains("$display(v_data)"))
+    .stdout(contains("$display(vh_data)"))
+    .stdout(contains("console.log(123)").not());
+  Ok(())
+}

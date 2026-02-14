@@ -108,3 +108,48 @@ fn test_systemverilog_replace() {
   );
   assert_eq!(assert_ret, "assume property (x == x);");
 }
+
+#[test]
+fn test_systemverilog_fixture_regression() {
+  let src = include_str!("../../../fixtures/systemverilog/uvm_tb_pkg.sv");
+  test_match("package $P; $$$BODY endpackage", src);
+  test_match("import $PKG::*;", src);
+  test_match("class $C extends $B; $$$BODY endclass", src);
+  test_match("task $T($$$ARGS); $$$BODY endtask", src);
+  test_match("$display($MSG);", src);
+}
+
+#[test]
+fn test_systemverilog_macro_preproc_boundary() {
+  let src = r#"
+`define SHOW(MSG) $display(MSG)
+module m;
+  initial begin
+`ifdef ENABLE_LOG
+    `SHOW(data);
+`else
+    $display("fallback");
+`endif
+  end
+endmodule
+"#;
+  test_match("$display($MSG);", src);
+  test_non_match("$display($MSG);", "`SHOW(data);");
+}
+
+#[test]
+fn test_systemverilog_error_recovery_boundary() {
+  let src = r#"
+module m;
+  initial begin
+    if (en) $display(data)
+  end
+  assign a = b;
+endmodule
+"#;
+  test_match("assign $L = $R;", src);
+  test_non_match(
+    "$display($MSG);",
+    "module m; initial begin $display data; end endmodule",
+  );
+}

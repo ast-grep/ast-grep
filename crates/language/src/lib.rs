@@ -540,7 +540,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Rust => &["rs"],
     Scala => &["scala", "sc", "sbt"],
     Solidity => &["sol"],
-    SystemVerilog => &["sv", "svh"],
+    SystemVerilog => &["v", "vh", "sv", "svh"],
     Swift => &["swift"],
     TypeScript => &["ts", "cts", "mts"],
     Tsx => &["tsx"],
@@ -636,6 +636,10 @@ mod test {
   fn test_guess_by_extension() {
     let path = Path::new("foo.rs");
     assert_eq!(from_extension(path), Some(SupportLang::Rust));
+    let path = Path::new("foo.v");
+    assert_eq!(from_extension(path), Some(SupportLang::SystemVerilog));
+    let path = Path::new("foo.vh");
+    assert_eq!(from_extension(path), Some(SupportLang::SystemVerilog));
     let path = Path::new("foo.sv");
     assert_eq!(from_extension(path), Some(SupportLang::SystemVerilog));
     let path = Path::new("foo.svh");

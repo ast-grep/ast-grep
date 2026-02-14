@@ -158,12 +158,50 @@ invalid:
 - $display(data);
 ";
 
+const SV_ALIAS_RULE: &str = "
+id: sv-alias-rule
+message: sv alias rule
+severity: warning
+language: sv
+rule:
+  pattern: $display($A);
+";
+
+const SV_ALIAS_TEST: &str = "
+id: sv-alias-rule
+valid:
+- '`SHOW(data);'
+invalid:
+- $display(data);
+- |
+  module m;
+    initial begin
+      $display(data);
+    end
+";
+
 #[test]
 fn test_sg_test_systemverilog() -> Result<()> {
   let dir = create_test_files([
     ("sgconfig.yml", CONFIG),
     ("rules/sv-rule.yml", SV_RULE),
     ("rule-tests/sv-rule-test.yml", SV_TEST),
+  ])?;
+  let config = dir.path().join("sgconfig.yml");
+  let ret = sg(&format!(
+    "ast-grep test -c {} --skip-snapshot-tests",
+    config.display()
+  ));
+  assert!(ret.is_ok());
+  Ok(())
+}
+
+#[test]
+fn test_sg_test_systemverilog_alias_and_recovery() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/sv-alias-rule.yml", SV_ALIAS_RULE),
+    ("rule-tests/sv-alias-rule-test.yml", SV_ALIAS_TEST),
   ])?;
   let config = dir.path().join("sgconfig.yml");
   let ret = sg(&format!(

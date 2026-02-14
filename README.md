@@ -94,6 +94,7 @@ ast-grep -p 'new Zodios($URL,  $CONF as const,)' -l ts -r 'new Zodios($URL, $CON
 ```bash
 ast-grep -p 'module $M; $$$BODY endmodule' -l sv
 ```
+`ast-grep` infers SystemVerilog files by `.v`, `.vh`, `.sv`, and `.svh` extensions.
 
 
 ## Sponsor

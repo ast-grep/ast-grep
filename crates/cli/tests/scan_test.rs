@@ -391,6 +391,31 @@ fn test_sg_scan_systemverilog_json() -> Result<()> {
   Ok(())
 }
 
+#[test]
+fn test_sg_scan_systemverilog_v_vh_infer_lang() -> Result<()> {
+  let dir = create_test_files([
+    ("rule.yml", SV_RULE),
+    (
+      "test.v",
+      "module m; initial begin $display(v_data); end endmodule",
+    ),
+    (
+      "test.vh",
+      "module h; initial begin $display(vh_data); end endmodule",
+    ),
+    ("test.ts", "console.log(123)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml"])
+    .assert()
+    .success()
+    .stdout(contains("$display(v_data);"))
+    .stdout(contains("$display(vh_data);"))
+    .stdout(contains("console.log(123)").not());
+  Ok(())
+}
+
 const MAX_DIAG_RULE: &str = "
 id: max-result-rule
 message: test rule
