@@ -350,6 +350,14 @@ rule:
   pattern: $display($A);
 ";
 
+const SV_INST_RULE: &str = "
+id: sv-inst
+message: systemverilog instantiation rule
+language: systemverilog
+rule:
+  kind: module_instantiation
+";
+
 #[test]
 fn test_sg_scan_systemverilog() -> Result<()> {
   let dir = create_test_files([
@@ -412,6 +420,156 @@ fn test_sg_scan_systemverilog_v_vh_infer_lang() -> Result<()> {
     .success()
     .stdout(contains("$display(v_data);"))
     .stdout(contains("$display(vh_data);"))
+    .stdout(contains("console.log(123)").not());
+  Ok(())
+}
+
+#[test]
+fn test_sg_scan_systemverilog_module_and_interface_instantiation() -> Result<()> {
+  let dir = create_test_files([
+    ("rule.yml", SV_INST_RULE),
+    (
+      "test.sv",
+      r#"
+interface axi_if #(int W = 8) (input logic clk, rst_n);
+endinterface
+
+module sub_mod #(parameter int W = 8) (
+  input logic clk,
+  input logic rst_n,
+  input logic [W-1:0] in,
+  output logic [W-1:0] out
+);
+endmodule
+
+module top(input logic clk, rst_n, input logic [7:0] a, output logic [7:0] b);
+  axi_if #(8) m_if (.clk(clk), .rst_n(rst_n));
+  sub_mod u0 (.clk(clk), .rst_n(rst_n), .in(a), .out(b));
+  sub_mod #(.W(8)) u1 (.clk(clk), .rst_n(rst_n), .in(a), .out(b));
+  sub_mod u_arr [1:0] (.clk(clk), .rst_n(rst_n), .in(a), .out(b));
+  and g1 (b[0], a[0], a[1]);
+endmodule
+"#,
+    ),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml"])
+    .assert()
+    .success()
+    .stdout(contains("axi_if #(8) m_if"))
+    .stdout(contains("sub_mod u0"))
+    .stdout(contains("sub_mod #(.W(8)) u1"))
+    .stdout(contains("sub_mod u_arr [1:0]"))
+    .stdout(contains("and g1").not());
+  Ok(())
+}
+
+#[test]
+fn test_sg_scan_systemverilog_instantiation_json_count() -> Result<()> {
+  let dir = create_test_files([
+    ("rule.yml", SV_INST_RULE),
+    (
+      "test.sv",
+      r#"
+interface axi_if #(int W = 8) (input logic clk, rst_n);
+endinterface
+
+module sub_mod #(parameter int W = 8) (
+  input logic clk,
+  input logic rst_n,
+  input logic [W-1:0] in,
+  output logic [W-1:0] out
+);
+endmodule
+
+module top(input logic clk, rst_n, input logic [7:0] a, output logic [7:0] b);
+  axi_if #(8) m_if (.clk(clk), .rst_n(rst_n));
+  sub_mod u0 (.clk(clk), .rst_n(rst_n), .in(a), .out(b));
+  sub_mod #(.W(8)) u1 (.clk(clk), .rst_n(rst_n), .in(a), .out(b));
+  sub_mod u_arr [1:0] (.clk(clk), .rst_n(rst_n), .in(a), .out(b));
+endmodule
+"#,
+    ),
+  ])?;
+  let output = Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml", "--json"])
+    .assert()
+    .success()
+    .get_output()
+    .stdout
+    .clone();
+  let json: Value = from_slice(&output)?;
+  let matches = json.as_array().expect("should be array");
+  assert_eq!(matches.len(), 4, "should match 4 instantiations");
+  Ok(())
+}
+
+#[test]
+fn test_sg_scan_systemverilog_instantiation_variants() -> Result<()> {
+  let dir = create_test_files([
+    ("rule.yml", SV_INST_RULE),
+    (
+      "test.sv",
+      r#"
+interface axi_if #(int W = 8) (input logic clk, rst_n);
+endinterface
+
+module sub_mod #(parameter int W = 8) (
+  input logic clk,
+  input logic rst_n,
+  input logic [W-1:0] in,
+  output logic [W-1:0] out
+);
+endmodule
+
+module top(input logic clk, rst_n, input logic [7:0] a, output logic [7:0] b);
+  axi_if #(8) m_if (.clk(clk), .rst_n(rst_n));
+  sub_mod u_named (.clk(clk), .rst_n(rst_n), .in(a), .out(b));
+  sub_mod u_ordered (clk, rst_n, a, b);
+  sub_mod #(.W(8)) u_wild (.*);
+  sub_mod u_arr [0:1] (.clk(clk), .rst_n(rst_n), .in(a), .out(b));
+  and g1 (b[0], a[0], a[1]);
+endmodule
+"#,
+    ),
+  ])?;
+  let output = Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml", "--json"])
+    .assert()
+    .success()
+    .get_output()
+    .stdout
+    .clone();
+  let json: Value = from_slice(&output)?;
+  let matches = json.as_array().expect("should be array");
+  assert_eq!(matches.len(), 5, "should match 5 instantiation variants");
+  Ok(())
+}
+
+#[test]
+fn test_sg_scan_systemverilog_instantiation_extension_inference() -> Result<()> {
+  let dir = create_test_files([
+    ("rule.yml", SV_INST_RULE),
+    (
+      "a.v",
+      "module sub_mod(input logic a, output logic b); endmodule module top(input logic a, output logic b); sub_mod u0(a, b); endmodule",
+    ),
+    (
+      "b.svh",
+      "module sub_mod #(parameter int W = 1)(input logic a, output logic b); endmodule module top(input logic a, output logic b); sub_mod #(.W(1)) u1(.*); endmodule",
+    ),
+    ("c.ts", "console.log(123)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml"])
+    .assert()
+    .success()
+    .stdout(contains("sub_mod u0(a, b);"))
+    .stdout(contains("sub_mod #(.W(1)) u1(.*);"))
     .stdout(contains("console.log(123)").not());
   Ok(())
 }

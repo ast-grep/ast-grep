@@ -63,6 +63,20 @@ fn test_systemverilog_advanced_pattern() {
   );
   test_match("assert property ($P);", "assert property (x == x);");
   test_non_match("assert property ($P);", "assume property (x == x);");
+  test_match(
+    "sub_mod #(.W(8)) $I($$$PORTS);",
+    "sub_mod #(.W(8)) u_sub (.clk(clk), .rst_n(rst_n), .in(a), .out(b));",
+  );
+  test_match("sub_mod $I($$$PORTS);", "sub_mod u0 (clk, rst_n, a, b);");
+  test_match("sub_mod #(.W(8)) $I(.*);", "sub_mod #(.W(8)) u1 (.*);");
+  test_match(
+    "sub_mod $I [0:1]($$$PORTS);",
+    "sub_mod u_arr [0:1] (.clk(clk), .rst_n(rst_n), .in(a), .out(b));",
+  );
+  test_match(
+    "axi_if #(32, 64) $I($$$PORTS);",
+    "axi_if #(32, 64) m_if (.clk(clk), .rst_n(rst_n));",
+  );
 }
 
 #[test]
