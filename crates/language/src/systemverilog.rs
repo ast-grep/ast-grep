@@ -86,6 +86,15 @@ fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
   test_replace_lang(src, pattern, replacer, SystemVerilog)
 }
 
+fn test_replace_all(src: &str, pattern: &str, replacer: &str) -> String {
+  let mut source = SystemVerilog.ast_grep(src);
+  while source
+    .replace(pattern, replacer)
+    .expect("should parse successfully")
+  {}
+  source.generate()
+}
+
 #[test]
 fn test_systemverilog_replace() {
   let module_ret = test_replace(
@@ -107,6 +116,66 @@ fn test_systemverilog_replace() {
     "assume property ($P);",
   );
   assert_eq!(assert_ret, "assume property (x == x);");
+}
+
+#[test]
+fn test_systemverilog_replace_multi_match_stability() {
+  let src = r#"
+module m;
+  initial begin
+    $display(a); // keep trailing comment
+    if (en) begin
+      $display(b);
+    end
+  end
+endmodule
+"#;
+  let ret = test_replace_all(src, "$display($MSG);", "$monitor($MSG);");
+  assert_eq!(
+    ret,
+    r#"
+module m;
+  initial begin
+    $monitor(a); // keep trailing comment
+    if (en) begin
+      $monitor(b);
+    end
+  end
+endmodule
+"#
+  );
+}
+
+#[test]
+fn test_systemverilog_replace_multiline_indent_stability() {
+  let src = r#"
+module m;
+  always_comb begin
+    a = b;
+    c = d;
+  end
+endmodule
+"#;
+  let ret = test_replace(
+    src,
+    "always_comb begin $$$BODY end",
+    r#"always_comb begin
+  $display("trace");
+  $$$BODY
+end"#,
+  );
+  assert_eq!(
+    ret,
+    r#"
+module m;
+  always_comb begin
+    $display("trace");
+    a = b;
+    c = d;
+  end
+endmodule
+"#
+  );
 }
 
 #[test]
