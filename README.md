@@ -90,6 +90,11 @@ ast-grep -p 'new Zodios($URL,  $CONF as const,)' -l ts -r 'new Zodios($URL, $CON
 
 * [Implement eslint rule using YAML.](https://twitter.com/Hchan_mgn/status/1560108625460355073)
 
+* Search SystemVerilog with `sv` / `systemverilog` language alias.
+```bash
+ast-grep -p 'module $M; $$$BODY endmodule' -l sv
+```
+
 
 ## Sponsor
 ![Sponsors](https://raw.githubusercontent.com/HerringtonDarkholme/sponsors/main/sponsorkit/sponsors.svg)

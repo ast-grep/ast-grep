@@ -49,6 +49,20 @@ fn test_systemverilog_advanced_pattern() {
     "function void $F(); $$$BODY endfunction",
     "function void clear(); a = 0; endfunction",
   );
+  test_match(
+    "interface $I; $$$BODY endinterface",
+    "interface bus_if; logic valid; endinterface",
+  );
+  test_match(
+    "package $P; $$$BODY endpackage",
+    "package util_pkg; typedef int data_t; endpackage",
+  );
+  test_match(
+    "generate $$$BODY endgenerate",
+    "generate if (1) begin logic x; end endgenerate",
+  );
+  test_match("assert property ($P);", "assert property (x == x);");
+  test_non_match("assert property ($P);", "assume property (x == x);");
 }
 
 #[test]
@@ -86,4 +100,11 @@ fn test_systemverilog_replace() {
 
   let display_ret = test_replace("$display(data);", "$display($MSG);", "$monitor($MSG);");
   assert_eq!(display_ret, "$monitor(data);");
+
+  let assert_ret = test_replace(
+    "assert property (x == x);",
+    "assert property ($P);",
+    "assume property ($P);",
+  );
+  assert_eq!(assert_ret, "assume property (x == x);");
 }
