@@ -258,9 +258,8 @@ injected: [js, ts, tsx]";
     let injections: Vec<_> = map.into_values().collect();
     let mut ret = Vec::new();
     let lang = SgLang::from(SupportLang::JavaScript);
-    let sg = lang.ast_grep(
-      "const a = styled`.btn { margin: 0; }`; const b = styled`.card { padding: 1em; }`",
-    );
+    let sg = lang
+      .ast_grep("const a = styled`.btn { margin: 0; }`; const b = styled`.card { padding: 1em; }`");
     let root = sg.root();
     extract_custom_inject(&lang, &injections, root, &mut ret);
     assert_eq!(ret.len(), 2);
