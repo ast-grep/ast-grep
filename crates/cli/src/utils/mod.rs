@@ -133,15 +133,12 @@ pub fn filter_file_rule(
   let grep = lang.ast_grep(file_content);
   collect_file_stats(path, lang, configs, trace)?;
   let mut ret = smallvec![grep.clone()];
-  if let Some(injected) = lang.injectable_sg_langs() {
+  if lang.injectable_languages().is_some() {
     let sub_roots = grep.get_injections(|s| SgLang::from_str(s).ok());
-    let inj = injected.filter_map(|l| {
-      let root = sub_roots.iter().find(|d| *d.lang() == l)?;
-      let grep = root.clone();
-      collect_file_stats(path, l, configs, trace).ok()?;
-      Some(grep)
-    });
-    ret.extend(inj)
+    for root in sub_roots {
+      collect_file_stats(path, *root.lang(), configs, trace).ok();
+      ret.push(root);
+    }
   }
   Ok(ret)
 }

@@ -6,7 +6,6 @@ use crate::source::{Content, Doc, Edit, SgNode};
 use crate::{node::KindId, Language, Position};
 use crate::{AstGrep, Matcher};
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::num::NonZero;
 use thiserror::Error;
 pub use traversal::{TsPre, Visitor};
@@ -276,16 +275,15 @@ pub trait LanguageExt: Language {
     None
   }
 
-  /// get injected language regions in the root document. e.g. get JavaScripts in HTML
-  /// it will return a list of tuples of (language, regions).
-  /// The first item is the embedded region language, e.g. javascript
-  /// The second item is a list of regions in tree_sitter.
-  /// also see https://tree-sitter.github.io/tree-sitter/using-parsers#multi-language-documents
+  /// Get injected language regions in the root document. e.g. get JavaScripts in HTML.
+  /// Each entry is parsed as an **independent** tree-sitter document.
+  /// Multiple entries for the same language produce separate parse trees.
+  /// Also see <https://tree-sitter.github.io/tree-sitter/using-parsers#multi-language-documents>
   fn extract_injections<L: LanguageExt>(
     &self,
     _root: crate::Node<StrDoc<L>>,
-  ) -> HashMap<String, Vec<TSRange>> {
-    HashMap::new()
+  ) -> Vec<(String, Vec<TSRange>)> {
+    Vec::new()
   }
 }
 
@@ -358,8 +356,8 @@ impl<L: LanguageExt> Root<StrDoc<L>> {
     let range = self.lang().extract_injections(root);
     let roots = range
       .into_iter()
-      .filter_map(|(lang, ranges)| {
-        let lang = get_lang(&lang)?;
+      .filter_map(|(lang_str, ranges)| {
+        let lang = get_lang(&lang_str)?;
         let source = self.doc.get_source();
         let mut parser = Parser::new();
         parser.set_included_ranges(&ranges).ok()?;

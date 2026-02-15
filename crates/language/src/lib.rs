@@ -51,7 +51,6 @@ use ignore::types::{Types, TypesBuilder};
 use serde::de::Visitor;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::iter::repeat;
@@ -475,10 +474,10 @@ impl LanguageExt for SupportLang {
   fn extract_injections<L: LanguageExt>(
     &self,
     root: Node<StrDoc<L>>,
-  ) -> HashMap<String, Vec<TSRange>> {
+  ) -> Vec<(String, Vec<TSRange>)> {
     match self {
       SupportLang::Html => Html.extract_injections(root),
-      _ => HashMap::new(),
+      _ => Vec::new(),
     }
   }
 }

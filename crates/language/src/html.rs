@@ -3,7 +3,6 @@ use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::tree_sitter::{LanguageExt, StrDoc, TSLanguage, TSRange};
 use ast_grep_core::Language;
 use ast_grep_core::{matcher::KindMatcher, Doc, Node};
-use std::collections::HashMap;
 
 // tree-sitter-html uses locale dependent iswalnum for tagName
 // https://github.com/tree-sitter/tree-sitter-html/blob/b5d9758e22b4d3d25704b72526670759a9e4d195/src/scanner.c#L194
@@ -38,18 +37,15 @@ impl LanguageExt for Html {
   fn extract_injections<L: LanguageExt>(
     &self,
     root: Node<StrDoc<L>>,
-  ) -> HashMap<String, Vec<TSRange>> {
+  ) -> Vec<(String, Vec<TSRange>)> {
     let lang = root.lang();
-    let mut map = HashMap::new();
+    let mut ret = Vec::new();
     let matcher = KindMatcher::new("script_element", lang.clone());
     for script in root.find_all(matcher) {
       let injected = find_lang(&script).unwrap_or_else(|| "js".into());
       let content = script.children().find(|c| c.kind() == "raw_text");
       if let Some(content) = content {
-        map
-          .entry(injected)
-          .or_insert_with(Vec::new)
-          .push(node_to_range(&content));
+        ret.push((injected, vec![node_to_range(&content)]));
       };
     }
     let matcher = KindMatcher::new("style_element", lang.clone());
@@ -57,13 +53,10 @@ impl LanguageExt for Html {
       let injected = find_lang(&style).unwrap_or_else(|| "css".into());
       let content = style.children().find(|c| c.kind() == "raw_text");
       if let Some(content) = content {
-        map
-          .entry(injected)
-          .or_insert_with(Vec::new)
-          .push(node_to_range(&content));
+        ret.push((injected, vec![node_to_range(&content)]));
       };
     }
-    map
+    ret
   }
 }
 
@@ -137,25 +130,30 @@ mod test {
     assert_eq!(ret, r#"<div class='bar'>foo</div>"#);
   }
 
-  fn extract(src: &str) -> HashMap<String, Vec<TSRange>> {
+  fn extract(src: &str) -> Vec<(String, Vec<TSRange>)> {
     let root = Html.ast_grep(src);
     Html.extract_injections(root.root())
   }
 
   #[test]
   fn test_html_extraction() {
-    let map = extract("<script>a</script><style>.a{}</style>");
-    assert!(map.contains_key("css"));
-    assert!(map.contains_key("js"));
-    assert_eq!(map["css"].len(), 1);
-    assert_eq!(map["js"].len(), 1);
+    let entries = extract("<script>a</script><style>.a{}</style>");
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].0, "js");
+    assert_eq!(entries[0].1.len(), 1);
+    assert_eq!(entries[1].0, "css");
+    assert_eq!(entries[1].1.len(), 1);
   }
 
   #[test]
   fn test_explicit_lang() {
-    let map = extract("<script lang='ts'>a</script><script lang=ts>.a{}</script><style lang=scss></style><style lang=\"scss\"></style>");
-    assert!(map.contains_key("ts"));
-    assert_eq!(map["ts"].len(), 2);
-    assert_eq!(map["scss"].len(), 2);
+    let entries = extract("<script lang='ts'>a</script><script lang=ts>.a{}</script><style lang=scss></style><style lang=\"scss\"></style>");
+    assert_eq!(entries.len(), 4);
+    assert_eq!(entries[0].0, "ts");
+    assert_eq!(entries[1].0, "ts");
+    assert_eq!(entries[2].0, "scss");
+    assert_eq!(entries[3].0, "scss");
+    // each entry has exactly one range (independent parse tree)
+    assert!(entries.iter().all(|(_, ranges)| ranges.len() == 1));
   }
 }

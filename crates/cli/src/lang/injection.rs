@@ -129,7 +129,7 @@ pub fn injectable_languages(lang: SgLang) -> Option<&'static [&'static str]> {
 pub fn extract_injections<L: LanguageExt>(
   lang: &SgLang,
   root: Node<StrDoc<L>>,
-) -> HashMap<String, Vec<TSRange>> {
+) -> Vec<(String, Vec<TSRange>)> {
   let mut ret = match lang {
     SgLang::Custom(c) => c.extract_injections(root.clone()),
     SgLang::Builtin(b) => b.extract_injections(root.clone()),
@@ -143,7 +143,7 @@ fn extract_custom_inject<L: LanguageExt>(
   lang: &SgLang,
   injections: &[Injection],
   root: Node<StrDoc<L>>,
-  ret: &mut HashMap<String, Vec<TSRange>>,
+  ret: &mut Vec<(String, Vec<TSRange>)>,
 ) {
   let Some(rules) = injections.iter().find(|n| n.host == *lang) else {
     return;
@@ -162,7 +162,7 @@ fn extract_custom_inject<L: LanguageExt>(
         continue;
       };
       let range = node_to_range(region);
-      ret.entry(lang).or_default().push(range);
+      ret.push((lang, vec![range]));
     }
   }
 }
@@ -233,20 +233,40 @@ injected: [js, ts, tsx]";
     assert!(ret.is_ok());
     assert_eq!(map.len(), 1);
     let injections: Vec<_> = map.into_values().collect();
-    let mut ret = HashMap::new();
+    let mut ret = Vec::new();
     let lang = SgLang::from(SupportLang::JavaScript);
     let sg = lang.ast_grep("const a = styled`.btn { margin: 0; }`");
     let root = sg.root();
     extract_custom_inject(&lang, &injections, root, &mut ret);
     assert_eq!(ret.len(), 1);
-    assert_eq!(ret["css"].len(), 1);
-    assert!(!ret.contains_key("js"));
+    assert_eq!(ret[0].0, "css");
+    assert_eq!(ret[0].1.len(), 1);
     ret.clear();
     let sg = lang.ast_grep("const a = styled.css`.btn { margin: 0; }`");
     let root = sg.root();
     extract_custom_inject(&lang, &injections, root, &mut ret);
     assert_eq!(ret.len(), 1);
-    assert_eq!(ret["css"].len(), 1);
-    assert!(!ret.contains_key("js"));
+    assert_eq!(ret[0].0, "css");
+    assert_eq!(ret[0].1.len(), 1);
+  }
+
+  #[test]
+  fn test_multiple_matches_produce_separate_entries() {
+    let mut map = HashMap::new();
+    let inj: SerializableInjection = from_str(STATIC).expect("should ok");
+    register_injetable(inj, &mut map).unwrap();
+    let injections: Vec<_> = map.into_values().collect();
+    let mut ret = Vec::new();
+    let lang = SgLang::from(SupportLang::JavaScript);
+    let sg = lang
+      .ast_grep("const a = styled`.btn { margin: 0; }`; const b = styled`.card { padding: 1em; }`");
+    let root = sg.root();
+    extract_custom_inject(&lang, &injections, root, &mut ret);
+    assert_eq!(ret.len(), 2);
+    assert_eq!(ret[0].0, "css");
+    assert_eq!(ret[0].1.len(), 1);
+    assert_eq!(ret[1].0, "css");
+    assert_eq!(ret[1].1.len(), 1);
+    assert_ne!(ret[0].1[0].start_byte, ret[1].1[0].start_byte);
   }
 }
