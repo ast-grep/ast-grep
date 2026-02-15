@@ -71,11 +71,9 @@ impl SgLang {
     // e.g vue can inject scss which is not supported by sg
     // we should report an error here
     // Dedup because aliases like "ts" and "typescript" resolve to the same SgLang
-    let mut seen = HashSet::new();
-    let deduped: Vec<_> = langs
+    let deduped: HashSet<_> = langs
       .iter()
       .filter_map(|s| SgLang::from_str(s).ok())
-      .filter(|l| seen.insert(*l))
       .collect();
     Some(deduped.into_iter())
   }
