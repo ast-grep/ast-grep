@@ -247,6 +247,9 @@ impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
 impl_lang!(Scala, language_scala);
 impl_lang!(Solidity, language_solidity);
+// SystemVerilog identifiers: [a-zA-Z_][a-zA-Z0-9_$]* (IEEE 1800-2017 §5.6).
+// '$' prefixes system tasks ($display, $monitor) so must stay literal in patterns.
+// Unicode letters (µ) are not valid SV identifiers, so '_' is used as expando.
 impl_lang_expando!(SystemVerilog, language_systemverilog, '_');
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
