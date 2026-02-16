@@ -230,17 +230,18 @@ pub fn read_rule_file(
     from_yaml_string(&yaml, &Default::default())
   };
   let mut rules = parsed.with_context(|| EC::ParseRule(path.to_path_buf()))?;
-  let missing_id_count = rules.iter().filter(|c| c.id.is_empty()).count();
-  if missing_id_count > 1 {
-    return Err(anyhow::anyhow!(EC::MissingRuleId(path.to_path_buf())));
-  }
   let default_id = path
     .file_stem()
     .and_then(|s| s.to_str())
     .unwrap_or_default();
-  for rule in &mut rules {
+  let has_multiple = rules.len() > 1;
+  for (i, rule) in rules.iter_mut().enumerate() {
     if rule.id.is_empty() {
-      rule.id = default_id.to_string();
+      rule.id = if has_multiple {
+        format!("{default_id}-{i}")
+      } else {
+        default_id.into()
+      };
     }
   }
   Ok(rules)

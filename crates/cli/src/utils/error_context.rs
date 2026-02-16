@@ -32,7 +32,7 @@ pub enum ErrorContext {
   WalkRuleDir(PathBuf),
   ReadRule(PathBuf),
   ParseRule(PathBuf),
-  MissingRuleId(PathBuf),
+
   ParseTest(PathBuf),
   InvalidGlobalUtils,
   GlobPattern,
@@ -83,7 +83,7 @@ impl ErrorContext {
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 6,
       StdInIsNotInteractive => 7,
       ParseTest(_) | ParseRule(_) | ParseConfiguration | ParsePattern | InvalidGlobalUtils
-      | LangInjection | MissingRuleId(_) => 8,
+      | LangInjection => 8,
       GlobPattern | BuildGlobs => 9,
       CannotInferShell => 10,
       ProjectAlreadyExist | FileAlreadyExist(_) => 17,
@@ -154,11 +154,6 @@ impl ErrorMessage {
       ParseRule(file) => Self::new(
         format!("Cannot parse rule {}", file.display()),
         "The file is not a valid ast-grep rule. Please refer to doc and fix the error.",
-        CONFIG_GUIDE,
-      ),
-      MissingRuleId(file) => Self::new(
-        format!("Missing rule id in {}", file.display()),
-        "A rule file with multiple rules must have an explicit `id` for each rule.",
         CONFIG_GUIDE,
       ),
       GlobPattern => Self::new(

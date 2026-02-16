@@ -535,7 +535,7 @@ rule: { pattern: Some($A) }
 }
 
 #[test]
-fn test_scan_multi_rule_file_without_ids_errors() -> Result<()> {
+fn test_scan_multi_rule_file_auto_numbered_ids() -> Result<()> {
   let rules = "
 language: TypeScript
 rule: { pattern: Some($A) }
@@ -548,10 +548,40 @@ rule: { pattern: None }
     .current_dir(dir.path())
     .args(["scan", "-r", "my-rules.yml", "--json"])
     .assert()
-    .failure()
-    .stderr(contains(
-      "A rule file with multiple rules must have an explicit `id` for each rule.",
-    ));
+    .success()
+    .stdout(contains("my-rules-0"))
+    .stdout(contains("my-rules-1"));
+  Ok(())
+}
+
+#[test]
+fn test_scan_multi_rule_file_mixed_ids() -> Result<()> {
+  let rules = "
+id: first-rule
+language: TypeScript
+rule: { pattern: Some($A) }
+---
+language: TypeScript
+rule: { pattern: None }
+---
+id: third-rule
+language: TypeScript
+rule: { pattern: 'hello' }
+";
+  let dir = create_test_files([
+    ("my-rules.yml", rules),
+    ("test.ts", "Some(123)\nNone\nhello"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "my-rules.yml", "--json"])
+    .assert()
+    .success()
+    .stdout(contains("first-rule"))
+    .stdout(contains("my-rules-1"))
+    .stdout(contains("third-rule"))
+    .stdout(contains("my-rules-0").not())
+    .stdout(contains("my-rules-2").not());
   Ok(())
 }
 
