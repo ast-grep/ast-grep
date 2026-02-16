@@ -536,14 +536,16 @@
         },
         "column": {
           "description": "0-based column number in the source code",
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "format": "uint",
           "minimum": 0
         }
       },
       "required": [
-        "line",
-        "column"
+        "line"
       ]
     },
     "Relation": {
