@@ -229,7 +229,21 @@ pub fn read_rule_file(
   } else {
     from_yaml_string(&yaml, &Default::default())
   };
-  parsed.with_context(|| EC::ParseRule(path.to_path_buf()))
+  let mut rules = parsed.with_context(|| EC::ParseRule(path.to_path_buf()))?;
+  let missing_id_count = rules.iter().filter(|c| c.id.is_empty()).count();
+  if missing_id_count > 1 {
+    return Err(anyhow::anyhow!(EC::MissingRuleId(path.to_path_buf())));
+  }
+  let default_id = path
+    .file_stem()
+    .and_then(|s| s.to_str())
+    .unwrap_or_default();
+  for rule in &mut rules {
+    if rule.id.is_empty() {
+      rule.id = default_id.to_string();
+    }
+  }
+  Ok(rules)
 }
 
 const CONFIG_FILE_YML: &str = "sgconfig.yml";

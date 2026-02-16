@@ -500,3 +500,79 @@ fn test_status_code_success_with_no_match() -> Result<()> {
     .success();
   Ok(())
 }
+
+#[test]
+fn test_scan_rule_id_defaults_to_filename() -> Result<()> {
+  let rule = "
+language: TypeScript
+rule: { pattern: Some($A) }
+";
+  let dir = create_test_files([("no-some-call.yml", rule), ("test.ts", "Some(123)")])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "no-some-call.yml", "--json"])
+    .assert()
+    .success()
+    .stdout(contains("no-some-call"));
+  Ok(())
+}
+
+#[test]
+fn test_scan_explicit_id_not_overwritten() -> Result<()> {
+  let rule = "
+id: my-explicit-id
+language: TypeScript
+rule: { pattern: Some($A) }
+";
+  let dir = create_test_files([("other-name.yml", rule), ("test.ts", "Some(123)")])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "other-name.yml", "--json"])
+    .assert()
+    .success()
+    .stdout(contains("my-explicit-id"));
+  Ok(())
+}
+
+#[test]
+fn test_scan_multi_rule_file_without_ids_errors() -> Result<()> {
+  let rules = "
+language: TypeScript
+rule: { pattern: Some($A) }
+---
+language: TypeScript
+rule: { pattern: None }
+";
+  let dir = create_test_files([("my-rules.yml", rules), ("test.ts", "Some(123)\nNone")])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "my-rules.yml", "--json"])
+    .assert()
+    .failure()
+    .stderr(contains(
+      "A rule file with multiple rules must have an explicit `id` for each rule.",
+    ));
+  Ok(())
+}
+
+#[test]
+fn test_scan_multi_rule_file_with_explicit_ids() -> Result<()> {
+  let rules = "
+id: find-some
+language: TypeScript
+rule: { pattern: Some($A) }
+---
+id: find-none
+language: TypeScript
+rule: { pattern: None }
+";
+  let dir = create_test_files([("my-rules.yml", rules), ("test.ts", "Some(123)\nNone")])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "my-rules.yml", "--json"])
+    .assert()
+    .success()
+    .stdout(contains("find-some"))
+    .stdout(contains("find-none"));
+  Ok(())
+}
