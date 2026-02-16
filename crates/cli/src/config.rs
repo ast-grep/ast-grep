@@ -9,7 +9,7 @@ use ast_grep_language::config_file_type;
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
@@ -191,6 +191,20 @@ fn read_directory_yaml(
       let new_configs = read_rule_file(path, Some(&global_rules))?;
       configs.extend(new_configs);
     }
+  }
+  if let Some(duplicated_id) = configs
+    .iter()
+    .filter(|c| !c.id.is_empty())
+    .try_fold(HashSet::new(), |mut seen, c| {
+      if seen.insert(&c.id) {
+        Ok(seen)
+      } else {
+        Err(&c.id)
+      }
+    })
+    .err()
+  {
+    return Err(anyhow::anyhow!(EC::DuplicateRuleId(duplicated_id.into())));
   }
   let total_rule_count = configs.len();
 

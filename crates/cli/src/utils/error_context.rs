@@ -45,6 +45,7 @@ pub enum ErrorContext {
   StdInIsNotInteractive,
   PatternHasError,
   // Scan
+  DuplicateRuleId(String),
   DiagnosticError(usize),
   RuleNotSpecified,
   RuleNotFound(String),
@@ -82,7 +83,7 @@ impl ErrorContext {
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 6,
       StdInIsNotInteractive => 7,
       ParseTest(_) | ParseRule(_) | ParseConfiguration | ParsePattern | InvalidGlobalUtils
-      | LangInjection => 8,
+      | LangInjection | DuplicateRuleId(_) => 8,
       GlobPattern | BuildGlobs => 9,
       CannotInferShell => 10,
       ProjectAlreadyExist | FileAlreadyExist(_) => 17,
@@ -189,6 +190,11 @@ impl ErrorMessage {
         format!("Cannot parse test case {}", file.display()),
         "The file is not a valid ast-grep test case. Please refer to doc and fix the error.",
         TEST_GUIDE,
+      ),
+      DuplicateRuleId(id) => Self::new(
+        format!("Duplicate rule id `{id}` is found"),
+        "Multiple rule files have the same id. Please add a unique `id` field to each rule.",
+        CONFIG_GUIDE,
       ),
       DiagnosticError(num) => Self::new(
         format!("{num} error(s) found in code."),

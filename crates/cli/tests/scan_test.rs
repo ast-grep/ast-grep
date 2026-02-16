@@ -502,10 +502,15 @@ fn test_status_code_success_with_no_match() -> Result<()> {
 }
 
 #[test]
-fn test_scan_inline_rules_without_id() -> Result<()> {
-  let inline_rules = "{language: ts, rule: {pattern: console.log($A)}}";
+fn test_scan_inline_rules_no_id() -> Result<()> {
   Command::new(cargo_bin!())
-    .args(["scan", "--stdin", "--inline-rules", inline_rules, "--json"])
+    .args([
+      "scan",
+      "--stdin",
+      "--inline-rules",
+      "{language: ts, rule: {pattern: console.log($A)}}",
+      "--json",
+    ])
     .write_stdin("console.log(123)")
     .assert()
     .success()
@@ -616,5 +621,26 @@ rule: { pattern: None }
     .success()
     .stdout(contains("find-some"))
     .stdout(contains("find-none"));
+  Ok(())
+}
+
+#[test]
+fn test_scan_duplicate_default_ids() -> Result<()> {
+  let rule = "
+language: TypeScript
+rule: { pattern: Some($A) }
+";
+  let dir = create_test_files([
+    ("sgconfig.yml", "ruleDirs:\n- rules"),
+    ("rules/check.yml", rule),
+    ("rules/check.yaml", rule),
+    ("test.ts", "Some(123)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan"])
+    .assert()
+    .failure()
+    .stderr(contains("Duplicate rule id `check`"));
   Ok(())
 }
