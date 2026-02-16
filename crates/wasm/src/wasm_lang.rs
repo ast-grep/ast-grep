@@ -10,7 +10,7 @@ use wasm_bindgen::prelude::*;
 use crate::doc::WasmDoc;
 use crate::ts_types as ts;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WasmLang {
   JavaScript,
   TypeScript,
@@ -95,47 +95,51 @@ impl<'de> Deserialize<'de> for WasmLang {
 }
 
 #[derive(Clone)]
-struct TsLang(ts::Language);
+struct TsParser(ts::Parser);
 
-unsafe impl Send for TsLang {}
-unsafe impl Sync for TsLang {}
+unsafe impl Send for TsParser {}
+unsafe impl Sync for TsParser {}
 
-static TS_LANG: Mutex<Option<TsLang>> = Mutex::new(None);
-static LANG: Mutex<WasmLang> = Mutex::new(JavaScript);
+/// Stores all loaded parsers. Multiple languages can be registered simultaneously.
+static PARSERS: Mutex<Vec<(WasmLang, TsParser)>> = Mutex::new(Vec::new());
 
 impl WasmLang {
-  pub async fn set_current(lang: &str, parser_path: &str) -> Result<(), JsError> {
+  /// Register a language parser. Can be called multiple times for different languages.
+  pub async fn register(lang: &str, parser_path: &str) -> Result<(), JsError> {
     let lang = WasmLang::from_str(lang)?;
-    {
-      let mut curr_lang = LANG.lock().expect_throw("set language error");
-      *curr_lang = lang;
-      drop(curr_lang);
+    let parser = create_parser(parser_path).await?;
+    let mut parsers = PARSERS.lock().expect_throw("set parser error");
+    if let Some(entry) = parsers.iter_mut().find(|(l, _)| *l == lang) {
+      entry.1 = parser;
+    } else {
+      parsers.push((lang, parser));
     }
-    setup_parser(parser_path).await?;
     Ok(())
   }
 
-  pub fn get_current() -> Self {
-    *LANG.lock().expect_throw("get language error")
+  pub(crate) fn get_parser(&self) -> Result<ts::Parser, SgWasmError> {
+    let parsers = PARSERS.lock().expect_throw("get parser error");
+    parsers
+      .iter()
+      .find(|(l, _)| l == self)
+      .map(|(_, p)| p.0.clone())
+      .ok_or(SgWasmError::LanguageNotLoaded(*self))
   }
 
   pub(crate) fn get_ts_language(&self) -> ts::Language {
-    TS_LANG
-      .lock()
-      .expect_throw("get language error")
-      .clone()
-      .expect_throw("current language is not set")
-      .0
+    self
+      .get_parser()
+      .expect_throw("language is not loaded, call setupParser first")
+      .language()
+      .expect_throw("parser has no language set")
   }
 }
 
-async fn setup_parser(parser_path: &str) -> Result<(), SgWasmError> {
+async fn create_parser(parser_path: &str) -> Result<TsParser, SgWasmError> {
   let parser = ts::Parser::new()?;
   let lang = get_lang(parser_path).await?;
   parser.set_language(Some(&lang))?;
-  let mut curr_lang = TS_LANG.lock().expect_throw("set language error");
-  *curr_lang = Some(TsLang(lang));
-  Ok(())
+  Ok(TsParser(parser))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -227,6 +231,7 @@ fn pre_process_pattern(expando: char, query: &str) -> Cow<'_, str> {
 pub enum SgWasmError {
   ParserError(ts::ParserError),
   LanguageError(ts::LanguageError),
+  LanguageNotLoaded(WasmLang),
   FailedToParse,
 }
 
@@ -235,6 +240,13 @@ impl std::fmt::Display for SgWasmError {
     match self {
       SgWasmError::ParserError(err) => write!(f, "Parser error: {}", err.message()),
       SgWasmError::LanguageError(err) => write!(f, "Language error: {:?}", err),
+      SgWasmError::LanguageNotLoaded(lang) => {
+        write!(
+          f,
+          "Language {:?} is not loaded. Call setupParser first.",
+          lang
+        )
+      }
       SgWasmError::FailedToParse => write!(f, "Failed to parse"),
     }
   }

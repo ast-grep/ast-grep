@@ -271,3 +271,37 @@ test('invalid config error', t => {
   const sg = parse('javascript', 'console.log(123)')
   t.throws(() => sg.root().find({ rule: { regex: '(' } }))
 })
+
+// --- Multi-language support ---
+
+test('parse multiple languages simultaneously', async t => {
+  const pythonPath = require.resolve(
+    'tree-sitter-python/tree-sitter-python.wasm',
+  )
+  await wasm.setupParser('python', pythonPath)
+
+  // Parse JavaScript (still works)
+  const jsSg = parse('javascript', 'console.log(123)')
+  const jsMatch = jsSg.root().find('console.log')
+  t.truthy(jsMatch)
+  t.is(jsMatch.range().start.index, 0)
+  t.is(jsMatch.range().end.index, 11)
+
+  // Parse Python
+  const pySg = parse('python', "print('hello')")
+  t.is(pySg.root().kind(), 'module')
+  const pyMatch = pySg.root().find("print('hello')")
+  t.truthy(pyMatch)
+
+  // JavaScript still works after Python
+  const jsSg2 = parse('javascript', 'let x = 1')
+  const jsMatch2 = jsSg2.root().find('let x = 1')
+  t.truthy(jsMatch2)
+})
+
+test('kind works for multiple languages', async t => {
+  const jsKind = kind('javascript', 'identifier')
+  const pyKind = kind('python', 'identifier')
+  t.true(jsKind > 0)
+  t.true(pyKind > 0)
+})

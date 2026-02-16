@@ -22,10 +22,11 @@ pub async fn initialize_tree_sitter() -> Result<(), JsError> {
   TreeSitter::init().await
 }
 
-/// Load a language WASM binary and set it as the current parser.
+/// Load a language WASM binary and register it for parsing.
+/// Can be called multiple times to register different languages simultaneously.
 #[wasm_bindgen(js_name = setupParser)]
 pub async fn setup_parser(lang_name: String, parser_path: String) -> Result<(), JsError> {
-  WasmLang::set_current(&lang_name, &parser_path).await
+  WasmLang::register(&lang_name, &parser_path).await
 }
 
 /// Parse a string to an ast-grep instance.

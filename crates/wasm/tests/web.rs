@@ -548,3 +548,49 @@ async fn test_invalid_config() {
   let result = sg.root().find(config);
   assert!(result.is_err());
 }
+
+// --- Multi-language support ---
+
+async fn setup_multi_lang() {
+  ast_grep_wasm::initialize_tree_sitter().await.unwrap();
+  ast_grep_wasm::setup_parser("javascript".into(), parser_path("javascript"))
+    .await
+    .unwrap();
+  ast_grep_wasm::setup_parser("python".into(), parser_path("python"))
+    .await
+    .unwrap();
+}
+
+#[wasm_bindgen_test]
+async fn test_parse_multiple_languages() {
+  setup_multi_lang().await;
+
+  // Parse JavaScript
+  let js_sg = ast_grep_wasm::parse("javascript".into(), "console.log(123)".into()).unwrap();
+  let js_root = js_sg.root();
+  assert_eq!(js_root.kind(), "program");
+  let js_match = js_root.find(JsValue::from_str("console.log")).unwrap();
+  assert!(js_match.is_some());
+
+  // Parse Python
+  let py_sg = ast_grep_wasm::parse("python".into(), "print('hello')".into()).unwrap();
+  let py_root = py_sg.root();
+  assert_eq!(py_root.kind(), "module");
+  let py_match = py_root.find(JsValue::from_str("print('hello')")).unwrap();
+  assert!(py_match.is_some());
+
+  // JavaScript still works after loading Python
+  let js_sg2 = ast_grep_wasm::parse("javascript".into(), "let x = 1".into()).unwrap();
+  let js_match2 = js_sg2.root().find(JsValue::from_str("let x = 1")).unwrap();
+  assert!(js_match2.is_some());
+}
+
+#[wasm_bindgen_test]
+async fn test_kind_multiple_languages() {
+  setup_multi_lang().await;
+
+  let js_kind_id = ast_grep_wasm::kind("javascript".into(), "identifier".into()).unwrap();
+  let py_kind_id = ast_grep_wasm::kind("python".into(), "identifier".into()).unwrap();
+  assert!(js_kind_id > 0);
+  assert!(py_kind_id > 0);
+}
