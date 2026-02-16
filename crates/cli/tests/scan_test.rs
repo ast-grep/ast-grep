@@ -502,6 +502,18 @@ fn test_status_code_success_with_no_match() -> Result<()> {
 }
 
 #[test]
+fn test_scan_inline_rules_without_id() -> Result<()> {
+  let inline_rules = "{language: ts, rule: {pattern: console.log($A)}}";
+  Command::new(cargo_bin!())
+    .args(["scan", "--stdin", "--inline-rules", inline_rules, "--json"])
+    .write_stdin("console.log(123)")
+    .assert()
+    .success()
+    .stdout(contains("\"text\": \"console.log(123)\""));
+  Ok(())
+}
+
+#[test]
 fn test_scan_rule_id_defaults_to_filename() -> Result<()> {
   let rule = "
 language: TypeScript
