@@ -34,6 +34,7 @@
   "devDependencies": {
     "ava": "^6.0.0",
     "tree-sitter-javascript": "^0.25.0",
+    "tree-sitter-python": "^0.23.0",
     "web-tree-sitter": "^0.25.0"
   },
   "publishConfig": {

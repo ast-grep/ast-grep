@@ -111,9 +111,7 @@ impl WasmDoc {
     let source = Wrapper {
       inner: src.chars().collect(),
     };
-    let parser = ts::Parser::new()?;
-    let ts_lang = lang.get_ts_language();
-    parser.set_language(Some(&ts_lang))?;
+    let parser = lang.get_parser()?;
     let Some(tree) = parser.parse_with_string(&src.into(), None, None)? else {
       return Err(SgWasmError::FailedToParse);
     };
@@ -242,11 +240,7 @@ impl Doc for WasmDoc {
   fn do_edit(&mut self, edit: &Edit<Self::Source>) -> Result<(), String> {
     let edit = self.source.accept_edit(edit);
     self.tree.edit(&edit);
-    let parser = ts::Parser::new().map_err(|e| format!("{e:?}"))?;
-    let ts_lang = self.lang.get_ts_language();
-    parser
-      .set_language(Some(&ts_lang))
-      .map_err(|e| format!("{e:?}"))?;
+    let parser = self.lang.get_parser().map_err(|e| e.to_string())?;
     let src = self.source.inner.iter().collect::<String>();
     let parse_ret = parser.parse_with_string(&src.into(), Some(&self.tree), None);
     let Some(tree) = parse_ret.map_err(|e| format!("{e:?}"))? else {
