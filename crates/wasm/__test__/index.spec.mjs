@@ -300,6 +300,11 @@ test('parse multiple languages simultaneously', async t => {
 })
 
 test('kind works for multiple languages', async t => {
+  const pythonPath = require.resolve(
+    'tree-sitter-python/tree-sitter-python.wasm',
+  )
+  await wasm.setupParser('python', pythonPath)
+
   const jsKind = kind('javascript', 'identifier')
   const pyKind = kind('python', 'identifier')
   t.true(jsKind > 0)
