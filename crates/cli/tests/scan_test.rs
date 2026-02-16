@@ -644,3 +644,26 @@ rule: { pattern: Some($A) }
     .stderr(contains("Duplicate rule id `check`"));
   Ok(())
 }
+
+#[cfg(unix)]
+#[test]
+fn test_scan_invalid_rule_id() -> Result<()> {
+  use std::ffi::OsStr;
+  use std::os::unix::ffi::OsStrExt;
+  let dir = TempDir::new()?;
+  let rules_dir = dir.path().join("rules");
+  std::fs::create_dir_all(&rules_dir)?;
+  std::fs::write(dir.path().join("sgconfig.yml"), "ruleDirs:\n- rules")?;
+  std::fs::write(
+    rules_dir.join(OsStr::from_bytes(b"\xff.yml")),
+    "language: TypeScript\nrule: { pattern: Some($A) }",
+  )?;
+  std::fs::write(dir.path().join("test.ts"), "Some(123)")?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan"])
+    .assert()
+    .failure()
+    .stderr(contains("Cannot infer rule id"));
+  Ok(())
+}

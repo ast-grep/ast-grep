@@ -244,17 +244,15 @@ pub fn read_rule_file(
     from_yaml_string(&yaml, &Default::default())
   };
   let mut rules = parsed.with_context(|| EC::ParseRule(path.to_path_buf()))?;
-  let default_id = path
-    .file_stem()
-    .and_then(|s| s.to_str())
-    .unwrap_or("anonymous");
+  let default_id = path.file_stem().and_then(|s| s.to_str());
   let has_multiple = rules.len() > 1;
   for (i, rule) in rules.iter_mut().enumerate() {
     if rule.id.is_empty() {
+      let id = default_id.ok_or_else(|| anyhow::anyhow!(EC::InvalidRuleId(path.to_path_buf())))?;
       rule.id = if has_multiple {
-        format!("{default_id}-{i}")
+        format!("{id}-{i}")
       } else {
-        default_id.into()
+        id.into()
       };
     }
   }
