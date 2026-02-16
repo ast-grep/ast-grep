@@ -1,0 +1,33 @@
+[package]
+name = "ast-grep-wasm"
+description = "Search and Rewrite code at large scale using precise AST pattern"
+keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
+publish = false
+
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+
+[dependencies]
+ast-grep-core = { path = "../core", version = "0.40.5", default-features = false }
+ast-grep-config = { path = "../config", version = "0.40.5", default-features = false }
+
+wasm-bindgen = { version = "=0.2.106", features = ["serde-serialize"] }
+wasm-bindgen-futures = "=0.4.56"
+serde = { workspace = true }
+serde-wasm-bindgen = "0.6.5"
+serde_json = "1.0.116"
+wee_alloc = "0.4.5"
+console_error_panic_hook = { version = "0.1.7", optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.42"
