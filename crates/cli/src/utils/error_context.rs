@@ -32,7 +32,6 @@ pub enum ErrorContext {
   WalkRuleDir(PathBuf),
   ReadRule(PathBuf),
   ParseRule(PathBuf),
-
   ParseTest(PathBuf),
   InvalidGlobalUtils,
   GlobPattern,
