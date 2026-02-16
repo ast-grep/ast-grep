@@ -2,6 +2,7 @@
 name = "ast-grep-wasm"
 description = "Search and Rewrite code at large scale using precise AST pattern"
 keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
+# do not publish, only for wasm
 publish = false
 
 authors.workspace = true

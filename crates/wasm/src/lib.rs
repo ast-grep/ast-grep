@@ -3,8 +3,9 @@ mod sg_node;
 mod ts_types;
 mod wasm_lang;
 
+pub use sg_node::{SgNode, SgRoot};
+
 use doc::{WasmConfig, WasmDoc};
-use sg_node::SgRoot;
 use wasm_lang::WasmLang;
 
 use ast_grep_core::{AstGrep, Language};
