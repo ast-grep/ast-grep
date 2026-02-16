@@ -233,7 +233,7 @@ pub fn read_rule_file(
   let default_id = path
     .file_stem()
     .and_then(|s| s.to_str())
-    .unwrap_or_default();
+    .unwrap_or("anonymous");
   let has_multiple = rules.len() > 1;
   for (i, rule) in rules.iter_mut().enumerate() {
     if rule.id.is_empty() {
