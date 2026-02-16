@@ -51,7 +51,8 @@
     },
     "id": {
       "description": "Unique, descriptive identifier, e.g., no-unused-variable",
-      "type": "string"
+      "type": "string",
+      "default": ""
     },
     "language": {
       "description": "Specify the language to parse and the file extension to include in matching.",
@@ -135,7 +136,6 @@
   },
   "required": [
     "rule",
-    "id",
     "language"
   ],
   "$defs": {
