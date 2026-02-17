@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_test::*;
 
-use ast_grep_wasm::CustomWasmLang;
+use ast_grep_wasm::WasmLangInfo;
 
 #[wasm_bindgen(module = "/tests/setup.js")]
 extern "C" {
@@ -21,7 +21,7 @@ extern "C" {
   fn parser_path(lang: &str) -> String;
 }
 
-fn custom_lang(name: &str) -> CustomWasmLang {
+fn custom_lang(name: &str) -> WasmLangInfo {
   let expando_char = match name {
     "python" | "c" | "cpp" | "csharp" | "elixir" | "go" | "haskell" | "kotlin" | "php" | "ruby"
     | "rust" | "swift" => Some('µ'),
@@ -29,14 +29,14 @@ fn custom_lang(name: &str) -> CustomWasmLang {
     "html" => Some('z'),
     _ => None,
   };
-  CustomWasmLang {
+  WasmLangInfo {
     library_path: parser_path(name),
     expando_char,
   }
 }
 
 async fn register_langs(names: &[&str]) {
-  let langs: HashMap<String, CustomWasmLang> = names
+  let langs: HashMap<String, WasmLangInfo> = names
     .iter()
     .map(|name| (name.to_string(), custom_lang(name)))
     .collect();
@@ -555,6 +555,67 @@ async fn test_pattern_function() {
   setup().await;
   let result = ast_grep_wasm::pattern("javascript".into(), "console.log($A)".into());
   assert!(result.is_ok());
+}
+
+// --- dumpPattern ---
+
+#[wasm_bindgen_test]
+async fn test_dump_pattern_simple() {
+  setup().await;
+  let dump = ast_grep_wasm::dump_pattern("javascript".into(), "$VAR".into(), None, None).unwrap();
+  let is_meta_var = js_sys::Reflect::get(&dump, &"isMetaVar".into()).unwrap();
+  assert_eq!(is_meta_var.as_bool(), Some(true));
+  let text = js_sys::Reflect::get(&dump, &"text".into()).unwrap();
+  assert_eq!(text.as_string().unwrap(), "$VAR");
+}
+
+#[wasm_bindgen_test]
+async fn test_dump_pattern_nested() {
+  setup().await;
+  let dump =
+    ast_grep_wasm::dump_pattern("javascript".into(), "console.log($MSG)".into(), None, None)
+      .unwrap();
+  let kind = js_sys::Reflect::get(&dump, &"kind".into()).unwrap();
+  assert_eq!(kind.as_string().unwrap(), "call_expression");
+  let children = js_sys::Reflect::get(&dump, &"children".into()).unwrap();
+  let children = js_sys::Array::from(&children);
+  assert!(children.length() >= 2);
+}
+
+#[wasm_bindgen_test]
+async fn test_dump_pattern_with_selector() {
+  setup().await;
+  let dump = ast_grep_wasm::dump_pattern(
+    "javascript".into(),
+    "class A { $F = $I }".into(),
+    Some("field_definition".into()),
+    None,
+  )
+  .unwrap();
+  let kind = js_sys::Reflect::get(&dump, &"kind".into()).unwrap();
+  assert_eq!(kind.as_string().unwrap(), "field_definition");
+}
+
+#[wasm_bindgen_test]
+async fn test_dump_pattern_with_strictness() {
+  setup().await;
+  // "ast" strictness should exclude unnamed tokens
+  let dump = ast_grep_wasm::dump_pattern(
+    "javascript".into(),
+    "let $A = $B".into(),
+    None,
+    Some("ast".into()),
+  )
+  .unwrap();
+  let kind = js_sys::Reflect::get(&dump, &"kind".into()).unwrap();
+  assert_eq!(kind.as_string().unwrap(), "lexical_declaration");
+}
+
+#[wasm_bindgen_test]
+async fn test_dump_pattern_invalid() {
+  setup().await;
+  let result = ast_grep_wasm::dump_pattern("javascript".into(), "".into(), None, None);
+  assert!(result.is_err());
 }
 
 // --- Error handling ---
