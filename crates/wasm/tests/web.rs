@@ -8,8 +8,12 @@
 //! ```
 #![cfg(target_arch = "wasm32")]
 
+use std::collections::HashMap;
+
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_test::*;
+
+use ast_grep_wasm::CustomWasmLang;
 
 #[wasm_bindgen(module = "/tests/setup.js")]
 extern "C" {
@@ -17,11 +21,33 @@ extern "C" {
   fn parser_path(lang: &str) -> String;
 }
 
-async fn setup() {
-  ast_grep_wasm::initialize_tree_sitter().await.unwrap();
-  ast_grep_wasm::setup_parser("javascript".into(), parser_path("javascript"))
+fn custom_lang(name: &str) -> CustomWasmLang {
+  let expando_char = match name {
+    "python" | "c" | "cpp" | "csharp" | "elixir" | "go" | "haskell" | "kotlin" | "php" | "ruby"
+    | "rust" | "swift" => Some('µ'),
+    "css" | "nix" => Some('_'),
+    "html" => Some('z'),
+    _ => None,
+  };
+  CustomWasmLang {
+    library_path: parser_path(name),
+    expando_char,
+  }
+}
+
+async fn register_langs(names: &[&str]) {
+  let langs: HashMap<String, CustomWasmLang> = names
+    .iter()
+    .map(|name| (name.to_string(), custom_lang(name)))
+    .collect();
+  ast_grep_wasm::register_dynamic_language(serde_wasm_bindgen::to_value(&langs).unwrap())
     .await
     .unwrap();
+}
+
+async fn setup() {
+  ast_grep_wasm::initialize_tree_sitter().await.unwrap();
+  register_langs(&["javascript"]).await;
 }
 
 fn js_parse(src: &str) -> ast_grep_wasm::SgRoot {
@@ -553,12 +579,7 @@ async fn test_invalid_config() {
 
 async fn setup_multi_lang() {
   ast_grep_wasm::initialize_tree_sitter().await.unwrap();
-  ast_grep_wasm::setup_parser("javascript".into(), parser_path("javascript"))
-    .await
-    .unwrap();
-  ast_grep_wasm::setup_parser("python".into(), parser_path("python"))
-    .await
-    .unwrap();
+  register_langs(&["javascript", "python"]).await;
 }
 
 #[wasm_bindgen_test]
