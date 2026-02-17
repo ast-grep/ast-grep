@@ -1,8 +1,10 @@
+use std::collections::HashMap;
+use std::fmt;
 use std::str::FromStr;
 
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
-use serde::{de, Deserialize, Deserializer};
+use serde::{de, Deserialize, Deserializer, Serialize};
 use std::borrow::Cow;
 use std::sync::Mutex;
 use wasm_bindgen::prelude::*;
@@ -10,77 +12,56 @@ use wasm_bindgen::prelude::*;
 use crate::doc::WasmDoc;
 use crate::ts_types as ts;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum WasmLang {
-  JavaScript,
-  TypeScript,
-  Tsx,
-  Bash,
-  C,
-  CSharp,
-  Css,
-  Cpp,
-  Elixir,
-  Go,
-  Haskell,
-  Html,
-  Java,
-  Json,
-  Kotlin,
-  Lua,
-  Nix,
-  Php,
-  Python,
-  Ruby,
-  Rust,
-  Scala,
-  Swift,
-  Yaml,
+type LangIndex = u32;
+
+/// Represents a dynamically registered language in WASM.
+/// Languages are not predefined — they must be registered at runtime via `register`.
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub struct WasmLang {
+  index: LangIndex,
+  // inline expando char since it is used frequently
+  expando: char,
 }
 
-use WasmLang::*;
+impl fmt::Debug for WasmLang {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let langs = LANGS.lock().expect("debug lock");
+    if let Some(inner) = langs.get(self.index as usize) {
+      write!(f, "WasmLang({})", inner.name)
+    } else {
+      write!(f, "WasmLang(#{})", self.index)
+    }
+  }
+}
 
 #[derive(Debug)]
 pub struct NotSupport(String);
 
 impl std::error::Error for NotSupport {}
 
-impl std::fmt::Display for NotSupport {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "Language {} is not supported.", self.0)
+impl fmt::Display for NotSupport {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(
+      f,
+      "Language `{}` is not registered. Call registerDynamicLanguage first.",
+      self.0
+    )
   }
 }
 
 impl FromStr for WasmLang {
   type Err = NotSupport;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    Ok(match s {
-      "javascript" => JavaScript,
-      "typescript" => TypeScript,
-      "tsx" => Tsx,
-      "bash" => Bash,
-      "c" => C,
-      "csharp" => CSharp,
-      "css" => Css,
-      "cpp" => Cpp,
-      "elixir" => Elixir,
-      "go" => Go,
-      "html" => Html,
-      "haskell" => Haskell,
-      "java" => Java,
-      "json" => Json,
-      "lua" => Lua,
-      "kotlin" => Kotlin,
-      "nix" => Nix,
-      "php" => Php,
-      "python" => Python,
-      "ruby" => Ruby,
-      "rust" => Rust,
-      "scala" => Scala,
-      "swift" => Swift,
-      "yaml" => Yaml,
-      _ => return Err(NotSupport(s.to_string())),
-    })
+    let langs = LANGS.lock().expect_throw("from_str lock error");
+    for (i, inner) in langs.iter().enumerate() {
+      if inner.name == s {
+        return Ok(WasmLang {
+          index: i as LangIndex,
+          expando: inner.expando_char,
+        });
+      }
+    }
+    Err(NotSupport(s.to_string()))
   }
 }
 
@@ -94,42 +75,80 @@ impl<'de> Deserialize<'de> for WasmLang {
   }
 }
 
+impl Serialize for WasmLang {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    let langs = LANGS.lock().expect("serialize lock");
+    if let Some(inner) = langs.get(self.index as usize) {
+      serializer.serialize_str(&inner.name)
+    } else {
+      serializer.serialize_str(&format!("unknown#{}", self.index))
+    }
+  }
+}
+
 #[derive(Clone)]
 struct TsParser(ts::Parser);
 
 unsafe impl Send for TsParser {}
 unsafe impl Sync for TsParser {}
 
-/// Stores all loaded parsers. Multiple languages can be registered simultaneously.
-static PARSERS: Mutex<Vec<(WasmLang, TsParser)>> = Mutex::new(Vec::new());
+struct Inner {
+  name: String,
+  parser: TsParser,
+  expando_char: char,
+}
+
+/// Registration info for a custom WASM language, mirroring napi/pyo3's CustomLang.
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomWasmLang {
+  pub library_path: String,
+  pub expando_char: Option<char>,
+}
+
+/// Stores all registered languages.
+static LANGS: Mutex<Vec<Inner>> = Mutex::new(Vec::new());
 
 impl WasmLang {
-  /// Register a language parser. Can be called multiple times for different languages.
-  pub async fn register(lang: &str, parser_path: &str) -> Result<(), JsError> {
-    let lang = WasmLang::from_str(lang)?;
-    let parser = create_parser(parser_path).await?;
-    let mut parsers = PARSERS.lock().expect_throw("set parser error");
-    if let Some(entry) = parsers.iter_mut().find(|(l, _)| *l == lang) {
-      entry.1 = parser;
-    } else {
-      parsers.push((lang, parser));
+  /// Register languages from a HashMap of name -> CustomWasmLang.
+  /// Can be called multiple times; existing languages are updated.
+  pub async fn register(langs: HashMap<String, CustomWasmLang>) -> Result<(), JsError> {
+    for (name, custom) in langs {
+      let parser = create_parser(&custom.library_path).await?;
+      let expando = custom.expando_char.unwrap_or('$');
+      let mut registered = LANGS.lock().expect_throw("register lock error");
+      if let Some(entry) = registered.iter_mut().find(|inner| inner.name == name) {
+        entry.parser = parser;
+        entry.expando_char = expando;
+      } else {
+        registered.push(Inner {
+          name,
+          parser,
+          expando_char: expando,
+        });
+      }
     }
     Ok(())
   }
 
   pub(crate) fn get_parser(&self) -> Result<ts::Parser, SgWasmError> {
-    let parsers = PARSERS.lock().expect_throw("get parser error");
-    parsers
-      .iter()
-      .find(|(l, _)| l == self)
-      .map(|(_, p)| p.0.clone())
-      .ok_or(SgWasmError::LanguageNotLoaded(*self))
+    let langs = LANGS.lock().expect_throw("get parser error");
+    match langs.get(self.index as usize) {
+      Some(inner) => Ok(inner.parser.0.clone()),
+      None => {
+        let name = format!("lang#{}", self.index);
+        Err(SgWasmError::LanguageNotLoaded(name))
+      }
+    }
   }
 
   pub(crate) fn get_ts_language(&self) -> ts::Language {
     self
       .get_parser()
-      .expect_throw("language is not loaded, call setupParser first")
+      .expect_throw("language is not loaded, call registerDynamicLanguage first")
       .language()
       .expect_throw("parser has no language set")
   }
@@ -155,33 +174,7 @@ async fn get_lang(_path: &str) -> Result<ts::Language, SgWasmError> {
 
 impl Language for WasmLang {
   fn expando_char(&self) -> char {
-    use WasmLang as W;
-    match self {
-      W::Bash => '$',
-      W::C => 'µ',
-      W::Cpp => 'µ',
-      W::CSharp => 'µ',
-      W::Css => '_',
-      W::Elixir => 'µ',
-      W::Go => 'µ',
-      W::Html => 'z',
-      W::Java => '$',
-      W::JavaScript => '$',
-      W::Json => '$',
-      W::Haskell => 'µ',
-      W::Kotlin => 'µ',
-      W::Lua => '$',
-      W::Nix => '_',
-      W::Php => 'µ',
-      W::Python => 'µ',
-      W::Ruby => 'µ',
-      W::Rust => 'µ',
-      W::Scala => '$',
-      W::Swift => 'µ',
-      W::TypeScript => '$',
-      W::Tsx => '$',
-      W::Yaml => '$',
-    }
+    self.expando
   }
 
   fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
@@ -231,20 +224,20 @@ fn pre_process_pattern(expando: char, query: &str) -> Cow<'_, str> {
 pub enum SgWasmError {
   ParserError(ts::ParserError),
   LanguageError(ts::LanguageError),
-  LanguageNotLoaded(WasmLang),
+  LanguageNotLoaded(String),
   FailedToParse,
 }
 
-impl std::fmt::Display for SgWasmError {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for SgWasmError {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       SgWasmError::ParserError(err) => write!(f, "Parser error: {}", err.message()),
       SgWasmError::LanguageError(err) => write!(f, "Language error: {:?}", err),
-      SgWasmError::LanguageNotLoaded(lang) => {
+      SgWasmError::LanguageNotLoaded(name) => {
         write!(
           f,
-          "Language {:?} is not loaded. Call setupParser first.",
-          lang
+          "Language `{}` is not loaded. Call registerDynamicLanguage first.",
+          name
         )
       }
       SgWasmError::FailedToParse => write!(f, "Failed to parse"),

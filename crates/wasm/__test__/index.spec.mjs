@@ -10,7 +10,9 @@ test.before(async () => {
   const parserPath = require.resolve(
     'tree-sitter-javascript/tree-sitter-javascript.wasm',
   )
-  await wasm.setupParser('javascript', parserPath)
+  await wasm.registerDynamicLanguage({
+    javascript: { libraryPath: parserPath },
+  })
 })
 
 test('find from wasm', t => {
@@ -278,7 +280,9 @@ test('parse multiple languages simultaneously', async t => {
   const pythonPath = require.resolve(
     'tree-sitter-python/tree-sitter-python.wasm',
   )
-  await wasm.setupParser('python', pythonPath)
+  await wasm.registerDynamicLanguage({
+    python: { libraryPath: pythonPath, expandoChar: 'µ' },
+  })
 
   // Parse JavaScript (still works)
   const jsSg = parse('javascript', 'console.log(123)')
@@ -303,7 +307,9 @@ test('kind works for multiple languages', async t => {
   const pythonPath = require.resolve(
     'tree-sitter-python/tree-sitter-python.wasm',
   )
-  await wasm.setupParser('python', pythonPath)
+  await wasm.registerDynamicLanguage({
+    python: { libraryPath: pythonPath, expandoChar: 'µ' },
+  })
 
   const jsKind = kind('javascript', 'identifier')
   const pyKind = kind('python', 'identifier')

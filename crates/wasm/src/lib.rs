@@ -4,11 +4,13 @@ mod ts_types;
 mod wasm_lang;
 
 pub use sg_node::{SgNode, SgRoot};
+pub use wasm_lang::CustomWasmLang;
 
 use doc::{WasmConfig, WasmDoc};
 use wasm_lang::WasmLang;
 
 use ast_grep_core::{AstGrep, Language};
+use std::collections::HashMap;
 use ts_types::TreeSitter;
 use wasm_bindgen::prelude::*;
 
@@ -22,11 +24,15 @@ pub async fn initialize_tree_sitter() -> Result<(), JsError> {
   TreeSitter::init().await
 }
 
-/// Load a language WASM binary and register it for parsing.
-/// Can be called multiple times to register different languages simultaneously.
-#[wasm_bindgen(js_name = setupParser)]
-pub async fn setup_parser(lang_name: String, parser_path: String) -> Result<(), JsError> {
-  WasmLang::register(&lang_name, &parser_path).await
+/// Register dynamic languages for parsing.
+/// `langs` is a Map of language name to its registration config
+/// (with `libraryPath` and optional `expandoChar`).
+/// Can be called multiple times; existing languages are updated.
+#[wasm_bindgen(js_name = registerDynamicLanguage)]
+pub async fn register_dynamic_language(langs: JsValue) -> Result<(), JsError> {
+  let langs: HashMap<String, CustomWasmLang> =
+    serde_wasm_bindgen::from_value(langs).map_err(|e| JsError::new(&e.to_string()))?;
+  WasmLang::register(langs).await
 }
 
 /// Parse a string to an ast-grep instance.
