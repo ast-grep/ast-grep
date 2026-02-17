@@ -265,6 +265,77 @@ test('pattern function', t => {
   t.truthy(result)
 })
 
+// --- dumpPattern ---
+
+test('dumpPattern simple metavar', t => {
+  const dump = wasm.dumpPattern('javascript', '$VAR')
+  t.is(dump.isMetaVar, true)
+  t.is(dump.kind, 'MetaVar')
+  t.is(dump.text, '$VAR')
+  t.is(dump.children.length, 0)
+})
+
+test('dumpPattern with nested nodes', t => {
+  const dump = wasm.dumpPattern('javascript', 'console.log($MSG)')
+  t.is(dump.isMetaVar, false)
+  t.is(dump.kind, 'call_expression')
+  // should have children: member_expression and arguments
+  t.true(dump.children.length >= 2)
+  // find the MetaVar in the tree
+  const args = dump.children.find(c => c.kind === 'arguments')
+  t.truthy(args)
+  const metaVar = args.children.find(c => c.isMetaVar)
+  t.truthy(metaVar)
+  t.is(metaVar.text, '$MSG')
+})
+
+test('dumpPattern with let declaration', t => {
+  const dump = wasm.dumpPattern('javascript', 'let $A = $B')
+  t.is(dump.kind, 'lexical_declaration')
+  // find variable_declarator child
+  const declarator = dump.children.find(c => c.kind === 'variable_declarator')
+  t.truthy(declarator)
+  const metaVars = declarator.children.filter(c => c.isMetaVar)
+  t.is(metaVars.length, 2)
+  t.is(metaVars[0].text, '$A')
+  t.is(metaVars[1].text, '$B')
+})
+
+test('dumpPattern with selector', t => {
+  const dump = wasm.dumpPattern(
+    'javascript',
+    'class A { $F = $I }',
+    'field_definition',
+  )
+  t.is(dump.kind, 'field_definition')
+  const metaVars = dump.children.filter(c => c.isMetaVar)
+  t.is(metaVars.length, 2)
+})
+
+test('dumpPattern with strictness ast', t => {
+  // With "smart" (default), unnamed tokens like "let" and "=" are included
+  const smart = wasm.dumpPattern('javascript', 'let $A = $B')
+  const smartTexts = smart.children
+    .find(c => c.kind === 'variable_declarator')
+    .children.map(c => c.text || c.kind)
+  t.true(smartTexts.includes('='))
+
+  // With "ast" strictness, unnamed tokens are excluded
+  const ast = wasm.dumpPattern('javascript', 'let $A = $B', null, 'ast')
+  const astTexts = ast.children
+    .find(c => c.kind === 'variable_declarator')
+    .children.map(c => c.text || c.kind)
+  t.false(astTexts.includes('='))
+})
+
+test('dumpPattern invalid pattern', t => {
+  t.throws(() => wasm.dumpPattern('javascript', ''))
+})
+
+test('dumpPattern invalid strictness', t => {
+  t.throws(() => wasm.dumpPattern('javascript', '$A', null, 'invalid'))
+})
+
 test('invalid language', t => {
   t.throws(() => parse('not_a_language', 'code'))
 })

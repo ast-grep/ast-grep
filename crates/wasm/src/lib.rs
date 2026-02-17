@@ -9,7 +9,8 @@ pub use wasm_lang::WasmLangInfo;
 use doc::{WasmConfig, WasmDoc};
 use wasm_lang::WasmLang;
 
-use ast_grep_core::{AstGrep, Language};
+use ast_grep_core::matcher::DumpPattern;
+use ast_grep_core::{AstGrep, Language, MatchStrictness, Pattern};
 use std::collections::HashMap;
 use ts_types::TreeSitter;
 use wasm_bindgen::prelude::*;
@@ -65,4 +66,65 @@ pub fn pattern(lang: String, pattern_str: String) -> Result<JsValue, JsError> {
     transform: None,
   };
   serde_wasm_bindgen::to_value(&config).map_err(|e| JsError::new(&e.to_string()))
+}
+
+/// Dump a pattern's internal structure for inspection.
+/// `selector` is an optional kind name for contextual patterns.
+/// `strictness` is one of: "cst", "smart", "ast", "relaxed", "signature", "template".
+/// Returns a tree structure showing how ast-grep parses the pattern.
+#[wasm_bindgen(js_name = dumpPattern)]
+pub fn dump_pattern(
+  lang: String,
+  pattern_str: String,
+  selector: Option<String>,
+  strictness: Option<String>,
+) -> Result<JsValue, JsError> {
+  let lang: WasmLang = lang
+    .parse()
+    .map_err(|e: wasm_lang::NotSupport| JsError::new(&e.to_string()))?;
+  let mut pat = if let Some(sel) = &selector {
+    Pattern::contextual(&pattern_str, sel, lang).map_err(|e| JsError::new(&e.to_string()))?
+  } else {
+    Pattern::try_new(&pattern_str, lang).map_err(|e| JsError::new(&e.to_string()))?
+  };
+  if let Some(s) = &strictness {
+    let strict: MatchStrictness = s.parse().map_err(|e: &str| JsError::new(e))?;
+    pat = pat.with_strictness(strict);
+  }
+  let ts_lang = lang.get_ts_language();
+  let kind_map = move |kind_id: u16| -> Option<std::borrow::Cow<'static, str>> {
+    let name: String = ts_lang.node_kind_for_id(kind_id)?;
+    Some(std::borrow::Cow::Owned(name))
+  };
+  let dumped = pat
+    .dump(&kind_map)
+    .ok_or_else(|| JsError::new("Pattern has no root node"))?;
+  let js_val = dump_pattern_to_js(&dumped)?;
+  Ok(js_val)
+}
+
+fn dump_pattern_to_js(node: &DumpPattern) -> Result<JsValue, JsError> {
+  let obj = js_sys::Object::new();
+  js_sys::Reflect::set(
+    &obj,
+    &"isMetaVar".into(),
+    &JsValue::from_bool(node.is_meta_var),
+  )
+  .unwrap();
+  js_sys::Reflect::set(
+    &obj,
+    &"kind".into(),
+    &match &node.kind {
+      Some(k) => JsValue::from_str(k),
+      None => JsValue::NULL,
+    },
+  )
+  .unwrap();
+  js_sys::Reflect::set(&obj, &"text".into(), &JsValue::from_str(&node.text)).unwrap();
+  let children = js_sys::Array::new();
+  for child in &node.children {
+    children.push(&dump_pattern_to_js(child)?);
+  }
+  js_sys::Reflect::set(&obj, &"children".into(), &children).unwrap();
+  Ok(obj.into())
 }
