@@ -9,7 +9,7 @@ use ast_grep_language::config_file_type;
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
@@ -192,6 +192,20 @@ fn read_directory_yaml(
       configs.extend(new_configs);
     }
   }
+  if let Some(duplicated_id) = configs
+    .iter()
+    .filter(|c| !c.id.is_empty())
+    .try_fold(HashSet::new(), |mut seen, c| {
+      if seen.insert(&c.id) {
+        Ok(seen)
+      } else {
+        Err(&c.id)
+      }
+    })
+    .err()
+  {
+    return Err(anyhow::anyhow!(EC::DuplicateRuleId(duplicated_id.into())));
+  }
   let total_rule_count = configs.len();
 
   let configs = rule_overwrite.process_configs(configs)?;
@@ -229,7 +243,20 @@ pub fn read_rule_file(
   } else {
     from_yaml_string(&yaml, &Default::default())
   };
-  parsed.with_context(|| EC::ParseRule(path.to_path_buf()))
+  let mut rules = parsed.with_context(|| EC::ParseRule(path.to_path_buf()))?;
+  let default_id = path.file_stem().and_then(|s| s.to_str());
+  let has_multiple = rules.len() > 1;
+  for (i, rule) in rules.iter_mut().enumerate() {
+    if rule.id.is_empty() {
+      let id = default_id.ok_or_else(|| anyhow::anyhow!(EC::InvalidRuleId(path.to_path_buf())))?;
+      rule.id = if has_multiple {
+        format!("{id}-{i}")
+      } else {
+        id.into()
+      };
+    }
+  }
+  Ok(rules)
 }
 
 const CONFIG_FILE_YML: &str = "sgconfig.yml";

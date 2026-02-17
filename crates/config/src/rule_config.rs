@@ -69,6 +69,7 @@ pub struct SerializableRuleConfig<L: Language> {
   #[serde(flatten)]
   pub core: SerializableRuleCore,
   /// Unique, descriptive identifier, e.g., no-unused-variable
+  #[serde(default)]
   pub id: String,
   /// Specify the language to parse and the file extension to include in matching.
   pub language: L,

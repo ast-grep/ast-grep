@@ -500,3 +500,170 @@ fn test_status_code_success_with_no_match() -> Result<()> {
     .success();
   Ok(())
 }
+
+#[test]
+fn test_scan_inline_rules_no_id() -> Result<()> {
+  Command::new(cargo_bin!())
+    .args([
+      "scan",
+      "--stdin",
+      "--inline-rules",
+      "{language: ts, rule: {pattern: console.log($A)}}",
+      "--json",
+    ])
+    .write_stdin("console.log(123)")
+    .assert()
+    .success()
+    .stdout(contains("\"text\": \"console.log(123)\""));
+  Ok(())
+}
+
+#[test]
+fn test_scan_rule_id_defaults_to_filename() -> Result<()> {
+  let rule = "
+language: TypeScript
+rule: { pattern: Some($A) }
+";
+  let dir = create_test_files([("no-some-call.yml", rule), ("test.ts", "Some(123)")])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "no-some-call.yml", "--json"])
+    .assert()
+    .success()
+    .stdout(contains("no-some-call"));
+  Ok(())
+}
+
+#[test]
+fn test_scan_explicit_id_not_overwritten() -> Result<()> {
+  let rule = "
+id: my-explicit-id
+language: TypeScript
+rule: { pattern: Some($A) }
+";
+  let dir = create_test_files([("other-name.yml", rule), ("test.ts", "Some(123)")])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "other-name.yml", "--json"])
+    .assert()
+    .success()
+    .stdout(contains("my-explicit-id"));
+  Ok(())
+}
+
+#[test]
+fn test_scan_multi_rule_file_auto_numbered_ids() -> Result<()> {
+  let rules = "
+language: TypeScript
+rule: { pattern: Some($A) }
+---
+language: TypeScript
+rule: { pattern: None }
+";
+  let dir = create_test_files([("my-rules.yml", rules), ("test.ts", "Some(123)\nNone")])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "my-rules.yml", "--json"])
+    .assert()
+    .success()
+    .stdout(contains("my-rules-0"))
+    .stdout(contains("my-rules-1"));
+  Ok(())
+}
+
+#[test]
+fn test_scan_multi_rule_file_mixed_ids() -> Result<()> {
+  let rules = "
+id: first-rule
+language: TypeScript
+rule: { pattern: Some($A) }
+---
+language: TypeScript
+rule: { pattern: None }
+---
+id: third-rule
+language: TypeScript
+rule: { pattern: 'hello' }
+";
+  let dir = create_test_files([
+    ("my-rules.yml", rules),
+    ("test.ts", "Some(123)\nNone\nhello"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "my-rules.yml", "--json"])
+    .assert()
+    .success()
+    .stdout(contains("first-rule"))
+    .stdout(contains("my-rules-1"))
+    .stdout(contains("third-rule"))
+    .stdout(contains("my-rules-0").not())
+    .stdout(contains("my-rules-2").not());
+  Ok(())
+}
+
+#[test]
+fn test_scan_multi_rule_file_with_explicit_ids() -> Result<()> {
+  let rules = "
+id: find-some
+language: TypeScript
+rule: { pattern: Some($A) }
+---
+id: find-none
+language: TypeScript
+rule: { pattern: None }
+";
+  let dir = create_test_files([("my-rules.yml", rules), ("test.ts", "Some(123)\nNone")])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "my-rules.yml", "--json"])
+    .assert()
+    .success()
+    .stdout(contains("find-some"))
+    .stdout(contains("find-none"));
+  Ok(())
+}
+
+#[test]
+fn test_scan_duplicate_default_ids() -> Result<()> {
+  let rule = "
+language: TypeScript
+rule: { pattern: Some($A) }
+";
+  let dir = create_test_files([
+    ("sgconfig.yml", "ruleDirs:\n- rules"),
+    ("rules/check.yml", rule),
+    ("rules/check.yaml", rule),
+    ("test.ts", "Some(123)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan"])
+    .assert()
+    .failure()
+    .stderr(contains("Duplicate rule id `check`"));
+  Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn test_scan_invalid_rule_id() -> Result<()> {
+  use std::ffi::OsStr;
+  use std::os::unix::ffi::OsStrExt;
+  let dir = TempDir::new()?;
+  let rules_dir = dir.path().join("rules");
+  std::fs::create_dir_all(&rules_dir)?;
+  std::fs::write(dir.path().join("sgconfig.yml"), "ruleDirs:\n- rules")?;
+  std::fs::write(
+    rules_dir.join(OsStr::from_bytes(b"\xff.yml")),
+    "language: TypeScript\nrule: { pattern: Some($A) }",
+  )?;
+  std::fs::write(dir.path().join("test.ts"), "Some(123)")?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan"])
+    .assert()
+    .failure()
+    .stderr(contains("Cannot infer rule id"));
+  Ok(())
+}
