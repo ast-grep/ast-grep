@@ -4,7 +4,7 @@ mod ts_types;
 mod wasm_lang;
 
 pub use sg_node::{SgNode, SgRoot};
-pub use wasm_lang::CustomWasmLang;
+pub use wasm_lang::WasmLangInfo;
 
 use doc::{WasmConfig, WasmDoc};
 use wasm_lang::WasmLang;
@@ -30,7 +30,7 @@ pub async fn initialize_tree_sitter() -> Result<(), JsError> {
 /// Can be called multiple times; existing languages are updated.
 #[wasm_bindgen(js_name = registerDynamicLanguage)]
 pub async fn register_dynamic_language(langs: JsValue) -> Result<(), JsError> {
-  let langs: HashMap<String, CustomWasmLang> =
+  let langs: HashMap<String, WasmLangInfo> =
     serde_wasm_bindgen::from_value(langs).map_err(|e| JsError::new(&e.to_string()))?;
   WasmLang::register(langs).await
 }

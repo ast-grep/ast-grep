@@ -104,7 +104,7 @@ struct Inner {
 /// Registration info for a custom WASM language, mirroring napi/pyo3's CustomLang.
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CustomWasmLang {
+pub struct WasmLangInfo {
   pub library_path: String,
   pub expando_char: Option<char>,
 }
@@ -113,9 +113,9 @@ pub struct CustomWasmLang {
 static LANGS: Mutex<Vec<Inner>> = Mutex::new(Vec::new());
 
 impl WasmLang {
-  /// Register languages from a HashMap of name -> CustomWasmLang.
+  /// Register languages from a HashMap of name -> WasmLangInfo.
   /// Can be called multiple times; existing languages are updated.
-  pub async fn register(langs: HashMap<String, CustomWasmLang>) -> Result<(), JsError> {
+  pub async fn register(langs: HashMap<String, WasmLangInfo>) -> Result<(), JsError> {
     for (name, custom) in langs {
       let parser = create_parser(&custom.library_path).await?;
       let expando = custom.expando_char.unwrap_or('$');
@@ -161,15 +161,9 @@ async fn create_parser(parser_path: &str) -> Result<TsParser, SgWasmError> {
   Ok(TsParser(parser))
 }
 
-#[cfg(target_arch = "wasm32")]
 async fn get_lang(parser_path: &str) -> Result<ts::Language, SgWasmError> {
   let lang = ts::Language::load_path(parser_path).await?;
   Ok(lang)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-async fn get_lang(_path: &str) -> Result<ts::Language, SgWasmError> {
-  unreachable!()
 }
 
 impl Language for WasmLang {
