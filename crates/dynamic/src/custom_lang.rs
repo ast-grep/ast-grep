@@ -28,7 +28,7 @@ impl CustomLang {
       .into_iter()
       .map(|(name, custom)| to_registration(name, custom, base))
       .collect();
-    unsafe { DynamicLang::register(registrations?) }
+    DynamicLang::register(registrations?)
   }
 }
 

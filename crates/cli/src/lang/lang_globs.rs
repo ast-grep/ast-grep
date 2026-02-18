@@ -2,23 +2,24 @@ use super::SgLang;
 use ignore::types::{Types, TypesBuilder};
 use std::collections::HashMap;
 use std::path::Path;
-use std::ptr::{addr_of, addr_of_mut};
 use std::str::FromStr;
+use std::sync::OnceLock;
 
 use crate::utils::ErrorContext as EC;
 use anyhow::{Context, Result};
 
 // both use vec since lang will be small
-static mut LANG_GLOBS: Vec<(SgLang, Types)> = vec![];
+static LANG_GLOBS: OnceLock<Vec<(SgLang, Types)>> = OnceLock::new();
 
 pub type LanguageGlobs = HashMap<String, Vec<String>>;
 
-pub unsafe fn register(regs: LanguageGlobs) -> Result<()> {
-  debug_assert! {
-    (*addr_of!(LANG_GLOBS)).is_empty()
-  };
+pub fn register(regs: LanguageGlobs) -> Result<()> {
+  debug_assert!(
+    LANG_GLOBS.get().is_none(),
+    "language globs already registered"
+  );
   let lang_globs = register_impl(regs)?;
-  _ = std::mem::replace(&mut *addr_of_mut!(LANG_GLOBS), lang_globs);
+  LANG_GLOBS.set(lang_globs).ok();
   Ok(())
 }
 
@@ -57,7 +58,7 @@ fn add_types(builder: &mut TypesBuilder, types: &Types) {
 }
 
 fn get_types(lang: &SgLang) -> Option<&Types> {
-  for (l, types) in unsafe { &*addr_of!(LANG_GLOBS) } {
+  for (l, types) in LANG_GLOBS.get().map(|v| v.as_slice()).unwrap_or(&[]) {
     if l == lang {
       return Some(types);
     }
@@ -91,7 +92,7 @@ pub fn merge_globs(lang: &SgLang, type1: Types) -> Types {
 }
 
 pub fn from_path(p: &Path) -> Option<SgLang> {
-  for (lang, types) in unsafe { &*addr_of!(LANG_GLOBS) } {
+  for (lang, types) in LANG_GLOBS.get().map(|v| v.as_slice()).unwrap_or(&[]) {
     if types.matched(p, false).is_whitelist() {
       return Some(*lang);
     }
@@ -151,12 +152,8 @@ html: ['*.vue', '*.svelte']";
   #[test]
   fn test_merge_with_globs() -> Result<()> {
     let globs = get_globs();
-    unsafe {
-      // cleanup
-      std::mem::take(&mut *addr_of_mut!(LANG_GLOBS));
-      register(globs)?;
-      assert_eq!((*addr_of!(LANG_GLOBS)).len(), 2);
-    }
+    register(globs)?;
+    assert_eq!(LANG_GLOBS.get().unwrap().len(), 2);
     let lang: SgLang = SupportLang::Html.into();
     let default_types = lang.file_types();
     let html_types = merge_globs(&lang, default_types);
