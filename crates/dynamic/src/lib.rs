@@ -154,7 +154,6 @@ pub struct Registration {
 }
 
 impl DynamicLang {
-  /// # Safety
   /// The register function should be called exactly once before use.
   pub fn register(regs: Vec<Registration>) -> Result<(), DynamicLangError> {
     debug_assert!(DYNAMIC_LANG.get().is_none());
