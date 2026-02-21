@@ -1,0 +1,44 @@
+{
+  "name": "@ast-grep/wasm",
+  "version": "0.40.5",
+  "description": "Search and Rewrite code at large scale using precise AST pattern",
+  "homepage": "https://ast-grep.github.io",
+  "repository": "https://github.com/ast-grep/ast-grep",
+  "license": "MIT",
+  "keywords": [
+    "ast",
+    "pattern",
+    "codemod",
+    "search",
+    "rewrite",
+    "wasm"
+  ],
+  "files": [
+    "pkg"
+  ],
+  "scripts": {
+    "build": "wasm-pack build --target web --out-dir pkg",
+    "build:nodejs": "wasm-pack build --target nodejs --out-dir pkg",
+    "build:bundler": "wasm-pack build --target bundler --out-dir pkg",
+    "test": "NODE_PATH=$PWD/node_modules wasm-pack test --node",
+    "test:js": "wasm-pack build --target nodejs --out-dir pkg && ava"
+  },
+  "ava": {
+    "files": ["__test__/**/*.spec.mjs"],
+    "workerThreads": false,
+    "timeout": "2m"
+  },
+  "peerDependencies": {
+    "web-tree-sitter": "^0.25.0"
+  },
+  "devDependencies": {
+    "ava": "^6.0.0",
+    "tree-sitter-javascript": "^0.25.0",
+    "tree-sitter-python": "^0.23.0",
+    "web-tree-sitter": "^0.25.0"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  }
+}
