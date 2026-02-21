@@ -559,32 +559,75 @@ async fn test_pattern_function() {
 
 // --- dumpPattern ---
 
+fn get_str(obj: &JsValue, key: &str) -> String {
+  js_sys::Reflect::get(obj, &key.into())
+    .unwrap()
+    .as_string()
+    .unwrap_or_default()
+}
+
+fn get_u32(obj: &JsValue, key: &str) -> u32 {
+  js_sys::Reflect::get(obj, &key.into())
+    .unwrap()
+    .as_f64()
+    .unwrap_or(0.0) as u32
+}
+
+fn get_pos(obj: &JsValue, key: &str) -> JsValue {
+  js_sys::Reflect::get(obj, &key.into()).unwrap()
+}
+
 #[wasm_bindgen_test]
 async fn test_dump_pattern_simple() {
   setup().await;
+  // '$VAR' is 4 chars; JS expando is '$' so no preprocessing changes the string
   let dump = ast_grep_wasm::dump_pattern("javascript".into(), "$VAR".into(), None, None).unwrap();
-  let is_meta_var = js_sys::Reflect::get(&dump, &"isMetaVar".into()).unwrap();
-  assert_eq!(is_meta_var.as_bool(), Some(true));
-  let text = js_sys::Reflect::get(&dump, &"text".into()).unwrap();
-  assert_eq!(text.as_string().unwrap(), "$VAR");
+  assert_eq!(get_str(&dump, "pattern"), "metaVar");
+  assert_eq!(get_str(&dump, "text"), "$VAR");
+  let start = get_pos(&dump, "start");
+  assert_eq!(get_u32(&start, "line"), 0);
+  assert_eq!(get_u32(&start, "column"), 0);
+  let end = get_pos(&dump, "end");
+  assert_eq!(get_u32(&end, "line"), 0);
+  assert_eq!(get_u32(&end, "column"), 4);
 }
 
 #[wasm_bindgen_test]
 async fn test_dump_pattern_nested() {
   setup().await;
+  // 'console.log($MSG)' = 17 chars; '(' at col 11, '$MSG' spans col 12–16
   let dump =
     ast_grep_wasm::dump_pattern("javascript".into(), "console.log($MSG)".into(), None, None)
       .unwrap();
-  let kind = js_sys::Reflect::get(&dump, &"kind".into()).unwrap();
-  assert_eq!(kind.as_string().unwrap(), "call_expression");
-  let children = js_sys::Reflect::get(&dump, &"children".into()).unwrap();
-  let children = js_sys::Array::from(&children);
+  assert_eq!(get_str(&dump, "kind"), "call_expression");
+  assert_eq!(get_str(&dump, "pattern"), "internal");
+  let start = get_pos(&dump, "start");
+  assert_eq!(get_u32(&start, "line"), 0);
+  assert_eq!(get_u32(&start, "column"), 0);
+  let end = get_pos(&dump, "end");
+  assert_eq!(get_u32(&end, "column"), 17);
+  // find $MSG metavar inside arguments
+  let children = js_sys::Array::from(&js_sys::Reflect::get(&dump, &"children".into()).unwrap());
   assert!(children.length() >= 2);
+  let args = (0..children.length())
+    .map(|i| children.get(i))
+    .find(|c| get_str(c, "kind") == "arguments")
+    .expect("arguments node");
+  let arg_children = js_sys::Array::from(&get_pos(&args, "children"));
+  let meta_var = (0..arg_children.length())
+    .map(|i| arg_children.get(i))
+    .find(|c| get_str(c, "pattern") == "metaVar")
+    .expect("metaVar node");
+  assert_eq!(get_str(&meta_var, "text"), "$MSG");
+  assert_eq!(get_u32(&get_pos(&meta_var, "start"), "column"), 12);
+  assert_eq!(get_u32(&get_pos(&meta_var, "end"), "column"), 16);
 }
 
 #[wasm_bindgen_test]
 async fn test_dump_pattern_with_selector() {
   setup().await;
+  // 'class A { $F = $I }': field_definition at col 10–17
+  // $F at col 10–12, $I at col 15–17
   let dump = ast_grep_wasm::dump_pattern(
     "javascript".into(),
     "class A { $F = $I }".into(),
@@ -592,14 +635,19 @@ async fn test_dump_pattern_with_selector() {
     None,
   )
   .unwrap();
-  let kind = js_sys::Reflect::get(&dump, &"kind".into()).unwrap();
-  assert_eq!(kind.as_string().unwrap(), "field_definition");
+  assert_eq!(get_str(&dump, "kind"), "field_definition");
+  assert_eq!(get_str(&dump, "pattern"), "internal");
+  let start = get_pos(&dump, "start");
+  assert_eq!(get_u32(&start, "line"), 0);
+  assert_eq!(get_u32(&start, "column"), 10);
+  let end = get_pos(&dump, "end");
+  assert_eq!(get_u32(&end, "column"), 17);
 }
 
 #[wasm_bindgen_test]
 async fn test_dump_pattern_with_strictness() {
   setup().await;
-  // "ast" strictness should exclude unnamed tokens
+  // 'let $A = $B' = 11 chars; strictness only affects matching, not position dump
   let dump = ast_grep_wasm::dump_pattern(
     "javascript".into(),
     "let $A = $B".into(),
@@ -607,8 +655,12 @@ async fn test_dump_pattern_with_strictness() {
     Some("ast".into()),
   )
   .unwrap();
-  let kind = js_sys::Reflect::get(&dump, &"kind".into()).unwrap();
-  assert_eq!(kind.as_string().unwrap(), "lexical_declaration");
+  assert_eq!(get_str(&dump, "kind"), "lexical_declaration");
+  let start = get_pos(&dump, "start");
+  assert_eq!(get_u32(&start, "line"), 0);
+  assert_eq!(get_u32(&start, "column"), 0);
+  let end = get_pos(&dump, "end");
+  assert_eq!(get_u32(&end, "column"), 11);
 }
 
 #[wasm_bindgen_test]

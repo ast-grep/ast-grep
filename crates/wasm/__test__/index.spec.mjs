@@ -268,64 +268,94 @@ test('pattern function', t => {
 // --- dumpPattern ---
 
 test('dumpPattern simple metavar', t => {
+  // '$VAR' is 4 chars, JS expando is '$' so no preprocessing
   const dump = wasm.dumpPattern('javascript', '$VAR')
-  t.is(dump.isMetaVar, true)
-  t.is(dump.kind, 'MetaVar')
+  t.is(dump.pattern, 'metaVar')
   t.is(dump.text, '$VAR')
+  t.is(dump.isNamed, true)
   t.is(dump.children.length, 0)
+  t.is(dump.start.line, 0)
+  t.is(dump.start.column, 0)
+  t.is(dump.end.line, 0)
+  t.is(dump.end.column, 4)
 })
 
 test('dumpPattern with nested nodes', t => {
+  // 'console.log($MSG)' = 17 chars; '(' is at col 11, '$MSG' at 12–16
   const dump = wasm.dumpPattern('javascript', 'console.log($MSG)')
-  t.is(dump.isMetaVar, false)
   t.is(dump.kind, 'call_expression')
+  t.is(dump.pattern, 'internal')
+  t.is(dump.start.line, 0)
+  t.is(dump.start.column, 0)
+  t.is(dump.end.line, 0)
+  t.is(dump.end.column, 17)
   // should have children: member_expression and arguments
   t.true(dump.children.length >= 2)
-  // find the MetaVar in the tree
   const args = dump.children.find(c => c.kind === 'arguments')
   t.truthy(args)
-  const metaVar = args.children.find(c => c.isMetaVar)
+  const metaVar = args.children.find(c => c.pattern === 'metaVar')
   t.truthy(metaVar)
   t.is(metaVar.text, '$MSG')
+  t.is(metaVar.start.line, 0)
+  t.is(metaVar.start.column, 12)
+  t.is(metaVar.end.column, 16)
 })
 
 test('dumpPattern with let declaration', t => {
+  // 'let $A = $B': $A at col 4–6, $B at col 9–11, total 11 chars
   const dump = wasm.dumpPattern('javascript', 'let $A = $B')
   t.is(dump.kind, 'lexical_declaration')
-  // find variable_declarator child
+  t.is(dump.start.line, 0)
+  t.is(dump.start.column, 0)
+  t.is(dump.end.line, 0)
+  t.is(dump.end.column, 11)
   const declarator = dump.children.find(c => c.kind === 'variable_declarator')
   t.truthy(declarator)
-  const metaVars = declarator.children.filter(c => c.isMetaVar)
+  const metaVars = declarator.children.filter(c => c.pattern === 'metaVar')
   t.is(metaVars.length, 2)
   t.is(metaVars[0].text, '$A')
+  t.is(metaVars[0].start.column, 4)
+  t.is(metaVars[0].end.column, 6)
   t.is(metaVars[1].text, '$B')
+  t.is(metaVars[1].start.column, 9)
+  t.is(metaVars[1].end.column, 11)
 })
 
 test('dumpPattern with selector', t => {
+  // 'class A { $F = $I }': field_definition starts at col 10 ($F), ends at col 17 ($I end)
+  // $F at col 10–12, $I at col 15–17
   const dump = wasm.dumpPattern(
     'javascript',
     'class A { $F = $I }',
     'field_definition',
   )
   t.is(dump.kind, 'field_definition')
-  const metaVars = dump.children.filter(c => c.isMetaVar)
+  t.is(dump.pattern, 'internal')
+  t.is(dump.start.line, 0)
+  t.is(dump.start.column, 10)
+  t.is(dump.end.line, 0)
+  t.is(dump.end.column, 17)
+  const metaVars = dump.children.filter(c => c.pattern === 'metaVar')
   t.is(metaVars.length, 2)
+  t.is(metaVars[0].start.column, 10)
+  t.is(metaVars[0].end.column, 12)
+  t.is(metaVars[1].start.column, 15)
+  t.is(metaVars[1].end.column, 17)
 })
 
-test('dumpPattern with strictness ast', t => {
-  // With "smart" (default), unnamed tokens like "let" and "=" are included
+test('dumpPattern with strictness', t => {
+  // 'let $A = $B' = 11 chars; strictness only affects matching, not position dump
   const smart = wasm.dumpPattern('javascript', 'let $A = $B')
-  const smartTexts = smart.children
-    .find(c => c.kind === 'variable_declarator')
-    .children.map(c => c.text || c.kind)
-  t.true(smartTexts.includes('='))
+  t.is(smart.kind, 'lexical_declaration')
+  t.is(smart.start.line, 0)
+  t.is(smart.start.column, 0)
+  t.is(smart.end.column, 11)
 
-  // With "ast" strictness, unnamed tokens are excluded
   const ast = wasm.dumpPattern('javascript', 'let $A = $B', null, 'ast')
-  const astTexts = ast.children
-    .find(c => c.kind === 'variable_declarator')
-    .children.map(c => c.text || c.kind)
-  t.false(astTexts.includes('='))
+  t.is(ast.kind, 'lexical_declaration')
+  t.is(ast.start.line, 0)
+  t.is(ast.start.column, 0)
+  t.is(ast.end.column, 11)
 })
 
 test('dumpPattern invalid pattern', t => {

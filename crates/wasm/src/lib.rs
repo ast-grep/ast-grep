@@ -9,8 +9,8 @@ pub use wasm_lang::WasmLangInfo;
 use doc::{WasmConfig, WasmDoc};
 use wasm_lang::WasmLang;
 
-use ast_grep_core::matcher::DumpPattern;
-use ast_grep_core::{AstGrep, Language, MatchStrictness, Pattern};
+use ast_grep_core::matcher::PatternNode;
+use ast_grep_core::{AstGrep, Language, MatchStrictness, Node as CoreNode, Pattern};
 use std::collections::HashMap;
 use ts_types::TreeSitter;
 use wasm_bindgen::prelude::*;
@@ -68,10 +68,47 @@ pub fn pattern(lang: String, pattern_str: String) -> Result<JsValue, JsError> {
   serde_wasm_bindgen::to_value(&config).map_err(|e| JsError::new(&e.to_string()))
 }
 
+// --- Pattern tree types ---
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+enum PatternKind {
+  Terminal,
+  MetaVar,
+  Internal,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct PatternPos {
+  line: u32,
+  column: u32,
+}
+
+impl From<ts_types::Point> for PatternPos {
+  fn from(p: ts_types::Point) -> Self {
+    PatternPos {
+      line: p.row(),
+      column: p.column(),
+    }
+  }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PatternTree {
+  kind: String,
+  start: PatternPos,
+  end: PatternPos,
+  is_named: bool,
+  children: Vec<PatternTree>,
+  text: Option<String>,
+  pattern: Option<PatternKind>,
+}
+
 /// Dump a pattern's internal structure for inspection.
 /// `selector` is an optional kind name for contextual patterns.
 /// `strictness` is one of: "cst", "smart", "ast", "relaxed", "signature", "template".
-/// Returns a tree structure showing how ast-grep parses the pattern.
+/// Returns a tree structure showing how ast-grep parses the pattern, including source positions.
 #[wasm_bindgen(js_name = dumpPattern)]
 pub fn dump_pattern(
   lang: String,
@@ -82,6 +119,12 @@ pub fn dump_pattern(
   let lang: WasmLang = lang
     .parse()
     .map_err(|e: wasm_lang::NotSupport| JsError::new(&e.to_string()))?;
+  // Pre-process the pattern string so tree-sitter can parse it as valid code.
+  // Pattern::try_new also calls pre_process_pattern internally, but we need a
+  // separate WasmDoc so we can look up positions from the actual parsed tree.
+  let processed = lang.pre_process_pattern(&pattern_str);
+  let doc = WasmDoc::try_new(processed.to_string(), lang)?;
+  let root = AstGrep::doc(doc);
   let mut pat = if let Some(sel) = &selector {
     Pattern::contextual(&pattern_str, sel, lang).map_err(|e| JsError::new(&e.to_string()))?
   } else {
@@ -91,40 +134,60 @@ pub fn dump_pattern(
     let strict: MatchStrictness = s.parse().map_err(|e: &str| JsError::new(e))?;
     pat = pat.with_strictness(strict);
   }
-  let ts_lang = lang.get_ts_language();
-  let kind_map = move |kind_id: u16| -> Option<std::borrow::Cow<'static, str>> {
-    let name: String = ts_lang.node_kind_for_id(kind_id)?;
-    Some(std::borrow::Cow::Owned(name))
-  };
-  let dumped = pat
-    .dump(&kind_map)
+  let found = root
+    .root()
+    .find(&pat)
     .ok_or_else(|| JsError::new("Pattern has no root node"))?;
-  let js_val = dump_pattern_to_js(&dumped)?;
-  Ok(js_val)
+  let tree = dump_pattern_node(found.into(), &pat.node);
+  serde_wasm_bindgen::to_value(&tree).map_err(|e| JsError::new(&e.to_string()))
 }
 
-fn dump_pattern_to_js(node: &DumpPattern) -> Result<JsValue, JsError> {
-  let obj = js_sys::Object::new();
-  js_sys::Reflect::set(
-    &obj,
-    &"isMetaVar".into(),
-    &JsValue::from_bool(node.is_meta_var),
-  )
-  .unwrap();
-  js_sys::Reflect::set(
-    &obj,
-    &"kind".into(),
-    &match &node.kind {
-      Some(k) => JsValue::from_str(k),
-      None => JsValue::NULL,
+fn dump_pattern_node<'r>(node: CoreNode<'r, WasmDoc>, pattern: &PatternNode) -> PatternTree {
+  use PatternNode as PN;
+  let ts = node.get_inner_node().0;
+  let kind = if ts.is_missing() {
+    format!("MISSING {}", node.kind())
+  } else {
+    node.kind().to_string()
+  };
+  match pattern {
+    PN::MetaVar { .. } => {
+      let expando = node.lang().expando_char();
+      let text = node.text().to_string().replace(expando, "$");
+      PatternTree {
+        kind,
+        start: ts.start_position().into(),
+        end: ts.end_position().into(),
+        is_named: true,
+        children: vec![],
+        text: Some(text),
+        pattern: Some(PatternKind::MetaVar),
+      }
+    }
+    PN::Terminal { is_named, .. } => PatternTree {
+      kind,
+      start: ts.start_position().into(),
+      end: ts.end_position().into(),
+      is_named: *is_named,
+      children: vec![],
+      text: Some(node.text().into_owned()),
+      pattern: Some(PatternKind::Terminal),
     },
-  )
-  .unwrap();
-  js_sys::Reflect::set(&obj, &"text".into(), &JsValue::from_str(&node.text)).unwrap();
-  let children = js_sys::Array::new();
-  for child in &node.children {
-    children.push(&dump_pattern_to_js(child)?);
+    PN::Internal { children, .. } => {
+      let children = children
+        .iter()
+        .zip(node.children())
+        .map(|(pn, n)| dump_pattern_node(n, pn))
+        .collect();
+      PatternTree {
+        kind,
+        start: ts.start_position().into(),
+        end: ts.end_position().into(),
+        is_named: true,
+        children,
+        text: None,
+        pattern: Some(PatternKind::Internal),
+      }
+    }
   }
-  js_sys::Reflect::set(&obj, &"children".into(), &children).unwrap();
-  Ok(obj.into())
 }
