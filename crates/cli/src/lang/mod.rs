@@ -49,14 +49,11 @@ impl SgLang {
   // TODO: add tests
   // register_globs must be called after register_custom_language
   pub fn register_globs(langs: LanguageGlobs) -> Result<()> {
-    unsafe {
-      lang_globs::register(langs)?;
-    }
-    Ok(())
+    lang_globs::register(langs)
   }
 
   pub fn register_injections(injections: Vec<SerializableInjection>) -> Result<()> {
-    unsafe { injection::register_injetables(injections) }
+    injection::register_injetables(injections)
   }
 
   pub fn all_langs() -> Vec<Self> {

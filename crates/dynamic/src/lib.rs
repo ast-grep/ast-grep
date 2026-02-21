@@ -11,8 +11,8 @@ use tree_sitter::{Language as NativeTS, LANGUAGE_VERSION, MIN_COMPATIBLE_LANGUAG
 use std::borrow::Cow;
 use std::fs::canonicalize;
 use std::path::{Path, PathBuf};
-use std::ptr::{addr_of, addr_of_mut};
 use std::str::FromStr;
+use std::sync::OnceLock;
 
 mod custom_lang;
 
@@ -42,7 +42,7 @@ impl DynamicLang {
   pub fn file_types(&self) -> Types {
     let mut builder = TypesBuilder::new();
     let inner = self.inner();
-    let mapping = unsafe { &*addr_of!(LANG_INDEX) };
+    let mapping = LANG_INDEX.get().map(|v| v.as_slice()).unwrap_or(&[]);
     for (ext, i) in mapping.iter() {
       if *i == self.index {
         builder
@@ -140,8 +140,8 @@ unsafe fn load_ts_language(
 }
 
 // both use vec since lang will be small
-static mut DYNAMIC_LANG: Vec<Inner> = vec![];
-static mut LANG_INDEX: Vec<(String, u32)> = vec![];
+static DYNAMIC_LANG: OnceLock<Vec<Inner>> = OnceLock::new();
+static LANG_INDEX: OnceLock<Vec<(String, u32)>> = OnceLock::new();
 
 #[derive(Default)]
 pub struct Registration {
@@ -154,18 +154,16 @@ pub struct Registration {
 }
 
 impl DynamicLang {
-  /// # Safety
-  /// the register function should be called exactly once before use.
-  /// It relies on a global mut static variable to be initialized.
-  pub unsafe fn register(regs: Vec<Registration>) -> Result<(), DynamicLangError> {
-    debug_assert!(Self::langs().is_empty());
+  /// The register function should be called exactly once before use.
+  pub fn register(regs: Vec<Registration>) -> Result<(), DynamicLangError> {
+    debug_assert!(DYNAMIC_LANG.get().is_none());
     let mut langs = vec![];
     let mut mapping = vec![];
     for reg in regs {
       Self::register_one(reg, &mut langs, &mut mapping)?;
     }
-    _ = std::mem::replace(&mut *addr_of_mut!(DYNAMIC_LANG), langs);
-    _ = std::mem::replace(&mut *addr_of_mut!(LANG_INDEX), mapping);
+    DYNAMIC_LANG.set(langs).ok();
+    LANG_INDEX.set(mapping).ok();
     Ok(())
   }
 
@@ -201,8 +199,8 @@ impl DynamicLang {
     &langs[self.index as usize]
   }
 
-  fn langs() -> &'static Vec<Inner> {
-    unsafe { &*addr_of!(DYNAMIC_LANG) }
+  fn langs() -> &'static [Inner] {
+    DYNAMIC_LANG.get().map(|v| v.as_slice()).unwrap_or(&[])
   }
 }
 impl Language for DynamicLang {
@@ -246,7 +244,7 @@ impl Language for DynamicLang {
 
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     let ext = path.as_ref().extension()?.to_str()?;
-    let mapping = unsafe { &*addr_of!(LANG_INDEX) };
+    let mapping = LANG_INDEX.get().map(|v| v.as_slice()).unwrap_or(&[]);
     let langs = Self::langs();
     mapping.iter().find_map(|(p, idx)| {
       if p == ext {
@@ -343,9 +341,7 @@ mod test {
       meta_var_char: None,
       symbol: "tree_sitter_json".into(),
     };
-    unsafe {
-      DynamicLang::register(vec![registration]).expect("should succeed");
-    }
+    DynamicLang::register(vec![registration]).expect("should succeed");
     let langs = DynamicLang::all_langs();
     assert_eq!(langs.len(), 1);
     let lang = langs[0];

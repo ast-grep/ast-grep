@@ -10,8 +10,8 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 use std::collections::{HashMap, HashSet};
-use std::ptr::{addr_of, addr_of_mut};
 use std::str::FromStr;
+use std::sync::OnceLock;
 
 // NB, you should not use SgLang in the (de_serialize interface
 // since Injected is used before lang registration in sgconfig.yml
@@ -51,23 +51,27 @@ impl Injection {
   }
 }
 
-pub unsafe fn register_injetables(injections: Vec<SerializableInjection>) -> Result<()> {
+pub fn register_injetables(injections: Vec<SerializableInjection>) -> Result<()> {
   let mut injectable = HashMap::new();
   for injection in injections {
     register_injetable(injection, &mut injectable)?;
   }
   merge_default_injecatable(&mut injectable);
-  *addr_of_mut!(LANG_INJECTIONS) = injectable.into_values().collect();
-  let injects = unsafe { &*addr_of!(LANG_INJECTIONS) as &'static Vec<Injection> };
-  *addr_of_mut!(INJECTABLE_LANGS) = injects
-    .iter()
-    .map(|inj| {
-      (
-        inj.host,
-        inj.injectable.iter().map(|s| s.as_str()).collect(),
-      )
-    })
-    .collect();
+  LANG_INJECTIONS.set(injectable.into_values().collect()).ok();
+  let injects = LANG_INJECTIONS.get().expect("just initialized");
+  INJECTABLE_LANGS
+    .set(
+      injects
+        .iter()
+        .map(|inj| {
+          (
+            inj.host,
+            inj.injectable.iter().map(|s| s.as_str()).collect(),
+          )
+        })
+        .collect(),
+    )
+    .ok();
   Ok(())
 }
 
@@ -110,13 +114,12 @@ fn register_injetable(
   Ok(())
 }
 
-static mut LANG_INJECTIONS: Vec<Injection> = vec![];
-static mut INJECTABLE_LANGS: Vec<(SgLang, Vec<&'static str>)> = vec![];
+static LANG_INJECTIONS: OnceLock<Vec<Injection>> = OnceLock::new();
+static INJECTABLE_LANGS: OnceLock<Vec<(SgLang, Vec<&'static str>)>> = OnceLock::new();
 
 pub fn injectable_languages(lang: SgLang) -> Option<&'static [&'static str]> {
   // NB: custom injection and builtin injections are resolved in INJECTABLE_LANGS
-  let injections =
-    unsafe { &*addr_of!(INJECTABLE_LANGS) as &'static Vec<(SgLang, Vec<&'static str>)> };
+  let injections = INJECTABLE_LANGS.get().map(|v| v.as_slice()).unwrap_or(&[]);
   let Some(injection) = injections.iter().find(|i| i.0 == lang) else {
     return match lang {
       SgLang::Builtin(b) => b.injectable_languages(),
@@ -134,7 +137,7 @@ pub fn extract_injections<L: LanguageExt>(
     SgLang::Custom(c) => c.extract_injections(root.clone()),
     SgLang::Builtin(b) => b.extract_injections(root.clone()),
   };
-  let injections = unsafe { &*addr_of!(LANG_INJECTIONS) };
+  let injections = LANG_INJECTIONS.get().map(|v| v.as_slice()).unwrap_or(&[]);
   extract_custom_inject(lang, injections, root, &mut ret);
   ret
 }
