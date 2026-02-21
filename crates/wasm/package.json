@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/wasm",
-  "version": "0.40.5",
+  "version": "0.0.1",
   "description": "Search and Rewrite code at large scale using precise AST pattern",
   "homepage": "https://ast-grep.github.io",
   "repository": "https://github.com/ast-grep/ast-grep",
