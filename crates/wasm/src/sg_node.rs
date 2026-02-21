@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::ts_types as ts;
 use ast_grep_core::matcher::KindMatcher;
 use ast_grep_core::source::Content;
 use ast_grep_core::{AstGrep, NodeMatch, Pattern};
@@ -63,6 +64,12 @@ impl SgRoot {
   /// Returns `"anonymous"` if the instance is created by `parse`.
   pub fn filename(&self) -> String {
     self.filename.clone()
+  }
+
+  /// This method is mainly for debugging tree parsing result.
+  #[wasm_bindgen(js_name = getInnerTree)]
+  pub fn get_inner_tree(&self) -> ts::Tree {
+    self.inner.root().get_doc().tree.clone()
   }
 }
 

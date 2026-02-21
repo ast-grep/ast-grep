@@ -676,3 +676,34 @@ async fn test_kind_multiple_languages() {
   assert!(js_kind_id > 0);
   assert!(py_kind_id > 0);
 }
+
+// --- get_inner_tree ---
+
+#[wasm_bindgen_test]
+async fn test_get_inner_tree_root_node() {
+  setup().await;
+  let sg = js_parse("console.log(123)");
+  let tree = sg.get_inner_tree();
+  let root = tree.root_node();
+  assert_eq!(String::from(root.type_()), "program");
+}
+
+#[wasm_bindgen_test]
+async fn test_get_inner_tree_has_children() {
+  setup().await;
+  let sg = js_parse("a; b; c;");
+  let tree = sg.get_inner_tree();
+  let root = tree.root_node();
+  assert!(root.child_count() >= 3);
+}
+
+#[wasm_bindgen_test]
+async fn test_get_inner_tree_walk() {
+  setup().await;
+  let sg = js_parse("let x = 1");
+  let tree = sg.get_inner_tree();
+  let cursor = tree.walk();
+  assert_eq!(String::from(cursor.node_type()), "program");
+  assert!(cursor.goto_first_child());
+  assert_eq!(String::from(cursor.node_type()), "lexical_declaration");
+}

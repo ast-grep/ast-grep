@@ -387,3 +387,32 @@ test('kind works for multiple languages', async t => {
   t.true(jsKind > 0)
   t.true(pyKind > 0)
 })
+
+// --- getInnerTree ---
+
+test('getInnerTree returns a tree-sitter Tree', t => {
+  const sg = parse('javascript', 'console.log(123)')
+  const tree = sg.getInnerTree()
+  t.truthy(tree)
+})
+
+test('getInnerTree rootNode is program', t => {
+  const sg = parse('javascript', 'console.log(123)')
+  const tree = sg.getInnerTree()
+  t.is(tree.rootNode.type, 'program')
+})
+
+test('getInnerTree rootNode has children', t => {
+  const sg = parse('javascript', 'a; b; c;')
+  const tree = sg.getInnerTree()
+  t.true(tree.rootNode.childCount >= 3)
+})
+
+test('getInnerTree walk traverses tree', t => {
+  const sg = parse('javascript', 'let x = 1')
+  const tree = sg.getInnerTree()
+  const cursor = tree.walk()
+  t.is(cursor.nodeType, 'program')
+  t.true(cursor.gotoFirstChild())
+  t.is(cursor.nodeType, 'lexical_declaration')
+})

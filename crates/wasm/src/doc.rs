@@ -103,7 +103,7 @@ fn pos_for_char_offset(input: &[char], offset: usize) -> ts::Point {
 pub struct WasmDoc {
   lang: WasmLang,
   source: Wrapper,
-  tree: ts::Tree,
+  pub(crate) tree: ts::Tree,
 }
 
 impl WasmDoc {
