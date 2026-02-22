@@ -25,11 +25,17 @@ pub async fn initialize_tree_sitter() -> Result<(), JsError> {
   TreeSitter::init().await
 }
 
+// Inject custom TypeScript
+#[wasm_bindgen(typescript_custom_section)]
+const TS_APPEND_CONTENT: &'static str = r#"
+export function registerDynamicLanguage(map: Record<string, {libraryPath: string, expandoChar?: string}>): Promise<void>;
+"#;
+
 /// Register dynamic languages for parsing.
 /// `langs` is a Map of language name to its registration config
 /// (with `libraryPath` and optional `expandoChar`).
 /// Can be called multiple times; existing languages are updated.
-#[wasm_bindgen(js_name = registerDynamicLanguage)]
+#[wasm_bindgen(js_name = registerDynamicLanguage, skip_typescript)]
 pub async fn register_dynamic_language(langs: JsValue) -> Result<(), JsError> {
   let langs: HashMap<String, WasmLangInfo> =
     serde_wasm_bindgen::from_value(langs).map_err(|e| JsError::new(&e.to_string()))?;

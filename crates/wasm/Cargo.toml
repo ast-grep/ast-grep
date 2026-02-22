@@ -1,5 +1,5 @@
 [package]
-name = "ast-grep-wasm"
+name = "wasm"
 description = "Search and Rewrite code at large scale using precise AST pattern"
 keywords = ["ast", "pattern", "codemod", "search", "rewrite"]
 # do not publish, only for wasm
@@ -10,7 +10,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-version.workspace = true
+version = "0.0.1"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

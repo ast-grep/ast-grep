@@ -260,22 +260,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ast-grep-wasm"
-version = "0.40.5"
-dependencies = [
- "ast-grep-config",
- "ast-grep-core",
- "js-sys",
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-bindgen-test",
- "wee_alloc",
-]
-
-[[package]]
 name = "async-trait"
 version = "0.1.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2422,6 +2406,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9683f9a5a998d873c0d21fcbe3c083009670149a8fab228644b8bd36b2c48cb3"
 dependencies = [
  "wit-bindgen-rt",
+]
+
+[[package]]
+name = "wasm"
+version = "0.0.1"
+dependencies = [
+ "ast-grep-config",
+ "ast-grep-core",
+ "js-sys",
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test",
+ "wee_alloc",
 ]
 
 [[package]]
