@@ -1031,10 +1031,10 @@ unicorn-magic@^0.3.0:
   resolved "https://registry.npmjs.org/unicorn-magic/-/unicorn-magic-0.3.0.tgz"
   integrity sha512-+QBBXBCvifc56fsbuxZQ6Sic3wqqc3WWaqxs58gvJrcOuN83HGTCwz3oS5phzU9LthRNE9VrJCFCLUgHeeFnfA==
 
-web-tree-sitter@^0.25.0:
-  version "0.25.10"
-  resolved "https://registry.npmjs.org/web-tree-sitter/-/web-tree-sitter-0.25.10.tgz"
-  integrity sha512-Y09sF44/13XvgVKgO2cNDw5rGk6s26MgoZPXLESvMXeefBf7i6/73eFurre0IsTW6E14Y0ArIzhUMmjoc7xyzA==
+web-tree-sitter@^0.26.0:
+  version "0.26.5"
+  resolved "https://registry.yarnpkg.com/web-tree-sitter/-/web-tree-sitter-0.26.5.tgz#2c5b8a1995606d82ddaf2afec02dd186ecfdd964"
+  integrity sha512-u9sl+q21VSKX2T8dhpQw8bMGGqNfwaIyuoYE3kdOQGVDrOqrmcS9GmaQoCS602iaFnuokn3WCHW374c7GAnuaQ==
 
 webidl-conversions@^3.0.0:
   version "3.0.1"
