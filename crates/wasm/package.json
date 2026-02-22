@@ -29,7 +29,7 @@
     "timeout": "2m"
   },
   "peerDependencies": {
-    "web-tree-sitter": "^0.25.0"
+    "web-tree-sitter": "^0.25.0 || ^0.26.0"
   },
   "devDependencies": {
     "ava": "^6.0.0",
