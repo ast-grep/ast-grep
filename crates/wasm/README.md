@@ -131,7 +131,7 @@ Returns the root `SgNode`.
 
 #### `filename(): string`
 
-Returns the file path if discovered via `findInFiles`, or `"anonymous"` if created via `parse`.
+Returns `"anonymous"` when the instance is created via `parse`.
 
 #### `getInnerTree(): Tree`
 
