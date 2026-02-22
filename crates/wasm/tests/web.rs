@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_test::*;
 
-use ast_grep_wasm::WasmLangInfo;
+use wasm::WasmLangInfo;
 
 #[wasm_bindgen(module = "/tests/setup.js")]
 extern "C" {
@@ -40,22 +40,22 @@ async fn register_langs(names: &[&str]) {
     .iter()
     .map(|name| (name.to_string(), custom_lang(name)))
     .collect();
-  ast_grep_wasm::register_dynamic_language(serde_wasm_bindgen::to_value(&langs).unwrap())
+  wasm::register_dynamic_language(serde_wasm_bindgen::to_value(&langs).unwrap())
     .await
     .unwrap();
 }
 
 async fn setup() {
-  ast_grep_wasm::initialize_tree_sitter().await.unwrap();
+  wasm::initialize_tree_sitter().await.unwrap();
   register_langs(&["javascript"]).await;
 }
 
-fn js_parse(src: &str) -> ast_grep_wasm::SgRoot {
-  ast_grep_wasm::parse("javascript".into(), src.into()).unwrap()
+fn js_parse(src: &str) -> wasm::SgRoot {
+  wasm::parse("javascript".into(), src.into()).unwrap()
 }
 
 fn js_kind(name: &str) -> JsValue {
-  let k = ast_grep_wasm::kind("javascript".into(), name.into()).unwrap();
+  let k = wasm::kind("javascript".into(), name.into()).unwrap();
   JsValue::from_f64(k as f64)
 }
 
@@ -546,14 +546,14 @@ async fn test_field_node() {
 #[wasm_bindgen_test]
 async fn test_kind_function() {
   setup().await;
-  let k = ast_grep_wasm::kind("javascript".into(), "identifier".into()).unwrap();
+  let k = wasm::kind("javascript".into(), "identifier".into()).unwrap();
   assert!(k > 0);
 }
 
 #[wasm_bindgen_test]
 async fn test_pattern_function() {
   setup().await;
-  let result = ast_grep_wasm::pattern("javascript".into(), "console.log($A)".into());
+  let result = wasm::pattern("javascript".into(), "console.log($A)".into());
   assert!(result.is_ok());
 }
 
@@ -581,7 +581,7 @@ fn get_pos(obj: &JsValue, key: &str) -> JsValue {
 async fn test_dump_pattern_simple() {
   setup().await;
   // '$VAR' is 4 chars; JS expando is '$' so no preprocessing changes the string
-  let dump = ast_grep_wasm::dump_pattern("javascript".into(), "$VAR".into(), None, None).unwrap();
+  let dump = wasm::dump_pattern("javascript".into(), "$VAR".into(), None, None).unwrap();
   assert_eq!(get_str(&dump, "pattern"), "metaVar");
   assert_eq!(get_str(&dump, "text"), "$VAR");
   let start = get_pos(&dump, "start");
@@ -597,8 +597,7 @@ async fn test_dump_pattern_nested() {
   setup().await;
   // 'console.log($MSG)' = 17 chars; '(' at col 11, '$MSG' spans col 12–16
   let dump =
-    ast_grep_wasm::dump_pattern("javascript".into(), "console.log($MSG)".into(), None, None)
-      .unwrap();
+    wasm::dump_pattern("javascript".into(), "console.log($MSG)".into(), None, None).unwrap();
   assert_eq!(get_str(&dump, "kind"), "call_expression");
   assert_eq!(get_str(&dump, "pattern"), "internal");
   let start = get_pos(&dump, "start");
@@ -628,7 +627,7 @@ async fn test_dump_pattern_with_selector() {
   setup().await;
   // 'class A { $F = $I }': field_definition at col 10–17
   // $F at col 10–12, $I at col 15–17
-  let dump = ast_grep_wasm::dump_pattern(
+  let dump = wasm::dump_pattern(
     "javascript".into(),
     "class A { $F = $I }".into(),
     Some("field_definition".into()),
@@ -648,7 +647,7 @@ async fn test_dump_pattern_with_selector() {
 async fn test_dump_pattern_with_strictness() {
   setup().await;
   // 'let $A = $B' = 11 chars; strictness only affects matching, not position dump
-  let dump = ast_grep_wasm::dump_pattern(
+  let dump = wasm::dump_pattern(
     "javascript".into(),
     "let $A = $B".into(),
     None,
@@ -666,7 +665,7 @@ async fn test_dump_pattern_with_strictness() {
 #[wasm_bindgen_test]
 async fn test_dump_pattern_invalid() {
   setup().await;
-  let result = ast_grep_wasm::dump_pattern("javascript".into(), "".into(), None, None);
+  let result = wasm::dump_pattern("javascript".into(), "".into(), None, None);
   assert!(result.is_err());
 }
 
@@ -675,7 +674,7 @@ async fn test_dump_pattern_invalid() {
 #[wasm_bindgen_test]
 async fn test_invalid_language() {
   setup().await;
-  let result = ast_grep_wasm::parse("not_a_language".into(), "code".into());
+  let result = wasm::parse("not_a_language".into(), "code".into());
   assert!(result.is_err());
 }
 
@@ -691,7 +690,7 @@ async fn test_invalid_config() {
 // --- Multi-language support ---
 
 async fn setup_multi_lang() {
-  ast_grep_wasm::initialize_tree_sitter().await.unwrap();
+  wasm::initialize_tree_sitter().await.unwrap();
   register_langs(&["javascript", "python"]).await;
 }
 
@@ -700,21 +699,21 @@ async fn test_parse_multiple_languages() {
   setup_multi_lang().await;
 
   // Parse JavaScript
-  let js_sg = ast_grep_wasm::parse("javascript".into(), "console.log(123)".into()).unwrap();
+  let js_sg = wasm::parse("javascript".into(), "console.log(123)".into()).unwrap();
   let js_root = js_sg.root();
   assert_eq!(js_root.kind(), "program");
   let js_match = js_root.find(JsValue::from_str("console.log")).unwrap();
   assert!(js_match.is_some());
 
   // Parse Python
-  let py_sg = ast_grep_wasm::parse("python".into(), "print('hello')".into()).unwrap();
+  let py_sg = wasm::parse("python".into(), "print('hello')".into()).unwrap();
   let py_root = py_sg.root();
   assert_eq!(py_root.kind(), "module");
   let py_match = py_root.find(JsValue::from_str("print('hello')")).unwrap();
   assert!(py_match.is_some());
 
   // JavaScript still works after loading Python
-  let js_sg2 = ast_grep_wasm::parse("javascript".into(), "let x = 1".into()).unwrap();
+  let js_sg2 = wasm::parse("javascript".into(), "let x = 1".into()).unwrap();
   let js_match2 = js_sg2.root().find(JsValue::from_str("let x = 1")).unwrap();
   assert!(js_match2.is_some());
 }
@@ -723,8 +722,8 @@ async fn test_parse_multiple_languages() {
 async fn test_kind_multiple_languages() {
   setup_multi_lang().await;
 
-  let js_kind_id = ast_grep_wasm::kind("javascript".into(), "identifier".into()).unwrap();
-  let py_kind_id = ast_grep_wasm::kind("python".into(), "identifier".into()).unwrap();
+  let js_kind_id = wasm::kind("javascript".into(), "identifier".into()).unwrap();
+  let py_kind_id = wasm::kind("python".into(), "identifier".into()).unwrap();
   assert!(js_kind_id > 0);
   assert!(py_kind_id > 0);
 }
