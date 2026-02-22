@@ -12,6 +12,14 @@ yarn add @ast-grep/wasm web-tree-sitter
 
 `web-tree-sitter` is a required peer dependency.
 
+### Vite
+
+When using Vite, you need to make `tree-sitter.wasm` available in your public directory. You can automate this with a `postinstall` script in your `package.json` (see [web-tree-sitter setup](https://github.com/tree-sitter/tree-sitter/tree/master/lib/binding_web#setup)):
+
+```json
+"postinstall": "cp node_modules/web-tree-sitter/tree-sitter.wasm public"
+```
+
 ## Usage
 
 Unlike `@ast-grep/napi`, this package has no predefined language support. All languages must be registered at runtime by loading their tree-sitter WASM parser.
