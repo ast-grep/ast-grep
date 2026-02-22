@@ -22,8 +22,8 @@ default = []
 ast-grep-core = { path = "../core", version = "0.40.5", default-features = false }
 ast-grep-config = { path = "../config", version = "0.40.5", default-features = false }
 
-wasm-bindgen = { version = "=0.2.106", features = ["serde-serialize"] }
-wasm-bindgen-futures = "=0.4.56"
+wasm-bindgen = { version = "=0.2.111", features = ["serde-serialize"] }
+wasm-bindgen-futures = "=0.4.61"
 serde = { workspace = true }
 serde-wasm-bindgen = "0.6.5"
 serde_json = "1.0.116"
