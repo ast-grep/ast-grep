@@ -2410,7 +2410,7 @@ dependencies = [
 
 [[package]]
 name = "wasm"
-version = "0.0.1"
+version = "0.40.5"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
