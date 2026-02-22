@@ -67,11 +67,11 @@ impl Wrapper {
     let start_byte = edit.position;
     let old_end_byte = edit.position + edit.deleted_length;
     let new_end_byte = edit.position + edit.inserted_text.len();
-    let mut input = self.inner.to_vec();
-    let start_position = pos_for_char_offset(&input, start_byte);
-    let old_end_position = pos_for_char_offset(&input, old_end_byte);
+    let input = &mut self.inner;
+    let start_position = pos_for_char_offset(input, start_byte);
+    let old_end_position = pos_for_char_offset(input, old_end_byte);
     input.splice(start_byte..old_end_byte, edit.inserted_text.clone());
-    let new_end_position = pos_for_char_offset(&input, new_end_byte);
+    let new_end_position = pos_for_char_offset(input, new_end_byte);
     ts::Edit::new(
       start_byte as u32,
       old_end_byte as u32,
