@@ -228,7 +228,7 @@ test('tree traversal', t => {
 test('next and prev', t => {
   const sg = parse('javascript', 'const a = 1; const b = 2;')
   const a = sg.root().find('const a = 1')
-  t.truthy(a.next_node())
+  t.truthy(a.next())
   const b = sg.root().find('const b = 2')
   t.truthy(b.prev())
 })

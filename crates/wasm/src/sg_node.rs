@@ -290,6 +290,7 @@ impl SgNode {
       .collect()
   }
 
+  #[wasm_bindgen(js_name = next)]
   pub fn next_node(&self) -> Option<SgNode> {
     let node = self.inner.next()?;
     let nm = NodeMatch::from(node);
