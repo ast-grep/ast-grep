@@ -15,9 +15,6 @@ use std::collections::HashMap;
 use ts_types::TreeSitter;
 use wasm_bindgen::prelude::*;
 
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
 /// Initialize the tree-sitter WASM runtime.
 /// Must be called before any other function.
 #[wasm_bindgen(js_name = initializeTreeSitter)]

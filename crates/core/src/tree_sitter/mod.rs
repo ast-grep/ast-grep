@@ -233,9 +233,9 @@ impl<'r> SgNode<'r> for Node<'r> {
   fn field_children(&self, field_id: Option<u16>) -> impl Iterator<Item = Self> {
     let field_id = field_id.and_then(NonZero::new);
     let mut cursor = self.walk();
-    cursor.goto_first_child();
+    let has_children = cursor.goto_first_child();
     // if field_id is not found, iteration is done
-    let mut done = field_id.is_none();
+    let mut done = field_id.is_none() || !has_children;
 
     std::iter::from_fn(move || {
       if done {

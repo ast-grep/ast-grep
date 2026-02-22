@@ -204,8 +204,8 @@ impl<'a> SgNode<'a> for Node {
   }
   fn field_children(&self, field_id: Option<u16>) -> impl Iterator<Item = Self> {
     let cursor = self.0.walk();
-    cursor.goto_first_child();
-    let mut done = field_id.is_none();
+    let has_children = cursor.goto_first_child();
+    let mut done = field_id.is_none() || !has_children;
     std::iter::from_fn(move || {
       if done {
         return None;
