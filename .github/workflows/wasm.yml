@@ -1,0 +1,111 @@
+name: Build WASM
+
+defaults:
+  run:
+    working-directory: ./crates/wasm
+
+on:
+  workflow_dispatch:
+    inputs:
+      need_release:
+        description: "Select this for publish. If not selected, it will be a dry run (no uploads)."
+        type: boolean
+        default: false
+  push:
+    tags:
+      - "[0-9]+.*"
+  schedule:
+    # run wasm every day 9 am
+    - cron: '0 9 * * *'
+
+jobs:
+  build:
+    name: Build and Test WASM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: yarn
+          cache-dependency-path: ./crates/wasm/yarn.lock
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: wasm-cargo-registry
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          tool: wasm-pack
+      - name: Install dependencies
+        run: yarn install
+      - name: Test (wasm-bindgen)
+        run: yarn test
+      - name: Test (JS/ava)
+        run: yarn test:js
+      - name: Build release package
+        run: yarn build:pkg
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: wasm-pkg
+          path: crates/wasm/pkg
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    if: "startsWith(github.event.ref, 'refs/tags') || inputs.need_release"
+    needs:
+      - build
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          check-latest: true
+          cache: yarn
+          cache-dependency-path: ./crates/wasm/yarn.lock
+      - name: Cache NPM dependencies
+        uses: actions/cache@v5
+        with:
+          path: .yarn/cache
+          key: npm-cache-ubuntu-wasm-publish
+          restore-keys: |
+            npm-cache-
+      - name: Install dependencies
+        run: yarn install
+      - name: Download artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: wasm-pkg
+          path: crates/wasm/pkg
+      - name: Publish
+        run: |
+          if git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+$";
+          then
+            echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+            npm publish --access public
+          elif git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+";
+          then
+            echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+            npm publish --tag next --access public
+          else
+            echo "Not a release, skipping publish"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
