@@ -1899,9 +1899,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.25.1+spec-1.1.0"
+version = "0.25.3+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "538ed8bc4ada0b2549f2a7be9654aac2dfa358faeabb97d7845c3eb5a297e5d6"
+checksum = "a0a07913e63758bc95142d9863a5a45173b71515e68b690cad70cf99c3255ce1"
 dependencies = [
  "indexmap",
  "toml_datetime",
@@ -1912,9 +1912,9 @@ dependencies = [
 
 [[package]]
 name = "toml_parser"
-version = "1.0.8+spec-1.1.0"
+version = "1.0.9+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0742ff5ff03ea7e67c8ae6c93cac239e0d9784833362da3f9a9c1da8dfefcbdc"
+checksum = "702d4415e08923e7e1ef96cd5727c0dfed80b4d2fa25db9647fe5eb6f7c5a4c4"
 dependencies = [
  "winnow",
 ]
