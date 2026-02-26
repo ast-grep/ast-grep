@@ -295,11 +295,13 @@ struct ScanStdin {
 }
 impl ScanStdin {
   fn try_new(arg: ScanArg) -> Result<Self> {
+    let overwrite = RuleOverwrite::new(&arg.overwrite)?;
     let rules = if let Some(path) = &arg.rule {
-      read_rule_file(path, None)?
+      read_rule_file(path, None).and_then(|configs| overwrite.process_configs(configs))?
     } else if let Some(text) = &arg.inline_rules {
-      from_yaml_string(text, &Default::default())
-        .with_context(|| EC::ParseRule("INLINE_RULES".into()))?
+      let configs = from_yaml_string(text, &Default::default())
+        .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
+      overwrite.process_configs(configs)?
     } else {
       return Err(anyhow::anyhow!(EC::RuleNotSpecified));
     };

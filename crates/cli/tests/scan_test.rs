@@ -261,6 +261,24 @@ fn test_severity_override_with_inline_rule() -> Result<()> {
   Ok(())
 }
 
+#[test]
+fn test_severity_override_with_inline_rule_and_stdin() -> Result<()> {
+  Command::new(cargo_bin!())
+    .args([
+      "scan",
+      "--error",
+      "--stdin",
+      "--inline-rules",
+      "{language: ts, rule: {pattern: console.log($A)}}",
+      "--json",
+    ])
+    .write_stdin("console.log(123)")
+    .assert()
+    .failure()
+    .stdout(contains("error"));
+  Ok(())
+}
+
 const PY_RULE: &str = r"
 id: transform-indent
 language: python
