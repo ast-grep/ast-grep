@@ -204,7 +204,7 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
   async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
     self
       .client
-      .log_message(MessageType::LOG, "Get Hover Notes1")
+      .log_message(MessageType::LOG, "Get Hover Notes")
       .await;
     Ok(self.do_hover(params.text_document_position_params))
   }
@@ -332,12 +332,12 @@ impl<L: LSPLang> Backend<L> {
   async fn publish_diagnostics(
     &self,
     uri: Uri,
-    versioned: &VersionedAst<StrDoc<L>>,
+    version: i32,
     diagnostics: Vec<Diagnostic>,
   ) -> Option<()> {
     self
       .client
-      .publish_diagnostics(uri, diagnostics, Some(versioned.version))
+      .publish_diagnostics(uri, diagnostics, Some(version))
       .await;
     Some(())
   }
@@ -414,7 +414,9 @@ impl<L: LSPLang> Backend<L> {
       .client
       .log_message(MessageType::LOG, "Publishing init diagnostics.")
       .await;
-    self.publish_diagnostics(text_doc.uri, &versioned, diagnostics).await;
+    self
+      .publish_diagnostics(text_doc.uri, versioned.version, diagnostics)
+      .await;
     self.map.insert(uri.to_owned(), versioned); // don't lock dashmap
     Some(())
   }
@@ -430,24 +432,27 @@ impl<L: LSPLang> Backend<L> {
       .await;
     let lang = Self::infer_lang_from_uri(&text_doc.uri)?;
     let root = AstGrep::new(text, lang);
-    let mut versioned = self.map.get_mut(uri)?;
-    // skip old version update
-    if versioned.version > text_doc.version {
-      return None;
-    }
-    *versioned = VersionedAst {
-      version: text_doc.version,
-      root,
-      notes: BTreeMap::new(),
-      fixes: Fixes::new(),
+    let (diagnostics, version) = {
+      let mut versioned = self.map.get_mut(uri)?;
+      // skip old version update
+      if versioned.version > text_doc.version {
+        return None;
+      }
+      *versioned = VersionedAst {
+        version: text_doc.version,
+        root,
+        notes: BTreeMap::new(),
+        fixes: Fixes::new(),
+      };
+      let diagnostics = self.compute_diagnostics(text_doc.uri.clone(), &mut versioned);
+      (diagnostics, versioned.version)
     };
-    let diagnostics = self.compute_diagnostics(text_doc.uri.clone(), &mut versioned);
     self
       .client
       .log_message(MessageType::LOG, "Publishing diagnostics.")
       .await;
     self
-      .publish_diagnostics(text_doc.uri, &versioned, diagnostics)
+      .publish_diagnostics(text_doc.uri, version, diagnostics)
       .await;
     Some(())
   }
