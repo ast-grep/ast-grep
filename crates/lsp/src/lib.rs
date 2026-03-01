@@ -204,7 +204,7 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
   async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
     self
       .client
-      .log_message(MessageType::LOG, "Get Hover Notes")
+      .log_message(MessageType::LOG, "Get Hover Notes1")
       .await;
     Ok(self.do_hover(params.text_document_position_params))
   }
@@ -332,12 +332,9 @@ impl<L: LSPLang> Backend<L> {
   async fn publish_diagnostics(
     &self,
     uri: Uri,
-    versioned: &mut VersionedAst<StrDoc<L>>,
+    versioned: &VersionedAst<StrDoc<L>>,
+    diagnostics: Vec<Diagnostic>,
   ) -> Option<()> {
-    let (diagnostics, fixes) = self.get_diagnostics(&uri, versioned).unwrap_or_default();
-    versioned.notes = self.build_notes(&diagnostics);
-    versioned.fixes = fixes;
-
     self
       .client
       .publish_diagnostics(uri, diagnostics, Some(versioned.version))
@@ -378,6 +375,17 @@ impl<L: LSPLang> Backend<L> {
     }
   }
 
+  fn compute_diagnostics(
+    &self,
+    uri: Uri,
+    versioned: &mut VersionedAst<StrDoc<L>>,
+  ) -> Vec<Diagnostic> {
+    let (diagnostics, fixes) = self.get_diagnostics(&uri, versioned).unwrap_or_default();
+    versioned.notes = self.build_notes(&diagnostics);
+    versioned.fixes = fixes;
+    diagnostics
+  }
+
   async fn on_open(&self, params: DidOpenTextDocumentParams) -> Option<()> {
     let text_doc = params.text_document;
     if self
@@ -401,11 +409,12 @@ impl<L: LSPLang> Backend<L> {
       notes: BTreeMap::new(),
       fixes: Fixes::new(),
     };
+    let diagnostics = self.compute_diagnostics(text_doc.uri.clone(), &mut versioned);
     self
       .client
       .log_message(MessageType::LOG, "Publishing init diagnostics.")
       .await;
-    self.publish_diagnostics(text_doc.uri, &mut versioned).await;
+    self.publish_diagnostics(text_doc.uri, &versioned, diagnostics).await;
     self.map.insert(uri.to_owned(), versioned); // don't lock dashmap
     Some(())
   }
@@ -432,12 +441,13 @@ impl<L: LSPLang> Backend<L> {
       notes: BTreeMap::new(),
       fixes: Fixes::new(),
     };
+    let diagnostics = self.compute_diagnostics(text_doc.uri.clone(), &mut versioned);
     self
       .client
       .log_message(MessageType::LOG, "Publishing diagnostics.")
       .await;
     self
-      .publish_diagnostics(text_doc.uri, &mut *versioned)
+      .publish_diagnostics(text_doc.uri, &versioned, diagnostics)
       .await;
     Some(())
   }
@@ -723,12 +733,7 @@ impl<L: LSPLang> Backend<L> {
         continue;
       };
       // Republish diagnostics for this file
-      let (diagnostics, fixes) = match self.get_diagnostics(&uri, versioned) {
-        Some((d, f)) => (d, f),
-        None => (Vec::new(), HashMap::new()),
-      };
-      versioned.notes = self.build_notes(&diagnostics);
-      versioned.fixes = fixes;
+      let diagnostics = self.compute_diagnostics(uri.clone(), versioned);
       self
         .client
         .publish_diagnostics(uri, diagnostics, Some(versioned.version))
