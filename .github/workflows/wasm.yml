@@ -58,7 +58,7 @@ jobs:
       - name: Build release package
         run: yarn build:pkg
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: wasm-pkg
           path: crates/wasm/pkg
@@ -89,7 +89,7 @@ jobs:
       - name: Install dependencies
         run: yarn install
       - name: Download artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: wasm-pkg
           path: crates/wasm/pkg
