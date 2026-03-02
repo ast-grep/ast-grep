@@ -142,12 +142,14 @@ impl ScanWithConfig {
     let unused_suppression_rule = unused_suppression_rule_config(&arg, &overwrite);
     let mut proj_dir = PathBuf::from(".");
     let (configs, rule_trace) = if let Some(path) = &arg.rule {
-      let rules = read_rule_file(path, None)?;
+      let rules =
+        read_rule_file(path, None).and_then(|configs| overwrite.process_configs(configs))?;
       proj_dir = path.parent().unwrap_or(Path::new(".")).to_path_buf();
       with_rule_stats(rules)?
     } else if let Some(text) = &arg.inline_rules {
-      let rules = from_yaml_string(text, &Default::default())
+      let configs = from_yaml_string(text, &Default::default())
         .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
+      let rules = overwrite.process_configs(configs)?;
       with_rule_stats(rules)?
     } else {
       // NOTE: only query project here since -r does not need project
@@ -293,11 +295,13 @@ struct ScanStdin {
 }
 impl ScanStdin {
   fn try_new(arg: ScanArg) -> Result<Self> {
+    let overwrite = RuleOverwrite::new(&arg.overwrite)?;
     let rules = if let Some(path) = &arg.rule {
-      read_rule_file(path, None)?
+      read_rule_file(path, None).and_then(|configs| overwrite.process_configs(configs))?
     } else if let Some(text) = &arg.inline_rules {
-      from_yaml_string(text, &Default::default())
-        .with_context(|| EC::ParseRule("INLINE_RULES".into()))?
+      let configs = from_yaml_string(text, &Default::default())
+        .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
+      overwrite.process_configs(configs)?
     } else {
       return Err(anyhow::anyhow!(EC::RuleNotSpecified));
     };

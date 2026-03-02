@@ -235,6 +235,50 @@ fn test_severity_override() -> Result<()> {
   Ok(())
 }
 
+#[test]
+fn test_severity_override_with_rule_path() -> Result<()> {
+  let dir = setup()?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "--error", "--rule", "rules/on-rule.yml"])
+    .assert()
+    .failure()
+    .stdout(contains("error"));
+  Ok(())
+}
+
+#[test]
+fn test_severity_override_with_inline_rule() -> Result<()> {
+  let dir = create_test_files([("sgconfig.yml", CONFIG), ("test.ts", "Some(123)")])?;
+
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "--error", "--inline-rules", RULE1])
+    .assert()
+    .failure()
+    .stdout(contains("error"));
+
+  Ok(())
+}
+
+#[test]
+fn test_severity_override_with_inline_rule_and_stdin() -> Result<()> {
+  Command::new(cargo_bin!())
+    .args([
+      "scan",
+      "--error",
+      "--stdin",
+      "--inline-rules",
+      "{language: ts, rule: {pattern: console.log($A)}}",
+      "--json",
+    ])
+    .write_stdin("console.log(123)")
+    .assert()
+    .failure()
+    .stdout(contains("error"));
+  Ok(())
+}
+
 const PY_RULE: &str = r"
 id: transform-indent
 language: python
