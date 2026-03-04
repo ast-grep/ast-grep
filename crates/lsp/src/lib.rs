@@ -275,7 +275,7 @@ impl<L: LSPLang> Backend<L> {
   fn get_diagnostics(
     &self,
     uri: &Uri,
-    versioned: &VersionedAst<StrDoc<L>>,
+    root: &AstGrep<StrDoc<L>>,
   ) -> Option<(Vec<Diagnostic>, Fixes)> {
     let path = self.uri_to_relative_path(uri)?;
 
@@ -288,7 +288,7 @@ impl<L: LSPLang> Backend<L> {
       CombinedScan::unused_config(Severity::Hint, rule_refs[0].language.clone());
     let mut scan = CombinedScan::new(rule_refs);
     scan.set_unused_suppression_rule(&unused_suppression_rule);
-    let matches = scan.scan(&versioned.root, false).matches;
+    let matches = scan.scan(root, false).matches;
     let mut diagnostics = vec![];
     let mut fixes = Fixes::new();
     for (rule, ms) in matches {
@@ -377,10 +377,12 @@ impl<L: LSPLang> Backend<L> {
 
   fn compute_diagnostics(
     &self,
-    uri: Uri,
+    uri: &Uri,
     versioned: &mut VersionedAst<StrDoc<L>>,
   ) -> Vec<Diagnostic> {
-    let (diagnostics, fixes) = self.get_diagnostics(&uri, versioned).unwrap_or_default();
+    let (diagnostics, fixes) = self
+      .get_diagnostics(uri, &versioned.root)
+      .unwrap_or_default();
     versioned.notes = self.build_notes(&diagnostics);
     versioned.fixes = fixes;
     diagnostics
@@ -396,20 +398,12 @@ impl<L: LSPLang> Backend<L> {
       return None;
     }
     let uri = text_doc.uri.as_str().to_owned();
-    let text = text_doc.text;
     self
       .client
       .log_message(MessageType::LOG, "Parsing doc.")
       .await;
-    let lang = Self::infer_lang_from_uri(&text_doc.uri)?;
-    let root = AstGrep::new(text, lang);
-    let mut versioned = VersionedAst {
-      version: text_doc.version,
-      root,
-      notes: BTreeMap::new(),
-      fixes: Fixes::new(),
-    };
-    let diagnostics = self.compute_diagnostics(text_doc.uri.clone(), &mut versioned);
+    let (versioned, diagnostics) =
+      self.get_versioned_ast(text_doc.version, &text_doc.uri, &text_doc.text)?;
     self
       .client
       .log_message(MessageType::LOG, "Publishing init diagnostics.")
@@ -417,34 +411,45 @@ impl<L: LSPLang> Backend<L> {
     self
       .publish_diagnostics(text_doc.uri, versioned.version, diagnostics)
       .await;
-    self.map.insert(uri.to_owned(), versioned); // don't lock dashmap
+    self.map.insert(uri, versioned); // don't lock dashmap
     Some(())
+  }
+  fn get_versioned_ast(
+    &self,
+    version: i32,
+    uri: &Uri,
+    text: &str,
+  ) -> Option<(VersionedAst<StrDoc<L>>, Vec<Diagnostic>)> {
+    let lang = Self::infer_lang_from_uri(uri)?;
+    let root = AstGrep::new(text, lang);
+    let mut versioned = VersionedAst {
+      version,
+      root,
+      notes: BTreeMap::new(),
+      fixes: Fixes::new(),
+    };
+    let diagnostics = self.compute_diagnostics(uri, &mut versioned);
+    Some((versioned, diagnostics))
   }
 
   async fn on_change(&self, params: DidChangeTextDocumentParams) -> Option<()> {
     let text_doc = params.text_document;
     let uri = text_doc.uri.as_str();
-    let change = &params.content_changes.first()?;
-    let text = &change.text;
     self
       .client
       .log_message(MessageType::LOG, "Parsing changed doc.")
       .await;
-    let lang = Self::infer_lang_from_uri(&text_doc.uri)?;
-    let root = AstGrep::new(text, lang);
     let (diagnostics, version) = {
       let mut versioned = self.map.get_mut(uri)?;
       // skip old version update
       if versioned.version > text_doc.version {
         return None;
       }
-      *versioned = VersionedAst {
-        version: text_doc.version,
-        root,
-        notes: BTreeMap::new(),
-        fixes: Fixes::new(),
-      };
-      let diagnostics = self.compute_diagnostics(text_doc.uri.clone(), &mut versioned);
+      let change = &params.content_changes.first()?;
+      let text = &change.text;
+      let (new_version, diagnostics) =
+        self.get_versioned_ast(text_doc.version, &text_doc.uri, text)?;
+      *versioned = new_version;
       (diagnostics, versioned.version)
     };
     self
@@ -473,7 +478,7 @@ impl<L: LSPLang> Backend<L> {
       .get(uri.as_str())
       .ok_or(LspError::UnsupportedFileType)?;
     let (_diagnostics, fixes) = self
-      .get_diagnostics(&uri, &versioned)
+      .get_diagnostics(&uri, &versioned.root)
       .ok_or(LspError::NoActionableFix)?;
 
     let mut entries: Vec<_> = fixes.iter().collect();
@@ -738,7 +743,7 @@ impl<L: LSPLang> Backend<L> {
         continue;
       };
       // Republish diagnostics for this file
-      let diagnostics = self.compute_diagnostics(uri.clone(), versioned);
+      let diagnostics = self.compute_diagnostics(&uri, versioned);
       self
         .client
         .publish_diagnostics(uri, diagnostics, Some(versioned.version))
