@@ -23,6 +23,7 @@ mod cpp;
 mod csharp;
 mod css;
 mod elixir;
+mod erlang;
 mod go;
 mod haskell;
 mod hcl;
@@ -209,6 +210,13 @@ impl_lang_expando!(CSharp, language_c_sharp, 'µ');
 impl_lang_expando!(Css, language_css, '_');
 // https://github.com/elixir-lang/tree-sitter-elixir/blob/a2861e88a730287a60c11ea9299c033c7d076e30/grammar.js#L245
 impl_lang_expando!(Elixir, language_elixir, 'µ');
+// https://github.com/WhatsApp/tree-sitter-erlang/blob/main/grammar.js
+// In Erlang, `$A` means "the character code of A" (a char literal, e.g. `$a` = 97).
+// tree-sitter parses `$A` as a `char` node, not a variable, so it can't be a metavariable.
+// We use `à` (U+00E0, lowercase), so `$NAME` becomes `àNAME` which is parsed as an atom.
+// This allows metavariables to match in atom positions (function names, module attributes, etc.)
+// and, since ast-grep metavars match any node at the same structural position, variables too.
+impl_lang_expando!(Erlang, language_erlang, 'à');
 // we can use any Unicode code point categorized as "Letter"
 // https://go.dev/ref/spec#letter
 impl_lang_expando!(Go, language_go, 'µ');
@@ -261,6 +269,7 @@ pub enum SupportLang {
   Css,
   Go,
   Elixir,
+  Erlang,
   Haskell,
   Hcl,
   Html,
@@ -286,7 +295,7 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      Bash, C, Cpp, CSharp, Css, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json, Kotlin,
+      Bash, C, Cpp, CSharp, Css, Elixir, Erlang, Go, Haskell, Hcl, Html, Java, JavaScript, Json, Kotlin,
       Lua, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript, Yaml,
     ]
   }
@@ -374,6 +383,7 @@ impl_aliases! {
   CSharp => &["cs", "csharp"],
   Css => &["css"],
   Elixir => &["ex", "elixir"],
+  Erlang => &["erl", "erlang"],
   Go => &["go", "golang"],
   Haskell => &["hs", "haskell"],
   Hcl => &["hcl"],
@@ -421,6 +431,7 @@ macro_rules! execute_lang_method {
       S::CSharp => CSharp.$method($($pname,)*),
       S::Css => Css.$method($($pname,)*),
       S::Elixir => Elixir.$method($($pname,)*),
+      S::Erlang => Erlang.$method($($pname,)*),
       S::Go => Go.$method($($pname,)*),
       S::Haskell => Haskell.$method($($pname,)*),
       S::Hcl => Hcl.$method($($pname,)*),
@@ -493,6 +504,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     CSharp => &["cs"],
     Css => &["css", "scss"],
     Elixir => &["ex", "exs"],
+    Erlang => &["erl", "hrl"],
     Go => &["go"],
     Haskell => &["hs"],
     Hcl => &["hcl"],
