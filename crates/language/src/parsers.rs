@@ -40,6 +40,9 @@ pub fn language_css() -> TSLanguage {
 pub fn language_elixir() -> TSLanguage {
   conditional_lang!(tree_sitter_elixir, "tree-sitter-elixir")
 }
+pub fn language_erlang() -> TSLanguage {
+  conditional_lang!(tree_sitter_erlang, "tree-sitter-erlang")
+}
 pub fn language_go() -> TSLanguage {
   conditional_lang!(tree_sitter_go, "tree-sitter-go")
 }
