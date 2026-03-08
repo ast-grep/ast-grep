@@ -19,7 +19,7 @@ pub use fixer::Fixer;
 pub use label::{Label, LabelStyle};
 pub use rule::referent_rule::GlobalRules;
 pub use rule::DeserializeEnv;
-pub use rule::{Rule, RuleSerializeError, SerializableRule};
+pub use rule::{Rule, RuleSerializeError, SerializableGlobalRule, SerializableRule};
 pub use rule_collection::RuleCollection;
 pub use rule_config::{Metadata, RuleConfig, RuleConfigError, SerializableRuleConfig, Severity};
 pub use rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
@@ -211,6 +211,79 @@ constraints:
     test_rule_match(yaml, "function test() { console.log(1) }");
     test_rule_match(yaml, "function test() { console.log(2) }");
     test_rule_unmatch(yaml, "function tt() { console.log(2) }");
+  }
+
+  #[test]
+  fn test_parameterized_utils_in_rule_config() {
+    let yaml = r"
+id: test
+message: test rule
+severity: info
+language: Tsx
+rule:
+  all:
+    - kind: number
+    - matches:
+        wrap:
+          BODY:
+            kind: number
+utils:
+  wrap(BODY):
+    matches: BODY
+";
+    test_rule_match(yaml, "let a = 123");
+    test_rule_unmatch(yaml, "let a = '123'");
+  }
+
+  #[test]
+  fn test_nested_parameterized_utils_in_rule_config() {
+    let yaml = r"
+id: test
+message: test rule
+severity: info
+language: Tsx
+rule:
+  all:
+    - kind: number
+    - matches:
+        outer:
+          BODY:
+            kind: number
+utils:
+  capture(INNER):
+    matches: INNER
+  outer(BODY):
+    matches:
+      capture:
+        INNER:
+          matches: BODY
+";
+    test_rule_match(yaml, "let a = 123");
+    test_rule_unmatch(yaml, "let a = '123'");
+  }
+
+  #[test]
+  fn test_parameterized_utils_with_concrete_nested_argument_rule_in_rule_config() {
+    let yaml = r"
+id: test
+message: test rule
+severity: info
+language: Tsx
+rule:
+  all:
+    - kind: call_expression
+    - matches: nested
+utils:
+  with-arg(arg-rule):
+    matches: arg-rule
+  nested:
+    matches:
+      with-arg:
+        arg-rule:
+          pattern: Some($A)
+";
+    test_rule_match(yaml, "let value = Some(123)");
+    test_rule_unmatch(yaml, "let value = None");
   }
 
   // https://github.com/ast-grep/ast-grep/issues/813
