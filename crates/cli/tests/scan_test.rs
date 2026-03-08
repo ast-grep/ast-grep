@@ -689,7 +689,7 @@ rule: { pattern: Some($A) }
   Ok(())
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 #[test]
 fn test_scan_invalid_rule_id() -> Result<()> {
   use std::ffi::OsStr;
