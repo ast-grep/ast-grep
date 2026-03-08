@@ -6,7 +6,7 @@ mod relational_rule;
 mod selector;
 mod stop_by;
 
-pub use deserialize_env::DeserializeEnv;
+pub use deserialize_env::{DeserializeEnv, SerializableGlobalRule};
 pub use relational_rule::Relation;
 use selector::{parse_selector, SelectorError};
 pub use stop_by::StopBy;
@@ -27,7 +27,7 @@ use bit_set::BitSet;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use thiserror::Error;
 
 /// A rule object to find matching AST nodes. We have three categories of rules in ast-grep.
@@ -92,9 +92,33 @@ pub struct SerializableRule {
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
   /// A single sub-rule and matches a node if the sub rule does not match.
   pub not: Maybe<Box<SerializableRule>>,
-  /// A utility rule id and matches a node if the utility rule matches.
+  /// A utility rule id or parameterized utility call and matches a node if that utility matches.
   #[serde(default, skip_serializing_if = "Maybe::is_absent")]
-  pub matches: Maybe<String>,
+  pub matches: Maybe<SerializableMatches>,
+}
+
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(untagged)]
+pub enum SerializableMatches {
+  Id(String),
+  Call(SerializableUtilityCall),
+}
+
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(transparent)]
+pub struct SerializableUtilityCall(pub HashMap<String, HashMap<String, SerializableRule>>);
+
+impl SerializableUtilityCall {
+  fn into_parts(self) -> Result<(String, HashMap<String, SerializableRule>), RuleSerializeError> {
+    let mut pairs = self.0.into_iter();
+    let Some((callee, args)) = pairs.next() else {
+      return Err(RuleSerializeError::InvalidUtilityCall);
+    };
+    if pairs.next().is_some() {
+      return Err(RuleSerializeError::InvalidUtilityCall);
+    }
+    Ok((callee, args))
+  }
 }
 
 struct Categorized {
@@ -210,7 +234,7 @@ pub struct CompositeRule {
   pub all: Option<Vec<SerializableRule>>,
   pub any: Option<Vec<SerializableRule>>,
   pub not: Option<Box<SerializableRule>>,
-  pub matches: Option<String>,
+  pub matches: Option<SerializableMatches>,
 }
 
 pub enum Rule {
@@ -231,14 +255,29 @@ pub enum Rule {
   Not(Box<o::Not<Rule>>),
   Matches(ReferentRule),
 }
+
 impl Rule {
   /// Check if it has a cyclic referent rule with the id.
   pub(crate) fn check_cyclic(&self, id: &str) -> bool {
+    self.check_cyclic_with_params(id, None)
+  }
+
+  pub(crate) fn check_cyclic_with_params(
+    &self,
+    id: &str,
+    params: Option<&HashSet<String>>,
+  ) -> bool {
     match self {
-      Rule::All(all) => all.inner().iter().any(|r| r.check_cyclic(id)),
-      Rule::Any(any) => any.inner().iter().any(|r| r.check_cyclic(id)),
-      Rule::Not(not) => not.inner().check_cyclic(id),
-      Rule::Matches(m) => m.rule_id == id,
+      Rule::All(all) => all
+        .inner()
+        .iter()
+        .any(|r| r.check_cyclic_with_params(id, params)),
+      Rule::Any(any) => any
+        .inner()
+        .iter()
+        .any(|r| r.check_cyclic_with_params(id, params)),
+      Rule::Not(not) => not.inner().check_cyclic_with_params(id, params),
+      Rule::Matches(rule) => rule.check_cyclic_with_params(id, params),
       _ => false,
     }
   }
@@ -257,8 +296,7 @@ impl Rule {
       Rule::All(sub) => sub.inner().iter().flat_map(|r| r.defined_vars()).collect(),
       Rule::Any(sub) => sub.inner().iter().flat_map(|r| r.defined_vars()).collect(),
       Rule::Not(sub) => sub.inner().defined_vars(),
-      // TODO: this is not correct, we are collecting util vars else where
-      Rule::Matches(_r) => HashSet::new(),
+      Rule::Matches(rule) => rule.defined_vars(),
     }
   }
 
@@ -277,7 +315,7 @@ impl Rule {
       Rule::All(sub) => sub.inner().iter().try_for_each(|r| r.verify_util()),
       Rule::Any(sub) => sub.inner().iter().try_for_each(|r| r.verify_util()),
       Rule::Not(sub) => sub.inner().verify_util(),
-      Rule::Matches(r) => Ok(r.verify_util()?),
+      Rule::Matches(rule) => rule.verify_util(),
     }
   }
 }
@@ -305,7 +343,7 @@ impl Matcher for Rule {
       All(all) => all.match_node_with_env(node, env),
       Any(any) => any.match_node_with_env(node, env),
       Not(not) => not.match_node_with_env(node, env),
-      Matches(rule) => rule.match_node_with_env(node, env),
+      Matches(target) => target.match_node_with_env(node, env),
     }
   }
 
@@ -319,15 +357,15 @@ impl Matcher for Rule {
       NthChild(nth_child) => nth_child.potential_kinds(),
       Range(range) => range.potential_kinds(),
       // relational
-      Inside(parent) => parent.potential_kinds(),
-      Has(child) => child.potential_kinds(),
-      Precedes(latter) => latter.potential_kinds(),
-      Follows(former) => former.potential_kinds(),
+      Inside(_) => None,
+      Has(_) => None,
+      Precedes(_) => None,
+      Follows(_) => None,
       // composite
       All(all) => all.potential_kinds(),
       Any(any) => any.potential_kinds(),
       Not(not) => not.potential_kinds(),
-      Matches(rule) => rule.potential_kinds(),
+      Matches(target) => target.potential_kinds(),
     }
   }
 }
@@ -364,6 +402,22 @@ pub enum RuleSerializeError {
   WrongRegex(#[from] RegexMatcherError),
   #[error("Rule contains invalid matches reference.")]
   MatchesReference(#[from] ReferentRuleError),
+  #[error("Utility declaration `{0}` has an invalid signature.")]
+  InvalidUtilitySignature(String),
+  #[error("Utility `{util}` declares duplicate argument `{arg}`.")]
+  DuplicateUtilityArgument { util: String, arg: String },
+  #[error("Utility call must contain exactly one callee.")]
+  InvalidUtilityCall,
+  #[error("Utility `{0}` requires arguments and cannot be used as `matches: {0}`.")]
+  MissingUtilityArguments(String),
+  #[error("Utility `{0}` does not accept arguments.")]
+  UnexpectedUtilityArguments(String),
+  #[error("Utility parameter `{0}` cannot be called with arguments.")]
+  UtilityParameterCalled(String),
+  #[error("Parameterized utility `{callee}` is missing argument `{arg}`.")]
+  MissingUtilityArgument { callee: String, arg: String },
+  #[error("Parameterized utility `{callee}` does not declare argument `{arg}`.")]
+  UnknownUtilityArgument { callee: String, arg: String },
   #[error("Rule contains invalid range matcher.")]
   InvalidRange(#[from] RangeMatcherError),
   #[error("field is only supported in has/inside.")]
@@ -418,11 +472,82 @@ fn deserialze_composite_rule<L: Language>(
     let not = o::Not::new(deserialize_rule(*not, env)?);
     rules.push(R::Not(Box::new(not)));
   }
-  if let Some(id) = composite.matches {
-    let matches = ReferentRule::try_new(id, &env.registration)?;
-    rules.push(R::Matches(matches));
+  if let Some(matches) = composite.matches {
+    rules.push(deserialize_matches_rule(matches, env)?);
   }
   Ok(())
+}
+
+fn deserialize_matches_rule<L: Language>(
+  matches: SerializableMatches,
+  env: &DeserializeEnv<L>,
+) -> Result<Rule, RuleSerializeError> {
+  use Rule as R;
+  match matches {
+    SerializableMatches::Id(id) => {
+      let matches = ReferentRule::try_new(id, &env.registration)?;
+      Ok(R::Matches(matches))
+    }
+    SerializableMatches::Call(call) => {
+      let (callee, args) = call.into_parts()?;
+      if env.has_current_param(&callee) {
+        return Err(RuleSerializeError::UtilityParameterCalled(callee));
+      }
+      let template_params = env.get_template_params(&callee).ok_or_else(|| {
+        if env.has_declared_util(&callee) {
+          RuleSerializeError::UnexpectedUtilityArguments(callee.clone())
+        } else {
+          RuleSerializeError::MatchesReference(ReferentRuleError::UndefinedUtil(callee.clone()))
+        }
+      })?;
+      validate_utility_args(&callee, template_params, &args)?;
+      let lowered_args = lower_utility_args(args, env)?;
+      let matches = ReferentRule::new(callee.clone(), lowered_args, &env.registration);
+      if matches
+        .args
+        .values()
+        .any(|arg| arg.check_cyclic_with_params(&callee, env.current_params()))
+      {
+        return Err(ReferentRuleError::CyclicRule(callee).into());
+      }
+      Ok(R::Matches(matches))
+    }
+  }
+}
+
+fn validate_utility_args(
+  callee: &str,
+  params: &[String],
+  args: &HashMap<String, SerializableRule>,
+) -> Result<(), RuleSerializeError> {
+  for name in args.keys() {
+    if !params.iter().any(|param| param == name) {
+      return Err(RuleSerializeError::UnknownUtilityArgument {
+        callee: callee.into(),
+        arg: name.clone(),
+      });
+    }
+  }
+  for name in params {
+    if !args.contains_key(name) {
+      return Err(RuleSerializeError::MissingUtilityArgument {
+        callee: callee.into(),
+        arg: name.clone(),
+      });
+    }
+  }
+  Ok(())
+}
+
+fn lower_utility_args<L: Language>(
+  args: HashMap<String, SerializableRule>,
+  env: &DeserializeEnv<L>,
+) -> Result<HashMap<String, Rule>, RuleSerializeError> {
+  let mut lowered = HashMap::with_capacity(args.len());
+  for (name, rule) in args {
+    lowered.insert(name, deserialize_rule(rule, env)?);
+  }
+  Ok(lowered)
 }
 
 fn deserialize_relational_rule<L: Language>(
@@ -601,6 +726,21 @@ follows:
   }
 
   #[test]
+  fn test_parameterized_matches_syntax() {
+    let src = r"
+matches:
+  maybe_parenthesized:
+    BODY:
+      pattern: foo($A)
+";
+    let rule: SerializableRule = from_str(src).expect("cannot parse rule");
+    assert!(matches!(
+      rule.matches,
+      Maybe::Present(SerializableMatches::Call(_))
+    ));
+  }
+
+  #[test]
   fn test_deserialize_rule() {
     let src = r"
 pattern: class A {}
@@ -611,6 +751,38 @@ kind: class_declaration
     let rule = deserialize_rule(rule, &env).expect("should deserialize");
     let root = TypeScript::Tsx.ast_grep("class A {}");
     assert!(root.root().find(rule).is_some());
+  }
+
+  #[test]
+  fn test_parameterized_matches_lowering() {
+    let utils = from_str(
+      r"
+maybe_parenthesized(BODY):
+  any:
+    - matches: BODY
+    - kind: parenthesized_expression
+      has:
+        matches: BODY
+",
+    )
+    .expect("failed to parse utils");
+    let env = DeserializeEnv::new(TypeScript::Tsx)
+      .with_utils(&utils)
+      .expect("should parse utils");
+    let rule = from_str(
+      r"
+matches:
+  maybe_parenthesized:
+    BODY:
+      kind: number
+",
+    )
+    .expect("cannot parse rule");
+    let rule = deserialize_rule(rule, &env).expect("should deserialize");
+    match rule {
+      Rule::Matches(rule) => assert!(!rule.args.is_empty()),
+      _ => panic!("expected matches rule"),
+    }
   }
 
   #[test]
