@@ -21,6 +21,7 @@ macro_rules! conditional_lang {
 }
 
 use ast_grep_core::tree_sitter::TSLanguage;
+use tree_sitter_language::LanguageFn;
 
 pub fn language_bash() -> TSLanguage {
   conditional_lang!(tree_sitter_bash, "tree-sitter-bash")
@@ -36,6 +37,24 @@ pub fn language_c_sharp() -> TSLanguage {
 }
 pub fn language_css() -> TSLanguage {
   conditional_lang!(tree_sitter_css, "tree-sitter-css")
+}
+pub fn language_dockerfile() -> TSLanguage {
+  #[cfg(feature = "tree-sitter-dockerfile")]
+  {
+    // The currently usable Dockerfile crate still exposes the older
+    // `tree_sitter_dockerfile()` symbol instead of a `LANGUAGE` constant, so
+    // we bridge it into ast-grep's newer `LanguageFn`-based parser surface.
+    let _ = tree_sitter_dockerfile::NODE_TYPES;
+    unsafe extern "C" {
+      fn tree_sitter_dockerfile() -> *const ();
+    }
+    let language_fn = unsafe { LanguageFn::from_raw(tree_sitter_dockerfile) };
+    language_fn.into()
+  }
+  #[cfg(not(feature = "tree-sitter-dockerfile"))]
+  {
+    unimplemented!("tree-sitter parser is not implemented when feature flag is off.")
+  }
 }
 pub fn language_elixir() -> TSLanguage {
   conditional_lang!(tree_sitter_elixir, "tree-sitter-elixir")

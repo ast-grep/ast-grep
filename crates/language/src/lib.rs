@@ -22,6 +22,7 @@ mod bash;
 mod cpp;
 mod csharp;
 mod css;
+mod dockerfile;
 mod elixir;
 mod go;
 mod haskell;
@@ -207,6 +208,7 @@ impl_lang_expando!(Cpp, language_cpp, '𐀀');
 impl_lang_expando!(CSharp, language_c_sharp, 'µ');
 // https://www.w3.org/TR/CSS21/grammar.html#scanner
 impl_lang_expando!(Css, language_css, '_');
+impl_lang_expando!(Dockerfile, language_dockerfile, 'µ');
 // https://github.com/elixir-lang/tree-sitter-elixir/blob/a2861e88a730287a60c11ea9299c033c7d076e30/grammar.js#L245
 impl_lang_expando!(Elixir, language_elixir, 'µ');
 // we can use any Unicode code point categorized as "Letter"
@@ -259,6 +261,7 @@ pub enum SupportLang {
   Cpp,
   CSharp,
   Css,
+  Dockerfile,
   Go,
   Elixir,
   Haskell,
@@ -286,8 +289,9 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      Bash, C, Cpp, CSharp, Css, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json, Kotlin,
-      Lua, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript, Yaml,
+      Bash, C, Cpp, CSharp, Css, Dockerfile, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript,
+      Json, Kotlin, Lua, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript,
+      Yaml,
     ]
   }
 
@@ -373,6 +377,7 @@ impl_aliases! {
   Cpp => &["cc", "c++", "cpp", "cxx"],
   CSharp => &["cs", "csharp"],
   Css => &["css"],
+  Dockerfile => &["dockerfile"],
   Elixir => &["ex", "elixir"],
   Go => &["go", "golang"],
   Haskell => &["hs", "haskell"],
@@ -420,6 +425,7 @@ macro_rules! execute_lang_method {
       S::Cpp => Cpp.$method($($pname,)*),
       S::CSharp => CSharp.$method($($pname,)*),
       S::Css => Css.$method($($pname,)*),
+      S::Dockerfile => Dockerfile.$method($($pname,)*),
       S::Elixir => Elixir.$method($($pname,)*),
       S::Go => Go.$method($($pname,)*),
       S::Haskell => Haskell.$method($($pname,)*),
@@ -492,6 +498,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Cpp => &["cc", "hpp", "cpp", "c++", "hh", "cxx", "cu", "ino"],
     CSharp => &["cs"],
     Css => &["css", "scss"],
+    Dockerfile => &[],
     Elixir => &["ex", "exs"],
     Go => &["go"],
     Haskell => &["hs"],
@@ -516,10 +523,38 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
   }
 }
 
+fn exact_file_names(lang: SupportLang) -> &'static [&'static str] {
+  use SupportLang::*;
+  match lang {
+    // Dockerfiles commonly rely on exact names rather than file extensions.
+    Dockerfile => &["Dockerfile", "dockerfile"],
+    _ => &[],
+  }
+}
+
+fn suffix_file_names(lang: SupportLang) -> &'static [&'static str] {
+  use SupportLang::*;
+  match lang {
+    Dockerfile => &["Dockerfile", "dockerfile"],
+    _ => &[],
+  }
+}
+
 /// Guess which programming language a file is written in
 /// Adapt from `<https://github.com/Wilfred/difftastic/blob/master/src/parse/guess_language.rs>`
 /// N.B do not confuse it with `FromStr` trait. This function is to guess language from file extension.
 fn from_extension(path: &Path) -> Option<SupportLang> {
+  if let Some(file_name) = path.file_name().and_then(|f| f.to_str()) {
+    let lang = SupportLang::all_langs().iter().copied().find(|&lang| {
+      exact_file_names(lang).contains(&file_name)
+        || suffix_file_names(lang)
+          .iter()
+          .any(|suffix| file_name.ends_with(&format!(".{suffix}")))
+    });
+    if lang.is_some() {
+      return lang;
+    }
+  }
   let ext = path.extension()?.to_str()?;
   SupportLang::all_langs()
     .iter()
@@ -546,6 +581,18 @@ fn file_types(lang: SupportLang) -> Types {
   let exts = extensions(lang);
   let lang_name = lang.to_string();
   add_custom_file_type(&mut builder, &lang_name, exts);
+  for file_name in exact_file_names(lang) {
+    builder
+      .add(&lang_name, file_name)
+      .expect("file pattern must compile");
+  }
+  for suffix in suffix_file_names(lang) {
+    let glob = format!("*.{suffix}");
+    builder
+      .add(&lang_name, &glob)
+      .expect("file pattern must compile");
+  }
+  builder.select(&lang_name);
   builder.build().expect("file type must be valid")
 }
 
@@ -604,6 +651,14 @@ mod test {
   fn test_guess_by_extension() {
     let path = Path::new("foo.rs");
     assert_eq!(from_extension(path), Some(SupportLang::Rust));
+  }
+
+  #[test]
+  fn test_guess_by_dockerfile_name() {
+    let path = Path::new("Dockerfile");
+    assert_eq!(from_extension(path), Some(SupportLang::Dockerfile));
+    let path = Path::new("api.Dockerfile");
+    assert_eq!(from_extension(path), Some(SupportLang::Dockerfile));
   }
 
   // TODO: add test for file_types

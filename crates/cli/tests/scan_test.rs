@@ -147,6 +147,31 @@ fn test_sg_scan_html() -> Result<()> {
 }
 
 #[test]
+fn test_sg_scan_dockerfile_autodetect() -> Result<()> {
+  let rule = "
+id: docker-base
+message: detect base image
+severity: warning
+language: dockerfile
+rule:
+  pattern: FROM $IMAGE
+";
+  let dir = create_test_files([
+    ("rule.yml", rule),
+    ("Dockerfile", "FROM alpine\nRUN echo hi\n"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml"])
+    .assert()
+    .success()
+    .stdout(contains("docker-base"))
+    .stdout(contains("Dockerfile:1:1"))
+    .stdout(contains("FROM alpine"));
+  Ok(())
+}
+
+#[test]
 fn test_scan_unused_suppression() -> Result<()> {
   let dir = create_test_files([
     ("sgconfig.yml", CONFIG),
