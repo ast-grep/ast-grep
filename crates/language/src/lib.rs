@@ -657,7 +657,11 @@ mod test {
   fn test_guess_by_dockerfile_name() {
     let path = Path::new("Dockerfile");
     assert_eq!(from_extension(path), Some(SupportLang::Dockerfile));
+    let path = Path::new("dockerfile");
+    assert_eq!(from_extension(path), Some(SupportLang::Dockerfile));
     let path = Path::new("api.Dockerfile");
+    assert_eq!(from_extension(path), Some(SupportLang::Dockerfile));
+    let path = Path::new("api.dockerfile");
     assert_eq!(from_extension(path), Some(SupportLang::Dockerfile));
   }
 
