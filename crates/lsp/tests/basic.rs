@@ -463,6 +463,51 @@ fix: |-
 }
 
 #[tokio::test]
+async fn test_injected_language_diagnostics() {
+  let yamls = r"
+id: no-alert
+language: TypeScript
+message: Avoid alert
+rule:
+  pattern: alert($A)
+fix: |-
+  console.log($A)
+";
+  let mut client = create_lsp_framed(yamls).await;
+
+  let file_uri = "file:///Users/codes/ast-grep-vscode/test.html";
+  let file_content = "<script lang=typescript>alert('Hello, world!')</script>\n";
+  send_did_open_framed(&mut client, file_uri, "html", file_content).await;
+
+  let diagnostics = &wait_for_diagnostics(&mut client)
+    .await
+    .expect("No diagnostics received")
+    .as_array()
+    .expect("Diagnostics should be an array")
+    .to_owned();
+
+  assert_eq!(
+    diagnostics.len(),
+    1,
+    "Expected 1 diagnostic from injected script"
+  );
+  assert_eq!(diagnostics[0]["code"], "no-alert");
+
+  let code_action = request_code_action(&mut client, file_uri, &diagnostics[0]).await;
+  let code_action = code_action.expect("No code action response");
+  let actions = code_action["result"]
+    .as_array()
+    .expect("Result should be an array");
+  assert_eq!(actions.len(), 1, "Expected 1 code action");
+
+  let fixed_text = apply_all_code_actions(file_content, actions);
+  assert_eq!(
+    fixed_text,
+    "<script lang=typescript>console.log('Hello, world!')</script>"
+  );
+}
+
+#[tokio::test]
 async fn test_overlap_line_code_edit() {
   let yamls = r"
 id: use-alert

@@ -16,14 +16,15 @@ use ast_grep_core::{
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 
 use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, Fixes, RewriteData};
 
 pub use tower_lsp_server::{LspService, Server};
 
-pub trait LSPLang: LanguageExt + Eq + Send + Sync + 'static {}
-impl<T> LSPLang for T where T: LanguageExt + Eq + Send + Sync + 'static {}
+pub trait LSPLang: LanguageExt + Eq + Send + Sync + FromStr + 'static {}
+impl<T> LSPLang for T where T: LanguageExt + Eq + Send + Sync + FromStr + 'static {}
 
 type Notes = BTreeMap<(u32, u32, u32, u32), Arc<String>>;
 
@@ -281,27 +282,29 @@ impl<L: LSPLang> Backend<L> {
     let path = self.uri_to_relative_path(uri)?;
 
     let rules = self.rules.read().ok()?;
-    let rule_refs = rules.for_path(&path);
-    if rule_refs.is_empty() {
-      return None;
-    }
-    let unused_suppression_rule =
-      CombinedScan::unused_config(Severity::Hint, rule_refs[0].language.clone());
-    let mut scan = CombinedScan::new(rule_refs);
-    scan.set_unused_suppression_rule(&unused_suppression_rule);
-    let matches = scan.scan(root, false).matches;
     let mut diagnostics = vec![];
     let mut fixes = Fixes::new();
-    for (rule, ms) in matches {
-      let to_diagnostic = |m: NodeMatch<StrDoc<L>>| {
-        let diagnostic = convert_match_to_diagnostic(uri, &m, rule);
-        let rewrite_data = RewriteData::from_node_match(&m, rule);
-        if let Some(r) = rewrite_data {
-          fixes.insert((diagnostic.range, rule.id.clone()), r);
-        }
-        diagnostic
-      };
-      diagnostics.extend(ms.into_iter().map(to_diagnostic));
+    let injections = root.get_injections(|lang| L::from_str(lang).ok());
+    let docs = std::iter::once(root).chain(injections.iter());
+    for injected in docs {
+      let rule_refs = rules.get_rule_from_lang(&path, injected.lang().clone());
+      if rule_refs.is_empty() {
+        continue;
+      }
+      let unused_suppression_rule =
+        CombinedScan::unused_config(Severity::Hint, injected.lang().clone());
+      let mut scan = CombinedScan::new(rule_refs);
+      scan.set_unused_suppression_rule(&unused_suppression_rule);
+      for (rule, matches) in scan.scan(injected, false).matches {
+        diagnostics.extend(matches.into_iter().map(|m: NodeMatch<StrDoc<L>>| {
+          let diagnostic = convert_match_to_diagnostic(uri, &m, rule);
+          let rewrite_data = RewriteData::from_node_match(&m, rule);
+          if let Some(r) = rewrite_data {
+            fixes.insert((diagnostic.range, rule.id.clone()), r);
+          }
+          diagnostic
+        }));
+      }
     }
     Some((diagnostics, fixes))
   }
