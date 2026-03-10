@@ -4,8 +4,8 @@ use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::tree_sitter::{LanguageExt, TSLanguage};
 use ast_grep_core::Language;
 use ast_grep_language::{
-  Alias, Bash, CSharp, Cpp, Css, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin, Lua,
-  Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml, C,
+  Alias, Bash, CSharp, Cpp, Css, Dart, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin,
+  Lua, Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml, C,
 };
 use schemars::{json_schema, schema_for, JsonSchema, Schema, SchemaGenerator};
 use serde_json::{to_writer_pretty, Value};
@@ -30,6 +30,7 @@ fn generate_lang_schemas() -> Result<()> {
   generate_lang_schema(Cpp, "cpp")?;
   generate_lang_schema(CSharp, "csharp")?;
   generate_lang_schema(Css, "css")?;
+  generate_lang_schema(Dart, "dart")?;
   generate_lang_schema(Go, "go")?;
   generate_lang_schema(Elixir, "elixir")?;
   generate_lang_schema(Haskell, "haskell")?;
