@@ -99,6 +99,7 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         ..ServerCapabilities::default()
       },
+      offset_encoding: None,
     })
   }
 
