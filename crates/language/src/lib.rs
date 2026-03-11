@@ -495,7 +495,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Elixir => &["ex", "exs"],
     Go => &["go"],
     Haskell => &["hs"],
-    Hcl => &["hcl"],
+    Hcl => &["hcl", "nomad", "tf", "tfvars", "workflow"],
     Html => &["html", "htm", "xhtml"],
     Java => &["java"],
     JavaScript => &["cjs", "js", "mjs", "jsx"],
