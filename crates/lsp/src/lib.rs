@@ -1,6 +1,5 @@
 mod utils;
 
-use ast_grep_core::NodeMatch;
 use dashmap::DashMap;
 use serde_json::Value;
 use tower_lsp_server::jsonrpc::Result;
@@ -286,25 +285,33 @@ impl<L: LSPLang> Backend<L> {
     let mut fixes = Fixes::new();
     let injections = root.get_injections(|lang| L::from_str(lang).ok());
     let docs = std::iter::once(root).chain(injections.iter());
-    for injected in docs {
+    let doc_and_rules = docs.filter_map(|injected| {
       let rule_refs = rules.get_rule_from_lang(&path, injected.lang().clone());
       if rule_refs.is_empty() {
-        continue;
+        None
+      } else {
+        Some((injected, rule_refs))
       }
+    });
+    // iterate over all main doc and injected docs
+    for (injected, rule_refs) in doc_and_rules {
       let unused_suppression_rule =
         CombinedScan::unused_config(Severity::Hint, injected.lang().clone());
       let mut scan = CombinedScan::new(rule_refs);
       scan.set_unused_suppression_rule(&unused_suppression_rule);
-      for (rule, matches) in scan.scan(injected, false).matches {
-        diagnostics.extend(matches.into_iter().map(|m: NodeMatch<StrDoc<L>>| {
-          let diagnostic = convert_match_to_diagnostic(uri, &m, rule);
-          let rewrite_data = RewriteData::from_node_match(&m, rule);
-          if let Some(r) = rewrite_data {
-            fixes.insert((diagnostic.range, rule.id.clone()), r);
-          }
-          diagnostic
-        }));
-      }
+      // get all matches with rules, and conver to diagnostics
+      let all_matches = scan.scan(injected, false).matches;
+      let rule_and_matches = all_matches
+        .into_iter()
+        .flat_map(|(rule, ms)| ms.into_iter().map(move |m| (rule, m)));
+      diagnostics.extend(rule_and_matches.map(|(rule, m)| {
+        let diagnostic = convert_match_to_diagnostic(uri, &m, rule);
+        let rewrite_data = RewriteData::from_node_match(&m, rule);
+        if let Some(r) = rewrite_data {
+          fixes.insert((diagnostic.range, rule.id.clone()), r);
+        }
+        diagnostic
+      }));
     }
     Some((diagnostics, fixes))
   }
