@@ -1,6 +1,4 @@
-use super::referent_rule::{
-  with_potential_params, GlobalRules, GlobalTemplate, ReferentRuleError, RuleRegistration,
-};
+use super::referent_rule::{GlobalRules, GlobalTemplate, ReferentRuleError, RuleRegistration};
 use crate::check_var::CheckHint;
 use crate::maybe::Maybe;
 use crate::rule::{self, Rule, RuleSerializeError, SerializableMatches, SerializableRule};
@@ -292,11 +290,7 @@ impl<L: Language> DeserializeEnv<L> {
   }
 
   pub fn deserialize_rule(&self, serialized: SerializableRule) -> Result<Rule, RuleSerializeError> {
-    if let Some(params) = self.current_params_arc() {
-      with_potential_params(params, || rule::deserialize_rule(serialized, self))
-    } else {
-      rule::deserialize_rule(serialized, self)
-    }
+    rule::deserialize_rule(serialized, self)
   }
 
   pub(crate) fn get_transform_order<'a>(
@@ -329,10 +323,6 @@ impl<L: Language> DeserializeEnv<L> {
 
   pub(crate) fn current_params(&self) -> Option<&HashSet<String>> {
     self.current_params.as_deref()
-  }
-
-  pub(crate) fn current_params_arc(&self) -> Option<Arc<HashSet<String>>> {
-    self.current_params.clone()
   }
 
   pub(crate) fn has_current_param(&self, id: &str) -> bool {
