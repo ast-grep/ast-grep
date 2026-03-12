@@ -125,19 +125,7 @@ impl SerializableRuleCore {
   ) -> RResult<RuleCore> {
     let env = self.get_deserialize_env(env)?;
     let ret = self.get_matcher_from_env(&env)?;
-    let params = env.current_params_arc();
-    if let Some(params) = params {
-      with_verify_params(params, || {
-        check_rule_with_hint(
-          &ret.rule,
-          &ret.registration,
-          &ret.constraints,
-          &ret.transform,
-          &ret.fixer,
-          hint,
-        )
-      })?;
-    } else {
+    let check = || {
       check_rule_with_hint(
         &ret.rule,
         &ret.registration,
@@ -145,7 +133,12 @@ impl SerializableRuleCore {
         &ret.transform,
         &ret.fixer,
         hint,
-      )?;
+      )
+    };
+    if let Some(params) = env.current_params_arc() {
+      with_verify_params(params, check)?;
+    } else {
+      check()?;
     }
     Ok(ret)
   }
