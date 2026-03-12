@@ -296,7 +296,7 @@ impl Rule {
       Rule::All(sub) => sub.inner().iter().flat_map(|r| r.defined_vars()).collect(),
       Rule::Any(sub) => sub.inner().iter().flat_map(|r| r.defined_vars()).collect(),
       Rule::Not(sub) => sub.inner().defined_vars(),
-      Rule::Matches(rule) => rule.defined_vars(),
+      Rule::Matches(rule) => rule.defined_vars().iter().map(|s| s.as_str()).collect(),
     }
   }
 
