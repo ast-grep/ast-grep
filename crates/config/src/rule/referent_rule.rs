@@ -13,9 +13,7 @@ use std::sync::{Arc, Weak};
 
 thread_local! {
   static VERIFY_STACK: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
-  static VERIFY_PARAM_STACK: RefCell<Vec<Arc<HashSet<String>>>> = const { RefCell::new(Vec::new()) };
   static POTENTIAL_KINDS_STACK: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
-  static POTENTIAL_PARAM_STACK: RefCell<Vec<Arc<HashSet<String>>>> = const { RefCell::new(Vec::new()) };
   static ARG_RULE_FRAME: RefCell<Option<Arc<BindingFrame>>> = const { RefCell::new(None) };
   static ARG_RULE_EXPORT_ENV: RefCell<Vec<*mut ()>> = const { RefCell::new(Vec::new()) };
 }
@@ -274,6 +272,9 @@ pub enum ReferentRuleError {
 pub struct ReferentRule {
   pub(crate) rule_id: String,
   pub(crate) args: Arc<HashMap<String, Arc<Rule>>>,
+  /// True when a bare `matches: NAME` was parsed as a reference to the current
+  /// parameter scope instead of a local/global utility rule.
+  is_local_param: bool,
   /// Cached set of meta-variable names defined by the argument rules.
   exported_vars: HashSet<String>,
   reg_ref: RegistrationRef,
@@ -286,6 +287,19 @@ impl ReferentRule {
   ) -> Result<Self, ReferentRuleError> {
     Ok(Self::new_with_ref(
       rule_id,
+      false,
+      HashMap::new(),
+      registration.get_ref(),
+    ))
+  }
+
+  pub(crate) fn try_new_local_param(
+    rule_id: String,
+    registration: &RuleRegistration,
+  ) -> Result<Self, ReferentRuleError> {
+    Ok(Self::new_with_ref(
+      rule_id,
+      true,
       HashMap::new(),
       registration.get_ref(),
     ))
@@ -296,11 +310,12 @@ impl ReferentRule {
     args: HashMap<String, Rule>,
     registration: &RuleRegistration,
   ) -> Self {
-    Self::new_with_ref(rule_id, args, registration.get_ref())
+    Self::new_with_ref(rule_id, false, args, registration.get_ref())
   }
 
-  pub(crate) fn new_with_ref(
+  fn new_with_ref(
     rule_id: String,
+    is_local_param: bool,
     args: HashMap<String, Rule>,
     reg_ref: RegistrationRef,
   ) -> Self {
@@ -316,6 +331,7 @@ impl ReferentRule {
     Self {
       rule_id,
       args: Arc::new(args),
+      is_local_param,
       exported_vars,
       reg_ref,
     }
@@ -361,15 +377,6 @@ impl ReferentRule {
     Some(func(&template.matcher))
   }
 
-  fn eval_local_template_params<F, T>(&self, func: F) -> Option<T>
-  where
-    F: FnOnce(&Vec<String>) -> T,
-  {
-    let templates = self.reg_ref.get_local_templates();
-    let template = templates.get(&self.rule_id)?;
-    Some(func(&template.params))
-  }
-
   fn compute_potential_kinds(&self) -> Option<BitSet> {
     self
       .eval_local_template(|template| {
@@ -389,7 +396,7 @@ impl ReferentRule {
 
   pub(super) fn verify_util(&self) -> Result<(), crate::rule::RuleSerializeError> {
     if !self.is_parameterized() {
-      if has_verify_param(&self.rule_id) {
+      if self.is_local_param {
         return Ok(());
       }
       let rules = self.reg_ref.get_local();
@@ -435,14 +442,7 @@ impl ReferentRule {
       .try_for_each(|arg| arg.verify_util())
       .and_then(|_| {
         self
-          .eval_local_template_params(|params| {
-            let params = Arc::new(params.iter().cloned().collect::<HashSet<_>>());
-            with_verify_params(params, || {
-              self
-                .eval_local_template(|template| template.verify_util())
-                .expect("local template params and body must stay in sync")
-            })
-          })
+          .eval_local_template(|template| template.verify_util())
           .or_else(|| self.eval_global_template(|_| Ok(())))
           .unwrap_or_else(|| {
             if self.reg_ref.get_local().contains_key(&self.rule_id)
@@ -502,7 +502,7 @@ impl Matcher for ReferentRule {
         })
         .flatten()
     } else {
-      if lookup_bound_rule(&self.rule_id).is_some() {
+      if self.is_local_param {
         return match_bound_rule(&self.rule_id, node, env);
       }
       self
@@ -516,13 +516,13 @@ impl Matcher for ReferentRule {
     if self.is_parameterized() {
       with_potential_kinds_guard(&self.rule_id, || self.compute_potential_kinds())
     } else {
-      if lookup_bound_rule(&self.rule_id).is_some() || has_potential_param(&self.rule_id) {
+      if self.is_local_param {
         // Deliberately stop inferring kinds through parameter rule references.
         // A `matches: PARAM-RULE` edge is treated as "can match anything", both
-        // during deserialization-time cache construction and during bound calls at
-        // runtime. Users must provide stable kind information at the utility
-        // definition site or around the call site if they want pruning to stay
-        // precise and satisfy MissingPotentialKinds.
+        // during deserialization-time cache construction and at runtime. Users
+        // must provide stable kind information at the utility definition site
+        // or around the call site if they want pruning to stay precise and
+        // satisfy MissingPotentialKinds.
         return None;
       }
       self
@@ -654,31 +654,6 @@ fn with_binding_frame<T>(frame: Option<Arc<BindingFrame>>, f: impl FnOnce() -> T
   let _guard = FrameGuard(previous);
   f()
 }
-
-macro_rules! define_param_stack_ops {
-  ($with_fn:ident, $has_fn:ident, $stack:ident, $vis:vis) => {
-    $vis fn $with_fn<T>(params: Arc<HashSet<String>>, f: impl FnOnce() -> T) -> T {
-      struct Guard;
-      impl Drop for Guard {
-        fn drop(&mut self) {
-          $stack.with(|stack| { stack.borrow_mut().pop(); });
-        }
-      }
-      $stack.with(|stack| stack.borrow_mut().push(params));
-      let _guard = Guard;
-      f()
-    }
-
-    fn $has_fn(name: &str) -> bool {
-      $stack.with(|stack| {
-        stack.borrow().iter().rev().any(|params| params.contains(name))
-      })
-    }
-  };
-}
-
-define_param_stack_ops!(with_verify_params, has_verify_param, VERIFY_PARAM_STACK, pub(crate));
-define_param_stack_ops!(with_potential_params, has_potential_param, POTENTIAL_PARAM_STACK, pub(crate));
 
 fn with_arg_export_env<'tree, D: Doc, T>(
   env: &mut MetaVarEnv<'tree, D>,
