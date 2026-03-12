@@ -343,7 +343,7 @@ impl Matcher for Rule {
       All(all) => all.match_node_with_env(node, env),
       Any(any) => any.match_node_with_env(node, env),
       Not(not) => not.match_node_with_env(node, env),
-      Matches(target) => target.match_node_with_env(node, env),
+      Matches(rule) => rule.match_node_with_env(node, env),
     }
   }
 
@@ -357,15 +357,15 @@ impl Matcher for Rule {
       NthChild(nth_child) => nth_child.potential_kinds(),
       Range(range) => range.potential_kinds(),
       // relational
-      Inside(_) => None,
-      Has(_) => None,
-      Precedes(_) => None,
-      Follows(_) => None,
+      Inside(parent) => parent.potential_kinds(),
+      Has(child) => child.potential_kinds(),
+      Precedes(latter) => latter.potential_kinds(),
+      Follows(former) => former.potential_kinds(),
       // composite
       All(all) => all.potential_kinds(),
       Any(any) => any.potential_kinds(),
       Not(not) => not.potential_kinds(),
-      Matches(target) => target.potential_kinds(),
+      Matches(rule) => rule.potential_kinds(),
     }
   }
 }
