@@ -1,6 +1,6 @@
 use crate::check_var::{check_rule_with_hint, CheckHint};
 use crate::fixer::{Fixer, FixerError, SerializableFixer};
-use crate::rule::referent_rule::{with_verify_params, RuleRegistration};
+use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::Rule;
 use crate::rule::{RuleSerializeError, SerializableRule};
 use crate::transform::{Transform, TransformError, Transformation};
@@ -125,21 +125,14 @@ impl SerializableRuleCore {
   ) -> RResult<RuleCore> {
     let env = self.get_deserialize_env(env)?;
     let ret = self.get_matcher_from_env(&env)?;
-    let check = || {
-      check_rule_with_hint(
-        &ret.rule,
-        &ret.registration,
-        &ret.constraints,
-        &ret.transform,
-        &ret.fixer,
-        hint,
-      )
-    };
-    if let Some(params) = env.current_params_arc() {
-      with_verify_params(params, check)?;
-    } else {
-      check()?;
-    }
+    check_rule_with_hint(
+      &ret.rule,
+      &ret.registration,
+      &ret.constraints,
+      &ret.transform,
+      &ret.fixer,
+      hint,
+    )?;
     Ok(ret)
   }
 }
