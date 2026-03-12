@@ -379,14 +379,8 @@ impl ReferentRule {
 
   fn compute_potential_kinds(&self) -> Option<BitSet> {
     self
-      .eval_local_template(|template| {
-        with_arg_bindings(self.args.clone(), || template.potential_kinds())
-      })
-      .or_else(|| {
-        self.eval_global_template(|template| {
-          with_arg_bindings(self.args.clone(), || template.matcher.potential_kinds())
-        })
-      })
+      .eval_local_template(|template| template.potential_kinds())
+      .or_else(|| self.eval_global_template(|template| template.matcher.potential_kinds()))
       .flatten()
   }
 
