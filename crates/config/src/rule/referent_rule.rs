@@ -274,6 +274,8 @@ pub enum ReferentRuleError {
 pub struct ReferentRule {
   pub(crate) rule_id: String,
   pub(crate) args: Arc<HashMap<String, Arc<Rule>>>,
+  /// Cached set of meta-variable names defined by the argument rules.
+  exported_vars: HashSet<String>,
   reg_ref: RegistrationRef,
 }
 
@@ -302,14 +304,19 @@ impl ReferentRule {
     args: HashMap<String, Rule>,
     reg_ref: RegistrationRef,
   ) -> Self {
+    let args: HashMap<String, Arc<Rule>> = args
+      .into_iter()
+      .map(|(name, rule)| (name, Arc::new(rule)))
+      .collect();
+    let exported_vars = args
+      .values()
+      .flat_map(|rule| rule.defined_vars())
+      .map(|s| s.to_string())
+      .collect();
     Self {
       rule_id,
-      args: Arc::new(
-        args
-          .into_iter()
-          .map(|(name, rule)| (name, Arc::new(rule)))
-          .collect(),
-      ),
+      args: Arc::new(args),
+      exported_vars,
       reg_ref,
     }
   }
@@ -376,12 +383,8 @@ impl ReferentRule {
       .flatten()
   }
 
-  pub(crate) fn defined_vars(&self) -> HashSet<&str> {
-    self
-      .args
-      .values()
-      .flat_map(|rule| rule.defined_vars())
-      .collect()
+  pub(crate) fn defined_vars(&self) -> &HashSet<String> {
+    &self.exported_vars
   }
 
   pub(super) fn verify_util(&self) -> Result<(), crate::rule::RuleSerializeError> {
@@ -494,7 +497,7 @@ impl Matcher for ReferentRule {
         })
         .or_else(|| {
           self.eval_global_template(|template| {
-            match_global_template(template, self.args.clone(), &exported_vars, node, env)
+            match_global_template(template, self.args.clone(), exported_vars, node, env)
           })
         })
         .flatten()
@@ -555,7 +558,7 @@ fn match_global_rule<'tree, D: Doc>(
 fn match_global_template<'tree, D: Doc>(
   template: &GlobalTemplate,
   bindings: Arc<HashMap<String, Arc<Rule>>>,
-  exported_vars: &HashSet<&str>,
+  exported_vars: &HashSet<String>,
   node: Node<'tree, D>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<Node<'tree, D>> {
@@ -573,21 +576,21 @@ fn match_global_template<'tree, D: Doc>(
 fn export_vars<'tree, D: Doc>(
   from: &MetaVarEnv<'tree, D>,
   to: &mut MetaVarEnv<'tree, D>,
-  vars: &HashSet<&str>,
+  vars: &HashSet<String>,
 ) -> Option<()> {
   for var in vars {
-    if let Some(node) = from.get_match(var) {
+    if let Some(node) = from.get_match(var.as_str()) {
       to.insert(var, node.clone())?;
       continue;
     }
-    let multi = from.get_multiple_matches(var);
+    let multi = from.get_multiple_matches(var.as_str());
     if !multi.is_empty() {
       to.insert_multi(var, multi)?;
       continue;
     }
-    if let Some(bytes) = from.get_transformed(var) {
+    if let Some(bytes) = from.get_transformed(var.as_str()) {
       to.insert_transformation(
-        &MetaVariable::Capture((*var).to_string(), false),
+        &MetaVariable::Capture(var.to_string(), false),
         var,
         bytes.clone(),
       );
@@ -626,7 +629,8 @@ pub(crate) fn match_bound_rule<'tree, D: Doc>(
   let (rule, parent) = lookup_bound_rule(name)?;
   with_current_arg_export_env(|export_env: Option<&mut MetaVarEnv<'tree, D>>| {
     if let Some(export_env) = export_env {
-      let exported_vars = rule.defined_vars();
+      let exported_vars: HashSet<String> =
+        rule.defined_vars().into_iter().map(String::from).collect();
       let mut local_env = Cow::Owned(export_env.clone());
       let matched = with_binding_frame(parent, || rule.match_node_with_env(node, &mut local_env))?;
       export_vars(local_env.as_ref(), export_env, &exported_vars)?;
@@ -651,53 +655,30 @@ fn with_binding_frame<T>(frame: Option<Arc<BindingFrame>>, f: impl FnOnce() -> T
   f()
 }
 
-pub(crate) fn with_verify_params<T>(params: Arc<HashSet<String>>, f: impl FnOnce() -> T) -> T {
-  struct VerifyParamGuard;
-  impl Drop for VerifyParamGuard {
-    fn drop(&mut self) {
-      VERIFY_PARAM_STACK.with(|stack| {
-        stack.borrow_mut().pop();
-      });
+macro_rules! define_param_stack_ops {
+  ($with_fn:ident, $has_fn:ident, $stack:ident, $vis:vis) => {
+    $vis fn $with_fn<T>(params: Arc<HashSet<String>>, f: impl FnOnce() -> T) -> T {
+      struct Guard;
+      impl Drop for Guard {
+        fn drop(&mut self) {
+          $stack.with(|stack| { stack.borrow_mut().pop(); });
+        }
+      }
+      $stack.with(|stack| stack.borrow_mut().push(params));
+      let _guard = Guard;
+      f()
     }
-  }
-  VERIFY_PARAM_STACK.with(|stack| stack.borrow_mut().push(params));
-  let _guard = VerifyParamGuard;
-  f()
-}
 
-pub(crate) fn with_potential_params<T>(params: Arc<HashSet<String>>, f: impl FnOnce() -> T) -> T {
-  struct PotentialParamGuard;
-  impl Drop for PotentialParamGuard {
-    fn drop(&mut self) {
-      POTENTIAL_PARAM_STACK.with(|stack| {
-        stack.borrow_mut().pop();
-      });
+    fn $has_fn(name: &str) -> bool {
+      $stack.with(|stack| {
+        stack.borrow().iter().rev().any(|params| params.contains(name))
+      })
     }
-  }
-  POTENTIAL_PARAM_STACK.with(|stack| stack.borrow_mut().push(params));
-  let _guard = PotentialParamGuard;
-  f()
+  };
 }
 
-fn has_verify_param(name: &str) -> bool {
-  VERIFY_PARAM_STACK.with(|stack| {
-    stack
-      .borrow()
-      .iter()
-      .rev()
-      .any(|params| params.contains(name))
-  })
-}
-
-fn has_potential_param(name: &str) -> bool {
-  POTENTIAL_PARAM_STACK.with(|stack| {
-    stack
-      .borrow()
-      .iter()
-      .rev()
-      .any(|params| params.contains(name))
-  })
-}
+define_param_stack_ops!(with_verify_params, has_verify_param, VERIFY_PARAM_STACK, pub(crate));
+define_param_stack_ops!(with_potential_params, has_potential_param, POTENTIAL_PARAM_STACK, pub(crate));
 
 fn with_arg_export_env<'tree, D: Doc, T>(
   env: &mut MetaVarEnv<'tree, D>,
