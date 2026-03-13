@@ -22,6 +22,7 @@ mod bash;
 mod cpp;
 mod csharp;
 mod css;
+mod dart;
 mod elixir;
 mod go;
 mod haskell;
@@ -247,6 +248,7 @@ impl_lang!(Scala, language_scala);
 impl_lang!(Solidity, language_solidity);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
+impl_lang!(Dart, language_dart);
 impl_lang!(Yaml, language_yaml);
 // See ripgrep for extensions
 // https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/src/default_types.rs
@@ -259,6 +261,7 @@ pub enum SupportLang {
   Cpp,
   CSharp,
   Css,
+  Dart,
   Go,
   Elixir,
   Haskell,
@@ -286,7 +289,7 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      Bash, C, Cpp, CSharp, Css, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json, Kotlin,
+      Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json, Kotlin,
       Lua, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript, Yaml,
     ]
   }
@@ -373,6 +376,7 @@ impl_aliases! {
   Cpp => &["cc", "c++", "cpp", "cxx"],
   CSharp => &["cs", "csharp"],
   Css => &["css"],
+  Dart => &["dart"],
   Elixir => &["ex", "elixir"],
   Go => &["go", "golang"],
   Haskell => &["hs", "haskell"],
@@ -420,6 +424,7 @@ macro_rules! execute_lang_method {
       S::Cpp => Cpp.$method($($pname,)*),
       S::CSharp => CSharp.$method($($pname,)*),
       S::Css => Css.$method($($pname,)*),
+      S::Dart => Dart.$method($($pname,)*),
       S::Elixir => Elixir.$method($($pname,)*),
       S::Go => Go.$method($($pname,)*),
       S::Haskell => Haskell.$method($($pname,)*),
@@ -492,6 +497,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Cpp => &["cc", "hpp", "cpp", "c++", "hh", "cxx", "cu", "ino"],
     CSharp => &["cs"],
     Css => &["css", "scss"],
+    Dart => &["dart"],
     Elixir => &["ex", "exs"],
     Go => &["go"],
     Haskell => &["hs"],
