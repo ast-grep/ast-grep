@@ -13,7 +13,6 @@ use std::sync::{Arc, Weak};
 
 thread_local! {
   static VERIFY_STACK: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
-  static POTENTIAL_KINDS_STACK: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
   static ARG_RULE_FRAME: RefCell<Option<Arc<BindingFrame>>> = const { RefCell::new(None) };
   static ARG_RULE_EXPORT_ENV: RefCell<Vec<*mut ()>> = const { RefCell::new(Vec::new()) };
 }
@@ -22,26 +21,6 @@ thread_local! {
 struct BindingFrame {
   bindings: Arc<HashMap<String, Arc<Rule>>>,
   parent: Option<Arc<BindingFrame>>,
-}
-
-fn with_potential_kinds_guard<T>(id: &str, compute: impl FnOnce() -> Option<T>) -> Option<T> {
-  let should_compute = POTENTIAL_KINDS_STACK.with(|stack| {
-    let mut stack = stack.borrow_mut();
-    if stack.contains(id) {
-      false
-    } else {
-      stack.insert(id.to_string());
-      true
-    }
-  });
-  if !should_compute {
-    return None;
-  }
-  let ret = compute();
-  POTENTIAL_KINDS_STACK.with(|stack| {
-    stack.borrow_mut().remove(id);
-  });
-  ret
 }
 
 pub struct Registration<R>(Arc<HashMap<String, R>>);
@@ -508,7 +487,7 @@ impl Matcher for ReferentRule {
 
   fn potential_kinds(&self) -> Option<BitSet> {
     if self.is_parameterized() {
-      with_potential_kinds_guard(&self.rule_id, || self.compute_potential_kinds())
+      self.compute_potential_kinds()
     } else {
       if self.is_local_param {
         // Deliberately stop inferring kinds through parameter rule references.
@@ -520,20 +499,8 @@ impl Matcher for ReferentRule {
         return None;
       }
       self
-        .eval_local(|r| {
-          with_potential_kinds_guard(&self.rule_id, || {
-            debug_assert!(!r.check_cyclic(&self.rule_id), "no cyclic rule allowed");
-            r.potential_kinds()
-          })
-        })
-        .or_else(|| {
-          self.eval_global(|r| {
-            with_potential_kinds_guard(&self.rule_id, || {
-              debug_assert!(!r.check_cyclic(&self.rule_id), "no cyclic rule allowed");
-              r.potential_kinds()
-            })
-          })
-        })
+        .eval_local(|r| r.potential_kinds())
+        .or_else(|| self.eval_global(|r| r.potential_kinds()))
         .flatten()
     }
   }
