@@ -111,7 +111,7 @@ impl SgNode {
     let config: WasmConfig = serde_wasm_bindgen::from_value(m)?;
     let lang = *self.inner.lang();
     let rule_core = config.parse_with(lang)?;
-    Ok(MatcherType::RuleCore(rule_core))
+    Ok(MatcherType::RuleCore(Box::new(rule_core)))
   }
 
   // SAFETY helper: transmute NodeMatch lifetime from 'tree to 'static.
@@ -124,7 +124,7 @@ impl SgNode {
 enum MatcherType {
   Pattern(Pattern),
   Kind(KindMatcher),
-  RuleCore(ast_grep_config::RuleCore),
+  RuleCore(Box<ast_grep_config::RuleCore>),
 }
 
 /// Position and info methods
@@ -188,7 +188,7 @@ impl SgNode {
     Ok(match self.parse_matcher(m)? {
       MatcherType::Pattern(p) => self.inner.matches(p),
       MatcherType::Kind(k) => self.inner.matches(k),
-      MatcherType::RuleCore(r) => self.inner.matches(r),
+      MatcherType::RuleCore(r) => self.inner.matches(r.as_ref()),
     })
   }
 
@@ -196,7 +196,7 @@ impl SgNode {
     Ok(match self.parse_matcher(m)? {
       MatcherType::Pattern(p) => self.inner.inside(p),
       MatcherType::Kind(k) => self.inner.inside(k),
-      MatcherType::RuleCore(r) => self.inner.inside(r),
+      MatcherType::RuleCore(r) => self.inner.inside(r.as_ref()),
     })
   }
 
@@ -204,7 +204,7 @@ impl SgNode {
     Ok(match self.parse_matcher(m)? {
       MatcherType::Pattern(p) => self.inner.has(p),
       MatcherType::Kind(k) => self.inner.has(k),
-      MatcherType::RuleCore(r) => self.inner.has(r),
+      MatcherType::RuleCore(r) => self.inner.has(r.as_ref()),
     })
   }
 
@@ -212,7 +212,7 @@ impl SgNode {
     Ok(match self.parse_matcher(m)? {
       MatcherType::Pattern(p) => self.inner.precedes(p),
       MatcherType::Kind(k) => self.inner.precedes(k),
-      MatcherType::RuleCore(r) => self.inner.precedes(r),
+      MatcherType::RuleCore(r) => self.inner.precedes(r.as_ref()),
     })
   }
 
@@ -220,7 +220,7 @@ impl SgNode {
     Ok(match self.parse_matcher(m)? {
       MatcherType::Pattern(p) => self.inner.follows(p),
       MatcherType::Kind(k) => self.inner.follows(k),
-      MatcherType::RuleCore(r) => self.inner.follows(r),
+      MatcherType::RuleCore(r) => self.inner.follows(r.as_ref()),
     })
   }
 
@@ -332,7 +332,7 @@ impl SgNode {
     let node_match = match self.parse_matcher(matcher)? {
       MatcherType::Pattern(p) => self.inner.find(p),
       MatcherType::Kind(k) => self.inner.find(k),
-      MatcherType::RuleCore(r) => self.inner.find(r),
+      MatcherType::RuleCore(r) => self.inner.find(r.as_ref()),
     };
     Ok(node_match.map(|nm| self.make_node(unsafe { Self::cast_match(nm) })))
   }
@@ -342,7 +342,7 @@ impl SgNode {
     let matches: Vec<_> = match self.parse_matcher(matcher)? {
       MatcherType::Pattern(p) => self.inner.find_all(p).collect(),
       MatcherType::Kind(k) => self.inner.find_all(k).collect(),
-      MatcherType::RuleCore(r) => self.inner.find_all(r).collect(),
+      MatcherType::RuleCore(r) => self.inner.find_all(r.as_ref()).collect(),
     };
     Ok(
       matches

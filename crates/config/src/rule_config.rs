@@ -268,8 +268,8 @@ impl<L: Language> DerefMut for RuleConfig<L> {
 mod test {
   use super::*;
   use crate::from_str;
-  use crate::rule::SerializableRule;
   use crate::test::TypeScript;
+  use crate::{SerializableGlobalRule, SerializableRule};
   use ast_grep_core::tree_sitter::LanguageExt;
 
   fn ts_rule_config(rule: SerializableRule) -> SerializableRuleConfig<TypeScript> {
@@ -294,6 +294,12 @@ mod test {
       url: None,
       metadata: None,
     }
+  }
+
+  fn ts_global_rules(yaml: &str) -> GlobalRules {
+    let globals: Vec<SerializableGlobalRule<TypeScript>> =
+      from_str(yaml).expect("should parse globals");
+    DeserializeEnv::parse_global_utils(globals).expect("should parse global rules")
   }
 
   #[test]
@@ -379,6 +385,241 @@ all:
     assert_eq!(a, "1");
     let b = env.get_match("B").expect("should exist").text();
     assert_eq!(b, "test");
+  }
+
+  #[test]
+  fn test_parameterized_global_rule_exports_argument_env_only() {
+    let globals = ts_global_rules(
+      r"
+- id: global-rule(export-var)
+  language: Tsx
+  rule:
+    pattern: Some($A)
+    matches: export-var
+",
+    );
+    let rule = from_str(
+      r"
+matches:
+  global-rule:
+    export-var:
+      pattern: $EXP
+",
+    )
+    .expect("should parse");
+    let config = ts_rule_config(rule);
+    let grep = TypeScript::Tsx.ast_grep("let value = Some(123)");
+    let node_match = grep
+      .root()
+      .find(config.get_matcher(&globals).unwrap())
+      .expect("should found");
+    let env = node_match.get_env();
+    let exp = env.get_match("EXP").expect("should export argument").text();
+    assert_eq!(exp, "Some(123)");
+    assert!(env.get_match("A").is_none());
+  }
+
+  #[test]
+  fn test_parameterized_global_rule_does_not_interfere_with_same_name_local_var() {
+    let globals = ts_global_rules(
+      r"
+- id: global-rule(export-var)
+  language: Tsx
+  rule:
+    pattern: Some($A)
+    matches: export-var
+",
+    );
+    let rule = from_str(
+      r"
+all:
+  - pattern: $A
+  - matches:
+      global-rule:
+        export-var:
+          pattern: $EXP
+",
+    )
+    .expect("should parse");
+    let config = ts_rule_config(rule);
+    let grep = TypeScript::Tsx.ast_grep("Some(123)");
+    let node_match = grep
+      .root()
+      .find(config.get_matcher(&globals).unwrap())
+      .expect("should found");
+    let env = node_match.get_env();
+    let a = env.get_match("A").expect("should keep local A").text();
+    assert_eq!(a, "Some(123)");
+    let exp = env.get_match("EXP").expect("should export argument").text();
+    assert_eq!(exp, "Some(123)");
+  }
+
+  #[test]
+  fn test_parameterized_global_rule_metavar_does_not_affect_yaml_rule_matching() {
+    let globals = ts_global_rules(
+      r"
+- id: global-rule(export-var)
+  language: Tsx
+  rule:
+    pattern: Some($A)
+    matches: export-var
+",
+    );
+    let rule = from_str(
+      r"
+all:
+  - pattern: wrapper($A)
+  - has:
+      stopBy: end
+      matches:
+        global-rule:
+          export-var:
+            pattern: $EXP
+",
+    )
+    .expect("should parse");
+    let config = ts_rule_config(rule);
+    let grep = TypeScript::Tsx.ast_grep("wrapper(Some(123))");
+    let node_match = grep
+      .root()
+      .find(config.get_matcher(&globals).unwrap())
+      .expect("should found");
+    let env = node_match.get_env();
+    let a = env.get_match("A").expect("should keep yaml A").text();
+    assert_eq!(a, "Some(123)");
+    let exp = env.get_match("EXP").expect("should export argument").text();
+    assert_eq!(exp, "Some(123)");
+  }
+
+  #[test]
+  fn test_parameterized_global_rule_argument_vars_do_not_conflict_with_internal_vars() {
+    let globals = ts_global_rules(
+      r"
+- id: global-rule(export-var)
+  language: Tsx
+  rule:
+    pattern: Some($A)
+    matches: export-var
+",
+    );
+    let rule = from_str(
+      r"
+matches:
+  global-rule:
+    export-var:
+      pattern: $A
+",
+    )
+    .expect("should parse");
+    let config = ts_rule_config(rule);
+    let grep = TypeScript::Tsx.ast_grep("Some(123)");
+    let node_match = grep
+      .root()
+      .find(config.get_matcher(&globals).unwrap())
+      .expect("should found");
+    let env = node_match.get_env();
+    let a = env.get_match("A").expect("should export caller A").text();
+    assert_eq!(a, "Some(123)");
+  }
+
+  #[test]
+  fn test_same_arg_name_resolves_to_nearest_scope_across_local_and_global_utils() {
+    let globals = ts_global_rules(
+      r"
+- id: global-two(ARG)
+  language: Tsx
+  rule:
+    all:
+      - matches: ARG
+      - kind: number
+- id: global-one(ARG)
+  language: Tsx
+  rule:
+    all:
+      - has:
+          stopBy: end
+          matches: ARG
+      - has:
+          stopBy: end
+          matches:
+            local-in-global:
+              ARG:
+                pattern: $MID
+  utils:
+    local-in-global(ARG):
+      all:
+        - matches: ARG
+        - kind: number
+        - matches:
+            global-two:
+              ARG:
+                pattern: $LEAF
+",
+    );
+    let rule: SerializableRuleConfig<TypeScript> = from_str(
+      r"
+id: test
+language: Tsx
+rule:
+  all:
+    - kind: call_expression
+    - matches:
+        local-in-yaml:
+          ARG:
+            pattern: Box($OUTER)
+utils:
+  local-in-yaml(ARG):
+    all:
+      - matches: ARG
+      - matches:
+          global-one:
+            ARG:
+              pattern: Some($INNER)
+",
+    )
+    .expect("should parse");
+    let rule = RuleConfig::try_from(rule, &globals).expect("should work");
+    let grep = TypeScript::Tsx.ast_grep("Box(Some(123))");
+    let node_match = grep.root().find(&rule.matcher).expect("should match");
+    let env = node_match.get_env();
+    let outer = env
+      .get_match("OUTER")
+      .expect("should bind outer arg")
+      .text();
+    assert_eq!(outer, "Some(123)");
+    let inner = env
+      .get_match("INNER")
+      .expect("should bind inner arg")
+      .text();
+    assert_eq!(inner, "123");
+    assert!(env.get_match("MID").is_none());
+    assert!(env.get_match("LEAF").is_none());
+    // If global-one(ARG) accidentally reused the YAML-local ARG binding, this
+    // would match through the inner `Box(123)`. It must fail because the global
+    // ARG is `Some($INNER)`.
+    let grep = TypeScript::Tsx.ast_grep("Box(Box(123))");
+    assert!(grep.root().find(&rule.matcher).is_none());
+  }
+
+  #[test]
+  fn test_local_util_metavar_does_affect_yaml_rule_matching() {
+    let rule: SerializableRuleConfig<TypeScript> = from_str(
+      r"
+id: test
+language: Tsx
+rule:
+  all:
+    - pattern: $A
+    - matches: local-rule
+utils:
+  local-rule:
+    pattern: Some($A)
+",
+    )
+    .expect("should parse");
+    let rule = RuleConfig::try_from(rule, &Default::default()).expect("should work");
+    let grep = TypeScript::Tsx.ast_grep("Some(123)");
+    assert!(grep.root().find(&rule.matcher).is_none());
   }
 
   #[test]

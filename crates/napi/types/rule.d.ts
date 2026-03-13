@@ -51,6 +51,13 @@ export interface Range {
   end: Position
 }
 
+export type UtilityCall<M extends TypesMap = TypesMap> = Record<
+  string,
+  Record<string, Rule<M>>
+>
+
+export type Matches<M extends TypesMap = TypesMap> = string | UtilityCall<M>
+
 export interface Rule<M extends TypesMap = TypesMap> {
   /** A pattern string or a pattern object. */
   pattern?: PatternStyle<M>
@@ -93,6 +100,6 @@ export interface Rule<M extends TypesMap = TypesMap> {
   any?: Array<Rule<M>>
   /** A single sub-rule and matches a node if the sub rule does not match. */
   not?: Rule<M>
-  /** A utility rule id and matches a node if the utility rule matches. */
-  matches?: string
+  /** A utility rule id or parameterized utility call and matches a node if that utility matches. */
+  matches?: Matches<M>
 }

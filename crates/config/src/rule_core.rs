@@ -185,11 +185,9 @@ impl RuleCore {
   }
 
   pub fn get_env<L: Language>(&self, lang: L) -> DeserializeEnv<L> {
-    DeserializeEnv {
-      lang,
-      registration: self.registration.clone(),
-    }
+    DeserializeEnv::from_registration(lang, self.registration.clone())
   }
+
   /// Get the meta variables that have real ast node matches
   /// that is, meta vars defined in the rules and constraints
   pub(crate) fn defined_node_vars(&self) -> HashSet<&str> {
@@ -274,7 +272,7 @@ impl Matcher for RuleCore {
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
-    self.rule.potential_kinds()
+    self.kinds.clone()
   }
 }
 
@@ -354,6 +352,210 @@ transform:
     assert!(grep.root().find(&matcher).is_none());
     assert!(grep.root().find(&rule).is_none());
     assert!(grep.root().find(&not).is_none());
+  }
+
+  #[test]
+  fn test_parameterized_utils_match() {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule:
+  matches:
+    wrap:
+      BODY:
+        kind: number
+utils:
+  wrap(BODY):
+    matches: BODY
+",
+    )
+    .expect("should deser");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("a = 123");
+    assert!(grep.root().find(&matcher).is_some());
+    let grep = TypeScript::Tsx.ast_grep("a = '123'");
+    assert!(grep.root().find(&matcher).is_none());
+  }
+
+  #[test]
+  fn test_bare_parameter_name_shadows_same_named_local_util() {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule:
+  matches:
+    wrap:
+      BODY:
+        kind: number
+utils:
+  BODY:
+    kind: string
+  wrap(BODY):
+    matches: BODY
+",
+    )
+    .expect("should deser");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("a = 123");
+    assert!(grep.root().find(&matcher).is_some());
+    let grep = TypeScript::Tsx.ast_grep("a = '123'");
+    assert!(grep.root().find(&matcher).is_none());
+  }
+
+  #[test]
+  fn test_bare_parameterized_util_without_args_is_rejected() {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule:
+  matches: wrap
+utils:
+  wrap(BODY):
+    matches: BODY
+",
+    )
+    .expect("should deser");
+    let ret = ser_rule.get_matcher(env);
+    assert!(matches!(
+      ret,
+      Err(RuleCoreError::Rule(RuleSerializeError::MissingUtilityArguments(name)))
+      if name == "wrap"
+    ));
+  }
+
+  #[test]
+  fn test_parameterized_utils_match_through_relation() {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule:
+  matches:
+    maybe_parenthesized:
+      BODY:
+        pattern: foo($A)
+utils:
+  maybe_parenthesized(BODY):
+    any:
+      - matches: BODY
+      - kind: parenthesized_expression
+        has:
+          stopBy: end
+          matches: BODY
+",
+    )
+    .expect("should deser");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("foo(1)");
+    assert!(grep.root().find(&matcher).is_some());
+    let grep = TypeScript::Tsx.ast_grep("(foo(1))");
+    assert!(grep.root().find(&matcher).is_some());
+    let grep = TypeScript::Tsx.ast_grep("bar(1)");
+    assert!(grep.root().find(&matcher).is_none());
+  }
+
+  #[test]
+  fn test_parameterized_utils_match_through_shadowed_param() {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule:
+  matches:
+    outer:
+      BODY:
+        kind: number
+utils:
+  inner(BODY):
+    matches: BODY
+  outer(BODY):
+    matches:
+      inner:
+        BODY:
+          matches: BODY
+",
+    )
+    .expect("should deser");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("a = 123");
+    assert!(grep.root().find(&matcher).is_some());
+    let grep = TypeScript::Tsx.ast_grep("a = '123'");
+    assert!(grep.root().find(&matcher).is_none());
+  }
+
+  #[test]
+  fn test_parameterized_utils_match_with_concrete_nested_arg_rule() {
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule:
+  matches: nested
+utils:
+  with-arg(arg-rule):
+    matches: arg-rule
+  nested:
+    matches:
+      with-arg:
+        arg-rule:
+          pattern: Some($A)
+",
+    )
+    .expect("should deser");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("let value = Some(123)");
+    assert!(grep.root().find(&matcher).is_some());
+    let grep = TypeScript::Tsx.ast_grep("let value = None");
+    assert!(grep.root().find(&matcher).is_none());
+  }
+
+  #[test]
+  fn test_parameterized_util_potential_kinds_ignore_shadowed_param_refs() {
+    let number_id = usize::from(TypeScript::Tsx.kind_to_id("number"));
+    let identifier_id = usize::from(TypeScript::Tsx.kind_to_id("identifier"));
+    let string_id = usize::from(TypeScript::Tsx.kind_to_id("string"));
+
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule:
+  matches:
+    all-kind:
+      ARG:
+        kind: identifier
+utils:
+  ARG:
+    kind: string
+  all-kind(ARG):
+    all:
+      - kind: number
+      - matches: ARG
+",
+    )
+    .expect("should deser");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    let kinds = matcher.potential_kinds().expect("all should stay known");
+    assert!(kinds.contains(number_id));
+    assert!(!kinds.contains(identifier_id));
+    assert!(!kinds.contains(string_id));
+
+    let env = DeserializeEnv::new(TypeScript::Tsx);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule:
+  matches:
+    any-kind:
+      ARG:
+        kind: identifier
+utils:
+  ARG:
+    kind: string
+  any-kind(ARG):
+    any:
+      - kind: number
+      - matches: ARG
+",
+    )
+    .expect("should deser");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    assert!(matcher.potential_kinds().is_none());
   }
 
   #[test]
