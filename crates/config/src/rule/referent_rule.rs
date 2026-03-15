@@ -100,19 +100,13 @@ impl RuleRegistration {
       .is_some_and(|params| params.contains(id))
   }
 
-  pub(crate) fn with_params(&self, params: HashSet<String>) -> Self {
-    let mut registration = self.clone();
-    registration.current_params = Some(Arc::new(params));
-    registration
-  }
-
-  pub fn from_globals(global: &GlobalRules) -> Self {
+  pub fn from_globals(global: &GlobalRules, params: Option<HashSet<String>>) -> Self {
     Self {
       local: Default::default(),
       global: global.rules.clone(),
       global_templates: global.templates.clone(),
       rewriters: Default::default(),
-      current_params: None,
+      current_params: params.map(Arc::new),
     }
   }
 

@@ -235,18 +235,15 @@ impl<L: Language> DeserializeEnv<L> {
       .map_err(RuleSerializeError::from)?;
     for id in order {
       let parsed = utils.get(id).expect("must exist");
+      let params = (!parsed.params.is_empty()).then(|| parsed.params.iter().cloned().collect());
+      let env_registration = RuleRegistration::from_globals(&registration, params);
+      let env = DeserializeEnv::from_registration(parsed.lang.clone(), env_registration);
+      let matcher = parsed.core.get_matcher_with_hint(env, CheckHint::Global)?;
       if parsed.params.is_empty() {
-        let env = DeserializeEnv::new(parsed.lang.clone()).with_globals(&registration);
-        let matcher = parsed.core.get_matcher_with_hint(env, CheckHint::Global)?;
         registration
           .insert(id, matcher)
           .map_err(RuleSerializeError::MatchesReference)?;
       } else {
-        let params = parsed.params.iter().cloned().collect();
-        let registration_with_params =
-          RuleRegistration::from_globals(&registration).with_params(params);
-        let env = DeserializeEnv::from_registration(parsed.lang.clone(), registration_with_params);
-        let matcher = parsed.core.get_matcher_with_hint(env, CheckHint::Global)?;
         registration
           .insert_template(id, GlobalTemplate::new(parsed.params.clone(), matcher))
           .map_err(RuleSerializeError::MatchesReference)?;
@@ -268,7 +265,7 @@ impl<L: Language> DeserializeEnv<L> {
 
   pub fn with_globals(self, globals: &GlobalRules) -> Self {
     Self {
-      registration: RuleRegistration::from_globals(globals),
+      registration: RuleRegistration::from_globals(globals, None),
       lang: self.lang,
     }
   }
