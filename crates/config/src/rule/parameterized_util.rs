@@ -123,7 +123,7 @@ pub(super) fn validate_utility_arguments(
         arg: param.clone(),
       });
     }
-    if !seen.insert(param.clone()) {
+    if !seen.insert(param.as_str()) {
       return Err(ParameterizedUtilError::DuplicateUtilityArgument {
         util: util.into(),
         arg: param.clone(),
@@ -254,13 +254,14 @@ fn validate_utility_args(
       });
     }
   }
-  for name in params {
-    if !args.contains_key(name) {
-      return Err(ParameterizedUtilError::MissingUtilityArgument {
-        callee: callee.into(),
-        arg: name.clone(),
-      });
-    }
+  // After verifying all arg keys are valid params, a length mismatch
+  // means a declared param is missing from the call arguments.
+  if args.len() < params.len() {
+    let missing = params.iter().find(|p| !args.contains_key(p.as_str()));
+    return Err(ParameterizedUtilError::MissingUtilityArgument {
+      callee: callee.into(),
+      arg: missing.unwrap().clone(),
+    });
   }
   Ok(())
 }
@@ -319,7 +320,9 @@ fn match_global_template<'tree, D: Doc>(
       template.matcher.match_node_with_env(node, &mut local_env)
     })
   })?;
-  export_vars(&export_env, env.to_mut(), exported_vars)?;
+  if !exported_vars.is_empty() {
+    export_vars(&export_env, env.to_mut(), exported_vars)?;
+  }
   Some(matched)
 }
 
@@ -328,6 +331,9 @@ fn export_vars<'tree, D: Doc>(
   to: &mut MetaVarEnv<'tree, D>,
   vars: &HashSet<String>,
 ) -> Option<()> {
+  if vars.is_empty() {
+    return Some(());
+  }
   for var in vars {
     if let Some(node) = from.get_match(var.as_str()) {
       to.insert(var, node.clone())?;
@@ -351,12 +357,13 @@ fn export_vars<'tree, D: Doc>(
 
 fn lookup_bound_rule(name: &str) -> Option<(Arc<Rule>, Option<Arc<BindingFrame>>)> {
   ARG_RULE_FRAME.with(|current| {
-    let mut frame = current.borrow().clone();
+    let borrow = current.borrow();
+    let mut frame = borrow.as_ref();
     while let Some(active) = frame {
       if let Some(rule) = active.bindings.get(name) {
         return Some((rule.clone(), active.parent.clone()));
       }
-      frame = active.parent.clone();
+      frame = active.parent.as_ref();
     }
     None
   })

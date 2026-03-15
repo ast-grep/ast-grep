@@ -161,7 +161,9 @@ fn visit_dependent_rule_ids_with_params<'a, T: DependentRule>(
   sort: &mut TopologicalSort<'a, T>,
   params: Option<&[String]>,
 ) -> OrderResult<()> {
-  // handle all composite rule here
+  // Only traverse composite rules (matches/all/any/not). Relational sub-rules
+  // (has/inside/precedes/follows) are intentionally skipped because they will
+  // not introduce recursion.
   if let Maybe::Present(matches) = &rule.matches {
     match matches {
       SerializableMatches::Id(id) => {
@@ -221,10 +223,7 @@ impl<L: Language> DeserializeEnv<L> {
     for id in order {
       let util = utils.get(id).expect("must exist");
       let rule = self.deserialize_rule(util.clone())?;
-      self
-        .registration
-        .insert_local(id, rule)
-        .map_err(RuleSerializeError::MatchesReference)?;
+      self.registration.insert_local(id, rule)?;
     }
     Ok(self)
   }
@@ -240,16 +239,13 @@ impl<L: Language> DeserializeEnv<L> {
       .map_err(RuleSerializeError::from)?;
     for id in order {
       let parsed = utils.get(id).expect("must exist");
-      let params = (!parsed.params.is_empty()).then(|| parsed.params.iter().cloned().collect());
+      let has_params = !parsed.params.is_empty();
+      let params = has_params.then(|| parsed.params.iter().cloned().collect());
       let env_registration = RuleRegistration::from_globals(&registration, params);
       let env = DeserializeEnv::from_registration(parsed.lang.clone(), env_registration);
       let matcher = parsed.core.get_matcher_with_hint(env, CheckHint::Global)?;
       registration
-        .insert(
-          id,
-          matcher,
-          (!parsed.params.is_empty()).then(|| parsed.params.clone()),
-        )
+        .insert(id, matcher, has_params.then(|| parsed.params.clone()))
         .map_err(RuleSerializeError::MatchesReference)?;
     }
     Ok(registration)
