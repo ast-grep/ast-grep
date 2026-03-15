@@ -8,7 +8,8 @@ Parameterized utils let a utility rule accept one or more rule arguments:
 
 ```yaml
 rules:
-  - id: wrap(BODY)
+  - id: wrap
+    arguments: [BODY]
     language: Tsx
     rule:
       matches: BODY
@@ -26,7 +27,8 @@ inside a parameterized global rule can still reference that global rule's
 parameters:
 
 ```yaml
-- id: wrap(BODY)
+- id: wrap
+  arguments: [BODY]
   language: Tsx
   rule:
     matches: helper

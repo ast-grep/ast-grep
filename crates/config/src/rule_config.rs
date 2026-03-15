@@ -391,7 +391,8 @@ all:
   fn test_parameterized_global_rule_exports_argument_env_only() {
     let globals = ts_global_rules(
       r"
-- id: global-rule(export-var)
+- id: global-rule
+  arguments: [export-var]
   language: Tsx
   rule:
     pattern: Some($A)
@@ -423,7 +424,8 @@ matches:
   fn test_parameterized_global_rule_does_not_interfere_with_same_name_local_var() {
     let globals = ts_global_rules(
       r"
-- id: global-rule(export-var)
+- id: global-rule
+  arguments: [export-var]
   language: Tsx
   rule:
     pattern: Some($A)
@@ -458,7 +460,8 @@ all:
   fn test_parameterized_global_rule_metavar_does_not_affect_yaml_rule_matching() {
     let globals = ts_global_rules(
       r"
-- id: global-rule(export-var)
+- id: global-rule
+  arguments: [export-var]
   language: Tsx
   rule:
     pattern: Some($A)
@@ -495,7 +498,8 @@ all:
   fn test_parameterized_global_rule_argument_vars_do_not_conflict_with_internal_vars() {
     let globals = ts_global_rules(
       r"
-- id: global-rule(export-var)
+- id: global-rule
+  arguments: [export-var]
   language: Tsx
   rule:
     pattern: Some($A)

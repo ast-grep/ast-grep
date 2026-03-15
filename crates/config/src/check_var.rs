@@ -282,7 +282,8 @@ utils:
   fn test_parameterized_global_rule_only_exports_argument_vars() {
     let globals: Vec<SerializableGlobalRule<TypeScript>> = from_str(
       r"
-- id: global-rule(export-var)
+- id: global-rule
+  arguments: [export-var]
   language: Tsx
   rule:
     pattern: Some($A)
@@ -311,7 +312,8 @@ fix: $EXP
   fn test_parameterized_global_rule_internal_var_not_in_defined_vars() {
     let globals: Vec<SerializableGlobalRule<TypeScript>> = from_str(
       r"
-- id: global-rule(export-var)
+- id: global-rule
+  arguments: [export-var]
   language: Tsx
   rule:
     pattern: Some($A)
