@@ -8,6 +8,9 @@
 //! This module contains both halves of that flow: parsing and validating
 //! parameterized utility definitions, and lowering/executing parameterized
 //! utility calls.
+//!
+//! At the moment, parameterized definitions are only supported for global
+//! utilities. Local `utils:` entries cannot declare parameters.
 
 use super::deserialize_env::DeserializeEnv;
 use super::referent_rule::{ReferentRule, ReferentRuleError, RegistrationRef};
@@ -56,7 +59,6 @@ impl<M> Def<M> {
   }
 }
 
-pub(crate) type LocalTemplate = Def<Rule>;
 pub(crate) type GlobalTemplate = Def<RuleCore>;
 
 #[derive(Debug, Error)]
@@ -65,6 +67,10 @@ pub enum ParameterizedUtilError {
   InvalidUtilitySignature(String),
   #[error("Utility `{util}` declares duplicate argument `{arg}`.")]
   DuplicateUtilityArgument { util: String, arg: String },
+  #[error(
+    "Local utility `{0}` cannot declare arguments. Parameterized utilities must be global rules."
+  )]
+  LocalUtilityArgumentsNotSupported(String),
   #[error("Utility call must contain at least one callee.")]
   InvalidUtilityCall,
   #[error("Utility `{0}` requires arguments and cannot be used as `matches: {0}`.")]
@@ -208,10 +214,9 @@ pub(crate) fn verify_parameterized_referent(
     .try_for_each(|arg| arg.verify_util())
     .and_then(|_| {
       reg_ref
-        .get_local_templates()
+        .get_global_templates()
         .get(rule_id)
-        .map(|template| template.matcher.verify_util())
-        .or_else(|| reg_ref.get_global_templates().get(rule_id).map(|_| Ok(())))
+        .map(|_| Ok(()))
         .unwrap_or_else(|| {
           if reg_ref.get_local().contains_key(rule_id) || reg_ref.get_global().contains_key(rule_id)
           {
@@ -234,16 +239,9 @@ pub(crate) fn parameterized_potential_kinds(
   reg_ref: &RegistrationRef,
 ) -> Option<BitSet> {
   reg_ref
-    .get_local_templates()
+    .get_global_templates()
     .get(rule_id)
-    .map(|template| template.matcher.potential_kinds())
-    .or_else(|| {
-      reg_ref
-        .get_global_templates()
-        .get(rule_id)
-        .map(|template| template.matcher.potential_kinds())
-    })
-    .flatten()
+    .and_then(|template| template.matcher.potential_kinds())
 }
 
 pub(crate) fn match_parameterized_referent<'tree, D: Doc>(
@@ -255,20 +253,9 @@ pub(crate) fn match_parameterized_referent<'tree, D: Doc>(
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<Node<'tree, D>> {
   reg_ref
-    .get_local_templates()
+    .get_global_templates()
     .get(rule_id)
-    .map(|template| {
-      with_arg_bindings(args.clone(), || {
-        template.matcher.match_node_with_env(node.clone(), env)
-      })
-    })
-    .or_else(|| {
-      reg_ref
-        .get_global_templates()
-        .get(rule_id)
-        .map(|template| match_global_template(template, args.clone(), exported_vars, node, env))
-    })
-    .flatten()
+    .and_then(|template| match_global_template(template, args.clone(), exported_vars, node, env))
 }
 
 fn validate_utility_args(

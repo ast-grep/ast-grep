@@ -1,6 +1,6 @@
 use super::parameterized_util::{
   match_bound_rule, match_parameterized_referent, parameterized_potential_kinds,
-  verify_parameterized_referent, GlobalTemplate, LocalTemplate,
+  verify_parameterized_referent, GlobalTemplate,
 };
 use crate::{Rule, RuleCore};
 
@@ -77,8 +77,6 @@ impl GlobalRules {
 pub struct RuleRegistration {
   /// utility rule to every RuleCore, every sub-rule has its own local utility
   local: Registration<Rule>,
-  /// parameterized utility templates scoped to this rule config
-  local_templates: Registration<LocalTemplate>,
   /// global rules are shared by all RuleConfigs. It is a singleton.
   global: Registration<RuleCore>,
   /// parameterized global rules are shared by all RuleConfigs. It is a singleton.
@@ -96,7 +94,6 @@ impl RuleRegistration {
   pub fn from_globals(global: &GlobalRules) -> Self {
     Self {
       local: Default::default(),
-      local_templates: Default::default(),
       global: global.rules.clone(),
       global_templates: global.templates.clone(),
       rewriters: Default::default(),
@@ -105,12 +102,10 @@ impl RuleRegistration {
 
   fn get_ref(&self) -> RegistrationRef {
     let local = Arc::downgrade(&self.local.0);
-    let local_templates = Arc::downgrade(&self.local_templates.0);
     let global = Arc::downgrade(&self.global.0);
     let global_templates = Arc::downgrade(&self.global_templates.0);
     RegistrationRef {
       local,
-      local_templates,
       global,
       global_templates,
     }
@@ -118,7 +113,7 @@ impl RuleRegistration {
 
   pub(crate) fn insert_local(&self, id: &str, rule: Rule) -> Result<(), ReferentRuleError> {
     let map = self.local.write();
-    if map.contains_key(id) || self.local_templates.0.contains_key(id) {
+    if map.contains_key(id) {
       return Err(ReferentRuleError::DuplicateRule(id.into()));
     }
     map.insert(id.to_string(), rule);
@@ -128,20 +123,6 @@ impl RuleRegistration {
     if rule.check_cyclic(id) {
       return Err(ReferentRuleError::CyclicRule(id.to_string()));
     }
-    Ok(())
-  }
-
-  pub(crate) fn insert_local_template(
-    &self,
-    id: &str,
-    params: Vec<String>,
-    template: Rule,
-  ) -> Result<(), ReferentRuleError> {
-    let map = self.local_templates.write();
-    if map.contains_key(id) || self.local.0.contains_key(id) {
-      return Err(ReferentRuleError::DuplicateRule(id.into()));
-    }
-    map.insert(id.to_string(), LocalTemplate::new(params, template));
     Ok(())
   }
 
@@ -157,34 +138,21 @@ impl RuleRegistration {
         ret.insert(v);
       }
     }
-    for template in self.local_templates.0.values() {
-      for v in template.matcher.defined_vars() {
-        ret.insert(v);
-      }
-    }
     ret
   }
 
   pub(crate) fn has_util(&self, id: &str) -> bool {
     self.local.0.contains_key(id)
-      || self.local_templates.0.contains_key(id)
       || self.global.0.contains_key(id)
       || self.global_templates.0.contains_key(id)
   }
 
   pub(crate) fn get_util_template_params(&self, id: &str) -> Option<&Vec<String>> {
     self
-      .local_templates
+      .global_templates
       .0
       .get(id)
       .map(|template| &template.params)
-      .or_else(|| {
-        self
-          .global_templates
-          .0
-          .get(id)
-          .map(|template| &template.params)
-      })
   }
 }
 
@@ -193,7 +161,6 @@ impl RuleRegistration {
 #[derive(Clone)]
 pub(crate) struct RegistrationRef {
   local: Weak<HashMap<String, Rule>>,
-  local_templates: Weak<HashMap<String, LocalTemplate>>,
   global: Weak<HashMap<String, RuleCore>>,
   global_templates: Weak<HashMap<String, GlobalTemplate>>,
 }
@@ -201,12 +168,6 @@ impl RegistrationRef {
   pub(crate) fn get_local(&self) -> Arc<HashMap<String, Rule>> {
     self
       .local
-      .upgrade()
-      .expect("Rule Registration must be kept alive")
-  }
-  pub(crate) fn get_local_templates(&self) -> Arc<HashMap<String, LocalTemplate>> {
-    self
-      .local_templates
       .upgrade()
       .expect("Rule Registration must be kept alive")
   }
@@ -309,11 +270,6 @@ impl ReferentRule {
     }
   }
 
-  #[cfg(test)]
-  pub(crate) fn has_args(&self) -> bool {
-    matches!(self.format, ReferentFormat::Args(_))
-  }
-
   fn eval_local<F, T>(&self, func: F) -> Option<T>
   where
     F: FnOnce(&Rule) -> T,
@@ -352,12 +308,8 @@ impl ReferentRule {
         }
         if self
           .reg_ref
-          .get_local_templates()
+          .get_global_templates()
           .contains_key(&self.rule_id)
-          || self
-            .reg_ref
-            .get_global_templates()
-            .contains_key(&self.rule_id)
         {
           return Err(
             crate::rule::ParameterizedUtilError::MissingUtilityArguments(self.rule_id.clone())
@@ -457,7 +409,6 @@ mod test {
   use crate::test::TypeScript as TS;
   use ast_grep_core::matcher::KindMatcher;
   use ast_grep_core::ops as o;
-  use ast_grep_core::Language;
   use ast_grep_core::Pattern;
 
   type Result = std::result::Result<(), ReferentRuleError>;
@@ -490,17 +441,6 @@ mod test {
     let error = registration.insert_local("test", rule);
     assert!(matches!(error, Err(ReferentRuleError::CyclicRule(_))));
     Ok(())
-  }
-
-  #[test]
-  fn test_template_conflicts_with_rule() {
-    let registration = RuleRegistration::default();
-    registration
-      .insert_local_template("test", vec!["BODY".into()], Rule::default())
-      .expect("template should insert");
-    let rule = Rule::default();
-    let error = registration.insert_local("test", rule);
-    assert!(matches!(error, Err(ReferentRuleError::DuplicateRule(_))));
   }
 
   #[test]
@@ -542,82 +482,6 @@ mod test {
     registration.insert_local("paren-number", rule)?;
     let rule = ReferentRule::try_new("paren-number".into(), &registration)?;
     assert!(rule.potential_kinds().is_some());
-    Ok(())
-  }
-
-  #[test]
-  fn test_parameterized_util_potential_kinds_are_conservative_for_all_and_any() -> Result {
-    let registration = RuleRegistration::default();
-    let arg_ref = Rule::Matches(ReferentRule::try_new("ARG".into(), &registration)?);
-
-    registration.insert_local_template(
-      "all-kind",
-      vec!["ARG".into()],
-      Rule::All(o::All::new([
-        Rule::Kind(KindMatcher::new("number", TS::Tsx)),
-        arg_ref,
-      ])),
-    )?;
-
-    let all_number = ReferentRule::new(
-      "all-kind".into(),
-      HashMap::from([(
-        "ARG".into(),
-        Rule::Kind(KindMatcher::new("number", TS::Tsx)),
-      )]),
-      &registration,
-    );
-    let all_identifier = ReferentRule::new(
-      "all-kind".into(),
-      HashMap::from([(
-        "ARG".into(),
-        Rule::Kind(KindMatcher::new("identifier", TS::Tsx)),
-      )]),
-      &registration,
-    );
-    let number_id = usize::from(TS::Tsx.kind_to_id("number"));
-    let identifier_id = usize::from(TS::Tsx.kind_to_id("identifier"));
-
-    let all_number_kinds = all_number.potential_kinds().expect("all should be known");
-    assert!(all_number_kinds.contains(number_id));
-    assert!(!all_number_kinds.contains(identifier_id));
-
-    let all_identifier_kinds = all_identifier
-      .potential_kinds()
-      .expect("all should be known");
-    assert!(all_identifier_kinds.contains(number_id));
-    assert!(!all_identifier_kinds.contains(identifier_id));
-
-    registration.insert_local_template(
-      "any-kind",
-      vec!["ARG".into()],
-      Rule::Any(o::Any::new([
-        Rule::Kind(KindMatcher::new("number", TS::Tsx)),
-        Rule::Matches(ReferentRule::try_new("ARG".into(), &registration)?),
-      ])),
-    )?;
-
-    let any_number = ReferentRule::new(
-      "any-kind".into(),
-      HashMap::from([(
-        "ARG".into(),
-        Rule::Kind(KindMatcher::new("number", TS::Tsx)),
-      )]),
-      &registration,
-    );
-    let any_identifier = ReferentRule::new(
-      "any-kind".into(),
-      HashMap::from([(
-        "ARG".into(),
-        Rule::Kind(KindMatcher::new("identifier", TS::Tsx)),
-      )]),
-      &registration,
-    );
-
-    assert!(any_number.potential_kinds().is_none());
-
-    assert!(any_identifier.potential_kinds().is_none());
-
     Ok(())
   }
 }

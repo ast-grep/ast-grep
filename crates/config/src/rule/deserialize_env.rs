@@ -1,4 +1,4 @@
-use super::parameterized_util::{GlobalTemplate, UtilitySignature};
+use super::parameterized_util::{GlobalTemplate, ParameterizedUtilError, UtilitySignature};
 use super::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
 use crate::check_var::CheckHint;
 use crate::maybe::Maybe;
@@ -252,29 +252,14 @@ impl<L: Language> DeserializeEnv<L> {
       .map_err(ReferentRuleError::CyclicRule)
       .map_err(RuleSerializeError::MatchesReference)?;
     let env = self;
-    register_ordered_utils(
-      order,
-      &parsed,
-      |id, util| -> Result<(), RuleSerializeError> {
-        let rule = env.deserialize_rule(util.body.clone())?;
-        env
-          .registration
-          .insert_local(id, rule)
-          .map_err(RuleSerializeError::MatchesReference)?;
-        Ok(())
-      },
-      |id, util| -> Result<(), RuleSerializeError> {
-        let params = util.params.iter().cloned().collect();
-        let template = env
-          .with_params(params)
-          .deserialize_rule(util.body.clone())?;
-        env
-          .registration
-          .insert_local_template(id, util.params.clone(), template)
-          .map_err(RuleSerializeError::MatchesReference)?;
-        Ok(())
-      },
-    )?;
+    for id in order {
+      let util = parsed.get(id).expect("must exist");
+      let rule = env.deserialize_rule(util.body.clone())?;
+      env
+        .registration
+        .insert_local(id, rule)
+        .map_err(RuleSerializeError::MatchesReference)?;
+    }
     Ok(env)
   }
 
@@ -353,7 +338,6 @@ impl<L: Language> DeserializeEnv<L> {
 type ParsedUtils = HashMap<String, ParsedUtil>;
 
 struct ParsedUtil {
-  params: Vec<String>,
   body: SerializableRule,
 }
 
@@ -363,31 +347,22 @@ fn parse_utils(
   let mut parsed = HashMap::new();
   for (raw_id, body) in utils {
     let signature = UtilitySignature::parse(raw_id)?;
+    if !signature.params.is_empty() {
+      return Err(ParameterizedUtilError::LocalUtilityArgumentsNotSupported(raw_id.clone()).into());
+    }
     if parsed.contains_key(&signature.name) {
       return Err(RuleSerializeError::MatchesReference(
         ReferentRuleError::DuplicateRule(signature.name),
       ));
     }
-    parsed.insert(
-      signature.name.clone(),
-      ParsedUtil {
-        params: signature.params,
-        body: body.clone(),
-      },
-    );
+    parsed.insert(signature.name.clone(), ParsedUtil { body: body.clone() });
   }
   Ok(parsed)
 }
 
 impl DependentRule for ParsedUtil {
   fn visit_dependency<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) -> OrderResult<()> {
-    visit_dependent_rule_ids_with_params(&self.body, sorter, Some(&self.params))
-  }
-}
-
-impl DeclaredUtil for ParsedUtil {
-  fn params(&self) -> &[String] {
-    &self.params
+    visit_dependent_rule_ids_with_params(&self.body, sorter, None)
   }
 }
 
@@ -508,129 +483,10 @@ local-rule-b:
   }
 
   #[test]
-  fn test_parameterized_util_requires_all_args() -> Result<()> {
+  fn test_local_parameterized_utils_are_rejected() {
     let utils = from_str(
       r"
 wrap(BODY):
-  matches: BODY
-",
-    )
-    .expect("failed to parse utils");
-    let env = DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils)?;
-    let rule = from_str(
-      r"
-matches:
-  wrap: {}
-",
-    )
-    .expect("should parse rule");
-    let ret = env.deserialize_rule(rule);
-    assert!(matches!(
-      ret,
-      Err(RuleSerializeError::InvalidUtils(
-        rule::ParameterizedUtilError::MissingUtilityArgument {
-        callee,
-        arg
-      }))
-      if callee == "wrap" && arg == "BODY"
-    ));
-    Ok(())
-  }
-
-  #[test]
-  fn test_parameterized_util_rejects_unknown_args() -> Result<()> {
-    let utils = from_str(
-      r"
-wrap(BODY):
-  matches: BODY
-",
-    )
-    .expect("failed to parse utils");
-    let env = DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils)?;
-    let rule = from_str(
-      r"
-matches:
-  wrap:
-    OTHER:
-      kind: number
-    BODY:
-      kind: number
-",
-    )
-    .expect("should parse rule");
-    let ret = env.deserialize_rule(rule);
-    assert!(matches!(
-      ret,
-      Err(RuleSerializeError::InvalidUtils(
-        rule::ParameterizedUtilError::UnknownUtilityArgument {
-        callee,
-        arg
-      }))
-      if callee == "wrap" && arg == "OTHER"
-    ));
-    Ok(())
-  }
-
-  #[test]
-  fn test_parameterized_call_cycle_in_argument_rule() -> Result<()> {
-    let utils = from_str(
-      r"
-RECUR(x):
-  matches: x
-",
-    )
-    .expect("failed to parse utils");
-    let env = DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils)?;
-    let rule = from_str(
-      r"
-matches:
-  RECUR:
-    x:
-      matches:
-        RECUR:
-          x:
-            kind: number
-",
-    )
-    .expect("should parse rule");
-    let ret = env.deserialize_rule(rule);
-    assert!(matches!(
-      ret,
-      Err(RuleSerializeError::MatchesReference(
-        ReferentRuleError::CyclicRule(rule)
-      )) if rule == "RECUR"
-    ));
-    Ok(())
-  }
-
-  #[test]
-  fn test_parameter_name_does_not_create_false_cycle() -> Result<()> {
-    let utils = from_str(
-      r"
-loop(loop):
-  matches: loop
-",
-    )
-    .expect("failed to parse utils");
-    let env = DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils)?;
-    let rule = from_str(
-      r"
-matches:
-  loop:
-    loop:
-      kind: number
-",
-    )
-    .expect("should parse rule");
-    assert!(env.deserialize_rule(rule).is_ok());
-    Ok(())
-  }
-
-  #[test]
-  fn test_invalid_parameterized_utility_signature() {
-    let utils = from_str(
-      r"
-wrap():
   kind: number
 ",
     )
@@ -639,8 +495,28 @@ wrap():
     assert!(matches!(
       ret,
       Err(RuleSerializeError::InvalidUtils(
+        rule::ParameterizedUtilError::LocalUtilityArgumentsNotSupported(signature)
+      )) if signature == "wrap(BODY)"
+    ));
+  }
+
+  #[test]
+  fn test_invalid_parameterized_global_utility_signature() {
+    let globals: Vec<SerializableGlobalRule<TypeScript>> = from_str(
+      r"
+- id: wrap()
+  language: Tsx
+  rule:
+    kind: number
+",
+    )
+    .expect("failed to parse globals");
+    let ret = DeserializeEnv::parse_global_utils(globals);
+    assert!(matches!(
+      ret,
+      Err(RuleCoreError::Rule(RuleSerializeError::InvalidUtils(
         rule::ParameterizedUtilError::InvalidUtilitySignature(signature)
-      )) if signature == "wrap()"
+      ))) if signature == "wrap()"
     ));
   }
 }
