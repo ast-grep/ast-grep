@@ -6,7 +6,7 @@ mod relational_rule;
 mod selector;
 mod stop_by;
 
-pub use deserialize_env::{DeserializeEnv, SerializableGlobalRule};
+pub use deserialize_env::{DeserializeEnv, ParseUtilError, SerializableGlobalRule};
 pub use relational_rule::Relation;
 use selector::{parse_selector, SelectorError};
 pub use stop_by::StopBy;
@@ -109,13 +109,13 @@ pub enum SerializableMatches {
 pub struct SerializableUtilityCall(pub HashMap<String, HashMap<String, SerializableRule>>);
 
 impl SerializableUtilityCall {
-  fn into_parts(self) -> Result<(String, HashMap<String, SerializableRule>), RuleSerializeError> {
+  fn into_parts(self) -> Result<(String, HashMap<String, SerializableRule>), ParseUtilError> {
     let mut pairs = self.0.into_iter();
     let Some((callee, args)) = pairs.next() else {
-      return Err(RuleSerializeError::InvalidUtilityCall);
+      return Err(ParseUtilError::InvalidUtilityCall);
     };
     if pairs.next().is_some() {
-      return Err(RuleSerializeError::InvalidUtilityCall);
+      return Err(ParseUtilError::InvalidUtilityCall);
     }
     Ok((callee, args))
   }
@@ -402,22 +402,8 @@ pub enum RuleSerializeError {
   WrongRegex(#[from] RegexMatcherError),
   #[error("Rule contains invalid matches reference.")]
   MatchesReference(#[from] ReferentRuleError),
-  #[error("Utility declaration `{0}` has an invalid signature.")]
-  InvalidUtilitySignature(String),
-  #[error("Utility `{util}` declares duplicate argument `{arg}`.")]
-  DuplicateUtilityArgument { util: String, arg: String },
-  #[error("Utility call must contain exactly one callee.")]
-  InvalidUtilityCall,
-  #[error("Utility `{0}` requires arguments and cannot be used as `matches: {0}`.")]
-  MissingUtilityArguments(String),
-  #[error("Utility `{0}` does not accept arguments.")]
-  UnexpectedUtilityArguments(String),
-  #[error("Utility parameter `{0}` cannot be called with arguments.")]
-  UtilityParameterCalled(String),
-  #[error("Parameterized utility `{callee}` is missing argument `{arg}`.")]
-  MissingUtilityArgument { callee: String, arg: String },
-  #[error("Parameterized utility `{callee}` does not declare argument `{arg}`.")]
-  UnknownUtilityArgument { callee: String, arg: String },
+  #[error("Rule contains invalid utils.")]
+  InvalidUtils(#[from] ParseUtilError),
   #[error("Rule contains invalid range matcher.")]
   InvalidRange(#[from] RangeMatcherError),
   #[error("field is only supported in has/inside.")]
@@ -495,11 +481,11 @@ fn deserialize_matches_rule<L: Language>(
     SerializableMatches::Call(call) => {
       let (callee, args) = call.into_parts()?;
       if env.has_current_param(&callee) {
-        return Err(RuleSerializeError::UtilityParameterCalled(callee));
+        return Err(ParseUtilError::UtilityParameterCalled(callee).into());
       }
       let template_params = env.get_template_params(&callee).ok_or_else(|| {
         if env.has_declared_util(&callee) {
-          RuleSerializeError::UnexpectedUtilityArguments(callee.clone())
+          ParseUtilError::UnexpectedUtilityArguments(callee.clone()).into()
         } else {
           RuleSerializeError::MatchesReference(ReferentRuleError::UndefinedUtil(callee.clone()))
         }
@@ -523,10 +509,10 @@ fn validate_utility_args(
   callee: &str,
   params: &[String],
   args: &HashMap<String, SerializableRule>,
-) -> Result<(), RuleSerializeError> {
+) -> Result<(), ParseUtilError> {
   for name in args.keys() {
     if !params.iter().any(|param| param == name) {
-      return Err(RuleSerializeError::UnknownUtilityArgument {
+      return Err(ParseUtilError::UnknownUtilityArgument {
         callee: callee.into(),
         arg: name.clone(),
       });
@@ -534,7 +520,7 @@ fn validate_utility_args(
   }
   for name in params {
     if !args.contains_key(name) {
-      return Err(RuleSerializeError::MissingUtilityArgument {
+      return Err(ParseUtilError::MissingUtilityArgument {
         callee: callee.into(),
         arg: name.clone(),
       });

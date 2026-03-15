@@ -389,9 +389,9 @@ impl ReferentRule {
           .get_global_templates()
           .contains_key(&self.rule_id)
       {
-        return Err(crate::rule::RuleSerializeError::MissingUtilityArguments(
-          self.rule_id.clone(),
-        ));
+        return Err(
+          crate::rule::ParseUtilError::MissingUtilityArguments(self.rule_id.clone()).into(),
+        );
       }
       return Err(crate::rule::RuleSerializeError::MatchesReference(
         ReferentRuleError::UndefinedUtil(self.rule_id.clone()),
@@ -421,9 +421,10 @@ impl ReferentRule {
             if self.reg_ref.get_local().contains_key(&self.rule_id)
               || self.reg_ref.get_global().contains_key(&self.rule_id)
             {
-              Err(crate::rule::RuleSerializeError::UnexpectedUtilityArguments(
-                self.rule_id.clone(),
-              ))
+              Err(
+                crate::rule::ParseUtilError::UnexpectedUtilityArguments(self.rule_id.clone())
+                  .into(),
+              )
             } else {
               Err(crate::rule::RuleSerializeError::MatchesReference(
                 ReferentRuleError::UndefinedUtil(self.rule_id.clone()),
