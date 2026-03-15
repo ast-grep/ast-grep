@@ -7,15 +7,32 @@ This note describes the current implementation in `crates/config`. It is not a p
 Parameterized utils let a utility rule accept one or more rule arguments:
 
 ```yaml
-utils:
-  wrap(BODY):
-    matches: BODY
+rules:
+  - id: wrap(BODY)
+    language: Tsx
+    rule:
+      matches: BODY
 
 rule:
   matches:
     wrap:
       BODY:
         kind: number
+```
+
+In the current implementation, only global utility rules can declare parameters.
+Local `utils:` entries remain zero-argument helpers, although local utils defined
+inside a parameterized global rule can still reference that global rule's
+parameters:
+
+```yaml
+- id: wrap(BODY)
+  language: Tsx
+  rule:
+    matches: helper
+  utils:
+    helper:
+      matches: BODY
 ```
 
 The implementation keeps parameterized utils close to ordinary utils:
@@ -30,7 +47,6 @@ The implementation keeps parameterized utils close to ordinary utils:
 Two storage forms exist in registration:
 
 - local zero-arg utils: `Rule`
-- local parameterized utils: `Def<Rule>`
 - global zero-arg rules: `RuleCore`
 - global parameterized rules: `Def<RuleCore>`
 
@@ -42,9 +58,21 @@ Two storage forms exist in registration:
 A `matches` reference is always represented by `ReferentRule`:
 
 - `rule_id: String`
-- `args: Arc<HashMap<String, Arc<Rule>>>`
+- `format: ReferentFormat`
 
-So plain and parameterized calls share the same runtime type.
+`ReferentFormat` has three cases:
+
+- `Param`: a bare `matches: NAME` resolved to the current parameter scope
+- `IdRef`: a bare `matches: NAME` resolved to a local/global zero-arg util
+- `Args(Box<ReferentArgs>)`: a parameterized call
+
+`ReferentArgs` contains:
+
+- `args: Arc<HashMap<String, Arc<Rule>>>`
+- `exported_vars: HashSet<String>`
+
+So plain refs, parameter refs, and parameterized calls all share the same
+runtime matcher type.
 
 ## Name Resolution
 
@@ -52,29 +80,46 @@ For bare `matches: NAME`, the implementation resolves in this order:
 
 1. current parameter binding
 2. local util/rule
-3. global rule
+3. global zero-arg rule
 
 This is intentionally lexical. A parameter name shadows same-named local/global utils.
 
+If `NAME` is a global parameterized rule, bare `matches: NAME` is rejected as
+missing arguments.
+
 For `matches: { NAME: { ... } }`:
 
-- `NAME` must be a declared parameterized util/global rule
+- `NAME` must be a declared global parameterized rule
 - calling a parameter as if it were a util is rejected
+- calling a zero-arg local/global util with arguments is rejected
 - all declared arguments must be provided
 - unknown argument names are rejected
 
 ## Deserialization
 
-`DeserializeEnv` carries two pieces of scope information:
+`DeserializeEnv` no longer owns any parameter-specific side tables. It carries:
 
-- `local_utils: HashMap<String, Vec<String>>`
+- `registration: RuleRegistration`
+- `lang: L`
+
+`RuleRegistration` now carries the current parameter-name scope while lowering a
+global template:
+
 - `current_params: Option<Arc<HashSet<String>>>`
 
 That is enough to:
 
 - validate arity at call sites
 - reject `PARAM(...)`
-- keep dependency walking and cycle checks aware of parameter names
+- make bare `matches: PARAM` lower directly to `ReferentFormat::Param`
+
+Dependency walking still needs the parsed signature params explicitly during
+global-rule topological sorting, because that happens before a scoped
+`RuleRegistration` exists.
+
+Local `utils:` nested under a parameterized global rule are deserialized with
+that same scoped registration, so they can reference the outer parameters with
+bare `matches: PARAM`.
 
 There is no eager expansion of parameterized utils into a new rule tree.
 
@@ -116,7 +161,6 @@ Current behavior:
 
 - YAML rule `defined_vars`
 - plus all local zero-arg util vars
-- plus all local parameterized util body vars
 - plus constraint vars
 
 For a parameterized call itself, `ReferentRule::defined_vars()` is only the union of vars defined by its argument rules.
@@ -156,9 +200,12 @@ To make those caches correct, deserialization installs the current parameter-nam
 Cycle handling is still syntactic.
 
 - utility dependency ordering is computed during deserialization
-- `check_cyclic` also walks argument rules
-- parameter names are excluded from dependency edges
+- parameter names are excluded from dependency edges during global-rule topo sort
 - call-site cycles created through argument rules are rejected when lowering the call
+- after lowering, cycle checks use `ReferentFormat` directly:
+  - `Param` never contributes a util dependency edge
+  - `IdRef` is cyclic only when it names the same util
+  - `Args` recurses through its argument rules
 - a utility cannot call itself through its argument rules, either directly or transitively
 
 There is no runtime recursion detector for parameterized utils.
@@ -174,6 +221,6 @@ This design keeps the feature small:
 
 The extra complexity is limited to:
 
-- deserialization-time scope tracking for params
+- deserialization-time scope tracking for params while lowering global templates
 - runtime binding frames for argument rules
 - conservative `potential_kinds` behavior for `matches: PARAM-RULE`
