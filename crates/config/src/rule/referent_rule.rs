@@ -44,31 +44,30 @@ pub struct GlobalRules {
 }
 
 impl GlobalRules {
-  pub fn insert(&self, id: &str, rule: RuleCore) -> Result<(), ReferentRuleError> {
-    let map = self.rules.write();
-    if map.contains_key(id) || self.templates.0.contains_key(id) {
-      return Err(ReferentRuleError::DuplicateRule(id.into()));
-    }
-    map.insert(id.to_string(), rule);
-    let rule = map.get(id).unwrap();
-    // TODO: we can skip check here because insertion order
-    // is guaranteed in deserialize_env
-    if rule.check_cyclic(id) {
-      return Err(ReferentRuleError::CyclicRule(id.to_string()));
-    }
-    Ok(())
-  }
-
-  pub(crate) fn insert_template(
+  pub fn insert(
     &self,
     id: &str,
-    template: GlobalTemplate,
+    rule: RuleCore,
+    params: Option<Vec<String>>,
   ) -> Result<(), ReferentRuleError> {
-    let map = self.templates.write();
-    if map.contains_key(id) || self.rules.0.contains_key(id) {
+    if self.rules.0.contains_key(id) || self.templates.0.contains_key(id) {
       return Err(ReferentRuleError::DuplicateRule(id.into()));
     }
-    map.insert(id.to_string(), template);
+    if let Some(params) = params {
+      self
+        .templates
+        .write()
+        .insert(id.to_string(), GlobalTemplate::new(params, rule));
+    } else {
+      let map = self.rules.write();
+      map.insert(id.to_string(), rule);
+      let rule = map.get(id).unwrap();
+      // TODO: we can skip check here because insertion order
+      // is guaranteed in deserialize_env
+      if rule.check_cyclic(id) {
+        return Err(ReferentRuleError::CyclicRule(id.to_string()));
+      }
+    }
     Ok(())
   }
 }
