@@ -418,7 +418,9 @@ utils:
     let ret = ser_rule.get_matcher(env);
     assert!(matches!(
       ret,
-      Err(RuleCoreError::Rule(RuleSerializeError::MissingUtilityArguments(name)))
+      Err(RuleCoreError::Rule(RuleSerializeError::InvalidUtils(
+        crate::rule::ParseUtilError::MissingUtilityArguments(name)
+      )))
       if name == "wrap"
     ));
   }

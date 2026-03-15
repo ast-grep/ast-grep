@@ -10,9 +10,30 @@ use ast_grep_core::language::Language;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+
+#[derive(Debug, Error)]
+pub enum ParseUtilError {
+  #[error("Utility declaration `{0}` has an invalid signature.")]
+  InvalidUtilitySignature(String),
+  #[error("Utility `{util}` declares duplicate argument `{arg}`.")]
+  DuplicateUtilityArgument { util: String, arg: String },
+  #[error("Utility call must contain exactly one callee.")]
+  InvalidUtilityCall,
+  #[error("Utility `{0}` requires arguments and cannot be used as `matches: {0}`.")]
+  MissingUtilityArguments(String),
+  #[error("Utility `{0}` does not accept arguments.")]
+  UnexpectedUtilityArguments(String),
+  #[error("Utility parameter `{0}` cannot be called with arguments.")]
+  UtilityParameterCalled(String),
+  #[error("Parameterized utility `{callee}` is missing argument `{arg}`.")]
+  MissingUtilityArgument { callee: String, arg: String },
+  #[error("Parameterized utility `{callee}` does not declare argument `{arg}`.")]
+  UnknownUtilityArgument { callee: String, arg: String },
+}
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableGlobalRule<L: Language> {
@@ -388,10 +409,10 @@ struct UtilitySignature {
 }
 
 impl UtilitySignature {
-  fn parse(raw: &str) -> Result<Self, RuleSerializeError> {
+  fn parse(raw: &str) -> Result<Self, ParseUtilError> {
     let Some(paren) = raw.find('(') else {
       if raw.contains(')') {
-        return Err(RuleSerializeError::InvalidUtilitySignature(raw.into()));
+        return Err(ParseUtilError::InvalidUtilitySignature(raw.into()));
       }
       return Ok(Self {
         name: raw.into(),
@@ -399,21 +420,21 @@ impl UtilitySignature {
       });
     };
     if !raw.ends_with(')') {
-      return Err(RuleSerializeError::InvalidUtilitySignature(raw.into()));
+      return Err(ParseUtilError::InvalidUtilitySignature(raw.into()));
     }
     let name = raw[..paren].trim();
     let inner = &raw[paren + 1..raw.len() - 1];
     if name.is_empty() || inner.trim().is_empty() {
-      return Err(RuleSerializeError::InvalidUtilitySignature(raw.into()));
+      return Err(ParseUtilError::InvalidUtilitySignature(raw.into()));
     }
     let mut params = Vec::new();
     let mut seen = HashSet::new();
     for param in inner.split(',').map(str::trim) {
       if param.is_empty() {
-        return Err(RuleSerializeError::InvalidUtilitySignature(raw.into()));
+        return Err(ParseUtilError::InvalidUtilitySignature(raw.into()));
       }
       if !seen.insert(param.to_string()) {
-        return Err(RuleSerializeError::DuplicateUtilityArgument {
+        return Err(ParseUtilError::DuplicateUtilityArgument {
           util: name.into(),
           arg: param.into(),
         });
@@ -563,7 +584,11 @@ matches:
     let ret = env.deserialize_rule(rule);
     assert!(matches!(
       ret,
-      Err(RuleSerializeError::MissingUtilityArgument { callee, arg })
+      Err(RuleSerializeError::InvalidUtils(
+        rule::ParseUtilError::MissingUtilityArgument {
+        callee,
+        arg
+      }))
       if callee == "wrap" && arg == "BODY"
     ));
     Ok(())
@@ -593,7 +618,11 @@ matches:
     let ret = env.deserialize_rule(rule);
     assert!(matches!(
       ret,
-      Err(RuleSerializeError::UnknownUtilityArgument { callee, arg })
+      Err(RuleSerializeError::InvalidUtils(
+        rule::ParseUtilError::UnknownUtilityArgument {
+        callee,
+        arg
+      }))
       if callee == "wrap" && arg == "OTHER"
     ));
     Ok(())
@@ -666,7 +695,9 @@ wrap():
     let ret = DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils);
     assert!(matches!(
       ret,
-      Err(RuleSerializeError::InvalidUtilitySignature(signature)) if signature == "wrap()"
+      Err(RuleSerializeError::InvalidUtils(
+        rule::ParseUtilError::InvalidUtilitySignature(signature)
+      )) if signature == "wrap()"
     ));
   }
 }
