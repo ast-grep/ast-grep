@@ -21,7 +21,7 @@ pub enum ParseUtilError {
   InvalidUtilitySignature(String),
   #[error("Utility `{util}` declares duplicate argument `{arg}`.")]
   DuplicateUtilityArgument { util: String, arg: String },
-  #[error("Utility call must contain exactly one callee.")]
+  #[error("Utility call must contain at least one callee.")]
   InvalidUtilityCall,
   #[error("Utility `{0}` requires arguments and cannot be used as `matches: {0}`.")]
   MissingUtilityArguments(String),
@@ -194,15 +194,11 @@ fn visit_dependent_rule_ids_with_params<'a, T: DependentRule>(
         }
       }
       SerializableMatches::Call(call) => {
-        let Some((callee, args)) = call.0.iter().next() else {
-          return Ok(());
-        };
-        if call.0.len() != 1 {
-          return Ok(());
-        }
-        sort.visit(callee)?;
-        for arg in args.values() {
-          visit_dependent_rule_ids_with_params(arg, sort, params)?;
+        for (callee, args) in &call.0 {
+          sort.visit(callee)?;
+          for arg in args.values() {
+            visit_dependent_rule_ids_with_params(arg, sort, params)?;
+          }
         }
       }
     }

@@ -265,6 +265,33 @@ utils:
   }
 
   #[test]
+  fn test_multiple_parameterized_utils_in_rule_config() {
+    let yaml = r"
+id: test
+message: test rule
+severity: info
+language: Tsx
+rule:
+  all:
+    - kind: number
+    - matches:
+        first:
+          ARG:
+            kind: number
+        second:
+          ARG:
+            kind: number
+utils:
+  first(ARG):
+    matches: ARG
+  second(ARG):
+    matches: ARG
+";
+    test_rule_match(yaml, "let a = 123");
+    test_rule_unmatch(yaml, "let a = '123'");
+  }
+
+  #[test]
   fn test_parameterized_utils_with_concrete_nested_argument_rule_in_rule_config() {
     let yaml = r"
 id: test
