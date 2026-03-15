@@ -11,8 +11,7 @@ use ast_grep_core::language::Language;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableGlobalRule<L: Language> {
@@ -62,16 +61,10 @@ pub struct DeserializeEnv<L: Language> {
   pub(crate) registration: RuleRegistration,
   /// current rules' language
   pub(crate) lang: L,
-  /// current parameter bindings allowed during deserialization
-  current_params: Option<Arc<HashSet<String>>>,
 }
 
 trait DependentRule: Sized {
   fn visit_dependency<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) -> OrderResult<()>;
-}
-
-trait DeclaredUtil {
-  fn params(&self) -> &[String];
 }
 
 impl DependentRule for SerializableRule {
@@ -97,12 +90,6 @@ impl<L: Language> DependentRule for ParsedGlobalRule<L> {
       }
     }
     Ok(())
-  }
-}
-
-impl<L: Language> DeclaredUtil for ParsedGlobalRule<L> {
-  fn params(&self) -> &[String] {
-    &self.params
   }
 }
 
@@ -167,23 +154,6 @@ impl<'a, T: DependentRule> TopologicalSort<'a, T> {
   }
 }
 
-fn register_ordered_utils<'a, T: DeclaredUtil, E>(
-  order: Vec<&'a str>,
-  utils: &'a HashMap<String, T>,
-  mut register_rule: impl FnMut(&'a str, &'a T) -> Result<(), E>,
-  mut register_template: impl FnMut(&'a str, &'a T) -> Result<(), E>,
-) -> Result<(), E> {
-  for id in order {
-    let util = utils.get(id).expect("must exist");
-    if util.params().is_empty() {
-      register_rule(id, util)?;
-    } else {
-      register_template(id, util)?;
-    }
-  }
-  Ok(())
-}
-
 fn visit_dependent_rule_ids_with_params<'a, T: DependentRule>(
   rule: &'a SerializableRule,
   sort: &mut TopologicalSort<'a, T>,
@@ -228,16 +198,11 @@ impl<L: Language> DeserializeEnv<L> {
     Self {
       registration: Default::default(),
       lang,
-      current_params: None,
     }
   }
 
   pub(crate) fn from_registration(lang: L, registration: RuleRegistration) -> Self {
-    Self {
-      registration,
-      lang,
-      current_params: None,
-    }
+    Self { registration, lang }
   }
 
   /// register utils rule in the DeserializeEnv for later usage.
@@ -272,29 +237,25 @@ impl<L: Language> DeserializeEnv<L> {
     let order = TopologicalSort::get_order(&utils)
       .map_err(ReferentRuleError::CyclicRule)
       .map_err(RuleSerializeError::from)?;
-    register_ordered_utils(
-      order,
-      &utils,
-      |id, parsed| -> Result<(), RuleCoreError> {
+    for id in order {
+      let parsed = utils.get(id).expect("must exist");
+      if parsed.params.is_empty() {
         let env = DeserializeEnv::new(parsed.lang.clone()).with_globals(&registration);
         let matcher = parsed.core.get_matcher_with_hint(env, CheckHint::Global)?;
         registration
           .insert(id, matcher)
           .map_err(RuleSerializeError::MatchesReference)?;
-        Ok(())
-      },
-      |id, parsed| -> Result<(), RuleCoreError> {
+      } else {
         let params = parsed.params.iter().cloned().collect();
-        let env = DeserializeEnv::new(parsed.lang.clone()).with_globals(&registration);
-        let matcher = parsed
-          .core
-          .get_matcher_with_hint(env.with_params(params), CheckHint::Global)?;
+        let registration_with_params =
+          RuleRegistration::from_globals(&registration).with_params(params);
+        let env = DeserializeEnv::from_registration(parsed.lang.clone(), registration_with_params);
+        let matcher = parsed.core.get_matcher_with_hint(env, CheckHint::Global)?;
         registration
           .insert_template(id, GlobalTemplate::new(parsed.params.clone(), matcher))
           .map_err(RuleSerializeError::MatchesReference)?;
-        Ok(())
-      },
-    )?;
+      }
+    }
     Ok(registration)
   }
 
@@ -313,25 +274,7 @@ impl<L: Language> DeserializeEnv<L> {
     Self {
       registration: RuleRegistration::from_globals(globals),
       lang: self.lang,
-      current_params: self.current_params,
     }
-  }
-
-  pub(crate) fn current_params(&self) -> Option<&HashSet<String>> {
-    self.current_params.as_deref()
-  }
-
-  pub(crate) fn has_current_param(&self, id: &str) -> bool {
-    self
-      .current_params
-      .as_deref()
-      .is_some_and(|params| params.contains(id))
-  }
-
-  pub(crate) fn with_params(&self, params: HashSet<String>) -> Self {
-    let mut env = self.clone();
-    env.current_params = Some(Arc::new(params));
-    env
   }
 }
 

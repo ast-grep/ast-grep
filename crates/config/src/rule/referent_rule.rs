@@ -83,6 +83,8 @@ pub struct RuleRegistration {
   global_templates: Registration<GlobalTemplate>,
   /// Every RuleConfig has its own rewriters. But sub-rules share parent's rewriters.
   rewriters: Registration<RuleCore>,
+  /// Current parameter bindings allowed while deserializing a global template.
+  current_params: Option<Arc<HashSet<String>>>,
 }
 
 // these are shit code
@@ -91,12 +93,30 @@ impl RuleRegistration {
     &self.rewriters.0
   }
 
+  pub(crate) fn current_params(&self) -> Option<&HashSet<String>> {
+    self.current_params.as_deref()
+  }
+
+  pub(crate) fn has_current_param(&self, id: &str) -> bool {
+    self
+      .current_params
+      .as_deref()
+      .is_some_and(|params| params.contains(id))
+  }
+
+  pub(crate) fn with_params(&self, params: HashSet<String>) -> Self {
+    let mut registration = self.clone();
+    registration.current_params = Some(Arc::new(params));
+    registration
+  }
+
   pub fn from_globals(global: &GlobalRules) -> Self {
     Self {
       local: Default::default(),
       global: global.rules.clone(),
       global_templates: global.templates.clone(),
       rewriters: Default::default(),
+      current_params: None,
     }
   }
 
@@ -247,7 +267,7 @@ impl ReferentRule {
     })
   }
 
-  pub(crate) fn try_new_local_param(
+  pub(crate) fn try_new_param(
     rule_id: String,
     registration: &RuleRegistration,
   ) -> Result<Self, ReferentRuleError> {
