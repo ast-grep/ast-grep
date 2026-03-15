@@ -165,6 +165,18 @@ impl RuleRegistration {
     ret
   }
 
+  pub(crate) fn has_local_rule(&self, id: &str) -> bool {
+    self.local.0.contains_key(id) || self.local_templates.0.contains_key(id)
+  }
+
+  pub(crate) fn get_local_template_params(&self, id: &str) -> Option<&Vec<String>> {
+    self
+      .local_templates
+      .0
+      .get(id)
+      .map(|template| &template.params)
+  }
+
   pub(crate) fn has_global_rule(&self, id: &str) -> bool {
     self.global.0.contains_key(id) || self.global_templates.0.contains_key(id)
   }
