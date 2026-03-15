@@ -1,27 +1,18 @@
+use super::parameterized_util::{
+  match_bound_rule, match_parameterized_referent, parameterized_potential_kinds,
+  verify_parameterized_referent, GlobalTemplate, LocalTemplate,
+};
 use crate::{Rule, RuleCore};
 
-use ast_grep_core::meta_var::{MetaVarEnv, MetaVariable};
+use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Doc, Matcher, Node};
 
 use bit_set::BitSet;
 use thiserror::Error;
 
 use std::borrow::Cow;
-use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Weak};
-
-thread_local! {
-  static VERIFY_STACK: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
-  static ARG_RULE_FRAME: RefCell<Option<Arc<BindingFrame>>> = const { RefCell::new(None) };
-  static ARG_RULE_EXPORT_ENV: RefCell<Vec<*mut ()>> = const { RefCell::new(Vec::new()) };
-}
-
-#[derive(Clone)]
-struct BindingFrame {
-  bindings: Arc<HashMap<String, Arc<Rule>>>,
-  parent: Option<Arc<BindingFrame>>,
-}
 
 pub struct Registration<R>(Arc<HashMap<String, R>>);
 
@@ -45,20 +36,6 @@ impl<R> Default for Registration<R> {
     Self(Default::default())
   }
 }
-
-pub(crate) struct Def<M> {
-  pub params: Vec<String>,
-  pub matcher: M,
-}
-
-impl<M> Def<M> {
-  pub(crate) fn new(params: Vec<String>, matcher: M) -> Self {
-    Self { params, matcher }
-  }
-}
-
-pub(crate) type LocalTemplate = Def<Rule>;
-pub(crate) type GlobalTemplate = Def<RuleCore>;
 
 #[derive(Clone, Default)]
 pub struct GlobalRules {
@@ -211,7 +188,7 @@ pub(crate) struct RegistrationRef {
   global_templates: Weak<HashMap<String, GlobalTemplate>>,
 }
 impl RegistrationRef {
-  fn get_local(&self) -> Arc<HashMap<String, Rule>> {
+  pub(crate) fn get_local(&self) -> Arc<HashMap<String, Rule>> {
     self
       .local
       .upgrade()
@@ -223,13 +200,13 @@ impl RegistrationRef {
       .upgrade()
       .expect("Rule Registration must be kept alive")
   }
-  fn get_global(&self) -> Arc<HashMap<String, RuleCore>> {
+  pub(crate) fn get_global(&self) -> Arc<HashMap<String, RuleCore>> {
     self
       .global
       .upgrade()
       .expect("Rule Registration must be kept alive")
   }
-  fn get_global_templates(&self) -> Arc<HashMap<String, GlobalTemplate>> {
+  pub(crate) fn get_global_templates(&self) -> Arc<HashMap<String, GlobalTemplate>> {
     self
       .global_templates
       .upgrade()
@@ -337,32 +314,6 @@ impl ReferentRule {
     let rule = rules.get(&self.rule_id)?;
     Some(func(rule))
   }
-
-  fn eval_global_template<F, T>(&self, func: F) -> Option<T>
-  where
-    F: FnOnce(&GlobalTemplate) -> T,
-  {
-    let templates = self.reg_ref.get_global_templates();
-    let template = templates.get(&self.rule_id)?;
-    Some(func(template))
-  }
-
-  fn eval_local_template<F, T>(&self, func: F) -> Option<T>
-  where
-    F: FnOnce(&Rule) -> T,
-  {
-    let templates = self.reg_ref.get_local_templates();
-    let template = templates.get(&self.rule_id)?;
-    Some(func(&template.matcher))
-  }
-
-  fn compute_potential_kinds(&self) -> Option<BitSet> {
-    self
-      .eval_local_template(|template| template.potential_kinds())
-      .or_else(|| self.eval_global_template(|template| template.matcher.potential_kinds()))
-      .flatten()
-  }
-
   pub(crate) fn defined_vars(&self) -> &HashSet<String> {
     &self.exported_vars
   }
@@ -397,45 +348,7 @@ impl ReferentRule {
         ReferentRuleError::UndefinedUtil(self.rule_id.clone()),
       ));
     }
-    let should_verify = VERIFY_STACK.with(|stack| {
-      let mut stack = stack.borrow_mut();
-      if stack.contains(&self.rule_id) {
-        false
-      } else {
-        stack.insert(self.rule_id.clone());
-        true
-      }
-    });
-    if !should_verify {
-      return Ok(());
-    }
-    let result = self
-      .args
-      .values()
-      .try_for_each(|arg| arg.verify_util())
-      .and_then(|_| {
-        self
-          .eval_local_template(|template| template.verify_util())
-          .or_else(|| self.eval_global_template(|_| Ok(())))
-          .unwrap_or_else(|| {
-            if self.reg_ref.get_local().contains_key(&self.rule_id)
-              || self.reg_ref.get_global().contains_key(&self.rule_id)
-            {
-              Err(
-                crate::rule::ParseUtilError::UnexpectedUtilityArguments(self.rule_id.clone())
-                  .into(),
-              )
-            } else {
-              Err(crate::rule::RuleSerializeError::MatchesReference(
-                ReferentRuleError::UndefinedUtil(self.rule_id.clone()),
-              ))
-            }
-          })
-      });
-    VERIFY_STACK.with(|stack| {
-      stack.borrow_mut().remove(&self.rule_id);
-    });
-    result
+    verify_parameterized_referent(&self.rule_id, &self.args, &self.reg_ref)
   }
 
   pub(crate) fn check_cyclic_with_params(
@@ -462,19 +375,14 @@ impl Matcher for ReferentRule {
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
     if self.is_parameterized() {
-      let exported_vars = self.defined_vars();
-      self
-        .eval_local_template(|template| {
-          with_arg_bindings(self.args.clone(), || {
-            template.match_node_with_env(node.clone(), env)
-          })
-        })
-        .or_else(|| {
-          self.eval_global_template(|template| {
-            match_global_template(template, self.args.clone(), exported_vars, node, env)
-          })
-        })
-        .flatten()
+      match_parameterized_referent(
+        &self.rule_id,
+        self.args.clone(),
+        self.defined_vars(),
+        &self.reg_ref,
+        node,
+        env,
+      )
     } else {
       if self.is_local_param {
         return match_bound_rule(&self.rule_id, node, env);
@@ -488,7 +396,7 @@ impl Matcher for ReferentRule {
 
   fn potential_kinds(&self) -> Option<BitSet> {
     if self.is_parameterized() {
-      self.compute_potential_kinds()
+      parameterized_potential_kinds(&self.rule_id, &self.reg_ref)
     } else {
       if self.is_local_param {
         // Deliberately stop inferring kinds through parameter rule references.
@@ -515,139 +423,6 @@ fn match_global_rule<'tree, D: Doc>(
   let mut local_env = Cow::Owned(MetaVarEnv::new());
   let matched = rule.match_node_with_env(node, &mut local_env)?;
   Some(matched)
-}
-
-fn match_global_template<'tree, D: Doc>(
-  template: &GlobalTemplate,
-  bindings: Arc<HashMap<String, Arc<Rule>>>,
-  exported_vars: &HashSet<String>,
-  node: Node<'tree, D>,
-  env: &mut Cow<MetaVarEnv<'tree, D>>,
-) -> Option<Node<'tree, D>> {
-  let mut local_env = Cow::Owned(MetaVarEnv::new());
-  let mut export_env = MetaVarEnv::new();
-  let matched = with_arg_export_env(&mut export_env, || {
-    with_arg_bindings(bindings, || {
-      template.matcher.match_node_with_env(node, &mut local_env)
-    })
-  })?;
-  export_vars(&export_env, env.to_mut(), exported_vars)?;
-  Some(matched)
-}
-
-fn export_vars<'tree, D: Doc>(
-  from: &MetaVarEnv<'tree, D>,
-  to: &mut MetaVarEnv<'tree, D>,
-  vars: &HashSet<String>,
-) -> Option<()> {
-  for var in vars {
-    if let Some(node) = from.get_match(var.as_str()) {
-      to.insert(var, node.clone())?;
-      continue;
-    }
-    let multi = from.get_multiple_matches(var.as_str());
-    if !multi.is_empty() {
-      to.insert_multi(var, multi)?;
-      continue;
-    }
-    if let Some(bytes) = from.get_transformed(var.as_str()) {
-      to.insert_transformation(
-        &MetaVariable::Capture(var.to_string(), false),
-        var,
-        bytes.clone(),
-      );
-    }
-  }
-  Some(())
-}
-
-pub(crate) fn with_arg_bindings<T>(
-  bindings: Arc<HashMap<String, Arc<Rule>>>,
-  f: impl FnOnce() -> T,
-) -> T {
-  let parent = ARG_RULE_FRAME.with(|current| current.borrow().clone());
-  let frame = Arc::new(BindingFrame { bindings, parent });
-  with_binding_frame(Some(frame), f)
-}
-
-fn lookup_bound_rule(name: &str) -> Option<(Arc<Rule>, Option<Arc<BindingFrame>>)> {
-  ARG_RULE_FRAME.with(|current| {
-    let mut frame = current.borrow().clone();
-    while let Some(active) = frame {
-      if let Some(rule) = active.bindings.get(name) {
-        return Some((rule.clone(), active.parent.clone()));
-      }
-      frame = active.parent.clone();
-    }
-    None
-  })
-}
-
-pub(crate) fn match_bound_rule<'tree, D: Doc>(
-  name: &str,
-  node: Node<'tree, D>,
-  env: &mut Cow<MetaVarEnv<'tree, D>>,
-) -> Option<Node<'tree, D>> {
-  let (rule, parent) = lookup_bound_rule(name)?;
-  with_current_arg_export_env(|export_env: Option<&mut MetaVarEnv<'tree, D>>| {
-    if let Some(export_env) = export_env {
-      let exported_vars: HashSet<String> =
-        rule.defined_vars().into_iter().map(String::from).collect();
-      let mut local_env = Cow::Owned(export_env.clone());
-      let matched = with_binding_frame(parent, || rule.match_node_with_env(node, &mut local_env))?;
-      export_vars(local_env.as_ref(), export_env, &exported_vars)?;
-      Some(matched)
-    } else {
-      with_binding_frame(parent, || rule.match_node_with_env(node, env))
-    }
-  })
-}
-
-fn with_binding_frame<T>(frame: Option<Arc<BindingFrame>>, f: impl FnOnce() -> T) -> T {
-  struct FrameGuard(Option<Arc<BindingFrame>>);
-  impl Drop for FrameGuard {
-    fn drop(&mut self) {
-      ARG_RULE_FRAME.with(|current| {
-        *current.borrow_mut() = self.0.take();
-      });
-    }
-  }
-  let previous = ARG_RULE_FRAME.with(|current| current.replace(frame));
-  let _guard = FrameGuard(previous);
-  f()
-}
-
-fn with_arg_export_env<'tree, D: Doc, T>(
-  env: &mut MetaVarEnv<'tree, D>,
-  f: impl FnOnce() -> T,
-) -> T {
-  struct ExportEnvGuard;
-  impl Drop for ExportEnvGuard {
-    fn drop(&mut self) {
-      ARG_RULE_EXPORT_ENV.with(|stack| {
-        stack.borrow_mut().pop();
-      });
-    }
-  }
-  ARG_RULE_EXPORT_ENV.with(|stack| {
-    stack
-      .borrow_mut()
-      .push(env as *mut MetaVarEnv<'tree, D> as *mut ());
-  });
-  let _guard = ExportEnvGuard;
-  f()
-}
-
-fn with_current_arg_export_env<'tree, D: Doc, T>(
-  f: impl FnOnce(Option<&mut MetaVarEnv<'tree, D>>) -> T,
-) -> T {
-  let ptr = ARG_RULE_EXPORT_ENV.with(|stack| stack.borrow().last().copied());
-  let env = ptr.map(|ptr| {
-    // SAFETY: pointers are only pushed by `with_arg_export_env` for the duration
-    // of the matching call on the same thread and with the same `D`/`'tree`.
-    unsafe { &mut *(ptr as *mut MetaVarEnv<'tree, D>) }
-  });
-  f(env)
 }
 
 #[cfg(test)]
