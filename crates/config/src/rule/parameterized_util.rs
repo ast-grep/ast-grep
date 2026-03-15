@@ -167,7 +167,7 @@ fn lower_utility_call<L: Language>(
   args: HashMap<String, SerializableRule>,
   env: &DeserializeEnv<L>,
 ) -> Result<Rule, RuleSerializeError> {
-  if env.has_current_param(&callee) {
+  if env.registration.has_current_param(&callee) {
     return Err(ParameterizedUtilError::UtilityParameterCalled(callee).into());
   }
   let template_params = env
@@ -184,7 +184,7 @@ fn lower_utility_call<L: Language>(
   let lowered_args = lower_utility_args(args, env)?;
   if lowered_args
     .values()
-    .any(|arg| arg.check_cyclic_with_params(&callee, env.current_params()))
+    .any(|arg| arg.check_cyclic_with_params(&callee, env.registration.current_params()))
   {
     return Err(ReferentRuleError::CyclicRule(callee).into());
   }

@@ -458,8 +458,8 @@ fn deserialize_matches_rule<L: Language>(
   use Rule as R;
   match matches {
     SerializableMatches::Id(id) => {
-      let matches = if env.has_current_param(&id) {
-        ReferentRule::try_new_local_param(id, &env.registration)?
+      let matches = if env.registration.has_current_param(&id) {
+        ReferentRule::try_new_param(id, &env.registration)?
       } else {
         ReferentRule::try_new(id, &env.registration)?
       };
