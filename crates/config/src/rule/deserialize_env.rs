@@ -82,11 +82,8 @@ impl<L: Language> DependentRule for ParsedGlobalRule<L> {
       }
     }
     if let Some(utils) = &self.core.utils {
-      for (id, rule) in utils {
-        let params = UtilitySignature::parse(id)
-          .map_err(|err| err.to_string())?
-          .params;
-        visit_dependent_rule_ids_with_params(rule, sorter, Some(&params))?;
+      for rule in utils.values() {
+        visit_dependent_rule_ids_with_params(rule, sorter, Some(&self.params))?;
       }
     }
     Ok(())

@@ -465,6 +465,33 @@ rule:
   }
 
   #[test]
+  fn test_local_utils_in_parameterized_global_rule_can_match_param_rule() {
+    let matcher = get_matcher_with_globals(
+      r"
+rule:
+  matches:
+    wrap:
+      BODY:
+        pattern: Some($INNER)
+",
+      r"
+- id: wrap(BODY)
+  language: Tsx
+  rule:
+    matches: helper
+  utils:
+    helper:
+      matches: BODY
+",
+    )
+    .expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("Some(123)");
+    assert!(grep.root().find(&matcher).is_some());
+    let grep = TypeScript::Tsx.ast_grep("None");
+    assert!(grep.root().find(&matcher).is_none());
+  }
+
+  #[test]
   fn test_rule_with_constraints() {
     let mut constraints = HashMap::new();
     constraints.insert(
