@@ -209,14 +209,14 @@ impl<L: Language> DeserializeEnv<L> {
     self,
     utils: &HashMap<String, SerializableRule>,
   ) -> Result<Self, RuleSerializeError> {
-    let parsed = parse_utils(utils)?;
-    let order = TopologicalSort::get_order(&parsed)
+    validate_local_utils(utils)?;
+    let order = TopologicalSort::get_order(utils)
       .map_err(ReferentRuleError::CyclicRule)
       .map_err(RuleSerializeError::MatchesReference)?;
     let env = self;
     for id in order {
-      let util = parsed.get(id).expect("must exist");
-      let rule = env.deserialize_rule(util.body.clone())?;
+      let util = utils.get(id).expect("must exist");
+      let rule = env.deserialize_rule(util.clone())?;
       env
         .registration
         .insert_local(id, rule)
@@ -275,35 +275,16 @@ impl<L: Language> DeserializeEnv<L> {
   }
 }
 
-type ParsedUtils = HashMap<String, ParsedUtil>;
-
-struct ParsedUtil {
-  body: SerializableRule,
-}
-
-fn parse_utils(
+fn validate_local_utils(
   utils: &HashMap<String, SerializableRule>,
-) -> Result<ParsedUtils, RuleSerializeError> {
-  let mut parsed = HashMap::new();
-  for (raw_id, body) in utils {
+) -> Result<(), RuleSerializeError> {
+  for raw_id in utils.keys() {
     let signature = UtilitySignature::parse(raw_id)?;
     if !signature.params.is_empty() {
       return Err(ParameterizedUtilError::LocalUtilityArgumentsNotSupported(raw_id.clone()).into());
     }
-    if parsed.contains_key(&signature.name) {
-      return Err(RuleSerializeError::MatchesReference(
-        ReferentRuleError::DuplicateRule(signature.name),
-      ));
-    }
-    parsed.insert(signature.name.clone(), ParsedUtil { body: body.clone() });
   }
-  Ok(parsed)
-}
-
-impl DependentRule for ParsedUtil {
-  fn visit_dependency<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) -> OrderResult<()> {
-    visit_dependent_rule_ids_with_params(&self.body, sorter, None)
-  }
+  Ok(())
 }
 
 #[cfg(test)]
