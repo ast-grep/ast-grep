@@ -526,6 +526,39 @@ rule:
   }
 
   #[test]
+  fn test_nested_parameterized_global_rule_can_use_outer_param_in_nested_call() {
+    let matcher = get_matcher_with_globals(
+      r"
+rule:
+  matches:
+    outer:
+      X:
+        pattern: Some($INNER)
+",
+      r"
+- id: outer
+  arguments: [X]
+  language: Tsx
+  rule:
+    matches:
+      inner:
+        Y:
+          matches: X
+- id: inner
+  arguments: [Y]
+  language: Tsx
+  rule:
+    matches: Y
+",
+    )
+    .expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("Some(123)");
+    assert!(grep.root().find(&matcher).is_some());
+    let grep = TypeScript::Tsx.ast_grep("None");
+    assert!(grep.root().find(&matcher).is_none());
+  }
+
+  #[test]
   fn test_rule_with_constraints() {
     let mut constraints = HashMap::new();
     constraints.insert(
