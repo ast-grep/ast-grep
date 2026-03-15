@@ -1,7 +1,7 @@
 //! Parameterized utility rules have two parts:
 //!
 //! 1. Definition: declare a utility template and its parameters, for example
-//!    `wrap(BODY): ...`.
+//!    `id: wrap` with `arguments: [BODY]`.
 //! 2. Call: reference that template from `matches` and provide concrete rules
 //!    for each parameter, for example `matches: { wrap: { BODY: ... } }`.
 //!
@@ -63,14 +63,12 @@ pub(crate) type GlobalTemplate = Def<RuleCore>;
 
 #[derive(Debug, Error)]
 pub enum ParameterizedUtilError {
-  #[error("Utility declaration `{0}` has an invalid signature.")]
-  InvalidUtilitySignature(String),
+  #[error("Utility id `{0}` contains reserved characters.")]
+  InvalidUtilityId(String),
+  #[error("Utility `{util}` declares invalid argument `{arg}`.")]
+  InvalidUtilityArgument { util: String, arg: String },
   #[error("Utility `{util}` declares duplicate argument `{arg}`.")]
   DuplicateUtilityArgument { util: String, arg: String },
-  #[error(
-    "Local utility `{0}` cannot declare arguments. Parameterized utilities must be global rules."
-  )]
-  LocalUtilityArgumentsNotSupported(String),
   #[error("Utility call must contain at least one callee.")]
   InvalidUtilityCall,
   #[error("Utility `{0}` requires arguments and cannot be used as `matches: {0}`.")]
@@ -102,49 +100,37 @@ impl SerializableUtilityCall {
   }
 }
 
-pub(super) struct UtilitySignature {
-  pub(super) name: String,
-  pub(super) params: Vec<String>,
+fn contains_reserved_utility_chars(raw: &str) -> bool {
+  raw.contains(['(', ')', ',', '='])
 }
 
-impl UtilitySignature {
-  pub(super) fn parse(raw: &str) -> Result<Self, ParameterizedUtilError> {
-    let Some(paren) = raw.find('(') else {
-      if raw.contains(')') {
-        return Err(ParameterizedUtilError::InvalidUtilitySignature(raw.into()));
-      }
-      return Ok(Self {
-        name: raw.into(),
-        params: vec![],
-      });
-    };
-    if !raw.ends_with(')') {
-      return Err(ParameterizedUtilError::InvalidUtilitySignature(raw.into()));
-    }
-    let name = raw[..paren].trim();
-    let inner = &raw[paren + 1..raw.len() - 1];
-    if name.is_empty() || inner.trim().is_empty() {
-      return Err(ParameterizedUtilError::InvalidUtilitySignature(raw.into()));
-    }
-    let mut params = Vec::new();
-    let mut seen = HashSet::new();
-    for param in inner.split(',').map(str::trim) {
-      if param.is_empty() {
-        return Err(ParameterizedUtilError::InvalidUtilitySignature(raw.into()));
-      }
-      if !seen.insert(param.to_string()) {
-        return Err(ParameterizedUtilError::DuplicateUtilityArgument {
-          util: name.into(),
-          arg: param.into(),
-        });
-      }
-      params.push(param.to_string());
-    }
-    Ok(Self {
-      name: name.into(),
-      params,
-    })
+pub(super) fn validate_utility_id(raw: &str) -> Result<(), ParameterizedUtilError> {
+  if raw.is_empty() || contains_reserved_utility_chars(raw) {
+    return Err(ParameterizedUtilError::InvalidUtilityId(raw.into()));
   }
+  Ok(())
+}
+
+pub(super) fn validate_utility_arguments(
+  util: &str,
+  params: &[String],
+) -> Result<(), ParameterizedUtilError> {
+  let mut seen = HashSet::new();
+  for param in params {
+    if param.is_empty() || contains_reserved_utility_chars(param) {
+      return Err(ParameterizedUtilError::InvalidUtilityArgument {
+        util: util.into(),
+        arg: param.clone(),
+      });
+    }
+    if !seen.insert(param.clone()) {
+      return Err(ParameterizedUtilError::DuplicateUtilityArgument {
+        util: util.into(),
+        arg: param.clone(),
+      });
+    }
+  }
+  Ok(())
 }
 
 pub(super) fn deserialize_utility_call_matches<L: Language>(
@@ -421,4 +407,33 @@ fn with_current_arg_export_env<'tree, D: Doc, T>(
     unsafe { &mut *(ptr as *mut MetaVarEnv<'tree, D>) }
   });
   f(env)
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  #[test]
+  fn test_validate_utility_id() {
+    assert!(validate_utility_id("wrap").is_ok());
+    assert!(matches!(
+      validate_utility_id("wrap(BODY)"),
+      Err(ParameterizedUtilError::InvalidUtilityId(id)) if id == "wrap(BODY)"
+    ));
+  }
+
+  #[test]
+  fn test_validate_utility_arguments() {
+    assert!(validate_utility_arguments("wrap", &["BODY".into(), "EXPR".into()]).is_ok());
+    assert!(matches!(
+      validate_utility_arguments("wrap", &["BODY".into(), "BODY".into()]),
+      Err(ParameterizedUtilError::DuplicateUtilityArgument { util, arg })
+        if util == "wrap" && arg == "BODY"
+    ));
+    assert!(matches!(
+      validate_utility_arguments("wrap", &["BODY(EXPR)".into()]),
+      Err(ParameterizedUtilError::InvalidUtilityArgument { util, arg })
+        if util == "wrap" && arg == "BODY(EXPR)"
+    ));
+  }
 }

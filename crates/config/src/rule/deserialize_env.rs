@@ -1,4 +1,4 @@
-use super::parameterized_util::{ParameterizedUtilError, UtilitySignature};
+use super::parameterized_util::{validate_utility_arguments, validate_utility_id};
 use super::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
 use crate::check_var::CheckHint;
 use crate::maybe::Maybe;
@@ -19,6 +19,9 @@ pub struct SerializableGlobalRule<L: Language> {
   pub core: SerializableRuleCore,
   /// Unique, descriptive identifier, e.g., no-unused-variable
   pub id: String,
+  /// Optional parameter names for a parameterized global utility rule.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub arguments: Option<Vec<String>>,
   /// Specify the language to parse and the file extension to include in matching.
   pub language: L,
 }
@@ -34,18 +37,20 @@ fn into_map<L: Language>(
 ) -> Result<HashMap<String, ParsedGlobalRule<L>>, RuleSerializeError> {
   let mut parsed = HashMap::new();
   for rule in rules {
-    let signature = UtilitySignature::parse(&rule.id)?;
-    if parsed.contains_key(&signature.name) {
+    validate_utility_id(&rule.id)?;
+    let params = rule.arguments.unwrap_or_default();
+    validate_utility_arguments(&rule.id, &params)?;
+    if parsed.contains_key(&rule.id) {
       return Err(RuleSerializeError::MatchesReference(
-        ReferentRuleError::DuplicateRule(signature.name),
+        ReferentRuleError::DuplicateRule(rule.id),
       ));
     }
     parsed.insert(
-      signature.name,
+      rule.id,
       ParsedGlobalRule {
         lang: rule.language,
         core: rule.core,
-        params: signature.params,
+        params,
       },
     );
   }
@@ -273,10 +278,9 @@ fn validate_local_utils(
   utils: &HashMap<String, SerializableRule>,
 ) -> Result<(), RuleSerializeError> {
   for raw_id in utils.keys() {
-    let signature = UtilitySignature::parse(raw_id)?;
-    if !signature.params.is_empty() {
-      return Err(ParameterizedUtilError::LocalUtilityArgumentsNotSupported(raw_id.clone()).into());
-    }
+    // Local utils currently only support plain ids. If signature-style local
+    // declarations come back in the future, this is the choke point to relax.
+    validate_utility_id(raw_id)?;
   }
   Ok(())
 }
@@ -398,7 +402,7 @@ local-rule-b:
   }
 
   #[test]
-  fn test_local_parameterized_utils_are_rejected() {
+  fn test_local_utils_reject_reserved_id_chars() {
     let utils = from_str(
       r"
 wrap(BODY):
@@ -410,13 +414,13 @@ wrap(BODY):
     assert!(matches!(
       ret,
       Err(RuleSerializeError::InvalidUtils(
-        rule::ParameterizedUtilError::LocalUtilityArgumentsNotSupported(signature)
+        rule::ParameterizedUtilError::InvalidUtilityId(signature)
       )) if signature == "wrap(BODY)"
     ));
   }
 
   #[test]
-  fn test_invalid_parameterized_global_utility_signature() {
+  fn test_invalid_global_utility_id() {
     let globals: Vec<SerializableGlobalRule<TypeScript>> = from_str(
       r"
 - id: wrap()
@@ -430,7 +434,7 @@ wrap(BODY):
     assert!(matches!(
       ret,
       Err(RuleCoreError::Rule(RuleSerializeError::InvalidUtils(
-        rule::ParameterizedUtilError::InvalidUtilitySignature(signature)
+        rule::ParameterizedUtilError::InvalidUtilityId(signature)
       ))) if signature == "wrap()"
     ));
   }

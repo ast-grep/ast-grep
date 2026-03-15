@@ -373,7 +373,8 @@ rule:
     wrap: {}
 ",
       r"
-- id: wrap(BODY)
+- id: wrap
+  arguments: [BODY]
   language: Tsx
   rule:
     matches: BODY
@@ -400,7 +401,8 @@ rule:
         kind: number
 ",
       r"
-- id: wrap(BODY)
+- id: wrap
+  arguments: [BODY]
   language: Tsx
   rule:
     matches: BODY
@@ -422,7 +424,8 @@ rule:
   matches: wrap
 ",
       r"
-- id: wrap(BODY)
+- id: wrap
+  arguments: [BODY]
   language: Tsx
   rule:
     matches: BODY
@@ -450,7 +453,8 @@ rule:
               kind: number
 ",
       r"
-- id: RECUR(x)
+- id: RECUR
+  arguments: [x]
   language: Tsx
   rule:
     matches: x
@@ -478,7 +482,8 @@ rule:
               matches: x
 ",
       r"
-- id: RECUR(x)
+- id: RECUR
+  arguments: [x]
   language: Tsx
   rule:
     matches: x
@@ -503,7 +508,8 @@ rule:
         pattern: Some($INNER)
 ",
       r"
-- id: wrap(BODY)
+- id: wrap
+  arguments: [BODY]
   language: Tsx
   rule:
     matches: helper
