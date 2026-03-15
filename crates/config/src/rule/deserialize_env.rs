@@ -160,7 +160,7 @@ fn visit_dependent_rule_ids_with_params<'a, T: DependentRule>(
   if let Maybe::Present(matches) = &rule.matches {
     match matches {
       SerializableMatches::Id(id) => {
-        if !params.is_some_and(|params| params.iter().any(|param| param == id)) {
+        if !params.is_some_and(|params| params.contains(id)) {
           sort.visit(id)?;
         }
       }
