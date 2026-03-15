@@ -62,8 +62,6 @@ pub struct DeserializeEnv<L: Language> {
   pub(crate) registration: RuleRegistration,
   /// current rules' language
   pub(crate) lang: L,
-  /// utility signatures in the current local scope
-  local_utils: HashMap<String, Vec<String>>,
   /// current parameter bindings allowed during deserialization
   current_params: Option<Arc<HashSet<String>>>,
 }
@@ -203,7 +201,6 @@ impl<L: Language> DeserializeEnv<L> {
     Self {
       registration: Default::default(),
       lang,
-      local_utils: Default::default(),
       current_params: None,
     }
   }
@@ -212,7 +209,6 @@ impl<L: Language> DeserializeEnv<L> {
     Self {
       registration,
       lang,
-      local_utils: Default::default(),
       current_params: None,
     }
   }
@@ -228,29 +224,25 @@ impl<L: Language> DeserializeEnv<L> {
     let order = TopologicalSort::get_order(&parsed)
       .map_err(ReferentRuleError::CyclicRule)
       .map_err(RuleSerializeError::MatchesReference)?;
-    let env = self.with_local_utils(&parsed);
-    for (id, util) in &parsed {
-      if util.params.is_empty() {
-        continue;
-      }
-      let params = util.params.iter().cloned().collect();
-      let template = env
-        .with_params(params)
-        .deserialize_rule(util.body.clone())?;
-      env
-        .registration
-        .insert_local_template(id, util.params.clone(), template)
-        .map_err(RuleSerializeError::MatchesReference)?;
-    }
+    let env = self;
     for id in order {
-      let Some(util) = parsed.get(id) else {
-        continue;
-      };
-      if !util.params.is_empty() {
-        continue;
+      let parsed = parsed.get(id).expect("must exist");
+      if parsed.params.is_empty() {
+        let rule = env.deserialize_rule(parsed.body.clone())?;
+        env
+          .registration
+          .insert_local(id, rule)
+          .map_err(RuleSerializeError::MatchesReference)?;
+      } else {
+        let params = parsed.params.iter().cloned().collect();
+        let template = env
+          .with_params(params)
+          .deserialize_rule(parsed.body.clone())?;
+        env
+          .registration
+          .insert_local_template(id, parsed.params.clone(), template)
+          .map_err(RuleSerializeError::MatchesReference)?;
       }
-      let rule = env.deserialize_rule(util.body.clone())?;
-      env.registration.insert_local(id, rule)?;
     }
     Ok(env)
   }
@@ -300,21 +292,19 @@ impl<L: Language> DeserializeEnv<L> {
     Self {
       registration: RuleRegistration::from_globals(globals),
       lang: self.lang,
-      local_utils: Default::default(),
       current_params: self.current_params,
     }
   }
 
   pub(crate) fn get_template_params(&self, id: &str) -> Option<&Vec<String>> {
     self
-      .local_utils
-      .get(id)
-      .filter(|params| !params.is_empty())
+      .registration
+      .get_local_template_params(id)
       .or_else(|| self.registration.get_global_template_params(id))
   }
 
   pub(crate) fn has_declared_util(&self, id: &str) -> bool {
-    self.local_utils.contains_key(id) || self.registration.has_global_rule(id)
+    self.registration.has_local_rule(id) || self.registration.has_global_rule(id)
   }
 
   pub(crate) fn current_params(&self) -> Option<&HashSet<String>> {
@@ -332,14 +322,6 @@ impl<L: Language> DeserializeEnv<L> {
     let mut env = self.clone();
     env.current_params = Some(Arc::new(params));
     env
-  }
-
-  fn with_local_utils(mut self, utils: &ParsedUtils) -> Self {
-    self.local_utils = utils
-      .iter()
-      .map(|(id, util)| (id.clone(), util.params.clone()))
-      .collect();
-    self
   }
 }
 
