@@ -465,6 +465,34 @@ rule:
   }
 
   #[test]
+  fn test_parameterized_global_call_cycle_in_argument_rule_with_param_reference() {
+    let ret = get_matcher_with_globals(
+      r"
+rule:
+  matches:
+    RECUR:
+      x:
+        matches:
+          RECUR:
+            x:
+              matches: x
+",
+      r"
+- id: RECUR(x)
+  language: Tsx
+  rule:
+    matches: x
+",
+    );
+    assert!(matches!(
+      ret,
+      Err(RuleCoreError::Rule(RuleSerializeError::MatchesReference(
+        ReferentRuleError::CyclicRule(rule)
+      ))) if rule == "RECUR"
+    ));
+  }
+
+  #[test]
   fn test_local_utils_in_parameterized_global_rule_can_match_param_rule() {
     let matcher = get_matcher_with_globals(
       r"

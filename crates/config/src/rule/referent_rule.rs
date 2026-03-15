@@ -93,10 +93,6 @@ impl RuleRegistration {
     &self.rewriters.0
   }
 
-  pub(crate) fn current_params(&self) -> Option<&HashSet<String>> {
-    self.current_params.as_deref()
-  }
-
   pub(crate) fn has_current_param(&self, id: &str) -> bool {
     self
       .current_params
@@ -346,22 +342,13 @@ impl ReferentRule {
     }
   }
 
-  pub(crate) fn check_cyclic_with_params(
-    &self,
-    id: &str,
-    params: Option<&HashSet<String>>,
-  ) -> bool {
+  pub(crate) fn check_cyclic(&self, id: &str) -> bool {
     match &self.format {
       ReferentFormat::Args(args) => {
-        self.rule_id == id
-          || args
-            .args
-            .values()
-            .any(|arg| arg.check_cyclic_with_params(id, params))
+        self.rule_id == id || args.args.values().any(|arg| arg.check_cyclic(id))
       }
-      ReferentFormat::Param | ReferentFormat::IdRef => {
-        !params.is_some_and(|params| params.contains(&self.rule_id)) && self.rule_id == id
-      }
+      ReferentFormat::Param => false,
+      ReferentFormat::IdRef => self.rule_id == id,
     }
   }
 }

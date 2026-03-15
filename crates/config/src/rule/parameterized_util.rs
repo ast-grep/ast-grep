@@ -182,10 +182,7 @@ fn lower_utility_call<L: Language>(
     })?;
   validate_utility_args(&callee, template_params, &args)?;
   let lowered_args = lower_utility_args(args, env)?;
-  if lowered_args
-    .values()
-    .any(|arg| arg.check_cyclic_with_params(&callee, env.registration.current_params()))
-  {
+  if lowered_args.values().any(|arg| arg.check_cyclic(&callee)) {
     return Err(ReferentRuleError::CyclicRule(callee).into());
   }
   let matches = ReferentRule::new(callee.clone(), lowered_args, &env.registration);
