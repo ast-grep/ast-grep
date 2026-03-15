@@ -1,4 +1,5 @@
-use super::referent_rule::{GlobalRules, GlobalTemplate, ReferentRuleError, RuleRegistration};
+use super::parameterized_util::{GlobalTemplate, UtilitySignature};
+use super::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
 use crate::check_var::CheckHint;
 use crate::maybe::Maybe;
 use crate::rule::{self, Rule, RuleSerializeError, SerializableMatches, SerializableRule};
@@ -10,30 +11,8 @@ use ast_grep_core::language::Language;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
-
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-
-#[derive(Debug, Error)]
-pub enum ParseUtilError {
-  #[error("Utility declaration `{0}` has an invalid signature.")]
-  InvalidUtilitySignature(String),
-  #[error("Utility `{util}` declares duplicate argument `{arg}`.")]
-  DuplicateUtilityArgument { util: String, arg: String },
-  #[error("Utility call must contain at least one callee.")]
-  InvalidUtilityCall,
-  #[error("Utility `{0}` requires arguments and cannot be used as `matches: {0}`.")]
-  MissingUtilityArguments(String),
-  #[error("Utility `{0}` does not accept arguments.")]
-  UnexpectedUtilityArguments(String),
-  #[error("Utility parameter `{0}` cannot be called with arguments.")]
-  UtilityParameterCalled(String),
-  #[error("Parameterized utility `{callee}` is missing argument `{arg}`.")]
-  MissingUtilityArgument { callee: String, arg: String },
-  #[error("Parameterized utility `{callee}` does not declare argument `{arg}`.")]
-  UnknownUtilityArgument { callee: String, arg: String },
-}
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableGlobalRule<L: Language> {
@@ -194,7 +173,7 @@ fn visit_dependent_rule_ids_with_params<'a, T: DependentRule>(
         }
       }
       SerializableMatches::Call(call) => {
-        for (callee, args) in &call.0 {
+        for (callee, args) in call.iter() {
           sort.visit(callee)?;
           for arg in args.values() {
             visit_dependent_rule_ids_with_params(arg, sort, params)?;
@@ -396,51 +375,6 @@ fn parse_utils(
 impl DependentRule for ParsedUtil {
   fn visit_dependency<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) -> OrderResult<()> {
     visit_dependent_rule_ids_with_params(&self.body, sorter, Some(&self.params))
-  }
-}
-
-struct UtilitySignature {
-  name: String,
-  params: Vec<String>,
-}
-
-impl UtilitySignature {
-  fn parse(raw: &str) -> Result<Self, ParseUtilError> {
-    let Some(paren) = raw.find('(') else {
-      if raw.contains(')') {
-        return Err(ParseUtilError::InvalidUtilitySignature(raw.into()));
-      }
-      return Ok(Self {
-        name: raw.into(),
-        params: vec![],
-      });
-    };
-    if !raw.ends_with(')') {
-      return Err(ParseUtilError::InvalidUtilitySignature(raw.into()));
-    }
-    let name = raw[..paren].trim();
-    let inner = &raw[paren + 1..raw.len() - 1];
-    if name.is_empty() || inner.trim().is_empty() {
-      return Err(ParseUtilError::InvalidUtilitySignature(raw.into()));
-    }
-    let mut params = Vec::new();
-    let mut seen = HashSet::new();
-    for param in inner.split(',').map(str::trim) {
-      if param.is_empty() {
-        return Err(ParseUtilError::InvalidUtilitySignature(raw.into()));
-      }
-      if !seen.insert(param.to_string()) {
-        return Err(ParseUtilError::DuplicateUtilityArgument {
-          util: name.into(),
-          arg: param.into(),
-        });
-      }
-      params.push(param.to_string());
-    }
-    Ok(Self {
-      name: name.into(),
-      params,
-    })
   }
 }
 

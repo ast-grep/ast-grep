@@ -1,12 +1,15 @@
 mod deserialize_env;
 mod nth_child;
+mod parameterized_util;
 mod range;
 pub mod referent_rule;
 mod relational_rule;
 mod selector;
 mod stop_by;
 
-pub use deserialize_env::{DeserializeEnv, ParseUtilError, SerializableGlobalRule};
+pub use deserialize_env::{DeserializeEnv, SerializableGlobalRule};
+pub use parameterized_util::ParseUtilError;
+use parameterized_util::{deserialize_utility_call_matches, SerializableUtilityCall};
 pub use relational_rule::Relation;
 use selector::{parse_selector, SelectorError};
 pub use stop_by::StopBy;
@@ -27,7 +30,7 @@ use bit_set::BitSet;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use thiserror::Error;
 
 /// A rule object to find matching AST nodes. We have three categories of rules in ast-grep.
@@ -103,23 +106,6 @@ pub struct SerializableRule {
 pub enum SerializableMatches {
   Id(String),
   Call(SerializableUtilityCall),
-}
-
-type SerializableUtilityArgs = HashMap<String, SerializableRule>;
-type SerializableUtilityCalls = HashMap<String, SerializableUtilityArgs>;
-type SerializableUtilityItems = Vec<(String, SerializableUtilityArgs)>;
-
-#[derive(Serialize, Deserialize, Clone, JsonSchema)]
-#[serde(transparent)]
-pub struct SerializableUtilityCall(pub SerializableUtilityCalls);
-
-impl SerializableUtilityCall {
-  fn into_items(self) -> Result<SerializableUtilityItems, ParseUtilError> {
-    if self.0.is_empty() {
-      return Err(ParseUtilError::InvalidUtilityCall);
-    }
-    Ok(self.0.into_iter().collect())
-  }
 }
 
 struct Categorized {
@@ -479,82 +465,8 @@ fn deserialize_matches_rule<L: Language>(
       };
       Ok(R::Matches(matches))
     }
-    SerializableMatches::Call(call) => {
-      let mut rules = Vec::new();
-      for (callee, args) in call.into_items()? {
-        rules.push(lower_utility_call(callee, args, env)?);
-      }
-      if rules.len() == 1 {
-        Ok(rules.pop().expect("must contain one rule"))
-      } else {
-        Ok(R::All(o::All::new(rules)))
-      }
-    }
+    SerializableMatches::Call(call) => deserialize_utility_call_matches(call, env),
   }
-}
-
-fn lower_utility_call<L: Language>(
-  callee: String,
-  args: HashMap<String, SerializableRule>,
-  env: &DeserializeEnv<L>,
-) -> Result<Rule, RuleSerializeError> {
-  use Rule as R;
-  if env.has_current_param(&callee) {
-    return Err(ParseUtilError::UtilityParameterCalled(callee).into());
-  }
-  let template_params = env.get_template_params(&callee).ok_or_else(|| {
-    if env.has_declared_util(&callee) {
-      ParseUtilError::UnexpectedUtilityArguments(callee.clone()).into()
-    } else {
-      RuleSerializeError::MatchesReference(ReferentRuleError::UndefinedUtil(callee.clone()))
-    }
-  })?;
-  validate_utility_args(&callee, template_params, &args)?;
-  let lowered_args = lower_utility_args(args, env)?;
-  let matches = ReferentRule::new(callee.clone(), lowered_args, &env.registration);
-  if matches
-    .args
-    .values()
-    .any(|arg| arg.check_cyclic_with_params(&callee, env.current_params()))
-  {
-    return Err(ReferentRuleError::CyclicRule(callee).into());
-  }
-  Ok(R::Matches(matches))
-}
-
-fn validate_utility_args(
-  callee: &str,
-  params: &[String],
-  args: &HashMap<String, SerializableRule>,
-) -> Result<(), ParseUtilError> {
-  for name in args.keys() {
-    if !params.iter().any(|param| param == name) {
-      return Err(ParseUtilError::UnknownUtilityArgument {
-        callee: callee.into(),
-        arg: name.clone(),
-      });
-    }
-  }
-  for name in params {
-    if !args.contains_key(name) {
-      return Err(ParseUtilError::MissingUtilityArgument {
-        callee: callee.into(),
-        arg: name.clone(),
-      });
-    }
-  }
-  Ok(())
-}
-
-fn lower_utility_args<L: Language>(
-  args: HashMap<String, SerializableRule>,
-  env: &DeserializeEnv<L>,
-) -> Result<HashMap<String, Rule>, RuleSerializeError> {
-  let mut lowered = HashMap::with_capacity(args.len());
-  for (name, rule) in args {
-    lowered.insert(name, deserialize_rule(rule, env)?);
-  }
-  Ok(lowered)
 }
 
 fn deserialize_relational_rule<L: Language>(
