@@ -246,25 +246,11 @@ pub enum Rule {
 impl Rule {
   /// Check if it has a cyclic referent rule with the id.
   pub(crate) fn check_cyclic(&self, id: &str) -> bool {
-    self.check_cyclic_with_params(id, None)
-  }
-
-  pub(crate) fn check_cyclic_with_params(
-    &self,
-    id: &str,
-    params: Option<&HashSet<String>>,
-  ) -> bool {
     match self {
-      Rule::All(all) => all
-        .inner()
-        .iter()
-        .any(|r| r.check_cyclic_with_params(id, params)),
-      Rule::Any(any) => any
-        .inner()
-        .iter()
-        .any(|r| r.check_cyclic_with_params(id, params)),
-      Rule::Not(not) => not.inner().check_cyclic_with_params(id, params),
-      Rule::Matches(rule) => rule.check_cyclic_with_params(id, params),
+      Rule::All(all) => all.inner().iter().any(|r| r.check_cyclic(id)),
+      Rule::Any(any) => any.inner().iter().any(|r| r.check_cyclic(id)),
+      Rule::Not(not) => not.inner().check_cyclic(id),
+      Rule::Matches(rule) => rule.check_cyclic(id),
       _ => false,
     }
   }
