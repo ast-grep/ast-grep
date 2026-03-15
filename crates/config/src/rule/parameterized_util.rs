@@ -363,14 +363,9 @@ fn export_vars<'tree, D: Doc>(
 fn lookup_bound_rule(name: &str) -> Option<(Arc<Rule>, Option<Arc<BindingFrame>>)> {
   ARG_RULE_FRAME.with(|current| {
     let borrow = current.borrow();
-    let mut frame = borrow.as_ref();
-    while let Some(active) = frame {
-      if let Some(rule) = active.bindings.get(name) {
-        return Some((rule.clone(), active.parent.clone()));
-      }
-      frame = active.parent.as_ref();
-    }
-    None
+    let active = borrow.as_ref()?;
+    let rule = active.bindings.get(name)?;
+    Some((rule.clone(), active.parent.clone()))
   })
 }
 
