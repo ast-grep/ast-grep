@@ -296,6 +296,11 @@ pub(crate) fn match_bound_rule<'tree, D: Doc>(
     if let Some(export_env) = export_env {
       let exported_vars: HashSet<String> =
         rule.defined_vars().into_iter().map(String::from).collect();
+      // Bound argument rules are intentionally isolated from the caller env.
+      // They match against a temporary env seeded only from prior argument
+      // exports in the current parameterized call. Export to the caller happens
+      // later, after the whole template has matched, so export conflicts do not
+      // trigger backtracking here.
       let mut local_env = Cow::Owned(export_env.clone());
       let matched = with_binding_frame(parent, || rule.match_node_with_env(node, &mut local_env))?;
       export_vars(local_env.as_ref(), export_env, &exported_vars)?;
