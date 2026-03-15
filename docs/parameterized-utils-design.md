@@ -138,6 +138,57 @@ When a parameterized util is called:
 
 This gives lexical behavior for nested parameterized calls without cloning the whole rule tree.
 
+Argument rules are intentionally isolated from the caller's `MetaVarEnv`.
+They do not read caller bindings while matching, and they do not write back to
+the caller env incrementally.
+
+Instead:
+
+- each bound argument rule matches against an isolated temporary env
+- any vars it defines are accumulated into the parameterized call's export env
+- those exports are written back to the caller only after the whole template has matched
+
+This also means export conflicts are terminal for that parameterized call:
+
+- if exporting argument vars back to the caller env fails, the whole call fails
+- that failure does not trigger matcher backtracking inside the template
+- in particular, an `any` branch is not retried just because late export failed
+
+Example:
+
+```yaml
+- id: maybe
+  arguments: [BODY]
+  language: Tsx
+  rule:
+    any:
+      - matches: BODY
+      - kind: function_declaration
+
+rule:
+  all:
+    - pattern: function t($P) { foo($A); $$$ }
+    - matches:
+        maybe:
+          BODY:
+            pattern: function t($A) { $$$ }
+```
+
+On:
+
+```ts
+function t(y) { foo(x); }
+```
+
+The outer rule binds `$A = x`. The `BODY` argument rule is then matched in its
+own temporary env, so it can still match `function t(y) { $$$ }` and bind
+`$A = y`. `any` treats that branch as the chosen match.
+
+Only after the full `maybe` template has matched does the implementation try to
+export the argument vars back to the caller env. That export conflicts with the
+outer `$A = x`, so the whole `maybe(...)` call fails. The matcher does not then
+backtrack and retry the second `any` branch.
+
 ## Local vs Global Env Behavior
 
 Local utils and the YAML rule share the same `MetaVarEnv`.
@@ -154,6 +205,7 @@ That means:
 - internal global metavariables do not affect YAML rule matching
 - internal global metavariables are not exported back to the caller
 - for parameterized global rules, only vars coming from caller-supplied argument rules are exported
+- for parameterized global rules, those argument-rule exports are committed only after the full template match succeeds
 
 ## `defined_vars`
 
