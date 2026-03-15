@@ -213,16 +213,15 @@ impl<L: Language> DeserializeEnv<L> {
     let order = TopologicalSort::get_order(utils)
       .map_err(ReferentRuleError::CyclicRule)
       .map_err(RuleSerializeError::MatchesReference)?;
-    let env = self;
     for id in order {
       let util = utils.get(id).expect("must exist");
-      let rule = env.deserialize_rule(util.clone())?;
-      env
+      let rule = self.deserialize_rule(util.clone())?;
+      self
         .registration
         .insert_local(id, rule)
         .map_err(RuleSerializeError::MatchesReference)?;
     }
-    Ok(env)
+    Ok(self)
   }
 
   /// register global utils rule discovered in the config.
