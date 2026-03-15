@@ -235,14 +235,42 @@ pub enum ReferentRuleError {
 }
 
 #[derive(Clone)]
+struct ReferentArgs {
+  args: Arc<HashMap<String, Arc<Rule>>>,
+  // a cache of variables, used in match
+  exported_vars: HashSet<String>,
+}
+
+impl ReferentArgs {
+  fn new(args: HashMap<String, Rule>) -> Self {
+    let args: HashMap<String, Arc<Rule>> = args
+      .into_iter()
+      .map(|(name, rule)| (name, Arc::new(rule)))
+      .collect();
+    let exported_vars = args
+      .values()
+      .flat_map(|rule| rule.defined_vars())
+      .map(|var| var.to_string())
+      .collect();
+    Self {
+      args: Arc::new(args),
+      exported_vars,
+    }
+  }
+}
+
+#[derive(Clone)]
+enum ReferentFormat {
+  Param,
+  IdRef,
+  // use Box to reduce the size
+  Args(Box<ReferentArgs>),
+}
+
+#[derive(Clone)]
 pub struct ReferentRule {
   pub(crate) rule_id: String,
-  pub(crate) args: Arc<HashMap<String, Arc<Rule>>>,
-  /// True when a bare `matches: NAME` was parsed as a reference to the current
-  /// parameter scope instead of a local/global utility rule.
-  is_local_param: bool,
-  /// Cached set of meta-variable names defined by the argument rules.
-  exported_vars: HashSet<String>,
+  format: ReferentFormat,
   reg_ref: RegistrationRef,
 }
 
@@ -251,24 +279,22 @@ impl ReferentRule {
     rule_id: String,
     registration: &RuleRegistration,
   ) -> Result<Self, ReferentRuleError> {
-    Ok(Self::new_with_ref(
+    Ok(Self {
       rule_id,
-      false,
-      HashMap::new(),
-      registration.get_ref(),
-    ))
+      format: ReferentFormat::IdRef,
+      reg_ref: registration.get_ref(),
+    })
   }
 
   pub(crate) fn try_new_local_param(
     rule_id: String,
     registration: &RuleRegistration,
   ) -> Result<Self, ReferentRuleError> {
-    Ok(Self::new_with_ref(
+    Ok(Self {
       rule_id,
-      true,
-      HashMap::new(),
-      registration.get_ref(),
-    ))
+      format: ReferentFormat::Param,
+      reg_ref: registration.get_ref(),
+    })
   }
 
   pub fn new(
@@ -276,35 +302,16 @@ impl ReferentRule {
     args: HashMap<String, Rule>,
     registration: &RuleRegistration,
   ) -> Self {
-    Self::new_with_ref(rule_id, false, args, registration.get_ref())
-  }
-
-  fn new_with_ref(
-    rule_id: String,
-    is_local_param: bool,
-    args: HashMap<String, Rule>,
-    reg_ref: RegistrationRef,
-  ) -> Self {
-    let args: HashMap<String, Arc<Rule>> = args
-      .into_iter()
-      .map(|(name, rule)| (name, Arc::new(rule)))
-      .collect();
-    let exported_vars = args
-      .values()
-      .flat_map(|rule| rule.defined_vars())
-      .map(|s| s.to_string())
-      .collect();
     Self {
       rule_id,
-      args: Arc::new(args),
-      is_local_param,
-      exported_vars,
-      reg_ref,
+      format: ReferentFormat::Args(Box::new(ReferentArgs::new(args))),
+      reg_ref: registration.get_ref(),
     }
   }
 
-  fn is_parameterized(&self) -> bool {
-    !self.args.is_empty()
+  #[cfg(test)]
+  pub(crate) fn has_args(&self) -> bool {
+    matches!(self.format, ReferentFormat::Args(_))
   }
 
   fn eval_local<F, T>(&self, func: F) -> Option<T>
@@ -324,41 +331,47 @@ impl ReferentRule {
     let rule = rules.get(&self.rule_id)?;
     Some(func(rule))
   }
-  pub(crate) fn defined_vars(&self) -> &HashSet<String> {
-    &self.exported_vars
+  pub(crate) fn defined_vars(&self) -> HashSet<&str> {
+    match &self.format {
+      ReferentFormat::Args(args) => args.exported_vars.iter().map(String::as_str).collect(),
+      ReferentFormat::Param | ReferentFormat::IdRef => HashSet::new(),
+    }
   }
 
   pub(super) fn verify_util(&self) -> Result<(), crate::rule::RuleSerializeError> {
-    if !self.is_parameterized() {
-      if self.is_local_param {
-        return Ok(());
-      }
-      let rules = self.reg_ref.get_local();
-      if rules.contains_key(&self.rule_id) {
-        return Ok(());
-      }
-      let rules = self.reg_ref.get_global();
-      if rules.contains_key(&self.rule_id) {
-        return Ok(());
-      }
-      if self
-        .reg_ref
-        .get_local_templates()
-        .contains_key(&self.rule_id)
-        || self
+    match &self.format {
+      ReferentFormat::Param => Ok(()),
+      ReferentFormat::IdRef => {
+        let rules = self.reg_ref.get_local();
+        if rules.contains_key(&self.rule_id) {
+          return Ok(());
+        }
+        let rules = self.reg_ref.get_global();
+        if rules.contains_key(&self.rule_id) {
+          return Ok(());
+        }
+        if self
           .reg_ref
-          .get_global_templates()
+          .get_local_templates()
           .contains_key(&self.rule_id)
-      {
-        return Err(
-          crate::rule::ParameterizedUtilError::MissingUtilityArguments(self.rule_id.clone()).into(),
-        );
+          || self
+            .reg_ref
+            .get_global_templates()
+            .contains_key(&self.rule_id)
+        {
+          return Err(
+            crate::rule::ParameterizedUtilError::MissingUtilityArguments(self.rule_id.clone())
+              .into(),
+          );
+        }
+        Err(crate::rule::RuleSerializeError::MatchesReference(
+          ReferentRuleError::UndefinedUtil(self.rule_id.clone()),
+        ))
       }
-      return Err(crate::rule::RuleSerializeError::MatchesReference(
-        ReferentRuleError::UndefinedUtil(self.rule_id.clone()),
-      ));
+      ReferentFormat::Args(args) => {
+        verify_parameterized_referent(&self.rule_id, &args.args, &self.reg_ref)
+      }
     }
-    verify_parameterized_referent(&self.rule_id, &self.args, &self.reg_ref)
   }
 
   pub(crate) fn check_cyclic_with_params(
@@ -366,14 +379,17 @@ impl ReferentRule {
     id: &str,
     params: Option<&HashSet<String>>,
   ) -> bool {
-    if self.is_parameterized() {
-      self.rule_id == id
-        || self
-          .args
-          .values()
-          .any(|arg| arg.check_cyclic_with_params(id, params))
-    } else {
-      !params.is_some_and(|params| params.contains(&self.rule_id)) && self.rule_id == id
+    match &self.format {
+      ReferentFormat::Args(args) => {
+        self.rule_id == id
+          || args
+            .args
+            .values()
+            .any(|arg| arg.check_cyclic_with_params(id, params))
+      }
+      ReferentFormat::Param | ReferentFormat::IdRef => {
+        !params.is_some_and(|params| params.contains(&self.rule_id)) && self.rule_id == id
+      }
     }
   }
 }
@@ -384,43 +400,39 @@ impl Matcher for ReferentRule {
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    if self.is_parameterized() {
-      match_parameterized_referent(
+    match &self.format {
+      ReferentFormat::Args(args) => match_parameterized_referent(
         &self.rule_id,
-        self.args.clone(),
-        self.defined_vars(),
+        args.args.clone(),
+        &args.exported_vars,
         &self.reg_ref,
         node,
         env,
-      )
-    } else {
-      if self.is_local_param {
-        return match_bound_rule(&self.rule_id, node, env);
-      }
-      self
+      ),
+      ReferentFormat::Param => match_bound_rule(&self.rule_id, node, env),
+      ReferentFormat::IdRef => self
         .eval_local(|r| r.match_node_with_env(node.clone(), env))
         .or_else(|| self.eval_global(|r| match_global_rule(r, node, env)))
-        .flatten()
+        .flatten(),
     }
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
-    if self.is_parameterized() {
-      parameterized_potential_kinds(&self.rule_id, &self.reg_ref)
-    } else {
-      if self.is_local_param {
+    match &self.format {
+      ReferentFormat::Args(_) => parameterized_potential_kinds(&self.rule_id, &self.reg_ref),
+      ReferentFormat::Param => {
         // Deliberately stop inferring kinds through parameter rule references.
         // A `matches: PARAM-RULE` edge is treated as "can match anything", both
         // during deserialization-time cache construction and at runtime. Users
         // must provide stable kind information at the utility definition site
         // or around the call site if they want pruning to stay precise and
         // satisfy MissingPotentialKinds.
-        return None;
+        None
       }
-      self
+      ReferentFormat::IdRef => self
         .eval_local(|r| r.potential_kinds())
         .or_else(|| self.eval_global(|r| r.potential_kinds()))
-        .flatten()
+        .flatten(),
     }
   }
 }

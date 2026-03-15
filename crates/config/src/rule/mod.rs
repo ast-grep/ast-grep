@@ -283,7 +283,7 @@ impl Rule {
       Rule::All(sub) => sub.inner().iter().flat_map(|r| r.defined_vars()).collect(),
       Rule::Any(sub) => sub.inner().iter().flat_map(|r| r.defined_vars()).collect(),
       Rule::Not(sub) => sub.inner().defined_vars(),
-      Rule::Matches(rule) => rule.defined_vars().iter().map(|s| s.as_str()).collect(),
+      Rule::Matches(rule) => rule.defined_vars(),
     }
   }
 
@@ -717,7 +717,7 @@ matches:
     .expect("cannot parse rule");
     let rule = deserialize_rule(rule, &env).expect("should deserialize");
     match rule {
-      Rule::Matches(rule) => assert!(!rule.args.is_empty()),
+      Rule::Matches(rule) => assert!(rule.has_args()),
       _ => panic!("expected matches rule"),
     }
   }
