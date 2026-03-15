@@ -419,7 +419,7 @@ utils:
     assert!(matches!(
       ret,
       Err(RuleCoreError::Rule(RuleSerializeError::InvalidUtils(
-        crate::rule::ParseUtilError::MissingUtilityArguments(name)
+        crate::rule::ParameterizedUtilError::MissingUtilityArguments(name)
       )))
       if name == "wrap"
     ));

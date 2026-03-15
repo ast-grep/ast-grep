@@ -60,7 +60,7 @@ pub(crate) type LocalTemplate = Def<Rule>;
 pub(crate) type GlobalTemplate = Def<RuleCore>;
 
 #[derive(Debug, Error)]
-pub enum ParseUtilError {
+pub enum ParameterizedUtilError {
   #[error("Utility declaration `{0}` has an invalid signature.")]
   InvalidUtilitySignature(String),
   #[error("Utility `{util}` declares duplicate argument `{arg}`.")]
@@ -88,9 +88,9 @@ impl SerializableUtilityCall {
     self.0.iter()
   }
 
-  fn into_items(self) -> Result<SerializableUtilityItems, ParseUtilError> {
+  fn into_items(self) -> Result<SerializableUtilityItems, ParameterizedUtilError> {
     if self.0.is_empty() {
-      return Err(ParseUtilError::InvalidUtilityCall);
+      return Err(ParameterizedUtilError::InvalidUtilityCall);
     }
     Ok(self.0.into_iter().collect())
   }
@@ -102,10 +102,10 @@ pub(super) struct UtilitySignature {
 }
 
 impl UtilitySignature {
-  pub(super) fn parse(raw: &str) -> Result<Self, ParseUtilError> {
+  pub(super) fn parse(raw: &str) -> Result<Self, ParameterizedUtilError> {
     let Some(paren) = raw.find('(') else {
       if raw.contains(')') {
-        return Err(ParseUtilError::InvalidUtilitySignature(raw.into()));
+        return Err(ParameterizedUtilError::InvalidUtilitySignature(raw.into()));
       }
       return Ok(Self {
         name: raw.into(),
@@ -113,21 +113,21 @@ impl UtilitySignature {
       });
     };
     if !raw.ends_with(')') {
-      return Err(ParseUtilError::InvalidUtilitySignature(raw.into()));
+      return Err(ParameterizedUtilError::InvalidUtilitySignature(raw.into()));
     }
     let name = raw[..paren].trim();
     let inner = &raw[paren + 1..raw.len() - 1];
     if name.is_empty() || inner.trim().is_empty() {
-      return Err(ParseUtilError::InvalidUtilitySignature(raw.into()));
+      return Err(ParameterizedUtilError::InvalidUtilitySignature(raw.into()));
     }
     let mut params = Vec::new();
     let mut seen = HashSet::new();
     for param in inner.split(',').map(str::trim) {
       if param.is_empty() {
-        return Err(ParseUtilError::InvalidUtilitySignature(raw.into()));
+        return Err(ParameterizedUtilError::InvalidUtilitySignature(raw.into()));
       }
       if !seen.insert(param.to_string()) {
-        return Err(ParseUtilError::DuplicateUtilityArgument {
+        return Err(ParameterizedUtilError::DuplicateUtilityArgument {
           util: name.into(),
           arg: param.into(),
         });
@@ -162,15 +162,18 @@ fn lower_utility_call<L: Language>(
   env: &DeserializeEnv<L>,
 ) -> Result<Rule, RuleSerializeError> {
   if env.has_current_param(&callee) {
-    return Err(ParseUtilError::UtilityParameterCalled(callee).into());
+    return Err(ParameterizedUtilError::UtilityParameterCalled(callee).into());
   }
-  let template_params = env.get_template_params(&callee).ok_or_else(|| {
-    if env.has_declared_util(&callee) {
-      ParseUtilError::UnexpectedUtilityArguments(callee.clone()).into()
-    } else {
-      RuleSerializeError::MatchesReference(ReferentRuleError::UndefinedUtil(callee.clone()))
-    }
-  })?;
+  let template_params = env
+    .registration
+    .get_util_template_params(&callee)
+    .ok_or_else(|| {
+      if env.registration.has_util(&callee) {
+        ParameterizedUtilError::UnexpectedUtilityArguments(callee.clone()).into()
+      } else {
+        RuleSerializeError::MatchesReference(ReferentRuleError::UndefinedUtil(callee.clone()))
+      }
+    })?;
   validate_utility_args(&callee, template_params, &args)?;
   let lowered_args = lower_utility_args(args, env)?;
   let matches = ReferentRule::new(callee.clone(), lowered_args, &env.registration);
@@ -213,7 +216,7 @@ pub(crate) fn verify_parameterized_referent(
         .unwrap_or_else(|| {
           if reg_ref.get_local().contains_key(rule_id) || reg_ref.get_global().contains_key(rule_id)
           {
-            Err(ParseUtilError::UnexpectedUtilityArguments(rule_id.to_string()).into())
+            Err(ParameterizedUtilError::UnexpectedUtilityArguments(rule_id.to_string()).into())
           } else {
             Err(RuleSerializeError::MatchesReference(
               ReferentRuleError::UndefinedUtil(rule_id.to_string()),
@@ -273,10 +276,10 @@ fn validate_utility_args(
   callee: &str,
   params: &[String],
   args: &HashMap<String, SerializableRule>,
-) -> Result<(), ParseUtilError> {
+) -> Result<(), ParameterizedUtilError> {
   for name in args.keys() {
     if !params.iter().any(|param| param == name) {
-      return Err(ParseUtilError::UnknownUtilityArgument {
+      return Err(ParameterizedUtilError::UnknownUtilityArgument {
         callee: callee.into(),
         arg: name.clone(),
       });
@@ -284,7 +287,7 @@ fn validate_utility_args(
   }
   for name in params {
     if !args.contains_key(name) {
-      return Err(ParseUtilError::MissingUtilityArgument {
+      return Err(ParameterizedUtilError::MissingUtilityArgument {
         callee: callee.into(),
         arg: name.clone(),
       });

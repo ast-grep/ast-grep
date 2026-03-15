@@ -70,6 +70,10 @@ trait DependentRule: Sized {
   fn visit_dependency<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) -> OrderResult<()>;
 }
 
+trait DeclaredUtil {
+  fn params(&self) -> &[String];
+}
+
 impl DependentRule for SerializableRule {
   fn visit_dependency<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) -> OrderResult<()> {
     visit_dependent_rule_ids_with_params(self, sorter, None)
@@ -93,6 +97,12 @@ impl<L: Language> DependentRule for ParsedGlobalRule<L> {
       }
     }
     Ok(())
+  }
+}
+
+impl<L: Language> DeclaredUtil for ParsedGlobalRule<L> {
+  fn params(&self) -> &[String] {
+    &self.params
   }
 }
 
@@ -155,6 +165,23 @@ impl<'a, T: DependentRule> TopologicalSort<'a, T> {
     self.order.push(key);
     Ok(())
   }
+}
+
+fn register_ordered_utils<'a, T: DeclaredUtil, E>(
+  order: Vec<&'a str>,
+  utils: &'a HashMap<String, T>,
+  mut register_rule: impl FnMut(&'a str, &'a T) -> Result<(), E>,
+  mut register_template: impl FnMut(&'a str, &'a T) -> Result<(), E>,
+) -> Result<(), E> {
+  for id in order {
+    let util = utils.get(id).expect("must exist");
+    if util.params().is_empty() {
+      register_rule(id, util)?;
+    } else {
+      register_template(id, util)?;
+    }
+  }
+  Ok(())
 }
 
 fn visit_dependent_rule_ids_with_params<'a, T: DependentRule>(
@@ -225,25 +252,29 @@ impl<L: Language> DeserializeEnv<L> {
       .map_err(ReferentRuleError::CyclicRule)
       .map_err(RuleSerializeError::MatchesReference)?;
     let env = self;
-    for id in order {
-      let parsed = parsed.get(id).expect("must exist");
-      if parsed.params.is_empty() {
-        let rule = env.deserialize_rule(parsed.body.clone())?;
+    register_ordered_utils(
+      order,
+      &parsed,
+      |id, util| -> Result<(), RuleSerializeError> {
+        let rule = env.deserialize_rule(util.body.clone())?;
         env
           .registration
           .insert_local(id, rule)
           .map_err(RuleSerializeError::MatchesReference)?;
-      } else {
-        let params = parsed.params.iter().cloned().collect();
+        Ok(())
+      },
+      |id, util| -> Result<(), RuleSerializeError> {
+        let params = util.params.iter().cloned().collect();
         let template = env
           .with_params(params)
-          .deserialize_rule(parsed.body.clone())?;
+          .deserialize_rule(util.body.clone())?;
         env
           .registration
-          .insert_local_template(id, parsed.params.clone(), template)
+          .insert_local_template(id, util.params.clone(), template)
           .map_err(RuleSerializeError::MatchesReference)?;
-      }
-    }
+        Ok(())
+      },
+    )?;
     Ok(env)
   }
 
@@ -256,24 +287,29 @@ impl<L: Language> DeserializeEnv<L> {
     let order = TopologicalSort::get_order(&utils)
       .map_err(ReferentRuleError::CyclicRule)
       .map_err(RuleSerializeError::from)?;
-    for id in order {
-      let parsed = utils.get(id).expect("must exist");
-      let env = DeserializeEnv::new(parsed.lang.clone()).with_globals(&registration);
-      if parsed.params.is_empty() {
+    register_ordered_utils(
+      order,
+      &utils,
+      |id, parsed| -> Result<(), RuleCoreError> {
+        let env = DeserializeEnv::new(parsed.lang.clone()).with_globals(&registration);
         let matcher = parsed.core.get_matcher_with_hint(env, CheckHint::Global)?;
         registration
           .insert(id, matcher)
           .map_err(RuleSerializeError::MatchesReference)?;
-      } else {
+        Ok(())
+      },
+      |id, parsed| -> Result<(), RuleCoreError> {
         let params = parsed.params.iter().cloned().collect();
+        let env = DeserializeEnv::new(parsed.lang.clone()).with_globals(&registration);
         let matcher = parsed
           .core
           .get_matcher_with_hint(env.with_params(params), CheckHint::Global)?;
         registration
           .insert_template(id, GlobalTemplate::new(parsed.params.clone(), matcher))
           .map_err(RuleSerializeError::MatchesReference)?;
-      }
-    }
+        Ok(())
+      },
+    )?;
     Ok(registration)
   }
 
@@ -294,17 +330,6 @@ impl<L: Language> DeserializeEnv<L> {
       lang: self.lang,
       current_params: self.current_params,
     }
-  }
-
-  pub(crate) fn get_template_params(&self, id: &str) -> Option<&Vec<String>> {
-    self
-      .registration
-      .get_local_template_params(id)
-      .or_else(|| self.registration.get_global_template_params(id))
-  }
-
-  pub(crate) fn has_declared_util(&self, id: &str) -> bool {
-    self.registration.has_local_rule(id) || self.registration.has_global_rule(id)
   }
 
   pub(crate) fn current_params(&self) -> Option<&HashSet<String>> {
@@ -357,6 +382,12 @@ fn parse_utils(
 impl DependentRule for ParsedUtil {
   fn visit_dependency<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) -> OrderResult<()> {
     visit_dependent_rule_ids_with_params(&self.body, sorter, Some(&self.params))
+  }
+}
+
+impl DeclaredUtil for ParsedUtil {
+  fn params(&self) -> &[String] {
+    &self.params
   }
 }
 
@@ -497,7 +528,7 @@ matches:
     assert!(matches!(
       ret,
       Err(RuleSerializeError::InvalidUtils(
-        rule::ParseUtilError::MissingUtilityArgument {
+        rule::ParameterizedUtilError::MissingUtilityArgument {
         callee,
         arg
       }))
@@ -531,7 +562,7 @@ matches:
     assert!(matches!(
       ret,
       Err(RuleSerializeError::InvalidUtils(
-        rule::ParseUtilError::UnknownUtilityArgument {
+        rule::ParameterizedUtilError::UnknownUtilityArgument {
         callee,
         arg
       }))
@@ -608,7 +639,7 @@ wrap():
     assert!(matches!(
       ret,
       Err(RuleSerializeError::InvalidUtils(
-        rule::ParseUtilError::InvalidUtilitySignature(signature)
+        rule::ParameterizedUtilError::InvalidUtilitySignature(signature)
       )) if signature == "wrap()"
     ));
   }

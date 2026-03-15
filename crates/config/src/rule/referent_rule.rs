@@ -165,28 +165,26 @@ impl RuleRegistration {
     ret
   }
 
-  pub(crate) fn has_local_rule(&self, id: &str) -> bool {
-    self.local.0.contains_key(id) || self.local_templates.0.contains_key(id)
+  pub(crate) fn has_util(&self, id: &str) -> bool {
+    self.local.0.contains_key(id)
+      || self.local_templates.0.contains_key(id)
+      || self.global.0.contains_key(id)
+      || self.global_templates.0.contains_key(id)
   }
 
-  pub(crate) fn get_local_template_params(&self, id: &str) -> Option<&Vec<String>> {
+  pub(crate) fn get_util_template_params(&self, id: &str) -> Option<&Vec<String>> {
     self
       .local_templates
       .0
       .get(id)
       .map(|template| &template.params)
-  }
-
-  pub(crate) fn has_global_rule(&self, id: &str) -> bool {
-    self.global.0.contains_key(id) || self.global_templates.0.contains_key(id)
-  }
-
-  pub(crate) fn get_global_template_params(&self, id: &str) -> Option<&Vec<String>> {
-    self
-      .global_templates
-      .0
-      .get(id)
-      .map(|template| &template.params)
+      .or_else(|| {
+        self
+          .global_templates
+          .0
+          .get(id)
+          .map(|template| &template.params)
+      })
   }
 }
 
@@ -353,7 +351,7 @@ impl ReferentRule {
           .contains_key(&self.rule_id)
       {
         return Err(
-          crate::rule::ParseUtilError::MissingUtilityArguments(self.rule_id.clone()).into(),
+          crate::rule::ParameterizedUtilError::MissingUtilityArguments(self.rule_id.clone()).into(),
         );
       }
       return Err(crate::rule::RuleSerializeError::MatchesReference(
