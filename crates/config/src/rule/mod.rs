@@ -8,7 +8,7 @@ mod selector;
 mod stop_by;
 
 pub use deserialize_env::{DeserializeEnv, SerializableGlobalRule};
-pub use parameterized_util::ParseUtilError;
+pub use parameterized_util::ParameterizedUtilError;
 use parameterized_util::{deserialize_utility_call_matches, SerializableUtilityCall};
 pub use relational_rule::Relation;
 use selector::{parse_selector, SelectorError};
@@ -390,7 +390,7 @@ pub enum RuleSerializeError {
   #[error("Rule contains invalid matches reference.")]
   MatchesReference(#[from] ReferentRuleError),
   #[error("Rule contains invalid utils.")]
-  InvalidUtils(#[from] ParseUtilError),
+  InvalidUtils(#[from] ParameterizedUtilError),
   #[error("Rule contains invalid range matcher.")]
   InvalidRange(#[from] RangeMatcherError),
   #[error("field is only supported in has/inside.")]
