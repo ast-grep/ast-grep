@@ -1,4 +1,4 @@
-use super::parameterized_util::{GlobalTemplate, ParameterizedUtilError, UtilitySignature};
+use super::parameterized_util::{ParameterizedUtilError, UtilitySignature};
 use super::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
 use crate::check_var::CheckHint;
 use crate::maybe::Maybe;
@@ -239,15 +239,13 @@ impl<L: Language> DeserializeEnv<L> {
       let env_registration = RuleRegistration::from_globals(&registration, params);
       let env = DeserializeEnv::from_registration(parsed.lang.clone(), env_registration);
       let matcher = parsed.core.get_matcher_with_hint(env, CheckHint::Global)?;
-      if parsed.params.is_empty() {
-        registration
-          .insert(id, matcher)
-          .map_err(RuleSerializeError::MatchesReference)?;
-      } else {
-        registration
-          .insert_template(id, GlobalTemplate::new(parsed.params.clone(), matcher))
-          .map_err(RuleSerializeError::MatchesReference)?;
-      }
+      registration
+        .insert(
+          id,
+          matcher,
+          (!parsed.params.is_empty()).then(|| parsed.params.clone()),
+        )
+        .map_err(RuleSerializeError::MatchesReference)?;
     }
     Ok(registration)
   }
