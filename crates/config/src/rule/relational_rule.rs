@@ -116,6 +116,20 @@ pub struct Has {
   field: Option<u16>,
 }
 impl Has {
+  pub(crate) fn rule(rule: Rule) -> Self {
+    Self {
+      inner: rule,
+      field: None,
+      stop_by: StopBy::Neighbor,
+    }
+  }
+  pub(crate) fn rule_descent(rule: Rule) -> Self {
+    Self {
+      inner: rule,
+      field: None,
+      stop_by: StopBy::End,
+    }
+  }
   pub fn try_new<L: Language>(
     relation: Relation,
     env: &DeserializeEnv<L>,

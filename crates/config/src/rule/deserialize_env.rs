@@ -1,7 +1,8 @@
+use super::parameterized_util::{validate_utility_arguments, validate_utility_id};
 use super::referent_rule::{GlobalRules, ReferentRuleError, RuleRegistration};
 use crate::check_var::CheckHint;
 use crate::maybe::Maybe;
-use crate::rule::{self, Rule, RuleSerializeError, SerializableRule};
+use crate::rule::{self, Rule, RuleSerializeError, SerializableMatches, SerializableRule};
 use crate::rule_core::{RuleCoreError, SerializableRuleCore};
 use crate::transform::Trans;
 use ast_grep_core::meta_var::MetaVariable;
@@ -10,7 +11,6 @@ use ast_grep_core::language::Language;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
@@ -19,17 +19,42 @@ pub struct SerializableGlobalRule<L: Language> {
   pub core: SerializableRuleCore,
   /// Unique, descriptive identifier, e.g., no-unused-variable
   pub id: String,
+  /// Optional parameter names for a parameterized global utility rule.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub arguments: Option<Vec<String>>,
   /// Specify the language to parse and the file extension to include in matching.
   pub language: L,
 }
 
+struct ParsedGlobalRule<L: Language> {
+  lang: L,
+  core: SerializableRuleCore,
+  params: Vec<String>,
+}
+
 fn into_map<L: Language>(
   rules: Vec<SerializableGlobalRule<L>>,
-) -> HashMap<String, (L, SerializableRuleCore)> {
-  rules
-    .into_iter()
-    .map(|r| (r.id, (r.language, r.core)))
-    .collect()
+) -> Result<HashMap<String, ParsedGlobalRule<L>>, RuleSerializeError> {
+  let mut parsed = HashMap::new();
+  for rule in rules {
+    validate_utility_id(&rule.id)?;
+    let params = rule.arguments.unwrap_or_default();
+    validate_utility_arguments(&rule.id, &params)?;
+    if parsed.contains_key(&rule.id) {
+      return Err(RuleSerializeError::MatchesReference(
+        ReferentRuleError::DuplicateRule(rule.id),
+      ));
+    }
+    parsed.insert(
+      rule.id,
+      ParsedGlobalRule {
+        lang: rule.language,
+        core: rule.core,
+        params,
+      },
+    );
+  }
+  Ok(parsed)
 }
 
 type OrderResult<T> = Result<T, String>;
@@ -49,13 +74,24 @@ trait DependentRule: Sized {
 
 impl DependentRule for SerializableRule {
   fn visit_dependency<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) -> OrderResult<()> {
-    visit_dependent_rule_ids(self, sorter)
+    visit_dependent_rule_ids_with_params(self, sorter, None)
   }
 }
 
-impl<L: Language> DependentRule for (L, SerializableRuleCore) {
+impl<L: Language> DependentRule for ParsedGlobalRule<L> {
   fn visit_dependency<'a>(&'a self, sorter: &mut TopologicalSort<'a, Self>) -> OrderResult<()> {
-    visit_dependent_rule_ids(&self.1.rule, sorter)
+    visit_dependent_rule_ids_with_params(&self.core.rule, sorter, Some(&self.params))?;
+    if let Some(constraints) = &self.core.constraints {
+      for rule in constraints.values() {
+        visit_dependent_rule_ids_with_params(rule, sorter, Some(&self.params))?;
+      }
+    }
+    if let Some(utils) = &self.core.utils {
+      for rule in utils.values() {
+        visit_dependent_rule_ids_with_params(rule, sorter, Some(&self.params))?;
+      }
+    }
+    Ok(())
   }
 }
 
@@ -120,26 +156,43 @@ impl<'a, T: DependentRule> TopologicalSort<'a, T> {
   }
 }
 
-fn visit_dependent_rule_ids<'a, T: DependentRule>(
+fn visit_dependent_rule_ids_with_params<'a, T: DependentRule>(
   rule: &'a SerializableRule,
   sort: &mut TopologicalSort<'a, T>,
+  params: Option<&[String]>,
 ) -> OrderResult<()> {
-  // handle all composite rule here
+  // Only traverse composite rules (matches/all/any/not). Relational sub-rules
+  // (has/inside/precedes/follows) are intentionally skipped because they will
+  // not introduce recursion.
   if let Maybe::Present(matches) = &rule.matches {
-    sort.visit(matches)?;
+    match matches {
+      SerializableMatches::Id(id) => {
+        if !params.is_some_and(|params| params.contains(id)) {
+          sort.visit(id)?;
+        }
+      }
+      SerializableMatches::Call(call) => {
+        for (callee, args) in call.iter() {
+          sort.visit(callee)?;
+          for arg in args.values() {
+            visit_dependent_rule_ids_with_params(arg, sort, params)?;
+          }
+        }
+      }
+    }
   }
   if let Maybe::Present(all) = &rule.all {
     for sub in all {
-      visit_dependent_rule_ids(sub, sort)?;
+      visit_dependent_rule_ids_with_params(sub, sort, params)?;
     }
   }
   if let Maybe::Present(any) = &rule.any {
     for sub in any {
-      visit_dependent_rule_ids(sub, sort)?;
+      visit_dependent_rule_ids_with_params(sub, sort, params)?;
     }
   }
   if let Maybe::Present(not) = &rule.not {
-    visit_dependent_rule_ids(not, sort)?;
+    visit_dependent_rule_ids_with_params(not, sort, params)?;
   }
   Ok(())
 }
@@ -152,6 +205,10 @@ impl<L: Language> DeserializeEnv<L> {
     }
   }
 
+  pub(crate) fn from_registration(lang: L, registration: RuleRegistration) -> Self {
+    Self { registration, lang }
+  }
+
   /// register utils rule in the DeserializeEnv for later usage.
   /// N.B. This function will manage the util registration order
   /// by their dependency. `potential_kinds` need ordered insertion.
@@ -159,12 +216,13 @@ impl<L: Language> DeserializeEnv<L> {
     self,
     utils: &HashMap<String, SerializableRule>,
   ) -> Result<Self, RuleSerializeError> {
+    validate_local_utils(utils)?;
     let order = TopologicalSort::get_order(utils)
       .map_err(ReferentRuleError::CyclicRule)
       .map_err(RuleSerializeError::MatchesReference)?;
     for id in order {
-      let rule = utils.get(id).expect("must exist");
-      let rule = self.deserialize_rule(rule.clone())?;
+      let util = utils.get(id).expect("must exist");
+      let rule = self.deserialize_rule(util.clone())?;
       self.registration.insert_local(id, rule)?;
     }
     Ok(self)
@@ -175,16 +233,19 @@ impl<L: Language> DeserializeEnv<L> {
     utils: Vec<SerializableGlobalRule<L>>,
   ) -> Result<GlobalRules, RuleCoreError> {
     let registration = GlobalRules::default();
-    let utils = into_map(utils);
+    let utils = into_map(utils)?;
     let order = TopologicalSort::get_order(&utils)
       .map_err(ReferentRuleError::CyclicRule)
       .map_err(RuleSerializeError::from)?;
     for id in order {
-      let (lang, core) = utils.get(id).expect("must exist");
-      let env = DeserializeEnv::new(lang.clone()).with_globals(&registration);
-      let matcher = core.get_matcher_with_hint(env, CheckHint::Global)?;
+      let parsed = utils.get(id).expect("must exist");
+      let has_params = !parsed.params.is_empty();
+      let params = has_params.then(|| parsed.params.iter().cloned().collect());
+      let env_registration = RuleRegistration::from_globals(&registration, params);
+      let env = DeserializeEnv::from_registration(parsed.lang.clone(), env_registration);
+      let matcher = parsed.core.get_matcher_with_hint(env, CheckHint::Global)?;
       registration
-        .insert(id, matcher)
+        .insert(id, matcher, has_params.then(|| parsed.params.clone()))
         .map_err(RuleSerializeError::MatchesReference)?;
     }
     Ok(registration)
@@ -203,10 +264,21 @@ impl<L: Language> DeserializeEnv<L> {
 
   pub fn with_globals(self, globals: &GlobalRules) -> Self {
     Self {
-      registration: RuleRegistration::from_globals(globals),
+      registration: RuleRegistration::from_globals(globals, None),
       lang: self.lang,
     }
   }
+}
+
+fn validate_local_utils(
+  utils: &HashMap<String, SerializableRule>,
+) -> Result<(), RuleSerializeError> {
+  for raw_id in utils.keys() {
+    // Local utils currently only support plain ids. If signature-style local
+    // declarations come back in the future, this is the choke point to relax.
+    validate_utility_id(raw_id)?;
+  }
+  Ok(())
 }
 
 #[cfg(test)]
@@ -248,7 +320,6 @@ member-name:
   }
 
   #[test]
-  #[ignore = "TODO, need to figure out potential_kinds"]
   fn test_local_util_kinds() -> Result<()> {
     // run multiple times to avoid accidental working order due to HashMap randomness
     for _ in 0..10 {
@@ -324,5 +395,43 @@ local-rule-b:
       ))
     ));
     Ok(())
+  }
+
+  #[test]
+  fn test_local_utils_reject_reserved_id_chars() {
+    let utils = from_str(
+      r"
+wrap(BODY):
+  kind: number
+",
+    )
+    .expect("failed to parse utils");
+    let ret = DeserializeEnv::new(TypeScript::Tsx).with_utils(&utils);
+    assert!(matches!(
+      ret,
+      Err(RuleSerializeError::InvalidUtils(
+        rule::ParameterizedUtilError::InvalidUtilityId(signature)
+      )) if signature == "wrap(BODY)"
+    ));
+  }
+
+  #[test]
+  fn test_invalid_global_utility_id() {
+    let globals: Vec<SerializableGlobalRule<TypeScript>> = from_str(
+      r"
+- id: wrap()
+  language: Tsx
+  rule:
+    kind: number
+",
+    )
+    .expect("failed to parse globals");
+    let ret = DeserializeEnv::parse_global_utils(globals);
+    assert!(matches!(
+      ret,
+      Err(RuleCoreError::Rule(RuleSerializeError::InvalidUtils(
+        rule::ParameterizedUtilError::InvalidUtilityId(signature)
+      ))) if signature == "wrap()"
+    ));
   }
 }

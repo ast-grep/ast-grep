@@ -190,11 +190,9 @@ impl RuleCore {
   }
 
   pub fn get_env<L: Language>(&self, lang: L) -> DeserializeEnv<L> {
-    DeserializeEnv {
-      lang,
-      registration: self.registration.clone(),
-    }
+    DeserializeEnv::from_registration(lang, self.registration.clone())
   }
+
   /// Get the meta variables that have real ast node matches
   /// that is, meta vars defined in the rules and constraints
   pub(crate) fn defined_node_vars(&self) -> HashSet<&str> {
@@ -318,7 +316,7 @@ impl Matcher for RuleCore {
   }
 
   fn potential_kinds(&self) -> Option<BitSet> {
-    self.rule.potential_kinds()
+    self.kinds.clone()
   }
 }
 
@@ -328,12 +326,22 @@ mod test {
   use crate::from_str;
   use crate::rule::referent_rule::{ReferentRule, ReferentRuleError};
   use crate::test::TypeScript;
+  use crate::SerializableGlobalRule;
   use ast_grep_core::matcher::{Pattern, RegexMatcher};
   use ast_grep_core::tree_sitter::LanguageExt;
 
   fn get_matcher(src: &str) -> RResult<RuleCore> {
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let rule: SerializableRuleCore = from_str(src).expect("should word");
+    rule.get_matcher(env)
+  }
+
+  fn get_matcher_with_globals(rule_src: &str, globals_src: &str) -> RResult<RuleCore> {
+    let globals: Vec<SerializableGlobalRule<TypeScript>> =
+      from_str(globals_src).expect("should parse globals");
+    let globals = DeserializeEnv::parse_global_utils(globals).expect("should parse global rules");
+    let env = DeserializeEnv::new(TypeScript::Tsx).with_globals(&globals);
+    let rule: SerializableRuleCore = from_str(rule_src).expect("should parse rule");
     rule.get_matcher(env)
   }
 
@@ -398,6 +406,200 @@ transform:
     assert!(grep.root().find(&matcher).is_none());
     assert!(grep.root().find(&rule).is_none());
     assert!(grep.root().find(&not).is_none());
+  }
+
+  #[test]
+  fn test_parameterized_global_rule_requires_all_args() {
+    let ret = get_matcher_with_globals(
+      r"
+rule:
+  matches:
+    wrap: {}
+",
+      r"
+- id: wrap
+  arguments: [BODY]
+  language: Tsx
+  rule:
+    matches: BODY
+",
+    );
+    assert!(matches!(
+      ret,
+      Err(RuleCoreError::Rule(RuleSerializeError::InvalidUtils(
+        crate::rule::ParameterizedUtilError::MissingUtilityArgument { callee, arg }
+      ))) if callee == "wrap" && arg == "BODY"
+    ));
+  }
+
+  #[test]
+  fn test_parameterized_global_rule_rejects_unknown_args() {
+    let ret = get_matcher_with_globals(
+      r"
+rule:
+  matches:
+    wrap:
+      OTHER:
+        kind: number
+      BODY:
+        kind: number
+",
+      r"
+- id: wrap
+  arguments: [BODY]
+  language: Tsx
+  rule:
+    matches: BODY
+",
+    );
+    assert!(matches!(
+      ret,
+      Err(RuleCoreError::Rule(RuleSerializeError::InvalidUtils(
+        crate::rule::ParameterizedUtilError::UnknownUtilityArgument { callee, arg }
+      ))) if callee == "wrap" && arg == "OTHER"
+    ));
+  }
+
+  #[test]
+  fn test_bare_parameterized_global_rule_without_args_is_rejected() {
+    let ret = get_matcher_with_globals(
+      r"
+rule:
+  matches: wrap
+",
+      r"
+- id: wrap
+  arguments: [BODY]
+  language: Tsx
+  rule:
+    matches: BODY
+",
+    );
+    assert!(matches!(
+      ret,
+      Err(RuleCoreError::Rule(RuleSerializeError::InvalidUtils(
+        crate::rule::ParameterizedUtilError::MissingUtilityArguments(name)
+      ))) if name == "wrap"
+    ));
+  }
+
+  #[test]
+  fn test_parameterized_global_call_cycle_in_argument_rule() {
+    let ret = get_matcher_with_globals(
+      r"
+rule:
+  matches:
+    RECUR:
+      x:
+        matches:
+          RECUR:
+            x:
+              kind: number
+",
+      r"
+- id: RECUR
+  arguments: [x]
+  language: Tsx
+  rule:
+    matches: x
+",
+    );
+    assert!(matches!(
+      ret,
+      Err(RuleCoreError::Rule(RuleSerializeError::MatchesReference(
+        ReferentRuleError::CyclicRule(rule)
+      ))) if rule == "RECUR"
+    ));
+  }
+
+  #[test]
+  fn test_parameterized_global_call_cycle_in_argument_rule_with_param_reference() {
+    let ret = get_matcher_with_globals(
+      r"
+rule:
+  matches:
+    RECUR:
+      x:
+        matches:
+          RECUR:
+            x:
+              matches: x
+",
+      r"
+- id: RECUR
+  arguments: [x]
+  language: Tsx
+  rule:
+    matches: x
+",
+    );
+    assert!(matches!(
+      ret,
+      Err(RuleCoreError::Rule(RuleSerializeError::MatchesReference(
+        ReferentRuleError::CyclicRule(rule)
+      ))) if rule == "RECUR"
+    ));
+  }
+
+  #[test]
+  fn test_local_utils_in_parameterized_global_rule_can_match_param_rule() {
+    let matcher = get_matcher_with_globals(
+      r"
+rule:
+  matches:
+    wrap:
+      BODY:
+        pattern: Some($INNER)
+",
+      r"
+- id: wrap
+  arguments: [BODY]
+  language: Tsx
+  rule:
+    matches: helper
+  utils:
+    helper:
+      matches: BODY
+",
+    )
+    .expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("Some(123)");
+    assert!(grep.root().find(&matcher).is_some());
+    let grep = TypeScript::Tsx.ast_grep("None");
+    assert!(grep.root().find(&matcher).is_none());
+  }
+
+  #[test]
+  fn test_nested_parameterized_global_rule_can_use_outer_param_in_nested_call() {
+    let matcher = get_matcher_with_globals(
+      r"
+rule:
+  matches:
+    outer:
+      X:
+        pattern: Some($INNER)
+",
+      r"
+- id: outer
+  arguments: [X]
+  language: Tsx
+  rule:
+    matches:
+      inner:
+        Y:
+          matches: X
+- id: inner
+  arguments: [Y]
+  language: Tsx
+  rule:
+    matches: Y
+",
+    )
+    .expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("Some(123)");
+    assert!(grep.root().find(&matcher).is_some());
+    let grep = TypeScript::Tsx.ast_grep("None");
+    assert!(grep.root().find(&matcher).is_none());
   }
 
   #[test]

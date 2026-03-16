@@ -188,7 +188,7 @@ fn check_one_rewriter_in_rule(
 mod test {
   use super::*;
   use crate::test::TypeScript;
-  use crate::{from_str, DeserializeEnv, SerializableRuleCore};
+  use crate::{from_str, DeserializeEnv, SerializableGlobalRule, SerializableRuleCore};
 
   #[test]
   fn test_defined_vars() {
@@ -276,6 +276,71 @@ utils:
     .expect("should deser");
     let matcher = ser_rule.get_matcher(env).expect("should parse");
     assert_eq!(matcher.defined_vars(), ["B"].into_iter().collect());
+  }
+
+  #[test]
+  fn test_parameterized_global_rule_only_exports_argument_vars() {
+    let globals: Vec<SerializableGlobalRule<TypeScript>> = from_str(
+      r"
+- id: global-rule
+  arguments: [export-var]
+  language: Tsx
+  rule:
+    pattern: Some($A)
+    matches: export-var
+",
+    )
+    .expect("should parse globals");
+    let globals = DeserializeEnv::parse_global_utils(globals).expect("should parse globals");
+    let env = DeserializeEnv::new(TypeScript::Tsx).with_globals(&globals);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule:
+  matches:
+    global-rule:
+      export-var:
+        pattern: $EXP
+fix: $EXP
+",
+    )
+    .expect("should deser");
+    let matcher = ser_rule.get_matcher(env).expect("should parse");
+    assert_eq!(matcher.defined_vars(), ["EXP"].into_iter().collect());
+  }
+
+  #[test]
+  fn test_parameterized_global_rule_internal_var_not_in_defined_vars() {
+    let globals: Vec<SerializableGlobalRule<TypeScript>> = from_str(
+      r"
+- id: global-rule
+  arguments: [export-var]
+  language: Tsx
+  rule:
+    pattern: Some($A)
+    matches: export-var
+",
+    )
+    .expect("should parse globals");
+    let globals = DeserializeEnv::parse_global_utils(globals).expect("should parse globals");
+    let env = DeserializeEnv::new(TypeScript::Tsx).with_globals(&globals);
+    let ser_rule: SerializableRuleCore = from_str(
+      r"
+rule:
+  matches:
+    global-rule:
+      export-var:
+        pattern: $EXP
+fix: $A
+",
+    )
+    .expect("should deser");
+    match ser_rule.get_matcher(env) {
+      Err(RuleCoreError::UndefinedMetaVar(name, section)) => {
+        assert_eq!(name, "A");
+        assert_eq!(section, "fix");
+      }
+      _ => panic!("unexpected error"),
+    }
   }
 
   #[test]

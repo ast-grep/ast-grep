@@ -259,8 +259,8 @@
           "$ref": "#/$defs/SerializableRule"
         },
         "matches": {
-          "description": "A utility rule id and matches a node if the utility rule matches.",
-          "type": "string"
+          "description": "A utility rule id or parameterized utility call object.\nWhen multiple utility calls are present, they are combined with logical `all`.",
+          "$ref": "#/$defs/SerializableMatches"
         }
       },
       "additionalProperties": false
@@ -553,8 +553,8 @@
           "$ref": "#/$defs/SerializableRule"
         },
         "matches": {
-          "description": "A utility rule id and matches a node if the utility rule matches.",
-          "type": "string"
+          "description": "A utility rule id or parameterized utility call object.\nWhen multiple utility calls are present, they are combined with logical `all`.",
+          "$ref": "#/$defs/SerializableMatches"
         },
         "stopBy": {
           "$ref": "#/$defs/SerializableStopBy",
@@ -587,6 +587,22 @@
           ]
         }
       }
+    },
+    "SerializableMatches": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/$defs/SerializableRule"
+            }
+          }
+        }
+      ]
     },
     "SerializableStopBy": {
       "description": "Control how the relational rule search should stop",

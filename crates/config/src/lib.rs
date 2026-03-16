@@ -19,7 +19,9 @@ pub use fixer::Fixer;
 pub use label::{Label, LabelStyle};
 pub use rule::referent_rule::GlobalRules;
 pub use rule::DeserializeEnv;
-pub use rule::{Rule, RuleSerializeError, SerializableRule};
+pub use rule::{
+  ParameterizedUtilError, Rule, RuleSerializeError, SerializableGlobalRule, SerializableRule,
+};
 pub use rule_collection::RuleCollection;
 pub use rule_config::{Metadata, RuleConfig, RuleConfigError, SerializableRuleConfig, Severity};
 pub use rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};

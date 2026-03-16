@@ -36,7 +36,8 @@
 <pseudo-class-selector> = ':' <ident-token> [ '(' <selector-list> ')' ]?
 */
 use super::{
-  relational_rule::{Follows, Inside},
+  nth_child::{NthChild, NthChildError},
+  relational_rule::{Follows, Has, Inside},
   Rule,
 };
 use ast_grep_core::{
@@ -181,10 +182,77 @@ fn try_parse_subclass_selector<'a, L: Language>(
 ) -> Result<Option<Rule>, SelectorError> {
   if let Some(Token::ClassDot) = input.peek()? {
     return Err(SelectorError::Unsupported("class-selector"));
-  } else if let Some(Token::PseudoColon) = input.peek()? {
-    return Err(SelectorError::Unsupported("pseudo-class-selector"));
+  }
+  if let Some(Token::PseudoColon) = input.peek()? {
+    return try_parse_pseudo_class_selector(input).map(Some);
   }
   Ok(None)
+}
+
+/// <pseudo-class-selector> = ':' <ident-token> [ '(' <selector-list> ')' ]?
+fn try_parse_pseudo_class_selector<'a, L: Language>(
+  input: &mut Input<'a, L>,
+) -> Result<Rule, SelectorError> {
+  input.next()?; // consume ':'
+  let Some(Token::Identifier(name)) = input.next()? else {
+    return Err(SelectorError::UnexpectedToken);
+  };
+  // handle open left (
+  let Some(Token::LeftParen) = input.next()? else {
+    return Err(SelectorError::ExpectedLeftParen);
+  };
+  // prase inner argument according to the pseudo class name
+  let rule = match name {
+    "has" => parse_has_argument(input)?,
+    "not" => parse_not_argument(input)?,
+    // :is() accepts a list of selectors as `matches-any`, reuse try_parse_selector
+    "is" => try_parse_selector(input)?,
+    "nth-child" => parse_nth_child_argument(input)?,
+    _ => return Err(SelectorError::UnknownPseudoClass(name.to_string())),
+  };
+  // handle closing )
+  let Some(Token::RightParen) = input.next()? else {
+    return Err(SelectorError::ExpectedRightParen);
+  };
+  Ok(rule)
+}
+
+/// [<combinator>]? <complex-selector>
+fn parse_has_argument<'a, L: Language>(input: &mut Input<'a, L>) -> Result<Rule, SelectorError> {
+  // Leading '>' means direct child (stopBy: neighbor), otherwise descendant (stopBy: end)
+  let has_direct_child = if let Some(Token::Combinator('>')) = input.peek()? {
+    input.next()?; // consume '>'
+    true
+  } else {
+    false
+  };
+  let inner_rule = parse_complex_selector(input)?;
+  let has = if has_direct_child {
+    Has::rule(inner_rule)
+  } else {
+    Has::rule_descent(inner_rule)
+  };
+  Ok(Rule::Has(Box::new(has)))
+}
+
+/// <complex-selector>
+fn parse_not_argument<'a, L: Language>(input: &mut Input<'a, L>) -> Result<Rule, SelectorError> {
+  let inner_rule = parse_complex_selector(input)?;
+  Ok(Rule::Not(Box::new(ops::Not::new(inner_rule))))
+}
+
+/// <an+b> ['of' <complex-selector>]?
+fn parse_nth_child_argument<'a, L: Language>(
+  input: &mut Input<'a, L>,
+) -> Result<Rule, SelectorError> {
+  let text = input.extract_an_plus_b();
+  let mut nth_child = NthChild::try_parse(text)?;
+  if let Some(Token::Identifier("of")) = input.peek()? {
+    input.next()?; // consume 'of'
+    input.consume_whitespace();
+    nth_child = nth_child.of_rule(parse_complex_selector(input)?);
+  }
+  Ok(Rule::NthChild(nth_child))
 }
 
 #[derive(Debug, Error)]
@@ -199,6 +267,14 @@ pub enum SelectorError {
   InvalidKind(#[from] KindMatcherError),
   #[error("{0} is not supported yet")]
   Unsupported(&'static str),
+  #[error("Expected '(' after pseudo-class")]
+  ExpectedLeftParen,
+  #[error("Expected ')' to close pseudo-class")]
+  ExpectedRightParen,
+  #[error("Unknown pseudo-class '{0}'")]
+  UnknownPseudoClass(String),
+  #[error("Invalid nth-child")]
+  InvalidNthChild(#[from] NthChildError),
 }
 
 struct Input<'a, L: Language> {
@@ -224,6 +300,19 @@ impl<'a, L: Language> Input<'a, L> {
     self.source = self.source.trim_start();
   }
 
+  /// Extract raw An+B text from source, consuming `[0-9nN+- \t]`.
+  fn extract_an_plus_b(&mut self) -> &'a str {
+    debug_assert!(self.lookahead.is_none());
+    let len = self
+      .source
+      .find(|c: char| !matches!(c, '0'..='9' | 'n' | 'N' | '+' | '-' | ' '))
+      .unwrap_or(self.source.len());
+    let text = self.source[..len].trim();
+    self.source = &self.source[len..];
+    self.consume_whitespace();
+    text
+  }
+
   fn do_next(&mut self) -> Result<Option<Token<'a>>, SelectorError> {
     if self.source.is_empty() {
       return Ok(None);
@@ -234,7 +323,11 @@ impl<'a, L: Language> Input<'a, L> {
           .source
           .find(|c: char| !c.is_whitespace())
           .unwrap_or(self.source.len());
-        if self.source.len() > len && matches!(self.source.as_bytes()[len] as char, '+' | '~' | '>')
+        if self.source.len() > len
+          && matches!(
+            self.source.as_bytes()[len] as char,
+            '+' | '~' | '>' | ')' | ','
+          )
         {
           self.consume_whitespace();
           return self.do_next(); // skip whitespace
@@ -389,6 +482,171 @@ mod test {
     let tokens = input_to_tokens("atx_h1_marker")?;
     let expected = vec![Token::Identifier("atx_h1_marker")];
     assert_eq!(tokens, expected);
+    Ok(())
+  }
+
+  #[test]
+  fn test_has_tokens() -> Result<(), SelectorError> {
+    let tokens = input_to_tokens("A:has(> B)")?;
+    let expected = vec![
+      Token::Identifier("A"),
+      Token::PseudoColon,
+      Token::Identifier("has"),
+      Token::LeftParen,
+      Token::Combinator('>'),
+      Token::Identifier("B"),
+      Token::RightParen,
+    ];
+    assert_eq!(tokens, expected);
+    Ok(())
+  }
+
+  #[test]
+  fn test_has_selector() -> Result<(), SelectorError> {
+    // function_declaration:has(return_statement) - descendant search
+    let rule = parse_selector("function_declaration:has(return_statement)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("function foo() { return 1 }");
+    let found = root.root().find(&rule).expect("should find");
+    assert_eq!(found.kind(), "function_declaration");
+
+    // Should not match when descendant is absent
+    let root = TS::Tsx.ast_grep("function foo() { let x = 1 }");
+    assert!(root.root().find(&rule).is_none());
+    Ok(())
+  }
+
+  #[test]
+  fn test_has_direct_child_selector() -> Result<(), SelectorError> {
+    // expression_statement:has(> call_expression) - direct child only
+    let rule = parse_selector("expression_statement:has(> call_expression)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("foo()");
+    let found = root.root().find(&rule).expect("should find");
+    assert_eq!(found.kind(), "expression_statement");
+    Ok(())
+  }
+
+  #[test]
+  fn test_has_with_whitespace() -> Result<(), SelectorError> {
+    // whitespace inside :has() should work
+    let rule = parse_selector("function_declaration:has( return_statement )", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("function foo() { return 1 }");
+    assert!(root.root().find(&rule).is_some());
+    Ok(())
+  }
+
+  #[test]
+  fn test_has_error_cases() {
+    // Unknown pseudo-class
+    let result = parse_selector("expression_statement:first-child(identifier)", TS::Tsx);
+    assert!(matches!(result, Err(SelectorError::UnknownPseudoClass(_))));
+
+    // Missing left paren
+    let result = parse_selector("expression_statement:has identifier", TS::Tsx);
+    assert!(matches!(result, Err(SelectorError::ExpectedLeftParen)));
+
+    // Missing right paren
+    let result = parse_selector("expression_statement:has(identifier", TS::Tsx);
+    assert!(matches!(result, Err(SelectorError::ExpectedRightParen)));
+  }
+
+  #[test]
+  fn test_not_selector() -> Result<(), SelectorError> {
+    // identifier:not(number) - match identifiers that are not numbers
+    let rule = parse_selector("identifier:not(number)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("test(123)");
+    let found = root.root().find(&rule).expect("should find");
+    assert_eq!(found.kind(), "identifier");
+    assert_eq!(found.text(), "test");
+    Ok(())
+  }
+
+  #[test]
+  fn test_not_selector_excludes() -> Result<(), SelectorError> {
+    // number:not(number) - should match nothing
+    let rule = parse_selector("number:not(number)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("test(123)");
+    assert!(root.root().find(&rule).is_none());
+    Ok(())
+  }
+
+  #[test]
+  fn test_is_selector() -> Result<(), SelectorError> {
+    // :is(identifier, number) - matches any of the listed kinds
+    let rule = parse_selector(":is(identifier, number)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("test(123)");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 2);
+    assert_eq!(matches[0].text(), "test");
+    assert_eq!(matches[1].text(), "123");
+    Ok(())
+  }
+
+  #[test]
+  fn test_is_selector_in_combinator() -> Result<(), SelectorError> {
+    // call_expression > :is(identifier, number) - composing :is deeper in tree
+    let rule = parse_selector("call_expression > :is(identifier, number)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("test(123)");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].text(), "test");
+    Ok(())
+  }
+
+  #[test]
+  fn test_nth_child_selector() -> Result<(), SelectorError> {
+    // array > number:nth-child(2n+1) - match odd-positioned numbers in array
+    let rule = parse_selector("array > number:nth-child(2n+1)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("[1, 2, 3, 4, 5]");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 3);
+    assert_eq!(matches[0].text(), "1");
+    assert_eq!(matches[1].text(), "3");
+    assert_eq!(matches[2].text(), "5");
+    Ok(())
+  }
+
+  #[test]
+  fn test_nth_child_selector_with_whitespace() -> Result<(), SelectorError> {
+    let rule = parse_selector("array > number:nth-child( 2n + 1 )", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("[1, 2, 3, 4, 5]");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 3);
+    Ok(())
+  }
+
+  #[test]
+  fn test_nth_child_negative_an_plus_b() -> Result<(), SelectorError> {
+    // :nth-child(-n + 3) - first 3 children
+    let rule = parse_selector("array > number:nth-child(-n + 3)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("[1, 2, 3, 4, 5]");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 3);
+    assert_eq!(matches[0].text(), "1");
+    assert_eq!(matches[1].text(), "2");
+    assert_eq!(matches[2].text(), "3");
+    Ok(())
+  }
+
+  #[test]
+  fn test_nth_child_of_selector() -> Result<(), SelectorError> {
+    // :nth-child(1 of number) - first number child among siblings
+    let rule = parse_selector("array > :nth-child(1 of number)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("[a, 1, 2, 3]");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].text(), "1");
+    Ok(())
+  }
+
+  #[test]
+  fn test_nth_child_of_complex_selector() -> Result<(), SelectorError> {
+    // :nth-child(2n+1 of number) - odd-positioned numbers only
+    let rule = parse_selector("array > :nth-child(2n+1 of number)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("[a, 1, 2, 3]");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 2);
+    assert_eq!(matches[0].text(), "1");
+    assert_eq!(matches[1].text(), "3");
     Ok(())
   }
 }

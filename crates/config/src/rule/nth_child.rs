@@ -177,6 +177,18 @@ pub struct NthChild {
 }
 
 impl NthChild {
+  pub(crate) fn try_parse(text: &str) -> Result<Self, NthChildError> {
+    let simple = NthChildSimple::Functional(text.to_string());
+    Ok(NthChild {
+      position: simple.try_parse()?,
+      of_rule: None,
+      reverse: false,
+    })
+  }
+  pub(crate) fn of_rule(mut self, rule: Rule) -> Self {
+    self.of_rule = Some(Box::new(rule));
+    self
+  }
   pub fn try_new<L: Language>(
     rule: SerializableNthChild,
     env: &DeserializeEnv<L>,
