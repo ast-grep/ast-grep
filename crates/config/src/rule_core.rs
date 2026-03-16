@@ -140,6 +140,8 @@ impl SerializableRuleCore {
 pub struct RuleCore {
   rule: Rule,
   constraints: HashMap<String, Rule>,
+  /// Constraint keys sorted by ascending match_cost_hint for cheap-first evaluation.
+  sorted_constraint_keys: Vec<String>,
   kinds: Option<BitSet>,
   pub(crate) transform: Option<Transform>,
   pub fixer: Vec<Fixer>,
@@ -160,8 +162,11 @@ impl RuleCore {
 
   #[inline]
   pub fn with_matchers(self, constraints: HashMap<String, Rule>) -> Self {
+    let mut sorted_constraint_keys: Vec<String> = constraints.keys().cloned().collect();
+    sorted_constraint_keys.sort_by_key(|k| constraints[k].match_cost_hint());
     Self {
       constraints,
+      sorted_constraint_keys,
       ..self
     }
   }
@@ -215,6 +220,42 @@ impl RuleCore {
     ret
   }
 
+  pub fn match_cost_hint(&self) -> u32 {
+    self.rule.match_cost_hint()
+  }
+
+  pub fn fixed_string_hint(&self) -> Option<String> {
+    self.rule.fixed_string_hint()
+  }
+
+  /// Evaluate constraints in cost-sorted order for early rejection.
+  /// Cheapest constraints (e.g. kind checks) are evaluated first so that
+  /// expensive ones (e.g. pattern or relational) can be skipped on failure.
+  fn match_constraints_ordered<'tree, D: Doc>(
+    &self,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> bool {
+    let mut new_env = Cow::Borrowed(env.as_ref());
+    for key in &self.sorted_constraint_keys {
+      let Some(matcher) = self.constraints.get(key) else {
+        continue;
+      };
+      let Some(candidate) = env.get_match(key).cloned() else {
+        continue;
+      };
+      if matcher
+        .match_node_with_env(candidate, &mut new_env)
+        .is_none()
+      {
+        return false;
+      }
+    }
+    if let Cow::Owned(owned) = new_env {
+      *env = Cow::Owned(owned);
+    }
+    true
+  }
+
   pub(crate) fn do_match<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
@@ -227,7 +268,9 @@ impl RuleCore {
       }
     }
     let ret = self.rule.match_node_with_env(node, env)?;
-    if !env.to_mut().match_constraints(&self.constraints) {
+    if self.sorted_constraint_keys.is_empty() {
+      // no constraints, skip
+    } else if !self.match_constraints_ordered(env) {
       return None;
     }
     if let Some(trans) = &self.transform {
@@ -256,6 +299,7 @@ impl Default for RuleCore {
     Self {
       rule: Rule::default(),
       constraints: HashMap::default(),
+      sorted_constraint_keys: Vec::new(),
       kinds: None,
       transform: None,
       fixer: vec![],

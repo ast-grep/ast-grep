@@ -280,6 +280,45 @@ impl Rule {
       Rule::Matches(r) => Ok(r.verify_util()?),
     }
   }
+
+  /// Estimated cost of matching this rule, used for ordering within CombinedScan buckets.
+  /// Lower cost = cheaper to evaluate, should be tried first for early rejection.
+  pub fn match_cost_hint(&self) -> u32 {
+    match self {
+      Rule::Kind(_) => 1,
+      Rule::Range(_) => 2,
+      Rule::NthChild(_) => 3,
+      Rule::Regex(_) => 10,
+      Rule::Pattern(_) => 100,
+      Rule::Not(_) => 150,
+      Rule::All(all) => {
+        all.inner().iter().map(|r| r.match_cost_hint()).sum::<u32>().max(200)
+      }
+      Rule::Any(any) => {
+        any.inner().iter().map(|r| r.match_cost_hint()).sum::<u32>().max(200)
+      }
+      Rule::Inside(_) | Rule::Has(_) | Rule::Precedes(_) | Rule::Follows(_) => 200,
+      Rule::Matches(_) => 200,
+    }
+  }
+
+  /// Returns a conservative fixed string hint for this rule.
+  /// If present, the hint string MUST appear in any file that this rule can match.
+  /// Returns None when unsure — never skip a file that could match.
+  pub fn fixed_string_hint(&self) -> Option<String> {
+    match self {
+      Rule::Pattern(p) => {
+        let s = p.fixed_string();
+        if s.is_empty() { None } else { Some(s.into_owned()) }
+      }
+      Rule::All(all) => {
+        all.inner().iter()
+          .filter_map(|r| r.fixed_string_hint())
+          .max_by_key(|s| s.len())
+      }
+      _ => None,
+    }
+  }
 }
 
 impl Matcher for Rule {

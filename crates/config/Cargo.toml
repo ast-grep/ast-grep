@@ -26,4 +26,9 @@ thiserror.workspace = true
 schemars.workspace = true
 
 [dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
 tree-sitter-typescript = "0.23.2"
+
+[[bench]]
+name = "scan_perf"
+harness = false

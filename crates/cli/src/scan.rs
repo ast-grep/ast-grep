@@ -242,6 +242,9 @@ impl PathWorker for ScanWithConfig {
         .configs
         .get_rule_from_lang(normalized_path, *grep.lang());
       let mut combined = CombinedScan::new(rules);
+      if !combined.file_can_match(file_content.as_bytes()) {
+        continue;
+      }
       combined.set_unused_suppression_rule(&self.unused_suppression_rule);
       let interactive = self.arg.output.needs_interactive();
       // exclude_fix rule because we already have diff inspection before

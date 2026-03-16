@@ -1,9 +1,11 @@
 use crate::{RuleConfig, SerializableRule, SerializableRuleConfig, SerializableRuleCore, Severity};
 
+use ast_grep_core::kind_mask::KindMask;
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{Matcher, MatcherExt};
 use ast_grep_core::{AstGrep, Doc, Node, NodeMatch};
 
+use bit_set::BitSet;
 use std::collections::{HashMap, HashSet};
 
 pub struct ScanResult<'t, 'r, D: Doc, L: Language> {
@@ -89,6 +91,7 @@ struct Suppressions {
 }
 
 impl Suppressions {
+  #[allow(dead_code)]
   fn collect_all<D: Doc>(root: &AstGrep<D>) -> (Self, HashMap<usize, Node<'_, D>>) {
     let mut suppressions = Self {
       file: None,
@@ -102,6 +105,52 @@ impl Suppressions {
       }
     }
     (suppressions, suppression_nodes)
+  }
+
+  /// Collect suppressions AND build ancestor_kinds in a single DFS pass.
+  /// ancestor_kinds will contain every node kind that is an ancestor of a node
+  /// whose kind is in `potential_kinds`. This enables subtree pruning: during
+  /// the matching DFS, subtrees rooted at nodes whose kind is NOT in
+  /// ancestor_kinds AND NOT in potential_kinds can be skipped entirely.
+  fn collect_with_ancestors<'a, D: Doc>(
+    root: &'a AstGrep<D>,
+    potential_kinds: &KindMask,
+  ) -> (Self, HashMap<usize, Node<'a, D>>, KindMask) {
+    let mut suppressions = Self {
+      file: None,
+      lines: HashMap::new(),
+    };
+    let mut suppression_nodes = HashMap::new();
+    let mut ancestor_kinds = KindMask::new();
+    // Maintain a stack of (node_end_byte, kind_id) to track ancestors
+    // on the current DFS path. Pop entries whose range we've passed.
+    let mut path_stack: Vec<(usize, usize)> = Vec::new();
+    for node in root.root().dfs() {
+      let kind = node.kind_id() as usize;
+      let node_end = node.range().end;
+      // Pop ancestors whose range we've moved past
+      while let Some(&(end, _)) = path_stack.last() {
+        if node.range().start >= end {
+          path_stack.pop();
+        } else {
+          break;
+        }
+      }
+      // If this node's kind is in potential_kinds,
+      // mark all current ancestors' kinds in ancestor_kinds.
+      if potential_kinds.contains(kind) {
+        for &(_, ak) in &path_stack {
+          ancestor_kinds.insert(ak);
+        }
+      }
+      // Push this node as a potential ancestor for deeper nodes
+      path_stack.push((node_end, kind));
+      let is_all_suppressed = suppressions.collect(&node, &mut suppression_nodes);
+      if is_all_suppressed {
+        break;
+      }
+    }
+    (suppressions, suppression_nodes, ancestor_kinds)
   }
   /// collect all suppression nodes from the root node
   /// returns if the whole file need to be suppressed, including unused sup
@@ -194,6 +243,10 @@ pub struct CombinedScan<'r, L: Language> {
   rules: Vec<&'r RuleConfig<L>>,
   /// a vec of vec, mapping from kind to a list of rule index
   kind_rule_mapping: Vec<Vec<usize>>,
+  /// Union of all rules' potential_kinds. Used for subtree pruning:
+  /// during DFS, if a node's kind is not in this set, we know it cannot
+  /// directly match any rule (though its descendants still might).
+  all_potential_kinds: KindMask,
   /// a rule for unused_suppressions
   unused_suppression_rule: Option<&'r RuleConfig<L>>,
 }
@@ -204,11 +257,14 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     // note, mapping.push will invert order so we sort fixable order in reverse
     rules.sort_unstable_by_key(|r| (r.fix.is_some(), &r.id));
     let mut mapping = Vec::new();
+    let mut all_potential_kinds = KindMask::new();
     for (idx, rule) in rules.iter().enumerate() {
       let Some(kinds) = rule.matcher.potential_kinds() else {
         eprintln!("rule `{}` must have kind", &rule.id);
         continue;
       };
+      let kinds_mask = KindMask::from_bitset(&kinds);
+      all_potential_kinds.union_with(&kinds_mask);
       for kind in &kinds {
         // NOTE: common languages usually have about several hundred kinds
         // from 200+ ~ 500+, it is okay to waste about 500 * 24 Byte vec size = 12kB
@@ -219,9 +275,14 @@ impl<'r, L: Language> CombinedScan<'r, L> {
         mapping[kind].push(idx);
       }
     }
+    // Sort each bucket by match cost so cheaper rules reject candidates first
+    for bucket in &mut mapping {
+      bucket.sort_by_key(|&idx| rules[idx].matcher.match_cost_hint());
+    }
     Self {
       rules,
       kind_rule_mapping: mapping,
+      all_potential_kinds,
       unused_suppression_rule: None,
     }
   }
@@ -233,6 +294,25 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     self.unused_suppression_rule = Some(rule);
   }
 
+  /// Returns false if ALL rules have literal hints and NONE appear in file content.
+  /// When this returns false, the entire file can be skipped.
+  pub fn file_can_match(&self, content: &[u8]) -> bool {
+    let mut all_have_hints = true;
+    for rule in &self.rules {
+      match rule.matcher.fixed_string_hint() {
+        Some(hint) => {
+          if content.windows(hint.len()).any(|w| w == hint.as_bytes()) {
+            return true;
+          }
+        }
+        None => {
+          all_have_hints = false;
+        }
+      }
+    }
+    !all_have_hints
+  }
+
   pub fn scan<'a, D>(&self, root: &'a AstGrep<D>, separate_fix: bool) -> ScanResult<'a, '_, D, L>
   where
     D: Doc<Lang = L>,
@@ -242,37 +322,60 @@ impl<'r, L: Language> CombinedScan<'r, L> {
       matches: HashMap::new(),
       unused_suppressions: vec![],
     };
-    let (suppressions, mut suppression_nodes) = Suppressions::collect_all(root);
+    // Collect suppressions and build ancestor_kinds in a single DFS pass.
+    // ancestor_kinds contains every node kind that appears as an ancestor
+    // of a node whose kind matches any rule's potential_kinds.
+    let (suppressions, mut suppression_nodes, ancestor_kinds) =
+      Suppressions::collect_with_ancestors(root, &self.all_potential_kinds);
     let file_sup = suppressions.file_suppression();
     if let MaySuppressed::Yes(s) = file_sup {
       if s.suppressed.is_none() {
         return result.into_result(self, separate_fix);
       }
     }
-    for node in root.root().dfs() {
+    // Use stack-based DFS with subtree pruning. A node's subtree is
+    // skipped when its kind is NOT in all_potential_kinds (cannot match
+    // any rule directly) AND NOT in ancestor_kinds (no descendant can
+    // match any rule either).
+    let mut stack: Vec<Node<'a, D>> = vec![root.root()];
+    while let Some(node) = stack.pop() {
       let kind = node.kind_id() as usize;
-      let Some(rule_idx) = self.kind_rule_mapping.get(kind) else {
+      let is_potential = self.all_potential_kinds.contains(kind);
+      let is_ancestor = ancestor_kinds.contains(kind);
+      // If this node can neither match nor contain a descendant that matches,
+      // prune the entire subtree.
+      if !is_potential && !is_ancestor {
         continue;
-      };
-      let line_sup = suppressions.line_suppression(&node);
-      for &idx in rule_idx {
-        let rule = &self.rules[idx];
-        let Some(ret) = rule.matcher.match_node(node.clone()) else {
-          continue;
-        };
-        if let Some(id) = file_sup.suppressed_id(&rule.id) {
-          suppression_nodes.remove(&id);
-          continue;
-        }
-        if let Some(id) = line_sup.suppressed_id(&rule.id) {
-          suppression_nodes.remove(&id);
-          continue;
-        }
-        if rule.fix.is_none() || !separate_fix {
-          let matches = result.matches.entry(idx).or_default();
-          matches.push(ret);
-        } else {
-          result.diffs.push((idx, ret));
+      }
+      // Push children in reverse order for correct DFS ordering.
+      // Only descend if this node could be an ancestor of a matching node,
+      // or if it directly matches (its children might be part of the match context).
+      if is_ancestor || is_potential {
+        let children: Vec<_> = node.children().collect();
+        stack.extend(children.into_iter().rev());
+      }
+      // Check rules for this node
+      if let Some(rule_idx) = self.kind_rule_mapping.get(kind) {
+        let line_sup = suppressions.line_suppression(&node);
+        for &idx in rule_idx {
+          let rule = &self.rules[idx];
+          let Some(ret) = rule.matcher.match_node(node.clone()) else {
+            continue;
+          };
+          if let Some(id) = file_sup.suppressed_id(&rule.id) {
+            suppression_nodes.remove(&id);
+            continue;
+          }
+          if let Some(id) = line_sup.suppressed_id(&rule.id) {
+            suppression_nodes.remove(&id);
+            continue;
+          }
+          if rule.fix.is_none() || !separate_fix {
+            let matches = result.matches.entry(idx).or_default();
+            matches.push(ret);
+          } else {
+            result.diffs.push((idx, ret));
+          }
         }
       }
     }
