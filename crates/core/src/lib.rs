@@ -18,6 +18,7 @@ pub mod tree_sitter;
 #[doc(hidden)]
 pub mod pinned;
 
+pub mod kind_mask;
 mod match_tree;
 mod node;
 
