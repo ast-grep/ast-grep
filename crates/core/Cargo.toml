@@ -15,7 +15,9 @@ version.workspace = true
 
 [dependencies]
 bit-set.workspace = true
+lru = "0.12"
 regex.workspace = true
+smallvec = { version = "1", features = ["union"] }
 thiserror.workspace = true
 tree-sitter = { workspace = true, optional = true }
 
@@ -23,4 +25,9 @@ tree-sitter = { workspace = true, optional = true }
 default = ["tree-sitter"]
 
 [dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
 tree-sitter-typescript = "0.23.2"
+
+[[bench]]
+name = "search_perf"
+harness = false
