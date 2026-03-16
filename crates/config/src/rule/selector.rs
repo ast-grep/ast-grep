@@ -36,6 +36,7 @@
 <pseudo-class-selector> = ':' <ident-token> [ '(' <selector-list> ')' ]?
 */
 use super::{
+  nth_child::{NthChild, NthChildError},
   relational_rule::{Follows, Has, Inside},
   Rule,
 };
@@ -206,6 +207,7 @@ fn try_parse_pseudo_class_selector<'a, L: Language>(
     "not" => parse_not_argument(input)?,
     // :is() accepts a list of selectors as `matches-any`, reuse try_parse_selector
     "is" => try_parse_selector(input)?,
+    "nth-child" => parse_nth_child_argument(input)?,
     _ => return Err(SelectorError::UnknownPseudoClass(name.to_string())),
   };
   // handle closing )
@@ -239,6 +241,20 @@ fn parse_not_argument<'a, L: Language>(input: &mut Input<'a, L>) -> Result<Rule,
   Ok(Rule::Not(Box::new(ops::Not::new(inner_rule))))
 }
 
+/// <an+b> ['of' <complex-selector>]?
+fn parse_nth_child_argument<'a, L: Language>(
+  input: &mut Input<'a, L>,
+) -> Result<Rule, SelectorError> {
+  let text = input.extract_an_plus_b();
+  let mut nth_child = NthChild::try_parse(text)?;
+  if let Some(Token::Identifier("of")) = input.peek()? {
+    input.next()?; // consume 'of'
+    input.consume_whitespace();
+    nth_child = nth_child.of_rule(parse_complex_selector(input)?);
+  }
+  Ok(Rule::NthChild(nth_child))
+}
+
 #[derive(Debug, Error)]
 pub enum SelectorError {
   #[error("Illegal character {0} encountered")]
@@ -257,6 +273,8 @@ pub enum SelectorError {
   ExpectedRightParen,
   #[error("Unknown pseudo-class '{0}'")]
   UnknownPseudoClass(String),
+  #[error("Invalid nth-child")]
+  InvalidNthChild(#[from] NthChildError),
 }
 
 struct Input<'a, L: Language> {
@@ -280,6 +298,19 @@ impl<'a, L: Language> Input<'a, L> {
 
   fn consume_whitespace(&mut self) {
     self.source = self.source.trim_start();
+  }
+
+  /// Extract raw An+B text from source, consuming `[0-9nN+- \t]`.
+  fn extract_an_plus_b(&mut self) -> &'a str {
+    debug_assert!(self.lookahead.is_none());
+    let len = self
+      .source
+      .find(|c: char| !matches!(c, '0'..='9' | 'n' | 'N' | '+' | '-' | ' '))
+      .unwrap_or(self.source.len());
+    let text = self.source[..len].trim();
+    self.source = &self.source[len..];
+    self.consume_whitespace();
+    text
   }
 
   fn do_next(&mut self) -> Result<Option<Token<'a>>, SelectorError> {
@@ -558,6 +589,64 @@ mod test {
     let matches: Vec<_> = root.root().find_all(&rule).collect();
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].text(), "test");
+    Ok(())
+  }
+
+  #[test]
+  fn test_nth_child_selector() -> Result<(), SelectorError> {
+    // array > number:nth-child(2n+1) - match odd-positioned numbers in array
+    let rule = parse_selector("array > number:nth-child(2n+1)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("[1, 2, 3, 4, 5]");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 3);
+    assert_eq!(matches[0].text(), "1");
+    assert_eq!(matches[1].text(), "3");
+    assert_eq!(matches[2].text(), "5");
+    Ok(())
+  }
+
+  #[test]
+  fn test_nth_child_selector_with_whitespace() -> Result<(), SelectorError> {
+    let rule = parse_selector("array > number:nth-child( 2n + 1 )", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("[1, 2, 3, 4, 5]");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 3);
+    Ok(())
+  }
+
+  #[test]
+  fn test_nth_child_negative_an_plus_b() -> Result<(), SelectorError> {
+    // :nth-child(-n + 3) - first 3 children
+    let rule = parse_selector("array > number:nth-child(-n + 3)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("[1, 2, 3, 4, 5]");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 3);
+    assert_eq!(matches[0].text(), "1");
+    assert_eq!(matches[1].text(), "2");
+    assert_eq!(matches[2].text(), "3");
+    Ok(())
+  }
+
+  #[test]
+  fn test_nth_child_of_selector() -> Result<(), SelectorError> {
+    // :nth-child(1 of number) - first number child among siblings
+    let rule = parse_selector("array > :nth-child(1 of number)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("[a, 1, 2, 3]");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].text(), "1");
+    Ok(())
+  }
+
+  #[test]
+  fn test_nth_child_of_complex_selector() -> Result<(), SelectorError> {
+    // :nth-child(2n+1 of number) - odd-positioned numbers only
+    let rule = parse_selector("array > :nth-child(2n+1 of number)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("[a, 1, 2, 3]");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 2);
+    assert_eq!(matches[0].text(), "1");
+    assert_eq!(matches[1].text(), "3");
     Ok(())
   }
 }
