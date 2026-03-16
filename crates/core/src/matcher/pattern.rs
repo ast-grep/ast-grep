@@ -11,11 +11,115 @@ use thiserror::Error;
 use std::borrow::Cow;
 use std::collections::HashSet;
 
+/// Lightweight structural fingerprint for fast rejection before expensive tree matching.
+/// A fingerprint mismatch guarantees no match (no false negatives).
+/// A fingerprint match does NOT guarantee a match (false positives are allowed).
+#[derive(Clone, Debug)]
+pub struct PatternFingerprint {
+  /// The kind_id of the pattern's root node (None for MetaVar patterns)
+  pub root_kind_id: Option<u16>,
+  /// Number of named children in the pattern root (only for Internal nodes)
+  pub named_child_count: u8,
+  /// Total number of children in the pattern root (only for Internal nodes)
+  pub total_child_count: u8,
+  /// Whether the root is a leaf node
+  pub is_leaf: bool,
+  /// Number of meta-variables among the root's direct children
+  pub meta_var_count: u8,
+  /// Kind of the first non-meta-variable child (for Internal nodes)
+  pub first_child_kind: Option<u16>,
+}
+
+impl PatternFingerprint {
+  fn from_pattern(node: &PatternNode) -> Self {
+    match node {
+      PatternNode::MetaVar { .. } => Self {
+        root_kind_id: None,
+        named_child_count: 0,
+        total_child_count: 0,
+        is_leaf: true,
+        meta_var_count: 0,
+        first_child_kind: None,
+      },
+      PatternNode::Terminal { kind_id, .. } => Self {
+        root_kind_id: Some(*kind_id),
+        named_child_count: 0,
+        total_child_count: 0,
+        is_leaf: true,
+        meta_var_count: 0,
+        first_child_kind: None,
+      },
+      PatternNode::Internal { kind_id, children } => {
+        let mut named_count: u8 = 0;
+        let mut meta_var_count: u8 = 0;
+        let mut first_child_kind: Option<u16> = None;
+        for child in children {
+          match child {
+            PatternNode::MetaVar { .. } => {
+              meta_var_count = meta_var_count.saturating_add(1);
+              named_count = named_count.saturating_add(1);
+            }
+            PatternNode::Terminal {
+              is_named, kind_id, ..
+            } => {
+              if *is_named {
+                named_count = named_count.saturating_add(1);
+                if first_child_kind.is_none() {
+                  first_child_kind = Some(*kind_id);
+                }
+              }
+            }
+            PatternNode::Internal { kind_id, .. } => {
+              named_count = named_count.saturating_add(1);
+              if first_child_kind.is_none() {
+                first_child_kind = Some(*kind_id);
+              }
+            }
+          }
+        }
+        Self {
+          root_kind_id: Some(*kind_id),
+          named_child_count: named_count,
+          total_child_count: children.len().min(255) as u8,
+          is_leaf: false,
+          meta_var_count,
+          first_child_kind,
+        }
+      }
+    }
+  }
+
+  /// Check if a candidate node is compatible with this fingerprint.
+  /// Returns false if the candidate CANNOT match (safe to reject).
+  /// Returns true if the candidate MIGHT match (must do full comparison).
+  pub fn is_compatible<D: Doc>(&self, candidate: &Node<'_, D>) -> bool {
+    // MetaVar patterns match anything
+    let Some(root_kind) = self.root_kind_id else {
+      return true;
+    };
+    if candidate.kind_id() != root_kind {
+      return false;
+    }
+    if self.is_leaf {
+      return true;
+    }
+    // For internal nodes: the candidate must have at least as many named children
+    // as the pattern's non-metavar named children (metavars can match anything)
+    let min_required = self.named_child_count.saturating_sub(self.meta_var_count);
+    let candidate_named = candidate.children().filter(|c| c.is_named()).count();
+    if candidate_named < min_required as usize {
+      return false;
+    }
+    true
+  }
+}
+
 #[derive(Clone)]
 pub struct Pattern {
   pub node: PatternNode,
   root_kind: Option<u16>,
   pub strictness: MatchStrictness,
+  pub fingerprint: PatternFingerprint,
 }
 
 pub struct PatternBuilder<'a> {
@@ -58,10 +162,13 @@ impl PatternBuilder<'_> {
         selector: selector.into(),
       });
     };
+    let pattern_node = convert_node_to_pattern(node.get_node().clone());
+    let fingerprint = PatternFingerprint::from_pattern(&pattern_node);
     Ok(Pattern {
       root_kind: Some(node.kind_id()),
-      node: convert_node_to_pattern(node.get_node().clone()),
+      node: pattern_node,
       strictness: MatchStrictness::Smart,
+      fingerprint,
     })
   }
 }
@@ -203,10 +310,13 @@ impl<'r, D: Doc> From<Node<'r, D>> for PatternNode {
 
 impl<'r, D: Doc> From<Node<'r, D>> for Pattern {
   fn from(node: Node<'r, D>) -> Self {
+    let node = convert_node_to_pattern(node);
+    let fingerprint = PatternFingerprint::from_pattern(&node);
     Self {
-      node: convert_node_to_pattern(node),
+      node,
       root_kind: None,
       strictness: MatchStrictness::Smart,
+      fingerprint,
     }
   }
 }
@@ -379,6 +489,9 @@ impl Matcher for Pattern {
       if node.kind_id() != k {
         return None;
       }
+    }
+    if !self.fingerprint.is_compatible(&node) {
+      return None;
     }
     // do not pollute the env if pattern does not match
     let mut may_write = Cow::Borrowed(env.as_ref());

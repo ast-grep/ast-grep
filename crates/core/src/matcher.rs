@@ -14,11 +14,14 @@ use crate::Doc;
 use crate::{meta_var::MetaVarEnv, Node};
 
 use bit_set::BitSet;
+use lru::LruCache;
 use std::borrow::Cow;
+use std::cell::RefCell;
+use std::num::NonZero;
 
 pub use kind::{kind_utils, KindMatcher, KindMatcherError};
 pub use node_match::NodeMatch;
-pub use pattern::{DumpPattern, Pattern, PatternBuilder, PatternError, PatternNode};
+pub use pattern::{DumpPattern, Pattern, PatternBuilder, PatternError, PatternFingerprint, PatternNode};
 pub use text::{RegexMatcher, RegexMatcherError};
 
 /// `Matcher` defines whether a tree-sitter node matches certain pattern,
@@ -70,18 +73,37 @@ pub trait MatcherExt: Matcher {
 
 impl<T> MatcherExt for T where T: Matcher {}
 
+thread_local! {
+  static PATTERN_CACHE: RefCell<LruCache<(String, std::any::TypeId), Pattern>> =
+    RefCell::new(LruCache::new(NonZero::new(64).unwrap()));
+}
+
+fn get_or_compile_pattern<D: Doc>(src: &str, lang: &D::Lang) -> Pattern {
+  let type_id = std::any::TypeId::of::<D::Lang>();
+  let key = (src.to_string(), type_id);
+  PATTERN_CACHE.with(|cache| {
+    let mut cache = cache.borrow_mut();
+    if let Some(pattern) = cache.get(&key) {
+      return pattern.clone();
+    }
+    let pattern = Pattern::new(src, lang.clone());
+    cache.put(key, pattern.clone());
+    pattern
+  })
+}
+
 impl Matcher for str {
   fn match_node_with_env<'tree, D: Doc>(
     &self,
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    let pattern = Pattern::new(self, node.lang().clone());
+    let pattern = get_or_compile_pattern::<D>(self, node.lang());
     pattern.match_node_with_env(node, env)
   }
 
   fn get_match_len<D: Doc>(&self, node: Node<'_, D>) -> Option<usize> {
-    let pattern = Pattern::new(self, node.lang().clone());
+    let pattern = get_or_compile_pattern::<D>(self, node.lang());
     pattern.get_match_len(node)
   }
 }
