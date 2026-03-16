@@ -31,7 +31,8 @@ use ast_grep_core::Pattern;
 use ast_grep_core::{tree_sitter::StrDoc, Matcher};
 use ast_grep_language::{Language, LanguageExt};
 
-use std::fs::read_to_string;
+use memmap2::Mmap;
+use std::fs::{read_to_string, File};
 use std::io::stdout;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -97,9 +98,24 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
   }
 }
 
+const MMAP_THRESHOLD: u64 = 64 * 1024; // 64 KB
+
 fn read_file(path: &Path) -> Result<String> {
-  let file_content =
-    read_to_string(path).with_context(|| format!("Cannot read file {}", path.to_string_lossy()))?;
+  let metadata = std::fs::metadata(path)
+    .with_context(|| format!("Cannot read file {}", path.to_string_lossy()))?;
+
+  let file_content = if metadata.len() >= MMAP_THRESHOLD {
+    let file = File::open(path)
+      .with_context(|| format!("Cannot open file {}", path.to_string_lossy()))?;
+    let mmap = unsafe { Mmap::map(&file) }
+      .with_context(|| format!("Cannot mmap file {}", path.to_string_lossy()))?;
+    String::from_utf8(mmap.to_vec())
+      .with_context(|| format!("File is not valid UTF-8: {}", path.to_string_lossy()))?
+  } else {
+    read_to_string(path)
+      .with_context(|| format!("Cannot read file {}", path.to_string_lossy()))?
+  };
+
   // skip large files or empty file
   if file_too_large(&file_content) {
     Err(anyhow!("File is too large"))
