@@ -156,6 +156,7 @@
             "alternative_pattern",
             "annotated_type",
             "annotation",
+            "applied_constructor_type",
             "arguments",
             "arrow_renamed_identifier",
             "as_renamed_identifier",
@@ -225,6 +226,7 @@
             "interpolated_string",
             "interpolated_string_expression",
             "interpolation",
+            "into_modifier",
             "lambda_expression",
             "lazy_parameter_type",
             "literal_type",
@@ -269,6 +271,7 @@
             "structural_type",
             "template_body",
             "throw_expression",
+            "tracked_modifier",
             "trait_definition",
             "transparent_modifier",
             "try_expression",
@@ -344,8 +347,8 @@
           "$ref": "#/$defs/SerializableRule"
         },
         "matches": {
-          "description": "A utility rule id and matches a node if the utility rule matches.",
-          "type": "string"
+          "description": "A utility rule id or parameterized utility call object.\nWhen multiple utility calls are present, they are combined with logical `all`.",
+          "$ref": "#/$defs/SerializableMatches"
         }
       },
       "additionalProperties": false
@@ -535,6 +538,7 @@
             "alternative_pattern",
             "annotated_type",
             "annotation",
+            "applied_constructor_type",
             "arguments",
             "arrow_renamed_identifier",
             "as_renamed_identifier",
@@ -604,6 +608,7 @@
             "interpolated_string",
             "interpolated_string_expression",
             "interpolation",
+            "into_modifier",
             "lambda_expression",
             "lazy_parameter_type",
             "literal_type",
@@ -648,6 +653,7 @@
             "structural_type",
             "template_body",
             "throw_expression",
+            "tracked_modifier",
             "trait_definition",
             "transparent_modifier",
             "try_expression",
@@ -723,8 +729,8 @@
           "$ref": "#/$defs/SerializableRule"
         },
         "matches": {
-          "description": "A utility rule id and matches a node if the utility rule matches.",
-          "type": "string"
+          "description": "A utility rule id or parameterized utility call object.\nWhen multiple utility calls are present, they are combined with logical `all`.",
+          "$ref": "#/$defs/SerializableMatches"
         },
         "stopBy": {
           "$ref": "#/$defs/SerializableStopBy",
@@ -770,6 +776,22 @@
           ]
         }
       }
+    },
+    "SerializableMatches": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/$defs/SerializableRule"
+            }
+          }
+        }
+      ]
     },
     "SerializableStopBy": {
       "description": "Control how the relational rule search should stop",

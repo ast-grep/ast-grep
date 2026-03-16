@@ -180,6 +180,7 @@
             "hash_bang_line",
             "identifier",
             "if_statement",
+            "implicit_variable_declaration",
             "label_statement",
             "method_index_expression",
             "nil",
@@ -246,8 +247,8 @@
           "$ref": "#/$defs/SerializableRule"
         },
         "matches": {
-          "description": "A utility rule id and matches a node if the utility rule matches.",
-          "type": "string"
+          "description": "A utility rule id or parameterized utility call object.\nWhen multiple utility calls are present, they are combined with logical `all`.",
+          "$ref": "#/$defs/SerializableMatches"
         }
       },
       "additionalProperties": false
@@ -461,6 +462,7 @@
             "hash_bang_line",
             "identifier",
             "if_statement",
+            "implicit_variable_declaration",
             "label_statement",
             "method_index_expression",
             "nil",
@@ -527,8 +529,8 @@
           "$ref": "#/$defs/SerializableRule"
         },
         "matches": {
-          "description": "A utility rule id and matches a node if the utility rule matches.",
-          "type": "string"
+          "description": "A utility rule id or parameterized utility call object.\nWhen multiple utility calls are present, they are combined with logical `all`.",
+          "$ref": "#/$defs/SerializableMatches"
         },
         "stopBy": {
           "$ref": "#/$defs/SerializableStopBy",
@@ -550,6 +552,7 @@
             "content",
             "end",
             "field",
+            "global_declaration",
             "left",
             "local_declaration",
             "method",
@@ -564,6 +567,22 @@
           ]
         }
       }
+    },
+    "SerializableMatches": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/$defs/SerializableRule"
+            }
+          }
+        }
+      ]
     },
     "SerializableStopBy": {
       "description": "Control how the relational rule search should stop",
