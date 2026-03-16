@@ -204,6 +204,8 @@ fn try_parse_pseudo_class_selector<'a, L: Language>(
   let rule = match name {
     "has" => parse_has_argument(input)?,
     "not" => parse_not_argument(input)?,
+    // :is() accepts a list of selectors as `matches-any`, reuse try_parse_selector
+    "is" => try_parse_selector(input)?,
     _ => return Err(SelectorError::UnknownPseudoClass(name.to_string())),
   };
   // handle closing )
@@ -533,6 +535,29 @@ mod test {
     let rule = parse_selector("number:not(number)", TS::Tsx)?;
     let root = TS::Tsx.ast_grep("test(123)");
     assert!(root.root().find(&rule).is_none());
+    Ok(())
+  }
+
+  #[test]
+  fn test_is_selector() -> Result<(), SelectorError> {
+    // :is(identifier, number) - matches any of the listed kinds
+    let rule = parse_selector(":is(identifier, number)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("test(123)");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 2);
+    assert_eq!(matches[0].text(), "test");
+    assert_eq!(matches[1].text(), "123");
+    Ok(())
+  }
+
+  #[test]
+  fn test_is_selector_in_combinator() -> Result<(), SelectorError> {
+    // call_expression > :is(identifier, number) - composing :is deeper in tree
+    let rule = parse_selector("call_expression > :is(identifier, number)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("test(123)");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].text(), "test");
     Ok(())
   }
 }
