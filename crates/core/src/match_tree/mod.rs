@@ -9,8 +9,12 @@ use crate::meta_var::{MetaVarEnv, MetaVariable};
 use crate::{Doc, Node, Pattern};
 
 use std::borrow::Cow;
+use std::hash::{Hash, Hasher};
 
 trait Aggregator<'t, D: Doc> {
+  type Checkpoint: Clone;
+  fn checkpoint(&self) -> Self::Checkpoint;
+  fn rollback(&mut self, cp: Self::Checkpoint);
   fn match_terminal(&mut self, node: &Node<'t, D>) -> Option<()>;
   fn match_meta_var(&mut self, var: &MetaVariable, node: &Node<'t, D>) -> Option<()>;
   fn match_ellipsis(
@@ -24,6 +28,13 @@ trait Aggregator<'t, D: Doc> {
 struct ComputeEnd(usize);
 
 impl<'t, D: Doc> Aggregator<'t, D> for ComputeEnd {
+  type Checkpoint = usize;
+  fn checkpoint(&self) -> usize {
+    self.0
+  }
+  fn rollback(&mut self, cp: usize) {
+    self.0 = cp;
+  }
   fn match_terminal(&mut self, node: &Node<'t, D>) -> Option<()> {
     self.0 = node.range().end;
     Some(())
@@ -87,6 +98,13 @@ fn match_leaf_meta_var<'tree, D: Doc>(
 }
 
 impl<'t, D: Doc> Aggregator<'t, D> for Cow<'_, MetaVarEnv<'t, D>> {
+  type Checkpoint = MetaVarEnv<'t, D>;
+  fn checkpoint(&self) -> MetaVarEnv<'t, D> {
+    self.as_ref().clone()
+  }
+  fn rollback(&mut self, cp: MetaVarEnv<'t, D>) {
+    *self = Cow::Owned(cp);
+  }
   fn match_terminal(&mut self, _: &Node<'t, D>) -> Option<()> {
     Some(())
   }
@@ -120,6 +138,21 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
   }
 }
 
+fn structural_hash<D: Doc>(node: &Node<D>) -> u64 {
+  let mut hasher = std::collections::hash_map::DefaultHasher::new();
+  node.kind_id().hash(&mut hasher);
+  if node.is_named_leaf() {
+    node.text().hash(&mut hasher);
+  } else {
+    let children = node.children();
+    children.len().hash(&mut hasher);
+    for child in children {
+      structural_hash(&child).hash(&mut hasher);
+    }
+  }
+  hasher.finish()
+}
+
 pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: &Node<D>) -> bool {
   // return true if goal and candidate are the same node
   if goal.node_id() == candidate.node_id() {
@@ -136,6 +169,10 @@ pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: &Node<D>) -> b
   let goal_children = goal.children();
   let cand_children = candidate.children();
   if goal_children.len() != cand_children.len() {
+    return false;
+  }
+  // fast-path: use structural hash as a bloom filter for multi-child nodes
+  if goal_children.len() > 1 && structural_hash(goal) != structural_hash(candidate) {
     return false;
   }
   goal_children

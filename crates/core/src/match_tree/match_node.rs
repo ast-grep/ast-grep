@@ -3,8 +3,10 @@ use super::Aggregator;
 use crate::matcher::{kind_utils, PatternNode};
 use crate::meta_var::MetaVariable;
 use crate::{Doc, Node};
+use smallvec::SmallVec;
 use std::iter::Peekable;
 
+#[inline]
 pub(super) fn match_node_impl<'tree, D: Doc>(
   goal: &PatternNode,
   candidate: &Node<'tree, D>,
@@ -45,8 +47,10 @@ pub(super) fn match_node_impl<'tree, D: Doc>(
       if !kind_matched {
         return MatchOneNode::NoMatch;
       }
-      let cand_children = candidate.children();
-      match match_nodes_impl_recursive(children, cand_children, agg, strictness) {
+      // Pre-collect children into SmallVec to avoid repeated tree-sitter FFI
+      // calls during peekable iteration
+      let cand_children: SmallVec<[Node<'tree, D>; 8]> = candidate.children().collect();
+      match match_nodes_impl_recursive(children, cand_children.into_iter(), agg, strictness) {
         Some(()) => MatchOneNode::MatchedBoth,
         None => MatchOneNode::NoMatch,
       }
