@@ -239,6 +239,82 @@ impl<'tree> Iterator for TsPre<'tree> {
   }
 }
 
+/// Pre-order traversal with subtree pruning support.
+/// After calling `next()`, the caller can call `skip_children()`
+/// to prevent descending into the current node's children.
+pub struct PruningPre<'tree> {
+  cursor: ts::TreeCursor<'tree>,
+  start_id: Option<usize>,
+  /// true when we already descended into the current node's children
+  descended: bool,
+  current_depth: usize,
+}
+
+impl<'tree> PruningPre<'tree> {
+  pub fn new(node: &ts::Node<'tree>) -> Self {
+    Self {
+      cursor: node.walk(),
+      start_id: Some(node.id()),
+      descended: false,
+      current_depth: 0,
+    }
+  }
+
+  /// Skip the children of the node most recently returned by `next()`.
+  /// Must be called before the next call to `next()`.
+  pub fn skip_children(&mut self) {
+    if !self.descended {
+      return;
+    }
+    // undo the step_down that happened in next()
+    self.cursor.goto_parent();
+    self.current_depth -= 1;
+    self.descended = false;
+    // now trace up to find the next sibling
+    if let Some(start) = self.start_id {
+      let cursor = &mut self.cursor;
+      while cursor.node().id() != start {
+        if cursor.goto_next_sibling() {
+          return;
+        }
+        self.current_depth = self.current_depth.saturating_sub(1);
+        if !cursor.goto_parent() {
+          break;
+        }
+      }
+      self.start_id = None;
+    }
+  }
+}
+
+impl<'tree> Iterator for PruningPre<'tree> {
+  type Item = ts::Node<'tree>;
+  fn next(&mut self) -> Option<Self::Item> {
+    let start = self.start_id?;
+    let cursor = &mut self.cursor;
+    let inner = cursor.node();
+    let ret = Some(inner);
+    if cursor.goto_first_child() {
+      self.current_depth += 1;
+      self.descended = true;
+    } else {
+      self.descended = false;
+      // trace up
+      while cursor.node().id() != start {
+        if cursor.goto_next_sibling() {
+          return ret;
+        }
+        self.current_depth = self.current_depth.saturating_sub(1);
+        if !cursor.goto_parent() {
+          break;
+        }
+      }
+      self.start_id = None;
+    }
+    ret
+  }
+}
+
 pub struct Pre<'tree, L: LanguageExt> {
   root: &'tree Root<StrDoc<L>>,
   inner: TsPre<'tree>,
@@ -597,5 +673,52 @@ mod test {
       .map(|n| n.range())
       .collect();
     assert_eq!(recur, visit);
+  }
+
+  #[test]
+  fn test_pruning_pre_no_skip() {
+    // Without calling skip_children, PruningPre should behave like TsPre
+    for case in CASES {
+      let grep = Tsx.ast_grep(case);
+      let node = grep.root();
+      let normal: Vec<_> = TsPre::new(&node.inner).collect();
+      let pruning: Vec<_> = PruningPre::new(&node.inner).collect();
+      assert_eq!(
+        normal.len(),
+        pruning.len(),
+        "PruningPre without skip should match TsPre for `{case}`"
+      );
+      for (a, b) in normal.iter().zip(pruning.iter()) {
+        assert_eq!(a.id(), b.id());
+      }
+    }
+  }
+
+  #[test]
+  fn test_pruning_pre_skip_children() {
+    // Skip children of the root's first child — should visit root, first child,
+    // then skip to second child and its descendants.
+    let grep = Tsx.ast_grep("let a = 123; let b = 456;");
+    let node = grep.root();
+    let mut pruning = PruningPre::new(&node.inner);
+
+    // First node is root (program)
+    let root_node = pruning.next().unwrap();
+    assert_eq!(root_node.kind(), "program");
+
+    // Second node is first child (let a = 123;)
+    let first_child = pruning.next().unwrap();
+    assert_eq!(first_child.kind(), "lexical_declaration");
+    // Skip its children
+    pruning.skip_children();
+
+    // Next should be the second child (let b = 456;)
+    let second_child = pruning.next().unwrap();
+    assert_eq!(second_child.kind(), "lexical_declaration");
+
+    // Count remaining nodes from second child's subtree
+    let remaining: Vec<_> = pruning.collect();
+    // The second declaration's children should still be visited
+    assert!(!remaining.is_empty());
   }
 }
