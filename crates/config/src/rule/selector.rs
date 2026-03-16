@@ -203,6 +203,7 @@ fn try_parse_pseudo_class_selector<'a, L: Language>(
   // prase inner argument according to the pseudo class name
   let rule = match name {
     "has" => parse_has_argument(input)?,
+    "not" => parse_not_argument(input)?,
     _ => return Err(SelectorError::UnknownPseudoClass(name.to_string())),
   };
   // handle closing )
@@ -228,6 +229,12 @@ fn parse_has_argument<'a, L: Language>(input: &mut Input<'a, L>) -> Result<Rule,
     Has::rule_descent(inner_rule)
   };
   Ok(Rule::Has(Box::new(has)))
+}
+
+/// <complex-selector>
+fn parse_not_argument<'a, L: Language>(input: &mut Input<'a, L>) -> Result<Rule, SelectorError> {
+  let inner_rule = parse_complex_selector(input)?;
+  Ok(Rule::Not(Box::new(ops::Not::new(inner_rule))))
 }
 
 #[derive(Debug, Error)]
@@ -497,7 +504,7 @@ mod test {
   #[test]
   fn test_has_error_cases() {
     // Unknown pseudo-class
-    let result = parse_selector("expression_statement:not(identifier)", TS::Tsx);
+    let result = parse_selector("expression_statement:first-child(identifier)", TS::Tsx);
     assert!(matches!(result, Err(SelectorError::UnknownPseudoClass(_))));
 
     // Missing left paren
@@ -507,5 +514,25 @@ mod test {
     // Missing right paren
     let result = parse_selector("expression_statement:has(identifier", TS::Tsx);
     assert!(matches!(result, Err(SelectorError::ExpectedRightParen)));
+  }
+
+  #[test]
+  fn test_not_selector() -> Result<(), SelectorError> {
+    // identifier:not(number) - match identifiers that are not numbers
+    let rule = parse_selector("identifier:not(number)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("test(123)");
+    let found = root.root().find(&rule).expect("should find");
+    assert_eq!(found.kind(), "identifier");
+    assert_eq!(found.text(), "test");
+    Ok(())
+  }
+
+  #[test]
+  fn test_not_selector_excludes() -> Result<(), SelectorError> {
+    // number:not(number) - should match nothing
+    let rule = parse_selector("number:not(number)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("test(123)");
+    assert!(root.root().find(&rule).is_none());
+    Ok(())
   }
 }
