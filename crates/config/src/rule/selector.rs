@@ -36,7 +36,7 @@
 <pseudo-class-selector> = ':' <ident-token> [ '(' <selector-list> ')' ]?
 */
 use super::{
-  relational_rule::{Follows, Inside},
+  relational_rule::{Follows, Has, Inside},
   Rule,
 };
 use ast_grep_core::{
@@ -181,10 +181,53 @@ fn try_parse_subclass_selector<'a, L: Language>(
 ) -> Result<Option<Rule>, SelectorError> {
   if let Some(Token::ClassDot) = input.peek()? {
     return Err(SelectorError::Unsupported("class-selector"));
-  } else if let Some(Token::PseudoColon) = input.peek()? {
-    return Err(SelectorError::Unsupported("pseudo-class-selector"));
+  }
+  if let Some(Token::PseudoColon) = input.peek()? {
+    return try_parse_pseudo_class_selector(input).map(Some);
   }
   Ok(None)
+}
+
+/// <pseudo-class-selector> = ':' <ident-token> [ '(' <selector-list> ')' ]?
+fn try_parse_pseudo_class_selector<'a, L: Language>(
+  input: &mut Input<'a, L>,
+) -> Result<Rule, SelectorError> {
+  input.next()?; // consume ':'
+  let Some(Token::Identifier(name)) = input.next()? else {
+    return Err(SelectorError::UnexpectedToken);
+  };
+  // handle open left (
+  let Some(Token::LeftParen) = input.next()? else {
+    return Err(SelectorError::ExpectedLeftParen);
+  };
+  // prase inner argument according to the pseudo class name
+  let rule = match name {
+    "has" => parse_has_argument(input)?,
+    _ => return Err(SelectorError::UnknownPseudoClass(name.to_string())),
+  };
+  // handle closing )
+  let Some(Token::RightParen) = input.next()? else {
+    return Err(SelectorError::ExpectedRightParen);
+  };
+  Ok(rule)
+}
+
+/// [<combinator>]? <complex-selector>
+fn parse_has_argument<'a, L: Language>(input: &mut Input<'a, L>) -> Result<Rule, SelectorError> {
+  // Leading '>' means direct child (stopBy: neighbor), otherwise descendant (stopBy: end)
+  let has_direct_child = if let Some(Token::Combinator('>')) = input.peek()? {
+    input.next()?; // consume '>'
+    true
+  } else {
+    false
+  };
+  let inner_rule = parse_complex_selector(input)?;
+  let has = if has_direct_child {
+    Has::rule(inner_rule)
+  } else {
+    Has::rule_descent(inner_rule)
+  };
+  Ok(Rule::Has(Box::new(has)))
 }
 
 #[derive(Debug, Error)]
@@ -199,6 +242,12 @@ pub enum SelectorError {
   InvalidKind(#[from] KindMatcherError),
   #[error("{0} is not supported yet")]
   Unsupported(&'static str),
+  #[error("Expected '(' after pseudo-class")]
+  ExpectedLeftParen,
+  #[error("Expected ')' to close pseudo-class")]
+  ExpectedRightParen,
+  #[error("Unknown pseudo-class '{0}'")]
+  UnknownPseudoClass(String),
 }
 
 struct Input<'a, L: Language> {
@@ -234,7 +283,11 @@ impl<'a, L: Language> Input<'a, L> {
           .source
           .find(|c: char| !c.is_whitespace())
           .unwrap_or(self.source.len());
-        if self.source.len() > len && matches!(self.source.as_bytes()[len] as char, '+' | '~' | '>')
+        if self.source.len() > len
+          && matches!(
+            self.source.as_bytes()[len] as char,
+            '+' | '~' | '>' | ')' | ','
+          )
         {
           self.consume_whitespace();
           return self.do_next(); // skip whitespace
@@ -390,5 +443,69 @@ mod test {
     let expected = vec![Token::Identifier("atx_h1_marker")];
     assert_eq!(tokens, expected);
     Ok(())
+  }
+
+  #[test]
+  fn test_has_tokens() -> Result<(), SelectorError> {
+    let tokens = input_to_tokens("A:has(> B)")?;
+    let expected = vec![
+      Token::Identifier("A"),
+      Token::PseudoColon,
+      Token::Identifier("has"),
+      Token::LeftParen,
+      Token::Combinator('>'),
+      Token::Identifier("B"),
+      Token::RightParen,
+    ];
+    assert_eq!(tokens, expected);
+    Ok(())
+  }
+
+  #[test]
+  fn test_has_selector() -> Result<(), SelectorError> {
+    // function_declaration:has(return_statement) - descendant search
+    let rule = parse_selector("function_declaration:has(return_statement)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("function foo() { return 1 }");
+    let found = root.root().find(&rule).expect("should find");
+    assert_eq!(found.kind(), "function_declaration");
+
+    // Should not match when descendant is absent
+    let root = TS::Tsx.ast_grep("function foo() { let x = 1 }");
+    assert!(root.root().find(&rule).is_none());
+    Ok(())
+  }
+
+  #[test]
+  fn test_has_direct_child_selector() -> Result<(), SelectorError> {
+    // expression_statement:has(> call_expression) - direct child only
+    let rule = parse_selector("expression_statement:has(> call_expression)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("foo()");
+    let found = root.root().find(&rule).expect("should find");
+    assert_eq!(found.kind(), "expression_statement");
+    Ok(())
+  }
+
+  #[test]
+  fn test_has_with_whitespace() -> Result<(), SelectorError> {
+    // whitespace inside :has() should work
+    let rule = parse_selector("function_declaration:has( return_statement )", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("function foo() { return 1 }");
+    assert!(root.root().find(&rule).is_some());
+    Ok(())
+  }
+
+  #[test]
+  fn test_has_error_cases() {
+    // Unknown pseudo-class
+    let result = parse_selector("expression_statement:not(identifier)", TS::Tsx);
+    assert!(matches!(result, Err(SelectorError::UnknownPseudoClass(_))));
+
+    // Missing left paren
+    let result = parse_selector("expression_statement:has identifier", TS::Tsx);
+    assert!(matches!(result, Err(SelectorError::ExpectedLeftParen)));
+
+    // Missing right paren
+    let result = parse_selector("expression_statement:has(identifier", TS::Tsx);
+    assert!(matches!(result, Err(SelectorError::ExpectedRightParen)));
   }
 }
