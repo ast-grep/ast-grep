@@ -255,3 +255,26 @@ fn url_to_code_description(url: &Option<String>) -> Option<CodeDescription> {
   let href = Uri::from_str(url.as_ref()?).ok()?;
   Some(CodeDescription { href })
 }
+
+/// Convert an LSP Position (line/UTF-16 character offset) to a byte offset in the source string.
+pub fn lsp_position_to_byte_offset(source: &str, position: &Position) -> Option<usize> {
+  let mut byte_offset = 0usize;
+  for (i, line) in source.split('\n').enumerate() {
+    if i == position.line as usize {
+      // Walk UTF-16 code units to find the byte offset within this line
+      let mut utf16_offset = 0u32;
+      for ch in line.chars() {
+        if utf16_offset >= position.character {
+          break;
+        }
+        utf16_offset += ch.len_utf16() as u32;
+        byte_offset += ch.len_utf8();
+      }
+      return Some(byte_offset);
+    }
+    // +1 for the '\n' byte
+    byte_offset += line.len() + 1;
+  }
+  // Position is past the end of the file
+  Some(source.len())
+}

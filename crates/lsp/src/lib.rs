@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 
-use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, Fixes, RewriteData};
+use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, lsp_position_to_byte_offset, Fixes, RewriteData};
 
 pub use tower_lsp_server::{LspService, Server};
 
@@ -89,8 +89,7 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
         version: None,
       }),
       capabilities: ServerCapabilities {
-        // TODO: change this to incremental
-        text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
+        text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::INCREMENTAL)),
         code_action_provider: code_action_provider.or(FALLBACK_CODE_ACTION_PROVIDER),
         execute_command_provider: Some(ExecuteCommandOptions {
           commands: vec![APPLY_ALL_FIXES.to_string()],
@@ -456,12 +455,48 @@ impl<L: LSPLang> Backend<L> {
       if versioned.version > text_doc.version {
         return None;
       }
-      let change = &params.content_changes.first()?;
-      let text = &change.text;
-      let (new_version, diagnostics) =
-        self.get_versioned_ast(text_doc.version, &text_doc.uri, text)?;
-      *versioned = new_version;
-      (diagnostics, versioned.version)
+      versioned.version = text_doc.version;
+      let mut needs_full_reparse = false;
+      for change in &params.content_changes {
+        if let Some(range) = change.range {
+          let offsets = {
+            let source = versioned.root.source();
+            (
+              lsp_position_to_byte_offset(source, &range.start),
+              lsp_position_to_byte_offset(source, &range.end),
+            )
+          };
+          if let (Some(start), Some(end)) = offsets {
+            let edit = ast_grep_core::source::Edit {
+              position: start,
+              deleted_length: end - start,
+              inserted_text: change.text.as_bytes().to_vec(),
+            };
+            if versioned.root.edit(edit).is_err() {
+              needs_full_reparse = true;
+              break;
+            }
+          } else {
+            needs_full_reparse = true;
+            break;
+          }
+        } else {
+          // No range means full content replacement
+          needs_full_reparse = true;
+          break;
+        }
+      }
+      if needs_full_reparse {
+        // Fall back to full reparse using the last change's text
+        let text = &params.content_changes.last()?.text;
+        let (new_version, diagnostics) =
+          self.get_versioned_ast(text_doc.version, &text_doc.uri, text)?;
+        *versioned = new_version;
+        (diagnostics, versioned.version)
+      } else {
+        let diagnostics = self.compute_diagnostics(&text_doc.uri, &mut *versioned);
+        (diagnostics, versioned.version)
+      }
     };
     self
       .client
