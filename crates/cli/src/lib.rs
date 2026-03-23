@@ -300,6 +300,7 @@ mod test_cli {
     ok("test --color never");
     ok("test --color auto");
     ok("test --color ansi");
+    error("test --color invalid");
   }
   #[test]
   fn test_new() {
