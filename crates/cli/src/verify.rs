@@ -8,6 +8,7 @@ use crate::config::ProjectConfig;
 use crate::lang::SgLang;
 use crate::print::ColorArg;
 use crate::utils::{ErrorContext, RuleOverwrite};
+use crate::verify::reporter::TestReportStyle;
 use anyhow::{anyhow, Result};
 use ast_grep_config::RuleCollection;
 use clap::Args;
@@ -197,25 +198,36 @@ pub struct TestArg {
   #[clap(long)]
   include_off: bool,
   /// Controls output color.
+  ///
+  /// This flag controls when to use colors. The default setting is 'auto', which
+  /// means ast-grep will try to guess when to use colors. If ast-grep is
+  /// printing to a terminal, then it will use colors, but if it is redirected to a
+  /// file or a pipe, then it will suppress color output. ast-grep will also suppress
+  /// color output in some other circumstances. For example, no color will be used
+  /// if the TERM environment variable is not set or set to 'dumb'.
   #[clap(long, default_value = "auto", value_name = "WHEN")]
   color: ColorArg,
 }
 
 pub fn run_test_rule(arg: TestArg, project: Result<ProjectConfig>) -> Result<ExitCode> {
   let project = project?;
-  let color = arg.color;
+  let style = if arg.color.should_use_color() {
+    TestReportStyle::colored()
+  } else {
+    TestReportStyle::default()
+  };
   if arg.interactive {
     let reporter = InteractiveReporter {
       output: std::io::stdout(),
       should_accept_all: false,
-      color,
+      style,
     };
     run_test_rule_impl(arg, reporter, project)
   } else {
     let reporter = DefaultReporter {
       output: std::io::stdout(),
       update_all: arg.update_all,
-      color,
+      style,
     };
     run_test_rule_impl(arg, reporter, project)
   }
