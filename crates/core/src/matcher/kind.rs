@@ -140,6 +140,6 @@ mod test {
       .potential_kinds()
       .expect("should have potential kinds");
     // should has exactly one potential kind
-    assert_eq!(potential_kinds.len(), 1);
+    assert_eq!(potential_kinds.count(), 1);
   }
 }

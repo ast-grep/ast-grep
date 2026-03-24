@@ -570,7 +570,7 @@ mod test {
     let pattern = Pattern::new("const a = 1", Tsx);
     let kind = get_kind("lexical_declaration");
     let kinds = pattern.potential_kinds().expect("should have kinds");
-    assert_eq!(kinds.len(), 1);
+    assert_eq!(kinds.count(), 1);
     assert!(kinds.contains(kind));
   }
 
@@ -579,7 +579,7 @@ mod test {
     let pattern = Pattern::new("const $A = $B", Tsx);
     let kind = get_kind("lexical_declaration");
     let kinds = pattern.potential_kinds().expect("should have kinds");
-    assert_eq!(kinds.len(), 1);
+    assert_eq!(kinds.count(), 1);
     assert!(kinds.contains(kind));
   }
 
@@ -596,7 +596,7 @@ mod test {
       Pattern::contextual("class A { $F = $I }", "public_field_definition", Tsx).expect("test");
     let kind = get_kind("public_field_definition");
     let kinds = pattern.potential_kinds().expect("should have kinds");
-    assert_eq!(kinds.len(), 1);
+    assert_eq!(kinds.count(), 1);
     assert!(kinds.contains(kind));
   }
 
@@ -605,7 +605,7 @@ mod test {
     let pattern = Pattern::contextual("class A { $F }", "property_identifier", Tsx).expect("test");
     let kind = get_kind("property_identifier");
     let kinds = pattern.potential_kinds().expect("should have kinds");
-    assert_eq!(kinds.len(), 1);
+    assert_eq!(kinds.count(), 1);
     assert!(kinds.contains(kind));
   }
 
@@ -614,7 +614,7 @@ mod test {
   fn test_multi_node_pattern() {
     let pattern = Pattern::new("a;b;c;", Tsx);
     let kinds = pattern.potential_kinds().expect("should have kinds");
-    assert_eq!(kinds.len(), 1);
+    assert_eq!(kinds.count(), 1);
     test_match("a;b;c", "a;b;c;");
   }
 

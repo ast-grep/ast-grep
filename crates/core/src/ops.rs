@@ -454,15 +454,15 @@ mod test {
   fn test_and_kinds() {
     // intersect None kinds
     let matcher = Op::every("let a = $_".t()).and(Op::not("let a = 123".t()));
-    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
+    assert_eq!(matcher.potential_kinds().map(|v| v.count()), Some(1));
     let matcher = Op::every(Op::not("let a = $_".t())).and("let a = 123".t());
-    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
+    assert_eq!(matcher.potential_kinds().map(|v| v.count()), Some(1));
     // intersect Same kinds
     let matcher = Op::every("let a = $_".t()).and("let b = 123".t());
-    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
+    assert_eq!(matcher.potential_kinds().map(|v| v.count()), Some(1));
     // intersect different kinds
     let matcher = Op::every("let a = 1".t()).and("console.log(1)".t());
-    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(0));
+    assert_eq!(matcher.potential_kinds().map(|v| v.count()), Some(0));
     // two None kinds
     let matcher = Op::every(Op::not("let a = $_".t())).and(Op::not("let a = 123".t()));
     assert_eq!(matcher.potential_kinds(), None);
@@ -477,10 +477,10 @@ mod test {
     assert_eq!(matcher.potential_kinds(), None);
     // union Same kinds
     let matcher = Op::either("let a = $_".t()).or("let b = 123".t());
-    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
+    assert_eq!(matcher.potential_kinds().map(|v| v.count()), Some(1));
     // union different kinds
     let matcher = Op::either("let a = 1".t()).or("console.log(1)".t());
-    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(2));
+    assert_eq!(matcher.potential_kinds().map(|v| v.count()), Some(2));
     // two None kinds
     let matcher = Op::either(Op::not("let a = $_".t())).or(Op::not("let a = 123".t()));
     assert_eq!(matcher.potential_kinds(), None);
@@ -490,15 +490,15 @@ mod test {
   fn test_all_kinds() {
     // intersect None kinds
     let matcher = Op::all(["let a = $_".t(), "$A".t()]);
-    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
+    assert_eq!(matcher.potential_kinds().map(|v| v.count()), Some(1));
     let matcher = Op::all(["$A".t(), "let a = $_".t()]);
-    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
+    assert_eq!(matcher.potential_kinds().map(|v| v.count()), Some(1));
     // intersect Same kinds
     let matcher = Op::all(["let a = $_".t(), "let b = 123".t()]);
-    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
+    assert_eq!(matcher.potential_kinds().map(|v| v.count()), Some(1));
     // intersect different kinds
     let matcher = Op::all(["let a = 1".t(), "console.log(1)".t()]);
-    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(0));
+    assert_eq!(matcher.potential_kinds().map(|v| v.count()), Some(0));
     // two None kinds
     let matcher = Op::all(["$A".t(), "$B".t()]);
     assert_eq!(matcher.potential_kinds(), None);
@@ -513,10 +513,10 @@ mod test {
     assert_eq!(matcher.potential_kinds(), None);
     // union Same kinds
     let matcher = Op::any(["let a = $_".t(), "let b = 123".t()]);
-    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(1));
+    assert_eq!(matcher.potential_kinds().map(|v| v.count()), Some(1));
     // union different kinds
     let matcher = Op::any(["let a = 1".t(), "console.log(1)".t()]);
-    assert_eq!(matcher.potential_kinds().map(|v| v.len()), Some(2));
+    assert_eq!(matcher.potential_kinds().map(|v| v.count()), Some(2));
     // two None kinds
     let matcher = Op::any(["$A".t(), "$B".t()]);
     assert_eq!(matcher.potential_kinds(), None);
