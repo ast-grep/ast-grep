@@ -296,6 +296,11 @@ mod test_cli {
     ok("test -U");
     ok("test --update-all");
     error("test --update-all --skip-snapshot-tests");
+    ok("test --color always");
+    ok("test --color never");
+    ok("test --color auto");
+    ok("test --color ansi");
+    error("test --color invalid");
   }
   #[test]
   fn test_new() {

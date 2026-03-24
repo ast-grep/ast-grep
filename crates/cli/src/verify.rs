@@ -6,6 +6,7 @@ mod test_case;
 
 use crate::config::ProjectConfig;
 use crate::lang::SgLang;
+use crate::print::ColorArg;
 use crate::utils::{ErrorContext, RuleOverwrite};
 use anyhow::{anyhow, Result};
 use ast_grep_config::RuleCollection;
@@ -195,20 +196,26 @@ pub struct TestArg {
   /// This option will include those rules in the test.
   #[clap(long)]
   include_off: bool,
+  /// Controls output color.
+  #[clap(long, default_value = "auto", value_name = "WHEN")]
+  color: ColorArg,
 }
 
 pub fn run_test_rule(arg: TestArg, project: Result<ProjectConfig>) -> Result<ExitCode> {
   let project = project?;
+  let color = arg.color;
   if arg.interactive {
     let reporter = InteractiveReporter {
       output: std::io::stdout(),
       should_accept_all: false,
+      color,
     };
     run_test_rule_impl(arg, reporter, project)
   } else {
     let reporter = DefaultReporter {
       output: std::io::stdout(),
       update_all: arg.update_all,
+      color,
     };
     run_test_rule_impl(arg, reporter, project)
   }
@@ -325,6 +332,7 @@ rule:
       update_all: false,
       filter: None,
       include_off: false,
+      color: ColorArg::Never,
     };
     assert!(run_test_rule(arg, Err(anyhow!("error"))).is_err());
   }

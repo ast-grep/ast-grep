@@ -23,6 +23,7 @@ pub enum TestResult {
 pub(super) trait Reporter {
   type Output: Write;
   fn get_output(&mut self) -> &mut Self::Output;
+  fn color(&self) -> ColorArg;
   /// A hook function runs before tests start.
   fn before_report(&mut self, test_cases: &[TestCase]) -> Result<()> {
     report_case_number(self.get_output(), test_cases)
@@ -58,7 +59,11 @@ pub(super) trait Reporter {
         })
       }
     } else {
-      let result = Color::Green.paint("ok");
+      let result = if self.color().should_use_color() {
+        Color::Green.paint("ok").to_string()
+      } else {
+        "ok".to_string()
+      };
       Ok(TestResult::Success {
         message: format!("test result: {result}. {message}"),
       })
@@ -93,13 +98,22 @@ pub(super) trait Reporter {
 
   fn report_case_summary(&mut self, case_id: &str, summary: &[CaseStatus]) -> Result<()> {
     let passed = summary.iter().all(CaseStatus::is_pass);
-    let style = Style::new().fg(Color::White).bold();
-    let case_status = if summary.is_empty() {
-      style.on(Color::Yellow).paint("SKIP")
+    let use_color = self.color().should_use_color();
+    let case_status = if use_color {
+      let style = Style::new().fg(Color::White).bold();
+      if summary.is_empty() {
+        style.on(Color::Yellow).paint("SKIP").to_string()
+      } else if passed {
+        style.on(Color::Green).paint("PASS").to_string()
+      } else {
+        style.on(Color::Red).paint("FAIL").to_string()
+      }
+    } else if summary.is_empty() {
+      "SKIP".to_string()
     } else if passed {
-      style.on(Color::Green).paint("PASS")
+      "PASS".to_string()
     } else {
-      style.on(Color::Red).paint("FAIL")
+      "FAIL".to_string()
     };
     let summary = report_summary(summary);
     writeln!(self.get_output(), "{case_status} {case_id}  {summary}")?;
@@ -181,20 +195,32 @@ fn report_case_detail_impl<W: Write>(
   output: &mut W,
   case_id: &str,
   result: &CaseStatus,
+  color: ColorArg,
 ) -> Result<bool> {
-  let case_id = Style::new().bold().paint(case_id);
-  let noisy = Style::new().underline().paint("Noisy");
-  let missing = Style::new().underline().paint("Missing");
-  let wrong = Style::new().underline().paint("Wrong");
-  let error = Style::new().underline().paint("Error");
-  let update = Style::new().underline().paint("Updated");
-  let styles = DiffStyles::from(ColorArg::Auto);
+  let use_color = color.should_use_color();
+  let style = |s: fn(&Style) -> Style| {
+    if use_color {
+      s(&Style::new())
+    } else {
+      Style::default()
+    }
+  };
+  let case_id = style(Style::bold).paint(case_id);
+  let noisy_label = style(Style::underline).paint("Noisy");
+  let missing_label = style(Style::underline).paint("Missing");
+  let wrong_label = style(Style::underline).paint("Wrong");
+  let error_label = style(Style::underline).paint("Error");
+  let updated_label = style(Style::underline).paint("Updated");
+  let diff_label = style(Style::italic).paint("Diff:");
+  let snapshot_label = style(Style::italic).paint("Generated Snapshot:");
+  let for_code_label = style(Style::italic).paint("For Code:");
+  let styles = DiffStyles::from(color);
   match result {
     CaseStatus::Validated | CaseStatus::Reported => (),
     CaseStatus::Updated { source, .. } => {
       writeln!(
         output,
-        "[{update}] Rule {case_id}'s snapshot baseline has been updated."
+        "[{updated_label}] Rule {case_id}'s snapshot baseline has been updated."
       )?;
       writeln!(output)?;
       indented_write(output, source)?;
@@ -208,31 +234,26 @@ fn report_case_detail_impl<W: Write>(
       if let Some(expected) = expected {
         writeln!(
           output,
-          "[{wrong}] {case_id} snapshot is different from baseline."
+          "[{wrong_label}] {case_id} snapshot is different from baseline."
         )?;
         let actual_str = to_string(&actual)?;
         let expected_str = to_string(&expected)?;
-        writeln!(output, "{}", Style::new().italic().paint("Diff:"))?;
+        writeln!(output, "{diff_label}")?;
         styles.print_diff(&expected_str, &actual_str, output, 3)?;
       } else {
-        writeln!(output, "[{wrong}] No {case_id} baseline found.")?;
+        writeln!(output, "[{wrong_label}] No {case_id} baseline found.")?;
         // TODO: add to print_styles
-        writeln!(
-          output,
-          "{}",
-          Style::new().italic().paint("Generated Snapshot:")
-        )?;
+        writeln!(output, "{snapshot_label}")?;
         indented_write(output, &to_string(&actual)?)?;
       }
-      // TODO: add to print_styles
-      writeln!(output, "{}", Style::new().italic().paint("For Code:"))?;
+      writeln!(output, "{for_code_label}")?;
       indented_write(output, source)?;
       writeln!(output)?;
     }
     CaseStatus::Missing(s) => {
       writeln!(
         output,
-        "[{missing}] Expect rule {case_id} to report issues, but none found in:"
+        "[{missing_label}] Expect rule {case_id} to report issues, but none found in:"
       )?;
       writeln!(output)?;
       indented_write(output, s)?;
@@ -241,14 +262,14 @@ fn report_case_detail_impl<W: Write>(
     CaseStatus::Noisy(s) => {
       writeln!(
         output,
-        "[{noisy}] Expect {case_id} to report no issue, but some issues found in:"
+        "[{noisy_label}] Expect {case_id} to report no issue, but some issues found in:"
       )?;
       writeln!(output)?;
       indented_write(output, s)?;
       writeln!(output)?;
     }
     CaseStatus::Error => {
-      writeln!(output, "[{error}] Fail to apply fix to {case_id}")?;
+      writeln!(output, "[{error_label}] Fail to apply fix to {case_id}")?;
     }
   }
   // continue
@@ -259,6 +280,7 @@ pub struct DefaultReporter<Output: Write> {
   // TODO: visibility
   pub output: Output,
   pub update_all: bool,
+  pub color: ColorArg,
 }
 
 impl<O: Write> Reporter for DefaultReporter<O> {
@@ -267,11 +289,15 @@ impl<O: Write> Reporter for DefaultReporter<O> {
   fn get_output(&mut self) -> &mut Self::Output {
     &mut self.output
   }
+  fn color(&self) -> ColorArg {
+    self.color
+  }
   fn report_case_detail(&mut self, case_id: &str, result: &mut CaseStatus) -> Result<bool> {
     if self.update_all {
       result.accept();
     }
-    report_case_detail_impl(self.get_output(), case_id, result)
+    let color = self.color;
+    report_case_detail_impl(self.get_output(), case_id, result, color)
   }
   fn collect_snapshot_action(&self) -> SnapshotAction {
     if self.update_all {
@@ -285,6 +311,7 @@ impl<O: Write> Reporter for DefaultReporter<O> {
 pub struct InteractiveReporter<Output: Write> {
   pub output: Output,
   pub should_accept_all: bool,
+  pub color: ColorArg,
 }
 
 const PROMPT: &str = "Accept new snapshot? (Yes[y], No[n], Accept All[a], Quit[q])";
@@ -295,6 +322,10 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
     &mut self.output
   }
 
+  fn color(&self) -> ColorArg {
+    self.color
+  }
+
   fn collect_snapshot_action(&self) -> SnapshotAction {
     SnapshotAction::NeedUpdate
   }
@@ -303,8 +334,9 @@ impl<O: Write> Reporter for InteractiveReporter<O> {
     if matches!(status, CaseStatus::Validated | CaseStatus::Reported) {
       return Ok(true);
     }
+    let color = self.color;
     run_in_alternate_screen(|| {
-      report_case_detail_impl(self.get_output(), case_id, status)?;
+      report_case_detail_impl(self.get_output(), case_id, status, color)?;
       if !matches!(status, CaseStatus::Wrong { .. }) {
         let response = prompt("Next[enter], Quit[q]", "q", Some('\n'))?;
         return Ok(response != 'q');
@@ -366,6 +398,7 @@ mod test {
     let mut reporter = DefaultReporter {
       output,
       update_all: false,
+      color: ColorArg::Never,
     };
     reporter.report_case_summary(TEST_RULE, &mock_case_status())?;
     let s = String::from_utf8(reporter.output)?;
@@ -379,6 +412,7 @@ mod test {
     let mut reporter = DefaultReporter {
       output,
       update_all: false,
+      color: ColorArg::Never,
     };
     use std::iter::repeat_with;
     let cases: Vec<_> = repeat_with(mock_case_status).flatten().take(50).collect();
@@ -395,6 +429,7 @@ mod test {
     let mut reporter = DefaultReporter {
       output,
       update_all: false,
+      color: ColorArg::Never,
     };
     reporter.report_case_detail(TEST_RULE, &mut CaseStatus::Reported)?;
     reporter.report_case_detail(TEST_RULE, &mut CaseStatus::Validated)?;
@@ -409,6 +444,7 @@ mod test {
     let mut reporter = DefaultReporter {
       output,
       update_all: false,
+      color: ColorArg::Never,
     };
     reporter.report_case_detail(TEST_RULE, &mut CaseStatus::Missing(MOCK))?;
     reporter.report_case_detail(TEST_RULE, &mut CaseStatus::Noisy(MOCK))?;
@@ -428,6 +464,7 @@ mod test {
     let mut reporter = DefaultReporter {
       output,
       update_all: false,
+      color: ColorArg::Never,
     };
 
     let results = vec![CaseResult {
@@ -466,6 +503,7 @@ mod test {
     let mut reporter = DefaultReporter {
       output,
       update_all: false,
+      color: ColorArg::Never,
     };
 
     let results = vec![CaseResult {
@@ -494,6 +532,7 @@ mod test {
     let mut reporter = DefaultReporter {
       output,
       update_all: false,
+      color: ColorArg::Never,
     };
 
     let results = vec![CaseResult {
