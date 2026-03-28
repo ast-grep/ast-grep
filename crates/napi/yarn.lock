@@ -323,10 +323,10 @@
     semver "^7.5.3"
     tar "^7.4.0"
 
-"@napi-rs/cli@3.5.1":
-  version "3.5.1"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-3.5.1.tgz#bd9a4775a4684ec54291606d220f498152258d6e"
-  integrity sha512-XBfLQRDcB3qhu6bazdMJsecWW55kR85l5/k0af9BIBELXQSsCFU0fzug7PX8eQp6vVdm7W/U3z6uP5WmITB2Gw==
+"@napi-rs/cli@3.6.0":
+  version "3.6.0"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-3.6.0.tgz#7912bd7758778bd3c51a3c58ded273370175faa7"
+  integrity sha512-aA8m4+9XxnK1+0sr4GplZP0Ze90gkzO8sMKaplOK0zXbLnzsLl6O2BQQt6rTCcTRzIN24wrrByakr/imM+CxhA==
   dependencies:
     "@inquirer/prompts" "^8.0.0"
     "@napi-rs/cross-toolchain" "^1.0.3"
@@ -334,7 +334,7 @@
     "@octokit/rest" "^22.0.1"
     clipanion "^4.0.0-rc.4"
     colorette "^2.0.20"
-    emnapi "^1.7.1"
+    emnapi "^1.9.1"
     es-toolkit "^1.41.0"
     js-yaml "^4.1.0"
     obug "^2.0.0"
@@ -1304,10 +1304,10 @@ emittery@^1.2.0:
   resolved "https://registry.yarnpkg.com/emittery/-/emittery-1.2.0.tgz#466edb32bada8d9b35f779c3ee8c514ac2df8dc0"
   integrity sha512-KxdRyyFcS85pH3dnU8Y5yFUm2YJdaHwcBZWrfG8o89ZY9a13/f9itbN+YG3ELbBo9Pg5zvIozstmuV8bX13q6g==
 
-emnapi@^1.7.1:
-  version "1.7.1"
-  resolved "https://registry.yarnpkg.com/emnapi/-/emnapi-1.7.1.tgz#5cbb09ca201c648417077f2d8825289c106461de"
-  integrity sha512-wlLK2xFq+T+rCBlY6+lPlFVDEyE93b7hSn9dMrfWBIcPf4ArwUvymvvMnN9M5WWuiryYQe9M+UJrkqw4trdyRA==
+emnapi@^1.9.1:
+  version "1.9.1"
+  resolved "https://registry.yarnpkg.com/emnapi/-/emnapi-1.9.1.tgz#458d432ed899447e652879f8ba625ccfe1f242cf"
+  integrity sha512-s4RbfzgbYg9cWBZXJT6LazImJQ5p+F+LyTsCWQJXbGVdPmtCtdlwqd0Oiv3O51KyYV/Hq58xszaQ/l153tK6Uw==
 
 emoji-regex@^10.3.0:
   version "10.3.0"
