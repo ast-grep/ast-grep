@@ -67,21 +67,14 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     if: "startsWith(github.event.ref, 'refs/tags') || inputs.need_release"
     needs:
       - build
     steps:
       - uses: actions/checkout@v6
-      - id: npm_token
-        name: Check npm token
-        run: |
-          if [ -n "${NPM_TOKEN}" ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-          fi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Setup node
         uses: actions/setup-node@v6
         with:
@@ -89,6 +82,7 @@ jobs:
           check-latest: true
           cache: yarn
           cache-dependency-path: ./crates/wasm/yarn.lock
+          registry-url: https://registry.npmjs.org
       - name: Cache NPM dependencies
         uses: actions/cache@v5
         with:
@@ -104,20 +98,15 @@ jobs:
           name: wasm-pkg
           path: crates/wasm/pkg
       - name: Publish
-        if: steps.npm_token.outputs.present == 'true'
         working-directory: ./crates/wasm/pkg
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
           TAG_NAME="${{ github.ref_name }}"
           if echo "$TAG_NAME" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+$"; then
-            npm publish --access public
+            npm publish --access public --provenance
           elif echo "$TAG_NAME" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+"; then
-            npm publish --tag next --access public
+            npm publish --tag next --access public --provenance
           else
             echo "Tag '$TAG_NAME' does not look like a release; skipping publish"
           fi
-      - name: Skip npm publish
-        if: steps.npm_token.outputs.present != 'true'
-        run: echo "NPM_TOKEN is not configured; skipping npm publish."

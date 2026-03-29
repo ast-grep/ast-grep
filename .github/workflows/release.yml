@@ -85,23 +85,18 @@ jobs:
   release-npm:
     runs-on: ubuntu-22.04
     name: Release npm cli
+    permissions:
+      contents: read
+      id-token: write
     if: "startsWith(github.event.ref, 'refs/tags')"
     needs:
       - upload-assets
     steps:
       - uses: actions/checkout@v6
-      - id: npm_token
-        name: Check npm token
-        run: |
-          if [ -n "${NPM_TOKEN}" ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-          fi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Setup node
         uses: actions/setup-node@v6
+        with:
+          registry-url: https://registry.npmjs.org
       - name: Download artifacts
         uses: robinraju/release-downloader@v1.12
         with:
@@ -125,29 +120,19 @@ jobs:
           do
             unzip "artifacts/app-${files[$i]}.zip" -d "npm/platforms/${target_dir[$i]}/"
           done
-      - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
-        if: steps.npm_token.outputs.present == 'true'
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish to npm
-        if: steps.npm_token.outputs.present == 'true'
-        # npm publish may fail if the token requires interactive OTP.
-        # Use an automation-scoped token (no 2FA) to enable unattended publish,
-        # or publish manually with: cd npm && npm publish --otp=<code>
-        continue-on-error: true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cd npm
           for pkg in platforms/*; do
             echo "Publishing $pkg..."
             cd $pkg;
-            npm publish --access public || echo "::warning::Failed to publish $pkg (OTP or auth issue)"
+            npm publish --access public --provenance;
             cd ../..;
           done
           echo "Publishing @bramburn/ast-grep-dart...";
-          npm publish --access public || echo "::warning::Failed to publish root package (OTP or auth issue)"
-      - name: Skip npm publish
-        if: steps.npm_token.outputs.present != 'true'
-        run: echo "NPM_TOKEN is not configured; skipping npm publish."
+          npm publish --access public --provenance
   changelog:
     if: "startsWith(github.event.ref, 'refs/tags')"
     runs-on: ubuntu-22.04

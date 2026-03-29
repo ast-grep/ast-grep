@@ -117,21 +117,14 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      id-token: write
     if: "startsWith(github.event.ref, 'refs/tags')"
     needs:
       - build
     steps:
       - uses: actions/checkout@v6
-      - id: npm_token
-        name: Check npm token
-        run: |
-          if [ -n "${NPM_TOKEN}" ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-          fi
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Setup node
         uses: actions/setup-node@v6
         with:
@@ -139,6 +132,7 @@ jobs:
           check-latest: true
           cache: yarn
           cache-dependency-path: ./crates/napi/yarn.lock
+          registry-url: https://registry.npmjs.org
       - name: Cache NPM dependencies
         uses: actions/cache@v5
         with:
@@ -152,23 +146,18 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: crates/napi/artifacts
+      - name: Move artifacts
+        run: yarn artifacts
       - name: Generate Types
         run: |-
           yarn typegen
-      - name: Move artifacts
-        run: yarn artifacts
       - name: List packages
         run: ls -R ./npm
         shell: bash
       - name: Publish
-        if: steps.npm_token.outputs.present == 'true'
-        # npm publish may fail if the token requires interactive OTP.
-        # Use an automation-scoped token (no 2FA) to enable unattended publish.
-        continue-on-error: true
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
           TAG_NAME="${{ github.ref_name }}"
           if echo "$TAG_NAME" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+$"; then
             NPM_TAG="latest"
@@ -182,11 +171,8 @@ jobs:
           for pkg in npm/*/; do
             echo "Publishing $pkg..."
             cd "$pkg"
-            npm publish --access public --tag "$NPM_TAG" || echo "::warning::Failed to publish $pkg"
+            npm publish --access public --tag "$NPM_TAG" --provenance
             cd ../..
           done
           echo "Publishing root @bramburn/ast-grep-dart-napi..."
-          npm publish --access public --tag "$NPM_TAG" || echo "::warning::npm publish failed for root package"
-      - name: Skip npm publish
-        if: steps.npm_token.outputs.present != 'true'
-        run: echo "NPM_TOKEN is not configured; skipping npm publish."
+          npm publish --access public --tag "$NPM_TAG" --provenance
