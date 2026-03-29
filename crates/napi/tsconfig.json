@@ -4,8 +4,7 @@
     "strict": true,
     /* smol toml insists it only supports Node>20 */
     "lib": ["ES2022.error"],
-    "moduleResolution": "node",
-    "module": "CommonJS",
+    "module": "nodenext",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "esModuleInterop": true,
