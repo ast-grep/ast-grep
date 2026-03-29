@@ -11,15 +11,28 @@ on:
       - "[0-9]+.*"
 jobs:
   push_crates_io:
-    # Optional: only publish Rust crates when a registry token is configured.
-    if: "startsWith(github.event.ref, 'refs/tags') && secrets.CARGO_REGISTRY_TOKEN != ''"
+    if: "startsWith(github.event.ref, 'refs/tags')"
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v6
+      - id: cargo_token
+        name: Check crates.io token
+        run: |
+          if [ -n "${CARGO_REGISTRY_TOKEN}" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - uses: katyo/publish-crates@v2
+        if: steps.cargo_token.outputs.present == 'true'
         with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           publish-delay: 5000
+      - name: Skip crates.io publish
+        if: steps.cargo_token.outputs.present != 'true'
+        run: echo "CARGO_REGISTRY_TOKEN is not configured; skipping crates.io publish."
 
   create-release:
     # If you don't set an input tag, it's a dry run (no uploads).
@@ -71,11 +84,21 @@ jobs:
   release-npm:
     runs-on: ubuntu-22.04
     name: Release npm cli
-    if: "startsWith(github.event.ref, 'refs/tags') && secrets.NPM_TOKEN != ''"
+    if: "startsWith(github.event.ref, 'refs/tags')"
     needs:
       - upload-assets
     steps:
       - uses: actions/checkout@v6
+      - id: npm_token
+        name: Check npm token
+        run: |
+          if [ -n "${NPM_TOKEN}" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Setup node
         uses: actions/setup-node@v6
       - name: Download artifacts
@@ -102,9 +125,11 @@ jobs:
             unzip "artifacts/app-${files[$i]}.zip" -d "npm/platforms/${target_dir[$i]}/"
           done
       - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ~/.npmrc
+        if: steps.npm_token.outputs.present == 'true'
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish to npm
+        if: steps.npm_token.outputs.present == 'true'
         run: |
           cd npm
           for pkg in platforms/*; do
@@ -115,6 +140,9 @@ jobs:
           done
           echo "Publishing @bramburn/ast-grep-dart...";
           npm publish
+      - name: Skip npm publish
+        if: steps.npm_token.outputs.present != 'true'
+        run: echo "NPM_TOKEN is not configured; skipping npm publish."
   changelog:
     runs-on: ubuntu-22.04
     steps:
