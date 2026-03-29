@@ -46,6 +46,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   upload-assets:
+    if: "startsWith(github.event.ref, 'refs/tags')"
     strategy:
       matrix:
         include:
@@ -148,6 +149,7 @@ jobs:
         if: steps.npm_token.outputs.present != 'true'
         run: echo "NPM_TOKEN is not configured; skipping npm publish."
   changelog:
+    if: "startsWith(github.event.ref, 'refs/tags')"
     runs-on: ubuntu-22.04
     steps:
       - name: "✏️ Generate release changelog"
