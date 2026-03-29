@@ -1,14 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ES2018",
+    "target": "ES2022",
     "strict": true,
-    /* smol toml insists it only supports Node>20 */
-    "lib": ["ES2022.error"],
     "module": "nodenext",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "types": ["*"]
   },
   "ts-node": {
     "transpileOnly": true
