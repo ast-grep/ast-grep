@@ -45,13 +45,13 @@
     "build": "napi build --no-const-enum --dts ignore.d.ts --platform --release",
     "build:debug": "napi build --no-const-enum --dts ignore.d.ts --platform",
     "prepublishOnly": "napi prepublish -t npm --no-gh-release",
-    "pretest": "ts-node scripts/generateTypes.ts --test-only",
+    "pretest": "tsimp scripts/generateTypes.ts --test-only",
     "test": "tsc --noEmit && ava",
     "version": "napi version",
     "lint": "oxlint && dprint check",
     "format": "dprint fmt",
     "format:check": "dprint check",
-    "typegen": "ts-node scripts/generateTypes.ts"
+    "typegen": "tsimp scripts/generateTypes.ts"
   },
   "devDependencies": {
     "@ast-grep/napi": "0.42.0",
@@ -62,16 +62,16 @@
     "chalk": "5.6.2",
     "dprint": "0.53.1",
     "smol-toml": "^1.3.1",
-    "ts-node": "10.9.2",
+    "tsimp": "2.0.12",
     "typescript": "6.0.2"
   },
   "ava": {
-    "require": [
-      "ts-node/register"
+    "nodeArguments": [
+      "--import=tsimp"
     ],
-    "extensions": [
-      "ts"
-    ],
+    "extensions": {
+      "ts": "module"
+    },
     "timeout": "2m",
     "workerThreads": false,
     "environmentVariables": {
