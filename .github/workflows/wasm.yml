@@ -67,7 +67,7 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
-    if: "startsWith(github.event.ref, 'refs/tags') || inputs.need_release"
+    if: "(startsWith(github.event.ref, 'refs/tags') || inputs.need_release) && secrets.NPM_TOKEN != ''"
     needs:
       - build
     steps:

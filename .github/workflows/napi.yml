@@ -112,6 +112,7 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-22.04
+    if: "startsWith(github.event.ref, 'refs/tags') && secrets.NPM_TOKEN != ''"
     needs:
       - build
     steps:

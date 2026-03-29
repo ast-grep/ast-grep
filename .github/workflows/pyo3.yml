@@ -147,7 +147,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: "startsWith(github.event.ref, 'refs/tags') || inputs.need_release"
+    if: "inputs.need_release == true"
     permissions:
       # For pypi trusted publishing
       id-token: write

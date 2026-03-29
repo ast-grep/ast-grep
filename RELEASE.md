@@ -18,8 +18,8 @@ Configure these in **Settings → Secrets and variables → Actions**:
 
 | Secret | Used by | How to get |
 |--------|---------|------------|
-| `NPM_TOKEN` | `release.yml`, `napi.yml`, `wasm.yml` | npm → Access Tokens → Generate (Automation type). The `@bramburn` scope must exist on npmjs.com. |
-| `CARGO_REGISTRY_TOKEN` | `release.yml` | crates.io → API Tokens → New Token. Only needed if publishing Rust crates. |
+| `NPM_TOKEN` | `release.yml`, `napi.yml`, `wasm.yml` | npm → Access Tokens → Generate (Automation type). This token must belong to the `bramburn` npm account so it can publish the `@bramburn/*` packages. |
+| `CARGO_REGISTRY_TOKEN` | `release.yml` | crates.io → API Tokens → New Token. Optional — the crates.io publish job is skipped if this is not set. |
 | `CODECOV_TOKEN` | `coverage.yaml` | codecov.io → Settings → Repository Upload Token. Optional — CI won't fail without it. |
 
 ### Secrets you do NOT need to create
@@ -27,11 +27,11 @@ Configure these in **Settings → Secrets and variables → Actions**:
 | Secret | Notes |
 |--------|-------|
 | `GITHUB_TOKEN` | Automatically provided by GitHub Actions |
-| PyPI credentials | Uses OIDC trusted publishing (no secret needed — configure at pypi.org → Publishing → Add publisher for `bramburn/ast-grep`) |
+| PyPI credentials | Uses OIDC trusted publishing (no secret needed — configure at pypi.org → Publishing → Add publisher for `bramburn/ast-grep`) if and when you decide to enable Python publishing manually. |
 
 ## Pre-publish Checklist
 
-1. **Create npm scope**: Log in to [npmjs.com](https://npmjs.com) and create the `@bramburn` org/scope if it doesn't exist.
+1. **Confirm npm access**: The `@bramburn` user scope is tied to your npm account, so no separate org is required. Just make sure the `bramburn` account can publish scoped public packages.
 2. **Add NPM_TOKEN secret**: Generate an Automation-type token on npm and add it to GitHub repo secrets.
 3. **Configure PyPI trusted publishing**: On [pypi.org](https://pypi.org/manage/account/publishing/), add a pending publisher for `ast-grep-dart-cli` with:
    - Owner: `bramburn`
@@ -43,18 +43,18 @@ Configure these in **Settings → Secrets and variables → Actions**:
 
 ## How to Release v0.0.1
 
-1. Ensure all secrets above are configured.
+1. For an npm-first release, only `NPM_TOKEN` is required. `CARGO_REGISTRY_TOKEN`, PyPI trusted publishing, and `CODECOV_TOKEN` are optional.
 2. Tag and push:
    ```bash
    git tag 0.0.1
    git push origin 0.0.1
    ```
 3. This triggers the following workflows automatically:
-   - `release.yml` — builds binaries, creates GitHub release, publishes CLI to npm and crates.io
-   - `napi.yml` — builds NAPI bindings for all platforms, publishes to npm
-   - `wasm.yml` — builds WASM package, publishes to npm
-   - `pypi.yml` — builds Python wheels, publishes to PyPI
-   - `pyo3.yml` — builds Python bindings
+   - `release.yml` — builds binaries, creates a GitHub release, publishes the CLI to npm, and only publishes Rust crates if `CARGO_REGISTRY_TOKEN` is set
+   - `napi.yml` — builds NAPI bindings for all platforms and publishes them to npm if `NPM_TOKEN` is set
+   - `wasm.yml` — builds the WASM package and publishes it to npm if `NPM_TOKEN` is set
+   - `pypi.yml` — builds Python wheels; PyPI upload only runs when manually requested with the release input
+   - `pyo3.yml` — builds Python bindings; PyPI upload only runs when manually requested with the release input
 
 4. Verify published packages:
    ```bash

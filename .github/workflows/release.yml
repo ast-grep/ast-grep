@@ -11,8 +11,8 @@ on:
       - "[0-9]+.*"
 jobs:
   push_crates_io:
-    # If you don't set an input tag, it's a dry run (no uploads).
-    if: "startsWith(github.event.ref, 'refs/tags')"
+    # Optional: only publish Rust crates when a registry token is configured.
+    if: "startsWith(github.event.ref, 'refs/tags') && secrets.CARGO_REGISTRY_TOKEN != ''"
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v6
@@ -71,6 +71,7 @@ jobs:
   release-npm:
     runs-on: ubuntu-22.04
     name: Release npm cli
+    if: "startsWith(github.event.ref, 'refs/tags') && secrets.NPM_TOKEN != ''"
     needs:
       - upload-assets
     steps:
