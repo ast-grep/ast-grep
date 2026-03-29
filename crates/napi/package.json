@@ -55,7 +55,6 @@
     "typegen": "tsimp scripts/generateTypes.ts"
   },
   "devDependencies": {
-    "@bramburn/ast-grep-dart-napi": "0.0.1",
     "@napi-rs/cli": "3.6.0",
     "@types/node": "^24.0.0",
     "oxlint": "1.57.0",
