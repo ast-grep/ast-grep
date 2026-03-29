@@ -22,6 +22,7 @@ mod bash;
 mod cpp;
 mod csharp;
 mod css;
+mod dart;
 mod elixir;
 mod go;
 mod haskell;
@@ -207,6 +208,10 @@ impl_lang_expando!(Cpp, language_cpp, '𐀀');
 impl_lang_expando!(CSharp, language_c_sharp, 'µ');
 // https://www.w3.org/TR/CSS21/grammar.html#scanner
 impl_lang_expando!(Css, language_css, '_');
+// https://dart.dev/guides/language/language-tour#variables
+// Dart identifiers cannot contain $
+// https://github.com/sigmaSd/tree-sitter-dart
+impl_lang_expando!(Dart, language_dart, 'µ');
 // https://github.com/elixir-lang/tree-sitter-elixir/blob/a2861e88a730287a60c11ea9299c033c7d076e30/grammar.js#L245
 impl_lang_expando!(Elixir, language_elixir, 'µ');
 // we can use any Unicode code point categorized as "Letter"
@@ -259,8 +264,9 @@ pub enum SupportLang {
   Cpp,
   CSharp,
   Css,
-  Go,
+  Dart,
   Elixir,
+  Go,
   Haskell,
   Hcl,
   Html,
@@ -286,8 +292,8 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      Bash, C, Cpp, CSharp, Css, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json, Kotlin,
-      Lua, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript, Yaml,
+      Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json,
+      Kotlin, Lua, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript, Yaml,
     ]
   }
 
@@ -373,6 +379,7 @@ impl_aliases! {
   Cpp => &["cc", "c++", "cpp", "cxx"],
   CSharp => &["cs", "csharp"],
   Css => &["css"],
+  Dart => &["dart"],
   Elixir => &["ex", "elixir"],
   Go => &["go", "golang"],
   Haskell => &["hs", "haskell"],
@@ -420,6 +427,7 @@ macro_rules! execute_lang_method {
       S::Cpp => Cpp.$method($($pname,)*),
       S::CSharp => CSharp.$method($($pname,)*),
       S::Css => Css.$method($($pname,)*),
+      S::Dart => Dart.$method($($pname,)*),
       S::Elixir => Elixir.$method($($pname,)*),
       S::Go => Go.$method($($pname,)*),
       S::Haskell => Haskell.$method($($pname,)*),
@@ -492,6 +500,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Cpp => &["cc", "hpp", "cpp", "c++", "hh", "cxx", "cu", "ino"],
     CSharp => &["cs"],
     Css => &["css", "scss"],
+    Dart => &["dart"],
     Elixir => &["ex", "exs"],
     Go => &["go"],
     Haskell => &["hs"],

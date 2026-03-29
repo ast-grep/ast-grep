@@ -37,6 +37,9 @@ pub fn language_c_sharp() -> TSLanguage {
 pub fn language_css() -> TSLanguage {
   conditional_lang!(tree_sitter_css, "tree-sitter-css")
 }
+pub fn language_dart() -> TSLanguage {
+  conditional_lang!(tree_sitter_dart, "tree-sitter-dart")
+}
 pub fn language_elixir() -> TSLanguage {
   conditional_lang!(tree_sitter_elixir, "tree-sitter-elixir")
 }
