@@ -35,11 +35,7 @@ fn test_replace(src: &str, pattern: &str, replacer: &str) -> String {
 #[test]
 fn test_dart_replace() {
   // Test replacing a simple number literal
-  let ret = test_replace(
-    r#"void main() { foo(123); }"#,
-    r#"123"#,
-    r#"456"#,
-  );
+  let ret = test_replace(r#"void main() { foo(123); }"#, r#"123"#, r#"456"#);
   assert!(
     ret.contains("456"),
     "expected replacement to contain '456', got: {}",

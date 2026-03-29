@@ -9,16 +9,16 @@ on:
   push:
     tags:
       - "[0-9]+.*"
-  schedule:
-    # run pypi every day 9 am
-    - cron: '0 9 * * *'
+  # schedule disabled for fork — enable if needed
+  # schedule:
+  #   - cron: '0 9 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  PACKAGE_NAME: ast_grep_cli # note: maturin package name only accepts underscore
+  PACKAGE_NAME: ast_grep_dart_cli # note: maturin package name only accepts underscore
   PYTHON_VERSION: "3.13" # to build abi3 wheels
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10

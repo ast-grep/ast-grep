@@ -1,122 +1,72 @@
-<p align=center>
-  <img src="https://ast-grep.github.io/logo.svg" alt="ast-grep"/>
-</p>
+# ast-grep-dart
 
-<p align="center">
-   <img src="https://github.com/ast-grep/ast-grep/actions/workflows/coverage.yaml/badge.svg" alt="coverage badge"/>
-   <a href="https://app.codecov.io/gh/ast-grep/ast-grep"><img src="https://codecov.io/gh/ast-grep/ast-grep/branch/main/graph/badge.svg?token=37VX8H2EWV"/></a>
-   <a href="https://discord.gg/4YZjf6htSQ" target="_blank"><img alt="Discord" src="https://img.shields.io/discord/1107749847722889217?label=Discord"></a>
-   <a href="https://repology.org/project/ast-grep/versions" target="_blank"><img alt="Repology" src="https://repology.org/badge/tiny-repos/ast-grep.svg"></a>
-   <a href="https://github.com/ast-grep/ast-grep/stargazers"><img src="https://img.shields.io/github/stars/ast-grep/ast-grep?style=social" alt="Badge"></a>   
-   <a href="https://github.com/ast-grep/ast-grep/network/members"><img src="https://img.shields.io/github/forks/ast-grep/ast-grep?style=social" alt="Badge"></a>
-   <a href="https://github.com/sponsors/HerringtonDarkholme"><img alt="GitHub Sponsors" src="https://img.shields.io/github/sponsors/HerringtonDarkholme?style=social"></a>
-   <a href="https://gurubase.io/g/ast-grep"><img alt="Gurubase" src="https://img.shields.io/badge/Gurubase-Ask%20ast--grep%20Guru-006BFF"></a>
-</p>
+A standalone fork of [ast-grep](https://github.com/ast-grep/ast-grep) with first-class **Dart language support**.
 
+> **Note:** This is an independently maintained fork. It is **not** affiliated with or endorsed by the upstream ast-grep project.
 
-## ast-grep(sg)
+## What is ast-grep?
 
-ast-grep(sg) is a CLI tool for code structural search, lint, and rewriting.
+ast-grep is a CLI tool for code structural search, lint, and rewriting based on [abstract syntax trees](https://dev.to/balapriya/abstract-syntax-tree-ast-explained-in-plain-english-1h38). Think of it as `grep`, but matching AST nodes instead of text. You write patterns as ordinary code, and use `$`-prefixed uppercase names (e.g. `$MATCH`) as wildcards.
 
-## Introduction
-ast-grep is an [abstract syntax tree](https://dev.to/balapriya/abstract-syntax-tree-ast-explained-in-plain-english-1h38) based tool to search code by pattern code. Think of it as your old-friend [`grep`](https://en.wikipedia.org/wiki/Grep#:~:text=grep%20is%20a%20command%2Dline,which%20has%20the%20same%20effect.), but matching AST nodes instead of text.
-You can write patterns as if you are writing ordinary code. It will match all code that has the same syntactical structure.
-You can use `$` sign + upper case letters as a [wildcard](https://en.wikipedia.org/wiki/Wildcard_character), e.g. `$MATCH`, to match any single AST node. Think of it as [regular expression dot](https://regexone.com/lesson/wildcards_dot) `.`, except it is not textual.
-
-Try the [online playground](https://ast-grep.github.io/playground.html) for a taste!
-
-## Screenshot
-![demo](https://ast-grep.github.io/image/search-replace.png)
-
-See more screenshots on the [website](https://ast-grep.github.io/).
+This fork adds Dart as a fully supported language alongside the 24+ languages already supported by upstream.
 
 ## Installation
-You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), [pip](https://pypi.org/), [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html),  [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), [homebrew](https://brew.sh/), [scoop](https://scoop.sh/), [mise](https://github.com/jdx/mise) or [MacPorts](https://www.macports.org)!
+
+### npm (recommended)
 
 ```bash
-npm install --global @ast-grep/cli
-pip install ast-grep-cli
-brew install ast-grep
+npm install --global @bramburn/ast-grep-dart
 ```
 
+### From source
 
-<details>
-<summary>Click for more installation methods</summary>
-
-```bash
-cargo install ast-grep --locked
-cargo binstall ast-grep
-
-# install via scoop, thank @brian6932
-scoop install main/ast-grep
-
-# install via MacPorts
-sudo port install ast-grep
-
-# try ast-grep in nix-shell
-nix-shell -p ast-grep
-
-# try ast-grep with mise
-mise use -g ast-grep
-```
-</details>
-
-Or you can build ast-grep from source. You need to install rustup, clone the repository and then
 ```bash
 cargo install --path ./crates/cli --locked
 ```
-[Packages](https://repology.org/project/ast-grep/versions) are available on other platforms too.
 
-
-## Command line usage example
-
-ast-grep has following form.
-```
-ast-grep --pattern 'var code = $PATTERN' --rewrite 'let code = new $PATTERN' --lang ts
-```
-
-### Example
-
-* [Rewrite code in null coalescing operator](https://twitter.com/Hchan_mgn/status/1547061516993699841?s=20&t=ldDoj4U2nq-FRKQkU5GWXA)
+### pip
 
 ```bash
-ast-grep -p '$A && $A()' -l ts -r '$A?.()'
+pip install ast-grep-dart-cli
 ```
 
-* [Rewrite](https://twitter.com/Hchan_mgn/status/1561802312846278657) [Zodios](https://github.com/ecyrbe/zodios#migrate-to-v8)
+## Usage
+
 ```bash
-ast-grep -p 'new Zodios($URL,  $CONF as const,)' -l ts -r 'new Zodios($URL, $CONF)' -i
+# Search for a pattern in Dart files
+ast-grep --pattern 'var $NAME = $VALUE' --lang dart
+
+# Rewrite code
+ast-grep -p 'var $A = $B' -l dart -r 'final $A = $B'
 ```
 
-* [Implement eslint rule using YAML.](https://twitter.com/Hchan_mgn/status/1560108625460355073)
+Try the upstream [online playground](https://ast-grep.github.io/playground.html) for non-Dart languages.
 
+## Feature Highlights
 
-## Sponsor
-![Sponsors](https://raw.githubusercontent.com/HerringtonDarkholme/sponsors/main/sponsorkit/sponsors.svg)
+- **AST-based pattern matching** — patterns look like ordinary code
+- **Dart support** — first-class tree-sitter Dart parsing
+- **jQuery-like API** for AST traversal and manipulation (NAPI)
+- **YAML configuration** for lint rules and code modifications
+- **Fast** — written in Rust, multi-core, tree-sitter powered
+- **25+ languages** including Dart, TypeScript, Python, Go, Rust, and more
 
-If you find ast-grep interesting and useful for your work, please [buy me a coffee](https://github.com/sponsors/HerringtonDarkholme)
-so I can spend more time on the project!
+## Packages
 
-## Feature Highlight
+| Package | Description |
+|---------|-------------|
+| `@bramburn/ast-grep-dart` | CLI binary (npm) |
+| `@bramburn/ast-grep-dart-napi` | Node.js NAPI bindings |
+| `ast-grep-dart-cli` | CLI binary (PyPI) |
 
-ast-grep's core is an algorithm to search and replace code based on abstract syntax tree produced by tree-sitter.
-It can help you to do lightweight static analysis and massive scale code manipulation in an intuitive way.
+## Upstream
 
-Key highlights:
+This fork is based on [ast-grep](https://github.com/ast-grep/ast-grep) by Herrington Darkholme, licensed under the MIT License. See [LICENSE](./LICENSE) for details.
 
-* An intuitive pattern to find and replace AST.
-ast-grep's pattern looks like ordinary code you would write every day (you could say the pattern is isomorphic to code).
+## License
 
-* jQuery like API for AST traversal and manipulation.
+MIT — see [LICENSE](./LICENSE).
 
-* YAML configuration to write new linting rules or code modification.
+## Maintainer
 
-* Written in compiled language, with tree-sitter based parsing and utilizing multiple cores.
-
-* Beautiful command line interface :)
-
-ast-grep's vision is to democratize abstract syntax tree magic and to liberate one from cumbersome AST programming!
-
-* If you are an open-source library author, ast-grep can help your library users adopt breaking changes more easily.
-* if you are a tech lead in your team, ast-grep can help you enforce code best practice tailored to your business need.
-* If you are a security researcher, ast-grep can help you write rules much faster.
+Bhavesh Ramburn ([b@icelabz.co.uk](mailto:b@icelabz.co.uk))

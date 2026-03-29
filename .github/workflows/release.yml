@@ -112,7 +112,7 @@ jobs:
             npm publish;
             cd ../..;
           done
-          echo "Publishing @ast-grep/cli...";
+          echo "Publishing @bramburn/ast-grep-dart...";
           npm publish
   changelog:
     runs-on: ubuntu-22.04

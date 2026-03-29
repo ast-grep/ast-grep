@@ -24,9 +24,9 @@ jobs:
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v6
         with:
-          token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov.info
-          fail_ci_if_error: true
+          fail_ci_if_error: false
   check:
     name: Lint/Format Check
     runs-on: ubuntu-latest

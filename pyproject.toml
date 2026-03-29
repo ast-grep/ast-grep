@@ -3,11 +3,11 @@ requires = ["maturin>=1.1,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "ast-grep-cli"
-version = "0.42.0"
-description = "Structural Search and Rewrite code at large scale using precise AST pattern."
-authors = [{ name = "Herrington Darkholme", email = "2883231+HerringtonDarkholme@users.noreply.github.com" }]
-maintainers = [{ name = "Herrington Darkholme", email = "2883231+HerringtonDarkholme@users.noreply.github.com" }]
+name = "ast-grep-dart-cli"
+version = "0.0.1"
+description = "Dart-enabled ast-grep fork — structural search and rewrite code at large scale using precise AST patterns."
+authors = [{ name = "Bhavesh Ramburn", email = "b@icelabz.co.uk" }]
+maintainers = [{ name = "Bhavesh Ramburn", email = "b@icelabz.co.uk" }]
 readme = "README.md"
 license = { file = "LICENSE" }
 keywords = [
@@ -15,7 +15,8 @@ keywords = [
   "pattern",
   "codemod",
   "structural search",
-  "rewrite"
+  "rewrite",
+  "dart"
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -32,9 +33,9 @@ classifiers = [
 
 
 [project.urls]
-Repository = "https://github.com/ast-grep/ast-grep"
-Documentation = "https://ast-grep.github.io/"
-Changelog = "https://github.com/ast-grep/ast-grep/blob/main/CHANGELOG.md"
+Repository = "https://github.com/bramburn/ast-grep"
+Documentation = "https://github.com/bramburn/ast-grep"
+Changelog = "https://github.com/bramburn/ast-grep/blob/main/CHANGELOG.md"
 
 
 [tool.maturin]

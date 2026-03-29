@@ -1,12 +1,7 @@
-# @ast-grep/cli
+# @bramburn/ast-grep-dart
 
-<p align=center>
-  <img src="https://ast-grep.github.io/logo.svg" alt="ast-grep"/>
-</p>
+A standalone Dart-enabled fork of [ast-grep](https://github.com/ast-grep/ast-grep).
 
-## ast-grep(sg)
+CLI tool for code structural search, lint, and rewriting — with first-class Dart support.
 
-ast-grep(sg) is a CLI tool for code structural search, lint, and rewriting.
-
-Please see [ast-grep's official site](https://ast-grep.github.io/) and [repository](https://github.com/ast-grep/ast-grep)
-for more information.
+See the [repository](https://github.com/bramburn/ast-grep) for full documentation.

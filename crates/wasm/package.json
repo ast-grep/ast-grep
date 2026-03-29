@@ -1,8 +1,8 @@
 {
-  "name": "@ast-grep/wasm",
-  "description": "Search and Rewrite code at large scale using precise AST pattern",
-  "homepage": "https://ast-grep.github.io",
-  "repository": "https://github.com/ast-grep/ast-grep",
+  "name": "@bramburn/ast-grep-dart-wasm",
+  "description": "Dart-enabled ast-grep fork — search and rewrite code at large scale using precise AST patterns",
+  "homepage": "https://github.com/bramburn/ast-grep",
+  "repository": "https://github.com/bramburn/ast-grep",
   "license": "MIT",
   "keywords": [
     "ast",
@@ -10,7 +10,8 @@
     "codemod",
     "search",
     "rewrite",
-    "wasm"
+    "wasm",
+    "dart"
   ],
   "files": [
     "pkg"
@@ -19,7 +20,7 @@
     "build": "wasm-pack build --target web --out-dir pkg",
     "build:nodejs": "wasm-pack build --target nodejs --out-dir pkg",
     "build:bundler": "wasm-pack build --target bundler --out-dir pkg",
-    "build:pkg": "wasm-pack build --scope ast-grep --release --target bundler --out-dir pkg && node scripts/patch-pkg.mjs",
+    "build:pkg": "wasm-pack build --scope bramburn --release --target bundler --out-dir pkg && node scripts/patch-pkg.mjs",
     "test": "NODE_PATH=$PWD/node_modules wasm-pack test --node",
     "test:js": "wasm-pack build --target nodejs --out-dir pkg && ava"
   },

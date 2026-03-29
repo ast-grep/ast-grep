@@ -1,17 +1,18 @@
 {
-  "name": "@ast-grep/napi",
-  "version": "0.42.0",
-  "description": "Search and Rewrite code at large scale using precise AST pattern",
-  "homepage": "https://ast-grep.github.io",
+  "name": "@bramburn/ast-grep-dart-napi",
+  "version": "0.0.1",
+  "description": "Dart-enabled ast-grep fork — search and rewrite code at large scale using precise AST patterns",
+  "homepage": "https://github.com/bramburn/ast-grep",
   "main": "index.js",
-  "repository": "https://github.com/ast-grep/ast-grep",
+  "repository": "https://github.com/bramburn/ast-grep",
   "license": "MIT",
   "keywords": [
     "ast",
     "pattern",
     "codemod",
     "search",
-    "rewrite"
+    "rewrite",
+    "dart"
   ],
   "files": [
     "index.d.ts",
@@ -54,7 +55,7 @@
     "typegen": "tsimp scripts/generateTypes.ts"
   },
   "devDependencies": {
-    "@ast-grep/napi": "0.42.0",
+    "@bramburn/ast-grep-dart-napi": "0.0.1",
     "@napi-rs/cli": "3.6.0",
     "@types/node": "^24.0.0",
     "oxlint": "1.57.0",

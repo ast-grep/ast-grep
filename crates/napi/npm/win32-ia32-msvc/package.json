@@ -1,6 +1,6 @@
 {
-  "name": "@ast-grep/napi-win32-ia32-msvc",
-  "version": "0.42.0",
+  "name": "@bramburn/ast-grep-dart-napi-win32-ia32-msvc",
+  "version": "0.0.1",
   "os": [
     "win32"
   ],
@@ -11,13 +11,14 @@
   "files": [
     "ast-grep-napi.win32-ia32-msvc.node"
   ],
-  "description": "Search and Rewrite code at large scale using precise AST pattern",
+  "description": "Dart-enabled ast-grep fork — search and rewrite code at large scale using precise AST patterns",
   "keywords": [
     "ast",
     "pattern",
     "codemod",
     "search",
-    "rewrite"
+    "rewrite",
+    "dart"
   ],
   "license": "MIT",
   "engines": {
@@ -27,5 +28,5 @@
     "registry": "https://registry.npmjs.org/",
     "access": "public"
   },
-  "repository": "https://github.com/ast-grep/ast-grep"
+  "repository": "https://github.com/bramburn/ast-grep"
 }

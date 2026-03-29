@@ -1,12 +1,12 @@
 {
-  "name": "@ast-grep/cli",
-  "version": "0.42.0",
+  "name": "@bramburn/ast-grep-dart",
+  "version": "0.0.1",
   "publishConfig": {
     "access": "public"
   },
-  "description": "Search and Rewrite code at large scale using precise AST pattern",
-  "homepage": "https://ast-grep.github.io",
-  "repository": "https://github.com/ast-grep/ast-grep",
+  "description": "Dart-enabled ast-grep fork — search and rewrite code at large scale using precise AST patterns",
+  "homepage": "https://github.com/bramburn/ast-grep",
+  "repository": "https://github.com/bramburn/ast-grep",
   "license": "MIT",
   "engines": {
     "node": ">= 12.0.0"
@@ -16,7 +16,8 @@
     "pattern",
     "codemod",
     "search",
-    "rewrite"
+    "rewrite",
+    "dart"
   ],
   "files": [
     "sg",
@@ -30,13 +31,13 @@
     "postinstall": "node postinstall.js"
   },
   "optionalDependencies": {
-    "@ast-grep/cli-win32-arm64-msvc": "0.42.0",
-    "@ast-grep/cli-win32-ia32-msvc": "0.42.0",
-    "@ast-grep/cli-win32-x64-msvc": "0.42.0",
-    "@ast-grep/cli-darwin-arm64": "0.42.0",
-    "@ast-grep/cli-darwin-x64": "0.42.0",
-    "@ast-grep/cli-linux-arm64-gnu": "0.42.0",
-    "@ast-grep/cli-linux-x64-gnu": "0.42.0"
+    "@bramburn/ast-grep-dart-cli-win32-arm64-msvc": "0.0.1",
+    "@bramburn/ast-grep-dart-cli-win32-ia32-msvc": "0.0.1",
+    "@bramburn/ast-grep-dart-cli-win32-x64-msvc": "0.0.1",
+    "@bramburn/ast-grep-dart-cli-darwin-arm64": "0.0.1",
+    "@bramburn/ast-grep-dart-cli-darwin-x64": "0.0.1",
+    "@bramburn/ast-grep-dart-cli-linux-arm64-gnu": "0.0.1",
+    "@bramburn/ast-grep-dart-cli-linux-x64-gnu": "0.0.1"
   },
   "bin": {
     "sg": "sg",

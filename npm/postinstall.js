@@ -20,7 +20,7 @@ let alternative = process.platform === 'win32' ? 'sg.exe' : 'sg';
 
 let pkgPath;
 try {
-  pkgPath = path.dirname(require.resolve(`@ast-grep/cli-${parts.join('-')}/package.json`));
+  pkgPath = path.dirname(require.resolve(`@bramburn/ast-grep-dart-cli-${parts.join('-')}/package.json`));
 } catch (err) {
   pkgPath = path.join(__dirname, '..', 'target', 'release');
   if (!fs.existsSync(path.join(pkgPath, binary))) {
@@ -36,7 +36,7 @@ try {
     fs.copyFileSync(path.join(pkgPath, binary), path.join(__dirname, binary));
     fs.copyFileSync(path.join(pkgPath, binary), path.join(__dirname, alternative));
   } catch (err) {
-    console.error('Failed to move @ast-grep/cli binary into place.');
+    console.error('Failed to move @bramburn/ast-grep-dart binary into place.');
     process.exit(1);
   }
 }

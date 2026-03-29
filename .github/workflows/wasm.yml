@@ -14,9 +14,9 @@ on:
   push:
     tags:
       - "[0-9]+.*"
-  schedule:
-    # run wasm every day 9 am
-    - cron: '0 9 * * *'
+  # schedule disabled for fork — enable if needed
+  # schedule:
+  #   - cron: '0 9 * * *'
 
 jobs:
   build:
