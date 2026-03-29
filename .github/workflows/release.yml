@@ -130,16 +130,20 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish to npm
         if: steps.npm_token.outputs.present == 'true'
+        # npm publish may fail if the token requires interactive OTP.
+        # Use an automation-scoped token (no 2FA) to enable unattended publish,
+        # or publish manually with: cd npm && npm publish --otp=<code>
+        continue-on-error: true
         run: |
           cd npm
           for pkg in platforms/*; do
             echo "Publishing $pkg..."
             cd $pkg;
-            npm publish;
+            npm publish --access public || echo "::warning::Failed to publish $pkg (OTP or auth issue)"
             cd ../..;
           done
           echo "Publishing @bramburn/ast-grep-dart...";
-          npm publish
+          npm publish --access public || echo "::warning::Failed to publish root package (OTP or auth issue)"
       - name: Skip npm publish
         if: steps.npm_token.outputs.present != 'true'
         run: echo "NPM_TOKEN is not configured; skipping npm publish."

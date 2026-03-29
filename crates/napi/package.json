@@ -37,6 +37,17 @@
   "engines": {
     "node": ">= 10"
   },
+  "optionalDependencies": {
+    "@bramburn/ast-grep-dart-napi-win32-x64-msvc": "0.0.1",
+    "@bramburn/ast-grep-dart-napi-win32-ia32-msvc": "0.0.1",
+    "@bramburn/ast-grep-dart-napi-win32-arm64-msvc": "0.0.1",
+    "@bramburn/ast-grep-dart-napi-darwin-x64": "0.0.1",
+    "@bramburn/ast-grep-dart-napi-darwin-arm64": "0.0.1",
+    "@bramburn/ast-grep-dart-napi-linux-x64-gnu": "0.0.1",
+    "@bramburn/ast-grep-dart-napi-linux-x64-musl": "0.0.1",
+    "@bramburn/ast-grep-dart-napi-linux-arm64-gnu": "0.0.1",
+    "@bramburn/ast-grep-dart-napi-linux-arm64-musl": "0.0.1"
+  },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
     "access": "public"

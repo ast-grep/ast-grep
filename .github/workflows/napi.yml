@@ -102,7 +102,13 @@ jobs:
         shell: bash
       - name: Test
         if: ${{ matrix.settings.test }}
-        run: yarn test
+        run: |
+          node_file=$(ls ${APP_NAME}.*.node 2>/dev/null | head -1)
+          if [ -n "$node_file" ]; then
+            export NAPI_RS_NATIVE_LIBRARY_PATH="$(pwd)/$node_file"
+          fi
+          yarn test
+        shell: bash
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
@@ -157,15 +163,18 @@ jobs:
         shell: bash
       - name: Publish
         if: steps.npm_token.outputs.present == 'true'
+        # npm publish may fail if the token requires interactive OTP.
+        # Use an automation-scoped token (no 2FA) to enable unattended publish.
+        continue-on-error: true
         run: |
           if git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+$";
           then
             echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-            npm publish --access public
+            npm publish --access public || echo "::warning::npm publish failed (OTP or auth issue)"
           elif git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+";
           then
             echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-            npm publish --tag next --access public
+            npm publish --tag next --access public || echo "::warning::npm publish failed (OTP or auth issue)"
           else
             echo "Not a release, skipping publish"
           fi
