@@ -105,7 +105,7 @@ jobs:
       - name: Download artifacts
         uses: robinraju/release-downloader@v1.12
         with:
-          latest: true
+          tag: ${{ github.ref_name }}
           fileName: "*.zip"
           out-file-path: artifacts
       - name: Unzip packages

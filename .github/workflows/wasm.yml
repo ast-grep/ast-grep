@@ -106,21 +106,18 @@ jobs:
       - name: Publish
         if: steps.npm_token.outputs.present == 'true'
         working-directory: ./crates/wasm/pkg
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+$";
-          then
-            echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+          TAG_NAME="${{ github.ref_name }}"
+          if echo "$TAG_NAME" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+$"; then
             npm publish --access public
-          elif git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+";
-          then
-            echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+          elif echo "$TAG_NAME" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+"; then
             npm publish --tag next --access public
           else
-            echo "Not a release, skipping publish"
+            echo "Tag '$TAG_NAME' does not look like a release; skipping publish"
           fi
       - name: Skip npm publish
         if: steps.npm_token.outputs.present != 'true'
         run: echo "NPM_TOKEN is not configured; skipping npm publish."
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

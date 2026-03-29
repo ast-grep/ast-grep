@@ -1,5 +1,6 @@
 {
   "name": "@bramburn/ast-grep-dart-wasm",
+  "version": "0.0.1",
   "description": "Dart-enabled ast-grep fork — search and rewrite code at large scale using precise AST patterns",
   "homepage": "https://github.com/bramburn/ast-grep",
   "repository": "https://github.com/bramburn/ast-grep",
