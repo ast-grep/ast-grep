@@ -39,6 +39,11 @@ pub struct Range {
 
 #[napi]
 pub struct SgNode {
+  /// Keeps SgRoot alive for the lifetime of this node.
+  /// Without this, SgRoot can be GC'd while async operations are in-flight,
+  /// causing a SIGSEGV when the native Tree is dropped prematurely.
+  #[napi(skip)]
+  pub owner: Option<Reference<SgRoot>>,
   pub(super) inner: SharedReference<SgRoot, NodeMatch<'static, JsDoc>>,
 }
 
@@ -251,8 +256,8 @@ impl SgNode {
   ) -> Result<Option<SgNode>> {
     if let Some(node) = node {
       let root_ref = reference.inner.clone_owner(env)?;
-      let inner = root_ref.share_with(env, move |_| Ok(node))?;
-      Ok(Some(SgNode { inner }))
+      let inner = root_ref.clone(env)?.share_with(env, move |_| Ok(node))?;
+      Ok(Some(SgNode { owner: Some(root_ref), inner }))
     } else {
       Ok(None)
     }
@@ -283,9 +288,8 @@ impl SgNode {
     };
     for node_match in all_matches {
       let root_ref = reference.inner.clone_owner(env)?;
-      let sg_node = SgNode {
-        inner: root_ref.share_with(env, move |_| Ok(node_match))?,
-      };
+      let inner = root_ref.clone(env)?.share_with(env, move |_| Ok(node_match))?;
+      let sg_node = SgNode { owner: Some(root_ref), inner };
       ret.push(sg_node);
     }
     Ok(ret)
@@ -299,9 +303,8 @@ impl SgNode {
     let mut ret = vec![];
     for node in iter {
       let root_ref = reference.inner.clone_owner(env)?;
-      let sg_node = SgNode {
-        inner: root_ref.share_with(env, move |_| Ok(node))?,
-      };
+      let inner = root_ref.clone(env)?.share_with(env, move |_| Ok(node))?;
+      let sg_node = SgNode { owner: Some(root_ref), inner };
       ret.push(sg_node);
     }
     Ok(ret)
@@ -422,8 +425,8 @@ impl SgRoot {
   /// Returns the root SgNode of the ast-grep instance.
   #[napi]
   pub fn root(&self, root_ref: Reference<SgRoot>, env: Env) -> Result<SgNode> {
-    let inner = root_ref.share_with(env, |root| Ok(root.0.root().into()))?;
-    Ok(SgNode { inner })
+    let inner = root_ref.clone(env)?.share_with(env, |root| Ok(root.0.root().into()))?;
+    Ok(SgNode { owner: Some(root_ref), inner })
   }
   /// Returns the path of the file if it is discovered by ast-grep's `findInFiles`.
   /// Returns `"anonymous"` if the instance is created by `lang.parse(source)`.

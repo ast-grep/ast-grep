@@ -194,6 +194,7 @@ fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<SgNode>> 
   for mut node in nodes {
     let root_ref = reference.clone(env)?;
     let sg_node = SgNode {
+      owner: None,
       inner: root_ref.share_with(env, |root| {
         let r = &root.0;
         node.visit_nodes(|n| unsafe { r.readopt(n) });
