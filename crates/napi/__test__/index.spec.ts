@@ -459,3 +459,23 @@ test('check if a node has another using config', t => {
   t.assert(match!.has({ rule: { pattern: 'const x = 1' } }))
   t.assert(match!.has({ rule: { pattern: 'const y = 2' } }) === false)
 })
+
+// Regression test for https://github.com/ast-grep/ast-grep/issues/2553
+// Many SgNode objects from the same SgRoot should not cause stack overflow
+// during GC finalization.
+test('no stack overflow when GC collects many nodes', t => {
+  // Generate deeply nested code that produces a deep AST
+  let code = '0'
+  for (let i = 0; i < 50000; i++) {
+    code = `(x ? ${code} : 0)`
+  }
+  code = `const result = ${code};`
+
+  // Parse and create many nodes, then discard all references
+  const sg = parse(code)
+  const nodes = sg.root().findAll('$A')
+  t.assert(nodes.length > 100000, `expected many nodes, got ${nodes.length}`)
+  // If the old share_with callback chain were still used, GC would
+  // overflow the stack when finalizing the SgRoot.
+  t.pass()
+})

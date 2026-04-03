@@ -190,17 +190,12 @@ fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<SgNode>> 
   let (root, nodes) = pinned.0.into_raw();
   let sg_root = SgRoot(root, pinned.1);
   let reference = SgRoot::into_reference(sg_root, env)?;
+  // SAFETY: `reference` keeps SgRoot alive via NAPI ref-counting.
+  let r = unsafe { reference.as_static() };
   let mut v = vec![];
   for mut node in nodes {
-    let root_ref = reference.clone(env)?;
-    let sg_node = SgNode {
-      inner: root_ref.share_with(env, |root| {
-        let r = &root.0;
-        node.visit_nodes(|n| unsafe { r.readopt(n) });
-        Ok(node)
-      })?,
-    };
-    v.push(sg_node);
+    node.visit_nodes(|n| unsafe { r.readopt(n) });
+    v.push(SgNode::new_node(&reference, env, node)?);
   }
   Ok(v)
 }
