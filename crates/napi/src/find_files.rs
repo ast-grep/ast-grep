@@ -1,231 +1,152 @@
-use ast_grep_config::RuleCore;
-use ast_grep_core::pinned::{NodeData, PinnedNodeData};
-use ast_grep_core::{AstGrep, NodeMatch};
-use ignore::{WalkBuilder, WalkParallel, WalkState};
-use napi::anyhow::{anyhow, Context, Result as Ret};
-use napi::bindgen_prelude::*;
-use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
-use napi::Task;
-use napi_derive::napi;
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, Ordering};
-
-use crate::doc::{JsDoc, NapiConfig};
-use crate::napi_lang::{build_files, LangOption, NapiLang};
-use crate::sg_node::{SgNode, SgRoot};
-
-pub struct ParseAsync {
-  pub src: String,
-  pub lang: NapiLang,
-}
-
-impl Task for ParseAsync {
-  type Output = SgRoot;
-  type JsValue = SgRoot;
-
-  fn compute(&mut self) -> Result<Self::Output> {
-    let src = std::mem::take(&mut self.src);
-    let doc = JsDoc::try_new(src, self.lang)?;
-    Ok(SgRoot(AstGrep::doc(doc), "anonymous".into()))
-  }
-  fn resolve(&mut self, _env: Env, output: Self::Output) -> Result<Self::JsValue> {
-    Ok(output)
-  }
-}
-
-type Entry = std::result::Result<ignore::DirEntry, ignore::Error>;
-
-pub struct IterateFiles<D> {
-  walk: WalkParallel,
-  lang_option: LangOption,
-  tsfn: D,
-  producer: fn(&D, Entry, &LangOption) -> Ret<bool>,
-}
-
-impl<T: 'static + Send + Sync> Task for IterateFiles<T> {
-  type Output = u32;
-  type JsValue = u32;
-
-  fn compute(&mut self) -> Result<Self::Output> {
-    let tsfn = &self.tsfn;
-    let file_count = AtomicU32::new(0);
-    let producer = self.producer;
-    let walker = std::mem::replace(&mut self.walk, WalkBuilder::new(".").build_parallel());
-    walker.run(|| {
-      let file_count = &file_count;
-      let lang_option = &self.lang_option;
-      Box::new(move |entry| match producer(tsfn, entry, lang_option) {
-        Ok(succeed) => {
-          if succeed {
-            // file is sent to JS thread, increment file count
-            file_count.fetch_add(1, Ordering::AcqRel);
-          }
-          WalkState::Continue
-        }
-        Err(_) => WalkState::Skip,
-      })
-    });
-    Ok(file_count.load(Ordering::Acquire))
-  }
-  fn resolve(&mut self, _env: Env, output: Self::Output) -> Result<Self::JsValue> {
-    Ok(output)
-  }
-}
-
-// See https://github.com/ast-grep/ast-grep/issues/206
-// NodeJS has a 1000 file limitation on sync iteration count.
-// https://github.com/nodejs/node/blob/8ba54e50496a6a5c21d93133df60a9f7cb6c46ce/src/node_api.cc#L336
-// const THREAD_FUNC_QUEUE_SIZE: usize = 1000;
-
-type ParseFiles = IterateFiles<ThreadsafeFunction<SgRoot, ()>>;
-
-#[napi(object)]
-pub struct FileOption {
-  pub paths: Vec<String>,
-  pub language_globs: HashMap<String, Vec<String>>,
-}
-
-#[napi]
-pub fn parse_files(
-  paths: Either<Vec<String>, FileOption>,
-  callback: Function<SgRoot, ()>,
-) -> Result<AsyncTask<ParseFiles>> {
-  let tsfn = callback
-    .build_threadsafe_function()
-    .callee_handled()
-    .build()?;
-  let (paths, globs) = match paths {
-    Either::A(v) => (v, HashMap::new()),
-    Either::B(FileOption {
-      paths,
-      language_globs,
-    }) => (paths, NapiLang::lang_globs(language_globs)),
-  };
-  let walk = build_files(paths, &globs)?;
-  Ok(AsyncTask::new(ParseFiles {
-    walk,
-    tsfn,
-    lang_option: LangOption::infer(&globs),
-    producer: call_sg_root,
-  }))
-}
-
-// returns if the entry is a file and sent to JavaScript queue
-fn call_sg_root(
-  tsfn: &ThreadsafeFunction<SgRoot, ()>,
-  entry: std::result::Result<ignore::DirEntry, ignore::Error>,
-  lang_option: &LangOption,
-) -> Ret<bool> {
-  let entry = entry?;
-  if !entry
-    .file_type()
-    .context("could not use stdin as file")?
-    .is_file()
-  {
-    return Ok(false);
-  }
-  let (root, path) = get_root(entry, lang_option)?;
-  let sg = SgRoot(root, path);
-  tsfn.call(Ok(sg), ThreadsafeFunctionCallMode::Blocking);
-  Ok(true)
-}
-
-fn get_root(entry: ignore::DirEntry, lang_option: &LangOption) -> Ret<(AstGrep<JsDoc>, String)> {
-  let path = entry.into_path();
-  let file_content = std::fs::read_to_string(&path)?;
-  let lang = lang_option
-    .get_lang(&path)
-    .context(anyhow!("file not recognized"))?;
-  let doc = JsDoc::try_new(file_content, lang)?;
-  Ok((AstGrep::doc(doc), path.to_string_lossy().into()))
-}
-
-pub type FindInFiles = IterateFiles<(ThreadsafeFunction<PinnedNodes, (), Vec<SgNode>>, RuleCore)>;
-
-pub struct PinnedNodes(
-  PinnedNodeData<JsDoc, Vec<NodeMatch<'static, JsDoc>>>,
-  String,
-);
-unsafe impl Send for PinnedNodes {}
-unsafe impl Sync for PinnedNodes {}
-
-#[napi(object)]
-pub struct FindConfig {
-  /// specify the file paths to recursively find files
-  pub paths: Vec<String>,
-  /// a Rule object to find what nodes will match
-  pub matcher: NapiConfig,
-  /// An list of pattern globs to treat of certain files in the specified language.
-  /// eg. ['*.vue', '*.svelte'] for html.findFiles, or ['*.ts'] for tsx.findFiles.
-  /// It is slightly different from https://ast-grep.github.io/reference/sgconfig.html#languageglobs
-  pub language_globs: Option<Vec<String>>,
-}
-
-pub fn find_in_files_impl(
-  lang: NapiLang,
-  config: FindConfig,
-  callback: Function<Vec<SgNode>, ()>,
-) -> Result<AsyncTask<FindInFiles>> {
-  let tsfn = callback
-    .build_threadsafe_function()
-    .callee_handled()
-    .build_callback(|ctx| from_pinned_data(ctx.value, ctx.env))?;
-  let FindConfig {
-    paths,
-    matcher,
-    language_globs,
-  } = config;
-  let rule = matcher.parse_with(lang)?;
-  let walk = lang.find_files(paths, language_globs)?;
-  Ok(AsyncTask::new(FindInFiles {
-    walk,
-    tsfn: (tsfn, rule),
-    lang_option: LangOption::Specified(lang),
-    producer: call_sg_node,
-  }))
-}
-
-// TODO: optimize
-fn from_pinned_data(pinned: PinnedNodes, env: napi::Env) -> Result<Vec<SgNode>> {
-  let (root, nodes) = pinned.0.into_raw();
-  let sg_root = SgRoot(root, pinned.1);
-  let reference = SgRoot::into_reference(sg_root, env)?;
-  let mut v = vec![];
-  for mut node in nodes {
-    let root_ref = reference.clone(env)?;
-    let sg_node = SgNode {
-      owner: None,
-      inner: root_ref.share_with(env, |root| {
-        let r = &root.0;
-        node.visit_nodes(|n| unsafe { r.readopt(n) });
-        Ok(node)
-      })?,
-    };
-    v.push(sg_node);
-  }
-  Ok(v)
-}
-
-fn call_sg_node(
-  (tsfn, rule): &(ThreadsafeFunction<PinnedNodes, (), Vec<SgNode>>, RuleCore),
-  entry: std::result::Result<ignore::DirEntry, ignore::Error>,
-  lang_option: &LangOption,
-) -> Ret<bool> {
-  let entry = entry?;
-  if !entry
-    .file_type()
-    .context("could not use stdin as file")?
-    .is_file()
-  {
-    return Ok(false);
-  }
-  let (root, path) = get_root(entry, lang_option)?;
-  let mut pinned = PinnedNodeData::new(root, |r| r.root().find_all(rule).collect());
-  let hits: &Vec<_> = pinned.get_data();
-  if hits.is_empty() {
-    return Ok(false);
-  }
-  let pinned = PinnedNodes(pinned, path);
-  tsfn.call(Ok(pinned), ThreadsafeFunctionCallMode::Blocking);
-  Ok(true)
-}
+dXNlIGFzdF9ncmVwX2NvbmZpZzo6UnVsZUNvcmU7CnVzZSBhc3RfZ3JlcF9j
+b3JlOjpwaW5uZWQ6OntOb2RlRGF0YSwgUGlubmVkTm9kZURhdGF9Owp1c2Ug
+YXN0X2dyZXBfY29yZTo6e0FzdEdyZXAsIE5vZGVNYXRjaH07CnVzZSBpZ25v
+cmU6OntXYWxrQnVpbGRlciwgV2Fsa1BhcmFsbGVsLCBXYWxrU3RhdGV9Owp1
+c2UgbmFwaTo6YW55aG93Ojp7YW55aG93LCBDb250ZXh0LCBSZXN1bHQgYXMg
+UmV0fTsKdXNlIG5hcGk6OmJpbmRnZW5fcHJlbHVkZTo6KjsKdXNlIG5hcGk6
+OnRocmVhZHNhZmVfZnVuY3Rpb246OntUaHJlYWRzYWZlRnVuY3Rpb24sIFRo
+cmVhZHNhZmVGdW5jdGlvbkNhbGxNb2RlfTsKdXNlIG5hcGk6OlRhc2s7CnVz
+ZSBuYXBpX2Rlcml2ZTo6bmFwaTsKdXNlIHN0ZDo6Y29sbGVjdGlvbnM6Okhh
+c2hNYXA7CnVzZSBzdGQ6OnN5bmM6OmF0b21pYzo6e0F0b21pY1UzMiwgT3Jk
+ZXJpbmd9OwoKdXNlIGNyYXRlOjpkb2M6OntKc0RvYywgTmFwaUNvbmZpZ307
+CnVzZSBjcmF0ZTo6bmFwaV9sYW5nOjp7YnVpbGRfZmlsZXMsIExhbmdPcHRp
+b24sIE5hcGlMYW5nfTsKdXNlIGNyYXRlOjpzZ19ub2RlOjp7U2dOb2RlLCBT
+Z1Jvb3R9OwoKcHViIHN0cnVjdCBQYXJzZUFzeW5jIHsKICBwdWIgc3JjOiBT
+dHJpbmcsCiAgcHViIGxhbmc6IE5hcGlMYW5nLAp9CgppbXBsIFRhc2sgZm9y
+IFBhcnNlQXN5bmMgewogIHR5cGUgT3V0cHV0ID0gU2dSb290OwogIHR5cGUg
+SnNWYWx1ZSA9IFNnUm9vdDsKCiAgZm4gY29tcHV0ZSgmbXV0IHNlbGYpIC0+
+IFJlc3VsdDxTZWxmOjpPdXRwdXQ+IHsKICAgIGxldCBzcmMgPSBzdGQ6Om1l
+bTo6dGFrZSgmbXV0IHNlbGYuc3JjKTsKICAgIGxldCBkb2MgPSBKc0RvYzo6
+dHJ5X25ldyhzcmMsIHNlbGYubGFuZyk/OwogICAgT2soU2dSb290KEFzdEdy
+ZXA6OmRvYyhkb2MpLCAiYW5vbnltb3VzIi5pbnRvKCkpKQogIH0KICBmbiBy
+ZXNvbHZlKCZtdXQgc2VsZiwgX2VudjogRW52LCBvdXRwdXQ6IFNlbGY6Ok91
+dHB1dCkgLT4gUmVzdWx0PFNlbGY6OkpzVmFsdWU+IHsKICAgIE9rKG91dHB1
+dCkKICB9Cn0KCnR5cGUgRW50cnkgPSBzdGQ6OnJlc3VsdDo6UmVzdWx0PGln
+bm9yZTo6RGlyRW50cnksIGlnbm9yZTo6RXJyb3I+OwoKcHViIHN0cnVjdCBJ
+dGVyYXRlRmlsZXM8RD4gewogIHdhbGs6IFdhbGtQYXJhbGxlbCwKICBsYW5n
+X29wdGlvbjogTGFuZ09wdGlvbiwKICB0c2ZuOiBELAogIHByb2R1Y2VyOiBm
+bigmRCwgRW50cnksICZMYW5nT3B0aW9uKSAtPiBSZXQ8Ym9vbD4sCn0KCmlt
+cGw8VDogJ3N0YXRpYyArIFNlbmQgKyBTeW5jPiBUYXNrIGZvciBJdGVyYXRl
+RmlsZXM8VD4gewogIHR5cGUgT3V0cHV0ID0gdTMyOwogIHR5cGUgSnNWYWx1
+ZSA9IHUzMjsKCiAgZm4gY29tcHV0ZSgmbXV0IHNlbGYpIC0+IFJlc3VsdDxT
+ZWxmOjpPdXRwdXQ+IHsKICAgIGxldCB0c2ZuID0gJnNlbGYudHNmbjsKICAg
+IGxldCBmaWxlX2NvdW50ID0gQXRvbWljVTMyOjpuZXcoMCk7CiAgICBsZXQg
+cHJvZHVjZXIgPSBzZWxmLnByb2R1Y2VyOwogICAgbGV0IHdhbGtlciA9IHN0
+ZDo6bWVtOjpyZXBsYWNlKCZtdXQgc2VsZi53YWxrLCBXYWxrQnVpbGRlcjo6
+bmV3KCIuIikuYnVpbGRfcGFyYWxsZWwoKSk7CiAgICB3YWxrZXIucnVuKHx8
+IHsKICAgICAgbGV0IGZpbGVfY291bnQgPSAmZmlsZV9jb3VudDsKICAgICAg
+bGV0IGxhbmdfb3B0aW9uID0gJnNlbGYubGFuZ19vcHRpb247CiAgICAgIEJv
+eDo6bmV3KG1vdmUgfGVudHJ5fCBtYXRjaCBwcm9kdWNlcih0c2ZuLCBlbnRy
+eSwgbGFuZ19vcHRpb24pIHsKICAgICAgICBPayhzdWNjZWVkKSA9PiB7CiAg
+ICAgICAgICBpZiBzdWNjZWVkIHsKICAgICAgICAgICAgLy8gZmlsZSBpcyBz
+ZW50IHRvIEpTIHRocmVhZCwgaW5jcmVtZW50IGZpbGUgY291bnQKICAgICAg
+ICAgICAgZmlsZV9jb3VudC5mZXRjaF9hZGQoMSwgT3JkZXJpbmc6OkFjcVJl
+bCk7CiAgICAgICAgICB9CiAgICAgICAgICBXYWxrU3RhdGU6OkNvbnRpbnVl
+CiAgICAgICAgfQogICAgICAgIEVycihfKSA9PiBXYWxrU3RhdGU6OlNraXAs
+CiAgICAgIH0pCiAgICB9KTsKICAgIE9rKGZpbGVfY291bnQubG9hZChPcmRl
+cmluZzo6QWNxdWlyZSkpCiAgfQogIGZuIHJlc29sdmUoJm11dCBzZWxmLCBf
+ZW52OiBFbnYsIG91dHB1dDogU2VsZjo6T3V0cHV0KSAtPiBSZXN1bHQ8U2Vs
+Zjo6SnNWYWx1ZT4gewogICAgT2sob3V0cHV0KQogIH0KfQoKLy8gU2VlIGh0
+dHBzOi8vZ2l0aHViLmNvbS9hc3QtZ3JlcC9hc3QtZ3JlcC9pc3N1ZXMvMjA2
+Ci8vIE5vZGVKUyBoYXMgYSAxMDAwIGZpbGUgbGltaXRhdGlvbiBvbiBzeW5j
+IGl0ZXJhdGlvbiBjb3VudC4KLy8gaHR0cHM6Ly9naXRodWIuY29tL25vZGVq
+cy9ub2RlL2Jsb2IvOGJhNTRlNTA0OTZhNmE1YzIxZDkzMTMzZGY2MGE5Zjdj
+YjZjNDZjZS9zcmMvbm9kZV9hcGkuY2MjTDMzNgovLyBjb25zdCBUSFJFQURf
+RlVOQ19RVUVVRV9TSVpFOiB1c2l6ZSA9IDEwMDA7Cgp0eXBlIFBhcnNlRmls
+ZXMgPSBJdGVyYXRlRmlsZXM8VGhyZWFkc2FmZUZ1bmN0aW9uPFNnUm9vdCwg
+KCk+PjsKCiNbbmFwaShvYmplY3QpXQpwdWIgc3RydWN0IEZpbGVPcHRpb24g
+ewogIHB1YiBwYXRoczogVmVjPFN0cmluZz4sCiAgcHViIGxhbmd1YWdlX2ds
+b2JzOiBIYXNoTWFwPFN0cmluZywgVmVjPFN0cmluZz4+LAp9CgojW25hcGld
+CnB1YiBmbiBwYXJzZV9maWxlcygKICBwYXRoczogRWl0aGVyPFZlYzxTdHJp
+bmc+LCBGaWxlT3B0aW9uPiwKICBjYWxsYmFjazogRnVuY3Rpb248U2dSb290
+LCAoKT4sCikgLT4gUmVzdWx0PEFzeW5jVGFzazxQYXJzZUZpbGVzPj4gewog
+IGxldCB0c2ZuID0gY2FsbGJhY2sKICAgIC5idWlsZF90aHJlYWRzYWZlX2Z1
+bmN0aW9uKCkKICAgIC5jYWxsZWVfaGFuZGxlZCgpCiAgICAuYnVpbGQoKT87
+CiAgbGV0IChwYXRocywgZ2xvYnMpID0gbWF0Y2ggcGF0aHMgewogICAgRWl0
+aGVyOjpBKHYpID0+ICh2LCBIYXNoTWFwOjpuZXcoKSksCiAgICBFaXRoZXI6
+OkIoRmlsZU9wdGlvbiB7CiAgICAgIHBhdGhzLAogICAgICBsYW5ndWFnZV9n
+bG9icywKICAgIH0pID0+IChwYXRocywgTmFwaUxhbmc6OmxhbmdfZ2xvYnMo
+bGFuZ3VhZ2VfZ2xvYnMpKSwKICB9OwogIGxldCB3YWxrID0gYnVpbGRfZmls
+ZXMocGF0aHMsICZnbG9icyk/OwogIE9rKEFzeW5jVGFzazo6bmV3KFBhcnNl
+RmlsZXMgewogICAgd2FsaywKICAgIHRzZm4sCiAgICBsYW5nX29wdGlvbjog
+TGFuZ09wdGlvbjo6aW5mZXIoJmdsb2JzKSwKICAgIHByb2R1Y2VyOiBjYWxs
+X3NnX3Jvb3QsCiAgfSkpCn0KCi8vIHJldHVybnMgaWYgdGhlIGVudHJ5IGlz
+IGEgZmlsZSBhbmQgc2VudCB0byBKYXZhU2NyaXB0IHF1ZXVlCmZuIGNhbGxf
+c2dfcm9vdCgKICB0c2ZuOiAmVGhyZWFkc2FmZUZ1bmN0aW9uPFNnUm9vdCwg
+KCk+LAogIGVudHJ5OiBzdGQ6OnJlc3VsdDo6UmVzdWx0PGlnbm9yZTo6RGly
+RW50cnksIGlnbm9yZTo6RXJyb3I+LAogIGxhbmdfb3B0aW9uOiAmTGFuZ09w
+dGlvbiwKKSAtPiBSZXQ8Ym9vbD4gewogIGxldCBlbnRyeSA9IGVudHJ5PzsK
+ICBpZiAhZW50cnkKICAgIC5maWxlX3R5cGUoKQogICAgLmNvbnRleHQoImNv
+dWxkIG5vdCB1c2Ugc3RkaW4gYXMgZmlsZSIpPwogICAgLmlzX2ZpbGUoKQog
+IHsKICAgIHJldHVybiBPayhmYWxzZSk7CiAgfQogIGxldCAocm9vdCwgcGF0
+aCkgPSBnZXRfcm9vdChlbnRyeSwgbGFuZ19vcHRpb24pPzsKICBsZXQgc2cg
+PSBTZ1Jvb3Qocm9vdCwgcGF0aCk7CiAgdHNmbi5jYWxsKE9rKHNnKSwgVGhy
+ZWFkc2FmZUZ1bmN0aW9uQ2FsbE1vZGU6OkJsb2NraW5nKTsKICBPayh0cnVl
+KQp9CgpmbiBnZXRfcm9vdChlbnRyeTogaWdub3JlOjpEaXJFbnRyeSwgbGFu
+Z19vcHRpb246ICZMYW5nT3B0aW9uKSAtPiBSZXQ8KEFzdEdyZXA8SnNEb2M+
+LCBTdHJpbmcpPiB7CiAgbGV0IHBhdGggPSBlbnRyeS5pbnRvX3BhdGgoKTsK
+ICBsZXQgZmlsZV9jb250ZW50ID0gc3RkOjpmczo6cmVhZF90b19zdHJpbmco
+JnBhdGgpPzsKICBsZXQgbGFuZyA9IGxhbmdfb3B0aW9uCiAgICAuZ2V0X2xh
+bmcoJnBhdGgpCiAgICAuY29udGV4dChhbnlob3chKCJmaWxlIG5vdCByZWNv
+Z25pemVkIikpPzsKICBsZXQgZG9jID0gSnNEb2M6OnRyeV9uZXcoZmlsZV9j
+b250ZW50LCBsYW5nKT87CiAgT2soKEFzdEdyZXA6OmRvYyhkb2MpLCBwYXRo
+LnRvX3N0cmluZ19sb3NzeSgpLmludG8oKSkpCn0KCnB1YiB0eXBlIEZpbmRJ
+bkZpbGVzID0gSXRlcmF0ZUZpbGVzPChUaHJlYWRzYWZlRnVuY3Rpb248UGlu
+bmVkTm9kZXMsICgpLCBWZWM8U2dOb2RlPj4sIFJ1bGVDb3JlKT47CgpwdWIg
+c3RydWN0IFBpbm5lZE5vZGVzKAogIFBpbm5lZE5vZGVEYXRhPEpzRG9jLCBW
+ZWM8Tm9kZU1hdGNoPCdzdGF0aWMsIEpzRG9jPj4+LAogIFN0cmluZywKKTsK
+dW5zYWZlIGltcGwgU2VuZCBmb3IgUGlubmVkTm9kZXMge30KdW5zYWZlIGlt
+cGwgU3luYyBmb3IgUGlubmVkTm9kZXMge30KCiNbbmFwaShvYmplY3QpXQpw
+dWIgc3RydWN0IEZpbmRDb25maWcgewogIC8vLyBzcGVjaWZ5IHRoZSBmaWxl
+IHBhdGhzIHRvIHJlY3Vyc2l2ZWx5IGZpbmQgZmlsZXMKICBwdWIgcGF0aHM6
+IFZlYzxTdHJpbmc+LAogIC8vLyBhIFJ1bGUgb2JqZWN0IHRvIGZpbmQgd2hh
+dCBub2RlcyB3aWxsIG1hdGNoCiAgcHViIG1hdGNoZXI6IE5hcGlDb25maWcs
+CiAgLy8vIEFuIGxpc3Qgb2YgcGF0dGVybiBnbG9icyB0byB0cmVhdCBvZiBj
+ZXJ0YWluIGZpbGVzIGluIHRoZSBzcGVjaWZpZWQgbGFuZ3VhZ2UuCiAgLy8v
+IGVnLiBbJyoudnVlJywgJyouc3ZlbHRlJ10gZm9yIGh0bWwuZmluZEZpbGVz
+LCBvciBbJyoudHMnXSBmb3IgdHN4LmZpbmRGaWxlcy4KICAvLy8gSXQgaXMg
+c2xpZ2h0bHkgZGlmZmVyZW50IGZyb20gaHR0cHM6Ly9hc3QtZ3JlcC5naXRo
+dWIuaW8vcmVmZXJlbmNlL3NnY29uZmlnLmh0bWwjbGFuZ3VhZ2VnbG9icwog
+IHB1YiBsYW5ndWFnZV9nbG9iczogT3B0aW9uPFZlYzxTdHJpbmc+PiwKfQoK
+cHViIGZuIGZpbmRfaW5fZmlsZXNfaW1wbCgKICBsYW5nOiBOYXBpTGFuZywK
+ICBjb25maWc6IEZpbmRDb25maWcsCiAgY2FsbGJhY2s6IEZ1bmN0aW9uPFZl
+YzxTZ05vZGU+LCAoKT4sCikgLT4gUmVzdWx0PEFzeW5jVGFzazxGaW5kSW5G
+aWxlcz4+IHsKICBsZXQgdHNmbiA9IGNhbGxiYWNrCiAgICAuYnVpbGRfdGhy
+ZWFkc2FmZV9mdW5jdGlvbigpCiAgICAuY2FsbGVlX2hhbmRsZWQoKQogICAg
+LmJ1aWxkX2NhbGxiYWNrKHxjdHh8IGZyb21fcGlubmVkX2RhdGEoY3R4LnZh
+bHVlLCBjdHguZW52KSk/OwogIGxldCBGaW5kQ29uZmlnIHsKICAgIHBhdGhz
+LAogICAgbWF0Y2hlciwKICAgIGxhbmd1YWdlX2dsb2JzLAogIH0gPSBjb25m
+aWc7CiAgbGV0IHJ1bGUgPSBtYXRjaGVyLnBhcnNlX3dpdGgobGFuZyk/Owog
+IGxldCB3YWxrID0gbGFuZy5maW5kX2ZpbGVzKHBhdGhzLCBsYW5ndWFnZV9n
+bG9icyk/OwogIE9rKEFzeW5jVGFzazo6bmV3KEZpbmRJbkZpbGVzIHsKICAg
+IHdhbGssCiAgICB0c2ZuOiAodHNmbiwgcnVsZSksCiAgICBsYW5nX29wdGlv
+bjogTGFuZ09wdGlvbjo6U3BlY2lmaWVkKGxhbmcpLAogICAgcHJvZHVjZXI6
+IGNhbGxfc2dfbm9kZSwKICB9KSkKfQoKLy8gVE9ETzogb3B0aW1pemUKZm4g
+ZnJvbV9waW5uZWRfZGF0YShwaW5uZWQ6IFBpbm5lZE5vZGVzLCBlbnY6IG5h
+cGk6OkVudikgLT4gUmVzdWx0PFZlYzxTZ05vZGU+PiB7CiAgbGV0IChyb290
+LCBub2RlcykgPSBwaW5uZWQuMC5pbnRvX3JhdygpOwogIGxldCBzZ19yb290
+ID0gU2dSb290KHJvb3QsIHBpbm5lZC4xKTsKICBsZXQgcmVmZXJlbmNlID0g
+U2dSb290OjppbnRvX3JlZmVyZW5jZShzZ19yb290LCBlbnYpPzsKICBsZXQg
+bXV0IHYgPSB2ZWMhW107CiAgZm9yIG11dCBub2RlIGluIG5vZGVzIHsKICAg
+IGxldCByb290X3JlZiA9IHJlZmVyZW5jZS5jbG9uZShlbnYpPzsKICAgIGxl
+dCBzZ19ub2RlID0gU2dOb2RlIHsKICAgICAgb3duZXI6IE5vbmUsCiAgICAg
+IGlubmVyOiByb290X3JlZi5zaGFyZV93aXRoKGVudiwgfHJvb3R8IHsKICAg
+ICAgICBsZXQgciA9ICZyb290LjA7CiAgICAgICAgbm9kZS52aXNpdF9ub2Rl
+cyh8bnwgdW5zYWZlIHsgci5yZWFkb3B0KG4pIH0pOwogICAgICAgIE9rKG5v
+ZGUpCiAgICAgIH0pPywKICAgIH07CiAgICB2LnB1c2goc2dfbm9kZSk7CiAg
+fQogIE9rKHYpCn0KCmZuIGNhbGxfc2dfbm9kZSgKICAodHNmbiwgcnVsZSk6
+ICYoVGhyZWFkc2FmZUZ1bmN0aW9uPFBpbm5lZE5vZGVzLCAoKSwgVmVjPFNn
+Tm9kZT4+LCBSdWxlQ29yZSksCiAgZW50cnk6IHN0ZDo6cmVzdWx0OjpSZXN1
+bHQ8aWdub3JlOjpEaXJFbnRyeSwgaWdub3JlOjpFcnJvcj4sCiAgbGFuZ19v
+cHRpb246ICZMYW5nT3B0aW9uLAopIC0+IFJldDxib29sPiB7CiAgbGV0IGVu
+dHJ5ID0gZW50cnk/OwogIGlmICFlbnRyeQogICAgLmZpbGVfdHlwZSgpCiAg
+ICAuY29udGV4dCgiY291bGQgbm90IHVzZSBzdGRpbiBhcyBmaWxlIik/CiAg
+ICAuaXNfZmlsZSgpCiAgewogICAgcmV0dXJuIE9rKGZhbHNlKTsKICB9CiAg
+bGV0IChyb290LCBwYXRoKSA9IGdldF9yb290KGVudHJ5LCBsYW5nX29wdGlv
+bik/OwogIGxldCBtdXQgcGlubmVkID0gUGlubmVkTm9kZURhdGE6Om5ldyhy
+b290LCB8cnwgci5yb290KCkuZmluZF9hbGwocnVsZSkuY29sbGVjdCgpKTsK
+ICBsZXQgaGl0czogJlZlYzxfPiA9IHBpbm5lZC5nZXRfZGF0YSgpOwogIGlm
+IGhpdHMuaXNfZW1wdHkoKSB7CiAgICByZXR1cm4gT2soZmFsc2UpOwogIH0K
+ICBsZXQgcGlubmVkID0gUGlubmVkTm9kZXMocGlubmVkLCBwYXRoKTsKICB0
+c2ZuLmNhbGwoT2socGlubmVkKSwgVGhyZWFkc2FmZUZ1bmN0aW9uQ2FsbE1v
+ZGU6OkJsb2NraW5nKTsKICBPayh0cnVlKQp9Cg==
