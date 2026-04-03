@@ -25,6 +25,7 @@ fn custom_lang(name: &str) -> WasmLangInfo {
   let expando_char = match name {
     "python" | "c" | "cpp" | "csharp" | "elixir" | "go" | "haskell" | "kotlin" | "php" | "ruby"
     | "rust" | "swift" => Some('µ'),
+    "erlang" => Some('à'),
     "css" | "nix" => Some('_'),
     "html" => Some('z'),
     _ => None,
