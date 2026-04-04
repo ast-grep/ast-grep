@@ -2,7 +2,10 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{Context, Result};
-use ast_grep_config::{from_yaml_string, CombinedScan, RuleCollection, RuleConfig, Severity};
+use ast_grep_config::{
+  from_yaml_string, CombinedScan, RuleCollection, RuleConfig, Severity, NO_SUPPRESS_ALL_ID,
+  UNUSED_SUPPRESSION_ID,
+};
 use ast_grep_core::{tree_sitter::StrDoc, NodeMatch};
 use ast_grep_language::SupportLang;
 use clap::Args;
@@ -211,7 +214,7 @@ fn default_unused_suppression_rule_severity(arg: &ScanArg) -> Severity {
 
 fn no_suppress_all_rule_config(overwrite: &RuleOverwrite) -> RuleConfig<SgLang> {
   let severity = overwrite
-    .find("no-suppress-all")
+    .find(NO_SUPPRESS_ALL_ID)
     .severity
     .unwrap_or(Severity::Off);
   CombinedScan::no_suppress_all_config(severity, SupportLang::Rust.into())
@@ -219,7 +222,7 @@ fn no_suppress_all_rule_config(overwrite: &RuleOverwrite) -> RuleConfig<SgLang> 
 
 fn unused_suppression_rule_config(arg: &ScanArg, overwrite: &RuleOverwrite) -> RuleConfig<SgLang> {
   let severity = overwrite
-    .find("unused-suppression")
+    .find(UNUSED_SUPPRESSION_ID)
     .severity
     .unwrap_or_else(|| default_unused_suppression_rule_severity(arg));
   CombinedScan::unused_config(severity, SupportLang::Rust.into())

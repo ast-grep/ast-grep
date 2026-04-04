@@ -14,7 +14,7 @@ use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer, Error
 
 use ast_grep_core::language::Language;
 
-pub use combined::CombinedScan;
+pub use combined::{CombinedScan, NO_SUPPRESS_ALL_ID, UNUSED_SUPPRESSION_ID};
 pub use fixer::Fixer;
 pub use label::{Label, LabelStyle};
 pub use rule::referent_rule::GlobalRules;

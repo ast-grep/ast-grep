@@ -203,6 +203,8 @@ impl MaySuppressed<'_> {
 }
 
 const IGNORE_TEXT: &str = "ast-grep-ignore";
+pub const UNUSED_SUPPRESSION_ID: &str = "unused-suppression";
+pub const NO_SUPPRESS_ALL_ID: &str = "no-suppress-all";
 
 /// A struct to group all rules according to their potential kinds.
 /// This can greatly reduce traversal times and skip unmatchable rules.
@@ -271,7 +273,6 @@ impl<'r, L: Language> CombinedScan<'r, L> {
       suppress_all_nodes: vec![],
     };
     let (suppressions, mut suppression_nodes) = Suppressions::collect_all(root);
-    // collect suppress-all nodes for no-suppress-all rule
     if self.no_suppress_all_rule.is_some() {
       let nodes = suppressions
         .suppress_all_node_ids()
@@ -325,55 +326,49 @@ impl<'r, L: Language> CombinedScan<'r, L> {
   }
 
   pub fn no_suppress_all_config(severity: Severity, lang: L) -> RuleConfig<L> {
-    let rule: SerializableRule = crate::from_str(r#"{"any": []}"#).unwrap();
-    let core = SerializableRuleCore {
-      rule,
-      constraints: None,
-      fix: None,
-      transform: None,
-      utils: None,
-    };
     let config = SerializableRuleConfig {
-      core,
-      id: "no-suppress-all".to_string(),
+      id: NO_SUPPRESS_ALL_ID.into(),
       severity,
-      files: None,
-      ignores: None,
-      language: lang,
       message: "ast-grep-ignore must specify rule IDs.".into(),
-      metadata: None,
       note: Some("Use 'ast-grep-ignore: rule-id' to suppress specific rules.".into()),
-      rewriters: None,
-      url: None,
-      labels: None,
+      ..Self::builtin_config(lang)
     };
     RuleConfig::try_from(config, &Default::default()).unwrap()
   }
 
   pub fn unused_config(severity: Severity, lang: L) -> RuleConfig<L> {
-    let rule: SerializableRule = crate::from_str(r#"{"any": []}"#).unwrap();
-    let core = SerializableRuleCore {
-      rule,
-      constraints: None,
-      fix: crate::from_str(r#"''"#).unwrap(),
-      transform: None,
-      utils: None,
-    };
-    let config = SerializableRuleConfig {
-      core,
-      id: "unused-suppression".to_string(),
+    let mut config = SerializableRuleConfig {
+      id: UNUSED_SUPPRESSION_ID.into(),
       severity,
+      message: "Unused 'ast-grep-ignore' directive.".into(),
+      ..Self::builtin_config(lang)
+    };
+    config.core.fix = crate::from_str(r#"''"#).unwrap();
+    RuleConfig::try_from(config, &Default::default()).unwrap()
+  }
+
+  fn builtin_config(lang: L) -> SerializableRuleConfig<L> {
+    let rule: SerializableRule = crate::from_str(r#"{"any": []}"#).unwrap();
+    SerializableRuleConfig {
+      core: SerializableRuleCore {
+        rule,
+        constraints: None,
+        fix: None,
+        transform: None,
+        utils: None,
+      },
+      language: lang,
+      id: String::new(),
+      severity: Severity::default(),
+      message: String::new(),
+      note: None,
       files: None,
       ignores: None,
-      language: lang,
-      message: "Unused 'ast-grep-ignore' directive.".into(),
-      metadata: None,
-      note: None,
       rewriters: None,
       url: None,
+      metadata: None,
       labels: None,
-    };
-    RuleConfig::try_from(config, &Default::default()).unwrap()
+    }
   }
 }
 
@@ -476,7 +471,7 @@ language: Tsx",
     let rules = vec![&rule];
     let mut scan = CombinedScan::new(rules);
     let mut unused = create_rule();
-    unused.id = "unused-suppression".to_string();
+    unused.id = UNUSED_SUPPRESSION_ID.to_string();
     scan.set_unused_suppression_rule(&unused);
     let scanned = scan.scan(&root, false);
     test_fn(scanned.matches);
@@ -517,7 +512,7 @@ language: Tsx",
     test_scan_unused(source, |scanned| {
       assert_eq!(scanned.len(), 2);
       assert_eq!(scanned[0].0.id, "test");
-      assert_eq!(scanned[1].0.id, "unused-suppression");
+      assert_eq!(scanned[1].0.id, UNUSED_SUPPRESSION_ID);
     });
   }
 
@@ -551,7 +546,7 @@ language: Tsx",
     test_scan_no_suppress_all(source, |scanned| {
       let no_sup_all: Vec<_> = scanned
         .iter()
-        .filter(|(r, _)| r.id == "no-suppress-all")
+        .filter(|(r, _)| r.id == NO_SUPPRESS_ALL_ID)
         .collect();
       assert_eq!(no_sup_all.len(), 1);
       assert_eq!(no_sup_all[0].1.len(), 1);
@@ -569,7 +564,7 @@ language: Tsx",
     test_scan_no_suppress_all(source, |scanned| {
       let no_sup_all: Vec<_> = scanned
         .iter()
-        .filter(|(r, _)| r.id == "no-suppress-all")
+        .filter(|(r, _)| r.id == NO_SUPPRESS_ALL_ID)
         .collect();
       assert_eq!(no_sup_all.len(), 1);
       assert_eq!(no_sup_all[0].1.len(), 1);
@@ -587,7 +582,7 @@ language: Tsx",
     test_scan_no_suppress_all(source, |scanned| {
       let no_sup_all: Vec<_> = scanned
         .iter()
-        .filter(|(r, _)| r.id == "no-suppress-all")
+        .filter(|(r, _)| r.id == NO_SUPPRESS_ALL_ID)
         .collect();
       assert_eq!(no_sup_all.len(), 0);
     });
@@ -602,7 +597,7 @@ language: Tsx",
     test_scan_no_suppress_all(source, |scanned| {
       let no_sup_all: Vec<_> = scanned
         .iter()
-        .filter(|(r, _)| r.id == "no-suppress-all")
+        .filter(|(r, _)| r.id == NO_SUPPRESS_ALL_ID)
         .collect();
       assert_eq!(no_sup_all.len(), 1);
       assert_eq!(no_sup_all[0].1.len(), 1);
@@ -619,7 +614,7 @@ language: Tsx",
     test_scan_no_suppress_all(source, |scanned| {
       let no_sup_all: Vec<_> = scanned
         .iter()
-        .filter(|(r, _)| r.id == "no-suppress-all")
+        .filter(|(r, _)| r.id == NO_SUPPRESS_ALL_ID)
         .collect();
       assert_eq!(no_sup_all.len(), 1);
     });
