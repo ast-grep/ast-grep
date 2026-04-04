@@ -130,6 +130,7 @@ struct ScanWithConfig {
   arg: ScanArg,
   configs: RuleCollection<SgLang>,
   unused_suppression_rule: RuleConfig<SgLang>,
+  no_suppress_all_rule: RuleConfig<SgLang>,
   trace: ScanTrace,
   proj_dir: PathBuf,
   // TODO: remove this
@@ -140,6 +141,7 @@ impl ScanWithConfig {
   fn try_new(arg: ScanArg, project: Result<ProjectConfig>) -> Result<Self> {
     let overwrite = RuleOverwrite::new(&arg.overwrite)?;
     let unused_suppression_rule = unused_suppression_rule_config(&arg, &overwrite);
+    let no_suppress_all_rule = no_suppress_all_rule_config(&overwrite);
     let mut proj_dir = PathBuf::from(".");
     let (configs, rule_trace) = if let Some(path) = &arg.rule {
       let rules =
@@ -167,6 +169,7 @@ impl ScanWithConfig {
       arg,
       configs,
       unused_suppression_rule,
+      no_suppress_all_rule,
       trace,
       proj_dir: absolute_proj_dir,
       error_count: AtomicUsize::new(0),
@@ -206,6 +209,14 @@ fn default_unused_suppression_rule_severity(arg: &ScanArg) -> Severity {
   }
 }
 
+fn no_suppress_all_rule_config(overwrite: &RuleOverwrite) -> RuleConfig<SgLang> {
+  let severity = overwrite
+    .find("no-suppress-all")
+    .severity
+    .unwrap_or(Severity::Off);
+  CombinedScan::no_suppress_all_config(severity, SupportLang::Rust.into())
+}
+
 fn unused_suppression_rule_config(arg: &ScanArg, overwrite: &RuleOverwrite) -> RuleConfig<SgLang> {
   let severity = overwrite
     .find("unused-suppression")
@@ -243,6 +254,7 @@ impl PathWorker for ScanWithConfig {
         .get_rule_from_lang(normalized_path, *grep.lang());
       let mut combined = CombinedScan::new(rules);
       combined.set_unused_suppression_rule(&self.unused_suppression_rule);
+      combined.set_no_suppress_all_rule(&self.no_suppress_all_rule);
       let interactive = self.arg.output.needs_interactive();
       // exclude_fix rule because we already have diff inspection before
       let scanned = combined.scan(&grep, /* separate_fix*/ interactive);
