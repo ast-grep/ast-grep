@@ -54,7 +54,7 @@
     "typegen": "tsimp scripts/generateTypes.ts"
   },
   "devDependencies": {
-    "@ast-grep/napi": "0.42.0",
+    "@ast-grep/napi": "0.42.1",
     "@napi-rs/cli": "3.6.0",
     "@types/node": "^24.0.0",
     "oxlint": "1.59.0",
