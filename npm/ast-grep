@@ -1,3 +1,139 @@
-echo "ast-grep shim file was executed. This file exists so that npm tries to create the binary. It should be replaced after the 'postinstall' script is executed."
-echo "Did your package manager execute the post-install script? (N.B. not all of them do)"
-exit 1
+#!/usr/bin/env node
+
+const { spawn } = require("node:child_process");
+const fs = require("fs");
+const path = require("path");
+
+const binaryName = process.platform === "win32" ? "ast-grep.exe" : "ast-grep";
+
+function detectPackageName() {
+  const parts = [process.platform, process.arch];
+  if (process.platform === "linux") {
+    const { MUSL, familySync } = require("detect-libc");
+    if (familySync() === MUSL) {
+      parts.push("musl");
+    } else if (process.arch === "arm") {
+      parts.push("gnueabihf");
+    } else {
+      parts.push("gnu");
+    }
+  } else if (process.platform === "win32") {
+    parts.push("msvc");
+  }
+  return `@ast-grep/cli-${parts.join("-")}`;
+}
+
+function failToLocateBinary(pkgName, originalError) {
+  const messages = ["Failed to locate the ast-grep native binary."];
+
+  if (pkgName) {
+    messages.push(`Expected package: ${pkgName}`);
+  } else {
+    messages.push(
+      "This platform does not have a published prebuilt ast-grep binary.",
+    );
+  }
+
+  if (originalError) {
+    messages.push(`Underlying error: ${originalError.message}`);
+  }
+
+  messages.push(
+    "If you are installing from npm, ensure optional dependencies are enabled (e.g. do not use --no-optional).",
+  );
+  messages.push(
+    "For local development, run `cargo build --release` before invoking this script.",
+  );
+
+  console.error(messages.join("\n"));
+  process.exit(1);
+}
+
+function resolveBinaryPath() {
+  const pkgName = detectPackageName();
+  let moduleError = null;
+
+  if (pkgName) {
+    try {
+      const pkgDir = path.dirname(
+        require.resolve(`${pkgName}/package.json`, { paths: [__dirname] }),
+      );
+      const candidate = path.join(pkgDir, binaryName);
+      if (fs.existsSync(candidate)) {
+        return { binaryPath: candidate, pkgName };
+      }
+    } catch (err) {
+      moduleError = err;
+    }
+  }
+
+  const releaseCandidate = path.join(
+    __dirname,
+    "..",
+    "target",
+    "release",
+    binaryName,
+  );
+  if (fs.existsSync(releaseCandidate)) {
+    return { binaryPath: releaseCandidate, pkgName: null };
+  }
+
+  const debugCandidate = path.join(
+    __dirname,
+    "..",
+    "target",
+    "debug",
+    binaryName,
+  );
+  if (fs.existsSync(debugCandidate)) {
+    return { binaryPath: debugCandidate, pkgName: null };
+  }
+
+  failToLocateBinary(pkgName, moduleError);
+}
+
+function attachChildLifecycle(child) {
+  child.on("error", (error) => {
+    console.error("Failed to execute ast-grep binary.");
+    console.error(error);
+    process.exit(1);
+  });
+
+  const signals = ["SIGINT", "SIGTERM", "SIGHUP"];
+  const forwarders = signals.map((signal) => {
+    const handler = () => {
+      if (child.killed) {
+        return;
+      }
+      try {
+        child.kill(signal);
+      } catch (_) {
+        // Ignore
+      }
+    };
+    process.on(signal, handler);
+    return { signal, handler };
+  });
+
+  child.on("exit", (code, signal) => {
+    forwarders.forEach(({ signal, handler }) => {
+      process.removeListener(signal, handler);
+    });
+
+    if (signal) {
+      process.kill(process.pid, signal);
+    } else {
+      process.exit(code == null ? 1 : code);
+    }
+  });
+}
+
+function main() {
+  const { binaryPath } = resolveBinaryPath();
+  const child = spawn(binaryPath, process.argv.slice(2), {
+    stdio: "inherit",
+  });
+  attachChildLifecycle(child);
+}
+
+main();
