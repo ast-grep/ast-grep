@@ -7,20 +7,30 @@ const path = require("path");
 const binaryName = process.platform === "win32" ? "ast-grep.exe" : "ast-grep";
 
 function detectPackageName() {
-  const parts = [process.platform, process.arch];
-  if (process.platform === "linux") {
-    const { MUSL, familySync } = require("detect-libc");
-    if (familySync() === MUSL) {
-      parts.push("musl");
-    } else if (process.arch === "arm") {
-      parts.push("gnueabihf");
-    } else {
-      parts.push("gnu");
+  const { platform, arch } = process;
+
+  switch (platform) {
+    case "darwin":
+      if (arch === "arm64") return "@ast-grep/cli-darwin-arm64";
+      if (arch === "x64") return "@ast-grep/cli-darwin-x64";
+      break;
+    case "linux": {
+      const { MUSL, familySync } = require("detect-libc");
+      if (familySync() === MUSL) return null;
+      if (arch === "arm64") return "@ast-grep/cli-linux-arm64-gnu";
+      if (arch === "x64") return "@ast-grep/cli-linux-x64-gnu";
+      break;
     }
-  } else if (process.platform === "win32") {
-    parts.push("msvc");
+    case "win32":
+      if (arch === "arm64") return "@ast-grep/cli-win32-arm64-msvc";
+      if (arch === "ia32") return "@ast-grep/cli-win32-ia32-msvc";
+      if (arch === "x64") return "@ast-grep/cli-win32-x64-msvc";
+      break;
+    default:
+      break;
   }
-  return `@ast-grep/cli-${parts.join("-")}`;
+
+  return null;
 }
 
 function failToLocateBinary(pkgName, originalError) {
