@@ -322,10 +322,10 @@
     semver "^7.5.3"
     tar "^7.4.0"
 
-"@napi-rs/cli@3.6.1":
-  version "3.6.1"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-3.6.1.tgz#59e7ee39458f944afd87b9dce39cb4ec0cb45221"
-  integrity sha512-xOrDmCdtXfJ2XzknJAyEAMUe4SHT02PHY3JG8/vXFAB+EPF7Pgv0q182Vmw2zAlhAvnfofccvJlHrZpNPDbypA==
+"@napi-rs/cli@3.6.2":
+  version "3.6.2"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-3.6.2.tgz#095b5ac995b801ff15bca7f08da4cb01e38066db"
+  integrity sha512-jy5rABUh9tbE/vPRzw9kGzGuqZiVslyDQUV8LkvjzqVX/oJMN7g0U1uhtr9L3W1H+iRM/urXHXUf+CE4n8FvLA==
   dependencies:
     "@inquirer/prompts" "^8.0.0"
     "@napi-rs/cross-toolchain" "^1.0.3"
