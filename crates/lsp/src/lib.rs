@@ -369,11 +369,14 @@ impl<L: LSPLang> Backend<L> {
 
   // skip files outside of workspace root #1382, #1402
   async fn should_skip_file_outside_workspace(&self, text_doc: &TextDocumentItem) -> Option<()> {
-    // fallback to base if no workspace provided by client #2211
+    // Use the client-provided workspace folder if available.
+    // Fall back to the current working directory instead of `self.base`
+    // (the config file's parent), because `--config` may point to a
+    // config outside the project tree (e.g. in the Nix store).
     let workspace_root = self
       .get_path_of_first_workspace()
       .await
-      .unwrap_or_else(|| self.base.clone());
+      .or_else(|| std::env::current_dir().ok())?;
     let doc_file_path = text_doc.uri.to_file_path()?;
     if doc_file_path.starts_with(workspace_root) {
       None
