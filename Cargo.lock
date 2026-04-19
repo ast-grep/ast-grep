@@ -1694,9 +1694,9 @@ dependencies = [
 
 [[package]]
 name = "similar"
-version = "3.0.0"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26d0b06eba54f0ca0770f970a3e89823e766ca638dd940f8469fa0fa50c75396"
+checksum = "04d93e861ede2e497b47833469b8ec9d5c07fa4c78ce7a00f6eb7dd8168b4b3f"
 dependencies = [
  "bstr",
 ]
