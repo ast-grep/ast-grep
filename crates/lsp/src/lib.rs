@@ -285,16 +285,9 @@ impl<L: LSPLang> Backend<L> {
     let mut fixes = Fixes::new();
     let injections = root.get_injections(|lang| L::from_str(lang).ok());
     let docs = std::iter::once(root).chain(injections.iter());
-    let doc_and_rules = docs.filter_map(|injected| {
-      let rule_refs = rules.get_rule_from_lang(&path, injected.lang().clone());
-      if rule_refs.is_empty() {
-        None
-      } else {
-        Some((injected, rule_refs))
-      }
-    });
     // iterate over all main doc and injected docs
-    for (injected, rule_refs) in doc_and_rules {
+    for injected in docs {
+      let rule_refs = rules.get_rule_from_lang(&path, injected.lang().clone());
       let unused_suppression_rule =
         CombinedScan::unused_config(Severity::Hint, injected.lang().clone());
       let mut scan = CombinedScan::new(rule_refs);
