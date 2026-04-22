@@ -288,6 +288,9 @@ impl<L: LSPLang> Backend<L> {
     // iterate over all main doc and injected docs
     for injected in docs {
       let rule_refs = rules.get_rule_from_lang(&path, injected.lang().clone());
+      if rule_refs.is_empty() && !injected.source().contains("ast-grep-ignore") {
+        continue;
+      }
       let unused_suppression_rule =
         CombinedScan::unused_config(Severity::Hint, injected.lang().clone());
       let mut scan = CombinedScan::new(rule_refs);
