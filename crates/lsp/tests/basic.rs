@@ -508,6 +508,38 @@ fix: |-
 }
 
 #[tokio::test]
+async fn test_unused_suppression_in_injected_language_without_rules() {
+  let yamls = r#"
+id: no-inline-style
+language: Html
+message: Avoid inline style
+rule:
+  pattern: <div style=$STYLE>$$$CHILDREN</div>
+"#;
+  let mut client = create_lsp_framed(yamls).await;
+
+  let file_uri = "file:///Users/codes/ast-grep-vscode/test.html";
+  let file_content =
+    "<script lang=typescript>// ast-grep-ignore: no-alert\nconsole.log('Hello, world!')</script>\n";
+  send_did_open_framed(&mut client, file_uri, "html", file_content).await;
+
+  let diagnostics = wait_for_diagnostics(&mut client)
+    .await
+    .expect("No diagnostics received");
+  let diagnostics = diagnostics
+    .as_array()
+    .expect("Diagnostics should be an array")
+    .to_owned();
+
+  assert_eq!(
+    diagnostics.len(),
+    1,
+    "Expected 1 unused-suppression diagnostic from injected script"
+  );
+  assert_eq!(diagnostics[0]["code"], "unused-suppression");
+}
+
+#[tokio::test]
 async fn test_overlap_line_code_edit() {
   let yamls = r"
 id: use-alert
