@@ -95,10 +95,7 @@ fn parse_complex_selector<'a, L: Language>(
   input: &mut Input<'a, L>,
 ) -> Result<Rule, SelectorError> {
   let mut rule = parse_compound_selector(input)?;
-  loop {
-    let Some(combinator) = try_parse_combinator(input)? else {
-      break; // no more combinators
-    };
+  while let Some(combinator) = try_parse_combinator(input)? {
     let next_rule = parse_compound_selector(input)?;
     match combinator {
       '>' => {
