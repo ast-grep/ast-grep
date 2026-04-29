@@ -32,7 +32,7 @@
     "web-tree-sitter": "^0.26.0"
   },
   "devDependencies": {
-    "ava": "^7.0.0",
+    "ava": "^8.0.0",
     "tree-sitter-javascript": "^0.25.0",
     "tree-sitter-python": "^0.25.0",
     "web-tree-sitter": "^0.26.0"
