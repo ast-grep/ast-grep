@@ -20,10 +20,14 @@
   ],
   "files": [
     "sg",
-    "ast-grep"
+    "ast-grep",
+    "postinstall.js"
   ],
   "dependencies": {
     "detect-libc": "2.1.2"
+  },
+  "scripts": {
+    "postinstall": "node postinstall.js"
   },
   "optionalDependencies": {
     "@ast-grep/cli-win32-arm64-msvc": "0.42.1",
