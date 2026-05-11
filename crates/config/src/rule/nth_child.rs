@@ -177,12 +177,12 @@ pub struct NthChild {
 }
 
 impl NthChild {
-  pub(crate) fn try_parse(text: &str) -> Result<Self, NthChildError> {
+  pub(crate) fn try_parse(text: &str, reverse: bool) -> Result<Self, NthChildError> {
     let simple = NthChildSimple::Functional(text.to_string());
     Ok(NthChild {
       position: simple.try_parse()?,
       of_rule: None,
-      reverse: false,
+      reverse,
     })
   }
   pub(crate) fn of_rule(mut self, rule: Rule) -> Self {
