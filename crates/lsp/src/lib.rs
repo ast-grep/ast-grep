@@ -114,20 +114,24 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       .log_message(MessageType::INFO, "server initialized!")
       .await;
 
-    // Mark as initialized first so publish_diagnostics stop buffering
-    self.initialized.store(true, Ordering::SeqCst);
+    // Flush any diagnostics that were buffered before initialization.
+    // Take the buffer and set the flag under the same lock to prevent a race:
+    // a concurrent call to publish_diagnostics must either see the flag (and
+    // publish directly) OR acquire the lock after we've drained, preserving order.
+    let pending = {
+      let mut pending_guard = self.pending_diagnostics.lock().unwrap();
+      let pending = std::mem::take(&mut *pending_guard);
+      self.initialized.store(true, Ordering::SeqCst);
+      pending
+    }; // pending_guard dropped here, before any .await
 
-    // Flush any diagnostics that were buffered before initialization
-    {
-      let pending = std::mem::take(&mut *self.pending_diagnostics.lock().unwrap());
-      if !pending.is_empty() {
-        tracing::debug!(count = pending.len(), "flushing buffered diagnostics");
-        for (uri, version, diagnostics) in pending {
-          self
-            .client
-            .publish_diagnostics(uri, diagnostics, Some(version))
-            .await;
-        }
+    if !pending.is_empty() {
+      tracing::debug!(count = pending.len(), "flushing buffered diagnostics");
+      for (uri, version, diagnostics) in pending {
+        self
+          .client
+          .publish_diagnostics(uri, diagnostics, Some(version))
+          .await;
       }
     }
 
