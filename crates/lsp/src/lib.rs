@@ -16,14 +16,15 @@ use ast_grep_core::{
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::sync::{Arc, RwLock};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, RwLock};
 
 use utils::{convert_match_to_diagnostic, diagnostic_to_code_action, Fixes, RewriteData};
 
 pub use tower_lsp_server::{LspService, Server};
 
-pub trait LSPLang: LanguageExt + Eq + Send + Sync + FromStr + 'static {}
-impl<T> LSPLang for T where T: LanguageExt + Eq + Send + Sync + FromStr + 'static {}
+pub trait LSPLang: LanguageExt + Eq + Send + Sync + FromStr + std::fmt::Debug + 'static {}
+impl<T> LSPLang for T where T: LanguageExt + Eq + Send + Sync + FromStr + std::fmt::Debug + 'static {}
 
 type Notes = BTreeMap<(u32, u32, u32, u32), Arc<String>>;
 
@@ -45,6 +46,10 @@ pub struct Backend<L: LSPLang> {
   rule_finder: Box<dyn Fn() -> anyhow::Result<RuleCollection<L>> + Send + Sync>,
   // store client capabilities to check support
   capabilities: Arc<RwLock<ClientCapabilities>>,
+  // flag to track whether initialized() has been called
+  initialized: AtomicBool,
+  // buffer for diagnostics published before server enters Initialized state
+  pending_diagnostics: Mutex<Vec<(Uri, i32, Vec<Diagnostic>)>>,
 }
 
 const FALLBACK_CODE_ACTION_PROVIDER: Option<CodeActionProviderCapability> =
@@ -108,6 +113,24 @@ impl<L: LSPLang> LanguageServer for Backend<L> {
       .client
       .log_message(MessageType::INFO, "server initialized!")
       .await;
+
+    // Mark as initialized first so publish_diagnostics stop buffering
+    self.initialized.store(true, Ordering::SeqCst);
+
+    // Flush any diagnostics that were buffered before initialization
+    {
+      let pending = std::mem::take(&mut *self.pending_diagnostics.lock().unwrap());
+      if !pending.is_empty() {
+        tracing::debug!(count = pending.len(), "flushing buffered diagnostics");
+        for (uri, version, diagnostics) in pending {
+          self
+            .client
+            .publish_diagnostics(uri, diagnostics, Some(version))
+            .await;
+        }
+      }
+    }
+
     if let Err(e) = self.reload_rules().await {
       self
         .client
@@ -234,6 +257,8 @@ impl<L: LSPLang> Backend<L> {
       interner: DashMap::new(),
       rule_finder: Box::new(rule_finder),
       capabilities: Arc::new(RwLock::new(ClientCapabilities::default())),
+      initialized: AtomicBool::new(false),
+      pending_diagnostics: Mutex::new(Vec::new()),
     }
   }
 
@@ -281,6 +306,8 @@ impl<L: LSPLang> Backend<L> {
     let path = self.uri_to_relative_path(uri)?;
 
     let rules = self.rules.read().ok()?;
+
+    let rules = self.rules.read().ok()?;
     let mut diagnostics = vec![];
     let mut fixes = Fixes::new();
     let injections = root.get_injections(|lang| L::from_str(lang).ok());
@@ -296,7 +323,12 @@ impl<L: LSPLang> Backend<L> {
       let mut scan = CombinedScan::new(rule_refs);
       scan.set_unused_suppression_rule(&unused_suppression_rule);
       // get all matches with rules, and conver to diagnostics
-      let all_matches = scan.scan(injected, false).matches;
+      let scan_result = scan.scan(injected, false);
+      let all_matches = &scan_result.matches;
+      eprintln!("[DEBUG get_diagnostics]     scan produced {} rules_with_matches", all_matches.len());
+      for (rule, ms) in all_matches.iter() {
+        eprintln!("[DEBUG get_diagnostics]       id={:?} match_count={}", rule.id, ms.len());
+      }
       let rule_and_matches = all_matches
         .into_iter()
         .flat_map(|(rule, ms)| ms.into_iter().map(move |m| (rule, m)));
@@ -342,6 +374,18 @@ impl<L: LSPLang> Backend<L> {
     version: i32,
     diagnostics: Vec<Diagnostic>,
   ) -> Option<()> {
+    if !self.initialized.load(Ordering::SeqCst) {
+      tracing::debug!(
+        "server not yet initialized, buffering diagnostics for {uri:?}"
+      );
+      let mut pending = self.pending_diagnostics.lock().unwrap();
+      pending.push((uri, version, diagnostics));
+      return Some(());
+    }
+    tracing::debug!(
+      uri = ?uri, version, count = diagnostics.len(),
+      "publishing diagnostics"
+    );
     self
       .client
       .publish_diagnostics(uri, diagnostics, Some(version))
