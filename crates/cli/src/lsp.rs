@@ -12,7 +12,8 @@ async fn run_language_server_impl(_arg: LspArg, project: Result<ProjectConfig>) 
   tracing_subscriber::fmt()
     .with_env_filter(EnvFilter::from_default_env())
     .with_writer(std::io::stderr)
-    .init();
+    .try_init()
+    .ok();
   let project_config = project?;
   let stdin = tokio::io::stdin();
   let stdout = tokio::io::stdout();
