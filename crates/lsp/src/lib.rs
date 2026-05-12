@@ -306,8 +306,6 @@ impl<L: LSPLang> Backend<L> {
     let path = self.uri_to_relative_path(uri)?;
 
     let rules = self.rules.read().ok()?;
-
-    let rules = self.rules.read().ok()?;
     let mut diagnostics = vec![];
     let mut fixes = Fixes::new();
     let injections = root.get_injections(|lang| L::from_str(lang).ok());
@@ -325,9 +323,12 @@ impl<L: LSPLang> Backend<L> {
       // get all matches with rules, and conver to diagnostics
       let scan_result = scan.scan(injected, false);
       let all_matches = &scan_result.matches;
-      eprintln!("[DEBUG get_diagnostics]     scan produced {} rules_with_matches", all_matches.len());
+      tracing::debug!(
+        rules_with_matches = all_matches.len(),
+        "scan produced rules with matches"
+      );
       for (rule, ms) in all_matches.iter() {
-        eprintln!("[DEBUG get_diagnostics]       id={:?} match_count={}", rule.id, ms.len());
+        tracing::debug!(rule_id = ?rule.id, match_count = ms.len(), "rule matches");
       }
       let rule_and_matches = all_matches
         .into_iter()
