@@ -3,13 +3,17 @@ use crate::utils::{ErrorContext as EC, RuleOverwrite};
 use anyhow::{Context, Result};
 use ast_grep_lsp::{Backend, LspService, Server};
 use clap::Args;
+use tracing_subscriber::EnvFilter;
 
 #[derive(Args)]
 pub struct LspArg {}
 
 async fn run_language_server_impl(_arg: LspArg, project: Result<ProjectConfig>) -> Result<()> {
-  // env_logger::init();
-  // TODO: move this error to client
+  tracing_subscriber::fmt()
+    .with_env_filter(EnvFilter::from_default_env())
+    .with_writer(std::io::stderr)
+    .try_init()
+    .ok();
   let project_config = project?;
   let stdin = tokio::io::stdin();
   let stdout = tokio::io::stdout();
