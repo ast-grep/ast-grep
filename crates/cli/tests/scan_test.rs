@@ -34,6 +34,16 @@ rule:
   pattern: Some($A)
 ";
 
+const CSS_RULE: &str = "
+id: my-rule
+message: test rule
+severity: warning
+language: Css
+rule:
+  kind: declaration
+  regex: '^border\\s*:\\s*3px\\s+dashed\\b'
+";
+
 fn setup() -> Result<TempDir> {
   let dir = create_test_files([
     ("sgconfig.yml", CONFIG),
@@ -159,6 +169,27 @@ fn test_scan_unused_suppression() -> Result<()> {
     .assert()
     .success()
     .stdout(contains("unused-suppression"));
+  Ok(())
+}
+
+#[test]
+fn test_scan_css_specific_rule_suppression() -> Result<()> {
+  let dir = create_test_files([
+    ("rule.yml", CSS_RULE),
+    (
+      "test.css",
+      ".x {\n  /* ast-grep-ignore: my-rule */\n  border: 3px dashed red;\n}\n\n.y {\n  border: 3px dashed blue;\n}\n",
+    ),
+  ])?;
+  let output = Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml", "test.css"])
+    .output()?;
+  assert!(output.status.success());
+  let stdout = String::from_utf8(output.stdout)?;
+  assert_eq!(stdout.matches("my-rule").count(), 1);
+  assert!(!stdout.contains("border: 3px dashed red;"));
+  assert!(stdout.contains("border: 3px dashed blue;"));
   Ok(())
 }
 

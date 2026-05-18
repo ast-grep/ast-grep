@@ -379,7 +379,11 @@ fn parse_suppression_set(text: &str) -> Option<HashSet<String>> {
     return None;
   }
   let (_, rules) = after.split_once(':')?;
-  let set = rules.split(',').map(|r| r.trim().to_string()).collect();
+  let rules = rules.trim().trim_end_matches("*/").trim();
+  let set = rules
+    .split(',')
+    .map(|r| r.trim().trim_end_matches("*/").trim().to_string())
+    .collect();
   Some(set)
 }
 
@@ -454,6 +458,21 @@ language: Tsx",
       assert_eq!(matches.1.len(), 2);
       assert_eq!(matches.1[0].text(), "console.log('no ignore')");
       assert_eq!(matches.1[1].text(), "console.log('ignore another')");
+    });
+  }
+
+  #[test]
+  fn test_ignore_node_block_comment_specific_rule() {
+    let source = r#"
+    /* ast-grep-ignore: test */
+    console.log('ignored')
+    /* ast-grep-ignore: not-test */
+    console.log('reported')
+    "#;
+    test_scan(source, |scanned| {
+      let matches = &scanned[0];
+      assert_eq!(matches.1.len(), 1);
+      assert_eq!(matches.1[0].text(), "console.log('reported')");
     });
   }
 
