@@ -6,6 +6,8 @@ use std::fmt;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use super::DiagnosticSnapshot;
+
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const PATTERN_GUIDE: Option<&str> = Some("/guide/pattern-syntax.html");
 const ESQUERY_GUIDE: Option<&str> = Some("/reference/rule/esquery.html");
@@ -49,7 +51,7 @@ pub enum ErrorContext {
   PatternHasError,
   // Scan
   DuplicateRuleId(String),
-  DiagnosticError(usize),
+  DiagnosticReport(DiagnosticSnapshot),
   RuleNotSpecified,
   RuleNotFound(String),
   // LSP
@@ -78,7 +80,7 @@ impl ErrorContext {
     use ErrorContext::*;
     // reference: https://mariadb.com/kb/en/operating-system-error-codes/
     match self {
-      DiagnosticError(_) => 1,
+      DiagnosticReport(snapshot) if snapshot.errors > 0 => 1,
       // skip 2 to avoid conflict with clap error code or unexpected error
       ProjectNotExist | LanguageNotSpecified | RuleNotSpecified | RuleNotFound(_) => 3,
       TestFail(_) | TestSnapshotMismatch(_) => 4,
@@ -95,7 +97,7 @@ impl ErrorContext {
       CustomLanguage => 79,
       OpenEditor | StartLanguageServer => 126,
       // soft error
-      PatternHasError | ExitInteractiveEditing => 0,
+      PatternHasError | ExitInteractiveEditing | DiagnosticReport(_) => 0,
     }
   }
 
@@ -204,9 +206,9 @@ impl ErrorMessage {
         "Multiple rule files have the same id. Please add a unique `id` field to each rule.",
         CONFIG_GUIDE,
       ),
-      DiagnosticError(num) => Self::new(
-        format!("{num} error(s) found in code."),
-        "Scan succeeded and found error level diagnostics in the codebase.",
+      DiagnosticReport(snapshot) => Self::new(
+        format!("{snapshot} found in code."),
+        "Scan succeeded and found diagnostics in the codebase.",
         None,
       ),
       ParsePattern => Self::new(

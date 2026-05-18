@@ -343,6 +343,99 @@ fn test_severity_override_with_inline_rule_and_stdin() -> Result<()> {
   Ok(())
 }
 
+#[test]
+fn test_scan_reports_warning_diagnostic_summary() -> Result<()> {
+  let dir = setup()?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan"])
+    .assert()
+    .success()
+    .stderr(contains("Warning: 1 warning(s) found in code."));
+  Ok(())
+}
+
+const MULTI_SEVERITY_RULES: &str = "
+id: error-rule
+message: error rule
+severity: error
+language: TypeScript
+rule: { pattern: error($A) }
+---
+id: warning-rule
+message: warning rule
+severity: warning
+language: TypeScript
+rule: { pattern: warning($A) }
+---
+id: info-rule
+message: info rule
+severity: info
+language: TypeScript
+rule: { pattern: info($A) }
+---
+id: hint-rule
+message: hint rule
+severity: hint
+language: TypeScript
+rule: { pattern: hint($A) }
+";
+
+#[test]
+fn test_scan_reports_mixed_diagnostic_summary() -> Result<()> {
+  let dir = create_test_files([
+    ("rule.yml", MULTI_SEVERITY_RULES),
+    ("test.ts", "error(1); warning(2); info(3); hint(4)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml"])
+    .assert()
+    .failure()
+    .stderr(contains("Error: 1 error(s), 1 warning(s) found in code."));
+  Ok(())
+}
+
+const INFO_HINT_RULES: &str = "
+id: info-rule
+message: info rule
+severity: info
+language: TypeScript
+rule: { pattern: info($A) }
+---
+id: hint-rule
+message: hint rule
+severity: hint
+language: TypeScript
+rule: { pattern: hint($A) }
+";
+
+#[test]
+fn test_scan_does_not_report_info_hint_summary() -> Result<()> {
+  let dir = create_test_files([
+    ("rule.yml", INFO_HINT_RULES),
+    ("test.ts", "info(1); hint(2)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml"])
+    .assert()
+    .success()
+    .stderr(contains("found in code.").not());
+  Ok(())
+}
+
+#[test]
+fn test_scan_reports_stdin_diagnostic_summary() -> Result<()> {
+  Command::new(cargo_bin!())
+    .args(["scan", "--stdin", "--inline-rules", RULE1, "--json"])
+    .write_stdin("Some(1); Some(2)")
+    .assert()
+    .success()
+    .stderr(contains("Warning: 2 warning(s) found in code."));
+  Ok(())
+}
+
 const PY_RULE: &str = r"
 id: transform-indent
 language: python
