@@ -1,5 +1,6 @@
 mod args;
 mod debug_query;
+mod diagnostic_count;
 mod error_context;
 mod inspect;
 mod print_diff;
@@ -8,6 +9,7 @@ mod worker;
 
 pub use args::{ContextArgs, InputArgs, OutputArgs, OverwriteArgs};
 pub use debug_query::DebugFormat;
+pub use diagnostic_count::{DiagnosticCount, DiagnosticSnapshot};
 pub use error_context::{exit_with_error, ErrorContext};
 pub use inspect::{FileTrace, Granularity, RuleTrace, RunTrace, ScanTrace};
 pub use print_diff::DiffStyles;
