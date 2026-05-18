@@ -204,7 +204,8 @@ fn try_parse_pseudo_class_selector<'a, L: Language>(
     "not" => parse_not_argument(input)?,
     // :is() accepts a list of selectors as `matches-any`, reuse try_parse_selector
     "is" => try_parse_selector(input)?,
-    "nth-child" => parse_nth_child_argument(input)?,
+    "nth-child" => parse_nth_child_argument(input, false)?,
+    "nth-last-child" => parse_nth_child_argument(input, true)?,
     _ => return Err(SelectorError::UnknownPseudoClass(name.to_string())),
   };
   // handle closing )
@@ -241,9 +242,10 @@ fn parse_not_argument<'a, L: Language>(input: &mut Input<'a, L>) -> Result<Rule,
 /// <an+b> ['of' <complex-selector>]?
 fn parse_nth_child_argument<'a, L: Language>(
   input: &mut Input<'a, L>,
+  reverse: bool,
 ) -> Result<Rule, SelectorError> {
   let text = input.extract_an_plus_b();
-  let mut nth_child = NthChild::try_parse(text)?;
+  let mut nth_child = NthChild::try_parse(text, reverse)?;
   if let Some(Token::Identifier("of")) = input.peek()? {
     input.next()?; // consume 'of'
     input.consume_whitespace();
@@ -644,6 +646,16 @@ mod test {
     assert_eq!(matches.len(), 2);
     assert_eq!(matches[0].text(), "1");
     assert_eq!(matches[1].text(), "3");
+    Ok(())
+  }
+
+  #[test]
+  fn test_nth_last_child_selector() -> Result<(), SelectorError> {
+    let rule = parse_selector("array > number:nth-last-child(1)", TS::Tsx)?;
+    let root = TS::Tsx.ast_grep("[1, 2, 3, 4, 5]");
+    let matches: Vec<_> = root.root().find_all(&rule).collect();
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].text(), "5");
     Ok(())
   }
 }
