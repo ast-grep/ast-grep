@@ -379,8 +379,14 @@ fn parse_suppression_set(text: &str) -> Option<HashSet<String>> {
     return None;
   }
   let (_, rules) = after.split_once(':')?;
+  let rules = trim_block_comment_end(rules);
   let set = rules.split(',').map(|r| r.trim().to_string()).collect();
   Some(set)
+}
+
+fn trim_block_comment_end(text: &str) -> &str {
+  let text = text.trim();
+  text.strip_suffix("*/").unwrap_or(text).trim()
 }
 
 #[cfg(test)]
@@ -455,6 +461,37 @@ language: Tsx",
       assert_eq!(matches.1[0].text(), "console.log('no ignore')");
       assert_eq!(matches.1[1].text(), "console.log('ignore another')");
     });
+  }
+
+  #[test]
+  fn test_ignore_node_block_comment() {
+    let source = r#"
+    /* ast-grep-ignore: test */
+    console.log('ignore one')
+    console.log('no ignore')
+    console.log('ignore inline') /* ast-grep-ignore: test */
+    console.log('ignore another') /* ast-grep-ignore: not-test */
+    /* ast-grep-ignore: not-test, test */
+    console.log('multiple ignore')
+    "#;
+    test_scan(source, |scanned| {
+      let matches = &scanned[0];
+      assert_eq!(matches.1.len(), 2);
+      assert_eq!(matches.1[0].text(), "console.log('no ignore')");
+      assert_eq!(matches.1[1].text(), "console.log('ignore another')");
+    });
+  }
+
+  #[test]
+  fn test_parse_suppression_set_trims_block_comment_end() {
+    let set = parse_suppression_set("/* ast-grep-ignore: rule-name */").unwrap();
+    assert!(set.contains("rule-name"));
+    assert!(!set.contains("rule-name */"));
+
+    let set = parse_suppression_set("/* ast-grep-ignore: first, second */").unwrap();
+    assert!(set.contains("first"));
+    assert!(set.contains("second"));
+    assert!(!set.contains("second */"));
   }
 
   fn test_scan_unused<F>(source: &str, test_fn: F)
