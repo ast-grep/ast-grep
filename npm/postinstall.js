@@ -13,9 +13,9 @@ function detectPackageName() {
       break;
     case "linux": {
       const { MUSL, familySync } = require("detect-libc");
-      if (familySync() === MUSL) return null;
-      if (arch === "arm64") return "@ast-grep/cli-linux-arm64-gnu";
-      if (arch === "x64") return "@ast-grep/cli-linux-x64-gnu";
+      const libc = familySync() === MUSL ? "musl" : "gnu";
+      if (arch === "arm64") return `@ast-grep/cli-linux-arm64-${libc}`;
+      if (arch === "x64") return `@ast-grep/cli-linux-x64-${libc}`;
       break;
     }
     case "win32":
