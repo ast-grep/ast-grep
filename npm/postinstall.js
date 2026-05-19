@@ -75,15 +75,8 @@ function main() {
     }
   }
 
-  // On Windows, the published shims `sg` and `ast-grep` (no `.exe`) are not
-  // usable; remove them so only the `.exe` versions remain.
-  if (process.platform === "win32") {
-    for (const name of ["sg", "ast-grep"]) {
-      try {
-        fs.unlinkSync(path.join(__dirname, name));
-      } catch (_) {}
-    }
-  }
+  // Keep the extensionless JS shims on Windows: npm-generated global wrappers
+  // call those bin targets through node, so removing them breaks global installs.
 }
 
 module.exports = {

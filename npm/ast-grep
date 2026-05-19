@@ -1,19 +1,18 @@
 #!/usr/bin/env node
 
-// Fallback shim. When `postinstall` runs, this file is replaced by a hard
-// link / copy of the native binary, so the JavaScript here never executes.
-// If the package manager (e.g. pnpm v10) skipped postinstall, this shim
-// resolves and spawns the native binary at runtime.
+// Fallback shim. On Unix, `postinstall` replaces this file with the native
+// binary. On Windows, npm-generated global wrappers call this JS bin target
+// through node, so it must stay in place and spawn the `.exe`.
 
 const { spawn } = require("node:child_process");
 const { resolveBinaryPath } = require("./postinstall");
 
-console.error(
-  "[warn] postinstall script did not run; falling back to runtime binary resolution.",
-);
-console.error(
-  "Enable postinstall to avoid the per-invocation overhead."
-);
+if (process.platform !== "win32") {
+  console.error(
+    "[warn] postinstall script did not run; falling back to runtime binary resolution.",
+  );
+  console.error("Enable postinstall to avoid the per-invocation overhead.");
+}
 
 const binaryPath = resolveBinaryPath();
 if (!binaryPath) {
