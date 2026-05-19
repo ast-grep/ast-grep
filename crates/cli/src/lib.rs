@@ -3,6 +3,7 @@ mod config;
 mod lang;
 mod lsp;
 mod new;
+mod playground;
 mod print;
 mod run;
 mod scan;
@@ -17,6 +18,7 @@ use completions::{run_shell_completion, CompletionsArg};
 use config::ProjectConfig;
 use lsp::{run_language_server, LspArg};
 use new::{run_create_new, NewArg};
+use playground::{run_playground, PlaygroundArg};
 use run::{run_with_pattern, RunArg};
 use scan::{run_with_config, ScanArg};
 use utils::exit_with_error;
@@ -58,6 +60,8 @@ enum Commands {
   New(NewArg),
   /// Start language server.
   Lsp(LspArg),
+  /// Open a rule and/or file in the ast-grep playground (https://ast-grep.github.io/playground.html).
+  Playground(PlaygroundArg),
   /// Generate shell completion script.
   Completions(CompletionsArg),
   /// Generate rule docs for current configuration. (Not Implemented Yet)
@@ -139,6 +143,7 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
     Commands::Test(arg) => run_test_rule(arg, project),
     Commands::New(arg) => run_create_new(arg, project),
     Commands::Lsp(arg) => run_language_server(arg, project).map(|_| ExitCode::SUCCESS),
+    Commands::Playground(arg) => run_playground(arg, project),
     Commands::Completions(arg) => run_shell_completion::<App>(arg),
     #[cfg(debug_assertions)]
     Commands::Docs => todo!("todo, generate rule docs based on current config"),
@@ -321,5 +326,18 @@ mod test_cli {
     ok("completions fish");
     error("completions not-shell");
     error("completions --shell fish");
+  }
+
+  #[test]
+  fn test_playground() {
+    ok("playground --file a.ts");
+    ok("playground -f a.ts");
+    ok("playground --rule no-console");
+    ok("playground -r no-console");
+    ok("playground --rule-file rule.yml");
+    ok("playground --file a.ts --rule no-console");
+    ok("playground --file a.ts --lang typescript");
+    ok("playground --file a.ts --print");
+    error("playground --rule r --rule-file r.yml");
   }
 }

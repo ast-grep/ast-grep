@@ -4,6 +4,7 @@ use crate::utils::{ErrorContext as EC, RuleOverwrite, RuleTrace};
 use anyhow::{Context, Result};
 use ast_grep_config::{
   from_str, from_yaml_string, DeserializeEnv, GlobalRules, RuleCollection, RuleConfig,
+  SerializableGlobalRule,
 };
 use ast_grep_language::config_file_type;
 use ignore::WalkBuilder;
@@ -90,6 +91,10 @@ impl ProjectConfig {
     read_directory_yaml(self, global_rules, rule_overwrite)
   }
 
+  pub fn find_util_rule_configs(&self) -> Result<Vec<SerializableGlobalRule<SgLang>>> {
+    find_util_rule_configs(self)
+  }
+
   /// returns a Result of Result.
   /// The inner Result is for configuration not found, or ProjectNotExist
   /// The outer Result is for definitely wrong config.
@@ -131,13 +136,19 @@ fn build_util_walker(base_dir: &Path, util_dirs: &Option<Vec<PathBuf>>) -> Optio
 }
 
 fn find_util_rules(config: &ProjectConfig) -> Result<GlobalRules> {
+  let utils = find_util_rule_configs(config)?;
+  let ret = DeserializeEnv::<SgLang>::parse_global_utils(utils).context(EC::InvalidGlobalUtils)?;
+  Ok(ret)
+}
+
+fn find_util_rule_configs(config: &ProjectConfig) -> Result<Vec<SerializableGlobalRule<SgLang>>> {
   let ProjectConfig {
     project_dir,
     util_dirs,
     ..
   } = config;
   let Some(mut walker) = build_util_walker(project_dir, util_dirs) else {
-    return Ok(GlobalRules::default());
+    return Ok(vec![]);
   };
   let mut utils = vec![];
   let walker = walker.types(config_file_type()).build();
@@ -152,13 +163,13 @@ fn find_util_rules(config: &ProjectConfig) -> Result<GlobalRules> {
       continue;
     }
     let path = config_file.path();
-    let file = read_to_string(path)?;
-    let new_configs = from_str(&file)?;
-    utils.push(new_configs);
+    let file = read_to_string(path)
+      .with_context(|| format!("failed to read util rule file {}", path.display()))?;
+    let new_config: SerializableGlobalRule<SgLang> = from_str(&file)
+      .with_context(|| format!("failed to parse util rule file {}", path.display()))?;
+    utils.push(new_config);
   }
-
-  let ret = DeserializeEnv::<SgLang>::parse_global_utils(utils).context(EC::InvalidGlobalUtils)?;
-  Ok(ret)
+  Ok(utils)
 }
 
 fn read_directory_yaml(
