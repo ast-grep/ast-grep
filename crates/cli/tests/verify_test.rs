@@ -3,8 +3,10 @@ mod common;
 use std::process::ExitCode;
 
 use anyhow::Result;
+use assert_cmd::{cargo_bin, Command};
 use ast_grep::main_with_args;
 use common::create_test_files;
+use predicates::str::contains;
 use tempfile::TempDir;
 
 const CONFIG: &str = "
@@ -62,6 +64,18 @@ fn sg(s: &str) -> Result<ExitCode> {
   main_with_args(args)
 }
 
+#[cfg(unix)]
+fn create_symlink(src: &std::path::Path, dst: &std::path::Path) -> Result<()> {
+  std::os::unix::fs::symlink(src, dst)?;
+  Ok(())
+}
+
+#[cfg(windows)]
+fn create_symlink(src: &std::path::Path, dst: &std::path::Path) -> Result<()> {
+  std::os::windows::fs::symlink_file(src, dst)?;
+  Ok(())
+}
+
 #[test]
 fn test_sg_test() -> Result<()> {
   let dir = setup()?;
@@ -72,6 +86,46 @@ fn test_sg_test() -> Result<()> {
   ));
   assert!(ret.is_ok());
   drop(dir);
+  Ok(())
+}
+
+#[test]
+fn test_sg_test_follow_symlink() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/test-rule.yml", RULE),
+    ("rule-tests/.keep", ""),
+    ("real-tests/test-rule-test.yml", TEST),
+    ("test.ts", "Some(123)"),
+  ])?;
+  create_symlink(
+    &dir.path().join("real-tests/test-rule-test.yml"),
+    &dir.path().join("rule-tests/test-rule-test.yml"),
+  )?;
+  let config = dir.path().join("sgconfig.yml");
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "test",
+      "-c",
+      &format!("{}", config.display()),
+      "--skip-snapshot-tests",
+    ])
+    .assert()
+    .success()
+    .stdout(contains("Running 0 tests"));
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "test",
+      "-c",
+      &format!("{}", config.display()),
+      "--skip-snapshot-tests",
+      "--follow",
+    ])
+    .assert()
+    .success()
+    .stdout(contains("Running 1 tests"));
   Ok(())
 }
 

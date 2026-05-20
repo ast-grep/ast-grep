@@ -293,6 +293,7 @@ mod test_cli {
     ok("test");
     ok("test -c sgconfig.yml");
     ok("test --skip-snapshot-tests");
+    ok("test --follow");
     ok("test -U");
     ok("test --update-all");
     error("test --update-all --skip-snapshot-tests");

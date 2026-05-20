@@ -23,13 +23,18 @@ pub struct TestHarness {
 }
 
 impl TestHarness {
-  pub fn from_config(project_config: ProjectConfig, regex_filter: Option<&Regex>) -> Result<Self> {
-    find_tests(project_config, regex_filter)
+  pub fn from_config(
+    project_config: ProjectConfig,
+    follow_links: bool,
+    regex_filter: Option<&Regex>,
+  ) -> Result<Self> {
+    find_tests(project_config, follow_links, regex_filter)
   }
 
   pub fn from_dir(
     test_dirname: &Path,
     snapshot_dirname: Option<&Path>,
+    follow_links: bool,
     regex_filter: Option<&Regex>,
   ) -> Result<Self> {
     let mut builder = HarnessBuilder {
@@ -37,7 +42,7 @@ impl TestHarness {
       base_dir: std::env::current_dir()?,
       regex_filter,
     };
-    builder.read_test_files(test_dirname, snapshot_dirname)?;
+    builder.read_test_files(test_dirname, snapshot_dirname, follow_links)?;
     Ok(builder.dest)
   }
 }
@@ -57,12 +62,14 @@ impl HarnessBuilder<'_> {
     &mut self,
     test_dirname: &Path,
     snapshot_dirname: Option<&Path>,
+    follow_links: bool,
   ) -> Result<()> {
     let test_path = self.base_dir.join(test_dirname);
     let snapshot_dirname = snapshot_dirname.unwrap_or_else(|| SNAPSHOT_DIR.as_ref());
     let snapshot_path = test_path.join(snapshot_dirname);
     let walker = WalkBuilder::new(&test_path)
       .types(config_file_type())
+      .follow_links(follow_links)
       .build();
     for dir in walker {
       let config_file = dir.with_context(|| EC::WalkRuleDir(test_path.clone()))?;
@@ -88,6 +95,7 @@ impl HarnessBuilder<'_> {
 
 pub fn find_tests(
   project_config: ProjectConfig,
+  follow_links: bool,
   regex_filter: Option<&Regex>,
 ) -> Result<TestHarness> {
   let ProjectConfig {
@@ -102,7 +110,7 @@ pub fn find_tests(
     dest: TestHarness::default(),
   };
   for test in test_configs {
-    builder.read_test_files(&test.test_dir, test.snapshot_dir.as_deref())?;
+    builder.read_test_files(&test.test_dir, test.snapshot_dir.as_deref(), follow_links)?;
   }
   Ok(builder.dest)
 }

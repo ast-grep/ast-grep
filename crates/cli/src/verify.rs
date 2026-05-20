@@ -70,9 +70,9 @@ fn run_test_rule_impl<R: Reporter + Send>(
     path_map,
   } = if let Some(test_dirname) = arg.test_dir {
     let snapshot_dirname = arg.snapshot_dir.as_deref();
-    TestHarness::from_dir(&test_dirname, snapshot_dirname, filter)?
+    TestHarness::from_dir(&test_dirname, snapshot_dirname, arg.follow, filter)?
   } else {
-    TestHarness::from_config(project, filter)?
+    TestHarness::from_config(project, arg.follow, filter)?
   };
   let snapshots = (!arg.skip_snapshot_tests).then_some(snapshots);
   let reporter = &Arc::new(Mutex::new(reporter));
@@ -173,6 +173,14 @@ pub struct TestArg {
   /// the directories to search test YAML files
   #[clap(short, long)]
   test_dir: Option<PathBuf>,
+  /// Follow symbolic links.
+  ///
+  /// This flag instructs ast-grep to follow symbolic links while traversing
+  /// directories. This behavior is disabled by default. Note that ast-grep will
+  /// check for symbolic link loops and report errors if it finds one. ast-grep will
+  /// also report errors for broken links.
+  #[clap(long)]
+  follow: bool,
   /// Specify the directory name storing snapshots. Default to __snapshots__.
   #[clap(long)]
   snapshot_dir: Option<PathBuf>,
@@ -341,6 +349,7 @@ rule:
       skip_snapshot_tests: true,
       snapshot_dir: None,
       test_dir: None,
+      follow: false,
       update_all: false,
       filter: None,
       include_off: false,
