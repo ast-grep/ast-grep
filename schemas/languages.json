@@ -3556,6 +3556,34 @@
         "yield_expression"
       ]
     },
+    "tomlFields": {
+      "type": "string",
+      "enum": []
+    },
+    "tomlNodes": {
+      "type": "string",
+      "enum": [
+        "array",
+        "bare_key",
+        "boolean",
+        "comment",
+        "document",
+        "dotted_key",
+        "escape_sequence",
+        "float",
+        "inline_table",
+        "integer",
+        "local_date",
+        "local_date_time",
+        "local_time",
+        "offset_date_time",
+        "pair",
+        "quoted_key",
+        "string",
+        "table",
+        "table_array_element"
+      ]
+    },
     "yamlFields": {
       "type": "string",
       "enum": [

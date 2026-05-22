@@ -227,3 +227,95 @@ fn test_toml_array_of_tables() {
 fn test_toml_array_table_path() {
   test_match(r#"path = "src/main.rs""#, ARRAY_TABLE_TOML);
 }
+
+// --- Value-distinction tests ---
+// Integer / boolean / float / date pass; string variants FAIL today because
+// tree-sitter-toml-ng exposes string contents only as anonymous tokens, so
+// the matcher sees every `(string)` node as equivalent regardless of text.
+
+#[test]
+fn test_integer_value_distinct() {
+  test_non_match("port = 8080", "port = 3000");
+}
+
+#[test]
+fn test_boolean_value_distinct() {
+  test_non_match("flag = true", "flag = false");
+}
+
+#[test]
+fn test_float_value_distinct() {
+  test_non_match("x = 3.14", "x = 2.71");
+}
+
+#[test]
+fn test_date_value_distinct() {
+  test_non_match("x = 2020-01-01", "x = 1999-12-31");
+}
+
+#[test]
+fn test_basic_string_value_distinct() {
+  // FAILS today: pattern `name = "bar"` wrongly matches source `name = "foo"`.
+  test_non_match(r#"name = "bar""#, r#"name = "foo""#);
+}
+
+#[test]
+fn test_literal_string_value_distinct() {
+  // FAILS today: single-quoted literal strings also indistinguishable.
+  test_non_match("x = 'bar'", "x = 'foo'");
+}
+
+#[test]
+fn test_multiline_string_value_distinct() {
+  // FAILS today: triple-quoted multi-line strings also indistinguishable.
+  test_non_match(
+    "x = \"\"\"world\n\"\"\"",
+    "x = \"\"\"hello\n\"\"\"",
+  );
+}
+
+// --- Coverage: metavariables on the key side ---
+
+#[test]
+fn test_toml_meta_var_key() {
+  // Verifies the expando_char='_' choice: $KEY is rewritten to `_KEY`, which
+  // is a valid TOML bare key (bare_key = /[A-Za-z0-9_-]+/).
+  test_match("$KEY = 8080", "port = 8080");
+  test_match("$KEY = \"foo\"", "name = \"foo\"");
+}
+
+#[test]
+fn test_toml_meta_var_both_sides() {
+  test_match("$KEY = $VAL", "port = 8080");
+  test_match("$KEY = $VAL", "name = \"foo\"");
+  test_match("$KEY = $VAL", "flag = true");
+}
+
+#[test]
+fn test_toml_negative_integer() {
+  test_match("x = -3", "x = -3");
+  test_non_match("x = -3", "x = 3");
+}
+
+#[test]
+fn test_toml_hex_integer() {
+  test_match("x = 0xFF", "x = 0xFF");
+  test_non_match("x = 0xFF", "x = 0xAB");
+}
+
+#[test]
+fn test_toml_comment() {
+  test_match("# todo", "# todo\nx = 1");
+}
+
+#[test]
+fn test_replace_should_respect_string_value() {
+  // FAILS today: replacing `version = "0.1.0"` should leave `version = "9.9.9"`
+  // unchanged, but the matcher ignores the string content, so 9.9.9 is rewritten.
+  let ret = test_replace(
+    "[package]\nversion = \"9.9.9\"\nedition = \"2021\"",
+    r#"version = "0.1.0""#,
+    r#"version = "2.0.0""#,
+  );
+  assert_eq!(ret, "[package]\nversion = \"9.9.9\"\nedition = \"2021\"");
+}
