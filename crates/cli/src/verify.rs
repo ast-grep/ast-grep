@@ -70,9 +70,9 @@ fn run_test_rule_impl<R: Reporter + Send>(
     path_map,
   } = if let Some(test_dirname) = arg.test_dir {
     let snapshot_dirname = arg.snapshot_dir.as_deref();
-    TestHarness::from_dir(&test_dirname, snapshot_dirname, filter)?
+    TestHarness::from_dir(&test_dirname, snapshot_dirname, filter, arg.follow)?
   } else {
-    TestHarness::from_config(project, filter)?
+    TestHarness::from_config(project, filter, arg.follow)?
   };
   let snapshots = (!arg.skip_snapshot_tests).then_some(snapshots);
   let reporter = &Arc::new(Mutex::new(reporter));
@@ -197,6 +197,9 @@ pub struct TestArg {
   /// This option will include those rules in the test.
   #[clap(long)]
   include_off: bool,
+  /// Follow symbolic links while searching test YAML files.
+  #[clap(long)]
+  follow: bool,
   /// Controls output color.
   ///
   /// This flag controls when to use colors. The default setting is 'auto', which
@@ -344,6 +347,7 @@ rule:
       update_all: false,
       filter: None,
       include_off: false,
+      follow: false,
       color: ColorArg::Never,
     };
     assert!(run_test_rule(arg, Err(anyhow!("error"))).is_err());

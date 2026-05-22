@@ -140,3 +140,35 @@ fn test_sg_test_off_rule() -> Result<()> {
   drop(dir);
   Ok(())
 }
+
+#[cfg(unix)]
+#[test]
+fn test_sg_test_follow_symlinked_test_dir() -> Result<()> {
+  use std::os::unix::fs::symlink;
+
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/test-rule.yml", RULE),
+    ("rule-tests/.keep", ""),
+    ("real-rule-tests/test-rule-test.yml", WRONG_TEST),
+  ])?;
+  symlink(
+    dir.path().join("real-rule-tests"),
+    dir.path().join("rule-tests").join("linked"),
+  )?;
+
+  let config = dir.path().join("sgconfig.yml");
+  let ret = sg(&format!(
+    "ast-grep test -c {} --skip-snapshot-tests",
+    config.display()
+  ));
+  assert!(ret.is_ok());
+
+  let ret = sg(&format!(
+    "ast-grep test -c {} --skip-snapshot-tests --follow",
+    config.display()
+  ));
+  assert!(ret.is_err());
+  drop(dir);
+  Ok(())
+}

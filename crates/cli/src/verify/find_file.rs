@@ -23,19 +23,25 @@ pub struct TestHarness {
 }
 
 impl TestHarness {
-  pub fn from_config(project_config: ProjectConfig, regex_filter: Option<&Regex>) -> Result<Self> {
-    find_tests(project_config, regex_filter)
+  pub fn from_config(
+    project_config: ProjectConfig,
+    regex_filter: Option<&Regex>,
+    follow: bool,
+  ) -> Result<Self> {
+    find_tests(project_config, regex_filter, follow)
   }
 
   pub fn from_dir(
     test_dirname: &Path,
     snapshot_dirname: Option<&Path>,
     regex_filter: Option<&Regex>,
+    follow: bool,
   ) -> Result<Self> {
     let mut builder = HarnessBuilder {
       dest: TestHarness::default(),
       base_dir: std::env::current_dir()?,
       regex_filter,
+      follow,
     };
     builder.read_test_files(test_dirname, snapshot_dirname)?;
     Ok(builder.dest)
@@ -46,6 +52,7 @@ struct HarnessBuilder<'a> {
   dest: TestHarness,
   base_dir: PathBuf,
   regex_filter: Option<&'a Regex>,
+  follow: bool,
 }
 
 impl HarnessBuilder<'_> {
@@ -63,6 +70,7 @@ impl HarnessBuilder<'_> {
     let snapshot_path = test_path.join(snapshot_dirname);
     let walker = WalkBuilder::new(&test_path)
       .types(config_file_type())
+      .follow_links(self.follow)
       .build();
     for dir in walker {
       let config_file = dir.with_context(|| EC::WalkRuleDir(test_path.clone()))?;
@@ -89,6 +97,7 @@ impl HarnessBuilder<'_> {
 pub fn find_tests(
   project_config: ProjectConfig,
   regex_filter: Option<&Regex>,
+  follow: bool,
 ) -> Result<TestHarness> {
   let ProjectConfig {
     project_dir,
@@ -100,6 +109,7 @@ pub fn find_tests(
     base_dir: project_dir,
     regex_filter,
     dest: TestHarness::default(),
+    follow,
   };
   for test in test_configs {
     builder.read_test_files(&test.test_dir, test.snapshot_dir.as_deref())?;
@@ -163,6 +173,7 @@ invalid: [a]
       dest: TestHarness::default(),
       base_dir: PathBuf::new(),
       regex_filter: None,
+      follow: false,
     };
     let path = Path::new(".");
     deserialize_test_yaml(path, yaml.to_string(), path, &mut builder).expect("should ok");
@@ -200,6 +211,7 @@ snapshots:
       dest: TestHarness::default(),
       base_dir: PathBuf::new(),
       regex_filter: None,
+      follow: false,
     };
     let path = Path::new(".");
     deserialize_snapshot_yaml(path, SNAPSHOTS.to_string(), &mut builder).expect("should ok");

@@ -295,6 +295,7 @@ mod test_cli {
     ok("test --skip-snapshot-tests");
     ok("test -U");
     ok("test --update-all");
+    ok("test --follow");
     error("test --update-all --skip-snapshot-tests");
     ok("test --color always");
     ok("test --color never");
