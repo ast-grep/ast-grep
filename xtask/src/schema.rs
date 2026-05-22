@@ -5,7 +5,7 @@ use ast_grep_core::tree_sitter::{LanguageExt, TSLanguage};
 use ast_grep_core::Language;
 use ast_grep_language::{
   Alias, Bash, CSharp, Cpp, Css, Dart, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin,
-  Lua, Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml, C,
+  Lua, Php, Python, Ruby, Rust, Scala, Swift, Toml, Tsx, TypeScript, Yaml, C,
 };
 use schemars::{json_schema, schema_for, JsonSchema, Schema, SchemaGenerator};
 use serde_json::{to_writer_pretty, Value};
@@ -46,6 +46,7 @@ fn generate_lang_schemas() -> Result<()> {
   generate_lang_schema(Rust, "rust")?;
   generate_lang_schema(Scala, "scala")?;
   generate_lang_schema(Swift, "swift")?;
+  generate_lang_schema(Toml, "toml")?;
   generate_lang_schema(Tsx, "tsx")?;
   generate_lang_schema(TypeScript, "typescript")?;
   generate_lang_schema(Yaml, "yaml")

@@ -40,6 +40,7 @@ mod rust;
 mod scala;
 mod solidity;
 mod swift;
+mod toml;
 mod yaml;
 
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
@@ -246,6 +247,8 @@ impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
 impl_lang!(Scala, language_scala);
 impl_lang!(Solidity, language_solidity);
+// TOML bare keys only allow [A-Za-z0-9_-], so $ is not valid
+impl_lang_expando!(Toml, language_toml, '_');
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
 impl_lang!(Dart, language_dart);
@@ -280,6 +283,7 @@ pub enum SupportLang {
   Scala,
   Solidity,
   Swift,
+  Toml,
   Tsx,
   TypeScript,
   Yaml,
@@ -290,7 +294,7 @@ impl SupportLang {
     use SupportLang::*;
     &[
       Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json,
-      Kotlin, Lua, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript, Yaml,
+      Kotlin, Lua, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Toml, Tsx, TypeScript, Yaml,
     ]
   }
 
@@ -395,6 +399,7 @@ impl_aliases! {
   Scala => &["scala"],
   Solidity => &["sol", "solidity"],
   Swift => &["swift"],
+  Toml => &["toml"],
   TypeScript => &["ts", "typescript"],
   Tsx => &["tsx"],
   Yaml => &["yaml", "yml"],
@@ -443,6 +448,7 @@ macro_rules! execute_lang_method {
       S::Scala => Scala.$method($($pname,)*),
       S::Solidity => Solidity.$method($($pname,)*),
       S::Swift => Swift.$method($($pname,)*),
+      S::Toml => Toml.$method($($pname,)*),
       S::Tsx => Tsx.$method($($pname,)*),
       S::TypeScript => TypeScript.$method($($pname,)*),
       S::Yaml => Yaml.$method($($pname,)*),
@@ -516,6 +522,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Scala => &["scala", "sc", "sbt"],
     Solidity => &["sol"],
     Swift => &["swift"],
+    Toml => &["toml"],
     TypeScript => &["ts", "cts", "mts"],
     Tsx => &["tsx"],
     Yaml => &["yaml", "yml"],
