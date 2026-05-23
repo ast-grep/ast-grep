@@ -310,12 +310,14 @@ fn test_toml_comment() {
 
 #[test]
 fn test_replace_should_respect_string_value() {
-  // FAILS today: replacing `version = "0.1.0"` should leave `version = "9.9.9"`
-  // unchanged, but the matcher ignores the string content, so 9.9.9 is rewritten.
-  let ret = test_replace(
-    "[package]\nversion = \"9.9.9\"\nedition = \"2021\"",
-    r#"version = "0.1.0""#,
-    r#"version = "2.0.0""#,
-  );
-  assert_eq!(ret, "[package]\nversion = \"9.9.9\"\nedition = \"2021\"");
+  // Replacing `version = "0.1.0"` must leave `version = "9.9.9"` untouched —
+  // string content must be compared. Before the fix in
+  // crates/core/src/matcher/pattern.rs this replaced 9.9.9 with 2.0.0.
+  let src = "[package]\nversion = \"9.9.9\"\nedition = \"2021\"";
+  let mut source = Toml.ast_grep(src);
+  let replaced = source
+    .replace(r#"version = "0.1.0""#, r#"version = "2.0.0""#)
+    .expect("should parse");
+  assert!(!replaced, "should not match a different string value");
+  assert_eq!(source.generate(), src);
 }

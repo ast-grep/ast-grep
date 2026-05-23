@@ -214,7 +214,14 @@ impl<'r, D: Doc> From<Node<'r, D>> for Pattern {
 fn convert_node_to_pattern<D: Doc>(node: Node<'_, D>) -> PatternNode {
   if let Some(meta_var) = extract_var_from_node(&node) {
     PatternNode::MetaVar { meta_var }
-  } else if node.is_leaf() {
+  } else if node.is_leaf() || node.get_doc().get_lang().kind_is_atomic(node.kind_id()) {
+    // Treat as Terminal:
+    //   1. true leaves (no children at all), or
+    //   2. nodes the language has declared as atomic — their semantic content
+    //      lives in their text, not in subtree structure. Used for grammars
+    //      where a named node's only children are anonymous bookend tokens
+    //      and the meaningful payload is the parent's text (e.g.
+    //      tree-sitter-toml-ng's `(string)`).
     PatternNode::Terminal {
       text: node.text().to_string(),
       is_named: node.is_named(),

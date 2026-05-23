@@ -247,12 +247,83 @@ impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
 impl_lang!(Scala, language_scala);
 impl_lang!(Solidity, language_solidity);
-// TOML bare keys only allow [A-Za-z0-9_-], so $ is not valid
-impl_lang_expando!(Toml, language_toml, '_');
+
+// TOML: bare keys only allow [A-Za-z0-9_-], so $ is not a valid bare-key char
+// (hence the '_' expando char). Additionally, `tree-sitter-toml-ng` models the
+// `string` node with only anonymous bookend `"` tokens — the contents are
+// folded into the parent's text — so we declare it atomic so that pattern
+// matching compares the full text rather than the (identical) anonymous
+// children. See crates/core/src/language.rs `kind_is_atomic`.
+#[derive(Clone, Copy, Debug)]
+pub struct Toml;
+impl Language for Toml {
+  fn kind_to_id(&self, kind: &str) -> u16 {
+    self
+      .get_ts_language()
+      .id_for_node_kind(kind, /*named*/ true)
+  }
+  fn field_to_id(&self, field: &str) -> Option<u16> {
+    self
+      .get_ts_language()
+      .field_id_for_name(field)
+      .map(|f| f.get())
+  }
+  fn expando_char(&self) -> char {
+    '_'
+  }
+  fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
+    pre_process_pattern(self.expando_char(), query)
+  }
+  fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
+    builder.build(|src| StrDoc::try_new(src, *self))
+  }
+  fn kind_is_atomic(&self, kind_id: u16) -> bool {
+    kind_id == self.kind_to_id("string")
+  }
+}
+impl LanguageExt for Toml {
+  fn get_ts_language(&self) -> TSLanguage {
+    parsers::language_toml().into()
+  }
+}
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
 impl_lang!(Dart, language_dart);
-impl_lang!(Yaml, language_yaml);
+
+// YAML: `tree-sitter-yaml`'s quoted scalar nodes (`single_quote_scalar`,
+// `double_quote_scalar`) only have the anonymous `'` / `"` bookend tokens as
+// children — the content text is folded into the parent. Without declaring
+// them atomic, pattern matching would treat `"foo"` and `"bar"` as
+// indistinguishable. Plain scalars are unaffected because their content is a
+// single token (`string_scalar`).
+#[derive(Clone, Copy, Debug)]
+pub struct Yaml;
+impl Language for Yaml {
+  fn kind_to_id(&self, kind: &str) -> u16 {
+    self
+      .get_ts_language()
+      .id_for_node_kind(kind, /*named*/ true)
+  }
+  fn field_to_id(&self, field: &str) -> Option<u16> {
+    self
+      .get_ts_language()
+      .field_id_for_name(field)
+      .map(|f| f.get())
+  }
+  fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
+    builder.build(|src| StrDoc::try_new(src, *self))
+  }
+  fn kind_is_atomic(&self, kind_id: u16) -> bool {
+    kind_id == self.kind_to_id("single_quote_scalar")
+      || kind_id == self.kind_to_id("double_quote_scalar")
+      || kind_id == self.kind_to_id("block_scalar")
+  }
+}
+impl LanguageExt for Yaml {
+  fn get_ts_language(&self) -> TSLanguage {
+    parsers::language_yaml().into()
+  }
+}
 // See ripgrep for extensions
 // https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/src/default_types.rs
 

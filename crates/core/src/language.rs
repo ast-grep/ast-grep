@@ -44,6 +44,24 @@ pub trait Language: Clone + 'static {
   fn kind_to_id(&self, kind: &str) -> u16;
   fn field_to_id(&self, field: &str) -> Option<u16>;
   fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError>;
+
+  /// Declare nodes whose semantic content is their full text rather than their
+  /// child subtree. When this returns `true` for a node's `kind_id`, the
+  /// pattern builder stores the node as a `Terminal` with its text instead of
+  /// an `Internal` whose children are matched recursively.
+  ///
+  /// This exists because some tree-sitter grammars (e.g. `tree-sitter-toml-ng`)
+  /// model a named node like `string` with only anonymous bookend tokens as
+  /// children — the actual content is folded into the parent's text and never
+  /// appears as a child node. Without this hook, two such nodes with different
+  /// text would compare as equal, so e.g. the TOML pattern `name = "foo"`
+  /// would match `name = "bar"`.
+  ///
+  /// Default: nothing is atomic.
+  #[inline]
+  fn kind_is_atomic(&self, _kind_id: u16) -> bool {
+    false
+  }
 }
 
 #[cfg(test)]
