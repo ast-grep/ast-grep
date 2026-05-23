@@ -169,3 +169,4 @@ def test_strictness():
         "context": "let b = 456",
         "strictness": "signature",
     })
+    assert node
