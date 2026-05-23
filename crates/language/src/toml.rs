@@ -45,14 +45,20 @@ fn test_toml_boolean_pair() {
 
 #[test]
 fn test_toml_meta_var_value() {
-  test_match("name = $VAL", "[package]\nname = \"my-crate\"\nversion = \"0.1.0\"");
+  test_match(
+    "name = $VAL",
+    "[package]\nname = \"my-crate\"\nversion = \"0.1.0\"",
+  );
   test_match("port = $VAL", "[server]\nport = 8080\nhost = \"localhost\"");
   test_match("flag = $VAL", "[options]\nflag = true\nverbose = false");
 }
 
 #[test]
 fn test_toml_meta_var_non_match() {
-  test_non_match("missing_key = $VAL", "[package]\nname = \"foo\"\nversion = \"1.0\"");
+  test_non_match(
+    "missing_key = $VAL",
+    "[package]\nname = \"foo\"\nversion = \"1.0\"",
+  );
 }
 
 // --- Cargo.toml: package metadata ---
@@ -233,16 +239,10 @@ fn test_toml_array_table_path() {
 // quoting, escapes, special floats, dates, keys, containers, and replacements.
 // =============================================================================
 
-// --- Empty strings: a pattern with "" should NOT match "anything" ---
-//
-// Known limitation: an *empty* TOML string literal in the pattern has all of
-// its bytes covered by the `"` bookend tokens, so the "content absorbed into
-// parent" detection in crates/core/src/matcher/pattern.rs does not fire — the
-// pattern stays Internal, and child-by-child matching against a candidate
-// like `"foo"` (which has the same two `"` children) succeeds. Fixing this
-// without breaking JS empty-block whitespace tolerance (`{}` vs `{ }`)
-// requires per-language semantics. Tests below are `#[ignore]` because they
-// represent a real but accepted edge-case gap.
+// --- Empty strings: pattern `""` matches only `""` ---
+// The generic "content absorbed into parent" detector doesn't fire on empty
+// literals (no uncovered bytes), so TOML's `(string)` is also declared atomic
+// via the `kind_is_atomic` hook in crates/language/src/lib.rs.
 
 #[test]
 fn test_empty_string_matches_empty() {
@@ -251,23 +251,22 @@ fn test_empty_string_matches_empty() {
 
 #[test]
 fn test_nonempty_does_not_match_empty() {
-  // Pattern is non-empty → Terminal (absorbed content) → text mismatch. ✓
   test_non_match(r#"x = "foo""#, r#"x = """#);
 }
 
 #[test]
-#[ignore]
 fn test_empty_string_vs_nonempty() {
-  // FAILS: pattern `""` matches `"foo"` because both string nodes look like
-  // `[", "]` to the matcher (empty pattern has nothing absorbed; candidate's
-  // absorbed `foo` is invisible at the children level).
   test_non_match(r#"x = """#, r#"x = "foo""#);
 }
 
 #[test]
-#[ignore]
 fn test_empty_literal_string_vs_nonempty() {
   test_non_match("x = ''", "x = 'foo'");
+}
+
+#[test]
+fn test_empty_multiline_string_vs_nonempty() {
+  test_non_match("x = \"\"\"\"\"\"", "x = \"\"\"foo\"\"\"");
 }
 
 // --- Mixed quote types: basic ("foo") vs literal ('foo') ---
@@ -457,10 +456,7 @@ fn test_multiline_literal_string_value_distinct() {
 
 #[test]
 fn test_multiline_string_with_newline_value_distinct() {
-  test_non_match(
-    "x = \"\"\"\nfoo\n\"\"\"",
-    "x = \"\"\"\nbar\n\"\"\"",
-  );
+  test_non_match("x = \"\"\"\nfoo\n\"\"\"", "x = \"\"\"\nbar\n\"\"\"");
 }
 
 // --- Comments don't affect matching ---
@@ -474,11 +470,7 @@ fn test_pattern_ignores_source_comments() {
 
 #[test]
 fn test_replace_value_in_dotted_key() {
-  let ret = test_replace(
-    "a.b = \"old\"",
-    r#"a.b = "old""#,
-    r#"a.b = "new""#,
-  );
+  let ret = test_replace("a.b = \"old\"", r#"a.b = "old""#, r#"a.b = "new""#);
   assert_eq!(ret, "a.b = \"new\"");
 }
 
@@ -498,11 +490,7 @@ fn test_replace_only_matching_dep_among_many() {
 fn test_replace_with_metavar_capture() {
   // Capture the value, then substitute. The captured string node must
   // round-trip its content correctly.
-  let ret = test_replace(
-    "name = \"hello\"",
-    r#"name = $V"#,
-    r#"label = $V"#,
-  );
+  let ret = test_replace("name = \"hello\"", r#"name = $V"#, r#"label = $V"#);
   assert_eq!(ret, "label = \"hello\"");
 }
 
@@ -534,10 +522,7 @@ fn test_extra_whitespace_around_equals() {
 
 #[test]
 fn test_extra_blank_lines() {
-  test_match(
-    "[package]\nname = \"foo\"",
-    "[package]\n\n\nname = \"foo\"",
-  );
+  test_match("[package]\nname = \"foo\"", "[package]\n\n\nname = \"foo\"");
 }
 
 // --- Value-distinction tests ---
@@ -580,10 +565,7 @@ fn test_literal_string_value_distinct() {
 #[test]
 fn test_multiline_string_value_distinct() {
   // FAILS today: triple-quoted multi-line strings also indistinguishable.
-  test_non_match(
-    "x = \"\"\"world\n\"\"\"",
-    "x = \"\"\"hello\n\"\"\"",
-  );
+  test_non_match("x = \"\"\"world\n\"\"\"", "x = \"\"\"hello\n\"\"\"");
 }
 
 #[test]

@@ -95,11 +95,24 @@ fn test_yaml_block_folded_value_distinct() {
 }
 
 #[test]
+fn test_yaml_empty_double_quoted_matches_empty() {
+  test_match(r#"a: """#, r#"a: """#);
+}
+
+#[test]
+fn test_yaml_empty_double_quoted_vs_nonempty() {
+  test_non_match(r#"a: """#, r#"a: "foo""#);
+}
+
+#[test]
+fn test_yaml_empty_single_quoted_vs_nonempty() {
+  test_non_match("a: ''", "a: 'foo'");
+}
+
+#[test]
 fn test_yaml_string_replace_respects_value() {
   let mut source = Yaml.ast_grep("a: foo\n");
-  let replaced = source
-    .replace("a: bar", "a: baz")
-    .expect("should parse");
+  let replaced = source.replace("a: bar", "a: baz").expect("should parse");
   assert!(!replaced, "should not match a different string value");
   assert_eq!(source.generate(), "a: foo\n");
 }

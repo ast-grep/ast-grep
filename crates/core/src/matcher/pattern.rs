@@ -258,13 +258,18 @@ fn has_content_absorbed_into_parent<D: Doc>(node: &Node<'_, D>) -> bool {
 fn convert_node_to_pattern<D: Doc>(node: Node<'_, D>) -> PatternNode {
   if let Some(meta_var) = extract_var_from_node(&node) {
     PatternNode::MetaVar { meta_var }
-  } else if node.is_leaf() || (node.is_named() && has_content_absorbed_into_parent(&node)) {
-    // Treat as Terminal:
-    //   1. true leaves (no children at all), or
-    //   2. named nodes whose own text contains non-whitespace bytes not
-    //      covered by any child node — the meaningful payload lives in the
-    //      parent's text rather than its subtree (TOML strings, YAML
-    //      quoted/block scalars, Kotlin single-char character literals, ...).
+  } else if node.is_leaf()
+    || (node.is_named()
+      && (has_content_absorbed_into_parent(&node)
+        || node.get_doc().get_lang().kind_is_atomic(node.kind_id())))
+  {
+    // Treat as Terminal when any of:
+    //   1. true leaf (no children),
+    //   2. named node with non-whitespace content not covered by any child
+    //      (auto-catches TOML/YAML/Kotlin string-like literals with content),
+    //   3. language declared this kind atomic (catches the empty case, e.g.
+    //      TOML `""` vs `"foo"`, where (2) doesn't fire because bookends
+    //      cover all of an empty literal's bytes).
     PatternNode::Terminal {
       text: node.text().to_string(),
       is_named: node.is_named(),

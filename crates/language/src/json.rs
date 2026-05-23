@@ -55,6 +55,21 @@ fn test_json_string_value_distinct() {
 }
 
 #[test]
+fn test_json_empty_string_matches_empty() {
+  test_match(r#"{"a": ""}"#, r#"{"a": ""}"#);
+}
+
+#[test]
+fn test_json_empty_string_vs_nonempty() {
+  test_non_match(r#"{"a": ""}"#, r#"{"a": "foo"}"#);
+}
+
+#[test]
+fn test_json_nonempty_does_not_match_empty() {
+  test_non_match(r#"{"a": "foo"}"#, r#"{"a": ""}"#);
+}
+
+#[test]
 fn test_json_string_replace_respects_value() {
   let mut source = Json.ast_grep(r#"{"a": "foo"}"#);
   let replaced = source

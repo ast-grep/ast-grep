@@ -44,6 +44,27 @@ pub trait Language: Clone + 'static {
   fn kind_to_id(&self, kind: &str) -> u16;
   fn field_to_id(&self, field: &str) -> Option<u16>;
   fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError>;
+
+  /// Declare nodes whose semantic identity is their full text. When this
+  /// returns `true` for a node's `kind_id`, the pattern builder stores the
+  /// node as a `Terminal` (text-exact match) rather than an `Internal` whose
+  /// children are matched recursively.
+  ///
+  /// Use this for data-literal node kinds where two structurally identical
+  /// instances can carry different content (e.g. TOML `string`, YAML quoted
+  /// and block scalars) — including the empty case (TOML pattern `""` vs
+  /// candidate `"foo"`). The general "content absorbed into parent" detector
+  /// in `crates/core/src/matcher/pattern.rs` covers the non-empty case
+  /// automatically, but it can't catch empty literals without breaking
+  /// languages where the same shape (named node with only bookend tokens)
+  /// is whitespace-insensitive — e.g. JS empty `(statement_block)` `{}`
+  /// must still match `{ }`. So this hook is the per-language escape valve.
+  ///
+  /// Default: no kinds are atomic.
+  #[inline]
+  fn kind_is_atomic(&self, _kind_id: u16) -> bool {
+    false
+  }
 }
 
 #[cfg(test)]

@@ -237,8 +237,6 @@ impl_lang_expando!(Ruby, language_ruby, 'µ');
 impl_lang_expando!(Rust, language_rust, 'µ');
 //https://docs.swift.org/swift-book/documentation/the-swift-programming-language/lexicalstructure/#Identifiers
 impl_lang_expando!(Swift, language_swift, 'µ');
-// TOML bare keys only allow [A-Za-z0-9_-]
-impl_lang_expando!(Toml, language_toml, '_');
 
 // Stub Language without preprocessing
 // Language Name, tree-sitter-name, alias, extension
@@ -252,11 +250,75 @@ impl_lang!(Solidity, language_solidity);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
 impl_lang!(Dart, language_dart);
-// YAML quoted scalars (`single_quote_scalar`, `double_quote_scalar`) and
-// block scalars expose only anonymous bookend tokens — content lives in the
-// parent's text. Handled automatically by the structural detection in
-// crates/core/src/matcher/pattern.rs.
-impl_lang!(Yaml, language_yaml);
+
+// TOML — bare keys only allow [A-Za-z0-9_-], so the expando char is '_'.
+// `(string)` is declared atomic so that even an empty `""` pattern matches
+// only `""` (not `"foo"`); the general "content absorbed into parent" check
+// already covers non-empty cases.
+#[derive(Clone, Copy, Debug)]
+pub struct Toml;
+impl Language for Toml {
+  fn kind_to_id(&self, kind: &str) -> u16 {
+    self
+      .get_ts_language()
+      .id_for_node_kind(kind, /*named*/ true)
+  }
+  fn field_to_id(&self, field: &str) -> Option<u16> {
+    self
+      .get_ts_language()
+      .field_id_for_name(field)
+      .map(|f| f.get())
+  }
+  fn expando_char(&self) -> char {
+    '_'
+  }
+  fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
+    pre_process_pattern(self.expando_char(), query)
+  }
+  fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
+    builder.build(|src| StrDoc::try_new(src, *self))
+  }
+  fn kind_is_atomic(&self, kind_id: u16) -> bool {
+    kind_id == self.kind_to_id("string")
+  }
+}
+impl LanguageExt for Toml {
+  fn get_ts_language(&self) -> TSLanguage {
+    parsers::language_toml()
+  }
+}
+
+// YAML — quoted scalars (`single_quote_scalar`, `double_quote_scalar`) and
+// block scalars are atomic for the same reason as TOML strings: they're
+// data literals where text-identity matters even when empty.
+#[derive(Clone, Copy, Debug)]
+pub struct Yaml;
+impl Language for Yaml {
+  fn kind_to_id(&self, kind: &str) -> u16 {
+    self
+      .get_ts_language()
+      .id_for_node_kind(kind, /*named*/ true)
+  }
+  fn field_to_id(&self, field: &str) -> Option<u16> {
+    self
+      .get_ts_language()
+      .field_id_for_name(field)
+      .map(|f| f.get())
+  }
+  fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
+    builder.build(|src| StrDoc::try_new(src, *self))
+  }
+  fn kind_is_atomic(&self, kind_id: u16) -> bool {
+    kind_id == self.kind_to_id("single_quote_scalar")
+      || kind_id == self.kind_to_id("double_quote_scalar")
+      || kind_id == self.kind_to_id("block_scalar")
+  }
+}
+impl LanguageExt for Yaml {
+  fn get_ts_language(&self) -> TSLanguage {
+    parsers::language_yaml()
+  }
+}
 // See ripgrep for extensions
 // https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/src/default_types.rs
 
@@ -298,7 +360,8 @@ impl SupportLang {
     use SupportLang::*;
     &[
       Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json,
-      Kotlin, Lua, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Toml, Tsx, TypeScript, Yaml,
+      Kotlin, Lua, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Toml, Tsx, TypeScript,
+      Yaml,
     ]
   }
 
@@ -646,32 +709,109 @@ mod test {
       match lang {
         Bash => vec![("dq", r#"x="foo""#), ("sq", "x='foo'"), ("raw", "x=foo")],
         C => vec![("dq", r#"char* x = "foo";"#), ("ch", "char c = 'a';")],
-        Cpp => vec![("dq", r#"auto x = "foo";"#), ("ch", "auto c = 'a';"), ("raw", r#"auto x = R"(foo)";"#)],
-        CSharp => vec![("dq", r#"var x = "foo";"#), ("verbatim", r#"var x = @"foo";"#), ("interp", r#"var x = $"foo";"#)],
-        Css => vec![("dq", "a { content: \"foo\"; }"), ("sq", "a { content: 'foo'; }")],
-        Dart => vec![("dq", r#"var x = "foo";"#), ("sq", "var x = 'foo';"), ("triple", r#"var x = """foo""";"#)],
-        Elixir => vec![("dq", r#"x = "foo""#), ("charlist", "x = 'foo'"), ("sigil", r#"x = ~s"foo""#)],
-        Go => vec![("dq", r#"x := "foo""#), ("raw", "x := `foo`"), ("rune", "x := 'a'")],
+        Cpp => vec![
+          ("dq", r#"auto x = "foo";"#),
+          ("ch", "auto c = 'a';"),
+          ("raw", r#"auto x = R"(foo)";"#),
+        ],
+        CSharp => vec![
+          ("dq", r#"var x = "foo";"#),
+          ("verbatim", r#"var x = @"foo";"#),
+          ("interp", r#"var x = $"foo";"#),
+        ],
+        Css => vec![
+          ("dq", "a { content: \"foo\"; }"),
+          ("sq", "a { content: 'foo'; }"),
+        ],
+        Dart => vec![
+          ("dq", r#"var x = "foo";"#),
+          ("sq", "var x = 'foo';"),
+          ("triple", r#"var x = """foo""";"#),
+        ],
+        Elixir => vec![
+          ("dq", r#"x = "foo""#),
+          ("charlist", "x = 'foo'"),
+          ("sigil", r#"x = ~s"foo""#),
+        ],
+        Go => vec![
+          ("dq", r#"x := "foo""#),
+          ("raw", "x := `foo`"),
+          ("rune", "x := 'a'"),
+        ],
         Haskell => vec![("dq", r#"x = "foo""#), ("ch", "x = 'a'")],
         Hcl => vec![("dq", r#"x = "foo""#), ("heredoc", "x = <<EOT\nfoo\nEOT")],
-        Html => vec![("attr_dq", r#"<a href="foo">"#), ("attr_sq", "<a href='foo'>"), ("attr_unq", "<a href=foo>"), ("text", "<p>foo</p>")],
+        Html => vec![
+          ("attr_dq", r#"<a href="foo">"#),
+          ("attr_sq", "<a href='foo'>"),
+          ("attr_unq", "<a href=foo>"),
+          ("text", "<p>foo</p>"),
+        ],
         Java => vec![("dq", r#"String x = "foo";"#), ("ch", "char c = 'a';")],
-        JavaScript => vec![("dq", r#"const x = "foo";"#), ("sq", "const x = 'foo';"), ("tpl", "const x = `foo`;"), ("regex", "const x = /foo/g;")],
+        JavaScript => vec![
+          ("dq", r#"const x = "foo";"#),
+          ("sq", "const x = 'foo';"),
+          ("tpl", "const x = `foo`;"),
+          ("regex", "const x = /foo/g;"),
+        ],
         Json => vec![("dq", r#"{"k": "foo"}"#)],
-        Kotlin => vec![("dq", r#"val x = "foo""#), ("triple", "val x = \"\"\"foo\"\"\""), ("ch", "val c = 'a'")],
-        Lua => vec![("dq", r#"x = "foo""#), ("sq", "x = 'foo'"), ("long", "x = [[foo]]")],
+        Kotlin => vec![
+          ("dq", r#"val x = "foo""#),
+          ("triple", "val x = \"\"\"foo\"\"\""),
+          ("ch", "val c = 'a'"),
+        ],
+        Lua => vec![
+          ("dq", r#"x = "foo""#),
+          ("sq", "x = 'foo'"),
+          ("long", "x = [[foo]]"),
+        ],
         Nix => vec![("dq", r#"x = "foo";"#), ("ind", "x = ''foo'';")],
-        Php => vec![("dq", r#"<?php $x = "foo"; ?>"#), ("sq", "<?php $x = 'foo'; ?>"), ("heredoc", "<?php $x = <<<EOT\nfoo\nEOT;\n?>")],
-        Python => vec![("dq", r#"x = "foo""#), ("sq", "x = 'foo'"), ("triple", r#"x = """foo""""#), ("f", r#"x = f"foo""#)],
-        Ruby => vec![("dq", r#"x = "foo""#), ("sq", "x = 'foo'"), ("sym", "x = :foo"), ("heredoc", "x = <<~EOT\n  foo\nEOT")],
-        Rust => vec![("dq", r#"let x = "foo";"#), ("ch", "let c = 'a';"), ("byte", r#"let x = b"foo";"#), ("raw", r##"let x = r#"foo"#;"##)],
-        Scala => vec![("dq", r#"val x = "foo""#), ("triple", "val x = \"\"\"foo\"\"\""), ("ch", "val c = 'a'")],
+        Php => vec![
+          ("dq", r#"<?php $x = "foo"; ?>"#),
+          ("sq", "<?php $x = 'foo'; ?>"),
+          ("heredoc", "<?php $x = <<<EOT\nfoo\nEOT;\n?>"),
+        ],
+        Python => vec![
+          ("dq", r#"x = "foo""#),
+          ("sq", "x = 'foo'"),
+          ("triple", r#"x = """foo""""#),
+          ("f", r#"x = f"foo""#),
+        ],
+        Ruby => vec![
+          ("dq", r#"x = "foo""#),
+          ("sq", "x = 'foo'"),
+          ("sym", "x = :foo"),
+          ("heredoc", "x = <<~EOT\n  foo\nEOT"),
+        ],
+        Rust => vec![
+          ("dq", r#"let x = "foo";"#),
+          ("ch", "let c = 'a';"),
+          ("byte", r#"let x = b"foo";"#),
+          ("raw", r##"let x = r#"foo"#;"##),
+        ],
+        Scala => vec![
+          ("dq", r#"val x = "foo""#),
+          ("triple", "val x = \"\"\"foo\"\"\""),
+          ("ch", "val c = 'a'"),
+        ],
         Solidity => vec![("dq", r#"string x = "foo";"#), ("sq", "string x = 'foo';")],
-        Swift => vec![("dq", r#"let x = "foo""#), ("triple", "let x = \"\"\"\nfoo\n\"\"\"")],
-        Toml => vec![("dq", r#"x = "foo""#), ("sq", "x = 'foo'"), ("triple", r#"x = """foo""""#)],
+        Swift => vec![
+          ("dq", r#"let x = "foo""#),
+          ("triple", "let x = \"\"\"\nfoo\n\"\"\""),
+        ],
+        Toml => vec![
+          ("dq", r#"x = "foo""#),
+          ("sq", "x = 'foo'"),
+          ("triple", r#"x = """foo""""#),
+        ],
         Tsx => vec![("dq", r#"const x: string = "foo";"#)],
         TypeScript => vec![("dq", r#"const x: string = "foo";"#)],
-        Yaml => vec![("dq", r#"a: "foo""#), ("sq", "a: 'foo'"), ("plain", "a: foo"), ("block_lit", "a: |\n  foo\n"), ("block_fold", "a: >\n  foo\n")],
+        Yaml => vec![
+          ("dq", r#"a: "foo""#),
+          ("sq", "a: 'foo'"),
+          ("plain", "a: foo"),
+          ("block_lit", "a: |\n  foo\n"),
+          ("block_fold", "a: >\n  foo\n"),
+        ],
       }
     }
 
@@ -729,7 +869,7 @@ mod test {
       println!("no atom-like nodes detected");
     }
     println!("=== end scan ===\n");
-    assert!(false, "intentional fail to surface stdout");
+    panic!("intentional fail to surface stdout");
   }
 
   // Detail-dump for suspects flagged by the cross-language scan.
@@ -759,6 +899,6 @@ mod test {
     dump(Kotlin, "kotlin character_literal", "val c = 'a'");
     dump(Kotlin, "kotlin string_literal", r#"val x = "foo""#);
     dump(Rust, "rust raw_string_literal", r##"let x = r#"foo"#;"##);
-    assert!(false, "intentional fail to surface stdout");
+    panic!("intentional fail to surface stdout");
   }
 }
