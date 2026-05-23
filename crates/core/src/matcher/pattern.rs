@@ -211,17 +211,51 @@ impl<'r, D: Doc> From<Node<'r, D>> for Pattern {
   }
 }
 
+/// True if the node's text contains a non-whitespace byte that no child's
+/// byte range covers — i.e. some semantic content is folded directly into the
+/// parent's text without being represented as a child node. This is the
+/// structural signature of "atom-like" literal nodes where the matcher would
+/// otherwise be unable to distinguish two different-valued instances of the
+/// same kind (e.g. `tree-sitter-toml-ng`'s `(string)`, `tree-sitter-yaml`'s
+/// `(double_quote_scalar)`, `tree-sitter-kotlin-sg`'s single-char
+/// `(character_literal)`).
+fn has_content_absorbed_into_parent<D: Doc>(node: &Node<'_, D>) -> bool {
+  let parent_range = node.range();
+  let parent_text = node.text();
+  let parent_start = parent_range.start;
+  // Mark each byte in the parent's range as covered by a child, or not.
+  let len = parent_range.end - parent_start;
+  if len == 0 {
+    return false;
+  }
+  let mut covered = vec![false; len];
+  for child in node.children() {
+    let r = child.range();
+    let s = r.start.saturating_sub(parent_start);
+    let e = (r.end.saturating_sub(parent_start)).min(len);
+    for slot in covered.iter_mut().take(e).skip(s) {
+      *slot = true;
+    }
+  }
+  // Now check whether any uncovered byte is non-whitespace.
+  parent_text.bytes().zip(covered).any(|(b, c)| {
+    !c && !b.is_ascii_whitespace()
+  })
+}
+
 fn convert_node_to_pattern<D: Doc>(node: Node<'_, D>) -> PatternNode {
   if let Some(meta_var) = extract_var_from_node(&node) {
     PatternNode::MetaVar { meta_var }
-  } else if node.is_leaf() || node.get_doc().get_lang().kind_is_atomic(node.kind_id()) {
+  } else if node.is_leaf() || (node.is_named() && has_content_absorbed_into_parent(&node)) {
     // Treat as Terminal:
     //   1. true leaves (no children at all), or
-    //   2. nodes the language has declared as atomic — their semantic content
-    //      lives in their text, not in subtree structure. Used for grammars
-    //      where a named node's only children are anonymous bookend tokens
-    //      and the meaningful payload is the parent's text (e.g.
-    //      tree-sitter-toml-ng's `(string)`).
+    //   2. named nodes whose own text contains non-whitespace bytes not
+    //      covered by any child node — the meaningful payload lives in the
+    //      parent's text rather than its subtree. Without this, grammars
+    //      where literals absorb content (TOML strings, YAML quoted/block
+    //      scalars, Kotlin single-char character literals, ...) would
+    //      silently match other-valued instances of the same kind because
+    //      child-by-child matching has no content to compare.
     PatternNode::Terminal {
       text: node.text().to_string(),
       is_named: node.is_named(),

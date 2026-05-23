@@ -247,83 +247,20 @@ impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
 impl_lang!(Scala, language_scala);
 impl_lang!(Solidity, language_solidity);
-
-// TOML: bare keys only allow [A-Za-z0-9_-], so $ is not a valid bare-key char
-// (hence the '_' expando char). Additionally, `tree-sitter-toml-ng` models the
-// `string` node with only anonymous bookend `"` tokens — the contents are
-// folded into the parent's text — so we declare it atomic so that pattern
-// matching compares the full text rather than the (identical) anonymous
-// children. See crates/core/src/language.rs `kind_is_atomic`.
-#[derive(Clone, Copy, Debug)]
-pub struct Toml;
-impl Language for Toml {
-  fn kind_to_id(&self, kind: &str) -> u16 {
-    self
-      .get_ts_language()
-      .id_for_node_kind(kind, /*named*/ true)
-  }
-  fn field_to_id(&self, field: &str) -> Option<u16> {
-    self
-      .get_ts_language()
-      .field_id_for_name(field)
-      .map(|f| f.get())
-  }
-  fn expando_char(&self) -> char {
-    '_'
-  }
-  fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
-    pre_process_pattern(self.expando_char(), query)
-  }
-  fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
-    builder.build(|src| StrDoc::try_new(src, *self))
-  }
-  fn kind_is_atomic(&self, kind_id: u16) -> bool {
-    kind_id == self.kind_to_id("string")
-  }
-}
-impl LanguageExt for Toml {
-  fn get_ts_language(&self) -> TSLanguage {
-    parsers::language_toml().into()
-  }
-}
+// TOML bare keys only allow [A-Za-z0-9_-], so $ is not valid.
+// The `(string)` node's content is folded into its text (only anonymous `"`
+// children) — pattern matching distinguishes values via the structural
+// "content absorbed into parent" detection in
+// crates/core/src/matcher/pattern.rs, no per-language hook needed.
+impl_lang_expando!(Toml, language_toml, '_');
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
 impl_lang!(Dart, language_dart);
-
-// YAML: `tree-sitter-yaml`'s quoted scalar nodes (`single_quote_scalar`,
-// `double_quote_scalar`) only have the anonymous `'` / `"` bookend tokens as
-// children — the content text is folded into the parent. Without declaring
-// them atomic, pattern matching would treat `"foo"` and `"bar"` as
-// indistinguishable. Plain scalars are unaffected because their content is a
-// single token (`string_scalar`).
-#[derive(Clone, Copy, Debug)]
-pub struct Yaml;
-impl Language for Yaml {
-  fn kind_to_id(&self, kind: &str) -> u16 {
-    self
-      .get_ts_language()
-      .id_for_node_kind(kind, /*named*/ true)
-  }
-  fn field_to_id(&self, field: &str) -> Option<u16> {
-    self
-      .get_ts_language()
-      .field_id_for_name(field)
-      .map(|f| f.get())
-  }
-  fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
-    builder.build(|src| StrDoc::try_new(src, *self))
-  }
-  fn kind_is_atomic(&self, kind_id: u16) -> bool {
-    kind_id == self.kind_to_id("single_quote_scalar")
-      || kind_id == self.kind_to_id("double_quote_scalar")
-      || kind_id == self.kind_to_id("block_scalar")
-  }
-}
-impl LanguageExt for Yaml {
-  fn get_ts_language(&self) -> TSLanguage {
-    parsers::language_yaml().into()
-  }
-}
+// YAML quoted scalars (`single_quote_scalar`, `double_quote_scalar`) and
+// block scalars expose only anonymous bookend tokens — content lives in the
+// parent's text. Handled automatically by the structural detection in
+// crates/core/src/matcher/pattern.rs.
+impl_lang!(Yaml, language_yaml);
 // See ripgrep for extensions
 // https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/src/default_types.rs
 
@@ -690,5 +627,142 @@ mod test {
     assert_eq!(from_extension(path), Some(SupportLang::Rust));
   }
 
-  // TODO: add test for file_types
+  // --- Cross-language atom-like-node scan ---
+  //
+  // Reports every language whose AST contains a named node whose own text
+  // differs from the concatenation of its children's text. That mismatch is
+  // the structural signature of the TOML/YAML quoted-string bug: content is
+  // folded into the parent's `text()` but no child node carries it, so the
+  // pattern matcher (which compares kind + recurses into children) cannot
+  // distinguish two different-content instances of the same kind.
+  //
+  // Run with: cargo test -p ast-grep-language atom_like -- --ignored --nocapture
+  //
+  // A finding here is a SUSPECT, not a proven bug; confirm with a real
+  // test_non_match pair. False positives are possible when the difference is
+  // pure whitespace between children.
+  #[test]
+  #[ignore]
+  fn atom_like_node_scan_across_languages() {
+    // (label, source) pairs probing common literal forms per language.
+    fn probes_for(lang: SupportLang) -> Vec<(&'static str, &'static str)> {
+      use SupportLang::*;
+      match lang {
+        Bash => vec![("dq", r#"x="foo""#), ("sq", "x='foo'"), ("raw", "x=foo")],
+        C => vec![("dq", r#"char* x = "foo";"#), ("ch", "char c = 'a';")],
+        Cpp => vec![("dq", r#"auto x = "foo";"#), ("ch", "auto c = 'a';"), ("raw", r#"auto x = R"(foo)";"#)],
+        CSharp => vec![("dq", r#"var x = "foo";"#), ("verbatim", r#"var x = @"foo";"#), ("interp", r#"var x = $"foo";"#)],
+        Css => vec![("dq", "a { content: \"foo\"; }"), ("sq", "a { content: 'foo'; }")],
+        Dart => vec![("dq", r#"var x = "foo";"#), ("sq", "var x = 'foo';"), ("triple", r#"var x = """foo""";"#)],
+        Elixir => vec![("dq", r#"x = "foo""#), ("charlist", "x = 'foo'"), ("sigil", r#"x = ~s"foo""#)],
+        Go => vec![("dq", r#"x := "foo""#), ("raw", "x := `foo`"), ("rune", "x := 'a'")],
+        Haskell => vec![("dq", r#"x = "foo""#), ("ch", "x = 'a'")],
+        Hcl => vec![("dq", r#"x = "foo""#), ("heredoc", "x = <<EOT\nfoo\nEOT")],
+        Html => vec![("attr_dq", r#"<a href="foo">"#), ("attr_sq", "<a href='foo'>"), ("attr_unq", "<a href=foo>"), ("text", "<p>foo</p>")],
+        Java => vec![("dq", r#"String x = "foo";"#), ("ch", "char c = 'a';")],
+        JavaScript => vec![("dq", r#"const x = "foo";"#), ("sq", "const x = 'foo';"), ("tpl", "const x = `foo`;"), ("regex", "const x = /foo/g;")],
+        Json => vec![("dq", r#"{"k": "foo"}"#)],
+        Kotlin => vec![("dq", r#"val x = "foo""#), ("triple", "val x = \"\"\"foo\"\"\""), ("ch", "val c = 'a'")],
+        Lua => vec![("dq", r#"x = "foo""#), ("sq", "x = 'foo'"), ("long", "x = [[foo]]")],
+        Nix => vec![("dq", r#"x = "foo";"#), ("ind", "x = ''foo'';")],
+        Php => vec![("dq", r#"<?php $x = "foo"; ?>"#), ("sq", "<?php $x = 'foo'; ?>"), ("heredoc", "<?php $x = <<<EOT\nfoo\nEOT;\n?>")],
+        Python => vec![("dq", r#"x = "foo""#), ("sq", "x = 'foo'"), ("triple", r#"x = """foo""""#), ("f", r#"x = f"foo""#)],
+        Ruby => vec![("dq", r#"x = "foo""#), ("sq", "x = 'foo'"), ("sym", "x = :foo"), ("heredoc", "x = <<~EOT\n  foo\nEOT")],
+        Rust => vec![("dq", r#"let x = "foo";"#), ("ch", "let c = 'a';"), ("byte", r#"let x = b"foo";"#), ("raw", r##"let x = r#"foo"#;"##)],
+        Scala => vec![("dq", r#"val x = "foo""#), ("triple", "val x = \"\"\"foo\"\"\""), ("ch", "val c = 'a'")],
+        Solidity => vec![("dq", r#"string x = "foo";"#), ("sq", "string x = 'foo';")],
+        Swift => vec![("dq", r#"let x = "foo""#), ("triple", "let x = \"\"\"\nfoo\n\"\"\"")],
+        Toml => vec![("dq", r#"x = "foo""#), ("sq", "x = 'foo'"), ("triple", r#"x = """foo""""#)],
+        Tsx => vec![("dq", r#"const x: string = "foo";"#)],
+        TypeScript => vec![("dq", r#"const x: string = "foo";"#)],
+        Yaml => vec![("dq", r#"a: "foo""#), ("sq", "a: 'foo'"), ("plain", "a: foo"), ("block_lit", "a: |\n  foo\n"), ("block_fold", "a: >\n  foo\n")],
+      }
+    }
+
+    fn scan<L: LanguageExt + Clone>(lang: L, label: &str, src: &str, out: &mut Vec<String>) {
+      let g = lang.ast_grep(src);
+      let root = g.root();
+      walk(root, label, out);
+    }
+
+    fn walk<D: ast_grep_core::Doc>(
+      node: ast_grep_core::Node<D>,
+      label: &str,
+      out: &mut Vec<String>,
+    ) {
+      if node.is_named() && !node.is_leaf() {
+        let parent_text = node.text().to_string();
+        let concat: String = node.children().map(|c| c.text().to_string()).collect();
+        // Compare ignoring whitespace, since tree-sitter doesn't surface inter-token whitespace as a child
+        let pt: String = parent_text.chars().filter(|c| !c.is_whitespace()).collect();
+        let ct: String = concat.chars().filter(|c| !c.is_whitespace()).collect();
+        if pt != ct {
+          out.push(format!(
+            "  [{}] kind={} text={:?} children_concat={:?}",
+            label,
+            node.kind(),
+            parent_text,
+            concat
+          ));
+        }
+      }
+      for c in node.children() {
+        walk(c, label, out);
+      }
+    }
+
+    println!("\n=== atom-like node scan across all builtin languages ===");
+    let mut any = false;
+    for &lang in SupportLang::all_langs() {
+      let mut findings = Vec::new();
+      for (label, src) in probes_for(lang) {
+        scan(lang, label, src, &mut findings);
+      }
+      // dedupe identical (kind, label) lines
+      findings.sort();
+      findings.dedup();
+      if !findings.is_empty() {
+        any = true;
+        println!("\n{:?}:", lang);
+        for f in findings {
+          println!("{}", f);
+        }
+      }
+    }
+    if !any {
+      println!("no atom-like nodes detected");
+    }
+    println!("=== end scan ===\n");
+    assert!(false, "intentional fail to surface stdout");
+  }
+
+  // Detail-dump for suspects flagged by the cross-language scan.
+  #[test]
+  #[ignore]
+  fn atom_like_node_detail_dump() {
+    fn dump<L: LanguageExt + Clone>(lang: L, label: &str, src: &str) {
+      println!("--- {label} ---");
+      let g = lang.ast_grep(src);
+      println!("sexp: {}", g.root().get_inner_node().to_sexp());
+      fn walk<D: ast_grep_core::Doc>(n: ast_grep_core::Node<D>, indent: usize) {
+        println!(
+          "{:indent$}{} named={} text={:?}",
+          "",
+          n.kind(),
+          n.is_named(),
+          n.text(),
+          indent = indent
+        );
+        for c in n.children() {
+          walk(c, indent + 2);
+        }
+      }
+      walk(g.root(), 0);
+    }
+
+    dump(Kotlin, "kotlin character_literal", "val c = 'a'");
+    dump(Kotlin, "kotlin string_literal", r#"val x = "foo""#);
+    dump(Rust, "rust raw_string_literal", r##"let x = r#"foo"#;"##);
+    assert!(false, "intentional fail to surface stdout");
+  }
 }

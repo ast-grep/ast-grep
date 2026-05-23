@@ -19,6 +19,26 @@ fn test_kotlin_str() {
   test_non_match("'123'", "'456'");
 }
 
+// --- Value-distinction probes for Kotlin literals ---
+
+#[test]
+fn test_kotlin_string_literal_value_distinct() {
+  // String literals have a named `string_content` child, so content compares.
+  test_non_match(r#"val x = "foo""#, r#"val x = "bar""#);
+}
+
+#[test]
+fn test_kotlin_triple_string_value_distinct() {
+  test_non_match("val x = \"\"\"foo\"\"\"", "val x = \"\"\"bar\"\"\"");
+}
+
+#[test]
+fn test_kotlin_single_char_literal_value_distinct() {
+  // Single-char `character_literal` ('a') has only `'` bookend children —
+  // content is folded into the parent text. Same shape as the TOML/YAML bug.
+  test_non_match("val c = 'a'", "val c = 'b'");
+}
+
 #[test]
 fn test_kotlin_pattern() {
   test_match("$A = 0", "a = 0");

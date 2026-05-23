@@ -59,3 +59,39 @@ fn test_hcl_replace() {
   );
   assert_eq!(ret, r#"variable "region" { default = "eu-west-1" }"#);
 }
+
+fn test_non_match(query: &str, source: &str) {
+  use crate::test::test_non_match_lang;
+  test_non_match_lang(query, source, Hcl);
+}
+
+// --- Value-distinction tests: check whether HCL attribute value matching
+//     honors the actual text, or whether the matcher treats differently-valued
+//     nodes as equivalent (the TOML/YAML quoted-string bug).
+
+#[test]
+fn test_hcl_string_value_distinct() {
+  test_non_match(r#"name = "foo""#, r#"name = "bar""#);
+}
+
+#[test]
+fn test_hcl_number_value_distinct() {
+  test_non_match("count = 1", "count = 2");
+}
+
+#[test]
+fn test_hcl_bool_value_distinct() {
+  test_non_match("enabled = true", "enabled = false");
+}
+
+#[test]
+fn test_hcl_string_replace_respects_value() {
+  use ast_grep_core::tree_sitter::LanguageExt;
+  let src = r#"name = "foo""#;
+  let mut source = Hcl.ast_grep(src);
+  let replaced = source
+    .replace(r#"name = "bar""#, r#"name = "baz""#)
+    .expect("should parse");
+  assert!(!replaced, "should not match a different string value");
+  assert_eq!(source.generate(), src);
+}

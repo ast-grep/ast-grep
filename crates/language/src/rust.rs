@@ -88,3 +88,26 @@ patterns = match config.include.clone() {
   );
   assert_eq!(ret, "\npatterns = config.include.clone().unwrap_or(123)");
 }
+
+// --- Value-distinction probes ---
+
+#[test]
+fn test_rust_string_value_distinct() {
+  test_non_match(r#"let x = "foo";"#, r#"let x = "bar";"#);
+}
+
+#[test]
+fn test_rust_raw_string_value_distinct() {
+  // raw_string_literal exposes content as named `string_content` child.
+  test_non_match(r##"let x = r#"foo"#;"##, r##"let x = r#"bar"#;"##);
+}
+
+#[test]
+fn test_rust_byte_string_value_distinct() {
+  test_non_match(r#"let x = b"foo";"#, r#"let x = b"bar";"#);
+}
+
+#[test]
+fn test_rust_char_literal_value_distinct() {
+  test_non_match("let c = 'a';", "let c = 'b';");
+}
