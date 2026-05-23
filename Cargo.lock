@@ -229,7 +229,6 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "tower-lsp-server",
- "tracing",
 ]
 
 [[package]]
