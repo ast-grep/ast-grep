@@ -19,8 +19,6 @@ fn test_kotlin_str() {
   test_non_match("'123'", "'456'");
 }
 
-// --- Value-distinction probes for Kotlin literals ---
-
 #[test]
 fn test_kotlin_string_literal_value_distinct() {
   // String literals have a named `string_content` child, so content compares.

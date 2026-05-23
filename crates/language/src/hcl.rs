@@ -65,10 +65,6 @@ fn test_non_match(query: &str, source: &str) {
   test_non_match_lang(query, source, Hcl);
 }
 
-// --- Value-distinction tests: check whether HCL attribute value matching
-//     honors the actual text, or whether the matcher treats differently-valued
-//     nodes as equivalent (the TOML/YAML quoted-string bug).
-
 #[test]
 fn test_hcl_string_value_distinct() {
   test_non_match(r#"name = "foo""#, r#"name = "bar""#);

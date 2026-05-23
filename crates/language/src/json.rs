@@ -37,9 +37,6 @@ fn test_json_replace() {
   assert_eq!(ret, r#"{ "a": 456 }"#);
 }
 
-// --- Value-distinction tests: same shape as the TOML suite, to confirm
-//     JSON does NOT suffer the same string-value-comparison bug.
-
 #[test]
 fn test_json_number_value_distinct() {
   test_non_match(r#"{"a": 100}"#, r#"{"a": 200}"#);

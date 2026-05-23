@@ -237,6 +237,8 @@ impl_lang_expando!(Ruby, language_ruby, 'µ');
 impl_lang_expando!(Rust, language_rust, 'µ');
 //https://docs.swift.org/swift-book/documentation/the-swift-programming-language/lexicalstructure/#Identifiers
 impl_lang_expando!(Swift, language_swift, 'µ');
+// TOML bare keys only allow [A-Za-z0-9_-]
+impl_lang_expando!(Toml, language_toml, '_');
 
 // Stub Language without preprocessing
 // Language Name, tree-sitter-name, alias, extension
@@ -247,12 +249,6 @@ impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
 impl_lang!(Scala, language_scala);
 impl_lang!(Solidity, language_solidity);
-// TOML bare keys only allow [A-Za-z0-9_-], so $ is not valid.
-// The `(string)` node's content is folded into its text (only anonymous `"`
-// children) — pattern matching distinguishes values via the structural
-// "content absorbed into parent" detection in
-// crates/core/src/matcher/pattern.rs, no per-language hook needed.
-impl_lang_expando!(Toml, language_toml, '_');
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
 impl_lang!(Dart, language_dart);

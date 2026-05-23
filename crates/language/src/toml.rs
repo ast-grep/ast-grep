@@ -274,8 +274,6 @@ fn test_multiline_string_value_distinct() {
   );
 }
 
-// --- Coverage: metavariables on the key side ---
-
 #[test]
 fn test_toml_meta_var_key() {
   // Verifies the expando_char='_' choice: $KEY is rewritten to `_KEY`, which

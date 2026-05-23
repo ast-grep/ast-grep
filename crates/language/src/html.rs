@@ -157,10 +157,6 @@ mod test {
     assert!(entries.iter().all(|(_, ranges)| ranges.len() == 1));
   }
 
-  // --- Value-distinction tests: check whether HTML attribute / text content
-  //     value matching honors the actual text, or whether the matcher treats
-  //     differently-valued nodes as equivalent (the TOML/YAML bug).
-
   #[test]
   fn test_html_attribute_unquoted_value_distinct() {
     test_non_match(r#"<a href=foo>"#, r#"<a href=bar>"#);

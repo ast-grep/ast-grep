@@ -89,8 +89,6 @@ patterns = match config.include.clone() {
   assert_eq!(ret, "\npatterns = config.include.clone().unwrap_or(123)");
 }
 
-// --- Value-distinction probes ---
-
 #[test]
 fn test_rust_string_value_distinct() {
   test_non_match(r#"let x = "foo";"#, r#"let x = "bar";"#);

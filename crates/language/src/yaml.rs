@@ -56,9 +56,6 @@ fn test_yaml_replace() {
   assert_eq!(ret, EXPECTED);
 }
 
-// --- Value-distinction tests: same shape as the TOML suite, to detect
-//     whether YAML suffers a similar string-value-comparison gap.
-
 #[test]
 fn test_yaml_int_value_distinct() {
   test_non_match("a: 100", "a: 200");
