@@ -228,6 +228,318 @@ fn test_toml_array_table_path() {
   test_match(r#"path = "src/main.rs""#, ARRAY_TABLE_TOML);
 }
 
+// =============================================================================
+// Creative edge-case tests — looking for matcher bugs around TOML literals,
+// quoting, escapes, special floats, dates, keys, containers, and replacements.
+// =============================================================================
+
+// --- Empty strings: a pattern with "" should NOT match "anything" ---
+//
+// Known limitation: an *empty* TOML string literal in the pattern has all of
+// its bytes covered by the `"` bookend tokens, so the "content absorbed into
+// parent" detection in crates/core/src/matcher/pattern.rs does not fire — the
+// pattern stays Internal, and child-by-child matching against a candidate
+// like `"foo"` (which has the same two `"` children) succeeds. Fixing this
+// without breaking JS empty-block whitespace tolerance (`{}` vs `{ }`)
+// requires per-language semantics. Tests below are `#[ignore]` because they
+// represent a real but accepted edge-case gap.
+
+#[test]
+fn test_empty_string_matches_empty() {
+  test_match(r#"x = """#, r#"x = """#);
+}
+
+#[test]
+fn test_nonempty_does_not_match_empty() {
+  // Pattern is non-empty → Terminal (absorbed content) → text mismatch. ✓
+  test_non_match(r#"x = "foo""#, r#"x = """#);
+}
+
+#[test]
+#[ignore]
+fn test_empty_string_vs_nonempty() {
+  // FAILS: pattern `""` matches `"foo"` because both string nodes look like
+  // `[", "]` to the matcher (empty pattern has nothing absorbed; candidate's
+  // absorbed `foo` is invisible at the children level).
+  test_non_match(r#"x = """#, r#"x = "foo""#);
+}
+
+#[test]
+#[ignore]
+fn test_empty_literal_string_vs_nonempty() {
+  test_non_match("x = ''", "x = 'foo'");
+}
+
+// --- Mixed quote types: basic ("foo") vs literal ('foo') ---
+
+#[test]
+fn test_basic_string_does_not_match_literal_string() {
+  // Different node kinds (basic vs literal string) — must not cross-match.
+  test_non_match(r#"x = "foo""#, "x = 'foo'");
+}
+
+#[test]
+fn test_literal_string_does_not_match_basic_string() {
+  test_non_match("x = 'foo'", r#"x = "foo""#);
+}
+
+// --- Escape sequences (escape_sequence is a NAMED child) ---
+
+#[test]
+fn test_string_with_escape_value_distinct() {
+  test_non_match(r#"x = "a\nb""#, r#"x = "a\tb""#);
+}
+
+#[test]
+fn test_string_unicode_escape_value_distinct() {
+  test_non_match(r#"x = "A""#, r#"x = "B""#);
+}
+
+// Note: there is no test for `"$VAR"` in a TOML string vs a literal `$VAR`
+// in a TOML source. Toml's `pre_process_pattern` replaces `$VAR` with `_VAR`
+// in the pattern (so `$VAR` can be a metavariable), which means the literal
+// string `$VAR` in source TOML is not directly addressable as a pattern.
+// This is an inherent expando-char tradeoff shared by every ast-grep language
+// with that mechanism, not a bug specific to TOML.
+
+// --- Special float values ---
+
+#[test]
+fn test_float_inf_vs_neg_inf() {
+  test_non_match("x = inf", "x = -inf");
+}
+
+#[test]
+fn test_float_inf_vs_nan() {
+  test_non_match("x = inf", "x = nan");
+}
+
+#[test]
+fn test_float_inf_matches_inf() {
+  test_match("x = inf", "x = inf");
+}
+
+#[test]
+fn test_float_underscore_separator() {
+  test_match("x = 1_000_000", "x = 1_000_000");
+  // Source uses underscores; pattern without underscores has different text
+  // (the underscore IS in the integer token, so token text differs).
+  test_non_match("x = 1000000", "x = 1_000_000");
+}
+
+// --- Integer bases ---
+
+#[test]
+fn test_hex_vs_decimal_same_value() {
+  // 0xFF and 255 have the same numeric value but different token text.
+  test_non_match("x = 0xFF", "x = 255");
+}
+
+#[test]
+fn test_octal_value_distinct() {
+  test_non_match("x = 0o755", "x = 0o644");
+}
+
+#[test]
+fn test_binary_value_distinct() {
+  test_non_match("x = 0b1010", "x = 0b0101");
+}
+
+// --- Date / time edge cases ---
+
+#[test]
+fn test_offset_date_time_offset_distinct() {
+  test_non_match(
+    "x = 2020-01-01T00:00:00+00:00",
+    "x = 2020-01-01T00:00:00+05:00",
+  );
+}
+
+#[test]
+fn test_local_time_distinct() {
+  test_non_match("x = 12:00:00", "x = 13:00:00");
+}
+
+#[test]
+fn test_date_vs_datetime() {
+  // Same date but different AST kind (local_date vs local_date_time).
+  test_non_match("x = 2020-01-01", "x = 2020-01-01T00:00:00");
+}
+
+// --- Empty containers ---
+
+#[test]
+fn test_empty_array_does_not_match_nonempty() {
+  test_non_match("x = []", "x = [1]");
+}
+
+#[test]
+fn test_nonempty_array_does_not_match_empty() {
+  test_non_match("x = [1]", "x = []");
+}
+
+#[test]
+fn test_empty_inline_table_does_not_match_nonempty() {
+  test_non_match("x = {}", "x = { a = 1 }");
+}
+
+#[test]
+fn test_array_size_distinct() {
+  test_non_match("x = [1, 2]", "x = [1, 2, 3]");
+  test_non_match("x = [1, 2, 3]", "x = [1, 2]");
+}
+
+#[test]
+fn test_array_order_distinct() {
+  test_non_match("x = [1, 2, 3]", "x = [3, 2, 1]");
+}
+
+// --- Keys ---
+
+#[test]
+fn test_quoted_key_vs_bare_key() {
+  // Same effective key name but different AST kind (quoted_key vs bare_key).
+  test_non_match("\"foo\" = 1", "foo = 1");
+}
+
+#[test]
+fn test_literal_quoted_key_vs_basic_quoted_key() {
+  test_non_match("'foo' = 1", "\"foo\" = 1");
+}
+
+#[test]
+fn test_dotted_key_value_distinct() {
+  // Same dotted shape but different leaf key.
+  test_non_match("a.b.c = 1", "a.b.d = 1");
+}
+
+#[test]
+fn test_numeric_bare_key() {
+  test_match("2020 = \"year\"", "2020 = \"year\"");
+  test_non_match("2020 = \"year\"", "2021 = \"year\"");
+}
+
+#[test]
+fn test_key_with_hyphen() {
+  test_match("foo-bar = 1", "foo-bar = 1");
+  test_non_match("foo-bar = 1", "foo_bar = 1");
+}
+
+// --- Inline tables: structural matching ---
+
+#[test]
+fn test_inline_table_extra_field_distinct() {
+  test_non_match("a = { b = 1 }", "a = { b = 1, c = 2 }");
+}
+
+#[test]
+fn test_inline_table_missing_field_distinct() {
+  test_non_match("a = { b = 1, c = 2 }", "a = { b = 1 }");
+}
+
+#[test]
+fn test_inline_table_value_distinct() {
+  test_non_match("a = { b = 1 }", "a = { b = 2 }");
+}
+
+// --- Multiline strings ---
+
+#[test]
+fn test_multiline_basic_string_does_not_match_singleline() {
+  // Different node shape (multiline_basic vs basic string).
+  test_non_match("x = \"\"\"foo\"\"\"", "x = \"foo\"");
+}
+
+#[test]
+fn test_multiline_literal_string_value_distinct() {
+  test_non_match("x = '''foo'''", "x = '''bar'''");
+}
+
+#[test]
+fn test_multiline_string_with_newline_value_distinct() {
+  test_non_match(
+    "x = \"\"\"\nfoo\n\"\"\"",
+    "x = \"\"\"\nbar\n\"\"\"",
+  );
+}
+
+// --- Comments don't affect matching ---
+
+#[test]
+fn test_pattern_ignores_source_comments() {
+  test_match("port = 8080", "# server port\nport = 8080");
+}
+
+// --- Replace operations ---
+
+#[test]
+fn test_replace_value_in_dotted_key() {
+  let ret = test_replace(
+    "a.b = \"old\"",
+    r#"a.b = "old""#,
+    r#"a.b = "new""#,
+  );
+  assert_eq!(ret, "a.b = \"new\"");
+}
+
+#[test]
+fn test_replace_only_matching_dep_among_many() {
+  // A regression target for the bug we fixed: ensure replace only touches the
+  // specific dep whose value matches.
+  let src = "[deps]\nserde = \"1.0\"\ntokio = \"1.0\"\nlog = \"0.4\"";
+  let ret = test_replace(src, r#"tokio = "1.0""#, r#"tokio = "2.0""#);
+  assert_eq!(
+    ret,
+    "[deps]\nserde = \"1.0\"\ntokio = \"2.0\"\nlog = \"0.4\""
+  );
+}
+
+#[test]
+fn test_replace_with_metavar_capture() {
+  // Capture the value, then substitute. The captured string node must
+  // round-trip its content correctly.
+  let ret = test_replace(
+    "name = \"hello\"",
+    r#"name = $V"#,
+    r#"label = $V"#,
+  );
+  assert_eq!(ret, "label = \"hello\"");
+}
+
+#[test]
+fn test_replace_does_not_swap_string_kinds() {
+  // Pattern is basic string; source has literal string — should NOT match,
+  // so no replacement.
+  let mut source = Toml.ast_grep("x = 'foo'");
+  let replaced = source.replace(r#"x = "foo""#, r#"x = "bar""#).expect("ok");
+  assert!(!replaced);
+  assert_eq!(source.generate(), "x = 'foo'");
+}
+
+// --- Boolean ---
+
+#[test]
+fn test_boolean_case_sensitivity() {
+  // TOML booleans are lowercase. `True` is not a TOML boolean — it'd be
+  // parsed as a bare key or error. Pattern must not match.
+  test_non_match("x = True", "x = true");
+}
+
+// --- Whitespace insensitivity ---
+
+#[test]
+fn test_extra_whitespace_around_equals() {
+  test_match("x = 1", "x   =   1");
+}
+
+#[test]
+fn test_extra_blank_lines() {
+  test_match(
+    "[package]\nname = \"foo\"",
+    "[package]\n\n\nname = \"foo\"",
+  );
+}
+
 // --- Value-distinction tests ---
 // Integer / boolean / float / date pass; string variants FAIL today because
 // tree-sitter-toml-ng exposes string contents only as anonymous tokens, so

@@ -219,17 +219,29 @@ impl<'r, D: Doc> From<Node<'r, D>> for Pattern {
 /// same kind (e.g. `tree-sitter-toml-ng`'s `(string)`, `tree-sitter-yaml`'s
 /// `(double_quote_scalar)`, `tree-sitter-kotlin-sg`'s single-char
 /// `(character_literal)`).
+///
+/// Whitespace is excluded so that grammars where inter-token whitespace is
+/// insignificant (e.g. JS's empty `(statement_block)` with `{` `}` and
+/// optional whitespace between them) remain matched structurally.
+///
+/// Known limitation: the *empty* case (e.g. TOML pattern `""`) has no
+/// uncovered bytes, so it stays Internal and child-by-child matching can't
+/// distinguish it from candidates with absorbed content (`"foo"`). Catching
+/// that without breaking JS/CPP whitespace-insensitive block matching would
+/// require per-language semantics.
 fn has_content_absorbed_into_parent<D: Doc>(node: &Node<'_, D>) -> bool {
   let parent_range = node.range();
   let parent_text = node.text();
   let parent_start = parent_range.start;
-  // Mark each byte in the parent's range as covered by a child, or not.
   let len = parent_range.end - parent_start;
   if len == 0 {
     return false;
   }
   let mut covered = vec![false; len];
   for child in node.children() {
+    if child.is_missing() {
+      continue;
+    }
     let r = child.range();
     let s = r.start.saturating_sub(parent_start);
     let e = (r.end.saturating_sub(parent_start)).min(len);
@@ -237,10 +249,10 @@ fn has_content_absorbed_into_parent<D: Doc>(node: &Node<'_, D>) -> bool {
       *slot = true;
     }
   }
-  // Now check whether any uncovered byte is non-whitespace.
-  parent_text.bytes().zip(covered).any(|(b, c)| {
-    !c && !b.is_ascii_whitespace()
-  })
+  parent_text
+    .bytes()
+    .zip(covered)
+    .any(|(b, c)| !c && !b.is_ascii_whitespace())
 }
 
 fn convert_node_to_pattern<D: Doc>(node: Node<'_, D>) -> PatternNode {
@@ -251,11 +263,8 @@ fn convert_node_to_pattern<D: Doc>(node: Node<'_, D>) -> PatternNode {
     //   1. true leaves (no children at all), or
     //   2. named nodes whose own text contains non-whitespace bytes not
     //      covered by any child node — the meaningful payload lives in the
-    //      parent's text rather than its subtree. Without this, grammars
-    //      where literals absorb content (TOML strings, YAML quoted/block
-    //      scalars, Kotlin single-char character literals, ...) would
-    //      silently match other-valued instances of the same kind because
-    //      child-by-child matching has no content to compare.
+    //      parent's text rather than its subtree (TOML strings, YAML
+    //      quoted/block scalars, Kotlin single-char character literals, ...).
     PatternNode::Terminal {
       text: node.text().to_string(),
       is_named: node.is_named(),

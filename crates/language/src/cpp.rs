@@ -7,6 +7,7 @@ fn test_match(query: &str, source: &str) {
   test_match_lang(query, source, Cpp);
 }
 
+
 #[test]
 fn test_cpp_pattern() {
   test_match("$A->b()", "expr->b()");
