@@ -538,6 +538,10 @@ impl Language for SupportLang {
   impl_lang_method!(expando_char, () => char);
   impl_lang_method!(extract_meta_var, (source: &str) => Option<MetaVariable>);
   impl_lang_method!(build_pattern, (builder: &PatternBuilder) => Result<Pattern, PatternError>);
+  // Must delegate — the trait default returns `false`, which would silently
+  // disable Toml/Yaml's atomic-kind overrides whenever a Doc is parameterized
+  // by SupportLang (e.g. the CLI's StrDoc<SgLang> path).
+  impl_lang_method!(kind_is_atomic, (kind_id: u16) => bool);
   fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
     execute_lang_method! { self, pre_process_pattern, query }
   }

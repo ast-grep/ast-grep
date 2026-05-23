@@ -269,6 +269,19 @@ fn test_empty_multiline_string_vs_nonempty() {
   test_non_match("x = \"\"\"\"\"\"", "x = \"\"\"foo\"\"\"");
 }
 
+#[test]
+fn test_atomic_kind_delegated_via_support_lang() {
+  // Regression for the SupportLang impl forgetting to delegate
+  // `kind_is_atomic`. If it returns the trait default (`false`) the empty
+  // string fix would silently break for any path that uses SupportLang
+  // (notably the CLI via SgLang).
+  use crate::SupportLang;
+  let direct = Toml.kind_is_atomic(Toml.kind_to_id("string"));
+  let via_enum = SupportLang::Toml.kind_is_atomic(SupportLang::Toml.kind_to_id("string"));
+  assert!(direct, "Toml should declare `string` atomic");
+  assert_eq!(direct, via_enum, "SupportLang must delegate kind_is_atomic");
+}
+
 // --- Mixed quote types: basic ("foo") vs literal ('foo') ---
 
 #[test]

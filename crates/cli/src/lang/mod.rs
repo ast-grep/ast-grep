@@ -189,6 +189,12 @@ impl Language for SgLang {
       Custom(c) => c.field_to_id(field),
     }
   }
+  fn kind_is_atomic(&self, kind_id: u16) -> bool {
+    match self {
+      Builtin(b) => b.kind_is_atomic(kind_id),
+      Custom(c) => c.kind_is_atomic(kind_id),
+    }
+  }
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     // respect user overriding like languageGlobs and custom lang
     // TODO: test this preference
