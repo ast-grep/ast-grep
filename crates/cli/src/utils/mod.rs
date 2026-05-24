@@ -26,8 +26,7 @@ use crossterm::{
 };
 use smallvec::{smallvec, SmallVec};
 
-use ast_grep_config::RuleCollection;
-use ast_grep_core::Pattern;
+use ast_grep_config::{Rule, RuleCollection};
 use ast_grep_core::{tree_sitter::StrDoc, Matcher};
 use ast_grep_language::{Language, LanguageExt};
 
@@ -148,13 +147,16 @@ pub fn filter_file_rule(
 pub fn filter_file_pattern<'a>(
   path: &Path,
   lang: SgLang,
-  root_matcher: Option<&'a Pattern>,
-  sub_matchers: &'a [(SgLang, Pattern)],
-) -> Result<SmallVec<[MatchUnit<&'a Pattern>; 1]>> {
+  root_matcher: Option<&'a Rule>,
+  sub_matchers: &'a [(SgLang, Rule)],
+) -> Result<SmallVec<[MatchUnit<&'a Rule>; 1]>> {
   let file_content = read_file(path)?;
   let grep = lang.ast_grep(&file_content);
-  let do_match = |ast_grep: AstGrep, matcher: &'a Pattern| {
-    let fixed = matcher.fixed_string();
+  let do_match = |ast_grep: AstGrep, matcher: &'a Rule| {
+    let fixed = match matcher {
+      Rule::Pattern(pat) => pat.fixed_string(),
+      _ => std::borrow::Cow::Borrowed(""),
+    };
     if !fixed.is_empty() && !file_content.contains(&*fixed) {
       return None;
     }

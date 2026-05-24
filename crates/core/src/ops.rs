@@ -42,6 +42,7 @@ where
 
 // we pre-compute and cache potential_kinds. So patterns should not be mutated.
 // Box<[P]> is used here for immutability so that kinds will never be invalidated.
+#[derive(Clone)]
 pub struct All<P: Matcher> {
   patterns: Box<[P]>,
   kinds: Option<BitSet>,

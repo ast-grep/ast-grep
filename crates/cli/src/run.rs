@@ -2,7 +2,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::{Context, Result};
-use ast_grep_config::Fixer;
+use ast_grep_config::{Fixer, Rule};
 use ast_grep_core::{MatchStrictness, Matcher, Pattern};
 use ast_grep_language::{Language, LanguageExt};
 use clap::{builder::PossibleValue, Parser, ValueEnum};
@@ -120,6 +120,10 @@ pub struct RunArg {
 }
 
 impl RunArg {
+  fn build_matcher(&self, lang: SgLang) -> Result<Rule> {
+    Ok(Rule::Pattern(self.build_pattern(lang)?))
+  }
+
   fn build_pattern(&self, lang: SgLang) -> Result<Pattern> {
     let pattern = if let Some(sel) = &self.selector {
       Pattern::contextual(&self.pattern, sel, lang)
@@ -135,14 +139,14 @@ impl RunArg {
   }
 
   // do not unwrap pattern here, we should allow non-pattern to be debugged as tree
-  fn debug_pattern_if_needed(&self, pattern_ret: &Result<Pattern>, lang: SgLang) {
+  fn debug_pattern_if_needed(&self, rule_ret: &Result<Rule>, lang: SgLang) {
     let Some(debug_query) = &self.debug_query else {
       return;
     };
     let colored = self.output.color.should_use_color();
     if !matches!(debug_query, DebugFormat::Pattern) {
       debug_query.debug_tree(&self.pattern, lang, colored);
-    } else if let Ok(pattern) = pattern_ret {
+    } else if let Ok(Rule::Pattern(pattern)) = rule_ret {
       debug_query.debug_pattern(pattern, lang, colored);
     }
   }
@@ -226,12 +230,12 @@ impl PathWorker for RunWithInferredLang {
       return Ok(vec![]);
     };
     self.trace.print_file(path, lang)?;
-    let matcher = self.arg.build_pattern(lang)?;
+    let matcher = self.arg.build_matcher(lang)?;
     // match sub region
     let sub_langs = lang.injectable_sg_langs().into_iter().flatten();
     let sub_matchers = sub_langs
       .filter_map(|l| {
-        let maybe_pattern = self.arg.build_pattern(l);
+        let maybe_pattern = self.arg.build_matcher(l);
         maybe_pattern.ok().map(|pattern| (l, pattern))
       })
       .collect::<Vec<_>>();
@@ -261,7 +265,7 @@ impl PathWorker for RunWithInferredLang {
 
 struct RunWithSpecificLang {
   arg: RunArg,
-  pattern: Pattern,
+  rule: Rule,
   rewrite: Option<Fixer>,
   stats: RunTrace,
 }
@@ -270,7 +274,7 @@ impl RunWithSpecificLang {
   fn new(arg: RunArg, stats: RunTrace) -> Result<Self> {
     let lang = arg.lang.ok_or(anyhow::anyhow!(EC::LanguageNotSpecified))?;
     // do not unwrap result here
-    let pattern_ret = arg.build_pattern(lang);
+    let pattern_ret = arg.build_matcher(lang);
     arg.debug_pattern_if_needed(&pattern_ret, lang);
     let rewrite = if let Some(s) = &arg.rewrite {
       Some(Fixer::from_str(s, &lang).context(EC::ParsePattern)?)
@@ -279,7 +283,7 @@ impl RunWithSpecificLang {
     };
     Ok(Self {
       arg,
-      pattern: pattern_ret?,
+      rule: pattern_ret?,
       rewrite,
       stats,
     })
@@ -300,11 +304,14 @@ impl Worker for RunWithSpecificLang {
     }
     printer.after_print()?;
     self.stats.print()?;
-    if !has_matches && self.pattern.has_error() {
-      Err(anyhow::anyhow!(EC::PatternHasError))
-    } else {
-      Ok(ExitCode::from(if has_matches { 0 } else { 1 }))
+    if !has_matches {
+      if let Rule::Pattern(pattern) = &self.rule {
+        if pattern.has_error() {
+          return Err(anyhow::anyhow!(EC::PatternHasError));
+        }
+      }
     }
+    Ok(ExitCode::from(if has_matches { 0 } else { 1 }))
   }
 }
 
@@ -322,7 +329,7 @@ impl PathWorker for RunWithSpecificLang {
     processor: &P::Processor,
   ) -> Result<Vec<P::Processed>> {
     let arg = &self.arg;
-    let pattern = &self.pattern;
+    let pattern = &self.rule;
     let lang = arg.lang.expect("must present");
     let Some(path_lang) = SgLang::from_path(path) else {
       return Ok(vec![]);
@@ -331,7 +338,9 @@ impl PathWorker for RunWithSpecificLang {
     let (root_matcher, sub_matchers) = if path_lang == lang {
       (Some(pattern), vec![])
     } else {
-      (None, vec![(lang, pattern.clone())])
+      // rebuild arg here, unfortunately
+      let rule = arg.build_matcher(lang)?;
+      (None, vec![(lang, rule)])
     };
     let filtered = filter_file_pattern(path, path_lang, root_matcher, &sub_matchers)?;
     let mut ret = Vec::with_capacity(filtered.len());
@@ -354,14 +363,14 @@ impl StdInWorker for RunWithSpecificLang {
     let lang = self.arg.lang.expect("must present");
     let grep = lang.ast_grep(src);
     let root = grep.root();
-    let mut matches = root.find_all(&self.pattern).peekable();
+    let mut matches = root.find_all(&self.rule).peekable();
     if matches.peek().is_none() {
       return Ok(vec![]);
     }
     let rewrite = &self.rewrite;
     let path = Path::new("STDIN");
     let processed = if let Some(rewrite) = rewrite {
-      let diffs = matches.map(|m| Diff::generate(m, &self.pattern, rewrite));
+      let diffs = matches.map(|m| Diff::generate(m, &self.rule, rewrite));
       processor.print_diffs(diffs.collect(), path)?
     } else {
       processor.print_matches(matches.collect(), path)?
