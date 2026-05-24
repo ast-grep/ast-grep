@@ -62,8 +62,10 @@ impl ValueEnum for Strictness {
 pub struct RunArg {
   // search pattern related options
   /// AST pattern to match.
-  #[clap(short, long)]
+  #[clap(short, long, value_name = "PATTERN")]
   pattern: String,
+  #[clap(short, long, value_name = "KIND", requires = "lang")]
+  kind: Option<String>,
 
   /// AST kind to extract sub-part of pattern to match.
   ///
@@ -402,6 +404,7 @@ mod test {
   fn default_run_arg() -> RunArg {
     RunArg {
       pattern: String::new(),
+      kind: None,
       selector: None,
       rewrite: None,
       lang: None,
