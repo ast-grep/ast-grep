@@ -33,6 +33,44 @@ fn test_simple_specific_lang() -> Result<()> {
 }
 
 #[test]
+fn test_kind_selector() -> Result<()> {
+  let dir = create_test_files([("a.js", "test(123)\nconst test = 456")])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["run", "-k", "call_expression > identifier", "-l", "js"])
+    .assert()
+    .success()
+    .stdout(contains("test(123)"))
+    .stdout(contains("const test = 456").not());
+  Ok(())
+}
+
+#[test]
+fn test_default_run_with_kind_selector() -> Result<()> {
+  let dir = create_test_files([("a.js", "test(123)\nconst test = 456")])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["-k", "call_expression > identifier", "-l", "js"])
+    .assert()
+    .success()
+    .stdout(contains("test(123)"))
+    .stdout(contains("const test = 456").not());
+  Ok(())
+}
+
+#[test]
+fn test_kind_selector_error_context() -> Result<()> {
+  let dir = create_test_files([("a.js", "test(123)")])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["run", "-k", "call_expression >", "-l", "js"])
+    .assert()
+    .failure()
+    .stderr(contains("Cannot parse kind as a valid selector."));
+  Ok(())
+}
+
+#[test]
 fn test_js_in_html() -> Result<()> {
   let dir = create_test_files([
     ("a.html", "<script>alert(1)</script>"),

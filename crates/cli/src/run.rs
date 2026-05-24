@@ -68,13 +68,23 @@ struct MatcherArg {
   ///
   /// selector defines the sub-syntax node kind that is the actual matcher of the pattern.
   /// See https://ast-grep.github.io/guide/rule-config/atomic-rule.html#pattern-object.
-  #[clap(long, value_name = "KIND", requires = "pattern")]
+  #[clap(
+    long,
+    value_name = "KIND",
+    requires = "pattern",
+    conflicts_with = "kind"
+  )]
   selector: Option<String>,
 
   /// The strictness of the pattern.
   ///
   /// See https://ast-grep.github.io/guide/rule-config/atomic-rule.html#strictness
-  #[clap(long, value_name = "STRICTNESS", requires = "pattern")]
+  #[clap(
+    long,
+    value_name = "STRICTNESS",
+    requires = "pattern",
+    conflicts_with = "kind"
+  )]
   strictness: Option<Strictness>,
   /// AST kind to match.
   ///
@@ -515,5 +525,19 @@ mod test {
     };
     let proj = Err(anyhow::anyhow!("no project"));
     assert!(run_with_pattern(arg, proj).is_ok())
+  }
+
+  #[test]
+  fn test_run_with_invalid_kind() {
+    let arg = RunArg {
+      matcher: MatcherArg {
+        kind: Some("gibberish".to_string()),
+        ..default_matcher_arg()
+      },
+      lang: Some(SupportLang::Rust.into()),
+      ..default_run_arg()
+    };
+    let proj = Err(anyhow::anyhow!("no project"));
+    assert!(run_with_pattern(arg, proj).is_err())
   }
 }

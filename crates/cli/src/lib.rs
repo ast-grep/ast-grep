@@ -203,6 +203,7 @@ mod test_cli {
     default_run("-p Some($A) -l rs");
     default_run("-p Some($A)");
     default_run("-p Some($A) -l rs -r $A.unwrap()");
+    default_run("-k identifier -l rs");
   }
 
   #[test]
@@ -226,6 +227,8 @@ mod test_cli {
     ok("run -p test --strictness relaxed");
     ok("run -p test --selector identifier"); // pattern + selector
     ok("run -p test --selector identifier -l js");
+    ok("run -k identifier");
+    ok("run --kind=call_expression>identifier -l js");
     ok("run -p test --follow");
     ok("run -p test --globs '*.js'");
     ok("run -p test --globs '*.{js, ts}'");
@@ -234,6 +237,7 @@ mod test_cli {
     ok("run -p test --threads 12");
     ok("run -p test --files-with-matches");
     ok("run -p test -l rs -c config.yml"); // global config arg
+    ok("run -k gibberish"); // allow non-existing kind if no lang specified
     error("run test");
     error("run --debug-query test"); // missing lang
     error("run -r Test dir");
@@ -243,6 +247,9 @@ mod test_cli {
     error("run -p test --strictness not");
     error("run -p test -l rs --debug-query=not");
     error("run -p test --selector");
+    error("run -p test -k identifier");
+    error("run -k identifier --selector identifier");
+    error("run -k identifier --strictness ast");
     error("run -p test --threads");
     error("run -p test --files-with-matches -r test -U");
     error("run -p test --files-with-matches --json");
