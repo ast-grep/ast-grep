@@ -87,8 +87,9 @@ fn is_command(arg: &str, command: &str) -> bool {
 
 fn try_default_run(args: &[String]) -> Result<Option<RunArg>> {
   // use `run` if there is at lease one pattern arg with no user provided command
-  let should_use_default_run_command =
-    args.iter().skip(1).any(|p| is_command(p, "pattern")) && args[1].starts_with('-');
+  let is_pattern = args.iter().skip(1).any(|p| is_command(p, "pattern"));
+  let is_kind = args.iter().skip(1).any(|p| is_command(p, "kind"));
+  let should_use_default_run_command = (is_pattern || is_kind) && args[1].starts_with('-');
   if should_use_default_run_command {
     // handle no subcommand
     let arg = RunArg::try_parse_from(args)?;

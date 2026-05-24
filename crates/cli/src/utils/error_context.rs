@@ -8,6 +8,7 @@ use std::process::ExitCode;
 
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const PATTERN_GUIDE: Option<&str> = Some("/guide/pattern-syntax.html");
+const ESQUERY_GUIDE: Option<&str> = Some("/guide/rule-config/atomic-rule.html#esquery-style-kind");
 const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
 const CONFIG_REFERENCE: Option<&str> = Some("/reference/sgconfig.html");
 const PROJECT_GUIDE: Option<&str> = Some("/guide/scan-project.html");
@@ -42,6 +43,7 @@ pub enum ErrorContext {
   CustomLanguage,
   // Run
   ParsePattern,
+  ParseSelector,
   LanguageNotSpecified,
   StdInIsNotInteractive,
   PatternHasError,
@@ -83,8 +85,8 @@ impl ErrorContext {
       NoTestDirConfigured | NoUtilDirConfigured => 5,
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 6,
       StdInIsNotInteractive => 7,
-      ParseTest(_) | ParseRule(_) | ParseConfiguration | ParsePattern | InvalidGlobalUtils
-      | LangInjection | DuplicateRuleId(_) | InvalidRuleId(_) => 8,
+      ParseTest(_) | ParseRule(_) | ParseConfiguration | ParsePattern | ParseSelector
+      | InvalidGlobalUtils | LangInjection | DuplicateRuleId(_) | InvalidRuleId(_) => 8,
       GlobPattern | BuildGlobs => 9,
       CannotInferShell => 10,
       ProjectAlreadyExist | FileAlreadyExist(_) => 17,
@@ -211,6 +213,11 @@ impl ErrorMessage {
         "Cannot parse query as a valid pattern.",
         "The pattern either fails to parse or contains error. Please refer to pattern syntax guide.",
         PATTERN_GUIDE,
+      ),
+      ParseSelector => Self::new(
+        "Cannot parse kind as a valid selector.",
+        "Please refer to ast-grep's ESQuery selector guide.",
+        ESQUERY_GUIDE,
       ),
       LanguageNotSpecified => Self::new(
         "Language must be specified for code from StdIn.",

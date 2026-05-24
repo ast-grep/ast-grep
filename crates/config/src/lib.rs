@@ -20,7 +20,8 @@ pub use label::{Label, LabelStyle};
 pub use rule::referent_rule::GlobalRules;
 pub use rule::DeserializeEnv;
 pub use rule::{
-  ParameterizedUtilError, Rule, RuleSerializeError, SerializableGlobalRule, SerializableRule,
+  parse_selector, ParameterizedUtilError, Rule, RuleSerializeError, SelectorError,
+  SerializableGlobalRule, SerializableRule,
 };
 pub use rule_collection::RuleCollection;
 pub use rule_config::{Metadata, RuleConfig, RuleConfigError, SerializableRuleConfig, Severity};

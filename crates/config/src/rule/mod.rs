@@ -11,7 +11,7 @@ pub use deserialize_env::{DeserializeEnv, SerializableGlobalRule};
 pub use parameterized_util::ParameterizedUtilError;
 use parameterized_util::{deserialize_utility_call_matches, SerializableUtilityCall};
 pub use relational_rule::Relation;
-use selector::{parse_selector, SelectorError};
+pub use selector::{parse_selector, SelectorError};
 pub use stop_by::StopBy;
 
 use crate::maybe::Maybe;
