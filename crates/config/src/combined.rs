@@ -372,6 +372,16 @@ impl<'r, L: Language> CombinedScan<'r, L> {
   }
 }
 
+// trim text after whitepaces, this is useful for comment like `/* ast-grep-ignore: test */`
+// we assume no rule-id contains whitespace, so trailing comment can be stripped
+// see https://github.com/ast-grep/ast-grep/issues/2644
+fn trim_comment_trailing(text: &str) -> Option<&str> {
+  text
+    .trim_start() // trim leading whitespace
+    .split(' ') // finding the first whitespace
+    .next() // keep only the part before the first whitespace
+}
+
 fn parse_suppression_set(text: &str) -> Option<HashSet<String>> {
   let (_, after) = text.trim().split_once(IGNORE_TEXT)?;
   let after = after.trim();
@@ -379,7 +389,11 @@ fn parse_suppression_set(text: &str) -> Option<HashSet<String>> {
     return None;
   }
   let (_, rules) = after.split_once(':')?;
-  let set = rules.split(',').map(|r| r.trim().to_string()).collect();
+  let set = rules
+    .split(',')
+    .flat_map(trim_comment_trailing)
+    .map(ToString::to_string)
+    .collect();
   Some(set)
 }
 
@@ -455,6 +469,37 @@ language: Tsx",
       assert_eq!(matches.1[0].text(), "console.log('no ignore')");
       assert_eq!(matches.1[1].text(), "console.log('ignore another')");
     });
+  }
+
+  #[test]
+  fn test_ignore_node_block_comment() {
+    let source = r#"
+    /* ast-grep-ignore: test */
+    console.log('ignore one')
+    /* ast-grep-ignore: not-test */
+    console.log('ignore another')
+    /* ast-grep-ignore: not-test, test */
+    console.log('multiple ignore')
+    console.log('no ignore')
+    "#;
+    test_scan(source, |scanned| {
+      let matches = &scanned[0];
+      assert_eq!(matches.1.len(), 2);
+      assert_eq!(matches.1[0].text(), "console.log('ignore another')");
+      assert_eq!(matches.1[1].text(), "console.log('no ignore')");
+    });
+  }
+
+  #[test]
+  fn test_parse_suppression_set_trims_block_comment_trailing() {
+    let set = parse_suppression_set("/* ast-grep-ignore: test */").expect("should parse");
+    assert!(set.contains("test"));
+    assert!(!set.contains("test */"));
+
+    let set = parse_suppression_set("/* ast-grep-ignore: not-test, test */").expect("should parse");
+    assert!(set.contains("not-test"));
+    assert!(set.contains("test"));
+    assert!(!set.contains("test */"));
   }
 
   fn test_scan_unused<F>(source: &str, test_fn: F)
