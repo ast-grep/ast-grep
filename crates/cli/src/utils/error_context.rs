@@ -8,7 +8,7 @@ use std::process::ExitCode;
 
 const DOC_SITE_HOST: &str = "https://ast-grep.github.io";
 const PATTERN_GUIDE: Option<&str> = Some("/guide/pattern-syntax.html");
-const ESQUERY_GUIDE: Option<&str> = Some("/guide/rule-config/atomic-rule.html#esquery-style-kind");
+const ESQUERY_GUIDE: Option<&str> = Some("/reference/rule/esquery.html");
 const CONFIG_GUIDE: Option<&str> = Some("/guide/rule-config.html");
 const CONFIG_REFERENCE: Option<&str> = Some("/reference/sgconfig.html");
 const PROJECT_GUIDE: Option<&str> = Some("/guide/scan-project.html");
