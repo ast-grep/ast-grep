@@ -22,11 +22,15 @@ impl DiagnosticSnapshot {
   }
 
   pub fn total(&self) -> usize {
-    self.errors + self.warnings + self.infos + self.hints
+    self
+      .errors
+      .saturating_add(self.warnings)
+      .saturating_add(self.infos)
+      .saturating_add(self.hints)
   }
 
   pub fn issue_total(&self) -> usize {
-    self.errors + self.warnings
+    self.errors.saturating_add(self.warnings)
   }
 }
 
