@@ -31,6 +31,7 @@ mod html;
 mod json;
 mod kotlin;
 mod lua;
+mod markdown;
 mod nix;
 mod parsers;
 mod php;
@@ -244,6 +245,7 @@ impl_lang!(Java, language_java);
 impl_lang!(JavaScript, language_javascript);
 impl_lang!(Json, language_json);
 impl_lang!(Lua, language_lua);
+impl_lang!(Markdown, language_markdown);
 impl_lang!(Scala, language_scala);
 impl_lang!(Solidity, language_solidity);
 impl_lang!(Tsx, language_tsx);
@@ -272,6 +274,7 @@ pub enum SupportLang {
   Json,
   Kotlin,
   Lua,
+  Markdown,
   Nix,
   Php,
   Python,
@@ -290,7 +293,8 @@ impl SupportLang {
     use SupportLang::*;
     &[
       Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json,
-      Kotlin, Lua, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript, Yaml,
+      Kotlin, Lua, Markdown, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript,
+      Yaml,
     ]
   }
 
@@ -387,6 +391,7 @@ impl_aliases! {
   Json => &["json"],
   Kotlin => &["kotlin", "kt"],
   Lua => &["lua"],
+  Markdown => &["markdown", "md"],
   Nix => &["nix"],
   Php => &["php"],
   Python => &["py", "python"],
@@ -435,6 +440,7 @@ macro_rules! execute_lang_method {
       S::Json => Json.$method($($pname,)*),
       S::Kotlin => Kotlin.$method($($pname,)*),
       S::Lua => Lua.$method($($pname,)*),
+      S::Markdown => Markdown.$method($($pname,)*),
       S::Nix => Nix.$method($($pname,)*),
       S::Php => Php.$method($($pname,)*),
       S::Python => Python.$method($($pname,)*),
@@ -508,6 +514,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Json => &["json"],
     Kotlin => &["kt", "ktm", "kts"],
     Lua => &["lua"],
+    Markdown => &["markdown", "md"],
     Nix => &["nix"],
     Php => &["php"],
     Python => &["py", "py3", "pyi", "bzl"],
@@ -610,6 +617,10 @@ mod test {
   fn test_guess_by_extension() {
     let path = Path::new("foo.rs");
     assert_eq!(from_extension(path), Some(SupportLang::Rust));
+    let path = Path::new("README.md");
+    assert_eq!(from_extension(path), Some(SupportLang::Markdown));
+    let path = Path::new("README.markdown");
+    assert_eq!(from_extension(path), Some(SupportLang::Markdown));
   }
 
   // TODO: add test for file_types

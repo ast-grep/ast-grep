@@ -70,6 +70,9 @@ pub fn language_kotlin() -> TSLanguage {
 pub fn language_lua() -> TSLanguage {
   conditional_lang!(tree_sitter_lua, "tree-sitter-lua")
 }
+pub fn language_markdown() -> TSLanguage {
+  conditional_lang!(tree_sitter_md, "tree-sitter-md")
+}
 pub fn language_nix() -> TSLanguage {
   conditional_lang!(tree_sitter_nix, "tree-sitter-nix")
 }
