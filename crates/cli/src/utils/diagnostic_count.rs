@@ -1,5 +1,4 @@
 use ast_grep_config::Severity;
-use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Default, Clone, Copy, Debug)]
@@ -27,21 +26,6 @@ impl DiagnosticSnapshot {
       .saturating_add(self.warnings)
       .saturating_add(self.infos)
       .saturating_add(self.hints)
-  }
-
-  pub fn issue_total(&self) -> usize {
-    self.errors.saturating_add(self.warnings)
-  }
-}
-
-impl fmt::Display for DiagnosticSnapshot {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let parts: Vec<String> = [(self.errors, "error"), (self.warnings, "warning")]
-      .into_iter()
-      .filter(|(n, _)| *n > 0)
-      .map(|(n, label)| format!("{n} {label}(s)"))
-      .collect();
-    write!(f, "{}", parts.join(", "))
   }
 }
 

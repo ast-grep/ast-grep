@@ -192,7 +192,7 @@ impl Worker for ScanWithConfig {
     printer.after_print()?;
     self.trace.print()?;
     let diagnostic_snapshot = self.diagnostic_count.snapshot();
-    report_warning_summary(diagnostic_snapshot);
+    report_warning_summary(diagnostic_snapshot.warnings);
     if diagnostic_snapshot.errors > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(
         diagnostic_snapshot.errors
@@ -340,7 +340,7 @@ impl Worker for ScanStdin {
     }
     printer.after_print()?;
     let diagnostic_snapshot = self.diagnostic_count.snapshot();
-    report_warning_summary(diagnostic_snapshot);
+    report_warning_summary(diagnostic_snapshot.warnings);
     if diagnostic_snapshot.errors > 0 {
       Err(anyhow::anyhow!(EC::DiagnosticError(
         diagnostic_snapshot.errors
@@ -391,15 +391,11 @@ impl StdInWorker for ScanStdin {
   }
 }
 
-fn report_warning_summary(diagnostic_snapshot: DiagnosticSnapshot) {
-  if diagnostic_snapshot.warnings == 0 {
+fn report_warning_summary(warnings: usize) {
+  if warnings == 0 {
     return;
   }
-  let warnings = DiagnosticSnapshot {
-    warnings: diagnostic_snapshot.warnings,
-    ..Default::default()
-  };
-  eprintln!("Warning: {warnings} found in code.");
+  eprintln!("Warning: {warnings} warning(s) found in code.");
 }
 
 fn match_rule_diff_on_file<T>(
