@@ -328,7 +328,8 @@ fn test_scan_reports_mixed_diagnostic_summary() -> Result<()> {
     .args(["scan", "-r", "rule.yml"])
     .assert()
     .failure()
-    .stderr(contains("Error: 1 error(s), 1 warning(s) found in code."));
+    .stderr(contains("Warning: 1 warning(s) found in code."))
+    .stderr(contains("Error: 1 error(s) found in code."));
   Ok(())
 }
 

@@ -192,8 +192,11 @@ impl Worker for ScanWithConfig {
     printer.after_print()?;
     self.trace.print()?;
     let diagnostic_snapshot = self.diagnostic_count.snapshot();
-    if diagnostic_snapshot.issue_total() > 0 {
-      Err(anyhow::anyhow!(EC::DiagnosticReport(diagnostic_snapshot)))
+    report_warning_summary(diagnostic_snapshot);
+    if diagnostic_snapshot.errors > 0 {
+      Err(anyhow::anyhow!(EC::DiagnosticError(
+        diagnostic_snapshot.errors
+      )))
     } else {
       Ok(ExitCode::SUCCESS)
     }
@@ -336,8 +339,11 @@ impl Worker for ScanStdin {
     }
     printer.after_print()?;
     let diagnostic_snapshot = self.diagnostic_count.snapshot();
-    if diagnostic_snapshot.issue_total() > 0 {
-      Err(anyhow::anyhow!(EC::DiagnosticReport(diagnostic_snapshot)))
+    report_warning_summary(diagnostic_snapshot);
+    if diagnostic_snapshot.errors > 0 {
+      Err(anyhow::anyhow!(EC::DiagnosticError(
+        diagnostic_snapshot.errors
+      )))
     } else {
       Ok(ExitCode::SUCCESS)
     }
@@ -383,6 +389,18 @@ impl StdInWorker for ScanStdin {
     Ok(ret)
   }
 }
+
+fn report_warning_summary(diagnostic_snapshot: DiagnosticSnapshot) {
+  if diagnostic_snapshot.warnings == 0 {
+    return;
+  }
+  let warnings = DiagnosticSnapshot {
+    warnings: diagnostic_snapshot.warnings,
+    ..Default::default()
+  };
+  eprintln!("Warning: {warnings} found in code.");
+}
+
 fn match_rule_diff_on_file<T>(
   path: &Path,
   matches: Vec<(&RuleConfig<SgLang>, NodeMatch<StrDoc<SgLang>>)>,
