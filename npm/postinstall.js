@@ -13,7 +13,11 @@ function detectPackageName() {
       break;
     case "linux": {
       const { MUSL, familySync } = require("detect-libc");
-      if (familySync() === MUSL) return null;
+      if (familySync() === MUSL) {
+        if (arch === "arm64") return "@ast-grep/cli-linux-arm64-musl";
+        if (arch === "x64") return "@ast-grep/cli-linux-x64-musl";
+        break;
+      }
       if (arch === "arm64") return "@ast-grep/cli-linux-arm64-gnu";
       if (arch === "x64") return "@ast-grep/cli-linux-x64-gnu";
       break;
