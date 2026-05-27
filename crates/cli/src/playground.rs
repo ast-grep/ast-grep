@@ -5,16 +5,15 @@ use std::str::FromStr;
 
 use ansi_term::{Color, Style};
 use anyhow::{anyhow, Result};
-use ast_grep_config::{RuleConfig, SerializableGlobalRule};
-use ast_grep_core::Language;
+use ast_grep_config::RuleConfig;
 use ast_grep_language::SupportLang;
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
 use clap::Args;
 use crossterm::tty::IsTty;
 use serde::{Deserialize, Serialize};
-use serde_yaml::{Mapping, Value};
-use std::collections::{HashMap, HashSet, VecDeque};
+use serde_yaml::Value;
+use std::collections::HashSet;
 
 use crate::config::ProjectConfig;
 use crate::lang::SgLang;
@@ -181,17 +180,8 @@ pub(crate) fn resolve_rule(
     let rule = collection
       .get_rule(id)
       .ok_or_else(|| anyhow!("rule id '{id}' not found in project config"))?;
-    let mut value = rule_to_yaml_value(rule)?;
-    let mut queue = VecDeque::new();
-    collect_matches(&value, &mut queue);
-    let utils = if queue.is_empty() {
-      Vec::new()
-    } else {
-      project
-        .find_util_rule_configs()
-        .map_err(|e| anyhow!("failed to load project utilities: {e}"))?
-    };
-    inline_project_utils(&mut value, rule.language, &utils, queue)?;
+    let value = rule_to_yaml_value(rule)?;
+    ensure_rule_self_contained(&value, &rule.id)?;
     let yaml = serde_yaml::to_string(&value)
       .map_err(|e| anyhow!("failed to serialize rule '{}' to YAML: {e}", rule.id))?;
     return Ok(Some((yaml, Some(rule.language))));
@@ -282,294 +272,91 @@ fn is_serialized_optional_key(key: &Value) -> bool {
   )
 }
 
-/// Walk the rule's `matches:` references and inline the targeted project
-/// utilities into a local `utils:` block, so the playground URL is
-/// self-contained. `queue` is the set of util ids reachable from the rule,
-/// pre-collected by [`collect_matches`].
-fn inline_project_utils(
-  rule: &mut Value,
-  rule_lang: SgLang,
-  global_utils: &[SerializableGlobalRule<SgLang>],
-  mut queue: VecDeque<String>,
-) -> Result<()> {
-  let global_utils: HashMap<_, _> = global_utils
-    .iter()
-    .map(|util| (util.id.as_str(), util))
+/// Project-level utility rules are not serialized into playground URLs.
+/// Project rules must therefore be self-contained: every `matches:` reference
+/// needs a same-file local `utils:` entry.
+fn ensure_rule_self_contained(rule: &Value, rule_id: &str) -> Result<()> {
+  let local_utils = local_util_ids(rule)?;
+  let mut refs = Vec::new();
+  collect_match_refs(rule, &mut refs);
+
+  let mut seen = HashSet::new();
+  let external: Vec<_> = refs
+    .into_iter()
+    .filter(|id| !local_utils.contains(id))
+    .filter(|id| seen.insert(id.clone()))
     .collect();
 
-  let rule_map = rule
-    .as_mapping_mut()
+  if external.is_empty() {
+    return Ok(());
+  }
+
+  Err(anyhow!(
+    "rule '{}' references project utilities ({}) which cannot be shared with the playground; use a self-contained rule file or inline them as local utils",
+    rule_id,
+    external.join(", ")
+  ))
+}
+
+fn local_util_ids(rule: &Value) -> Result<HashSet<String>> {
+  let rule = rule
+    .as_mapping()
     .ok_or_else(|| anyhow!("serialized rule must be a YAML mapping"))?;
-  let mut utils = match rule_map.shift_remove("utils") {
-    Some(Value::Mapping(utils)) => utils,
-    Some(Value::Null) | None => Mapping::new(),
-    Some(_) => return Err(anyhow!("serialized rule has invalid `utils` field")),
+  let Some(utils) = rule.get(&Value::String("utils".into())) else {
+    return Ok(HashSet::new());
   };
-  let local_ids: HashSet<_> = utils
-    .keys()
-    .filter_map(Value::as_str)
-    .map(str::to_string)
-    .collect();
-  let mut included = HashSet::new();
-
-  while let Some(id) = queue.pop_front() {
-    if !included.insert(id.clone()) || local_ids.contains(&id) {
-      continue;
-    }
-    let Some(util) = global_utils.get(id.as_str()) else {
-      continue;
-    };
-    let util_rule = project_util_to_local_util(util, rule_lang)?;
-    collect_matches(&util_rule, &mut queue);
-    utils.insert(Value::String(id), util_rule);
-  }
-
-  if !utils.is_empty() {
-    rule_map.insert(Value::String("utils".into()), Value::Mapping(utils));
-  }
-  Ok(())
-}
-
-/// Convert a project-level global utility into a value suitable for the
-/// playground's local `utils:` block. Rejects utilities that can't be
-/// represented locally (parameterized, language-mismatched, or carrying
-/// constraints / transforms / fix that aren't supported on local utils).
-fn project_util_to_local_util(
-  util: &SerializableGlobalRule<SgLang>,
-  rule_lang: SgLang,
-) -> Result<Value> {
-  if util.language != rule_lang {
-    return Err(anyhow!(
-      "project utility '{}' uses language '{}' but the selected rule uses '{}'",
-      util.id,
-      util.language,
-      rule_lang
-    ));
-  }
-  if util.arguments.as_ref().is_some_and(|args| !args.is_empty()) {
-    return Err(anyhow!(
-      "project utility '{}' is parameterized and cannot be shared with the playground",
-      util.id
-    ));
-  }
-  if util.core.constraints.is_some()
-    || util.core.utils.is_some()
-    || util.core.transform.is_some()
-    || util.core.fix.is_some()
-  {
-    return Err(anyhow!(
-      "project utility '{}' uses fields that cannot be represented as playground local utils",
-      util.id
-    ));
-  }
-  let mut value = serde_yaml::to_value(&util.core.rule).map_err(|e| {
-    anyhow!(
-      "failed to serialize project utility '{}' to YAML: {e}",
-      util.id
-    )
-  })?;
-  strip_serialized_null_fields(&mut value);
-  rename_project_util_metavars(&mut value, rule_lang, &util.id);
-  Ok(value)
-}
-
-/// Project utilities have an independent metavariable scope; playground
-/// local utils share scope with the caller. Rewrite each metavariable in
-/// the inlined util to a per-util prefix so the scopes stay separate.
-fn rename_project_util_metavars(value: &mut Value, rule_lang: SgLang, util_id: &str) {
-  let prefix = project_util_metavar_prefix(util_id);
-  rename_metavars_in_rule(value, rule_lang.meta_var_char(), &prefix);
-}
-
-/// Build the per-util metavariable prefix. Non-alphanumeric characters in
-/// the util id are replaced with `_`; the rest is uppercased. Rule ids are
-/// unique within a project, so prefixes derived from them are too.
-fn project_util_metavar_prefix(util_id: &str) -> String {
-  let mut sanitized = String::new();
-  for ch in util_id.chars() {
-    if ch.is_ascii_alphanumeric() {
-      sanitized.push(ch.to_ascii_uppercase());
-    } else {
-      sanitized.push('_');
-    }
-  }
-  format!("AST_GREP_PLAYGROUND_{sanitized}_")
-}
-
-/// Recurse the rule YAML, rewriting metavariables in every `pattern:`
-/// scalar / `{ context: "..." }` form. Other keys (`constraints`, `fix`,
-/// `transform`) cannot appear here — they are rejected upstream by
-/// [`project_util_to_local_util`].
-fn rename_metavars_in_rule(value: &mut Value, meta_char: char, prefix: &str) {
-  match value {
-    Value::Mapping(map) => {
-      for (key, value) in map {
-        if key.as_str() == Some("pattern") {
-          rename_metavars_in_pattern_value(value, meta_char, prefix);
-        } else {
-          rename_metavars_in_rule(value, meta_char, prefix);
-        }
-      }
-    }
-    Value::Sequence(seq) => {
-      for value in seq {
-        rename_metavars_in_rule(value, meta_char, prefix);
-      }
-    }
-    Value::Tagged(tagged) => rename_metavars_in_rule(&mut tagged.value, meta_char, prefix),
-    Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+  match utils {
+    Value::Mapping(utils) => Ok(utils
+      .keys()
+      .filter_map(Value::as_str)
+      .map(str::to_string)
+      .collect()),
+    Value::Null => Ok(HashSet::new()),
+    _ => Err(anyhow!("serialized rule has invalid `utils` field")),
   }
 }
 
-/// Apply metavariable renaming to whichever shape `pattern:` takes — a
-/// bare string, or a mapping with `{ context: "..." }`.
-fn rename_metavars_in_pattern_value(value: &mut Value, meta_char: char, prefix: &str) {
-  match value {
-    Value::String(pattern) => {
-      *pattern = rename_metavars_in_pattern(pattern, meta_char, prefix);
-    }
-    Value::Mapping(map) => {
-      for (key, value) in map {
-        if key.as_str() == Some("context") {
-          if let Value::String(context) = value {
-            *context = rename_metavars_in_pattern(context, meta_char, prefix);
-          }
-        }
-      }
-    }
-    Value::Tagged(tagged) => rename_metavars_in_pattern_value(&mut tagged.value, meta_char, prefix),
-    Value::Null | Value::Bool(_) | Value::Number(_) | Value::Sequence(_) => {}
-  }
-}
-
-/// Rewrite every `$NAME` / `$$X` / `$$$NAME` inside a pattern by prepending
-/// `prefix` to the name. Anonymous `_`-prefixed forms (`$_`, `$$$_`) and
-/// sigils without a valid name are left unchanged.
-fn rename_metavars_in_pattern(pattern: &str, meta_char: char, prefix: &str) -> String {
-  let chars: Vec<_> = pattern.chars().collect();
-  let mut ret = String::with_capacity(pattern.len() + prefix.len());
-  let mut i = 0;
-  while i < chars.len() {
-    if chars[i] != meta_char {
-      ret.push(chars[i]);
-      i += 1;
-      continue;
-    }
-    if i + 2 < chars.len() && chars[i + 1] == meta_char && chars[i + 2] == meta_char {
-      let name_start = i + 3;
-      let name_end = collect_multi_metavar_name(&chars, name_start);
-      if name_end == name_start {
-        ret.extend(chars[i..name_start].iter());
-      } else {
-        ret.extend(chars[i..name_start].iter());
-        if chars[name_start] == '_' {
-          ret.extend(chars[name_start..name_end].iter());
-        } else {
-          ret.push_str(prefix);
-          ret.extend(chars[name_start..name_end].iter());
-        }
-      }
-      i = name_end;
-      continue;
-    }
-
-    let sigil_end = if i + 1 < chars.len() && chars[i + 1] == meta_char {
-      i + 2
-    } else {
-      i + 1
-    };
-    let name_end = collect_single_metavar_name(&chars, sigil_end);
-    if name_end == sigil_end {
-      ret.extend(chars[i..sigil_end].iter());
-    } else {
-      ret.extend(chars[i..sigil_end].iter());
-      if chars[sigil_end] == '_' {
-        ret.extend(chars[sigil_end..name_end].iter());
-      } else {
-        ret.push_str(prefix);
-        ret.extend(chars[sigil_end..name_end].iter());
-      }
-    }
-    i = name_end;
-  }
-  ret
-}
-
-/// Single-sigil metavar names must start with an uppercase letter or `_`.
-fn collect_single_metavar_name(chars: &[char], start: usize) -> usize {
-  if start >= chars.len() || !is_valid_metavar_first_char(chars[start]) {
-    return start;
-  }
-  collect_metavar_name(chars, start)
-}
-
-/// Triple-sigil (variadic) metavar names allow digits in the first slot too.
-fn collect_multi_metavar_name(chars: &[char], start: usize) -> usize {
-  if start >= chars.len() || !is_valid_metavar_char(chars[start]) {
-    return start;
-  }
-  collect_metavar_name(chars, start)
-}
-
-/// Consume contiguous `[A-Z_0-9]` chars starting at `start`, returning the
-/// exclusive end index.
-fn collect_metavar_name(chars: &[char], start: usize) -> usize {
-  let mut end = start;
-  while end < chars.len() && is_valid_metavar_char(chars[end]) {
-    end += 1;
-  }
-  end
-}
-
-/// Whether `ch` can begin an ast-grep metavariable name.
-fn is_valid_metavar_first_char(ch: char) -> bool {
-  matches!(ch, 'A'..='Z' | '_')
-}
-
-/// Whether `ch` can appear inside an ast-grep metavariable name.
-fn is_valid_metavar_char(ch: char) -> bool {
-  is_valid_metavar_first_char(ch) || ch.is_ascii_digit()
-}
-
-/// Walk the rule YAML and feed every `matches:` reference into `queue` —
-/// either a bare id string or the keys of a `{ utilId: { ... args ... } }`
-/// call form.
-fn collect_matches(value: &Value, queue: &mut VecDeque<String>) {
+/// Walk the rule YAML and collect every `matches:` reference: either a bare
+/// id string or the keys of a `{ utilId: { ... args ... } }` call form.
+fn collect_match_refs(value: &Value, refs: &mut Vec<String>) {
   match value {
     Value::Mapping(map) => {
       for (key, value) in map {
         if key.as_str() == Some("matches") {
-          collect_match_ids(value, queue);
+          collect_match_ids(value, refs);
+          continue;
         }
-        collect_matches(value, queue);
+        if key.as_str() == Some("metadata") {
+          continue;
+        }
+        collect_match_refs(value, refs);
       }
     }
     Value::Sequence(seq) => {
       for value in seq {
-        collect_matches(value, queue);
+        collect_match_refs(value, refs);
       }
     }
-    Value::Tagged(tagged) => collect_matches(&tagged.value, queue),
+    Value::Tagged(tagged) => collect_match_refs(&tagged.value, refs),
     Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
   }
 }
 
 /// Push the ids referenced by a `matches:` value. Sequence values are not a
 /// valid `matches:` shape in ast-grep's schema, so they are skipped.
-fn collect_match_ids(value: &Value, queue: &mut VecDeque<String>) {
+fn collect_match_ids(value: &Value, refs: &mut Vec<String>) {
   match value {
     Value::String(id) => {
-      queue.push_back(id.clone());
+      refs.push(id.clone());
     }
     Value::Mapping(calls) => {
-      for (callee, args) in calls {
+      for (callee, _args) in calls {
         if let Some(id) = callee.as_str() {
-          queue.push_back(id.to_string());
+          refs.push(id.to_string());
         }
-        collect_matches(args, queue);
       }
     }
-    Value::Tagged(tagged) => collect_match_ids(&tagged.value, queue),
+    Value::Tagged(tagged) => collect_match_ids(&tagged.value, refs),
     Value::Null | Value::Bool(_) | Value::Number(_) | Value::Sequence(_) => {}
   }
 }
@@ -819,7 +606,34 @@ mod tests {
   }
 
   #[test]
-  fn resolve_rule_includes_project_utilities_as_local_utils() {
+  fn resolve_rule_keeps_local_utils_self_contained() {
+    let temp = tempfile::tempdir().unwrap();
+    std::fs::create_dir(temp.path().join("rules")).unwrap();
+    std::fs::write(
+      temp.path().join("rules/use-num.yml"),
+      "id: use-num\nlanguage: javascript\nrule:\n  matches: num\nutils:\n  num:\n    kind: number\n",
+    )
+    .unwrap();
+    let project = ProjectConfig {
+      project_dir: temp.path().to_path_buf(),
+      rule_dirs: vec![PathBuf::from("rules")],
+      test_configs: None,
+      util_dirs: None,
+    };
+
+    let (text, lang) = resolve_rule(Some("use-num"), None, Some(&project))
+      .unwrap()
+      .unwrap();
+
+    assert_eq!(lang.unwrap(), SgLang::from_str("javascript").unwrap());
+    assert!(text.contains("utils:"));
+    assert!(text.contains("num:"));
+    assert!(text.contains("kind: number"));
+    from_yaml_string::<SgLang>(&text, &GlobalRules::default()).expect("shared YAML parses alone");
+  }
+
+  #[test]
+  fn resolve_rule_errors_on_project_util_reference() {
     let temp = tempfile::tempdir().unwrap();
     std::fs::create_dir(temp.path().join("rules")).unwrap();
     std::fs::create_dir(temp.path().join("utils")).unwrap();
@@ -840,62 +654,10 @@ mod tests {
       util_dirs: Some(vec![PathBuf::from("utils")]),
     };
 
-    let (text, lang) = resolve_rule(Some("use-num"), None, Some(&project))
-      .unwrap()
-      .unwrap();
-
-    assert_eq!(lang.unwrap(), SgLang::from_str("javascript").unwrap());
-    assert!(text.contains("utils:"));
-    assert!(text.contains("num:"));
-    assert!(text.contains("kind: number"));
-    from_yaml_string::<SgLang>(&text, &GlobalRules::default()).expect("shared YAML parses alone");
-  }
-
-  #[test]
-  fn resolve_rule_preserves_project_util_metavar_scope_when_inlined() {
-    use ast_grep_core::tree_sitter::LanguageExt;
-
-    let temp = tempfile::tempdir().unwrap();
-    std::fs::create_dir(temp.path().join("rules")).unwrap();
-    std::fs::create_dir(temp.path().join("utils")).unwrap();
-    std::fs::write(
-      temp.path().join("utils/is-bar.yml"),
-      "id: is-bar\nlanguage: javascript\nrule:\n  pattern: bar($A)\n",
-    )
-    .unwrap();
-    std::fs::write(
-      temp.path().join("rules/use-bar.yml"),
-      r#"id: use-bar
-language: javascript
-rule:
-  all:
-    - pattern: foo($A)
-    - has:
-        stopBy: end
-        matches: is-bar
-"#,
-    )
-    .unwrap();
-    let project = ProjectConfig {
-      project_dir: temp.path().to_path_buf(),
-      rule_dirs: vec![PathBuf::from("rules")],
-      test_configs: None,
-      util_dirs: Some(vec![PathBuf::from("utils")]),
-    };
-
-    let (text, _lang) = resolve_rule(Some("use-bar"), None, Some(&project))
-      .unwrap()
-      .unwrap();
-    let config = from_yaml_string::<SgLang>(&text, &GlobalRules::default())
-      .expect("shared YAML parses alone")
-      .pop()
-      .unwrap();
-    let grep = config.language.ast_grep("foo(bar(1))");
-
-    assert!(
-      grep.root().find(&config.matcher).is_some(),
-      "generated YAML should match like a project global utility:\n{text}"
-    );
+    let err = resolve_rule(Some("use-num"), None, Some(&project)).unwrap_err();
+    let msg = err.to_string();
+    assert!(msg.contains("project utilities"), "{msg}");
+    assert!(msg.contains("num"), "{msg}");
   }
 
   #[test]
