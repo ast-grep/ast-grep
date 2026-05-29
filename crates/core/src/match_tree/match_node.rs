@@ -151,11 +151,19 @@ fn may_match_ellipsis_impl<'p, 't: 'p, D: Doc>(
     return Some(ControlFlow::Continue);
   }
   loop {
+    // Probe whether the next (non-ellipsis) goal matches the current candidate
+    // to decide where the ellipsis ends. The probe runs against a throwaway
+    // clone of the aggregator so that a failed probe of a metavar-bearing goal
+    // does not leak partial bindings into the real environment. Leaking them
+    // would make a later, genuine bind of the same metavar conflict and fail
+    // (e.g. probing `$P := g()` against `a := 0` binds `$P = a`, then poisons
+    // the real bind `$P = p`).
+    let mut probe = (*agg).clone();
     if matches!(
       match_node_impl(
         goal_children.peek().unwrap(),
         cand_children.peek().unwrap(),
-        agg,
+        &mut probe,
         strictness,
       ),
       MatchOneNode::MatchedBoth

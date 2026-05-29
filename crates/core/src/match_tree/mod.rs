@@ -10,7 +10,7 @@ use crate::{Doc, Node, Pattern};
 
 use std::borrow::Cow;
 
-trait Aggregator<'t, D: Doc> {
+trait Aggregator<'t, D: Doc>: Clone {
   fn match_terminal(&mut self, node: &Node<'t, D>) -> Option<()>;
   fn match_meta_var(&mut self, var: &MetaVariable, node: &Node<'t, D>) -> Option<()>;
   fn match_ellipsis(
@@ -21,6 +21,7 @@ trait Aggregator<'t, D: Doc> {
   ) -> Option<()>;
 }
 
+#[derive(Clone)]
 struct ComputeEnd(usize);
 
 impl<'t, D: Doc> Aggregator<'t, D> for ComputeEnd {
@@ -335,5 +336,23 @@ mod test {
   #[test]
   fn test_gh_1087() {
     test_match("($P) => $F($P)", "(x) => bar(x)");
+  }
+
+  // A leading `$$$` followed by a metavar-bearing anchored statement must not
+  // leak partial bindings from the ellipsis-end lookahead probe. Here the probe
+  // of `let $P = g()` against the leading `let a = 0` would bind `$P = a` and
+  // then fail on the right-hand side, poisoning the real bind `$P = p`.
+  #[test]
+  fn test_leading_ellipsis_metavar_anchor() {
+    // No trailing `;` after `$$$A`/`$$$B` so they parse as statement-list
+    // ellipses (a bare `$$$A;` would be wrapped in an expression_statement).
+    let env = test_match(
+      "function _() {\n  $$$A\n  let $P = g()\n  let $Q = h()\n  $$$B\n}",
+      "function _() { let a = 0; let p = g(); let q = h(); let b = 1; }",
+    );
+    assert_eq!(env["P"], "p");
+    assert_eq!(env["Q"], "q");
+    assert_eq!(env["A"], "[let a = 0;]");
+    assert_eq!(env["B"], "[let b = 1;]");
   }
 }
