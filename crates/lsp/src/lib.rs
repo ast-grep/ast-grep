@@ -529,10 +529,10 @@ impl<L: LSPLang> Backend<L> {
   }
 
   async fn on_code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
-    if let Some(kinds) = params.context.only.as_ref() {
-      if kinds.contains(&CodeActionKind::SOURCE_FIX_ALL) {
-        return self.fix_all_code_action(params.text_document);
-      }
+    if let Some(kinds) = params.context.only.as_ref()
+      && kinds.contains(&CodeActionKind::SOURCE_FIX_ALL)
+    {
+      return self.fix_all_code_action(params.text_document);
     }
     self.quickfix_code_action(params)
   }

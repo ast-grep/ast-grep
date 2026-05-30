@@ -47,12 +47,12 @@ impl<'t, D: Doc> ScanResultInner<'t, D> {
         matches.push((rule, supprs));
       }
     }
-    if let Some(rule) = combined.no_suppress_all_rule {
-      if !self.suppress_all_nodes.is_empty() {
-        let mut supprs = self.suppress_all_nodes;
-        supprs.sort_unstable_by_key(|nm| nm.range().start);
-        matches.push((rule, supprs));
-      }
+    if let Some(rule) = combined.no_suppress_all_rule
+      && !self.suppress_all_nodes.is_empty()
+    {
+      let mut supprs = self.suppress_all_nodes;
+      supprs.sort_unstable_by_key(|nm| nm.range().start);
+      matches.push((rule, supprs));
     }
     ScanResult { diffs, matches }
   }
@@ -282,10 +282,10 @@ impl<'r, L: Language> CombinedScan<'r, L> {
         .extend(nodes.cloned().map(NodeMatch::from));
     }
     let file_sup = suppressions.file_suppression();
-    if let MaySuppressed::Yes(s) = file_sup {
-      if s.suppressed.is_none() {
-        return result.into_result(self, separate_fix);
-      }
+    if let MaySuppressed::Yes(s) = file_sup
+      && s.suppressed.is_none()
+    {
+      return result.into_result(self, separate_fix);
     }
     for node in root.root().dfs() {
       let kind = node.kind_id() as usize;

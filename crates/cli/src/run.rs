@@ -340,12 +340,11 @@ impl Worker for RunWithSpecificLang {
     }
     printer.after_print()?;
     self.stats.print()?;
-    if !has_matches {
-      if let Rule::Pattern(pattern) = &self.rule {
-        if pattern.has_error() {
-          return Err(anyhow::anyhow!(EC::PatternHasError));
-        }
-      }
+    if !has_matches
+      && let Rule::Pattern(pattern) = &self.rule
+      && pattern.has_error()
+    {
+      return Err(anyhow::anyhow!(EC::PatternHasError));
     }
     Ok(ExitCode::from(if has_matches { 0 } else { 1 }))
   }

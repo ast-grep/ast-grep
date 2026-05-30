@@ -219,10 +219,10 @@ impl RuleCore {
     env: &mut Cow<MetaVarEnv<'tree, D>>,
     enclosing_env: Option<&MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    if let Some(kinds) = &self.kinds {
-      if !kinds.contains(node.kind_id().into()) {
-        return None;
-      }
+    if let Some(kinds) = &self.kinds
+      && !kinds.contains(node.kind_id().into())
+    {
+      return None;
     }
     let ret = self.rule.match_node_with_env(node, env)?;
     if !env.to_mut().match_constraints(&self.constraints) {

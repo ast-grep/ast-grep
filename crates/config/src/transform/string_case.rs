@@ -130,15 +130,15 @@ impl Delimiter {
     }
     // case 2, consecutive UpperCases followed by lowercase
     // e.g. XMLHttp -> XML Http
-    if let MultiUpper(last_char) = state {
-      if c.is_lowercase() {
-        let new_left = *right - last_char.len_utf8();
-        let range = *left..new_left;
-        *left = new_left;
-        *right += c.len_utf8();
-        self.state = Lower;
-        return Some(range);
-      }
+    if let MultiUpper(last_char) = state
+      && c.is_lowercase()
+    {
+      let new_left = *right - last_char.len_utf8();
+      let range = *left..new_left;
+      *left = new_left;
+      *right += c.len_utf8();
+      self.state = Lower;
+      return Some(range);
     }
     *right += c.len_utf8();
     if *state == CaseState::IgnoreCase {
@@ -176,10 +176,10 @@ fn split<'a>(s: &'a str, seps: Option<&[Separator]>) -> impl Iterator<Item = &'a
   };
   std::iter::from_fn(move || {
     for c in chars.by_ref() {
-      if let Some(range) = delimiter.delimit(c) {
-        if range.start != range.end {
-          return Some(&s[range]);
-        }
+      if let Some(range) = delimiter.delimit(c)
+        && range.start != range.end
+      {
+        return Some(&s[range]);
       }
     }
     let range = delimiter.conclude(s.len())?;

@@ -91,10 +91,10 @@ impl FromStr for NapiLang {
   fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
     use SupportLang as S;
     // only support frontend languages to reduce binary size
-    if let Ok(b) = S::from_str(s) {
-      if matches!(b, S::Css | S::Html | S::JavaScript | S::Tsx | S::TypeScript) {
-        return Ok(NapiLang::Builtin(b));
-      }
+    if let Ok(b) = S::from_str(s)
+      && matches!(b, S::Css | S::Html | S::JavaScript | S::Tsx | S::TypeScript)
+    {
+      return Ok(NapiLang::Builtin(b));
     }
 
     if let Ok(c) = DynamicLang::from_str(s) {

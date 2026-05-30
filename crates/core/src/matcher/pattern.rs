@@ -377,10 +377,10 @@ impl Matcher for Pattern {
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    if let Some(k) = self.root_kind {
-      if node.kind_id() != k {
-        return None;
-      }
+    if let Some(k) = self.root_kind
+      && node.kind_id() != k
+    {
+      return None;
     }
     // do not pollute the env if pattern does not match
     let mut may_write = Cow::Borrowed(env.as_ref());
