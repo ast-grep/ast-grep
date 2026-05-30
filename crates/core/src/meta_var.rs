@@ -123,10 +123,10 @@ impl<'t, D: Doc> MetaVarEnv<'t, D> {
   ) -> bool {
     let mut env = Cow::Borrowed(self);
     for (var_id, candidate) in &self.single_matched {
-      if let Some(m) = var_matchers.get(var_id) {
-        if m.match_node_with_env(candidate.clone(), &mut env).is_none() {
-          return false;
-        }
+      if let Some(m) = var_matchers.get(var_id)
+        && m.match_node_with_env(candidate.clone(), &mut env).is_none()
+      {
+        return false;
       }
     }
     if let Cow::Owned(env) = env {

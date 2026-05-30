@@ -79,15 +79,15 @@ impl Matcher for RangeMatcher {
       return None;
     }
     // then check column, this can be expensive for utf-8 encoded files
-    if let Some(start_col) = self.start.column {
-      if start_col != node_start_pos.column(&node) {
-        return None;
-      }
+    if let Some(start_col) = self.start.column
+      && start_col != node_start_pos.column(&node)
+    {
+      return None;
     }
-    if let Some(end_col) = self.end.column {
-      if end_col != node_end_pos.column(&node) {
-        return None;
-      }
+    if let Some(end_col) = self.end.column
+      && end_col != node_end_pos.column(&node)
+    {
+      return None;
     }
     Some(node)
   }

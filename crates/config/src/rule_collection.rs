@@ -63,10 +63,10 @@ where
 
 impl<L: Language> ContingentRule<L> {
   pub fn matches_path<P: AsRef<Path>>(&self, path: P) -> bool {
-    if let Some(ignore_globs) = &self.ignore_globs {
-      if ignore_globs.is_match(&path) {
-        return false;
-      }
+    if let Some(ignore_globs) = &self.ignore_globs
+      && ignore_globs.is_match(&path)
+    {
+      return false;
     }
     if let Some(files_globs) = &self.files_globs {
       return files_globs.is_match(path);

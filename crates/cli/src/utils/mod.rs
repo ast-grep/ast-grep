@@ -84,10 +84,10 @@ pub fn run_in_alternate_screen<T>(f: impl FnOnce() -> Result<T>) -> Result<T> {
 pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result<char> {
   loop {
     let input = prompt_reply_stdout(prompt_text)?;
-    if let Some(default) = default {
-      if input == '\n' {
-        return Ok(default);
-      }
+    if let Some(default) = default
+      && input == '\n'
+    {
+      return Ok(default);
     }
     if letters.contains(input) {
       return Ok(input);

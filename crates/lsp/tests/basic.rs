@@ -346,10 +346,9 @@ async fn wait_for_response(
   for _ in 0..20 {
     if let Ok(Some(Ok(msg))) =
       tokio::time::timeout(std::time::Duration::from_secs(2), sender.next()).await
+      && msg.get("id") == Some(&serde_json::json!(id))
     {
-      if msg.get("id") == Some(&serde_json::json!(id)) {
-        return Some(msg);
-      }
+      return Some(msg);
     }
   }
   None
