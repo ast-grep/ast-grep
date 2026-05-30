@@ -1,9 +1,9 @@
 use crate::lang::SgLang;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use ast_grep_config::{Label, LabelStyle, RuleConfig};
 use ast_grep_core::{
-  tree_sitter::{LanguageExt, StrDoc},
   Doc,
+  tree_sitter::{LanguageExt, StrDoc},
 };
 
 use super::CaseResult;
@@ -145,7 +145,7 @@ where
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::verify::test::{get_rule_config, TEST_RULE};
+  use crate::verify::test::{TEST_RULE, get_rule_config};
 
   #[test]
   fn test_generate() -> Result<()> {

@@ -6,8 +6,8 @@ use crate::utils::Granularity;
 use anyhow::{Context, Result};
 use clap::{Args, ValueEnum};
 use ignore::{
-  overrides::{Override, OverrideBuilder},
   WalkBuilder, WalkParallel,
+  overrides::{Override, OverrideBuilder},
 };
 use regex::Regex;
 use serde::{Deserialize, Serialize};

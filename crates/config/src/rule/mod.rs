@@ -9,9 +9,9 @@ mod stop_by;
 
 pub use deserialize_env::{DeserializeEnv, SerializableGlobalRule};
 pub use parameterized_util::ParameterizedUtilError;
-use parameterized_util::{deserialize_utility_call_matches, SerializableUtilityCall};
+use parameterized_util::{SerializableUtilityCall, deserialize_utility_call_matches};
 pub use relational_rule::Relation;
-pub use selector::{parse_selector, SelectorError};
+pub use selector::{SelectorError, parse_selector};
 pub use stop_by::StopBy;
 
 use crate::maybe::Maybe;
@@ -23,7 +23,7 @@ use relational_rule::{Follows, Has, Inside, Precedes};
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{KindMatcher, RegexMatcher, RegexMatcherError};
 use ast_grep_core::meta_var::MetaVarEnv;
-use ast_grep_core::{ops as o, Doc, Node};
+use ast_grep_core::{Doc, Node, ops as o};
 use ast_grep_core::{MatchStrictness, Matcher, Pattern, PatternError};
 
 use bit_set::BitSet;
@@ -526,8 +526,8 @@ mod test {
   use super::*;
   use crate::from_str;
   use crate::test::TypeScript;
-  use ast_grep_core::tree_sitter::LanguageExt;
   use PatternStyle::*;
+  use ast_grep_core::tree_sitter::LanguageExt;
 
   #[test]
   fn test_pattern() {

@@ -3,22 +3,22 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result};
 use ast_grep_config::{
-  from_yaml_string, CombinedScan, RuleCollection, RuleConfig, Severity, NO_SUPPRESS_ALL_ID,
-  UNUSED_SUPPRESSION_ID,
+  CombinedScan, NO_SUPPRESS_ALL_ID, RuleCollection, RuleConfig, Severity, UNUSED_SUPPRESSION_ID,
+  from_yaml_string,
 };
-use ast_grep_core::{tree_sitter::StrDoc, NodeMatch};
+use ast_grep_core::{NodeMatch, tree_sitter::StrDoc};
 use ast_grep_language::SupportLang;
 use clap::Args;
 use ignore::WalkParallel;
 
-use crate::config::{read_rule_file, with_rule_stats, ProjectConfig};
+use crate::config::{ProjectConfig, read_rule_file, with_rule_stats};
 use crate::lang::SgLang;
 use crate::print::{
   CloudPrinter, ColoredPrinter, Diff, FileNamePrinter, InteractivePrinter, JSONPrinter, Platform,
   PrintProcessor, Printer, ReportStyle, SimpleFile,
 };
 use crate::utils::RuleOverwrite;
-use crate::utils::{filter_file_rule, ContextArgs, InputArgs, OutputArgs, OverwriteArgs};
+use crate::utils::{ContextArgs, InputArgs, OutputArgs, OverwriteArgs, filter_file_rule};
 use crate::utils::{ErrorContext as EC, MaxItemCounter};
 use crate::utils::{FileTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};

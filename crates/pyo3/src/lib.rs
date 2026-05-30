@@ -9,8 +9,8 @@ use py_node::{Edit, SgNode};
 use range::{Pos, Range};
 
 use ast_grep_core::{
-  tree_sitter::{LanguageExt, StrDoc},
   AstGrep, NodeMatch,
+  tree_sitter::{LanguageExt, StrDoc},
 };
 use py_lang::PyLang;
 use pyo3::prelude::*;

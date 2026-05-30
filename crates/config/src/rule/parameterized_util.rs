@@ -14,7 +14,7 @@
 
 use super::deserialize_env::DeserializeEnv;
 use super::referent_rule::{ReferentRule, ReferentRuleError, RegistrationRef};
-use super::{deserialize_rule, Rule, RuleSerializeError, SerializableRule};
+use super::{Rule, RuleSerializeError, SerializableRule, deserialize_rule};
 use crate::RuleCore;
 
 use ast_grep_core::language::Language;

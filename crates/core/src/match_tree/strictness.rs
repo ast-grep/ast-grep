@@ -1,7 +1,7 @@
-use crate::matcher::{kind_utils, PatternNode};
+use crate::Doc;
+use crate::matcher::{PatternNode, kind_utils};
 use crate::meta_var::MetaVariable;
 use crate::node::Node;
-use crate::Doc;
 use std::iter::Peekable;
 use std::str::FromStr;
 

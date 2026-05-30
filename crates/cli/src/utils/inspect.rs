@@ -20,8 +20,8 @@ use clap::ValueEnum;
 use std::fmt;
 use std::io::{Stderr, Write};
 use std::path::Path;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Clone, Copy, ValueEnum, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Granularity {

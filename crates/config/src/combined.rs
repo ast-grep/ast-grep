@@ -400,9 +400,9 @@ fn parse_suppression_set(text: &str) -> Option<HashSet<String>> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::SerializableRuleConfig;
   use crate::from_str;
   use crate::test::TypeScript;
-  use crate::SerializableRuleConfig;
   use ast_grep_core::tree_sitter::{LanguageExt, StrDoc};
 
   fn create_rule() -> RuleConfig<TypeScript> {

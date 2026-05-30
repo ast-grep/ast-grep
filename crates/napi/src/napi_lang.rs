@@ -4,8 +4,8 @@ use ast_grep_dynamic::{CustomLang, DynamicLang};
 use ast_grep_language::{Language, SupportLang};
 use ignore::types::{Types, TypesBuilder};
 use ignore::{WalkBuilder, WalkParallel};
-use napi::anyhow::anyhow;
 use napi::anyhow::Error;
+use napi::anyhow::anyhow;
 use napi::bindgen_prelude::Result;
 use napi_derive::napi;
 

@@ -5,7 +5,7 @@ ast-grep rule test has several concepts.
 Refer to https://ast-grep.github.io/guide/test-rule.html#basic-concepts
 for general review.
 */
-use super::{snapshot::TestSnapshot, SgLang, TestSnapshots};
+use super::{SgLang, TestSnapshots, snapshot::TestSnapshot};
 use ast_grep_config::RuleConfig;
 use ast_grep_language::LanguageExt;
 

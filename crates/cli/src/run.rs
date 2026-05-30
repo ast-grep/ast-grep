@@ -2,10 +2,10 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::{Context, Result};
-use ast_grep_config::{parse_selector, Fixer, Rule};
+use ast_grep_config::{Fixer, Rule, parse_selector};
 use ast_grep_core::{MatchStrictness, Matcher, Pattern};
 use ast_grep_language::{Language, LanguageExt};
-use clap::{builder::PossibleValue, Args, Parser, ValueEnum};
+use clap::{Args, Parser, ValueEnum, builder::PossibleValue};
 use ignore::WalkParallel;
 
 use crate::config::ProjectConfig;
@@ -15,7 +15,7 @@ use crate::print::{
   Printer,
 };
 use crate::utils::ErrorContext as EC;
-use crate::utils::{filter_file_pattern, ContextArgs, InputArgs, MatchUnit, OutputArgs};
+use crate::utils::{ContextArgs, InputArgs, MatchUnit, OutputArgs, filter_file_pattern};
 use crate::utils::{DebugFormat, FileTrace, RunTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 

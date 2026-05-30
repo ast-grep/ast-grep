@@ -1,11 +1,11 @@
 mod schema;
-use anyhow::{bail, Context, Result};
-use serde_json::{from_str as parse_json, to_string_pretty, Value as JSON};
+use anyhow::{Context, Result, bail};
+use serde_json::{Value as JSON, from_str as parse_json, to_string_pretty};
 use std::env::args;
 use std::fs::{self, read_dir, read_to_string};
 use std::path::Path;
 use std::process::{Command, Stdio};
-use toml_edit::{value as to_toml, DocumentMut};
+use toml_edit::{DocumentMut, value as to_toml};
 
 enum Task {
   Schema,
@@ -46,7 +46,9 @@ fn check_git_status() -> Result<()> {
     .spawn()?
     .wait_with_output()?;
   if !git.stdout.is_empty() {
-    bail!("The git working directory has uncommitted changes. Please commit or abandon them before release!")
+    bail!(
+      "The git working directory has uncommitted changes. Please commit or abandon them before release!"
+    )
   } else {
     Ok(())
   }

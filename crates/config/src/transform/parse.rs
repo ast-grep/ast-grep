@@ -1,6 +1,6 @@
+use super::Trans;
 use super::rewrite::Rewrite;
 use super::trans::{Convert, Replace, Substring};
-use super::Trans;
 use serde_yaml::from_str as yaml_from_str;
 use std::str::FromStr;
 use thiserror::Error;

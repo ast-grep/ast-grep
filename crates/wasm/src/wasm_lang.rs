@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de};
 use std::borrow::Cow;
 use std::sync::Mutex;
 use wasm_bindgen::prelude::*;
@@ -203,12 +203,12 @@ fn pre_process_pattern(expando: char, query: &str) -> Cow<'_, str> {
     }
     let need_replace = matches!(c, 'A'..='Z' | '_') || dollar_count == 3;
     let sigil = if need_replace { expando } else { '$' };
-    ret.extend(std::iter::repeat(sigil).take(dollar_count));
+    ret.extend(std::iter::repeat_n(sigil, dollar_count));
     dollar_count = 0;
     ret.push(c);
   }
   let sigil = if dollar_count == 3 { expando } else { '$' };
-  ret.extend(std::iter::repeat(sigil).take(dollar_count));
+  ret.extend(std::iter::repeat_n(sigil, dollar_count));
   Cow::Owned(ret.into_iter().collect())
 }
 

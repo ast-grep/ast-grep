@@ -1,7 +1,7 @@
 use crate::lang::SgLang;
 use ast_grep_config::{LabelStyle, Metadata, RuleConfig, Severity};
 use ast_grep_core::Doc;
-use ast_grep_core::{meta_var::MetaVariable, tree_sitter::StrDoc, Node as SgNode};
+use ast_grep_core::{Node as SgNode, meta_var::MetaVariable, tree_sitter::StrDoc};
 
 type Node<'t, L> = SgNode<'t, StrDoc<L>>;
 
@@ -459,7 +459,7 @@ impl PrintProcessor<Buffer> for JSONProcessor {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_config::{from_yaml_string, Fixer, GlobalRules};
+  use ast_grep_config::{Fixer, GlobalRules, from_yaml_string};
   use ast_grep_language::{LanguageExt, SupportLang};
 
   struct Test(String);

@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use super::*;
-use ast_grep_config::{from_yaml_string, Fixer, GlobalRules};
+use ast_grep_config::{Fixer, GlobalRules, from_yaml_string};
 use ast_grep_language::{LanguageExt, SupportLang};
 use codespan_reporting::term::termcolor::Buffer;
 

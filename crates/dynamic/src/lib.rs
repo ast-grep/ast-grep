@@ -1,12 +1,12 @@
-use ast_grep_core::tree_sitter::{LanguageExt, StrDoc, TSLanguage};
 use ast_grep_core::Language;
+use ast_grep_core::tree_sitter::{LanguageExt, StrDoc, TSLanguage};
 
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ignore::types::{Types, TypesBuilder};
 use libloading::{Error as LibError, Library, Symbol};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tree_sitter::{Language as NativeTS, LANGUAGE_VERSION, MIN_COMPATIBLE_LANGUAGE_VERSION};
+use tree_sitter::{LANGUAGE_VERSION, Language as NativeTS, MIN_COMPATIBLE_LANGUAGE_VERSION};
 
 use std::borrow::Cow;
 use std::fs::canonicalize;
@@ -121,21 +121,23 @@ unsafe fn load_ts_language(
   path: PathBuf,
   name: String,
 ) -> Result<(Library, TSLanguage), DynamicLangError> {
-  let abs_path = canonicalize(path)?;
-  let lib = Library::new(abs_path.as_os_str()).map_err(DynamicLangError::OpenLib)?;
-  // NOTE: func is a symbol with lifetime bound to `lib`.
-  // If we drop lib in the scope, func will be a dangling pointer.
-  let func: Symbol<unsafe extern "C" fn() -> NativeTS> = lib
-    .get(name.as_bytes())
-    .map_err(DynamicLangError::ReadSymbol)?;
-  let lang = func();
-  let version = lang.abi_version();
-  if !(MIN_COMPATIBLE_LANGUAGE_VERSION..=LANGUAGE_VERSION).contains(&version) {
-    Err(DynamicLangError::IncompatibleVersion(version))
-  } else {
-    // ATTENTION: dragon ahead
-    // must hold valid reference to NativeTS
-    Ok((lib, lang))
+  unsafe {
+    let abs_path = canonicalize(path)?;
+    let lib = Library::new(abs_path.as_os_str()).map_err(DynamicLangError::OpenLib)?;
+    // NOTE: func is a symbol with lifetime bound to `lib`.
+    // If we drop lib in the scope, func will be a dangling pointer.
+    let func: Symbol<unsafe extern "C" fn() -> NativeTS> = lib
+      .get(name.as_bytes())
+      .map_err(DynamicLangError::ReadSymbol)?;
+    let lang = func();
+    let version = lang.abi_version();
+    if !(MIN_COMPATIBLE_LANGUAGE_VERSION..=LANGUAGE_VERSION).contains(&version) {
+      Err(DynamicLangError::IncompatibleVersion(version))
+    } else {
+      // ATTENTION: dragon ahead
+      // must hold valid reference to NativeTS
+      Ok((lib, lang))
+    }
   }
 }
 

@@ -1,8 +1,8 @@
 use crate::GlobalRules;
 
-use crate::check_var::{check_rewriters_in_transform, CheckHint};
+use crate::check_var::{CheckHint, check_rewriters_in_transform};
 use crate::fixer::Fixer;
-use crate::label::{get_default_labels, get_labels_from_config, Label, LabelConfig};
+use crate::label::{Label, LabelConfig, get_default_labels, get_labels_from_config};
 use crate::rule::DeserializeEnv;
 use crate::rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
 
@@ -11,10 +11,10 @@ use ast_grep_core::replacer::Replacer;
 use ast_grep_core::source::Content;
 use ast_grep_core::{Doc, Matcher, NodeMatch};
 
-use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
+use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Error as YamlError;
-use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer};
+use serde_yaml::{Deserializer, with::singleton_map_recursive::deserialize};
 use thiserror::Error;
 
 use std::borrow::Cow;

@@ -8,7 +8,7 @@ mod worker;
 
 pub use args::{ContextArgs, InputArgs, OutputArgs, OverwriteArgs};
 pub use debug_query::DebugFormat;
-pub use error_context::{exit_with_error, ErrorContext};
+pub use error_context::{ErrorContext, exit_with_error};
 pub use inspect::{FileTrace, Granularity, RuleTrace, RunTrace, ScanTrace};
 pub use print_diff::DiffStyles;
 pub use rule_overwrite::RuleOverwrite;
@@ -16,7 +16,7 @@ pub use worker::{Items, MaxItemCounter, PathWorker, StdInWorker, Worker};
 
 use crate::lang::SgLang;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use crossterm::{
   cursor::MoveTo,
   event::{self, Event, KeyCode, KeyModifiers},
@@ -24,15 +24,15 @@ use crossterm::{
   terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
   terminal::{Clear, ClearType},
 };
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 
 use ast_grep_config::{Rule, RuleCollection};
-use ast_grep_core::{tree_sitter::StrDoc, Matcher};
+use ast_grep_core::{Matcher, tree_sitter::StrDoc};
 use ast_grep_language::{Language, LanguageExt};
 
 use std::fs::read_to_string;
-use std::io::stdout;
 use std::io::Write;
+use std::io::stdout;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 

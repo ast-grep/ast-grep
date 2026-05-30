@@ -13,14 +13,14 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::{path::PathBuf, process::ExitCode};
 
-use completions::{run_shell_completion, CompletionsArg};
+use completions::{CompletionsArg, run_shell_completion};
 use config::ProjectConfig;
-use lsp::{run_language_server, LspArg};
-use new::{run_create_new, NewArg};
-use run::{run_with_pattern, RunArg};
-use scan::{run_with_config, ScanArg};
+use lsp::{LspArg, run_language_server};
+use new::{NewArg, run_create_new};
+use run::{RunArg, run_with_pattern};
+use scan::{ScanArg, run_with_config};
 use utils::exit_with_error;
-use verify::{run_test_rule, TestArg};
+use verify::{TestArg, run_test_rule};
 
 const LOGO: &str = r#"
 Search and Rewrite code at large scale using AST pattern.

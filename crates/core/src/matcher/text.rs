@@ -1,7 +1,7 @@
 use super::Matcher;
-use crate::meta_var::MetaVarEnv;
 use crate::Doc;
 use crate::Node;
+use crate::meta_var::MetaVarEnv;
 
 use bit_set::BitSet;
 use regex::{Error as RegexError, Regex};

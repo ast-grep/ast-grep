@@ -1,5 +1,5 @@
 use crate::matcher::PatternBuilder;
-use crate::meta_var::{extract_meta_var, MetaVariable};
+use crate::meta_var::{MetaVariable, extract_meta_var};
 use crate::{Pattern, PatternError};
 use std::borrow::Cow;
 use std::path::Path;

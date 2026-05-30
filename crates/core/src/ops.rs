@@ -342,10 +342,10 @@ impl<M: Matcher, N: Matcher> Op<Or<M, N>> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::Root;
   use crate::language::Tsx;
   use crate::matcher::MatcherExt;
   use crate::meta_var::MetaVarEnv;
-  use crate::Root;
 
   fn test_find(matcher: &impl Matcher, code: &str) {
     let node = Root::str(code, Tsx);

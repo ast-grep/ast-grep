@@ -1,9 +1,9 @@
-use super::indent::{extract_with_deindent, get_indent_at_offset, indent_lines, DeindentedExtract};
-use super::{split_first_meta_var, MetaVarExtract, Replacer};
+use super::indent::{DeindentedExtract, extract_with_deindent, get_indent_at_offset, indent_lines};
+use super::{MetaVarExtract, Replacer, split_first_meta_var};
+use crate::NodeMatch;
 use crate::language::Language;
 use crate::meta_var::{MetaVarEnv, Underlying};
 use crate::source::{Content, Doc};
-use crate::NodeMatch;
 
 use thiserror::Error;
 
@@ -157,11 +157,11 @@ pub fn gen_replacement<D: Doc>(template: &str, nm: &NodeMatch<'_, D>) -> Underly
 mod test {
 
   use super::*;
+  use crate::Pattern;
   use crate::language::Tsx;
   use crate::matcher::NodeMatch;
   use crate::meta_var::{MetaVarEnv, MetaVariable};
   use crate::tree_sitter::LanguageExt;
-  use crate::Pattern;
   use std::collections::HashMap;
 
   #[test]

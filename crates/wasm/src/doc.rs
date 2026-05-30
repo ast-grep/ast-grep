@@ -2,8 +2,8 @@ use crate::ts_types as ts;
 use crate::wasm_lang::{SgWasmError, WasmLang};
 
 use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore};
-use ast_grep_core::source::{Content, Doc, Edit, SgNode};
 use ast_grep_core::Position;
+use ast_grep_core::source::{Content, Doc, Edit, SgNode};
 use wasm_bindgen::prelude::*;
 
 use std::borrow::Cow;

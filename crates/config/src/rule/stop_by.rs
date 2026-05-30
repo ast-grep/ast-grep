@@ -4,7 +4,7 @@ use crate::rule::{Rule, RuleSerializeError, SerializableRule};
 use ast_grep_core::language::Language;
 use ast_grep_core::{Doc, Node};
 
-use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
+use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
 

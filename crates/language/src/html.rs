@@ -1,8 +1,8 @@
 use super::pre_process_pattern;
+use ast_grep_core::Language;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::tree_sitter::{LanguageExt, StrDoc, TSLanguage, TSRange};
-use ast_grep_core::Language;
-use ast_grep_core::{matcher::KindMatcher, Doc, Node};
+use ast_grep_core::{Doc, Node, matcher::KindMatcher};
 
 // tree-sitter-html uses locale dependent iswalnum for tagName
 // https://github.com/tree-sitter/tree-sitter-html/blob/b5d9758e22b4d3d25704b72526670759a9e4d195/src/scanner.c#L194
@@ -147,7 +147,9 @@ mod test {
 
   #[test]
   fn test_explicit_lang() {
-    let entries = extract("<script lang='ts'>a</script><script lang=ts>.a{}</script><style lang=scss></style><style lang=\"scss\"></style>");
+    let entries = extract(
+      "<script lang='ts'>a</script><script lang=ts>.a{}</script><style lang=scss></style><style lang=\"scss\"></style>",
+    );
     assert_eq!(entries.len(), 4);
     assert_eq!(entries[0].0, "ts");
     assert_eq!(entries[1].0, "ts");

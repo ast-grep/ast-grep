@@ -1,6 +1,6 @@
 use crate::language::Language;
-use crate::match_tree::{match_end_non_recursive, match_node_non_recursive, MatchStrictness};
-use crate::matcher::{kind_utils, KindMatcher, KindMatcherError, Matcher};
+use crate::match_tree::{MatchStrictness, match_end_non_recursive, match_node_non_recursive};
+use crate::matcher::{KindMatcher, KindMatcherError, Matcher, kind_utils};
 use crate::meta_var::{MetaVarEnv, MetaVariable};
 use crate::source::SgNode;
 use crate::{Doc, Node, Root};
@@ -250,7 +250,9 @@ pub enum PatternError {
   MultipleNode(String),
   #[error(transparent)]
   InvalidKind(#[from] KindMatcherError),
-  #[error("Fails to create Contextual pattern: selector `{selector}` matches no node in the context `{context}`.")]
+  #[error(
+    "Fails to create Contextual pattern: selector `{selector}` matches no node in the context `{context}`."
+  )]
   NoSelectorInContext { context: String, selector: String },
 }
 

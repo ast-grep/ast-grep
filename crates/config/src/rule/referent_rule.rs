@@ -1,6 +1,6 @@
 use super::parameterized_util::{
-  match_bound_rule, match_parameterized_referent, parameterized_potential_kinds,
-  verify_parameterized_referent, GlobalTemplate,
+  GlobalTemplate, match_bound_rule, match_parameterized_referent, parameterized_potential_kinds,
+  verify_parameterized_referent,
 };
 use crate::{Rule, RuleCore};
 
@@ -407,9 +407,9 @@ mod test {
   use crate::rule::stop_by::SerializableStopBy;
   use crate::rule::{Has, Rule, SerializableMatches, SerializableRule};
   use crate::test::TypeScript as TS;
+  use ast_grep_core::Pattern;
   use ast_grep_core::matcher::KindMatcher;
   use ast_grep_core::ops as o;
-  use ast_grep_core::Pattern;
 
   type Result = std::result::Result<(), ReferentRuleError>;
 

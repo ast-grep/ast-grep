@@ -2,16 +2,16 @@ use ast_grep_config::RuleCore;
 use ast_grep_core::pinned::{NodeData, PinnedNodeData};
 use ast_grep_core::{AstGrep, NodeMatch};
 use ignore::{WalkBuilder, WalkParallel, WalkState};
-use napi::anyhow::{anyhow, Context, Result as Ret};
+use napi::Task;
+use napi::anyhow::{Context, Result as Ret, anyhow};
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
-use napi::Task;
 use napi_derive::napi;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::doc::{JsDoc, NapiConfig};
-use crate::napi_lang::{build_files, LangOption, NapiLang};
+use crate::napi_lang::{LangOption, NapiLang, build_files};
 use crate::sg_node::{SgNode, SgRoot};
 
 pub struct ParseAsync {

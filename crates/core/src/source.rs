@@ -11,7 +11,7 @@
 //! It has a `Source` associated type bounded by `Content` that represents the source code of the document,
 //! and a `Lang` associated type that represents the language of the document.
 
-use crate::{language::Language, node::KindId, Position};
+use crate::{Position, language::Language, node::KindId};
 use std::borrow::Cow;
 use std::ops::Range;
 

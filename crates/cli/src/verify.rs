@@ -9,7 +9,7 @@ use crate::lang::SgLang;
 use crate::print::ColorArg;
 use crate::utils::{ErrorContext, RuleOverwrite};
 use crate::verify::reporter::TestReportStyle;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use ast_grep_config::RuleCollection;
 use clap::Args;
 use regex::Regex;
@@ -239,7 +239,7 @@ pub fn run_test_rule(arg: TestArg, project: Result<ProjectConfig>) -> Result<Exi
 #[cfg(test)]
 pub mod test {
   use super::*;
-  use ast_grep_config::{from_str, GlobalRules, RuleConfig};
+  use ast_grep_config::{GlobalRules, RuleConfig, from_str};
 
   pub const TEST_RULE: &str = "test-rule";
 

@@ -241,7 +241,9 @@ impl ErrorMessage {
       ),
       RuleNotFound(id) => Self::new(
         format!("Rule not found: {id}"),
-        format!("Rule with id '{id}' not found in project configuration. Please make sure it exists."),
+        format!(
+          "Rule with id '{id}' not found in project configuration. Please make sure it exists."
+        ),
         TOOL_OVERVIEW,
       ),
       StartLanguageServer => Self::new(

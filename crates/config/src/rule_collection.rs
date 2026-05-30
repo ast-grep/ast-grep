@@ -1,4 +1,4 @@
-use crate::{rule_config::RuleFileGlob, RuleConfig, Severity};
+use crate::{RuleConfig, Severity, rule_config::RuleFileGlob};
 use ast_grep_core::language::Language;
 use globset::{Glob, GlobBuilder, GlobSet, GlobSetBuilder};
 use std::path::Path;
@@ -192,9 +192,9 @@ impl<L: Language + Eq> Default for RuleCollection<L> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::GlobalRules;
   use crate::from_yaml_string;
   use crate::test::TypeScript;
-  use crate::GlobalRules;
 
   fn make_rule(files: &str) -> RuleCollection<TypeScript> {
     let globals = GlobalRules::default();

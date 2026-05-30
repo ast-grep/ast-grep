@@ -3,12 +3,12 @@ mod common;
 use std::process::ExitCode;
 
 use anyhow::Result;
-use assert_cmd::{cargo_bin, Command};
+use assert_cmd::{Command, cargo_bin};
 use ast_grep::main_with_args;
 use common::create_test_files;
 use predicates::prelude::*;
 use predicates::str::contains;
-use serde_json::{from_slice, Value};
+use serde_json::{Value, from_slice};
 use tempfile::TempDir;
 
 const CONFIG: &str = "

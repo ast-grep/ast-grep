@@ -117,7 +117,7 @@ impl SgNode {
   // SAFETY helper: transmute NodeMatch lifetime from 'tree to 'static.
   // Safe for WasmDoc because Node wraps a JS GC-managed SyntaxNode.
   unsafe fn cast_match<'t>(nm: NodeMatch<'t, WasmDoc>) -> NodeMatch<'static, WasmDoc> {
-    std::mem::transmute(nm)
+    unsafe { std::mem::transmute(nm) }
   }
 }
 

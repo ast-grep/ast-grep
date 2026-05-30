@@ -5,10 +5,10 @@ mod trans;
 
 use crate::{DeserializeEnv, RuleCore};
 
-use ast_grep_core::meta_var::MetaVarEnv;
-use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::Doc;
 use ast_grep_core::Language;
+use ast_grep_core::meta_var::MetaVarEnv;
+use ast_grep_core::meta_var::MetaVariable;
 
 use parse::ParseTransError;
 use schemars::JsonSchema;

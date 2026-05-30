@@ -1,10 +1,10 @@
+use crate::RuleCore;
 use crate::fixer::{Fixer, FixerError};
-use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::Rule;
+use crate::rule::referent_rule::RuleRegistration;
 use crate::rule_config::RuleConfigError;
 use crate::rule_core::RuleCoreError;
 use crate::transform::{Transform, TransformError};
-use crate::RuleCore;
 
 use std::collections::{HashMap, HashSet};
 
@@ -188,7 +188,7 @@ fn check_one_rewriter_in_rule(
 mod test {
   use super::*;
   use crate::test::TypeScript;
-  use crate::{from_str, DeserializeEnv, SerializableGlobalRule, SerializableRuleCore};
+  use crate::{DeserializeEnv, SerializableGlobalRule, SerializableRuleCore, from_str};
 
   #[test]
   fn test_defined_vars() {

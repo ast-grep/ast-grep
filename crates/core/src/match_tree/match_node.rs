@@ -1,6 +1,6 @@
-use super::strictness::{MatchOneNode, MatchStrictness};
 use super::Aggregator;
-use crate::matcher::{kind_utils, PatternNode};
+use super::strictness::{MatchOneNode, MatchStrictness};
+use crate::matcher::{PatternNode, kind_utils};
 use crate::meta_var::MetaVariable;
 use crate::{Doc, Node};
 use std::iter::Peekable;
@@ -245,7 +245,7 @@ mod test {
   use super::*;
   use crate::language::Tsx;
   use crate::matcher::KindMatcher;
-  use crate::{meta_var::MetaVarEnv, Matcher, Pattern, Root};
+  use crate::{Matcher, Pattern, Root, meta_var::MetaVarEnv};
   use std::borrow::Cow;
   fn match_tree(p: &str, n: &str, strictness: MatchStrictness) -> MatchOneNode {
     let pattern = Pattern::new(p, Tsx);

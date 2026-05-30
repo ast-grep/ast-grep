@@ -1,6 +1,6 @@
 use crate::lang::SgLang;
 use ansi_term::Style;
-use ast_grep_core::{matcher::DumpPattern, Pattern};
+use ast_grep_core::{Pattern, matcher::DumpPattern};
 use ast_grep_language::LanguageExt;
 use clap::ValueEnum;
 use tree_sitter as ts;
@@ -234,7 +234,7 @@ fn dump_nodes(cursor: &mut ts::TreeCursor, target: &mut Vec<DumpNode>) {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_language::{JavaScript, TypeScript, C};
+  use ast_grep_language::{C, JavaScript, TypeScript};
 
   const DUMPED: &str = r#"
 program (0,0)-(0,11)

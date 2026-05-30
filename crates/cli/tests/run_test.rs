@@ -1,7 +1,7 @@
 mod common;
 
 use anyhow::Result;
-use assert_cmd::{cargo_bin, Command};
+use assert_cmd::{Command, cargo_bin};
 use common::create_test_files;
 use predicates::prelude::*;
 use predicates::str::contains;

@@ -1,5 +1,5 @@
 use schemars::{JsonSchema, Schema, SchemaGenerator};
-use serde::{de, ser, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de, ser};
 use std::borrow::Cow;
 
 #[derive(Clone, PartialEq, Eq, Debug, Copy, Default)]
@@ -76,16 +76,16 @@ impl<T: JsonSchema> JsonSchema for Maybe<T> {
   fn schema_id() -> Cow<'static, str> {
     Cow::Owned(format!("Maybe<{}>", T::schema_id()))
   }
-  fn json_schema(gen: &mut SchemaGenerator) -> Schema {
-    gen.subschema_for::<T>()
+  fn json_schema(s_gen: &mut SchemaGenerator) -> Schema {
+    s_gen.subschema_for::<T>()
   }
 
   fn inline_schema() -> bool {
     true
   }
 
-  fn _schemars_private_non_optional_json_schema(gen: &mut SchemaGenerator) -> Schema {
-    T::_schemars_private_non_optional_json_schema(gen)
+  fn _schemars_private_non_optional_json_schema(s_gen: &mut SchemaGenerator) -> Schema {
+    T::_schemars_private_non_optional_json_schema(s_gen)
   }
 
   fn _schemars_private_is_option() -> bool {

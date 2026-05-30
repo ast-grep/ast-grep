@@ -285,9 +285,9 @@ fn validate_local_utils(
 mod test {
   use super::*;
   use crate::test::TypeScript;
-  use crate::{from_str, Rule};
-  use ast_grep_core::tree_sitter::LanguageExt;
+  use crate::{Rule, from_str};
   use ast_grep_core::Matcher;
+  use ast_grep_core::tree_sitter::LanguageExt;
 
   type Result<T> = std::result::Result<T, RuleSerializeError>;
 

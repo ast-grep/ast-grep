@@ -22,7 +22,7 @@ mod test;
 use markdown::Markdown;
 use match_merger::MatchMerger;
 use styles::RuleStyle;
-pub use styles::{should_use_color, PrintStyles};
+pub use styles::{PrintStyles, should_use_color};
 
 #[derive(Clone, Copy, ValueEnum)]
 pub enum ReportStyle {

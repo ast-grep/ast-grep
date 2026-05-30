@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use ast_grep_config::RuleConfig;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::termcolor::{Buffer, StandardStream};
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 
 use std::borrow::Cow;
 use std::ops::Range;
@@ -407,7 +407,7 @@ fn open_in_editor(path: &Path, start_line: usize) -> Result<()> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_config::{from_yaml_string, Fixer, GlobalRules};
+  use ast_grep_config::{Fixer, GlobalRules, from_yaml_string};
   use ast_grep_core::tree_sitter::{StrDoc, Visitor};
   use ast_grep_core::{AstGrep, Matcher};
   use ast_grep_language::SupportLang;
@@ -501,13 +501,17 @@ fix: ($B, lifecycle.update(['$A']))",
   }
 
   fn test_open_editor_respect_editor_env() {
-    std::env::set_var("EDITOR", "echo");
+    unsafe {
+      std::env::set_var("EDITOR", "echo");
+    }
     let exit = open_in_editor(&PathBuf::from("Cargo.toml"), 1);
     assert!(exit.is_ok());
   }
 
   fn test_open_editor_error_handling() {
-    std::env::set_var("EDITOR", "NOT_EXIST_XXXXX");
+    unsafe {
+      std::env::set_var("EDITOR", "NOT_EXIST_XXXXX");
+    }
     let exit = open_in_editor(&PathBuf::from("Cargo.toml"), 1);
     let error = exit.expect_err("should be error");
     let error = error.downcast_ref::<EC>().expect("should be error context");

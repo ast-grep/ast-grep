@@ -7,7 +7,7 @@ use ast_grep_config::from_str;
 use ast_grep_language::config_file_type;
 use ignore::WalkBuilder;
 use regex::Regex;
-use serde_yaml::{with::singleton_map_recursive::deserialize, Deserializer};
+use serde_yaml::{Deserializer, with::singleton_map_recursive::deserialize};
 
 use std::collections::HashMap;
 use std::fs::read_to_string;
@@ -215,8 +215,10 @@ snapshots:
     };
     let path = Path::new(".");
     deserialize_snapshot_yaml(path, SNAPSHOTS.to_string(), &mut builder).expect("should ok");
-    assert!(builder.dest.snapshots["test-1"]
-      .snapshots
-      .contains_key("alert(123)"));
+    assert!(
+      builder.dest.snapshots["test-1"]
+        .snapshots
+        .contains_key("alert(123)")
+    );
   }
 }

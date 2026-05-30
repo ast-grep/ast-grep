@@ -1,5 +1,5 @@
 use super::Ctx;
-use super::{trans::parse_meta_var, TransformError};
+use super::{TransformError, trans::parse_meta_var};
 use crate::rule_core::RuleCore;
 
 use ast_grep_core::meta_var::MetaVariable;
@@ -151,8 +151,8 @@ mod test {
   use super::*;
   use crate::check_var::CheckHint;
   use crate::from_str;
-  use crate::rule::referent_rule::RuleRegistration;
   use crate::rule::DeserializeEnv;
+  use crate::rule::referent_rule::RuleRegistration;
   use crate::rule_core::SerializableRuleCore;
   use crate::test::TypeScript;
   use std::collections::HashSet;

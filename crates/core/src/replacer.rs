@@ -1,5 +1,5 @@
 use crate::matcher::Matcher;
-use crate::meta_var::{is_valid_meta_var_char, MetaVariableID, Underlying};
+use crate::meta_var::{MetaVariableID, Underlying, is_valid_meta_var_char};
 use crate::{Doc, Node, NodeMatch, Root};
 use std::ops::Range;
 

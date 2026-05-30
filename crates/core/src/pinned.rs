@@ -1,6 +1,6 @@
+use crate::Doc;
 use crate::matcher::NodeMatch;
 use crate::node::{Node, Root};
-use crate::Doc;
 
 // ast-grep Node contains a reference to Root. It implies that
 // node can be used only when the Root is valid and not dropped.

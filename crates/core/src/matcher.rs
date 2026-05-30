@@ -11,12 +11,12 @@ mod pattern;
 mod text;
 
 use crate::Doc;
-use crate::{meta_var::MetaVarEnv, Node};
+use crate::{Node, meta_var::MetaVarEnv};
 
 use bit_set::BitSet;
 use std::borrow::Cow;
 
-pub use kind::{kind_utils, KindMatcher, KindMatcherError};
+pub use kind::{KindMatcher, KindMatcherError, kind_utils};
 pub use node_match::NodeMatch;
 pub use pattern::{DumpPattern, Pattern, PatternBuilder, PatternError, PatternNode};
 pub use text::{RegexMatcher, RegexMatcherError};

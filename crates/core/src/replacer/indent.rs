@@ -199,7 +199,7 @@ where
 {
   let mut ret = vec![];
   let space = get_space::<C>();
-  let leading: Vec<_> = std::iter::repeat(space).take(indent).collect();
+  let leading: Vec<_> = std::iter::repeat_n(space, indent).collect();
   // first line never got indent
   if let Some(line) = lines.next() {
     ret.extend(line.iter().cloned());
@@ -243,7 +243,7 @@ pub fn get_indent_at_offset<C: Content>(src: &[C::Underlying]) -> usize {
 // NOTE: we assume input is well indented.
 // following line's should have fewer indentation than initial line
 fn remove_indent<C: Content>(indent: usize, src: &[C::Underlying]) -> Vec<C::Underlying> {
-  let indentation: Vec<_> = std::iter::repeat(get_space::<C>()).take(indent).collect();
+  let indentation: Vec<_> = std::iter::repeat_n(get_space::<C>(), indent).collect();
   let new_line = get_new_line::<C>();
   let lines: Vec<_> = src
     .split(|b| *b == new_line)

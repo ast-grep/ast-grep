@@ -3,8 +3,8 @@ pub mod traversal;
 use crate::node::Root;
 use crate::replacer::Replacer;
 use crate::source::{Content, Doc, Edit, SgNode};
-use crate::{node::KindId, Language, Position};
 use crate::{AstGrep, Matcher};
+use crate::{Language, Position, node::KindId};
 use std::borrow::Cow;
 use std::num::NonZero;
 use thiserror::Error;
@@ -354,7 +354,8 @@ impl<L: LanguageExt> Root<StrDoc<L>> {
   pub fn get_injections<F: Fn(&str) -> Option<L>>(&self, get_lang: F) -> Vec<Self> {
     let root = self.root();
     let range = self.lang().extract_injections(root);
-    let roots = range
+
+    range
       .into_iter()
       .filter_map(|(lang_str, ranges)| {
         let lang = get_lang(&lang_str)?;
@@ -371,8 +372,7 @@ impl<L: LanguageExt> Root<StrDoc<L>> {
           },
         })
       })
-      .collect();
-    roots
+      .collect()
   }
 }
 
@@ -476,7 +476,10 @@ mod test {
     let tree = parse("{a: $X}")?;
     let root_node = tree.root_node();
     // wow this is not label. technically it is wrong but practically it is better LOL
-    assert_eq!(root_node.to_sexp(), "(program (expression_statement (object (pair key: (property_identifier) value: (identifier)))))");
+    assert_eq!(
+      root_node.to_sexp(),
+      "(program (expression_statement (object (pair key: (property_identifier) value: (identifier)))))"
+    );
     Ok(())
   }
 
@@ -519,7 +522,10 @@ mod test {
       tree.root_node().to_sexp(),
       "(program (expression_statement (binary_expression left: (identifier) right: (identifier))))"
     );
-    assert_eq!(tree2.root_node().to_sexp(), "(program (expression_statement (binary_expression left: (binary_expression left: (identifier) right: (identifier)) right: (identifier))))");
+    assert_eq!(
+      tree2.root_node().to_sexp(),
+      "(program (expression_statement (binary_expression left: (binary_expression left: (identifier) right: (identifier)) right: (identifier))))"
+    );
     Ok(())
   }
 }

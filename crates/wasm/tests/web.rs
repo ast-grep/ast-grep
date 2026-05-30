@@ -319,9 +319,11 @@ async fn test_node_matches_pattern() {
     .find(make_config(r#"{"rule": {"kind": "call_expression"}}"#))
     .unwrap()
     .unwrap();
-  assert!(matched
-    .matches(JsValue::from_str("console.log($$$)"))
-    .unwrap());
+  assert!(
+    matched
+      .matches(JsValue::from_str("console.log($$$)"))
+      .unwrap()
+  );
   assert!(!matched.matches(JsValue::from_str("console.log")).unwrap());
 }
 
@@ -334,12 +336,16 @@ async fn test_node_matches_config() {
     .find(JsValue::from_str("console.log($$$)"))
     .unwrap()
     .unwrap();
-  assert!(matched
-    .matches(make_config(r#"{"rule": {"kind": "call_expression"}}"#))
-    .unwrap());
-  assert!(!matched
-    .matches(make_config(r#"{"rule": {"kind": "identifier"}}"#))
-    .unwrap());
+  assert!(
+    matched
+      .matches(make_config(r#"{"rule": {"kind": "call_expression"}}"#))
+      .unwrap()
+  );
+  assert!(
+    !matched
+      .matches(make_config(r#"{"rule": {"kind": "identifier"}}"#))
+      .unwrap()
+  );
 }
 
 #[wasm_bindgen_test]
@@ -387,12 +393,16 @@ async fn test_node_inside() {
     .find(JsValue::from_str("const x = 1"))
     .unwrap()
     .unwrap();
-  assert!(matched
-    .inside(JsValue::from_str("if (true) { $$$ }"))
-    .unwrap());
-  assert!(!matched
-    .inside(JsValue::from_str("function() { $$$ }"))
-    .unwrap());
+  assert!(
+    matched
+      .inside(JsValue::from_str("if (true) { $$$ }"))
+      .unwrap()
+  );
+  assert!(
+    !matched
+      .inside(JsValue::from_str("function() { $$$ }"))
+      .unwrap()
+  );
 }
 
 #[wasm_bindgen_test]

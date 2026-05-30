@@ -96,7 +96,7 @@ fn get_meta_var_replacement<D: Doc>(
 mod test {
   use crate::language::Tsx;
   use crate::meta_var::MetaVarEnv;
-  use crate::{replacer::Replacer, tree_sitter::LanguageExt, NodeMatch, Root};
+  use crate::{NodeMatch, Root, replacer::Replacer, tree_sitter::LanguageExt};
   use std::collections::HashMap;
 
   fn test_pattern_replace(replacer: &str, vars: &[(&str, &str)], expected: &str) {

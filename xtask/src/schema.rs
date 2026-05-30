@@ -1,14 +1,14 @@
 use anyhow::{Context, Result};
 use ast_grep_config::SerializableRuleConfig;
+use ast_grep_core::Language;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::tree_sitter::{LanguageExt, TSLanguage};
-use ast_grep_core::Language;
 use ast_grep_language::{
-  Alias, Bash, CSharp, Cpp, Css, Dart, Elixir, Go, Haskell, Html, Java, JavaScript, Json, Kotlin,
-  Lua, Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml, C,
+  Alias, Bash, C, CSharp, Cpp, Css, Dart, Elixir, Go, Haskell, Html, Java, JavaScript, Json,
+  Kotlin, Lua, Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml,
 };
-use schemars::{json_schema, schema_for, JsonSchema, Schema, SchemaGenerator};
-use serde_json::{to_writer_pretty, Value};
+use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema, schema_for};
+use serde_json::{Value, to_writer_pretty};
 
 use std::borrow::Cow;
 use std::{collections::BTreeSet, fs::File};

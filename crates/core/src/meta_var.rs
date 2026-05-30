@@ -234,7 +234,7 @@ pub enum MetaVariable {
 
 pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariable> {
   use MetaVariable::*;
-  let ellipsis: String = std::iter::repeat(meta_char).take(3).collect();
+  let ellipsis: String = std::iter::repeat_n(meta_char, 3).collect();
   if src == ellipsis {
     return Some(Multiple);
   }
@@ -301,9 +301,9 @@ impl<'tree, D: Doc> From<MetaVarEnv<'tree, D>> for HashMap<String, String> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::Pattern;
   use crate::language::Tsx;
   use crate::tree_sitter::LanguageExt;
-  use crate::Pattern;
 
   fn extract_var(s: &str) -> Option<MetaVariable> {
     extract_meta_var(s, '$')

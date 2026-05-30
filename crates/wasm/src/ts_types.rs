@@ -1,6 +1,6 @@
 use core::cell::RefCell;
 use js_sys::{Array, Error, JsString, Object, Promise, Reflect, Uint8Array};
-use wasm_bindgen::{prelude::*, JsCast};
+use wasm_bindgen::{JsCast, prelude::*};
 use wasm_bindgen_futures::JsFuture;
 
 pub trait JsValueExt {

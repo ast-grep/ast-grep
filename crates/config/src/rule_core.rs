@@ -1,10 +1,10 @@
-use crate::check_var::{check_rule_with_hint, CheckHint};
+use crate::DeserializeEnv;
+use crate::check_var::{CheckHint, check_rule_with_hint};
 use crate::fixer::{Fixer, FixerError, SerializableFixer};
-use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::Rule;
+use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::{RuleSerializeError, SerializableRule};
 use crate::transform::{Transform, TransformError, Transformation};
-use crate::DeserializeEnv;
 
 use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
@@ -279,10 +279,10 @@ impl Matcher for RuleCore {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::SerializableGlobalRule;
   use crate::from_str;
   use crate::rule::referent_rule::{ReferentRule, ReferentRuleError};
   use crate::test::TypeScript;
-  use crate::SerializableGlobalRule;
   use ast_grep_core::matcher::{Pattern, RegexMatcher};
   use ast_grep_core::tree_sitter::LanguageExt;
 

@@ -290,7 +290,7 @@ fn attach_sarif_fix(mut result: sarif::Result, path: &str, diff: Diff<'_>) -> sa
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_config::{from_yaml_string, GlobalRules};
+  use ast_grep_config::{GlobalRules, from_yaml_string};
   use ast_grep_language::{LanguageExt, SupportLang};
   use codespan_reporting::term::termcolor::Buffer;
 

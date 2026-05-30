@@ -78,7 +78,7 @@ fn verify_test_case_with_snapshots<'a>(
 mod tests {
   use super::*;
   use crate::verify::snapshot::TestSnapshot;
-  use crate::verify::test::{get_rule_config, TEST_RULE};
+  use crate::verify::test::{TEST_RULE, get_rule_config};
 
   fn mock_test_case(valid: &[&str], invalid: &[&str]) -> TestCase {
     TestCase {

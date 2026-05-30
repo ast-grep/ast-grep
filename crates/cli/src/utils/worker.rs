@@ -1,13 +1,13 @@
 use crate::print::Printer;
 use crate::utils::FileTrace;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use ignore::{DirEntry, WalkParallel, WalkState};
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 
 /// A trait to abstract how ast-grep discovers work Items.
 ///

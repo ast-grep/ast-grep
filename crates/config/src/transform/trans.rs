@@ -1,5 +1,5 @@
 use super::rewrite::Rewrite;
-use super::{string_case, Ctx, TransformError};
+use super::{Ctx, TransformError, string_case};
 use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::source::Content;
 use ast_grep_core::{Doc, Language};

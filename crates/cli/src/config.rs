@@ -3,7 +3,7 @@ use crate::utils::{ErrorContext as EC, RuleOverwrite, RuleTrace};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{
-  from_str, from_yaml_string, DeserializeEnv, GlobalRules, RuleCollection, RuleConfig,
+  DeserializeEnv, GlobalRules, RuleCollection, RuleConfig, from_str, from_yaml_string,
 };
 use ast_grep_language::config_file_type;
 use ignore::WalkBuilder;

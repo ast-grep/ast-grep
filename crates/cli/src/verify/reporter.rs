@@ -1,4 +1,4 @@
-use crate::utils::{prompt, run_in_alternate_screen, DiffStyles};
+use crate::utils::{DiffStyles, prompt, run_in_alternate_screen};
 
 use ansi_term::{Color, Style};
 use anyhow::Result;

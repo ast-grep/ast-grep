@@ -12,7 +12,7 @@ use napi_derive::napi;
 use napi_lang::register_dynamic_language as register_dynamic_language_impl;
 
 use doc::{JsDoc, NapiConfig};
-use find_files::{find_in_files_impl, FindConfig, FindInFiles, ParseAsync};
+use find_files::{FindConfig, FindInFiles, ParseAsync, find_in_files_impl};
 use napi_lang::NapiLang;
 use sg_node::{SgNode, SgRoot};
 

@@ -46,16 +46,15 @@ mod yaml;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 pub use html::Html;
 
+use ast_grep_core::Node;
 use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::tree_sitter::{StrDoc, TSLanguage, TSRange};
-use ast_grep_core::Node;
 use ignore::types::{Types, TypesBuilder};
 use serde::de::Visitor;
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de};
 use std::borrow::Cow;
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use std::iter::repeat;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -102,13 +101,13 @@ fn pre_process_pattern(expando: char, query: &str) -> std::borrow::Cow<'_, str> 
     let need_replace = matches!(c, 'A'..='Z' | '_') // $A or $$A or $$$A
       || dollar_count == 3; // anonymous multiple
     let sigil = if need_replace { expando } else { '$' };
-    ret.extend(repeat(sigil).take(dollar_count));
+    ret.extend(std::iter::repeat_n(sigil, dollar_count));
     dollar_count = 0;
     ret.push(c);
   }
   // trailing anonymous multiple
   let sigil = if dollar_count == 3 { expando } else { '$' };
-  ret.extend(repeat(sigil).take(dollar_count));
+  ret.extend(std::iter::repeat_n(sigil, dollar_count));
   std::borrow::Cow::Owned(ret.into_iter().collect())
 }
 
@@ -571,7 +570,7 @@ pub fn config_file_type() -> Types {
 #[cfg(test)]
 mod test {
   use super::*;
-  use ast_grep_core::{matcher::MatcherExt, Pattern};
+  use ast_grep_core::{Pattern, matcher::MatcherExt};
 
   pub fn test_match_lang(query: &str, source: &str, lang: impl LanguageExt) {
     let cand = lang.ast_grep(source);
@@ -600,9 +599,11 @@ mod test {
     lang: impl LanguageExt,
   ) -> String {
     let mut source = lang.ast_grep(src);
-    assert!(source
-      .replace(pattern, replacer)
-      .expect("should parse successfully"));
+    assert!(
+      source
+        .replace(pattern, replacer)
+        .expect("should parse successfully")
+    );
     source.generate()
   }
 
