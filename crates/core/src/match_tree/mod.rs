@@ -10,6 +10,11 @@ use crate::{Doc, Node, Pattern};
 
 use std::borrow::Cow;
 
+// the Clone bound is for matching multi-metavar like $$$A
+// since the next node in pattern determines how many nodes to bind to $$$A
+// we need to clone the aggregator to test each node in candidate
+// preferably, Aggregator should be cheap to clone, like Cow or a small struct
+// See https://github.com/ast-grep/ast-grep/pull/2670
 trait Aggregator<'t, D: Doc>: Clone {
   fn match_terminal(&mut self, node: &Node<'t, D>) -> Option<()>;
   fn match_meta_var(&mut self, var: &MetaVariable, node: &Node<'t, D>) -> Option<()>;
