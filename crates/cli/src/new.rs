@@ -27,7 +27,7 @@ pub struct NewArg {
   /// Accept all default options without interactive input during creation.
   ///
   /// You need to provide all required arguments via command line if this flag is true.
-  /// Please see the command description for the what arguments are required.
+  /// Please see the command description for what arguments are required.
   #[arg(short, long, global = true)]
   yes: bool,
 }
