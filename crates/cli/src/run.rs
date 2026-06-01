@@ -45,12 +45,12 @@ impl ValueEnum for Strictness {
   fn to_possible_value(&self) -> Option<PossibleValue> {
     use MatchStrictness as M;
     Some(match &self.0 {
-      M::Cst => PossibleValue::new("cst").help("Match exact all node"),
-      M::Smart => PossibleValue::new("smart").help("Match all node except source trivial nodes"),
+      M::Cst => PossibleValue::new("cst").help("Match all nodes exactly"),
+      M::Smart => PossibleValue::new("smart").help("Match all nodes except source trivial nodes"),
       M::Ast => PossibleValue::new("ast").help("Match only ast nodes"),
-      M::Relaxed => PossibleValue::new("relaxed").help("Match ast node except comments"),
+      M::Relaxed => PossibleValue::new("relaxed").help("Match ast nodes except comments"),
       M::Signature => {
-        PossibleValue::new("signature").help("Match ast node except comments, without text")
+        PossibleValue::new("signature").help("Match ast nodes except comments, without text")
       }
       M::Template => PossibleValue::new("template")
         .help("Similar to smart but match text only, node kinds are ignored"),
