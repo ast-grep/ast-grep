@@ -198,7 +198,10 @@ impl Language for SgLang {
       .or_else(|| SupportLang::from_path(path).map(Builtin))
   }
   fn build_pattern(&self, builder: &PatternBuilder) -> std::result::Result<Pattern, PatternError> {
-    builder.build(|src| StrDoc::try_new(src, *self))
+    match self {
+      Builtin(b) => b.build_pattern(builder),
+      Custom(c) => c.build_pattern(builder),
+    }
   }
 }
 

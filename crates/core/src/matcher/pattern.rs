@@ -24,6 +24,10 @@ pub struct PatternBuilder<'a> {
 }
 
 impl PatternBuilder<'_> {
+  /// Returns the (pre-processed) pattern source text.
+  pub fn src(&self) -> &str {
+    &self.src
+  }
   pub fn build<D, F>(&self, parse: F) -> Result<Pattern, PatternError>
   where
     F: FnOnce(&str) -> Result<D, String>,

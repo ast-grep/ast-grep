@@ -23,6 +23,7 @@ mod cpp;
 mod csharp;
 mod css;
 mod dart;
+pub use dart::Dart;
 mod elixir;
 mod go;
 mod haskell;
@@ -249,7 +250,8 @@ impl_lang!(Scala, language_scala);
 impl_lang!(Solidity, language_solidity);
 impl_lang!(Tsx, language_tsx);
 impl_lang!(TypeScript, language_typescript);
-impl_lang!(Dart, language_dart);
+// Dart has a custom Language impl in dart.rs — expression-level patterns
+// need wrapping because Dart's grammar only accepts declarations at top level.
 impl_lang!(Yaml, language_yaml);
 // See ripgrep for extensions
 // https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/src/default_types.rs

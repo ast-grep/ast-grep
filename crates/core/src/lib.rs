@@ -19,7 +19,8 @@ pub mod tree_sitter;
 pub mod pinned;
 
 mod match_tree;
-mod node;
+/// Public so language crates can use `Root` for custom `build_pattern` impls.
+pub mod node;
 
 pub use language::Language;
 pub use match_tree::MatchStrictness;
