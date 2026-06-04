@@ -1,20 +1,20 @@
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::mpsc;
 
 use anyhow::{Result, anyhow};
-use ast_grep_config::{Rule, parse_selector};
+use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore, from_str};
 use ast_grep_core::Node;
 use ast_grep_core::tree_sitter::StrDoc;
 use ast_grep_language::{Language, LanguageExt, SupportLang};
 use clap::{Args, Subcommand, ValueEnum};
 use ignore::{DirEntry, WalkParallel, WalkState};
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::lang::SgLang;
 use crate::utils::{InputArgs, read_file};
@@ -170,6 +170,12 @@ struct OutlineCommonArg {
   /// Include declaration/signature snippets.
   #[clap(long)]
   signature: bool,
+  /// Load additional outline extractor definitions from YAML.
+  #[clap(long = "outline-rules", value_name = "FILE", action = clap::ArgAction::Append)]
+  outline_rules: Vec<PathBuf>,
+  /// Do not load bundled outline extractor definitions.
+  #[clap(long)]
+  no_default_outline_rules: bool,
   /// Input traversal: paths, globs, ignore behavior, threads.
   #[clap(flatten)]
   input: InputArgs,
@@ -183,8 +189,9 @@ enum OutlineFormat {
   Jsonl,
 }
 
-#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[value(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 #[repr(u8)]
 enum SymbolKind {
   File = 1,
@@ -252,7 +259,7 @@ impl SymbolKind {
   }
 }
 
-#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[value(rename_all = "camelCase")]
 #[serde(rename_all = "camelCase")]
 enum SymbolRole {
@@ -363,11 +370,460 @@ enum DiffChange {
 }
 
 struct RuleSpec {
-  id: &'static str,
   kind: SymbolKind,
   role: SymbolRole,
-  matcher: Rule,
+  name: NameSource,
+  exported: ExportPolicy,
+  matcher: RuleCore,
 }
+
+struct OutlineCatalog {
+  extractors: Vec<SerializableOutlineExtractor>,
+}
+
+#[derive(Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SerializableOutlineExtractor {
+  id: String,
+  language: SgLang,
+  kind: SymbolKind,
+  role: SymbolRole,
+  #[serde(default)]
+  name: Option<String>,
+  #[serde(default)]
+  exported: Option<String>,
+  #[serde(flatten)]
+  core: SerializableRuleCore,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum OutlineExtractorFile {
+  Wrapped {
+    extractors: Vec<SerializableOutlineExtractor>,
+  },
+  List(Vec<SerializableOutlineExtractor>),
+}
+
+impl OutlineExtractorFile {
+  fn into_extractors(self) -> Vec<SerializableOutlineExtractor> {
+    match self {
+      Self::Wrapped { extractors } => extractors,
+      Self::List(extractors) => extractors,
+    }
+  }
+}
+
+#[derive(Clone)]
+enum NameSource {
+  Auto,
+  Text,
+  Field(String),
+  MetaVar(String),
+}
+
+#[derive(Clone)]
+enum ExportPolicy {
+  Auto,
+  Always,
+  Never,
+  NameUppercase,
+  TextPrefix(String),
+  AncestorKind(String),
+}
+
+const DEFAULT_OUTLINE_RULES: &str = r#"
+extractors:
+  - id: rust-use
+    language: Rust
+    kind: module
+    role: import
+    name: text
+    exported: never
+    rule: { kind: use_declaration }
+  - id: rust-mod
+    language: Rust
+    kind: module
+    role: definition
+    name: field:name
+    exported: textPrefix:pub
+    rule: { kind: mod_item }
+  - id: rust-function
+    language: Rust
+    kind: function
+    role: definition
+    name: field:name
+    exported: textPrefix:pub
+    rule: { kind: function_item }
+  - id: rust-struct
+    language: Rust
+    kind: struct
+    role: definition
+    name: field:name
+    exported: textPrefix:pub
+    rule: { kind: struct_item }
+  - id: rust-enum
+    language: Rust
+    kind: enum
+    role: definition
+    name: field:name
+    exported: textPrefix:pub
+    rule: { kind: enum_item }
+  - id: rust-trait
+    language: Rust
+    kind: interface
+    role: definition
+    name: field:name
+    exported: textPrefix:pub
+    rule: { kind: trait_item }
+  - id: rust-type
+    language: Rust
+    kind: interface
+    role: definition
+    name: field:name
+    exported: textPrefix:pub
+    rule: { kind: type_item }
+  - id: rust-const
+    language: Rust
+    kind: constant
+    role: definition
+    name: field:name
+    exported: textPrefix:pub
+    rule: { kind: const_item }
+  - id: rust-static
+    language: Rust
+    kind: variable
+    role: definition
+    name: field:name
+    exported: textPrefix:pub
+    rule: { kind: static_item }
+  - id: rust-impl
+    language: Rust
+    kind: object
+    role: definition
+    name: auto
+    exported: never
+    rule: { kind: impl_item }
+  - id: rust-field
+    language: Rust
+    kind: field
+    role: definition
+    name: field:name
+    exported: textPrefix:pub
+    rule: { kind: field_declaration }
+  - id: rust-enum-variant
+    language: Rust
+    kind: enumMember
+    role: definition
+    name: auto
+    exported: never
+    rule: { kind: enum_variant }
+
+  - id: ts-import
+    language: TypeScript
+    kind: module
+    role: import
+    name: text
+    exported: never
+    rule: { kind: import_statement }
+  - id: ts-re-export
+    language: TypeScript
+    kind: module
+    role: export
+    name: text
+    exported: always
+    rule:
+      all:
+        - kind: export_statement
+        - regex: '^\s*export\s+(\{|\*|type\s+\{)'
+  - id: ts-function
+    language: TypeScript
+    kind: function
+    role: definition
+    name: field:name
+    exported: ancestorKind:export_statement
+    rule: { kind: function_declaration }
+  - id: ts-class
+    language: TypeScript
+    kind: class
+    role: definition
+    name: field:name
+    exported: ancestorKind:export_statement
+    rule: { kind: class_declaration }
+  - id: ts-interface
+    language: TypeScript
+    kind: interface
+    role: definition
+    name: field:name
+    exported: ancestorKind:export_statement
+    rule: { kind: interface_declaration }
+  - id: ts-type
+    language: TypeScript
+    kind: interface
+    role: definition
+    name: field:name
+    exported: ancestorKind:export_statement
+    rule: { kind: type_alias_declaration }
+  - id: ts-method
+    language: TypeScript
+    kind: method
+    role: definition
+    name: field:name
+    exported: never
+    rule: { kind: method_definition }
+  - id: ts-field
+    language: TypeScript
+    kind: field
+    role: definition
+    name: auto
+    exported: never
+    rule: { kind: public_field_definition }
+  - id: ts-const
+    language: TypeScript
+    kind: constant
+    role: definition
+    name: auto
+    exported: ancestorKind:export_statement
+    rule:
+      all:
+        - kind: lexical_declaration
+        - regex: '^\s*const\b'
+  - id: ts-variable
+    language: TypeScript
+    kind: variable
+    role: definition
+    name: auto
+    exported: ancestorKind:export_statement
+    rule:
+      all:
+        - kind: lexical_declaration
+        - regex: '^\s*(let|var)\b'
+
+  - id: tsx-import
+    language: Tsx
+    kind: module
+    role: import
+    name: text
+    exported: never
+    rule: { kind: import_statement }
+  - id: tsx-re-export
+    language: Tsx
+    kind: module
+    role: export
+    name: text
+    exported: always
+    rule:
+      all:
+        - kind: export_statement
+        - regex: '^\s*export\s+(\{|\*|type\s+\{)'
+  - id: tsx-function
+    language: Tsx
+    kind: function
+    role: definition
+    name: field:name
+    exported: ancestorKind:export_statement
+    rule: { kind: function_declaration }
+  - id: tsx-class
+    language: Tsx
+    kind: class
+    role: definition
+    name: field:name
+    exported: ancestorKind:export_statement
+    rule: { kind: class_declaration }
+  - id: tsx-interface
+    language: Tsx
+    kind: interface
+    role: definition
+    name: field:name
+    exported: ancestorKind:export_statement
+    rule: { kind: interface_declaration }
+  - id: tsx-type
+    language: Tsx
+    kind: interface
+    role: definition
+    name: field:name
+    exported: ancestorKind:export_statement
+    rule: { kind: type_alias_declaration }
+  - id: tsx-method
+    language: Tsx
+    kind: method
+    role: definition
+    name: field:name
+    exported: never
+    rule: { kind: method_definition }
+  - id: tsx-field
+    language: Tsx
+    kind: field
+    role: definition
+    name: auto
+    exported: never
+    rule: { kind: public_field_definition }
+  - id: tsx-const
+    language: Tsx
+    kind: constant
+    role: definition
+    name: auto
+    exported: ancestorKind:export_statement
+    rule:
+      all:
+        - kind: lexical_declaration
+        - regex: '^\s*const\b'
+  - id: tsx-variable
+    language: Tsx
+    kind: variable
+    role: definition
+    name: auto
+    exported: ancestorKind:export_statement
+    rule:
+      all:
+        - kind: lexical_declaration
+        - regex: '^\s*(let|var)\b'
+
+  - id: js-import
+    language: JavaScript
+    kind: module
+    role: import
+    name: text
+    exported: never
+    rule: { kind: import_statement }
+  - id: js-re-export
+    language: JavaScript
+    kind: module
+    role: export
+    name: text
+    exported: always
+    rule:
+      all:
+        - kind: export_statement
+        - regex: '^\s*export\s+(\{|\*)'
+  - id: js-function
+    language: JavaScript
+    kind: function
+    role: definition
+    name: field:name
+    exported: ancestorKind:export_statement
+    rule: { kind: function_declaration }
+  - id: js-class
+    language: JavaScript
+    kind: class
+    role: definition
+    name: field:name
+    exported: ancestorKind:export_statement
+    rule: { kind: class_declaration }
+  - id: js-method
+    language: JavaScript
+    kind: method
+    role: definition
+    name: field:name
+    exported: never
+    rule: { kind: method_definition }
+  - id: js-field
+    language: JavaScript
+    kind: field
+    role: definition
+    name: auto
+    exported: never
+    rule: { kind: public_field_definition }
+  - id: js-const
+    language: JavaScript
+    kind: constant
+    role: definition
+    name: auto
+    exported: ancestorKind:export_statement
+    rule:
+      all:
+        - kind: lexical_declaration
+        - regex: '^\s*const\b'
+  - id: js-variable
+    language: JavaScript
+    kind: variable
+    role: definition
+    name: auto
+    exported: ancestorKind:export_statement
+    rule:
+      all:
+        - kind: lexical_declaration
+        - regex: '^\s*(let|var)\b'
+
+  - id: py-import
+    language: Python
+    kind: module
+    role: import
+    name: text
+    exported: never
+    rule: { kind: import_statement }
+  - id: py-from-import
+    language: Python
+    kind: module
+    role: import
+    name: text
+    exported: never
+    rule: { kind: import_from_statement }
+  - id: py-function
+    language: Python
+    kind: function
+    role: definition
+    name: field:name
+    exported: never
+    rule: { kind: function_definition }
+  - id: py-class
+    language: Python
+    kind: class
+    role: definition
+    name: field:name
+    exported: never
+    rule: { kind: class_definition }
+
+  - id: go-package
+    language: Go
+    kind: package
+    role: definition
+    name: auto
+    exported: never
+    rule: { kind: package_clause }
+  - id: go-import
+    language: Go
+    kind: module
+    role: import
+    name: text
+    exported: never
+    rule: { kind: import_declaration }
+  - id: go-function
+    language: Go
+    kind: function
+    role: definition
+    name: field:name
+    exported: nameUppercase
+    rule: { kind: function_declaration }
+  - id: go-method
+    language: Go
+    kind: method
+    role: definition
+    name: field:name
+    exported: nameUppercase
+    rule: { kind: method_declaration }
+  - id: go-type
+    language: Go
+    kind: interface
+    role: definition
+    name: auto
+    exported: nameUppercase
+    rule: { kind: type_declaration }
+  - id: go-const
+    language: Go
+    kind: constant
+    role: definition
+    name: auto
+    exported: nameUppercase
+    rule: { kind: const_declaration }
+  - id: go-var
+    language: Go
+    kind: variable
+    role: definition
+    name: auto
+    exported: nameUppercase
+    rule: { kind: var_declaration }
+"#;
 
 pub fn run_outline(arg: OutlineArg) -> Result<ExitCode> {
   let query = arg.query;
@@ -417,16 +873,12 @@ impl OutlineQuery {
 
 fn outline_stdin(query: &OutlineQuery) -> Result<OutlineFile> {
   let common = query.common();
+  let catalog = load_outline_catalog(common)?;
   let lang = common
     .lang
     .ok_or_else(|| anyhow!("--stdin requires --lang"))?;
   let src = std::io::read_to_string(std::io::stdin())?;
-  Ok(extract_outline(
-    "STDIN".into(),
-    lang,
-    &src,
-    common.signature,
-  ))
+  extract_outline("STDIN".into(), lang, &src, common, &catalog)
 }
 
 fn outline_paths(query: &OutlineQuery) -> Result<Vec<OutlineFile>> {
@@ -434,10 +886,12 @@ fn outline_paths(query: &OutlineQuery) -> Result<Vec<OutlineFile>> {
   let walker = build_walk(common)?;
   let (tx, rx) = mpsc::channel();
   let common = Arc::new(common.clone());
+  let catalog = Arc::new(load_outline_catalog(&common)?);
   std::thread::spawn(move || {
     walker.run(|| {
       let tx = tx.clone();
       let common = common.clone();
+      let catalog = catalog.clone();
       Box::new(move |result| {
         let Some(path) = filter_entry(result) else {
           return WalkState::Continue;
@@ -448,7 +902,9 @@ fn outline_paths(query: &OutlineQuery) -> Result<Vec<OutlineFile>> {
         let Ok(src) = read_file(&path) else {
           return WalkState::Continue;
         };
-        let outline = extract_outline(path, lang, &src, common.signature);
+        let Ok(outline) = extract_outline(path, lang, &src, &common, &catalog) else {
+          return WalkState::Continue;
+        };
         if tx.send(outline).is_err() {
           return WalkState::Quit;
         }
@@ -463,6 +919,7 @@ fn outline_paths(query: &OutlineQuery) -> Result<Vec<OutlineFile>> {
 
 fn run_diff(query: &OutlineQuery, arg: &DiffArg) -> Result<ExitCode> {
   let mut current = outline_paths(query)?;
+  let catalog = load_outline_catalog(&arg.common)?;
   for file in &mut current {
     file.items = filter_diff_items(std::mem::take(&mut file.items), arg);
   }
@@ -477,7 +934,7 @@ fn run_diff(query: &OutlineQuery, arg: &DiffArg) -> Result<ExitCode> {
     let Some(src) = read_git_file(&arg.base, &file.path) else {
       continue;
     };
-    let mut outline = extract_outline(path, lang, &src, arg.common.signature);
+    let mut outline = extract_outline(path, lang, &src, &arg.common, &catalog)?;
     outline.items = filter_diff_items(outline.items, arg);
     if !outline.items.is_empty() {
       base.push(outline);
@@ -743,13 +1200,19 @@ fn filter_entry(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
     .map_or_else(|_| Some(path.clone()), |p| Some(p.to_path_buf()))
 }
 
-fn extract_outline(path: PathBuf, lang: SgLang, src: &str, include_signature: bool) -> OutlineFile {
+fn extract_outline(
+  path: PathBuf,
+  lang: SgLang,
+  src: &str,
+  common: &OutlineCommonArg,
+  catalog: &OutlineCatalog,
+) -> Result<OutlineFile> {
   let grep = lang.ast_grep(src);
   let root = grep.root();
   let mut items = vec![];
-  for spec in outline_rules(lang) {
+  for spec in outline_rules(lang, catalog)? {
     for matched in root.find_all(&spec.matcher) {
-      if let Some(item) = make_item(&matched, lang, &spec, include_signature) {
+      if let Some(item) = make_item(&matched, lang, &spec, common.signature) {
         items.push(item);
       }
     }
@@ -757,82 +1220,94 @@ fn extract_outline(path: PathBuf, lang: SgLang, src: &str, include_signature: bo
   dedup_items(&mut items);
   items.sort_by_key(|i| (i.range.start.byte, Reverse(i.range.end.byte)));
   let items = nest_items(items);
-  OutlineFile {
+  Ok(OutlineFile {
     path: path.to_string_lossy().to_string(),
     language: lang.to_string(),
     items,
-  }
+  })
 }
 
-fn outline_rules(lang: SgLang) -> Vec<RuleSpec> {
-  use SymbolKind as K;
-  use SymbolRole as R;
-  let pairs: &[(&str, K, R)] = match lang {
-    SgLang::Builtin(SupportLang::Rust) => &[
-      ("use_declaration", K::Module, R::Import),
-      ("mod_item", K::Module, R::Definition),
-      ("function_item", K::Function, R::Definition),
-      ("struct_item", K::Struct, R::Definition),
-      ("enum_item", K::Enum, R::Definition),
-      ("trait_item", K::Interface, R::Definition),
-      ("type_item", K::Interface, R::Definition),
-      ("const_item", K::Constant, R::Definition),
-      ("static_item", K::Variable, R::Definition),
-      ("impl_item", K::Object, R::Definition),
-      ("field_declaration", K::Field, R::Definition),
-      ("enum_variant", K::EnumMember, R::Definition),
-    ],
-    SgLang::Builtin(SupportLang::TypeScript | SupportLang::Tsx) => &[
-      ("import_statement", K::Module, R::Import),
-      ("export_statement", K::Module, R::Export),
-      ("function_declaration", K::Function, R::Definition),
-      ("class_declaration", K::Class, R::Definition),
-      ("interface_declaration", K::Interface, R::Definition),
-      ("type_alias_declaration", K::Interface, R::Definition),
-      ("method_definition", K::Method, R::Definition),
-      ("public_field_definition", K::Field, R::Definition),
-      ("lexical_declaration", K::Variable, R::Definition),
-      ("variable_declaration", K::Variable, R::Definition),
-    ],
-    SgLang::Builtin(SupportLang::JavaScript) => &[
-      ("import_statement", K::Module, R::Import),
-      ("export_statement", K::Module, R::Export),
-      ("function_declaration", K::Function, R::Definition),
-      ("class_declaration", K::Class, R::Definition),
-      ("method_definition", K::Method, R::Definition),
-      ("public_field_definition", K::Field, R::Definition),
-      ("lexical_declaration", K::Variable, R::Definition),
-      ("variable_declaration", K::Variable, R::Definition),
-    ],
-    SgLang::Builtin(SupportLang::Python) => &[
-      ("import_statement", K::Module, R::Import),
-      ("import_from_statement", K::Module, R::Import),
-      ("function_definition", K::Function, R::Definition),
-      ("class_definition", K::Class, R::Definition),
-    ],
-    SgLang::Builtin(SupportLang::Go) => &[
-      ("package_clause", K::Package, R::Definition),
-      ("import_declaration", K::Module, R::Import),
-      ("function_declaration", K::Function, R::Definition),
-      ("method_declaration", K::Method, R::Definition),
-      ("type_declaration", K::Interface, R::Definition),
-      ("const_declaration", K::Constant, R::Definition),
-      ("var_declaration", K::Variable, R::Definition),
-    ],
-    _ => &[],
-  };
-  pairs
-    .iter()
-    .filter_map(|(kind, symbol_kind, role)| {
-      let matcher = parse_selector(kind, lang).ok()?;
-      Some(RuleSpec {
-        id: kind,
-        kind: *symbol_kind,
-        role: *role,
+fn load_outline_catalog(common: &OutlineCommonArg) -> Result<OutlineCatalog> {
+  let mut extractors = vec![];
+  if !common.no_default_outline_rules {
+    extractors.extend(parse_outline_extractors(DEFAULT_OUTLINE_RULES)?);
+  }
+  for path in &common.outline_rules {
+    extractors.extend(read_outline_extractors(path)?);
+  }
+  Ok(OutlineCatalog { extractors })
+}
+
+fn outline_rules(lang: SgLang, catalog: &OutlineCatalog) -> Result<Vec<RuleSpec>> {
+  compile_outline_rules(lang, catalog.extractors.clone())
+}
+
+fn read_outline_extractors(path: &Path) -> Result<Vec<SerializableOutlineExtractor>> {
+  let yaml = read_file(path)?;
+  parse_outline_extractors(&yaml)
+}
+
+fn parse_outline_extractors(yaml: &str) -> Result<Vec<SerializableOutlineExtractor>> {
+  let file: OutlineExtractorFile = from_str(yaml)?;
+  Ok(file.into_extractors())
+}
+
+fn compile_outline_rules(
+  lang: SgLang,
+  extractors: Vec<SerializableOutlineExtractor>,
+) -> Result<Vec<RuleSpec>> {
+  let env = DeserializeEnv::new(lang);
+  extractors
+    .into_iter()
+    .filter(|spec| spec.language == lang)
+    .map(|spec| {
+      let _id = &spec.id;
+      let matcher = spec.core.get_matcher(env.clone())?;
+      Ok(RuleSpec {
+        kind: spec.kind,
+        role: spec.role,
+        name: parse_name_source(spec.name),
+        exported: parse_export_policy(spec.exported),
         matcher,
       })
     })
     .collect()
+}
+
+fn parse_name_source(source: Option<String>) -> NameSource {
+  let Some(source) = source else {
+    return NameSource::Auto;
+  };
+  if source == "auto" {
+    NameSource::Auto
+  } else if source == "text" {
+    NameSource::Text
+  } else if let Some(field) = source.strip_prefix("field:") {
+    NameSource::Field(field.into())
+  } else {
+    NameSource::MetaVar(source.trim_start_matches('$').into())
+  }
+}
+
+fn parse_export_policy(policy: Option<String>) -> ExportPolicy {
+  let Some(policy) = policy else {
+    return ExportPolicy::Auto;
+  };
+  match policy.as_str() {
+    "always" | "true" => ExportPolicy::Always,
+    "never" | "false" => ExportPolicy::Never,
+    "auto" => ExportPolicy::Auto,
+    "nameUppercase" => ExportPolicy::NameUppercase,
+    _ => {
+      if let Some(prefix) = policy.strip_prefix("textPrefix:") {
+        ExportPolicy::TextPrefix(prefix.into())
+      } else if let Some(kind) = policy.strip_prefix("ancestorKind:") {
+        ExportPolicy::AncestorKind(kind.into())
+      } else {
+        ExportPolicy::Auto
+      }
+    }
+  }
 }
 
 fn make_item(
@@ -842,25 +1317,19 @@ fn make_item(
   include_signature: bool,
 ) -> Option<OutlineItem> {
   let node = matched.get_node();
-  if spec.id == "export_statement" && !is_re_export(node) {
-    return None;
-  }
-  let (name, selection_node) = resolve_name(node, lang, spec);
+  let (name, selection_range) = resolve_name(matched, lang, spec);
   if matches!(spec.role, SymbolRole::Definition) && name.is_none() {
     return None;
   }
-  let exported = is_exported(node, lang, spec, name.as_deref());
-  let kind = adjust_kind(node, spec.kind, name.as_deref());
+  let exported = is_exported(node, &spec.exported, spec.role, name.as_deref());
+  let kind = spec.kind;
   Some(OutlineItem {
     name,
     kind: kind.number(),
     kind_name: kind.name(),
     role: spec.role,
     range: node_range(node),
-    selection_range: selection_node
-      .as_ref()
-      .map(node_range)
-      .unwrap_or_else(|| node_range(node)),
+    selection_range: selection_range.unwrap_or_else(|| node_range(node)),
     signature: include_signature.then(|| signature(node)),
     exported,
     node_kind: node.kind().to_string(),
@@ -868,37 +1337,37 @@ fn make_item(
   })
 }
 
-fn adjust_kind(node: &SgNode<'_>, kind: SymbolKind, name: Option<&str>) -> SymbolKind {
-  if node.kind().as_ref() == "lexical_declaration" {
-    let text = node.text();
-    if text.trim_start().starts_with("const ") {
-      return SymbolKind::Constant;
-    }
-  }
-  if node.kind().as_ref() == "type_declaration" {
-    let text = node.text();
-    if text.contains(" struct ") || text.contains(" struct{") {
-      return SymbolKind::Struct;
-    }
-  }
-  if node.kind().as_ref() == "function_definition"
-    && name.is_some_and(|n| n.chars().next().is_some_and(char::is_uppercase))
-  {
-    return SymbolKind::Constructor;
-  }
-  kind
-}
-
-fn resolve_name<'a>(
-  node: &SgNode<'a>,
+fn resolve_name(
+  matched: &ast_grep_core::NodeMatch<SgDoc>,
   lang: SgLang,
   spec: &RuleSpec,
-) -> (Option<String>, Option<SgNode<'a>>) {
+) -> (Option<String>, Option<OutlineRange>) {
+  let node = matched.get_node();
+  match &spec.name {
+    NameSource::Text => return (Some(import_export_name(node)), None),
+    NameSource::Field(field) => {
+      if let Some(name) = node.field(field) {
+        return (
+          Some(name.text().trim().to_string()),
+          Some(node_range(&name)),
+        );
+      }
+    }
+    NameSource::MetaVar(var) => {
+      if let Some(name) = matched.get_env().get_match(var) {
+        return (Some(name.text().trim().to_string()), Some(node_range(name)));
+      }
+    }
+    NameSource::Auto => {}
+  }
   if matches!(spec.role, SymbolRole::Import | SymbolRole::Export) {
     return (Some(import_export_name(node)), None);
   }
   if let Some(name) = node.field("name") {
-    return (Some(name.text().trim().to_string()), Some(name));
+    return (
+      Some(name.text().trim().to_string()),
+      Some(node_range(&name)),
+    );
   }
   if node.kind().as_ref() == "lexical_declaration" || node.kind().as_ref() == "variable_declaration"
   {
@@ -908,13 +1377,19 @@ fn resolve_name<'a>(
         "identifier" | "shorthand_property_identifier_pattern"
       )
     }) {
-      return (Some(name.text().trim().to_string()), Some(name));
+      return (
+        Some(name.text().trim().to_string()),
+        Some(node_range(&name)),
+      );
     }
   }
   if lang == SgLang::Builtin(SupportLang::Go)
     && let Some(name) = node.dfs().find(|n| n.kind().as_ref() == "identifier")
   {
-    return (Some(name.text().trim().to_string()), Some(name));
+    return (
+      Some(name.text().trim().to_string()),
+      Some(node_range(&name)),
+    );
   }
   if node.kind().as_ref() == "impl_item" {
     let text = node.text();
@@ -927,7 +1402,10 @@ fn resolve_name<'a>(
     return (name, None);
   }
   if let Some(name) = node.dfs().find(is_name_like_node) {
-    return (Some(name.text().trim().to_string()), Some(name));
+    return (
+      Some(name.text().trim().to_string()),
+      Some(node_range(&name)),
+    );
   }
   (None, None)
 }
@@ -975,35 +1453,25 @@ fn extract_quoted(text: &str) -> Option<String> {
   None
 }
 
-fn is_exported(node: &SgNode<'_>, lang: SgLang, spec: &RuleSpec, name: Option<&str>) -> bool {
-  if matches!(spec.role, SymbolRole::Export) {
+fn is_exported(
+  node: &SgNode<'_>,
+  policy: &ExportPolicy,
+  role: SymbolRole,
+  name: Option<&str>,
+) -> bool {
+  if matches!(role, SymbolRole::Export) {
     return true;
   }
-  match lang {
-    SgLang::Builtin(SupportLang::Rust) => node.text().trim_start().starts_with("pub "),
-    SgLang::Builtin(SupportLang::TypeScript | SupportLang::Tsx | SupportLang::JavaScript) => {
-      if matches!(
-        node.kind().as_ref(),
-        "method_definition" | "public_field_definition"
-      ) {
-        return false;
-      }
-      node.text().trim_start().starts_with("export ")
-        || node
-          .ancestors()
-          .any(|n| n.kind().as_ref() == "export_statement")
-    }
-    SgLang::Builtin(SupportLang::Go) => name
+  match policy {
+    ExportPolicy::Always => true,
+    ExportPolicy::Never => false,
+    ExportPolicy::NameUppercase => name
       .and_then(|n| n.chars().next())
       .is_some_and(char::is_uppercase),
-    _ => false,
+    ExportPolicy::TextPrefix(prefix) => node.text().trim_start().starts_with(prefix),
+    ExportPolicy::AncestorKind(kind) => node.ancestors().any(|n| n.kind().as_ref() == kind),
+    ExportPolicy::Auto => false,
   }
-}
-
-fn is_re_export(node: &SgNode<'_>) -> bool {
-  let text = node.text();
-  let text = text.trim_start();
-  text.starts_with("export {") || text.starts_with("export *") || text.starts_with("export type {")
 }
 
 fn signature(node: &SgNode<'_>) -> String {
@@ -1542,8 +2010,10 @@ mod tests {
       PathBuf::from("test.rs"),
       SgLang::Builtin(SupportLang::Rust),
       src,
-      true,
-    );
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
     let records = flatten_files(
       &OutlineQuery::Map(MapArg {
         common: test_common(),
@@ -1567,8 +2037,10 @@ mod tests {
       PathBuf::from("test.ts"),
       SgLang::Builtin(SupportLang::TypeScript),
       src,
-      true,
-    );
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
     let query = OutlineQuery::Members(MembersArg {
       common: test_common(),
       of: "Parser".into(),
@@ -1590,8 +2062,10 @@ mod tests {
       PathBuf::from("test.rs"),
       SgLang::Builtin(SupportLang::Rust),
       src,
-      false,
-    );
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
     let query = OutlineQuery::Map(MapArg {
       common: test_common(),
       kind: vec![],
@@ -1600,6 +2074,49 @@ mod tests {
     let mut files = vec![file];
     apply_query(&query, &mut files);
     assert!(files[0].items.iter().all(|item| item.children.is_empty()));
+  }
+
+  #[test]
+  fn extracts_from_custom_outline_rule() {
+    let dir = tempfile::TempDir::new().expect("temp dir");
+    let rule_path = dir.path().join("outline.yml");
+    std::fs::write(
+      &rule_path,
+      r#"
+extractors:
+  - id: rust-function-only
+    language: Rust
+    kind: function
+    role: definition
+    name: field:name
+    exported: never
+    rule: { kind: function_item }
+"#,
+    )
+    .expect("write outline rule");
+    let mut common = test_common();
+    common.no_default_outline_rules = true;
+    common.outline_rules = vec![rule_path];
+    let src = "pub struct RunArg {}\nfn custom() {}\n";
+    let file = extract_outline(
+      PathBuf::from("test.rs"),
+      SgLang::Builtin(SupportLang::Rust),
+      src,
+      &common,
+      &load_outline_catalog(&common).expect("load outline catalog"),
+    )
+    .expect("extract outline");
+    let records = flatten_files(
+      &OutlineQuery::Map(MapArg {
+        common,
+        kind: vec![],
+        depth: None,
+      }),
+      &[file],
+    );
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].symbol.name.as_deref(), Some("custom"));
+    assert_eq!(records[0].symbol.kind, SymbolKind::Function.number());
   }
 
   fn test_common() -> OutlineCommonArg {
@@ -1612,6 +2129,8 @@ mod tests {
       name_regex: None,
       flat: false,
       signature: true,
+      outline_rules: vec![],
+      no_default_outline_rules: false,
       input: InputArgs {
         no_ignore: vec![],
         stdin: false,
@@ -1621,5 +2140,9 @@ mod tests {
         threads: 0,
       },
     }
+  }
+
+  fn test_catalog() -> OutlineCatalog {
+    load_outline_catalog(&test_common()).expect("load outline catalog")
   }
 }

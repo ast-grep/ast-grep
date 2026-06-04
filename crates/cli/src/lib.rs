@@ -340,6 +340,7 @@ mod test_cli {
   #[test]
   fn test_outline() {
     ok("outline map crates/cli/src --format jsonl --budget 20");
+    ok("outline map crates/cli/src --outline-rules outline.yml --no-default-outline-rules");
     ok("outline find crates --name RunArg --kind struct --format jsonl");
     ok("outline imports crates/cli/src/run.rs --to ast-grep-config --format json");
     ok("outline exports crates/config/src --definitions-only");

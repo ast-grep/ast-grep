@@ -111,6 +111,9 @@ These options should be shared across queries where applicable:
 --depth <N>              Maximum nesting depth for tree output.
 --signature              Include declaration/signature snippets.
 --no-snippet             Exclude all source snippets.
+--outline-rules <FILE>   Load additional outline extractor definitions. Repeatable.
+--no-default-outline-rules
+                          Disable bundled extractor definitions.
 --globs <GLOB>           Reuse ast-grep input filtering.
 --follow                 Reuse ast-grep symlink behavior.
 --no-ignore <TYPE>       Reuse ast-grep ignore controls.
@@ -723,169 +726,149 @@ How this helps:
 
 ## Extraction Strategy
 
-Use ast-grep rules per language instead of raw tree-sitter queries. The command should
-still parse files with tree-sitter through ast-grep, but extraction logic should be
-expressed with ast-grep's pattern/rule model so the implementation stays aligned with
-the rest of the project.
+Extraction must be data-driven. The command should not have Rust match arms such as
+"if language is Rust, match `function_item`". Built-in support is a bundled extractor
+catalog, and user/custom-language support is additional extractor YAML loaded by
+`--outline-rules`.
 
-Suggested layout:
-
-```text
-crates/cli/src/outline.rs
-crates/cli/src/outline/extract.rs
-crates/cli/src/outline/printer.rs
-crates/cli/src/outline/rules.rs
-crates/cli/src/outline/rules/rust.yml
-crates/cli/src/outline/rules/typescript.yml
-crates/cli/src/outline/rules/javascript.yml
-crates/cli/src/outline/rules/python.yml
-crates/cli/src/outline/rules/go.yml
-```
-
-Each outline rule describes one extractable symbol shape. The rule body should use the
-same matching primitives as normal ast-grep rules, plus outline-specific metadata:
+An extractor is an ast-grep rule-core object plus outline metadata:
 
 ```yaml
-- id: rust-function
-  kind: Function
-  role: Definition
-  rule:
-    pattern: fn $NAME($$$ARGS) $$$BODY
-    selector: function_item
-  name:
-    metaVar: NAME
-  signature:
-    from: node
-    maxLines: 1
+extractors:
+  - id: rust-function
+    language: Rust
+    kind: function
+    role: definition
+    name: field:name
+    exported: textPrefix:pub
+    rule: { kind: function_item }
 
-- id: rust-struct
-  kind: Struct
-  role: Definition
-  rule:
-    pattern: struct $NAME $$$BODY
-    selector: struct_item
-  name:
-    metaVar: NAME
+  - id: rust-function-pattern
+    language: Rust
+    kind: function
+    role: definition
+    name: NAME
+    exported: textPrefix:pub
+    rule:
+      pattern:
+        context: fn $NAME($$$ARGS) $$$BODY
+        selector: function_item
 
-- id: rust-use
-  kind: Module
-  role: Import
-  rule:
-    kind: use_declaration
-  name:
-    from: node
+  - id: ts-re-export
+    language: TypeScript
+    kind: module
+    role: export
+    name: text
+    exported: always
+    rule:
+      all:
+        - kind: export_statement
+        - regex: '^\s*export\s+(\{|\*|type\s+\{)'
 ```
 
-Proposed rule schema:
+The `rule`, `constraints`, `utils`, and `transform` fields are the same rule-core fields
+ast-grep already uses. Outline does not invent a second query language.
 
-```rust
-pub struct OutlineRule {
-  pub id: String,
-  pub kind: SymbolKind,
-  pub role: SymbolRole,
-  pub rule: RuleConfig<SgLang>,
-  pub name: NameSource,
-  pub signature: Option<SignatureSource>,
-  pub detail: Option<DetailSource>,
-  pub exported: Option<ExportSource>,
-  pub children: Option<Vec<String>>,
-}
+Extractor fields:
 
-pub enum NameSource {
-  MetaVar(String),
-  Node,
-  Field(String),
-}
-
-pub enum SignatureSource {
-  Node,
-  MetaVar(String),
-}
-
-pub enum DetailSource {
-  Node,
-  MetaVar(String),
-}
-
-pub enum ExportSource {
-  MetaVarPresent(String),
-  HasAncestorRule(String),
-  LanguageVisibility,
-}
+```text
+id          Stable extractor id for diagnostics.
+language    Any `SgLang`: built-in language or registered custom language.
+kind        LSP SymbolKind, serialized in camelCase.
+role        definition, import, or export.
+name        How to resolve the display name.
+exported    How to resolve visibility/export metadata.
+rule        ast-grep rule object. Required.
 ```
+
+Supported `name` values:
+
+```text
+NAME          Use metavariable `$NAME` captured by the ast-grep rule.
+$NAME         Same as `NAME`.
+field:name    Use the matched node's tree-sitter field named `name`.
+text          Use the matched node text, normalized for imports/exports.
+auto          Best-effort fallback for built-ins.
+```
+
+Supported `exported` values:
+
+```text
+always
+never
+nameUppercase
+textPrefix:<PREFIX>
+ancestorKind:<NODE_KIND>
+auto
+```
+
+This schema is intentionally small. It covers the common cases while keeping custom
+language support practical. If a language needs richer extraction, the rule itself
+should first capture better metavariables before outline grows language-specific code.
 
 Extractor flow:
 
 1. Parse source with `SgLang::ast_grep`.
-2. Load built-in outline rules for the file language.
-3. Build ast-grep `Rule` matchers from those definitions.
-4. Run every outline matcher against the parsed AST.
-5. Use the matched node as `range`.
-6. Resolve `name` from a meta-variable, matched node text, or language-specific helper.
-7. Use the resolved name node as `selection_range` when available.
-8. Resolve `signature` from the matched node or configured meta-variable.
-9. Set `role` from the matching outline rule.
-10. Resolve `exported` from explicit outline rule metadata or language-specific helpers.
+2. Load bundled extractors unless `--no-default-outline-rules` is set.
+3. Load every user extractor file from `--outline-rules`.
+4. Keep extractors whose `language` matches the file language.
+5. Compile each extractor's rule through `SerializableRuleCore::get_matcher`.
+6. Run every matcher against the parsed AST.
+7. Use the matched node as `range`.
+8. Resolve `name` from configured metavariable, field, text, or fallback.
+9. Use the name node as `selection_range` when available.
+10. Set `kind`, `role`, and `exported` from extractor metadata.
 11. Sort items by start byte.
-12. Deduplicate overlapping matches by preferring the more specific rule.
-13. Nest child symbols by range containment when appropriate.
+12. Deduplicate overlapping matches.
+13. Nest child symbols by range containment.
 14. Apply query-specific filters before printing.
 
-## Language Support Plan
+## Language And Custom Language Support
 
-Start with the languages most likely to cover common code exploration tasks:
+Language expansion is an extractor-catalog problem, not a CLI-code problem.
 
-### Rust
+Built-in extractors should ship for common languages such as Rust, TypeScript, TSX,
+JavaScript, Python, and Go. Adding another built-in language should mean adding
+extractor entries and tests. It should not require changing the extraction algorithm.
 
-- `use_declaration` -> `Module`, role `Import`
-- `mod_item` -> `Module`
-- `function_item` -> `Function`
-- associated function in `impl_item` -> `Method`
-- `struct_item` -> `Struct`
-- `enum_item` -> `Enum`
-- enum variants -> `EnumMember`
-- `trait_item` -> `Interface`
-- `type_item` -> `Interface` or `TypeParameter`, depending on rule metadata
-- `const_item` -> `Constant`
-- `static_item` -> `Variable`
+Custom languages work the same way:
 
-### TypeScript And JavaScript
+1. Register the custom parser in `sgconfig.yml` through ast-grep's existing
+   `customLanguages` support.
+2. Write one or more outline extractor entries with `language: <custom-language-name>`.
+3. Run outline with `--outline-rules <FILE>`.
 
-- `import_statement` -> `Module`, role `Import`
-- `export_statement` -> export metadata or role `Export`
-- `function_declaration` -> `Function`
-- `method_definition` -> `Method`
-- `class_declaration` -> `Class`
-- `interface_declaration` -> `Interface`
-- `type_alias_declaration` -> `Interface`
-- lexical const declaration -> `Constant`
-- lexical let/var declaration -> `Variable`
-- object pair keys -> `Property` or `Key`
+Example custom language extractor:
 
-### Python
+```yaml
+extractors:
+  - id: mylang-def
+    language: mylang
+    kind: function
+    role: definition
+    name: NAME
+    exported: never
+    rule:
+      pattern: def $NAME($$$ARGS) $$$BODY
+```
 
-- `import_statement` -> `Module`, role `Import`
-- `import_from_statement` -> `Module`, role `Import`
-- `function_definition` -> `Function`
-- function under class -> `Method`
-- `class_definition` -> `Class`
-- assignment with uppercase name -> `Constant`
-- other assignment -> `Variable`
+Then:
 
-### Go
+```sh
+sg outline map src --outline-rules mylang-outline.yml --format jsonl
+```
 
-- `package_clause` -> `Package`
-- `import_declaration` -> `Module`, role `Import`
-- `function_declaration` -> `Function`
-- `method_declaration` -> `Method`
-- `type_declaration` with struct type -> `Struct`
-- `type_declaration` with interface type -> `Interface`
-- other type declaration -> `Interface`
-- `const_declaration` -> `Constant`
-- `var_declaration` -> `Variable`
+If a user wants to completely replace bundled behavior, they can disable defaults:
+
+```sh
+sg outline map src \
+  --no-default-outline-rules \
+  --outline-rules project-outline.yml \
+  --format jsonl
+```
 
 Unsupported languages should return an empty outline and a successful exit status. A
-future verbose mode can report unsupported languages explicitly.
+future verbose mode can report "no outline extractors loaded for language X".
 
 ## Runtime Integration
 
