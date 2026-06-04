@@ -418,6 +418,7 @@ impl OutlineExtractorFile {
 enum NameSource {
   Auto,
   Text,
+  FirstNameLike,
   Field(String),
   MetaVar(String),
 }
@@ -429,6 +430,8 @@ enum ExportPolicy {
   Never,
   NameUppercase,
   TextPrefix(String),
+  TextPrefixAny(Vec<String>),
+  NotTextPrefixAny(Vec<String>),
   AncestorKind(String),
 }
 
@@ -823,6 +826,209 @@ extractors:
     name: auto
     exported: nameUppercase
     rule: { kind: var_declaration }
+
+  - id: java-package
+    language: Java
+    kind: package
+    role: definition
+    name: text
+    exported: never
+    rule: { kind: package_declaration }
+  - id: java-import
+    language: Java
+    kind: module
+    role: import
+    name: text
+    exported: never
+    rule: { kind: import_declaration }
+  - id: java-class
+    language: Java
+    kind: class
+    role: definition
+    name: field:name
+    exported: textPrefix:public
+    rule: { kind: class_declaration }
+  - id: java-record
+    language: Java
+    kind: struct
+    role: definition
+    name: field:name
+    exported: textPrefix:public
+    rule: { kind: record_declaration }
+  - id: java-interface
+    language: Java
+    kind: interface
+    role: definition
+    name: field:name
+    exported: textPrefix:public
+    rule: { kind: interface_declaration }
+  - id: java-annotation
+    language: Java
+    kind: interface
+    role: definition
+    name: field:name
+    exported: textPrefix:public
+    rule: { kind: annotation_type_declaration }
+  - id: java-enum
+    language: Java
+    kind: enum
+    role: definition
+    name: field:name
+    exported: textPrefix:public
+    rule: { kind: enum_declaration }
+  - id: java-method
+    language: Java
+    kind: method
+    role: definition
+    name: field:name
+    exported: textPrefix:public
+    rule: { kind: method_declaration }
+  - id: java-constructor
+    language: Java
+    kind: constructor
+    role: definition
+    name: field:name
+    exported: textPrefix:public
+    rule: { kind: constructor_declaration }
+  - id: java-public-static-final-constant
+    language: Java
+    kind: constant
+    role: definition
+    name: $NAME
+    exported: always
+    rule:
+      pattern:
+        context: class A { public static final $T $NAME = $V; }
+        selector: field_declaration
+
+  - id: kotlin-import
+    language: Kotlin
+    kind: module
+    role: import
+    name: text
+    exported: never
+    rule: { kind: import_header }
+  - id: kotlin-class
+    language: Kotlin
+    kind: class
+    role: definition
+    name: auto
+    exported: notTextPrefixAny:private,internal
+    rule:
+      all:
+        - kind: class_declaration
+        - regex: '^\s*(public\s+)?class\b'
+  - id: kotlin-interface
+    language: Kotlin
+    kind: interface
+    role: definition
+    name: auto
+    exported: notTextPrefixAny:private,internal
+    rule:
+      all:
+        - kind: class_declaration
+        - regex: '^\s*(public\s+)?interface\b'
+  - id: kotlin-object
+    language: Kotlin
+    kind: object
+    role: definition
+    name: auto
+    exported: notTextPrefixAny:private,internal
+    rule: { kind: object_declaration }
+  - id: kotlin-function
+    language: Kotlin
+    kind: function
+    role: definition
+    name: auto
+    exported: notTextPrefixAny:private,internal
+    rule: { kind: function_declaration }
+  - id: kotlin-property
+    language: Kotlin
+    kind: variable
+    role: definition
+    name: auto
+    exported: notTextPrefixAny:private,internal
+    rule: { kind: property_declaration }
+  - id: kotlin-typealias
+    language: Kotlin
+    kind: interface
+    role: definition
+    name: auto
+    exported: notTextPrefixAny:private,internal
+    rule: { kind: type_alias }
+
+  - id: swift-import
+    language: Swift
+    kind: module
+    role: import
+    name: text
+    exported: never
+    rule: { kind: import_declaration }
+  - id: swift-class
+    language: Swift
+    kind: class
+    role: definition
+    name: firstNameLike
+    exported: textPrefixAny:public,open
+    rule:
+      any:
+        - all:
+            - kind: class_declaration
+            - regex: '^\s*(public\s+|open\s+)?class\b'
+        - all:
+            - kind: function_declaration
+            - regex: '^\s*(public\s+|open\s+)?class\b'
+  - id: swift-struct
+    language: Swift
+    kind: struct
+    role: definition
+    name: firstNameLike
+    exported: textPrefix:public
+    rule:
+      all:
+        - kind: class_declaration
+        - regex: '^\s*(public\s+)?struct\b'
+  - id: swift-enum
+    language: Swift
+    kind: enum
+    role: definition
+    name: firstNameLike
+    exported: textPrefix:public
+    rule:
+      all:
+        - kind: class_declaration
+        - regex: '^\s*(public\s+)?enum\b'
+  - id: swift-protocol
+    language: Swift
+    kind: interface
+    role: definition
+    name: field:name
+    exported: textPrefixAny:public,open
+    rule: { kind: protocol_declaration }
+  - id: swift-function
+    language: Swift
+    kind: function
+    role: definition
+    name: field:name
+    exported: textPrefixAny:public,open
+    rule:
+      all:
+        - kind: function_declaration
+        - regex: '^\s*(@[A-Za-z_][A-Za-z0-9_]*(\([^)]*\))?\s+)*(public\s+|open\s+|internal\s+|fileprivate\s+|private\s+)?(static\s+|class\s+|mutating\s+|nonmutating\s+|override\s+|final\s+)*func\b'
+  - id: swift-property
+    language: Swift
+    kind: variable
+    role: definition
+    name: field:name
+    exported: textPrefixAny:public,open
+    rule: { kind: property_declaration }
+  - id: swift-typealias
+    language: Swift
+    kind: interface
+    role: definition
+    name: field:name
+    exported: textPrefixAny:public,open
+    rule: { kind: typealias_declaration }
 "#;
 
 pub fn run_outline(arg: OutlineArg) -> Result<ExitCode> {
@@ -1282,6 +1488,8 @@ fn parse_name_source(source: Option<String>) -> NameSource {
     NameSource::Auto
   } else if source == "text" {
     NameSource::Text
+  } else if source == "firstNameLike" {
+    NameSource::FirstNameLike
   } else if let Some(field) = source.strip_prefix("field:") {
     NameSource::Field(field.into())
   } else {
@@ -1301,6 +1509,10 @@ fn parse_export_policy(policy: Option<String>) -> ExportPolicy {
     _ => {
       if let Some(prefix) = policy.strip_prefix("textPrefix:") {
         ExportPolicy::TextPrefix(prefix.into())
+      } else if let Some(prefixes) = policy.strip_prefix("textPrefixAny:") {
+        ExportPolicy::TextPrefixAny(parse_prefixes(prefixes))
+      } else if let Some(prefixes) = policy.strip_prefix("notTextPrefixAny:") {
+        ExportPolicy::NotTextPrefixAny(parse_prefixes(prefixes))
       } else if let Some(kind) = policy.strip_prefix("ancestorKind:") {
         ExportPolicy::AncestorKind(kind.into())
       } else {
@@ -1308,6 +1520,15 @@ fn parse_export_policy(policy: Option<String>) -> ExportPolicy {
       }
     }
   }
+}
+
+fn parse_prefixes(prefixes: &str) -> Vec<String> {
+  prefixes
+    .split(',')
+    .map(str::trim)
+    .filter(|prefix| !prefix.is_empty())
+    .map(str::to_string)
+    .collect()
 }
 
 fn make_item(
@@ -1345,6 +1566,9 @@ fn resolve_name(
   let node = matched.get_node();
   match &spec.name {
     NameSource::Text => return (Some(import_export_name(node)), None),
+    NameSource::FirstNameLike => {
+      return resolve_first_name_like(node);
+    }
     NameSource::Field(field) => {
       if let Some(name) = node.field(field) {
         return (
@@ -1401,13 +1625,24 @@ fn resolve_name(
       .map(str::to_string);
     return (name, None);
   }
-  if let Some(name) = node.dfs().find(is_name_like_node) {
-    return (
-      Some(name.text().trim().to_string()),
-      Some(node_range(&name)),
-    );
+  if let resolved @ (Some(_), Some(_)) = resolve_first_name_like(node) {
+    return resolved;
   }
   (None, None)
+}
+
+fn resolve_first_name_like(node: &SgNode<'_>) -> (Option<String>, Option<OutlineRange>) {
+  if let Some(name) = node
+    .dfs()
+    .find(|name| is_name_like_node(name) && !is_modifier_metadata(name))
+  {
+    (
+      Some(name.text().trim().to_string()),
+      Some(node_range(&name)),
+    )
+  } else {
+    (None, None)
+  }
 }
 
 fn is_name_like_node(node: &SgNode<'_>) -> bool {
@@ -1418,8 +1653,18 @@ fn is_name_like_node(node: &SgNode<'_>) -> bool {
       | "field_identifier"
       | "property_identifier"
       | "shorthand_property_identifier"
+      | "simple_identifier"
       | "constant"
   )
+}
+
+fn is_modifier_metadata(node: &SgNode<'_>) -> bool {
+  node.ancestors().any(|ancestor| {
+    matches!(
+      ancestor.kind().as_ref(),
+      "modifiers" | "annotation" | "marker_annotation" | "annotation_argument_list"
+    )
+  })
 }
 
 fn import_export_name(node: &SgNode<'_>) -> String {
@@ -1434,6 +1679,8 @@ fn import_export_name(node: &SgNode<'_>) -> String {
       .unwrap_or(text)
       .trim()
       .trim_start_matches("use ")
+      .trim_start_matches("import ")
+      .trim_start_matches("package ")
       .trim_start_matches("export ")
       .trim_end_matches(';')
       .trim()
@@ -1469,6 +1716,16 @@ fn is_exported(
       .and_then(|n| n.chars().next())
       .is_some_and(char::is_uppercase),
     ExportPolicy::TextPrefix(prefix) => node.text().trim_start().starts_with(prefix),
+    ExportPolicy::TextPrefixAny(prefixes) => {
+      let text = node.text();
+      let text = text.trim_start();
+      prefixes.iter().any(|prefix| text.starts_with(prefix))
+    }
+    ExportPolicy::NotTextPrefixAny(prefixes) => {
+      let text = node.text();
+      let text = text.trim_start();
+      !prefixes.iter().any(|prefix| text.starts_with(prefix))
+    }
     ExportPolicy::AncestorKind(kind) => node.ancestors().any(|n| n.kind().as_ref() == kind),
     ExportPolicy::Auto => false,
   }
@@ -2053,6 +2310,255 @@ mod tests {
     assert_eq!(files[0].items.len(), 1);
     assert_eq!(files[0].items[0].name.as_deref(), Some("parse"));
     assert!(!files[0].items[0].exported);
+  }
+
+  #[test]
+  fn extracts_java_symbols() {
+    let src = r#"
+package demo;
+import java.util.List;
+public class Foo {
+  public static final int SIZE = 1;
+  public Foo() {}
+  public void bar() {}
+}
+public record Rec(int id) {}
+"#;
+    let file = extract_outline(
+      PathBuf::from("test.java"),
+      SgLang::Builtin(SupportLang::Java),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let records = flatten_files(
+      &OutlineQuery::Map(MapArg {
+        common: test_common(),
+        kind: vec![],
+        depth: None,
+      }),
+      &[file],
+    );
+    assert!(
+      records
+        .iter()
+        .any(|r| r.symbol.name.as_deref() == Some("java.util.List"))
+    );
+    assert!(records.iter().any(|r| {
+      r.symbol.name.as_deref() == Some("Foo") && r.symbol.kind == SymbolKind::Class.number()
+    }));
+    assert!(records.iter().any(|r| {
+      r.symbol.name.as_deref() == Some("SIZE") && r.symbol.kind == SymbolKind::Constant.number()
+    }));
+    assert!(records.iter().any(|r| {
+      r.symbol.name.as_deref() == Some("bar") && r.symbol.kind == SymbolKind::Method.number()
+    }));
+    let query = OutlineQuery::Exports(ExportsArg {
+      common: test_common(),
+      definitions_only: true,
+    });
+    let file = extract_outline(
+      PathBuf::from("test.java"),
+      SgLang::Builtin(SupportLang::Java),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    assert!(
+      files[0]
+        .items
+        .iter()
+        .any(|item| item.name.as_deref() == Some("Foo"))
+    );
+    assert!(
+      files[0]
+        .items
+        .iter()
+        .any(|item| item.name.as_deref() == Some("Rec"))
+    );
+  }
+
+  #[test]
+  fn extracts_kotlin_symbols() {
+    let src = r#"
+import a.b.C
+class Foo {
+  val name: String = ""
+  fun bar() {}
+}
+private class Hidden
+typealias Alias = String
+object Obj {}
+interface I {}
+"#;
+    let file = extract_outline(
+      PathBuf::from("test.kt"),
+      SgLang::Builtin(SupportLang::Kotlin),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let query = OutlineQuery::Members(MembersArg {
+      common: test_common(),
+      of: "Foo".into(),
+      of_kind: Some(SymbolKind::Class),
+      kind: vec![],
+      recursive: false,
+    });
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    assert!(
+      files[0]
+        .items
+        .iter()
+        .any(|item| item.name.as_deref() == Some("name"))
+    );
+    assert!(
+      files[0]
+        .items
+        .iter()
+        .any(|item| item.name.as_deref() == Some("bar"))
+    );
+    let query = OutlineQuery::Exports(ExportsArg {
+      common: test_common(),
+      definitions_only: true,
+    });
+    let file = extract_outline(
+      PathBuf::from("test.kt"),
+      SgLang::Builtin(SupportLang::Kotlin),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    assert!(
+      files[0]
+        .items
+        .iter()
+        .any(|item| item.name.as_deref() == Some("Foo"))
+    );
+    assert!(
+      !files[0]
+        .items
+        .iter()
+        .any(|item| item.name.as_deref() == Some("Hidden"))
+    );
+  }
+
+  #[test]
+  fn extracts_swift_symbols() {
+    let src = r#"
+import Foundation
+public class Foo {
+  public let name: String = ""
+  public func bar() {}
+}
+public struct Box {}
+public enum Mode { case on }
+public protocol P {}
+public typealias Alias = String
+"#;
+    let file = extract_outline(
+      PathBuf::from("test.swift"),
+      SgLang::Builtin(SupportLang::Swift),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let records = flatten_files(
+      &OutlineQuery::Map(MapArg {
+        common: test_common(),
+        kind: vec![],
+        depth: None,
+      }),
+      &[file],
+    );
+    assert!(
+      records
+        .iter()
+        .any(|r| r.symbol.name.as_deref() == Some("Foundation"))
+    );
+    assert!(records.iter().any(|r| {
+      r.symbol.name.as_deref() == Some("Foo") && r.symbol.kind == SymbolKind::Class.number()
+    }));
+    assert!(records.iter().any(|r| {
+      r.symbol.name.as_deref() == Some("Box") && r.symbol.kind == SymbolKind::Struct.number()
+    }));
+    assert!(records.iter().any(|r| {
+      r.symbol.name.as_deref() == Some("Mode") && r.symbol.kind == SymbolKind::Enum.number()
+    }));
+    let query = OutlineQuery::Members(MembersArg {
+      common: test_common(),
+      of: "Foo".into(),
+      of_kind: Some(SymbolKind::Class),
+      kind: vec![],
+      recursive: false,
+    });
+    let file = extract_outline(
+      PathBuf::from("test.swift"),
+      SgLang::Builtin(SupportLang::Swift),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    assert!(
+      files[0]
+        .items
+        .iter()
+        .any(|item| item.name.as_deref() == Some("name"))
+    );
+    assert!(
+      files[0]
+        .items
+        .iter()
+        .any(|item| item.name.as_deref() == Some("bar"))
+    );
+  }
+
+  #[test]
+  fn extracts_swift_open_class_with_spi_method() {
+    let src = r#"
+import Foundation
+open class Session: @unchecked Sendable {
+  public static let `default` = Session()
+  @_spi(WebSocket) open func webSocketRequest() {}
+}
+"#;
+    let file = extract_outline(
+      PathBuf::from("test.swift"),
+      SgLang::Builtin(SupportLang::Swift),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let records = flatten_files(
+      &OutlineQuery::Map(MapArg {
+        common: test_common(),
+        kind: vec![],
+        depth: None,
+      }),
+      &[file],
+    );
+    assert!(records.iter().any(|r| {
+      r.symbol.name.as_deref() == Some("Session") && r.symbol.kind == SymbolKind::Class.number()
+    }));
+    assert!(!records.iter().any(|r| {
+      r.symbol.name.as_deref() == Some("webSocketRequest")
+        && r.symbol.kind == SymbolKind::Function.number()
+        && r.symbol.range.start.line == 2
+    }));
   }
 
   #[test]
