@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// input related options
-#[derive(Args)]
+#[derive(Args, Clone)]
 pub struct InputArgs {
   /// The paths to search. You can provide multiple paths separated by spaces.
   #[clap(value_parser, default_value = ".")]
