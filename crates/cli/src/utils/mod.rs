@@ -96,7 +96,7 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
   }
 }
 
-fn read_file(path: &Path) -> Result<String> {
+pub(crate) fn read_file(path: &Path) -> Result<String> {
   let file_content =
     read_to_string(path).with_context(|| format!("Cannot read file {}", path.to_string_lossy()))?;
   // skip large files or empty file

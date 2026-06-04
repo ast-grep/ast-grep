@@ -3,6 +3,7 @@ mod config;
 mod lang;
 mod lsp;
 mod new;
+mod outline;
 mod print;
 mod run;
 mod scan;
@@ -17,6 +18,7 @@ use completions::{CompletionsArg, run_shell_completion};
 use config::ProjectConfig;
 use lsp::{LspArg, run_language_server};
 use new::{NewArg, run_create_new};
+use outline::{OutlineArg, run_outline};
 use run::{RunArg, run_with_pattern};
 use scan::{ScanArg, run_with_config};
 use utils::exit_with_error;
@@ -58,6 +60,8 @@ enum Commands {
   New(NewArg),
   /// Start language server.
   Lsp(LspArg),
+  /// Explore code structure for symbols, imports, exports, and members.
+  Outline(OutlineArg),
   /// Generate shell completion script.
   Completions(CompletionsArg),
   /// Generate rule docs for current configuration. (Not Implemented Yet)
@@ -140,6 +144,7 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
     Commands::Test(arg) => run_test_rule(arg, project),
     Commands::New(arg) => run_create_new(arg, project),
     Commands::Lsp(arg) => run_language_server(arg, project).map(|_| ExitCode::SUCCESS),
+    Commands::Outline(arg) => run_outline(arg),
     Commands::Completions(arg) => run_shell_completion::<App>(arg),
     #[cfg(debug_assertions)]
     Commands::Docs => todo!("todo, generate rule docs based on current config"),
@@ -330,5 +335,17 @@ mod test_cli {
     ok("completions fish");
     error("completions not-shell");
     error("completions --shell fish");
+  }
+
+  #[test]
+  fn test_outline() {
+    ok("outline map crates/cli/src --format jsonl --budget 20");
+    ok("outline find crates --name RunArg --kind struct --format jsonl");
+    ok("outline imports crates/cli/src/run.rs --to ast-grep-config --format json");
+    ok("outline exports crates/config/src --definitions-only");
+    ok("outline members crates/cli/src/lib.rs --of Commands --of-kind enum");
+    ok("outline container crates/cli/src/lib.rs --at 64:5 --format json");
+    ok("outline related crates/cli/src --symbol RunArg --format jsonl --budget 10");
+    ok("outline diff crates/cli/src/lib.rs --base HEAD --exports-only --format json");
   }
 }
