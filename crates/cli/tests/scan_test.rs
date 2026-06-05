@@ -34,6 +34,25 @@ rule:
   pattern: Some($A)
 ";
 
+const FIXABLE_JS_RULE: &str = "
+id: no-var
+message: use let
+severity: warning
+language: JavaScript
+rule:
+  pattern: var $A = $B;
+fix: let $A = $B;
+";
+
+const UNFIXABLE_JS_RULE: &str = "
+id: no-console
+message: no console
+severity: warning
+language: JavaScript
+rule:
+  pattern: console.log($A)
+";
+
 fn setup() -> Result<TempDir> {
   let dir = create_test_files([
     ("sgconfig.yml", CONFIG),
@@ -77,6 +96,34 @@ fn test_sg_rule_off() -> Result<()> {
     .stdout(contains("on-rule"))
     .stdout(contains("off-rule").not());
   drop(dir);
+  Ok(())
+}
+
+#[test]
+fn test_sg_scan_update_all_reports_unfixable_rules() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/no-var.yml", FIXABLE_JS_RULE),
+    ("rules/no-console.yml", UNFIXABLE_JS_RULE),
+    ("test.js", "var x = 1;\nconsole.log(x);\n"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "scan",
+      "--update-all",
+      "--color",
+      "never",
+      "--report-style",
+      "short",
+    ])
+    .assert()
+    .success()
+    .stdout(contains("no-console"))
+    .stdout(contains("no-var").not())
+    .stderr(contains("Applied 1 changes"));
+  let updated = std::fs::read_to_string(dir.path().join("test.js"))?;
+  assert_eq!(updated, "let x = 1;\nconsole.log(x);\n");
   Ok(())
 }
 

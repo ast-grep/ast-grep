@@ -71,9 +71,8 @@ impl InteractivePrinter {
       first_line,
       inner,
     } = highlights;
-    // if ast-grep is called with -U, do not output anything
     if self.accept_all {
-      return Ok(());
+      return self.inner.process(inner);
     }
     utils::run_in_alternate_screen(|| {
       self.inner.process(inner)?;
