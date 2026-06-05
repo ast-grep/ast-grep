@@ -1,5 +1,5 @@
 use std::cmp::Reverse;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::process::ExitCode;
@@ -21,6 +21,7 @@ use crate::utils::{InputArgs, read_file};
 
 type SgDoc = StrDoc<SgLang>;
 type SgNode<'a> = Node<'a, SgDoc>;
+const CHILD_DIGEST_GROUP_LIMIT: usize = 8;
 
 #[derive(Args)]
 pub struct OutlineArg {
@@ -294,6 +295,10 @@ struct OutlineItem {
   selection_range: OutlineRange,
   #[serde(skip_serializing_if = "Option::is_none")]
   signature: Option<String>,
+  #[serde(skip)]
+  source_line: String,
+  #[serde(skip)]
+  child_digest: String,
   exported: bool,
   node_kind: String,
   #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -379,6 +384,23 @@ struct RuleSpec {
 
 struct OutlineCatalog {
   extractors: Vec<SerializableOutlineExtractor>,
+}
+
+impl OutlineCatalog {
+  fn supported_langs(&self) -> HashSet<SgLang> {
+    self
+      .extractors
+      .iter()
+      .map(|extractor| extractor.language)
+      .collect()
+  }
+
+  fn supports(&self, lang: SgLang) -> bool {
+    self
+      .extractors
+      .iter()
+      .any(|extractor| extractor.language == lang)
+  }
 }
 
 #[derive(Clone, Deserialize)]
@@ -545,14 +567,26 @@ extractors:
     role: definition
     name: field:name
     exported: ancestorKind:export_statement
-    rule: { kind: function_declaration }
+    rule:
+      all:
+        - kind: function_declaration
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
   - id: ts-class
     language: TypeScript
     kind: class
     role: definition
     name: field:name
     exported: ancestorKind:export_statement
-    rule: { kind: class_declaration }
+    rule:
+      all:
+        - kind: class_declaration
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
   - id: ts-interface
     language: TypeScript
     kind: interface
@@ -567,20 +601,58 @@ extractors:
     name: field:name
     exported: ancestorKind:export_statement
     rule: { kind: type_alias_declaration }
+  - id: ts-method-signature
+    language: TypeScript
+    kind: method
+    role: definition
+    name: field:name
+    exported: never
+    rule:
+      all:
+        - kind: method_signature
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
+  - id: ts-property-signature
+    language: TypeScript
+    kind: field
+    role: definition
+    name: field:name
+    exported: never
+    rule:
+      all:
+        - kind: property_signature
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
   - id: ts-method
     language: TypeScript
     kind: method
     role: definition
     name: field:name
     exported: never
-    rule: { kind: method_definition }
+    rule:
+      all:
+        - kind: method_definition
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
   - id: ts-field
     language: TypeScript
     kind: field
     role: definition
     name: auto
     exported: never
-    rule: { kind: public_field_definition }
+    rule:
+      all:
+        - kind: public_field_definition
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
   - id: ts-const
     language: TypeScript
     kind: constant
@@ -591,16 +663,31 @@ extractors:
       all:
         - kind: lexical_declaration
         - regex: '^\s*const\b'
-  - id: ts-variable
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
+        - not:
+            has:
+              kind: arrow_function
+              stopBy: end
+  - id: ts-const-function
     language: TypeScript
-    kind: variable
+    kind: function
     role: definition
     name: auto
     exported: ancestorKind:export_statement
     rule:
       all:
         - kind: lexical_declaration
-        - regex: '^\s*(let|var)\b'
+        - regex: '^\s*const\b'
+        - has:
+            kind: arrow_function
+            stopBy: end
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
 
   - id: tsx-import
     language: Tsx
@@ -625,14 +712,26 @@ extractors:
     role: definition
     name: field:name
     exported: ancestorKind:export_statement
-    rule: { kind: function_declaration }
+    rule:
+      all:
+        - kind: function_declaration
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
   - id: tsx-class
     language: Tsx
     kind: class
     role: definition
     name: field:name
     exported: ancestorKind:export_statement
-    rule: { kind: class_declaration }
+    rule:
+      all:
+        - kind: class_declaration
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
   - id: tsx-interface
     language: Tsx
     kind: interface
@@ -647,20 +746,58 @@ extractors:
     name: field:name
     exported: ancestorKind:export_statement
     rule: { kind: type_alias_declaration }
+  - id: tsx-method-signature
+    language: Tsx
+    kind: method
+    role: definition
+    name: field:name
+    exported: never
+    rule:
+      all:
+        - kind: method_signature
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
+  - id: tsx-property-signature
+    language: Tsx
+    kind: field
+    role: definition
+    name: field:name
+    exported: never
+    rule:
+      all:
+        - kind: property_signature
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
   - id: tsx-method
     language: Tsx
     kind: method
     role: definition
     name: field:name
     exported: never
-    rule: { kind: method_definition }
+    rule:
+      all:
+        - kind: method_definition
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
   - id: tsx-field
     language: Tsx
     kind: field
     role: definition
     name: auto
     exported: never
-    rule: { kind: public_field_definition }
+    rule:
+      all:
+        - kind: public_field_definition
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
   - id: tsx-const
     language: Tsx
     kind: constant
@@ -671,16 +808,31 @@ extractors:
       all:
         - kind: lexical_declaration
         - regex: '^\s*const\b'
-  - id: tsx-variable
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
+        - not:
+            has:
+              kind: arrow_function
+              stopBy: end
+  - id: tsx-const-function
     language: Tsx
-    kind: variable
+    kind: function
     role: definition
     name: auto
     exported: ancestorKind:export_statement
     rule:
       all:
         - kind: lexical_declaration
-        - regex: '^\s*(let|var)\b'
+        - regex: '^\s*const\b'
+        - has:
+            kind: arrow_function
+            stopBy: end
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
 
   - id: js-import
     language: JavaScript
@@ -705,28 +857,52 @@ extractors:
     role: definition
     name: field:name
     exported: ancestorKind:export_statement
-    rule: { kind: function_declaration }
+    rule:
+      all:
+        - kind: function_declaration
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
   - id: js-class
     language: JavaScript
     kind: class
     role: definition
     name: field:name
     exported: ancestorKind:export_statement
-    rule: { kind: class_declaration }
+    rule:
+      all:
+        - kind: class_declaration
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
   - id: js-method
     language: JavaScript
     kind: method
     role: definition
     name: field:name
     exported: never
-    rule: { kind: method_definition }
+    rule:
+      all:
+        - kind: method_definition
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
   - id: js-field
     language: JavaScript
     kind: field
     role: definition
     name: auto
     exported: never
-    rule: { kind: public_field_definition }
+    rule:
+      all:
+        - kind: public_field_definition
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
   - id: js-const
     language: JavaScript
     kind: constant
@@ -737,16 +913,31 @@ extractors:
       all:
         - kind: lexical_declaration
         - regex: '^\s*const\b'
-  - id: js-variable
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
+        - not:
+            has:
+              kind: arrow_function
+              stopBy: end
+  - id: js-const-function
     language: JavaScript
-    kind: variable
+    kind: function
     role: definition
     name: auto
     exported: ancestorKind:export_statement
     rule:
       all:
         - kind: lexical_declaration
-        - regex: '^\s*(let|var)\b'
+        - regex: '^\s*const\b'
+        - has:
+            kind: arrow_function
+            stopBy: end
+        - not:
+            inside:
+              kind: statement_block
+              stopBy: end
 
   - id: py-import
     language: Python
@@ -941,14 +1132,26 @@ extractors:
     role: definition
     name: auto
     exported: notTextPrefixAny:private,internal
-    rule: { kind: function_declaration }
+    rule:
+      all:
+        - kind: function_declaration
+        - not:
+            inside:
+              kind: function_body
+              stopBy: end
   - id: kotlin-property
     language: Kotlin
     kind: variable
     role: definition
     name: auto
     exported: notTextPrefixAny:private,internal
-    rule: { kind: property_declaration }
+    rule:
+      all:
+        - kind: property_declaration
+        - not:
+            inside:
+              kind: function_body
+              stopBy: end
   - id: kotlin-typealias
     language: Kotlin
     kind: interface
@@ -1015,13 +1218,23 @@ extractors:
       all:
         - kind: function_declaration
         - regex: '^\s*(@[A-Za-z_][A-Za-z0-9_]*(\([^)]*\))?\s+)*(public\s+|open\s+|internal\s+|fileprivate\s+|private\s+)?(static\s+|class\s+|mutating\s+|nonmutating\s+|override\s+|final\s+)*func\b'
+        - not:
+            inside:
+              kind: function_body
+              stopBy: end
   - id: swift-property
     language: Swift
     kind: variable
     role: definition
     name: field:name
     exported: textPrefixAny:public,open
-    rule: { kind: property_declaration }
+    rule:
+      all:
+        - kind: property_declaration
+        - not:
+            inside:
+              kind: function_body
+              stopBy: end
   - id: swift-typealias
     language: Swift
     kind: interface
@@ -1089,10 +1302,18 @@ fn outline_stdin(query: &OutlineQuery) -> Result<OutlineFile> {
 
 fn outline_paths(query: &OutlineQuery) -> Result<Vec<OutlineFile>> {
   let common = query.common();
-  let walker = build_walk(common)?;
-  let (tx, rx) = mpsc::channel();
   let common = Arc::new(common.clone());
   let catalog = Arc::new(load_outline_catalog(&common)?);
+  let supported_langs = catalog.supported_langs();
+  if let Some(lang) = common.lang {
+    if !supported_langs.contains(&lang) {
+      return Ok(vec![]);
+    }
+  } else if supported_langs.is_empty() {
+    return Ok(vec![]);
+  }
+  let walker = build_walk(&common, supported_langs)?;
+  let (tx, rx) = mpsc::channel();
   std::thread::spawn(move || {
     walker.run(|| {
       let tx = tx.clone();
@@ -1105,6 +1326,9 @@ fn outline_paths(query: &OutlineQuery) -> Result<Vec<OutlineFile>> {
         let Some(lang) = common.lang.or_else(|| SgLang::from_path(&path)) else {
           return WalkState::Continue;
         };
+        if !catalog.supports(lang) {
+          return WalkState::Continue;
+        }
         let Ok(src) = read_file(&path) else {
           return WalkState::Continue;
         };
@@ -1381,11 +1605,11 @@ fn record_key(record: &OutlineRecord) -> String {
   )
 }
 
-fn build_walk(common: &OutlineCommonArg) -> Result<WalkParallel> {
+fn build_walk(common: &OutlineCommonArg, supported_langs: HashSet<SgLang>) -> Result<WalkParallel> {
   if let Some(lang) = common.lang {
     common.input.walk_lang(lang)
   } else {
-    common.input.walk()
+    common.input.walk_langs(supported_langs.into_iter())
   }
 }
 
@@ -1425,7 +1649,10 @@ fn extract_outline(
   }
   dedup_items(&mut items);
   items.sort_by_key(|i| (i.range.start.byte, Reverse(i.range.end.byte)));
-  let items = nest_items(items);
+  let mut items = nest_items(items);
+  if lang == SgLang::Builtin(SupportLang::Go) {
+    attach_go_receiver_methods(&mut items);
+  }
   Ok(OutlineFile {
     path: path.to_string_lossy().to_string(),
     language: lang.to_string(),
@@ -1552,6 +1779,8 @@ fn make_item(
     range: node_range(node),
     selection_range: selection_range.unwrap_or_else(|| node_range(node)),
     signature: include_signature.then(|| signature(node)),
+    source_line: signature(node),
+    child_digest: String::new(),
     exported,
     node_kind: node.kind().to_string(),
     children: vec![],
@@ -1732,10 +1961,11 @@ fn is_exported(
 }
 
 fn signature(node: &SgNode<'_>) -> String {
-  node
-    .text()
+  let text = node.text();
+  text
     .lines()
-    .next()
+    .find(|line| !line.trim_start().starts_with('@'))
+    .or_else(|| text.lines().next())
     .unwrap_or_default()
     .trim()
     .to_string()
@@ -1802,6 +2032,48 @@ fn contains_range(parent: &OutlineItem, child: &OutlineItem) -> bool {
       != (child.range.start.byte, child.range.end.byte)
 }
 
+fn attach_go_receiver_methods(items: &mut Vec<OutlineItem>) {
+  let mut roots = std::mem::take(items);
+  let mut kept = Vec::with_capacity(roots.len());
+  let mut methods = vec![];
+  for item in roots.drain(..) {
+    if item.kind == SymbolKind::Method.number()
+      && let Some(receiver) = go_receiver_type(&item.source_line)
+    {
+      methods.push((receiver, item));
+    } else {
+      kept.push(item);
+    }
+  }
+  for (receiver, method) in methods {
+    if let Some(parent) = kept
+      .iter_mut()
+      .find(|item| item.name.as_deref() == Some(receiver.as_str()))
+    {
+      parent.children.push(method);
+      parent
+        .children
+        .sort_by_key(|child| (child.range.start.byte, Reverse(child.range.end.byte)));
+    } else {
+      kept.push(method);
+    }
+  }
+  kept.sort_by_key(|item| (item.range.start.byte, Reverse(item.range.end.byte)));
+  *items = kept;
+}
+
+fn go_receiver_type(signature: &str) -> Option<String> {
+  let signature = signature.trim_start();
+  let rest = signature.strip_prefix("func ")?;
+  let rest = rest.strip_prefix('(')?;
+  let (receiver, _) = rest.split_once(')')?;
+  receiver
+    .split_whitespace()
+    .last()
+    .map(|ty| ty.trim_start_matches('*').to_string())
+    .filter(|ty| !ty.is_empty())
+}
+
 fn apply_query(query: &OutlineQuery, files: &mut Vec<OutlineFile>) {
   let common = query.common();
   for file in files.iter_mut() {
@@ -1818,10 +2090,15 @@ fn filter_items(
   match query {
     OutlineQuery::Map(arg) => {
       let mut items = filter_tree(items, |item| {
-        kind_matches(item, &arg.kind) && common_matches(item, common)
+        item.role != SymbolRole::Import
+          && kind_matches(item, &arg.kind)
+          && common_matches(item, common)
       });
       if let Some(depth) = arg.depth {
         trim_depth(&mut items, depth);
+      } else {
+        set_child_digests(&mut items);
+        trim_depth(&mut items, 1);
       }
       items
     }
@@ -1868,6 +2145,66 @@ fn trim_depth(items: &mut [OutlineItem], depth: usize) {
       trim_depth(&mut item.children, depth - 1);
     }
   }
+}
+
+fn set_child_digests(items: &mut [OutlineItem]) {
+  for item in items {
+    item.child_digest = child_digest(&item.children);
+    set_child_digests(&mut item.children);
+  }
+}
+
+fn child_digest(children: &[OutlineItem]) -> String {
+  let mut groups: Vec<(&'static str, Vec<String>)> = vec![];
+  for child in children {
+    let label = text_group_label(child);
+    let name = child_digest_name(child);
+    if name.is_empty() {
+      continue;
+    }
+    if let Some((_, names)) = groups.iter_mut().find(|(group, _)| *group == label) {
+      if !names.contains(&name) {
+        names.push(name);
+      }
+    } else {
+      groups.push((label, vec![name]));
+    }
+  }
+  groups.sort_by_key(|(label, _)| child_digest_group_rank(label));
+  groups
+    .into_iter()
+    .map(|(label, names)| format!("{label}: {}", capped_digest_names(&names)))
+    .collect::<Vec<_>>()
+    .join("; ")
+}
+
+fn capped_digest_names(names: &[String]) -> String {
+  if names.len() <= CHILD_DIGEST_GROUP_LIMIT {
+    return names.join(", ");
+  }
+  let shown = names[..CHILD_DIGEST_GROUP_LIMIT].join(", ");
+  let hidden = names.len() - CHILD_DIGEST_GROUP_LIMIT;
+  format!("{shown}, ... +{hidden} more")
+}
+
+fn child_digest_group_rank(label: &str) -> u8 {
+  match label {
+    "field" => 0,
+    "property" => 1,
+    "constant" => 2,
+    "variable" => 3,
+    "constructor" => 4,
+    "method" => 5,
+    "function" => 6,
+    _ => text_group_rank(label),
+  }
+}
+
+fn child_digest_name(item: &OutlineItem) -> String {
+  item
+    .name
+    .clone()
+    .unwrap_or_else(|| item.source_line.trim().to_string())
 }
 
 fn filter_tree(
@@ -2182,28 +2519,135 @@ fn limit_items(items: &mut Vec<OutlineItem>, remaining: &mut usize) {
 fn print_text(files: &[OutlineFile]) {
   for file in files {
     println!("{}", file.path);
-    print_text_items(&file.items, 1);
+    if file.items.is_empty() {
+      println!("nothing found");
+    } else {
+      print_text_items(&file.items);
+    }
   }
 }
 
-fn print_text_items(items: &[OutlineItem], depth: usize) {
-  for item in items {
-    let indent = "  ".repeat(depth);
-    let name = item.name.as_deref().unwrap_or("<anonymous>");
-    let label = if item.exported {
-      "export".to_string()
-    } else {
-      format!("{:?}", item.role).to_lowercase()
-    };
-    println!(
-      "{indent}{:<12} {:<32} {}:{} {}",
-      item.kind_name,
-      name,
-      item.range.start.line + 1,
-      item.range.start.column + 1,
-      label
-    );
-    print_text_items(&item.children, depth + 1);
+fn print_text_items(items: &[OutlineItem]) {
+  let mut roots = items.iter().collect::<Vec<_>>();
+  roots.sort_by_key(|item| {
+    (
+      text_group_rank(text_group_label(item)),
+      item.range.start.line,
+      item.range.start.column,
+    )
+  });
+  let mut current_label = None;
+  for item in roots {
+    let label = text_group_label(item);
+    if current_label != Some(label) {
+      current_label = Some(label);
+      println!("{label}:");
+    }
+    print_text_tree(item, 0);
+  }
+}
+
+fn print_text_tree(item: &OutlineItem, depth: usize) {
+  let indent = "  ".repeat(depth);
+  let source = if item.source_line.is_empty() {
+    item.name.as_deref().unwrap_or("<anonymous>")
+  } else {
+    item.source_line.as_str()
+  };
+  println!("{}: {indent}{}", item.range.start.line + 1, source,);
+  if !item.child_digest.is_empty() {
+    println!("{}  {}", "  ".repeat(depth), item.child_digest);
+  }
+  for child in &item.children {
+    print_text_tree(child, depth + 1);
+  }
+}
+
+fn text_group_label(item: &OutlineItem) -> &'static str {
+  let source = item.source_line.trim_start();
+  if starts_with_any(
+    source,
+    &[
+      "type ",
+      "pub type ",
+      "export type ",
+      "public typealias ",
+      "typealias ",
+    ],
+  ) {
+    return "type";
+  }
+  if starts_with_any(source, &["trait ", "pub trait "]) {
+    return "trait";
+  }
+  if starts_with_any(source, &["protocol ", "public protocol ", "open protocol "]) {
+    return "protocol";
+  }
+  if starts_with_any(source, &["impl ", "pub impl "]) {
+    return "impl";
+  }
+  kind_text_label(item.kind)
+}
+
+fn starts_with_any(source: &str, prefixes: &[&str]) -> bool {
+  prefixes.iter().any(|prefix| source.starts_with(prefix))
+}
+
+fn text_group_rank(label: &str) -> u8 {
+  match label {
+    "package" => 0,
+    "module" => 1,
+    "namespace" => 2,
+    "class" => 3,
+    "interface" => 4,
+    "trait" => 5,
+    "protocol" => 6,
+    "struct" => 7,
+    "enum" => 8,
+    "type" => 9,
+    "impl" => 10,
+    "function" => 11,
+    "method" => 12,
+    "constructor" => 13,
+    "field" => 14,
+    "property" => 15,
+    "constant" => 16,
+    "variable" => 17,
+    "enum member" => 18,
+    "type parameter" => 19,
+    _ => 20,
+  }
+}
+
+fn kind_text_label(kind: u8) -> &'static str {
+  match kind {
+    k if k == SymbolKind::File.number() => "file",
+    k if k == SymbolKind::Module.number() => "module",
+    k if k == SymbolKind::Namespace.number() => "namespace",
+    k if k == SymbolKind::Package.number() => "package",
+    k if k == SymbolKind::Class.number() => "class",
+    k if k == SymbolKind::Method.number() => "method",
+    k if k == SymbolKind::Property.number() => "property",
+    k if k == SymbolKind::Field.number() => "field",
+    k if k == SymbolKind::Constructor.number() => "constructor",
+    k if k == SymbolKind::Enum.number() => "enum",
+    k if k == SymbolKind::Interface.number() => "interface",
+    k if k == SymbolKind::Function.number() => "function",
+    k if k == SymbolKind::Variable.number() => "variable",
+    k if k == SymbolKind::Constant.number() => "constant",
+    k if k == SymbolKind::String.number() => "string",
+    k if k == SymbolKind::Number.number() => "number",
+    k if k == SymbolKind::Boolean.number() => "boolean",
+    k if k == SymbolKind::Array.number() => "array",
+    k if k == SymbolKind::Object.number() => "object",
+    k if k == SymbolKind::Key.number() => "key",
+    k if k == SymbolKind::Null.number() => "null",
+    k if k == SymbolKind::EnumMember.number() => "enum member",
+    k if k == SymbolKind::Struct.number() => "struct",
+    k if k == SymbolKind::Event.number() => "event",
+    k if k == SymbolKind::Operator.number() => "operator",
+    k if k == SymbolKind::TypeParameter.number() => "type parameter",
+    _ => "symbol",
   }
 }
 
@@ -2271,19 +2715,32 @@ mod tests {
       &test_catalog(),
     )
     .expect("extract outline");
-    let records = flatten_files(
-      &OutlineQuery::Map(MapArg {
-        common: test_common(),
-        kind: vec![],
-        depth: None,
-      }),
-      &[file],
-    );
+    let query = map_query();
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    let records = flatten_files(&query, &files);
     assert!(
       records
         .iter()
         .any(|r| r.symbol.name.as_deref() == Some("RunArg"))
     );
+    assert!(records.iter().all(|r| r.symbol.role != SymbolRole::Import));
+    assert!(files[0].items.iter().any(|item| {
+      item.name.as_deref() == Some("RunArg") && item.source_line == "pub struct RunArg {}"
+    }));
+
+    let file = extract_outline(
+      PathBuf::from("test.rs"),
+      SgLang::Builtin(SupportLang::Rust),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let query = imports_query();
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    let records = flatten_files(&query, &files);
     assert!(records.iter().any(|r| r.symbol.role == SymbolRole::Import));
   }
 
@@ -2313,6 +2770,81 @@ mod tests {
   }
 
   #[test]
+  fn ts_map_skips_local_variables() {
+    let src = r#"
+export interface MockLlmServer {
+  readonly url: string;
+  requestCount(): number;
+}
+
+const exportedShape = 1;
+let logsCounter = 1;
+
+export function retry() {
+  const result = Promise.resolve();
+  const localTyped: { parentPort: string } = { parentPort: "x" };
+  let attempt = 0;
+  return result;
+}
+"#;
+    let file = extract_outline(
+      PathBuf::from("test.ts"),
+      SgLang::Builtin(SupportLang::TypeScript),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let query = map_query();
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    let records = flatten_files(&query, &files);
+    assert!(
+      records
+        .iter()
+        .any(|r| r.symbol.name.as_deref() == Some("MockLlmServer"))
+    );
+    let mock = files[0]
+      .items
+      .iter()
+      .find(|item| item.name.as_deref() == Some("MockLlmServer"))
+      .expect("mock interface");
+    assert!(mock.children.is_empty());
+    assert_eq!(mock.child_digest, "field: url; method: requestCount");
+    assert!(
+      records
+        .iter()
+        .any(|r| r.symbol.name.as_deref() == Some("exportedShape"))
+    );
+    assert!(
+      records
+        .iter()
+        .any(|r| r.symbol.name.as_deref() == Some("retry"))
+    );
+    assert!(
+      records
+        .iter()
+        .all(|r| r.symbol.name.as_deref() != Some("result"))
+    );
+    assert!(
+      records
+        .iter()
+        .all(|r| r.symbol.name.as_deref() != Some("attempt"))
+    );
+    let retry = files[0]
+      .items
+      .iter()
+      .find(|item| item.name.as_deref() == Some("retry"))
+      .expect("retry function");
+    assert!(retry.child_digest.is_empty());
+    assert!(
+      records
+        .iter()
+        .all(|r| r.symbol.name.as_deref() != Some("logsCounter"))
+    );
+  }
+
+  #[test]
   fn extracts_java_symbols() {
     let src = r#"
 package demo;
@@ -2332,22 +2864,49 @@ public record Rec(int id) {}
       &test_catalog(),
     )
     .expect("extract outline");
-    let records = flatten_files(
-      &OutlineQuery::Map(MapArg {
-        common: test_common(),
-        kind: vec![],
-        depth: None,
-      }),
-      &[file],
-    );
+    let query = map_query();
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    let records = flatten_files(&query, &files);
     assert!(
       records
         .iter()
-        .any(|r| r.symbol.name.as_deref() == Some("java.util.List"))
+        .all(|r| r.symbol.name.as_deref() != Some("java.util.List"))
     );
     assert!(records.iter().any(|r| {
       r.symbol.name.as_deref() == Some("Foo") && r.symbol.kind == SymbolKind::Class.number()
     }));
+    assert!(records.iter().any(|r| {
+      r.symbol.name.as_deref() == Some("Rec") && r.symbol.kind == SymbolKind::Struct.number()
+    }));
+    assert!(
+      records
+        .iter()
+        .all(|r| r.symbol.name.as_deref() != Some("SIZE"))
+    );
+    assert!(
+      records
+        .iter()
+        .all(|r| r.symbol.name.as_deref() != Some("bar"))
+    );
+    let query = OutlineQuery::Members(MembersArg {
+      common: test_common(),
+      of: "Foo".into(),
+      of_kind: Some(SymbolKind::Class),
+      kind: vec![],
+      recursive: false,
+    });
+    let file = extract_outline(
+      PathBuf::from("test.java"),
+      SgLang::Builtin(SupportLang::Java),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    let records = flatten_files(&query, &files);
     assert!(records.iter().any(|r| {
       r.symbol.name.as_deref() == Some("SIZE") && r.symbol.kind == SymbolKind::Constant.number()
     }));
@@ -2473,18 +3032,14 @@ public typealias Alias = String
       &test_catalog(),
     )
     .expect("extract outline");
-    let records = flatten_files(
-      &OutlineQuery::Map(MapArg {
-        common: test_common(),
-        kind: vec![],
-        depth: None,
-      }),
-      &[file],
-    );
+    let query = map_query();
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    let records = flatten_files(&query, &files);
     assert!(
       records
         .iter()
-        .any(|r| r.symbol.name.as_deref() == Some("Foundation"))
+        .all(|r| r.symbol.name.as_deref() != Some("Foundation"))
     );
     assert!(records.iter().any(|r| {
       r.symbol.name.as_deref() == Some("Foo") && r.symbol.kind == SymbolKind::Class.number()
@@ -2543,14 +3098,10 @@ open class Session: @unchecked Sendable {
       &test_catalog(),
     )
     .expect("extract outline");
-    let records = flatten_files(
-      &OutlineQuery::Map(MapArg {
-        common: test_common(),
-        kind: vec![],
-        depth: None,
-      }),
-      &[file],
-    );
+    let query = map_query();
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    let records = flatten_files(&query, &files);
     assert!(records.iter().any(|r| {
       r.symbol.name.as_deref() == Some("Session") && r.symbol.kind == SymbolKind::Class.number()
     }));
@@ -2562,7 +3113,129 @@ open class Session: @unchecked Sendable {
   }
 
   #[test]
-  fn trims_map_depth() {
+  fn go_receiver_methods_are_members() {
+    let src = r#"
+type RouterGroup struct {}
+func (group *RouterGroup) Use() {}
+func (group RouterGroup) BasePath() string { return "" }
+func (group *RouterGroup) Group() {}
+func (group *RouterGroup) Handle() {}
+func (group *RouterGroup) POST() {}
+func (group *RouterGroup) GET() {}
+func (group *RouterGroup) DELETE() {}
+func (group *RouterGroup) PATCH() {}
+func (group *RouterGroup) PUT() {}
+func (group *RouterGroup) OPTIONS() {}
+func standalone() {}
+"#;
+    let file = extract_outline(
+      PathBuf::from("test.go"),
+      SgLang::Builtin(SupportLang::Go),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let query = map_query();
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    let records = flatten_files(&query, &files);
+    assert!(
+      records
+        .iter()
+        .any(|r| r.symbol.name.as_deref() == Some("RouterGroup"))
+    );
+    assert!(
+      records
+        .iter()
+        .any(|r| r.symbol.name.as_deref() == Some("standalone"))
+    );
+    assert!(
+      records
+        .iter()
+        .all(|r| r.symbol.name.as_deref() != Some("Use"))
+    );
+    let router_group = files[0]
+      .items
+      .iter()
+      .find(|item| item.name.as_deref() == Some("RouterGroup"))
+      .expect("router group");
+    assert_eq!(
+      router_group.child_digest,
+      "method: Use, BasePath, Group, Handle, POST, GET, DELETE, PATCH, ... +2 more"
+    );
+
+    let file = extract_outline(
+      PathBuf::from("test.go"),
+      SgLang::Builtin(SupportLang::Go),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let query = OutlineQuery::Map(MapArg {
+      common: test_common(),
+      kind: vec![],
+      depth: Some(2),
+    });
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    let records = flatten_files(&query, &files);
+    assert!(
+      records
+        .iter()
+        .any(|r| r.symbol.name.as_deref() == Some("Use"))
+    );
+
+    let file = extract_outline(
+      PathBuf::from("test.go"),
+      SgLang::Builtin(SupportLang::Go),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let query = OutlineQuery::Members(MembersArg {
+      common: test_common(),
+      of: "RouterGroup".into(),
+      of_kind: None,
+      kind: vec![SymbolKind::Method],
+      recursive: false,
+    });
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    let names = files[0]
+      .items
+      .iter()
+      .filter_map(|item| item.name.as_deref())
+      .collect::<Vec<_>>();
+    assert_eq!(
+      names,
+      vec![
+        "Use", "BasePath", "Group", "Handle", "POST", "GET", "DELETE", "PATCH", "PUT", "OPTIONS"
+      ]
+    );
+  }
+
+  #[test]
+  fn map_defaults_to_top_level() {
+    let src = "enum Commands { Run(RunArg) }\nstruct RunArg;\n";
+    let file = extract_outline(
+      PathBuf::from("test.rs"),
+      SgLang::Builtin(SupportLang::Rust),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let query = map_query();
+    let mut files = vec![file];
+    apply_query(&query, &mut files);
+    assert!(files[0].items.iter().all(|item| item.children.is_empty()));
+  }
+
+  #[test]
+  fn map_depth_includes_nested_items() {
     let src = "enum Commands { Run(RunArg) }\nstruct RunArg;\n";
     let file = extract_outline(
       PathBuf::from("test.rs"),
@@ -2575,11 +3248,11 @@ open class Session: @unchecked Sendable {
     let query = OutlineQuery::Map(MapArg {
       common: test_common(),
       kind: vec![],
-      depth: Some(1),
+      depth: Some(2),
     });
     let mut files = vec![file];
     apply_query(&query, &mut files);
-    assert!(files[0].items.iter().all(|item| item.children.is_empty()));
+    assert!(files[0].items.iter().any(|item| !item.children.is_empty()));
   }
 
   #[test]
@@ -2625,6 +3298,17 @@ extractors:
     assert_eq!(records[0].symbol.kind, SymbolKind::Function.number());
   }
 
+  #[test]
+  fn catalog_reports_only_languages_with_outline_rules() {
+    let catalog = test_catalog();
+    assert!(catalog.supports(SgLang::Builtin(SupportLang::Rust)));
+    assert!(catalog.supports(SgLang::Builtin(SupportLang::TypeScript)));
+    assert!(!catalog.supports(SgLang::Builtin(SupportLang::Html)));
+
+    let empty = OutlineCatalog { extractors: vec![] };
+    assert!(empty.supported_langs().is_empty());
+  }
+
   fn test_common() -> OutlineCommonArg {
     OutlineCommonArg {
       lang: None,
@@ -2650,5 +3334,21 @@ extractors:
 
   fn test_catalog() -> OutlineCatalog {
     load_outline_catalog(&test_common()).expect("load outline catalog")
+  }
+
+  fn map_query() -> OutlineQuery {
+    OutlineQuery::Map(MapArg {
+      common: test_common(),
+      kind: vec![],
+      depth: None,
+    })
+  }
+
+  fn imports_query() -> OutlineQuery {
+    OutlineQuery::Imports(ImportsArg {
+      common: test_common(),
+      to: None,
+      bindings: false,
+    })
   }
 }
