@@ -1,7 +1,6 @@
 use std::cmp::Reverse;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::mpsc;
@@ -33,20 +32,12 @@ pub struct OutlineArg {
 enum OutlineQuery {
   /// Return a compact structural map of files.
   Map(MapArg),
-  /// Find symbols by name, kind, role, or regex.
-  Find(FindArg),
   /// Return import/dependency edges.
   Imports(ImportsArg),
   /// Return public/exported API symbols.
   Exports(ExportsArg),
   /// Return children of a container symbol.
   Members(MembersArg),
-  /// Return the smallest symbol containing a position.
-  Container(ContainerArg),
-  /// Return structurally related symbols.
-  Related(RelatedArg),
-  /// Compare outlines before and after a change.
-  Diff(DiffArg),
 }
 
 #[derive(Args, Clone)]
@@ -59,18 +50,6 @@ struct MapArg {
   /// Maximum nesting depth for tree output.
   #[clap(long, value_name = "NUM")]
   depth: Option<usize>,
-}
-
-#[derive(Args, Clone)]
-struct FindArg {
-  #[clap(flatten)]
-  common: OutlineCommonArg,
-  /// Filter outline item kinds by LSP SymbolKind name.
-  #[clap(long, action = clap::ArgAction::Append)]
-  kind: Vec<SymbolKind>,
-  /// Filter by source role.
-  #[clap(long, action = clap::ArgAction::Append)]
-  role: Vec<SymbolRole>,
 }
 
 #[derive(Args, Clone)]
@@ -110,39 +89,6 @@ struct MembersArg {
   /// Include recursively nested members.
   #[clap(long)]
   recursive: bool,
-}
-
-#[derive(Args, Clone)]
-struct ContainerArg {
-  #[clap(flatten)]
-  common: OutlineCommonArg,
-  /// Source position to inspect, in 1-based LINE:COLUMN form.
-  #[clap(long, value_name = "LINE:COLUMN")]
-  at: String,
-}
-
-#[derive(Args, Clone)]
-struct RelatedArg {
-  #[clap(flatten)]
-  common: OutlineCommonArg,
-  /// Seed symbol name.
-  #[clap(long, value_name = "SYMBOL_NAME")]
-  symbol: Option<String>,
-  /// Seed source position, in 1-based LINE:COLUMN form.
-  #[clap(long, value_name = "LINE:COLUMN")]
-  at: Option<String>,
-}
-
-#[derive(Args, Clone)]
-struct DiffArg {
-  #[clap(flatten)]
-  common: OutlineCommonArg,
-  /// Git revision to compare against.
-  #[clap(long, value_name = "REV")]
-  base: String,
-  /// Compare exported symbols only.
-  #[clap(long)]
-  exports_only: bool,
 }
 
 #[derive(Args, Clone)]
@@ -346,32 +292,6 @@ struct OutlineFlatSymbol {
   node_kind: String,
   #[serde(skip_serializing_if = "Option::is_none")]
   container: Option<OutlineContainer>,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  score: Option<f32>,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  reason: Option<String>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct OutlineDiff {
-  base: String,
-  added: Vec<DiffRecord>,
-  removed: Vec<DiffRecord>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DiffRecord {
-  change: DiffChange,
-  record: OutlineRecord,
-}
-
-#[derive(Clone, Copy, Serialize)]
-#[serde(rename_all = "camelCase")]
-enum DiffChange {
-  Added,
-  Removed,
 }
 
 struct RuleSpec {
@@ -1246,12 +1166,6 @@ extractors:
 
 pub fn run_outline(arg: OutlineArg) -> Result<ExitCode> {
   let query = arg.query;
-  if let OutlineQuery::Diff(arg) = &query {
-    return run_diff(&query, arg);
-  }
-  if let OutlineQuery::Related(arg) = &query {
-    return run_related(&query, arg);
-  }
   let common = query.common();
   let mut files = if common.input.stdin {
     vec![outline_stdin(&query)?]
@@ -1266,26 +1180,18 @@ impl OutlineQuery {
   fn common(&self) -> &OutlineCommonArg {
     match self {
       OutlineQuery::Map(arg) => &arg.common,
-      OutlineQuery::Find(arg) => &arg.common,
       OutlineQuery::Imports(arg) => &arg.common,
       OutlineQuery::Exports(arg) => &arg.common,
       OutlineQuery::Members(arg) => &arg.common,
-      OutlineQuery::Container(arg) => &arg.common,
-      OutlineQuery::Related(arg) => &arg.common,
-      OutlineQuery::Diff(arg) => &arg.common,
     }
   }
 
   fn query_name(&self) -> &'static str {
     match self {
       OutlineQuery::Map(_) => "map",
-      OutlineQuery::Find(_) => "find",
       OutlineQuery::Imports(_) => "imports",
       OutlineQuery::Exports(_) => "exports",
       OutlineQuery::Members(_) => "members",
-      OutlineQuery::Container(_) => "container",
-      OutlineQuery::Related(_) => "related",
-      OutlineQuery::Diff(_) => "diff",
     }
   }
 }
@@ -1345,264 +1251,6 @@ fn outline_paths(query: &OutlineQuery) -> Result<Vec<OutlineFile>> {
   let mut files = rx.into_iter().collect::<Vec<_>>();
   files.sort_by(|a, b| a.path.cmp(&b.path));
   Ok(files)
-}
-
-fn run_diff(query: &OutlineQuery, arg: &DiffArg) -> Result<ExitCode> {
-  let mut current = outline_paths(query)?;
-  let catalog = load_outline_catalog(&arg.common)?;
-  for file in &mut current {
-    file.items = filter_diff_items(std::mem::take(&mut file.items), arg);
-  }
-  current.retain(|file| !file.items.is_empty());
-
-  let mut base = vec![];
-  for file in &current {
-    let path = PathBuf::from(&file.path);
-    let Some(lang) = arg.common.lang.or_else(|| SgLang::from_path(&path)) else {
-      continue;
-    };
-    let Some(src) = read_git_file(&arg.base, &file.path) else {
-      continue;
-    };
-    let mut outline = extract_outline(path, lang, &src, &arg.common, &catalog)?;
-    outline.items = filter_diff_items(outline.items, arg);
-    if !outline.items.is_empty() {
-      base.push(outline);
-    }
-  }
-
-  let diff = diff_records(
-    &arg.base,
-    flatten_files(query, &base),
-    flatten_files(query, &current),
-  );
-  print_diff(query, diff)
-}
-
-fn run_related(query: &OutlineQuery, arg: &RelatedArg) -> Result<ExitCode> {
-  let mut files = outline_paths(query)?;
-  apply_common_only(&mut files, &arg.common);
-  let seeds = related_seeds(&files, arg);
-  if seeds.is_empty() {
-    return print_related(query, vec![]);
-  }
-  let seed_paths = seeds
-    .iter()
-    .map(|seed| seed.path.clone())
-    .collect::<Vec<_>>();
-  let seed_names = seeds
-    .iter()
-    .filter_map(|seed| seed.symbol.name.clone())
-    .collect::<Vec<_>>();
-  let mut related = vec![];
-  for mut record in flatten_files(query, &files) {
-    if seeds
-      .iter()
-      .any(|seed| record_key(seed) == record_key(&record))
-    {
-      continue;
-    }
-    if let Some((score, reason)) = related_score(&record, &seed_names, &seed_paths) {
-      record.symbol.score = Some(score);
-      record.symbol.reason = Some(reason.to_string());
-      related.push(record);
-    }
-  }
-  related.sort_by(|a, b| {
-    b.symbol
-      .score
-      .partial_cmp(&a.symbol.score)
-      .unwrap_or(std::cmp::Ordering::Equal)
-      .then_with(|| a.path.cmp(&b.path))
-  });
-  if let Some(limit) = arg.common.max_items.or(arg.common.budget) {
-    related.truncate(limit);
-  }
-  print_related(query, related)
-}
-
-fn apply_common_only(files: &mut Vec<OutlineFile>, common: &OutlineCommonArg) {
-  for file in files {
-    file.items = filter_tree(std::mem::take(&mut file.items), |item| {
-      common_matches(item, common)
-    });
-  }
-}
-
-fn related_seeds(files: &[OutlineFile], arg: &RelatedArg) -> Vec<OutlineRecord> {
-  let mut seeds = vec![];
-  if let Some(symbol) = &arg.symbol {
-    for record in flatten_files(&OutlineQuery::Related(arg.clone()), files) {
-      if record.symbol.name.as_deref() == Some(symbol.as_str()) {
-        seeds.push(record);
-      }
-    }
-  }
-  if let Some(at) = &arg.at
-    && let Some(point) = parse_line_col(at)
-  {
-    for file in files {
-      let mut containers = vec![];
-      for item in &file.items {
-        collect_container_records(file, item, point, None, &mut containers);
-      }
-      if let Some(seed) = containers.into_iter().min_by_key(|record| {
-        record
-          .symbol
-          .range
-          .end
-          .byte
-          .saturating_sub(record.symbol.range.start.byte)
-      }) {
-        seeds.push(seed);
-      }
-    }
-  }
-  seeds
-}
-
-fn collect_container_records(
-  file: &OutlineFile,
-  item: &OutlineItem,
-  point: (usize, usize),
-  container: Option<OutlineContainer>,
-  ret: &mut Vec<OutlineRecord>,
-) {
-  if !range_contains_point(&item.range, point) {
-    return;
-  }
-  let current_container = Some(OutlineContainer {
-    name: item.name.clone(),
-    kind: item.kind,
-    kind_name: item.kind_name,
-    range: item.range.clone(),
-  });
-  ret.push(OutlineRecord {
-    path: file.path.clone(),
-    language: file.language.clone(),
-    query: "related",
-    symbol: flat_symbol(item, container),
-  });
-  for child in &item.children {
-    collect_container_records(file, child, point, current_container.clone(), ret);
-  }
-}
-
-fn related_score(
-  record: &OutlineRecord,
-  seed_names: &[String],
-  seed_paths: &[String],
-) -> Option<(f32, &'static str)> {
-  let name = record.symbol.name.as_deref().unwrap_or_default();
-  let signature = record.symbol.signature.as_deref().unwrap_or_default();
-  let path = record.path.as_str();
-  for seed in seed_names {
-    if name == seed {
-      return Some((0.95, "same-name-symbol"));
-    }
-    if !seed.is_empty() && (name.contains(seed) || signature.contains(seed)) {
-      return Some((0.80, "name-proximity"));
-    }
-    if record.symbol.role == SymbolRole::Import && item_text_contains(&record.symbol, seed) {
-      return Some((0.75, "imports-seed-module"));
-    }
-    if (record.symbol.exported || record.symbol.role == SymbolRole::Export)
-      && item_text_contains(&record.symbol, seed)
-    {
-      return Some((0.70, "exported-seed-name"));
-    }
-    let seed_lower = seed.to_lowercase();
-    if (path.contains("test") || path.contains("spec"))
-      && (name.to_lowercase().contains(&seed_lower)
-        || signature.to_lowercase().contains(&seed_lower))
-    {
-      return Some((0.60, "test-name-match"));
-    }
-  }
-  if seed_paths.iter().any(|seed_path| seed_path == path) {
-    return Some((0.50, "same-file-symbol"));
-  }
-  None
-}
-
-fn item_text_contains(symbol: &OutlineFlatSymbol, needle: &str) -> bool {
-  symbol
-    .name
-    .as_ref()
-    .is_some_and(|name| name.contains(needle))
-    || symbol
-      .signature
-      .as_ref()
-      .is_some_and(|signature| signature.contains(needle))
-}
-
-fn read_git_file(base: &str, path: &str) -> Option<String> {
-  let spec = format!("{base}:{path}");
-  let output = Command::new("git").args(["show", &spec]).output().ok()?;
-  output
-    .status
-    .success()
-    .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
-}
-
-fn filter_diff_items(items: Vec<OutlineItem>, arg: &DiffArg) -> Vec<OutlineItem> {
-  filter_tree(items, |item| {
-    (!arg.exports_only || item.exported || item.role == SymbolRole::Export)
-      && common_matches(item, &arg.common)
-  })
-}
-
-fn diff_records(
-  base: &str,
-  old_records: Vec<OutlineRecord>,
-  new_records: Vec<OutlineRecord>,
-) -> OutlineDiff {
-  let old = old_records
-    .into_iter()
-    .map(|record| (record_key(&record), record))
-    .collect::<BTreeMap<_, _>>();
-  let new = new_records
-    .into_iter()
-    .map(|record| (record_key(&record), record))
-    .collect::<BTreeMap<_, _>>();
-  let added = new
-    .iter()
-    .filter(|(key, _)| !old.contains_key(*key))
-    .map(|(_, record)| DiffRecord {
-      change: DiffChange::Added,
-      record: record.clone(),
-    })
-    .collect();
-  let removed = old
-    .iter()
-    .filter(|(key, _)| !new.contains_key(*key))
-    .map(|(_, record)| DiffRecord {
-      change: DiffChange::Removed,
-      record: record.clone(),
-    })
-    .collect();
-  OutlineDiff {
-    base: base.to_string(),
-    added,
-    removed,
-  }
-}
-
-fn record_key(record: &OutlineRecord) -> String {
-  let symbol = &record.symbol;
-  let container = symbol
-    .container
-    .as_ref()
-    .and_then(|c| c.name.as_deref())
-    .unwrap_or("");
-  format!(
-    "{}\0{}\0{}\0{:?}\0{}",
-    record.path,
-    symbol.name.as_deref().unwrap_or(""),
-    symbol.kind,
-    symbol.role,
-    container
-  )
 }
 
 fn build_walk(common: &OutlineCommonArg, supported_langs: HashSet<SgLang>) -> Result<WalkParallel> {
@@ -2102,9 +1750,6 @@ fn filter_items(
       }
       items
     }
-    OutlineQuery::Find(arg) => filter_tree(items, |item| {
-      kind_matches(item, &arg.kind) && role_matches(item, &arg.role) && common_matches(item, common)
-    }),
     OutlineQuery::Imports(arg) => {
       let imports = filter_tree(items, |item| {
         item.role == SymbolRole::Import
@@ -2125,9 +1770,6 @@ fn filter_items(
         && common_matches(item, common)
     }),
     OutlineQuery::Members(arg) => filter_members(items, arg, common),
-    OutlineQuery::Container(arg) => filter_container(items, arg),
-    OutlineQuery::Related(_) => items,
-    OutlineQuery::Diff(_) => items,
   }
 }
 
@@ -2268,67 +1910,8 @@ fn flatten_items(items: Vec<OutlineItem>) -> Vec<OutlineItem> {
   ret
 }
 
-fn filter_container(items: Vec<OutlineItem>, arg: &ContainerArg) -> Vec<OutlineItem> {
-  let Some(point) = parse_line_col(&arg.at) else {
-    return vec![];
-  };
-  let mut best = vec![];
-  for item in items {
-    if let Some(chain) = container_chain(item, point) {
-      if chain_len(&chain) > chain_len(&best) {
-        best = chain;
-      }
-    }
-  }
-  best
-}
-
-fn container_chain(mut item: OutlineItem, point: (usize, usize)) -> Option<Vec<OutlineItem>> {
-  if !range_contains_point(&item.range, point) {
-    return None;
-  }
-  let mut best_child = vec![];
-  for child in std::mem::take(&mut item.children) {
-    if let Some(chain) = container_chain(child, point) {
-      if chain_len(&chain) > chain_len(&best_child) {
-        best_child = chain;
-      }
-    }
-  }
-  if let Some(child) = best_child.into_iter().next() {
-    item.children = vec![child];
-  }
-  Some(vec![item])
-}
-
-fn chain_len(items: &[OutlineItem]) -> usize {
-  fn item_len(item: &OutlineItem) -> usize {
-    1 + item.children.first().map_or(0, item_len)
-  }
-  items.first().map_or(0, item_len)
-}
-
-fn range_contains_point(range: &OutlineRange, point: (usize, usize)) -> bool {
-  let (line, column) = point;
-  let starts_before =
-    range.start.line < line || (range.start.line == line && range.start.column <= column);
-  let ends_after = range.end.line > line || (range.end.line == line && range.end.column >= column);
-  starts_before && ends_after
-}
-
-fn parse_line_col(input: &str) -> Option<(usize, usize)> {
-  let (line, column) = input.split_once(':')?;
-  let line = line.parse::<usize>().ok()?.checked_sub(1)?;
-  let column = column.parse::<usize>().ok()?.checked_sub(1)?;
-  Some((line, column))
-}
-
 fn kind_matches(item: &OutlineItem, kinds: &[SymbolKind]) -> bool {
   kinds.is_empty() || kinds.iter().any(|kind| item.kind == kind.number())
-}
-
-fn role_matches(item: &OutlineItem, roles: &[SymbolRole]) -> bool {
-  roles.is_empty() || roles.contains(&item.role)
 }
 
 fn common_matches(item: &OutlineItem, common: &OutlineCommonArg) -> bool {
@@ -2416,77 +1999,6 @@ fn print_outline(query: &OutlineQuery, mut files: Vec<OutlineFile>) -> Result<Ex
     }
     OutlineFormat::Jsonl => {
       for record in flatten_files(query, &files) {
-        println!("{}", serde_json::to_string(&record)?);
-      }
-    }
-  }
-  Ok(ExitCode::SUCCESS)
-}
-
-fn print_diff(query: &OutlineQuery, diff: OutlineDiff) -> Result<ExitCode> {
-  match query.common().format {
-    OutlineFormat::Text => {
-      println!("base {}", diff.base);
-      for record in &diff.added {
-        print_diff_text_record(record);
-      }
-      for record in &diff.removed {
-        print_diff_text_record(record);
-      }
-    }
-    OutlineFormat::Json => {
-      println!("{}", serde_json::to_string_pretty(&diff)?);
-    }
-    OutlineFormat::Jsonl => {
-      for record in diff.added {
-        println!("{}", serde_json::to_string(&record)?);
-      }
-      for record in diff.removed {
-        println!("{}", serde_json::to_string(&record)?);
-      }
-    }
-  }
-  Ok(ExitCode::SUCCESS)
-}
-
-fn print_diff_text_record(record: &DiffRecord) {
-  let sign = match record.change {
-    DiffChange::Added => "+",
-    DiffChange::Removed => "-",
-  };
-  let symbol = &record.record.symbol;
-  println!(
-    "{} {} {:<12} {:<32} {}:{}",
-    sign,
-    record.record.path,
-    symbol.kind_name,
-    symbol.name.as_deref().unwrap_or("<anonymous>"),
-    symbol.range.start.line + 1,
-    symbol.range.start.column + 1,
-  );
-}
-
-fn print_related(query: &OutlineQuery, records: Vec<OutlineRecord>) -> Result<ExitCode> {
-  match query.common().format {
-    OutlineFormat::Text => {
-      for record in &records {
-        let symbol = &record.symbol;
-        println!(
-          "{:<20} {:<12} {:<32} {}:{} {}",
-          symbol.reason.as_deref().unwrap_or("related"),
-          symbol.kind_name,
-          symbol.name.as_deref().unwrap_or("<anonymous>"),
-          symbol.range.start.line + 1,
-          symbol.range.start.column + 1,
-          record.path,
-        );
-      }
-    }
-    OutlineFormat::Json => {
-      println!("{}", serde_json::to_string_pretty(&records)?);
-    }
-    OutlineFormat::Jsonl => {
-      for record in records {
         println!("{}", serde_json::to_string(&record)?);
       }
     }
@@ -2695,8 +2207,6 @@ fn flat_symbol(item: &OutlineItem, container: Option<OutlineContainer>) -> Outli
     exported: item.exported,
     node_kind: item.node_kind.clone(),
     container,
-    score: None,
-    reason: None,
   }
 }
 
