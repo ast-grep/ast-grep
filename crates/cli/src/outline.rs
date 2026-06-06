@@ -10,7 +10,7 @@ use ast_grep_config::{DeserializeEnv, RuleCore, SerializableRuleCore, from_str};
 use ast_grep_core::Node;
 use ast_grep_core::tree_sitter::StrDoc;
 use ast_grep_language::{Language, LanguageExt, SupportLang};
-use clap::{Args, Subcommand, ValueEnum};
+use clap::{Args, ValueEnum};
 use ignore::{DirEntry, WalkParallel, WalkState};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -22,73 +22,49 @@ type SgDoc = StrDoc<SgLang>;
 type SgNode<'a> = Node<'a, SgDoc>;
 const CHILD_DIGEST_GROUP_LIMIT: usize = 8;
 
-#[derive(Args)]
-pub struct OutlineArg {
-  #[clap(subcommand)]
-  query: OutlineQuery,
-}
-
-#[derive(Subcommand, Clone)]
-enum OutlineQuery {
-  /// Return a compact structural map of files.
-  Map(MapArg),
-  /// Return import/dependency edges.
-  Imports(ImportsArg),
-  /// Return public/exported API symbols.
-  Exports(ExportsArg),
-  /// Return children of a container symbol.
-  Members(MembersArg),
-}
-
 #[derive(Args, Clone)]
-struct MapArg {
+pub struct OutlineArg {
   #[clap(flatten)]
   common: OutlineCommonArg,
+  /// Select which outline records to display.
+  #[clap(long, default_value = "definitions", value_name = "VIEW")]
+  show: OutlineShow,
   /// Filter outline item kinds by LSP SymbolKind name.
   #[clap(long, action = clap::ArgAction::Append)]
   kind: Vec<SymbolKind>,
+  /// Filter by source role.
+  #[clap(long, action = clap::ArgAction::Append)]
+  role: Vec<SymbolRole>,
   /// Maximum nesting depth for tree output.
   #[clap(long, value_name = "NUM")]
   depth: Option<usize>,
-}
-
-#[derive(Args, Clone)]
-struct ImportsArg {
-  #[clap(flatten)]
-  common: OutlineCommonArg,
+  /// Parent symbol whose children should be displayed.
+  #[clap(long, value_name = "SYMBOL_NAME")]
+  of: Option<String>,
+  /// Disambiguate the parent symbol by LSP SymbolKind.
+  #[clap(long, value_name = "KIND")]
+  of_kind: Option<SymbolKind>,
+  /// With --of, include recursively nested members.
+  #[clap(long)]
+  recursive: bool,
   /// Filter by imported module/package/path.
   #[clap(long, value_name = "MODULE")]
   to: Option<String>,
   /// Flatten import clauses into one row per imported binding.
   #[clap(long)]
   bindings: bool,
-}
-
-#[derive(Args, Clone)]
-struct ExportsArg {
-  #[clap(flatten)]
-  common: OutlineCommonArg,
   /// Exclude re-export statements without local definitions.
   #[clap(long)]
   definitions_only: bool,
 }
 
-#[derive(Args, Clone)]
-struct MembersArg {
-  #[clap(flatten)]
-  common: OutlineCommonArg,
-  /// Containing symbol name.
-  #[clap(long, value_name = "SYMBOL_NAME")]
-  of: String,
-  /// Disambiguate the containing symbol by LSP SymbolKind.
-  #[clap(long, value_name = "KIND")]
-  of_kind: Option<SymbolKind>,
-  /// Filter member kinds by LSP SymbolKind name.
-  #[clap(long, action = clap::ArgAction::Append)]
-  kind: Vec<SymbolKind>,
-  /// Include recursively nested members.
-  #[clap(long)]
-  recursive: bool,
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+#[value(rename_all = "camelCase")]
+enum OutlineShow {
+  Definitions,
+  Imports,
+  Exports,
+  All,
 }
 
 #[derive(Args, Clone)]
@@ -273,7 +249,7 @@ struct OutlineContainer {
 struct OutlineRecord {
   path: String,
   language: String,
-  query: &'static str,
+  view: &'static str,
   symbol: OutlineFlatSymbol,
 }
 
@@ -1165,39 +1141,32 @@ extractors:
 "#;
 
 pub fn run_outline(arg: OutlineArg) -> Result<ExitCode> {
-  let query = arg.query;
-  let common = query.common();
+  let common = &arg.common;
   let mut files = if common.input.stdin {
-    vec![outline_stdin(&query)?]
+    vec![outline_stdin(&arg)?]
   } else {
-    outline_paths(&query)?
+    outline_paths(&arg)?
   };
-  apply_query(&query, &mut files);
-  print_outline(&query, files)
+  apply_view(&arg, &mut files);
+  print_outline(&arg, files)
 }
 
-impl OutlineQuery {
-  fn common(&self) -> &OutlineCommonArg {
-    match self {
-      OutlineQuery::Map(arg) => &arg.common,
-      OutlineQuery::Imports(arg) => &arg.common,
-      OutlineQuery::Exports(arg) => &arg.common,
-      OutlineQuery::Members(arg) => &arg.common,
+impl OutlineArg {
+  fn view_name(&self) -> &'static str {
+    if self.of.is_some() {
+      return "members";
     }
-  }
-
-  fn query_name(&self) -> &'static str {
-    match self {
-      OutlineQuery::Map(_) => "map",
-      OutlineQuery::Imports(_) => "imports",
-      OutlineQuery::Exports(_) => "exports",
-      OutlineQuery::Members(_) => "members",
+    match self.show {
+      OutlineShow::Definitions => "definitions",
+      OutlineShow::Imports => "imports",
+      OutlineShow::Exports => "exports",
+      OutlineShow::All => "all",
     }
   }
 }
 
-fn outline_stdin(query: &OutlineQuery) -> Result<OutlineFile> {
-  let common = query.common();
+fn outline_stdin(arg: &OutlineArg) -> Result<OutlineFile> {
+  let common = &arg.common;
   let catalog = load_outline_catalog(common)?;
   let lang = common
     .lang
@@ -1206,8 +1175,8 @@ fn outline_stdin(query: &OutlineQuery) -> Result<OutlineFile> {
   extract_outline("STDIN".into(), lang, &src, common, &catalog)
 }
 
-fn outline_paths(query: &OutlineQuery) -> Result<Vec<OutlineFile>> {
-  let common = query.common();
+fn outline_paths(arg: &OutlineArg) -> Result<Vec<OutlineFile>> {
+  let common = &arg.common;
   let common = Arc::new(common.clone());
   let catalog = Arc::new(load_outline_catalog(&common)?);
   let supported_langs = catalog.supported_langs();
@@ -1722,25 +1691,26 @@ fn go_receiver_type(signature: &str) -> Option<String> {
     .filter(|ty| !ty.is_empty())
 }
 
-fn apply_query(query: &OutlineQuery, files: &mut Vec<OutlineFile>) {
-  let common = query.common();
+fn apply_view(arg: &OutlineArg, files: &mut Vec<OutlineFile>) {
+  let common = &arg.common;
   for file in files.iter_mut() {
-    file.items = filter_items(std::mem::take(&mut file.items), query, common);
+    file.items = filter_items(std::mem::take(&mut file.items), arg, common);
   }
-  files.retain(|file| !file.items.is_empty() || matches!(query, OutlineQuery::Map(_)));
+  files.retain(|file| !file.items.is_empty() || arg.is_default_map_view());
 }
 
 fn filter_items(
   items: Vec<OutlineItem>,
-  query: &OutlineQuery,
+  arg: &OutlineArg,
   common: &OutlineCommonArg,
 ) -> Vec<OutlineItem> {
-  match query {
-    OutlineQuery::Map(arg) => {
+  if arg.of.is_some() {
+    return filter_members(items, arg, common);
+  }
+  match arg.show {
+    OutlineShow::Definitions => {
       let mut items = filter_tree(items, |item| {
-        item.role != SymbolRole::Import
-          && kind_matches(item, &arg.kind)
-          && common_matches(item, common)
+        item.role != SymbolRole::Import && item_matches(item, arg, common)
       });
       if let Some(depth) = arg.depth {
         trim_depth(&mut items, depth);
@@ -1750,27 +1720,82 @@ fn filter_items(
       }
       items
     }
-    OutlineQuery::Imports(arg) => {
-      let imports = filter_tree(items, |item| {
-        item.role == SymbolRole::Import
-          && common_matches(item, common)
-          && arg
-            .to
-            .as_ref()
-            .is_none_or(|to| item_name_contains(item, to))
-      });
-      if arg.bindings {
-        imports.into_iter().flat_map(expand_bindings).collect()
-      } else {
-        imports
-      }
-    }
-    OutlineQuery::Exports(arg) => filter_tree(items, |item| {
-      (item.exported || (!arg.definitions_only && item.role == SymbolRole::Export))
-        && common_matches(item, common)
-    }),
-    OutlineQuery::Members(arg) => filter_members(items, arg, common),
+    OutlineShow::Imports => filter_imports(items, arg, common),
+    OutlineShow::Exports => filter_exports(items, arg, common),
+    OutlineShow::All => filter_all(items, arg, common),
   }
+}
+
+impl OutlineArg {
+  fn is_default_map_view(&self) -> bool {
+    self.of.is_none() && self.show == OutlineShow::Definitions
+  }
+}
+
+fn filter_imports(
+  items: Vec<OutlineItem>,
+  arg: &OutlineArg,
+  common: &OutlineCommonArg,
+) -> Vec<OutlineItem> {
+  let imports = filter_tree(items, |item| {
+    item.role == SymbolRole::Import
+      && item_matches(item, arg, common)
+      && arg
+        .to
+        .as_ref()
+        .is_none_or(|to| item_name_contains(item, to))
+  });
+  if arg.bindings {
+    imports.into_iter().flat_map(expand_bindings).collect()
+  } else {
+    imports
+  }
+}
+
+fn filter_exports(
+  items: Vec<OutlineItem>,
+  arg: &OutlineArg,
+  common: &OutlineCommonArg,
+) -> Vec<OutlineItem> {
+  filter_tree(items, |item| {
+    (item.exported || (!arg.definitions_only && item.role == SymbolRole::Export))
+      && item_matches(item, arg, common)
+  })
+}
+
+fn filter_all(
+  items: Vec<OutlineItem>,
+  arg: &OutlineArg,
+  common: &OutlineCommonArg,
+) -> Vec<OutlineItem> {
+  let items = filter_tree(items, |item| {
+    item_matches(item, arg, common)
+      && (item.role != SymbolRole::Import
+        || arg
+          .to
+          .as_ref()
+          .is_none_or(|to| item_name_contains(item, to)))
+      && (!arg.definitions_only || item.role != SymbolRole::Export)
+  });
+  if arg.bindings {
+    expand_import_bindings(items)
+  } else {
+    items
+  }
+}
+
+fn expand_import_bindings(items: Vec<OutlineItem>) -> Vec<OutlineItem> {
+  items
+    .into_iter()
+    .flat_map(|mut item| {
+      item.children = expand_import_bindings(item.children);
+      if item.role == SymbolRole::Import {
+        expand_bindings(item)
+      } else {
+        vec![item]
+      }
+    })
+    .collect()
 }
 
 fn trim_depth(items: &mut [OutlineItem], depth: usize) {
@@ -1864,7 +1889,7 @@ fn filter_tree(
 
 fn filter_members(
   items: Vec<OutlineItem>,
-  arg: &MembersArg,
+  arg: &OutlineArg,
   common: &OutlineCommonArg,
 ) -> Vec<OutlineItem> {
   let mut ret = vec![];
@@ -1876,11 +1901,14 @@ fn filter_members(
 
 fn collect_members(
   item: OutlineItem,
-  arg: &MembersArg,
+  arg: &OutlineArg,
   common: &OutlineCommonArg,
   ret: &mut Vec<OutlineItem>,
 ) {
-  let is_container = item.name.as_deref() == Some(arg.of.as_str())
+  let Some(of) = &arg.of else {
+    return;
+  };
+  let is_container = item.name.as_deref() == Some(of.as_str())
     && arg.of_kind.is_none_or(|kind| item.kind == kind.number());
   if is_container {
     let children = if arg.recursive {
@@ -1891,7 +1919,7 @@ fn collect_members(
     ret.extend(
       children
         .into_iter()
-        .filter(|child| kind_matches(child, &arg.kind) && common_matches(child, common)),
+        .filter(|child| item_matches(child, arg, common)),
     );
   } else {
     for child in item.children {
@@ -1912,6 +1940,14 @@ fn flatten_items(items: Vec<OutlineItem>) -> Vec<OutlineItem> {
 
 fn kind_matches(item: &OutlineItem, kinds: &[SymbolKind]) -> bool {
   kinds.is_empty() || kinds.iter().any(|kind| item.kind == kind.number())
+}
+
+fn role_matches(item: &OutlineItem, roles: &[SymbolRole]) -> bool {
+  roles.is_empty() || roles.contains(&item.role)
+}
+
+fn item_matches(item: &OutlineItem, arg: &OutlineArg, common: &OutlineCommonArg) -> bool {
+  kind_matches(item, &arg.kind) && role_matches(item, &arg.role) && common_matches(item, common)
 }
 
 fn common_matches(item: &OutlineItem, common: &OutlineCommonArg) -> bool {
@@ -1984,21 +2020,21 @@ fn expand_bindings(item: OutlineItem) -> Vec<OutlineItem> {
   }
 }
 
-fn print_outline(query: &OutlineQuery, mut files: Vec<OutlineFile>) -> Result<ExitCode> {
-  let common = query.common();
+fn print_outline(arg: &OutlineArg, mut files: Vec<OutlineFile>) -> Result<ExitCode> {
+  let common = &arg.common;
   enforce_limit(&mut files, common.max_items.or(common.budget));
   match common.format {
     OutlineFormat::Text => print_text(&files),
     OutlineFormat::Json => {
       if common.flat {
-        let records = flatten_files(query, &files);
+        let records = flatten_files(arg, &files);
         println!("{}", serde_json::to_string_pretty(&records)?);
       } else {
         println!("{}", serde_json::to_string_pretty(&files)?);
       }
     }
     OutlineFormat::Jsonl => {
-      for record in flatten_files(query, &files) {
+      for record in flatten_files(arg, &files) {
         println!("{}", serde_json::to_string(&record)?);
       }
     }
@@ -2163,16 +2199,16 @@ fn kind_text_label(kind: u8) -> &'static str {
   }
 }
 
-fn flatten_files(query: &OutlineQuery, files: &[OutlineFile]) -> Vec<OutlineRecord> {
+fn flatten_files(arg: &OutlineArg, files: &[OutlineFile]) -> Vec<OutlineRecord> {
   let mut records = vec![];
   for file in files {
-    flatten_items_for_file(query.query_name(), file, &file.items, None, &mut records);
+    flatten_items_for_file(arg.view_name(), file, &file.items, None, &mut records);
   }
   records
 }
 
 fn flatten_items_for_file(
-  query: &'static str,
+  view: &'static str,
   file: &OutlineFile,
   items: &[OutlineItem],
   container: Option<OutlineContainer>,
@@ -2188,10 +2224,10 @@ fn flatten_items_for_file(
     records.push(OutlineRecord {
       path: file.path.clone(),
       language: file.language.clone(),
-      query,
+      view,
       symbol: flat_symbol(item, container.clone()),
     });
-    flatten_items_for_file(query, file, &item.children, current_container, records);
+    flatten_items_for_file(view, file, &item.children, current_container, records);
   }
 }
 
@@ -2227,7 +2263,7 @@ mod tests {
     .expect("extract outline");
     let query = map_query();
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     let records = flatten_files(&query, &files);
     assert!(
       records
@@ -2249,7 +2285,7 @@ mod tests {
     .expect("extract outline");
     let query = imports_query();
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     let records = flatten_files(&query, &files);
     assert!(records.iter().any(|r| r.symbol.role == SymbolRole::Import));
   }
@@ -2265,15 +2301,9 @@ mod tests {
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = OutlineQuery::Members(MembersArg {
-      common: test_common(),
-      of: "Parser".into(),
-      of_kind: Some(SymbolKind::Class),
-      kind: vec![SymbolKind::Method],
-      recursive: false,
-    });
+    let query = members_query("Parser", Some(SymbolKind::Class), vec![SymbolKind::Method]);
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     assert_eq!(files[0].items.len(), 1);
     assert_eq!(files[0].items[0].name.as_deref(), Some("parse"));
     assert!(!files[0].items[0].exported);
@@ -2307,7 +2337,7 @@ export function retry() {
     .expect("extract outline");
     let query = map_query();
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     let records = flatten_files(&query, &files);
     assert!(
       records
@@ -2376,7 +2406,7 @@ public record Rec(int id) {}
     .expect("extract outline");
     let query = map_query();
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     let records = flatten_files(&query, &files);
     assert!(
       records
@@ -2399,13 +2429,7 @@ public record Rec(int id) {}
         .iter()
         .all(|r| r.symbol.name.as_deref() != Some("bar"))
     );
-    let query = OutlineQuery::Members(MembersArg {
-      common: test_common(),
-      of: "Foo".into(),
-      of_kind: Some(SymbolKind::Class),
-      kind: vec![],
-      recursive: false,
-    });
+    let query = members_query("Foo", Some(SymbolKind::Class), vec![]);
     let file = extract_outline(
       PathBuf::from("test.java"),
       SgLang::Builtin(SupportLang::Java),
@@ -2415,7 +2439,7 @@ public record Rec(int id) {}
     )
     .expect("extract outline");
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     let records = flatten_files(&query, &files);
     assert!(records.iter().any(|r| {
       r.symbol.name.as_deref() == Some("SIZE") && r.symbol.kind == SymbolKind::Constant.number()
@@ -2423,10 +2447,7 @@ public record Rec(int id) {}
     assert!(records.iter().any(|r| {
       r.symbol.name.as_deref() == Some("bar") && r.symbol.kind == SymbolKind::Method.number()
     }));
-    let query = OutlineQuery::Exports(ExportsArg {
-      common: test_common(),
-      definitions_only: true,
-    });
+    let query = exports_query(true);
     let file = extract_outline(
       PathBuf::from("test.java"),
       SgLang::Builtin(SupportLang::Java),
@@ -2436,7 +2457,7 @@ public record Rec(int id) {}
     )
     .expect("extract outline");
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     assert!(
       files[0]
         .items
@@ -2472,15 +2493,9 @@ interface I {}
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = OutlineQuery::Members(MembersArg {
-      common: test_common(),
-      of: "Foo".into(),
-      of_kind: Some(SymbolKind::Class),
-      kind: vec![],
-      recursive: false,
-    });
+    let query = members_query("Foo", Some(SymbolKind::Class), vec![]);
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     assert!(
       files[0]
         .items
@@ -2493,10 +2508,7 @@ interface I {}
         .iter()
         .any(|item| item.name.as_deref() == Some("bar"))
     );
-    let query = OutlineQuery::Exports(ExportsArg {
-      common: test_common(),
-      definitions_only: true,
-    });
+    let query = exports_query(true);
     let file = extract_outline(
       PathBuf::from("test.kt"),
       SgLang::Builtin(SupportLang::Kotlin),
@@ -2506,7 +2518,7 @@ interface I {}
     )
     .expect("extract outline");
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     assert!(
       files[0]
         .items
@@ -2544,7 +2556,7 @@ public typealias Alias = String
     .expect("extract outline");
     let query = map_query();
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     let records = flatten_files(&query, &files);
     assert!(
       records
@@ -2560,13 +2572,7 @@ public typealias Alias = String
     assert!(records.iter().any(|r| {
       r.symbol.name.as_deref() == Some("Mode") && r.symbol.kind == SymbolKind::Enum.number()
     }));
-    let query = OutlineQuery::Members(MembersArg {
-      common: test_common(),
-      of: "Foo".into(),
-      of_kind: Some(SymbolKind::Class),
-      kind: vec![],
-      recursive: false,
-    });
+    let query = members_query("Foo", Some(SymbolKind::Class), vec![]);
     let file = extract_outline(
       PathBuf::from("test.swift"),
       SgLang::Builtin(SupportLang::Swift),
@@ -2576,7 +2582,7 @@ public typealias Alias = String
     )
     .expect("extract outline");
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     assert!(
       files[0]
         .items
@@ -2610,7 +2616,7 @@ open class Session: @unchecked Sendable {
     .expect("extract outline");
     let query = map_query();
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     let records = flatten_files(&query, &files);
     assert!(records.iter().any(|r| {
       r.symbol.name.as_deref() == Some("Session") && r.symbol.kind == SymbolKind::Class.number()
@@ -2648,7 +2654,7 @@ func standalone() {}
     .expect("extract outline");
     let query = map_query();
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     let records = flatten_files(&query, &files);
     assert!(
       records
@@ -2683,13 +2689,9 @@ func standalone() {}
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = OutlineQuery::Map(MapArg {
-      common: test_common(),
-      kind: vec![],
-      depth: Some(2),
-    });
+    let query = map_query_with_depth(2);
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     let records = flatten_files(&query, &files);
     assert!(
       records
@@ -2705,15 +2707,9 @@ func standalone() {}
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = OutlineQuery::Members(MembersArg {
-      common: test_common(),
-      of: "RouterGroup".into(),
-      of_kind: None,
-      kind: vec![SymbolKind::Method],
-      recursive: false,
-    });
+    let query = members_query("RouterGroup", None, vec![SymbolKind::Method]);
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     let names = files[0]
       .items
       .iter()
@@ -2740,7 +2736,7 @@ func standalone() {}
     .expect("extract outline");
     let query = map_query();
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     assert!(files[0].items.iter().all(|item| item.children.is_empty()));
   }
 
@@ -2755,13 +2751,9 @@ func standalone() {}
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = OutlineQuery::Map(MapArg {
-      common: test_common(),
-      kind: vec![],
-      depth: Some(2),
-    });
+    let query = map_query_with_depth(2);
     let mut files = vec![file];
-    apply_query(&query, &mut files);
+    apply_view(&query, &mut files);
     assert!(files[0].items.iter().any(|item| !item.children.is_empty()));
   }
 
@@ -2795,14 +2787,7 @@ extractors:
       &load_outline_catalog(&common).expect("load outline catalog"),
     )
     .expect("extract outline");
-    let records = flatten_files(
-      &OutlineQuery::Map(MapArg {
-        common,
-        kind: vec![],
-        depth: None,
-      }),
-      &[file],
-    );
+    let records = flatten_files(&outline_arg_with_common(common), &[file]);
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].symbol.name.as_deref(), Some("custom"));
     assert_eq!(records[0].symbol.kind, SymbolKind::Function.number());
@@ -2846,19 +2831,50 @@ extractors:
     load_outline_catalog(&test_common()).expect("load outline catalog")
   }
 
-  fn map_query() -> OutlineQuery {
-    OutlineQuery::Map(MapArg {
-      common: test_common(),
+  fn outline_arg_with_common(common: OutlineCommonArg) -> OutlineArg {
+    OutlineArg {
+      common,
+      show: OutlineShow::Definitions,
       kind: vec![],
+      role: vec![],
       depth: None,
-    })
-  }
-
-  fn imports_query() -> OutlineQuery {
-    OutlineQuery::Imports(ImportsArg {
-      common: test_common(),
+      of: None,
+      of_kind: None,
+      recursive: false,
       to: None,
       bindings: false,
-    })
+      definitions_only: false,
+    }
+  }
+
+  fn map_query() -> OutlineArg {
+    outline_arg_with_common(test_common())
+  }
+
+  fn map_query_with_depth(depth: usize) -> OutlineArg {
+    let mut arg = map_query();
+    arg.depth = Some(depth);
+    arg
+  }
+
+  fn imports_query() -> OutlineArg {
+    let mut arg = map_query();
+    arg.show = OutlineShow::Imports;
+    arg
+  }
+
+  fn exports_query(definitions_only: bool) -> OutlineArg {
+    let mut arg = map_query();
+    arg.show = OutlineShow::Exports;
+    arg.definitions_only = definitions_only;
+    arg
+  }
+
+  fn members_query(of: &str, of_kind: Option<SymbolKind>, kind: Vec<SymbolKind>) -> OutlineArg {
+    let mut arg = map_query();
+    arg.of = Some(of.to_string());
+    arg.of_kind = of_kind;
+    arg.kind = kind;
+    arg
   }
 }

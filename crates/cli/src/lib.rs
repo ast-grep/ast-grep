@@ -339,10 +339,10 @@ mod test_cli {
 
   #[test]
   fn test_outline() {
-    ok("outline map crates/cli/src --format jsonl --budget 20");
-    ok("outline map crates/cli/src --outline-rules outline.yml --no-default-outline-rules");
-    ok("outline imports crates/cli/src/run.rs --to ast-grep-config --format json");
-    ok("outline exports crates/config/src --definitions-only");
-    ok("outline members crates/cli/src/lib.rs --of Commands --of-kind enum");
+    ok("outline crates/cli/src --format jsonl --budget 20");
+    ok("outline crates/cli/src --outline-rules outline.yml --no-default-outline-rules");
+    ok("outline crates/cli/src/run.rs --show imports --to ast-grep-config --format json");
+    ok("outline crates/config/src --show exports --definitions-only");
+    ok("outline crates/cli/src/lib.rs --of Commands --of-kind enum");
   }
 }

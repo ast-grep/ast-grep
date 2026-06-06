@@ -31,7 +31,7 @@ class ValidateRunDirTest(unittest.TestCase):
     def test_allows_map_depth(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = Path(tmp)
-            write_run_dir(run_dir, with_command="ast-grep outline map /repo --depth 2")
+            write_run_dir(run_dir, with_command="ast-grep outline /repo --depth 2")
 
             self.assertEqual(benchmark.validate_run_dir(run_dir), [])
 
@@ -40,7 +40,7 @@ class ValidateRunDirTest(unittest.TestCase):
             run_dir = Path(tmp)
             write_run_dir(
                 run_dir,
-                with_command="ast-grep outline map /repo --format json",
+                with_command="ast-grep outline /repo --format json",
             )
 
             issues = benchmark.validate_run_dir(run_dir)
@@ -50,12 +50,12 @@ class ValidateRunDirTest(unittest.TestCase):
                 issues,
             )
 
-    def test_allows_v1_outline_subcommands(self) -> None:
+    def test_allows_v1_outline_views(self) -> None:
         for command in (
-            "ast-grep outline map /repo",
-            "ast-grep outline members /repo --of RouterGroup",
-            "ast-grep outline imports /repo",
-            "ast-grep outline exports /repo",
+            "ast-grep outline /repo",
+            "ast-grep outline /repo --of RouterGroup",
+            "ast-grep outline /repo --show imports",
+            "ast-grep outline /repo --show exports",
         ):
             with self.subTest(command=command):
                 with tempfile.TemporaryDirectory() as tmp:
@@ -79,7 +79,7 @@ class ValidateRunDirTest(unittest.TestCase):
     def test_rejects_outline_in_without_arm(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = Path(tmp)
-            write_run_dir(run_dir, without_command="ast-grep outline map /repo")
+            write_run_dir(run_dir, without_command="ast-grep outline /repo")
 
             issues = benchmark.validate_run_dir(run_dir)
 
@@ -92,7 +92,7 @@ class ValidateRunDirTest(unittest.TestCase):
 def write_run_dir(
     run_dir: Path,
     *,
-    with_command: str = "ast-grep outline map /repo",
+    with_command: str = "ast-grep outline /repo",
     without_command: str = "rg QuerySet /repo",
     with_tool_result: str = "ok",
     without_tool_result: str = "ok",
