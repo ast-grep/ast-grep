@@ -53,9 +53,9 @@ class ValidateRunDirTest(unittest.TestCase):
     def test_allows_v1_outline_views(self) -> None:
         for command in (
             "ast-grep outline /repo",
-            "ast-grep outline /repo --of RouterGroup",
-            "ast-grep outline /repo --show imports",
-            "ast-grep outline /repo --show exports",
+            "ast-grep outline /repo --match RouterGroup --depth 2",
+            "ast-grep outline /repo --role import",
+            "ast-grep outline /repo --role export",
         ):
             with self.subTest(command=command):
                 with tempfile.TemporaryDirectory() as tmp:

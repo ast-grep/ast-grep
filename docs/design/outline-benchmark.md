@@ -91,7 +91,7 @@ Each scenario runs in two arms:
 
 | Arm | Setup |
 | --- | --- |
-| `with-outline` | Claude receives an extra system prompt telling it to use normal file discovery first, then `ast-grep outline` for compact structure on candidate files/subtrees. The arm uses one v1 structural primitive with focused views: default outline output, `--of`, `--show imports`, and `--show exports`. The default view is top-level, and `--of` is preferred after a parent symbol is known. |
+| `with-outline` | Claude receives an extra system prompt telling it to use normal file discovery first, then `ast-grep outline` for compact structure on candidate files/subtrees. The arm uses one v1 structural primitive with role facets: default definition output, `--role import`, `--role export`, and `--match <symbol> --depth 2` after a parent symbol is known. |
 | `without-outline` | Claude receives a system prompt forbidding `ast-grep outline` and `sg outline`. Normal Read/Grep/Glob/Bash exploration remains available. |
 
 Both arms can use:
@@ -119,9 +119,9 @@ The runner isolates Claude Code from user/project customization:
 The runner still uses Claude Code `--output-format stream-json` so it can parse
 cost, token, time, tool-call, and init-event telemetry. That does not require
 the agent's answer to be JSON. The outline prompt tells the agent to discover
-files with normal tools first, avoid whole-repo outline calls, treat the default view as
-a top-level file signature, use `--of` only after identifying a parent symbol, and then
-read implementation details with concrete line evidence.
+files with normal tools first, avoid whole-repo outline calls, treat the default output
+as a top-level file signature, use `--match <symbol> --depth 2` only after identifying a
+parent symbol, and then read implementation details with concrete line evidence.
 
 Runs are paired by scenario and iteration. By default the runner uses
 `--arm-order balanced`, which runs `with-outline` first on odd iterations and
