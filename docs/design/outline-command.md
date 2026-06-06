@@ -1,71 +1,60 @@
 # Outline Command Design
 
-## Summary
+## Problem
 
-Add a new top-level `outline` subcommand to ast-grep:
+Add a top-level `outline` subcommand to ast-grep:
 
 ```sh
 sg outline [OPTIONS] [PATHS]...
 ```
 
-The command is an AI-agent-friendly structural code intelligence primitive. It parses
-source files through ast-grep/tree-sitter and answers navigation questions such as:
+`outline` is a compact code-structure primitive for humans and interactive coding
+agents. It parses source files through ast-grep/tree-sitter and answers local
+navigation questions:
 
-- What symbols are in these files?
+- What symbols are in this file or subtree?
 - What does this file import?
 - What does this module export?
 - What members belong to this class, struct, enum, interface, function, or module?
 
-The supported surface is deliberately small: one `outline` command with role,
-anchor, and member-presentation options. The default role selection is a compact
-structural map. Imports, exports, and member details are projections over the same
-extracted outline records, not separate command families. Other useful workflows, such
-as reviewing changed files after an edit, should be composed from this primitive and
-existing tools like `git diff`.
-
-The symbol kind model should follow the Language Server Protocol `SymbolKind` enum so
-the output can be consumed by editors and downstream tools without ast-grep-specific
-symbol categories.
-
-## Design Principle
-
-AI agents do not primarily need a pretty document outline. They need compact,
-machine-readable answers that help decide which file or range to open next.
-
-The ideal command should therefore expose focused role selections over one structural model:
-
-```sh
-sg outline crates/cli/src
-sg outline crates --role import --match ast-grep-config
-sg outline crates/config/src --role export
-sg outline crates/cli/src/lib.rs --match Commands --kind enum --members lines
-```
-
-Each role selection should answer a navigation question directly without creating separate
-subcommands for data already present in the outline.
+The command should stay narrow. It extracts one structural model per file, then projects
+that model with role filters, name/kind filters, and member presentation options. It
+should not grow separate subcommands for import lookup, export lookup, symbol lookup,
+container lookup, related-code discovery, or structural diffs.
 
 ## Goals
 
-- Give AI agents a cheap first pass over unfamiliar code before reading full files.
+- Give agents a cheap first pass over unfamiliar code before reading full files.
 - Return precise file/range metadata so agents can open the smallest useful slice.
-- Reuse ast-grep's existing language detection, custom language configuration, ignore
-  handling, glob filtering, stdin support, and parallel file walking.
-- Use ast-grep rules for extraction logic rather than raw tree-sitter queries.
-- Keep symbol kinds LSP-compatible.
-- Use concise human-readable text as the default output.
-- Support `--json` when agents need to transform, extract, or post-process outline data.
-- Keep default text output compact enough for model context.
+- Use ast-grep rules for extraction logic, not raw tree-sitter query captures.
+- Reuse ast-grep language detection, custom language configuration, ignore handling,
+  glob filtering, stdin support, and parallel file walking.
+- Keep symbol kinds compatible with LSP `SymbolKind`.
+- Use concise text as the default output for interactive use.
+- Support `--json` for scripts and agents that need structured records.
 
 ## Non-Goals
 
 - This command is not a replacement for `run` or `scan`.
 - This command does not perform rewriting, linting, or rule evaluation.
-- This command does not provide full semantic resolution.
-- This command does not answer call graph or type-resolution questions.
-- Import/export semantics may be approximate for languages where syntax alone cannot
-  express the full module system.
+- This command does not provide semantic resolution, type resolution, references, call
+  graph edges, or data-flow edges.
+- Import/export semantics may be approximate when syntax alone cannot express a
+  language's full module system.
 
-## Ideal Interface
+## Glossary
+
+| Term | Meaning |
+| --- | --- |
+| Record | One extracted outline fact: name, kind, roles, range, signature, and optional children. |
+| Role | A facet that explains which question a record answers: `definition`, `import`, or `export`. Roles are not mutually exclusive. |
+| Anchor | A selected top-level record after `--role`, `--kind`, and `--match` filters. Member output is attached to anchors. |
+| Member | A direct structural child of an anchor, such as a field, method, constructor, enum variant, or direct namespace/module declaration. |
+| Range | Full AST node range for the record. |
+| Selection range | Narrow range of the symbol name when available. |
+| Member digest | Grouped member names rendered on one compact line, such as `method: parse, recover`. |
+
+## Public CLI Contract
 
 ```sh
 sg outline [OPTIONS] [PATHS]...
@@ -73,56 +62,28 @@ sg outline [OPTIONS] [PATHS]...
 
 Default behavior:
 
-```text
-sg outline <path>    Return a compact structural map of files.
+```sh
+sg outline <path>
 ```
 
-Role facets are selected with options:
+This returns text output with local definitions and grouped direct member names. It is
+the default because it is readable and token-efficient for interactive agents.
 
-```text
---role definition    Show local definitions. Default.
---role import        Show import/dependency records.
---role export        Show public/export records.
---role any           Show definitions, imports, exports, and mixed-role records.
-```
-
-`--role` selects records whose `roles` contain the requested facet or facets. `--match`
-and other filters select anchor items within that role selection. `--members` controls
-whether each selected anchor shows no members, grouped member names, or member source
-lines.
-
-Output defaults:
-
-```text
-Default               text
---json                pretty-printed structured output
---json=compact        compact structured output
---json=stream         newline-delimited records for pipelines and bulk analysis
-```
-
-Interactive coding agents should usually use default text because it is token-efficient
-and directly readable. They should request `--json` only when they need to transform,
-extract, join, or programmatically compare outline records.
-
-## Options
-
-The public option surface should stay small and composable. The command should not add a
-general filter DSL; it should expose simple filters over outline records.
-
-Core options:
+### Core Options
 
 ```text
 --json[=<pretty|compact|stream>]
-                          Output structured JSON. Matches ast-grep's existing JSON flag.
+                          Output structured JSON. Follows ast-grep's existing
+                          `--json` flag shape.
 --role <definition|import|export|any[,..]>
-                          Select records by role facet. Repeatable. Default: definition.
+                          Select records by role. Repeatable. Default: definition.
 --kind <KIND[,KIND...]>  LSP SymbolKind filter.
---match <REGEX>          Regex pattern over role-relevant fields. Repeatable.
+--match <REGEX>          Regex over role-relevant fields. Repeatable.
 --members <none|names|lines>
-                          Control structural member presentation. Default: names.
+                          Control direct member presentation. Default: names.
 ```
 
-Advanced input and extractor options:
+Input and extractor options:
 
 ```text
 --lang <LANG>            Parse input as a specific language.
@@ -136,211 +97,170 @@ Advanced input and extractor options:
 --threads <NUM>          Reuse ast-grep parallel walk controls.
 ```
 
-`--match` is deliberately not a DSL. It is a regular expression, like ripgrep's
-pattern argument, applied to the useful text fields for the current role selection:
+The current design intentionally does not include `--limit`. See
+[Future Expansion: Bounded Output](#future-expansion-bounded-output).
+
+## CLI Semantics
+
+### Role Selection
+
+Every record has one or more roles:
+
+```text
+definition    Local declaration or implementation.
+import        Dependency edge.
+export        Public/exported surface.
+```
+
+`--role` filters records by role membership:
+
+```text
+default / --role definition     local definitions
+--role import                   imports and dependency edges
+--role export                   exported/public records
+--role definition,export        exported records implemented locally
+--role import,export            exports forwarded from another module
+--role definition --role import local definitions or imports
+--role any                      no role filtering
+```
+
+Comma-separated roles inside one `--role` are ANDed because roles are facets on one
+record. Repeated `--role` flags are ORed. `--role any` should not be combined with other
+role filters.
+
+Examples:
+
+```sh
+sg outline src
+sg outline src --role import
+sg outline src --role export
+sg outline src --role definition,export
+sg outline src --role import,export
+sg outline src --role definition --role import
+```
+
+### Match And Kind Filters
+
+`--match <REGEX>` and `--kind <KIND>` select anchors inside the current role selection.
+
+`--match` is deliberately not a custom DSL. It is a regular expression, like ripgrep's
+pattern argument, applied to useful fields:
 
 - definitions: symbol name, source line, signature, and container name.
 - imports: imported target, binding name, alias, and source line.
 - exports: exported name, re-export target, alias, source line, and container name.
 
-Simple filters select anchor items. With no anchor filters, top-level items in the
-current role selection are anchors. With anchor filters, matching items become anchors.
-Different filter types are ANDed together. Comma-separated values inside `--kind` are
-ORed. Comma-separated values inside one `--role` are ANDed because roles are facets on
-one record: `--role definition,export` means "records that are both local definitions
-and exports." Repeating `--role` is ORed across role criteria: `--role definition
---role import` means "definitions or imports." `--role any` means no role filtering and
-should not be combined with other role criteria. Repeating `--match` is also ORed.
-Members included by `--members` do not need to match the anchor filters; they are
-preserved because they explain the matched item.
-
-`--members` is intentionally not a generic AST depth option. `outline` is a file-level
-structure command, so it should expose top-level declarations and their structural
-members, not arbitrary nested blocks. The modes are:
+Filter composition:
 
 ```text
---members none    Show selected anchors only.
---members names   Show selected anchors plus grouped direct member names. Default.
---members lines   Show selected anchors plus one source/signature line per direct member.
+--kind values separated by comma     OR
+repeated --match                     OR
+different filter types               AND
 ```
 
-Structural members include fields, properties, methods, constructors, enum variants,
-interface/type members, impl/extension members, and declarations directly inside
-modules or namespaces. For JavaScript and TypeScript only, named function declarations
-inside a function body are also members of the containing function, because large
-JS/TS files often use local helper functions as part of a function's navigable
-structure. Other function-body locals are not part of the file outline.
+Members attached by `--members` do not need to match the filters. They are preserved
+because they explain the matched anchor.
 
-Suggested applicability:
-
-| Option group | Applies to | Intent |
-| --- | --- | --- |
-| Role selection: `--role` | all outline records | Choose definitions, imports, exports, mixed-role records, or all records. |
-| Anchor filters: `--kind`, `--match` | extracted records | Select anchor items without a query language. |
-| Output shape: `--json`, `--members` | all role selections where meaningful | Choose text versus machine output and whether member names or member lines are shown. |
-| Input and extractor configuration: `--lang`, `--stdin`, `--globs`, ignore/walk options, `--outline-rules` | all role selections | Reuse ast-grep's existing input model and rule catalog. |
-
-## View Details
-
-### Default Structural Map
-
-Purpose: answer "what is in these files?"
+Examples:
 
 ```sh
-sg outline crates/cli/src
-sg outline crates/cli/src/scan.rs --members names
+sg outline crates --kind struct,enum,interface
+sg outline crates --role export --match 'Config|Rule|Scan|Verify'
+sg outline src/parser.ts --match Parser --kind class --members lines
 ```
-
-Ideal behavior:
-
-- Summarizes each file's top-level symbols.
-- Defaults to grouped direct member names.
-- Includes counts by kind and role facet.
-- Can return one record per file or one record per top-level symbol.
-
-This is the agent's first pass over an unfamiliar area.
-
-### Import Role
-
-Purpose: answer "what does this file depend on?" and "who depends on this module?"
-
-```sh
-sg outline crates/cli/src/run.rs --role import
-sg outline crates --role import --match ast-grep-config
-sg outline crates/cli/src/run.rs --role import --members lines
-```
-
-Ideal behavior:
-
-- For a file, lists imported modules and imported bindings.
-- Across a directory, acts like a dependency-edge view.
-- Emits source path, imported module, imported binding, alias, and range.
-
-Import filtering should use `--match`; import bindings, when extracted, should be
-represented as member records and shown with `--members lines` instead of a separate
-flattening flag.
-
-### Export Role
-
-Purpose: answer "what is the visible API?"
-
-```sh
-sg outline crates/config/src --role export
-sg outline crates/cli/src/run.rs --role export
-```
-
-Ideal behavior:
-
-- Includes public definitions and re-exports.
-- Uses multi-role records so `pub struct Foo {}` is one record with
-  `roles: ["definition", "export"]`, and `pub use internal_mod as api` is one record
-  with `roles: ["import", "export"]`.
-- Can compare public surface before and after edits.
-
-Use `--role definition,export` when the agent only wants locally defined public API:
-
-```sh
-sg outline crates/config/src --role definition,export
-```
-
-This keeps exported definitions such as `pub struct Foo {}` or `export function foo()`,
-but excludes export-only edges such as `export { foo as bar }` and re-exported imports
-such as `export { foo as bar } from "./mod"` or `pub use internal::Foo`.
-
-Use `--role import,export` to focus on exports forwarded from another module:
-
-```sh
-sg outline crates/config/src --role import,export
-```
-
-The broader `--role export` result still includes all export records, and its output
-roles/source lines let agents distinguish local definitions, local export edges, and
-forwarded exports without needing a negative-role option.
-
-### Role Query Recipes
-
-Common role selections map directly to code-understanding questions:
-
-```sh
-sg outline src
-```
-
-Lists local definitions. This is the default structural map: "what is implemented
-here?"
-
-```sh
-sg outline src --role import
-```
-
-Lists dependency edges: "what does this code depend on?"
-
-```sh
-sg outline src --role export
-```
-
-Lists the full public/export surface: local exported definitions, export-only aliases,
-and re-exported imports.
-
-```sh
-sg outline src --role definition,export
-```
-
-Lists public API implemented locally. This helps distinguish ownership from forwarding
-modules.
-
-```sh
-sg outline src --role import,export
-```
-
-Lists public API forwarded from another module, such as `export { Foo } from "./foo"`
-or `pub use foo::Foo`.
-
-```sh
-sg outline src --role definition --role import
-```
-
-Lists local implementation plus dependencies while excluding export-only aliases. This
-is useful when an agent wants to understand a file's implementation context before
-editing.
-
-```sh
-sg outline src --role any --match Auth --members names
-```
-
-Lists every structural fact around a concept: definitions, imports, exports, mixed-role
-records, and direct member names.
 
 ### Member Presentation
 
-Purpose: answer "what belongs to this class, struct, enum, interface, trait, impl, or
-module?"
-
-```sh
-sg outline src/parser.ts --match Parser --members lines
-sg outline crates/core/src/node.rs --match Node --kind struct --members lines
-```
-
-Ideal behavior:
-
-- Uses `--match` and `--kind` to select anchor items.
-- Uses `--members names` for a compact member digest.
-- Uses `--members lines` for exact member source/signature lines.
-- Returns direct member ranges without forcing the agent to read the whole parent body.
-
-Suggested options:
+`outline` is a file-level structure command, not a generic AST-depth command. It exposes
+top-level declarations and their direct structural members. It does not recursively dump
+arbitrary nested blocks.
 
 ```text
---match <TEXT>           Select parent symbols by name or source line.
---kind <KIND[,KIND...]>  Disambiguate same-name symbols.
---members <MODE>         Choose none, names, or source/signature lines for members.
+--members none     Show selected anchors only.
+--members names    Show selected anchors plus grouped direct member names. Default.
+--members lines    Show selected anchors plus one source/signature line per direct member.
 ```
+
+Structural members include:
+
+- fields and properties
+- methods and constructors
+- enum variants/cases/members
+- interface, trait, type, impl, and extension members
+- declarations directly inside modules or namespaces
+
+For JavaScript and TypeScript only, named function declarations inside a function body
+are also members of the containing function. Large JS/TS files often use local helper
+functions as part of a function's navigable structure. Other function-body locals are
+not part of the file outline.
+
+Examples:
+
+```sh
+sg outline src/parser.ts --match Parser --members names
+sg outline src/parser.ts --match Parser --members lines
+sg outline src/checker.ts --match checkTypeRelatedTo --members lines
+```
+
+### Output Mode
+
+Text is the default output.
+
+```text
+default          text
+--json           pretty-printed JSON
+--json=compact   compact JSON
+--json=stream    newline-delimited records
+```
+
+Interactive agents should usually use text. They should request `--json` only when they
+need to transform, extract, join, or programmatically compare outline records.
 
 ## Output Contract
 
-Text is the default output because it is the most useful format for interactive coding
-agents. JSON is opt-in for scripts, pipelines, and agent workflows that need to
-transform or compare records. `--json=stream` emits newline-delimited records; every
-streamed record should be independently useful:
+### Text Output
+
+Text output should prefer source lines and compact member digests over raw metadata.
+It should not print role labels by default.
+
+Default `--members names`:
+
+```text
+src/parser.ts
+function:
+12: export function parseRule(...)
+
+class:
+40: export class Parser
+  method: parse, recover
+```
+
+With `--members lines`:
+
+```text
+src/parser.ts
+function:
+12: export function parseRule(...)
+
+class:
+40: export class Parser
+44:   parse(...)
+73:   recover(...)
+```
+
+Empty direct file input should be explicit:
+
+```text
+src/empty.ts
+nothing found
+```
+
+### JSON Output
+
+`--json` returns grouped file output. `--json=stream` returns one independently useful
+record per line.
+
+Streamed record shape:
 
 ```json
 {
@@ -366,20 +286,7 @@ streamed record should be independently useful:
 }
 ```
 
-Important properties:
-
-- `path` is always present.
-- `range` is always present, so an agent can open a precise slice.
-- `kind` uses LSP `SymbolKind`.
-- `roles` is a non-empty array of facets such as `definition`, `import`, and `export`.
-  A single record can have multiple roles.
-- `container` is present in flat output as parent-symbol metadata; this is not a
-  standalone `container` command.
-- `signature` is short and body-free.
-- `memberDigest` is present when `--members names` has grouped direct members for the
-  record.
-
-Grouped JSON can use an LSP-like tree shape for single-file outline output:
+Grouped file shape:
 
 ```json
 {
@@ -415,35 +322,79 @@ Grouped JSON can use an LSP-like tree shape for single-file outline output:
 }
 ```
 
-Text output should remain concise and human-readable:
+Important properties:
 
-Default `--members names`:
+- `path` is always present.
+- `range` is always present, so an agent can open a precise slice.
+- `selectionRange` points to the symbol name when available.
+- `kind` and `kindName` use LSP `SymbolKind`.
+- `roles` is a non-empty array.
+- `memberDigest` is present when `--members names` has grouped direct members.
+- `container` is present in stream output for parent-symbol metadata.
 
-```text
-src/parser.ts
-function:
-12: export function parseRule(...)
+## Agent Examples
 
-class:
-40: export class Parser
-  method: parse, recover
+### Understand A Large File Before Editing
+
+```sh
+sg outline crates/cli/src/scan.rs
+sg outline crates/cli/src/scan.rs --role import
+sg outline crates/cli/src/scan.rs --role export
 ```
 
-With `--members lines`:
+This gives a table of contents, dependencies, and public entry points before the agent
+reads implementation details.
 
-```text
-src/parser.ts
-function:
-12: export function parseRule(...)
+### Add A CLI Subcommand
 
-class:
-40: export class Parser
-44:   parse(...)
-73:   recover(...)
+```sh
+sg outline crates/cli/src --kind enum,struct,function
+sg outline crates/cli/src/lib.rs --match Commands --kind enum --members lines
+sg outline crates/cli/src --role export --match 'Arg|run_'
 ```
 
-Text output should prefer the source line and indentation over exposing raw role labels.
-Machine output carries exact `roles` for filtering.
+This finds command enums, argument structs, run functions, and public API surfaces
+without reading every CLI file.
+
+### Trace Dependency Direction
+
+```sh
+sg outline crates --role import --match ast-grep-config
+sg outline crates/cli/src --role import --match ast-grep-core
+```
+
+This identifies files that depend on a module or package. The agent can then decide
+whether a change belongs near the importer or exported API.
+
+### Inspect A Matched Parent Symbol
+
+```sh
+sg outline src/parser.ts --match Parser --members lines
+sg outline crates/core/src/node.rs --match Node --kind struct --members lines
+```
+
+This lists direct members without reading the whole parent body. `--kind` disambiguates
+same-name symbols.
+
+### Inspect Changed Files After Editing
+
+```sh
+git diff --name-only HEAD
+sg outline <changed-files>
+sg outline <changed-files> --role export
+```
+
+Git remains the source of truth for what changed. `outline` summarizes the current
+structure and public surface of those changed files.
+
+### Build A Structured Symbol Inventory
+
+```sh
+sg outline crates --json=stream
+```
+
+This is the machine-readable mode for ranking candidates by path, kind, name, roles, and
+container. It is not the default interactive-agent mode.
 
 ## Data Model
 
@@ -489,10 +440,9 @@ pub enum SymbolRole {
   Import,
   Export,
 }
-
 ```
 
-Internal grouped item:
+Grouped item:
 
 ```rust
 pub struct OutlineItem {
@@ -517,7 +467,7 @@ pub struct OutlineFile {
 }
 ```
 
-Flat record for `--json=stream`:
+Streamed record:
 
 ```rust
 pub struct OutlineRecord {
@@ -548,52 +498,16 @@ pub struct OutlineContainer {
 }
 ```
 
-`range` is the full AST node range. `selection_range` is the range of the symbol name
-when available. This mirrors LSP `DocumentSymbol`.
+### Roles Are Facets
 
-`kind` must remain LSP-compatible. `roles` is ast-grep outline metadata that explains
-which role selections the record belongs to. This is needed because imports, exports,
-and ordinary definitions can share the same LSP `SymbolKind`, and because one source
-construct can belong to multiple role selections.
-
-## Symbol Mapping
-
-Do not introduce custom symbol kinds for imports or exports. Map source constructs to
-existing LSP symbol kinds and use `roles`, `target`, and `alias` metadata to preserve
-import/export meaning.
-
-| Source construct | SymbolKind |
-| --- | --- |
-| File-level source unit | `File` |
-| ES import, Rust `use`, Python import, Go import | `Module` |
-| Module declaration | `Module` |
-| Namespace declaration | `Namespace` |
-| Package declaration | `Package` |
-| Class declaration | `Class` |
-| Method declaration | `Method` |
-| Object/class property | `Property` |
-| Struct/class field | `Field` |
-| Constructor | `Constructor` |
-| Enum declaration | `Enum` |
-| Interface, trait, protocol | `Interface` |
-| Free function | `Function` |
-| Local or top-level variable | `Variable` |
-| Constant declaration | `Constant` |
-| Object/map key | `Key` |
-| Enum member or variant | `EnumMember` |
-| Struct declaration | `Struct` |
-| Event declaration | `Event` |
-| Operator overload | `Operator` |
-| Type parameter or generic parameter | `TypeParameter` |
-
-Roles are facets, not mutually exclusive categories. A source construct can answer more
-than one outline question:
+Roles are facets, not mutually exclusive categories. One source construct can answer
+more than one question.
 
 ```rust
 pub struct Foo {}
 ```
 
-This should be one record:
+This is one record:
 
 ```json
 {
@@ -622,186 +536,45 @@ This is both an import/dependency edge and an export edge:
 ```
 
 Language accessibility syntax should be used only to decide whether a record receives
-the `export` role. For example, Rust `pub`, Go capitalized names, Java `public`
-top-level declarations, and Swift `public`/`open` declarations can all map to
+the `export` role. Rust `pub`, Go capitalized names, Java `public` top-level
+declarations, and Swift `public`/`open` declarations can map to
 `roles: ["definition", "export"]` when they are part of the file/module API surface.
-Do not expose a separate visibility axis in the CLI; it makes file-level structure
-harder to understand.
+Do not expose a separate visibility axis in the CLI.
 
-## Agent Exploration Scenarios
+### Symbol Mapping
 
-### Add A New CLI Subcommand
+Do not introduce custom symbol kinds for imports or exports. Map source constructs to
+existing LSP symbol kinds and use `roles`, `target`, and `alias` metadata to preserve
+import/export meaning.
 
-Goal: find where commands are declared, where arguments live, and which files expose CLI
-behavior.
-
-```sh
-sg outline crates/cli/src --kind enum,struct,function
-sg outline crates/cli/src/lib.rs --match Commands --kind enum --members lines
-sg outline crates/cli/src/lib.rs --role import
-sg outline crates/cli/src --role export --match 'Arg|run_'
-```
-
-How this helps:
-
-- Finds command enums and argument structs without reading all CLI files.
-- Shows whether each command is implemented as a separate module.
-- Gives the agent exact ranges for the enum, args, and run functions to inspect next.
-
-### Understand A Large File Before Editing
-
-Goal: decide whether a file is relevant and where to read first.
-
-```sh
-sg outline crates/cli/src/scan.rs --members names
-sg outline crates/cli/src/scan.rs --role import
-sg outline crates/cli/src/scan.rs --role export
-```
-
-How this helps:
-
-- The symbol list gives the file's table of contents.
-- Imports reveal dependencies and likely responsibilities.
-- Exports reveal the entry points other modules use.
-
-### Map Where A User-Facing Concept Is Implemented
-
-Goal: map words from a task into candidate symbols.
-
-```sh
-rg -n 'config|rule|scan|verify' crates
-sg outline crates/config crates/cli/src --kind struct,enum,function
-sg outline crates --role export --match 'Config|Rule|Scan|Verify'
-```
-
-How this helps:
-
-- Uses fast text search for vocabulary discovery.
-- Uses the default outline output to convert candidate files/subtrees into structural
-  records.
-- Highlights public APIs that are more likely to be integration points.
-
-### Trace Dependency Direction
-
-Goal: learn which files depend on a module or package.
-
-```sh
-sg outline crates --role import --match ast-grep-config
-sg outline crates/cli/src --role import --match ast-grep-core
-sg outline crates/cli/src/run.rs --role import --members lines
-```
-
-How this helps:
-
-- Identifies files that use a crate/module.
-- With `--members lines`, shows imported bindings when extractor rules model them as
-  member records under module/package edges.
-- Helps decide whether a change belongs near the importer or exported API.
-
-### Inspect Public API Before Refactoring
-
-Goal: avoid breaking externally visible symbols.
-
-```sh
-sg outline crates/config/src --role export
-sg outline crates/cli/src/run.rs --role export
-sg outline crates/config/src --kind struct,enum,function
-```
-
-How this helps:
-
-- Shows public structs, enums, functions, and re-exports.
-- Gives the agent a before/after surface to compare after edits.
-- Helps distinguish internal helpers from symbols that need migration care.
-
-### Inspect Changed Files After Editing
-
-Goal: summarize the structure of files that changed, using git as the source of truth
-for what changed.
-
-```sh
-git diff --name-only HEAD
-sg outline <changed-files>
-sg outline <changed-files> --role export
-```
-
-How this helps:
-
-- `git diff --name-only` is the trusted, familiar way to find changed files.
-- The default outline output summarizes the current structure of those files without
-  inventing a second diff model.
-- `--role export` answers the concrete verification question agents care about most:
-  whether the changed files expose public symbols that may need migration notes or
-  tests.
-
-### Expand A Matched Parent Symbol
-
-Goal: understand the behavior surface of a class, impl, trait, or interface.
-
-```sh
-sg outline src/parser.ts --match Parser --members lines
-sg outline crates/core/src/node.rs --match Node --kind struct --members lines
-```
-
-How this helps:
-
-- Lists methods without reading the whole parent body.
-- `--kind` disambiguates same-name types/functions.
-- `--members lines` gives exact source/signature lines for direct structural members.
-
-### Locate Data Models
-
-Goal: find structs, enums, interfaces, type aliases, and constants before changing data
-flow.
-
-```sh
-sg outline crates --kind struct,enum,interface
-rg -n 'DEFAULT|CONFIG|TIMEOUT' crates
-sg outline crates/config crates/cli/src --kind constant
-```
-
-How this helps:
-
-- Surfaces data definitions separately from behavior.
-- Helps identify serialization/config structures and their owning modules.
-- Reduces time spent scanning implementation functions.
-
-### Find Tests Related To A Change
-
-Goal: locate likely test functions before making or verifying a change.
-
-```sh
-rg -n 'test|should|snapshot|verify' crates
-sg outline crates --kind function --globs '*test*'
-sg outline crates --role import --match tempfile
-```
-
-How this helps:
-
-- Uses fast text and path filtering to identify likely test files.
-- Maps test functions structurally once candidate files are known.
-- Import filtering can locate test files by common test dependencies.
-- Gives exact function ranges for focused reads.
-
-### Build A Cheap Repository Index
-
-Goal: create a compact symbol inventory for agent-side ranking.
-
-```sh
-sg outline crates
-```
-
-How this helps:
-
-- Produces one independently useful JSON object per symbol or top-level declaration.
-- Lets the agent rank candidates by path, kind, name, roles, and container.
-- Avoids loading large source files until a likely target is found.
+| Source construct | SymbolKind |
+| --- | --- |
+| File-level source unit | `File` |
+| ES import, Rust `use`, Python import, Go import | `Module` |
+| Module declaration | `Module` |
+| Namespace declaration | `Namespace` |
+| Package declaration | `Package` |
+| Class declaration | `Class` |
+| Method declaration | `Method` |
+| Object/class property | `Property` |
+| Struct/class field | `Field` |
+| Constructor | `Constructor` |
+| Enum declaration | `Enum` |
+| Interface, trait, protocol | `Interface` |
+| Free function | `Function` |
+| Local or top-level variable | `Variable` |
+| Constant declaration | `Constant` |
+| Object/map key | `Key` |
+| Enum member or variant | `EnumMember` |
+| Struct declaration | `Struct` |
+| Operator overload | `Operator` |
+| Type parameter or generic parameter | `TypeParameter` |
 
 ## Extraction Strategy
 
 Extraction must be data-driven. The command should not have Rust match arms such as
 "if language is Rust, match `function_item`". Built-in support is a bundled extractor
-catalog, and user/custom-language support is additional extractor YAML loaded by
+catalog. User and custom-language support is additional extractor YAML loaded by
 `--outline-rules`.
 
 An extractor is an ast-grep rule-core object plus outline metadata:
@@ -816,18 +589,6 @@ extractors:
       export: textPrefix:pub
     name: field:name
     rule: { kind: function_item }
-
-  - id: rust-function-pattern
-    language: Rust
-    kind: function
-    roles: [definition]
-    addRoles:
-      export: textPrefix:pub
-    name: NAME
-    rule:
-      pattern:
-        context: fn $NAME($$$ARGS) $$$BODY
-        selector: function_item
 
   - id: rust-pub-use
     language: Rust
@@ -890,34 +651,27 @@ ancestorKind:<NODE_KIND>
 auto
 ```
 
-`addRoles` is intentionally role-oriented. It should answer "does this source construct
-belong to the export/import/definition projection?" rather than exposing language
-visibility as a separate concept. If a language has nuanced accessibility such as
-Rust `pub(crate)` or Swift `internal`, only map it to `export` when it is useful for
-file/module API exploration.
-
-This schema is intentionally small. It covers the common cases while keeping custom
-language support practical. If a language needs richer extraction, the rule itself
-should first capture better metavariables before outline grows language-specific code.
+`addRoles` is role-oriented. It should answer "should this source construct also have
+the export, import, or definition role?" rather than exposing language visibility as a
+separate concept.
 
 Extractor flow:
 
 1. Parse source with `SgLang::ast_grep`.
 2. Load bundled extractors unless `--no-default-outline-rules` is set.
-3. Load every user extractor file from `--outline-rules`.
+3. Load user extractor files from `--outline-rules`.
 4. Keep extractors whose `language` matches the file language.
 5. Compile each extractor's rule through `SerializableRuleCore::get_matcher`.
 6. Run every matcher against the parsed AST.
 7. Use the matched node as `range`.
 8. Resolve `name` from configured metavariable, field, text, or fallback.
 9. Use the name node as `selection_range` when available.
-10. Set `kind`, `roles`, `target`, and `alias` from extractor metadata, then apply
-    conditional `addRoles`.
+10. Set `kind`, `roles`, `target`, and `alias`, then apply conditional `addRoles`.
 11. Sort items by start byte.
-12. Deduplicate overlapping matches. If two extractors identify the same source range,
-    kind, and name, merge their roles instead of emitting duplicate records.
-13. Nest child symbols by range containment.
-14. Apply role selection and anchor filters before printing.
+12. Deduplicate overlapping matches by range, kind, and name. Merge roles instead of
+    emitting duplicate records.
+13. Nest structural members by range containment or language-specific membership rules.
+14. Apply role selection, anchor filters, and member presentation before printing.
 
 ## Language And Custom Language Support
 
@@ -925,7 +679,7 @@ Language expansion is an extractor-catalog problem, not a CLI-code problem.
 
 Built-in extractors should ship for common languages such as Rust, TypeScript, TSX,
 JavaScript, Python, and Go. Adding another built-in language should mean adding
-extractor entries and tests. It should not require changing the extraction algorithm.
+extractor entries and tests, not changing the extraction algorithm.
 
 Custom languages work the same way:
 
@@ -934,7 +688,7 @@ Custom languages work the same way:
 2. Write one or more outline extractor entries with `language: <custom-language-name>`.
 3. Run outline with `--outline-rules <FILE>`.
 
-Example custom language extractor:
+Example:
 
 ```yaml
 extractors:
@@ -947,24 +701,21 @@ extractors:
       pattern: def $NAME($$$ARGS) $$$BODY
 ```
 
-Then:
-
 ```sh
-sg outline src --outline-rules mylang-outline.yml --json=stream
+sg outline src --outline-rules mylang-outline.yml
 ```
 
-If a user wants to completely replace bundled behavior, they can disable defaults:
+To completely replace bundled behavior:
 
 ```sh
 sg outline src \
   --no-default-outline-rules \
-  --outline-rules project-outline.yml \
-  --json=stream
+  --outline-rules project-outline.yml
 ```
 
 Unsupported languages should return an empty outline and a successful exit status.
 
-## Runtime Integration
+## Runtime And Exit Codes
 
 The command should reuse the existing worker architecture from
 `crates/cli/src/utils/worker.rs`.
@@ -976,7 +727,7 @@ Path mode:
 3. Read source with the same file-size safeguards used by `run` and `scan`.
 4. Extract outline items.
 5. Apply role selection and filters.
-6. Send grouped or flat records to the printer.
+6. Print text, grouped JSON, or streamed records.
 
 Stdin mode:
 
@@ -986,9 +737,7 @@ Stdin mode:
 4. Extract outline items.
 5. Use `STDIN` as the path.
 
-## Exit Codes
-
-This should behave like a listing/introspection command, not a search command:
+Exit codes:
 
 | Condition | Exit code |
 | --- | --- |
@@ -998,44 +747,9 @@ This should behave like a listing/introspection command, not a search command:
 
 An empty outline is not a failed search.
 
-## Implementation Shape
-
-The command is implemented as one role-facet outline primitive:
-
-```text
-sg outline [--role definition|import|export|any[,..]] [--match <TEXT>] [--members none|names|lines] [PATHS]...
-```
-
-Semantics should stay intentionally shallow and structural. Extraction produces one
-outline tree per file. Printing then applies role selection:
-
-```text
-default / --role definition     records whose roles contain definition
---role import                   records whose roles contain import
---role export                   records whose roles contain export
---role definition,export        local exported definitions
---role import,export            exports forwarded from another module
---role definition --role import local definitions or imports
---role any                      all definition, import, and export records
---match <TEXT>                  select anchor records in the current role selection
---members none                  selected anchors only
---members names                 selected anchors plus grouped direct member names
---members lines                 selected anchors plus one source/signature line per direct member
-```
-
-- Add CLI subcommand and argument parsing.
-- Add default outline output, `--role` selection, anchor filtering, and member
-  presentation.
-- Add `SymbolKind`, `SymbolRole`, `OutlineItem`, `OutlineFile`, and `OutlineRecord`.
-- Implement text output and `--json[=<pretty|compact|stream>]`.
-- Implement built-in outline rules for supported languages.
-- Support `--json`, `--role`, `--kind`, and `--match`.
-- Support path mode and stdin mode.
-- Add focused CLI parsing tests and extractor unit tests.
-
 ## Future Expansion: Bounded Output
 
-The current design does not expose a built-in output limit. Agents can use normal shell
+The current design does not expose a built-in output limit. Agents can use shell
 composition when they need presentation-level truncation:
 
 ```sh
@@ -1049,7 +763,7 @@ emitting a large subtree. If added, it should not be described as "maximum recor
 tree items" because that is ambiguous across `--members none`, `--members names`,
 `--members lines`, pretty JSON, compact JSON, and streamed JSON records.
 
-The likely contract is:
+Likely contract:
 
 ```text
 --limit <N>    Maximum selected top-level anchors to emit.
@@ -1063,206 +777,75 @@ Possible semantics:
 - Do not split a selected anchor from its direct members.
 - Apply in deterministic file/path/source order.
 
-This keeps the limit independent of presentation mode. Until there is evidence that
-agents or users need this guardrail frequently, leave it out of the current public
-interface.
+Leave this out until there is evidence that agents or users need the guardrail
+frequently.
 
 ## Rejected Designs
 
-`outline` could grow beyond structural summaries into a broader code-intelligence tool:
-symbol lookup, current-scope detection, related-code discovery, and structural diffs.
-These are attractive agent workflows, and each suggests an obvious command:
+`outline` could grow beyond structural summaries into symbol lookup, current-scope
+detection, related-code discovery, and structural diffs. These workflows are useful, but
+they either overlap with existing tools or require semantic information that outline
+does not have.
 
-- Symbol lookup: `find`.
-- Current-scope lookup from a file position: `container`.
-- Next-code discovery from a seed symbol: `related`.
-- Structural change detection after edits: `diff`.
+### `find`
 
-The problem is that these commands either overlap with existing tools (`rg`, source
-range reads, and `git diff`) or require semantic information that ast-grep outline does
-not have. Keep the command focused on one reliable primitive: extract a file
-outline and project it with `--role`, anchor filters, and `--members`.
-
-### `find`: Symbol Lookup
-
-Original intent: `find` would answer "where is this symbol or concept?" without asking
-the user or agent to write an ast-grep pattern.
+Intent: answer "where is this symbol or concept?" without asking the user or agent to
+write an ast-grep pattern.
 
 Example shape:
 
 ```sh
-sg outline find crates --match RunArg --json=stream
-sg outline find crates --kind function --match 'scan|verify|rule' --json=stream
+sg outline find crates --match RunArg
 ```
 
-It was meant to be a constrained lookup over outline facts: symbol-name patterns, kind
-filters, role-membership filters, path, range, container, and signature.
+Decision: do not include it. A useful `find` must be comprehensive across top-level
+definitions, direct members, imports, exports, and containers. A partial version looks
+precise while silently missing important cases. Use `rg` and then `sg outline` on
+candidate files or subtrees.
 
-Decision: do not include a standalone `find` command.
+### `container`
 
-Failure mode: the useful version of `find` would need to be a comprehensive structural
-lookup over top-level definitions, direct members, imports, exports, and parent
-containers. A partial version is worse than leaving the job to `rg` plus `sg outline`
-views because it looks precise while silently missing important cases.
-
-Exploratory testing on TypeScript, Go, Python, Rust, Java, and Swift benchmark repos
-showed the same pattern:
-
-- Exact top-level lookup is sometimes useful, but overlaps with `rg` plus default
-  outline output.
-- Nested method lookup wants member presentation, which is better expressed as
-  `sg outline --match <NAME> --members lines`.
-- Export lookup must agree with `--role export`; if it does not, agents will trust the
-  wrong answer.
-- Import binding lookup needs language-specific binding extraction, not source-line
-  pattern matching.
-- Pattern lookup becomes noisy when it searches source snippets instead of symbol names.
-
-Prefer clearer commands:
-
-- Use `rg`, shell `find(1)`, or normal path globbing to discover candidate files and
-  names.
-- Use default outline output to inspect file or subtree structure.
-- Use `--match <NAME> --members lines` for methods and fields under a known parent symbol.
-- Use `--role import` and `--role export` for dependency and public API questions.
-
-Do not add `find` unless it is comprehensive enough to answer "where is this symbol?"
-without surprising gaps and with better ergonomics than grep.
-
-### `container`: Current Scope Lookup
-
-Original intent: `container` would answer "what symbol contains this source position?"
-after another tool points to a concrete location.
+Intent: answer "what symbol contains this source position?" after another tool points to
+a concrete location.
 
 Example shape:
 
 ```sh
-sg outline container crates/cli/src/lib.rs --at 88:12 --json
+sg outline container crates/cli/src/lib.rs --at 88:12
 ```
 
-The intended agent scenario is: "I have a compiler error, test failure, or grep hit at
-this line. What function or class am I inside?"
+Decision: do not include it. In the agent workflow, the agent already has a concrete
+file and line, and usually still needs to read source afterwards. It also confuses source
+containment with logical membership, such as Go receiver methods that live outside a
+type declaration range.
 
-Decision: do not include a standalone `container` command. The idea
-sounds useful, but in an agent workflow the agent already has a concrete file and line.
-The natural next action is to read around that line:
+### `related`
 
-```sh
-sed -n 'LINE_START,LINE_ENDp' path/to/file
-```
-
-Failure mode: `container` adds a tool call after the agent already has a concrete
-location, and the agent still usually needs to read source code afterwards. It only helps
-when the first read window is too small and the enclosing symbol is large enough to
-matter.
-
-Exploratory testing also showed interface ambiguity:
-
-- Directory mode is misleading because a line/column pair has no global meaning across
-  many files.
-- Receiver-style methods in languages like Go can live outside the nominal type
-  declaration range, so "source position containment" and "logical membership" are not
-  the same question.
-
-Agents should use normal reads after concrete locations. A `container` command should
-not be added unless it requires exactly one file path and proves it saves reads in real
-agent traces.
-
-### `related`: Next-Code Discovery
-
-Original intent: `related` would answer "what should I inspect next?" from a seed symbol
-or source position.
+Intent: answer "what should I inspect next?" from a seed symbol or source position.
 
 Example shape:
 
 ```sh
-sg outline related crates/cli/src/run.rs --symbol RunArg --json=stream
+sg outline related crates/cli/src/run.rs --symbol RunArg
 ```
 
-It was meant to return ranked candidates with reasons such as same-file symbol,
-importer, exporter, same-name symbol, nearby test, or sibling public API.
+Decision: do not include it. The name promises semantic help that local syntax outline
+cannot reliably provide: references, module resolution, call graph edges, inheritance,
+test mapping, and re-export resolution. Use `--role import`, `--role export`,
+`--match <REGEX> --members lines`, `rg`, and normal path discovery instead.
 
-Decision: do not include a standalone `related` command. The command name
-promises semantic help: "what code is actually related to this symbol?" That is deeper
-than a local syntax outline can reliably answer. A useful implementation would need some
-combination of:
+### `diff`
 
-- module/import resolution
-- type resolution
-- reference lookup
-- call graph or data-flow edges
-- interface/trait/protocol implementation lookup
-- override/inheritance lookup
-- re-export resolution
-- test-to-subject mapping
-
-ast-grep outline is strongest at local structural facts: definitions in a file, direct
-members under matched anchors, imports, exports, and source ranges. Without a semantic graph,
-`related` becomes a heuristic ranking layer over text and outline records. That is a bad
-failure mode for AI agents because it looks intelligent while returning plausible but
-unverified neighbors.
-
-Exploratory testing showed the deeper design issue:
-
-- When `related` finds methods on a named type, `sg outline --match <NAME> --members lines`
-  is clearer and more controllable.
-- When it finds importers or same-name symbols, `--role import` plus `rg` makes the
-  evidence explicit instead of hiding it behind ranking.
-- When it returns same-file neighbors, the result often spends budget on syntax that is
-  nearby but not semantically important.
-- Position-based `related --at` has the same ambiguity as `container`: a line/column pair
-  only makes sense for one concrete file.
-
-The current design exposes honest primitives:
-
-- default outline output for structural overview.
-- `--match <NAME> --members lines` for parent-symbol members.
-- `--role import` for dependency edges.
-- `--role export` for public surface.
-- shell `rg`, shell `find(1)`, and normal path globbing for fast vocabulary and path
-  discovery.
-
-Do not add narrower commands unless their contract is precise:
-
-- `importers` for files importing a module/path.
-- `--role export --match <NAME>` for public surface matching.
-- `usages` or `refs` only if backed by real symbol/reference resolution.
-- `neighbors` only if explicitly documented as heuristic and low-trust.
-
-### `diff`: Structural Change Detection
-
-Original intent: `diff` would answer "did this edit change structure or public API?"
-without requiring the agent to manually compare outlines before and after a change.
+Intent: answer "did this edit change structure or public API?"
 
 Example shape:
 
 ```sh
-sg outline diff --base main --json
-sg outline diff --base main --role export --json
+sg outline diff --base main --role export
 ```
 
-It was meant to compare outline records before and after edits and report added,
-removed, renamed, or kind-changed symbols.
-
-Decision: do not include a standalone `diff` command. Generic structural
-diff is hard to explain and easy to misuse. Agents and humans already trust git for
-change detection:
-
-```sh
-git diff
-git diff --stat
-git diff --name-only HEAD
-```
-
-The useful outline question after editing is not "what is the AST diff?" It is more
-concrete:
-
-- Which files changed?
-- What is the current structure of those files?
-- Did the changed files expose public symbols that may need tests, docs, or migration
-  notes?
-
-That can be composed from git plus the existing outline primitives:
+Decision: do not include it. Generic structural diff is hard to explain and easy to
+misuse. Use git for changed files and outline for the current structure:
 
 ```sh
 git diff --name-only HEAD
@@ -1270,20 +853,10 @@ sg outline <changed-files>
 sg outline <changed-files> --role export
 ```
 
-This avoids inventing a second diff model. A public API verification command should
-only be considered if it has a narrow contract, for example:
-
-```sh
-sg outline --role export --changed --base HEAD
-```
-
-But a standalone `outline diff` is too vague for the current design.
-
 ## Open Questions
 
 - Should `--role definition` include top-level constants and variables by default, or
   should the default output prefer named type/function declarations only?
-- Which language-specific accessibility rules should assign the `export` role, such as
-  Rust `pub` and Go capitalized identifiers?
+- Which language-specific accessibility rules should assign the `export` role?
 - Should unsupported languages be silent by default or emit warnings when not writing
   JSON?
