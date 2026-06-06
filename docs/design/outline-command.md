@@ -5,7 +5,7 @@
 Add a new top-level `outline` subcommand to ast-grep:
 
 ```sh
-sg outline <query> [OPTIONS] [PATHS]...
+sg outline [OPTIONS] [PATHS]...
 ```
 
 The command is an AI-agent-friendly structural code intelligence primitive. It parses
@@ -16,9 +16,11 @@ source files through ast-grep/tree-sitter and answers navigation questions such 
 - What does this module export?
 - What members belong to this class, struct, enum, interface, or module?
 
-For v1, the supported query surface is deliberately small: `map`, `imports`,
-`exports`, and `members`. Other useful workflows, such as reviewing changed files after
-an edit, should be composed from these primitives and existing tools like `git diff`.
+For v1, the supported surface is deliberately small: one `outline` command with view
+options. The default view is a compact structural map. Imports, exports, and member
+lists are projections over the same extracted outline records, not separate command
+families. Other useful workflows, such as reviewing changed files after an edit, should
+be composed from this primitive and existing tools like `git diff`.
 
 The symbol kind model should follow the Language Server Protocol `SymbolKind` enum so
 the output can be consumed by editors and downstream tools without ast-grep-specific
@@ -29,17 +31,17 @@ symbol categories.
 AI agents do not primarily need a pretty document outline. They need bounded,
 machine-readable answers that help decide which file or range to open next.
 
-The ideal command should therefore be query-oriented, not only display-oriented:
+The ideal command should therefore expose focused views over one structural model:
 
 ```sh
-sg outline map crates/cli/src --format jsonl --budget 200
-sg outline imports crates --to ast-grep-config --format jsonl
-sg outline exports crates/config/src --format jsonl
-sg outline members crates/cli/src/lib.rs --of Commands --format json
+sg outline crates/cli/src --format jsonl --budget 200
+sg outline crates --show imports --to ast-grep-config --format jsonl
+sg outline crates/config/src --show exports --format jsonl
+sg outline crates/cli/src/lib.rs --of Commands --format json
 ```
 
-Each query should answer a navigation question directly. Avoid making agents compose
-many low-level filters for common code exploration tasks.
+Each view should answer a navigation question directly without creating separate
+subcommands for data already present in the outline.
 
 ## Goals
 
@@ -64,23 +66,34 @@ many low-level filters for common code exploration tasks.
 ## Ideal Interface
 
 ```sh
-sg outline <query> [OPTIONS] [PATHS]...
+sg outline [OPTIONS] [PATHS]...
 ```
 
-Queries:
+Default behavior:
 
 ```text
-map         Return a compact structural map of files.
-imports     Return import/dependency edges.
-exports     Return public/exported API symbols.
-members     Return children of a container symbol.
+sg outline <path>    Return a compact structural map of files.
 ```
+
+Focused views are selected with options:
+
+```text
+--show definitions    Show definitions. Default.
+--show imports        Show import/dependency records.
+--show exports        Show public/exported API records.
+--show all            Show definitions, imports, and exports.
+--of <SYMBOL_NAME>    Show children of a parent symbol.
+```
+
+`--show` selects which extracted record roles are displayed. `--of` changes the scope
+from "top-level file outline" to "children of this symbol"; it can be combined with
+`--kind`, `--name`, and `--recursive`.
 
 Recommended output defaults:
 
 ```text
-Single file query      json
-Multi-file query       jsonl
+Single file input      json
+Multi-file input       jsonl
 Human terminal         text
 ```
 
@@ -89,12 +102,14 @@ for scoped single-file questions.
 
 ## Common Options
 
-These options should be shared across queries where applicable. Filters such as
-`--name`, `--name-regex`, `--kind`, and `--role` refine results returned by an active
-query; they are not a separate symbol lookup command.
+These options refine the single outline view. Filters such as `--name`, `--name-regex`,
+`--kind`, and `--role` filter already-extracted outline records; they are not a separate
+symbol lookup command.
 
 ```text
 --format <text|json|jsonl>
+--show <definitions|imports|exports|all>
+                          Select which record roles to display.
 --budget <N>             Approximate result budget for model context.
 --max-items <N>          Hard maximum record count.
 --lang <LANG>            Parse input as a specific language.
@@ -103,6 +118,9 @@ query; they are not a separate symbol lookup command.
 --name-regex <REGEX>     Regex symbol/import/export name.
 --kind <SYMBOL_KIND>     LSP SymbolKind filter. Repeatable.
 --role <ROLE>            definition, import, or export. Repeatable.
+--of <SYMBOL_NAME>       Show children of this parent symbol.
+--of-kind <SYMBOL_KIND>  Optional parent kind disambiguation.
+--recursive             With --of, include recursively nested descendants.
 --flat                   Emit independent records.
 --depth <N>              Maximum nesting depth for tree output.
 --signature              Include declaration/signature snippets.
@@ -123,21 +141,22 @@ Suggested applicability:
 
 | Option group | Applies to | Intent |
 | --- | --- | --- |
-| Input and output: `--format`, `--lang`, `--stdin`, `--globs`, ignore/walk options | all queries | Reuse ast-grep's existing input model. |
-| Bounds: `--budget`, `--max-items`, `--depth`, `--flat`, `--signature`, `--no-snippet` | mostly `map` and `members`; `--budget`/`--max-items` can apply everywhere | Keep output bounded and choose tree versus flat shape. |
-| Symbol filters: `--name`, `--name-regex`, `--kind`, `--role` | `map`, `exports`, and `members` where meaningful | Filter already-extracted outline records. |
-| Import filters: `--to`, `--bindings` | `imports` | Filter dependency edges and optionally flatten bindings. |
-| Export filters: `--re-exports`, `--definitions-only` | `exports` | Choose whether re-export statements are included. |
+| Input and output: `--format`, `--lang`, `--stdin`, `--globs`, ignore/walk options | all views | Reuse ast-grep's existing input model. |
+| View selection: `--show`, `--of`, `--of-kind`, `--recursive` | all outline records | Choose between file map, imports, exports, all records, or children of a parent symbol. |
+| Bounds: `--budget`, `--max-items`, `--depth`, `--flat`, `--signature`, `--no-snippet` | all views where meaningful | Keep output bounded and choose tree versus flat shape. |
+| Record filters: `--name`, `--name-regex`, `--kind`, `--role` | all extracted records | Filter already-extracted outline records. |
+| Import filters: `--to`, `--bindings` | `--show imports` or `--show all` | Filter dependency edges and optionally flatten bindings. |
+| Export filters: `--re-exports`, `--definitions-only` | `--show exports` or `--show all` | Choose whether re-export statements are included. |
 
-## Query Details
+## View Details
 
-### `map`
+### Default Structural Map
 
 Purpose: answer "what is in these files?"
 
 ```sh
-sg outline map crates/cli/src --format jsonl --budget 200
-sg outline map crates/cli/src/scan.rs --depth 1 --format json
+sg outline crates/cli/src --format jsonl --budget 200
+sg outline crates/cli/src/scan.rs --depth 1 --format json
 ```
 
 Ideal behavior:
@@ -149,36 +168,36 @@ Ideal behavior:
 
 This is the agent's first pass over an unfamiliar area.
 
-### `imports`
+### Imports View
 
 Purpose: answer "what does this file depend on?" and "who depends on this module?"
 
 ```sh
-sg outline imports crates/cli/src/run.rs --format json
-sg outline imports crates --to ast-grep-config --format jsonl
-sg outline imports crates/cli/src/run.rs --to ast-grep-config --bindings --format json
+sg outline crates/cli/src/run.rs --show imports --format json
+sg outline crates --show imports --to ast-grep-config --format jsonl
+sg outline crates/cli/src/run.rs --show imports --to ast-grep-config --bindings --format json
 ```
 
 Ideal behavior:
 
 - For a file, lists imported modules and imported bindings.
-- Across a directory, acts like a dependency-edge query.
+- Across a directory, acts like a dependency-edge view.
 - Emits source path, imported module, imported binding, alias, and range.
 
-Suggested query-specific options:
+Suggested view-specific options:
 
 ```text
 --to <MODULE>       Filter by imported module/package/path.
 --bindings          Flatten import clauses into one row per imported binding.
 ```
 
-### `exports`
+### Exports View
 
 Purpose: answer "what is the visible API?"
 
 ```sh
-sg outline exports crates/config/src --format jsonl
-sg outline exports crates/cli/src/run.rs --format json
+sg outline crates/config/src --show exports --format jsonl
+sg outline crates/cli/src/run.rs --show exports --format json
 ```
 
 Ideal behavior:
@@ -187,48 +206,48 @@ Ideal behavior:
 - Distinguishes `role: definition` with `exported: true` from `role: export`.
 - Can compare public surface before and after edits.
 
-Suggested query-specific options:
+Suggested view-specific options:
 
 ```text
 --re-exports        Include re-export statements. Enabled by default.
 --definitions-only  Exclude re-export statements without local definitions.
 ```
 
-### `members`
+### Members View
 
 Purpose: answer "what belongs to this class, struct, enum, interface, trait, impl, or
 module?"
 
 ```sh
-sg outline members src/parser.ts --of Parser --kind method --format json
-sg outline members crates/core/src/node.rs --of Node --of-kind struct --recursive --format json
+sg outline src/parser.ts --of Parser --kind method --format json
+sg outline crates/core/src/node.rs --of Node --of-kind struct --recursive --format json
 ```
 
 Ideal behavior:
 
-- Finds descendants of a named container.
+- Finds descendants of a named parent symbol.
 - Supports `--of-kind` to disambiguate.
 - Supports `--recursive`.
-- Returns member ranges without forcing the agent to read the whole container body.
+- Returns member ranges without forcing the agent to read the whole parent body.
 
-Suggested query-specific options:
+Suggested view-specific options:
 
 ```text
---of <SYMBOL_NAME>       Required container name.
+--of <SYMBOL_NAME>       Required parent symbol name.
 --of-kind <SYMBOL_KIND>  Optional container kind disambiguation.
 --recursive             Include recursively nested members.
 ```
 
 ## Output Contract
 
-The ideal default machine output is JSONL for multi-file queries and JSON for single-file
-queries. Every flat record should be independently useful:
+The ideal default machine output is JSONL for multi-file inputs and JSON for single-file
+inputs. Every flat record should be independently useful:
 
 ```json
 {
   "path": "crates/cli/src/lib.rs",
   "language": "rs",
-  "query": "map",
+  "view": "definitions",
   "symbol": {
     "name": "Commands",
     "kind": 10,
@@ -256,7 +275,7 @@ Important properties:
 - `kind` uses LSP `SymbolKind`.
 - `role` distinguishes definition/import/export.
 - `container` is present in flat output as parent-symbol metadata; this is not a
-  standalone `container` query.
+  standalone `container` command.
 - `signature` is short and body-free.
 
 Grouped JSON can use an LSP-like tree shape for single-file outline output:
@@ -384,7 +403,7 @@ Flat record for JSONL:
 pub struct OutlineRecord {
   pub path: PathBuf,
   pub language: SgLang,
-  pub query: OutlineQuery,
+  pub view: OutlineView,
   pub symbol: OutlineFlatSymbol,
 }
 
@@ -460,10 +479,10 @@ Goal: find where commands are declared, where arguments live, and which files ex
 behavior.
 
 ```sh
-sg outline map crates/cli/src --kind enum --kind struct --kind function --format jsonl
-sg outline members crates/cli/src/lib.rs --of Commands --of-kind enum --format json
-sg outline imports crates/cli/src/lib.rs --format json
-sg outline exports crates/cli/src --name-regex 'Arg|run_' --format jsonl
+sg outline crates/cli/src --kind enum --kind struct --kind function --format jsonl
+sg outline crates/cli/src/lib.rs --of Commands --of-kind enum --format json
+sg outline crates/cli/src/lib.rs --show imports --format json
+sg outline crates/cli/src --show exports --name-regex 'Arg|run_' --format jsonl
 ```
 
 How this helps:
@@ -477,9 +496,9 @@ How this helps:
 Goal: decide whether a file is relevant and where to read first.
 
 ```sh
-sg outline map crates/cli/src/scan.rs --depth 1 --format json
-sg outline imports crates/cli/src/scan.rs --format json
-sg outline exports crates/cli/src/scan.rs --format json
+sg outline crates/cli/src/scan.rs --depth 1 --format json
+sg outline crates/cli/src/scan.rs --show imports --format json
+sg outline crates/cli/src/scan.rs --show exports --format json
 ```
 
 How this helps:
@@ -494,14 +513,15 @@ Goal: map words from a task into candidate symbols.
 
 ```sh
 rg -n 'config|rule|scan|verify' crates
-sg outline map crates/config crates/cli/src --kind struct --kind enum --kind function --format jsonl
-sg outline exports crates --name-regex 'Config|Rule|Scan|Verify' --format jsonl
+sg outline crates/config crates/cli/src --kind struct --kind enum --kind function --format jsonl
+sg outline crates --show exports --name-regex 'Config|Rule|Scan|Verify' --format jsonl
 ```
 
 How this helps:
 
 - Uses fast text search for vocabulary discovery.
-- Uses `map` to convert candidate files/subtrees into structural records.
+- Uses the default outline view to convert candidate files/subtrees into structural
+  records.
 - Highlights public APIs that are more likely to be integration points.
 
 ### Trace Dependency Direction
@@ -509,9 +529,9 @@ How this helps:
 Goal: learn which files depend on a module or package.
 
 ```sh
-sg outline imports crates --to ast-grep-config --format jsonl
-sg outline imports crates/cli/src --to ast-grep-core --format jsonl
-sg outline imports crates/cli/src/run.rs --bindings --format json
+sg outline crates --show imports --to ast-grep-config --format jsonl
+sg outline crates/cli/src --show imports --to ast-grep-core --format jsonl
+sg outline crates/cli/src/run.rs --show imports --bindings --format json
 ```
 
 How this helps:
@@ -525,9 +545,9 @@ How this helps:
 Goal: avoid breaking externally visible symbols.
 
 ```sh
-sg outline exports crates/config/src --format jsonl
-sg outline exports crates/cli/src/run.rs --format json
-sg outline map crates/config/src --kind struct --kind enum --kind function --format jsonl
+sg outline crates/config/src --show exports --format jsonl
+sg outline crates/cli/src/run.rs --show exports --format json
+sg outline crates/config/src --kind struct --kind enum --kind function --format jsonl
 ```
 
 How this helps:
@@ -543,30 +563,31 @@ for what changed.
 
 ```sh
 git diff --name-only HEAD
-sg outline map <changed-files> --format jsonl
-sg outline exports <changed-files> --format jsonl
+sg outline <changed-files> --format jsonl
+sg outline <changed-files> --show exports --format jsonl
 ```
 
 How this helps:
 
 - `git diff --name-only` is the trusted, familiar way to find changed files.
-- `map` summarizes the current structure of those files without inventing a second diff
-  model.
-- `exports` answers the concrete verification question agents care about most: whether
-  the changed files expose public symbols that may need migration notes or tests.
+- The default outline view summarizes the current structure of those files without
+  inventing a second diff model.
+- `--show exports` answers the concrete verification question agents care about most:
+  whether the changed files expose public symbols that may need migration notes or
+  tests.
 
-### Find Methods On A Container
+### Find Methods On A Parent Symbol
 
 Goal: understand the behavior surface of a class, impl, trait, or interface.
 
 ```sh
-sg outline members src/parser.ts --of Parser --kind method --format json
-sg outline members crates/core/src/node.rs --of Node --of-kind struct --recursive --format json
+sg outline src/parser.ts --of Parser --kind method --format json
+sg outline crates/core/src/node.rs --of Node --of-kind struct --recursive --format json
 ```
 
 How this helps:
 
-- Lists methods without reading the whole container body.
+- Lists methods without reading the whole parent body.
 - `--of-kind` disambiguates same-name types/functions.
 - `--recursive` helps with nested classes/modules in languages that use them.
 
@@ -576,9 +597,9 @@ Goal: find structs, enums, interfaces, type aliases, and constants before changi
 flow.
 
 ```sh
-sg outline map crates --kind struct --kind enum --kind interface --format jsonl
+sg outline crates --kind struct --kind enum --kind interface --format jsonl
 rg -n 'DEFAULT|CONFIG|TIMEOUT' crates
-sg outline map crates/config crates/cli/src --kind constant --format jsonl
+sg outline crates/config crates/cli/src --kind constant --format jsonl
 ```
 
 How this helps:
@@ -593,8 +614,8 @@ Goal: locate likely test functions before making or verifying a change.
 
 ```sh
 rg -n 'test|should|snapshot|verify' crates
-sg outline map crates --kind function --globs '*test*' --format jsonl
-sg outline imports crates --to tempfile --format jsonl
+sg outline crates --kind function --globs '*test*' --format jsonl
+sg outline crates --show imports --to tempfile --format jsonl
 ```
 
 How this helps:
@@ -609,7 +630,7 @@ How this helps:
 Goal: create a compact symbol inventory for agent-side ranking.
 
 ```sh
-sg outline map crates --format jsonl --budget 5000
+sg outline crates --format jsonl --budget 5000
 ```
 
 How this helps:
@@ -715,7 +736,7 @@ Extractor flow:
 11. Sort items by start byte.
 12. Deduplicate overlapping matches.
 13. Nest child symbols by range containment.
-14. Apply query-specific filters before printing.
+14. Apply view-specific filters before printing.
 
 ## Language And Custom Language Support
 
@@ -749,13 +770,13 @@ extractors:
 Then:
 
 ```sh
-sg outline map src --outline-rules mylang-outline.yml --format jsonl
+sg outline src --outline-rules mylang-outline.yml --format jsonl
 ```
 
 If a user wants to completely replace bundled behavior, they can disable defaults:
 
 ```sh
-sg outline map src \
+sg outline src \
   --no-default-outline-rules \
   --outline-rules project-outline.yml \
   --format jsonl
@@ -775,7 +796,7 @@ Path mode:
 2. Infer language with `SgLang::from_path(path)` unless `--lang` is provided.
 3. Read source with the same file-size safeguards used by `run` and `scan`.
 4. Extract outline items.
-5. Apply query logic.
+5. Apply view selection and filters.
 6. Send grouped or flat records to the printer.
 
 Stdin mode:
@@ -800,25 +821,27 @@ An empty outline is not a failed search.
 
 ## Implementation Path
 
-The ideal north star is implemented as query names:
+The ideal north star is implemented as one command with view options:
 
 ```text
-map, imports, exports, members
+sg outline [--show definitions|imports|exports|all] [--of <SYMBOL>] [PATHS]...
 ```
 
-The first implementation should keep semantics intentionally shallow and structural:
+The first implementation should keep semantics intentionally shallow and structural.
+Extraction produces one outline tree per file. Printing then applies view selection:
 
 ```text
-map        outline records
-imports    import/dependency records
-exports    exported/public records
-members    child records for a named container
+default / --show definitions    definition records
+--show imports                  import/dependency records
+--show exports                  exported/public records
+--show all                      definitions, imports, and exports
+--of <SYMBOL>                   child records for a parent symbol
 ```
 
 ### Phase 1
 
 - Add CLI subcommand and argument parsing.
-- Add `map`, `imports`, `exports`, and `members` queries.
+- Add default outline output, `--show`, and `--of` view selection.
 - Add `SymbolKind`, `SymbolRole`, `OutlineItem`, `OutlineFile`, and `OutlineRecord`.
 - Implement text, JSON, and JSONL printers.
 - Implement Rust and TypeScript/JavaScript outline rules.
@@ -831,7 +854,7 @@ members    child records for a named container
 
 - Add Python and Go outline rules.
 - Add nesting by containment.
-- Add `members --of-kind` disambiguation.
+- Add `--of-kind` disambiguation.
 - Add precise `signature` extraction.
 - Add import binding flattening.
 
@@ -853,9 +876,8 @@ These are attractive agent workflows, and each suggests an obvious command:
 
 The problem is that these commands either overlap with existing tools (`rg`, source
 range reads, and `git diff`) or require semantic information that ast-grep outline does
-not have. For v1, keep the command focused on reliable primitives and reject the
-following expanded designs. The supported query set remains only `map`, `imports`,
-`exports`, and `members`.
+not have. For v1, keep the command focused on one reliable primitive: extract a file
+outline and project it with `--show`, `--of`, and filters.
 
 ### `find`: Symbol Lookup
 
@@ -872,22 +894,22 @@ sg outline find crates --kind function --name-regex 'scan|verify|rule' --format 
 It was meant to be a constrained lookup over outline facts: exact/regex symbol names,
 kind filters, role filters, exported status, path, range, container, and signature.
 
-Decision: do not include a standalone `find` query in this iteration.
+Decision: do not include a standalone `find` command in this iteration.
 
 Failure mode: the useful version of `find` would need to be a comprehensive structural
 lookup over top-level definitions, nested members, imports, exports, and parent
-containers. A partial version is worse than leaving the job to `rg`, `map`, `members`,
-`imports`, and `exports` because it looks precise while silently missing important
-cases.
+containers. A partial version is worse than leaving the job to `rg` plus `sg outline`
+views because it looks precise while silently missing important cases.
 
 Exploratory testing on TypeScript, Go, Python, Rust, Java, and Swift benchmark repos
 showed the same pattern:
 
-- Exact top-level lookup is sometimes useful, but overlaps with `rg` plus `map`.
+- Exact top-level lookup is sometimes useful, but overlaps with `rg` plus default
+  outline output.
 - Nested method lookup wants container-aware behavior, which is better expressed as
-  `members --of <NAME>`.
-- Export lookup must agree with `exports`; if it does not, agents will trust the wrong
-  answer.
+  `sg outline --of <NAME>`.
+- Export lookup must agree with `--show exports`; if it does not, agents will trust the
+  wrong answer.
 - Import binding lookup needs language-specific binding extraction, not source-line
   regex matching.
 - Regex lookup becomes noisy when it searches source snippets instead of symbol names.
@@ -896,9 +918,9 @@ For the first iteration, prefer clearer commands:
 
 - Use `rg`, shell `find(1)`, or normal path globbing to discover candidate files and
   names.
-- Use `map` to inspect file or subtree structure.
-- Use `members` for methods and fields under a known container.
-- Use `imports` and `exports` for dependency and public API questions.
+- Use default outline output to inspect file or subtree structure.
+- Use `--of` for methods and fields under a known parent symbol.
+- Use `--show imports` and `--show exports` for dependency and public API questions.
 
 A future `find` can be reconsidered only if it is comprehensive enough to answer
 "where is this symbol?" without surprising gaps and with better ergonomics than grep.
@@ -917,7 +939,7 @@ sg outline container crates/cli/src/lib.rs --at 88:12 --format json
 The intended agent scenario is: "I have a compiler error, test failure, or grep hit at
 this line. What function or class am I inside?"
 
-Decision: do not include a standalone `container` query in this iteration. The idea
+Decision: do not include a standalone `container` command in this iteration. The idea
 sounds useful, but in an agent workflow the agent already has a concrete file and line.
 The natural next action is to read around that line:
 
@@ -956,7 +978,7 @@ sg outline related crates/cli/src/run.rs --symbol RunArg --format jsonl
 It was meant to return ranked candidates with reasons such as same-file symbol,
 importer, exporter, same-name symbol, nearby test, or sibling public API.
 
-Decision: do not include a standalone `related` query in this iteration. The command name
+Decision: do not include a standalone `related` command in this iteration. The command name
 promises semantic help: "what code is actually related to this symbol?" That is deeper
 than a local syntax outline can reliably answer. A useful implementation would need some
 combination of:
@@ -970,18 +992,18 @@ combination of:
 - re-export resolution
 - test-to-subject mapping
 
-ast-grep outline is strongest at local structural facts: definitions in a file, members
-inside a container, imports, exports, and source ranges. Without a semantic graph,
+ast-grep outline is strongest at local structural facts: definitions in a file, children
+of a parent symbol, imports, exports, and source ranges. Without a semantic graph,
 `related` becomes a heuristic ranking layer over text and outline records. That is a bad
 failure mode for AI agents because it looks intelligent while returning plausible but
 unverified neighbors.
 
 Exploratory testing showed the deeper design issue:
 
-- When `related` finds methods on a named type, `members --of <NAME>` is clearer and
+- When `related` finds methods on a named type, `sg outline --of <NAME>` is clearer and
   more controllable.
-- When it finds importers or same-name symbols, `imports` plus `rg` makes the evidence
-  explicit instead of hiding it behind ranking.
+- When it finds importers or same-name symbols, `--show imports` plus `rg` makes the
+  evidence explicit instead of hiding it behind ranking.
 - When it returns same-file neighbors, the result often spends budget on syntax that is
   nearby but not semantically important.
 - Position-based `related --at` has the same ambiguity as `container`: a line/column pair
@@ -989,17 +1011,17 @@ Exploratory testing showed the deeper design issue:
 
 The better first-iteration design is to expose honest primitives:
 
-- `map` for structural overview.
-- `members` for container children.
-- `imports` for dependency edges.
-- `exports` for public surface.
+- default outline output for structural overview.
+- `--of` for parent-symbol children.
+- `--show imports` for dependency edges.
+- `--show exports` for public surface.
 - shell `rg`, shell `find(1)`, and normal path globbing for fast vocabulary and path
   discovery.
 
 Future work can add narrower commands only when their contract is precise:
 
 - `importers` for files importing a module/path.
-- `exports --name <NAME>` for public surface matching.
+- `--show exports --name <NAME>` for public surface matching.
 - `usages` or `refs` only if backed by real symbol/reference resolution.
 - `neighbors` only if explicitly documented as heuristic and low-trust.
 
@@ -1018,7 +1040,7 @@ sg outline diff --base main --exports-only --format json
 It was meant to compare outline records before and after edits and report added,
 removed, renamed, or kind-changed symbols.
 
-Decision: do not include a standalone `diff` query in this iteration. Generic structural
+Decision: do not include a standalone `diff` command in this iteration. Generic structural
 diff is hard to explain and easy to misuse. Agents and humans already trust git for
 change detection:
 
@@ -1040,15 +1062,15 @@ That can be composed from git plus the existing outline primitives:
 
 ```sh
 git diff --name-only HEAD
-sg outline map <changed-files> --format jsonl
-sg outline exports <changed-files> --format jsonl
+sg outline <changed-files> --format jsonl
+sg outline <changed-files> --show exports --format jsonl
 ```
 
 This avoids inventing a second diff model. A future public API verification command can
 be considered if it has a narrow contract, for example:
 
 ```sh
-sg outline exports --changed --base HEAD
+sg outline --show exports --changed --base HEAD
 ```
 
 But a standalone `outline diff` is too vague for v1.
@@ -1057,8 +1079,9 @@ But a standalone `outline diff` is too vague for v1.
 
 - Should `--format json` support pretty/compact variants, or should `outline` keep a
   simple `text/json/jsonl` enum?
-- Should `map` include imports by default, or should imports appear only in `imports`?
-- Should `exports` mean only explicit exports, or should it include public visibility
+- Should `--show definitions` include top-level constants and variables by default, or
+  should the default view prefer named type/function declarations only?
+- Should `--show exports` mean only explicit exports, or should it include public visibility
   such as Rust `pub` and Go capitalized identifiers?
 - Should unsupported languages be silent by default or emit warnings when not writing
   JSON?
