@@ -91,7 +91,7 @@ Each scenario runs in two arms:
 
 | Arm | Setup |
 | --- | --- |
-| `with-outline` | Claude receives an extra system prompt telling it to use normal file discovery first, then `ast-grep outline` for compact structure on candidate files/subtrees. The arm allows only the v1 structural primitives: `map`, `members`, `imports`, and `exports`; `map` is top-level by default, and `members` is preferred for known containers. It forbids deferred outline forms such as `find`, `related`, `container`, and `diff`. |
+| `with-outline` | Claude receives an extra system prompt telling it to use normal file discovery first, then `ast-grep outline` for compact structure on candidate files/subtrees. The arm allows only the v1 structural primitives: `map`, `members`, `imports`, and `exports`; `map` is top-level by default, and `members` is preferred after a parent symbol is known. |
 | `without-outline` | Claude receives a system prompt forbidding `ast-grep outline` and `sg outline`. Normal Read/Grep/Glob/Bash exploration remains available. |
 
 Both arms can use:
@@ -120,8 +120,8 @@ The runner still uses Claude Code `--output-format stream-json` so it can parse
 cost, token, time, tool-call, and init-event telemetry. That does not require
 the agent's answer to be JSON. The outline prompt tells the agent to discover
 files with normal tools first, avoid whole-repo `map`, treat default `map` as a
-top-level file signature, use `members` only after identifying a container
-symbol, and then read implementation details with concrete line evidence.
+top-level file signature, use `members` only after identifying a parent symbol,
+and then read implementation details with concrete line evidence.
 
 Runs are paired by scenario and iteration. By default the runner uses
 `--arm-order balanced`, which runs `with-outline` first on odd iterations and
@@ -229,9 +229,9 @@ python3 scripts/outline_claude_benchmark.py \
 
 The validator checks that all runs exited successfully, Claude init was clean,
 both arms are present for every iteration, alignments exist, the WITHOUT arm did
-not use outline, and the WITH arm did not use forbidden outline options such as
-budget or format flags, or deferred subcommands. A run should pass this
-validator before it is used for headline effectiveness claims.
+not use outline, and the WITH arm did not use forbidden output-shape options
+such as JSON `--format` flags. A run should pass this validator before it is
+used for headline effectiveness claims.
 
 The runner also applies the same validation automatically after each benchmark
 run writes `metadata.json`, `runs.json`, and `alignment.json`. If validation
@@ -285,8 +285,8 @@ Important caveat: this run is complete and useful as a diagnostic result, but it
 is not a clean final effectiveness claim. Several `with-outline` traces used
 older unsupported outline options; some attempts failed with CLI errors and
 some were hidden by shell redirection. The runner has since been tightened to
-deny unsupported output/budget options and deferred subcommands. A
-later Django smoke run (`target/outline-agent-benchmark/52511cf5`) verified the
+deny unsupported output-shape options. A later Django smoke run
+(`target/outline-agent-benchmark/52511cf5`) verified the
 tighter guardrails: no denied commands, clean init, and 100% alignment. The user
 stopped further full benchmark execution, so the table below remains the last
 complete full run rather than the clean-final run.
@@ -295,7 +295,7 @@ Offline validation confirms the distinction:
 
 ```sh
 python3 scripts/outline_claude_benchmark.py --validate-run target/outline-agent-benchmark/263beca4
-# invalid: old unsupported outline options and related CLI errors
+# invalid: old unsupported outline options and CLI errors
 
 python3 scripts/outline_claude_benchmark.py --validate-run target/outline-agent-benchmark/52511cf5
 # valid
@@ -367,8 +367,7 @@ Examples:
   slower and less consistently aligned.
 
 The main failure mode is not that `outline` is inherently too expensive. The
-failure mode is agent over-exploration: broad `map` calls, unsupported option
-attempts in this completed run, and follow-up reads that are not always guided
-to the missing mechanism. The tightened prompt and command guardrails address
-the option failure, but a clean full rerun is still needed before publishing
-headline claims.
+failure mode is agent over-exploration: broad `map` calls and follow-up reads
+that are not always guided to the missing mechanism. The tightened prompt and
+command guardrails address the command-shape failure, but a clean full rerun is
+still needed before publishing headline claims.

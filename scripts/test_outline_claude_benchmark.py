@@ -50,10 +50,12 @@ class ValidateRunDirTest(unittest.TestCase):
                 issues,
             )
 
-    def test_allows_find_and_members_outline_subcommands(self) -> None:
+    def test_allows_v1_outline_subcommands(self) -> None:
         for command in (
-            "ast-grep outline find /repo --name RouterGroup",
+            "ast-grep outline map /repo",
             "ast-grep outline members /repo --of RouterGroup",
+            "ast-grep outline imports /repo",
+            "ast-grep outline exports /repo",
         ):
             with self.subTest(command=command):
                 with tempfile.TemporaryDirectory() as tmp:
@@ -61,21 +63,6 @@ class ValidateRunDirTest(unittest.TestCase):
                     write_run_dir(run_dir, with_command=command)
 
                     self.assertEqual(benchmark.validate_run_dir(run_dir), [])
-
-    def test_rejects_forbidden_outline_subcommand(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            run_dir = Path(tmp)
-            write_run_dir(
-                run_dir,
-                with_command="ast-grep outline related /repo --symbol RouterGroup",
-            )
-
-            issues = benchmark.validate_run_dir(run_dir)
-
-            self.assertIn(
-                "sample with-outline run 1: forbidden outline option in raw trace",
-                issues,
-            )
 
     def test_rejects_dirty_claude_init(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

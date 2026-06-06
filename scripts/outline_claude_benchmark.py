@@ -34,8 +34,7 @@ DEFAULT_SCENARIOS = ROOT / "benchmarks" / "outline-agent-scenarios.json"
 DEFAULT_REPO_DIR = ROOT / "target" / "outline-agent-benchmark" / "repos"
 NEUTRAL_CWD = Path("/tmp")
 FORBIDDEN_OUTLINE_RE = re.compile(
-    r"\bast-grep\s+outline\b[^\n]*(?:--budget\b|--format\b|"
-    r"\bcontainer\b|\brelated\b|\bdiff\b)"
+    r"\b(?:ast-grep|sg)\s+outline\b[^\n]*--format\b"
 )
 
 
@@ -51,11 +50,8 @@ structural view before reading deeply or answering. Do not start with
 Useful commands:
 - `ast-grep outline map <path>`: skim top-level definitions in a file or
   focused subtree.
-- `ast-grep outline find <path> --name <symbol>`: locate an exact known symbol.
-- `ast-grep outline find <path> --name-regex <term>`: narrow likely symbols
-  after normal file discovery has found a subsystem or vocabulary.
 - `ast-grep outline members <path> --of <symbol>`: list methods, fields, and
-  nested types for a known class, struct, trait, interface, or module.
+  nested types for a known class, struct, trait, interface, or module symbol.
 - `ast-grep outline imports <path>`: see dependencies for a file or focused subtree.
 - `ast-grep outline exports <path>`: see public API exported by a file or subtree.
 
@@ -65,9 +61,9 @@ Typical workflow:
 1. Use `Glob`/`Grep`/`rg` to find likely files and vocabulary.
 2. Use `map` on focused files or small focused directories, not the repo root.
    Default `map` is top-level only; use `members` for nested details in a known
-   container.
-3. Use `find` only for symbols or terms you already have reason to search for.
-4. Use `members` after identifying a concrete container symbol.
+   class, struct, trait, interface, or module.
+3. Use `members` after identifying a concrete parent symbol.
+4. Use `imports` and `exports` when dependency direction or public API matters.
 5. Read each important file once, preferably around the relevant symbols, and
    use grep for missing line evidence instead of rereading the same file.
 
@@ -285,11 +281,7 @@ def build_command(
     if arm == "with-outline":
         command[1:1] = [
             "--disallowedTools",
-            "Bash(ast-grep outline *--budget*)",
             "Bash(ast-grep outline *--format*)",
-            "Bash(ast-grep outline container *)",
-            "Bash(ast-grep outline related *)",
-            "Bash(ast-grep outline diff *)",
         ]
     if arm == "without-outline":
         command[1:1] = [

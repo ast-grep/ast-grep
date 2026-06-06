@@ -244,8 +244,7 @@ queries. Every flat record should be independently useful:
       "end": { "line": 50, "column": 14, "byte": 1218 }
     },
     "container": null,
-    "signature": "enum Commands",
-    "score": 0.94
+    "signature": "enum Commands"
   }
 }
 ```
@@ -259,7 +258,6 @@ Important properties:
 - `container` is present in flat output as parent-symbol metadata; this is not a
   standalone `container` query.
 - `signature` is short and body-free.
-- `score` is optional, but useful for broad fuzzy queries.
 
 Grouped JSON can use an LSP-like tree shape for single-file outline output:
 
@@ -401,7 +399,6 @@ pub struct OutlineFlatSymbol {
   pub exported: Option<bool>,
   pub node_kind: String,
   pub container: Option<OutlineContainer>,
-  pub score: Option<f32>,
 }
 
 pub struct OutlineContainer {
