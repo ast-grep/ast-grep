@@ -45,25 +45,24 @@ Use normal file discovery first: `Glob`, `Grep`, `rg`, `find`, and `ls` are for
 finding candidate files and names. After you have candidate files or focused
 directories, you must use `ast-grep outline` at least once to get a compact
 structural view before reading deeply or answering. Do not start with
-`ast-grep outline map` on the repository root.
+`ast-grep outline` on the repository root.
 
 Useful commands:
-- `ast-grep outline map <path>`: skim top-level definitions in a file or
-  focused subtree.
-- `ast-grep outline members <path> --of <symbol>`: list methods, fields, and
+- `ast-grep outline <path>`: skim top-level definitions in a file or focused subtree.
+- `ast-grep outline <path> --of <symbol>`: list methods, fields, and
   nested types for a known class, struct, trait, interface, or module symbol.
-- `ast-grep outline imports <path>`: see dependencies for a file or focused subtree.
-- `ast-grep outline exports <path>`: see public API exported by a file or subtree.
+- `ast-grep outline <path> --show imports`: see dependencies for a file or focused subtree.
+- `ast-grep outline <path> --show exports`: see public API exported by a file or subtree.
 
 Use these outline command forms as shown. Do not request JSON or other formats.
 
 Typical workflow:
 1. Use `Glob`/`Grep`/`rg` to find likely files and vocabulary.
-2. Use `map` on focused files or small focused directories, not the repo root.
-   Default `map` is top-level only; use `members` for nested details in a known
+2. Use `ast-grep outline` on focused files or small focused directories, not the repo root.
+   The default view is top-level only; use `--of` for nested details in a known
    class, struct, trait, interface, or module.
-3. Use `members` after identifying a concrete parent symbol.
-4. Use `imports` and `exports` when dependency direction or public API matters.
+3. Use `--of` after identifying a concrete parent symbol.
+4. Use `--show imports` and `--show exports` when dependency direction or public API matters.
 5. Read each important file once, preferably around the relevant symbols, and
    use grep for missing line evidence instead of rereading the same file.
 
