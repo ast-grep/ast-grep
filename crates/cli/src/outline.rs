@@ -1,7 +1,8 @@
 use std::cmp::Reverse;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::mpsc;
 
@@ -26,45 +27,15 @@ const CHILD_DIGEST_GROUP_LIMIT: usize = 8;
 pub struct OutlineArg {
   #[clap(flatten)]
   common: OutlineCommonArg,
-  /// Select which outline records to display.
-  #[clap(long, default_value = "definitions", value_name = "VIEW")]
-  show: OutlineShow,
   /// Filter outline item kinds by LSP SymbolKind name.
-  #[clap(long, action = clap::ArgAction::Append)]
+  #[clap(long, value_delimiter = ',', action = clap::ArgAction::Append)]
   kind: Vec<SymbolKind>,
-  /// Filter by source role.
-  #[clap(long, action = clap::ArgAction::Append)]
-  role: Vec<SymbolRole>,
+  /// Select records by role facet. Repeatable. Comma-separated roles are ANDed.
+  #[clap(long, value_name = "ROLE", action = clap::ArgAction::Append)]
+  role: Vec<RoleFilter>,
   /// Maximum nesting depth for tree output.
-  #[clap(long, value_name = "NUM")]
-  depth: Option<usize>,
-  /// Parent symbol whose children should be displayed.
-  #[clap(long, value_name = "SYMBOL_NAME")]
-  of: Option<String>,
-  /// Disambiguate the parent symbol by LSP SymbolKind.
-  #[clap(long, value_name = "KIND")]
-  of_kind: Option<SymbolKind>,
-  /// With --of, include recursively nested members.
-  #[clap(long)]
-  recursive: bool,
-  /// Filter by imported module/package/path.
-  #[clap(long, value_name = "MODULE")]
-  to: Option<String>,
-  /// Flatten import clauses into one row per imported binding.
-  #[clap(long)]
-  bindings: bool,
-  /// Exclude re-export statements without local definitions.
-  #[clap(long)]
-  definitions_only: bool,
-}
-
-#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
-#[value(rename_all = "camelCase")]
-enum OutlineShow {
-  Definitions,
-  Imports,
-  Exports,
-  All,
+  #[clap(long, value_name = "N|all")]
+  depth: Option<OutlineDepth>,
 }
 
 #[derive(Args, Clone)]
@@ -75,24 +46,12 @@ struct OutlineCommonArg {
   /// Output format.
   #[clap(long, default_value = "text", value_name = "FORMAT")]
   format: OutlineFormat,
-  /// Approximate maximum records to emit.
+  /// Maximum records or tree items to emit.
   #[clap(long, value_name = "NUM")]
-  budget: Option<usize>,
-  /// Hard maximum records to emit.
-  #[clap(long, value_name = "NUM")]
-  max_items: Option<usize>,
-  /// Filter symbols/imports/exports by exact name.
-  #[clap(long, value_name = "NAME")]
-  name: Option<String>,
-  /// Filter symbols/imports/exports by substring. Regex support can be added later.
-  #[clap(long, value_name = "REGEX")]
-  name_regex: Option<String>,
-  /// Emit independent records.
-  #[clap(long)]
-  flat: bool,
-  /// Include declaration/signature snippets.
-  #[clap(long)]
-  signature: bool,
+  limit: Option<usize>,
+  /// Regex pattern over role-relevant fields.
+  #[clap(long = "match", value_name = "REGEX", action = clap::ArgAction::Append)]
+  matches: Vec<Regex>,
   /// Load additional outline extractor definitions from YAML.
   #[clap(long = "outline-rules", value_name = "FILE", action = clap::ArgAction::Append)]
   outline_rules: Vec<PathBuf>,
@@ -191,6 +150,67 @@ enum SymbolRole {
   Export,
 }
 
+impl SymbolRole {
+  fn parse(value: &str) -> Option<Self> {
+    match value {
+      "definition" | "definitions" => Some(Self::Definition),
+      "import" | "imports" => Some(Self::Import),
+      "export" | "exports" => Some(Self::Export),
+      _ => None,
+    }
+  }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct RoleFilter {
+  any: bool,
+  roles: Vec<SymbolRole>,
+}
+
+impl FromStr for RoleFilter {
+  type Err = String;
+
+  fn from_str(value: &str) -> Result<Self, Self::Err> {
+    if value == "any" {
+      return Ok(Self {
+        any: true,
+        roles: vec![],
+      });
+    }
+    let roles = value
+      .split(',')
+      .map(str::trim)
+      .filter(|role| !role.is_empty())
+      .map(|role| SymbolRole::parse(role).ok_or_else(|| format!("invalid role: {role}")))
+      .collect::<Result<Vec<_>, _>>()?;
+    if roles.is_empty() {
+      Err("role filter cannot be empty".into())
+    } else {
+      Ok(Self { any: false, roles })
+    }
+  }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum OutlineDepth {
+  Limited(usize),
+  All,
+}
+
+impl FromStr for OutlineDepth {
+  type Err = String;
+
+  fn from_str(value: &str) -> Result<Self, Self::Err> {
+    if value == "all" {
+      return Ok(Self::All);
+    }
+    value
+      .parse::<usize>()
+      .map(Self::Limited)
+      .map_err(|_| format!("invalid depth: {value}"))
+  }
+}
+
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Position {
@@ -212,7 +232,7 @@ struct OutlineItem {
   name: Option<String>,
   kind: u8,
   kind_name: &'static str,
-  role: SymbolRole,
+  roles: Vec<SymbolRole>,
   range: OutlineRange,
   selection_range: OutlineRange,
   #[serde(skip_serializing_if = "Option::is_none")]
@@ -221,7 +241,6 @@ struct OutlineItem {
   source_line: String,
   #[serde(skip)]
   child_digest: String,
-  exported: bool,
   node_kind: String,
   #[serde(skip_serializing_if = "Vec::is_empty")]
   children: Vec<OutlineItem>,
@@ -249,7 +268,6 @@ struct OutlineContainer {
 struct OutlineRecord {
   path: String,
   language: String,
-  view: &'static str,
   symbol: OutlineFlatSymbol,
 }
 
@@ -259,12 +277,11 @@ struct OutlineFlatSymbol {
   name: Option<String>,
   kind: u8,
   kind_name: &'static str,
-  role: SymbolRole,
+  roles: Vec<SymbolRole>,
   range: OutlineRange,
   selection_range: OutlineRange,
   #[serde(skip_serializing_if = "Option::is_none")]
   signature: Option<String>,
-  exported: bool,
   node_kind: String,
   #[serde(skip_serializing_if = "Option::is_none")]
   container: Option<OutlineContainer>,
@@ -272,9 +289,9 @@ struct OutlineFlatSymbol {
 
 struct RuleSpec {
   kind: SymbolKind,
-  role: SymbolRole,
+  roles: Vec<SymbolRole>,
+  add_roles: Vec<(SymbolRole, ExportPolicy)>,
   name: NameSource,
-  exported: ExportPolicy,
   matcher: RuleCore,
 }
 
@@ -305,11 +322,20 @@ struct SerializableOutlineExtractor {
   id: String,
   language: SgLang,
   kind: SymbolKind,
-  role: SymbolRole,
+  #[serde(default)]
+  role: Option<SymbolRole>,
+  #[serde(default)]
+  roles: Vec<SymbolRole>,
   #[serde(default)]
   name: Option<String>,
   #[serde(default)]
   exported: Option<String>,
+  #[serde(default, rename = "addRoles")]
+  add_roles: HashMap<String, String>,
+  #[serde(default)]
+  target: Option<String>,
+  #[serde(default)]
+  alias: Option<String>,
   #[serde(flatten)]
   core: SerializableRuleCore,
 }
@@ -360,7 +386,7 @@ extractors:
     kind: module
     role: import
     name: text
-    exported: never
+    exported: textPrefix:pub
     rule: { kind: use_declaration }
   - id: rust-mod
     language: Rust
@@ -1151,20 +1177,6 @@ pub fn run_outline(arg: OutlineArg) -> Result<ExitCode> {
   print_outline(&arg, files)
 }
 
-impl OutlineArg {
-  fn view_name(&self) -> &'static str {
-    if self.of.is_some() {
-      return "members";
-    }
-    match self.show {
-      OutlineShow::Definitions => "definitions",
-      OutlineShow::Imports => "imports",
-      OutlineShow::Exports => "exports",
-      OutlineShow::All => "all",
-    }
-  }
-}
-
 fn outline_stdin(arg: &OutlineArg) -> Result<OutlineFile> {
   let common = &arg.common;
   let catalog = load_outline_catalog(common)?;
@@ -1251,7 +1263,7 @@ fn extract_outline(
   path: PathBuf,
   lang: SgLang,
   src: &str,
-  common: &OutlineCommonArg,
+  _common: &OutlineCommonArg,
   catalog: &OutlineCatalog,
 ) -> Result<OutlineFile> {
   let grep = lang.ast_grep(src);
@@ -1259,7 +1271,7 @@ fn extract_outline(
   let mut items = vec![];
   for spec in outline_rules(lang, catalog)? {
     for matched in root.find_all(&spec.matcher) {
-      if let Some(item) = make_item(&matched, lang, &spec, common.signature) {
+      if let Some(item) = make_item(&matched, lang, &spec, true) {
         items.push(item);
       }
     }
@@ -1312,14 +1324,47 @@ fn compile_outline_rules(
     .filter(|spec| spec.language == lang)
     .map(|spec| {
       let _id = &spec.id;
+      let _target = &spec.target;
+      let _alias = &spec.alias;
       let matcher = spec.core.get_matcher(env.clone())?;
+      let roles = compile_base_roles(&spec)?;
+      let mut add_roles = compile_add_roles(spec.add_roles)?;
+      if let Some(exported) = spec.exported {
+        add_roles.push((SymbolRole::Export, parse_export_policy(Some(exported))));
+      }
       Ok(RuleSpec {
         kind: spec.kind,
-        role: spec.role,
+        roles,
+        add_roles,
         name: parse_name_source(spec.name),
-        exported: parse_export_policy(spec.exported),
         matcher,
       })
+    })
+    .collect()
+}
+
+fn compile_base_roles(spec: &SerializableOutlineExtractor) -> Result<Vec<SymbolRole>> {
+  let mut roles = vec![];
+  if let Some(role) = spec.role {
+    add_role(&mut roles, role);
+  }
+  for role in &spec.roles {
+    add_role(&mut roles, *role);
+  }
+  if roles.is_empty() {
+    return Err(anyhow!("outline extractor {} must define roles", spec.id));
+  }
+  Ok(roles)
+}
+
+fn compile_add_roles(
+  add_roles: HashMap<String, String>,
+) -> Result<Vec<(SymbolRole, ExportPolicy)>> {
+  add_roles
+    .into_iter()
+    .map(|(role, policy)| {
+      let role = SymbolRole::parse(&role).ok_or_else(|| anyhow!("invalid outline role: {role}"))?;
+      Ok((role, parse_export_policy(Some(policy))))
     })
     .collect()
 }
@@ -1383,25 +1428,60 @@ fn make_item(
 ) -> Option<OutlineItem> {
   let node = matched.get_node();
   let (name, selection_range) = resolve_name(matched, lang, spec);
-  if matches!(spec.role, SymbolRole::Definition) && name.is_none() {
+  if spec.roles.contains(&SymbolRole::Definition) && name.is_none() {
     return None;
   }
-  let exported = is_exported(node, &spec.exported, spec.role, name.as_deref());
+  let roles = item_roles(&spec.roles, &spec.add_roles, node, name.as_deref());
   let kind = spec.kind;
   Some(OutlineItem {
     name,
     kind: kind.number(),
     kind_name: kind.name(),
-    role: spec.role,
+    roles,
     range: node_range(node),
     selection_range: selection_range.unwrap_or_else(|| node_range(node)),
     signature: include_signature.then(|| signature(node)),
     source_line: signature(node),
     child_digest: String::new(),
-    exported,
     node_kind: node.kind().to_string(),
     children: vec![],
   })
+}
+
+fn item_roles(
+  base: &[SymbolRole],
+  add_roles: &[(SymbolRole, ExportPolicy)],
+  node: &SgNode<'_>,
+  name: Option<&str>,
+) -> Vec<SymbolRole> {
+  let mut roles = vec![];
+  for role in base {
+    add_role(&mut roles, *role);
+  }
+  for (role, policy) in add_roles {
+    if role_predicate_matches(node, policy, name) {
+      add_role(&mut roles, *role);
+    }
+  }
+  let source = node.text();
+  let source = source.trim_start();
+  if roles.contains(&SymbolRole::Export) && is_forwarded_export(source) {
+    add_role(&mut roles, SymbolRole::Import);
+  }
+  roles
+}
+
+fn add_role(roles: &mut Vec<SymbolRole>, role: SymbolRole) {
+  if !roles.contains(&role) {
+    roles.push(role);
+  }
+}
+
+fn is_forwarded_export(source: &str) -> bool {
+  source.starts_with("pub use ")
+    || source.contains(" from ")
+    || source.contains(" from\"")
+    || source.contains(" from'")
 }
 
 fn resolve_name(
@@ -1430,7 +1510,12 @@ fn resolve_name(
     }
     NameSource::Auto => {}
   }
-  if matches!(spec.role, SymbolRole::Import | SymbolRole::Export) {
+  if !spec.roles.contains(&SymbolRole::Definition)
+    && spec
+      .roles
+      .iter()
+      .any(|role| matches!(role, SymbolRole::Import | SymbolRole::Export))
+  {
     return (Some(import_export_name(node)), None);
   }
   if let Some(name) = node.field("name") {
@@ -1546,15 +1631,7 @@ fn extract_quoted(text: &str) -> Option<String> {
   None
 }
 
-fn is_exported(
-  node: &SgNode<'_>,
-  policy: &ExportPolicy,
-  role: SymbolRole,
-  name: Option<&str>,
-) -> bool {
-  if matches!(role, SymbolRole::Export) {
-    return true;
-  }
+fn role_predicate_matches(node: &SgNode<'_>, policy: &ExportPolicy, name: Option<&str>) -> bool {
   match policy {
     ExportPolicy::Always => true,
     ExportPolicy::Never => false,
@@ -1606,22 +1683,25 @@ fn node_range(node: &SgNode<'_>) -> OutlineRange {
 }
 
 fn dedup_items(items: &mut Vec<OutlineItem>) {
-  items.sort_by_key(|i| {
-    (
-      i.range.start.byte,
-      i.range.end.byte,
-      i.kind,
-      i.role as u8,
-      i.name.clone(),
-    )
-  });
-  items.dedup_by(|a, b| {
-    a.range.start.byte == b.range.start.byte
-      && a.range.end.byte == b.range.end.byte
-      && a.kind == b.kind
-      && a.role == b.role
-      && a.name == b.name
-  });
+  items.sort_by_key(|i| (i.range.start.byte, i.range.end.byte, i.kind, i.name.clone()));
+  let mut deduped: Vec<OutlineItem> = vec![];
+  for item in std::mem::take(items) {
+    if let Some(existing) = deduped.last_mut()
+      && existing.range.start.byte == item.range.start.byte
+      && existing.range.end.byte == item.range.end.byte
+      && existing.kind == item.kind
+      && existing.name == item.name
+    {
+      for role in item.roles {
+        if !existing.roles.contains(&role) {
+          existing.roles.push(role);
+        }
+      }
+    } else {
+      deduped.push(item);
+    }
+  }
+  *items = deduped;
 }
 
 fn nest_items(items: Vec<OutlineItem>) -> Vec<OutlineItem> {
@@ -1696,7 +1776,12 @@ fn apply_view(arg: &OutlineArg, files: &mut Vec<OutlineFile>) {
   for file in files.iter_mut() {
     file.items = filter_items(std::mem::take(&mut file.items), arg, common);
   }
-  files.retain(|file| !file.items.is_empty() || arg.is_default_map_view());
+  let keep_empty_files = arg.is_default_map_view() || is_direct_file_input(common);
+  files.retain(|file| !file.items.is_empty() || keep_empty_files);
+}
+
+fn is_direct_file_input(common: &OutlineCommonArg) -> bool {
+  common.input.stdin || common.input.paths.iter().any(|path| path.is_file())
 }
 
 fn filter_items(
@@ -1704,98 +1789,29 @@ fn filter_items(
   arg: &OutlineArg,
   common: &OutlineCommonArg,
 ) -> Vec<OutlineItem> {
-  if arg.of.is_some() {
-    return filter_members(items, arg, common);
-  }
-  match arg.show {
-    OutlineShow::Definitions => {
-      let mut items = filter_tree(items, |item| {
-        item.role != SymbolRole::Import && item_matches(item, arg, common)
-      });
-      if let Some(depth) = arg.depth {
-        trim_depth(&mut items, depth);
-      } else {
-        set_child_digests(&mut items);
-        trim_depth(&mut items, 1);
-      }
-      items
+  let mut items = if has_anchor_filters(arg, common) {
+    collect_matching_anchors(items, arg, common)
+  } else {
+    items
+      .into_iter()
+      .filter(|item| role_matches(item, &arg.role))
+      .collect()
+  };
+  match arg.depth {
+    Some(OutlineDepth::All) => {}
+    Some(OutlineDepth::Limited(depth)) => trim_depth(&mut items, depth),
+    None => {
+      set_child_digests(&mut items);
+      trim_depth(&mut items, 1);
     }
-    OutlineShow::Imports => filter_imports(items, arg, common),
-    OutlineShow::Exports => filter_exports(items, arg, common),
-    OutlineShow::All => filter_all(items, arg, common),
   }
+  items
 }
 
 impl OutlineArg {
   fn is_default_map_view(&self) -> bool {
-    self.of.is_none() && self.show == OutlineShow::Definitions
+    self.role.is_empty() && !has_anchor_filters(self, &self.common)
   }
-}
-
-fn filter_imports(
-  items: Vec<OutlineItem>,
-  arg: &OutlineArg,
-  common: &OutlineCommonArg,
-) -> Vec<OutlineItem> {
-  let imports = filter_tree(items, |item| {
-    item.role == SymbolRole::Import
-      && item_matches(item, arg, common)
-      && arg
-        .to
-        .as_ref()
-        .is_none_or(|to| item_name_contains(item, to))
-  });
-  if arg.bindings {
-    imports.into_iter().flat_map(expand_bindings).collect()
-  } else {
-    imports
-  }
-}
-
-fn filter_exports(
-  items: Vec<OutlineItem>,
-  arg: &OutlineArg,
-  common: &OutlineCommonArg,
-) -> Vec<OutlineItem> {
-  filter_tree(items, |item| {
-    (item.exported || (!arg.definitions_only && item.role == SymbolRole::Export))
-      && item_matches(item, arg, common)
-  })
-}
-
-fn filter_all(
-  items: Vec<OutlineItem>,
-  arg: &OutlineArg,
-  common: &OutlineCommonArg,
-) -> Vec<OutlineItem> {
-  let items = filter_tree(items, |item| {
-    item_matches(item, arg, common)
-      && (item.role != SymbolRole::Import
-        || arg
-          .to
-          .as_ref()
-          .is_none_or(|to| item_name_contains(item, to)))
-      && (!arg.definitions_only || item.role != SymbolRole::Export)
-  });
-  if arg.bindings {
-    expand_import_bindings(items)
-  } else {
-    items
-  }
-}
-
-fn expand_import_bindings(items: Vec<OutlineItem>) -> Vec<OutlineItem> {
-  items
-    .into_iter()
-    .flat_map(|mut item| {
-      item.children = expand_import_bindings(item.children);
-      if item.role == SymbolRole::Import {
-        expand_bindings(item)
-      } else {
-        vec![item]
-      }
-    })
-    .collect()
 }
 
 fn trim_depth(items: &mut [OutlineItem], depth: usize) {
@@ -1874,167 +1890,79 @@ fn child_digest_name(item: &OutlineItem) -> String {
     .unwrap_or_else(|| item.source_line.trim().to_string())
 }
 
-fn filter_tree(
-  items: Vec<OutlineItem>,
-  pred: impl Copy + Fn(&OutlineItem) -> bool,
-) -> Vec<OutlineItem> {
-  items
-    .into_iter()
-    .filter_map(|mut item| {
-      item.children = filter_tree(item.children, pred);
-      if pred(&item) { Some(item) } else { None }
-    })
-    .collect()
-}
-
-fn filter_members(
+fn collect_matching_anchors(
   items: Vec<OutlineItem>,
   arg: &OutlineArg,
   common: &OutlineCommonArg,
 ) -> Vec<OutlineItem> {
   let mut ret = vec![];
   for item in items {
-    collect_members(item, arg, common, &mut ret);
+    collect_matching_anchor(item, arg, common, &mut ret);
   }
   ret
 }
 
-fn collect_members(
-  item: OutlineItem,
+fn collect_matching_anchor(
+  mut item: OutlineItem,
   arg: &OutlineArg,
   common: &OutlineCommonArg,
   ret: &mut Vec<OutlineItem>,
 ) {
-  let Some(of) = &arg.of else {
-    return;
-  };
-  let is_container = item.name.as_deref() == Some(of.as_str())
-    && arg.of_kind.is_none_or(|kind| item.kind == kind.number());
-  if is_container {
-    let children = if arg.recursive {
-      flatten_items(item.children)
-    } else {
-      item.children
-    };
-    ret.extend(
-      children
-        .into_iter()
-        .filter(|child| item_matches(child, arg, common)),
-    );
+  if item_matches(&item, arg, common) {
+    ret.push(item);
   } else {
-    for child in item.children {
-      collect_members(child, arg, common, ret);
+    for child in std::mem::take(&mut item.children) {
+      collect_matching_anchor(child, arg, common, ret);
     }
   }
-}
-
-fn flatten_items(items: Vec<OutlineItem>) -> Vec<OutlineItem> {
-  let mut ret = vec![];
-  for mut item in items {
-    let children = std::mem::take(&mut item.children);
-    ret.push(item);
-    ret.extend(flatten_items(children));
-  }
-  ret
 }
 
 fn kind_matches(item: &OutlineItem, kinds: &[SymbolKind]) -> bool {
   kinds.is_empty() || kinds.iter().any(|kind| item.kind == kind.number())
 }
 
-fn role_matches(item: &OutlineItem, roles: &[SymbolRole]) -> bool {
-  roles.is_empty() || roles.contains(&item.role)
+fn role_matches(item: &OutlineItem, filters: &[RoleFilter]) -> bool {
+  if filters.is_empty() {
+    return item.roles.contains(&SymbolRole::Definition);
+  }
+  if filters.iter().any(|filter| filter.any) {
+    return true;
+  }
+  filters
+    .iter()
+    .any(|filter| filter.roles.iter().all(|role| item.roles.contains(role)))
 }
 
 fn item_matches(item: &OutlineItem, arg: &OutlineArg, common: &OutlineCommonArg) -> bool {
   kind_matches(item, &arg.kind) && role_matches(item, &arg.role) && common_matches(item, common)
 }
 
+fn has_anchor_filters(arg: &OutlineArg, common: &OutlineCommonArg) -> bool {
+  !arg.kind.is_empty() || !common.matches.is_empty()
+}
+
 fn common_matches(item: &OutlineItem, common: &OutlineCommonArg) -> bool {
-  common
-    .name
-    .as_ref()
-    .is_none_or(|name| item.name.as_deref() == Some(name.as_str()))
-    && common
-      .name_regex
-      .as_ref()
-      .is_none_or(|regex| item_name_regex(item, regex))
-}
-
-fn item_name_contains(item: &OutlineItem, needle: &str) -> bool {
-  let normalized = needle.replace('-', "_");
-  item
-    .name
-    .as_ref()
-    .is_some_and(|name| name.contains(needle) || name.contains(&normalized))
-    || item
-      .signature
-      .as_ref()
-      .is_some_and(|signature| signature.contains(needle) || signature.contains(&normalized))
-}
-
-fn item_name_regex(item: &OutlineItem, pattern: &str) -> bool {
-  let Ok(regex) = Regex::new(pattern) else {
-    return false;
-  };
-  item.name.as_ref().is_some_and(|name| regex.is_match(name))
-    || item
-      .signature
-      .as_ref()
-      .is_some_and(|signature| regex.is_match(signature))
-}
-
-fn expand_bindings(item: OutlineItem) -> Vec<OutlineItem> {
-  let Some(name) = &item.name else {
-    return vec![item];
-  };
-  let Some(start) = name.find('{') else {
-    return vec![item];
-  };
-  let Some(end) = name.rfind('}') else {
-    return vec![item];
-  };
-  if end <= start {
-    return vec![item];
-  }
-  let prefix = name[..start].trim().trim_end_matches("::").trim();
-  let bindings = name[start + 1..end]
-    .split(',')
-    .map(str::trim)
-    .filter(|binding| !binding.is_empty())
-    .map(|binding| {
-      let mut item = item.clone();
-      item.name = Some(if prefix.is_empty() {
-        binding.to_string()
-      } else {
-        format!("{prefix}::{binding}")
-      });
-      item.children.clear();
-      item
+  common.matches.is_empty()
+    || common.matches.iter().any(|regex| {
+      item.name.as_ref().is_some_and(|name| regex.is_match(name))
+        || item
+          .signature
+          .as_ref()
+          .is_some_and(|signature| regex.is_match(signature))
+        || regex.is_match(&item.source_line)
     })
-    .collect::<Vec<_>>();
-  if bindings.is_empty() {
-    vec![item]
-  } else {
-    bindings
-  }
 }
 
 fn print_outline(arg: &OutlineArg, mut files: Vec<OutlineFile>) -> Result<ExitCode> {
   let common = &arg.common;
-  enforce_limit(&mut files, common.max_items.or(common.budget));
+  enforce_limit(&mut files, common.limit);
   match common.format {
     OutlineFormat::Text => print_text(&files),
     OutlineFormat::Json => {
-      if common.flat {
-        let records = flatten_files(arg, &files);
-        println!("{}", serde_json::to_string_pretty(&records)?);
-      } else {
-        println!("{}", serde_json::to_string_pretty(&files)?);
-      }
+      println!("{}", serde_json::to_string_pretty(&files)?);
     }
     OutlineFormat::Jsonl => {
-      for record in flatten_files(arg, &files) {
+      for record in flatten_files(&files) {
         println!("{}", serde_json::to_string(&record)?);
       }
     }
@@ -2199,16 +2127,15 @@ fn kind_text_label(kind: u8) -> &'static str {
   }
 }
 
-fn flatten_files(arg: &OutlineArg, files: &[OutlineFile]) -> Vec<OutlineRecord> {
+fn flatten_files(files: &[OutlineFile]) -> Vec<OutlineRecord> {
   let mut records = vec![];
   for file in files {
-    flatten_items_for_file(arg.view_name(), file, &file.items, None, &mut records);
+    flatten_items_for_file(file, &file.items, None, &mut records);
   }
   records
 }
 
 fn flatten_items_for_file(
-  view: &'static str,
   file: &OutlineFile,
   items: &[OutlineItem],
   container: Option<OutlineContainer>,
@@ -2224,10 +2151,9 @@ fn flatten_items_for_file(
     records.push(OutlineRecord {
       path: file.path.clone(),
       language: file.language.clone(),
-      view,
       symbol: flat_symbol(item, container.clone()),
     });
-    flatten_items_for_file(view, file, &item.children, current_container, records);
+    flatten_items_for_file(file, &item.children, current_container, records);
   }
 }
 
@@ -2236,11 +2162,10 @@ fn flat_symbol(item: &OutlineItem, container: Option<OutlineContainer>) -> Outli
     name: item.name.clone(),
     kind: item.kind,
     kind_name: item.kind_name,
-    role: item.role,
+    roles: item.roles.clone(),
     range: item.range.clone(),
     selection_range: item.selection_range.clone(),
     signature: item.signature.clone(),
-    exported: item.exported,
     node_kind: item.node_kind.clone(),
     container,
   }
@@ -2264,13 +2189,17 @@ mod tests {
     let query = map_query();
     let mut files = vec![file];
     apply_view(&query, &mut files);
-    let records = flatten_files(&query, &files);
+    let records = flatten_files(&files);
     assert!(
       records
         .iter()
         .any(|r| r.symbol.name.as_deref() == Some("RunArg"))
     );
-    assert!(records.iter().all(|r| r.symbol.role != SymbolRole::Import));
+    assert!(
+      records
+        .iter()
+        .all(|r| !r.symbol.roles.contains(&SymbolRole::Import))
+    );
     assert!(files[0].items.iter().any(|item| {
       item.name.as_deref() == Some("RunArg") && item.source_line == "pub struct RunArg {}"
     }));
@@ -2286,8 +2215,12 @@ mod tests {
     let query = imports_query();
     let mut files = vec![file];
     apply_view(&query, &mut files);
-    let records = flatten_files(&query, &files);
-    assert!(records.iter().any(|r| r.symbol.role == SymbolRole::Import));
+    let records = flatten_files(&files);
+    assert!(
+      records
+        .iter()
+        .any(|r| r.symbol.roles.contains(&SymbolRole::Import))
+    );
   }
 
   #[test]
@@ -2301,12 +2234,17 @@ mod tests {
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = members_query("Parser", Some(SymbolKind::Class), vec![SymbolKind::Method]);
+    let query = anchor_query("Parser", Some(SymbolKind::Class), 2);
     let mut files = vec![file];
     apply_view(&query, &mut files);
     assert_eq!(files[0].items.len(), 1);
-    assert_eq!(files[0].items[0].name.as_deref(), Some("parse"));
-    assert!(!files[0].items[0].exported);
+    assert_eq!(files[0].items[0].name.as_deref(), Some("Parser"));
+    assert!(
+      files[0].items[0]
+        .children
+        .iter()
+        .any(|child| child.name.as_deref() == Some("parse"))
+    );
   }
 
   #[test]
@@ -2338,7 +2276,7 @@ export function retry() {
     let query = map_query();
     let mut files = vec![file];
     apply_view(&query, &mut files);
-    let records = flatten_files(&query, &files);
+    let records = flatten_files(&files);
     assert!(
       records
         .iter()
@@ -2407,7 +2345,7 @@ public record Rec(int id) {}
     let query = map_query();
     let mut files = vec![file];
     apply_view(&query, &mut files);
-    let records = flatten_files(&query, &files);
+    let records = flatten_files(&files);
     assert!(
       records
         .iter()
@@ -2429,7 +2367,7 @@ public record Rec(int id) {}
         .iter()
         .all(|r| r.symbol.name.as_deref() != Some("bar"))
     );
-    let query = members_query("Foo", Some(SymbolKind::Class), vec![]);
+    let query = anchor_query("Foo", Some(SymbolKind::Class), 2);
     let file = extract_outline(
       PathBuf::from("test.java"),
       SgLang::Builtin(SupportLang::Java),
@@ -2440,14 +2378,14 @@ public record Rec(int id) {}
     .expect("extract outline");
     let mut files = vec![file];
     apply_view(&query, &mut files);
-    let records = flatten_files(&query, &files);
+    let records = flatten_files(&files);
     assert!(records.iter().any(|r| {
       r.symbol.name.as_deref() == Some("SIZE") && r.symbol.kind == SymbolKind::Constant.number()
     }));
     assert!(records.iter().any(|r| {
       r.symbol.name.as_deref() == Some("bar") && r.symbol.kind == SymbolKind::Method.number()
     }));
-    let query = exports_query(true);
+    let query = local_exports_query();
     let file = extract_outline(
       PathBuf::from("test.java"),
       SgLang::Builtin(SupportLang::Java),
@@ -2493,22 +2431,21 @@ interface I {}
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = members_query("Foo", Some(SymbolKind::Class), vec![]);
+    let query = anchor_query("Foo", Some(SymbolKind::Class), 2);
     let mut files = vec![file];
     apply_view(&query, &mut files);
+    let records = flatten_files(&files);
     assert!(
-      files[0]
-        .items
+      records
         .iter()
-        .any(|item| item.name.as_deref() == Some("name"))
+        .any(|record| record.symbol.name.as_deref() == Some("name"))
     );
     assert!(
-      files[0]
-        .items
+      records
         .iter()
-        .any(|item| item.name.as_deref() == Some("bar"))
+        .any(|record| record.symbol.name.as_deref() == Some("bar"))
     );
-    let query = exports_query(true);
+    let query = local_exports_query();
     let file = extract_outline(
       PathBuf::from("test.kt"),
       SgLang::Builtin(SupportLang::Kotlin),
@@ -2557,7 +2494,7 @@ public typealias Alias = String
     let query = map_query();
     let mut files = vec![file];
     apply_view(&query, &mut files);
-    let records = flatten_files(&query, &files);
+    let records = flatten_files(&files);
     assert!(
       records
         .iter()
@@ -2572,7 +2509,7 @@ public typealias Alias = String
     assert!(records.iter().any(|r| {
       r.symbol.name.as_deref() == Some("Mode") && r.symbol.kind == SymbolKind::Enum.number()
     }));
-    let query = members_query("Foo", Some(SymbolKind::Class), vec![]);
+    let query = anchor_query("Foo", Some(SymbolKind::Class), 2);
     let file = extract_outline(
       PathBuf::from("test.swift"),
       SgLang::Builtin(SupportLang::Swift),
@@ -2583,17 +2520,16 @@ public typealias Alias = String
     .expect("extract outline");
     let mut files = vec![file];
     apply_view(&query, &mut files);
+    let records = flatten_files(&files);
     assert!(
-      files[0]
-        .items
+      records
         .iter()
-        .any(|item| item.name.as_deref() == Some("name"))
+        .any(|record| record.symbol.name.as_deref() == Some("name"))
     );
     assert!(
-      files[0]
-        .items
+      records
         .iter()
-        .any(|item| item.name.as_deref() == Some("bar"))
+        .any(|record| record.symbol.name.as_deref() == Some("bar"))
     );
   }
 
@@ -2617,7 +2553,7 @@ open class Session: @unchecked Sendable {
     let query = map_query();
     let mut files = vec![file];
     apply_view(&query, &mut files);
-    let records = flatten_files(&query, &files);
+    let records = flatten_files(&files);
     assert!(records.iter().any(|r| {
       r.symbol.name.as_deref() == Some("Session") && r.symbol.kind == SymbolKind::Class.number()
     }));
@@ -2655,7 +2591,7 @@ func standalone() {}
     let query = map_query();
     let mut files = vec![file];
     apply_view(&query, &mut files);
-    let records = flatten_files(&query, &files);
+    let records = flatten_files(&files);
     assert!(
       records
         .iter()
@@ -2692,7 +2628,7 @@ func standalone() {}
     let query = map_query_with_depth(2);
     let mut files = vec![file];
     apply_view(&query, &mut files);
-    let records = flatten_files(&query, &files);
+    let records = flatten_files(&files);
     assert!(
       records
         .iter()
@@ -2707,13 +2643,14 @@ func standalone() {}
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = members_query("RouterGroup", None, vec![SymbolKind::Method]);
+    let query = anchor_query("RouterGroup", None, 2);
     let mut files = vec![file];
     apply_view(&query, &mut files);
-    let names = files[0]
-      .items
+    let records = flatten_files(&files);
+    let names = records
       .iter()
-      .filter_map(|item| item.name.as_deref())
+      .filter(|record| record.symbol.kind == SymbolKind::Method.number())
+      .filter_map(|record| record.symbol.name.as_deref())
       .collect::<Vec<_>>();
     assert_eq!(
       names,
@@ -2768,9 +2705,10 @@ extractors:
   - id: rust-function-only
     language: Rust
     kind: function
-    role: definition
+    roles: [definition]
+    addRoles:
+      export: textPrefix:pub
     name: field:name
-    exported: never
     rule: { kind: function_item }
 "#,
     )
@@ -2778,7 +2716,7 @@ extractors:
     let mut common = test_common();
     common.no_default_outline_rules = true;
     common.outline_rules = vec![rule_path];
-    let src = "pub struct RunArg {}\nfn custom() {}\n";
+    let src = "pub struct RunArg {}\npub fn custom() {}\n";
     let file = extract_outline(
       PathBuf::from("test.rs"),
       SgLang::Builtin(SupportLang::Rust),
@@ -2787,10 +2725,35 @@ extractors:
       &load_outline_catalog(&common).expect("load outline catalog"),
     )
     .expect("extract outline");
-    let records = flatten_files(&outline_arg_with_common(common), &[file]);
+    let records = flatten_files(&[file]);
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].symbol.name.as_deref(), Some("custom"));
     assert_eq!(records[0].symbol.kind, SymbolKind::Function.number());
+    assert_eq!(
+      records[0].symbol.roles,
+      vec![SymbolRole::Definition, SymbolRole::Export]
+    );
+  }
+
+  #[test]
+  fn direct_file_filter_keeps_empty_result() {
+    let dir = tempfile::TempDir::new().expect("temp dir");
+    let file_path = dir.path().join("local.rs");
+    std::fs::write(&file_path, "fn local() {}\n").expect("write source");
+    let file = extract_outline(
+      file_path.clone(),
+      SgLang::Builtin(SupportLang::Rust),
+      "fn local() {}\n",
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let mut query = local_exports_query();
+    query.common.input.paths = vec![file_path];
+    let mut files = vec![file];
+    apply_view(&query, &mut files);
+    assert_eq!(files.len(), 1);
+    assert!(files[0].items.is_empty());
   }
 
   #[test]
@@ -2808,12 +2771,8 @@ extractors:
     OutlineCommonArg {
       lang: None,
       format: OutlineFormat::Json,
-      budget: None,
-      max_items: None,
-      name: None,
-      name_regex: None,
-      flat: false,
-      signature: true,
+      limit: None,
+      matches: vec![],
       outline_rules: vec![],
       no_default_outline_rules: false,
       input: InputArgs {
@@ -2834,16 +2793,9 @@ extractors:
   fn outline_arg_with_common(common: OutlineCommonArg) -> OutlineArg {
     OutlineArg {
       common,
-      show: OutlineShow::Definitions,
       kind: vec![],
       role: vec![],
       depth: None,
-      of: None,
-      of_kind: None,
-      recursive: false,
-      to: None,
-      bindings: false,
-      definitions_only: false,
     }
   }
 
@@ -2853,28 +2805,34 @@ extractors:
 
   fn map_query_with_depth(depth: usize) -> OutlineArg {
     let mut arg = map_query();
-    arg.depth = Some(depth);
+    arg.depth = Some(OutlineDepth::Limited(depth));
     arg
   }
 
   fn imports_query() -> OutlineArg {
     let mut arg = map_query();
-    arg.show = OutlineShow::Imports;
+    arg.role = vec![role_filter(&[SymbolRole::Import])];
     arg
   }
 
-  fn exports_query(definitions_only: bool) -> OutlineArg {
+  fn local_exports_query() -> OutlineArg {
     let mut arg = map_query();
-    arg.show = OutlineShow::Exports;
-    arg.definitions_only = definitions_only;
+    arg.role = vec![role_filter(&[SymbolRole::Definition, SymbolRole::Export])];
     arg
   }
 
-  fn members_query(of: &str, of_kind: Option<SymbolKind>, kind: Vec<SymbolKind>) -> OutlineArg {
+  fn anchor_query(name: &str, kind: Option<SymbolKind>, depth: usize) -> OutlineArg {
     let mut arg = map_query();
-    arg.of = Some(of.to_string());
-    arg.of_kind = of_kind;
-    arg.kind = kind;
+    arg.common.matches = vec![Regex::new(name).expect("test regex")];
+    arg.kind = kind.into_iter().collect();
+    arg.depth = Some(OutlineDepth::Limited(depth));
     arg
+  }
+
+  fn role_filter(roles: &[SymbolRole]) -> RoleFilter {
+    RoleFilter {
+      any: false,
+      roles: roles.to_vec(),
+    }
   }
 }
