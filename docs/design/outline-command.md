@@ -68,9 +68,22 @@ Default behavior:
 sg outline <path>
 ```
 
-This returns text output with local definitions and compact direct member names. It uses
-the default `--view digest` because that is readable and token-efficient for interactive
-agents.
+The default output depends on whether the input is a file or a directory:
+
+```text
+stdin                         --role auto --view auto  =>  --role definition --role export --view digest
+all explicit inputs are files --role auto --view auto  =>  --role definition --role export --view digest
+any directory input present   --role auto --view auto  =>  --role export --view names
+```
+
+A file outline is for inspecting one file's internal structure, so it shows local
+definitions and exported records with compact direct member names. A directory outline is
+for scanning project structure, so it shows only exported surface names by default.
+If files and directories are mixed in one invocation, `auto` resolves command-wide to the
+directory default. Per-path defaults would make the same file render differently
+depending on how it was reached.
+
+Users can override either default explicitly with `--role` and `--view`.
 
 ### Core Options
 
@@ -78,12 +91,12 @@ agents.
 --json[=<pretty|compact|stream>]
                           Output structured JSON. Follows ast-grep's existing
                           `--json` flag shape.
---role <definition|import|export|any[,..]>
-                          Select records by role. Repeatable. Default: definition.
+--role <auto|definition|import|export|any[,..]>
+                          Select records by role. Repeatable. Default: auto.
 --type <TYPE[,TYPE...]>   LSP-compatible symbol type filter.
 --match <REGEX>          Regex over role-relevant fields. Repeatable.
---view <names|signatures|digest|expanded>
-                          Control text presentation. Default: digest.
+--view <auto|names|signatures|digest|expanded>
+                          Control text presentation. Default: auto.
 ```
 
 Input and extractor options:
@@ -118,18 +131,23 @@ export        Public/exported surface.
 `--role` filters records by role membership:
 
 ```text
-default / --role definition     local definitions
---role import                   imports and dependency edges
---role export                   exported/public records
---role definition,export        exported records implemented locally
---role import,export            exports forwarded from another module
---role definition --role import local definitions or imports
---role any                      no role filtering
+--role auto                          file or directory default
+file default                         local definitions or exported records
+directory default                    exported/public records
+--role definition                    local definitions
+--role import                        imports and dependency edges
+--role export                        exported/public records
+--role definition,export             exported records implemented locally
+--role import,export                 exports forwarded from another module
+--role definition --role import      local definitions or imports
+--role any                           no role filtering
 ```
 
 Comma-separated roles inside one `--role` are ANDed because roles are facets on one
-record. Repeated `--role` flags are ORed. `--role any` should not be combined with other
-role filters.
+record. Repeated `--role` flags are ORed. `auto` and `any` are selector modes, not
+record roles, and should not be combined with other role filters. When `--role` is
+omitted, it behaves as `--role auto` and chooses the file or directory default from the
+public CLI contract. Mixed file and directory input uses the directory default.
 
 Examples:
 
@@ -181,11 +199,15 @@ arbitrary nested blocks.
 `--view` controls the text projection:
 
 ```text
+auto        Choose `names` for directory input and `digest` for file/stdin input.
 names       One block per file: one digest line per top-level symbol type.
 signatures  One block per file: one source/signature line per top-level symbol.
-digest      `signatures` plus compact direct member name digests. Default.
+digest      `signatures` plus compact direct member name digests. File default.
 expanded    `signatures` plus one source/signature line per direct member.
 ```
+
+When `--view` is omitted, it behaves as `--view auto`: directory input uses `names`,
+file/stdin input uses `digest`, and mixed file plus directory input uses `names`.
 
 Structural members include:
 
@@ -249,7 +271,7 @@ class:
 40: export class Parser
 ```
 
-Default `--view digest`:
+File default `--view digest`:
 
 ```text
 src/parser.ts
