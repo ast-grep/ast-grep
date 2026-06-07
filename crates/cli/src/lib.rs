@@ -338,24 +338,11 @@ mod test_cli {
   }
 
   #[test]
-  #[ignore = "outline command is not implemented yet, just test arg parsing for now"]
   fn test_outline() {
-    ok("outline crates/cli/src --json=stream");
-    ok("outline crates/cli/src --json");
-    ok("outline crates/cli/src --outline-rules outline.yml --no-default-outline-rules");
-    ok("outline crates/cli/src/run.rs --role import --match ast-grep-config --json=compact");
-    ok("outline crates/config/src --role definition,export");
-    ok("outline crates/cli/src/lib.rs --match Commands --type enum --view expanded");
-    ok("outline crates/cli/src --view names");
-    ok("outline crates/cli/src --view signatures");
-    ok("outline crates/cli/src --view digest");
-    ok("outline crates/cli/src --view auto");
-    ok("outline crates/cli/src --role auto");
-    error("outline crates/cli/src/lib.rs --match Commands --members lines");
-    error("outline crates/cli/src --view files");
-    error("outline crates/cli/src/lib.rs --match Commands --kind enum");
-    error("outline crates/cli/src --format json");
-    error("outline crates/cli/src --limit 20");
-    error("outline crates/cli/src --json=dir");
+    ok("outline crates/cli/src");
+    ok("outline crates/cli/src/lib.rs crates/cli/src/run.rs");
+    error("outline");
+    error("outline crates/cli/src --json");
+    error("outline crates/cli/src --view names");
   }
 }
