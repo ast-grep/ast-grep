@@ -31,11 +31,11 @@ pub struct OutlineArg {
   /// Filter outline symbols by SymbolType name.
   #[clap(long = "type", value_name = "TYPE", value_delimiter = ',', action = clap::ArgAction::Append)]
   symbol_type: Vec<SymbolType>,
-  /// Select records by role facet. Repeatable. Comma-separated roles are ANDed.
-  #[clap(long, value_name = "ROLE", action = clap::ArgAction::Append)]
+  /// Select records by role facet. Repeatable. Comma-separated roles are ANDed. Defaults to auto.
+  #[clap(long, default_value = "auto", value_name = "ROLE", action = clap::ArgAction::Append)]
   role: Vec<RoleFilter>,
   /// Control text presentation.
-  #[clap(long, default_value = "digest", value_name = "VIEW")]
+  #[clap(long, default_value = "auto", value_name = "VIEW")]
   view: OutlineView,
 }
 
@@ -155,6 +155,7 @@ impl SymbolRole {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct RoleFilter {
+  auto: bool,
   any: bool,
   roles: Vec<SymbolRole>,
 }
@@ -163,8 +164,16 @@ impl FromStr for RoleFilter {
   type Err = String;
 
   fn from_str(value: &str) -> Result<Self, Self::Err> {
+    if value == "auto" {
+      return Ok(Self {
+        auto: true,
+        any: false,
+        roles: vec![],
+      });
+    }
     if value == "any" {
       return Ok(Self {
+        auto: false,
         any: true,
         roles: vec![],
       });
@@ -178,7 +187,11 @@ impl FromStr for RoleFilter {
     if roles.is_empty() {
       Err("role filter cannot be empty".into())
     } else {
-      Ok(Self { any: false, roles })
+      Ok(Self {
+        auto: false,
+        any: false,
+        roles,
+      })
     }
   }
 }
@@ -186,6 +199,7 @@ impl FromStr for RoleFilter {
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
 #[value(rename_all = "camelCase")]
 enum OutlineView {
+  Auto,
   Names,
   Signatures,
   Digest,
@@ -1116,6 +1130,7 @@ extractors:
 "#;
 
 pub fn run_outline(arg: OutlineArg) -> Result<ExitCode> {
+  validate_outline_arg(&arg)?;
   let common = &arg.common;
   let mut files = if common.input.stdin {
     vec![outline_stdin(&arg)?]
@@ -1124,6 +1139,22 @@ pub fn run_outline(arg: OutlineArg) -> Result<ExitCode> {
   };
   apply_view(&arg, &mut files);
   print_outline(&arg, files)
+}
+
+fn validate_outline_arg(arg: &OutlineArg) -> Result<()> {
+  let auto_count = arg.role.iter().filter(|filter| filter.auto).count();
+  let any_count = arg.role.iter().filter(|filter| filter.any).count();
+  if auto_count > 0 && arg.role.len() > 1 {
+    return Err(anyhow!(
+      "--role auto cannot be combined with other --role filters"
+    ));
+  }
+  if any_count > 0 && arg.role.len() > 1 {
+    return Err(anyhow!(
+      "--role any cannot be combined with other --role filters"
+    ));
+  }
+  Ok(())
 }
 
 fn outline_stdin(arg: &OutlineArg) -> Result<OutlineFile> {
@@ -1785,12 +1816,25 @@ fn apply_view(arg: &OutlineArg, files: &mut Vec<OutlineFile>) {
   for file in files.iter_mut() {
     file.items = filter_items(std::mem::take(&mut file.items), arg, common);
   }
-  let keep_empty_files = arg.is_default_map_view() || is_direct_file_input(common);
+  let keep_empty_files = is_direct_file_input(common);
   files.retain(|file| !file.items.is_empty() || keep_empty_files);
 }
 
 fn is_direct_file_input(common: &OutlineCommonArg) -> bool {
-  common.input.stdin || common.input.paths.iter().any(|path| path.is_file())
+  common.input.stdin
+    || common
+      .input
+      .paths
+      .iter()
+      .any(|path| path.is_file() || (!path.is_dir() && path.extension().is_some()))
+}
+
+fn effective_view(arg: &OutlineArg) -> OutlineView {
+  match arg.view {
+    OutlineView::Auto if is_direct_file_input(&arg.common) => OutlineView::Digest,
+    OutlineView::Auto => OutlineView::Names,
+    view => view,
+  }
 }
 
 fn filter_items(
@@ -1803,24 +1847,19 @@ fn filter_items(
   } else {
     items
       .into_iter()
-      .filter(|item| role_matches(item, &arg.role))
+      .filter(|item| effective_role_matches(item, arg))
       .collect()
   };
-  match arg.view {
+  match effective_view(arg) {
     OutlineView::Names | OutlineView::Signatures => trim_depth(&mut items, 1),
     OutlineView::Digest => {
       set_child_digests(&mut items);
       trim_depth(&mut items, 1);
     }
     OutlineView::Expanded => trim_depth(&mut items, 2),
+    OutlineView::Auto => unreachable!("auto view must be resolved before filtering"),
   }
   items
-}
-
-impl OutlineArg {
-  fn is_default_map_view(&self) -> bool {
-    self.role.is_empty() && !has_anchor_filters(self, &self.common)
-  }
 }
 
 fn trim_depth(items: &mut [OutlineItem], depth: usize) {
@@ -1931,9 +1970,6 @@ fn type_matches(item: &OutlineItem, types: &[SymbolType]) -> bool {
 }
 
 fn role_matches(item: &OutlineItem, filters: &[RoleFilter]) -> bool {
-  if filters.is_empty() {
-    return item.roles.contains(&SymbolRole::Definition);
-  }
   if filters.iter().any(|filter| filter.any) {
     return true;
   }
@@ -1944,8 +1980,20 @@ fn role_matches(item: &OutlineItem, filters: &[RoleFilter]) -> bool {
 
 fn item_matches(item: &OutlineItem, arg: &OutlineArg, common: &OutlineCommonArg) -> bool {
   type_matches(item, &arg.symbol_type)
-    && role_matches(item, &arg.role)
+    && effective_role_matches(item, arg)
     && common_matches(item, common)
+}
+
+fn effective_role_matches(item: &OutlineItem, arg: &OutlineArg) -> bool {
+  let filters = &arg.role;
+  if filters.is_empty() || filters.iter().any(|filter| filter.auto) {
+    return if is_direct_file_input(&arg.common) {
+      item.roles.contains(&SymbolRole::Definition) || item.roles.contains(&SymbolRole::Export)
+    } else {
+      item.roles.contains(&SymbolRole::Export)
+    };
+  }
+  role_matches(item, filters)
 }
 
 fn has_anchor_filters(arg: &OutlineArg, common: &OutlineCommonArg) -> bool {
@@ -1967,7 +2015,7 @@ fn common_matches(item: &OutlineItem, common: &OutlineCommonArg) -> bool {
 fn print_outline(arg: &OutlineArg, files: Vec<OutlineFile>) -> Result<ExitCode> {
   let common = &arg.common;
   match common.json {
-    None => print_text(arg.view, &files),
+    None => print_text(effective_view(arg), &files),
     Some(JsonStyle::Pretty) => {
       println!("{}", serde_json::to_string_pretty(&files)?);
     }
@@ -2716,6 +2764,62 @@ func standalone() {}
   }
 
   #[test]
+  fn auto_defaults_use_file_mode_for_direct_file_input() {
+    let src = "use std::path::Path;\npub struct Public;\nfn local() {}\n";
+    let file = extract_outline(
+      PathBuf::from("test.rs"),
+      SgLang::Builtin(SupportLang::Rust),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let query = map_query();
+    let mut files = vec![file];
+    apply_view(&query, &mut files);
+    let names = files[0]
+      .items
+      .iter()
+      .filter_map(|item| item.name.as_deref())
+      .collect::<Vec<_>>();
+    assert_eq!(names, vec!["Public", "local"]);
+    assert_eq!(effective_view(&query), OutlineView::Digest);
+  }
+
+  #[test]
+  fn auto_defaults_use_directory_mode_for_directory_input() {
+    let src = "use std::path::Path;\npub struct Public;\nfn local() {}\n";
+    let file = extract_outline(
+      PathBuf::from("test.rs"),
+      SgLang::Builtin(SupportLang::Rust),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let mut common = test_common();
+    common.input.paths = vec![PathBuf::from(".")];
+    let query = outline_arg_with_common(common);
+    let mut files = vec![file];
+    apply_view(&query, &mut files);
+    let names = files[0]
+      .items
+      .iter()
+      .filter_map(|item| item.name.as_deref())
+      .collect::<Vec<_>>();
+    assert_eq!(names, vec!["Public"]);
+    assert_eq!(effective_view(&query), OutlineView::Names);
+  }
+
+  #[test]
+  fn rejects_auto_role_combined_with_explicit_role() {
+    let mut query = map_query();
+    query.role.push(role_filter(&[SymbolRole::Export]));
+    let error = validate_outline_arg(&query).expect_err("should reject mixed auto role");
+    assert!(error.to_string().contains("--role auto cannot be combined"));
+  }
+
+  #[test]
   fn expanded_view_includes_members() {
     let src = "enum Commands { Run(RunArg) }\nstruct RunArg;\n";
     let file = extract_outline(
@@ -2816,7 +2920,7 @@ extractors:
         no_ignore: vec![],
         stdin: false,
         follow: false,
-        paths: vec![PathBuf::from(".")],
+        paths: vec![PathBuf::from("test.rs")],
         globs: vec![],
         threads: 0,
       },
@@ -2831,8 +2935,8 @@ extractors:
     OutlineArg {
       common,
       symbol_type: vec![],
-      role: vec![],
-      view: OutlineView::Digest,
+      role: vec![auto_role_filter()],
+      view: OutlineView::Auto,
     }
   }
 
@@ -2868,8 +2972,17 @@ extractors:
 
   fn role_filter(roles: &[SymbolRole]) -> RoleFilter {
     RoleFilter {
+      auto: false,
       any: false,
       roles: roles.to_vec(),
+    }
+  }
+
+  fn auto_role_filter() -> RoleFilter {
+    RoleFilter {
+      auto: true,
+      any: false,
+      roles: vec![],
     }
   }
 }

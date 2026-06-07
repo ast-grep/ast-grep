@@ -348,6 +348,8 @@ mod test_cli {
     ok("outline crates/cli/src --view names");
     ok("outline crates/cli/src --view signatures");
     ok("outline crates/cli/src --view digest");
+    ok("outline crates/cli/src --view auto");
+    ok("outline crates/cli/src --role auto");
     error("outline crates/cli/src/lib.rs --match Commands --members lines");
     error("outline crates/cli/src --view files");
     error("outline crates/cli/src/lib.rs --match Commands --kind enum");
