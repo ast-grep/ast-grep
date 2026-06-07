@@ -1,13 +1,15 @@
 use std::ops::Range;
 
 use ast_grep_core::Position;
+use serde::Deserialize;
 
 /// Outline symbol category.
 ///
 /// The names follow LSP `DocumentSymbol.kind`, but ast-grep stores the symbolic
 /// category directly instead of exposing LSP numeric values.
 /// See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.18/specification/#textDocument_documentSymbol
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum SymbolType {
   File,
   Module,
@@ -41,7 +43,8 @@ pub enum SymbolType {
 ///
 /// Roles are facets, not mutually exclusive categories.
 /// One item can be both a definition and an export.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum OutlineRole {
   /// A symbol declared or defined in the file.
   Definition,
