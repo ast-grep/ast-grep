@@ -91,7 +91,7 @@ Each scenario runs in two arms:
 
 | Arm | Setup |
 | --- | --- |
-| `with-outline` | Claude receives an extra system prompt telling it to use normal file discovery first, then `ast-grep outline` for compact structure on candidate files/subtrees. The arm uses one structural primitive with role facets and member presentation: default definition output, `--role import`, `--role export`, and `--match <symbol> --members lines` after a parent symbol is known. |
+| `with-outline` | Claude receives an extra system prompt that presents `ast-grep outline` as a cheaper/faster `Read` when code structure is needed rather than implementation details. It must use outline at least once, should prefer it before reading a whole candidate file, and should avoid using it on large folders. The prompt describes path-sensitive default output and `--match <symbol> --view expanded` for expanding one known symbol. |
 | `without-outline` | Claude receives a system prompt forbidding `ast-grep outline` and `sg outline`. Normal Read/Grep/Glob/Bash exploration remains available. |
 
 Both arms can use:
@@ -116,13 +116,17 @@ The runner isolates Claude Code from user/project customization:
 - Records the Claude init event in `runs.json`; valid runs should show no MCP
   servers, no slash commands, no skills, and no plugins.
 
+The runner intentionally uses the normal Claude login state so `claude -p` can
+run headlessly. It does not rely on the user's project directory or global
+plugin/skill configuration; the recorded init event is the enforcement point.
+
 The runner still uses Claude Code `--output-format stream-json` so it can parse
 cost, token, time, tool-call, and init-event telemetry. That does not require
-the agent's answer to be JSON. The outline prompt tells the agent to discover
-files with normal tools first, avoid whole-repo outline calls, treat the default output
-as a compact file signature, use `--match <symbol> --members lines` only after
-identifying a parent symbol, and then read implementation details with concrete line
-evidence.
+the agent's answer to be JSON. The outline prompt is intentionally not a
+step-by-step workflow. It tells the agent to use normal search for vocabulary,
+behavior terms, and call sites; use outline as a cheaper/faster `Read` when
+code structure is needed; avoid outline calls on large folders; and read
+concrete code only for evidence.
 
 Runs are paired by scenario and iteration. By default the runner uses
 `--arm-order balanced`, which runs `with-outline` first on odd iterations and
@@ -144,6 +148,11 @@ Metrics are parsed from Claude's JSON stream:
 | Precision | Whether `with-outline` avoids extra rubric claims not present in `without-outline` |
 | LLM judge | Optional whole-answer comparison against the `without-outline` baseline |
 | Diagnostic score | Per-arm rubric score, useful for debugging but not the headline correctness metric |
+
+Repository size is recorded separately in `metadata.json` as tracked file count,
+source file count, and source line count. Source files are tracked files with
+common code extensions: `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, `.rs`, `.java`,
+`.kt`, `.kts`, `.go`, and `.swift`.
 
 The final answer is scored as plain text. The harness does not depend on
 `--json-schema` or `StructuredOutput`; architecture answers are more reliable
@@ -206,6 +215,19 @@ python3 scripts/outline_claude_benchmark.py \
   --repeats 1 \
   --max-budget-usd 0.35
 ```
+
+Run independent agent sessions concurrently:
+
+```sh
+python3 scripts/outline_claude_benchmark.py \
+  --scenario excalidraw-render-update \
+  --repeats 1 \
+  --jobs 2
+```
+
+`--jobs` defaults to `1` for reproducibility. Higher values reduce elapsed time,
+but concurrent Claude sessions can interact with rate limits and cache behavior,
+so summaries record the job count in `metadata.json`.
 
 Run the full CodeGraph-style median benchmark:
 
@@ -274,101 +296,84 @@ target/outline-agent-benchmark.md
 The last completed full run is:
 
 ```text
-target/outline-agent-benchmark/263beca4
+target/outline-agent-benchmark/4b9c98bc
 ```
 
-It ran 56 real `claude -p` sessions: 7 repositories, 2 arms, 4 repeats. The
-recorded Claude init events are clean: no MCP servers, no slash commands, no
-skills, no plugins, and only `Bash`, `Glob`, `Grep`, and `Read` were available.
-The model resolved to `claude-sonnet-4-6`.
+It ran 56 real `claude -p` sessions: 7 repositories, 2 arms, 4 repeats, with
+`--jobs 2`. The recorded Claude init events are clean: no MCP servers, no slash
+commands, no skills, no plugins, and only `Bash`, `Glob`, `Grep`, and `Read`
+were available. The model resolved to `claude-sonnet-4-6`.
 
-Important caveat: this run is complete and useful as a diagnostic result, but it
-is not a clean final effectiveness claim. Several `with-outline` traces used
-older unsupported outline options; some attempts failed with CLI errors and
-some were hidden by shell redirection. The runner has since been tightened to
-deny unsupported output-shape options. A later Django smoke run
-(`target/outline-agent-benchmark/52511cf5`) verified the
-tighter guardrails: no denied commands, clean init, and 100% alignment. The user
-stopped further full benchmark execution, so the table below remains the last
-complete full run rather than the clean-final run.
-
-Offline validation confirms the distinction:
+Offline validation:
 
 ```sh
-python3 scripts/outline_claude_benchmark.py --validate-run target/outline-agent-benchmark/263beca4
-# invalid: old unsupported outline options and CLI errors
-
-python3 scripts/outline_claude_benchmark.py --validate-run target/outline-agent-benchmark/52511cf5
+python3 scripts/outline_claude_benchmark.py --validate-run target/outline-agent-benchmark/4b9c98bc
 # valid
 ```
 
-| Codebase | Language | Baseline coverage | Cost | Tokens | Time | Tool calls |
-| --- | --- | --- | ---: | ---: | ---: | ---: |
-| VS Code | TypeScript · ~10k files | cov 75%, prec 100% (1/4) | 23% cheaper | 29% fewer | 17% slower | 9% fewer |
-| Excalidraw | TypeScript · ~640 files | cov 100%, prec 88% (1/4) | 15% cheaper | 21% fewer | 15% faster | 6% fewer |
-| Django | Python · ~3k files | cov 100%, prec 100% (4/4) | 28% cheaper | 38% fewer | 19% faster | 19% fewer |
-| Tokio | Rust · ~790 files | cov 100%, prec 100% (4/4) | 28% cheaper | 31% fewer | 10% faster | 2% fewer |
-| OkHttp | Java/Kotlin · ~645 files | cov 100%, prec 100% (4/4) | 58% cheaper | 58% fewer | 29% faster | 11% fewer |
-| Gin | Go · ~110 files | cov 80%, prec 100% (0/4) | 26% cheaper | 5% fewer | 16% slower | 83% more |
-| Alamofire | Swift · ~110 files | cov 88%, prec 100% (1/4) | 31% cheaper | 3% more | 26% slower | 133% more |
+This is the first clean full run after the leaner prompt and current `outline`
+interface. Because it used `--jobs 2`, elapsed time is useful for practical
+throughput but should not be compared too strictly with earlier sequential runs.
+
+| Codebase | Language | Code size | Baseline coverage | Cost | Tokens | Time | Tool calls |
+| --- | --- | ---: | --- | ---: | ---: | ---: | ---: |
+| VS Code | TypeScript | 11,370 src files · 3,279k LOC | cov 100%, prec 100% (3/4) | 35% cheaper | 45% fewer | 12% faster | 11% fewer |
+| Excalidraw | TypeScript | 625 src files · 173k LOC | cov 100%, prec 100% (2/4) | 25% cheaper | 26% fewer | 4% slower | 3% more |
+| Django | Python | 3,030 src files · 551k LOC | cov 100%, prec 100% (4/4) | 55% cheaper | 67% fewer | 33% faster | 29% fewer |
+| Tokio | Rust | 779 src files · 175k LOC | cov 100%, prec 100% (4/4) | 12% cheaper | 38% more | 3% faster | 79% more |
+| OkHttp | Java/Kotlin | 640 src files · 135k LOC | cov 100%, prec 100% (4/4) | 40% cheaper | 40% fewer | 5% faster | 45% more |
+| Gin | Go | 99 src files · 24k LOC | cov 100%, prec 100% (4/4) | 11% costlier | 39% more | 13% slower | 93% more |
+| Alamofire | Swift | 108 src files · 47k LOC | cov 100%, prec 100% (4/4) | even | 48% more | 26% slower | 94% more |
 
 Detailed medians:
 
 | Codebase | Arm | Diagnostic score | Pass rate | Cost USD | Tokens | Seconds | Tool calls |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| VS Code | with-outline | 75% | 4/4 | 0.269998 | 328176 | 118.72 | 26 |
-| VS Code | without-outline | 100% | 4/4 | 0.352706 | 459632 | 101.39 | 28 |
-| Excalidraw | with-outline | 100% | 4/4 | 0.397854 | 499028 | 105.07 | 30 |
-| Excalidraw | without-outline | 88% | 4/4 | 0.470027 | 629372 | 123.36 | 32 |
-| Django | with-outline | 100% | 4/4 | 0.187020 | 187271 | 80.24 | 21 |
-| Django | without-outline | 100% | 4/4 | 0.260207 | 303049 | 99.42 | 26 |
-| Tokio | with-outline | 100% | 4/4 | 0.245409 | 262238 | 104.68 | 24 |
-| Tokio | without-outline | 100% | 4/4 | 0.342576 | 382046 | 116.64 | 24 |
-| OkHttp | with-outline | 100% | 4/4 | 0.120506 | 103991 | 55.07 | 12 |
-| OkHttp | without-outline | 100% | 4/4 | 0.284164 | 247326 | 77.21 | 14 |
-| Gin | with-outline | 80% | 4/4 | 0.105430 | 88892 | 52.00 | 11 |
-| Gin | without-outline | 100% | 4/4 | 0.141686 | 93872 | 44.73 | 6 |
-| Alamofire | with-outline | 88% | 4/4 | 0.232696 | 260906 | 89.55 | 21 |
-| Alamofire | without-outline | 100% | 4/4 | 0.336230 | 253466 | 71.23 | 9 |
+| VS Code | with-outline | 100% | 4/4 | 0.333012 | 439610 | 115.51 | 31 |
+| VS Code | without-outline | 100% | 4/4 | 0.510142 | 797660 | 131.88 | 35 |
+| Excalidraw | with-outline | 100% | 4/4 | 0.399023 | 556077 | 142.12 | 39 |
+| Excalidraw | without-outline | 100% | 4/4 | 0.533689 | 754892 | 136.90 | 38 |
+| Django | with-outline | 100% | 4/4 | 0.211556 | 224086 | 99.86 | 28 |
+| Django | without-outline | 100% | 4/4 | 0.470100 | 674898 | 149.89 | 39 |
+| Tokio | with-outline | 100% | 4/4 | 0.371982 | 455238 | 128.51 | 26 |
+| Tokio | without-outline | 100% | 4/4 | 0.423838 | 329041 | 132.99 | 14 |
+| OkHttp | with-outline | 100% | 4/4 | 0.176953 | 146087 | 76.37 | 21 |
+| OkHttp | without-outline | 100% | 4/4 | 0.293545 | 243268 | 80.23 | 14 |
+| Gin | with-outline | 100% | 4/4 | 0.228370 | 170832 | 90.39 | 14 |
+| Gin | without-outline | 100% | 4/4 | 0.204932 | 122971 | 79.93 | 7 |
+| Alamofire | with-outline | 100% | 4/4 | 0.334972 | 301384 | 98.73 | 16 |
+| Alamofire | without-outline | 100% | 4/4 | 0.336202 | 204146 | 78.38 | 8 |
 
-Baseline-relative misses:
+Baseline alignment details:
 
 | Codebase | Repeated miss or extra |
 | --- | --- |
-| VS Code | `with-outline` missed the ExtHost/MainThread counterpart-service claim in 3/4 paired runs. |
-| Excalidraw | Mixed: outline sometimes added the pointer/update claim when baseline did not, and missed it once. |
-| Gin | `with-outline` missed the method-tree route matching claim in all 4 paired runs. |
-| Alamofire | Mixed: outline missed or added the interceptor/adapt/retry claim depending on the paired baseline. |
+| VS Code | `with-outline` missed the ExtHost/MainThread counterpart-service claim in 1/4 paired runs. |
+| Excalidraw | Mixed: `with-outline` missed the pointer/event mutation claim once, and added it once when the baseline omitted it. |
 
 ## Token And Cost Analysis
 
 The token numbers are not just "tool calls went down." Claude Code charges and
 reports separate token classes: fresh input, cache creation, cache reads, and
-output. In this run, outline usually lowered expensive cache creation and large
-read/grep discovery volume, which made cost lower even when wall-clock or tool
-count did not improve.
+output. In this run, outline usually lowered cost on larger repositories by
+reducing broad file reads and cache-creation volume, but it did not universally
+reduce total tokens or tool calls.
 
 Examples:
 
-- OkHttp was the cleanest win in the completed diagnostic run. Under the older
-  prompt, outline jumped to `RealCall` and `RealInterceptorChain`, cutting
-  median tokens by 58%, cost by 58%, and time by 29% while preserving 100%
-  alignment.
-- Django and Tokio also show good structural targeting. Outline cut median
-  tokens by 38% and 31% respectively with 100% alignment.
-- VS Code was cheaper and lower-token, but correctness suffered. The outline
-  arm often found the transport/protocol mechanism but underreported the
-  ExtHost/MainThread service-counterpart layer.
-- Gin shows lower cost but worse ergonomics. Outline used more tool calls than
-  the baseline and still failed to mention method-tree route matching. The
-  baseline found `trees`, `getValue`, and `tree.go` more directly.
-- Alamofire shows why token count and cost can diverge. The outline arm had 3%
-  more median tokens and many more tool calls, but 31% lower median cost because
-  its token mix had lower cache-creation cost than the baseline. It was still
-  slower and less consistently aligned.
+- VS Code, Django, and OkHttp are the clearest wins: outline preserved or nearly
+  preserved baseline alignment while cutting median cost by 35%, 55%, and 40%.
+- Excalidraw shows the remaining correctness sensitivity. The median result was
+  cheaper and lower-token, but two paired runs were not exactly aligned because
+  the pointer/event mutation mechanism moved in or out of one arm's answer.
+- Tokio shows that lower cost can coexist with higher counted tokens. The
+  outline arm had more cache-read tokens and tool calls, but lower median cost.
+- Gin and Alamofire are the weak cases. They were already small enough for
+  grep/read exploration, so outline added tool calls and did not improve
+  correctness.
 
-The main failure mode is not that `outline` is inherently too expensive. The
-failure mode is agent over-exploration: broad outline calls and follow-up reads
-that are not always guided to the missing mechanism. The tightened prompt and
-command guardrails address the command-shape failure, but a clean full rerun is
-still needed before publishing headline claims.
+The main remaining failure mode is agent ergonomics, not extraction correctness:
+outline helps when it replaces broad reads, but hurts when it is added on top of
+already-sufficient grep/read exploration. The prompt now frames outline as a
+cheaper/faster `Read` for code structure, but smaller repositories still need
+better agent judgment about when to skip or minimize structural calls.
