@@ -60,7 +60,7 @@ enum Commands {
   New(NewArg),
   /// Start language server.
   Lsp(LspArg),
-  /// Explore code structure for symbols, imports, exports, and nested items.
+  /// Explore code structure for symbols, imports, exports, and members.
   Outline(OutlineArg),
   /// Generate shell completion script.
   Completions(CompletionsArg),
@@ -339,10 +339,15 @@ mod test_cli {
 
   #[test]
   fn test_outline() {
-    ok("outline crates/cli/src --format jsonl --limit 20");
+    ok("outline crates/cli/src --json=stream");
+    ok("outline crates/cli/src --json");
     ok("outline crates/cli/src --outline-rules outline.yml --no-default-outline-rules");
-    ok("outline crates/cli/src/run.rs --role import --match ast-grep-config --format json");
+    ok("outline crates/cli/src/run.rs --role import --match ast-grep-config --json=compact");
     ok("outline crates/config/src --role definition,export");
-    ok("outline crates/cli/src/lib.rs --match Commands --kind enum --depth 2");
+    ok("outline crates/cli/src/lib.rs --match Commands --type enum --members lines");
+    error("outline crates/cli/src/lib.rs --match Commands --kind enum");
+    error("outline crates/cli/src --format json");
+    error("outline crates/cli/src --limit 20");
+    error("outline crates/cli/src --json=dir");
   }
 }
