@@ -28,10 +28,10 @@ class ValidateRunDirTest(unittest.TestCase):
 
             self.assertEqual(benchmark.validate_run_dir(run_dir), [])
 
-    def test_allows_member_lines(self) -> None:
+    def test_allows_expanded_view(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = Path(tmp)
-            write_run_dir(run_dir, with_command="ast-grep outline /repo --members lines")
+            write_run_dir(run_dir, with_command="ast-grep outline /repo --view expanded")
 
             self.assertEqual(benchmark.validate_run_dir(run_dir), [])
 
@@ -53,7 +53,10 @@ class ValidateRunDirTest(unittest.TestCase):
     def test_allows_outline_views(self) -> None:
         for command in (
             "ast-grep outline /repo",
-            "ast-grep outline /repo --match RouterGroup --members lines",
+            "ast-grep outline /repo --match RouterGroup --view expanded",
+            "ast-grep outline /repo --view names",
+            "ast-grep outline /repo --view signatures",
+            "ast-grep outline /repo --view digest",
             "ast-grep outline /repo --role import",
             "ast-grep outline /repo --role export",
         ):

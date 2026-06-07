@@ -34,9 +34,9 @@ pub struct OutlineArg {
   /// Select records by role facet. Repeatable. Comma-separated roles are ANDed.
   #[clap(long, value_name = "ROLE", action = clap::ArgAction::Append)]
   role: Vec<RoleFilter>,
-  /// Control whether structural members are shown.
-  #[clap(long, default_value = "names", value_name = "MODE")]
-  members: OutlineMembers,
+  /// Control text presentation.
+  #[clap(long, default_value = "digest", value_name = "VIEW")]
+  view: OutlineView,
 }
 
 #[derive(Args, Clone)]
@@ -185,10 +185,11 @@ impl FromStr for RoleFilter {
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
 #[value(rename_all = "camelCase")]
-enum OutlineMembers {
-  None,
+enum OutlineView {
   Names,
-  Lines,
+  Signatures,
+  Digest,
+  Expanded,
 }
 
 #[derive(Clone, Serialize)]
@@ -1805,13 +1806,13 @@ fn filter_items(
       .filter(|item| role_matches(item, &arg.role))
       .collect()
   };
-  match arg.members {
-    OutlineMembers::None => trim_depth(&mut items, 1),
-    OutlineMembers::Names => {
+  match arg.view {
+    OutlineView::Names | OutlineView::Signatures => trim_depth(&mut items, 1),
+    OutlineView::Digest => {
       set_child_digests(&mut items);
       trim_depth(&mut items, 1);
     }
-    OutlineMembers::Lines => trim_depth(&mut items, 2),
+    OutlineView::Expanded => trim_depth(&mut items, 2),
   }
   items
 }
@@ -1966,7 +1967,7 @@ fn common_matches(item: &OutlineItem, common: &OutlineCommonArg) -> bool {
 fn print_outline(arg: &OutlineArg, files: Vec<OutlineFile>) -> Result<ExitCode> {
   let common = &arg.common;
   match common.json {
-    None => print_text(&files),
+    None => print_text(arg.view, &files),
     Some(JsonStyle::Pretty) => {
       println!("{}", serde_json::to_string_pretty(&files)?);
     }
@@ -1982,15 +1983,53 @@ fn print_outline(arg: &OutlineArg, files: Vec<OutlineFile>) -> Result<ExitCode> 
   Ok(ExitCode::SUCCESS)
 }
 
-fn print_text(files: &[OutlineFile]) {
-  for file in files {
+fn print_text(view: OutlineView, files: &[OutlineFile]) {
+  for (index, file) in files.iter().enumerate() {
+    if index > 0 {
+      println!();
+    }
     println!("{}", file.path);
     if file.items.is_empty() {
       println!("nothing found");
+    } else if view == OutlineView::Names {
+      print_name_digest_items(&file.items);
     } else {
       print_text_items(&file.items);
     }
   }
+}
+
+fn print_name_digest_items(items: &[OutlineItem]) {
+  for (label, names) in symbol_digest_groups(items) {
+    println!("{label}: {}", capped_digest_names(&names));
+  }
+}
+
+fn symbol_digest_groups(items: &[OutlineItem]) -> Vec<(&'static str, Vec<String>)> {
+  let mut groups: Vec<(&'static str, Vec<String>)> = vec![];
+  let mut roots = items.iter().collect::<Vec<_>>();
+  roots.sort_by_key(|item| {
+    (
+      text_group_rank(text_group_label(item)),
+      item.range.start.line,
+      item.range.start.column,
+    )
+  });
+  for item in roots {
+    let label = text_group_label(item);
+    let name = child_digest_name(item);
+    if name.is_empty() {
+      continue;
+    }
+    if let Some((_, names)) = groups.iter_mut().find(|(group, _)| *group == label) {
+      if !names.contains(&name) {
+        names.push(name);
+      }
+    } else {
+      groups.push((label, vec![name]));
+    }
+  }
+  groups
 }
 
 fn print_text_items(items: &[OutlineItem]) {
@@ -2624,7 +2663,7 @@ func standalone() {}
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = map_query_with_members(OutlineMembers::Lines);
+    let query = map_query_with_view(OutlineView::Expanded);
     let mut files = vec![file];
     apply_view(&query, &mut files);
     let records = flatten_files(&files);
@@ -2677,7 +2716,7 @@ func standalone() {}
   }
 
   #[test]
-  fn members_lines_includes_members() {
+  fn expanded_view_includes_members() {
     let src = "enum Commands { Run(RunArg) }\nstruct RunArg;\n";
     let file = extract_outline(
       PathBuf::from("test.rs"),
@@ -2687,7 +2726,7 @@ func standalone() {}
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = map_query_with_members(OutlineMembers::Lines);
+    let query = map_query_with_view(OutlineView::Expanded);
     let mut files = vec![file];
     apply_view(&query, &mut files);
     assert!(files[0].items.iter().any(|item| !item.children.is_empty()));
@@ -2793,7 +2832,7 @@ extractors:
       common,
       symbol_type: vec![],
       role: vec![],
-      members: OutlineMembers::Names,
+      view: OutlineView::Digest,
     }
   }
 
@@ -2801,9 +2840,9 @@ extractors:
     outline_arg_with_common(test_common())
   }
 
-  fn map_query_with_members(members: OutlineMembers) -> OutlineArg {
+  fn map_query_with_view(view: OutlineView) -> OutlineArg {
     let mut arg = map_query();
-    arg.members = members;
+    arg.view = view;
     arg
   }
 
@@ -2823,7 +2862,7 @@ extractors:
     let mut arg = map_query();
     arg.common.matches = vec![Regex::new(name).expect("test regex")];
     arg.symbol_type = symbol_type.into_iter().collect();
-    arg.members = OutlineMembers::Lines;
+    arg.view = OutlineView::Expanded;
     arg
   }
 

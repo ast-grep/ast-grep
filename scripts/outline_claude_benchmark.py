@@ -49,7 +49,7 @@ structural view before reading deeply or answering. Do not start with
 
 Useful commands:
 - `ast-grep outline <path>`: skim top-level definitions in a file or focused subtree.
-- `ast-grep outline <path> --match <symbol> --members lines`: list methods, fields,
+- `ast-grep outline <path> --match <symbol> --view expanded`: list methods, fields,
   variants, and other direct members for a known class, struct, trait, interface,
   function, or module symbol.
 - `ast-grep outline <path> --role import`: see dependencies for a file or focused subtree.
@@ -61,9 +61,9 @@ Typical workflow:
 1. Use `Glob`/`Grep`/`rg` to find likely files and vocabulary.
 2. Use `ast-grep outline` on focused files or small focused directories, not the repo root.
    The default view shows top-level definitions plus grouped member names; use
-   `--match <symbol> --members lines` for exact member lines in a known class, struct,
+   `--match <symbol> --view expanded` for exact member lines in a known class, struct,
    trait, interface, function, or module.
-3. Use `--match <symbol> --members lines` after identifying a concrete parent symbol.
+3. Use `--match <symbol> --view expanded` after identifying a concrete parent symbol.
 4. Use `--role import` and `--role export` when dependency direction or public API matters.
 5. Read each important file once, preferably around the relevant symbols, and
    use grep for missing line evidence instead of rereading the same file.
