@@ -1,3 +1,7 @@
+// Extraction and rendering will consume this model in later slices.
+#[allow(dead_code)]
+mod model;
+
 use std::path::PathBuf;
 use std::process::ExitCode;
 
