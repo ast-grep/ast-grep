@@ -28,19 +28,19 @@ class ValidateRunDirTest(unittest.TestCase):
 
             self.assertEqual(benchmark.validate_run_dir(run_dir), [])
 
-    def test_allows_map_depth(self) -> None:
+    def test_allows_member_lines(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = Path(tmp)
-            write_run_dir(run_dir, with_command="ast-grep outline /repo --depth 2")
+            write_run_dir(run_dir, with_command="ast-grep outline /repo --members lines")
 
             self.assertEqual(benchmark.validate_run_dir(run_dir), [])
 
-    def test_rejects_forbidden_outline_format_option(self) -> None:
+    def test_rejects_forbidden_outline_json_option(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = Path(tmp)
             write_run_dir(
                 run_dir,
-                with_command="ast-grep outline /repo --format json",
+                with_command="ast-grep outline /repo --json",
             )
 
             issues = benchmark.validate_run_dir(run_dir)
@@ -50,10 +50,10 @@ class ValidateRunDirTest(unittest.TestCase):
                 issues,
             )
 
-    def test_allows_v1_outline_views(self) -> None:
+    def test_allows_outline_views(self) -> None:
         for command in (
             "ast-grep outline /repo",
-            "ast-grep outline /repo --match RouterGroup --depth 2",
+            "ast-grep outline /repo --match RouterGroup --members lines",
             "ast-grep outline /repo --role import",
             "ast-grep outline /repo --role export",
         ):

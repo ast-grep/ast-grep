@@ -34,7 +34,7 @@ DEFAULT_SCENARIOS = ROOT / "benchmarks" / "outline-agent-scenarios.json"
 DEFAULT_REPO_DIR = ROOT / "target" / "outline-agent-benchmark" / "repos"
 NEUTRAL_CWD = Path("/tmp")
 FORBIDDEN_OUTLINE_RE = re.compile(
-    r"\b(?:ast-grep|sg)\s+outline\b[^\n]*--format\b"
+    r"\b(?:ast-grep|sg)\s+outline\b[^\n]*--(?:format|json)\b"
 )
 
 
@@ -49,8 +49,9 @@ structural view before reading deeply or answering. Do not start with
 
 Useful commands:
 - `ast-grep outline <path>`: skim top-level definitions in a file or focused subtree.
-- `ast-grep outline <path> --match <symbol> --depth 2`: list methods, fields, and
-  nested types for a known class, struct, trait, interface, or module symbol.
+- `ast-grep outline <path> --match <symbol> --members lines`: list methods, fields,
+  variants, and other direct members for a known class, struct, trait, interface,
+  function, or module symbol.
 - `ast-grep outline <path> --role import`: see dependencies for a file or focused subtree.
 - `ast-grep outline <path> --role export`: see public API exported by a file or subtree.
 
@@ -59,9 +60,10 @@ Use these outline command forms as shown. Do not request JSON or other formats.
 Typical workflow:
 1. Use `Glob`/`Grep`/`rg` to find likely files and vocabulary.
 2. Use `ast-grep outline` on focused files or small focused directories, not the repo root.
-   The default view is top-level only; use `--match <symbol> --depth 2` for nested details in a known
-   class, struct, trait, interface, or module.
-3. Use `--match <symbol> --depth 2` after identifying a concrete parent symbol.
+   The default view shows top-level definitions plus grouped member names; use
+   `--match <symbol> --members lines` for exact member lines in a known class, struct,
+   trait, interface, function, or module.
+3. Use `--match <symbol> --members lines` after identifying a concrete parent symbol.
 4. Use `--role import` and `--role export` when dependency direction or public API matters.
 5. Read each important file once, preferably around the relevant symbols, and
    use grep for missing line evidence instead of rereading the same file.
@@ -280,7 +282,7 @@ def build_command(
     if arm == "with-outline":
         command[1:1] = [
             "--disallowedTools",
-            "Bash(ast-grep outline *--format*)",
+            "Bash(ast-grep outline *--format*),Bash(ast-grep outline *--json*)",
         ]
     if arm == "without-outline":
         command[1:1] = [

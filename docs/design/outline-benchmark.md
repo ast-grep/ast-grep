@@ -231,7 +231,7 @@ python3 scripts/outline_claude_benchmark.py \
 The validator checks that all runs exited successfully, Claude init was clean,
 both arms are present for every iteration, alignments exist, the WITHOUT arm did
 not use outline, and the WITH arm did not use forbidden output-shape options
-such as JSON `--format` flags. A run should pass this validator before it is
+such as `--json` or stale `--format` flags. A run should pass this validator before it is
 used for headline effectiveness claims.
 
 The runner also applies the same validation automatically after each benchmark

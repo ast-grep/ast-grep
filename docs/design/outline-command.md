@@ -18,7 +18,7 @@ navigation questions:
 - What members belong to this class, struct, enum, interface, function, or module?
 
 The command should stay narrow. It extracts one structural model per file, then projects
-that model with role filters, name/kind filters, and member presentation options. It
+that model with role filters, name/type filters, and member presentation options. It
 should not grow separate subcommands for import lookup, export lookup, symbol lookup,
 container lookup, related-code discovery, or structural diffs.
 
@@ -29,7 +29,8 @@ container lookup, related-code discovery, or structural diffs.
 - Use ast-grep rules for extraction logic, not raw tree-sitter query captures.
 - Reuse ast-grep language detection, custom language configuration, ignore handling,
   glob filtering, stdin support, and parallel file walking.
-- Keep symbol kinds compatible with LSP `SymbolKind`.
+- Use `SymbolType` as ast-grep's outline category model, with values compatible with
+  LSP `SymbolKind` names.
 - Use concise text as the default output for interactive use.
 - Support `--json` for scripts and agents that need structured records.
 
@@ -46,12 +47,13 @@ container lookup, related-code discovery, or structural diffs.
 
 | Term | Meaning |
 | --- | --- |
-| Record | One extracted outline fact: name, kind, roles, range, signature, and optional children. |
+| Record | One extracted outline fact: name, symbol type, roles, range, signature, and optional children. |
 | Role | A facet that explains which question a record answers: `definition`, `import`, or `export`. Roles are not mutually exclusive. |
-| Anchor | A selected top-level record after `--role`, `--kind`, and `--match` filters. Member output is attached to anchors. |
+| Symbol type | Outline category, such as `class`, `function`, or `struct`. Values are compatible with LSP `SymbolKind` names. |
+| AST kind | The underlying tree-sitter node kind, such as `class_declaration` or `function_item`. |
+| Anchor | A selected top-level record after `--role`, `--type`, and `--match` filters. Member output is attached to anchors. |
 | Member | A direct structural child of an anchor, such as a field, method, constructor, enum variant, or direct namespace/module declaration. |
 | Range | Full AST node range for the record. |
-| Selection range | Narrow range of the symbol name when available. |
 | Member digest | Grouped member names rendered on one compact line, such as `method: parse, recover`. |
 
 ## Public CLI Contract
@@ -77,7 +79,7 @@ the default because it is readable and token-efficient for interactive agents.
                           `--json` flag shape.
 --role <definition|import|export|any[,..]>
                           Select records by role. Repeatable. Default: definition.
---kind <KIND[,KIND...]>  LSP SymbolKind filter.
+--type <TYPE[,TYPE...]>   LSP-compatible symbol type filter.
 --match <REGEX>          Regex over role-relevant fields. Repeatable.
 --members <none|names|lines>
                           Control direct member presentation. Default: names.
@@ -139,9 +141,9 @@ sg outline src --role import,export
 sg outline src --role definition --role import
 ```
 
-### Match And Kind Filters
+### Match And Type Filters
 
-`--match <REGEX>` and `--kind <KIND>` select anchors inside the current role selection.
+`--match <REGEX>` and `--type <TYPE>` select anchors inside the current role selection.
 
 `--match` is deliberately not a custom DSL. It is a regular expression, like ripgrep's
 pattern argument, applied to useful fields:
@@ -153,7 +155,7 @@ pattern argument, applied to useful fields:
 Filter composition:
 
 ```text
---kind values separated by comma     OR
+--type values separated by comma     OR
 repeated --match                     OR
 different filter types               AND
 ```
@@ -164,9 +166,9 @@ because they explain the matched anchor.
 Examples:
 
 ```sh
-sg outline crates --kind struct,enum,interface
+sg outline crates --type struct,enum,interface
 sg outline crates --role export --match 'Config|Rule|Scan|Verify'
-sg outline src/parser.ts --match Parser --kind class --members lines
+sg outline src/parser.ts --match Parser --type class --members lines
 ```
 
 ### Member Presentation
@@ -268,16 +270,11 @@ Streamed record shape:
   "language": "rs",
   "symbol": {
     "name": "Commands",
-    "kind": 10,
-    "kindName": "Enum",
+    "symbolType": "enum",
     "roles": ["definition"],
     "range": {
       "start": { "line": 49, "column": 1, "byte": 1200 },
       "end": { "line": 68, "column": 2, "byte": 1700 }
-    },
-    "selectionRange": {
-      "start": { "line": 50, "column": 6, "byte": 1210 },
-      "end": { "line": 50, "column": 14, "byte": 1218 }
     },
     "container": null,
     "signature": "enum Commands",
@@ -295,25 +292,19 @@ Grouped file shape:
   "items": [
     {
       "name": "Parser",
-      "kind": 5,
-      "kindName": "Class",
+      "symbolType": "class",
       "roles": ["definition", "export"],
       "range": {
         "start": { "line": 40, "column": 1, "byte": 1200 },
         "end": { "line": 98, "column": 2, "byte": 2500 }
       },
-      "selectionRange": {
-        "start": { "line": 40, "column": 14, "byte": 1213 },
-        "end": { "line": 40, "column": 20, "byte": 1219 }
-      },
       "signature": "export class Parser",
       "memberDigest": "method: parse, recover",
-      "nodeKind": "class_declaration",
+      "astKind": "class_declaration",
       "children": [
         {
           "name": "parse",
-          "kind": 6,
-          "kindName": "Method",
+          "symbolType": "method",
           "roles": ["definition"]
         }
       ]
@@ -326,8 +317,7 @@ Important properties:
 
 - `path` is always present.
 - `range` is always present, so an agent can open a precise slice.
-- `selectionRange` points to the symbol name when available.
-- `kind` and `kindName` use LSP `SymbolKind`.
+- `symbolType` uses LSP `SymbolKind` names serialized as lower camel case.
 - `roles` is a non-empty array.
 - `memberDigest` is present when `--members names` has grouped direct members.
 - `container` is present in stream output for parent-symbol metadata.
@@ -348,8 +338,8 @@ reads implementation details.
 ### Add A CLI Subcommand
 
 ```sh
-sg outline crates/cli/src --kind enum,struct,function
-sg outline crates/cli/src/lib.rs --match Commands --kind enum --members lines
+sg outline crates/cli/src --type enum,struct,function
+sg outline crates/cli/src/lib.rs --match Commands --type enum --members lines
 sg outline crates/cli/src --role export --match 'Arg|run_'
 ```
 
@@ -370,10 +360,10 @@ whether a change belongs near the importer or exported API.
 
 ```sh
 sg outline src/parser.ts --match Parser --members lines
-sg outline crates/core/src/node.rs --match Node --kind struct --members lines
+sg outline crates/core/src/node.rs --match Node --type struct --members lines
 ```
 
-This lists direct members without reading the whole parent body. `--kind` disambiguates
+This lists direct members without reading the whole parent body. `--type` disambiguates
 same-name symbols.
 
 ### Inspect Changed Files After Editing
@@ -393,18 +383,19 @@ structure and public surface of those changed files.
 sg outline crates --json=stream
 ```
 
-This is the machine-readable mode for ranking candidates by path, kind, name, roles, and
+This is the machine-readable mode for ranking candidates by path, symbol type, name, roles, and
 container. It is not the default interactive-agent mode.
 
 ## Data Model
 
-Use LSP `SymbolKind` names and numeric values.
+Use ast-grep `SymbolType` names in output. The values are compatible with LSP
+`SymbolKind` names, but outline does not expose LSP numeric values.
 
 ```rust
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[repr(u8)]
-pub enum SymbolKind {
+pub enum SymbolType {
   File = 1,
   Module = 2,
   Namespace = 3,
@@ -447,16 +438,15 @@ Grouped item:
 ```rust
 pub struct OutlineItem {
   pub name: Option<String>,
-  pub kind: SymbolKind,
+  pub symbol_type: SymbolType,
   pub roles: Vec<SymbolRole>,
   pub range: Range,
-  pub selection_range: Range,
   pub signature: Option<String>,
   pub member_digest: Option<String>,
   pub detail: Option<String>,
   pub target: Option<String>,
   pub alias: Option<String>,
-  pub node_kind: String,
+  pub ast_kind: String,
   pub children: Vec<OutlineItem>,
 }
 
@@ -478,22 +468,21 @@ pub struct OutlineRecord {
 
 pub struct OutlineFlatSymbol {
   pub name: Option<String>,
-  pub kind: SymbolKind,
+  pub symbol_type: SymbolType,
   pub roles: Vec<SymbolRole>,
   pub range: Range,
-  pub selection_range: Range,
   pub signature: Option<String>,
   pub member_digest: Option<String>,
   pub detail: Option<String>,
   pub target: Option<String>,
   pub alias: Option<String>,
-  pub node_kind: String,
+  pub ast_kind: String,
   pub container: Option<OutlineContainer>,
 }
 
 pub struct OutlineContainer {
   pub name: Option<String>,
-  pub kind: SymbolKind,
+  pub symbol_type: SymbolType,
   pub range: Range,
 }
 ```
@@ -512,7 +501,7 @@ This is one record:
 ```json
 {
   "name": "Foo",
-  "kindName": "Struct",
+  "symbolType": "struct",
   "roles": ["definition", "export"]
 }
 ```
@@ -528,7 +517,7 @@ This is both an import/dependency edge and an export edge:
 ```json
 {
   "name": "api",
-  "kindName": "Module",
+  "symbolType": "module",
   "roles": ["import", "export"],
   "target": "internal_mod",
   "alias": "api"
@@ -543,11 +532,11 @@ Do not expose a separate visibility axis in the CLI.
 
 ### Symbol Mapping
 
-Do not introduce custom symbol kinds for imports or exports. Map source constructs to
+Do not introduce custom symbol types for imports or exports. Map source constructs to
 existing LSP symbol kinds and use `roles`, `target`, and `alias` metadata to preserve
 import/export meaning.
 
-| Source construct | SymbolKind |
+| Source construct | `symbolType` |
 | --- | --- |
 | File-level source unit | `File` |
 | ES import, Rust `use`, Python import, Go import | `Module` |
@@ -621,7 +610,7 @@ Extractor fields:
 ```text
 id          Stable extractor id for diagnostics.
 language    Any `SgLang`: built-in language or registered custom language.
-kind        LSP SymbolKind, serialized in camelCase.
+kind        SymbolType in extractor YAML. Serialized as public `symbolType`.
 roles       Non-empty list containing definition, import, and/or export.
 addRoles    Optional conditional roles to add when a source predicate matches.
 name        How to resolve the display name.
@@ -665,13 +654,12 @@ Extractor flow:
 6. Run every matcher against the parsed AST.
 7. Use the matched node as `range`.
 8. Resolve `name` from configured metavariable, field, text, or fallback.
-9. Use the name node as `selection_range` when available.
-10. Set `kind`, `roles`, `target`, and `alias`, then apply conditional `addRoles`.
-11. Sort items by start byte.
-12. Deduplicate overlapping matches by range, kind, and name. Merge roles instead of
+9. Set symbol type, roles, target, and alias, then apply conditional `addRoles`.
+10. Sort items by start byte.
+11. Deduplicate overlapping matches by range, symbol type, and name. Merge roles instead of
     emitting duplicate records.
-13. Nest structural members by range containment or language-specific membership rules.
-14. Apply role selection, anchor filters, and member presentation before printing.
+12. Nest structural members by range containment or language-specific membership rules.
+13. Apply role selection, anchor filters, and member presentation before printing.
 
 ## Language And Custom Language Support
 
@@ -755,7 +743,7 @@ composition when they need presentation-level truncation:
 ```sh
 sg outline crates/cli/src | head -n 120
 sg outline crates/cli/src --role export | head -n 80
-sg outline crates/cli/src --json=stream | jq 'select(.symbol.kindName == "Function")'
+sg outline crates/cli/src --json=stream | jq 'select(.symbol.symbolType == "function")'
 ```
 
 A future built-in limit may still be valuable as a safety guard against accidentally
@@ -771,7 +759,7 @@ Likely contract:
 
 Possible semantics:
 
-- Count selected top-level anchors after `--role`, `--kind`, and `--match`.
+- Count selected top-level anchors after `--role`, `--type`, and `--match`.
 - Do not count member names in `--members names`.
 - Do not count member rows in `--members lines`.
 - Do not split a selected anchor from its direct members.

@@ -17,6 +17,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::lang::SgLang;
+use crate::print::JsonStyle;
 use crate::utils::{InputArgs, read_file};
 
 type SgDoc = StrDoc<SgLang>;
@@ -27,15 +28,15 @@ const CHILD_DIGEST_GROUP_LIMIT: usize = 8;
 pub struct OutlineArg {
   #[clap(flatten)]
   common: OutlineCommonArg,
-  /// Filter outline item kinds by LSP SymbolKind name.
-  #[clap(long, value_delimiter = ',', action = clap::ArgAction::Append)]
-  kind: Vec<SymbolKind>,
+  /// Filter outline symbols by SymbolType name.
+  #[clap(long = "type", value_name = "TYPE", value_delimiter = ',', action = clap::ArgAction::Append)]
+  symbol_type: Vec<SymbolType>,
   /// Select records by role facet. Repeatable. Comma-separated roles are ANDed.
   #[clap(long, value_name = "ROLE", action = clap::ArgAction::Append)]
   role: Vec<RoleFilter>,
-  /// Maximum nesting depth for tree output.
-  #[clap(long, value_name = "N|all")]
-  depth: Option<OutlineDepth>,
+  /// Control whether structural members are shown.
+  #[clap(long, default_value = "names", value_name = "MODE")]
+  members: OutlineMembers,
 }
 
 #[derive(Args, Clone)]
@@ -43,12 +44,15 @@ struct OutlineCommonArg {
   /// Language to parse input as. If absent, infer from file path.
   #[clap(short, long)]
   lang: Option<SgLang>,
-  /// Output format.
-  #[clap(long, default_value = "text", value_name = "FORMAT")]
-  format: OutlineFormat,
-  /// Maximum records or tree items to emit.
-  #[clap(long, value_name = "NUM")]
-  limit: Option<usize>,
+  /// Output outline in structured JSON.
+  #[clap(
+      long,
+      value_name = "STYLE",
+      num_args(0..=1),
+      require_equals = true,
+      default_missing_value = "pretty"
+  )]
+  json: Option<JsonStyle>,
   /// Regex pattern over role-relevant fields.
   #[clap(long = "match", value_name = "REGEX", action = clap::ArgAction::Append)]
   matches: Vec<Regex>,
@@ -63,19 +67,11 @@ struct OutlineCommonArg {
   input: InputArgs,
 }
 
-#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
-#[value(rename_all = "camelCase")]
-enum OutlineFormat {
-  Text,
-  Json,
-  Jsonl,
-}
-
-#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[value(rename_all = "camelCase")]
 #[serde(rename_all = "camelCase")]
 #[repr(u8)]
-enum SymbolKind {
+enum SymbolType {
   File = 1,
   Module = 2,
   Namespace = 3,
@@ -104,39 +100,35 @@ enum SymbolKind {
   TypeParameter = 26,
 }
 
-impl SymbolKind {
-  fn number(self) -> u8 {
-    self as u8
-  }
-
-  fn name(self) -> &'static str {
+impl SymbolType {
+  fn label(self) -> &'static str {
     match self {
-      SymbolKind::File => "File",
-      SymbolKind::Module => "Module",
-      SymbolKind::Namespace => "Namespace",
-      SymbolKind::Package => "Package",
-      SymbolKind::Class => "Class",
-      SymbolKind::Method => "Method",
-      SymbolKind::Property => "Property",
-      SymbolKind::Field => "Field",
-      SymbolKind::Constructor => "Constructor",
-      SymbolKind::Enum => "Enum",
-      SymbolKind::Interface => "Interface",
-      SymbolKind::Function => "Function",
-      SymbolKind::Variable => "Variable",
-      SymbolKind::Constant => "Constant",
-      SymbolKind::String => "String",
-      SymbolKind::Number => "Number",
-      SymbolKind::Boolean => "Boolean",
-      SymbolKind::Array => "Array",
-      SymbolKind::Object => "Object",
-      SymbolKind::Key => "Key",
-      SymbolKind::Null => "Null",
-      SymbolKind::EnumMember => "EnumMember",
-      SymbolKind::Struct => "Struct",
-      SymbolKind::Event => "Event",
-      SymbolKind::Operator => "Operator",
-      SymbolKind::TypeParameter => "TypeParameter",
+      SymbolType::File => "file",
+      SymbolType::Module => "module",
+      SymbolType::Namespace => "namespace",
+      SymbolType::Package => "package",
+      SymbolType::Class => "class",
+      SymbolType::Method => "method",
+      SymbolType::Property => "property",
+      SymbolType::Field => "field",
+      SymbolType::Constructor => "constructor",
+      SymbolType::Enum => "enum",
+      SymbolType::Interface => "interface",
+      SymbolType::Function => "function",
+      SymbolType::Variable => "variable",
+      SymbolType::Constant => "constant",
+      SymbolType::String => "string",
+      SymbolType::Number => "number",
+      SymbolType::Boolean => "boolean",
+      SymbolType::Array => "array",
+      SymbolType::Object => "object",
+      SymbolType::Key => "key",
+      SymbolType::Null => "null",
+      SymbolType::EnumMember => "enumMember",
+      SymbolType::Struct => "struct",
+      SymbolType::Event => "event",
+      SymbolType::Operator => "operator",
+      SymbolType::TypeParameter => "typeParameter",
     }
   }
 }
@@ -191,24 +183,12 @@ impl FromStr for RoleFilter {
   }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum OutlineDepth {
-  Limited(usize),
-  All,
-}
-
-impl FromStr for OutlineDepth {
-  type Err = String;
-
-  fn from_str(value: &str) -> Result<Self, Self::Err> {
-    if value == "all" {
-      return Ok(Self::All);
-    }
-    value
-      .parse::<usize>()
-      .map(Self::Limited)
-      .map_err(|_| format!("invalid depth: {value}"))
-  }
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+#[value(rename_all = "camelCase")]
+enum OutlineMembers {
+  None,
+  Names,
+  Lines,
 }
 
 #[derive(Clone, Serialize)]
@@ -230,18 +210,16 @@ struct OutlineRange {
 #[serde(rename_all = "camelCase")]
 struct OutlineItem {
   name: Option<String>,
-  kind: u8,
-  kind_name: &'static str,
+  symbol_type: SymbolType,
   roles: Vec<SymbolRole>,
   range: OutlineRange,
-  selection_range: OutlineRange,
   #[serde(skip_serializing_if = "Option::is_none")]
   signature: Option<String>,
   #[serde(skip)]
   source_line: String,
-  #[serde(skip)]
+  #[serde(rename = "memberDigest", skip_serializing_if = "String::is_empty")]
   child_digest: String,
-  node_kind: String,
+  ast_kind: String,
   #[serde(skip_serializing_if = "Vec::is_empty")]
   children: Vec<OutlineItem>,
 }
@@ -258,8 +236,7 @@ struct OutlineFile {
 #[serde(rename_all = "camelCase")]
 struct OutlineContainer {
   name: Option<String>,
-  kind: u8,
-  kind_name: &'static str,
+  symbol_type: SymbolType,
   range: OutlineRange,
 }
 
@@ -275,20 +252,20 @@ struct OutlineRecord {
 #[serde(rename_all = "camelCase")]
 struct OutlineFlatSymbol {
   name: Option<String>,
-  kind: u8,
-  kind_name: &'static str,
+  symbol_type: SymbolType,
   roles: Vec<SymbolRole>,
   range: OutlineRange,
-  selection_range: OutlineRange,
   #[serde(skip_serializing_if = "Option::is_none")]
   signature: Option<String>,
-  node_kind: String,
+  #[serde(rename = "memberDigest", skip_serializing_if = "String::is_empty")]
+  child_digest: String,
+  ast_kind: String,
   #[serde(skip_serializing_if = "Option::is_none")]
   container: Option<OutlineContainer>,
 }
 
 struct RuleSpec {
-  kind: SymbolKind,
+  symbol_type: SymbolType,
   roles: Vec<SymbolRole>,
   add_roles: Vec<(SymbolRole, ExportPolicy)>,
   name: NameSource,
@@ -321,7 +298,8 @@ impl OutlineCatalog {
 struct SerializableOutlineExtractor {
   id: String,
   language: SgLang,
-  kind: SymbolKind,
+  #[serde(rename = "kind")]
+  symbol_type: SymbolType,
   #[serde(default)]
   role: Option<SymbolRole>,
   #[serde(default)]
@@ -489,13 +467,7 @@ extractors:
     role: definition
     name: field:name
     exported: ancestorKind:export_statement
-    rule:
-      all:
-        - kind: function_declaration
-        - not:
-            inside:
-              kind: statement_block
-              stopBy: end
+    rule: { kind: function_declaration }
   - id: ts-class
     language: TypeScript
     kind: class
@@ -606,10 +578,6 @@ extractors:
         - has:
             kind: arrow_function
             stopBy: end
-        - not:
-            inside:
-              kind: statement_block
-              stopBy: end
 
   - id: tsx-import
     language: Tsx
@@ -634,13 +602,7 @@ extractors:
     role: definition
     name: field:name
     exported: ancestorKind:export_statement
-    rule:
-      all:
-        - kind: function_declaration
-        - not:
-            inside:
-              kind: statement_block
-              stopBy: end
+    rule: { kind: function_declaration }
   - id: tsx-class
     language: Tsx
     kind: class
@@ -751,10 +713,6 @@ extractors:
         - has:
             kind: arrow_function
             stopBy: end
-        - not:
-            inside:
-              kind: statement_block
-              stopBy: end
 
   - id: js-import
     language: JavaScript
@@ -779,13 +737,7 @@ extractors:
     role: definition
     name: field:name
     exported: ancestorKind:export_statement
-    rule:
-      all:
-        - kind: function_declaration
-        - not:
-            inside:
-              kind: statement_block
-              stopBy: end
+    rule: { kind: function_declaration }
   - id: js-class
     language: JavaScript
     kind: class
@@ -856,10 +808,6 @@ extractors:
         - has:
             kind: arrow_function
             stopBy: end
-        - not:
-            inside:
-              kind: statement_block
-              stopBy: end
 
   - id: py-import
     language: Python
@@ -1279,8 +1227,10 @@ fn extract_outline(
   dedup_items(&mut items);
   items.sort_by_key(|i| (i.range.start.byte, Reverse(i.range.end.byte)));
   let mut items = nest_items(items);
+  prune_outline_members(lang, &mut items);
   if lang == SgLang::Builtin(SupportLang::Go) {
     attach_go_receiver_methods(&mut items);
+    prune_outline_members(lang, &mut items);
   }
   Ok(OutlineFile {
     path: path.to_string_lossy().to_string(),
@@ -1333,7 +1283,7 @@ fn compile_outline_rules(
         add_roles.push((SymbolRole::Export, parse_export_policy(Some(exported))));
       }
       Ok(RuleSpec {
-        kind: spec.kind,
+        symbol_type: spec.symbol_type,
         roles,
         add_roles,
         name: parse_name_source(spec.name),
@@ -1427,23 +1377,21 @@ fn make_item(
   include_signature: bool,
 ) -> Option<OutlineItem> {
   let node = matched.get_node();
-  let (name, selection_range) = resolve_name(matched, lang, spec);
+  let name = resolve_name(matched, lang, spec);
   if spec.roles.contains(&SymbolRole::Definition) && name.is_none() {
     return None;
   }
   let roles = item_roles(&spec.roles, &spec.add_roles, node, name.as_deref());
-  let kind = spec.kind;
+  let symbol_type = spec.symbol_type;
   Some(OutlineItem {
     name,
-    kind: kind.number(),
-    kind_name: kind.name(),
+    symbol_type,
     roles,
     range: node_range(node),
-    selection_range: selection_range.unwrap_or_else(|| node_range(node)),
     signature: include_signature.then(|| signature(node)),
     source_line: signature(node),
     child_digest: String::new(),
-    node_kind: node.kind().to_string(),
+    ast_kind: node.kind().to_string(),
     children: vec![],
   })
 }
@@ -1488,24 +1436,21 @@ fn resolve_name(
   matched: &ast_grep_core::NodeMatch<SgDoc>,
   lang: SgLang,
   spec: &RuleSpec,
-) -> (Option<String>, Option<OutlineRange>) {
+) -> Option<String> {
   let node = matched.get_node();
   match &spec.name {
-    NameSource::Text => return (Some(import_export_name(node)), None),
+    NameSource::Text => return Some(import_export_name(node)),
     NameSource::FirstNameLike => {
       return resolve_first_name_like(node);
     }
     NameSource::Field(field) => {
       if let Some(name) = node.field(field) {
-        return (
-          Some(name.text().trim().to_string()),
-          Some(node_range(&name)),
-        );
+        return Some(name.text().trim().to_string());
       }
     }
     NameSource::MetaVar(var) => {
       if let Some(name) = matched.get_env().get_match(var) {
-        return (Some(name.text().trim().to_string()), Some(node_range(name)));
+        return Some(name.text().trim().to_string());
       }
     }
     NameSource::Auto => {}
@@ -1516,13 +1461,10 @@ fn resolve_name(
       .iter()
       .any(|role| matches!(role, SymbolRole::Import | SymbolRole::Export))
   {
-    return (Some(import_export_name(node)), None);
+    return Some(import_export_name(node));
   }
   if let Some(name) = node.field("name") {
-    return (
-      Some(name.text().trim().to_string()),
-      Some(node_range(&name)),
-    );
+    return Some(name.text().trim().to_string());
   }
   if node.kind().as_ref() == "lexical_declaration" || node.kind().as_ref() == "variable_declaration"
   {
@@ -1532,19 +1474,13 @@ fn resolve_name(
         "identifier" | "shorthand_property_identifier_pattern"
       )
     }) {
-      return (
-        Some(name.text().trim().to_string()),
-        Some(node_range(&name)),
-      );
+      return Some(name.text().trim().to_string());
     }
   }
   if lang == SgLang::Builtin(SupportLang::Go)
     && let Some(name) = node.dfs().find(|n| n.kind().as_ref() == "identifier")
   {
-    return (
-      Some(name.text().trim().to_string()),
-      Some(node_range(&name)),
-    );
+    return Some(name.text().trim().to_string());
   }
   if node.kind().as_ref() == "impl_item" {
     let text = node.text();
@@ -1554,26 +1490,19 @@ fn resolve_name(
       .map(str::trim)
       .and_then(|s| s.split([' ', '{', '<']).find(|s| !s.is_empty()))
       .map(str::to_string);
-    return (name, None);
+    return name;
   }
-  if let resolved @ (Some(_), Some(_)) = resolve_first_name_like(node) {
+  if let resolved @ Some(_) = resolve_first_name_like(node) {
     return resolved;
   }
-  (None, None)
+  None
 }
 
-fn resolve_first_name_like(node: &SgNode<'_>) -> (Option<String>, Option<OutlineRange>) {
-  if let Some(name) = node
+fn resolve_first_name_like(node: &SgNode<'_>) -> Option<String> {
+  node
     .dfs()
     .find(|name| is_name_like_node(name) && !is_modifier_metadata(name))
-  {
-    (
-      Some(name.text().trim().to_string()),
-      Some(node_range(&name)),
-    )
-  } else {
-    (None, None)
-  }
+    .map(|name| name.text().trim().to_string())
 }
 
 fn is_name_like_node(node: &SgNode<'_>) -> bool {
@@ -1683,13 +1612,20 @@ fn node_range(node: &SgNode<'_>) -> OutlineRange {
 }
 
 fn dedup_items(items: &mut Vec<OutlineItem>) {
-  items.sort_by_key(|i| (i.range.start.byte, i.range.end.byte, i.kind, i.name.clone()));
+  items.sort_by_key(|i| {
+    (
+      i.range.start.byte,
+      i.range.end.byte,
+      i.symbol_type,
+      i.name.clone(),
+    )
+  });
   let mut deduped: Vec<OutlineItem> = vec![];
   for item in std::mem::take(items) {
     if let Some(existing) = deduped.last_mut()
       && existing.range.start.byte == item.range.start.byte
       && existing.range.end.byte == item.range.end.byte
-      && existing.kind == item.kind
+      && existing.symbol_type == item.symbol_type
       && existing.name == item.name
     {
       for role in item.roles {
@@ -1734,7 +1670,7 @@ fn attach_go_receiver_methods(items: &mut Vec<OutlineItem>) {
   let mut kept = Vec::with_capacity(roots.len());
   let mut methods = vec![];
   for item in roots.drain(..) {
-    if item.kind == SymbolKind::Method.number()
+    if item.symbol_type == SymbolType::Method
       && let Some(receiver) = go_receiver_type(&item.source_line)
     {
       methods.push((receiver, item));
@@ -1757,6 +1693,78 @@ fn attach_go_receiver_methods(items: &mut Vec<OutlineItem>) {
   }
   kept.sort_by_key(|item| (item.range.start.byte, Reverse(item.range.end.byte)));
   *items = kept;
+}
+
+fn prune_outline_members(lang: SgLang, items: &mut [OutlineItem]) {
+  for parent in items {
+    let mut kept = vec![];
+    for mut child in std::mem::take(&mut parent.children) {
+      prune_outline_members(lang, std::slice::from_mut(&mut child));
+      if is_outline_member(lang, parent, &child) {
+        kept.push(child);
+      }
+    }
+    parent.children = kept;
+  }
+}
+
+fn is_outline_member(lang: SgLang, parent: &OutlineItem, child: &OutlineItem) -> bool {
+  if is_function_like(parent) && is_js_family(lang) && child.symbol_type == SymbolType::Function {
+    return true;
+  }
+  is_container_type(parent.symbol_type) && is_member_type(child.symbol_type)
+}
+
+fn is_js_family(lang: SgLang) -> bool {
+  matches!(
+    lang,
+    SgLang::Builtin(SupportLang::JavaScript)
+      | SgLang::Builtin(SupportLang::TypeScript)
+      | SgLang::Builtin(SupportLang::Tsx)
+  )
+}
+
+fn is_function_like(item: &OutlineItem) -> bool {
+  matches!(
+    item.symbol_type,
+    SymbolType::Function | SymbolType::Method | SymbolType::Constructor
+  )
+}
+
+fn is_container_type(symbol_type: SymbolType) -> bool {
+  matches!(
+    symbol_type,
+    SymbolType::Class
+      | SymbolType::Struct
+      | SymbolType::Interface
+      | SymbolType::Enum
+      | SymbolType::Object
+      | SymbolType::Namespace
+      | SymbolType::Module
+      | SymbolType::Package
+  )
+}
+
+fn is_member_type(symbol_type: SymbolType) -> bool {
+  matches!(
+    symbol_type,
+    SymbolType::Class
+      | SymbolType::Struct
+      | SymbolType::Interface
+      | SymbolType::Enum
+      | SymbolType::Object
+      | SymbolType::Namespace
+      | SymbolType::Module
+      | SymbolType::Function
+      | SymbolType::Method
+      | SymbolType::Constructor
+      | SymbolType::Property
+      | SymbolType::Field
+      | SymbolType::Constant
+      | SymbolType::Variable
+      | SymbolType::EnumMember
+      | SymbolType::TypeParameter
+  )
 }
 
 fn go_receiver_type(signature: &str) -> Option<String> {
@@ -1797,13 +1805,13 @@ fn filter_items(
       .filter(|item| role_matches(item, &arg.role))
       .collect()
   };
-  match arg.depth {
-    Some(OutlineDepth::All) => {}
-    Some(OutlineDepth::Limited(depth)) => trim_depth(&mut items, depth),
-    None => {
+  match arg.members {
+    OutlineMembers::None => trim_depth(&mut items, 1),
+    OutlineMembers::Names => {
       set_child_digests(&mut items);
       trim_depth(&mut items, 1);
     }
+    OutlineMembers::Lines => trim_depth(&mut items, 2),
   }
   items
 }
@@ -1917,8 +1925,8 @@ fn collect_matching_anchor(
   }
 }
 
-fn kind_matches(item: &OutlineItem, kinds: &[SymbolKind]) -> bool {
-  kinds.is_empty() || kinds.iter().any(|kind| item.kind == kind.number())
+fn type_matches(item: &OutlineItem, types: &[SymbolType]) -> bool {
+  types.is_empty() || types.contains(&item.symbol_type)
 }
 
 fn role_matches(item: &OutlineItem, filters: &[RoleFilter]) -> bool {
@@ -1934,11 +1942,13 @@ fn role_matches(item: &OutlineItem, filters: &[RoleFilter]) -> bool {
 }
 
 fn item_matches(item: &OutlineItem, arg: &OutlineArg, common: &OutlineCommonArg) -> bool {
-  kind_matches(item, &arg.kind) && role_matches(item, &arg.role) && common_matches(item, common)
+  type_matches(item, &arg.symbol_type)
+    && role_matches(item, &arg.role)
+    && common_matches(item, common)
 }
 
 fn has_anchor_filters(arg: &OutlineArg, common: &OutlineCommonArg) -> bool {
-  !arg.kind.is_empty() || !common.matches.is_empty()
+  !arg.symbol_type.is_empty() || !common.matches.is_empty()
 }
 
 fn common_matches(item: &OutlineItem, common: &OutlineCommonArg) -> bool {
@@ -1953,43 +1963,23 @@ fn common_matches(item: &OutlineItem, common: &OutlineCommonArg) -> bool {
     })
 }
 
-fn print_outline(arg: &OutlineArg, mut files: Vec<OutlineFile>) -> Result<ExitCode> {
+fn print_outline(arg: &OutlineArg, files: Vec<OutlineFile>) -> Result<ExitCode> {
   let common = &arg.common;
-  enforce_limit(&mut files, common.limit);
-  match common.format {
-    OutlineFormat::Text => print_text(&files),
-    OutlineFormat::Json => {
+  match common.json {
+    None => print_text(&files),
+    Some(JsonStyle::Pretty) => {
       println!("{}", serde_json::to_string_pretty(&files)?);
     }
-    OutlineFormat::Jsonl => {
+    Some(JsonStyle::Compact) => {
+      println!("{}", serde_json::to_string(&files)?);
+    }
+    Some(JsonStyle::Stream) => {
       for record in flatten_files(&files) {
         println!("{}", serde_json::to_string(&record)?);
       }
     }
   }
   Ok(ExitCode::SUCCESS)
-}
-
-fn enforce_limit(files: &mut Vec<OutlineFile>, limit: Option<usize>) {
-  let Some(mut remaining) = limit else {
-    return;
-  };
-  for file in files {
-    limit_items(&mut file.items, &mut remaining);
-  }
-}
-
-fn limit_items(items: &mut Vec<OutlineItem>, remaining: &mut usize) {
-  let mut kept = vec![];
-  for mut item in std::mem::take(items) {
-    if *remaining == 0 {
-      break;
-    }
-    *remaining -= 1;
-    limit_items(&mut item.children, remaining);
-    kept.push(item);
-  }
-  *items = kept;
 }
 
 fn print_text(files: &[OutlineFile]) {
@@ -2062,7 +2052,7 @@ fn text_group_label(item: &OutlineItem) -> &'static str {
   if starts_with_any(source, &["impl ", "pub impl "]) {
     return "impl";
   }
-  kind_text_label(item.kind)
+  type_text_label(item.symbol_type)
 }
 
 fn starts_with_any(source: &str, prefixes: &[&str]) -> bool {
@@ -2095,35 +2085,11 @@ fn text_group_rank(label: &str) -> u8 {
   }
 }
 
-fn kind_text_label(kind: u8) -> &'static str {
-  match kind {
-    k if k == SymbolKind::File.number() => "file",
-    k if k == SymbolKind::Module.number() => "module",
-    k if k == SymbolKind::Namespace.number() => "namespace",
-    k if k == SymbolKind::Package.number() => "package",
-    k if k == SymbolKind::Class.number() => "class",
-    k if k == SymbolKind::Method.number() => "method",
-    k if k == SymbolKind::Property.number() => "property",
-    k if k == SymbolKind::Field.number() => "field",
-    k if k == SymbolKind::Constructor.number() => "constructor",
-    k if k == SymbolKind::Enum.number() => "enum",
-    k if k == SymbolKind::Interface.number() => "interface",
-    k if k == SymbolKind::Function.number() => "function",
-    k if k == SymbolKind::Variable.number() => "variable",
-    k if k == SymbolKind::Constant.number() => "constant",
-    k if k == SymbolKind::String.number() => "string",
-    k if k == SymbolKind::Number.number() => "number",
-    k if k == SymbolKind::Boolean.number() => "boolean",
-    k if k == SymbolKind::Array.number() => "array",
-    k if k == SymbolKind::Object.number() => "object",
-    k if k == SymbolKind::Key.number() => "key",
-    k if k == SymbolKind::Null.number() => "null",
-    k if k == SymbolKind::EnumMember.number() => "enum member",
-    k if k == SymbolKind::Struct.number() => "struct",
-    k if k == SymbolKind::Event.number() => "event",
-    k if k == SymbolKind::Operator.number() => "operator",
-    k if k == SymbolKind::TypeParameter.number() => "type parameter",
-    _ => "symbol",
+fn type_text_label(symbol_type: SymbolType) -> &'static str {
+  match symbol_type {
+    SymbolType::EnumMember => "enum member",
+    SymbolType::TypeParameter => "type parameter",
+    _ => symbol_type.label(),
   }
 }
 
@@ -2144,8 +2110,7 @@ fn flatten_items_for_file(
   for item in items {
     let current_container = Some(OutlineContainer {
       name: item.name.clone(),
-      kind: item.kind,
-      kind_name: item.kind_name,
+      symbol_type: item.symbol_type,
       range: item.range.clone(),
     });
     records.push(OutlineRecord {
@@ -2160,13 +2125,12 @@ fn flatten_items_for_file(
 fn flat_symbol(item: &OutlineItem, container: Option<OutlineContainer>) -> OutlineFlatSymbol {
   OutlineFlatSymbol {
     name: item.name.clone(),
-    kind: item.kind,
-    kind_name: item.kind_name,
+    symbol_type: item.symbol_type,
     roles: item.roles.clone(),
     range: item.range.clone(),
-    selection_range: item.selection_range.clone(),
     signature: item.signature.clone(),
-    node_kind: item.node_kind.clone(),
+    child_digest: item.child_digest.clone(),
+    ast_kind: item.ast_kind.clone(),
     container,
   }
 }
@@ -2234,7 +2198,7 @@ mod tests {
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = anchor_query("Parser", Some(SymbolKind::Class), 2);
+    let query = anchor_query("Parser", Some(SymbolType::Class));
     let mut files = vec![file];
     apply_view(&query, &mut files);
     assert_eq!(files[0].items.len(), 1);
@@ -2323,6 +2287,41 @@ export function retry() {
   }
 
   #[test]
+  fn ts_inner_functions_are_function_members() {
+    let src = r#"
+export function checkType() {
+  function reportError() {}
+  const compareTypes = () => true;
+  const localValue = 1;
+  return compareTypes();
+}
+"#;
+    let file = extract_outline(
+      PathBuf::from("test.ts"),
+      SgLang::Builtin(SupportLang::TypeScript),
+      src,
+      &test_common(),
+      &test_catalog(),
+    )
+    .expect("extract outline");
+    let query = anchor_query("checkType", Some(SymbolType::Function));
+    let mut files = vec![file];
+    apply_view(&query, &mut files);
+    let function = files[0]
+      .items
+      .iter()
+      .find(|item| item.name.as_deref() == Some("checkType"))
+      .expect("checkType function");
+    let names = function
+      .children
+      .iter()
+      .filter_map(|item| item.name.as_deref())
+      .collect::<Vec<_>>();
+    assert_eq!(names, vec!["reportError", "compareTypes"]);
+    assert!(!names.contains(&"localValue"));
+  }
+
+  #[test]
   fn extracts_java_symbols() {
     let src = r#"
 package demo;
@@ -2352,10 +2351,10 @@ public record Rec(int id) {}
         .all(|r| r.symbol.name.as_deref() != Some("java.util.List"))
     );
     assert!(records.iter().any(|r| {
-      r.symbol.name.as_deref() == Some("Foo") && r.symbol.kind == SymbolKind::Class.number()
+      r.symbol.name.as_deref() == Some("Foo") && r.symbol.symbol_type == SymbolType::Class
     }));
     assert!(records.iter().any(|r| {
-      r.symbol.name.as_deref() == Some("Rec") && r.symbol.kind == SymbolKind::Struct.number()
+      r.symbol.name.as_deref() == Some("Rec") && r.symbol.symbol_type == SymbolType::Struct
     }));
     assert!(
       records
@@ -2367,7 +2366,7 @@ public record Rec(int id) {}
         .iter()
         .all(|r| r.symbol.name.as_deref() != Some("bar"))
     );
-    let query = anchor_query("Foo", Some(SymbolKind::Class), 2);
+    let query = anchor_query("Foo", Some(SymbolType::Class));
     let file = extract_outline(
       PathBuf::from("test.java"),
       SgLang::Builtin(SupportLang::Java),
@@ -2380,10 +2379,10 @@ public record Rec(int id) {}
     apply_view(&query, &mut files);
     let records = flatten_files(&files);
     assert!(records.iter().any(|r| {
-      r.symbol.name.as_deref() == Some("SIZE") && r.symbol.kind == SymbolKind::Constant.number()
+      r.symbol.name.as_deref() == Some("SIZE") && r.symbol.symbol_type == SymbolType::Constant
     }));
     assert!(records.iter().any(|r| {
-      r.symbol.name.as_deref() == Some("bar") && r.symbol.kind == SymbolKind::Method.number()
+      r.symbol.name.as_deref() == Some("bar") && r.symbol.symbol_type == SymbolType::Method
     }));
     let query = local_exports_query();
     let file = extract_outline(
@@ -2431,7 +2430,7 @@ interface I {}
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = anchor_query("Foo", Some(SymbolKind::Class), 2);
+    let query = anchor_query("Foo", Some(SymbolType::Class));
     let mut files = vec![file];
     apply_view(&query, &mut files);
     let records = flatten_files(&files);
@@ -2501,15 +2500,15 @@ public typealias Alias = String
         .all(|r| r.symbol.name.as_deref() != Some("Foundation"))
     );
     assert!(records.iter().any(|r| {
-      r.symbol.name.as_deref() == Some("Foo") && r.symbol.kind == SymbolKind::Class.number()
+      r.symbol.name.as_deref() == Some("Foo") && r.symbol.symbol_type == SymbolType::Class
     }));
     assert!(records.iter().any(|r| {
-      r.symbol.name.as_deref() == Some("Box") && r.symbol.kind == SymbolKind::Struct.number()
+      r.symbol.name.as_deref() == Some("Box") && r.symbol.symbol_type == SymbolType::Struct
     }));
     assert!(records.iter().any(|r| {
-      r.symbol.name.as_deref() == Some("Mode") && r.symbol.kind == SymbolKind::Enum.number()
+      r.symbol.name.as_deref() == Some("Mode") && r.symbol.symbol_type == SymbolType::Enum
     }));
-    let query = anchor_query("Foo", Some(SymbolKind::Class), 2);
+    let query = anchor_query("Foo", Some(SymbolType::Class));
     let file = extract_outline(
       PathBuf::from("test.swift"),
       SgLang::Builtin(SupportLang::Swift),
@@ -2555,11 +2554,11 @@ open class Session: @unchecked Sendable {
     apply_view(&query, &mut files);
     let records = flatten_files(&files);
     assert!(records.iter().any(|r| {
-      r.symbol.name.as_deref() == Some("Session") && r.symbol.kind == SymbolKind::Class.number()
+      r.symbol.name.as_deref() == Some("Session") && r.symbol.symbol_type == SymbolType::Class
     }));
     assert!(!records.iter().any(|r| {
       r.symbol.name.as_deref() == Some("webSocketRequest")
-        && r.symbol.kind == SymbolKind::Function.number()
+        && r.symbol.symbol_type == SymbolType::Function
         && r.symbol.range.start.line == 2
     }));
   }
@@ -2625,7 +2624,7 @@ func standalone() {}
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = map_query_with_depth(2);
+    let query = map_query_with_members(OutlineMembers::Lines);
     let mut files = vec![file];
     apply_view(&query, &mut files);
     let records = flatten_files(&files);
@@ -2643,13 +2642,13 @@ func standalone() {}
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = anchor_query("RouterGroup", None, 2);
+    let query = anchor_query("RouterGroup", None);
     let mut files = vec![file];
     apply_view(&query, &mut files);
     let records = flatten_files(&files);
     let names = records
       .iter()
-      .filter(|record| record.symbol.kind == SymbolKind::Method.number())
+      .filter(|record| record.symbol.symbol_type == SymbolType::Method)
       .filter_map(|record| record.symbol.name.as_deref())
       .collect::<Vec<_>>();
     assert_eq!(
@@ -2678,7 +2677,7 @@ func standalone() {}
   }
 
   #[test]
-  fn map_depth_includes_nested_items() {
+  fn members_lines_includes_members() {
     let src = "enum Commands { Run(RunArg) }\nstruct RunArg;\n";
     let file = extract_outline(
       PathBuf::from("test.rs"),
@@ -2688,7 +2687,7 @@ func standalone() {}
       &test_catalog(),
     )
     .expect("extract outline");
-    let query = map_query_with_depth(2);
+    let query = map_query_with_members(OutlineMembers::Lines);
     let mut files = vec![file];
     apply_view(&query, &mut files);
     assert!(files[0].items.iter().any(|item| !item.children.is_empty()));
@@ -2728,7 +2727,7 @@ extractors:
     let records = flatten_files(&[file]);
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].symbol.name.as_deref(), Some("custom"));
-    assert_eq!(records[0].symbol.kind, SymbolKind::Function.number());
+    assert_eq!(records[0].symbol.symbol_type, SymbolType::Function);
     assert_eq!(
       records[0].symbol.roles,
       vec![SymbolRole::Definition, SymbolRole::Export]
@@ -2770,8 +2769,7 @@ extractors:
   fn test_common() -> OutlineCommonArg {
     OutlineCommonArg {
       lang: None,
-      format: OutlineFormat::Json,
-      limit: None,
+      json: None,
       matches: vec![],
       outline_rules: vec![],
       no_default_outline_rules: false,
@@ -2793,9 +2791,9 @@ extractors:
   fn outline_arg_with_common(common: OutlineCommonArg) -> OutlineArg {
     OutlineArg {
       common,
-      kind: vec![],
+      symbol_type: vec![],
       role: vec![],
-      depth: None,
+      members: OutlineMembers::Names,
     }
   }
 
@@ -2803,9 +2801,9 @@ extractors:
     outline_arg_with_common(test_common())
   }
 
-  fn map_query_with_depth(depth: usize) -> OutlineArg {
+  fn map_query_with_members(members: OutlineMembers) -> OutlineArg {
     let mut arg = map_query();
-    arg.depth = Some(OutlineDepth::Limited(depth));
+    arg.members = members;
     arg
   }
 
@@ -2821,11 +2819,11 @@ extractors:
     arg
   }
 
-  fn anchor_query(name: &str, kind: Option<SymbolKind>, depth: usize) -> OutlineArg {
+  fn anchor_query(name: &str, symbol_type: Option<SymbolType>) -> OutlineArg {
     let mut arg = map_query();
     arg.common.matches = vec![Regex::new(name).expect("test regex")];
-    arg.kind = kind.into_iter().collect();
-    arg.depth = Some(OutlineDepth::Limited(depth));
+    arg.symbol_type = symbol_type.into_iter().collect();
+    arg.members = OutlineMembers::Lines;
     arg
   }
 
