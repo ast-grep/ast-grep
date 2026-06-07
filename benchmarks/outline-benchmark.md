@@ -9,7 +9,7 @@ tool calls, and correctness.
 The runner is:
 
 ```sh
-python3 scripts/outline_claude_benchmark.py
+python3 benchmarks/outline_claude_benchmark.py
 ```
 
 It uses real `claude -p` runs. It is not a synthetic grep/read simulation.
@@ -59,7 +59,7 @@ For stricter validation, the harness can also run an optional second Claude
 judge pass:
 
 ```sh
-python3 scripts/outline_claude_benchmark.py \
+python3 benchmarks/outline_claude_benchmark.py \
   --scenario gin-middleware-routing \
   --repeats 1 \
   --judge-alignment
@@ -176,7 +176,7 @@ This keeps large third-party repositories out of the ast-grep working tree.
 Clone the needed repos with:
 
 ```sh
-python3 scripts/outline_claude_benchmark.py \
+python3 benchmarks/outline_claude_benchmark.py \
   --sync-repos \
   --repeats 0
 ```
@@ -184,7 +184,7 @@ python3 scripts/outline_claude_benchmark.py \
 Clone one repo:
 
 ```sh
-python3 scripts/outline_claude_benchmark.py \
+python3 benchmarks/outline_claude_benchmark.py \
   --scenario gin-middleware-routing \
   --sync-repos \
   --repeats 0
@@ -194,7 +194,7 @@ If persistent repo management is desired, the same harness can point at a
 submodule directory:
 
 ```sh
-python3 scripts/outline_claude_benchmark.py \
+python3 benchmarks/outline_claude_benchmark.py \
   --repo-dir benchmarks/repos \
   --sync-repos \
   --repeats 0
@@ -210,7 +210,7 @@ fixtures.
 Run one scenario once per arm:
 
 ```sh
-python3 scripts/outline_claude_benchmark.py \
+python3 benchmarks/outline_claude_benchmark.py \
   --scenario gin-middleware-routing \
   --repeats 1 \
   --max-budget-usd 0.35
@@ -219,7 +219,7 @@ python3 scripts/outline_claude_benchmark.py \
 Run independent agent sessions concurrently:
 
 ```sh
-python3 scripts/outline_claude_benchmark.py \
+python3 benchmarks/outline_claude_benchmark.py \
   --scenario excalidraw-render-update \
   --repeats 1 \
   --jobs 2
@@ -232,13 +232,13 @@ so summaries record the job count in `metadata.json`.
 Run the full CodeGraph-style median benchmark:
 
 ```sh
-python3 scripts/outline_claude_benchmark.py --repeats 4
+python3 benchmarks/outline_claude_benchmark.py --repeats 4
 ```
 
 Run with full-answer baseline judging:
 
 ```sh
-python3 scripts/outline_claude_benchmark.py \
+python3 benchmarks/outline_claude_benchmark.py \
   --repeats 4 \
   --judge-alignment
 ```
@@ -246,7 +246,7 @@ python3 scripts/outline_claude_benchmark.py \
 Validate an existing run directory without invoking Claude:
 
 ```sh
-python3 scripts/outline_claude_benchmark.py \
+python3 benchmarks/outline_claude_benchmark.py \
   --validate-run target/outline-agent-benchmark/<run-id>
 ```
 
@@ -264,7 +264,7 @@ the raw artifacts remain available for diagnosis.
 The validator has offline regression tests:
 
 ```sh
-python3 -m unittest scripts/test_outline_claude_benchmark.py
+python3 -m unittest benchmarks/test_outline_claude_benchmark.py
 ```
 
 Raw traces are written under:
@@ -307,7 +307,7 @@ were available. The model resolved to `claude-sonnet-4-6`.
 Offline validation:
 
 ```sh
-python3 scripts/outline_claude_benchmark.py --validate-run target/outline-agent-benchmark/4b9c98bc
+python3 benchmarks/outline_claude_benchmark.py --validate-run target/outline-agent-benchmark/4b9c98bc
 # valid
 ```
 
