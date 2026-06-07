@@ -68,8 +68,9 @@ Default behavior:
 sg outline <path>
 ```
 
-This returns text output with local definitions and grouped direct member names. It is
-the default because it is readable and token-efficient for interactive agents.
+This returns text output with local definitions and compact direct member names. It uses
+the default `--view digest` because that is readable and token-efficient for interactive
+agents.
 
 ### Core Options
 
@@ -81,8 +82,8 @@ the default because it is readable and token-efficient for interactive agents.
                           Select records by role. Repeatable. Default: definition.
 --type <TYPE[,TYPE...]>   LSP-compatible symbol type filter.
 --match <REGEX>          Regex over role-relevant fields. Repeatable.
---members <none|names|lines>
-                          Control direct member presentation. Default: names.
+--view <names|signatures|digest|expanded>
+                          Control text presentation. Default: digest.
 ```
 
 Input and extractor options:
@@ -160,27 +161,30 @@ repeated --match                     OR
 different filter types               AND
 ```
 
-Members attached by `--members` do not need to match the filters. They are preserved
-because they explain the matched anchor.
+Members attached by `--view digest` or `--view expanded` do not need to match the
+filters. They are preserved because they explain the matched anchor.
 
 Examples:
 
 ```sh
 sg outline crates --type struct,enum,interface
 sg outline crates --role export --match 'Config|Rule|Scan|Verify'
-sg outline src/parser.ts --match Parser --type class --members lines
+sg outline src/parser.ts --match Parser --type class --view expanded
 ```
 
-### Member Presentation
+### View Presentation
 
 `outline` is a file-level structure command, not a generic AST-depth command. It exposes
 top-level declarations and their direct structural members. It does not recursively dump
 arbitrary nested blocks.
 
+`--view` controls the text projection:
+
 ```text
---members none     Show selected anchors only.
---members names    Show selected anchors plus grouped direct member names. Default.
---members lines    Show selected anchors plus one source/signature line per direct member.
+names       One block per file: one digest line per top-level symbol type.
+signatures  One block per file: one source/signature line per top-level symbol.
+digest      `signatures` plus compact direct member name digests. Default.
+expanded    `signatures` plus one source/signature line per direct member.
 ```
 
 Structural members include:
@@ -199,9 +203,10 @@ not part of the file outline.
 Examples:
 
 ```sh
-sg outline src/parser.ts --match Parser --members names
-sg outline src/parser.ts --match Parser --members lines
-sg outline src/checker.ts --match checkTypeRelatedTo --members lines
+sg outline crates --view names
+sg outline src/parser.ts --match Parser --view digest
+sg outline src/parser.ts --match Parser --view expanded
+sg outline src/checker.ts --match checkTypeRelatedTo --view expanded
 ```
 
 ### Output Mode
@@ -222,10 +227,29 @@ need to transform, extract, join, or programmatically compare outline records.
 
 ### Text Output
 
-Text output should prefer source lines and compact member digests over raw metadata.
-It should not print role labels by default.
+Text output should prefer compact file/symbol digests, source lines, or names over raw
+metadata. It should not print role labels by default.
 
-Default `--members names`:
+With `--view names`:
+
+```text
+src/parser.ts
+class: Parser
+function: parseRule, parsePattern
+```
+
+With `--view signatures`:
+
+```text
+src/parser.ts
+function:
+12: export function parseRule(...)
+
+class:
+40: export class Parser
+```
+
+Default `--view digest`:
 
 ```text
 src/parser.ts
@@ -237,7 +261,7 @@ class:
   method: parse, recover
 ```
 
-With `--members lines`:
+With `--view expanded`:
 
 ```text
 src/parser.ts
@@ -319,7 +343,7 @@ Important properties:
 - `range` is always present, so an agent can open a precise slice.
 - `symbolType` uses LSP `SymbolKind` names serialized as lower camel case.
 - `roles` is a non-empty array.
-- `memberDigest` is present when `--members names` has grouped direct members.
+- `memberDigest` is present when `--view digest` has grouped direct members.
 - `container` is present in stream output for parent-symbol metadata.
 
 ## Agent Examples
@@ -339,7 +363,7 @@ reads implementation details.
 
 ```sh
 sg outline crates/cli/src --type enum,struct,function
-sg outline crates/cli/src/lib.rs --match Commands --type enum --members lines
+sg outline crates/cli/src/lib.rs --match Commands --type enum --view expanded
 sg outline crates/cli/src --role export --match 'Arg|run_'
 ```
 
@@ -359,8 +383,8 @@ whether a change belongs near the importer or exported API.
 ### Inspect A Matched Parent Symbol
 
 ```sh
-sg outline src/parser.ts --match Parser --members lines
-sg outline crates/core/src/node.rs --match Node --type struct --members lines
+sg outline src/parser.ts --match Parser --view expanded
+sg outline crates/core/src/node.rs --match Node --type struct --view expanded
 ```
 
 This lists direct members without reading the whole parent body. `--type` disambiguates
@@ -748,8 +772,8 @@ sg outline crates/cli/src --json=stream | jq 'select(.symbol.symbolType == "func
 
 A future built-in limit may still be valuable as a safety guard against accidentally
 emitting a large subtree. If added, it should not be described as "maximum records or
-tree items" because that is ambiguous across `--members none`, `--members names`,
-`--members lines`, pretty JSON, compact JSON, and streamed JSON records.
+tree items" because that is ambiguous across text views, pretty JSON, compact JSON, and
+streamed JSON records.
 
 Likely contract:
 
@@ -760,8 +784,8 @@ Likely contract:
 Possible semantics:
 
 - Count selected top-level anchors after `--role`, `--type`, and `--match`.
-- Do not count member names in `--members names`.
-- Do not count member rows in `--members lines`.
+- Do not count member names in `--view digest`.
+- Do not count member rows in `--view expanded`.
 - Do not split a selected anchor from its direct members.
 - Apply in deterministic file/path/source order.
 
@@ -820,7 +844,7 @@ sg outline related crates/cli/src/run.rs --symbol RunArg
 Decision: do not include it. The name promises semantic help that local syntax outline
 cannot reliably provide: references, module resolution, call graph edges, inheritance,
 test mapping, and re-export resolution. Use `--role import`, `--role export`,
-`--match <REGEX> --members lines`, `rg`, and normal path discovery instead.
+`--match <REGEX> --view expanded`, `rg`, and normal path discovery instead.
 
 ### `diff`
 

@@ -344,7 +344,12 @@ mod test_cli {
     ok("outline crates/cli/src --outline-rules outline.yml --no-default-outline-rules");
     ok("outline crates/cli/src/run.rs --role import --match ast-grep-config --json=compact");
     ok("outline crates/config/src --role definition,export");
-    ok("outline crates/cli/src/lib.rs --match Commands --type enum --members lines");
+    ok("outline crates/cli/src/lib.rs --match Commands --type enum --view expanded");
+    ok("outline crates/cli/src --view names");
+    ok("outline crates/cli/src --view signatures");
+    ok("outline crates/cli/src --view digest");
+    error("outline crates/cli/src/lib.rs --match Commands --members lines");
+    error("outline crates/cli/src --view files");
     error("outline crates/cli/src/lib.rs --match Commands --kind enum");
     error("outline crates/cli/src --format json");
     error("outline crates/cli/src --limit 20");
