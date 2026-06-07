@@ -24,6 +24,7 @@ import subprocess
 import sys
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -36,37 +37,34 @@ NEUTRAL_CWD = Path("/tmp")
 FORBIDDEN_OUTLINE_RE = re.compile(
     r"\b(?:ast-grep|sg)\s+outline\b[^\n]*--(?:format|json)\b"
 )
+SOURCE_EXTENSIONS = {
+    ".go",
+    ".java",
+    ".js",
+    ".jsx",
+    ".kt",
+    ".kts",
+    ".py",
+    ".rs",
+    ".swift",
+    ".ts",
+    ".tsx",
+}
 
 
 OUTLINE_SYSTEM_PROMPT = """\
 You are answering an architecture question about a codebase.
 
-Use normal file discovery first: `Glob`, `Grep`, `rg`, `find`, and `ls` are for
-finding candidate files and names. After you have candidate files or focused
-directories, you must use `ast-grep outline` at least once to get a compact
-structural view before reading deeply or answering. Do not start with
-`ast-grep outline` on the repository root.
+`ast-grep outline` is available as a compact code-structure view:
+- `ast-grep outline <small-dir>` shows exported symbol names for a narrow subtree.
+- `ast-grep outline <file>` shows top-level definitions plus member digests.
 
-Useful commands:
-- `ast-grep outline <path>`: skim top-level definitions in a file or focused subtree.
-- `ast-grep outline <path> --match <symbol> --view expanded`: list methods, fields,
-  variants, and other direct members for a known class, struct, trait, interface,
-  function, or module symbol.
-- `ast-grep outline <path> --role import`: see dependencies for a file or focused subtree.
-- `ast-grep outline <path> --role export`: see public API exported by a file or subtree.
+Use `ast-grep outline` as a cheaper/faster `Read` when you need code structure
+rather than implementation details. Use it at least once. Prefer it before
+reading whole candidate files, but do not use it on a large folder.
 
-Use these outline command forms as shown. Do not request JSON or other formats.
-
-Typical workflow:
-1. Use `Glob`/`Grep`/`rg` to find likely files and vocabulary.
-2. Use `ast-grep outline` on focused files or small focused directories, not the repo root.
-   The default view shows top-level definitions plus grouped member names; use
-   `--match <symbol> --view expanded` for exact member lines in a known class, struct,
-   trait, interface, function, or module.
-3. Use `--match <symbol> --view expanded` after identifying a concrete parent symbol.
-4. Use `--role import` and `--role export` when dependency direction or public API matters.
-5. Read each important file once, preferably around the relevant symbols, and
-   use grep for missing line evidence instead of rereading the same file.
+Use normal search for vocabulary, behavior terms, and call sites. Read only the
+concrete code needed for evidence.
 
 Cite concrete file, symbol, and line evidence in the final answer.
 """
@@ -361,6 +359,37 @@ def repo_revision(repo: Path) -> dict[str, str | None]:
     }
 
 
+def repo_size(repo: Path) -> dict[str, int]:
+    files_text = command_text(["git", "ls-files"], repo) or ""
+    files = [line for line in files_text.splitlines() if line]
+    source_files = [file for file in files if Path(file).suffix in SOURCE_EXTENSIONS]
+    source_lines = 0
+    for file in source_files:
+        try:
+            with (repo / file).open("rb") as handle:
+                source_lines += sum(1 for _line in handle)
+        except OSError:
+            pass
+    return {
+        "trackedFiles": len(files),
+        "sourceFiles": len(source_files),
+        "sourceLines": source_lines,
+    }
+
+
+def repo_metadata(repo: Path) -> dict[str, Any]:
+    return {
+        **repo_revision(repo),
+        "size": repo_size(repo),
+    }
+
+
+def format_repo_size(size: dict[str, int]) -> str:
+    source_files = size.get("sourceFiles", 0)
+    source_lines = size.get("sourceLines", 0)
+    return f"{source_files:,} src files · {source_lines / 1000:.0f}k LOC"
+
+
 def write_metadata(
     output: Path,
     scenarios: list[Scenario],
@@ -375,6 +404,7 @@ def write_metadata(
         "argv": sys.argv,
         "options": {
             "repeats": args.repeats,
+            "jobs": args.jobs,
             "armOrder": args.arm_order,
             "seed": args.seed,
             "includeUnsupportedOutline": args.include_unsupported_outline,
@@ -396,7 +426,7 @@ def write_metadata(
             "git": command_text(["git", "--version"], ROOT),
         },
         "repositories": {
-            scenario.name: repo_revision(repo_path(repo_dir, scenario))
+            scenario.name: repo_metadata(repo_path(repo_dir, scenario))
             for scenario in scenarios
             if repo_path(repo_dir, scenario).exists()
         },
@@ -443,6 +473,31 @@ def run_agent(
         init=parsed["init"],
         error=error,
     )
+
+
+def report_run(run: AgentRun) -> int | None:
+    print(
+        f"{run.scenario} {run.arm} run {run.iteration}: "
+        f"score={run.rubric.score:.0%}, {run.duration_seconds:.2f}s, "
+        f"tokens={run.tokens}, cost={run.cost_usd}, tools={run.tool_calls}",
+        flush=True,
+    )
+    init_issues = validate_init_event(run)
+    if init_issues:
+        print(
+            f"{run.scenario} {run.arm} run {run.iteration}: invalid Claude init: "
+            + "; ".join(init_issues),
+            file=sys.stderr,
+        )
+        return 3
+    if run.exit_code != 0:
+        print(
+            f"{run.scenario} {run.arm} run {run.iteration}: Claude exited "
+            f"{run.exit_code}: {run.error}",
+            file=sys.stderr,
+        )
+        return run.exit_code or 1
+    return None
 
 
 def parse_claude_output(stdout: str) -> dict[str, Any]:
@@ -706,6 +761,7 @@ def write_summary(
     runs: list[AgentRun],
     output: Path,
     repeats: int,
+    repo_dir: Path,
     judge_results: list[JudgeResult] | None = None,
 ) -> None:
     scenario_by_name = {scenario.name: scenario for scenario in scenarios}
@@ -722,8 +778,8 @@ def write_summary(
         "",
         f"Median of {repeats} `claude -p` runs per arm.",
         "",
-        "| Codebase | Language | Baseline coverage | Cost | Tokens | Time | Tool calls |",
-        "| --- | --- | --- | ---: | ---: | ---: | ---: |",
+        "| Codebase | Language | Code size | Baseline coverage | Cost | Tokens | Time | Tool calls |",
+        "| --- | --- | ---: | --- | ---: | ---: | ---: | ---: |",
     ]
     rows: list[tuple[Scenario, ArmSummary, ArmSummary, CoverageSummary]] = []
     for name in scenario_names:
@@ -734,8 +790,10 @@ def write_summary(
         without_summary = summarize_arm(without_runs)
         coverage_summary = summarize_coverage(compare_to_baseline(with_runs, without_runs))
         rows.append((scenario, with_summary, without_summary, coverage_summary))
+        size = repo_size(repo_path(repo_dir, scenario))
         lines.append(
-            f"| {scenario.codebase} | {scenario.language} · {scenario.approx_files} | "
+            f"| {scenario.codebase} | {scenario.language} | "
+            f"{format_repo_size(size)} | "
             f"{format_coverage(coverage_summary)} | "
             f"{pct_cost(with_summary.cost_usd, without_summary.cost_usd)} | "
             f"{pct_savings(with_summary.tokens, without_summary.tokens)} | "
@@ -1280,6 +1338,12 @@ def main() -> int:
     parser.add_argument("--refresh-repos", action="store_true")
     parser.add_argument("--repeats", type=int, default=4)
     parser.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        help="Number of concurrent claude -p agent runs. Default: 1.",
+    )
+    parser.add_argument(
         "--arm-order",
         choices=["balanced", "with-first", "without-first", "random"],
         default="balanced",
@@ -1306,6 +1370,9 @@ def main() -> int:
         default=ROOT / "target" / "outline-agent-benchmark.md",
     )
     args = parser.parse_args()
+    if args.jobs < 1:
+        print("--jobs must be at least 1", file=sys.stderr)
+        return 2
 
     if args.validate_run is not None:
         issues = validate_run_dir(args.validate_run)
@@ -1352,7 +1419,7 @@ def main() -> int:
     run_id = uuid.uuid4().hex[:8]
     raw_dir = args.raw_dir / run_id
     raw_dir.mkdir(parents=True, exist_ok=True)
-    runs: list[AgentRun] = []
+    tasks: list[tuple[int, Scenario, str, int, Path]] = []
     arm_plan: list[dict[str, Any]] = []
     rng = random.Random(args.seed)
     for scenario in scenarios:
@@ -1374,7 +1441,29 @@ def main() -> int:
                 }
             )
             for arm in arms:
-                run = run_agent(
+                tasks.append((len(tasks), scenario, arm, iteration, repo))
+
+    indexed_runs: list[tuple[int, AgentRun]] = []
+    if args.jobs == 1:
+        for index, scenario, arm, iteration, repo in tasks:
+            run = run_agent(
+                scenario,
+                arm,
+                iteration,
+                repo,
+                raw_dir,
+                args.model,
+                args.max_budget_usd,
+            )
+            indexed_runs.append((index, run))
+            exit_code = report_run(run)
+            if exit_code is not None:
+                return exit_code
+    else:
+        with ThreadPoolExecutor(max_workers=args.jobs) as executor:
+            future_to_index = {
+                executor.submit(
+                    run_agent,
                     scenario,
                     arm,
                     iteration,
@@ -1382,29 +1471,18 @@ def main() -> int:
                     raw_dir,
                     args.model,
                     args.max_budget_usd,
-                )
-                runs.append(run)
-                print(
-                    f"{scenario.name} {arm} run {iteration}: "
-                    f"score={run.rubric.score:.0%}, {run.duration_seconds:.2f}s, "
-                    f"tokens={run.tokens}, cost={run.cost_usd}, tools={run.tool_calls}",
-                    flush=True,
-                )
-                init_issues = validate_init_event(run)
-                if init_issues:
-                    print(
-                        f"{scenario.name} {arm} run {iteration}: invalid Claude init: "
-                        + "; ".join(init_issues),
-                        file=sys.stderr,
-                    )
-                    return 3
-                if run.exit_code != 0:
-                    print(
-                        f"{scenario.name} {arm} run {iteration}: Claude exited "
-                        f"{run.exit_code}: {run.error}",
-                        file=sys.stderr,
-                    )
-                    return run.exit_code or 1
+                ): index
+                for index, scenario, arm, iteration, repo in tasks
+            }
+            for future in as_completed(future_to_index):
+                index = future_to_index[future]
+                run = future.result()
+                indexed_runs.append((index, run))
+                exit_code = report_run(run)
+                if exit_code is not None:
+                    return exit_code
+
+    runs = [run for _index, run in sorted(indexed_runs, key=lambda item: item[0])]
 
     metadata_path = raw_dir / "metadata.json"
     write_metadata(metadata_path, scenarios, args.repo_dir, run_id, args, arm_plan)
@@ -1434,7 +1512,7 @@ def main() -> int:
         )
         judge_path = raw_dir / "judge-alignment.json"
         write_judge_json(judge_results, judge_path)
-    write_summary(scenarios, runs, args.summary, args.repeats, judge_results)
+    write_summary(scenarios, runs, args.summary, args.repeats, args.repo_dir, judge_results)
     print(f"metadata: {metadata_path}")
     print(f"raw results: {result_path}")
     print(f"alignment: {alignment_path}")
