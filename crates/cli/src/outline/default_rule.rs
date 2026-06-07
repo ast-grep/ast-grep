@@ -1,3 +1,9 @@
+/*
+Legacy reference from an earlier outline prototype.
+
+PR 1 intentionally does not compile or ship builtin outline rules. Keep this
+draft nearby as design input for the later extraction-rule and builtin-rule PRs.
+
 pub const DEFAULT_OUTLINE_RULES: &str = r#"
 extractors:
   - id: rust-use
@@ -754,3 +760,4 @@ extractors:
     exported: textPrefixAny:public,open
     rule: { kind: typealias_declaration }
 "#;
+*/
