@@ -828,9 +828,13 @@ fn import_export_name(node: &SgNode<'_>) -> String {
 
 fn extract_quoted(text: &str) -> Option<String> {
   for quote in ['"', '\'', '`'] {
-    let start = text.find(quote)?;
+    let Some(start) = text.find(quote) else {
+      continue;
+    };
     let rest = &text[start + quote.len_utf8()..];
-    let end = rest.find(quote)?;
+    let Some(end) = rest.find(quote) else {
+      continue;
+    };
     if end > 0 {
       return Some(rest[..end].to_string());
     }
@@ -2121,6 +2125,13 @@ extractors:
       records[0].symbol.roles,
       vec![SymbolRole::Definition, SymbolRole::Export]
     );
+  }
+
+  #[test]
+  fn extracts_first_available_quoted_text() {
+    assert_eq!(extract_quoted("import x from 'mod'"), Some("mod".into()));
+    assert_eq!(extract_quoted("import x from `mod`"), Some("mod".into()));
+    assert_eq!(extract_quoted("import x from \"mod\""), Some("mod".into()));
   }
 
   #[test]

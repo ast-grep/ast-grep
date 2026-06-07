@@ -91,31 +91,85 @@ class ValidateRunDirTest(unittest.TestCase):
                 issues,
             )
 
+    def test_rejects_empty_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            write_run_dir(run_dir, runs=[], alignment={})
+
+            issues = benchmark.validate_run_dir(run_dir)
+
+            self.assertIn("runs.json has no run records", issues)
+
+    def test_rejects_duplicate_run_records(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            runs = [
+                run_record("sample", "with-outline"),
+                run_record("sample", "with-outline"),
+                run_record("sample", "without-outline"),
+            ]
+            write_run_dir(run_dir, runs=runs)
+
+            issues = benchmark.validate_run_dir(run_dir)
+
+            self.assertIn("sample with-outline run 1: duplicate run record", issues)
+
+    def test_alignment_scenario_requires_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            write_run_dir(run_dir, runs=[], alignment={"sample": [{"iteration": 1}]})
+
+            issues = benchmark.validate_run_dir(run_dir)
+
+            self.assertIn("sample with-outline run 1: missing run record", issues)
+            self.assertIn("sample without-outline run 1: missing run record", issues)
+
+    def test_structured_tool_result_is_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            write_run_dir(
+                run_dir,
+                with_tool_result=[
+                    {"type": "text", "text": "Permission to use Bash denied"},
+                ],
+            )
+
+            issues = benchmark.validate_run_dir(run_dir)
+
+            self.assertIn(
+                "sample with-outline run 1: permission denial in raw trace",
+                issues,
+            )
+
 
 def write_run_dir(
     run_dir: Path,
     *,
     with_command: str = "ast-grep outline /repo",
     without_command: str = "rg QuerySet /repo",
-    with_tool_result: str = "ok",
-    without_tool_result: str = "ok",
+    with_tool_result: object = "ok",
+    without_tool_result: object = "ok",
     skills: list[str] | None = None,
+    runs: list[dict[str, object]] | None = None,
+    alignment: dict[str, object] | None = None,
 ) -> None:
     (run_dir / "metadata.json").write_text(
         json.dumps({"options": {"repeats": 1}}),
         encoding="utf-8",
     )
+    if runs is None:
+        runs = [
+            run_record("sample", "with-outline", skills=skills),
+            run_record("sample", "without-outline"),
+        ]
+    if alignment is None:
+        alignment = {"sample": [{"iteration": 1}]}
     (run_dir / "runs.json").write_text(
-        json.dumps(
-            [
-                run_record("sample", "with-outline", skills=skills),
-                run_record("sample", "without-outline"),
-            ]
-        ),
+        json.dumps(runs),
         encoding="utf-8",
     )
     (run_dir / "alignment.json").write_text(
-        json.dumps({"sample": [{"iteration": 1}]}),
+        json.dumps(alignment),
         encoding="utf-8",
     )
     write_trace(
@@ -152,7 +206,7 @@ def run_record(
     }
 
 
-def write_trace(path: Path, *, command: str, result: str) -> None:
+def write_trace(path: Path, *, command: str, result: object) -> None:
     events = [
         {
             "type": "assistant",

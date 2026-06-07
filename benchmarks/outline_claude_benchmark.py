@@ -1189,8 +1189,11 @@ def validate_run_dir(run_dir: Path) -> list[str]:
         return issues
 
     repeats = int(metadata.get("options", {}).get("repeats", 0) or 0)
+    if repeats > 0 and not runs:
+        issues.append("runs.json has no run records")
     by_key: dict[tuple[str, str, int], dict[str, Any]] = {}
-    scenarios: set[str] = set()
+    seen_keys: set[tuple[str, str, int]] = set()
+    scenarios: set[str] = {str(scenario) for scenario in alignment}
     for raw_run in runs:
         if not isinstance(raw_run, dict):
             issues.append("runs.json contains a non-object run")
@@ -1199,7 +1202,12 @@ def validate_run_dir(run_dir: Path) -> list[str]:
         arm = str(raw_run.get("arm", ""))
         iteration = int(raw_run.get("iteration", 0) or 0)
         scenarios.add(scenario)
-        by_key[(scenario, arm, iteration)] = raw_run
+        key = (scenario, arm, iteration)
+        if key in seen_keys:
+            issues.append(f"{scenario} {arm} run {iteration}: duplicate run record")
+            continue
+        seen_keys.add(key)
+        by_key[key] = raw_run
         issues.extend(validate_run_record(raw_run))
         issues.extend(validate_raw_trace(run_dir, scenario, arm, iteration))
 
@@ -1281,6 +1289,24 @@ def validate_raw_trace(run_dir: Path, scenario: str, arm: str, iteration: int) -
     return issues
 
 
+def tool_result_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, dict):
+        text = content.get("text")
+        return text if isinstance(text, str) else ""
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            text = tool_result_text(block)
+            if text:
+                parts.append(text)
+        return "\n".join(parts)
+    if content is None:
+        return ""
+    return str(content)
+
+
 def parse_trace_tool_events(path: Path) -> tuple[list[str], list[str], list[dict[str, Any]]]:
     commands: list[str] = []
     tool_results: list[str] = []
@@ -1306,8 +1332,8 @@ def parse_trace_tool_events(path: Path) -> tuple[list[str], list[str], list[dict
                             if isinstance(command, str):
                                 commands.append(command)
                     elif item.get("type") == "tool_result":
-                        result = item.get("content")
-                        if isinstance(result, str):
+                        result = tool_result_text(item.get("content"))
+                        if result:
                             tool_results.append(result)
         if event.get("type") == "result":
             denials = event.get("permission_denials")
