@@ -66,6 +66,11 @@ isExported   Top-level item belongs to the file/module public surface.
 isPublic     Member is syntactically public/externally usable.
 ```
 
+This model is deliberately simple. It uses a small set of boolean flags for outline
+display instead of a large semantic taxonomy. That keeps the data model general across
+languages, keeps rendering decisions easy to reason about, and keeps rule-based
+extraction practical for built-in and custom languages.
+
 Flags are independent. For example, Rust `pub use internal_mod as api;` is one item
 with both `isImport` and `isExported`. `outline` does not recursively dump arbitrary
 AST nodes or build a normalized relationship graph; source-like signatures preserve
