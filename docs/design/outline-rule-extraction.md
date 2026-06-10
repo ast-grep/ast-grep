@@ -130,12 +130,13 @@ isExported:
   has:
     regex: '^pub\b'
 ---
-id: rust-impl-method
+id: rust-field
 language: Rust
 role: member
-symbolType: method
+parentRuleIds: [rust-struct]
+symbolType: field
 rule:
-  pattern: $VIS fn $NAME($$$PARAMS) { $$$BODY }
+  pattern: $VIS $NAME: $TYPE
 name: $NAME
 isPublic:
   has:
@@ -154,6 +155,8 @@ Each extractor document has this shape:
 id          Stable extractor id for diagnostics.
 language    Any `SgLang`: built-in language or registered custom language.
 role        Output role: `item` or `member`.
+parentRuleIds
+            For `role: member`, eligible parent item extractor ids.
 symbolType  Output symbol type.
 rule        ast-grep rule object that selects the candidate node.
 constraints ast-grep constraints for metavariables.
@@ -169,10 +172,11 @@ isExported  Boolean or predicate for top-level public/module-surface items.
 isPublic    Boolean or predicate for member publicness.
 ```
 
-`role`, `symbolType`, and `name` are required. `signature` is optional; when
-omitted, the extractor uses the first non-empty line of the matched node as the
-signature. `target`, `alias`, `detail`, `isImport`, `isExported`, and
-`isPublic` are omitted unless the extractor can derive them.
+`role`, `symbolType`, and `name` are required. `parentRuleIds` is required for
+`role: member` and ignored for `role: item`. `signature` is optional; when omitted,
+the extractor uses the first non-empty line of the matched node as the signature.
+`target`, `alias`, `detail`, `isImport`, `isExported`, and `isPublic` are omitted
+unless the extractor can derive them.
 
 ### Text Field Extraction
 
@@ -262,6 +266,37 @@ duplicated exported/non-exported extractors. For example, `struct Foo {}` and
 `pub struct Foo {}` should use one struct extractor with `isExported`, not two
 mostly identical extractors.
 
+### Member Attachment
+
+Member extractors declare where their matches can attach with `parentRuleIds`:
+
+```yaml
+id: ts-method
+language: TypeScript
+role: member
+parentRuleIds: [ts-class]
+symbolType: method
+rule:
+  pattern: $NAME($$$PARAMS) { $$$BODY }
+name: $NAME
+```
+
+`parentRuleIds` references `role: item` extractor IDs, not symbol names, type
+names, or `SymbolType` values. Unknown IDs and non-item IDs are configuration
+errors. It is an eligibility list. Actual attachment is still based on syntax
+containment:
+
+1. Extract all item and member candidates in the file.
+2. For each member candidate, find the nearest containing item candidate whose
+   extractor id is listed in `parentRuleIds`.
+3. Attach the member only when no other extracted item or member candidate lies
+   strictly between that item and the member.
+4. Drop the member if there is no eligible direct parent.
+
+This preserves source organization and keeps flat layouts flat. Do not infer
+membership from names, receiver types, implemented traits, module paths, references, or
+type resolution.
+
 ### Examples
 
 Rust struct:
@@ -332,6 +367,7 @@ Rust member publicness:
 id: rust-field
 language: Rust
 role: member
+parentRuleIds: [rust-struct]
 symbolType: field
 rule:
   pattern: $VIS $NAME: $TYPE
@@ -490,8 +526,9 @@ source organization.
 
 1. Parse the source file with ast-grep's language parser.
 2. Select applicable extractor definitions by language.
-3. Compile and run each extractor's ast-grep `rule` against the parsed AST.
-4. For each match, produce a candidate entry:
+3. Validate extractor references such as `parentRuleIds`.
+4. Compile and run each extractor's ast-grep `rule` against the parsed AST.
+5. For each match, produce a candidate entry:
    - source range from matched node.
    - AST kind from matched node.
    - symbol type from extractor metadata.
@@ -499,17 +536,16 @@ source organization.
    - name from `name`.
    - signature from `signature`, or the first non-empty line of the matched node.
    - target/alias from `target` and `alias` when applicable.
-5. Derive boolean values from syntax:
+6. Derive boolean values from syntax:
    - import syntax can set `isImport`.
    - top-level export syntax or language public-surface syntax can set `isExported`.
    - member syntax can set `isPublic`.
-6. Deduplicate entries by range, symbol type, name, and edge target.
-7. Merge duplicate top-level items by range, symbol type, name, target, and
+7. Deduplicate entries by range, symbol type, name, and edge target.
+8. Merge duplicate top-level items by range, symbol type, name, target, and
    alias, preserving `isImport` and `isExported`.
-8. Attach direct members by syntax containment and derive member publicness where
-   the language exposes it.
-9. Sort entries in source order.
-10. Pass the file model to CLI filtering and rendering.
+9. Attach direct members by syntax containment and `parentRuleIds`.
+10. Sort entries in source order.
+11. Pass the file model to CLI filtering and rendering.
 
 ## Rule Catalog Implications
 
