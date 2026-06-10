@@ -210,247 +210,43 @@ stable.
 Future versions can improve signature extraction without changing the basic
 outline entry model. See [Future: Rich Signatures](#future-rich-signatures).
 
-## Extraction Model
+## Output Model Summary
 
-`sg outline` should produce one file-level structure model made of outline entries.
-The model has one placement role and two top-level flags:
-
-```text
-role          Placement in the outline: `item` or `member`.
-isImport      True when a top-level item is a dependency edge.
-isExported    True when a top-level item belongs to the file/module surface.
-```
-
-Outline does not use separate `definition`, `import`, and `export` roles. Imports
-and exports are flags on top-level items because one source construct can be both an
-import edge and an exported surface item. Most outline questions are projections over
-top-level items:
+The command contract, CLI filters, JSON shape, and text views are defined in
+[outline-command.md](outline-command.md). The extraction layer only needs to produce
+that model before CLI filtering and rendering:
 
 ```text
---items exports       top-level items where isExported is true.
---items structure     top-level items where isImport is false.
---items imports       top-level items where isImport is true.
---items all           every top-level item, including imports and re-exports.
---view expanded       selected top-level items plus direct member entries.
+role        item or member.
+name        visible item/member name.
+symbolType  LSP-compatible outline category.
+range       full source range of the matched syntax.
+signature   first non-empty source line of the matched syntax.
+astKind     tree-sitter node kind of the matched syntax.
 ```
 
-These are output entries, not necessarily three separate rule types. The rule
-catalog should describe how to find candidate syntax. The extraction runtime
-should derive common metadata from the matched node where possible.
+Top-level `item` entries can additionally carry `isImport`, `isExported`, `target`,
+and `alias`. Direct `member` entries can additionally carry `isPublic`.
 
-### Top-Level Items
+These fields are output facts, not necessarily separate extractor types. For example,
+`pub use internal_mod as api;` is one top-level item with both `isImport` and
+`isExported`; `pub struct Foo {}` is one top-level item with `isExported`.
 
-A top-level item represents source structure at file/module scope. It can be a
-declaration, an import edge, or explicit export-surface syntax.
+### Source Organization Boundary
 
-Examples:
+The extractor should preserve source organization instead of normalizing code into a
+semantic graph. Relationship-bearing syntax stays in signatures and ordinary entries:
 
-- `struct Foo {}`
-- `pub struct Foo {}`
-- `use crate::parser::Parser;`
-- `pub use internal_mod as api;`
-- `function parseRule() {}`
-- `export function parseRule() {}`
-- `export { foo as bar } from "./foo";`
-- `export * from "./api";`
-- `class Parser {}`
-- `class Parser extends Base implements Visitor {}`
-- `interface MockServer {}`
-- `type Result<T> = ...`
-- `impl Foo for A {}`
+- `class A extends Base implements C {}` is a class entry whose signature keeps the
+  relationship syntax.
+- `impl Foo for A {}` is its own item with direct member entries; its methods are not
+  regrouped onto `A`.
 
-Required fields:
-
-```text
-role          `item`.
-name          Display name.
-symbolType    LSP-compatible outline category.
-isImport      Boolean flag; defaults to false.
-isExported    Boolean flag; defaults to false.
-range         Full AST node range.
-signature     First non-empty source line of the matched item/member node.
-astKind       Tree-sitter node kind of the matched node.
-members       Direct structural members.
-```
-
-Optional fields:
-
-```text
-target        Source module/path/package when syntax provides one.
-alias         Renamed-from symbol when syntax exposes a different visible name.
-detail        Small language-specific detail that belongs beside the signature.
-```
-
-The JSON snippets below omit false boolean fields for readability. The public CLI
-JSON contract fills `isImport` and `isExported` with `false` on top-level items.
-
-Examples:
-
-```rust
-struct Foo {}
-pub struct Bar {}
-use crate::parser::Parser;
-pub use internal_mod as api;
-```
-
-```json
-{ "role": "item", "name": "Foo", "symbolType": "struct" }
-{ "role": "item", "name": "Bar", "symbolType": "struct", "isExported": true }
-{ "role": "item", "name": "Parser", "symbolType": "module", "isImport": true, "target": "crate::parser::Parser" }
-{ "role": "item", "name": "api", "symbolType": "module", "isImport": true, "isExported": true, "target": "internal_mod" }
-```
-
-```ts
-const foo = 1;
-export { foo };
-export { api as publicApi } from "./api";
-```
-
-```json
-{ "role": "item", "name": "foo", "symbolType": "constant" }
-{ "role": "item", "name": "foo", "symbolType": "module", "isExported": true }
-{ "role": "item", "name": "publicApi", "symbolType": "module", "isImport": true, "isExported": true, "target": "./api", "alias": "api" }
-```
-
-Do not extract inheritance or implementation relationships into a separate
-normalized field. Relationship-bearing syntax should be represented faithfully by
-ordinary entries and signatures:
-
-- `class A extends Base implements C {}` is a class entry whose signature keeps
-  `extends Base implements C`.
-- `impl Foo for A {}` is its own implementation entry with its own signature and
-  direct member entries.
-
-This preserves the source code's organization. If a language nests members
-inside a class, struct, enum, namespace, or module, outline should show that
-nested layout. If a language keeps related declarations flat, such as Rust
-`impl` blocks next to type declarations, outline should keep that flat layout
-rather than regrouping it into a semantic type view.
-
-### Member Entries
-
-A member entry is a direct structural child of a top-level item.
-
-Examples:
-
-- struct fields.
-- class fields and properties.
-- methods and constructors.
-- enum variants.
-- interface, trait, protocol, and type members.
-- methods inside Rust `impl` blocks, attached to the `impl` entry rather than
-  regrouped onto the target type.
-- named JavaScript/TypeScript function declarations directly inside a function
-  body, when those locals are used as file-structure helpers.
-
-Members have the same basic shape as declarations, but usually only need:
-
-```text
-role: member
-name
-symbolType
-isPublic      Optional member-only publicness flag.
-range
-signature
-astKind
-```
-
-The initial model should avoid arbitrary recursive nesting. `sg outline` is a
-file-structure command. It should expose top-level declarations and their direct
-members, not every nested block, closure, local variable, or expression.
-
-Import/export flags do not affect member entries. Publicness does not affect
-top-level items. A member can have `isPublic`; a top-level item can have
-`isImport` and/or `isExported`.
-
-## Role, Import/Export Flags, And Member Publicness
-
-`role`, `isImport`, `isExported`, and `isPublic` answer different questions:
-
-```text
-role          Where this entry appears in the outline: `item` or `member`.
-isImport      Whether a top-level item is a dependency edge.
-isExported    Whether a top-level item is part of the public/module surface.
-isPublic      Whether a member is part of its parent's syntactic public surface.
-```
-
-`isPublic` is only emitted for member entries. It is deliberately not a full
-visibility enum:
-
-```text
-true         public/externally usable according to the language rule.
-false        private/not public according to the language rule.
-absent       unknown, unsupported, or not meaningful for this member/language.
-```
-
-Examples:
-
-```rust
-struct Foo {}
-```
-
-Plain top-level item:
-
-```json
-{
-  "role": "item",
-  "name": "Foo",
-  "symbolType": "struct"
-}
-```
-
-```rust
-pub struct Foo {}
-```
-
-Exported top-level item:
-
-```json
-{
-  "role": "item",
-  "name": "Foo",
-  "symbolType": "struct",
-  "isExported": true
-}
-```
-
-```rust
-impl Foo {
-  pub fn new() -> Self {}
-  fn helper(&self) {}
-}
-```
-
-Members need publicness even when the parent is not exported:
-
-```json
-{
-  "role": "item",
-  "name": "Foo",
-  "symbolType": "struct",
-  "members": [
-    {
-      "role": "member",
-      "name": "new",
-      "symbolType": "method",
-      "isPublic": true
-    },
-    {
-      "role": "member",
-      "name": "helper",
-      "symbolType": "method",
-      "isPublic": false
-    }
-  ]
-}
-```
-
-This split keeps the output axes independent:
-
-- `role` controls placement.
-- `isImport` controls dependency-oriented views.
-- `isExported` controls public surface views.
-- `isPublic` controls member display/filtering.
+Members are direct structural children of top-level items: fields, methods,
+constructors, enum variants, trait/interface/type members, module/namespace
+declarations, and the JS/TS function-body helper declarations described in the command
+doc. The initial model should not recursively expose arbitrary nested blocks, closures,
+local variables, or expressions.
 
 ## Extraction Strategy
 

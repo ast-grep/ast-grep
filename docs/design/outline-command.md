@@ -43,22 +43,46 @@ container lookup, related-code discovery, or structural diffs.
 - Import/export semantics may be approximate when syntax alone cannot express a
   language's full module system.
 
-## Glossary
+## Conceptual Model
+
+`outline` extracts **entries** from each parsed file and projects them into text or
+JSON. A `struct Foo`, `class Parser`, `function parse()`, `import ...`, or class
+method can each become an entry. An entry is one structural fact with a name, role,
+`SymbolType`, source range, first-line signature, AST kind, and optional metadata.
+
+There are two roles:
+
+```text
+item     Top-level file/module structure: declarations, imports, and explicit exports.
+member   Direct child structure under an item: fields, methods, constructors, variants,
+         and similar members.
+```
+
+Items can carry import/export flags. Members can carry publicness:
+
+```text
+isImport     Top-level item is a dependency/import edge.
+isExported   Top-level item belongs to the file/module public surface.
+isPublic     Member is syntactically public/externally usable.
+```
+
+Flags are independent. For example, Rust `pub use internal_mod as api;` is one item
+with both `isImport` and `isExported`. `outline` does not recursively dump arbitrary
+AST nodes or build a normalized relationship graph; source-like signatures preserve
+syntax such as `extends`, `implements`, Rust `impl`, and protocol conformance.
+
+Important terms:
 
 | Term | Meaning |
 | --- | --- |
-| Entry | One extracted outline fact: name, symbol type, placement role, range, signature, flags, and optional members. |
-| Role | Outline placement: `item` for top-level items and `member` for direct children. |
-| Import flag | `isImport`, true when a top-level item is a dependency edge. |
-| Export flag | `isExported`, true when a top-level item belongs to the file/module public surface. |
-| Public member flag | `isPublic`, true when a member is syntactically public/externally usable according to language-specific outline rules. |
-| Symbol type | Outline category, such as `class`, `function`, or `struct`. Values are compatible with LSP `SymbolKind` names. |
-| AST kind | The underlying tree-sitter node kind, such as `class_declaration` or `function_item`. |
+| Role | Entry placement: `item` or `member`. |
+| Item | Top-level entry for file/module structure, including declarations, imports, and explicit exports. |
+| Member | Direct child entry under an item, such as a field, method, constructor, variant, or namespace/module child. |
+| SymbolType | Outline category, such as `class`, `function`, or `struct`. Values are compatible with LSP `SymbolKind` names. |
 | Name | The visible item or member name in the current file, such as a local binding name or exported name. |
 | Alias | The renamed-from symbol when source syntax exposes a different visible name; absent when it would duplicate `name` or `target`. |
-| Member | A direct structural child of a top-level item, such as a field, method, constructor, enum variant, or direct namespace/module declaration. |
 | Range | Full AST node range for the entry. |
-| Member digest | Grouped member names rendered on one compact line, such as `method: parse, recover`. |
+| AST kind | The underlying tree-sitter node kind, such as `class_declaration` or `function_item`. |
 
 ## Public CLI Contract
 
@@ -84,8 +108,9 @@ any directory input present   --items auto --view auto  =>  --items exports --vi
 ```
 
 A file outline is for inspecting one file's internal structure, so it shows local
-top-level structure excluding imports, with compact direct member names. A directory outline is
-for scanning project structure, so it shows only exported surface items by default.
+top-level structure excluding imports, with compact direct member names. A directory
+outline is for scanning project structure, so it shows only exported surface items by
+default.
 If files and directories are mixed in one invocation, `auto` resolves command-wide to the
 directory default. Per-path defaults would make the same file render differently
 depending on how it was reached.
@@ -127,13 +152,6 @@ The current design intentionally does not include `--limit`. See
 ## CLI Semantics
 
 ### Item Selection
-
-An item is the top-level placement role. Items can carry flags:
-
-```text
-isImport      Dependency/import edge.
-isExported    Public/exported surface item.
-```
 
 `--items` selects top-level items before type/name filtering. It does not filter by
 symbol type; constants, variables, types, and functions are included whenever the
@@ -206,10 +224,6 @@ sg outline src/parser.ts --match Parser --type class --view expanded
 ```
 
 ### View Presentation
-
-`outline` is a file-level structure command, not a generic AST-depth command. It exposes
-top-level declarations and their direct structural members. It does not recursively dump
-arbitrary nested blocks.
 
 `--view` controls the text projection:
 
