@@ -51,10 +51,12 @@ container lookup, related-code discovery, or structural diffs.
 | Role | Outline placement: `item` for top-level items and `member` for direct children. |
 | Import flag | `isImport`, true when a top-level item is a dependency edge. |
 | Export flag | `isExported`, true when a top-level item belongs to the file/module public surface. |
+| Public member flag | `isPublic`, true when a member is syntactically public/externally usable according to language-specific outline rules. |
 | Symbol type | Outline category, such as `class`, `function`, or `struct`. Values are compatible with LSP `SymbolKind` names. |
 | AST kind | The underlying tree-sitter node kind, such as `class_declaration` or `function_item`. |
-| Anchor | A top-level item selected for output after `--items`, `--match`, and `--type` filtering. |
-| Member | A direct structural child of an anchor, such as a field, method, constructor, enum variant, or direct namespace/module declaration. |
+| Name | The visible item or member name in the current file, such as a local binding name or exported name. |
+| Alias | The renamed-from symbol when source syntax exposes a different visible name; absent when it would duplicate `name` or `target`. |
+| Member | A direct structural child of a top-level item, such as a field, method, constructor, enum variant, or direct namespace/module declaration. |
 | Range | Full AST node range for the entry. |
 | Member digest | Grouped member names rendered on one compact line, such as `method: parse, recover`. |
 
@@ -69,6 +71,9 @@ Default behavior:
 ```sh
 sg outline <path>
 ```
+
+When no path is provided and `--stdin` is not used, `outline` searches the current
+directory, matching ast-grep's existing input behavior.
 
 The default output depends on whether the input is a file or a directory:
 
@@ -97,6 +102,7 @@ Users can override either default explicitly with `--items` and `--view`.
                           Select top-level items. Default: auto.
 --type <TYPE[,TYPE...]>   LSP-compatible symbol type filter.
 --match <REGEX>          Regex over useful top-level item fields.
+--pub-members             Display only public members.
 --view <auto|names|signatures|digest|expanded>
                           Control text presentation. Default: auto.
 ```
@@ -129,7 +135,9 @@ isImport      Dependency/import edge.
 isExported    Public/exported surface item.
 ```
 
-`--items` selects top-level items before type/name filtering:
+`--items` selects top-level items before type/name filtering. It does not filter by
+symbol type; constants, variables, types, and functions are included whenever the
+active rule catalog extracts them.
 
 ```text
 --items auto          file or directory default
@@ -138,12 +146,18 @@ directory default     exports
 --items structure     top-level items where isImport is false
 --items exports       top-level items where isExported is true
 --items imports       top-level items where isImport is true
---items all           all top-level items, including imports and export-only items
+--items all           all top-level items, including imports, re-exports, and
+                      explicit export declarations without local structure
 ```
 
 When `--items` is omitted, it behaves as `--items auto` and chooses the file or
 directory default from the public CLI contract. Mixed file and directory input uses the
 directory default.
+
+`isExported` is syntax-only in this command. It can come from explicit export syntax
+(`export`, `pub use`) or language public-surface syntax that a built-in outline rule can
+recognize locally (`pub`, exported Go names). It does not follow re-export chains or
+resolve module visibility across files.
 
 Examples:
 
@@ -159,15 +173,17 @@ sg outline src --items all
 `--match <REGEX>` and `--type <TYPE[,TYPE...]>` filter the current item
 selection. Neither option is repeatable.
 
-`--match` is deliberately not a custom DSL. It is a regular expression, like
-ripgrep's pattern argument, applied only to useful top-level item fields:
+`--match` is deliberately not a custom DSL. It is a Rust-regex regular expression,
+case-sensitive by default. Invalid regexes are CLI errors. The regex is applied only
+to useful top-level item fields:
 
-- normal items: symbol name, source line, signature, and container name.
-- import items: imported target, binding name, alias, and source line.
-- exported items: exported name, target, alias, source line, and container name.
+- structure items: symbol name, signature, and first source line.
+- import items: imported target, binding name, alias, signature, and first source line.
+- export edge items: exported name, target, alias, signature, and first source line.
 
-`--type` is a comma-separated OR filter over top-level item symbol types. It never
-matches or filters members:
+`--type` is a comma-separated OR filter over top-level item symbol types. Accepted
+values are the lower-camel `symbolType` names used in JSON, such as `class`,
+`enumMember`, and `typeParameter`. It never matches or filters members:
 
 ```text
 --type class,function       keep class or function items
@@ -199,7 +215,7 @@ arbitrary nested blocks.
 
 ```text
 auto        Choose `names` for directory input and `digest` for file/stdin input.
-names       One block per file: one digest line per top-level symbol type.
+names       One block per file: one grouped name line per top-level symbol type.
 signatures  One block per file: one source/signature line per top-level symbol.
 digest      `signatures` plus compact direct member name digests. File default.
 expanded    `signatures` plus one source/signature line per direct member.
@@ -230,6 +246,29 @@ sg outline src/parser.ts --match Parser --view expanded
 sg outline src/checker.ts --match checkTypeRelatedTo --view expanded
 ```
 
+### Member Publicness
+
+Member publicness is intentionally simpler than a full visibility model. Members can
+carry `isPublic: true` when language-specific syntax says the member is part of the
+usable surface of its parent. Private members use `isPublic: false` when the extractor
+can determine that. Languages or rules without this knowledge may leave `isPublic`
+absent.
+
+By default, member views display all extracted members. `digest` should list public
+members first inside each member symbol type group when `isPublic` is known, then list
+the remaining members. Each bucket keeps source order.
+
+`--pub-members` narrows displayed members in `digest` and `expanded` views:
+
+```text
+default         show all extracted members.
+--pub-members   show only members where isPublic is true.
+```
+
+Members with absent `isPublic` are kept by default and removed by `--pub-members`.
+`expanded` should keep source order; when `--pub-members` is present, it filters
+members without reordering the survivors.
+
 ### Ordering
 
 There is no standalone grouping option. Ordering and grouping are determined by
@@ -238,13 +277,15 @@ There is no standalone grouping option. Ordering and grouping are determined by
 ```text
 names       group top-level item names by symbol type
 signatures  show top-level items in source order
-digest      show top-level items in source order; group member names by symbol type
+digest      show top-level items in source order; group member names by symbol type,
+            with public names first when known
 expanded    show top-level items and members in source order
 ```
 
 The extracted outline model itself preserves source order within each file. Grouped text
-views should keep symbol type groups in a stable presentation order, and keep names
-inside each group in source order.
+views should keep symbol type groups in a stable presentation order. `names` keeps
+names inside each group in source order. `digest` keeps member names in source order
+inside the public and non-public buckets.
 
 Agents or scripts that need a different grouping strategy should use `--json` and
 post-process the structured entries. Text views stay opinionated and optimized for
@@ -263,6 +304,9 @@ default          text
 
 Interactive agents should usually use text. They should request `--json` only when they
 need to transform, extract, join, or programmatically compare outline entries.
+
+`--view` affects text output only. JSON output always emits the selected structured
+model after `--items`, `--match`, `--type`, and `--pub-members` filtering.
 
 ## Output Contract
 
@@ -315,7 +359,14 @@ class:
 73:   recover(...)
 ```
 
-Empty direct file input should be explicit:
+Empty output behavior:
+
+- Direct file and stdin input print an explicit file block when no selected item remains.
+- Directory walks suppress files with no selected items.
+- If a directory or mixed-input invocation selects nothing overall, print one
+  command-level `nothing found` message.
+
+Direct file example:
 
 ```text
 src/empty.ts
@@ -325,7 +376,7 @@ nothing found
 ### JSON Output
 
 `--json` returns grouped file output. `--json=stream` returns one independently useful
-entry per line.
+entry per line. JSON ranges use one-based line and column numbers, matching text output.
 
 Streamed entry shape:
 
@@ -345,7 +396,7 @@ Streamed entry shape:
     },
     "container": null,
     "signature": "enum Commands",
-    "memberDigest": "variant: Run, Scan, Test, New"
+    "astKind": "enum_item"
   }
 }
 ```
@@ -368,14 +419,19 @@ Grouped file shape:
         "end": { "line": 98, "column": 2, "byte": 2500 }
       },
       "signature": "export class Parser",
-      "memberDigest": "method: parse, recover",
       "astKind": "class_declaration",
       "members": [
         {
           "name": "parse",
           "symbolType": "method",
           "role": "member",
-          "visibility": "public"
+          "isPublic": true,
+          "range": {
+            "start": { "line": 44, "column": 3, "byte": 1300 },
+            "end": { "line": 72, "column": 4, "byte": 1900 }
+          },
+          "signature": "parse(...)",
+          "astKind": "method_definition"
         }
       ]
     }
@@ -390,8 +446,8 @@ Important properties:
 - `symbolType` uses LSP `SymbolKind` names serialized as lower camel case.
 - `role` is always `item` or `member`.
 - `isImport` and `isExported` are present on top-level items.
-- `visibility` is optional and only meaningful for members.
-- `memberDigest` is present when `--view digest` has grouped direct members.
+- `isPublic` is optional and only meaningful for members; it is absent or null for
+  top-level items.
 - `container` is present in stream output for parent-symbol metadata.
 
 ## Agent Examples
@@ -501,15 +557,6 @@ pub enum OutlineRole {
   Item,
   Member,
 }
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum MemberVisibility {
-  Public,
-  Protected,
-  Private,
-  Internal,
-}
 ```
 
 Grouped item:
@@ -523,7 +570,6 @@ pub struct OutlineItem {
   pub is_exported: bool,
   pub range: Range,
   pub signature: Option<String>,
-  pub member_digest: Option<String>,
   pub detail: Option<String>,
   pub target: Option<String>,
   pub alias: Option<String>,
@@ -535,7 +581,7 @@ pub struct OutlineMember {
   pub name: Option<String>,
   pub symbol_type: SymbolType,
   pub role: OutlineRole,
-  pub visibility: Option<MemberVisibility>,
+  pub is_public: Option<bool>,
   pub range: Range,
   pub signature: Option<String>,
   pub detail: Option<String>,
@@ -564,10 +610,9 @@ pub struct OutlineFlatSymbol {
   pub role: OutlineRole,
   pub is_import: Option<bool>,
   pub is_exported: Option<bool>,
-  pub visibility: Option<MemberVisibility>,
+  pub is_public: Option<bool>,
   pub range: Range,
   pub signature: Option<String>,
-  pub member_digest: Option<String>,
   pub detail: Option<String>,
   pub target: Option<String>,
   pub alias: Option<String>,
@@ -585,7 +630,7 @@ pub struct OutlineContainer {
 ### Item Flags
 
 `role` is outline placement: `item` for top-level items and `member` for direct children.
-Import and export semantics are represented with item flags. Visibility is member-only.
+Import and export semantics are represented with item flags. Publicness is member-only.
 
 ```rust
 pub struct Foo {}
@@ -618,13 +663,12 @@ This is both an import/dependency edge and an export edge:
   "role": "item",
   "isImport": true,
   "isExported": true,
-  "target": "internal_mod",
-  "alias": "api"
+  "target": "internal_mod"
 }
 ```
 
 Language accessibility syntax can affect extraction-time metadata, especially member
-visibility and whether a top-level item receives `isExported`.
+`isPublic` and whether a top-level item receives `isExported`.
 
 ### Symbol Mapping
 
@@ -661,8 +705,8 @@ The CLI contract depends on a data-driven extraction layer, but the rule catalog
 schema and language-expansion strategy are documented separately in
 [outline-rule-extraction.md](outline-rule-extraction.md). In short, ast-grep rules
 select candidate syntax, and outline-specific extraction derives names, signatures,
-entry/member placement, visibility, import/export flags, targets, aliases, and direct
-members from those matches.
+entry/member placement, member publicness, import/export flags, targets, aliases, and
+direct members from those matches.
 
 ## Runtime And Exit Codes
 
@@ -715,15 +759,15 @@ streamed entries.
 Likely contract:
 
 ```text
---limit <N>    Maximum selected top-level anchors to emit.
+--limit <N>    Maximum selected top-level items to emit.
 ```
 
 Possible semantics:
 
-- Count selected top-level anchors after `--items`, `--type`, and `--match`.
+- Count selected top-level items after `--items`, `--type`, and `--match`.
 - Do not count member names in `--view digest`.
 - Do not count member rows in `--view expanded`.
-- Do not split a selected anchor from its direct members.
+- Do not split a selected top-level item from its direct members.
 - Apply in deterministic file/path/source order.
 
 Leave this out until there is evidence that agents or users need the guardrail
@@ -804,8 +848,5 @@ sg outline <changed-files> --items exports
 
 ## Open Questions
 
-- Should `--items structure` include top-level constants and variables by default, or
-  should the default output prefer named type/function declarations only?
-- Which language-specific accessibility rules should assign `isExported`?
 - Should unsupported languages be silent by default or emit warnings when not writing
   JSON?

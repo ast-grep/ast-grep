@@ -44,8 +44,8 @@ understanding:
 - import flags: whether a top-level item is a dependency edge.
 - export flags: whether a top-level item belongs to the file/module public
   surface.
-- member visibility: public/private/protected/internal accessibility for direct
-  members when the language has the concept.
+- member publicness: whether a direct member is syntactically public/externally
+  usable when the language has the concept.
 - signatures: the first non-empty source line of the matched item/member node.
 - names: stable display names for declarations and import/export edges.
 - ranges: full AST node ranges so an agent can open the exact source slice.
@@ -221,14 +221,17 @@ isImport      True when a top-level item is a dependency edge.
 isExported    True when a top-level item belongs to the file/module surface.
 ```
 
-This removes the older `definition`/`import`/`export` role axis. Most outline
-questions are projections over top-level items:
+Outline does not use separate `definition`, `import`, and `export` roles. Imports
+and exports are flags on top-level items because one source construct can be both an
+import edge and an exported surface item. Most outline questions are projections over
+top-level items:
 
 ```text
-Project/list view         top-level items where isExported is true.
-File structure view       top-level items where isImport is false.
-Dependency inspection     top-level items, including isImport items.
-Detailed file view        top-level items plus member entries.
+--items exports       top-level items where isExported is true.
+--items structure     top-level items where isImport is false.
+--items imports       top-level items where isImport is true.
+--items all           every top-level item, including imports and re-exports.
+--view expanded       selected top-level items plus direct member entries.
 ```
 
 These are output entries, not necessarily three separate rule types. The rule
@@ -262,6 +265,8 @@ Required fields:
 role          `item`.
 name          Display name.
 symbolType    LSP-compatible outline category.
+isImport      Boolean flag; defaults to false.
+isExported    Boolean flag; defaults to false.
 range         Full AST node range.
 signature     First non-empty source line of the matched item/member node.
 astKind       Tree-sitter node kind of the matched node.
@@ -271,12 +276,13 @@ members       Direct structural members.
 Optional fields:
 
 ```text
-isImport      True for dependency/import edge items.
-isExported    True for public/exported surface items.
 target        Source module/path/package when syntax provides one.
-alias         Local or exported alias when syntax provides one.
+alias         Renamed-from symbol when syntax exposes a different visible name.
 detail        Small language-specific detail that belongs beside the signature.
 ```
+
+The JSON snippets below omit false boolean fields for readability. The public CLI
+JSON contract fills `isImport` and `isExported` with `false` on top-level items.
 
 Examples:
 
@@ -343,7 +349,7 @@ Members have the same basic shape as declarations, but usually only need:
 role: member
 name
 symbolType
-visibility    Member-only accessibility marker.
+isPublic      Optional member-only publicness flag.
 range
 signature
 astKind
@@ -353,29 +359,28 @@ The initial model should avoid arbitrary recursive nesting. `sg outline` is a
 file-structure command. It should expose top-level declarations and their direct
 members, not every nested block, closure, local variable, or expression.
 
-Import/export flags do not affect member entries. Visibility does not affect
-top-level items. A member can have visibility; a top-level item can have
+Import/export flags do not affect member entries. Publicness does not affect
+top-level items. A member can have `isPublic`; a top-level item can have
 `isImport` and/or `isExported`.
 
-## Role, Import/Export Flags, And Visibility
+## Role, Import/Export Flags, And Member Publicness
 
-`role`, `isImport`, `isExported`, and `visibility` answer different questions:
+`role`, `isImport`, `isExported`, and `isPublic` answer different questions:
 
 ```text
 role          Where this entry appears in the outline: `item` or `member`.
 isImport      Whether a top-level item is a dependency edge.
 isExported    Whether a top-level item is part of the public/module surface.
-visibility    What accessibility marker a member has.
+isPublic      Whether a member is part of its parent's syntactic public surface.
 ```
 
-Visibility is only emitted for member entries:
+`isPublic` is only emitted for member entries. It is deliberately not a full
+visibility enum:
 
 ```text
-public
-protected
-private
-internal
-unknown
+true         public/externally usable according to the language rule.
+false        private/not public according to the language rule.
+absent       unknown, unsupported, or not meaningful for this member/language.
 ```
 
 Examples:
@@ -416,7 +421,7 @@ impl Foo {
 }
 ```
 
-Members need visibility even when the parent is not exported:
+Members need publicness even when the parent is not exported:
 
 ```json
 {
@@ -428,13 +433,13 @@ Members need visibility even when the parent is not exported:
       "role": "member",
       "name": "new",
       "symbolType": "method",
-      "visibility": "public"
+      "isPublic": true
     },
     {
       "role": "member",
       "name": "helper",
       "symbolType": "method",
-      "visibility": "private"
+      "isPublic": false
     }
   ]
 }
@@ -445,7 +450,7 @@ This split keeps the output axes independent:
 - `role` controls placement.
 - `isImport` controls dependency-oriented views.
 - `isExported` controls public surface views.
-- `visibility` controls member accessibility display.
+- `isPublic` controls member display/filtering.
 
 ## Extraction Strategy
 
@@ -477,12 +482,27 @@ Instead:
 3. The final entry remains one top-level item.
 
 `isImport` is a boolean marker for import/dependency items. `isExported` is a
-boolean predicate for top-level items. Visibility is a member-only enum
-derivation object.
+boolean predicate for top-level items. `isPublic` is a member-only boolean
+predicate.
 
 Predicate rule objects are evaluated with the extracted item node as the
 candidate. Normal ast-grep relational rules such as `has` and `inside` keep
 their usual meaning relative to that candidate.
+
+Boolean derivation fields follow one rule:
+
+```text
+field omitted by extractor       output field is absent
+field present and rule matches   output field is true
+field present and rule misses    output field is false
+field set to true                output field is true
+field set to false               output field is false
+```
+
+This lets a language opt into member publicness without inventing
+public/private/internal categories. For example, Rust can declare `isPublic` for
+members and mark `pub`, `pub(crate)`, or `pub(super)` members as true. A language
+with no useful member publicness rule can omit `isPublic` entirely.
 
 Rust top-level example:
 
@@ -547,7 +567,7 @@ pub use internal_mod as api;
 { "role": "item", "name": "api", "isImport": true, "isExported": true, "target": "internal_mod" }
 ```
 
-Rust member visibility example:
+Rust member publicness example:
 
 ```yaml
 extractors:
@@ -560,14 +580,9 @@ extractors:
         kind: field_declaration
     name:
       field: name
-    visibility:
-      internal:
-        has:
-          regex: '^pub\(crate\)'
-      public:
-        has:
-          regex: '^pub\b'
-      private: default
+    isPublic:
+      has:
+        regex: '^pub\b'
 ```
 
 JavaScript and TypeScript export wrappers should prefer deriving `export` from
@@ -638,9 +653,9 @@ signature     How to derive a source-like declaration signature.
 role          Outline placement: `item` or `member`.
 isImport      Whether a top-level item is an import/dependency edge.
 isExported    Boolean or predicate for public/module surface membership.
-visibility    Member-only accessibility derivation object.
+isPublic      Optional member-only boolean predicate.
 target        Optional module/package/path target for import/export edges.
-alias         Optional local or exported alias for import/export edges.
+alias         Optional renamed-from symbol for import/export edges.
 ```
 
 The exact YAML schema is intentionally still open. The rule format needs enough
@@ -656,15 +671,17 @@ Bad direction:
 ```yaml
 - id: rust-struct
   role: item
-  rule: { kind: struct_item }
+  node:
+    rule: { kind: struct_item }
 
 - id: rust-exported-struct
   role: item
   isExported: true
-  rule:
-    all:
-      - kind: struct_item
-      - regex: '^pub\s+struct'
+  node:
+    rule:
+      all:
+        - kind: struct_item
+        - regex: '^pub\s+struct'
 ```
 
 This duplicates the core definition rule and gets worse for every language,
@@ -744,14 +761,14 @@ sg run --pattern 'override $METHOD($$$ARGS) { $$$BODY }' src
 ```
 
 Outline should stay focused on file structure: items, import/export flags,
-names, ranges, first-line signatures, direct members, member visibility, and
+names, ranges, first-line signatures, direct members, member publicness, and
 source organization.
 
 ## Proposed Extraction Pipeline
 
 1. Parse the source file with ast-grep's language parser.
 2. Select applicable extractor definitions by language.
-3. Compile and run each extractor's ast-grep `rule` against the parsed AST.
+3. Compile and run each extractor's `node.rule` ast-grep rule against the parsed AST.
 4. For each match, produce a candidate entry:
    - source range from matched node.
    - AST kind from matched node.
@@ -762,12 +779,12 @@ source organization.
    - target/alias from import/export normalizer when applicable.
 5. Derive field-local values from syntax:
    - import syntax can set `isImport`.
-   - export/public syntax can set `isExported`.
-   - member syntax can set `visibility`.
+   - top-level export syntax or language public-surface syntax can set `isExported`.
+   - member syntax can set `isPublic`.
 6. Deduplicate entries by range, symbol type, name, and edge target.
 7. Merge duplicate top-level items by range, symbol type, name, target, and
    alias, preserving `isImport` and `isExported`.
-8. Attach direct members by syntax containment and derive member visibility where
+8. Attach direct members by syntax containment and derive member publicness where
    the language exposes it.
 9. Sort entries in source order.
 10. Pass the file model to CLI filtering and rendering.
@@ -779,15 +796,15 @@ Built-in language support should arrive in layers:
 1. Item selectors.
 2. Name and first-line signature extraction.
 3. `isImport` and `isExported` derivation for import/export syntax.
-4. Member extraction and member visibility.
+4. Member extraction and member publicness.
 5. Language refinements for aliases and import/export shapes.
 
 This means an early built-in rule can be useful without pretending to be final.
 For example, a Rust struct selector can first prove rendering and entry merging,
-then later add field members and member visibility.
+then later add field members and member publicness.
 
-The catalog should keep previous experimental built-in rules as comments when
-they are useful references, but active rules should follow the current model.
+The catalog can keep commented reference rules when they help future language
+refinement, but active rules should follow the current model.
 
 ## Language And Custom Language Support
 
@@ -873,8 +890,8 @@ Future versions can make signatures more faithful in two possible ways:
   field-local derivation objects, and members without becoming a DSL?
 - Should import/export edge normalization be configured per language or
   implemented as a small set of built-in normalizers referenced by rules?
-- How should aliases be represented consistently across Rust `pub use`,
-  TypeScript `export { foo as bar }`, Python `import x as y`, and Go imports?
-- Should custom-language rules be allowed to declare member visibility and
+- Which import/export edge normalizers should ship as built-ins for common alias
+  syntaxes such as TypeScript `export { foo as bar }` and Python `import x as y`?
+- Should custom-language rules be allowed to declare member publicness and
   import/export flags, or should custom languages initially support only items,
   names, and signatures?
