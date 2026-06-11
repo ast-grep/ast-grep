@@ -1,10 +1,3 @@
-// Extraction and rendering will consume this model in later slices.
-#[allow(dead_code)]
-mod model;
-// Builtin extractors will consume this rule contract later.
-#[allow(dead_code)]
-mod rule;
-
 use std::process::ExitCode;
 
 use clap::{Args, ValueEnum};
