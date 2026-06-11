@@ -339,10 +339,36 @@ mod test_cli {
 
   #[test]
   fn test_outline() {
+    ok("outline");
     ok("outline crates/cli/src");
     ok("outline crates/cli/src/lib.rs crates/cli/src/run.rs");
-    error("outline");
-    error("outline crates/cli/src --json");
-    error("outline crates/cli/src --view names");
+    ok("outline crates/cli/src --json");
+    ok("outline crates/cli/src --json=compact");
+    ok("outline crates/cli/src --json=stream");
+    ok("outline crates/cli/src --color never");
+    ok("outline crates/cli/src --items exports");
+    ok("outline crates/cli/src --items imports");
+    ok("outline crates/cli/src --items all");
+    ok("outline crates/cli/src --type struct,enum,function");
+    ok("outline crates/cli/src --match Config");
+    ok("outline crates/cli/src --pub-members");
+    ok("outline crates/cli/src --view names");
+    ok("outline crates/cli/src --view signatures");
+    ok("outline crates/cli/src --view digest");
+    ok("outline crates/cli/src --view expanded");
+    ok("outline --stdin --lang rs");
+    ok("outline crates/cli/src --outline-rules rules.yml");
+    ok("outline crates/cli/src --outline-rules one.yml --outline-rules two.yml");
+    ok("outline crates/cli/src --no-default-outline-rules");
+    ok("outline crates/cli/src --follow");
+    ok("outline crates/cli/src --no-ignore dot");
+    ok("outline crates/cli/src --globs '*.rs'");
+    ok("outline crates/cli/src --threads 12");
+    ok("outline crates/cli/src --json compact"); // argument after --json is parsed as a path
+    error("outline --stdin");
+    error("outline crates/cli/src --json=xml");
+    error("outline crates/cli/src --items public");
+    error("outline crates/cli/src --view full");
+    error("outline crates/cli/src --format json");
   }
 }
