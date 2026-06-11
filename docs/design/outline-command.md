@@ -128,6 +128,8 @@ Users can override either default explicitly with `--items` and `--view`.
 --json[=<pretty|compact|stream>]
                           Output structured JSON. Follows ast-grep's existing
                           `--json` flag shape.
+--color <auto|always|ansi|never>
+                          Control ANSI color in text output. Default: auto.
 --items <auto|structure|exports|imports|all>
                           Select top-level items. Default: auto.
 --type <TYPE[,TYPE...]>   LSP-compatible symbol type filter.
@@ -333,6 +335,15 @@ model after `--items`, `--match`, `--type`, and `--pub-members` filtering.
 
 Text output should prefer compact file/symbol digests, source lines, or names over raw
 metadata. It should not print `role`, `isImport`, or `isExported` labels by default.
+Color is only a reading aid:
+
+- `names` colors the symbol type label.
+- `signatures`, `digest`, and `expanded` color the entry name inside each signature line.
+- exported top-level item names are bold in `digest` and `expanded`, but not in
+  `signatures`.
+- member digest lines are indented; plural labels like `fields:` use the member
+  symbol type color.
+- private members are dimmed; their name keeps the member symbol type color.
 
 With `--view names`:
 
@@ -346,10 +357,7 @@ With `--view signatures`:
 
 ```text
 src/parser.ts
-function:
 12: export function parseRule(...)
-
-class:
 40: export class Parser
 ```
 
@@ -357,22 +365,16 @@ File default `--view digest`:
 
 ```text
 src/parser.ts
-function:
 12: export function parseRule(...)
-
-class:
 40: export class Parser
-  method: parse, recover
+    methods: parse, recover
 ```
 
 With `--view expanded`:
 
 ```text
 src/parser.ts
-function:
 12: export function parseRule(...)
-
-class:
 40: export class Parser
 44:   parse(...)
 73:   recover(...)
