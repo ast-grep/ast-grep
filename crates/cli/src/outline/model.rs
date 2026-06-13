@@ -1,14 +1,14 @@
 use std::borrow::Cow;
 use std::ops::Range;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Outline symbol category.
 ///
 /// The names follow LSP `DocumentSymbol.kind`, but ast-grep stores the symbolic
 /// category directly instead of exposing LSP numeric values.
 /// See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.18/specification/#textDocument_documentSymbol
-#[derive(Debug, Clone, Copy, Hash, Serialize)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) enum SymbolType {
   File,
@@ -40,7 +40,7 @@ pub(super) enum SymbolType {
 }
 
 /// Entry placement in the outline tree.
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) enum EntryRole {
   /// Top-level structure, such as `struct Foo`, `class Parser`, or `import ...`.
