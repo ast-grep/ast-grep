@@ -56,14 +56,6 @@ pub enum RuleConfigError {
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
-pub struct SerializableRewriter {
-  #[serde(flatten)]
-  pub core: SerializableRuleCore,
-  /// Unique, descriptive identifier, e.g., no-unused-variable
-  pub id: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[schemars(title = "ast-grep rule")]
 pub struct SerializableRuleConfig<L: Language> {
   #[serde(flatten)]
@@ -73,8 +65,6 @@ pub struct SerializableRuleConfig<L: Language> {
   pub id: String,
   /// Specify the language to parse and the file extension to include in matching.
   pub language: L,
-  /// Rewrite rules for `rewrite` transformation
-  pub rewriters: Option<Vec<SerializableRewriter>>,
   /// Main message highlighting why this rule fired. It should be single line and concise,
   /// but specific enough to be understood without additional context.
   #[serde(default)]
@@ -277,6 +267,7 @@ mod test {
       rule,
       constraints: None,
       transform: None,
+      rewriters: None,
       utils: None,
       fix: None,
     };
@@ -284,7 +275,6 @@ mod test {
       core,
       id: "".into(),
       language: TypeScript::Tsx,
-      rewriters: None,
       message: "".into(),
       note: None,
       severity: Severity::Hint,

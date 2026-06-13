@@ -365,6 +365,7 @@ fn config_from_rule(dict: Bound<PyDict>) -> PyResult<SerializableRuleCore> {
     constraints: None,
     utils: None,
     transform: None,
+    rewriters: None,
     fix: None,
   })
 }
