@@ -70,11 +70,19 @@ fn get_suppression_kind(node: &Node<'_, impl Doc>) -> Option<SuppressKind> {
     return None;
   }
   let line = node.start_pos().line();
-  let suppress_next_line = if let Some(prev) = node.prev() {
-    prev.start_pos().line() != line
-  } else {
-    true
-  };
+  // A trailing suppression comment shares a line with the *end* of its preceding
+  // sibling (e.g. the closing `)` of a multi-line statement) and suppresses that
+  // statement; a comment with no code before it on its line suppresses the
+  // following line. We must compare against the previous node's END line, not its
+  // start line: a comment trailing a multi-line statement starts on a later line
+  // than the statement does, so using `start_pos` would misclassify it as a
+  // leading (next-line) comment. `trailing_start` is the suppressed statement's
+  // start line when this is a trailing comment.
+  let trailing_start = node
+    .prev()
+    .filter(|prev| prev.end_pos().line() == line)
+    .map(|prev| prev.start_pos().line());
+  let suppress_next_line = trailing_start.is_none();
   // if the first line is suppressed and the next line is empyt,
   // we suppress the whole file see gh #1541
   if line == 0
@@ -86,7 +94,10 @@ fn get_suppression_kind(node: &Node<'_, impl Doc>) -> Option<SuppressKind> {
   {
     return Some(SuppressKind::File);
   }
-  let key = if suppress_next_line { line + 1 } else { line };
+  // A trailing comment is keyed by its statement's START line because matches are
+  // looked up by their start line (see `line_suppression`); for a multi-line
+  // statement that start line differs from the comment's own line.
+  let key = trailing_start.unwrap_or(line + 1);
   Some(SuppressKind::Line(key))
 }
 
@@ -468,6 +479,19 @@ language: Tsx",
       assert_eq!(matches.1.len(), 2);
       assert_eq!(matches.1[0].text(), "console.log('no ignore')");
       assert_eq!(matches.1[1].text(), "console.log('ignore another')");
+    });
+  }
+
+  #[test]
+  fn test_ignore_multiline_node_same_line() {
+    // A trailing `// ast-grep-ignore` on the LAST line of a multi-line statement
+    // suppresses that statement (there is a preceding AST on the comment's line),
+    // not the following line.
+    let source = "console.log(\n  'multi'\n) // ast-grep-ignore\nconsole.log('after')\n";
+    test_scan(source, |scanned| {
+      let matches = &scanned[0];
+      assert_eq!(matches.1.len(), 1);
+      assert_eq!(matches.1[0].text(), "console.log('after')");
     });
   }
 
