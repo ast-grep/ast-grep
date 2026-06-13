@@ -24,7 +24,9 @@ pub use rule::{
   SerializableRule, parse_selector,
 };
 pub use rule_collection::RuleCollection;
-pub use rule_config::{Metadata, RuleConfig, RuleConfigError, SerializableRuleConfig, Severity};
+pub use rule_config::{
+  Metadata, RuleConfig, RuleConfigError, SerializableRewriter, SerializableRuleConfig, Severity,
+};
 pub use rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
 pub use transform::Transformation;
 

@@ -164,7 +164,6 @@ utils       ast-grep local utility rules.
 transform   ast-grep transformations and rewriters.
 name        Output name from a metavar/template. Required.
 signature   Optional output signature from a metavar/template.
-detail      Optional small display detail from a metavar/template.
 isImport    Boolean or predicate for top-level import/dependency items.
 isExported  Boolean or predicate for top-level public/module-surface items.
 isPublic    Boolean or predicate for member publicness.
@@ -173,8 +172,8 @@ isPublic    Boolean or predicate for member publicness.
 `role`, `symbolType`, and `name` are required. `parentRuleIds` is required for
 `role: member` and ignored for `role: item`. `signature` is optional; when omitted,
 the extractor uses the first non-empty line of the matched node as the signature.
-`detail`, `isImport`, `isExported`, and `isPublic` are omitted unless the extractor
-can derive them.
+`isImport`, `isExported`, and `isPublic` are omitted unless the extractor can derive
+them.
 
 ### Text Field Extraction
 
@@ -218,8 +217,8 @@ $CLEAN_NAME  transformed metavariable text.
 literal text mixed with $VARS.
 ```
 
-The initial supported text fields should stay small: `name`, `signature`, and
-`detail`. Arbitrary custom fields are a non-goal.
+The initial supported text fields should stay small: `name` and `signature`.
+Arbitrary custom fields are a non-goal.
 
 ### Signature Field
 
@@ -614,8 +613,8 @@ Future versions can make signatures more faithful in two possible ways:
    The extractor could capture or derive components such as modifiers, keyword,
    name, generic parameters, parameters, return type, and receiver. The existing
    template/metavariable machinery could then assemble those components in
-   `signature` or `detail`. This should stay limited to producing
-   signature/detail text, not arbitrary structured metadata fields.
+   `signature`. This should stay limited to producing signature text, not
+   arbitrary structured metadata fields.
 
 2. Extract a header range with expand-style boundaries.
 

@@ -1,6 +1,8 @@
 // Extraction and rendering will consume this model in later slices.
 #[allow(dead_code)]
 mod model;
+#[allow(dead_code)]
+mod rule;
 
 use std::process::ExitCode;
 
@@ -91,7 +93,7 @@ pub struct OutlineArg {
   /// Keep only top-level items matching this regex.
   ///
   /// The regex is matched against item names, signatures, first source lines,
-  /// and import/export targets and aliases. It never matches members.
+  /// and import/export item signatures. It never matches members.
   #[clap(long = "match", value_name = "REGEX")]
   match_item: Option<String>,
 

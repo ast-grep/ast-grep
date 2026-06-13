@@ -590,7 +590,6 @@ pub struct OutlineItem {
   pub is_exported: bool,
   pub range: Range,
   pub signature: Option<String>,
-  pub detail: Option<String>,
   pub ast_kind: String,
   pub members: Vec<OutlineMember>,
 }
@@ -602,7 +601,6 @@ pub struct OutlineMember {
   pub is_public: Option<bool>,
   pub range: Range,
   pub signature: Option<String>,
-  pub detail: Option<String>,
   pub ast_kind: String,
 }
 
@@ -631,7 +629,6 @@ pub struct OutlineFlatSymbol {
   pub is_public: Option<bool>,
   pub range: Range,
   pub signature: Option<String>,
-  pub detail: Option<String>,
   pub ast_kind: String,
   pub container: Option<OutlineContainer>,
 }
