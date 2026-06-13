@@ -85,7 +85,6 @@ Important terms:
 | Member | Direct child entry under an item, such as a field, method, constructor, variant, or namespace/module child. |
 | SymbolType | Outline category, such as `class`, `function`, or `struct`. Values are compatible with LSP `SymbolKind` names. |
 | Name | The visible item or member name in the current file, such as a local binding name or exported name. |
-| Alias | The renamed-from symbol when source syntax exposes a different visible name; absent when it would duplicate `name` or `target`. |
 | Range | Full AST node range for the entry. |
 | AST kind | The underlying tree-sitter node kind, such as `class_declaration` or `function_item`. |
 
@@ -203,8 +202,8 @@ case-sensitive by default. Invalid regexes are CLI errors. The regex is applied 
 to useful top-level item fields:
 
 - structure items: symbol name, signature, and first source line.
-- import items: imported target, binding name, alias, signature, and first source line.
-- export edge items: exported name, target, alias, signature, and first source line.
+- import items: symbol name, signature, and first source line.
+- export edge items: symbol name, signature, and first source line.
 
 `--type` is a comma-separated OR filter over top-level item symbol types. Accepted
 values are the lower-camel `symbolType` names used in JSON, such as `class`,
@@ -592,8 +591,6 @@ pub struct OutlineItem {
   pub range: Range,
   pub signature: Option<String>,
   pub detail: Option<String>,
-  pub target: Option<String>,
-  pub alias: Option<String>,
   pub ast_kind: String,
   pub members: Vec<OutlineMember>,
 }
@@ -635,8 +632,6 @@ pub struct OutlineFlatSymbol {
   pub range: Range,
   pub signature: Option<String>,
   pub detail: Option<String>,
-  pub target: Option<String>,
-  pub alias: Option<String>,
   pub ast_kind: String,
   pub container: Option<OutlineContainer>,
 }
@@ -683,8 +678,7 @@ This is both an import/dependency edge and an export edge:
   "symbolType": "module",
   "role": "item",
   "isImport": true,
-  "isExported": true,
-  "target": "internal_mod"
+  "isExported": true
 }
 ```
 
@@ -694,8 +688,8 @@ Language accessibility syntax can affect extraction-time metadata, especially me
 ### Symbol Mapping
 
 Do not introduce custom symbol types for imports or exports. Map source constructs to
-existing LSP symbol kinds and use `isImport`, `isExported`, `target`, and `alias`
-metadata to preserve import/export meaning.
+existing LSP symbol kinds and use `isImport` and `isExported` metadata to preserve
+import/export meaning.
 
 | Source construct | `symbolType` |
 | --- | --- |
@@ -726,8 +720,8 @@ The CLI contract depends on a data-driven extraction layer, but the rule catalog
 schema and language-expansion strategy are documented separately in
 [outline-rule-extraction.md](outline-rule-extraction.md). In short, ast-grep rules
 select candidate syntax, and outline-specific extraction derives names, signatures,
-entry/member placement, member publicness, import/export flags, targets, aliases, and
-direct members from those matches.
+entry/member placement, member publicness, import/export flags, and direct members from
+those matches.
 
 ## Runtime And Exit Codes
 
