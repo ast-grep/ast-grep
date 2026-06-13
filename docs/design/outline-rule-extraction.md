@@ -79,8 +79,8 @@ signature   first non-empty source line of the matched syntax.
 astKind     tree-sitter node kind of the matched syntax.
 ```
 
-Top-level `item` entries can additionally carry `isImport`, `isExported`, `target`,
-and `alias`. Direct `member` entries can additionally carry `isPublic`.
+Top-level `item` entries can additionally carry `isImport` and `isExported`.
+Direct `member` entries can additionally carry `isPublic`.
 
 These fields are output facts, not necessarily separate extractor types. For example,
 `pub use internal_mod as api;` is one top-level item with both `isImport` and
@@ -164,8 +164,6 @@ utils       ast-grep local utility rules.
 transform   ast-grep transformations and rewriters.
 name        Output name from a metavar/template. Required.
 signature   Optional output signature from a metavar/template.
-target      Optional import/export target from a metavar/template.
-alias       Optional renamed-from symbol from a metavar/template.
 detail      Optional small display detail from a metavar/template.
 isImport    Boolean or predicate for top-level import/dependency items.
 isExported  Boolean or predicate for top-level public/module-surface items.
@@ -175,8 +173,8 @@ isPublic    Boolean or predicate for member publicness.
 `role`, `symbolType`, and `name` are required. `parentRuleIds` is required for
 `role: member` and ignored for `role: item`. `signature` is optional; when omitted,
 the extractor uses the first non-empty line of the matched node as the signature.
-`target`, `alias`, `detail`, `isImport`, `isExported`, and `isPublic` are omitted
-unless the extractor can derive them.
+`detail`, `isImport`, `isExported`, and `isPublic` are omitted unless the extractor
+can derive them.
 
 ### Text Field Extraction
 
@@ -220,8 +218,8 @@ $CLEAN_NAME  transformed metavariable text.
 literal text mixed with $VARS.
 ```
 
-The initial supported text fields should stay small: `name`, `signature`,
-`target`, `alias`, and `detail`. Arbitrary custom fields are a non-goal.
+The initial supported text fields should stay small: `name`, `signature`, and
+`detail`. Arbitrary custom fields are a non-goal.
 
 ### Signature Field
 
@@ -342,7 +340,6 @@ transform:
       replace: '^.*::'
       by: ''
 name: $NAME
-target: $TARGET
 isImport: true
 isExported:
   has:
@@ -357,8 +354,8 @@ pub use internal_mod as api;
 ```
 
 ```json
-{ "role": "item", "name": "Parser", "isImport": true, "target": "crate::parser::Parser" }
-{ "role": "item", "name": "api", "isImport": true, "isExported": true, "target": "internal_mod" }
+{ "role": "item", "name": "Parser", "isImport": true }
+{ "role": "item", "name": "api", "isImport": true, "isExported": true }
 ```
 
 Rust member publicness:
@@ -420,8 +417,7 @@ export * from "./all";
 
 The local `const foo` is a normal item. The `export { foo }` item has
 `isExported: true`. The `export { api as publicApi } from "./api"` and
-`export * from "./all"` items have both `isImport: true` and `isExported: true`
-with `target` and `alias` metadata when syntax provides it.
+`export * from "./all"` items have both `isImport: true` and `isExported: true`.
 
 ## What To Avoid
 
@@ -458,7 +454,6 @@ rules:
 
 - get the first source line from the matched node as a signature.
 - attach direct member entries by syntax containment.
-- normalize import/export target and alias.
 
 ### Avoid IDE-Only Symbols
 
@@ -535,14 +530,13 @@ source organization.
    - outline placement from `role`.
    - name from `name`.
    - signature from `signature`, or the first non-empty line of the matched node.
-   - target/alias from `target` and `alias` when applicable.
 6. Derive boolean values from syntax:
    - import syntax can set `isImport`.
    - top-level export syntax or language public-surface syntax can set `isExported`.
    - member syntax can set `isPublic`.
-7. Deduplicate entries by range, symbol type, name, and edge target.
-8. Merge duplicate top-level items by range, symbol type, name, target, and
-   alias, preserving `isImport` and `isExported`.
+7. Deduplicate entries by range, symbol type, and name.
+8. Merge duplicate top-level items by range, symbol type, and name, preserving
+   `isImport` and `isExported`.
 9. Attach direct members by syntax containment and `parentRuleIds`.
 10. Sort entries in source order.
 11. Pass the file model to CLI filtering and rendering.
@@ -555,7 +549,7 @@ Built-in language support should arrive in layers:
 2. Name and first-line signature extraction.
 3. `isImport` and `isExported` derivation for import/export syntax.
 4. Member extraction and member publicness.
-5. Language refinements for aliases and import/export shapes.
+5. Language refinements for import/export shapes.
 
 This means an early built-in rule can be useful without pretending to be final.
 For example, a Rust struct selector can first prove rendering and entry merging,
@@ -746,8 +740,7 @@ Model:
 - The result is an IDE-style symbol tree: kind, name, ranges, selection range,
   scope, parent, and children.
 - Extraction uses tree-sitter query captures.
-- There is no first-class signature, import/export flag, target, alias, or
-  member visibility model.
+- There is no first-class signature, import/export flag, or member visibility model.
 
 What worked well:
 
@@ -768,10 +761,6 @@ Limits for ast-grep:
 
 - What is the smallest concrete rule schema that supports text field extraction,
   boolean derivation objects, and members without becoming a DSL?
-- Should import/export edge normalization be configured per language or
-  implemented as a small set of built-in normalizers referenced by rules?
-- Which import/export edge normalizers should ship as built-ins for common alias
-  syntaxes such as TypeScript `export { foo as bar }` and Python `import x as y`?
 - Should custom-language rules be allowed to declare member publicness and
   import/export flags, or should custom languages initially support only items,
   names, and signatures?
