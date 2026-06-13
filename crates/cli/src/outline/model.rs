@@ -1,14 +1,14 @@
 use std::borrow::Cow;
 use std::ops::Range;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Outline symbol category.
 ///
 /// The names follow LSP `DocumentSymbol.kind`, but ast-grep stores the symbolic
 /// category directly instead of exposing LSP numeric values.
 /// See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.18/specification/#textDocument_documentSymbol
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) enum SymbolType {
   File,
@@ -40,7 +40,7 @@ pub(super) enum SymbolType {
 }
 
 /// Entry placement in the outline tree.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) enum EntryRole {
   /// Top-level structure, such as `struct Foo`, `class Parser`, or `import ...`.
@@ -54,7 +54,7 @@ pub(super) enum EntryRole {
 /// This mirrors scan JSON's private `Position` shape. Core `Position` is not
 /// serializable, and config's serializable range type is an internal matcher
 /// input shape with optional columns, so outline keeps its output contract local.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct SourcePosition {
   /// Zero-based line number.
@@ -67,7 +67,7 @@ pub(super) struct SourcePosition {
 ///
 /// This mirrors scan JSON's private `Range` shape. Outline owns the type here
 /// so the model does not depend on scan rendering internals.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct SourceRange {
   /// Inclusive start and exclusive end byte offsets.
@@ -77,7 +77,7 @@ pub(super) struct SourceRange {
 }
 
 /// Shared structural data for either a top-level item or a direct member.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct OutlineEntry<'a> {
   pub role: EntryRole,
@@ -89,7 +89,7 @@ pub(super) struct OutlineEntry<'a> {
 }
 
 /// One top-level outline item.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OutlineItem<'a> {
   #[serde(flatten)]
@@ -101,7 +101,7 @@ pub struct OutlineItem<'a> {
 }
 
 /// One direct member under an outline item.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct OutlineMember<'a> {
   #[serde(flatten)]
@@ -196,61 +196,5 @@ mod tests {
     assert_eq!(json["isExported"], true);
     assert_eq!(json["members"][0]["role"], "member");
     assert_eq!(json["members"][0]["symbolType"], "method");
-
-    let deserialized: OutlineItem<'static> =
-      serde_json::from_value(json).expect("outline item should deserialize");
-
-    assert_eq!(deserialized, item);
-  }
-
-  #[test]
-  fn deserializes_yaml_outline_contract() {
-    let yaml = r#"
-role: item
-symbolType: class
-name: Parser
-range:
-  byteOffset:
-    start: 0
-    end: 12
-  start:
-    line: 0
-    column: 0
-  end:
-    line: 0
-    column: 12
-signature: "export class Parser {"
-astKind: class_declaration
-isImport: false
-isExported: true
-members:
-  - role: member
-    symbolType: method
-    name: parse
-    range:
-      byteOffset:
-        start: 0
-        end: 12
-      start:
-        line: 0
-        column: 0
-      end:
-        line: 0
-        column: 12
-    signature: "parse(input: string) {"
-    astKind: method_definition
-    isPublic: false
-"#;
-
-    let item: OutlineItem = serde_yaml::from_str(yaml).expect("outline item should deserialize");
-
-    assert_eq!(item.entry.role, EntryRole::Item);
-    assert_eq!(item.entry.symbol_type, SymbolType::Class);
-    assert_eq!(item.entry.name, "Parser");
-    assert!(item.is_exported);
-    assert_eq!(item.members.len(), 1);
-    assert_eq!(item.members[0].entry.role, EntryRole::Member);
-    assert_eq!(item.members[0].entry.symbol_type, SymbolType::Method);
-    assert_eq!(item.members[0].entry.name, "parse");
   }
 }
