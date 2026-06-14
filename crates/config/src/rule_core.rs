@@ -142,7 +142,7 @@ pub struct RuleCore {
   pub(crate) constraints: HashMap<String, Rule>,
   kinds: Option<BitSet>,
   pub(crate) transform: Option<Transform>,
-  pub fixer: Vec<Fixer>,
+  fixer: Vec<Fixer>,
   // this is required to hold util rule reference
   pub(crate) registration: RuleRegistration,
 }

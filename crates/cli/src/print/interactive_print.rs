@@ -456,7 +456,7 @@ language: TypeScript
   #[test]
   fn test_apply_rewrite() {
     let root = AstGrep::new("let a = () => c++", SupportLang::TypeScript.into());
-    let config = make_rule(
+    let mut config = make_rule(
       r"
 rule:
   all:
@@ -465,8 +465,8 @@ rule:
         - pattern: $A++
 fix: ($B, lifecycle.update(['$A']))",
     );
-    let mut matcher = config.matcher;
-    let fixer = matcher.fixer.remove(0);
+    let matcher = config.matcher;
+    let fixer = config.fixer.remove(0);
     let diffs = make_diffs(&root, matcher, &fixer);
     let ret = apply_rewrite(diffs);
     assert_eq!(ret, "let a = () => (c++, lifecycle.update(['c']))");

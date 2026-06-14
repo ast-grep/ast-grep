@@ -400,7 +400,7 @@ fn match_rule_diff_on_file<T>(
   let diffs = matches
     .into_iter()
     .filter_map(|(rule, m)| {
-      let fixers = &rule.matcher.fixer;
+      let fixers = &rule.fixer;
       let diff = Diff::multiple(m, &rule.matcher, fixers)?;
       Some((diff, rule))
     })
@@ -417,7 +417,7 @@ fn match_rule_on_file<T>(
   processor: &impl PrintProcessor<T>,
 ) -> Result<T> {
   let file = SimpleFile::new(path.to_string_lossy(), file_content);
-  let processed = if let Some(fixer) = &rule.matcher.fixer.first() {
+  let processed = if let Some(fixer) = &rule.fixer.first() {
     let diffs = matches
       .into_iter()
       .map(|m| (Diff::generate(m, &rule.matcher, fixer), rule))

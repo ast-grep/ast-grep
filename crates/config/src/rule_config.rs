@@ -1,7 +1,7 @@
 use crate::GlobalRules;
 
 use crate::check_var::check_rewriters_in_transform;
-use crate::fixer::Fixer;
+use crate::fixer::{Fixer, SerializableFixer};
 use crate::label::{Label, LabelConfig, get_default_labels, get_labels_from_config};
 pub use crate::rewriter::SerializableRewriter;
 use crate::rule::DeserializeEnv;
@@ -61,13 +61,17 @@ pub enum RuleConfigError {
 pub struct SerializableRuleConfig<L: Language> {
   #[serde(flatten)]
   pub core: SerializableRuleCore,
+  /// A pattern string or a FixConfig object to auto fix the issue.
+  /// It can reference metavariables appeared in rule.
+  /// See details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).
+  pub fix: Option<SerializableFixer>,
+  /// Rewrite rules for `rewrite` transformation
+  pub rewriters: Option<Vec<SerializableRewriter>>,
   /// Unique, descriptive identifier, e.g., no-unused-variable
   #[serde(default)]
   pub id: String,
   /// Specify the language to parse and the file extension to include in matching.
   pub language: L,
-  /// Rewrite rules for `rewrite` transformation
-  pub rewriters: Option<Vec<SerializableRewriter>>,
   /// Main message highlighting why this rule fired. It should be single line and concise,
   /// but specific enough to be understood without additional context.
   #[serde(default)]
@@ -187,6 +191,7 @@ impl<L: Language> DerefMut for SerializableRuleConfig<L> {
 pub struct RuleConfig<L: Language> {
   inner: SerializableRuleConfig<L>,
   pub matcher: RuleCore,
+  pub fixer: Vec<Fixer>,
 }
 
 impl<L: Language> RuleConfig<L> {
@@ -198,7 +203,17 @@ impl<L: Language> RuleConfig<L> {
     if matcher.potential_kinds().is_none() {
       return Err(RuleConfigError::MissingPotentialKinds);
     }
-    Ok(Self { inner, matcher })
+    let fixer = if let Some(fix) = &inner.fix {
+      let env = matcher.get_env(inner.language.clone());
+      Fixer::parse(fix, &env, &inner.transform).map_err(RuleCoreError::Fixer)?
+    } else {
+      vec![]
+    };
+    Ok(Self {
+      inner,
+      matcher,
+      fixer,
+    })
   }
 
   pub fn deserialize<'de>(
@@ -272,6 +287,7 @@ mod test {
       id: "".into(),
       language: TypeScript::Tsx,
       rewriters: None,
+      fix: None,
       message: "".into(),
       note: None,
       severity: Severity::Hint,

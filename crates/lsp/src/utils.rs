@@ -31,7 +31,6 @@ impl RewriteData {
     rule: &RuleConfig<L>,
   ) -> Option<Self> {
     let fixers: Vec<_> = rule
-      .matcher
       .fixer
       .iter()
       .filter_map(|fixer| {
