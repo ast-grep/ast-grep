@@ -1,5 +1,6 @@
 use crate::RuleCore;
 use crate::fixer::{Fixer, FixerError};
+use crate::rewriter::Rewriter;
 use crate::rule::Rule;
 use crate::rule::referent_rule::RuleRegistration;
 use crate::rule_config::RuleConfigError;
@@ -37,9 +38,6 @@ pub fn check_rule_with_hint<'r>(
     }
     // upper_vars is needed to check metavar defined in containing vars
     CheckHint::Rewriter(upper_vars) => {
-      if fixer.is_empty() {
-        return Err(RuleCoreError::Fixer(FixerError::InvalidRewriter));
-      }
       check_utils_defined(rule, constraints)?;
       check_vars_in_rewriter(rule, utils, constraints, transform, fixer, upper_vars)?;
     }
@@ -156,14 +154,14 @@ fn check_var_in_fix(vars: HashSet<&str>, fixers: &Vec<Fixer>) -> RResult<()> {
 
 pub fn check_rewriters_in_transform(
   rule: &RuleCore,
-  rewriters: &HashMap<String, RuleCore>,
+  rewriters: &HashMap<String, Rewriter>,
 ) -> Result<(), RuleConfigError> {
   if let Some(err) = check_one_rewriter_in_rule(rule, rewriters) {
     return Err(err);
   }
   let error = rewriters
     .values()
-    .find_map(|rewriter| check_one_rewriter_in_rule(rewriter, rewriters));
+    .find_map(|rewriter| check_one_rewriter_in_rule(&rewriter.matcher, rewriters));
   if let Some(err) = error {
     return Err(err);
   }
@@ -172,7 +170,7 @@ pub fn check_rewriters_in_transform(
 
 fn check_one_rewriter_in_rule(
   rule: &RuleCore,
-  rewriters: &HashMap<String, RuleCore>,
+  rewriters: &HashMap<String, Rewriter>,
 ) -> Option<RuleConfigError> {
   let transform = rule.transform.as_ref()?;
   let mut used_rewriters = transform

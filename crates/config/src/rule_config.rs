@@ -66,6 +66,8 @@ pub struct SerializableRuleConfig<L: Language> {
   pub id: String,
   /// Specify the language to parse and the file extension to include in matching.
   pub language: L,
+  /// Rewrite rules for `rewrite` transformation
+  pub rewriters: Option<Vec<SerializableRewriter>>,
   /// Main message highlighting why this rule fired. It should be single line and concise,
   /// but specific enough to be understood without additional context.
   #[serde(default)]
@@ -262,7 +264,6 @@ mod test {
       rule,
       constraints: None,
       transform: None,
-      rewriters: None,
       utils: None,
       fix: None,
     };
@@ -270,6 +271,7 @@ mod test {
       core,
       id: "".into(),
       language: TypeScript::Tsx,
+      rewriters: None,
       message: "".into(),
       note: None,
       severity: Severity::Hint,
@@ -684,7 +686,7 @@ rewriters:
 
   #[test]
   fn test_rewriter_should_have_fix() {
-    let rule: SerializableRuleConfig<TypeScript> = from_str(
+    let ret: Result<SerializableRuleConfig<TypeScript>, _> = from_str(
       r"
 id: test
 rule: {kind: number}
@@ -692,13 +694,9 @@ language: Tsx
 rewriters:
 - id: wrong
   rule: {matches: num}",
-    )
-    .expect("should parse");
-    let ret = RuleConfig::try_from(rule, &Default::default());
-    match ret {
-      Err(RuleConfigError::NoFixInRewriter(name)) => assert_eq!(name, "wrong"),
-      _ => panic!("unexpected error"),
-    }
+    );
+    let is_missing_err = matches!(ret, Err(e) if e.to_string().contains("missing field"));
+    assert!(is_missing_err);
   }
 
   #[test]
@@ -840,6 +838,56 @@ rewriters:
     let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
     let ret = RuleConfig::try_from(rule, &Default::default());
     assert!(ret.is_ok());
+  }
+
+  #[test]
+  #[ignore = "the test currently fails because i want to implement checker later, in a separate PR"]
+  fn test_rewriter_fix_rejects_undefined_var() {
+    let src = r"
+id: test
+rule: {pattern: '$B = $A'}
+language: Tsx
+transform:
+  D: { rewrite: { rewriters: [re], source: $A } }
+rewriters:
+- id: re
+  rule: {kind: number, pattern: $C}
+  fix: $MISSING.$C
+    ";
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+    let ret = RuleConfig::try_from(rule, &Default::default());
+    match ret {
+      Err(RuleConfigError::Rewriter(
+        RuleCoreError::UndefinedMetaVar(name, section),
+        rewriter_id,
+      )) => {
+        assert_eq!(rewriter_id, "re");
+        assert_eq!(name, "MISSING");
+        assert_eq!(section, "fix");
+      }
+      _ => panic!("unexpected result"),
+    }
+  }
+
+  #[test]
+  fn test_rewriter_rejects_empty_fix_list() {
+    let src = r"
+id: test
+rule: {pattern: 'a = $A'}
+language: Tsx
+transform:
+  B: { rewrite: { rewriters: [re], source: $A } }
+rewriters:
+- id: re
+  rule: {kind: number, pattern: $C}
+  fix: []
+    ";
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+    let ret = RuleConfig::try_from(rule, &Default::default());
+    assert!(matches!(
+      ret,
+      Err(RuleConfigError::NoFixInRewriter(id)) if id == "re"
+    ));
   }
 
   #[test]

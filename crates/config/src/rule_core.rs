@@ -40,14 +40,6 @@ pub enum RuleCoreError {
 
 type RResult<T> = std::result::Result<T, RuleCoreError>;
 
-#[derive(Serialize, Deserialize, Clone, JsonSchema)]
-pub struct SerializableRewriter {
-  #[serde(flatten)]
-  pub core: SerializableRuleCore,
-  /// Unique, descriptive identifier, e.g., no-unused-variable
-  pub id: String,
-}
-
 /// Used for global rules, rewriters, and pyo3/napi
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableRuleCore {
@@ -61,8 +53,6 @@ pub struct SerializableRuleCore {
   /// Dict value is a [transformation] that specifies how meta var is processed.
   /// See [transformation doc](https://ast-grep.github.io/reference/yaml/transformation.html).
   pub transform: Option<HashMap<String, Transformation>>,
-  /// Rewrite rules for `rewrite` transformation
-  pub rewriters: Option<Vec<SerializableRewriter>>,
   /// A pattern string or a FixConfig object to auto fix the issue.
   /// It can reference metavariables appeared in rule.
   /// See details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).
@@ -291,6 +281,7 @@ mod test {
   use super::*;
   use crate::SerializableGlobalRule;
   use crate::from_str;
+  use crate::rewriter::{Rewriter, SerializableRewriter};
   use crate::rule::referent_rule::{ReferentRule, ReferentRuleError};
   use crate::test::TypeScript;
   use ast_grep_core::matcher::{Pattern, RegexMatcher};
@@ -614,13 +605,16 @@ rule:
     assert_eq!(matched, "2");
   }
 
-  fn get_rewriters() -> (&'static str, RuleCore) {
+  fn get_rewriters() -> (&'static str, Rewriter) {
     // NOTE: initialize a DeserializeEnv here is not 100% correct
     // it does not inherit global rules or local rules
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let rewriter: SerializableRuleCore =
-      from_str("{rule: {kind: number, pattern: $REWRITE}, fix: yjsnp}").expect("should parse");
-    let rewriter = rewriter.get_matcher(env).expect("should work");
+    let rewriter: SerializableRewriter =
+      from_str("{id: xx, rule: {kind: number, pattern: $REWRITE}, fix: yjsnp}")
+        .expect("should parse");
+    let rewriter = rewriter
+      .try_parse_rewriter(&Default::default(), &env)
+      .expect("should work");
     ("re", rewriter)
   }
 
