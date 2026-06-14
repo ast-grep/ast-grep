@@ -1,6 +1,5 @@
 use crate::DeserializeEnv;
 use crate::check_var::{CheckHint, check_rule_with_hint};
-use crate::fixer::FixerError;
 use crate::rule::Rule;
 use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::{RuleSerializeError, SerializableRule};
@@ -32,8 +31,6 @@ pub enum RuleCoreError {
   Constraints(#[source] RuleSerializeError),
   #[error("`transform` is not configured correctly.")]
   Transform(#[from] TransformError),
-  #[error("`fix` pattern is invalid.")]
-  Fixer(#[from] FixerError),
   #[error("Undefined meta var `{0}` used in `{1}`.")]
   UndefinedMetaVar(String, &'static str),
 }

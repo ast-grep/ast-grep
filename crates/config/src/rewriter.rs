@@ -2,15 +2,33 @@ use ast_grep_core::language::Language;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use thiserror::Error;
 
 use crate::check_var::{CheckHint, check_rewriters};
-use crate::fixer::{Fixer, SerializableFixer};
+use crate::fixer::{Fixer, FixerError, SerializableFixer};
 use crate::rule::DeserializeEnv;
-use crate::{RuleConfigError, RuleCore, RuleCoreError, SerializableRuleCore};
+use crate::{RuleCore, RuleCoreError, SerializableRuleCore};
 
 pub struct Rewriter {
   pub matcher: RuleCore,
   pub fixer: Vec<Fixer>,
+}
+#[derive(Debug, Error)]
+#[error("Rewriter `{id}` has invalid configuration.")]
+pub struct RewriterError {
+  pub id: String,
+  #[source]
+  pub reason: RewriterErrorReason,
+}
+
+#[derive(Debug, Error)]
+pub enum RewriterErrorReason {
+  #[error(transparent)]
+  Core(#[from] RuleCoreError),
+  #[error("Rewriter rule must have `fix`.")]
+  NoFixInRewriter,
+  #[error("`fix` pattern is invalid.")]
+  Fixer(#[from] FixerError),
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
@@ -31,17 +49,19 @@ impl SerializableRewriter {
     &self,
     upper_vars: &HashSet<&str>,
     env: &DeserializeEnv<L>,
-  ) -> Result<Rewriter, RuleConfigError> {
-    // if self.core.fix.is_none() {
-    //   return Err(RuleConfigError::NoFixInRewriter(self.id.clone()));
-    // }
+  ) -> Result<Rewriter, RewriterError> {
+    let attach_id = |e| RewriterError {
+      id: self.id.clone(),
+      reason: e,
+    };
     let rewriter = self
       .core
       .get_matcher_with_hint(env.clone(), CheckHint::Skip)
-      .map_err(|e| RuleConfigError::Rewriter(e, self.id.clone()))?;
-    let fixer = Fixer::parse(&self.fix, env, &self.core.transform).map_err(RuleCoreError::Fixer)?;
+      .map_err(|e| attach_id(e.into()))?;
+    let fixer =
+      Fixer::parse(&self.fix, env, &self.core.transform).map_err(|e| attach_id(e.into()))?;
     if fixer.is_empty() {
-      return Err(RuleConfigError::NoFixInRewriter(self.id.clone()));
+      return Err(attach_id(RewriterErrorReason::NoFixInRewriter));
     }
     check_rewriters(
       &rewriter.rule,
@@ -51,7 +71,7 @@ impl SerializableRewriter {
       &fixer,
       upper_vars,
     )
-    .map_err(|e| RuleConfigError::Rewriter(e, self.id.clone()))?;
+    .map_err(|e| attach_id(e.into()))?;
     Ok(Rewriter {
       matcher: rewriter,
       fixer,
