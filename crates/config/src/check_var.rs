@@ -259,23 +259,6 @@ transform:
     assert_eq!(section, "transform");
   }
   #[test]
-  #[ignore = "FIX IT IN NEXT PR"]
-  fn test_undefined_vars_in_fix() {
-    let (name, section) = get_undefined(
-      r"
-rule: {pattern: $A}
-constraints: {A: {pattern: $C}}
-transform:
-  B:
-    replace: {source: $C, replace: a, by: b }
-fix: $D
-",
-    );
-    assert_eq!(name, "D");
-    assert_eq!(section, "fix");
-  }
-
-  #[test]
   fn test_defined_vars_in_utils() {
     let env = DeserializeEnv::new(TypeScript::Tsx);
     let ser_rule: SerializableRuleCore = from_str(

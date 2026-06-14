@@ -1,6 +1,6 @@
 use crate::GlobalRules;
 
-use crate::check_var::check_rewriters_in_transform;
+use crate::check_var::{CheckHint, check_rewriters_in_transform, check_rule_with_hint};
 use crate::fixer::{Fixer, SerializableFixer};
 use crate::label::{Label, LabelConfig, get_default_labels, get_labels_from_config};
 pub use crate::rewriter::SerializableRewriter;
@@ -209,6 +209,14 @@ impl<L: Language> RuleConfig<L> {
     } else {
       vec![]
     };
+    check_rule_with_hint(
+      &matcher.rule,
+      &matcher.registration,
+      &matcher.constraints,
+      &matcher.transform,
+      &fixer,
+      CheckHint::Normal,
+    )?;
     Ok(Self {
       inner,
       matcher,
@@ -617,6 +625,29 @@ test-rule:
     let nm = grep.root().find(&rule.matcher).unwrap();
     let replacement = fixer.generate_replacement(&nm);
     assert_eq!(String::from_utf8_lossy(&replacement), "string!!");
+  }
+
+  #[test]
+  fn test_undefined_vars_in_fix() {
+    let src = r"
+id: test
+language: Tsx
+rule: {pattern: console.log($A)}
+constraints: {A: {pattern: $C}}
+transform:
+  B:
+    replace: {source: $C, replace: a, by: b }
+fix: $D
+    ";
+    let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
+    let ret = RuleConfig::try_from(rule, &Default::default());
+    match ret {
+      Err(RuleConfigError::Core(RuleCoreError::UndefinedMetaVar(name, section))) => {
+        assert_eq!(name, "D");
+        assert_eq!(section, "fix");
+      }
+      _ => panic!("unexpected result"),
+    }
   }
 
   #[test]
