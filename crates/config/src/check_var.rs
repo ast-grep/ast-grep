@@ -198,7 +198,10 @@ fn check_one_rewriter_in_rule(
 mod test {
   use super::*;
   use crate::test::TypeScript;
-  use crate::{DeserializeEnv, SerializableGlobalRule, SerializableRuleCore, from_str};
+  use crate::{
+    DeserializeEnv, RuleConfig, SerializableGlobalRule, SerializableRuleConfig,
+    SerializableRuleCore, from_str,
+  };
 
   #[test]
   fn test_defined_vars() {
@@ -303,7 +306,6 @@ fix: $EXP
   }
 
   #[test]
-  #[ignore = "FIX IT IN NEXT PR"]
   fn test_parameterized_global_rule_internal_var_not_in_defined_vars() {
     let globals: Vec<SerializableGlobalRule<TypeScript>> = from_str(
       r"
@@ -317,9 +319,9 @@ fix: $EXP
     )
     .expect("should parse globals");
     let globals = DeserializeEnv::parse_global_utils(globals).expect("should parse globals");
-    let env = DeserializeEnv::new(TypeScript::Tsx).with_globals(&globals);
-    let ser_rule: SerializableRuleCore = from_str(
+    let ser_rule: SerializableRuleConfig<TypeScript> = from_str(
       r"
+language: Tsx
 rule:
   matches:
     global-rule:
@@ -329,8 +331,9 @@ fix: $A
 ",
     )
     .expect("should deser");
-    match ser_rule.get_matcher(env) {
-      Err(RuleCoreError::UndefinedMetaVar(name, section)) => {
+    let ret = RuleConfig::try_from(ser_rule, &globals);
+    match ret {
+      Err(RuleConfigError::Core(RuleCoreError::UndefinedMetaVar(name, section))) => {
         assert_eq!(name, "A");
         assert_eq!(section, "fix");
       }
