@@ -353,7 +353,6 @@ impl<'r, L: Language> CombinedScan<'r, L> {
       core: SerializableRuleCore {
         rule,
         constraints: None,
-        fix: None,
         transform: None,
         utils: None,
       },

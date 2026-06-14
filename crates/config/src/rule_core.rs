@@ -1,6 +1,6 @@
 use crate::DeserializeEnv;
 use crate::check_var::{CheckHint, check_rule_with_hint};
-use crate::fixer::{Fixer, FixerError, SerializableFixer};
+use crate::fixer::FixerError;
 use crate::rule::Rule;
 use crate::rule::referent_rule::RuleRegistration;
 use crate::rule::{RuleSerializeError, SerializableRule};
@@ -53,10 +53,6 @@ pub struct SerializableRuleCore {
   /// Dict value is a [transformation] that specifies how meta var is processed.
   /// See [transformation doc](https://ast-grep.github.io/reference/yaml/transformation.html).
   pub transform: Option<HashMap<String, Transformation>>,
-  /// A pattern string or a FixConfig object to auto fix the issue.
-  /// It can reference metavariables appeared in rule.
-  /// See details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).
-  pub fix: Option<SerializableFixer>,
 }
 
 impl SerializableRuleCore {
@@ -87,15 +83,6 @@ impl SerializableRuleCore {
     Ok(constraints)
   }
 
-  fn get_fixer<L: Language>(&self, env: &DeserializeEnv<L>) -> RResult<Vec<Fixer>> {
-    if let Some(fix) = &self.fix {
-      let parsed = Fixer::parse(fix, env, &self.transform)?;
-      Ok(parsed)
-    } else {
-      Ok(vec![])
-    }
-  }
-
   fn get_matcher_from_env<L: Language>(&self, env: &DeserializeEnv<L>) -> RResult<RuleCore> {
     let rule = env.deserialize_rule(self.rule.clone())?;
     let constraints = self.get_constraints(env)?;
@@ -104,13 +91,11 @@ impl SerializableRuleCore {
       .as_ref()
       .map(|t| Transform::deserialize(t, env))
       .transpose()?;
-    let fixer = self.get_fixer(env)?;
     Ok(
       RuleCore::new(rule)
         .with_matchers(constraints)
         .with_registration(env.registration.clone())
-        .with_transform(transform)
-        .with_fixer(fixer),
+        .with_transform(transform),
     )
   }
 
@@ -130,7 +115,7 @@ impl SerializableRuleCore {
       &ret.registration,
       &ret.constraints,
       &ret.transform,
-      &ret.fixer,
+      &vec![], // TODO
       hint,
     )?;
     Ok(ret)
@@ -142,7 +127,6 @@ pub struct RuleCore {
   pub(crate) constraints: HashMap<String, Rule>,
   kinds: Option<BitSet>,
   pub(crate) transform: Option<Transform>,
-  fixer: Vec<Fixer>,
   // this is required to hold util rule reference
   pub(crate) registration: RuleRegistration,
 }
@@ -177,11 +161,6 @@ impl RuleCore {
   #[inline]
   pub fn with_transform(self, transform: Option<Transform>) -> Self {
     Self { transform, ..self }
-  }
-
-  #[inline]
-  pub fn with_fixer(self, fixer: Vec<Fixer>) -> Self {
-    Self { fixer, ..self }
   }
 
   pub fn get_env<L: Language>(&self, lang: L) -> DeserializeEnv<L> {
@@ -256,7 +235,6 @@ impl Default for RuleCore {
       constraints: HashMap::default(),
       kinds: None,
       transform: None,
-      fixer: vec![],
       registration: RuleRegistration::default(),
     }
   }

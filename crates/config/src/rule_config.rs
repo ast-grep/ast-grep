@@ -280,7 +280,6 @@ mod test {
       constraints: None,
       transform: None,
       utils: None,
-      fix: None,
     };
     SerializableRuleConfig {
       core,
