@@ -210,6 +210,23 @@ fn test_scan_unused_suppression() -> Result<()> {
 }
 
 #[test]
+fn test_scan_update_all_removes_unused_suppression() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/rule.yml", RULE1),
+    ("test.ts", "None(123) // ast-grep-ignore"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "--update-all", "--color", "never"])
+    .assert()
+    .success();
+  let updated = std::fs::read_to_string(dir.path().join("test.ts"))?;
+  assert!(!updated.contains("ast-grep-ignore"));
+  Ok(())
+}
+
+#[test]
 fn test_unused_suppression_only_in_scan() -> Result<()> {
   let dir = create_test_files([
     ("sgconfig.yml", CONFIG),
