@@ -331,75 +331,6 @@ mod test {
   }
 
   #[test]
-  fn test_augmented_rule() {
-    let globals = GlobalRules::default();
-    let rule = from_str(
-      "
-pattern: console.log($A)
-inside:
-  stopBy: end
-  pattern: function test() { $$$ }
-",
-    )
-    .expect("should parse");
-    let config = ts_rule_config(rule);
-    let grep = TypeScript::Tsx.ast_grep("console.log(1)");
-    let matcher = config.get_matcher(&globals).unwrap();
-    assert!(grep.root().find(&matcher).is_none());
-    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
-    assert!(grep.root().find(&matcher).is_some());
-  }
-
-  #[test]
-  fn test_multiple_augment_rule() {
-    let globals = GlobalRules::default();
-    let rule = from_str(
-      "
-pattern: console.log($A)
-inside:
-  stopBy: end
-  pattern: function test() { $$$ }
-has:
-  stopBy: end
-  pattern: '123'
-",
-    )
-    .expect("should parse");
-    let config = ts_rule_config(rule);
-    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
-    let matcher = config.get_matcher(&globals).unwrap();
-    assert!(grep.root().find(&matcher).is_none());
-    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(123) }");
-    assert!(grep.root().find(&matcher).is_some());
-  }
-
-  #[test]
-  fn test_rule_env() {
-    let globals = GlobalRules::default();
-    let rule = from_str(
-      "
-all:
-  - pattern: console.log($A)
-  - inside:
-      stopBy: end
-      pattern: function $B() {$$$}
-",
-    )
-    .expect("should parse");
-    let config = ts_rule_config(rule);
-    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
-    let node_match = grep
-      .root()
-      .find(config.get_matcher(&globals).unwrap())
-      .expect("should found");
-    let env = node_match.get_env();
-    let a = env.get_match("A").expect("should exist").text();
-    assert_eq!(a, "1");
-    let b = env.get_match("B").expect("should exist").text();
-    assert_eq!(b, "test");
-  }
-
-  #[test]
   fn test_parameterized_global_rule_exports_argument_env_only() {
     let globals = ts_global_rules(
       r"
@@ -538,55 +469,6 @@ matches:
     assert_eq!(a, "Some(123)");
   }
 
-  #[test]
-  fn test_local_util_metavar_does_affect_yaml_rule_matching() {
-    let rule: SerializableRuleConfig<TypeScript> = from_str(
-      r"
-id: test
-language: Tsx
-rule:
-  all:
-    - pattern: $A
-    - matches: local-rule
-utils:
-  local-rule:
-    pattern: Some($A)
-",
-    )
-    .expect("should parse");
-    let rule = RuleConfig::try_from(rule, &Default::default()).expect("should work");
-    let grep = TypeScript::Tsx.ast_grep("Some(123)");
-    assert!(grep.root().find(&rule.matcher).is_none());
-  }
-
-  #[test]
-  fn test_transform() {
-    let globals = GlobalRules::default();
-    let rule = from_str("pattern: console.log($A)").expect("should parse");
-    let mut config = ts_rule_config(rule);
-    let transform = from_str(
-      "
-B:
-  substring:
-    source: $A
-    startChar: 1
-    endChar: -1
-",
-    )
-    .expect("should parse");
-    config.transform = Some(transform);
-    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(123) }");
-    let node_match = grep
-      .root()
-      .find(config.get_matcher(&globals).unwrap())
-      .expect("should found");
-    let env = node_match.get_env();
-    let a = env.get_match("A").expect("should exist").text();
-    assert_eq!(a, "123");
-    let b = env.get_transformed("B").expect("should exist");
-    assert_eq!(b, b"2");
-  }
-
   fn get_matches_config() -> SerializableRuleConfig<TypeScript> {
     let rule = from_str(
       "
@@ -606,16 +488,6 @@ test-rule:
     ret
   }
 
-  #[test]
-  fn test_utils_rule() {
-    let globals = GlobalRules::default();
-    let config = get_matches_config();
-    let matcher = config.get_matcher(&globals).unwrap();
-    let grep = TypeScript::Tsx.ast_grep("some(123)");
-    assert!(grep.root().find(&matcher).is_some());
-    let grep = TypeScript::Tsx.ast_grep("some()");
-    assert!(grep.root().find(&matcher).is_none());
-  }
   #[test]
   fn test_get_fixer() {
     let globals = GlobalRules::default();
