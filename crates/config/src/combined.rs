@@ -337,13 +337,13 @@ impl<'r, L: Language> CombinedScan<'r, L> {
   }
 
   pub fn unused_config(severity: Severity, lang: L) -> RuleConfig<L> {
-    let mut config = SerializableRuleConfig {
+    let config = SerializableRuleConfig {
       id: UNUSED_SUPPRESSION_ID.into(),
       severity,
       message: "Unused 'ast-grep-ignore' directive.".into(),
+      fix: crate::from_str(r#"''"#).unwrap(),
       ..Self::builtin_config(lang)
     };
-    config.core.fix = crate::from_str(r#"''"#).unwrap();
     RuleConfig::try_from(config, &Default::default()).unwrap()
   }
 
