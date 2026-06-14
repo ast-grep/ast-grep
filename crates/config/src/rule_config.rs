@@ -309,7 +309,6 @@ mod test {
 
   #[test]
   fn test_rule_message() {
-    let globals = GlobalRules::default();
     let rule = from_str("pattern: class $A {}").expect("cannot parse rule");
     let mut config = ts_rule_config(rule);
     config.id = "test".into();
@@ -318,7 +317,7 @@ mod test {
     let grep = TypeScript::Tsx.ast_grep("class TestClass {}");
     let node_match = grep
       .root()
-      .find(config.get_matcher(&globals).unwrap())
+      .find(&config.matcher)
       .expect("should find match");
     assert_eq!(config.get_message(&node_match), "Found TestClass");
   }

@@ -117,8 +117,7 @@ rule:
     .expect("should parse")
     .pop()
     .unwrap();
-    let matcher = rule.get_matcher(&globals).expect("should parse");
-    let matches = grep.root().find_all(&matcher).collect();
+    let matches = grep.root().find_all(&rule.matcher).collect();
     let processor = printer.get_processor();
     let buffer = processor
       .print_rule(matches, file, &rule)
@@ -262,10 +261,9 @@ fix: '{rewrite}'"
   .expect("should parse")
   .pop()
   .unwrap();
-  let matcher = rule.get_matcher(&globals).expect("should parse");
   let fixer = rule.fixer.first().expect("should have fixer");
   let root = grep.root();
-  let matches = root.find_all(&matcher);
+  let matches = root.find_all(&rule.matcher);
   let diffs = matches.map(|n| (Diff::generate(n, &pattern, fixer), &rule));
   let buffer = printer
     .get_processor()
