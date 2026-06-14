@@ -3,6 +3,7 @@ mod combined;
 mod fixer;
 mod label;
 mod maybe;
+mod rewriter;
 mod rule;
 mod rule_collection;
 mod rule_config;

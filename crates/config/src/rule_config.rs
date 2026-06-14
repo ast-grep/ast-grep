@@ -1,8 +1,9 @@
 use crate::GlobalRules;
 
-use crate::check_var::{CheckHint, check_rewriters_in_transform};
+use crate::check_var::check_rewriters_in_transform;
 use crate::fixer::Fixer;
 use crate::label::{Label, LabelConfig, get_default_labels, get_labels_from_config};
+pub use crate::rewriter::SerializableRewriter;
 use crate::rule::DeserializeEnv;
 use crate::rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
 
@@ -53,14 +54,6 @@ pub enum RuleConfigError {
   LabelVariable(String),
   #[error("Rule must specify a set of AST kinds to match. Try adding `kind` rule.")]
   MissingPotentialKinds,
-}
-
-#[derive(Serialize, Deserialize, Clone, JsonSchema)]
-pub struct SerializableRewriter {
-  #[serde(flatten)]
-  pub core: SerializableRuleCore,
-  /// Unique, descriptive identifier, e.g., no-unused-variable
-  pub id: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
@@ -170,13 +163,7 @@ impl<L: Language> SerializableRuleConfig<L> {
     let reg = &env.registration;
     let vars = rule.defined_vars();
     for val in ser {
-      if val.core.fix.is_none() {
-        return Err(RuleConfigError::NoFixInRewriter(val.id.clone()));
-      }
-      let rewriter = val
-        .core
-        .get_matcher_with_hint(env.clone(), CheckHint::Rewriter(&vars))
-        .map_err(|e| RuleConfigError::Rewriter(e, val.id.clone()))?;
+      let rewriter = val.try_parse_rewriter(&vars, &env)?;
       reg.insert_rewriter(&val.id, rewriter);
     }
     check_rewriters_in_transform(rule, reg.get_rewriters())?;
