@@ -52,8 +52,6 @@ impl SerializableRewriter {
       upper_vars,
     )
     .map_err(|e| RuleConfigError::Rewriter(e, self.id.clone()))?;
-    // TODO: add undefined var check here
-    // see test_rewriter_fix_rejects_undefined_var
     Ok(Rewriter {
       matcher: rewriter,
       fixer,

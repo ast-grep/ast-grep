@@ -365,6 +365,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
       files: None,
       ignores: None,
       rewriters: None,
+      fix: None,
       url: None,
       metadata: None,
       labels: None,
