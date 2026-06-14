@@ -1,8 +1,9 @@
 use crate::GlobalRules;
 
 use crate::check_var::{CheckHint, check_rewriters_in_transform, check_rule_with_hint};
-use crate::fixer::{Fixer, SerializableFixer};
+use crate::fixer::{Fixer, FixerError, SerializableFixer};
 use crate::label::{Label, LabelConfig, get_default_labels, get_labels_from_config};
+use crate::rewriter::RewriterError;
 pub use crate::rewriter::SerializableRewriter;
 use crate::rule::DeserializeEnv;
 use crate::rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
@@ -44,12 +45,12 @@ pub enum RuleConfigError {
   Yaml(#[from] YamlError),
   #[error("Fail to parse yaml as Rule.")]
   Core(#[from] RuleCoreError),
-  #[error("Rewriter rule `{1}` is not configured correctly.")]
-  Rewriter(#[source] RuleCoreError, String),
+  #[error("`fix` pattern is invalid.")]
+  Fixer(#[from] FixerError),
+  #[error(transparent)]
+  Rewriter(#[from] RewriterError),
   #[error("Undefined rewriter `{0}` used in transform.")]
   UndefinedRewriter(String),
-  #[error("Rewriter rule `{0}` should have `fix`.")]
-  NoFixInRewriter(String),
   #[error("Label meta-variable `{0}` must be defined in `rule` or `constraints`.")]
   LabelVariable(String),
   #[error("Rule must specify a set of AST kinds to match. Try adding `kind` rule.")]
@@ -205,7 +206,7 @@ impl<L: Language> RuleConfig<L> {
     }
     let fixer = if let Some(fix) = &inner.fix {
       let env = matcher.get_env(inner.language.clone());
-      Fixer::parse(fix, &env, &inner.transform).map_err(RuleCoreError::Fixer)?
+      Fixer::parse(fix, &env, &inner.transform)?
     } else {
       vec![]
     };
@@ -247,7 +248,7 @@ impl<L: Language> RuleConfig<L> {
   pub fn get_fixer(&self) -> Result<Vec<Fixer>, RuleConfigError> {
     if let Some(fix) = &self.fix {
       let env = self.matcher.get_env(self.language.clone());
-      let parsed = Fixer::parse(fix, &env, &self.transform).map_err(RuleCoreError::Fixer)?;
+      let parsed = Fixer::parse(fix, &env, &self.transform)?;
       Ok(parsed)
     } else {
       Ok(vec![])
@@ -278,6 +279,7 @@ impl<L: Language> DerefMut for RuleConfig<L> {
 mod test {
   use super::*;
   use crate::from_str;
+  use crate::rewriter::RewriterErrorReason;
   use crate::test::TypeScript;
   use crate::{SerializableGlobalRule, SerializableRule};
   use ast_grep_core::tree_sitter::LanguageExt;
@@ -843,7 +845,7 @@ rewriters:
     .expect("should parse");
     let ret = RuleConfig::try_from(rule, &Default::default());
     match ret {
-      Err(RuleConfigError::Rewriter(_, name)) => assert_eq!(name, "wrong"),
+      Err(RuleConfigError::Rewriter(e)) => assert_eq!(e.id, "wrong"),
       _ => panic!("unexpected error"),
     }
   }
@@ -902,11 +904,11 @@ rewriters:
     let rule: SerializableRuleConfig<TypeScript> = from_str(src).expect("should parse");
     let ret = RuleConfig::try_from(rule, &Default::default());
     match ret {
-      Err(RuleConfigError::Rewriter(
-        RuleCoreError::UndefinedMetaVar(name, section),
-        rewriter_id,
-      )) => {
-        assert_eq!(rewriter_id, "re");
+      Err(RuleConfigError::Rewriter(RewriterError {
+        id,
+        reason: RewriterErrorReason::Core(RuleCoreError::UndefinedMetaVar(name, section)),
+      })) => {
+        assert_eq!(id, "re");
         assert_eq!(name, "MISSING");
         assert_eq!(section, "fix");
       }
@@ -931,7 +933,10 @@ rewriters:
     let ret = RuleConfig::try_from(rule, &Default::default());
     assert!(matches!(
       ret,
-      Err(RuleConfigError::NoFixInRewriter(id)) if id == "re"
+      Err(RuleConfigError::Rewriter(RewriterError {
+        id,
+        reason: RewriterErrorReason::NoFixInRewriter,
+      })) if id == "re"
     ));
   }
 
