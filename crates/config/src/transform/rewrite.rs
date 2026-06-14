@@ -1,6 +1,6 @@
 use super::Ctx;
 use super::{TransformError, trans::parse_meta_var};
-use crate::rule_core::RuleCore;
+use crate::rewriter::Rewriter;
 
 use ast_grep_core::meta_var::MetaVariable;
 use ast_grep_core::source::{Content, Edit};
@@ -89,7 +89,7 @@ impl Rewrite<MetaVariable> {
 type Bytes<D> = [<<D as Doc>::Source as Content>::Underlying];
 fn find_and_make_edits<'n, D: Doc>(
   nodes: Vec<Node<'n, D>>,
-  rules: &[&RuleCore],
+  rules: &[&Rewriter],
   ctx: &Ctx<'_, 'n, D>,
 ) -> Vec<Edit<D::Source>> {
   nodes
@@ -100,12 +100,12 @@ fn find_and_make_edits<'n, D: Doc>(
 
 fn replace_one<'n, D: Doc>(
   node: Node<'n, D>,
-  rules: &[&RuleCore],
+  rewriters: &[&Rewriter],
   ctx: &Ctx<'_, 'n, D>,
 ) -> Vec<Edit<D::Source>> {
   let mut edits = vec![];
   for child in node.dfs() {
-    for rule in rules {
+    for rewriter in rewriters {
       let mut env = std::borrow::Cow::Borrowed(ctx.enclosing_env);
       // NOTE: we inherit meta_var_env from enclosing rule
       // but match env will NOT inherited recursively!
@@ -113,9 +113,15 @@ fn replace_one<'n, D: Doc>(
       // $C is matched in rewriter but is NOT inherited in recursive rewriter
       // this is to enable recursive rewriter to match sub nodes
       // in future, we can use the explict `expose` to control env inheritance
-      if let Some(n) = rule.do_match(child.clone(), &mut env, Some(ctx.enclosing_env)) {
+      if let Some(n) = rewriter
+        .matcher
+        .do_match(child.clone(), &mut env, Some(ctx.enclosing_env))
+      {
         let nm = NodeMatch::new(n, env.into_owned());
-        edits.push(nm.make_edit(rule, rule.fixer.first().expect("rewriter must have fix")));
+        edits.push(nm.make_edit(
+          &rewriter.matcher,
+          rewriter.fixer.first().expect("rewriter must have fix"),
+        ));
         // stop at first fix, skip duplicate fix
         break;
       }
@@ -149,12 +155,10 @@ fn make_edit<D: Doc>(
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::check_var::CheckHint;
-  use crate::from_str;
   use crate::rule::DeserializeEnv;
   use crate::rule::referent_rule::RuleRegistration;
-  use crate::rule_core::SerializableRuleCore;
   use crate::test::TypeScript;
+  use crate::{SerializableRewriter, from_str};
   use std::collections::HashSet;
 
   fn apply_transformation(
@@ -177,11 +181,11 @@ mod test {
   fn make_rewriter_reg(pairs: &[(&str, &str)], vars: HashSet<&str>) -> RuleRegistration {
     let env = DeserializeEnv::new(TypeScript::Tsx);
     for (key, ser) in pairs {
-      let serialized: SerializableRuleCore = from_str(ser).unwrap();
-      let rule = serialized
-        .get_matcher_with_hint(env.clone(), CheckHint::Rewriter(&vars))
-        .unwrap();
-      env.registration.insert_rewriter(key, rule);
+      let serialized: SerializableRewriter = from_str(ser).unwrap();
+      let rewriter = serialized
+        .try_parse_rewriter(&vars, &env)
+        .expect("should parse");
+      env.registration.insert_rewriter(key, rewriter);
     }
     env.registration
   }
@@ -193,7 +197,8 @@ mod test {
       rewriters: str_vec!["rewrite"],
       join_by: None,
     };
-    let rewriters = make_rewriters(&[("rewrite", "{rule: {kind: number}, fix: '810'}")]);
+    let rewriters =
+      make_rewriters(&[("rewrite", "{id: rewrite, rule: {kind: number}, fix: '810'}")]);
     let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", rewriters);
     assert_eq!(ret, "t(810, 810, 810)");
   }
@@ -206,8 +211,8 @@ mod test {
       join_by: None,
     };
     let reg = make_rewriters(&[
-      ("re1", "{rule: {regex: '^1$'}, fix: '810'}"),
-      ("re2", "{rule: {regex: '^2$'}, fix: '1919'}"),
+      ("re1", "{id: re1, rule: {regex: '^1$'}, fix: '810'}"),
+      ("re2", "{id: re2, rule: {regex: '^2$'}, fix: '1919'}"),
     ]);
     let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", reg);
     assert_eq!(ret, "t(810, 1919, 3)");
@@ -221,8 +226,11 @@ mod test {
       join_by: None,
     };
     let reg = make_rewriters(&[
-      ("ignored", "{rule: {regex: '^2$'}, fix: '1919'}"),
-      ("re1", "{rule: {kind: number}, fix: '810'}"),
+      (
+        "ignored",
+        "{id: ignored, rule: {regex: '^2$'}, fix: '1919'}",
+      ),
+      ("re1", "{id: re1, rule: {kind: number}, fix: '810'}"),
     ]);
     let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", reg);
     assert_eq!(ret, "t(810, 810, 810)");
@@ -237,8 +245,8 @@ mod test {
     };
     // first match wins the rewrite
     let reg = make_rewriters(&[
-      ("re2", "{rule: {regex: '^2$'}, fix: '1919'}"),
-      ("re1", "{rule: {kind: number}, fix: '810'}"),
+      ("re2", "{id: re2, rule: {regex: '^2$'}, fix: '1919'}"),
+      ("re1", "{id: re1, rule: {kind: number}, fix: '810'}"),
     ]);
     let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", reg);
     assert_eq!(ret, "t(810, 1919, 810)");
@@ -253,8 +261,8 @@ mod test {
     };
     // parent node wins fix, even if rule comes later
     let reg = make_rewriters(&[
-      ("re1", "{rule: {kind: number}, fix: '810'}"),
-      ("re2", "{rule: {kind: array}, fix: '1919'}"),
+      ("re1", "{id: re1, rule: {kind: number}, fix: '810'}"),
+      ("re2", "{id: re2, rule: {kind: array}, fix: '1919'}"),
     ]);
     let ret = apply_transformation(rewrite, "[1, 2, 3]", "$A", reg);
     assert_eq!(ret, "1919");
@@ -267,7 +275,7 @@ mod test {
       rewriters: str_vec!["re1"],
       join_by: Some(" + ".into()),
     };
-    let reg = make_rewriters(&[("re1", "{rule: {kind: number}, fix: '810'}")]);
+    let reg = make_rewriters(&[("re1", "{id: re1, rule: {kind: number}, fix: '810'}")]);
     let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", reg);
     assert_eq!(ret, "810 + 810 + 810");
   }
@@ -280,6 +288,7 @@ mod test {
       join_by: None,
     };
     let rule = r#"
+id: re1
 rule: {pattern: '[$$$C]'}
 transform:
   D:
@@ -300,7 +309,7 @@ fix: $D
       rewriters: str_vec!["re"],
       join_by: None,
     };
-    let reg = make_rewriters(&[("re", "{rule: {pattern: $C}, fix: '123'}")]);
+    let reg = make_rewriters(&[("re", "{id: re, rule: {pattern: $C}, fix: '123'}")]);
     let ret = apply_transformation(rewrite.clone(), "[1, 2]", "[$A, $B]", reg.clone());
     assert_eq!(ret, "123");
     let ret = apply_transformation(rewrite.clone(), "[1, 1]", "[$A, $C]", reg.clone());
@@ -317,7 +326,7 @@ fix: $D
       rewriters: str_vec!["re"],
       join_by: None,
     };
-    let rewriters = make_rewriters(&[("re", "{rule: {pattern: $B}, fix: '123'}")]);
+    let rewriters = make_rewriters(&[("re", "{id: re, rule: {pattern: $B}, fix: '123'}")]);
     let ret = compute_rewritten("[1, 2]", "[$B, $C]", rewrite, rewriters);
     assert_eq!(ret, None);
   }
@@ -331,7 +340,10 @@ fix: $D
     };
     let mut vars = HashSet::new();
     vars.insert("C");
-    let reg = make_rewriter_reg(&[("re", "{rule: {pattern: $B}, fix: '$B == $C'}")], vars);
+    let reg = make_rewriter_reg(
+      &[("re", "{id: re, rule: {pattern: $B}, fix: '$B == $C'}")],
+      vars,
+    );
     let ret = apply_transformation(rewrite, "[1, 2]", "[$A, $C]", reg);
     assert_eq!(ret, "1 == 2");
   }

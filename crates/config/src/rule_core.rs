@@ -291,6 +291,7 @@ mod test {
   use super::*;
   use crate::SerializableGlobalRule;
   use crate::from_str;
+  use crate::rewriter::{Rewriter, SerializableRewriter};
   use crate::rule::referent_rule::{ReferentRule, ReferentRuleError};
   use crate::test::TypeScript;
   use ast_grep_core::matcher::{Pattern, RegexMatcher};
@@ -614,13 +615,16 @@ rule:
     assert_eq!(matched, "2");
   }
 
-  fn get_rewriters() -> (&'static str, RuleCore) {
+  fn get_rewriters() -> (&'static str, Rewriter) {
     // NOTE: initialize a DeserializeEnv here is not 100% correct
     // it does not inherit global rules or local rules
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    let rewriter: SerializableRuleCore =
-      from_str("{rule: {kind: number, pattern: $REWRITE}, fix: yjsnp}").expect("should parse");
-    let rewriter = rewriter.get_matcher(env).expect("should work");
+    let rewriter: SerializableRewriter =
+      from_str("{id: xx, rule: {kind: number, pattern: $REWRITE}, fix: yjsnp}")
+        .expect("should parse");
+    let rewriter = rewriter
+      .try_parse_rewriter(&Default::default(), &env)
+      .expect("should work");
     ("re", rewriter)
   }
 
