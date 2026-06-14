@@ -174,14 +174,15 @@ mod test {
     ( $($a: expr),* ) => { vec![ $($a.to_string()),* ] };
   }
 
-  fn make_rewriters(pairs: &[(&str, &str)]) -> RuleRegistration {
+  fn make_rewriters(pairs: &[&str]) -> RuleRegistration {
     make_rewriter_reg(pairs, Default::default())
   }
 
-  fn make_rewriter_reg(pairs: &[(&str, &str)], vars: HashSet<&str>) -> RuleRegistration {
+  fn make_rewriter_reg(rules: &[&str], vars: HashSet<&str>) -> RuleRegistration {
     let env = DeserializeEnv::new(TypeScript::Tsx);
-    for (key, ser) in pairs {
-      let serialized: SerializableRewriter = from_str(ser).unwrap();
+    for rule in rules {
+      let serialized: SerializableRewriter = from_str(rule).unwrap();
+      let key = &serialized.id;
       let rewriter = serialized
         .try_parse_rewriter(&vars, &env)
         .expect("should parse");
@@ -197,8 +198,7 @@ mod test {
       rewriters: str_vec!["rewrite"],
       join_by: None,
     };
-    let rewriters =
-      make_rewriters(&[("rewrite", "{id: rewrite, rule: {kind: number}, fix: '810'}")]);
+    let rewriters = make_rewriters(&["{id: rewrite, rule: {kind: number}, fix: '810'}"]);
     let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", rewriters);
     assert_eq!(ret, "t(810, 810, 810)");
   }
@@ -211,8 +211,8 @@ mod test {
       join_by: None,
     };
     let reg = make_rewriters(&[
-      ("re1", "{id: re1, rule: {regex: '^1$'}, fix: '810'}"),
-      ("re2", "{id: re2, rule: {regex: '^2$'}, fix: '1919'}"),
+      "{id: re1, rule: {regex: '^1$'}, fix: '810'}",
+      "{id: re2, rule: {regex: '^2$'}, fix: '1919'}",
     ]);
     let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", reg);
     assert_eq!(ret, "t(810, 1919, 3)");
@@ -226,11 +226,8 @@ mod test {
       join_by: None,
     };
     let reg = make_rewriters(&[
-      (
-        "ignored",
-        "{id: ignored, rule: {regex: '^2$'}, fix: '1919'}",
-      ),
-      ("re1", "{id: re1, rule: {kind: number}, fix: '810'}"),
+      "{id: ignored, rule: {regex: '^2$'}, fix: '1919'}",
+      "{id: re1, rule: {kind: number}, fix: '810'}",
     ]);
     let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", reg);
     assert_eq!(ret, "t(810, 810, 810)");
@@ -245,8 +242,8 @@ mod test {
     };
     // first match wins the rewrite
     let reg = make_rewriters(&[
-      ("re2", "{id: re2, rule: {regex: '^2$'}, fix: '1919'}"),
-      ("re1", "{id: re1, rule: {kind: number}, fix: '810'}"),
+      "{id: re2, rule: {regex: '^2$'}, fix: '1919'}",
+      "{id: re1, rule: {kind: number}, fix: '810'}",
     ]);
     let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", reg);
     assert_eq!(ret, "t(810, 1919, 810)");
@@ -261,8 +258,8 @@ mod test {
     };
     // parent node wins fix, even if rule comes later
     let reg = make_rewriters(&[
-      ("re1", "{id: re1, rule: {kind: number}, fix: '810'}"),
-      ("re2", "{id: re2, rule: {kind: array}, fix: '1919'}"),
+      "{id: re1, rule: {kind: number}, fix: '810'}",
+      "{id: re2, rule: {kind: array}, fix: '1919'}",
     ]);
     let ret = apply_transformation(rewrite, "[1, 2, 3]", "$A", reg);
     assert_eq!(ret, "1919");
@@ -275,7 +272,7 @@ mod test {
       rewriters: str_vec!["re1"],
       join_by: Some(" + ".into()),
     };
-    let reg = make_rewriters(&[("re1", "{id: re1, rule: {kind: number}, fix: '810'}")]);
+    let reg = make_rewriters(&["{id: re1, rule: {kind: number}, fix: '810'}"]);
     let ret = apply_transformation(rewrite, "log(t(1, 2, 3))", "log($A)", reg);
     assert_eq!(ret, "810 + 810 + 810");
   }
@@ -297,7 +294,7 @@ transform:
       rewriters: [re1]
 fix: $D
     "#;
-    let reg = make_rewriters(&[("re1", rule)]);
+    let reg = make_rewriters(&[rule]);
     let ret = apply_transformation(rewrite, "[1, [2, [3, [4]]]]", "$A", reg);
     assert_eq!(ret, "1, 2, 3, 4");
   }
@@ -309,7 +306,7 @@ fix: $D
       rewriters: str_vec!["re"],
       join_by: None,
     };
-    let reg = make_rewriters(&[("re", "{id: re, rule: {pattern: $C}, fix: '123'}")]);
+    let reg = make_rewriters(&["{id: re, rule: {pattern: $C}, fix: '123'}"]);
     let ret = apply_transformation(rewrite.clone(), "[1, 2]", "[$A, $B]", reg.clone());
     assert_eq!(ret, "123");
     let ret = apply_transformation(rewrite.clone(), "[1, 1]", "[$A, $C]", reg.clone());
@@ -326,7 +323,7 @@ fix: $D
       rewriters: str_vec!["re"],
       join_by: None,
     };
-    let rewriters = make_rewriters(&[("re", "{id: re, rule: {pattern: $B}, fix: '123'}")]);
+    let rewriters = make_rewriters(&["{id: re, rule: {pattern: $B}, fix: '123'}"]);
     let ret = compute_rewritten("[1, 2]", "[$B, $C]", rewrite, rewriters);
     assert_eq!(ret, None);
   }
@@ -340,10 +337,7 @@ fix: $D
     };
     let mut vars = HashSet::new();
     vars.insert("C");
-    let reg = make_rewriter_reg(
-      &[("re", "{id: re, rule: {pattern: $B}, fix: '$B == $C'}")],
-      vars,
-    );
+    let reg = make_rewriter_reg(&["{id: re, rule: {pattern: $B}, fix: '$B == $C'}"], vars);
     let ret = apply_transformation(rewrite, "[1, 2]", "[$A, $C]", reg);
     assert_eq!(ret, "1 == 2");
   }
