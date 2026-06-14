@@ -1,5 +1,5 @@
 use crate::RuleCore;
-use crate::fixer::{Fixer, FixerError};
+use crate::fixer::Fixer;
 use crate::rewriter::Rewriter;
 use crate::rule::Rule;
 use crate::rule::referent_rule::RuleRegistration;
@@ -11,10 +11,10 @@ use std::collections::{HashMap, HashSet};
 
 type RResult<T> = std::result::Result<T, RuleCoreError>;
 
-pub enum CheckHint<'r> {
+pub enum CheckHint {
   Global,
   Normal,
-  Rewriter(&'r HashSet<&'r str>),
+  Skip,
 }
 
 /// Different rule sections have different variable scopes/check procedure.
@@ -25,7 +25,7 @@ pub fn check_rule_with_hint<'r>(
   constraints: &'r HashMap<String, Rule>,
   transform: &'r Option<Transform>,
   fixer: &Vec<Fixer>,
-  hint: CheckHint<'r>,
+  hint: CheckHint,
 ) -> RResult<()> {
   match hint {
     CheckHint::Global => {
@@ -36,12 +36,24 @@ pub fn check_rule_with_hint<'r>(
       check_utils_defined(rule, constraints)?;
       check_vars(rule, utils, constraints, transform, fixer)?;
     }
-    // upper_vars is needed to check metavar defined in containing vars
-    CheckHint::Rewriter(upper_vars) => {
-      check_utils_defined(rule, constraints)?;
-      check_vars_in_rewriter(rule, utils, constraints, transform, fixer, upper_vars)?;
+    CheckHint::Skip => {
+      // TODO: remove this hint, only used for rewriter check now
+      // since only get_matcher_with_hint is exposed
     }
   }
+  Ok(())
+}
+
+pub fn check_rewriters<'r>(
+  rule: &'r Rule,
+  utils: &'r RuleRegistration,
+  constraints: &'r HashMap<String, Rule>,
+  transform: &'r Option<Transform>,
+  fixer: &Vec<Fixer>,
+  upper_vars: &HashSet<&str>,
+) -> RResult<()> {
+  check_utils_defined(rule, constraints)?;
+  check_vars_in_rewriter(rule, utils, constraints, transform, fixer, upper_vars)?;
   Ok(())
 }
 
@@ -51,12 +63,12 @@ fn check_vars_in_rewriter<'r>(
   constraints: &'r HashMap<String, Rule>,
   transform: &'r Option<Transform>,
   fixer: &Vec<Fixer>,
-  upper_var: &HashSet<&str>,
+  upper_vars: &HashSet<&str>,
 ) -> RResult<()> {
   let vars = get_vars_from_rules(rule, utils);
   let vars = check_var_in_constraints(vars, constraints)?;
   let mut vars = check_var_in_transform(vars, transform)?;
-  for v in upper_var {
+  for v in upper_vars {
     vars.insert(v);
   }
   check_var_in_fix(vars, fixer)?;

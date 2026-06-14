@@ -138,13 +138,13 @@ impl SerializableRuleCore {
 }
 
 pub struct RuleCore {
-  rule: Rule,
-  constraints: HashMap<String, Rule>,
+  pub(crate) rule: Rule,
+  pub(crate) constraints: HashMap<String, Rule>,
   kinds: Option<BitSet>,
   pub(crate) transform: Option<Transform>,
   pub fixer: Vec<Fixer>,
   // this is required to hold util rule reference
-  registration: RuleRegistration,
+  pub(crate) registration: RuleRegistration,
 }
 
 impl RuleCore {

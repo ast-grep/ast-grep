@@ -841,7 +841,6 @@ rewriters:
   }
 
   #[test]
-  #[ignore = "the test currently fails because i want to implement checker later, in a separate PR"]
   fn test_rewriter_fix_rejects_undefined_var() {
     let src = r"
 id: test
