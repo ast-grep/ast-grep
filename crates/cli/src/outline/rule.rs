@@ -276,7 +276,6 @@ pattern: function $NAME() { $$$BODY }
           constraints: None,
           utils: None,
           transform: None,
-          fix: None,
         },
         rewriters: None,
         name: "$NAME".into(),
