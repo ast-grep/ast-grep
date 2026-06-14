@@ -13,47 +13,38 @@ type RResult<T> = std::result::Result<T, RuleCoreError>;
 pub enum CheckHint {
   Global,
   Normal,
-  Skip,
 }
 
 /// Different rule sections have different variable scopes/check procedure.
 /// so we need to check rules with different hints.
-pub fn check_rule_with_hint(rule: &RuleCore, fixer: &[Fixer], hint: CheckHint) -> RResult<()> {
+pub fn check_rule_with_hint(rule: &RuleCore, hint: CheckHint) -> RResult<()> {
   match hint {
     CheckHint::Global => {
       // do not check utils defined here because global rules are not yet ready
-      check_vars(rule, fixer)?;
+      check_vars(rule)?;
     }
     CheckHint::Normal => {
       check_utils_defined(rule)?;
-      check_vars(rule, fixer)?;
-    }
-    CheckHint::Skip => {
-      // TODO: remove this hint, only used for rewriter check now
-      // since only get_matcher_with_hint is exposed
+      check_vars(rule)?;
     }
   }
   Ok(())
 }
 
-pub fn check_rewriters(
-  rule: &RuleCore,
-  fixer: &[Fixer],
-  upper_vars: &HashSet<&str>,
-) -> RResult<()> {
-  check_utils_defined(rule)?;
-  check_vars_in_rewriter(rule, fixer, upper_vars)?;
+pub fn check_fix(rule: &RuleCore, fixer: &[Fixer]) -> RResult<()> {
+  // TODO: check_vars are called twice
+  let vars = check_vars(rule)?;
+  check_var_in_fix(vars, fixer)?;
   Ok(())
 }
 
-fn check_vars_in_rewriter(
+pub fn check_rewriter_fix(
   rule: &RuleCore,
   fixer: &[Fixer],
   upper_vars: &HashSet<&str>,
 ) -> RResult<()> {
-  let vars = get_vars_from_rules(rule);
-  let vars = check_var_in_constraints(vars, &rule.constraints)?;
-  let mut vars = check_var_in_transform(vars, &rule.transform)?;
+  // TODO: check_vars are called twice
+  let mut vars = check_vars(rule)?;
   for v in upper_vars {
     vars.insert(v);
   }
@@ -69,12 +60,10 @@ fn check_utils_defined(rule: &RuleCore) -> RResult<()> {
   Ok(())
 }
 
-fn check_vars(rule: &RuleCore, fixer: &[Fixer]) -> RResult<()> {
+fn check_vars(rule: &RuleCore) -> RResult<HashSet<&str>> {
   let vars = get_vars_from_rules(rule);
   let vars = check_var_in_constraints(vars, &rule.constraints)?;
-  let vars = check_var_in_transform(vars, &rule.transform)?;
-  check_var_in_fix(vars, fixer)?;
-  Ok(())
+  check_var_in_transform(vars, &rule.transform)
 }
 
 fn get_vars_from_rules(rule: &RuleCore) -> HashSet<&str> {
