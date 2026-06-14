@@ -341,6 +341,127 @@ transform:
   }
 
   #[test]
+  fn test_augmented_rule() {
+    let matcher = get_matcher(
+      r"
+rule:
+  pattern: console.log($A)
+  inside:
+    stopBy: end
+    pattern: function test() { $$$ }
+",
+    )
+    .expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("console.log(1)");
+    assert!(grep.root().find(&matcher).is_none());
+    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
+    assert!(grep.root().find(&matcher).is_some());
+  }
+
+  #[test]
+  fn test_multiple_augment_rule() {
+    let matcher = get_matcher(
+      r"
+rule:
+  pattern: console.log($A)
+  inside:
+    stopBy: end
+    pattern: function test() { $$$ }
+  has:
+    stopBy: end
+    pattern: '123'
+",
+    )
+    .expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
+    assert!(grep.root().find(&matcher).is_none());
+    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(123) }");
+    assert!(grep.root().find(&matcher).is_some());
+  }
+
+  #[test]
+  fn test_rule_env() {
+    let matcher = get_matcher(
+      r"
+rule:
+  all:
+    - pattern: console.log($A)
+    - inside:
+        stopBy: end
+        pattern: function $B() {$$$}
+",
+    )
+    .expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(1) }");
+    let node_match = grep.root().find(&matcher).expect("should found");
+    let env = node_match.get_env();
+    let a = env.get_match("A").expect("should exist").text();
+    assert_eq!(a, "1");
+    let b = env.get_match("B").expect("should exist").text();
+    assert_eq!(b, "test");
+  }
+
+  #[test]
+  fn test_utils_rule() {
+    let matcher = get_matcher(
+      r"
+rule:
+  matches: test-rule
+utils:
+  test-rule:
+    pattern: some($A)
+",
+    )
+    .expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("some(123)");
+    assert!(grep.root().find(&matcher).is_some());
+    let grep = TypeScript::Tsx.ast_grep("some()");
+    assert!(grep.root().find(&matcher).is_none());
+  }
+
+  #[test]
+  fn test_local_util_metavar_does_affect_yaml_rule_matching() {
+    let matcher = get_matcher(
+      r"
+rule:
+  all:
+    - pattern: $A
+    - matches: local-rule
+utils:
+  local-rule:
+    pattern: Some($A)
+",
+    )
+    .expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("Some(123)");
+    assert!(grep.root().find(&matcher).is_none());
+  }
+
+  #[test]
+  fn test_transform() {
+    let matcher = get_matcher(
+      r"
+rule:
+  pattern: console.log($A)
+transform:
+  B:
+    substring:
+      source: $A
+      startChar: 1
+      endChar: -1
+",
+    )
+    .expect("should parse");
+    let grep = TypeScript::Tsx.ast_grep("function test() { console.log(123) }");
+    let node_match = grep.root().find(&matcher).expect("should found");
+    let env = node_match.get_env();
+    let a = env.get_match("A").expect("should exist").text();
+    assert_eq!(a, "123");
+    let b = env.get_transformed("B").expect("should exist");
+    assert_eq!(b, b"2");
+  }
+
+  #[test]
   fn test_parameterized_global_rule_requires_all_args() {
     let ret = get_matcher_with_globals(
       r"
