@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-use crate::check_var::CheckHint;
+use crate::check_var::{CheckHint, check_rewriters};
 use crate::fixer::{Fixer, SerializableFixer};
 use crate::rule::DeserializeEnv;
 use crate::{RuleConfigError, RuleCore, RuleCoreError, SerializableRuleCore};
@@ -29,7 +29,7 @@ pub struct SerializableRewriter {
 impl SerializableRewriter {
   pub fn try_parse_rewriter<L: Language>(
     &self,
-    vars: &HashSet<&str>,
+    upper_vars: &HashSet<&str>,
     env: &DeserializeEnv<L>,
   ) -> Result<Rewriter, RuleConfigError> {
     // if self.core.fix.is_none() {
@@ -37,12 +37,21 @@ impl SerializableRewriter {
     // }
     let rewriter = self
       .core
-      .get_matcher_with_hint(env.clone(), CheckHint::Rewriter(vars))
+      .get_matcher_with_hint(env.clone(), CheckHint::Skip)
       .map_err(|e| RuleConfigError::Rewriter(e, self.id.clone()))?;
     let fixer = Fixer::parse(&self.fix, env, &self.core.transform).map_err(RuleCoreError::Fixer)?;
     if fixer.is_empty() {
       return Err(RuleConfigError::NoFixInRewriter(self.id.clone()));
     }
+    check_rewriters(
+      &rewriter.rule,
+      &rewriter.registration,
+      &rewriter.constraints,
+      &rewriter.transform,
+      &fixer,
+      upper_vars,
+    )
+    .map_err(|e| RuleConfigError::Rewriter(e, self.id.clone()))?;
     // TODO: add undefined var check here
     // see test_rewriter_fix_rejects_undefined_var
     Ok(Rewriter {
