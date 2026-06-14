@@ -107,7 +107,7 @@ impl SerializableRuleCore {
   ) -> RResult<RuleCore> {
     let env = self.get_deserialize_env(env)?;
     let ret = self.get_matcher_from_env(&env)?;
-    check_rule_with_hint(&ret, &[], hint)?;
+    check_rule_with_hint(&ret, hint)?;
     Ok(ret)
   }
 }

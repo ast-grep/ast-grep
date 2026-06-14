@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use thiserror::Error;
 
-use crate::check_var::{CheckHint, check_rewriters};
+use crate::check_var::check_rewriter_fix;
 use crate::fixer::{Fixer, FixerError, SerializableFixer};
 use crate::rule::DeserializeEnv;
 use crate::{RuleCore, RuleCoreError, SerializableRuleCore};
@@ -43,7 +43,6 @@ pub struct SerializableRewriter {
   pub core: SerializableRuleCore,
 }
 
-// TODO: change this to Rewriter::try_from
 impl SerializableRewriter {
   pub fn try_parse_rewriter<L: Language>(
     &self,
@@ -56,14 +55,14 @@ impl SerializableRewriter {
     };
     let rewriter = self
       .core
-      .get_matcher_with_hint(env.clone(), CheckHint::Skip)
+      .get_matcher(env.clone())
       .map_err(|e| attach_id(e.into()))?;
     let fixer =
       Fixer::parse(&self.fix, env, &self.core.transform).map_err(|e| attach_id(e.into()))?;
     if fixer.is_empty() {
       return Err(attach_id(RewriterErrorReason::NoFixInRewriter));
     }
-    check_rewriters(&rewriter, &fixer, upper_vars).map_err(|e| attach_id(e.into()))?;
+    check_rewriter_fix(&rewriter, &fixer, upper_vars).map_err(|e| attach_id(e.into()))?;
     Ok(Rewriter {
       matcher: rewriter,
       fixer,

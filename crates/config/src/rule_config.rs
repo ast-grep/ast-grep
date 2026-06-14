@@ -1,6 +1,6 @@
 use crate::GlobalRules;
 
-use crate::check_var::{CheckHint, check_rewriters_in_transform, check_rule_with_hint};
+use crate::check_var::{check_fix, check_rewriters_in_transform};
 use crate::fixer::{Fixer, FixerError, SerializableFixer};
 use crate::label::{Label, LabelConfig, get_default_labels, get_labels_from_config};
 use crate::rewriter::RewriterError;
@@ -210,7 +210,7 @@ impl<L: Language> RuleConfig<L> {
     } else {
       vec![]
     };
-    check_rule_with_hint(&matcher, &fixer, CheckHint::Normal)?;
+    check_fix(&matcher, &fixer)?;
     Ok(Self {
       inner,
       matcher,
