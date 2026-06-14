@@ -28,6 +28,7 @@ impl WasmConfig {
       transform: self.transform.map(serde_json::from_value).transpose()?,
       utils: self.utils.map(serde_json::from_value).transpose()?,
       fix: None,
+      rewriters: None,
     };
     let env = DeserializeEnv::new(lang);
     rule.get_matcher(env).map_err(|e| {

@@ -35,6 +35,7 @@ impl NapiConfig {
       constraints: self.constraints.map(serde_json::from_value).transpose()?,
       transform: self.transform.map(serde_json::from_value).transpose()?,
       utils: self.utils.map(serde_json::from_value).transpose()?,
+      rewriters: None,
       fix: None,
     };
     let env = DeserializeEnv::new(lang);
