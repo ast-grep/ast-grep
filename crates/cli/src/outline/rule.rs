@@ -1,4 +1,4 @@
-use ast_grep_config::{SerializableRule, SerializableRuleCore};
+use ast_grep_config::{SerializableRewriter, SerializableRule, SerializableRuleCore};
 use serde::{Deserialize, Serialize};
 use serde_yaml::{Deserializer, Error as YamlError, with::singleton_map_recursive::deserialize};
 
@@ -40,6 +40,8 @@ struct SerializableOutlineCommon {
   /// ast-grep rule-core fields used to select candidate syntax.
   #[serde(flatten)]
   matcher: SerializableRuleCore,
+  /// Rewrite rules for `rewrite` transformation
+  rewriters: Option<Vec<SerializableRewriter>>,
   /// Name template evaluated from metavariables or transformed metavariables.
   name: String,
   /// Optional source-like signature template. The extractor falls back to the
@@ -225,10 +227,7 @@ isImport: true
     };
     assert_eq!(item.common.name, "$NAME");
     assert!(item.common.matcher.transform.is_some());
-    assert_eq!(
-      item.common.matcher.rewriters.as_ref().unwrap()[0].id,
-      "trim"
-    );
+    assert_eq!(item.common.rewriters.as_ref().unwrap()[0].id, "trim");
   }
 
   #[test]
@@ -277,9 +276,9 @@ pattern: function $NAME() { $$$BODY }
           constraints: None,
           utils: None,
           transform: None,
-          rewriters: None,
           fix: None,
         },
+        rewriters: None,
         name: "$NAME".into(),
         signature: Some("function $NAME()".into()),
       },

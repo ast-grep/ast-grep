@@ -40,14 +40,6 @@ pub enum RuleCoreError {
 
 type RResult<T> = std::result::Result<T, RuleCoreError>;
 
-#[derive(Serialize, Deserialize, Clone, JsonSchema)]
-pub struct SerializableRewriter {
-  #[serde(flatten)]
-  pub core: SerializableRuleCore,
-  /// Unique, descriptive identifier, e.g., no-unused-variable
-  pub id: String,
-}
-
 /// Used for global rules, rewriters, and pyo3/napi
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct SerializableRuleCore {
@@ -61,8 +53,6 @@ pub struct SerializableRuleCore {
   /// Dict value is a [transformation] that specifies how meta var is processed.
   /// See [transformation doc](https://ast-grep.github.io/reference/yaml/transformation.html).
   pub transform: Option<HashMap<String, Transformation>>,
-  /// Rewrite rules for `rewrite` transformation
-  pub rewriters: Option<Vec<SerializableRewriter>>,
   /// A pattern string or a FixConfig object to auto fix the issue.
   /// It can reference metavariables appeared in rule.
   /// See details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).
