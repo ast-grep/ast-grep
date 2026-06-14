@@ -63,15 +63,7 @@ impl SerializableRewriter {
     if fixer.is_empty() {
       return Err(attach_id(RewriterErrorReason::NoFixInRewriter));
     }
-    check_rewriters(
-      &rewriter.rule,
-      &rewriter.registration,
-      &rewriter.constraints,
-      &rewriter.transform,
-      &fixer,
-      upper_vars,
-    )
-    .map_err(|e| attach_id(e.into()))?;
+    check_rewriters(&rewriter, &fixer, upper_vars).map_err(|e| attach_id(e.into()))?;
     Ok(Rewriter {
       matcher: rewriter,
       fixer,
