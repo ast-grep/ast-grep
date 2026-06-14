@@ -2,7 +2,6 @@ use crate::RuleCore;
 use crate::fixer::Fixer;
 use crate::rewriter::Rewriter;
 use crate::rule::Rule;
-use crate::rule::referent_rule::RuleRegistration;
 use crate::rule_config::RuleConfigError;
 use crate::rule_core::RuleCoreError;
 use crate::transform::{Transform, TransformError};
@@ -19,22 +18,15 @@ pub enum CheckHint {
 
 /// Different rule sections have different variable scopes/check procedure.
 /// so we need to check rules with different hints.
-pub fn check_rule_with_hint<'r>(
-  rule: &'r Rule,
-  utils: &'r RuleRegistration,
-  constraints: &'r HashMap<String, Rule>,
-  transform: &'r Option<Transform>,
-  fixer: &Vec<Fixer>,
-  hint: CheckHint,
-) -> RResult<()> {
+pub fn check_rule_with_hint(rule: &RuleCore, fixer: &[Fixer], hint: CheckHint) -> RResult<()> {
   match hint {
     CheckHint::Global => {
       // do not check utils defined here because global rules are not yet ready
-      check_vars(rule, utils, constraints, transform, fixer)?;
+      check_vars(rule, fixer)?;
     }
     CheckHint::Normal => {
-      check_utils_defined(rule, constraints)?;
-      check_vars(rule, utils, constraints, transform, fixer)?;
+      check_utils_defined(rule)?;
+      check_vars(rule, fixer)?;
     }
     CheckHint::Skip => {
       // TODO: remove this hint, only used for rewriter check now
@@ -44,30 +36,24 @@ pub fn check_rule_with_hint<'r>(
   Ok(())
 }
 
-pub fn check_rewriters<'r>(
-  rule: &'r Rule,
-  utils: &'r RuleRegistration,
-  constraints: &'r HashMap<String, Rule>,
-  transform: &'r Option<Transform>,
-  fixer: &Vec<Fixer>,
+pub fn check_rewriters(
+  rule: &RuleCore,
+  fixer: &[Fixer],
   upper_vars: &HashSet<&str>,
 ) -> RResult<()> {
-  check_utils_defined(rule, constraints)?;
-  check_vars_in_rewriter(rule, utils, constraints, transform, fixer, upper_vars)?;
+  check_utils_defined(rule)?;
+  check_vars_in_rewriter(rule, fixer, upper_vars)?;
   Ok(())
 }
 
-fn check_vars_in_rewriter<'r>(
-  rule: &'r Rule,
-  utils: &'r RuleRegistration,
-  constraints: &'r HashMap<String, Rule>,
-  transform: &'r Option<Transform>,
-  fixer: &Vec<Fixer>,
+fn check_vars_in_rewriter(
+  rule: &RuleCore,
+  fixer: &[Fixer],
   upper_vars: &HashSet<&str>,
 ) -> RResult<()> {
-  let vars = get_vars_from_rules(rule, utils);
-  let vars = check_var_in_constraints(vars, constraints)?;
-  let mut vars = check_var_in_transform(vars, transform)?;
+  let vars = get_vars_from_rules(rule);
+  let vars = check_var_in_constraints(vars, &rule.constraints)?;
+  let mut vars = check_var_in_transform(vars, &rule.transform)?;
   for v in upper_vars {
     vars.insert(v);
   }
@@ -75,31 +61,25 @@ fn check_vars_in_rewriter<'r>(
   Ok(())
 }
 
-fn check_utils_defined(rule: &Rule, constraints: &HashMap<String, Rule>) -> RResult<()> {
-  rule.verify_util()?;
-  for constraint in constraints.values() {
+fn check_utils_defined(rule: &RuleCore) -> RResult<()> {
+  rule.rule.verify_util()?;
+  for constraint in rule.constraints.values() {
     constraint.verify_util()?;
   }
   Ok(())
 }
 
-fn check_vars<'r>(
-  rule: &'r Rule,
-  utils: &'r RuleRegistration,
-  constraints: &'r HashMap<String, Rule>,
-  transform: &'r Option<Transform>,
-  fixer: &Vec<Fixer>,
-) -> RResult<()> {
-  let vars = get_vars_from_rules(rule, utils);
-  let vars = check_var_in_constraints(vars, constraints)?;
-  let vars = check_var_in_transform(vars, transform)?;
+fn check_vars(rule: &RuleCore, fixer: &[Fixer]) -> RResult<()> {
+  let vars = get_vars_from_rules(rule);
+  let vars = check_var_in_constraints(vars, &rule.constraints)?;
+  let vars = check_var_in_transform(vars, &rule.transform)?;
   check_var_in_fix(vars, fixer)?;
   Ok(())
 }
 
-fn get_vars_from_rules<'r>(rule: &'r Rule, utils: &'r RuleRegistration) -> HashSet<&'r str> {
-  let mut vars = rule.defined_vars();
-  for var in utils.get_local_util_vars() {
+fn get_vars_from_rules(rule: &RuleCore) -> HashSet<&str> {
+  let mut vars = rule.rule.defined_vars();
+  for var in rule.registration.get_local_util_vars() {
     vars.insert(var);
   }
   vars
@@ -153,7 +133,7 @@ fn check_var_in_transform<'r>(
   Ok(vars)
 }
 
-fn check_var_in_fix(vars: HashSet<&str>, fixers: &Vec<Fixer>) -> RResult<()> {
+fn check_var_in_fix(vars: HashSet<&str>, fixers: &[Fixer]) -> RResult<()> {
   for fixer in fixers {
     for var in fixer.used_vars() {
       if !vars.contains(&var) {

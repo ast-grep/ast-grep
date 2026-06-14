@@ -210,14 +210,7 @@ impl<L: Language> RuleConfig<L> {
     } else {
       vec![]
     };
-    check_rule_with_hint(
-      &matcher.rule,
-      &matcher.registration,
-      &matcher.constraints,
-      &matcher.transform,
-      &fixer,
-      CheckHint::Normal,
-    )?;
+    check_rule_with_hint(&matcher, &fixer, CheckHint::Normal)?;
     Ok(Self {
       inner,
       matcher,
