@@ -1,9 +1,14 @@
 use ast_grep_config::{
-  Rule, RuleConfig, SerializableRewriter, SerializableRule, SerializableRuleCore,
+  GlobalRules, Rule, RuleConfig, RuleConfigError, SerializableRewriter, SerializableRule,
+  SerializableRuleConfig, SerializableRuleCore, Severity,
 };
-use ast_grep_core::{Language, replacer::TemplateFix};
+use ast_grep_core::{
+  Language,
+  replacer::{TemplateFix, TemplateFixError},
+};
 use serde::{Deserialize, Serialize};
 use serde_yaml::{Deserializer, Error as YamlError, with::singleton_map_recursive::deserialize};
+use thiserror::Error;
 
 use crate::model::SymbolType;
 
@@ -50,6 +55,26 @@ pub struct SerializableOutlineCommon<L> {
   /// Optional source-like signature template. The extractor falls back to the
   /// first non-empty matched source line when omitted.
   pub signature: Option<String>,
+}
+
+impl<L: Language> SerializableOutlineCommon<L> {
+  fn into_rule_config(self) -> SerializableRuleConfig<L> {
+    SerializableRuleConfig {
+      core: self.matcher,
+      fix: None,
+      rewriters: self.rewriters,
+      id: self.id,
+      language: self.language,
+      message: String::new(),
+      note: None,
+      severity: Severity::default(),
+      labels: None,
+      files: None,
+      ignores: None,
+      url: None,
+      metadata: None,
+    }
+  }
 }
 
 /// Item extractor for top-level file/module structure.
@@ -101,6 +126,53 @@ pub struct OutlineRuleCommon<L: Language> {
   pub name: TemplateFix,
   /// Optional source-like signature template.
   pub signature: Option<TemplateFix>,
+}
+
+#[derive(Debug, Error)]
+pub enum OutlineRuleError {
+  #[error(transparent)]
+  RuleConfig(#[from] RuleConfigError),
+  #[error(transparent)]
+  Template(#[from] TemplateFixError),
+}
+
+impl<L: Language> OutlineRuleCommon<L> {
+  pub fn try_from(
+    common: SerializableOutlineCommon<L>,
+    globals: &GlobalRules,
+  ) -> Result<Self, OutlineRuleError> {
+    let symbol_type = common.symbol_type;
+    let transform_vars = transform_vars(&common.matcher);
+    let compile = |tmpl| compile_template(tmpl, &common.language, &transform_vars);
+    let name = compile(&common.name)?;
+    let signature = common.signature.as_deref().map(compile).transpose()?;
+    let rule = RuleConfig::try_from(common.into_rule_config(), globals)?;
+    Ok(Self {
+      rule,
+      symbol_type,
+      name,
+      signature,
+    })
+  }
+}
+
+fn transform_vars(matcher: &SerializableRuleCore) -> Option<Vec<String>> {
+  matcher
+    .transform
+    .as_ref()
+    .map(|transform| transform.keys().cloned().collect())
+}
+
+fn compile_template<L: Language>(
+  template: &str,
+  language: &L,
+  transform_vars: &Option<Vec<String>>,
+) -> Result<TemplateFix, TemplateFixError> {
+  if let Some(vars) = transform_vars {
+    Ok(TemplateFix::with_transform(template, language, vars))
+  } else {
+    TemplateFix::try_new(template, language)
+  }
 }
 
 // imported/exported will be default accordingly to role
@@ -301,6 +373,38 @@ name: $NAME
     assert_eq!(rules.len(), 2);
     assert_eq!(rules[0].common().id, "rust-struct");
     assert_eq!(rules[1].common().id, "rust-field");
+  }
+
+  #[test]
+  fn parses_outline_common_to_runtime_rule() {
+    let rule = parse_rule(
+      r#"
+id: ts-function
+language: TypeScript
+role: item
+symbolType: function
+rule:
+  pattern: function $NAME() { $$$BODY }
+name: $NAME
+signature: function $NAME()
+"#,
+    );
+
+    let SerializableOutlineRule::Item(item) = rule else {
+      panic!("expected item rule");
+    };
+    let common = OutlineRuleCommon::try_from(item.common, &Default::default())
+      .expect("common rule should parse");
+
+    assert_eq!(common.rule.id, "ts-function");
+    assert_eq!(common.symbol_type, SymbolType::Function);
+    assert!(common.name.used_vars().contains("NAME"));
+    assert!(
+      common
+        .signature
+        .as_ref()
+        .is_some_and(|signature| signature.used_vars().contains("NAME"))
+    );
   }
 
   #[test]

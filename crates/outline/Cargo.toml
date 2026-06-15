@@ -16,6 +16,7 @@ ast-grep-config.workspace = true
 
 serde.workspace = true
 serde_yaml.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 ast-grep-language.workspace = true
