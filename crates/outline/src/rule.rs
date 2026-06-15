@@ -1,6 +1,6 @@
 use ast_grep_config::{
-  GlobalRules, Rule, RuleConfig, RuleConfigError, SerializableRewriter, SerializableRule,
-  SerializableRuleConfig, SerializableRuleCore, Severity,
+  GlobalRules, Rule, RuleConfig, RuleConfigError, RuleSerializeError, SerializableRewriter,
+  SerializableRule, SerializableRuleConfig, SerializableRuleCore, Severity,
 };
 use ast_grep_core::{
   Language,
@@ -132,6 +132,9 @@ pub struct OutlineRuleCommon<L: Language> {
 pub enum OutlineRuleError {
   #[error(transparent)]
   RuleConfig(#[from] RuleConfigError),
+  // TODO: this error message is vague
+  #[error("Predicate rule is not correctly configured")]
+  Predicate(#[from] RuleSerializeError),
   #[error(transparent)]
   Template(#[from] TemplateFixError),
 }
@@ -182,6 +185,24 @@ enum OutlinePredicate {
   Rule(Rule),
 }
 
+fn compile_predicate<L: Language>(
+  predicate: Option<SerializablePredicate>,
+  default: bool,
+  common: &OutlineRuleCommon<L>,
+) -> Result<OutlinePredicate, OutlineRuleError> {
+  let Some(predicate) = predicate else {
+    return Ok(OutlinePredicate::Literal(default));
+  };
+  let ret = match predicate {
+    SerializablePredicate::Literal(value) => OutlinePredicate::Literal(value),
+    SerializablePredicate::Rule(rule) => {
+      let env = common.rule.matcher.get_env(common.rule.language.clone());
+      OutlinePredicate::Rule(env.deserialize_rule(*rule)?)
+    }
+  };
+  Ok(ret)
+}
+
 /// Runnable item extractor for top-level file/module structure.
 #[allow(dead_code)]
 pub struct OutlineItemRule<L: Language> {
@@ -190,12 +211,53 @@ pub struct OutlineItemRule<L: Language> {
   is_exported: OutlinePredicate,
 }
 
+impl<L: Language> OutlineItemRule<L> {
+  pub fn try_from(
+    item: SerializableItemRule<L>,
+    globals: &GlobalRules,
+  ) -> Result<Self, OutlineRuleError> {
+    let SerializableItemRule {
+      common,
+      is_import,
+      is_exported,
+    } = item;
+    let common = OutlineRuleCommon::try_from(common, globals)?;
+    let is_import = compile_predicate(is_import, false, &common)?;
+    let is_exported = compile_predicate(is_exported, true, &common)?;
+    Ok(Self {
+      common,
+      is_import,
+      is_exported,
+    })
+  }
+}
+
 /// Runnable member extractor for direct child structure under an item.
 #[allow(dead_code)]
 pub struct OutlineMemberRule<L: Language> {
   pub common: OutlineRuleCommon<L>,
   pub parent_rule_ids: Vec<String>,
   is_public: OutlinePredicate,
+}
+
+impl<L: Language> OutlineMemberRule<L> {
+  pub fn try_from(
+    member: SerializableMemberRule<L>,
+    globals: &GlobalRules,
+  ) -> Result<Self, OutlineRuleError> {
+    let SerializableMemberRule {
+      common,
+      parent_rule_ids,
+      is_public,
+    } = member;
+    let common = OutlineRuleCommon::try_from(common, globals)?;
+    let is_public = compile_predicate(is_public, true, &common)?;
+    Ok(Self {
+      common,
+      parent_rule_ids,
+      is_public,
+    })
+  }
 }
 
 /// Parse a stream of YAML outline extractor documents.
@@ -405,6 +467,58 @@ signature: function $NAME()
         .as_ref()
         .is_some_and(|signature| signature.used_vars().contains("NAME"))
     );
+  }
+
+  #[test]
+  fn parses_outline_item_rule() {
+    let rule = parse_rule(
+      r#"
+id: ts-function
+language: TypeScript
+role: item
+symbolType: function
+rule:
+  pattern: function $NAME() { $$$BODY }
+name: $NAME
+isImport: true
+"#,
+    );
+
+    let SerializableOutlineRule::Item(item) = rule else {
+      panic!("expected item rule");
+    };
+    let item =
+      OutlineItemRule::try_from(item, &Default::default()).expect("item rule should parse");
+
+    assert_eq!(item.common.rule.id, "ts-function");
+    assert!(matches!(item.is_import, OutlinePredicate::Literal(true)));
+    assert!(matches!(item.is_exported, OutlinePredicate::Literal(true)));
+  }
+
+  #[test]
+  fn parses_outline_member_rule() {
+    let rule = parse_rule(
+      r#"
+id: ts-member
+language: TypeScript
+role: member
+parentRuleIds: [ts-interface]
+symbolType: field
+rule:
+  kind: property_signature
+name: member
+"#,
+    );
+
+    let SerializableOutlineRule::Member(member) = rule else {
+      panic!("expected member rule");
+    };
+    let member =
+      OutlineMemberRule::try_from(member, &Default::default()).expect("member rule should parse");
+
+    assert_eq!(member.common.rule.id, "ts-member");
+    assert_eq!(member.parent_rule_ids, vec!["ts-interface"]);
+    assert!(matches!(member.is_public, OutlinePredicate::Literal(true)));
   }
 
   #[test]
