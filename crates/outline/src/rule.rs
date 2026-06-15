@@ -1,4 +1,7 @@
-use ast_grep_config::{SerializableRewriter, SerializableRule, SerializableRuleCore};
+use ast_grep_config::{
+  Rule, RuleConfig, SerializableRewriter, SerializableRule, SerializableRuleCore,
+};
+use ast_grep_core::{Language, replacer::TemplateFix};
 use serde::{Deserialize, Serialize};
 use serde_yaml::{Deserializer, Error as YamlError, with::singleton_map_recursive::deserialize};
 
@@ -86,6 +89,41 @@ pub enum SerializablePredicate {
   Literal(bool),
   /// ast-grep predicate evaluated against the extracted candidate node.
   Rule(Box<SerializableRule>),
+}
+
+/// Shared parsed fields for every runnable outline extractor.
+pub struct OutlineRuleCommon<L: Language> {
+  /// Parsed ast-grep rule config used to select candidate syntax.
+  pub rule: RuleConfig<L>,
+  /// LSP-compatible outline category produced by this extractor.
+  pub symbol_type: SymbolType,
+  /// Name template evaluated from metavariables or transformed metavariables.
+  pub name: TemplateFix,
+  /// Optional source-like signature template.
+  pub signature: Option<TemplateFix>,
+}
+
+// imported/exported will be default accordingly to role
+#[allow(dead_code)]
+enum OutlinePredicate {
+  Literal(bool),
+  Rule(Rule),
+}
+
+/// Runnable item extractor for top-level file/module structure.
+#[allow(dead_code)]
+pub struct OutlineItemRule<L: Language> {
+  pub common: OutlineRuleCommon<L>,
+  is_import: OutlinePredicate,
+  is_exported: OutlinePredicate,
+}
+
+/// Runnable member extractor for direct child structure under an item.
+#[allow(dead_code)]
+pub struct OutlineMemberRule<L: Language> {
+  pub common: OutlineRuleCommon<L>,
+  pub parent_rule_ids: Vec<String>,
+  is_public: OutlinePredicate,
 }
 
 /// Parse a stream of YAML outline extractor documents.

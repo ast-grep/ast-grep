@@ -253,6 +253,7 @@ name = "ast-grep-outline"
 version = "0.43.0"
 dependencies = [
  "ast-grep-config",
+ "ast-grep-core",
  "ast-grep-language",
  "serde",
  "serde_json",
