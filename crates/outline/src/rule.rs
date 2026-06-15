@@ -2,7 +2,7 @@ use ast_grep_config::{SerializableRewriter, SerializableRule, SerializableRuleCo
 use serde::{Deserialize, Serialize};
 use serde_yaml::{Deserializer, Error as YamlError, with::singleton_map_recursive::deserialize};
 
-use super::model::SymbolType;
+use crate::model::SymbolType;
 
 /// Serializable outline extractor definition loaded from an outline rule YAML document.
 ///
@@ -11,15 +11,15 @@ use super::model::SymbolType;
 /// item rules through `parentRuleIds`.
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "role", rename_all = "camelCase")]
-enum SerializableOutlineRule {
+pub enum SerializableOutlineRule<L> {
   /// Top-level structure, like functions, classes, and imports.
-  Item(SerializableItemRule),
+  Item(SerializableItemRule<L>),
   /// Direct child structure under an item, such as fields, methods, or variants.
-  Member(SerializableMemberRule),
+  Member(SerializableMemberRule<L>),
 }
 
-impl SerializableOutlineRule {
-  fn common(&self) -> &SerializableOutlineCommon {
+impl<L> SerializableOutlineRule<L> {
+  pub fn common(&self) -> &SerializableOutlineCommon<L> {
     match self {
       Self::Item(rule) => &rule.common,
       Self::Member(rule) => &rule.common,
@@ -30,49 +30,49 @@ impl SerializableOutlineRule {
 /// Shared serializable fields for every outline extractor.
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct SerializableOutlineCommon {
+pub struct SerializableOutlineCommon<L> {
   /// Stable extractor id used in diagnostics and member parent references.
-  id: String,
-  /// Language name accepted by ast-grep, including built-in and registered custom languages.
-  language: String,
+  pub id: String,
+  /// Language accepted by ast-grep, including built-in and registered custom languages.
+  pub language: L,
   /// LSP-compatible outline category produced by this extractor.
-  symbol_type: SymbolType,
+  pub symbol_type: SymbolType,
   /// ast-grep rule-core fields used to select candidate syntax.
   #[serde(flatten)]
-  matcher: SerializableRuleCore,
-  /// Rewrite rules for `rewrite` transformation
-  rewriters: Option<Vec<SerializableRewriter>>,
+  pub matcher: SerializableRuleCore,
+  /// Rewrite rules for `rewrite` transformation.
+  pub rewriters: Option<Vec<SerializableRewriter>>,
   /// Name template evaluated from metavariables or transformed metavariables.
-  name: String,
+  pub name: String,
   /// Optional source-like signature template. The extractor falls back to the
   /// first non-empty matched source line when omitted.
-  signature: Option<String>,
+  pub signature: Option<String>,
 }
 
 /// Item extractor for top-level file/module structure.
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct SerializableItemRule {
+pub struct SerializableItemRule<L> {
   /// Common outline extractor fields.
   #[serde(flatten)]
-  common: SerializableOutlineCommon,
+  pub common: SerializableOutlineCommon<L>,
   /// Whether this item is an import/dependency edge.
-  is_import: Option<SerializablePredicate>,
+  pub is_import: Option<SerializablePredicate>,
   /// Whether this item belongs to the file/module public surface.
-  is_exported: Option<SerializablePredicate>,
+  pub is_exported: Option<SerializablePredicate>,
 }
 
 /// Member extractor for direct child structure under an item.
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct SerializableMemberRule {
+pub struct SerializableMemberRule<L> {
   /// Common outline extractor fields.
   #[serde(flatten)]
-  common: SerializableOutlineCommon,
+  pub common: SerializableOutlineCommon<L>,
   /// Eligible parent item extractor ids.
-  parent_rule_ids: Vec<String>,
+  pub parent_rule_ids: Vec<String>,
   /// Whether this member is syntactically public.
-  is_public: Option<SerializablePredicate>,
+  pub is_public: Option<SerializablePredicate>,
 }
 
 /// Boolean derivation for outline flags.
@@ -81,7 +81,7 @@ struct SerializableMemberRule {
 /// against the matched candidate node and sets the output flag from the match result.
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-enum SerializablePredicate {
+pub enum SerializablePredicate {
   /// Literal boolean value.
   Literal(bool),
   /// ast-grep predicate evaluated against the extracted candidate node.
@@ -89,15 +89,21 @@ enum SerializablePredicate {
 }
 
 /// Parse a stream of YAML outline extractor documents.
-fn parse_outline_rules(src: &str) -> Result<Vec<SerializableOutlineRule>, YamlError> {
+pub fn parse_outline_rules<'a, L>(
+  src: &'a str,
+) -> Result<Vec<SerializableOutlineRule<L>>, YamlError>
+where
+  L: Deserialize<'a>,
+{
   Deserializer::from_str(src).map(deserialize).collect()
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
+  use ast_grep_language::SupportLang;
 
-  fn parse_rule(src: &str) -> SerializableOutlineRule {
+  fn parse_rule(src: &str) -> SerializableOutlineRule<SupportLang> {
     ast_grep_config::from_str(src).expect("outline rule should deserialize")
   }
 
@@ -122,7 +128,7 @@ isExported:
       panic!("expected item rule");
     };
     assert_eq!(item.common.id, "rust-struct");
-    assert_eq!(item.common.language, "Rust");
+    assert_eq!(item.common.language, SupportLang::Rust);
     assert_eq!(item.common.symbol_type, SymbolType::Struct);
     assert_eq!(item.common.name, "$NAME");
     assert!(matches!(
@@ -232,7 +238,7 @@ isImport: true
 
   #[test]
   fn parses_yaml_document_stream() {
-    let rules = parse_outline_rules(
+    let rules = parse_outline_rules::<SupportLang>(
       r#"
 id: rust-struct
 language: Rust
@@ -264,7 +270,7 @@ name: $NAME
     let rule = SerializableOutlineRule::Item(SerializableItemRule {
       common: SerializableOutlineCommon {
         id: "ts-function".into(),
-        language: "TypeScript".into(),
+        language: SupportLang::TypeScript,
         symbol_type: SymbolType::Function,
         matcher: SerializableRuleCore {
           rule: ast_grep_config::from_str(

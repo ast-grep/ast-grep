@@ -1,9 +1,3 @@
-// Extraction and rendering will consume this model in later slices.
-#[allow(dead_code)]
-mod model;
-#[allow(dead_code)]
-mod rule;
-
 use std::process::ExitCode;
 
 use clap::{Args, ValueEnum};

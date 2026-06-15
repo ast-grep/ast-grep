@@ -112,6 +112,7 @@ Run these commands in the repository root (the top-level directory of your local
 - `crates/core/` - Core AST processing logic
 - `crates/config/` - Configuration handling
 - `crates/language/` - Language-specific parsers
+- `crates/outline/` - Code outline extraction primitives
 - `crates/napi/` - Node.js bindings
 - `crates/pyo3/` - Python bindings
 - `crates/lsp/` - Language Server Protocol implementation

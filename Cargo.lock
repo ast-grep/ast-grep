@@ -249,6 +249,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ast-grep-outline"
+version = "0.43.0"
+dependencies = [
+ "ast-grep-config",
+ "ast-grep-language",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+]
+
+[[package]]
 name = "ast-grep-py"
 version = "0.43.0"
 dependencies = [

@@ -1,0 +1,21 @@
+[package]
+name = "ast-grep-outline"
+description = "Code outline extraction primitives for ast-grep"
+keywords = ["ast", "outline", "symbols", "tree-sitter"]
+
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+ast-grep-config.workspace = true
+
+serde.workspace = true
+serde_yaml.workspace = true
+
+[dev-dependencies]
+ast-grep-language.workspace = true
+serde_json = "1.0.116"

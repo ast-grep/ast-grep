@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.18/specification/#textDocument_documentSymbol
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) enum SymbolType {
+pub enum SymbolType {
   File,
   Module,
   Namespace,
@@ -42,7 +42,7 @@ pub(super) enum SymbolType {
 /// Entry placement in the outline tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) enum EntryRole {
+pub enum EntryRole {
   /// Top-level structure, such as `struct Foo`, `class Parser`, or `import ...`.
   Item,
   /// Direct child structure under an item, such as a field, method, or variant.
@@ -56,11 +56,11 @@ pub(super) enum EntryRole {
 /// input shape with optional columns, so outline keeps its output contract local.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct SourcePosition {
+pub struct SourcePosition {
   /// Zero-based line number.
-  line: usize,
+  pub line: usize,
   /// Zero-based character column in the line.
-  column: usize,
+  pub column: usize,
 }
 
 /// Source range for an outline entry.
@@ -69,17 +69,17 @@ pub(super) struct SourcePosition {
 /// so the model does not depend on scan rendering internals.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct SourceRange {
+pub struct SourceRange {
   /// Inclusive start and exclusive end byte offsets.
-  byte_offset: Range<usize>,
-  start: SourcePosition,
-  end: SourcePosition,
+  pub byte_offset: Range<usize>,
+  pub start: SourcePosition,
+  pub end: SourcePosition,
 }
 
 /// Shared structural data for either a top-level item or a direct member.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct OutlineEntry<'a> {
+pub struct OutlineEntry<'a> {
   pub role: EntryRole,
   pub symbol_type: SymbolType,
   pub name: Cow<'a, str>,
@@ -103,7 +103,7 @@ pub struct OutlineItem<'a> {
 /// One direct member under an outline item.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct OutlineMember<'a> {
+pub struct OutlineMember<'a> {
   #[serde(flatten)]
   pub entry: OutlineEntry<'a>,
   pub is_public: bool,
