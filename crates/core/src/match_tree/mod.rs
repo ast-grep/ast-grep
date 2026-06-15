@@ -86,7 +86,7 @@ fn match_leaf_meta_var<'tree, D: Doc>(
       Some(())
     }
     MV::MultiCapture(name) => {
-      env.to_mut().insert(name, candidate.clone())?;
+      env.to_mut().insert_multi(name, vec![candidate.clone()])?;
       Some(())
     }
   }
@@ -244,6 +244,22 @@ mod test {
     test_match("foo($$$A, b, c)", "foo(a, b, c)");
     test_match("foo($$$A, a, b, c)", "foo(a, b, c)");
     test_non_match("foo($$$A, a, b, c)", "foo(b, c)");
+  }
+
+  #[test]
+  fn test_root_multi_variable_records_multi_match() {
+    let goal = Pattern::new("$$$A", Tsx);
+    let cand = Root::str("foo(1, 2)", Tsx);
+    let cand = cand.root();
+    let mut env = Cow::Owned(MetaVarEnv::new());
+    let ret = match_node_non_recursive(&goal, cand.clone(), &mut env);
+    assert!(ret.is_some());
+
+    let env = env.into_owned();
+    assert!(env.get_match("A").is_none());
+    let matches = env.get_multiple_matches("A");
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].text(), cand.text());
   }
 
   #[test]

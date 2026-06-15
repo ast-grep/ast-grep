@@ -278,6 +278,18 @@ mod test {
   }
 
   #[test]
+  fn test_rewrite_root_multi_capture() {
+    let rewrite = Rewrite {
+      source: "$$$A".into(),
+      rewriters: str_vec!["re1"],
+      join_by: None,
+    };
+    let reg = make_rewriters(&["{id: re1, rule: {kind: number}, fix: '810'}"]);
+    let ret = apply_transformation(rewrite, "foo(1, 2)", "$$$A", reg);
+    assert_eq!(ret, "foo(810, 810)");
+  }
+
+  #[test]
   fn test_recursive_rewriters() {
     let rewrite = Rewrite {
       source: "$A".into(),
