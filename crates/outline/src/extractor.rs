@@ -10,14 +10,18 @@ use ast_grep_config::{
   SerializableRule, SerializableRuleConfig, SerializableRuleCore, Severity,
 };
 use ast_grep_core::{
-  Language,
-  replacer::{TemplateFix, TemplateFixError},
+  Doc, Language, Node, NodeMatch,
+  matcher::MatcherExt,
+  replacer::{Replacer, TemplateFix, TemplateFixError},
+  source::Content,
 };
 use serde::{Deserialize, Serialize};
 use serde_yaml::{Deserializer, Error as YamlError, with::singleton_map_recursive::deserialize};
 use thiserror::Error;
 
-use crate::model::SymbolType;
+use crate::model::{
+  EntryRole, OutlineEntry, OutlineItem, OutlineMember, SourcePosition, SourceRange, SymbolType,
+};
 
 /// Serializable outline extractor definition loaded from an outline rule YAML document.
 ///
@@ -192,6 +196,15 @@ enum OutlinePredicate {
   Rule(Rule),
 }
 
+impl OutlinePredicate {
+  fn evaluate<D: Doc>(&self, node_match: &NodeMatch<D>) -> bool {
+    match self {
+      Self::Literal(value) => *value,
+      Self::Rule(rule) => rule.match_node(node_match.get_node().clone()).is_some(),
+    }
+  }
+}
+
 fn compile_predicate<L: Language>(
   predicate: Option<SerializablePredicate>,
   default: bool,
@@ -237,6 +250,23 @@ impl<L: Language> ItemExtractor<L> {
       is_exported,
     })
   }
+
+  pub fn match_node<'tree, D: Doc>(&self, node: Node<'tree, D>) -> Option<NodeMatch<'tree, D>> {
+    self.common.rule.matcher.match_node(node)
+  }
+
+  pub fn extract<'tree, D: Doc>(
+    &self,
+    node_match: &NodeMatch<'tree, D>,
+    members: Vec<OutlineMember<'tree>>,
+  ) -> OutlineItem<'tree> {
+    OutlineItem {
+      entry: self.common.extract_entry(EntryRole::Item, node_match),
+      is_import: self.is_import.evaluate(node_match),
+      is_exported: self.is_exported.evaluate(node_match),
+      members,
+    }
+  }
 }
 
 /// Runnable member extractor for direct child structure under an item.
@@ -264,6 +294,72 @@ impl<L: Language> MemberExtractor<L> {
       parent_rule_ids,
       is_public,
     })
+  }
+
+  pub fn match_node<'tree, D: Doc>(&self, node: Node<'tree, D>) -> Option<NodeMatch<'tree, D>> {
+    self.common.rule.matcher.match_node(node)
+  }
+
+  pub fn extract<'tree, D: Doc>(&self, node_match: &NodeMatch<'tree, D>) -> OutlineMember<'tree> {
+    OutlineMember {
+      entry: self.common.extract_entry(EntryRole::Member, node_match),
+      is_public: self.is_public.evaluate(node_match),
+    }
+  }
+}
+
+impl<L: Language> ExtractorCommon<L> {
+  fn extract_entry<'tree, D: Doc>(
+    &self,
+    role: EntryRole,
+    node_match: &NodeMatch<'tree, D>,
+  ) -> OutlineEntry<'tree> {
+    let node = node_match.get_node();
+    OutlineEntry {
+      role,
+      symbol_type: self.symbol_type,
+      name: render_template(&self.name, node_match).into(),
+      range: source_range(node),
+      signature: self
+        .signature
+        .as_ref()
+        .map(|template| render_template(template, node_match))
+        .unwrap_or_else(|| default_signature(node))
+        .into(),
+      ast_kind: node.kind().into_owned().into(),
+    }
+  }
+}
+
+fn render_template<D: Doc>(template: &TemplateFix, node_match: &NodeMatch<D>) -> String {
+  let bytes = template.generate_replacement(node_match);
+  <D::Source as Content>::encode_bytes(&bytes).to_string()
+}
+
+fn default_signature<D: Doc>(node: &Node<D>) -> String {
+  node
+    .text()
+    .lines()
+    .find_map(|line| {
+      let trimmed = line.trim();
+      (!trimmed.is_empty()).then(|| trimmed.to_string())
+    })
+    .unwrap_or_default()
+}
+
+fn source_range<D: Doc>(node: &Node<D>) -> SourceRange {
+  let start = node.start_pos();
+  let end = node.end_pos();
+  SourceRange {
+    byte_offset: node.range(),
+    start: SourcePosition {
+      line: start.line(),
+      column: start.column(node),
+    },
+    end: SourcePosition {
+      line: end.line(),
+      column: end.column(node),
+    },
   }
 }
 
