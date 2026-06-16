@@ -13,19 +13,17 @@ use ast_grep_config::GlobalRules;
 use ast_grep_core::{Language, Matcher};
 use std::collections::HashMap;
 
-use crate::extractor::{
-  OutlineItemRule, OutlineMemberRule, OutlineRuleError, SerializableOutlineRule,
-};
+use crate::extractor::{ItemExtractor, MemberExtractor, OutlineRuleError, SerializableOutlineRule};
 
 /// Runtime outline extractors organized for a shared item traversal.
 #[allow(dead_code)]
 pub struct CombinedExtractors<L: Language> {
   /// Top-level item extractors matched during the file-wide AST traversal.
-  item_extractors: Vec<OutlineItemRule<L>>,
+  item_extractors: Vec<ItemExtractor<L>>,
   /// Dense node-kind index into `item_extractors`; shared across the whole file.
   item_kind_mapping: Vec<Vec<usize>>,
   /// Member extractors parsed once and referenced by parent-scoped groups below.
-  member_extractors: Vec<OutlineMemberRule<L>>,
+  member_extractors: Vec<MemberExtractor<L>>,
   /// Parent item extractor id to member extractors that may run inside it.
   member_mapping: HashMap<String, CombinedMemberExtractorGroup>,
 }
@@ -33,7 +31,7 @@ pub struct CombinedExtractors<L: Language> {
 #[allow(dead_code)]
 pub struct CombinedMemberExtractors<'a, L: Language> {
   /// Shared member extractor storage owned by `CombinedExtractors`.
-  extractors: &'a [OutlineMemberRule<L>],
+  extractors: &'a [MemberExtractor<L>],
   /// Parent-scoped index that selects members relevant to one matched item rule.
   group: &'a CombinedMemberExtractorGroup,
 }
@@ -55,10 +53,10 @@ impl<L: Language> CombinedExtractors<L> {
     for extractor in extractors {
       match extractor {
         SerializableOutlineRule::Item(item) => {
-          item_extractors.push(OutlineItemRule::try_from(item, globals)?);
+          item_extractors.push(ItemExtractor::try_from(item, globals)?);
         }
         SerializableOutlineRule::Member(member) => {
-          member_extractors.push(OutlineMemberRule::try_from(member, globals)?);
+          member_extractors.push(MemberExtractor::try_from(member, globals)?);
         }
       }
     }
@@ -66,8 +64,8 @@ impl<L: Language> CombinedExtractors<L> {
   }
 
   pub fn new(
-    item_extractors: Vec<OutlineItemRule<L>>,
-    member_extractors: Vec<OutlineMemberRule<L>>,
+    item_extractors: Vec<ItemExtractor<L>>,
+    member_extractors: Vec<MemberExtractor<L>>,
   ) -> Self {
     let item_kind_mapping = item_kind_mapping(&item_extractors);
     let member_mapping = member_mapping(&member_extractors);
@@ -89,7 +87,7 @@ impl<L: Language> CombinedExtractors<L> {
       })
   }
 
-  pub fn item_extractors_for_kind(&self, kind: u16) -> impl Iterator<Item = &OutlineItemRule<L>> {
+  pub fn item_extractors_for_kind(&self, kind: u16) -> impl Iterator<Item = &ItemExtractor<L>> {
     self
       .item_kind_mapping
       .get(kind as usize)
@@ -99,7 +97,7 @@ impl<L: Language> CombinedExtractors<L> {
 }
 
 impl<'a, L: Language> CombinedMemberExtractors<'a, L> {
-  pub fn extractors_for_kind(&self, kind: u16) -> impl Iterator<Item = &OutlineMemberRule<L>> {
+  pub fn extractors_for_kind(&self, kind: u16) -> impl Iterator<Item = &MemberExtractor<L>> {
     self
       .group
       .kind_mapping
@@ -109,7 +107,7 @@ impl<'a, L: Language> CombinedMemberExtractors<'a, L> {
   }
 }
 
-fn item_kind_mapping<L: Language>(item_extractors: &[OutlineItemRule<L>]) -> Vec<Vec<usize>> {
+fn item_kind_mapping<L: Language>(item_extractors: &[ItemExtractor<L>]) -> Vec<Vec<usize>> {
   let mut mapping = Vec::new();
   for (idx, extractor) in item_extractors.iter().enumerate() {
     let Some(kinds) = extractor.common.rule.matcher.potential_kinds() else {
@@ -126,7 +124,7 @@ fn item_kind_mapping<L: Language>(item_extractors: &[OutlineItemRule<L>]) -> Vec
 }
 
 fn member_mapping<L: Language>(
-  member_extractors: &[OutlineMemberRule<L>],
+  member_extractors: &[MemberExtractor<L>],
 ) -> HashMap<String, CombinedMemberExtractorGroup> {
   let mut mapping: HashMap<String, CombinedMemberExtractorGroup> = HashMap::new();
   for (idx, extractor) in member_extractors.iter().enumerate() {

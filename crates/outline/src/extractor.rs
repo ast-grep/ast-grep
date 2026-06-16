@@ -124,7 +124,7 @@ pub enum SerializablePredicate {
 }
 
 /// Shared parsed fields for every runnable outline extractor.
-pub struct OutlineRuleCommon<L: Language> {
+pub struct ExtractorCommon<L: Language> {
   /// Parsed ast-grep rule config used to select candidate syntax.
   pub rule: RuleConfig<L>,
   /// LSP-compatible outline category produced by this extractor.
@@ -146,7 +146,7 @@ pub enum OutlineRuleError {
   Template(#[from] TemplateFixError),
 }
 
-impl<L: Language> OutlineRuleCommon<L> {
+impl<L: Language> ExtractorCommon<L> {
   pub fn try_from(
     common: SerializableOutlineCommon<L>,
     globals: &GlobalRules,
@@ -195,7 +195,7 @@ enum OutlinePredicate {
 fn compile_predicate<L: Language>(
   predicate: Option<SerializablePredicate>,
   default: bool,
-  common: &OutlineRuleCommon<L>,
+  common: &ExtractorCommon<L>,
 ) -> Result<OutlinePredicate, OutlineRuleError> {
   let Some(predicate) = predicate else {
     return Ok(OutlinePredicate::Literal(default));
@@ -212,13 +212,13 @@ fn compile_predicate<L: Language>(
 
 /// Runnable item extractor for top-level file/module structure.
 #[allow(dead_code)]
-pub struct OutlineItemRule<L: Language> {
-  pub common: OutlineRuleCommon<L>,
+pub struct ItemExtractor<L: Language> {
+  pub common: ExtractorCommon<L>,
   is_import: OutlinePredicate,
   is_exported: OutlinePredicate,
 }
 
-impl<L: Language> OutlineItemRule<L> {
+impl<L: Language> ItemExtractor<L> {
   pub fn try_from(
     item: SerializableItemRule<L>,
     globals: &GlobalRules,
@@ -228,7 +228,7 @@ impl<L: Language> OutlineItemRule<L> {
       is_import,
       is_exported,
     } = item;
-    let common = OutlineRuleCommon::try_from(common, globals)?;
+    let common = ExtractorCommon::try_from(common, globals)?;
     let is_import = compile_predicate(is_import, false, &common)?;
     let is_exported = compile_predicate(is_exported, true, &common)?;
     Ok(Self {
@@ -241,13 +241,13 @@ impl<L: Language> OutlineItemRule<L> {
 
 /// Runnable member extractor for direct child structure under an item.
 #[allow(dead_code)]
-pub struct OutlineMemberRule<L: Language> {
-  pub common: OutlineRuleCommon<L>,
+pub struct MemberExtractor<L: Language> {
+  pub common: ExtractorCommon<L>,
   pub parent_rule_ids: Vec<String>,
   is_public: OutlinePredicate,
 }
 
-impl<L: Language> OutlineMemberRule<L> {
+impl<L: Language> MemberExtractor<L> {
   pub fn try_from(
     member: SerializableMemberRule<L>,
     globals: &GlobalRules,
@@ -257,7 +257,7 @@ impl<L: Language> OutlineMemberRule<L> {
       parent_rule_ids,
       is_public,
     } = member;
-    let common = OutlineRuleCommon::try_from(common, globals)?;
+    let common = ExtractorCommon::try_from(common, globals)?;
     let is_public = compile_predicate(is_public, true, &common)?;
     Ok(Self {
       common,
@@ -462,7 +462,7 @@ signature: function $NAME()
     let SerializableOutlineRule::Item(item) = rule else {
       panic!("expected item rule");
     };
-    let common = OutlineRuleCommon::try_from(item.common, &Default::default())
+    let common = ExtractorCommon::try_from(item.common, &Default::default())
       .expect("common rule should parse");
 
     assert_eq!(common.rule.id, "ts-function");
@@ -494,8 +494,7 @@ isImport: true
     let SerializableOutlineRule::Item(item) = rule else {
       panic!("expected item rule");
     };
-    let item =
-      OutlineItemRule::try_from(item, &Default::default()).expect("item rule should parse");
+    let item = ItemExtractor::try_from(item, &Default::default()).expect("item rule should parse");
 
     assert_eq!(item.common.rule.id, "ts-function");
     assert!(matches!(item.is_import, OutlinePredicate::Literal(true)));
@@ -521,7 +520,7 @@ name: member
       panic!("expected member rule");
     };
     let member =
-      OutlineMemberRule::try_from(member, &Default::default()).expect("member rule should parse");
+      MemberExtractor::try_from(member, &Default::default()).expect("member rule should parse");
 
     assert_eq!(member.common.rule.id, "ts-member");
     assert_eq!(member.parent_rule_ids, vec!["ts-interface"]);
