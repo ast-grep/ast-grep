@@ -1,3 +1,11 @@
+//! Serializable outline result model.
+//!
+//! Outline has two placement roles. `Item` represents file/module-level
+//! structure. `Member` represents direct structure inside an item.
+//! The model intentionally stops at this item/member boundary. It preserves the
+//! source shape needed for navigation and filtering, but does not try to build a
+//! semantic graph of references, inheritance, or implemented protocols.
+
 use std::borrow::Cow;
 use std::ops::Range;
 

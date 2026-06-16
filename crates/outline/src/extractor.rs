@@ -1,3 +1,10 @@
+//! Rule loading and compilation for outline extraction.
+//!
+//! Outline rule files describe extractors in a YAML-friendly shape. This module
+//! converts that schema into runtime rules with compiled ast-grep matchers,
+//! templates, and predicates. Traversal code should depend on the runtime
+//! `Outline*Rule` types, not on serde defaults or config parsing details.
+
 use ast_grep_config::{
   GlobalRules, Rule, RuleConfig, RuleConfigError, RuleSerializeError, SerializableRewriter,
   SerializableRule, SerializableRuleConfig, SerializableRuleCore, Severity,
