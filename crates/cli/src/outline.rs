@@ -1083,7 +1083,7 @@ fn symbol_type_style(symbol_type: SymbolType) -> ansi_term::Style {
     }
     SymbolType::Class | SymbolType::Struct | SymbolType::Object => Color::Blue,
     SymbolType::Enum | SymbolType::EnumMember => Color::Purple,
-    SymbolType::Interface | SymbolType::TypeParameter => Color::Fixed(39),
+    SymbolType::Interface | SymbolType::TypeParameter => Color::Red,
     SymbolType::Function | SymbolType::Method | SymbolType::Constructor => Color::Green,
     SymbolType::Property | SymbolType::Field | SymbolType::Key => Color::Yellow,
     SymbolType::Variable | SymbolType::Constant => Color::Fixed(214),
@@ -1092,7 +1092,7 @@ fn symbol_type_style(symbol_type: SymbolType) -> ansi_term::Style {
     | SymbolType::Boolean
     | SymbolType::Array
     | SymbolType::Null => Color::Fixed(208),
-    SymbolType::Event | SymbolType::Operator => Color::Red,
+    SymbolType::Event | SymbolType::Operator => Color::Fixed(39),
   };
   color.normal()
 }
