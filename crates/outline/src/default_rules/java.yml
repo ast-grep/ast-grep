@@ -1,0 +1,135 @@
+id: java-static-import
+language: Java
+role: item
+symbolType: module
+rule:
+  pattern: import static $PATH;
+name: $PATH
+signature: import static $PATH
+isImport: true
+isExported: false
+---
+id: java-import
+language: Java
+role: item
+symbolType: module
+rule:
+  pattern: import $PATH;
+name: $PATH
+signature: import $PATH
+isImport: true
+isExported: false
+---
+id: java-interface
+language: Java
+role: item
+symbolType: interface
+rule:
+  all:
+    - kind: interface_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifiers
+    has:
+      pattern: public
+---
+id: java-enum
+language: Java
+role: item
+symbolType: enum
+rule:
+  all:
+    - kind: enum_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifiers
+    has:
+      pattern: public
+---
+id: java-class
+language: Java
+role: item
+symbolType: class
+rule:
+  all:
+    - kind: class_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifiers
+    has:
+      pattern: public
+---
+id: java-member-method
+language: Java
+role: member
+parentRuleIds: [java-interface, java-enum, java-class]
+symbolType: method
+rule:
+  all:
+    - kind: method_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isPublic:
+  has:
+    kind: modifiers
+    has:
+      pattern: public
+---
+id: java-member-constructor
+language: Java
+role: member
+parentRuleIds: [java-enum, java-class]
+symbolType: constructor
+rule:
+  all:
+    - kind: constructor_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isPublic:
+  has:
+    kind: modifiers
+    has:
+      pattern: public
+---
+id: java-member-field
+language: Java
+role: member
+parentRuleIds: [java-interface, java-enum, java-class]
+symbolType: field
+rule:
+  all:
+    - kind: field_declaration
+    - has:
+        field: declarator
+        has:
+          field: name
+          pattern: $NAME
+    - not:
+        has:
+          kind: modifiers
+          has:
+            any:
+              - pattern: private
+              - pattern: protected
+name: $NAME
+isPublic:
+  has:
+    kind: modifiers
+    has:
+      pattern: public

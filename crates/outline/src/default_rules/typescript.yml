@@ -1,0 +1,891 @@
+id: ts-import
+language: TypeScript
+role: item
+symbolType: module
+rule:
+  kind: import_statement
+  has:
+    field: source
+    pattern: $SOURCE
+name: $SOURCE
+isImport: true
+isExported: false
+---
+id: ts-export-from
+language: TypeScript
+role: item
+symbolType: module
+rule:
+  kind: export_statement
+  has:
+    field: source
+    pattern: $SOURCE
+name: $SOURCE
+isImport: false
+isExported: true
+---
+id: ts-export-list
+language: TypeScript
+role: item
+symbolType: module
+rule:
+  pattern: 'export { $$$SPECIFIERS };'
+name: exports
+isImport: false
+isExported: true
+---
+id: ts-export-function
+language: TypeScript
+role: item
+symbolType: function
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: function_declaration
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: ts-function
+language: TypeScript
+role: item
+symbolType: function
+rule:
+  kind: function_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: false
+---
+id: ts-export-class
+language: TypeScript
+role: item
+symbolType: class
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: class_declaration
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: ts-class
+language: TypeScript
+role: item
+symbolType: class
+rule:
+  kind: class_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: false
+---
+id: ts-export-interface
+language: TypeScript
+role: item
+symbolType: interface
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: interface_declaration
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: ts-interface
+language: TypeScript
+role: item
+symbolType: interface
+rule:
+  kind: interface_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: false
+---
+id: ts-export-type
+language: TypeScript
+role: item
+symbolType: struct
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: type_alias_declaration
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: ts-type
+language: TypeScript
+role: item
+symbolType: struct
+rule:
+  kind: type_alias_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: false
+---
+id: ts-export-enum
+language: TypeScript
+role: item
+symbolType: enum
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: enum_declaration
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: ts-enum
+language: TypeScript
+role: item
+symbolType: enum
+rule:
+  kind: enum_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: false
+---
+id: ts-export-const
+language: TypeScript
+role: item
+symbolType: constant
+rule:
+  pattern: 'export const $NAME = $VALUE;'
+name: $NAME
+isExported: true
+---
+id: ts-export-const-typed
+language: TypeScript
+role: item
+symbolType: constant
+rule:
+  pattern: 'export const $NAME: $TYPE = $VALUE;'
+name: $NAME
+isExported: true
+---
+id: ts-export-let
+language: TypeScript
+role: item
+symbolType: variable
+rule:
+  pattern: 'export let $NAME = $VALUE;'
+name: $NAME
+isExported: true
+---
+id: ts-export-let-typed
+language: TypeScript
+role: item
+symbolType: variable
+rule:
+  pattern: 'export let $NAME: $TYPE = $VALUE;'
+name: $NAME
+isExported: true
+---
+id: ts-top-level-arrow-function
+language: TypeScript
+role: item
+symbolType: function
+rule:
+  all:
+    - kind: variable_declarator
+    - has:
+        field: name
+        kind: identifier
+        pattern: $NAME
+    - has:
+        field: value
+        kind: arrow_function
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: ts-top-level-const
+language: TypeScript
+role: item
+symbolType: constant
+rule:
+  all:
+    - kind: variable_declarator
+    - has:
+        field: name
+        kind: identifier
+        pattern: $NAME
+    - has:
+        field: value
+        pattern: $VALUE
+    - not:
+        has:
+          field: value
+          kind: arrow_function
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - regex: '^const\b'
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: ts-top-level-const-typed
+language: TypeScript
+role: item
+symbolType: constant
+rule:
+  all:
+    - pattern:
+        context: 'const $NAME: $TYPE = $VALUE;'
+        selector: variable_declarator
+    - not:
+        has:
+          field: value
+          kind: arrow_function
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: ts-top-level-let-uninitialized
+language: TypeScript
+role: item
+symbolType: variable
+rule:
+  all:
+    - kind: variable_declarator
+    - has:
+        field: name
+        kind: identifier
+        pattern: $NAME
+    - not:
+        has:
+          field: value
+          pattern: $VALUE
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - regex: '^let\b'
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: ts-top-level-let
+language: TypeScript
+role: item
+symbolType: variable
+rule:
+  all:
+    - kind: variable_declarator
+    - has:
+        field: name
+        kind: identifier
+        pattern: $NAME
+    - has:
+        field: value
+        pattern: $VALUE
+    - not:
+        has:
+          field: value
+          kind: arrow_function
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - regex: '^let\b'
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: ts-top-level-let-typed
+language: TypeScript
+role: item
+symbolType: variable
+rule:
+  all:
+    - any:
+        - pattern:
+            context: 'let $NAME: $TYPE = $VALUE;'
+            selector: variable_declarator
+    - not:
+        has:
+          field: value
+          kind: arrow_function
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: ts-class-constructor
+language: TypeScript
+role: member
+parentRuleIds: [ts-export-class, ts-class]
+symbolType: constructor
+rule:
+  pattern:
+    context: 'class A { constructor($$$ARGS) { $$$BODY } }'
+    selector: method_definition
+name: constructor
+isPublic: true
+---
+id: ts-class-method
+language: TypeScript
+role: member
+parentRuleIds: [ts-export-class, ts-class]
+symbolType: method
+rule:
+  kind: method_definition
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic:
+  not:
+    has:
+      kind: accessibility_modifier
+      regex: '^(private|protected)$'
+---
+id: ts-class-field
+language: TypeScript
+role: member
+parentRuleIds: [ts-export-class, ts-class]
+symbolType: field
+rule:
+  kind: public_field_definition
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic:
+  not:
+    has:
+      kind: accessibility_modifier
+      regex: '^(private|protected)$'
+---
+id: ts-interface-method
+language: TypeScript
+role: member
+parentRuleIds: [ts-export-interface, ts-interface]
+symbolType: method
+rule:
+  kind: method_signature
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: true
+---
+id: ts-interface-property
+language: TypeScript
+role: member
+parentRuleIds: [ts-export-interface, ts-interface]
+symbolType: field
+rule:
+  kind: property_signature
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: true
+---
+id: ts-enum-member
+language: TypeScript
+role: member
+parentRuleIds: [ts-export-enum, ts-enum]
+symbolType: enumMember
+rule:
+  pattern:
+    context: 'enum A { $NAME }'
+    selector: property_identifier
+name: $NAME
+isPublic: true
+---
+id: tsx-import
+language: Tsx
+role: item
+symbolType: module
+rule:
+  kind: import_statement
+  has:
+    field: source
+    pattern: $SOURCE
+name: $SOURCE
+isImport: true
+isExported: false
+---
+id: tsx-export-from
+language: Tsx
+role: item
+symbolType: module
+rule:
+  kind: export_statement
+  has:
+    field: source
+    pattern: $SOURCE
+name: $SOURCE
+isImport: false
+isExported: true
+---
+id: tsx-export-list
+language: Tsx
+role: item
+symbolType: module
+rule:
+  pattern: 'export { $$$SPECIFIERS };'
+name: exports
+isImport: false
+isExported: true
+---
+id: tsx-export-function
+language: Tsx
+role: item
+symbolType: function
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: function_declaration
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: tsx-function
+language: Tsx
+role: item
+symbolType: function
+rule:
+  kind: function_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: false
+---
+id: tsx-export-class
+language: Tsx
+role: item
+symbolType: class
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: class_declaration
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: tsx-class
+language: Tsx
+role: item
+symbolType: class
+rule:
+  kind: class_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: false
+---
+id: tsx-export-interface
+language: Tsx
+role: item
+symbolType: interface
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: interface_declaration
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: tsx-interface
+language: Tsx
+role: item
+symbolType: interface
+rule:
+  kind: interface_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: false
+---
+id: tsx-export-type
+language: Tsx
+role: item
+symbolType: struct
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: type_alias_declaration
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: tsx-type
+language: Tsx
+role: item
+symbolType: struct
+rule:
+  kind: type_alias_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: false
+---
+id: tsx-export-enum
+language: Tsx
+role: item
+symbolType: enum
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: enum_declaration
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: tsx-enum
+language: Tsx
+role: item
+symbolType: enum
+rule:
+  kind: enum_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: false
+---
+id: tsx-export-const
+language: Tsx
+role: item
+symbolType: constant
+rule:
+  pattern: 'export const $NAME = $VALUE;'
+name: $NAME
+isExported: true
+---
+id: tsx-export-const-typed
+language: Tsx
+role: item
+symbolType: constant
+rule:
+  pattern: 'export const $NAME: $TYPE = $VALUE;'
+name: $NAME
+isExported: true
+---
+id: tsx-export-let
+language: Tsx
+role: item
+symbolType: variable
+rule:
+  pattern: 'export let $NAME = $VALUE;'
+name: $NAME
+isExported: true
+---
+id: tsx-export-let-typed
+language: Tsx
+role: item
+symbolType: variable
+rule:
+  pattern: 'export let $NAME: $TYPE = $VALUE;'
+name: $NAME
+isExported: true
+---
+id: tsx-top-level-arrow-function
+language: Tsx
+role: item
+symbolType: function
+rule:
+  all:
+    - kind: variable_declarator
+    - has:
+        field: name
+        kind: identifier
+        pattern: $NAME
+    - has:
+        field: value
+        kind: arrow_function
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: tsx-top-level-const
+language: Tsx
+role: item
+symbolType: constant
+rule:
+  all:
+    - kind: variable_declarator
+    - has:
+        field: name
+        kind: identifier
+        pattern: $NAME
+    - has:
+        field: value
+        pattern: $VALUE
+    - not:
+        has:
+          field: value
+          kind: arrow_function
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - regex: '^const\b'
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: tsx-top-level-const-typed
+language: Tsx
+role: item
+symbolType: constant
+rule:
+  all:
+    - pattern:
+        context: 'const $NAME: $TYPE = $VALUE;'
+        selector: variable_declarator
+    - not:
+        has:
+          field: value
+          kind: arrow_function
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: tsx-top-level-let-uninitialized
+language: Tsx
+role: item
+symbolType: variable
+rule:
+  all:
+    - kind: variable_declarator
+    - has:
+        field: name
+        kind: identifier
+        pattern: $NAME
+    - not:
+        has:
+          field: value
+          pattern: $VALUE
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - regex: '^let\b'
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: tsx-top-level-let
+language: Tsx
+role: item
+symbolType: variable
+rule:
+  all:
+    - kind: variable_declarator
+    - has:
+        field: name
+        kind: identifier
+        pattern: $NAME
+    - has:
+        field: value
+        pattern: $VALUE
+    - not:
+        has:
+          field: value
+          kind: arrow_function
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - regex: '^let\b'
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: tsx-top-level-let-typed
+language: Tsx
+role: item
+symbolType: variable
+rule:
+  all:
+    - any:
+        - pattern:
+            context: 'let $NAME: $TYPE = $VALUE;'
+            selector: variable_declarator
+    - not:
+        has:
+          field: value
+          kind: arrow_function
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: tsx-class-constructor
+language: Tsx
+role: member
+parentRuleIds: [tsx-export-class, tsx-class]
+symbolType: constructor
+rule:
+  pattern:
+    context: 'class A { constructor($$$ARGS) { $$$BODY } }'
+    selector: method_definition
+name: constructor
+isPublic: true
+---
+id: tsx-class-method
+language: Tsx
+role: member
+parentRuleIds: [tsx-export-class, tsx-class]
+symbolType: method
+rule:
+  kind: method_definition
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic:
+  not:
+    has:
+      kind: accessibility_modifier
+      regex: '^(private|protected)$'
+---
+id: tsx-class-field
+language: Tsx
+role: member
+parentRuleIds: [tsx-export-class, tsx-class]
+symbolType: field
+rule:
+  kind: public_field_definition
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic:
+  not:
+    has:
+      kind: accessibility_modifier
+      regex: '^(private|protected)$'
+---
+id: tsx-interface-method
+language: Tsx
+role: member
+parentRuleIds: [tsx-export-interface, tsx-interface]
+symbolType: method
+rule:
+  kind: method_signature
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: true
+---
+id: tsx-interface-property
+language: Tsx
+role: member
+parentRuleIds: [tsx-export-interface, tsx-interface]
+symbolType: field
+rule:
+  kind: property_signature
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: true
+---
+id: tsx-enum-member
+language: Tsx
+role: member
+parentRuleIds: [tsx-export-enum, tsx-enum]
+symbolType: enumMember
+rule:
+  pattern:
+    context: 'enum A { $NAME }'
+    selector: property_identifier
+name: $NAME
+isPublic: true
