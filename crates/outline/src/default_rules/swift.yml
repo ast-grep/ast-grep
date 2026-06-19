@@ -1,0 +1,149 @@
+id: swift-preconcurrency-import
+language: Swift
+role: item
+symbolType: module
+rule:
+  pattern: '@preconcurrency import $MODULE'
+name: $MODULE
+signature: '@preconcurrency import $MODULE'
+isImport: true
+isExported: false
+---
+id: swift-import
+language: Swift
+role: item
+symbolType: module
+rule:
+  pattern: import $MODULE
+name: $MODULE
+signature: import $MODULE
+isImport: true
+isExported: false
+---
+id: swift-class
+language: Swift
+role: item
+symbolType: class
+rule:
+  all:
+    - kind: class_declaration
+    - regex: '^\s*(public\s+|open\s+)?(final\s+)?class\b'
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  regex: '^\s*(public|open)\b'
+---
+id: swift-protocol
+language: Swift
+role: item
+symbolType: interface
+rule:
+  all:
+    - kind: protocol_declaration
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  regex: '^\s*public\b'
+---
+id: swift-struct
+language: Swift
+role: item
+symbolType: struct
+rule:
+  all:
+    - kind: class_declaration
+    - regex: '^\s*public\s+struct\b|^\s*struct\b'
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  regex: '^\s*public\b'
+---
+id: swift-enum
+language: Swift
+role: item
+symbolType: enum
+rule:
+  all:
+    - kind: class_declaration
+    - regex: '^\s*public\s+enum\b|^\s*enum\b'
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  regex: '^\s*public\b'
+---
+id: swift-actor
+language: Swift
+role: item
+symbolType: object
+rule:
+  all:
+    - kind: class_declaration
+    - regex: '^\s*public\s+actor\b|^\s*actor\b'
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  regex: '^\s*public\b'
+---
+id: swift-function
+language: Swift
+role: item
+symbolType: function
+rule:
+  all:
+    - kind: function_declaration
+    - has:
+        kind: simple_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  regex: '^\s*(public|open)\b'
+---
+id: swift-member-init
+language: Swift
+role: member
+parentRuleIds: [swift-class, swift-struct, swift-enum, swift-actor]
+symbolType: constructor
+rule:
+  kind: init_declaration
+name: init
+isPublic:
+  regex: '^\s*public\b'
+---
+id: swift-member-function
+language: Swift
+role: member
+parentRuleIds: [swift-class, swift-struct, swift-enum, swift-actor]
+symbolType: method
+rule:
+  all:
+    - kind: function_declaration
+    - has:
+        kind: simple_identifier
+        pattern: $NAME
+name: $NAME
+isPublic:
+  regex: '^\s*(public|open)\b'
+---
+id: swift-member-protocol-function
+language: Swift
+role: member
+parentRuleIds: [swift-protocol]
+symbolType: method
+rule:
+  all:
+    - kind: protocol_function_declaration
+    - has:
+        kind: simple_identifier
+        pattern: $NAME
+name: $NAME
+isPublic: true

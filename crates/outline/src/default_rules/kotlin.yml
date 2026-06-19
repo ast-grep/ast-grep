@@ -1,0 +1,243 @@
+id: kotlin-import-alias
+language: Kotlin
+role: item
+symbolType: module
+rule:
+  pattern: import $PATH as $ALIAS
+name: $ALIAS
+signature: import $PATH as $ALIAS
+isImport: true
+isExported: false
+---
+id: kotlin-import
+language: Kotlin
+role: item
+symbolType: module
+rule:
+  pattern: import $PATH
+name: $PATH
+signature: import $PATH
+isImport: true
+isExported: false
+---
+id: kotlin-enum
+language: Kotlin
+role: item
+symbolType: enum
+rule:
+  all:
+    - kind: class_declaration
+    - regex: '^\s*(public\s+|private\s+|internal\s+)?enum\s+class\b'
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  not:
+    regex: '^\s*(?:@[^\n]+\s*)*(private|internal)\b'
+---
+id: kotlin-interface
+language: Kotlin
+role: item
+symbolType: interface
+rule:
+  all:
+    - kind: class_declaration
+    - regex: '^\s*(public\s+|private\s+|internal\s+)?interface\b'
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  not:
+    regex: '^\s*(?:@[^\n]+\s*)*(private|internal)\b'
+---
+id: kotlin-object
+language: Kotlin
+role: item
+symbolType: object
+rule:
+  all:
+    - kind: object_declaration
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  not:
+    regex: '^\s*(?:@[^\n]+\s*)*(private|internal)\b'
+---
+id: kotlin-class
+language: Kotlin
+role: item
+symbolType: class
+rule:
+  all:
+    - kind: class_declaration
+    - regex: '^\s*(public\s+|private\s+|internal\s+)?(data\s+)?class\b'
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  not:
+    regex: '^\s*(?:@[^\n]+\s*)*(private|internal)\b'
+---
+id: kotlin-function
+language: Kotlin
+role: item
+symbolType: function
+rule:
+  all:
+    - kind: function_declaration
+    - has:
+        kind: simple_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  not:
+    regex: '^\s*(?:@[^\n]+\s*)*(private|internal)\b'
+---
+id: kotlin-member-nested-enum
+language: Kotlin
+role: member
+parentRuleIds: [kotlin-enum, kotlin-interface, kotlin-object, kotlin-class]
+symbolType: enum
+rule:
+  all:
+    - kind: class_declaration
+    - regex: '^\s*(public\s+|private\s+|internal\s+)?enum\s+class\b'
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+    - inside:
+        kind: class_body
+name: $NAME
+isPublic:
+  not:
+    regex: '^\s*(?:@[^\n]+\s*)*(private|internal)\b'
+---
+id: kotlin-member-nested-interface
+language: Kotlin
+role: member
+parentRuleIds: [kotlin-enum, kotlin-interface, kotlin-object, kotlin-class]
+symbolType: interface
+rule:
+  all:
+    - kind: class_declaration
+    - regex: '^\s*(public\s+|private\s+|internal\s+)?interface\b'
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+    - inside:
+        kind: class_body
+name: $NAME
+isPublic:
+  not:
+    regex: '^\s*(?:@[^\n]+\s*)*(private|internal)\b'
+---
+id: kotlin-member-nested-object
+language: Kotlin
+role: member
+parentRuleIds: [kotlin-enum, kotlin-interface, kotlin-object, kotlin-class]
+symbolType: object
+rule:
+  all:
+    - kind: object_declaration
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+    - inside:
+        kind: class_body
+name: $NAME
+isPublic:
+  not:
+    regex: '^\s*(?:@[^\n]+\s*)*(private|internal)\b'
+---
+id: kotlin-member-nested-class
+language: Kotlin
+role: member
+parentRuleIds: [kotlin-enum, kotlin-interface, kotlin-object, kotlin-class]
+symbolType: class
+rule:
+  all:
+    - kind: class_declaration
+    - regex: '^\s*(public\s+|private\s+|internal\s+)?(data\s+)?class\b'
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+    - inside:
+        kind: class_body
+name: $NAME
+isPublic:
+  not:
+    regex: '^\s*(?:@[^\n]+\s*)*(private|internal)\b'
+---
+id: kotlin-member-companion-object
+language: Kotlin
+role: member
+parentRuleIds: [kotlin-enum, kotlin-interface, kotlin-object, kotlin-class]
+symbolType: object
+rule:
+  all:
+    - kind: companion_object
+    - inside:
+        kind: class_body
+name: companion object
+signature: companion object
+isPublic:
+  not:
+    regex: '^\s*(?:@[^\n]+\s*)*(private|internal)\b'
+---
+id: kotlin-member-constructor
+language: Kotlin
+role: member
+parentRuleIds: [kotlin-enum, kotlin-class]
+symbolType: constructor
+rule:
+  all:
+    - kind: secondary_constructor
+    - inside:
+        kind: class_body
+name: constructor
+isPublic:
+  not:
+    regex: '^\s*(?:@[^\n]+\s*)*(private|internal)\b'
+---
+id: kotlin-member-function
+language: Kotlin
+role: member
+parentRuleIds: [kotlin-enum, kotlin-interface, kotlin-object, kotlin-class]
+symbolType: method
+rule:
+  all:
+    - kind: function_declaration
+    - has:
+        kind: simple_identifier
+        pattern: $NAME
+    - inside:
+        kind: class_body
+name: $NAME
+isPublic:
+  not:
+    regex: '^\s*(?:@[^\n]+\s*)*(private|internal)\b'
+---
+id: kotlin-member-property
+language: Kotlin
+role: member
+parentRuleIds: [kotlin-interface, kotlin-object, kotlin-class]
+symbolType: property
+rule:
+  all:
+    - kind: property_declaration
+    - has:
+        kind: variable_declaration
+        has:
+          kind: simple_identifier
+          pattern: $NAME
+    - inside:
+        kind: class_body
+name: $NAME
+isPublic:
+  not:
+    regex: '^\s*(?:@[^\n]+\s*)*(private|internal)\b'

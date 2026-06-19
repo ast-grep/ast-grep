@@ -1,0 +1,146 @@
+id: python-import
+language: Python
+role: item
+symbolType: module
+rule:
+  pattern: import $NAME
+name: $NAME
+isImport: true
+isExported: false
+---
+id: python-import-from
+language: Python
+role: item
+symbolType: module
+rule:
+  pattern: from $MODULE import $NAME
+name: $MODULE.$NAME
+isImport: true
+isExported: false
+---
+id: python-class
+language: Python
+role: item
+symbolType: class
+rule:
+  kind: class_definition
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+---
+id: python-module-constant
+language: Python
+role: item
+symbolType: constant
+rule:
+  all:
+    - kind: assignment
+    - has:
+        field: left
+        kind: identifier
+        pattern: $NAME
+    - has:
+        field: left
+        regex: '^[A-Z_][A-Z0-9_]*$'
+    - not:
+        any:
+          - inside:
+              kind: class_definition
+              stopBy: end
+          - inside:
+              kind: function_definition
+              stopBy: end
+name: $NAME
+---
+id: python-module-variable
+language: Python
+role: item
+symbolType: variable
+rule:
+  all:
+    - kind: assignment
+    - has:
+        field: left
+        kind: identifier
+        pattern: $NAME
+    - not:
+        has:
+          field: left
+          regex: '^[A-Z_][A-Z0-9_]*$'
+    - not:
+        any:
+          - inside:
+              kind: class_definition
+              stopBy: end
+          - inside:
+              kind: function_definition
+              stopBy: end
+name: $NAME
+---
+id: python-async-function
+language: Python
+role: item
+symbolType: function
+rule:
+  pattern: 'async def $NAME($$$ARGS): $$$BODY'
+name: $NAME
+---
+id: python-function
+language: Python
+role: item
+symbolType: function
+rule:
+  kind: function_definition
+  has:
+    field: name
+    pattern: $NAME
+  not:
+    inside:
+      kind: class_definition
+name: $NAME
+---
+id: python-nested-class
+language: Python
+role: member
+parentRuleIds: [python-class]
+symbolType: class
+rule:
+  kind: class_definition
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+---
+id: python-class-field
+language: Python
+role: member
+parentRuleIds: [python-class]
+symbolType: field
+rule:
+  all:
+    - kind: assignment
+    - has:
+        field: left
+        kind: identifier
+        pattern: $NAME
+    - inside:
+        kind: expression_statement
+        inside:
+          kind: block
+          inside:
+            kind: class_definition
+            field: body
+name: $NAME
+---
+id: python-method
+language: Python
+role: member
+parentRuleIds: [python-class]
+symbolType: method
+rule:
+  kind: function_definition
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME

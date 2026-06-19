@@ -4,7 +4,8 @@
 //! files. Keeping them data-driven preserves the same loading and execution path
 //! for built-in and custom languages.
 
-pub const DEFAULT_OUTLINE_RULES: &str = r#"
+pub const DEFAULT_OUTLINE_RULES: &str = concat!(
+  r#"
 id: rust-use-public
 language: Rust
 role: item
@@ -723,7 +724,20 @@ rule:
 name: '$NAME'
 signature: 'fn $NAME<$$$GENERICS>($$$ARGS) -> $RET'
 isPublic: false
-"#;
+"#,
+  "\n---\n",
+  include_str!("default_rules/typescript.yml"),
+  "\n---\n",
+  include_str!("default_rules/python.yml"),
+  "\n---\n",
+  include_str!("default_rules/go.yml"),
+  "\n---\n",
+  include_str!("default_rules/kotlin.yml"),
+  "\n---\n",
+  include_str!("default_rules/java.yml"),
+  "\n---\n",
+  include_str!("default_rules/swift.yml"),
+);
 
 #[cfg(test)]
 mod tests {
