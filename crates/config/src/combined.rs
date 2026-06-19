@@ -76,13 +76,9 @@ fn get_suppression_kind(node: &Node<'_, impl Doc>) -> Option<SuppressKind> {
   // following line. We must compare against the previous node's END line, not its
   // start line: a comment trailing a multi-line statement starts on a later line
   // than the statement does, so using `start_pos` would misclassify it as a
-  // leading (next-line) comment. `trailing_start` is the suppressed statement's
-  // start line when this is a trailing comment.
-  let trailing_start = node
-    .prev()
-    .filter(|prev| prev.end_pos().line() == line)
-    .map(|prev| prev.start_pos().line());
-  let suppress_next_line = trailing_start.is_none();
+  // leading (next-line) comment.
+  let prev_same_line_sibling = node.prev().filter(|prev| prev.end_pos().line() == line);
+  let suppress_next_line = prev_same_line_sibling.is_none();
   // if the first line is suppressed and the next line is empyt,
   // we suppress the whole file see gh #1541
   if line == 0
@@ -97,7 +93,9 @@ fn get_suppression_kind(node: &Node<'_, impl Doc>) -> Option<SuppressKind> {
   // A trailing comment is keyed by its statement's START line because matches are
   // looked up by their start line (see `line_suppression`); for a multi-line
   // statement that start line differs from the comment's own line.
-  let key = trailing_start.unwrap_or(line + 1);
+  let key = prev_same_line_sibling
+    .map(|n| n.start_pos().line())
+    .unwrap_or(line + 1);
   Some(SuppressKind::Line(key))
 }
 
