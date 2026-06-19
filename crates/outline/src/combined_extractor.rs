@@ -6,13 +6,19 @@
 //! extractor has matched; they are grouped by parent item extractor id and then
 //! indexed sparsely by child node kind inside that parent-scoped group.
 //!
-//! Extraction uses explicit AST traversals instead of `find_all`. For each node,
-//! the node kind selects the small set of extractors that can possibly match.
-//! When a node becomes an outline item, item traversal skips that node's
-//! descendants and member extraction runs in the matched item's scope.
+//! Extraction uses tree-sitter cursor-backed AST traversals instead of
+//! `find_all`. For each node, the node kind selects the small set of extractors
+//! that can possibly match. When a node becomes an outline item, item traversal
+//! skips that node's descendants and member extraction runs in the matched
+//! item's scope.
 
 use ast_grep_config::GlobalRules;
-use ast_grep_core::{Doc, Language, Matcher, Node, NodeMatch};
+use ast_grep_core::{
+  Doc, Language, Matcher, Node, NodeMatch,
+  meta_var::MetaVarEnv,
+  tree_sitter::{LanguageExt, StrDoc, Visitor},
+};
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use crate::extractor::{ItemExtractor, MemberExtractor, OutlineRuleError, SerializableOutlineRule};
@@ -98,24 +104,28 @@ impl<L: Language> CombinedExtractors<L> {
       .flat_map(|indices| indices.iter().map(|&idx| &self.item_extractors[idx]))
   }
 
-  pub fn extract<'tree, D: Doc>(&self, root: Node<'tree, D>) -> Vec<OutlineItem<'tree>> {
+  pub fn extract<'tree>(&self, root: Node<'tree, StrDoc<L>>) -> Vec<OutlineItem<'tree>>
+  where
+    L: LanguageExt,
+  {
     let mut items = vec![];
-    let mut stack = vec![root];
-    while let Some(node) = stack.pop() {
-      if let Some((extractor, node_match)) = self.match_item(&node) {
+    let matcher = ItemTraversalMatcher { combined: self };
+    for matched in Visitor::new(matcher).reentrant(false).visit(root) {
+      if let Some((extractor, node_match)) = self.match_item(matched.get_node()) {
         let members = self.extract_members(extractor, node_match.get_node());
         items.push(extractor.extract(&node_match, members));
-        continue;
       }
-      push_children(&mut stack, node);
     }
     items
   }
 
-  fn match_item<'tree, D: Doc>(
+  fn match_item<'tree>(
     &self,
-    node: &Node<'tree, D>,
-  ) -> Option<(&ItemExtractor<L>, NodeMatch<'tree, D>)> {
+    node: &Node<'tree, StrDoc<L>>,
+  ) -> Option<(&ItemExtractor<L>, NodeMatch<'tree, StrDoc<L>>)>
+  where
+    L: LanguageExt,
+  {
     self
       .item_extractors_for_kind(node.kind_id())
       .find_map(|extractor| {
@@ -125,11 +135,14 @@ impl<L: Language> CombinedExtractors<L> {
       })
   }
 
-  fn extract_members<'tree, D: Doc>(
+  fn extract_members<'tree>(
     &self,
     item_extractor: &ItemExtractor<L>,
-    item_node: &Node<'tree, D>,
-  ) -> Vec<OutlineMember<'tree>> {
+    item_node: &Node<'tree, StrDoc<L>>,
+  ) -> Vec<OutlineMember<'tree>>
+  where
+    L: LanguageExt,
+  {
     let Some(member_extractors) = self.member_extractors_for(&item_extractor.common.rule.id) else {
       return vec![];
     };
@@ -147,31 +160,72 @@ impl<'a, L: Language> CombinedMemberExtractors<'a, L> {
       .flat_map(|indices| indices.iter().map(|&idx| &self.extractors[idx]))
   }
 
-  pub fn extract<'tree, D: Doc>(&self, item_node: &Node<'tree, D>) -> Vec<OutlineMember<'tree>> {
+  pub fn extract<'tree>(&self, item_node: &Node<'tree, StrDoc<L>>) -> Vec<OutlineMember<'tree>>
+  where
+    L: LanguageExt,
+  {
     let mut members = vec![];
-    let mut stack = item_node.children().collect::<Vec<_>>();
-    stack.reverse();
-    while let Some(node) = stack.pop() {
-      if let Some(member) = self.extract_member(&node) {
-        members.push(member);
-        continue;
+    let matcher = MemberTraversalMatcher { combined: self };
+    for child in item_node.children() {
+      for matched in Visitor::new(&matcher).reentrant(false).visit(child) {
+        if let Some(member) = self.extract_member(matched.get_node()) {
+          members.push(member);
+        }
       }
-      push_children(&mut stack, node);
     }
     members
   }
 
-  fn extract_member<'tree, D: Doc>(&self, node: &Node<'tree, D>) -> Option<OutlineMember<'tree>> {
+  fn extract_member<'tree>(&self, node: &Node<'tree, StrDoc<L>>) -> Option<OutlineMember<'tree>>
+  where
+    L: LanguageExt,
+  {
     self
       .extractors_for_kind(node.kind_id())
       .find_map(|extractor| extractor.match_node(node).map(|m| extractor.extract(&m)))
   }
 }
 
-fn push_children<'tree, D: Doc>(stack: &mut Vec<Node<'tree, D>>, node: Node<'tree, D>) {
-  let mut children = node.children().collect::<Vec<_>>();
-  children.reverse();
-  stack.extend(children);
+struct ItemTraversalMatcher<'a, L: Language> {
+  combined: &'a CombinedExtractors<L>,
+}
+
+impl<L: Language> Matcher for ItemTraversalMatcher<'_, L> {
+  fn match_node_with_env<'tree, D: Doc>(
+    &self,
+    node: Node<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
+    for extractor in self.combined.item_extractors_for_kind(node.kind_id()) {
+      let Some(matched) = extractor.match_node(&node) else {
+        continue;
+      };
+      *env = Cow::Owned(matched.get_env().clone());
+      return Some(matched.get_node().clone());
+    }
+    None
+  }
+}
+
+struct MemberTraversalMatcher<'a, L: Language> {
+  combined: &'a CombinedMemberExtractors<'a, L>,
+}
+
+impl<L: Language> Matcher for MemberTraversalMatcher<'_, L> {
+  fn match_node_with_env<'tree, D: Doc>(
+    &self,
+    node: Node<'tree, D>,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
+    for extractor in self.combined.extractors_for_kind(node.kind_id()) {
+      let Some(matched) = extractor.match_node(&node) else {
+        continue;
+      };
+      *env = Cow::Owned(matched.get_env().clone());
+      return Some(matched.get_node().clone());
+    }
+    None
+  }
 }
 
 fn item_kind_mapping<L: Language>(item_extractors: &[ItemExtractor<L>]) -> Vec<Vec<usize>> {
