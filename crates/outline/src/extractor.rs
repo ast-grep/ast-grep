@@ -191,7 +191,6 @@ fn compile_template<L: Language>(
 }
 
 // imported/exported will be default accordingly to role
-#[allow(dead_code)]
 enum OutlinePredicate {
   Literal(bool),
   Rule(Rule),
@@ -230,7 +229,6 @@ fn compile_predicate<L: Language>(
 }
 
 /// Runnable item extractor for top-level file/module structure.
-#[allow(dead_code)]
 pub struct ItemExtractor<L: Language> {
   pub common: ExtractorCommon<L>,
   is_import: OutlinePredicate,
@@ -276,7 +274,6 @@ impl<L: Language> ItemExtractor<L> {
 }
 
 /// Runnable member extractor for direct child structure under an item.
-#[allow(dead_code)]
 pub struct MemberExtractor<L: Language> {
   pub common: ExtractorCommon<L>,
   pub parent_rule_ids: Vec<String>,

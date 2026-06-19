@@ -5,17 +5,10 @@ mod common;
 const TYPESCRIPT_RULES: &str = include_str!("../src/default_rules/typescript.yml");
 
 #[test]
-fn bundled_typescript_and_tsx_rules_compile() {
-  common::compile_rules_for(SupportLang::TypeScript, TYPESCRIPT_RULES);
-  common::compile_rules_for(SupportLang::Tsx, TYPESCRIPT_RULES);
-}
-
-#[test]
 fn extracts_typescript_outline_from_realistic_vscode_style_code() {
-  let combined = common::compile_rules_for(SupportLang::TypeScript, TYPESCRIPT_RULES);
   common::assert_outline_snapshot(
     SupportLang::TypeScript,
-    &combined,
+    TYPESCRIPT_RULES,
     r#"
 import * as DOM from '../../../../../../base/browser/dom.js';
 import { Lazy } from '../../../../../../base/common/lazy.js';
@@ -129,10 +122,9 @@ class NotebookFindWidget extends SimpleFindReplaceWidget {
 
 #[test]
 fn extracts_tsx_outline_with_jsx_values() {
-  let combined = common::compile_rules_for(SupportLang::Tsx, TYPESCRIPT_RULES);
   common::assert_outline_snapshot(
     SupportLang::Tsx,
-    &combined,
+    TYPESCRIPT_RULES,
     r#"
 import React from 'react';
 

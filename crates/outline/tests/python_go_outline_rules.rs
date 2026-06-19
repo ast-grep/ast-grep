@@ -4,10 +4,9 @@ mod common;
 
 #[test]
 fn python_rules_extract_imports_classes_functions_and_methods() {
-  let combined = common::compile_rules(include_str!("../src/default_rules/python.yml"));
   common::assert_outline_snapshot(
     SupportLang::Python,
-    &combined,
+    include_str!("../src/default_rules/python.yml"),
     r#"
 import functools
 from django.db import models
@@ -66,10 +65,9 @@ class AsyncOnly:
 
 #[test]
 fn go_rules_extract_imports_funcs_methods_types_consts_and_vars() {
-  let combined = common::compile_rules(include_str!("../src/default_rules/go.yml"));
   common::assert_outline_snapshot(
     SupportLang::Go,
-    &combined,
+    include_str!("../src/default_rules/go.yml"),
     r#"
 package gin
 

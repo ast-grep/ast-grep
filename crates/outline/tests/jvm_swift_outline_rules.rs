@@ -5,12 +5,9 @@ mod common;
 #[test]
 fn kotlin_rules_parse_and_extract_okhttp_shapes() {
   const RULES: &str = include_str!("../src/default_rules/kotlin.yml");
-  common::assert_rules_compile(RULES);
-
-  let combined = common::compile_rules(RULES);
   common::assert_outline_snapshot(
     SupportLang::Kotlin,
-    &combined,
+    RULES,
     r#"
 package okhttp3.sse
 
@@ -110,12 +107,9 @@ class ScopeBox {
 #[test]
 fn java_rules_parse_and_extract_jvm_surface() {
   const RULES: &str = include_str!("../src/default_rules/java.yml");
-  common::assert_rules_compile(RULES);
-
-  let combined = common::compile_rules(RULES);
   common::assert_outline_snapshot(
     SupportLang::Java,
-    &combined,
+    RULES,
     r#"
 package okhttp3;
 
@@ -162,12 +156,9 @@ enum Protocol { HTTP_1_1 }
 #[test]
 fn swift_rules_parse_and_extract_alamofire_shapes() {
   const RULES: &str = include_str!("../src/default_rules/swift.yml");
-  common::assert_rules_compile(RULES);
-
-  let combined = common::compile_rules(RULES);
   common::assert_outline_snapshot(
     SupportLang::Swift,
-    &combined,
+    RULES,
     r#"
 import Foundation
 @preconcurrency import Dispatch

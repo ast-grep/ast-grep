@@ -25,7 +25,6 @@ use crate::extractor::{ItemExtractor, MemberExtractor, OutlineRuleError, Seriali
 use crate::model::{OutlineItem, OutlineMember};
 
 /// Runtime outline extractors organized for a shared item traversal.
-#[allow(dead_code)]
 pub struct CombinedExtractors<L: Language> {
   /// Top-level item extractors matched during the file-wide AST traversal.
   item_extractors: Vec<ItemExtractor<L>>,
@@ -37,7 +36,6 @@ pub struct CombinedExtractors<L: Language> {
   member_mapping: HashMap<String, CombinedMemberExtractorGroup>,
 }
 
-#[allow(dead_code)]
 pub struct CombinedMemberExtractors<'a, L: Language> {
   /// Shared member extractor storage owned by `CombinedExtractors`.
   extractors: &'a [MemberExtractor<L>],
@@ -45,7 +43,6 @@ pub struct CombinedMemberExtractors<'a, L: Language> {
   group: &'a CombinedMemberExtractorGroup,
 }
 
-#[allow(dead_code)]
 #[derive(Default)]
 struct CombinedMemberExtractorGroup {
   /// Sparse node-kind index into `member_extractors` for scoped member traversal.

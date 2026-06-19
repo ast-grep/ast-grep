@@ -1,18 +1,11 @@
-#![allow(dead_code)]
-
 use ast_grep_language::{LanguageExt, SupportLang};
 use ast_grep_outline::{
   combined_extractor::CombinedExtractors,
-  extractor::{SerializableOutlineRule, parse_outline_rules},
+  extractor::parse_outline_rules,
   model::{OutlineItem, OutlineMember},
 };
 
-pub fn compile_rules(src: &str) -> CombinedExtractors<SupportLang> {
-  let rules = parse_outline_rules::<SupportLang>(src).expect("outline rules should deserialize");
-  CombinedExtractors::try_from(rules, &Default::default()).expect("outline rules should compile")
-}
-
-pub fn compile_rules_for(lang: SupportLang, src: &str) -> CombinedExtractors<SupportLang> {
+fn compile_rules_for(lang: SupportLang, src: &str) -> CombinedExtractors<SupportLang> {
   let rules = parse_outline_rules::<SupportLang>(src)
     .expect("outline rules should deserialize")
     .into_iter()
@@ -21,28 +14,8 @@ pub fn compile_rules_for(lang: SupportLang, src: &str) -> CombinedExtractors<Sup
   CombinedExtractors::try_from(rules, &Default::default()).expect("outline rules should compile")
 }
 
-pub fn assert_rules_compile(src: &'static str) {
-  let rules = parse_outline_rules::<SupportLang>(src).expect("outline YAML should parse");
-  for rule in rules {
-    match rule {
-      SerializableOutlineRule::Item(item) => {
-        ast_grep_outline::extractor::ItemExtractor::try_from(item, &Default::default())
-          .expect("item rule should compile");
-      }
-      SerializableOutlineRule::Member(member) => {
-        ast_grep_outline::extractor::MemberExtractor::try_from(member, &Default::default())
-          .expect("member rule should compile");
-      }
-    }
-  }
-}
-
-pub fn assert_outline_snapshot(
-  lang: SupportLang,
-  combined: &CombinedExtractors<SupportLang>,
-  source: &str,
-  expected: &str,
-) {
+pub fn assert_outline_snapshot(lang: SupportLang, rules: &str, source: &str, expected: &str) {
+  let combined = compile_rules_for(lang, rules);
   let grep = lang.ast_grep(source);
   let snapshot = outline_snapshot(&combined.extract(grep.root()));
   assert_eq!(snapshot.trim(), expected.trim());
