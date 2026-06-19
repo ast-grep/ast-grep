@@ -169,6 +169,26 @@ impl<L: Language> ExtractorCommon<L> {
       signature,
     })
   }
+
+  // this function is not inherently bound to ExtractorCommon
+  // just for convenience to avoid env
+  fn compile_predicate(
+    &self,
+    predicate: Option<SerializablePredicate>,
+    default: bool,
+  ) -> Result<OutlinePredicate, OutlineRuleError> {
+    let Some(predicate) = predicate else {
+      return Ok(OutlinePredicate::Literal(default));
+    };
+    let ret = match predicate {
+      SerializablePredicate::Literal(value) => OutlinePredicate::Literal(value),
+      SerializablePredicate::Rule(rule) => {
+        let env = self.rule.matcher.get_env(self.rule.language.clone());
+        OutlinePredicate::Rule(env.deserialize_rule(*rule)?)
+      }
+    };
+    Ok(ret)
+  }
 }
 
 fn transform_vars(matcher: &SerializableRuleCore) -> Option<Vec<String>> {
@@ -202,30 +222,13 @@ impl OutlinePredicate {
       Self::Literal(value) => *value,
       Self::Rule(rule) => {
         let mut env = Cow::Borrowed(node_match.get_env());
+        // must use env to match main rule's metavariables
         rule
           .match_node_with_env(node_match.get_node().clone(), &mut env)
           .is_some()
       }
     }
   }
-}
-
-fn compile_predicate<L: Language>(
-  predicate: Option<SerializablePredicate>,
-  default: bool,
-  common: &ExtractorCommon<L>,
-) -> Result<OutlinePredicate, OutlineRuleError> {
-  let Some(predicate) = predicate else {
-    return Ok(OutlinePredicate::Literal(default));
-  };
-  let ret = match predicate {
-    SerializablePredicate::Literal(value) => OutlinePredicate::Literal(value),
-    SerializablePredicate::Rule(rule) => {
-      let env = common.rule.matcher.get_env(common.rule.language.clone());
-      OutlinePredicate::Rule(env.deserialize_rule(*rule)?)
-    }
-  };
-  Ok(ret)
 }
 
 /// Runnable item extractor for top-level file/module structure.
@@ -246,8 +249,8 @@ impl<L: Language> ItemExtractor<L> {
       is_exported,
     } = item;
     let common = ExtractorCommon::try_from(common, globals)?;
-    let is_import = compile_predicate(is_import, false, &common)?;
-    let is_exported = compile_predicate(is_exported, true, &common)?;
+    let is_import = common.compile_predicate(is_import, false)?;
+    let is_exported = common.compile_predicate(is_exported, true)?;
     Ok(Self {
       common,
       is_import,
@@ -291,7 +294,7 @@ impl<L: Language> MemberExtractor<L> {
       is_public,
     } = member;
     let common = ExtractorCommon::try_from(common, globals)?;
-    let is_public = compile_predicate(is_public, true, &common)?;
+    let is_public = common.compile_predicate(is_public, true)?;
     Ok(Self {
       common,
       parent_rule_ids,
