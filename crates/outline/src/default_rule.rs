@@ -392,10 +392,174 @@ impl<T: Future> CoreStage<T> {
       vec![
         (
           "with_mut",
-          "pub(super) fn with_mut<R>(&self, f: impl FnOnce(*mut Stage<T>) -> R) -> R {",
+          "pub(super) fn with_mut<R>(&self, f: impl FnOnce(*mut Stage<T>) -> R) -> R",
           true
         ),
         ("with_core", "fn with_core<F, R>(&self, f: F) -> R", false),
+      ]
+    );
+  }
+
+  #[test]
+  fn rust_builtin_rules_extract_async_functions_and_methods() {
+    let combined = rust_combined();
+    let grep = SupportLang::Rust.ast_grep(
+      r#"
+pub async fn exported_async() -> usize { 1 }
+
+async fn private_async<T: Send>(input: T)
+where
+  T: Clone,
+{
+  todo!()
+}
+
+mod api {
+  pub async fn nested_async() {}
+  async fn hidden_async() {}
+}
+
+struct Client;
+
+impl Client {
+  pub async fn connect<T>(&self, item: T) -> Result<(), ()>
+  where
+    T: Send,
+  {
+    Ok(())
+  }
+
+  async fn close(&self) {}
+}
+
+trait Service {
+  async fn poll(&self);
+  async fn defaulted<T>(&self) -> usize
+  where
+    T: Send,
+  {
+    1
+  }
+}
+"#,
+    );
+
+    let items = combined.extract(grep.root());
+    let item_shapes = items
+      .iter()
+      .map(|item| {
+        (
+          item.entry.symbol_type,
+          item.entry.name.as_ref(),
+          item.entry.signature.as_ref(),
+          item.is_exported,
+        )
+      })
+      .collect::<Vec<_>>();
+
+    assert_eq!(
+      item_shapes,
+      vec![
+        (
+          SymbolType::Function,
+          "exported_async",
+          "pub async fn exported_async() -> usize",
+          true
+        ),
+        (
+          SymbolType::Function,
+          "private_async",
+          "async fn private_async<T: Send>(input: T)",
+          false
+        ),
+        (SymbolType::Module, "api", "mod api", false),
+        (SymbolType::Struct, "Client", "struct Client", false),
+        (SymbolType::Object, "Client", "impl Client", false),
+        (SymbolType::Interface, "Service", "trait Service", false),
+      ]
+    );
+
+    let api = items
+      .iter()
+      .find(|item| item.entry.name == "api")
+      .expect("module should be extracted");
+    let module_functions = api
+      .members
+      .iter()
+      .map(|member| {
+        (
+          member.entry.symbol_type,
+          member.entry.name.as_ref(),
+          member.entry.signature.as_ref(),
+          member.is_public,
+        )
+      })
+      .collect::<Vec<_>>();
+    assert_eq!(
+      module_functions,
+      vec![
+        (
+          SymbolType::Function,
+          "nested_async",
+          "pub async fn nested_async()",
+          true
+        ),
+        (
+          SymbolType::Function,
+          "hidden_async",
+          "async fn hidden_async()",
+          false
+        ),
+      ]
+    );
+
+    let implementation = items
+      .iter()
+      .find(|item| item.entry.signature == "impl Client")
+      .expect("impl should be extracted");
+    let impl_methods = implementation
+      .members
+      .iter()
+      .map(|member| {
+        (
+          member.entry.name.as_ref(),
+          member.entry.signature.as_ref(),
+          member.is_public,
+        )
+      })
+      .collect::<Vec<_>>();
+    assert_eq!(
+      impl_methods,
+      vec![
+        (
+          "connect",
+          "pub async fn connect<T>(&self, item: T) -> Result<(), ()>",
+          true
+        ),
+        ("close", "async fn close(&self)", false),
+      ]
+    );
+
+    let service = items
+      .iter()
+      .find(|item| item.entry.name == "Service")
+      .expect("trait should be extracted");
+    let trait_methods = service
+      .members
+      .iter()
+      .map(|member| {
+        (
+          member.entry.name.as_ref(),
+          member.entry.signature.as_ref(),
+          member.is_public,
+        )
+      })
+      .collect::<Vec<_>>();
+    assert_eq!(
+      trait_methods,
+      vec![
+        ("poll", "async fn poll(&self)", true),
+        ("defaulted", "async fn defaulted<T>(&self) -> usize", true),
       ]
     );
   }
