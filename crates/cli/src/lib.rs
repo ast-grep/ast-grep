@@ -367,7 +367,7 @@ mod test_cli {
     error("outline crates/cli/src --items public");
     error("outline crates/cli/src --view full");
     error("outline crates/cli/src --format json");
-    error("outline crates/cli/src --outline-rules rules.yml");
-    error("outline crates/cli/src --no-default-outline-rules");
+    ok("outline crates/cli/src --outline-rules rules.yml");
+    ok("outline crates/cli/src --no-default-outline-rules");
   }
 }

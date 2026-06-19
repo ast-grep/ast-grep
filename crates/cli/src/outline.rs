@@ -1,10 +1,22 @@
+use std::io;
+use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
 
+use anyhow::Result;
 use clap::{Args, ValueEnum};
 
 use crate::lang::SgLang;
 use crate::print::{ColorArg, JsonStyle};
 use crate::utils::InputArgs;
+
+mod extract;
+mod options;
+mod output;
+
+use extract::{OutlineExtractors, extract_stdin, load_outline_rules, stream_paths};
+use options::OutlineTextOptions;
+use output::OutlineEmitter;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 enum OutlineItems {
@@ -106,13 +118,30 @@ pub struct OutlineArg {
   #[clap(long, default_value = "auto", value_name = "VIEW")]
   view: OutlineView,
 
+  /// Load additional outline extractor definitions.
+  #[clap(long, action = clap::ArgAction::Append, value_name = "FILE")]
+  outline_rules: Vec<PathBuf>,
+
+  /// Do not load bundled outline extractor definitions.
+  #[clap(long)]
+  no_default_outline_rules: bool,
+
   /// Input related options.
   #[clap(flatten)]
   input: InputArgs,
 }
 
-pub fn run_outline(arg: OutlineArg) -> anyhow::Result<ExitCode> {
-  let _ = arg;
-  println!("nothing found");
+pub fn run_outline(arg: OutlineArg) -> Result<ExitCode> {
+  let rules = load_outline_rules(!arg.no_default_outline_rules, &arg.outline_rules)?;
+  let extractors = Arc::new(OutlineExtractors::try_from(rules)?);
+  let options = OutlineTextOptions::try_from_arg(&arg)?;
+  let stdout = io::stdout();
+  let mut emitter = OutlineEmitter::new(io::BufWriter::new(stdout.lock()), arg.json, &options);
+  if arg.input.stdin {
+    emitter.emit(extract_stdin(&arg, &extractors, &options)?)?;
+  } else {
+    stream_paths(&arg, extractors, &options, |file| emitter.emit(file))?;
+  }
+  emitter.finish()?;
   Ok(ExitCode::SUCCESS)
 }
