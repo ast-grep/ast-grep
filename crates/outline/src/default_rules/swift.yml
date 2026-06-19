@@ -1,0 +1,173 @@
+id: swift-preconcurrency-import
+language: Swift
+role: item
+symbolType: module
+rule:
+  pattern: '@preconcurrency import $MODULE'
+name: $MODULE
+signature: '@preconcurrency import $MODULE'
+isImport: true
+isExported: false
+---
+id: swift-import
+language: Swift
+role: item
+symbolType: module
+rule:
+  pattern: import $MODULE
+name: $MODULE
+signature: import $MODULE
+isImport: true
+isExported: false
+---
+id: swift-class
+language: Swift
+role: item
+symbolType: class
+rule:
+  all:
+    - kind: class_declaration
+    - has:
+        field: declaration_kind
+        pattern: class
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifiers
+    regex: 'public|open'
+---
+id: swift-protocol
+language: Swift
+role: item
+symbolType: interface
+rule:
+  all:
+    - kind: protocol_declaration
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifiers
+    regex: public
+---
+id: swift-struct
+language: Swift
+role: item
+symbolType: struct
+rule:
+  all:
+    - kind: class_declaration
+    - has:
+        field: declaration_kind
+        pattern: struct
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifiers
+    regex: public
+---
+id: swift-enum
+language: Swift
+role: item
+symbolType: enum
+rule:
+  all:
+    - kind: class_declaration
+    - has:
+        field: declaration_kind
+        pattern: enum
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifiers
+    regex: public
+---
+id: swift-actor
+language: Swift
+role: item
+symbolType: object
+rule:
+  all:
+    - kind: class_declaration
+    - has:
+        field: declaration_kind
+        pattern: actor
+    - has:
+        kind: type_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifiers
+    regex: public
+---
+id: swift-function
+language: Swift
+role: item
+symbolType: function
+rule:
+  all:
+    - kind: function_declaration
+    - has:
+        kind: simple_identifier
+        pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifiers
+    regex: 'public|open'
+---
+id: swift-member-init
+language: Swift
+role: member
+parentRuleIds: [swift-class, swift-struct, swift-enum, swift-actor]
+symbolType: constructor
+rule:
+  kind: init_declaration
+name: init
+isPublic:
+  has:
+    kind: modifiers
+    regex: public
+---
+id: swift-member-function
+language: Swift
+role: member
+parentRuleIds: [swift-class, swift-struct, swift-enum, swift-actor]
+symbolType: method
+rule:
+  all:
+    - kind: function_declaration
+    - has:
+        kind: simple_identifier
+        pattern: $NAME
+name: $NAME
+isPublic:
+  has:
+    kind: modifiers
+    regex: 'public|open'
+---
+id: swift-member-protocol-function
+language: Swift
+role: member
+parentRuleIds: [swift-protocol]
+symbolType: method
+rule:
+  all:
+    - kind: protocol_function_declaration
+    - has:
+        kind: simple_identifier
+        pattern: $NAME
+name: $NAME
+isPublic: true

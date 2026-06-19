@@ -1,0 +1,131 @@
+id: go-import
+language: Go
+role: item
+symbolType: module
+rule:
+  kind: import_spec
+  has:
+    pattern: '"$PATH"'
+name: $PATH
+isImport: true
+isExported: false
+---
+id: go-function
+language: Go
+role: item
+symbolType: function
+rule:
+  kind: function_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+---
+id: go-method
+language: Go
+role: item
+symbolType: method
+rule:
+  kind: method_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+---
+id: go-struct-type
+language: Go
+role: item
+symbolType: struct
+rule:
+  all:
+    - kind: type_spec
+    - has:
+        field: name
+        pattern: $NAME
+    - has:
+        kind: struct_type
+name: $NAME
+---
+id: go-interface-type
+language: Go
+role: item
+symbolType: interface
+rule:
+  all:
+    - kind: type_spec
+    - has:
+        field: name
+        pattern: $NAME
+    - has:
+        kind: interface_type
+name: $NAME
+---
+id: go-struct-field
+language: Go
+role: member
+parentRuleIds: [go-struct-type]
+symbolType: field
+rule:
+  kind: field_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic:
+  has:
+    field: name
+    regex: '^[A-Z]'
+---
+id: go-interface-method
+language: Go
+role: member
+parentRuleIds: [go-interface-type]
+symbolType: method
+rule:
+  kind: method_elem
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic:
+  has:
+    field: name
+    regex: '^[A-Z]'
+---
+id: go-type
+language: Go
+role: item
+symbolType: typeParameter
+rule:
+  all:
+    - kind: type_spec
+    - has:
+        field: name
+        pattern: $NAME
+    - not:
+        has:
+          kind: struct_type
+    - not:
+        has:
+          kind: interface_type
+name: $NAME
+---
+id: go-const
+language: Go
+role: item
+symbolType: constant
+rule:
+  kind: const_spec
+  has:
+    pattern: $NAME
+name: $NAME
+---
+id: go-var
+language: Go
+role: item
+symbolType: variable
+rule:
+  kind: var_spec
+  has:
+    pattern: $NAME
+name: $NAME
