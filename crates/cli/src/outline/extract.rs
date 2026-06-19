@@ -13,6 +13,7 @@ use ast_grep_outline::{
   combined_extractor::CombinedExtractors,
   extractor::{SerializableOutlineRule, parse_outline_rules},
   model::{OutlineEntry, OutlineItem, OutlineMember},
+  options::OutlineExtractorOptions,
 };
 use ignore::WalkState;
 use serde::Serialize;
@@ -21,7 +22,7 @@ use crate::lang::SgLang;
 use crate::utils::{InputArgs, read_file};
 
 use super::OutlineArg;
-use super::options::{OutlineTextOptions, matches_item_filters};
+use super::options::{OutlineTextOptions, matches_item_matcher};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,7 +40,10 @@ pub(super) struct OutlineExtractors {
 }
 
 impl OutlineExtractors {
-  pub(super) fn try_from(rules: Vec<SerializableOutlineRule<SgLang>>) -> Result<Self> {
+  pub(super) fn try_from(
+    rules: Vec<SerializableOutlineRule<SgLang>>,
+    options: &OutlineExtractorOptions,
+  ) -> Result<Self> {
     let mut rules_by_lang: HashMap<SgLang, Vec<SerializableOutlineRule<SgLang>>> = HashMap::new();
     for rule in rules {
       rules_by_lang
@@ -50,7 +54,7 @@ impl OutlineExtractors {
     let by_lang = rules_by_lang
       .into_iter()
       .map(|(lang, rules)| {
-        CombinedExtractors::try_from(rules, &Default::default())
+        CombinedExtractors::try_from_rules(rules, options.clone(), &Default::default())
           .map(|extractors| (lang, extractors))
       })
       .collect::<Result<_, _>>()?;
@@ -78,12 +82,7 @@ impl OutlineExtractors {
         extractors
           .extract(root)
           .into_iter()
-          .filter_map(|mut item| {
-            if options.pub_members {
-              item.members.retain(|member| member.is_public);
-            }
-            matches_item_filters(&item, options).then(|| own_item(item))
-          })
+          .filter_map(|item| matches_item_matcher(&item, options).then(|| own_item(item)))
           .collect()
       })
       .unwrap_or_default()

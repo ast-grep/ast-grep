@@ -133,8 +133,11 @@ pub struct OutlineArg {
 
 pub fn run_outline(arg: OutlineArg) -> Result<ExitCode> {
   let rules = load_outline_rules(!arg.no_default_outline_rules, &arg.outline_rules)?;
-  let extractors = Arc::new(OutlineExtractors::try_from(rules)?);
   let options = OutlineTextOptions::try_from_arg(&arg)?;
+  let extractors = Arc::new(OutlineExtractors::try_from(
+    rules,
+    &options.to_extractor_options(),
+  )?);
   let stdout = io::stdout();
   let mut emitter = OutlineEmitter::new(io::BufWriter::new(stdout.lock()), arg.json, &options);
   if arg.input.stdin {
