@@ -10,14 +10,19 @@ use ast_grep_config::{
   SerializableRule, SerializableRuleConfig, SerializableRuleCore, Severity,
 };
 use ast_grep_core::{
-  Language,
-  replacer::{TemplateFix, TemplateFixError},
+  Doc, Language, Node, NodeMatch,
+  matcher::{Matcher, MatcherExt},
+  replacer::{Replacer, TemplateFix, TemplateFixError},
+  source::Content,
 };
 use serde::{Deserialize, Serialize};
 use serde_yaml::{Deserializer, Error as YamlError, with::singleton_map_recursive::deserialize};
+use std::borrow::Cow;
 use thiserror::Error;
 
-use crate::model::SymbolType;
+use crate::model::{
+  EntryRole, OutlineEntry, OutlineItem, OutlineMember, SourcePosition, SourceRange, SymbolType,
+};
 
 /// Serializable outline extractor definition loaded from an outline rule YAML document.
 ///
@@ -192,6 +197,20 @@ enum OutlinePredicate {
   Rule(Rule),
 }
 
+impl OutlinePredicate {
+  fn evaluate<D: Doc>(&self, node_match: &NodeMatch<D>) -> bool {
+    match self {
+      Self::Literal(value) => *value,
+      Self::Rule(rule) => {
+        let mut env = Cow::Borrowed(node_match.get_env());
+        rule
+          .match_node_with_env(node_match.get_node().clone(), &mut env)
+          .is_some()
+      }
+    }
+  }
+}
+
 fn compile_predicate<L: Language>(
   predicate: Option<SerializablePredicate>,
   default: bool,
@@ -237,6 +256,23 @@ impl<L: Language> ItemExtractor<L> {
       is_exported,
     })
   }
+
+  pub fn match_node<'tree, D: Doc>(&self, node: &Node<'tree, D>) -> Option<NodeMatch<'tree, D>> {
+    self.common.rule.matcher.match_node(node.clone())
+  }
+
+  pub fn extract<'tree, D: Doc>(
+    &self,
+    node_match: &NodeMatch<'tree, D>,
+    members: Vec<OutlineMember<'tree>>,
+  ) -> OutlineItem<'tree> {
+    OutlineItem {
+      entry: self.common.extract_entry(EntryRole::Item, node_match),
+      is_import: self.is_import.evaluate(node_match),
+      is_exported: self.is_exported.evaluate(node_match),
+      members,
+    }
+  }
 }
 
 /// Runnable member extractor for direct child structure under an item.
@@ -265,6 +301,72 @@ impl<L: Language> MemberExtractor<L> {
       is_public,
     })
   }
+
+  pub fn match_node<'tree, D: Doc>(&self, node: &Node<'tree, D>) -> Option<NodeMatch<'tree, D>> {
+    self.common.rule.matcher.match_node(node.clone())
+  }
+
+  pub fn extract<'tree, D: Doc>(&self, node_match: &NodeMatch<'tree, D>) -> OutlineMember<'tree> {
+    OutlineMember {
+      entry: self.common.extract_entry(EntryRole::Member, node_match),
+      is_public: self.is_public.evaluate(node_match),
+    }
+  }
+}
+
+impl<L: Language> ExtractorCommon<L> {
+  fn extract_entry<'tree, D: Doc>(
+    &self,
+    role: EntryRole,
+    node_match: &NodeMatch<'tree, D>,
+  ) -> OutlineEntry<'tree> {
+    let node = node_match.get_node();
+    OutlineEntry {
+      role,
+      symbol_type: self.symbol_type,
+      name: render_template(&self.name, node_match).into(),
+      range: source_range(node),
+      signature: self
+        .signature
+        .as_ref()
+        .map(|template| render_template(template, node_match))
+        .unwrap_or_else(|| default_signature(node))
+        .into(),
+      ast_kind: node.kind().into_owned().into(),
+    }
+  }
+}
+
+fn render_template<D: Doc>(template: &TemplateFix, node_match: &NodeMatch<D>) -> String {
+  let bytes = template.generate_replacement(node_match);
+  <D::Source as Content>::encode_bytes(&bytes).to_string()
+}
+
+fn default_signature<D: Doc>(node: &Node<D>) -> String {
+  node
+    .text()
+    .lines()
+    .find_map(|line| {
+      let trimmed = line.trim();
+      (!trimmed.is_empty()).then(|| trimmed.to_string())
+    })
+    .unwrap_or_default()
+}
+
+fn source_range<D: Doc>(node: &Node<D>) -> SourceRange {
+  let start = node.start_pos();
+  let end = node.end_pos();
+  SourceRange {
+    byte_offset: node.range(),
+    start: SourcePosition {
+      line: start.line(),
+      column: start.column(node),
+    },
+    end: SourcePosition {
+      line: end.line(),
+      column: end.column(node),
+    },
+  }
 }
 
 /// Parse a stream of YAML outline extractor documents.
@@ -280,6 +382,7 @@ where
 #[cfg(test)]
 mod tests {
   use super::*;
+  use ast_grep_core::tree_sitter::LanguageExt;
   use ast_grep_language::SupportLang;
 
   fn parse_rule(src: &str) -> SerializableOutlineRule<SupportLang> {
@@ -499,6 +602,44 @@ isImport: true
     assert_eq!(item.common.rule.id, "ts-function");
     assert!(matches!(item.is_import, OutlinePredicate::Literal(true)));
     assert!(matches!(item.is_exported, OutlinePredicate::Literal(true)));
+  }
+
+  #[test]
+  fn predicate_rule_reuses_match_metavariables() {
+    let rule = parse_rule(
+      r#"
+id: ts-class
+language: TypeScript
+role: item
+symbolType: class
+rule:
+  pattern: class $NAME { $$$BODY }
+name: $NAME
+isExported:
+  has:
+    pattern:
+      context: class A { $NAME() { $$$BODY } }
+      selector: method_definition
+"#,
+    );
+
+    let SerializableOutlineRule::Item(item) = rule else {
+      panic!("expected item rule");
+    };
+    let item = ItemExtractor::try_from(item, &Default::default()).expect("item rule should parse");
+    let root = SupportLang::TypeScript.ast_grep("class Foo { bar() {} }");
+    let class_node = root
+      .root()
+      .children()
+      .find(|node| node.kind() == "class_declaration")
+      .expect("class should exist");
+    let node_match = item
+      .match_node(&class_node)
+      .expect("class should match item rule");
+    let outline = item.extract(&node_match, vec![]);
+
+    assert_eq!(outline.entry.name.as_ref(), "Foo");
+    assert!(!outline.is_exported);
   }
 
   #[test]
