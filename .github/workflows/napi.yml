@@ -56,7 +56,7 @@ jobs:
     name: stable - ${{ matrix.settings.target }} - node@24
     runs-on: ${{ matrix.settings.host }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup node
         uses: actions/setup-node@v6
         if: ${{ !matrix.settings.docker }}
@@ -115,7 +115,7 @@ jobs:
     needs:
       - build
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup node
         uses: actions/setup-node@v6
         with:
