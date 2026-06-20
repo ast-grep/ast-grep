@@ -13,7 +13,7 @@ use super::{OutlineItems, OutlineView};
 #[cfg(test)]
 mod tests;
 
-pub(super) struct OutlineEmitter<'a, W> {
+pub struct OutlineEmitter<'a, W> {
   out: W,
   json: Option<JsonStyle>,
   options: &'a OutlineTextOptions,
@@ -23,7 +23,7 @@ pub(super) struct OutlineEmitter<'a, W> {
 }
 
 impl<'a, W: Write> OutlineEmitter<'a, W> {
-  pub(super) fn new(out: W, json: Option<JsonStyle>, options: &'a OutlineTextOptions) -> Self {
+  pub fn new(out: W, json: Option<JsonStyle>, options: &'a OutlineTextOptions) -> Self {
     Self {
       out,
       json,
@@ -34,7 +34,7 @@ impl<'a, W: Write> OutlineEmitter<'a, W> {
     }
   }
 
-  pub(super) fn emit(&mut self, file: OutlineFile<'static>) -> Result<()> {
+  pub fn emit(&mut self, file: OutlineFile<'static>) -> Result<()> {
     match self.json {
       Some(JsonStyle::Pretty) => self.emit_pretty_json(&file)?,
       Some(JsonStyle::Compact) => self.emit_compact_json(&file)?,
@@ -56,7 +56,7 @@ impl<'a, W: Write> OutlineEmitter<'a, W> {
     Ok(())
   }
 
-  pub(super) fn finish(&mut self) -> Result<()> {
+  pub fn finish(&mut self) -> Result<()> {
     match self.json {
       Some(JsonStyle::Pretty) => {
         if self.emitted_any {

@@ -8,18 +8,18 @@ use regex::Regex;
 use super::{OutlineArg, OutlineItems, OutlineView};
 
 #[derive(Clone)]
-pub(super) struct OutlineTextOptions {
-  pub(super) items: OutlineItems,
-  pub(super) view: OutlineView,
-  pub(super) symbol_types: Option<Vec<SymbolType>>,
-  pub(super) item_matcher: Option<Regex>,
-  pub(super) pub_members: bool,
-  pub(super) use_color: bool,
-  pub(super) show_empty_files: bool,
+pub struct OutlineTextOptions {
+  pub items: OutlineItems,
+  pub view: OutlineView,
+  pub symbol_types: Option<Vec<SymbolType>>,
+  pub item_matcher: Option<Regex>,
+  pub pub_members: bool,
+  pub use_color: bool,
+  pub show_empty_files: bool,
 }
 
 impl OutlineTextOptions {
-  pub(super) fn try_from_arg(arg: &OutlineArg) -> Result<Self> {
+  pub fn try_from_arg(arg: &OutlineArg) -> Result<Self> {
     let has_directory_input = !arg.input.stdin && arg.input.paths.iter().any(|path| path.is_dir());
     Ok(Self {
       items: resolve_items(arg.items, has_directory_input),
@@ -41,7 +41,7 @@ impl OutlineTextOptions {
     })
   }
 
-  pub(super) fn to_extractor_options(&self) -> OutlineExtractorOptions {
+  pub fn to_extractor_options(&self) -> OutlineExtractorOptions {
     OutlineExtractorOptions {
       symbol_types: self.symbol_types.clone(),
       imports: match self.items {
@@ -151,7 +151,7 @@ fn parse_symbol_type(raw: &str) -> Option<SymbolType> {
   })
 }
 
-pub(super) fn matches_item_matcher(item: &OutlineItem, options: &OutlineTextOptions) -> bool {
+pub fn matches_item_matcher(item: &OutlineItem, options: &OutlineTextOptions) -> bool {
   options.item_matcher.as_ref().is_none_or(|matcher| {
     matcher.is_match(&item.entry.name) || matcher.is_match(&item.entry.signature)
   })

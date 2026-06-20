@@ -26,23 +26,23 @@ use super::options::{OutlineTextOptions, matches_item_matcher};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct OutlineFile<'a> {
-  pub(super) path: String,
-  pub(super) language: String,
-  pub(super) items: Vec<OutlineItem<'a>>,
+pub struct OutlineFile<'a> {
+  pub path: String,
+  pub language: String,
+  pub items: Vec<OutlineItem<'a>>,
 }
 
 // One command-level cache of compiled outline rules. File workers borrow this
 // by language, so YAML deserialization and rule compilation never sit on the
 // per-file read/parse/extract path.
-pub(super) struct OutlineExtractors {
+pub struct OutlineExtractors {
   by_lang: HashMap<SgLang, CombinedExtractors<SgLang>>,
 }
 
 impl OutlineExtractors {
-  pub(super) fn try_from(
+  pub fn try_from(
     rules: Vec<SerializableOutlineRule<SgLang>>,
-    options: &OutlineExtractorOptions,
+    options: OutlineExtractorOptions,
   ) -> Result<Self> {
     let mut rules_by_lang: HashMap<SgLang, Vec<SerializableOutlineRule<SgLang>>> = HashMap::new();
     for rule in rules {
@@ -89,7 +89,7 @@ impl OutlineExtractors {
   }
 }
 
-pub(super) fn load_outline_rules(
+pub fn load_outline_rules(
   include_default: bool,
   paths: &[PathBuf],
 ) -> Result<Vec<SerializableOutlineRule<SgLang>>> {
@@ -110,7 +110,7 @@ pub(super) fn load_outline_rules(
   Ok(rules)
 }
 
-pub(super) fn extract_stdin(
+pub fn extract_stdin(
   arg: &OutlineArg,
   extractors: &OutlineExtractors,
   options: &OutlineTextOptions,
@@ -126,7 +126,7 @@ pub(super) fn extract_stdin(
   })
 }
 
-pub(super) fn stream_paths(
+pub fn stream_paths(
   arg: &OutlineArg,
   extractors: Arc<OutlineExtractors>,
   options: &OutlineTextOptions,

@@ -136,7 +136,7 @@ pub fn run_outline(arg: OutlineArg) -> Result<ExitCode> {
   let options = OutlineTextOptions::try_from_arg(&arg)?;
   let extractors = Arc::new(OutlineExtractors::try_from(
     rules,
-    &options.to_extractor_options(),
+    options.to_extractor_options(),
   )?);
   let stdout = io::stdout();
   let mut emitter = OutlineEmitter::new(io::BufWriter::new(stdout.lock()), arg.json, &options);
