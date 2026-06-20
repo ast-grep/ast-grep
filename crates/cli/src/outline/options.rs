@@ -7,34 +7,32 @@ use regex::Regex;
 
 use super::{OutlineArg, OutlineItems, OutlineView};
 
-#[derive(Clone)]
-pub struct OutlineExtractOptions {
-  pub extractor: OutlineExtractorOptions,
-  pub show_empty_files: bool,
+pub(super) fn extractor_options_from_arg(arg: &OutlineArg) -> Result<OutlineExtractorOptions> {
+  let has_directory_input = has_directory_input(arg);
+  let items = resolve_items(arg.items, has_directory_input);
+  let view = resolve_view(arg.view, has_directory_input);
+  let symbol_types = arg
+    .symbol_type
+    .as_deref()
+    .map(parse_symbol_types)
+    .transpose()?;
+  let item_regex = arg
+    .match_item
+    .as_deref()
+    .map(Regex::new)
+    .transpose()
+    .context("Cannot parse outline item matcher")?;
+  Ok(extractor_options(
+    items,
+    view,
+    symbol_types,
+    item_regex,
+    arg.pub_members,
+  ))
 }
 
-impl OutlineExtractOptions {
-  pub fn try_from_arg(arg: &OutlineArg) -> Result<Self> {
-    let has_directory_input = has_directory_input(arg);
-    let items = resolve_items(arg.items, has_directory_input);
-    let view = resolve_view(arg.view, has_directory_input);
-    let symbol_types = arg
-      .symbol_type
-      .as_deref()
-      .map(parse_symbol_types)
-      .transpose()?;
-    let item_regex = arg
-      .match_item
-      .as_deref()
-      .map(Regex::new)
-      .transpose()
-      .context("Cannot parse outline item matcher")?;
-    let extractor = extractor_options(items, view, symbol_types, item_regex, arg.pub_members);
-    Ok(Self {
-      extractor,
-      show_empty_files: arg.input.stdin || !has_directory_input,
-    })
-  }
+pub(super) fn show_empty_files(arg: &OutlineArg) -> bool {
+  arg.input.stdin || !has_directory_input(arg)
 }
 
 fn extractor_options(

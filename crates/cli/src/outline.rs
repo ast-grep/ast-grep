@@ -15,7 +15,6 @@ mod options;
 mod output;
 
 use extract::{OutlineExtractors, extract_stdin, load_outline_rules, stream_paths};
-use options::OutlineExtractOptions;
 use output::{OutlineEmitter, OutlineStyle};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
@@ -133,20 +132,14 @@ pub struct OutlineArg {
 
 pub fn run_outline(arg: OutlineArg) -> Result<ExitCode> {
   let rules = load_outline_rules(!arg.no_default_outline_rules, &arg.outline_rules)?;
-  let extract_options = OutlineExtractOptions::try_from_arg(&arg)?;
   let style = OutlineStyle::from_arg(&arg);
-  let extractors = Arc::new(OutlineExtractors::try_from(
-    rules,
-    extract_options.extractor.clone(),
-  )?);
+  let extractors = Arc::new(OutlineExtractors::try_from_arg(rules, &arg)?);
   let stdout = io::stdout();
   let mut emitter = OutlineEmitter::new(io::BufWriter::new(stdout.lock()), arg.json, style);
   if arg.input.stdin {
     emitter.emit(extract_stdin(&arg, &extractors)?)?;
   } else {
-    stream_paths(&arg, extractors, &extract_options, |file| {
-      emitter.emit(file)
-    })?;
+    stream_paths(&arg, extractors, |file| emitter.emit(file))?;
   }
   emitter.finish()?;
   Ok(ExitCode::SUCCESS)
