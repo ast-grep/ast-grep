@@ -22,7 +22,7 @@ use crate::lang::SgLang;
 use crate::utils::{InputArgs, read_file};
 
 use super::OutlineArg;
-use super::options::OutlineExtractOptions;
+use super::options::{extractor_options_from_arg, show_empty_files};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,12 +37,22 @@ pub struct OutlineFile<'a> {
 // per-file read/parse/extract path.
 pub struct OutlineExtractors {
   by_lang: HashMap<SgLang, CombinedExtractors<SgLang>>,
+  show_empty_files: bool,
 }
 
 impl OutlineExtractors {
-  pub fn try_from(
+  pub fn try_from_arg(
+    rules: Vec<SerializableOutlineRule<SgLang>>,
+    arg: &OutlineArg,
+  ) -> Result<Self> {
+    let options = extractor_options_from_arg(arg)?;
+    Self::try_from_options(rules, options, show_empty_files(arg))
+  }
+
+  fn try_from_options(
     rules: Vec<SerializableOutlineRule<SgLang>>,
     options: OutlineExtractorOptions,
+    show_empty_files: bool,
   ) -> Result<Self> {
     let mut rules_by_lang: HashMap<SgLang, Vec<SerializableOutlineRule<SgLang>>> = HashMap::new();
     for rule in rules {
@@ -58,7 +68,10 @@ impl OutlineExtractors {
           .map(|extractors| (lang, extractors))
       })
       .collect::<Result<_, _>>()?;
-    Ok(Self { by_lang })
+    Ok(Self {
+      by_lang,
+      show_empty_files,
+    })
   }
 
   fn is_empty(&self) -> bool {
@@ -121,7 +134,6 @@ pub fn extract_stdin(
 pub fn stream_paths(
   arg: &OutlineArg,
   extractors: Arc<OutlineExtractors>,
-  options: &OutlineExtractOptions,
   mut emit: impl FnMut(OutlineFile<'static>) -> Result<()>,
 ) -> Result<()> {
   if arg.lang.is_none() && extractors.is_empty() {
@@ -130,17 +142,15 @@ pub fn stream_paths(
   let walker = outline_walk(&arg.input, arg.lang, &extractors)?;
   let (tx, rx) = mpsc::channel();
   let lang = arg.lang;
-  let options = Arc::new(options.clone());
   let producer = thread::spawn(move || {
     walker.run(|| {
       let tx = tx.clone();
       let extractors = extractors.clone();
-      let options = options.clone();
       Box::new(move |result| {
         let Some(path) = outline_path(result) else {
           return WalkState::Continue;
         };
-        let Some(file) = extract_path_or_report(&path, lang, &extractors, &options) else {
+        let Some(file) = extract_path_or_report(&path, lang, &extractors) else {
           return WalkState::Continue;
         };
         if tx.send(file).is_err() {
@@ -192,9 +202,8 @@ fn extract_path_or_report(
   path: &Path,
   lang: Option<SgLang>,
   extractors: &OutlineExtractors,
-  options: &OutlineExtractOptions,
 ) -> Option<OutlineFile<'static>> {
-  match extract_path(path, lang, extractors, options) {
+  match extract_path(path, lang, extractors) {
     Ok(file) => file,
     Err(err) => {
       eprintln!("ERROR: {err:#}");
@@ -207,7 +216,6 @@ fn extract_path(
   path: &Path,
   lang: Option<SgLang>,
   extractors: &OutlineExtractors,
-  options: &OutlineExtractOptions,
 ) -> Result<Option<OutlineFile<'static>>> {
   let Some(lang) = lang.or_else(|| SgLang::from_path(path)) else {
     return Ok(None);
@@ -216,7 +224,7 @@ fn extract_path(
     read_file(path).with_context(|| format!("Cannot extract outline from {}", path.display()))?;
   let grep = lang.ast_grep(source);
   let items = extractors.extract(lang, grep.root());
-  if !options.show_empty_files && items.is_empty() {
+  if !extractors.show_empty_files && items.is_empty() {
     return Ok(None);
   }
   Ok(Some(OutlineFile {
