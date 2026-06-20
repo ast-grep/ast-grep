@@ -270,6 +270,33 @@ mod test {
     rule.get_matcher(env)
   }
 
+  // A `not` sub-rule must not leak a metavariable binding into the match env,
+  // even when reached through a relational rule. Regression for the env-leak
+  // class: the `return $A` sibling makes the negated inner match (binding A),
+  // but `not` succeeds on a different sibling, so $A must remain unbound.
+  #[test]
+  fn test_not_does_not_leak_env_via_yaml() {
+    use ast_grep_core::tree_sitter::LanguageExt;
+    let matcher = get_matcher(
+      r"
+rule:
+  kind: expression_statement
+  regex: '^target'
+  follows:
+    not:
+      pattern: return $A
+    stopBy: end
+",
+    )
+    .expect("rule should compile");
+    let grep = TypeScript::Tsx.ast_grep("function f() { bar(); return foo; target; }");
+    let nm = grep.root().find(&matcher).expect("should match target;");
+    assert!(
+      nm.get_env().get_match("A").is_none(),
+      "`not` must export no binding for $A"
+    );
+  }
+
   #[test]
   fn test_rule_error() {
     let ret = get_matcher(r"rule: {kind: bbb}");

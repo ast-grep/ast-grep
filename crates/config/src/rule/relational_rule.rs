@@ -337,6 +337,39 @@ mod test {
     o::All::new(vec![Rule::Pattern(Pattern::new(target, TS::Tsx)), relation])
   }
 
+  // A `not` sub-rule must never export a metavariable binding. When the negated
+  // inner matches some candidate (making the negation fail) the relational
+  // `find_map` keeps probing later candidates with the SAME env; without
+  // rollback in `Not`, the inner's stray binding survives into the eventual
+  // successful match. Here the nearest preceding sibling is a `return $A`
+  // (negated inner matches, would bind A=foo), while a farther sibling lets the
+  // negation succeed, so the match should bind nothing.
+  #[test]
+  fn test_not_in_relation_does_not_leak_env() {
+    use ast_grep_core::ops as o;
+    let follows = Follows {
+      former: Rule::Not(Box::new(o::Not::new(Rule::Pattern(Pattern::new(
+        "return $A",
+        TS::Tsx,
+      ))))),
+      stop_by: StopBy::End,
+    };
+    let grep = TS::Tsx.ast_grep("function f() { bar(); return foo; target; }");
+    let root = grep.root();
+    let target = root
+      .dfs()
+      .find(|n| n.text() == "target;")
+      .expect("find target stmt");
+    let mut env = Cow::Owned(MetaVarEnv::new());
+    let matched = follows.match_node_with_env(target, &mut env);
+    assert!(matched.is_some(), "target follows a non-return statement");
+    let leaked = env.get_match("A").map(|n| n.text().to_string());
+    assert!(
+      leaked.is_none(),
+      "`not` must not leak a binding for $A, got {leaked:?}"
+    );
+  }
+
   #[test]
   fn test_precedes_operator() {
     let precedes = Precedes {

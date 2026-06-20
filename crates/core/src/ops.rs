@@ -217,9 +217,17 @@ where
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
+    // A `not` rule never contributes bindings: a successful negation means the
+    // inner did NOT match, so there is nothing to bind. Run the inner against a
+    // throwaway clone so that an inner *match* (which makes the negation fail)
+    // cannot leak its partial bindings into the live env. Without this, a `not`
+    // evaluated via a relational rule's `find_map` (which reuses one env across
+    // candidates) can leave a stray binding behind that survives into a later,
+    // successful match. See the env-leak class fixed in PR #2670.
+    let mut probe = Cow::Borrowed(env.as_ref());
     self
       .not
-      .match_node_with_env(node.clone(), env)
+      .match_node_with_env(node.clone(), &mut probe)
       .xor(Some(node))
   }
 }
@@ -382,6 +390,21 @@ mod test {
   fn test_not() {
     let matcher = Not { not: "let a = 1" };
     test_find(&matcher, "const b = 2");
+  }
+
+  // When the negated inner matches (so `Not` fails) it must not leave the
+  // inner's bindings behind in env. A `not` rule never contributes bindings.
+  #[test]
+  fn test_not_does_not_leak_env() {
+    let matcher = Not { not: "let $A = 1" };
+    let code = Root::str("let x = 1", Tsx);
+    let node = code.root().find("let $B = 1").expect("should exist");
+    let node = node.get_node().clone();
+    let mut env = Cow::Owned(MetaVarEnv::new());
+    // inner matches `let x = 1`, so the negation fails …
+    assert!(matcher.match_node_with_env(node, &mut env).is_none());
+    // … and must not have leaked a binding for $A
+    assert!(env.get_match("A").is_none());
   }
 
   #[test]
