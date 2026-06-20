@@ -9,16 +9,12 @@ use crate::print::JsonStyle;
 use super::*;
 use crate::outline::{OutlineItems, OutlineView};
 
-fn options(view: OutlineView) -> OutlineTextOptions {
-  OutlineTextOptions {
-    items: OutlineItems::All,
-    view,
-    symbol_types: None,
-    item_matcher: None,
-    pub_members: false,
-    use_color: false,
-    show_empty_files: true,
-  }
+fn style(view: OutlineView) -> OutlineStyle {
+  OutlineStyle::new(view, false, OutlineItems::All)
+}
+
+fn color_style(view: OutlineView) -> OutlineStyle {
+  OutlineStyle::new(view, true, OutlineItems::All)
 }
 
 fn range(line: usize) -> SourceRange {
@@ -84,12 +80,8 @@ fn outline_file() -> OutlineFile<'static> {
 #[test]
 fn renders_digest_like_design_doc() {
   let mut output = vec![];
-  print_text_to(
-    &mut output,
-    &[outline_file()],
-    &options(OutlineView::Digest),
-  )
-  .expect("text should render");
+  print_text_to(&mut output, &[outline_file()], &style(OutlineView::Digest))
+    .expect("text should render");
   let output = String::from_utf8(output).expect("output should be utf8");
 
   assert_eq!(
@@ -104,7 +96,7 @@ fn renders_expanded_members_like_design_doc() {
   print_text_to(
     &mut output,
     &[outline_file()],
-    &options(OutlineView::Expanded),
+    &style(OutlineView::Expanded),
   )
   .expect("text should render");
   let output = String::from_utf8(output).expect("output should be utf8");
@@ -125,7 +117,7 @@ fn aligns_line_numbers_to_file_width() {
     members: vec![],
   });
   let mut output = vec![];
-  print_text_to(&mut output, &[file], &options(OutlineView::Expanded)).expect("text should render");
+  print_text_to(&mut output, &[file], &style(OutlineView::Expanded)).expect("text should render");
   let output = String::from_utf8(output).expect("output should be utf8");
 
   assert_eq!(
@@ -141,7 +133,7 @@ fn aligns_line_numbers_to_file_width() {
     members: vec![],
   });
   let mut output = vec![];
-  print_text_to(&mut output, &[file], &options(OutlineView::Digest)).expect("text should render");
+  print_text_to(&mut output, &[file], &style(OutlineView::Digest)).expect("text should render");
   let output = String::from_utf8(output).expect("output should be utf8");
 
   assert!(output.contains("\n       method: parse, recover\n"));
@@ -155,7 +147,7 @@ fn renders_empty_direct_file_block() {
     language: "TypeScript".to_string(),
     items: vec![],
   };
-  print_text_to(&mut output, &[file], &options(OutlineView::Digest)).expect("text should render");
+  print_text_to(&mut output, &[file], &style(OutlineView::Digest)).expect("text should render");
   let output = String::from_utf8(output).expect("output should be utf8");
 
   assert_eq!(output, "src/empty.ts\nnothing found\n");
@@ -170,7 +162,7 @@ fn separates_file_blocks_with_blank_line() {
   print_text_to(
     &mut output,
     &[first, second],
-    &options(OutlineView::Signatures),
+    &style(OutlineView::Signatures),
   )
   .expect("text should render");
   let output = String::from_utf8(output).expect("output should be utf8");
@@ -180,10 +172,10 @@ fn separates_file_blocks_with_blank_line() {
 
 #[test]
 fn emitter_streams_text_file_blocks() {
-  let options = options(OutlineView::Signatures);
+  let style = style(OutlineView::Signatures);
   let mut output = vec![];
   {
-    let mut emitter = OutlineEmitter::new(&mut output, None, &options);
+    let mut emitter = OutlineEmitter::new(&mut output, None, style);
     emitter.emit(outline_file()).expect("file should emit");
     let mut second = outline_file();
     second.path = "src/checker.ts".to_string();
@@ -197,10 +189,10 @@ fn emitter_streams_text_file_blocks() {
 
 #[test]
 fn emitter_streams_json_lines_per_file() {
-  let options = options(OutlineView::Signatures);
+  let style = style(OutlineView::Signatures);
   let mut output = vec![];
   {
-    let mut emitter = OutlineEmitter::new(&mut output, Some(JsonStyle::Stream), &options);
+    let mut emitter = OutlineEmitter::new(&mut output, Some(JsonStyle::Stream), style);
     emitter.emit(outline_file()).expect("file should emit");
     let mut second = outline_file();
     second.path = "src/checker.ts".to_string();
@@ -218,10 +210,10 @@ fn emitter_streams_json_lines_per_file() {
 
 #[test]
 fn emitter_streams_valid_compact_json_array() {
-  let options = options(OutlineView::Signatures);
+  let style = style(OutlineView::Signatures);
   let mut output = vec![];
   {
-    let mut emitter = OutlineEmitter::new(&mut output, Some(JsonStyle::Compact), &options);
+    let mut emitter = OutlineEmitter::new(&mut output, Some(JsonStyle::Compact), style);
     emitter.emit(outline_file()).expect("file should emit");
     let mut second = outline_file();
     second.path = "src/checker.ts".to_string();
@@ -236,10 +228,9 @@ fn emitter_streams_valid_compact_json_array() {
 
 #[test]
 fn signature_view_styles_exported_items() {
-  let mut options = options(OutlineView::Signatures);
-  options.use_color = true;
+  let style = color_style(OutlineView::Signatures);
   let mut output = vec![];
-  print_text_to(&mut output, &[outline_file()], &options).expect("text should render");
+  print_text_to(&mut output, &[outline_file()], &style).expect("text should render");
   let output = String::from_utf8(output).expect("output should be utf8");
 
   assert!(output.contains("export class \u{1b}[1;34mParser\u{1b}[0m"));
@@ -306,19 +297,18 @@ fn styles_outline_flags_with_ansi() {
 
 #[test]
 fn keeps_digest_and_names_entries_uncolored() {
-  let mut options = options(OutlineView::Names);
-  options.use_color = true;
+  let style = color_style(OutlineView::Names);
   let mut output = vec![];
-  print_text_to(&mut output, &[outline_file()], &options).expect("text should render");
+  print_text_to(&mut output, &[outline_file()], &style).expect("text should render");
   let output = String::from_utf8(output).expect("output should be utf8");
 
   assert!(output.contains("Parser"));
   assert!(!output.contains("\u{1b}[34mParser"));
   assert!(output.contains("\u{1b}[1mParser"));
 
-  options.view = OutlineView::Digest;
+  let style = color_style(OutlineView::Digest);
   let mut output = vec![];
-  print_text_to(&mut output, &[outline_file()], &options).expect("text should render");
+  print_text_to(&mut output, &[outline_file()], &style).expect("text should render");
   let output = String::from_utf8(output).expect("output should be utf8");
 
   assert!(output.contains("parse"));

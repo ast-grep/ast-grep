@@ -5,12 +5,15 @@
 
 use crate::extractor::{SerializableOutlineRule, SerializablePredicate};
 use crate::model::{OutlineItem, OutlineMember, SymbolType};
+use regex::Regex;
 
 /// Options for compiling and extracting an outline.
 #[derive(Clone, Debug)]
 pub struct OutlineExtractorOptions {
   /// Top-level item symbol types to include. `None` accepts every symbol type.
   pub symbol_types: Option<Vec<SymbolType>>,
+  /// Regex matched against top-level item names and signatures.
+  pub item_regex: Option<Regex>,
   /// Filter for whether a top-level item is an import.
   pub imports: OutlineFlagFilter,
   /// Filter for whether a top-level item is exported.
@@ -25,6 +28,7 @@ impl Default for OutlineExtractorOptions {
   fn default() -> Self {
     Self {
       symbol_types: None,
+      item_regex: None,
       imports: OutlineFlagFilter::Any,
       exported: OutlineFlagFilter::Any,
       detail: OutlineEntryDetail::Signature,
@@ -103,6 +107,7 @@ impl OutlineExtractorOptions {
   /// Returns whether a concrete extracted item should be returned.
   pub fn keep_item(&self, item: &OutlineItem) -> bool {
     matches_symbol_type(item.entry.symbol_type, self.symbol_types.as_deref())
+      && matches_item_regex(item, self.item_regex.as_ref())
       && self.imports.matches_value(item.is_import)
       && self.exported.matches_value(item.is_exported)
   }
@@ -138,6 +143,12 @@ impl OutlineFlagFilter {
 
 fn matches_symbol_type(symbol_type: SymbolType, filters: Option<&[SymbolType]>) -> bool {
   filters.is_none_or(|filters| filters.contains(&symbol_type))
+}
+
+fn matches_item_regex(item: &OutlineItem, matcher: Option<&Regex>) -> bool {
+  matcher.is_none_or(|matcher| {
+    matcher.is_match(&item.entry.name) || matcher.is_match(&item.entry.signature)
+  })
 }
 
 #[cfg(test)]
@@ -253,9 +264,24 @@ isPublic: false
       }),
       ..Default::default()
     };
+    let matching_name_options = OutlineExtractorOptions {
+      item_regex: Some(Regex::new("name").expect("regex should compile")),
+      ..Default::default()
+    };
+    let matching_signature_options = OutlineExtractorOptions {
+      item_regex: Some(Regex::new("signature").expect("regex should compile")),
+      ..Default::default()
+    };
+    let missing_match_options = OutlineExtractorOptions {
+      item_regex: Some(Regex::new("missing").expect("regex should compile")),
+      ..Default::default()
+    };
 
     assert!(exported_options.keep_item(&exported_function));
     assert!(!import_options.keep_item(&exported_function));
+    assert!(matching_name_options.keep_item(&exported_function));
+    assert!(matching_signature_options.keep_item(&exported_function));
+    assert!(!missing_match_options.keep_item(&exported_function));
     assert!(!public_member_options.keep_member(&private_member));
   }
 }

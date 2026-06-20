@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use ast_grep_outline::{
-  model::{OutlineItem, SymbolType},
+  model::SymbolType,
   options::{OutlineEntryDetail, OutlineExtractorOptions, OutlineFlagFilter, OutlineMemberOptions},
 };
 use regex::Regex;
@@ -8,87 +8,92 @@ use regex::Regex;
 use super::{OutlineArg, OutlineItems, OutlineView};
 
 #[derive(Clone)]
-pub struct OutlineTextOptions {
-  pub items: OutlineItems,
-  pub view: OutlineView,
-  pub symbol_types: Option<Vec<SymbolType>>,
-  pub item_matcher: Option<Regex>,
-  pub pub_members: bool,
-  pub use_color: bool,
+pub struct OutlineExtractOptions {
+  pub extractor: OutlineExtractorOptions,
   pub show_empty_files: bool,
 }
 
-impl OutlineTextOptions {
+impl OutlineExtractOptions {
   pub fn try_from_arg(arg: &OutlineArg) -> Result<Self> {
-    let has_directory_input = !arg.input.stdin && arg.input.paths.iter().any(|path| path.is_dir());
+    let has_directory_input = has_directory_input(arg);
+    let items = resolve_items(arg.items, has_directory_input);
+    let view = resolve_view(arg.view, has_directory_input);
+    let symbol_types = arg
+      .symbol_type
+      .as_deref()
+      .map(parse_symbol_types)
+      .transpose()?;
+    let item_regex = arg
+      .match_item
+      .as_deref()
+      .map(Regex::new)
+      .transpose()
+      .context("Cannot parse outline item matcher")?;
+    let extractor = extractor_options(items, view, symbol_types, item_regex, arg.pub_members);
     Ok(Self {
-      items: resolve_items(arg.items, has_directory_input),
-      view: resolve_view(arg.view, has_directory_input),
-      symbol_types: arg
-        .symbol_type
-        .as_deref()
-        .map(parse_symbol_types)
-        .transpose()?,
-      item_matcher: arg
-        .match_item
-        .as_deref()
-        .map(Regex::new)
-        .transpose()
-        .context("Cannot parse outline item matcher")?,
-      pub_members: arg.pub_members,
-      use_color: arg.color.should_use_color(),
+      extractor,
       show_empty_files: arg.input.stdin || !has_directory_input,
     })
   }
+}
 
-  pub fn to_extractor_options(&self) -> OutlineExtractorOptions {
-    OutlineExtractorOptions {
-      symbol_types: self.symbol_types.clone(),
-      imports: match self.items {
-        OutlineItems::Auto => unreachable!("outline item mode should be resolved"),
-        OutlineItems::Structure => OutlineFlagFilter::No,
-        OutlineItems::Imports => OutlineFlagFilter::Yes,
-        OutlineItems::Exports | OutlineItems::All => OutlineFlagFilter::Any,
-      },
-      exported: match self.items {
-        OutlineItems::Auto => unreachable!("outline item mode should be resolved"),
-        OutlineItems::Exports => OutlineFlagFilter::Yes,
-        OutlineItems::Structure | OutlineItems::Imports | OutlineItems::All => {
-          OutlineFlagFilter::Any
-        }
-      },
-      detail: if self.item_matcher.is_some() {
+fn extractor_options(
+  items: OutlineItems,
+  view: OutlineView,
+  symbol_types: Option<Vec<SymbolType>>,
+  item_regex: Option<Regex>,
+  pub_members: bool,
+) -> OutlineExtractorOptions {
+  let detail = if item_regex.is_some() {
+    OutlineEntryDetail::Signature
+  } else {
+    match view {
+      OutlineView::Auto => unreachable!("outline view should be resolved"),
+      OutlineView::Names => OutlineEntryDetail::Name,
+      OutlineView::Signatures | OutlineView::Digest | OutlineView::Expanded => {
         OutlineEntryDetail::Signature
-      } else {
-        match self.view {
-          OutlineView::Auto => unreachable!("outline view should be resolved"),
-          OutlineView::Names => OutlineEntryDetail::Name,
-          OutlineView::Signatures | OutlineView::Digest | OutlineView::Expanded => {
-            OutlineEntryDetail::Signature
-          }
-        }
-      },
-      members: matches!(self.view, OutlineView::Digest | OutlineView::Expanded).then(|| {
-        OutlineMemberOptions {
-          public: if self.pub_members {
-            OutlineFlagFilter::Yes
-          } else {
-            OutlineFlagFilter::Any
-          },
-          detail: match self.view {
-            OutlineView::Auto => unreachable!("outline view should be resolved"),
-            OutlineView::Names | OutlineView::Signatures | OutlineView::Digest => {
-              OutlineEntryDetail::Name
-            }
-            OutlineView::Expanded => OutlineEntryDetail::Signature,
-          },
-        }
-      }),
+      }
     }
+  };
+  OutlineExtractorOptions {
+    symbol_types,
+    item_regex,
+    imports: match items {
+      OutlineItems::Auto => unreachable!("outline item mode should be resolved"),
+      OutlineItems::Structure => OutlineFlagFilter::No,
+      OutlineItems::Imports => OutlineFlagFilter::Yes,
+      OutlineItems::Exports | OutlineItems::All => OutlineFlagFilter::Any,
+    },
+    exported: match items {
+      OutlineItems::Auto => unreachable!("outline item mode should be resolved"),
+      OutlineItems::Exports => OutlineFlagFilter::Yes,
+      OutlineItems::Structure | OutlineItems::Imports | OutlineItems::All => OutlineFlagFilter::Any,
+    },
+    detail,
+    members: matches!(view, OutlineView::Digest | OutlineView::Expanded).then(|| {
+      OutlineMemberOptions {
+        public: if pub_members {
+          OutlineFlagFilter::Yes
+        } else {
+          OutlineFlagFilter::Any
+        },
+        detail: match view {
+          OutlineView::Auto => unreachable!("outline view should be resolved"),
+          OutlineView::Names | OutlineView::Signatures | OutlineView::Digest => {
+            OutlineEntryDetail::Name
+          }
+          OutlineView::Expanded => OutlineEntryDetail::Signature,
+        },
+      }
+    }),
   }
 }
 
-fn resolve_items(items: OutlineItems, has_directory_input: bool) -> OutlineItems {
+pub(super) fn has_directory_input(arg: &OutlineArg) -> bool {
+  !arg.input.stdin && arg.input.paths.iter().any(|path| path.is_dir())
+}
+
+pub(super) fn resolve_items(items: OutlineItems, has_directory_input: bool) -> OutlineItems {
   match (items, has_directory_input) {
     (OutlineItems::Auto, true) => OutlineItems::Exports,
     (OutlineItems::Auto, false) => OutlineItems::Structure,
@@ -96,7 +101,7 @@ fn resolve_items(items: OutlineItems, has_directory_input: bool) -> OutlineItems
   }
 }
 
-fn resolve_view(view: OutlineView, has_directory_input: bool) -> OutlineView {
+pub(super) fn resolve_view(view: OutlineView, has_directory_input: bool) -> OutlineView {
   match (view, has_directory_input) {
     (OutlineView::Auto, true) => OutlineView::Names,
     (OutlineView::Auto, false) => OutlineView::Digest,
@@ -148,11 +153,5 @@ fn parse_symbol_type(raw: &str) -> Option<SymbolType> {
     "operator" => SymbolType::Operator,
     "typeparameter" => SymbolType::TypeParameter,
     _ => return None,
-  })
-}
-
-pub fn matches_item_matcher(item: &OutlineItem, options: &OutlineTextOptions) -> bool {
-  options.item_matcher.as_ref().is_none_or(|matcher| {
-    matcher.is_match(&item.entry.name) || matcher.is_match(&item.entry.signature)
   })
 }

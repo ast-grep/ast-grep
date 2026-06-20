@@ -256,6 +256,7 @@ dependencies = [
  "ast-grep-config",
  "ast-grep-core",
  "ast-grep-language",
+ "regex",
  "serde",
  "serde_json",
  "serde_yaml",

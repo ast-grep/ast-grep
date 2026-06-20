@@ -22,7 +22,7 @@ use crate::lang::SgLang;
 use crate::utils::{InputArgs, read_file};
 
 use super::OutlineArg;
-use super::options::{OutlineTextOptions, matches_item_matcher};
+use super::options::OutlineExtractOptions;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -73,18 +73,11 @@ impl OutlineExtractors {
     &self,
     lang: SgLang,
     root: ast_grep_core::Node<'tree, ast_grep_core::tree_sitter::StrDoc<SgLang>>,
-    options: &OutlineTextOptions,
   ) -> Vec<OutlineItem<'static>> {
     self
       .by_lang
       .get(&lang)
-      .map(|extractors| {
-        extractors
-          .extract(root)
-          .into_iter()
-          .filter_map(|item| matches_item_matcher(&item, options).then(|| own_item(item)))
-          .collect()
-      })
+      .map(|extractors| extractors.extract(root).into_iter().map(own_item).collect())
       .unwrap_or_default()
   }
 }
@@ -113,12 +106,11 @@ pub fn load_outline_rules(
 pub fn extract_stdin(
   arg: &OutlineArg,
   extractors: &OutlineExtractors,
-  options: &OutlineTextOptions,
 ) -> Result<OutlineFile<'static>> {
   let lang = arg.lang.expect("required by clap");
   let source = io::read_to_string(io::stdin())?;
   let grep = lang.ast_grep(source);
-  let items = extractors.extract(lang, grep.root(), options);
+  let items = extractors.extract(lang, grep.root());
   Ok(OutlineFile {
     path: "STDIN".to_string(),
     language: lang.to_string(),
@@ -129,7 +121,7 @@ pub fn extract_stdin(
 pub fn stream_paths(
   arg: &OutlineArg,
   extractors: Arc<OutlineExtractors>,
-  options: &OutlineTextOptions,
+  options: &OutlineExtractOptions,
   mut emit: impl FnMut(OutlineFile<'static>) -> Result<()>,
 ) -> Result<()> {
   if arg.lang.is_none() && extractors.is_empty() {
@@ -200,7 +192,7 @@ fn extract_path_or_report(
   path: &Path,
   lang: Option<SgLang>,
   extractors: &OutlineExtractors,
-  options: &OutlineTextOptions,
+  options: &OutlineExtractOptions,
 ) -> Option<OutlineFile<'static>> {
   match extract_path(path, lang, extractors, options) {
     Ok(file) => file,
@@ -215,7 +207,7 @@ fn extract_path(
   path: &Path,
   lang: Option<SgLang>,
   extractors: &OutlineExtractors,
-  options: &OutlineTextOptions,
+  options: &OutlineExtractOptions,
 ) -> Result<Option<OutlineFile<'static>>> {
   let Some(lang) = lang.or_else(|| SgLang::from_path(path)) else {
     return Ok(None);
@@ -223,7 +215,7 @@ fn extract_path(
   let source =
     read_file(path).with_context(|| format!("Cannot extract outline from {}", path.display()))?;
   let grep = lang.ast_grep(source);
-  let items = extractors.extract(lang, grep.root(), options);
+  let items = extractors.extract(lang, grep.root());
   if !options.show_empty_files && items.is_empty() {
     return Ok(None);
   }
