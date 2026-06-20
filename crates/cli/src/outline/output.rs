@@ -7,28 +7,47 @@ use ast_grep_outline::model::{OutlineEntry, OutlineItem, OutlineMember, SymbolTy
 use crate::print::JsonStyle;
 
 use super::extract::OutlineFile;
-use super::options::OutlineTextOptions;
-use super::{OutlineItems, OutlineView};
+use super::options::{has_directory_input, resolve_items, resolve_view};
+use super::{OutlineArg, OutlineItems, OutlineView};
 
 #[cfg(test)]
 mod tests;
 
-pub struct OutlineEmitter<'a, W> {
+pub struct OutlineStyle {
+  view: OutlineView,
+  text: OutlineTextStyle,
+}
+
+impl OutlineStyle {
+  pub fn from_arg(arg: &OutlineArg) -> Self {
+    let has_directory_input = has_directory_input(arg);
+    let items = resolve_items(arg.items, has_directory_input);
+    let view = resolve_view(arg.view, has_directory_input);
+    Self::new(view, arg.color.should_use_color(), items)
+  }
+
+  fn new(view: OutlineView, use_color: bool, items: OutlineItems) -> Self {
+    Self {
+      view,
+      text: OutlineTextStyle::new(use_color, items),
+    }
+  }
+}
+
+pub struct OutlineEmitter<W> {
   out: W,
   json: Option<JsonStyle>,
-  options: &'a OutlineTextOptions,
-  text_style: OutlineTextStyle,
+  style: OutlineStyle,
   is_first: bool,
   emitted_any: bool,
 }
 
-impl<'a, W: Write> OutlineEmitter<'a, W> {
-  pub fn new(out: W, json: Option<JsonStyle>, options: &'a OutlineTextOptions) -> Self {
+impl<W: Write> OutlineEmitter<W> {
+  pub fn new(out: W, json: Option<JsonStyle>, style: OutlineStyle) -> Self {
     Self {
       out,
       json,
-      options,
-      text_style: OutlineTextStyle::new(options.use_color, options.items),
+      style,
       is_first: true,
       emitted_any: false,
     }
@@ -42,13 +61,7 @@ impl<'a, W: Write> OutlineEmitter<'a, W> {
         serde_json::to_writer(&mut self.out, &file)?;
         writeln!(self.out)?;
       }
-      None => print_text_file_to(
-        &mut self.out,
-        &file,
-        self.options,
-        &self.text_style,
-        self.is_first,
-      )?,
+      None => print_text_file_to(&mut self.out, &file, &self.style, self.is_first)?,
     }
     self.is_first = false;
     self.emitted_any = true;
@@ -110,15 +123,14 @@ impl<'a, W: Write> OutlineEmitter<'a, W> {
 fn print_text_to(
   mut out: &mut impl Write,
   files: &[OutlineFile],
-  options: &OutlineTextOptions,
+  style: &OutlineStyle,
 ) -> Result<()> {
-  let style = OutlineTextStyle::new(options.use_color, options.items);
   if files.is_empty() {
     writeln!(out, "nothing found")?;
     return Ok(());
   }
   for (idx, file) in files.iter().enumerate() {
-    print_text_file_to(&mut out, file, options, &style, idx == 0)?;
+    print_text_file_to(&mut out, file, style, idx == 0)?;
   }
   Ok(())
 }
@@ -126,24 +138,24 @@ fn print_text_to(
 fn print_text_file_to(
   mut out: &mut impl Write,
   file: &OutlineFile,
-  options: &OutlineTextOptions,
-  style: &OutlineTextStyle,
+  style: &OutlineStyle,
   is_first: bool,
 ) -> Result<()> {
   if !is_first {
     writeln!(out)?;
   }
-  writeln!(out, "{}", style.file(&file.path))?;
+  let text_style = &style.text;
+  writeln!(out, "{}", text_style.file(&file.path))?;
   if file.items.is_empty() {
     writeln!(out, "nothing found")?;
   } else {
     let line_number_width = line_number_width(file);
-    match options.view {
+    match style.view {
       OutlineView::Auto => unreachable!("outline view should be resolved"),
-      OutlineView::Names => print_names(&mut out, file, style)?,
-      OutlineView::Signatures => print_signatures(&mut out, file, style, line_number_width)?,
-      OutlineView::Digest => print_digest(&mut out, file, style, line_number_width)?,
-      OutlineView::Expanded => print_expanded(&mut out, file, style, line_number_width)?,
+      OutlineView::Names => print_names(&mut out, file, text_style)?,
+      OutlineView::Signatures => print_signatures(&mut out, file, text_style, line_number_width)?,
+      OutlineView::Digest => print_digest(&mut out, file, text_style, line_number_width)?,
+      OutlineView::Expanded => print_expanded(&mut out, file, text_style, line_number_width)?,
     }
   }
   Ok(())
