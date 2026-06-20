@@ -1,5 +1,8 @@
 use anyhow::{Context, Result};
-use ast_grep_outline::model::{OutlineItem, SymbolType};
+use ast_grep_outline::{
+  model::{OutlineItem, SymbolType},
+  options::{OutlineEntryDetail, OutlineExtractorOptions, OutlineFlagFilter, OutlineMemberOptions},
+};
 use regex::Regex;
 
 use super::{OutlineArg, OutlineItems, OutlineView};
@@ -36,6 +39,52 @@ impl OutlineTextOptions {
       use_color: arg.color.should_use_color(),
       show_empty_files: arg.input.stdin || !has_directory_input,
     })
+  }
+
+  pub(super) fn to_extractor_options(&self) -> OutlineExtractorOptions {
+    OutlineExtractorOptions {
+      symbol_types: self.symbol_types.clone(),
+      imports: match self.items {
+        OutlineItems::Auto => unreachable!("outline item mode should be resolved"),
+        OutlineItems::Structure => OutlineFlagFilter::No,
+        OutlineItems::Imports => OutlineFlagFilter::Yes,
+        OutlineItems::Exports | OutlineItems::All => OutlineFlagFilter::Any,
+      },
+      exported: match self.items {
+        OutlineItems::Auto => unreachable!("outline item mode should be resolved"),
+        OutlineItems::Exports => OutlineFlagFilter::Yes,
+        OutlineItems::Structure | OutlineItems::Imports | OutlineItems::All => {
+          OutlineFlagFilter::Any
+        }
+      },
+      detail: if self.item_matcher.is_some() {
+        OutlineEntryDetail::Signature
+      } else {
+        match self.view {
+          OutlineView::Auto => unreachable!("outline view should be resolved"),
+          OutlineView::Names => OutlineEntryDetail::Name,
+          OutlineView::Signatures | OutlineView::Digest | OutlineView::Expanded => {
+            OutlineEntryDetail::Signature
+          }
+        }
+      },
+      members: matches!(self.view, OutlineView::Digest | OutlineView::Expanded).then(|| {
+        OutlineMemberOptions {
+          public: if self.pub_members {
+            OutlineFlagFilter::Yes
+          } else {
+            OutlineFlagFilter::Any
+          },
+          detail: match self.view {
+            OutlineView::Auto => unreachable!("outline view should be resolved"),
+            OutlineView::Names | OutlineView::Signatures | OutlineView::Digest => {
+              OutlineEntryDetail::Name
+            }
+            OutlineView::Expanded => OutlineEntryDetail::Signature,
+          },
+        }
+      }),
+    }
   }
 }
 
@@ -102,28 +151,8 @@ fn parse_symbol_type(raw: &str) -> Option<SymbolType> {
   })
 }
 
-pub(super) fn matches_item_filters(item: &OutlineItem, options: &OutlineTextOptions) -> bool {
-  matches_items_mode(item, options.items)
-    && matches_symbol_type(item, options.symbol_types.as_deref())
-    && matches_item_regex(item, options.item_matcher.as_ref())
-}
-
-fn matches_items_mode(item: &OutlineItem, items: OutlineItems) -> bool {
-  match items {
-    OutlineItems::Auto => unreachable!("outline item mode should be resolved"),
-    OutlineItems::Structure => !item.is_import,
-    OutlineItems::Exports => item.is_exported,
-    OutlineItems::Imports => item.is_import,
-    OutlineItems::All => true,
-  }
-}
-
-fn matches_symbol_type(item: &OutlineItem, symbol_types: Option<&[SymbolType]>) -> bool {
-  symbol_types.is_none_or(|types| types.contains(&item.entry.symbol_type))
-}
-
-fn matches_item_regex(item: &OutlineItem, matcher: Option<&Regex>) -> bool {
-  matcher.is_none_or(|matcher| {
+pub(super) fn matches_item_matcher(item: &OutlineItem, options: &OutlineTextOptions) -> bool {
+  options.item_matcher.as_ref().is_none_or(|matcher| {
     matcher.is_match(&item.entry.name) || matcher.is_match(&item.entry.signature)
   })
 }
