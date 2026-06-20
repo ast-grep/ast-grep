@@ -94,7 +94,7 @@ fn renders_digest_like_design_doc() {
 
   assert_eq!(
     output,
-    "src/parser.ts\n40: export class Parser\n      methods: parse, recover\n"
+    "src/parser.ts\n40: export class Parser\n      method: parse, recover\n"
   );
 }
 
@@ -144,7 +144,7 @@ fn aligns_line_numbers_to_file_width() {
   print_text_to(&mut output, &[file], &options(OutlineView::Digest)).expect("text should render");
   let output = String::from_utf8(output).expect("output should be utf8");
 
-  assert!(output.contains("\n       methods: parse, recover\n"));
+  assert!(output.contains("\n       method: parse, recover\n"));
 }
 
 #[test]
@@ -250,14 +250,12 @@ fn colors_symbol_types_differently() {
   let style = OutlineTextStyle::new(true, OutlineItems::All);
   let class = style.grouped_label(SymbolType::Class, "class");
   let function = style.grouped_label(SymbolType::Function, "function");
-  let label = style.grouped_label(SymbolType::Function, "functions");
 
   assert_ne!(class, function);
   assert!(class.contains("\u{1b}["));
   assert!(function.contains("\u{1b}["));
-  assert!(label.contains("\u{1b}["));
-  assert!(!label.contains("\u{1b}[7;"));
-  assert!(label.contains("functions"));
+  assert!(!function.contains("\u{1b}[7;"));
+  assert!(function.contains("function"));
 }
 
 #[test]

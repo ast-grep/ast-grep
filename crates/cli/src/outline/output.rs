@@ -191,7 +191,7 @@ fn print_digest(
         out,
         "{}{}: {}",
         member_indent,
-        style.grouped_label(symbol_type, plural_symbol_type_name(symbol_type)),
+        style.grouped_label(symbol_type, symbol_type_name(symbol_type)),
         names
           .iter()
           .map(|name| style.grouped_member_name(name))
@@ -387,40 +387,6 @@ fn symbol_type_name(symbol_type: SymbolType) -> &'static str {
     SymbolType::Event => "event",
     SymbolType::Operator => "operator",
     SymbolType::TypeParameter => "typeParameter",
-  }
-}
-
-fn plural_symbol_type_name(symbol_type: SymbolType) -> &'static str {
-  match symbol_type {
-    SymbolType::Class => "classes",
-    SymbolType::Property => "properties",
-    SymbolType::Enum => "enums",
-    SymbolType::Struct => "structs",
-    SymbolType::TypeParameter => "typeParameters",
-    _ => match symbol_type_name(symbol_type) {
-      "boolean" => "booleans",
-      "enumMember" => "enumMembers",
-      "namespace" => "namespaces",
-      "constructor" => "constructors",
-      "interface" => "interfaces",
-      "function" => "functions",
-      "variable" => "variables",
-      "constant" => "constants",
-      "operator" => "operators",
-      "package" => "packages",
-      "module" => "modules",
-      "method" => "methods",
-      "field" => "fields",
-      "event" => "events",
-      "array" => "arrays",
-      "file" => "files",
-      "string" => "strings",
-      "number" => "numbers",
-      "object" => "objects",
-      "key" => "keys",
-      "null" => "nulls",
-      _ => symbol_type_name(symbol_type),
-    },
   }
 }
 
