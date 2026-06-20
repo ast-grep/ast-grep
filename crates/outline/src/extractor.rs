@@ -23,6 +23,7 @@ use thiserror::Error;
 use crate::model::{
   EntryRole, OutlineEntry, OutlineItem, OutlineMember, SourcePosition, SourceRange, SymbolType,
 };
+use crate::options::OutlineEntryDetail;
 
 /// Serializable outline extractor definition loaded from an outline rule YAML document.
 ///
@@ -138,6 +139,8 @@ pub struct ExtractorCommon<L: Language> {
   pub name: TemplateFix,
   /// Optional source-like signature template.
   pub signature: Option<TemplateFix>,
+  /// Requested text detail for this entry.
+  detail: OutlineEntryDetail,
 }
 
 #[derive(Debug, Error)]
@@ -155,18 +158,23 @@ impl<L: Language> ExtractorCommon<L> {
   pub fn try_from(
     common: SerializableOutlineCommon<L>,
     globals: &GlobalRules,
+    detail: OutlineEntryDetail,
   ) -> Result<Self, OutlineRuleError> {
     let symbol_type = common.symbol_type;
     let transform_vars = transform_vars(&common.matcher);
     let compile = |tmpl| compile_template(tmpl, &common.language, &transform_vars);
     let name = compile(&common.name)?;
-    let signature = common.signature.as_deref().map(compile).transpose()?;
+    let signature = match detail {
+      OutlineEntryDetail::Name => None,
+      OutlineEntryDetail::Signature => common.signature.as_deref().map(compile).transpose()?,
+    };
     let rule = RuleConfig::try_from(common.into_rule_config(), globals)?;
     Ok(Self {
       rule,
       symbol_type,
       name,
       signature,
+      detail,
     })
   }
 
@@ -242,13 +250,14 @@ impl<L: Language> ItemExtractor<L> {
   pub fn try_from(
     item: SerializableItemRule<L>,
     globals: &GlobalRules,
+    detail: OutlineEntryDetail,
   ) -> Result<Self, OutlineRuleError> {
     let SerializableItemRule {
       common,
       is_import,
       is_exported,
     } = item;
-    let common = ExtractorCommon::try_from(common, globals)?;
+    let common = ExtractorCommon::try_from(common, globals, detail)?;
     let is_import = common.compile_predicate(is_import, false)?;
     let is_exported = common.compile_predicate(is_exported, true)?;
     Ok(Self {
@@ -287,13 +296,14 @@ impl<L: Language> MemberExtractor<L> {
   pub fn try_from(
     member: SerializableMemberRule<L>,
     globals: &GlobalRules,
+    detail: OutlineEntryDetail,
   ) -> Result<Self, OutlineRuleError> {
     let SerializableMemberRule {
       common,
       parent_rule_ids,
       is_public,
     } = member;
-    let common = ExtractorCommon::try_from(common, globals)?;
+    let common = ExtractorCommon::try_from(common, globals, detail)?;
     let is_public = common.compile_predicate(is_public, true)?;
     Ok(Self {
       common,
@@ -326,13 +336,19 @@ impl<L: Language> ExtractorCommon<L> {
       symbol_type: self.symbol_type,
       name: render_template(&self.name, node_match).into(),
       range: source_range(node),
-      signature: self
+      signature: self.render_signature(node_match).into(),
+      ast_kind: node.kind().into_owned().into(),
+    }
+  }
+
+  fn render_signature<'tree, D: Doc>(&self, node_match: &NodeMatch<'tree, D>) -> String {
+    match self.detail {
+      OutlineEntryDetail::Name => String::new(),
+      OutlineEntryDetail::Signature => self
         .signature
         .as_ref()
         .map(|template| render_template(template, node_match))
-        .unwrap_or_else(|| default_signature(node))
-        .into(),
-      ast_kind: node.kind().into_owned().into(),
+        .unwrap_or_else(|| default_signature(node_match.get_node())),
     }
   }
 }
@@ -565,8 +581,12 @@ signature: function $NAME()
     let SerializableOutlineRule::Item(item) = rule else {
       panic!("expected item rule");
     };
-    let common = ExtractorCommon::try_from(item.common, &Default::default())
-      .expect("common rule should parse");
+    let common = ExtractorCommon::try_from(
+      item.common,
+      &Default::default(),
+      OutlineEntryDetail::Signature,
+    )
+    .expect("common rule should parse");
 
     assert_eq!(common.rule.id, "ts-function");
     assert_eq!(common.symbol_type, SymbolType::Function);
@@ -597,7 +617,8 @@ isImport: true
     let SerializableOutlineRule::Item(item) = rule else {
       panic!("expected item rule");
     };
-    let item = ItemExtractor::try_from(item, &Default::default()).expect("item rule should parse");
+    let item = ItemExtractor::try_from(item, &Default::default(), OutlineEntryDetail::Signature)
+      .expect("item rule should parse");
 
     assert_eq!(item.common.rule.id, "ts-function");
     assert!(matches!(item.is_import, OutlinePredicate::Literal(true)));
@@ -626,7 +647,8 @@ isExported:
     let SerializableOutlineRule::Item(item) = rule else {
       panic!("expected item rule");
     };
-    let item = ItemExtractor::try_from(item, &Default::default()).expect("item rule should parse");
+    let item = ItemExtractor::try_from(item, &Default::default(), OutlineEntryDetail::Signature)
+      .expect("item rule should parse");
     let root = SupportLang::TypeScript.ast_grep("class Foo { bar() {} }");
     let class_node = root
       .root()
@@ -661,7 +683,8 @@ name: member
       panic!("expected member rule");
     };
     let member =
-      MemberExtractor::try_from(member, &Default::default()).expect("member rule should parse");
+      MemberExtractor::try_from(member, &Default::default(), OutlineEntryDetail::Signature)
+        .expect("member rule should parse");
 
     assert_eq!(member.common.rule.id, "ts-member");
     assert_eq!(member.parent_rule_ids, vec!["ts-interface"]);

@@ -23,6 +23,7 @@ use std::collections::HashMap;
 
 use crate::extractor::{ItemExtractor, MemberExtractor, OutlineRuleError, SerializableOutlineRule};
 use crate::model::{OutlineItem, OutlineMember};
+use crate::options::OutlineExtractorOptions;
 
 /// Runtime outline extractors organized for a shared item traversal.
 pub struct CombinedExtractors<L: Language> {
@@ -34,6 +35,8 @@ pub struct CombinedExtractors<L: Language> {
   member_extractors: Vec<MemberExtractor<L>>,
   /// Parent item extractor id to member extractors that may run inside it.
   member_mapping: HashMap<String, CombinedMemberExtractorGroup>,
+  /// Runtime filters and detail level requested by the caller.
+  options: OutlineExtractorOptions,
 }
 
 pub struct CombinedMemberExtractors<'a, L: Language> {
@@ -54,24 +57,58 @@ impl<L: Language> CombinedExtractors<L> {
     extractors: Vec<SerializableOutlineRule<L>>,
     globals: &GlobalRules,
   ) -> Result<Self, OutlineRuleError> {
-    let mut item_extractors = vec![];
-    let mut member_extractors = vec![];
+    Self::try_from_rules(extractors, OutlineExtractorOptions::default(), globals)
+  }
+
+  pub fn try_from_rules(
+    extractors: Vec<SerializableOutlineRule<L>>,
+    options: OutlineExtractorOptions,
+    globals: &GlobalRules,
+  ) -> Result<Self, OutlineRuleError> {
+    let mut item_extractors = Vec::with_capacity(extractors.len());
+    let mut member_extractors = Vec::with_capacity(extractors.len());
+    // NB: if member option is None, we won't pass any member extractors
+    // so this is safe to fallback to default as we won't use it
+    let member_options = options.members.clone().unwrap_or_default();
     for extractor in extractors {
+      if !options.retain_rule(&extractor) {
+        continue;
+      }
       match extractor {
         SerializableOutlineRule::Item(item) => {
-          item_extractors.push(ItemExtractor::try_from(item, globals)?);
+          item_extractors.push(ItemExtractor::try_from(item, globals, options.detail)?);
         }
         SerializableOutlineRule::Member(member) => {
-          member_extractors.push(MemberExtractor::try_from(member, globals)?);
+          member_extractors.push(MemberExtractor::try_from(
+            member,
+            globals,
+            member_options.detail,
+          )?);
         }
       }
     }
-    Ok(Self::new(item_extractors, member_extractors))
+    Ok(Self::new_with_options(
+      item_extractors,
+      member_extractors,
+      options,
+    ))
   }
 
   pub fn new(
     item_extractors: Vec<ItemExtractor<L>>,
     member_extractors: Vec<MemberExtractor<L>>,
+  ) -> Self {
+    Self::new_with_options(
+      item_extractors,
+      member_extractors,
+      OutlineExtractorOptions::default(),
+    )
+  }
+
+  pub fn new_with_options(
+    item_extractors: Vec<ItemExtractor<L>>,
+    member_extractors: Vec<MemberExtractor<L>>,
+    options: OutlineExtractorOptions,
   ) -> Self {
     let item_kind_mapping = item_kind_mapping(&item_extractors);
     let member_mapping = member_mapping(&member_extractors);
@@ -80,6 +117,7 @@ impl<L: Language> CombinedExtractors<L> {
       item_kind_mapping,
       member_extractors,
       member_mapping,
+      options,
     }
   }
 
@@ -109,8 +147,12 @@ impl<L: Language> CombinedExtractors<L> {
     let matcher = ItemTraversalMatcher { combined: self };
     for matched in Visitor::new(matcher).reentrant(false).visit(root) {
       if let Some((extractor, node_match)) = self.match_item(matched.get_node()) {
-        let members = self.extract_members(extractor, node_match.get_node());
-        items.push(extractor.extract(&node_match, members));
+        let mut members = self.extract_members(extractor, node_match.get_node());
+        members.retain(|member| self.options.keep_member(member));
+        let item = extractor.extract(&node_match, members);
+        if self.options.keep_item(&item) {
+          items.push(item);
+        }
       }
     }
     items
@@ -263,6 +305,7 @@ fn member_mapping<L: Language>(
 mod tests {
   use super::*;
   use crate::extractor::parse_outline_rules;
+  use crate::options::{OutlineEntryDetail, OutlineExtractorOptions, OutlineFlagFilter};
   use ast_grep_core::tree_sitter::LanguageExt;
   use ast_grep_language::SupportLang;
 
@@ -401,5 +444,96 @@ function standalone() {}
     assert_eq!(items[0].members.len(), 1);
     assert_eq!(items[0].members[0].entry.name, "parse");
     assert_eq!(items[0].members[0].entry.signature, "parse()");
+  }
+
+  #[test]
+  fn compile_options_disable_members_and_name_only_signatures() {
+    let extractors = parse_outline_rules::<SupportLang>(
+      r#"
+id: ts-class
+language: TypeScript
+role: item
+symbolType: class
+rule:
+  pattern: class $NAME { $$$BODY }
+name: $NAME
+signature: class $NAME
+---
+id: ts-method
+language: TypeScript
+role: member
+parentRuleIds: [ts-class]
+symbolType: method
+rule:
+  pattern:
+    context: class A { $NAME() { $$$BODY } }
+    selector: method_definition
+name: $NAME
+signature: $NAME()
+"#,
+    )
+    .expect("extractors should deserialize");
+    let options = OutlineExtractorOptions {
+      members: None,
+      detail: OutlineEntryDetail::Name,
+      ..Default::default()
+    };
+    let combined = CombinedExtractors::try_from_rules(extractors, options, &Default::default())
+      .expect("extractors should parse");
+    let grep = SupportLang::TypeScript.ast_grep("class Box { parse() {} }");
+
+    let items = combined.extract(grep.root());
+
+    assert!(combined.member_extractors.is_empty());
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0].entry.name, "Box");
+    assert!(items[0].entry.signature.is_empty());
+    assert!(items[0].members.is_empty());
+  }
+
+  #[test]
+  fn compile_options_filter_rules_and_runtime_flags() {
+    let extractors = parse_outline_rules::<SupportLang>(
+      r#"
+id: ts-import
+language: TypeScript
+role: item
+symbolType: module
+rule:
+  kind: import_statement
+name: import
+isImport: true
+isExported: false
+---
+id: ts-function
+language: TypeScript
+role: item
+symbolType: function
+rule:
+  pattern: function $NAME() { $$$BODY }
+name: $NAME
+isImport: false
+"#,
+    )
+    .expect("extractors should deserialize");
+    let options = OutlineExtractorOptions {
+      imports: OutlineFlagFilter::Yes,
+      ..Default::default()
+    };
+    let combined = CombinedExtractors::try_from_rules(extractors, options, &Default::default())
+      .expect("extractors should parse");
+    let grep = SupportLang::TypeScript.ast_grep(
+      r#"
+import { readFile } from 'node:fs';
+function local() {}
+"#,
+    );
+
+    let items = combined.extract(grep.root());
+
+    assert_eq!(combined.item_extractors.len(), 1);
+    assert_eq!(combined.item_extractors[0].common.rule.id, "ts-import");
+    assert_eq!(items.len(), 1);
+    assert!(items[0].is_import);
   }
 }
