@@ -252,11 +252,6 @@ Structural members include:
 - interface, trait, type, impl, and extension members
 - declarations directly inside modules or namespaces
 
-For JavaScript and TypeScript only, named function declarations inside a function body
-are also members of the containing function. Large JS/TS files often use local helper
-functions as part of a function's navigable structure. Other function-body locals are
-not part of the file outline.
-
 Examples:
 
 ```sh
@@ -268,15 +263,15 @@ sg outline src/checker.ts --match checkTypeRelatedTo --view expanded
 
 ### Member Publicness
 
-Member publicness is intentionally simpler than a full visibility model. Members can
-carry `isPublic: true` when language-specific syntax says the member is part of the
-usable surface of its parent. Private members use `isPublic: false` when the extractor
-can determine that. Languages or rules without this knowledge may leave `isPublic`
-absent.
+Member publicness is intentionally simpler than a full visibility model. Members carry
+`isPublic: true` when language-specific syntax says the member is part of the usable
+surface of its parent. Private members use `isPublic: false` when the extractor can
+determine that. Languages or rules without this knowledge should omit `isPublic` in the
+rule; outline treats omitted member publicness as `true`.
 
 By default, member views display all extracted members. `digest` should list public
-members first inside each member symbol type group when `isPublic` is known, then list
-the remaining members. Each bucket keeps source order.
+members first inside each member symbol type group, then list the remaining members.
+Each bucket keeps source order.
 
 `--pub-members` narrows displayed members in `digest` and `expanded` views:
 
@@ -285,9 +280,8 @@ default         show all extracted members.
 --pub-members   show only members where isPublic is true.
 ```
 
-Members with absent `isPublic` are kept by default and removed by `--pub-members`.
-`expanded` should keep source order; when `--pub-members` is present, it filters
-members without reordering the survivors.
+`expanded` should keep source order; when `--pub-members` is present, it filters members
+without reordering the survivors.
 
 ### Ordering
 
@@ -325,8 +319,9 @@ default          text
 Interactive agents should usually use text. They should request `--json` only when they
 need to transform, extract, join, or programmatically compare outline entries.
 
-`--view` affects text output only. JSON output always emits the selected structured
-model after `--items`, `--match`, `--type`, and `--pub-members` filtering.
+`--view` affects both text presentation and JSON detail. JSON output emits the selected
+structured model after `--items`, `--match`, `--type`, and `--pub-members` filtering,
+but views that do not display signatures or members can omit that detail from JSON too.
 
 ## Output Contract
 
@@ -338,8 +333,8 @@ Color is only a reading aid:
 
 - `names` colors the symbol type label.
 - `signatures`, `digest`, and `expanded` color the entry name inside each signature line.
-- exported top-level item names are bold in `digest` and `expanded`, but not in
-  `signatures`.
+- exported top-level item names are bold in signature-bearing views unless
+  `--items exports` already selects only exports.
 - member digest lines are indented; plural labels like `fields:` use the member
   symbol type color.
 - private members are dimmed; their name keeps the member symbol type color.
@@ -396,14 +391,16 @@ nothing found
 ### JSON Output
 
 `--json` returns grouped file output. `--json=stream` returns one independently useful
-entry per line. JSON ranges use one-based line and column numbers, matching text output.
+entry per line. Text output uses one-based line numbers for display. JSON ranges use
+zero-based line and column numbers plus byte offsets, matching ast-grep's existing JSON
+range convention.
 
 Streamed entry shape:
 
 ```json
 {
   "path": "crates/cli/src/lib.rs",
-  "language": "rs",
+  "language": "Rust",
   "symbol": {
     "name": "Commands",
     "symbolType": "enum",
@@ -411,8 +408,9 @@ Streamed entry shape:
     "isImport": false,
     "isExported": false,
     "range": {
-      "start": { "line": 49, "column": 1, "byte": 1200 },
-      "end": { "line": 68, "column": 2, "byte": 1700 }
+      "byteOffset": { "start": 1200, "end": 1700 },
+      "start": { "line": 48, "column": 0 },
+      "end": { "line": 67, "column": 1 }
     },
     "container": null,
     "signature": "enum Commands",
@@ -426,7 +424,7 @@ Grouped file shape:
 ```json
 {
   "path": "src/parser.ts",
-  "language": "ts",
+  "language": "TypeScript",
   "items": [
     {
       "name": "Parser",
@@ -435,8 +433,9 @@ Grouped file shape:
       "isImport": false,
       "isExported": true,
       "range": {
-        "start": { "line": 40, "column": 1, "byte": 1200 },
-        "end": { "line": 98, "column": 2, "byte": 2500 }
+        "byteOffset": { "start": 1200, "end": 2500 },
+        "start": { "line": 39, "column": 0 },
+        "end": { "line": 97, "column": 1 }
       },
       "signature": "export class Parser",
       "astKind": "class_declaration",
@@ -447,8 +446,9 @@ Grouped file shape:
           "role": "member",
           "isPublic": true,
           "range": {
-            "start": { "line": 44, "column": 3, "byte": 1300 },
-            "end": { "line": 72, "column": 4, "byte": 1900 }
+            "byteOffset": { "start": 1300, "end": 1900 },
+            "start": { "line": 43, "column": 2 },
+            "end": { "line": 71, "column": 3 }
           },
           "signature": "parse(...)",
           "astKind": "method_definition"
@@ -466,8 +466,7 @@ Important properties:
 - `symbolType` uses LSP `SymbolKind` names serialized as lower camel case.
 - `role` is always `item` or `member`.
 - `isImport` and `isExported` are present on top-level items.
-- `isPublic` is optional and only meaningful for members; it is absent or null for
-  top-level items.
+- `isPublic` is present on members and only meaningful there.
 - `container` is present in stream output for parent-symbol metadata.
 
 ## Agent Examples
