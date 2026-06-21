@@ -19,7 +19,7 @@ use ignore::WalkState;
 use serde::Serialize;
 
 use crate::lang::SgLang;
-use crate::utils::{InputArgs, read_file};
+use crate::utils::{EmptyFile, InputArgs, read_file};
 
 use super::OutlineArg;
 use super::options::{extractor_options_from_arg, show_empty_files};
@@ -220,8 +220,13 @@ fn extract_path(
   let Some(lang) = lang.or_else(|| SgLang::from_path(path)) else {
     return Ok(None);
   };
-  let source =
-    read_file(path).with_context(|| format!("Cannot extract outline from {}", path.display()))?;
+  let source = match read_file(path) {
+    Ok(source) => source,
+    Err(err) if err.downcast_ref::<EmptyFile>().is_some() => return Ok(None),
+    Err(err) => {
+      return Err(err).with_context(|| format!("Cannot extract outline from {}", path.display()));
+    }
+  };
   let grep = lang.ast_grep(source);
   let items = extractors.extract(lang, grep.root());
   if !extractors.show_empty_files && items.is_empty() {
@@ -258,5 +263,27 @@ fn own_entry(entry: OutlineEntry<'_>) -> OutlineEntry<'static> {
     range: entry.range,
     signature: Cow::Owned(entry.signature.into_owned()),
     ast_kind: Cow::Owned(entry.ast_kind.into_owned()),
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use tempfile::TempDir;
+
+  #[test]
+  fn empty_files_are_skipped_without_error() {
+    let dir = TempDir::new().expect("temp dir should be created");
+    let path = dir.path().join("empty.rs");
+    std::fs::write(&path, "").expect("empty file should be written");
+    let extractors = OutlineExtractors {
+      by_lang: HashMap::new(),
+      show_empty_files: true,
+    };
+
+    let file =
+      extract_path(&path, None, &extractors).expect("empty file should not be an extraction error");
+
+    assert!(file.is_none());
   }
 }
