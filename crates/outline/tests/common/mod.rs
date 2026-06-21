@@ -22,10 +22,31 @@ pub fn assert_outline_snapshot(lang: SupportLang, rules: &str, source: &str, exp
   assert_eq!(snapshot.trim(), expected.trim());
 }
 
+pub fn assert_outline_signature_snapshot(
+  lang: SupportLang,
+  rules: &str,
+  source: &str,
+  expected: &str,
+) {
+  let combined = compile_rules_for(lang, rules);
+  let grep = lang.ast_grep(source);
+  let items = combined.extract(grep.root()).collect::<Vec<_>>();
+  let snapshot = outline_signature_snapshot(&items);
+  assert_eq!(snapshot.trim(), expected.trim());
+}
+
 fn outline_snapshot(items: &[OutlineItem<'_>]) -> String {
   let mut output = String::new();
   for item in items {
     push_item(&mut output, item);
+  }
+  output
+}
+
+fn outline_signature_snapshot(items: &[OutlineItem<'_>]) -> String {
+  let mut output = String::new();
+  for item in items {
+    push_item_signature(&mut output, item);
   }
   output
 }
@@ -46,6 +67,22 @@ fn push_item(output: &mut String, item: &OutlineItem<'_>) {
   }
 }
 
+fn push_item_signature(output: &mut String, item: &OutlineItem<'_>) {
+  let role = if item.is_import { "import" } else { "item" };
+  let visibility = if item.is_exported {
+    "exported"
+  } else {
+    "private"
+  };
+  output.push_str(&format!(
+    "- {:?} {role} {visibility} {} | {}\n",
+    item.entry.symbol_type, item.entry.name, item.entry.signature
+  ));
+  for member in &item.members {
+    push_member_signature(output, member);
+  }
+}
+
 fn push_member(output: &mut String, member: &OutlineMember<'_>) {
   let visibility = if member.is_public {
     "public"
@@ -55,5 +92,17 @@ fn push_member(output: &mut String, member: &OutlineMember<'_>) {
   output.push_str(&format!(
     "  - {:?} {visibility} {}\n",
     member.entry.symbol_type, member.entry.name
+  ));
+}
+
+fn push_member_signature(output: &mut String, member: &OutlineMember<'_>) {
+  let visibility = if member.is_public {
+    "public"
+  } else {
+    "private"
+  };
+  output.push_str(&format!(
+    "  - {:?} {visibility} {} | {}\n",
+    member.entry.symbol_type, member.entry.name, member.entry.signature
   ));
 }

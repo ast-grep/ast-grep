@@ -105,6 +105,35 @@ class ScopeBox {
 }
 
 #[test]
+fn kotlin_rules_extract_signatures() {
+  const RULES: &str = include_str!("../src/default_rules/kotlin.yml");
+  common::assert_outline_signature_snapshot(
+    SupportLang::Kotlin,
+    RULES,
+    r#"
+package okhttp3.sse
+
+import okhttp3.Request
+import java.io.IOException as IOE
+
+class RealInterceptorChain constructor(val call: Call) {
+  internal constructor(call: Call, index: Int) : this(call)
+  override fun proceed(request: Request): Response { return TODO() }
+  val index: Int = 0
+}
+"#,
+    r#"
+- Module import private okhttp3.Request | import okhttp3.Request
+- Module import private IOE | import java.io.IOException as IOE
+- Class item exported RealInterceptorChain | class RealInterceptorChain constructor(val call: Call) {
+  - Constructor private constructor | internal constructor(call: Call, index: Int) : this(call)
+  - Method public proceed | override fun proceed(request: Request): Response { return TODO() }
+  - Property public index | val index: Int = 0
+"#,
+  );
+}
+
+#[test]
 fn java_rules_parse_and_extract_jvm_surface() {
   const RULES: &str = include_str!("../src/default_rules/java.yml");
   common::assert_outline_snapshot(
@@ -149,6 +178,36 @@ enum Protocol { HTTP_1_1 }
   - Method public proceed
   - Method private exchange
 - Enum item private Protocol
+"#,
+  );
+}
+
+#[test]
+fn java_rules_extract_duplicate_method_names_with_signatures() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_signature_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+public class Parser {
+  public Node parse(String input) {
+    return null;
+  }
+
+  public Node parse(byte[] input) {
+    return null;
+  }
+
+  Node parse(int count) {
+    return null;
+  }
+}
+"#,
+    r#"
+- Class item exported Parser | public class Parser {
+  - Method public parse | public Node parse(String input) {
+  - Method public parse | public Node parse(byte[] input) {
+  - Method private parse | Node parse(int count) {
 "#,
   );
 }
@@ -227,6 +286,38 @@ class InternalBox {
 - Class item private InternalBox
   - Constructor private init
   - Method private helper
+"#,
+  );
+}
+
+#[test]
+fn swift_rules_extract_signatures() {
+  const RULES: &str = include_str!("../src/default_rules/swift.yml");
+  common::assert_outline_signature_snapshot(
+    SupportLang::Swift,
+    RULES,
+    r#"
+@preconcurrency import Dispatch
+
+public final class Session {
+  public init(configuration: URLSessionConfiguration) {}
+  open func request(_ convertible: any URLConvertible) -> DataRequest { fatalError() }
+}
+
+public protocol RequestInterceptor: Sendable {
+  func adapt(_ urlRequest: URLRequest) throws -> URLRequest
+}
+
+@MainActor public func makeSession() {}
+"#,
+    r#"
+- Module import private Dispatch | @preconcurrency import Dispatch
+- Class item exported Session | public final class Session {
+  - Constructor public init | public init(configuration: URLSessionConfiguration) {}
+  - Method public request | open func request(_ convertible: any URLConvertible) -> DataRequest { fatalError() }
+- Interface item exported RequestInterceptor | public protocol RequestInterceptor: Sendable {
+  - Method public adapt | func adapt(_ urlRequest: URLRequest) throws -> URLRequest
+- Function item exported makeSession | @MainActor public func makeSession() {}
 "#,
   );
 }
