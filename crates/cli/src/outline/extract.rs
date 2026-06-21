@@ -90,7 +90,7 @@ impl OutlineExtractors {
     self
       .by_lang
       .get(&lang)
-      .map(|extractors| extractors.extract(root).into_iter().map(own_item).collect())
+      .map(|extractors| extractors.extract_iter(root).map(own_item).collect())
       .unwrap_or_default()
   }
 }
