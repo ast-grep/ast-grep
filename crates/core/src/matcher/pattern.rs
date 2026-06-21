@@ -258,7 +258,7 @@ pub enum PatternError {
   #[error("Multiple AST nodes are detected. Please check the pattern source `{0}`.")]
   MultipleNode(String),
   #[error(
-    "A multi meta variable is not allowed as the whole pattern. Please check the pattern source `{0}`."
+    "Standalone multi meta variable `{0}` is invalid. Use `$VAR` or wrap `$$$VAR` in a larger pattern."
   )]
   RootMultiMetaVar(String),
   #[error(transparent)]
