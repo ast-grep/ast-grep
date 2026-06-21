@@ -30,6 +30,7 @@ use ast_grep_config::{Rule, RuleCollection};
 use ast_grep_core::{Matcher, tree_sitter::StrDoc};
 use ast_grep_language::{Language, LanguageExt};
 
+use std::fmt;
 use std::fs::read_to_string;
 use std::io::Write;
 use std::io::stdout;
@@ -96,6 +97,17 @@ pub fn prompt(prompt_text: &str, letters: &str, default: Option<char>) -> Result
   }
 }
 
+#[derive(Debug)]
+pub(crate) struct EmptyFile;
+
+impl fmt::Display for EmptyFile {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.write_str("File is empty")
+  }
+}
+
+impl std::error::Error for EmptyFile {}
+
 pub(crate) fn read_file(path: &Path) -> Result<String> {
   let file_content =
     read_to_string(path).with_context(|| format!("Cannot read file {}", path.to_string_lossy()))?;
@@ -103,7 +115,7 @@ pub(crate) fn read_file(path: &Path) -> Result<String> {
   if file_too_large(&file_content) {
     Err(anyhow!("File is too large"))
   } else if file_content.is_empty() {
-    Err(anyhow!("File is empty"))
+    Err(EmptyFile.into())
   } else {
     Ok(file_content)
   }
