@@ -17,7 +17,8 @@ fn compile_rules_for(lang: SupportLang, src: &str) -> CombinedExtractors<Support
 pub fn assert_outline_snapshot(lang: SupportLang, rules: &str, source: &str, expected: &str) {
   let combined = compile_rules_for(lang, rules);
   let grep = lang.ast_grep(source);
-  let snapshot = outline_snapshot(&combined.extract(grep.root()));
+  let items = combined.extract(grep.root()).collect::<Vec<_>>();
+  let snapshot = outline_snapshot(&items);
   assert_eq!(snapshot.trim(), expected.trim());
 }
 
