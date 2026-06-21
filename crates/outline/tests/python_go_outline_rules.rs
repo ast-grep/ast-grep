@@ -48,7 +48,7 @@ class AsyncOnly:
 "#,
     r#"
 - Module import private functools
-- Module import private django.db.models
+- Module import private django.db
 - Constant item exported DEFAULT_AUTO_FIELD
 - Variable item exported urlpatterns
 - Function item exported module_helper
@@ -88,7 +88,7 @@ class QuerySetRunner:
         return await self.queryset.afirst()
 "#,
     r#"
-- Module import private django.db.models | from django.db import models
+- Module import private django.db | from django.db import models
 - Function item exported fetch_related | async def fetch_related(queryset):
 - Class item exported QuerySetRunner | class QuerySetRunner:
   - Field public query | query = models.Query()
