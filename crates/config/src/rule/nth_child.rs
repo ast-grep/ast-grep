@@ -223,11 +223,19 @@ impl NthChild {
     let parent = node.parent()?;
     //  only consider named children
     let mut children: Vec<_> = if let Some(rule) = &self.of_rule {
-      // if of_rule is present, only consider children that match the rule
+      // if of_rule is present, only consider children that match the rule.
+      // Probe each sibling against a throwaway clone of the env so a binding
+      // from one sibling cannot leak into the next: otherwise a metavar-bearing
+      // ofRule (e.g. `pattern: $S`) binds the first matching sibling and then
+      // rejects every later sibling via metavar consistency, so the sibling
+      // list is undercounted and the position match silently fails.
       parent
         .children()
         .filter(|n| n.is_named())
-        .filter_map(|child| rule.match_node_with_env(child, env))
+        .filter_map(|child| {
+          let mut probe = Cow::Borrowed(env.as_ref());
+          rule.match_node_with_env(child, &mut probe)
+        })
         .collect()
     } else {
       parent.children().filter(|n| n.is_named()).collect()
@@ -236,9 +244,16 @@ impl NthChild {
     if self.reverse {
       children.reverse()
     }
-    children
+    let index = children
       .iter()
-      .position(|child| child.node_id() == node.node_id())
+      .position(|child| child.node_id() == node.node_id())?;
+    // Commit the *target* node's own ofRule bindings to the real env. ofRule
+    // metavars are part of `defined_vars` and may be referenced in fix /
+    // constraints; only the matched node's bindings are meaningful.
+    if let Some(rule) = &self.of_rule {
+      rule.match_node_with_env(node.clone(), env);
+    }
+    Some(index)
   }
   pub fn defined_vars(&self) -> HashSet<&str> {
     if let Some(rule) = &self.of_rule {
@@ -338,6 +353,18 @@ mod test {
     let i = find_index(Some(Rule::Regex(regex.clone())), false);
     assert_eq!(i, Some(0));
     let i = find_index(Some(Rule::Regex(regex)), true);
+    assert_eq!(i, Some(1));
+  }
+
+  // A metavar-binding ofRule (e.g. `pattern: $S`) must not let bindings leak
+  // from one sibling to the next while counting; otherwise only the first
+  // sibling is counted and the position match silently fails.
+  #[test]
+  fn test_find_of_rule_with_metavar() {
+    use ast_grep_core::Pattern;
+    // every element matches `$S`, so all four siblings must be counted and the
+    // index of node `2` (the 2nd element) must be 1, not lost to a binding leak.
+    let i = find_index(Some(Rule::Pattern(Pattern::new("$S", TS::Tsx))), false);
     assert_eq!(i, Some(1));
   }
 
