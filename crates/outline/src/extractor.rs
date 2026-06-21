@@ -152,6 +152,10 @@ pub enum OutlineRuleError {
   Predicate(#[from] RuleSerializeError),
   #[error(transparent)]
   Template(#[from] TemplateFixError),
+  #[error("Member rule `{rule_id}` references unknown parent rule `{parent_id}`")]
+  UnknownParentRuleId { rule_id: String, parent_id: String },
+  #[error("Member rule `{rule_id}` cannot use member rule `{parent_id}` as a parent")]
+  InvalidParentRuleRole { rule_id: String, parent_id: String },
 }
 
 impl<L: Language> ExtractorCommon<L> {
