@@ -285,6 +285,84 @@ impl<'t, L: LanguageExt> Traversal<'t, StrDoc<L>> for Pre<'t, L> {
   }
 }
 
+/// Pre-order cursor traversal where the caller decides whether to enter children.
+///
+/// This is useful when matching the current node determines whether its whole
+/// subtree can be skipped. Unlike [`Pre`] plus reentrancy calibration, this
+/// traversal does not step into a child before the caller has made that choice.
+pub struct Prune<'tree, L: LanguageExt> {
+  cursor: ts::TreeCursor<'tree>,
+  root: &'tree Root<StrDoc<L>>,
+  start_id: Option<usize>,
+  current_depth: usize,
+}
+
+/// Opaque marker for a subtree in a [`Prune`] traversal.
+///
+/// Callers can store this when visiting a node and later ask whether traversal
+/// has moved past that node's subtree without depending on cursor depth.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PruneSubtree<'tree> {
+  root_id: usize,
+  root_depth: usize,
+  tree: PhantomData<&'tree ()>,
+}
+
+impl<'tree, L: LanguageExt> Prune<'tree, L> {
+  pub fn new(node: &Node<'tree, StrDoc<L>>) -> Self {
+    Self {
+      cursor: node.inner.walk(),
+      root: node.root,
+      start_id: Some(node.inner.id()),
+      current_depth: 0,
+    }
+  }
+
+  pub fn current_node(&self) -> Option<Node<'tree, StrDoc<L>>> {
+    self.start_id.map(|_| self.root.adopt(self.cursor.node()))
+  }
+
+  pub fn current_subtree(&self) -> PruneSubtree<'tree> {
+    debug_assert!(self.start_id.is_some());
+    PruneSubtree {
+      root_id: self.cursor.node().id(),
+      root_depth: self.current_depth,
+      tree: PhantomData,
+    }
+  }
+
+  pub fn has_left_subtree(&self, subtree: PruneSubtree<'tree>) -> bool {
+    if self.start_id.is_none() {
+      return true;
+    }
+    self.current_depth <= subtree.root_depth && self.cursor.node().id() != subtree.root_id
+  }
+
+  pub fn descend(&mut self) {
+    if self.cursor.goto_first_child() {
+      self.current_depth += 1;
+      return;
+    }
+    self.skip_subtree();
+  }
+
+  pub fn skip_subtree(&mut self) {
+    let Some(start) = self.start_id else {
+      return;
+    };
+    while self.cursor.node().id() != start {
+      if self.cursor.goto_next_sibling() {
+        return;
+      }
+      self.current_depth = self.current_depth.saturating_sub(1);
+      if !self.cursor.goto_parent() {
+        break;
+      }
+    }
+    self.start_id = None;
+  }
+}
+
 /// Represents a post-order traversal
 pub struct Post<'tree, L: LanguageExt> {
   cursor: ts::TreeCursor<'tree>,
@@ -457,6 +535,64 @@ mod test {
     for case in CASES {
       pre_order_equivalent(case);
     }
+  }
+
+  #[test]
+  fn test_prune_pre_order_skips_subtree() {
+    let grep = Tsx.ast_grep(
+      r#"
+function a() { foo(); }
+function b() { bar(); }
+"#,
+    );
+    let node = grep.root();
+    let mut traversal = Prune::new(&node);
+    let mut visited = vec![];
+    while let Some(node) = traversal.current_node() {
+      let kind = node.kind().into_owned();
+      let skip = kind == "function_declaration";
+      visited.push(kind);
+      if skip {
+        traversal.skip_subtree();
+      } else {
+        traversal.descend();
+      }
+    }
+
+    assert_eq!(
+      visited,
+      vec![
+        "program".to_string(),
+        "function_declaration".to_string(),
+        "function_declaration".to_string()
+      ]
+    );
+  }
+
+  #[test]
+  fn test_prune_subtree_scope_tracks_exit() {
+    let grep = Tsx.ast_grep(
+      r#"
+function a() { foo(); }
+function b() { bar(); }
+"#,
+    );
+    let node = grep.root();
+    let mut traversal = Prune::new(&node);
+    traversal.descend();
+    let subtree = traversal.current_subtree();
+    assert!(!traversal.has_left_subtree(subtree));
+    traversal.descend();
+    assert!(!traversal.has_left_subtree(subtree));
+    while traversal.current_node().is_some() && !traversal.has_left_subtree(subtree) {
+      traversal.skip_subtree();
+    }
+
+    let node = traversal
+      .current_node()
+      .expect("traversal should move to the next sibling");
+    assert_eq!(node.kind().as_ref(), "function_declaration");
+    assert!(traversal.has_left_subtree(subtree));
   }
 
   #[test]
