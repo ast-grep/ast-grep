@@ -168,6 +168,8 @@ package gin
 
 import "net/http"
 
+type HandlerFunc func(*Context)
+
 type Engine struct {
     RouterGroup
     maxParams uint16
@@ -188,9 +190,10 @@ func (engine *Engine) Use(middleware ...HandlerFunc) IRoutes {
 "#,
     r#"
 - Module import private net/http | "net/http"
-- Struct item exported Engine | Engine struct {
+- TypeParameter item exported HandlerFunc | type HandlerFunc func(*Context)
+- Struct item exported Engine | type Engine struct {
   - Field private maxParams | maxParams uint16
-- Interface item exported RoutesInfo | RoutesInfo interface {
+- Interface item exported RoutesInfo | type RoutesInfo interface {
   - Method public Last | Last() RouteInfo
   - Method private byName | byName(string) (RouteInfo, bool)
 - Function item exported New | func New() *Engine {

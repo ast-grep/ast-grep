@@ -38,12 +38,15 @@ role: item
 symbolType: struct
 rule:
   all:
-    - kind: type_spec
+    - kind: type_declaration
     - has:
-        field: name
-        pattern: $NAME
-    - has:
-        kind: struct_type
+        all:
+          - kind: type_spec
+          - has:
+              field: name
+              pattern: $NAME
+          - has:
+              kind: struct_type
 name: $NAME
 ---
 id: go-interface-type
@@ -52,12 +55,15 @@ role: item
 symbolType: interface
 rule:
   all:
-    - kind: type_spec
+    - kind: type_declaration
     - has:
-        field: name
-        pattern: $NAME
-    - has:
-        kind: interface_type
+        all:
+          - kind: type_spec
+          - has:
+              field: name
+              pattern: $NAME
+          - has:
+              kind: interface_type
 name: $NAME
 ---
 id: go-struct-field
@@ -98,16 +104,19 @@ role: item
 symbolType: typeParameter
 rule:
   all:
-    - kind: type_spec
+    - kind: type_declaration
     - has:
-        field: name
-        pattern: $NAME
-    - not:
-        has:
-          kind: struct_type
-    - not:
-        has:
-          kind: interface_type
+        all:
+          - kind: type_spec
+          - has:
+              field: name
+              pattern: $NAME
+          - not:
+              has:
+                kind: struct_type
+          - not:
+              has:
+                kind: interface_type
 name: $NAME
 ---
 id: go-const
