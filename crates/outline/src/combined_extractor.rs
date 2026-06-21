@@ -147,7 +147,17 @@ impl<L: Language> CombinedExtractors<L> {
   where
     L: LanguageExt,
   {
-    CombinedTraversal::new(self, root).extract()
+    self.extract_iter(root).collect()
+  }
+
+  pub fn extract_iter<'tree>(&self, root: Node<'tree, StrDoc<L>>) -> OutlineItemIter<'_, 'tree, L>
+  where
+    L: LanguageExt,
+  {
+    OutlineItemIter {
+      combined: self,
+      traversal: Prune::new(&root),
+    }
   }
 
   fn match_item<'tree>(
@@ -198,125 +208,77 @@ impl<'a, L: Language> CombinedMemberExtractors<'a, L> {
   }
 }
 
-struct CombinedTraversal<'a, 'tree, L: LanguageExt> {
+pub struct OutlineItemIter<'a, 'tree, L: LanguageExt> {
   combined: &'a CombinedExtractors<L>,
   traversal: Prune<'tree, L>,
-  pending: Option<PendingItem<'a, 'tree, L>>,
-  items: Vec<OutlineItem<'tree>>,
 }
 
-struct PendingItem<'a, 'tree, L: LanguageExt> {
-  extractor: &'a ItemExtractor<L>,
-  node_match: NodeMatch<'tree, StrDoc<L>>,
-  member_extractors: CombinedMemberExtractors<'a, L>,
-  members: Vec<OutlineMember<'tree>>,
-  item_subtree: PruneSubtree<'tree>,
+impl<'a, 'tree, L: LanguageExt> Iterator for OutlineItemIter<'a, 'tree, L> {
+  type Item = OutlineItem<'tree>;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    loop {
+      let node = self.traversal.current_node()?;
+      if let Some(item) = self.extract_current_item(node) {
+        return Some(item);
+      }
+    }
+  }
 }
 
-impl<'a, 'tree, L: LanguageExt> CombinedTraversal<'a, 'tree, L> {
-  fn new(combined: &'a CombinedExtractors<L>, root: Node<'tree, StrDoc<L>>) -> Self {
-    Self {
-      combined,
-      traversal: Prune::new(&root),
-      pending: None,
-      items: vec![],
-    }
-  }
-
-  fn extract(mut self) -> Vec<OutlineItem<'tree>> {
-    while let Some(node) = self.traversal.current_node() {
-      if self.finished_member_scope() {
-        self.finish_pending_item();
-        continue;
-      }
-      if let Some(pending) = self.pending.as_mut() {
-        Self::visit_member(pending, node, &mut self.traversal, &self.combined.options);
-      } else {
-        self.visit_item(node);
-      }
-    }
-    self.finish_pending_item();
-    self.items
-  }
-
-  fn visit_item(&mut self, node: Node<'tree, StrDoc<L>>) {
+impl<'a, 'tree, L: LanguageExt> OutlineItemIter<'a, 'tree, L> {
+  fn extract_current_item(&mut self, node: Node<'tree, StrDoc<L>>) -> Option<OutlineItem<'tree>> {
+    let combined = self.combined;
     let item_subtree = self.traversal.current_subtree();
-    let Some((extractor, node_match)) = self.combined.match_item(&node) else {
+    let Some((extractor, node_match)) = combined.match_item(&node) else {
       self.traversal.descend();
-      return;
+      return None;
     };
-    let Some(member_extractors) = self
-      .combined
-      .member_extractors_for(&extractor.common.rule.id)
-    else {
-      self.push_item(extractor.extract(&node_match, vec![]));
-      self.traversal.skip_subtree();
-      return;
-    };
-    self.pending = Some(PendingItem::new(
-      extractor,
-      node_match,
-      member_extractors,
-      item_subtree,
-    ));
-    self.traversal.descend();
+    let members = self.collect_current_item_members(&extractor.common.rule.id, item_subtree);
+    let item = extractor.extract(&node_match, members);
+    combined.options.keep_item(&item).then_some(item)
   }
 
-  fn visit_member(
-    pending: &mut PendingItem<'a, 'tree, L>,
-    node: Node<'tree, StrDoc<L>>,
-    traversal: &mut Prune<'tree, L>,
-    options: &OutlineExtractorOptions,
-  ) {
-    if let Some(member) = pending.member_extractors.extract_member(&node) {
+  fn collect_current_item_members(
+    &mut self,
+    item_rule_id: &str,
+    item_subtree: PruneSubtree<'tree>,
+  ) -> Vec<OutlineMember<'tree>> {
+    let Some(member_extractors) = self.combined.member_extractors_for(item_rule_id) else {
+      self.traversal.skip_subtree();
+      return vec![];
+    };
+    self.traversal.descend();
+    collect_members(
+      &mut self.traversal,
+      member_extractors,
+      &self.combined.options,
+      item_subtree,
+    )
+  }
+}
+
+fn collect_members<'a, 'tree, L: LanguageExt>(
+  traversal: &mut Prune<'tree, L>,
+  member_extractors: CombinedMemberExtractors<'a, L>,
+  options: &OutlineExtractorOptions,
+  item_subtree: PruneSubtree<'tree>,
+) -> Vec<OutlineMember<'tree>> {
+  let mut members = vec![];
+  while let Some(node) = traversal.current_node() {
+    if traversal.has_left_subtree(item_subtree) {
+      break;
+    }
+    if let Some(member) = member_extractors.extract_member(&node) {
       if options.keep_member(&member) {
-        pending.members.push(member);
+        members.push(member);
       }
       traversal.skip_subtree();
     } else {
       traversal.descend();
     }
   }
-
-  fn finished_member_scope(&self) -> bool {
-    self
-      .pending
-      .as_ref()
-      .is_some_and(|pending| self.traversal.has_left_subtree(pending.item_subtree))
-  }
-
-  fn finish_pending_item(&mut self) {
-    if let Some(pending) = self.pending.take() {
-      self.push_item(pending.into_item());
-    }
-  }
-
-  fn push_item(&mut self, item: OutlineItem<'tree>) {
-    if self.combined.options.keep_item(&item) {
-      self.items.push(item);
-    }
-  }
-}
-
-impl<'a, 'tree, L: LanguageExt> PendingItem<'a, 'tree, L> {
-  fn new(
-    extractor: &'a ItemExtractor<L>,
-    node_match: NodeMatch<'tree, StrDoc<L>>,
-    member_extractors: CombinedMemberExtractors<'a, L>,
-    item_subtree: PruneSubtree<'tree>,
-  ) -> Self {
-    Self {
-      extractor,
-      node_match,
-      member_extractors,
-      members: vec![],
-      item_subtree,
-    }
-  }
-
-  fn into_item(self) -> OutlineItem<'tree> {
-    self.extractor.extract(&self.node_match, self.members)
-  }
+  members
 }
 
 fn indices_for_kind(mapping: &[Vec<usize>], kind: u16) -> &[usize] {
