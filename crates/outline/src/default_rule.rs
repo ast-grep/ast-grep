@@ -89,7 +89,7 @@ mod tests {
 "#,
     );
 
-    let items = combined.extract(grep.root());
+    let items = combined.extract(grep.root()).collect::<Vec<_>>();
     let names = items
       .iter()
       .map(|item| item.entry.name.as_ref())
@@ -199,7 +199,7 @@ impl Rewrite<String> {
 "#,
     );
 
-    let items = combined.extract(grep.root());
+    let items = combined.extract(grep.root()).collect::<Vec<_>>();
     let names = items
       .iter()
       .map(|item| item.entry.name.as_ref())
@@ -334,7 +334,7 @@ impl<T: Future> CoreStage<T> {
 "#,
     );
 
-    let items = combined.extract(grep.root());
+    let items = combined.extract(grep.root()).collect::<Vec<_>>();
     let item_shapes = items
       .iter()
       .map(|item| {
@@ -444,7 +444,7 @@ trait Service {
 "#,
     );
 
-    let items = combined.extract(grep.root());
+    let items = combined.extract(grep.root()).collect::<Vec<_>>();
     let item_shapes = items
       .iter()
       .map(|item| {

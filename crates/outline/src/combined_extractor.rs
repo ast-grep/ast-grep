@@ -40,7 +40,7 @@ pub struct CombinedExtractors<L: Language> {
   options: OutlineExtractorOptions,
 }
 
-pub struct CombinedMemberExtractors<'a, L: Language> {
+struct CombinedMemberExtractors<'a, L: Language> {
   /// Shared member extractor storage owned by `CombinedExtractors`.
   extractors: &'a [MemberExtractor<L>],
   /// Parent-scoped index that selects members relevant to one matched item rule.
@@ -95,18 +95,7 @@ impl<L: Language> CombinedExtractors<L> {
     ))
   }
 
-  pub fn new(
-    item_extractors: Vec<ItemExtractor<L>>,
-    member_extractors: Vec<MemberExtractor<L>>,
-  ) -> Self {
-    Self::new_with_options(
-      item_extractors,
-      member_extractors,
-      OutlineExtractorOptions::default(),
-    )
-  }
-
-  pub fn new_with_options(
+  fn new_with_options(
     item_extractors: Vec<ItemExtractor<L>>,
     member_extractors: Vec<MemberExtractor<L>>,
     options: OutlineExtractorOptions,
@@ -122,7 +111,7 @@ impl<L: Language> CombinedExtractors<L> {
     }
   }
 
-  pub fn member_extractors_for(&self, parent_id: &str) -> Option<CombinedMemberExtractors<'_, L>> {
+  fn member_extractors_for(&self, parent_id: &str) -> Option<CombinedMemberExtractors<'_, L>> {
     self
       .member_mapping
       .get(parent_id)
@@ -132,25 +121,17 @@ impl<L: Language> CombinedExtractors<L> {
       })
   }
 
-  pub fn item_extractors_for_kind(&self, kind: u16) -> impl Iterator<Item = &ItemExtractor<L>> {
+  fn item_extractors_for_kind(&self, kind: u16) -> impl Iterator<Item = &ItemExtractor<L>> {
     self
-      .item_indices_for_kind(kind)
+      .item_kind_mapping
+      .get(kind as usize)
+      .map(Vec::as_slice)
+      .unwrap_or(&[])
       .iter()
       .map(|&idx| &self.item_extractors[idx])
   }
 
-  fn item_indices_for_kind(&self, kind: u16) -> &[usize] {
-    indices_for_kind(&self.item_kind_mapping, kind)
-  }
-
-  pub fn extract<'tree>(&self, root: Node<'tree, StrDoc<L>>) -> Vec<OutlineItem<'tree>>
-  where
-    L: LanguageExt,
-  {
-    self.extract_iter(root).collect()
-  }
-
-  pub fn extract_iter<'tree>(&self, root: Node<'tree, StrDoc<L>>) -> OutlineItemIter<'_, 'tree, L>
+  pub fn extract<'tree>(&self, root: Node<'tree, StrDoc<L>>) -> OutlineItemIter<'_, 'tree, L>
   where
     L: LanguageExt,
   {
@@ -167,8 +148,7 @@ impl<L: Language> CombinedExtractors<L> {
   where
     L: LanguageExt,
   {
-    for &idx in self.item_indices_for_kind(node.kind_id()) {
-      let extractor = &self.item_extractors[idx];
+    for extractor in self.item_extractors_for_kind(node.kind_id()) {
       if let Some(matched) = extractor.match_node(node) {
         return Some((extractor, matched));
       }
@@ -178,7 +158,7 @@ impl<L: Language> CombinedExtractors<L> {
 }
 
 impl<'a, L: Language> CombinedMemberExtractors<'a, L> {
-  pub fn extractors_for_kind(&self, kind: u16) -> impl Iterator<Item = &MemberExtractor<L>> {
+  fn extractors_for_kind(&self, kind: u16) -> impl Iterator<Item = &MemberExtractor<L>> {
     self
       .indices_for_kind(kind)
       .iter()
@@ -198,8 +178,7 @@ impl<'a, L: Language> CombinedMemberExtractors<'a, L> {
   where
     L: LanguageExt,
   {
-    for &idx in self.indices_for_kind(node.kind_id()) {
-      let extractor = &self.extractors[idx];
+    for extractor in self.extractors_for_kind(node.kind_id()) {
       if let Some(matched) = extractor.match_node(node) {
         return Some(extractor.extract(&matched));
       }
@@ -279,10 +258,6 @@ fn collect_members<'a, 'tree, L: LanguageExt>(
     }
   }
   members
-}
-
-fn indices_for_kind(mapping: &[Vec<usize>], kind: u16) -> &[usize] {
-  mapping.get(kind as usize).map(Vec::as_slice).unwrap_or(&[])
 }
 
 fn push_kind_mapping(mapping: &mut Vec<Vec<usize>>, kind: usize, idx: usize) {
@@ -410,7 +385,7 @@ function after() {}
 "#,
     );
 
-    let items = combined.extract(grep.root());
+    let items = combined.extract(grep.root()).collect::<Vec<_>>();
     let names = items
       .iter()
       .map(|item| item.entry.name.as_ref())
@@ -459,7 +434,7 @@ function standalone() {}
 "#,
     );
 
-    let items = combined.extract(grep.root());
+    let items = combined.extract(grep.root()).collect::<Vec<_>>();
 
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].entry.name, "Box");
@@ -512,7 +487,7 @@ function after() {}
 "#,
     );
 
-    let items = combined.extract(grep.root());
+    let items = combined.extract(grep.root()).collect::<Vec<_>>();
 
     let names = items
       .iter()
@@ -560,7 +535,7 @@ signature: $NAME()
       .expect("extractors should parse");
     let grep = SupportLang::TypeScript.ast_grep("class Box { parse() {} }");
 
-    let items = combined.extract(grep.root());
+    let items = combined.extract(grep.root()).collect::<Vec<_>>();
 
     assert!(combined.member_extractors.is_empty());
     assert_eq!(items.len(), 1);
@@ -607,7 +582,7 @@ function local() {}
 "#,
     );
 
-    let items = combined.extract(grep.root());
+    let items = combined.extract(grep.root()).collect::<Vec<_>>();
 
     assert_eq!(combined.item_extractors.len(), 1);
     assert_eq!(combined.item_extractors[0].common.rule.id, "ts-import");
