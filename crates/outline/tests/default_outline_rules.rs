@@ -9,6 +9,7 @@ fn bundled_outline_rules_compile_for_every_language() {
     SupportLang::Rust,
     SupportLang::TypeScript,
     SupportLang::Tsx,
+    SupportLang::JavaScript,
     SupportLang::Python,
     SupportLang::Go,
     SupportLang::Kotlin,

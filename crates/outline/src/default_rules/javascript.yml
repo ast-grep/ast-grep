@@ -1,0 +1,269 @@
+id: js-import
+language: JavaScript
+role: item
+symbolType: module
+rule:
+  kind: import_statement
+  has:
+    field: source
+    pattern: $SOURCE
+name: $SOURCE
+isImport: true
+isExported: false
+---
+id: js-export-from
+language: JavaScript
+role: item
+symbolType: module
+rule:
+  kind: export_statement
+  has:
+    field: source
+    pattern: $SOURCE
+name: $SOURCE
+isImport: false
+isExported: true
+---
+id: js-export-list
+language: JavaScript
+role: item
+symbolType: module
+rule:
+  pattern: 'export { $$$SPECIFIERS };'
+name: exports
+isImport: false
+isExported: true
+---
+id: js-export-function
+language: JavaScript
+role: item
+symbolType: function
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: function_declaration
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: js-function
+language: JavaScript
+role: item
+symbolType: function
+rule:
+  all:
+    - kind: function_declaration
+    - has:
+        field: name
+        pattern: $NAME
+    - inside:
+        kind: program
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: js-export-class
+language: JavaScript
+role: item
+symbolType: class
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: class_declaration
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: js-class
+language: JavaScript
+role: item
+symbolType: class
+rule:
+  all:
+    - kind: class_declaration
+    - has:
+        field: name
+        pattern: $NAME
+    - inside:
+        kind: program
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: js-export-const
+language: JavaScript
+role: item
+symbolType: constant
+rule:
+  pattern: 'export const $NAME = $VALUE;'
+name: $NAME
+isExported: true
+---
+id: js-export-let
+language: JavaScript
+role: item
+symbolType: variable
+rule:
+  pattern: 'export let $NAME = $VALUE;'
+name: $NAME
+isExported: true
+---
+id: js-top-level-arrow-function
+language: JavaScript
+role: item
+symbolType: function
+rule:
+  all:
+    - kind: variable_declarator
+    - has:
+        field: name
+        kind: identifier
+        pattern: $NAME
+    - has:
+        field: value
+        kind: arrow_function
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: js-top-level-const
+language: JavaScript
+role: item
+symbolType: constant
+rule:
+  all:
+    - kind: variable_declarator
+    - has:
+        field: name
+        kind: identifier
+        pattern: $NAME
+    - has:
+        field: value
+        pattern: $VALUE
+    - not:
+        has:
+          field: value
+          kind: arrow_function
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - regex: '^const\b'
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: js-top-level-let-uninitialized
+language: JavaScript
+role: item
+symbolType: variable
+rule:
+  all:
+    - kind: variable_declarator
+    - has:
+        field: name
+        kind: identifier
+        pattern: $NAME
+    - not:
+        has:
+          field: value
+          pattern: $VALUE
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - regex: '^let\b'
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: js-top-level-let
+language: JavaScript
+role: item
+symbolType: variable
+rule:
+  all:
+    - kind: variable_declarator
+    - has:
+        field: name
+        kind: identifier
+        pattern: $NAME
+    - has:
+        field: value
+        pattern: $VALUE
+    - not:
+        has:
+          field: value
+          kind: arrow_function
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - regex: '^let\b'
+          - inside:
+              kind: program
+              stopBy: neighbor
+        stopBy: neighbor
+name: $NAME
+isExported: false
+---
+id: js-class-constructor
+language: JavaScript
+role: member
+parentRuleIds: [js-export-class, js-class]
+symbolType: constructor
+rule:
+  pattern:
+    context: 'class A { constructor($$$ARGS) { $$$BODY } }'
+    selector: method_definition
+name: constructor
+isPublic: true
+---
+id: js-class-method
+language: JavaScript
+role: member
+parentRuleIds: [js-export-class, js-class]
+symbolType: method
+rule:
+  kind: method_definition
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic:
+  not:
+    has:
+      field: name
+      kind: private_property_identifier
+---
+id: js-class-field
+language: JavaScript
+role: member
+parentRuleIds: [js-export-class, js-class]
+symbolType: field
+rule:
+  kind: field_definition
+  has:
+    field: property
+    pattern: $NAME
+name: $NAME
+isPublic:
+  not:
+    has:
+      field: property
+      kind: private_property_identifier
