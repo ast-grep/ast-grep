@@ -166,3 +166,24 @@ let typedRenderer: React.FC<BadgeProps> = () => <Badge title="typed" />;
 "#,
   );
 }
+
+#[test]
+fn extracts_typescript_duplicate_member_names_with_signatures() {
+  common::assert_outline_signature_snapshot(
+    SupportLang::TypeScript,
+    TYPESCRIPT_RULES,
+    r#"
+export interface Parser {
+  parse(input: string): Node;
+  parse(input: Uint8Array): Node;
+  reset(): void;
+}
+"#,
+    r#"
+- Interface item exported Parser | export interface Parser {
+  - Method public parse | parse(input: string): Node
+  - Method public parse | parse(input: Uint8Array): Node
+  - Method public reset | reset(): void
+"#,
+  );
+}

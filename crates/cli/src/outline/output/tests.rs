@@ -77,6 +77,20 @@ fn outline_file() -> OutlineFile<'static> {
   }
 }
 
+fn item(
+  symbol_type: SymbolType,
+  name: &'static str,
+  signature: &'static str,
+  line: usize,
+) -> OutlineItem<'static> {
+  OutlineItem {
+    entry: entry(EntryRole::Item, symbol_type, name, signature, line),
+    is_import: false,
+    is_exported: false,
+    members: vec![],
+  }
+}
+
 #[test]
 fn renders_digest_like_design_doc() {
   let mut output = vec![];
@@ -87,6 +101,118 @@ fn renders_digest_like_design_doc() {
   assert_eq!(
     output,
     "src/parser.ts\n40: export class Parser\n      method: parse, recover\n"
+  );
+}
+
+#[test]
+fn digest_marks_duplicate_member_names_with_overload_count() {
+  let mut file = outline_file();
+  file.items[0].members = vec![
+    member(
+      SymbolType::Method,
+      "parse",
+      "parse(input: string): Node",
+      43,
+      true,
+    ),
+    member(
+      SymbolType::Method,
+      "parse",
+      "parse(input: Uint8Array): Node",
+      44,
+      true,
+    ),
+    member(SymbolType::Method, "recover", "recover(...)", 72, false),
+  ];
+  let mut output = vec![];
+  print_text_to(&mut output, &[file], &style(OutlineView::Digest)).expect("text should render");
+  let output = String::from_utf8(output).expect("output should be utf8");
+
+  assert_eq!(
+    output,
+    "src/parser.ts\n40: export class Parser\n      method: parse ×2, recover\n"
+  );
+}
+
+#[test]
+fn names_marks_duplicate_item_names_with_overload_count() {
+  let file = OutlineFile {
+    path: "src/parser.ts".to_string(),
+    language: "TypeScript".to_string(),
+    items: vec![
+      item(
+        SymbolType::Function,
+        "parse",
+        "parse(input: string): Node",
+        0,
+      ),
+      item(
+        SymbolType::Function,
+        "parse",
+        "parse(input: Uint8Array): Node",
+        1,
+      ),
+      item(SymbolType::Function, "print", "print(input: Node): void", 2),
+    ],
+  };
+  let mut output = vec![];
+  print_text_to(&mut output, &[file], &style(OutlineView::Names)).expect("text should render");
+  let output = String::from_utf8(output).expect("output should be utf8");
+
+  assert_eq!(output, "src/parser.ts\nfunction: parse ×2, print\n");
+}
+
+#[test]
+fn signatures_and_expanded_keep_duplicate_entries_separate() {
+  let file = OutlineFile {
+    path: "src/parser.ts".to_string(),
+    language: "TypeScript".to_string(),
+    items: vec![
+      item(
+        SymbolType::Function,
+        "parse",
+        "parse(input: string): Node",
+        0,
+      ),
+      item(
+        SymbolType::Function,
+        "parse",
+        "parse(input: Uint8Array): Node",
+        1,
+      ),
+    ],
+  };
+  let mut output = vec![];
+  print_text_to(&mut output, &[file], &style(OutlineView::Signatures)).expect("text should render");
+  let output = String::from_utf8(output).expect("output should be utf8");
+  assert_eq!(
+    output,
+    "src/parser.ts\n1: parse(input: string): Node\n2: parse(input: Uint8Array): Node\n"
+  );
+
+  let mut file = outline_file();
+  file.items[0].members = vec![
+    member(
+      SymbolType::Method,
+      "parse",
+      "parse(input: string): Node",
+      43,
+      true,
+    ),
+    member(
+      SymbolType::Method,
+      "parse",
+      "parse(input: Uint8Array): Node",
+      44,
+      true,
+    ),
+  ];
+  let mut output = vec![];
+  print_text_to(&mut output, &[file], &style(OutlineView::Expanded)).expect("text should render");
+  let output = String::from_utf8(output).expect("output should be utf8");
+  assert_eq!(
+    output,
+    "src/parser.ts\n40: export class Parser\n44:   parse(input: string): Node\n45:   parse(input: Uint8Array): Node\n"
   );
 }
 
@@ -324,13 +450,15 @@ fn suppresses_redundant_item_mode_styles() {
   let export_style = OutlineTextStyle::new(true, OutlineItems::Exports);
   let mixed_style = OutlineTextStyle::new(true, OutlineItems::All);
   let import_name = StyledName {
-    text: "std::fmt".to_string(),
+    text: "std::fmt",
+    overload_count: 1,
     is_import: true,
     is_exported: false,
     is_public: true,
   };
   let export_name = StyledName {
-    text: "api".to_string(),
+    text: "api",
+    overload_count: 1,
     is_import: false,
     is_exported: true,
     is_public: true,

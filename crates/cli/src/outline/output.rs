@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::io::Write;
 
@@ -253,39 +254,41 @@ fn line_number_width(file: &OutlineFile) -> usize {
 }
 
 #[derive(Clone)]
-struct StyledName {
-  text: String,
+struct StyledName<'a> {
+  text: &'a str,
+  overload_count: usize,
   is_import: bool,
   is_exported: bool,
   is_public: bool,
 }
 
-fn grouped_item_names(items: &[OutlineItem]) -> Vec<(SymbolType, Vec<StyledName>)> {
-  let mut groups = empty_symbol_groups();
+fn grouped_item_names<'a>(items: &'a [OutlineItem]) -> Vec<(SymbolType, Vec<StyledName<'a>>)> {
+  let mut groups = GroupedNames::new();
   for item in items {
-    push_grouped_name(
-      &mut groups,
+    groups.push(
       item.entry.symbol_type,
       StyledName {
-        text: item.entry.name.to_string(),
+        text: item.entry.name.as_ref(),
+        overload_count: 1,
         is_import: item.is_import,
         is_exported: item.is_exported,
         is_public: true,
       },
     );
   }
-  groups.retain(|(_, names)| !names.is_empty());
-  groups
+  groups.into_vec()
 }
 
-fn grouped_member_names(members: &[OutlineMember]) -> Vec<(SymbolType, Vec<StyledName>)> {
-  let mut groups = empty_symbol_groups();
+fn grouped_member_names<'a>(
+  members: &'a [OutlineMember],
+) -> Vec<(SymbolType, Vec<StyledName<'a>>)> {
+  let mut groups = GroupedNames::new();
   for member in members.iter().filter(|member| member.is_public) {
-    push_grouped_name(
-      &mut groups,
+    groups.push(
       member.entry.symbol_type,
       StyledName {
-        text: member.entry.name.to_string(),
+        text: member.entry.name.as_ref(),
+        overload_count: 1,
         is_import: false,
         is_exported: false,
         is_public: member.is_public,
@@ -293,37 +296,92 @@ fn grouped_member_names(members: &[OutlineMember]) -> Vec<(SymbolType, Vec<Style
     );
   }
   for member in members.iter().filter(|member| !member.is_public) {
-    push_grouped_name(
-      &mut groups,
+    groups.push(
       member.entry.symbol_type,
       StyledName {
-        text: member.entry.name.to_string(),
+        text: member.entry.name.as_ref(),
+        overload_count: 1,
         is_import: false,
         is_exported: false,
         is_public: member.is_public,
       },
     );
   }
-  groups.retain(|(_, names)| !names.is_empty());
-  groups
+  groups.into_vec()
 }
 
-fn empty_symbol_groups() -> Vec<(SymbolType, Vec<StyledName>)> {
-  SYMBOL_TYPE_ORDER
-    .iter()
-    .map(|&symbol_type| (symbol_type, vec![]))
-    .collect()
+struct GroupedNames<'a> {
+  groups: Vec<GroupedNameBucket<'a>>,
 }
 
-fn push_grouped_name(
-  groups: &mut Vec<(SymbolType, Vec<StyledName>)>,
+impl<'a> GroupedNames<'a> {
+  fn new() -> Self {
+    Self {
+      groups: SYMBOL_TYPE_ORDER
+        .iter()
+        .map(|&symbol_type| GroupedNameBucket::new(symbol_type))
+        .collect(),
+    }
+  }
+
+  fn push(&mut self, symbol_type: SymbolType, name: StyledName<'a>) {
+    let group_index = match self
+      .groups
+      .iter()
+      .position(|group| group.symbol_type == symbol_type)
+    {
+      Some(index) => index,
+      None => {
+        self.groups.push(GroupedNameBucket::new(symbol_type));
+        self.groups.len() - 1
+      }
+    };
+    self.groups[group_index].push(name);
+  }
+
+  fn into_vec(self) -> Vec<(SymbolType, Vec<StyledName<'a>>)> {
+    self
+      .groups
+      .into_iter()
+      .filter_map(|group| {
+        if group.names.is_empty() {
+          None
+        } else {
+          Some((group.symbol_type, group.names))
+        }
+      })
+      .collect()
+  }
+}
+
+struct GroupedNameBucket<'a> {
   symbol_type: SymbolType,
-  name: StyledName,
-) {
-  if let Some((_, names)) = groups.iter_mut().find(|(ty, _)| *ty == symbol_type) {
-    names.push(name);
-  } else {
-    groups.push((symbol_type, vec![name]));
+  names: Vec<StyledName<'a>>,
+  name_indices: HashMap<&'a str, usize>,
+}
+
+impl<'a> GroupedNameBucket<'a> {
+  fn new(symbol_type: SymbolType) -> Self {
+    Self {
+      symbol_type,
+      names: vec![],
+      name_indices: HashMap::new(),
+    }
+  }
+
+  fn push(&mut self, name: StyledName<'a>) {
+    if let Some(&index) = self.name_indices.get(name.text) {
+      let existing = &mut self.names[index];
+      existing.overload_count += 1;
+      existing.is_import |= name.is_import;
+      existing.is_exported |= name.is_exported;
+      existing.is_public |= name.is_public;
+      return;
+    }
+
+    let index = self.names.len();
+    self.name_indices.insert(name.text, index);
+    self.names.push(name);
   }
 }
 
@@ -499,7 +557,7 @@ impl OutlineTextStyle {
     if self.emphasize_exports && name.is_exported {
       style = style.bold();
     }
-    self.paint(style, &name.text)
+    self.grouped_name(name, style)
   }
 
   fn grouped_member_name(&self, name: &StyledName) -> String {
@@ -508,7 +566,15 @@ impl OutlineTextStyle {
     } else {
       ansi_term::Style::new().dimmed()
     };
-    self.paint(style, &name.text)
+    self.grouped_name(name, style)
+  }
+
+  fn grouped_name(&self, name: &StyledName, name_style: ansi_term::Style) -> String {
+    let text = self.paint(name_style, name.text);
+    if name.overload_count == 1 {
+      return text;
+    }
+    format!("{text} ×{}", name.overload_count)
   }
 
   fn paint(&self, style: ansi_term::Style, text: impl Display) -> String {
