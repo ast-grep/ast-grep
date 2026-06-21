@@ -26,29 +26,32 @@ use crate::extractor::{ItemExtractor, MemberExtractor, OutlineRuleError, Seriali
 use crate::model::{OutlineItem, OutlineMember};
 use crate::options::OutlineExtractorOptions;
 
+const POTENTIAL_KINDS_INVARIANT: &str =
+  "compiled outline rules must have potential kinds because RuleConfig rejects unconstrained rules";
+
 /// Runtime outline extractors organized for a shared item traversal.
 pub struct CombinedExtractors<L: Language> {
   /// Top-level item extractors matched during the file-wide AST traversal.
   item_extractors: Vec<ItemExtractor<L>>,
   /// Dense node-kind index into `item_extractors`; shared across the whole file.
-  item_kind_mapping: Vec<Vec<usize>>,
+  item_kind_index: Vec<Vec<usize>>,
   /// Member extractors parsed once and referenced by parent-scoped groups below.
   member_extractors: Vec<MemberExtractor<L>>,
   /// Parent item extractor id to member extractors that may run inside it.
-  member_mapping: HashMap<String, CombinedMemberExtractorGroup>,
+  member_index_by_parent: HashMap<String, MemberExtractorIndex>,
   /// Runtime filters and detail level requested by the caller.
   options: OutlineExtractorOptions,
 }
 
-struct CombinedMemberExtractors<'a, L: Language> {
+struct ScopedMemberExtractors<'a, L: Language> {
   /// Shared member extractor storage owned by `CombinedExtractors`.
   extractors: &'a [MemberExtractor<L>],
   /// Parent-scoped index that selects members relevant to one matched item rule.
-  group: &'a CombinedMemberExtractorGroup,
+  index: &'a MemberExtractorIndex,
 }
 
 #[derive(Default)]
-struct CombinedMemberExtractorGroup {
+struct MemberExtractorIndex {
   /// Sparse node-kind index into `member_extractors` for scoped member traversal.
   kind_mapping: HashMap<u16, Vec<usize>>,
 }
@@ -100,30 +103,30 @@ impl<L: Language> CombinedExtractors<L> {
     member_extractors: Vec<MemberExtractor<L>>,
     options: OutlineExtractorOptions,
   ) -> Self {
-    let item_kind_mapping = item_kind_mapping(&item_extractors);
-    let member_mapping = member_mapping(&member_extractors);
+    let item_kind_index = item_kind_index(&item_extractors);
+    let member_index_by_parent = member_index_by_parent(&member_extractors);
     Self {
       item_extractors,
-      item_kind_mapping,
+      item_kind_index,
       member_extractors,
-      member_mapping,
+      member_index_by_parent,
       options,
     }
   }
 
-  fn member_extractors_for(&self, parent_id: &str) -> Option<CombinedMemberExtractors<'_, L>> {
+  fn member_scope_for(&self, parent_id: &str) -> Option<ScopedMemberExtractors<'_, L>> {
     self
-      .member_mapping
+      .member_index_by_parent
       .get(parent_id)
-      .map(|group| CombinedMemberExtractors {
+      .map(|index| ScopedMemberExtractors {
         extractors: &self.member_extractors,
-        group,
+        index,
       })
   }
 
   fn item_extractors_for_kind(&self, kind: u16) -> impl Iterator<Item = &ItemExtractor<L>> {
     self
-      .item_kind_mapping
+      .item_kind_index
       .get(kind as usize)
       .map(Vec::as_slice)
       .unwrap_or(&[])
@@ -131,7 +134,10 @@ impl<L: Language> CombinedExtractors<L> {
       .map(|&idx| &self.item_extractors[idx])
   }
 
-  pub fn extract<'tree>(&self, root: Node<'tree, StrDoc<L>>) -> OutlineItemIter<'_, 'tree, L>
+  pub fn extract<'a, 'tree>(
+    &'a self,
+    root: Node<'tree, StrDoc<L>>,
+  ) -> impl Iterator<Item = OutlineItem<'tree>> + use<'a, 'tree, L>
   where
     L: LanguageExt,
   {
@@ -157,21 +163,16 @@ impl<L: Language> CombinedExtractors<L> {
   }
 }
 
-impl<'a, L: Language> CombinedMemberExtractors<'a, L> {
+impl<'a, L: Language> ScopedMemberExtractors<'a, L> {
   fn extractors_for_kind(&self, kind: u16) -> impl Iterator<Item = &MemberExtractor<L>> {
     self
-      .indices_for_kind(kind)
-      .iter()
-      .map(|&idx| &self.extractors[idx])
-  }
-
-  fn indices_for_kind(&self, kind: u16) -> &[usize] {
-    self
-      .group
+      .index
       .kind_mapping
       .get(&kind)
       .map(Vec::as_slice)
       .unwrap_or(&[])
+      .iter()
+      .map(|&idx| &self.extractors[idx])
   }
 
   fn extract_member<'tree>(&self, node: &Node<'tree, StrDoc<L>>) -> Option<OutlineMember<'tree>>
@@ -187,7 +188,7 @@ impl<'a, L: Language> CombinedMemberExtractors<'a, L> {
   }
 }
 
-pub struct OutlineItemIter<'a, 'tree, L: LanguageExt> {
+struct OutlineItemIter<'a, 'tree, L: LanguageExt> {
   combined: &'a CombinedExtractors<L>,
   traversal: Prune<'tree, L>,
 }
@@ -198,7 +199,7 @@ impl<'a, 'tree, L: LanguageExt> Iterator for OutlineItemIter<'a, 'tree, L> {
   fn next(&mut self) -> Option<Self::Item> {
     loop {
       let node = self.traversal.current_node()?;
-      if let Some(item) = self.extract_current_item(node) {
+      if let Some(item) = self.visit_current_node(node) {
         return Some(item);
       }
     }
@@ -206,29 +207,29 @@ impl<'a, 'tree, L: LanguageExt> Iterator for OutlineItemIter<'a, 'tree, L> {
 }
 
 impl<'a, 'tree, L: LanguageExt> OutlineItemIter<'a, 'tree, L> {
-  fn extract_current_item(&mut self, node: Node<'tree, StrDoc<L>>) -> Option<OutlineItem<'tree>> {
+  fn visit_current_node(&mut self, node: Node<'tree, StrDoc<L>>) -> Option<OutlineItem<'tree>> {
     let combined = self.combined;
     let item_subtree = self.traversal.current_subtree();
     let Some((extractor, node_match)) = combined.match_item(&node) else {
       self.traversal.descend();
       return None;
     };
-    let members = self.collect_current_item_members(&extractor.common.rule.id, item_subtree);
+    let members = self.collect_members_for_item(&extractor.common.rule.id, item_subtree);
     let item = extractor.extract(&node_match, members);
     combined.options.keep_item(&item).then_some(item)
   }
 
-  fn collect_current_item_members(
+  fn collect_members_for_item(
     &mut self,
     item_rule_id: &str,
     item_subtree: PruneSubtree<'tree>,
   ) -> Vec<OutlineMember<'tree>> {
-    let Some(member_extractors) = self.combined.member_extractors_for(item_rule_id) else {
+    let Some(member_extractors) = self.combined.member_scope_for(item_rule_id) else {
       self.traversal.skip_subtree();
       return vec![];
     };
     self.traversal.descend();
-    collect_members(
+    collect_scoped_members(
       &mut self.traversal,
       member_extractors,
       &self.combined.options,
@@ -237,9 +238,9 @@ impl<'a, 'tree, L: LanguageExt> OutlineItemIter<'a, 'tree, L> {
   }
 }
 
-fn collect_members<'a, 'tree, L: LanguageExt>(
+fn collect_scoped_members<'a, 'tree, L: LanguageExt>(
   traversal: &mut Prune<'tree, L>,
-  member_extractors: CombinedMemberExtractors<'a, L>,
+  member_extractors: ScopedMemberExtractors<'a, L>,
   options: &OutlineExtractorOptions,
   item_subtree: PruneSubtree<'tree>,
 ) -> Vec<OutlineMember<'tree>> {
@@ -267,12 +268,15 @@ fn push_kind_mapping(mapping: &mut Vec<Vec<usize>>, kind: usize, idx: usize) {
   mapping[kind].push(idx);
 }
 
-fn item_kind_mapping<L: Language>(item_extractors: &[ItemExtractor<L>]) -> Vec<Vec<usize>> {
+fn item_kind_index<L: Language>(item_extractors: &[ItemExtractor<L>]) -> Vec<Vec<usize>> {
   let mut mapping = Vec::new();
   for (idx, extractor) in item_extractors.iter().enumerate() {
-    let Some(kinds) = extractor.common.rule.matcher.potential_kinds() else {
-      continue;
-    };
+    let kinds = extractor
+      .common
+      .rule
+      .matcher
+      .potential_kinds()
+      .expect(POTENTIAL_KINDS_INVARIANT);
     for kind in &kinds {
       push_kind_mapping(&mut mapping, kind, idx);
     }
@@ -280,18 +284,21 @@ fn item_kind_mapping<L: Language>(item_extractors: &[ItemExtractor<L>]) -> Vec<V
   mapping
 }
 
-fn member_mapping<L: Language>(
+fn member_index_by_parent<L: Language>(
   member_extractors: &[MemberExtractor<L>],
-) -> HashMap<String, CombinedMemberExtractorGroup> {
-  let mut mapping: HashMap<String, CombinedMemberExtractorGroup> = HashMap::new();
+) -> HashMap<String, MemberExtractorIndex> {
+  let mut mapping: HashMap<String, MemberExtractorIndex> = HashMap::new();
   for (idx, extractor) in member_extractors.iter().enumerate() {
     for parent_id in &extractor.parent_rule_ids {
-      let group = mapping.entry(parent_id.clone()).or_default();
-      let Some(kinds) = extractor.common.rule.matcher.potential_kinds() else {
-        continue;
-      };
+      let index = mapping.entry(parent_id.clone()).or_default();
+      let kinds = extractor
+        .common
+        .rule
+        .matcher
+        .potential_kinds()
+        .expect(POTENTIAL_KINDS_INVARIANT);
       for kind in &kinds {
-        group.kind_mapping.entry(kind as u16).or_default().push(idx);
+        index.kind_mapping.entry(kind as u16).or_default().push(idx);
       }
     }
   }
@@ -346,14 +353,14 @@ name: other
       .item_extractors_for_kind(function_kind)
       .collect::<Vec<_>>();
     let member_extractors = combined
-      .member_extractors_for("ts-function")
+      .member_scope_for("ts-function")
       .expect("member extractors should exist");
     let identifier_kind = SupportLang::TypeScript.kind_to_id("identifier");
     let identifier_members = member_extractors
       .extractors_for_kind(identifier_kind)
       .collect::<Vec<_>>();
 
-    assert!(combined.member_extractors_for("missing").is_none());
+    assert!(combined.member_scope_for("missing").is_none());
     assert_eq!(item_extractors.len(), 1);
     assert_eq!(item_extractors[0].common.rule.id, "ts-function");
     assert_eq!(identifier_members.len(), 1);
