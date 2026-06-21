@@ -29,7 +29,7 @@ pub use rule_config::{
   Metadata, RuleConfig, RuleConfigError, SerializableRewriter, SerializableRuleConfig, Severity,
 };
 pub use rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
-pub use transform::Transformation;
+pub use transform::{Transform, TransformError, Transformation};
 
 pub fn from_str<'de, T: Deserialize<'de>>(s: &'de str) -> Result<T, YamlError> {
   let deserializer = Deserializer::from_str(s);

@@ -191,7 +191,7 @@ impl<'a, L: Language> CombinedMemberExtractors<'a, L> {
     for &idx in self.indices_for_kind(node.kind_id()) {
       let extractor = &self.extractors[idx];
       if let Some(matched) = extractor.match_node(node) {
-        return Some(extractor.extract(&matched));
+        return Some(extractor.extract(matched));
       }
     }
     None
@@ -201,11 +201,21 @@ impl<'a, L: Language> CombinedMemberExtractors<'a, L> {
 struct CombinedTraversal<'a, 'tree, L: LanguageExt> {
   combined: &'a CombinedExtractors<L>,
   traversal: Prune<'tree, L>,
-  pending: Option<PendingItem<'a, 'tree, L>>,
+  state: TraversalState<'a, 'tree, L>,
   items: Vec<OutlineItem<'tree>>,
 }
 
-struct PendingItem<'a, 'tree, L: LanguageExt> {
+// Keep the active member scope inline. The traverser owns exactly one state,
+// and boxing it would add one allocation for every item that can contain members.
+#[allow(clippy::large_enum_variant)]
+enum TraversalState<'a, 'tree, L: LanguageExt> {
+  /// File scope: match candidate nodes against item extractors.
+  Items,
+  /// Parent item scope: match descendants against only that item's member rules.
+  Members(MemberScope<'a, 'tree, L>),
+}
+
+struct MemberScope<'a, 'tree, L: LanguageExt> {
   extractor: &'a ItemExtractor<L>,
   node_match: NodeMatch<'tree, StrDoc<L>>,
   member_extractors: CombinedMemberExtractors<'a, L>,
@@ -218,7 +228,7 @@ impl<'a, 'tree, L: LanguageExt> CombinedTraversal<'a, 'tree, L> {
     Self {
       combined,
       traversal: Prune::new(&root),
-      pending: None,
+      state: TraversalState::Items,
       items: vec![],
     }
   }
@@ -226,16 +236,17 @@ impl<'a, 'tree, L: LanguageExt> CombinedTraversal<'a, 'tree, L> {
   fn extract(mut self) -> Vec<OutlineItem<'tree>> {
     while let Some(node) = self.traversal.current_node() {
       if self.finished_member_scope() {
-        self.finish_pending_item();
+        self.finish_member_scope();
         continue;
       }
-      if let Some(pending) = self.pending.as_mut() {
-        Self::visit_member(pending, node, &mut self.traversal, &self.combined.options);
-      } else {
-        self.visit_item(node);
+      match &mut self.state {
+        TraversalState::Items => self.visit_item(node),
+        TraversalState::Members(scope) => {
+          Self::visit_member(scope, node, &mut self.traversal, &self.combined.options);
+        }
       }
     }
-    self.finish_pending_item();
+    self.finish_member_scope();
     self.items
   }
 
@@ -249,11 +260,11 @@ impl<'a, 'tree, L: LanguageExt> CombinedTraversal<'a, 'tree, L> {
       .combined
       .member_extractors_for(&extractor.common.rule.id)
     else {
-      self.push_item(extractor.extract(&node_match, vec![]));
+      self.push_item(extractor.extract(node_match, vec![]));
       self.traversal.skip_subtree();
       return;
     };
-    self.pending = Some(PendingItem::new(
+    self.state = TraversalState::Members(MemberScope::new(
       extractor,
       node_match,
       member_extractors,
@@ -263,14 +274,14 @@ impl<'a, 'tree, L: LanguageExt> CombinedTraversal<'a, 'tree, L> {
   }
 
   fn visit_member(
-    pending: &mut PendingItem<'a, 'tree, L>,
+    scope: &mut MemberScope<'a, 'tree, L>,
     node: Node<'tree, StrDoc<L>>,
     traversal: &mut Prune<'tree, L>,
     options: &OutlineExtractorOptions,
   ) {
-    if let Some(member) = pending.member_extractors.extract_member(&node) {
+    if let Some(member) = scope.member_extractors.extract_member(&node) {
       if options.keep_member(&member) {
-        pending.members.push(member);
+        scope.members.push(member);
       }
       traversal.skip_subtree();
     } else {
@@ -279,15 +290,16 @@ impl<'a, 'tree, L: LanguageExt> CombinedTraversal<'a, 'tree, L> {
   }
 
   fn finished_member_scope(&self) -> bool {
-    self
-      .pending
-      .as_ref()
-      .is_some_and(|pending| self.traversal.has_left_subtree(pending.item_subtree))
+    match &self.state {
+      TraversalState::Items => false,
+      TraversalState::Members(scope) => self.traversal.has_left_subtree(scope.item_subtree),
+    }
   }
 
-  fn finish_pending_item(&mut self) {
-    if let Some(pending) = self.pending.take() {
-      self.push_item(pending.into_item());
+  fn finish_member_scope(&mut self) {
+    let state = std::mem::replace(&mut self.state, TraversalState::Items);
+    if let TraversalState::Members(scope) = state {
+      self.push_item(scope.into_item());
     }
   }
 
@@ -298,7 +310,7 @@ impl<'a, 'tree, L: LanguageExt> CombinedTraversal<'a, 'tree, L> {
   }
 }
 
-impl<'a, 'tree, L: LanguageExt> PendingItem<'a, 'tree, L> {
+impl<'a, 'tree, L: LanguageExt> MemberScope<'a, 'tree, L> {
   fn new(
     extractor: &'a ItemExtractor<L>,
     node_match: NodeMatch<'tree, StrDoc<L>>,
@@ -315,7 +327,7 @@ impl<'a, 'tree, L: LanguageExt> PendingItem<'a, 'tree, L> {
   }
 
   fn into_item(self) -> OutlineItem<'tree> {
-    self.extractor.extract(&self.node_match, self.members)
+    self.extractor.extract(self.node_match, self.members)
   }
 }
 

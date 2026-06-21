@@ -157,6 +157,24 @@ impl RuleCore {
     DeserializeEnv::from_registration(lang, self.registration.clone())
   }
 
+  pub fn undefined_rewriter_in_transform<'a>(&self, transform: &'a Transform) -> Option<&'a str> {
+    let rewriters = self.registration.get_rewriters();
+    transform
+      .values()
+      .flat_map(|trans| trans.used_rewriters())
+      .find(|rewriter| !rewriters.contains_key(*rewriter))
+      .map(String::as_str)
+  }
+
+  pub fn apply_transform<'tree, D: Doc>(
+    &self,
+    env: &mut MetaVarEnv<'tree, D>,
+    transform: &Transform,
+  ) {
+    let enclosing = env.clone();
+    transform.apply_transform(env, self.registration.get_rewriters(), &enclosing);
+  }
+
   /// Get the meta variables that have real ast node matches
   /// that is, meta vars defined in the rules and constraints
   pub(crate) fn defined_node_vars(&self) -> HashSet<&str> {

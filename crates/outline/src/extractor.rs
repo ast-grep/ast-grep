@@ -6,8 +6,9 @@
 //! `Outline*Rule` types, not on serde defaults or config parsing details.
 
 use ast_grep_config::{
-  GlobalRules, Rule, RuleConfig, RuleConfigError, RuleSerializeError, SerializableRewriter,
-  SerializableRule, SerializableRuleConfig, SerializableRuleCore, Severity,
+  DeserializeEnv, GlobalRules, Rule, RuleConfig, RuleConfigError, RuleSerializeError,
+  SerializableRewriter, SerializableRule, SerializableRuleConfig, SerializableRuleCore, Severity,
+  Transform, TransformError,
 };
 use ast_grep_core::{
   Doc, Language, Node, NodeMatch,
@@ -133,6 +134,8 @@ pub enum SerializablePredicate {
 pub struct ExtractorCommon<L: Language> {
   /// Parsed ast-grep rule config used to select candidate syntax.
   pub rule: RuleConfig<L>,
+  /// Lazily-applied transforms needed by output templates.
+  transform: Option<Transform>,
   /// LSP-compatible outline category produced by this extractor.
   pub symbol_type: SymbolType,
   /// Name template evaluated from metavariables or transformed metavariables.
@@ -152,6 +155,10 @@ pub enum OutlineRuleError {
   Predicate(#[from] RuleSerializeError),
   #[error(transparent)]
   Template(#[from] TemplateFixError),
+  #[error(transparent)]
+  Transform(#[from] TransformError),
+  #[error("Undefined rewriter `{0}` used in transform.")]
+  UndefinedRewriter(String),
 }
 
 impl<L: Language> ExtractorCommon<L> {
@@ -161,16 +168,34 @@ impl<L: Language> ExtractorCommon<L> {
     detail: OutlineEntryDetail,
   ) -> Result<Self, OutlineRuleError> {
     let symbol_type = common.symbol_type;
+    let language = common.language.clone();
     let transform_vars = transform_vars(&common.matcher);
-    let compile = |tmpl| compile_template(tmpl, &common.language, &transform_vars);
+    let compile = |tmpl| compile_template(tmpl, &language, &transform_vars);
     let name = compile(&common.name)?;
     let signature = match detail {
       OutlineEntryDetail::Name => None,
       OutlineEntryDetail::Signature => common.signature.as_deref().map(compile).transpose()?,
     };
-    let rule = RuleConfig::try_from(common.into_rule_config(), globals)?;
+    let mut rule_config = common.into_rule_config();
+    let transform = rule_config
+      .core
+      .transform
+      .take()
+      .filter(|_| uses_transform_vars(&name, signature.as_ref(), transform_vars.as_deref()));
+    let transform = transform
+      .as_ref()
+      .map(|transform| parse_transform(transform, &language, &rule_config.core, globals))
+      .transpose()?;
+    let rule = RuleConfig::try_from(rule_config, globals)?;
+    if let Some(rewriter) = transform
+      .as_ref()
+      .and_then(|transform| rule.matcher.undefined_rewriter_in_transform(transform))
+    {
+      return Err(OutlineRuleError::UndefinedRewriter(rewriter.to_string()));
+    }
     Ok(Self {
       rule,
+      transform,
       symbol_type,
       name,
       signature,
@@ -197,6 +222,32 @@ impl<L: Language> ExtractorCommon<L> {
     };
     Ok(ret)
   }
+}
+
+fn uses_transform_vars(
+  name: &TemplateFix,
+  signature: Option<&TemplateFix>,
+  transform_vars: Option<&[String]>,
+) -> bool {
+  let Some(transform_vars) = transform_vars else {
+    return false;
+  };
+  let uses_var = |var: &str| transform_vars.iter().any(|transform| transform == var);
+  name.used_vars().into_iter().any(uses_var)
+    || signature.is_some_and(|signature| signature.used_vars().into_iter().any(uses_var))
+}
+
+fn parse_transform<L: Language>(
+  transform: &std::collections::HashMap<String, ast_grep_config::Transformation>,
+  language: &L,
+  matcher: &SerializableRuleCore,
+  globals: &GlobalRules,
+) -> Result<Transform, OutlineRuleError> {
+  let mut env = DeserializeEnv::new(language.clone()).with_globals(globals);
+  if let Some(utils) = &matcher.utils {
+    env = env.with_utils(utils)?;
+  }
+  Ok(Transform::deserialize(transform, &env)?)
 }
 
 fn transform_vars(matcher: &SerializableRuleCore) -> Option<Vec<String>> {
@@ -273,13 +324,14 @@ impl<L: Language> ItemExtractor<L> {
 
   pub fn extract<'tree, D: Doc>(
     &self,
-    node_match: &NodeMatch<'tree, D>,
+    mut node_match: NodeMatch<'tree, D>,
     members: Vec<OutlineMember<'tree>>,
   ) -> OutlineItem<'tree> {
+    self.common.apply_transform(&mut node_match);
     OutlineItem {
-      entry: self.common.extract_entry(EntryRole::Item, node_match),
-      is_import: self.is_import.evaluate(node_match),
-      is_exported: self.is_exported.evaluate(node_match),
+      entry: self.common.extract_entry(EntryRole::Item, &node_match),
+      is_import: self.is_import.evaluate(&node_match),
+      is_exported: self.is_exported.evaluate(&node_match),
       members,
     }
   }
@@ -316,15 +368,28 @@ impl<L: Language> MemberExtractor<L> {
     self.common.rule.matcher.match_node(node.clone())
   }
 
-  pub fn extract<'tree, D: Doc>(&self, node_match: &NodeMatch<'tree, D>) -> OutlineMember<'tree> {
+  pub fn extract<'tree, D: Doc>(
+    &self,
+    mut node_match: NodeMatch<'tree, D>,
+  ) -> OutlineMember<'tree> {
+    self.common.apply_transform(&mut node_match);
     OutlineMember {
-      entry: self.common.extract_entry(EntryRole::Member, node_match),
-      is_public: self.is_public.evaluate(node_match),
+      entry: self.common.extract_entry(EntryRole::Member, &node_match),
+      is_public: self.is_public.evaluate(&node_match),
     }
   }
 }
 
 impl<L: Language> ExtractorCommon<L> {
+  fn apply_transform<D: Doc>(&self, node_match: &mut NodeMatch<D>) {
+    if let Some(transform) = &self.transform {
+      self
+        .rule
+        .matcher
+        .apply_transform(node_match.get_env_mut(), transform);
+    }
+  }
+
   fn extract_entry<'tree, D: Doc>(
     &self,
     role: EntryRole,
@@ -626,6 +691,77 @@ isImport: true
   }
 
   #[test]
+  fn applies_outline_transform_when_extracting_entry() {
+    let rule = parse_rule(
+      r#"
+id: rust-use
+language: Rust
+role: item
+symbolType: module
+rule:
+  pattern: use $TARGET;
+transform:
+  NAME:
+    replace:
+      source: $TARGET
+      replace: '^.*::'
+      by: ''
+name: $NAME
+"#,
+    );
+
+    let SerializableOutlineRule::Item(item) = rule else {
+      panic!("expected item rule");
+    };
+    let item = ItemExtractor::try_from(item, &Default::default(), OutlineEntryDetail::Name)
+      .expect("item rule should parse");
+    let root = SupportLang::Rust.ast_grep("use foo::bar;");
+    let node_match = root
+      .root()
+      .find(&item.common.rule.matcher)
+      .expect("use should match item rule");
+    let outline = item.extract(node_match, vec![]);
+
+    assert!(item.common.transform.is_some());
+    assert_eq!(outline.entry.name.as_ref(), "bar");
+  }
+
+  #[test]
+  fn skips_signature_only_transform_for_name_detail() {
+    let rule = parse_rule(
+      r#"
+id: rust-function
+language: Rust
+role: item
+symbolType: function
+rule:
+  all:
+    - kind: function_item
+    - pattern: $DECL
+    - has:
+        field: name
+        pattern: $NAME
+transform:
+  SIG:
+    replace:
+      source: $DECL
+      replace: '\s*\{[\s\S]*$'
+      by: ''
+name: $NAME
+signature: $SIG
+"#,
+    );
+
+    let SerializableOutlineRule::Item(item) = rule else {
+      panic!("expected item rule");
+    };
+    let item = ItemExtractor::try_from(item, &Default::default(), OutlineEntryDetail::Name)
+      .expect("item rule should parse");
+
+    assert!(item.common.transform.is_none());
+  }
+
+  #[test]
   fn predicate_rule_reuses_match_metavariables() {
     let rule = parse_rule(
       r#"
@@ -658,7 +794,7 @@ isExported:
     let node_match = item
       .match_node(&class_node)
       .expect("class should match item rule");
-    let outline = item.extract(&node_match, vec![]);
+    let outline = item.extract(node_match, vec![]);
 
     assert_eq!(outline.entry.name.as_ref(), "Foo");
     assert!(!outline.is_exported);
