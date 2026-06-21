@@ -86,7 +86,7 @@ fn match_leaf_meta_var<'tree, D: Doc>(
       Some(())
     }
     MV::MultiCapture(name) => {
-      env.to_mut().insert(name, candidate.clone())?;
+      env.to_mut().insert_multi(name, vec![candidate.clone()])?;
       Some(())
     }
   }
