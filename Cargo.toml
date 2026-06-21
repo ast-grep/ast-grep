@@ -32,6 +32,7 @@ bit-set = { version = "0.10.0" }
 ignore = { version = "0.4.22" }
 regex = { version = "1.10.4" }
 serde = { version = "1.0.200", features = ["derive"] }
+serde_regex = "1.2.0"
 serde_yaml = "0.9.33"
 tree-sitter = { version = "0.26.3" }
 thiserror = "2.0.0"

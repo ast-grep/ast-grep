@@ -68,15 +68,16 @@ pub struct Replace<T> {
   /// source meta variable to be transformed
   pub source: T,
   /// a regex to find substring to be replaced
-  pub replace: String,
+  #[serde(with = "serde_regex")]
+  #[schemars(with = "String")]
+  pub replace: Regex,
   /// the replacement string
   pub by: String,
 }
 impl Replace<MetaVariable> {
   fn compute<D: Doc>(&self, ctx: &mut Ctx<'_, '_, D>) -> Option<String> {
     let text = get_text_from_env(&self.source, ctx)?;
-    let re = Regex::new(&self.replace).unwrap();
-    Some(re.replace_all(&text, &self.by).into_owned())
+    Some(self.replace.replace_all(&text, &self.by).into_owned())
   }
 }
 
