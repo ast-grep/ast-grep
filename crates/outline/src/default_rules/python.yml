@@ -14,7 +14,7 @@ role: item
 symbolType: module
 rule:
   pattern: from $MODULE import $NAME
-name: $MODULE.$NAME
+name: $MODULE
 isImport: true
 isExported: false
 ---
