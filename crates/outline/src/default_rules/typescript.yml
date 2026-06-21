@@ -174,16 +174,22 @@ language: TypeScript
 role: item
 symbolType: constant
 rule:
-  pattern: 'export const $NAME = $VALUE;'
-name: $NAME
-isExported: true
----
-id: ts-export-const-typed
-language: TypeScript
-role: item
-symbolType: constant
-rule:
-  pattern: 'export const $NAME: $TYPE = $VALUE;'
+  all:
+    - kind: variable_declarator
+    - has:
+        field: name
+        kind: identifier
+        pattern: $NAME
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - has:
+              field: kind
+              regex: '^const$'
+          - inside:
+              kind: export_statement
+              stopBy: neighbor
+        stopBy: neighbor
 name: $NAME
 isExported: true
 ---
@@ -240,9 +246,6 @@ rule:
         field: name
         kind: identifier
         pattern: $NAME
-    - has:
-        field: value
-        pattern: $VALUE
     - not:
         has:
           field: value
@@ -250,30 +253,9 @@ rule:
     - inside:
         all:
           - kind: lexical_declaration
-          - regex: '^const\b'
-          - inside:
-              kind: program
-              stopBy: neighbor
-        stopBy: neighbor
-name: $NAME
-isExported: false
----
-id: ts-top-level-const-typed
-language: TypeScript
-role: item
-symbolType: constant
-rule:
-  all:
-    - pattern:
-        context: 'const $NAME: $TYPE = $VALUE;'
-        selector: variable_declarator
-    - not:
-        has:
-          field: value
-          kind: arrow_function
-    - inside:
-        all:
-          - kind: lexical_declaration
+          - has:
+              field: kind
+              regex: '^const$'
           - inside:
               kind: program
               stopBy: neighbor
@@ -620,16 +602,22 @@ language: Tsx
 role: item
 symbolType: constant
 rule:
-  pattern: 'export const $NAME = $VALUE;'
-name: $NAME
-isExported: true
----
-id: tsx-export-const-typed
-language: Tsx
-role: item
-symbolType: constant
-rule:
-  pattern: 'export const $NAME: $TYPE = $VALUE;'
+  all:
+    - kind: variable_declarator
+    - has:
+        field: name
+        kind: identifier
+        pattern: $NAME
+    - inside:
+        all:
+          - kind: lexical_declaration
+          - has:
+              field: kind
+              regex: '^const$'
+          - inside:
+              kind: export_statement
+              stopBy: neighbor
+        stopBy: neighbor
 name: $NAME
 isExported: true
 ---
@@ -686,9 +674,6 @@ rule:
         field: name
         kind: identifier
         pattern: $NAME
-    - has:
-        field: value
-        pattern: $VALUE
     - not:
         has:
           field: value
@@ -696,30 +681,9 @@ rule:
     - inside:
         all:
           - kind: lexical_declaration
-          - regex: '^const\b'
-          - inside:
-              kind: program
-              stopBy: neighbor
-        stopBy: neighbor
-name: $NAME
-isExported: false
----
-id: tsx-top-level-const-typed
-language: Tsx
-role: item
-symbolType: constant
-rule:
-  all:
-    - pattern:
-        context: 'const $NAME: $TYPE = $VALUE;'
-        selector: variable_declarator
-    - not:
-        has:
-          field: value
-          kind: arrow_function
-    - inside:
-        all:
-          - kind: lexical_declaration
+          - has:
+              field: kind
+              regex: '^const$'
           - inside:
               kind: program
               stopBy: neighbor

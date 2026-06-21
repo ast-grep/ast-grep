@@ -359,14 +359,41 @@ fn render_template<D: Doc>(template: &TemplateFix, node_match: &NodeMatch<D>) ->
 }
 
 fn default_signature<D: Doc>(node: &Node<D>) -> String {
-  node
-    .text()
-    .lines()
-    .find_map(|line| {
-      let trimmed = line.trim();
-      (!trimmed.is_empty()).then(|| trimmed.to_string())
-    })
+  if let Some(signature) = variable_declarator_signature(node) {
+    return signature;
+  }
+  first_non_empty_line(&node.text())
     .unwrap_or_default()
+    .to_string()
+}
+
+fn variable_declarator_signature<D: Doc>(node: &Node<D>) -> Option<String> {
+  if node.kind().as_ref() != "variable_declarator" {
+    return None;
+  }
+  let declaration = node.parent()?;
+  if declaration.kind().as_ref() != "lexical_declaration" {
+    return None;
+  }
+  let keyword = declaration.field_children("kind").next()?.text();
+  let keyword = keyword.trim();
+  if !matches!(keyword, "const" | "let") {
+    return None;
+  }
+  let declarator = node.text();
+  let declarator = first_non_empty_line(&declarator)?;
+  let export = declaration
+    .parent()
+    .is_some_and(|parent| parent.kind().as_ref() == "export_statement");
+  let prefix = if export { "export " } else { "" };
+  Some(format!("{prefix}{keyword} {declarator}"))
+}
+
+fn first_non_empty_line(text: &str) -> Option<&str> {
+  text.lines().find_map(|line| {
+    let trimmed = line.trim();
+    (!trimmed.is_empty()).then_some(trimmed)
+  })
 }
 
 fn source_range<D: Doc>(node: &Node<D>) -> SourceRange {

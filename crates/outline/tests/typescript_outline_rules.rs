@@ -168,6 +168,49 @@ let typedRenderer: React.FC<BadgeProps> = () => <Badge title="typed" />;
 }
 
 #[test]
+fn extracts_const_signatures_with_const_keyword() {
+  common::assert_outline_signature_snapshot(
+    SupportLang::TypeScript,
+    TYPESCRIPT_RULES,
+    r#"
+export const FIND_HIDE_TRANSITION = 'find-hide-transition';
+export const MAX_WIDTH: number = 69;
+export const MULTI_A = 1, MULTI_B: string = 'b';
+const FIND_SHOW_TRANSITION = 'find-show-transition';
+const MAX_MATCHES_COUNT_WIDTH: number = 69;
+const noop = () => {}, _RPCProtocolSymbol = Symbol.for('rpc.protocol');
+let renderLater = () => {};
+"#,
+    r#"
+- Constant item exported FIND_HIDE_TRANSITION | export const FIND_HIDE_TRANSITION = 'find-hide-transition'
+- Constant item exported MAX_WIDTH | export const MAX_WIDTH: number = 69
+- Constant item exported MULTI_A | export const MULTI_A = 1
+- Constant item exported MULTI_B | export const MULTI_B: string = 'b'
+- Constant item private FIND_SHOW_TRANSITION | const FIND_SHOW_TRANSITION = 'find-show-transition'
+- Constant item private MAX_MATCHES_COUNT_WIDTH | const MAX_MATCHES_COUNT_WIDTH: number = 69
+- Function item private noop | const noop = () => {}
+- Constant item private _RPCProtocolSymbol | const _RPCProtocolSymbol = Symbol.for('rpc.protocol')
+- Function item private renderLater | let renderLater = () => {}
+"#,
+  );
+
+  common::assert_outline_signature_snapshot(
+    SupportLang::Tsx,
+    TYPESCRIPT_RULES,
+    r#"
+export const BadgeFactory = () => <Badge title="demo" />;
+const renderBadge = () => <Badge title="demo" />;
+const label = <span>demo</span>;
+"#,
+    r#"
+- Constant item exported BadgeFactory | export const BadgeFactory = () => <Badge title="demo" />
+- Function item private renderBadge | const renderBadge = () => <Badge title="demo" />
+- Constant item private label | const label = <span>demo</span>
+"#,
+  );
+}
+
+#[test]
 fn extracts_typescript_duplicate_member_names_with_signatures() {
   common::assert_outline_signature_snapshot(
     SupportLang::TypeScript,
