@@ -1,6 +1,7 @@
 use super::Trans;
 use super::rewrite::Rewrite;
 use super::trans::{Convert, Replace, Substring};
+use regex::Regex;
 use serde_yaml::from_str as yaml_from_str;
 use std::str::FromStr;
 use thiserror::Error;
@@ -17,6 +18,8 @@ pub enum ParseTransError {
   RequiredArg(&'static str),
   #[error("Invalid argument value.")]
   ArgValue(#[from] serde_yaml::Error),
+  #[error("Invalid regex.")]
+  Regex(#[from] regex::Error),
 }
 
 impl FromStr for Trans<String> {
@@ -109,9 +112,10 @@ fn to_replace(decomposed: DecomposedTransString) -> Result<Replace<String>, Pars
   }
   let replace = replace.ok_or(ParseTransError::RequiredArg("replace"))?;
   let by = by.ok_or(ParseTransError::RequiredArg("by"))?;
+  let replace: String = serde_yaml::from_str(replace)?;
   Ok(Replace {
     source: decomposed.source.to_string(),
-    replace: serde_yaml::from_str(replace)?,
+    replace: Regex::new(&replace)?,
     by: serde_yaml::from_str(by)?,
   })
 }
@@ -222,7 +226,7 @@ mod test {
       panic!("Expected Replace transformation");
     };
     assert_eq!(replace.source, "$A");
-    assert_eq!(replace.replace, "^.+");
+    assert_eq!(replace.replace.as_str(), "^.+");
     assert_eq!(replace.by, ", ");
   }
 
