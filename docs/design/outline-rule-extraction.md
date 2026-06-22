@@ -79,8 +79,9 @@ signature   first non-empty source line of the matched syntax.
 astKind     tree-sitter node kind of the matched syntax.
 ```
 
-Top-level `item` entries can additionally carry `isImport` and `isExported`.
-Direct `member` entries can additionally carry `isPublic`.
+Top-level `item` entries carry `isImport` and `isExported`. Direct `member`
+entries carry `isPublic`; if a member rule omits `isPublic`, outline treats the
+member as public.
 
 These fields are output facts, not necessarily separate extractor types. For example,
 `pub use internal_mod as api;` is one top-level item with both `isImport` and
@@ -172,8 +173,9 @@ isPublic    Boolean or predicate for member publicness.
 `role`, `symbolType`, and `name` are required. `parentRuleIds` is required for
 `role: member` and ignored for `role: item`. `signature` is optional; when omitted,
 the extractor uses the first non-empty line of the matched node as the signature.
-`isImport`, `isExported`, and `isPublic` are omitted unless the extractor can derive
-them.
+`isImport`, `isExported`, and `isPublic` can be omitted from rules that rely on the
+runtime defaults: items default to `isImport: false` and `isExported: true`, while
+members default to `isPublic: true`.
 
 ### Text Field Extraction
 
@@ -533,12 +535,9 @@ source organization.
    - import syntax can set `isImport`.
    - top-level export syntax or language public-surface syntax can set `isExported`.
    - member syntax can set `isPublic`.
-7. Deduplicate entries by range, symbol type, and name.
-8. Merge duplicate top-level items by range, symbol type, and name, preserving
-   `isImport` and `isExported`.
-9. Attach direct members by syntax containment and `parentRuleIds`.
-10. Sort entries in source order.
-11. Pass the file model to CLI filtering and rendering.
+7. Attach direct members by syntax containment and `parentRuleIds`.
+8. Sort entries in source order.
+9. Pass the file model to CLI filtering and rendering.
 
 ## Rule Catalog Implications
 
@@ -600,6 +599,18 @@ sg outline src \
 
 Unsupported languages should return an empty outline and a successful exit
 status.
+
+## Future: Duplicate Entry Merge
+
+The current extractor relies on rule specificity and traversal order to avoid duplicate
+entries. A future refinement can add an explicit duplicate merge phase:
+
+1. Deduplicate entries by range, symbol type, and name.
+2. Merge duplicate top-level items by range, symbol type, and name, preserving
+   `isImport` and `isExported`.
+
+This should be designed with rule ordering and member attachment together, so the merge
+step does not hide ambiguous extractor definitions or accidentally drop members.
 
 ## Future: Rich Signatures
 

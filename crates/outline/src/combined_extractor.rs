@@ -69,6 +69,7 @@ impl<L: Language> CombinedExtractors<L> {
     options: OutlineExtractorOptions,
     globals: &GlobalRules,
   ) -> Result<Self, OutlineRuleError> {
+    validate_parent_rule_ids(&extractors)?;
     let mut item_extractors = Vec::with_capacity(extractors.len());
     let mut member_extractors = Vec::with_capacity(extractors.len());
     // NB: if member option is None, we won't pass any member extractors
@@ -238,6 +239,41 @@ impl<'a, 'tree, L: LanguageExt> OutlineItemIter<'a, 'tree, L> {
   }
 }
 
+fn validate_parent_rule_ids<L>(
+  extractors: &[SerializableOutlineRule<L>],
+) -> Result<(), OutlineRuleError> {
+  let mut rule_roles = HashMap::new();
+  for extractor in extractors {
+    rule_roles.insert(
+      extractor.common().id.as_str(),
+      matches!(extractor, SerializableOutlineRule::Item(_)),
+    );
+  }
+  for extractor in extractors {
+    let SerializableOutlineRule::Member(member) = extractor else {
+      continue;
+    };
+    for parent_id in &member.parent_rule_ids {
+      match rule_roles.get(parent_id.as_str()) {
+        Some(true) => {}
+        Some(false) => {
+          return Err(OutlineRuleError::InvalidParentRuleRole {
+            rule_id: member.common.id.clone(),
+            parent_id: parent_id.clone(),
+          });
+        }
+        None => {
+          return Err(OutlineRuleError::UnknownParentRuleId {
+            rule_id: member.common.id.clone(),
+            parent_id: parent_id.clone(),
+          });
+        }
+      }
+    }
+  }
+  Ok(())
+}
+
 fn collect_scoped_members<'a, 'tree, L: LanguageExt>(
   traversal: &mut Prune<'tree, L>,
   member_extractors: ScopedMemberExtractors<'a, L>,
@@ -365,6 +401,80 @@ name: other
     assert_eq!(item_extractors[0].common.rule.id, "ts-function");
     assert_eq!(identifier_members.len(), 1);
     assert_eq!(identifier_members[0].common.rule.id, "ts-member");
+  }
+
+  #[test]
+  fn rejects_unknown_member_parent_rule_id() {
+    let extractors = parse_outline_rules::<SupportLang>(
+      r#"
+id: ts-member
+language: TypeScript
+role: member
+parentRuleIds: [missing-parent]
+symbolType: method
+rule:
+  kind: method_definition
+name: member
+"#,
+    )
+    .expect("extractors should deserialize");
+
+    let Err(err) = CombinedExtractors::try_from(extractors, &Default::default()) else {
+      panic!("unknown parent id should be rejected");
+    };
+
+    assert!(matches!(err, OutlineRuleError::UnknownParentRuleId { .. }));
+    assert_eq!(
+      err.to_string(),
+      "Member rule `ts-member` references unknown parent rule `missing-parent`"
+    );
+  }
+
+  #[test]
+  fn rejects_member_parent_rule_id_that_points_to_member_rule() {
+    let extractors = parse_outline_rules::<SupportLang>(
+      r#"
+id: ts-parent-member
+language: TypeScript
+role: member
+parentRuleIds: [ts-class]
+symbolType: method
+rule:
+  kind: method_definition
+name: parent
+---
+id: ts-member
+language: TypeScript
+role: member
+parentRuleIds: [ts-parent-member]
+symbolType: method
+rule:
+  kind: method_definition
+name: child
+---
+id: ts-class
+language: TypeScript
+role: item
+symbolType: class
+rule:
+  pattern: class $NAME { $$$BODY }
+name: $NAME
+"#,
+    )
+    .expect("extractors should deserialize");
+
+    let Err(err) = CombinedExtractors::try_from(extractors, &Default::default()) else {
+      panic!("member parent ids should only reference item rules");
+    };
+
+    assert!(matches!(
+      err,
+      OutlineRuleError::InvalidParentRuleRole { .. }
+    ));
+    assert_eq!(
+      err.to_string(),
+      "Member rule `ts-member` cannot use member rule `ts-parent-member` as a parent"
+    );
   }
 
   #[test]

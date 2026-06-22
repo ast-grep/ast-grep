@@ -330,7 +330,9 @@ fn emitter_streams_json_lines_per_file() {
 
   assert_eq!(lines.len(), 2);
   for line in lines {
-    serde_json::from_str::<serde_json::Value>(line).expect("line should be json");
+    let value = serde_json::from_str::<serde_json::Value>(line).expect("line should be json");
+    assert!(value.get("symbol").is_none());
+    assert!(value["items"].is_array());
   }
 }
 

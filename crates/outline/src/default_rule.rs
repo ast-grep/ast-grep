@@ -9,6 +9,8 @@ pub const DEFAULT_OUTLINE_RULES: &str = concat!(
   "\n---\n",
   include_str!("default_rules/typescript.yml"),
   "\n---\n",
+  include_str!("default_rules/javascript.yml"),
+  "\n---\n",
   include_str!("default_rules/python.yml"),
   "\n---\n",
   include_str!("default_rules/go.yml"),
