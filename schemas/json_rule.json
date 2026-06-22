@@ -49,15 +49,6 @@
         }
       ]
     },
-    "id": {
-      "description": "Unique, descriptive identifier, e.g., no-unused-variable",
-      "type": "string",
-      "default": ""
-    },
-    "language": {
-      "description": "Specify the language to parse and the file extension to include in matching.",
-      "$ref": "#/$defs/Language"
-    },
     "rewriters": {
       "description": "Rewrite rules for `rewrite` transformation",
       "type": [
@@ -67,6 +58,15 @@
       "items": {
         "$ref": "#/$defs/SerializableRewriter"
       }
+    },
+    "id": {
+      "description": "Unique, descriptive identifier, e.g., no-unused-variable",
+      "type": "string",
+      "default": ""
+    },
+    "language": {
+      "description": "Specify the language to parse and the file extension to include in matching.",
+      "$ref": "#/$defs/Language"
     },
     "message": {
       "description": "Main message highlighting why this rule fired. It should be single line and concise,\nbut specific enough to be understood without additional context.",
@@ -740,19 +740,18 @@
         "template"
       ]
     },
-    "Language": {
-      "description": "Placeholder for language, used in JSON schema only.",
-      "type": "string",
-      "example": "typescript",
-      "enum": [
-        "json",
-        "Json"
-      ]
-    },
     "SerializableRewriter": {
       "description": "Used for global rules, rewriters, and pyo3/napi",
       "type": "object",
       "properties": {
+        "id": {
+          "description": "Unique, descriptive identifier, e.g., no-unused-variable",
+          "type": "string"
+        },
+        "fix": {
+          "description": "A pattern string or a FixConfig object to auto fix the issue.\nIt can reference metavariables appeared in rule.\nSee details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).",
+          "$ref": "#/$defs/SerializableFixer"
+        },
         "rule": {
           "description": "A rule object to find matching AST nodes",
           "$ref": "#/$defs/SerializableRule"
@@ -786,26 +785,21 @@
           "additionalProperties": {
             "$ref": "#/$defs/Transformation"
           }
-        },
-        "fix": {
-          "description": "A pattern string or a FixConfig object to auto fix the issue.\nIt can reference metavariables appeared in rule.\nSee details in fix [object reference](https://ast-grep.github.io/reference/yaml/fix.html#fixconfig).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SerializableFixer"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "id": {
-          "description": "Unique, descriptive identifier, e.g., no-unused-variable",
-          "type": "string"
         }
       },
       "required": [
-        "rule",
-        "id"
+        "id",
+        "fix",
+        "rule"
+      ]
+    },
+    "Language": {
+      "description": "Placeholder for language, used in JSON schema only.",
+      "type": "string",
+      "example": "typescript",
+      "enum": [
+        "json",
+        "Json"
       ]
     },
     "Severity": {
