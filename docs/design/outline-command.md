@@ -313,7 +313,7 @@ Text is the default output.
 default          text
 --json           pretty-printed JSON
 --json=compact   compact JSON
---json=stream    newline-delimited entries
+--json=stream    newline-delimited file objects
 ```
 
 Interactive agents should usually use text. They should request `--json` only when they
@@ -390,36 +390,12 @@ nothing found
 
 ### JSON Output
 
-`--json` returns grouped file output. `--json=stream` returns one independently useful
-entry per line. Text output uses one-based line numbers for display. JSON ranges use
-zero-based line and column numbers plus byte offsets, matching ast-grep's existing JSON
-range convention.
+`--json` returns grouped file output. `--json=stream` returns the same selected file
+object shape as one newline-delimited JSON object per emitted file. Text output uses
+one-based line numbers for display. JSON ranges use zero-based line and column numbers
+plus byte offsets, matching ast-grep's existing JSON range convention.
 
-Streamed entry shape:
-
-```json
-{
-  "path": "crates/cli/src/lib.rs",
-  "language": "Rust",
-  "symbol": {
-    "name": "Commands",
-    "symbolType": "enum",
-    "role": "item",
-    "isImport": false,
-    "isExported": false,
-    "range": {
-      "byteOffset": { "start": 1200, "end": 1700 },
-      "start": { "line": 48, "column": 0 },
-      "end": { "line": 67, "column": 1 }
-    },
-    "container": null,
-    "signature": "enum Commands",
-    "astKind": "enum_item"
-  }
-}
-```
-
-Grouped file shape:
+Streamed file shape:
 
 ```json
 {
@@ -467,7 +443,7 @@ Important properties:
 - `role` is always `item` or `member`.
 - `isImport` and `isExported` are present on top-level items.
 - `isPublic` is present on members and only meaningful there.
-- `container` is present in stream output for parent-symbol metadata.
+- Members remain nested under their parent item in grouped and stream JSON output.
 
 ## Agent Examples
 
@@ -530,8 +506,9 @@ structure and public surface of those changed files.
 sg outline crates --json=stream
 ```
 
-This is the machine-readable mode for ranking candidates by path, symbol type, name,
-item flags, and container. It is not the default interactive-agent mode.
+This is the machine-readable mode for incrementally processing file outlines by path,
+symbol type, name, item flags, and direct members. It is not the default
+interactive-agent mode.
 
 ## Data Model
 
@@ -582,62 +559,35 @@ Grouped item:
 
 ```rust
 pub struct OutlineItem {
-  pub name: Option<String>,
+  pub name: String,
   pub symbol_type: SymbolType,
   pub role: OutlineRole,
   pub is_import: bool,
   pub is_exported: bool,
   pub range: Range,
-  pub signature: Option<String>,
+  pub signature: String,
   pub ast_kind: String,
   pub members: Vec<OutlineMember>,
 }
 
 pub struct OutlineMember {
-  pub name: Option<String>,
+  pub name: String,
   pub symbol_type: SymbolType,
   pub role: OutlineRole,
-  pub is_public: Option<bool>,
+  pub is_public: bool,
   pub range: Range,
-  pub signature: Option<String>,
+  pub signature: String,
   pub ast_kind: String,
 }
 
 pub struct OutlineFile {
-  pub path: PathBuf,
-  pub language: SgLang,
+  pub path: String,
+  pub language: String,
   pub items: Vec<OutlineItem>,
 }
 ```
 
-Streamed entry:
-
-```rust
-pub struct OutlineEntry {
-  pub path: PathBuf,
-  pub language: SgLang,
-  pub symbol: OutlineFlatSymbol,
-}
-
-pub struct OutlineFlatSymbol {
-  pub name: Option<String>,
-  pub symbol_type: SymbolType,
-  pub role: OutlineRole,
-  pub is_import: Option<bool>,
-  pub is_exported: Option<bool>,
-  pub is_public: Option<bool>,
-  pub range: Range,
-  pub signature: Option<String>,
-  pub ast_kind: String,
-  pub container: Option<OutlineContainer>,
-}
-
-pub struct OutlineContainer {
-  pub name: Option<String>,
-  pub symbol_type: SymbolType,
-  pub range: Range,
-}
-```
+Streamed JSON uses the same `OutlineFile` object shape, emitted once per line.
 
 ### Item Flags
 
@@ -759,7 +709,7 @@ composition when they need presentation-level truncation:
 ```sh
 sg outline crates/cli/src | head -n 120
 sg outline crates/cli/src --items exports | head -n 80
-sg outline crates/cli/src --json=stream | jq 'select(.symbol.symbolType == "function")'
+sg outline crates/cli/src --json=stream | jq '.items[] | select(.symbolType == "function")'
 ```
 
 A future built-in limit may still be valuable as a safety guard against accidentally
