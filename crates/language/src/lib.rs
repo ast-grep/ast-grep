@@ -516,7 +516,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Markdown => &["markdown", "md"],
     Nix => &["nix"],
     Php => &["php"],
-    Python => &["py", "py3", "pyi", "bzl"],
+    Python => &["py", "py3", "pyi", "bzl", "bazel"],
     Ruby => &["rb", "rbw", "gemspec"],
     Rust => &["rs"],
     Scala => &["scala", "sc", "sbt"],
