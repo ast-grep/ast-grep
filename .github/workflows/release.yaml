@@ -1,0 +1,33 @@
+# Copyright 2024 Canonical Ltd.
+# See LICENSE-snap file for licensing details.
+name: Release to Snap Store
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build snap
+    uses: canonical/data-platform-workflows/.github/workflows/build_snap.yaml@v50.0.0
+    permissions:
+      contents: read
+
+  release:
+    name: Release snap
+    needs:
+      - build
+    uses: canonical/data-platform-workflows/.github/workflows/release_snap_edge.yaml@v50.0.0
+    with:
+      channel: "latest"
+      artifact-prefix: ${{ needs.build.outputs.artifact-prefix }}
+    secrets:
+      snap-store-token: ${{ secrets.SNAP_STORE_TOKEN_EDGE }}
+    permissions:
+      contents: write # Needed to create GitHub release
