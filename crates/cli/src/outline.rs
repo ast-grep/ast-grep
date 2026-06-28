@@ -6,6 +6,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use clap::{Args, ValueEnum};
 
+use crate::config::ProjectConfig;
 use crate::lang::SgLang;
 use crate::print::{ColorArg, JsonStyle};
 use crate::utils::InputArgs;
@@ -130,8 +131,16 @@ pub struct OutlineArg {
   input: InputArgs,
 }
 
-pub fn run_outline(arg: OutlineArg) -> Result<ExitCode> {
-  let rules = load_outline_rules(!arg.no_default_outline_rules, &arg.outline_rules)?;
+pub fn run_outline(arg: OutlineArg, project: Result<ProjectConfig>) -> Result<ExitCode> {
+  let config_outline_rules = project
+    .as_ref()
+    .map(|project| project.outline_rules.as_slice())
+    .unwrap_or(&[]);
+  let rules = load_outline_rules(
+    !arg.no_default_outline_rules,
+    config_outline_rules,
+    &arg.outline_rules,
+  )?;
   let style = OutlineStyle::from_arg(&arg);
   let extractors = Arc::new(OutlineExtractors::try_from_arg(rules, &arg)?);
   let stdout = io::stdout();

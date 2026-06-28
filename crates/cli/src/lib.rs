@@ -144,7 +144,7 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
     Commands::Test(arg) => run_test_rule(arg, project),
     Commands::New(arg) => run_create_new(arg, project),
     Commands::Lsp(arg) => run_language_server(arg, project).map(|_| ExitCode::SUCCESS),
-    Commands::Outline(arg) => run_outline(arg),
+    Commands::Outline(arg) => run_outline(arg, project),
     Commands::Completions(arg) => run_shell_completion::<App>(arg),
     #[cfg(debug_assertions)]
     Commands::Docs => todo!("todo, generate rule docs based on current config"),

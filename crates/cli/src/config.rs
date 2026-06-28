@@ -59,6 +59,8 @@ pub struct ProjectConfig {
   pub project_dir: PathBuf,
   /// YAML rule directories
   pub rule_dirs: Vec<PathBuf>,
+  /// YAML outline rule files configured by custom languages
+  pub outline_rules: Vec<PathBuf>,
   /// test configurations
   pub test_configs: Option<Vec<TestConfig>>,
   /// util rules directories
@@ -97,9 +99,12 @@ impl ProjectConfig {
     let Some((project_dir, mut sg_config)) = Self::discover_project(config_path)? else {
       return Ok(Err(anyhow::anyhow!(EC::ProjectNotExist)));
     };
+    let outline_rules =
+      custom_language_outline_rules(&project_dir, sg_config.custom_languages.as_ref());
     let config = ProjectConfig {
       project_dir,
       rule_dirs: sg_config.rule_dirs.drain(..).collect(),
+      outline_rules,
       test_configs: sg_config.test_configs.take(),
       util_dirs: sg_config.util_dirs.take(),
     };
@@ -107,6 +112,18 @@ impl ProjectConfig {
     register_custom_language(&config.project_dir, sg_config)?;
     Ok(Ok(config))
   }
+}
+
+fn custom_language_outline_rules(
+  project_dir: &Path,
+  custom_languages: Option<&HashMap<String, CustomLang>>,
+) -> Vec<PathBuf> {
+  custom_languages
+    .into_iter()
+    .flat_map(HashMap::values)
+    .filter_map(|lang| lang.outline_rules.as_ref())
+    .map(|path| project_dir.join(path))
+    .collect()
 }
 
 fn register_custom_language(project_dir: &Path, sg_config: AstGrepConfig) -> Result<()> {
@@ -274,5 +291,29 @@ fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<Option<
     } else {
       break Ok(None);
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn custom_language_outline_rules_are_project_relative() {
+    let config: AstGrepConfig = from_str(
+      r#"
+customLanguages:
+  blade:
+    libraryPath: parsers/blade.so
+    extensions: [blade.php]
+    outlineRules: outline/blade.yml
+"#,
+    )
+    .expect("config should parse");
+
+    let paths =
+      custom_language_outline_rules(Path::new("/project"), config.custom_languages.as_ref());
+
+    assert_eq!(paths, vec![PathBuf::from("/project/outline/blade.yml")]);
   }
 }
