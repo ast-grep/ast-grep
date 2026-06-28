@@ -35,6 +35,7 @@ impl From<CustomPyLang> for CustomLang {
       meta_var_char: c.meta_var_char,
       expando_char: c.expando_char,
       extensions: c.extensions,
+      outline_rules: None,
     }
   }
 }

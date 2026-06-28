@@ -95,6 +95,10 @@
         "languageSymbol": {
           "type": "string",
           "description": "The dylib symbol to load ts-language, default is tree_sitter_{name}"
+        },
+        "outlineRules": {
+          "type": "string",
+          "description": "The path to the YAML file containing outline rules for this custom language."
         }
       },
       "required": ["libraryPath", "extensions"]

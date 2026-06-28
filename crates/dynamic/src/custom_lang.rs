@@ -20,6 +20,8 @@ pub struct CustomLang {
   pub meta_var_char: Option<char>,
   pub expando_char: Option<char>,
   pub extensions: Vec<String>,
+  /// YAML file containing outline rules for this custom language.
+  pub outline_rules: Option<PathBuf>,
 }
 
 impl CustomLang {
@@ -69,10 +71,12 @@ mod test {
   fn test_custom_lang() {
     let yaml = r"
 libraryPath: a/b/c.so
+outlineRules: rules/outline.yml
 extensions: [d, e, f]";
     let cus: CustomLang = from_str(yaml).unwrap();
     assert_eq!(cus.language_symbol, None);
     assert_eq!(cus.extensions, vec!["d", "e", "f"]);
+    assert_eq!(cus.outline_rules, Some(PathBuf::from("rules/outline.yml")));
   }
   fn is_test_supported() -> bool {
     cfg!(all(target_os = "macos", target_arch = "aarch64"))
