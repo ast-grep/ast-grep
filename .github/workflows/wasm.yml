@@ -35,7 +35,7 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - name: Cache cargo
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index/
@@ -80,7 +80,7 @@ jobs:
           cache: yarn
           cache-dependency-path: ./crates/wasm/yarn.lock
       - name: Cache NPM dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: .yarn/cache
           key: npm-cache-ubuntu-wasm-publish
