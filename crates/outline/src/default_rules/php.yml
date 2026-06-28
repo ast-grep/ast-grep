@@ -1,0 +1,133 @@
+id: php-use
+language: Php
+role: item
+symbolType: module
+rule:
+  kind: namespace_use_declaration
+  has:
+    kind: qualified_name
+    stopBy: end
+    pattern: $NAME
+name: $NAME
+isImport: true
+isExported: false
+---
+id: php-interface
+language: Php
+role: item
+symbolType: interface
+rule:
+  kind: interface_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: php-class
+language: Php
+role: item
+symbolType: class
+rule:
+  kind: class_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: php-trait
+language: Php
+role: item
+symbolType: interface
+rule:
+  kind: trait_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: php-enum
+language: Php
+role: item
+symbolType: enum
+rule:
+  kind: enum_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: php-function
+language: Php
+role: item
+symbolType: function
+rule:
+  kind: function_definition
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: php-member-method
+language: Php
+role: member
+parentRuleIds: [php-class, php-trait]
+symbolType: method
+rule:
+  kind: method_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic:
+  has:
+    kind: visibility_modifier
+    regex: '^public$'
+---
+id: php-interface-method
+language: Php
+role: member
+parentRuleIds: [php-interface]
+symbolType: method
+rule:
+  kind: method_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: true
+---
+id: php-member-property
+language: Php
+role: member
+parentRuleIds: [php-class, php-trait]
+symbolType: property
+rule:
+  kind: property_declaration
+  has:
+    kind: property_element
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isPublic:
+  has:
+    kind: visibility_modifier
+    regex: '^public$'
+---
+id: php-enum-case
+language: Php
+role: member
+parentRuleIds: [php-enum]
+symbolType: enumMember
+rule:
+  kind: enum_case
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: true

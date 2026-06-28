@@ -1,0 +1,159 @@
+id: cpp-include
+language: Cpp
+role: item
+symbolType: module
+rule:
+  kind: preproc_include
+  has:
+    field: path
+    pattern: $PATH
+name: $PATH
+isImport: true
+isExported: false
+---
+id: cpp-function
+language: Cpp
+role: item
+symbolType: function
+rule:
+  kind: function_definition
+  has:
+    field: declarator
+    kind: function_declarator
+    has:
+      field: declarator
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: cpp-class
+language: Cpp
+role: item
+symbolType: class
+rule:
+  kind: class_specifier
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+---
+id: cpp-struct
+language: Cpp
+role: item
+symbolType: struct
+rule:
+  kind: struct_specifier
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+---
+id: cpp-enum
+language: Cpp
+role: item
+symbolType: enum
+rule:
+  kind: enum_specifier
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+---
+id: cpp-concept
+language: Cpp
+role: item
+symbolType: interface
+rule:
+  kind: concept_definition
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+---
+id: cpp-member-method
+language: Cpp
+role: member
+parentRuleIds: [cpp-class, cpp-struct]
+symbolType: method
+rule:
+  kind: field_declaration
+  has:
+    field: declarator
+    kind: function_declarator
+    has:
+      field: declarator
+      pattern: $NAME
+name: $NAME
+isPublic: false
+---
+id: cpp-member-constructor
+language: Cpp
+role: member
+parentRuleIds: [cpp-class, cpp-struct]
+symbolType: constructor
+rule:
+  kind: declaration
+  has:
+    field: declarator
+    kind: function_declarator
+    has:
+      field: declarator
+      pattern: $NAME
+name: $NAME
+isPublic: false
+---
+id: cpp-member-field
+language: Cpp
+role: member
+parentRuleIds: [cpp-class, cpp-struct]
+symbolType: field
+rule:
+  kind: field_declaration
+  has:
+    field: declarator
+    pattern: $NAME
+  not:
+    has:
+      field: declarator
+      kind: function_declarator
+name: $NAME
+isPublic: false
+---
+id: cpp-nested-class
+language: Cpp
+role: member
+parentRuleIds: [cpp-class, cpp-struct]
+symbolType: class
+rule:
+  kind: class_specifier
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: false
+---
+id: cpp-nested-struct
+language: Cpp
+role: member
+parentRuleIds: [cpp-class, cpp-struct]
+symbolType: struct
+rule:
+  kind: struct_specifier
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: false
+---
+id: cpp-enum-member
+language: Cpp
+role: member
+parentRuleIds: [cpp-enum]
+symbolType: enumMember
+rule:
+  kind: enumerator
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: true

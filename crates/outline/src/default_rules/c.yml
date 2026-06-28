@@ -1,0 +1,107 @@
+id: c-include
+language: C
+role: item
+symbolType: module
+rule:
+  kind: preproc_include
+  has:
+    field: path
+    pattern: $PATH
+name: $PATH
+isImport: true
+isExported: false
+---
+id: c-function
+language: C
+role: item
+symbolType: function
+rule:
+  kind: function_definition
+  has:
+    field: declarator
+    kind: function_declarator
+    has:
+      field: declarator
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: c-struct
+language: C
+role: item
+symbolType: struct
+rule:
+  kind: struct_specifier
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+---
+id: c-union
+language: C
+role: item
+symbolType: struct
+rule:
+  kind: union_specifier
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+---
+id: c-enum
+language: C
+role: item
+symbolType: enum
+rule:
+  kind: enum_specifier
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+---
+id: c-global-variable
+language: C
+role: item
+symbolType: variable
+rule:
+  all:
+    - kind: declaration
+    - has:
+        field: declarator
+        pattern: $NAME
+    - not:
+        has:
+          field: declarator
+          kind: function_declarator
+    - not:
+        inside:
+          kind: compound_statement
+          stopBy: end
+name: $NAME
+isExported: true
+---
+id: c-struct-field
+language: C
+role: member
+parentRuleIds: [c-struct, c-union]
+symbolType: field
+rule:
+  kind: field_declaration
+  has:
+    field: declarator
+    pattern: $NAME
+name: $NAME
+isPublic: true
+---
+id: c-enum-member
+language: C
+role: member
+parentRuleIds: [c-enum]
+symbolType: enumMember
+rule:
+  kind: enumerator
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: true

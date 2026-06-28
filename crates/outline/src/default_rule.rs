@@ -20,6 +20,16 @@ pub const DEFAULT_OUTLINE_RULES: &str = concat!(
   include_str!("default_rules/java.yml"),
   "\n---\n",
   include_str!("default_rules/swift.yml"),
+  "\n---\n",
+  include_str!("default_rules/csharp.yml"),
+  "\n---\n",
+  include_str!("default_rules/cpp.yml"),
+  "\n---\n",
+  include_str!("default_rules/c.yml"),
+  "\n---\n",
+  include_str!("default_rules/ruby.yml"),
+  "\n---\n",
+  include_str!("default_rules/php.yml"),
 );
 
 #[cfg(test)]

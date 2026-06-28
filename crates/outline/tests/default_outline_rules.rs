@@ -15,6 +15,11 @@ fn bundled_outline_rules_compile_for_every_language() {
     SupportLang::Kotlin,
     SupportLang::Java,
     SupportLang::Swift,
+    SupportLang::CSharp,
+    SupportLang::Cpp,
+    SupportLang::C,
+    SupportLang::Ruby,
+    SupportLang::Php,
   ];
 
   for language in OUTLINE_LANGUAGES {
@@ -26,6 +31,6 @@ fn bundled_outline_rules_compile_for_every_language() {
 
     assert!(!rules.is_empty(), "{language:?} should have outline rules");
     CombinedExtractors::try_from(rules, &Default::default())
-      .unwrap_or_else(|_| panic!("{language:?} outline rules should compile"));
+      .unwrap_or_else(|err| panic!("{language:?} outline rules should compile: {err}"));
   }
 }

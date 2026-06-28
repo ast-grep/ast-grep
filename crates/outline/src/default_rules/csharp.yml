@@ -1,0 +1,198 @@
+id: csharp-using
+language: CSharp
+role: item
+symbolType: module
+rule:
+  kind: using_directive
+  has:
+    pattern: $NAME
+name: $NAME
+isImport: true
+isExported: false
+---
+id: csharp-interface
+language: CSharp
+role: item
+symbolType: interface
+rule:
+  kind: interface_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifier
+    regex: '^public$'
+---
+id: csharp-class
+language: CSharp
+role: item
+symbolType: class
+rule:
+  kind: class_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifier
+    regex: '^public$'
+---
+id: csharp-record
+language: CSharp
+role: item
+symbolType: struct
+rule:
+  kind: record_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifier
+    regex: '^public$'
+---
+id: csharp-struct
+language: CSharp
+role: item
+symbolType: struct
+rule:
+  kind: struct_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifier
+    regex: '^public$'
+---
+id: csharp-enum
+language: CSharp
+role: item
+symbolType: enum
+rule:
+  kind: enum_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifier
+    regex: '^public$'
+---
+id: csharp-delegate
+language: CSharp
+role: item
+symbolType: function
+rule:
+  kind: delegate_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifier
+    regex: '^public$'
+---
+id: csharp-member-constructor
+language: CSharp
+role: member
+parentRuleIds: [csharp-class, csharp-record, csharp-struct]
+symbolType: constructor
+rule:
+  kind: constructor_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic:
+  has:
+    kind: modifier
+    regex: '^public$'
+---
+id: csharp-member-method
+language: CSharp
+role: member
+parentRuleIds: [csharp-class, csharp-record, csharp-struct]
+symbolType: method
+rule:
+  kind: method_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic:
+  has:
+    kind: modifier
+    regex: '^public$'
+---
+id: csharp-interface-method
+language: CSharp
+role: member
+parentRuleIds: [csharp-interface]
+symbolType: method
+rule:
+  kind: method_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: true
+---
+id: csharp-member-property
+language: CSharp
+role: member
+parentRuleIds: [csharp-class, csharp-record, csharp-struct, csharp-interface]
+symbolType: property
+rule:
+  kind: property_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic:
+  any:
+    - has:
+        kind: modifier
+        regex: '^public$'
+    - inside:
+        kind: interface_declaration
+        stopBy: end
+---
+id: csharp-member-field
+language: CSharp
+role: member
+parentRuleIds: [csharp-class, csharp-record, csharp-struct]
+symbolType: field
+rule:
+  kind: field_declaration
+  has:
+    kind: variable_declarator
+    stopBy: end
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isPublic:
+  has:
+    kind: modifier
+    regex: '^public$'
+---
+id: csharp-enum-member
+language: CSharp
+role: member
+parentRuleIds: [csharp-enum]
+symbolType: enumMember
+rule:
+  kind: enum_member_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: true

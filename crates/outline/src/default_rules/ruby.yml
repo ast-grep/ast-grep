@@ -1,0 +1,119 @@
+id: ruby-require
+language: Ruby
+role: item
+symbolType: module
+rule:
+  pattern: require $NAME
+name: $NAME
+isImport: true
+isExported: false
+---
+id: ruby-module
+language: Ruby
+role: item
+symbolType: module
+rule:
+  kind: module
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: ruby-class
+language: Ruby
+role: item
+symbolType: class
+rule:
+  kind: class
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: ruby-method
+language: Ruby
+role: item
+symbolType: function
+rule:
+  all:
+    - kind: method
+    - has:
+        field: name
+        pattern: $NAME
+    - not:
+        inside:
+          kind: class
+          stopBy: end
+    - not:
+        inside:
+          kind: module
+          stopBy: end
+name: $NAME
+---
+id: ruby-module-member-class
+language: Ruby
+role: member
+parentRuleIds: [ruby-module]
+symbolType: class
+rule:
+  kind: class
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: true
+---
+id: ruby-module-member-method
+language: Ruby
+role: member
+parentRuleIds: [ruby-module]
+symbolType: function
+rule:
+  kind: method
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: true
+---
+id: ruby-class-method
+language: Ruby
+role: member
+parentRuleIds: [ruby-class]
+symbolType: method
+rule:
+  kind: method
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: true
+---
+id: ruby-singleton-method
+language: Ruby
+role: member
+parentRuleIds: [ruby-class, ruby-module]
+symbolType: method
+rule:
+  kind: singleton_method
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isPublic: true
+---
+id: ruby-constant
+language: Ruby
+role: member
+parentRuleIds: [ruby-class, ruby-module]
+symbolType: constant
+rule:
+  kind: assignment
+  has:
+    field: left
+    kind: constant
+    pattern: $NAME
+name: $NAME
+isPublic: true
