@@ -24,6 +24,8 @@ use crate::utils::{EmptyFile, InputArgs, read_file};
 use super::OutlineArg;
 use super::options::{extractor_options_from_arg, show_empty_files};
 
+const OUTLINE_QUEUE_BOUND: usize = 256;
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OutlineFile<'a> {
@@ -141,7 +143,7 @@ pub fn stream_paths(
     return Ok(());
   }
   let walker = outline_walk(&arg.input, arg.lang, &extractors)?;
-  let (tx, rx) = mpsc::channel();
+  let (tx, rx) = outline_channel();
   let lang = arg.lang;
   let producer = thread::spawn(move || {
     walker.run(|| {
@@ -174,6 +176,13 @@ pub fn stream_paths(
     .join()
     .map_err(|_| anyhow::anyhow!("outline walker thread panicked"))?;
   result
+}
+
+fn outline_channel() -> (
+  mpsc::SyncSender<OutlineFile<'static>>,
+  mpsc::Receiver<OutlineFile<'static>>,
+) {
+  mpsc::sync_channel(OUTLINE_QUEUE_BOUND)
 }
 
 fn outline_walk(
@@ -329,5 +338,28 @@ name: struct
       .collect::<Vec<_>>();
 
     assert_eq!(ids, vec!["config-rust-function", "cli-rust-struct"]);
+  }
+
+  #[test]
+  fn outline_channel_applies_backpressure_at_bound() {
+    let (tx, _rx) = outline_channel();
+    for i in 0..OUTLINE_QUEUE_BOUND {
+      tx.try_send(OutlineFile {
+        path: format!("file-{i}.rs"),
+        language: "Rust".to_string(),
+        items: vec![],
+      })
+      .expect("queue should accept files below the bound");
+    }
+
+    let err = tx
+      .try_send(OutlineFile {
+        path: "overflow.rs".to_string(),
+        language: "Rust".to_string(),
+        items: vec![],
+      })
+      .expect_err("queue should apply backpressure at the bound");
+
+    assert!(matches!(err, mpsc::TrySendError::Full(_)));
   }
 }
