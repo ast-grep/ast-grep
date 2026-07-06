@@ -191,12 +191,10 @@ impl Worker for ScanWithConfig {
     }
     printer.after_print()?;
     self.trace.print()?;
-    let diagnostic_snapshot = self.diagnostic_count.snapshot();
-    report_warning_summary(diagnostic_snapshot.warnings);
-    if diagnostic_snapshot.errors > 0 {
-      Err(anyhow::anyhow!(EC::DiagnosticError(
-        diagnostic_snapshot.errors
-      )))
+    report_warning_summary(self.diagnostic_count.warnings());
+    let error_count = self.diagnostic_count.errors();
+    if error_count > 0 {
+      Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
       Ok(ExitCode::SUCCESS)
     }
@@ -339,12 +337,10 @@ impl Worker for ScanStdin {
       printer.process(item)?;
     }
     printer.after_print()?;
-    let diagnostic_snapshot = self.diagnostic_count.snapshot();
-    report_warning_summary(diagnostic_snapshot.warnings);
-    if diagnostic_snapshot.errors > 0 {
-      Err(anyhow::anyhow!(EC::DiagnosticError(
-        diagnostic_snapshot.errors
-      )))
+    report_warning_summary(self.diagnostic_count.warnings());
+    let error_count = self.diagnostic_count.errors();
+    if error_count > 0 {
+      Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
     } else {
       Ok(ExitCode::SUCCESS)
     }

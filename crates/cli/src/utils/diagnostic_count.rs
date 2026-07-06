@@ -29,28 +29,31 @@ impl DiagnosticSnapshot {
   }
 }
 
+/// Shared counts merged from parallel scan workers.
+/// Only errors and warnings appear in the final summary,
+/// so only they need cross-thread accumulation.
 #[derive(Default)]
 pub struct DiagnosticCount {
   error: AtomicUsize,
   warning: AtomicUsize,
-  info: AtomicUsize,
-  hint: AtomicUsize,
 }
 
 impl DiagnosticCount {
   pub fn merge(&self, local: DiagnosticSnapshot) {
-    self.error.fetch_add(local.errors, Ordering::AcqRel);
-    self.warning.fetch_add(local.warnings, Ordering::AcqRel);
-    self.info.fetch_add(local.infos, Ordering::AcqRel);
-    self.hint.fetch_add(local.hints, Ordering::AcqRel);
+    // most files have no diagnostics, skip the atomic write for them
+    if local.errors > 0 {
+      self.error.fetch_add(local.errors, Ordering::AcqRel);
+    }
+    if local.warnings > 0 {
+      self.warning.fetch_add(local.warnings, Ordering::AcqRel);
+    }
   }
 
-  pub fn snapshot(&self) -> DiagnosticSnapshot {
-    DiagnosticSnapshot {
-      errors: self.error.load(Ordering::Acquire),
-      warnings: self.warning.load(Ordering::Acquire),
-      infos: self.info.load(Ordering::Acquire),
-      hints: self.hint.load(Ordering::Acquire),
-    }
+  pub fn errors(&self) -> usize {
+    self.error.load(Ordering::Acquire)
+  }
+
+  pub fn warnings(&self) -> usize {
+    self.warning.load(Ordering::Acquire)
   }
 }
