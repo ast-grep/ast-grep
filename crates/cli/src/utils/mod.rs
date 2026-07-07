@@ -10,7 +10,7 @@ mod worker;
 pub use args::{ContextArgs, InputArgs, OutputArgs, OverwriteArgs};
 pub use debug_query::DebugFormat;
 pub use diagnostic_count::{DiagnosticCount, DiagnosticSnapshot};
-pub use error_context::{ErrorContext, exit_with_error};
+pub use error_context::{ErrorContext, exit_with_error, report_warning_summary};
 pub use inspect::{FileTrace, Granularity, RuleTrace, RunTrace, ScanTrace};
 pub use print_diff::DiffStyles;
 pub use rule_overwrite::RuleOverwrite;

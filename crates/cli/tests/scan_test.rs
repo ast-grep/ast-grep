@@ -397,24 +397,10 @@ fn test_scan_reports_mixed_diagnostic_summary() -> Result<()> {
   Ok(())
 }
 
-const INFO_HINT_RULES: &str = "
-id: info-rule
-message: info rule
-severity: info
-language: TypeScript
-rule: { pattern: info($A) }
----
-id: hint-rule
-message: hint rule
-severity: hint
-language: TypeScript
-rule: { pattern: hint($A) }
-";
-
 #[test]
 fn test_scan_does_not_report_info_hint_summary() -> Result<()> {
   let dir = create_test_files([
-    ("rule.yml", INFO_HINT_RULES),
+    ("rule.yml", MULTI_SEVERITY_RULES),
     ("test.ts", "info(1); hint(2)"),
   ])?;
   Command::new(cargo_bin!())
@@ -422,6 +408,8 @@ fn test_scan_does_not_report_info_hint_summary() -> Result<()> {
     .args(["scan", "-r", "rule.yml"])
     .assert()
     .success()
+    .stdout(contains("info-rule"))
+    .stdout(contains("hint-rule"))
     .stderr(contains("found in code.").not());
   Ok(())
 }
@@ -434,6 +422,54 @@ fn test_scan_reports_stdin_diagnostic_summary() -> Result<()> {
     .assert()
     .success()
     .stderr(contains("Warning: 2 warning(s) found in code."));
+  Ok(())
+}
+
+#[test]
+fn test_scan_stdin_max_results_counts_off_matches() -> Result<()> {
+  // off-severity matches must consume the --max-results budget
+  // even though they are excluded from severity counting.
+  // rule iteration order is randomized, so repeat the scan to
+  // exercise the ordering where the off rule is truncated first
+  let rules = "
+id: off-rule
+severity: off
+language: TypeScript
+rule: { pattern: off($A) }
+---
+id: warn-rule
+message: warn rule
+severity: warning
+language: TypeScript
+rule: { pattern: warn($A) }
+";
+  for _ in 0..8 {
+    let output = Command::new(cargo_bin!())
+      .args(["scan", "--stdin", "--inline-rules", rules, "--json"])
+      .args(["--max-results", "1"])
+      .write_stdin("off(1); warn(1)")
+      .assert()
+      .success()
+      .get_output()
+      .stdout
+      .clone();
+    let json: Value = from_slice(&output)?;
+    let matches = json.as_array().expect("should be array");
+    assert_eq!(matches.len(), 1, "off matches must consume the budget");
+  }
+  Ok(())
+}
+
+#[test]
+fn test_scan_stdin_update_all_omits_summary() -> Result<()> {
+  // fix-application modes should not report just-fixed diagnostics
+  Command::new(cargo_bin!())
+    .args(["scan", "--stdin", "--update-all", "--inline-rules"])
+    .arg(FIXABLE_JS_RULE)
+    .write_stdin("var a = 1;")
+    .assert()
+    .success()
+    .stderr(contains("found in code.").not());
   Ok(())
 }
 
