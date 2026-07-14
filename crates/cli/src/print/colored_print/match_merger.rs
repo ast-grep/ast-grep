@@ -9,11 +9,12 @@ pub struct MatchMerger<'a> {
   pub last_trailing: &'a str,
   pub last_end_offset: usize,
   pub context: (u16, u16),
+  pub max_context_bytes: usize,
 }
 
 impl<'a> MatchMerger<'a> {
-  pub fn new(nm: &NodeMatch<'a>, (before, after): (u16, u16)) -> Self {
-    let display = nm.display_context(before as usize, after as usize);
+  pub fn new(nm: &NodeMatch<'a>, (before, after): (u16, u16), max_context_bytes: usize) -> Self {
+    let display = nm.display_context(before as usize, after as usize, max_context_bytes);
     let last_start_line = display.start_line + 1;
     let last_end_line = nm.end_pos().line() + 1;
     let last_trailing = display.trailing;
@@ -24,6 +25,7 @@ impl<'a> MatchMerger<'a> {
       last_end_offset,
       last_trailing,
       context: (before, after),
+      max_context_bytes,
     }
   }
 
@@ -66,6 +68,6 @@ impl<'a> MatchMerger<'a> {
 
   pub fn display(&self, nm: &NodeMatch<'a>) -> DisplayContext<'a> {
     let (before, after) = self.context;
-    nm.display_context(before as usize, after as usize)
+    nm.display_context(before as usize, after as usize, self.max_context_bytes)
   }
 }

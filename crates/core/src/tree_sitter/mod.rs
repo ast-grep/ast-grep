@@ -387,31 +387,44 @@ pub struct DisplayContext<'r> {
   pub start_line: usize,
 }
 
-/// Per requested context line, hard cap in bytes on how far `display_context`
-/// will walk looking for a line boundary (scaled by `before`/`after` so
-/// legitimate multi-line `-A`/`-B`/`-C` requests on normal code aren't cut
-/// short). Minified/bundled source files routinely have a single "line"
-/// spanning the entire file (no `\n` at all); without this cap, the walk below
-/// degenerates to O(file size) per match, and a file with many matches on such
-/// a line (a very common real-world case for tools that scan
-/// `node_modules`/vendored bundles) produces `lines` context output that is
-/// O(matches × file size) — observed ballooning a single ~2MB minified line
-/// with a few thousand matches into a multi-gigabyte JSON report. Genuine
-/// source lines are essentially never anywhere close to this length, so the
-/// cap is a no-op for the intended use case (short, human-authored lines).
-const MAX_CONTEXT_BYTES_PER_LINE: usize = 1000;
+/// Default per-requested-context-line cap (in bytes) used by callers that
+/// don't need to override it — see `display_context`'s `max_bytes_per_line`
+/// parameter for the full rationale. Exposed so callers (and the CLI's
+/// `--max-context-bytes` flag) can share this default instead of repeating
+/// the magic number.
+pub const DEFAULT_MAX_CONTEXT_BYTES_PER_LINE: usize = 1000;
 
 /// these methods are only for `StrDoc`
 impl<'r, L: LanguageExt> crate::Node<'r, StrDoc<L>> {
   #[doc(hidden)]
-  pub fn display_context(&self, before: usize, after: usize) -> DisplayContext<'r> {
+  /// `max_bytes_per_line`: per requested context line, hard cap in bytes on
+  /// how far this walks looking for a line boundary (scaled by
+  /// `before`/`after` so legitimate multi-line `-A`/`-B`/`-C` requests on
+  /// normal code aren't cut short). Minified/bundled source files routinely
+  /// have a single "line" spanning the entire file (no `\n` at all); without
+  /// this cap, the walk below degenerates to O(file size) per match, and a
+  /// file with many matches on such a line (a very common real-world case
+  /// for tools that scan `node_modules`/vendored bundles) produces `lines`
+  /// context output that is O(matches × file size) — observed ballooning a
+  /// single ~2MB minified line with a few thousand matches into a
+  /// multi-gigabyte JSON report. Genuine source lines are essentially never
+  /// anywhere close to `DEFAULT_MAX_CONTEXT_BYTES_PER_LINE`, so using the
+  /// default is a no-op for the intended use case (short, human-authored
+  /// lines); pass a larger value if you have an unusual reason to want more
+  /// context on files with very long lines.
+  pub fn display_context(
+    &self,
+    before: usize,
+    after: usize,
+    max_bytes_per_line: usize,
+  ) -> DisplayContext<'r> {
     let source = self.root.doc.get_source().as_str();
     let bytes = source.as_bytes();
     let start = self.inner.start_byte();
     let end = self.inner.end_byte();
     let (mut leading, mut trailing) = (start, end);
     let mut lines_before = before + 1;
-    let leading_limit = start.saturating_sub(MAX_CONTEXT_BYTES_PER_LINE * (before + 1));
+    let leading_limit = start.saturating_sub(max_bytes_per_line * (before + 1));
     while leading > leading_limit {
       if bytes[leading - 1] == b'\n' {
         lines_before -= 1;
@@ -431,7 +444,7 @@ impl<'r, L: LanguageExt> crate::Node<'r, StrDoc<L>> {
     // tree-sitter will append line ending to source so trailing can be out of bound
     trailing = trailing.min(bytes.len());
     let trailing_limit = end
-      .saturating_add(MAX_CONTEXT_BYTES_PER_LINE * (after + 1))
+      .saturating_add(max_bytes_per_line * (after + 1))
       .min(bytes.len());
     while trailing < trailing_limit {
       if bytes[trailing] == b'\n' {

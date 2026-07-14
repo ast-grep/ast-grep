@@ -149,8 +149,8 @@ fn get_range(n: &Node<'_, SgLang>) -> Range {
 }
 
 impl<'t, 'b> MatchJSON<'t, 'b> {
-  fn new(nm: NodeMatch<'t>, path: &'b str, context: (u16, u16)) -> Self {
-    let display = nm.display_context(context.0 as usize, context.1 as usize);
+  fn new(nm: NodeMatch<'t>, path: &'b str, context: (u16, u16), max_context_bytes: usize) -> Self {
+    let display = nm.display_context(context.0 as usize, context.1 as usize, max_context_bytes);
     let lines = format!("{}{}{}", display.leading, display.matched, display.trailing);
     MatchJSON {
       file: Cow::Borrowed(path),
@@ -168,8 +168,13 @@ impl<'t, 'b> MatchJSON<'t, 'b> {
     }
   }
 
-  fn diff(diff: Diff<'t>, path: &'b str, context: (u16, u16)) -> Self {
-    let mut ret = Self::new(diff.node_match, path, context);
+  fn diff(
+    diff: Diff<'t>,
+    path: &'b str,
+    context: (u16, u16),
+    max_context_bytes: usize,
+  ) -> Self {
+    let mut ret = Self::new(diff.node_match, path, context, max_context_bytes);
     ret.replacement = Some(diff.replacement);
     ret.replacement_offsets = Some(diff.range);
     ret
@@ -222,10 +227,16 @@ struct RuleMatchJSON<'t, 'b> {
   metadata: Option<Cow<'b, Metadata>>,
 }
 impl<'t, 'b> RuleMatchJSON<'t, 'b> {
-  fn new(nm: NodeMatch<'t>, path: &'b str, rule: &'b RuleConfig<SgLang>, metadata: bool) -> Self {
+  fn new(
+    nm: NodeMatch<'t>,
+    path: &'b str,
+    rule: &'b RuleConfig<SgLang>,
+    metadata: bool,
+    max_context_bytes: usize,
+  ) -> Self {
     let message = rule.get_message(&nm);
     let labels = get_labels(rule, &nm);
-    let matched = MatchJSON::new(nm, path, (0, 0));
+    let matched = MatchJSON::new(nm, path, (0, 0), max_context_bytes);
     let metadata = if metadata {
       rule.metadata.as_ref().map(Cow::Borrowed)
     } else {
@@ -241,11 +252,17 @@ impl<'t, 'b> RuleMatchJSON<'t, 'b> {
       metadata,
     }
   }
-  fn diff(diff: Diff<'t>, path: &'b str, rule: &'b RuleConfig<SgLang>, metadata: bool) -> Self {
+  fn diff(
+    diff: Diff<'t>,
+    path: &'b str,
+    rule: &'b RuleConfig<SgLang>,
+    metadata: bool,
+    max_context_bytes: usize,
+  ) -> Self {
     let nm = &diff.node_match;
     let message = rule.get_message(nm);
     let labels = get_labels(rule, nm);
-    let matched = MatchJSON::diff(diff, path, (0, 0));
+    let matched = MatchJSON::diff(diff, path, (0, 0), max_context_bytes);
     let metadata = if metadata {
       rule.metadata.as_ref().map(Cow::Borrowed)
     } else {
@@ -282,6 +299,7 @@ pub struct JSONPrinter<W: Write> {
   output: W,
   style: JsonStyle,
   context: (u16, u16),
+  max_context_bytes: usize,
   include_metadata: bool,
   // indicate if any matches happened
   matched: bool,
@@ -300,12 +318,18 @@ impl<W: Write> JSONPrinter<W> {
       output,
       include_metadata: false,
       context: (0, 0),
+      max_context_bytes: ast_grep_core::tree_sitter::DEFAULT_MAX_CONTEXT_BYTES_PER_LINE,
       matched: false,
     }
   }
 
   pub fn context(mut self, context: (u16, u16)) -> Self {
     self.context = context;
+    self
+  }
+
+  pub fn max_context_bytes(mut self, max_context_bytes: usize) -> Self {
+    self.max_context_bytes = max_context_bytes;
     self
   }
 
@@ -323,6 +347,7 @@ impl<W: Write> Printer for JSONPrinter<W> {
     JSONProcessor {
       style: self.style,
       context: self.context,
+      max_context_bytes: self.max_context_bytes,
       include_metadata: self.include_metadata,
     }
   }
@@ -374,6 +399,7 @@ pub struct JSONProcessor {
   style: JsonStyle,
   include_metadata: bool,
   context: (u16, u16),
+  max_context_bytes: usize,
 }
 
 impl JSONProcessor {
@@ -420,27 +446,30 @@ impl PrintProcessor<Buffer> for JSONProcessor {
     rule: &RuleConfig<SgLang>,
   ) -> Result<Buffer> {
     let path = file.name();
-    let jsons = matches
-      .into_iter()
-      .map(|nm| RuleMatchJSON::new(nm, path, rule, self.include_metadata));
+    let max_context_bytes = self.max_context_bytes;
+    let jsons = matches.into_iter().map(|nm| {
+      RuleMatchJSON::new(nm, path, rule, self.include_metadata, max_context_bytes)
+    });
     self.print_docs(jsons)
   }
 
   fn print_matches(&self, matches: Vec<NodeMatch>, path: &Path) -> Result<Buffer> {
     let path = path.to_string_lossy();
     let context = self.context;
+    let max_context_bytes = self.max_context_bytes;
     let jsons = matches
       .into_iter()
-      .map(|nm| MatchJSON::new(nm, &path, context));
+      .map(|nm| MatchJSON::new(nm, &path, context, max_context_bytes));
     self.print_docs(jsons)
   }
 
   fn print_diffs(&self, diffs: Vec<Diff>, path: &Path) -> Result<Buffer> {
     let path = path.to_string_lossy();
     let context = self.context;
+    let max_context_bytes = self.max_context_bytes;
     let jsons = diffs
       .into_iter()
-      .map(|diff| MatchJSON::diff(diff, &path, context));
+      .map(|diff| MatchJSON::diff(diff, &path, context, max_context_bytes));
     self.print_docs(jsons)
   }
   fn print_rule_diffs(
@@ -449,9 +478,10 @@ impl PrintProcessor<Buffer> for JSONProcessor {
     path: &Path,
   ) -> Result<Buffer> {
     let path = path.to_string_lossy();
-    let jsons = diffs
-      .into_iter()
-      .map(|(diff, rule)| RuleMatchJSON::diff(diff, &path, rule, self.include_metadata));
+    let max_context_bytes = self.max_context_bytes;
+    let jsons = diffs.into_iter().map(|(diff, rule)| {
+      RuleMatchJSON::diff(diff, &path, rule, self.include_metadata, max_context_bytes)
+    });
     self.print_docs(jsons)
   }
 }

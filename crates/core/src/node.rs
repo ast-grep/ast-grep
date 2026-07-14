@@ -442,7 +442,8 @@ if (a) {
     for [src, matcher, lead, trail] in cases {
       let root = Tsx.ast_grep(src);
       let node = root.root().find(matcher).expect("should match");
-      let display = node.display_context(0, 0);
+      let display =
+        node.display_context(0, 0, crate::tree_sitter::DEFAULT_MAX_CONTEXT_BYTES_PER_LINE);
       assert_eq!(display.leading, lead);
       assert_eq!(display.trailing, trail);
     }
@@ -458,7 +459,8 @@ if (a) {
     for [src, matcher, lead, trail] in cases {
       let root = Tsx.ast_grep(src);
       let node = root.root().find(matcher).expect("should match");
-      let display = node.display_context(1, 1);
+      let display =
+        node.display_context(1, 1, crate::tree_sitter::DEFAULT_MAX_CONTEXT_BYTES_PER_LINE);
       assert_eq!(display.leading, lead);
       assert_eq!(display.trailing, trail);
     }

@@ -199,12 +199,15 @@ pub fn run_with_pattern(arg: RunArg, project: Result<ProjectConfig>) -> Result<E
     return run_pattern_with_printer(arg, printer);
   }
   if let Some(json) = arg.output.json {
-    let printer = JSONPrinter::stdout(json).context(context);
+    let printer = JSONPrinter::stdout(json)
+      .context(context)
+      .max_context_bytes(arg.context.max_context_bytes);
     return run_pattern_with_printer(arg, printer);
   }
   let printer = ColoredPrinter::stdout(arg.output.color)
     .heading(arg.heading)
-    .context(context);
+    .context(context)
+    .max_context_bytes(arg.context.max_context_bytes);
   let interactive = arg.output.needs_interactive();
   if interactive {
     let from_stdin = arg.input.stdin;
@@ -481,6 +484,7 @@ mod test {
         before: 0,
         after: 0,
         context: 0,
+        max_context_bytes: ast_grep_core::tree_sitter::DEFAULT_MAX_CONTEXT_BYTES_PER_LINE,
       },
     }
   }

@@ -213,6 +213,20 @@ pub struct ContextArgs {
   /// It conflicts with both the -B/--before and -A/--after flags.
   #[clap(short = 'C', long, default_value = "0", value_name = "NUM")]
   pub context: u16,
+
+  /// Cap, in bytes, on how far ast-grep looks for a line boundary when
+  /// building the context shown around a match, per line of -A/-B/-C context
+  /// requested.
+  ///
+  /// Minified/bundled files can have a single "line" spanning the entire
+  /// file; without a cap, showing context for a match in such a file walks
+  /// (and prints) the whole file for every single match. The default is
+  /// generous for genuine source code, which essentially never has lines
+  /// anywhere close to this length. Raise this if you deliberately want more
+  /// context on a file with unusually long lines; lower it to bound output
+  /// size more aggressively.
+  #[clap(long, default_value_t = ast_grep_core::tree_sitter::DEFAULT_MAX_CONTEXT_BYTES_PER_LINE, value_name = "NUM")]
+  pub max_context_bytes: usize,
 }
 
 impl ContextArgs {

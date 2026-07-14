@@ -61,6 +61,7 @@ pub struct ColoredPrinter<W: WriteColor> {
   styles: PrintStyles,
   heading: Heading,
   context: (u16, u16),
+  max_context_bytes: usize,
 }
 
 impl<W: WriteColor> ColoredPrinter<W> {
@@ -71,6 +72,7 @@ impl<W: WriteColor> ColoredPrinter<W> {
       config: term::Config::default(),
       heading: Heading::Auto,
       context: (0, 0),
+      max_context_bytes: ast_grep_core::tree_sitter::DEFAULT_MAX_CONTEXT_BYTES_PER_LINE,
     }
   }
 
@@ -101,6 +103,11 @@ impl<W: WriteColor> ColoredPrinter<W> {
     self.config.end_context_lines = context.1 as usize;
     self
   }
+
+  pub fn max_context_bytes(mut self, max_context_bytes: usize) -> Self {
+    self.max_context_bytes = max_context_bytes;
+    self
+  }
 }
 
 impl<W: WriteColor> Printer for ColoredPrinter<W> {
@@ -116,6 +123,7 @@ impl<W: WriteColor> Printer for ColoredPrinter<W> {
       styles: self.styles.clone(),
       heading: self.heading,
       context: self.context,
+      max_context_bytes: self.max_context_bytes,
       markdown,
     }
   }
@@ -171,6 +179,7 @@ pub struct ColoredProcessor {
   heading: Heading,
   markdown: Markdown,
   context: (u16, u16),
+  max_context_bytes: usize,
 }
 
 impl ColoredProcessor {
@@ -339,7 +348,7 @@ fn print_matches_with_heading(
   };
   let source = first_match.root().get_text();
 
-  let mut merger = MatchMerger::new(&first_match, printer.context);
+  let mut merger = MatchMerger::new(&first_match, printer.context, printer.max_context_bytes);
 
   let display = merger.display(&first_match);
   let mut ret = display.leading.to_string();
@@ -389,7 +398,7 @@ fn print_matches_with_prefix(
   };
   let source = first_match.root().get_text();
 
-  let mut merger = MatchMerger::new(&first_match, printer.context);
+  let mut merger = MatchMerger::new(&first_match, printer.context, printer.max_context_bytes);
   let display = merger.display(&first_match);
   let mut ret = display.leading.to_string();
   styles.push_matched_to_ret(&mut ret, &display.matched)?;
