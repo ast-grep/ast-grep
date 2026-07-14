@@ -387,6 +387,20 @@ pub struct DisplayContext<'r> {
   pub start_line: usize,
 }
 
+/// Per requested context line, hard cap in bytes on how far `display_context`
+/// will walk looking for a line boundary (scaled by `before`/`after` so
+/// legitimate multi-line `-A`/`-B`/`-C` requests on normal code aren't cut
+/// short). Minified/bundled source files routinely have a single "line"
+/// spanning the entire file (no `\n` at all); without this cap, the walk below
+/// degenerates to O(file size) per match, and a file with many matches on such
+/// a line (a very common real-world case for tools that scan
+/// `node_modules`/vendored bundles) produces `lines` context output that is
+/// O(matches × file size) — observed ballooning a single ~2MB minified line
+/// with a few thousand matches into a multi-gigabyte JSON report. Genuine
+/// source lines are essentially never anywhere close to this length, so the
+/// cap is a no-op for the intended use case (short, human-authored lines).
+const MAX_CONTEXT_BYTES_PER_LINE: usize = 1000;
+
 /// these methods are only for `StrDoc`
 impl<'r, L: LanguageExt> crate::Node<'r, StrDoc<L>> {
   #[doc(hidden)]
@@ -397,7 +411,8 @@ impl<'r, L: LanguageExt> crate::Node<'r, StrDoc<L>> {
     let end = self.inner.end_byte();
     let (mut leading, mut trailing) = (start, end);
     let mut lines_before = before + 1;
-    while leading > 0 {
+    let leading_limit = start.saturating_sub(MAX_CONTEXT_BYTES_PER_LINE * (before + 1));
+    while leading > leading_limit {
       if bytes[leading - 1] == b'\n' {
         lines_before -= 1;
         if lines_before == 0 {
@@ -406,10 +421,19 @@ impl<'r, L: LanguageExt> crate::Node<'r, StrDoc<L>> {
       }
       leading -= 1;
     }
+    // the cap above can land mid-codepoint; nudge forward to the next char
+    // boundary so the slice below never panics (this only ever shortens the
+    // leading context, never lengthens it past the cap).
+    while leading < start && !source.is_char_boundary(leading) {
+      leading += 1;
+    }
     let mut lines_after = after + 1;
     // tree-sitter will append line ending to source so trailing can be out of bound
     trailing = trailing.min(bytes.len());
-    while trailing < bytes.len() {
+    let trailing_limit = end
+      .saturating_add(MAX_CONTEXT_BYTES_PER_LINE * (after + 1))
+      .min(bytes.len());
+    while trailing < trailing_limit {
       if bytes[trailing] == b'\n' {
         lines_after -= 1;
         if lines_after == 0 {
@@ -417,6 +441,10 @@ impl<'r, L: LanguageExt> crate::Node<'r, StrDoc<L>> {
         }
       }
       trailing += 1;
+    }
+    // same char-boundary nudge as leading, but backward so we still respect the cap.
+    while trailing > end && !source.is_char_boundary(trailing) {
+      trailing -= 1;
     }
     // lines_before means we matched all context, offset is `before` itself
     let offset = if lines_before == 0 {
