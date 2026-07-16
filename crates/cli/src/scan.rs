@@ -17,11 +17,11 @@ use crate::print::{
   CloudPrinter, ColoredPrinter, Diff, FileNamePrinter, InteractivePrinter, JSONPrinter, Platform,
   PrintProcessor, Printer, ReportStyle, SimpleFile,
 };
-use crate::utils::RuleOverwrite;
 use crate::utils::{ContextArgs, InputArgs, OutputArgs, OverwriteArgs, filter_file_rule};
 use crate::utils::{ErrorContext as EC, MaxItemCounter};
 use crate::utils::{FileTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
+use crate::utils::{NoIgnore, RuleOverwrite};
 
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -160,7 +160,8 @@ impl ScanWithConfig {
       // NOTE: only query project here since -r does not need project
       let project_config = project?;
       proj_dir = project_config.project_dir.clone();
-      project_config.find_rules(overwrite)?
+      project_config
+        .find_rules_with_no_ignore(overwrite, &NoIgnore::disregard(&arg.input.no_ignore))?
     };
     let trace = arg.output.inspect.scan_trace(rule_trace);
     trace.print_rules(&configs)?;
@@ -433,6 +434,7 @@ fn match_rule_on_file<T>(
 mod test {
   use super::*;
   use crate::print::ColorArg;
+  use crate::utils::IgnoreFile;
   use std::fs::File;
   use std::io::Write;
   use tempfile::TempDir;
@@ -514,6 +516,28 @@ rule:
     let project_config = ProjectConfig::setup(Some(dir.path().join("sgconfig.yml"))).unwrap();
     let arg = default_scan_arg();
     assert!(run_with_config(arg, project_config).is_ok());
+  }
+
+  #[test]
+  fn test_no_ignore_applies_to_rule_dirs() {
+    let dir = create_test_files([("sgconfig.yml", "ruleDirs: [.venv/rules]")]);
+    let virtualenv = dir.path().join(".venv");
+    let rules = virtualenv.join("rules");
+    std::fs::create_dir_all(&rules).unwrap();
+    std::fs::write(virtualenv.join(".gitignore"), "*\n").unwrap();
+    std::fs::write(rules.join("test.yml"), RULE).unwrap();
+
+    let project_config = ProjectConfig::setup(Some(dir.path().join("sgconfig.yml"))).unwrap();
+    let arg = ScanArg {
+      input: InputArgs {
+        no_ignore: vec![IgnoreFile::Hidden, IgnoreFile::Vcs],
+        ..default_scan_arg().input
+      },
+      ..default_scan_arg()
+    };
+
+    let scan = ScanWithConfig::try_new(arg, project_config).unwrap();
+    assert_eq!(scan.configs.total_rule_count(), 1);
   }
 
   #[test]

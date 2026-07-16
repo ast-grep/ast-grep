@@ -1,5 +1,5 @@
 use crate::lang::{CustomLang, LanguageGlobs, SerializableInjection, SgLang};
-use crate::utils::{ErrorContext as EC, RuleOverwrite, RuleTrace};
+use crate::utils::{ErrorContext as EC, NoIgnore, RuleOverwrite, RuleTrace};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{
@@ -88,8 +88,16 @@ impl ProjectConfig {
     &self,
     rule_overwrite: RuleOverwrite,
   ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
-    let global_rules = find_util_rules(self)?;
-    read_directory_yaml(self, global_rules, rule_overwrite)
+    self.find_rules_with_no_ignore(rule_overwrite, &NoIgnore::default())
+  }
+
+  pub fn find_rules_with_no_ignore(
+    &self,
+    rule_overwrite: RuleOverwrite,
+    no_ignore: &NoIgnore,
+  ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
+    let global_rules = find_util_rules(self, no_ignore)?;
+    read_directory_yaml(self, global_rules, rule_overwrite, no_ignore)
   }
 
   /// returns a Result of Result.
@@ -137,23 +145,27 @@ fn register_custom_language(project_dir: &Path, sg_config: AstGrepConfig) -> Res
   Ok(())
 }
 
-fn build_util_walker(base_dir: &Path, util_dirs: &Option<Vec<PathBuf>>) -> Option<WalkBuilder> {
+fn build_util_walker(
+  base_dir: &Path,
+  util_dirs: &Option<Vec<PathBuf>>,
+  no_ignore: &NoIgnore,
+) -> Option<WalkBuilder> {
   let mut util_dirs = util_dirs.as_ref()?.iter();
   let first = util_dirs.next()?;
-  let mut walker = WalkBuilder::new(base_dir.join(first));
+  let mut walker = no_ignore.walk(&[base_dir.join(first)]);
   for dir in util_dirs {
     walker.add(base_dir.join(dir));
   }
   Some(walker)
 }
 
-fn find_util_rules(config: &ProjectConfig) -> Result<GlobalRules> {
+fn find_util_rules(config: &ProjectConfig, no_ignore: &NoIgnore) -> Result<GlobalRules> {
   let ProjectConfig {
     project_dir,
     util_dirs,
     ..
   } = config;
-  let Some(mut walker) = build_util_walker(project_dir, util_dirs) else {
+  let Some(mut walker) = build_util_walker(project_dir, util_dirs, no_ignore) else {
     return Ok(GlobalRules::default());
   };
   let mut utils = vec![];
@@ -182,6 +194,7 @@ fn read_directory_yaml(
   config: &ProjectConfig,
   global_rules: GlobalRules,
   rule_overwrite: RuleOverwrite,
+  no_ignore: &NoIgnore,
 ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
   let mut configs = vec![];
   let ProjectConfig {
@@ -191,7 +204,8 @@ fn read_directory_yaml(
   } = config;
   for dir in rule_dirs {
     let dir_path = project_dir.join(dir);
-    let walker = WalkBuilder::new(&dir_path)
+    let walker = no_ignore
+      .walk(&[dir_path.clone()])
       .types(config_file_type())
       .build();
     for dir in walker {
