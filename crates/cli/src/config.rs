@@ -65,6 +65,7 @@ pub struct ProjectConfig {
   pub test_configs: Option<Vec<TestConfig>>,
   /// util rules directories
   pub util_dirs: Option<Vec<PathBuf>>,
+  no_ignore: NoIgnore,
 }
 
 impl ProjectConfig {
@@ -88,16 +89,13 @@ impl ProjectConfig {
     &self,
     rule_overwrite: RuleOverwrite,
   ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
-    self.find_rules_with_no_ignore(rule_overwrite, &NoIgnore::default())
+    let global_rules = find_util_rules(self)?;
+    read_directory_yaml(self, global_rules, rule_overwrite)
   }
 
-  pub fn find_rules_with_no_ignore(
-    &self,
-    rule_overwrite: RuleOverwrite,
-    no_ignore: &NoIgnore,
-  ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
-    let global_rules = find_util_rules(self, no_ignore)?;
-    read_directory_yaml(self, global_rules, rule_overwrite, no_ignore)
+  pub fn with_no_ignore(mut self, no_ignore: NoIgnore) -> Self {
+    self.no_ignore = no_ignore;
+    self
   }
 
   /// returns a Result of Result.
@@ -115,6 +113,7 @@ impl ProjectConfig {
       outline_rules,
       test_configs: sg_config.test_configs.take(),
       util_dirs: sg_config.util_dirs.take(),
+      no_ignore: NoIgnore::default(),
     };
     // sg_config will not use rule dirs and test configs anymore
     register_custom_language(&config.project_dir, sg_config)?;
@@ -159,10 +158,11 @@ fn build_util_walker(
   Some(walker)
 }
 
-fn find_util_rules(config: &ProjectConfig, no_ignore: &NoIgnore) -> Result<GlobalRules> {
+fn find_util_rules(config: &ProjectConfig) -> Result<GlobalRules> {
   let ProjectConfig {
     project_dir,
     util_dirs,
+    no_ignore,
     ..
   } = config;
   let Some(mut walker) = build_util_walker(project_dir, util_dirs, no_ignore) else {
@@ -194,18 +194,18 @@ fn read_directory_yaml(
   config: &ProjectConfig,
   global_rules: GlobalRules,
   rule_overwrite: RuleOverwrite,
-  no_ignore: &NoIgnore,
 ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
   let mut configs = vec![];
   let ProjectConfig {
     project_dir,
     rule_dirs,
+    no_ignore,
     ..
   } = config;
   for dir in rule_dirs {
     let dir_path = project_dir.join(dir);
     let walker = no_ignore
-      .walk(&[dir_path.clone()])
+      .walk(std::slice::from_ref(&dir_path))
       .types(config_file_type())
       .build();
     for dir in walker {

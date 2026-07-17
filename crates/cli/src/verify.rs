@@ -7,7 +7,7 @@ mod test_case;
 use crate::config::ProjectConfig;
 use crate::lang::SgLang;
 use crate::print::ColorArg;
-use crate::utils::{ErrorContext, RuleOverwrite};
+use crate::utils::{ErrorContext, IgnoreFile, NoIgnore, RuleOverwrite};
 use crate::verify::reporter::TestReportStyle;
 use anyhow::{Result, anyhow};
 use ast_grep_config::RuleCollection;
@@ -61,6 +61,7 @@ fn run_test_rule_impl<R: Reporter + Send>(
   reporter: R,
   project: ProjectConfig,
 ) -> Result<ExitCode> {
+  let project = project.with_no_ignore(NoIgnore::disregard(&arg.no_ignore));
   let filter = arg.filter.as_ref();
   let overwrite = RuleOverwrite::new_for_verify(filter, arg.include_off);
   let collections = &project.find_rules(overwrite)?.0;
@@ -200,6 +201,11 @@ pub struct TestArg {
   /// Follow symbolic links while searching test YAML files.
   #[clap(long)]
   follow: bool,
+  /// Do not respect hidden file system or ignore files when discovering rules.
+  ///
+  /// You can suppress multiple ignore files by passing `no-ignore` multiple times.
+  #[clap(long, action = clap::ArgAction::Append, value_name = "FILE_TYPE")]
+  no_ignore: Vec<IgnoreFile>,
   /// Controls output color.
   ///
   /// This flag controls when to use colors. The default setting is 'auto', which
@@ -348,9 +354,50 @@ rule:
       filter: None,
       include_off: false,
       follow: false,
+      no_ignore: vec![],
       color: ColorArg::Never,
     };
     assert!(run_test_rule(arg, Err(anyhow!("error"))).is_err());
+  }
+
+  #[test]
+  fn test_no_ignore_applies_to_verified_rule_dirs() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let virtualenv = dir.path().join(".venv");
+    let rules = virtualenv.join("rules");
+    let tests = dir.path().join("tests");
+    std::fs::create_dir_all(&rules).unwrap();
+    std::fs::create_dir_all(&tests).unwrap();
+    std::fs::write(virtualenv.join(".gitignore"), "*\n").unwrap();
+    std::fs::write(
+      dir.path().join("sgconfig.yml"),
+      "ruleDirs: [.venv/rules]\ntestConfigs:\n- testDir: tests\n",
+    )
+    .unwrap();
+    std::fs::write(rules.join("test.yml"), get_rule_text("kind: number")).unwrap();
+    std::fs::write(
+      tests.join("test.yml"),
+      format!("id: {TEST_RULE}\nvalid: ['hello']\ninvalid: ['123']\n"),
+    )
+    .unwrap();
+
+    let project = ProjectConfig::setup(Some(dir.path().join("sgconfig.yml")))
+      .unwrap()
+      .unwrap();
+    let arg = TestArg {
+      interactive: false,
+      skip_snapshot_tests: true,
+      snapshot_dir: None,
+      test_dir: None,
+      update_all: false,
+      filter: None,
+      include_off: false,
+      follow: false,
+      no_ignore: vec![IgnoreFile::Hidden, IgnoreFile::Vcs],
+      color: ColorArg::Never,
+    };
+
+    assert_eq!(run_test_rule(arg, Ok(project)).unwrap(), ExitCode::SUCCESS);
   }
   const TRANSFORM_TEXT: &str = "
 transform:

@@ -247,7 +247,7 @@ pub enum IgnoreFile {
   Vcs,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct NoIgnore {
   disregard_hidden: bool,
   disregard_parent: bool,

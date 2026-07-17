@@ -158,10 +158,9 @@ impl ScanWithConfig {
       with_rule_stats(rules)?
     } else {
       // NOTE: only query project here since -r does not need project
-      let project_config = project?;
+      let project_config = project?.with_no_ignore(NoIgnore::disregard(&arg.input.no_ignore));
       proj_dir = project_config.project_dir.clone();
-      project_config
-        .find_rules_with_no_ignore(overwrite, &NoIgnore::disregard(&arg.input.no_ignore))?
+      project_config.find_rules(overwrite)?
     };
     let trace = arg.output.inspect.scan_trace(rule_trace);
     trace.print_rules(&configs)?;

@@ -309,6 +309,7 @@ mod test_cli {
     ok("test -U");
     ok("test --update-all");
     ok("test --follow");
+    ok("test --no-ignore hidden --no-ignore=vcs");
     error("test --update-all --skip-snapshot-tests");
     ok("test --color always");
     ok("test --color never");
