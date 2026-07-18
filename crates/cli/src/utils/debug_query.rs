@@ -85,7 +85,7 @@ fn dump_pattern(
       writeln!(ret, "{indent_str}{kind} {text}")?;
     }
   } else {
-    writeln!(ret, "{indent_str}{}", &pattern.text)?;
+    writeln!(ret, "{indent_str}{}", pattern.text)?;
   }
   for child in &pattern.children {
     dump_pattern(child, style, indent + 1, ret)?

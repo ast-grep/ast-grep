@@ -316,7 +316,7 @@ fn print_rule_title<W: WriteColor>(
     Severity::Hint => ("help", style.hint),
     Severity::Off => unreachable!("turned-off rule should not have match."),
   };
-  let header = format!("{level}[{}]:", &rule.id);
+  let header = format!("{level}[{}]:", rule.id);
   let header = level_style.paint(header);
   let message = style.message.paint(rule.get_message(nm));
   writeln!(writer, "{header} {message}")?;
