@@ -144,6 +144,9 @@ fn build_util_walker(base_dir: &Path, util_dirs: &Option<Vec<PathBuf>>) -> Optio
   for dir in util_dirs {
     walker.add(base_dir.join(dir));
   }
+  // Configured directories are explicit inputs, so ignore files outside of
+  // them must not prevent their contents from being discovered.
+  walker.parents(false);
   Some(walker)
 }
 
@@ -192,6 +195,7 @@ fn read_directory_yaml(
   for dir in rule_dirs {
     let dir_path = project_dir.join(dir);
     let walker = WalkBuilder::new(&dir_path)
+      .parents(false)
       .types(config_file_type())
       .build();
     for dir in walker {

@@ -552,6 +552,36 @@ fn test_yaml_sgconfig_extension() -> Result<()> {
 }
 
 #[test]
+fn test_rule_dir_ignores_parent_gitignore() -> Result<()> {
+  let dir = TempDir::new()?;
+  let venv = dir.path().join(".venv");
+  let rules = venv.join("rules");
+  let src = dir.path().join("src");
+  std::fs::create_dir(dir.path().join(".git"))?;
+  std::fs::create_dir_all(&rules)?;
+  std::fs::create_dir_all(&src)?;
+  std::fs::write(venv.join(".gitignore"), "*\n")?;
+  std::fs::write(venv.join("sgconfig.yml"), "ruleDirs:\n- rules\n")?;
+  std::fs::write(rules.join("no-print.yml"), UNFIXABLE_JS_RULE)?;
+  std::fs::write(src.join("example.js"), "console.log('hello')\n")?;
+
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "scan",
+      "--config",
+      ".venv/sgconfig.yml",
+      "--color",
+      "never",
+      "src",
+    ])
+    .assert()
+    .success()
+    .stdout(contains("no-console"));
+  Ok(())
+}
+
+#[test]
 fn test_sg_scan_sarif_output() -> Result<()> {
   let dir = setup()?;
   Command::new(cargo_bin!())
