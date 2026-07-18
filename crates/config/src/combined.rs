@@ -236,7 +236,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
     let mut mapping = Vec::new();
     for (idx, rule) in rules.iter().enumerate() {
       let Some(kinds) = rule.matcher.potential_kinds() else {
-        eprintln!("rule `{}` must have kind", &rule.id);
+        eprintln!("rule `{}` must have kind", rule.id);
         continue;
       };
       for kind in &kinds {
