@@ -895,9 +895,9 @@ unicorn-magic@^0.4.0:
   integrity sha512-wH590V9VNgYH9g3lH9wWjTrUoKsjLF6sGLjhR4sH1LWpLmCOH0Zf7PukhDA8BiS7KHe4oPNkcTHqYkj7SOGUOw==
 
 web-tree-sitter@^0.26.0:
-  version "0.26.10"
-  resolved "https://registry.yarnpkg.com/web-tree-sitter/-/web-tree-sitter-0.26.10.tgz#fd29c8d5fb92fc850e5762ce18ff75947e9cab5c"
-  integrity sha512-vengBGYS7FpAerkR3o04oBL4L8MkVmjawK50AFBu7v0HZBkmF9ZavPGKoXLSSmRhp7T/YgsJ7joAS3yAxHPEqQ==
+  version "0.26.11"
+  resolved "https://registry.yarnpkg.com/web-tree-sitter/-/web-tree-sitter-0.26.11.tgz#4cf91d060f4203b9975bf7f8f66008b1466457d6"
+  integrity sha512-Q5Dm3YTIXSXuH6FxX6RuzX2Qwpc4DPGiYMU87Wg5Z8OIStiQFiUex4zMDc0vBTw78EphaYJacncJghCHzbZptg==
 
 webidl-conversions@^3.0.0:
   version "3.0.1"
