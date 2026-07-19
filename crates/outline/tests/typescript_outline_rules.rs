@@ -187,3 +187,25 @@ export interface Parser {
 "#,
   );
 }
+
+#[test]
+fn extracts_typescript_namespaces_as_standalone_items() {
+  common::assert_outline_snapshot(
+    SupportLang::TypeScript,
+    TYPESCRIPT_RULES,
+    r#"
+export namespace PublicApi {
+  export interface Options {}
+  export function create() {}
+}
+
+namespace Local.Tools {
+  export class Helper {}
+}
+"#,
+    r#"
+- Module item exported PublicApi
+- Module item private Local.Tools
+"#,
+  );
+}

@@ -34,6 +34,33 @@ name: exports
 isImport: false
 isExported: true
 ---
+id: ts-export-namespace
+language: TypeScript
+role: item
+symbolType: module
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: internal_module
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: ts-namespace
+language: TypeScript
+role: item
+symbolType: module
+rule:
+  kind: internal_module
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: false
+---
 id: ts-export-function
 language: TypeScript
 role: item
@@ -479,6 +506,33 @@ rule:
 name: exports
 isImport: false
 isExported: true
+---
+id: tsx-export-namespace
+language: Tsx
+role: item
+symbolType: module
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: internal_module
+    has:
+      field: name
+      pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: tsx-namespace
+language: Tsx
+role: item
+symbolType: module
+rule:
+  kind: internal_module
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: false
 ---
 id: tsx-export-function
 language: Tsx
