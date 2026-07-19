@@ -280,6 +280,12 @@ mod test {
   use MatchStrictness as M;
 
   #[test]
+  fn test_smart_match() {
+    // smart now ignores comments by default
+    matched("$A($B)", "foo(/* before */ bar /* after */)", M::Smart);
+  }
+
+  #[test]
   fn test_ast_match() {
     matched("import $A from 'lib'", "import A from \"lib\"", M::Ast);
     unmatched("$A(bar)", "foo(/* A*/bar)", M::Ast);

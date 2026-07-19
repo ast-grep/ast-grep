@@ -50,8 +50,8 @@ impl MatchStrictness {
   fn should_skip_comment(&self) -> bool {
     use MatchStrictness as M;
     match self {
-      M::Cst | M::Smart | M::Ast => false,
-      M::Relaxed | M::Signature | M::Template => true,
+      M::Cst | M::Ast => false,
+      M::Smart | M::Relaxed | M::Signature | M::Template => true,
     }
   }
 
