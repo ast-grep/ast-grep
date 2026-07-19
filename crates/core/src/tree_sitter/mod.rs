@@ -6,6 +6,9 @@ use crate::source::{Content, Doc, Edit, SgNode};
 use crate::{AstGrep, Matcher};
 use crate::{Language, Position, node::KindId};
 use std::borrow::Cow;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::num::NonZero;
 use thiserror::Error;
 pub use traversal::{TsPre, Visitor};
@@ -27,18 +30,33 @@ pub enum TSParseError {
   TreeUnavailable,
 }
 
+thread_local! {
+  /// Keep one parser for each language on every worker thread. A parser is not
+  /// shared between workers, so parsing remains lock-free, while repeated files
+  /// avoid recreating the parser and rebuilding its language-specific tables.
+  static PARSER_CACHE: RefCell<HashMap<TSLanguage, Parser>> = RefCell::new(HashMap::new());
+}
+
 #[inline]
 fn parse_lang(
   parse_fn: impl Fn(&mut Parser) -> Option<Tree>,
   ts_lang: TSLanguage,
 ) -> Result<Tree, TSParseError> {
-  let mut parser = Parser::new();
-  parser.set_language(&ts_lang)?;
-  if let Some(tree) = parse_fn(&mut parser) {
-    Ok(tree)
-  } else {
-    Err(TSParseError::TreeUnavailable)
-  }
+  PARSER_CACHE.with(|cache| {
+    let mut cache = cache.borrow_mut();
+    let parser = match cache.entry(ts_lang) {
+      Entry::Occupied(entry) => entry.into_mut(),
+      Entry::Vacant(entry) => {
+        let mut parser = Parser::new();
+        parser.set_language(entry.key())?;
+        entry.insert(parser)
+      }
+    };
+    // A failed or cancelled parse can retain resumable parser state. Every
+    // parse_lang call represents a complete document, so always start clean.
+    parser.reset();
+    parse_fn(parser).ok_or(TSParseError::TreeUnavailable)
+  })
 }
 
 #[derive(Clone)]
@@ -468,6 +486,20 @@ mod test {
       root_node.to_sexp(),
       "(program (variable_declaration (variable_declarator name: (identifier) value: (number))))"
     );
+    Ok(())
+  }
+
+  #[test]
+  fn test_parser_cache_reuses_parser_per_language() -> Result<(), TSParseError> {
+    PARSER_CACHE.with(|cache| cache.borrow_mut().clear());
+
+    parse("let one = 1")?;
+    parse("let two = 2")?;
+    assert_eq!(PARSER_CACHE.with(|cache| cache.borrow().len()), 1);
+
+    let ts_lang = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
+    parse_lang(|p| p.parse("let three = 3", None), ts_lang)?;
+    assert_eq!(PARSER_CACHE.with(|cache| cache.borrow().len()), 2);
     Ok(())
   }
 
