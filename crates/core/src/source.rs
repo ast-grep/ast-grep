@@ -118,6 +118,9 @@ pub trait SgNode<'r>: Clone {
   fn is_error(&self) -> bool {
     false
   }
+  fn is_extra(&self) -> bool {
+    false
+  }
 
   fn field(&self, name: &str) -> Option<Self>;
   fn field_children(&self, field_id: Option<u16>) -> impl Iterator<Item = Self>;

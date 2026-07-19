@@ -195,6 +195,11 @@ impl<'a> SgNode<'a> for Node {
   fn is_missing(&self) -> bool {
     self.0.is_missing()
   }
+  fn is_extra(&self) -> bool {
+    // wasm does not have is_extra method
+    // so we exclude comment as extra
+    self.kind().contains("comment")
+  }
   fn is_error(&self) -> bool {
     self.0.is_error()
   }

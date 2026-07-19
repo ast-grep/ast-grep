@@ -244,6 +244,9 @@ impl<'r> SgNode<'r> for Node<'r> {
   fn is_error(&self) -> bool {
     Node::is_error(self)
   }
+  fn is_extra(&self) -> bool {
+    Node::is_extra(self)
+  }
 
   fn field(&self, name: &str) -> Option<Self> {
     self.child_by_field_name(name)

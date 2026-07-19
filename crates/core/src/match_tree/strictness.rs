@@ -24,7 +24,7 @@ pub(crate) enum MatchOneNode {
 }
 
 fn skip_comment(n: &Node<impl Doc>) -> bool {
-  n.kind().contains("comment")
+  n.is_extra()
 }
 
 fn skip_comment_or_unnamed(n: &Node<impl Doc>) -> bool {

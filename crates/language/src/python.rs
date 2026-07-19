@@ -29,6 +29,23 @@ fn test_python_str() {
   );
 }
 
+// https://github.com/ast-grep/ast-grep/issues/2821
+#[test]
+fn test_ignore_line_continuation() {
+  use ast_grep_core::MatchStrictness;
+  use ast_grep_core::matcher::MatcherExt;
+  let source = "1\\\n + 2";
+  let query = "$A + $B";
+  let cand = Python.ast_grep(source);
+  let mut pattern = Pattern::new(query, Python);
+  pattern.strictness = MatchStrictness::Relaxed;
+  assert!(
+    pattern.find_node(cand.root()).is_some(),
+    "goal: {pattern:?}, candidate: {}",
+    cand.root().get_inner_node().to_sexp(),
+  );
+}
+
 // https://github.com/ast-grep/ast-grep/issues/883
 #[test]
 fn test_issue_883() {

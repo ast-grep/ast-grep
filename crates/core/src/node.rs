@@ -153,6 +153,9 @@ impl<'r, D: Doc> Node<'r, D> {
   pub fn is_missing(&self) -> bool {
     self.inner.is_missing()
   }
+  pub fn is_extra(&self) -> bool {
+    self.inner.is_extra()
+  }
 
   /// byte offsets of start and end.
   pub fn range(&self) -> std::ops::Range<usize> {
