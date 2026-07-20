@@ -202,10 +202,41 @@ export namespace PublicApi {
 namespace Local.Tools {
   export class Helper {}
 }
+
+declare namespace AmbientApi {
+  export interface Client {}
+}
+
+export declare namespace ExportedAmbientApi {
+  export type Result = string;
+}
 "#,
     r#"
 - Module item exported PublicApi
 - Module item private Local.Tools
+- Module item exported AmbientApi
+- Module item exported ExportedAmbientApi
+"#,
+  );
+}
+
+#[test]
+fn extracts_typescript_ambient_modules_as_standalone_items() {
+  common::assert_outline_snapshot(
+    SupportLang::TypeScript,
+    TYPESCRIPT_RULES,
+    r#"
+declare module "plain-package" {
+  export interface Resource {}
+}
+
+export declare module "exported-package" {
+  export type API = string;
+}
+"#,
+    r#"
+- Module item exported plain-package
+- Module item exported exported-package
 "#,
   );
 }
