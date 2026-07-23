@@ -8,7 +8,8 @@
     "arm64"
   ],
   "files": [
-    "ast-grep"
+    "ast-grep",
+    "sg"
   ],
   "description": "Search and Rewrite code at large scale using precise AST pattern",
   "keywords": [
