@@ -51,6 +51,14 @@ function resolveBinaryPath() {
   return dir ? path.join(dir, binaryName) : null;
 }
 
+function installBinary(src, dest) {
+  try {
+    fs.linkSync(src, dest);
+  } catch (_) {
+    fs.copyFileSync(src, dest);
+  }
+}
+
 function main() {
   const sourceDir = resolveBinaryDir();
   if (!sourceDir) {
@@ -59,20 +67,16 @@ function main() {
   }
 
   const src = path.join(sourceDir, binaryName);
+  const srcAlt = path.join(sourceDir, alternativeName);
   const destBin = path.join(__dirname, binaryName);
   const destAlt = path.join(__dirname, alternativeName);
 
   try {
-    fs.linkSync(src, destBin);
-    fs.linkSync(src, destAlt);
+    installBinary(src, destBin);
+    installBinary(srcAlt, destAlt);
   } catch (_) {
-    try {
-      fs.copyFileSync(src, destBin);
-      fs.copyFileSync(src, destAlt);
-    } catch (err) {
-      console.error("Failed to move @ast-grep/cli binary into place.");
-      process.exit(1);
-    }
+    console.error("Failed to move @ast-grep/cli binaries into place.");
+    process.exit(1);
   }
 
   // Keep the extensionless JS shims on Windows: npm-generated global wrappers

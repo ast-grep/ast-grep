@@ -8,7 +8,8 @@
     "x64"
   ],
   "files": [
-    "ast-grep.exe"
+    "ast-grep.exe",
+    "sg.exe"
   ],
   "description": "Search and Rewrite code at large scale using precise AST pattern",
   "keywords": [
