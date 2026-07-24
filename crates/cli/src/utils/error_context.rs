@@ -315,6 +315,25 @@ impl ErrorMessage {
   }
 }
 
+/// Print a summary for warning diagnostics found in a scan.
+/// Warnings alone do not fail the scan, so this is not an ErrorContext;
+/// it reuses the soft-error styling to match `DiagnosticError`'s summary.
+pub fn report_warning_summary(warnings: usize) {
+  if warnings == 0 {
+    return;
+  }
+  let style = if std::io::stderr().is_tty() {
+    ErrorStyle::colored()
+  } else {
+    ErrorStyle::default()
+  };
+  let notice = style.warning.paint("Warning:");
+  let message = style
+    .message
+    .paint(format!("{warnings} warning(s) found in code."));
+  eprintln!("{notice} {message}");
+}
+
 pub fn exit_with_error(error: Error) -> Result<ExitCode> {
   if let Some(e) = error.downcast_ref::<clap::Error>() {
     e.exit()
