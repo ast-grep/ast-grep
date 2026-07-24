@@ -2,6 +2,7 @@ id: ts-import
 language: TypeScript
 role: item
 symbolType: module
+stopBy: immediate
 rule:
   kind: import_statement
   has:
@@ -15,6 +16,7 @@ id: ts-export-from
 language: TypeScript
 role: item
 symbolType: module
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -28,6 +30,7 @@ id: ts-export-list
 language: TypeScript
 role: item
 symbolType: module
+stopBy: immediate
 rule:
   pattern: 'export { $$$SPECIFIERS };'
 name: exports
@@ -38,6 +41,7 @@ id: ts-export-namespace
 language: TypeScript
 role: item
 symbolType: module
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -86,6 +90,7 @@ id: ts-export-ambient-module
 language: TypeScript
 role: item
 symbolType: module
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -107,6 +112,7 @@ id: ts-ambient-module
 language: TypeScript
 role: item
 symbolType: module
+stopBy: immediate
 rule:
   kind: ambient_declaration
   has:
@@ -125,6 +131,7 @@ id: ts-export-function
 language: TypeScript
 role: item
 symbolType: function
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -140,6 +147,7 @@ id: ts-function
 language: TypeScript
 role: item
 symbolType: function
+stopBy: immediate
 rule:
   kind: function_declaration
   has:
@@ -152,6 +160,7 @@ id: ts-export-class
 language: TypeScript
 role: item
 symbolType: class
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -167,6 +176,7 @@ id: ts-class
 language: TypeScript
 role: item
 symbolType: class
+stopBy: immediate
 rule:
   kind: class_declaration
   has:
@@ -179,6 +189,7 @@ id: ts-export-interface
 language: TypeScript
 role: item
 symbolType: interface
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -194,6 +205,7 @@ id: ts-interface
 language: TypeScript
 role: item
 symbolType: interface
+stopBy: immediate
 rule:
   kind: interface_declaration
   has:
@@ -206,6 +218,7 @@ id: ts-export-type
 language: TypeScript
 role: item
 symbolType: struct
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -221,6 +234,7 @@ id: ts-type
 language: TypeScript
 role: item
 symbolType: struct
+stopBy: immediate
 rule:
   kind: type_alias_declaration
   has:
@@ -233,6 +247,7 @@ id: ts-export-enum
 language: TypeScript
 role: item
 symbolType: enum
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -248,6 +263,7 @@ id: ts-enum
 language: TypeScript
 role: item
 symbolType: enum
+stopBy: immediate
 rule:
   kind: enum_declaration
   has:
@@ -260,6 +276,7 @@ id: ts-export-const
 language: TypeScript
 role: item
 symbolType: constant
+stopBy: immediate
 rule:
   pattern: 'export const $NAME = $VALUE;'
 name: $NAME
@@ -269,6 +286,7 @@ id: ts-export-const-typed
 language: TypeScript
 role: item
 symbolType: constant
+stopBy: immediate
 rule:
   pattern: 'export const $NAME: $TYPE = $VALUE;'
 name: $NAME
@@ -278,6 +296,7 @@ id: ts-export-let
 language: TypeScript
 role: item
 symbolType: variable
+stopBy: immediate
 rule:
   pattern: 'export let $NAME = $VALUE;'
 name: $NAME
@@ -287,6 +306,7 @@ id: ts-export-let-typed
 language: TypeScript
 role: item
 symbolType: variable
+stopBy: immediate
 rule:
   pattern: 'export let $NAME: $TYPE = $VALUE;'
 name: $NAME
@@ -535,6 +555,7 @@ id: tsx-import
 language: Tsx
 role: item
 symbolType: module
+stopBy: immediate
 rule:
   kind: import_statement
   has:
@@ -548,6 +569,7 @@ id: tsx-export-from
 language: Tsx
 role: item
 symbolType: module
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -561,6 +583,7 @@ id: tsx-export-list
 language: Tsx
 role: item
 symbolType: module
+stopBy: immediate
 rule:
   pattern: 'export { $$$SPECIFIERS };'
 name: exports
@@ -571,6 +594,7 @@ id: tsx-export-namespace
 language: Tsx
 role: item
 symbolType: module
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -619,6 +643,7 @@ id: tsx-export-ambient-module
 language: Tsx
 role: item
 symbolType: module
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -640,6 +665,7 @@ id: tsx-ambient-module
 language: Tsx
 role: item
 symbolType: module
+stopBy: immediate
 rule:
   kind: ambient_declaration
   has:
@@ -658,6 +684,7 @@ id: tsx-export-function
 language: Tsx
 role: item
 symbolType: function
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -673,6 +700,7 @@ id: tsx-function
 language: Tsx
 role: item
 symbolType: function
+stopBy: immediate
 rule:
   kind: function_declaration
   has:
@@ -685,6 +713,7 @@ id: tsx-export-class
 language: Tsx
 role: item
 symbolType: class
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -700,6 +729,7 @@ id: tsx-class
 language: Tsx
 role: item
 symbolType: class
+stopBy: immediate
 rule:
   kind: class_declaration
   has:
@@ -712,6 +742,7 @@ id: tsx-export-interface
 language: Tsx
 role: item
 symbolType: interface
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -727,6 +758,7 @@ id: tsx-interface
 language: Tsx
 role: item
 symbolType: interface
+stopBy: immediate
 rule:
   kind: interface_declaration
   has:
@@ -739,6 +771,7 @@ id: tsx-export-type
 language: Tsx
 role: item
 symbolType: struct
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -754,6 +787,7 @@ id: tsx-type
 language: Tsx
 role: item
 symbolType: struct
+stopBy: immediate
 rule:
   kind: type_alias_declaration
   has:
@@ -766,6 +800,7 @@ id: tsx-export-enum
 language: Tsx
 role: item
 symbolType: enum
+stopBy: immediate
 rule:
   kind: export_statement
   has:
@@ -781,6 +816,7 @@ id: tsx-enum
 language: Tsx
 role: item
 symbolType: enum
+stopBy: immediate
 rule:
   kind: enum_declaration
   has:
@@ -793,6 +829,7 @@ id: tsx-export-const
 language: Tsx
 role: item
 symbolType: constant
+stopBy: immediate
 rule:
   pattern: 'export const $NAME = $VALUE;'
 name: $NAME
@@ -802,6 +839,7 @@ id: tsx-export-const-typed
 language: Tsx
 role: item
 symbolType: constant
+stopBy: immediate
 rule:
   pattern: 'export const $NAME: $TYPE = $VALUE;'
 name: $NAME
@@ -811,6 +849,7 @@ id: tsx-export-let
 language: Tsx
 role: item
 symbolType: variable
+stopBy: immediate
 rule:
   pattern: 'export let $NAME = $VALUE;'
 name: $NAME
@@ -820,6 +859,7 @@ id: tsx-export-let-typed
 language: Tsx
 role: item
 symbolType: variable
+stopBy: immediate
 rule:
   pattern: 'export let $NAME: $TYPE = $VALUE;'
 name: $NAME
