@@ -22,7 +22,9 @@ use ast_grep_core::{
 };
 use std::collections::HashMap;
 
-use crate::extractor::{ItemExtractor, MemberExtractor, OutlineRuleError, SerializableOutlineRule};
+use crate::extractor::{
+  ItemExtractor, MemberExtractor, OutlineRuleError, OutlineStopBy, SerializableOutlineRule,
+};
 use crate::model::{OutlineItem, OutlineMember};
 use crate::options::OutlineExtractorOptions;
 
@@ -35,6 +37,8 @@ pub struct CombinedExtractors<L: Language> {
   item_extractors: Vec<ItemExtractor<L>>,
   /// Dense node-kind index into `item_extractors`; shared across the whole file.
   item_kind_index: Vec<Vec<usize>>,
+  /// Whether every retained item extractor stops at direct children.
+  all_items_immediate: bool,
   /// Member extractors parsed once and referenced by parent-scoped groups below.
   member_extractors: Vec<MemberExtractor<L>>,
   /// Parent item extractor id to member extractors that may run inside it.
@@ -54,6 +58,24 @@ struct ScopedMemberExtractors<'a, L: Language> {
 struct MemberExtractorIndex {
   /// Sparse node-kind index into `member_extractors` for scoped member traversal.
   kind_mapping: HashMap<u16, Vec<usize>>,
+  /// Whether this parent scope contains an extractor that traverses to the end.
+  has_end: bool,
+}
+
+#[derive(Default)]
+struct TraversalVisitCounter {
+  #[cfg(test)]
+  count: usize,
+}
+
+impl TraversalVisitCounter {
+  #[inline]
+  fn record(&mut self) {
+    #[cfg(test)]
+    {
+      self.count += 1;
+    }
+  }
 }
 
 impl<L: Language> CombinedExtractors<L> {
@@ -105,10 +127,14 @@ impl<L: Language> CombinedExtractors<L> {
     options: OutlineExtractorOptions,
   ) -> Self {
     let item_kind_index = item_kind_index(&item_extractors);
+    let all_items_immediate = item_extractors
+      .iter()
+      .all(|extractor| extractor.common.stop_by == OutlineStopBy::Immediate);
     let member_index_by_parent = member_index_by_parent(&member_extractors);
     Self {
       item_extractors,
       item_kind_index,
+      all_items_immediate,
       member_extractors,
       member_index_by_parent,
       options,
@@ -125,7 +151,11 @@ impl<L: Language> CombinedExtractors<L> {
       })
   }
 
-  fn item_extractors_for_kind(&self, kind: u16) -> impl Iterator<Item = &ItemExtractor<L>> {
+  fn item_extractors_for_kind(
+    &self,
+    kind: u16,
+    allow_immediate: bool,
+  ) -> impl Iterator<Item = &ItemExtractor<L>> {
     self
       .item_kind_index
       .get(kind as usize)
@@ -133,6 +163,7 @@ impl<L: Language> CombinedExtractors<L> {
       .unwrap_or(&[])
       .iter()
       .map(|&idx| &self.item_extractors[idx])
+      .filter(move |extractor| allow_immediate || extractor.common.stop_by == OutlineStopBy::End)
   }
 
   pub fn extract<'a, 'tree>(
@@ -142,20 +173,44 @@ impl<L: Language> CombinedExtractors<L> {
   where
     L: LanguageExt,
   {
+    self.item_iter(root)
+  }
+
+  fn item_iter<'a, 'tree>(&'a self, root: Node<'tree, StrDoc<L>>) -> OutlineItemIter<'a, 'tree, L>
+  where
+    L: LanguageExt,
+  {
     OutlineItemIter {
       combined: self,
       traversal: Prune::new(&root),
+      at_source: true,
+      descendant_subtree: None,
+      visit_counter: TraversalVisitCounter::default(),
     }
+  }
+
+  #[cfg(test)]
+  fn extract_with_visit_count<'tree>(
+    &self,
+    root: Node<'tree, StrDoc<L>>,
+  ) -> (Vec<OutlineItem<'tree>>, usize)
+  where
+    L: LanguageExt,
+  {
+    let mut iter = self.item_iter(root);
+    let items = iter.by_ref().collect();
+    (items, iter.visit_counter.count)
   }
 
   fn match_item<'tree>(
     &self,
     node: &Node<'tree, StrDoc<L>>,
+    allow_immediate: bool,
   ) -> Option<(&ItemExtractor<L>, NodeMatch<'tree, StrDoc<L>>)>
   where
     L: LanguageExt,
   {
-    for extractor in self.item_extractors_for_kind(node.kind_id()) {
+    for extractor in self.item_extractors_for_kind(node.kind_id(), allow_immediate) {
       if let Some(matched) = extractor.match_node(node) {
         return Some((extractor, matched));
       }
@@ -165,7 +220,11 @@ impl<L: Language> CombinedExtractors<L> {
 }
 
 impl<'a, L: Language> ScopedMemberExtractors<'a, L> {
-  fn extractors_for_kind(&self, kind: u16) -> impl Iterator<Item = &MemberExtractor<L>> {
+  fn extractors_for_kind(
+    &self,
+    kind: u16,
+    allow_immediate: bool,
+  ) -> impl Iterator<Item = &MemberExtractor<L>> {
     self
       .index
       .kind_mapping
@@ -174,24 +233,36 @@ impl<'a, L: Language> ScopedMemberExtractors<'a, L> {
       .unwrap_or(&[])
       .iter()
       .map(|&idx| &self.extractors[idx])
+      .filter(move |extractor| allow_immediate || extractor.common.stop_by == OutlineStopBy::End)
   }
 
-  fn extract_member<'tree>(&self, node: &Node<'tree, StrDoc<L>>) -> Option<OutlineMember<'tree>>
+  fn extract_member<'tree>(
+    &self,
+    node: &Node<'tree, StrDoc<L>>,
+    allow_immediate: bool,
+  ) -> Option<OutlineMember<'tree>>
   where
     L: LanguageExt,
   {
-    for extractor in self.extractors_for_kind(node.kind_id()) {
+    for extractor in self.extractors_for_kind(node.kind_id(), allow_immediate) {
       if let Some(matched) = extractor.match_node(node) {
         return Some(extractor.extract(&matched));
       }
     }
     None
   }
+
+  fn all_immediate(&self) -> bool {
+    !self.index.has_end
+  }
 }
 
 struct OutlineItemIter<'a, 'tree, L: LanguageExt> {
   combined: &'a CombinedExtractors<L>,
   traversal: Prune<'tree, L>,
+  at_source: bool,
+  descendant_subtree: Option<PruneSubtree<'tree>>,
+  visit_counter: TraversalVisitCounter,
 }
 
 impl<'a, 'tree, L: LanguageExt> Iterator for OutlineItemIter<'a, 'tree, L> {
@@ -209,15 +280,43 @@ impl<'a, 'tree, L: LanguageExt> Iterator for OutlineItemIter<'a, 'tree, L> {
 
 impl<'a, 'tree, L: LanguageExt> OutlineItemIter<'a, 'tree, L> {
   fn visit_current_node(&mut self, node: Node<'tree, StrDoc<L>>) -> Option<OutlineItem<'tree>> {
+    if self
+      .descendant_subtree
+      .is_some_and(|subtree| self.traversal.has_left_subtree(subtree))
+    {
+      self.descendant_subtree = None;
+    }
+    self.visit_counter.record();
+    let is_direct_child = !self.at_source && self.descendant_subtree.is_none();
     let combined = self.combined;
     let item_subtree = self.traversal.current_subtree();
-    let Some((extractor, node_match)) = combined.match_item(&node) else {
-      self.traversal.descend();
+    let Some((extractor, node_match)) = combined.match_item(&node, is_direct_child) else {
+      self.advance_after_no_match(is_direct_child, item_subtree);
       return None;
     };
     let members = self.collect_members_for_item(&extractor.common.rule.id, item_subtree);
     let item = extractor.extract(&node_match, members);
     combined.options.keep_item(&item).then_some(item)
+  }
+
+  fn advance_after_no_match(
+    &mut self,
+    is_direct_child: bool,
+    current_subtree: PruneSubtree<'tree>,
+  ) {
+    if self.at_source {
+      self.at_source = false;
+      self.traversal.descend();
+    } else if is_direct_child {
+      if self.combined.all_items_immediate {
+        self.traversal.skip_subtree();
+      } else {
+        self.traversal.descend();
+        self.descendant_subtree = Some(current_subtree);
+      }
+    } else {
+      self.traversal.descend();
+    }
   }
 
   fn collect_members_for_item(
@@ -235,6 +334,7 @@ impl<'a, 'tree, L: LanguageExt> OutlineItemIter<'a, 'tree, L> {
       member_extractors,
       &self.combined.options,
       item_subtree,
+      &mut self.visit_counter,
     )
   }
 }
@@ -279,17 +379,30 @@ fn collect_scoped_members<'a, 'tree, L: LanguageExt>(
   member_extractors: ScopedMemberExtractors<'a, L>,
   options: &OutlineExtractorOptions,
   item_subtree: PruneSubtree<'tree>,
+  visit_counter: &mut TraversalVisitCounter,
 ) -> Vec<OutlineMember<'tree>> {
   let mut members = vec![];
+  let mut descendant_subtree = None;
   while let Some(node) = traversal.current_node() {
     if traversal.has_left_subtree(item_subtree) {
       break;
     }
-    if let Some(member) = member_extractors.extract_member(&node) {
+    if descendant_subtree.is_some_and(|subtree| traversal.has_left_subtree(subtree)) {
+      descendant_subtree = None;
+    }
+    visit_counter.record();
+    let is_direct_child = descendant_subtree.is_none();
+    if let Some(member) = member_extractors.extract_member(&node, is_direct_child) {
       if options.keep_member(&member) {
         members.push(member);
       }
       traversal.skip_subtree();
+    } else if is_direct_child && member_extractors.all_immediate() {
+      traversal.skip_subtree();
+    } else if is_direct_child {
+      let current_subtree = traversal.current_subtree();
+      traversal.descend();
+      descendant_subtree = Some(current_subtree);
     } else {
       traversal.descend();
     }
@@ -327,6 +440,7 @@ fn member_index_by_parent<L: Language>(
   for (idx, extractor) in member_extractors.iter().enumerate() {
     for parent_id in &extractor.parent_rule_ids {
       let index = mapping.entry(parent_id.clone()).or_default();
+      index.has_end |= extractor.common.stop_by == OutlineStopBy::End;
       let kinds = extractor
         .common
         .rule
@@ -348,6 +462,147 @@ mod tests {
   use crate::options::{OutlineEntryDetail, OutlineExtractorOptions, OutlineFlagFilter};
   use ast_grep_core::tree_sitter::LanguageExt;
   use ast_grep_language::SupportLang;
+
+  #[test]
+  fn immediate_item_scope_prunes_unmatched_direct_child_subtrees() {
+    let source = r#"if (ready) { console.log(ready); }
+function direct() {}"#;
+    let immediate_rules = parse_outline_rules::<SupportLang>(
+      r#"
+id: ts-function
+language: TypeScript
+role: item
+symbolType: function
+stopBy: immediate
+rule:
+  kind: function_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+"#,
+    )
+    .expect("extractors should deserialize");
+    let end_rules = parse_outline_rules::<SupportLang>(
+      r#"
+id: ts-function
+language: TypeScript
+role: item
+symbolType: function
+stopBy: end
+rule:
+  kind: function_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+"#,
+    )
+    .expect("extractors should deserialize");
+    let immediate = CombinedExtractors::try_from(immediate_rules, &Default::default())
+      .expect("extractors should parse");
+    let end = CombinedExtractors::try_from(end_rules, &Default::default())
+      .expect("extractors should parse");
+    let grep = SupportLang::TypeScript.ast_grep(source);
+
+    let (immediate_items, immediate_visits) = immediate.extract_with_visit_count(grep.root());
+    let (end_items, end_visits) = end.extract_with_visit_count(grep.root());
+    let immediate_names = immediate_items
+      .iter()
+      .map(|item| item.entry.name.as_ref())
+      .collect::<Vec<_>>();
+    let end_names = end_items
+      .iter()
+      .map(|item| item.entry.name.as_ref())
+      .collect::<Vec<_>>();
+
+    assert_eq!(immediate_names, end_names);
+    assert_eq!(immediate_names, vec!["direct"]);
+    assert_eq!(immediate_visits, 3);
+    assert!(end_visits > immediate_visits);
+  }
+
+  #[test]
+  fn immediate_member_scope_prunes_unmatched_direct_child_subtrees() {
+    let source = r#"
+class Box {
+  direct() {}
+  field = { nested: { value: 1 } };
+}
+"#;
+    let immediate_rules = parse_outline_rules::<SupportLang>(
+      r#"
+id: ts-class-body
+language: TypeScript
+role: item
+symbolType: class
+rule:
+  kind: class_body
+name: body
+---
+id: ts-method
+language: TypeScript
+role: member
+parentRuleIds: [ts-class-body]
+symbolType: method
+stopBy: immediate
+rule:
+  kind: method_definition
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+"#,
+    )
+    .expect("extractors should deserialize");
+    let end_rules = parse_outline_rules::<SupportLang>(
+      r#"
+id: ts-class-body
+language: TypeScript
+role: item
+symbolType: class
+rule:
+  kind: class_body
+name: body
+---
+id: ts-method
+language: TypeScript
+role: member
+parentRuleIds: [ts-class-body]
+symbolType: method
+stopBy: end
+rule:
+  kind: method_definition
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+"#,
+    )
+    .expect("extractors should deserialize");
+    let immediate = CombinedExtractors::try_from(immediate_rules, &Default::default())
+      .expect("extractors should parse");
+    let end = CombinedExtractors::try_from(end_rules, &Default::default())
+      .expect("extractors should parse");
+    let grep = SupportLang::TypeScript.ast_grep(source);
+
+    let (immediate_items, immediate_visits) = immediate.extract_with_visit_count(grep.root());
+    let (end_items, end_visits) = end.extract_with_visit_count(grep.root());
+    let immediate_members = immediate_items[0]
+      .members
+      .iter()
+      .map(|member| member.entry.name.as_ref())
+      .collect::<Vec<_>>();
+    let end_members = end_items[0]
+      .members
+      .iter()
+      .map(|member| member.entry.name.as_ref())
+      .collect::<Vec<_>>();
+
+    assert_eq!(immediate_members, end_members);
+    assert_eq!(immediate_members, vec!["direct"]);
+    assert!(end_visits > immediate_visits);
+  }
 
   #[test]
   fn combines_extractors_by_item_kind_and_parent_id() {
@@ -386,14 +641,14 @@ name: other
       .expect("extractors should parse");
     let function_kind = SupportLang::TypeScript.kind_to_id("function_declaration");
     let item_extractors = combined
-      .item_extractors_for_kind(function_kind)
+      .item_extractors_for_kind(function_kind, true)
       .collect::<Vec<_>>();
     let member_extractors = combined
       .member_scope_for("ts-function")
       .expect("member extractors should exist");
     let identifier_kind = SupportLang::TypeScript.kind_to_id("identifier");
     let identifier_members = member_extractors
-      .extractors_for_kind(identifier_kind)
+      .extractors_for_kind(identifier_kind, true)
       .collect::<Vec<_>>();
 
     assert!(combined.member_scope_for("missing").is_none());
@@ -401,6 +656,95 @@ name: other
     assert_eq!(item_extractors[0].common.rule.id, "ts-function");
     assert_eq!(identifier_members.len(), 1);
     assert_eq!(identifier_members[0].common.rule.id, "ts-member");
+  }
+
+  #[test]
+  fn stop_by_partitions_use_only_rules_retained_by_options() {
+    let item_extractors = parse_outline_rules::<SupportLang>(
+      r#"
+id: ts-import
+language: TypeScript
+role: item
+symbolType: module
+stopBy: immediate
+rule:
+  kind: import_statement
+name: import
+isImport: true
+---
+id: ts-function
+language: TypeScript
+role: item
+symbolType: function
+stopBy: end
+rule:
+  kind: function_declaration
+name: function
+isImport: false
+"#,
+    )
+    .expect("extractors should deserialize");
+    let item_options = OutlineExtractorOptions {
+      imports: OutlineFlagFilter::Yes,
+      ..Default::default()
+    };
+    let combined =
+      CombinedExtractors::try_from_rules(item_extractors, item_options, &Default::default())
+        .expect("extractors should parse");
+
+    assert_eq!(combined.item_extractors.len(), 1);
+    assert!(combined.all_items_immediate);
+
+    let member_extractors = parse_outline_rules::<SupportLang>(
+      r#"
+id: ts-class
+language: TypeScript
+role: item
+symbolType: class
+rule:
+  kind: class_declaration
+name: class
+---
+id: ts-public-method
+language: TypeScript
+role: member
+parentRuleIds: [ts-class]
+symbolType: method
+stopBy: immediate
+rule:
+  kind: method_definition
+name: method
+isPublic: true
+---
+id: ts-private-method
+language: TypeScript
+role: member
+parentRuleIds: [ts-class]
+symbolType: method
+stopBy: end
+rule:
+  kind: method_definition
+name: method
+isPublic: false
+"#,
+    )
+    .expect("extractors should deserialize");
+    let member_options = OutlineExtractorOptions {
+      members: Some(crate::options::OutlineMemberOptions {
+        public: OutlineFlagFilter::Yes,
+        ..Default::default()
+      }),
+      ..Default::default()
+    };
+    let combined =
+      CombinedExtractors::try_from_rules(member_extractors, member_options, &Default::default())
+        .expect("extractors should parse");
+    let scope = combined
+      .member_scope_for("ts-class")
+      .expect("member scope should exist");
+
+    assert_eq!(combined.member_extractors.len(), 1);
+    assert!(scope.all_immediate());
   }
 
   #[test]

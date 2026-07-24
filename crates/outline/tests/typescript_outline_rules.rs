@@ -5,6 +5,178 @@ mod common;
 const TYPESCRIPT_RULES: &str = include_str!("../src/default_rules/typescript.yml");
 
 #[test]
+fn immediate_item_rules_only_match_direct_children() {
+  common::assert_outline_snapshot(
+    SupportLang::TypeScript,
+    r#"
+id: ts-function
+language: TypeScript
+role: item
+symbolType: function
+stopBy: immediate
+rule:
+  kind: function_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported: false
+"#,
+    r#"
+function direct() {}
+if (ready) {
+  function nested() {}
+}
+"#,
+    r#"
+- Function item private direct
+"#,
+  );
+}
+
+#[test]
+fn mixed_item_rules_keep_end_traversal_and_direct_child_precedence() {
+  common::assert_outline_snapshot(
+    SupportLang::TypeScript,
+    r#"
+id: ts-immediate-function
+language: TypeScript
+role: item
+symbolType: function
+stopBy: immediate
+rule:
+  kind: function_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: immediate-$NAME
+isExported: false
+---
+id: ts-end-function
+language: TypeScript
+role: item
+symbolType: function
+stopBy: end
+rule:
+  kind: function_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: end-$NAME
+isExported: false
+"#,
+    r#"
+function direct() {}
+if (ready) {
+  function nested() {}
+}
+"#,
+    r#"
+- Function item private immediate-direct
+- Function item private end-nested
+"#,
+  );
+}
+
+#[test]
+fn immediate_member_rules_only_match_direct_children() {
+  common::assert_outline_snapshot(
+    SupportLang::TypeScript,
+    r#"
+id: ts-class-body
+language: TypeScript
+role: item
+symbolType: class
+rule:
+  kind: class_body
+name: body
+isExported: false
+---
+id: ts-method
+language: TypeScript
+role: member
+parentRuleIds: [ts-class-body]
+symbolType: method
+stopBy: immediate
+rule:
+  kind: method_definition
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+"#,
+    r#"
+class Outer {
+  direct() {}
+  field = class Inner {
+    nested() {}
+  };
+}
+"#,
+    r#"
+- Class item private body
+  - Method public direct
+"#,
+  );
+}
+
+#[test]
+fn mixed_member_rules_keep_end_traversal_and_direct_child_precedence() {
+  common::assert_outline_snapshot(
+    SupportLang::TypeScript,
+    r#"
+id: ts-class-body
+language: TypeScript
+role: item
+symbolType: class
+rule:
+  kind: class_body
+name: body
+isExported: false
+---
+id: ts-immediate-method
+language: TypeScript
+role: member
+parentRuleIds: [ts-class-body]
+symbolType: method
+stopBy: immediate
+rule:
+  kind: method_definition
+  has:
+    field: name
+    pattern: $NAME
+name: immediate-$NAME
+---
+id: ts-end-method
+language: TypeScript
+role: member
+parentRuleIds: [ts-class-body]
+symbolType: method
+stopBy: end
+rule:
+  kind: method_definition
+  has:
+    field: name
+    pattern: $NAME
+name: end-$NAME
+"#,
+    r#"
+class Outer {
+  direct() {}
+  field = class Inner {
+    nested() {}
+  };
+}
+"#,
+    r#"
+- Class item private body
+  - Method public immediate-direct
+  - Method public end-nested
+"#,
+  );
+}
+
+#[test]
 fn extracts_typescript_outline_from_realistic_vscode_style_code() {
   common::assert_outline_snapshot(
     SupportLang::TypeScript,

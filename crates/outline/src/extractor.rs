@@ -48,6 +48,17 @@ impl<L> SerializableOutlineRule<L> {
   }
 }
 
+/// Traversal boundary for one outline extractor.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OutlineStopBy {
+  /// Preserve the existing traversal through all descendants.
+  #[default]
+  End,
+  /// Match only direct children of the current outline source node.
+  Immediate,
+}
+
 /// Shared serializable fields for every outline extractor.
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -58,6 +69,9 @@ pub struct SerializableOutlineCommon<L> {
   pub language: L,
   /// LSP-compatible outline category produced by this extractor.
   pub symbol_type: SymbolType,
+  /// Limit this extractor to direct children or keep traversing to the end.
+  #[serde(default)]
+  pub stop_by: OutlineStopBy,
   /// ast-grep rule-core fields used to select candidate syntax.
   #[serde(flatten)]
   pub matcher: SerializableRuleCore,
@@ -135,6 +149,8 @@ pub struct ExtractorCommon<L: Language> {
   pub rule: RuleConfig<L>,
   /// LSP-compatible outline category produced by this extractor.
   pub symbol_type: SymbolType,
+  /// Traversal boundary for this extractor.
+  pub stop_by: OutlineStopBy,
   /// Name template evaluated from metavariables or transformed metavariables.
   pub name: TemplateFix,
   /// Optional source-like signature template.
@@ -165,6 +181,7 @@ impl<L: Language> ExtractorCommon<L> {
     detail: OutlineEntryDetail,
   ) -> Result<Self, OutlineRuleError> {
     let symbol_type = common.symbol_type;
+    let stop_by = common.stop_by;
     let transform_vars = transform_vars(&common.matcher);
     let compile = |tmpl| compile_template(tmpl, &common.language, &transform_vars);
     let name = compile(&common.name)?;
@@ -176,6 +193,7 @@ impl<L: Language> ExtractorCommon<L> {
     Ok(Self {
       rule,
       symbol_type,
+      stop_by,
       name,
       signature,
       detail,
@@ -417,6 +435,7 @@ id: rust-struct
 language: Rust
 role: item
 symbolType: struct
+stopBy: immediate
 rule:
   pattern: $VIS struct $NAME { $$$BODY }
 name: $NAME
@@ -432,6 +451,7 @@ isExported:
     assert_eq!(item.common.id, "rust-struct");
     assert_eq!(item.common.language, SupportLang::Rust);
     assert_eq!(item.common.symbol_type, SymbolType::Struct);
+    assert_eq!(item.common.stop_by, OutlineStopBy::Immediate);
     assert_eq!(item.common.name, "$NAME");
     assert!(matches!(
       item.is_exported,
@@ -449,6 +469,7 @@ language: Rust
 role: member
 parentRuleIds: [rust-struct]
 symbolType: field
+stopBy: end
 rule:
   pattern: '$VIS $NAME: $TYPE'
 name: $NAME
@@ -465,6 +486,7 @@ isPublic:
     assert_eq!(member.common.id, "rust-field");
     assert_eq!(member.parent_rule_ids, vec!["rust-struct"]);
     assert_eq!(member.common.symbol_type, SymbolType::Field);
+    assert_eq!(member.common.stop_by, OutlineStopBy::End);
     assert_eq!(
       member.common.signature.as_deref(),
       Some("$VIS $NAME: $TYPE")
@@ -473,6 +495,67 @@ isPublic:
       member.is_public,
       Some(SerializablePredicate::Rule(_))
     ));
+  }
+
+  #[test]
+  fn defaults_omitted_stop_by_to_end() {
+    let rule = parse_rule(
+      r#"
+id: ts-function
+language: TypeScript
+role: item
+symbolType: function
+rule:
+  kind: function_declaration
+name: function
+"#,
+    );
+
+    assert_eq!(rule.common().stop_by, OutlineStopBy::End);
+  }
+
+  #[test]
+  fn rejects_unknown_outline_stop_by_value() {
+    let result = ast_grep_config::from_str::<SerializableOutlineRule<SupportLang>>(
+      r#"
+id: ts-function
+language: TypeScript
+role: item
+symbolType: function
+stopBy: neighbor
+rule:
+  kind: function_declaration
+name: function
+"#,
+    );
+    let Err(err) = result else {
+      panic!("outline stopBy should reject relational stopBy values");
+    };
+
+    let message = err.to_string();
+    assert!(message.contains("unknown variant"));
+    assert!(message.contains("neighbor"));
+  }
+
+  #[test]
+  fn distinguishes_outline_stop_by_from_nested_relational_stop_by() {
+    let rule = parse_rule(
+      r#"
+id: ts-export-function
+language: TypeScript
+role: item
+symbolType: function
+stopBy: immediate
+rule:
+  kind: export_statement
+  has:
+    kind: function_declaration
+    stopBy: neighbor
+name: function
+"#,
+    );
+
+    assert_eq!(rule.common().stop_by, OutlineStopBy::Immediate);
   }
 
   #[test]
@@ -714,6 +797,7 @@ pattern: function $NAME() { $$$BODY }
           transform: None,
         },
         rewriters: None,
+        stop_by: OutlineStopBy::End,
         name: "$NAME".into(),
         signature: Some("function $NAME()".into()),
       },
@@ -726,6 +810,7 @@ pattern: function $NAME() { $$$BODY }
     assert_eq!(value["role"], "item");
     assert_eq!(value["id"], "ts-function");
     assert_eq!(value["symbolType"], "function");
+    assert_eq!(value["stopBy"], "end");
     assert_eq!(value["isExported"], true);
   }
 }
