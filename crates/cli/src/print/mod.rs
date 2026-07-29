@@ -11,8 +11,8 @@ use ast_grep_core::{Matcher, NodeMatch as SgNodeMatch, tree_sitter::StrDoc};
 use anyhow::Result;
 use clap::ValueEnum;
 
-use std::borrow::Cow;
 use std::path::Path;
+use std::{borrow::Cow, io::IsTerminal as _};
 
 pub use cloud_print::{CloudPrinter, Platform};
 pub use codespan_reporting::files::SimpleFile;
@@ -173,7 +173,7 @@ impl From<ColorArg> for ColorChoice {
     use ColorArg::*;
     match arg {
       Auto => {
-        if atty::is(atty::Stream::Stdout) {
+        if std::io::stdout().is_terminal() {
           ColorChoice::Auto
         } else {
           ColorChoice::Never

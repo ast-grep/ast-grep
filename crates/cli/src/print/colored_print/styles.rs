@@ -5,7 +5,7 @@ use anyhow::Result;
 
 use std::borrow::Cow;
 use std::env;
-use std::io::Write;
+use std::io::{IsTerminal as _, Write};
 use std::path::Path;
 
 // warn[rule-id]: rule message here.
@@ -136,7 +136,7 @@ pub fn should_use_color(color: &ColorChoice) -> bool {
     ColorChoice::AlwaysAnsi => true,
     ColorChoice::Never => false,
     // NOTE tty check is added
-    ColorChoice::Auto => atty::is(atty::Stream::Stdout) && env_allows_color(),
+    ColorChoice::Auto => std::io::stdout().is_terminal() && env_allows_color(),
   }
 }
 
