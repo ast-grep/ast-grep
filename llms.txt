@@ -1,0 +1,69 @@
+# ast-grep
+
+> ast-grep (sg) is a CLI tool for code structural search, lint, and rewriting. It matches code by AST pattern instead of text, using `$MATCH`-style wildcards, and supports search, lint rules, and automated rewriting across many languages.
+
+Full documentation site: https://astgrep.com
+
+## Guide
+- [Introduction](https://astgrep.com/guide/introduction)
+- [Quick Start](https://astgrep.com/guide/quick-start)
+- [Pattern Syntax](https://astgrep.com/guide/pattern-syntax)
+- [Rewrite Code](https://astgrep.com/guide/rewrite-code)
+- [Rewriter](https://astgrep.com/guide/rewrite/rewriter)
+- [Transform](https://astgrep.com/guide/rewrite/transform)
+- [Rule Config](https://astgrep.com/guide/rule-config)
+- [Atomic Rule](https://astgrep.com/guide/rule-config/atomic-rule)
+- [Composite Rule](https://astgrep.com/guide/rule-config/composite-rule)
+- [Relational Rule](https://astgrep.com/guide/rule-config/relational-rule)
+- [Utility Rule](https://astgrep.com/guide/rule-config/utility-rule)
+- [Scan Project](https://astgrep.com/guide/scan-project)
+- [Test Rule](https://astgrep.com/guide/test-rule)
+- [Project Config](https://astgrep.com/guide/project/project-config)
+- [Lint Rule](https://astgrep.com/guide/project/lint-rule)
+- [Severity](https://astgrep.com/guide/project/severity)
+- [Outline Code](https://astgrep.com/guide/outline-code)
+- [Tooling Overview](https://astgrep.com/guide/tooling-overview)
+- [Editor Integration](https://astgrep.com/guide/tools/editors)
+- [JSON Output](https://astgrep.com/guide/tools/json)
+- [API Usage](https://astgrep.com/guide/api-usage)
+- [JS API](https://astgrep.com/guide/api-usage/js-api)
+- [Python API](https://astgrep.com/guide/api-usage/py-api)
+- [Performance Tips](https://astgrep.com/guide/api-usage/performance-tip)
+
+## Reference
+- [CLI Overview](https://astgrep.com/reference/cli)
+- [sg new](https://astgrep.com/reference/cli/new)
+- [sg run](https://astgrep.com/reference/cli/run)
+- [sg scan](https://astgrep.com/reference/cli/scan)
+- [sg test](https://astgrep.com/reference/cli/test)
+- [sg outline](https://astgrep.com/reference/cli/outline)
+- [Rule Reference](https://astgrep.com/reference/rule)
+- [YAML Reference](https://astgrep.com/reference/yaml)
+- [sgconfig.yml Reference](https://astgrep.com/reference/sgconfig)
+- [API Reference](https://astgrep.com/reference/api)
+- [Supported Languages](https://astgrep.com/reference/languages)
+- [Playground Reference](https://astgrep.com/reference/playground)
+
+## Advanced
+- [How ast-grep Works](https://astgrep.com/advanced/how-ast-grep-works)
+- [Core Concepts](https://astgrep.com/advanced/core-concepts)
+- [Pattern Parsing](https://astgrep.com/advanced/pattern-parse)
+- [Match Algorithm](https://astgrep.com/advanced/match-algorithm)
+- [Find and Patch](https://astgrep.com/advanced/find-n-patch)
+- [Custom Language Support](https://astgrep.com/advanced/custom-language)
+- [Language Injection](https://astgrep.com/advanced/language-injection)
+- [LLM Prompting Guide](https://astgrep.com/advanced/prompting)
+- [Tool Comparison](https://astgrep.com/advanced/tool-comparison)
+- [FAQ](https://astgrep.com/advanced/faq)
+
+## Catalog
+- [Rule Catalog Index](https://astgrep.com/catalog/)
+- [Rule Template](https://astgrep.com/catalog/rule-template)
+
+## Optional
+- [Blog](https://astgrep.com/blog)
+- [Roadmap](https://astgrep.com/links/roadmap)
+- [Contributing: How To](https://astgrep.com/contributing/how-to)
+- [Contributing: Development Setup](https://astgrep.com/contributing/development)
+- [Contributing: Add a Language](https://astgrep.com/contributing/add-lang)
+- [Online Playground](https://astgrep.com/playground)
