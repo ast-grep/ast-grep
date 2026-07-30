@@ -54,14 +54,14 @@ Full documentation site: https://astgrep.com
 - [Language Injection](https://astgrep.com/advanced/language-injection)
 - [LLM Prompting Guide](https://astgrep.com/advanced/prompting)
 - [Tool Comparison](https://astgrep.com/advanced/tool-comparison)
-- [FAQ](https://astgrep.com/advanced/faq.html)
+- [FAQ](https://astgrep.com/advanced/faq)
 
 ## Catalog
 - [Rule Catalog Index](https://astgrep.com/catalog/)
 - [Rule Template](https://astgrep.com/catalog/rule-template)
 
 ## Optional
-- [Blog](https://astgrep.com/blog.html)
+- [Blog](https://astgrep.com/blog)
 - [Roadmap](https://astgrep.com/links/roadmap)
 - [Contributing: How To](https://astgrep.com/contributing/how-to)
 - [Contributing: Development Setup](https://astgrep.com/contributing/development)
