@@ -342,10 +342,10 @@
     semver "^7.5.3"
     tar "^7.4.0"
 
-"@napi-rs/cli@3.7.4":
-  version "3.7.4"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-3.7.4.tgz#d9f0fa8d174ac6c4271738fab289846bf5651a89"
-  integrity sha512-idELIUceJ9zPgx/shcMt1fSSsteFG68v56RIXi4qUm7OYuJOt7CoMj2KnHVmbOqXgUHWQU1lCULrtQdZDG4F5A==
+"@napi-rs/cli@3.8.2":
+  version "3.8.2"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-3.8.2.tgz#15365b9970f7d921e408ce6a607612b657f49299"
+  integrity sha512-iFmp3Lo/ipXoJI1I/6V/xU4hQV42bXS3A7j8C+Wt3LOtYY7HFCilkhyUkN1igLJFXWMICq95kNxhNcwzNRd+Kw==
   dependencies:
     "@inquirer/prompts" "^8.5.2"
     "@napi-rs/cross-toolchain" "^1.0.3"
@@ -353,12 +353,13 @@
     "@octokit/rest" "^22.0.1"
     clipanion "^4.0.0-rc.4"
     colorette "^2.0.20"
-    emnapi "^1.11.1"
+    emnapi "2.0.0-alpha.3"
     es-toolkit "^1.47.0"
     js-yaml "^4.2.0"
     obug "^2.1.2"
     semver "^7.8.2"
     typanion "^3.14.0"
+    typescript "^6.0.3"
 
 "@napi-rs/cross-toolchain@^1.0.3":
   version "1.0.3"
@@ -1342,10 +1343,10 @@ emittery@^1.2.0:
   resolved "https://registry.yarnpkg.com/emittery/-/emittery-1.2.0.tgz#466edb32bada8d9b35f779c3ee8c514ac2df8dc0"
   integrity sha512-KxdRyyFcS85pH3dnU8Y5yFUm2YJdaHwcBZWrfG8o89ZY9a13/f9itbN+YG3ELbBo9Pg5zvIozstmuV8bX13q6g==
 
-emnapi@^1.11.1:
-  version "1.11.1"
-  resolved "https://registry.yarnpkg.com/emnapi/-/emnapi-1.11.1.tgz#9f3da4463d61a89822ac902f95a3e324adfd340e"
-  integrity sha512-kSRjhIcxjMFsBqk7ORvoc9aA5SBKDmecrtF5RMcmOTao0kD/zamaxsuTxMI8C1//wGUuvE7a+19pCE7AEhGVnA==
+emnapi@2.0.0-alpha.3:
+  version "2.0.0-alpha.3"
+  resolved "https://registry.yarnpkg.com/emnapi/-/emnapi-2.0.0-alpha.3.tgz#150179c70f11ae8b5e2abcb506af02b797320227"
+  integrity sha512-K9bc9Xx4OwSfhJpdSOpcfIKzn7/6emuubaIorf6I5e7WBAM79665rf6iHr9y50NL4qYMUP/AheTpD1Z4yU1EBw==
 
 emoji-regex@^10.3.0:
   version "10.3.0"
@@ -2192,7 +2193,7 @@ type-fest@^0.13.1:
   resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-0.13.1.tgz#0172cb5bce80b0bd542ea348db50c7e21834d934"
   integrity sha512-34R7HTnG0XIJcBSn5XhDd7nNFPRcXYRZrBB2O2jdKqYODldSzBAqzsWoZYYvduky73toYS/ESqxPvkDf/F0XMg==
 
-typescript@6.0.3:
+typescript@6.0.3, typescript@^6.0.3:
   version "6.0.3"
   resolved "https://registry.yarnpkg.com/typescript/-/typescript-6.0.3.tgz#90251dc007916e972786cb94d74d15b185577d21"
   integrity sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==
