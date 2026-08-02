@@ -106,11 +106,35 @@ role: member
 parentRuleIds: [csharp-class, csharp-record, csharp-struct]
 symbolType: constructor
 rule:
-  kind: constructor_declaration
-  has:
-    field: name
-    pattern: $NAME
+  all:
+    - kind: constructor_declaration
+    - pattern: $DECL
+    - has:
+        field: name
+        pattern: $NAME
+transform:
+  BODYLESS:
+    replace:
+      source: $DECL
+      replace: '\s*(\{[\s\S]*$|=>[\s\S]*$|;\s*$)'
+      by: ''
+  SINGLE_LINE:
+    replace:
+      source: $BODYLESS
+      replace: '\s*\n\s*'
+      by: ' '
+  TIGHT_OPEN:
+    replace:
+      source: $SINGLE_LINE
+      replace: '\(\s+'
+      by: '('
+  SIG:
+    replace:
+      source: $TIGHT_OPEN
+      replace: '\s+\)'
+      by: ')'
 name: $NAME
+signature: $SIG
 isPublic:
   has:
     kind: modifier
@@ -122,11 +146,35 @@ role: member
 parentRuleIds: [csharp-class, csharp-record, csharp-struct]
 symbolType: method
 rule:
-  kind: method_declaration
-  has:
-    field: name
-    pattern: $NAME
+  all:
+    - kind: method_declaration
+    - pattern: $DECL
+    - has:
+        field: name
+        pattern: $NAME
+transform:
+  BODYLESS:
+    replace:
+      source: $DECL
+      replace: '\s*(\{[\s\S]*$|=>[\s\S]*$|;\s*$)'
+      by: ''
+  SINGLE_LINE:
+    replace:
+      source: $BODYLESS
+      replace: '\s*\n\s*'
+      by: ' '
+  TIGHT_OPEN:
+    replace:
+      source: $SINGLE_LINE
+      replace: '\(\s+'
+      by: '('
+  SIG:
+    replace:
+      source: $TIGHT_OPEN
+      replace: '\s+\)'
+      by: ')'
 name: $NAME
+signature: $SIG
 isPublic:
   has:
     kind: modifier
@@ -138,11 +186,35 @@ role: member
 parentRuleIds: [csharp-interface]
 symbolType: method
 rule:
-  kind: method_declaration
-  has:
-    field: name
-    pattern: $NAME
+  all:
+    - kind: method_declaration
+    - pattern: $DECL
+    - has:
+        field: name
+        pattern: $NAME
+transform:
+  BODYLESS:
+    replace:
+      source: $DECL
+      replace: '\s*(\{[\s\S]*$|=>[\s\S]*$|;\s*$)'
+      by: ''
+  SINGLE_LINE:
+    replace:
+      source: $BODYLESS
+      replace: '\s*\n\s*'
+      by: ' '
+  TIGHT_OPEN:
+    replace:
+      source: $SINGLE_LINE
+      replace: '\(\s+'
+      by: '('
+  SIG:
+    replace:
+      source: $TIGHT_OPEN
+      replace: '\s+\)'
+      by: ')'
 name: $NAME
+signature: $SIG
 isPublic: true
 ---
 id: csharp-member-property
