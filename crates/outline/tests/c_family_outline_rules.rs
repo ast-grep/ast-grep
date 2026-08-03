@@ -55,12 +55,12 @@ public class CommandDispatcher
         this.service = service;
     }
 
-    public Task DispatchAsync(
+    public async Task DispatchAsync(
         Command command,
         CancellationToken cancellationToken
     )
     {
-        return Task.CompletedTask;
+        await Task.CompletedTask;
     }
 }
 "#,
@@ -69,7 +69,7 @@ public class CommandDispatcher
   - Method public DispatchAsync | Task DispatchAsync(Command command, CancellationToken cancellationToken)
 - Class item exported CommandDispatcher | public class CommandDispatcher
   - Constructor public CommandDispatcher | public CommandDispatcher(IService service)
-  - Method public DispatchAsync | public Task DispatchAsync(Command command, CancellationToken cancellationToken)
+  - Method public DispatchAsync | public async Task DispatchAsync(Command command, CancellationToken cancellationToken)
 "#,
   );
 }
