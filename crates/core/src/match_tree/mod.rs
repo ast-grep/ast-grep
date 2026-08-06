@@ -1,7 +1,7 @@
 mod match_node;
 mod strictness;
 
-use match_node::match_node_impl;
+use match_node::match_root_node_impl;
 use strictness::MatchOneNode;
 pub use strictness::MatchStrictness;
 
@@ -52,7 +52,7 @@ impl<'t, D: Doc> Aggregator<'t, D> for ComputeEnd {
 
 pub fn match_end_non_recursive(goal: &Pattern, candidate: Node<impl Doc>) -> Option<usize> {
   let mut end = ComputeEnd(0);
-  match match_node_impl(&goal.node, &candidate, &mut end, &goal.strictness) {
+  match match_root_node_impl(&goal.node, &candidate, &mut end, &goal.strictness) {
     MatchOneNode::MatchedBoth => Some(end.0),
     _ => None,
   }
@@ -120,7 +120,7 @@ pub fn match_node_non_recursive<'tree, D: Doc>(
   candidate: Node<'tree, D>,
   env: &mut Cow<MetaVarEnv<'tree, D>>,
 ) -> Option<Node<'tree, D>> {
-  match match_node_impl(&goal.node, &candidate, env, &goal.strictness) {
+  match match_root_node_impl(&goal.node, &candidate, env, &goal.strictness) {
     MatchOneNode::MatchedBoth => Some(candidate),
     _ => None,
   }
@@ -153,6 +153,7 @@ pub fn does_node_match_exactly<D: Doc>(goal: &Node<D>, candidate: &Node<D>) -> b
 mod test {
   use super::*;
   use crate::language::Tsx;
+  use crate::matcher::KindMatcher;
   use crate::meta_var::MetaVarEnv;
   use crate::tree_sitter::StrDoc;
   use crate::{Node, Root};
@@ -197,6 +198,51 @@ mod test {
   fn test_simple_match() {
     test_match("const a = 123", "const a=123");
     test_non_match("const a = 123", "var a = 123");
+  }
+
+  #[test]
+  fn test_root_metavar_matches_comment() {
+    let goal = Pattern::new("$COMMENT", Tsx);
+    let cand = Root::str(
+      "class MyClass { /** @memberof MyClass.prototype */ get myProp() { return 1; } }",
+      Tsx,
+    );
+    let comment = cand
+      .root()
+      .find(KindMatcher::new("comment", Tsx))
+      .expect("should find comment")
+      .get_node()
+      .clone();
+    assert!(comment.is_extra(), "test requires an extra comment node");
+    assert_eq!(
+      match_end_non_recursive(&goal, comment.clone()),
+      Some(comment.range().end)
+    );
+
+    let mut env = Cow::Owned(MetaVarEnv::new());
+    let matched = match_node_non_recursive(&goal, comment.clone(), &mut env);
+    assert!(matched.is_some(), "root metavariable should match comment");
+    assert_eq!(
+      env
+        .get_match("COMMENT")
+        .expect("should capture comment")
+        .text(),
+      "/** @memberof MyClass.prototype */"
+    );
+
+    let dropped = Pattern::new("$_", Tsx);
+    let mut env = Cow::Owned(MetaVarEnv::new());
+    assert!(match_node_non_recursive(&dropped, comment.clone(), &mut env).is_some());
+
+    let relaxed = Pattern::new("$COMMENT", Tsx).with_strictness(MatchStrictness::Relaxed);
+    let mut env = Cow::Owned(MetaVarEnv::new());
+    assert!(match_node_non_recursive(&relaxed, comment, &mut env).is_none());
+  }
+
+  #[test]
+  fn test_nested_smart_metavar_skips_comment() {
+    let env = test_match("$A($B)", "foo(/* before */ bar /* after */)");
+    assert_eq!(env["B"], "bar");
   }
 
   #[test]
