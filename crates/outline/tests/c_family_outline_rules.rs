@@ -32,6 +32,49 @@ public enum Mode { Fast, Slow }
 }
 
 #[test]
+fn csharp_rules_extract_multiline_member_signatures() {
+  const RULES: &str = include_str!("../src/default_rules/csharp.yml");
+  common::assert_outline_signature_snapshot(
+    SupportLang::CSharp,
+    RULES,
+    r#"
+public interface IDispatcher
+{
+    Task DispatchAsync(
+        Command command,
+        CancellationToken cancellationToken
+    );
+}
+
+public class CommandDispatcher
+{
+    public CommandDispatcher(
+        IService service
+    )
+    {
+        this.service = service;
+    }
+
+    public async Task DispatchAsync(
+        Command command,
+        CancellationToken cancellationToken
+    )
+    {
+        await Task.CompletedTask;
+    }
+}
+"#,
+    r#"
+- Interface item exported IDispatcher | public interface IDispatcher
+  - Method public DispatchAsync | Task DispatchAsync(Command command, CancellationToken cancellationToken)
+- Class item exported CommandDispatcher | public class CommandDispatcher
+  - Constructor public CommandDispatcher | public CommandDispatcher(IService service)
+  - Method public DispatchAsync | public async Task DispatchAsync(Command command, CancellationToken cancellationToken)
+"#,
+  );
+}
+
+#[test]
 fn c_rules_parse_and_extract_native_shapes() {
   const RULES: &str = include_str!("../src/default_rules/c.yml");
   common::assert_outline_snapshot(
