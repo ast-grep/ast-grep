@@ -19,12 +19,12 @@ use crate::print::{
 };
 use crate::utils::RuleOverwrite;
 use crate::utils::{ContextArgs, InputArgs, OutputArgs, OverwriteArgs, filter_file_rule};
+use crate::utils::{DiagnosticCount, DiagnosticSnapshot, report_warning_summary};
 use crate::utils::{ErrorContext as EC, MaxItemCounter};
 use crate::utils::{FileTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Args)]
 pub struct ScanArg {
@@ -136,8 +136,7 @@ struct ScanWithConfig {
   no_suppress_all_rule: RuleConfig<SgLang>,
   trace: ScanTrace,
   proj_dir: PathBuf,
-  // TODO: remove this
-  error_count: AtomicUsize,
+  diagnostic_count: DiagnosticCount,
   max_item_counter: Option<MaxItemCounter>,
 }
 impl ScanWithConfig {
@@ -175,7 +174,7 @@ impl ScanWithConfig {
       no_suppress_all_rule,
       trace,
       proj_dir: absolute_proj_dir,
-      error_count: AtomicUsize::new(0),
+      diagnostic_count: DiagnosticCount::default(),
       max_item_counter,
     })
   }
@@ -192,12 +191,7 @@ impl Worker for ScanWithConfig {
     }
     printer.after_print()?;
     self.trace.print()?;
-    let error_count = self.error_count.load(Ordering::Acquire);
-    if error_count > 0 {
-      Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
-    } else {
-      Ok(ExitCode::SUCCESS)
-    }
+    report_diagnostic_summary(&self.diagnostic_count, self.arg.output.needs_interactive())
   }
 }
 
@@ -245,7 +239,7 @@ impl PathWorker for ScanWithConfig {
     processor: &P::Processor,
   ) -> Result<Vec<P::Processed>> {
     let items = filter_file_rule(path, &self.configs, &self.trace)?;
-    let mut error_count = 0usize;
+    let mut diagnostic_snapshot = DiagnosticSnapshot::default();
     let mut ret = vec![];
     for grep in items {
       let file_content = grep.source();
@@ -283,14 +277,12 @@ impl PathWorker for ScanWithConfig {
           continue;
         }
         let match_count = matches.len();
-        if matches!(rule.severity, Severity::Error) {
-          error_count = error_count.saturating_add(match_count);
-        }
+        diagnostic_snapshot.add(&rule.severity, match_count);
         let processed = match_rule_on_file(path, matches, rule, file_content, processor)?;
         ret.push(processed);
       }
     }
-    self.error_count.fetch_add(error_count, Ordering::AcqRel);
+    self.diagnostic_count.merge(diagnostic_snapshot);
     Ok(ret)
   }
 
@@ -304,9 +296,9 @@ impl PathWorker for ScanWithConfig {
 
 struct ScanStdin {
   rules: Vec<RuleConfig<SgLang>>,
-  // TODO: remove this
-  error_count: AtomicUsize,
+  diagnostic_count: DiagnosticCount,
   max_diagnostics_shown: Option<usize>,
+  interactive: bool,
 }
 impl ScanStdin {
   fn try_new(arg: ScanArg) -> Result<Self> {
@@ -323,8 +315,9 @@ impl ScanStdin {
     };
     Ok(Self {
       rules,
-      error_count: AtomicUsize::new(0),
+      diagnostic_count: DiagnosticCount::default(),
       max_diagnostics_shown: arg.max_results.map(usize::from),
+      interactive: arg.output.needs_interactive(),
     })
   }
 }
@@ -340,12 +333,7 @@ impl Worker for ScanStdin {
       printer.process(item)?;
     }
     printer.after_print()?;
-    let error_count = self.error_count.load(Ordering::Acquire);
-    if error_count > 0 {
-      Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
-    } else {
-      Ok(ExitCode::SUCCESS)
-    }
+    report_diagnostic_summary(&self.diagnostic_count, self.interactive)
   }
 }
 
@@ -363,13 +351,14 @@ impl StdInWorker for ScanStdin {
     let file_content = grep.source();
     // do not separate_fix rule in stdin mode
     let scanned = combined.scan(&grep, false);
-    let mut error_count = 0usize;
-    let mut diagnostic_count = 0usize;
+    let mut diagnostic_snapshot = DiagnosticSnapshot::default();
+    // count every shown match regardless of severity for truncation
+    let mut shown = 0usize;
     let mut ret = vec![];
     for (rule, matches) in scanned.matches {
       // Truncate matches if max_diagnostics_shown is set
       let matches: Vec<_> = if let Some(max) = self.max_diagnostics_shown {
-        let remaining = max.saturating_sub(diagnostic_count);
+        let remaining = max.saturating_sub(shown);
         if remaining == 0 {
           break;
         }
@@ -381,17 +370,31 @@ impl StdInWorker for ScanStdin {
         continue;
       }
       let match_count = matches.len();
-      diagnostic_count += match_count;
-      if matches!(rule.severity, Severity::Error) {
-        error_count = error_count.saturating_add(match_count);
-      }
+      shown += match_count;
+      diagnostic_snapshot.add(&rule.severity, match_count);
       let processed = match_rule_on_file(path, matches, rule, file_content, processor)?;
       ret.push(processed);
     }
-    self.error_count.fetch_add(error_count, Ordering::AcqRel);
+    self.diagnostic_count.merge(diagnostic_snapshot);
     Ok(ret)
   }
 }
+
+// In interactive/update-all modes fixable diagnostics are resolved as diffs
+// and never counted, so a warning summary would be partial or already fixed.
+// Errors keep their pre-existing exit-code semantics in all modes.
+fn report_diagnostic_summary(count: &DiagnosticCount, interactive: bool) -> Result<ExitCode> {
+  if !interactive {
+    report_warning_summary(count.warnings());
+  }
+  let error_count = count.errors();
+  if error_count > 0 {
+    Err(anyhow::anyhow!(EC::DiagnosticError(error_count)))
+  } else {
+    Ok(ExitCode::SUCCESS)
+  }
+}
+
 fn match_rule_diff_on_file<T>(
   path: &Path,
   matches: Vec<(&RuleConfig<SgLang>, NodeMatch<StrDoc<SgLang>>)>,
