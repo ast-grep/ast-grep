@@ -119,6 +119,25 @@ export function greet(name: string) {
 }
 
 #[test]
+fn test_outline_javascript_in_html_stdin() -> Result<()> {
+  Command::new(cargo_bin!())
+    .args(["outline", "--stdin", "--lang", "html", "--json=compact"])
+    .write_stdin(
+      r#"<script lang="typescript">
+export function greet(name: string) {
+  return `Hello ${name}`;
+}
+</script>"#,
+    )
+    .assert()
+    .success()
+    .stdout(contains(r#""path":"STDIN""#))
+    .stdout(contains(r#""language":"Html""#))
+    .stdout(contains(r#""name":"greet""#));
+  Ok(())
+}
+
+#[test]
 fn test_rewrite_js_in_html() -> Result<()> {
   let dir = create_test_files([("a.html", "<script>alert(1)</script>")])?;
   Command::new(cargo_bin!())
