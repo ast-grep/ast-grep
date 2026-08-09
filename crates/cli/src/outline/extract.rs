@@ -6,7 +6,8 @@ use std::sync::{Arc, mpsc};
 use std::thread;
 
 use anyhow::{Context, Result};
-use ast_grep_core::Language;
+use ast_grep_core::tree_sitter::StrDoc;
+use ast_grep_core::{AstGrep, Language};
 use ast_grep_language::LanguageExt;
 use ast_grep_outline::{
   DEFAULT_OUTLINE_RULES,
@@ -84,16 +85,24 @@ impl OutlineExtractors {
     self.by_lang.keys().copied()
   }
 
-  fn extract<'tree>(
-    &self,
-    lang: SgLang,
-    root: ast_grep_core::Node<'tree, ast_grep_core::tree_sitter::StrDoc<SgLang>>,
-  ) -> Vec<OutlineItem<'static>> {
-    self
+  fn extract(&self, lang: SgLang, grep: &AstGrep<StrDoc<SgLang>>) -> Vec<OutlineItem<'static>> {
+    let mut items: Vec<OutlineItem<'static>> = self
       .by_lang
       .get(&lang)
-      .map(|extractors| extractors.extract(root).map(own_item).collect())
-      .unwrap_or_default()
+      .map(|extractors| extractors.extract(grep.root()).map(own_item).collect())
+      .unwrap_or_default();
+
+    for injected in grep.get_injections(|language| {
+      let lang = language.parse().ok()?;
+      self.by_lang.contains_key(&lang).then_some(lang)
+    }) {
+      let injected_lang = *injected.lang();
+      if let Some(extractors) = self.by_lang.get(&injected_lang) {
+        items.extend(extractors.extract(injected.root()).map(own_item));
+      }
+    }
+    items.sort_by_key(|item| item.entry.range.byte_offset.start);
+    items
   }
 }
 
@@ -126,7 +135,7 @@ pub fn extract_stdin(
   let lang = arg.lang.expect("required by clap");
   let source = io::read_to_string(io::stdin())?;
   let grep = lang.ast_grep(source);
-  let items = extractors.extract(lang, grep.root());
+  let items = extractors.extract(lang, &grep);
   Ok(OutlineFile {
     path: "STDIN".to_string(),
     language: lang.to_string(),
@@ -238,7 +247,7 @@ fn extract_path(
     }
   };
   let grep = lang.ast_grep(source);
-  let items = extractors.extract(lang, grep.root());
+  let items = extractors.extract(lang, &grep);
   if !extractors.show_empty_files && items.is_empty() {
     return Ok(None);
   }
@@ -338,6 +347,61 @@ name: struct
       .collect::<Vec<_>>();
 
     assert_eq!(ids, vec!["config-rust-function", "cli-rust-struct"]);
+  }
+
+  #[test]
+  fn extracts_outline_from_html_injected_script() {
+    let rules = load_outline_rules(true, &[], &[]).expect("builtin rules should load");
+    let extractors =
+      OutlineExtractors::try_from_options(rules, OutlineExtractorOptions::default(), false)
+        .expect("builtin rules should compile");
+    let html: SgLang = "html".parse().unwrap();
+    let grep = html.ast_grep(
+      r#"<main></main>
+<script lang="typescript">
+export function greet(name: string) {
+  return `Hello ${name}`;
+}
+</script>
+<script>
+function stop() {}
+</script>"#,
+    );
+
+    let items = extractors.extract(html, &grep);
+
+    assert_eq!(items.len(), 2);
+    assert_eq!(items[0].entry.name, "greet");
+    assert_eq!(items[0].entry.range.start.line, 2);
+    assert_eq!(items[1].entry.name, "stop");
+    assert_eq!(items[1].entry.range.start.line, 7);
+  }
+
+  #[test]
+  fn extracts_injected_outline_from_html_path() {
+    let dir = TempDir::new().expect("temp dir should be created");
+    let path = dir.path().join("component.html");
+    fs::write(
+      &path,
+      r#"<script>
+class Controller {
+  start() {}
+}
+</script>"#,
+    )
+    .expect("HTML file should be written");
+    let rules = load_outline_rules(true, &[], &[]).expect("builtin rules should load");
+    let extractors =
+      OutlineExtractors::try_from_options(rules, OutlineExtractorOptions::default(), false)
+        .expect("builtin rules should compile");
+
+    let file = extract_path(&path, None, &extractors)
+      .expect("HTML extraction should succeed")
+      .expect("injected outline should keep the file");
+
+    assert_eq!(file.language, "Html");
+    assert_eq!(file.items.len(), 1);
+    assert_eq!(file.items[0].entry.name, "Controller");
   }
 
   #[test]

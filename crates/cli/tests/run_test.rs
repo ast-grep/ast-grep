@@ -87,6 +87,38 @@ fn test_js_in_html() -> Result<()> {
 }
 
 #[test]
+fn test_outline_javascript_in_vue_as_html() -> Result<()> {
+  let dir = create_test_files([
+    (
+      "sgconfig.yml",
+      r#"ruleDirs: []
+languageGlobs:
+  html:
+    - "*.vue"
+"#,
+    ),
+    (
+      "component.vue",
+      r#"<template><main>Hello</main></template>
+<script lang="typescript">
+export function greet(name: string) {
+  return `Hello ${name}`;
+}
+</script>"#,
+    ),
+  ])?;
+
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["outline", "component.vue", "--json=compact"])
+    .assert()
+    .success()
+    .stdout(contains(r#""language":"Html""#))
+    .stdout(contains(r#""name":"greet""#));
+  Ok(())
+}
+
+#[test]
 fn test_rewrite_js_in_html() -> Result<()> {
   let dir = create_test_files([("a.html", "<script>alert(1)</script>")])?;
   Command::new(cargo_bin!())
