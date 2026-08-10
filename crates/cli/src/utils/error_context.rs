@@ -499,7 +499,10 @@ mod test {
   fn test_broken_pipe_exits_quietly() {
     let io_err = std::io::Error::from(std::io::ErrorKind::BrokenPipe);
     let error = anyhow::Error::new(io_err).context("while printing matches");
-    assert!(exit_with_error(error).is_ok());
+    assert!(matches!(
+      exit_with_error(error),
+      Ok(code) if code == std::process::ExitCode::SUCCESS
+    ));
   }
 
   #[test]
