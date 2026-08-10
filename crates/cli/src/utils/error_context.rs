@@ -327,12 +327,8 @@ pub fn exit_with_error(error: Error) -> Result<ExitCode> {
     eprintln!("{error_fmt}");
     std::process::exit(e.exit_code())
   }
-  // The only pipe ast-grep writes is its own stdout, so a BrokenPipe in the
-  // error chain means a downstream reader (e.g. `sg ... | head`) closed early:
-  // normal termination, not a failure. Exit quietly instead of printing
-  // "Broken pipe (os error 32)". Domain errors carry an ErrorContext and exit
-  // above, so this never swallows a meaningful error. Revisit if ast-grep ever
-  // writes into a child process's piped stdin.
+  // A closed pipe (e.g. `sg ... | head`) is not an error.
+  // See: https://github.com/ast-grep/ast-grep/pull/2887
   if error
     .chain()
     .filter_map(|e| e.downcast_ref::<std::io::Error>())
