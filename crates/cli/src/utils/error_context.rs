@@ -327,6 +327,15 @@ pub fn exit_with_error(error: Error) -> Result<ExitCode> {
     eprintln!("{error_fmt}");
     std::process::exit(e.exit_code())
   }
+  // A closed pipe (e.g. `sg ... | head`) is not an error.
+  // See: https://github.com/ast-grep/ast-grep/pull/2887
+  if error
+    .chain()
+    .filter_map(|e| e.downcast_ref::<std::io::Error>())
+    .any(|e| e.kind() == std::io::ErrorKind::BrokenPipe)
+  {
+    return Ok(ExitCode::SUCCESS);
+  }
   // use anyhow's default error reporting
   Err(error)
 }
@@ -480,5 +489,22 @@ mod test {
     // Check that it's considered a soft error with exit code 0
     assert_eq!(ErrorContext::ExitInteractiveEditing.exit_code(), 0);
     assert!(ErrorContext::ExitInteractiveEditing.is_soft_error());
+  }
+
+  #[test]
+  fn test_broken_pipe_exits_quietly() {
+    let io_err = std::io::Error::from(std::io::ErrorKind::BrokenPipe);
+    let error = anyhow::Error::new(io_err).context("while printing matches");
+    assert!(matches!(
+      exit_with_error(error),
+      Ok(code) if code == std::process::ExitCode::SUCCESS
+    ));
+  }
+
+  #[test]
+  fn test_other_io_error_is_reported() {
+    let io_err = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
+    let error = anyhow::Error::new(io_err);
+    assert!(exit_with_error(error).is_err());
   }
 }
