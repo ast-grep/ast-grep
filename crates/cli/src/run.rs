@@ -3,7 +3,7 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result};
 use ast_grep_config::{Fixer, Rule, parse_selector};
-use ast_grep_core::{MatchStrictness, Matcher, Pattern};
+use ast_grep_core::{MatchStrictness, Pattern};
 use ast_grep_language::{Language, LanguageExt};
 use clap::{Args, Parser, ValueEnum, builder::PossibleValue};
 use ignore::WalkParallel;
@@ -11,8 +11,8 @@ use ignore::WalkParallel;
 use crate::config::ProjectConfig;
 use crate::lang::SgLang;
 use crate::print::{
-  ColoredPrinter, Diff, FileNamePrinter, Heading, InteractivePrinter, JSONPrinter, PrintProcessor,
-  Printer,
+  ColoredPrinter, Diff, FileNamePrinter, Heading, InteractivePrinter, JSONPrinter, MatchDisplay,
+  PrintProcessor, Printer,
 };
 use crate::utils::ErrorContext as EC;
 use crate::utils::{ContextArgs, InputArgs, MatchUnit, OutputArgs, filter_file_pattern};
@@ -407,6 +407,9 @@ impl StdInWorker for RunWithSpecificLang {
     let processed = if let Some(rewrite) = rewrite {
       let diffs = matches.map(|m| Diff::generate(m, &self.rule, rewrite));
       processor.print_diffs(diffs.collect(), path)?
+    } else if let Rule::Pattern(pattern) = &self.rule {
+      let matches = matches.map(|m| MatchDisplay::generate(m, pattern));
+      processor.print_pattern_matches(matches.collect(), path)?
     } else {
       processor.print_matches(matches.collect(), path)?
     };
@@ -415,7 +418,7 @@ impl StdInWorker for RunWithSpecificLang {
 }
 fn match_one_file<T, P: PrintProcessor<T>>(
   processor: &P,
-  match_unit: &MatchUnit<impl Matcher>,
+  match_unit: &MatchUnit<&Rule>,
   rewrite: &Option<Fixer>,
 ) -> Result<Option<T>> {
   let MatchUnit {
@@ -432,6 +435,9 @@ fn match_one_file<T, P: PrintProcessor<T>>(
   let ret = if let Some(rewrite) = rewrite {
     let diffs = matches.map(|m| Diff::generate(m, matcher, rewrite));
     processor.print_diffs(diffs.collect(), path)?
+  } else if let Rule::Pattern(pattern) = matcher {
+    let matches = matches.map(|m| MatchDisplay::generate(m, pattern));
+    processor.print_pattern_matches(matches.collect(), path)?
   } else {
     processor.print_matches(matches.collect(), path)?
   };

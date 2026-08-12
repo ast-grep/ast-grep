@@ -1,4 +1,4 @@
-use super::{Diff, NodeMatch, PrintProcessor, Printer};
+use super::{Diff, MatchDisplay, NodeMatch, PrintProcessor, Printer};
 use crate::lang::SgLang;
 use crate::utils::DiffStyles;
 use anyhow::Result;
@@ -234,6 +234,10 @@ impl PrintProcessor<Buffer> for ColoredProcessor {
   }
 
   fn print_matches(&self, matches: Vec<NodeMatch>, path: &Path) -> Result<Buffer> {
+    self.print_pattern_matches(matches.into_iter().map(MatchDisplay::from).collect(), path)
+  }
+
+  fn print_pattern_matches(&self, matches: Vec<MatchDisplay>, path: &Path) -> Result<Buffer> {
     if self.heading.should_print() {
       print_matches_with_heading(matches, path, self)
     } else {
@@ -324,7 +328,7 @@ fn print_rule_title<W: WriteColor>(
 }
 
 fn print_matches_with_heading(
-  matches: Vec<NodeMatch>,
+  matches: Vec<MatchDisplay>,
   path: &Path,
   printer: &ColoredProcessor,
 ) -> Result<Buffer> {
@@ -337,7 +341,7 @@ fn print_matches_with_heading(
   let Some(first_match) = matches.next() else {
     return Ok(buffer);
   };
-  let source = first_match.root().get_text();
+  let source = first_match.node_match.root().get_text();
 
   let mut merger = MatchMerger::new(&first_match, printer.context);
 
@@ -352,7 +356,7 @@ fn print_matches_with_heading(
     let display = merger.display(&nm);
     // merge adjacent matches
     if let Some(last_end_offset) = merger.merge_adjacent(&nm) {
-      ret.push_str(&source[last_end_offset..nm.range().start]);
+      ret.push_str(&source[last_end_offset..nm.display_range.start]);
       styles.push_matched_to_ret(&mut ret, &display.matched)?;
       continue;
     }
@@ -374,7 +378,7 @@ fn print_matches_with_heading(
 }
 
 fn print_matches_with_prefix(
-  matches: Vec<NodeMatch>,
+  matches: Vec<MatchDisplay>,
   path: &Path,
   printer: &ColoredProcessor,
 ) -> Result<Buffer> {
@@ -387,7 +391,7 @@ fn print_matches_with_prefix(
   let Some(first_match) = matches.next() else {
     return Ok(buffer);
   };
-  let source = first_match.root().get_text();
+  let source = first_match.node_match.root().get_text();
 
   let mut merger = MatchMerger::new(&first_match, printer.context);
   let display = merger.display(&first_match);
@@ -400,7 +404,7 @@ fn print_matches_with_prefix(
     let display = merger.display(&nm);
     // merge adjacent matches
     if let Some(last_end_offset) = merger.merge_adjacent(&nm) {
-      ret.push_str(&source[last_end_offset..nm.range().start]);
+      ret.push_str(&source[last_end_offset..nm.display_range.start]);
       styles.push_matched_to_ret(&mut ret, &display.matched)?;
       continue;
     }

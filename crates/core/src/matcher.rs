@@ -41,7 +41,7 @@ pub trait Matcher {
   }
 
   /// get_match_len will skip trailing anonymous child node to exclude punctuation.
-  // This is not included in NodeMatch since it is only used in replace
+  // This is computed by the matcher because NodeMatch only stores the matched AST node.
   fn get_match_len<D: Doc>(&self, _node: Node<'_, D>) -> Option<usize> {
     None
   }

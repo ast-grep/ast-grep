@@ -1,4 +1,4 @@
-use super::{ColoredPrinter, Diff, NodeMatch, PrintProcessor, Printer};
+use super::{ColoredPrinter, Diff, MatchDisplay, NodeMatch, PrintProcessor, Printer};
 use crate::lang::SgLang;
 use crate::utils::ErrorContext as EC;
 use crate::utils::{self, clear};
@@ -223,6 +223,20 @@ where
     Ok(InteractivePayload::Highlights(highlights))
   }
 
+  fn print_pattern_matches(&self, matches: Vec<MatchDisplay>, path: &Path) -> Result<Payload<P>> {
+    let Some(first_match) = matches.first() else {
+      return Ok(InteractivePayload::Nothing);
+    };
+    let first_line = first_match.node_match.start_pos().line();
+    let inner = self.inner.print_pattern_matches(matches, path)?;
+    let highlights = Highlights {
+      inner,
+      first_line,
+      path: path.to_path_buf(),
+    };
+    Ok(InteractivePayload::Highlights(highlights))
+  }
+
   fn print_diffs(&self, diffs: Vec<Diff>, path: &Path) -> Result<Payload<P>> {
     let old_source = get_old_source(diffs.first());
     let mut contents = Vec::with_capacity(diffs.len());
@@ -406,9 +420,10 @@ fn open_in_editor(path: &Path, start_line: usize) -> Result<()> {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::print::{ColorArg, Heading};
   use ast_grep_config::{Fixer, GlobalRules, from_yaml_string};
   use ast_grep_core::tree_sitter::{StrDoc, Visitor};
-  use ast_grep_core::{AstGrep, Matcher};
+  use ast_grep_core::{AstGrep, Matcher, Pattern};
   use ast_grep_language::SupportLang;
 
   fn make_rule(rule: &str) -> RuleConfig<SgLang> {
@@ -451,6 +466,35 @@ language: TypeScript
       path: PathBuf::new(),
       contents,
     }
+  }
+
+  #[test]
+  fn test_pattern_match_display() {
+    let lang = SgLang::from(SupportLang::JavaScript);
+    let grep = AstGrep::new("let a = 1 /* comment */;", lang);
+    let pattern = Pattern::new("let a = 1", lang);
+    let matches = grep
+      .root()
+      .find_all(&pattern)
+      .map(|matched| MatchDisplay::generate(matched, &pattern))
+      .collect();
+    let printer = ColoredPrinter::stdout(ColorArg::Ansi).heading(Heading::Never);
+    let processor = InteractiveProcessor::<InnerPrinter> {
+      inner: printer.get_processor(),
+    };
+
+    let InteractivePayload::Highlights(highlights) = processor
+      .print_pattern_matches(matches, Path::new("test.js"))
+      .expect("pattern matches should print")
+    else {
+      panic!("pattern matches should produce highlights");
+    };
+    assert_eq!(highlights.path, Path::new("test.js"));
+    assert_eq!(highlights.first_line, 0);
+    assert_eq!(
+      highlights.inner.as_slice(),
+      b"test.js:1:\x1b[1;31mlet a = 1\x1b[0m /* comment */;\n"
+    );
   }
 
   #[test]

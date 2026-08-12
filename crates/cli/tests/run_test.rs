@@ -33,6 +33,99 @@ fn test_simple_specific_lang() -> Result<()> {
 }
 
 #[test]
+fn test_pattern_output_highlights_only_consumed_range() -> Result<()> {
+  let source = "let a = 123 /* comment */;";
+  let highlighted = "\x1b[1;31mlet a = 123\x1b[0m /* comment */;";
+  for heading in ["always", "never"] {
+    Command::new(cargo_bin!())
+      .args([
+        "run",
+        "--stdin",
+        "-p",
+        "let a = 123",
+        "-l",
+        "js",
+        "--heading",
+        heading,
+        "--color",
+        "ansi",
+      ])
+      .write_stdin(source)
+      .assert()
+      .success()
+      .stdout(contains(highlighted));
+  }
+  Ok(())
+}
+
+#[test]
+fn test_pattern_output_uses_consumed_range_for_context() -> Result<()> {
+  Command::new(cargo_bin!())
+    .args([
+      "run",
+      "--stdin",
+      "-p",
+      "struct $A: $B",
+      "-l",
+      "cpp",
+      "--heading",
+      "never",
+      "--color",
+      "ansi",
+    ])
+    .write_stdin("struct A: B {\n  int value;\n};")
+    .assert()
+    .success()
+    .stdout(contains("\x1b[1;31mstruct A: B\x1b[0m {"))
+    .stdout(contains("int value").not());
+  Ok(())
+}
+
+#[test]
+fn test_pattern_output_merges_consumed_ranges() -> Result<()> {
+  Command::new(cargo_bin!())
+    .args([
+      "run",
+      "--stdin",
+      "-p",
+      "let $A = $B",
+      "-l",
+      "js",
+      "--heading",
+      "never",
+      "--color",
+      "ansi",
+    ])
+    .write_stdin("let a = 1 /* first */; let b = 2 /* second */;")
+    .assert()
+    .success()
+    .stdout(
+      "STDIN:1:\x1b[1;31mlet a = 1\x1b[0m /* first */; \x1b[1;31mlet b = 2\x1b[0m /* second */;\n",
+    );
+  Ok(())
+}
+
+#[test]
+fn test_pattern_json_keeps_full_node_range() -> Result<()> {
+  Command::new(cargo_bin!())
+    .args([
+      "run",
+      "--stdin",
+      "-p",
+      "let a = 123",
+      "-l",
+      "js",
+      "--json=compact",
+    ])
+    .write_stdin("let a = 123 /* comment */;")
+    .assert()
+    .success()
+    .stdout(contains(r#""text":"let a = 123 /* comment */;""#))
+    .stdout(contains(r#""end":26"#));
+  Ok(())
+}
+
+#[test]
 fn test_kind_selector() -> Result<()> {
   let dir = create_test_files([("a.js", "test(123)\nconst test = 456")])?;
   Command::new(cargo_bin!())

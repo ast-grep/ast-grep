@@ -6,7 +6,10 @@ mod json_print;
 
 use crate::lang::SgLang;
 use ast_grep_config::{Fixer, RuleConfig};
-use ast_grep_core::{Matcher, NodeMatch as SgNodeMatch, tree_sitter::StrDoc};
+use ast_grep_core::{
+  Matcher, NodeMatch as SgNodeMatch, Pattern,
+  tree_sitter::{DisplayContext, StrDoc},
+};
 
 use anyhow::Result;
 use clap::ValueEnum;
@@ -25,6 +28,70 @@ pub use json_print::{JSONPrinter, JsonStyle};
 
 type NodeMatch<'a> = SgNodeMatch<'a, StrDoc<SgLang>>;
 
+/// A matched AST node and the source range consumed by its CLI pattern.
+#[derive(Clone)]
+pub struct MatchDisplay<'n> {
+  node_match: NodeMatch<'n>,
+  display_range: std::ops::Range<usize>,
+}
+
+impl<'n> MatchDisplay<'n> {
+  pub(crate) fn generate(node_match: NodeMatch<'n>, pattern: &Pattern) -> Self {
+    let node_range = node_match.range();
+    let end = pattern
+      .get_match_len(node_match.get_node().clone())
+      .map(|len| node_range.start.saturating_add(len).min(node_range.end))
+      .unwrap_or(node_range.end);
+    Self {
+      node_match,
+      display_range: node_range.start..end,
+    }
+  }
+
+  fn display_context(&self, before: usize, after: usize) -> DisplayContext<'n> {
+    let source = self.node_match.root().get_text();
+    let bytes = source.as_bytes();
+    let mut trailing = self.display_range.end;
+    let mut lines_after = after + 1;
+    while trailing < bytes.len() {
+      if bytes[trailing] == b'\n' {
+        lines_after -= 1;
+        if lines_after == 0 {
+          break;
+        }
+      }
+      trailing += 1;
+    }
+    let node_display = self.node_match.display_context(before, 0);
+    DisplayContext {
+      matched: Cow::Borrowed(&source[self.display_range.clone()]),
+      leading: node_display.leading,
+      trailing: &source[self.display_range.end..trailing],
+      start_line: node_display.start_line,
+    }
+  }
+
+  fn display_end_line(&self) -> usize {
+    let source = self.node_match.root().get_text();
+    self.node_match.start_pos().line()
+      + source[self.display_range.clone()]
+        .bytes()
+        .filter(|&byte| byte == b'\n')
+        .count()
+      + 1
+  }
+}
+
+impl<'n> From<NodeMatch<'n>> for MatchDisplay<'n> {
+  fn from(node_match: NodeMatch<'n>) -> Self {
+    let display_range = node_match.range();
+    Self {
+      node_match,
+      display_range,
+    }
+  }
+}
+
 /// A trait to process nodeMatches to diff/match output
 /// it must be Send + 'static to be shared in worker thread
 pub trait PrintProcessor<Output>: Send + Sync + 'static {
@@ -35,6 +102,13 @@ pub trait PrintProcessor<Output>: Send + Sync + 'static {
     rule: &RuleConfig<SgLang>,
   ) -> Result<Output>;
   fn print_matches(&self, matches: Vec<NodeMatch>, path: &Path) -> Result<Output>;
+  fn print_pattern_matches(&self, matches: Vec<MatchDisplay>, path: &Path) -> Result<Output> {
+    let matches = matches
+      .into_iter()
+      .map(|matched| matched.node_match)
+      .collect();
+    self.print_matches(matches, path)
+  }
   fn print_diffs(&self, diffs: Vec<Diff>, path: &Path) -> Result<Output>;
   fn print_rule_diffs(
     &self,
