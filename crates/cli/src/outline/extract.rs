@@ -86,18 +86,18 @@ impl OutlineExtractors {
   }
 
   fn extract(&self, lang: SgLang, grep: &AstGrep<StrDoc<SgLang>>) -> Vec<OutlineItem<'static>> {
-    let mut items: Vec<OutlineItem<'static>> = self
-      .by_lang
-      .get(&lang)
-      .map(|extractors| extractors.extract(grep.root()).map(own_item).collect())
-      .unwrap_or_default();
-
-    for injected in grep.get_injections(|language| {
+    let mut items = if let Some(extractors) = self.by_lang.get(&lang) {
+      extractors.extract(grep.root()).map(own_item).collect()
+    } else {
+      vec![]
+    };
+    let injections = grep.get_injections(|language| {
       let lang = language.parse().ok()?;
       self.by_lang.contains_key(&lang).then_some(lang)
-    }) {
-      let injected_lang = *injected.lang();
-      if let Some(extractors) = self.by_lang.get(&injected_lang) {
+    });
+    for injected in injections {
+      let injected_lang = injected.lang();
+      if let Some(extractors) = self.by_lang.get(injected_lang) {
         items.extend(extractors.extract(injected.root()).map(own_item));
       }
     }
