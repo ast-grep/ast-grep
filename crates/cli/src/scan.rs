@@ -26,6 +26,41 @@ use crate::utils::{Items, PathWorker, StdInWorker, Worker};
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+/// Minimum severity level accepted by the `--severity` reporting threshold.
+///
+/// Variants are ordered from least to most severe so that the derived `Ord`
+/// yields `Hint < Info < Warning < Error`.
+#[derive(clap::ValueEnum, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+enum SeverityFilter {
+  Hint,
+  Info,
+  Warning,
+  Error,
+}
+
+/// Map a rule's `Severity` to its reporting rank.
+///
+/// `Severity::Off` has no rank because disabled rules never produce findings.
+fn severity_rank(severity: &Severity) -> Option<SeverityFilter> {
+  match severity {
+    Severity::Hint => Some(SeverityFilter::Hint),
+    Severity::Info => Some(SeverityFilter::Info),
+    Severity::Warning => Some(SeverityFilter::Warning),
+    Severity::Error => Some(SeverityFilter::Error),
+    Severity::Off => None,
+  }
+}
+
+/// Whether a rule's findings should be reported under an optional minimum-severity threshold.
+///
+/// With no threshold every finding is reported, preserving the default behavior.
+fn passes_severity_filter(severity: &Severity, threshold: Option<SeverityFilter>) -> bool {
+  match threshold {
+    None => true,
+    Some(min) => matches!(severity_rank(severity), Some(rank) if rank >= min),
+  }
+}
+
 #[derive(Args)]
 pub struct ScanArg {
   /// Scan the codebase with the single rule located at the path RULE_FILE.
@@ -76,6 +111,16 @@ pub struct ScanArg {
   /// Useful for big codebase to fail scan/search fast.
   #[clap(long, conflicts_with = "interactive", value_name = "NUM")]
   max_results: Option<u16>,
+
+  /// Only report findings from rules at or above this severity LEVEL.
+  ///
+  /// LEVEL is one of hint, info, warning or error, in increasing severity.
+  /// Findings from rules whose severity is below the threshold are not printed
+  /// and do not contribute to the final tally or the exit code. This is a
+  /// minimum-severity threshold, mirroring ShellCheck's `--severity` and
+  /// Biome's `--diagnostic-level`. By default every finding is reported.
+  #[clap(long, value_name = "LEVEL")]
+  severity: Option<SeverityFilter>,
 }
 
 impl ScanArg {
@@ -267,6 +312,9 @@ impl PathWorker for ScanWithConfig {
         ret.push(processed);
       }
       for (rule, matches) in scanned.matches {
+        if !passes_severity_filter(&rule.severity, self.arg.severity) {
+          continue;
+        }
         // Atomically reserve slots for matches, truncating if needed
         let matches: Vec<_> = if let Some(counter) = &self.max_item_counter {
           let wanted = matches.len();
@@ -307,6 +355,7 @@ struct ScanStdin {
   // TODO: remove this
   error_count: AtomicUsize,
   max_diagnostics_shown: Option<usize>,
+  severity: Option<SeverityFilter>,
 }
 impl ScanStdin {
   fn try_new(arg: ScanArg) -> Result<Self> {
@@ -325,6 +374,7 @@ impl ScanStdin {
       rules,
       error_count: AtomicUsize::new(0),
       max_diagnostics_shown: arg.max_results.map(usize::from),
+      severity: arg.severity,
     })
   }
 }
@@ -367,6 +417,9 @@ impl StdInWorker for ScanStdin {
     let mut diagnostic_count = 0usize;
     let mut ret = vec![];
     for (rule, matches) in scanned.matches {
+      if !passes_severity_filter(&rule.severity, self.severity) {
+        continue;
+      }
       // Truncate matches if max_diagnostics_shown is set
       let matches: Vec<_> = if let Some(max) = self.max_diagnostics_shown {
         let remaining = max.saturating_sub(diagnostic_count);
@@ -497,6 +550,7 @@ rule:
       },
       format: None,
       max_results: None,
+      severity: None,
     }
   }
 
@@ -514,6 +568,42 @@ rule:
     let project_config = ProjectConfig::setup(Some(dir.path().join("sgconfig.yml"))).unwrap();
     let arg = default_scan_arg();
     assert!(run_with_config(arg, project_config).is_ok());
+  }
+
+  #[test]
+  fn test_passes_severity_filter() {
+    use Severity::*;
+    // No threshold reports everything, including Off (which is filtered elsewhere).
+    for sev in [Hint, Info, Warning, Error, Off] {
+      assert!(passes_severity_filter(&sev, None));
+    }
+    // A threshold keeps its level and everything more severe.
+    assert!(passes_severity_filter(
+      &Error,
+      Some(SeverityFilter::Warning)
+    ));
+    assert!(passes_severity_filter(
+      &Warning,
+      Some(SeverityFilter::Warning)
+    ));
+    assert!(!passes_severity_filter(
+      &Info,
+      Some(SeverityFilter::Warning)
+    ));
+    assert!(!passes_severity_filter(
+      &Hint,
+      Some(SeverityFilter::Warning)
+    ));
+    // The lowest threshold keeps every real severity but never Off.
+    assert!(passes_severity_filter(&Hint, Some(SeverityFilter::Hint)));
+    assert!(passes_severity_filter(&Error, Some(SeverityFilter::Hint)));
+    assert!(!passes_severity_filter(&Off, Some(SeverityFilter::Hint)));
+    // The highest threshold keeps only errors.
+    assert!(passes_severity_filter(&Error, Some(SeverityFilter::Error)));
+    assert!(!passes_severity_filter(
+      &Warning,
+      Some(SeverityFilter::Error)
+    ));
   }
 
   #[test]

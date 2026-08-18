@@ -163,6 +163,51 @@ fn test_sg_scan_multiple_rules_in_one_file() -> Result<()> {
   Ok(())
 }
 
+const SEVERITY_RULES: &str = "
+id: warn-rule
+severity: warning
+language: TypeScript
+rule: { pattern: Some($A) }
+---
+id: hint-rule
+severity: hint
+language: TypeScript
+rule: { pattern: None }
+";
+
+#[test]
+fn test_sg_scan_severity_threshold() -> Result<()> {
+  let dir = create_test_files([
+    ("rule.yml", SEVERITY_RULES),
+    ("test.ts", "Some(123) + None"),
+  ])?;
+  // Without the flag both rules are reported.
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "-r", "rule.yml", "--color", "never"])
+    .assert()
+    .success()
+    .stdout(contains("warn-rule"))
+    .stdout(contains("hint-rule"));
+  // `--severity warning` keeps warnings but suppresses the lower-severity hint.
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "scan",
+      "-r",
+      "rule.yml",
+      "--color",
+      "never",
+      "--severity",
+      "warning",
+    ])
+    .assert()
+    .success()
+    .stdout(contains("warn-rule"))
+    .stdout(contains("hint-rule").not());
+  Ok(())
+}
+
 // see #517, #668
 #[test]
 fn test_sg_scan_py_empty_text() -> Result<()> {
