@@ -387,7 +387,7 @@ fn get_matcher_from_rule(lang: &PyLang, dict: Option<Bound<PyDict>>) -> PyResult
   Ok(matcher)
 }
 
-#[pyclass(get_all, set_all)]
+#[pyclass(from_py_object, get_all, set_all)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Edit {
   /// The start position of the edit in character

@@ -5,7 +5,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 
-#[pyclass(frozen, get_all)]
+#[pyclass(skip_from_py_object, frozen, get_all)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Pos {
   /// line number starting from 0
@@ -58,7 +58,7 @@ fn to_pos<D: Doc>(node: &Node<D>, pos: Position, offset: usize) -> Pos {
   }
 }
 
-#[pyclass(frozen, get_all)]
+#[pyclass(skip_from_py_object, frozen, get_all)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Range {
   /// starting position of the range
