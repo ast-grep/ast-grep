@@ -84,6 +84,14 @@ def test_children():
     assert children[2].text() == "123"
     assert not children[0].children()
 
+def test_named_children():
+    node = root.find(kind="variable_declarator")
+    assert node
+    named = node.named_children()
+    assert len(named) == 2
+    assert named[0].text() == "a"
+    assert named[1].text() == "123"
+
 def test_ancestors():
     node = root.find(kind="variable_declarator")
     assert node
