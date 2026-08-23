@@ -28,6 +28,12 @@ pub struct Edit<S: Content> {
 pub trait SgNode<'r>: Clone {
   fn parent(&self) -> Option<Self>;
   fn children(&self) -> impl ExactSizeIterator<Item = Self>;
+  // named_children is a subset of children, we only supply default impl here
+  // since underlying tree-sitter is using the same is_named check
+  // the only optimization we missed here is the iteractor size via named_child_count
+  fn named_children(&self) -> impl Iterator<Item = Self> {
+    self.children().filter(|n| n.is_named())
+  }
   fn kind(&self) -> Cow<'_, str>;
   fn kind_id(&self) -> KindId;
   fn node_id(&self) -> usize;
