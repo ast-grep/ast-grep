@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "@ast-grep/napi": "0.45.1",
-    "@napi-rs/cli": "3.8.2",
+    "@napi-rs/cli": "3.8.6",
     "@types/node": "^24.0.0",
     "oxlint": "1.79.0",
     "ava": "7.0.0",
