@@ -255,7 +255,7 @@ impl SgNode {
 /// Tree traversal methods
 #[wasm_bindgen]
 impl SgNode {
-  pub fn children_nodes(&self) -> Vec<SgNode> {
+  pub fn children(&self) -> Vec<SgNode> {
     self
       .inner
       .children()
@@ -266,10 +266,32 @@ impl SgNode {
       .collect()
   }
 
-  pub fn parent_node(&self) -> Option<SgNode> {
+  /// @deprecated Use `children` instead.
+  pub fn children_nodes(&self) -> Vec<SgNode> {
+    self.children()
+  }
+
+  #[wasm_bindgen(js_name = namedChildren)]
+  pub fn named_children(&self) -> Vec<SgNode> {
+    self
+      .inner
+      .named_children()
+      .map(|n| {
+        let nm = NodeMatch::from(n);
+        self.make_node(unsafe { Self::cast_match(nm) })
+      })
+      .collect()
+  }
+
+  pub fn parent(&self) -> Option<SgNode> {
     let node = self.inner.parent()?;
     let nm = NodeMatch::from(node);
     Some(self.make_node(unsafe { Self::cast_match(nm) }))
+  }
+
+  /// @deprecated Use `parent` instead.
+  pub fn parent_node(&self) -> Option<SgNode> {
+    self.parent()
   }
 
   #[wasm_bindgen(js_name = child)]

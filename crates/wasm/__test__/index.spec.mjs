@@ -217,12 +217,22 @@ test('node properties', t => {
 test('tree traversal', t => {
   const sg = parse('javascript', 'a; b; c;')
   const root = sg.root()
-  const children = root.children_nodes()
+  const children = root.children()
   const named = children.filter(c => c.isNamed())
   t.true(named.length >= 3)
-  const parent = named[0].parent_node()
+  const parent = named[0].parent()
   t.truthy(parent)
   t.is(parent.kind(), 'program')
+})
+
+test('named children', t => {
+  const sg = parse('javascript', 'a;')
+  // a; statement
+  const node = sg.root().child(0)
+  // identifier, ;
+  t.deepEqual(node.children().length, 2)
+  // identifier
+  t.deepEqual(node.namedChildren().length, 1)
 })
 
 test('next and prev', t => {
