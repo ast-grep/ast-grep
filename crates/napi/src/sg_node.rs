@@ -220,6 +220,11 @@ impl SgNode {
     let children = self.node.children().map(NodeMatch::from);
     Self::from_iter_to_vec(&self.root_ref, env, children)
   }
+  #[napi]
+  pub fn named_children(&self, env: Env) -> Result<Vec<SgNode>> {
+    let children = self.node.named_children().map(NodeMatch::from);
+    Self::from_iter_to_vec(&self.root_ref, env, children)
+  }
 
   /// Returns the node's id
   #[napi]

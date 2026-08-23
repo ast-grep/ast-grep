@@ -65,6 +65,7 @@ export declare class SgNode<
   /** Returns the node's SgRoot */
   getRoot(): SgRoot<M>
   children(): Array<SgNode<M>>
+  namedChildren(): Array<SgNode<M>>
   find: NodeMethod<M, [matcher: string | number | NapiConfig<M>]>
   findAll<K extends Kinds<M>>(
     matcher: string | number | NapiConfig<M>,

@@ -478,3 +478,14 @@ test('no stack overflow when GC collects many nodes', t => {
   t.assert(nodes.length > 50000, `expected >50k nodes, got ${nodes.length}`)
   t.pass()
 })
+
+test('named children should skip unnamed nodes in CST', t => {
+  const sg = parse('const x = 1;')
+  const node = sg.root().find('const $A = $B;')!
+  const namedChildren = node.namedChildren()
+  // const, variable_declarator, ;
+  t.assert(node.children().length === 3)
+  // variable_declarator
+  t.assert(namedChildren.length === 1)
+  t.assert(namedChildren[0].kind() === 'variable_declarator')
+})

@@ -233,6 +233,13 @@ impl<'r, D: Doc> Node<'r, D> {
     })
   }
 
+  pub fn named_children(&self) -> impl Iterator<Item = Node<'r, D>> + '_ {
+    self.inner.named_children().map(|inner| Node {
+      inner,
+      root: self.root,
+    })
+  }
+
   #[must_use]
   pub fn child(&self, nth: usize) -> Option<Self> {
     let inner = self.inner.child(nth)?;
