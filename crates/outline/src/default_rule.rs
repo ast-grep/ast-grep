@@ -30,6 +30,8 @@ pub const DEFAULT_OUTLINE_RULES: &str = concat!(
   include_str!("default_rules/ruby.yml"),
   "\n---\n",
   include_str!("default_rules/php.yml"),
+  "\n---\n",
+  include_str!("default_rules/markdown.yml"),
 );
 
 #[cfg(test)]

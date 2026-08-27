@@ -138,6 +138,40 @@ export function greet(name: string) {
 }
 
 #[test]
+fn test_outline_markdown_headings() -> Result<()> {
+  let dir = create_test_files([(
+    "guide.md",
+    r#"# Introduction
+
+Usage
+=====
+
+###### Details
+
+References
+----------
+
+```markdown
+# Not a heading
+```
+"#,
+  )])?;
+
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["outline", "guide.md", "--json=compact"])
+    .assert()
+    .success()
+    .stdout(contains(r#""language":"Markdown""#))
+    .stdout(contains(r#""name":"Introduction""#))
+    .stdout(contains(r#""name":"Usage""#))
+    .stdout(contains(r#""name":"Details""#))
+    .stdout(contains(r#""name":"References""#))
+    .stdout(contains(r#""name":"Not a heading""#).not());
+  Ok(())
+}
+
+#[test]
 fn test_rewrite_js_in_html() -> Result<()> {
   let dir = create_test_files([("a.html", "<script>alert(1)</script>")])?;
   Command::new(cargo_bin!())
