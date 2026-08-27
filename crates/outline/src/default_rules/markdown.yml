@@ -1,0 +1,31 @@
+id: markdown-atx-heading
+language: Markdown
+role: item
+symbolType: module
+rule:
+  kind: atx_heading
+  has:
+    field: heading_content
+    pattern:
+      context: '# $NAME'
+      selector: inline
+name: '$NAME'
+---
+id: markdown-setext-heading
+language: Markdown
+role: item
+symbolType: module
+rule:
+  kind: setext_heading
+  has:
+    field: heading_content
+    pattern:
+      context: '$NAME'
+      selector: paragraph
+transform:
+  TITLE:
+    replace:
+      source: $NAME
+      replace: '\r?\n$'
+      by: ''
+name: '$TITLE'

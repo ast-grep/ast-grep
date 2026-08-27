@@ -20,6 +20,7 @@ fn bundled_outline_rules_compile_for_every_language() {
     SupportLang::C,
     SupportLang::Ruby,
     SupportLang::Php,
+    SupportLang::Markdown,
   ];
 
   for language in OUTLINE_LANGUAGES {
