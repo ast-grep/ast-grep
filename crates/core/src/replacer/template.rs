@@ -2,7 +2,7 @@ use super::indent::{DeindentedExtract, extract_with_deindent, get_indent_at_offs
 use super::{MetaVarExtract, Replacer, split_first_meta_var};
 use crate::NodeMatch;
 use crate::language::Language;
-use crate::meta_var::{MetaVarEnv, Underlying};
+use crate::meta_var::{MetaVarEnv, MetaVariable, Underlying};
 use crate::source::{Content, Doc};
 
 use thiserror::Error;
@@ -36,8 +36,8 @@ impl TemplateFix {
     template.vars.iter().map(|v| v.0.used_var()).collect()
   }
 
-  /// Returns the source-backed metavariable when it is the entire template.
-  pub fn exact_var(&self) -> Option<&str> {
+  /// Returns the node-backed metavariable when it is the entire template.
+  pub fn exact_node_var(&self) -> Option<&MetaVariable> {
     let TemplateFix::WithMetaVar(template) = self else {
       return None;
     };
@@ -50,7 +50,7 @@ impl TemplateFix {
       return None;
     }
     match &template.vars[0].0 {
-      MetaVarExtract::Single(name) | MetaVarExtract::Multiple(name) => Some(name),
+      MetaVarExtract::Node(var) => Some(var),
       MetaVarExtract::Transformed(_) => None,
     }
   }
@@ -141,13 +141,13 @@ where
       let bytes = indent_lines::<D::Source>(*indent, de_intended);
       return Some(bytes);
     }
-    MetaVarExtract::Single(name) => {
+    MetaVarExtract::Node(MetaVariable::Capture(name, _)) => {
       let replaced = env.get_match(name)?;
       let source = replaced.get_doc().get_source();
       let range = replaced.range();
       (source, range)
     }
-    MetaVarExtract::Multiple(name) => {
+    MetaVarExtract::Node(MetaVariable::MultiCapture(name)) => {
       let nodes = env.get_multiple_matches(name);
       if nodes.is_empty() {
         return None;
@@ -159,6 +159,9 @@ where
       let end = nodes[nodes.len() - 1].range().end;
       let source = nodes[0].get_doc().get_source();
       (source, start..end)
+    }
+    MetaVarExtract::Node(MetaVariable::Dropped(_) | MetaVariable::Multiple) => {
+      unreachable!("template variables must be captured")
     }
   };
   let extracted = extract_with_deindent(source, range);
@@ -346,18 +349,29 @@ if (true) {
   }
 
   #[test]
-  fn test_exact_var() {
+  fn test_exact_node_var() {
     let exact = TemplateFix::try_new("$A", &Tsx).expect("ok");
-    assert_eq!(exact.exact_var(), Some("A"));
+    assert!(matches!(
+      exact.exact_node_var(),
+      Some(MetaVariable::Capture(name, true)) if name == "A"
+    ));
+    let exact_unnamed = TemplateFix::try_new("$$A", &Tsx).expect("ok");
+    assert!(matches!(
+      exact_unnamed.exact_node_var(),
+      Some(MetaVariable::Capture(name, false)) if name == "A"
+    ));
     let exact_multi = TemplateFix::try_new("$$$A", &Tsx).expect("ok");
-    assert_eq!(exact_multi.exact_var(), Some("A"));
+    assert!(matches!(
+      exact_multi.exact_node_var(),
+      Some(MetaVariable::MultiCapture(name)) if name == "A"
+    ));
 
     let surrounded = TemplateFix::try_new("prefix $A", &Tsx).expect("ok");
-    assert_eq!(surrounded.exact_var(), None);
+    assert_eq!(surrounded.exact_node_var(), None);
     let multiple = TemplateFix::try_new("$A$B", &Tsx).expect("ok");
-    assert_eq!(multiple.exact_var(), None);
+    assert_eq!(multiple.exact_node_var(), None);
     let transformed = TemplateFix::with_transform("$A", &Tsx, &["A".to_string()]);
-    assert_eq!(transformed.exact_var(), None);
+    assert_eq!(transformed.exact_node_var(), None);
   }
 
   // GH #641
