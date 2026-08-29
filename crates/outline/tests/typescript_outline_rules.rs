@@ -189,6 +189,25 @@ export interface Parser {
 }
 
 #[test]
+fn extracts_decorated_typescript_signatures_from_declaration_lines() {
+  common::assert_outline_signature_snapshot(
+    SupportLang::TypeScript,
+    TYPESCRIPT_RULES,
+    r#"
+@Injectable()
+export class Foo implements Bar {
+  @ApiProperty()
+  email: string;
+}
+"#,
+    r#"
+- Class item exported Foo | export class Foo implements Bar {
+  - Field public email | email: string
+"#,
+  );
+}
+
+#[test]
 fn extracts_typescript_namespaces_as_standalone_items() {
   common::assert_outline_snapshot(
     SupportLang::TypeScript,

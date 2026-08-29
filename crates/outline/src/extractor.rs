@@ -139,6 +139,8 @@ pub struct ExtractorCommon<L: Language> {
   pub name: TemplateFix,
   /// Optional source-like signature template.
   pub signature: Option<TemplateFix>,
+  /// Source-backed metavariable used to locate the default signature line.
+  name_anchor: Option<String>,
   /// Requested text detail for this entry.
   detail: OutlineEntryDetail,
 }
@@ -167,6 +169,11 @@ impl<L: Language> ExtractorCommon<L> {
     let symbol_type = common.symbol_type;
     let transform_vars = transform_vars(&common.matcher);
     let compile = |tmpl| compile_template(tmpl, &common.language, &transform_vars);
+    let name_anchor = name_anchor(
+      &common.name,
+      common.language.meta_var_char(),
+      &transform_vars,
+    );
     let name = compile(&common.name)?;
     let signature = match detail {
       OutlineEntryDetail::Name => None,
@@ -178,6 +185,7 @@ impl<L: Language> ExtractorCommon<L> {
       symbol_type,
       name,
       signature,
+      name_anchor,
       detail,
     })
   }
@@ -352,7 +360,7 @@ impl<L: Language> ExtractorCommon<L> {
         .signature
         .as_ref()
         .map(|template| render_template(template, node_match))
-        .unwrap_or_else(|| default_signature(node_match.get_node())),
+        .unwrap_or_else(|| default_signature(node_match, self.name_anchor.as_deref())),
     }
   }
 }
@@ -362,15 +370,72 @@ fn render_template<D: Doc>(template: &TemplateFix, node_match: &NodeMatch<D>) ->
   <D::Source as Content>::encode_bytes(&bytes).to_string()
 }
 
-fn default_signature<D: Doc>(node: &Node<D>) -> String {
-  node
-    .text()
+fn default_signature<D: Doc>(node_match: &NodeMatch<D>, name_anchor: Option<&str>) -> String {
+  let node = node_match.get_node();
+  if let Some(line) = signature_anchor_line(node_match, name_anchor)
+    && let Some(signature) = node_line(node, line)
+  {
+    return signature;
+  }
+  first_non_empty_line(node.text().as_ref())
+}
+
+fn signature_anchor_line<D: Doc>(
+  node_match: &NodeMatch<D>,
+  name_anchor: Option<&str>,
+) -> Option<usize> {
+  let env = node_match.get_env();
+  let source_line = |name| {
+    env
+      .get_match(name)
+      .map(|node| node.start_pos().line())
+      .or_else(|| {
+        env
+          .get_multiple_matches(name)
+          .first()
+          .map(|node| node.start_pos().line())
+      })
+  };
+  source_line("NAME").or_else(|| source_line(name_anchor?))
+}
+
+fn node_line<D: Doc>(node: &Node<D>, line: usize) -> Option<String> {
+  let relative_line = line.checked_sub(node.start_pos().line())?;
+  let text = node.text();
+  let trimmed = text.lines().nth(relative_line)?.trim();
+  (!trimmed.is_empty()).then(|| trimmed.to_string())
+}
+
+fn first_non_empty_line(text: &str) -> String {
+  text
     .lines()
     .find_map(|line| {
       let trimmed = line.trim();
       (!trimmed.is_empty()).then(|| trimmed.to_string())
     })
     .unwrap_or_default()
+}
+
+fn name_anchor(
+  name: &str,
+  meta_var_char: char,
+  transform_vars: &Option<Vec<String>>,
+) -> Option<String> {
+  let marker_count = name.chars().take_while(|&c| c == meta_var_char).count();
+  if !(1..=3).contains(&marker_count) {
+    return None;
+  }
+  let variable = &name[marker_count * meta_var_char.len_utf8()..];
+  let mut chars = variable.chars();
+  if !chars.next().is_some_and(|c| c.is_ascii_uppercase())
+    || !chars.all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+    || transform_vars
+      .as_ref()
+      .is_some_and(|vars| vars.iter().any(|var| var == variable))
+  {
+    return None;
+  }
+  Some(variable.to_string())
 }
 
 fn source_range<D: Doc>(node: &Node<D>) -> SourceRange {
@@ -601,6 +666,101 @@ signature: function $NAME()
         .as_ref()
         .is_some_and(|signature| signature.used_vars().contains("NAME"))
     );
+  }
+
+  #[test]
+  fn finds_source_backed_name_anchors() {
+    let no_transforms = None;
+    assert_eq!(
+      name_anchor("$SYMBOL", '$', &no_transforms),
+      Some("SYMBOL".into())
+    );
+    assert_eq!(
+      name_anchor("$$$SYMBOLS", '$', &no_transforms),
+      Some("SYMBOLS".into())
+    );
+    assert_eq!(name_anchor("prefix-$SYMBOL", '$', &no_transforms), None);
+    assert_eq!(
+      name_anchor("$SYMBOL", '$', &Some(vec!["SYMBOL".into()])),
+      None
+    );
+  }
+
+  #[test]
+  fn explicit_signature_wins_over_name_anchor() {
+    let rule = parse_rule(
+      r#"
+id: ts-export-class
+language: TypeScript
+role: item
+symbolType: class
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: class_declaration
+    has:
+      field: name
+      pattern: $CLASS
+name: $CLASS
+signature: class $CLASS
+"#,
+    );
+    let SerializableOutlineRule::Item(item) = rule else {
+      panic!("expected item rule");
+    };
+    let item = ItemExtractor::try_from(item, &Default::default(), OutlineEntryDetail::Signature)
+      .expect("item rule should parse");
+    let root = SupportLang::TypeScript.ast_grep("@Injectable()\nexport class Foo {}");
+    let export = root
+      .root()
+      .children()
+      .find(|node| node.kind() == "export_statement")
+      .expect("export should exist");
+    let node_match = item
+      .match_node(&export)
+      .expect("export should match item rule");
+    let outline = item.extract(&node_match, vec![]);
+
+    assert_eq!(outline.entry.signature, "class Foo");
+  }
+
+  #[test]
+  fn exact_name_metavariable_anchors_default_signature() {
+    let rule = parse_rule(
+      r#"
+id: ts-export-class
+language: TypeScript
+role: item
+symbolType: class
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: class_declaration
+    has:
+      field: name
+      pattern: $CLASS
+name: $CLASS
+"#,
+    );
+    let SerializableOutlineRule::Item(item) = rule else {
+      panic!("expected item rule");
+    };
+    let item = ItemExtractor::try_from(item, &Default::default(), OutlineEntryDetail::Signature)
+      .expect("item rule should parse");
+    let root = SupportLang::TypeScript.ast_grep("@Injectable()\nexport class Foo {}");
+    let export = root
+      .root()
+      .children()
+      .find(|node| node.kind() == "export_statement")
+      .expect("export should exist");
+    let node_match = item
+      .match_node(&export)
+      .expect("export should match item rule");
+    let outline = item.extract(&node_match, vec![]);
+
+    assert_eq!(outline.entry.signature, "export class Foo {}");
   }
 
   #[test]
