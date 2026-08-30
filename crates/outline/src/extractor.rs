@@ -352,7 +352,7 @@ impl<L: Language> ExtractorCommon<L> {
         .signature
         .as_ref()
         .map(|template| render_template(template, node_match))
-        .unwrap_or_else(|| default_signature(node_match.get_node())),
+        .unwrap_or_else(|| default_signature(node_match, self.name.exact_node_var())),
     }
   }
 }
@@ -362,9 +362,39 @@ fn render_template<D: Doc>(template: &TemplateFix, node_match: &NodeMatch<D>) ->
   <D::Source as Content>::encode_bytes(&bytes).to_string()
 }
 
-fn default_signature<D: Doc>(node: &Node<D>) -> String {
-  node
-    .text()
+fn default_signature<D: Doc>(node_match: &NodeMatch<D>, exact_name_var: Option<&str>) -> String {
+  let node = node_match.get_node();
+  signature_anchor_line(node_match, exact_name_var)
+    .unwrap_or_else(|| first_non_empty_line(node.text().as_ref()))
+}
+
+fn signature_anchor_line<D: Doc>(
+  node_match: &NodeMatch<D>,
+  exact_name_var: Option<&str>,
+) -> Option<String> {
+  let env = node_match.get_env();
+  let var_name = exact_name_var?;
+  let line_num = env
+    .get_match(var_name)
+    .map(|node| node.start_pos().line())
+    .or_else(|| {
+      env
+        .get_multiple_matches(var_name)
+        .first()
+        .map(|node| node.start_pos().line())
+    })?;
+  node_line(node_match, line_num)
+}
+
+fn node_line<D: Doc>(node: &Node<D>, line: usize) -> Option<String> {
+  let relative_line = line.checked_sub(node.start_pos().line())?;
+  let text = node.text();
+  let trimmed = text.lines().nth(relative_line)?.trim();
+  (!trimmed.is_empty()).then(|| trimmed.to_string())
+}
+
+fn first_non_empty_line(text: &str) -> String {
+  text
     .lines()
     .find_map(|line| {
       let trimmed = line.trim();
@@ -601,6 +631,83 @@ signature: function $NAME()
         .as_ref()
         .is_some_and(|signature| signature.used_vars().contains("NAME"))
     );
+  }
+
+  #[test]
+  fn explicit_signature_wins_over_name_metavariable() {
+    let rule = parse_rule(
+      r#"
+id: ts-export-class
+language: TypeScript
+role: item
+symbolType: class
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: class_declaration
+    has:
+      field: name
+      pattern: $CLASS
+name: $CLASS
+signature: class $CLASS
+"#,
+    );
+    let SerializableOutlineRule::Item(item) = rule else {
+      panic!("expected item rule");
+    };
+    let item = ItemExtractor::try_from(item, &Default::default(), OutlineEntryDetail::Signature)
+      .expect("item rule should parse");
+    let root = SupportLang::TypeScript.ast_grep("@Injectable()\nexport class Foo {}");
+    let export = root
+      .root()
+      .children()
+      .find(|node| node.kind() == "export_statement")
+      .expect("export should exist");
+    let node_match = item
+      .match_node(&export)
+      .expect("export should match item rule");
+    let outline = item.extract(&node_match, vec![]);
+
+    assert_eq!(outline.entry.signature, "class Foo");
+  }
+
+  #[test]
+  fn single_name_metavariable_anchors_default_signature() {
+    let rule = parse_rule(
+      r#"
+id: ts-export-class
+language: TypeScript
+role: item
+symbolType: class
+rule:
+  kind: export_statement
+  has:
+    field: declaration
+    kind: class_declaration
+    has:
+      field: name
+      pattern: $CLASS
+name: $CLASS
+"#,
+    );
+    let SerializableOutlineRule::Item(item) = rule else {
+      panic!("expected item rule");
+    };
+    let item = ItemExtractor::try_from(item, &Default::default(), OutlineEntryDetail::Signature)
+      .expect("item rule should parse");
+    let root = SupportLang::TypeScript.ast_grep("@Injectable()\nexport class Foo {}");
+    let export = root
+      .root()
+      .children()
+      .find(|node| node.kind() == "export_statement")
+      .expect("export should exist");
+    let node_match = item
+      .match_node(&export)
+      .expect("export should match item rule");
+    let outline = item.extract(&node_match, vec![]);
+
+    assert_eq!(outline.entry.signature, "export class Foo {}");
   }
 
   #[test]

@@ -35,6 +35,20 @@ impl TemplateFix {
     };
     template.vars.iter().map(|v| v.0.used_var()).collect()
   }
+
+  /// Returns the node-backed metavariable when it is the entire template.
+  pub fn exact_node_var(&self) -> Option<&str> {
+    let TemplateFix::WithMetaVar(template) = self else {
+      return None;
+    };
+    if template.vars.len() != 1 {
+      return None;
+    }
+    match &template.vars[0].0 {
+      MetaVarExtract::Single(name) | MetaVarExtract::Multiple(name) => Some(name),
+      MetaVarExtract::Transformed(_) => None,
+    }
+  }
 }
 
 impl<D: Doc> Replacer<D> for TemplateFix {
@@ -324,6 +338,21 @@ if (true) {
     assert_eq!(tf.used_vars(), ["B", "C"].into_iter().collect());
     let tf = TemplateFix::try_new("$a$B$C", &Tsx).expect("ok");
     assert_eq!(tf.used_vars(), ["B", "C"].into_iter().collect());
+  }
+
+  #[test]
+  fn test_exact_node_var() {
+    let exact = TemplateFix::try_new("$A", &Tsx).expect("ok");
+    assert_eq!(exact.exact_node_var(), Some("A"));
+    let exact_multi = TemplateFix::try_new("$$$A", &Tsx).expect("ok");
+    assert_eq!(exact_multi.exact_node_var(), Some("A"));
+
+    let surrounded = TemplateFix::try_new("prefix $A", &Tsx).expect("ok");
+    assert_eq!(surrounded.exact_node_var(), Some("A"));
+    let multiple = TemplateFix::try_new("$A$B", &Tsx).expect("ok");
+    assert_eq!(multiple.exact_node_var(), None);
+    let transformed = TemplateFix::with_transform("$A", &Tsx, &["A".to_string()]);
+    assert_eq!(transformed.exact_node_var(), None);
   }
 
   // GH #641

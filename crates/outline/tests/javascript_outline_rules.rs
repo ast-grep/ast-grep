@@ -101,3 +101,22 @@ export class Service {
 "#,
   );
 }
+
+#[test]
+fn extracts_decorated_javascript_signatures_from_declaration_lines() {
+  common::assert_outline_signature_snapshot(
+    SupportLang::JavaScript,
+    JAVASCRIPT_RULES,
+    r#"
+@Injectable()
+export class Service {
+  @ApiProperty()
+  email;
+}
+"#,
+    r#"
+- Class item exported Service | export class Service {
+  - Field public email | email
+"#,
+  );
+}
