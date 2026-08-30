@@ -65,8 +65,21 @@ enum SuppressKind {
   Line(usize),
 }
 
+fn is_suppression_comment(node: &Node<'_, impl Doc>) -> bool {
+  if !node.kind().contains("comment") {
+    return false;
+  }
+  let text: &str = &node.text();
+  // ast-grep-ignore must be the first alphabetic text
+  // otherwise it is considered prose
+  let Some(start) = text.find(|c: char| c.is_alphabetic()) else {
+    return false;
+  };
+  text[start..].starts_with(IGNORE_TEXT)
+}
+
 fn get_suppression_kind(node: &Node<'_, impl Doc>) -> Option<SuppressKind> {
-  if !node.kind().contains("comment") || !node.text().contains(IGNORE_TEXT) {
+  if !is_suppression_comment(node) {
     return None;
   }
   let line = node.start_pos().line();
@@ -556,6 +569,32 @@ language: Tsx",
       let unused = &scanned[1];
       assert_eq!(unused.1.len(), 1);
       assert_eq!(unused.1[0].text(), "// ast-grep-ignore: test");
+    });
+  }
+
+  #[test]
+  fn test_suppression_in_prose_is_not_reported_as_unused() {
+    let source = r#"
+    // This comment mentions ast-grep-ignore: as prose
+    console.log('must still match')
+    "#;
+    test_scan_unused(source, |scanned| {
+      assert_eq!(scanned.len(), 1);
+      assert_eq!(scanned[0].0.id, "test");
+      assert_eq!(scanned[0].1[0].text(), "console.log('must still match')");
+    });
+  }
+
+  #[test]
+  fn test_suppression_in_prose_does_not_suppress_matching_rule() {
+    let source = r#"
+    // This comment mentions ast-grep-ignore: test as prose
+    console.log('must still match')
+    "#;
+    test_scan_unused(source, |scanned| {
+      assert_eq!(scanned.len(), 1);
+      assert_eq!(scanned[0].0.id, "test");
+      assert_eq!(scanned[0].1[0].text(), "console.log('must still match')");
     });
   }
 
