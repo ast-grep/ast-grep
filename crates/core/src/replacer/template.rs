@@ -37,20 +37,16 @@ impl TemplateFix {
   }
 
   /// Returns the node-backed metavariable when it is the entire template.
-  pub fn exact_node_var(&self) -> Option<&MetaVariable> {
+  pub fn exact_node_var(&self) -> Option<MetaVariable> {
     let TemplateFix::WithMetaVar(template) = self else {
       return None;
     };
-    if template.vars.len() != 1
-      || template
-        .fragments
-        .iter()
-        .any(|fragment| !fragment.is_empty())
-    {
+    if template.vars.len() != 1 {
       return None;
     }
     match &template.vars[0].0 {
-      MetaVarExtract::Node(var) => Some(var),
+      MetaVarExtract::Single(name) => Some(MetaVariable::Capture(name.clone(), true)),
+      MetaVarExtract::Multiple(name) => Some(MetaVariable::MultiCapture(name.clone())),
       MetaVarExtract::Transformed(_) => None,
     }
   }
@@ -141,13 +137,13 @@ where
       let bytes = indent_lines::<D::Source>(*indent, de_intended);
       return Some(bytes);
     }
-    MetaVarExtract::Node(MetaVariable::Capture(name, _)) => {
+    MetaVarExtract::Single(name) => {
       let replaced = env.get_match(name)?;
       let source = replaced.get_doc().get_source();
       let range = replaced.range();
       (source, range)
     }
-    MetaVarExtract::Node(MetaVariable::MultiCapture(name)) => {
+    MetaVarExtract::Multiple(name) => {
       let nodes = env.get_multiple_matches(name);
       if nodes.is_empty() {
         return None;
@@ -159,9 +155,6 @@ where
       let end = nodes[nodes.len() - 1].range().end;
       let source = nodes[0].get_doc().get_source();
       (source, start..end)
-    }
-    MetaVarExtract::Node(MetaVariable::Dropped(_) | MetaVariable::Multiple) => {
-      unreachable!("template variables must be captured")
     }
   };
   let extracted = extract_with_deindent(source, range);
@@ -355,11 +348,6 @@ if (true) {
       exact.exact_node_var(),
       Some(MetaVariable::Capture(name, true)) if name == "A"
     ));
-    let exact_unnamed = TemplateFix::try_new("$$A", &Tsx).expect("ok");
-    assert!(matches!(
-      exact_unnamed.exact_node_var(),
-      Some(MetaVariable::Capture(name, false)) if name == "A"
-    ));
     let exact_multi = TemplateFix::try_new("$$$A", &Tsx).expect("ok");
     assert!(matches!(
       exact_multi.exact_node_var(),
@@ -367,7 +355,10 @@ if (true) {
     ));
 
     let surrounded = TemplateFix::try_new("prefix $A", &Tsx).expect("ok");
-    assert_eq!(surrounded.exact_node_var(), None);
+    assert!(matches!(
+      surrounded.exact_node_var(),
+      Some(MetaVariable::Capture(name, true)) if name == "A"
+    ));
     let multiple = TemplateFix::try_new("$A$B", &Tsx).expect("ok");
     assert_eq!(multiple.exact_node_var(), None);
     let transformed = TemplateFix::with_transform("$A", &Tsx, &["A".to_string()]);

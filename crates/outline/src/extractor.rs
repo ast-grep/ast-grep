@@ -365,7 +365,7 @@ fn render_template<D: Doc>(template: &TemplateFix, node_match: &NodeMatch<D>) ->
 
 fn default_signature<D: Doc>(
   node_match: &NodeMatch<D>,
-  exact_name_var: Option<&MetaVariable>,
+  exact_name_var: Option<MetaVariable>,
 ) -> String {
   let node = node_match.get_node();
   if let Some(line) = signature_anchor_line(node_match, exact_name_var)
@@ -378,16 +378,16 @@ fn default_signature<D: Doc>(
 
 fn signature_anchor_line<D: Doc>(
   node_match: &NodeMatch<D>,
-  exact_name_var: Option<&MetaVariable>,
+  exact_name_var: Option<MetaVariable>,
 ) -> Option<usize> {
   let env = node_match.get_env();
   env
     .get_match("NAME")
     .map(|node| node.start_pos().line())
     .or_else(|| match exact_name_var? {
-      MetaVariable::Capture(name, _) => env.get_match(name).map(|node| node.start_pos().line()),
+      MetaVariable::Capture(name, _) => env.get_match(&name).map(|node| node.start_pos().line()),
       MetaVariable::MultiCapture(name) => env
-        .get_multiple_matches(name)
+        .get_multiple_matches(&name)
         .first()
         .map(|node| node.start_pos().line()),
       MetaVariable::Dropped(_) | MetaVariable::Multiple => None,

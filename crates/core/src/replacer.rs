@@ -1,5 +1,5 @@
 use crate::matcher::Matcher;
-use crate::meta_var::{MetaVariable, MetaVariableID, Underlying, is_valid_meta_var_char};
+use crate::meta_var::{MetaVariableID, Underlying, is_valid_meta_var_char};
 use crate::{Doc, Node, NodeMatch, Root};
 use std::ops::Range;
 
@@ -58,18 +58,18 @@ impl<D: Doc> Replacer<D> for Node<'_, D> {
 }
 
 enum MetaVarExtract {
-  Node(MetaVariable),
+  /// $A for captured meta var
+  Single(MetaVariableID),
+  /// $$$A for captured ellipsis
+  Multiple(MetaVariableID),
   Transformed(MetaVariableID),
 }
 
 impl MetaVarExtract {
   fn used_var(&self) -> &str {
     match self {
-      MetaVarExtract::Node(MetaVariable::Capture(s, _))
-      | MetaVarExtract::Node(MetaVariable::MultiCapture(s)) => s,
-      MetaVarExtract::Node(MetaVariable::Dropped(_) | MetaVariable::Multiple) => {
-        unreachable!("template variables must be captured")
-      }
+      MetaVarExtract::Single(s) => s,
+      MetaVarExtract::Multiple(s) => s,
       MetaVarExtract::Transformed(s) => s,
     }
   }
@@ -93,7 +93,6 @@ fn split_first_meta_var(
       break false;
     }
   };
-  let is_named = i == 1;
   // no Anonymous meta var allowed, so _ is not allowed
   let i = src[skipped..]
     .find(|c: char| !is_valid_meta_var_char(c))
@@ -104,11 +103,11 @@ fn split_first_meta_var(
   }
   let name = src[skipped..skipped + i].to_string();
   let var = if is_multi {
-    MetaVarExtract::Node(MetaVariable::MultiCapture(name))
+    MetaVarExtract::Multiple(name)
   } else if transform.contains(&name) {
     MetaVarExtract::Transformed(name)
   } else {
-    MetaVarExtract::Node(MetaVariable::Capture(name, is_named))
+    MetaVarExtract::Single(name)
   };
   Some((var, skipped + i))
 }
