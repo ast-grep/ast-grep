@@ -41,12 +41,7 @@ impl TemplateFix {
     let TemplateFix::WithMetaVar(template) = self else {
       return None;
     };
-    if template.vars.len() != 1
-      || template
-        .fragments
-        .iter()
-        .any(|fragment| !fragment.is_empty())
-    {
+    if template.vars.len() != 1 {
       return None;
     }
     match &template.vars[0].0 {
@@ -353,7 +348,7 @@ if (true) {
     assert_eq!(exact_multi.exact_node_var(), Some("A"));
 
     let surrounded = TemplateFix::try_new("prefix $A", &Tsx).expect("ok");
-    assert_eq!(surrounded.exact_node_var(), None);
+    assert_eq!(surrounded.exact_node_var(), Some("A"));
     let multiple = TemplateFix::try_new("$A$B", &Tsx).expect("ok");
     assert_eq!(multiple.exact_node_var(), None);
     let transformed = TemplateFix::with_transform("$A", &Tsx, &["A".to_string()]);

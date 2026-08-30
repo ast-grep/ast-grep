@@ -364,31 +364,26 @@ fn render_template<D: Doc>(template: &TemplateFix, node_match: &NodeMatch<D>) ->
 
 fn default_signature<D: Doc>(node_match: &NodeMatch<D>, exact_name_var: Option<&str>) -> String {
   let node = node_match.get_node();
-  if let Some(line) = signature_anchor_line(node_match, exact_name_var)
-    && let Some(signature) = node_line(node, line)
-  {
-    return signature;
-  }
-  first_non_empty_line(node.text().as_ref())
+  signature_anchor_line(node_match, exact_name_var)
+    .unwrap_or_else(|| first_non_empty_line(node.text().as_ref()))
 }
 
 fn signature_anchor_line<D: Doc>(
   node_match: &NodeMatch<D>,
   exact_name_var: Option<&str>,
-) -> Option<usize> {
+) -> Option<String> {
   let env = node_match.get_env();
-  let source_line = |name| {
-    env
-      .get_match(name)
-      .map(|node| node.start_pos().line())
-      .or_else(|| {
-        env
-          .get_multiple_matches(name)
-          .first()
-          .map(|node| node.start_pos().line())
-      })
-  };
-  source_line("NAME").or_else(|| source_line(exact_name_var?))
+  let var_name = exact_name_var?;
+  let line_num = env
+    .get_match(var_name)
+    .map(|node| node.start_pos().line())
+    .or_else(|| {
+      env
+        .get_multiple_matches(var_name)
+        .first()
+        .map(|node| node.start_pos().line())
+    })?;
+  node_line(node_match, line_num)
 }
 
 fn node_line<D: Doc>(node: &Node<D>, line: usize) -> Option<String> {
@@ -678,7 +673,7 @@ signature: class $CLASS
   }
 
   #[test]
-  fn exact_name_metavariable_anchors_default_signature() {
+  fn single_name_metavariable_anchors_default_signature() {
     let rule = parse_rule(
       r#"
 id: ts-export-class
