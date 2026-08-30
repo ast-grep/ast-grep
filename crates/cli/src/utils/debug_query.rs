@@ -19,7 +19,15 @@ pub enum DebugFormat {
 
 fn get_mapping(lang: SgLang) -> impl Fn(u16) -> Option<Cow<'static, str>> {
   let ts_lang = lang.get_ts_language();
-  move |kind_id: u16| ts_lang.node_kind_for_id(kind_id).map(Cow::Borrowed)
+  move |kind_id: u16| {
+    // tree-sitter is doing shitty lifetime for the fuck sake of wasm
+    // the lifetime here does NOT reflect the actual tslanguage, tslanguage is Copy
+    // change lifetime to ts_lang's does NOT solve the problem, ts_lang is used as local var too many times
+    // https://github.com/tree-sitter/tree-sitter/commit/c68605f18d0e46a653f2ed89b02a6fab93dffac0
+    ts_lang
+      .node_kind_for_id(kind_id)
+      .map(|s| Cow::Owned(s.to_owned()))
+  }
 }
 
 impl DebugFormat {

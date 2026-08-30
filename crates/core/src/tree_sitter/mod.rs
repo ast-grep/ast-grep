@@ -166,7 +166,7 @@ impl<'r> SgNode<'r> for Node<'r> {
     cursor.goto_first_child();
     NodeWalker {
       cursor,
-      count: self.child_count(),
+      count: self.child_count() as usize,
     }
   }
   fn child_by_field_id(&self, field_id: u16) -> Option<Self> {
