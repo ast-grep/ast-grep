@@ -2,7 +2,7 @@ use super::indent::{DeindentedExtract, extract_with_deindent, get_indent_at_offs
 use super::{MetaVarExtract, Replacer, split_first_meta_var};
 use crate::NodeMatch;
 use crate::language::Language;
-use crate::meta_var::{MetaVarEnv, MetaVariable, Underlying};
+use crate::meta_var::{MetaVarEnv, Underlying};
 use crate::source::{Content, Doc};
 
 use thiserror::Error;
@@ -37,16 +37,20 @@ impl TemplateFix {
   }
 
   /// Returns the node-backed metavariable when it is the entire template.
-  pub fn exact_node_var(&self) -> Option<MetaVariable> {
+  pub fn exact_node_var(&self) -> Option<&str> {
     let TemplateFix::WithMetaVar(template) = self else {
       return None;
     };
-    if template.vars.len() != 1 {
+    if template.vars.len() != 1
+      || template
+        .fragments
+        .iter()
+        .any(|fragment| !fragment.is_empty())
+    {
       return None;
     }
     match &template.vars[0].0 {
-      MetaVarExtract::Single(name) => Some(MetaVariable::Capture(name.clone(), true)),
-      MetaVarExtract::Multiple(name) => Some(MetaVariable::MultiCapture(name.clone())),
+      MetaVarExtract::Single(name) | MetaVarExtract::Multiple(name) => Some(name),
       MetaVarExtract::Transformed(_) => None,
     }
   }
@@ -344,21 +348,12 @@ if (true) {
   #[test]
   fn test_exact_node_var() {
     let exact = TemplateFix::try_new("$A", &Tsx).expect("ok");
-    assert!(matches!(
-      exact.exact_node_var(),
-      Some(MetaVariable::Capture(name, true)) if name == "A"
-    ));
+    assert_eq!(exact.exact_node_var(), Some("A"));
     let exact_multi = TemplateFix::try_new("$$$A", &Tsx).expect("ok");
-    assert!(matches!(
-      exact_multi.exact_node_var(),
-      Some(MetaVariable::MultiCapture(name)) if name == "A"
-    ));
+    assert_eq!(exact_multi.exact_node_var(), Some("A"));
 
     let surrounded = TemplateFix::try_new("prefix $A", &Tsx).expect("ok");
-    assert!(matches!(
-      surrounded.exact_node_var(),
-      Some(MetaVariable::Capture(name, true)) if name == "A"
-    ));
+    assert_eq!(surrounded.exact_node_var(), None);
     let multiple = TemplateFix::try_new("$A$B", &Tsx).expect("ok");
     assert_eq!(multiple.exact_node_var(), None);
     let transformed = TemplateFix::with_transform("$A", &Tsx, &["A".to_string()]);

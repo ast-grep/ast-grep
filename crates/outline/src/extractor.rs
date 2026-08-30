@@ -12,7 +12,6 @@ use ast_grep_config::{
 use ast_grep_core::{
   Doc, Language, Node, NodeMatch,
   matcher::{Matcher, MatcherExt},
-  meta_var::MetaVariable,
   replacer::{Replacer, TemplateFix, TemplateFixError},
   source::Content,
 };
@@ -363,10 +362,7 @@ fn render_template<D: Doc>(template: &TemplateFix, node_match: &NodeMatch<D>) ->
   <D::Source as Content>::encode_bytes(&bytes).to_string()
 }
 
-fn default_signature<D: Doc>(
-  node_match: &NodeMatch<D>,
-  exact_name_var: Option<MetaVariable>,
-) -> String {
+fn default_signature<D: Doc>(node_match: &NodeMatch<D>, exact_name_var: Option<&str>) -> String {
   let node = node_match.get_node();
   if let Some(line) = signature_anchor_line(node_match, exact_name_var)
     && let Some(signature) = node_line(node, line)
@@ -378,20 +374,21 @@ fn default_signature<D: Doc>(
 
 fn signature_anchor_line<D: Doc>(
   node_match: &NodeMatch<D>,
-  exact_name_var: Option<MetaVariable>,
+  exact_name_var: Option<&str>,
 ) -> Option<usize> {
   let env = node_match.get_env();
-  env
-    .get_match("NAME")
-    .map(|node| node.start_pos().line())
-    .or_else(|| match exact_name_var? {
-      MetaVariable::Capture(name, _) => env.get_match(&name).map(|node| node.start_pos().line()),
-      MetaVariable::MultiCapture(name) => env
-        .get_multiple_matches(&name)
-        .first()
-        .map(|node| node.start_pos().line()),
-      MetaVariable::Dropped(_) | MetaVariable::Multiple => None,
-    })
+  let source_line = |name| {
+    env
+      .get_match(name)
+      .map(|node| node.start_pos().line())
+      .or_else(|| {
+        env
+          .get_multiple_matches(name)
+          .first()
+          .map(|node| node.start_pos().line())
+      })
+  };
+  source_line("NAME").or_else(|| source_line(exact_name_var?))
 }
 
 fn node_line<D: Doc>(node: &Node<D>, line: usize) -> Option<String> {
