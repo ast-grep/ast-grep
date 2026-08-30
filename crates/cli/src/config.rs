@@ -103,7 +103,7 @@ impl ProjectConfig {
       custom_language_outline_rules(&project_dir, sg_config.custom_languages.as_ref());
     let config = ProjectConfig {
       project_dir,
-      rule_dirs: sg_config.rule_dirs.drain(..).collect(),
+      rule_dirs: std::mem::take(&mut sg_config.rule_dirs),
       outline_rules,
       test_configs: sg_config.test_configs.take(),
       util_dirs: sg_config.util_dirs.take(),
