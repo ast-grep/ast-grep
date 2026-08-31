@@ -22,10 +22,15 @@ use thiserror::Error;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
+use std::str::FromStr;
 
-#[derive(Serialize, Deserialize, Clone, Default, JsonSchema, Debug)]
+#[derive(
+  Serialize, Deserialize, Clone, Default, JsonSchema, Debug, PartialOrd, Ord, PartialEq, Eq,
+)]
 #[serde(rename_all = "camelCase")]
 pub enum Severity {
+  /// Turns off the rule.
+  Off,
   #[default]
   /// A kind reminder for code with potential improvement.
   Hint,
@@ -35,8 +40,20 @@ pub enum Severity {
   Warning,
   /// An error that code produces bugs or has logic errors.
   Error,
-  /// Turns off the rule.
-  Off,
+}
+
+impl FromStr for Severity {
+  type Err = String;
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    match s.to_lowercase().as_str() {
+      "hint" => Ok(Severity::Hint),
+      "info" => Ok(Severity::Info),
+      "warning" => Ok(Severity::Warning),
+      "error" => Ok(Severity::Error),
+      "off" => Ok(Severity::Off),
+      _ => Err(format!("Invalid severity level: {}", s)),
+    }
+  }
 }
 
 #[derive(Debug, Error)]

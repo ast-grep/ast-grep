@@ -14,6 +14,7 @@ pub struct RuleOverwrite {
   default_severity: Option<Severity>,
   by_rule_id: HashMap<String, Severity>,
   rule_filter: Option<Regex>,
+  min_severity: Severity,
 }
 
 fn read_severity(
@@ -42,6 +43,7 @@ impl RuleOverwrite {
       },
       by_rule_id: HashMap::new(),
       rule_filter: filter.cloned(),
+      min_severity: Severity::Off,
     }
   }
   pub fn new(cli: &OverwriteArgs) -> Result<Self> {
@@ -81,6 +83,7 @@ impl RuleOverwrite {
       default_severity,
       by_rule_id,
       rule_filter: cli.filter.clone(),
+      min_severity: cli.min_severity.clone(),
     })
   }
 
@@ -88,16 +91,28 @@ impl RuleOverwrite {
     &self,
     configs: Vec<RuleConfig<SgLang>>,
   ) -> Result<Vec<RuleConfig<SgLang>>> {
-    let mut configs = if let Some(filter) = &self.rule_filter {
+    let configs = if let Some(filter) = &self.rule_filter {
       filter_rule_by_regex(configs, filter)?
     } else {
       configs
     };
-    for config in &mut configs {
-      let overwrite = self.find(&config.id);
-      overwrite.overwrite(config);
-    }
+    let configs = configs
+      .into_iter()
+      .filter_map(|config| self.process_one_config(config))
+      .collect();
     Ok(configs)
+  }
+
+  fn process_one_config(&self, mut config: RuleConfig<SgLang>) -> Option<RuleConfig<SgLang>> {
+    // overwrite severity
+    let overwrite = self.find(&config.id);
+    overwrite.overwrite(&mut config);
+    // remove rules that are below min_severity
+    if config.severity >= self.min_severity {
+      Some(config)
+    } else {
+      None
+    }
   }
 
   pub fn find(&self, id: &str) -> OverwriteResult {
@@ -107,6 +122,14 @@ impl RuleOverwrite {
       .cloned()
       .or_else(|| self.default_severity.clone());
     OverwriteResult { severity }
+  }
+
+  pub fn apply_min_severity(&self, severity: Severity) -> Severity {
+    if severity >= self.min_severity {
+      severity
+    } else {
+      Severity::Off
+    }
   }
 }
 
