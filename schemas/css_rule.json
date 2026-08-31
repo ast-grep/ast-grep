@@ -907,6 +907,11 @@
     "Severity": {
       "oneOf": [
         {
+          "description": "Turns off the rule.",
+          "type": "string",
+          "const": "off"
+        },
+        {
           "description": "A kind reminder for code with potential improvement.",
           "type": "string",
           "const": "hint"
@@ -925,11 +930,6 @@
           "description": "An error that code produces bugs or has logic errors.",
           "type": "string",
           "const": "error"
-        },
-        {
-          "description": "Turns off the rule.",
-          "type": "string",
-          "const": "off"
         }
       ]
     },
