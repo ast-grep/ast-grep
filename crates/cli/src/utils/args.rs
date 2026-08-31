@@ -4,6 +4,7 @@ use crate::utils::ErrorContext as EC;
 use crate::utils::Granularity;
 
 use anyhow::{Context, Result};
+use ast_grep_config::Severity;
 use clap::{Args, ValueEnum};
 use ignore::{
   WalkBuilder, WalkParallel,
@@ -300,6 +301,13 @@ pub struct OverwriteArgs {
   /// set of rule definitions within a project.
   #[clap(long, conflicts_with = "rule", value_name = "REGEX")]
   pub filter: Option<Regex>,
+
+  /// Set the minimum severity of rules to scan.
+  ///
+  /// Rules with severity lower than the specified value will be ignored.
+  #[clap(long, value_name = "SEVERITY", default_value = "off")]
+  pub min_severity: Severity,
+
   /// Set rule severity to error
   ///
   /// This flag sets the specified RULE_ID's severity to error. You can specify multiple rules by using the flag multiple times,
@@ -340,7 +348,7 @@ pub struct OverwriteArgs {
 impl OverwriteArgs {
   /// Returns true if none rule is turned off on CLI nor filtered out
   pub fn include_all_rules(&self) -> bool {
-    self.filter.is_none() && self.off.is_none()
+    self.filter.is_none() && self.off.is_none() && self.min_severity == Severity::Off
   }
 }
 

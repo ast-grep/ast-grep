@@ -34,6 +34,32 @@ rule:
   pattern: Some($A)
 ";
 
+const SEVERITY_RULES: &str = "
+id: hint-rule
+message: hint rule
+severity: hint
+language: TypeScript
+rule: { pattern: Some($A) }
+---
+id: info-rule
+message: info rule
+severity: info
+language: TypeScript
+rule: { pattern: Some($A) }
+---
+id: warning-rule
+message: warning rule
+severity: warning
+language: TypeScript
+rule: { pattern: Some($A) }
+---
+id: error-rule
+message: error rule
+severity: error
+language: TypeScript
+rule: { pattern: Some($A) }
+";
+
 const FIXABLE_JS_RULE: &str = "
 id: no-var
 message: use let
@@ -296,6 +322,56 @@ fn test_severity_override() -> Result<()> {
     .assert()
     .success()
     .stdout(contains("warning"));
+  Ok(())
+}
+
+#[test]
+fn test_severity_threshold_filters_output_and_rule_tally() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/severity.yml", SEVERITY_RULES),
+    ("test.ts", "Some(123)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "scan",
+      "--min-severity",
+      "warning",
+      "--color=never",
+      "--report-style=short",
+      "--inspect=summary",
+    ])
+    .assert()
+    .failure()
+    .stdout(contains("error-rule"))
+    .stdout(contains("warning-rule"))
+    .stdout(contains("info-rule").not())
+    .stdout(contains("hint-rule").not())
+    .stderr(contains("effectiveRuleCount=2,skippedRuleCount=2"))
+    .stderr(contains("1 error(s) found in code"));
+  Ok(())
+}
+
+#[test]
+fn test_severity_threshold_uses_overwritten_severity() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/severity.yml", SEVERITY_RULES),
+    ("test.ts", "Some(123)"),
+  ])?;
+
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "scan",
+      "--min-severity=error",
+      "--warning=error-rule",
+      "--json=compact",
+    ])
+    .assert()
+    .success()
+    .stdout(contains("error-rule").not());
   Ok(())
 }
 

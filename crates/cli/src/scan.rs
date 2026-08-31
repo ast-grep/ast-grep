@@ -476,6 +476,7 @@ rule:
       },
       overwrite: OverwriteArgs {
         filter: None,
+        min_severity: Severity::Off,
         error: None,
         warning: None,
         info: None,
