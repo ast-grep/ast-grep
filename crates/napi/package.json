@@ -60,7 +60,7 @@
     "oxlint": "1.80.0",
     "ava": "7.0.0",
     "chalk": "6.0.0",
-    "dprint": "0.56.1",
+    "dprint": "0.57.0",
     "smol-toml": "1.8.0",
     "tsimp": "2.0.12",
     "typescript": "6.0.3"
