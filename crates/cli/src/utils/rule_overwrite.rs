@@ -123,6 +123,14 @@ impl RuleOverwrite {
       .or_else(|| self.default_severity.clone());
     OverwriteResult { severity }
   }
+
+  pub fn apply_min_severity(&self, severity: Severity) -> Severity {
+    if severity >= self.min_severity {
+      severity
+    } else {
+      Severity::Off
+    }
+  }
 }
 
 fn filter_rule_by_regex(

@@ -376,6 +376,58 @@ fn test_severity_threshold_uses_overwritten_severity() -> Result<()> {
 }
 
 #[test]
+fn test_min_severity_filters_all_stdin_rules() -> Result<()> {
+  let inline_rule =
+    "{id: hint-rule, severity: hint, language: ts, rule: {pattern: console.log($A)}}";
+  Command::new(cargo_bin!())
+    .args([
+      "scan",
+      "--stdin",
+      "--min-severity=warning",
+      "--inline-rules",
+      inline_rule,
+      "--json=compact",
+    ])
+    .write_stdin("console.log(123)")
+    .assert()
+    .success()
+    .stdout(predicate::eq("[]\n"));
+  Ok(())
+}
+
+#[test]
+fn test_min_severity_filters_builtin_rules() -> Result<()> {
+  let unused = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/rule.yml", RULE1),
+    ("test.ts", "None(123) // ast-grep-ignore"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(unused.path())
+    .args([
+      "scan",
+      "--min-severity=warning",
+      "--hint=unused-suppression",
+    ])
+    .assert()
+    .success()
+    .stdout(contains("unused-suppression").not());
+
+  let suppress_all = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/rule.yml", RULE1),
+    ("test.ts", "Some(123) // ast-grep-ignore"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(suppress_all.path())
+    .args(["scan", "--min-severity=error", "--warning=no-suppress-all"])
+    .assert()
+    .success()
+    .stdout(contains("no-suppress-all").not());
+  Ok(())
+}
+
+#[test]
 fn test_severity_override_with_rule_path() -> Result<()> {
   let dir = setup()?;
   Command::new(cargo_bin!())

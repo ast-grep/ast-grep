@@ -217,6 +217,7 @@ fn no_suppress_all_rule_config(overwrite: &RuleOverwrite) -> RuleConfig<SgLang> 
     .find(NO_SUPPRESS_ALL_ID)
     .severity
     .unwrap_or(Severity::Off);
+  let severity = overwrite.apply_min_severity(severity);
   CombinedScan::no_suppress_all_config(severity, SupportLang::Rust.into())
 }
 
@@ -225,6 +226,7 @@ fn unused_suppression_rule_config(arg: &ScanArg, overwrite: &RuleOverwrite) -> R
     .find(UNUSED_SUPPRESSION_ID)
     .severity
     .unwrap_or_else(|| default_unused_suppression_rule_severity(arg));
+  let severity = overwrite.apply_min_severity(severity);
   CombinedScan::unused_config(severity, SupportLang::Rust.into())
 }
 
@@ -356,7 +358,10 @@ impl StdInWorker for ScanStdin {
     processor: &P::Processor,
   ) -> Result<Vec<P::Processed>> {
     use ast_grep_core::tree_sitter::LanguageExt;
-    let lang = self.rules[0].language;
+    let Some(first_rule) = self.rules.first() else {
+      return Ok(vec![]);
+    };
+    let lang = first_rule.language;
     let combined = CombinedScan::new(self.rules.iter().collect());
     let grep = lang.ast_grep(src);
     let path = Path::new("STDIN");
