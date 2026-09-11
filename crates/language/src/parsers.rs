@@ -94,6 +94,9 @@ pub fn language_scala() -> TSLanguage {
 pub fn language_solidity() -> TSLanguage {
   conditional_lang!(tree_sitter_solidity, "tree-sitter-solidity")
 }
+pub fn language_svelte() -> TSLanguage {
+  conditional_lang!(tree_sitter_svelte_ng, "tree-sitter-svelte-ng")
+}
 pub fn language_swift() -> TSLanguage {
   conditional_lang!(tree_sitter_swift, "tree-sitter-swift")
 }

@@ -40,11 +40,13 @@ mod ruby;
 mod rust;
 mod scala;
 mod solidity;
+mod svelte;
 mod swift;
 mod yaml;
 
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 pub use html::Html;
+pub use svelte::Svelte;
 
 use ast_grep_core::Node;
 use ast_grep_core::meta_var::MetaVariable;
@@ -281,6 +283,7 @@ pub enum SupportLang {
   Rust,
   Scala,
   Solidity,
+  Svelte,
   Swift,
   Tsx,
   TypeScript,
@@ -292,8 +295,8 @@ impl SupportLang {
     use SupportLang::*;
     &[
       Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json,
-      Kotlin, Lua, Markdown, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript,
-      Yaml,
+      Kotlin, Lua, Markdown, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Svelte, Swift, Tsx,
+      TypeScript, Yaml,
     ]
   }
 
@@ -398,6 +401,7 @@ impl_aliases! {
   Rust => &["rs", "rust"],
   Scala => &["scala"],
   Solidity => &["sol", "solidity"],
+  Svelte => &["svelte"],
   Swift => &["swift"],
   TypeScript => &["ts", "typescript"],
   Tsx => &["tsx"],
@@ -447,6 +451,7 @@ macro_rules! execute_lang_method {
       S::Rust => Rust.$method($($pname,)*),
       S::Scala => Scala.$method($($pname,)*),
       S::Solidity => Solidity.$method($($pname,)*),
+      S::Svelte => Svelte.$method($($pname,)*),
       S::Swift => Swift.$method($($pname,)*),
       S::Tsx => Tsx.$method($($pname,)*),
       S::TypeScript => TypeScript.$method($($pname,)*),
@@ -487,6 +492,7 @@ impl LanguageExt for SupportLang {
   ) -> Vec<(String, Vec<TSRange>)> {
     match self {
       SupportLang::Html => Html.extract_injections(root),
+      SupportLang::Svelte => Svelte.extract_injections(root),
       _ => Vec::new(),
     }
   }
@@ -521,6 +527,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Rust => &["rs"],
     Scala => &["scala", "sc", "sbt"],
     Solidity => &["sol"],
+    Svelte => &["svelte"],
     Swift => &["swift"],
     TypeScript => &["ts", "cts", "mts"],
     Tsx => &["tsx"],
@@ -622,6 +629,12 @@ mod test {
     assert_eq!(from_extension(path), Some(SupportLang::Markdown));
     let path = Path::new("README.markdown");
     assert_eq!(from_extension(path), Some(SupportLang::Markdown));
+    let path = Path::new("Component.svelte");
+    assert_eq!(SupportLang::from_path(path), Some(SupportLang::Svelte));
+    assert_eq!(
+      "svelte".parse::<SupportLang>().unwrap(),
+      SupportLang::Svelte
+    );
   }
 
   // TODO: add test for file_types
