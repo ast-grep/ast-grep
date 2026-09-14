@@ -30,26 +30,30 @@ permissions:
 
 jobs:
   linux:
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - aarch64-unknown-linux-gnu
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: riscv64gc-unknown-linux-gnu
+            os: ubuntu-24.04-riscv
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           # python-version: ${{ env.PYTHON_VERSION }}
           python-version: '3.14'
-          architecture: x64
+          architecture: ${{ matrix.target == 'riscv64gc-unknown-linux-gnu' && 'riscv64' || 'x64' }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           # manylinux by default uses old linux so tree-sitter does not compile
           # https://github.com/woodruffw/zizmor/pull/603
-          manylinux: "2_28"
+          manylinux: ${{ matrix.target == 'riscv64gc-unknown-linux-gnu' && '2_39' || '2_28' }}
           args: --release --out dist -i ${{env.PYTHON_VERSION}}
           working-directory: crates/pyo3
       - name: Test sdist
