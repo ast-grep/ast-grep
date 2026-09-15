@@ -42,11 +42,12 @@ jobs:
             os: ubuntu-24.04-riscv
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@337b0725b8770380d7cde73cfef696f1295727eb
         with:
           # python-version: ${{ env.PYTHON_VERSION }}
           python-version: '3.14'
           architecture: ${{ matrix.target == 'riscv64gc-unknown-linux-gnu' && 'riscv64' || 'x64' }}
+          mirror: ${{ matrix.target == 'riscv64gc-unknown-linux-gnu' && 'https://raw.githubusercontent.com/riseproject-dev/python-versions/refs/heads/main' || '' }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
