@@ -88,8 +88,13 @@ impl ProjectConfig {
     &self,
     rule_overwrite: RuleOverwrite,
   ) -> Result<(RuleCollection<SgLang>, RuleTrace)> {
-    let global_rules = find_util_rules(self)?;
+    let global_rules = self.find_utils()?;
     read_directory_yaml(self, global_rules, rule_overwrite)
+  }
+
+  /// Load global utility rules declared in `utilDirs`.
+  pub fn find_utils(&self) -> Result<GlobalRules> {
+    find_util_rules(self)
   }
 
   /// returns a Result of Result.
