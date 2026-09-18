@@ -111,6 +111,8 @@ rule:
   kind: field_declaration
   has:
     field: declarator
+    stopBy: end
+    kind: field_identifier
     pattern: $NAME
   not:
     has:
