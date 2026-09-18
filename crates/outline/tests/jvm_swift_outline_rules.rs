@@ -183,6 +183,52 @@ enum Protocol { HTTP_1_1 }
 }
 
 #[test]
+fn java_rules_parse_and_extract_records() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+public record Point(int x, int y) {
+  public double norm() { return 0; }
+}
+
+record Internal(int value) {}
+"#,
+    r#"
+- Struct item exported Point
+  - Method public norm
+- Struct item private Internal
+"#,
+  );
+}
+
+#[test]
+fn java_rules_parse_and_extract_compact_constructors() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+public record Point(int x, int y) {
+  public Point {
+    if (x < 0) { throw new IllegalArgumentException(); }
+  }
+  public double norm() { return 0; }
+}
+
+record Internal(int value) {}
+"#,
+    r#"
+- Struct item exported Point
+  - Constructor public Point
+  - Method public norm
+- Struct item private Internal
+"#,
+  );
+}
+
+#[test]
 fn java_rules_extract_duplicate_method_names_with_signatures() {
   const RULES: &str = include_str!("../src/default_rules/java.yml");
   common::assert_outline_signature_snapshot(

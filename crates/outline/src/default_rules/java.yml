@@ -71,10 +71,27 @@ isExported:
     has:
       pattern: public
 ---
+id: java-record
+language: Java
+role: item
+symbolType: struct
+rule:
+  all:
+    - kind: record_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifiers
+    has:
+      pattern: public
+---
 id: java-member-method
 language: Java
 role: member
-parentRuleIds: [java-interface, java-enum, java-class]
+parentRuleIds: [java-interface, java-enum, java-class, java-record]
 symbolType: method
 rule:
   all:
@@ -92,7 +109,7 @@ isPublic:
 id: java-member-constructor
 language: Java
 role: member
-parentRuleIds: [java-enum, java-class]
+parentRuleIds: [java-enum, java-class, java-record]
 symbolType: constructor
 rule:
   all:
@@ -107,10 +124,28 @@ isPublic:
     has:
       pattern: public
 ---
+id: java-member-compact-constructor
+language: Java
+role: member
+parentRuleIds: [java-enum, java-class, java-record]
+symbolType: constructor
+rule:
+  all:
+    - kind: compact_constructor_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isPublic:
+  has:
+    kind: modifiers
+    has:
+      pattern: public
+---
 id: java-member-field
 language: Java
 role: member
-parentRuleIds: [java-interface, java-enum, java-class]
+parentRuleIds: [java-interface, java-enum, java-class, java-record]
 symbolType: field
 rule:
   all:
