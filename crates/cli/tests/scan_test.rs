@@ -784,6 +784,57 @@ fn test_scan_inline_rules_no_id() -> Result<()> {
   Ok(())
 }
 
+// #2927: --inline-rules with a project config should resolve utilDirs globals
+#[test]
+fn test_scan_inline_rules_resolves_util_dirs() -> Result<()> {
+  let config = "
+ruleDirs:
+- rules
+utilDirs:
+- utils
+";
+  let util = "
+id: hook
+language: tsx
+rule: {kind: arrow_function}
+";
+  let dir = create_test_files([
+    ("sgconfig.yml", config),
+    ("utils/hook.yml", util),
+    ("rules/.keep", ""),
+  ])?;
+  let inline_rules = "id: p\nlanguage: tsx\nrule: {matches: hook}";
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "scan",
+      "--stdin",
+      "--config",
+      "sgconfig.yml",
+      "--inline-rules",
+      inline_rules,
+      "--json",
+    ])
+    .write_stdin("const f = () => 1;\n")
+    .assert()
+    .success()
+    .stdout(contains("\"ruleId\": \"p\""));
+  Ok(())
+}
+
+#[test]
+fn test_scan_inline_rules_util_dirs_without_config_still_errors() -> Result<()> {
+  // Without a project, matches against a missing util should still fail to parse.
+  let inline_rules = "id: p\nlanguage: tsx\nrule: {matches: hook}";
+  Command::new(cargo_bin!())
+    .args(["scan", "--stdin", "--inline-rules", inline_rules])
+    .write_stdin("const f = () => 1;\n")
+    .assert()
+    .failure()
+    .stderr(contains("hook"));
+  Ok(())
+}
+
 #[test]
 fn test_scan_rule_id_defaults_to_filename() -> Result<()> {
   let rule = "
