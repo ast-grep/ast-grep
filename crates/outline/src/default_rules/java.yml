@@ -124,6 +124,24 @@ isPublic:
     has:
       pattern: public
 ---
+id: java-member-compact-constructor
+language: Java
+role: member
+parentRuleIds: [java-enum, java-class, java-record]
+symbolType: constructor
+rule:
+  all:
+    - kind: compact_constructor_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isPublic:
+  has:
+    kind: modifiers
+    has:
+      pattern: public
+---
 id: java-member-field
 language: Java
 role: member
