@@ -271,7 +271,7 @@ fn own_member(member: OutlineMember<'_>) -> OutlineMember<'static> {
   OutlineMember {
     entry: own_entry(member.entry),
     is_public: member.is_public,
-    members: vec![],
+    members: member.members.into_iter().map(own_member).collect(),
   }
 }
 
