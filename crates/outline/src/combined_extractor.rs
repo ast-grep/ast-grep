@@ -46,17 +46,19 @@ pub struct CombinedExtractors<L: Language> {
 struct ScopedMemberExtractors<'a, L: Language> {
   /// Shared member extractor storage owned by `CombinedExtractors`.
   extractors: &'a [MemberExtractor<L>],
-  /// Parent-scoped index that selects members relevant to one matched item rule.
-  index: &'a MemberExtractorIndex,
+  /// Parent-scoped indices that select members relevant to one matched item
+  /// rule. An inherited scope and a declared child scope are merged here.
+  indices: Vec<&'a MemberExtractorIndex>,
 }
 
 impl<L: Language> Clone for ScopedMemberExtractors<'_, L> {
   fn clone(&self) -> Self {
-    *self
+    Self {
+      extractors: self.extractors,
+      indices: self.indices.clone(),
+    }
   }
 }
-
-impl<L: Language> Copy for ScopedMemberExtractors<'_, L> {}
 
 #[derive(Default)]
 struct MemberExtractorIndex {
@@ -129,7 +131,7 @@ impl<L: Language> CombinedExtractors<L> {
       .get(parent_id)
       .map(|index| ScopedMemberExtractors {
         extractors: &self.member_extractors,
-        index,
+        indices: vec![index],
       })
   }
 
@@ -173,6 +175,26 @@ impl<L: Language> CombinedExtractors<L> {
 }
 
 impl<'a, L: Language> ScopedMemberExtractors<'a, L> {
+  /// Merge a declared child scope into the inherited scope. The declared
+  /// indices come first so a rule that names its own children still wins for a
+  /// node the inherited scope could also match; identical indices are kept
+  /// once so a rule is never matched twice.
+  fn extended_with(self, declared: Option<Self>) -> Self {
+    let Some(declared) = declared else {
+      return self;
+    };
+    let mut indices = declared.indices;
+    for index in self.indices {
+      if !indices.iter().any(|kept| std::ptr::eq(*kept, index)) {
+        indices.push(index);
+      }
+    }
+    Self {
+      extractors: self.extractors,
+      indices,
+    }
+  }
+
   fn extract_member_with_rule<'tree>(
     &self,
     node: &Node<'tree, StrDoc<L>>,
@@ -180,12 +202,16 @@ impl<'a, L: Language> ScopedMemberExtractors<'a, L> {
   where
     L: LanguageExt,
   {
-    let kinds = self.index.kind_mapping.get(&node.kind_id())?;
-    for &idx in kinds {
-      let extractor = &self.extractors[idx];
-      if let Some(matched) = extractor.match_node(node) {
-        let member = extractor.extract(&matched, Vec::new());
-        return Some((extractor, member));
+    for index in &self.indices {
+      let Some(kinds) = index.kind_mapping.get(&node.kind_id()) else {
+        continue;
+      };
+      for &idx in kinds {
+        let extractor = &self.extractors[idx];
+        if let Some(matched) = extractor.match_node(node) {
+          let member = extractor.extract(&matched, Vec::new());
+          return Some((extractor, member));
+        }
       }
     }
     None
@@ -303,12 +329,12 @@ fn collect_scoped_members<'a, 'tree, L: LanguageExt>(
       continue;
     }
     // A member that is itself a declaration keeps its own structure: descend
-    // with the scope declared for its rule, falling back to the enclosing scope
-    // so a nested declaration is read with the same rules as its container.
+    // with the scope declared for its rule merged into the enclosing scope, so
+    // a nested declaration is read with both its own rules and its container's.
     let children = if has_members(extractor.common.symbol_type) {
-      let scope = combined
-        .member_scope_for(&extractor.common.rule.id)
-        .unwrap_or(member_extractors);
+      let scope = member_extractors
+        .clone()
+        .extended_with(combined.member_scope_for(&extractor.common.rule.id));
       let child_subtree = traversal.current_subtree();
       traversal.descend();
       collect_scoped_members(combined, traversal, scope, options, child_subtree)

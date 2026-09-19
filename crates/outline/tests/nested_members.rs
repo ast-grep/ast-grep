@@ -3,7 +3,7 @@
 //! A member that is itself a declaration (a nested type, class, interface, enum,
 //! struct, object) keeps its own members. The nested declaration's members are
 //! read with the enclosing scope, so rule data needs no extra bookkeeping, and a
-//! rule that declares its own child scope overrides that scope for its subtree.
+//! rule that declares its own child scope extends that scope for its subtree.
 
 use ast_grep_language::SupportLang;
 
@@ -86,10 +86,10 @@ class Outer {
   );
 }
 
-/// A rule that declares its own child scope replaces the inherited one for that
-/// container's subtree.
+/// A rule that declares its own child scope extends the inherited one: both the
+/// rule's own children and the container's members are found.
 #[test]
-fn a_declared_child_scope_overrides_the_inherited_one() {
+fn a_declared_child_scope_extends_the_inherited_one() {
   common::assert_outline_snapshot(
     SupportLang::Java,
     r#"
@@ -147,6 +147,10 @@ name: $NAME
     r#"
 class Outer {
   class Inner {
+    class Deep {
+      void deepMethod() {}
+    }
+
     void innerMethod() {}
   }
 
@@ -156,6 +160,8 @@ class Outer {
     r#"
 - Class item exported Outer
   - Class public Inner
+    - Class public Deep
+      - Function public deepMethod
     - Function public innerMethod
   - Method public outerMethod
 "#,
