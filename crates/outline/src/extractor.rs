@@ -154,8 +154,6 @@ pub enum OutlineRuleError {
   Template(#[from] TemplateFixError),
   #[error("Member rule `{rule_id}` references unknown parent rule `{parent_id}`")]
   UnknownParentRuleId { rule_id: String, parent_id: String },
-  #[error("Member rule `{rule_id}` cannot use member rule `{parent_id}` as a parent")]
-  InvalidParentRuleRole { rule_id: String, parent_id: String },
 }
 
 impl<L: Language> ExtractorCommon<L> {
@@ -320,10 +318,15 @@ impl<L: Language> MemberExtractor<L> {
     self.common.rule.matcher.match_node(node.clone())
   }
 
-  pub fn extract<'tree, D: Doc>(&self, node_match: &NodeMatch<'tree, D>) -> OutlineMember<'tree> {
+  pub fn extract<'tree, D: Doc>(
+    &self,
+    node_match: &NodeMatch<'tree, D>,
+    members: Vec<OutlineMember<'tree>>,
+  ) -> OutlineMember<'tree> {
     OutlineMember {
       entry: self.common.extract_entry(EntryRole::Member, node_match),
       is_public: self.is_public.evaluate(node_match),
+      members,
     }
   }
 }

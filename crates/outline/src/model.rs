@@ -2,9 +2,12 @@
 //!
 //! Outline has two placement roles. `Item` represents file/module-level
 //! structure. `Member` represents direct structure inside an item.
-//! The model intentionally stops at this item/member boundary. It preserves the
-//! source shape needed for navigation and filtering, but does not try to build a
-//! semantic graph of references, inheritance, or implemented protocols.
+//! The model stops at the item/member boundary for the *outer* shape, but a
+//! member that is itself a declaration (a nested type, class or module) carries
+//! its own members: the two roles stay meaningful, nesting does not merge them.
+//! It preserves the source shape needed for navigation and filtering, but does
+//! not try to build a semantic graph of references, inheritance, or implemented
+//! protocols.
 
 use std::borrow::Cow;
 use std::ops::Range;
@@ -108,13 +111,18 @@ pub struct OutlineItem<'a> {
   pub members: Vec<OutlineMember<'a>>,
 }
 
-/// One direct member under an outline item.
+/// One direct member under an outline item, or under another member when the
+/// member is itself a declaration (a nested type).
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OutlineMember<'a> {
   #[serde(flatten)]
   pub entry: OutlineEntry<'a>,
   pub is_public: bool,
+  /// Direct structure of a member that is itself a declaration; empty for a
+  /// leaf member. Nested only where the member is a declaration.
+  #[serde(default, skip_serializing_if = "Vec::is_empty")]
+  pub members: Vec<OutlineMember<'a>>,
 }
 
 #[cfg(test)]
@@ -176,6 +184,7 @@ mod tests {
     OutlineMember {
       entry: entry(EntryRole::Member, symbol_type, name, signature, ast_kind),
       is_public: false,
+      members: vec![],
     }
   }
 

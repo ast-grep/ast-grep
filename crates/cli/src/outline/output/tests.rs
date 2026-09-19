@@ -52,6 +52,7 @@ fn member(
   OutlineMember {
     entry: entry(EntryRole::Member, symbol_type, name, signature, line),
     is_public,
+    members: vec![],
   }
 }
 
