@@ -168,3 +168,17 @@ isPublic:
     kind: modifiers
     has:
       pattern: public
+---
+id: java-enum-member
+language: Java
+role: member
+parentRuleIds: [java-enum]
+symbolType: enumMember
+rule:
+  all:
+    - kind: enum_constant
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isPublic: true
