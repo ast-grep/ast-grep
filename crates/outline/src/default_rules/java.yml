@@ -168,3 +168,34 @@ isPublic:
     kind: modifiers
     has:
       pattern: public
+---
+id: java-annotation-type
+language: Java
+role: item
+symbolType: interface
+rule:
+  all:
+    - kind: annotation_type_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifiers
+    has:
+      pattern: public
+---
+id: java-annotation-element
+language: Java
+role: member
+parentRuleIds: [java-annotation-type]
+symbolType: method
+rule:
+  all:
+    - kind: annotation_type_element_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isPublic: true
