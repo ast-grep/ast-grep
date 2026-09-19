@@ -98,7 +98,11 @@ class ScopeBox {
 - Class item exported ScopeBox
   - Property public direct
   - Class public Nested
+    - Method public leaked
+    - Property public nestedValue
   - Object public companion object
+    - Method public companionLeak
+    - Property public companionValue
   - Method public directFun
 "#,
   );

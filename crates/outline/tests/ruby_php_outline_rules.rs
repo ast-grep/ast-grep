@@ -30,6 +30,9 @@ end
 - Module import private "json"
 - Module item exported Demo
   - Class public Parser
+    - Constant public CONSTANT
+    - Function public initialize
+    - Function public parse
 - Function item exported helper
 "#,
   );
