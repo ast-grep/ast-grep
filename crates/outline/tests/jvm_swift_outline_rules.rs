@@ -293,6 +293,29 @@ class C {
 }
 
 #[test]
+fn java_rules_parse_and_extract_annotation_types() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+public @interface Marker {}
+
+@interface Config {
+  String value();
+  int count() default 0;
+}
+"#,
+    r#"
+- Interface item exported Marker
+- Interface item private Config
+  - Method public value
+  - Method public count
+"#,
+  );
+}
+
+#[test]
 fn java_rules_parse_and_extract_records() {
   const RULES: &str = include_str!("../src/default_rules/java.yml");
   common::assert_outline_snapshot(
