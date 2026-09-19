@@ -710,7 +710,8 @@
             "pattern",
             "property",
             "right",
-            "source"
+            "source",
+            null
           ]
         }
       }

@@ -485,7 +485,9 @@
             "string",
             "null"
           ],
-          "enum": []
+          "enum": [
+            null
+          ]
         }
       }
     },

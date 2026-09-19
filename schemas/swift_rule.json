@@ -864,7 +864,8 @@
             "target",
             "text",
             "type",
-            "value"
+            "value",
+            null
           ]
         }
       }

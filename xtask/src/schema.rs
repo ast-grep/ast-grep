@@ -83,10 +83,11 @@ fn add_lang_info_to_schema<T: LanguageExt + Alias>(
     .context("must have field")?
     .as_object_mut()
     .context("field must be an object")?;
-  field.insert(
-    "enum".to_string(),
-    Value::Array(get_fields(&lang.get_ts_language())),
-  );
+  // `Relation.field` is `Option<String>`, so `field: null` is valid and the
+  // enum has to allow null alongside the field names.
+  let mut fields = get_fields(&lang.get_ts_language());
+  fields.push(Value::Null);
+  field.insert("enum".to_string(), Value::Array(fields));
 
   // insert kind to relation and rule
   insert_kind(relation_props, &lang)?;
