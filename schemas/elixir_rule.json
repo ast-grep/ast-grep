@@ -545,7 +545,8 @@
             "quoted_end",
             "quoted_start",
             "right",
-            "target"
+            "target",
+            null
           ]
         }
       }

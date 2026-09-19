@@ -878,7 +878,8 @@
             "transformation",
             "type",
             "variable",
-            "variables"
+            "variables",
+            null
           ]
         }
       }

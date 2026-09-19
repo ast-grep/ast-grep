@@ -724,7 +724,8 @@
             "superclasses",
             "type",
             "type_conversion",
-            "type_parameters"
+            "type_parameters",
+            null
           ]
         }
       }
