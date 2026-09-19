@@ -767,6 +767,48 @@ fn test_status_code_success_with_no_match() -> Result<()> {
   Ok(())
 }
 
+const GLOBAL_UTIL_RULE: &str = "
+id: hook
+language: TypeScript
+rule:
+  kind: arrow_function
+";
+
+#[test]
+fn test_scan_inline_rules_with_util_dirs() -> Result<()> {
+  let inline_rules = "id: p\nlanguage: TypeScript\nrule: { matches: hook }";
+  let dir = create_test_files([
+    ("sgconfig.yml", "ruleDirs: [rules]\nutilDirs: [utils]"),
+    ("utils/hook.yml", GLOBAL_UTIL_RULE),
+    ("test.ts", "const f = () => 1;"),
+  ])?;
+  // explicit config path, scanning files
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "scan",
+      "--config",
+      "sgconfig.yml",
+      "--inline-rules",
+      inline_rules,
+      "--json",
+    ])
+    .assert()
+    .success()
+    .stdout(contains("\"ruleId\": \"p\""))
+    .stdout(contains("\"text\": \"() => 1\""));
+  // implicit config discovery, parsing code from stdin
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "--stdin", "--inline-rules", inline_rules, "--json"])
+    .write_stdin("const f = () => 1;")
+    .assert()
+    .success()
+    .stdout(contains("\"ruleId\": \"p\""))
+    .stdout(contains("\"text\": \"() => 1\""));
+  Ok(())
+}
+
 #[test]
 fn test_scan_inline_rules_no_id() -> Result<()> {
   Command::new(cargo_bin!())
