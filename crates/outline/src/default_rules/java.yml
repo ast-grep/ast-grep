@@ -168,3 +168,82 @@ isPublic:
     kind: modifiers
     has:
       pattern: public
+---
+id: java-nested-class
+language: Java
+role: member
+parentRuleIds: [java-interface, java-enum, java-class, java-record]
+symbolType: class
+rule:
+  all:
+    - kind: class_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+---
+id: java-nested-interface
+language: Java
+role: member
+parentRuleIds: [java-interface, java-enum, java-class, java-record]
+symbolType: interface
+rule:
+  all:
+    - kind: interface_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+---
+id: java-nested-enum
+language: Java
+role: member
+parentRuleIds: [java-interface, java-enum, java-class, java-record]
+symbolType: enum
+rule:
+  all:
+    - kind: enum_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+---
+id: java-nested-record
+language: Java
+role: member
+parentRuleIds: [java-interface, java-enum, java-class, java-record]
+symbolType: struct
+rule:
+  all:
+    - kind: record_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+---
+id: java-nested-annotation-type
+language: Java
+role: member
+parentRuleIds: [java-interface, java-enum, java-class, java-record]
+symbolType: interface
+rule:
+  all:
+    - kind: annotation_type_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+---
+id: java-nested-enum-constant
+language: Java
+role: member
+parentRuleIds: [java-nested-enum]
+symbolType: enumMember
+rule:
+  all:
+    - kind: enum_constant
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isPublic: true

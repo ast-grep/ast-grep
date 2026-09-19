@@ -208,6 +208,50 @@ record Internal(int value) {}
 }
 
 #[test]
+fn java_rules_nest_nested_types() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+public class Outer {
+  class Inner {
+    int f;
+    void m() {}
+  }
+}
+"#,
+    r#"
+- Class item exported Outer
+  - Class public Inner
+    - Field private f
+    - Method private m
+"#,
+  );
+}
+
+#[test]
+fn java_rules_nest_enum_constants() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+enum Outer {
+  A, B;
+  enum Inner { X, Y }
+}
+"#,
+    r#"
+- Enum item private Outer
+  - Enum public Inner
+    - EnumMember public X
+    - EnumMember public Y
+"#,
+  );
+}
+
+#[test]
 fn java_rules_parse_and_extract_compact_constructors() {
   const RULES: &str = include_str!("../src/default_rules/java.yml");
   common::assert_outline_snapshot(
