@@ -520,7 +520,8 @@
             "null"
           ],
           "enum": [
-            "key"
+            "key",
+            null
           ]
         }
       }

@@ -42,6 +42,7 @@ mod scala;
 mod solidity;
 mod swift;
 mod yaml;
+mod zig;
 
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 pub use html::Html;
@@ -236,6 +237,9 @@ impl_lang_expando!(Ruby, language_ruby, 'µ');
 impl_lang_expando!(Rust, language_rust, 'µ');
 //https://docs.swift.org/swift-book/documentation/the-swift-programming-language/lexicalstructure/#Identifiers
 impl_lang_expando!(Swift, language_swift, 'µ');
+// Zig identifiers are [A-Za-z_][A-Za-z0-9_]*; '$' is not one of them.
+// https://ziglang.org/documentation/master/#Identifiers
+impl_lang_expando!(Zig, language_zig, '_');
 
 // Stub Language without preprocessing
 // Language Name, tree-sitter-name, alias, extension
@@ -285,6 +289,7 @@ pub enum SupportLang {
   Tsx,
   TypeScript,
   Yaml,
+  Zig,
 }
 
 impl SupportLang {
@@ -293,7 +298,7 @@ impl SupportLang {
     &[
       Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json,
       Kotlin, Lua, Markdown, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript,
-      Yaml,
+      Yaml, Zig,
     ]
   }
 
@@ -402,6 +407,7 @@ impl_aliases! {
   TypeScript => &["ts", "typescript"],
   Tsx => &["tsx"],
   Yaml => &["yaml", "yml"],
+  Zig => &["zig"],
 }
 
 /// Implements the language names and aliases.
@@ -451,6 +457,7 @@ macro_rules! execute_lang_method {
       S::Tsx => Tsx.$method($($pname,)*),
       S::TypeScript => TypeScript.$method($($pname,)*),
       S::Yaml => Yaml.$method($($pname,)*),
+      S::Zig => Zig.$method($($pname,)*),
     }
   }
 }
@@ -525,6 +532,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     TypeScript => &["ts", "cts", "mts"],
     Tsx => &["tsx"],
     Yaml => &["yaml", "yml"],
+    Zig => &["zig"],
   }
 }
 
@@ -622,6 +630,9 @@ mod test {
     assert_eq!(from_extension(path), Some(SupportLang::Markdown));
     let path = Path::new("README.markdown");
     assert_eq!(from_extension(path), Some(SupportLang::Markdown));
+    let path = Path::new("build.zig");
+    assert_eq!(from_extension(path), Some(SupportLang::Zig));
+    assert_eq!("zig".parse::<SupportLang>().unwrap(), SupportLang::Zig);
   }
 
   // TODO: add test for file_types

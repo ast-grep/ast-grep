@@ -734,7 +734,8 @@
           "enum": [
             "alternative",
             "condition",
-            "consequence"
+            "consequence",
+            null
           ]
         }
       }

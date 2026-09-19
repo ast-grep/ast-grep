@@ -5,7 +5,7 @@ use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::tree_sitter::{LanguageExt, TSLanguage};
 use ast_grep_language::{
   Alias, Bash, C, CSharp, Cpp, Css, Dart, Elixir, Go, Haskell, Html, Java, JavaScript, Json,
-  Kotlin, Lua, Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml,
+  Kotlin, Lua, Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml, Zig,
 };
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema, schema_for};
 use serde_json::{Value, to_writer_pretty};
@@ -48,7 +48,8 @@ fn generate_lang_schemas() -> Result<()> {
   generate_lang_schema(Swift, "swift")?;
   generate_lang_schema(Tsx, "tsx")?;
   generate_lang_schema(TypeScript, "typescript")?;
-  generate_lang_schema(Yaml, "yaml")
+  generate_lang_schema(Yaml, "yaml")?;
+  generate_lang_schema(Zig, "zig")
 }
 
 fn generate_lang_schema<T: LanguageExt + Alias>(lang: T, name: &str) -> Result<()> {
@@ -83,10 +84,11 @@ fn add_lang_info_to_schema<T: LanguageExt + Alias>(
     .context("must have field")?
     .as_object_mut()
     .context("field must be an object")?;
-  field.insert(
-    "enum".to_string(),
-    Value::Array(get_fields(&lang.get_ts_language())),
-  );
+  // `Relation.field` is `Option<String>`, so `field: null` is valid and the
+  // enum has to allow null alongside the field names.
+  let mut fields = get_fields(&lang.get_ts_language());
+  fields.push(Value::Null);
+  field.insert("enum".to_string(), Value::Array(fields));
 
   // insert kind to relation and rule
   insert_kind(relation_props, &lang)?;

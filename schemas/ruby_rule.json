@@ -746,7 +746,8 @@
             "right",
             "scope",
             "superclass",
-            "value"
+            "value",
+            null
           ]
         }
       }
