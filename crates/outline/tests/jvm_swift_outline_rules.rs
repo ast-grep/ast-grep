@@ -183,6 +183,36 @@ enum Protocol { HTTP_1_1 }
 }
 
 #[test]
+fn java_rules_parse_wildcard_imports() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+package okhttp3;
+
+import java.util.*;
+import static java.util.Map.*;
+import java.*;
+import static java.lang.*;
+import okhttp3.Request;
+import static java.util.Collections.emptyList;
+
+class Client {}
+"#,
+    r#"
+- Module import private java.util
+- Module import private java.util.Map
+- Module import private java
+- Module import private java.lang
+- Module import private okhttp3.Request
+- Module import private java.util.Collections.emptyList
+- Class item private Client
+"#,
+  );
+}
+
+#[test]
 fn java_rules_parse_and_extract_records() {
   const RULES: &str = include_str!("../src/default_rules/java.yml");
   common::assert_outline_snapshot(
