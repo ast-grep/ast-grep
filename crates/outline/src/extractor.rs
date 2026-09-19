@@ -320,10 +320,15 @@ impl<L: Language> MemberExtractor<L> {
     self.common.rule.matcher.match_node(node.clone())
   }
 
-  pub fn extract<'tree, D: Doc>(&self, node_match: &NodeMatch<'tree, D>) -> OutlineMember<'tree> {
+  pub fn extract<'tree, D: Doc>(
+    &self,
+    node_match: &NodeMatch<'tree, D>,
+    members: Vec<OutlineMember<'tree>>,
+  ) -> OutlineMember<'tree> {
     OutlineMember {
       entry: self.common.extract_entry(EntryRole::Member, node_match),
       is_public: self.is_public.evaluate(node_match),
+      members,
     }
   }
 }

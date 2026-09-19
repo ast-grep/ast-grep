@@ -182,7 +182,7 @@ impl<'a, L: Language> ScopedMemberExtractors<'a, L> {
   {
     for extractor in self.extractors_for_kind(node.kind_id()) {
       if let Some(matched) = extractor.match_node(node) {
-        return Some(extractor.extract(&matched));
+        return Some(extractor.extract(&matched, Vec::new()));
       }
     }
     None
