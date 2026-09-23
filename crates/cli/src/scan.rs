@@ -517,7 +517,8 @@ rule:
       .write_all("fn test() { Some(123) }".as_bytes())
       .unwrap();
     file.sync_all().unwrap();
-    let project_config = ProjectConfig::setup(Some(dir.path().join("sgconfig.yml"))).unwrap();
+    let project_config =
+      ProjectConfig::setup(Some(dir.path().join("sgconfig.yml")), false).unwrap();
     let arg = default_scan_arg();
     assert!(run_with_config(arg, project_config).is_ok());
   }

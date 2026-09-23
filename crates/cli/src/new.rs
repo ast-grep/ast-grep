@@ -379,7 +379,7 @@ mod test {
   }
 
   fn create_rule(temp: &Path) -> Result<()> {
-    let project = ProjectConfig::setup(Some(temp.join("sgconfig.yml")))?;
+    let project = ProjectConfig::setup(Some(temp.join("sgconfig.yml")), false)?;
     let arg = NewArg {
       entity: Some(Entity::Rule),
       name: Some("test-rule".into()),
@@ -392,7 +392,7 @@ mod test {
   }
 
   fn create_util(temp: &Path) -> Result<()> {
-    let project = ProjectConfig::setup(Some(temp.join("sgconfig.yml")))?;
+    let project = ProjectConfig::setup(Some(temp.join("sgconfig.yml")), false)?;
     let arg = NewArg {
       entity: Some(Entity::Util),
       name: Some("test-utils".into()),

@@ -95,7 +95,7 @@ impl ProjectConfig {
   /// returns a Result of Result.
   /// The inner Result is for configuration not found, or ProjectNotExist
   /// The outer Result is for definitely wrong config.
-  pub fn setup(config_path: Option<PathBuf>) -> Result<Result<Self>> {
+  pub fn setup(config_path: Option<PathBuf>, allow_custom_languages: bool) -> Result<Result<Self>> {
     let Some((project_dir, mut sg_config)) = Self::discover_project(config_path)? else {
       return Ok(Err(anyhow::anyhow!(EC::ProjectNotExist)));
     };
@@ -109,7 +109,7 @@ impl ProjectConfig {
       util_dirs: sg_config.util_dirs.take(),
     };
     // sg_config will not use rule dirs and test configs anymore
-    register_custom_language(&config.project_dir, sg_config)?;
+    register_custom_language(&config.project_dir, sg_config, allow_custom_languages)?;
     Ok(Ok(config))
   }
 }
@@ -126,8 +126,15 @@ fn custom_language_outline_rules(
     .collect()
 }
 
-fn register_custom_language(project_dir: &Path, sg_config: AstGrepConfig) -> Result<()> {
+fn register_custom_language(
+  project_dir: &Path,
+  sg_config: AstGrepConfig,
+  allow_custom_languages: bool,
+) -> Result<()> {
   if let Some(custom_langs) = sg_config.custom_languages {
+    if !custom_langs.is_empty() && !allow_custom_languages {
+      return Err(anyhow::anyhow!(EC::CustomLanguageNotAllowed));
+    }
     SgLang::register_custom_language(project_dir, custom_langs)?;
   }
   if let Some(globs) = sg_config.language_globs {
