@@ -231,14 +231,14 @@ fn test_debug_query() -> Result<()> {
 }
 
 #[test]
-fn test_unsupport_config_arg() -> Result<()> {
-  let dir = create_test_files([])?;
+fn test_config_arg_in_default_run() -> Result<()> {
+  let dir = create_test_files([("sgconfig.yml", "ruleDirs: []"), ("test.js", "alert(123)")])?;
   Command::new(cargo_bin!())
     .current_dir(dir.path())
-    .args(["-p", "alert($A)", "-c", "not-found.yml"])
+    .args(["-p", "alert($A)", "-c", "sgconfig.yml", "test.js"])
     .assert()
-    .failure()
-    .stderr(contains("unexpected argument"));
+    .success()
+    .stdout(contains("alert(123)"));
   Ok(())
 }
 
