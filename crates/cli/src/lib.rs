@@ -89,17 +89,14 @@ fn is_command(arg: &str, command: &str) -> bool {
   }
 }
 
-fn try_default_run(args: &[String]) -> Result<Option<RunArg>> {
+fn insert_default_run(args: &mut Vec<String>) {
   // use `run` if there is at least one pattern arg with no user provided command
   let is_pattern = args.iter().skip(1).any(|p| is_command(p, "pattern"));
   let is_kind = args.iter().skip(1).any(|p| is_command(p, "kind"));
   let should_use_default_run_command = (is_pattern || is_kind) && args[1].starts_with('-');
   if should_use_default_run_command {
     // handle no subcommand
-    let arg = RunArg::try_parse_from(args)?;
-    Ok(Some(arg))
-  } else {
-    Ok(None)
+    args.insert(1, "run".to_string());
   }
 }
 
@@ -129,13 +126,11 @@ fn setup_project_is_possible(args: &[String]) -> Result<Result<ProjectConfig>> {
 
 // this wrapper function is for testing
 pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
-  let args: Vec<_> = args.collect();
+  let mut args: Vec<_> = args.collect();
+  insert_default_run(&mut args);
   // do not unwrap project before cmd parsing
   // sg help does not need a valid sgconfig.yml
   let project = setup_project_is_possible(&args);
-  if let Some(arg) = try_default_run(&args)? {
-    return run_with_pattern(arg, project?);
-  }
   let app = App::try_parse_from(args)?;
   let project = project?; // unwrap here to report invalid project
   match app.command {
@@ -192,10 +187,11 @@ mod test_cli {
   }
 
   fn default_run(args: &str) {
-    let args: Vec<_> = std::iter::once("sg".into())
+    let mut args: Vec<_> = std::iter::once("sg".into())
       .chain(args.split(' ').map(|s| s.to_string()))
       .collect();
-    assert!(matches!(try_default_run(&args), Ok(Some(_))));
+    insert_default_run(&mut args);
+    assert_eq!(args[1], "run");
   }
   #[test]
   fn test_no_arg_run() {
