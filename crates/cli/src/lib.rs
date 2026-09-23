@@ -46,6 +46,9 @@ struct App {
   /// Path to ast-grep root config, default is sgconfig.yml.
   #[clap(short, long, global = true, value_name = "CONFIG_FILE")]
   config: Option<PathBuf>,
+  /// Allow sgconfig.yml to load native custom language libraries.
+  #[clap(long, global = true)]
+  allow_custom_languages: bool,
 }
 
 #[derive(Subcommand)]
@@ -101,7 +104,10 @@ fn insert_default_run(args: &mut Vec<String>) {
 }
 
 /// finding project and setup custom language configuration
-fn setup_project_is_possible(args: &[String]) -> Result<Result<ProjectConfig>> {
+fn setup_project_is_possible(
+  args: &[String],
+  allow_custom_languages: bool,
+) -> Result<Result<ProjectConfig>> {
   let mut config = None;
   for i in 0..args.len() {
     let arg = &args[i];
@@ -121,16 +127,20 @@ fn setup_project_is_possible(args: &[String]) -> Result<Result<ProjectConfig>> {
     let config_file = (&args[i + 1]).into();
     config = Some(config_file);
   }
-  ProjectConfig::setup(config)
+  ProjectConfig::setup(config, allow_custom_languages)
 }
 
 // this wrapper function is for testing
 pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
   let mut args: Vec<_> = args.collect();
   insert_default_run(&mut args);
+  let allow_custom_languages = args
+    .iter()
+    .take_while(|arg| arg.as_str() != "--")
+    .any(|arg| arg == "--allow-custom-languages");
   // do not unwrap project before cmd parsing
   // sg help does not need a valid sgconfig.yml
-  let project = setup_project_is_possible(&args);
+  let project = setup_project_is_possible(&args, allow_custom_languages);
   let app = App::try_parse_from(args)?;
   let project = project?; // unwrap here to report invalid project
   match app.command {
