@@ -563,7 +563,8 @@
             "right",
             "start",
             "step",
-            "table"
+            "table",
+            null
           ]
         }
       }

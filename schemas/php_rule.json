@@ -787,7 +787,8 @@
             "static_modifier",
             "type",
             "update",
-            "value"
+            "value",
+            null
           ]
         }
       }
