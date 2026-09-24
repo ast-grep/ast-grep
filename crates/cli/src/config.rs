@@ -92,6 +92,12 @@ impl ProjectConfig {
     read_directory_yaml(self, global_rules, rule_overwrite)
   }
 
+  /// Load global utility rules from `utilDirs` for callers that parse rules
+  /// outside `find_rules` (e.g. `--inline-rules`).
+  pub fn find_global_rules(&self) -> Result<GlobalRules> {
+    find_util_rules(self)
+  }
+
   /// returns a Result of Result.
   /// The inner Result is for configuration not found, or ProjectNotExist
   /// The outer Result is for definitely wrong config.
