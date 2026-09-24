@@ -7,6 +7,7 @@ mod outline;
 mod print;
 mod run;
 mod scan;
+mod trust;
 mod utils;
 mod verify;
 
@@ -21,6 +22,7 @@ use new::{NewArg, run_create_new};
 use outline::{OutlineArg, run_outline};
 use run::{RunArg, run_with_pattern};
 use scan::{ScanArg, run_with_config};
+use trust::{TrustArg, run_trust};
 use utils::exit_with_error;
 use verify::{TestArg, run_test_rule};
 
@@ -67,6 +69,8 @@ enum Commands {
   Outline(OutlineArg),
   /// Generate shell completion script.
   Completions(CompletionsArg),
+  /// Trust this project's native custom language libraries.
+  Trust(TrustArg),
   /// Generate rule docs for current configuration. (Not Implemented Yet)
   #[cfg(debug_assertions)]
   Docs,
@@ -127,7 +131,10 @@ fn setup_project_is_possible(
     let config_file = (&args[i + 1]).into();
     config = Some(config_file);
   }
-  ProjectConfig::setup(config, allow_custom_languages)
+  let is_trust_command = args.iter().any(|arg| arg == "trust")
+    && App::try_parse_from(args).is_ok_and(|app| matches!(app.command, Commands::Trust(_)));
+  let is_trusted = !is_trust_command && trust::is_config_trusted(config.as_deref());
+  ProjectConfig::setup(config, allow_custom_languages || is_trusted)
 }
 
 // this wrapper function is for testing
@@ -142,8 +149,15 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
   // sg help does not need a valid sgconfig.yml
   let project = setup_project_is_possible(&args, allow_custom_languages);
   let app = App::try_parse_from(args)?;
+  let App {
+    command, config, ..
+  } = app;
+  let command = match command {
+    Commands::Trust(arg) => return run_trust(arg, config),
+    command => command,
+  };
   let project = project?; // unwrap here to report invalid project
-  match app.command {
+  match command {
     Commands::Run(arg) => run_with_pattern(arg, project),
     Commands::Scan(arg) => run_with_config(arg, project),
     Commands::Test(arg) => run_test_rule(arg, project),
@@ -151,6 +165,7 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
     Commands::Lsp(arg) => run_language_server(arg, project).map(|_| ExitCode::SUCCESS),
     Commands::Outline(arg) => run_outline(arg, project),
     Commands::Completions(arg) => run_shell_completion::<App>(arg),
+    Commands::Trust(_) => unreachable!("trust command returned before setup"),
     #[cfg(debug_assertions)]
     Commands::Docs => todo!("todo, generate rule docs based on current config"),
   }

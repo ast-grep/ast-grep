@@ -187,7 +187,7 @@ impl ErrorMessage {
       ),
       CustomLanguageNotAllowed => Self::new(
         "Custom language libraries require explicit opt-in",
-        "Custom language libraries in untrusted environments may run malicious code. Review the project before using `--allow-custom-languages`.",
+        "Custom language libraries in untrusted environments may run malicious code. Review the project before using `ast-grep trust` or `--allow-custom-languages`.",
         CUSTOM_LANG_GUIDE,
       ),
       InvalidGlobalUtils => Self::new(

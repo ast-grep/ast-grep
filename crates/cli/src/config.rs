@@ -284,7 +284,9 @@ const CONFIG_FILE_YML: &str = "sgconfig.yml";
 const CONFIG_FILE_YAML: &str = "sgconfig.yaml";
 
 /// return None if config file does not exist
-fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<Option<PathBuf>> {
+pub(crate) fn find_config_path_with_default(
+  config_path: Option<PathBuf>,
+) -> Result<Option<PathBuf>> {
   if config_path.is_some() {
     return Ok(config_path);
   }

@@ -6,6 +6,7 @@ use common::create_test_files;
 use predicates::str::contains;
 use std::fs;
 use std::path::PathBuf;
+use tempfile::TempDir;
 
 const CUSTOM_LANGUAGE_CONFIG: &str = r#"
 ruleDirs: []
@@ -115,5 +116,86 @@ fn allowed_custom_language_is_registered_before_cli_parsing() -> Result<()> {
     .write_stdin(r#"{"key": 1}"#)
     .assert()
     .success();
+  Ok(())
+}
+
+#[test]
+fn persistent_trust_is_path_based_and_can_be_revoked() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG),
+    ("missing-library.so", "not really a native library"),
+  ])?;
+  let trust_dir = TempDir::new()?;
+  let command = || {
+    let mut command = Command::new(cargo_bin!());
+    command
+      .current_dir(dir.path())
+      .env("AST_GREP_TRUST_DIR", trust_dir.path());
+    command
+  };
+
+  command()
+    .args(["trust", "-y"])
+    .assert()
+    .success()
+    .stdout(contains("Trusted"));
+
+  // A trusted project proceeds to the loader (which rejects the test fixture).
+  command()
+    .arg("scan")
+    .assert()
+    .failure()
+    .stderr(contains("Cannot load custom language library"));
+
+  fs::write(
+    dir.path().join("sgconfig.yml"),
+    format!("{CUSTOM_LANGUAGE_CONFIG}\n# changed"),
+  )?;
+  fs::write(
+    dir.path().join("missing-library.so"),
+    "changed native library contents",
+  )?;
+  command()
+    .arg("scan")
+    .assert()
+    .failure()
+    .stderr(contains("Cannot load custom language library"));
+
+  command()
+    .args(["trust", "--revoke"])
+    .assert()
+    .success()
+    .stdout(contains("Revoked trust"));
+  command().arg("scan").assert().failure().stderr(contains(
+    "Custom language libraries require explicit opt-in",
+  ));
+  Ok(())
+}
+
+#[test]
+fn trust_requires_yes_without_a_terminal() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG),
+    ("missing-library.so", "not really a native library"),
+  ])?;
+  let trust_dir = TempDir::new()?;
+
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .env("AST_GREP_TRUST_DIR", trust_dir.path())
+    .arg("trust")
+    .assert()
+    .failure()
+    .stderr(contains("Pass `-y`"));
+
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .env("AST_GREP_TRUST_DIR", trust_dir.path())
+    .arg("scan")
+    .assert()
+    .failure()
+    .stderr(contains(
+      "Custom language libraries require explicit opt-in",
+    ));
   Ok(())
 }
