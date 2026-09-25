@@ -926,8 +926,7 @@
             "type_parameters",
             "update",
             "uri",
-            "value",
-            null
+            "value"
           ]
         }
       }

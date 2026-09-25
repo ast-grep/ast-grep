@@ -908,8 +908,7 @@
             "symbol",
             "template_parameters",
             "type",
-            "update",
-            null
+            "update"
           ]
         }
       }

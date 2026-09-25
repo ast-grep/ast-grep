@@ -770,8 +770,7 @@
             "type",
             "type_arguments",
             "type_parameters",
-            "update",
-            null
+            "update"
           ]
         }
       }

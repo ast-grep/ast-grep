@@ -735,8 +735,7 @@
             "symbol",
             "type",
             "underlying_type",
-            "update",
-            null
+            "update"
           ]
         }
       }

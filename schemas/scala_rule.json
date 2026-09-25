@@ -823,8 +823,7 @@
             "selector",
             "type",
             "type_arguments",
-            "type_parameters",
-            null
+            "type_parameters"
           ]
         }
       }

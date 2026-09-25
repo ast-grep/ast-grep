@@ -902,8 +902,7 @@
             "subscript",
             "type",
             "type_parameters",
-            "update",
-            null
+            "update"
           ]
         }
       }
