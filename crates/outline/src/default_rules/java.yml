@@ -20,6 +20,28 @@ signature: import $PATH
 isImport: true
 isExported: false
 ---
+id: java-import-wildcard
+language: Java
+role: item
+symbolType: module
+rule:
+  pattern: import $PATH.*;
+name: $PATH
+signature: import $PATH.*
+isImport: true
+isExported: false
+---
+id: java-static-import-wildcard
+language: Java
+role: item
+symbolType: module
+rule:
+  pattern: import static $PATH.*;
+name: $PATH
+signature: import static $PATH.*
+isImport: true
+isExported: false
+---
 id: java-interface
 language: Java
 role: item
