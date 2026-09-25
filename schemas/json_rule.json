@@ -472,8 +472,7 @@
             "null"
           ],
           "enum": [
-            "key",
-            null
+            "key"
           ]
         }
       }

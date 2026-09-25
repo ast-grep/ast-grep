@@ -652,8 +652,7 @@
             "ok",
             "operator",
             "right",
-            "sentinel",
-            null
+            "sentinel"
           ]
         }
       }
