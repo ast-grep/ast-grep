@@ -3,8 +3,8 @@ mod common;
 use anyhow::Result;
 use assert_cmd::{Command, cargo_bin};
 use common::create_test_files;
+use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
-use std::fs;
 use std::path::PathBuf;
 
 const CUSTOM_LANGUAGE_CONFIG: &str = r#"
@@ -33,17 +33,28 @@ fn loadable_custom_language_config() -> Option<String> {
 }
 
 #[test]
-fn custom_languages_require_explicit_opt_in() -> Result<()> {
+fn custom_languages_are_ignored_by_default() -> Result<()> {
   let dir = create_test_files([("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG)])?;
 
   Command::new(cargo_bin!())
     .current_dir(dir.path())
     .arg("scan")
     .assert()
-    .failure()
-    .stderr(contains(
-      "Custom language libraries require explicit opt-in",
-    ));
+    .success()
+    .stderr(contains("custom languages are ignored"));
+  Ok(())
+}
+
+#[test]
+fn explicit_ignore_skips_custom_languages() -> Result<()> {
+  let dir = create_test_files([("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG)])?;
+
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan", "--custom-languages", "ignore"])
+    .assert()
+    .success()
+    .stderr(contains("custom languages are ignored"));
   Ok(())
 }
 
@@ -53,7 +64,7 @@ fn allow_custom_languages_attempts_to_load_the_library() -> Result<()> {
 
   Command::new(cargo_bin!())
     .current_dir(dir.path())
-    .args(["scan", "--allow-custom-languages"])
+    .args(["scan", "--custom-languages", "allow"])
     .assert()
     .failure()
     .stderr(contains("Cannot load custom language library"));
@@ -66,31 +77,10 @@ fn positional_path_does_not_enable_custom_languages() -> Result<()> {
 
   Command::new(cargo_bin!())
     .current_dir(dir.path())
-    .args(["-p", "foo", "--", "--allow-custom-languages"])
+    .args(["-p", "foo", "--", "--custom-languages", "allow"])
     .assert()
     .failure()
-    .stderr(contains(
-      "Custom language libraries require explicit opt-in",
-    ));
-  Ok(())
-}
-
-#[test]
-fn denied_custom_languages_do_not_overwrite_project_config() -> Result<()> {
-  let dir = create_test_files([("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG)])?;
-
-  Command::new(cargo_bin!())
-    .current_dir(dir.path())
-    .args(["new", "project", "--yes"])
-    .assert()
-    .failure()
-    .stderr(contains(
-      "Custom language libraries require explicit opt-in",
-    ));
-  assert_eq!(
-    fs::read_to_string(dir.path().join("sgconfig.yml"))?,
-    CUSTOM_LANGUAGE_CONFIG
-  );
+    .stderr(contains("Cannot load custom language library").not());
   Ok(())
 }
 
@@ -109,7 +99,8 @@ fn allowed_custom_language_is_registered_before_cli_parsing() -> Result<()> {
       "1",
       "-l",
       "myjson",
-      "--allow-custom-languages",
+      "--custom-languages",
+      "allow",
       "--stdin",
     ])
     .write_stdin(r#"{"key": 1}"#)

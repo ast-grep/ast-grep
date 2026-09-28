@@ -437,6 +437,7 @@ fn match_rule_on_file<T>(
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::config::CustomLanguagePolicy;
   use crate::print::ColorArg;
   use std::fs::File;
   use std::io::Write;
@@ -517,8 +518,11 @@ rule:
       .write_all("fn test() { Some(123) }".as_bytes())
       .unwrap();
     file.sync_all().unwrap();
-    let project_config =
-      ProjectConfig::setup(Some(dir.path().join("sgconfig.yml")), false).unwrap();
+    let project_config = ProjectConfig::setup(
+      Some(dir.path().join("sgconfig.yml")),
+      CustomLanguagePolicy::Ignore,
+    )
+    .unwrap();
     let arg = default_scan_arg();
     assert!(run_with_config(arg, project_config).is_ok());
   }

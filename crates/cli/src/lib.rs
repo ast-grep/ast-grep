@@ -15,7 +15,7 @@ use clap::{Parser, Subcommand};
 use std::{path::PathBuf, process::ExitCode};
 
 use completions::{CompletionsArg, run_shell_completion};
-use config::ProjectConfig;
+use config::{CustomLanguagePolicy, ProjectConfig};
 use lsp::{LspArg, run_language_server};
 use new::{NewArg, run_create_new};
 use outline::{OutlineArg, run_outline};
@@ -46,9 +46,9 @@ struct App {
   /// Path to ast-grep root config, default is sgconfig.yml.
   #[clap(short, long, global = true, value_name = "CONFIG_FILE")]
   config: Option<PathBuf>,
-  /// Allow sgconfig.yml to load native custom language libraries.
-  #[clap(long, global = true)]
-  allow_custom_languages: bool,
+  /// Control how sgconfig.yml handles native custom language libraries.
+  #[clap(long, global = true, value_enum, default_value_t)]
+  custom_languages: CustomLanguagePolicy,
 }
 
 #[derive(Subcommand)]
@@ -106,7 +106,7 @@ fn insert_default_run(args: &mut Vec<String>) {
 /// finding project and setup custom language configuration
 fn setup_project_is_possible(
   args: &[String],
-  allow_custom_languages: bool,
+  custom_languages: CustomLanguagePolicy,
 ) -> Result<Result<ProjectConfig>> {
   let mut config = None;
   for i in 0..args.len() {
@@ -127,21 +127,48 @@ fn setup_project_is_possible(
     let config_file = (&args[i + 1]).into();
     config = Some(config_file);
   }
-  ProjectConfig::setup(config, allow_custom_languages)
+  ProjectConfig::setup(config, custom_languages)
+}
+
+fn parse_custom_language_policy(args: &[String]) -> CustomLanguagePolicy {
+  let mut policy = None;
+  let mut i = 1;
+  while i < args.len() {
+    let arg = args[i].as_str();
+    if arg == "--" {
+      break;
+    }
+    let value = if arg == "--custom-languages" {
+      i += 1;
+      args.get(i).map(String::as_str)
+    } else {
+      arg.strip_prefix("--custom-languages=")
+    };
+    if let Some(value) = value {
+      if policy.is_some() {
+        return CustomLanguagePolicy::Ignore;
+      }
+      policy = match value {
+        "allow" => Some(CustomLanguagePolicy::Allow),
+        "ignore" => Some(CustomLanguagePolicy::Ignore),
+        _ => return CustomLanguagePolicy::Ignore,
+      };
+    }
+    i += 1;
+  }
+  policy.unwrap_or_default()
 }
 
 // this wrapper function is for testing
 pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
   let mut args: Vec<_> = args.collect();
   insert_default_run(&mut args);
-  let allow_custom_languages = args
-    .iter()
-    .take_while(|arg| arg.as_str() != "--")
-    .any(|arg| arg == "--allow-custom-languages");
+  let custom_languages = parse_custom_language_policy(&args);
   // do not unwrap project before cmd parsing
   // sg help does not need a valid sgconfig.yml
-  let project = setup_project_is_possible(&args, allow_custom_languages);
+  let project = setup_project_is_possible(&args, custom_languages);
   let app = App::try_parse_from(args)?;
+  debug_assert_eq!(custom_languages, app.custom_languages);
   let project = project?; // unwrap here to report invalid project
   match app.command {
     Commands::Run(arg) => run_with_pattern(arg, project),
@@ -203,6 +230,29 @@ mod test_cli {
     insert_default_run(&mut args);
     assert_eq!(args[1], "run");
   }
+
+  #[test]
+  fn test_custom_language_policy() {
+    let args = |args: &[&str]| {
+      args
+        .iter()
+        .map(|arg| (*arg).to_string())
+        .collect::<Vec<_>>()
+    };
+    assert_eq!(
+      parse_custom_language_policy(&args(&["sg", "scan"])),
+      CustomLanguagePolicy::Ignore
+    );
+    assert_eq!(
+      parse_custom_language_policy(&args(&["sg", "scan", "--custom-languages=allow"])),
+      CustomLanguagePolicy::Allow
+    );
+    assert_eq!(
+      parse_custom_language_policy(&args(&["sg", "run", "--", "--custom-languages", "allow"])),
+      CustomLanguagePolicy::Ignore
+    );
+  }
+
   #[test]
   fn test_no_arg_run() {
     let ret = main_with_args(["sg".to_owned()].into_iter());
@@ -269,6 +319,10 @@ mod test_cli {
   #[test]
   fn test_scan() {
     ok("scan");
+    ok("scan --custom-languages allow");
+    ok("scan --custom-languages ignore");
+    error("scan --custom-languages deny");
+    error("scan --custom-languages invalid");
     ok("scan dir");
     ok("scan -r test-rule.yml dir");
     ok("scan -c test-rule.yml dir");

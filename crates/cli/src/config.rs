@@ -6,12 +6,22 @@ use ast_grep_config::{
   DeserializeEnv, GlobalRules, RuleCollection, RuleConfig, from_str, from_yaml_string,
 };
 use ast_grep_language::config_file_type;
+use clap::ValueEnum;
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 
 use std::collections::{HashMap, HashSet};
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
+pub enum CustomLanguagePolicy {
+  /// Load native custom language libraries for this invocation.
+  Allow,
+  /// Skip native custom language libraries without reporting an error.
+  #[default]
+  Ignore,
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -95,12 +105,18 @@ impl ProjectConfig {
   /// returns a Result of Result.
   /// The inner Result is for configuration not found, or ProjectNotExist
   /// The outer Result is for definitely wrong config.
-  pub fn setup(config_path: Option<PathBuf>, allow_custom_languages: bool) -> Result<Result<Self>> {
+  pub fn setup(
+    config_path: Option<PathBuf>,
+    custom_languages: CustomLanguagePolicy,
+  ) -> Result<Result<Self>> {
     let Some((project_dir, mut sg_config)) = Self::discover_project(config_path)? else {
       return Ok(Err(anyhow::anyhow!(EC::ProjectNotExist)));
     };
-    let outline_rules =
-      custom_language_outline_rules(&project_dir, sg_config.custom_languages.as_ref());
+    let outline_rules = if custom_languages == CustomLanguagePolicy::Allow {
+      custom_language_outline_rules(&project_dir, sg_config.custom_languages.as_ref())
+    } else {
+      vec![]
+    };
     let config = ProjectConfig {
       project_dir,
       rule_dirs: std::mem::take(&mut sg_config.rule_dirs),
@@ -109,7 +125,7 @@ impl ProjectConfig {
       util_dirs: sg_config.util_dirs.take(),
     };
     // sg_config will not use rule dirs and test configs anymore
-    register_custom_language(&config.project_dir, sg_config, allow_custom_languages)?;
+    register_custom_language(&config.project_dir, sg_config, custom_languages)?;
     Ok(Ok(config))
   }
 }
@@ -129,13 +145,20 @@ fn custom_language_outline_rules(
 fn register_custom_language(
   project_dir: &Path,
   sg_config: AstGrepConfig,
-  allow_custom_languages: bool,
+  policy: CustomLanguagePolicy,
 ) -> Result<()> {
   if let Some(custom_langs) = sg_config.custom_languages {
-    if !custom_langs.is_empty() && !allow_custom_languages {
-      return Err(anyhow::anyhow!(EC::CustomLanguageNotAllowed));
+    match policy {
+      CustomLanguagePolicy::Allow => {
+        SgLang::register_custom_language(project_dir, custom_langs)?;
+      }
+      CustomLanguagePolicy::Ignore if !custom_langs.is_empty() => {
+        eprintln!(
+          "Warning: custom languages are ignored because native libraries can execute malicious code. Review the project before using `--custom-languages allow`."
+        );
+      }
+      CustomLanguagePolicy::Ignore => {}
     }
-    SgLang::register_custom_language(project_dir, custom_langs)?;
   }
   if let Some(globs) = sg_config.language_globs {
     SgLang::register_globs(globs)?;
