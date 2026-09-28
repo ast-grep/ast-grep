@@ -70,6 +70,8 @@ pub enum ErrorContext {
   InsufficientCLIArgument(&'static str),
   // Completions
   CannotInferShell,
+  // Trust
+  TrustConfirmationRequired,
   // Interactive
   ExitInteractiveEditing,
 }
@@ -85,7 +87,7 @@ impl ErrorContext {
       TestFail(_) | TestSnapshotMismatch(_) => 4,
       NoTestDirConfigured | NoUtilDirConfigured => 5,
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 6,
-      StdInIsNotInteractive => 7,
+      StdInIsNotInteractive | TrustConfirmationRequired => 7,
       ParseTest(_) | ParseRule(_) | ParseConfiguration | ParsePattern | ParseSelector
       | InvalidGlobalUtils | LangInjection | DuplicateRuleId(_) | InvalidRuleId(_) => 8,
       GlobPattern | BuildGlobs => 9,
@@ -311,6 +313,11 @@ impl ErrorMessage {
         "Can not infer which shell to generate completions.",
         "Either specify shell flavor by `sg completions [SHELL]` or set correct `SHELL` environment.",
         CLI_USAGE,
+      ),
+      TrustConfirmationRequired => Self::new(
+        "Cannot confirm project trust without an interactive terminal.",
+        "Review the configuration and its native libraries, then pass `--yes` to trust it non-interactively.",
+        CUSTOM_LANG_GUIDE,
       ),
       ExitInteractiveEditing => Self::new(
         "Interactive editing exited.",

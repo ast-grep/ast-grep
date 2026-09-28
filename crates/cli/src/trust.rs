@@ -1,6 +1,7 @@
 use crate::config::find_config_path_with_default;
+use crate::utils::ErrorContext as EC;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use clap::Args;
 use directories::BaseDirs;
 use inquire::Confirm;
@@ -8,12 +9,17 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::BTreeSet;
 use std::fs;
-use std::io::IsTerminal;
+use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 const TRUST_STORE_VERSION: u8 = 1;
 const TRUST_DIR_ENV: &str = "AST_GREP_TRUST_DIR";
+const TRUST_WARNING: &str = "WARNING: TRUSTING NATIVE CODE\n\
+Native custom language libraries execute code with your user permissions.\n\
+ast-grep trusts this configuration path, not its current contents. Anyone who can later modify\n\
+the configuration or a referenced library can cause ast-grep to execute different, potentially\n\
+malicious native code.";
 
 #[derive(Args)]
 pub struct TrustArg {
@@ -33,7 +39,11 @@ struct TrustStore {
 }
 
 pub fn run_trust(arg: TrustArg, config_path: Option<PathBuf>) -> Result<ExitCode> {
-  let config_path = canonical_config_path(config_path)?;
+  let config_path = if arg.revoke {
+    canonical_config_path_for_revoke(config_path)?
+  } else {
+    canonical_config_path(config_path)?
+  };
   let mut store = load_store()?;
   if arg.revoke {
     if store.trusted_configs.remove(&config_path) {
@@ -53,8 +63,9 @@ pub fn run_trust(arg: TrustArg, config_path: Option<PathBuf>) -> Result<ExitCode
     return Ok(ExitCode::SUCCESS);
   }
 
+  eprintln!("{TRUST_WARNING}");
   if !arg.yes && !std::io::stdin().is_terminal() {
-    bail!("Cannot ask for confirmation without a terminal. Pass `-y` to trust this configuration.");
+    return Err(anyhow::anyhow!(EC::TrustConfirmationRequired));
   }
   let confirmed = arg.yes
     || Confirm::new(&format!(
@@ -102,7 +113,20 @@ fn save_store(store: &TrustStore) -> Result<()> {
     .expect("trust store path must have a parent directory");
   fs::create_dir_all(parent).context("Cannot create the ast-grep configuration directory")?;
   let serialized = serde_json::to_vec_pretty(store)?;
-  fs::write(path, serialized).context("Cannot write the ast-grep trust store")
+  let mut temp = tempfile::NamedTempFile::new_in(parent)
+    .context("Cannot create a temporary ast-grep trust store")?;
+  temp
+    .write_all(&serialized)
+    .context("Cannot write the temporary ast-grep trust store")?;
+  temp
+    .as_file()
+    .sync_all()
+    .context("Cannot flush the temporary ast-grep trust store")?;
+  temp
+    .persist(&path)
+    .map_err(|error| error.error)
+    .context("Cannot replace the ast-grep trust store")?;
+  Ok(())
 }
 
 fn trust_store_path() -> Result<PathBuf> {
@@ -122,6 +146,32 @@ fn canonical_config_path(config_path: Option<PathBuf>) -> Result<PathBuf> {
   let config_path = find_config_path_with_default(config_path)?
     .context("Cannot find the ast-grep configuration file")?;
   fs::canonicalize(config_path).context("Cannot resolve the ast-grep configuration path")
+}
+
+fn canonical_config_path_for_revoke(config_path: Option<PathBuf>) -> Result<PathBuf> {
+  let Some(config_path) = config_path else {
+    return canonical_config_path(None);
+  };
+  match fs::canonicalize(&config_path) {
+    Ok(path) => Ok(path),
+    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+      canonicalize_missing_file(&config_path)
+    }
+    Err(error) => Err(error).context("Cannot resolve the ast-grep configuration path"),
+  }
+}
+
+fn canonicalize_missing_file(path: &Path) -> Result<PathBuf> {
+  let file_name = path
+    .file_name()
+    .context("The ast-grep configuration path must name a file")?;
+  let parent = path
+    .parent()
+    .filter(|parent| !parent.as_os_str().is_empty())
+    .unwrap_or_else(|| Path::new("."));
+  let parent = fs::canonicalize(parent)
+    .context("Cannot resolve the ast-grep configuration parent directory")?;
+  Ok(parent.join(file_name))
 }
 
 #[cfg(test)]

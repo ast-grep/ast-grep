@@ -138,6 +138,8 @@ fn persistent_trust_is_path_based_and_can_be_revoked() -> Result<()> {
     .args(["trust", "-y"])
     .assert()
     .success()
+    .stderr(contains("WARNING: TRUSTING NATIVE CODE"))
+    .stderr(contains("not its current contents"))
     .stdout(contains("Trusted"));
 
   // A trusted project proceeds to the loader (which rejects the test fixture).
@@ -186,12 +188,92 @@ fn trust_requires_yes_without_a_terminal() -> Result<()> {
     .arg("trust")
     .assert()
     .failure()
-    .stderr(contains("Pass `-y`"));
+    .stderr(contains("WARNING: TRUSTING NATIVE CODE"))
+    .stderr(contains(
+      "Cannot confirm project trust without an interactive terminal",
+    ));
 
   Command::new(cargo_bin!())
     .current_dir(dir.path())
     .env("AST_GREP_TRUST_DIR", trust_dir.path())
     .arg("scan")
+    .assert()
+    .failure()
+    .stderr(contains(
+      "Custom language libraries require explicit opt-in",
+    ));
+  Ok(())
+}
+
+#[test]
+fn completions_do_not_require_project_trust() -> Result<()> {
+  let dir = create_test_files([("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG)])?;
+
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["completions", "zsh"])
+    .assert()
+    .success()
+    .stdout(contains("compdef"));
+  Ok(())
+}
+
+#[test]
+fn attached_short_config_is_used_consistently() -> Result<()> {
+  let dir = create_test_files([
+    ("project.yml", CUSTOM_LANGUAGE_CONFIG),
+    ("missing-library.so", "not really a native library"),
+  ])?;
+  let trust_dir = TempDir::new()?;
+  let command = || {
+    let mut command = Command::new(cargo_bin!());
+    command
+      .current_dir(dir.path())
+      .env("AST_GREP_TRUST_DIR", trust_dir.path());
+    command
+  };
+
+  command()
+    .args(["trust", "-y", "-cproject.yml"])
+    .assert()
+    .success();
+  command()
+    .args(["scan", "-cproject.yml"])
+    .assert()
+    .failure()
+    .stderr(contains("Cannot load custom language library"));
+  Ok(())
+}
+
+#[test]
+fn deleted_explicit_config_can_be_revoked() -> Result<()> {
+  let dir = create_test_files([
+    ("project.yml", CUSTOM_LANGUAGE_CONFIG),
+    ("missing-library.so", "not really a native library"),
+  ])?;
+  let trust_dir = TempDir::new()?;
+  let command = || {
+    let mut command = Command::new(cargo_bin!());
+    command
+      .current_dir(dir.path())
+      .env("AST_GREP_TRUST_DIR", trust_dir.path());
+    command
+  };
+
+  command()
+    .args(["trust", "-y", "--config", "project.yml"])
+    .assert()
+    .success();
+  fs::remove_file(dir.path().join("project.yml"))?;
+  command()
+    .args(["trust", "--revoke", "--config", "project.yml"])
+    .assert()
+    .success()
+    .stdout(contains("Revoked trust"));
+
+  fs::write(dir.path().join("project.yml"), CUSTOM_LANGUAGE_CONFIG)?;
+  command()
+    .args(["scan", "--config", "project.yml"])
     .assert()
     .failure()
     .stderr(contains(

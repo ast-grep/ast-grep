@@ -26,6 +26,8 @@ use trust::{TrustArg, run_trust};
 use utils::exit_with_error;
 use verify::{TestArg, run_test_rule};
 
+const PROJECT_INDEPENDENT_COMMANDS: [&str; 2] = ["completions", "trust"];
+
 const LOGO: &str = r#"
 Search and Rewrite code at large scale using AST pattern.
                     __
@@ -107,56 +109,63 @@ fn insert_default_run(args: &mut Vec<String>) {
   }
 }
 
-/// finding project and setup custom language configuration
-fn setup_project_is_possible(
-  args: &[String],
+struct BootstrapArgs {
+  config: Option<PathBuf>,
   allow_custom_languages: bool,
-) -> Result<Result<ProjectConfig>> {
-  let mut config = None;
-  for i in 0..args.len() {
-    let arg = &args[i];
-    if !is_command(arg, "config") {
-      continue;
-    }
-    // handle --config=config.yml, see ast-grep/ast-grep#1617
-    if arg.contains('=') {
-      let config_file = arg.split('=').nth(1).unwrap().into();
-      config = Some(config_file);
-      break;
-    }
-    // handle -c config.yml, arg value should be next
-    if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-      return Err(anyhow::anyhow!("missing config file after -c"));
-    }
-    let config_file = (&args[i + 1]).into();
-    config = Some(config_file);
-  }
-  let is_trust_command = args.iter().any(|arg| arg == "trust")
-    && App::try_parse_from(args).is_ok_and(|app| matches!(app.command, Commands::Trust(_)));
-  let is_trusted = !is_trust_command && trust::is_config_trusted(config.as_deref());
-  ProjectConfig::setup(config, allow_custom_languages || is_trusted)
+  needs_project: bool,
 }
 
-// this wrapper function is for testing
-pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
-  let mut args: Vec<_> = args.collect();
-  insert_default_run(&mut args);
-  let allow_custom_languages = args
-    .iter()
-    .take_while(|arg| arg.as_str() != "--")
-    .any(|arg| arg == "--allow-custom-languages");
-  // do not unwrap project before cmd parsing
-  // sg help does not need a valid sgconfig.yml
-  let project = setup_project_is_possible(&args, allow_custom_languages);
-  let app = App::try_parse_from(args)?;
-  let App {
-    command, config, ..
-  } = app;
-  let command = match command {
-    Commands::Trust(arg) => return run_trust(arg, config),
-    command => command,
-  };
-  let project = project?; // unwrap here to report invalid project
+impl BootstrapArgs {
+  /// Parse only the inputs needed before custom languages are registered.
+  ///
+  /// The full CLI cannot be parsed yet because `SgLang` accepts custom language
+  /// names only after their libraries have been registered from the project.
+  fn parse(args: &[String]) -> Self {
+    let mut config = None;
+    let mut allow_custom_languages = false;
+    let mut command = None;
+    let mut i = 1;
+    while i < args.len() {
+      let arg = args[i].as_str();
+      if arg == "--" {
+        break;
+      }
+      if arg == "--allow-custom-languages" {
+        allow_custom_languages = true;
+      } else if arg == "-c" || arg == "--config" {
+        if let Some(value) = args.get(i + 1).filter(|value| !value.starts_with('-')) {
+          config = Some(PathBuf::from(value));
+          i += 1;
+        }
+      } else if let Some(value) = arg.strip_prefix("--config=") {
+        config = Some(PathBuf::from(value));
+      } else if let Some(value) = arg.strip_prefix("-c")
+        && !value.is_empty()
+      {
+        config = Some(PathBuf::from(value.strip_prefix('=').unwrap_or(value)));
+      } else if command.is_none() && !arg.starts_with('-') {
+        command = Some(arg);
+      }
+      i += 1;
+    }
+    let needs_project =
+      !command.is_some_and(|command| PROJECT_INDEPENDENT_COMMANDS.contains(&command));
+    Self {
+      config,
+      allow_custom_languages,
+      needs_project,
+    }
+  }
+}
+
+/// Find the project and set up custom language configuration.
+fn setup_project(bootstrap: &BootstrapArgs) -> Result<Result<ProjectConfig>> {
+  let config = bootstrap.config.clone();
+  let is_trusted = trust::is_config_trusted(config.as_deref());
+  ProjectConfig::setup(config, bootstrap.allow_custom_languages || is_trusted)
+}
+
+fn dispatch_with_project(command: Commands, project: Result<ProjectConfig>) -> Result<ExitCode> {
   match command {
     Commands::Run(arg) => run_with_pattern(arg, project),
     Commands::Scan(arg) => run_with_config(arg, project),
@@ -164,10 +173,34 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
     Commands::New(arg) => run_create_new(arg, project),
     Commands::Lsp(arg) => run_language_server(arg, project).map(|_| ExitCode::SUCCESS),
     Commands::Outline(arg) => run_outline(arg, project),
-    Commands::Completions(arg) => run_shell_completion::<App>(arg),
-    Commands::Trust(_) => unreachable!("trust command returned before setup"),
+    Commands::Completions(_) | Commands::Trust(_) => {
+      unreachable!("project-independent command dispatched with a project")
+    }
     #[cfg(debug_assertions)]
     Commands::Docs => todo!("todo, generate rule docs based on current config"),
+  }
+}
+
+// this wrapper function is for testing
+pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
+  let mut args: Vec<_> = args.collect();
+  insert_default_run(&mut args);
+  let bootstrap = BootstrapArgs::parse(&args);
+  // Project setup must precede full CLI parsing so custom language names can
+  // be accepted by SgLang. Errors are unwrapped only after CLI parsing so help
+  // and usage output still work with an invalid project.
+  let project = bootstrap.needs_project.then(|| setup_project(&bootstrap));
+  let app = App::try_parse_from(args)?;
+  let App {
+    command, config, ..
+  } = app;
+  match command {
+    Commands::Trust(arg) => run_trust(arg, config),
+    Commands::Completions(arg) => run_shell_completion::<App>(arg),
+    command => {
+      let project = project.expect("project setup must run for project-dependent commands")?;
+      dispatch_with_project(command, project)
+    }
   }
 }
 
@@ -218,6 +251,40 @@ mod test_cli {
     insert_default_run(&mut args);
     assert_eq!(args[1], "run");
   }
+
+  fn bootstrap(args: &[&str]) -> BootstrapArgs {
+    BootstrapArgs::parse(
+      &args
+        .iter()
+        .map(|arg| (*arg).to_string())
+        .collect::<Vec<_>>(),
+    )
+  }
+
+  #[test]
+  fn test_bootstrap_args() {
+    let args = bootstrap(&["sg", "scan", "-cproject.yml"]);
+    assert_eq!(args.config, Some("project.yml".into()));
+    assert!(args.needs_project);
+
+    let args = bootstrap(&[
+      "sg",
+      "--config=project.yml",
+      "--allow-custom-languages",
+      "scan",
+    ]);
+    assert_eq!(args.config, Some("project.yml".into()));
+    assert!(args.allow_custom_languages);
+    assert!(args.needs_project);
+
+    let args = bootstrap(&["sg", "--config", "project.yml", "trust", "--yes"]);
+    assert_eq!(args.config, Some("project.yml".into()));
+    assert!(!args.needs_project);
+
+    let args = bootstrap(&["sg", "completions", "zsh"]);
+    assert!(!args.needs_project);
+  }
+
   #[test]
   fn test_no_arg_run() {
     let ret = main_with_args(["sg".to_owned()].into_iter());
