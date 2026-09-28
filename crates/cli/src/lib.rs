@@ -150,7 +150,6 @@ fn parse_custom_language_policy(args: &[String]) -> CustomLanguagePolicy {
       }
       policy = match value {
         "allow" => Some(CustomLanguagePolicy::Allow),
-        "deny" => Some(CustomLanguagePolicy::Deny),
         "ignore" => Some(CustomLanguagePolicy::Ignore),
         _ => return CustomLanguagePolicy::Ignore,
       };
@@ -249,10 +248,6 @@ mod test_cli {
       CustomLanguagePolicy::Allow
     );
     assert_eq!(
-      parse_custom_language_policy(&args(&["sg", "scan", "--custom-languages", "deny"])),
-      CustomLanguagePolicy::Deny
-    );
-    assert_eq!(
       parse_custom_language_policy(&args(&["sg", "run", "--", "--custom-languages", "allow"])),
       CustomLanguagePolicy::Ignore
     );
@@ -325,8 +320,8 @@ mod test_cli {
   fn test_scan() {
     ok("scan");
     ok("scan --custom-languages allow");
-    ok("scan --custom-languages deny");
     ok("scan --custom-languages ignore");
+    error("scan --custom-languages deny");
     error("scan --custom-languages invalid");
     ok("scan dir");
     ok("scan -r test-rule.yml dir");

@@ -5,7 +5,6 @@ use assert_cmd::{Command, cargo_bin};
 use common::create_test_files;
 use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
-use std::fs;
 use std::path::PathBuf;
 
 const CUSTOM_LANGUAGE_CONFIG: &str = r#"
@@ -60,19 +59,6 @@ fn explicit_ignore_skips_custom_languages() -> Result<()> {
 }
 
 #[test]
-fn deny_custom_languages_reports_an_error() -> Result<()> {
-  let dir = create_test_files([("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG)])?;
-
-  Command::new(cargo_bin!())
-    .current_dir(dir.path())
-    .args(["scan", "--custom-languages", "deny"])
-    .assert()
-    .failure()
-    .stderr(contains("Custom language libraries are denied"));
-  Ok(())
-}
-
-#[test]
 fn allow_custom_languages_attempts_to_load_the_library() -> Result<()> {
   let dir = create_test_files([("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG)])?;
 
@@ -95,23 +81,6 @@ fn positional_path_does_not_enable_custom_languages() -> Result<()> {
     .assert()
     .failure()
     .stderr(contains("Cannot load custom language library").not());
-  Ok(())
-}
-
-#[test]
-fn denied_custom_languages_do_not_overwrite_project_config() -> Result<()> {
-  let dir = create_test_files([("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG)])?;
-
-  Command::new(cargo_bin!())
-    .current_dir(dir.path())
-    .args(["new", "project", "--yes", "--custom-languages", "deny"])
-    .assert()
-    .failure()
-    .stderr(contains("Custom language libraries are denied"));
-  assert_eq!(
-    fs::read_to_string(dir.path().join("sgconfig.yml"))?,
-    CUSTOM_LANGUAGE_CONFIG
-  );
   Ok(())
 }
 

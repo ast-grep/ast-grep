@@ -41,7 +41,6 @@ pub enum ErrorContext {
   UnrecognizableLanguage(String),
   LangInjection,
   CustomLanguage,
-  CustomLanguageNotAllowed,
   // Run
   ParsePattern,
   ParseSelector,
@@ -93,7 +92,7 @@ impl ErrorContext {
       ProjectAlreadyExist | FileAlreadyExist(_) => 17,
       InsufficientCLIArgument(_) => 22,
       UnrecognizableLanguage(_) => 33,
-      CustomLanguage | CustomLanguageNotAllowed => 79,
+      CustomLanguage => 79,
       OpenEditor | StartLanguageServer => 126,
       // soft error
       PatternHasError | ExitInteractiveEditing => 0,
@@ -183,11 +182,6 @@ impl ErrorMessage {
       CustomLanguage => Self::new(
         "Cannot load custom language library",
         "The custom language library is not found or cannot be loaded.",
-        CUSTOM_LANG_GUIDE,
-      ),
-      CustomLanguageNotAllowed => Self::new(
-        "Custom language libraries are denied",
-        "Native custom language libraries execute code with your user permissions and may be malicious. Use `ignore` to skip them, or review the project before using `allow`.",
         CUSTOM_LANG_GUIDE,
       ),
       InvalidGlobalUtils => Self::new(

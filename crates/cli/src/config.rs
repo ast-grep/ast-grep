@@ -18,8 +18,6 @@ use std::path::{Path, PathBuf};
 pub enum CustomLanguagePolicy {
   /// Load native custom language libraries for this invocation.
   Allow,
-  /// Reject configurations that declare native custom language libraries.
-  Deny,
   /// Skip native custom language libraries without reporting an error.
   #[default]
   Ignore,
@@ -154,15 +152,12 @@ fn register_custom_language(
       CustomLanguagePolicy::Allow => {
         SgLang::register_custom_language(project_dir, custom_langs)?;
       }
-      CustomLanguagePolicy::Deny if !custom_langs.is_empty() => {
-        return Err(anyhow::anyhow!(EC::CustomLanguageNotAllowed));
-      }
       CustomLanguagePolicy::Ignore if !custom_langs.is_empty() => {
         eprintln!(
           "Warning: custom languages are ignored because native libraries can execute malicious code. Review the project before using `--custom-languages allow`."
         );
       }
-      CustomLanguagePolicy::Deny | CustomLanguagePolicy::Ignore => {}
+      CustomLanguagePolicy::Ignore => {}
     }
   }
   if let Some(globs) = sg_config.language_globs {
