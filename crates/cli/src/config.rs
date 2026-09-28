@@ -157,6 +157,11 @@ fn register_custom_language(
       CustomLanguagePolicy::Deny if !custom_langs.is_empty() => {
         return Err(anyhow::anyhow!(EC::CustomLanguageNotAllowed));
       }
+      CustomLanguagePolicy::Ignore if !custom_langs.is_empty() => {
+        eprintln!(
+          "Warning: custom languages are ignored because native libraries can execute malicious code. Review the project before using `--custom-languages allow`."
+        );
+      }
       CustomLanguagePolicy::Deny | CustomLanguagePolicy::Ignore => {}
     }
   }

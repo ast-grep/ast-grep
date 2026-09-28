@@ -41,7 +41,8 @@ fn custom_languages_are_ignored_by_default() -> Result<()> {
     .current_dir(dir.path())
     .arg("scan")
     .assert()
-    .success();
+    .success()
+    .stderr(contains("custom languages are ignored"));
   Ok(())
 }
 
@@ -53,7 +54,8 @@ fn explicit_ignore_skips_custom_languages() -> Result<()> {
     .current_dir(dir.path())
     .args(["scan", "--custom-languages", "ignore"])
     .assert()
-    .success();
+    .success()
+    .stderr(contains("custom languages are ignored"));
   Ok(())
 }
 

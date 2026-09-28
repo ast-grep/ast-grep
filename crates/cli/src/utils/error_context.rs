@@ -187,7 +187,7 @@ impl ErrorMessage {
       ),
       CustomLanguageNotAllowed => Self::new(
         "Custom language libraries are denied",
-        "This project configures native libraries, but `--custom-languages deny` prevents loading them. Use `ignore` to skip them or `allow` after reviewing the project.",
+        "Native custom language libraries execute code with your user permissions and may be malicious. Use `ignore` to skip them, or review the project before using `allow`.",
         CUSTOM_LANG_GUIDE,
       ),
       InvalidGlobalUtils => Self::new(
