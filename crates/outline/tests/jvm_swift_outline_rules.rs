@@ -178,6 +178,30 @@ enum Protocol { HTTP_1_1 }
   - Method public proceed
   - Method private exchange
 - Enum item private Protocol
+  - EnumMember public HTTP_1_1
+"#,
+  );
+}
+
+#[test]
+fn java_rules_parse_and_extract_enum_members() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+enum Colors {
+  RED,
+  GREEN;
+}
+
+enum Empty {}
+"#,
+    r#"
+- Enum item private Colors
+  - EnumMember public RED
+  - EnumMember public GREEN
+- Enum item private Empty
 "#,
   );
 }
