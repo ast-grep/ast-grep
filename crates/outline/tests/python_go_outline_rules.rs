@@ -58,6 +58,7 @@ class AsyncOnly:
   - Field public query
   - Method public db
   - Class public Meta
+    - Field public app_label
   - Method public __init__
   - Method public execute
 - Class item exported AsyncOnly

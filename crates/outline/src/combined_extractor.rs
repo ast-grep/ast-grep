@@ -20,10 +20,10 @@ use ast_grep_core::{
     traversal::{Prune, PruneSubtree},
   },
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::extractor::{ItemExtractor, MemberExtractor, OutlineRuleError, SerializableOutlineRule};
-use crate::model::{OutlineItem, OutlineMember};
+use crate::model::{OutlineItem, OutlineMember, SymbolType};
 use crate::options::OutlineExtractorOptions;
 
 const POTENTIAL_KINDS_INVARIANT: &str =
@@ -46,8 +46,18 @@ pub struct CombinedExtractors<L: Language> {
 struct ScopedMemberExtractors<'a, L: Language> {
   /// Shared member extractor storage owned by `CombinedExtractors`.
   extractors: &'a [MemberExtractor<L>],
-  /// Parent-scoped index that selects members relevant to one matched item rule.
-  index: &'a MemberExtractorIndex,
+  /// Parent-scoped indices that select members relevant to one matched item
+  /// rule. An inherited scope and a declared child scope are merged here.
+  indices: Vec<&'a MemberExtractorIndex>,
+}
+
+impl<L: Language> Clone for ScopedMemberExtractors<'_, L> {
+  fn clone(&self) -> Self {
+    Self {
+      extractors: self.extractors,
+      indices: self.indices.clone(),
+    }
+  }
 }
 
 #[derive(Default)]
@@ -121,7 +131,7 @@ impl<L: Language> CombinedExtractors<L> {
       .get(parent_id)
       .map(|index| ScopedMemberExtractors {
         extractors: &self.member_extractors,
-        index,
+        indices: vec![index],
       })
   }
 
@@ -165,24 +175,43 @@ impl<L: Language> CombinedExtractors<L> {
 }
 
 impl<'a, L: Language> ScopedMemberExtractors<'a, L> {
-  fn extractors_for_kind(&self, kind: u16) -> impl Iterator<Item = &MemberExtractor<L>> {
-    self
-      .index
-      .kind_mapping
-      .get(&kind)
-      .map(Vec::as_slice)
-      .unwrap_or(&[])
-      .iter()
-      .map(|&idx| &self.extractors[idx])
+  /// Merge a declared child scope into the inherited scope. The declared
+  /// indices come first so a rule that names its own children still wins for a
+  /// node the inherited scope could also match; identical indices are kept
+  /// once so a rule is never matched twice.
+  fn extended_with(self, declared: Option<Self>) -> Self {
+    let Some(declared) = declared else {
+      return self;
+    };
+    let mut indices = declared.indices;
+    for index in self.indices {
+      if !indices.iter().any(|kept| std::ptr::eq(*kept, index)) {
+        indices.push(index);
+      }
+    }
+    Self {
+      extractors: self.extractors,
+      indices,
+    }
   }
 
-  fn extract_member<'tree>(&self, node: &Node<'tree, StrDoc<L>>) -> Option<OutlineMember<'tree>>
+  fn extract_member_with_rule<'tree>(
+    &self,
+    node: &Node<'tree, StrDoc<L>>,
+  ) -> Option<(&'a MemberExtractor<L>, OutlineMember<'tree>)>
   where
     L: LanguageExt,
   {
-    for extractor in self.extractors_for_kind(node.kind_id()) {
-      if let Some(matched) = extractor.match_node(node) {
-        return Some(extractor.extract(&matched));
+    for index in &self.indices {
+      let Some(kinds) = index.kind_mapping.get(&node.kind_id()) else {
+        continue;
+      };
+      for &idx in kinds {
+        let extractor = &self.extractors[idx];
+        if let Some(matched) = extractor.match_node(node) {
+          let member = extractor.extract(&matched, Vec::new());
+          return Some((extractor, member));
+        }
       }
     }
     None
@@ -231,6 +260,7 @@ impl<'a, 'tree, L: LanguageExt> OutlineItemIter<'a, 'tree, L> {
     };
     self.traversal.descend();
     collect_scoped_members(
+      self.combined,
       &mut self.traversal,
       member_extractors,
       &self.combined.options,
@@ -242,57 +272,80 @@ impl<'a, 'tree, L: LanguageExt> OutlineItemIter<'a, 'tree, L> {
 fn validate_parent_rule_ids<L>(
   extractors: &[SerializableOutlineRule<L>],
 ) -> Result<(), OutlineRuleError> {
-  let mut rule_roles = HashMap::new();
+  let mut rule_ids = HashSet::new();
   for extractor in extractors {
-    rule_roles.insert(
-      extractor.common().id.as_str(),
-      matches!(extractor, SerializableOutlineRule::Item(_)),
-    );
+    rule_ids.insert(extractor.common().id.as_str());
   }
   for extractor in extractors {
     let SerializableOutlineRule::Member(member) = extractor else {
       continue;
     };
     for parent_id in &member.parent_rule_ids {
-      match rule_roles.get(parent_id.as_str()) {
-        Some(true) => {}
-        Some(false) => {
-          return Err(OutlineRuleError::InvalidParentRuleRole {
-            rule_id: member.common.id.clone(),
-            parent_id: parent_id.clone(),
-          });
-        }
-        None => {
-          return Err(OutlineRuleError::UnknownParentRuleId {
-            rule_id: member.common.id.clone(),
-            parent_id: parent_id.clone(),
-          });
-        }
+      // A parent may be an item rule or another member rule: a member that is
+      // itself a declaration may scope its own members (the override path).
+      if !rule_ids.contains(parent_id.as_str()) {
+        return Err(OutlineRuleError::UnknownParentRuleId {
+          rule_id: member.common.id.clone(),
+          parent_id: parent_id.clone(),
+        });
       }
     }
   }
   Ok(())
 }
 
+/// Whether a symbol kind declares structure of its own: the member is itself a
+/// declaration (a nested type, class, interface, enum, struct or object), not a
+/// leaf like a field or a method.
+fn has_members(symbol_type: SymbolType) -> bool {
+  matches!(
+    symbol_type,
+    SymbolType::Class
+      | SymbolType::Interface
+      | SymbolType::Enum
+      | SymbolType::Struct
+      | SymbolType::Object
+  )
+}
+
 fn collect_scoped_members<'a, 'tree, L: LanguageExt>(
+  combined: &'a CombinedExtractors<L>,
   traversal: &mut Prune<'tree, L>,
   member_extractors: ScopedMemberExtractors<'a, L>,
   options: &OutlineExtractorOptions,
-  item_subtree: PruneSubtree<'tree>,
+  subtree: PruneSubtree<'tree>,
 ) -> Vec<OutlineMember<'tree>> {
   let mut members = vec![];
   while let Some(node) = traversal.current_node() {
-    if traversal.has_left_subtree(item_subtree) {
+    if traversal.has_left_subtree(subtree) {
       break;
     }
-    if let Some(member) = member_extractors.extract_member(&node) {
-      if options.keep_member(&member) {
-        members.push(member);
-      }
-      traversal.skip_subtree();
-    } else {
+    let Some((extractor, member)) = member_extractors.extract_member_with_rule(&node) else {
       traversal.descend();
+      continue;
+    };
+    if !options.keep_member(&member) {
+      traversal.skip_subtree();
+      continue;
     }
+    // A member that is itself a declaration keeps its own structure: descend
+    // with the scope declared for its rule merged into the enclosing scope, so
+    // a nested declaration is read with both its own rules and its container's.
+    let children = if has_members(extractor.common.symbol_type) {
+      let scope = member_extractors
+        .clone()
+        .extended_with(combined.member_scope_for(&extractor.common.rule.id));
+      let child_subtree = traversal.current_subtree();
+      traversal.descend();
+      collect_scoped_members(combined, traversal, scope, options, child_subtree)
+    } else {
+      traversal.skip_subtree();
+      vec![]
+    };
+    members.push(OutlineMember {
+      members: children,
+      ..member
+    });
   }
   members
 }
@@ -391,16 +444,21 @@ name: other
     let member_extractors = combined
       .member_scope_for("ts-function")
       .expect("member extractors should exist");
-    let identifier_kind = SupportLang::TypeScript.kind_to_id("identifier");
-    let identifier_members = member_extractors
-      .extractors_for_kind(identifier_kind)
-      .collect::<Vec<_>>();
+    let identifier = SupportLang::TypeScript.ast_grep("let member = 1;");
+    let identifier = identifier
+      .root()
+      .dfs()
+      .find(|node| node.kind() == "identifier")
+      .expect("fixture has an identifier");
+    let identifier_member = member_extractors
+      .extract_member_with_rule(&identifier)
+      .map(|(extractor, _)| extractor);
 
     assert!(combined.member_scope_for("missing").is_none());
     assert_eq!(item_extractors.len(), 1);
     assert_eq!(item_extractors[0].common.rule.id, "ts-function");
-    assert_eq!(identifier_members.len(), 1);
-    assert_eq!(identifier_members[0].common.rule.id, "ts-member");
+    let identifier_member = identifier_member.expect("identifier matches ts-member");
+    assert_eq!(identifier_member.common.rule.id, "ts-member");
   }
 
   #[test]
@@ -431,50 +489,220 @@ name: member
   }
 
   #[test]
-  fn rejects_member_parent_rule_id_that_points_to_member_rule() {
+  fn nests_members_of_a_member_that_is_itself_a_declaration() {
     let extractors = parse_outline_rules::<SupportLang>(
       r#"
-id: ts-parent-member
-language: TypeScript
-role: member
-parentRuleIds: [ts-class]
-symbolType: method
-rule:
-  kind: method_definition
-name: parent
----
-id: ts-member
-language: TypeScript
-role: member
-parentRuleIds: [ts-parent-member]
-symbolType: method
-rule:
-  kind: method_definition
-name: child
----
-id: ts-class
-language: TypeScript
+id: java-class
+language: Java
 role: item
 symbolType: class
 rule:
-  pattern: class $NAME { $$$BODY }
+  all:
+    - kind: class_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+---
+id: java-nested-class
+language: Java
+role: member
+parentRuleIds: [java-class]
+symbolType: class
+rule:
+  all:
+    - kind: class_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+---
+id: java-member-method
+language: Java
+role: member
+parentRuleIds: [java-class, java-nested-class]
+symbolType: method
+rule:
+  all:
+    - kind: method_declaration
+    - has:
+        field: name
+        pattern: $NAME
 name: $NAME
 "#,
     )
-    .expect("extractors should deserialize");
+    .expect("a member rule may be a parent of another member rule");
 
-    let Err(err) = CombinedExtractors::try_from(extractors, &Default::default()) else {
-      panic!("member parent ids should only reference item rules");
-    };
-
-    assert!(matches!(
-      err,
-      OutlineRuleError::InvalidParentRuleRole { .. }
-    ));
-    assert_eq!(
-      err.to_string(),
-      "Member rule `ts-member` cannot use member rule `ts-parent-member` as a parent"
+    let combined = CombinedExtractors::try_from(extractors, &Default::default())
+      .expect("extractors should parse");
+    let grep = SupportLang::Java.ast_grep(
+      r#"
+class Outer {
+  class Inner {
+    void innerMethod() {}
+  }
+  void outerMethod() {}
+}
+"#,
     );
+    let items = combined.extract(grep.root()).collect::<Vec<_>>();
+    assert_eq!(items.len(), 1, "{items:?}");
+    let outer = &items[0];
+    let names = outer
+      .members
+      .iter()
+      .map(|m| m.entry.name.as_ref())
+      .collect::<Vec<_>>();
+    assert_eq!(names, vec!["Inner", "outerMethod"], "{outer:?}");
+    let inner = &outer.members[0];
+    let nested = inner
+      .members
+      .iter()
+      .map(|m| m.entry.name.as_ref())
+      .collect::<Vec<_>>();
+    assert_eq!(nested, vec!["innerMethod"], "{inner:?}");
+  }
+
+  #[test]
+  fn prunes_a_member_that_is_not_a_declaration() {
+    let extractors = parse_outline_rules::<SupportLang>(
+      r#"
+id: java-class
+language: Java
+role: item
+symbolType: class
+rule:
+  all:
+    - kind: class_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+---
+id: java-member-method
+language: Java
+role: member
+parentRuleIds: [java-class]
+symbolType: method
+rule:
+  all:
+    - kind: method_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+"#,
+    )
+    .expect("rules compile");
+
+    let combined = CombinedExtractors::try_from(extractors, &Default::default())
+      .expect("extractors should parse");
+    let grep = SupportLang::Java.ast_grep(
+      r#"
+class Outer {
+  void outerMethod() {
+    class Local {}
+  }
+}
+"#,
+    );
+    let items = combined.extract(grep.root()).collect::<Vec<_>>();
+    let outer = &items[0];
+    let names = outer
+      .members
+      .iter()
+      .map(|m| m.entry.name.as_ref())
+      .collect::<Vec<_>>();
+    // A callable is not a declaration container: its subtree is still pruned,
+    // so a declaration inside a body stays invisible (unchanged behaviour).
+    assert_eq!(names, vec!["outerMethod"], "{outer:?}");
+    assert!(outer.members[0].members.is_empty(), "{outer:?}");
+  }
+
+  #[test]
+  fn a_filtered_out_container_takes_its_members_with_it() {
+    let extractors = parse_outline_rules::<SupportLang>(
+      r#"
+id: java-class
+language: Java
+role: item
+symbolType: class
+rule:
+  all:
+    - kind: class_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+---
+id: java-nested-class
+language: Java
+role: member
+parentRuleIds: [java-class]
+symbolType: class
+rule:
+  all:
+    - kind: class_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isPublic:
+  has:
+    kind: modifiers
+    has:
+      pattern: public
+---
+id: java-member-method
+language: Java
+role: member
+parentRuleIds: [java-class]
+symbolType: method
+rule:
+  all:
+    - kind: method_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+"#,
+    )
+    .expect("rules compile");
+    let options = OutlineExtractorOptions {
+      members: Some(crate::options::OutlineMemberOptions {
+        public: crate::options::OutlineFlagFilter::Yes,
+        ..Default::default()
+      }),
+      ..Default::default()
+    };
+    let combined = CombinedExtractors::try_from_rules(extractors, options, &Default::default())
+      .expect("extractors should parse");
+    let grep = SupportLang::Java.ast_grep(
+      r#"
+class Outer {
+  public class PublicInner {
+    void keptMethod() {}
+  }
+  class PrivateInner {
+    void hiddenMethod() {}
+  }
+}
+"#,
+    );
+    let items = combined.extract(grep.root()).collect::<Vec<_>>();
+    let outer = &items[0];
+    let names = outer
+      .members
+      .iter()
+      .map(|m| m.entry.name.as_ref())
+      .collect::<Vec<_>>();
+    assert_eq!(names, vec!["PublicInner"], "{outer:?}");
+    let inner = outer.members[0]
+      .members
+      .iter()
+      .map(|c| c.entry.name.as_ref())
+      .collect::<Vec<_>>();
+    assert_eq!(inner, vec!["keptMethod"], "{outer:?}");
   }
 
   #[test]

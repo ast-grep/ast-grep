@@ -248,6 +248,7 @@ isPublic: false
     let private_member = OutlineMember {
       entry: entry(EntryRole::Member, SymbolType::Method),
       is_public: false,
+      members: vec![],
     };
     let exported_options = OutlineExtractorOptions {
       exported: OutlineFlagFilter::Yes,

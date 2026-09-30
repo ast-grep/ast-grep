@@ -84,25 +84,35 @@ fn push_item_signature(output: &mut String, item: &OutlineItem<'_>) {
 }
 
 fn push_member(output: &mut String, member: &OutlineMember<'_>) {
-  let visibility = if member.is_public {
-    "public"
-  } else {
-    "private"
-  };
-  output.push_str(&format!(
-    "  - {:?} {visibility} {}\n",
-    member.entry.symbol_type, member.entry.name
-  ));
+  push_member_at(output, member, 1, false);
 }
 
 fn push_member_signature(output: &mut String, member: &OutlineMember<'_>) {
+  push_member_at(output, member, 1, true);
+}
+
+fn push_member_at(
+  output: &mut String,
+  member: &OutlineMember<'_>,
+  depth: usize,
+  with_signature: bool,
+) {
   let visibility = if member.is_public {
     "public"
   } else {
     "private"
   };
+  let indent = "  ".repeat(depth);
+  let signature = if with_signature {
+    format!(" | {}", member.entry.signature)
+  } else {
+    String::new()
+  };
   output.push_str(&format!(
-    "  - {:?} {visibility} {} | {}\n",
-    member.entry.symbol_type, member.entry.name, member.entry.signature
+    "{indent}- {:?} {visibility} {}{signature}\n",
+    member.entry.symbol_type, member.entry.name
   ));
+  for child in &member.members {
+    push_member_at(output, child, depth + 1, with_signature);
+  }
 }
