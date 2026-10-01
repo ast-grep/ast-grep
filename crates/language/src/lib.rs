@@ -25,6 +25,7 @@ mod css;
 mod dart;
 mod elixir;
 mod go;
+mod hare;
 mod haskell;
 mod hcl;
 mod html;
@@ -214,6 +215,8 @@ impl_lang_expando!(Elixir, language_elixir, 'µ');
 // we can use any Unicode code point categorized as "Letter"
 // https://go.dev/ref/spec#letter
 impl_lang_expando!(Go, language_go, 'µ');
+// Hare identifiers do not accept '$'.
+impl_lang_expando!(Hare, language_hare, '_');
 // GHC supports Unicode syntax per
 // https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/unicode_syntax.html
 // and the tree-sitter-haskell grammar parses it too.
@@ -269,6 +272,7 @@ pub enum SupportLang {
   Dart,
   Go,
   Elixir,
+  Hare,
   Haskell,
   Hcl,
   Html,
@@ -296,9 +300,9 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json,
-      Kotlin, Lua, Markdown, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript,
-      Yaml, Zig,
+      Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Hare, Haskell, Hcl, Html, Java, JavaScript,
+      Json, Kotlin, Lua, Markdown, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx,
+      TypeScript, Yaml, Zig,
     ]
   }
 
@@ -387,6 +391,7 @@ impl_aliases! {
   Dart => &["dart"],
   Elixir => &["ex", "elixir"],
   Go => &["go", "golang"],
+  Hare => &["hare"],
   Haskell => &["hs", "haskell"],
   Hcl => &["hcl"],
   Html => &["html"],
@@ -437,6 +442,7 @@ macro_rules! execute_lang_method {
       S::Dart => Dart.$method($($pname,)*),
       S::Elixir => Elixir.$method($($pname,)*),
       S::Go => Go.$method($($pname,)*),
+      S::Hare => Hare.$method($($pname,)*),
       S::Haskell => Haskell.$method($($pname,)*),
       S::Hcl => Hcl.$method($($pname,)*),
       S::Html => Html.$method($($pname,)*),
@@ -512,6 +518,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
     Dart => &["dart"],
     Elixir => &["ex", "exs"],
     Go => &["go"],
+    Hare => &["ha"],
     Haskell => &["hs"],
     Hcl => &["hcl", "nomad", "tf", "tfvars", "workflow"],
     Html => &["html", "htm", "xhtml"],

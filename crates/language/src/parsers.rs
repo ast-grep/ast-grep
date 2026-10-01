@@ -46,6 +46,9 @@ pub fn language_elixir() -> TSLanguage {
 pub fn language_go() -> TSLanguage {
   conditional_lang!(tree_sitter_go, "tree-sitter-go")
 }
+pub fn language_hare() -> TSLanguage {
+  conditional_lang!(tree_sitter_hare, "tree-sitter-hare")
+}
 pub fn language_haskell() -> TSLanguage {
   conditional_lang!(tree_sitter_haskell, "tree-sitter-haskell")
 }
