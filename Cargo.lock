@@ -189,6 +189,7 @@ dependencies = [
  "tree-sitter-bash",
  "tree-sitter-c",
  "tree-sitter-c-sharp",
+ "tree-sitter-c3",
  "tree-sitter-cpp",
  "tree-sitter-css",
  "tree-sitter-dart",
@@ -2137,6 +2138,15 @@ name = "tree-sitter-c-sharp"
 version = "0.23.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1aac67f1ad71de1d6d39708d34811081c26dfa495658de6c14c34200849357c"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "tree-sitter-c3"
+version = "0.8.2"
+source = "git+https://github.com/c3lang/tree-sitter-c3?rev=e4d3418873ff9f36c71474b5b08c204289f46fb0#e4d3418873ff9f36c71474b5b08c204289f46fb0"
 dependencies = [
  "cc",
  "tree-sitter-language",

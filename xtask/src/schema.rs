@@ -4,7 +4,7 @@ use ast_grep_core::Language;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::tree_sitter::{LanguageExt, TSLanguage};
 use ast_grep_language::{
-  Alias, Bash, C, CSharp, Cpp, Css, Dart, Elixir, Go, Haskell, Html, Java, JavaScript, Json,
+  Alias, Bash, C, C3, CSharp, Cpp, Css, Dart, Elixir, Go, Haskell, Html, Java, JavaScript, Json,
   Kotlin, Lua, Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml, Zig,
 };
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema, schema_for};
@@ -27,6 +27,7 @@ pub fn generate_schema() -> Result<()> {
 fn generate_lang_schemas() -> Result<()> {
   generate_lang_schema(Bash, "bash")?;
   generate_lang_schema(C, "c")?;
+  generate_lang_schema(C3, "c3")?;
   generate_lang_schema(Cpp, "cpp")?;
   generate_lang_schema(CSharp, "csharp")?;
   generate_lang_schema(Css, "css")?;

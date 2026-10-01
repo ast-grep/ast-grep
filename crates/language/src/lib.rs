@@ -19,6 +19,7 @@
 //! ```
 
 mod bash;
+mod c3;
 mod cpp;
 mod csharp;
 mod css;
@@ -203,6 +204,8 @@ macro_rules! impl_aliases {
 // https://en.cppreference.com/w/cpp/language/identifiers
 impl_lang_expando!(C, language_c, '𐀀');
 impl_lang_expando!(Cpp, language_cpp, '𐀀');
+// C3 value identifiers require a lowercase prefix; '$' denotes compile-time identifiers.
+impl_lang_expando!(C3, language_c3, 'a');
 // https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/lexical-structure#643-identifiers
 // all letter number is accepted
 // https://www.compart.com/en/unicode/category/Nl
@@ -263,6 +266,7 @@ impl_lang!(Yaml, language_yaml);
 pub enum SupportLang {
   Bash,
   C,
+  C3,
   Cpp,
   CSharp,
   Css,
@@ -296,7 +300,7 @@ impl SupportLang {
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
-      Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json,
+      Bash, C, C3, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json,
       Kotlin, Lua, Markdown, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript,
       Yaml, Zig,
     ]
@@ -381,6 +385,7 @@ impl Visitor<'_> for AliasVisitor {
 impl_aliases! {
   Bash => &["bash"],
   C => &["c"],
+  C3 => &["c3"],
   Cpp => &["cc", "c++", "cpp", "cxx"],
   CSharp => &["cs", "csharp"],
   Css => &["css"],
@@ -431,6 +436,7 @@ macro_rules! execute_lang_method {
     match $me {
       S::Bash => Bash.$method($($pname,)*),
       S::C => C.$method($($pname,)*),
+      S::C3 => C3.$method($($pname,)*),
       S::Cpp => Cpp.$method($($pname,)*),
       S::CSharp => CSharp.$method($($pname,)*),
       S::Css => Css.$method($($pname,)*),
@@ -506,6 +512,7 @@ fn extensions(lang: SupportLang) -> &'static [&'static str] {
       "bash", "bats", "cgi", "command", "env", "fcgi", "ksh", "sh", "tmux", "tool", "zsh",
     ],
     C => &["c", "h"],
+    C3 => &["c3", "c3i", "c3t"],
     Cpp => &["cc", "hpp", "cpp", "c++", "hh", "cxx", "cu", "ino"],
     CSharp => &["cs"],
     Css => &["css", "scss"],

@@ -28,6 +28,9 @@ pub fn language_bash() -> TSLanguage {
 pub fn language_c() -> TSLanguage {
   conditional_lang!(tree_sitter_c, "tree-sitter-c")
 }
+pub fn language_c3() -> TSLanguage {
+  conditional_lang!(tree_sitter_c3, "tree-sitter-c3")
+}
 pub fn language_cpp() -> TSLanguage {
   conditional_lang!(tree_sitter_cpp, "tree-sitter-cpp")
 }
