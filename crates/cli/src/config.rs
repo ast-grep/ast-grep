@@ -76,6 +76,7 @@ impl ProjectConfig {
     let Some(config_path) = config_path else {
       return Ok(None);
     };
+    let config_path = config_path.canonicalize().context(EC::ReadConfiguration)?;
     let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
     let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
     let project_dir = config_path
@@ -298,7 +299,9 @@ const CONFIG_FILE_YML: &str = "sgconfig.yml";
 const CONFIG_FILE_YAML: &str = "sgconfig.yaml";
 
 /// return None if config file does not exist
-fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<Option<PathBuf>> {
+pub(crate) fn find_config_path_with_default(
+  config_path: Option<PathBuf>,
+) -> Result<Option<PathBuf>> {
   if config_path.is_some() {
     return Ok(config_path);
   }
@@ -322,6 +325,8 @@ fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<Option<
 #[cfg(test)]
 mod tests {
   use super::*;
+  use std::fs;
+  use tempfile::TempDir;
 
   #[test]
   fn custom_language_outline_rules_are_project_relative() {
@@ -340,5 +345,32 @@ customLanguages:
       custom_language_outline_rules(Path::new("/project"), config.custom_languages.as_ref());
 
     assert_eq!(paths, vec![PathBuf::from("/project/outline/blade.yml")]);
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn symlinked_config_uses_canonical_project_directory() {
+    use std::os::unix::fs::symlink;
+
+    let root = TempDir::new().expect("temporary directory should be created");
+    let project = root.path().join("project");
+    let links = root.path().join("links");
+    fs::create_dir_all(&project).expect("project directory should be created");
+    fs::create_dir_all(&links).expect("link directory should be created");
+    let config = project.join("sgconfig.yml");
+    fs::write(&config, "ruleDirs: []\n").expect("configuration should be written");
+    let linked_config = links.join("sgconfig.yml");
+    symlink(&config, &linked_config).expect("configuration symlink should be created");
+
+    let (project_dir, _) = ProjectConfig::discover_project(Some(linked_config))
+      .expect("configuration should be discovered")
+      .expect("project should exist");
+
+    assert_eq!(
+      project_dir,
+      project
+        .canonicalize()
+        .expect("project directory should be canonicalized")
+    );
   }
 }
