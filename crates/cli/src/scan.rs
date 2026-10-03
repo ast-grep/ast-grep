@@ -437,7 +437,7 @@ fn match_rule_on_file<T>(
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::config::CustomLanguagePolicy;
+  use crate::custom_language::CustomLanguageAction;
   use crate::print::ColorArg;
   use std::fs::File;
   use std::io::Write;
@@ -520,7 +520,7 @@ rule:
     file.sync_all().unwrap();
     let project_config = ProjectConfig::setup(
       Some(dir.path().join("sgconfig.yml")),
-      CustomLanguagePolicy::Ignore,
+      CustomLanguageAction::Ignore,
     )
     .unwrap();
     let arg = default_scan_arg();

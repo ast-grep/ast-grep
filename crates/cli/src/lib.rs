@@ -1,5 +1,6 @@
 mod completions;
 mod config;
+mod custom_language;
 mod lang;
 mod lsp;
 mod new;
@@ -15,7 +16,8 @@ use clap::{Parser, Subcommand};
 use std::{path::PathBuf, process::ExitCode};
 
 use completions::{CompletionsArg, run_shell_completion};
-use config::{CustomLanguagePolicy, ProjectConfig};
+use config::ProjectConfig;
+use custom_language::CustomLanguagePolicy;
 use lsp::{LspArg, run_language_server};
 use new::{NewArg, run_create_new};
 use outline::{OutlineArg, run_outline};
@@ -127,43 +129,14 @@ fn setup_project_is_possible(
     let config_file = (&args[i + 1]).into();
     config = Some(config_file);
   }
-  ProjectConfig::setup(config, custom_languages)
-}
-
-fn parse_custom_language_policy(args: &[String]) -> CustomLanguagePolicy {
-  let mut policy = None;
-  let mut i = 1;
-  while i < args.len() {
-    let arg = args[i].as_str();
-    if arg == "--" {
-      break;
-    }
-    let value = if arg == "--custom-languages" {
-      i += 1;
-      args.get(i).map(String::as_str)
-    } else {
-      arg.strip_prefix("--custom-languages=")
-    };
-    if let Some(value) = value {
-      if policy.is_some() {
-        return CustomLanguagePolicy::Ignore;
-      }
-      policy = match value {
-        "allow" => Some(CustomLanguagePolicy::Allow),
-        "ignore" => Some(CustomLanguagePolicy::Ignore),
-        _ => return CustomLanguagePolicy::Ignore,
-      };
-    }
-    i += 1;
-  }
-  policy.unwrap_or_default()
+  ProjectConfig::setup(config, custom_languages.into())
 }
 
 // this wrapper function is for testing
 pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
   let mut args: Vec<_> = args.collect();
   insert_default_run(&mut args);
-  let custom_languages = parse_custom_language_policy(&args);
+  let custom_languages = custom_language::parse_policy(&args);
   // do not unwrap project before cmd parsing
   // sg help does not need a valid sgconfig.yml
   let project = setup_project_is_possible(&args, custom_languages);
@@ -229,28 +202,6 @@ mod test_cli {
       .collect();
     insert_default_run(&mut args);
     assert_eq!(args[1], "run");
-  }
-
-  #[test]
-  fn test_custom_language_policy() {
-    let args = |args: &[&str]| {
-      args
-        .iter()
-        .map(|arg| (*arg).to_string())
-        .collect::<Vec<_>>()
-    };
-    assert_eq!(
-      parse_custom_language_policy(&args(&["sg", "scan"])),
-      CustomLanguagePolicy::Ignore
-    );
-    assert_eq!(
-      parse_custom_language_policy(&args(&["sg", "scan", "--custom-languages=allow"])),
-      CustomLanguagePolicy::Allow
-    );
-    assert_eq!(
-      parse_custom_language_policy(&args(&["sg", "run", "--", "--custom-languages", "allow"])),
-      CustomLanguagePolicy::Ignore
-    );
   }
 
   #[test]
