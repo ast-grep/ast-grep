@@ -191,3 +191,39 @@ fn remembered_trust_uses_attached_config_path() -> Result<()> {
     .stderr(contains("Cannot load custom language library"));
   Ok(())
 }
+
+#[test]
+fn config_path_after_delimiter_is_not_used_for_project_setup() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG),
+    ("other.yml", CUSTOM_LANGUAGE_CONFIG),
+  ])?;
+  let trust_dir = TempDir::new()?;
+  remember_project(dir.path().join("other.yml"), &trust_dir)?;
+
+  command_with_trust_store(&dir, &trust_dir)
+    .args(["-p", "foo", "--", "-cother.yml"])
+    .assert()
+    .failure()
+    .stderr(contains("Cannot load custom language library").not());
+  Ok(())
+}
+
+#[test]
+fn deleted_config_can_be_revoked() -> Result<()> {
+  let dir = create_test_files([("project.yml", CUSTOM_LANGUAGE_CONFIG)])?;
+  let trust_dir = TempDir::new()?;
+  let config = dir.path().join("project.yml");
+  remember_project(config.clone(), &trust_dir)?;
+  fs::remove_file(&config)?;
+
+  command_with_trust_store(&dir, &trust_dir)
+    .args(["scan", "--custom-languages", "revoke", "-cproject.yml"])
+    .assert()
+    .failure();
+
+  let stored: BTreeSet<PathBuf> =
+    serde_json::from_slice(&fs::read(trust_dir.path().join("trusted-configs.json"))?)?;
+  assert!(stored.is_empty());
+  Ok(())
+}

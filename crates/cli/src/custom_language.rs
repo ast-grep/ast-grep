@@ -4,8 +4,9 @@ use crate::utils::ErrorContext as EC;
 use anyhow::{Context, Result};
 use clap::ValueEnum;
 use directories::ProjectDirs;
+use fs2::FileExt;
 use std::collections::BTreeSet;
-use std::fs;
+use std::fs::{self, OpenOptions};
 use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 
@@ -113,36 +114,53 @@ fn confirm_trust(config_path: Option<&Path>) -> Result<()> {
 
 fn is_trusted(config_path: Option<&Path>) -> bool {
   canonical_config_path(config_path)
-    .and_then(|path| load_store().map(|store| store.contains(&path)))
+    .and_then(|path| {
+      let store_path = trust_store_path()?;
+      load_store(&store_path).map(|store| store.contains(&path))
+    })
     .unwrap_or(false)
 }
 
 fn set_trusted(config_path: Option<&Path>, trusted: bool) -> Result<()> {
-  let config_path = canonical_config_path(config_path)?;
-  let mut store = load_store()?;
+  let config_path = if trusted {
+    canonical_config_path(config_path)?
+  } else {
+    config_path_for_revoke(config_path)?
+  };
+  let store_path = trust_store_path()?;
+  let parent = store_path.parent().expect("trust store path has a parent");
+  fs::create_dir_all(parent).context("Cannot create the ast-grep configuration directory")?;
+  let lock = OpenOptions::new()
+    .read(true)
+    .write(true)
+    .create(true)
+    .truncate(false)
+    .open(parent.join("trusted-configs.lock"))
+    .context("Cannot open the ast-grep trust store lock")?;
+  FileExt::lock_exclusive(&lock).context("Cannot lock the ast-grep trust store")?;
+
+  let mut store = load_store(&store_path)?;
   let changed = if trusted {
     store.insert(config_path)
   } else {
     store.remove(&config_path)
   };
   if changed {
-    save_store(&store)?;
+    save_store(&store_path, &store)?;
   }
   Ok(())
 }
 
-fn load_store() -> Result<BTreeSet<PathBuf>> {
-  match fs::read(trust_store_path()?) {
+fn load_store(path: &Path) -> Result<BTreeSet<PathBuf>> {
+  match fs::read(path) {
     Ok(json) => serde_json::from_slice(&json).context("Cannot parse the ast-grep trust store"),
     Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(BTreeSet::new()),
     Err(error) => Err(error).context("Cannot read the ast-grep trust store"),
   }
 }
 
-fn save_store(store: &BTreeSet<PathBuf>) -> Result<()> {
-  let path = trust_store_path()?;
+fn save_store(path: &Path, store: &BTreeSet<PathBuf>) -> Result<()> {
   let parent = path.parent().expect("trust store path has a parent");
-  fs::create_dir_all(parent).context("Cannot create the ast-grep configuration directory")?;
   let mut temp = tempfile::NamedTempFile::new_in(parent)?;
   temp.write_all(&serde_json::to_vec_pretty(store)?)?;
   temp.persist(path).map_err(|error| error.error)?;
@@ -162,6 +180,29 @@ fn canonical_config_path(config_path: Option<&Path>) -> Result<PathBuf> {
   let config_path = find_config_path_with_default(config_path.map(Path::to_path_buf))?
     .context("Cannot find the ast-grep configuration file")?;
   fs::canonicalize(config_path).context("Cannot resolve the ast-grep configuration path")
+}
+
+fn config_path_for_revoke(config_path: Option<&Path>) -> Result<PathBuf> {
+  let config_path = find_config_path_with_default(config_path.map(Path::to_path_buf))?
+    .context("Cannot find the ast-grep configuration file")?;
+  match fs::canonicalize(&config_path) {
+    Ok(path) => Ok(path),
+    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+      let file_name = config_path
+        .file_name()
+        .context("Configuration path must have a file name")?;
+      let parent = config_path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+      Ok(
+        fs::canonicalize(parent)
+          .context("Cannot resolve the ast-grep configuration directory")?
+          .join(file_name),
+      )
+    }
+    Err(error) => Err(error).context("Cannot resolve the ast-grep configuration path"),
+  }
 }
 
 #[cfg(test)]

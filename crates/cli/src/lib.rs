@@ -113,6 +113,9 @@ fn setup_project_is_possible(
   let mut config = None;
   for i in 0..args.len() {
     let arg = &args[i];
+    if arg == "--" {
+      break;
+    }
     if let Some(config_file) = arg.strip_prefix("-c").filter(|path| !path.is_empty()) {
       config = Some(config_file.strip_prefix('=').unwrap_or(config_file).into());
       break;
