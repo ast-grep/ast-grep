@@ -219,6 +219,7 @@ fn create_new_project(arg: NewArg, project_dir: &Path) -> Result<ExitCode> {
     test_configs: test_dirs.map(|t| vec![t]),
     util_dirs: utils.map(|u| vec![u]),
     custom_languages: None,      // advanced feature, skip now
+    outline_rules: None,         // advanced feature, skip now
     language_globs: None,        // advanced feature, skip now
     language_injections: vec![], // advanced feature
   };
