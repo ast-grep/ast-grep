@@ -48,9 +48,9 @@ struct App {
   /// Path to ast-grep root config, default is sgconfig.yml.
   #[clap(short, long, global = true, value_name = "CONFIG_FILE")]
   config: Option<PathBuf>,
-  /// Control how sgconfig.yml handles native custom language libraries.
-  #[clap(long, global = true, value_enum, default_value_t)]
-  custom_languages: CustomLanguagePolicy,
+  /// Control how sgconfig.yml handles native custom language libraries (default: ignore).
+  #[clap(long, global = true, value_enum)]
+  custom_languages: Option<CustomLanguagePolicy>,
 }
 
 #[derive(Subcommand)]
@@ -108,11 +108,15 @@ fn insert_default_run(args: &mut Vec<String>) {
 /// finding project and setup custom language configuration
 fn setup_project_is_possible(
   args: &[String],
-  custom_languages: CustomLanguagePolicy,
+  custom_languages: Option<CustomLanguagePolicy>,
 ) -> Result<Result<ProjectConfig>> {
   let mut config = None;
   for i in 0..args.len() {
     let arg = &args[i];
+    if let Some(config_file) = arg.strip_prefix("-c").filter(|path| !path.is_empty()) {
+      config = Some(config_file.strip_prefix('=').unwrap_or(config_file).into());
+      break;
+    }
     if !is_command(arg, "config") {
       continue;
     }
@@ -126,10 +130,10 @@ fn setup_project_is_possible(
     if i + 1 >= args.len() || args[i + 1].starts_with('-') {
       return Err(anyhow::anyhow!("missing config file after -c"));
     }
-    let config_file = (&args[i + 1]).into();
-    config = Some(config_file);
+    config = Some((&args[i + 1]).into());
   }
-  ProjectConfig::setup(config, custom_languages.into())
+  let action = custom_language::resolve(custom_languages, config.as_deref())?;
+  ProjectConfig::setup(config, action)
 }
 
 // this wrapper function is for testing
@@ -272,6 +276,8 @@ mod test_cli {
     ok("scan");
     ok("scan --custom-languages allow");
     ok("scan --custom-languages ignore");
+    ok("scan --custom-languages trust");
+    ok("scan --custom-languages revoke");
     error("scan --custom-languages deny");
     error("scan --custom-languages invalid");
     ok("scan dir");
