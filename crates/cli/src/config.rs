@@ -1,3 +1,4 @@
+use crate::custom_language::CustomLanguageAction;
 use crate::lang::{CustomLang, LanguageGlobs, SerializableInjection, SgLang};
 use crate::utils::{ErrorContext as EC, RuleOverwrite, RuleTrace};
 
@@ -6,22 +7,12 @@ use ast_grep_config::{
   DeserializeEnv, GlobalRules, RuleCollection, RuleConfig, from_str, from_yaml_string,
 };
 use ast_grep_language::{SupportLang, config_file_type};
-use clap::ValueEnum;
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 
 use std::collections::{HashMap, HashSet};
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
-pub enum CustomLanguagePolicy {
-  /// Load native custom language libraries for this invocation.
-  Allow,
-  /// Skip native custom language libraries without reporting an error.
-  #[default]
-  Ignore,
-}
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -110,12 +101,12 @@ impl ProjectConfig {
   /// The outer Result is for definitely wrong config.
   pub fn setup(
     config_path: Option<PathBuf>,
-    custom_languages: CustomLanguagePolicy,
+    custom_languages: CustomLanguageAction,
   ) -> Result<Result<Self>> {
     let Some((project_dir, mut sg_config)) = Self::discover_project(config_path)? else {
       return Ok(Err(anyhow::anyhow!(EC::ProjectNotExist)));
     };
-    let mut outline_rules = if custom_languages == CustomLanguagePolicy::Allow {
+    let mut outline_rules = if custom_languages == CustomLanguageAction::Load {
       custom_language_outline_rules(&project_dir, sg_config.custom_languages.as_ref())
     } else {
       vec![]
@@ -156,19 +147,19 @@ fn custom_language_outline_rules(
 fn register_custom_language(
   project_dir: &Path,
   sg_config: AstGrepConfig,
-  policy: CustomLanguagePolicy,
+  action: CustomLanguageAction,
 ) -> Result<()> {
   if let Some(custom_langs) = sg_config.custom_languages {
-    match policy {
-      CustomLanguagePolicy::Allow => {
+    match action {
+      CustomLanguageAction::Load => {
         SgLang::register_custom_language(project_dir, custom_langs)?;
       }
-      CustomLanguagePolicy::Ignore if !custom_langs.is_empty() => {
+      CustomLanguageAction::Ignore if !custom_langs.is_empty() => {
         eprintln!(
           "Warning: custom languages are ignored because native libraries can execute malicious code. Review the project before using `--custom-languages allow`."
         );
       }
-      CustomLanguagePolicy::Ignore => {}
+      CustomLanguageAction::Ignore => {}
     }
   }
   if let Some(globs) = sg_config.language_globs {

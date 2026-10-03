@@ -363,7 +363,7 @@ fn create_new_util(found: ProjectConfig, arg: NewArg) -> Result<ExitCode> {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::config::CustomLanguagePolicy;
+  use crate::custom_language::CustomLanguageAction;
   use ast_grep_language::SupportLang;
   use std::path::Path;
   use tempfile::TempDir;
@@ -383,7 +383,7 @@ mod test {
   fn create_rule(temp: &Path) -> Result<()> {
     let project = ProjectConfig::setup(
       Some(temp.join("sgconfig.yml")),
-      CustomLanguagePolicy::Ignore,
+      CustomLanguageAction::Ignore,
     )?;
     let arg = NewArg {
       entity: Some(Entity::Rule),
@@ -399,7 +399,7 @@ mod test {
   fn create_util(temp: &Path) -> Result<()> {
     let project = ProjectConfig::setup(
       Some(temp.join("sgconfig.yml")),
-      CustomLanguagePolicy::Ignore,
+      CustomLanguageAction::Ignore,
     )?;
     let arg = NewArg {
       entity: Some(Entity::Util),
