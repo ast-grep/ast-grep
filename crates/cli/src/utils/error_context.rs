@@ -70,6 +70,7 @@ pub enum ErrorContext {
   // Completions
   CannotInferShell,
   // Interactive
+  TrustRequiresInteractiveTerminal,
   ExitInteractiveEditing,
 }
 
@@ -84,7 +85,7 @@ impl ErrorContext {
       TestFail(_) | TestSnapshotMismatch(_) => 4,
       NoTestDirConfigured | NoUtilDirConfigured => 5,
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 6,
-      StdInIsNotInteractive => 7,
+      StdInIsNotInteractive | TrustRequiresInteractiveTerminal => 7,
       ParseTest(_) | ParseRule(_) | ParseConfiguration | ParsePattern | ParseSelector
       | InvalidGlobalUtils | LangInjection | DuplicateRuleId(_) | InvalidRuleId(_) => 8,
       GlobPattern | BuildGlobs => 9,
@@ -305,6 +306,11 @@ impl ErrorMessage {
         "Can not infer which shell to generate completions.",
         "Either specify shell flavor by `sg completions [SHELL]` or set correct `SHELL` environment.",
         CLI_USAGE,
+      ),
+      TrustRequiresInteractiveTerminal => Self::new(
+        "Trusting custom languages requires an interactive terminal.",
+        "Use `--custom-languages allow` for automation, or rerun `--custom-languages trust` in an interactive terminal.",
+        CUSTOM_LANG_GUIDE,
       ),
       ExitInteractiveEditing => Self::new(
         "Interactive editing exited.",

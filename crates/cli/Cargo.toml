@@ -38,6 +38,8 @@ anyhow.workspace = true
 clap = { version = "4.5.4", features = ["derive"] }
 codespan-reporting = "0.13.0"
 crossterm = "0.29.0"
+directories = "6.0.0"
+fs2 = "0.4.3"
 ignore.workspace = true
 regex.workspace = true
 dashmap.workspace = true
@@ -50,6 +52,7 @@ serde_yaml.workspace = true
 serde-sarif = "0.8.0"
 similar = { version = "3.0.0", features = ["inline"] }
 smallvec = "1.13.2"
+tempfile = "3.10.1"
 tokio = { version = "1.37.0", features = ["rt-multi-thread", "io-std"] }
 clap_complete = "4.5.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -57,7 +60,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 [dev-dependencies]
 assert_cmd = "2.0.14"
 predicates = "3.1.0"
-tempfile = "3.10.1"
 
 # Support cargo bininstall, https://github.com/ast-grep/ast-grep/issues/1742
 [package.metadata.binstall]
