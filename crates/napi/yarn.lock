@@ -1188,10 +1188,10 @@ cbor@^10.0.11:
   dependencies:
     nofilter "^3.0.2"
 
-chalk@6.0.0:
-  version "6.0.0"
-  resolved "https://registry.yarnpkg.com/chalk/-/chalk-6.0.0.tgz#a3bae843bc8454f41ef66ef3fd584dcf34dd805d"
-  integrity sha512-2uNTXIuTTxk7ciZgAU1BQcgnchcG0xXnrs6jzkQfj9SsRa9M2s5zE8WT96hS6KmG4MzWHSrvH43DF1m4XRkrFg==
+chalk@6.0.1:
+  version "6.0.1"
+  resolved "https://registry.yarnpkg.com/chalk/-/chalk-6.0.1.tgz#077d4667ad6e608c9687782caed3d534d7f9abc3"
+  integrity sha512-/Ce6KNm3vIbWdMlNna6RVIZ/ICQxnJxCicet5LBKK9ZffBkqzDw0xh9EiKSljdRtiIQ1S1z4YgcscUUGzNCWrA==
 
 chalk@^5.6.2:
   version "5.6.2"
