@@ -201,10 +201,10 @@ import static java.util.Collections.emptyList;
 class Client {}
 "#,
     r#"
-- Module import private java.util
-- Module import private java.util.Map
-- Module import private java
-- Module import private java.lang
+- Module import private java.util.*
+- Module import private java.util.Map.*
+- Module import private java.*
+- Module import private java.lang.*
 - Module import private okhttp3.Request
 - Module import private java.util.Collections.emptyList
 - Class item private Client
