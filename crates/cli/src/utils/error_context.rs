@@ -308,7 +308,7 @@ impl ErrorMessage {
         CLI_USAGE,
       ),
       TrustRequiresInteractiveTerminal => Self::new(
-        "Cannot trust custom languages non-interactively.",
+        "Trusting custom languages requires an interactive terminal.",
         "Use `--custom-languages allow` for automation, or rerun `--custom-languages trust` in an interactive terminal.",
         CUSTOM_LANG_GUIDE,
       ),

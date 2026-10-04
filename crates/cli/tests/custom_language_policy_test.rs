@@ -139,7 +139,9 @@ fn trust_requires_an_interactive_terminal() -> Result<()> {
     .assert()
     .failure()
     .stderr(contains("WARNING: native custom languages execute code"))
-    .stderr(contains("Cannot trust custom languages non-interactively"))
+    .stderr(contains(
+      "Trusting custom languages requires an interactive terminal",
+    ))
     .stderr(contains("--custom-languages allow"));
   command_with_trust_store(&dir, &trust_dir)
     .arg("scan")
