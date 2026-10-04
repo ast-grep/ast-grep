@@ -3,9 +3,9 @@ language: Java
 role: item
 symbolType: module
 rule:
-  pattern: import static $PATH;
-name: $PATH
-signature: import static $PATH
+  pattern: import static $$$PATH;
+name: $$$PATH
+signature: import static $$$PATH
 isImport: true
 isExported: false
 ---
@@ -14,9 +14,12 @@ language: Java
 role: item
 symbolType: module
 rule:
-  pattern: import $PATH;
-name: $PATH
-signature: import $PATH
+  all:
+    - pattern: import $$$PATH;
+    - not:
+        pattern: import static $$$STATIC_PATH;
+name: $$$PATH
+signature: import $$$PATH
 isImport: true
 isExported: false
 ---
@@ -180,4 +183,4 @@ rule:
         field: name
         pattern: $NAME
 name: $NAME
-isExported: false
+isExported: true

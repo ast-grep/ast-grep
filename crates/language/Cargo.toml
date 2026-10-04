@@ -44,6 +44,7 @@ tree-sitter-swift = { version = "0.7.0", optional = true }
 tree-sitter-typescript = { version = "0.23.2", optional = true }
 tree-sitter-yaml = { version = "0.7.0", optional = true }
 tree-sitter-hcl = { version = "1.1.0", optional = true }
+tree-sitter-zig = { version = "1.1.2", optional = true }
 
 [features]
 builtin-parser = [
@@ -74,6 +75,7 @@ builtin-parser = [
   "tree-sitter-swift",
   "tree-sitter-typescript",
   "tree-sitter-yaml",
+  "tree-sitter-zig",
 ]
 napi-lang = [
   "tree-sitter-css",

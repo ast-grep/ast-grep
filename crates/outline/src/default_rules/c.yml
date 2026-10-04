@@ -68,6 +68,8 @@ rule:
     - kind: declaration
     - has:
         field: declarator
+        stopBy: end
+        kind: identifier
         pattern: $NAME
     - not:
         has:
@@ -89,6 +91,8 @@ rule:
   kind: field_declaration
   has:
     field: declarator
+    stopBy: end
+    kind: field_identifier
     pattern: $NAME
 name: $NAME
 isPublic: true

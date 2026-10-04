@@ -114,3 +114,6 @@ pub fn language_typescript() -> TSLanguage {
 pub fn language_yaml() -> TSLanguage {
   conditional_lang!(tree_sitter_yaml, "tree-sitter-yaml")
 }
+pub fn language_zig() -> TSLanguage {
+  conditional_lang!(tree_sitter_zig, "tree-sitter-zig")
+}

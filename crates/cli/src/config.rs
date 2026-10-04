@@ -1,3 +1,4 @@
+use crate::custom_language::CustomLanguageAction;
 use crate::lang::{CustomLang, LanguageGlobs, SerializableInjection, SgLang};
 use crate::utils::{ErrorContext as EC, RuleOverwrite, RuleTrace};
 
@@ -75,6 +76,7 @@ impl ProjectConfig {
     let Some(config_path) = config_path else {
       return Ok(None);
     };
+    let config_path = config_path.canonicalize().context(EC::ReadConfiguration)?;
     let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
     let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
     let project_dir = config_path
@@ -95,12 +97,18 @@ impl ProjectConfig {
   /// returns a Result of Result.
   /// The inner Result is for configuration not found, or ProjectNotExist
   /// The outer Result is for definitely wrong config.
-  pub fn setup(config_path: Option<PathBuf>) -> Result<Result<Self>> {
+  pub fn setup(
+    config_path: Option<PathBuf>,
+    custom_languages: CustomLanguageAction,
+  ) -> Result<Result<Self>> {
     let Some((project_dir, mut sg_config)) = Self::discover_project(config_path)? else {
       return Ok(Err(anyhow::anyhow!(EC::ProjectNotExist)));
     };
-    let outline_rules =
-      custom_language_outline_rules(&project_dir, sg_config.custom_languages.as_ref());
+    let outline_rules = if custom_languages == CustomLanguageAction::Load {
+      custom_language_outline_rules(&project_dir, sg_config.custom_languages.as_ref())
+    } else {
+      vec![]
+    };
     let config = ProjectConfig {
       project_dir,
       rule_dirs: std::mem::take(&mut sg_config.rule_dirs),
@@ -109,7 +117,7 @@ impl ProjectConfig {
       util_dirs: sg_config.util_dirs.take(),
     };
     // sg_config will not use rule dirs and test configs anymore
-    register_custom_language(&config.project_dir, sg_config)?;
+    register_custom_language(&config.project_dir, sg_config, custom_languages)?;
     Ok(Ok(config))
   }
 }
@@ -126,9 +134,23 @@ fn custom_language_outline_rules(
     .collect()
 }
 
-fn register_custom_language(project_dir: &Path, sg_config: AstGrepConfig) -> Result<()> {
+fn register_custom_language(
+  project_dir: &Path,
+  sg_config: AstGrepConfig,
+  action: CustomLanguageAction,
+) -> Result<()> {
   if let Some(custom_langs) = sg_config.custom_languages {
-    SgLang::register_custom_language(project_dir, custom_langs)?;
+    match action {
+      CustomLanguageAction::Load => {
+        SgLang::register_custom_language(project_dir, custom_langs)?;
+      }
+      CustomLanguageAction::Ignore if !custom_langs.is_empty() => {
+        eprintln!(
+          "Warning: custom languages are ignored because native libraries can execute malicious code. Review the project before using `--custom-languages allow`."
+        );
+      }
+      CustomLanguageAction::Ignore => {}
+    }
   }
   if let Some(globs) = sg_config.language_globs {
     SgLang::register_globs(globs)?;
@@ -277,7 +299,9 @@ const CONFIG_FILE_YML: &str = "sgconfig.yml";
 const CONFIG_FILE_YAML: &str = "sgconfig.yaml";
 
 /// return None if config file does not exist
-fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<Option<PathBuf>> {
+pub(crate) fn find_config_path_with_default(
+  config_path: Option<PathBuf>,
+) -> Result<Option<PathBuf>> {
   if config_path.is_some() {
     return Ok(config_path);
   }
@@ -301,6 +325,8 @@ fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<Option<
 #[cfg(test)]
 mod tests {
   use super::*;
+  use std::fs;
+  use tempfile::TempDir;
 
   #[test]
   fn custom_language_outline_rules_are_project_relative() {
@@ -319,5 +345,32 @@ customLanguages:
       custom_language_outline_rules(Path::new("/project"), config.custom_languages.as_ref());
 
     assert_eq!(paths, vec![PathBuf::from("/project/outline/blade.yml")]);
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn symlinked_config_uses_canonical_project_directory() {
+    use std::os::unix::fs::symlink;
+
+    let root = TempDir::new().expect("temporary directory should be created");
+    let project = root.path().join("project");
+    let links = root.path().join("links");
+    fs::create_dir_all(&project).expect("project directory should be created");
+    fs::create_dir_all(&links).expect("link directory should be created");
+    let config = project.join("sgconfig.yml");
+    fs::write(&config, "ruleDirs: []\n").expect("configuration should be written");
+    let linked_config = links.join("sgconfig.yml");
+    symlink(&config, &linked_config).expect("configuration symlink should be created");
+
+    let (project_dir, _) = ProjectConfig::discover_project(Some(linked_config))
+      .expect("configuration should be discovered")
+      .expect("project should exist");
+
+    assert_eq!(
+      project_dir,
+      project
+        .canonicalize()
+        .expect("project directory should be canonicalized")
+    );
   }
 }
