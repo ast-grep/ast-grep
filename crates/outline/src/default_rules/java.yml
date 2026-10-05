@@ -158,13 +158,6 @@ rule:
         has:
           field: name
           pattern: $NAME
-    - not:
-        has:
-          kind: modifiers
-          has:
-            any:
-              - pattern: private
-              - pattern: protected
 name: $NAME
 isPublic:
   has:
