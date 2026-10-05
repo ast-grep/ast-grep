@@ -183,6 +183,23 @@ enum Protocol { HTTP_1_1 }
 }
 
 #[test]
+fn java_rules_parse_and_extract_module_declaration() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+module com.example {
+  requires java.base;
+}
+"#,
+    r#"
+- Module item exported com.example
+"#,
+  );
+}
+
+#[test]
 fn java_rules_parse_wildcard_imports() {
   const RULES: &str = include_str!("../src/default_rules/java.yml");
   common::assert_outline_snapshot(
