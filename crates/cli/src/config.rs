@@ -297,6 +297,9 @@ pub fn read_rule_file(path: &Path, global_rules: &GlobalRules) -> Result<Vec<Rul
 
 const CONFIG_FILE_YML: &str = "sgconfig.yml";
 const CONFIG_FILE_YAML: &str = "sgconfig.yaml";
+const CONFIG_FILE_DOT_YML: &str = ".sgconfig.yml";
+const CONFIG_FILE_DOT_YAML: &str = ".sgconfig.yaml";
+
 
 /// return None if config file does not exist
 pub(crate) fn find_config_path_with_default(
@@ -309,10 +312,16 @@ pub(crate) fn find_config_path_with_default(
   loop {
     let yml = path.join(CONFIG_FILE_YML);
     let yaml = path.join(CONFIG_FILE_YAML);
+    let dot_yml = path.join(CONFIG_FILE_DOT_YML);
+    let dot_yaml = path.join(CONFIG_FILE_DOT_YAML);
     if yml.exists() {
       break Ok(Some(yml));
     } else if yaml.exists() {
       break Ok(Some(yaml));
+    } else if dot_yml.exists() {
+      break Ok(Some(dot_yml));
+    } else if dot_yaml.exists() {
+      break Ok(Some(dot_yaml));
     }
     if let Some(parent) = path.parent() {
       path = parent.to_path_buf();
