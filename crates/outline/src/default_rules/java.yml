@@ -191,3 +191,39 @@ rule:
         pattern: $NAME
 name: $NAME
 isPublic: true
+---
+id: java-annotation-type
+language: Java
+role: item
+symbolType: interface
+rule:
+  kind: annotation_type_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifiers
+    has:
+      pattern: public
+---
+id: java-annotation-element
+language: Java
+role: member
+parentRuleIds: [java-annotation-type]
+symbolType: method
+rule:
+  kind: annotation_type_element_declaration
+  has:
+    field: name
+    pattern: $NAME
+  not:
+    inside:
+      kind: annotation_type_declaration
+      inside:
+        kind: annotation_type_declaration
+        stopBy: end
+      stopBy: end
+name: $NAME
+isPublic: true
