@@ -316,6 +316,52 @@ public @interface Marker {}
 }
 
 #[test]
+fn java_annotation_members_do_not_leak_from_nested_declarations() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+@interface Outer {
+  String before();
+  @interface Inner {
+    int inner();
+    @interface Deeper { boolean deeper(); }
+  }
+  interface NestedInterface {
+    @interface Hidden { int leaked(); }
+  }
+  class NestedClass {
+    @interface Hidden { int leaked(); }
+  }
+  enum NestedEnum {
+    VALUE;
+    @interface Hidden { int leaked(); }
+  }
+  Object CONSTANT = new Object() {
+    @interface Hidden { int leaked(); }
+  };
+  int after() default 0;
+}
+
+@interface Sibling { String value(); }
+"#,
+    r#"
+- Interface item private Outer
+  - Method public before
+  - Interface public Inner
+  - Interface public NestedInterface
+  - Class public NestedClass
+  - Enum public NestedEnum
+  - Field public CONSTANT
+  - Method public after
+- Interface item private Sibling
+  - Method public value
+"#,
+  );
+}
+
+#[test]
 fn java_rules_parse_and_extract_records() {
   const RULES: &str = include_str!("../src/default_rules/java.yml");
   common::assert_outline_snapshot(
