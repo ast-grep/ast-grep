@@ -197,11 +197,10 @@ language: Java
 role: item
 symbolType: interface
 rule:
-  all:
-    - kind: annotation_type_declaration
-    - has:
-        field: name
-        pattern: $NAME
+  kind: annotation_type_declaration
+  has:
+    field: name
+    pattern: $NAME
 name: $NAME
 isExported:
   has:
@@ -215,72 +214,16 @@ role: member
 parentRuleIds: [java-annotation-type]
 symbolType: method
 rule:
-  all:
-    - kind: annotation_type_element_declaration
-    - has:
-        field: name
-        pattern: $NAME
-name: $NAME
-isPublic: true
----
-# Matching these members prunes their subtrees so nested annotation elements
-# cannot be collected as members of the enclosing annotation.
-id: java-annotation-member-interface
-language: Java
-role: member
-parentRuleIds: [java-annotation-type]
-symbolType: interface
-rule:
-  all:
-    - any:
-        - kind: annotation_type_declaration
-        - kind: interface_declaration
-    - has:
-        field: name
-        pattern: $NAME
-name: $NAME
-isPublic: true
----
-id: java-annotation-member-class
-language: Java
-role: member
-parentRuleIds: [java-annotation-type]
-symbolType: class
-rule:
-  all:
-    - kind: class_declaration
-    - has:
-        field: name
-        pattern: $NAME
-name: $NAME
-isPublic: true
----
-id: java-annotation-member-enum
-language: Java
-role: member
-parentRuleIds: [java-annotation-type]
-symbolType: enum
-rule:
-  all:
-    - kind: enum_declaration
-    - has:
-        field: name
-        pattern: $NAME
-name: $NAME
-isPublic: true
----
-id: java-annotation-member-constant
-language: Java
-role: member
-parentRuleIds: [java-annotation-type]
-symbolType: field
-rule:
-  all:
-    - kind: constant_declaration
-    - has:
-        field: declarator
-        has:
-          field: name
-          pattern: $NAME
+  kind: annotation_type_element_declaration
+  has:
+    field: name
+    pattern: $NAME
+  not:
+    inside:
+      kind: annotation_type_declaration
+      inside:
+        kind: annotation_type_declaration
+        stopBy: end
+      stopBy: end
 name: $NAME
 isPublic: true
