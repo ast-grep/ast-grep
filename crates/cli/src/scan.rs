@@ -3,8 +3,8 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result};
 use ast_grep_config::{
-  CombinedScan, NO_SUPPRESS_ALL_ID, RuleCollection, RuleConfig, Severity, UNUSED_SUPPRESSION_ID,
-  from_yaml_string,
+  CombinedScan, GlobalRules, NO_SUPPRESS_ALL_ID, RuleCollection, RuleConfig, Severity,
+  UNUSED_SUPPRESSION_ID, from_yaml_string,
 };
 use ast_grep_core::{NodeMatch, tree_sitter::StrDoc};
 use ast_grep_language::SupportLang;
@@ -120,7 +120,7 @@ fn run_scan<P: Printer + 'static>(
   project: Result<ProjectConfig>,
 ) -> Result<ExitCode> {
   if arg.input.stdin {
-    let worker = ScanStdin::try_new(arg)?;
+    let worker = ScanStdin::try_new(arg, project)?;
     // TODO: report a soft error if rules have different languages
     worker.run_std_in(printer)
   } else {
@@ -152,7 +152,16 @@ impl ScanWithConfig {
       proj_dir = path.parent().unwrap_or(Path::new(".")).to_path_buf();
       with_rule_stats(rules)?
     } else if let Some(text) = &arg.inline_rules {
-      let configs = from_yaml_string(text, &Default::default())
+      // Prefer utilDirs from an available project so --inline-rules can use
+      // matches: <global-util> the same way rules under ruleDirs do (#2927).
+      let global_rules = match &project {
+        Ok(project_config) => {
+          proj_dir = project_config.project_dir.clone();
+          project_config.find_global_rules()?
+        }
+        Err(_) => GlobalRules::default(),
+      };
+      let configs = from_yaml_string(text, &global_rules)
         .with_context(|| EC::ParseRule("INLINE_RULES".into()))?;
       let rules = overwrite.process_configs(configs)?;
       with_rule_stats(rules)?
@@ -311,9 +320,18 @@ struct ScanStdin {
   max_diagnostics_shown: Option<usize>,
 }
 impl ScanStdin {
-  fn try_new(arg: ScanArg) -> Result<Self> {
+  fn try_new(arg: ScanArg, project: Result<ProjectConfig>) -> Result<Self> {
     let overwrite = RuleOverwrite::new(&arg.overwrite)?;
-    let global_rules = Default::default();
+    // --rule stays project-free (see #588). --inline-rules with a project
+    // config should resolve utilDirs globals (#2927).
+    let global_rules = if arg.inline_rules.is_some() {
+      match &project {
+        Ok(project_config) => project_config.find_global_rules()?,
+        Err(_) => GlobalRules::default(),
+      }
+    } else {
+      GlobalRules::default()
+    };
     let rules = if let Some(path) = &arg.rule {
       read_rule_file(path, &global_rules).and_then(|configs| overwrite.process_configs(configs))?
     } else if let Some(text) = &arg.inline_rules {
