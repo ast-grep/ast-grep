@@ -8,18 +8,19 @@ use wasm_bindgen::prelude::*;
 
 use crate::doc::{WasmConfig, WasmDoc, Wrapper};
 #[derive(serde::Serialize, serde::Deserialize)]
-#[wasm_bindgen(getter_with_clone)]
+#[wasm_bindgen]
 pub struct WasmEdit {
   /// The start position of the edit (character offset)
   pub start_pos: u32,
   /// The end position of the edit (character offset)
   pub end_pos: u32,
   /// The text to be inserted
+  #[wasm_bindgen(getter_with_clone)]
   pub inserted_text: String,
 }
 
 #[derive(Clone)]
-#[wasm_bindgen(getter_with_clone)]
+#[wasm_bindgen]
 pub struct Pos {
   /// line number starting from 0
   pub line: u32,
