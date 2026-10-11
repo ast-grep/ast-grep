@@ -153,6 +153,31 @@ fn test_sg_scan_update_all_reports_unfixable_rules() -> Result<()> {
   Ok(())
 }
 
+#[cfg(unix)]
+#[test]
+fn test_sg_scan_update_all_preserves_file_when_write_fails() -> Result<()> {
+  let dir = create_test_files([
+    ("rules/no-var.yml", FIXABLE_JS_RULE),
+    ("test.js", "var x = 1;\n"),
+  ])?;
+  Command::new("/bin/sh")
+    .args(["-c", "ulimit -f 0; exec \"$@\"", "sh"])
+    .arg(cargo_bin!())
+    .args([
+      "scan",
+      "--rule",
+      "rules/no-var.yml",
+      "--update-all",
+      "test.js",
+    ])
+    .current_dir(dir.path())
+    .assert()
+    .failure();
+  let updated = std::fs::read_to_string(dir.path().join("test.js"))?;
+  assert_eq!(updated, "var x = 1;\n");
+  Ok(())
+}
+
 #[test]
 fn test_sg_scan_inline_rules() -> Result<()> {
   let inline_rules = "{id: test, language: ts, rule: {pattern: console.log($A)}}";
