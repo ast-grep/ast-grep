@@ -1,6 +1,7 @@
 mod cloud_print;
 mod colored_print;
 mod file_name_printer;
+mod file_write;
 mod interactive_print;
 mod json_print;
 

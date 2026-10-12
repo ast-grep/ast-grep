@@ -57,6 +57,9 @@ tokio = { version = "1.37.0", features = ["rt-multi-thread", "io-std"] }
 clap_complete = "4.5.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1.1.4", features = ["fs"] }
+
 [dev-dependencies]
 assert_cmd = "2.0.14"
 predicates = "3.1.0"
