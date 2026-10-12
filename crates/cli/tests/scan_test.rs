@@ -153,6 +153,94 @@ fn test_sg_scan_update_all_reports_unfixable_rules() -> Result<()> {
   Ok(())
 }
 
+#[cfg(unix)]
+#[test]
+fn test_sg_scan_update_all_preserves_permissions() -> Result<()> {
+  use std::os::unix::fs::PermissionsExt;
+
+  let dir = create_test_files([
+    ("rules/no-var.yml", FIXABLE_JS_RULE),
+    ("test.js", "var x = 1;\n"),
+  ])?;
+  let path = dir.path().join("test.js");
+  std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o751))?;
+  let mode = std::fs::metadata(&path)?.permissions().mode();
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "scan",
+      "--rule",
+      "rules/no-var.yml",
+      "--update-all",
+      "test.js",
+    ])
+    .assert()
+    .success();
+  assert_eq!(std::fs::read_to_string(&path)?, "let x = 1;\n");
+  assert_eq!(std::fs::metadata(&path)?.permissions().mode(), mode);
+  Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn test_sg_scan_update_all_rejects_read_only_file() -> Result<()> {
+  use std::os::unix::fs::PermissionsExt;
+
+  let dir = create_test_files([
+    ("rules/no-var.yml", FIXABLE_JS_RULE),
+    ("test.js", "var x = 1;\n"),
+  ])?;
+  let path = dir.path().join("test.js");
+  std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o444))?;
+  // Privileged users can still write read-only files, just as with std::fs::write.
+  if std::fs::OpenOptions::new().write(true).open(&path).is_ok() {
+    return Ok(());
+  }
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "scan",
+      "--rule",
+      "rules/no-var.yml",
+      "--update-all",
+      "test.js",
+    ])
+    .assert()
+    .failure()
+    .stderr(contains("Cannot rewrite file test.js"));
+  assert_eq!(std::fs::read_to_string(&path)?, "var x = 1;\n");
+  assert_eq!(
+    std::fs::metadata(&path)?.permissions().mode() & 0o777,
+    0o444
+  );
+  Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn test_sg_scan_update_all_preserves_file_when_write_fails() -> Result<()> {
+  let dir = create_test_files([
+    ("rules/no-var.yml", FIXABLE_JS_RULE),
+    ("test.js", "var x = 1;\n"),
+  ])?;
+  Command::new("/bin/sh")
+    .args(["-c", "ulimit -f 0; exec \"$@\"", "sh"])
+    .arg(cargo_bin!())
+    .args([
+      "scan",
+      "--rule",
+      "rules/no-var.yml",
+      "--update-all",
+      "test.js",
+    ])
+    .current_dir(dir.path())
+    .assert()
+    .failure();
+  let updated = std::fs::read_to_string(dir.path().join("test.js"))?;
+  assert_eq!(updated, "var x = 1;\n");
+  Ok(())
+}
+
 #[test]
 fn test_sg_scan_inline_rules() -> Result<()> {
   let inline_rules = "{id: test, language: ts, rule: {pattern: console.log($A)}}";
