@@ -53,7 +53,7 @@ impl InteractivePrinter {
     utils::prompt(VIEW_PROMPT, "qe", Some('\n')).expect("cannot fail")
   }
 
-  fn rewrite_action(&self, diffs: Diffs<()>, path: &PathBuf) -> Result<()> {
+  fn rewrite_action(&self, diffs: Diffs<()>, path: &Path) -> Result<()> {
     if diffs.contents.is_empty() {
       return Ok(());
     }
@@ -62,7 +62,8 @@ impl InteractivePrinter {
       println!("{new_content}");
       Ok(())
     } else {
-      write_atomically(path, new_content.as_bytes()).with_context(|| EC::WriteFile(path.clone()))
+      write_atomically(path, new_content.as_bytes())
+        .with_context(|| EC::WriteFile(path.to_path_buf()))
     }
   }
 
@@ -101,9 +102,15 @@ impl InteractivePrinter {
   }
 }
 
+/// Replace a writable source file only after the replacement is fully written.
 fn write_atomically(path: &Path, content: &[u8]) -> Result<()> {
   let path = path.canonicalize()?;
-  let permissions = std::fs::metadata(&path)?.permissions();
+  // Check source write access without truncating it, and close the handle before replacing it.
+  let permissions = std::fs::OpenOptions::new()
+    .write(true)
+    .open(&path)?
+    .metadata()?
+    .permissions();
   let parent = path.parent().unwrap_or_else(|| Path::new("."));
   let mut temp = tempfile::NamedTempFile::new_in(parent)?;
   temp.write_all(content)?;
