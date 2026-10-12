@@ -125,7 +125,6 @@ dependencies = [
  "inquire",
  "predicates",
  "regex",
- "rustix",
  "serde",
  "serde-sarif",
  "serde_json",

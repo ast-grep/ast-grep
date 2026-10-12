@@ -1,4 +1,3 @@
-use super::file_write::write_atomically;
 use super::{ColoredPrinter, Diff, NodeMatch, PrintProcessor, Printer};
 use crate::lang::SgLang;
 use crate::utils::ErrorContext as EC;
@@ -11,6 +10,7 @@ use codespan_reporting::term::termcolor::{Buffer, StandardStream};
 use smallvec::{SmallVec, smallvec};
 
 use std::borrow::Cow;
+use std::io::Write;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 
@@ -99,6 +99,23 @@ impl InteractivePrinter {
       Ok(())
     }
   }
+}
+
+/// Replace a writable source file only after the replacement is fully written.
+fn write_atomically(path: &Path, content: &str) -> Result<()> {
+  let path = path.canonicalize()?;
+  // Check source write access without truncating it, and close the handle before replacing it.
+  let permissions = std::fs::OpenOptions::new()
+    .write(true)
+    .open(&path)?
+    .metadata()?
+    .permissions();
+  let parent = path.parent().unwrap_or_else(|| Path::new("."));
+  let mut temp = tempfile::NamedTempFile::new_in(parent)?;
+  temp.write_all(content.as_bytes())?;
+  temp.as_file().set_permissions(permissions)?;
+  temp.persist(path).map_err(|error| error.error)?;
+  Ok(())
 }
 
 impl Printer for InteractivePrinter {
