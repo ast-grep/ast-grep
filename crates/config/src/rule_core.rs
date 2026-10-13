@@ -9,7 +9,7 @@ use ast_grep_core::language::Language;
 use ast_grep_core::meta_var::MetaVarEnv;
 use ast_grep_core::{Doc, Matcher, Node};
 use serde::{Deserialize, Serialize};
-use serde_yaml::Error as YamlError;
+use serde_saphyr::Error as YamlError;
 
 use bit_set::BitSet;
 use schemars::JsonSchema;
@@ -22,7 +22,7 @@ use std::ops::Deref;
 #[derive(Debug, Error)]
 pub enum RuleCoreError {
   #[error("Fail to parse yaml as RuleConfig")]
-  Yaml(#[from] YamlError),
+  Yaml(#[from] Box<YamlError>),
   #[error("`utils` is not configured correctly.")]
   Utils(#[source] RuleSerializeError),
   #[error("`rule` is not configured correctly.")]
@@ -33,6 +33,12 @@ pub enum RuleCoreError {
   Transform(#[from] TransformError),
   #[error("Undefined meta var `{0}` used in `{1}`.")]
   UndefinedMetaVar(String, &'static str),
+}
+
+impl From<YamlError> for RuleCoreError {
+  fn from(error: YamlError) -> Self {
+    Self::Yaml(Box::new(error))
+  }
 }
 
 type RResult<T> = std::result::Result<T, RuleCoreError>;

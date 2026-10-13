@@ -247,7 +247,7 @@ mod test {
   }
 
   #[test]
-  fn test_deserialize_object() -> Result<(), serde_yaml::Error> {
+  fn test_deserialize_object() -> Result<(), serde_saphyr::Error> {
     let src = "{template: 'abc', expandEnd: {regex: ',', stopBy: neighbor}}";
     let SerializableFixer::Config(cfg) = from_str(src)? else {
       panic!("wrong parsing")

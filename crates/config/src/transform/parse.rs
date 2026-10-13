@@ -1,8 +1,8 @@
 use super::Trans;
 use super::rewrite::Rewrite;
 use super::trans::{Convert, Replace, Substring};
+use crate::from_str as yaml_from_str;
 use regex::Regex;
-use serde_yaml::from_str as yaml_from_str;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -17,9 +17,15 @@ pub enum ParseTransError {
   #[error("Argument `{0}` is required.")]
   RequiredArg(&'static str),
   #[error("Invalid argument value.")]
-  ArgValue(#[from] serde_yaml::Error),
+  ArgValue(#[from] Box<serde_saphyr::Error>),
   #[error("Invalid regex.")]
   Regex(#[from] regex::Error),
+}
+
+impl From<serde_saphyr::Error> for ParseTransError {
+  fn from(error: serde_saphyr::Error) -> Self {
+    Self::ArgValue(Box::new(error))
+  }
 }
 
 impl FromStr for Trans<String> {
@@ -112,11 +118,11 @@ fn to_replace(decomposed: DecomposedTransString) -> Result<Replace<String>, Pars
   }
   let replace = replace.ok_or(ParseTransError::RequiredArg("replace"))?;
   let by = by.ok_or(ParseTransError::RequiredArg("by"))?;
-  let replace: String = serde_yaml::from_str(replace)?;
+  let replace: String = yaml_from_str(replace)?;
   Ok(Replace {
     source: decomposed.source.to_string(),
     replace: Regex::new(&replace)?,
-    by: serde_yaml::from_str(by)?,
+    by: yaml_from_str(by)?,
   })
 }
 fn to_substring(decomposed: DecomposedTransString) -> Result<Substring<String>, ParseTransError> {

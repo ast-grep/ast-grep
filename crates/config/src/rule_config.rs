@@ -15,8 +15,7 @@ use ast_grep_core::{Doc, Matcher, NodeMatch};
 
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize};
-use serde_yaml::Error as YamlError;
-use serde_yaml::{Deserializer, with::singleton_map_recursive::deserialize};
+use serde_saphyr::Error as YamlError;
 use thiserror::Error;
 
 use std::borrow::Cow;
@@ -59,7 +58,7 @@ impl FromStr for Severity {
 #[derive(Debug, Error)]
 pub enum RuleConfigError {
   #[error("Fail to parse yaml as RuleConfig")]
-  Yaml(#[from] YamlError),
+  Yaml(#[from] Box<YamlError>),
   #[error("Fail to parse yaml as Rule.")]
   Core(#[from] RuleCoreError),
   #[error("`fix` pattern is invalid.")]
@@ -72,6 +71,12 @@ pub enum RuleConfigError {
   LabelVariable(String),
   #[error("Rule must specify a set of AST kinds to match. Try adding `kind` rule.")]
   MissingPotentialKinds,
+}
+
+impl From<YamlError> for RuleConfigError {
+  fn from(error: YamlError) -> Self {
+    Self::Yaml(Box::new(error))
+  }
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
@@ -127,10 +132,9 @@ pub enum RuleFileGlob {
   },
 }
 
-/// A trivial wrapper around a HashMap to work around
-/// the limitation of `serde_yaml::Value` not implementing `JsonSchema`.
+/// Arbitrary YAML metadata, including non-string mapping keys and non-finite numbers.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct Metadata(HashMap<String, serde_yaml::Value>);
+pub struct Metadata(HashMap<String, serde_value::Value>);
 
 impl JsonSchema for Metadata {
   fn schema_name() -> Cow<'static, str> {
@@ -235,14 +239,15 @@ impl<L: Language> RuleConfig<L> {
     })
   }
 
-  pub fn deserialize<'de>(
-    deserializer: Deserializer<'de>,
+  pub fn deserialize<'de, D>(
+    deserializer: D,
     globals: &GlobalRules,
   ) -> Result<Self, RuleConfigError>
   where
     L: Deserialize<'de>,
+    D: serde::Deserializer<'de, Error = YamlError>,
   {
-    let inner: SerializableRuleConfig<L> = deserialize(deserializer)?;
+    let inner = SerializableRuleConfig::deserialize(deserializer)?;
     Self::try_from(inner, globals)
   }
 
@@ -887,6 +892,48 @@ metadata:
     let grep = TypeScript::Tsx.ast_grep("a = '123'");
     let nm = grep.root().find(&rule.matcher);
     assert!(nm.is_some());
+  }
+
+  #[test]
+  fn test_yaml_metadata_round_trip() {
+    use serde_value::Value;
+    let config: SerializableRuleConfig<TypeScript> = from_str(
+      r"
+id: metadata
+language: Tsx
+rule: {pattern: foo}
+metadata:
+  values: [null, true, -1, 18446744073709551615, .inf, -.inf, .nan]
+  mapping: {[a, b]: value}
+",
+    )
+    .expect("YAML metadata should retain non-JSON values");
+    let metadata = config.metadata.as_ref().unwrap();
+    let Value::Seq(values) = &metadata.0["values"] else {
+      panic!("metadata should contain a sequence");
+    };
+    assert_eq!(values[0], Value::Unit);
+    assert_eq!(values[1], Value::Bool(true));
+    assert_eq!(values[2], Value::I64(-1));
+    assert_eq!(values[3], Value::U64(u64::MAX));
+    assert_eq!(values[4], Value::F64(f64::INFINITY));
+    assert_eq!(values[5], Value::F64(f64::NEG_INFINITY));
+    assert!(matches!(values[6], Value::F64(f) if f.is_nan()));
+    let Value::Map(mapping) = &metadata.0["mapping"] else {
+      panic!("metadata should contain a mapping");
+    };
+    let key = Value::Seq(vec![Value::String("a".into()), Value::String("b".into())]);
+    assert_eq!(mapping[&key], Value::String("value".into()));
+    let yaml = serde_saphyr::to_string(&config).unwrap();
+    let round_trip: SerializableRuleConfig<TypeScript> = from_str(&yaml).unwrap();
+    assert_eq!(metadata.0, round_trip.metadata.unwrap().0);
+  }
+
+  #[test]
+  fn test_yaml_metadata_rejects_duplicate_keys_and_unknown_tags() {
+    assert!(from_str::<Metadata>("value: {key: 1, key: 2}").is_err());
+    assert!(from_str::<Metadata>("value: !Custom hello").is_err());
+    assert!(from_str::<Metadata>("value: {nested: !Custom hello}").is_err());
   }
 
   #[test]

@@ -21,4 +21,4 @@ tree-sitter.workspace = true
 target-triple = "1.0.0"
 
 [dev-dependencies]
-serde_yaml.workspace = true
+serde-saphyr.workspace = true

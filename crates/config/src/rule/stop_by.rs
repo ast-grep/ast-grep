@@ -198,7 +198,7 @@ inside:
     assert!(matches!(stop_by, SerializableStopBy::Neighbor));
   }
 
-  fn to_stop_by(src: &str) -> Result<SerializableStopBy, serde_yaml::Error> {
+  fn to_stop_by(src: &str) -> Result<SerializableStopBy, serde_saphyr::Error> {
     from_str(src)
   }
 
@@ -254,17 +254,17 @@ inside:
   #[test]
   fn test_serialization_deserialization_symmetry() {
     let stop = to_stop_by("'neighbor'").expect("cannot parse stopBy");
-    let serialized = serde_yaml::to_string(&stop).expect("cannot serialize stopBy");
+    let serialized = serde_saphyr::to_string(&stop).expect("cannot serialize stopBy");
     let deserialized = to_stop_by(&serialized).expect("cannot parse stopBy");
     assert!(matches!(deserialized, SerializableStopBy::Neighbor));
 
     let stop = to_stop_by("'end'").expect("cannot parse stopBy");
-    let serialized = serde_yaml::to_string(&stop).expect("cannot serialize stopBy");
+    let serialized = serde_saphyr::to_string(&stop).expect("cannot serialize stopBy");
     let deserialized = to_stop_by(&serialized).expect("cannot parse stopBy");
     assert!(matches!(deserialized, SerializableStopBy::End));
 
     let stop = to_stop_by("kind: some-kind").expect("cannot parse stopBy");
-    let serialized = serde_yaml::to_string(&stop).expect("cannot serialize stopBy");
+    let serialized = serde_saphyr::to_string(&stop).expect("cannot serialize stopBy");
     let deserialized = to_stop_by(&serialized).expect("cannot parse stopBy");
     assert!(matches!(deserialized, SerializableStopBy::Rule(_)));
   }

@@ -13,7 +13,7 @@ use anyhow::{Result, anyhow};
 use ast_grep_config::RuleCollection;
 use clap::Args;
 use regex::Regex;
-use serde_yaml::to_string;
+use serde_saphyr::to_string;
 
 use std::collections::HashMap;
 use std::io::Write;

@@ -16,7 +16,7 @@ use ast_grep_core::{
   source::Content,
 };
 use serde::{Deserialize, Serialize};
-use serde_yaml::{Deserializer, Error as YamlError, with::singleton_map_recursive::deserialize};
+use serde_saphyr::Error as YamlError;
 use std::borrow::Cow;
 use thiserror::Error;
 
@@ -426,7 +426,7 @@ pub fn parse_outline_rules<'a, L>(
 where
   L: Deserialize<'a>,
 {
-  Deserializer::from_str(src).map(deserialize).collect()
+  ast_grep_config::from_multiple(src)
 }
 
 #[cfg(test)]
