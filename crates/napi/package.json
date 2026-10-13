@@ -61,7 +61,7 @@
     "ava": "7.0.0",
     "chalk": "6.0.1",
     "dprint": "0.60.1",
-    "smol-toml": "1.8.0",
+    "smol-toml": "1.9.1",
     "tsimp": "2.0.12",
     "typescript": "6.0.3"
   },
