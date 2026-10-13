@@ -47,29 +47,15 @@ pub fn from_str<'de, T: Deserialize<'de>>(s: &'de str) -> Result<T, YamlError> {
 }
 
 /// Deserialize a YAML document stream using the same options as rule configuration.
-/// Null and explicit empty documents are rejected; a stream with no documents is allowed.
+/// Null and empty documents are skipped.
 pub fn from_multiple<'de, T: Deserialize<'de>>(s: &'de str) -> Result<Vec<T>, YamlError> {
-  use std::cell::Cell;
-  use std::rc::Rc;
-
   let mut options = yaml_options();
   if let Some(budget) = &mut options.budget {
     // Rule and test files can contain arbitrarily many documents. Keep the
     // other parser resource limits while avoiding the default 1,024-document cap.
     budget.max_documents = usize::MAX;
   }
-  // Saphyr skips null/empty documents before deserializing T. Compare the parser's
-  // document count with the returned values so invalid configuration isn't lost.
-  let documents = Rc::new(Cell::new(0));
-  let reported = documents.clone();
-  let options = options.with_budget_report(move |report| reported.set(report.documents));
-  let values = serde_saphyr::from_multiple_with_options(s, options)?;
-  if documents.get() != values.len() {
-    return Err(serde::de::Error::custom(
-      "YAML stream contains a null or empty document",
-    ));
-  }
-  Ok(values)
+  serde_saphyr::from_multiple_with_options(s, options)
 }
 
 pub fn from_yaml_string<'a, L: Language + Deserialize<'a>>(
@@ -124,7 +110,7 @@ mod test {
   }
 
   #[test]
-  fn test_yaml_document_stream_rejects_null_and_empty_documents() {
+  fn test_yaml_document_stream_skips_null_and_empty_documents() {
     let rule = make_yaml("  pattern: let a = 123");
     for null in [
       "null",
@@ -134,9 +120,14 @@ mod test {
       "---",
       "---\n# empty document\n",
     ] {
-      assert!(from_yaml_string::<TypeScript>(null, &GlobalRules::default()).is_err());
+      assert!(
+        from_yaml_string::<TypeScript>(null, &GlobalRules::default())
+          .unwrap()
+          .is_empty()
+      );
       let stream = format!("{rule}\n---\n{null}\n---\n{rule}");
-      assert!(from_yaml_string::<TypeScript>(&stream, &GlobalRules::default()).is_err());
+      let rules = from_yaml_string::<TypeScript>(&stream, &GlobalRules::default()).unwrap();
+      assert_eq!(rules.len(), 2);
     }
     let strings: Vec<String> = from_multiple("'null'\n---\n\"~\"").unwrap();
     assert_eq!(strings, ["null", "~"]);
