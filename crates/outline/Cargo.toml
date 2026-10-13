@@ -15,7 +15,7 @@ ast-grep-core.workspace = true
 ast-grep-config.workspace = true
 
 serde.workspace = true
-serde_yaml.workspace = true
+serde-saphyr.workspace = true
 thiserror.workspace = true
 regex.workspace = true
 

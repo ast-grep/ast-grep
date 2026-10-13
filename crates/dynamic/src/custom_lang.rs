@@ -65,7 +65,7 @@ fn to_registration(
 #[cfg(test)]
 mod test {
   use super::*;
-  use serde_yaml::from_str;
+  use serde_saphyr::from_str;
 
   #[test]
   fn test_custom_lang() {

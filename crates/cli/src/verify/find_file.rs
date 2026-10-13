@@ -3,11 +3,10 @@ use crate::config::ProjectConfig;
 use crate::utils::ErrorContext as EC;
 
 use anyhow::{Context, Result};
-use ast_grep_config::from_str;
+use ast_grep_config::{from_multiple, from_str};
 use ast_grep_language::config_file_type;
 use ignore::WalkBuilder;
 use regex::Regex;
-use serde_yaml::{Deserializer, with::singleton_map_recursive::deserialize};
 
 use std::collections::HashMap;
 use std::fs::read_to_string;
@@ -141,9 +140,9 @@ fn deserialize_test_yaml(
   snapshot_path: &Path,
   builder: &mut HarnessBuilder<'_>,
 ) -> Result<()> {
-  for deser in Deserializer::from_str(&yaml) {
-    let test_case: TestCase =
-      deserialize(deser).with_context(|| EC::ParseTest(path.to_path_buf()))?;
+  for test_case in
+    from_multiple::<TestCase>(&yaml).with_context(|| EC::ParseTest(path.to_path_buf()))?
+  {
     if builder.included_in_filter(&test_case.id) {
       let harness = &mut builder.dest;
       harness

@@ -210,7 +210,6 @@ mod test {
   use crate::test::TypeScript;
   use crate::{DeserializeEnv, Transformation};
   use ast_grep_core::tree_sitter::LanguageExt;
-  use serde_yaml::with::singleton_map_recursive;
   use std::collections::HashMap;
 
   type R = std::result::Result<(), ()>;
@@ -228,8 +227,7 @@ mod test {
   }
 
   fn parse(trans: &str) -> Result<Trans<String>, ()> {
-    let deserializer = serde_yaml::Deserializer::from_str(trans);
-    singleton_map_recursive::deserialize(deserializer).map_err(|_| ())
+    crate::from_str(trans).map_err(|_| ())
   }
 
   #[test]
