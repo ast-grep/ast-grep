@@ -75,6 +75,7 @@ enum Commands {
 }
 
 impl Commands {
+  /// Returns the input arguments for commands that search files.
   fn input_args_mut(&mut self) -> Option<&mut InputArgs> {
     match self {
       Self::Run(arg) => Some(&mut arg.input),
