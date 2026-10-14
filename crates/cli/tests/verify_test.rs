@@ -6,6 +6,7 @@ use anyhow::Result;
 use assert_cmd::{Command, cargo_bin};
 use ast_grep::main_with_args;
 use common::create_test_files;
+use predicates::prelude::*;
 use predicates::str::contains;
 use tempfile::TempDir;
 
@@ -199,6 +200,7 @@ fn test_sg_test_fails_when_rule_is_missing() -> Result<()> {
     .assert()
     .failure()
     .code(3)
+    .stdout(contains("test result: ok").not())
     .stderr(contains("Rule not found: missing-rule"));
   Ok(())
 }
@@ -216,6 +218,7 @@ fn test_sg_test_fails_when_no_rules_are_loaded() -> Result<()> {
     .assert()
     .failure()
     .code(3)
+    .stdout(contains("test result: ok").not())
     .stderr(contains("Rule not found: test-rule"));
   Ok(())
 }

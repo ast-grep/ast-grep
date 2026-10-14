@@ -104,10 +104,10 @@ fn run_test_rule_impl<R: Reporter + Send>(
   let test_result = reporter.after_report(&results)?;
   match test_result {
     reporter::TestResult::Success { message } => {
-      writeln!(reporter.get_output(), "{message}")?;
       if let Some(case) = missing_rule {
         return Err(anyhow!(ErrorContext::RuleNotFound(case.id.clone())));
       }
+      writeln!(reporter.get_output(), "{message}")?;
       Ok(ExitCode::SUCCESS)
     }
     reporter::TestResult::RuleFail { message } => {
