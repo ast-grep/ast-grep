@@ -147,7 +147,7 @@ pub struct RunArg {
 
   /// input related options
   #[clap(flatten)]
-  input: InputArgs,
+  pub(crate) input: InputArgs,
 
   /// output related options
   #[clap(flatten)]

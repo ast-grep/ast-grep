@@ -128,7 +128,7 @@ pub struct OutlineArg {
 
   /// Input related options.
   #[clap(flatten)]
-  input: InputArgs,
+  pub(crate) input: InputArgs,
 }
 
 pub fn run_outline(arg: OutlineArg, project: Result<ProjectConfig>) -> Result<ExitCode> {

@@ -119,6 +119,22 @@ export function greet(name: string) {
 }
 
 #[test]
+fn test_outline_no_ignore_from_config() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", "ruleDirs: []\nnoIgnore:\n  - hidden\n"),
+    (".hidden.js", "export function hiddenFunction() {}"),
+  ])?;
+
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["outline", ".", "--json=compact"])
+    .assert()
+    .success()
+    .stdout(contains(r#""name":"hiddenFunction""#));
+  Ok(())
+}
+
+#[test]
 fn test_outline_javascript_in_html_stdin() -> Result<()> {
   Command::new(cargo_bin!())
     .args(["outline", "--stdin", "--lang", "html", "--json=compact"])
@@ -236,6 +252,21 @@ fn test_config_arg_in_default_run() -> Result<()> {
   Command::new(cargo_bin!())
     .current_dir(dir.path())
     .args(["-p", "alert($A)", "-c", "sgconfig.yml", "test.js"])
+    .assert()
+    .success()
+    .stdout(contains("alert(123)"));
+  Ok(())
+}
+
+#[test]
+fn test_no_ignore_from_config() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", "ruleDirs: []\nnoIgnore:\n  - hidden\n"),
+    (".hidden.js", "alert(123)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["-p", "alert($A)", "-l", "js"])
     .assert()
     .success()
     .stdout(contains("alert(123)"));
