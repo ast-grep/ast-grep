@@ -279,7 +279,7 @@ impl ErrorMessage {
       ),
       ProjectNotExist => Self::new(
         "No ast-grep project configuration is found.",
-        "You need to create an ast-grep project for this command. Try `sg new` to create one.",
+        "You need to create an ast-grep project for this command. Try `ast-grep new` to create one.",
         PROJECT_GUIDE,
       ),
       FileAlreadyExist(path) => Self::new(
