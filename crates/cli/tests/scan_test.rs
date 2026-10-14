@@ -125,6 +125,7 @@ fn test_sg_rule_off() -> Result<()> {
   Ok(())
 }
 
+/// Verifies that scan honors project-configured hidden-file searches.
 #[test]
 fn test_no_ignore_from_config() -> Result<()> {
   let dir = create_test_files([

@@ -353,6 +353,7 @@ customLanguages:
     assert_eq!(paths, vec![PathBuf::from("/project/outline/blade.yml")]);
   }
 
+  /// Verifies that configured ignore-file types deserialize in order.
   #[test]
   fn deserialize_no_ignore() {
     let config: AstGrepConfig = from_str(

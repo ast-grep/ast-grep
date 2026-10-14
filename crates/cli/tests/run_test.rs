@@ -118,6 +118,7 @@ export function greet(name: string) {
   Ok(())
 }
 
+/// Verifies that outline honors project-configured hidden-file searches.
 #[test]
 fn test_outline_no_ignore_from_config() -> Result<()> {
   let dir = create_test_files([
@@ -258,6 +259,7 @@ fn test_config_arg_in_default_run() -> Result<()> {
   Ok(())
 }
 
+/// Verifies that run honors project-configured hidden-file searches.
 #[test]
 fn test_no_ignore_from_config() -> Result<()> {
   let dir = create_test_files([
