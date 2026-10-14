@@ -63,7 +63,7 @@ pub struct ScanArg {
 
   /// input related options
   #[clap(flatten)]
-  input: InputArgs,
+  pub(crate) input: InputArgs,
   /// output related options
   #[clap(flatten)]
   output: OutputArgs,
