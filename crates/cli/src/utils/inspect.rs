@@ -17,6 +17,7 @@ use ast_grep_config::{RuleCollection, RuleConfig};
 use anyhow::Result;
 use clap::ValueEnum;
 
+use std::collections::HashSet;
 use std::fmt;
 use std::io::{Stderr, Write};
 use std::path::Path;
@@ -225,6 +226,8 @@ pub struct RuleTrace {
   pub file_trace: FileTrace,
   pub effective_rule_count: usize,
   pub skipped_rule_count: usize,
+  /// ids of all rules read before severity/filter overwrite, including `severity: off` ones
+  pub loaded_rule_ids: HashSet<String>,
 }
 
 pub type ProjectTrace = TraceInfo<(), Stderr>;
@@ -254,6 +257,7 @@ mod test {
       effective_rule_count: 10,
       skipped_rule_count: 2,
       file_trace: Default::default(),
+      loaded_rule_ids: Default::default(),
     };
     let scan_trace = tracing.scan_trace_impl(rule_stats, unsafe { ret.as_mut_vec() });
     assert_eq!(scan_trace.level, Granularity::Summary);

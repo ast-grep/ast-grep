@@ -1021,3 +1021,37 @@ fn test_scan_invalid_rule_id() -> Result<()> {
     .stderr(contains("Cannot infer rule id"));
   Ok(())
 }
+
+// `ruleDirs` exists but holds no rule file: nothing would be checked
+#[test]
+fn test_scan_fails_when_project_loads_no_rules() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/README.md", "no rule here"),
+    ("test.ts", "Some(123)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan"])
+    .assert()
+    .failure()
+    .code(3)
+    .stderr(contains("No rules were loaded"));
+  Ok(())
+}
+
+// all rules are off: they were loaded, so the user turned them off on purpose
+#[test]
+fn test_scan_succeeds_when_all_loaded_rules_are_off() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/off-rule.yml", RULE2),
+    ("test.ts", "Some(123)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan"])
+    .assert()
+    .success();
+  Ok(())
+}

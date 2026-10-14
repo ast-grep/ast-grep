@@ -162,8 +162,14 @@ impl ScanWithConfig {
       proj_dir = project_config.project_dir.clone();
       project_config.find_rules(overwrite)?
     };
+    // rules read from the project, before severity/filter overwrite. `--off` etc. are intentional
+    let project_has_no_rules =
+      arg.rule.is_none() && arg.inline_rules.is_none() && rule_trace.loaded_rule_ids.is_empty();
     let trace = arg.output.inspect.scan_trace(rule_trace);
     trace.print_rules(&configs)?;
+    if project_has_no_rules {
+      return Err(anyhow::anyhow!(EC::NoRulesLoaded));
+    }
     let absolute_proj_dir = proj_dir
       .canonicalize()
       .or_else(|_| std::env::current_dir())?;
