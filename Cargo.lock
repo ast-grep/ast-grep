@@ -120,7 +120,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep"
-version = "0.50.0"
+version = "0.51.0"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -158,7 +158,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-config"
-version = "0.50.0"
+version = "0.51.0"
 dependencies = [
  "ast-grep-core",
  "bit-set",
@@ -175,7 +175,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-core"
-version = "0.50.0"
+version = "0.51.0"
 dependencies = [
  "bit-set",
  "regex",
@@ -186,7 +186,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-dynamic"
-version = "0.50.0"
+version = "0.51.0"
 dependencies = [
  "ast-grep-core",
  "ignore",
@@ -200,7 +200,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-language"
-version = "0.50.0"
+version = "0.51.0"
 dependencies = [
  "ast-grep-core",
  "ignore",
@@ -238,7 +238,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-lsp"
-version = "0.50.0"
+version = "0.51.0"
 dependencies = [
  "anyhow",
  "ast-grep-config",
@@ -256,7 +256,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-napi"
-version = "0.50.0"
+version = "0.51.0"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
@@ -272,7 +272,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-outline"
-version = "0.50.0"
+version = "0.51.0"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
@@ -286,7 +286,7 @@ dependencies = [
 
 [[package]]
 name = "ast-grep-py"
-version = "0.50.0"
+version = "0.51.0"
 dependencies = [
  "anyhow",
  "ast-grep-config",
@@ -2641,7 +2641,7 @@ checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
 
 [[package]]
 name = "wasm"
-version = "0.50.0"
+version = "0.51.0"
 dependencies = [
  "ast-grep-config",
  "ast-grep-core",
