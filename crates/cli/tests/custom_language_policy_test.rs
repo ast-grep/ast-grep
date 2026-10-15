@@ -11,12 +11,19 @@ use std::path::PathBuf;
 use tempfile::TempDir;
 
 const CUSTOM_LANGUAGE_CONFIG: &str = r#"
-ruleDirs: []
+ruleDirs: [rules]
 customLanguages:
   example:
     libraryPath: missing-library.so
     extensions: [example]
 "#;
+
+// `scan` fails when the project loads no rule, so tests that scan need one
+const RULE: &str = "
+id: test-rule
+language: Rust
+rule: { pattern: foo }
+";
 
 fn loadable_custom_language_config() -> Option<String> {
   let library = if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
@@ -54,7 +61,10 @@ fn remember_project(config_path: PathBuf, trust_store: &TempDir) -> Result<()> {
 
 #[test]
 fn custom_languages_are_ignored_by_default() -> Result<()> {
-  let dir = create_test_files([("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG)])?;
+  let dir = create_test_files([
+    ("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG),
+    ("rules/rule.yml", RULE),
+  ])?;
 
   Command::new(cargo_bin!())
     .current_dir(dir.path())
@@ -67,7 +77,10 @@ fn custom_languages_are_ignored_by_default() -> Result<()> {
 
 #[test]
 fn explicit_ignore_skips_custom_languages() -> Result<()> {
-  let dir = create_test_files([("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG)])?;
+  let dir = create_test_files([
+    ("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG),
+    ("rules/rule.yml", RULE),
+  ])?;
 
   Command::new(cargo_bin!())
     .current_dir(dir.path())
@@ -131,7 +144,10 @@ fn allowed_custom_language_is_registered_before_cli_parsing() -> Result<()> {
 
 #[test]
 fn trust_requires_an_interactive_terminal() -> Result<()> {
-  let dir = create_test_files([("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG)])?;
+  let dir = create_test_files([
+    ("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG),
+    ("rules/rule.yml", RULE),
+  ])?;
   let trust_dir = TempDir::new()?;
 
   command_with_trust_store(&dir, &trust_dir)
@@ -153,7 +169,10 @@ fn trust_requires_an_interactive_terminal() -> Result<()> {
 
 #[test]
 fn remembered_trust_can_be_overridden_and_revoked() -> Result<()> {
-  let dir = create_test_files([("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG)])?;
+  let dir = create_test_files([
+    ("sgconfig.yml", CUSTOM_LANGUAGE_CONFIG),
+    ("rules/rule.yml", RULE),
+  ])?;
   let trust_dir = TempDir::new()?;
   remember_project(dir.path().join("sgconfig.yml"), &trust_dir)?;
 

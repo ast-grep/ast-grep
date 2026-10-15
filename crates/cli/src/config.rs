@@ -250,6 +250,7 @@ fn read_directory_yaml(
     return Err(anyhow::anyhow!(EC::DuplicateRuleId(duplicated_id.into())));
   }
   let total_rule_count = configs.len();
+  let loaded_rule_ids = configs.iter().map(|c| c.id.clone()).collect();
 
   let configs = rule_overwrite.process_configs(configs)?;
   let collection = RuleCollection::try_new(configs).context(EC::GlobPattern)?;
@@ -258,6 +259,7 @@ fn read_directory_yaml(
     file_trace: Default::default(),
     effective_rule_count,
     skipped_rule_count: total_rule_count - effective_rule_count,
+    loaded_rule_ids,
   };
   Ok((collection, trace))
 }
@@ -272,6 +274,7 @@ pub fn with_rule_stats(
     file_trace: Default::default(),
     effective_rule_count,
     skipped_rule_count: total_rule_count - effective_rule_count,
+    loaded_rule_ids: Default::default(),
   };
   Ok((collection, trace))
 }
