@@ -172,6 +172,137 @@ References
 }
 
 #[test]
+fn test_outline_project_rules_are_additive() -> Result<()> {
+  let dir = create_test_files([
+    (
+      "sgconfig.yml",
+      "ruleDirs: []\noutlineRules:\n  javascript: extra.yml\ncustomLanguages:\n  unused:\n    libraryPath: missing.so\n    extensions: [unused]\n    outlineRules: missing.yml\n",
+    ),
+    (
+      "extra.yml",
+      r#"id: project-call
+language: JavaScript
+role: item
+symbolType: function
+rule:
+  pattern: console.log($ARG)
+name: project-note
+"#,
+    ),
+    (
+      "cli.yml",
+      r#"id: cli-call
+language: JavaScript
+role: item
+symbolType: function
+rule:
+  pattern: console.warn($ARG)
+name: cli-note
+"#,
+    ),
+    (
+      "a.js",
+      "function builtin() {}\nconsole.log('note');\nconsole.warn('cli');",
+    ),
+  ])?;
+
+  // Bundled, project, and explicitly supplied rules are all retained.
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "outline",
+      "a.js",
+      "--outline-rules",
+      "cli.yml",
+      "--json=compact",
+    ])
+    .assert()
+    .success()
+    .stdout(contains(r#""name":"builtin""#))
+    .stdout(contains(r#""name":"project-note""#))
+    .stdout(contains(r#""name":"cli-note""#));
+
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["outline", "a.js", "--json=compact"])
+    .assert()
+    .success()
+    .stdout(contains(r#""name":"builtin""#))
+    .stdout(contains(r#""name":"project-note""#));
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "outline",
+      "a.js",
+      "--no-default-outline-rules",
+      "--json=compact",
+    ])
+    .assert()
+    .success()
+    .stdout(contains(r#""name":"project-note""#))
+    .stdout(contains(r#""name":"builtin""#).not());
+  Ok(())
+}
+
+#[test]
+fn test_outline_project_rules_are_config_relative() -> Result<()> {
+  let dir = create_test_files([
+    (
+      "config/sgconfig.yml",
+      "ruleDirs: []\noutlineRules:\n  js: extra.yml\n",
+    ),
+    (
+      "config/extra.yml",
+      "id: project-call\nlanguage: JavaScript\nrole: item\nsymbolType: function\nrule:\n  pattern: console.log($ARG)\nname: project-note\n",
+    ),
+    ("a.js", "console.log('note');"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "--config",
+      "config/sgconfig.yml",
+      "outline",
+      "a.js",
+      "--json=compact",
+    ])
+    .assert()
+    .success()
+    .stdout(contains(r#""name":"project-note""#));
+  Ok(())
+}
+
+#[test]
+fn test_outline_project_rule_errors() -> Result<()> {
+  for (file, message) in [
+    ("missing.yml", "Cannot read outline rules"),
+    ("invalid.yml", "Cannot parse outline rules"),
+  ] {
+    let config = format!("ruleDirs: []\noutlineRules:\n  javascript: {file}\n");
+    let dir = create_test_files([
+      ("sgconfig.yml", config.as_str()),
+      ("invalid.yml", "["),
+      ("a.js", "console.log('note');"),
+    ])?;
+    Command::new(cargo_bin!())
+      .current_dir(dir.path())
+      .args(["outline", "a.js"])
+      .assert()
+      .failure()
+      .stderr(contains(message))
+      .stderr(contains(file));
+    // Other commands do not read outline rule files.
+    Command::new(cargo_bin!())
+      .current_dir(dir.path())
+      .args(["run", "-p", "console.log($ARG)", "a.js"])
+      .assert()
+      .success()
+      .stdout(contains("console.log('note')"));
+  }
+  Ok(())
+}
+
+#[test]
 fn test_rewrite_js_in_html() -> Result<()> {
   let dir = create_test_files([("a.html", "<script>alert(1)</script>")])?;
   Command::new(cargo_bin!())
