@@ -125,6 +125,26 @@ fn test_sg_rule_off() -> Result<()> {
   Ok(())
 }
 
+/// Verifies that scan honors project-configured hidden-file searches.
+#[test]
+fn test_no_ignore_from_config() -> Result<()> {
+  let dir = create_test_files([
+    (
+      "sgconfig.yml",
+      "ruleDirs:\n  - rules\nnoIgnore:\n  - hidden\n",
+    ),
+    ("rules/on-rule.yml", RULE1),
+    (".hidden.ts", "Some(123)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan"])
+    .assert()
+    .success()
+    .stdout(contains("on-rule"));
+  Ok(())
+}
+
 #[test]
 fn test_sg_scan_update_all_reports_unfixable_rules() -> Result<()> {
   let dir = create_test_files([
