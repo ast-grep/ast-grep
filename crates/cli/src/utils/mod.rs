@@ -121,6 +121,16 @@ pub(crate) fn read_file(path: &Path) -> Result<String> {
   }
 }
 
+fn read_file_for_matching(path: &Path) -> Result<String> {
+  read_file(path).inspect_err(|err| {
+    if let Some(err) = err.downcast_ref::<std::io::Error>()
+      && err.kind() == std::io::ErrorKind::InvalidData
+    {
+      eprintln!("Warning: {}: not valid UTF-8, skipping", path.display());
+    }
+  })
+}
+
 fn collect_file_stats(
   path: &Path,
   lang: SgLang,
@@ -140,7 +150,7 @@ pub fn filter_file_rule(
   let Some(lang) = SgLang::from_path(path) else {
     return Ok(smallvec![]);
   };
-  let file_content = read_file(path)?;
+  let file_content = read_file_for_matching(path)?;
   let grep = lang.ast_grep(file_content);
   collect_file_stats(path, lang, configs, trace)?;
   let mut ret = smallvec![grep.clone()];
@@ -162,7 +172,7 @@ pub fn filter_file_pattern<'a>(
   root_matcher: Option<&'a Rule>,
   sub_matchers: &'a [(SgLang, Rule)],
 ) -> Result<SmallVec<[MatchUnit<&'a Rule>; 1]>> {
-  let file_content = read_file(path)?;
+  let file_content = read_file_for_matching(path)?;
   let grep = lang.ast_grep(&file_content);
   let do_match = |ast_grep: AstGrep, matcher: &'a Rule| {
     let fixed = match matcher {
