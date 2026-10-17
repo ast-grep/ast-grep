@@ -26,7 +26,8 @@ pub use rule::{
 };
 pub use rule_collection::RuleCollection;
 pub use rule_config::{
-  Metadata, RuleConfig, RuleConfigError, SerializableRewriter, SerializableRuleConfig, Severity,
+  DenyUnknownKeys, Metadata, RuleConfig, RuleConfigError, SerializableRewriter,
+  SerializableRuleConfig, Severity,
 };
 pub use rule_core::{RuleCore, RuleCoreError, SerializableRuleCore};
 pub use transform::Transformation;

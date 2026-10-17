@@ -116,7 +116,62 @@ pub struct SerializableRuleConfig<L: Language> {
   pub url: Option<String>,
   /// Extra information for the rule
   pub metadata: Option<Metadata>,
+  /// Rejects keys that no other field consumed. Must stay the last flattened field.
+  #[serde(flatten)]
+  #[schemars(skip)]
+  pub unknown_keys: DenyUnknownKeys,
 }
+
+/// Fields accepted at the top level of a rule, used in the unknown key error message.
+const RULE_CONFIG_FIELDS: &[&str] = &[
+  "id",
+  "language",
+  "rule",
+  "constraints",
+  "utils",
+  "transform",
+  "fix",
+  "rewriters",
+  "message",
+  "note",
+  "severity",
+  "labels",
+  "files",
+  "ignores",
+  "url",
+  "metadata",
+];
+
+/// Marker that fails deserialization if any key is left over.
+///
+/// serde does not support `deny_unknown_fields` together with `flatten`, which
+/// `SerializableRuleConfig` uses for `core`. When flattened after all other fields,
+/// this receives only the keys none of them consumed.
+#[derive(Serialize, Clone, Copy, Debug, Default)]
+pub struct DenyUnknownKeys;
+
+impl<'de> Deserialize<'de> for DenyUnknownKeys {
+  fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+    struct UnknownKeysVisitor;
+    impl<'de> serde::de::Visitor<'de> for UnknownKeysVisitor {
+      type Value = DenyUnknownKeys;
+      fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("no unknown keys")
+      }
+      fn visit_map<A: serde::de::MapAccess<'de>>(
+        self,
+        mut map: A,
+      ) -> Result<Self::Value, A::Error> {
+        match map.next_key::<String>()? {
+          Some(key) => Err(serde::de::Error::unknown_field(&key, RULE_CONFIG_FIELDS)),
+          None => Ok(DenyUnknownKeys),
+        }
+      }
+    }
+    deserializer.deserialize_map(UnknownKeysVisitor)
+  }
+}
+
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(untagged)]
 pub enum RuleFileGlob {
@@ -320,6 +375,7 @@ mod test {
       ignores: None,
       url: None,
       metadata: None,
+      unknown_keys: DenyUnknownKeys,
     }
   }
 
@@ -934,6 +990,34 @@ metadata:
     assert!(from_str::<Metadata>("value: {key: 1, key: 2}").is_err());
     assert!(from_str::<Metadata>("value: !Custom hello").is_err());
     assert!(from_str::<Metadata>("value: {nested: !Custom hello}").is_err());
+  }
+
+  #[test]
+  fn test_reject_unknown_top_level_key() {
+    // test #2963: a misspelled key such as `ignore` must not be silently dropped
+    let src = r"
+id: test-rule
+language: Tsx
+rule: { pattern: foo() }
+ignore: ['**/*.test.ts']
+";
+    let Err(err) = from_str::<SerializableRuleConfig<TypeScript>>(src) else {
+      panic!("unknown key `ignore` should be rejected");
+    };
+    let err = err.to_string();
+    assert!(err.contains("unknown field `ignore`"), "{err}");
+    assert!(err.contains("ignores"), "{err}");
+    // keys of the flattened rule core are still accepted
+    let src = r"
+id: test-rule
+language: Tsx
+rule: { pattern: foo() }
+constraints: {}
+utils: {}
+transform: {}
+ignores: ['**/*.test.ts']
+";
+    assert!(from_str::<SerializableRuleConfig<TypeScript>>(src).is_ok());
   }
 
   #[test]
