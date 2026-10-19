@@ -87,11 +87,10 @@ impl Commands {
 }
 
 fn apply_config_no_ignore(input: &mut Vec<IgnoreFile>, configured: Option<&[IgnoreFile]>) {
-  if input.is_empty() {
-    if let Some(configured) = configured {
+  if input.is_empty()
+    && let Some(configured) = configured {
       input.extend_from_slice(configured);
     }
-  }
 }
 
 pub fn execute_main() -> Result<ExitCode> {
