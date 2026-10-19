@@ -221,7 +221,7 @@ fn create_new_project(arg: NewArg, project_dir: &Path) -> Result<ExitCode> {
     custom_languages: None,      // advanced feature, skip now
     language_globs: None,        // advanced feature, skip now
     language_injections: vec![], // advanced feature
-    no_ignore: vec![],
+    no_ignore: None,
   };
   let config_path = project_dir.join("sgconfig.yml");
   let mut f = File::create(config_path)?;

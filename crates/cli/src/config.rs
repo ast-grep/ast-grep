@@ -54,8 +54,8 @@ pub struct AstGrepConfig {
   #[serde(default, skip_serializing_if = "Vec::is_empty")]
   pub language_injections: Vec<SerializableInjection>,
   /// ignore file types to disregard when searching
-  #[serde(default, skip_serializing_if = "Vec::is_empty")]
-  pub no_ignore: Vec<IgnoreFile>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub no_ignore: Option<Vec<IgnoreFile>>,
 }
 
 #[derive(Clone)]
@@ -70,7 +70,7 @@ pub struct ProjectConfig {
   /// util rules directories
   pub util_dirs: Option<Vec<PathBuf>>,
   /// ignore file types to disregard when searching
-  pub no_ignore: Vec<IgnoreFile>,
+  pub no_ignore: Option<Vec<IgnoreFile>>,
 }
 
 impl ProjectConfig {
@@ -120,7 +120,7 @@ impl ProjectConfig {
       outline_rules,
       test_configs: sg_config.test_configs.take(),
       util_dirs: sg_config.util_dirs.take(),
-      no_ignore: std::mem::take(&mut sg_config.no_ignore),
+      no_ignore: sg_config.no_ignore.take(),
     };
     // sg_config will not use rule dirs and test configs anymore
     register_custom_language(&config.project_dir, sg_config, custom_languages)?;
@@ -365,8 +365,8 @@ noIgnore: [hidden, vcs]
     .expect("config should parse");
 
     assert!(matches!(
-      config.no_ignore.as_slice(),
-      [IgnoreFile::Hidden, IgnoreFile::Vcs]
+      config.no_ignore.as_deref(),
+      Some([IgnoreFile::Hidden, IgnoreFile::Vcs])
     ));
   }
 

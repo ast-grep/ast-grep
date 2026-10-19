@@ -163,7 +163,9 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
   debug_assert_eq!(custom_languages, app.custom_languages);
   let project = project?; // unwrap here to report invalid project
   if let (Some(input), Ok(project)) = (app.command.input_args_mut(), &project) {
-    input.no_ignore.extend_from_slice(&project.no_ignore);
+    if let Some(no_ignore) = &project.no_ignore {
+      input.no_ignore.extend_from_slice(no_ignore);
+    }
   }
   match app.command {
     Commands::Run(arg) => run_with_pattern(arg, project),
