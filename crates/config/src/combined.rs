@@ -1,4 +1,7 @@
-use crate::{RuleConfig, SerializableRule, SerializableRuleConfig, SerializableRuleCore, Severity};
+use crate::{
+  DenyUnknownKeys, RuleConfig, SerializableRule, SerializableRuleConfig, SerializableRuleCore,
+  Severity,
+};
 
 use ast_grep_core::language::Language;
 use ast_grep_core::matcher::{Matcher, MatcherExt};
@@ -390,6 +393,7 @@ impl<'r, L: Language> CombinedScan<'r, L> {
       url: None,
       metadata: None,
       labels: None,
+      unknown_keys: DenyUnknownKeys,
     }
   }
 }

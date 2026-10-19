@@ -6,8 +6,8 @@
 //! `Outline*Rule` types, not on serde defaults or config parsing details.
 
 use ast_grep_config::{
-  GlobalRules, Rule, RuleConfig, RuleConfigError, RuleSerializeError, SerializableRewriter,
-  SerializableRule, SerializableRuleConfig, SerializableRuleCore, Severity,
+  DenyUnknownKeys, GlobalRules, Rule, RuleConfig, RuleConfigError, RuleSerializeError,
+  SerializableRewriter, SerializableRule, SerializableRuleConfig, SerializableRuleCore, Severity,
 };
 use ast_grep_core::{
   Doc, Language, Node, NodeMatch,
@@ -86,6 +86,7 @@ impl<L: Language> SerializableOutlineCommon<L> {
       ignores: None,
       url: None,
       metadata: None,
+      unknown_keys: DenyUnknownKeys,
     }
   }
 }
