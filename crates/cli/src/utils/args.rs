@@ -228,7 +228,7 @@ impl ContextArgs {
 
 /// File types to ignore, this is mostly the same as ripgrep.
 #[derive(Clone, Copy, Deserialize, Serialize, ValueEnum)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum IgnoreFile {
   /// Search hidden files and directories. By default, hidden files and directories are skipped.
   Hidden,
