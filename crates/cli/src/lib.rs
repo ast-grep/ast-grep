@@ -23,7 +23,7 @@ use new::{NewArg, run_create_new};
 use outline::{OutlineArg, run_outline};
 use run::{RunArg, run_with_pattern};
 use scan::{ScanArg, run_with_config};
-use utils::{InputArgs, exit_with_error};
+use utils::{IgnoreFile, InputArgs, exit_with_error};
 use verify::{TestArg, run_test_rule};
 
 const LOGO: &str = r#"
@@ -82,6 +82,14 @@ impl Commands {
       Self::Scan(arg) => Some(&mut arg.input),
       Self::Outline(arg) => Some(&mut arg.input),
       _ => None,
+    }
+  }
+}
+
+fn apply_config_no_ignore(input: &mut Vec<IgnoreFile>, configured: Option<&[IgnoreFile]>) {
+  if input.is_empty() {
+    if let Some(configured) = configured {
+      input.extend_from_slice(configured);
     }
   }
 }
@@ -163,9 +171,7 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
   debug_assert_eq!(custom_languages, app.custom_languages);
   let project = project?; // unwrap here to report invalid project
   if let (Some(input), Ok(project)) = (app.command.input_args_mut(), &project) {
-    if let Some(no_ignore) = &project.no_ignore {
-      input.no_ignore.extend_from_slice(no_ignore);
-    }
+    apply_config_no_ignore(&mut input.no_ignore, project.no_ignore.as_deref());
   }
   match app.command {
     Commands::Run(arg) => run_with_pattern(arg, project),
@@ -193,6 +199,13 @@ mod test_cli {
 
   fn ok(args: &str) -> App {
     sg(args).expect("should parse")
+  }
+
+  #[test]
+  fn cli_no_ignore_overrides_config() {
+    let mut no_ignore = vec![IgnoreFile::Vcs];
+    apply_config_no_ignore(&mut no_ignore, Some(&[IgnoreFile::Hidden]));
+    assert!(matches!(no_ignore.as_slice(), [IgnoreFile::Vcs]));
   }
   fn error(args: &str) -> clap::Error {
     let Err(err) = sg(args) else {
