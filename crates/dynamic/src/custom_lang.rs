@@ -42,7 +42,7 @@ fn to_registration(
   let lib_path = match custom_lang.library_path {
     LibraryPath::Single(path) => path,
     LibraryPath::Platform(mut map) => {
-      let target = target_triple::TARGET;
+      let target = target_tuple::TARGET;
       map
         .remove(target)
         .ok_or(DynamicLangError::NotConfigured(target))?
@@ -111,7 +111,7 @@ extensions: [d, e, f]";
     let reg = to_registration("test_lang".to_string(), cus, Path::new("."));
     assert!(matches!(
       reg,
-      Err(DynamicLangError::NotConfigured(target_triple::TARGET))
+      Err(DynamicLangError::NotConfigured(target_tuple::TARGET))
     ));
   }
 }
