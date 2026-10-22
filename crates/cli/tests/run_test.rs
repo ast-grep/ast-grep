@@ -276,6 +276,23 @@ fn test_no_ignore_from_config() -> Result<()> {
 }
 
 #[test]
+fn test_cli_no_ignore_overrides_config() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", "ruleDirs: []\nnoIgnore: [hidden]\n"),
+    (".hidden/a.js", "alert(123)"),
+    ("visible.js", "alert(456)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["-p", "alert($A)", "-l", "js", "--no-ignore", "vcs"])
+    .assert()
+    .success()
+    .stdout(contains("alert(456)"))
+    .stdout(contains("alert(123)").not());
+  Ok(())
+}
+
+#[test]
 fn test_trace_default_project() -> Result<()> {
   let dir = create_test_files([("sgconfig.yml", "ruleDirs: []")])?;
   Command::new(cargo_bin!())
