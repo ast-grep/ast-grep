@@ -147,7 +147,7 @@ pub struct RunArg {
 
   /// input related options
   #[clap(flatten)]
-  pub(crate) input: InputArgs,
+  input: InputArgs,
 
   /// output related options
   #[clap(flatten)]
@@ -190,7 +190,10 @@ impl RunArg {
 
 // Every run will include Search or Replace
 // Search or Replace by arguments `pattern` and `rewrite` passed from CLI
-pub fn run_with_pattern(arg: RunArg, project: Result<ProjectConfig>) -> Result<ExitCode> {
+pub fn run_with_pattern(mut arg: RunArg, project: Result<ProjectConfig>) -> Result<ExitCode> {
+  if let Ok(config) = &project {
+    arg.input.apply_config(config);
+  }
   let proj = arg.output.inspect.project_trace();
   proj.print_project(&project)?;
   let context = arg.context.get();
