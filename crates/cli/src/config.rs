@@ -1,6 +1,6 @@
 use crate::custom_language::CustomLanguageAction;
 use crate::lang::{CustomLang, LanguageGlobs, SerializableInjection, SgLang};
-use crate::utils::{ErrorContext as EC, RuleOverwrite, RuleTrace};
+use crate::utils::{ErrorContext as EC, IgnoreFile, RuleOverwrite, RuleTrace};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{
@@ -53,6 +53,9 @@ pub struct AstGrepConfig {
   /// injection config for embedded languages
   #[serde(default, skip_serializing_if = "Vec::is_empty")]
   pub language_injections: Vec<SerializableInjection>,
+  /// ignore file types to disregard when searching
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub no_ignore: Option<Vec<IgnoreFile>>,
 }
 
 #[derive(Clone)]
@@ -66,6 +69,8 @@ pub struct ProjectConfig {
   pub test_configs: Option<Vec<TestConfig>>,
   /// util rules directories
   pub util_dirs: Option<Vec<PathBuf>>,
+  /// ignore file types to disregard when searching
+  pub no_ignore: Option<Vec<IgnoreFile>>,
 }
 
 impl ProjectConfig {
@@ -115,6 +120,7 @@ impl ProjectConfig {
       outline_rules,
       test_configs: sg_config.test_configs.take(),
       util_dirs: sg_config.util_dirs.take(),
+      no_ignore: sg_config.no_ignore.take(),
     };
     // sg_config will not use rule dirs and test configs anymore
     register_custom_language(&config.project_dir, sg_config, custom_languages)?;
@@ -345,6 +351,23 @@ customLanguages:
       custom_language_outline_rules(Path::new("/project"), config.custom_languages.as_ref());
 
     assert_eq!(paths, vec![PathBuf::from("/project/outline/blade.yml")]);
+  }
+
+  /// Verifies that configured ignore-file types deserialize in order.
+  #[test]
+  fn deserialize_no_ignore() {
+    let config: AstGrepConfig = from_str(
+      r#"
+ruleDirs: []
+noIgnore: [hidden, vcs]
+"#,
+    )
+    .expect("config should parse");
+
+    assert!(matches!(
+      config.no_ignore.as_deref(),
+      Some([IgnoreFile::Hidden, IgnoreFile::Vcs])
+    ));
   }
 
   #[cfg(unix)]

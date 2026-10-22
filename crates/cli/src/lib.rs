@@ -23,7 +23,7 @@ use new::{NewArg, run_create_new};
 use outline::{OutlineArg, run_outline};
 use run::{RunArg, run_with_pattern};
 use scan::{ScanArg, run_with_config};
-use utils::exit_with_error;
+use utils::{IgnoreFile, InputArgs, exit_with_error};
 use verify::{TestArg, run_test_rule};
 
 const LOGO: &str = r#"
@@ -72,6 +72,25 @@ enum Commands {
   /// Generate rule docs for current configuration. (Not Implemented Yet)
   #[cfg(debug_assertions)]
   Docs,
+}
+
+impl Commands {
+  /// Returns the input arguments for commands that search files.
+  fn input_args_mut(&mut self) -> Option<&mut InputArgs> {
+    match self {
+      Self::Run(arg) => Some(&mut arg.input),
+      Self::Scan(arg) => Some(&mut arg.input),
+      Self::Outline(arg) => Some(&mut arg.input),
+      _ => None,
+    }
+  }
+}
+
+fn apply_config_no_ignore(input: &mut Vec<IgnoreFile>, configured: Option<&[IgnoreFile]>) {
+  if input.is_empty()
+    && let Some(configured) = configured {
+      input.extend_from_slice(configured);
+    }
 }
 
 pub fn execute_main() -> Result<ExitCode> {
@@ -147,9 +166,12 @@ pub fn main_with_args(args: impl Iterator<Item = String>) -> Result<ExitCode> {
   // do not unwrap project before cmd parsing
   // sg help does not need a valid sgconfig.yml
   let project = setup_project_is_possible(&args, custom_languages);
-  let app = App::try_parse_from(args)?;
+  let mut app = App::try_parse_from(args)?;
   debug_assert_eq!(custom_languages, app.custom_languages);
   let project = project?; // unwrap here to report invalid project
+  if let (Some(input), Ok(project)) = (app.command.input_args_mut(), &project) {
+    apply_config_no_ignore(&mut input.no_ignore, project.no_ignore.as_deref());
+  }
   match app.command {
     Commands::Run(arg) => run_with_pattern(arg, project),
     Commands::Scan(arg) => run_with_config(arg, project),
@@ -176,6 +198,13 @@ mod test_cli {
 
   fn ok(args: &str) -> App {
     sg(args).expect("should parse")
+  }
+
+  #[test]
+  fn cli_no_ignore_overrides_config() {
+    let mut no_ignore = vec![IgnoreFile::Vcs];
+    apply_config_no_ignore(&mut no_ignore, Some(&[IgnoreFile::Hidden]));
+    assert!(matches!(no_ignore.as_slice(), [IgnoreFile::Vcs]));
   }
   fn error(args: &str) -> clap::Error {
     let Err(err) = sg(args) else {

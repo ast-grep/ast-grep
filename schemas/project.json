@@ -53,6 +53,13 @@
             "$ref": "#/definitions/LanguageInjection"
           },
           "description": "A list of language injections to support embedded languages in the project like JS/CSS in HTML. This is an experimental feature."
+        },
+        "noIgnore": {
+          "type": "array",
+          "items": {
+            "enum": ["hidden", "dot", "exclude", "global", "parent", "vcs"]
+          },
+          "description": "A list of ignore file types to disregard when searching files."
         }
       },
       "required": ["ruleDirs"],
