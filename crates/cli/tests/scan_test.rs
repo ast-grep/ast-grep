@@ -1041,3 +1041,39 @@ fn test_scan_invalid_rule_id() -> Result<()> {
     .stderr(contains("Cannot infer rule id"));
   Ok(())
 }
+
+#[test]
+fn test_scan_reports_invalid_utf8_files() -> Result<()> {
+  let dir = setup()?;
+  let invalid = b"Some(123) // \xff\xfe\n";
+  std::fs::write(dir.path().join("invalid.ts"), invalid)?;
+  std::fs::write(dir.path().join("empty.ts"), "")?;
+  std::fs::write(dir.path().join("nonmatching.ts"), "None")?;
+  for output_mode in [None, Some("--json=compact"), Some("--json=stream")] {
+    let mut command = Command::new(cargo_bin!());
+    command.current_dir(dir.path()).arg("scan");
+    if let Some(mode) = output_mode {
+      command.arg(mode);
+    }
+    let assertion = command.assert().success();
+    let output = assertion.get_output();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(stderr.lines().count(), 1, "{stderr}");
+    assert!(stderr.contains("invalid.ts: not valid UTF-8, skipping"));
+    assert_eq!(std::fs::read(dir.path().join("invalid.ts"))?, invalid);
+    if output_mode == Some("--json=compact") {
+      let matches: Value = from_slice(&output.stdout)?;
+      assert_eq!(matches.as_array().unwrap().len(), 1);
+      assert_eq!(matches[0]["file"], "test.ts");
+    } else if output_mode == Some("--json=stream") {
+      let matches: Vec<Value> = serde_json::Deserializer::from_slice(&output.stdout)
+        .into_iter()
+        .collect::<std::result::Result<_, _>>()?;
+      assert_eq!(matches.len(), 1);
+      assert_eq!(matches[0]["file"], "test.ts");
+    } else {
+      assert!(String::from_utf8_lossy(&output.stdout).contains("on-rule"));
+    }
+  }
+  Ok(())
+}

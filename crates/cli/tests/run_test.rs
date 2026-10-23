@@ -321,3 +321,103 @@ fn test_trace_project() -> Result<()> {
     .stderr(contains("isProject=true,projectDir"));
   Ok(())
 }
+
+#[test]
+fn test_invalid_utf8_files_are_reported() -> Result<()> {
+  let dir = create_test_files([
+    ("valid.rs", "fn main() { let x = 1; }"),
+    ("empty.rs", ""),
+    ("nonmatching.rs", "fn main() {}"),
+  ])?;
+  let invalid = b"fn main() { let x = 1; } // \xff\xfe\n";
+  for i in 0..8 {
+    std::fs::write(dir.path().join(format!("invalid-{i}.rs")), invalid)?;
+  }
+  std::fs::write(
+    dir.path().join("large.rs"),
+    "// oversized source file\n".repeat(200_001),
+  )?;
+
+  for infer_language in [false, true] {
+    for output_mode in [None, Some("--json=compact"), Some("--json=stream")] {
+      let mut command = Command::new(cargo_bin!());
+      command
+        .current_dir(dir.path())
+        .args(["run", "-p", "let $V = $E;", "--threads=4"]);
+      if !infer_language {
+        command.args(["-l", "rust"]);
+      }
+      if let Some(mode) = output_mode {
+        command.arg(mode);
+      }
+      let assertion = command.assert().success();
+      let output = assertion.get_output();
+      let stderr = String::from_utf8_lossy(&output.stderr);
+      assert_eq!(stderr.lines().count(), 8, "{stderr}");
+      for i in 0..8 {
+        let name = format!("invalid-{i}.rs");
+        let lines: Vec<_> = stderr.lines().filter(|line| line.contains(&name)).collect();
+        assert_eq!(lines.len(), 1, "{stderr}");
+        assert!(lines[0].contains("not valid UTF-8, skipping"));
+        assert_eq!(std::fs::read(dir.path().join(name))?, invalid);
+      }
+      if output_mode == Some("--json=compact") {
+        let matches: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+        assert_eq!(matches.as_array().unwrap().len(), 1);
+        assert_eq!(matches[0]["file"], "valid.rs");
+      } else if output_mode == Some("--json=stream") {
+        let matches: Vec<serde_json::Value> = serde_json::Deserializer::from_slice(&output.stdout)
+          .into_iter()
+          .collect::<std::result::Result<_, _>>()?;
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0]["file"], "valid.rs");
+      } else {
+        assert!(String::from_utf8_lossy(&output.stdout).contains("valid.rs"));
+      }
+    }
+  }
+  Ok(())
+}
+
+#[test]
+fn test_invalid_utf8_files_preserve_no_match_exit_status() -> Result<()> {
+  let dir = create_test_files([("empty.rs", ""), ("nonmatching.rs", "fn main() {}")])?;
+  std::fs::write(dir.path().join("invalid.rs"), b"let x = 1; // \xff\n")?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["run", "-p", "let $V = $E;", "-l", "rust", "--json=compact"])
+    .assert()
+    .code(1)
+    .stdout("[]\n")
+    .stderr(contains("invalid.rs: not valid UTF-8, skipping"));
+  Ok(())
+}
+
+#[test]
+fn test_outline_invalid_utf8_preserves_contextual_error() -> Result<()> {
+  let dir = create_test_files([])?;
+  std::fs::write(dir.path().join("invalid.rs"), b"fn main() {} // \xff\n")?;
+  for output_mode in [None, Some("--json=compact"), Some("--json=stream")] {
+    let mut command = Command::new(cargo_bin!());
+    command
+      .current_dir(dir.path())
+      .args(["outline", "-l", "rust", "invalid.rs"]);
+    if let Some(mode) = output_mode {
+      command.arg(mode);
+    }
+    let assertion = command.assert().success();
+    let output = assertion.get_output();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+      stderr
+        .starts_with("ERROR: Cannot extract outline from invalid.rs: Cannot read file invalid.rs:")
+    );
+    assert_eq!(stderr.matches("ERROR:").count(), 1, "{stderr}");
+    assert!(!stderr.contains("Warning:"), "{stderr}");
+    if output_mode == Some("--json=compact") {
+      let files: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+      assert_eq!(files, serde_json::json!([]));
+    }
+  }
+  Ok(())
+}
