@@ -47,6 +47,13 @@
           },
           "description": "A dictionary of custom languages in the project."
         },
+        "outlineRules": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "A mapping from built-in language names to additional outline rule YAML files. Paths are relative to this configuration file. Each rule declares its own language, as with --outline-rules. Project rules are combined with bundled and command-line rules. Language aliases normalize to the same key; the last entry wins if aliases repeat a language. Unknown built-in language names are rejected when parsing the configuration. Project rule files are loaded in sorted path order."
+        },
         "languageInjections": {
           "type": "array",
           "items": {
