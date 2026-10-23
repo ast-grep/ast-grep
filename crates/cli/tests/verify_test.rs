@@ -3,8 +3,11 @@ mod common;
 use std::process::ExitCode;
 
 use anyhow::Result;
+use assert_cmd::{Command, cargo_bin};
 use ast_grep::main_with_args;
 use common::create_test_files;
+use predicates::prelude::*;
+use predicates::str::contains;
 use tempfile::TempDir;
 
 const CONFIG: &str = "
@@ -32,6 +35,14 @@ rule:
 
 const TEST: &str = "
 id: test-rule
+valid:
+- None
+invalid:
+- Some(123)
+";
+
+const MISSING_RULE_TEST: &str = "
+id: missing-rule
 valid:
 - None
 invalid:
@@ -170,5 +181,44 @@ fn test_sg_test_follow_symlinked_test_dir() -> Result<()> {
   ));
   assert!(ret.is_err());
   drop(dir);
+  Ok(())
+}
+
+// a test case whose rule id was never loaded must not pass silently
+#[test]
+fn test_sg_test_fails_when_rule_is_missing() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/test-rule.yml", RULE),
+    ("rule-tests/test-rule-test.yml", TEST),
+    ("rule-tests/missing-rule-test.yml", MISSING_RULE_TEST),
+    ("test.ts", "Some(123)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["test", "--skip-snapshot-tests"])
+    .assert()
+    .failure()
+    .code(3)
+    .stdout(contains("test result: ok").not())
+    .stderr(contains("Rule not found: missing-rule"));
+  Ok(())
+}
+
+#[test]
+fn test_sg_test_fails_when_no_rules_are_loaded() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/README.md", "no rule here"),
+    ("rule-tests/test-rule-test.yml", TEST),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["test", "--skip-snapshot-tests"])
+    .assert()
+    .failure()
+    .code(3)
+    .stdout(contains("test result: ok").not())
+    .stderr(contains("Rule not found: test-rule"));
   Ok(())
 }

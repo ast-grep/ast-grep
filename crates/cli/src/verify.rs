@@ -63,7 +63,7 @@ fn run_test_rule_impl<R: Reporter + Send>(
 ) -> Result<ExitCode> {
   let filter = arg.filter.as_ref();
   let overwrite = RuleOverwrite::new_for_verify(filter, arg.include_off);
-  let collections = &project.find_rules(overwrite)?.0;
+  let (collections, rule_trace) = &project.find_rules(overwrite)?;
   let TestHarness {
     test_cases,
     snapshots,
@@ -90,6 +90,11 @@ fn run_test_rule_impl<R: Reporter + Send>(
     result
   };
   let mut results = parallel_collect(&test_cases, check_one_case);
+  // a rule skipped by severity (e.g. `off`) is loaded on purpose, but an id that no rule file
+  // declares is a mistake that must not pass silently
+  let missing_rule = test_cases
+    .iter()
+    .find(|case| !rule_trace.loaded_rule_ids.contains(&case.id));
   let mut reporter = reporter.lock().unwrap();
 
   reporter.report_failed_cases(&mut results)?;
@@ -99,6 +104,9 @@ fn run_test_rule_impl<R: Reporter + Send>(
   let test_result = reporter.after_report(&results)?;
   match test_result {
     reporter::TestResult::Success { message } => {
+      if let Some(case) = missing_rule {
+        return Err(anyhow!(ErrorContext::RuleNotFound(case.id.clone())));
+      }
       writeln!(reporter.get_output(), "{message}")?;
       Ok(ExitCode::SUCCESS)
     }

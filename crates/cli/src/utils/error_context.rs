@@ -52,6 +52,7 @@ pub enum ErrorContext {
   DiagnosticError(usize),
   RuleNotSpecified,
   RuleNotFound(String),
+  NoRulesLoaded,
   // LSP
   StartLanguageServer,
   // Edit
@@ -81,7 +82,8 @@ impl ErrorContext {
     match self {
       DiagnosticError(_) => 1,
       // skip 2 to avoid conflict with clap error code or unexpected error
-      ProjectNotExist | LanguageNotSpecified | RuleNotSpecified | RuleNotFound(_) => 3,
+      ProjectNotExist | LanguageNotSpecified | RuleNotSpecified | RuleNotFound(_)
+      | NoRulesLoaded => 3,
       TestFail(_) | TestSnapshotMismatch(_) => 4,
       NoTestDirConfigured | NoUtilDirConfigured => 5,
       ReadConfiguration | ReadRule(_) | WalkRuleDir(_) | WriteFile(_) => 6,
@@ -245,6 +247,11 @@ impl ErrorMessage {
         format!(
           "Rule with id '{id}' not found in project configuration. Please make sure it exists."
         ),
+        TOOL_OVERVIEW,
+      ),
+      NoRulesLoaded => Self::new(
+        "No rules were loaded from the project configuration.",
+        "Please make sure `ruleDirs` in sgconfig.yml contains rule YAML files, or use `--rule`/`--inline-rules` to specify rules.",
         TOOL_OVERVIEW,
       ),
       StartLanguageServer => Self::new(
