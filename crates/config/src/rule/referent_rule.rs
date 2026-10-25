@@ -26,8 +26,8 @@ impl<R> Clone for Registration<R> {
 impl<R> Registration<R> {
   #[allow(clippy::mut_from_ref)]
   fn write(&self) -> &mut HashMap<String, R> {
-    // SAFETY: `write` will only be called during initialization and
-    // it only insert new item to the hashmap. It is safe to cast the raw ptr.
+    // SAFETY: callers must ensure exclusive access to the map and its entries
+    // during serial initialization, before the registration is shared for matching.
     unsafe { &mut *(Arc::as_ptr(&self.0) as *mut HashMap<String, R>) }
   }
 }
@@ -45,7 +45,17 @@ pub struct GlobalRules {
 }
 
 impl GlobalRules {
-  pub fn insert(
+  /// Registers a global utility during initialization.
+  ///
+  /// The registry avoids locks on lookups so completed rules can be shared across
+  /// scanning threads without locking overhead on each utility match.
+  ///
+  /// # Safety
+  ///
+  /// Insertions must be serial and confined to initialization. No other access
+  /// to either map, including through cloned registrations or rule references,
+  /// may overlap this call, and no borrows into the maps may remain active.
+  pub(crate) unsafe fn insert(
     &self,
     id: &str,
     rule: RuleCore,

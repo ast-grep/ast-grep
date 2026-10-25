@@ -244,8 +244,10 @@ impl<L: Language> DeserializeEnv<L> {
       let env_registration = RuleRegistration::from_globals(&registration, params);
       let env = DeserializeEnv::from_registration(parsed.lang.clone(), env_registration);
       let matcher = parsed.core.get_matcher_with_hint(env, CheckHint::Global)?;
-      registration
-        .insert(id, matcher, has_params.then(|| parsed.params.clone()))
+      // SAFETY: this fresh registry is initialized serially in dependency order.
+      // Deserialization has finished accessing its maps, and neither the registry
+      // nor the rules referencing it are exposed to other threads before return.
+      unsafe { registration.insert(id, matcher, has_params.then(|| parsed.params.clone())) }
         .map_err(RuleSerializeError::MatchesReference)?;
     }
     Ok(registration)
