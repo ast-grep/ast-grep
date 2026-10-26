@@ -151,6 +151,21 @@ impl PrintProcessor<CloudOutput> for CloudProcessor {
   }
 }
 
+/// Escapes the message part of a GitHub workflow command.
+/// See https://github.com/actions/toolkit/blob/main/packages/core/src/command.ts
+fn escape_github_data(s: &str) -> String {
+  s.replace('%', "%25")
+    .replace('\r', "%0D")
+    .replace('\n', "%0A")
+}
+
+/// Escapes a property value (e.g. `file`, `title`) of a GitHub workflow command.
+fn escape_github_property(s: &str) -> String {
+  escape_github_data(s)
+    .replace(':', "%3A")
+    .replace(',', "%2C")
+}
+
 fn print_github_rule<W: Write>(
   writer: &mut W,
   m: NodeMatch,
@@ -164,11 +179,11 @@ fn print_github_rule<W: Write>(
     Severity::Hint => return Ok(()),
     Severity::Off => unreachable!("turned-off rule should not have match."),
   };
-  let title = &rule.id;
-  let name = path.display();
+  let title = escape_github_property(&rule.id);
+  let name = escape_github_property(&path.display().to_string());
   let line = m.start_pos().line() + 1;
   let end_line = m.end_pos().line() + 1;
-  let message = rule.get_message(&m);
+  let message = escape_github_data(&rule.get_message(&m));
   writeln!(
     writer,
     "::{level} file={name},line={line},endLine={end_line},title={title}::{message}"
@@ -386,6 +401,34 @@ rule: { pattern: console }
 severity: warning
 ",
       "::warning file=test.tsx,line=1,endLine=1,title=test::test rule\n",
+    );
+  }
+
+  #[test]
+  fn test_escape_message_output() {
+    let src = "console.log(123)";
+    let rule_str = r#"
+id: test
+language: TypeScript
+rule: { pattern: console }
+severity: warning
+message: "100% sure\r\nsecond line""#;
+    let rule = from_yaml_string::<SgLang>(rule_str, &GlobalRules::default())
+      .unwrap()
+      .pop()
+      .unwrap();
+    let mut printer = make_test_printer();
+    let grep = SgLang::from(SupportLang::Tsx).ast_grep(src);
+    let matches = grep.root().find_all(&rule.matcher).collect();
+    let file = SimpleFile::new(Cow::Borrowed("dir,a:b.tsx"), src);
+    let buffer = printer
+      .get_processor()
+      .print_rule(matches, file, &rule)
+      .unwrap();
+    printer.process(buffer).expect("should work");
+    assert_eq!(
+      get_text(&mut printer),
+      "::warning file=dir%2Ca%3Ab.tsx,line=1,endLine=1,title=test::100%25 sure%0D%0Asecond line\n"
     );
   }
 
