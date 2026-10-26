@@ -6,10 +6,11 @@ use clap::ValueEnum;
 use anyhow::Result;
 use codespan_reporting::files::SimpleFile;
 use serde_sarif::sarif;
+use std::fmt;
 use std::io::{Stdout, Write};
 
 use std::borrow::Cow;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(PartialEq, Eq, Clone, ValueEnum)]
 #[clap(rename_all = "lower")]
@@ -98,9 +99,9 @@ impl PrintProcessor<CloudOutput> for CloudProcessor {
     match self.platform {
       Platform::GitHub => {
         let mut ret = vec![];
-        let path = PathBuf::from(file.name().to_string());
+        let path = Path::new(file.name().as_ref());
         for m in matches {
-          print_github_rule(&mut ret, m, &path, rule)?;
+          print_github_rule(&mut ret, m, path, rule)?;
         }
         Ok(CloudOutput::GitHub(ret))
       }
@@ -151,19 +152,35 @@ impl PrintProcessor<CloudOutput> for CloudProcessor {
   }
 }
 
-/// Escapes the message part of a GitHub workflow command.
+/// Formats GitHub workflow command values without intermediate strings.
 /// See https://github.com/actions/toolkit/blob/main/packages/core/src/command.ts
-fn escape_github_data(s: &str) -> String {
-  s.replace('%', "%25")
-    .replace('\r', "%0D")
-    .replace('\n', "%0A")
+enum GithubEscape<'a> {
+  Data(&'a str),
+  Property(&'a str),
 }
 
-/// Escapes a property value (e.g. `file`, `title`) of a GitHub workflow command.
-fn escape_github_property(s: &str) -> String {
-  escape_github_data(s)
-    .replace(':', "%3A")
-    .replace(',', "%2C")
+impl fmt::Display for GithubEscape<'_> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let value = match self {
+      Self::Data(value) | Self::Property(value) => value,
+    };
+    let is_property = matches!(self, Self::Property(_));
+    let mut start = 0;
+    for (i, byte) in value.bytes().enumerate() {
+      let escaped = match byte {
+        b'%' => "%25",
+        b'\r' => "%0D",
+        b'\n' => "%0A",
+        b':' if is_property => "%3A",
+        b',' if is_property => "%2C",
+        _ => continue,
+      };
+      f.write_str(&value[start..i])?;
+      f.write_str(escaped)?;
+      start = i + 1;
+    }
+    f.write_str(&value[start..])
+  }
 }
 
 fn print_github_rule<W: Write>(
@@ -179,11 +196,13 @@ fn print_github_rule<W: Write>(
     Severity::Hint => return Ok(()),
     Severity::Off => unreachable!("turned-off rule should not have match."),
   };
-  let title = escape_github_property(&rule.id);
-  let name = escape_github_property(&path.display().to_string());
   let line = m.start_pos().line() + 1;
   let end_line = m.end_pos().line() + 1;
-  let message = escape_github_data(&rule.get_message(&m));
+  let message = rule.get_message(&m);
+  let path = path.to_string_lossy();
+  let title = GithubEscape::Property(&rule.id);
+  let name = GithubEscape::Property(&path);
+  let message = GithubEscape::Data(&message);
   writeln!(
     writer,
     "::{level} file={name},line={line},endLine={end_line},title={title}::{message}"
@@ -408,11 +427,11 @@ severity: warning
   fn test_escape_message_output() {
     let src = "console.log(123)";
     let rule_str = r#"
-id: test
+id: test,a:b%0A
 language: TypeScript
 rule: { pattern: console }
 severity: warning
-message: "100% sure\r\nsecond line""#;
+message: "100% sure\r\nsecond line %0A, : café 🦀""#;
     let rule = from_yaml_string::<SgLang>(rule_str, &GlobalRules::default())
       .unwrap()
       .pop()
@@ -420,7 +439,7 @@ message: "100% sure\r\nsecond line""#;
     let mut printer = make_test_printer();
     let grep = SgLang::from(SupportLang::Tsx).ast_grep(src);
     let matches = grep.root().find_all(&rule.matcher).collect();
-    let file = SimpleFile::new(Cow::Borrowed("dir,a:b.tsx"), src);
+    let file = SimpleFile::new(Cow::Borrowed("dir%,a:b\r\né.tsx"), src);
     let buffer = printer
       .get_processor()
       .print_rule(matches, file, &rule)
@@ -428,7 +447,7 @@ message: "100% sure\r\nsecond line""#;
     printer.process(buffer).expect("should work");
     assert_eq!(
       get_text(&mut printer),
-      "::warning file=dir%2Ca%3Ab.tsx,line=1,endLine=1,title=test::100%25 sure%0D%0Asecond line\n"
+      "::warning file=dir%25%2Ca%3Ab%0D%0Aé.tsx,line=1,endLine=1,title=test%2Ca%3Ab%250A::100%25 sure%0D%0Asecond line %250A, : café 🦀\n"
     );
   }
 
