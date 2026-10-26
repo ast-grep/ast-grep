@@ -70,12 +70,15 @@ impl<W: Write> Printer for CloudPrinter<W> {
 
   fn after_print(&mut self) -> Result<()> {
     if self.platform == Platform::Sarif {
-      let tool_component = sarif::ToolComponent::builder().name("ast-grep").build();
+      let tool_component = sarif::ToolComponent::builder()
+        .name("ast-grep")
+        .version(env!("CARGO_PKG_VERSION"))
+        .build();
       let tool = sarif::Tool::builder().driver(tool_component).build();
       let mut run = sarif::Run::builder().tool(tool).build();
       run.results = Some(self.sarif_results.clone());
       let sarif_log = sarif::Sarif::builder()
-        .version(serde_json::json!(env!("CARGO_PKG_VERSION")))
+        .version(serde_json::json!(sarif::Version::V2_1_0.to_string()))
         .runs(vec![run])
         .build();
       let json = serde_json::to_string_pretty(&sarif_log)?;
@@ -482,13 +485,14 @@ severity: error
 
     // Verify it's valid JSON
     let sarif_log: sarif::Sarif = serde_json::from_str(&json_str).expect("should be valid SARIF");
-    assert_eq!(
-      sarif_log.version,
-      serde_json::json!(env!("CARGO_PKG_VERSION"))
-    );
+    assert_eq!(sarif_log.version, serde_json::json!("2.1.0"));
     assert_eq!(sarif_log.runs.len(), 1);
 
     let run = &sarif_log.runs[0];
+    assert_eq!(
+      run.tool.driver.version.as_deref(),
+      Some(env!("CARGO_PKG_VERSION"))
+    );
     let results = run.results.as_ref().unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].rule_id.as_ref().unwrap(), "test");
