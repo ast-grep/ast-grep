@@ -774,38 +774,78 @@ rule:
   kind: arrow_function
 ";
 
+const GLOBAL_UTIL_CONSUMER: &str = "id: p\nlanguage: TypeScript\nrule: { matches: hook }";
+
 #[test]
-fn test_scan_inline_rules_with_util_dirs() -> Result<()> {
-  let inline_rules = "id: p\nlanguage: TypeScript\nrule: { matches: hook }";
+fn test_scan_ad_hoc_rules_with_util_dirs() -> Result<()> {
   let dir = create_test_files([
     ("sgconfig.yml", "ruleDirs: [rules]\nutilDirs: [utils]"),
     ("utils/hook.yml", GLOBAL_UTIL_RULE),
+    ("rule.yml", GLOBAL_UTIL_CONSUMER),
     ("test.ts", "const f = () => 1;"),
   ])?;
-  // explicit config path, scanning files
-  Command::new(cargo_bin!())
-    .current_dir(dir.path())
-    .args([
+
+  // Explicit config path, scanning files.
+  for args in [
+    vec![
+      "scan",
+      "--config",
+      "sgconfig.yml",
+      "--rule",
+      "rule.yml",
+      "--json",
+    ],
+    vec![
       "scan",
       "--config",
       "sgconfig.yml",
       "--inline-rules",
-      inline_rules,
+      GLOBAL_UTIL_CONSUMER,
       "--json",
-    ])
-    .assert()
-    .success()
-    .stdout(contains("\"ruleId\": \"p\""))
-    .stdout(contains("\"text\": \"() => 1\""));
-  // implicit config discovery, parsing code from stdin
+    ],
+  ] {
+    Command::new(cargo_bin!())
+      .current_dir(dir.path())
+      .args(args)
+      .assert()
+      .success()
+      .stdout(contains("\"ruleId\": \"p\""))
+      .stdout(contains("\"text\": \"() => 1\""));
+  }
+
+  // Implicit config discovery, parsing code from stdin.
+  for args in [
+    vec!["scan", "--stdin", "--rule", "rule.yml", "--json"],
+    vec![
+      "scan",
+      "--stdin",
+      "--inline-rules",
+      GLOBAL_UTIL_CONSUMER,
+      "--json",
+    ],
+  ] {
+    Command::new(cargo_bin!())
+      .current_dir(dir.path())
+      .args(args)
+      .write_stdin("const f = () => 1;")
+      .assert()
+      .success()
+      .stdout(contains("\"ruleId\": \"p\""))
+      .stdout(contains("\"text\": \"() => 1\""));
+  }
+  Ok(())
+}
+
+#[test]
+fn test_scan_rule_without_project_from_stdin() -> Result<()> {
+  let dir = create_test_files([("rule.yml", RULE1)])?;
   Command::new(cargo_bin!())
     .current_dir(dir.path())
-    .args(["scan", "--stdin", "--inline-rules", inline_rules, "--json"])
-    .write_stdin("const f = () => 1;")
+    .args(["scan", "--stdin", "--rule", "rule.yml", "--json"])
+    .write_stdin("Some(123)")
     .assert()
     .success()
-    .stdout(contains("\"ruleId\": \"p\""))
-    .stdout(contains("\"text\": \"() => 1\""));
+    .stdout(contains("\"ruleId\": \"on-rule\""));
   Ok(())
 }
 

@@ -114,7 +114,7 @@ pub fn run_with_config(arg: ScanArg, project: Result<ProjectConfig>) -> Result<E
   }
 }
 
-/// Inline rules can reference global utils declared in `sgconfig.yml`'s utilDirs.
+/// Ad-hoc rules can reference global utils declared in `sgconfig.yml`'s utilDirs.
 /// If no project config is found, fall back to no global rules.
 fn global_rules_from_project(project: &Result<ProjectConfig>) -> Result<GlobalRules> {
   match project {
@@ -156,7 +156,8 @@ impl ScanWithConfig {
     let no_suppress_all_rule = no_suppress_all_rule_config(&overwrite);
     let mut proj_dir = PathBuf::from(".");
     let (configs, rule_trace) = if let Some(path) = &arg.rule {
-      let rules = read_rule_file(path, &Default::default())
+      let global_rules = global_rules_from_project(&project)?;
+      let rules = read_rule_file(path, &global_rules)
         .and_then(|configs| overwrite.process_configs(configs))?;
       proj_dir = path.parent().unwrap_or(Path::new(".")).to_path_buf();
       with_rule_stats(rules)?
@@ -167,7 +168,7 @@ impl ScanWithConfig {
       let rules = overwrite.process_configs(configs)?;
       with_rule_stats(rules)?
     } else {
-      // NOTE: only query project here since -r does not need project
+      // Configured scans require a project; ad-hoc rules can fall back without one.
       let project_config = project?;
       proj_dir = project_config.project_dir.clone();
       project_config.find_rules(overwrite)?
@@ -324,8 +325,8 @@ impl ScanStdin {
   fn try_new(arg: ScanArg, project: Result<ProjectConfig>) -> Result<Self> {
     let overwrite = RuleOverwrite::new(&arg.overwrite)?;
     let rules = if let Some(path) = &arg.rule {
-      read_rule_file(path, &Default::default())
-        .and_then(|configs| overwrite.process_configs(configs))?
+      let global_rules = global_rules_from_project(&project)?;
+      read_rule_file(path, &global_rules).and_then(|configs| overwrite.process_configs(configs))?
     } else if let Some(text) = &arg.inline_rules {
       let global_rules = global_rules_from_project(&project)?;
       let configs = from_yaml_string(text, &global_rules)
