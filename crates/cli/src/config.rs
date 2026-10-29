@@ -385,6 +385,70 @@ customLanguages:
     assert_eq!(paths, vec![PathBuf::from("/project/outline/blade.yml")]);
   }
 
+  #[test]
+  fn project_outline_rules_match_builtin_aliases() {
+    let parse_key = |key: &str| {
+      let quoted = serde_json::to_string(key)
+        .unwrap()
+        .replace('\u{85}', "\\u0085")
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029");
+      let input = format!("outlineRules:\n  {quoted}: rules.yml\n");
+      let decoded: serde_json::Value = from_str(&input).unwrap();
+      assert_eq!(
+        decoded["outlineRules"]
+          .as_object()
+          .unwrap()
+          .keys()
+          .next()
+          .unwrap(),
+        key
+      );
+      from_str::<AstGrepConfig>(&input)
+    };
+    for language in SupportLang::all_langs() {
+      for alias in language.aliases() {
+        for mask in 0..(1 << alias.len()) {
+          let key: String = alias
+            .bytes()
+            .enumerate()
+            .map(|(index, byte)| {
+              char::from(if mask & (1 << index) == 0 {
+                byte
+              } else {
+                byte.to_ascii_uppercase()
+              })
+            })
+            .collect();
+          let config = parse_key(&key).expect("built-in aliases should parse in any ASCII case");
+          assert_eq!(
+            config.outline_rules.unwrap()[language],
+            PathBuf::from("rules.yml")
+          );
+        }
+      }
+    }
+    for key in [
+      "",
+      "unknown",
+      "custom",
+      "c+",
+      "c+++",
+      "C#",
+      "js ",
+      " js",
+      "js\n",
+      "js\r\n",
+      "js\0",
+      "ruſt",
+      "js\u{85}",
+      "js\u{2028}",
+      "js\u{2029}",
+    ] {
+      assert!(parse_key(key).is_err(), "{key:?}");
+    }
+  }
+
   /// Verifies that configured ignore-file types deserialize in order.
   #[test]
   fn deserialize_no_ignore() {

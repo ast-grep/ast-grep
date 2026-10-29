@@ -52,7 +52,13 @@
           "additionalProperties": {
             "type": "string"
           },
-          "description": "A mapping from built-in language names to additional outline rule YAML files. Paths are relative to this configuration file. Each rule declares its own language, as with --outline-rules. Project rules are combined with bundled and command-line rules. Language aliases normalize to the same key; the last entry wins if aliases repeat a language. Unknown built-in language names are rejected when parsing the configuration. Project rule files are loaded in sorted path order."
+          "description": "A mapping from built-in language names to additional outline rule YAML files. Paths are relative to this configuration file. Each rule declares its own language, as with --outline-rules. Project rules are combined with bundled and command-line rules. Language aliases normalize to the same key; the last entry wins if aliases repeat a language. Unknown built-in language names are rejected when parsing the configuration. Project rule files are loaded in sorted path order.",
+          "propertyNames": {
+            "pattern": "^(?:[bB][aA][sS][hH]|[cC]|[cC]\\+\\+|[cC][cC]|[cC][pP][pP]|[cC][sS]|[cC][sS][hH][aA][rR][pP]|[cC][sS][sS]|[cC][xX][xX]|[dD][aA][rR][tT]|[eE][lL][iI][xX][iI][rR]|[eE][xX]|[gG][oO]|[gG][oO][lL][aA][nN][gG]|[hH][aA][sS][kK][eE][lL][lL]|[hH][cC][lL]|[hH][sS]|[hH][tT][mM][lL]|[jJ][aA][vV][aA]|[jJ][aA][vV][aA][sS][cC][rR][iI][pP][tT]|[jJ][sS]|[jJ][sS][oO][nN]|[jJ][sS][xX]|[kK][oO][tT][lL][iI][nN]|[kK][tT]|[lL][uU][aA]|[mM][aA][rR][kK][dD][oO][wW][nN]|[mM][dD]|[nN][iI][xX]|[pP][hH][pP]|[pP][yY]|[pP][yY][tT][hH][oO][nN]|[rR][bB]|[rR][sS]|[rR][uU][bB][yY]|[rR][uU][sS][tT]|[sS][cC][aA][lL][aA]|[sS][oO][lL]|[sS][oO][lL][iI][dD][iI][tT][yY]|[sS][wW][iI][fF][tT]|[tT][sS]|[tT][sS][xX]|[tT][yY][pP][eE][sS][cC][rR][iI][pP][tT]|[yY][aA][mM][lL]|[yY][mM][lL]|[zZ][iI][gG])$",
+            "not": {
+              "pattern": "[^ -~]"
+            }
+          }
         },
         "languageInjections": {
           "type": "array",
@@ -64,12 +70,21 @@
         "noIgnore": {
           "type": "array",
           "items": {
-            "enum": ["hidden", "dot", "exclude", "global", "parent", "vcs"]
+            "enum": [
+              "hidden",
+              "dot",
+              "exclude",
+              "global",
+              "parent",
+              "vcs"
+            ]
           },
           "description": "A list of ignore file types to disregard when searching files."
         }
       },
-      "required": ["ruleDirs"],
+      "required": [
+        "ruleDirs"
+      ],
       "title": "ast-grep project configuration"
     },
     "TestConfig": {
@@ -85,14 +100,19 @@
           "description": "A string path relative to testDir that specifies where to store test snapshots for ast-grep. You can think it like __snapshots___ in popular test framework like jest. If this option is not specified, ast-grep will store the snapshot under the __snapshots__ folder under the testDir."
         }
       },
-      "required": ["testDir"],
+      "required": [
+        "testDir"
+      ],
       "title": "Test configuration"
     },
     "CustomLanguage": {
       "type": "object",
       "properties": {
         "libraryPath": {
-          "type": ["string", "object"],
+          "type": [
+            "string",
+            "object"
+          ],
           "description": "The path to the tree-sitter dynamic library of the language."
         },
         "extensions": {
@@ -115,7 +135,10 @@
           "description": "The path to the YAML file containing outline rules for this custom language."
         }
       },
-      "required": ["libraryPath", "extensions"]
+      "required": [
+        "libraryPath",
+        "extensions"
+      ]
     },
     "LanguageInjection": {
       "type": "object",
@@ -131,16 +154,24 @@
         },
         "injected": {
           "oneOf": [
-            { "type": "string" },
+            {
+              "type": "string"
+            },
             {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             }
           ],
           "description": "The injected language name"
         }
       },
-      "required": ["hostLanguage", "rule", "injected"]
+      "required": [
+        "hostLanguage",
+        "rule",
+        "injected"
+      ]
     }
   }
 }

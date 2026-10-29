@@ -293,6 +293,11 @@ pub enum SupportLang {
 }
 
 impl SupportLang {
+  /// Returns the aliases accepted with ASCII case-insensitive matching.
+  pub const fn aliases(self) -> &'static [&'static str] {
+    alias(self)
+  }
+
   pub const fn all_langs() -> &'static [SupportLang] {
     use SupportLang::*;
     &[
