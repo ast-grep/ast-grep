@@ -207,7 +207,7 @@ impl<'a> SgNode<'a> for Node {
     self.0.child_for_field_name(name).map(Node)
   }
   fn field_children(&self, field_id: Option<u16>) -> impl Iterator<Item = Self> {
-    let cursor = self.0.walk();
+    let cursor = OwnedCursor(self.0.walk());
     let has_children = cursor.goto_first_child();
     let mut done = field_id.is_none() || !has_children;
     std::iter::from_fn(move || {
@@ -225,6 +225,24 @@ impl<'a> SgNode<'a> for Node {
       }
       Some(Node(ret))
     })
+  }
+}
+
+// web-tree-sitter's TreeCursor finalizer frees whatever cursor is in its
+// transfer buffer, not the collected one, so cursors must be deleted explicitly.
+// TODO: this can be deleted after tree-sitter 0.26 was retired
+struct OwnedCursor(ts::TreeCursor);
+
+impl std::ops::Deref for OwnedCursor {
+  type Target = ts::TreeCursor;
+  fn deref(&self) -> &Self::Target {
+    &self.0
+  }
+}
+
+impl Drop for OwnedCursor {
+  fn drop(&mut self) {
+    self.0.delete();
   }
 }
 

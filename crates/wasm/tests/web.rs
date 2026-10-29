@@ -767,4 +767,5 @@ async fn test_get_inner_tree_walk() {
   assert_eq!(String::from(cursor.node_type()), "program");
   assert!(cursor.goto_first_child());
   assert_eq!(String::from(cursor.node_type()), "lexical_declaration");
+  cursor.delete();
 }
