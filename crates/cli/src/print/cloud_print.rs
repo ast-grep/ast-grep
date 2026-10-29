@@ -213,6 +213,42 @@ fn print_github_rule<W: Write>(
   Ok(())
 }
 
+/// Converts a file path to a SARIF URI reference (RFC 3986), emitting a
+/// `file:///` URI for absolute Windows drive paths and encoding reserved bytes.
+fn path_to_sarif_uri(path: &str) -> String {
+  // SARIF/serde-sarif cannot convert file paths to URI references, so we do it here.
+  path_to_sarif_uri_with_separator(path, std::path::MAIN_SEPARATOR)
+}
+
+/// Encodes a path using the separator for its originating platform.
+/// The separate argument lets tests cover Windows behavior on any host.
+fn path_to_sarif_uri_with_separator(path: &str, separator: char) -> String {
+  let bytes = path.as_bytes();
+  let is_windows_drive_absolute = separator == '\\'
+    && bytes.len() >= 3
+    && bytes[0].is_ascii_alphabetic()
+    && bytes[1] == b':'
+    && matches!(bytes[2], b'\\' | b'/');
+  let prefix = if is_windows_drive_absolute {
+    "file:///"
+  } else {
+    ""
+  };
+  let mut uri = String::with_capacity(prefix.len() + path.len());
+  uri.push_str(prefix);
+  for (index, byte) in path.bytes().enumerate() {
+    match byte {
+      b':' if is_windows_drive_absolute && index == 1 => uri.push(':'),
+      b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' | b'/' => {
+        uri.push(byte as char)
+      }
+      b if char::from(b) == separator => uri.push('/'),
+      b => uri.push_str(&format!("%{b:02X}")),
+    }
+  }
+  uri
+}
+
 fn severity_to_sarif_level(severity: &Severity) -> sarif::ResultLevel {
   match severity {
     Severity::Error => sarif::ResultLevel::Error,
@@ -249,11 +285,10 @@ fn create_sarif_result(
     )
     .build();
 
-  // TODO: path is not URI, this impl should handle path to uri
   let physical_location = sarif::PhysicalLocation::builder()
     .artifact_location(
       sarif::ArtifactLocation::builder()
-        .uri(path.to_string())
+        .uri(path_to_sarif_uri(path))
         .build(),
     )
     .region(region)
@@ -306,7 +341,7 @@ fn attach_sarif_fix(mut result: sarif::Result, path: &str, diff: Diff<'_>) -> sa
 
   let artifact_change = sarif::ArtifactChange {
     artifact_location: sarif::ArtifactLocation::builder()
-      .uri(path.to_string())
+      .uri(path_to_sarif_uri(path))
       .build(),
     replacements: vec![replacement],
     properties: None,
@@ -496,5 +531,49 @@ severity: error
     let results = run.results.as_ref().unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].rule_id.as_ref().unwrap(), "test");
+  }
+
+  #[test]
+  fn test_sarif_uri_is_percent_encoded() {
+    let mut printer = make_sarif_test_printer();
+    let source = "let a = 123";
+    let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
+    let rule = make_rule("rule: { pattern: a }\nseverity: error");
+    let matches: Vec<_> = grep.root().find_all(&rule.matcher).collect();
+    printer.before_print().unwrap();
+    let file = SimpleFile::new(Cow::Borrowed("dir one/100%#a?b é.ts"), source);
+    let buffer = printer
+      .get_processor()
+      .print_rule(matches, file, &rule)
+      .unwrap();
+    printer.process(buffer).unwrap();
+    printer.after_print().unwrap();
+    let json_str = get_text(&mut printer);
+    let sarif_log: sarif::Sarif = serde_json::from_str(&json_str).expect("should be valid SARIF");
+    let results = sarif_log.runs[0].results.as_ref().unwrap();
+    let location = results[0].locations.as_ref().unwrap()[0]
+      .physical_location
+      .as_ref()
+      .unwrap();
+    assert_eq!(
+      location.artifact_location.as_ref().unwrap().uri.as_deref(),
+      Some("dir%20one/100%25%23a%3Fb%20%C3%A9.ts")
+    );
+  }
+
+  #[test]
+  fn test_windows_drive_absolute_path_is_file_uri() {
+    assert_eq!(
+      path_to_sarif_uri_with_separator(r"C:\work dir\100%.ts", '\\'),
+      "file:///C:/work%20dir/100%25.ts"
+    );
+    assert_eq!(
+      path_to_sarif_uri_with_separator(r"C:work dir\100%.ts", '\\'),
+      "C%3Awork%20dir/100%25.ts"
+    );
+    assert_eq!(
+      path_to_sarif_uri_with_separator(r"C:\work dir\100%.ts", '/'),
+      "C%3A%5Cwork%20dir%5C100%25.ts"
+    );
   }
 }
