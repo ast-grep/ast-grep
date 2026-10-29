@@ -213,16 +213,35 @@ fn print_github_rule<W: Write>(
   Ok(())
 }
 
-/// Converts a file path to a SARIF URI reference (RFC 3986): path separators
-/// become `/` and every byte outside the unreserved set is percent-encoded.
+/// Converts a file path to a SARIF URI reference (RFC 3986), emitting a
+/// `file:///` URI for absolute Windows drive paths and encoding reserved bytes.
 fn path_to_sarif_uri(path: &str) -> String {
-  let mut uri = String::with_capacity(path.len());
-  for byte in path.bytes() {
+  path_to_sarif_uri_with_separator(path, std::path::MAIN_SEPARATOR)
+}
+
+/// Encodes a path using the separator for its originating platform.
+/// The separate argument lets tests cover Windows behavior on any host.
+fn path_to_sarif_uri_with_separator(path: &str, separator: char) -> String {
+  let bytes = path.as_bytes();
+  let is_windows_drive_absolute = separator == '\\'
+    && bytes.len() >= 3
+    && bytes[0].is_ascii_alphabetic()
+    && bytes[1] == b':'
+    && matches!(bytes[2], b'\\' | b'/');
+  let prefix = if is_windows_drive_absolute {
+    "file:///"
+  } else {
+    ""
+  };
+  let mut uri = String::with_capacity(prefix.len() + path.len());
+  uri.push_str(prefix);
+  for (index, byte) in path.bytes().enumerate() {
     match byte {
+      b':' if is_windows_drive_absolute && index == 1 => uri.push(':'),
       b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' | b'/' => {
         uri.push(byte as char)
       }
-      b if char::from(b) == std::path::MAIN_SEPARATOR => uri.push('/'),
+      b if char::from(b) == separator => uri.push('/'),
       b => uri.push_str(&format!("%{b:02X}")),
     }
   }
@@ -538,6 +557,22 @@ severity: error
     assert_eq!(
       location.artifact_location.as_ref().unwrap().uri.as_deref(),
       Some("dir%20one/100%25%23a%3Fb%20%C3%A9.ts")
+    );
+  }
+
+  #[test]
+  fn test_windows_drive_absolute_path_is_file_uri() {
+    assert_eq!(
+      path_to_sarif_uri_with_separator(r"C:\work dir\100%.ts", '\\'),
+      "file:///C:/work%20dir/100%25.ts"
+    );
+    assert_eq!(
+      path_to_sarif_uri_with_separator(r"C:work dir\100%.ts", '\\'),
+      "C%3Awork%20dir/100%25.ts"
+    );
+    assert_eq!(
+      path_to_sarif_uri_with_separator(r"C:\work dir\100%.ts", '/'),
+      "C%3A%5Cwork%20dir%5C100%25.ts"
     );
   }
 }
