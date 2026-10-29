@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use ast_grep_config::{
   DeserializeEnv, GlobalRules, RuleCollection, RuleConfig, from_str, from_yaml_string,
 };
-use ast_grep_language::config_file_type;
+use ast_grep_language::{SupportLang, config_file_type};
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 
@@ -47,6 +47,9 @@ pub struct AstGrepConfig {
   /// configuration for custom languages
   #[serde(skip_serializing_if = "Option::is_none")]
   pub custom_languages: Option<HashMap<String, CustomLang>>,
+  /// additional outline rule files for built-in languages, relative to the project
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub outline_rules: Option<HashMap<SupportLang, PathBuf>>,
   /// additional file globs for languages
   #[serde(skip_serializing_if = "Option::is_none")]
   pub language_globs: Option<LanguageGlobs>,
@@ -63,7 +66,7 @@ pub struct ProjectConfig {
   pub project_dir: PathBuf,
   /// YAML rule directories
   pub rule_dirs: Vec<PathBuf>,
-  /// YAML outline rule files configured by custom languages
+  /// YAML outline rule files configured by the project and custom languages
   pub outline_rules: Vec<PathBuf>,
   /// test configurations
   pub test_configs: Option<Vec<TestConfig>>,
@@ -109,11 +112,19 @@ impl ProjectConfig {
     let Some((project_dir, mut sg_config)) = Self::discover_project(config_path)? else {
       return Ok(Err(anyhow::anyhow!(EC::ProjectNotExist)));
     };
-    let outline_rules = if custom_languages == CustomLanguageAction::Load {
+    let mut outline_rules = if custom_languages == CustomLanguageAction::Load {
       custom_language_outline_rules(&project_dir, sg_config.custom_languages.as_ref())
     } else {
       vec![]
     };
+    if let Some(project_rules) = &sg_config.outline_rules {
+      let mut paths: Vec<_> = project_rules
+        .values()
+        .map(|path| project_dir.join(path))
+        .collect();
+      paths.sort();
+      outline_rules.extend(paths);
+    }
     let config = ProjectConfig {
       project_dir,
       rule_dirs: std::mem::take(&mut sg_config.rule_dirs),
@@ -335,6 +346,27 @@ mod tests {
   use tempfile::TempDir;
 
   #[test]
+  fn project_outline_rules_accept_builtin_language_aliases() {
+    let config: AstGrepConfig =
+      from_str("outlineRules:\n  js: javascript.yml\n  md: markdown.yml\n")
+        .expect("built-in language aliases should parse");
+    let rules = config.outline_rules.expect("outline rules should exist");
+    assert_eq!(
+      rules[&SupportLang::JavaScript],
+      PathBuf::from("javascript.yml")
+    );
+    assert_eq!(rules[&SupportLang::Markdown], PathBuf::from("markdown.yml"));
+    assert!(from_str::<AstGrepConfig>("outlineRules:\n  unknown: rules.yml\n").is_err());
+
+    let config: AstGrepConfig =
+      from_str("outlineRules:\n  js: first.yml\n  javascript: last.yml\n")
+        .expect("aliases should normalize to the same language");
+    let rules = config.outline_rules.unwrap();
+    assert_eq!(rules.len(), 1);
+    assert_eq!(rules[&SupportLang::JavaScript], PathBuf::from("last.yml"));
+  }
+
+  #[test]
   fn custom_language_outline_rules_are_project_relative() {
     let config: AstGrepConfig = from_str(
       r#"
@@ -351,6 +383,70 @@ customLanguages:
       custom_language_outline_rules(Path::new("/project"), config.custom_languages.as_ref());
 
     assert_eq!(paths, vec![PathBuf::from("/project/outline/blade.yml")]);
+  }
+
+  #[test]
+  fn project_outline_rules_match_builtin_aliases() {
+    let parse_key = |key: &str| {
+      let quoted = serde_json::to_string(key)
+        .unwrap()
+        .replace('\u{85}', "\\u0085")
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029");
+      let input = format!("outlineRules:\n  {quoted}: rules.yml\n");
+      let decoded: serde_json::Value = from_str(&input).unwrap();
+      assert_eq!(
+        decoded["outlineRules"]
+          .as_object()
+          .unwrap()
+          .keys()
+          .next()
+          .unwrap(),
+        key
+      );
+      from_str::<AstGrepConfig>(&input)
+    };
+    for language in SupportLang::all_langs() {
+      for alias in language.aliases() {
+        for mask in 0..(1 << alias.len()) {
+          let key: String = alias
+            .bytes()
+            .enumerate()
+            .map(|(index, byte)| {
+              char::from(if mask & (1 << index) == 0 {
+                byte
+              } else {
+                byte.to_ascii_uppercase()
+              })
+            })
+            .collect();
+          let config = parse_key(&key).expect("built-in aliases should parse in any ASCII case");
+          assert_eq!(
+            config.outline_rules.unwrap()[language],
+            PathBuf::from("rules.yml")
+          );
+        }
+      }
+    }
+    for key in [
+      "",
+      "unknown",
+      "custom",
+      "c+",
+      "c+++",
+      "C#",
+      "js ",
+      " js",
+      "js\n",
+      "js\r\n",
+      "js\0",
+      "ruſt",
+      "js\u{85}",
+      "js\u{2028}",
+      "js\u{2029}",
+    ] {
+      assert!(parse_key(key).is_err(), "{key:?}");
+    }
   }
 
   /// Verifies that configured ignore-file types deserialize in order.
