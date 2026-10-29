@@ -61,7 +61,7 @@ jobs:
         uses: actions/setup-node@v7
         if: ${{ !matrix.settings.docker }}
         with:
-          node-version: 26
+          node-version: 24
           cache: yarn
           cache-dependency-path: ./crates/napi/yarn.lock
       - name: Install
@@ -119,7 +119,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v7
         with:
-          node-version: 26
+          node-version: 24
           check-latest: true
           cache: yarn
           cache-dependency-path: ./crates/napi/yarn.lock
