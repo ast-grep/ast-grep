@@ -1,9 +1,10 @@
 use crate::print::Printer;
-use crate::utils::FileTrace;
+use crate::utils::{FileTrace, TraceInfo};
 
 use anyhow::{Result, anyhow};
 use ignore::{DirEntry, WalkParallel, WalkState};
 
+use std::io::Stderr;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -30,10 +31,12 @@ pub trait Worker: Sync + Send {
 /// Then every file is parsed and filtered in `produce_item`.
 /// Finally, `produce_item` will send `Item` to the consumer thread.
 pub trait PathWorker: Worker {
+  /// Trace data recorded by the worker, e.g. file counts.
+  type Trace: AsRef<FileTrace>;
   /// WalkParallel will determine what files will be processed.
   fn build_walk(&self) -> Result<WalkParallel>;
   /// Record trace for the worker.
-  fn get_trace(&self) -> &FileTrace;
+  fn get_trace(&self) -> &TraceInfo<Self::Trace, Stderr>;
   /// Parse and find_match can be done in `produce_item`.
   fn produce_item<P: Printer>(
     &self,
@@ -137,9 +140,12 @@ fn run_worker<W: PathWorker + ?Sized + 'static, P: Printer>(
         };
         let stats = w.get_trace();
         stats.add_scanned();
-        let Ok(items) = w.produce_item::<P>(&p, processor) else {
-          stats.add_skipped();
-          return WalkState::Continue;
+        let items = match w.produce_item::<P>(&p, processor) {
+          Ok(items) => items,
+          Err(err) => {
+            _ = stats.add_skipped(&p, &err);
+            return WalkState::Continue;
+          }
         };
         for result in items {
           match tx.send(result) {

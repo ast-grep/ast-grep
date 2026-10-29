@@ -10,6 +10,7 @@
 //!   * rules skipped (dues to ignore/files)
 //! - Detail level: show how a rule runs on a file
 
+use super::{EmptyFile, FileTooLarge};
 use crate::config::ProjectConfig;
 use crate::lang::SgLang;
 use ast_grep_config::{RuleCollection, RuleConfig};
@@ -18,7 +19,7 @@ use anyhow::Result;
 use clap::ValueEnum;
 
 use std::fmt;
-use std::io::{Stderr, Write};
+use std::io::{self, Stderr, Write};
 use std::path::Path;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -89,11 +90,17 @@ pub struct FileTrace {
 }
 
 impl FileTrace {
-  pub fn add_scanned(&self) {
+  fn add_scanned(&self) {
     self.files_scanned.fetch_add(1, Ordering::AcqRel);
   }
-  pub fn add_skipped(&self) {
+  fn add_skipped(&self) {
     self.files_skipped.fetch_add(1, Ordering::AcqRel);
+  }
+}
+
+impl AsRef<FileTrace> for FileTrace {
+  fn as_ref(&self) -> &FileTrace {
+    self
   }
 }
 
@@ -149,6 +156,37 @@ impl<T, W: Write + Sync> TraceInfo<T, W> {
       write!(w, "scannedFileCount={scanned},skippedFileCount={skipped}")?;
       Ok(())
     })
+  }
+}
+
+impl<T: AsRef<FileTrace>, W: Write + Sync> TraceInfo<T, W> {
+  pub fn add_scanned(&self) {
+    self.inner.as_ref().add_scanned();
+  }
+
+  pub fn add_skipped(&self, path: &Path, err: &anyhow::Error) -> Result<()> {
+    self.inner.as_ref().add_skipped();
+    self.print_entity("file", path.display(), |w| {
+      write!(w, "skipped={}", skip_reason(err))?;
+      Ok(())
+    })
+  }
+}
+
+fn skip_reason(err: &anyhow::Error) -> &'static str {
+  if err.is::<EmptyFile>() {
+    "emptyFile"
+  } else if err.is::<FileTooLarge>() {
+    "fileTooLarge"
+  } else if let Some(e) = err.downcast_ref::<io::Error>() {
+    // read_to_string reports invalid UTF-8 as InvalidData
+    if e.kind() == io::ErrorKind::InvalidData {
+      "invalidUtf8"
+    } else {
+      "ioError"
+    }
+  } else {
+    "error"
   }
 }
 
@@ -225,6 +263,12 @@ pub struct RuleTrace {
   pub file_trace: FileTrace,
   pub effective_rule_count: usize,
   pub skipped_rule_count: usize,
+}
+
+impl AsRef<FileTrace> for RuleTrace {
+  fn as_ref(&self) -> &FileTrace {
+    &self.file_trace
+  }
 }
 
 pub type ProjectTrace = TraceInfo<(), Stderr>;

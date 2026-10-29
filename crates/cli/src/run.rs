@@ -253,11 +253,12 @@ impl Worker for RunWithInferredLang {
 }
 
 impl PathWorker for RunWithInferredLang {
+  type Trace = FileTrace;
   fn build_walk(&self) -> Result<WalkParallel> {
     self.arg.input.walk()
   }
-  fn get_trace(&self) -> &FileTrace {
-    &self.trace.inner
+  fn get_trace(&self) -> &RunTrace {
+    &self.trace
   }
 
   fn produce_item<P: Printer>(
@@ -268,7 +269,6 @@ impl PathWorker for RunWithInferredLang {
     let Some(lang) = SgLang::from_path(path) else {
       return Ok(vec![]);
     };
-    self.trace.print_file(path, lang)?;
     let matcher = self.arg.build_matcher(lang)?;
     // match sub region
     let sub_langs = lang.injectable_sg_langs().into_iter().flatten();
@@ -280,6 +280,7 @@ impl PathWorker for RunWithInferredLang {
       .collect::<Vec<_>>();
 
     let items = filter_file_pattern(path, lang, Some(&matcher), &sub_matchers)?;
+    self.trace.print_file(path, lang)?;
     let mut ret = Vec::with_capacity(items.len());
     let rewrite_str = self.arg.rewrite.as_ref();
 
@@ -354,12 +355,13 @@ impl Worker for RunWithSpecificLang {
 }
 
 impl PathWorker for RunWithSpecificLang {
+  type Trace = FileTrace;
   fn build_walk(&self) -> Result<WalkParallel> {
     let lang = self.arg.lang.expect("must present");
     self.arg.input.walk_lang(lang)
   }
-  fn get_trace(&self) -> &FileTrace {
-    &self.stats.inner
+  fn get_trace(&self) -> &RunTrace {
+    &self.stats
   }
   fn produce_item<P: Printer>(
     &self,
@@ -372,7 +374,6 @@ impl PathWorker for RunWithSpecificLang {
     let Some(path_lang) = SgLang::from_path(path) else {
       return Ok(vec![]);
     };
-    self.stats.print_file(path, path_lang)?;
     let (root_matcher, sub_matchers) = if path_lang == lang {
       (Some(pattern), vec![])
     } else {
@@ -381,6 +382,7 @@ impl PathWorker for RunWithSpecificLang {
       (None, vec![(lang, rule)])
     };
     let filtered = filter_file_pattern(path, path_lang, root_matcher, &sub_matchers)?;
+    self.stats.print_file(path, path_lang)?;
     let mut ret = Vec::with_capacity(filtered.len());
     for unit in filtered {
       let Some(processed) = match_one_file(processor, &unit, &self.rewrite)? else {
