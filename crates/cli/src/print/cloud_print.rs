@@ -216,6 +216,7 @@ fn print_github_rule<W: Write>(
 /// Converts a file path to a SARIF URI reference (RFC 3986), emitting a
 /// `file:///` URI for absolute Windows drive paths and encoding reserved bytes.
 fn path_to_sarif_uri(path: &str) -> String {
+  // SARIF/serde-sarif cannot convert file paths to URI references, so we do it here.
   path_to_sarif_uri_with_separator(path, std::path::MAIN_SEPARATOR)
 }
 
