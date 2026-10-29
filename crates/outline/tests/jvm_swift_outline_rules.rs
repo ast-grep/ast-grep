@@ -172,12 +172,147 @@ enum Protocol { HTTP_1_1 }
 - Interface item exported AnnotatedApi
   - Method public reordered
 - Class item exported RealInterceptorChain
+  - Field private index
   - Field public publicFinalField
   - Field private packagePrivateFinalField
   - Constructor public RealInterceptorChain
   - Method public proceed
   - Method private exchange
 - Enum item private Protocol
+  - EnumMember public HTTP_1_1
+"#,
+  );
+}
+
+#[test]
+fn java_rules_parse_and_extract_enum_members() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+enum Colors {
+  RED,
+  GREEN;
+}
+
+enum Empty {}
+"#,
+    r#"
+- Enum item private Colors
+  - EnumMember public RED
+  - EnumMember public GREEN
+- Enum item private Empty
+"#,
+  );
+}
+
+#[test]
+fn java_rules_parse_and_extract_module_declaration() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+module com.example {
+  requires java.base;
+}
+"#,
+    r#"
+- Module item exported com.example
+"#,
+  );
+}
+
+#[test]
+fn java_rules_parse_wildcard_imports() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+package okhttp3;
+
+import java.util.*;
+import static java.util.Map.*;
+import java.*;
+import static java.lang.*;
+import okhttp3.Request;
+import static java.util.Collections.emptyList;
+
+class Client {}
+"#,
+    r#"
+- Module import private java.util.*
+- Module import private java.util.Map.*
+- Module import private java.*
+- Module import private java.lang.*
+- Module import private okhttp3.Request
+- Module import private java.util.Collections.emptyList
+- Class item private Client
+"#,
+  );
+}
+
+#[test]
+fn java_member_visibility_is_reported_for_every_member() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+class C {
+  private int privateField;
+  protected int protectedField;
+  int packagePrivateField;
+  public int publicField;
+  private void privateMethod() {}
+  protected void protectedMethod() {}
+  void packagePrivateMethod() {}
+  public void publicMethod() {}
+  private C() {}
+  C(int value) {}
+  public C(int value, int other) {}
+}
+"#,
+    r#"
+- Class item private C
+  - Field private privateField
+  - Field private protectedField
+  - Field private packagePrivateField
+  - Field public publicField
+  - Method private privateMethod
+  - Method private protectedMethod
+  - Method private packagePrivateMethod
+  - Method public publicMethod
+  - Constructor private C
+  - Constructor private C
+  - Constructor public C
+"#,
+  );
+}
+
+#[test]
+fn java_rules_parse_and_extract_annotation_types() {
+  const RULES: &str = include_str!("../src/default_rules/java.yml");
+  common::assert_outline_snapshot(
+    SupportLang::Java,
+    RULES,
+    r#"
+public @interface Marker {}
+
+@interface Config {
+  String value();
+  @interface Nested { boolean leaked(); }
+  class Helper { @interface Deeper { int leaked(); } }
+  int count() default 0;
+}
+"#,
+    r#"
+- Interface item exported Marker
+- Interface item private Config
+  - Method public value
+  - Method public count
 "#,
   );
 }

@@ -1,6 +1,6 @@
 use crate::custom_language::CustomLanguageAction;
 use crate::lang::{CustomLang, LanguageGlobs, SerializableInjection, SgLang};
-use crate::utils::{ErrorContext as EC, RuleOverwrite, RuleTrace};
+use crate::utils::{ErrorContext as EC, IgnoreFile, RuleOverwrite, RuleTrace};
 
 use anyhow::{Context, Result};
 use ast_grep_config::{
@@ -56,6 +56,9 @@ pub struct AstGrepConfig {
   /// injection config for embedded languages
   #[serde(default, skip_serializing_if = "Vec::is_empty")]
   pub language_injections: Vec<SerializableInjection>,
+  /// ignore file types to disregard when searching
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub no_ignore: Option<Vec<IgnoreFile>>,
 }
 
 #[derive(Clone)]
@@ -69,6 +72,8 @@ pub struct ProjectConfig {
   pub test_configs: Option<Vec<TestConfig>>,
   /// util rules directories
   pub util_dirs: Option<Vec<PathBuf>>,
+  /// ignore file types to disregard when searching
+  pub no_ignore: Option<Vec<IgnoreFile>>,
 }
 
 impl ProjectConfig {
@@ -79,6 +84,7 @@ impl ProjectConfig {
     let Some(config_path) = config_path else {
       return Ok(None);
     };
+    let config_path = config_path.canonicalize().context(EC::ReadConfiguration)?;
     let config_str = read_to_string(&config_path).context(EC::ReadConfiguration)?;
     let sg_config: AstGrepConfig = from_str(&config_str).context(EC::ParseConfiguration)?;
     let project_dir = config_path
@@ -125,6 +131,7 @@ impl ProjectConfig {
       outline_rules,
       test_configs: sg_config.test_configs.take(),
       util_dirs: sg_config.util_dirs.take(),
+      no_ignore: sg_config.no_ignore.take(),
     };
     // sg_config will not use rule dirs and test configs anymore
     register_custom_language(&config.project_dir, sg_config, custom_languages)?;
@@ -309,7 +316,9 @@ const CONFIG_FILE_YML: &str = "sgconfig.yml";
 const CONFIG_FILE_YAML: &str = "sgconfig.yaml";
 
 /// return None if config file does not exist
-fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<Option<PathBuf>> {
+pub(crate) fn find_config_path_with_default(
+  config_path: Option<PathBuf>,
+) -> Result<Option<PathBuf>> {
   if config_path.is_some() {
     return Ok(config_path);
   }
@@ -333,6 +342,8 @@ fn find_config_path_with_default(config_path: Option<PathBuf>) -> Result<Option<
 #[cfg(test)]
 mod tests {
   use super::*;
+  use std::fs;
+  use tempfile::TempDir;
 
   #[test]
   fn project_outline_rules_accept_builtin_language_aliases() {
@@ -372,5 +383,49 @@ customLanguages:
       custom_language_outline_rules(Path::new("/project"), config.custom_languages.as_ref());
 
     assert_eq!(paths, vec![PathBuf::from("/project/outline/blade.yml")]);
+  }
+
+  /// Verifies that configured ignore-file types deserialize in order.
+  #[test]
+  fn deserialize_no_ignore() {
+    let config: AstGrepConfig = from_str(
+      r#"
+ruleDirs: []
+noIgnore: [hidden, vcs]
+"#,
+    )
+    .expect("config should parse");
+
+    assert!(matches!(
+      config.no_ignore.as_deref(),
+      Some([IgnoreFile::Hidden, IgnoreFile::Vcs])
+    ));
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn symlinked_config_uses_canonical_project_directory() {
+    use std::os::unix::fs::symlink;
+
+    let root = TempDir::new().expect("temporary directory should be created");
+    let project = root.path().join("project");
+    let links = root.path().join("links");
+    fs::create_dir_all(&project).expect("project directory should be created");
+    fs::create_dir_all(&links).expect("link directory should be created");
+    let config = project.join("sgconfig.yml");
+    fs::write(&config, "ruleDirs: []\n").expect("configuration should be written");
+    let linked_config = links.join("sgconfig.yml");
+    symlink(&config, &linked_config).expect("configuration symlink should be created");
+
+    let (project_dir, _) = ProjectConfig::discover_project(Some(linked_config))
+      .expect("configuration should be discovered")
+      .expect("project should exist");
+
+    assert_eq!(
+      project_dir,
+      project
+        .canonicalize()
+        .expect("project directory should be canonicalized")
+    );
   }
 }

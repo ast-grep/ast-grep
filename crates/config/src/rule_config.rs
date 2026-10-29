@@ -15,8 +15,7 @@ use ast_grep_core::{Doc, Matcher, NodeMatch};
 
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize};
-use serde_yaml::Error as YamlError;
-use serde_yaml::{Deserializer, with::singleton_map_recursive::deserialize};
+use serde_saphyr::Error as YamlError;
 use thiserror::Error;
 
 use std::borrow::Cow;
@@ -59,7 +58,7 @@ impl FromStr for Severity {
 #[derive(Debug, Error)]
 pub enum RuleConfigError {
   #[error("Fail to parse yaml as RuleConfig")]
-  Yaml(#[from] YamlError),
+  Yaml(#[from] Box<YamlError>),
   #[error("Fail to parse yaml as Rule.")]
   Core(#[from] RuleCoreError),
   #[error("`fix` pattern is invalid.")]
@@ -72,6 +71,12 @@ pub enum RuleConfigError {
   LabelVariable(String),
   #[error("Rule must specify a set of AST kinds to match. Try adding `kind` rule.")]
   MissingPotentialKinds,
+}
+
+impl From<YamlError> for RuleConfigError {
+  fn from(error: YamlError) -> Self {
+    Self::Yaml(Box::new(error))
+  }
 }
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
@@ -111,7 +116,62 @@ pub struct SerializableRuleConfig<L: Language> {
   pub url: Option<String>,
   /// Extra information for the rule
   pub metadata: Option<Metadata>,
+  /// Rejects keys that no other field consumed. Must stay the last flattened field.
+  #[serde(flatten)]
+  #[schemars(skip)]
+  pub unknown_keys: DenyUnknownKeys,
 }
+
+/// Fields accepted at the top level of a rule, used in the unknown key error message.
+const RULE_CONFIG_FIELDS: &[&str] = &[
+  "id",
+  "language",
+  "rule",
+  "constraints",
+  "utils",
+  "transform",
+  "fix",
+  "rewriters",
+  "message",
+  "note",
+  "severity",
+  "labels",
+  "files",
+  "ignores",
+  "url",
+  "metadata",
+];
+
+/// Marker that fails deserialization if any key is left over.
+///
+/// serde does not support `deny_unknown_fields` together with `flatten`, which
+/// `SerializableRuleConfig` uses for `core`. When flattened after all other fields,
+/// this receives only the keys none of them consumed.
+#[derive(Serialize, Clone, Copy, Debug, Default)]
+pub struct DenyUnknownKeys;
+
+impl<'de> Deserialize<'de> for DenyUnknownKeys {
+  fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+    struct UnknownKeysVisitor;
+    impl<'de> serde::de::Visitor<'de> for UnknownKeysVisitor {
+      type Value = DenyUnknownKeys;
+      fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("no unknown keys")
+      }
+      fn visit_map<A: serde::de::MapAccess<'de>>(
+        self,
+        mut map: A,
+      ) -> Result<Self::Value, A::Error> {
+        match map.next_key::<String>()? {
+          Some(key) => Err(serde::de::Error::unknown_field(&key, RULE_CONFIG_FIELDS)),
+          None => Ok(DenyUnknownKeys),
+        }
+      }
+    }
+    deserializer.deserialize_map(UnknownKeysVisitor)
+  }
+}
+
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(untagged)]
 pub enum RuleFileGlob {
@@ -127,10 +187,9 @@ pub enum RuleFileGlob {
   },
 }
 
-/// A trivial wrapper around a HashMap to work around
-/// the limitation of `serde_yaml::Value` not implementing `JsonSchema`.
+/// Arbitrary YAML metadata, including non-string mapping keys and non-finite numbers.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct Metadata(HashMap<String, serde_yaml::Value>);
+pub struct Metadata(HashMap<String, serde_value::Value>);
 
 impl JsonSchema for Metadata {
   fn schema_name() -> Cow<'static, str> {
@@ -235,14 +294,15 @@ impl<L: Language> RuleConfig<L> {
     })
   }
 
-  pub fn deserialize<'de>(
-    deserializer: Deserializer<'de>,
+  pub fn deserialize<'de, D>(
+    deserializer: D,
     globals: &GlobalRules,
   ) -> Result<Self, RuleConfigError>
   where
     L: Deserialize<'de>,
+    D: serde::Deserializer<'de, Error = YamlError>,
   {
-    let inner: SerializableRuleConfig<L> = deserialize(deserializer)?;
+    let inner = SerializableRuleConfig::deserialize(deserializer)?;
     Self::try_from(inner, globals)
   }
 
@@ -315,6 +375,7 @@ mod test {
       ignores: None,
       url: None,
       metadata: None,
+      unknown_keys: DenyUnknownKeys,
     }
   }
 
@@ -887,6 +948,76 @@ metadata:
     let grep = TypeScript::Tsx.ast_grep("a = '123'");
     let nm = grep.root().find(&rule.matcher);
     assert!(nm.is_some());
+  }
+
+  #[test]
+  fn test_yaml_metadata_round_trip() {
+    use serde_value::Value;
+    let config: SerializableRuleConfig<TypeScript> = from_str(
+      r"
+id: metadata
+language: Tsx
+rule: {pattern: foo}
+metadata:
+  values: [null, true, -1, 18446744073709551615, .inf, -.inf, .nan]
+  mapping: {[a, b]: value}
+",
+    )
+    .expect("YAML metadata should retain non-JSON values");
+    let metadata = config.metadata.as_ref().unwrap();
+    let Value::Seq(values) = &metadata.0["values"] else {
+      panic!("metadata should contain a sequence");
+    };
+    assert_eq!(values[0], Value::Unit);
+    assert_eq!(values[1], Value::Bool(true));
+    assert_eq!(values[2], Value::I64(-1));
+    assert_eq!(values[3], Value::U64(u64::MAX));
+    assert_eq!(values[4], Value::F64(f64::INFINITY));
+    assert_eq!(values[5], Value::F64(f64::NEG_INFINITY));
+    assert!(matches!(values[6], Value::F64(f) if f.is_nan()));
+    let Value::Map(mapping) = &metadata.0["mapping"] else {
+      panic!("metadata should contain a mapping");
+    };
+    let key = Value::Seq(vec![Value::String("a".into()), Value::String("b".into())]);
+    assert_eq!(mapping[&key], Value::String("value".into()));
+    let yaml = serde_saphyr::to_string(&config).unwrap();
+    let round_trip: SerializableRuleConfig<TypeScript> = from_str(&yaml).unwrap();
+    assert_eq!(metadata.0, round_trip.metadata.unwrap().0);
+  }
+
+  #[test]
+  fn test_yaml_metadata_rejects_duplicate_keys_and_unknown_tags() {
+    assert!(from_str::<Metadata>("value: {key: 1, key: 2}").is_err());
+    assert!(from_str::<Metadata>("value: !Custom hello").is_err());
+    assert!(from_str::<Metadata>("value: {nested: !Custom hello}").is_err());
+  }
+
+  #[test]
+  fn test_reject_unknown_top_level_key() {
+    // test #2963: a misspelled key such as `ignore` must not be silently dropped
+    let src = r"
+id: test-rule
+language: Tsx
+rule: { pattern: foo() }
+ignore: ['**/*.test.ts']
+";
+    let Err(err) = from_str::<SerializableRuleConfig<TypeScript>>(src) else {
+      panic!("unknown key `ignore` should be rejected");
+    };
+    let err = err.to_string();
+    assert!(err.contains("unknown field `ignore`"), "{err}");
+    assert!(err.contains("ignores"), "{err}");
+    // keys of the flattened rule core are still accepted
+    let src = r"
+id: test-rule
+language: Tsx
+rule: { pattern: foo() }
+constraints: {}
+utils: {}
+transform: {}
+ignores: ['**/*.test.ts']
+";
+    assert!(from_str::<SerializableRuleConfig<TypeScript>>(src).is_ok());
   }
 
   #[test]

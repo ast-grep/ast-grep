@@ -2,7 +2,7 @@ use crate::utils::{DiffStyles, prompt, run_in_alternate_screen};
 
 use ansi_term::{Color, Style};
 use anyhow::Result;
-use serde_yaml::to_string;
+use serde_saphyr::to_string;
 
 use std::io::Write;
 

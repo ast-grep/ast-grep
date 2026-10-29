@@ -131,7 +131,10 @@ pub struct OutlineArg {
   input: InputArgs,
 }
 
-pub fn run_outline(arg: OutlineArg, project: Result<ProjectConfig>) -> Result<ExitCode> {
+pub fn run_outline(mut arg: OutlineArg, project: Result<ProjectConfig>) -> Result<ExitCode> {
+  if let Ok(config) = &project {
+    arg.input.apply_config(config);
+  }
   let config_outline_rules = project
     .as_ref()
     .map(|project| project.outline_rules.as_slice())

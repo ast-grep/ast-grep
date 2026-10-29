@@ -42,7 +42,7 @@ fn to_registration(
   let lib_path = match custom_lang.library_path {
     LibraryPath::Single(path) => path,
     LibraryPath::Platform(mut map) => {
-      let target = target_triple::TARGET;
+      let target = target_tuple::TARGET;
       map
         .remove(target)
         .ok_or(DynamicLangError::NotConfigured(target))?
@@ -65,7 +65,7 @@ fn to_registration(
 #[cfg(test)]
 mod test {
   use super::*;
-  use serde_yaml::from_str;
+  use serde_saphyr::from_str;
 
   #[test]
   fn test_custom_lang() {
@@ -111,7 +111,7 @@ extensions: [d, e, f]";
     let reg = to_registration("test_lang".to_string(), cus, Path::new("."));
     assert!(matches!(
       reg,
-      Err(DynamicLangError::NotConfigured(target_triple::TARGET))
+      Err(DynamicLangError::NotConfigured(target_tuple::TARGET))
     ));
   }
 }

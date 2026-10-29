@@ -222,10 +222,11 @@ fn create_new_project(arg: NewArg, project_dir: &Path) -> Result<ExitCode> {
     outline_rules: None,         // advanced feature, skip now
     language_globs: None,        // advanced feature, skip now
     language_injections: vec![], // advanced feature
+    no_ignore: None,
   };
   let config_path = project_dir.join("sgconfig.yml");
-  let f = File::create(config_path)?;
-  serde_yaml::to_writer(f, &root_config)?;
+  let mut f = File::create(config_path)?;
+  serde_saphyr::to_io_writer(&mut f, &root_config)?;
   println!("Your new ast-grep project has been created!");
   Ok(ExitCode::SUCCESS)
 }

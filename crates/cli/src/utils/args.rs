@@ -1,3 +1,4 @@
+use crate::config::ProjectConfig;
 use crate::lang::SgLang;
 use crate::print::{ColorArg, JsonStyle};
 use crate::utils::ErrorContext as EC;
@@ -63,6 +64,13 @@ pub struct InputArgs {
 }
 
 impl InputArgs {
+  /// Apply project defaults while preserving explicit command-line options.
+  pub fn apply_config(&mut self, config: &ProjectConfig) {
+    if self.no_ignore.is_empty() {
+      self.no_ignore = config.no_ignore.clone().unwrap_or_default();
+    }
+  }
+
   fn get_threads(&self) -> usize {
     if self.threads == 0 {
       std::thread::available_parallelism()
@@ -228,6 +236,7 @@ impl ContextArgs {
 
 /// File types to ignore, this is mostly the same as ripgrep.
 #[derive(Clone, Copy, Deserialize, Serialize, ValueEnum)]
+#[serde(rename_all = "camelCase")]
 pub enum IgnoreFile {
   /// Search hidden files and directories. By default, hidden files and directories are skipped.
   Hidden,

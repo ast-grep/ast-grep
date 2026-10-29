@@ -6,8 +6,8 @@
 //! `Outline*Rule` types, not on serde defaults or config parsing details.
 
 use ast_grep_config::{
-  GlobalRules, Rule, RuleConfig, RuleConfigError, RuleSerializeError, SerializableRewriter,
-  SerializableRule, SerializableRuleConfig, SerializableRuleCore, Severity,
+  DenyUnknownKeys, GlobalRules, Rule, RuleConfig, RuleConfigError, RuleSerializeError,
+  SerializableRewriter, SerializableRule, SerializableRuleConfig, SerializableRuleCore, Severity,
 };
 use ast_grep_core::{
   Doc, Language, Node, NodeMatch,
@@ -16,7 +16,7 @@ use ast_grep_core::{
   source::Content,
 };
 use serde::{Deserialize, Serialize};
-use serde_yaml::{Deserializer, Error as YamlError, with::singleton_map_recursive::deserialize};
+use serde_saphyr::Error as YamlError;
 use std::borrow::Cow;
 use thiserror::Error;
 
@@ -86,6 +86,7 @@ impl<L: Language> SerializableOutlineCommon<L> {
       ignores: None,
       url: None,
       metadata: None,
+      unknown_keys: DenyUnknownKeys,
     }
   }
 }
@@ -426,7 +427,7 @@ pub fn parse_outline_rules<'a, L>(
 where
   L: Deserialize<'a>,
 {
-  Deserializer::from_str(src).map(deserialize).collect()
+  ast_grep_config::from_multiple(src)
 }
 
 #[cfg(test)]

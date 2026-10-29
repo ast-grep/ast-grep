@@ -125,6 +125,26 @@ fn test_sg_rule_off() -> Result<()> {
   Ok(())
 }
 
+/// Verifies that scan honors project-configured hidden-file searches.
+#[test]
+fn test_no_ignore_from_config() -> Result<()> {
+  let dir = create_test_files([
+    (
+      "sgconfig.yml",
+      "ruleDirs:\n  - rules\nnoIgnore:\n  - hidden\n",
+    ),
+    ("rules/on-rule.yml", RULE1),
+    (".hidden.ts", "Some(123)"),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["scan"])
+    .assert()
+    .success()
+    .stdout(contains("on-rule"));
+  Ok(())
+}
+
 #[test]
 fn test_sg_scan_update_all_reports_unfixable_rules() -> Result<()> {
   let dir = create_test_files([
@@ -150,6 +170,94 @@ fn test_sg_scan_update_all_reports_unfixable_rules() -> Result<()> {
     .stderr(contains("Applied 1 changes"));
   let updated = std::fs::read_to_string(dir.path().join("test.js"))?;
   assert_eq!(updated, "let x = 1;\nconsole.log(x);\n");
+  Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn test_sg_scan_update_all_preserves_permissions() -> Result<()> {
+  use std::os::unix::fs::PermissionsExt;
+
+  let dir = create_test_files([
+    ("rules/no-var.yml", FIXABLE_JS_RULE),
+    ("test.js", "var x = 1;\n"),
+  ])?;
+  let path = dir.path().join("test.js");
+  std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o751))?;
+  let mode = std::fs::metadata(&path)?.permissions().mode();
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "scan",
+      "--rule",
+      "rules/no-var.yml",
+      "--update-all",
+      "test.js",
+    ])
+    .assert()
+    .success();
+  assert_eq!(std::fs::read_to_string(&path)?, "let x = 1;\n");
+  assert_eq!(std::fs::metadata(&path)?.permissions().mode(), mode);
+  Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn test_sg_scan_update_all_rejects_read_only_file() -> Result<()> {
+  use std::os::unix::fs::PermissionsExt;
+
+  let dir = create_test_files([
+    ("rules/no-var.yml", FIXABLE_JS_RULE),
+    ("test.js", "var x = 1;\n"),
+  ])?;
+  let path = dir.path().join("test.js");
+  std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o444))?;
+  // Privileged users can still write read-only files, just as with std::fs::write.
+  if std::fs::OpenOptions::new().write(true).open(&path).is_ok() {
+    return Ok(());
+  }
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "scan",
+      "--rule",
+      "rules/no-var.yml",
+      "--update-all",
+      "test.js",
+    ])
+    .assert()
+    .failure()
+    .stderr(contains("Cannot rewrite file test.js"));
+  assert_eq!(std::fs::read_to_string(&path)?, "var x = 1;\n");
+  assert_eq!(
+    std::fs::metadata(&path)?.permissions().mode() & 0o777,
+    0o444
+  );
+  Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn test_sg_scan_update_all_preserves_file_when_write_fails() -> Result<()> {
+  let dir = create_test_files([
+    ("rules/no-var.yml", FIXABLE_JS_RULE),
+    ("test.js", "var x = 1;\n"),
+  ])?;
+  Command::new("/bin/sh")
+    .args(["-c", "ulimit -f 0; exec \"$@\"", "sh"])
+    .arg(cargo_bin!())
+    .args([
+      "scan",
+      "--rule",
+      "rules/no-var.yml",
+      "--update-all",
+      "test.js",
+    ])
+    .current_dir(dir.path())
+    .assert()
+    .failure();
+  let updated = std::fs::read_to_string(dir.path().join("test.js"))?;
+  assert_eq!(updated, "var x = 1;\n");
   Ok(())
 }
 
@@ -717,7 +825,7 @@ fn test_sg_scan_sarif_output() -> Result<()> {
     .args(["scan", "--format", "sarif"])
     .assert()
     .success()
-    .stdout(contains("\"version\""))
+    .stdout(contains("\"version\": \"2.1.0\""))
     .stdout(contains("\"runs\""))
     .stdout(contains("\"results\""))
     .stdout(contains("\"ruleId\": \"on-rule\""))

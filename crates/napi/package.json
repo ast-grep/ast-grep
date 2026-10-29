@@ -1,6 +1,6 @@
 {
   "name": "@ast-grep/napi",
-  "version": "0.45.3",
+  "version": "0.51.0",
   "description": "Search and Rewrite code at large scale using precise AST pattern",
   "homepage": "https://ast-grep.github.io",
   "main": "index.js",
@@ -54,14 +54,14 @@
     "typegen": "tsimp scripts/generateTypes.ts"
   },
   "devDependencies": {
-    "@ast-grep/napi": "0.45.3",
-    "@napi-rs/cli": "3.8.6",
-    "@types/node": "^24.0.0",
-    "oxlint": "1.82.0",
+    "@ast-grep/napi": "0.51.0",
+    "@napi-rs/cli": "3.10.9",
+    "@types/node": "^26.0.0",
+    "oxlint": "1.90.0",
     "ava": "7.0.0",
-    "chalk": "6.0.0",
-    "dprint": "0.57.4",
-    "smol-toml": "1.8.0",
+    "chalk": "6.0.1",
+    "dprint": "0.64.3",
+    "smol-toml": "1.9.1",
     "tsimp": "2.0.12",
     "typescript": "6.0.3"
   },

@@ -3,9 +3,9 @@ language: Java
 role: item
 symbolType: module
 rule:
-  pattern: import static $PATH;
-name: $PATH
-signature: import static $PATH
+  pattern: import static $$$PATH;
+name: $$$PATH
+signature: import static $$$PATH
 isImport: true
 isExported: false
 ---
@@ -14,9 +14,12 @@ language: Java
 role: item
 symbolType: module
 rule:
-  pattern: import $PATH;
-name: $PATH
-signature: import $PATH
+  all:
+    - pattern: import $$$PATH;
+    - not:
+        pattern: import static $$$STATIC_PATH;
+name: $$$PATH
+signature: import $$$PATH
 isImport: true
 isExported: false
 ---
@@ -155,16 +158,72 @@ rule:
         has:
           field: name
           pattern: $NAME
-    - not:
-        has:
-          kind: modifiers
-          has:
-            any:
-              - pattern: private
-              - pattern: protected
 name: $NAME
 isPublic:
   has:
     kind: modifiers
     has:
       pattern: public
+---
+id: java-module
+language: Java
+role: item
+symbolType: module
+rule:
+  all:
+    - kind: module_declaration
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isExported: true
+---
+id: java-enum-member
+language: Java
+role: member
+parentRuleIds: [java-enum]
+symbolType: enumMember
+rule:
+  all:
+    - kind: enum_constant
+    - has:
+        field: name
+        pattern: $NAME
+name: $NAME
+isPublic: true
+---
+id: java-annotation-type
+language: Java
+role: item
+symbolType: interface
+rule:
+  kind: annotation_type_declaration
+  has:
+    field: name
+    pattern: $NAME
+name: $NAME
+isExported:
+  has:
+    kind: modifiers
+    has:
+      pattern: public
+---
+id: java-annotation-element
+language: Java
+role: member
+parentRuleIds: [java-annotation-type]
+symbolType: method
+rule:
+  kind: annotation_type_element_declaration
+  has:
+    field: name
+    pattern: $NAME
+  not:
+    inside:
+      kind: annotation_type_declaration
+      inside:
+        kind: annotation_type_declaration
+        stopBy: end
+      stopBy: end
+name: $NAME
+isPublic: true

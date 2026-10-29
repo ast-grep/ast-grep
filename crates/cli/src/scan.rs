@@ -85,7 +85,10 @@ impl ScanArg {
   }
 }
 
-pub fn run_with_config(arg: ScanArg, project: Result<ProjectConfig>) -> Result<ExitCode> {
+pub fn run_with_config(mut arg: ScanArg, project: Result<ProjectConfig>) -> Result<ExitCode> {
+  if let Ok(config) = &project {
+    arg.input.apply_config(config);
+  }
   let project_trace = arg.output.inspect.project_trace();
   project_trace.print_project(&project)?;
   let context = arg.context.get();

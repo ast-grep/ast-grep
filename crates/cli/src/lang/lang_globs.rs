@@ -104,7 +104,7 @@ pub fn from_path(p: &Path) -> Option<SgLang> {
 mod test {
   use super::*;
   use ast_grep_language::SupportLang;
-  use serde_yaml::from_str;
+  use serde_saphyr::from_str;
 
   const YAML: &str = r"
 js: ['.eslintrc']

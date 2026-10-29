@@ -82,19 +82,27 @@ fn c_rules_parse_and_extract_native_shapes() {
     RULES,
     r#"
 #include <stdio.h>
-typedef struct Config { int value; } Config;
+typedef struct Config { int value; int *ptr; int items[4]; } Config;
 enum Mode { Fast, Slow };
 int count;
+int counter = 0;
+int *base;
+int table[10];
 int helper(int value) { return value; }
 "#,
     r#"
 - Module import private <stdio.h>
 - Struct item exported Config
   - Field public value
+  - Field public ptr
+  - Field public items
 - Enum item exported Mode
   - EnumMember public Fast
   - EnumMember public Slow
 - Variable item exported count
+- Variable item exported counter
+- Variable item exported base
+- Variable item exported table
 - Function item exported helper
 "#,
   );
@@ -109,7 +117,7 @@ fn cpp_rules_parse_and_extract_native_shapes() {
     r#"
 #include <vector>
 namespace demo {
-class Parser { public: Parser(); int parse(const char* input); private: int count; };
+class Parser { public: Parser(); int parse(const char* input); private: int count; int *ptr; int items[4]; };
 struct Config { int value; };
 enum Mode { Fast, Slow };
 int helper(int value) { return value; }
@@ -121,6 +129,8 @@ int helper(int value) { return value; }
   - Constructor private Parser
   - Method private parse
   - Field private count
+  - Field private ptr
+  - Field private items
 - Struct item exported Config
   - Field private value
 - Enum item exported Mode

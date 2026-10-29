@@ -10,30 +10,30 @@ resolver = "2"
 lto = true
 
 [workspace.package]
-version = "0.45.3"
+version = "0.51.0"
 authors = ["Herrington Darkholme <2883231+HerringtonDarkholme@users.noreply.github.com>"]
 edition = "2024"
 license = "MIT"
 documentation = "https://ast-grep.github.io/guide/introduction.html"
 homepage = "https://ast-grep.github.io/"
 repository = "https://github.com/ast-grep/ast-grep"
-rust-version = "1.88.0"
+rust-version = "1.90.0"
 readme = "README.md"
 
 [workspace.dependencies]
-ast-grep-core = { path = "crates/core", version = "0.45.3", default-features = false }
-ast-grep-config = { path = "crates/config", version = "0.45.3" }
-ast-grep-dynamic = { path = "crates/dynamic", version = "0.45.3" }
-ast-grep-language = { path = "crates/language", version = "0.45.3" }
-ast-grep-lsp = { path = "crates/lsp", version = "0.45.3" }
-ast-grep-outline = { path = "crates/outline", version = "0.45.3" }
+ast-grep-core = { path = "crates/core", version = "0.51.0", default-features = false }
+ast-grep-config = { path = "crates/config", version = "0.51.0" }
+ast-grep-dynamic = { path = "crates/dynamic", version = "0.51.0" }
+ast-grep-language = { path = "crates/language", version = "0.51.0" }
+ast-grep-lsp = { path = "crates/lsp", version = "0.51.0" }
+ast-grep-outline = { path = "crates/outline", version = "0.51.0" }
 
 bit-set = { version = "0.11.0" }
 ignore = { version = "0.4.22" }
 regex = { version = "1.10.4" }
 serde = { version = "1.0.200", features = ["derive"] }
 serde_regex = "1.2.0"
-serde_yaml = "0.9.33"
+serde-saphyr = { version = "2.0.0", default-features = false, features = ["serialize", "deserialize"] }
 tree-sitter = { version = "0.27.0" }
 thiserror = "2.0.0"
 schemars = "1.0.0"
