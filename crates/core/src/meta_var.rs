@@ -271,7 +271,7 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
 }
 
 #[inline]
-fn is_valid_first_char(c: char) -> bool {
+pub(crate) fn is_valid_first_char(c: char) -> bool {
   matches!(c, 'A'..='Z' | '_')
 }
 
