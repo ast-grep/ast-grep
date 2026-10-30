@@ -341,6 +341,14 @@ if (true) {
   }
 
   #[test]
+  fn test_digit_after_meta_var_char_is_literal() {
+    let tf = TemplateFix::try_new("costs $5 and $A", &Tsx).expect("ok");
+    assert_eq!(tf.used_vars(), ["A"].into_iter().collect());
+    test_template_replace("costs $5 and $A", &[("A", "x")], "costs $5 and x");
+    test_template_replace("$$$1 and $A", &[("A", "x")], "$$$1 and x");
+  }
+
+  #[test]
   fn test_exact_node_var() {
     let exact = TemplateFix::try_new("$A", &Tsx).expect("ok");
     assert_eq!(exact.exact_node_var(), Some("A"));
