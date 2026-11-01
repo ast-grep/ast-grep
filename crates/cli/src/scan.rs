@@ -248,6 +248,9 @@ impl PathWorker for ScanWithConfig {
   fn get_trace(&self) -> &FileTrace {
     &self.trace.inner.file_trace
   }
+  fn print_skip(&self, path: &Path, err: &anyhow::Error) -> Result<()> {
+    self.trace.print_skip(path, err)
+  }
   fn build_walk(&self) -> Result<WalkParallel> {
     let mut langs = HashSet::new();
     self.configs.for_each_rule(|rule| {
