@@ -22,81 +22,107 @@ macro_rules! conditional_lang {
 
 use ast_grep_core::tree_sitter::TSLanguage;
 
+#[cfg(feature = "tree-sitter-bash")]
 pub fn language_bash() -> TSLanguage {
   conditional_lang!(tree_sitter_bash, "tree-sitter-bash")
 }
+#[cfg(feature = "tree-sitter-c")]
 pub fn language_c() -> TSLanguage {
   conditional_lang!(tree_sitter_c, "tree-sitter-c")
 }
+#[cfg(feature = "tree-sitter-cpp")]
 pub fn language_cpp() -> TSLanguage {
   conditional_lang!(tree_sitter_cpp, "tree-sitter-cpp")
 }
+#[cfg(feature = "tree-sitter-c-sharp")]
 pub fn language_c_sharp() -> TSLanguage {
   conditional_lang!(tree_sitter_c_sharp, "tree-sitter-c-sharp")
 }
+#[cfg(feature = "tree-sitter-dart")]
 pub fn language_dart() -> TSLanguage {
   conditional_lang!(tree_sitter_dart, "tree-sitter-dart")
 }
+#[cfg(feature = "tree-sitter-css")]
 pub fn language_css() -> TSLanguage {
   conditional_lang!(tree_sitter_css, "tree-sitter-css")
 }
+#[cfg(feature = "tree-sitter-elixir")]
 pub fn language_elixir() -> TSLanguage {
   conditional_lang!(tree_sitter_elixir, "tree-sitter-elixir")
 }
+#[cfg(feature = "tree-sitter-go")]
 pub fn language_go() -> TSLanguage {
   conditional_lang!(tree_sitter_go, "tree-sitter-go")
 }
+#[cfg(feature = "tree-sitter-haskell")]
 pub fn language_haskell() -> TSLanguage {
   conditional_lang!(tree_sitter_haskell, "tree-sitter-haskell")
 }
+#[cfg(feature = "tree-sitter-hcl")]
 pub fn language_hcl() -> TSLanguage {
   conditional_lang!(tree_sitter_hcl, "tree-sitter-hcl")
 }
+#[cfg(feature = "tree-sitter-html")]
 pub fn language_html() -> TSLanguage {
   conditional_lang!(tree_sitter_html, "tree-sitter-html")
 }
+#[cfg(feature = "tree-sitter-java")]
 pub fn language_java() -> TSLanguage {
   conditional_lang!(tree_sitter_java, "tree-sitter-java")
 }
+#[cfg(feature = "tree-sitter-javascript")]
 pub fn language_javascript() -> TSLanguage {
   conditional_lang!(tree_sitter_javascript, "tree-sitter-javascript")
 }
+#[cfg(feature = "tree-sitter-json")]
 pub fn language_json() -> TSLanguage {
   conditional_lang!(tree_sitter_json, "tree-sitter-json")
 }
+#[cfg(feature = "tree-sitter-kotlin")]
 pub fn language_kotlin() -> TSLanguage {
   conditional_lang!(tree_sitter_kotlin, "tree-sitter-kotlin")
 }
+#[cfg(feature = "tree-sitter-lua")]
 pub fn language_lua() -> TSLanguage {
   conditional_lang!(tree_sitter_lua, "tree-sitter-lua")
 }
+#[cfg(feature = "tree-sitter-md")]
 pub fn language_markdown() -> TSLanguage {
   conditional_lang!(tree_sitter_md, "tree-sitter-md")
 }
+#[cfg(feature = "tree-sitter-nix")]
 pub fn language_nix() -> TSLanguage {
   conditional_lang!(tree_sitter_nix, "tree-sitter-nix")
 }
+#[cfg(feature = "tree-sitter-php")]
 pub fn language_php() -> TSLanguage {
   conditional_lang!(tree_sitter_php, "tree-sitter-php", LANGUAGE_PHP_ONLY)
 }
+#[cfg(feature = "tree-sitter-python")]
 pub fn language_python() -> TSLanguage {
   conditional_lang!(tree_sitter_python, "tree-sitter-python")
 }
+#[cfg(feature = "tree-sitter-ruby")]
 pub fn language_ruby() -> TSLanguage {
   conditional_lang!(tree_sitter_ruby, "tree-sitter-ruby")
 }
+#[cfg(feature = "tree-sitter-rust")]
 pub fn language_rust() -> TSLanguage {
   conditional_lang!(tree_sitter_rust, "tree-sitter-rust")
 }
+#[cfg(feature = "tree-sitter-scala")]
 pub fn language_scala() -> TSLanguage {
   conditional_lang!(tree_sitter_scala, "tree-sitter-scala")
 }
+#[cfg(feature = "tree-sitter-solidity")]
 pub fn language_solidity() -> TSLanguage {
   conditional_lang!(tree_sitter_solidity, "tree-sitter-solidity")
 }
+#[cfg(feature = "tree-sitter-swift")]
 pub fn language_swift() -> TSLanguage {
   conditional_lang!(tree_sitter_swift, "tree-sitter-swift")
 }
+#[cfg(feature = "tree-sitter-typescript")]
 pub fn language_tsx() -> TSLanguage {
   conditional_lang!(
     tree_sitter_typescript,
@@ -104,6 +130,7 @@ pub fn language_tsx() -> TSLanguage {
     LANGUAGE_TSX
   )
 }
+#[cfg(feature = "tree-sitter-typescript")]
 pub fn language_typescript() -> TSLanguage {
   conditional_lang!(
     tree_sitter_typescript,
@@ -111,9 +138,11 @@ pub fn language_typescript() -> TSLanguage {
     LANGUAGE_TYPESCRIPT
   )
 }
+#[cfg(feature = "tree-sitter-yaml")]
 pub fn language_yaml() -> TSLanguage {
   conditional_lang!(tree_sitter_yaml, "tree-sitter-yaml")
 }
+#[cfg(feature = "tree-sitter-zig")]
 pub fn language_zig() -> TSLanguage {
   conditional_lang!(tree_sitter_zig, "tree-sitter-zig")
 }
