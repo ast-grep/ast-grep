@@ -20,8 +20,8 @@ use crate::print::{
 use crate::utils::RuleOverwrite;
 use crate::utils::{ContextArgs, InputArgs, OutputArgs, OverwriteArgs, filter_file_rule};
 use crate::utils::{ErrorContext as EC, MaxItemCounter};
+use crate::utils::{FileTrace, ScanTrace};
 use crate::utils::{Items, PathWorker, StdInWorker, Worker};
-use crate::utils::{RuleTrace, ScanTrace};
 
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -245,9 +245,11 @@ fn unused_suppression_rule_config(arg: &ScanArg, overwrite: &RuleOverwrite) -> R
 }
 
 impl PathWorker for ScanWithConfig {
-  type Trace = RuleTrace;
-  fn get_trace(&self) -> &ScanTrace {
-    &self.trace
+  fn get_trace(&self) -> &FileTrace {
+    &self.trace.inner.file_trace
+  }
+  fn print_skip(&self, path: &Path, err: &anyhow::Error) -> Result<()> {
+    self.trace.print_skip(path, err)
   }
   fn build_walk(&self) -> Result<WalkParallel> {
     let mut langs = HashSet::new();

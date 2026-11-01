@@ -253,12 +253,14 @@ impl Worker for RunWithInferredLang {
 }
 
 impl PathWorker for RunWithInferredLang {
-  type Trace = FileTrace;
   fn build_walk(&self) -> Result<WalkParallel> {
     self.arg.input.walk()
   }
-  fn get_trace(&self) -> &RunTrace {
-    &self.trace
+  fn get_trace(&self) -> &FileTrace {
+    &self.trace.inner
+  }
+  fn print_skip(&self, path: &Path, err: &anyhow::Error) -> Result<()> {
+    self.trace.print_skip(path, err)
   }
 
   fn produce_item<P: Printer>(
@@ -355,13 +357,15 @@ impl Worker for RunWithSpecificLang {
 }
 
 impl PathWorker for RunWithSpecificLang {
-  type Trace = FileTrace;
   fn build_walk(&self) -> Result<WalkParallel> {
     let lang = self.arg.lang.expect("must present");
     self.arg.input.walk_lang(lang)
   }
-  fn get_trace(&self) -> &RunTrace {
-    &self.stats
+  fn get_trace(&self) -> &FileTrace {
+    &self.stats.inner
+  }
+  fn print_skip(&self, path: &Path, err: &anyhow::Error) -> Result<()> {
+    self.stats.print_skip(path, err)
   }
   fn produce_item<P: Printer>(
     &self,

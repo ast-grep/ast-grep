@@ -90,17 +90,11 @@ pub struct FileTrace {
 }
 
 impl FileTrace {
-  fn add_scanned(&self) {
+  pub fn add_scanned(&self) {
     self.files_scanned.fetch_add(1, Ordering::AcqRel);
   }
-  fn add_skipped(&self) {
+  pub fn add_skipped(&self) {
     self.files_skipped.fetch_add(1, Ordering::AcqRel);
-  }
-}
-
-impl AsRef<FileTrace> for FileTrace {
-  fn as_ref(&self) -> &FileTrace {
-    self
   }
 }
 
@@ -157,15 +151,8 @@ impl<T, W: Write + Sync> TraceInfo<T, W> {
       Ok(())
     })
   }
-}
 
-impl<T: AsRef<FileTrace>, W: Write + Sync> TraceInfo<T, W> {
-  pub fn add_scanned(&self) {
-    self.inner.as_ref().add_scanned();
-  }
-
-  pub fn add_skipped(&self, path: &Path, err: &anyhow::Error) -> Result<()> {
-    self.inner.as_ref().add_skipped();
+  pub fn print_skip(&self, path: &Path, err: &anyhow::Error) -> Result<()> {
     self.print_entity("file", path.display(), |w| {
       write!(w, "skipped={}", skip_reason(err))?;
       Ok(())
@@ -179,14 +166,24 @@ fn skip_reason(err: &anyhow::Error) -> &'static str {
   } else if err.is::<FileTooLarge>() {
     "fileTooLarge"
   } else if let Some(e) = err.downcast_ref::<io::Error>() {
-    // read_to_string reports invalid UTF-8 as InvalidData
-    if e.kind() == io::ErrorKind::InvalidData {
-      "invalidUtf8"
-    } else {
-      "ioError"
-    }
+    io_skip_reason(e)
+  } else if let Some(e) = err
+    .downcast_ref::<ignore::Error>()
+    .and_then(ignore::Error::io_error)
+  {
+    io_skip_reason(e)
   } else {
     "error"
+  }
+}
+
+fn io_skip_reason(err: &io::Error) -> &'static str {
+  match err.kind() {
+    // read_to_string reports invalid UTF-8 as InvalidData
+    io::ErrorKind::InvalidData => "invalidUtf8",
+    io::ErrorKind::NotFound => "notFound",
+    io::ErrorKind::PermissionDenied => "permissionDenied",
+    _ => "ioError",
   }
 }
 
@@ -265,12 +262,6 @@ pub struct RuleTrace {
   pub skipped_rule_count: usize,
 }
 
-impl AsRef<FileTrace> for RuleTrace {
-  fn as_ref(&self) -> &FileTrace {
-    &self.file_trace
-  }
-}
-
 pub type ProjectTrace = TraceInfo<(), Stderr>;
 pub type RunTrace = TraceInfo<FileTrace, Stderr>;
 pub type ScanTrace = TraceInfo<RuleTrace, Stderr>;
@@ -278,6 +269,8 @@ pub type ScanTrace = TraceInfo<RuleTrace, Stderr>;
 #[cfg(test)]
 mod test {
   use super::*;
+
+  use anyhow::anyhow;
 
   #[test]
   fn test_tracing() {
@@ -336,5 +329,33 @@ sg: summary|rule: effectiveRuleCount=10,skippedRuleCount=2
     assert_eq!(run_trace.level, Granularity::Nothing);
     assert!(run_trace.print().is_ok());
     assert!(ret.is_empty());
+  }
+
+  #[test]
+  fn test_skip_reason() {
+    assert_eq!(skip_reason(&EmptyFile.into()), "emptyFile");
+    assert_eq!(skip_reason(&FileTooLarge.into()), "fileTooLarge");
+
+    let invalid_utf8 = io::Error::from(io::ErrorKind::InvalidData);
+    assert_eq!(skip_reason(&invalid_utf8.into()), "invalidUtf8");
+
+    let not_found = io::Error::from(io::ErrorKind::NotFound);
+    assert_eq!(skip_reason(&not_found.into()), "notFound");
+
+    let permission_denied = io::Error::from(io::ErrorKind::PermissionDenied);
+    let context_wrapped = anyhow::Error::new(permission_denied).context("Cannot read file");
+    assert_eq!(skip_reason(&context_wrapped), "permissionDenied");
+
+    let other_io = io::Error::from(io::ErrorKind::UnexpectedEof);
+    assert_eq!(skip_reason(&other_io.into()), "ioError");
+    assert_eq!(skip_reason(&anyhow!("unknown error")), "error");
+
+    let walker_error = ignore::Error::WithPath {
+      path: "unreadable.js".into(),
+      err: Box::new(ignore::Error::Io(io::Error::from(
+        io::ErrorKind::PermissionDenied,
+      ))),
+    };
+    assert_eq!(skip_reason(&walker_error.into()), "permissionDenied");
   }
 }
