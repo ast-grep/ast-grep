@@ -29,6 +29,11 @@ fn test_python_str() {
   );
 }
 
+#[test]
+fn test_digit_after_ellipsis_is_not_meta_var() {
+  test_non_match("foo($$$1)", "foo(a, b)");
+}
+
 // https://github.com/ast-grep/ast-grep/issues/2821
 #[test]
 fn test_ignore_line_continuation() {
