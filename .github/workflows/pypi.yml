@@ -82,7 +82,7 @@ jobs:
           args: --release --target universal2-apple-darwin --out dist
       - name: "Test wheel - universal2"
         run: |
-          pip install dist/${{ env.PACKAGE_NAME }}-*universal2.whl --force-reinstall
+          pip install dist/${{ env.PACKAGE_NAME }}-*universal2*.whl --force-reinstall
           sg --help
       - name: "Upload wheels"
         uses: actions/upload-artifact@v7
