@@ -89,7 +89,7 @@ fn create_template(tmpl: &str, mv_char: char, transforms: &[String]) -> Template
     // offset = 0, i = 0,
     // 0 1 2
     // $ a $
-    offset = offset + i + 1;
+    offset = offset + i + mv_char.len_utf8();
   }
   if fragments.is_empty() {
     TemplateFix::Textual(tmpl[len..].to_string())
@@ -312,6 +312,11 @@ if (true) {
   }
 
   fn test_template_replace(template: &str, vars: &[(&str, &str)], expected: &str) {
+    let fixer = TemplateFix::try_new(template, &Tsx).expect("ok");
+    test_template_fix_replace(&fixer, vars, expected);
+  }
+
+  fn test_template_fix_replace(fixer: &TemplateFix, vars: &[(&str, &str)], expected: &str) {
     let mut env = MetaVarEnv::new();
     let roots: Vec<_> = vars.iter().map(|(v, p)| (v, Tsx.ast_grep(p))).collect();
     for (var, root) in &roots {
@@ -319,7 +324,7 @@ if (true) {
     }
     let dummy = Tsx.ast_grep("dummy");
     let node_match = NodeMatch::new(dummy.root(), env.clone());
-    let bytes = template.generate_replacement(&node_match);
+    let bytes = fixer.generate_replacement(&node_match);
     let ret = String::from_utf8(bytes).expect("replacement must be valid utf-8");
     assert_eq!(expected, ret);
   }
@@ -346,6 +351,37 @@ if (true) {
     assert_eq!(tf.used_vars(), ["A"].into_iter().collect());
     test_template_replace("costs $5 and $A", &[("A", "x")], "costs $5 and x");
     test_template_replace("$$$1 and $A", &[("A", "x")], "$$$1 and x");
+  }
+
+  #[derive(Clone)]
+  struct MultiByteMetaVar;
+
+  impl Language for MultiByteMetaVar {
+    fn meta_var_char(&self) -> char {
+      'µ'
+    }
+
+    fn kind_to_id(&self, kind: &str) -> u16 {
+      Tsx.kind_to_id(kind)
+    }
+
+    fn field_to_id(&self, field: &str) -> Option<u16> {
+      Tsx.field_to_id(field)
+    }
+
+    fn build_pattern(
+      &self,
+      builder: &crate::matcher::PatternBuilder,
+    ) -> Result<Pattern, crate::PatternError> {
+      Tsx.build_pattern(builder)
+    }
+  }
+
+  #[test]
+  fn test_digit_after_multibyte_meta_var_char_is_literal() {
+    let tf = TemplateFix::try_new("costs µ5 and µA", &MultiByteMetaVar).expect("ok");
+    assert_eq!(tf.used_vars(), ["A"].into_iter().collect());
+    test_template_fix_replace(&tf, &[("A", "x")], "costs µ5 and x");
   }
 
   #[test]

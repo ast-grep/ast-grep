@@ -239,7 +239,7 @@ pub(crate) fn extract_meta_var(src: &str, meta_char: char) -> Option<MetaVariabl
     return Some(Multiple);
   }
   if let Some(trimmed) = src.strip_prefix(&ellipsis) {
-    if !trimmed.chars().all(is_valid_meta_var_char) {
+    if !trimmed.starts_with(is_valid_first_char) || !trimmed.chars().all(is_valid_meta_var_char) {
       return None;
     }
     if trimmed.starts_with('_') {
@@ -324,6 +324,7 @@ mod test {
   #[test]
   fn test_not_meta_var() {
     assert_eq!(extract_var("$123"), None);
+    assert_eq!(extract_var("$$$123"), None);
     assert_eq!(extract_var("$"), None);
     assert_eq!(extract_var("$$"), None);
     assert_eq!(extract_var("abc"), None);
