@@ -212,11 +212,7 @@ impl Language for DynamicLang {
     if self.meta_var_char() == self.expando_char() {
       return Cow::Borrowed(query);
     };
-    // use stack buffer to reduce allocation
-    let mut buf = [0; 4];
-    let expando = self.expando_char().encode_utf8(&mut buf);
-    // TODO: use more precise replacement
-    let replaced = query.replace(self.meta_var_char(), expando);
+    let replaced = replace_meta_var_char(query, self.meta_var_char(), self.expando_char());
     Cow::Owned(replaced)
   }
 
@@ -268,6 +264,27 @@ impl Language for DynamicLang {
   }
 }
 
+/// Same as builtin languages: only replace the char that starts a meta variable.
+fn replace_meta_var_char(query: &str, meta_var_char: char, expando: char) -> String {
+  let mut ret = String::with_capacity(query.len());
+  let mut count = 0;
+  for c in query.chars() {
+    if c == meta_var_char {
+      count += 1;
+      continue;
+    }
+    let need_replace = matches!(c, 'A'..='Z' | '_') || count == 3;
+    let sigil = if need_replace { expando } else { meta_var_char };
+    ret.extend(std::iter::repeat_n(sigil, count));
+    count = 0;
+    ret.push(c);
+  }
+  // trailing anonymous multiple
+  let sigil = if count == 3 { expando } else { meta_var_char };
+  ret.extend(std::iter::repeat_n(sigil, count));
+  ret
+}
+
 impl LanguageExt for DynamicLang {
   /// tree sitter language to parse the source
   fn get_ts_language(&self) -> TSLanguage {
@@ -310,6 +327,24 @@ mod test {
     fn get_ts_language(&self) -> TSLanguage {
       self.0.clone()
     }
+  }
+
+  #[test]
+  fn test_replace_meta_var_char() {
+    let replace = |q| replace_meta_var_char(q, '$', '_');
+    assert_eq!(replace("$A + $$B + $$$C"), "_A + __B + ___C");
+    assert_eq!(replace("$_ $A1"), "__ _A1");
+    assert_eq!(replace("foo($$$) $$$"), "foo(___) ___");
+    // literal uses of the char are kept
+    assert_eq!(replace("$env.FOO = $V"), "$env.FOO = _V");
+    assert_eq!(replace("$a $$ $1 a$"), "$a $$ $1 a$");
+    assert_eq!(replace("$\"hi ($NAME)\""), "$\"hi (_NAME)\"");
+  }
+
+  #[test]
+  fn test_replace_custom_meta_var_char() {
+    assert_eq!(replace_meta_var_char("#A #b ##B", '#', 'µ'), "µA #b µµB");
+    assert_eq!(replace_meta_var_char("$A #A", '#', 'µ'), "$A µA");
   }
 
   #[test]
