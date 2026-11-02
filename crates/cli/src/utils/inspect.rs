@@ -10,6 +10,7 @@
 //!   * rules skipped (dues to ignore/files)
 //! - Detail level: show how a rule runs on a file
 
+use super::{EmptyFile, FileTooLarge};
 use crate::config::ProjectConfig;
 use crate::lang::SgLang;
 use ast_grep_config::{RuleCollection, RuleConfig};
@@ -18,7 +19,7 @@ use anyhow::Result;
 use clap::ValueEnum;
 
 use std::fmt;
-use std::io::{Stderr, Write};
+use std::io::{self, Stderr, Write};
 use std::path::Path;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -150,6 +151,40 @@ impl<T, W: Write + Sync> TraceInfo<T, W> {
       Ok(())
     })
   }
+
+  pub fn print_skip(&self, path: &Path, err: &anyhow::Error) -> Result<()> {
+    self.print_entity("file", path.display(), |w| {
+      write!(w, "skipped={}", skip_reason(err))?;
+      Ok(())
+    })
+  }
+}
+
+fn skip_reason(err: &anyhow::Error) -> &'static str {
+  if err.is::<EmptyFile>() {
+    "emptyFile"
+  } else if err.is::<FileTooLarge>() {
+    "fileTooLarge"
+  } else if let Some(e) = err.downcast_ref::<io::Error>() {
+    io_skip_reason(e)
+  } else if let Some(e) = err
+    .downcast_ref::<ignore::Error>()
+    .and_then(ignore::Error::io_error)
+  {
+    io_skip_reason(e)
+  } else {
+    "error"
+  }
+}
+
+fn io_skip_reason(err: &io::Error) -> &'static str {
+  match err.kind() {
+    // read_to_string reports invalid UTF-8 as InvalidData
+    io::ErrorKind::InvalidData => "invalidUtf8",
+    io::ErrorKind::NotFound => "notFound",
+    io::ErrorKind::PermissionDenied => "permissionDenied",
+    _ => "ioError",
+  }
 }
 
 impl<W: Write + Sync> TraceInfo<(), W> {
@@ -235,6 +270,8 @@ pub type ScanTrace = TraceInfo<RuleTrace, Stderr>;
 mod test {
   use super::*;
 
+  use anyhow::anyhow;
+
   #[test]
   fn test_tracing() {
     let tracing = Granularity::Summary;
@@ -292,5 +329,33 @@ sg: summary|rule: effectiveRuleCount=10,skippedRuleCount=2
     assert_eq!(run_trace.level, Granularity::Nothing);
     assert!(run_trace.print().is_ok());
     assert!(ret.is_empty());
+  }
+
+  #[test]
+  fn test_skip_reason() {
+    assert_eq!(skip_reason(&EmptyFile.into()), "emptyFile");
+    assert_eq!(skip_reason(&FileTooLarge.into()), "fileTooLarge");
+
+    let invalid_utf8 = io::Error::from(io::ErrorKind::InvalidData);
+    assert_eq!(skip_reason(&invalid_utf8.into()), "invalidUtf8");
+
+    let not_found = io::Error::from(io::ErrorKind::NotFound);
+    assert_eq!(skip_reason(&not_found.into()), "notFound");
+
+    let permission_denied = io::Error::from(io::ErrorKind::PermissionDenied);
+    let context_wrapped = anyhow::Error::new(permission_denied).context("Cannot read file");
+    assert_eq!(skip_reason(&context_wrapped), "permissionDenied");
+
+    let other_io = io::Error::from(io::ErrorKind::UnexpectedEof);
+    assert_eq!(skip_reason(&other_io.into()), "ioError");
+    assert_eq!(skip_reason(&anyhow!("unknown error")), "error");
+
+    let walker_error = ignore::Error::WithPath {
+      path: "unreadable.js".into(),
+      err: Box::new(ignore::Error::Io(io::Error::from(
+        io::ErrorKind::PermissionDenied,
+      ))),
+    };
+    assert_eq!(skip_reason(&walker_error.into()), "permissionDenied");
   }
 }

@@ -34,6 +34,8 @@ pub trait PathWorker: Worker {
   fn build_walk(&self) -> Result<WalkParallel>;
   /// Record trace for the worker.
   fn get_trace(&self) -> &FileTrace;
+  /// Print why a file was skipped when entity inspection is enabled.
+  fn print_skip(&self, path: &Path, err: &anyhow::Error) -> Result<()>;
   /// Parse and find_match can be done in `produce_item`.
   fn produce_item<P: Printer>(
     &self,
@@ -96,23 +98,51 @@ impl<T> Items<T> {
   }
 }
 
-fn filter_result(result: Result<DirEntry, ignore::Error>) -> Option<PathBuf> {
+fn ignore_error_path(err: &ignore::Error) -> Option<&Path> {
+  match err {
+    ignore::Error::Partial(errors) => errors.iter().find_map(ignore_error_path),
+    ignore::Error::WithLineNumber { err, .. } | ignore::Error::WithDepth { err, .. } => {
+      ignore_error_path(err)
+    }
+    ignore::Error::WithPath { path, .. } => Some(path),
+    ignore::Error::Loop { child, .. } => Some(child),
+    _ => None,
+  }
+}
+
+fn ignore_file_error_path(err: &ignore::Error) -> Option<PathBuf> {
+  let path = ignore_error_path(err)?;
+  path.is_file().then(|| normalize_path(path.to_path_buf()))
+}
+
+fn normalize_path(path: PathBuf) -> PathBuf {
+  // TODO: is it correct here? see https://github.com/ast-grep/ast-grep/issues/1343
+  match path.strip_prefix("./") {
+    Ok(p) => p.to_path_buf(),
+    Err(_) => path,
+  }
+}
+
+fn filter_result(
+  result: Result<DirEntry, ignore::Error>,
+) -> Result<Option<PathBuf>, (PathBuf, anyhow::Error)> {
   let entry = match result {
     Ok(entry) => entry,
     Err(err) => {
       eprintln!("ERROR: {err}");
-      return None;
+      let Some(path) = ignore_file_error_path(&err) else {
+        return Ok(None);
+      };
+      return Err((path, err.into()));
     }
   };
-  if !entry.file_type()?.is_file() {
-    return None;
+  let Some(file_type) = entry.file_type() else {
+    return Ok(None);
+  };
+  if !file_type.is_file() {
+    return Ok(None);
   }
-  let path = entry.into_path();
-  // TODO: is it correct here? see https://github.com/ast-grep/ast-grep/issues/1343
-  match path.strip_prefix("./") {
-    Ok(p) => Some(p.to_path_buf()),
-    Err(_) => Some(path),
-  }
+  Ok(Some(normalize_path(entry.into_path())))
 }
 
 fn run_worker<W: PathWorker + ?Sized + 'static, P: Printer>(
@@ -132,14 +162,26 @@ fn run_worker<W: PathWorker + ?Sized + 'static, P: Printer>(
       let w = w.clone();
       let processor = &processor;
       Box::new(move |result| {
-        let Some(p) = filter_result(result) else {
-          return WalkState::Continue;
+        let p = match filter_result(result) {
+          Ok(Some(path)) => path,
+          Ok(None) => return WalkState::Continue,
+          Err((path, err)) => {
+            let stats = w.get_trace();
+            stats.add_scanned();
+            stats.add_skipped();
+            _ = w.print_skip(&path, &err);
+            return WalkState::Continue;
+          }
         };
         let stats = w.get_trace();
         stats.add_scanned();
-        let Ok(items) = w.produce_item::<P>(&p, processor) else {
-          stats.add_skipped();
-          return WalkState::Continue;
+        let items = match w.produce_item::<P>(&p, processor) {
+          Ok(items) => items,
+          Err(err) => {
+            stats.add_skipped();
+            _ = w.print_skip(&p, &err);
+            return WalkState::Continue;
+          }
         };
         for result in items {
           match tx.send(result) {
@@ -183,6 +225,31 @@ impl MaxItemCounter {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn test_ignore_error_path() {
+    let dir = tempfile::tempdir().expect("temp dir should be created");
+    let file = dir.path().join("unreadable.js");
+    std::fs::write(&file, "alert(1)").expect("test file should be written");
+    let file_error = ignore::Error::WithDepth {
+      depth: 1,
+      err: Box::new(ignore::Error::WithPath {
+        path: file.clone(),
+        err: Box::new(ignore::Error::Io(std::io::Error::from(
+          std::io::ErrorKind::PermissionDenied,
+        ))),
+      }),
+    };
+    assert_eq!(ignore_file_error_path(&file_error), Some(file));
+
+    let directory_error = ignore::Error::WithPath {
+      path: dir.path().into(),
+      err: Box::new(ignore::Error::Io(std::io::Error::from(
+        std::io::ErrorKind::PermissionDenied,
+      ))),
+    };
+    assert_eq!(ignore_file_error_path(&directory_error), None);
+  }
 
   #[test]
   fn test_max_item_counter_initialization() {

@@ -215,6 +215,23 @@ fn test_inspect() -> Result<()> {
 }
 
 #[test]
+fn test_inspect_skipped_file() -> Result<()> {
+  let dir = create_test_files([("a.js", "alert(1)"), ("empty.js", "")])?;
+  // GBK-encoded comment, not valid UTF-8
+  std::fs::write(dir.path().join("gbk.js"), b"alert(2) // \xd6\xd0\xce\xc4")?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["-p", "alert($A)", "-l", "js", "--inspect", "entity"])
+    .assert()
+    .success()
+    .stderr(contains("sg: entity|file|gbk.js: skipped=invalidUtf8"))
+    .stderr(contains("sg: entity|file|empty.js: skipped=emptyFile"))
+    .stderr(contains("sg: entity|file|gbk.js: language").not())
+    .stderr(contains("scannedFileCount=3,skippedFileCount=2"));
+  Ok(())
+}
+
+#[test]
 fn test_status_code_fail_with_no_match() -> Result<()> {
   let dir = create_test_files([("a.js", "alert(1)")])?;
   Command::new(cargo_bin!())
