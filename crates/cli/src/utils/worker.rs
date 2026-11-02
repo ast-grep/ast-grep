@@ -110,6 +110,11 @@ fn ignore_error_path(err: &ignore::Error) -> Option<&Path> {
   }
 }
 
+fn ignore_file_error_path(err: &ignore::Error) -> Option<PathBuf> {
+  let path = ignore_error_path(err)?;
+  path.is_file().then(|| normalize_path(path.to_path_buf()))
+}
+
 fn normalize_path(path: PathBuf) -> PathBuf {
   // TODO: is it correct here? see https://github.com/ast-grep/ast-grep/issues/1343
   match path.strip_prefix("./") {
@@ -125,10 +130,10 @@ fn filter_result(
     Ok(entry) => entry,
     Err(err) => {
       eprintln!("ERROR: {err}");
-      let Some(path) = ignore_error_path(&err).map(Path::to_path_buf) else {
+      let Some(path) = ignore_file_error_path(&err) else {
         return Ok(None);
       };
-      return Err((normalize_path(path), err.into()));
+      return Err((path, err.into()));
     }
   };
   let Some(file_type) = entry.file_type() else {
@@ -223,16 +228,27 @@ mod tests {
 
   #[test]
   fn test_ignore_error_path() {
-    let error = ignore::Error::WithDepth {
+    let dir = tempfile::tempdir().expect("temp dir should be created");
+    let file = dir.path().join("unreadable.js");
+    std::fs::write(&file, "alert(1)").expect("test file should be written");
+    let file_error = ignore::Error::WithDepth {
       depth: 1,
       err: Box::new(ignore::Error::WithPath {
-        path: "unreadable.js".into(),
+        path: file.clone(),
         err: Box::new(ignore::Error::Io(std::io::Error::from(
           std::io::ErrorKind::PermissionDenied,
         ))),
       }),
     };
-    assert_eq!(ignore_error_path(&error), Some(Path::new("unreadable.js")));
+    assert_eq!(ignore_file_error_path(&file_error), Some(file));
+
+    let directory_error = ignore::Error::WithPath {
+      path: dir.path().into(),
+      err: Box::new(ignore::Error::Io(std::io::Error::from(
+        std::io::ErrorKind::PermissionDenied,
+      ))),
+    };
+    assert_eq!(ignore_file_error_path(&directory_error), None);
   }
 
   #[test]
