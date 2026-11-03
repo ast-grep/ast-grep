@@ -65,37 +65,46 @@ fn expand_start_position<L: LanguageExt>(
   node_match: &NodeMatch<StrDoc<L>>,
   offset: usize,
 ) -> Position {
-  let mut start = node_match.start_pos();
   if node_match.range().start > offset {
     for prev in node_match.prev_all() {
       if prev.range().start <= offset {
-        start = prev.start_pos();
-        break;
+        return start_position(&prev);
       }
     }
   }
-  Position {
-    line: start.line() as u32,
-    character: start.column(node_match) as u32,
-  }
+  start_position(node_match)
 }
 
 fn expand_end_position<L: LanguageExt>(
   node_match: &NodeMatch<StrDoc<L>>,
   offset: usize,
 ) -> Position {
-  let mut end = node_match.end_pos();
   if node_match.range().end < offset {
     for next in node_match.next_all() {
       if next.range().end >= offset {
-        end = next.end_pos();
-        break;
+        return end_position(&next);
       }
     }
   }
+  end_position(node_match)
+}
+
+fn start_position<L: LanguageExt>(node: &Node<StrDoc<L>>) -> Position {
+  to_lsp_position(node, node.start_pos().line(), node.range().start)
+}
+
+fn end_position<L: LanguageExt>(node: &Node<StrDoc<L>>) -> Position {
+  to_lsp_position(node, node.end_pos().line(), node.range().end)
+}
+
+/// LSP counts the column in UTF-16 code units by default, not in characters.
+fn to_lsp_position<L: LanguageExt>(node: &Node<StrDoc<L>>, line: usize, offset: usize) -> Position {
+  let source = node.get_doc().get_source();
+  let offset = offset.min(source.len());
+  let line_start = source[..offset].rfind('\n').map_or(0, |i| i + 1);
   Position {
-    line: end.line() as u32,
-    character: end.column(node_match) as u32,
+    line: line as u32,
+    character: source[line_start..offset].encode_utf16().count() as u32,
   }
 }
 
@@ -140,18 +149,13 @@ pub fn diagnostic_to_code_action(
   Some(actions.collect())
 }
 
-fn convert_nodes_to_range<D: Doc>(start_node: &Node<D>, end_node: &Node<D>) -> Range {
-  let start = start_node.start_pos();
-  let end = end_node.end_pos();
+fn convert_nodes_to_range<L: LanguageExt>(
+  start_node: &Node<StrDoc<L>>,
+  end_node: &Node<StrDoc<L>>,
+) -> Range {
   Range {
-    start: Position {
-      line: start.line() as u32,
-      character: start.column(start_node) as u32,
-    },
-    end: Position {
-      line: end.line() as u32,
-      character: end.column(end_node) as u32,
-    },
+    start: start_position(start_node),
+    end: end_position(end_node),
   }
 }
 
@@ -183,18 +187,7 @@ fn get_primary_label<L: LanguageExt>(
   let Some(label) = labels.iter().find(|l| l.style == LabelStyle::Primary) else {
     return convert_nodes_to_range(node_match, node_match);
   };
-  let start = label.start_node.start_pos();
-  let end = label.end_node.end_pos();
-  Range {
-    start: Position {
-      line: start.line() as u32,
-      character: start.column(&label.start_node) as u32,
-    },
-    end: Position {
-      line: end.line() as u32,
-      character: end.column(&label.end_node) as u32,
-    },
-  }
+  convert_nodes_to_range(&label.start_node, &label.end_node)
 }
 
 fn get_node_range_and_related_info<L: LanguageExt>(
