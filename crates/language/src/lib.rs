@@ -485,7 +485,7 @@ pub enum SupportLang {
 }
 
 impl SupportLang {
-  pub fn all_langs() -> &'static [SupportLang] {
+  pub const fn all_langs() -> &'static [SupportLang] {
     &[
       #[cfg(feature = "tree-sitter-bash")]
       SupportLang::Bash,
