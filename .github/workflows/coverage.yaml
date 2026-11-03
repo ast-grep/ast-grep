@@ -51,9 +51,13 @@ jobs:
   minimal-language:
     name: Minimal Language Features
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Install Rust
         run: rustup update stable
       - name: Build Rust-only language support
