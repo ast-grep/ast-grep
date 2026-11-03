@@ -8,6 +8,8 @@
 //! To see the full list of languages, visit `<https://ast-grep.github.io/reference/languages.html>`
 //!
 //! ```
+//! # #[cfg(feature = "tree-sitter-rust")]
+//! # {
 //! use ast_grep_language::{LanguageExt, SupportLang};
 //!
 //! let lang: SupportLang = "rs".parse().unwrap();
@@ -16,6 +18,7 @@
 //! let found = root.root().find_all("fn $FNAME() {}").next().unwrap();
 //! assert_eq!(found.start_pos().line(), 0);
 //! assert_eq!(found.text(), "fn foo() {}");
+//! # }
 //! ```
 
 #[cfg(feature = "tree-sitter-bash")]
