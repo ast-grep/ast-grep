@@ -462,6 +462,32 @@ fix: |-
 }
 
 #[tokio::test]
+async fn test_diagnostic_range_in_utf16() {
+  let yamls = r"
+id: no-console-rule
+language: TypeScript
+rule:
+  pattern: console.log($$$A)
+";
+  let mut client = create_lsp_framed(yamls).await;
+  let file_uri = "file:///Users/codes/ast-grep-vscode/test.ts";
+  // the emoji is one character but two UTF-16 code units
+  let file_content = "const s = '😀'; console.log(s)\n";
+  send_did_open_framed(&mut client, file_uri, "typescript", file_content).await;
+
+  let diagnostics = wait_for_diagnostics(&mut client)
+    .await
+    .expect("No diagnostics received");
+  let diagnostics = diagnostics
+    .as_array()
+    .expect("Diagnostics should be an array");
+  assert_eq!(diagnostics.len(), 1, "Expected 1 diagnostic");
+  let range = &diagnostics[0]["range"];
+  assert_eq!(range["start"]["character"], 16);
+  assert_eq!(range["end"]["character"], 30);
+}
+
+#[tokio::test]
 async fn test_injected_language_diagnostics() {
   let yamls = r"
 id: no-alert
