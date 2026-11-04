@@ -64,6 +64,9 @@ fn run_test_rule_impl<R: Reporter + Send>(
   let filter = arg.filter.as_ref();
   let overwrite = RuleOverwrite::new_for_verify(filter, arg.include_off);
   let collections = &project.find_rules(overwrite)?.0;
+  let all_rules = &project
+    .find_rules(RuleOverwrite::new_for_verify(filter, true))?
+    .0;
   let TestHarness {
     test_cases,
     snapshots,
@@ -80,12 +83,18 @@ fn run_test_rule_impl<R: Reporter + Send>(
     reporter.lock().unwrap().before_report(&test_cases)?;
   }
 
+  let missing = std::sync::atomic::AtomicUsize::new(0);
   let check_one_case = |case| {
     let result = verify_test_case_simple(case, collections, snapshots.as_ref());
     if result.is_none() {
+      if all_rules.get_rule(&case.id).is_some() {
+        // rule is disabled by severity: off, skip it silently
+        return result;
+      }
       let mut reporter = reporter.lock().unwrap();
       let output = reporter.get_output();
       writeln!(output, "Configuration not found! {}", case.id).unwrap();
+      missing.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
     result
   };
@@ -97,6 +106,11 @@ fn run_test_rule_impl<R: Reporter + Send>(
   apply_snapshot_action(action, &results, snapshots, path_map)?;
   reporter.report_summaries(&results)?;
   let test_result = reporter.after_report(&results)?;
+  let missing = missing.load(std::sync::atomic::Ordering::Relaxed);
+  if missing > 0 {
+    let message = format!("{missing} test case(s) matched no rule.");
+    return Err(anyhow!(ErrorContext::TestFail(message)));
+  }
   match test_result {
     reporter::TestResult::Success { message } => {
       writeln!(reporter.get_output(), "{message}")?;
