@@ -109,6 +109,12 @@ fn run_test_rule_impl<R: Reporter + Send>(
   let test_result = reporter.after_report(&results)?;
   let missing = missing.load(Ordering::Relaxed);
   if missing > 0 {
+    let summary = match &test_result {
+      reporter::TestResult::Success { message }
+      | reporter::TestResult::RuleFail { message }
+      | reporter::TestResult::MismatchSnapshotOnly { message } => message,
+    };
+    writeln!(reporter.get_output(), "{summary}")?;
     let message = format!("{missing} test case(s) matched no rule.");
     return Err(anyhow!(ErrorContext::TestFail(message)));
   }
