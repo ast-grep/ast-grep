@@ -118,6 +118,7 @@ fn run_test_rule_impl<R: Reporter + Send>(
   };
   let missing = missing.load(Ordering::Relaxed);
   if missing > 0 {
+    // Report the original error before replacing it with the missing-rule error.
     if let Err(error) = &result {
       writeln!(reporter.get_output(), "{error}")?;
     }
