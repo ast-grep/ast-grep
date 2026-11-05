@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -83,7 +84,7 @@ fn run_test_rule_impl<R: Reporter + Send>(
     reporter.lock().unwrap().before_report(&test_cases)?;
   }
 
-  let missing = std::sync::atomic::AtomicUsize::new(0);
+  let missing = AtomicUsize::new(0);
   let check_one_case = |case| {
     let result = verify_test_case_simple(case, collections, snapshots.as_ref());
     if result.is_none() {
@@ -94,7 +95,7 @@ fn run_test_rule_impl<R: Reporter + Send>(
       let mut reporter = reporter.lock().unwrap();
       let output = reporter.get_output();
       writeln!(output, "Configuration not found! {}", case.id).unwrap();
-      missing.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+      missing.fetch_add(1, Ordering::Relaxed);
     }
     result
   };
@@ -106,7 +107,7 @@ fn run_test_rule_impl<R: Reporter + Send>(
   apply_snapshot_action(action, &results, snapshots, path_map)?;
   reporter.report_summaries(&results)?;
   let test_result = reporter.after_report(&results)?;
-  let missing = missing.load(std::sync::atomic::Ordering::Relaxed);
+  let missing = missing.load(Ordering::Relaxed);
   if missing > 0 {
     let message = format!("{missing} test case(s) matched no rule.");
     return Err(anyhow!(ErrorContext::TestFail(message)));
