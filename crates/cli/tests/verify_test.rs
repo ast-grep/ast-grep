@@ -122,8 +122,12 @@ fn test_sg_test_filter() -> Result<()> {
 
 #[test]
 fn test_sg_test_off_rule() -> Result<()> {
+  let active_rule = RULE.replace("test-rule", "active-rule");
+  let active_test = TEST.replace("test-rule", "active-rule");
   let dir = create_test_files([
     ("sgconfig.yml", CONFIG),
+    ("rules/active-rule.yml", &active_rule),
+    ("rule-tests/active-rule-test.yml", &active_test),
     ("rules/test-rule.yml", OFF_RULE),
     ("rule-tests/test-rule-test.yml", WRONG_TEST),
     ("test.ts", "Some(123)"),
@@ -176,6 +180,75 @@ fn test_sg_test_unmatched_test_id() -> Result<()> {
 }
 
 #[test]
+fn test_sg_test_no_cases() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/test-rule.yml", RULE),
+    ("rule-tests/.keep", ""),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["test", "--skip-snapshot-tests"])
+    .assert()
+    .code(4)
+    .stderr(contains("No test cases were run."));
+
+  std::fs::write(
+    dir.path().join("rule-tests/test-rule-test.yml"),
+    "id: test-rule",
+  )?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["test", "--skip-snapshot-tests"])
+    .assert()
+    .code(4)
+    .stderr(contains("No test cases were run."));
+  Ok(())
+}
+
+#[test]
+fn test_sg_test_no_cases_match_filter() -> Result<()> {
+  let dir = setup()?;
+  std::fs::write(
+    dir.path().join("rules/untested-rule.yml"),
+    RULE.replace("test-rule", "untested-rule"),
+  )?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "test",
+      "--skip-snapshot-tests",
+      "--filter",
+      "^untested-rule$",
+    ])
+    .assert()
+    .code(4)
+    .stderr(contains("No test cases were run."));
+  Ok(())
+}
+
+#[test]
+fn test_sg_test_only_off_rule() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/test-rule.yml", OFF_RULE),
+    ("rule-tests/test-rule-test.yml", TEST),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["test", "--skip-snapshot-tests"])
+    .assert()
+    .code(4)
+    .stderr(contains("No test cases were run."));
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["test", "--skip-snapshot-tests", "--include-off"])
+    .assert()
+    .success();
+  Ok(())
+}
+
+#[test]
 fn test_sg_test_unmatched_test_id_with_off_rule() -> Result<()> {
   let dir = create_test_files([
     ("sgconfig.yml", CONFIG),
@@ -218,7 +291,7 @@ fn test_sg_test_follow_symlinked_test_dir() -> Result<()> {
     "ast-grep test -c {} --skip-snapshot-tests",
     config.display()
   ));
-  assert!(ret.is_ok());
+  assert_eq!(ret.unwrap_err().to_string(), "No test cases were run.");
 
   let ret = sg(&format!(
     "ast-grep test -c {} --skip-snapshot-tests --follow",

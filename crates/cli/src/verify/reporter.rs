@@ -61,6 +61,11 @@ pub(super) trait Reporter {
   }
   /// A hook function runs after tests completed.
   fn after_report(&mut self, results: &[CaseResult]) -> Result<TestResult> {
+    if results.iter().all(|result| result.cases.is_empty()) {
+      return Ok(TestResult::RuleFail {
+        message: "No test cases were run.".into(),
+      });
+    }
     let mut passed = 0;
     let mut failed = 0;
 
