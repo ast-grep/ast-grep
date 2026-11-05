@@ -41,7 +41,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           # python-version: ${{ env.PYTHON_VERSION }}
-          python-version: '3.14'
+          python-version: '3.15'
           architecture: x64
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -108,7 +108,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.14'
+          python-version: '3.15'
         #   python-version: ${{ env.PYTHON_VERSION }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
