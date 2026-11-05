@@ -162,6 +162,28 @@ fn test_sg_test_unmatched_test_id() -> Result<()> {
   Ok(())
 }
 
+#[test]
+fn test_sg_test_unmatched_test_id_with_off_rule() -> Result<()> {
+  let dir = create_test_files([
+    ("sgconfig.yml", CONFIG),
+    ("rules/test-rule.yml", OFF_RULE),
+    ("rule-tests/test-rule-test.yml", WRONG_TEST),
+    (
+      "rule-tests/renamed-test.yml",
+      "id: no-such-rule\nvalid: ['a']\ninvalid: ['b']",
+    ),
+  ])?;
+  let config = dir.path().join("sgconfig.yml");
+  let error = sg(&format!(
+    "ast-grep test -c {} --skip-snapshot-tests",
+    config.display()
+  ))
+  .unwrap_err();
+  assert_eq!(error.to_string(), "1 test case(s) matched no rule.");
+  drop(dir);
+  Ok(())
+}
+
 #[cfg(unix)]
 #[test]
 fn test_sg_test_follow_symlinked_test_dir() -> Result<()> {
