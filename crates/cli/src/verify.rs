@@ -106,32 +106,25 @@ fn run_test_rule_impl<R: Reporter + Send>(
   let action = reporter.collect_snapshot_action();
   apply_snapshot_action(action, &results, snapshots, path_map)?;
   reporter.report_summaries(&results)?;
-  let test_result = reporter.after_report(&results)?;
-  let missing = missing.load(Ordering::Relaxed);
-  if missing > 0 {
-    let summary = match &test_result {
-      reporter::TestResult::Success { message }
-      | reporter::TestResult::RuleFail { message }
-      | reporter::TestResult::MismatchSnapshotOnly { message } => message,
-    };
-    writeln!(reporter.get_output(), "{summary}")?;
-    let message = format!("{missing} test case(s) matched no rule.");
-    return Err(anyhow!(ErrorContext::TestFail(message)));
-  }
-  match test_result {
+  let result = match reporter.after_report(&results)? {
     reporter::TestResult::Success { message } => {
       writeln!(reporter.get_output(), "{message}")?;
       Ok(ExitCode::SUCCESS)
     }
-    reporter::TestResult::RuleFail { message } => {
-      let error_context = ErrorContext::TestFail(message);
-      Err(anyhow!(error_context))
-    }
+    reporter::TestResult::RuleFail { message } => Err(anyhow!(ErrorContext::TestFail(message))),
     reporter::TestResult::MismatchSnapshotOnly { message } => {
-      let error_context = ErrorContext::TestSnapshotMismatch(message);
-      Err(anyhow!(error_context))
+      Err(anyhow!(ErrorContext::TestSnapshotMismatch(message)))
     }
+  };
+  let missing = missing.load(Ordering::Relaxed);
+  if missing > 0 {
+    if let Err(error) = &result {
+      writeln!(reporter.get_output(), "{error}")?;
+    }
+    let message = format!("{missing} test case(s) matched no rule.");
+    return Err(anyhow!(ErrorContext::TestFail(message)));
   }
+  result
 }
 
 fn apply_snapshot_action(
