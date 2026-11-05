@@ -4,15 +4,80 @@ permissions:
   contents: write
 
 on:
-  # enable workflow_dispatch when debugging
+  # Build and test musl binaries without publishing.
   workflow_dispatch: null
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - .cargo/config.toml
+      - Cargo.toml
+      - Cargo.lock
+      - crates/**
+      - npm/**
   push:
     tags:
       - "[0-9]+.*"
 jobs:
+  test-musl:
+    if: github.event_name != 'push'
+    permissions:
+      contents: read
+    name: CLI - ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            platform: linux/amd64
+          - target: aarch64-unknown-linux-musl
+            platform: linux/arm64
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      # Exercise the same build action and targets as upload-assets without publishing.
+      - uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: sg,ast-grep
+          target: ${{ matrix.target }}
+          archive: app-$target
+          tar: none
+          zip: all
+          dry-run: true
+          dry-run-intended: true
+      - uses: docker/setup-qemu-action@v3
+        if: matrix.platform == 'linux/arm64'
+        with:
+          platforms: arm64
+      - name: Build custom parser in Alpine
+        env:
+          TARGET: ${{ matrix.target }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          docker run --rm --platform "$PLATFORM" -v "$PWD:/work" -w /work -e TARGET \
+            -v "${CARGO_HOME:-$HOME/.cargo}/registry/src:/registry:ro" \
+            alpine:3.22 sh -euxc '
+              apk add --no-cache build-base
+              parser=$(find /registry -path "*/tree-sitter-json-*/src/parser.c" | head -n 1)
+              cc -shared -fPIC -I "$(dirname "$parser")" "$parser" -o "target/$TARGET/json.so"
+            '
+      - name: Test npm packages in a fresh Alpine container
+        env:
+          TARGET: ${{ matrix.target }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          docker run --rm --platform "$PLATFORM" -v "$PWD:/work:ro" -w /work -e TARGET \
+            node:22-alpine3.22 sh -euxc '
+              node --test npm/test/postinstall.test.js
+              node npm/test/musl.js
+            '
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cli-${{ matrix.target }}
+          path: app-${{ matrix.target }}.zip
+          if-no-files-found: error
+
   push_crates_io:
-    # If you don't set an input tag, it's a dry run (no uploads).
-    if: "startsWith(github.event.ref, 'refs/tags')"
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -22,8 +87,7 @@ jobs:
           publish-delay: 5000
 
   create-release:
-    # If you don't set an input tag, it's a dry run (no uploads).
-    if: "startsWith(github.event.ref, 'refs/tags')"
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -33,6 +97,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   upload-assets:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     strategy:
       matrix:
         include:
@@ -73,6 +138,7 @@ jobs:
           # (required)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   release-npm:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     name: Release npm cli
     needs:
@@ -119,6 +185,7 @@ jobs:
           echo "Publishing @ast-grep/cli...";
           npm publish
   changelog:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     steps:
       - name: "✏️ Generate release changelog"

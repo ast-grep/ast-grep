@@ -1,4 +1,4 @@
-// Run in node:22-alpine3.22 against binaries built by cli-musl.yml.
+// Run in node:22-alpine3.22 against binaries built by release.yml.
 const assert = require("node:assert/strict");
 const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
