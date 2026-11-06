@@ -27,7 +27,10 @@
     "detect-libc": "2.1.2"
   },
   "scripts": {
-    "postinstall": "node postinstall.js"
+    "postinstall": "node postinstall.js",
+    "test": "node --test test/postinstall.test.js",
+    "test:ci": "node test/ci.js",
+    "test:smoke": "node test/smoke.js"
   },
   "optionalDependencies": {
     "@ast-grep/cli-win32-arm64-msvc": "0.51.1",

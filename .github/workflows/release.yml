@@ -4,15 +4,16 @@ permissions:
   contents: write
 
 on:
-  # enable workflow_dispatch when debugging
+  # Build and test every CLI package without publishing.
   workflow_dispatch: null
+  schedule:
+    - cron: "0 9 * * *"
   push:
     tags:
       - "[0-9]+.*"
 jobs:
   push_crates_io:
-    # If you don't set an input tag, it's a dry run (no uploads).
-    if: "startsWith(github.event.ref, 'refs/tags')"
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -22,8 +23,7 @@ jobs:
           publish-delay: 5000
 
   create-release:
-    # If you don't set an input tag, it's a dry run (no uploads).
-    if: "startsWith(github.event.ref, 'refs/tags')"
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -33,27 +33,38 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   upload-assets:
+    name: Build CLI - ${{ matrix.target }}
     strategy:
+      fail-fast: false
       matrix:
-        include:
+        include: &cli-platforms
           - target: x86_64-pc-windows-msvc
             os: windows-latest
           - target: i686-pc-windows-msvc
             os: windows-latest
+            node-arch: x86
           - target: aarch64-pc-windows-msvc
             os: windows-latest
+            test-os: windows-11-arm
+            node-arch: arm64
           - target: aarch64-apple-darwin
             os: macos-latest
+            node-arch: arm64
           - target: x86_64-apple-darwin
             os: macos-latest
+            test-os: macos-15-intel
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-22.04
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-22.04
+            test-os: ubuntu-22.04-arm
+            node-arch: arm64
           - target: x86_64-unknown-linux-musl
             os: ubuntu-22.04
           - target: aarch64-unknown-linux-musl
             os: ubuntu-22.04
+            test-os: ubuntu-22.04-arm
+            node-arch: arm64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -67,12 +78,61 @@ jobs:
           zip: all
           target: ${{ matrix.target }}
           archive: app-$target
-          # uncomment this for debug
-          # ref: refs/tags/debug_release
+          dry-run: ${{ github.event_name != 'push' }}
+          dry-run-intended: true
         env:
-          # (required)
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.event_name == 'push' && secrets.GITHUB_TOKEN || '' }}
+      - uses: actions/upload-artifact@v7
+        if: github.event_name != 'push'
+        with:
+          name: cli-${{ matrix.target }}
+          path: app-${{ matrix.target }}.zip
+          if-no-files-found: error
+  test-cli:
+    # Test available archives even when another platform's build failed.
+    if: ${{ !cancelled() && github.event_name != 'push' }}
+    permissions:
+      contents: read
+    needs: upload-assets
+    name: Test CLI - ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: *cli-platforms
+    runs-on: ${{ matrix.test-os || matrix.os }}
+    env:
+      TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: cli-${{ matrix.target }}
+          path: cli-artifacts
+      - name: Extract platform package
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            7z x "cli-artifacts/app-$TARGET.zip" -ocli-artifacts/bin
+          else
+            unzip "cli-artifacts/app-$TARGET.zip" -d cli-artifacts/bin
+          fi
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          architecture: ${{ matrix.node-arch || 'x64' }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Prepare custom parser source
+        run: node npm/test/parser.js prepare
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+        with:
+          arch: ${{ matrix.node-arch || 'x64' }}
+      - name: Test npm package
+        working-directory: npm
+        run: npm run test:ci
+
   release-npm:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     name: Release npm cli
     needs:
@@ -119,6 +179,7 @@ jobs:
           echo "Publishing @ast-grep/cli...";
           npm publish
   changelog:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     steps:
       - name: "✏️ Generate release changelog"
