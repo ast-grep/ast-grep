@@ -143,7 +143,8 @@ impl Delimiter {
     *right += c.len_utf8();
     if *state == CaseState::IgnoreCase {
       return None;
-    } else if c.is_lowercase() {
+    } else if c.is_lowercase() || !c.is_uppercase() {
+      // digits and uncased characters never start a new word
       self.state = Lower;
     } else if *state == Lower {
       self.state = OneUpper;
@@ -255,6 +256,15 @@ mod test {
     assert_split(URL, &["x", "com", "hd", "nvim"]);
     assert_split("XMLHttpRequest", &["XML", "Http", "Request"]);
     assert_split("whatHTML", &["what", "HTML"]);
+  }
+
+  #[test]
+  fn test_split_digits_and_uncased() {
+    assert_split("ab12cd", &["ab12cd"]);
+    assert_split("sha256sum", &["sha256sum"]);
+    assert_split("base64Encode", &["base64", "Encode"]);
+    assert_split("HTTP2Server", &["HTTP2", "Server"]);
+    assert_split("日本a", &["日本a"]);
   }
 
   fn assert_split_sep(s: &str, seps: &[Separator], v: &[&str]) {
