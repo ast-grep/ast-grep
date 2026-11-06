@@ -132,6 +132,7 @@ impl Delimiter {
     // e.g. XMLHttp -> XML Http
     if let MultiUpper(last_char) = state
       && c.is_lowercase()
+      && last_char.is_uppercase()
     {
       let new_left = *right - last_char.len_utf8();
       let range = *left..new_left;
@@ -255,6 +256,36 @@ mod test {
     assert_split(URL, &["x", "com", "hd", "nvim"]);
     assert_split("XMLHttpRequest", &["XML", "Http", "Request"]);
     assert_split("whatHTML", &["what", "HTML"]);
+  }
+
+  #[test]
+  fn test_split_digits_and_uncased() {
+    assert_split("ab12cd", &["ab12cd"]);
+    assert_split("sha256sum", &["sha256sum"]);
+    assert_split("base64Encode", &["base64", "Encode"]);
+    assert_split("HTTP2Server", &["HTTP2", "Server"]);
+    assert_split("日本a", &["日本a"]);
+  }
+
+  #[test]
+  fn test_split_digits_before_uppercase() {
+    assert_split("2FAEnabled", &["2FA", "Enabled"]);
+    assert_split("3DModel", &["3D", "Model"]);
+    assert_split("123ABC", &["123ABC"]);
+    assert_split("ab12CD", &["ab12CD"]);
+    assert_split("ab12Cd", &["ab12", "Cd"]);
+    assert_split("H2O", &["H2O"]);
+    assert_split("ABC123DEF", &["ABC123DEF"]);
+    assert_split("日本A", &["日本A"]);
+    assert_format(SnakeCase, "2FAEnabled", "2fa_enabled");
+  }
+
+  #[test]
+  fn test_split_keeps_marks_and_unselected_punctuation() {
+    // combining mark stays attached to its base character
+    assert_split("CAFE\u{301}INE", &["CAFE\u{301}INE"]);
+    // `_` is not a selected separator, so it is not a word boundary
+    assert_split_sep("ABC_DEF", &[Separator::CaseChange], &["ABC_DEF"]);
   }
 
   fn assert_split_sep(s: &str, seps: &[Separator], v: &[&str]) {
