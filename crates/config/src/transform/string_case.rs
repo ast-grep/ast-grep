@@ -132,6 +132,7 @@ impl Delimiter {
     // e.g. XMLHttp -> XML Http
     if let MultiUpper(last_char) = state
       && c.is_lowercase()
+      && last_char.is_uppercase()
     {
       let new_left = *right - last_char.len_utf8();
       let range = *left..new_left;
@@ -143,8 +144,7 @@ impl Delimiter {
     *right += c.len_utf8();
     if *state == CaseState::IgnoreCase {
       return None;
-    } else if c.is_lowercase() || (c.is_alphanumeric() && !c.is_uppercase()) {
-      // digits and uncased letters never start a new word
+    } else if c.is_lowercase() {
       self.state = Lower;
     } else if *state == Lower {
       self.state = OneUpper;
@@ -265,6 +265,19 @@ mod test {
     assert_split("base64Encode", &["base64", "Encode"]);
     assert_split("HTTP2Server", &["HTTP2", "Server"]);
     assert_split("日本a", &["日本a"]);
+  }
+
+  #[test]
+  fn test_split_digits_before_uppercase() {
+    assert_split("2FAEnabled", &["2FA", "Enabled"]);
+    assert_split("3DModel", &["3D", "Model"]);
+    assert_split("123ABC", &["123ABC"]);
+    assert_split("ab12CD", &["ab12CD"]);
+    assert_split("ab12Cd", &["ab12", "Cd"]);
+    assert_split("H2O", &["H2O"]);
+    assert_split("ABC123DEF", &["ABC123DEF"]);
+    assert_split("日本A", &["日本A"]);
+    assert_format(SnakeCase, "2FAEnabled", "2fa_enabled");
   }
 
   #[test]
