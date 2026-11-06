@@ -143,8 +143,8 @@ impl Delimiter {
     *right += c.len_utf8();
     if *state == CaseState::IgnoreCase {
       return None;
-    } else if c.is_lowercase() || !c.is_uppercase() {
-      // digits and uncased characters never start a new word
+    } else if c.is_lowercase() || (c.is_alphanumeric() && !c.is_uppercase()) {
+      // digits and uncased letters never start a new word
       self.state = Lower;
     } else if *state == Lower {
       self.state = OneUpper;
@@ -265,6 +265,14 @@ mod test {
     assert_split("base64Encode", &["base64", "Encode"]);
     assert_split("HTTP2Server", &["HTTP2", "Server"]);
     assert_split("日本a", &["日本a"]);
+  }
+
+  #[test]
+  fn test_split_keeps_marks_and_unselected_punctuation() {
+    // combining mark stays attached to its base character
+    assert_split("CAFE\u{301}INE", &["CAFE\u{301}INE"]);
+    // `_` is not a selected separator, so it is not a word boundary
+    assert_split_sep("ABC_DEF", &[Separator::CaseChange], &["ABC_DEF"]);
   }
 
   fn assert_split_sep(s: &str, seps: &[Separator], v: &[&str]) {
