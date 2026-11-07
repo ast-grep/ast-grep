@@ -109,11 +109,13 @@
       ```
 
   The steps 3,4 and steps 5,6 are similar. We can define a `replace_with_indent` to it.
-  Following the same path, we can define a `extract_with_deindent` for steps 1,2
+  Following the same path, we can define a `extract_with_deindent` for steps 1,2.
+  For node captures, we apply the combined indentation change once so newlines
+  inside lexical tokens do not change.
 */
-use crate::source::Content;
+use crate::Node;
+use crate::source::{Content, Doc};
 use std::borrow::Cow;
-use std::cmp::Ordering;
 use std::ops::Range;
 
 /// We assume NEW_LINE, TAB, SPACE is only one code unit.
@@ -179,38 +181,78 @@ pub fn indent_lines<C: Content>(
     SingleLine(line) => return Cow::Borrowed(line),
     MultiLine(lines, ind) => (lines, ind),
   };
-  match original_indent.cmp(&indent) {
-    // if old and new indent match, just return old lines
-    Ordering::Equal => Cow::Borrowed(lines),
-    // need strip old indent
-    Ordering::Greater => Cow::Owned(remove_indent::<C>(original_indent - indent, lines)),
-    // need add missing indent
-    Ordering::Less => Cow::Owned(indent_lines_impl::<C, _>(
-      indent - original_indent,
-      lines.split(|b| *b == get_new_line::<C>()),
-    )),
-  }
+  shift_indent::<C>(lines, original_indent, indent, 0, &[])
 }
 
-fn indent_lines_impl<'a, C, Lines>(indent: usize, mut lines: Lines) -> Vec<C::Underlying>
-where
-  C: Content + 'a,
-  Lines: Iterator<Item = &'a [C::Underlying]>,
-{
-  let mut ret = vec![];
-  let space = get_space::<C>();
-  let leading: Vec<_> = std::iter::repeat_n(space, indent).collect();
-  // first line never got indent
-  if let Some(line) = lines.next() {
-    ret.extend(line.iter().cloned());
+/// Reindent a capture without changing the lines inside its lexical tokens.
+pub fn indent_nodes<'a, D: Doc>(
+  indent: usize,
+  base_indent: usize,
+  source: &'a D::Source,
+  range: Range<usize>,
+  nodes: &[Node<D>],
+) -> Cow<'a, [<D::Source as Content>::Underlying]> {
+  let extracted = extract_with_deindent(source, range.clone());
+  let DeindentedExtract::MultiLine(bytes, original_indent) = extracted else {
+    return indent_lines(indent, extracted);
   };
-  let new_line = get_new_line::<C>();
-  for line in lines {
-    ret.push(new_line.clone());
-    ret.extend(leading.clone());
-    ret.extend(line.iter().cloned());
+  if indent == original_indent && base_indent == 0 {
+    return Cow::Borrowed(bytes);
   }
-  ret
+
+  // A newline inside a leaf can be part of a literal. This also covers a
+  // newline immediately before the closing delimiter of that literal.
+  let new_line = get_new_line::<D::Source>();
+  let mut protected = vec![];
+  for token in nodes.iter().flat_map(Node::dfs).filter(Node::is_leaf) {
+    let token_range = token.range();
+    // Convert the parser's byte offset to an index in the source's code units.
+    let start = source.get_range(range.start..token_range.start).len();
+    for (offset, unit) in source.get_range(token_range).iter().enumerate() {
+      if *unit == new_line {
+        protected.push(start + offset);
+      }
+    }
+  }
+  shift_indent::<D::Source>(bytes, original_indent, indent, base_indent, &protected)
+}
+
+fn shift_indent<'a, C: Content>(
+  bytes: &'a [C::Underlying],
+  original_indent: usize,
+  indent: usize,
+  base_indent: usize,
+  protected: &[usize],
+) -> Cow<'a, [C::Underlying]> {
+  if indent == original_indent && base_indent == 0 {
+    return Cow::Borrowed(bytes);
+  }
+
+  let new_line = get_new_line::<C>();
+  let mut lines = bytes.split(|unit| *unit == new_line);
+  let first = lines.next().unwrap_or_default();
+  let remove = original_indent.saturating_sub(indent);
+  if remove == 0 && first.len() == bytes.len() {
+    return Cow::Borrowed(bytes);
+  }
+
+  // Keep the original deindent behavior for lines without a full prefix.
+  let space = get_space::<C>();
+  let prefix = vec![space.clone(); remove];
+  let padding = vec![space; base_indent + indent.saturating_sub(original_indent)];
+  let mut offset = first.len();
+  let mut result = first.strip_prefix(&prefix[..]).unwrap_or(first).to_vec();
+  for line in lines {
+    result.push(new_line.clone());
+    if protected.binary_search(&offset).is_ok() {
+      result.extend_from_slice(line);
+    } else {
+      result.extend_from_slice(&padding);
+      result.extend_from_slice(line.strip_prefix(&prefix[..]).unwrap_or(line));
+    }
+    offset += line.len() + 1;
+  }
+  Cow::Owned(result)
 }
 
 /// returns 0 if no indent is found before the offset
@@ -238,21 +280,6 @@ pub fn get_indent_at_offset<C: Content>(src: &[C::Underlying]) -> usize {
   } else {
     0
   }
-}
-
-// NOTE: we assume input is well indented.
-// following line's should have fewer indentation than initial line
-fn remove_indent<C: Content>(indent: usize, src: &[C::Underlying]) -> Vec<C::Underlying> {
-  let indentation: Vec<_> = std::iter::repeat_n(get_space::<C>(), indent).collect();
-  let new_line = get_new_line::<C>();
-  let lines: Vec<_> = src
-    .split(|b| *b == new_line)
-    .map(|line| match line.strip_prefix(&*indentation) {
-      Some(stripped) => stripped,
-      None => line,
-    })
-    .collect();
-  lines.join(&new_line).to_vec()
 }
 
 #[cfg(test)]

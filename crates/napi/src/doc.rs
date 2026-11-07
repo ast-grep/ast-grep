@@ -201,6 +201,21 @@ mod test {
   }
 
   #[test]
+  fn test_js_doc_reindent_preserves_multiline_template_literal() {
+    let doc = make_doc("if (true) {\n  g('😀', `😀\ncontent\n`);\n}");
+    let mut grep = AstGrep::doc(doc);
+    let edit = grep
+      .root()
+      .replace("g($$$ARGS)", "h(\n  $$$ARGS\n)")
+      .expect("should exist");
+    grep.edit(edit).expect("should work");
+    assert_eq!(
+      grep.root().text(),
+      "if (true) {\n  h(\n    '😀', `😀\ncontent\n`\n  );\n}"
+    );
+  }
+
+  #[test]
   fn test_js_doc_multiple_node_replace() {
     let doc = make_doc("console.log(1 + 2 + 3)");
     let mut grep = AstGrep::doc(doc);
