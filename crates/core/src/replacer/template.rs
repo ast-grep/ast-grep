@@ -1,4 +1,7 @@
-use super::indent::{DeindentedExtract, extract_with_deindent, get_indent_at_offset, indent_lines};
+use super::indent::{
+  DeindentedExtract, extract_with_deindent, get_indent_at_offset, get_new_line, get_space,
+  indent_lines,
+};
 use super::{MetaVarExtract, Replacer, split_first_meta_var};
 use crate::NodeMatch;
 use crate::language::Language;
@@ -55,9 +58,11 @@ impl<D: Doc> Replacer<D> for TemplateFix {
   fn generate_replacement(&self, nm: &NodeMatch<'_, D>) -> Underlying<D> {
     let leading = nm.get_doc().get_source().get_range(0..nm.range().start);
     let indent = get_indent_at_offset::<D::Source>(leading);
-    let bytes = replace_fixer(self, nm.get_env());
-    let replaced = DeindentedExtract::MultiLine(&bytes, 0);
-    indent_lines::<D::Source>(indent, replaced).to_vec()
+    // The matched node's indentation is applied while assembling the
+    // replacement, not as a second pass over the assembled text. A second pass
+    // cannot tell which lines came from a meta-variable and would re-indent
+    // lines that `indent_lines` deliberately left alone.
+    replace_fixer(self, nm.get_env(), indent)
   }
 }
 
@@ -99,22 +104,51 @@ fn create_template(tmpl: &str, mv_char: char, transforms: &[String]) -> Template
   }
 }
 
-fn replace_fixer<D: Doc>(fixer: &TemplateFix, env: &MetaVarEnv<'_, D>) -> Underlying<D> {
+/// Append a literal piece of the template. Template text is authored at
+/// indentation 0, so its continuation lines are shifted to `base_indent`.
+///
+/// Its first line normally continues the line already in `out`. But if the
+/// previous piece (a meta-variable) ended with a newline, e.g. a Go or Swift
+/// statement list whose range includes the terminator, the fragment starts a
+/// line that did not exist in the template. That line gets `base_indent` too.
+fn append_fragment<D: Doc>(out: &mut Underlying<D>, fragment: &str, base_indent: usize) {
+  let bytes = D::Source::decode_str(fragment);
+  let new_line = get_new_line::<D::Source>();
+  let starts_line = out.last() == Some(&new_line);
+  if starts_line && bytes.first().is_some_and(|b| *b != new_line) {
+    out.extend(std::iter::repeat_n(get_space::<D::Source>(), base_indent));
+  }
+  let lines = DeindentedExtract::MultiLine(&bytes, 0);
+  out.extend_from_slice(&indent_lines::<D::Source>(base_indent, lines));
+}
+
+/// Assemble the replacement. `base_indent` is the indentation of the matched
+/// node in the source; every piece is placed at its final indentation here.
+fn replace_fixer<D: Doc>(
+  fixer: &TemplateFix,
+  env: &MetaVarEnv<'_, D>,
+  base_indent: usize,
+) -> Underlying<D> {
+  let mut ret = vec![];
   let template = match fixer {
-    TemplateFix::Textual(n) => return D::Source::decode_str(n).to_vec(),
+    TemplateFix::Textual(text) => {
+      append_fragment::<D>(&mut ret, text, base_indent);
+      return ret;
+    }
     TemplateFix::WithMetaVar(t) => t,
   };
-  let mut ret = vec![];
   let mut frags = template.fragments.iter();
   let vars = template.vars.iter();
   if let Some(frag) = frags.next() {
-    ret.extend_from_slice(&D::Source::decode_str(frag));
+    append_fragment::<D>(&mut ret, frag, base_indent);
   }
   for ((var, indent), frag) in vars.zip(frags) {
-    if let Some(bytes) = maybe_get_var(env, var, indent) {
+    // a meta-var sits at its indentation within the template, plus the
+    // indentation of the whole template in the source
+    if let Some(bytes) = maybe_get_var(env, var, base_indent + indent) {
       ret.extend_from_slice(&bytes);
     }
-    ret.extend_from_slice(&D::Source::decode_str(frag));
+    append_fragment::<D>(&mut ret, frag, base_indent);
   }
   ret
 }
@@ -122,7 +156,7 @@ fn replace_fixer<D: Doc>(fixer: &TemplateFix, env: &MetaVarEnv<'_, D>) -> Underl
 fn maybe_get_var<'e, 't, C, D>(
   env: &'e MetaVarEnv<'t, D>,
   var: &MetaVarExtract,
-  indent: &usize,
+  indent: usize,
 ) -> Option<Cow<'e, [C::Underlying]>>
 where
   C: Content + 'e,
@@ -133,7 +167,7 @@ where
       // transformed source does not have range, directly return bytes
       let source = env.get_transformed(name)?;
       let de_intended = DeindentedExtract::MultiLine(source, 0);
-      let bytes = indent_lines::<D::Source>(*indent, de_intended);
+      let bytes = indent_lines::<D::Source>(indent, de_intended);
       return Some(bytes);
     }
     MetaVarExtract::Single(name) => {
@@ -157,7 +191,7 @@ where
     }
   };
   let extracted = extract_with_deindent(source, range);
-  let bytes = indent_lines::<D::Source>(*indent, extracted);
+  let bytes = indent_lines::<D::Source>(indent, extracted);
   Some(bytes)
 }
 
@@ -423,6 +457,21 @@ if (true) {
     let bytes = tf.generate_replacement(&node_match);
     let ret = String::from_utf8(bytes).expect("replacement must be valid utf-8");
     assert_eq!("if (a)\n  if (b)\n    foo", ret);
+  }
+
+  #[test]
+  fn test_fragment_after_trailing_newline() {
+    // a captured text may end with a newline (Go/Swift statement lists include
+    // their terminator). The template text after it then starts a new line and
+    // is indented like the matched node.
+    let root = Tsx.ast_grep("if (x) {\n  dummy\n}");
+    let node = root.root().find("dummy").expect("should find");
+    let tf = TemplateFix::with_transform("f(() => { $A})", &Tsx, &["A".to_string()]);
+    let mut env = MetaVarEnv::new();
+    env.insert_transformation(&MetaVariable::Multiple, "A", "a();\n".bytes().collect());
+    let bytes = tf.generate_replacement(&NodeMatch::new(node.into(), env));
+    let ret = String::from_utf8(bytes).expect("replacement must be valid utf-8");
+    assert_eq!(ret, "f(() => { a();\n  })");
   }
 
   #[test]

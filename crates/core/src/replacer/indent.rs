@@ -110,18 +110,37 @@
 
   The steps 3,4 and steps 5,6 are similar. We can define a `replace_with_indent` to it.
   Following the same path, we can define a `extract_with_deindent` for steps 1,2
+
+  ## Lines that do not belong to the indented block
+
+  Steps 2 and 3 (and 5) are not applied as separate passes. Doing so is not
+  idempotent: a line that cannot be de-indented in step 2 would still be
+  re-indented in step 3, so even an identity rewrite `g($A)` -> `g($A)` would
+  add whitespace to it. This happens for lines that are indented *less* than
+  the first line of the captured text, which only occurs inside multi-line
+  string literals, heredocs and the like (or malformed code):
+
+  ```ignore
+    return g(`a
+  b`);
+  ```
+
+  Such a line has an absolute column chosen by the author, so it is kept
+  verbatim. Every other line keeps its indentation *relative* to the first
+  line, i.e. it is shifted by `new_indent - original_indent` in one step.
+  This is a pure whitespace rule and does not need any knowledge of the
+  language grammar.
 */
 use crate::source::Content;
 use std::borrow::Cow;
-use std::cmp::Ordering;
 use std::ops::Range;
 
 /// We assume NEW_LINE, TAB, SPACE is only one code unit.
 /// This is sufficiently true for utf8, utf16 and char.
-fn get_new_line<C: Content>() -> C::Underlying {
+pub(super) fn get_new_line<C: Content>() -> C::Underlying {
   C::decode_str("\n")[0].clone()
 }
-fn get_space<C: Content>() -> C::Underlying {
+pub(super) fn get_space<C: Content>() -> C::Underlying {
   C::decode_str(" ")[0].clone()
 }
 
@@ -170,47 +189,57 @@ pub fn formatted_slice<'a, C: Content>(
   indent_lines(0, deindent)
 }
 
+/// Re-indent the extracted text so that it sits at `indent` instead of its
+/// original indentation. See the module doc for the per-line rule.
 pub fn indent_lines<C: Content>(
   indent: usize,
   extract: DeindentedExtract<C>,
 ) -> Cow<[C::Underlying]> {
   use DeindentedExtract::*;
-  let (lines, original_indent) = match extract {
-    SingleLine(line) => return Cow::Borrowed(line),
-    MultiLine(lines, ind) => (lines, ind),
-  };
-  match original_indent.cmp(&indent) {
-    // if old and new indent match, just return old lines
-    Ordering::Equal => Cow::Borrowed(lines),
-    // need strip old indent
-    Ordering::Greater => Cow::Owned(remove_indent::<C>(original_indent - indent, lines)),
-    // need add missing indent
-    Ordering::Less => Cow::Owned(indent_lines_impl::<C, _>(
-      indent - original_indent,
-      lines.split(|b| *b == get_new_line::<C>()),
-    )),
+  match extract {
+    SingleLine(line) => Cow::Borrowed(line),
+    MultiLine(lines, original_indent) => reindent::<C>(lines, original_indent, indent),
   }
 }
 
-fn indent_lines_impl<'a, C, Lines>(indent: usize, mut lines: Lines) -> Vec<C::Underlying>
-where
-  C: Content + 'a,
-  Lines: Iterator<Item = &'a [C::Underlying]>,
-{
-  let mut ret = vec![];
-  let space = get_space::<C>();
-  let leading: Vec<_> = std::iter::repeat_n(space, indent).collect();
-  // first line never got indent
-  if let Some(line) = lines.next() {
-    ret.extend(line.iter().cloned());
-  };
+/// Shift every continuation line of `src` from `original_indent` to `new_indent`,
+/// keeping the indentation of each line relative to the first line.
+///
+/// * The first line is never touched: it continues whatever precedes it.
+/// * A continuation line indented less than `original_indent` is not part of the
+///   indented block (string/heredoc content, or malformed code). It is emitted
+///   verbatim so its absolute column, and thus any literal value, is preserved.
+/// * Any other line is re-emitted at `new_indent + (line_indent - original_indent)`.
+///
+/// Because this is a single pass, the result for `new_indent == original_indent`
+/// is always the input itself, which makes identity rewrites a no-op.
+fn reindent<C: Content>(
+  src: &[C::Underlying],
+  original_indent: usize,
+  new_indent: usize,
+) -> Cow<'_, [C::Underlying]> {
+  if original_indent == new_indent {
+    return Cow::Borrowed(src);
+  }
   let new_line = get_new_line::<C>();
+  let space = get_space::<C>();
+  let mut lines = src.split(|b| *b == new_line);
+  let mut ret = Vec::with_capacity(src.len());
+  if let Some(first) = lines.next() {
+    ret.extend_from_slice(first);
+  }
   for line in lines {
     ret.push(new_line.clone());
-    ret.extend(leading.clone());
-    ret.extend(line.iter().cloned());
+    let line_indent = line.iter().take_while(|b| **b == space).count();
+    if line_indent < original_indent {
+      ret.extend_from_slice(line);
+    } else {
+      let relative = line_indent - original_indent;
+      ret.extend(std::iter::repeat_n(space.clone(), new_indent + relative));
+      ret.extend_from_slice(&line[line_indent..]);
+    }
   }
-  ret
+  Cow::Owned(ret)
 }
 
 /// returns 0 if no indent is found before the offset
@@ -238,21 +267,6 @@ pub fn get_indent_at_offset<C: Content>(src: &[C::Underlying]) -> usize {
   } else {
     0
   }
-}
-
-// NOTE: we assume input is well indented.
-// following line's should have fewer indentation than initial line
-fn remove_indent<C: Content>(indent: usize, src: &[C::Underlying]) -> Vec<C::Underlying> {
-  let indentation: Vec<_> = std::iter::repeat_n(get_space::<C>(), indent).collect();
-  let new_line = get_new_line::<C>();
-  let lines: Vec<_> = src
-    .split(|b| *b == new_line)
-    .map(|line| match line.strip_prefix(&*indentation) {
-      Some(stripped) => stripped,
-      None => line,
-    })
-    .collect();
-  lines.join(&new_line).to_vec()
 }
 
 #[cfg(test)]
@@ -408,6 +422,44 @@ pass
     let inserted = "def abc():\n  pass";
     let actual = test_replace_with_indent(target, 4, inserted);
     assert_eq!(actual, "def abc():\n  pass");
+  }
+
+  fn reindent_str(src: &str, original: usize, new: usize) -> String {
+    let out = reindent::<String>(src.as_bytes(), original, new);
+    String::from_utf8(out.to_vec()).unwrap()
+  }
+
+  #[test]
+  fn test_reindent_identity_is_noop() {
+    // GH #3077: lines less indented than the capture must not gain whitespace
+    let src = "`a\nb`";
+    assert_eq!(reindent_str(src, 2, 2), src);
+    let src = "\"\"\"a\nb\n\"\"\"";
+    assert_eq!(reindent_str(src, 4, 4), src);
+  }
+
+  #[test]
+  fn test_reindent_keeps_relative_indent() {
+    let src = "1\n    + 2\n      + 3";
+    assert_eq!(reindent_str(src, 2, 4), "1\n      + 2\n        + 3");
+    assert_eq!(reindent_str(src, 2, 0), "1\n  + 2\n    + 3");
+  }
+
+  #[test]
+  fn test_reindent_pins_less_indented_lines() {
+    // string content at column 0 stays put when the code around it moves
+    let src = "`a\nb\n  c`";
+    assert_eq!(reindent_str(src, 2, 6), "`a\nb\n      c`");
+    assert_eq!(reindent_str(src, 2, 0), "`a\nb\nc`");
+    // a line with some, but not enough, indentation is pinned too
+    let src = "x\n  y";
+    assert_eq!(reindent_str(src, 4, 2), "x\n  y");
+  }
+
+  #[test]
+  fn test_reindent_blank_lines() {
+    // blank lines inside a block never gain trailing whitespace
+    assert_eq!(reindent_str("a\n\n  b", 2, 4), "a\n\n    b");
   }
 
   #[test]

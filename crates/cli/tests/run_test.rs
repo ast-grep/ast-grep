@@ -202,6 +202,137 @@ fn test_rewrite_js_in_html() -> Result<()> {
 }
 
 #[test]
+fn test_rewrite_preserves_multiline_strings() -> Result<()> {
+  let js = "function f() {\n  return g(`a\nb`);\n}\n";
+  let py = "def f():\n    return g(\"\"\"a\nb\n\"\"\")\n";
+  let dir = create_test_files([("a.js", js), ("b.py", py)])?;
+  for (name, lang, source) in [("a.js", "js", js), ("b.py", "py", py)] {
+    Command::new(cargo_bin!())
+      .current_dir(dir.path())
+      .args(["run", "-l", lang, "-p", "g($A)", "-r", "g($A)", "-U", name])
+      .assert()
+      .success();
+    assert_eq!(std::fs::read_to_string(dir.path().join(name))?, source);
+  }
+  Ok(())
+}
+
+#[test]
+fn test_rewrite_reindents_code_around_multiline_strings() -> Result<()> {
+  let src = "function f() {\n  g(`a\nb`, () => {\n    x();\n  });\n}\n";
+  let expected = "function f() {\n  h(\n    `a\nb`, () => {\n      x();\n    }\n  );\n}\n";
+  let dir = create_test_files([("a.js", src)])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "run",
+      "-l",
+      "js",
+      "-p",
+      "g($$$ARGS)",
+      "-r",
+      "h(\n  $$$ARGS\n)",
+      "-U",
+      "a.js",
+    ])
+    .assert()
+    .success();
+  assert_eq!(std::fs::read_to_string(dir.path().join("a.js"))?, expected);
+  Ok(())
+}
+
+#[test]
+fn test_rewrite_preserves_triple_quoted_string_when_dedenting() -> Result<()> {
+  let src = "def f():\n    return g(\n        \"\"\"a\n  b\n\"\"\"\n    )\n";
+  let expected = "def f():\n    return h(\"\"\"a\n  b\n\"\"\")\n";
+  let dir = create_test_files([("a.py", src)])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "run", "-l", "py", "-p", "g($A)", "-r", "h($A)", "-U", "a.py",
+    ])
+    .assert()
+    .success();
+  assert_eq!(std::fs::read_to_string(dir.path().join("a.py"))?, expected);
+  Ok(())
+}
+
+#[test]
+fn test_rewrite_reindents_block_comment_in_capture() -> Result<()> {
+  // a block comment is a single token with newlines in it, but its lines are
+  // indented like the surrounding code and must move with it.
+  let src = "if (x) {\n  f(() => {\n    /**\n     * doc\n     */\n    y();\n  });\n}\n";
+  let expected =
+    "if (x) {\n  g(\n    () => {\n      /**\n       * doc\n       */\n      y();\n    }\n  );\n}\n";
+  let dir = create_test_files([("a.js", src)])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "run",
+      "-l",
+      "js",
+      "-p",
+      "f($A)",
+      "-r",
+      "g(\n  $A\n)",
+      "-U",
+      "a.js",
+    ])
+    .assert()
+    .success();
+  assert_eq!(std::fs::read_to_string(dir.path().join("a.js"))?, expected);
+  Ok(())
+}
+
+#[test]
+fn test_rewrite_dedents_docstring_with_code() -> Result<()> {
+  // docstring content indented with the code keeps its relative indentation
+  let src = "class A:\n    def m(self):\n        \"\"\"\n        Doc line\n        \"\"\"\n        return 1\n";
+  let expected = "def m(self):\n    \"\"\"\n    Doc line\n    \"\"\"\n    return 1\n";
+  let dir = create_test_files([("a.py", src)])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "run",
+      "-l",
+      "py",
+      "-p",
+      "class A:\n    $$$B",
+      "-r",
+      "$$$B",
+      "-U",
+      "a.py",
+    ])
+    .assert()
+    .success();
+  assert_eq!(std::fs::read_to_string(dir.path().join("a.py"))?, expected);
+  Ok(())
+}
+
+#[test]
+fn test_rewrite_identity_is_noop_on_raw_string() -> Result<()> {
+  let src = "fn main() {\n    let s = r#\"\nline1\n    line2\n\"#;\n}\n";
+  let dir = create_test_files([("a.rs", src)])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "run",
+      "-l",
+      "rust",
+      "-p",
+      "let s = $A;",
+      "-r",
+      "let s = $A;",
+      "-U",
+      "a.rs",
+    ])
+    .assert()
+    .success();
+  assert_eq!(std::fs::read_to_string(dir.path().join("a.rs"))?, src);
+  Ok(())
+}
+
+#[test]
 fn test_inspect() -> Result<()> {
   let dir = create_test_files([("a.js", "alert(1)"), ("b.js", "alert(456)")])?;
   Command::new(cargo_bin!())
