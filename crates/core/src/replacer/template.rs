@@ -52,6 +52,7 @@ impl TemplateFix {
 }
 
 impl<D: Doc> Replacer<D> for TemplateFix {
+  /// Uses the matched line's indentation as the base for the replacement.
   fn generate_replacement(&self, nm: &NodeMatch<'_, D>) -> Underlying<D> {
     let leading = nm.get_doc().get_source().get_range(0..nm.range().start);
     let indent = get_indent_at_offset::<D::Source>(leading);
@@ -66,6 +67,8 @@ pub struct Template {
   vars: Vec<(MetaVarExtract, Indent)>,
 }
 
+/// Splits the template into literal fragments and metavariables, recording the
+/// template line's indentation at each metavariable.
 fn create_template(tmpl: &str, mv_char: char, transforms: &[String]) -> TemplateFix {
   let mut fragments = vec![];
   let mut vars = vec![];
@@ -97,12 +100,14 @@ fn create_template(tmpl: &str, mv_char: char, transforms: &[String]) -> Template
   }
 }
 
+/// Appends literal template text with the match's indentation on continuation lines.
 fn append_fragment<D: Doc>(out: &mut Underlying<D>, fragment: &str, indent: usize) {
   let bytes = D::Source::decode_str(fragment);
   let lines = DeindentedExtract::MultiLine(&bytes, 0);
   out.extend_from_slice(&indent_lines::<D::Source>(indent, lines));
 }
 
+/// Renders the template by applying indentation separately to its fragments and captures.
 fn replace_fixer<D: Doc>(
   fixer: &TemplateFix,
   env: &MetaVarEnv<'_, D>,
@@ -130,6 +135,8 @@ fn replace_fixer<D: Doc>(
   ret
 }
 
+/// Renders a metavariable using the match and template indentation. Captured
+/// nodes also carry syntax information used to preserve literal contents.
 fn maybe_get_var<'e, 't, C, D>(
   env: &'e MetaVarEnv<'t, D>,
   var: &MetaVarExtract,

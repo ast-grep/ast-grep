@@ -110,8 +110,8 @@
 
   The steps 3,4 and steps 5,6 are similar. We can define a `replace_with_indent` to it.
   Following the same path, we can define a `extract_with_deindent` for steps 1,2.
-  For node captures, we apply the combined indentation change once so newlines
-  inside lexical tokens do not change.
+  For node captures, we apply the combined indentation change once so lines
+  inside string literal text keep their original indentation.
 */
 use crate::Node;
 use crate::source::{Content, Doc};
@@ -172,6 +172,7 @@ pub fn formatted_slice<'a, C: Content>(
   indent_lines(0, deindent)
 }
 
+/// Reindent extracted text without syntax information.
 pub fn indent_lines<C: Content>(
   indent: usize,
   extract: DeindentedExtract<C>,
@@ -184,7 +185,7 @@ pub fn indent_lines<C: Content>(
   shift_indent::<C>(lines, original_indent, indent, 0, &[])
 }
 
-/// Reindent a capture without changing the lines inside its lexical tokens.
+/// Reindent a capture while preserving the whitespace inside known string fragments.
 pub fn indent_nodes<'a, D: Doc>(
   indent: usize,
   base_indent: usize,
@@ -200,23 +201,46 @@ pub fn indent_nodes<'a, D: Doc>(
     return Cow::Borrowed(bytes);
   }
 
-  // A newline inside a leaf can be part of a literal. This also covers a
-  // newline immediately before the closing delimiter of that literal.
   let new_line = get_new_line::<D::Source>();
   let mut protected = vec![];
-  for token in nodes.iter().flat_map(Node::dfs).filter(Node::is_leaf) {
-    let token_range = token.range();
+  for literal in nodes.iter().flat_map(Node::dfs).filter(is_literal_content) {
+    let literal_range = literal.range();
     // Convert the parser's byte offset to an index in the source's code units.
-    let start = source.get_range(range.start..token_range.start).len();
-    for (offset, unit) in source.get_range(token_range).iter().enumerate() {
+    let start = source.get_range(range.start..literal_range.start).len();
+    for (offset, unit) in source.get_range(literal_range).iter().enumerate() {
       if *unit == new_line {
         protected.push(start + offset);
       }
     }
   }
+  protected.sort_unstable();
   shift_indent::<D::Source>(bytes, original_indent, indent, base_indent, &protected)
 }
 
+/// Identify literal text in the JS/TS and Python grammars. Interpolation code,
+/// comments and indentation-sensitive scalars still follow normal reindentation.
+fn is_literal_content<D: Doc>(node: &Node<D>) -> bool {
+  let kind = node.kind();
+  if !matches!(
+    kind.as_ref(),
+    "string_fragment" | "string_content" | "escape_sequence"
+  ) {
+    return false;
+  }
+  let Some(parent) = node.parent() else {
+    return false;
+  };
+  matches!(
+    (kind.as_ref(), parent.kind().as_ref()),
+    (
+      "string_fragment",
+      "string" | "template_string" | "template_literal_type"
+    ) | ("string_content", "string")
+      | ("escape_sequence", "string" | "template_string")
+  )
+}
+
+/// Shift each line's indentation except after a protected newline offset.
 fn shift_indent<'a, C: Content>(
   bytes: &'a [C::Underlying],
   original_indent: usize,

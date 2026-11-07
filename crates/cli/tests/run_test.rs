@@ -201,6 +201,7 @@ fn test_rewrite_js_in_html() -> Result<()> {
   Ok(())
 }
 
+/// Checks that identity rewrites leave captured JavaScript and Python strings intact.
 #[test]
 fn test_rewrite_preserves_multiline_strings() -> Result<()> {
   let js = "function f() {\n  return g(`a\nb`);\n}\n";
@@ -243,8 +244,8 @@ fn test_rewrite_reindents_code_around_multiline_strings() -> Result<()> {
 
 #[test]
 fn test_rewrite_preserves_triple_quoted_string_when_dedenting() -> Result<()> {
-  let src = "def f():\n    return g(\n        \"\"\"a\n  b\n\"\"\"\n    )\n";
-  let expected = "def f():\n    return h(\"\"\"a\n  b\n\"\"\")\n";
+  let src = "def f():\n    return g(\n        \"\"\"a\\t\n  b\n\"\"\"\n    )\n";
+  let expected = "def f():\n    return h(\"\"\"a\\t\n  b\n\"\"\")\n";
   let dir = create_test_files([("a.py", src)])?;
   Command::new(cargo_bin!())
     .current_dir(dir.path())
@@ -254,6 +255,59 @@ fn test_rewrite_preserves_triple_quoted_string_when_dedenting() -> Result<()> {
     .assert()
     .success();
   assert_eq!(std::fs::read_to_string(dir.path().join("a.py"))?, expected);
+  Ok(())
+}
+
+/// Moves a plain scalar's continuation lines with the wrapped YAML key.
+#[test]
+fn test_rewrite_reindents_multiline_yaml_plain_scalar() -> Result<()> {
+  let src = "outer:\n  inner: a\n    b\n";
+  let expected = "outer:\n  wrapper:\n    inner: a\n      b\n";
+  let dir = create_test_files([("example.yaml", src)])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "run",
+      "-l",
+      "yaml",
+      "-p",
+      "inner: $A",
+      "-r",
+      "wrapper:\n  inner: $A",
+      "-U",
+      "example.yaml",
+    ])
+    .assert()
+    .success();
+  assert_eq!(
+    std::fs::read_to_string(dir.path().join("example.yaml"))?,
+    expected
+  );
+  Ok(())
+}
+
+/// Keeps a captured block comment aligned with the surrounding code.
+#[test]
+fn test_rewrite_reindents_multiline_js_block_comment() -> Result<()> {
+  let src = "function f() {\n  g(() => {\n    /**\n     * doc\n     */\n    x();\n  });\n}\n";
+  let expected = "function f() {\n  h(\n    () => {\n      /**\n       * doc\n       */\n      x();\n    }\n  );\n}\n";
+  let dir = create_test_files([("a.js", src)])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args([
+      "run",
+      "-l",
+      "js",
+      "-p",
+      "g($A)",
+      "-r",
+      "h(\n  $A\n)",
+      "-U",
+      "a.js",
+    ])
+    .assert()
+    .success();
+  assert_eq!(std::fs::read_to_string(dir.path().join("a.js"))?, expected);
   Ok(())
 }
 
