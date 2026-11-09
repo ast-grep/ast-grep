@@ -51,11 +51,22 @@ function resolveBinaryPath() {
   return dir ? path.join(dir, binaryName) : null;
 }
 
+// Write to a temporary file and rename it over dest. Package managers may
+// hard-link dest from a store shared by every project on the machine, and a
+// rename replaces the file atomically without writing through that link.
 function installBinary(src, dest) {
+  const temp = `${dest}.${process.pid}.tmp`;
+  fs.rmSync(temp, { force: true });
   try {
-    fs.linkSync(src, dest);
+    fs.linkSync(src, temp);
   } catch (_) {
-    fs.copyFileSync(src, dest);
+    fs.copyFileSync(src, temp);
+  }
+  try {
+    fs.renameSync(temp, dest);
+  } catch (err) {
+    fs.rmSync(temp, { force: true });
+    throw err;
   }
 }
 
@@ -87,6 +98,7 @@ module.exports = {
   binaryName,
   alternativeName,
   detectPackageName,
+  installBinary,
   resolveBinaryDir,
   resolveBinaryPath,
 };
