@@ -3,10 +3,10 @@
 //! It provides a set of customized languages with expando_char / pre_process_pattern,
 //! and a set of stub languages without preprocessing.
 //! A rule of thumb: if your language does not accept identifiers like `$VAR`.
-//! Use `define_language!` with an `expando` character for those languages; omit
-//! it for languages that accept `$`. Each declaration also supplies its parser,
-//! feature, aliases, extensions, and optional module for tests or custom behavior.
-//! Add its name to `define_registry!` to include it in the built-in registry.
+//! Add a record to the table in `registry.rs`, with an `expando` character for
+//! those languages; omit it for languages that accept `$`. Each record supplies
+//! its parser, feature, aliases, extensions, and optional module for tests or
+//! custom behavior. Keep the table in alphabetical order.
 //! To see the full list of languages, visit `<https://ast-grep.github.io/reference/languages.html>`
 //!
 //! ```
@@ -25,6 +25,8 @@
 
 #[macro_use]
 mod macros;
+#[macro_use]
+mod registry;
 
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 
@@ -47,339 +49,7 @@ pub trait Alias: Display {
   const ALIAS: &'static [&'static str];
 }
 
-define_language! {
-  Bash {
-    feature: "tree-sitter-bash",
-    module: bash,
-    parser: tree_sitter_bash::LANGUAGE,
-    aliases: ["bash"],
-    extensions: [
-      "bash", "bats", "cgi", "command", "env", "fcgi", "ksh", "sh", "tmux", "tool", "zsh",
-    ],
-  }
-}
-
-// https://en.cppreference.com/w/cpp/language/identifiers
-define_language! {
-  C {
-    feature: "tree-sitter-c",
-    parser: tree_sitter_c::LANGUAGE,
-    aliases: ["c"],
-    extensions: ["c", "h"],
-    expando: '𐀀',
-  }
-}
-
-define_language! {
-  Cpp {
-    feature: "tree-sitter-cpp",
-    module: cpp,
-    parser: tree_sitter_cpp::LANGUAGE,
-    aliases: ["cc", "c++", "cpp", "cxx"],
-    extensions: ["cc", "hpp", "cpp", "c++", "hh", "cxx", "cu", "ino"],
-    expando: '𐀀',
-  }
-}
-
-// https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/lexical-structure#643-identifiers
-// all letter number is accepted
-// https://www.compart.com/en/unicode/category/Nl
-define_language! {
-  CSharp {
-    feature: "tree-sitter-c-sharp",
-    module: csharp,
-    parser: tree_sitter_c_sharp::LANGUAGE,
-    aliases: ["cs", "csharp"],
-    extensions: ["cs"],
-    expando: 'µ',
-  }
-}
-
-// https://www.w3.org/TR/CSS21/grammar.html#scanner
-define_language! {
-  Css {
-    feature: "tree-sitter-css",
-    module: css,
-    parser: tree_sitter_css::LANGUAGE,
-    aliases: ["css"],
-    extensions: ["css", "scss"],
-    expando: '_',
-  }
-}
-
-define_language! {
-  Dart {
-    feature: "tree-sitter-dart",
-    module: dart,
-    parser: tree_sitter_dart::LANGUAGE,
-    aliases: ["dart"],
-    extensions: ["dart"],
-  }
-}
-
-// https://github.com/elixir-lang/tree-sitter-elixir/blob/a2861e88a730287a60c11ea9299c033c7d076e30/grammar.js#L245
-define_language! {
-  Elixir {
-    feature: "tree-sitter-elixir",
-    module: elixir,
-    parser: tree_sitter_elixir::LANGUAGE,
-    aliases: ["ex", "elixir"],
-    extensions: ["ex", "exs"],
-    expando: 'µ',
-  }
-}
-
-// we can use any Unicode code point categorized as "Letter"
-// https://go.dev/ref/spec#letter
-define_language! {
-  Go {
-    feature: "tree-sitter-go",
-    module: go,
-    parser: tree_sitter_go::LANGUAGE,
-    aliases: ["go", "golang"],
-    extensions: ["go"],
-    expando: 'µ',
-  }
-}
-
-// GHC supports Unicode syntax per
-// https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/unicode_syntax.html
-// and the tree-sitter-haskell grammar parses it too.
-define_language! {
-  Haskell {
-    feature: "tree-sitter-haskell",
-    module: haskell,
-    parser: tree_sitter_haskell::LANGUAGE,
-    aliases: ["hs", "haskell"],
-    extensions: ["hs"],
-    expando: 'µ',
-  }
-}
-
-// https://developer.hashicorp.com/terraform/language/syntax/configuration#identifiers
-define_language! {
-  Hcl {
-    feature: "tree-sitter-hcl",
-    module: hcl,
-    parser: tree_sitter_hcl::LANGUAGE,
-    aliases: ["hcl"],
-    extensions: ["hcl", "nomad", "tf", "tfvars", "workflow"],
-    expando: 'µ',
-  }
-}
-
-define_language! {
-  Html {
-    feature: "tree-sitter-html",
-    module: html,
-    implementation: html::Html,
-    aliases: ["html"],
-    extensions: ["html", "htm", "xhtml"],
-  }
-}
-
-define_language! {
-  Java {
-    feature: "tree-sitter-java",
-    parser: tree_sitter_java::LANGUAGE,
-    aliases: ["java"],
-    extensions: ["java"],
-  }
-}
-
-define_language! {
-  JavaScript {
-    feature: "tree-sitter-javascript",
-    parser: tree_sitter_javascript::LANGUAGE,
-    aliases: ["javascript", "js", "jsx"],
-    extensions: ["cjs", "js", "mjs", "jsx"],
-  }
-}
-
-define_language! {
-  Json {
-    feature: "tree-sitter-json",
-    module: json,
-    parser: tree_sitter_json::LANGUAGE,
-    aliases: ["json"],
-    extensions: ["json"],
-  }
-}
-
-// https://github.com/fwcd/tree-sitter-kotlin/pull/93
-define_language! {
-  Kotlin {
-    feature: "tree-sitter-kotlin",
-    module: kotlin,
-    parser: tree_sitter_kotlin::LANGUAGE,
-    aliases: ["kotlin", "kt"],
-    extensions: ["kt", "ktm", "kts"],
-    expando: 'µ',
-  }
-}
-
-define_language! {
-  Lua {
-    feature: "tree-sitter-lua",
-    module: lua,
-    parser: tree_sitter_lua::LANGUAGE,
-    aliases: ["lua"],
-    extensions: ["lua"],
-  }
-}
-
-define_language! {
-  Markdown {
-    feature: "tree-sitter-md",
-    module: markdown,
-    parser: tree_sitter_md::LANGUAGE,
-    aliases: ["markdown", "md"],
-    extensions: ["markdown", "md"],
-  }
-}
-
-// Nix uses $ for string interpolation (e.g., "${pkgs.hello}")
-define_language! {
-  Nix {
-    feature: "tree-sitter-nix",
-    module: nix,
-    parser: tree_sitter_nix::LANGUAGE,
-    aliases: ["nix"],
-    extensions: ["nix"],
-    expando: '_',
-  }
-}
-
-// PHP accepts unicode to be used as some name not var name though
-define_language! {
-  Php {
-    feature: "tree-sitter-php",
-    module: php,
-    parser: tree_sitter_php::LANGUAGE_PHP_ONLY,
-    aliases: ["php"],
-    extensions: ["php"],
-    expando: 'µ',
-  }
-}
-
-// we can use any char in unicode range [:XID_Start:]
-// https://docs.python.org/3/reference/lexical_analysis.html#identifiers
-// see also [PEP 3131](https://peps.python.org/pep-3131/) for further details.
-define_language! {
-  Python {
-    feature: "tree-sitter-python",
-    module: python,
-    parser: tree_sitter_python::LANGUAGE,
-    aliases: ["py", "python"],
-    extensions: ["py", "py3", "pyi", "bzl", "bazel"],
-    expando: 'µ',
-  }
-}
-
-// https://github.com/tree-sitter/tree-sitter-ruby/blob/f257f3f57833d584050336921773738a3fd8ca22/grammar.js#L30C26-L30C78
-define_language! {
-  Ruby {
-    feature: "tree-sitter-ruby",
-    module: ruby,
-    parser: tree_sitter_ruby::LANGUAGE,
-    aliases: ["rb", "ruby"],
-    extensions: ["rb", "rbw", "gemspec"],
-    expando: 'µ',
-  }
-}
-
-// we can use any char in unicode range [:XID_Start:]
-// https://doc.rust-lang.org/reference/identifiers.html
-define_language! {
-  Rust {
-    feature: "tree-sitter-rust",
-    module: rust,
-    parser: tree_sitter_rust::LANGUAGE,
-    aliases: ["rs", "rust"],
-    extensions: ["rs"],
-    expando: 'µ',
-  }
-}
-
-define_language! {
-  Scala {
-    feature: "tree-sitter-scala",
-    module: scala,
-    parser: tree_sitter_scala::LANGUAGE,
-    aliases: ["scala"],
-    extensions: ["scala", "sc", "sbt"],
-  }
-}
-
-define_language! {
-  Solidity {
-    feature: "tree-sitter-solidity",
-    module: solidity,
-    parser: tree_sitter_solidity::LANGUAGE,
-    aliases: ["sol", "solidity"],
-    extensions: ["sol"],
-  }
-}
-
-//https://docs.swift.org/swift-book/documentation/the-swift-programming-language/lexicalstructure/#Identifiers
-define_language! {
-  Swift {
-    feature: "tree-sitter-swift",
-    module: swift,
-    parser: tree_sitter_swift::LANGUAGE,
-    aliases: ["swift"],
-    extensions: ["swift"],
-    expando: 'µ',
-  }
-}
-
-define_language! {
-  Tsx {
-    feature: "tree-sitter-typescript",
-    parser: tree_sitter_typescript::LANGUAGE_TSX,
-    aliases: ["tsx"],
-    extensions: ["tsx"],
-  }
-}
-
-define_language! {
-  TypeScript {
-    feature: "tree-sitter-typescript",
-    parser: tree_sitter_typescript::LANGUAGE_TYPESCRIPT,
-    aliases: ["ts", "typescript"],
-    extensions: ["ts", "cts", "mts"],
-  }
-}
-
-define_language! {
-  Yaml {
-    feature: "tree-sitter-yaml",
-    module: yaml,
-    parser: tree_sitter_yaml::LANGUAGE,
-    aliases: ["yaml", "yml"],
-    extensions: ["yaml", "yml"],
-  }
-}
-
-// Zig identifiers are [A-Za-z_][A-Za-z0-9_]*; '$' is not one of them.
-// https://ziglang.org/documentation/master/#Identifiers
-define_language! {
-  Zig {
-    feature: "tree-sitter-zig",
-    module: zig,
-    parser: tree_sitter_zig::LANGUAGE,
-    aliases: ["zig"],
-    extensions: ["zig"],
-    expando: '_',
-  }
-}
-
-// Keep enum variants and enumeration in the same alphabetical order.
-define_registry! {
-  Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json,
-  Kotlin, Lua, Markdown, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript,
-  Yaml, Zig,
-}
+with_languages!(emit_registry);
 
 impl SupportLang {
   pub fn file_types(&self) -> Types {
@@ -454,7 +124,7 @@ macro_rules! impl_lang_method {
   ($method: ident, ($($pname:tt: $ptype:ty),*) => $return_type: ty) => {
     #[inline]
     fn $method(&self, $($pname: $ptype),*) -> $return_type {
-      execute_lang_method!{ self, $method, ($($pname),*) }
+      with_languages!(emit_dispatch, self, $method, ($($pname),*))
     }
   };
 }
@@ -466,7 +136,7 @@ impl Language for SupportLang {
   impl_lang_method!(extract_meta_var, (_source: &str) => Option<MetaVariable>);
   impl_lang_method!(build_pattern, (_builder: &PatternBuilder) => Result<Pattern, PatternError>);
   fn pre_process_pattern<'q>(&self, _query: &'q str) -> Cow<'q, str> {
-    execute_lang_method! { self, pre_process_pattern, (_query) }
+    with_languages!(emit_dispatch, self, pre_process_pattern, (_query))
   }
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     from_extension(path.as_ref())
@@ -480,7 +150,7 @@ impl LanguageExt for SupportLang {
     &self,
     _root: Node<StrDoc<L>>,
   ) -> Vec<(String, Vec<TSRange>)> {
-    execute_lang_method! { self, extract_injections, (_root) }
+    with_languages!(emit_dispatch, self, extract_injections, (_root))
   }
 }
 
@@ -657,6 +327,11 @@ mod test {
 
     // Variant indices intentionally follow alphabetical enumeration order.
     const LANGS: &[SupportLang] = SupportLang::all_langs();
+    let names: Vec<_> = LANGS
+      .iter()
+      .map(|lang| lang.to_string().to_ascii_lowercase())
+      .collect();
+    assert!(names.windows(2).all(|pair| pair[0] < pair[1]));
     assert_eq!(
       &LANGS[5..9],
       &[

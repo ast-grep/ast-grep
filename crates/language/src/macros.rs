@@ -1,19 +1,34 @@
-// Keep the implementation and the registry metadata in one declaration. The
-// metadata callback must exist even when the language's feature is disabled.
-macro_rules! define_language {
-  (
+// Parse the named schema in one place. Emitters only match the stable identity,
+// lookup, and declaration facets, so adding a field does not change dispatch.
+macro_rules! normalize_languages {
+  ($callback:ident, $arguments:tt; $(
     $lang:ident {
       feature: $feature:literal,
+      $kind:ident: $implementation:path,
       $(module: $module:ident,)?
-      parser: $parser:expr,
-      aliases: [$($alias:literal),+ $(,)?],
-      extensions: [$($extension:literal),+ $(,)?],
+      aliases: $aliases:expr,
+      extensions: $extensions:expr,
       $(expando: $expando:literal,)?
     }
-  ) => {
-    define_language!(@metadata $lang, $feature, [$($module)?],
-      [$($alias),+], [$($extension),+], $);
+  ),* $(,)?) => {
+    $callback! {
+      $arguments;
+      $(
+        $lang $feature ($aliases, $extensions) {
+          $(#[cfg(feature = $feature)] mod $module;)?
+          define_language!($lang, $feature, $kind, $implementation $(, $expando)?);
+          define_alias!($lang, $feature, $aliases);
+        }
+      )*
+    }
+  };
+  ($($invalid:tt)*) => {
+    compile_error!("expected language records with feature, parser or implementation, optional module, aliases, extensions, and optional expando");
+  };
+}
 
+macro_rules! define_language {
+  ($lang:ident, $feature:literal, parser, $parser:path $(, $expando:literal)?) => {
     #[cfg(feature = $feature)]
     #[derive(Clone, Copy, Debug)]
     pub struct $lang;
@@ -46,29 +61,23 @@ macro_rules! define_language {
       fn get_ts_language(&self) -> TSLanguage { ($parser).into() }
     }
   };
-  (
-    $lang:ident {
-      feature: $feature:literal,
-      module: $module:ident,
-      implementation: $implementation:path,
-      aliases: [$($alias:literal),+ $(,)?],
-      extensions: [$($extension:literal),+ $(,)?],
-    }
-  ) => {
-    define_language!(@metadata $lang, $feature, [$module],
-      [$($alias),+], [$($extension),+], $);
+  ($lang:ident, $feature:literal, implementation, $implementation:path) => {
     #[cfg(feature = $feature)]
     pub use $implementation;
   };
-  // Pass a dollar token explicitly to define the nested callback on stable Rust.
-  (@metadata $lang:ident, $feature:literal, [$($module:ident)?],
-    [$($alias:literal),+], [$($extension:literal),+], $d:tt
-  ) => {
-    $(#[cfg(feature = $feature)] mod $module;)?
+  ($lang:ident, $feature:literal, implementation, $implementation:path, $expando:literal) => {
+    compile_error!(concat!(stringify!($lang), ": handwritten implementations own their preprocessing"));
+  };
+  ($lang:ident, $feature:literal, $kind:ident, $implementation:path $(, $expando:literal)?) => {
+    compile_error!(concat!(stringify!($lang), ": expected parser or implementation"));
+  };
+}
 
+macro_rules! define_alias {
+  ($lang:ident, $feature:literal, $aliases:expr) => {
     #[cfg(feature = $feature)]
     impl Alias for $lang {
-      const ALIAS: &'static [&'static str] = &[$($alias),+];
+      const ALIAS: &'static [&'static str] = &$aliases;
     }
 
     #[cfg(feature = $feature)]
@@ -81,41 +90,30 @@ macro_rules! define_language {
     #[cfg(feature = $feature)]
     impl<'de> Deserialize<'de> for $lang {
       fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        deserializer.deserialize_str(common::AliasVisitor { aliases: Self::ALIAS })?;
+        deserializer.deserialize_str(common::AliasVisitor {
+          aliases: Self::ALIAS,
+        })?;
         Ok($lang)
       }
     }
 
     #[cfg(feature = $feature)]
     impl From<$lang> for SupportLang {
-      fn from(_: $lang) -> Self { Self::$lang }
-    }
-
-    macro_rules! $lang {
-      ($d next:ident, $d state:tt) => {
-        $d next! {
-          $d state
-          $lang { feature: $feature, extensions: [$($extension),+] }
-        }
-      };
+      fn from(_: $lang) -> Self {
+        Self::$lang
+      }
     }
   };
 }
 
-// Each callback appends one declaration. Only the terminal rule emits Rust
-// items, since separate macro invocations cannot append enum variants or arms.
-macro_rules! define_registry {
-  ($($lang:ident),* $(,)?) => {
-    define_registry!(@collect [] [$($lang),*]);
-  };
-  (@collect [$($entries:tt)*] [$first:ident $(, $rest:ident)*]) => {
-    $first!(append_language, ([$($entries)*] [$($rest),*]));
-  };
-  (@collect [$(
-    $lang:ident { feature: $feature:literal, extensions: [$($extension:literal),+] }
-  )*] []) => {
+macro_rules! emit_registry {
+  ((); $(
+    $lang:ident $feature:literal ($aliases:expr, $extensions:expr) { $($items:tt)* }
+  )*) => {
     #[cfg(any($(feature = $feature),*))]
     mod common;
+
+    $($($items)*)*
 
     /// Represents all built-in languages enabled in this build.
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
@@ -137,26 +135,19 @@ macro_rules! define_registry {
 
     fn extensions(lang: SupportLang) -> &'static [&'static str] {
       match lang {
-        $(#[cfg(feature = $feature)] SupportLang::$lang => &[$($extension),+],)*
+        $(#[cfg(feature = $feature)] SupportLang::$lang => &$extensions,)*
       }
-    }
-
-    define_registry!(@dispatch [$($lang => $feature),*] $);
-  };
-  (@dispatch [$($lang:ident => $feature:literal),*] $d:tt) => {
-    macro_rules! execute_lang_method {
-      ($d me:expr, $d method:ident, $d args:tt) => {
-        match *$d me {
-          $(#[cfg(feature = $feature)]
-            SupportLang::$lang => $lang.$d method $d args,)*
-        }
-      };
     }
   };
 }
 
-macro_rules! append_language {
-  (([$($entries:tt)*] [$($rest:ident),*]) $($entry:tt)*) => {
-    define_registry!(@collect [$($entries)* $($entry)*] [$($rest),*]);
+// Emit the whole match expression; macros cannot expand into individual arms.
+macro_rules! emit_dispatch {
+  (($me:expr, $method:ident, $arguments:tt); $(
+    $lang:ident $feature:literal $lookup:tt $items:tt
+  )*) => {
+    match *$me {
+      $(#[cfg(feature = $feature)] SupportLang::$lang => $lang.$method $arguments,)*
+    }
   };
 }
