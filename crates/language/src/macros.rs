@@ -28,11 +28,13 @@ macro_rules! define_language {
         self.get_ts_language().field_id_for_name(field).map(|f| f.get())
       }
 
-      $(fn expando_char(&self) -> char { $expando })?
+      $(
+        fn expando_char(&self) -> char { $expando }
 
-      fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
-        common::pre_process_pattern(define_language!(@expando $($expando)?), query)
-      }
+        fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
+          common::pre_process_pattern(self.expando_char(), query)
+        }
+      )?
 
       fn build_pattern(&self, builder: &PatternBuilder) -> Result<Pattern, PatternError> {
         builder.build(|src| StrDoc::try_new(src, *self))
@@ -58,8 +60,6 @@ macro_rules! define_language {
     #[cfg(feature = $feature)]
     pub use $implementation;
   };
-  (@expando) => { None };
-  (@expando $expando:literal) => { Some($expando) };
   // Pass a dollar token explicitly to define the nested callback on stable Rust.
   (@metadata $lang:ident, $feature:literal, [$($module:ident)?],
     [$($alias:literal),+], [$($extension:literal),+], $d:tt

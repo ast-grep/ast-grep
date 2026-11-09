@@ -1,10 +1,11 @@
 use serde::de::{self, Visitor};
 use std::fmt;
 
-pub(super) fn pre_process_pattern(expando: Option<char>, query: &str) -> std::borrow::Cow<'_, str> {
-  let Some(expando) = expando else {
-    return std::borrow::Cow::Borrowed(query);
-  };
+#[allow(
+  dead_code,
+  reason = "Only languages with an expando character use this helper."
+)]
+pub(super) fn pre_process_pattern(expando: char, query: &str) -> std::borrow::Cow<'_, str> {
   let mut ret = Vec::with_capacity(query.len());
   let mut dollar_count = 0;
   for c in query.chars() {

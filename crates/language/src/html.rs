@@ -13,7 +13,7 @@ impl Language for Html {
     'z'
   }
   fn pre_process_pattern<'q>(&self, query: &'q str) -> std::borrow::Cow<'q, str> {
-    pre_process_pattern(Some(self.expando_char()), query)
+    pre_process_pattern(self.expando_char(), query)
   }
   fn kind_to_id(&self, kind: &str) -> u16 {
     self.get_ts_language().id_for_node_kind(kind, true)
