@@ -374,8 +374,9 @@ define_language! {
   }
 }
 
+// Preserve enum and Serde indices by appending new entries. all_langs sorts by name.
 define_registry! {
-  Bash, C, Cpp, CSharp, Css, Dart, Elixir, Go, Haskell, Hcl, Html, Java, JavaScript, Json,
+  Bash, C, Cpp, CSharp, Css, Dart, Go, Elixir, Haskell, Hcl, Html, Java, JavaScript, Json,
   Kotlin, Lua, Markdown, Nix, Php, Python, Ruby, Rust, Scala, Solidity, Swift, Tsx, TypeScript,
   Yaml, Zig,
 }
@@ -522,6 +523,9 @@ pub fn config_file_type() -> Types {
   builder.build().expect("yaml type must be valid")
 }
 
+#[cfg(all(test, feature = "builtin-parser"))]
+mod serde_test_support;
+
 #[cfg(test)]
 mod test {
   use super::*;
@@ -634,6 +638,34 @@ mod test {
         assert!(types.matched(Path::new(&path), false).is_whitelist());
       }
     }
+  }
+
+  #[cfg(feature = "builtin-parser")]
+  #[test]
+  fn test_default_variant_indices() {
+    use serde_test_support::IndexSerializer;
+
+    for (lang, index, name) in [
+      (SupportLang::Dart, 5, "Dart"),
+      (SupportLang::Go, 6, "Go"),
+      (SupportLang::Elixir, 7, "Elixir"),
+      (SupportLang::Haskell, 8, "Haskell"),
+    ] {
+      assert_eq!(lang as u32, index);
+      assert_eq!(lang.serialize(IndexSerializer).unwrap(), (index, name));
+    }
+
+    // Enumeration historically lists Elixir before Go, unlike the enum itself.
+    const LANGS: &[SupportLang] = SupportLang::all_langs();
+    assert_eq!(
+      &LANGS[5..9],
+      &[
+        SupportLang::Dart,
+        SupportLang::Elixir,
+        SupportLang::Go,
+        SupportLang::Haskell,
+      ]
+    );
   }
 
   #[cfg(not(feature = "tree-sitter-kotlin"))]
