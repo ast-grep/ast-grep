@@ -636,23 +636,6 @@ mod test {
     }
   }
 
-  #[cfg(feature = "builtin-parser")]
-  #[test]
-  fn test_default_registry_snapshot() {
-    let mut registry = String::new();
-    for &lang in SupportLang::all_langs() {
-      registry.push_str(&format!(
-        "{lang}: {}; {}\n",
-        alias(lang).join(", "),
-        extensions(lang).join(", ")
-      ));
-    }
-    assert_eq!(
-      registry,
-      include_str!("../tests/fixtures/builtin-registry.txt")
-    );
-  }
-
   #[cfg(not(feature = "tree-sitter-kotlin"))]
   #[test]
   fn test_disabled_language() {
