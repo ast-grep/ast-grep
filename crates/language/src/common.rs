@@ -1,38 +1,6 @@
 use serde::de::{self, Visitor};
 use std::fmt;
 
-pub(super) const fn sort_languages<const N: usize>(
-  mut langs: [super::SupportLang; N],
-  mut names: [&str; N],
-) -> [super::SupportLang; N] {
-  let mut i = 1;
-  while i < N {
-    let mut j = i;
-    while j > 0 && name_less(names[j], names[j - 1]) {
-      langs.swap(j, j - 1);
-      names.swap(j, j - 1);
-      j -= 1;
-    }
-    i += 1;
-  }
-  langs
-}
-
-const fn name_less(a: &str, b: &str) -> bool {
-  let a = a.as_bytes();
-  let b = b.as_bytes();
-  let mut i = 0;
-  while i < a.len() && i < b.len() {
-    let left = a[i].to_ascii_lowercase();
-    let right = b[i].to_ascii_lowercase();
-    if left != right {
-      return left < right;
-    }
-    i += 1;
-  }
-  a.len() < b.len()
-}
-
 #[allow(
   dead_code,
   reason = "Only languages with an expando character use this helper."

@@ -125,16 +125,7 @@ macro_rules! define_registry {
 
     impl SupportLang {
       pub const fn all_langs() -> &'static [Self] {
-        // The historical enumeration order is alphabetical, whereas enum and
-        // Serde indices put Go before Elixir. Sort at compile time to keep both.
-        #[cfg(any($(feature = $feature),*))]
-        const LANGS: &[SupportLang] = &common::sort_languages(
-          [$(#[cfg(feature = $feature)] SupportLang::$lang,)*],
-          [$(#[cfg(feature = $feature)] stringify!($lang),)*],
-        );
-        #[cfg(not(any($(feature = $feature),*)))]
-        const LANGS: &[SupportLang] = &[];
-        LANGS
+        &[$(#[cfg(feature = $feature)] Self::$lang,)*]
       }
     }
 
