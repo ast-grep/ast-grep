@@ -1,4 +1,4 @@
-use super::pre_process_pattern;
+use super::common::pre_process_pattern;
 use ast_grep_core::Language;
 use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::tree_sitter::{LanguageExt, StrDoc, TSLanguage, TSRange};
@@ -13,13 +13,14 @@ impl Language for Html {
     'z'
   }
   fn pre_process_pattern<'q>(&self, query: &'q str) -> std::borrow::Cow<'q, str> {
-    pre_process_pattern(self.expando_char(), query)
+    pre_process_pattern(Some(self.expando_char()), query)
   }
   fn kind_to_id(&self, kind: &str) -> u16 {
-    crate::parsers::language_html().id_for_node_kind(kind, true)
+    self.get_ts_language().id_for_node_kind(kind, true)
   }
   fn field_to_id(&self, field: &str) -> Option<u16> {
-    crate::parsers::language_html()
+    self
+      .get_ts_language()
       .field_id_for_name(field)
       .map(|f| f.get())
   }
@@ -29,7 +30,7 @@ impl Language for Html {
 }
 impl LanguageExt for Html {
   fn get_ts_language(&self) -> TSLanguage {
-    crate::parsers::language_html()
+    tree_sitter_html::LANGUAGE.into()
   }
   fn injectable_languages(&self) -> Option<&'static [&'static str]> {
     Some(&["css", "js", "ts", "tsx", "scss", "less", "stylus", "coffee"])
