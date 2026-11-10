@@ -48,6 +48,29 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Lint
         run: cargo clippy --all-targets --all-features --workspace --release --locked -- -D clippy::all
+  minimal-language:
+    name: Minimal Language Features (${{ matrix.features || 'none' }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        features:
+          - ""
+          - tree-sitter-rust
+          - tree-sitter-java
+          - tree-sitter-html
+          - tree-sitter-typescript
+          - napi-lang
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install Rust
+        run: rustup update stable
+      - name: Test selected parsers
+        run: cargo test --locked -p ast-grep-language --no-default-features --features "${{ matrix.features }}"
   napi:
     name: NAPI Linting
     runs-on: ubuntu-latest
