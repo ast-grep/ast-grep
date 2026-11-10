@@ -26,6 +26,10 @@ pub(super) fn pre_process_pattern(expando: char, query: &str) -> std::borrow::Co
   std::borrow::Cow::Owned(ret.into_iter().collect())
 }
 
+#[allow(
+  dead_code,
+  reason = "Empty registries have no concrete language deserializers."
+)]
 pub(super) struct AliasVisitor {
   pub(super) aliases: &'static [&'static str],
 }

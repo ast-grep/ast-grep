@@ -5,7 +5,6 @@ macro_rules! normalize_languages {
     $lang:ident {
       feature: $feature:literal,
       $kind:ident: $implementation:path,
-      $(module: $module:ident,)?
       aliases: $aliases:expr,
       extensions: $extensions:expr,
       $(expando: $expando:literal,)?
@@ -15,7 +14,6 @@ macro_rules! normalize_languages {
       $arguments;
       $(
         $lang $feature ($aliases, $extensions) {
-          $(#[cfg(feature = $feature)] mod $module;)?
           define_language!($lang, $feature, $kind, $implementation $(, $expando)?);
           define_alias!($lang, $feature, $aliases);
         }
@@ -23,7 +21,7 @@ macro_rules! normalize_languages {
     }
   };
   ($($invalid:tt)*) => {
-    compile_error!("expected language records with feature, parser or implementation, optional module, aliases, extensions, and optional expando");
+    compile_error!("expected language records with feature, parser or implementation, aliases, extensions, and optional expando");
   };
 }
 
@@ -110,9 +108,6 @@ macro_rules! emit_registry {
   ((); $(
     $lang:ident $feature:literal ($aliases:expr, $extensions:expr) { $($items:tt)* }
   )*) => {
-    #[cfg(any($(feature = $feature),*))]
-    mod common;
-
     $($($items)*)*
 
     /// Represents all built-in languages enabled in this build.

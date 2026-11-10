@@ -7,7 +7,6 @@ macro_rules! with_languages {
       Bash {
         feature: "tree-sitter-bash",
         parser: tree_sitter_bash::LANGUAGE,
-        module: bash,
         aliases: ["bash"],
         extensions: [
           "bash", "bats", "cgi", "command", "env", "fcgi", "ksh", "sh", "tmux", "tool", "zsh",
@@ -26,7 +25,6 @@ macro_rules! with_languages {
       Cpp {
         feature: "tree-sitter-cpp",
         parser: tree_sitter_cpp::LANGUAGE,
-        module: cpp,
         aliases: ["cc", "c++", "cpp", "cxx"],
         extensions: ["cc", "hpp", "cpp", "c++", "hh", "cxx", "cu", "ino"],
         expando: '𐀀',
@@ -38,7 +36,6 @@ macro_rules! with_languages {
       CSharp {
         feature: "tree-sitter-c-sharp",
         parser: tree_sitter_c_sharp::LANGUAGE,
-        module: csharp,
         aliases: ["cs", "csharp"],
         extensions: ["cs"],
         expando: 'µ',
@@ -48,7 +45,6 @@ macro_rules! with_languages {
       Css {
         feature: "tree-sitter-css",
         parser: tree_sitter_css::LANGUAGE,
-        module: css,
         aliases: ["css"],
         extensions: ["css", "scss"],
         expando: '_',
@@ -57,7 +53,6 @@ macro_rules! with_languages {
       Dart {
         feature: "tree-sitter-dart",
         parser: tree_sitter_dart::LANGUAGE,
-        module: dart,
         aliases: ["dart"],
         extensions: ["dart"],
       },
@@ -66,7 +61,6 @@ macro_rules! with_languages {
       Elixir {
         feature: "tree-sitter-elixir",
         parser: tree_sitter_elixir::LANGUAGE,
-        module: elixir,
         aliases: ["ex", "elixir"],
         extensions: ["ex", "exs"],
         expando: 'µ',
@@ -77,7 +71,6 @@ macro_rules! with_languages {
       Go {
         feature: "tree-sitter-go",
         parser: tree_sitter_go::LANGUAGE,
-        module: go,
         aliases: ["go", "golang"],
         extensions: ["go"],
         expando: 'µ',
@@ -89,7 +82,6 @@ macro_rules! with_languages {
       Haskell {
         feature: "tree-sitter-haskell",
         parser: tree_sitter_haskell::LANGUAGE,
-        module: haskell,
         aliases: ["hs", "haskell"],
         extensions: ["hs"],
         expando: 'µ',
@@ -99,7 +91,6 @@ macro_rules! with_languages {
       Hcl {
         feature: "tree-sitter-hcl",
         parser: tree_sitter_hcl::LANGUAGE,
-        module: hcl,
         aliases: ["hcl"],
         extensions: ["hcl", "nomad", "tf", "tfvars", "workflow"],
         expando: 'µ',
@@ -108,7 +99,6 @@ macro_rules! with_languages {
       Html {
         feature: "tree-sitter-html",
         implementation: html::Html,
-        module: html,
         aliases: ["html"],
         extensions: ["html", "htm", "xhtml"],
       },
@@ -130,7 +120,6 @@ macro_rules! with_languages {
       Json {
         feature: "tree-sitter-json",
         parser: tree_sitter_json::LANGUAGE,
-        module: json,
         aliases: ["json"],
         extensions: ["json"],
       },
@@ -139,7 +128,6 @@ macro_rules! with_languages {
       Kotlin {
         feature: "tree-sitter-kotlin",
         parser: tree_sitter_kotlin::LANGUAGE,
-        module: kotlin,
         aliases: ["kotlin", "kt"],
         extensions: ["kt", "ktm", "kts"],
         expando: 'µ',
@@ -148,7 +136,6 @@ macro_rules! with_languages {
       Lua {
         feature: "tree-sitter-lua",
         parser: tree_sitter_lua::LANGUAGE,
-        module: lua,
         aliases: ["lua"],
         extensions: ["lua"],
       },
@@ -156,7 +143,6 @@ macro_rules! with_languages {
       Markdown {
         feature: "tree-sitter-md",
         parser: tree_sitter_md::LANGUAGE,
-        module: markdown,
         aliases: ["markdown", "md"],
         extensions: ["markdown", "md"],
       },
@@ -165,7 +151,6 @@ macro_rules! with_languages {
       Nix {
         feature: "tree-sitter-nix",
         parser: tree_sitter_nix::LANGUAGE,
-        module: nix,
         aliases: ["nix"],
         extensions: ["nix"],
         expando: '_',
@@ -175,7 +160,6 @@ macro_rules! with_languages {
       Php {
         feature: "tree-sitter-php",
         parser: tree_sitter_php::LANGUAGE_PHP_ONLY,
-        module: php,
         aliases: ["php"],
         extensions: ["php"],
         expando: 'µ',
@@ -187,7 +171,6 @@ macro_rules! with_languages {
       Python {
         feature: "tree-sitter-python",
         parser: tree_sitter_python::LANGUAGE,
-        module: python,
         aliases: ["py", "python"],
         extensions: ["py", "py3", "pyi", "bzl", "bazel"],
         expando: 'µ',
@@ -197,7 +180,6 @@ macro_rules! with_languages {
       Ruby {
         feature: "tree-sitter-ruby",
         parser: tree_sitter_ruby::LANGUAGE,
-        module: ruby,
         aliases: ["rb", "ruby"],
         extensions: ["rb", "rbw", "gemspec"],
         expando: 'µ',
@@ -208,7 +190,6 @@ macro_rules! with_languages {
       Rust {
         feature: "tree-sitter-rust",
         parser: tree_sitter_rust::LANGUAGE,
-        module: rust,
         aliases: ["rs", "rust"],
         extensions: ["rs"],
         expando: 'µ',
@@ -217,7 +198,6 @@ macro_rules! with_languages {
       Scala {
         feature: "tree-sitter-scala",
         parser: tree_sitter_scala::LANGUAGE,
-        module: scala,
         aliases: ["scala"],
         extensions: ["scala", "sc", "sbt"],
       },
@@ -225,7 +205,6 @@ macro_rules! with_languages {
       Solidity {
         feature: "tree-sitter-solidity",
         parser: tree_sitter_solidity::LANGUAGE,
-        module: solidity,
         aliases: ["sol", "solidity"],
         extensions: ["sol"],
       },
@@ -234,7 +213,6 @@ macro_rules! with_languages {
       Swift {
         feature: "tree-sitter-swift",
         parser: tree_sitter_swift::LANGUAGE,
-        module: swift,
         aliases: ["swift"],
         extensions: ["swift"],
         expando: 'µ',
@@ -257,7 +235,6 @@ macro_rules! with_languages {
       Yaml {
         feature: "tree-sitter-yaml",
         parser: tree_sitter_yaml::LANGUAGE,
-        module: yaml,
         aliases: ["yaml", "yml"],
         extensions: ["yaml", "yml"],
       },
@@ -267,7 +244,6 @@ macro_rules! with_languages {
       Zig {
         feature: "tree-sitter-zig",
         parser: tree_sitter_zig::LANGUAGE,
-        module: zig,
         aliases: ["zig"],
         extensions: ["zig"],
         expando: '_',

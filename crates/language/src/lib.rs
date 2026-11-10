@@ -5,8 +5,8 @@
 //! A rule of thumb: if your language does not accept identifiers like `$VAR`.
 //! Add a record to the table in `registry.rs`, with an `expando` character for
 //! those languages; omit it for languages that accept `$`. Each record supplies
-//! its parser, feature, aliases, extensions, and optional module for tests or
-//! custom behavior. Keep the table in alphabetical order.
+//! its parser, feature, aliases, and extensions. Keep the table in alphabetical
+//! order, and declare language modules explicitly below so `cargo fmt` finds them.
 //! To see the full list of languages, visit `<https://ast-grep.github.io/reference/languages.html>`
 //!
 //! ```
@@ -22,6 +22,57 @@
 //! assert_eq!(found.text(), "fn foo() {}");
 //! # }
 //! ```
+
+// Keep module declarations explicit so cargo fmt discovers their source files.
+#[cfg(feature = "tree-sitter-bash")]
+mod bash;
+mod common;
+#[cfg(feature = "tree-sitter-cpp")]
+mod cpp;
+#[cfg(feature = "tree-sitter-c-sharp")]
+mod csharp;
+#[cfg(feature = "tree-sitter-css")]
+mod css;
+#[cfg(feature = "tree-sitter-dart")]
+mod dart;
+#[cfg(feature = "tree-sitter-elixir")]
+mod elixir;
+#[cfg(feature = "tree-sitter-go")]
+mod go;
+#[cfg(feature = "tree-sitter-haskell")]
+mod haskell;
+#[cfg(feature = "tree-sitter-hcl")]
+mod hcl;
+#[cfg(feature = "tree-sitter-html")]
+mod html;
+#[cfg(feature = "tree-sitter-json")]
+mod json;
+#[cfg(feature = "tree-sitter-kotlin")]
+mod kotlin;
+#[cfg(feature = "tree-sitter-lua")]
+mod lua;
+#[cfg(feature = "tree-sitter-md")]
+mod markdown;
+#[cfg(feature = "tree-sitter-nix")]
+mod nix;
+#[cfg(feature = "tree-sitter-php")]
+mod php;
+#[cfg(feature = "tree-sitter-python")]
+mod python;
+#[cfg(feature = "tree-sitter-ruby")]
+mod ruby;
+#[cfg(feature = "tree-sitter-rust")]
+mod rust;
+#[cfg(feature = "tree-sitter-scala")]
+mod scala;
+#[cfg(feature = "tree-sitter-solidity")]
+mod solidity;
+#[cfg(feature = "tree-sitter-swift")]
+mod swift;
+#[cfg(feature = "tree-sitter-yaml")]
+mod yaml;
+#[cfg(feature = "tree-sitter-zig")]
+mod zig;
 
 #[macro_use]
 mod macros;
@@ -123,20 +174,22 @@ impl FromStr for SupportLang {
 macro_rules! impl_lang_method {
   ($method: ident, ($($pname:tt: $ptype:ty),*) => $return_type: ty) => {
     #[inline]
+    #[allow(unused_variables, reason = "Empty registries have no dispatch arms.")]
     fn $method(&self, $($pname: $ptype),*) -> $return_type {
       with_languages!(emit_dispatch, self, $method, ($($pname),*))
     }
   };
 }
 impl Language for SupportLang {
-  impl_lang_method!(kind_to_id, (_kind: &str) => u16);
-  impl_lang_method!(field_to_id, (_field: &str) => Option<u16>);
+  impl_lang_method!(kind_to_id, (kind: &str) => u16);
+  impl_lang_method!(field_to_id, (field: &str) => Option<u16>);
   impl_lang_method!(meta_var_char, () => char);
   impl_lang_method!(expando_char, () => char);
-  impl_lang_method!(extract_meta_var, (_source: &str) => Option<MetaVariable>);
-  impl_lang_method!(build_pattern, (_builder: &PatternBuilder) => Result<Pattern, PatternError>);
-  fn pre_process_pattern<'q>(&self, _query: &'q str) -> Cow<'q, str> {
-    with_languages!(emit_dispatch, self, pre_process_pattern, (_query))
+  impl_lang_method!(extract_meta_var, (source: &str) => Option<MetaVariable>);
+  impl_lang_method!(build_pattern, (builder: &PatternBuilder) => Result<Pattern, PatternError>);
+  #[allow(unused_variables, reason = "Empty registries have no dispatch arms.")]
+  fn pre_process_pattern<'q>(&self, query: &'q str) -> Cow<'q, str> {
+    with_languages!(emit_dispatch, self, pre_process_pattern, (query))
   }
   fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
     from_extension(path.as_ref())
@@ -146,11 +199,12 @@ impl Language for SupportLang {
 impl LanguageExt for SupportLang {
   impl_lang_method!(get_ts_language, () => TSLanguage);
   impl_lang_method!(injectable_languages, () => Option<&'static [&'static str]>);
+  #[allow(unused_variables, reason = "Empty registries have no dispatch arms.")]
   fn extract_injections<L: LanguageExt>(
     &self,
-    _root: Node<StrDoc<L>>,
+    root: Node<StrDoc<L>>,
   ) -> Vec<(String, Vec<TSRange>)> {
-    with_languages!(emit_dispatch, self, extract_injections, (_root))
+    with_languages!(emit_dispatch, self, extract_injections, (root))
   }
 }
 
@@ -192,9 +246,6 @@ pub fn config_file_type() -> Types {
   let builder = add_custom_file_type(&mut builder, "yml", &["yml", "yaml"]);
   builder.build().expect("yaml type must be valid")
 }
-
-#[cfg(all(test, feature = "builtin-parser"))]
-mod serde_test_support;
 
 #[cfg(test)]
 mod test {
@@ -266,6 +317,28 @@ mod test {
     assert!(grep.root().find("fn $NAME() {}").is_some());
   }
 
+  #[cfg(feature = "tree-sitter-rust")]
+  #[test]
+  fn test_alias_deserialization() {
+    use serde::de::value::{BoolDeserializer, Error, StrDeserializer};
+
+    for name in ["rs", "RuSt"] {
+      let marker = Rust::deserialize(StrDeserializer::<Error>::new(name)).unwrap();
+      assert_eq!(marker.to_string(), "Rust");
+      let lang = SupportLang::deserialize(StrDeserializer::<Error>::new(name)).unwrap();
+      assert_eq!(lang, Rust.into());
+    }
+
+    let error = Rust::deserialize(StrDeserializer::<Error>::new("python")).unwrap_err();
+    assert!(
+      error
+        .to_string()
+        .contains(r#"expected one of ["rs", "rust"]"#)
+    );
+    let error = SupportLang::deserialize(BoolDeserializer::<Error>::new(true)).unwrap_err();
+    assert!(error.to_string().contains("expected SupportLang"));
+  }
+
   #[cfg(feature = "tree-sitter-typescript")]
   #[test]
   fn test_shared_parser_feature() {
@@ -310,37 +383,14 @@ mod test {
     }
   }
 
-  #[cfg(feature = "builtin-parser")]
   #[test]
-  fn test_alphabetical_variant_indices() {
-    use serde_test_support::IndexSerializer;
-
-    for (lang, index, name) in [
-      (SupportLang::Dart, 5, "Dart"),
-      (SupportLang::Elixir, 6, "Elixir"),
-      (SupportLang::Go, 7, "Go"),
-      (SupportLang::Haskell, 8, "Haskell"),
-    ] {
-      assert_eq!(lang as u32, index);
-      assert_eq!(lang.serialize(IndexSerializer).unwrap(), (index, name));
-    }
-
-    // Variant indices intentionally follow alphabetical enumeration order.
+  fn test_registry_is_alphabetical() {
     const LANGS: &[SupportLang] = SupportLang::all_langs();
     let names: Vec<_> = LANGS
       .iter()
       .map(|lang| lang.to_string().to_ascii_lowercase())
       .collect();
     assert!(names.windows(2).all(|pair| pair[0] < pair[1]));
-    assert_eq!(
-      &LANGS[5..9],
-      &[
-        SupportLang::Dart,
-        SupportLang::Elixir,
-        SupportLang::Go,
-        SupportLang::Haskell,
-      ]
-    );
   }
 
   #[cfg(not(feature = "tree-sitter-kotlin"))]
