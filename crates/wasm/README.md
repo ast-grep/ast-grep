@@ -207,7 +207,7 @@ Matchers can be a pattern string, a kind number (from `kind()`), or a rule confi
 
 ## Building from Source
 
-Requires [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/).
+Requires [wasm-pack](https://wasm-bindgen.github.io/wasm-pack/installer/).
 
 ```bash
 # For browser (ES module)
