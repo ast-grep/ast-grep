@@ -156,6 +156,28 @@ impl Has {
   }
 }
 
+impl Has {
+  /// Search `node` and its descendants for the inner rule, not descending
+  /// into a node that matches `stop` (the stop node itself is still checked).
+  fn find_until<'tree, D: Doc>(
+    &self,
+    node: Node<'tree, D>,
+    stop: &Rule,
+    env: &mut Cow<MetaVarEnv<'tree, D>>,
+  ) -> Option<Node<'tree, D>> {
+    self
+      .inner
+      .match_node_with_env(node.clone(), env)
+      .or_else(|| {
+        if node.matches(stop) {
+          None
+        } else {
+          node.children().find_map(|n| self.find_until(n, stop, env))
+        }
+      })
+  }
+}
+
 impl Matcher for Has {
   fn match_node_with_env<'tree, D: Doc>(
     &self,
@@ -169,17 +191,7 @@ impl Matcher for Has {
         StopBy::End => nd
           .dfs()
           .find_map(|n| self.inner.match_node_with_env(n, env)),
-        StopBy::Rule(matcher) => {
-          // TODO: use Pre traversal to reduce stack allocation
-          self.inner.match_node_with_env(nd.clone(), env).or_else(|| {
-            if nd.matches(matcher) {
-              None
-            } else {
-              nd.children()
-                .find_map(|n| self.inner.match_node_with_env(n, env))
-            }
-          })
-        }
+        StopBy::Rule(matcher) => self.find_until(nd, matcher, env),
       };
     }
     match &self.stop_by {
@@ -729,6 +741,32 @@ mod test {
     ]);
     test_found(&["for (;a = 1;) {}"], &rule);
     test_not_found(&["for (;; a = 1) {}", "for (;;) { a = 1}"], &rule);
+  }
+
+  #[test]
+  fn test_has_field_stop_by_rule_descends() {
+    let has = Has {
+      stop_by: StopBy::Rule(Rule::Kind(KindMatcher::new(
+        "function_declaration",
+        TS::Tsx,
+      ))),
+      inner: Rule::Pattern(Pattern::new("a = 1", TS::Tsx)),
+      field: TS::Tsx.field_to_id("condition"),
+    };
+    let rule = o::All::new(vec![
+      Rule::Kind(KindMatcher::new("for_statement", TS::Tsx)),
+      Rule::Has(Box::new(has)),
+    ]);
+    test_found(
+      &[
+        "for (;a = 1;) {}",
+        "for (;(a = 1);) {}",
+        "for (;(((a = 1)));) {}",
+        "for (;f(a = 1);) {}",
+      ],
+      &rule,
+    );
+    test_not_found(&["for (;(a = 2);) {}", "for (;; (a = 1)) {}"], &rule);
   }
 
   #[test]
