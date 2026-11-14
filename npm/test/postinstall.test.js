@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
@@ -58,4 +59,38 @@ function registerPackageSelectionTests() {
   });
 }
 
+function registerInstallBinaryTests() {
+  const { installBinary } = require("../postinstall.js");
+
+  function setup() {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ast-grep-install-"));
+    const src = path.join(dir, "native");
+    const shim = path.join(dir, "shim");
+    const dest = path.join(dir, "ast-grep");
+    fs.writeFileSync(src, "native binary");
+    fs.writeFileSync(shim, "js shim");
+    return { dir, src, shim, dest };
+  }
+
+  test("replaces a hard-linked shim without writing through the link", () => {
+    const { dir, src, shim, dest } = setup();
+    fs.linkSync(shim, dest);
+    installBinary(src, dest);
+    assert.equal(fs.readFileSync(dest, "utf8"), "native binary");
+    assert.equal(fs.readFileSync(shim, "utf8"), "js shim");
+    assert.deepEqual(fs.readdirSync(dir).sort(), [
+      "ast-grep",
+      "native",
+      "shim",
+    ]);
+  });
+
+  test("installs when dest does not exist", () => {
+    const { src, dest } = setup();
+    installBinary(src, dest);
+    assert.equal(fs.readFileSync(dest, "utf8"), "native binary");
+  });
+}
+
 registerPackageSelectionTests();
+registerInstallBinaryTests();
