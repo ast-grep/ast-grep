@@ -118,7 +118,7 @@ jobs:
           fi
       - uses: actions/setup-node@v7
         with:
-          node-version: 26
+          node-version: 22
           architecture: ${{ matrix.node-arch || 'x64' }}
       - uses: dtolnay/rust-toolchain@stable
       - name: Prepare custom parser source
