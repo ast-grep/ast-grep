@@ -16,7 +16,7 @@ pub use worker::{Items, MaxItemCounter, PathWorker, StdInWorker, Worker};
 
 use crate::lang::SgLang;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use crossterm::{
   cursor::MoveTo,
   event::{self, Event, KeyCode, KeyModifiers},
@@ -108,12 +108,23 @@ impl fmt::Display for EmptyFile {
 
 impl std::error::Error for EmptyFile {}
 
+#[derive(Debug)]
+pub(crate) struct FileTooLarge;
+
+impl fmt::Display for FileTooLarge {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.write_str("File is too large")
+  }
+}
+
+impl std::error::Error for FileTooLarge {}
+
 pub(crate) fn read_file(path: &Path) -> Result<String> {
   let file_content =
     read_to_string(path).with_context(|| format!("Cannot read file {}", path.to_string_lossy()))?;
   // skip large files or empty file
   if file_too_large(&file_content) {
-    Err(anyhow!("File is too large"))
+    Err(FileTooLarge.into())
   } else if file_content.is_empty() {
     Err(EmptyFile.into())
   } else {

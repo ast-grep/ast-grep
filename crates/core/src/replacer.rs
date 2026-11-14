@@ -1,5 +1,5 @@
 use crate::matcher::Matcher;
-use crate::meta_var::{MetaVariableID, Underlying, is_valid_meta_var_char};
+use crate::meta_var::{MetaVariableID, Underlying, is_valid_first_char, is_valid_meta_var_char};
 use crate::{Doc, Node, NodeMatch, Root};
 use std::ops::Range;
 
@@ -97,8 +97,8 @@ fn split_first_meta_var(
   let i = src[skipped..]
     .find(|c: char| !is_valid_meta_var_char(c))
     .unwrap_or(src.len() - skipped);
-  // no name found
-  if i == 0 {
+  // no name found, or the name starts with a digit, e.g. `$5` in `costs $5`
+  if i == 0 || !src[skipped..].starts_with(is_valid_first_char) {
     return None;
   }
   let name = src[skipped..skipped + i].to_string();

@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -64,6 +65,9 @@ fn run_test_rule_impl<R: Reporter + Send>(
   let filter = arg.filter.as_ref();
   let overwrite = RuleOverwrite::new_for_verify(filter, arg.include_off);
   let collections = &project.find_rules(overwrite)?.0;
+  let all_rules = &project
+    .find_rules(RuleOverwrite::new_for_verify(filter, true))?
+    .0;
   let TestHarness {
     test_cases,
     snapshots,
@@ -80,12 +84,18 @@ fn run_test_rule_impl<R: Reporter + Send>(
     reporter.lock().unwrap().before_report(&test_cases)?;
   }
 
+  let missing = AtomicUsize::new(0);
   let check_one_case = |case| {
     let result = verify_test_case_simple(case, collections, snapshots.as_ref());
     if result.is_none() {
+      if all_rules.get_rule(&case.id).is_some() {
+        // rule is disabled by severity: off, skip it silently
+        return result;
+      }
       let mut reporter = reporter.lock().unwrap();
       let output = reporter.get_output();
       writeln!(output, "Configuration not found! {}", case.id).unwrap();
+      missing.fetch_add(1, Ordering::Relaxed);
     }
     result
   };
@@ -96,21 +106,26 @@ fn run_test_rule_impl<R: Reporter + Send>(
   let action = reporter.collect_snapshot_action();
   apply_snapshot_action(action, &results, snapshots, path_map)?;
   reporter.report_summaries(&results)?;
-  let test_result = reporter.after_report(&results)?;
-  match test_result {
+  let result = match reporter.after_report(&results)? {
     reporter::TestResult::Success { message } => {
       writeln!(reporter.get_output(), "{message}")?;
       Ok(ExitCode::SUCCESS)
     }
-    reporter::TestResult::RuleFail { message } => {
-      let error_context = ErrorContext::TestFail(message);
-      Err(anyhow!(error_context))
-    }
+    reporter::TestResult::RuleFail { message } => Err(anyhow!(ErrorContext::TestFail(message))),
     reporter::TestResult::MismatchSnapshotOnly { message } => {
-      let error_context = ErrorContext::TestSnapshotMismatch(message);
-      Err(anyhow!(error_context))
+      Err(anyhow!(ErrorContext::TestSnapshotMismatch(message)))
     }
+  };
+  let missing = missing.load(Ordering::Relaxed);
+  if missing > 0 {
+    // Report the original error before replacing it with the missing-rule error.
+    if let Err(error) = &result {
+      writeln!(reporter.get_output(), "{error}")?;
+    }
+    let message = format!("{missing} test case(s) matched no rule.");
+    return Err(anyhow!(ErrorContext::TestFail(message)));
   }
+  result
 }
 
 fn apply_snapshot_action(
