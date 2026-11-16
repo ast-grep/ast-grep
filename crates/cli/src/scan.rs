@@ -101,7 +101,9 @@ pub fn run_with_config(mut arg: ScanArg, project: Result<ProjectConfig>) -> Resu
     return run_scan(arg, printer, project);
   }
   if let Some(json) = arg.output.json {
-    let printer = JSONPrinter::stdout(json).include_metadata(arg.include_metadata);
+    let printer = JSONPrinter::stdout(json)
+      .include_metadata(arg.include_metadata)
+      .context(context);
     return run_scan(arg, printer, project);
   }
   let printer = ColoredPrinter::stdout(arg.output.color)
