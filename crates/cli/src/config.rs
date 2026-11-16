@@ -117,19 +117,7 @@ impl ProjectConfig {
     let Some((project_dir, mut sg_config)) = Self::discover_project(config_path)? else {
       return Ok(Err(anyhow::anyhow!(EC::ProjectNotExist)));
     };
-    let mut outline_rules = if custom_languages == CustomLanguageAction::Load {
-      custom_language_outline_rules(&project_dir, sg_config.custom_languages.as_ref())
-    } else {
-      vec![]
-    };
-    if let Some(project_rules) = &sg_config.outline_rules {
-      let mut paths: Vec<_> = project_rules
-        .values()
-        .map(|path| project_dir.join(path))
-        .collect();
-      paths.sort();
-      outline_rules.extend(paths);
-    }
+    let outline_rules = collect_outline_rules(&project_dir, &sg_config, custom_languages);
     let config = ProjectConfig {
       project_dir,
       rule_dirs: std::mem::take(&mut sg_config.rule_dirs),
@@ -144,16 +132,32 @@ impl ProjectConfig {
   }
 }
 
-fn custom_language_outline_rules(
+fn collect_outline_rules(
   project_dir: &Path,
-  custom_languages: Option<&HashMap<String, CustomLang>>,
+  sg_config: &AstGrepConfig,
+  custom_languages: CustomLanguageAction,
 ) -> Vec<PathBuf> {
-  custom_languages
-    .into_iter()
-    .flat_map(HashMap::values)
-    .filter_map(|lang| lang.outline_rules.as_ref())
-    .map(|path| project_dir.join(path))
-    .collect()
+  let mut outline_rules = if custom_languages == CustomLanguageAction::Load {
+    sg_config
+      .custom_languages
+      .as_ref()
+      .into_iter()
+      .flat_map(HashMap::values)
+      .filter_map(|lang| lang.outline_rules.as_ref())
+      .map(|path| project_dir.join(path))
+      .collect()
+  } else {
+    vec![]
+  };
+  if let Some(project_rules) = &sg_config.outline_rules {
+    let mut paths: Vec<_> = project_rules
+      .values()
+      .map(|path| project_dir.join(path))
+      .collect();
+    paths.sort();
+    outline_rules.extend(paths);
+  }
+  outline_rules
 }
 
 fn register_custom_language(
@@ -384,8 +388,7 @@ customLanguages:
     )
     .expect("config should parse");
 
-    let paths =
-      custom_language_outline_rules(Path::new("/project"), config.custom_languages.as_ref());
+    let paths = collect_outline_rules(Path::new("/project"), &config, CustomLanguageAction::Load);
 
     assert_eq!(paths, vec![PathBuf::from("/project/outline/blade.yml")]);
   }
