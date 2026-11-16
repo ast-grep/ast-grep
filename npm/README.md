@@ -8,5 +8,7 @@
 
 ast-grep(sg) is a CLI tool for code structural search, lint, and rewriting.
 
+Requires Node.js 20 or later.
+
 Please see [ast-grep's official site](https://ast-grep.github.io/) and [repository](https://github.com/ast-grep/ast-grep)
 for more information.

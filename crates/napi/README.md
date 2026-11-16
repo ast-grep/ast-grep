@@ -8,7 +8,7 @@
 
 ast-grep(sg) is a CLI tool for code structural search, lint, and rewriting.
 
-This npm package is for programmatic usage of ast-grep.
+This npm package is for programmatic usage of ast-grep and requires Node.js 20 or later.
 Please see the [API usage guide](https://ast-grep.github.io/guide/api-usage.html) and [API reference](https://ast-grep.github.io/reference/api.html).
 
 Other resources include [ast-grep's official site](https://ast-grep.github.io/) and [repository](https://github.com/ast-grep/ast-grep).
@@ -17,7 +17,7 @@ Other resources include [ast-grep's official site](https://ast-grep.github.io/) 
 
 ### Operating Systems
 
-|                  | node14 | node16 | node18 |
+|                  | node20 | node22 | node24 |
 | ---------------- | ------ | ------ | ------ |
 | Windows x64      | ✓      | ✓      | ✓      |
 | macOS x64        | ✓      | ✓      | ✓      |

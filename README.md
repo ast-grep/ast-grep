@@ -33,6 +33,8 @@ See more screenshots on the [website](https://ast-grep.github.io/).
 ## Installation
 You can install it from [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), [pip](https://pypi.org/), [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html),  [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), [homebrew](https://brew.sh/), [scoop](https://scoop.sh/), [mise](https://github.com/jdx/mise) or [MacPorts](https://www.macports.org)!
 
+Installing from npm requires Node.js 20 or later.
+
 ```bash
 npm install --global @ast-grep/cli
 # `pnpm approve-builds` may be needed
