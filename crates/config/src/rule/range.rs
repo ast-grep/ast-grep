@@ -54,9 +54,12 @@ impl RangeMatcher {
     start_pos: SerializablePosition,
     end_pos: SerializablePosition,
   ) -> Result<RangeMatcher, RangeMatcherError> {
-    if start_pos.line > end_pos.line
-      || (start_pos.line == end_pos.line && start_pos.column > end_pos.column)
-    {
+    // a missing column is not checked, so it cannot make the range invalid
+    let columns_reversed = match (start_pos.column, end_pos.column) {
+      (Some(start), Some(end)) => start > end,
+      _ => false,
+    };
+    if start_pos.line > end_pos.line || (start_pos.line == end_pos.line && columns_reversed) {
       return Err(RangeMatcherError::InvalidRange);
     }
 
@@ -117,6 +120,19 @@ mod test {
       },
     );
     assert!(range.is_err());
+  }
+
+  #[test]
+  fn test_try_new_with_optional_columns() {
+    let pos = |line, column| SerializablePosition { line, column };
+    // a missing column is not checked, so it cannot make the range invalid
+    assert!(RangeMatcher::try_new(pos(0, Some(10)), pos(0, None)).is_ok());
+    assert!(RangeMatcher::try_new(pos(0, None), pos(0, Some(5))).is_ok());
+    assert!(RangeMatcher::try_new(pos(0, None), pos(0, None)).is_ok());
+    assert!(RangeMatcher::try_new(pos(0, Some(5)), pos(0, Some(5))).is_ok());
+    assert!(RangeMatcher::try_new(pos(0, Some(5)), pos(0, Some(10))).is_ok());
+    assert!(RangeMatcher::try_new(pos(0, Some(10)), pos(0, Some(5))).is_err());
+    assert!(RangeMatcher::try_new(pos(1, None), pos(0, None)).is_err());
   }
 
   #[test]
