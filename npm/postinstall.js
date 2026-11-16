@@ -64,9 +64,8 @@ function installBinary(src, dest) {
   }
   try {
     fs.renameSync(temp, dest);
-  } catch (err) {
+  } finally {
     fs.rmSync(temp, { force: true });
-    throw err;
   }
 }
 

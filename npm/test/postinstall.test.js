@@ -90,6 +90,19 @@ function registerInstallBinaryTests() {
     installBinary(src, dest);
     assert.equal(fs.readFileSync(dest, "utf8"), "native binary");
   });
+
+  test("repeated installs leave no temporary files", (t) => {
+    const { dir, src, dest } = setup();
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    installBinary(src, dest);
+    installBinary(src, dest);
+    assert.equal(fs.readFileSync(dest, "utf8"), "native binary");
+    assert.deepEqual(fs.readdirSync(dir).sort(), [
+      "ast-grep",
+      "native",
+      "shim",
+    ]);
+  });
 }
 
 registerPackageSelectionTests();
