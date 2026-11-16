@@ -5,16 +5,18 @@ use ast_grep_core::matcher::{Pattern, PatternBuilder, PatternError};
 use ast_grep_core::tree_sitter::{LanguageExt, TSLanguage};
 use ast_grep_language::{
   Alias, Bash, C, CSharp, Cpp, Css, Dart, Elixir, Go, Haskell, Html, Java, JavaScript, Json,
-  Kotlin, Lua, Php, Python, Ruby, Rust, Scala, Swift, Tsx, TypeScript, Yaml, Zig,
+  Kotlin, Lua, Php, Python, Ruby, Rust, Scala, SupportLang, Swift, Tsx, TypeScript, Yaml, Zig,
 };
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema, schema_for};
 use serde_json::{Value, to_writer_pretty};
 
 use std::borrow::Cow;
+use std::io::Write;
 use std::{collections::BTreeSet, fs::File};
 
 pub fn generate_schema() -> Result<()> {
   let schema = schema_for!(SerializableRuleConfig<PlaceholderLang>);
+  generate_project_schema()?;
   generate_lang_schemas()?;
   // use manifest to locate schema. "schemas/rule.json" only works when cwd is root dir
   // however, pwd is set to manifest dir, xtask in this case, during cargo test
@@ -22,6 +24,59 @@ pub fn generate_schema() -> Result<()> {
   let rule_path = std::fs::canonicalize(format!("{xtask_path}/../schemas/rule.json"))?;
   let mut file = File::create(rule_path)?;
   to_writer_pretty(&mut file, &schema).context("cannot print JSON schema")
+}
+
+fn alias_pattern(alias: &str) -> String {
+  assert!(
+    alias.bytes().all(|byte| (b' '..=b'~').contains(&byte)),
+    "language aliases must use printable ASCII"
+  );
+  alias
+    .chars()
+    .map(|character| match character {
+      'a'..='z' | 'A'..='Z' => format!(
+        "[{}{}]",
+        character.to_ascii_lowercase(),
+        character.to_ascii_uppercase()
+      ),
+      '\\' | '.' | '+' | '*' | '?' | '(' | ')' | '[' | ']' | '{' | '}' | '^' | '$' | '|' => {
+        format!("\\{character}")
+      }
+      _ => character.to_string(),
+    })
+    .collect()
+}
+
+fn outline_language_keys() -> Value {
+  let aliases: BTreeSet<_> = SupportLang::all_langs()
+    .iter()
+    .flat_map(|language| language.aliases().iter().copied())
+    .collect();
+  let alternatives: Vec<_> = aliases.into_iter().map(alias_pattern).collect();
+  serde_json::json!({
+    "pattern": format!("^(?:{})$", alternatives.join("|")),
+    // End anchors can match before a final line break in schema validators.
+    "not": { "pattern": "[^ -~]" }
+  })
+}
+
+fn update_project_schema(project: &mut Value) -> Result<()> {
+  let outline = project
+    .pointer_mut("/definitions/Project/properties/outlineRules")
+    .context("project schema must define outlineRules")?;
+  outline["propertyNames"] = outline_language_keys();
+  Ok(())
+}
+
+fn generate_project_schema() -> Result<()> {
+  let xtask_path = std::env::var("CARGO_MANIFEST_DIR")?;
+  let project_path = format!("{xtask_path}/../schemas/project.json");
+  let mut project = serde_json::from_reader(File::open(&project_path)?)?;
+  update_project_schema(&mut project)?;
+  let mut file = File::create(project_path)?;
+  to_writer_pretty(&mut file, &project)?;
+  writeln!(file)?;
+  Ok(())
 }
 
 fn generate_lang_schemas() -> Result<()> {
@@ -197,6 +252,82 @@ impl LanguageExt for PlaceholderLang {
 #[cfg(test)]
 mod test {
   use super::*;
+
+  #[test]
+  fn test_project_outline_language_keys() {
+    let keys = outline_language_keys();
+    let pattern = regex::Regex::new(keys["pattern"].as_str().unwrap()).unwrap();
+    let invalid = regex::Regex::new(keys["not"]["pattern"].as_str().unwrap()).unwrap();
+    for language in SupportLang::all_langs() {
+      assert!(!language.aliases().is_empty());
+      for alias in language.aliases() {
+        for mask in 0..(1 << alias.len()) {
+          let key: String = alias
+            .bytes()
+            .enumerate()
+            .map(|(index, byte)| {
+              char::from(if mask & (1 << index) == 0 {
+                byte
+              } else {
+                byte.to_ascii_uppercase()
+              })
+            })
+            .collect();
+          assert_eq!(key.parse::<SupportLang>().unwrap(), *language);
+          assert!(pattern.is_match(&key) && !invalid.is_match(&key), "{key:?}");
+        }
+      }
+    }
+    for key in [
+      "",
+      "unknown",
+      "custom",
+      "c+",
+      "c+++",
+      "C#",
+      "js ",
+      " js",
+      "js\n",
+      "js\r\n",
+      "js\0",
+      "ruſt",
+      "js\u{2028}",
+    ] {
+      assert!(key.parse::<SupportLang>().is_err(), "{key:?}");
+      assert!(!pattern.is_match(key) || invalid.is_match(key), "{key:?}");
+    }
+    let project: Value = serde_json::from_str(include_str!("../../schemas/project.json")).unwrap();
+    assert_eq!(
+      project["definitions"]["Project"]["properties"]["outlineRules"]["propertyNames"],
+      keys
+    );
+  }
+
+  #[test]
+  fn test_project_schema_preserves_other_fields() {
+    let mut project: Value =
+      serde_json::from_str(include_str!("../../schemas/project.json")).unwrap();
+    project["definitions"]["Project"]["properties"]["outlineRules"]
+      .as_object_mut()
+      .unwrap()
+      .remove("propertyNames");
+    let original = project.clone();
+    update_project_schema(&mut project).unwrap();
+    let generated = project.clone();
+    update_project_schema(&mut project).unwrap();
+    assert_eq!(project, generated);
+    project["definitions"]["Project"]["properties"]["outlineRules"]
+      .as_object_mut()
+      .unwrap()
+      .remove("propertyNames");
+    assert_eq!(project, original);
+  }
+
+  #[test]
+  #[should_panic(expected = "language aliases must use printable ASCII")]
+  fn test_alias_pattern_rejects_non_ascii_inventory() {
+    alias_pattern("ruſt");
+  }
 
   #[test]
   fn test_json_schema() {

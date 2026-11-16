@@ -2881,6 +2881,7 @@ dependencies = [
  "ast-grep-config",
  "ast-grep-core",
  "ast-grep-language",
+ "regex",
  "schemars",
  "serde_json",
  "toml_edit",

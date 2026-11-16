@@ -103,6 +103,11 @@ pub trait Alias: Display {
 with_languages!(emit_registry);
 
 impl SupportLang {
+  /// Returns the aliases accepted with ASCII case-insensitive matching.
+  pub const fn aliases(self) -> &'static [&'static str] {
+    alias(self)
+  }
+
   pub fn file_types(&self) -> Types {
     file_types(*self)
   }
