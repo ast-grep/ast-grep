@@ -41,11 +41,20 @@ enum ParseState {
   Num(bool),  // bool flag: has met n before
 }
 
+/// the largest magnitude that fits in i32 once the sign is applied, i.e. `-i32::MIN`
+const MAX_MAGNITUDE: i64 = 1 << 31;
+
+/// applies the sign to the magnitude, the signed value must fit in i32
+fn signed(sign: i64, magnitude: i64) -> Result<i32, NthChildError> {
+  i32::try_from(sign * magnitude).map_err(|_| NthChildError::NumberTooLarge)
+}
+
 fn parse_an_b(input: &str) -> Result<FunctionalPosition, NthChildError> {
   use ParseState::*;
   let mut step_size = 0;
-  let mut sign = 1;
-  let mut num = 0;
+  let mut sign: i64 = 1;
+  // magnitude of the number being read, the sign is applied by `signed`
+  let mut num: i64 = 0;
   let mut state = Initial;
   for c in input.chars() {
     // ignore all white spaces
@@ -60,11 +69,11 @@ fn parse_an_b(input: &str) -> Result<FunctionalPosition, NthChildError> {
         }
         '0'..='9' => {
           state = Num(false);
-          num = (c as u8 - b'0') as i32;
+          num = (c as u8 - b'0') as i64;
         }
         'n' | 'N' => {
           state = N;
-          step_size = sign;
+          step_size = sign as i32;
         }
         c => return Err(NthChildError::IllegalCharacter(c)),
       },
@@ -72,31 +81,32 @@ fn parse_an_b(input: &str) -> Result<FunctionalPosition, NthChildError> {
         '+' | '-' => return Err(NthChildError::InvalidSyntax),
         '0'..='9' => {
           state = Num(has_n);
-          num = (c as u8 - b'0') as i32;
+          num = (c as u8 - b'0') as i64;
         }
         'n' | 'N' => {
           if has_n {
             return Err(NthChildError::InvalidSyntax);
           }
           state = N;
-          step_size = sign;
+          step_size = sign as i32;
         }
         c => return Err(NthChildError::IllegalCharacter(c)),
       },
       Num(has_n) => match c {
         '+' | '-' => return Err(NthChildError::InvalidSyntax),
         '0'..='9' => {
-          num = num
-            .checked_mul(10)
-            .and_then(|n| n.checked_add((c as u8 - b'0') as i32))
-            .ok_or(NthChildError::NumberTooLarge)?;
+          num = num * 10 + (c as u8 - b'0') as i64;
+          // magnitude never exceeds 2^31 (i32::MIN), so this cannot overflow
+          if num > MAX_MAGNITUDE {
+            return Err(NthChildError::NumberTooLarge);
+          }
         }
         'n' | 'N' => {
           if has_n {
             return Err(NthChildError::InvalidSyntax);
           }
           state = N;
-          step_size = sign * num;
+          step_size = signed(sign, num)?;
           num = 0;
         }
         c => return Err(NthChildError::IllegalCharacter(c)),
@@ -118,7 +128,7 @@ fn parse_an_b(input: &str) -> Result<FunctionalPosition, NthChildError> {
   } else {
     Ok(FunctionalPosition {
       step_size,
-      offset: num * sign,
+      offset: signed(sign, num)?,
     })
   }
 }
@@ -446,6 +456,15 @@ mod test {
     test_parse("2147483647", 0, 2147483647);
     test_parse("-2147483647", 0, -2147483647);
     test_parse("2147483647n", 2147483647, 0);
+    // i32::MIN fits, so it is accepted for both the coefficient and the offset
+    test_parse("-2147483648", 0, i32::MIN);
+    test_parse("-2147483648n + 1", i32::MIN, 1);
+    test_parse("2n - 2147483648", 2, i32::MIN);
+    test_parse("-2147483648n - 2147483648", i32::MIN, i32::MIN);
+    parse_error("-2147483649", "overflow");
+    parse_error("-99999999999999999999n", "overflow");
+    parse_error("2n - 2147483649", "overflow");
+    parse_error("2147483648n", "overflow");
   }
 
   #[test]
@@ -462,6 +481,18 @@ mod test {
     };
     assert!(!position.is_matched(0));
     assert!(position.is_matched(i32::MAX as usize - 1));
+    let position = FunctionalPosition {
+      step_size: i32::MIN,
+      offset: 1,
+    };
+    assert!(position.is_matched(0));
+    assert!(!position.is_matched(1));
+    let position = FunctionalPosition {
+      step_size: i32::MIN,
+      offset: i32::MIN,
+    };
+    assert!(!position.is_matched(0));
+    assert!(!position.is_matched(i32::MAX as usize));
   }
 
   #[test]
