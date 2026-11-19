@@ -222,10 +222,16 @@ struct RuleMatchJSON<'t, 'b> {
   metadata: Option<Cow<'b, Metadata>>,
 }
 impl<'t, 'b> RuleMatchJSON<'t, 'b> {
-  fn new(nm: NodeMatch<'t>, path: &'b str, rule: &'b RuleConfig<SgLang>, metadata: bool) -> Self {
+  fn new(
+    nm: NodeMatch<'t>,
+    path: &'b str,
+    rule: &'b RuleConfig<SgLang>,
+    metadata: bool,
+    context: (u16, u16),
+  ) -> Self {
     let message = rule.get_message(&nm);
     let labels = get_labels(rule, &nm);
-    let matched = MatchJSON::new(nm, path, (0, 0));
+    let matched = MatchJSON::new(nm, path, context);
     let metadata = if metadata {
       rule.metadata.as_ref().map(Cow::Borrowed)
     } else {
@@ -241,11 +247,17 @@ impl<'t, 'b> RuleMatchJSON<'t, 'b> {
       metadata,
     }
   }
-  fn diff(diff: Diff<'t>, path: &'b str, rule: &'b RuleConfig<SgLang>, metadata: bool) -> Self {
+  fn diff(
+    diff: Diff<'t>,
+    path: &'b str,
+    rule: &'b RuleConfig<SgLang>,
+    metadata: bool,
+    context: (u16, u16),
+  ) -> Self {
     let nm = &diff.node_match;
     let message = rule.get_message(nm);
     let labels = get_labels(rule, nm);
-    let matched = MatchJSON::diff(diff, path, (0, 0));
+    let matched = MatchJSON::diff(diff, path, context);
     let metadata = if metadata {
       rule.metadata.as_ref().map(Cow::Borrowed)
     } else {
@@ -422,7 +434,7 @@ impl PrintProcessor<Buffer> for JSONProcessor {
     let path = file.name();
     let jsons = matches
       .into_iter()
-      .map(|nm| RuleMatchJSON::new(nm, path, rule, self.include_metadata));
+      .map(|nm| RuleMatchJSON::new(nm, path, rule, self.include_metadata, self.context));
     self.print_docs(jsons)
   }
 
@@ -449,9 +461,9 @@ impl PrintProcessor<Buffer> for JSONProcessor {
     path: &Path,
   ) -> Result<Buffer> {
     let path = path.to_string_lossy();
-    let jsons = diffs
-      .into_iter()
-      .map(|(diff, rule)| RuleMatchJSON::diff(diff, &path, rule, self.include_metadata));
+    let jsons = diffs.into_iter().map(|(diff, rule)| {
+      RuleMatchJSON::diff(diff, &path, rule, self.include_metadata, self.context)
+    });
     self.print_docs(jsons)
   }
 }

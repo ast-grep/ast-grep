@@ -112,6 +112,39 @@ fn test_sg_scan() -> Result<()> {
 }
 
 #[test]
+fn test_scan_json_match_context() -> Result<()> {
+  for (rule, matched, replacement) in [
+    (UNFIXABLE_JS_RULE, "console.log(123)", None),
+    (FIXABLE_JS_RULE, "var x = 123;", Some("let x = 123;")),
+  ] {
+    let source = format!("// Before\n{matched}\n// After\n");
+    let dir = create_test_files([("rule.yml", rule), ("test.js", source.as_str())])?;
+    let mut command = Command::new(cargo_bin!());
+    let output = command
+      .current_dir(dir.path())
+      .args([
+        "scan",
+        "--rule=rule.yml",
+        "--json=compact",
+        "-C",
+        "1",
+        "test.js",
+      ])
+      .assert()
+      .success();
+    let matches: Value = from_slice(&output.get_output().stdout)?;
+    let result = &matches[0];
+    assert_eq!(result["text"], matched);
+    assert_eq!(result["lines"], source.trim_end());
+    assert_eq!(result["charCount"]["leading"], "// Before\n".len());
+    assert_eq!(result["charCount"]["trailing"], "\n// After".len());
+    assert_eq!(result["range"]["start"]["line"], 1);
+    assert_eq!(result["replacement"].as_str(), replacement);
+  }
+  Ok(())
+}
+
+#[test]
 fn test_sg_rule_off() -> Result<()> {
   let dir = setup()?;
   Command::new(cargo_bin!())
