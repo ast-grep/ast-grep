@@ -18,6 +18,8 @@ pub enum NthChildError {
   IllegalCharacter(char),
   #[error("Invalid syntax")]
   InvalidSyntax,
+  #[error("Number is too large")]
+  NumberTooLarge,
   #[error("Invalid ofRule")]
   InvalidRule(#[from] Box<RuleSerializeError>),
 }
@@ -39,11 +41,20 @@ enum ParseState {
   Num(bool),  // bool flag: has met n before
 }
 
+/// the largest magnitude that fits in i32 once the sign is applied, i.e. `-i32::MIN`
+const MAX_MAGNITUDE: i64 = 1 << 31;
+
+/// applies the sign to the magnitude, the signed value must fit in i32
+fn signed(sign: i64, magnitude: i64) -> Result<i32, NthChildError> {
+  i32::try_from(sign * magnitude).map_err(|_| NthChildError::NumberTooLarge)
+}
+
 fn parse_an_b(input: &str) -> Result<FunctionalPosition, NthChildError> {
   use ParseState::*;
   let mut step_size = 0;
-  let mut sign = 1;
-  let mut num = 0;
+  let mut sign: i64 = 1;
+  // magnitude of the number being read, the sign is applied by `signed`
+  let mut num: i64 = 0;
   let mut state = Initial;
   for c in input.chars() {
     // ignore all white spaces
@@ -58,11 +69,11 @@ fn parse_an_b(input: &str) -> Result<FunctionalPosition, NthChildError> {
         }
         '0'..='9' => {
           state = Num(false);
-          num = (c as u8 - b'0') as i32;
+          num = (c as u8 - b'0') as i64;
         }
         'n' | 'N' => {
           state = N;
-          step_size = sign;
+          step_size = sign as i32;
         }
         c => return Err(NthChildError::IllegalCharacter(c)),
       },
@@ -70,28 +81,32 @@ fn parse_an_b(input: &str) -> Result<FunctionalPosition, NthChildError> {
         '+' | '-' => return Err(NthChildError::InvalidSyntax),
         '0'..='9' => {
           state = Num(has_n);
-          num = (c as u8 - b'0') as i32;
+          num = (c as u8 - b'0') as i64;
         }
         'n' | 'N' => {
           if has_n {
             return Err(NthChildError::InvalidSyntax);
           }
           state = N;
-          step_size = sign;
+          step_size = sign as i32;
         }
         c => return Err(NthChildError::IllegalCharacter(c)),
       },
       Num(has_n) => match c {
         '+' | '-' => return Err(NthChildError::InvalidSyntax),
         '0'..='9' => {
-          num = num * 10 + (c as u8 - b'0') as i32;
+          num = num * 10 + (c as u8 - b'0') as i64;
+          // magnitude never exceeds 2^31 (i32::MIN), so this cannot overflow
+          if num > MAX_MAGNITUDE {
+            return Err(NthChildError::NumberTooLarge);
+          }
         }
         'n' | 'N' => {
           if has_n {
             return Err(NthChildError::InvalidSyntax);
           }
           state = N;
-          step_size = sign * num;
+          step_size = signed(sign, num)?;
           num = 0;
         }
         c => return Err(NthChildError::IllegalCharacter(c)),
@@ -113,7 +128,7 @@ fn parse_an_b(input: &str) -> Result<FunctionalPosition, NthChildError> {
   } else {
     Ok(FunctionalPosition {
       step_size,
-      offset: num * sign,
+      offset: signed(sign, num)?,
     })
   }
 }
@@ -123,7 +138,7 @@ impl NthChildSimple {
     match self {
       NthChildSimple::Numeric(n) => Ok(FunctionalPosition {
         step_size: 0,
-        offset: *n as i32,
+        offset: i32::try_from(*n).map_err(|_| NthChildError::NumberTooLarge)?,
       }),
       NthChildSimple::Functional(s) => parse_an_b(s),
     }
@@ -159,10 +174,12 @@ struct FunctionalPosition {
 impl FunctionalPosition {
   /// index is 0-based, but output is 1-based
   fn is_matched(&self, index: usize) -> bool {
-    let index = (index + 1) as i32; // Convert 0-based index to 1-based
+    // use i64 so that `index - offset` cannot overflow
+    let index = index as i64 + 1; // Convert 0-based index to 1-based
     let FunctionalPosition { step_size, offset } = self;
-    if *step_size == 0 {
-      index == *offset
+    let (step_size, offset) = (*step_size as i64, *offset as i64);
+    if step_size == 0 {
+      index == offset
     } else {
       let n = index - offset;
       n / step_size >= 0 && n % step_size == 0
@@ -402,6 +419,7 @@ mod test {
     };
     match err {
       NthChildError::InvalidSyntax => assert_eq!(name, "syntax"),
+      NthChildError::NumberTooLarge => assert_eq!(name, "overflow"),
       NthChildError::IllegalCharacter(_) => assert_eq!(name, "character"),
       NthChildError::InvalidRule(_) => assert_eq!(name, "rule"),
     }
@@ -425,6 +443,73 @@ mod test {
     parse_error("a", "character");
     parse_error("+a", "character");
     parse_error("na", "character");
+  }
+
+  #[test]
+  fn test_number_too_large() {
+    parse_error("99999999999999999999", "overflow");
+    parse_error("2147483648", "overflow");
+    parse_error("-2147483649", "overflow");
+    parse_error("99999999999n + 1", "overflow");
+    parse_error("2n + 99999999999", "overflow");
+    // the largest value that fits is still accepted
+    test_parse("2147483647", 0, 2147483647);
+    test_parse("-2147483647", 0, -2147483647);
+    test_parse("2147483647n", 2147483647, 0);
+    // i32::MIN fits, so it is accepted for both the coefficient and the offset
+    test_parse("-2147483648", 0, i32::MIN);
+    test_parse("-2147483648n + 1", i32::MIN, 1);
+    test_parse("2n - 2147483648", 2, i32::MIN);
+    test_parse("-2147483648n - 2147483648", i32::MIN, i32::MIN);
+    parse_error("-2147483649", "overflow");
+    parse_error("-99999999999999999999n", "overflow");
+    parse_error("2n - 2147483649", "overflow");
+    parse_error("2147483648n", "overflow");
+  }
+
+  #[test]
+  fn test_extreme_position_does_not_overflow() {
+    let position = FunctionalPosition {
+      step_size: 2,
+      offset: i32::MIN,
+    };
+    assert!(!position.is_matched(0));
+    assert!(position.is_matched(1));
+    let position = FunctionalPosition {
+      step_size: i32::MIN,
+      offset: i32::MAX,
+    };
+    assert!(!position.is_matched(0));
+    assert!(position.is_matched(i32::MAX as usize - 1));
+    let position = FunctionalPosition {
+      step_size: i32::MIN,
+      offset: 1,
+    };
+    assert!(position.is_matched(0));
+    assert!(!position.is_matched(1));
+    let position = FunctionalPosition {
+      step_size: i32::MIN,
+      offset: i32::MIN,
+    };
+    assert!(!position.is_matched(0));
+    assert!(!position.is_matched(i32::MAX as usize));
+  }
+
+  #[test]
+  fn test_numeric_position_too_large() {
+    // 4294967297 used to wrap around to 1 and match the first child
+    let rule: SerializableRule = from_str("nthChild: 4294967297").expect("should parse");
+    let env = DeserializeEnv::new(TS::Tsx);
+    let Err(err) = env.deserialize_rule(rule) else {
+      panic!("should be an error");
+    };
+    assert!(matches!(
+      err,
+      RuleSerializeError::NthChild(NthChildError::NumberTooLarge)
+    ));
+    let rule: SerializableRule =
+      from_str("nthChild: { position: 4294967297 }").expect("should parse");
+    assert!(env.deserialize_rule(rule).is_err());
   }
 
   fn deser(src: &str) -> Rule {
