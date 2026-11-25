@@ -77,6 +77,10 @@ impl<W: Write> Printer for CloudPrinter<W> {
       let tool = sarif::Tool::builder().driver(tool_component).build();
       let mut run = sarif::Run::builder().tool(tool).build();
       run.results = Some(self.sarif_results.clone());
+      // columns are counted in Unicode code points, not UTF-16 code units
+      run.column_kind = Some(serde_json::json!(
+        sarif::ResultColumnKind::UnicodeCodePoints.to_string()
+      ));
       let sarif_log = sarif::Sarif::builder()
         .version(serde_json::json!(sarif::Version::V2_1_0.to_string()))
         .runs(vec![run])
@@ -531,6 +535,40 @@ severity: error
     let results = run.results.as_ref().unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].rule_id.as_ref().unwrap(), "test");
+  }
+
+  #[test]
+  fn test_sarif_column_kind_matches_columns() {
+    let mut printer = make_sarif_test_printer();
+    // the emoji is one code point but two UTF-16 code units
+    let source = "let a = '😀'; b";
+    let grep = SgLang::from(SupportLang::Tsx).ast_grep(source);
+    let rule = make_rule("rule: { pattern: b }\nseverity: error");
+    let matches: Vec<_> = grep.root().find_all(&rule.matcher).collect();
+    printer.before_print().unwrap();
+    let file = SimpleFile::new(Cow::Borrowed("test.ts"), source);
+    let buffer = printer
+      .get_processor()
+      .print_rule(matches, file, &rule)
+      .unwrap();
+    printer.process(buffer).unwrap();
+    printer.after_print().unwrap();
+    let json_str = get_text(&mut printer);
+    let sarif_log: sarif::Sarif = serde_json::from_str(&json_str).expect("should be valid SARIF");
+    let run = &sarif_log.runs[0];
+    assert_eq!(
+      run.column_kind,
+      Some(serde_json::json!("unicodeCodePoints"))
+    );
+    let results = run.results.as_ref().unwrap();
+    let region = results[0].locations.as_ref().unwrap()[0]
+      .physical_location
+      .as_ref()
+      .unwrap()
+      .region
+      .as_ref()
+      .unwrap();
+    assert_eq!(region.start_column, Some(14));
   }
 
   #[test]
