@@ -145,6 +145,7 @@ macro_rules! with_languages {
         parser: tree_sitter_md::LANGUAGE,
         aliases: ["markdown", "md"],
         extensions: ["markdown", "md"],
+        expando: 'µ',
       },
 
       // Nix uses $ for string interpolation (e.g., "${pkgs.hello}")

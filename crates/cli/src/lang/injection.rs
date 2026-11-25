@@ -254,6 +254,32 @@ injected: [js, ts, tsx]";
   }
 
   #[test]
+  fn test_markdown_injection() {
+    let mut map = HashMap::new();
+    let inj: SerializableInjection = from_str(
+      "hostLanguage: markdown
+rule: {kind: code_fence_content, pattern: $CONTENT}
+injected: python",
+    )
+    .unwrap();
+    register_injetable(inj, &mut map).unwrap();
+    let injections: Vec<_> = map.into_values().collect();
+    let lang = SgLang::from(SupportLang::Markdown);
+    let source = "```python\nprint(\"hello\")\n```\n";
+    let sg = lang.ast_grep(source);
+    let mut ret = Vec::new();
+    extract_custom_inject(&lang, &injections, sg.root(), &mut ret);
+    assert_eq!(ret.len(), 1);
+    assert_eq!(ret[0].0, "python");
+    assert_eq!(ret[0].1.len(), 1);
+    let range = ret[0].1[0];
+    assert_eq!(
+      &source[range.start_byte..range.end_byte],
+      "print(\"hello\")\n"
+    );
+  }
+
+  #[test]
   fn test_multiple_matches_produce_separate_entries() {
     let mut map = HashMap::new();
     let inj: SerializableInjection = from_str(STATIC).expect("should ok");
