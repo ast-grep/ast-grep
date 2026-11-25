@@ -301,3 +301,34 @@ fn test_sg_test_follow_symlinked_test_dir() -> Result<()> {
   drop(dir);
   Ok(())
 }
+
+#[test]
+fn test_sg_test_reuses_generated_snapshots() -> Result<()> {
+  for snapshot_dir in ["__snapshots__", "../snapshots"] {
+    let config = format!("{CONFIG}  snapshotDir: {snapshot_dir}\n");
+    let dir = create_test_files([
+      ("sgconfig.yml", &config),
+      ("rules/test-rule.yml", RULE),
+      ("rule-tests/test-rule-test.yml", TEST),
+    ])?;
+    Command::new(cargo_bin!())
+      .current_dir(dir.path())
+      .args(["test", "--update-all"])
+      .assert()
+      .success();
+    assert!(
+      dir
+        .path()
+        .join("rule-tests")
+        .join(snapshot_dir)
+        .join("test-rule-snapshot.yml")
+        .is_file()
+    );
+    Command::new(cargo_bin!())
+      .current_dir(dir.path())
+      .arg("test")
+      .assert()
+      .success();
+  }
+  Ok(())
+}

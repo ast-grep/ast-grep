@@ -10,7 +10,7 @@ use regex::Regex;
 
 use std::collections::HashMap;
 use std::fs::read_to_string;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 const SNAPSHOT_DIR: &str = "__snapshots__";
 
@@ -67,7 +67,31 @@ impl HarnessBuilder<'_> {
     let test_path = self.base_dir.join(test_dirname);
     let snapshot_dirname = snapshot_dirname.unwrap_or_else(|| SNAPSHOT_DIR.as_ref());
     let snapshot_path = test_path.join(snapshot_dirname);
-    let walker = WalkBuilder::new(&test_path)
+    let mut walker = WalkBuilder::new(&test_path);
+    let mut snapshot_search_path = snapshot_path.clone();
+    // Paths outside the test directory need a separate walk root. Resolve
+    // parent components first so paths back into test_path are visited once.
+    if (snapshot_dirname.is_absolute()
+      || snapshot_dirname
+        .components()
+        .any(|c| c == Component::ParentDir))
+      && snapshot_path
+        .try_exists()
+        .with_context(|| EC::WalkRuleDir(snapshot_path.clone()))?
+    {
+      let resolved_test_path = test_path
+        .canonicalize()
+        .with_context(|| EC::WalkRuleDir(test_path.clone()))?;
+      let resolved_snapshot_path = snapshot_path
+        .canonicalize()
+        .with_context(|| EC::WalkRuleDir(snapshot_path.clone()))?;
+      if let Ok(relative) = resolved_snapshot_path.strip_prefix(resolved_test_path) {
+        snapshot_search_path = test_path.join(relative);
+      } else {
+        walker.add(&snapshot_path);
+      }
+    }
+    let walker = walker
       .types(config_file_type())
       .follow_links(self.follow)
       .build();
@@ -83,7 +107,7 @@ impl HarnessBuilder<'_> {
       }
       let path = config_file.path();
       let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
-      if path.starts_with(&snapshot_path) {
+      if path.starts_with(&snapshot_search_path) {
         deserialize_snapshot_yaml(path, yaml, self)?;
       } else {
         deserialize_test_yaml(path, yaml, &snapshot_path, self)?;
