@@ -307,7 +307,7 @@ fn test_sg_test_reuses_generated_snapshots() -> Result<()> {
   for snapshot_dir in ["__snapshots__", "../snapshots"] {
     let config = format!("{CONFIG}  snapshotDir: {snapshot_dir}\n");
     let dir = create_test_files([
-      ("sgconfig.yml", &config),
+      ("sgconfig.yml", config.as_str()),
       ("rules/test-rule.yml", RULE),
       ("rule-tests/test-rule-test.yml", TEST),
     ])?;
