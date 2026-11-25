@@ -53,6 +53,24 @@ mod tests {
   }
 
   #[test]
+  fn markdown_builtin_rules_extract_headings() {
+    let rules = parse_outline_rules::<SupportLang>(DEFAULT_OUTLINE_RULES)
+      .expect("builtin outline rules should deserialize")
+      .into_iter()
+      .filter(|rule| rule.common().language == SupportLang::Markdown)
+      .collect::<Vec<_>>();
+    let combined =
+      CombinedExtractors::try_from(rules, &Default::default()).expect("rules should compile");
+    let grep = SupportLang::Markdown.ast_grep("# First heading\n\nSecond heading\n---\n");
+    let items = combined.extract(grep.root()).collect::<Vec<_>>();
+    let names = items
+      .iter()
+      .map(|item| item.entry.name.as_ref())
+      .collect::<Vec<_>>();
+    assert_eq!(names, vec!["First heading", "Second heading"]);
+  }
+
+  #[test]
   fn rust_builtin_rules_extract_file_outline() {
     let combined = rust_combined();
     let grep = SupportLang::Rust.ast_grep(

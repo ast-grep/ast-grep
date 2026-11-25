@@ -7,7 +7,7 @@ rule:
   has:
     field: heading_content
     pattern:
-      context: '# $NAME'
+      context: "# $NAME\n"
       selector: inline
 name: '$NAME'
 ---
