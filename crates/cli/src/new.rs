@@ -271,7 +271,7 @@ fn create_new_rule(found: ProjectConfig, arg: NewArg) -> Result<ExitCode> {
   println!("Created rules at {}", path.display());
   let need_test = arg.confirm("Do you also need to create a test for the rule?")?;
   if need_test {
-    create_new_test(test_configs, Some(name))?;
+    return create_new_test(test_configs, Some(name));
   }
   Ok(ExitCode::SUCCESS)
 }

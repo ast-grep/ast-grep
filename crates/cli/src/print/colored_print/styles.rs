@@ -157,8 +157,5 @@ fn env_allows_color() -> bool {
   }
   // If TERM != dumb, then the only way we don't allow colors at this
   // point is if NO_COLOR is set.
-  if env::var_os("NO_COLOR").is_some() {
-    return false;
-  }
-  true
+  env::var_os("NO_COLOR").is_none()
 }
