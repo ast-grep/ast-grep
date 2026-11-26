@@ -201,3 +201,78 @@ func (engine *Engine) Use(middleware ...HandlerFunc) IRoutes {
 "#,
   );
 }
+
+#[test]
+fn go_rules_extract_grouped_types_and_aliases() {
+  common::assert_outline_snapshot(
+    SupportLang::Go,
+    GO_RULES,
+    r#"
+package gin
+
+type Alias = Engine
+
+type (
+    Engine struct {
+        trees methodTrees
+    }
+    RoutesInfo interface {
+        Last() RouteInfo
+    }
+    HandlerFunc func(*Context)
+    Params = []Param
+)
+
+type Single struct {
+    Name string
+}
+
+type (
+    // a group with one spec
+    Lone struct { ID int }
+)
+
+type List[T any] = []T
+"#,
+    r#"
+- TypeParameter item exported Alias
+- Struct item exported Engine
+  - Field private trees
+- Interface item exported RoutesInfo
+  - Method public Last
+- TypeParameter item exported HandlerFunc
+- TypeParameter item exported Params
+- Struct item exported Single
+  - Field public Name
+- Struct item exported Lone
+  - Field public ID
+- TypeParameter item exported List
+"#,
+  );
+}
+
+#[test]
+fn go_rules_extract_grouped_type_signatures() {
+  common::assert_outline_signature_snapshot(
+    SupportLang::Go,
+    GO_RULES,
+    r#"
+package gin
+
+type Alias = Engine
+
+type (
+    Engine struct {
+        trees methodTrees
+    }
+    Params = []Param
+)
+"#,
+    r#"
+- TypeParameter item exported Alias | type Alias = Engine
+- Struct item exported Engine | Engine struct {
+  - Field private trees | trees methodTrees
+- TypeParameter item exported Params | Params = []Param
+"#,
+  );
+}
