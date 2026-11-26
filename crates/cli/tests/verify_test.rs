@@ -304,7 +304,7 @@ fn test_sg_test_follow_symlinked_test_dir() -> Result<()> {
 
 #[test]
 fn test_sg_test_reuses_generated_snapshots() -> Result<()> {
-  for snapshot_dir in ["__snapshots__", "../snapshots"] {
+  for snapshot_dir in ["__snapshots__", "snapshots"] {
     let config = format!("{CONFIG}  snapshotDir: {snapshot_dir}\n");
     let dir = create_test_files([
       ("sgconfig.yml", config.as_str()),
@@ -330,5 +330,23 @@ fn test_sg_test_reuses_generated_snapshots() -> Result<()> {
       .assert()
       .success();
   }
+  Ok(())
+}
+
+#[test]
+fn test_sg_test_rejects_snapshot_directory_outside_test_dir() -> Result<()> {
+  let config = format!("{CONFIG}  snapshotDir: ../snapshots\n");
+  let dir = create_test_files([
+    ("sgconfig.yml", config.as_str()),
+    ("rules/test-rule.yml", RULE),
+    ("rule-tests/test-rule-test.yml", TEST),
+  ])?;
+  Command::new(cargo_bin!())
+    .current_dir(dir.path())
+    .args(["test", "--update-all"])
+    .assert()
+    .failure()
+    .stderr(contains("snapshotDir must be a subdirectory of testDir"));
+  assert!(!dir.path().join("snapshots").exists());
   Ok(())
 }

@@ -2,7 +2,7 @@ use super::{SnapshotCollection, TestCase, TestSnapshots};
 use crate::config::ProjectConfig;
 use crate::utils::ErrorContext as EC;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use ast_grep_config::{from_multiple, from_str};
 use ast_grep_language::config_file_type;
 use ignore::WalkBuilder;
@@ -66,32 +66,20 @@ impl HarnessBuilder<'_> {
   ) -> Result<()> {
     let test_path = self.base_dir.join(test_dirname);
     let snapshot_dirname = snapshot_dirname.unwrap_or_else(|| SNAPSHOT_DIR.as_ref());
-    let snapshot_path = test_path.join(snapshot_dirname);
-    let mut walker = WalkBuilder::new(&test_path);
-    let mut snapshot_search_path = snapshot_path.clone();
-    // Paths outside the test directory need a separate walk root. Resolve
-    // parent components first so paths back into test_path are visited once.
-    if (snapshot_dirname.is_absolute()
-      || snapshot_dirname
-        .components()
-        .any(|c| c == Component::ParentDir))
-      && snapshot_path
-        .try_exists()
-        .with_context(|| EC::WalkRuleDir(snapshot_path.clone()))?
-    {
-      let resolved_test_path = test_path
-        .canonicalize()
-        .with_context(|| EC::WalkRuleDir(test_path.clone()))?;
-      let resolved_snapshot_path = snapshot_path
-        .canonicalize()
-        .with_context(|| EC::WalkRuleDir(snapshot_path.clone()))?;
-      if let Ok(relative) = resolved_snapshot_path.strip_prefix(resolved_test_path) {
-        snapshot_search_path = test_path.join(relative);
-      } else {
-        walker.add(&snapshot_path);
-      }
-    }
-    let walker = walker
+    let relative_path: PathBuf = snapshot_dirname
+      .components()
+      .filter(|component| *component != Component::CurDir)
+      .collect();
+    ensure!(
+      !relative_path.as_os_str().is_empty()
+        && relative_path
+          .components()
+          .all(|c| matches!(c, Component::Normal(_))),
+      "snapshotDir must be a subdirectory of testDir and use a relative path without '..': {}",
+      snapshot_dirname.display()
+    );
+    let snapshot_path = test_path.join(relative_path);
+    let walker = WalkBuilder::new(&test_path)
       .types(config_file_type())
       .follow_links(self.follow)
       .build();
@@ -107,7 +95,7 @@ impl HarnessBuilder<'_> {
       }
       let path = config_file.path();
       let yaml = read_to_string(path).with_context(|| EC::ReadRule(path.to_path_buf()))?;
-      if path.starts_with(&snapshot_search_path) {
+      if path.starts_with(&snapshot_path) {
         deserialize_snapshot_yaml(path, yaml, self)?;
       } else {
         deserialize_test_yaml(path, yaml, &snapshot_path, self)?;
