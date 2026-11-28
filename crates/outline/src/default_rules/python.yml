@@ -13,7 +13,7 @@ language: Python
 role: item
 symbolType: module
 rule:
-  pattern: from $MODULE import $NAME
+  pattern: from $MODULE import $$$NAMES
 name: $MODULE
 isImport: true
 isExported: false
