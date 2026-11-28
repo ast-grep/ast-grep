@@ -366,7 +366,7 @@ impl<L: LanguageExt> Root<StrDoc<L>> {
   }
   pub fn try_new(src: &str, lang: L) -> Result<Self, String> {
     let doc = StrDoc::try_new(src, lang)?;
-    Ok(Self { doc })
+    Ok(Self::doc(doc))
   }
   pub fn get_text(&self) -> &str {
     &self.doc.src
@@ -385,13 +385,11 @@ impl<L: LanguageExt> Root<StrDoc<L>> {
         parser.set_included_ranges(&ranges).ok()?;
         parser.set_language(&lang.get_ts_language()).ok()?;
         let tree = parser.parse(source, None)?;
-        Some(Self {
-          doc: StrDoc {
-            src: self.doc.src.clone(),
-            lang,
-            tree,
-          },
-        })
+        Some(Self::doc(StrDoc {
+          src: self.doc.src.clone(),
+          lang,
+          tree,
+        }))
       })
       .collect()
   }

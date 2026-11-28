@@ -76,12 +76,12 @@ impl Matcher for str {
     node: Node<'tree, D>,
     env: &mut Cow<MetaVarEnv<'tree, D>>,
   ) -> Option<Node<'tree, D>> {
-    let pattern = Pattern::new(self, node.lang().clone());
+    let pattern = node.root.str_pattern(self);
     pattern.match_node_with_env(node, env)
   }
 
   fn get_match_len<D: Doc>(&self, node: Node<'_, D>) -> Option<usize> {
-    let pattern = Pattern::new(self, node.lang().clone());
+    let pattern = node.root.str_pattern(self);
     pattern.get_match_len(node)
   }
 }

@@ -1,12 +1,13 @@
 use crate::Doc;
 use crate::Language;
-use crate::matcher::{Matcher, MatcherExt, NodeMatch};
+use crate::matcher::{Matcher, MatcherExt, NodeMatch, Pattern};
 use crate::replacer::Replacer;
 use crate::source::{Content, Edit as E, SgNode};
 
 type Edit<D> = E<<D as Doc>::Source>;
 
 use std::borrow::Cow;
+use std::sync::{Arc, Mutex};
 
 /// Represents a position in the source code.
 /// The line and column are zero-based, character offsets.
@@ -46,14 +47,41 @@ impl Position {
 
 /// Represents [`tree_sitter::Tree`] and owns source string
 /// Note: Root is generic against [`Language`](crate::language::Language)
-#[derive(Clone)]
 pub struct Root<D: Doc> {
   pub(crate) doc: D,
+  /// The last pattern compiled from a `&str` matcher, so that matching a
+  /// string pattern against every node does not compile it again per node.
+  str_pattern: Mutex<Option<(String, Arc<Pattern>)>>,
+}
+
+impl<D: Doc> Clone for Root<D> {
+  fn clone(&self) -> Self {
+    Self::doc(self.doc.clone())
+  }
 }
 
 impl<D: Doc> Root<D> {
   pub fn doc(doc: D) -> Self {
-    Self { doc }
+    Self {
+      doc,
+      str_pattern: Mutex::new(None),
+    }
+  }
+
+  /// Compile `src` as a pattern for this root's language, reusing the
+  /// previous result when the same source string is requested again.
+  pub(crate) fn str_pattern(&self, src: &str) -> Arc<Pattern> {
+    if let Ok(cache) = self.str_pattern.lock()
+      && let Some((cached, pattern)) = &*cache
+      && cached == src
+    {
+      return pattern.clone();
+    }
+    let pattern = Arc::new(Pattern::new(src, self.lang().clone()));
+    if let Ok(mut cache) = self.str_pattern.lock() {
+      *cache = Some((src.to_string(), pattern.clone()));
+    }
+    pattern
   }
 
   pub fn lang(&self) -> &D::Lang {
@@ -70,6 +98,9 @@ impl<D: Doc> Root<D> {
   // extract non generic implementation to reduce code size
   pub fn edit(&mut self, edit: Edit<D>) -> Result<&mut Self, String> {
     self.doc.do_edit(&edit)?;
+    if let Ok(cache) = self.str_pattern.get_mut() {
+      *cache = None;
+    }
     Ok(self)
   }
 
