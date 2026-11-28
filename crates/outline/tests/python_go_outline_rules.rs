@@ -216,6 +216,9 @@ type (
     Engine struct {
         trees methodTrees
     }
+    RouteInfo struct {
+        Path string
+    }
     RoutesInfo interface {
         Last() RouteInfo
     }
@@ -238,6 +241,8 @@ type List[T any] = []T
 - TypeParameter item exported Alias
 - Struct item exported Engine
   - Field private trees
+- Struct item exported RouteInfo
+  - Field public Path
 - Interface item exported RoutesInfo
   - Method public Last
 - TypeParameter item exported HandlerFunc
