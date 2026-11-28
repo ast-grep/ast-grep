@@ -37,9 +37,13 @@ language: Go
 role: item
 symbolType: struct
 rule:
-  all:
+  any:
+    # `type Name struct`: match the declaration so the signature keeps `type`
     - kind: type_declaration
-    - has:
+      not:
+        has:
+          regex: '^\($'
+      has: &struct_spec
         all:
           - kind: type_spec
           - has:
@@ -47,6 +51,8 @@ rule:
               pattern: $NAME
           - has:
               kind: struct_type
+    # `type ( ... )`: one item per spec
+    - *struct_spec
 name: $NAME
 ---
 id: go-interface-type
@@ -54,9 +60,12 @@ language: Go
 role: item
 symbolType: interface
 rule:
-  all:
+  any:
     - kind: type_declaration
-    - has:
+      not:
+        has:
+          regex: '^\($'
+      has: &interface_spec
         all:
           - kind: type_spec
           - has:
@@ -64,6 +73,7 @@ rule:
               pattern: $NAME
           - has:
               kind: interface_type
+    - *interface_spec
 name: $NAME
 ---
 id: go-struct-field
@@ -103,20 +113,29 @@ language: Go
 role: item
 symbolType: typeParameter
 rule:
-  all:
+  any:
     - kind: type_declaration
-    - has:
-        all:
-          - kind: type_spec
-          - has:
+      not:
+        has:
+          regex: '^\($'
+      has: &type_spec
+        any:
+          - kind: type_alias
+            has:
               field: name
               pattern: $NAME
-          - not:
-              has:
-                kind: struct_type
-          - not:
-              has:
-                kind: interface_type
+          - all:
+              - kind: type_spec
+              - has:
+                  field: name
+                  pattern: $NAME
+              - not:
+                  has:
+                    kind: struct_type
+              - not:
+                  has:
+                    kind: interface_type
+    - *type_spec
 name: $NAME
 ---
 id: go-const
