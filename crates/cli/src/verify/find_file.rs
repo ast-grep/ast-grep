@@ -2,7 +2,7 @@ use super::{SnapshotCollection, TestCase, TestSnapshots};
 use crate::config::ProjectConfig;
 use crate::utils::ErrorContext as EC;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use ast_grep_config::{from_multiple, from_str};
 use ast_grep_language::config_file_type;
 use ignore::WalkBuilder;
@@ -10,7 +10,7 @@ use regex::Regex;
 
 use std::collections::HashMap;
 use std::fs::read_to_string;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 const SNAPSHOT_DIR: &str = "__snapshots__";
 
@@ -66,7 +66,19 @@ impl HarnessBuilder<'_> {
   ) -> Result<()> {
     let test_path = self.base_dir.join(test_dirname);
     let snapshot_dirname = snapshot_dirname.unwrap_or_else(|| SNAPSHOT_DIR.as_ref());
-    let snapshot_path = test_path.join(snapshot_dirname);
+    let relative_path: PathBuf = snapshot_dirname
+      .components()
+      .filter(|component| *component != Component::CurDir)
+      .collect();
+    ensure!(
+      !relative_path.as_os_str().is_empty()
+        && relative_path
+          .components()
+          .all(|c| matches!(c, Component::Normal(_))),
+      "snapshotDir must be a subdirectory of testDir and use a relative path without '..': {}",
+      snapshot_dirname.display()
+    );
+    let snapshot_path = test_path.join(relative_path);
     let walker = WalkBuilder::new(&test_path)
       .types(config_file_type())
       .follow_links(self.follow)
