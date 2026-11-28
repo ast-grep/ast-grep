@@ -99,6 +99,33 @@ class QuerySetRunner:
 }
 
 #[test]
+fn python_rules_extract_parenthesized_from_imports() {
+  common::assert_outline_signature_snapshot(
+    SupportLang::Python,
+    PYTHON_RULES,
+    r#"
+from os import path
+from typing import (Any, Optional)
+from django.db.models import (
+    CharField,
+    IntegerField,
+)
+from . import (views, urls)
+from .utils import (helper as h)
+from collections import *
+"#,
+    r#"
+- Module import private os | from os import path
+- Module import private typing | from typing import (Any, Optional)
+- Module import private django.db.models | from django.db.models import (
+- Module import private . | from . import (views, urls)
+- Module import private .utils | from .utils import (helper as h)
+- Module import private collections | from collections import *
+"#,
+  );
+}
+
+#[test]
 fn go_rules_extract_imports_funcs_methods_types_consts_and_vars() {
   common::assert_outline_snapshot(
     SupportLang::Go,
